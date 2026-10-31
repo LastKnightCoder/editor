@@ -2,6 +2,7 @@
 // 重新生成只对最后一条回答开放；删除先确认。
 
 import { useState } from "react";
+import type { ThinkingLevel } from "@tau/shared/chat-core";
 import { BookmarkPlus, Copy, RefreshCw, TextSelect, Trash2 } from "lucide-react";
 import { ActionSheet, type ActionSheetItem } from "../../components/ActionSheet";
 import { BottomSheet } from "../../components/BottomSheet";
@@ -17,7 +18,7 @@ import type { ChatMessageAction } from "./ChatMessages";
 
 type Target = { index: number; text: string };
 
-export function useMessageActions(sessionId: string) {
+export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLevel) {
   const app = useAppContext();
   const [menu, setMenu] = useState<Target | null>(null);
   const [selecting, setSelecting] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function useMessageActions(sessionId: string) {
         .catch(() => toast.error("复制失败"));
     else if (action === "select") setSelecting(text);
     else if (action === "card") void saveAsCard(text);
-    else if (action === "regenerate") void regenerateLast(sessionId);
+    else if (action === "regenerate") void regenerateLast(sessionId, thinkingLevel);
     else setDeleting(index);
   };
 

@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { v4 as uuid } from "uuid";
 import {
+  DEFAULT_THINKING_LEVEL_OPTIONS,
+  THINKING_LEVEL_OPTIONS,
+} from "../../chat-core/thinkingLevels";
+import {
   ChipCaret,
   ComposerAddMenu,
   ComposerPanel,
@@ -58,63 +62,6 @@ export type {
 export type { ChatContextUsage, ChatDropdownItem } from "./types";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-
-interface ThinkingLevelOption {
-  value: ThinkingLevel;
-  label: string;
-  /** 侧边栏宽度有限，工具行上显示两字短名 */
-  short: string;
-  description: string;
-}
-
-/** 全部档位的文案；实际可选项由模型能力决定（thinkingLevelOptions） */
-const THINKING_LEVEL_OPTIONS: ThinkingLevelOption[] = [
-  {
-    value: "off",
-    label: "立答如流",
-    short: "立答",
-    description: "关闭思考以提升响应速度",
-  },
-  {
-    value: "minimal",
-    label: "极简思考",
-    short: "极简",
-    description: "只做最低限度的思考",
-  },
-  {
-    value: "low",
-    label: "略作沉吟",
-    short: "略思",
-    description: "轻量推理，少量思考即可作答",
-  },
-  {
-    value: "medium",
-    label: "细致推演",
-    short: "细致",
-    description: "平衡速度与质量，保持稳健分析",
-  },
-  {
-    value: "high",
-    label: "穷尽求索",
-    short: "穷尽",
-    description: "深度推理，适合复杂任务",
-  },
-  {
-    value: "xhigh",
-    label: "远谋深算",
-    short: "远谋",
-    description: "长程推演，适合复杂代理任务",
-  },
-  {
-    value: "max",
-    label: "极尽推演",
-    short: "极尽",
-    description: "使用模型允许的最高推理强度",
-  },
-];
-
-/** 调用方没给可选档位时的兜底（模型能力未知，只给各家都有的几档） */
-const DEFAULT_THINKING_LEVEL_OPTIONS: readonly ThinkingLevel[] = ["off", "low", "medium", "high"];
 
 interface ChatImageItem {
   id: string;
@@ -703,7 +650,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   type="button"
                   aria-label="移除图片"
                   onClick={() => removeImage(image.id)}
-                  className="bg-ink-1/70 text-ink-inverse absolute -right-1.5 -top-1.5 grid size-[18px] place-items-center rounded-full opacity-0 transition-opacity group-hover/att:opacity-100"
+                  className="bg-ink-1/70 text-ink-inverse absolute -top-1.5 -right-1.5 grid size-[18px] place-items-center rounded-full opacity-0 transition-opacity group-hover/att:opacity-100"
                 >
                   <X size={11} strokeWidth={2.25} />
                 </button>
@@ -712,7 +659,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             {files.map(file => (
               <div
                 key={file.id}
-                className="border-line-1 bg-surface group/att rounded-tau-sm flex h-8 max-w-[240px] items-center gap-1.5 border pl-2 pr-1"
+                className="border-line-1 bg-surface group/att rounded-tau-sm flex h-8 max-w-[240px] items-center gap-1.5 border pr-1 pl-2"
               >
                 <FileText size={14} strokeWidth={1.75} className="text-danger shrink-0" />
                 <span className="text-tau-sm text-ink-1 min-w-0 truncate">{file.name}</span>
@@ -735,7 +682,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 key={`${mention.entityType}-${mention.entityId}-${mention.contentId}-${index}`}
                 placement="top-start"
                 trigger={
-                  <div className="bg-accent-soft text-accent-text rounded-tau-sm group flex h-7 max-w-[240px] items-center gap-1 pl-2 pr-1">
+                  <div className="bg-accent-soft text-accent-text rounded-tau-sm group flex h-7 max-w-[240px] items-center gap-1 pr-1 pl-2">
                     <span className="text-tau-sm min-w-0 truncate font-medium">
                       @{mention.title}
                     </span>
@@ -787,7 +734,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             placeholder={resolvedPlaceholder}
             disabled={!contentEditable}
             rows={1}
-            className="text-tau-body-lg text-ink-1 placeholder:text-ink-3 block w-full resize-none border-none bg-transparent p-0 focus:outline-none focus:ring-0"
+            className="text-tau-body-lg text-ink-1 placeholder:text-ink-3 block w-full resize-none border-none bg-transparent p-0 focus:ring-0 focus:outline-none"
           />
           {mentionPanelOpen && (
             <ComposerPanel className="mt-2">
@@ -855,7 +802,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               >
                 <ArrowUp size={16} strokeWidth={2.25} />
                 {queuedMessageCount > 0 && (
-                  <span className="bg-ink-1 text-ink-inverse absolute -right-1.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold tabular-nums leading-4">
+                  <span className="bg-ink-1 text-ink-inverse absolute -top-1.5 -right-1.5 min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold tabular-nums">
                     {queuedMessageCount}
                   </span>
                 )}

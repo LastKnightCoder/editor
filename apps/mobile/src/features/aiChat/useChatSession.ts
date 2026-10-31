@@ -1,4 +1,4 @@
-// 对话页（含就近对话）：模型（默认分配 + 会话内临时切换）、读取 / 首发建会话、发送。
+// 对话页（含就近对话）：模型（默认分配 + 会话内临时切换）、思考强度、读取 / 首发建会话、发送。
 
 import { useEffect, useMemo, useState } from "react";
 import type { LLMUsageConfigV2 } from "@tau/ai/models";
@@ -13,6 +13,7 @@ import {
   type ChatInput,
 } from "../../services/aiChat/chatController";
 import { ensureChatInteractions } from "./interactions";
+import { useThinkingLevel } from "./useThinkingLevel";
 
 export function useChatSession(options: {
   sessionId: string;
@@ -39,6 +40,7 @@ export function useChatSession(options: {
     const provider = providers.find(item => item.id === model?.providerId);
     return provider?.models.find(item => item.id === model?.modelId);
   }, [providers, model]);
+  const thinking = useThinkingLevel(providers, model, modelInfo?.thinkingLevel);
 
   useEffect(() => {
     ensureChatInteractions();
@@ -65,7 +67,7 @@ export function useChatSession(options: {
         return;
       }
     }
-    await sendMessage(options.sessionId, input);
+    await sendMessage(options.sessionId, input, thinking.level);
   };
 
   const pickModel = (next: LLMUsageConfigV2 | null) => {
@@ -81,6 +83,7 @@ export function useChatSession(options: {
     modelInfo,
     running: !!chat?.runId,
     loadError,
+    thinking,
     send,
     pickModel,
   };
