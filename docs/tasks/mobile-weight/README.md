@@ -42,8 +42,9 @@ mockup：`apps/mobile/mockups/weight-mobile/index.html`（任务收尾时随任�
 ### 发行状态
 
 - SDK `@xiongtao.xt/tau-plugins@0.51.0` 与 `@xiongtao.xt/tau-ui@0.6.0` 已由用户发布到 npm，registry integrity 与本地打包产物一致。
-- 减重插件依赖已改回这两个 npm 版本并重新生成锁文件（`minimumReleaseAgeExclude` 同步）；插件 0.2.0 尚未推送与打标签。
-- 模板 `plugins/tau-plugin-template` 仍声明 SDK 0.50.0，其 `docs/` 已含本任务的移动端说明；升级模板依赖并跑 `--published --frozen-template` 属于模板发行步骤，尚未执行。
+- 减重插件依赖已改回这两个 npm 版本并重新生成锁文件（`minimumReleaseAgeExclude` 同步）。
+- 插件 0.2.0 已推送 master 与 `v0.2.0`（`9c5253f`）。首次工作流因线上门户不认识 `speech:input` 被拒；经用户同意备份 D1、执行 0013 并部署门户 Worker `1d8200f3` 后重跑，自动批准发布，releaseId `348b9aca-3913-40e7-9ae6-17c4f2861102`，中心与 GitHub ZIP 摘要一致（记录见门户运维手册）。手机端需客户端 0.2.16 才能安装。
+- 模板 `plugins/tau-plugin-template` 的 `docs/` 已推送（`1f17766`），依赖仍声明 SDK 0.50.0；升级模板依赖并跑 `--published --frozen-template` 属于模板发行步骤，尚未执行。
 - 移动客户端版本需升到 0.2.16（插件 targets 与 `MOBILE_SPEECH_MIN_VERSION` 依此），尚未升级。
 
 ## 进度
