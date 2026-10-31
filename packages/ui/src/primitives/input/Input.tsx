@@ -82,7 +82,8 @@ export function Input({
             // （任意不可编辑元素）会让 :has() 恒真，盖掉全部 focus 效果
             "has-[input:read-only]:border-line-1 has-[input:read-only]:hover:border-line-1",
             "has-[input:read-only]:focus-within:border-line-1 has-[input:read-only]:focus-within:shadow-none",
-            size === "sm" ? "h-[28px] pl-2.5 pr-[3px]" : "h-[34px] pl-3 pr-1"
+            size === "sm" ? "h-[28px] px-2.5" : "h-[34px] px-3",
+            clearable && (size === "sm" ? "pr-[3px]" : "pr-1")
           ),
         wrapperClassName
       )}
