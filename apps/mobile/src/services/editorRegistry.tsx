@@ -1,4 +1,10 @@
-import { IFileService, IOpenerService, IResourceService } from "@tau/shared/host-services";
+import {
+  IFetchService,
+  IFileService,
+  IOpenerService,
+  IResourceService,
+} from "@tau/shared/host-services";
+import { mobileHostFetch } from "../app/plugins/host-fetch";
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -108,6 +114,8 @@ export const mobileEditorServices: ServiceRegistration = register => {
       void tauriOpenUrl(url);
     },
   });
+  // 跨域请求复用插件网络传输（网页书签读取网页信息）
+  register(IFetchService, { fetch: mobileHostFetch });
   register(IEditorSlots, mobileEditorSlots);
   register(IVideoContentProviders, mobileVideoContentProviders);
   register(IEditorNotifier, mobileEditorNotifier);

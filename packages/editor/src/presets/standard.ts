@@ -10,6 +10,7 @@ import header from "../extensions/header/src";
 import { tableExtensions } from "../extensions/table/src";
 import { listExtensions } from "../extensions/list/src";
 import { default as link } from "../extensions/link/src";
+import { default as bookmark } from "../extensions/bookmark/src";
 import { default as comment } from "../extensions/comment/src";
 import { default as divideLine } from "../extensions/divide-line/src";
 import { default as kbd } from "../extensions/kbd/src";
@@ -32,6 +33,8 @@ export const standardExtensions: readonly EditorExtension[] = [
   highlightBlock,
   blockquote,
   callout,
+  // 须在链接之前：空段落的网址粘贴先由书签认领
+  bookmark,
   link,
   comment,
   divideLine,

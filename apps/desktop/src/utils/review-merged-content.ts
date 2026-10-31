@@ -68,6 +68,7 @@ const OPAQUE_TYPES = new Set([
   "detail",
   "tabs",
   "webview",
+  "bookmark",
   "divide-line",
   "front-matter",
 ]);

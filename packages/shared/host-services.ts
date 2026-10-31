@@ -53,9 +53,16 @@ export interface OpenerService {
   open: (url: string) => void | Promise<void>;
 }
 
+/** 宿主跨域请求能力：桌面经主进程转发，没有该能力的宿主（网页端）不注册。 */
+export interface FetchService {
+  fetch: typeof globalThis.fetch;
+}
+
 export const IResourceService: ServiceIdentifier<ResourceService> =
   createServiceId<ResourceService>("resourceService");
 export const IFileService: ServiceIdentifier<FileService> =
   createServiceId<FileService>("fileService");
 export const IOpenerService: ServiceIdentifier<OpenerService> =
   createServiceId<OpenerService>("openerService");
+export const IFetchService: ServiceIdentifier<FetchService> =
+  createServiceId<FetchService>("fetchService");

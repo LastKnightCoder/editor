@@ -36,6 +36,11 @@ export const BUILTIN_CONTENT_RESOURCES = {
     { path: "filePath", kind: "file" },
     { path: "localFilePath", kind: "file" },
   ],
+  bookmark: [
+    { path: "meta.image", kind: "image" },
+    { path: "meta.icon", kind: "image" },
+    { path: "overrides.image", kind: "image" },
+  ],
 } as const satisfies ContentResourceDeclarations;
 
 const UNSAFE_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);

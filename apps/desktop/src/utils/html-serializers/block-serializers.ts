@@ -333,6 +333,24 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
+  // 网页书签：导出为带标题与描述的链接段落，封面不导出
+  {
+    type: "bookmark",
+    isBlock: true,
+    toHtml: element => {
+      const url = escapeHtml(element.url || "");
+      const title = escapeHtml(
+        element.overrides?.title || element.meta?.title || element.url || ""
+      );
+      const description = element.overrides?.description ?? element.meta?.description;
+      return `<p class="bookmark"><a href="${url}">${title}</a>${
+        description
+          ? `<br /><span class="bookmark-description">${escapeHtml(description)}</span>`
+          : ""
+      }</p>`;
+    },
+  },
+
   // Tabs
   {
     type: "tabs",

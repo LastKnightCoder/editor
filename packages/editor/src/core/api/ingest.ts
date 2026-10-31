@@ -25,8 +25,8 @@ export interface IngestFilesRule {
 }
 
 export interface IngestTextRule {
-  /** 文本侧认领谓词；求值在 markdown 导入之前 */
-  when: (data: DataTransfer) => boolean;
+  /** 文本侧认领谓词；求值在 markdown 导入之前，editor 用于按选区位置判断 */
+  when: (data: DataTransfer, editor: Editor) => boolean;
   run: (ctx: IngestContext) => void | Promise<void>;
 }
 

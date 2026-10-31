@@ -28,6 +28,7 @@ import { createMobilePluginMcp } from "./ai-mcp";
 import { createMobilePluginAiSkills } from "./ai-skills";
 import { createMobilePluginSpeech } from "./speech";
 import type { MobileAiService } from "../../services/ai";
+import { setMobileHostFetch } from "./host-fetch";
 const loadMobileAi = () => import("../../services/ai").then(module => module.getMobileAiService());
 
 export function encodePluginBytes(bytes: Uint8Array): string {
@@ -393,6 +394,8 @@ export async function connectMobilePluginTransport(
     runtime.fetch = createPluginFetch(token, pluginId =>
       pluginId && activeSync.has(pluginId) ? CHUNK_BYTES * 2 : undefined
     );
+    const hostFetch = runtime.fetch;
+    setMobileHostFetch((input, init) => hostFetch(input, init));
   } catch (error) {
     stopAiRefresh?.();
     void runtime.ai?.dispose().catch(() => undefined);
@@ -419,6 +422,7 @@ export async function connectMobilePluginTransport(
     runtime.data?.dispose();
     runtime.events?.dispose();
     runtime.fetch = undefined;
+    setMobileHostFetch(undefined);
     runtime.websocket = undefined;
     void invoke("plugin_transport_disconnect", { token }).catch(() => undefined);
     openings.clear();

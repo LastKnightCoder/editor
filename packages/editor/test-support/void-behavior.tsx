@@ -57,6 +57,12 @@ export const voidFixtures = [
   { type: "front-matter", value: "title: 示例", children: [text()] },
   { type: "annotation", content: "说明", children: [text()] },
   { type: "divide-line", children: [text()] },
+  {
+    type: "bookmark",
+    url: "https://example.com/",
+    meta: { title: "示例", fetchedAt: 1 },
+    children: [text()],
+  },
   { type: "mermaid", chart: "", children: [text()] },
   { type: "plantuml", content: "", children: [text()] },
   { type: "inline-math", tex: "x", children: [text()] },

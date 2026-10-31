@@ -9,6 +9,7 @@ import { createPluginMarkdownProcessor } from "@tau/plugins/content";
 import { mobileContentPlugins } from "../app/plugins/content";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { linkCodec } from "@tau/editor/extensions/link/markdown";
+import { bookmarkCodec } from "@tau/editor/extensions/bookmark/markdown";
 import { annotationCodec } from "@tau/editor/extensions/annotation/markdown";
 import { kbdCodec } from "@tau/editor/extensions/kbd/markdown";
 import { divideLineCodec } from "@tau/editor/extensions/divide-line/markdown";
@@ -34,6 +35,7 @@ export const mobileCodecComposition = [
   ...listMarkdownCodecs,
   headerCodec,
   linkCodec,
+  bookmarkCodec,
   annotationCodec,
   kbdCodec,
   divideLineCodec,
