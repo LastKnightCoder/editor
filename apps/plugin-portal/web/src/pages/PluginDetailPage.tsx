@@ -193,12 +193,17 @@ export function PluginDetailPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-[1080px] px-8 pt-7 pb-20">
+    <main className="mx-auto max-w-[1080px] px-4 pt-5 pb-20 sm:px-8 sm:pt-7">
       {back}
-      <header className="flex items-start gap-5">
-        <PluginMark pluginId={pluginId} name={manifest.name} size="xl" />
+      <header className="flex items-start gap-4 sm:gap-5">
+        <PluginMark
+          pluginId={pluginId}
+          name={manifest.name}
+          size="lg"
+          className="sm:size-[72px] sm:rounded-[18px] sm:text-[30px]"
+        />
         <div className="min-w-0 flex-1">
-          <h1 className="text-tau-hero text-ink-1 leading-tight font-semibold tracking-[-0.01em]">
+          <h1 className="text-tau-title-lg text-ink-1 sm:text-tau-hero leading-tight font-semibold tracking-[-0.01em]">
             {manifest.name}
           </h1>
           <p className="text-tau-meta text-ink-3 mt-1 flex flex-wrap items-center gap-1.5">
@@ -208,7 +213,9 @@ export function PluginDetailPage() {
             {formatRelative(release.data.publishedAt)}更新
           </p>
           <PlatformBadges version={release.data} className="mt-1.5" />
-          <p className="text-tau-body-lg text-ink-2 mt-2 max-w-[60ch]">{manifest.description}</p>
+          <p className="text-tau-body text-ink-2 sm:text-tau-body-lg mt-2 max-w-[60ch]">
+            {manifest.description}
+          </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
               variant="primary"
@@ -233,8 +240,13 @@ export function PluginDetailPage() {
         </div>
       </header>
 
-      <div className="mt-7 grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <Tabs items={items} activeKey={tab} onChange={setTab} />
+      <div className="mt-6 grid gap-6 sm:mt-7 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <Tabs
+          items={items}
+          activeKey={tab}
+          onChange={setTab}
+          className="min-w-0 [&_[role=tab]]:shrink-0 [&_[role=tablist]]:overflow-x-auto"
+        />
         <aside className="flex flex-col gap-3.5">
           <dl className="border-line-1 bg-surface rounded-tau-md shadow-card text-tau-meta flex flex-col gap-2.5 border p-4">
             <Fact label="版本">

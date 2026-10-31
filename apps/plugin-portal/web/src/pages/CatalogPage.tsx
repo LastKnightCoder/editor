@@ -170,7 +170,7 @@ export function CatalogPage() {
     );
 
   return (
-    <main className="mx-auto max-w-[1120px] px-8 pb-20 pt-8">
+    <main className="mx-auto max-w-[1120px] px-4 pt-6 pb-20 sm:px-8 sm:pt-8">
       <header className="mb-5">
         <h1 className="text-tau-hero text-ink-1 font-semibold tracking-[-0.01em]">插件中心</h1>
         <p className="text-tau-meta text-ink-3 mt-1">全部开源，在 Tau 应用的插件中心安装</p>
@@ -184,7 +184,7 @@ export function CatalogPage() {
           placeholder="搜索插件名称、ID 或用途（按 / 聚焦）"
           value={input}
           onChange={event => setInput(event.target.value)}
-          wrapperClassName="h-[42px] flex-1 rounded-tau-md px-3.5"
+          wrapperClassName="h-[42px] min-w-0 flex-1 rounded-tau-md px-3.5"
         />
         <SortMenu value={sort} onChange={setSort} />
         <StatsHint />

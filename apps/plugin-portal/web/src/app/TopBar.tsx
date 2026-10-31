@@ -50,7 +50,7 @@ export function Avatar({
 
 const navClass = (isActive: boolean) =>
   cn(
-    "text-tau-body rounded-tau-sm flex items-center gap-1.5 px-3 py-[5px] transition-colors",
+    "text-tau-body rounded-tau-sm flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-[5px] transition-colors",
     isActive ? "bg-hover text-ink-1 font-medium" : "text-ink-2 hover:bg-hover hover:text-ink-1"
   );
 
@@ -98,7 +98,7 @@ function UserMenu({ user }: { user: User }) {
           className="rounded-tau-sm hover:bg-hover flex items-center gap-2 px-1.5 py-1 transition-colors"
         >
           <Avatar user={user} />
-          <span className="text-tau-meta text-ink-2">{user.login}</span>
+          <span className="text-tau-meta text-ink-2 hidden sm:inline">{user.login}</span>
           <ChevronDown size={14} className="text-ink-3" />
         </button>
       }
@@ -125,17 +125,20 @@ export function TopBar() {
   const user = session.data?.user ?? null;
   return (
     <header className="border-line-1 bg-page/90 sticky top-0 z-20 border-b backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-6 px-6">
+      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-3 px-4 sm:h-14 sm:flex-nowrap sm:gap-6 sm:px-6">
         <Link
           to="/plugins"
-          className="text-tau-title text-ink-1 flex items-center gap-2.5 font-semibold"
+          className="text-tau-title text-ink-1 flex h-14 shrink-0 items-center gap-2.5 font-semibold whitespace-nowrap sm:h-auto"
         >
           <span className="bg-accent text-ink-inverse rounded-tau-sm grid size-7 place-items-center">
             <Puzzle size={15} strokeWidth={1.9} />
           </span>
           Tau 插件
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav
+          aria-label="主导航"
+          className="order-3 flex h-11 w-full items-center gap-1 overflow-x-auto sm:order-none sm:h-auto sm:w-auto"
+        >
           <Link to="/plugins" className={navClass(pathname.startsWith("/plugins"))}>
             插件中心
           </Link>
@@ -156,7 +159,7 @@ export function TopBar() {
             <ArrowUpRight size={13} className="text-ink-3" />
           </a>
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex h-14 items-center gap-2 sm:h-auto">
           {user ? (
             <>
               <Button
