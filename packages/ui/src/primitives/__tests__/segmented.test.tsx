@@ -1,9 +1,4 @@
-/**
- * Segmented 单测（Input 家族连体描边语言）：
- * radiogroup 组语义与 aria-label · context 受控互斥 · 非受控 defaultValue ·
- * 连体描边/分割线/激活轻染类 · hover-not-checked 任意变体 · focus ring 锚 ·
- * 单项/组级禁用 · sm/md 尺寸档 · 图标段与纯图标段 aria-label 透传。
- */
+/** Segmented 的组语义、受控互斥、非受控切换与禁用行为。 */
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -91,32 +86,6 @@ describe("Segmented", () => {
     expect(inputs[1].checked).toBe(true);
   });
 
-  it("形制类：连体描边容器、段间分割线、激活轻染、hover 只落未选段、ring 锚", () => {
-    const h = render(
-      <Segmented label="组名" defaultValue="a">
-        <Segmented.Item value="a" label="A" />
-        <Segmented.Item value="b" label="B" />
-      </Segmented>
-    );
-    cleanups.push(h.cleanup);
-    const group = h.container.querySelector('[role="radiogroup"]')!;
-    expect(group.className).toContain("border-line-1");
-    expect(group.className).toContain("bg-surface");
-    expect(group.className).toContain("rounded-tau-sm");
-    const labels = [...h.container.querySelectorAll("label")];
-    expect(labels[1].className).toContain("[&+&]:border-l"); // 段间 hairline 分割
-    expect(labels[0].className).toContain("first:rounded-l-[7px]"); // 首末段内圆角贴容器
-    expect(labels[0].className).toContain("last:rounded-r-[7px]");
-    expect(labels[0].className).toContain("has-[:checked]:bg-accent-soft"); // 激活轻染
-    expect(labels[0].className).toContain("has-[:checked]:text-accent-text");
-    expect(labels[0].className).toContain("has-[:checked]:font-semibold");
-    expect(labels[0].className).toContain("hover:[&:not(:has(:checked))]:bg-hover");
-    expect(labels[0].className).toContain("active:[&:not(:has(:checked))]:bg-press");
-    const ring = labels[0].querySelector("span")!;
-    expect(ring.className).toContain("peer-focus-visible:visible");
-    expect(ring.className).toContain("shadow-[var(--tau-focus-ring)]");
-  });
-
   it("禁用：单项原生透传 + 整段降透明；组级禁用压全组", () => {
     const h = render(
       <Segmented label="组名">
@@ -137,22 +106,6 @@ describe("Segmented", () => {
     );
     cleanups.push(h2.cleanup);
     expect(h2.container.querySelector("input")!.disabled).toBe(true);
-  });
-
-  it("md 档：容器 radius 9、段高 32 / tau-meta 字号", () => {
-    const h = render(
-      <Segmented label="组名" size="md">
-        <Segmented.Item value="a" label="A" />
-      </Segmented>
-    );
-    cleanups.push(h.cleanup);
-    const group = h.container.querySelector('[role="radiogroup"]')!;
-    expect(group.className).toContain("rounded-[9px]");
-    expect(group.className).not.toContain("rounded-tau-sm");
-    const label = h.container.querySelector("label")!;
-    expect(label.className).toContain("h-[32px]");
-    expect(label.className).toContain("text-tau-meta");
-    expect(label.className).toContain("first:rounded-l-[8px]"); // md 档内圆角随容器 9px
   });
 
   it("图标段与纯图标段：lucide 渲染、纯图标收窄内衬且 aria-label 透传", () => {

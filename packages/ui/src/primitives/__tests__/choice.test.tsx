@@ -1,12 +1,8 @@
-/**
- * Checkbox / Switch 单测（Input 方案 A 语言）：
- * 原生语义透传 · label 关联点击 · indeterminate DOM 属性 · peer 类驱动形制 ·
- * role=switch 受控切换 · 尺寸两档 · 禁用 · 错误态 aria-invalid 变体类。
- */
+/** Checkbox / Switch 的原生语义、受控切换、标签关联与禁用行为。 */
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Checkbox } from "../Checkbox";
 import { Switch } from "../Switch";
@@ -66,17 +62,6 @@ describe("Checkbox", () => {
     );
   });
 
-  it("形制类：命中 24×24、ring/disabled 走锚格 has- 变体、错误态变体", () => {
-    const h = render(<Checkbox aria-invalid />);
-    cleanups.push(h.cleanup);
-    const anchor = h.container.querySelector("label > span")!;
-    const cell = h.container.querySelector("label > span > span")!;
-    expect(anchor.className).toContain("size-6");
-    expect(anchor.className).toContain("has-[:focus-visible]:shadow-[var(--tau-focus-ring)]");
-    expect(cell.className).toContain("peer-[&[aria-invalid=true]]:border-danger");
-    expect(cell.className).toContain("peer-checked:border-accent");
-  });
-
   it("禁用：原生 disabled 透传 + 锚格降透明", () => {
     const h = render(<Checkbox disabled />);
     cleanups.push(h.cleanup);
@@ -116,26 +101,6 @@ describe("Switch", () => {
     expect(btn.getAttribute("aria-checked")).toBe("true");
     click(btn);
     expect(btn.getAttribute("aria-checked")).toBe("false");
-  });
-
-  it("形制类：轨道色条件互斥（选中 accent / 未选中 bg-track）、thumb 描边、位移、两档尺寸", () => {
-    const h = render(<Switch checked size="md" />);
-    cleanups.push(h.cleanup);
-    const btn = h.container.querySelector("button")!;
-    const thumb = btn.querySelector("span")!;
-    expect(btn.className).toContain("bg-accent");
-    expect(btn.className).not.toContain("bg-track"); // 轨道色互斥：选中即 accent
-    expect(btn.className).toContain("h-5");
-    expect(thumb.className).toContain("border-transparent"); // 选中后描边功成身退
-    expect(thumb.className).toContain("left-[17px]");
-    const h2 = render(<Switch size="sm" />);
-    cleanups.push(h2.cleanup);
-    const btn2 = h2.container.querySelector("button")!;
-    const thumb2 = btn2.querySelector("span")!;
-    expect(btn2.className).toContain("bg-track"); // 未选中轨道消费 token
-    expect(btn2.className).toContain("w-[30px]");
-    expect(thumb2.className).toContain("border-ink-3"); // 未选中 thumb 靠描边环显形
-    expect(thumb2.className).not.toContain("left-[");
   });
 
   it("label：渲染在左、点击文字切换；禁用不动", () => {

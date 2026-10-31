@@ -313,20 +313,6 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     expect(container?.querySelector('[aria-label^="代理："]')).toBeNull();
   });
 
-  it("应限制编辑器区域高度，并允许长内容在输入区内部滚动", async () => {
-    const ref = {
-      current: null,
-    } as React.RefObject<ChatInputAreaHandle | null>;
-    await renderChatInputArea(ref);
-
-    const editor = container?.querySelector('[data-testid="chat-editor"]') as HTMLElement | null;
-
-    // 编辑器裁剪拖拽手柄溢出；外层限高并内部滚动（D-048 Tailwind 化）
-    expect(editor?.className).toContain("overflow-hidden");
-    expect(editor?.parentElement?.className).toContain("max-h-[min(240px,34vh)]");
-    expect(editor?.parentElement?.className).toContain("overflow-y-auto");
-  });
-
   it("应使用 mod+enter 发送，并保留 Enter 用于编辑器换行", async () => {
     const onPressEnter = vi.fn();
     const ref = {

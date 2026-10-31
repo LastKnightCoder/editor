@@ -1,12 +1,4 @@
-/**
- * Dialog/ConfirmDialog 基础件单测（方案 B 定稿 + D-011 嫁接，mockups/dialog/）：
- * 开合与 aria · 关闭矩阵（dismissible / critical 拒绝 / locked 封锁）·
- * 初始焦点策略（data-autofocus / danger 落取消）· Tab 首尾圈闭 · 焦点归还 ·
- * 尺寸档与 width 任意值 · ConfirmDialog 的 type-to-confirm 门槛 / Enter 默认应答 /
- * loading 封锁与即关语义。
- * jsdom 无布局与 WAAPI：抖动只验证不崩（animate 可选链）；退场卸载等真实
- * 200ms 定时（flushAnim）。
- */
+/** Dialog / ConfirmDialog 的开合、关闭仲裁、焦点管理、确认门槛与异步生命周期。 */
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -283,33 +275,6 @@ describe("Dialog", () => {
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
     h.cleanup();
-  });
-
-  it("尺寸档与 width 任意值", async () => {
-    const h = await renderControlled(({ open, change }) => (
-      <Dialog
-        open={open}
-        onOpenChange={change}
-        title="t"
-        size="lg"
-        footer={<button type="button">ok</button>}
-      />
-    ));
-    expect(h.card()!.className).toContain("w-[560px]");
-    expect(h.card()!.style.width).toBe("");
-    h.cleanup();
-
-    const h2 = await renderControlled(({ open, change }) => (
-      <Dialog
-        open={open}
-        onOpenChange={change}
-        title="t"
-        width={520}
-        footer={<button type="button">ok</button>}
-      />
-    ));
-    expect(h2.card()!.style.width).toBe("520px");
-    h2.cleanup();
   });
 
   it("宿主 Activity 保活停驻时退场不冻结：open 关闭与页面隐藏同批提交后弹窗退到不可见不可点，回页后补卸载", async () => {

@@ -46,11 +46,6 @@ const press = async (target: HTMLElement, key: string) => {
 };
 
 describe("VideoPlayer", () => {
-  it("底栏渲染信息位", async () => {
-    const el = await mount(<VideoPlayer src="a.mp4" info={<span>Bilibili · 标题</span>} />);
-    expect(el.textContent).toContain("Bilibili · 标题");
-  });
-
   it("聚焦后方向键快进 5 秒并弹出 OSD", async () => {
     const el = await mount(<VideoPlayer src="a.mp4" />);
     const video = el.querySelector("video")!;

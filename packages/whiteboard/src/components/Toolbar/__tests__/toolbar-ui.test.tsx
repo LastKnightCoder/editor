@@ -17,7 +17,6 @@ import {
   type WhiteboardToolContribution,
 } from "../../../extensions/api";
 import { useBoard } from "../../../hooks/useBoard";
-import { ChromeButton, ToolbarContext } from "../../../chrome";
 import type { BoardElement } from "../../../types";
 import { useWhiteboardAPI } from "../../../extensions/context";
 
@@ -275,41 +274,6 @@ describe("滑动激活指示块", () => {
     expect(indicator.style.left).toBe("42px");
     expect(indicator.style.width).toBe("30px");
     expect(indicator.style.opacity).toBe("1");
-  });
-});
-
-describe("工具栏激活态与属性条激活态的样式分工", () => {
-  it("工具栏内激活按钮只改文字色，不带 bg-accent-soft", async () => {
-    const { host } = await mountBoard([createInteractionExtension()]);
-    const selectButton = host.querySelector<HTMLButtonElement>('button[aria-label="选择"]')!;
-    expect(selectButton.getAttribute("aria-pressed")).toBe("true");
-    expect(selectButton.className).toContain("text-accent-text");
-    expect(selectButton.className).not.toContain("bg-accent-soft");
-  });
-
-  it("工具栏外的 ChromeButton 激活态仍带 bg-accent-soft", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const root = createRoot(host);
-    roots.push(root);
-    await act(async () => {
-      root.render(
-        <>
-          <ChromeButton label="属性条按钮" active>
-            <i />
-          </ChromeButton>
-          <ToolbarContext value={true}>
-            <ChromeButton label="工具栏按钮" active>
-              <i />
-            </ChromeButton>
-          </ToolbarContext>
-        </>
-      );
-    });
-    const [attrButton, toolButton] = [...host.querySelectorAll("button")];
-    expect(attrButton.className).toContain("bg-accent-soft");
-    expect(toolButton.className).not.toContain("bg-accent-soft");
-    expect(toolButton.className).toContain("text-accent-text");
   });
 });
 

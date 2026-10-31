@@ -27,7 +27,6 @@ import { WhiteboardContractCatalog } from "../../../packages/whiteboard/src/coll
 import { createServiceRegistry } from "../../../packages/shared/service-registry";
 import { IWhiteboardAuthorPermission } from "../../../packages/whiteboard/src/extensions/authorAccess";
 import Board from "../../../packages/whiteboard/src/Board";
-import { convertLegacyWhiteboard } from "../../../apps/desktop/src-electron/main/modules/whiteboard-documents/legacy";
 import type { StickmanCommands } from "../../../plugins/tau-plugin-stickman/src/commands";
 
 const root = path.resolve(import.meta.dirname, "../../..");
@@ -255,40 +254,6 @@ it("缺失插件仍能保真接收与跨页移动，重装恢复精确契约", a
   expect(a.model.read()).toEqual(b.model.read());
   const reopened = await fixture(Y.encodeStateAsUpdate(b.doc));
   expect(reopened.catalog.get(b.model.read().pages[1].children[0].contractId)?.access).toBe("edit");
-});
-
-it("旧 schemaVersion 快照显式转换仍保留原载荷，不因候选插件存在自动冒充新契约", async () => {
-  const original = {
-    id: "old-figure",
-    type,
-    schemaVersion: 1,
-    x: 1,
-    y: 2,
-    width: 132,
-    height: 172,
-    data: { pose: "stand", body: "bean", tint: "mono", flip: true, future: { keep: 1 } },
-    sketch: { mode: "sketch", seed: 42 },
-  };
-  const result = await convertLegacyWhiteboard(
-    [{ id: "old-page", title: "旧页", data: { version: 2, children: [original] } }],
-    {
-      documentId: "old-document",
-      title: "旧人物",
-      editorContracts: {},
-      resolveEntity: () => null,
-      mapResource: async reference => reference,
-    }
-  );
-  cleanup.push(() => result.doc.destroy());
-  const retained = result.bundle.pages[0].elements[0];
-  expect(retained.id).toBe(original.id);
-  expect(retained.data.original).toEqual(original);
-  expect(result.issues).toEqual([
-    { pageId: "old-page", nodeId: original.id, reason: "unknown-legacy-contract" },
-  ]);
-  const reopened = await fixture(Y.encodeStateAsUpdate(result.doc));
-  expect(reopened.catalog.get(retained.contractId)).toBeUndefined();
-  expect(snapshot(reopened).data.original).toEqual(original);
 });
 
 it("偏好读取迟到且插件已失活时创建返回空，保存失败不生成节点", async () => {

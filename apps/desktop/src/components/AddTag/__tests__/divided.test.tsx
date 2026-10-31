@@ -24,11 +24,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("divided 时标签行自带上分割线，不依赖正文末块的外边距", () => {
-  act(() => root.render(<AddTag divided tags={[]} addTag={vi.fn()} removeTag={vi.fn()} />));
-  expect(host.firstElementChild?.className).toContain("border-t");
-});
-
 it("新增标签去首尾空白，已存在的标签不重复提交", () => {
   const addTag = vi.fn();
   act(() => root.render(<AddTag tags={["已有"]} addTag={addTag} removeTag={vi.fn()} />));

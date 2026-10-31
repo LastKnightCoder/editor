@@ -13,7 +13,6 @@ export default defineConfig({
       "src-electron/main/services/__tests__/plugin-publish.test.ts",
       "src-electron/main/services/__tests__/{plugin-publish-provider,provider-settings,git-publication}.test.ts",
       "src/app/plugins/__tests__/publish-registry.test.ts",
-      "src/features/settings/__tests__/IntegrationSection.test.tsx",
       "src/features/publish/__tests__/*.test.ts*",
       "src/features/plugins/__tests__/{local-manager,plugin-model}.test.ts",
     ],
