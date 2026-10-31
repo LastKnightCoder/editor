@@ -50,6 +50,8 @@ pnpm code:stats --project apps,packages --language ts,tsx,rs,css
 pnpm code:stats --include-examples
 pnpm code:stats --exclude apps/desktop/src/some-vendor --files
 node scripts/count-code.mjs --json > code-stats.json
+pnpm code:stats --html
+pnpm code:stats --html --project apps/desktop
 ```
 
 默认显示语言、项目和分组汇总；`--details` 显示各项目的语言明细，`--files` 列出计入文件。项目按 `apps/*`、`packages/*`、`plugins/*` 划分，示例工程需显式开启。`--project` 接受项目路径或分组名；`--language` 接受语言名，均可重复或用逗号分隔。MTS/CTS 归入 TS，MJS/CJS 归入 JS；TSX/JSX 独立统计。全部选项与语言见 `pnpm code:stats --help`。
@@ -57,6 +59,8 @@ node scripts/count-code.mjs --json > code-stats.json
 统计口径为物理行：**非空行包含注释**，总行数等于非空行加空行；文件末尾换行符不额外算一行。测试按文件排除，不拆分生产文件中的内联测试或示例文本。统计读取当前工作区内容，包含 Git 已跟踪文件及未被忽略的新文件，跳过已删除文件和符号链接；已检出的插件子模块使用各自的 Git 文件清单。
 
 自有共享包计入；依赖、第三方源码目录、测试及夹具、校验和构建脚本、配置文件、构建产物、生成代码、文档、演示与原型稿排除。数据库 SQL 只统计源分片与独立源码，排除生成的 main.sql/index.sql，避免重复；Tauri 生成目录内项目维护的两个 Kotlin 文件保留。带生成标记的文件按头部注释排除，未标记的外部源码可用 `--exclude` 追加仓库相对文件或目录路径，不支持通配符。排除规则的唯一实现位于 [统计脚本](/scripts/count-code.mjs)。
+
+`--html` 生成单文件可视化报告 `output/code-stats.html` 并用默认浏览器打开，包含总览、目录树图（点击下钻）与项目 × 语言矩阵三个视图，页面内可再按分组和语言筛选；筛选参数同样适用，报告只包含筛选后的文件。报告模板位于 `scripts/code-stats-report/`，生成时内联成单文件。
 
 导出纯 JSON 时直接使用 `node scripts/count-code.mjs --json`，避免包管理器日志混入标准输出；加上 `--files` 可同时导出逐文件明细。用相同筛选条件比较结果，并检查分组、语言和项目的计数均能加总到 `total`。
 
