@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>记账本 · 移动端设计方案 v1</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="ex.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>记账本 · 移动端设计方案 v1<small>沿用减重移动端的框架 · 颜色取自 @tau/themes，分类色同插件 --ex-c0…6 · 手机帧 360×760 · 流水为示意数据，今天按 10 月 22 日 12:40</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="principle">0 方向</button>
+    <button class="tab" data-tab="entry">1 入口</button>
+    <button class="tab" data-tab="layout">2 主页</button>
+    <button class="tab" data-tab="log">3 一句话记账</button>
+    <button class="tab" data-tab="voice">4 语音记账</button>
+    <button class="tab" data-tab="list">5 流水与编辑</button>
+    <button class="tab" data-tab="cal">6 月历</button>
+    <button class="tab" data-tab="review">7 分类与回顾</button>
+    <button class="tab" data-tab="settings">8 预算设置</button>
+    <button class="tab" data-tab="cmp">9 待你决定</button>
+  </nav>
+</header>
+
+<!-- ───────────── 0 方向 ───────────── -->
+<section class="scene" data-scene="principle">
+  <p class="scene-intro">桌面版是一整页双列：本月余额、月历、分类预算、回顾在左，一句话记账、流水、AI 在右。手机屏幕放不下，按<b>「每天看 → 偶尔查 → 月底复盘」</b>拆成三层：<b>主页</b>只放每天要看的（还能花多少、分类预算、最近流水），页底固定一句话记账条；<b>月历</b>和<b>回顾与 AI</b> 各是一个二级页，从顶栏进。入口、首页卡片、语音和左滑等交互全部沿用减重移动端已经定下的做法，记账和减重在手机上用起来是同一套手感。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 入口沿用宫格与今天页卡片</h3><p>「我的」功能宫格里已经有记账本的位置（图标是钱包）。今天页卡片显示本月还能花、今天花了多少，按钮「记一笔」进记账页并聚焦输入条。</p></div>
+    <div class="card"><h3>2 · 主页三块</h3><p>主卡（本月还能花、时间进度竖线、今天 / 昨天 / 比上月同期）→ 分类预算（默认 4 类，按用掉的比例排）→ 流水（今天和昨天）。月历不放主页：手机上 7 列格子太小，单独一页才看得清每天花了多少。</p></div>
+    <div class="card"><h3>3 · 一句话记账不变</h3><p>还是写「午饭 牛肉面 28」。金额是用户自己写的，不需要 AI 估算，所以没有减重那种后台估算状态。认不出分类时在预览里点一下，或点「AI 归类」，记住以后同一句自动归类。</p></div>
+    <div class="card"><h3>4 · 语音一次记几笔</h3><p>按住说「午饭牛肉面二十八，打车回家三十六」，拆成两笔各自归类，确认后一起记下。没配 AI 模型时本地按逗号拆句；语音不可用时麦克风按钮不显示。</p></div>
+    <div class="card"><h3>5 · 手势</h3><p>流水左滑「改 / 删除」，点按打开编辑面板（金额用面板数字键盘，分类是图标宫格），删除可撤销。月历点某天弹出当天流水；分类行点按进分类详情。</p></div>
+    <div class="card"><h3>6 · 数据与口径不变</h3><p>流水、备注记忆、固定支出、快慢判定沿用插件的 <code>data/</code> 与 <code>stats.ts</code>，桌面和手机读写同一份数据。手机只新增界面，加上 manifest 的 android / ios 目标与 <code>speech:input</code> 权限。</p></div>
+  </div>
+</section>
+
+<!-- ───────────── 1 入口 ───────────── -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro">入口和减重一样有两个：<b>「我的」顶部功能宫格</b>和<b>今天页插件卡片</b>。记账卡占两列卡片中的一格，显示本月还能花多少和今天花了多少；「记一笔」直接打开记账页并弹出键盘。卡片尺寸 132px 高，与减重卡并排时上下对齐。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="t-head"><h2>我的</h2><span class="sb" data-i="search" data-s="20"></span></div>
+        <div class="w-body" style="padding-top:16px">
+          <div class="fgrid">
+            <span><b style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)" data-i="list-checks" data-s="24"></b>任务</span>
+            <span><b style="background:var(--brand-soft);color:var(--brand)" data-i="file-text" data-s="24"></b>文章</span>
+            <span><b style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)" data-i="folder-open" data-s="24"></b>项目</span>
+            <span><b style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)" data-i="layers" data-s="24"></b>闪卡</span>
+            <span><b style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="timer" data-s="24"></b>番茄</span>
+            <span><b style="background:var(--tau-tag-1-soft);color:var(--tau-tag-1)" data-i="scale" data-s="24"></b>减重</span>
+            <span class="new"><b style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)" data-i="wallet" data-s="24"></b>记账本</span>
+          </div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row"><span data-i="puzzle" data-s="18" style="color:var(--ink-2)"></span>插件中心<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row"><span data-i="refresh-cw" data-s="18" style="color:var(--ink-2)"></span>同步<span class="val">刚刚<span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="sparkles" data-s="18" style="color:var(--ink-2)"></span>AI 模型<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="settings" data-s="18" style="color:var(--ink-2)"></span>设置<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+        </div>
+        <div data-dock="me"></div>
+      </div></div>
+      <div class="frame-cap">我的 · 功能宫格<small>记账本按启用顺序接在减重后面，宿主已支持，插件只需在手机上改为注册 <code>navigation</code> 入口（桌面仍注册侧边栏）。首次出现时图标带 accent 描边。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="t-head"><div><h2>下午好</h2><p>10 月 22 日 周四 · 今天还有 3 件事</p></div><span class="sb" data-i="search" data-s="20"></span></div>
+        <div class="w-body" style="padding-top:14px">
+          <div class="askbar"><span data-i="sparkles" data-s="18" style="color:var(--brand)"></span>问问你的笔记…<span class="go" data-i="arrow-up" data-s="17"></span></div>
+          <div class="pcards">
+            <div class="pcard">
+              <div class="h"><span data-i="scale" data-s="13" style="color:var(--tau-tag-1)"></span>减重<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">900<small>kcal</small></div>
+              <div class="sub">还能吃 · 晨重 <b class="num">72.2</b></div>
+              <div class="ops"><span data-i="scale" data-s="13">称重</span><span class="acc" data-i="plus" data-s="13">记一笔</span></div>
+            </div>
+            <div class="pcard">
+              <div class="h"><span data-i="wallet" data-s="13" style="color:var(--tau-tag-2)"></span>记账本<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">¥3,264</div>
+              <div class="sub">本月还能花 · 剩 10 天</div>
+              <div style="margin-top:7px" data-meter="0.69,0.69"></div>
+              <div class="ops"><span data-i="mic" data-s="13"></span><span class="acc" data-i="plus" data-s="13" style="flex:2.4">记一笔</span></div>
+            </div>
+          </div>
+          <div class="agenda">
+            <div class="r"><span class="i" style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)" data-i="list-checks" data-s="18"></span><span>3 项待办<small>周报 等</small></span><span class="a">查看</span></div>
+            <div class="r"><span class="i" style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)" data-i="calendar" data-s="18"></span><span>19:30 和朋友吃饭<small>日程</small></span><span class="a">7 小时后</span></div>
+            <div class="r"><span class="i" style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="notebook-pen" data-s="18"></span><span>今天还没写日记<small>日记</small></span><span class="a">写</span></div>
+          </div>
+        </div>
+        <div data-dock="home"></div>
+      </div></div>
+      <div class="frame-cap">今天页 · 记账卡<small>大数字是本月还能花，下面一根进度条（竖线是时间进度），同桌面首页卡片的口径。麦克风直接在今天页弹出语音记账（第 4 页），「记一笔」进记账页并聚焦输入条。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="t-head"><div><h2>晚上好</h2><p>10 月 28 日 周三 · 今天还有 1 件事</p></div><span class="sb" data-i="search" data-s="20"></span></div>
+        <div class="w-body" style="padding-top:14px">
+          <div class="askbar"><span data-i="sparkles" data-s="18" style="color:var(--brand)"></span>问问你的笔记…<span class="go" data-i="arrow-up" data-s="17"></span></div>
+          <div class="sec-t" style="margin:0 0 -4px">花得偏快</div>
+          <div class="pcards">
+            <div class="pcard">
+              <div class="h"><span data-i="wallet" data-s="13" style="color:var(--tau-tag-2)"></span>记账本<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">¥1,180</div>
+              <div class="sub" style="color:var(--danger)">比时间进度快 19%</div>
+              <div style="margin-top:7px" data-meter="0.887,0.69"></div>
+              <div class="ops"><span data-i="mic" data-s="13"></span><span class="acc" data-i="plus" data-s="13" style="flex:2.4">记一笔</span></div>
+            </div>
+            <div class="pcard">
+              <div class="h"><span data-i="wallet" data-s="13" style="color:var(--tau-tag-2)"></span>记账本<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num" style="color:var(--danger)">−¥420</div>
+              <div class="sub">本月已超预算 · 剩 4 天</div>
+              <div style="margin-top:7px" data-meter="1.04,0.87"></div>
+              <div class="ops"><span data-i="mic" data-s="13"></span><span class="acc" data-i="plus" data-s="13" style="flex:2.4">记一笔</span></div>
+            </div>
+          </div>
+          <div class="sec-t" style="margin:4px 0 -4px">没设预算</div>
+          <div class="pcards">
+            <div class="pcard">
+              <div class="h"><span data-i="wallet" data-s="13" style="color:var(--tau-tag-2)"></span>记账本<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">¥7,186</div>
+              <div class="sub">本月已花 · 今天 ¥46</div>
+              <div class="ops"><span data-i="mic" data-s="13"></span><span class="acc" data-i="plus" data-s="13" style="flex:2.4">记一笔</span></div>
+            </div>
+            <div class="pcard" style="opacity:.0"></div>
+          </div>
+        </div>
+        <div data-dock="home"></div>
+      </div></div>
+      <div class="frame-cap">卡片的几种状态<small>偏快时副标题变红并写出快多少；超了显示负数；没设预算时显示本月已花和今天，不画进度条。三种状态并排只为对照，实际只出现一张。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 2 主页 ───────────── -->
+<section class="scene" data-scene="layout">
+  <p class="scene-intro">主页从上到下：<b>主卡</b>（本月还能花、时间进度、今天 / 昨天 / 比上月同期）→ <b>分类预算</b>（4 类，按用掉的比例排，超了和偏快的总在前面）→ <b>流水</b>（今天和昨天，往下滚继续加载更早的）。页底固定一句话记账条，上方一排常记胶囊。顶栏右侧三个按钮依次是月历、回顾与 AI、设置。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div data-tpl="cats" data-n="4"></div>
+          <div data-tpl="txs" data-days="1"></div>
+        </div>
+        <div data-tpl="log" data-chips></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">主页 · 首屏<span class="rec-badge">推荐</span><small>人情已超，排第一；右侧小字是比前 3 个月平均多花（红）或少花（绿），超了就写超多少。居住全是固定支出，进度条不画时间竖线。流水露出今天的三笔，滚动后看到昨天。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="x-mini"><span data-i="wallet" data-s="15" style="color:var(--brand)"></span>还能花 <b class="num">¥3,264</b><span class="sp"></span><span class="muted">每天最多 ¥326</span></div>
+          <div class="w-card" style="padding-bottom:4px;margin-top:-2px">
+            <div class="w-head">流水<small>10 月 87 笔</small><span class="sp"></span><span class="more" data-i="search" data-s="14"></span></div>
+            <div id="scroll-txs"></div>
+          </div>
+        </div>
+        <div data-tpl="log" data-chips></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">往下滚<small>主卡滚出屏幕后，顶栏下方吸顶一行「还能花」，记账时随时看得到余额。流水按天分组，每天右侧是当天可控支出（不含固定支出）。固定支出行带「固定支出」字样。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body">
+          <div data-tpl="hero-none"></div>
+          <div class="w-card" style="text-align:center;padding:26px 16px">
+            <div style="font-size:14px;font-weight:600">还没有流水</div>
+            <div style="font-size:12.5px;color:var(--ink-3);margin-top:5px;line-height:1.7">在下面写一句「奶茶 18」，<br>或者按住麦克风说「午饭二十八」</div>
+          </div>
+          <div class="x-banner"><span data-i="sliders-horizontal" data-s="17"></span><span>先按自己的情况改一改各分类的月预算，再把房租、会员这类<b>固定支出</b>填进去</span><span class="act">去设置</span></div>
+        </div>
+        <div class="w-log"><div class="chips"><span class="chip">奶茶 18</span><span class="chip">打车回家 36</span><span class="chip">昨天 份子钱 600</span></div><div class="bar"><span class="ph">午饭 牛肉面 28</span><span class="b" data-i="mic" data-s="20"></span><span class="b main" data-i="arrow-up" data-s="19" style="opacity:.35"></span></div></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">第一次打开<small>不做整页引导：记账不需要先填资料，默认分类预算就能用。没有流水时分类预算卡不显示，改为一条「去设置」提示（记过 5 笔或进过设置后不再出现）。胶囊换成示例句，点一下填进输入条。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 3 一句话记账 ───────────── -->
+<section class="scene" data-scene="log">
+  <p class="scene-intro">和桌面同一套解析：句子里最后一个数字是金额，开头写「昨天 / 前天」记到那天，分类依次取这句备注记过的分类 → 关键词 → 认不出。键盘弹起后主卡收成一行，输入条上方是<b>识别预览</b>：分类、金额，以及记下后这个分类和本月还剩多少。认不出分类时预览里给分类胶囊，点一下就能发送。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body tight">
+          <div class="x-mini"><span data-i="wallet" data-s="15" style="color:var(--brand)"></span>还能花 <b class="num">¥3,264</b><span class="sp"></span><span class="muted">今天 ¥46</span></div>
+        </div>
+        <div class="w-log">
+          <div class="x-pre">
+            <div class="top"><span data-cico="trans" data-size="34"></span><span class="t">打车回家<small data-i="history" data-s="11">交通 · 按上次的归类</small></span><b class="amt num">¥36</b></div>
+            <div class="after">交通还剩 <b class="num">¥117</b><span data-meter="0.74,0.69"></span>本月 <b class="num">¥3,228</b></div>
+          </div>
+          <div class="bar"><span class="tx">打车回家 36<i></i></span><span class="b" data-i="mic" data-s="20"></span><span class="b main" data-i="arrow-up" data-s="19"></span></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap">认得出 · 直接发送<small>小字说明分类从哪来（「按上次的归类」「按关键词」）。点预览里的分类图标可以换分类。进度条深色是已用，这一笔记下后的位置一起画出。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body tight">
+          <div class="x-mini"><span data-i="wallet" data-s="15" style="color:var(--brand)"></span>还能花 <b class="num">¥3,264</b><span class="sp"></span><span class="muted">今天 ¥46</span></div>
+        </div>
+        <div class="w-log">
+          <div class="x-pre">
+            <div class="top"><span class="cico" style="--cc:var(--ink-3);width:34px;height:34px;box-shadow:inset 0 0 0 1.5px var(--line-1);background:transparent" data-i="tag" data-s="16"></span><span class="t">理发<small>选一个分类，下次写「理发」自动归到这里</small></span><b class="amt num">¥45</b></div>
+            <div class="x-catchips">
+              <span class="chip ai" data-i="sparkles" data-s="13">AI 归类</span>
+              <span class="chip"><span data-cico="shop" data-size="22"></span>购物</span>
+              <span class="chip on"><span data-cico="other" data-size="22"></span>其他</span>
+              <span class="chip"><span data-cico="fun" data-size="22"></span>娱乐</span>
+              <span class="chip"><span data-cico="social" data-size="22"></span>人情</span>
+              <span class="chip"><span data-cico="food" data-size="22"></span>餐饮</span>
+            </div>
+          </div>
+          <div class="bar"><span class="tx">理发 45<i></i></span><span class="b" data-i="mic" data-s="20"></span><span class="b main" data-i="arrow-up" data-s="19"></span></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap">认不出分类<small>胶囊按本月用得多的排，第一个是「AI 归类」（没配模型时不显示）。选中后发送键亮起；不选直接发送时记到「其他」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body tight">
+          <div class="x-mini"><span data-i="wallet" data-s="15" style="color:var(--brand)"></span>还能花 <b class="num">¥3,264</b><span class="sp"></span><span class="muted">今天 ¥46</span></div>
+        </div>
+        <div class="w-log">
+          <div class="x-pre">
+            <div class="top"><span data-cico="social" data-size="34"></span><span class="t">份子钱<small data-i="calendar" data-s="11">昨天 · 10 月 21 日 · 人情</small></span><b class="amt num">¥600</b></div>
+            <div class="after" style="color:var(--danger)"><span data-i="triangle-alert" data-s="13"></span>人情已经超了 ¥25，记下后超 ¥625<span class="sp"></span></div>
+          </div>
+          <div class="bar"><span class="tx">昨天 份子钱 600<i></i></span><span class="b" data-i="mic" data-s="20"></span><span class="b main" data-i="arrow-up" data-s="19"></span></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap">记到昨天 · 会超预算<small>开头写了「昨天」，预览写出具体日期。会让分类超支时提示一行，但不拦着，照样能记。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div class="w-card" style="padding-bottom:4px"><div class="w-head">流水<small>10 月 88 笔</small><span class="sp"></span><span class="more" data-i="search" data-s="14"></span></div>
+            <div class="x-day"><span>今天</span><span class="sp"></span><span class="num">¥82</span></div>
+            <div class="w-row x-tx hl"><span data-cico="trans"></span><span class="tx">打车回家<small>12:41 · 交通</small></span><span class="kc num">¥36</span></div>
+            <div class="w-row x-tx"><span data-cico="food"></span><span class="tx">牛肉面<small>12:20 · 餐饮</small></span><span class="kc num">¥28</span></div>
+          </div>
+        </div>
+        <div class="w-toast" style="bottom:96px"><span data-i="check" data-s="16"></span>记下 打车回家 ¥36 · 交通还剩 ¥117<span class="sp"></span><span class="u">撤销</span></div>
+        <div data-tpl="log" data-chips></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">记下之后<small>收起键盘，新的一笔高亮一下出现在流水最上面，主卡数字动画到新值。吐司给撤销。连续记账时不收键盘，按「发送」接着写下一笔。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 4 语音记账 ───────────── -->
+<section class="scene" data-scene="voice">
+  <p class="scene-intro">按住输入条的麦克风说一段话，松开后拆成几笔，每笔识别金额和分类，确认后一起记下。和减重不同，这里<b>不需要 AI 估算金额</b>，所以没有「后台算」：配了模型时由 AI 拆句、归类，并在最后给一句提醒；没配模型时按「，。然后」本地拆句，走和一句话记账相同的解析。识别沿用 App 的语音输入设置（插件申请 <code>speech:input</code> 权限）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="cats" data-n="3"></div></div>
+        <div class="w-scrim" style="opacity:.6"></div>
+        <div class="w-log" style="position:relative;z-index:6;background:transparent">
+          <div class="w-est" style="text-align:center;padding:16px 14px 14px">
+            <div style="font-size:15px;font-weight:600;line-height:1.6;min-height:48px;text-align:left">中午牛肉面二十八，晚上打车回家三十六<span style="color:var(--ink-3)">，还给妈妈买了</span></div>
+            <div class="wave" data-wave="34" style="margin:10px 0 4px"></div>
+            <div style="font-size:11.5px;color:var(--ink-3)">松开 整理 · 上滑 取消</div>
+          </div>
+          <div class="bar" style="background:var(--brand);justify-content:center;padding-left:6px"><span style="flex:1;text-align:center;color:var(--ink-inv);font-size:15px;font-weight:600">松开 整理</span></div>
+        </div>
+        <div class="home-ind" style="position:relative;z-index:6"></div>
+      </div></div>
+      <div class="frame-cap">按住说<small>同减重：识别文字实时出现，上滑取消，不到 1 秒当误触。中文数字（二十八、三百六）转成阿拉伯数字。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="cats" data-n="3"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">整理成 3 笔<span class="sp"></span><span style="font-size:13px;font-weight:500;color:var(--ink-3)">重说</span></div>
+          <p class="heard">听到：<b>中午牛肉面二十八，晚上打车回家三十六，还给妈妈买了件毛衣三百二</b></p>
+          <div class="ai-items">
+            <div class="it"><span data-cico="food"></span><span class="tx">牛肉面<small>今天 · 餐饮</small></span><span class="kc num">¥28</span><span class="x" data-i="x" data-s="15"></span></div>
+            <div class="it"><span data-cico="trans"></span><span class="tx">打车回家<small>今天 · 交通</small></span><span class="kc num">¥36</span><span class="x" data-i="x" data-s="15"></span></div>
+            <div class="it"><span data-cico="social"></span><span class="tx">给妈妈买毛衣<small>今天 · 人情 · AI 归类，点一下可改</small></span><span class="kc num">¥320</span><span class="x" data-i="x" data-s="15"></span></div>
+          </div>
+          <div class="ai-eval"><span data-i="sparkles" data-s="14"></span><span>记下后本月还能花 <b>¥2,880</b>，每天最多 ¥288。人情这个月已经超了，毛衣也可以算进「购物」，看你怎么分。</span></div>
+          <div class="w-btn">全部记下 · ¥384</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">整理结果<small>每笔可点开改金额、分类、日期，× 去掉。评估只有一两句，说记下后还能花多少、哪类要注意。按钮写出合计金额。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="cats" data-n="3"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">整理成 3 笔<span class="sp"></span><span style="font-size:13px;font-weight:500;color:var(--ink-3)">重说</span></div>
+          <p class="heard">听到：<b>早上咖啡十五，然后地铁五块，还有那个快递</b></p>
+          <div class="ai-items">
+            <div class="it"><span data-cico="food"></span><span class="tx">咖啡<small>今天 · 餐饮</small></span><span class="kc num">¥15</span><span class="x" data-i="x" data-s="15"></span></div>
+            <div class="it"><span data-cico="trans"></span><span class="tx">地铁<small>今天 · 交通</small></span><span class="kc num">¥5</span><span class="x" data-i="x" data-s="15"></span></div>
+            <div class="it"><span data-cico="other"></span><span class="tx">快递<small style="color:var(--danger)">没听到金额</small></span><span class="w-row" style="height:auto;background:none"><span class="fill">填金额</span></span><span class="x" data-i="x" data-s="15"></span></div>
+          </div>
+          <div class="ai-eval" style="background:var(--tau-bg-hover);color:var(--ink-2)"><span data-i="info" data-s="14" style="color:var(--ink-3)"></span><span>没配 AI 模型，按句子拆开、用本地规则归类。配好模型后可以识别「给妈妈买了件毛衣」这类说法。</span></div>
+          <div class="w-btn" style="opacity:.45">记下 2 笔 · 先填金额</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">缺金额 / 没配模型<small>有一笔没听到金额时，行尾给「填金额」，弹出面板键盘。也可以 × 掉它只记另外两笔（按钮变成「记下 2 笔」）。没配模型的说明只显示一次。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 5 流水与编辑 ───────────── -->
+<section class="scene" data-scene="list">
+  <p class="scene-intro">流水的手势沿用减重：<b>左滑</b>露出「改 / 删除」，<b>点按</b>打开编辑面板，删除后吐司撤销。编辑面板把桌面的四个表单项改成手机的样子：<b>金额</b>用大数字 + 面板数字键盘，<b>分类</b>是图标宫格，备注和日期各一行。搜索在流水卡右上角，按备注找。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div class="w-card" style="padding-bottom:4px"><div class="w-head">流水<small>10 月 87 笔</small><span class="sp"></span><span class="more" data-i="search" data-s="14"></span></div>
+            <div class="x-day"><span>今天</span><span class="sp"></span><span class="num">¥46</span></div>
+            <div class="w-row x-tx"><span data-cico="food"></span><span class="tx">牛肉面<small>12:20 · 餐饮</small></span><span class="kc num">¥28</span></div>
+            <div class="swipe"><div class="acts"><span class="edit" data-i="pencil" data-s="17">改</span><span class="del" data-i="trash-2" data-s="17">删除</span></div><div class="w-row x-tx"><span data-cico="trans"></span><span class="tx">地铁<small>08:52 · 交通</small></span><span class="kc num">¥5</span></div></div>
+            <div class="w-row x-tx"><span data-cico="food"></span><span class="tx">瑞幸 生椰拿铁<small>08:45 · 餐饮</small></span><span class="kc num">¥13</span></div>
+          </div>
+        </div>
+        <div data-tpl="log" data-chips></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">左滑一行<small>同减重：64px 宽的两个按钮，滑过一半松手直接删除；同时只展开一行。固定支出行左滑只有「改」，删除要去设置里停掉规则，避免下个月又自动记一笔。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="txs" data-days="1"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">改一笔<span class="sp"></span><span data-i="trash-2" data-s="18" style="color:var(--danger)"></span></div>
+          <div class="x-amt num"><small>¥</small>28<span style="display:inline-block;width:2px;height:34px;background:var(--brand);vertical-align:-4px;margin-left:2px"></span></div>
+          <div class="x-catgrid">
+            <span class="on"><span data-cico="food" data-size="32"></span>餐饮</span><span><span data-cico="shop" data-size="32"></span>购物</span><span><span data-cico="trans" data-size="32"></span>交通</span><span><span data-cico="fun" data-size="32"></span>娱乐</span>
+            <span><span data-cico="home" data-size="32"></span>居住</span><span><span data-cico="social" data-size="32"></span>人情</span><span><span data-cico="other" data-size="32"></span>其他</span><span></span>
+          </div>
+          <div class="w-form">
+            <div class="row"><span class="muted" style="width:44px">备注</span><span>牛肉面</span></div>
+            <div class="row"><span class="muted" style="width:44px">日期</span><span>今天 12:20</span><span class="val" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="w-btn" style="margin-top:10px">保存</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">点按 · 编辑面板<small>金额默认选中，点数字弹出面板数字键盘（见下一帧），不调系统键盘。改了分类会记住「牛肉面」以后归到新分类，面板底部提示一行。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="记账"></div>
+        <div class="w-body"><div data-tpl="hero"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">改一笔<small>牛肉面 · 餐饮</small><span class="sp"></span><span style="font-size:13px;font-weight:500;color:var(--brand-text)">完成</span></div>
+          <div class="x-amt num"><small>¥</small>32.5</div>
+          <div style="text-align:center;font-size:12px;color:var(--ink-3);margin-bottom:12px">原来 ¥28 · 餐饮还剩 ¥1,488</div>
+          <div class="numpad"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span class="f">.</span><span>0</span><span class="f" data-i="delete" data-s="20"></span></div>
+          <div class="w-btn">保存</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">改金额 · 面板键盘<small>键盘同减重称重面板（46px 高按键），最多两位小数。「完成」回到上一帧的完整面板。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="搜索流水" data-right="<span class='ib'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-log" style="padding:0;background:none"><div class="bar" style="box-shadow:var(--shadow-card);min-height:46px"><span data-i="search" data-s="17" style="color:var(--ink-3)"></span><span class="tx">打车<i></i></span><span class="b" data-i="x" data-s="16" style="width:32px;height:32px"></span></div></div>
+          <div class="x-filter"><span class="chip on">近 6 个月</span><span class="chip">本月</span><span class="chip"><span data-cico="trans" data-size="20"></span>交通</span></div>
+          <div class="w-card" style="padding:12px 16px">
+            <div style="font-size:12px;color:var(--ink-3)">「打车」近 6 个月</div>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-top:3px"><b class="num" style="font-size:24px;font-weight:750">¥846</b><span class="muted" style="font-size:12px">24 笔 · 平均每月 ¥141</span></div>
+          </div>
+          <div class="w-card" style="padding-bottom:4px">
+            <div class="x-day" style="padding-top:0"><span>昨天</span></div>
+            <div class="w-row x-tx"><span data-cico="trans"></span><span class="tx">打车回家<small>22:40 · 交通</small></span><span class="kc num">¥34</span></div>
+            <div class="x-day"><span>10 月 16 日 周五</span></div>
+            <div class="w-row x-tx"><span data-cico="trans"></span><span class="tx">打车回家<small>22:30 · 交通</small></span><span class="kc num">¥31</span></div>
+            <div class="x-day"><span>10 月 15 日 周四</span></div>
+            <div class="w-row x-tx"><span data-cico="trans"></span><span class="tx">打车回家<small>22:30 · 交通</small></span><span class="kc num">¥44</span></div>
+          </div>
+        </div>
+        <div class="kb" data-kb style="height:250px"></div>
+      </div></div>
+      <div class="frame-cap">搜索<small>按备注搜，顶部给合计和平均，回答「打车一个月花多少」。桌面流水只在当月内搜；手机上默认近 6 个月，读的是页面已有的半年数据，不额外拉全表。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 6 月历 ───────────── -->
+<section class="scene" data-scene="cal">
+  <p class="scene-intro">月历是二级页（顶栏日历按钮进）。手机格子只有 46px 宽，放不下桌面那样「金额 + 最大一笔备注」，所以每格只留<b>日期、金额和底部分类色条</b>：条长 = 当天可控支出（满格 = 2 倍日均额度），颜色 = 分类构成，超过日均额度的金额标红。点某天，底部面板列出当天流水。左右滑动翻月，最多翻到近 6 个月。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="月历" data-right="<span class='ib' data-i='chart-column' data-s='19'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card" style="padding:10px 12px 14px">
+            <div class="x-month"><span class="ib" data-i="chevron-left" data-s="18"></span>2026 年 10 月<span class="ib dis" data-i="chevron-right" data-s="18"></span><span class="sp"></span><span style="font-size:11.5px;font-weight:400;color:var(--ink-3)">可控 ¥3,602 · 固定 ¥3,584</span></div>
+            <div style="margin-top:8px" data-cal></div>
+            <div class="x-legend"><span><i style="background:var(--ex-c0)"></i>餐饮</span><span><i style="background:var(--ex-c1)"></i>购物</span><span><i style="background:var(--ex-c2)"></i>交通</span><span><i style="background:var(--ex-c3)"></i>娱乐</span><span><i style="background:var(--ex-c5)"></i>人情</span><span><i style="width:5px;height:5px;border-radius:50%;background:var(--ink-3)"></i>有固定支出</span></div>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:6px">日均额度 ¥221 · 红字 = 超过日均额度</div>
+          </div>
+          <div class="w-card" style="display:flex;gap:10px;padding:12px 14px">
+            <div style="flex:1"><div style="font-size:11.5px;color:var(--ink-3)">花得最多的一天</div><div style="font-size:14px;font-weight:650;margin-top:2px">10 月 6 日 周二 <span class="num">¥514</span></div></div>
+            <div style="flex:1"><div style="font-size:11.5px;color:var(--ink-3)">没花钱的日子</div><div style="font-size:14px;font-weight:650;margin-top:2px"><span class="num">2</span> 天</div></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">月历<small>今天是黑色描边，未来的日子只有框。月份标题旁是本月可控与固定支出。下方一张小卡给两个一眼能用的数字，取代桌面悬停气泡。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="月历" data-right="<span class='ib' data-i='chart-column' data-s='19'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card" style="padding:10px 12px 14px">
+            <div class="x-month"><span class="ib" data-i="chevron-left" data-s="18"></span>2026 年 10 月<span class="ib dis" data-i="chevron-right" data-s="18"></span></div>
+            <div style="margin-top:8px" data-cal data-sel="2026-10-18"></div>
+          </div>
+        </div>
+        <div class="w-scrim" style="opacity:.35"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">10 月 18 日 周日<small>4 笔 · 在日均额度内</small><span class="sp"></span><span class="num" style="font-size:16px">¥221</span></div>
+          <div class="w-list" style="margin-top:4px" id="day-sheet"></div>
+          <div class="w-btns" style="margin-top:10px"><div class="w-btn ghost" data-i="plus" data-s="16">补记这天</div></div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">点某一天<small>面板半屏，上方月历仍能看到选中的格子（反色）；点别的日子直接切换。「补记这天」回主页并在输入条预填日期。行同样支持左滑和点按编辑。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="月历" data-right="<span class='ib' data-i='chart-column' data-s='19'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="x-filter"><span class="chip on"><span data-cico="food" data-size="20"></span>只看餐饮<span class="x" data-i="x" data-s="13"></span></span></div>
+          <div class="w-card" style="padding:10px 12px 14px">
+            <div class="x-month"><span class="ib" data-i="chevron-left" data-s="18"></span>2026 年 10 月<span class="ib dis" data-i="chevron-right" data-s="18"></span><span class="sp"></span><span style="font-size:11.5px;font-weight:400;color:var(--ink-3)">餐饮 ¥1,508 / 3,000</span></div>
+            <div style="margin-top:8px" data-cal data-cat="food"></div>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:10px">餐饮日均额度 ¥97 · 红字 = 超过</div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">只看一类<small>从分类详情（第 7 页）点「在月历里看」进来，色条只画这一类，基准换成该类日均额度。顶部胶囊 × 取消筛选。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 7 分类与回顾 ───────────── -->
+<section class="scene" data-scene="review">
+  <p class="scene-intro">分类预算在主页只显示 4 类，点「全部 7 类」或任意一行进<b>分类详情</b>：已用 / 预算、比平时多花多少、这一类本月花在哪几样上（备注聚合）。顶栏柱状图按钮进<b>回顾与 AI</b>：近 6 个月支出构成、一周里哪天花得多，以及桌面同款的 AI「提醒 / 月度复盘」。AI 点了才分析，数据变了只提示可能过时。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="分类预算" data-right="<span class='ib' data-i='sliders-horizontal' data-s='19'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card" style="padding:12px 16px">
+            <div style="display:flex;font-size:12px;color:var(--ink-3)"><span>10 月 · 已用 ¥7,186 / ¥10,450</span><span class="sp"></span><span>竖线 = 时间进度 69%</span></div>
+          </div>
+          <div data-tpl="cats" data-n="7" data-sel="social"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">全部分类<small>右上是「调整预算」，进设置。排序同主页（超了 → 偏快 → 用掉比例）。点一行进下一帧的分类详情。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="人情" data-right="<span class='ib' data-i='calendar-days' data-s='19'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card">
+            <div style="display:flex;align-items:center;gap:10px"><span data-cico="social" data-size="38"></span><div style="flex:1"><div style="font-size:12px;color:var(--ink-3)">10 月已用</div><div style="display:flex;align-items:baseline;gap:6px"><b class="num" style="font-size:26px;font-weight:750;color:var(--danger)">¥625</b><span class="muted num" style="font-size:12.5px">/ ¥600</span></div></div><span class="pill bad">超 ¥25</span></div>
+            <div style="margin:12px 0 8px" data-meter="1.04,0.69"></div>
+            <div style="display:flex;font-size:12px;color:var(--ink-2)"><span>前 3 个月平均 <b class="num">¥276</b></span><span class="sp"></span><span class="up" style="font-weight:650">多花 ¥349</span></div>
+          </div>
+          <div class="w-card" style="padding-bottom:6px">
+            <div class="w-head">花在哪<small>按备注合并</small></div>
+            <div class="grp" style="grid-template-columns:96px 1fr 56px"><span style="font-size:13px">生日红包</span><span class="x-meter" style="height:6px"><i style="width:80%;background:var(--ex-c5)"></i></span><span class="num" style="text-align:right;font-size:13px;font-weight:650">¥500</span></div>
+            <div class="grp" style="grid-template-columns:96px 1fr 56px"><span style="font-size:13px">请同事吃饭</span><span class="x-meter" style="height:6px"><i style="width:20%;background:var(--ex-c5)"></i></span><span class="num" style="text-align:right;font-size:13px;font-weight:650">¥125</span></div>
+          </div>
+          <div class="w-card" style="padding-bottom:4px">
+            <div class="w-head">流水<small>2 笔</small></div>
+            <div class="w-row x-tx"><span data-cico="social"></span><span class="tx">请同事吃饭<small>10 月 15 日 · 18:30</small></span><span class="kc num">¥125</span></div>
+            <div class="w-row x-tx"><span data-cico="social"></span><span class="tx">生日红包<small>10 月 6 日 · 18:00</small></span><span class="kc num">¥500</span></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">分类详情<small>对应桌面「点一个分类，日历和流水只看它」。右上日历按钮进只看这一类的月历（第 6 页第三帧）。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="回顾与 AI" data-right="<span class='ib'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card">
+            <div class="w-head">近 6 个月<small>虚线 = 月预算 ¥10,450</small></div>
+            <div data-months data-sel="2026-10"></div>
+            <div class="x-legend" style="margin-top:4px"><span><i style="background:var(--ex-c0)"></i>餐饮</span><span><i style="background:var(--ex-c1)"></i>购物</span><span><i style="background:var(--ex-c2)"></i>交通</span><span><i style="background:var(--ex-c3)"></i>娱乐</span><span><i style="background:var(--ex-c4)"></i>居住</span><span><i style="background:var(--ex-c5)"></i>人情</span></div>
+          </div>
+          <div class="w-card">
+            <div class="w-head">一周里哪天花得多<small>近 90 天日均可控支出</small></div>
+            <div data-weekday></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">回顾 · 上半<small>点某个月的柱子，弹出那个月的分类构成（同桌面翻月）；10 月未结束，柱顶标「进行中」。周几柱子最高的一根用 accent。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="回顾与 AI" data-right="<span class='ib'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card w-ai">
+            <div class="w-tabs"><span class="on">提醒</span><span>月度复盘</span></div>
+            <p>剩下 10 天每天最多 <b>¥317</b>，比日均额度宽松，节奏没问题。</p>
+            <p>人情已经超了 ¥25，月底前别再安排请客。餐饮用了一半多一点，按现在的速度月底会剩 ¥400 左右；购物还有 ¥623，双十一前留着就好。</p>
+            <div class="stale"><span data-i="info" data-s="13"></span>刚才又记了 1 笔<span class="sp"></span><span class="w-btn ghost sm" data-i="refresh-cw" data-s="14" style="height:30px;font-size:12.5px">重新分析</span></div>
+          </div>
+          <div class="w-card w-ai">
+            <div class="w-tabs"><span>提醒</span><span class="on">月度复盘</span></div>
+            <div style="text-align:center;padding:16px 0 6px">
+              <div style="font-size:13px;color:var(--ink-2);line-height:1.7">看这个月比平时多花在哪，<br>给出能省多少的建议</div>
+              <div class="w-btn sm" data-i="sparkles" data-s="15" style="display:inline-flex;margin-top:12px">开始复盘</div>
+            </div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">回顾 · AI<small>两个范围用文字页签（不用 Segmented）。为对照放了两张，实际是一张卡切换。没配模型时按钮变成「去配置模型」。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 8 预算设置 ───────────── -->
+<section class="scene" data-scene="settings">
+  <p class="scene-intro">设置还是一页两段：<b>分类与月预算</b>、<b>固定支出</b>。桌面是一张可编辑表格，手机改成列表 + 底部面板：列表只读显示，点一行在面板里改。编辑仍在草稿里进行，点右上「保存」才写入；「按前 3 个月平均填入」保留。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="预算与固定支出" data-right="<span style='font-size:15px;font-weight:650;color:var(--brand-text);padding:0 12px'>保存</span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="sec-t">分类与月预算 · 合计 ¥10,450</div>
+          <div class="w-card w-form" style="padding:2px 16px" id="set-cats"></div>
+          <div style="display:flex;gap:8px"><div class="w-btn ghost sm" data-i="plus" data-s="15" style="flex:1">新增分类</div><div class="w-btn ghost sm" data-i="history" data-s="15" style="flex:1.4">按前 3 个月平均填入</div></div>
+          <div class="sec-t">固定支出 · 每月自动记一笔</div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row"><span data-cico="home" data-size="26"></span>房租<span class="val"><span class="muted">每月 1 号</span><b class="num">¥3,500</b></span></div>
+            <div class="row"><span data-cico="home" data-size="26"></span>话费<span class="val"><span class="muted">每月 5 号</span><b class="num">¥59</b></span></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">设置页<small>从顶栏齿轮或「我的 → 插件中心 → 记账本 → 设置」进入。有改动没保存时返回会问一次。固定支出列表放不下时整页滚动。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="预算与固定支出" data-right="<span style='font-size:15px;font-weight:650;color:var(--brand-text);padding:0 12px'>保存</span>"></div>
+        <div class="w-body" style="padding-top:0"><div class="sec-t">分类与月预算 · 合计 ¥10,450</div><div class="w-card" style="height:300px"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">餐饮<span class="sp"></span><span data-i="trash-2" data-s="18" style="color:var(--danger)"></span></div>
+          <div class="w-form" style="margin-top:4px">
+            <div class="row"><span class="muted" style="width:56px">名称</span><span>餐饮</span></div>
+            <div class="row"><span class="muted" style="width:56px">月预算</span><b class="num">¥3,000</b><span class="val muted" style="font-size:12px">前 3 个月平均 ¥2,106</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--ink-3);margin:10px 0 6px">图标</div>
+          <div class="x-catgrid" style="grid-template-columns:repeat(6,1fr);margin-top:0">
+            <span class="on"><span class="cico" style="--cc:var(--ex-c0);width:34px;height:34px" data-i="utensils-crossed" data-s="17"></span></span>
+            <span><span class="cico" style="--cc:var(--ink-2);width:34px;height:34px" data-i="shopping-bag" data-s="17"></span></span>
+            <span><span class="cico" style="--cc:var(--ink-2);width:34px;height:34px" data-i="plane" data-s="17"></span></span>
+            <span><span class="cico" style="--cc:var(--ink-2);width:34px;height:34px" data-i="smartphone" data-s="17"></span></span>
+            <span><span class="cico" style="--cc:var(--ink-2);width:34px;height:34px" data-i="heart-pulse" data-s="17"></span></span>
+            <span><span class="cico" style="--cc:var(--ink-2);width:34px;height:34px" data-i="graduation-cap" data-s="17"></span></span>
+          </div>
+          <div class="w-form"><p class="note">删除后，这一类的流水移到「其他」，金额不会丢。</p></div>
+          <div class="w-btn" style="margin-top:12px">完成</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">改一个分类<small>月预算行点按弹出面板数字键盘；旁边给前 3 个月平均作参考。颜色按新建顺序自动分配，不让用户选（同桌面）。「完成」只改草稿。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="预算与固定支出" data-right="<span style='font-size:15px;font-weight:650;color:var(--brand-text);padding:0 12px'>保存</span>"></div>
+        <div class="w-body" style="padding-top:0"><div class="sec-t">固定支出</div><div class="w-card" style="height:200px"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">新增固定支出</div>
+          <div class="w-form" style="margin-top:4px">
+            <div class="row"><span class="muted" style="width:56px">名称</span><span>视频会员</span></div>
+            <div class="row"><span class="muted" style="width:56px">金额</span><b class="num">¥25</b></div>
+            <div class="row"><span class="muted" style="width:56px">分类</span><span data-cico="fun" data-size="24"></span>娱乐<span class="val" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row"><span class="muted" style="width:56px">每月</span><b class="num">12</b> 号<span class="val muted" style="font-size:12px">1–28 号</span></div>
+          </div>
+          <div class="w-form"><p class="note">到日子自动记一笔，单独标出，不计入月历和日均额度。本月 12 号已过，保存后立即补记本月这笔。</p></div>
+          <div class="w-btn" style="margin-top:12px">添加</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">新增固定支出<small>日期限 1–28 号，同插件现有规则。说明里写清楚和日常开销的区别，避免用户把房租当成超支。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 9 待你决定 ───────────── -->
+<section class="scene" data-scene="cmp">
+  <p class="scene-intro">以下是这一版里我替你做了默认选择、但值得你确认的地方。确认后我再整理成定稿并写进任务文档。</p>
+  <div class="cards">
+    <div class="card">
+      <h3>1 · 月历放哪</h3>
+      <ul>
+        <li><b>默认：二级页</b>（本稿）。主页更短，首屏能看到分类预算和今天的流水。</li>
+        <li><b>备选：主页中段</b>，在主卡和分类预算之间放一张缩小月历。好处是每天都看得到花钱节奏；代价是主页多一屏，流水被推到很下面。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>2 · 第一次打开要不要引导</h3>
+      <ul>
+        <li><b>默认：不做整页引导</b>，只在主页给一条「去设置」提示（第 2 页第三帧）。记账有默认预算，第一笔就能记。</li>
+        <li><b>备选：同减重两步引导</b>：先填总预算 / 各分类预算与固定支出，再讲用法。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>3 · 语音记账</h3>
+      <ul>
+        <li><b>默认：做</b>，和减重共用宿主的 <code>speech:input</code>，插件要加 AI 拆句与中文数字转换。</li>
+        <li>如果先只做一句话记账，第一版可以不申请语音权限，麦克风按钮不出现。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>4 · 其余我已按减重定好的</h3>
+      <ul>
+        <li>入口：「我的」宫格 + 今天页两列卡片，卡片位置与减重相同。</li>
+        <li>流水左滑「改 / 删除」，删除可撤销；面板数字键盘改金额。</li>
+        <li>AI 点了才分析；范围切换用文字页签，不用 Segmented。</li>
+        <li>数据、口径与桌面完全共用，手机只加界面；不做账户、多币种、收入记账这类新功能。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="ex-data.js"></script>
+<script src="ex.js"></script>
+<script src="ex-fill.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>
