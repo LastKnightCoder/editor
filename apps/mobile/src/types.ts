@@ -217,6 +217,11 @@ export interface SyncActionResponse {
   remoteVersion: number;
 }
 
+export interface SyncDownloadProgress {
+  value: number;
+  status: string;
+}
+
 export type ResourceSyncStatus = "pending" | "syncing" | "synced" | "error";
 
 export interface ResourceFileSyncStatus {

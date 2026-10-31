@@ -1,6 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import type { SettingCompat, SettingWriteResponse, SyncActionResponse } from "../types";
+import type {
+  SettingCompat,
+  SettingWriteResponse,
+  SyncActionResponse,
+  SyncDownloadProgress,
+} from "../types";
 import * as tauri from "../services/tauri";
 import { setMobileSettingSnapshot } from "../services/mobileSettingsBridge";
 
@@ -73,6 +78,8 @@ export function useSyncSettings() {
   const [setting, setSetting] = useState<SettingCompat | null>(null);
   const [isSavingSetting, setIsSavingSetting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<SyncDownloadProgress | null>(null);
+  const syncingRef = useRef(false);
   const settingRef = useRef<SettingCompat | null>(null);
   const persistQueueRef = useRef<Promise<SettingWriteResponse | null>>(Promise.resolve(null));
 
@@ -140,12 +147,17 @@ export function useSyncSettings() {
 
   const runSyncAction = useMemoizedFn(
     async (command: "syncUploadDatabase" | "syncDownloadDatabase") => {
+      if (syncingRef.current) throw new Error("SYNC_BUSY:正在同步，请稍后再试");
+      syncingRef.current = true;
       setIsSyncing(true);
+      setDownloadProgress(
+        command === "syncDownloadDatabase" ? { value: 0, status: "正在准备下载..." } : null
+      );
       try {
         const result: SyncActionResponse =
           command === "syncUploadDatabase"
             ? await tauri.syncUploadDatabase()
-            : await tauri.syncDownloadDatabase();
+            : await tauri.syncDownloadDatabase(setDownloadProgress);
         if (!result.ok) {
           const fallbackCode =
             command === "syncUploadDatabase" ? "SYNC_UPLOAD_FAILED" : "SYNC_DOWNLOAD_FAILED";
@@ -153,7 +165,9 @@ export function useSyncSettings() {
         }
         return result;
       } finally {
+        syncingRef.current = false;
         setIsSyncing(false);
+        setDownloadProgress(null);
       }
     }
   );
@@ -165,6 +179,7 @@ export function useSyncSettings() {
       safeSetting,
       isSavingSetting,
       isSyncing,
+      downloadProgress,
       setSetting,
       updateSetting,
       loadSetting,
@@ -176,6 +191,7 @@ export function useSyncSettings() {
       safeSetting,
       isSavingSetting,
       isSyncing,
+      downloadProgress,
       setSetting,
       updateSetting,
       loadSetting,

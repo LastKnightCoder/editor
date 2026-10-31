@@ -2,6 +2,7 @@
 // 服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。资源文件跟随同一个同步服务。
 
 import { useEffect, useState } from "react";
+import { ProgressStatus } from "@tau/ui";
 import {
   ChevronRight,
   CircleCheck,
@@ -20,6 +21,7 @@ import type {
   ResourceSyncStatusFile,
   SettingCompat,
   SyncActionResponse,
+  SyncDownloadProgress,
   SyncVersionResponse,
 } from "../../../types";
 import { GroupLabel } from "../../../components/GroupLabel";
@@ -43,6 +45,7 @@ export type SyncCenterProps = {
   setting: SettingCompat | null;
   versions: SyncVersionResponse | null;
   isSyncing: boolean;
+  downloadProgress?: SyncDownloadProgress | null;
   activeDatabase: string | null;
   onCheckVersions: () => Promise<SyncVersionResponse>;
   onSyncUpload: () => Promise<SyncActionResponse>;
@@ -252,6 +255,14 @@ export function SyncCenterSection(props: SyncCenterProps) {
   return (
     <div className="page-enter space-y-1">
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
+      {props.isSyncing && props.downloadProgress && (
+        <div className="setting-group px-[18px] py-4">
+          <ProgressStatus
+            value={props.downloadProgress.value}
+            label={props.downloadProgress.status}
+          />
+        </div>
+      )}
 
       <div className="flex gap-2.5 pt-3">
         {hero.tone === "error" && (
