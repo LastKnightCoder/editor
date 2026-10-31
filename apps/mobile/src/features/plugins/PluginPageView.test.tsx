@@ -66,9 +66,15 @@ it("损坏的历史页面参数只显示页内错误，参数恢复后可以重�
   try {
     await act(async () => root.render(<PluginPageView />));
     expect(container.textContent).toContain("页面参数无效");
+    expect(container.querySelector(".mobile-page-scroll")).toBeNull();
     serialized = "{}";
     await act(async () => root.render(<PluginPageView />));
     expect(container.textContent).toContain("正常页面");
+    expect(container.querySelector(".mobile-page-scroll")).toBeNull();
+    expect(container.querySelector(".overflow-auto")).not.toBeNull();
+    expect(
+      container.firstElementChild?.classList.contains("pb-[var(--mobile-screen-safe-bottom)]")
+    ).toBe(true);
   } finally {
     await act(async () => root.unmount());
     await created.dispose();
@@ -85,6 +91,7 @@ it("插件会话启动中打开插件页显示加载态，落定后仍不可用�
   try {
     await act(async () => root.render(<PluginPageView />));
     expect(container.textContent).toContain("插件加载中");
+    expect(container.querySelector(".mobile-page-scroll")).toBeNull();
     expect(container.textContent).not.toContain("插件已停用");
     phase = "ready";
     await act(async () => root.render(<PluginPageView />));
