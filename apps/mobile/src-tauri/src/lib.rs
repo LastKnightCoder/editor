@@ -5,6 +5,7 @@ mod app_update;
 mod chunked_sync;
 mod collaboration;
 mod database;
+mod image_settings;
 mod incoming_file;
 #[cfg(target_os = "ios")]
 mod ios_input_accessory;
@@ -117,6 +118,7 @@ pub fn run() {
             provider_settings::plugin_provider_save,
             provider_settings::plugin_provider_select,
             tts_settings::plugin_tts_mutate,
+            image_settings::plugin_images_mutate,
             ai_settings::ai_settings_mutate,
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
@@ -299,6 +301,7 @@ pub fn run() {
             resource_upload::upload_resource,
             resource_upload::resource_upload_test,
             resource_upload::read_resource_bytes,
+            resource_upload::read_image_resource,
             resource_upload::read_resource_thumb,
             remote_resource_cache::remote_resource_to_local,
             sync::sync_check_versions,

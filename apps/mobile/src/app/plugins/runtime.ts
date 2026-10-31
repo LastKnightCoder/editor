@@ -1,5 +1,6 @@
 import { ASRProviderRegistry } from "@tau/plugins/asr-host";
 import { RendererTTSRegistry } from "@tau/plugins/tts-host";
+import { ImageProviderRegistry } from "@tau/plugins/images-host";
 import type { PluginWebSocket } from "@tau/plugins";
 import { RendererSyncRegistry, RendererUploadRegistry } from "@tau/plugins/provider-host";
 import { copyJson } from "@tau/plugins/host";
@@ -74,6 +75,7 @@ export class MobilePluginRuntime {
   readonly upload = new RendererUploadRegistry();
   readonly asr = new ASRProviderRegistry();
   readonly tts = new RendererTTSRegistry();
+  readonly images = new ImageProviderRegistry();
   websocket?: PluginWebSocket;
   fetch?: (input: RequestInfo | URL, init?: RequestInit, pluginId?: string) => Promise<Response>;
   readonly content = new ContentPluginRegistry();
@@ -219,6 +221,7 @@ export class MobilePluginRuntime {
       sync: this.sync,
       asr: this.asr,
       tts: this.tts,
+      images: this.images,
       websocket: {
         connect: (url, protocols, options) => {
           if (!this.websocket) throw new Error("插件网络尚未就绪");
@@ -320,7 +323,8 @@ export class MobilePluginRuntime {
             definition.target !== "sync" &&
             definition.target !== "upload" &&
             definition.target !== "asr" &&
-            definition.target !== "tts"
+            definition.target !== "tts" &&
+            definition.target !== "images"
           )
             throw new Error("当前移动宿主尚未提供此领域设置");
           const id = `${context.pluginId}:${definition.id}`;

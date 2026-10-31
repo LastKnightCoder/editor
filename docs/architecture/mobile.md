@@ -286,6 +286,16 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 - **引用与附件**：引用沿用 chat-core 的 `TextContent.mentions`（`MentionRef` 增加 `diary` 类型与 `quote` 标记：选中片段的原文放在 previewText）。对话页输入框都可 @（按钮或输入 `@`）经内容引用选择器加整篇引用；＋ 面板提供拍照 / 相册（压到长边 1568px 的 JPEG data URL，一次最多 4 张，模型不接受图片时提示换模型）与引用笔记。服务的 `prepareInput`（`services/aiChat/mentions.ts`）把引用展开成正文前缀：片段给原文，整篇只给身份并提示用 `get_content_markdown` 读取；会话 display 条目保留原始消息，历史里用户消息上方显示引用条与图片。
 - **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），点键盘图标切回并在点击里聚焦弹出键盘。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
 
+### 图片生成与编辑
+
+`MobilePluginRuntime.images` 通过内部 `@tau/plugins/images-host` 注册图片提供方，接受 `target: "images"` 的插件设置。`services/plugin-images` 固定当前工作区与宿主代次；单次任务冻结账号配置与模型，调用者取消、插件停用或宿主重建会终止等待并拒绝迟到结果。
+
+「我的 › AI › 图片生成」（`settingsModule: image-generation`）选择当前账号，插件设置页管理账号列表，`imageAccount` 页面填写账号名称、模型 ID 与插件声明的连接表单。配置与桌面同构，保存于 `imageGeneration.providers/currentProviderId`；原生 `plugin_images_mutate` 串行原子保存，保存账号不改变选用，选用核对账号快照，删除正在使用的账号清空选择。普通设置提交保留此受管理字段，迟到回写不能覆盖其他设置或切换后的数据库。
+
+宿主工具 `generate_image` 与 `edit_image` 调用同一图片服务。生成支持单次尺寸、质量、格式、背景与数量参数；编辑可传应用内资源路径、HTTP(S) 图片地址或图片 data URL，省略地址时读取当前用户消息附件，也可用从 1 开始的 `image_indices` 选择附件。当前消息无图时不回退更早附件；继续修改生成结果时使用上次返回的资源地址。两类任务沿用桌面的 read 风险级别和公共 `openai-image-result` 载荷，聊天工具显示继续使用既有公共投影。
+
+参考图和输出只接受 PNG/JPEG/WebP，最多 16 张、总字节最多 128 MiB。本机参考图经 `read_image_resource` 校验工作区、应用目录边界、体积与文件格式；远程参考图使用当前宿主原生 fetch，并有界读取响应。结果经现有分块资源上传保存，上传开始校验发起数据库，每步检查取消；原生租约拒绝切库后写入。工具结果只包含图片地址、文件名、MIME 与服务商改写的提示词，不返回图片二进制或账号凭据。
+
 ## 预加载与 DevTools
 
 - `navigator.preload(key, params)`：按页面 `data` 声明预取 query 缓存（不挂载组件），

@@ -14,25 +14,42 @@ import {
   sqlQueryTool,
 } from "./readTools";
 import { TASK_TOOLS } from "./taskTools";
+import { createMobileImageTools, latestUserImages } from "./imageTools";
 import { HOST_TOOL_SOURCE, hostToolId, type HostTool } from "./tool";
 
 const EXECUTION_IDENTITY = "host:mobile-chat:1";
 
-export function hostToolsFor(databaseName: string): readonly HostTool[] {
+export function hostToolsFor(
+  databaseName: string,
+  imageDependencies?: Parameters<typeof createMobileImageTools>[1]
+): readonly HostTool[] {
   return [
     getCurrentDateTool,
     searchKnowledgeTool,
     getContentMarkdownTool,
     sqlQueryTool(() => databaseName),
     ...TASK_TOOLS,
+    ...createMobileImageTools(databaseName, imageDependencies),
   ];
 }
 
 /** 注册后返回本库全部宿主工具 id（含 ask-question），供 runs.start 的 toolIds */
 export function registerHostCapabilities(service: MobileAiService, databaseName: string) {
   const scope = { databaseName };
+  const tools = hostToolsFor(databaseName, {
+    readImages: async context => {
+      const run = service.runs.getSnapshot(context.runId);
+      if (
+        !run ||
+        run.session.databaseName !== databaseName ||
+        run.session.sessionId !== context.session.sessionId
+      )
+        throw new Error("图片工具所属对话已结束或变化");
+      return latestUserImages(run.messages);
+    },
+  });
   const releases: Array<() => void> = [];
-  for (const tool of hostToolsFor(databaseName))
+  for (const tool of tools)
     releases.push(
       service.tools.register(
         {
@@ -68,10 +85,7 @@ export function registerHostCapabilities(service: MobileAiService, databaseName:
     )
   );
   releases.push(service.skills.registerSource(internalSkillSource, scope));
-  const toolIds = [
-    ...hostToolsFor(databaseName).map(tool => hostToolId(tool.name)),
-    hostToolId(ASK_QUESTION_TOOL_NAME),
-  ];
+  const toolIds = [...tools.map(tool => hostToolId(tool.name)), hostToolId(ASK_QUESTION_TOOL_NAME)];
   return {
     toolIds,
     dispose: () => {
@@ -90,6 +104,7 @@ export function buildChatSystemPrompt(now = new Date()) {
     "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
     "你运行在 Tau 的手机端，可以检索和阅读用户的笔记、查询数据库、管理待办与日程。修改数据的工具每次执行前都会请用户确认，被拒绝时不要重复尝试，改为询问用户想怎么做。",
     "回答保持简洁，适合手机屏幕阅读；引用笔记时使用 :ref[显示文本]{id=ID type=类型}。",
+    "生成或修改图片时使用 generate_image / edit_image；编辑当前消息附件时省略 image_paths，后续修改已生成图片时传入工具返回的图片地址。图片插件未配置时引导用户前往设置中的「图片生成」。",
     "",
     "<SESSION_TIME_CONTEXT>",
     "当前会话时间信息：",

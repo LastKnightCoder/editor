@@ -41,6 +41,7 @@
     "./fetch-bridge": "./src/fetch-bridge.ts",
     "./asr-host": "./src/asr-host.ts",
     "./tts-host": "./src/tts-host.ts",
+    "./images-host": "./src/images-host.ts",
     "./websocket-bridge": "./src/websocket-bridge.ts"
   },
   "scripts": {

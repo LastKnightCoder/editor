@@ -54,3 +54,31 @@ it("分块写失败时不提交上传，并清理暂存文件", async () => {
   );
   expect(invoke).toHaveBeenCalledWith("resource_upload_cancel", { id: "failed" });
 });
+
+it("图片上传绑定发起数据库，取消后不提交并清理已创建的暂存", async () => {
+  const controller = new AbortController();
+  vi.mocked(invoke).mockImplementation(async command => {
+    if (command === "resource_upload_begin") {
+      controller.abort();
+      return "canceled";
+    }
+  });
+  await expect(
+    uploadResource({
+      fileName: "image.png",
+      mimeType: "image/png",
+      content: new Blob(["bytes"]),
+      database: "data.db",
+      signal: controller.signal,
+    })
+  ).rejects.toMatchObject({ name: "AbortError" });
+  expect(invoke).toHaveBeenCalledWith("resource_upload_begin", {
+    fileName: "image.png",
+    mimeType: "image/png",
+    database: "data.db",
+  });
+  expect(invoke).toHaveBeenCalledWith("resource_upload_cancel", { id: "canceled" });
+  expect(vi.mocked(invoke).mock.calls.some(([command]) => command === "upload_resource")).toBe(
+    false
+  );
+});

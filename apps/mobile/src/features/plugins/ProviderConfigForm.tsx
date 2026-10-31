@@ -49,7 +49,7 @@ export function ProviderConfigForm({
       <div className="flex items-center justify-end gap-2 py-4">
         <Button
           variant="ghost"
-          disabled={!draft.dirty || draft.saving}
+          disabled={(!draft.dirty && !changed) || draft.saving}
           onClick={() => {
             draft.reset();
             onReset?.();
