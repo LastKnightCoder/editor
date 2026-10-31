@@ -220,6 +220,8 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 数据库、资源及会话文件同步的对象布局、校验、发布和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
 
+同步设置的手动下载与启动自动下载共用命令层 `onProgress`，在分块校验写入后推进进度；设置数据库卡和下载确认框通过公共 `ProgressStatus` 展示百分比、数据库已处理大小、对话记录完成数及安装阶段。上传与下载共用忙态，下载期间禁用再次同步、检查和服务切换；维护重连完成后才报告下载完成。计数口径见[分块传输与重试](/docs/architecture/storage-sync.md#分块传输与重试)。
+
 ### 插件业务数据与授权
 
 **读取**：`context.data`（cards / articles / documents 的 `get`/`query`，todos / calendar 的 `query`）与 `context.content.read` 由 `app/plugins/data.ts` 适配，命令经 `bindDatabaseCommands` 固定到 Provider 创建宿主时的库并带实例 signal。卡片、文章、项目文档走主进程只读表 `tables/plugin-data.ts`（统一投影、「排序时间:ID」游标分页、上限 200 条，引用型项目条目不计）；待办与日程复用 `task-assistant:read`。ID 与 ContentRef（正文 ID + 创建时间）对插件不透明，IPC 契约在 `types/plugin-data.ts`。Notebook、材料与对话只读，走 `tables/plugin-data-readonly.ts` 直接返回 SDK 形状：Notebook 只给信息与资料清单（不含说明、本机路径、转换文字、笔记与测验）；材料三表合并分页、标题与出处复用 `MaterialTable.resolve`（软删除划线与已删 PDF 的标注不可见）；对话只给 `chat_session` 四场景信息，不读 pi 会话文件。

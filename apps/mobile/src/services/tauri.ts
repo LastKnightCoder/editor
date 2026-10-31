@@ -2,7 +2,7 @@ import type { ContentContractDictionary } from "@tau/db-schema/content-contracts
 import { countTextWords } from "@tau/db-schema/content-metrics";
 import { mobileContentMetrics, mobileContentPlugins } from "../app/plugins/content";
 import type { SettingCompat } from "../types";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
 import type {
   ActiveDatabaseResponse,
@@ -42,6 +42,7 @@ import type {
   ResourceSyncStatusFile,
   SettingWriteResponse,
   SyncActionResponse,
+  SyncDownloadProgress,
   SyncVersionResponse,
   UploadTestResponse,
   PomodoroDailySummary,
@@ -829,8 +830,16 @@ export function syncUploadDatabase() {
   return trackedInvoke<SyncActionResponse>("sync_upload_database");
 }
 
-export function syncDownloadDatabase() {
-  return trackedInvoke<SyncActionResponse>("sync_download_database");
+export async function syncDownloadDatabase(onProgress?: (progress: SyncDownloadProgress) => void) {
+  const channel = new Channel<SyncDownloadProgress>();
+  channel.onmessage = progress => onProgress?.(progress);
+  try {
+    return await trackedInvoke<SyncActionResponse>("sync_download_database", {
+      onProgress: channel,
+    });
+  } finally {
+    channel.onmessage = () => undefined;
+  }
 }
 
 export function resourceSyncRefresh() {

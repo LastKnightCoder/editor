@@ -2,7 +2,7 @@
  * Spinner · Loading 档案 —— 本体即 ui/primitives/Loading。
  */
 
-import { Loading, LoadingOverlay, Spinner } from "@tau/ui";
+import { Loading, LoadingOverlay, ProgressStatus, Spinner } from "@tau/ui";
 import { BlockTitle, DocHead, MatrixRow } from "../kit";
 
 export default function LoadingSection() {
@@ -79,6 +79,13 @@ export default function LoadingSection() {
             音频：会议录音.m4a
           </div>
         </LoadingOverlay>
+      </MatrixRow>
+      <MatrixRow name="ProgressStatus" desc="当前阶段与百分比共用一行，下方复用 ProgressBar">
+        <ProgressStatus
+          className="w-full"
+          value={42}
+          label="正在下载数据库文件 · 32.0 / 64.0 MiB"
+        />
       </MatrixRow>
     </>
   );

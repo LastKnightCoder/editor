@@ -343,6 +343,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
     toast.error(locked.error ?? "数据库会话锁定失败");
     return false;
   }
+  let succeeded = false;
   try {
     console.info("[database-sync] download started", {
       databaseName,
@@ -364,20 +365,42 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
     const downloadPath = `${databasePath}.download.tmp`;
     const sessionDirectory = `${databasePath}.sessions.download`;
     try {
-      emitProgress(options, 40, "正在下载云端数据库文件...");
+      emitProgress(options, 25, "正在读取云端数据库清单...");
       console.info("[database-sync] downloading database file", {
         databaseName,
         target: downloadPath,
       });
-      await downloadChunkedPath(syncProvider, objects.database, downloadPath);
+      await downloadChunkedPath(syncProvider, objects.database, downloadPath, {
+        onProgress: (done, total) => {
+          emitProgress(
+            options,
+            25 + (total ? done / total : 1) * 35,
+            `正在下载数据库文件 · ${(done / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MiB`
+          );
+        },
+      });
 
       const hasSessions = await syncProvider.fileExists(objects.sessions);
       console.info("[database-sync] database file downloaded", { databaseName, hasSessions });
       if (hasSessions) {
-        emitProgress(options, 65, "正在下载对话记录...");
+        emitProgress(options, 60, "正在读取对话记录清单...");
         await removeFile(sessionDirectory).catch(() => undefined);
         await createDir(sessionDirectory);
         const sessionNames = decodeSessionList(await syncProvider.downloadFile(objects.sessions));
+        const fractions = new Map<string, number>();
+        let completedFiles = 0;
+        const reportSessions = () => {
+          const fraction = sessionNames.length
+            ? (completedFiles + [...fractions.values()].reduce((sum, value) => sum + value, 0)) /
+              sessionNames.length
+            : 1;
+          emitProgress(
+            options,
+            60 + fraction * 25,
+            `正在下载对话记录 · ${completedFiles} / ${sessionNames.length} 个`
+          );
+        };
+        reportSessions();
         const localFiles = new Map<string, SessionSyncFile>();
         try {
           const local = await piSessionSyncFiles(databaseName);
@@ -402,7 +425,14 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
             await downloadChunkedPath(syncProvider, objects.session(name), target, {
               expectedName: name,
               localPath: localFiles.get(name)?.path,
+              onProgress: (done, total) => {
+                fractions.set(name, total ? done / total : 1);
+                reportSessions();
+              },
             });
+            completedFiles++;
+            fractions.delete(name);
+            reportSessions();
           } catch (error) {
             console.error("[database-sync] session file download failed", {
               databaseName,
@@ -436,7 +466,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       databaseName,
       installedVersion: remote.version,
     });
-    emitProgress(options, 100, "下载完成");
+    succeeded = true;
     return true;
   } catch (e) {
     console.error("[database-sync] download failed", {
@@ -450,9 +480,11 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
   } finally {
     try {
       // 自动同步随后虽会重载窗口，维护升级也必须在释放同步互斥前完成。
+      if (succeeded) emitProgress(options, 95, "正在打开数据库...");
       await reconnectAfterSync(databaseName, "sync_download_reconnect", {
         mode: "maintenance",
       });
+      if (succeeded) emitProgress(options, 100, "下载完成");
     } finally {
       await piSessionUnlockLibrary(databaseName);
     }

@@ -6,6 +6,7 @@ function fileCall<T>(channel: string, ...args: unknown[]): Promise<T> {
 import {
   uploadChunkedFile,
   downloadChunkedFile,
+  type ChunkDownloadOptions,
   type ObjectStorage,
 } from "@tau/db-schema/sync-protocol";
 export const chunkDigest = async (bytes: Uint8Array) => {
@@ -41,7 +42,7 @@ export async function downloadChunkedPath(
   store: Pick<ObjectStorage, "downloadFile">,
   object: string,
   target: string,
-  options: { expectedName?: string; localPath?: string } = {}
+  options: Pick<ChunkDownloadOptions, "expectedName" | "onProgress"> & { localPath?: string } = {}
 ) {
   await fileCall("sync:file-write", target, 0, new Uint8Array());
   return downloadChunkedFile(
@@ -52,6 +53,7 @@ export async function downloadChunkedPath(
     undefined,
     {
       expectedName: options.expectedName,
+      onProgress: options.onProgress,
       readLocalChunk: options.localPath
         ? (offset, length) =>
             fileCall<Uint8Array | null>("sync:file-read-local", options.localPath, offset, length)

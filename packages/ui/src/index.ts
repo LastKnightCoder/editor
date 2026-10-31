@@ -13,6 +13,7 @@ export { UiHostProvider, type UiRegisterDismiss } from "./UiHostProvider";
 export * from "./primitives/Button";
 export * from "./primitives/IconButton";
 export * from "./primitives/Loading";
+export * from "./primitives/ProgressStatus";
 export * from "./primitives/Panel";
 export * from "./primitives/DocumentCard";
 export * from "./primitives/Toast";

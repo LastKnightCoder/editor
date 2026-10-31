@@ -240,6 +240,7 @@ async fn download_chunks(
     expected_name: Option<&str>,
     local: Option<&Path>,
     check: impl Fn() -> Result<(), String>,
+    on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
 ) -> Result<Manifest, String> {
     check()?;
     let manifest = Manifest::parse(&store.get(object, protocol().manifest_bytes as u64).await?)?;
@@ -254,6 +255,9 @@ async fn download_chunks(
         File::open(path).ok()
     });
     let mut offset = 0;
+    if let Some(report) = on_progress {
+        report(0, manifest.size);
+    }
     for chunk in &manifest.chunks {
         check()?;
         let reused = local.as_mut().and_then(|source| {
@@ -276,6 +280,9 @@ async fn download_chunks(
         };
         file.write_all(&bytes).map_err(|e| e.to_string())?;
         offset += chunk.size;
+        if let Some(report) = on_progress {
+            report(offset, manifest.size);
+        }
     }
     check()?;
     file.sync_all().map_err(|e| e.to_string())?;
@@ -314,24 +321,36 @@ impl PluginProvider {
     pub(crate) async fn chunk_manifest(&self, object: &str) -> Result<Manifest, String> {
         Manifest::parse(&self.download_bytes(object).await?)
     }
-    pub(crate) async fn download_chunked(&self, object: &str) -> Result<TemporaryFile, String> {
-        self.download_checked(object, None, None, || Ok(())).await
+    pub(crate) async fn download_chunked(
+        &self,
+        object: &str,
+        on_progress: &(dyn Fn(u64, u64) + Send + Sync),
+    ) -> Result<TemporaryFile, String> {
+        self.download_checked(object, None, None, || Ok(()), Some(on_progress))
+            .await
     }
     pub(crate) async fn download_session_chunked(
         &self,
         object: &str,
         name: &str,
         local: &Path,
+        on_progress: &(dyn Fn(u64, u64) + Send + Sync),
     ) -> Result<TemporaryFile, String> {
-        self.download_checked(object, Some(name), Some(local), || Ok(()))
-            .await
+        self.download_checked(
+            object,
+            Some(name),
+            Some(local),
+            || Ok(()),
+            Some(on_progress),
+        )
+        .await
     }
     pub(crate) async fn download_resource_chunked(
         &self,
         object: &str,
         name: &str,
     ) -> Result<TemporaryFile, String> {
-        self.download_checked(object, Some(name), None, resource_check)
+        self.download_checked(object, Some(name), None, resource_check, None)
             .await
     }
     async fn download_checked(
@@ -340,13 +359,23 @@ impl PluginProvider {
         expected_name: Option<&str>,
         local: Option<&Path>,
         check: impl Fn() -> Result<(), String>,
+        on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
     ) -> Result<TemporaryFile, String> {
         let temp = self.new_temporary()?;
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .open(&temp.path)
             .map_err(|e| e.to_string())?;
-        download_chunks(self, object, &mut file, expected_name, local, check).await?;
+        download_chunks(
+            self,
+            object,
+            &mut file,
+            expected_name,
+            local,
+            check,
+            on_progress,
+        )
+        .await?;
         Ok(temp)
     }
 }
@@ -494,6 +523,7 @@ mod tests {
             Some("session.jsonl"),
             Some(&local),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -511,6 +541,7 @@ mod tests {
             Some("session.jsonl"),
             Some(&local),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -529,6 +560,7 @@ mod tests {
             Some("other.jsonl"),
             Some(&local),
             || Ok(()),
+            None
         )
         .await
         .unwrap_err()
@@ -580,6 +612,7 @@ mod tests {
                 Some("session.jsonl"),
                 Some(&local),
                 || Ok(()),
+                None,
             )
             .await
             .unwrap();
@@ -602,6 +635,7 @@ mod tests {
             Some("session.jsonl"),
             Some(&local),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -617,6 +651,7 @@ mod tests {
                 Some("session.jsonl"),
                 Some(&local),
                 || Ok(()),
+                None,
             )
             .await
             .unwrap();
@@ -636,6 +671,7 @@ mod tests {
             Some("session.jsonl"),
             Some(&local),
             || Ok(()),
+            None
         )
         .await
         .is_err());
@@ -658,6 +694,7 @@ mod tests {
             Some("session.jsonl"),
             Some(&local),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -680,17 +717,17 @@ mod tests {
             writes: RefCell::new(vec![]),
         };
         let mut result = File::create(root.join("typescript-received.bin")).unwrap();
-        let manifest =
-            download_chunks(
-                &store,
-                "typescript.json",
-                &mut result,
-                None,
-                None,
-                || Ok(()),
-            )
-            .await
-            .unwrap();
+        let manifest = download_chunks(
+            &store,
+            "typescript.json",
+            &mut result,
+            None,
+            None,
+            || Ok(()),
+            None,
+        )
+        .await
+        .unwrap();
         assert_eq!(manifest.size, protocol().chunk_bytes as u64 + 3);
         assert_eq!(manifest.chunks.len(), 2);
         let source = root.join("rust.bin");
@@ -738,7 +775,7 @@ mod tests {
         assert_eq!(manifest.size, length as u64);
         assert_eq!(manifest.chunks.len(), 17);
         let mut output = File::create(root.join("result.bin")).unwrap();
-        download_chunks(&store, &object, &mut output, None, None, || Ok(()))
+        download_chunks(&store, &object, &mut output, None, None, || Ok(()), None)
             .await
             .unwrap();
         assert_eq!(output.metadata().unwrap().len(), length as u64);
@@ -760,7 +797,7 @@ mod tests {
         .unwrap();
         let mut output = File::create(root.join("bad.bin")).unwrap();
         assert!(
-            download_chunks(&store, &object, &mut output, None, None, || Ok(()))
+            download_chunks(&store, &object, &mut output, None, None, || Ok(()), None)
                 .await
                 .is_err()
         );
