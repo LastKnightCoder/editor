@@ -176,7 +176,7 @@ class TodoReminderModule implements Module {
 
   private sendReminder(reminder: InternalReminder): void {
     // 系统级提醒经通知分流（失焦进系统通知窗口）：sticky 常驻到用户处理；
-    // 「查看」沿用原原生通知的 click 行为（通知渲染端 + 聚焦窗口）
+    // 「查看」带 reveal，由系统通知窗口先把主窗口带到前台
     routeNotification(
       {
         id: `todo-reminder:${this.reminderKey(reminder)}`,
@@ -185,23 +185,11 @@ class TodoReminderModule implements Module {
         icon: "calendarClock",
         tone: "neutral",
         sticky: true,
-        actions: [{ label: "查看", primary: true }],
+        actions: [{ label: "查看", primary: true, reveal: true }],
       },
       {
         kind: "main",
-        handlers: [
-          () => {
-            this.sendToRenderer("todo-reminder:clicked", reminder);
-            const windows = BrowserWindow.getAllWindows();
-            if (windows.length > 0) {
-              const win = windows[0];
-              if (win.isMinimized()) {
-                win.restore();
-              }
-              win.focus();
-            }
-          },
-        ],
+        handlers: [() => this.sendToRenderer("todo-reminder:clicked", reminder)],
       }
     );
 

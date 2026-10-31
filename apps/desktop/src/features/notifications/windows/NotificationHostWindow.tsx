@@ -44,8 +44,14 @@ export default function NotificationHostWindow() {
   useEffect(() => {
     const offPush = platform.notification.onPush(payload => {
       payloadsRef.current.set(payload.id, payload);
-      // 同 id 再推由 notify 原位更新；按钮执行经主进程转回来源端并等待回报
-      notify(toNotifyOptions(payload, index => platform.notification.action(payload.id, index)));
+      // 同 id 再推由 notify 原位更新；按钮执行经主进程转回来源端并等待回报，
+      // reveal 按钮先激活来源窗口，否则导航发生在后台窗口里用户看不到
+      notify(
+        toNotifyOptions(payload, async index => {
+          if (payload.actions?.[index]?.reveal) await platform.notification.activate(payload.id);
+          await platform.notification.action(payload.id, index);
+        })
+      );
     });
     const offDismiss = platform.notification.onDismiss(id => {
       if (id === undefined) payloadsRef.current.clear();

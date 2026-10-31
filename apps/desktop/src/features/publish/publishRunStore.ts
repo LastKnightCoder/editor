@@ -1,8 +1,7 @@
 /** 发布运行态与进度订阅由壳层持有，离开发布页后继续运行。 */
 
 import { create } from "zustand";
-import type { NotificationAction } from "@tau/ui";
-import { appNotify } from "@/features/notifications/notify";
+import { appNotify, type AppNotifyAction } from "@/features/notifications/notify";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import { executePublish } from "@/commands";
@@ -101,8 +100,12 @@ const NOTICE_ID = "publish-run";
  * 连续发布只留最新一条；失败类常驻并可重试，成功类按默认时长自动关。
  */
 function notifyFinished(run: RunState) {
-  const view: NotificationAction = { label: "查看详情", onClick: () => openPage("publish") };
-  const retry: NotificationAction = {
+  const view: AppNotifyAction = {
+    label: "查看详情",
+    reveal: true,
+    onClick: () => openPage("publish"),
+  };
+  const retry: AppNotifyAction = {
     label: "重试",
     primary: true,
     onClick: () => {

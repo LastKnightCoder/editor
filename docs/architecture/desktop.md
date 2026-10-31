@@ -445,6 +445,10 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
   禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
+- **把窗口带到前台**：系统通知窗口不可聚焦，点卡片主体一律激活来源窗口（main origin 激活主窗口）；
+  按钮默认不抢前台（同意 / 重试等就地作答），「查看」类按钮标 `reveal: true`，先激活来源窗口
+  再执行回调。`revealWindow` / `showOrCreateMainWindow` 在 macOS 上用 `app.focus({ steal: true })`
+  抢占激活，主进程其他唤起窗口的入口同样走这两个函数，不要直接调 `win.focus()`。
 
 ## 3. 三大协议（照抄即用）
 
