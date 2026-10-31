@@ -360,7 +360,7 @@ it("正式PluginHost的ai能力声明、授权与撤权取消接入同一适配�
   const f = await setup();
   const permissions = new PluginPermissionBroker(
     {
-      read: async () => ({ "test.capability": { "ai:titleSummary": "granted" } }),
+      read: async () => ({ "test.capability": { "ai:flashcardGeneration": "granted" } }),
       write: async () => undefined,
     },
     () => true
@@ -375,7 +375,7 @@ it("正式PluginHost的ai能力声明、授权与撤权取消接入同一适配�
   pluginHost.registerTrusted({
     ...definePlugin({
       id: "test.capability",
-      name: "标题",
+      name: "闪卡",
       version: "1.0.0",
       create: () => ({
         activate(value) {
@@ -383,20 +383,20 @@ it("正式PluginHost的ai能力声明、授权与撤权取消接入同一适配�
         },
       }),
     }),
-    permissions: ["ai:titleSummary"],
+    permissions: ["ai:flashcardGeneration"],
   });
   try {
     await pluginHost.enable("test.capability");
     await expect(context.ai.requestCapability("chat")).rejects.toThrow("未声明");
-    const capability = await context.ai.requestCapability("titleSummary");
+    const capability = await context.ai.requestCapability("flashcardGeneration");
     const pending = capability.chat({ messages: [{ role: "user", content: "总结" }] });
     const rejected = expect(pending).rejects.toThrow();
     await f.started();
     expect(f.call).toHaveBeenCalledWith(
       "plugin_ai_register",
-      expect.objectContaining({ hostFeature: "titleSummary" })
+      expect.objectContaining({ hostFeature: "flashcardGeneration" })
     );
-    await permissions.reset("test.capability", "ai:titleSummary");
+    await permissions.reset("test.capability", "ai:flashcardGeneration");
     await rejected;
     expect(f.abort).toHaveBeenCalled();
   } finally {

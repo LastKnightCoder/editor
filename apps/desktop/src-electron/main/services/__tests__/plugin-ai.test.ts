@@ -55,10 +55,22 @@ function fixture() {
 }
 
 describe("插件 AI 主进程边界", () => {
-  it("公开能力清单覆盖应用所有大模型功能分配", () => {
-    expectTypeOf<PluginAICapability>().toEqualTypeOf<keyof ISetting["llmUsageSettings"]>();
+  it("仅公开聊天与闪卡生成，且都对应应用已有模型分配", () => {
+    expectTypeOf<PluginAICapability>().toEqualTypeOf<"chat" | "flashcardGeneration">();
+    expectTypeOf<PluginAICapability>().toExtend<keyof ISetting["llmUsageSettings"]>();
+    expect(Object.keys(PLUGIN_AI_CAPABILITIES)).toEqual(["chat", "flashcardGeneration"]);
     for (const name of Object.keys(PLUGIN_AI_CAPABILITIES))
       expect(PLUGIN_PERMISSIONS).toContain(`ai:${name}`);
+  });
+
+  it.each(["titleSummary", "contentInsights"])("内部能力 %s 不能注册宿主绑定", capability => {
+    const { service, deps } = fixture();
+    expect(() =>
+      service.register(1, "test.internal", "内部能力插件", [], capability as never)
+    ).toThrow("AI_UNDECLARED_FEATURE");
+    expect(service.info("test.internal")).toBeNull();
+    expect(deps.hostModel).not.toHaveBeenCalled();
+    expect(deps.execute).not.toHaveBeenCalled();
   });
 
   it.each(Object.keys(PLUGIN_AI_CAPABILITIES) as PluginAICapability[])(
@@ -75,22 +87,16 @@ describe("插件 AI 主进程边界", () => {
     }
   );
 
-  it("图片理解按受控图片载荷执行，图片不进入审计", async () => {
+  it("聊天按受控图片载荷执行，图片不进入审计", async () => {
     const { service, deps, audits } = fixture();
-    const session = service.register(
-      1,
-      "images.capability",
-      "图片插件",
-      [],
-      "vibeLearningImageDescription"
-    );
+    const session = service.register(1, "images.capability", "图片插件", [], "chat");
     const image = { mimeType: "image/png" as const, data: "aW1hZ2UtcHJpdmF0ZQ==" };
     await service.run(
       1,
       session,
       "image",
       {
-        feature: "vibeLearningImageDescription",
+        feature: "chat",
         messages: [{ role: "user", content: "描述图片", images: [image] }],
       },
       vi.fn()
@@ -110,7 +116,7 @@ describe("插件 AI 主进程边界", () => {
         session,
         "invalid-image",
         {
-          feature: "vibeLearningImageDescription",
+          feature: "chat",
           messages: [
             {
               role: "user",

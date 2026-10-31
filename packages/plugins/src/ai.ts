@@ -6,18 +6,7 @@ export interface PluginAIFeature {
 
 export const PLUGIN_AI_CAPABILITIES = {
   chat: { name: "对话功能" },
-  titleSummary: { name: "标题总结" },
-  webClip: { name: "网页剪藏" },
-  podcastGeneration: { name: "播客生成" },
   flashcardGeneration: { name: "闪卡制作" },
-  aiJudgement: { name: "答案评判" },
-  transcriptionOptimization: { name: "转录断句优化" },
-  speechInputRefinement: { name: "语音输入整理" },
-  videoSummary: { name: "视频总结" },
-  videoEbookRewrite: { name: "视频电子书重写" },
-  vibeLearningImageDescription: { name: "图片理解" },
-  contentMetadata: { name: "笔记元信息" },
-  contentInsights: { name: "AI 洞见" },
 } as const;
 
 export type PluginAICapability = keyof typeof PLUGIN_AI_CAPABILITIES;
@@ -48,7 +37,8 @@ export interface PluginAIResult {
 }
 
 export type PluginAIEvent =
-  { type: "text"; delta: string } | { type: "done"; result: PluginAIResult };
+  | { type: "text"; delta: string }
+  | { type: "done"; result: PluginAIResult };
 
 export interface PluginAIFeatures {
   getStatus(feature: string): Promise<{ configured: boolean; enabled: boolean }>;

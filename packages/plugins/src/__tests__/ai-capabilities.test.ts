@@ -8,6 +8,30 @@ import {
 } from "../index";
 import { PluginHost, createMemoryStorage } from "../host";
 import { unavailableAI } from "../ai";
+import { readPermissionsField } from "../permissions";
+
+it.each([
+  "titleSummary",
+  "webClip",
+  "podcastGeneration",
+  "aiJudgement",
+  "transcriptionOptimization",
+  "speechInputRefinement",
+  "videoSummary",
+  "videoEbookRewrite",
+  "vibeLearningImageDescription",
+  "contentMetadata",
+  "contentInsights",
+])("内部能力 %s 不能声明权限或申请模型", async capability => {
+  expect(() => readPermissionsField({ permissions: [`ai:${capability}`] })).toThrow("未知插件权限");
+  const fixture = await setup();
+  await expect(fixture.context.ai.requestCapability(capability as never)).rejects.toThrow(
+    "AI_UNDECLARED_CAPABILITY"
+  );
+  expect(fixture.ensure).not.toHaveBeenCalled();
+  expect(fixture.bindCapability).not.toHaveBeenCalled();
+  await fixture.host.dispose();
+});
 
 async function setup(
   declared: readonly PluginPermission[] = ["ai:flashcardGeneration"],

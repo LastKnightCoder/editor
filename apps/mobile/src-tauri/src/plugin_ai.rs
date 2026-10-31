@@ -13,21 +13,7 @@ const MAX_SAFE: u64 = 9_007_199_254_740_991;
 const MAX_SESSIONS: usize = 128;
 const MAX_ACTIVE: usize = 128;
 const MAX_STORE_BYTES: u64 = 32 * 1024 * 1024;
-const CAPABILITIES: &[(&str, &str)] = &[
-    ("chat", "对话功能"),
-    ("titleSummary", "标题总结"),
-    ("webClip", "网页剪藏"),
-    ("podcastGeneration", "播客生成"),
-    ("flashcardGeneration", "闪卡制作"),
-    ("aiJudgement", "答案评判"),
-    ("transcriptionOptimization", "转录断句优化"),
-    ("speechInputRefinement", "语音输入整理"),
-    ("videoSummary", "视频总结"),
-    ("videoEbookRewrite", "视频电子书重写"),
-    ("vibeLearningImageDescription", "图片理解"),
-    ("contentMetadata", "笔记元信息"),
-    ("contentInsights", "AI 洞见"),
-];
+const CAPABILITIES: &[(&str, &str)] = &[("chat", "对话功能"), ("flashcardGeneration", "闪卡制作")];
 
 pub(crate) fn is_capability(value: &str) -> bool {
     CAPABILITIES.iter().any(|(id, _)| *id == value)
@@ -1257,7 +1243,7 @@ mod tests {
             let root = std::env::temp_dir().join(format!("tau-plugin-ai-{}", uuid::Uuid::new_v4()));
             let current = root.join("portable-plugins/test.ai/current");
             fs::create_dir_all(&current).unwrap();
-            fs::write(current.join("manifest.json"), serde_json::to_vec(&json!({"id":"test.ai","name":"测试插件","version":"1.0.0","formatVersion":3,"platform":"portable","profile":"web-v1","permissions":["ai:chat","ai:titleSummary"]})).unwrap()).unwrap();
+            fs::write(current.join("manifest.json"), serde_json::to_vec(&json!({"id":"test.ai","name":"测试插件","version":"1.0.0","formatVersion":3,"platform":"portable","profile":"web-v1","permissions":["ai:chat","ai:flashcardGeneration"]})).unwrap()).unwrap();
             let setting = json!({"llmProviders":[{"id":"p","apiKey":"fixture-provider-key","baseUrl":"https://test.invalid/v1","api":"openai-completions","models":[{"id":"one"},{"id":"two"}]}],"llmUsageSettings":{"chat":{"providerId":"p","modelId":"two"}}});
             let mut engine = Engine::default();
             let session = engine
@@ -1414,11 +1400,14 @@ mod tests {
     #[test]
     fn native_capabilities_and_mobile_permission_support_match_sdk() {
         let sdk = include_str!("../../../../packages/plugins/src/ai.ts");
+        assert_eq!(CAPABILITIES.len(), 2);
         for (capability, name) in CAPABILITIES {
             assert!(sdk.contains(&format!("{capability}: {{ name: \"{name}\" }}")));
             assert!(is_capability(capability));
         }
         assert!(!is_capability("unknown"));
+        assert!(!is_capability("titleSummary"));
+        assert!(!is_capability("contentInsights"));
     }
 
     #[test]

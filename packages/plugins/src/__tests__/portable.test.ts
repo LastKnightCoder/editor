@@ -220,7 +220,7 @@ it("移动 AI 使用独立版本门槛，已有业务权限可与能力权限共
   for (const platform of ["android", "ios"] as const) {
     for (const permissions of [
       ["ai:chat"],
-      ["cards:read", "ai:titleSummary"],
+      ["cards:read", "ai:flashcardGeneration"],
       [...MOBILE_AI_PERMISSIONS],
     ]) {
       const input = {
