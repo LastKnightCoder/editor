@@ -111,7 +111,7 @@ it("只读注释可查看并经宿主返回关闭，保留原内容", async () =
   );
   try {
     const before = JSON.stringify(view.editor.children);
-    const trigger = view.host.querySelector("span.absolute") as HTMLSpanElement;
+    const trigger = view.host.querySelector('[aria-label="注解 1"]') as HTMLSpanElement;
     await act(async () => trigger.click());
     expect(view.dismissals.size).toBe(1);
     await act(async () => [...view.dismissals][0]());

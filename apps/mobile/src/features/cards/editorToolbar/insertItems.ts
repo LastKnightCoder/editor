@@ -13,7 +13,7 @@ import {
   Sigma,
   SquareCheck,
   SquareCode,
-  StickyNote,
+  Superscript,
   Table as TableIcon,
   Video,
   Volume2,
@@ -223,7 +223,7 @@ export const INSERT_ITEMS: InsertItem[] = [
     label: "注解",
     keywords: ["注释", "zhujie", "zj", "zhushi", "annotation", "note"],
     group: "inline",
-    icon: StickyNote,
+    icon: Superscript,
     tone: 5,
   },
   {

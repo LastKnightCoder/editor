@@ -580,7 +580,7 @@ export function useMobileEditorToolbarController(
           void promptInsertWebview(editor);
           break;
         case "annotation":
-          insertAnnotation(editor, "注解内容");
+          insertAnnotation(editor);
           break;
         case "content-link":
           executeAction(kind);
