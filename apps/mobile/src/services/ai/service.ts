@@ -33,13 +33,29 @@ import {
   type AiSkillSnapshot,
   type AiSkillSource,
 } from "@tau/ai/skills";
-import { AiMcpManager, type AiMcpServerConfig, type AiMcpConnectionOptions } from "@tau/ai/mcp";
+import {
+  AiMcpManager,
+  type AiMcpServerConfig,
+  type AiMcpConnectionOptions,
+  type AiMcpServerState,
+} from "@tau/ai/mcp";
 import * as native from "./native";
 
 type NativeContext = Pick<Awaited<ReturnType<typeof native.createModelFetch>>, "fetch" | "dispose">;
 type SessionPatch = Parameters<typeof native.patchSession>[3];
 type SessionFilter = Parameters<typeof native.listSessions>[1];
 type GenerationHandle = Awaited<ReturnType<AiRuntime["generate"]>>;
+type McpRegistration = {
+  config: AiMcpServerConfig;
+  options: AiMcpConnectionOptions;
+  pending?: Promise<AiMcpServerState>;
+};
+type McpEntry = {
+  manager: AiMcpManager;
+  contexts: Map<string, NativeContext>;
+  registrations: Map<string, McpRegistration>;
+  releaseScope(): void;
+};
 
 export interface MobileAiSessionSnapshot extends AiStoredSession {
   messages: ReturnType<typeof projectSessionMessages>;
@@ -103,10 +119,7 @@ export class MobileAiService {
     string,
     { databaseName: string; token: symbol; executionIdentity: string }
   >();
-  private readonly mcpEntries = new Map<
-    string,
-    { manager: AiMcpManager; contexts: Map<string, NativeContext>; releaseScope(): void }
-  >();
+  private readonly mcpEntries = new Map<string, McpEntry>();
   private readonly generations = new Map<
     string,
     { databaseName: string; handle: GenerationHandle }
@@ -347,9 +360,12 @@ export class MobileAiService {
         if (this.toolScopes.get(spec.id) === owner) this.toolScopes.delete(spec.id);
       }, scope?.databaseName);
     },
-    list: () => {
-      this.assertOpen();
-      return this.registry.list();
+    list: (scope?: { databaseName: string }) => {
+      this.assertOpen(scope?.databaseName);
+      return this.registry.list().filter(spec => {
+        const owner = this.toolScopes.get(spec.id);
+        return !scope || !owner || owner.databaseName === scope.databaseName;
+      });
     },
   };
 
@@ -380,40 +396,37 @@ export class MobileAiService {
     list: (databaseName: string) => {
       return this.mcpEntries.get(databaseName)?.manager.list() ?? [];
     },
-    connect: (databaseName: string, config: AiMcpServerConfig, options?: AiMcpConnectionOptions) =>
-      this.action(databaseName, async () => {
-        this.assertOpen(databaseName);
-        const entry = this.mcpEntry(databaseName);
-        await entry.manager.disconnect(config.id);
-        await entry.contexts.get(config.id)?.dispose();
-        entry.contexts.delete(config.id);
-        if (config.transport.type === "stdio") return entry.manager.connect(config, options);
-        const context = await native.createMcpFetch(await this.lease(databaseName), {
-          id: config.id,
-          transport: config.transport,
-        });
-        if (this.disposed || this.blocks.has(databaseName)) {
-          await context.dispose();
-          this.assertOpen(databaseName);
-        }
-        entry.contexts.set(config.id, context);
-        try {
-          return await entry.manager.connect(config, options);
-        } catch (error) {
-          if (entry.contexts.get(config.id) === context) entry.contexts.delete(config.id);
-          await context.dispose();
-          throw errorOf(error);
-        }
-      }),
+    connect: async (
+      databaseName: string,
+      config: AiMcpServerConfig,
+      options?: AiMcpConnectionOptions
+    ) => {
+      this.assertOpen(databaseName);
+      const entry = this.mcpEntry(databaseName);
+      const previous = entry.registrations.get(config.id);
+      const registration: McpRegistration = {
+        config: structuredClone(config),
+        options: Object.freeze({ ...options }),
+      };
+      entry.registrations.set(config.id, registration);
+      const closing = entry.manager.disconnect(config.id);
+      return this.connectMcp(
+        databaseName,
+        entry,
+        registration,
+        Promise.all([previous?.pending?.catch(() => undefined), closing])
+      );
+    },
     disconnect: async (databaseName: string, id: string) => {
       const entry = this.mcpEntries.get(databaseName);
       if (!entry) return;
+      entry.registrations.delete(id);
       const context = entry.contexts.get(id);
+      entry.contexts.delete(id);
       try {
         await entry.manager.disconnect(id);
       } finally {
         await context?.dispose();
-        if (entry.contexts.get(id) === context) entry.contexts.delete(id);
       }
     },
     refreshTools: async (databaseName: string, id: string) => {
@@ -431,7 +444,25 @@ export class MobileAiService {
       const intent = ++this.pauseIntent;
       await this.suspendPromise;
       if (this.disposed) throw new AiError("AI_LIBRARY_CHANGED", "AI 服务已释放");
-      if (intent === this.pauseIntent) this.paused = false;
+      if (intent !== this.pauseIntent) return;
+      this.paused = false;
+      const results = await Promise.allSettled(
+        [...this.mcpEntries].flatMap(([databaseName, entry]) =>
+          [...entry.registrations.values()]
+            .filter(registration => {
+              const state = entry.manager.list().find(state => state.id === registration.config.id);
+              return (
+                registration.config.transport.type === "streamable-http" &&
+                state?.status !== "connected"
+              );
+            })
+            .map(registration => this.connectMcp(databaseName, entry, registration))
+        )
+      );
+      const failed = results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      if (failed) throw errorOf(failed.reason);
     },
     releaseLibrary: (databaseName: string) => this.releaseLibrary(databaseName),
     prepareMaintenance: async (databaseName: string) => {
@@ -813,6 +844,61 @@ export class MobileAiService {
     return { sections: { "tau-skills": sections.length ? sections.join("\n\n") : null } };
   }
 
+  private connectMcp(
+    databaseName: string,
+    entry: McpEntry,
+    registration: McpRegistration,
+    previous?: Promise<unknown>
+  ): Promise<AiMcpServerState> {
+    if (registration.pending) return registration.pending;
+    const { config, options } = registration;
+    const check = () => {
+      this.assertOpen(databaseName);
+      if (
+        this.mcpEntries.get(databaseName) !== entry ||
+        entry.registrations.get(config.id) !== registration
+      )
+        throw new AiError("AI_MCP_CONNECTION_FAILED", "MCP 连接声明已撤销或更新");
+    };
+    const pending = this.action(databaseName, async () => {
+      await previous?.catch(() => undefined);
+      check();
+      await entry.manager.disconnect(config.id);
+      check();
+      const previousContext = entry.contexts.get(config.id);
+      entry.contexts.delete(config.id);
+      await previousContext?.dispose();
+      check();
+      if (config.transport.type === "stdio") return entry.manager.connect(config, options);
+      const context = await native.createMcpFetch(await this.lease(databaseName), {
+        id: config.id,
+        transport: config.transport,
+      });
+      let attached = false;
+      try {
+        check();
+        entry.contexts.set(config.id, context);
+        attached = true;
+        const state = await entry.manager.connect(config, options);
+        check();
+        return state;
+      } catch (error) {
+        if (!attached || entry.contexts.get(config.id) === context) {
+          if (attached) entry.contexts.delete(config.id);
+          await context.dispose();
+        }
+        throw errorOf(error);
+      }
+    });
+    registration.pending = pending;
+    void pending
+      .finally(() => {
+        if (registration.pending === pending) registration.pending = undefined;
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
   private mcpEntry(databaseName: string) {
     let entry = this.mcpEntries.get(databaseName);
     if (!entry) {
@@ -868,6 +954,7 @@ export class MobileAiService {
       entry = {
         manager,
         contexts,
+        registrations: new Map(),
         releaseScope() {
           unsubscribe();
           clearScopes();
@@ -879,11 +966,12 @@ export class MobileAiService {
   }
 
   private releaseLibrary(databaseName: string, keepRegistrations = false): Promise<void> {
+    if (!keepRegistrations) this.mcpEntries.get(databaseName)?.registrations.clear();
     const previous = this.releases.get(databaseName);
     if (previous)
       return keepRegistrations
         ? previous
-        : previous.finally(() => this.dropLibraryRegistrations(databaseName));
+        : previous.finally(() => this.releaseLibrary(databaseName));
     const unblock = this.block(databaseName);
     const result = (async () => {
       let failure: unknown;
@@ -902,13 +990,17 @@ export class MobileAiService {
         for (const { handle } of generations) await attempt(() => handle.abort());
         const entry = this.mcpEntries.get(databaseName);
         if (entry) {
-          await attempt(() => entry.manager.dispose());
-          await Promise.all(
-            [...entry.contexts.values()].map(context => attempt(() => context.dispose()))
-          );
-          entry.releaseScope();
+          if (keepRegistrations)
+            await Promise.all(
+              entry.manager.list().map(state => attempt(() => entry.manager.disconnect(state.id)))
+            );
+          else await attempt(() => entry.manager.dispose());
+          const contexts = [...entry.contexts.values()];
+          entry.contexts.clear();
+          await Promise.all(contexts.map(context => attempt(() => context.dispose())));
+          if (!keepRegistrations) entry.releaseScope();
         }
-        this.mcpEntries.delete(databaseName);
+        if (!keepRegistrations) this.mcpEntries.delete(databaseName);
         await Promise.allSettled(generations.map(value => value.handle.result));
         await Promise.allSettled(
           [...this.actions].filter(([, name]) => name === databaseName).map(([action]) => action)
@@ -944,26 +1036,15 @@ export class MobileAiService {
     return result;
   }
 
-  private dropLibraryRegistrations(databaseName: string) {
-    let failure: unknown;
-    for (const [dispose, scope] of this.ownedRegistrations)
-      if (scope === databaseName) {
-        try {
-          dispose();
-        } catch (error) {
-          failure ??= error;
-        }
-      }
-    if (failure) throw errorOf(failure);
-  }
-
   private dispose(): Promise<void> {
     if (this.disposePromise) return this.disposePromise;
     this.disposed = true;
     this.disposePromise = (async () => {
       const results = await Promise.allSettled([
         this.runtime.dispose(),
-        ...[...this.leases.keys()].map(name => this.releaseLibrary(name)),
+        ...[...new Set([...this.leases.keys(), ...this.mcpEntries.keys()])].map(name =>
+          this.releaseLibrary(name)
+        ),
       ]);
       try {
         for (const dispose of this.ownedRegistrations.keys()) dispose();

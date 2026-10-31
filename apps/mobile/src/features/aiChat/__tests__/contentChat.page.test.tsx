@@ -18,6 +18,7 @@ const service = vi.hoisted(() => {
   const listeners = new Map<string, Listener>();
   return {
     listeners,
+    tools: { list: vi.fn(() => []) },
     sessions: {
       create: vi.fn(),
       get: vi.fn(),

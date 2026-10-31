@@ -13,6 +13,7 @@ import {
 import type { AiModelRef } from "@tau/ai/contracts";
 import type { AiApproval, AiQuestion, AiRunSnapshot, MobileAiService } from "../ai";
 import { registerHostCapabilities } from "./hostTools";
+import { INTERNAL_SKILL_SOURCE_ID } from "./skills";
 
 export const CHAT_SCOPE = "main-chat";
 /** 就近对话：domainRef 为 content:<contentId>，同一篇再次打开续上最近一次 */
@@ -24,6 +25,7 @@ export interface ChatInput {
   text: string;
   mentions?: MentionRef[];
   images?: string[];
+  skillIds?: string[];
 }
 
 export interface ChatState {
@@ -80,6 +82,11 @@ export async function releaseChatLibrary(databaseName: string) {
   const entry = capabilities.get(databaseName);
   capabilities.delete(databaseName);
   (await entry?.catch(() => null))?.dispose();
+}
+
+export async function listChatSkills(databaseName: string, signal?: AbortSignal) {
+  const { service } = await capabilitiesFor(databaseName);
+  return service.skills.list(signal);
 }
 
 const toError = (error: unknown) => {
@@ -202,11 +209,25 @@ async function follow(service: MobileAiService, state: ChatState, runId: string)
 /** 消息内容：图片在前（与桌面一致），文本带引用；只有引用没写字时补一句缺省问法 */
 export function buildMessage(input: ChatInput): MessageContent[] {
   const mentions = input.mentions ?? [];
+  // 内置 Skill 沿用桌面的目录名，运行时再补来源限定。
+  const prefix = `${INTERNAL_SKILL_SOURCE_ID}:`;
+  const skills = [
+    ...new Set(
+      (input.skillIds ?? []).map(id => (id.startsWith(prefix) ? id.slice(prefix.length) : id))
+    ),
+  ];
   const text = input.text.trim() || (mentions.length ? "请看看这些内容" : "");
   return [
     ...(input.images ?? []).map(image => ({ type: "image" as const, image })),
-    ...(text || mentions.length
-      ? [{ type: "text" as const, text, ...(mentions.length ? { mentions } : {}) }]
+    ...(text || mentions.length || skills.length
+      ? [
+          {
+            type: "text" as const,
+            text,
+            ...(mentions.length ? { mentions } : {}),
+            ...(skills.length ? { skills } : {}),
+          },
+        ]
       : []),
   ];
 }
@@ -301,8 +322,19 @@ async function runChat(
       message,
       model: state.model,
       ...(thinkingLevel && { thinkingLevel }),
-      toolIds,
-      skillIds: [],
+      toolIds: [
+        ...new Set([
+          ...toolIds,
+          ...service.tools.list({ databaseName: state.databaseName }).map(tool => tool.id),
+        ]),
+      ],
+      skillIds: [
+        ...new Set(
+          message
+            .flatMap(block => (block.type === "text" ? (block.skills ?? []) : []))
+            .map(id => (id.includes(":") ? id : `${INTERNAL_SKILL_SOURCE_ID}:${id}`))
+        ),
+      ],
       interactionMode: "host",
     });
     await follow(service, current, runId);

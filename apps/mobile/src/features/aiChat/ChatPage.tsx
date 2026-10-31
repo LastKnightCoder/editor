@@ -34,14 +34,24 @@ export function ChatPage(props: {
 }) {
   const navigator = useNavigator();
   const { content } = props;
-  const { chat, providers, model, modelInfo, running, loadError, thinking, send, pickModel } =
-    useChatSession({
-      sessionId: props.sessionId,
-      isNew: props.isNew,
-      ...(content && {
-        domain: { contentId: content.contentId, title: content.title || "未命名" },
-      }),
-    });
+  const {
+    databaseName,
+    chat,
+    providers,
+    model,
+    modelInfo,
+    running,
+    loadError,
+    thinking,
+    send,
+    pickModel,
+  } = useChatSession({
+    sessionId: props.sessionId,
+    isNew: props.isNew,
+    ...(content && {
+      domain: { contentId: content.contentId, title: content.title || "未命名" },
+    }),
+  });
   const [mentions, setMentions] = useState<MentionRef[]>(() =>
     content ? [mentionOf(content)] : []
   );
@@ -169,6 +179,8 @@ export function ChatPage(props: {
               </div>
             )}
             <ChatComposer
+              key={databaseName}
+              databaseName={databaseName}
               running={running}
               disabled={!!loadError}
               imageInput={!!modelInfo?.input.includes("image")}

@@ -19,6 +19,8 @@ const service = vi.hoisted(() => {
   const listeners = new Map<string, Listener>();
   return {
     listeners,
+    tools: { list: vi.fn((): Array<{ id: string }> => []) },
+    skills: { list: vi.fn(async (): Promise<object[]> => []) },
     sessions: {
       create: vi.fn(),
       get: vi.fn(),
@@ -187,6 +189,8 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  service.tools.list.mockReturnValue([]);
+  service.skills.list.mockResolvedValue([]);
   service.listeners.clear();
   useChatStore.setState({ chats: {} });
   window.history.replaceState(null, "");
@@ -282,6 +286,42 @@ it("推理模型：下排胶囊选思考强度，记在本机，发送时带上�
   await click(pressable("发送"));
   await waitFor(() => service.runs.start.mock.calls.length === 1);
   expect(service.runs.start.mock.calls[0][0]).toMatchObject({ thinkingLevel: "medium" });
+});
+
+it("从输入框选择手动 Skill，发送携带选择并清空待发送标签", async () => {
+  setting = makeSetting(true);
+  service.skills.list.mockResolvedValue([
+    {
+      id: "notes:weekly",
+      name: "周报整理",
+      description: "整理本周成果",
+      disableModelInvocation: true,
+    },
+    { id: "notes:style", name: "简明风格", description: "精简表达", disableModelInvocation: false },
+  ]);
+  service.sessions.create.mockResolvedValue(session("skill-chat"));
+  service.sessions.patch.mockResolvedValue(session("skill-chat", [], "整理周报"));
+  mount();
+  await open("aiChat", { sessionId: "skill-chat", isNew: "1" });
+  await waitFor(() => !!pressable("添加图片或引用"));
+  await click(pressable("添加图片或引用"));
+  await click(pressable("选择 Skill", document));
+  await waitFor(() => !!pressable("周报整理", document));
+  expect(document.body.textContent).toContain("仅手动调用");
+  await click(pressable("周报整理", document));
+  await click(pressable("简明风格", document));
+  await click(pressable("完成", document));
+  await click(pressable("移除 Skill：简明风格"));
+  type("整理周报");
+  await click(pressable("发送"));
+  await waitFor(() => service.runs.start.mock.calls.length === 1);
+  expect(service.runs.start).toHaveBeenCalledWith(
+    expect.objectContaining({
+      skillIds: ["notes:weekly"],
+      message: [{ type: "text", text: "整理周报", skills: ["notes:weekly"] }],
+    })
+  );
+  expect(pressable("移除 Skill：周报整理")).toBeUndefined();
 });
 
 it("写入工具等待审批：确认条可见，点「允许」经宿主作答", async () => {

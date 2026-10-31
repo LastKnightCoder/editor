@@ -332,7 +332,8 @@ export function createMobilePluginMcp(options: {
       publish();
       entry.pending = prepare(entry).catch(error => {
         if (active(entry)) {
-          for (const cleanup of entry.cleanups.splice(1).reverse()) cleanup();
+          if (!entry.definition.transport)
+            for (const cleanup of entry.cleanups.splice(1).reverse()) cleanup();
           entry.state = {
             ...entry.state,
             status: "error",

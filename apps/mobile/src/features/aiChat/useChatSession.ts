@@ -77,6 +77,7 @@ export function useChatSession(options: {
   };
 
   return {
+    databaseName,
     chat,
     providers,
     model,

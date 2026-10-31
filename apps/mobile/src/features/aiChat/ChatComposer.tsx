@@ -13,9 +13,11 @@ import {
   Mic,
   Plus,
   Square,
+  WandSparkles,
   X,
 } from "lucide-react";
 import { cn } from "@tau/ui";
+import type { AiSkillDescriptor } from "@tau/ai/skills";
 import { THINKING_LEVEL_OPTIONS, type MentionRef, type ThinkingLevel } from "@tau/shared/chat-core";
 import { ActionSheet } from "../../components/ActionSheet";
 import {
@@ -29,6 +31,7 @@ import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPic
 import { imageFileToDataUrl, mentionFromPicker } from "./attachments";
 import { MentionChip } from "./ChatMessages";
 import { HoldToTalkBar } from "./VoiceSendButton";
+import { SkillPickerSheet } from "./SkillPickerSheet";
 
 const ROUND_BUTTON =
   "grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full transition-transform active:scale-90";
@@ -41,6 +44,7 @@ export function ChatComposer(props: {
   running: boolean;
   disabled?: boolean;
   placeholder?: string;
+  databaseName?: string;
   /** 当前模型是否接受图片；不接受时拍照 / 相册置灰 */
   imageInput?: boolean;
   /** 待发送的引用（就近提问的选中片段 / 整篇）；由宿主持有，发送后清空 */
@@ -64,6 +68,8 @@ export function ChatComposer(props: {
   const [plusOpen, setPlusOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [selectedSkills, setSelectedSkills] = useState<AiSkillDescriptor[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const reservation = useKeyboardReservation();
   const keyboardViewport = useKeyboardViewport();
@@ -91,10 +97,14 @@ export function ChatComposer(props: {
 
   const send = (input: ChatInput) => {
     if (props.running || props.disabled) return;
-    props.onSend(input);
+    props.onSend({
+      ...input,
+      ...(selectedSkills.length ? { skillIds: selectedSkills.map(skill => skill.id) } : {}),
+    });
     setValue("");
     setImages([]);
     setMentions([]);
+    setSelectedSkills([]);
     // 发送后收起键盘，让回答占满屏幕
     inputRef.current?.blur();
   };
@@ -194,6 +204,25 @@ export function ChatComposer(props: {
         </div>
       ) : null}
       <div className="bg-surface shadow-card rounded-[26px] pt-3 pr-2.5 pb-2.5 pl-3.5">
+        {selectedSkills.length > 0 && (
+          <div className="scrollbar-hide mb-2.5 flex gap-2 overflow-x-auto">
+            {selectedSkills.map(skill => (
+              <button
+                key={skill.id}
+                type="button"
+                aria-label={`移除 Skill：${skill.name}`}
+                className="bg-accent-soft text-accent-text text-tau-sm flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1"
+                onClick={() =>
+                  setSelectedSkills(current => current.filter(item => item.id !== skill.id))
+                }
+              >
+                <WandSparkles size={13} aria-hidden="true" />
+                {skill.name}
+                <X size={12} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
         {(mentions.length > 0 || images.length > 0) && (
           <div className="scrollbar-hide mb-2.5 flex items-center gap-2 overflow-x-auto">
             {mentions.map((mention, index) => (
@@ -329,6 +358,15 @@ export function ChatComposer(props: {
             icon: <AtSign size={18} />,
             onClick: () => setPickerOpen(true),
           },
+          ...(props.databaseName
+            ? [
+                {
+                  label: "选择 Skill",
+                  icon: <WandSparkles size={18} />,
+                  onClick: () => setSkillsOpen(true),
+                },
+              ]
+            : []),
         ]}
         onClose={() => setPlusOpen(false)}
       />
@@ -360,6 +398,14 @@ export function ChatComposer(props: {
           focusInput();
         }}
       />
+      {skillsOpen && props.databaseName && (
+        <SkillPickerSheet
+          databaseName={props.databaseName}
+          selected={selectedSkills}
+          onChange={setSelectedSkills}
+          onClose={() => setSkillsOpen(false)}
+        />
+      )}
     </div>
   );
 }
