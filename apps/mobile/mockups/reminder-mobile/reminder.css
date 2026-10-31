@@ -1,0 +1,468 @@
+/* 移动端提醒与通知 mockup：外壳复用 ../editor-mobile/styles.css，分组列表/按钮/底部面板复用 ../sync-mobile/sync.css */
+:root {
+  /* 系统锁屏与横幅由 OS 绘制，不随应用主题 */
+  --os-wall: linear-gradient(160deg, #3c4a63 0%, #6b5a74 48%, #b8836b 100%);
+  --os-card: rgba(245, 245, 247, 0.78);
+  --os-card-ink: #1c1c1e;
+  --os-card-meta: #6c6c70;
+  --os-btn: rgba(255, 255, 255, 0.62);
+}
+.phone.lock {
+  background: var(--os-wall);
+  color: #fff;
+}
+.lock .status {
+  color: #fff;
+}
+.lock-time {
+  text-align: center;
+  margin-top: 26px;
+}
+.lock-time .d {
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+.lock-time .t {
+  font-size: 76px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -2px;
+  margin-top: 4px;
+}
+.os-stack {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.os-n {
+  background: var(--os-card);
+  backdrop-filter: blur(20px);
+  color: var(--os-card-ink);
+  border-radius: 20px;
+  padding: 11px 14px 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.os-n .hd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--os-card-meta);
+  margin-bottom: 3px;
+}
+.os-n .app-ic {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--brand);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.os-n .hd .when {
+  margin-left: auto;
+}
+.os-n b {
+  display: block;
+  font-weight: 650;
+}
+.os-n .acts {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+}
+.os-n .acts span {
+  flex: 1;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--os-btn);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+.os-n.dim {
+  opacity: 0.7;
+  transform: scale(0.96);
+}
+.lock-hint {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+/* Android 风格通知（展开） */
+.os-n.android {
+  border-radius: 24px;
+  background: rgba(40, 42, 48, 0.88);
+  color: #eceef3;
+}
+.os-n.android .hd {
+  color: #b7bbc4;
+}
+.os-n.android .acts span {
+  background: transparent;
+  color: #a9c7ff;
+  justify-content: start;
+  flex: none;
+  padding: 0 10px 0 0;
+}
+
+/* 应用内横幅（应用在前台） */
+.in-banner {
+  position: absolute;
+  top: 46px;
+  left: 10px;
+  right: 10px;
+  z-index: 8;
+  background: var(--bg-surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow-float);
+  padding: 12px 12px 12px 14px;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  font-size: 13.5px;
+}
+.in-banner .mid {
+  flex: 1;
+  min-width: 0;
+}
+.in-banner .mid small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.in-banner .mid b {
+  display: block;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.in-banner .ops {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+}
+.in-banner .ops span {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--bg-page);
+}
+.in-banner .ops span.pri {
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+
+/* 详情页：胶囊行与字段 */
+.detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  padding: 6px 20px 4px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.detail-title .ck {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--ink-3);
+  flex-shrink: 0;
+}
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 20px 0 52px;
+}
+.pc {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  background: var(--bg-surface);
+  color: var(--ink-3);
+}
+.pc.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.pc.sage {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+.pc.sky {
+  background: var(--sky-soft);
+  color: var(--sky);
+}
+.pc.ring {
+  box-shadow: 0 0 0 2px var(--brand);
+}
+.pc .x {
+  opacity: 0.6;
+}
+.desc-ph {
+  margin: 14px 20px 0;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+/* 底部面板内的提醒选项 */
+.opt-list {
+  background: var(--bg-surface);
+  border-radius: 16px;
+  margin: 0 14px;
+  overflow: hidden;
+}
+.opt {
+  height: 48px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  position: relative;
+}
+.opt + .opt::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 0;
+  border-top: 1px solid var(--line-2);
+}
+.opt .sub {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.opt .mark {
+  margin-left: auto;
+  color: var(--brand);
+}
+.opt .box {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--line-1);
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+}
+.opt .box.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--ink-inv);
+}
+.sh-cap {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 12px 22px 6px;
+}
+.grid-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 14px;
+}
+.grid-chips span {
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  display: grid;
+  place-items: center;
+  font-size: 13.5px;
+}
+.grid-chips span.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1.5px var(--brand);
+}
+.picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 20px 4px;
+}
+.wheel {
+  margin: 0 14px;
+  background: var(--bg-surface);
+  border-radius: 16px;
+  height: 132px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  position: relative;
+  font-size: 16px;
+  text-align: center;
+}
+.wheel::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 47px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--bg-press);
+}
+.wheel div {
+  position: relative;
+  line-height: 38px;
+}
+.wheel i {
+  display: block;
+  font-style: normal;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+/* 权限引导 */
+.perm {
+  padding: 40px 28px 0;
+  text-align: center;
+}
+.perm .big {
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.perm h2 {
+  font-size: 21px;
+  margin-bottom: 8px;
+}
+.perm p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.perm .eg {
+  margin: 22px 0 0;
+  text-align: left;
+}
+.os-alert {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 270px;
+  z-index: 7;
+  background: rgba(242, 242, 247, 0.96);
+  color: #1c1c1e;
+  border-radius: 14px;
+  text-align: center;
+  overflow: hidden;
+  font-size: 13px;
+}
+.os-alert .bd {
+  padding: 18px 16px 14px;
+  line-height: 1.45;
+}
+.os-alert .bd b {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.os-alert .bt {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 0.5px solid rgba(60, 60, 67, 0.3);
+}
+.os-alert .bt span {
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: #0a7aff;
+  font-size: 16px;
+}
+.os-alert .bt span + span {
+  border-left: 0.5px solid rgba(60, 60, 67, 0.3);
+  font-weight: 600;
+}
+.warn-bar {
+  margin: 10px 16px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--butter-soft);
+  color: var(--butter);
+  font-size: 12.5px;
+  line-height: 1.55;
+  display: flex;
+  gap: 8px;
+}
+.warn-bar b {
+  color: var(--ink-1);
+}
+.toggle {
+  width: 44px;
+  height: 26px;
+  border-radius: 99px;
+  background: var(--line-1);
+  position: relative;
+  flex-shrink: 0;
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.toggle.on {
+  background: var(--brand);
+}
+.toggle.on::after {
+  left: 21px;
+}
+.foot-note {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  padding: 6px 22px 0;
+  line-height: 1.6;
+}
+
+/* 说明卡布局 */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  max-width: 1180px;
+}
+.yes {
+  color: var(--sage);
+  font-weight: 700;
+}
+.no {
+  color: var(--rose);
+  font-weight: 700;
+}
