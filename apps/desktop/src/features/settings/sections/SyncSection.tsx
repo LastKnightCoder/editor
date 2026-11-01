@@ -16,6 +16,7 @@ import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
 import { SyncActions, SyncStats } from "../components/SyncCard";
 import { LocalDatabasePanel } from "./LocalDatabasePanel";
+import { DeviceSyncPanel } from "./DeviceSyncPanel";
 import { isProviderSection, ProviderChoiceList } from "../components/ProviderChoiceList";
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
@@ -166,6 +167,7 @@ export function SyncSection() {
 
   return (
     <>
+      <DeviceSyncPanel />
       <SettingsTabs
         label="同步视图"
         value={tab}

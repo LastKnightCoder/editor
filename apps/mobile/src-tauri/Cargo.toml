@@ -1,5 +1,6 @@
 [package]
 name = "Tau"
+default-run = "Tau"
 version = "0.2.15"
 description = "A Note App"
 authors = ["LastKnightCoder"]
@@ -16,6 +17,14 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[features]
+device-sync-spike = []
+
+[[bin]]
+name = "device-sync-peer"
+path = "src/device_sync/peer_main.rs"
+required-features = ["device-sync-spike"]
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }

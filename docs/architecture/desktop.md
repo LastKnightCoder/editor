@@ -63,9 +63,9 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 - 默认系统分组、日记标签、日历与待释放数据回收仍按原维护流程执行。网页摘录的 `web` 提供方由共享 SQL 初始化，已保存名称不覆盖。
 - `migration_meta` 保存项目域共用实体序列与任务、日程、正文的非复用编号高水位，不属于历史转换代码。卡片显式连接只存 `content_links`，`cards` 不含 `links` 列。
 
-整库同步只搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
+云端提供方整库同步搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
 
-正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。主库保存 JSON 投影，不保存或重建原 CRDT 基线；缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
+正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。未配对库保存 JSON 投影，缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。配对库由资料库内的真实 Yjs 检查点接管，二进制与投影同事务保存，缓存丢失从原检查点恢复；本机会话的 database 标题归属随缓存持久保存，不随同步健康状态切换；正文连带关系按确认事务重放，见[个人设备同步](/docs/architecture/device-sync.md)。
 
 ### 正文与白板格式边界
 
@@ -527,7 +527,7 @@ export function useXxxSnapshot() {
 
 会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
 
-数据库同步只搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。当前任务的跨存储提交仍使用原幂等记录；实体编号高水位不复用。
+云端提供方数据库同步搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。当前任务的跨存储提交仍使用原幂等记录；实体编号高水位不复用。
 
 数据库同步的提供方由 `src/services/syncRequestRetry.ts` 按对象请求包装，会话编排不重放整个文件；资源同步不经该包装，保留主进程自身的重试策略。请求退避、进度计数与分块复用规则以[宿主分块同步](/docs/architecture/storage-sync.md)为准。
 

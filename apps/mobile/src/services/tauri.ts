@@ -76,11 +76,21 @@ import type {
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
+import { deviceReplacementState, deviceSyncDatabase } from "./device-sync/native";
+import { trackLibraryRequest } from "./ipc-requests";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
 function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (
+    deviceReplacementState().active &&
+    cmd !== "set_active_database" &&
+    /^(create|update|delete|remove|insert|move|reorder|archive|restore|toggle|complete|set|clear|save|batch)_/.test(
+      cmd
+    )
+  )
+    return Promise.reject(new Error("DEVICE_SYNC_REPLACED: 当前库正在恢复"));
   const start = performance.now();
-  return invoke<T>(cmd, args)
+  const task = invoke<T>(cmd, args)
     .then(result => {
       invalidateCalendarAfterMutation(cmd);
       return result;
@@ -88,6 +98,7 @@ function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<
     .finally(() => {
       logPerf("ipc", cmd, performance.now() - start);
     });
+  return trackLibraryRequest(task);
 }
 
 // 传递时区身份，Rust 按目标日期解析偏移，覆盖历史和未来的夏令时。
@@ -289,7 +300,7 @@ export async function createQuickCard(params: {
   );
 }
 
-export function updateContent(params: {
+export async function updateContent(params: {
   contentId: number;
   content: unknown[];
   count: number;
@@ -298,6 +309,21 @@ export function updateContent(params: {
   expectedDocumentId?: string;
   expectedSourceId?: string;
 }) {
+  const context = deviceReplacementState(),
+    name = deviceSyncDatabase();
+  const { consumeDeviceProjection, replaceDeviceContent } = await import("./device-sync/content");
+  if (
+    context.version !== deviceReplacementState(name).version ||
+    deviceReplacementState(name).active
+  )
+    throw new Error("DEVICE_SYNC_REPLACED: 当前库已重新下载");
+  if (
+    (await consumeDeviceProjection(params.contentId, params.content)) ||
+    (await replaceDeviceContent(params))
+  )
+    return trackedInvoke<ContentDetailResponse>("get_content_detail", {
+      contentId: params.contentId,
+    });
   return withCardTimeout(
     trackedInvoke<ContentDetailResponse>("update_content", {
       payload: { ...params, count: mobileContentMetrics.count(params.content) },

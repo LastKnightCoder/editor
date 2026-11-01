@@ -1,5 +1,7 @@
 # 宿主分块同步
 
+本章描述云端提供方的文件搬运。配对设备的正文、事务增量和局域网补齐见[个人设备同步](./device-sync.md)。
+
 ## 边界与事实源
 
 数据库、资源和会话文件由宿主拆分与重组。插件提供普通对象的 uploadFile/downloadFile/fileExists/listFiles/createFileIfAbsent，不理解逻辑文件、分块或平台差异；数据库同步只用前三个。公网直链上传仍使用 context.upload，保持完整文件输入与真实 HTTP(S) URL。

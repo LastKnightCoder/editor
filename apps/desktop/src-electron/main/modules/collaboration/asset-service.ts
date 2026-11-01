@@ -351,6 +351,13 @@ export class CollaborationAssetService {
     return this.localPath(reference);
   }
 
+  registerDevicePaths(documentId: string, paths: Record<string, string>) {
+    for (const [reference, path] of Object.entries(paths)) {
+      if (!isLocalAssetReference(reference) || !/^~\/\.editor\/resources\/device-sync\/[a-f0-9]{64}\.(png|jpg|gif|webp|bin)$/.test(path)) continue;
+      this.record({ id: reference.slice(LOCAL_ASSET_PREFIX.length), document_id: documentId, name: "", mime: "", path, uploaded: LOCAL_ONLY });
+    }
+  }
+
   resolve(url: string, documentId: string, assetId: string): Promise<string> {
     if (!/^[a-f0-9-]{36}$/.test(assetId)) return Promise.reject(new Error("资源标识不合法"));
     const key = `${url}/${documentId}/${assetId}`;

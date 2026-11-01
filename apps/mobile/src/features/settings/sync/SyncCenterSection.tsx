@@ -2,6 +2,7 @@
 // 服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。资源文件跟随同一个同步服务。
 
 import { useEffect, useState } from "react";
+import { DeviceSyncSection } from "./DeviceSyncSection";
 import {
   ChevronRight,
   CircleCheck,
@@ -238,6 +239,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
   if (!provider || !configured) {
     return (
       <div className="page-enter">
+        <DeviceSyncSection />
         <FirstRunView setting={props.setting} onOpenProvider={openProvider} />
       </div>
     );
@@ -251,6 +253,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
 
   return (
     <div className="page-enter space-y-1">
+      <DeviceSyncSection />
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
 
       <div className="flex gap-2.5 pt-3">

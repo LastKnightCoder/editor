@@ -5,6 +5,9 @@ mod app_update;
 mod chunked_sync;
 mod collaboration;
 mod database;
+mod device_sync;
+#[cfg(feature = "device-sync-spike")]
+pub use device_sync::spike as device_sync_spike;
 mod image_settings;
 mod incoming_file;
 #[cfg(target_os = "ios")]
@@ -75,6 +78,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_native_speech::init())
         .invoke_handler(tauri::generate_handler![
+            device_sync::device_sync_store,
+            device_sync::transport::device_sync_pair,
+            device_sync::transport::device_sync_request,
+            device_sync::assets::device_sync_asset,
             ai::ai_library_acquire,
             ai::ai_library_assert,
             ai::ai_library_release,
@@ -354,6 +361,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {
+            if matches!(_event, tauri::RunEvent::Resumed) {
+                use tauri::Emitter;
+                let _ = _app.emit("device-sync-resume", ());
+            }
             #[cfg(target_os = "ios")]
             if let tauri::RunEvent::Opened { urls } = _event {
                 incoming_file::receive_opened(_app, urls);
