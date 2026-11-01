@@ -27,6 +27,16 @@ async fn read_remote_version(provider: &SyncProvider, object: &str) -> Result<u6
     Ok(info["version"].as_u64().unwrap_or(0))
 }
 
+fn format_transfer_bytes(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{bytes} B")
+    } else if bytes < 1048576 {
+        format!("{:.2} KiB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.2} MiB", bytes as f64 / 1048576.0)
+    }
+}
+
 fn version_payload(version: u64) -> Vec<u8> {
     serde_json::to_vec(&json!({
         "version": version,
@@ -396,10 +406,14 @@ async fn sync_download_database_impl(
         &app,
         &ctx.database_name,
         &ctx.provider,
-        &|fraction, done, total| {
+        &|fraction, done, total, reused, downloaded| {
             report(
                 60.0 + fraction * 25.0,
-                format!("正在下载对话记录 · {done} / {total} 个"),
+                format!(
+                    "正在同步对话记录 · 已处理 {done} / {total} 个 · 本地复用 {} · 已下载 {}",
+                    format_transfer_bytes(reused),
+                    format_transfer_bytes(downloaded)
+                ),
             );
         },
     )

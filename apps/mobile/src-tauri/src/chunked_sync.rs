@@ -247,7 +247,7 @@ async fn download_chunks(
     expected_name: Option<&str>,
     local: Option<&Path>,
     check: impl Fn() -> Result<(), String>,
-    on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
+    on_progress: Option<&(dyn Fn(u64, u64, u64) + Send + Sync)>,
 ) -> Result<Manifest, String> {
     check()?;
     let manifest = Manifest::parse(&store.get(object, protocol().manifest_bytes as u64).await?)?;
@@ -262,8 +262,9 @@ async fn download_chunks(
         File::open(path).ok()
     });
     let mut offset = 0;
+    let mut reused_bytes = 0;
     if let Some(report) = on_progress {
-        report(0, manifest.size);
+        report(0, manifest.size, reused_bytes);
     }
     for chunk in &manifest.chunks {
         check()?;
@@ -274,7 +275,10 @@ async fn download_chunks(
             (hash(&bytes) == chunk.sha256).then_some(bytes)
         });
         let bytes = match reused {
-            Some(bytes) => bytes,
+            Some(bytes) => {
+                reused_bytes += chunk.size;
+                bytes
+            }
             None => {
                 let bytes = store
                     .get(&chunk_object(&chunk.sha256), protocol().chunk_bytes as u64)
@@ -288,7 +292,7 @@ async fn download_chunks(
         file.write_all(&bytes).map_err(|e| e.to_string())?;
         offset += chunk.size;
         if let Some(report) = on_progress {
-            report(offset, manifest.size);
+            report(offset, manifest.size, reused_bytes);
         }
     }
     check()?;
@@ -334,15 +338,21 @@ impl PluginProvider {
         object: &str,
         on_progress: &(dyn Fn(u64, u64) + Send + Sync),
     ) -> Result<TemporaryFile, String> {
-        self.download_checked(object, None, None, || Ok(()), Some(on_progress))
-            .await
+        self.download_checked(
+            object,
+            None,
+            None,
+            || Ok(()),
+            Some(&|done, total, _| on_progress(done, total)),
+        )
+        .await
     }
     pub(crate) async fn download_session_chunked(
         &self,
         object: &str,
         name: &str,
         local: &Path,
-        on_progress: &(dyn Fn(u64, u64) + Send + Sync),
+        on_progress: &(dyn Fn(u64, u64, u64) + Send + Sync),
     ) -> Result<TemporaryFile, String> {
         self.download_checked(
             object,
@@ -367,7 +377,7 @@ impl PluginProvider {
         expected_name: Option<&str>,
         local: Option<&Path>,
         check: impl Fn() -> Result<(), String>,
-        on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
+        on_progress: Option<&(dyn Fn(u64, u64, u64) + Send + Sync)>,
     ) -> Result<TemporaryFile, String> {
         let temp = self.new_temporary()?;
         let mut file = std::fs::OpenOptions::new()

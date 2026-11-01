@@ -57,6 +57,12 @@ const emitProgress = (options: SyncCommandOptions | undefined, value: number, st
   options?.onProgress?.({ value, status });
 };
 
+const formatTransferBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(2)} KiB`;
+  return `${(bytes / 1048576).toFixed(2)} MiB`;
+};
+
 const describeSyncError = (error: unknown) =>
   error instanceof Error
     ? { name: error.name, message: error.message, stack: error.stack }
@@ -389,6 +395,8 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         const sessionNames = decodeSessionList(await syncProvider.downloadFile(objects.sessions));
         const fractions = new Map<string, number>();
         let completedFiles = 0;
+        const transferBytes = new Map<string, { reused: number; downloaded: number }>();
+        const totals = { reused: 0, downloaded: 0 };
         const reportSessions = () => {
           const fraction = sessionNames.length
             ? (completedFiles + [...fractions.values()].reduce((sum, value) => sum + value, 0)) /
@@ -397,7 +405,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
           emitProgress(
             options,
             60 + fraction * 25,
-            `正在下载对话记录 · ${completedFiles} / ${sessionNames.length} 个`
+            `正在同步对话记录 · 已处理 ${completedFiles} / ${sessionNames.length} 个 · 本地复用 ${formatTransferBytes(totals.reused)} · 已下载 ${formatTransferBytes(totals.downloaded)}`
           );
         };
         reportSessions();
@@ -425,12 +433,17 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
             await downloadChunkedPath(syncProvider, objects.session(name), target, {
               expectedName: name,
               localPath: localFiles.get(name)?.path,
-              onProgress: (done, total) => {
+              onProgress: (done, total, reused) => {
+                const previous = transferBytes.get(name) ?? { reused: 0, downloaded: 0 };
+                totals.reused += reused - previous.reused;
+                totals.downloaded += done - reused - previous.downloaded;
+                transferBytes.set(name, { reused, downloaded: done - reused });
                 fractions.set(name, total ? done / total : 1);
                 reportSessions();
               },
             });
             completedFiles++;
+            transferBytes.delete(name);
             fractions.delete(name);
             reportSessions();
           } catch (error) {
