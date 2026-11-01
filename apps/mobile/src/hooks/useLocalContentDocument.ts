@@ -42,6 +42,7 @@ import {
 
 export type LocalContentDocument = EditorDocument & {
   flush(): Promise<void>;
+  prepareResource(path: string): string;
 };
 
 export const contentLineage = (contentId?: number) => `content:${contentId ?? 0}`;
@@ -582,6 +583,11 @@ export default function useLocalContentDocument(options: {
         const document: LocalContentDocument = {
           ...source,
           flush: loaded.flush,
+          prepareResource: path => {
+            assertActive();
+            if (cancelled || !canWrite()) throw new Error("当前正文不可编辑");
+            return loaded.prepareResource(path);
+          },
           services: register => {
             source.services?.(register);
             register(IEditorNodeViews, {
@@ -672,6 +678,9 @@ export default function useLocalContentDocument(options: {
               }
             ),
             flush: async () => {},
+            prepareResource: (): string => {
+              throw new Error("当前正文尚未就绪");
+            },
           }
         : undefined,
     [key]

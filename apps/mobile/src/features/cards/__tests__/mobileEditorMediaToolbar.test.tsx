@@ -98,7 +98,7 @@ describe("配件栏媒体模式", () => {
   it("各媒体类型的中段按钮", () => {
     const cases: Array<[MediaEditingContext["mediaType"], string[]]> = [
       ["video", ["尺寸", "对齐", "替换", "视频菜单", "键盘"]],
-      ["audio", ["重命名", "替换", "音频菜单", "键盘"]],
+      ["audio", ["重命名", "替换", "转文字", "音频菜单", "键盘"]],
       ["inline-image", ["小尺寸", "中尺寸", "大尺寸", "查看", "转为大图", "删除行内图片", "键盘"]],
       ["webview", ["地址", "高度", "刷新", "全屏", "网页菜单", "键盘"]],
     ];
@@ -123,7 +123,7 @@ describe("配件栏媒体模式", () => {
       editingContext: mediaContext("audio", { element, path: [2] }),
     });
     render(controller);
-    expect(getLabels()).toEqual(["重新生成", "重命名", "替换", "音频菜单", "键盘"]);
+    expect(getLabels()).toEqual(["重新生成", "重命名", "替换", "转文字", "音频菜单", "键盘"]);
     press("重新生成");
     expect(controller.openTtsForAudio).toHaveBeenCalledWith(element, [2], "原文");
   });

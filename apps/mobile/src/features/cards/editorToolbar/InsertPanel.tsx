@@ -80,12 +80,17 @@ export function InsertPanel(props: InsertPanelProps) {
   // 搜索获焦前的面板高度，失焦后恢复
   const browseHeightRef = useRef(0);
 
+  // 录音与文档绑定，只在宿主声明了录音能力的编辑器里出现
+  const hostItems = useMemo(
+    () => (controller.recordingEnabled ? items : items.filter(item => item.kind !== "record")),
+    [controller.recordingEnabled, items]
+  );
   const availableItems = useMemo<PanelItem[]>(
     () =>
       allowedKinds
-        ? items.filter(item => allowedKinds.has(item.kind))
+        ? hostItems.filter(item => allowedKinds.has(item.kind))
         : [
-            ...items,
+            ...hostItems,
             ...controller.pluginInsertItems.map((item, index): PluginPanelItem => ({
               kind: `plugin:${index}`,
               label: item.title,
@@ -96,7 +101,7 @@ export function InsertPanel(props: InsertPanelProps) {
               run: item.run,
             })),
           ],
-    [allowedKinds, items, controller.pluginInsertItems]
+    [allowedKinds, hostItems, controller.pluginInsertItems]
   );
 
   const hasQuery = query.trim().length > 0;

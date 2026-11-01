@@ -2,6 +2,7 @@ mod ai;
 mod ai_settings;
 mod app_feedback;
 mod app_update;
+mod audio_transcode;
 mod chunked_sync;
 mod collaboration;
 mod collaboration_assets;
@@ -28,6 +29,7 @@ mod plugin_transport;
 mod plugins;
 mod provider_settings;
 mod reading_font;
+mod recording;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -79,6 +81,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_native_speech::init())
+        .plugin(tauri_plugin_native_record::init())
         .plugin(tauri_plugin_local_notify::init())
         .invoke_handler(tauri::generate_handler![
             device_sync::device_sync_store,
@@ -318,6 +321,18 @@ pub fn run() {
             resource_upload::read_image_resource,
             resource_upload::read_resource_thumb,
             remote_resource_cache::remote_resource_to_local,
+            recording::recording_start,
+            recording::recording_pause,
+            recording::recording_resume,
+            recording::recording_stop,
+            recording::recording_cancel,
+            recording::recording_discard,
+            recording::recording_open_settings,
+            recording::recording_pending,
+            recording::recording_recover,
+            recording::transcript_audio_prepare,
+            recording::transcript_audio_read,
+            recording::transcript_audio_release,
             sync::sync_check_versions,
             sync::sync_upload_database,
             sync::sync_download_database,

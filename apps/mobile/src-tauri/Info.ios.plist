@@ -7,7 +7,12 @@
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>录制语音并转换为文字，停止后填入输入框。</string>
+	<string>用于语音输入，以及在文档中录音并插入音频。</string>
+	<!-- 录音中锁屏或切到后台继续录（听课、开会时手机常锁屏） -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>使用系统语音识别将你说的话实时转换为文字并填入输入框。</string>
 	<!-- 声明可打开 Markdown：微信等应用「用其他应用打开」时列出 Tau；构建时由 Tauri 合并进 gen/apple 的 Info.plist -->

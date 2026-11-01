@@ -111,7 +111,11 @@ describe("InsertPanel", () => {
       expect(section?.textContent).toContain(title);
     }
     expect(getSection("plugin")).toBeNull();
-    expect(document.querySelectorAll("button[data-insert-kind]")).toHaveLength(INSERT_ITEMS.length);
+    // 宿主未开启录音时不出现「录音」
+    expect(document.querySelectorAll("button[data-insert-kind]")).toHaveLength(
+      INSERT_ITEMS.length - 1
+    );
+    expect(getItem("record")).toBeNull();
     expect(getItem("table", getSection("advanced") as HTMLElement)).toBeTruthy();
     expect(getItem("camera", getSection("media") as HTMLElement)).toBeTruthy();
     expect(getItem("table")?.querySelector("span")?.className).toContain(
