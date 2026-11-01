@@ -548,7 +548,7 @@ function ShareDialog({
     { icon: KeyRound, text: "生成一个 12 位协作码，对方输入后需要你同意" },
     { icon: Layers, text: `共享整块白板的全部 ${snapshot.pageCount} 页` },
     { icon: Link2, text: "引用的文章、卡片只带卡面标题，原文不会随之共享" },
-    { icon: VideoOff, text: "本机视频不会上传，含本机视频的白板暂不能共享" },
+    { icon: VideoOff, text: "本机视频不会上传，含本机视频的白板不能共享，先把视频移出白板再共享" },
   ];
   const share = async () => {
     setBusy(true);
