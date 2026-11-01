@@ -223,6 +223,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         workspaceId = "application";
       }
     }
+    const { documentId, baselineId, epoch } = readDocumentIdentity(session.doc);
     context.views.set(viewId, {
       // 视图绑定当前会话身份，换源后由渲染端重新订阅。
       documentId: session.info.id,
@@ -231,13 +232,14 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       inputIdentity: {
         workspaceId,
         documentId: session.info.id,
-        baselineId: readDocumentIdentity(session.doc).baselineId,
-        epoch: Number(session.doc.getMap("meta").get("epoch") ?? 0),
+        baselineId,
+        epoch,
       },
     });
     const awareness = session.awareness;
     const deviceId = context.state().deviceId || context.store.get("localDeviceId", "local");
     return {
+      documentIdentity: { documentId, baselineId, epoch },
       nodeViews: Object.fromEntries(
         (
           context.contentState.db

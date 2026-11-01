@@ -41,7 +41,7 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
     dataVersion: 1,
   });
   const doc = await createNodeDocument(
-    { documentId: "room", baselineId: "base", epoch: 1 },
+    { documentId: "stable", baselineId: "base", epoch: 1 },
     {
       title: "",
       bannerBg: "",
@@ -76,7 +76,13 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
   const event = { sender: { id: 1 } };
-  handlers.get("collaboration:subscribe")!(event, "room", "view");
+  const snapshot = handlers.get("collaboration:subscribe")!(event, "room", "view");
+  expect(snapshot.documentIdentity).toEqual({
+    documentId: "stable",
+    baselineId: "base",
+    epoch: 1,
+  });
+  expect(snapshot.session.id).toBe("room");
   const before = Y.encodeStateAsUpdate(doc);
   expect(handlers.has("collaboration:private-node")).toBe(false);
   expect(handlers.has("collaboration:set-tab-active")).toBe(false);

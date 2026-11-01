@@ -11,6 +11,7 @@ import type {
   ContentSessionTarget,
   ContentInputDraft,
   ContentNode,
+  NodeDocumentIdentity,
   JoinRequestResult,
   SourceType,
 } from "@tau/collaboration";
@@ -28,6 +29,8 @@ export interface CollaborationInvitation {
 
 /** 订阅共享内容获得的本机会话快照 */
 export interface CollaborationSubscribeSnapshot {
+  /** 正文身份独立于本机订阅会话 ID。 */
+  documentIdentity: NodeDocumentIdentity;
   nodeViews?: Record<string, Record<string, unknown>>;
   state: Uint8Array;
   awareness?: Uint8Array;

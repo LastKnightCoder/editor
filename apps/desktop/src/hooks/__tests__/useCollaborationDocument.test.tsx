@@ -61,6 +61,11 @@ afterEach(() => {
 it.each(["local", "shared"])(
   "编辑未送达主进程时不回执冻结、不注销视图，送达后才放行（%s）",
   async mode => {
+    const documentIdentity = {
+      documentId: mode === "local" ? "stable-document" : "doc",
+      baselineId: "base",
+      epoch: mode === "local" ? 3 : 0,
+    };
     const paragraph = await prepareContentContract("tau.paragraph", {
       type: "paragraph",
       dataVersion: 1,
@@ -74,7 +79,7 @@ it.each(["local", "shared"])(
       resources: [{ path: "url", kind: "image" }],
     });
     const source = await createNodeDocument(
-      { documentId: "doc", baselineId: "base", epoch: 0 },
+      documentIdentity,
       {
         title: "",
         content: [
@@ -102,6 +107,7 @@ it.each(["local", "shared"])(
       { allowLocalResources: true }
     );
     host.snapshot = {
+      documentIdentity,
       state: Y.encodeStateAsUpdate(source),
       session: { mode, role: mode === "local" ? "owner" : "editor", frozen: false },
       user: {},
@@ -120,6 +126,11 @@ it.each(["local", "shared"])(
     const root = createRoot(document.createElement("div"));
     await act(async () => root.render(<Harness />));
     await vi.waitFor(() => expect(current!.binding).toBeDefined());
+    expect(current!.error).toBeUndefined();
+    expect(current!.article!.content[0].children).toMatchObject([{ text: "原文" }]);
+    expect(current!.binding!.doc.getMap("meta").get("documentId")).toBe(
+      documentIdentity.documentId
+    );
     const uploaded = "https://images.test/compressed.webp";
     host.upload.mockResolvedValue(uploaded);
     host.prepareResource.mockResolvedValue(uploaded);
