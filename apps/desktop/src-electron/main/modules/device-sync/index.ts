@@ -63,7 +63,9 @@ export class DeviceSyncModule {
   private lastSync?: number;
   private error?: string;
   private starting: Promise<void> = Promise.resolve();
-  private preparing = new Map<string, Promise<void>>();
+  private preparing = new Map<Database.Database, Promise<void>>();
+  private enabling = new Map<Database.Database, Promise<void>>();
+  private preparationProgress = new Map<Database.Database, { completed: number; total: number }>();
   private bootstrapping = new Set<string>();
   private client?: DeviceSyncClient;
   private clientDatabase?: Database.Database;
@@ -259,13 +261,88 @@ export class DeviceSyncModule {
     }
   }
   private prepare(name: string) {
-    const pending = this.preparing.get(name);
+    const db = database.getDatabase(name);
+    if (!db?.open) return Promise.reject(new Error("DEVICE_SYNC_CLOSED: 资料库已关闭"));
+    const pending = this.preparing.get(db);
     if (pending) return pending;
     const task = collaboration
-      .prepareDeviceDocuments(name)
-      .finally(() => this.preparing.delete(name));
-    this.preparing.set(name, task);
+      .prepareDeviceDocuments(name, (completed, total) => {
+        this.preparationProgress.set(db, { completed, total });
+      })
+      .finally(() => {
+        this.preparing.delete(db);
+        this.preparationProgress.delete(db);
+      });
+    this.preparing.set(db, task);
     return task;
+  }
+  private async enableCoordinator(name: string, db: Database.Database) {
+    const started = Date.now();
+    this.error = undefined;
+    console.info(`[device-sync] 协调开启开始: db=${name}`);
+    let drain: DocumentDrain | undefined;
+    this.bootstrapping.add(name);
+    try {
+      drain = await prepareDurableDocuments({
+        databaseName: name,
+        reason: "database-change",
+      });
+      if (!db.open || database.getDatabase(name) !== db)
+        throw new Error("DEVICE_SYNC_CLOSED: 开启期间资料库已变化");
+      if (db.prepare("SELECT 1 FROM collaboration_bindings LIMIT 1").get())
+        throw new Error(
+          "DEVICE_SYNC_SHARED_CONTENT: 请先结束该资料库中的云端共享正文，再建立设备同步"
+        );
+      const previous = readDeviceSyncState(db);
+      if (!previous) {
+        const identity = ContentIdentityTable.establishBaseline(db);
+        const schema = (
+          db.prepare("SELECT value FROM schema_meta WHERE key='main_schema_hash'").get() as {
+            value: string;
+          }
+        ).value;
+        const node = this.nodeId(),
+          head = randomUUID();
+        db.prepare("INSERT INTO _tau_device_state(id,payload) VALUES (1,?)").run(
+          JSON.stringify({
+            library: identity.sourceId,
+            schema,
+            node,
+            authority: node,
+            epoch: randomUUID(),
+            head,
+            ackHead: head,
+            ackSeq: 0,
+            enabled: true,
+            revision: 0,
+          })
+        );
+      } else if (previous.node !== previous.authority)
+        throw new Error("DEVICE_SYNC_AUTHORITY: 请连接这份资料库原来的配对电脑");
+      initializeDeviceSyncDatabase(db, DEVICE_SQL);
+      await this.start(name);
+      if (
+        !db.open ||
+        database.getDatabase(name) !== db ||
+        !this.server ||
+        this.openedDatabase !== db ||
+        this.nameOfLibrary !== name
+      )
+        throw new Error("DEVICE_SYNC_CLOSED: 开启期间资料库已变化");
+      this.save(name, true);
+      this.error = undefined;
+      console.info(`[device-sync] 协调开启完成: db=${name}, elapsedMs=${Date.now() - started}`);
+    } catch (error) {
+      this.error = String(error);
+      console.warn(
+        `[device-sync] 协调开启失败: db=${name}, elapsedMs=${Date.now() - started}`,
+        error
+      );
+      throw error;
+    } finally {
+      this.bootstrapping.delete(name);
+      drain?.rollback();
+    }
   }
   private directory() {
     const path = join(PathUtil.getAppDir(), "device-sync");
@@ -431,7 +508,7 @@ export class DeviceSyncModule {
     app.on("browser-window-focus", wake);
     const setting = this.setting();
     if (setting?.enabled)
-      await this.start(setting.database).catch(error => {
+      void this.start(setting.database).catch(error => {
         this.error = String(error);
       });
     const timer = setInterval(() => {
@@ -456,6 +533,7 @@ export class DeviceSyncModule {
         role: replica ? "replica" : state ? "coordinator" : "unpaired",
         phase: client?.status.phase,
         pendingAssets: client?.status.pendingAssets ?? 0,
+        preparation: this.preparationProgress.get(db),
         enabled: replica
           ? Boolean(peer?.database === name && peer.enabled && client)
           : Boolean(this.server && name === this.nameOfLibrary),
@@ -472,7 +550,7 @@ export class DeviceSyncModule {
         ).n,
       };
     });
-    ipcMain.handle("device-sync:enable", async event => {
+    ipcMain.handle("device-sync:enable", event => {
       const { name, db } = this.forEvent(event);
       const state = readDeviceSyncState(db);
       if (state && state.node !== state.authority) {
@@ -482,51 +560,11 @@ export class DeviceSyncModule {
         this.startReplica(name);
         return;
       }
-      const drain = await prepareDurableDocuments({
-        databaseName: name,
-        reason: "database-change",
-      });
-      this.bootstrapping.add(name);
-      try {
-        if (db.prepare("SELECT 1 FROM collaboration_bindings LIMIT 1").get())
-          throw new Error(
-            "DEVICE_SYNC_SHARED_CONTENT: 请先结束该资料库中的云端共享正文，再建立设备同步"
-          );
-        const previous = readDeviceSyncState(db);
-        if (!previous) {
-          const identity = ContentIdentityTable.establishBaseline(db);
-          const schema = (
-            db.prepare("SELECT value FROM schema_meta WHERE key='main_schema_hash'").get() as {
-              value: string;
-            }
-          ).value;
-          const node = this.nodeId(),
-            head = randomUUID();
-          db.prepare("INSERT INTO _tau_device_state(id,payload) VALUES (1,?)").run(
-            JSON.stringify({
-              library: identity.sourceId,
-              schema,
-              node,
-              authority: node,
-              epoch: randomUUID(),
-              head,
-              ackHead: head,
-              ackSeq: 0,
-              enabled: true,
-              revision: 0,
-            })
-          );
-        } else if (previous.node !== previous.authority)
-          throw new Error("DEVICE_SYNC_AUTHORITY: 请连接这份资料库原来的配对电脑");
-        initializeDeviceSyncDatabase(db, DEVICE_SQL);
-        await collaboration.prepareDeviceLibrary(event, name, !previous || previous.revision === 0);
-        await collaboration.prepareDeviceDocuments(name);
-        this.save(name, true);
-        await this.start(name);
-      } finally {
-        this.bootstrapping.delete(name);
-        drain.rollback();
-      }
+      const pending = this.enabling.get(db);
+      if (pending) return pending;
+      const task = this.enableCoordinator(name, db).finally(() => this.enabling.delete(db));
+      this.enabling.set(db, task);
+      return task;
     });
     ipcMain.handle("device-sync:pair", async (event, code: string) => {
       if (this.pairing) throw new Error("DEVICE_SYNC_BUSY: 配对仍在进行");

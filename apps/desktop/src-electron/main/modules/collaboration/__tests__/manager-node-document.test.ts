@@ -68,7 +68,10 @@ afterEach(async () => {
   host.serverUrl = "http://test";
 });
 type Runtime = {
-  prepareDeviceLibrary(event: IpcMainInvokeEvent, name: string, fresh?: boolean): Promise<void>;
+  prepareDeviceDocuments(
+    name: string,
+    progress?: (completed: number, total: number) => void
+  ): Promise<void>;
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   assets: CollaborationAssetService;
@@ -482,9 +485,27 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect((await runtime.openContent(event, { contentId: 7 })).mode).toBe("local");
     expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
   });
-  it("首次开启设备同步保留缓存输入，并从本机图片建立不含原始路径的可传输基线", async () => {
+  it("首次开启设备同步分批续做，保留缓存输入和图片，完成后不重建已有基线", async () => {
     const { runtime, localId, event, db } = await setup();
     const session = runtime.sessions.get(localId)!;
+    const stored = ContentDocumentTable.read(db, 7)!;
+    db.transaction(() => {
+      for (let id = 100; id < 140; id++) {
+        db.prepare(
+          "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (?,1,1,?,2,1)"
+        ).run(id, JSON.stringify(stored.content));
+        ContentDocumentTable.commit(
+          db,
+          id,
+          {
+            documentId: crypto.randomUUID(),
+            content: stored.content,
+            contracts: stored.contracts,
+          },
+          { installDocument: true, count: 2 }
+        );
+      }
+    })();
     const image = await prepareContentContract("tau.image", {
       type: "image",
       dataVersion: 1,
@@ -531,7 +552,53 @@ describe("桌面生产会话与真实服务贯通", () => {
       })
     );
     initializeDeviceSyncDatabase(db, deviceSchema);
-    await runtime.prepareDeviceLibrary(event, "library", true);
+    const open = vi.spyOn(runtime, "openContent");
+    const create = vi.spyOn(runtime.store, "create");
+    const discard = vi.spyOn(runtime.store, "discard");
+    const prepare = runtime.assets.prepareLocalDocument.bind(runtime.assets);
+    let preparedCount = 0;
+    const preparing = vi
+      .spyOn(runtime.assets, "prepareLocalDocument")
+      .mockImplementation(async (...args) => {
+        if (++preparedCount === 3) throw new Error("模拟准备中断");
+        return prepare(...args);
+      });
+    const progress = vi.fn();
+    let responsive = false;
+    const heartbeat = setInterval(() => {
+      const { n } = db.prepare("SELECT count(*) AS n FROM _tau_device_documents").get() as {
+        n: number;
+      };
+      if (n > 2 && n < 41) responsive = true;
+    }, 0);
+    try {
+      await expect(runtime.prepareDeviceDocuments("library", progress)).rejects.toThrow(
+        "模拟准备中断"
+      );
+      const completed = deviceDocument(db, 7)!;
+      expect(db.prepare("SELECT count(*) AS n FROM _tau_device_documents").get()).toEqual({ n: 2 });
+      preparing.mockImplementationOnce(async (...args) => {
+        const value = await prepare(...args);
+        db.prepare("UPDATE _tau_device_local SET generation=? WHERE id=1").run(crypto.randomUUID());
+        return value;
+      });
+      await expect(runtime.prepareDeviceDocuments("library", progress)).rejects.toThrow(
+        "DEVICE_SYNC_CLOSED"
+      );
+      expect(db.prepare("SELECT count(*) AS n FROM _tau_device_documents").get()).toEqual({ n: 2 });
+      await runtime.prepareDeviceDocuments("library", progress);
+      expect(deviceDocument(db, 7)).toEqual(completed);
+      expect(progress).toHaveBeenLastCalledWith(41, 41);
+      expect(responsive).toBe(true);
+      const calls = preparing.mock.calls.length;
+      await runtime.prepareDeviceDocuments("library");
+      expect(preparing).toHaveBeenCalledTimes(calls);
+    } finally {
+      clearInterval(heartbeat);
+    }
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(create).not.toHaveBeenCalled();
+    expect(discard).toHaveBeenCalledTimes(1);
     const entry = deviceDocument(db, 7)!;
     const prepared = await prepareDeviceDocument(entry);
     expect(prepared.projection.contentJson).toContain("缓存未投影输入");

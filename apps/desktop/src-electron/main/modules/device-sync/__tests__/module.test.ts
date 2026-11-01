@@ -27,6 +27,7 @@ import { DeviceSyncServer } from "../server";
 import { DeviceAssetStore } from "../asset-store";
 import { parseDevicePairCode } from "../transport";
 import { DeviceSyncModule } from "../index";
+import collaboration from "../../collaboration";
 
 const host = vi.hoisted(() => ({
   dir: "",
@@ -134,6 +135,61 @@ const until = async (check: () => boolean) => {
     await new Promise(resolve => setTimeout(resolve, 20));
   }
 };
+
+it("并发开启只准备一次，暂停恢复保留尚无同步修订的身份", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tau-desktop-coordinator-"));
+  roots.push(root);
+  host.dir = root;
+  const db = new Database(join(root, "data.db"));
+  ensureMainSchema(db);
+  initializeDeviceSyncDatabase(db, SQL);
+  host.databases.set("data.db", db);
+  host.windowToDatabase.set(1, "data.db");
+  host.windows = [{ id: 1 }];
+  vi.spyOn(globalThis, "setInterval").mockImplementation((() => ({ unref() {} })) as any);
+  const listen = DeviceSyncServer.prototype.listen;
+  const listening = vi.spyOn(DeviceSyncServer.prototype, "listen").mockImplementation(function (
+    this: DeviceSyncServer
+  ) {
+    return listen.call(this, 0);
+  });
+  let release = () => {};
+  const waiting = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const preparing = vi
+    .spyOn(collaboration, "prepareDeviceDocuments")
+    .mockImplementationOnce(async (_name, progress) => {
+      progress?.(0, 1);
+      await waiting;
+    });
+  const module = new DeviceSyncModule();
+  cleanup.push(() => (module as unknown as { server?: DeviceSyncServer }).server?.close());
+  await module.init();
+  const invoke = (name: string) => host.handlers.get(`device-sync:${name}`)!({ sender: {} });
+  const first = invoke("enable"),
+    second = invoke("enable");
+  try {
+    await until(() => preparing.mock.calls.length > 0);
+    expect(preparing).toHaveBeenCalledTimes(1);
+    expect(invoke("status")).toMatchObject({
+      enabled: false,
+      preparation: { completed: 0, total: 1 },
+    });
+  } finally {
+    release();
+  }
+  await Promise.all([first, second]);
+  expect(preparing).toHaveBeenCalledTimes(1);
+  expect(listening).toHaveBeenCalledTimes(1);
+  expect(invoke("status")).toMatchObject({ enabled: true, preparation: undefined });
+  const before = db.prepare("SELECT payload FROM _tau_device_state WHERE id=1").get();
+  expect(JSON.parse((before as { payload: string }).payload).revision).toBe(0);
+  await invoke("pause");
+  await invoke("enable");
+  expect(invoke("status")).toMatchObject({ enabled: true, preparation: undefined });
+  expect(db.prepare("SELECT payload FROM _tau_device_state WHERE id=1").get()).toEqual(before);
+});
 
 it("桌面生产处理器编排：配对副本、自动补齐、暂停恢复、同源重配、覆盖及失败后编辑", async () => {
   const root = mkdtempSync(join(tmpdir(), "tau-desktop-replica-"));

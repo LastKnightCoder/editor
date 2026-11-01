@@ -26,7 +26,11 @@ import {
   writeDeviceDocument,
 } from "./database-store";
 
-export async function restoreActiveDeviceContent(db: Database.Database, contentId: number) {
+export async function restoreActiveDeviceContent(
+  db: Database.Database,
+  contentId: number,
+  assertCurrent: () => void
+) {
   const stored = ContentDocumentTable.read(db, contentId),
     active = contentSession(db, contentId);
   if (
@@ -37,6 +41,12 @@ export async function restoreActiveDeviceContent(db: Database.Database, contentI
   )
     return false;
   await validateNodeDocument(active.doc, readDocumentIdentity(active.doc));
+  assertCurrent();
+  if (
+    contentSession(db, contentId) !== active ||
+    ContentDocumentTable.read(db, contentId)?.revision !== stored.revision
+  )
+    throw new Error("DEVICE_SYNC_RETRY: 正文恢复期间发生变化");
   active.persistDeviceState(active.doc);
   return Boolean(deviceDocument(db, contentId));
 }

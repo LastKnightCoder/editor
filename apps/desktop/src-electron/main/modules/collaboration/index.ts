@@ -2,6 +2,7 @@ import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import { readDocumentIdentity } from "@tau/collaboration";
 import {
   deviceDocument,
+  deviceGeneration,
   readDeviceSyncState,
   writeDeviceDocument,
   withDeviceProjection,
@@ -35,6 +36,8 @@ import {
   type DocumentDrainScope,
 } from "../durable-document-lifecycle";
 import { app, BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import type Database from "better-sqlite3";
+import { setImmediate } from "node:timers/promises";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
@@ -1804,64 +1807,102 @@ export class CollaborationManager {
     if (!this.assets) throw new Error("资源服务未就绪");
     return this.assets;
   }
-  async prepareDeviceLibrary(event: IpcMainInvokeEvent, name: string, fresh = false) {
-    const db = databaseModule.getDatabase(name);
-    if (!db?.open) throw new Error("资料库尚未就绪");
-    const contents = db.prepare("SELECT id FROM contents ORDER BY id").all() as { id: number }[];
-    for (const { id } of contents) {
-      if (findCollaborationBinding(db, id))
-        throw new Error("DEVICE_SYNC_SHARED_CONTENT: 请先结束该资料库中的共享正文，再建立设备同步");
-      const opened = await this.openContent(event, { contentId: id });
-      const session = this.sessions.get(opened.documentId);
-      if (!session) throw new Error("正文会话已变化，请重试");
-      if (!fresh) {
-        session.persistDeviceState?.(session.doc);
-        continue;
-      }
-      const revision = contentRevision(session),
-        stored = ContentDocumentTable.read(db, id);
-      if (!stored) throw new Error("正文契约尚未就绪");
-      const contracts = session.doc
-        .getMap("node-tree:contracts")
-        .toJSON() as ContentContractDictionary;
-      const value = await this.assets.prepareLocalDocument(
-        session.info.id,
-        readNodeDocument(session.doc),
-        contracts,
-        true
-      );
-      const doc = await createNodeDocument(
-        { documentId: stored.documentId, baselineId: randomUUID(), epoch: 0 },
-        value,
-        contracts
-      );
-      try {
-        if (
-          databaseModule.getDatabase(name) !== db ||
-          !db.open ||
-          this.sessions.get(session.info.id) !== session ||
-          revision !== contentRevision(session) ||
-          ContentDocumentTable.read(db, id)?.revision !== session.info.source?.projectionRevision
-        )
-          throw new Error("DEVICE_SYNC_RETRY: 首次正文准备期间发生变化");
-        const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
-        db.transaction(() => {
-          db.prepare("DELETE FROM _tau_device_documents WHERE content_id=?").run(id);
-          persistDeviceContent(db, id, doc, reference => {
-            const path = this.assets.resolveLocalFile(reference, session.info.id);
-            return path ? assets.import(path) : null;
-          });
-        })();
-      } finally {
-        doc.destroy();
-      }
-      await this.releaseReplacedSession(session, "已建立设备同步的可传输基线");
+  private async prepareDeviceContent(
+    db: Database.Database,
+    name: string,
+    id: number,
+    assets: DeviceAssetStore,
+    assertCurrent: () => void
+  ) {
+    assertCurrent();
+    if (deviceDocument(db, id)) return;
+    if (findCollaborationBinding(db, id))
+      throw new Error("DEVICE_SYNC_SHARED_CONTENT: 设备同步不接受双重正文绑定");
+    await repairContentForOpen(db, name, id, () => {
+      assertCurrent();
+      return true;
+    });
+    assertCurrent();
+    const content = db.prepare("SELECT create_time FROM contents WHERE id=?").get(id) as
+      | { create_time: number }
+      | undefined;
+    if (!content) return;
+    const sessionId = localSessionId(db.name, id, content.create_time);
+    // 只恢复真实存在的缓存，批量准备不创建临时编辑会话。
+    let session = this.findSession(sessionId);
+    if (session) {
+      const opened = await this.openContent({ db, name }, { contentId: id });
+      assertCurrent();
+      session = this.sessions.get(opened.documentId);
+      if (!session) throw new Error("DEVICE_SYNC_RETRY: 正文会话已变化");
+      if (deviceDocument(db, id)) return;
     }
+    const stored = ContentDocumentTable.read(db, id);
+    if (!stored) throw new Error("DEVICE_SYNC_CONTENT: 正文契约尚未就绪");
+    if (session && readDocumentIdentity(session.doc).documentId === stored.documentId) {
+      if (await restoreActiveDeviceContent(db, id, assertCurrent)) return;
+      throw new Error("DEVICE_SYNC_RETRY: 正文会话与主库修订不同");
+    }
+    const revision = session && contentRevision(session);
+    const contracts = session
+      ? (session.doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary)
+      : stored.contracts;
+    const context = session?.info.id ?? stored.documentId;
+    const value = session
+      ? readNodeDocument(session.doc)
+      : {
+          title: findContentTitle(db, id),
+          content: stored.content,
+          bannerBg: "",
+          bannerPosition: "center",
+        };
+    const prepared = await this.assets.prepareLocalDocument(context, value, contracts, true);
+    assertCurrent();
+    const doc = await createNodeDocument(
+      { documentId: stored.documentId, baselineId: randomUUID(), epoch: 0 },
+      prepared,
+      contracts
+    );
+    try {
+      assertCurrent();
+      if (deviceDocument(db, id)) return;
+      if (
+        ContentDocumentTable.read(db, id)?.revision !== stored.revision ||
+        (session &&
+          (this.sessions.get(session.info.id) !== session ||
+            contentRevision(session) !== revision ||
+            session.info.source?.projectionRevision !== stored.revision))
+      )
+        throw new Error("DEVICE_SYNC_RETRY: 正文准备期间发生变化");
+      persistDeviceContent(db, id, doc, reference => {
+        try {
+          const path = this.assets.resolveLocalFile(reference, context);
+          return path ? assets.import(path) : null;
+        } catch {
+          return null;
+        }
+      });
+    } finally {
+      doc.destroy();
+    }
+    if (session) await this.releaseReplacedSession(session, "已建立设备同步的可传输基线");
   }
-  async prepareDeviceDocuments(name: string) {
+  async prepareDeviceDocuments(
+    name: string,
+    progress?: (completed: number, total: number) => void
+  ) {
     const db = databaseModule.getDatabase(name);
     if (db?.open) ensureDeviceSyncHealthy(db);
     if (!db?.open || !readDeviceSyncState(db)?.enabled) return;
+    const generation = deviceGeneration(db);
+    const assertCurrent = () => {
+      if (
+        !db.open ||
+        databaseModule.getDatabase(name) !== db ||
+        deviceGeneration(db) !== generation
+      )
+        throw new Error("DEVICE_SYNC_CLOSED: 正文准备期间资料库已变化");
+    };
     try {
       await this.resolveDeviceJsonIntents(name);
     } catch (error) {
@@ -1869,50 +1910,65 @@ export class CollaborationManager {
       assertDeviceDamage(error);
       recoverDeviceSyncDatabase(db);
     }
-    const rows = db
-      .prepare(
-        "SELECT c.id FROM contents c LEFT JOIN _tau_device_documents d ON d.content_id=c.id WHERE d.content_id IS NULL ORDER BY c.id"
-      )
-      .all() as { id: number }[];
-    for (const { id } of rows) {
-      if (findCollaborationBinding(db, id))
-        throw new Error("DEVICE_SYNC_SHARED_CONTENT: 设备同步不接受双重正文绑定");
-      const stored = ContentDocumentTable.read(db, id);
-      if (!stored) throw new Error("DEVICE_SYNC_CONTENT: 正文契约尚未就绪");
-      if (await restoreActiveDeviceContent(db, id)) continue;
-      const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
-      const value = {
-        title: findContentTitle(db, id),
-        content: stored.content,
-        bannerBg: "",
-        bannerPosition: "center",
-      };
-      const prepared = await this.assets.prepareLocalDocument(
-        stored.documentId,
-        value,
-        stored.contracts,
-        true
-      );
-      const doc = await createNodeDocument(
-        { documentId: stored.documentId, baselineId: randomUUID(), epoch: 0 },
-        prepared,
-        stored.contracts
-      );
-      try {
-        if (deviceDocument(db, id)) continue;
-        if (ContentDocumentTable.read(db, id)?.revision !== stored.revision)
-          throw new Error("DEVICE_SYNC_RETRY: 正文准备期间发生变化");
-        persistDeviceContent(db, id, doc, reference => {
-          try {
-            const path = this.assets.resolveLocalFile(reference, stored.documentId);
-            return path ? assets.import(path) : null;
-          } catch {
-            return null;
+    assertCurrent();
+    const counts = db.prepare(
+      "SELECT count(*) AS total,count(d.content_id) AS completed FROM contents c LEFT JOIN _tau_device_documents d ON d.content_id=c.id"
+    );
+    let { completed, total } = counts.get() as { completed: number; total: number };
+    if (completed === total) return;
+    const started = Date.now();
+    let yielded = started,
+      reported = started,
+      cursor = 0;
+    const rows = db.prepare(
+      "SELECT c.id FROM contents c LEFT JOIN _tau_device_documents d ON d.content_id=c.id WHERE c.id>? AND d.content_id IS NULL ORDER BY c.id LIMIT 16"
+    );
+    const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
+    progress?.(completed, total);
+    console.info(`[device-sync] 正文准备开始: db=${name}, completed=${completed}, total=${total}`);
+    try {
+      await setImmediate();
+      for (;;) {
+        assertCurrent();
+        const batch = rows.all(cursor) as { id: number }[];
+        if (!batch.length) {
+          ({ completed, total } = counts.get() as { completed: number; total: number });
+          progress?.(completed, total);
+          if (completed === total) break;
+          cursor = 0;
+          continue;
+        }
+        for (const { id } of batch) {
+          await this.prepareDeviceContent(db, name, id, assets, assertCurrent);
+          cursor = id;
+          if (Date.now() - yielded >= 16) {
+            await setImmediate();
+            assertCurrent();
+            yielded = Date.now();
           }
-        });
-      } finally {
-        doc.destroy();
+        }
+        ({ completed, total } = counts.get() as { completed: number; total: number });
+        progress?.(completed, total);
+        if (Date.now() - reported >= 1000) {
+          console.info(
+            `[device-sync] 正文准备进度: db=${name}, completed=${completed}, total=${total}, elapsedMs=${Date.now() - started}`
+          );
+          reported = Date.now();
+        }
+        await setImmediate();
+        yielded = Date.now();
       }
+      console.info(
+        `[device-sync] 正文准备完成: db=${name}, total=${total}, elapsedMs=${Date.now() - started}`
+      );
+    } catch (error) {
+      if (db.open && databaseModule.getDatabase(name) === db && deviceGeneration(db) === generation)
+        ({ completed, total } = counts.get() as { completed: number; total: number });
+      console.warn(
+        `[device-sync] 正文准备中断: db=${name}, completed=${completed}, total=${total}, elapsedMs=${Date.now() - started}`,
+        error
+      );
+      throw error;
     }
   }
   async resolveDeviceJsonIntents(name: string) {
