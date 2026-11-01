@@ -18,7 +18,7 @@ export const PPT_AI_ILLUSTRATION_RULES = `## AI 插图使用规则（工具可�
 
 export const getPPTGenerationPrompt = (
   template: PPTTemplate,
-  options: { enableAIIllustration?: boolean } = {},
+  options: { enableAIIllustration?: boolean } = {}
 ): string => `
 ## 角色设定
 你是一位顶级的网页设计师和交互演示专家，擅长使用 HTML/CSS/JS 制作精美的在线演示文稿。你的任务是主动获取项目资料内容，然后生成一个符合「${template.name}」风格的单文件 HTML 演示文稿。
@@ -34,9 +34,10 @@ ${options.enableAIIllustration ? `${PPT_AI_ILLUSTRATION_RULES}\n\n---` : ""}
 ### 强制规则
 1. 每张 slide 必须设置 \`height: 100vh; height: 100dvh; overflow: hidden;\`
 2. 使用 \`position: absolute; inset: 0;\` 叠层切换，而非滚动
-3. 所有字号必须使用 \`clamp(min, preferred, max)\` — 禁止固定 px 或单独 vw
-4. 所有间距（padding, margin, gap）必须使用 \`clamp()\` 或视口单位
+3. 所有字号必须随视口缩放：使用 \`clamp(min, preferred, max)\`，或模板定义的画布单位（如固定 16:9 舞台的 \`--u\`）——禁止固定 px 或单独 vw
+4. 所有间距（padding, margin, gap）必须使用 \`clamp()\`、视口单位或模板的画布单位
 5. \`html, body\` 必须设置 \`height: 100%; overflow: hidden;\`
+6. 内容页分三区：标题区（小标签 + 标题 + 可选副标题）每页固定在左上角同一位置；正文包在 \`.slide-body\` 中，正文区占满标题下方的剩余高度，内容保持自然高度并在其中垂直居中（\`justify-content: safe center\`，内容超高时自动退回顶部对齐），不要为了填满页面而拉伸行高或把元素推到页面两端；每页内容量要配得上一整页，正文大致占到正文区高度的六到八成：单个数字或短句不能独立成块，要配上对比、趋势、拆分或一句解读（如 KPI 配同比 + 季度走势 + 原因，条形图配实际值 / 目标值，对比页配代表性数字，矩阵配结论栏）；内容确实不够时合并到相邻页面，而不是撑大间距；只有矩阵、象限这类本身需要固定比例的网格才加 \`.slide-body--fill\` 填满剩余高度（网格放在第一个子元素位置，图例与注释跟在其后）；页码、来源、脚注属于页脚区。只有封面、章节过渡、引用/金句、大字声明、结束页加 \`.slide-center\` 整页居中
 
 ### 内容密度限制（超出必须拆成多页）
 | 页面类型 | 最大内容量 |
@@ -59,7 +60,7 @@ ${options.enableAIIllustration ? `${PPT_AI_ILLUSTRATION_RULES}\n\n---` : ""}
 
 ## 必须包含的基础 CSS 架构
 
-生成的每个 PPT 必须包含以下基础 CSS 结构：
+生成的每个 PPT 必须包含以下基础 CSS 结构；参考模板若有自己完整的版式系统（如固定 16:9 舞台），以模板为准：
 
 \`\`\`css
 /* === 响应式变量 === */
@@ -88,7 +89,7 @@ body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
     width: 100vw; height: 100vh; height: 100dvh;
     padding: var(--slide-padding);
     display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
+    justify-content: flex-start; align-items: flex-start;
     position: absolute; inset: 0;
     opacity: 0; pointer-events: none;
     transform: translateY(8px);
@@ -98,11 +99,27 @@ body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
 .slide.active {
     opacity: 1; pointer-events: auto; transform: translateY(0);
 }
+/* 封面、章节过渡、引用、大字声明、结束页才居中 */
+.slide.slide-center {
+    justify-content: center; align-items: center; text-align: center;
+}
+/* 内容页：标题区在上，.slide-body 占满剩余高度，内容在其中垂直居中 */
 .slide-content {
-    max-width: 1100px; width: 100%;
+    max-width: 1100px; width: 100%; flex: 1; min-height: 0;
     display: flex; flex-direction: column;
     gap: var(--content-gap);
 }
+.slide-center .slide-content { flex: 0 1 auto; }
+.slide-body {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; justify-content: safe center;
+}
+/* 首尾元素的外边距会让居中偏移 */
+.slide-body > :first-child { margin-top: 0; }
+.slide-body > :last-child { margin-bottom: 0; }
+.slide-body--fill { justify-content: flex-start; }
+/* 拉伸第一个子元素（主体网格），图例与注释放在其后保持原高 */
+.slide-body--fill > :first-child { flex: 1; }
 
 /* === Reveal 动画系统 === */
 .reveal {
@@ -169,185 +186,27 @@ body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
         transform: none !important;
     }
 }
-/* === 全览模式（Overview） === */
-.ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
-.ov-grid.ov-visible{opacity:1}
-.ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,var(--c-bg,#111));box-shadow:0 2px 8px rgba(0,0,0,.18)}
-.ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
-.ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
-.ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
-.ov-inner *{transition:none !important;animation:none !important}
-.ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
-.ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
-.ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-.ov-close:hover{background:rgba(255,255,255,.2)}
 \`\`\`
 
 ---
 
-## JavaScript 交互规范
+## 公共运行时（系统自动注入，禁止自己实现）
 
-必须使用封装的 SlidePresentation class 管理导航，不要使用裸函数：
+翻页导航（键盘 / 滚轮 / 触摸）、进度条、页码、导航点、计数动画、条形图填充、F 键全屏、O 键全览由公共运行时提供，系统在展示和下载时自动内联进 HTML。**不要**在输出中引用或内联任何运行时文件。
 
-\`\`\`javascript
-class SlidePresentation {
-    constructor() {
-        this.slides = document.querySelectorAll('.slide');
-        this.totalSlides = this.slides.length;
-        this.currentSlide = 0;
-        this.isTransitioning = false;
-        this.overviewActive = false;
-        this.transitionDuration = 600;
-        this.progressFill = document.getElementById('progressFill');
-        this.counterCurrent = document.getElementById('counterCurrent');
-        this.counterTotal = document.getElementById('counterTotal');
-        if (this.counterTotal) this.counterTotal.textContent = String(this.totalSlides).padStart(2, '0');
-        this.updateUI();
-        this.bindEvents();
-    }
+**禁止**再写 SlidePresentation 之类的导航类，禁止自行监听 keydown / wheel / touch，禁止自己实现全览或全屏。页面通过以下钩子接入：
 
-    bindEvents() {
-        // 键盘导航
-        window.addEventListener('keydown', (e) => {
-            switch (e.key) {
-                case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
-                    e.preventDefault(); this.next(); break;
-                case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
-                    e.preventDefault(); this.prev(); break;
-                case 'Home': e.preventDefault(); this.goToSlide(0); break;
-                case 'End': e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
-                case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
-                case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
-                case 'Escape': this.closeOverview(); break;
-            }
-        });
-        // 滚轮（带阈值防误触）
-        window.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            if (e.deltaY > 20) this.next();
-            else if (e.deltaY < -20) this.prev();
-        }, { passive: false });
-        // 触摸滑动
-        let touchStartY = 0, touchStartX = 0;
-        window.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
-        }, { passive: true });
-        window.addEventListener('touchend', (e) => {
-            const dy = touchStartY - e.changedTouches[0].clientY;
-            const dx = touchStartX - e.changedTouches[0].clientX;
-            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
-                dy > 0 ? this.next() : this.prev();
-            } else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-                dx > 0 ? this.next() : this.prev();
-            }
-        }, { passive: true });
-    }
+| 钩子 | 作用 |
+|------|------|
+| \`.slide\` | 每一页；首页加 \`active\` |
+| \`data-deck-progress\` | 进度元素，运行时设置 \`style.width\`（首页 0%、末页 100%） |
+| \`data-deck-current="格式"\` / \`data-deck-total="格式"\` | 当前页 / 总页数文本；格式可选 \`pad2\`（01）、\`roman\`（IV）、\`cjk\`（四），留空为阿拉伯数字 |
+| \`data-deck-dots="类名"\` | 导航点容器，运行时按页数生成该类名的 \`<button>\`，当前页加 \`.active\` |
+| \`data-count\`（可加 \`data-prefix\` / \`data-suffix\`） | 进入该页时从 0 计数到目标值，小数位按字面值保留 |
+| \`data-percent\` | 进入该页时把元素宽度动画到该百分比，配合 \`transition: width\` 使用 |
+| \`<body data-deck-lock="600">\` | 翻页锁定时长（ms），与自己的翻页过渡时长一致 |
 
-    next() { this.goToSlide(this.currentSlide + 1); }
-    prev() { this.goToSlide(this.currentSlide - 1); }
-
-    goToSlide(index) {
-        if (this.isTransitioning || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
-        this.isTransitioning = true;
-        this.slides[this.currentSlide].classList.remove('active');
-        this.currentSlide = index;
-        this.slides[this.currentSlide].classList.add('active');
-        this.updateUI();
-        this.triggerSlideEffects(index);
-        setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
-    }
-
-    updateUI() {
-        const progress = this.totalSlides > 1 ? (this.currentSlide / (this.totalSlides - 1)) * 100 : 100;
-        if (this.progressFill) this.progressFill.style.width = progress + '%';
-        if (this.counterCurrent) this.counterCurrent.textContent = String(this.currentSlide + 1).padStart(2, '0');
-    }
-
-    triggerSlideEffects(index) {
-        const slide = this.slides[index];
-        slide.querySelectorAll('[data-count]').forEach(el => {
-            if (!el.dataset.counted) {
-                this.animateCounter(el, parseInt(el.dataset.count, 10));
-                el.dataset.counted = 'true';
-            }
-        });
-        slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
-            if (!el.dataset.filled) {
-                setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
-                el.dataset.filled = 'true';
-            }
-        });
-    }
-
-    animateCounter(el, target) {
-        const duration = 1800, start = performance.now();
-        const suffix = el.dataset.suffix || '';
-        function tick(now) {
-            const p = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - p, 3);
-            el.textContent = Math.round(eased * target) + suffix;
-            if (p < 1) requestAnimationFrame(tick);
-            else el.textContent = target + suffix;
-        }
-        setTimeout(() => requestAnimationFrame(tick), 300);
-    }
-
-    toggleFullscreen() {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-        else document.exitFullscreen().catch(() => {});
-    }
-
-    toggleOverview() {
-        if (this.overviewActive) { this.closeOverview(); return; }
-        this.overviewActive = true;
-        const ov = document.createElement('div');
-        ov.className = 'ov-grid';
-        const close = document.createElement('button');
-        close.className = 'ov-close';
-        close.innerHTML = '&times;';
-        close.onclick = () => this.closeOverview();
-        ov.appendChild(close);
-        const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
-        this.slides.forEach((slide, i) => {
-            const card = document.createElement('div');
-            card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
-            card.style.aspectRatio = vpAR;
-            const inner = document.createElement('div');
-            inner.className = 'ov-inner';
-            const clone = slide.cloneNode(true);
-            clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
-            clone.classList.add('active');
-            inner.appendChild(clone);
-            const num = document.createElement('span');
-            num.className = 'ov-num';
-            num.textContent = i + 1;
-            card.appendChild(inner);
-            card.appendChild(num);
-            card.onclick = () => { this.goToSlide(i); this.closeOverview(); };
-            ov.appendChild(card);
-        });
-        document.body.appendChild(ov);
-        this._ovEl = ov;
-        requestAnimationFrame(() => {
-            ov.querySelectorAll('.ov-inner').forEach(inner => {
-                const card = inner.parentElement;
-                const sx = card.offsetWidth / window.innerWidth;
-                const sy = card.offsetHeight / window.innerHeight;
-                inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
-            });
-            ov.classList.add('ov-visible');
-        });
-    }
-
-    closeOverview() {
-        this.overviewActive = false;
-        if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
-\`\`\`
+翻页过渡由模板 CSS 决定：离开页加 \`.is-leaving\`，进入页先加 \`.is-entering\` 再切到 \`.active\`，\`<html>\` 上的 \`data-deck-direction\` 为 \`forward\` 或 \`backward\`。模板若有自己的装饰脚本（如 canvas 手绘），监听 \`document\` 上的 \`deck:change\` 事件（\`detail: { index, previous, total, slide }\`）。
 
 ---
 
@@ -388,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); }
 
 ## 常用 UI 组件参考
 
-在生成 PPT 时，灵活运用以下组件（由 \`.active\` class 触发 reveal 动画）：
+在生成 PPT 时，按需运用以下组件（由 \`.active\` class 触发 reveal 动画）；与下方视觉风格冲突时，以视觉风格为准：
 
 1. **Tag / Pill 标签**：\`.tag { display: inline-block; padding: 4px 12px; border-radius: 3px; font-size: var(--small-size); border: 1px solid; }\`
 2. **数据统计行**：\`.stats-row { display: flex; gap: clamp(20px, 4vw, 60px); }\` + \`.stat-value { font-size: clamp(1.8rem, 4vw, 3.5rem); }\`
@@ -398,9 +257,9 @@ document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); }
 6. **步骤布局**：\`.steps { display: flex; flex-direction: column; gap: clamp(12px, 2vw, 24px); }\` + 编号强调色
 7. **大字排版**：超大字号（\`clamp(2.5rem, 8vw, 7rem)\`）的影响力声明
 8. **发光分割线**：\`.glow-line { width: clamp(32px, 6vw, 56px); height: 2px; background: var(--accent); }\`
-9. **进度条**：固定在顶部的细线进度条，跟随翻页更新宽度
-10. **页码计数器**：固定在右下角的 \`01 / 12\` 格式计数器
-11. **水平图表条**：\`.chart-list > .chart-item\` 包含 \`.chart-label\` + \`.chart-bar > .chart-fill[data-percent]\`，进入视口时动画填充到目标宽度
+9. **进度条**：固定在顶部的细线进度条，加 \`data-deck-progress\` 由运行时更新宽度
+10. **页码计数器**：固定在右下角，\`<span data-deck-current="pad2"></span> / <span data-deck-total="pad2"></span>\`
+11. **水平图表条**：\`.chart-list > .chart-item\` 包含 \`.chart-label\` + \`.chart-bar > .chart-fill[data-percent]\`，进入该页时动画填充到目标宽度
 12. **矩阵/象限网格**：\`.matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: clamp(8px, 1.5vw, 16px); }\` + 中心交叉线 \`::before/::after\`
 13. **双栏详情**：\`.split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(24px, 4vw, 60px); align-items: center; }\` 左侧大图标/大数字焦点 + 右侧列表详情
 
@@ -418,31 +277,35 @@ ${template.styleGuide}
 
 ## 内容结构要求
 
-生成的 PPT 至少包含 10 页，页面类型丰富多样：
+生成的 PPT 至少包含 10 页。页数和页型由资料内容决定，不需要把下面的页型都用一遍。
 
-1. **封面页**（大标题 + 副标题 + 装饰元素）
-2. **目录/议程页**（章节概览，带编号）
-3. **章节过渡页**（大号章节编号 + 章节标题，视觉冲击）
-4. **核心定义页**（重要概念的精确阐述）
-5. **要点列表页**（带 reveal + stagger delay 的动画列表）
-6. **数据/统计页**（大数字 + 计数动画，使用 \`data-count\` 属性）
-7. **对比页**（左右对比或正反对比）
-8. **步骤/流程页**（编号步骤或时间线）
-9. **引用/金句页**（大字号斜体排版）
-10. **大字声明页**（超大字号展示一句核心观点，\`clamp(2.5rem, 8vw, 7rem)\`，视觉冲击力极强）
-11. **图表/进度条页**（CSS 水平进度条展示占比数据，\`data-percent\` 属性 + 填充动画）
-12. **矩阵/象限分析页**（2×2 四象限网格，带轴标签，适合分类对比和 SWOT 分析）
-13. **双栏详情页**（左侧大图标/大数字视觉焦点 + 右侧文字详情，强调主次关系）
-14. **总结页**（核心要点回顾）
-15. **结束页**（强有力的总结金句）
+**固定骨架**：封面页、章节过渡页（每章一张）、结束页；超过 12 页时加目录/议程页。
 
-每两个章节之间不少于两页内容。
+**内容页选型顺序**：
+1. 视觉风格中列出「特色页型」的，优先使用特色页型，它们决定了这套 PPT 的风格辨识度
+2. 特色页型不能表达的内容，再从下方通用页型中按内容选取
+3. 视觉风格中标明「不适合本风格」的页型不要使用
+
+**通用页型**（按需选用）：
+- 核心定义页：重要概念的精确阐述
+- 要点列表页：带 reveal + 交错延迟的列表
+- 数据/统计页：大数字 + 计数动画（\`data-count\`）
+- 对比页：左右对比或正反对比
+- 步骤/流程页：编号步骤或时间线
+- 引用/金句页：引文 + 出处
+- 大字声明页：一句核心观点，超大字号
+- 图表页：CSS 水平条形图（\`data-percent\` + 填充动画）
+- 矩阵/象限页：2×2 网格，适合分类和 SWOT
+- 双栏详情页：左侧视觉焦点 + 右侧详情
+- 总结页：核心要点回顾
+
+相同版式不要连续出现超过 2 页；每两个章节之间不少于两页内容。
 
 ---
 
 ## 参考模板
 
-以下是一个完整的「${template.name}」风格 HTML 演示文稿示例，请**严格参考**其结构、样式和交互实现：
+以下是一个完整的「${template.name}」风格 HTML 演示文稿示例。请**严格参考**其视觉样式、组件写法和交互实现；示例的页数、页面顺序和文字内容只是演示，应按资料内容重新组织：
 
 \`\`\`html
 ${template.fullTemplate}
@@ -455,7 +318,7 @@ ${template.fullTemplate}
 3. **绝对不要**在 HTML 代码前添加任何说明文字（如"好的，这是生成的PPT："）
 4. **绝对不要**在 HTML 代码后添加任何解释文字
 5. 输出的内容应该是一个可以直接保存为 .html 文件并在浏览器中打开的完整文档
-6. HTML、CSS、JS 必须全部包含在一个文件中
+6. HTML 与 CSS 写在同一个文件中；导航交互由系统注入的公共运行时提供，不要自己实现
 7. **代码格式要求**：
    - 必须保持正确的换行和缩进格式
    - 每个 HTML 标签应该在单独的行上
@@ -491,7 +354,7 @@ ${template.fullTemplate}
 export const getPPTGenerationUserPrompt = (
   resourceNames: string[],
   templateName: string,
-  userPrompt?: string,
+  userPrompt?: string
 ): string => {
   return buildVibeLearningGenerationUserPrompt({
     title: `「${templateName}」风格 HTML 演示文稿（PPT）生成`,
@@ -501,14 +364,14 @@ export const getPPTGenerationUserPrompt = (
       `生成的 PPT 必须严格遵循「${templateName}」的视觉风格和设计规范`,
       "每张 slide 必须精确适配视口（100vh/100dvh），绝不允许内部滚动",
       "严格控制每页内容量，超出限制必须拆分到下一页",
-      "至少生成 10 页，并保证页面类型多样化",
+      "至少生成 10 页，优先使用模板的特色页型，相同版式不要连续超过 2 页",
     ],
     finalOutput: [
       "获取足够信息后，直接输出完整的 HTML 代码",
       "以 <!DOCTYPE html> 开始，以 </html> 结束",
       "不要使用代码块标记（```）",
       "不要在 HTML 前后添加任何说明文字",
-      "确保 HTML 文件包含完整的 CSS 样式和 JS 交互代码",
+      "确保 HTML 文件包含完整的 CSS 样式；导航交互由系统注入，不要自己写",
       "必须保持正确的代码格式：每个标签、CSS 规则、JS 语句都要正确换行和缩进，不要压缩成一行",
     ],
   });
@@ -525,12 +388,7 @@ export const cleanPPTHtmlContent = (content: string): string => {
 
   const doctypeIndex = html.toLowerCase().indexOf("<!doctype");
   const htmlTagIndex = html.toLowerCase().indexOf("<html");
-  const startIndex =
-    doctypeIndex !== -1
-      ? doctypeIndex
-      : htmlTagIndex !== -1
-        ? htmlTagIndex
-        : -1;
+  const startIndex = doctypeIndex !== -1 ? doctypeIndex : htmlTagIndex !== -1 ? htmlTagIndex : -1;
 
   if (startIndex > 0) {
     html = html.substring(startIndex);
