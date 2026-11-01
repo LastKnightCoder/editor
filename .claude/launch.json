@@ -329,6 +329,20 @@
       "runtimeArgs": ["-m", "http.server", "8846", "--bind", "127.0.0.1", "-d", "."],
       "port": 8846,
       "url": "http://localhost:8846"
+    },
+    {
+      "name": "annotation-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8847", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8847,
+      "url": "http://localhost:8847"
+    },
+    {
+      "name": "reminder-mobile-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8848", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8848,
+      "url": "http://localhost:8848"
     }
   ]
 }

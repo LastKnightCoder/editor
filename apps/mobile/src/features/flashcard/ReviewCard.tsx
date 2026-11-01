@@ -7,6 +7,7 @@ import { extractBlanks, isBlankCorrect, type ReviewAnswer } from "./reviewFlow";
 import { FLASHCARD_TYPE_META } from "./constants";
 import { isEditorContentEmpty } from "../cards/editorContentUtils";
 import type { Flashcard } from "./types";
+import type { useAnswerJudgement } from "./useAnswerJudgement";
 
 export interface ReviewCardFaceProps {
   card: Flashcard;
@@ -130,7 +131,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
               onChange={event => onAnswerChange({ qa: event.target.value })}
               placeholder="先凭记忆作答，再翻面对照（也可以直接翻面自评）"
               rows={5}
-              className="bg-page text-ink-1 placeholder:text-ink-3 focus:border-accent input-text w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 font-medium leading-[1.7] outline-none"
+              className="bg-page text-ink-1 placeholder:text-ink-3 focus:border-accent input-text w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 leading-[1.7] font-medium outline-none"
             />
           </div>
         );
@@ -142,7 +143,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
   return (
     <>
       <TypeTag card={card} />
-      <div className="text-ink-1 mt-3.5 text-[17px] font-bold leading-[1.65]">
+      <div className="text-ink-1 mt-3.5 text-[17px] leading-[1.65] font-bold">
         {card.type === "cloze" ? (
           <ClozeInteractivePrompt card={card} answer={answer} onAnswerChange={onAnswerChange} />
         ) : (
@@ -180,8 +181,10 @@ export function ReviewCardBack({
   card,
   isCorrect,
   answer,
+  judgement,
 }: ReviewCardBackProps & {
-  isCorrect: boolean;
+  isCorrect: boolean | null;
+  judgement?: ReturnType<typeof useAnswerJudgement>;
 }) {
   const explanation = card.data.explanation?.trim();
   // 背面补充按有无实际内容展示（空段落默认值不渲染）
@@ -250,7 +253,7 @@ export function ReviewCardBack({
         );
       case "cloze":
         return (
-          <div className="text-ink-1 mt-3.5 text-[15px] font-semibold leading-[2.1]">
+          <div className="text-ink-1 mt-3.5 text-[15px] leading-[2.1] font-semibold">
             <RichContent
               content={card.prompt}
               blankProps={{
@@ -267,7 +270,7 @@ export function ReviewCardBack({
         return (
           <div className="bg-page mt-3.5 rounded-[16px] px-4 py-3.5">
             <div className="text-ink-2 mb-1.5 text-[11.5px] font-extrabold">参考答案</div>
-            <div className="text-ink-1 text-[14px] font-medium leading-[1.8]">
+            <div className="text-ink-1 text-[14px] leading-[1.8] font-medium">
               {card.data.answer?.trim() || "（未设置参考答案，请结合解析自评）"}
             </div>
           </div>
@@ -282,23 +285,72 @@ export function ReviewCardBack({
       <div
         className="flex items-center gap-2.5 rounded-[14px] px-4 py-3 text-[14px] font-extrabold"
         style={
-          isCorrect
-            ? { background: "var(--tau-tag-1-soft)", color: "var(--tau-tag-1)" }
-            : { background: "var(--tau-tag-5-soft)", color: "var(--tau-danger)" }
+          isCorrect === null
+            ? { background: "var(--tau-bg-page)", color: "var(--tau-ink-2)" }
+            : isCorrect
+              ? { background: "var(--tau-tag-1-soft)", color: "var(--tau-tag-1)" }
+              : { background: "var(--tau-tag-5-soft)", color: "var(--tau-danger)" }
         }
       >
-        {isCorrect ? "✓ 回答正确" : "✕ 回答错误"}
-        {card.type === "qa" ? (
-          <span className="font-bold opacity-70">（请对照参考答案自评）</span>
-        ) : null}
+        {isCorrect === null
+          ? judgement?.status === "loading"
+            ? "AI 正在评判…"
+            : "请对照参考答案自评"
+          : isCorrect
+            ? "✓ 回答正确"
+            : "✕ 回答错误"}
       </div>
       {/* cloze 的题干在 renderAnswerBlock 里以「逐空判分高亮」形态渲染，顶部跳过以免重复且明文露答案 */}
       {card.type !== "cloze" ? (
-        <div className="text-ink-1 mt-3.5 text-[15.5px] font-bold leading-[1.6]">
+        <div className="text-ink-1 mt-3.5 text-[15.5px] leading-[1.6] font-bold">
           <RichContent content={card.prompt} />
         </div>
       ) : null}
       {renderAnswerBlock()}
+      {card.type === "qa" && judgement && judgement.status !== "idle" && (
+        <div className="bg-page rounded-tau-lg text-tau-sm mt-4 space-y-2 p-4" aria-live="polite">
+          <div className="text-ink-1 font-semibold">
+            AI 评判{judgement.result ? ` · ${judgement.result.score} / 10` : ""}
+          </div>
+          {judgement.status === "loading" && (
+            <p className="text-ink-2">正在对照参考答案，完成后仍可自行选择复习评分。</p>
+          )}
+          {judgement.status === "error" && (
+            <>
+              <p role="alert" className="text-danger">
+                {judgement.error?.message ?? "评判失败，可对照答案自评"}
+              </p>
+              <button
+                type="button"
+                onClick={() => void judgement.judge(answer.qa ?? "", card)}
+                className="text-accent-text py-2 font-semibold"
+              >
+                重新评判
+              </button>
+            </>
+          )}
+          {judgement.result && (
+            <>
+              <p className="text-ink-2">{judgement.result.comment}</p>
+              {(
+                [
+                  ["亮点", judgement.result.highlights],
+                  ["遗漏", judgement.result.missingPoints],
+                  ["建议", judgement.result.suggestions],
+                ] as const
+              ).map(
+                ([title, items]) =>
+                  items.length > 0 && (
+                    <p key={title} className="text-ink-2">
+                      <span className="text-ink-1 font-semibold">{title}：</span>
+                      {items.join("；")}
+                    </p>
+                  )
+              )}
+            </>
+          )}
+        </div>
+      )}
       {!detailEmpty ? (
         <div className="text-ink-1 mt-3.5 text-[14px] leading-[1.8]">
           <div className="text-ink-2 mb-1 text-[11.5px] font-extrabold">补充</div>

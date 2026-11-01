@@ -9,12 +9,16 @@ import {
   Folder,
   Image as ImageIcon,
   MessageSquare,
+  Plug,
+  Puzzle,
   Sparkles,
+  WandSparkles,
   Mic,
   Moon,
   Type,
   Users,
   Wifi,
+  Bell,
 } from "lucide-react";
 
 // 图标统一为「彩色圆角块」形态（34px 方块 + soft 底色）
@@ -102,6 +106,14 @@ export function IconMic() {
   );
 }
 
+export function IconBell() {
+  return (
+    <IconTile className="bg-accent-soft text-accent-text">
+      <Bell size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
 export function IconBookOpen() {
   return (
     <IconTile className="bg-tag-4-soft text-tag-4">
@@ -130,6 +142,30 @@ export function IconSparkles() {
   return (
     <IconTile className="bg-accent-soft text-accent-text">
       <Sparkles size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconWandSparkles() {
+  return (
+    <IconTile className="bg-tag-3-soft text-tag-3">
+      <WandSparkles size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconPlug() {
+  return (
+    <IconTile className="bg-tag-1-soft text-tag-1">
+      <Plug size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconPuzzle() {
+  return (
+    <IconTile className="bg-tag-5-soft text-tag-5">
+      <Puzzle size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

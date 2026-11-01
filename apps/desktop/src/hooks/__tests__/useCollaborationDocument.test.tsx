@@ -11,6 +11,9 @@ const host = vi.hoisted(() => ({
   ack: vi.fn(),
   unsubscribe: vi.fn(),
   preserveDocument: vi.fn(),
+  upload: vi.fn(),
+  prepareResource: vi.fn(),
+  memberUpload: vi.fn(),
   snapshot: undefined as undefined | Record<string, unknown>,
 }));
 vi.mock("@/electron", () => ({
@@ -27,10 +30,15 @@ vi.mock("@/commands", () => ({
   subscribeCollaborationDocument: vi.fn(async () => host.snapshot),
   unsubscribeCollaborationDocument: host.unsubscribe,
   updateCollaborationDocument: host.update,
-  uploadCollaborationResource: vi.fn(),
 }));
+vi.mock("@/hooks/useUploadResource", () => ({ uploadResource: host.upload }));
 vi.mock("@/commands/contracts/collaboration", () => ({
-  collaborationCommands: { prepareFragment: { call: vi.fn() }, updateNodeView: { call: vi.fn() } },
+  collaborationCommands: {
+    prepareFragment: { call: vi.fn() },
+    prepareResource: { call: host.prepareResource },
+    uploadSharedResource: { call: host.memberUpload },
+    updateNodeView: { call: vi.fn() },
+  },
 }));
 
 import useCollaborationDocument from "../useCollaborationDocument";
@@ -38,73 +46,125 @@ import useCollaborationDocument from "../useCollaborationDocument";
 afterEach(() => {
   vi.useRealTimers();
   host.listeners.clear();
-  for (const fn of [host.update, host.ack, host.unsubscribe, host.preserveDocument]) fn.mockReset();
+  for (const fn of [
+    host.update,
+    host.ack,
+    host.unsubscribe,
+    host.preserveDocument,
+    host.upload,
+    host.prepareResource,
+    host.memberUpload,
+  ])
+    fn.mockReset();
 });
 
-it("编辑未送达主进程时不回执冻结、不注销视图，送达后才放行", async () => {
-  const paragraph = await prepareContentContract("tau.paragraph", {
-    type: "paragraph",
-    dataVersion: 1,
-    kind: "block",
-  });
-  const source = await createNodeDocument(
-    { documentId: "doc", baselineId: "base", epoch: 0 },
-    {
-      title: "",
-      content: [
-        {
-          type: "paragraph",
-          collabId: "p",
-          tauContract: paragraph.id,
-          children: [{ text: "原文" }],
-        },
-      ],
-      bannerBg: "",
-      bannerPosition: "center",
-    },
-    { [paragraph.id]: paragraph.contract }
-  );
-  host.snapshot = {
-    state: Y.encodeStateAsUpdate(source),
-    session: { mode: "local", role: "owner", frozen: false },
-    user: {},
-  };
-  source.destroy();
-  host.update.mockRejectedValue(new Error("编辑视图已失效"));
-  host.preserveDocument.mockResolvedValue(undefined);
-  host.ack.mockResolvedValue(undefined);
-  host.unsubscribe.mockResolvedValue(undefined);
+it.each(["local", "shared"])(
+  "编辑未送达主进程时不回执冻结、不注销视图，送达后才放行（%s）",
+  async mode => {
+    const paragraph = await prepareContentContract("tau.paragraph", {
+      type: "paragraph",
+      dataVersion: 1,
+      kind: "block",
+    });
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const source = await createNodeDocument(
+      { documentId: "doc", baselineId: "base", epoch: 0 },
+      {
+        title: "",
+        content: [
+          {
+            type: "paragraph",
+            collabId: "p",
+            tauContract: paragraph.id,
+            children: [{ text: "原文" }],
+          },
+          {
+            type: "image",
+            collabId: "image",
+            tauContract: image.id,
+            url:
+              mode === "local"
+                ? "~/.editor/resources/image.webp"
+                : "https://images.test/image.webp",
+            children: [{ text: "" }],
+          },
+        ],
+        bannerBg: "",
+        bannerPosition: "center",
+      },
+      { [paragraph.id]: paragraph.contract, [image.id]: image.contract },
+      { allowLocalResources: true }
+    );
+    host.snapshot = {
+      state: Y.encodeStateAsUpdate(source),
+      session: { mode, role: mode === "local" ? "owner" : "editor", frozen: false },
+      user: {},
+    };
+    source.destroy();
+    host.update.mockRejectedValue(new Error("编辑视图已失效"));
+    host.preserveDocument.mockResolvedValue(undefined);
+    host.ack.mockResolvedValue(undefined);
+    host.unsubscribe.mockResolvedValue(undefined);
 
-  let current: ReturnType<typeof useCollaborationDocument>;
-  function Harness() {
-    current = useCollaborationDocument("doc");
-    return null;
+    let current: ReturnType<typeof useCollaborationDocument>;
+    function Harness() {
+      current = useCollaborationDocument("doc");
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    await act(async () => root.render(<Harness />));
+    await vi.waitFor(() => expect(current!.binding).toBeDefined());
+    const uploaded = "https://images.test/compressed.webp";
+    host.upload.mockResolvedValue(uploaded);
+    host.prepareResource.mockResolvedValue(uploaded);
+    host.memberUpload.mockResolvedValue("tau-collab-asset:member");
+    const bytes = new Uint8Array([1, 2, 3]);
+    const file = Object.assign(new File([bytes], "image.png", { type: "image/png" }), {
+      arrayBuffer: async () => bytes.buffer,
+    });
+    if (mode === "local") {
+      await expect(current!.binding!.uploadResource(file)).resolves.toBe(uploaded);
+      expect(host.upload).toHaveBeenCalledWith(file);
+      expect(host.prepareResource).toHaveBeenCalledWith(current!.binding!.viewId, uploaded);
+    } else {
+      await expect(current!.binding!.uploadResource(file)).resolves.toBe("tau-collab-asset:member");
+      expect(host.memberUpload).toHaveBeenCalledWith(current!.binding!.viewId, {
+        name: file.name,
+        mime: file.type,
+        bytes,
+      });
+      expect(host.upload).not.toHaveBeenCalled();
+      expect(host.prepareResource).not.toHaveBeenCalled();
+    }
+
+    await act(async () => current!.binding!.doc.getText("title").insert(0, "未送达"));
+    await vi.waitFor(() => expect(host.preserveDocument).toHaveBeenCalled());
+    expect(current!.error).toBe("编辑视图已失效");
+
+    await act(async () =>
+      host.listeners.get("collaboration:freeze")!(undefined, {
+        documentId: "doc",
+        frozen: true,
+        requestId: "freeze-1",
+      })
+    );
+    await act(async () => new Promise(resolve => setTimeout(resolve, 20)));
+    expect(host.ack).not.toHaveBeenCalled();
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "clearInterval"] });
+    await act(async () => root.unmount());
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(host.unsubscribe).not.toHaveBeenCalled();
+
+    host.update.mockResolvedValue(undefined);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(host.update).toHaveBeenLastCalledWith("doc", expect.any(Uint8Array), expect.any(String));
+    expect(host.unsubscribe).toHaveBeenCalledTimes(1);
   }
-  const root = createRoot(document.createElement("div"));
-  await act(async () => root.render(<Harness />));
-  await vi.waitFor(() => expect(current!.binding).toBeDefined());
-
-  await act(async () => current!.binding!.doc.getText("title").insert(0, "未送达"));
-  await vi.waitFor(() => expect(host.preserveDocument).toHaveBeenCalled());
-  expect(current!.error).toBe("编辑视图已失效");
-
-  await act(async () =>
-    host.listeners.get("collaboration:freeze")!(undefined, {
-      documentId: "doc",
-      frozen: true,
-      requestId: "freeze-1",
-    })
-  );
-  await act(async () => new Promise(resolve => setTimeout(resolve, 20)));
-  expect(host.ack).not.toHaveBeenCalled();
-
-  vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "clearInterval"] });
-  await act(async () => root.unmount());
-  await vi.advanceTimersByTimeAsync(5_000);
-  expect(host.unsubscribe).not.toHaveBeenCalled();
-
-  host.update.mockResolvedValue(undefined);
-  await vi.advanceTimersByTimeAsync(10_000);
-  expect(host.update).toHaveBeenLastCalledWith("doc", expect.any(Uint8Array), expect.any(String));
-  expect(host.unsubscribe).toHaveBeenCalledTimes(1);
-});
+);

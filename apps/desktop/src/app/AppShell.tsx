@@ -43,6 +43,7 @@ import {
 } from "./shellStore";
 import { ensureDatabaseReady } from "./databaseReady";
 import { useNotificationBridge } from "@/features/notifications/useNotificationBridge";
+import { useReminderOpen } from "./useReminderOpen";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
 import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import "./base.css";
@@ -172,6 +173,7 @@ function ShellLayout() {
 
   // 跨窗口通知桥：系统窗口转发的按钮执行 + 主进程直投卡与卡栈生命周期的回报
   const onNotificationItemsChange = useNotificationBridge();
+  useReminderOpen();
 
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>

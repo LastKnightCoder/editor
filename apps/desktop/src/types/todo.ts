@@ -45,7 +45,9 @@ export interface TodoItem {
   isCompleted: boolean;
   startAt?: number | null; // 计划任务的开始时间
   dueAt?: number | null; // 截止时间（截止任务）或结束时间（计划任务）
-  remindBefore?: number | null; // 提醒时间（截止前多少毫秒）
+  remindBefore?: number | null; // 首个提醒（截止前多少毫秒）
+  /** 首个之外的追加提醒（同为截止前毫秒数）；只在列表快照里带出 */
+  extraReminders?: number[];
   completedAt?: number | null;
   sortIndex: number;
   isArchived: boolean;
@@ -228,10 +230,19 @@ export interface TodoGroupStats {
 export type TodoQueryTimeField = "createTime" | "updateTime" | "dueAt" | "completedAt" | "startAt";
 
 export type TodoQueryGroupBy =
-  "none" | "group" | "status" | "type" | "due_date" | "completion_date";
+  | "none"
+  | "group"
+  | "status"
+  | "type"
+  | "due_date"
+  | "completion_date";
 
 export type TodoQuerySort =
-  "manual" | "dueAtAsc" | "updateTimeDesc" | "createTimeDesc" | "completedAtDesc";
+  | "manual"
+  | "dueAtAsc"
+  | "updateTimeDesc"
+  | "createTimeDesc"
+  | "completedAtDesc";
 
 export interface TodoQueryFilter {
   groupIds?: number[];
@@ -330,7 +341,11 @@ export interface TodoDashboardResponse {
 }
 
 export type TodoMutationEntityType =
-  "group" | "item" | "recurrence" | "note-link" | "calendar-mapping";
+  | "group"
+  | "item"
+  | "recurrence"
+  | "note-link"
+  | "calendar-mapping";
 
 export interface TodoMutationEvent {
   clientId?: string;

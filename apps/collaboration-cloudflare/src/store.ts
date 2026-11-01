@@ -25,6 +25,22 @@ import {
 const DAY = 86_400_000;
 const CHUNK_BYTES = 512 * 1024;
 export const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
+const BACKUP_FORMATS = [3, 4, 5, 6];
+const BACKUP_TABLES = [
+  "devices",
+  "documents",
+  "members",
+  "invitations",
+  "join_requests",
+  "assets",
+  "audit",
+  "collaboration_protocol",
+  "collaboration_asset_history",
+  "collaboration_operations",
+  "collaboration_sequences",
+  "identity_merges",
+  "collaboration_migrations",
+] as const;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 function assetReferences(value: unknown, into = new Set<string>()): Set<string> {
   if (typeof value === "string" && value.startsWith(ASSET_PREFIX))
@@ -70,11 +86,6 @@ export class CollaborationStore {
     private readonly prototype = true
   ) {
     this.sql = storage.sql;
-    if (
-      this.one("SELECT 1 FROM sqlite_master WHERE type='table' AND name='identity_merges'") &&
-      this.required<{ count: number }>("SELECT count(*) AS count FROM identity_merges").count > 0
-    )
-      fail("UNSUPPORTED_STORAGE", "服务存储包含已退役的身份合并记录，原数据保持不变", 409);
     this.writes = new DocumentWriteQueue(MAX_DOCUMENT_BYTES * 2);
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS devices(id TEXT PRIMARY KEY, nickname TEXT NOT NULL, secret_hash TEXT NOT NULL);
@@ -88,6 +99,8 @@ export class CollaborationStore {
       CREATE INDEX IF NOT EXISTS assets_document ON assets(document_id);
       CREATE INDEX IF NOT EXISTS assets_hash ON assets(hash);
       CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, device_id TEXT, document_id TEXT, action TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS identity_merges(source_id TEXT PRIMARY KEY, target_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS collaboration_migrations(operation_id TEXT PRIMARY KEY, document_id TEXT NOT NULL, value TEXT NOT NULL);
     `);
     if (
       !this.all<{ name: string }>("PRAGMA table_info(devices)").some(row => row.name === "banned")
@@ -874,7 +887,7 @@ export class CollaborationStore {
 
   storageBytes() {
     return this.required<{ bytes: number }>(
-      "SELECT (SELECT coalesce(sum(size),0) FROM assets)+(SELECT coalesce(sum(length(state)),0) FROM chunks)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_operations)+(SELECT count(*)*256 FROM collaboration_asset_history) AS bytes"
+      "SELECT (SELECT coalesce(sum(size),0) FROM assets)+(SELECT coalesce(sum(length(state)),0) FROM chunks)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_operations)+(SELECT count(*)*256 FROM collaboration_asset_history)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_migrations)+(SELECT coalesce(sum(length(source_id)+length(target_id)+8),0) FROM identity_merges) AS bytes"
     ).bytes;
   }
 
@@ -963,22 +976,13 @@ export class CollaborationStore {
 
   exportMetadata() {
     return {
-      format: 5,
+      format: 6,
       signingKey: this.signingKey,
       tables: Object.fromEntries(
-        [
-          "devices",
-          "documents",
-          "members",
-          "invitations",
-          "join_requests",
-          "assets",
-          "audit",
-          "collaboration_protocol",
-          "collaboration_asset_history",
-          "collaboration_operations",
-          "collaboration_sequences",
-        ].map(table => [table, this.all<Record<string, unknown>>("SELECT * FROM " + table)])
+        BACKUP_TABLES.map(table => [
+          table,
+          this.all<Record<string, unknown>>("SELECT * FROM " + table),
+        ])
       ),
     };
   }
@@ -987,12 +991,27 @@ export class CollaborationStore {
     if (this.setting("ready") === "1") fail("ALREADY_READY", "正式库已开放，不能覆盖导入", 409);
     if (!data || typeof data !== "object") fail("INVALID_IMPORT", "迁移数据无效");
     const input = data as ReturnType<CollaborationStore["exportMetadata"]>;
-    if (input.format !== 5 || !/^[a-f0-9]{64}$/.test(input.signingKey) || !input.tables)
+    if (
+      !BACKUP_FORMATS.includes(input.format) ||
+      !/^[a-f0-9]{64}$/.test(input.signingKey) ||
+      !input.tables
+    )
       fail("INVALID_IMPORT", "备份清单格式不受支持");
-    if (Object.hasOwn(input.tables, "identity_merges"))
-      fail("INVALID_IMPORT", "备份包含已退役的身份合并账本");
-    if (Object.hasOwn(input.tables, "collaboration_migrations"))
-      fail("INVALID_IMPORT", "备份包含已退役的格式迁移账本");
+    if (
+      Object.keys(input.tables).some(
+        table => !BACKUP_TABLES.includes(table as (typeof BACKUP_TABLES)[number])
+      )
+    )
+      fail("INVALID_IMPORT", "备份包含未声明的数据表，不能省略恢复");
+    // 历史账本原样保全，不参与身份授权或重新执行格式升级。
+    const history = {
+      identity_merges: input.format !== 5,
+      collaboration_migrations: input.format === 3 || input.format === 6,
+    };
+    for (const [table, required] of Object.entries(history)) {
+      if (required ? !Array.isArray(input.tables[table]) : Object.hasOwn(input.tables, table))
+        fail("INVALID_IMPORT", "历史账本与备份格式不匹配：" + table);
+    }
     if (!Array.isArray(input.tables.collaboration_protocol))
       fail("INVALID_IMPORT", "备份清单缺少 collaboration_protocol");
     for (const row of input.tables.collaboration_protocol) {
@@ -1033,15 +1052,25 @@ export class CollaborationStore {
       collaboration_operations: ["document_id", "operation_id", "value"],
       collaboration_sequences: ["document_id", "sequence"],
       collaboration_asset_history: ["document_id", "epoch", "asset_id"],
+      identity_merges: ["source_id", "target_id", "created_at"],
+      collaboration_migrations: ["operation_id", "document_id", "value"],
     };
     this.protocols.invalidate();
     this.storage.transactionSync(() => {
       for (const table of [...Object.keys(columns), "chunks"])
         this.sql.exec("DELETE FROM " + table);
       for (const [table, fields] of Object.entries(columns)) {
-        const rows = input.tables[table];
+        const rows =
+          table in history && !history[table as keyof typeof history] ? [] : input.tables[table];
         if (!Array.isArray(rows)) fail("INVALID_IMPORT", "迁移清单缺少 " + table);
         for (const row of rows) {
+          if (
+            !row ||
+            typeof row !== "object" ||
+            Array.isArray(row) ||
+            Object.keys(row).some(field => !fields.includes(field))
+          )
+            fail("INVALID_IMPORT", "备份包含未声明的数据字段：" + table);
           const values = fields.map(field => {
             const value = row[field];
             if (value !== null && typeof value !== "string" && typeof value !== "number")
@@ -1083,7 +1112,7 @@ export class CollaborationStore {
     try {
       Y.applyUpdate(doc, state);
       const identity = readDocumentIdentity(doc);
-      if (this.setting("import_format") !== "5")
+      if (!BACKUP_FORMATS.includes(Number(this.setting("import_format"))))
         return fail("INVALID_IMPORT", "正文备份必须携带当前协议、编辑回执及历史资产清单");
       await validateStructuredDocument(doc, { ...identity, documentId: id });
       this.protocols.invalidate(id);
@@ -1117,23 +1146,10 @@ export class CollaborationStore {
   }
 
   status() {
-    const tables = [
-      "devices",
-      "documents",
-      "members",
-      "invitations",
-      "join_requests",
-      "assets",
-      "audit",
-      "collaboration_protocol",
-      "collaboration_asset_history",
-      "collaboration_operations",
-      "collaboration_sequences",
-    ];
     return {
       ready: this.setting("ready") === "1",
       counts: Object.fromEntries(
-        tables.map(table => [
+        BACKUP_TABLES.map(table => [
           table,
           this.required<{ count: number }>("SELECT count(*) AS count FROM " + table).count,
         ])

@@ -16,6 +16,7 @@ it("跨文档复制带上原版本契约，目标未安装插件也保留节点�
     kind: "block",
     isVoid: true,
     collaboration: { textFields: ["source"] },
+    resources: [{ path: "cover", kind: "image" }],
   });
   const original = {
     type: "example.diagram",
@@ -23,12 +24,14 @@ it("跨文档复制带上原版本契约，目标未安装插件也保留节点�
     tauContract: unknown.id,
     source: "原版本源码",
     custom: "保留",
+    cover: "~/.editor/resources/image.png",
     children: [{ text: "" }],
   };
   const source = await createNodeDocument(
     { documentId: "source", baselineId: "source", epoch: 0 },
     { title: "", bannerBg: "", bannerPosition: "center", content: [original] },
-    { [unknown.id]: unknown.contract }
+    { [unknown.id]: unknown.contract },
+    { allowLocalResources: true }
   );
   const target = await createNodeDocument(
     { documentId: "target", baselineId: "target", epoch: 0 },
@@ -76,6 +79,7 @@ it("跨文档复制带上原版本契约，目标未安装插件也保留节点�
     await second.insertData(clipboard);
     const copied = targetTree.read().find(node => node.type === "example.diagram");
     expect(copied).toMatchObject({ tauContract: unknown.id, source: "原版本源码", custom: "保留" });
+    expect(copied!.cover).toBe(original.cover);
     expect(copied!.collabId).not.toBe(original.collabId);
     expect(targetTree.contracts.get(unknown.id)).toEqual(unknown.contract);
   } finally {

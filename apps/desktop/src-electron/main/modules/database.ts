@@ -51,6 +51,7 @@ import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
 import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
+import ItemReminderTable from "./tables/item-reminder";
 import PodcastTable from "./tables/podcast";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
@@ -306,6 +307,7 @@ class DatabaseModule implements Module {
       CalendarGroupTable, // 必须在 TodoCalendarSyncTable 和 PomodoroSessionTable 之前
       CalendarTable,
       CalendarEventTable,
+      ItemReminderTable,
       TodoCalendarSyncTable, // 移到 CalendarGroupTable 之后
       WebLinkTable,
       WebClipTable,

@@ -519,7 +519,7 @@ export class DeviceSyncModule {
         } else if (previous.node !== previous.authority)
           throw new Error("DEVICE_SYNC_AUTHORITY: 请连接这份资料库原来的配对电脑");
         initializeDeviceSyncDatabase(db, DEVICE_SQL);
-        await collaboration.prepareDeviceLibrary(event, name);
+        await collaboration.prepareDeviceLibrary(event, name, !previous || previous.revision === 0);
         await collaboration.prepareDeviceDocuments(name);
         this.save(name, true);
         await this.start(name);

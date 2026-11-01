@@ -6,14 +6,13 @@ import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
 import { ITaskIdSource } from "@tau/editor/extensions/list/task-ids";
-import { NODE_DOCUMENT_VERSION } from "@tau/collaboration";
+import { NODE_DOCUMENT_VERSION, isSafeResource, isVideoResource } from "@tau/collaboration";
 import { codeBlockV2Extension } from "@tau/editor/extensions/code-block";
 
 const derived = new WeakMap<ContentCollaborationBinding, Map<EditorKit, EditorKit>>();
 
 /**
- * 共享模式下资源要经 binding 解析、音视频要走资产协议，所以派生一个覆盖这两项服务的 kit。
- * 本机模式（mode === "local"）与无 binding 时直接用场景 kit，不做派生。
+ * 上传沿用场景 kit 的图床与压缩流程，共享时再转换本地资源；存量编号经 binding 解析。
  *
  * 结果按 binding × 场景 kit 缓存：离屏测高等 React 之外的调用方也要拿到同一个 kit，
  * 否则每次派生出的新 kit 会让编辑器重建。
@@ -35,15 +34,23 @@ export function collaborationKit(
   const base = kit.registry;
   const services: ServiceRegistration = register => {
     register(ITaskIdSource, { managed: true });
-    if (
-      binding.mode === "local" &&
-      binding.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION
-    )
-      return;
     register(IResourceService, {
       ...base.get(IResourceService),
       remoteResourceToLocal: url => binding.resolveResource(url),
-      upload: file => binding.uploadResource(file),
+      upload:
+        binding.mode === "local"
+          ? async file => {
+              const reference = await base.get(IResourceService).upload(file);
+              return !isSafeResource(reference) && binding.prepareResource
+                ? binding.prepareResource(reference)
+                : reference;
+            }
+          : async file => {
+              if (binding.role !== "owner" || isVideoResource(file.name, file.type))
+                return binding.uploadResource(file);
+              if (!binding.prepareResource) throw new Error("共享资源转换服务尚未就绪");
+              return binding.prepareResource(await base.get(IResourceService).upload(file));
+            },
     });
     register(IEditorSlots, () => {
       const slots = base.get(IEditorSlots);

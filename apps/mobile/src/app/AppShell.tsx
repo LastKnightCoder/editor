@@ -48,6 +48,8 @@ import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
 import { startDeviceSync, replaceLocalLibrary } from "../services/device-sync/runtime";
 import { setDeviceSyncDatabase } from "../services/device-sync/native";
+import { ReminderHost } from "../features/reminders/ReminderHost";
+import { CollaborationBackground } from "../features/collaboration/CollaborationBackground";
 import "../pages";
 
 const remoteVideoDeps: UseRemoteVideoDeps = {
@@ -489,6 +491,7 @@ function AppShellInner() {
                     key={bootstrap.databases?.activeDatabase}
                     database={bootstrap.databases?.activeDatabase ?? ""}
                   >
+                    <CollaborationBackground />
                     <main className="bg-page min-h-dvh">
                       <PageHost rootContent={<HomeScreen />} />
                       <AppDock />
@@ -497,6 +500,7 @@ function AppShellInner() {
                       <EditorPromptHost />
                       <ToastViewport />
                       <IncomingFileHost />
+                      <ReminderHost />
                       {import.meta.env.DEV && <RouterDevTools />}
                     </main>
                   </MobilePluginProvider>

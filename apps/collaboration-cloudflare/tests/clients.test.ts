@@ -40,6 +40,16 @@ vi.mock("@tau/collaboration", async importOriginal => ({
 vi.mock("../../mobile/src/services/tauri", () => ({
   collabListBindings: async () => [],
   collabReadCache: async (id: string) => harness.cache.get(id) ?? null,
+  collabRecovery: async (id: string, action = "read") => {
+    if (action !== "read") throw new Error("正文同步夹具不模拟关闭收尾");
+    return harness.cache.get(id)?.metadata ?? null;
+  },
+  collabResource: async (context: { serverUrl: string; documentId: string }, action: string) => {
+    expect(context.serverUrl).toBe(harness.url);
+    expect(harness.cache.has(context.documentId)).toBe(true);
+    if (action !== "pending") throw new Error("正文同步夹具不模拟附件传输");
+    return false;
+  },
   collabWriteCache: async (
     payload: { documentId: string; metadata: unknown; state: string },
     snapshot: boolean

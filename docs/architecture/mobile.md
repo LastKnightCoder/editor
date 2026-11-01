@@ -240,7 +240,23 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 ## 协作网络与身份
 
-协作 REST 经 Rust 网关，实时连接由 WebView 直连所选服务器。会话建立时验证缓存与远端正文均为协议 2，旧缓存不被远端快照自动覆盖；不生成旧格式只读占位文档，格式不匹配返回错误。身份按规范化后的实际服务器地址隔离，同一地址的并发读取与注册仍串行化；缺失时只向该地址注册并保存。不请求旧来源摘要、不复制或合并其他地址的凭据，也不改写主库的协作绑定。协议与存储见[协作架构](/docs/architecture/collaboration.md)。
+协作 REST 经 Rust 网关，实时连接由 WebView 直连所选服务器。会话建立时验证缓存与远端正文均为协议 2，同基线合并保留未确认输入；不可读缓存与已换代的旧基线先备份到 discarded/，再按远端确认状态重建。不生成旧格式只读占位文档，较新协议返回升级错误。身份按规范化后的实际服务器地址隔离，同一地址的并发读取与注册仍串行化；缺失时只向该地址注册并保存。不请求旧来源摘要、不复制或合并其他地址的凭据，也不改写主库中的服务器地址。协议与存储见[协作架构](/docs/architecture/collaboration.md)。
+
+### 协作图片与作者存储
+
+普通正文显式开启 `allowLocalResources`，上传直接保留常规存储返回的本地路径或公网 URL，不生成新的 `tau-collab-local`。存量编号仍按缓存的 `resourcePaths` 读取；解析出的本地路径直接进入文件预览，不交给 HTTP 下载接口。正文缓存重建保留耐久资源队列和仅本机附件记录；整库缓存版本重建迁入可读取的资源与设置，原文件仍完整备份。共享来源身份、观察修订和关闭状态独立存于 `settings` 的 `session-recovery:<id>`，缓存写入与恢复记录更新同事务；读取坏缓存前保全旧元数据，格式重建时也从可读取的旧会话补齐恢复记录。会话列表合并这些耐久记录，正文缓存消失仍能触发作者恢复与收尾。
+
+跨文档粘贴通过 `core/resources` 核验图片、预览及插件声明资源的来源引用；活动正文登记实时来源，离页后按耐久缓存核验，普通正文使用完整缓存 ID 区分资料库。目标为普通正文时先取得持久地址，目标为共享正文时再执行共享转换；缺失来源或无法本地化的内部编号拒绝粘贴，来源或目标切换后的迟到结果不写入正文。
+
+协作编辑器通过文档 `services` 注入作用域 `IResourceService`。作者插图先走普通移动上传管线，遵守自己的 `imageBed` 图床与压缩设置，公网 URL 直接使用，本地结果再经 `collab_resource/prepare` 转成服务器资产；成员插图在同一分块上传入口传入协作目标，原生层跳过成员的图床与压缩配置，将文件缓存并登记为待上传资产。首次发布与跨文档粘贴只按节点契约中的资源声明转换地址，保留节点身份、预览地址与普通业务字段。共享视频在作者与成员端都直接进入本机附件队列，不经过图床或压缩，也不上传服务器。
+
+原生 `collaboration_assets` 复用本机协作库的 `resources/settings`：待上传文件先写入持久队列，按原资源 ID 幂等补传，上传完成前暂停该正文的网络发送；每轮冲刷后复查耐久队列与入队代次，期间新增的资源继续处理，队列清空才恢复正文发送；服务器图片通过成员身份读取，下载有 25 MiB 上限和在途去重。`LocalImage/LocalAudio/LocalVideo` 与插件媒体通过当前文档的解析器将资产编号换成本地文件，再走既有文件读取与 Blob 预览通道，不将内部编号当作浏览器 URL。
+
+作者收到服务器图片后由协作运行时的两秒资源任务补存，复用原生普通上传的压缩、唯一命名、配置快照与插件提供方；自己已保存的图片不重复处理。普通远程缓存与协作缓存都不视为持久存储。成功地址按文档和资源写入本机 `owner-image:` 映射，正文主库投影使用持久路径或公网 URL，共享 Y.Doc 继续保留服务器资产。失败保持待处理并自动重试，补存不依赖正文视图或原资料库打开；原资料库未激活时仅推迟正文投影，不跨库写入。
+
+`CollaborationBackground` 在设置及插件启动阶段落定后读取本机缓存，仅对非本机模式且具有服务器地址的活跃作者共享恢复运行时，不为未使用协作的用户注册设备；前台恢复与网络上线重试连接和资源任务。恢复冷缓存、收到远端更新及完成同步都重新触发资源检查，持久映射避免正常重连重复上传。
+
+结束共享先暂停编辑、等待已有投影、冲刷本机队列并确认同步与输入草稿，再读取与修订摘要匹配的最终快照。普通定时投影在收尾期间让位；最终投影独占当前快照及契约，图片补存和主库持久化成功后才把关闭修订写入耐久恢复记录并请求关房。关闭前失败可恢复编辑；关闭请求发出后结果未知时保持只读，只按原修订重试，不再读取可能已被删除的服务器快照。回执的修订匹配后先耐久确认，再按原资料库来源与房间身份解绑、清理临时资产并完成恢复记录；每一步可幂等重试，包括最终清理回执丢失。只有服务端确认房间仍活动的修订冲突才撤销关闭标记。重启、前台恢复和切回原库均继续未完成收尾，不依赖正文视图；持久资源文件保留。普通投影被已有任务合并时保留下一轮待投影标记，避免最后一次更新滞留。成员退出只移除自己的共享会话。
 
 ## 系统语音输入
 
@@ -266,7 +282,7 @@ iOS 的音频引擎在专用串行后台队列上惰性创建，音频会话激�
 
 设置继续使用 llmProviders / llmUsageSettings，模型转换与桌面同源。
 
-**AI 模型设置**（我的 › AI › AI 模型，设置模块 `ai-models`；`features/settings/ai/`）：上方按功能分配模型（`chat`、`speechInputRefinement`，键与桌面一致），下方是服务商列表。添加服务商从 `@tau/ai/catalog` 的内置目录选预设（只列三种受支持协议、有官方地址的服务商），或选「自定义」；两者都先推入 `aiProvider` 页作为未保存草稿，点「保存」才写入，返回有未保存修改时先确认。详情页填 API Key、地址（自定义另填名称与协议）、测试连接（保存后经 `models.verify` 单发），预设模型按目录开关，目录外模型手填 id 与容量。目录含全部内置模型元数据，添加面板与详情页均懒加载，不进首屏包。设置文件不参与数据库同步，手机服务商独立配置。
+**AI 模型设置**（我的 › AI › AI 模型，设置模块 `ai-models`；`features/settings/ai/`）：上方按功能分配模型（`chat`、`flashcardGeneration`、`speechInputRefinement`，键与桌面一致），下方是服务商列表。「闪卡」单独分配模型，插件宿主的 AI 制卡、草稿生成、生成后保存与复习简答题评判均使用该项，未分配时明确失败，不回退到对话模型；流程见 [移动闪卡接口](/docs/architecture/plugin-portability.md#移动闪卡接口)。添加服务商从 `@tau/ai/catalog` 的内置目录选预设（只列三种受支持协议、有官方地址的服务商），或选「自定义」；两者都先推入 `aiProvider` 页作为未保存草稿，点「保存」才写入，返回有未保存修改时先确认。详情页填 API Key、地址（自定义另填名称与协议）、测试连接（保存后经 `models.verify` 单发），预设模型按目录开关，目录外模型手填 id 与容量。目录含全部内置模型元数据，添加面板与详情页均懒加载，不进首屏包。设置文件不参与数据库同步，手机服务商独立配置。
 
 - **Key 不进 WebView**：凡是把设置交给页面的命令（`read_setting_json`、`ai_settings_mutate`、`plugin_provider_*`、`plugin_tts_mutate`）都经 `ai_settings::public_setting`，删去服务商与模型的 apiKey/headers，加 `configured` 与 `keyHint`（Key 末 4 位，短于 8 位时为空）。原生其他模块直接读完整设置。
 - **写入**：只经原生 `ai_settings_mutate`（`src-tauri/src/ai_settings.rs`，`mutate_setting_value` 串行队列，前端经 `enqueueProviderConfigWrite` 排队）：`upsertProvider`（apiKey 缺省保留原值、空串清除；校验 id/名称/http(s) 地址/协议/模型 id 唯一与正整数容量；缺失的 headers 按原值补回；丢弃 configured/keyHint）、`removeProvider`、`assign`（功能白名单，目标须存在）、`setSpeechRefinement`（保留 instructions）。任何写入后清除指向已不存在服务商或模型的分配。返回 `{ llmProviders, llmUsageSettings, speechInput }` 脱敏快照，前端 `mergeAiSettings` 并回设置。普通全量写入由 `preserve_managed_fields` 保留这两个字段。data URL 内联图片和文本可直接准备，纯图片消息不要求文字；新输入或恢复上下文含图时要求模型 input 支持 image，否则在请求前拒绝。单发用户消息的 images 字段与桌面同形。其他附件由调用者的 prepareInput 解析；同步会话不会让另一设备的绝对路径自动可用。
@@ -281,10 +297,16 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 
 - **控制器**（`services/aiChat/chatController.ts`）：模块级 zustand store 按 sessionId 持有消息、运行状态与等待项，订阅运行快照（已投影的 ChatSessionMessage），收尾后重读会话文件校正；离开页面生成继续，对话记录据此显示脉冲点。新对话首条消息发出时才建会话并以首句命名。每个库一次注册宿主能力，切库时 `releaseChatLibrary` 释放。每轮从 AI 服务读取本库当前工具，合入宿主工具与已就绪的插件内联／远程 MCP 工具；新增、停用和重连后的目录用于下一轮，执行继续经过原有权限、来源与库租约检查。
 - **手动 Skill**：输入框「＋ › 选择 Skill」使用公共 BottomSheet 多选当前可用目录，包含仅手动调用的 Skill；目录走 react-query，并按插件来源版本刷新。待发送标签可移除，选择只用于下一条消息，发送后清空，切库重建输入草稿。选择沿用 `TextContent.skills` 写入会话展示条目（内置用桌面目录名，插件用 `包ID:目录ID`），运行前恢复来源限定 ID 并传给 `runs.start.skillIds` 注入正文；重新生成从原用户消息取回选择。自动 Skill 目录继续由服务提供；来源失效时拒绝使用，脚本不执行。
+- **Skill 与 MCP 管理**（`features/aiCapabilities/`）：入口在「我的 › AI」的 Skill 与 MCP 服务器两行，另有聊天「选择 Skill」底部的「管理 Skill」，以及插件详情「此插件提供」的 Skill / MCP 胶囊。只管理、不编写：Skill 按内置、插件提供、Skill 包分组，使用方式为自动 / 仅手动 / 停用；MCP 按我添加的、Tau 自带功能组（笔记与搜索、待办与日程、图片生成，分组定义在 `services/aiChat/tool.ts`）、插件提供分组，可整组或逐个工具关闭，`ask-question` 不可关。偏好存本机 `ai-capability-preferences`（zustand persist，按数据库分区，不进同步）：服务的 `skillPolicy` 在运行前按偏好过滤 Skill 目录并覆盖仅手动标记，控制器组装 `toolIds` 时剔除关闭的来源与工具，均对下一轮生效。
+- **自定义远程 MCP**：只支持 Streamable HTTP。配置存 `setting.json` 的 `mcpServers`，由原生 `ai_mcp_servers_mutate` 串行写入；请求头值只在原生侧，页面拿到的公开视图只有请求头名称，普通设置提交保留原值。连接时页面只传服务器 id，原生 `ai_custom_mcp_context` 从设置读取地址与请求头建网络上下文，停用或删除的服务器拒绝建上下文。控制器在对话或管理页首次需要工具时按设置快照同步连接，配置变化重连、停用或删除断开，切库随 `releaseChatLibrary` 断开；读取 Skill 目录不触发连接。
 - **宿主工具**（`services/aiChat/`）：工具名、入参与桌面同名同义，描述写明手机端差异。只读：`get_current_date`、`search_knowledge`（FTS5 全文检索，无向量）、`get_content_markdown`、`sql_query`（原生 `ai_sql_query`：query_only + 只读语句校验 + 进度回调超时，规则与桌面一致，错误串 `CODE: message|hint`）、`query_todos`、`query_calendar_events`；写入：`create_todo` / `update_todo` / `set_todo_completed` / `delete_todo` / `create_calendar_event` / `update_calendar_event` / `delete_calendar_event`。待办与日程执行端是应用页面用的原生命令（不借插件数据层身份），只处理独立待办，版本以 updateTime 承担，写后失效 todo / calendar 查询。另注册 `ask-question` 与内置 Skill 来源（`@tau/ai/skills/internal`，与桌面同一份正文）。周期规则、单次实例、撤销、正文待办与内容改写未迁移。
 - **就近提问**（`features/aiChat/pages/aiContentChat.page.tsx`）：`ContentDetailPage` 传入 `aiContext`（卡片、文章、项目文档、日记由各宿主页给出）时，顶栏出现 ✦（整篇提问），阅读态选区标注条最前多出「问 AI」（选中片段提问）。两者推入整页就近对话 `aiContentChat`（按 contentId 去重）：会话作用域 `content-chat`、domainRef `content:<contentId>`，同一篇再次进入续上最近一次；首次在首条消息发出时才建会话，标题为「关于「篇名」」。页面复用 `ChatPage`（传 `content`）：输入框上方预置整篇 / 片段引用与快捷问法，顶部原文条（`SourceBar`）点按就地展开正文片段并高亮选中原文，不显示「新对话」。对话记录不分作用域取页、只留 `main-chat` 与 `content-chat`，后者显示「来自笔记」。
 - **引用与附件**：引用沿用 chat-core 的 `TextContent.mentions`（`MentionRef` 增加 `diary` 类型与 `quote` 标记：选中片段的原文放在 previewText）。对话页输入框都可 @（按钮或输入 `@`）经内容引用选择器加整篇引用；＋ 面板提供拍照 / 相册（压到长边 1568px 的 JPEG data URL，一次最多 4 张，模型不接受图片时提示换模型）与引用笔记。服务的 `prepareInput`（`services/aiChat/mentions.ts`）把引用展开成正文前缀：片段给原文，整篇只给身份并提示用 `get_content_markdown` 读取；会话 display 条目保留原始消息，历史里用户消息上方显示引用条与图片。
-- **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），点键盘图标切回并在点击里聚焦弹出键盘。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
+- **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），切到语音或输入框失焦时立即释放尚未兑现的键盘预留；点键盘图标时同步显示输入框并完成键盘避让，再在当前点击内聚焦（preventScroll），聚焦失败立即释放预留。聊天页全屏背景与随键盘缩放的内容外壳分离，切换期间背景始终覆盖底层页面。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
+
+### 闪卡简答题评判
+
+复习简答题时，有文字作答且已分配「闪卡」模型才在翻面后请求 AI 评判，使用 `llmUsageSettings.flashcardGeneration`，不回退到对话模型。`services/flashcardJudgement.ts` 通过本机 AI 的 `generation.start` 无工具单发，不创建聊天会话；提示词、结果类型与 JSON 校验共用 `@tau/ai/flashcards`。界面展示 1–10 分、总体评价、亮点、遗漏与建议，6 分及以上显示回答正确，最终复习评分仍由用户选择。空答、未配置及失败时保留自评，未评判不预判为正确，自评的正确率按用户选取的复习评分计算。换卡、模型分配变化、切库及卸载中止在途请求并丢弃迟到结果，失败可重试。
 
 ### 图片生成与编辑
 
@@ -305,7 +327,7 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 
 ## 安全区与键盘避让
 
-iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚动内容末尾，每个变量只有一个写入方。
+iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有一个写入方。普通页面的安全区留白放在滚动内容末尾；插件域页面由宿主在滚动区外固定预留底部安全区。
 
 - **写入方**：
   - `--mobile-safe-top/bottom` 取 `max(env(safe-area-inset-*), --native-safe-*)`。`--native-safe-*` 由 Android
@@ -468,6 +490,15 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   「块操作」经 controller 的 `requestBlockSelection` 转给页面登记的块选择（`useEditorBlockSelection` 登记）。白名单项 `context-media` 控制该模式。
   插入面板「高级」组含「网页」。共享播放器在粗指针设备（`useCoarsePointer`）上隐藏音量与画中画、进度圆点常显并加高触控区；视频双击画面左 / 右半边 ±10 秒、
   单击延后 280ms 生效、全屏胶囊收起时点按先唤出、长按加速屏蔽系统菜单、滚出视口自动暂停；音频倍速常显并加 ±15 秒。
+- **文字转语音**：三个入口打开同一个生成面板 `features/cards/tts/TtsGenerateSheet`（`BottomSheet`）：插入面板媒体组「文字转语音」（`kind: "tts"`，光标处新插）、
+  格式模式「转语音」（`openTtsForSelection`：选中纯文本预填，收起键盘，插到选区最后一个顶层块之后）、音频媒体模式「重新生成」（仅
+  `isFromGenerate` 音频）与「替换」菜单「用文字生成」（`openTtsForAudio`：原地改写该音频，预填 `audioText`）。controller 打开前经
+  `captureTtsInsertTarget` 锁定写入位置（插入用 `captureInsertionSubmission`，选区与替换用 `captureElementSubmission`；替换在音频 src 被换掉后放弃），
+  位置不可写时提示不打开；面板打开期间配件栏隐藏。面板复用设置域的 `useTtsDomain` / `useTtsVoices` / `useTtsAudioTest` / `TtsVoicePicker`：
+  默认账号、模型、音色取 `ttsUsageSettings.default`，面板内只改本次的音色、语速（0.8 / 1.0 / 1.25 / 1.5，经 `TTSSynthesizeOptions.speed`）与多账号时的语音服务，
+  单次上限 1000 字。生成后自动试听；文字改动后旧结果不能插入；有未插入结果或生成中时遮罩与下拉不关闭，返回弹确认。确认后音频经 `IResourceService.upload`
+  落为资源，再以一个撤销批次写入 `{ src, title: 前 12 字 · 朗读, isFromGenerate: true, audioText }`（替换时用户起的标题保留），光标落到音频之后，
+  toast 提供「撤销」。没有可用语音服务时面板只给「去设置语音合成」。
 - **源码块（触屏模式）**：TikZ、Typst、HTML、乐谱、自定义块等插件源码块与内置 Mermaid、PlantUML 经 `@tau/editor-source-view`
   的 `TouchPreviewWithEditor` 渲染（`IEditorInteraction.touch` 为真且非块公式的原位模式）：正文只显示预览，内容过宽时块内横向滚动；
   编辑态单击经 `useTouchVoidSelection` 把选区放进该 void，空块显示斜纹占位、点按直接打开源码页；插入新块、块后空段退格、方向键进入也打开源码页。
@@ -478,15 +509,6 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   配件栏源码块模式由 `sourceBlockAccessory.tsx` 渲染：左端块名标签，中段「编辑」（可编辑时）/「复制」，右端「⋯」（块操作、删除，
   不可编辑时无删除）与「键盘」（`focusAfterVoid` + `placeCaretAfterBlock`，与媒体共用）。不提供符号行。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
-- **文字转语音**：三个入口打开同一个生成面板 `features/cards/tts/TtsGenerateSheet`（`BottomSheet`）：插入面板媒体组「文字转语音」（`kind: "tts"`，光标处新插）、
-  格式模式「转语音」（`openTtsForSelection`：选中纯文本预填，收起键盘，插到选区最后一个顶层块之后）、音频媒体模式「重新生成」（仅
-  `isFromGenerate` 音频）与「替换」菜单「用文字生成」（`openTtsForAudio`：原地改写该音频，预填 `audioText`）。controller 打开前经
-  `captureTtsInsertTarget` 锁定写入位置（插入用 `captureInsertionSubmission`，选区与替换用 `captureElementSubmission`；替换在音频 src 被换掉后放弃），
-  位置不可写时提示不打开；面板打开期间配件栏隐藏。面板复用设置域的 `useTtsDomain` / `useTtsVoices` / `useTtsAudioTest` / `TtsVoicePicker`：
-  默认账号、模型、音色取 `ttsUsageSettings.default`，面板内只改本次的音色、语速（0.8 / 1.0 / 1.25 / 1.5，经 `TTSSynthesizeOptions.speed`）与多账号时的语音服务，
-  单次上限 1000 字。生成后自动试听；文字改动后旧结果不能插入；有未插入结果或生成中时遮罩与下拉不关闭，返回弹确认。确认后音频经 `IResourceService.upload`
-  落为资源，再以一个撤销批次写入 `{ src, title: 前 12 字 · 朗读, isFromGenerate: true, audioText }`（替换时用户起的标题保留），光标落到音频之后，
-  toast 提供「撤销」。没有可用语音服务时面板只给「去设置语音合成」。
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 
 ## 主题与样式
@@ -517,6 +539,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 同步入口为设置「数据 · 同步」，上传入口为「数据 · 图片与附件」。前者保留状态卡、版本检查、数据库切换、整库覆盖和资源文件进度；后者保留目的地卡、本地保存、压缩开关和最近上传结果。数据库成功后继续触发资源文件同步；资源仍只增不删，失败保留真实错误。
 
+数据库上传与下载通过本次命令的 Tauri Channel 推送 `SyncProgress`（`{ value, status }`），`useSyncSettings` 在应用壳层持有同一份同步进度，同步中心与整库覆盖页消费该快照；切页不取消传输，返回可继续查看，命令结束后清理通道回调与进度。两端使用公共 `ProgressStatus` 展示百分比和当前阶段；具体计数口径见[宿主分块同步](/docs/architecture/storage-sync.md#分块传输与重试)。
+
 服务列表由当前插件会话的同步/上传注册表生成。syncProvider/uploadProvider 按插件 ID 区分页面，挂载插件通过 settings.register 声明的组件；未启用或未安装时保留已保存配置，并提供插件中心入口。服务名称来自注册声明，宿主没有服务商配置分支。服务页以局部 PortalScope 承载插件浮层，UiHostProvider 将 Dialog 返回交给当前 Page；页面隐藏时浮层随作用域隐藏，不遗留到其他页面。
 
 服务页按插件声明的 form 渲染表单（分组行、上标签下值，选择字段推入全屏选择层并接入返回仲裁），顶栏「保存」显式保存，有未保存修改时返回先确认；保存经固定工作区的原生配置命令只写配置，不改变选用状态，同步服务保存后读取一次云端版本作为连接测试。同步中心「同步到」与「图片与附件」的「更换位置」推入服务列表页：点已配置的行即切换，点 ⓘ 进服务页。同步服务选用先探测云端，有已有数据时按原流程确认；上传选用保留真实上传与回读测试，地址不可读时禁止使用。测试文件使用宿主唯一命名，可能在远端留下小型测试图片；不要求插件实现固定对象覆盖。选用复验测试时的配置，字段变化后必须重新确认。作者不感知这些宿主行为。
@@ -537,7 +561,9 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
 
-插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签），右上角搜索经共享的 `components/PageHeaderSearch` 横向展开，关键词在当前标签内生效；商店为全宽列表行，右侧 `StoreActionButton` 按「获取 / 排队或下载中（点按取消）/ 校验中 / 待生效 / 已安装 / 更新 / 不可用 / 重试」投影商店主动作与该插件的应用级安装任务；已安装为开关 + 状态行，顶部 `PluginChangesBanner` 汇总已保存未生效的变更（启停、恢复上一版等）并提供「立即生效」，中心更新下载完成后自动生效；有可用更新时其下的更新条提供「全部更新」（`UpdateAllSheet` 逐项列出版本变化与新增权限，确认后全部入队，更新检查与各行共用选版查询缓存）。pluginDetail 按 pluginId 保活，商店资料与已安装管理合一：头部为图标、状态、启停开关与同源的大号主按钮，下面是统计行、一句话兼容结论与「介绍 / 设置 / 权限 / 版本」分段标签（介绍按 `@tau/plugins/document` 清洗后用编辑器只读渲染；设置内嵌通用插件设置组件，同步/上传设置进入对应宿主服务页；权限只读展示声明的权限、本会话登记的贡献与安全提示；版本含历史、更新日志与兼容性详情），⋯ 菜单承载取消待生效、恢复上一版、清除数据与卸载；插件中心没有记录时只展示本机信息。安装面板消费原生选版和安装阶段，不生成虚假百分比；下载中可关闭面板（「后台下载」），任务继续，进度留在列表行与详情主按钮上，重新打开面板读同一任务。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
+插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。外壳在滚动区外固定预留 `--mobile-screen-safe-bottom`，键盘弹出时该预留归零；内容容器不使用 `.mobile-page-scroll`，不追加末尾占位。所有插件页面、设置与管理页默认使用这一边界，不需要额外声明。宿主不探测插件 DOM；插件在已避开系统区域的容器内布局，底栏可正常 `sticky bottom: 0`，只保留自身呼吸间距。作者规范见[页面布局](/plugins/tau-plugin-template/docs/ui.md#手机页面的布局边界)。
+
+plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签），右上角搜索经共享的 `components/PageHeaderSearch` 横向展开，关键词在当前标签内生效；商店为全宽列表行，右侧 `StoreActionButton` 按「获取 / 排队或下载中（点按取消）/ 校验中 / 待生效 / 已安装 / 更新 / 不可用 / 重试」投影商店主动作与该插件的应用级安装任务；已安装为开关 + 状态行，顶部 `PluginChangesBanner` 汇总已保存未生效的变更（启停、恢复上一版等）并提供「立即生效」，中心更新下载完成后自动生效；有可用更新时其下的更新条提供「全部更新」（`UpdateAllSheet` 逐项列出版本变化与新增权限，确认后全部入队，更新检查与各行共用选版查询缓存）。pluginDetail 按 pluginId 保活，商店资料与已安装管理合一：头部为图标、状态、启停开关与同源的大号主按钮，下面是统计行、一句话兼容结论与「介绍 / 设置 / 权限 / 版本」分段标签（介绍按 `@tau/plugins/document` 清洗后用编辑器只读渲染；设置内嵌通用插件设置组件，同步/上传设置进入对应宿主服务页；权限只读展示声明的权限、本会话登记的贡献与安全提示；版本含历史、更新日志与兼容性详情），⋯ 菜单承载取消待生效、恢复上一版、清除数据与卸载；插件中心没有记录时只展示本机信息。安装面板消费原生选版和安装阶段，不生成虚假百分比；下载中可关闭面板（「后台下载」），任务继续，进度留在列表行与详情主按钮上，重新打开面板读同一任务。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
 
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。
 
@@ -548,6 +574,21 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 ## 全局提示
 
 提示只有 `@tau/ui` 的 toast 一套实现：`components/ToastViewport` 挂 `ToastHost variant="inverse"`（墨色胶囊，停靠在顶栏下方，层级 `Z_INDEX.TOAST`）。`components/toast` 保留移动端的调用形态（`toast({ type, text })`、`toast.success(...)`），内部转到 `@tau/ui`，`id` 映射为同 key 原位替换；`toastQueue` 供测试读取当前提示。插件、编辑器与公共包直接调用的 `@tau/ui` toast 走同一队列显示；编辑器进行中提示用 `loading` → `resolve/reject` 落定。
+
+停靠区按内容取宽，两侧至少留 16px；提示文字保持单行，超出胶囊上限时省略，动作按钮保持可见。
+
+## 提醒与系统通知
+
+待办、日程、正文待办的提醒与倒计时番茄结束都用本地系统通知，不经推送服务器；提醒数据与桌面共用 `item_reminder` 口径（见[桌面提醒](/docs/architecture/desktop.md#提醒)），Rust 命令在 `src-tauri/src/database/reminders.rs`（`reminder_list / reminder_set / reminder_upcoming`）。
+
+- **范围**：截止任务（最多 3 个提醒）、周期待办（`remind_before` 为当天时刻，逐个未打卡实例提醒，实例与日历物化同源 `recurring_occurrences`）、独立日程（待办安排出的日程跟随待办）、正文待办（`taskReminder.at`；排除文档、已提升为独立待办、已勾选或已完成的实例不提醒）。有「排除节假日」规则时才取节假日，取不到按无节假日排期。
+- **原生插件**：`plugins/local-notify`（Rust 只注册，命令直通原生）+ `native-notify/`。Android 用 AlarmManager（有「闹钟和提醒」授权时准点，否则可延后）与三个通知渠道「待办提醒 / 日程提醒 / 番茄专注」，排期存 SharedPreferences，开机、应用更新、准点授权变化后重排；状态栏小图标 `ic_stat_tau` 是应用图标的单色剪影（按系统要求只取 alpha）。iOS 用 UNUserNotificationCenter，通知图标即应用图标。
+- **排期**：`features/reminders/scheduler` 取 14 天内的提醒，加上进行中的倒计时番茄（按剩余时长算到点时刻），整体替换系统排期（iOS 系统上限 64 条，只排最近 50 条；Android 200 条）。启动、回到前台、影响提醒的写命令（含番茄开始 / 暂停 / 继续 / 结束与正文保存）之后合并重排（`changes.ts` 按命令名识别）。别的设备新建的提醒要同步下载后才会排进系统。
+- **按钮**：每条通知带 `actions`——`complete`（单次截止任务：「完成」会拉起应用后勾选）、`ack`（日程、周期实例、正文待办：「知道了」只关通知）、`none`（番茄）；前两种另有「N 分钟后」，原生直接重排，键为 `<owner>:snooze`，事项完成或删除后的下一次重排撤销。点通知本体打开对应待办 / 日程 / 正文（定位到该待办）/ 番茄页。点击与「完成」先入原生队列，`ReminderHost` 收到信号或回到前台时 `take_actions` 取走处理，冷启动不丢。
+- **前台**：应用在前台时原生不弹系统横幅，改发 `delivered`，由 `ReminderHost` 显示顶部横幅（应用图标 + 按钮同上 + 查看）；已在番茄页时不叠番茄横幅（页面自己展示完成态）。设置里可关掉横幅，改为前台也弹系统通知。
+- **番茄**：会话在 Rust 内存里，WebView 挂起后页面计时器不走，回到前台才自动收尾；倒计时会话收尾时专注时长封顶为预设时长，结束时刻记为到点那一刻。应用在后台被系统回收时会话丢失，通知仍会响。
+- **偏好**：`setting.json` 的 `reminders`（本机，`features/reminders/settings.ts`）——新建截止任务 / 日程 / 全天日程的默认提醒（todo 在任务刚成为有截止时间的截止任务且没有提醒时由 `useTodoStore` 套用，日程在新建表单初始化与切换全天时套用；AI 工具新建的任务不套用）、稍后间隔（5–60 分钟，随排期写给原生，原生按钮在应用未运行时也用它）、前台横幅开关。
+- **权限**：首次在 `ReminderSheet` 勾选提醒时先说明再请求系统权限；被拒后面板顶部提示去设置。设置 › 提醒与通知显示授权状态、Android 准点授权、已排期数量与上述偏好。
 
 ## 外部打开 Markdown（导入预览）
 
@@ -592,6 +633,8 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 ## 语音输入
 
 移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的服务即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页，原生识别接线见[系统语音输入](#系统语音输入)。
+
+业务插件通过 `context.speech` 使用同一识别设置，`app/plugins/speech` 为应用听写与插件录音复用服务实例并互斥占用麦克风。`unavailableReason()` 返回 `null` 表示可用，宿主原样透传；只有语音适配器尚未装配时才返回「插件语音输入尚未就绪」。
 
 Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；握手失败只保留 HTTP 状态码或 TLS、网络、超时类别，公共连接桥经白名单映射后放入 `error` 事件的 `message`，不传递原始错误、请求头或响应正文。作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户开始语音输入时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 

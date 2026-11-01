@@ -217,6 +217,11 @@ export interface SyncActionResponse {
   remoteVersion: number;
 }
 
+export interface SyncProgress {
+  value: number;
+  status: string;
+}
+
 export type ResourceSyncStatus = "pending" | "syncing" | "synced" | "error";
 
 export interface ResourceFileSyncStatus {
@@ -616,7 +621,7 @@ export type MobileLlmProvider = Omit<import("@tau/ai/models").LLMProviderSetting
   keyHint?: string;
 };
 
-export type LlmFeatureKey = "chat" | "speechInputRefinement";
+export type LlmFeatureKey = "chat" | "speechInputRefinement" | "flashcardGeneration";
 
 export type AiSettingsMutation =
   | { kind: "upsertProvider"; provider: MobileLlmProvider; apiKey?: string }
@@ -652,8 +657,28 @@ export type ImageSettingsMutation =
   | { type: "delete"; id: string }
   | { type: "select"; id: string; expectedProvider: ImageProviderConfig | null };
 
+/** 用户添加的远程 MCP：页面只看到请求头名称，值由原生保存 */
+export interface CustomMcpServer {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  headerNames: string[];
+}
+
+export type CustomMcpServersMutation =
+  | {
+      kind: "upsert";
+      server: { id: string; name: string; url: string };
+      /** 省略时沿用已保存的请求头；传入时整体替换 */
+      headers?: Record<string, string>;
+    }
+  | { kind: "remove"; id: string }
+  | { kind: "setEnabled"; id: string; enabled: boolean };
+
 export interface SettingCompat {
   imageGeneration?: ImageGenerationSetting;
+  mcpServers?: CustomMcpServer[];
   speechInput?: import("@tau/asr").SpeechInputSetting;
   llmProviders?: MobileLlmProvider[];
   llmUsageSettings?: AiSettingsSnapshot["llmUsageSettings"];
@@ -685,6 +710,14 @@ export interface SettingCompat {
     };
     readingFont?: string;
     [key: string]: unknown;
+  };
+  /** 提醒偏好（本机）：新建事项的默认提醒、稍后提醒间隔、前台横幅；见 features/reminders/settings */
+  reminders?: {
+    todo?: number[];
+    event?: number[];
+    allDay?: number[];
+    snoozeMinutes?: number;
+    foregroundBanner?: boolean;
   };
   /** 移动端编辑器偏好：openMode 为打开已有文档时的初始状态，缺省为 read（阅读态） */
   editor?: {

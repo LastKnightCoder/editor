@@ -5,6 +5,7 @@ import type {
   ResourceSyncStatusFile,
   SettingCompat,
   SyncActionResponse,
+  SyncProgress,
   SyncVersionResponse,
 } from "../../../types";
 
@@ -22,6 +23,7 @@ export const SETTINGS_MODULE_KEYS = [
   "speech-input",
   "ai-models",
   "image-generation",
+  "notifications",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;
@@ -33,6 +35,7 @@ export type SettingsPageProps = {
   versions: SyncVersionResponse | null;
   isSavingSetting: boolean;
   isSyncing: boolean;
+  syncProgress?: SyncProgress | null;
   resourceSyncProgress: ResourceSyncProgress;
   resourceSyncStatusFile: ResourceSyncStatusFile | null;
   isResourceSyncing: boolean;

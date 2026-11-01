@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { reservePluginInputTokens } from "@tau/ai/plugin-quota";
 import type { PluginAIFeature, PluginAIResult, PluginAICapability } from "@tau/plugins";
 import { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "@tau/plugins/package";
 import type {
@@ -329,8 +330,7 @@ export class PluginAIService {
       throw new Error("AI_INVALID_REQUEST：输出上限无效");
     if (this.running().filter(item => item.pluginId === info.id).length > info.config.concurrency)
       throw new Error("AI_CONCURRENCY_LIMIT：并发额度已满");
-    // 以模型容量保守预占，未知用量保留预占；不将粗略字符估算当作硬额度。
-    const reserve = capacity.contextWindow + maxOutput;
+    const reserve = reservePluginInputTokens(input.messages, capacity.contextWindow) + maxOutput;
     const ledgerKey = `plugin-ai:quota:${info.id}:${localDay()}`;
     const saved = this.deps.read(ledgerKey);
     const ledger: Ledger = saved ? JSON.parse(saved) : { day: localDay(), requests: 0, tokens: 0 };

@@ -65,7 +65,7 @@ const ConversationFlashcardModal = () => {
     if (isModalOpen && conversationContent) {
       // 检查 LLM 配置
       if (!provider || !model) {
-        toast.error("请先在设置中配置闪卡生成的模型");
+        toast.error("请先在设置中配置闪卡模型");
         reset();
         return;
       }

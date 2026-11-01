@@ -2,7 +2,7 @@ import type { ContentContractDictionary } from "@tau/db-schema/content-contracts
 import { countTextWords } from "@tau/db-schema/content-metrics";
 import { mobileContentMetrics, mobileContentPlugins } from "../app/plugins/content";
 import type { SettingCompat } from "../types";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
 import type {
   ActiveDatabaseResponse,
@@ -42,6 +42,7 @@ import type {
   ResourceSyncStatusFile,
   SettingWriteResponse,
   SyncActionResponse,
+  SyncProgress,
   SyncVersionResponse,
   UploadTestResponse,
   PomodoroDailySummary,
@@ -75,6 +76,7 @@ import type {
 } from "../features/calendar/types";
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
+import { notifyReminderSourceChanged } from "../features/reminders/changes";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
 import { deviceReplacementState } from "./device-sync/native";
 import {
@@ -98,6 +100,7 @@ function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<
   const task = invoke<T>(cmd, args)
     .then(result => {
       invalidateCalendarAfterMutation(cmd);
+      notifyReminderSourceChanged(cmd);
       return result;
     })
     .finally(() => {
@@ -859,12 +862,27 @@ export function syncCheckVersions(provider?: string) {
   );
 }
 
-export function syncUploadDatabase() {
-  return trackedInvoke<SyncActionResponse>("sync_upload_database");
+export function syncUploadDatabase(onProgress?: (progress: SyncProgress) => void) {
+  return runDatabaseSync("sync_upload_database", onProgress);
 }
 
-export function syncDownloadDatabase() {
-  return trackedInvoke<SyncActionResponse>("sync_download_database");
+export function syncDownloadDatabase(onProgress?: (progress: SyncProgress) => void) {
+  return runDatabaseSync("sync_download_database", onProgress);
+}
+
+async function runDatabaseSync(
+  command: "sync_upload_database" | "sync_download_database",
+  onProgress?: (progress: SyncProgress) => void
+) {
+  const channel = new Channel<SyncProgress>();
+  channel.onmessage = progress => onProgress?.(progress);
+  try {
+    return await trackedInvoke<SyncActionResponse>(command, {
+      onProgress: channel,
+    });
+  } finally {
+    channel.onmessage = () => undefined;
+  }
 }
 
 export function resourceSyncRefresh() {
@@ -898,12 +916,14 @@ export async function uploadResource(params: {
   content: Blob;
   database?: string;
   signal?: AbortSignal;
+  collaboration?: CollaborationResourceContext;
 }) {
   params.signal?.throwIfAborted();
   const id = await trackedInvoke<string>("resource_upload_begin", {
     fileName: params.fileName,
     mimeType: params.mimeType,
     database: params.database,
+    ...(params.collaboration ? { collaboration: params.collaboration } : {}),
   });
   try {
     const chunkSize = 256 * 1024;
@@ -1069,6 +1089,22 @@ export function getHomeStats() {
 
 /* ── 协作 ── */
 
+export interface CollaborationResourceContext {
+  serverUrl: string;
+  documentId: string;
+}
+
+export function collabResource<T>(
+  context: CollaborationResourceContext,
+  action: "prepare" | "resolve" | "localize" | "flush" | "pending" | "release",
+  references: string[] = [],
+  required = false
+): Promise<T> {
+  return trackedInvoke<T>("collab_resource", {
+    payload: { ...context, action, references, required },
+  });
+}
+
 export function collabBindContent(params: {
   contentId: number;
   expectedDocumentId: string;
@@ -1084,6 +1120,7 @@ export function collabBindContent(params: {
 }
 
 export type CachedContentSession = import("@tau/collaboration").CollaborationSession & {
+  close?: { revision: string; confirmed: boolean };
   baselineId: string;
   epoch: number;
   resourcePaths?: Record<string, string>;
@@ -1103,6 +1140,12 @@ export function collabReadCache(documentId: string) {
 /** 缓存与主库或服务器对不上时备份到 collaboration/discarded/ 后删除，随后按权威数据重建。 */
 export function collabDiscardCache(documentId: string, reason: string) {
   return trackedInvoke<void>("collab_cache_discard", { documentId, reason });
+}
+export function collabRecovery(
+  documentId: string,
+  action: "read" | "confirm-close" | "clear-close" | "release" = "read"
+) {
+  return trackedInvoke<CachedContentSession | null>("collab_recovery", { documentId, action });
 }
 export function collabWriteCache(
   payload: {
@@ -1147,8 +1190,15 @@ export function collabListBindings() {
   return trackedInvoke<CollaborationBinding[]>("collab_list_bindings");
 }
 
-export function collabUnbindContent(contentId: number) {
-  return trackedInvoke<void>("collab_unbind_content", { contentId });
+export function collabUnbindContent(
+  contentId: number,
+  expected?: { documentId: string; sourceId?: string }
+) {
+  return trackedInvoke<void>("collab_unbind_content", {
+    contentId,
+    expectedDocumentId: expected?.documentId,
+    expectedSourceId: expected?.sourceId,
+  });
 }
 
 /** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */
@@ -1381,4 +1431,43 @@ export function collabInputDraft(payload: {
   sequence: number;
 }) {
   return trackedInvoke<void>("collab_input_draft", { payload });
+}
+
+// ==================== 提醒 ====================
+
+export type ReminderOwnerKind = "todo" | "event";
+
+export interface UpcomingReminder {
+  key: string;
+  /** `todo:<id>` / `event:<id>` / `doc:<内容 id>:<待办 id>` */
+  owner: string;
+  kind: ReminderOwnerKind | "doc";
+  /** 待办 / 日程 id；文档待办为所在内容 id */
+  ownerId: number;
+  taskId: string | null;
+  title: string;
+  /** 截止 / 开始时间（全天为当天零点）；没有截止时间的文档待办为 null */
+  anchor: number | null;
+  remindAt: number;
+  allDay: boolean;
+  endAt: number | null;
+  /** 周期实例：通知上不提供「完成」 */
+  recurring: boolean;
+}
+
+/** 提醒列表（基准前毫秒数，升序）；待办首个提醒即 remindBefore */
+export function reminderList(kind: ReminderOwnerKind, id: number) {
+  return trackedInvoke<number[]>("reminder_list", { payload: { kind, id } });
+}
+
+export function reminderSet(kind: ReminderOwnerKind, id: number, offsets: number[]) {
+  return trackedInvoke<number[]>("reminder_set", { payload: { kind, id, offsets } });
+}
+
+/** (from, to] 内待送达的提醒，以及仍有效的提醒归属（`todo:<id>` / `event:<id>`） */
+export function reminderUpcoming(from: number, to: number, limit: number) {
+  return trackedInvoke<{ items: UpcomingReminder[]; owners: string[] }>("reminder_upcoming", {
+    payload: { from, to, limit },
+    timeZone: localTimeZone(),
+  });
 }

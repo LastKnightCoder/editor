@@ -105,8 +105,7 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
   {
     label: "学习辅助",
     features: [
-      { key: "flashcardGeneration", label: "闪卡生成", desc: "笔记内容转复习闪卡" },
-      { key: "aiJudgement", label: "答案评判", desc: "复习答案的打分与讲评" },
+      { key: "flashcardGeneration", label: "闪卡", desc: "制作闪卡与简答题答案评判" },
       {
         key: "vibeLearningImageDescription",
         label: "图片理解",

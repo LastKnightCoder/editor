@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>代码统计</title>
+    <!-- pnpm code:stats --html 的报告模板：脚本把样式、脚本与逐文件数据内联成单文件 -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <h1>代码统计</h1>
+      <nav class="tabs" id="tabs">
+        <button data-view="overview" aria-pressed="true">总览</button>
+        <button data-view="treemap">结构</button>
+        <button data-view="matrix">分布</button>
+      </nav>
+      <span class="sp"></span>
+      <span class="meta" id="meta"></span>
+      <button class="ghost" id="theme-toggle">深色</button>
+    </header>
+
+    <div class="filters">
+      <span class="flabel">分组</span>
+      <div class="chips" id="group-filter"></div>
+      <span class="divider"></span>
+      <span class="flabel">语言</span>
+      <div class="chips" id="lang-filter"></div>
+    </div>
+
+    <main class="main">
+      <section class="stage" id="stage"></section>
+    </main>
+
+    <div class="tip" id="tip" role="tooltip"></div>
+
+    <script>
+      window.CODE_STATS = /* 数据占位 */ null;
+    </script>
+    <script src="core.js"></script>
+    <script src="overview.js"></script>
+    <script src="treemap.js"></script>
+    <script src="matrix.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

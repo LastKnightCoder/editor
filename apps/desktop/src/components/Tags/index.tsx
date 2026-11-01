@@ -14,6 +14,7 @@ interface DraggableTagProps {
   onClick?: (event: React.MouseEvent) => void;
   hoverAble?: boolean;
   style?: React.CSSProperties;
+  className?: string;
   isEditing?: boolean;
   editRef?: React.RefObject<HTMLDivElement | null>;
   onEditBlur?: () => void;
@@ -29,6 +30,7 @@ const DraggableTag = ({
   onClick,
   hoverAble,
   style,
+  className,
   isEditing,
   editRef,
   onEditBlur,
@@ -89,6 +91,7 @@ const DraggableTag = ({
         onClick={onClick}
         hoverAble={hoverAble}
         style={style}
+        className={className}
         isEditing={isEditing}
         editRef={editRef}
         onEditBlur={onEditBlur}
@@ -110,6 +113,7 @@ interface TagsProps {
   hoverAble?: boolean;
   lastChild?: ReactNode;
   tagStyle?: React.CSSProperties;
+  tagClassName?: string;
   editingTag?: string | null;
   editRef?: React.RefObject<HTMLDivElement | null>;
   onEditBlur?: () => void;
@@ -130,6 +134,7 @@ const Tags = (props: TagsProps) => {
     hoverAble = false,
     lastChild,
     tagStyle,
+    tagClassName,
     editingTag,
     editRef,
     onEditBlur,
@@ -175,6 +180,7 @@ const Tags = (props: TagsProps) => {
             onClick={event => onClick?.(tag, event)}
             hoverAble={hoverAble}
             style={tagStyle}
+            className={tagClassName}
             isEditing={isCurrentlyEditing}
             editRef={isCurrentlyEditing ? editRef : undefined}
             onEditBlur={isCurrentlyEditing ? onEditBlur : undefined}

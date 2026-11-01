@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-snooze"
+description = "Enables the snooze command without any pre-configured scope."
+commands.allow = ["snooze"]
+
+[[permission]]
+identifier = "deny-snooze"
+description = "Denies the snooze command without any pre-configured scope."
+commands.deny = ["snooze"]

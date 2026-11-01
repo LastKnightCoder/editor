@@ -1,107 +1,237 @@
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useCallback, useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
-import { EditText } from "@tau/shared";
+import { Editor, Element, Node, Path, Transforms } from "slate";
+import {
+  ReactEditor,
+  RenderElementProps,
+  useFocused,
+  useReadOnly,
+  useSelected,
+  useSlateSelector,
+  useSlateStatic,
+} from "slate-react";
+import { cn, toast } from "@tau/ui";
+import {
+  EditorTooltip,
+  canEditElement,
+  getCommandElementPath,
+  useTouchInteraction,
+} from "@tau/editor/api";
 import { type AnnotationElement } from "../../types.ts";
-import { Transforms } from "slate";
-import { useEditorTheme as useTheme } from "@tau/editor/api";
-import { Popover } from "@tau/ui";
-import { OverlayBackDismiss, getCommandElementPath } from "@tau/editor/api";
+import { consumePendingEdit } from "../../operations.ts";
+import { getAnnotationNumbers } from "../../numbering.ts";
+import { getAnnotationContext } from "../../context.ts";
+import AnnotationCard from "../AnnotationCard.tsx";
+import AnnotationSheet from "../AnnotationSheet.tsx";
 
 interface AnnotationProps {
   attributes: RenderElementProps["attributes"];
   element: AnnotationElement;
 }
 
+type OpenState = null | "view" | "edit";
+
 const Annotation: React.FC<React.PropsWithChildren<AnnotationProps>> = memo(props => {
   const { attributes, children, element } = props;
   const { content } = element;
-  const readOnly = useReadOnly();
   const editor = useSlateStatic();
-  const [open, setOpen] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
+  const readOnly = useReadOnly() || !canEditElement(editor, element);
+  const touch = useTouchInteraction();
+  const selected = useSelected();
+  const focused = useFocused();
+  const number = useSlateSelector(
+    useCallback(
+      (current: Editor) => getAnnotationNumbers(current.children).get(element) ?? 0,
+      [element]
+    )
+  );
+  const [open, setOpen] = useState<OpenState>(null);
+  const [marker, setMarker] = useState<HTMLSpanElement | null>(null);
 
-  const { isDark } = useTheme();
-
-  // 开合由 Popover 的触发器处理；这里只挡住冒泡，别让 Slate 把点击当成移动选区
-  const handleClick = useMemoizedFn((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const findPath = useMemoizedFn((): Path | null => {
+    try {
+      return ReactEditor.findPath(editor, element);
+    } catch {
+      return null;
+    }
   });
 
-  const handleMouseEnter = useMemoizedFn(() => {
-    setIsHovering(true);
-  });
+  // 刚插入的注解直接进入编辑
+  useEffect(() => {
+    const path = findPath();
+    if (path && consumePendingEdit(editor, path)) setOpen("edit");
+  }, [editor, findPath]);
 
-  const handleMouseLeave = useMemoizedFn(() => {
-    setIsHovering(false);
-  });
+  useEffect(() => {
+    if (readOnly) setOpen(current => (current === "edit" ? "view" : current));
+  }, [readOnly]);
 
-  const onContentChange = useMemoizedFn((val: string) => {
+  const onContentChange = useMemoizedFn((value: string) => {
     const path = getCommandElementPath(editor, { element });
-    if (path) Transforms.setNodes(editor, { content: val }, { at: path });
+    if (path) Transforms.setNodes(editor, { content: value }, { at: path });
   });
 
-  const popoverContent = useMemo(() => {
-    return (
-      <div
-        className="max-w-[20em] rounded-md p-[0.75em_1em] text-[0.875em] leading-[1.4]"
-        style={{
-          color: "#fff",
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-        }}
-      >
-        <EditText
-          defaultValue={content}
-          contentEditable={!readOnly}
-          onChange={onContentChange}
-          isSlateEditor={false}
-          defaultFocus={!readOnly}
-        />
-      </div>
-    );
-  }, [content, readOnly, onContentChange]);
+  const moveCaretAfter = useMemoizedFn(() => {
+    const path = findPath();
+    if (!path) return;
+    const point = Editor.after(editor, path, { voids: true });
+    if (point) Transforms.select(editor, point);
+    ReactEditor.focus(editor);
+  });
+
+  const remove = useMemoizedFn((withUndo: boolean) => {
+    const path = getCommandElementPath(editor, { element });
+    if (!path) return;
+    Transforms.removeNodes(editor, { at: path });
+    if (withUndo && typeof editor.undo === "function")
+      toast.success("已删除注解", {
+        action: { label: "撤销", onClick: () => editor.undo() },
+      });
+  });
+
+  const close = useMemoizedFn((restoreCaret: boolean) => {
+    setOpen(null);
+    // 没写内容就关掉：不留空标记
+    const latest = findPath();
+    const current = latest ? Node.get(editor, latest) : null;
+    if (!readOnly && current && !(current as AnnotationElement).content?.trim()) {
+      remove(false);
+      if (restoreCaret) requestAnimationFrame(() => ReactEditor.focus(editor));
+      return;
+    }
+    // 等浮层把焦点还给标记之后再回到正文
+    if (restoreCaret) requestAnimationFrame(moveCaretAfter);
+  });
+
+  const handleDelete = useMemoizedFn(() => {
+    setOpen(null);
+    // 桌面靠 ⌘Z 撤销，触屏没有快捷键，给撤销提示
+    remove(touch);
+    if (!touch) requestAnimationFrame(() => ReactEditor.focus(editor));
+  });
+
+  const handleClick = useMemoizedFn((event: React.MouseEvent) => {
+    // 开合由这里处理，别让 Slate 把点击当成移动选区
+    event.preventDefault();
+    event.stopPropagation();
+    if (open) close(false);
+    else setOpen(touch || readOnly ? "view" : "edit");
+  });
+
+  const handleKeyDown = useMemoizedFn((event: React.KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!open) setOpen(touch || readOnly ? "view" : "edit");
+  });
+
+  const empty = !content.trim();
+  const active = !!open;
+  const preview = empty ? "空注解" : content;
+
+  const markerNode = (
+    <span
+      ref={setMarker}
+      role="button"
+      tabIndex={-1}
+      aria-label={`注解 ${number}`}
+      aria-expanded={active}
+      contentEditable={false}
+      className={cn(
+        "font-tau-mono relative inline-block cursor-pointer select-none rounded-[5px] px-1 pb-px pt-0.5 align-super text-[0.66em] font-semibold leading-none tabular-nums",
+        "transition-[background-color,color,box-shadow] duration-150",
+        "after:absolute after:content-['']",
+        touch ? "after:-inset-x-2 after:-inset-y-2.5" : "after:-inset-x-1 after:-inset-y-1.5",
+        active
+          ? "bg-[var(--ed-accent)] text-[var(--ed-text-inverse)]"
+          : empty
+            ? "text-[var(--ed-text-tertiary)] shadow-[inset_0_0_0_1px_var(--ed-border)] hover:bg-[var(--ed-bg-hover)]"
+            : "text-[var(--ed-accent-text)] hover:bg-[var(--ed-accent-soft)]",
+        !active && selected && focused && "shadow-[0_0_0_1.5px_var(--ed-accent)]"
+      )}
+      onMouseDown={event => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+    >
+      {number || "·"}
+    </span>
+  );
 
   return (
-    <span
-      {...attributes}
-      className="relative inline-block h-[1.5em] w-[1.5em]"
-      contentEditable={false}
-    >
-      <span className="relative inline">{children}</span>
-      <Popover
-        open={open}
-        onOpenChange={setOpen}
-        placement="top"
-        arrow={false}
-        // 批注气泡自带深色底，浮层只做定位
-        className="min-w-0 border-0 bg-transparent shadow-none"
-        trigger={
-          <span
-            contentEditable={false}
-            className="absolute right-[0.5em] top-[-0.5em] z-10 flex h-[1.5em] w-[1.5em] cursor-pointer select-none items-center justify-center rounded-full text-[0.75em] transition-all duration-200"
-            style={{
-              color: isHovering ? (isDark ? "#fff" : "#1E2939") : isDark ? "#D1D5DC" : "#99A1AF",
-              backgroundColor: isHovering
-                ? isDark
-                  ? "rgba(255, 255, 255, 0.2)"
-                  : "rgba(0, 0, 0, 0.2)"
-                : isDark
-                  ? "rgba(255, 255, 255, 0.1)"
-                  : "rgba(0, 0, 0, 0.1)",
-            }}
-            onClick={handleClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            注
-          </span>
-        }
-      >
-        {popoverContent}
-        <OverlayBackDismiss open={open} onDismiss={() => setOpen(false)} />
-      </Popover>
+    <span {...attributes} className="relative inline" contentEditable={false}>
+      {touch ? (
+        markerNode
+      ) : (
+        <EditorTooltip
+          content={
+            <span className="block break-words whitespace-pre-wrap">
+              <span className={cn(empty && "text-[var(--ed-text-tertiary)]")}>{preview}</span>
+              {!readOnly && (
+                <span className="mt-1 block text-[11.5px] text-[var(--ed-text-tertiary)]">
+                  点击编辑
+                </span>
+              )}
+            </span>
+          }
+          delay={300}
+          arrow={false}
+          disabled={active}
+          placement="bottom"
+          className="max-h-60 max-w-[300px] overflow-hidden rounded-[10px] border-[var(--ed-border)] bg-[var(--ed-bg-surface)] px-3 py-2 text-[13.5px] leading-[1.6] text-[var(--ed-text)] shadow-[var(--ed-shadow-float)]"
+        >
+          {markerNode}
+        </EditorTooltip>
+      )}
+      {children}
+      {open && !touch && marker && (
+        <AnnotationCard
+          anchor={marker}
+          number={number}
+          content={content}
+          readOnly={readOnly}
+          onChange={onContentChange}
+          onDelete={handleDelete}
+          onClose={close}
+        />
+      )}
+      {open && touch && (
+        <AnnotationSheet
+          mode={open}
+          number={number}
+          content={content}
+          context={getMarkerContext(editor, findPath())}
+          readOnly={readOnly}
+          onModeChange={setOpen}
+          onChange={onContentChange}
+          onDelete={handleDelete}
+          onClose={() => close(false)}
+        />
+      )}
     </span>
   );
 });
+
+/** 取注解所在文本块里它前后的文字 */
+function getMarkerContext(editor: Editor, path: Path | null) {
+  if (!path) return { before: "", after: "" };
+  const block = Editor.above(editor, {
+    at: path,
+    match: n => Element.isElement(n) && Editor.isBlock(editor, n),
+  });
+  if (!block) return { before: "", after: "" };
+  const [, blockPath] = block;
+  const before = Editor.string(editor, {
+    anchor: Editor.start(editor, blockPath),
+    focus: Editor.start(editor, path),
+  });
+  const after = Editor.string(editor, {
+    anchor: Editor.end(editor, path),
+    focus: Editor.end(editor, blockPath),
+  });
+  return getAnnotationContext(before, after);
+}
 
 export default Annotation;

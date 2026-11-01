@@ -3,16 +3,10 @@ import {
   collaborationCommands,
   type CollaborationInvitation,
   type CollaborationSubscribeSnapshot,
-  type CollaborationUploadResourcePayload,
   type SharedContentResult,
 } from "@/commands/contracts/collaboration";
 
-export type {
-  CollaborationInvitation,
-  CollaborationSubscribeSnapshot,
-  CollaborationUploadResourcePayload,
-  SharedContentResult,
-};
+export type { CollaborationInvitation, CollaborationSubscribeSnapshot, SharedContentResult };
 
 /** 加入协作：提交协作码，申请经内容作者批准后生效 */
 export const joinCollaboration = async (code: string) => {
@@ -106,14 +100,6 @@ export const preserveCollaborationInputDraft = (viewId: string, draft: ContentIn
 /** 冻结确认（服务端 freeze 后本机完成落盘的回执） */
 export const ackCollaborationFreeze = async (viewId: string, requestId?: string) => {
   return collaborationCommands.freezeAck.call(viewId, requestId);
-};
-
-/** 上传资源到共享文档，返回资源 URL */
-export const uploadCollaborationResource = async (
-  id: string,
-  payload: CollaborationUploadResourcePayload
-) => {
-  return collaborationCommands.uploadResource.call(id, payload);
 };
 
 /** 解析共享文档资源引用为可访问 URL */

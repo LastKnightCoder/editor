@@ -46,6 +46,7 @@ struct LocalConfig {
 enum ResourceProvider {
     Local(LocalConfig),
     Plugin(crate::plugin_provider::PluginProvider),
+    Collaboration(crate::collaboration_assets::AssetContext),
 }
 
 fn as_string(value: Option<&Value>) -> String {
@@ -304,6 +305,7 @@ pub fn resource_upload_begin(
     file_name: String,
     mime_type: String,
     database: Option<String>,
+    collaboration: Option<crate::collaboration_assets::AssetContext>,
 ) -> Result<String, String> {
     window_allowed(&window)?;
     let setting = load_or_init_setting(&app)?;
@@ -312,12 +314,20 @@ pub fn resource_upload_begin(
     }
     let token =
         crate::plugin_transport::host_token(&crate::setting::get_active_database_name(&setting))?;
-    let provider = parse_resource_provider(
-        &app,
-        &setting,
-        &as_string(setting.pointer("/imageBed/active")),
-    )
-    .map_err(format_error)?;
+    let provider = if let Some(mut context) = collaboration {
+        context.server_url = crate::collaboration::normalize_server_url(&context.server_url)?;
+        crate::collaboration_assets::validate_upload(&app, &context, &file_name, &mime_type)?;
+        ResourceProvider::Collaboration(context)
+    } else {
+        parse_resource_provider(
+            &app,
+            &setting,
+            &as_string(setting.pointer("/imageBed/active")),
+        )
+        .map_err(format_error)?
+    };
+    let compress = !matches!(&provider, ResourceProvider::Collaboration(_))
+        && as_bool(setting.pointer("/imageBed/enableCompression"));
     let file = TemporaryFile::new(&app)?;
     let lease = FileLease::open(&token, &file.path, true)?;
     let id = uuid::Uuid::new_v4().to_string();
@@ -327,7 +337,7 @@ pub fn resource_upload_begin(
         file_name: normalized_file_name(&file_name),
         mime_type,
         provider,
-        compress: as_bool(setting.pointer("/imageBed/enableCompression")),
+        compress,
     })));
     with_host(&token, || {
         let mut state = uploads().lock().map_err(|_| "资源上传状态不可用")?;
@@ -433,6 +443,14 @@ pub async fn upload_resource(
                 .upload_resource_path(&object_name, &mime_type, &file.path)
                 .await
         }
+        ResourceProvider::Collaboration(context) => crate::collaboration_assets::enqueue_file(
+            &app,
+            &context,
+            &file.path,
+            &object_name,
+            &mime_type,
+            None,
+        ),
     }
 }
 
@@ -448,7 +466,53 @@ async fn upload_with_provider(
             .upload_resource(name, &file.mime_type, &file.bytes)
             .await
             .map_err(|error| AppError::new("RESOURCE_UPLOAD_FAILED", error)),
+        ResourceProvider::Collaboration(_) => Err(AppError::new(
+            "RESOURCE_UPLOAD_FAILED",
+            "协作上传不能用作常规图床",
+        )),
     }
+}
+
+pub(crate) async fn upload_owned_resource(
+    app: &AppHandle,
+    _window: &WebviewWindow,
+    path: &Path,
+    name: &str,
+    mime: &str,
+) -> Result<String, String> {
+    let setting = load_or_init_setting(app)?;
+    let token =
+        crate::plugin_transport::host_token(&crate::setting::get_active_database_name(&setting))?;
+    let provider = parse_resource_provider(
+        app,
+        &setting,
+        &as_string(setting.pointer("/imageBed/active")),
+    )
+    .map_err(format_error)?;
+    let compress =
+        as_bool(setting.pointer("/imageBed/enableCompression")) && compression_fits_memory(path);
+    let memory = crate::plugin_files::memory_permit().await?;
+    let path = path.to_path_buf();
+    let name = name.to_string();
+    let mime = mime.to_string();
+    let processed = tauri::async_runtime::spawn_blocking(move || {
+        let bytes = fs::read(path).map_err(|e| e.to_string())?;
+        Ok::<_, String>(compress_image_if_needed(&name, &mime, bytes, compress))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    drop(memory);
+    with_host(&token, || Ok(()))?;
+    let result = upload_with_provider(
+        app,
+        &provider,
+        &build_object_name(&processed.file_name),
+        &processed,
+    )
+    .await
+    .map_err(format_error)?;
+    with_host(&token, || Ok(()))?;
+    Ok(result)
 }
 
 /// 测试图固定文件名：每次覆盖同一个对象，不在远端累积
@@ -518,7 +582,10 @@ pub async fn resource_upload_test(
     })
 }
 
-fn resolve_resource_path(app: &AppHandle, path: &str) -> Result<std::path::PathBuf, String> {
+pub(crate) fn resolve_resource_path(
+    app: &AppHandle,
+    path: &str,
+) -> Result<std::path::PathBuf, String> {
     let app_dir = resolve_app_dir(app).and_then(|dir| {
         dir.canonicalize()
             .map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))
@@ -755,6 +822,18 @@ pub async fn prewarm_resource_thumbs(app: AppHandle) {
 #[cfg(test)]
 mod memory_tests {
     use super::*;
+    #[test]
+    fn configured_image_compression_preserves_original_or_emits_webp() {
+        let bytes = build_test_image().unwrap();
+        let original = compress_image_if_needed("photo.png", "image/png", bytes.clone(), false);
+        assert_eq!(original.bytes, bytes);
+        assert_eq!(original.mime_type, "image/png");
+        let compressed = compress_image_if_needed("photo.png", "image/png", bytes, true);
+        assert_eq!(compressed.file_name, "photo.webp");
+        assert_eq!(compressed.mime_type, "image/webp");
+        assert_eq!(&compressed.bytes[..4], b"RIFF");
+        assert_eq!(&compressed.bytes[8..12], b"WEBP");
+    }
     #[test]
     fn compression_budget_skips_large_files_without_rejecting_transfer() {
         let dir = std::env::temp_dir().join(format!("tau-compression-{}", Uuid::new_v4()));

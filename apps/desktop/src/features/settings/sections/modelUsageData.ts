@@ -108,7 +108,7 @@ const FEATURE_LABELS: Record<string, string> = {
   titleSummary: "标题总结",
   webClip: "网页剪藏",
   podcastGeneration: "播客生成",
-  flashcardGeneration: "闪卡生成",
+  flashcardGeneration: "闪卡",
   aiJudgement: "答案评判",
   transcriptionOptimization: "转录断句优化",
   speechInputRefinement: "语音输入整理",

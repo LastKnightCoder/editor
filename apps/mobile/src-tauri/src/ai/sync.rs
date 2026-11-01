@@ -1,6 +1,7 @@
 use std::fs;
 use std::future::Future;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use serde_json::Value;
@@ -24,6 +25,7 @@ pub async fn upload(
     provider: &PluginProvider,
     files: &[String],
     plan: &super::sync_cache::UploadPlan,
+    on_progress: &(dyn Fn(f64, usize, usize) + Send + Sync),
 ) -> Result<(), String> {
     let store = Store {
         root: crate::setting::resolve_app_dir(app)?,
@@ -38,6 +40,8 @@ pub async fn upload(
         crate::plugin_files::MAX_FILE_TRANSFERS,
     ));
     let directory = &directory;
+    let report = session_progress(plan.pending.len(), on_progress);
+    let report = &report;
     transfer_files(plan.pending.clone(), |name| async move {
         safe_file(&name)?;
         let path = directory.join(&name);
@@ -53,8 +57,11 @@ pub async fn upload(
                 &crate::chunked_sync::database_session_object(database, &name)?,
                 &name,
                 &path,
+                &|done, size| report(&name, done, size, false),
             )
-            .await
+            .await?;
+        report(&name, 1, 1, true);
+        Ok(())
     })
     .await?;
     plan.verify()?;
@@ -90,6 +97,7 @@ pub async fn download(
     app: &AppHandle,
     database: &str,
     provider: &PluginProvider,
+    on_progress: &(dyn Fn(f64, usize, usize) + Send + Sync),
 ) -> Result<Option<DownloadedSessions>, String> {
     let object = crate::chunked_sync::database_sessions_object(database);
     if !provider
@@ -120,18 +128,53 @@ pub async fn download(
     };
     let directory = &result.path;
     let local = &local;
+    let report = session_progress(files.len(), on_progress);
+    let report = &report;
     transfer_files(files, |file| async move {
         let downloaded = provider
             .download_session_chunked(
                 &crate::chunked_sync::database_session_object(database, &file)?,
                 &file,
                 &local.join(&file),
+                &|done, size| report(&file, done, size, false),
             )
             .await?;
-        fs::rename(&downloaded.path, directory.join(file)).map_err(|error| error.to_string())
+        fs::rename(&downloaded.path, directory.join(&file)).map_err(|error| error.to_string())?;
+        report(&file, 1, 1, true);
+        Ok(())
     })
     .await?;
     Ok(Some(result))
+}
+
+fn session_progress(
+    total: usize,
+    on_progress: &(dyn Fn(f64, usize, usize) + Send + Sync),
+) -> impl Fn(&str, u64, u64, bool) + Send + Sync + '_ {
+    on_progress(if total == 0 { 1.0 } else { 0.0 }, 0, total);
+    let progress = Mutex::new((std::collections::HashMap::<String, f64>::new(), 0));
+    move |name: &str, done: u64, size: u64, finished: bool| {
+        let mut state = progress.lock().unwrap();
+        if finished {
+            state.0.remove(name);
+            state.1 += 1;
+        } else {
+            state.0.insert(
+                name.into(),
+                if size == 0 {
+                    1.0
+                } else {
+                    done as f64 / size as f64
+                },
+            );
+        }
+        let fraction = if total == 0 {
+            1.0
+        } else {
+            (state.1 as f64 + state.0.values().sum::<f64>()) / total as f64
+        };
+        on_progress(fraction, state.1, total);
+    }
 }
 
 async fn transfer_files<F, Fut>(files: Vec<String>, transfer: F) -> Result<(), String>

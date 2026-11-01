@@ -173,11 +173,28 @@ pub fn collab_list_bindings(app: AppHandle) -> Result<Vec<CollaborationBinding>,
 
 /// 解除绑定（结束共享或退出协作后调用）；本地内容保持不变。
 #[tauri::command]
-pub fn collab_unbind_content(app: AppHandle, content_id: i64) -> Result<(), String> {
+pub fn collab_unbind_content(
+    app: AppHandle,
+    content_id: i64,
+    expected_document_id: Option<String>,
+    expected_source_id: Option<String>,
+) -> Result<(), String> {
     let conn = open_active_database(&app)?;
+    if let Some(expected) = expected_source_id {
+        let source: String = conn
+            .query_row(
+                "SELECT source_id FROM library_identity WHERE id=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if source != expected {
+            return Err("请切回原资料库完成共享解绑".into());
+        }
+    }
     conn.execute(
-        "DELETE FROM collaboration_bindings WHERE content_id = ?1",
-        params![content_id],
+        "DELETE FROM collaboration_bindings WHERE content_id = ?1 AND (?2 IS NULL OR document_id=?2)",
+        params![content_id, expected_document_id],
     )
     .map_err(|e| db_err("COLLAB_UNBIND_FAILED", "delete collaboration binding", e))?;
     Ok(())
@@ -240,6 +257,19 @@ pub fn collab_project_content(
 
 fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Value, String> {
     let mut conn = open_active_database(&app)?;
+    if let Some(expected) = &payload.expected_source_id {
+        let source: Option<String> = conn
+            .query_row(
+                "SELECT source_id FROM library_identity WHERE id=1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        if source.as_ref() != Some(expected) {
+            return Ok(json!({ "projected": false, "reason": "library" }));
+        }
+    }
     if payload
         .plugin
         .as_ref()

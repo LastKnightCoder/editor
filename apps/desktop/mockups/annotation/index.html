@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>编辑器 · 注解重设计 mockup</title>
+    <link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <h1>注解（annotation）重设计 · 桌面端 + 移动端</h1>
+        <p>
+          颜色全部取自 <code>@tau/themes</code> 的
+          <code>--tau-*</code>，右上角可切主题族和明暗。注解在 Markdown 里导出为脚注
+          <code>[^n]</code>，所以新设计把它当作「脚注」来做：正文里是序号，内容在浮层里。
+        </p>
+      </div>
+      <div class="switches">
+        <div class="switch" id="sw-theme">
+          <button data-v="paper" class="on">暖纸</button><button data-v="ocean">海盐</button
+          ><button data-v="mint">薄荷</button><button data-v="wisteria">紫藤</button
+          ><button data-v="ink">水墨</button>
+        </div>
+        <div class="switch" id="sw-mode">
+          <button data-v="light" class="on">浅色</button><button data-v="dark">深色</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══ 0 现状 ═══ -->
+    <section>
+      <h2><span class="no">00</span>现状问题</h2>
+      <p class="desc">
+        下面按现有代码复刻（<code>components/Annotation/index.tsx</code>），点「注」可看浮层。
+      </p>
+      <div class="grid">
+        <div class="sheet">
+          <div class="s-head"><b>现在的样子</b><span class="tag old">现状</span></div>
+          <div class="prose stage" id="old-stage">
+            <p>
+              间隔重复的核心是在快要忘记时复习<span class="old-wrap"
+                ><span class="old-mark" data-old="1">注</span></span
+              >，这样每次提取都更费力，也记得更牢。
+            </p>
+            <div class="old-pop" id="old-pop" hidden>注解内容</div>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="s-head"><b>问题</b></div>
+          <ul class="notes" style="margin-top: 0">
+            <li>
+              <b>占位错位</b>：外层占 1.5em
+              宽，圆圈却绝对定位向左上偏移，压到前一个字，后面留一块空白。
+            </li>
+            <li>
+              <b>不跟主题</b>：灰色和 80%
+              黑底浮层是硬编码色值，暖纸/薄荷等主题下很突兀，深色下对比也弱。
+            </li>
+            <li><b>多个注解分不清</b>：每个都写「注」，和导出的脚注序号对不上。</li>
+            <li>
+              <b>浮层没有操作</b
+              >：只能改文字，不能删除、复制；看和改是同一个状态，只读时也打开光标。
+            </li>
+            <li><b>插入后要先删「注解内容」</b>：默认文本是真内容，不是占位提示。</li>
+            <li><b>移动端</b>：命中区只有约 12px，浮层从顶部弹出常被键盘和刘海挤掉。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 1 标记样式 ═══ -->
+    <section>
+      <h2><span class="no">01</span>正文标记样式</h2>
+      <p class="desc">
+        标记要做到：不撑行高、一眼能看出可点、多个注解能区分。三个候选都是同一套颜色，只看形态。
+      </p>
+      <div class="grid">
+        <div class="sheet rec">
+          <div class="s-head">
+            <b>A 上标序号</b><span class="tag">推荐</span><span class="d">和脚注一致</span>
+          </div>
+          <div class="prose">
+            <p>
+              间隔重复的核心是在快要忘记时复习<span class="ann"></span
+              >，每次提取都更费力，也记得更牢<span class="ann"></span>。
+            </p>
+          </div>
+          <p class="cap">序号按文档顺序在渲染时计算，不存进数据；悬停出浅底，打开时实心。</p>
+        </div>
+        <div class="sheet">
+          <div class="s-head"><b>B 圆点</b><span class="d">最安静</span></div>
+          <div class="prose">
+            <p>
+              间隔重复的核心是在快要忘记时复习<span class="ann-dot"></span
+              >，每次提取都更费力，也记得更牢<span class="ann-dot"></span>。
+            </p>
+          </div>
+          <p class="cap">干扰最小，但多个注解无法区分，也不像能点。</p>
+        </div>
+        <div class="sheet">
+          <div class="s-head"><b>C 图标胶囊</b><span class="d">最显眼</span></div>
+          <div class="prose">
+            <p>
+              间隔重复的核心是在快要忘记时复习<span class="ann-pill"
+                ><svg class="i"><use href="#i-msg" /></svg>1</span
+              >，每次提取都更费力，也记得更牢<span class="ann-pill"
+                ><svg class="i"><use href="#i-msg" /></svg>2</span
+              >。
+            </p>
+          </div>
+          <p class="cap">可点性最强，但和批注（comment）的气泡图标容易混，长文里偏吵。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 2 桌面交互 ═══ -->
+    <section>
+      <h2><span class="no">02</span>桌面端交互（可操作）</h2>
+      <p class="desc">
+        <b>悬停看、点击改</b>。悬停 300ms
+        出只读预览；点击打开编辑卡片，带删除和复制。只读文档点击只打开查看卡片。下面的正文可以直接试。
+      </p>
+      <div class="sheet" style="max-width: 820px">
+        <div class="prose stage" id="live">
+          <h3>为什么间隔重复有效</h3>
+          <p>
+            艾宾浩斯在 1885 年发现，记忆在学习后的头一天流失最快<span
+              class="ann"
+              data-text="原始实验用的是无意义音节，排除了已有知识的干扰。"
+            ></span
+            >。之后再复习，遗忘曲线会变得更平缓。
+          </p>
+          <p>
+            间隔重复的核心是在快要忘记时复习，这样每次提取都更费力<span
+              class="ann"
+              data-text="即「合意困难」（desirable difficulty），Bjork 1994 提出。"
+            ></span
+            >，也记得更牢。主流算法如 SM-2 和 FSRS 都按这个思路安排下次复习时间<span
+              class="ann"
+              data-text=""
+            ></span
+            >。
+          </p>
+          <div class="pop" id="peek"><div class="pop-body"></div></div>
+          <div class="pop" id="card"></div>
+        </div>
+        <ol class="endnotes" id="endnotes">
+          <li class="h">文末注解（可选，见 05）</li>
+        </ol>
+      </div>
+
+      <p class="desc" style="margin-top: 28px">静态状态一览：</p>
+      <div class="states" id="states"></div>
+    </section>
+
+    <!-- ═══ 3 插入 ═══ -->
+    <section>
+      <h2><span class="no">03</span>插入</h2>
+      <p class="desc">
+        入口不变：斜杠菜单「注解」和
+        <span class="kbd">⌘⇧N</span
+        >。变化是插入后<b>直接打开空的编辑卡片并聚焦</b>，内容为空字符串，「写下注解…」只作占位提示；空着点外面关闭时自动删掉这个注解，不留空标记。
+      </p>
+      <div class="states">
+        <figure>
+          <div class="slash">
+            <div class="it">
+              <span class="ico"
+                ><svg class="i"><use href="#i-quote" /></svg></span
+              ><span class="t">引用<small>引用一段文字</small></span>
+            </div>
+            <div class="it on">
+              <span class="ico"
+                ><svg class="i"><use href="#i-sup" /></svg></span
+              ><span class="t">注解<small>在光标处插入带序号的注解</small></span
+              ><span class="kbd">⌘⇧N</span>
+            </div>
+            <div class="it">
+              <span class="ico"
+                ><svg class="i"><use href="#i-msg" /></svg></span
+              ><span class="t">批注<small>选中文字后添加讨论</small></span>
+            </div>
+          </div>
+          <figcaption><b>斜杠菜单</b>图标从气泡换成上标，和批注区分开</figcaption>
+        </figure>
+        <figure id="insert-demo"></figure>
+      </div>
+    </section>
+
+    <!-- ═══ 4 移动端 ═══ -->
+    <section>
+      <h2><span class="no">04</span>移动端</h2>
+      <p class="desc">
+        没有悬停，统一<b>点按打开底部抽屉</b>。标记视觉和桌面一致，命中区扩到约
+        32×32。抽屉附带注解所在的原文片段，方便确认点的是哪一个。编辑时抽屉贴在键盘上沿。
+      </p>
+      <div class="phones" id="phones"></div>
+    </section>
+
+    <!-- ═══ 5 实现要点 ═══ -->
+    <section>
+      <h2><span class="no">05</span>实现要点与待定项</h2>
+      <table class="cmp">
+        <tr>
+          <th>项</th>
+          <th>做法</th>
+        </tr>
+        <tr>
+          <td>序号</td>
+          <td>
+            渲染时按文档顺序计算（不用 CSS
+            counter：分块渲染会让计数每块重新开始）；数据结构不变，<code>dataVersion</code> 不升。
+          </td>
+        </tr>
+        <tr>
+          <td>颜色</td>
+          <td>
+            只用
+            <code
+              >--ed-accent / --ed-accent-soft / --ed-accent-text / --ed-bg-surface / --ed-border /
+              --ed-shadow-float</code
+            >，删掉 <code>useEditorTheme().isDark</code> 分支。
+          </td>
+        </tr>
+        <tr>
+          <td>浮层</td>
+          <td>
+            桌面沿用
+            <code>@tau/ui</code>
+            Popover，去掉透明壳，卡片本身就是浮层；移动端由宿主用底部抽屉承载，Esc / 返回键继续走
+            <code>OverlayBackDismiss</code>。
+          </td>
+        </tr>
+        <tr>
+          <td>插入</td>
+          <td>
+            <code>insertAnnotation(editor, "")</code> 后打开该注解的编辑卡片；关闭时内容为空则
+            <code>removeNodes</code>。命令和斜杠菜单都改用空字符串。
+          </td>
+        </tr>
+        <tr>
+          <td>删除 / 复制</td>
+          <td>
+            卡片头部两个图标按钮；删除可 <span class="kbd">⌘Z</span> 撤销，移动端给撤销 toast。
+          </td>
+        </tr>
+        <tr>
+          <td>待定：文末注解列表</td>
+          <td>
+            02 正文下方的列表是可选项，长文里方便通览，但会多出一块不属于正文的 UI。建议先不做。
+          </td>
+        </tr>
+      </table>
+    </section>
+
+    <svg width="0" height="0" style="position: absolute">
+      <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></symbol>
+      <symbol id="i-sup" viewBox="0 0 24 24">
+        <path d="m4 19 8-8" />
+        <path d="m12 19-8-8" />
+        <path
+          d="M20 12h-4c0-1.5.44-2 1.5-2.5S20 8.33 20 7.002c0-.472-.17-.93-.484-1.29a2.105 2.105 0 0 0-2.617-.436c-.42.239-.738.614-.899 1.06"
+        />
+      </symbol>
+      <symbol id="i-quote" viewBox="0 0 24 24">
+        <path d="M17 6H3" />
+        <path d="M21 12H8" />
+        <path d="M21 18H8" />
+        <path d="M3 12v6" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect width="14" height="14" x="8" y="8" rx="2" />
+        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+      </symbol>
+      <symbol id="i-pen" viewBox="0 0 24 24">
+        <path
+          d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"
+        />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="19" cy="12" r="1" />
+        <circle cx="5" cy="12" r="1" />
+      </symbol>
+    </svg>
+    <script src="app.js"></script>
+  </body>
+</html>

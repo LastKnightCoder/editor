@@ -29,6 +29,8 @@ Dialog 内自动提供局部 Portal 容器，挂载点位于当前遮罩内、�
 
 日期面板支持手输年月日、范围、清空和秒级时间，可独立放进其他容器。布局密度和业务浮层返回由宿主选择；包不导入 Page 或移动 router。
 
+`ProgressStatus` 在 `ProgressBar` 上方展示阶段文案与百分比，供两端传输任务共用；`value` 为 0–100，`label` 由宿主提供，组件不负责估算进度。
+
 ## 验证
 
 `pnpm --filter @tau/ui check`、`pnpm --filter @tau/ui test`。桌面样板间直接使用公共组件，新增“输入与值展示”档案覆盖控件交互。

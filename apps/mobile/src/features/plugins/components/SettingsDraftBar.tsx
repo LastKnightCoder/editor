@@ -45,7 +45,7 @@ export function SettingsDraftBar({ controller }: { controller: SettingsDraftCont
       </>
     );
   return (
-    <div className="pointer-events-none sticky bottom-0 z-10 -mx-1 pt-4 pb-[max(12px,env(safe-area-inset-bottom))]">
+    <div className="pointer-events-none sticky bottom-0 z-10 -mx-1 pt-4 pb-3">
       <div
         role="region"
         aria-label="未保存的修改"

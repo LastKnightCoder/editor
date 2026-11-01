@@ -57,6 +57,8 @@ export const scheduleKeys = {
   pomodoroBindings: (database: string) =>
     [...scheduleKeys.root(database), "pomodoro-bindings"] as const,
   todoSchedules: (database: string) => [...scheduleKeys.root(database), "todo-schedules"] as const,
+  reminders: (database: string, id: number) =>
+    [...scheduleKeys.root(database), "reminders", id] as const,
 };
 
 export function invalidateSchedule(client: QueryClient, database: string) {
@@ -195,6 +197,18 @@ export function useEventContent(id: number, enabled: boolean) {
   });
 }
 
+/** 日程的提醒（开始前毫秒数）；新建日程 id 为 0 时不查询 */
+export function useEventReminders(id: number, enabled = true) {
+  const { database, commands } = useScheduleCommands();
+  const connected = useDatabaseConnected();
+  return useQuery({
+    queryKey: scheduleKeys.reminders(database, id),
+    queryFn: () => commands.getCalendarEventReminders(id),
+    enabled: connected && enabled && id > 0,
+    staleTime: 0,
+  });
+}
+
 export function useScheduleMutations() {
   const client = useQueryClient();
   const { database, commands, assertCurrentDatabase } = useScheduleCommands();
@@ -281,6 +295,12 @@ export function useScheduleMutations() {
         assertCurrentDatabase();
         const result = await commands.updateCalendarEvent(input);
         refresh();
+        return result;
+      },
+      async setEventReminders(id: number, offsets: number[]) {
+        assertCurrentDatabase();
+        const result = await commands.updateCalendarEventReminders(id, offsets);
+        client.setQueryData(scheduleKeys.reminders(database, id), result);
         return result;
       },
       async deleteEvent(id: number) {

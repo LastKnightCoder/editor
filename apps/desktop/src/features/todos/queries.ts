@@ -38,7 +38,9 @@ import {
   updateRecurrence,
   updateTodoGroup,
   updateTodoItem,
+  updateTodoReminders,
 } from "@/commands/todo";
+import { splitTodoReminders } from "@tau/shared/reminders";
 import { createContent } from "@/commands/content";
 import { getContentLength } from "@/utils/helper";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
@@ -304,6 +306,21 @@ export function useTodoMutations() {
     async updateItem(entry: TodoEntry, patch: Omit<UpdateTodoItem, "id">) {
       patchEntry(queryClient, entry.id, e => ({ ...e, ...patch }));
       await updateTodoItem({ id: entry.id, ...patch });
+      emit("item", TODO_MUTATION_ACTIONS.UPDATE_ITEM, {
+        entityId: entry.id,
+        groupId: entry.groupId,
+      });
+    },
+
+    /** 截止任务的多个提醒（截止前毫秒数） */
+    async setReminders(entry: TodoEntry, offsets: number[]) {
+      const { first, extras } = splitTodoReminders(offsets);
+      patchEntry(queryClient, entry.id, e => ({
+        ...e,
+        remindBefore: first,
+        extraReminders: extras,
+      }));
+      await updateTodoReminders(entry.id, offsets);
       emit("item", TODO_MUTATION_ACTIONS.UPDATE_ITEM, {
         entityId: entry.id,
         groupId: entry.groupId,

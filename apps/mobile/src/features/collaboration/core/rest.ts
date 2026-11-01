@@ -54,6 +54,10 @@ export function getDocumentProtocol(serverUrl: string, documentId: string) {
   return request<DocumentProtocol>({ serverUrl, path: `/v1/documents/${documentId}/protocol` });
 }
 
+export function listAssets(serverUrl: string, documentId: string) {
+  return request<{ ids: string[] }>({ serverUrl, path: `/v1/documents/${documentId}/assets` });
+}
+
 export function fetchTicket(
   serverUrl: string,
   documentId: string | null,
@@ -124,7 +128,7 @@ export function leaveDocument(serverUrl: string, documentId: string) {
 }
 
 export function closeDocument(serverUrl: string, documentId: string, expectedRevision: string) {
-  return request<{ ok: boolean }>({
+  return request<{ ok: boolean; revision: string }>({
     serverUrl,
     path: `/v1/documents/${documentId}/close`,
     method: "POST",

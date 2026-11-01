@@ -4,6 +4,7 @@ mod app_feedback;
 mod app_update;
 mod chunked_sync;
 mod collaboration;
+mod collaboration_assets;
 mod database;
 mod device_sync;
 #[cfg(feature = "device-sync-spike")]
@@ -13,6 +14,7 @@ mod incoming_file;
 #[cfg(target_os = "ios")]
 mod ios_input_accessory;
 mod logger;
+mod mcp_settings;
 mod models;
 mod plugin_ai;
 mod plugin_ai_skills;
@@ -77,6 +79,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_native_speech::init())
+        .plugin(tauri_plugin_local_notify::init())
         .invoke_handler(tauri::generate_handler![
             device_sync::device_sync_store,
             device_sync::transport::device_sync_pair,
@@ -98,6 +101,7 @@ pub fn run() {
             ai::ai_model_config,
             ai::ai_http_context,
             ai::ai_mcp_context,
+            ai::ai_custom_mcp_context,
             ai::ai_http_dispose,
             ai::ai_http_open,
             ai::ai_http_upload,
@@ -127,6 +131,7 @@ pub fn run() {
             tts_settings::plugin_tts_mutate,
             image_settings::plugin_images_mutate,
             ai_settings::ai_settings_mutate,
+            mcp_settings::ai_mcp_servers_mutate,
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
             plugin_transport::plugin_transport_reply,
@@ -231,6 +236,9 @@ pub fn run() {
             database::todo_create_item,
             database::todo_create_item_relative,
             database::todo_update_item,
+            database::reminder_list,
+            database::reminder_set,
+            database::reminder_upcoming,
             database::todo_toggle_complete_cascade,
             database::todo_move_and_reorder,
             database::todo_archive_item,
@@ -323,12 +331,14 @@ pub fn run() {
             collaboration::collab_get_identity,
             collaboration::collab_update_nickname,
             collaboration::collab_request,
+            collaboration_assets::collab_resource,
             collaboration::collab_input_draft,
             collaboration::collab_cache_read,
             collaboration::collab_cache_discard,
             collaboration::collab_cache_snapshot,
             collaboration::collab_cache_append,
             collaboration::collab_cache_list,
+            collaboration::collab_recovery,
             collaboration::collab_node_views,
             collaboration::collab_update_node_view,
             database::collab_bind_content,

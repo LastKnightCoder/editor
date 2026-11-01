@@ -30,6 +30,11 @@ export interface NodeDocumentIdentity {
   epoch: number;
 }
 
+export interface NodeDocumentOptions {
+  /** 仅本机会话显式开启；服务器与共享候选始终使用默认资源校验。 */
+  allowLocalResources?: boolean;
+}
+
 const fail = (code: string, message: string): never => {
   throw new CollaborationError(code, message, 409);
 };
@@ -89,7 +94,8 @@ export function assertStableDocumentIdentity(doc: Y.Doc, previous: Y.Doc): void 
 export async function createNodeDocument(
   identity: NodeDocumentIdentity,
   content: SharedContent,
-  contracts: ContentContractDictionary
+  contracts: ContentContractDictionary,
+  options: NodeDocumentOptions = {}
 ): Promise<Y.Doc> {
   const doc = new Y.Doc({ gc: false });
   const tree = new NodeTree(doc);
@@ -107,7 +113,7 @@ export async function createNodeDocument(
       doc.getText("title").insert(0, content.title);
       content.content.forEach((node, index) => tree.insertNode(node, null, index, null, true));
     }, null);
-    await validateNodeDocument(doc, identity);
+    await validateNodeDocument(doc, identity, undefined, options);
     return doc;
   } catch (error) {
     doc.destroy();
@@ -121,10 +127,11 @@ export async function createNodeDocument(
 export async function validateNodeDocument(
   doc: Y.Doc,
   identity?: NodeDocumentIdentity,
-  previous?: Y.Doc
+  previous?: Y.Doc,
+  options: NodeDocumentOptions = {}
 ): Promise<void> {
   try {
-    await validateCompleteDocument(doc, identity, previous);
+    await validateCompleteDocument(doc, identity, previous, options);
   } catch (error) {
     if (error instanceof CollaborationError) throw error;
     throw new CollaborationError("INVALID_DOCUMENT", "文档结构或契约无效", 400);
@@ -134,7 +141,8 @@ export async function validateNodeDocument(
 async function validateCompleteDocument(
   doc: Y.Doc,
   identity?: NodeDocumentIdentity,
-  previous?: Y.Doc
+  previous?: Y.Doc,
+  options: NodeDocumentOptions = {}
 ): Promise<void> {
   complete(doc);
   if (Y.encodeStateAsUpdate(doc).byteLength > NODE_DOCUMENT_MAX_BYTES)
@@ -164,7 +172,7 @@ async function validateCompleteDocument(
     fail("INVALID_DOCUMENT", "文档元信息无效");
   if (
     doc.getText("title").length > 500 ||
-    !isSafeResource(String(meta.get("bannerBg")), "bannerBg")
+    (!options.allowLocalResources && !isSafeResource(String(meta.get("bannerBg")), "bannerBg"))
   )
     fail("INVALID_DOCUMENT", "共享标题过长或背景包含本地路径");
   if (
@@ -190,14 +198,15 @@ async function validateCompleteDocument(
     )
       fail("BASELINE_CONFLICT", "普通增量不能切换文档基线");
   }
-  await validateNodeTree(doc, "content", previous);
+  await validateNodeTree(doc, "content", previous, options);
 }
 
 /** 正文与白板富文本根共用候选校验，不依赖任何渲染或插件代码。 */
 export async function validateNodeTree(
   doc: Y.Doc,
   rootId = "content",
-  previous?: Y.Doc
+  previous?: Y.Doc,
+  options: NodeDocumentOptions = {}
 ): Promise<void> {
   const tree = new NodeTree(doc, { rootId }),
     old = previous && new NodeTree(previous, { rootId });
@@ -250,7 +259,7 @@ export async function validateNodeTree(
       const payload = { ...properties.toJSON(), ...fields.toJSON() };
       for (const slot of contentResourceSlots(payload, contract.resources))
         for (const value of contentResourceValues(slot))
-          if (!isSafeResource(value))
+          if (!options.allowLocalResources && !isSafeResource(value))
             fail("INVALID_DOCUMENT", "共享资源包含本地路径或私有资源地址");
       const deletions = record.get("deletions");
       if (
@@ -344,7 +353,8 @@ export async function validateNodeTree(
 export async function applyNodeDocumentUpdate(
   current: Y.Doc,
   update: Uint8Array,
-  identity: NodeDocumentIdentity
+  identity: NodeDocumentIdentity,
+  options: NodeDocumentOptions = {}
 ): Promise<Y.Doc> {
   if (!update.byteLength || update.byteLength > NODE_DOCUMENT_MAX_BYTES)
     fail("INVALID_UPDATE", "更新容量无效");
@@ -352,7 +362,7 @@ export async function applyNodeDocumentUpdate(
   try {
     Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
     Y.applyUpdate(candidate, update);
-    await validateNodeDocument(candidate, identity, current);
+    await validateNodeDocument(candidate, identity, current, options);
     return candidate;
   } catch (error) {
     candidate.destroy();

@@ -1,0 +1,15 @@
+[package]
+name = "tauri-plugin-local-notify"
+version = "0.1.0"
+edition = "2021"
+links = "tauri-plugin-local-notify"
+build = "build.rs"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+tauri = { version = "2", features = ["protocol-asset", "wry"] }

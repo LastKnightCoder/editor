@@ -12,6 +12,35 @@ import {
 } from "../utils/embedding-config";
 
 type UserSetting = Record<string, any>;
+
+/** 合并旧判分分配，已有闪卡模型优先；删除旧键后再次执行不产生变化。 */
+export function upgradeFlashcardModelSetting(setting: unknown): boolean {
+  if (!setting || typeof setting !== "object" || Array.isArray(setting)) return false;
+  const record = setting as Record<string, unknown>;
+  const value = record.llmUsageSettings;
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    !Object.hasOwn(value, "aiJudgement")
+  )
+    return false;
+  const usage = { ...value } as Record<string, unknown>;
+  const legacy = usage.aiJudgement as { providerId?: unknown; modelId?: unknown } | null;
+  if (
+    !usage.flashcardGeneration &&
+    legacy &&
+    typeof legacy.providerId === "string" &&
+    legacy.providerId.trim() &&
+    typeof legacy.modelId === "string" &&
+    legacy.modelId.trim()
+  ) {
+    usage.flashcardGeneration = { providerId: legacy.providerId, modelId: legacy.modelId };
+  }
+  delete usage.aiJudgement;
+  record.llmUsageSettings = usage;
+  return true;
+}
 export interface SettingChangedPayload {
   oldSetting: UserSetting;
   newSetting: UserSetting;
@@ -218,8 +247,11 @@ class UserSettingModule {
     }
     if (!this.settingLoadPromise) {
       this.settingLoadPromise = this.loadSetting()
-        .then(setting => {
+        .then(async setting => {
           assertCurrentProviderSettings(setting);
+          if (upgradeFlashcardModelSetting(setting)) {
+            await this.saveSetting(JSON.stringify(setting, null, 2));
+          }
           this.userSetting = setting;
           this.settingLoaded = true;
           return setting;
@@ -299,6 +331,7 @@ class UserSettingModule {
       .then(async () => {
         const previous = this.userSetting;
         const next = update(previous);
+        upgradeFlashcardModelSetting(next);
         assertCurrentProviderSettings(next);
         if (isEqual(previous, next)) return;
         await this.writeSettingFile(JSON.stringify(next, null, 2));

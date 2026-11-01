@@ -1,0 +1,14 @@
+[default]
+description = "允许移动端待办与日程的本地提醒通知。"
+permissions = [
+  "allow-permission-state",
+  "allow-request-permission",
+  "allow-open-settings",
+  "allow-schedule",
+  "allow-snooze",
+  "allow-cancel-owner",
+  "allow-take-actions",
+  "allow-set-foreground-banner",
+  "allow-register-listener",
+  "allow-remove-listener",
+]
