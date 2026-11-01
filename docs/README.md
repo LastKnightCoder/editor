@@ -54,6 +54,7 @@
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射             |
 | [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                 |
 | [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                       |
+| [writing-reader-docs.md](./guides/writing-reader-docs.md)           | 使用文档、插件开发文档与插件 README 写法 |
 
 ## tasks/ — 进行中任务
 
