@@ -169,16 +169,9 @@ export default function useCollaborationDocument(documentId?: string) {
         Y.applyUpdate(doc, new Uint8Array(snapshot.state), IPC_ORIGIN);
         for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
         updates.length = 0;
-        await validateNodeDocument(
-          doc,
-          {
-            documentId: id,
-            baselineId: String(doc.getMap("meta").get("baselineId")),
-            epoch: Number(doc.getMap("meta").get("epoch")),
-          },
-          undefined,
-          { allowLocalResources: snapshot.session.mode === "local" }
-        );
+        await validateNodeDocument(doc, snapshot.documentIdentity, undefined, {
+          allowLocalResources: snapshot.session.mode === "local",
+        });
         if (disposed) return;
         for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
         updates.length = 0;
