@@ -270,6 +270,8 @@ export function describeCenterPermissions(
       label = `使用 AI ${PLUGIN_AI_CAPABILITIES[action].name}`;
     } else if (permission === "speech:input") {
       label = "使用语音输入";
+    } else if (permission === "tts:synthesize") {
+      label = "使用语音合成";
     } else if (
       extra === undefined &&
       Object.hasOwn(permissionDomains, domain) &&

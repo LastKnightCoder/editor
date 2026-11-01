@@ -55,7 +55,13 @@ import {
 } from "./content-input";
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
-import type { TTSProviderDefinition } from "./tts";
+import type {
+  TTSAudio,
+  TTSProviderDefinition,
+  TTSSynthesisSession,
+  TTSSynthesizeRequest,
+  TTSVoice,
+} from "./tts";
 import type { ASRProviderDefinition } from "./asr";
 import type { PluginWebSocket, PluginSocketOptions } from "./websocket";
 import type { ImageProviderDefinition } from "./images";
@@ -1087,6 +1093,21 @@ export interface SpeechAdapter {
   ): Promise<PluginSpeechSession>;
 }
 
+/** 宿主语音合成：授权已由 PluginHost 检查；signal 在插件停用时同样中止，届时宿主须释放会话 */
+export interface TTSSynthesisAdapter {
+  unavailableReason(): string | null;
+  open(
+    context: PluginContext,
+    signal: AbortSignal
+  ): Promise<{
+    providerName: string;
+    textInstructions?: string;
+    getVoices(signal: AbortSignal): Promise<TTSVoice[]>;
+    synthesize(request: TTSSynthesizeRequest, signal: AbortSignal): Promise<TTSAudio>;
+    close(): Promise<void>;
+  }>;
+}
+
 /** 只接收宿主显式信任的代码；此宿主不提供第三方沙箱或授权界面。 */
 export class PluginHost {
   private readonly entries = new Map<string, Entry>();
@@ -1129,8 +1150,10 @@ export class PluginHost {
       upload?: {
         register(context: PluginContext, definition: UploadProviderDefinition): Disposable;
         uploadRemote?(file: UploadFile, signal: AbortSignal): Promise<string>;
+        save?(file: UploadFile, signal: AbortSignal): Promise<string>;
       };
       tts?: { register(context: PluginContext, definition: TTSProviderDefinition): Disposable };
+      ttsSynthesis?: TTSSynthesisAdapter;
       asr?: { register(context: PluginContext, definition: ASRProviderDefinition): Disposable };
       websocket?: PluginWebSocket;
       images?: {
@@ -1956,8 +1979,102 @@ export class PluginHost {
             })
           );
         },
+        unavailableReason: () => {
+          this.assertActive(entry, activation);
+          if (!this.options.ttsSynthesis) return "当前设备不支持插件语音合成";
+          return this.options.ttsSynthesis.unavailableReason();
+        },
+        open: async (options?: { signal?: AbortSignal }): Promise<TTSSynthesisSession> => {
+          this.assertActive(entry, activation);
+          const adapter = this.options.ttsSynthesis;
+          if (!adapter) throw new Error("TTS_UNAVAILABLE：当前宿主不支持插件语音合成");
+          await guard("tts:synthesize");
+          const signal = options?.signal
+            ? AbortSignal.any([options.signal, scope.signal])
+            : scope.signal;
+          signal.throwIfAborted();
+          const session = await adapter.open(context, signal);
+          let closed = false;
+          const close = async () => {
+            if (closed) return;
+            closed = true;
+            scope.signal.removeEventListener("abort", onAbort);
+            await session.close();
+          };
+          const onAbort = () =>
+            void close().catch(error => console.error("关闭语音会话失败", error));
+          scope.signal.addEventListener("abort", onAbort, { once: true });
+          const callSignal = (callOptions?: { signal?: AbortSignal }) => {
+            this.assertActive(entry, activation);
+            if (closed) throw new DOMException("语音会话已关闭", "AbortError");
+            const merged = callOptions?.signal
+              ? AbortSignal.any([callOptions.signal, scope.signal])
+              : scope.signal;
+            merged.throwIfAborted();
+            return merged;
+          };
+          return Object.freeze({
+            providerName: String(session.providerName),
+            ...(typeof session.textInstructions === "string"
+              ? { textInstructions: session.textInstructions }
+              : {}),
+            getVoices: async (callOptions?: { signal?: AbortSignal }) => {
+              const voices = await session.getVoices(callSignal(callOptions));
+              this.assertActive(entry, activation);
+              return voices.map((voice): TTSVoice => ({
+                id: String(voice.id),
+                name: String(voice.name),
+                type: voice.type,
+                ...(voice.description ? { description: String(voice.description) } : {}),
+              }));
+            },
+            synthesize: async (
+              request: TTSSynthesizeRequest,
+              callOptions?: { signal?: AbortSignal }
+            ) => {
+              if (typeof request?.text !== "string" || !request.text.trim())
+                throw new Error("朗读文字不能为空");
+              if (typeof request.voiceId !== "string" || !request.voiceId)
+                throw new Error("请指定音色");
+              const signal = callSignal(callOptions);
+              const audio = await session.synthesize(
+                {
+                  text: request.text,
+                  voiceId: request.voiceId,
+                  ...(request.options ? { options: { ...request.options } } : {}),
+                },
+                signal
+              );
+              signal.throwIfAborted();
+              this.assertActive(entry, activation);
+              return { audio: new Uint8Array(audio.audio), mime: String(audio.mime) };
+            },
+            close,
+          });
+        },
       }),
       upload: Object.freeze({
+        save: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
+          this.assertActive(entry, activation);
+          const save = this.options.upload?.save;
+          if (!save) throw new Error("UPLOAD_UNAVAILABLE：当前宿主不支持保存资源文件");
+          if (
+            typeof file?.name !== "string" ||
+            !file.name.trim() ||
+            typeof file.mimeType !== "string" ||
+            !(file.content instanceof Uint8Array)
+          )
+            throw new Error("文件无效");
+          const signal = AbortSignal.any([
+            scope.signal,
+            ...(options?.signal ? [options.signal] : []),
+          ]);
+          signal.throwIfAborted();
+          const url = await save({ ...file, content: new Uint8Array(file.content) }, signal);
+          signal.throwIfAborted();
+          this.assertActive(entry, activation);
+          return url;
+        },
         uploadRemote: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
           this.assertActive(entry, activation);
           const uploadRemote = this.options.upload?.uploadRemote;

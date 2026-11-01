@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.54.0
+
+- 新增 `context.tts.open({ signal })` 朗读：沿用用户在「设置 › 语音」里选的服务与模型，返回会话 `{ providerName, textInstructions, getVoices, synthesize, close }`，插件停用时自动关闭；`unavailableReason()` 判断能否朗读。需要在 manifest 声明新权限 `tts:synthesize`，首次调用时询问用户；宿主未接入时 `open` 抛 `TTS_UNAVAILABLE`。新增宿主接口 `TTSSynthesisAdapter`。目前只有桌面支持。
+- 新增 `context.upload.save(file, { signal })`：按用户当前的资源存储（本地库或资源上传插件）保存文件，返回可写入正文、可交给 `useResource` / `MediaAudio` 的地址。宿主上传适配器新增可选 `save`，未提供时抛 `UPLOAD_UNAVAILABLE`。目前只有桌面支持。
+
 ## 0.53.0
 
 - 新增 `useSettingsDraft({ dirty, errors?, changes?, save, reset, onInvalid?, saveLabel?, savingText? })`：插件设置组件报告草稿状态，Tau 在有改动时显示悬浮保存条（⌘S 保存），切换页面、标签、设置分组或关闭窗口前询问「保存并离开 / 继续编辑 / 放弃修改」。`save` 抛错时保存条显示错误；`errors` 大于 0 时不能保存。返回 `{ saving, save }`，不在 Tau 设置分区内时返回 null，组件需要自己提供保存入口。
