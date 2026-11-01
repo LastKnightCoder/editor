@@ -6,7 +6,7 @@
     <title>认知偏误与决策科学 — 学术演示</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #fffef9;
@@ -20,7 +20,7 @@
             --border: #d4d0c8;
             --border-light: #e8e6e0;
 
-            --serif: "Crimson Text", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --serif: "Crimson Text", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
             --sans: "Source Sans 3", "PingFang SC", "Noto Sans SC", sans-serif;
             --mono: "JetBrains Mono", "SF Mono", monospace;
 
@@ -78,7 +78,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: center;
             padding: var(--pad-slide-top) var(--pad-slide-x) clamp(60px, 8vh, 100px);
             opacity: 0;
             visibility: hidden;
@@ -108,21 +108,19 @@
         }
 
         .active .reveal { opacity: 1; transform: translateY(0); }
-        .active .reveal.delay-1 { transition-delay: 100ms; }
-        .active .reveal.delay-2 { transition-delay: 200ms; }
-        .active .reveal.delay-3 { transition-delay: 300ms; }
-        .active .reveal.delay-4 { transition-delay: 400ms; }
-        .active .reveal.delay-5 { transition-delay: 500ms; }
-        .active .reveal.delay-6 { transition-delay: 600ms; }
-        .active .reveal.delay-7 { transition-delay: 700ms; }
+        .active .reveal.d1 { transition-delay: 100ms; }
+        .active .reveal.d2 { transition-delay: 200ms; }
+        .active .reveal.d3 { transition-delay: 300ms; }
+        .active .reveal.d4 { transition-delay: 400ms; }
+        .active .reveal.d5 { transition-delay: 500ms; }
+        .active .reveal.d6 { transition-delay: 600ms; }
+        .active .reveal.d7 { transition-delay: 700ms; }
 
         /* ========== COVER SLIDE ========== */
 
-        /* 封面、章节与引言页居中；其余内容页顶部对齐，标题固定在左上角 */
         .slide-cover {
             text-align: center;
             align-items: center;
-            justify-content: center;
             background: var(--bg);
         }
 
@@ -144,8 +142,6 @@
             color: var(--primary);
             margin-bottom: var(--space-md);
         }
-
-        .cover-title--closing { font-size: var(--fs-h2); }
 
         .cover-subtitle {
             font-family: var(--serif);
@@ -188,7 +184,6 @@
         .slide-section {
             background: var(--bg-alt);
             align-items: flex-start;
-            justify-content: center;
         }
 
         .section-num {
@@ -224,18 +219,6 @@
 
         /* ========== CONTENT SLIDES ========== */
 
-        /* 内容页：标题区固定在左上角；正文区占满剩余高度，内容在其中垂直居中，脚注在页面底部 */
-        .slide-body {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: safe center;
-        }
-        /* 首尾元素的外边距会让居中偏移 */
-        .slide-body > :first-child { margin-top: 0; }
-        .slide-body > :last-child { margin-bottom: 0; }
-
         .slide-header {
             font-family: var(--sans);
             font-size: var(--fs-label);
@@ -261,7 +244,6 @@
             line-height: 1.9;
             text-align: justify;
             hyphens: auto;
-            margin-top: var(--space-md);
         }
 
         .highlight {
@@ -325,6 +307,30 @@
 
         /* ========== NUMBERED / BULLET LIST ========== */
 
+        .academic-list {
+            list-style: none;
+            margin-top: var(--space-sm);
+            counter-reset: academic-item;
+        }
+
+        .academic-list li {
+            position: relative;
+            padding-left: clamp(28px, 3vw, 42px);
+            margin-bottom: var(--space-sm);
+            font-size: var(--fs-body);
+            line-height: 1.8;
+        }
+
+        .academic-list li::before {
+            counter-increment: academic-item;
+            content: counter(academic-item) ".";
+            position: absolute;
+            left: 0;
+            font-family: var(--serif);
+            font-weight: 700;
+            color: var(--accent);
+        }
+
         .bullet-list {
             list-style: none;
             margin-top: var(--space-sm);
@@ -349,41 +355,6 @@
             background: var(--accent);
         }
 
-        /* ========== RESEARCH QUESTIONS / HYPOTHESES ========== */
-
-        .hypothesis-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-md);
-            margin-top: var(--space-sm);
-        }
-
-        .hypothesis-list li {
-            display: grid;
-            grid-template-columns: clamp(3rem, 5vw, 4.5rem) 1fr;
-            align-items: baseline;
-            padding-bottom: var(--space-md);
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .hypothesis-list li:last-child { border-bottom: none; }
-
-        .hypothesis-label {
-            font-family: var(--serif);
-            font-size: var(--fs-h3);
-            font-weight: 700;
-            font-style: italic;
-            color: var(--accent);
-        }
-
-        .hypothesis-list p {
-            font-family: var(--serif);
-            font-size: var(--fs-h3);
-            line-height: 1.6;
-            color: var(--primary);
-        }
-
         /* ========== DATA TABLE ========== */
 
         .table-wrap {
@@ -399,9 +370,10 @@
 
         .data-table caption {
             font-size: var(--fs-small);
-            color: var(--primary);
+            color: var(--text-dim);
             text-align: left;
             padding-bottom: var(--space-sm);
+            font-style: italic;
             caption-side: top;
         }
 
@@ -410,21 +382,22 @@
             font-weight: 700;
             font-size: var(--fs-small);
             color: var(--primary);
+            background: var(--bg-alt);
             text-align: left;
             padding: var(--space-sm) var(--space-sm);
-            border-top: 2px solid var(--primary);
-            border-bottom: 1px solid var(--primary);
+            border-bottom: 2px solid var(--border);
         }
 
         .data-table tbody td {
             padding: var(--space-sm) var(--space-sm);
+            border-bottom: 1px solid var(--border-light);
             font-size: var(--fs-small);
             color: var(--text-dim);
             vertical-align: top;
         }
 
-        .data-table tbody tr:last-child td { border-bottom: 2px solid var(--primary); }
-        .data-table .num-cell { font-family: var(--mono); font-size: var(--fs-xs); text-align: right; }
+        .data-table tbody tr:last-child td { border-bottom: 2px solid var(--border); }
+        .data-table .num-cell { font-family: var(--mono); font-size: var(--fs-xs); }
         .data-table .em-row td { font-weight: 600; color: var(--primary); }
 
         .table-note {
@@ -436,8 +409,6 @@
 
         /* ========== BLOCKQUOTE ========== */
 
-        .slide-quote { justify-content: center; }
-
         .academic-quote {
             font-family: var(--serif);
             font-size: var(--fs-h3);
@@ -448,6 +419,7 @@
             padding: var(--space-md) var(--space-lg);
             background: var(--accent-light);
             border-radius: 4px;
+            margin: var(--space-md) 0;
         }
 
         .academic-quote cite {
@@ -460,12 +432,51 @@
             color: var(--accent);
         }
 
-        .academic-quote cite::before { content: "— "; }
+        /* ========== STAT GRID ========== */
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+        }
+
+        .stat-card {
+            background: var(--bg-alt);
+            border-radius: 4px;
+            padding: var(--space-md);
+            text-align: center;
+            border-top: 3px solid var(--accent);
+        }
+
+        .stat-value {
+            font-family: var(--mono);
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-weight: 500;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .stat-label {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .stat-source {
+            font-size: var(--fs-xs);
+            color: var(--text-dim);
+            font-style: italic;
+            margin-top: var(--space-xs);
+        }
 
         /* ========== FOOTNOTES ========== */
 
         .footnotes {
-            margin-top: var(--space-md);
+            position: absolute;
+            bottom: clamp(40px, 6vh, 80px);
+            left: var(--pad-slide-x);
+            right: var(--pad-slide-x);
             padding-top: var(--space-sm);
             border-top: 1px solid var(--border-light);
         }
@@ -494,7 +505,7 @@
             line-height: 1.7;
             color: var(--text-dim);
             padding-left: clamp(24px, 2.5vw, 36px);
-            text-indent: calc(-1 * clamp(24px, 2.5vw, 36px));
+            text-indent: clamp(-24px, -2.5vw, -36px);
             margin-bottom: var(--space-sm);
         }
 
@@ -626,6 +637,37 @@
             line-height: 1.7;
         }
 
+        /* ========== BIG STATEMENT ========== */
+
+        .slide-statement {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .statement-text {
+            font-family: var(--serif);
+            font-size: clamp(1.8rem, 4vw, 3.5rem);
+            font-weight: 700;
+            line-height: 1.45;
+            color: var(--primary);
+        }
+
+        .statement-text .accent {
+            color: var(--accent);
+            border-bottom: 2px solid rgba(26, 95, 122, 0.3);
+            padding-bottom: 2px;
+        }
+
+        .statement-sub {
+            margin-top: var(--space-md);
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-style: italic;
+            color: var(--text-dim);
+            line-height: 1.9;
+        }
+
         /* ========== CHART / PROGRESS BARS ========== */
 
         .chart-list {
@@ -673,27 +715,143 @@
             font-weight: 500;
         }
 
-        /* ========== FIGURE ========== */
+        /* ========== MATRIX / QUADRANT ========== */
 
-        .figure {
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--space-md);
             margin-top: var(--space-md);
-            padding: var(--space-md) 0;
-            border-top: 1px solid var(--border-light);
-            border-bottom: 1px solid var(--border-light);
+            width: 100%;
+            position: relative;
         }
 
-        .figure .chart-list { margin-top: 0; }
-
-        .figure figcaption {
-            margin-top: var(--space-md);
-            font-size: var(--fs-small);
-            line-height: 1.7;
-            color: var(--text-dim);
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
         }
 
-        .figure-num {
+        .matrix-grid::before {
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, var(--border) 20%, var(--border) 80%, transparent);
+        }
+
+        .matrix-grid::after {
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 1px;
+            transform: translateY(-0.5px);
+            background: linear-gradient(to right, transparent, var(--border) 20%, var(--border) 80%, transparent);
+        }
+
+        .matrix-cell {
+            background: var(--accent-light);
+            padding: var(--space-md);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+        }
+
+        .cell-quadrant {
+            font-family: var(--serif);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-title {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
             font-weight: 700;
             color: var(--primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== SPLIT DETAIL ========== */
+
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(24px, 3vw, 48px);
+            margin-top: var(--space-md);
+            width: 100%;
+            align-items: start;
+        }
+
+        .split-visual {
+            background: var(--accent-light);
+            border: 1px solid var(--border-light);
+            padding: var(--space-md);
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .split-visual-label {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .split-visual-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+            font-style: italic;
+        }
+
+        .split-info h3 {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-sm);
+            padding-bottom: var(--space-xs);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .split-info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .split-info-list li {
+            padding: var(--space-xs) 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.8;
+            padding-left: clamp(20px, 2.5vw, 32px);
+            position: relative;
+        }
+
+        .split-info-list li::before {
+            content: '';
+            position: absolute;
+            left: clamp(4px, 0.5vw, 8px);
+            top: clamp(10px, 1.2vh, 14px);
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
         }
 
         /* ========== HEIGHT BREAKPOINTS ========== */
@@ -704,6 +862,7 @@
                 --space-lg: clamp(16px, 2vw, 32px);
                 --space-xl: clamp(20px, 3vw, 40px);
             }
+            .footnotes { bottom: clamp(28px, 4vh, 48px); }
             .academic-quote { font-size: var(--fs-body); padding: var(--space-sm) var(--space-md); }
         }
 
@@ -716,7 +875,11 @@
             }
             .cover-title { margin-bottom: var(--space-sm); }
             .cover-subtitle { margin-bottom: var(--space-sm); }
+            .stat-grid { gap: var(--space-sm); }
+            .stat-card { padding: var(--space-sm); }
             .chart-list { gap: var(--space-xs); }
+            .matrix-grid { gap: var(--space-sm); }
+            .split-detail { gap: var(--space-sm); }
         }
 
         @media (max-height: 500px) and (orientation: landscape) {
@@ -732,6 +895,8 @@
             .footnotes { display: none; }
             .two-col { gap: var(--space-sm); }
             .summary-grid { gap: var(--space-sm); }
+            .split-detail { gap: var(--space-xs); }
+            .matrix-grid { gap: var(--space-xs); }
             .chart-list { gap: clamp(2px, 0.3vh, 4px); }
         }
 
@@ -745,10 +910,14 @@
                 --fs-h3: clamp(1rem, 3vw, 1.4rem);
             }
             .two-col { grid-template-columns: 1fr; gap: var(--space-md); }
+            .stat-grid { grid-template-columns: 1fr; gap: var(--space-sm); }
             .summary-grid { grid-template-columns: 1fr; gap: var(--space-sm); }
             .data-table { font-size: var(--fs-xs); }
             .data-table thead th,
             .data-table tbody td { padding: var(--space-xs) var(--space-sm); }
+            .matrix-grid { grid-template-columns: 1fr; }
+            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .split-detail { grid-template-columns: 1fr; }
             .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
         }
 
@@ -787,275 +956,411 @@
 
     <div class="presentation" role="region" aria-label="学术演示">
 
-        <!-- ==================== 封面：作者上标 + 单位脚注 ==================== -->
+        <!-- ==================== SLIDE 1: 封面 ==================== -->
         <section class="slide slide-cover active" aria-label="封面">
-            <p class="cover-institution reveal delay-1">学术研讨会 · 行为科学前沿</p>
-            <h1 class="cover-title reveal delay-2">认知偏误与决策科学</h1>
-            <p class="cover-subtitle reveal delay-3">Cognitive Biases and Decision Science</p>
-            <div class="cover-divider reveal delay-4"></div>
-            <p class="cover-authors reveal delay-5">王明哲<sup>1</sup>　　陈思远<sup>2</sup>　　林晓彤<sup>1,2</sup></p>
-            <p class="cover-affiliation reveal delay-6"><sup>1</sup> 北京大学心理与认知科学学院　　<sup>2</sup> 清华大学社会科学学院</p>
-            <p class="cover-date reveal delay-7">2026 年 3 月</p>
+            <p class="cover-institution reveal d1">学术研讨会 · 行为科学前沿</p>
+            <h1 class="cover-title reveal d2">认知偏误与决策科学</h1>
+            <p class="cover-subtitle reveal d3">Cognitive Biases and Decision Science</p>
+            <div class="cover-divider reveal d4"></div>
+            <p class="cover-authors reveal d5">王明哲<sup>1</sup>　　陈思远<sup>2</sup>　　林晓彤<sup>1,2</sup></p>
+            <p class="cover-affiliation reveal d6"><sup>1</sup> 北京大学心理与认知科学学院　　<sup>2</sup> 清华大学社会科学学院</p>
+            <p class="cover-date reveal d7">2026 年 3 月</p>
         </section>
 
-        <!-- ==================== 目录：罗马数字章节编号 ==================== -->
+        <!-- ==================== SLIDE 2: 目录 ==================== -->
         <section class="slide slide-section" aria-label="目录">
             <div class="section-num reveal">OUTLINE</div>
-            <h2 class="section-title reveal delay-1">研究内容概览</h2>
-            <div class="section-line reveal delay-2"></div>
+            <h2 class="section-title reveal d1">研究内容概览</h2>
+            <div class="section-line reveal d2"></div>
             <ul class="toc-list">
-                <li class="reveal delay-3">
+                <li class="reveal d3">
                     <span class="toc-num">I</span>
-                    理论基础与实验证据
-                    <span class="toc-sub">概念界定、经典实验范式与效应量</span>
+                    认知偏误的理论基础
+                    <span class="toc-sub">概念定义、双系统理论与分类框架</span>
                 </li>
-                <li class="reveal delay-4">
+                <li class="reveal d4">
                     <span class="toc-num">II</span>
-                    决策科学的应用
-                    <span class="toc-sub">默认选项、去偏策略与政策设计</span>
+                    偏误的实验证据与量化
+                    <span class="toc-sub">经典实验范式、核心数据与统计发现</span>
                 </li>
-                <li class="reveal delay-5">
+                <li class="reveal d5">
                     <span class="toc-num">III</span>
-                    结论与局限
-                    <span class="toc-sub">主要发现、研究局限与未来方向</span>
+                    决策科学的应用
+                    <span class="toc-sub">行为干预、去偏策略与政策设计</span>
+                </li>
+                <li class="reveal d6">
+                    <span class="toc-num">IV</span>
+                    总结与展望
+                    <span class="toc-sub">核心结论、研究局限与未来方向</span>
                 </li>
             </ul>
         </section>
 
-        <!-- ==================== 研究问题与假设：RQ / H 编号 ==================== -->
-        <section class="slide" aria-label="研究问题与假设">
-            <div class="slide-header reveal">RESEARCH QUESTIONS</div>
-            <h2 class="slide-title reveal delay-1">研究问题与假设</h2>
-            <div class="slide-body">
-                <ol class="hypothesis-list">
-                    <li class="reveal delay-2">
-                        <span class="hypothesis-label">RQ</span>
-                        <p>认知偏误是随机误差，还是具有方向性、可预测的系统性偏离？</p>
-                    </li>
-                    <li class="reveal delay-3">
-                        <span class="hypothesis-label">H1</span>
-                        <p>经典偏误在跨样本元分析中均呈现中到大效应量（d &gt; 0.5）。</p>
-                    </li>
-                    <li class="reveal delay-4">
-                        <span class="hypothesis-label">H2</span>
-                        <p>改变决策架构的干预，其去偏效果显著优于单纯的信息告知。</p>
-                    </li>
-                </ol>
-            </div>
-        </section>
-
-        <!-- ==================== 章节过渡：SECTION 编号 ==================== -->
+        <!-- ==================== SLIDE 3: SECTION I 过渡 ==================== -->
         <section class="slide slide-section" aria-label="章节一">
             <div class="section-num reveal">SECTION I</div>
-            <h2 class="section-title reveal delay-1">理论基础与实验证据</h2>
-            <div class="section-line reveal delay-2"></div>
-            <p class="section-desc reveal delay-3">从启发式判断到双系统理论，理解人类非理性决策的认知根源</p>
+            <h2 class="section-title reveal d1">认知偏误的理论基础</h2>
+            <div class="section-line reveal d2"></div>
+            <p class="section-desc reveal d3">从启发式判断到双系统理论——理解人类非理性决策的认知根源</p>
         </section>
 
-        <!-- ==================== 定义：定义框 + 页脚脚注 ==================== -->
+        <!-- ==================== SLIDE 4: 定义 ==================== -->
         <section class="slide" aria-label="核心定义">
             <div class="slide-header reveal">DEFINITIONS</div>
-            <h2 class="slide-title reveal delay-1">核心概念界定</h2>
-            <div class="slide-body">
-                <div class="definition-box reveal delay-2">
-                    <div class="definition-term">定义 1　认知偏误（Cognitive Bias）</div>
-                    <p class="definition-body">认知偏误是指个体在信息加工过程中，因依赖心理捷径（启发式）而产生的<span class="highlight">系统性偏离理性规范</span>的判断倾向。这些偏离并非随机错误，而是具有可预测性和方向性的。<a class="cite-mark" title="Tversky & Kahneman, 1974">[1]</a></p>
-                </div>
-                <div class="definition-box reveal delay-3">
-                    <div class="definition-term">定义 2　双系统理论（Dual-Process Theory）</div>
-                    <p class="definition-body">人类认知由两套并行系统驱动：<strong>系统 1</strong>（快速、自动、直觉性）与<strong>系统 2</strong>（缓慢、审慎、分析性）。多数认知偏误源自系统 1 对系统 2 的越权干预。<a class="cite-mark" title="Kahneman, 2011">[2]</a></p>
-                </div>
+            <h2 class="slide-title reveal d1">核心概念界定</h2>
+
+            <div class="definition-box reveal d2">
+                <div class="definition-term">定义 1　认知偏误（Cognitive Bias）</div>
+                <p class="definition-body">认知偏误是指个体在信息加工过程中，因依赖心理捷径（启发式）而产生的<span class="highlight">系统性偏离理性规范</span>的判断倾向。这些偏离并非随机错误，而是具有可预测性和方向性的。<a class="cite-mark" title="Tversky & Kahneman, 1974">[1]</a></p>
             </div>
+
+            <div class="definition-box reveal d3">
+                <div class="definition-term">定义 2　双系统理论（Dual-Process Theory）</div>
+                <p class="definition-body">人类认知由两套并行系统驱动：<strong>系统 1</strong>（快速、自动、直觉性）与<strong>系统 2</strong>（缓慢、审慎、分析性）。多数认知偏误源自系统 1 对系统 2 的越权干预。<a class="cite-mark" title="Kahneman, 2011">[2]</a></p>
+            </div>
+
             <div class="footnotes">
-                <p class="footnote reveal delay-4"><sup>1</sup> Tversky, A., & Kahneman, D. (1974). Judgment under uncertainty: Heuristics and biases. <em>Science</em>, 185(4157), 1124–1131.</p>
-                <p class="footnote reveal delay-5"><sup>2</sup> Kahneman, D. (2011). <em>Thinking, Fast and Slow</em>. Farrar, Straus and Giroux.</p>
+                <p class="footnote reveal d4"><sup>1</sup> Tversky, A., & Kahneman, D. (1974). Judgment under uncertainty: Heuristics and biases. <em>Science</em>, 185(4157), 1124–1131.</p>
+                <p class="footnote reveal d5"><sup>2</sup> Kahneman, D. (2011). <em>Thinking, Fast and Slow</em>. Farrar, Straus and Giroux.</p>
             </div>
         </section>
 
-        <!-- ==================== 三线表：表题在上 + 表注 ==================== -->
+        <!-- ==================== SLIDE: 双系统详解 ==================== -->
+        <section class="slide" aria-label="双系统详解">
+            <div class="slide-header reveal">DUAL-PROCESS THEORY</div>
+            <h2 class="slide-title reveal d1">双系统理论的运作机制</h2>
+
+            <div class="split-detail">
+                <div class="split-visual reveal d2">
+                    <div class="split-visual-label">系统 1</div>
+                    <div class="split-visual-desc">快速、自动、直觉性、低努力、高频运作；负责日常决策的 95% 以上，但容易受到启发式偏误的系统性干扰</div>
+                </div>
+                <div class="split-info reveal d3">
+                    <h3>系统 2 的核心特征</h3>
+                    <ul class="split-info-list">
+                        <li>需要有意识地分配注意力资源，认知负荷高</li>
+                        <li>运算速度慢但精确，适用于复杂逻辑推理</li>
+                        <li>具备监控与纠正系统 1 输出的能力</li>
+                        <li>在疲劳、时间压力下容易让渡控制权给系统 1</li>
+                        <li>可通过训练与制度设计来强化其介入概率</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footnotes">
+                <p class="footnote reveal d4"><sup>*</sup> 双系统理论由 Stanovich & West (2000) 正式命名，Kahneman (2011) 在《思考，快与慢》中广泛推广。</p>
+            </div>
+        </section>
+
+        <!-- ==================== SLIDE 5: 主要偏误类型 ==================== -->
+        <section class="slide" aria-label="主要偏误类型">
+            <div class="slide-header reveal">KEY FINDINGS</div>
+            <h2 class="slide-title reveal d1">六种核心认知偏误</h2>
+
+            <div class="two-col">
+                <div>
+                    <ul class="bullet-list">
+                        <li class="reveal d2"><strong>锚定效应</strong>：初始信息对后续判断产生不成比例的影响，即使该信息与决策无关<a class="cite-mark" title="Tversky & Kahneman, 1974">[1]</a></li>
+                        <li class="reveal d3"><strong>确认偏误</strong>：倾向于搜索、解读和记忆能够确认既有信念的信息<a class="cite-mark" title="Nickerson, 1998">[3]</a></li>
+                        <li class="reveal d4"><strong>可得性启发</strong>：根据事例浮现脑海的容易程度来估计概率，而非依据客观频率<a class="cite-mark" title="Tversky & Kahneman, 1973">[4]</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <ul class="bullet-list">
+                        <li class="reveal d3"><strong>框架效应</strong>：对同一问题的不同表述方式（正面 vs 负面）导致截然不同的决策偏好<a class="cite-mark" title="Tversky & Kahneman, 1981">[5]</a></li>
+                        <li class="reveal d4"><strong>禀赋效应</strong>：人们对已拥有事物的估值显著高于未拥有时的意愿支付价格<a class="cite-mark" title="Thaler, 1980">[6]</a></li>
+                        <li class="reveal d5"><strong>过度自信</strong>：对自身判断准确性的系统性高估，置信区间持续偏窄<a class="cite-mark" title="Moore & Healy, 2008">[7]</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footnotes">
+                <p class="footnote reveal d6"><sup>3</sup> Nickerson, R. S. (1998). Confirmation bias: A ubiquitous phenomenon. <em>Review of General Psychology</em>, 2(2), 175–220.</p>
+            </div>
+        </section>
+
+        <!-- ==================== SLIDE 6: 数据表格 ==================== -->
         <section class="slide" aria-label="实验数据">
             <div class="slide-header reveal">EXPERIMENTAL DATA</div>
-            <h2 class="slide-title reveal delay-1">经典实验效应量汇总</h2>
-            <div class="slide-body">
-                <div class="table-wrap reveal delay-2">
-                    <table class="data-table">
-                        <caption>表 1　五项代表性实验中的认知偏误效应量（Cohen's d）</caption>
-                        <thead>
-                            <tr>
-                                <th>偏误类型</th>
-                                <th>经典实验范式</th>
-                                <th class="num-cell">效应量 (d)</th>
-                                <th class="num-cell">样本量</th>
-                                <th>元分析来源</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>锚定效应</td>
-                                <td>随机数字 × 估计任务</td>
-                                <td class="num-cell">1.24</td>
-                                <td class="num-cell">2,429</td>
-                                <td>Furnham & Boo, 2011</td>
-                            </tr>
-                            <tr>
-                                <td>框架效应</td>
-                                <td>亚洲疾病问题</td>
-                                <td class="num-cell">0.65</td>
-                                <td class="num-cell">4,713</td>
-                                <td>Piñon & Gambara, 2005</td>
-                            </tr>
-                            <tr>
-                                <td>确认偏误</td>
-                                <td>Wason 选择任务</td>
-                                <td class="num-cell">0.89</td>
-                                <td class="num-cell">1,856</td>
-                                <td>Nickerson, 1998</td>
-                            </tr>
-                            <tr>
-                                <td>禀赋效应</td>
-                                <td>马克杯交换实验</td>
-                                <td class="num-cell">0.78</td>
-                                <td class="num-cell">1,432</td>
-                                <td>Morewedge & Giblin, 2015</td>
-                            </tr>
-                            <tr class="em-row">
-                                <td>过度自信</td>
-                                <td>90% 置信区间校准</td>
-                                <td class="num-cell">1.08</td>
-                                <td class="num-cell">3,201</td>
-                                <td>Moore & Healy, 2008</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="table-note reveal delay-3">注：d &gt; 0.8 通常视为大效应量；加粗行标示正文重点讨论的结果；所有数据均通过随机效应模型计算，H1 得到支持。</p>
+            <h2 class="slide-title reveal d1">经典实验效应量汇总</h2>
+
+            <div class="table-wrap reveal d2">
+                <table class="data-table">
+                    <caption>表 1：五项代表性实验中的认知偏误效应量（Cohen's d）</caption>
+                    <thead>
+                        <tr>
+                            <th>偏误类型</th>
+                            <th>经典实验范式</th>
+                            <th>效应量 (d)</th>
+                            <th>样本量</th>
+                            <th>元分析来源</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>锚定效应</td>
+                            <td>随机数字 × 估计任务</td>
+                            <td class="num-cell">1.24</td>
+                            <td class="num-cell">n = 2,429</td>
+                            <td>Furnham & Boo, 2011</td>
+                        </tr>
+                        <tr>
+                            <td>框架效应</td>
+                            <td>亚洲疾病问题</td>
+                            <td class="num-cell">0.65</td>
+                            <td class="num-cell">n = 4,713</td>
+                            <td>Piñon & Gambara, 2005</td>
+                        </tr>
+                        <tr>
+                            <td>确认偏误</td>
+                            <td>Wason 选择任务</td>
+                            <td class="num-cell">0.89</td>
+                            <td class="num-cell">n = 1,856</td>
+                            <td>Nickerson, 1998</td>
+                        </tr>
+                        <tr>
+                            <td>禀赋效应</td>
+                            <td>马克杯交换实验</td>
+                            <td class="num-cell">0.78</td>
+                            <td class="num-cell">n = 1,432</td>
+                            <td>Morewedge & Giblin, 2015</td>
+                        </tr>
+                        <tr class="em-row">
+                            <td>过度自信</td>
+                            <td>90% 置信区间校准</td>
+                            <td class="num-cell">1.08</td>
+                            <td class="num-cell">n = 3,201</td>
+                            <td>Moore & Healy, 2008</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="table-note reveal d3">注：d > 0.8 通常被视为大效应量。所有数据均通过随机效应模型计算。</p>
+
+            <div class="footnotes">
+                <p class="footnote reveal d4"><sup>*</sup> 效应量数据综合自多项元分析研究，具体数值因纳入标准差异可能存在细微波动。</p>
             </div>
         </section>
 
-        <!-- ==================== 章节过渡 ==================== -->
+        <!-- ==================== SLIDE 7: SECTION II 过渡 ==================== -->
         <section class="slide slide-section" aria-label="章节二">
             <div class="section-num reveal">SECTION II</div>
-            <h2 class="section-title reveal delay-1">决策科学的应用</h2>
-            <div class="section-line reveal delay-2"></div>
-            <p class="section-desc reveal delay-3">从实验室发现到现实干预，助推理论与去偏策略的实践</p>
+            <h2 class="section-title reveal d1">决策科学的应用</h2>
+            <div class="section-line reveal d2"></div>
+            <p class="section-desc reveal d3">从实验室发现到现实干预——助推理论与去偏策略的实践</p>
         </section>
 
-        <!-- ==================== 对照研究：案例 A / B + 文中引用 ==================== -->
+        <!-- ==================== SLIDE 8: 案例对比 ==================== -->
         <section class="slide" aria-label="案例对比">
             <div class="slide-header reveal">CASE STUDY</div>
-            <h2 class="slide-title reveal delay-1">默认选项的力量：器官捐献登记</h2>
-            <div class="slide-body">
-                <div class="two-col">
-                    <div class="reveal delay-2">
-                        <div class="col-heading">案例 A　选择加入（德国）</div>
-                        <ul class="bullet-list">
-                            <li>需主动填写同意书</li>
-                            <li>登记率仅 <strong>12%</strong></li>
-                            <li>现状偏见的典型体现<a class="cite-mark" title="Johnson & Goldstein, 2003">[3]</a></li>
-                        </ul>
-                    </div>
-                    <div class="reveal delay-3">
-                        <div class="col-heading">案例 B　选择退出（奥地利）</div>
-                        <ul class="bullet-list">
-                            <li>默认同意，不愿者主动退出</li>
-                            <li>登记率达 <strong>99.98%</strong></li>
-                            <li>保留完整的选择自由<a class="cite-mark" title="Thaler & Sunstein, 2008">[4]</a></li>
-                        </ul>
-                    </div>
+            <h2 class="slide-title reveal d1">去偏干预：默认选项的力量</h2>
+
+            <div class="two-col">
+                <div class="reveal d2">
+                    <div class="col-heading">案例 A：传统「选择加入」模式</div>
+                    <ul class="bullet-list">
+                        <li>器官捐献需主动填写同意书</li>
+                        <li>德国登记率仅 <strong>12%</strong></li>
+                        <li>决策负担导致系统性拖延</li>
+                        <li>现状偏见（Status Quo Bias）的典型体现<a class="cite-mark" title="Johnson & Goldstein, 2003">[8]</a></li>
+                    </ul>
                 </div>
-                <p class="body-text reveal delay-4">两国文化相近、医疗水平相当，仅<span class="highlight">默认选项</span>的差异即造成近 88 个百分点的差距。</p>
+                <div class="reveal d3">
+                    <div class="col-heading">案例 B：「选择退出」默认同意</div>
+                    <ul class="bullet-list">
+                        <li>默认为同意，不愿者需主动退出</li>
+                        <li>奥地利登记率达 <strong>99.98%</strong></li>
+                        <li>保留了完整的选择自由</li>
+                        <li>自由主义家长制（Libertarian Paternalism）的成功实践<a class="cite-mark" title="Thaler & Sunstein, 2008">[9]</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="body-text reveal d4" style="margin-top: var(--space-md);">
+                两国文化相近、医疗水平相当，仅<span class="highlight">默认选项</span>的差异即造成捐献率近 <strong>88 个百分点</strong>的悬殊。此案例表明，决策架构设计（Choice Architecture）对行为的塑造力远超信息告知与理性说服。
+            </p>
+
+            <div class="footnotes">
+                <p class="footnote reveal d5"><sup>8</sup> Johnson, E. J., & Goldstein, D. (2003). Do defaults save lives? <em>Science</em>, 302(5649), 1338–1339.</p>
             </div>
         </section>
 
-        <!-- ==================== 图：图表在上 + 图题在下 ==================== -->
+        <!-- ==================== SLIDE: 去偏策略有效性 ==================== -->
         <section class="slide" aria-label="去偏策略有效性">
-            <div class="slide-header reveal">FIGURE</div>
-            <h2 class="slide-title reveal delay-1">去偏干预策略的有效性</h2>
-            <div class="slide-body">
-                <figure class="figure reveal delay-2">
-                    <div class="chart-list">
-                        <div class="chart-item">
-                            <div class="chart-label">默认选项重构</div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
-                            <div class="chart-value">92%</div>
-                        </div>
-                        <div class="chart-item">
-                            <div class="chart-label">决策前反思提示</div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="78"></div></div>
-                            <div class="chart-value">78%</div>
-                        </div>
-                        <div class="chart-item">
-                            <div class="chart-label">对立观点激活</div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="71"></div></div>
-                            <div class="chart-value">71%</div>
-                        </div>
-                        <div class="chart-item">
-                            <div class="chart-label">单纯知识告知</div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="23"></div></div>
-                            <div class="chart-value">23%</div>
-                        </div>
-                    </div>
-                    <figcaption><span class="figure-num">图 1</span>　各类去偏干预后偏误减少的比例。改变决策架构的策略明显优于信息告知，H2 得到支持。<a class="cite-mark" title="Soll et al., 2015">[5]</a></figcaption>
-                </figure>
-            </div>
-        </section>
+            <div class="slide-header reveal">DEBIASING EFFECTIVENESS</div>
+            <h2 class="slide-title reveal d1">去偏干预策略的有效性</h2>
 
-        <!-- ==================== 学者引言 ==================== -->
-        <section class="slide slide-quote" aria-label="学者引言">
-            <blockquote class="academic-quote reveal delay-1">
-                <p>“我们自以为根据理性做出判断，实际上只是在为直觉的结论寻找理由。”</p>
-                <cite>Daniel Kahneman，2002 年诺贝尔经济学奖得主</cite>
-            </blockquote>
-        </section>
-
-        <!-- ==================== 结论与局限 ==================== -->
-        <section class="slide" aria-label="结论与局限">
-            <div class="slide-header reveal">CONCLUSIONS</div>
-            <h2 class="slide-title reveal delay-1">结论、局限与未来方向</h2>
-            <div class="slide-body">
-                <div class="summary-grid">
-                    <div class="summary-item reveal delay-2">
-                        <h4>主要结论</h4>
-                        <p>经典偏误均呈中到大效应量（d ≥ 0.65），是系统性而非随机的偏离。</p>
-                    </div>
-                    <div class="summary-item reveal delay-3">
-                        <h4>应用价值</h4>
-                        <p>助推策略通过重构决策架构，以低成本实现高收益的行为干预。</p>
-                    </div>
-                    <div class="summary-item reveal delay-4">
-                        <h4>研究局限</h4>
-                        <p>样本以 WEIRD 人群为主，实验室效应向真实情境的外推仍需检验。</p>
-                    </div>
-                    <div class="summary-item reveal delay-5">
-                        <h4>未来方向</h4>
-                        <p>结合神经影像与计算建模探究偏误机制，发展个性化去偏方案。</p>
-                    </div>
+            <div class="chart-list">
+                <div class="chart-item reveal d2">
+                    <div class="chart-label">默认选项重构</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
+                    <div class="chart-value">92%</div>
+                </div>
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">决策前反思提示</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="78"></div></div>
+                    <div class="chart-value">78%</div>
+                </div>
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">对立观点激活</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="71"></div></div>
+                    <div class="chart-value">71%</div>
+                </div>
+                <div class="chart-item reveal d4">
+                    <div class="chart-label">统计素养训练</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="64"></div></div>
+                    <div class="chart-value">64%</div>
+                </div>
+                <div class="chart-item reveal d5">
+                    <div class="chart-label">单纯知识告知</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="23"></div></div>
+                    <div class="chart-value">23%</div>
                 </div>
             </div>
+
+            <p class="body-text reveal d6" style="margin-top: var(--space-md);">
+                数据表明，<span class="highlight">改变决策架构</span>的策略远比单纯的信息告知更为有效。去偏的关键不在于"告诉人们偏误存在"，而在于"重新设计决策环境"。<a class="cite-mark" title="Soll et al., 2015">[*]</a>
+            </p>
         </section>
 
-        <!-- ==================== 参考文献：APA 悬挂缩进，置于结束页前 ==================== -->
+        <!-- ==================== SLIDE 9: 统计 ==================== -->
+        <section class="slide" aria-label="关键数据">
+            <div class="slide-header reveal">STATISTICS</div>
+            <h2 class="slide-title reveal d1">认知偏误的现实影响</h2>
+
+            <div class="stat-grid">
+                <div class="stat-card reveal d2">
+                    <div class="stat-value">88%</div>
+                    <div class="stat-label">投资者在牛市中出现<br>过度自信偏误</div>
+                    <div class="stat-source">Barber & Odean, 2001</div>
+                </div>
+                <div class="stat-card reveal d3">
+                    <div class="stat-value">73%</div>
+                    <div class="stat-label">医疗诊断决策受到<br>可得性启发影响</div>
+                    <div class="stat-source">Mamede et al., 2010</div>
+                </div>
+                <div class="stat-card reveal d4">
+                    <div class="stat-value">2.5×</div>
+                    <div class="stat-label">损失厌恶系数：损失<br>的痛苦感是收益的 2.5 倍</div>
+                    <div class="stat-source">Kahneman & Tversky, 1979</div>
+                </div>
+            </div>
+
+            <p class="body-text reveal d5" style="margin-top: var(--space-md);">
+                认知偏误并非纯粹的学术概念，它们在金融市场、医疗决策与公共政策中持续产生可量化的系统性影响<a class="cite-mark" title="Thaler, 2015">[10]</a>。理解这些偏误的运作机制，是设计有效干预方案的前提。
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE: 核心论断 ==================== -->
+        <section class="slide slide-statement" aria-label="核心论断" style="justify-content: center;">
+            <div class="slide-header reveal">THESIS</div>
+            <div class="statement-text reveal d1">
+                理性不是直觉的对立面，<br>而是对自身<span class="accent">偏误的觉察</span>与矫正
+            </div>
+            <p class="statement-sub reveal d2">认知偏误研究的终极价值不在于证明人类"不理性"，而在于揭示可预测的非理性模式——唯有理解偏差的系统性，方能设计出有效的干预方案。</p>
+            <div class="cover-divider reveal d3" style="margin: var(--space-md) auto 0;"></div>
+        </section>
+
+        <!-- ==================== SLIDE 10: 引用 ==================== -->
+        <section class="slide" aria-label="学者引言" style="justify-content: center;">
+            <blockquote class="academic-quote reveal d1">
+                "我们自以为根据理性做出判断，实际上只是在为直觉的结论寻找理由。<br>真正的理性，始于承认自身的非理性。"
+                <cite>— Daniel Kahneman，诺贝尔经济学奖得主（2002）</cite>
+            </blockquote>
+            <p class="body-text reveal d2" style="margin-top: var(--space-md);">
+                Kahneman 与 Tversky 的合作开创了<span class="highlight">行为经济学</span>这一学科，彻底改变了经济学对"理性人"假设的依赖。其核心洞见——人类决策在可预测的方向上偏离理性——已成为现代政策设计的理论基石。<a class="cite-mark" title="Kahneman, 2011">[2]</a>
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE 11: 参考文献 ==================== -->
         <section class="slide" aria-label="参考文献">
             <div class="slide-header reveal">REFERENCES</div>
-            <h2 class="slide-title reveal delay-1">参考文献</h2>
-            <div class="slide-body">
-                <div class="references-list reveal delay-2">
-                    <p class="ref-item"><span class="ref-num">[1]</span> Tversky, A., & Kahneman, D. (1974). Judgment under uncertainty: Heuristics and biases. <em>Science</em>, 185(4157), 1124–1131.</p>
-                    <p class="ref-item"><span class="ref-num">[2]</span> Kahneman, D. (2011). <em>Thinking, Fast and Slow</em>. New York: Farrar, Straus and Giroux.</p>
-                    <p class="ref-item"><span class="ref-num">[3]</span> Johnson, E. J., & Goldstein, D. (2003). Do defaults save lives? <em>Science</em>, 302(5649), 1338–1339.</p>
-                    <p class="ref-item"><span class="ref-num">[4]</span> Thaler, R. H., & Sunstein, C. R. (2008). <em>Nudge: Improving Decisions About Health, Wealth, and Happiness</em>. Yale University Press.</p>
-                    <p class="ref-item"><span class="ref-num">[5]</span> Soll, J. B., Milkman, K. L., & Payne, J. W. (2015). A user's guide to debiasing. In <em>The Wiley Blackwell Handbook of Judgment and Decision Making</em> (pp. 924–951). Wiley.</p>
-                </div>
+            <h2 class="slide-title reveal d1">参考文献</h2>
+
+            <div class="references-list reveal d2">
+                <p class="ref-item"><span class="ref-num">[1]</span> Tversky, A., & Kahneman, D. (1974). Judgment under uncertainty: Heuristics and biases. <em>Science</em>, 185(4157), 1124–1131.</p>
+                <p class="ref-item"><span class="ref-num">[2]</span> Kahneman, D. (2011). <em>Thinking, Fast and Slow</em>. New York: Farrar, Straus and Giroux.</p>
+                <p class="ref-item"><span class="ref-num">[3]</span> Nickerson, R. S. (1998). Confirmation bias: A ubiquitous phenomenon in many guises. <em>Review of General Psychology</em>, 2(2), 175–220.</p>
+                <p class="ref-item"><span class="ref-num">[4]</span> Tversky, A., & Kahneman, D. (1973). Availability: A heuristic for judging frequency and probability. <em>Cognitive Psychology</em>, 5(2), 207–232.</p>
+                <p class="ref-item"><span class="ref-num">[5]</span> Tversky, A., & Kahneman, D. (1981). The framing of decisions and the psychology of choice. <em>Science</em>, 211(4481), 453–458.</p>
+                <p class="ref-item"><span class="ref-num">[6]</span> Thaler, R. H. (1980). Toward a positive theory of consumer choice. <em>Journal of Economic Behavior & Organization</em>, 1(1), 39–60.</p>
+                <p class="ref-item"><span class="ref-num">[7]</span> Moore, D. A., & Healy, P. J. (2008). The trouble with overconfidence. <em>Psychological Review</em>, 115(2), 502–517.</p>
+                <p class="ref-item"><span class="ref-num">[8]</span> Johnson, E. J., & Goldstein, D. (2003). Do defaults save lives? <em>Science</em>, 302(5649), 1338–1339.</p>
+                <p class="ref-item"><span class="ref-num">[9]</span> Thaler, R. H., & Sunstein, C. R. (2008). <em>Nudge: Improving Decisions About Health, Wealth, and Happiness</em>. Yale University Press.</p>
+                <p class="ref-item"><span class="ref-num">[10]</span> Thaler, R. H. (2015). <em>Misbehaving: The Making of Behavioral Economics</em>. W. W. Norton & Company.</p>
             </div>
         </section>
 
-        <!-- ==================== 结束页 ==================== -->
+        <!-- ==================== SLIDE: 偏误分类矩阵 ==================== -->
+        <section class="slide" aria-label="偏误分类矩阵">
+            <div class="slide-header reveal">CLASSIFICATION MATRIX</div>
+            <h2 class="slide-title reveal d1">认知偏误的分类矩阵</h2>
+
+            <div class="matrix-grid">
+                <div class="matrix-cell reveal d2">
+                    <div class="cell-quadrant">I · 信息获取偏误</div>
+                    <div class="cell-title">注意力与记忆缺陷</div>
+                    <div class="cell-desc">可得性启发、聚光灯效应、选择性记忆——我们只"看见"容易获取的信息</div>
+                </div>
+                <div class="matrix-cell reveal d3">
+                    <div class="cell-quadrant">II · 信息加工偏误</div>
+                    <div class="cell-title">推理与判断失真</div>
+                    <div class="cell-desc">锚定效应、框架效应、基率忽视——我们"处理"信息的方式充满系统性扭曲</div>
+                </div>
+                <div class="matrix-cell reveal d4">
+                    <div class="cell-quadrant">III · 信念维持偏误</div>
+                    <div class="cell-title">自我强化与确认</div>
+                    <div class="cell-desc">确认偏误、信念固着、后见之明——我们倾向于维护已有信念而非修正它</div>
+                </div>
+                <div class="matrix-cell reveal d5">
+                    <div class="cell-quadrant">IV · 决策输出偏误</div>
+                    <div class="cell-title">行动与选择失真</div>
+                    <div class="cell-desc">禀赋效应、现状偏见、损失厌恶——我们的最终决策偏离理性最优解</div>
+                </div>
+            </div>
+
+            <p class="body-text reveal d6" style="margin-top: var(--space-md); text-align: center; color: var(--text-dim);">
+                偏误贯穿认知全流程：从<span class="highlight">信息输入</span>到<span class="highlight">加工处理</span>，从<span class="highlight">信念更新</span>到<span class="highlight">决策执行</span>
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE 12: 总结 ==================== -->
+        <section class="slide" aria-label="研究总结">
+            <div class="slide-header reveal">SUMMARY</div>
+            <h2 class="slide-title reveal d1">核心结论与未来方向</h2>
+
+            <div class="summary-grid">
+                <div class="summary-item reveal d2">
+                    <h4>理论贡献</h4>
+                    <p>双系统理论为理解认知偏误提供了统一的解释框架，揭示了直觉判断的系统性偏差本质</p>
+                </div>
+                <div class="summary-item reveal d3">
+                    <h4>实证发现</h4>
+                    <p>六种核心偏误均具有大效应量（d > 0.65），跨文化研究证实其普遍性与稳健性</p>
+                </div>
+                <div class="summary-item reveal d4">
+                    <h4>应用价值</h4>
+                    <p>助推（Nudge）策略通过改变决策架构而非限制选择自由，实现了低成本、高收益的行为干预</p>
+                </div>
+                <div class="summary-item reveal d5">
+                    <h4>未来展望</h4>
+                    <p>结合神经影像与计算建模，深入探究偏误的神经机制；发展个性化去偏干预方案</p>
+                </div>
+            </div>
+
+            <p class="body-text reveal d6" style="margin-top: var(--space-md); text-align: center; color: var(--text-dim);">
+                认知偏误研究提醒我们：<span class="highlight">理解自身局限，是做出更优决策的第一步</span>。
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE 13: 结束 ==================== -->
         <section class="slide slide-cover" aria-label="结束">
-            <p class="cover-institution reveal delay-1">谢谢聆听</p>
-            <h1 class="cover-title cover-title--closing reveal delay-2">提问与讨论</h1>
-            <div class="cover-divider reveal delay-3"></div>
-            <p class="cover-authors reveal delay-4">wang.mingzhe@pku.edu.cn</p>
-            <p class="cover-affiliation reveal delay-5">北京大学心理与认知科学学院 · 行为决策实验室</p>
+            <p class="cover-institution reveal d1">谢谢聆听</p>
+            <h1 class="cover-title reveal d2" style="font-size: var(--fs-h2);">提问与讨论</h1>
+            <div class="cover-divider reveal d3"></div>
+            <p class="cover-authors reveal d4">联系方式：wang.mingzhe@pku.edu.cn</p>
+            <p class="cover-affiliation reveal d5">北京大学心理与认知科学学院 · 行为决策实验室</p>
+            <p class="cover-date reveal d6">Questions & Discussions Welcome</p>
         </section>
 
     </div>

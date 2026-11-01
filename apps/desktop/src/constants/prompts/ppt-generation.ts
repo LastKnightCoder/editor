@@ -34,10 +34,9 @@ ${options.enableAIIllustration ? `${PPT_AI_ILLUSTRATION_RULES}\n\n---` : ""}
 ### 强制规则
 1. 每张 slide 必须设置 \`height: 100vh; height: 100dvh; overflow: hidden;\`
 2. 使用 \`position: absolute; inset: 0;\` 叠层切换，而非滚动
-3. 所有字号必须随视口缩放：使用 \`clamp(min, preferred, max)\`，或模板定义的画布单位（如固定 16:9 舞台的 \`--u\`）——禁止固定 px 或单独 vw
-4. 所有间距（padding, margin, gap）必须使用 \`clamp()\`、视口单位或模板的画布单位
+3. 所有字号必须使用 \`clamp(min, preferred, max)\` — 禁止固定 px 或单独 vw
+4. 所有间距（padding, margin, gap）必须使用 \`clamp()\` 或视口单位
 5. \`html, body\` 必须设置 \`height: 100%; overflow: hidden;\`
-6. 内容页分三区：标题区（小标签 + 标题 + 可选副标题）每页固定在左上角同一位置；正文包在 \`.slide-body\` 中，正文区占满标题下方的剩余高度，内容保持自然高度并在其中垂直居中（\`justify-content: safe center\`，内容超高时自动退回顶部对齐），不要为了填满页面而拉伸行高或把元素推到页面两端；每页内容量要配得上一整页，正文大致占到正文区高度的六到八成：单个数字或短句不能独立成块，要配上对比、趋势、拆分或一句解读（如 KPI 配同比 + 季度走势 + 原因，条形图配实际值 / 目标值，对比页配代表性数字，矩阵配结论栏）；内容确实不够时合并到相邻页面，而不是撑大间距；只有矩阵、象限这类本身需要固定比例的网格才加 \`.slide-body--fill\` 填满剩余高度（网格放在第一个子元素位置，图例与注释跟在其后）；页码、来源、脚注属于页脚区。只有封面、章节过渡、引用/金句、大字声明、结束页加 \`.slide-center\` 整页居中
 
 ### 内容密度限制（超出必须拆成多页）
 | 页面类型 | 最大内容量 |
@@ -60,7 +59,7 @@ ${options.enableAIIllustration ? `${PPT_AI_ILLUSTRATION_RULES}\n\n---` : ""}
 
 ## 必须包含的基础 CSS 架构
 
-生成的每个 PPT 必须包含以下基础 CSS 结构；参考模板若有自己完整的版式系统（如固定 16:9 舞台），以模板为准：
+生成的每个 PPT 必须包含以下基础 CSS 结构：
 
 \`\`\`css
 /* === 响应式变量 === */
@@ -89,7 +88,7 @@ body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
     width: 100vw; height: 100vh; height: 100dvh;
     padding: var(--slide-padding);
     display: flex; flex-direction: column;
-    justify-content: flex-start; align-items: flex-start;
+    justify-content: center; align-items: center;
     position: absolute; inset: 0;
     opacity: 0; pointer-events: none;
     transform: translateY(8px);
@@ -99,27 +98,11 @@ body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
 .slide.active {
     opacity: 1; pointer-events: auto; transform: translateY(0);
 }
-/* 封面、章节过渡、引用、大字声明、结束页才居中 */
-.slide.slide-center {
-    justify-content: center; align-items: center; text-align: center;
-}
-/* 内容页：标题区在上，.slide-body 占满剩余高度，内容在其中垂直居中 */
 .slide-content {
-    max-width: 1100px; width: 100%; flex: 1; min-height: 0;
+    max-width: 1100px; width: 100%;
     display: flex; flex-direction: column;
     gap: var(--content-gap);
 }
-.slide-center .slide-content { flex: 0 1 auto; }
-.slide-body {
-    flex: 1; min-height: 0;
-    display: flex; flex-direction: column; justify-content: safe center;
-}
-/* 首尾元素的外边距会让居中偏移 */
-.slide-body > :first-child { margin-top: 0; }
-.slide-body > :last-child { margin-bottom: 0; }
-.slide-body--fill { justify-content: flex-start; }
-/* 拉伸第一个子元素（主体网格），图例与注释放在其后保持原高 */
-.slide-body--fill > :first-child { flex: 1; }
 
 /* === Reveal 动画系统 === */
 .reveal {
