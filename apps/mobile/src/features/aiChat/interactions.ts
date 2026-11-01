@@ -1,8 +1,7 @@
-// 工具交互宿主：@tau/chat-ui 的审批条与提问卡从对话状态里读等待项，按 toolCallId 对应到工具行。
+// 工具交互宿主：确认卡与提问卡（tools/）经 @tau/chat-ui 的交互宿主从对话状态里读等待项，按 toolCallId 对应到工具行。
 
 import {
   configureToolInteractions,
-  registerInteractionRenderers,
   type PendingToolApproval,
   type PendingToolQuestion,
   type ToolInteractionHost,
@@ -18,26 +17,6 @@ const RISK_LABEL: Record<string, string> = {
   read: "读取数据",
   write: "修改你的数据",
   execute: "执行操作",
-};
-
-/** 宿主工具的可读叫法；插件工具与未知工具回落为工具名 */
-export const TOOL_LABELS: Record<string, string> = {
-  get_current_date: "查看日期",
-  search_knowledge: "搜索笔记",
-  get_content_markdown: "读取笔记",
-  sql_query: "查询数据库",
-  query_todos: "查询待办",
-  query_calendar_events: "查询日程",
-  create_todo: "新建待办",
-  update_todo: "修改待办",
-  set_todo_completed: "完成待办",
-  delete_todo: "删除待办",
-  create_calendar_event: "新建日程",
-  update_calendar_event: "修改日程",
-  delete_calendar_event: "删除日程",
-  load_skill: "读取技能说明",
-  read_skill_resource: "读取技能资料",
-  "ask-question": "向你提问",
 };
 
 const WRITE_TOOLS = new Set([
@@ -118,10 +97,9 @@ export function createChatInteractionHost(): ToolInteractionHost {
 }
 
 let configured = false;
-/** 对话页首次挂载时登记一次；宿主为模块级单例 */
+/** 对话页首次挂载时登记一次；宿主为模块级单例。提问卡由 tools/QuestionCard 渲染，不登记共享的桌面版 */
 export function ensureChatInteractions() {
   if (configured) return;
   configured = true;
-  registerInteractionRenderers();
   configureToolInteractions(createChatInteractionHost());
 }

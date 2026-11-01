@@ -52,7 +52,7 @@ const minutesText = (minutes: number | null) =>
 /** 版本：桌面以 revision 防止覆盖他人修改，手机端用 updateTime 承担同一语义 */
 const revisionOf = (item: { updateTime: number }) => String(item.updateTime);
 
-function todoView(item: TodoItem, groups: Map<number, string>) {
+export function todoView(item: TodoItem, groups: Map<number, string>) {
   return {
     taskRef: String(item.id),
     revision: revisionOf(item),
@@ -69,7 +69,7 @@ function todoView(item: TodoItem, groups: Map<number, string>) {
   };
 }
 
-function eventView(event: CalendarEvent) {
+export function eventView(event: CalendarEvent) {
   const start = formatLocal(event.startDate, false)!;
   const end = formatLocal(event.endDate ?? event.startDate, false)!;
   return {
@@ -286,7 +286,11 @@ export const updateTodoTool: HostTool = {
     }
     const updated = await tauri.todoUpdateItem(next);
     refreshTodos();
-    return ok({ success: true, operation: "update_todo", item: todoView(updated, found.groups) });
+    // before 只给对话界面画「旧值 → 新值」，不进模型看到的结果
+    return ok(
+      { success: true, operation: "update_todo", item: todoView(updated, found.groups) },
+      { before: todoView(found.item, found.groups) }
+    );
   },
 };
 
@@ -478,7 +482,10 @@ export const updateCalendarEventTool: HostTool = {
       ...schedule,
     });
     void invalidateCalendarQueries();
-    return ok({ success: true, operation: "update_calendar_event", event: eventView(updated) });
+    return ok(
+      { success: true, operation: "update_calendar_event", event: eventView(updated) },
+      { before: eventView(event) }
+    );
   },
 };
 
