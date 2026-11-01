@@ -256,6 +256,10 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 `CollaborationBackground` 在设置及插件启动阶段落定后读取本机缓存，仅对非本机模式且具有服务器地址的活跃作者共享恢复运行时，不为未使用协作的用户注册设备；前台恢复与网络上线重试连接和资源任务。恢复冷缓存、收到远端更新及完成同步都重新触发资源检查，持久映射避免正常重连重复上传。
 
+详情页的发起共享面板首次打开时才加载，关闭后保留面板以完成退场，但不再持有协作运行时；运行时 hook 只释放自己已经取得的持有，迟到的模块加载不额外启动或释放运行时。
+
+同一服务器的文档共用 WebSocket 传输。单篇重连、缓存保存失败和资源等待只暂停该篇 provider，保留原文档、Awareness 与视图订阅；已断开的连接先注销本篇文档路由再暂停，避免关闭控制帧进入下一条连接。恢复时复用 provider 并重新同步，其他文档仍沿原传输运行；传输由运行时整体停止时统一销毁，provider 与 Awareness 仅在会话退役或换代时最终销毁。
+
 结束共享先暂停编辑、等待已有投影、冲刷本机队列并确认同步与输入草稿，再读取与修订摘要匹配的最终快照。普通定时投影在收尾期间让位；最终投影独占当前快照及契约，图片补存和主库持久化成功后才把关闭修订写入耐久恢复记录并请求关房。关闭前失败可恢复编辑；关闭请求发出后结果未知时保持只读，只按原修订重试，不再读取可能已被删除的服务器快照。回执的修订匹配后先耐久确认，再按原资料库来源与房间身份解绑、清理临时资产并完成恢复记录；每一步可幂等重试，包括最终清理回执丢失。只有服务端确认房间仍活动的修订冲突才撤销关闭标记。重启、前台恢复和切回原库均继续未完成收尾，不依赖正文视图；持久资源文件保留。普通投影被已有任务合并时保留下一轮待投影标记，避免最后一次更新滞留。成员退出只移除自己的共享会话。
 
 ## 系统语音输入
@@ -302,7 +306,9 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 - **宿主工具**（`services/aiChat/`）：工具名、入参与桌面同名同义，描述写明手机端差异。只读：`get_current_date`、`search_knowledge`（FTS5 全文检索，无向量）、`get_content_markdown`、`sql_query`（原生 `ai_sql_query`：query_only + 只读语句校验 + 进度回调超时，规则与桌面一致，错误串 `CODE: message|hint`）、`query_todos`、`query_calendar_events`；写入：`create_todo` / `update_todo` / `set_todo_completed` / `delete_todo` / `create_calendar_event` / `update_calendar_event` / `delete_calendar_event`。待办与日程执行端是应用页面用的原生命令（不借插件数据层身份），只处理独立待办，版本以 updateTime 承担，写后失效 todo / calendar 查询。另注册 `ask-question` 与内置 Skill 来源（`@tau/ai/skills/internal`，与桌面同一份正文）。周期规则、单次实例、撤销、正文待办与内容改写未迁移。
 - **就近提问**（`features/aiChat/pages/aiContentChat.page.tsx`）：`ContentDetailPage` 传入 `aiContext`（卡片、文章、项目文档、日记由各宿主页给出）时，顶栏出现 ✦（整篇提问），阅读态选区标注条最前多出「问 AI」（选中片段提问）。两者推入整页就近对话 `aiContentChat`（按 contentId 去重）：会话作用域 `content-chat`、domainRef `content:<contentId>`，同一篇再次进入续上最近一次；首次在首条消息发出时才建会话，标题为「关于「篇名」」。页面复用 `ChatPage`（传 `content`）：输入框上方预置整篇 / 片段引用与快捷问法，顶部原文条（`SourceBar`）点按就地展开正文片段并高亮选中原文，不显示「新对话」。对话记录不分作用域取页、只留 `main-chat` 与 `content-chat`，后者显示「来自笔记」。
 - **引用与附件**：引用沿用 chat-core 的 `TextContent.mentions`（`MentionRef` 增加 `diary` 类型与 `quote` 标记：选中片段的原文放在 previewText）。对话页输入框都可 @（按钮或输入 `@`）经内容引用选择器加整篇引用；＋ 面板提供拍照 / 相册（压到长边 1568px 的 JPEG data URL，一次最多 4 张，模型不接受图片时提示换模型）与引用笔记。服务的 `prepareInput`（`services/aiChat/mentions.ts`）把引用展开成正文前缀：片段给原文，整篇只给身份并提示用 `get_content_markdown` 读取；会话 display 条目保留原始消息，历史里用户消息上方显示引用条与图片。
-- **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），切到语音或输入框失焦时立即释放尚未兑现的键盘预留；点键盘图标时同步显示输入框并完成键盘避让，再在当前点击内聚焦（preventScroll），聚焦失败立即释放预留。聊天页全屏背景与随键盘缩放的内容外壳分离，切换期间背景始终覆盖底层页面。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
+- **界面**：消息与 Markdown 复用 `@tau/chat-ui/conversation` 的 `MessageView`；工具与思考的展示是移动端自己的 `features/aiChat/tools/`（经 `renderToolGroup` / `renderReasoning` 接入，不改共享的 `ToolCallRow`）。`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），不登记共享的桌面提问卡。
+- **工具展示**（`features/aiChat/tools/`）：相邻工具调用按执行顺序逐条展示、不合并。`presenters.ts` 给每个宿主工具定类别图标、「动作 + 对象」标题（搜索笔记「同步」）、右侧结果数（5 篇）与写入动词，插件与 MCP 工具回落为插头图标 + 可读工具名。`ToolTimeline` 分流：查询类与其余工具是一行（`ToolRow`，40px，淡墨线条图标无底色，相邻行之间一段竖线，失败 / 重试 / 拒绝 / 中断留在原位并附一行说明），点行升起 `ToolDetailSheet` 底部面板——搜索结果、读取的笔记、只读查询（SQL + 横滑表格）、待办与日程列表按手机端页面样子画，结果行打开引用预览或推入 `todoDetail` / `calendarEventDetail`，底部折叠「原始数据」（格式化输入输出，可复制）；写入成功出 `ResultCard`（卡片即那条待办 / 日程，修改只列变了的字段并划掉旧值，删除整条划掉）；等待确认出 `ApprovalCard`（入参翻译成字段，清单名、日历名与旧值由 `approvalPreview.ts` 查本机数据，删除用红色并写出连带子待办，「本次对话不再询问」为文字链接）；`ask-question` 出 `QuestionCard`（50px 整行选项，多题分页，作答后收成只读问答卡）；图片生成 / 编辑读公共 `openai-image-result` 载荷，生成中占位、完成后原地出图，点开全屏黑底左右滑看。插件注册了自己的渲染器时照常交给渲染注册表。卡片与面板内的块与容器同底色，只用 line-1 描边区分。思考行（`ReasoningRow`）与工具行同一样式，点开在行下展开。展示所需的额外字段走工具结果的 metadata、不进模型上下文：`update_todo` / `update_calendar_event` 带 `before`；`get_content_markdown` 结果带 contentId 所属实体 `entity`（类型、id、标题，卡片取正文首行）。
+- **输入区**：右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），切到语音或输入框失焦时立即释放尚未兑现的键盘预留；点键盘图标时同步显示输入框并完成键盘避让，再在当前点击内聚焦（preventScroll），聚焦失败立即释放预留。聊天页全屏背景与随键盘缩放的内容外壳分离，切换期间背景始终覆盖底层页面。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
 
 ### 闪卡简答题评判
 
@@ -539,6 +545,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 同步入口为设置「数据 · 同步」，上传入口为「数据 · 图片与附件」。前者保留状态卡、版本检查、数据库切换、整库覆盖和资源文件进度；后者保留目的地卡、本地保存、压缩开关和最近上传结果。数据库成功后继续触发资源文件同步；资源仍只增不删，失败保留真实错误。
 
+数据库上传与下载通过本次命令的 Tauri Channel 推送 `SyncProgress`（`{ value, status }`），`useSyncSettings` 在应用壳层持有同一份同步进度，同步中心与整库覆盖页消费该快照；切页不取消传输，返回可继续查看，命令结束后清理通道回调与进度。两端使用公共 `ProgressStatus` 展示百分比和当前阶段；具体计数口径见[宿主分块同步](/docs/architecture/storage-sync.md#分块传输与重试)。
+
 服务列表由当前插件会话的同步/上传注册表生成。syncProvider/uploadProvider 按插件 ID 区分页面，挂载插件通过 settings.register 声明的组件；未启用或未安装时保留已保存配置，并提供插件中心入口。服务名称来自注册声明，宿主没有服务商配置分支。服务页以局部 PortalScope 承载插件浮层，UiHostProvider 将 Dialog 返回交给当前 Page；页面隐藏时浮层随作用域隐藏，不遗留到其他页面。
 
 服务页按插件声明的 form 渲染表单（分组行、上标签下值，选择字段推入全屏选择层并接入返回仲裁），顶栏「保存」显式保存，有未保存修改时返回先确认；保存经固定工作区的原生配置命令只写配置，不改变选用状态，同步服务保存后读取一次云端版本作为连接测试。同步中心「同步到」与「图片与附件」的「更换位置」推入服务列表页：点已配置的行即切换，点 ⓘ 进服务页。同步服务选用先探测云端，有已有数据时按原流程确认；上传选用保留真实上传与回读测试，地址不可读时禁止使用。测试文件使用宿主唯一命名，可能在远端留下小型测试图片；不要求插件实现固定对象覆盖。选用复验测试时的配置，字段变化后必须重新确认。作者不感知这些宿主行为。
@@ -555,6 +563,10 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 ## 插件宿主
 
+原生 App 恢复、窗口焦点与浏览器可见性经通用环境源归一化，供前端插件订阅恢复/离开事件；规则见[应用前后台生命周期](/docs/architecture/plugin-portability.md#应用前后台生命周期)。安全核验的周期补偿不触发业务同步。
+
+入口在 React 渲染前安装通用外链桥，插件的新窗口外链通过系统打开器处理；材料动作使用宿主生成的稳定引用，并由原生事务解析与复验。格式、错误反馈与生命周期边界统一维护于[摘录与材料动作](/docs/architecture/plugin-portability.md#摘录与材料动作)。
+
 正常 AppShell 按数据库作用域挂载插件宿主，“我的”功能宫格与今天页插件卡片消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
 插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
@@ -567,11 +579,26 @@ plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签�
 
 数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
 
+局域网实验入口位于同步中心：TS 复用正文协议 2，Rust 原子保存检查点、条件安装主库与校验附件。配对库的本机正文从真实二进制恢复；编辑器外 JSON 先转成原基线上的操作。AppShell 按库启动串行调度，网页恢复/联网事件及原生 `RunEvent::Resumed` 唤醒补齐，隐藏时冲刷输入。接收后刷新本机查询而不查询云端版本；协议、保全与限制见[个人设备同步](/docs/architecture/device-sync.md)。
+
 ## 全局提示
 
 提示只有 `@tau/ui` 的 toast 一套实现：`components/ToastViewport` 挂 `ToastHost variant="inverse"`（墨色胶囊，停靠在顶栏下方，层级 `Z_INDEX.TOAST`）。`components/toast` 保留移动端的调用形态（`toast({ type, text })`、`toast.success(...)`），内部转到 `@tau/ui`，`id` 映射为同 key 原位替换；`toastQueue` 供测试读取当前提示。插件、编辑器与公共包直接调用的 `@tau/ui` toast 走同一队列显示；编辑器进行中提示用 `loading` → `resolve/reject` 落定。
 
 停靠区按内容取宽，两侧至少留 16px；提示文字保持单行，超出胶囊上限时省略，动作按钮保持可见。
+
+## 提醒与系统通知
+
+待办、日程、正文待办的提醒与倒计时番茄结束都用本地系统通知，不经推送服务器；提醒数据与桌面共用 `item_reminder` 口径（见[桌面提醒](/docs/architecture/desktop.md#提醒)），Rust 命令在 `src-tauri/src/database/reminders.rs`（`reminder_list / reminder_set / reminder_upcoming`）。
+
+- **范围**：截止任务（最多 3 个提醒）、周期待办（`remind_before` 为当天时刻，逐个未打卡实例提醒，实例与日历物化同源 `recurring_occurrences`）、独立日程（待办安排出的日程跟随待办）、正文待办（`taskReminder.at`；排除文档、已提升为独立待办、已勾选或已完成的实例不提醒）。有「排除节假日」规则时才取节假日，取不到按无节假日排期。
+- **原生插件**：`plugins/local-notify`（Rust 只注册，命令直通原生）+ `native-notify/`。Android 用 AlarmManager（有「闹钟和提醒」授权时准点，否则可延后）与三个通知渠道「待办提醒 / 日程提醒 / 番茄专注」，排期存 SharedPreferences，开机、应用更新、准点授权变化后重排；状态栏小图标 `ic_stat_tau` 是应用图标的单色剪影（按系统要求只取 alpha）。iOS 用 UNUserNotificationCenter，通知图标即应用图标。
+- **排期**：`features/reminders/scheduler` 取 14 天内的提醒，加上进行中的倒计时番茄（按剩余时长算到点时刻），整体替换系统排期（iOS 系统上限 64 条，只排最近 50 条；Android 200 条）。启动、回到前台、影响提醒的写命令（含番茄开始 / 暂停 / 继续 / 结束与正文保存）之后合并重排（`changes.ts` 按命令名识别）。别的设备新建的提醒要同步下载后才会排进系统。
+- **按钮**：每条通知带 `actions`——`complete`（单次截止任务：「完成」会拉起应用后勾选）、`ack`（日程、周期实例、正文待办：「知道了」只关通知）、`none`（番茄）；前两种另有「N 分钟后」，原生直接重排，键为 `<owner>:snooze`，事项完成或删除后的下一次重排撤销。点通知本体打开对应待办 / 日程 / 正文（定位到该待办）/ 番茄页。点击与「完成」先入原生队列，`ReminderHost` 收到信号或回到前台时 `take_actions` 取走处理，冷启动不丢。
+- **前台**：应用在前台时原生不弹系统横幅，改发 `delivered`，由 `ReminderHost` 显示顶部横幅（应用图标 + 按钮同上 + 查看）；已在番茄页时不叠番茄横幅（页面自己展示完成态）。设置里可关掉横幅，改为前台也弹系统通知。
+- **番茄**：会话在 Rust 内存里，WebView 挂起后页面计时器不走，回到前台才自动收尾；倒计时会话收尾时专注时长封顶为预设时长，结束时刻记为到点那一刻。应用在后台被系统回收时会话丢失，通知仍会响。
+- **偏好**：`setting.json` 的 `reminders`（本机，`features/reminders/settings.ts`）——新建截止任务 / 日程 / 全天日程的默认提醒（todo 在任务刚成为有截止时间的截止任务且没有提醒时由 `useTodoStore` 套用，日程在新建表单初始化与切换全天时套用；AI 工具新建的任务不套用）、稍后间隔（5–60 分钟，随排期写给原生，原生按钮在应用未运行时也用它）、前台横幅开关。
+- **权限**：首次在 `ReminderSheet` 勾选提醒时先说明再请求系统权限；被拒后面板顶部提示去设置。设置 › 提醒与通知显示授权状态、Android 准点授权、已排期数量与上述偏好。
 
 ## 外部打开 Markdown（导入预览）
 
@@ -597,8 +624,8 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 「我的 → 外观 → 正文字体」（overlay 页 `settings-reading-font`，`features/settings/readingFont/` + `components/ReadingFontSection.tsx`）让「内容」换用阅读字体：编辑器正文（含卡片、日记列表预览）、详情页与项目详情的标题区、文章 / 项目卡片的标题与摘要、日记卡片的日期标题；控件、行式列表与元信息保持系统字体。选择存 `setting.json` 的 `appearance.readingFont`（`system | lxgw-wenkai | noto-serif-sc`，缺省 `system`），按设备生效。
 
 - **发布源**：`pnpm publish:fonts`（`scripts/publish-fonts.mjs`，字体源登记在 `scripts/reading-fonts.mjs`）按固定 tag 与摘要下载上游字体与许可，fonttools 无损转 WOFF2，传到 R2 的 `fonts/`（`https://dl.taunote.app/fonts/`）。清单 `manifest.json` 为数组，每项 `id`、`name`、`version`、`license`、`files[]`；`files` 每项 `style`、`weight`（CSS 描述符，可变字体为区间如 `200 900`）、`file`（固定为 `<id>-<version>-<style>.woff2`）、`size`、`sha256`。一款字体可有多个字重文件。
-- **原生命令**（`src-tauri/src/reading_font.rs`）：`reading_font_catalog` 读清单；`reading_font_download` 经 `Channel` 回传进度，逐文件下载到 `.editor/fonts/`，边下边算 SHA-256，先写 `.part` 再改名，同摘要文件复用，同时只允许一个下载，`reading_font_cancel_download` 中止；全部文件落盘后写 `<id>.json` 标记，标记有效且文件大小一致才算已安装（`reading_font_installed`）；完成后清理该字体的旧版本文件。`reading_font_read` 按 id + style 返回字节（二进制 IPC），`reading_font_remove` 先删标记再删文件。前端不传 URL 或路径。
-- **加载**：Android WebView 的 asset 协议加载不稳定，两端统一由 `runtime.ts` 读字节注册 `new FontFace("Tau Reading <id>", buffer, { weight })`，加载完成后才在根上写 `--mobile-reading-font` 与 `--mobile-reading-font-synthesis`（两变量只由该模块写入），`.mobile-card-editor-content`（编辑器正文）与 `.mobile-reading-font`（标题、摘要等不挂编辑器正文类的阅读内容，新增内容卡片按此挂类）消费；加载前、失败或文件缺失时为系统字体。同一字体同一版本只注册一次，换版本或移除时撤下旧字形。
+- **原生命令**（`src-tauri/src/reading_font.rs`）：`reading_font_catalog` 读清单；`reading_font_download` 经 `Channel` 回传进度，逐文件下载到 `.editor/fonts/`，边下边算 SHA-256，先写 `.part` 再改名，同摘要文件复用，同时只允许一个下载，`reading_font_cancel_download` 中止；全部文件落盘后写 `<id>.json` 标记，标记有效且文件大小一致才算已安装（`reading_font_installed`）；完成后清理该字体的旧版本文件。`reading_font_read` 按 id + style 返回字节（二进制 IPC）。不提供移除已下载字体的入口。前端不传 URL 或路径。
+- **加载**：Android WebView 的 asset 协议加载不稳定，两端统一由 `runtime.ts` 读字节注册 `new FontFace("Tau Reading <id>", buffer, { weight })`，加载完成后才在根上写 `--mobile-reading-font` 与 `--mobile-reading-font-synthesis`（两变量只由该模块写入），`.mobile-card-editor-content`（编辑器正文）与 `.mobile-reading-font`（标题、摘要等不挂编辑器正文类的阅读内容，新增内容卡片按此挂类）消费；加载前、失败或文件缺失时为系统字体。同一字体同一版本只注册一次，换版本时撤下旧字形。
 - **粗体**：思源宋体为可变字体，自带全部字重；霞鹜文楷 Screen 只有常规体，选中时开启 `font-synthesis: weight` 合成粗体（根上默认 `none`）。
 - **前端状态**：已安装列表与线上清单走 react-query（`queries.ts`）；下载状态在模块级 `useReadingFontDownload`，关闭面板下载继续，完成后自动选中。所选字体未安装时「正文字体」行显示「需重新下载」。
 - **授权**：两款字体均为 OFL-1.1，许可文件随字体发布在同目录。霞鹜文楷有保留字体名，作者附加许可允许为网页字体分发转 WOFF2 后沿用原名（不作为可安装桌面字体提供）。
@@ -612,6 +639,20 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 - **账号表单**：账号页由宿主承载显示名称、模型、复刻与删除；凭据字段由插件以 form 声明，宿主用 `MobileProviderForm` 渲染、导航栏「保存」经 `saveTtsConfig` 写回本账号实例（模型取账号已有模型或插件声明的初始目录）。仍以组件注册的旧插件收到 `ttsConfig`；插件不可用时保留配置、不渲染表单。
 - **测试与复刻**：测试页可测任意已保存账号，不改写当前服务；合成字节转 Blob 在页内播放，不自动发声，离开页面即取消并释放。文本限 500 字，只约束测试面板。复刻经常驻 file input 选择参考音频，文件大小、格式与上传前置条件由插件校验；本机保存附件时提示需要公网地址的服务商先配置远端上传。
 - **边界**：不含编辑器朗读、播客、后台或锁屏播放；凭据与桌面一样保存在应用私有设置文件。
+
+## 文档录音与转写
+
+本机内容详情页通过录音宿主声明文档身份与持久化能力。原生录音停止后按路径存入资源；新插入、重新录制和崩溃找回均通过 `LocalContentDocument.prepareResource` 登记到所属文档的资源映射，配对文档写入 `tau-collab-local:` 引用。正文缓存与主库保存成功后才删除录音找回旁注，保存失败保留旁注；找回时已存在同一资源的音频块只重试保存。
+
+入口为插入面板「录音」与音频替换菜单「重新录制」，录音期间胶囊与展开面板共用 `recordingSession` 单例，正文仍可编辑。新插入用顶层块 `pathRef` 跟踪落点，空段之前、非空段之后插入，落点失效时追加文末；重新录制保留自定义标题。离开文档经页面守卫询问完成、放弃或继续。协作文档、速记、闪卡及插件编辑器不声明录音宿主。
+
+原生能力位于 `src-tauri/plugins/native-record` 与 `src-tauri/native-record/{ios,android}`，AAC 单声道 44.1 kHz / 64 kbps 先写 ADTS，停止后重封装 m4a；iOS 使用后台音频模式，Android 使用麦克风前台服务和常驻通知。Rust `recording.rs` 在 `recordings/` 旁注中保存文档、开始时间及定位文字，未处理录音保留 7 天；找回按顶层块开头文字定位，找不到则追加文末。录音不足 1 秒不入库；前端根据原生电平事件检查 3 小时上限与 50 MB 剩余空间阈值，并在接近上限或开始时不足 200 MB 时提示。录音面板不提供输入设备选择或 iOS 锁屏实时活动。
+
+音频转写先通过所属编辑器的 `IResourceService` 解析文档资源引用，公网地址保持原样。同步资源的 `.bin` 文件通过文件头识别音频格式，避免把可直接交给识别服务的音频误送转码。文字稿按音频节点的稳定身份定位，插入其下一个兄弟位置，支持容器内的嵌套音频。
+
+转写由音频配件栏手动触发，同时只运行一个任务，进度、失败和取消均为运行时状态。识别服务未声明格式或接受原格式时直接交出文件，否则由 symphonia 解码并经 libopus 转为 16 kHz 单声道 Ogg Opus；无可转换格式时提示更换服务。本地资源不为转写上传，远程资源的转码副本仅在当前上传位置为插件存储时上传。最终结果插入新的「文字稿」折叠块，分段时间为纯文本；不跨进程恢复识别任务。识别协议见 [ASR 契约](/packages/asr/README.md)，真机验收步骤见 [录音与转写验收](/docs/guides/dev-mobile-recording.md)。
+
+iOS 录音会话以自有片段起始时间判断录制与暂停状态；系统中断已经暂停原生录制器时，仍结算计时并向界面发送暂停事件，用户手动继续后恢复录制。
 
 ## 语音输入
 

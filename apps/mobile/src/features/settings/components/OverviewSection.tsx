@@ -15,6 +15,7 @@ import {
 } from "@tau/editor/extensions/media/appearance";
 import {
   IconAudioLines,
+  IconBell,
   IconBookOpen,
   IconCircleHelp,
   IconCloud,
@@ -193,6 +194,17 @@ export function OverviewSection(props: OverviewSectionProps) {
           label="语音输入"
           value={speechInputName}
           onClick={() => props.onOpenModule("speech-input")}
+        />
+      </div>
+
+      <div className="space-y-3 px-1">
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">提醒</h2>
+      </div>
+      <div className="list-group">
+        <ListItem
+          icon={<IconBell />}
+          label="提醒与通知"
+          onClick={() => props.onOpenModule("notifications")}
         />
       </div>
 

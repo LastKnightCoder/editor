@@ -1,4 +1,4 @@
-import { assertPresenceBudget } from "@tau/collaboration";
+import { assertPresenceBudget, memberActivities } from "@tau/collaboration";
 import { DurableObject } from "cloudflare:workers";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Hocuspocus } from "@hocuspocus/server";
@@ -113,15 +113,10 @@ export class CollaborationService extends DurableObject<Env> {
 
   private members(documentId: string): Member[] {
     const doc = this.hocuspocus?.documents.get(documentId);
-    const online = new Map<string, Member["activity"]>();
-    for (const connection of doc?.getConnections() ?? [])
-      online.set(connection.context.deviceId, "background");
-    for (const state of doc?.awareness.getStates().values() ?? []) {
-      if (typeof state.user?.id === "string" && online.has(state.user.id)) {
-        if (state.activity === "editing" || state.activity === "viewing")
-          online.set(state.user.id, state.activity);
-      }
-    }
+    const online = memberActivities(
+      [...(doc?.getConnections() ?? [])].map(connection => connection.context.deviceId),
+      doc?.awareness.getStates().values() ?? []
+    );
     return this.store.members(documentId).map(member => ({
       ...member,
       online: online.has(member.deviceId),
@@ -151,10 +146,11 @@ export class CollaborationService extends DurableObject<Env> {
         this.store.authorize(documentName, device.id);
         const runtime = this.hocuspocus;
         if (!runtime) return fail("RUNTIME_STOPPED", "协作运行时已停止", 503);
-        if (!runtime.documents.has(documentName) && runtime.getDocumentsCount() >= 4)
-          if (this.env.MODE !== "production")
+        if (!runtime.documents.has(documentName)) {
+          if (this.env.MODE !== "production" && runtime.getDocumentsCount() >= 4)
             return fail("CAPACITY", "原型最多同时打开 4 份文档", 429);
-        if (runtime.getDocumentsCount() >= 20) return fail("CAPACITY", "活动文档数量已满", 429);
+          if (runtime.getDocumentsCount() >= 20) return fail("CAPACITY", "活动文档数量已满", 429);
+        }
         const protocol = this.store.protocols.state(documentName);
         const cached = runtime.documents.get(documentName);
         if (cached && cached.getMap("meta").get("baselineId") !== protocol.baselineId)

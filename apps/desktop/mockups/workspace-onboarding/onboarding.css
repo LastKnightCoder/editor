@@ -1,0 +1,1095 @@
+/* 首次启动 · 工作区引导 mockup：颜色全部取自 @tau/themes 的 --tau-* */
+:root {
+  --font:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
+    sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --shell: color-mix(in srgb, var(--tau-bg-sunken) 50%, var(--tau-bg-page));
+  --ws: 0.62;
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: var(--font);
+  background: var(--shell);
+  color: var(--tau-ink-1);
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+svg.ic {
+  display: block;
+  flex-shrink: 0;
+}
+code {
+  font: 12px var(--mono);
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+}
+
+/* ── 展示页外壳 ── */
+.page-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--shell) 94%, transparent);
+  backdrop-filter: blur(10px);
+  padding: 14px 28px 10px;
+  border-bottom: 1px solid var(--tau-line-1);
+}
+.head-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.page-head h1 {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 700;
+}
+.page-head h1 small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tau-ink-2);
+  margin-left: 10px;
+}
+.theme-pick {
+  display: flex;
+  gap: 6px;
+}
+.theme-pick select,
+.theme-pick button {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-1);
+  font-size: 12.5px;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.tab {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: color-mix(in srgb, var(--tau-bg-surface) 60%, transparent);
+  color: var(--tau-ink-2);
+}
+.tab.on {
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+}
+.tab .rec {
+  font-size: 10px;
+  margin-left: 4px;
+  color: var(--tau-accent-text);
+}
+.tab.on .rec {
+  color: var(--tau-ink-inverse);
+  opacity: 0.75;
+}
+.scene {
+  display: none;
+  padding: 18px 28px 64px;
+}
+.scene.on {
+  display: block;
+}
+.intro {
+  max-width: 1120px;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--tau-ink-2);
+  margin-bottom: 18px;
+}
+.intro b {
+  color: var(--tau-ink-1);
+}
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 26px;
+  align-items: flex-start;
+}
+.frame-cap {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.frame-cap .no {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+  font-size: 11px;
+}
+.frame-note {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--tau-ink-2);
+}
+.pc {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  max-width: 1120px;
+  margin-top: 22px;
+}
+.pc > div {
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  box-shadow: var(--tau-shadow-card);
+  padding: 14px 18px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--tau-ink-2);
+}
+.pc h4 {
+  font-size: 13px;
+  color: var(--tau-ink-1);
+  margin-bottom: 4px;
+}
+.pc ul {
+  padding-left: 16px;
+}
+
+/* ── 标注 ── */
+.anno {
+  position: absolute;
+  z-index: 9;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: var(--tau-tag-5);
+  color: #fff;
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.35);
+  max-width: 260px;
+}
+.anno.good {
+  background: var(--tau-tag-1);
+}
+.ring {
+  position: absolute;
+  z-index: 8;
+  border: 2px dashed var(--tau-tag-5);
+  border-radius: 14px;
+  pointer-events: none;
+}
+.ring.good {
+  border-color: var(--tau-tag-1);
+}
+
+/* ── 桌面窗口帧：style="--w:1080;--h:680"，按 --ws 缩放 ── */
+.win-box {
+  width: calc(var(--w) * var(--ws) * 1px);
+  height: calc(var(--h) * var(--ws) * 1px);
+}
+.win {
+  width: calc(var(--w) * 1px);
+  height: calc(var(--h) * 1px);
+  transform: scale(var(--ws));
+  transform-origin: top left;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--tau-bg-page);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--tau-ink-1) 14%, transparent),
+    0 30px 60px -24px rgba(40, 30, 20, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+.titlebar {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  position: relative;
+}
+.lights {
+  display: flex;
+  gap: 8px;
+}
+.lights i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+.lights i:nth-child(2) {
+  background: #febc2e;
+}
+.lights i:nth-child(3) {
+  background: #28c840;
+}
+.lights.off i {
+  background: color-mix(in srgb, var(--tau-ink-3) 45%, transparent);
+}
+.titlebar .ttl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--tau-ink-3);
+  pointer-events: none;
+}
+.win-body {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── 引导内容 ── */
+.logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: block;
+}
+.logo.sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+.center-col {
+  margin: auto;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.hello {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-top: 18px;
+}
+.sub {
+  font-size: 14px;
+  color: var(--tau-ink-2);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.field {
+  width: 100%;
+  text-align: left;
+  margin-top: 26px;
+}
+.field + .field {
+  margin-top: 14px;
+}
+.field label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.input {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  padding: 0 12px;
+  font-size: 14.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tau-ink-1);
+}
+.input.focus {
+  border-color: var(--tau-accent);
+  box-shadow: 0 0 0 3px var(--tau-focus-ring);
+}
+.input.err {
+  border-color: var(--tau-danger);
+  box-shadow: 0 0 0 3px var(--tau-danger-soft);
+}
+.input .caret {
+  width: 1.5px;
+  height: 18px;
+  background: var(--tau-accent);
+  margin-left: -6px;
+}
+.input .ph {
+  color: var(--tau-ink-3);
+}
+.input .end {
+  margin-left: auto;
+  color: var(--tau-ink-3);
+  font-size: 12.5px;
+}
+.input.area {
+  height: 72px;
+  align-items: flex-start;
+  padding-top: 10px;
+  font: 12.5px/1.55 var(--mono);
+  color: var(--tau-ink-2);
+  word-break: break-all;
+}
+.hint {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  margin-top: 6px;
+  line-height: 1.55;
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+}
+.hint .ic {
+  margin-top: 1px;
+}
+.hint.err {
+  color: var(--tau-danger);
+}
+.hint code {
+  font-size: 11.5px;
+}
+.btn {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.btn.pri {
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.btn.pri.dis {
+  opacity: 0.45;
+}
+.btn.sec {
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  color: var(--tau-ink-1);
+}
+.btn.ghost {
+  color: var(--tau-ink-2);
+  font-weight: 500;
+}
+.btn.block {
+  width: 100%;
+  margin-top: 22px;
+}
+.btn.sm {
+  height: 30px;
+  font-size: 12.5px;
+  padding: 0 12px;
+  border-radius: 8px;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.divider-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 22px 0 12px;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+}
+.divider-text::before,
+.divider-text::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--tau-line-1);
+}
+.alt-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.alt {
+  flex: 1;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--tau-ink-1);
+}
+.alt .ic {
+  color: var(--tau-ink-2);
+}
+
+/* ── 入口卡片（同色 + line-1 描边，不铺 page 底） ── */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  text-align: left;
+  width: 100%;
+}
+.choice + .choice {
+  margin-top: 10px;
+}
+.choice.hot {
+  border-color: var(--tau-accent);
+  box-shadow: 0 0 0 3px var(--tau-accent-soft);
+}
+.choice .mid {
+  flex: 1;
+  min-width: 0;
+}
+.choice b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.choice span.d {
+  display: block;
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+  margin-top: 2px;
+}
+.choice .chev {
+  color: var(--tau-ink-3);
+}
+.tile {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.t-acc {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.t-sky {
+  background: var(--tau-tag-2-soft);
+  color: var(--tau-tag-2);
+}
+.t-sage {
+  background: var(--tau-tag-1-soft);
+  color: var(--tau-tag-1);
+}
+.t-lilac {
+  background: var(--tau-tag-3-soft);
+  color: var(--tau-tag-3);
+}
+.t-butter {
+  background: var(--tau-tag-4-soft);
+  color: var(--tau-tag-4);
+}
+.t-mute {
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-2);
+}
+
+/* ── 方案 A：欢迎小窗 ── */
+.wel-left {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 30px 26px;
+  border-right: 1px solid var(--tau-line-1);
+  display: flex;
+  flex-direction: column;
+}
+.wel-left .name {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 14px;
+}
+.wel-left .ver {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  margin-top: 2px;
+}
+.wel-left .empty {
+  margin-top: auto;
+  font-size: 12.5px;
+  color: var(--tau-ink-3);
+  line-height: 1.6;
+}
+.wel-right {
+  flex: 1;
+  padding: 30px 32px;
+  display: flex;
+  flex-direction: column;
+  background: var(--tau-bg-surface);
+}
+.wel-right h2 {
+  font-size: 19px;
+  font-weight: 700;
+}
+.wel-right .sub {
+  margin: 4px 0 20px;
+  font-size: 13px;
+}
+.wel-right .foot {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.wel-right .choice {
+  background: var(--tau-bg-surface);
+}
+.ws-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 18px;
+}
+.ws-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 13.5px;
+}
+.ws-item.on {
+  background: var(--tau-bg-selected);
+}
+.ws-item small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.ws-item .tile {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── 方案 C：主窗口壳 + 对话框 ── */
+.side {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side .grp {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+  padding: 12px 10px 4px;
+}
+.side .it {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--tau-ink-2);
+}
+.side .it.on {
+  background: var(--tau-bg-selected);
+  color: var(--tau-ink-1);
+}
+.main-paper {
+  flex: 1;
+  margin: 0 10px 10px 0;
+  background: var(--tau-bg-surface);
+  border-radius: 12px;
+  box-shadow: var(--tau-shadow-card);
+  padding: 28px 34px;
+}
+.main-paper h3 {
+  font-size: 22px;
+  font-weight: 700;
+}
+.main-paper .muted {
+  color: var(--tau-ink-3);
+  font-size: 13px;
+  margin-top: 6px;
+}
+.empty-state {
+  margin: 60px auto 0;
+  width: 340px;
+  text-align: center;
+  color: var(--tau-ink-2);
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.empty-state .tile {
+  margin: 0 auto 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+}
+.empty-state b {
+  display: block;
+  color: var(--tau-ink-1);
+  font-size: 15px;
+}
+.empty-state .btns {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--tau-overlay);
+  z-index: 5;
+}
+.dialog {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 460px;
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  box-shadow: var(--tau-shadow-float);
+  padding: 26px 28px 24px;
+}
+.dialog h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.dialog .sub {
+  font-size: 13px;
+}
+.dialog .foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+.toast {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-shadow: var(--tau-shadow-float);
+  white-space: nowrap;
+}
+.toast .ic {
+  color: var(--tau-ok);
+}
+
+/* ── 连接 / 恢复流程 ── */
+.back {
+  position: absolute;
+  left: 22px;
+  top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--tau-ink-2);
+}
+.step-col {
+  margin: auto;
+  width: 460px;
+}
+.step-col h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 14px;
+}
+.step-col .sub {
+  margin-top: 6px;
+}
+.steps-ol {
+  margin-top: 18px;
+  padding: 12px 16px 12px 34px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--tau-ink-2);
+}
+.steps-ol b {
+  color: var(--tau-ink-1);
+  font-weight: 600;
+}
+.parsed {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--tau-ok);
+}
+.parsed span {
+  color: var(--tau-ink-2);
+}
+.progress {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--tau-bg-track);
+  overflow: hidden;
+  margin-top: 22px;
+}
+.progress i {
+  display: block;
+  height: 100%;
+  background: var(--tau-accent);
+  border-radius: 99px;
+}
+.prog-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+  margin-top: 8px;
+}
+.svc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+.svc-grid .choice {
+  margin: 0;
+}
+.found {
+  margin-top: 18px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.found b {
+  display: block;
+  font-size: 14.5px;
+}
+.found span {
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+}
+
+/* ── 状态卡片（不画整窗，只画引导主体） ── */
+.state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 18px;
+  max-width: 1180px;
+}
+.state {
+  background: var(--tau-bg-page);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--tau-ink-1) 10%, transparent),
+    var(--tau-shadow-card);
+  padding: 22px 24px 24px;
+  position: relative;
+}
+.state .cap {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.state .when {
+  font-size: 12px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.state .field {
+  margin-top: 0;
+}
+.state .btn.block {
+  margin-top: 16px;
+}
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  background: var(--tau-warn-soft);
+  color: var(--tau-ink-1);
+}
+.banner .ic {
+  color: var(--tau-warn);
+  margin-top: 2px;
+}
+.banner.danger {
+  background: var(--tau-danger-soft);
+}
+.banner.danger .ic {
+  color: var(--tau-danger);
+}
+.banner.info {
+  background: var(--tau-info-soft);
+}
+.banner.info .ic {
+  color: var(--tau-info);
+}
+.banner b {
+  display: block;
+}
+.rows {
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.rows .r {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+}
+.rows .r + .r {
+  border-top: 1px solid var(--tau-line-2);
+}
+.rows .r .mid {
+  flex: 1;
+}
+.rows .r small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.rows .r .tile {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+/* ── 流程图 / 原则 / 决策 ── */
+.flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 1120px;
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  box-shadow: var(--tau-shadow-card);
+  padding: 18px 20px;
+  font-size: 13px;
+}
+.flow .n {
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--tau-line-1);
+  line-height: 1.45;
+}
+.flow .n small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.flow .n.key {
+  border-color: var(--tau-accent);
+  background: var(--tau-accent-soft);
+}
+.flow .arr {
+  color: var(--tau-ink-3);
+}
+.flow .fork {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.flow .fork > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.flow .lbl {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+  width: 92px;
+  text-align: right;
+}
+.cards3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  max-width: 1120px;
+  margin-top: 18px;
+}
+.card {
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  box-shadow: var(--tau-shadow-card);
+  padding: 14px 18px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tau-ink-2);
+}
+.card h3 {
+  font-size: 14px;
+  color: var(--tau-ink-1);
+  margin-bottom: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.card b {
+  color: var(--tau-ink-1);
+}
+.card ul {
+  padding-left: 16px;
+}
+h2.sec {
+  font-size: 15px;
+  margin: 28px 0 10px;
+}
+table.cmp {
+  width: 100%;
+  max-width: 1120px;
+  border-collapse: collapse;
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  box-shadow: var(--tau-shadow-card);
+  overflow: hidden;
+  font-size: 12.5px;
+}
+table.cmp th,
+table.cmp td {
+  text-align: left;
+  padding: 10px 14px;
+  vertical-align: top;
+  line-height: 1.6;
+}
+table.cmp th {
+  color: var(--tau-ink-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+table.cmp tr + tr td {
+  border-top: 1px solid var(--tau-line-2);
+}
+table.cmp td b {
+  color: var(--tau-ink-1);
+}
+.dec {
+  max-width: 1120px;
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  box-shadow: var(--tau-shadow-card);
+}
+.dec .q {
+  display: grid;
+  grid-template-columns: 30px 200px 1fr;
+  gap: 12px;
+  padding: 14px 18px;
+}
+.dec .q + .q {
+  border-top: 1px solid var(--tau-line-2);
+}
+.dec .no {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 12px;
+}
+.dec .t {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.dec .t small {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--tau-ink-2);
+  margin-top: 3px;
+  line-height: 1.55;
+}
+.dec .opt {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dec .o {
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--tau-line-1);
+  font-size: 12.5px;
+  max-width: 300px;
+  line-height: 1.5;
+}
+.dec .o.r {
+  border-color: var(--tau-accent);
+  background: var(--tau-accent-soft);
+}
+.dec .o b {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+.dec .o span {
+  color: var(--tau-ink-2);
+}

@@ -16,6 +16,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { Timer } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
@@ -255,9 +256,15 @@ export function PomodoroPage({
                   "linear-gradient(135deg, var(--tau-accent-soft), var(--tau-tag-5-soft))",
               }}
             >
-              <span className="text-[30px] leading-none">🍅</span>
+              <Timer
+                size={30}
+                weight="duotone"
+                color="var(--tau-tag-5)"
+                className="shrink-0"
+                aria-hidden="true"
+              />
               <span className="min-w-0 flex-1">
-                <span className="text-accent flex items-baseline gap-1 text-[30px] font-extrabold tabular-nums leading-none">
+                <span className="text-accent flex items-baseline gap-1 text-[30px] leading-none font-extrabold tabular-nums">
                   {todaySummary ? formatFocusDuration(todaySummary.focusMs) : "…"}
                 </span>
                 <span className="text-ink-2 mt-1 block text-[12px]">
@@ -272,7 +279,7 @@ export function PomodoroPage({
               onClick={onOpenHistory}
               className="rounded-bento bg-tag-2-soft shadow-card p-4 text-left transition-transform duration-200 active:scale-[0.97]"
             >
-              <span className="text-tag-2 block text-[21px] font-extrabold tabular-nums leading-tight">
+              <span className="text-tag-2 block text-[21px] leading-tight font-extrabold tabular-nums">
                 {weeklySummaryQuery.isLoading ? "…" : formatFocusDuration(weeklyFocusMs)}
               </span>
               <span className="text-ink-2 mt-0.5 block text-[11.5px]">本周专注</span>
@@ -282,7 +289,7 @@ export function PomodoroPage({
               onClick={onOpenHistory}
               className="rounded-bento bg-tag-3-soft shadow-card p-4 text-left transition-transform duration-200 active:scale-[0.97]"
             >
-              <span className="text-tag-3 block text-[21px] font-extrabold tabular-nums leading-tight">
+              <span className="text-tag-3 block text-[21px] leading-tight font-extrabold tabular-nums">
                 {totalSummaryQuery.isLoading
                   ? "…"
                   : formatFocusDuration(totalSummaryQuery.data?.focusMs ?? 0)}
@@ -294,7 +301,7 @@ export function PomodoroPage({
           </div>
 
           {/* 预设列表（清单式，与任务中心同构） */}
-          <div className="mb-1.5 mt-5 flex items-baseline justify-between px-[19px]">
+          <div className="mt-5 mb-1.5 flex items-baseline justify-between px-[19px]">
             <h2 className="text-ink-1 text-[16.5px] font-extrabold">预设</h2>
           </div>
           <div className="list-group mx-[18px]">
@@ -342,7 +349,7 @@ export function PomodoroPage({
                         <span className="truncate">{preset.name}</span>
                         {running ? (
                           <span
-                            className="rounded-full px-1.5 py-0.5 text-[9.5px] font-bold leading-none"
+                            className="rounded-full px-1.5 py-0.5 text-[9.5px] leading-none font-bold"
                             style={{
                               background: "var(--tau-accent-soft)",
                               color: "var(--tau-accent)",

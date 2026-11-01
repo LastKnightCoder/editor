@@ -13,6 +13,7 @@ import pluginServicesModule from "../modules/plugin-services";
 import pluginBackendModule from "../modules/plugin-backend";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
+import deviceSyncModule from "../modules/device-sync";
 import collaborationModule from "../modules/collaboration";
 import whiteboardDocumentsModule from "../modules/whiteboard-documents";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
@@ -27,7 +28,6 @@ import onlineVideoCacheModule from "../modules/online-video-cache";
 import remoteVideoCacheModule from "../modules/remote-video-cache";
 import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
-import podcastAudioModule from "../modules/podcast-audio";
 import publishModule from "../modules/publish";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
@@ -139,6 +139,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => collaborationModule.init(),
   },
   {
+    name: "device-sync",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database", "collaboration"],
+    init: () => deviceSyncModule.init(),
+  },
+  {
     name: "extra",
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
@@ -199,12 +205,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => remoteImageCacheModule.init(),
-  },
-  {
-    name: "podcast-audio",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "resource"],
-    init: () => podcastAudioModule.init(),
   },
 
   // AI 模块

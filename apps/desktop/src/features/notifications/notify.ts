@@ -10,14 +10,20 @@
  * 原应用内行为。
  */
 
-import { notify, type NotificationOptions } from "@tau/ui";
+import { notify, type NotificationAction, type NotificationOptions } from "@tau/ui";
 import type { NotificationRoute, SystemNotificationPayload } from "@tau/platform";
 import { platform } from "@/platform";
 import { NOTIFICATION_ICONS, type NotificationIconKey } from "./icons";
 
-export interface AppNotifyOptions extends Omit<NotificationOptions, "icon"> {
+export interface AppNotifyAction extends NotificationAction {
+  /** 落在系统通知窗口时，点击先把本窗口带到前台（「查看」类按钮用） */
+  reveal?: boolean;
+}
+
+export interface AppNotifyOptions extends Omit<NotificationOptions, "icon" | "actions"> {
   /** 身份位图标注册键（NOTIFICATION_ICONS），跨 IPC 只传字符串 */
   icon?: NotificationIconKey;
+  actions?: AppNotifyAction[];
 }
 
 export interface AppNotifyRouteOptions {

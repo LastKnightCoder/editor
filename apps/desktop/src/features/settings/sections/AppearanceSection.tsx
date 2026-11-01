@@ -17,6 +17,11 @@ import {
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
+import {
+  HIGHLIGHT_STYLES,
+  HighlightMark,
+  type HighlightStyle,
+} from "@tau/editor/extensions/text-formatting";
 import { useThemeStore } from "@tau/themes/react";
 import type { CSSProperties, ReactNode } from "react";
 import {
@@ -87,6 +92,16 @@ export function AppearanceSection() {
   };
 
   const imageShadow: ImageShadowPreset = appearance?.image?.shadow ?? "none";
+  const highlightStyle: HighlightStyle = appearance?.highlight?.style ?? "flat";
+
+  const updateHighlightStyle = (style: HighlightStyle) => {
+    useSettingStore.setState(s => ({
+      setting: produce(s.setting, draft => {
+        if (!draft.appearance) draft.appearance = {};
+        draft.appearance.highlight = { ...draft.appearance.highlight, style };
+      }),
+    }));
+  };
 
   return (
     <>
@@ -170,6 +185,21 @@ export function AppearanceSection() {
         </SettingRow>
       </SettingsGroup>
 
+      <SettingsGroup title="高亮" description="背景高亮的笔触，对所有文档和发布的博客生效">
+        <div className="grid grid-cols-4 gap-3 px-1.5 pt-2.5 pb-2.5">
+          {HIGHLIGHT_STYLES.map(style => (
+            <ChoiceCard
+              key={style.id}
+              active={highlightStyle === style.id}
+              onSelect={() => updateHighlightStyle(style.id)}
+              caption={style.label}
+            >
+              <HighlightPreview style={style.id} />
+            </ChoiceCard>
+          ))}
+        </div>
+      </SettingsGroup>
+
       <SettingsGroup title="内容图片" description="单图与图库未单独指定时的默认外观">
         <SettingRow title="圆角">
           <Select
@@ -237,6 +267,26 @@ function ChoiceCard({
         {caption}
       </div>
     </button>
+  );
+}
+
+/** 笔触预览：两段不同色的高亮，画在当前明暗下 */
+function HighlightPreview({ style }: { style: HighlightStyle }) {
+  return (
+    <div className="text-tau-body text-ink-1 absolute inset-0 flex flex-col justify-center gap-1.5 px-3 leading-[1.7]">
+      <span>
+        <HighlightMark type="yellow" variant={style}>
+          间隔重复
+        </HighlightMark>
+        更有效
+      </span>
+      <span>
+        先
+        <HighlightMark type="green" variant={style}>
+          提取练习
+        </HighlightMark>
+      </span>
+    </div>
   );
 }
 

@@ -6,8 +6,7 @@ export function leaveCollabText(isOwner: boolean) {
   return isOwner
     ? {
         title: "结束共享并清空云端数据？",
-        description:
-          "所有成员将立即失去访问权限，云端快照与附件会被清空；本地内容不受影响。",
+        description: "所有成员将立即失去访问权限，云端快照与附件会被清空；本地内容不受影响。",
         confirmText: "结束共享",
         successToast: "已结束共享",
         errorTitle: "结束共享失败",

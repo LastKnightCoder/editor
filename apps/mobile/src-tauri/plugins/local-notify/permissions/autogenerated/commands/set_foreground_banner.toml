@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-set-foreground-banner"
+description = "Enables the set_foreground_banner command without any pre-configured scope."
+commands.allow = ["set_foreground_banner"]
+
+[[permission]]
+identifier = "deny-set-foreground-banner"
+description = "Denies the set_foreground_banner command without any pre-configured scope."
+commands.deny = ["set_foreground_banner"]

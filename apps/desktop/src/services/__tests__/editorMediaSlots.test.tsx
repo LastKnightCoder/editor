@@ -124,6 +124,13 @@ it("本机与共享正文都沿用场景上传，共享时仅转换返回的本�
     expect(managedUpload).toHaveBeenLastCalledWith(video);
     expect(upload).toHaveBeenCalledTimes(4);
     expect(prepareResource).toHaveBeenCalledTimes(2);
+    const portable = vi.fn(async () => "tau-collab-local:paired");
+    const paired = collaborationKit({ ...binding, prepareResource: portable }, kit).registry.get(
+      IResourceService
+    );
+    upload.mockResolvedValueOnce("~/.editor/resources/device-image.webp");
+    await expect(paired.upload(file)).resolves.toBe("tau-collab-local:paired");
+    expect(portable).toHaveBeenCalledWith("~/.editor/resources/device-image.webp");
   } finally {
     awareness.destroy();
     doc.destroy();

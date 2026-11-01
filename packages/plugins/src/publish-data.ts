@@ -25,7 +25,11 @@ export interface SiteData {
   fields: Record<string, string | boolean>;
 }
 export interface PublishSettings {
-  appearance?: { image?: { borderRadius?: string; shadow?: string | boolean } };
+  appearance?: {
+    image?: { borderRadius?: string; shadow?: string | boolean };
+    /** 背景高亮笔触（flat / chisel / swipe / grain），缺省为平涂 */
+    highlight?: { style?: string };
+  };
 }
 /** 站点级数据只在清单中出现一次，各内容文件不重复携带。 */
 export interface DataManifest {

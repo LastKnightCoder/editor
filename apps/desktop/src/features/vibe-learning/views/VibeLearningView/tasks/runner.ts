@@ -7,14 +7,10 @@
 import type { Descendant } from "slate";
 import { createContent, getContentById, replaceContent } from "@/commands";
 import { createVLNote, updateVLNote } from "@/commands/vibe-learning";
-import { createPodcast } from "@/commands/podcast";
 import { createVLQuizSet, createVLQuizItemsBatch } from "@/commands/vl-quiz";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { runGenerationTask, type GenerationRequest } from "@/services/generation-orchestrator";
-import { parseScript } from "@/services/podcast";
 import useSettingStore from "@/stores/useSettingStore";
-import { TTSProviderFactory } from "@/utils/tts";
-import type { ITTSProvider } from "@/types/tts";
 import { invalidateQuizzes } from "../../../quizQueries";
 import { queryClient } from "@/queryClient";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
@@ -24,11 +20,13 @@ import { getTemplateById, getDefaultTemplate } from "@/constants/ppt-templates";
 import { getReportTemplateById, getDefaultReportTemplate } from "@/constants/report-templates";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
-import type { PodcastSpeaker } from "@/types/podcast";
 import type { VLNote, VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, getMarkdown } from "@/utils";
 import { parsePartialQuizPrompts, parseQuizResponse } from "./quizParse";
-import { synthesizePodcast } from "./podcastAudio";
+import { addPluginLink } from "@/commands/plugin-links";
+import { locatePluginEntity } from "@/commands/plugin-entities";
+import type { JsonValue, PluginNotebookOutputPlan } from "@tau/plugins";
+import type { RegisteredPluginNotebookOutput } from "@/app/plugins/runtime";
 import { useVLTaskStore, type VLTask, type VLTaskKind, type VLTaskTurn } from "./store";
 
 export interface VLTaskInput {
@@ -48,7 +46,13 @@ export interface VLTaskInput {
   quizName?: string;
   /** 笔记类产物的标题（缺省用类型名；PPT / 报告落库时改用 HTML 里的标题） */
   title?: string;
-  podcast?: { name: string; speakers: PodcastSpeaker[]; durationMin: number; durationMax: number };
+  /** 插件的 Notebook 输出：注册项、选项区的值与 Notebook 标题 */
+  plugin?: {
+    output: RegisteredPluginNotebookOutput;
+    options: JsonValue | undefined;
+    notebookTitle: string;
+    grantNotebook: () => Promise<unknown> | undefined;
+  };
   /** AI 编辑的目标笔记 */
   note?: VLNote;
 }
@@ -61,12 +65,11 @@ const NOTE_KIND: Partial<Record<VLTaskKind, { type: VLNoteType; title: string }>
   mindmap: { type: "mindmap", title: "思维导图" },
   ppt: { type: "ppt", title: "演示文稿" },
   report: { type: "report", title: "报告" },
-  podcast: { type: "podcast", title: "播客" },
 };
 
 /** 正文可以边生成边落库的类型（中途关应用也留得住已写的部分） */
 const LIVE_SAVE: VLTaskKind[] = ["outline", "highlights", "article"];
-/** 停止 / 失败时半截输出仍然可用的类型（HTML、JSON、播客脚本的半截不可用） */
+/** 停止 / 失败时半截输出仍然可用的类型（HTML、JSON、插件产物的半截不可用） */
 const KEEP_PARTIAL: VLTaskKind[] = [...LIVE_SAVE, "mindmap"];
 
 const EMPTY_CONTENT: Descendant[] = [
@@ -74,9 +77,11 @@ const EMPTY_CONTENT: Descendant[] = [
 ] as unknown as Descendant[];
 
 interface Runtime {
-  tts?: ITTSProvider;
-  ttsController?: AbortController;
   input: VLTaskInput;
+  /** 插件产物：prepare 返回的任务说明，重新生成时沿用 */
+  plan?: PluginNotebookOutputPlan;
+  /** 停止时中止：生成与插件产物的后续处理共用 */
+  abort: AbortController;
   contentId?: number;
   controller?: AbortController;
   cancelled: boolean;
@@ -91,28 +96,21 @@ const commandsFor = (databaseName: string, signal?: AbortSignal) =>
       replaceContent,
       createVLNote,
       updateVLNote,
-      createPodcast,
       createVLQuizSet,
       createVLQuizItemsBatch,
     },
     { databaseName, signal }
   );
 
-function llmConfig(feature: "chat" | "podcastGeneration"): {
+function llmConfig(): {
   provider: LLMProviderSetting;
   model: LLMModelSetting;
 } {
   const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
-  const usage = llmUsageSettings[feature];
+  const usage = llmUsageSettings.chat;
   const provider = usage ? llmConfigs.find(c => c.id === usage.providerId) : undefined;
   const model = usage ? provider?.models?.find(m => m.id === usage.modelId) : undefined;
-  if (!provider || !model) {
-    throw new Error(
-      feature === "podcastGeneration"
-        ? "请先在设置中配置播客生成的 AI 模型"
-        : "请先在设置中配置 AI 模型"
-    );
-  }
+  if (!provider || !model) throw new Error("请先在设置中配置 AI 模型");
   return { provider, model };
 }
 
@@ -160,11 +158,11 @@ function upsertTurn(
   return next;
 }
 
-async function buildRequest(
+function buildRequest(
   input: VLTaskInput,
   currentHtml: string | undefined,
   runtime: Runtime
-): Promise<GenerationRequest> {
+): GenerationRequest {
   const sourcePayload = {
     projectId: input.projectId,
     mainDbName: input.mainDbName,
@@ -196,20 +194,17 @@ async function buildRequest(
     case "ppt_edit":
     case "report_edit":
       return { ...base, taskType: input.kind, taskPayload: { currentHtml: currentHtml ?? "" } };
-    case "podcast": {
+    case "plugin": {
+      const plan = runtime.plan;
+      if (!plan || !input.plugin) throw new Error("插件产物缺少任务说明");
       return {
         ...base,
-        taskType: "podcast",
+        taskType: "plugin",
         taskPayload: {
-          speakers: input.podcast?.speakers ?? [],
-          // prompt 标签规则须与实际合成引擎对齐，从当前语音服务派生
-          ttsPromptOptions: {
-            textInstructions:
-              (await runtime.tts?.getTextInstructions?.(runtime.ttsController?.signal)) ??
-              "只输出可朗读的纯文本，不加入语音控制标签。",
-          },
-          durationMin: input.podcast?.durationMin,
-          durationMax: input.podcast?.durationMax,
+          pluginId: input.plugin.output.context.pluginId,
+          title: plan.title,
+          instructions: plan.instructions,
+          ...(plan.reminders ? { reminders: plan.reminders } : {}),
         },
       };
     }
@@ -239,13 +234,19 @@ async function loadCurrentHtml(
  */
 export async function startVLTask(
   input: VLTaskInput,
-  reuse?: { taskId: string; noteId?: number; quizSetId?: number; contentId?: number }
-): Promise<{ taskId: string; note?: VLNote; quizSetId?: number }> {
+  reuse?: {
+    taskId: string;
+    noteId?: number;
+    quizSetId?: number;
+    contentId?: number;
+    plan?: PluginNotebookOutputPlan;
+  }
+): Promise<{ taskId: string; note?: VLNote; quizSetId?: number; pluginEntityId?: number }> {
   const { startSignal, ...taskInput } = input;
   input = taskInput;
   startSignal?.throwIfAborted();
   const commands = commandsFor(input.mainDbName, startSignal);
-  const config = llmConfig(input.kind === "podcast" ? "podcastGeneration" : "chat");
+  const config = llmConfig();
   const store = useVLTaskStore.getState();
   const taskId = reuse?.taskId ?? `vl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -254,8 +255,60 @@ export async function startVLTask(
   let contentId = reuse?.contentId ?? input.note?.contentId;
   let title = input.note?.title ?? "";
   let currentHtml: string | undefined;
+  let plan = reuse?.plan;
+  let pluginTask: VLTask["plugin"];
 
-  if (input.kind === "ppt_edit" || input.kind === "report_edit") {
+  if (input.kind === "plugin") {
+    const plugin = input.plugin;
+    if (!plugin) throw new Error("缺少插件输出");
+    const { output } = plugin;
+    const pluginId = output.context.pluginId;
+    if (!plan) {
+      plan = await output.definition.prepare({
+        notebook: { id: String(input.projectId), title: plugin.notebookTitle },
+        resources: input.resourceIds.map((id, i) => ({
+          id: String(id),
+          name: input.resourceNames[i],
+        })),
+        userPrompt: input.userPrompt ?? "",
+        options: plugin.options,
+        signal: startSignal ?? new AbortController().signal,
+      });
+      try {
+        // 产物须是这个插件声明的那类实体，再挂到 Notebook 上
+        const entity = await locatePluginEntity(input.mainDbName, Number(plan.entity));
+        if (!entity || entity.pluginId !== pluginId || entity.kind !== output.definition.kind)
+          throw new Error("插件返回的产物无效");
+        await plugin.grantNotebook();
+        await addPluginLink(
+          input.mainDbName,
+          pluginId,
+          {
+            id: crypto.randomUUID(),
+            from: entity.id,
+            to: { kind: "notebook", id: String(input.projectId) },
+            role: "output",
+            data: {},
+          },
+          true
+        );
+      } catch (error) {
+        await output.definition.fail?.({
+          entity: plan.entity,
+          reason: "failed",
+          message: (error as Error).message || "建立产物失败",
+        });
+        throw error;
+      }
+    }
+    title = plan.title;
+    pluginTask = {
+      pluginId,
+      kind: output.definition.kind,
+      entityId: Number(plan.entity),
+      label: output.definition.title,
+    };
+  } else if (input.kind === "ppt_edit" || input.kind === "report_edit") {
     if (!input.note) throw new Error("缺少要编辑的产物");
     currentHtml = await loadCurrentHtml(input.note, input.kind, input.mainDbName, startSignal);
   } else if (input.kind === "quiz") {
@@ -274,10 +327,7 @@ export async function startVLTask(
   } else {
     const meta = NOTE_KIND[input.kind];
     if (!meta) throw new Error(`不支持的生成类型：${input.kind}`);
-    title =
-      input.kind === "podcast"
-        ? input.podcast?.name.trim() || meta.title
-        : input.title?.trim() || meta.title;
+    title = input.title?.trim() || meta.title;
     if (!reuse?.noteId) {
       const newContentId = await commands.createContent(
         EMPTY_CONTENT,
@@ -304,6 +354,7 @@ export async function startVLTask(
     title,
     noteId,
     quizSetId,
+    ...(pluginTask ? { plugin: pluginTask } : {}),
     status: "running",
     phase: "分析资料",
     startedAt: Date.now(),
@@ -315,10 +366,16 @@ export async function startVLTask(
   });
   store.bumpProducts(input.projectId);
 
-  const runtime: Runtime = { input, contentId, cancelled: false };
+  const runtime: Runtime = {
+    input,
+    contentId,
+    plan,
+    abort: new AbortController(),
+    cancelled: false,
+  };
   runtimes.set(taskId, runtime);
-  void execute(taskId, runtime, config, currentHtml);
-  return { taskId, note, quizSetId };
+  void executeInner(taskId, runtime, config, currentHtml);
+  return { taskId, note, quizSetId, pluginEntityId: pluginTask?.entityId };
 }
 
 export function cancelVLTask(taskId: string) {
@@ -326,7 +383,7 @@ export function cancelVLTask(taskId: string) {
   if (!runtime) return;
   runtime.cancelled = true;
   runtime.controller?.abort();
-  runtime.ttsController?.abort();
+  runtime.abort.abort(new DOMException("已停止", "AbortError"));
 }
 
 /** 失败 / 停止后按原配置重跑，写回同一个产物 */
@@ -334,30 +391,22 @@ export async function retryVLTask(taskId: string) {
   const task = useVLTaskStore.getState().tasks[taskId];
   const runtime = runtimes.get(taskId);
   if (!task || !runtime) throw new Error("任务已失效，请重新发起");
-  await startVLTask(runtime.input, {
+  if (task.status === "running") throw new Error("任务仍在运行");
+  let plan = runtime.plan;
+  if (plan && !(await locatePluginEntity(runtime.input.mainDbName, Number(plan.entity))))
+    plan = undefined;
+  const result = await startVLTask(runtime.input, {
     taskId,
     noteId: task.noteId,
     quizSetId: task.quizSetId,
     contentId: runtime.contentId,
+    plan,
   });
-}
-
-async function execute(
-  taskId: string,
-  runtime: Runtime,
-  config: { provider: LLMProviderSetting; model: LLMModelSetting },
-  currentHtml?: string
-) {
-  try {
-    await executeInner(taskId, runtime, config, currentHtml);
-  } finally {
-    runtime.ttsController?.abort();
-    await runtime.tts?.synthesis
-      ?.dispose?.()
-      .catch(error => console.error("回收播客语音任务失败", error));
-    runtime.tts = undefined;
-    runtime.ttsController = undefined;
-  }
+  if (result.pluginEntityId !== undefined && result.pluginEntityId !== task.plugin?.entityId)
+    useVLTaskStore.getState().requestOpen(runtime.input.projectId, {
+      kind: "plugin-output",
+      id: result.pluginEntityId,
+    });
 }
 
 async function executeInner(
@@ -395,16 +444,10 @@ async function executeInner(
 
   let content: string;
   try {
-    if (input.kind === "podcast") {
-      runtime.tts = TTSProviderFactory.getTTSProvider() ?? undefined;
-      if (!runtime.tts?.synthesis) throw new Error("请先配置TTS服务提供商");
-      runtime.ttsController = new AbortController();
-      if (runtime.cancelled) runtime.ttsController.abort();
-    }
-    const request = await buildRequest(input, currentHtml, runtime);
+    const request = buildRequest(input, currentHtml, runtime);
     if (runtime.cancelled) throw new DOMException("已停止", "AbortError");
     content = await new Promise<string>((resolve, reject) => {
-      const signal = runtime.tts?.synthesis?.signal;
+      const signal = runtime.abort.signal;
       let settled = false;
       const canReceive = () =>
         !settled && !runtime.cancelled && !signal?.aborted && runtimes.get(taskId) === runtime;
@@ -512,6 +555,7 @@ async function executeInner(
         console.error("[vl-task] 保存已输出部分失败", e)
       );
     }
+    await failPluginOutput(runtime, error);
     if (runtime.cancelled) finish({ status: "cancelled", phase: "已停止" });
     else finish({ status: "failed", phase: "失败", error: (error as Error).message || "生成失败" });
     return;
@@ -523,21 +567,31 @@ async function executeInner(
     await persist(taskId, runtime, content);
     finish({ status: "succeeded", phase: "已完成" });
   } catch (error) {
+    await failPluginOutput(runtime, error);
     if (runtime.cancelled) finish({ status: "cancelled", phase: "已停止" });
     else finish({ status: "failed", phase: "失败", error: (error as Error).message || "保存失败" });
+  }
+}
+
+/** 插件产物没生成完：告诉插件清理占位或标为失败 */
+async function failPluginOutput(runtime: Runtime, error: unknown) {
+  const { plugin } = runtime.input;
+  if (!plugin || !runtime.plan) return;
+  try {
+    await plugin.output.definition.fail?.({
+      entity: runtime.plan.entity,
+      reason: runtime.cancelled ? "cancelled" : "failed",
+      message: runtime.cancelled ? "已停止" : (error as Error)?.message || "生成失败",
+    });
+  } catch (e) {
+    console.error("[vl-task] 通知插件失败", e);
   }
 }
 
 /** 按类型把模型输出写进产物 */
 async function persist(taskId: string, runtime: Runtime, content: string) {
   const { input, contentId } = runtime;
-  const taskSignals = [runtime.ttsController?.signal, runtime.tts?.synthesis?.signal].filter(
-    (signal): signal is AbortSignal => Boolean(signal)
-  );
-  const commands = commandsFor(
-    input.mainDbName,
-    taskSignals.length ? AbortSignal.any(taskSignals) : undefined
-  );
+  const commands = commandsFor(input.mainDbName, runtime.abort.signal);
   const task = useVLTaskStore.getState().tasks[taskId];
   switch (input.kind) {
     case "outline":
@@ -582,40 +636,22 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       void invalidateQuizzes(queryClient, input.mainDbName);
       return;
     }
-    case "podcast": {
-      const speakers = input.podcast?.speakers ?? [];
-      const lines = parseScript(content, speakers);
-      if (lines.length === 0) throw new Error("脚本解析失败，未找到有效的对话行");
+    case "plugin": {
+      const { plugin } = input;
+      if (!plugin || !runtime.plan) throw new Error("插件产物缺少任务说明");
       const patch = useVLTaskStore.getState().patch;
-      patch(taskId, { phase: "合成语音", progress: { done: 0, total: lines.length } });
-      const controller = runtime.ttsController;
-      if (!controller || !runtime.tts?.synthesis) throw new Error("播客语音任务已结束");
-      runtime.controller = controller;
-      if (runtime.cancelled) controller.abort();
-      const audio = await synthesizePodcast(
-        lines,
-        {
-          signal: controller.signal,
-          onProgress: (done, total) => patch(taskId, { progress: { done, total } }),
-          onPhase: phase => patch(taskId, { phase }),
+      await plugin.output.definition.complete({
+        entity: runtime.plan.entity,
+        text: content,
+        task: {
+          phase: text => patch(taskId, { phase: String(text).slice(0, 60) }),
+          progress: (done, total) =>
+            patch(taskId, {
+              progress: total > 0 ? { done: Math.max(0, done), total } : undefined,
+            }),
         },
-        runtime.tts.synthesis
-      );
-      controller.signal.throwIfAborted();
-      runtime.tts.synthesis.signal?.throwIfAborted();
-      const name = input.podcast?.name.trim() || "播客";
-      const podcast = await commands.createPodcast({
-        name,
-        audioUrl: audio.audioUrl,
-        script: content,
-        scriptLines: audio.lines,
-        duration: audio.duration,
-        speakers,
+        signal: runtime.abort.signal,
       });
-      const script = audio.lines.map(line => `**${line.speaker}**: ${line.text}`).join("\n\n");
-      if (contentId)
-        await commands.replaceContent(contentId, { markdown: `# ${name}\n\n${script}` });
-      if (task?.noteId) await commands.updateVLNote({ id: task.noteId, podcastId: podcast.id });
       return;
     }
   }

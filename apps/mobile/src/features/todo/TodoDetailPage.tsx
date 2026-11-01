@@ -50,6 +50,9 @@ import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobi
 import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPickerSheet";
 import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 import { useMobileEntityHostRevision } from "../../services/pluginEntities";
+import { summarizeReminders } from "@tau/shared/reminders";
+import { ReminderSheet } from "../reminders/ReminderSheet";
+import { saveReminders, useReminders } from "../reminders/queries";
 
 type TodoDetailPageProps = {
   todoId: number;
@@ -64,16 +67,6 @@ type HeatmapCell = {
   date: number;
   status: HeatmapCellStatus;
 };
-
-const REMINDER_OPTIONS: Array<{ label: string; value: number }> = [
-  { label: "准时", value: 0 },
-  { label: "5 分钟前", value: 5 * 60 * 1000 },
-  { label: "10 分钟前", value: 10 * 60 * 1000 },
-  { label: "15 分钟前", value: 15 * 60 * 1000 },
-  { label: "30 分钟前", value: 30 * 60 * 1000 },
-  { label: "1 小时前", value: 60 * 60 * 1000 },
-  { label: "1 天前", value: 24 * 60 * 60 * 1000 },
-];
 
 const TYPE_LABELS: Record<TodoItem["type"], string> = {
   normal: "普通任务",
@@ -154,6 +147,8 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   const [startTimeSheetOpen, setStartTimeSheetOpen] = useState(false);
   const [dueTimeSheetOpen, setDueTimeSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
+  // 首个提醒在 remindBefore 上，变化即重读整组（其他入口改了提醒）
+  const reminders = useReminders("todo", todoId, current?.remindBefore);
 
   // 更多操作 / 删除
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
@@ -411,23 +406,9 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       ]
     : [];
 
-  const reminderSheetItems: ActionSheetItem[] = [
-    {
-      label: "不提醒",
-      selected: current?.remindBefore == null,
-      onClick: () => void handleUpdateItemField({ remindBefore: null }),
-    },
-    ...REMINDER_OPTIONS.map(opt => ({
-      label: opt.label,
-      selected: current?.remindBefore === opt.value,
-      onClick: () => void handleUpdateItemField({ remindBefore: opt.value }),
-    })),
-  ];
-
-  const reminderLabel =
-    current?.remindBefore != null
-      ? (REMINDER_OPTIONS.find(o => o.value === current.remindBefore)?.label ?? "自定义")
-      : "不提醒";
+  const reminderOffsets =
+    current?.remindBefore != null ? (reminders.data ?? [current.remindBefore]) : [];
+  const reminderLabel = summarizeReminders(reminderOffsets);
 
   if (!current) {
     return (
@@ -727,11 +708,16 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         onClose={() => setTypeSheetOpen(false)}
       />
 
-      {/* 提醒选择 */}
-      <ActionSheet
+      {/* 提醒选择（多选） */}
+      <ReminderSheet
         open={reminderSheetOpen}
-        title="选择提醒时间"
-        items={reminderSheetItems}
+        value={reminderOffsets}
+        anchor={current.dueAt ?? null}
+        onChange={offsets =>
+          void saveReminders("todo", current.id, offsets).catch(error =>
+            onError(error, "更新提醒失败")
+          )
+        }
         onClose={() => setReminderSheetOpen(false)}
       />
 

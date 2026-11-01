@@ -30,7 +30,6 @@ import { retryHostSession } from "./pi-session-retry";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import {
   applySessionEdit,
-  installDatabaseDownload,
   applySessionEditToFile,
   browserSessionFile,
   listSessionFiles,
@@ -38,6 +37,7 @@ import {
   readTranscript,
   type SessionEdit,
 } from "./pi-session-store";
+import { installDatabaseDownload } from "./database-download";
 import {
   assertSafeSessionId,
   browserSessionDirOf,
@@ -245,7 +245,10 @@ class PiSessionHostModule {
     );
     PiSessionHostModule.shellPath = detectBashShellPath();
     setInterval(() => PiSessionHostModule.sweepIdleSessions(), IDLE_SWEEP_INTERVAL_MS).unref?.();
-    databaseModule.onDatabaseConnected(dbName => PiSessionHostModule.releaseOtherLibraries(dbName));
+    databaseModule.onDatabaseConnected(dbName => {
+      if (databaseModule.getCurrentDatabaseName() === dbName)
+        PiSessionHostModule.releaseOtherLibraries(dbName);
+    });
     if (PiSessionHostModule.requestDumpDir) {
       mkdirSync(PiSessionHostModule.requestDumpDir, { recursive: true });
       console.log(`[PiSessionHost] 请求 dump 已开启：${PiSessionHostModule.requestDumpDir}`);

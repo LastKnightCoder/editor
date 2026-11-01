@@ -13,16 +13,6 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 );
 
 -- 核心内容域表
-CREATE TABLE IF NOT EXISTS podcasts (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        audio_url TEXT NOT NULL,
-        script TEXT,
-        duration INTEGER,
-        speakers TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0
-      , name TEXT, script_lines TEXT);
 CREATE TABLE IF NOT EXISTS contents (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -110,7 +100,7 @@ CREATE TABLE IF NOT EXISTS cards (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
+            content_id INTEGER, is_top INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL,
@@ -118,7 +108,7 @@ CREATE TABLE IF NOT EXISTS articles (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER, podcast_id INTEGER DEFAULT NULL);
+            links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER);
 CREATE TABLE IF NOT EXISTS collaboration_bindings (
             content_id INTEGER PRIMARY KEY,
             content_created_at INTEGER NOT NULL,
@@ -396,7 +386,7 @@ CREATE TABLE IF NOT EXISTS project_item (
             projects TEXT,
             ref_type TEXT,
             ref_id INTEGER
-        , project_item_type TEXT DEFAULT 'document', content_id INTEGER, white_board_content_id INTEGER, podcast_id INTEGER DEFAULT NULL, tags TEXT NOT NULL DEFAULT '[]');
+        , project_item_type TEXT DEFAULT 'document', content_id INTEGER, white_board_content_id INTEGER, tags TEXT NOT NULL DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS migration_meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -819,7 +809,7 @@ CREATE TABLE IF NOT EXISTS vl_note (
         project_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         title TEXT NOT NULL
-      , type TEXT NOT NULL DEFAULT 'note', podcast_id INTEGER DEFAULT NULL);
+      , type TEXT NOT NULL DEFAULT 'note');
 CREATE TABLE IF NOT EXISTS vl_quiz_set (
         id INTEGER PRIMARY KEY,
         project_id INTEGER NOT NULL,
@@ -946,6 +936,32 @@ CREATE TABLE IF NOT EXISTS todo_schedule_occurrence (
   occurrence_date TEXT NOT NULL
 );
 
+-- 提醒：owner_type = 'todo' 时只存首个之外的追加提醒（首个仍在 todo_item.remind_before），
+-- 'event' 时存日程的全部提醒；offset_ms = 基准时刻 - 提醒时刻（全天日程基准为当天零点）。
+CREATE TABLE IF NOT EXISTS item_reminder (
+  owner_type TEXT NOT NULL CHECK(owner_type IN ('todo','event')),
+  owner_id INTEGER NOT NULL,
+  offset_ms INTEGER NOT NULL,
+  PRIMARY KEY(owner_type, owner_id, offset_ms)
+) WITHOUT ROWID;
+-- 只认 remind_before 的写入方改动首个提醒时，追加提醒随之失效，保持「单值写入 = 只剩一个提醒」。
+CREATE TRIGGER IF NOT EXISTS trg_item_reminder_todo_reset
+AFTER UPDATE OF remind_before ON todo_item
+WHEN OLD.remind_before IS NOT NEW.remind_before
+BEGIN
+  DELETE FROM item_reminder WHERE owner_type = 'todo' AND owner_id = NEW.id;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_item_reminder_todo_delete
+AFTER DELETE ON todo_item
+BEGIN
+  DELETE FROM item_reminder WHERE owner_type = 'todo' AND owner_id = OLD.id;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_item_reminder_event_delete
+AFTER DELETE ON calendar_event
+BEGIN
+  DELETE FROM item_reminder WHERE owner_type = 'event' AND owner_id = OLD.id;
+END;
+
 -- 插件对业务数据的可恢复操作：删除前的快照或待办撤销凭据，宽限期内可由用户在插件详情页恢复
 CREATE TABLE IF NOT EXISTS plugin_operations (
   id INTEGER PRIMARY KEY,
@@ -1050,12 +1066,9 @@ CREATE TABLE IF NOT EXISTS plugin_ref_grants (
 );
 
 -- 主库索引
-CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
 CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
 CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);
-CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);
-CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
@@ -1069,7 +1082,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_t
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
-CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);

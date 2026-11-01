@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Sparkles, CreditCard, Check, Edit2 } from "lucide-react";
 import type { TagColor } from "@tau/ui";
 import { Button, Checkbox, Dialog, DialogBody, Spinner, Tag } from "@tau/ui";
-import DeckIcon from "@/components/DeckIcon";
+import DeckIcon from "@tau/shared/deck-icon";
 import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
 import type { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
 import type { FlashcardDeck } from "@/types";

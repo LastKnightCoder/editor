@@ -4,7 +4,7 @@ import { matchingInputDrafts, nodeRetentions } from "./retention";
 //
 // 与桌面端的架构差异：桌面主进程与渲染进程分处两个 JS 环境，需要 Y.Doc 副本 + IPC
 // 批量转发与重试队列；移动端协作运行时与编辑器同处一个 WebView，视图直接复用会话的
-// Y.Doc / Awareness，因此无需副本、批量 merge 与重试逻辑。
+// Y.Doc / Awareness，因此无需桌面端的 IPC 文档副本与转发重试。
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
@@ -330,11 +330,7 @@ class CollaborationManager {
       return;
     }
     if (session.info.frozen || this.sessions.get(documentId) !== session) return;
-    session.provider?.destroy();
-    session.provider = null;
-    const transport = this.transports.get(session.info.serverUrl);
-    transport?.destroy();
-    this.transports.delete(session.info.serverUrl);
+    this.pauseProvider(session);
     session.info.connection = "connecting";
     session.info.error = undefined;
     this.attach(session);
@@ -450,7 +446,7 @@ class CollaborationManager {
       if (session) {
         session.close = recovery.close;
         session.info.leaving = true;
-        session.provider?.detach();
+        this.pauseProvider(session);
         this.changed();
       }
       return this.finishClose(recovery);
@@ -479,7 +475,7 @@ class CollaborationManager {
       if (!session.provider?.synced || session.provider.hasUnsyncedChanges || session.assetsPending)
         throw new Error("COLLAB_UNSYNCED: 改动尚未同步完成，请稍后再试");
       if (session.inputDrafts.size) throw new Error("还有尚未提交的编辑，请完成输入后再结束共享");
-      session.provider.detach();
+      this.pauseProvider(session);
       if (session.info.role === "owner") {
         if (!session.info.source?.librarySourceId)
           throw new Error("原正文关联缺失，请恢复原正文关联后再结束共享");
@@ -915,7 +911,7 @@ class CollaborationManager {
     this.assertResourceSession(session);
     session.assetsPending ||= pending;
     if (session.assetsPending) {
-      session.provider?.detach();
+      this.pauseProvider(session);
       session.info.pending = true;
     }
     session.resourcesDirty = true;
@@ -1021,8 +1017,7 @@ class CollaborationManager {
       session.saveError ??= { frozen: Boolean(session.info.frozen) };
       session.info.frozen = true;
       session.info.error = describeError(failure, "本机保存失败，当前输入仍保留，请勿关闭应用");
-      session.provider?.destroy();
-      session.provider = null;
+      this.pauseProvider(session);
       this.changed();
     });
     return next;
@@ -1314,10 +1309,24 @@ class CollaborationManager {
     return transport;
   }
 
+  private pauseProvider(session: RuntimeSession) {
+    const provider = session.provider;
+    if (!provider) return;
+    const transport = this.transports.get(session.info.serverUrl);
+    // 连接已断开时只注销文档路由，避免关闭帧进入下一条连接。
+    if (
+      transport &&
+      transport.status !== "connected" &&
+      transport.configuration.providerMap.get(provider.effectiveName) === provider
+    )
+      transport.configuration.providerMap.delete(provider.effectiveName);
+    provider.detach();
+    provider.synced = false;
+  }
+
   private attach(session: RuntimeSession, closing = false) {
     const { id, serverUrl } = session.info;
     if (
-      session.provider ||
       session.assetsPending ||
       session.info.frozen ||
       (session.info.leaving && !closing) ||
@@ -1325,48 +1334,54 @@ class CollaborationManager {
       session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION
     )
       return;
-    session.provider = new HocuspocusProvider({
-      name: id,
-      document: session.doc,
-      awareness: session.awareness,
-      websocketProvider: this.transport(serverUrl),
-      token: async () =>
-        (
-          await rest.fetchTicket(serverUrl, id, {
-            protocolVersion: NODE_DOCUMENT_VERSION,
-            baselineId: String(session.doc.getMap("meta").get("baselineId")),
-            epoch: Number(session.doc.getMap("meta").get("epoch")),
-          })
-        ).ticket,
-      onStatus: ({ status }) => {
-        session.info.connection =
-          status === "connected" ? "connected" : status === "connecting" ? "connecting" : "offline";
-        this.changed();
-      },
-      onSynced: ({ state }) => {
-        if (!state) return;
-        session.info.connection = "connected";
-        session.info.error = undefined;
-        if (!session.provider?.hasUnsyncedChanges && !session.assetsPending)
-          session.info.pending = false;
-        session.resourcesDirty = true;
-        this.changed();
-      },
-      onUnsyncedChanges: ({ number }) => {
-        if (session.info.status !== "active" || session.info.leaving) return;
-        session.info.pending = number > 0 || Boolean(session.assetsPending);
-        this.changed();
-      },
-      onAuthenticationFailed: () => {
-        session.info.connection = "error";
-        session.info.error = "协作身份验证失败或访问权限已变更";
-        this.changed();
-        void this.refresh();
-      },
-    });
-    // 服务端会以设备身份覆写 user 与 activity，本地先写入可获得即时正确光标
-    session.awareness.setLocalStateField("user", { id: this.deviceId, name: this.nickname });
-    session.awareness.setLocalStateField("activity", "background");
+    if (!session.provider) {
+      session.provider = new HocuspocusProvider({
+        name: id,
+        document: session.doc,
+        awareness: session.awareness,
+        websocketProvider: this.transport(serverUrl),
+        token: async () =>
+          (
+            await rest.fetchTicket(serverUrl, id, {
+              protocolVersion: NODE_DOCUMENT_VERSION,
+              baselineId: String(session.doc.getMap("meta").get("baselineId")),
+              epoch: Number(session.doc.getMap("meta").get("epoch")),
+            })
+          ).ticket,
+        onStatus: ({ status }) => {
+          session.info.connection =
+            status === "connected"
+              ? "connected"
+              : status === "connecting"
+                ? "connecting"
+                : "offline";
+          this.changed();
+        },
+        onSynced: ({ state }) => {
+          if (!state) return;
+          session.info.connection = "connected";
+          session.info.error = undefined;
+          if (!session.provider?.hasUnsyncedChanges && !session.assetsPending)
+            session.info.pending = false;
+          session.resourcesDirty = true;
+          this.changed();
+        },
+        onUnsyncedChanges: ({ number }) => {
+          if (session.info.status !== "active" || session.info.leaving) return;
+          session.info.pending = number > 0 || Boolean(session.assetsPending);
+          this.changed();
+        },
+        onAuthenticationFailed: () => {
+          session.info.connection = "error";
+          session.info.error = "协作身份验证失败或访问权限已变更";
+          this.changed();
+          void this.refresh();
+        },
+      });
+      // 服务端会以设备身份覆写 user 与 activity，本地先写入可获得即时正确光标
+      session.awareness.setLocalStateField("user", { id: this.deviceId, name: this.nickname });
+      session.awareness.setLocalStateField("activity", "background");
+    }
     session.provider.attach();
     void this.transport(serverUrl)
       .connect()

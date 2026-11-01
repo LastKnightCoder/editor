@@ -104,13 +104,7 @@ export function HomeScreen() {
     app.presentError(error, fallback);
   });
 
-  const modules = {
-    todoEnabled: app.todoModuleEnabled,
-    diaryEnabled: app.diaryModuleEnabled,
-    pomodoroEnabled: app.pomodoroModuleEnabled,
-    calendarEnabled: app.calendarModuleEnabled,
-  };
-  const agenda = useTodayAgenda(modules);
+  const agenda = useTodayAgenda();
   const agendaHint =
     agenda.items.length === 0
       ? ""
@@ -150,7 +144,6 @@ export function HomeScreen() {
           cardsTotal={cards?.total ?? 0}
           recentCards={recentItems}
           isLoadingCards={app.cards.isLoadingCards}
-          {...modules}
           onOpenCards={onOpenCards}
           onOpenTodo={onOpenTodo}
           onOpenPomodoro={onOpenPomodoro}

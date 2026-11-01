@@ -1,6 +1,7 @@
 /**
- * 目录「产物」组：生成的笔记（大纲 / 重点 / 文章 / 导图 / PPT / 报告 / 播客）、手写笔记与测验集，
- * 按更新时间合成一列。＋ 菜单 = 新建笔记 + 8 个生成应用；测验集点行即开始测验。
+ * 目录「产物」组：生成的笔记（大纲 / 重点 / 文章 / 导图 / PPT / 报告）、手写笔记、测验集与插件产物，
+ * 按更新时间合成一列。＋ 菜单 = 新建笔记 + 内置生成应用 + 插件的 Notebook 输出（排在内置之后）；
+ * 测验集点行即开始测验；插件停用后它的产物不列出。
  */
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
@@ -28,13 +29,20 @@ import {
 import { ErrorState } from "@/components/ErrorState";
 import type { VLNote } from "@/types/vibe-learning";
 import type { VLQuizSet, VLQuizRecord } from "@/types";
+import type { PluginEntityRecord } from "@/types/plugin-entities";
 import { deleteVLNote, ensureVLNoteResource } from "@/commands/vibe-learning";
+import { deletePluginEntity } from "@/commands/plugin-entities";
+import {
+  notebookOutputIcon,
+  useNotebookOutputs,
+  type RegisteredPluginNotebookOutput,
+} from "@/app/plugins/notebook-outputs";
 import { formatDate } from "@/utils";
 import QuizTestModal from "../generate/apps/QuizTestModal";
 import QuizEditModal from "../generate/apps/QuizEditModal";
 import { GENERATE_APPS, NOTE_ICONS, type GenerateAppKey } from "../appMeta";
 import { TreeGroupHeader, TreeRow } from "./TreeRow";
-import { useNoteTask, useQuizTask, type VLTask } from "../tasks/store";
+import { useNoteTask, usePluginOutputTask, useQuizTask, type VLTask } from "../tasks/store";
 
 /** 任务状态标记：进行中 accent、失败 danger、停止 ink-3；完成不标 */
 function taskFlag(task: VLTask | undefined) {
@@ -52,7 +60,14 @@ const spinner = (
 );
 
 type OutputItem =
-  { kind: "note"; time: number; note: VLNote } | { kind: "quiz"; time: number; quizSet: VLQuizSet };
+  | { kind: "note"; time: number; note: VLNote }
+  | { kind: "quiz"; time: number; quizSet: VLQuizSet }
+  | {
+      kind: "plugin";
+      time: number;
+      entity: PluginEntityRecord;
+      output: RegisteredPluginNotebookOutput;
+    };
 
 interface OutputGroupProps {
   projectId: number;
@@ -62,6 +77,12 @@ interface OutputGroupProps {
   onOpenNote: (note: VLNote) => void;
   onCreateNote: () => void;
   onGenerate: (key: GenerateAppKey) => void;
+  /** 插件产物 */
+  pluginOutputs: PluginEntityRecord[];
+  activePluginOutputId: number | null;
+  onOpenPluginOutput: (entity: PluginEntityRecord) => void;
+  onGenerateOutput: (output: RegisteredPluginNotebookOutput) => void;
+  onPluginOutputDeleted: (entityId: number) => void;
   onEditPPT: (note: VLNote) => void;
   onEditReport: (note: VLNote) => void;
   onNotesChange: () => void;
@@ -207,6 +228,44 @@ function QuizRow({
   );
 }
 
+function PluginOutputRow({
+  entity,
+  output,
+  active,
+  onOpen,
+  onDelete,
+}: {
+  entity: PluginEntityRecord;
+  output: RegisteredPluginNotebookOutput;
+  active: boolean;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const task = usePluginOutputTask(entity.id);
+  const generating = task?.status === "running";
+  const Icon = notebookOutputIcon(output);
+  return (
+    <TreeRow
+      icon={generating ? spinner : <Icon className="size-[15px]" strokeWidth={1.75} />}
+      title={entity.title || output.definition.title}
+      active={active}
+      flag={taskFlag(task)}
+      onClick={onOpen}
+      menu={
+        generating ? undefined : (
+          <Menu.Item
+            danger
+            icon={<Trash2 className="size-4" strokeWidth={1.75} />}
+            onSelect={onDelete}
+          >
+            删除
+          </Menu.Item>
+        )
+      }
+    />
+  );
+}
+
 export interface OutputGroupRef {
   /** 生成完成后从执行过程页直接开始测验 */
   startQuiz: (quizSetId: number) => void;
@@ -215,6 +274,7 @@ export interface OutputGroupRef {
 export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
   function OutputGroup(props, ref) {
     const { projectId, mainDbName, notes, activeNoteId, onNotesChange } = props;
+    const outputs = useNotebookOutputs();
     const [open, setOpen] = useState(true);
     const [pendingDelete, setPendingDelete] = useState<null | {
       title: string;
@@ -240,8 +300,16 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
             time: quizSet.updateTime,
             quizSet,
           })),
+          ...props.pluginOutputs.flatMap(entity => {
+            const output = outputs.find(
+              o => o.context.pluginId === entity.pluginId && o.definition.kind === entity.kind
+            );
+            return output
+              ? [{ kind: "plugin" as const, time: entity.updatedAt, entity, output }]
+              : [];
+          }),
         ].sort((a, b) => b.time - a.time),
-      [notes, quizSets]
+      [notes, quizSets, props.pluginOutputs, outputs]
     );
 
     const bestScore = (id: number) => {
@@ -300,6 +368,24 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         },
       });
 
+    const askDeletePluginOutput = (
+      entity: PluginEntityRecord,
+      output: RegisteredPluginNotebookOutput
+    ) =>
+      setPendingDelete({
+        title: `删除${output.definition.title}`,
+        description: `确定删除「${entity.title || output.definition.title}」吗？7 天内可在插件详情页的「最近删除」里恢复。`,
+        action: async () => {
+          try {
+            await deletePluginEntity(mainDbName, entity.pluginId, entity.id, entity.revision);
+            props.onPluginOutputDeleted(entity.id);
+          } catch (error) {
+            console.error("Failed to delete plugin output:", error);
+            toast.error("删除失败");
+          }
+        },
+      });
+
     const handleStartTest = useMemoizedFn((quizSet: VLQuizSet) => {
       if (quizSet.itemCount === 0) {
         toast.info("这个测验集还没有题目");
@@ -353,6 +439,18 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
                   {app.label}
                 </Menu.Item>
               ))}
+              {outputs.map(output => {
+                const Icon = notebookOutputIcon(output);
+                return (
+                  <Menu.Item
+                    key={output.id}
+                    icon={<Icon className="size-4" strokeWidth={1.75} />}
+                    onSelect={() => props.onGenerateOutput(output)}
+                  >
+                    {output.definition.title}
+                  </Menu.Item>
+                );
+              })}
             </Menu>
           }
         />
@@ -366,7 +464,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         {open &&
           (items.length === 0 ? (
             /* 一行够了：能生成什么由标题右侧的生成菜单逐项列着，不在此重复 */
-            <p className="text-tau-sm text-ink-3 m-0 px-3 pb-3 pt-1">生成的内容会放在这里</p>
+            <p className="text-tau-sm text-ink-3 m-0 px-3 pt-1 pb-3">生成的内容会放在这里</p>
           ) : (
             <div className="flex flex-col gap-px">
               {items.map(item => {
@@ -387,6 +485,18 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
                             ? () => props.onEditReport(note)
                             : undefined
                       }
+                    />
+                  );
+                }
+                if (item.kind === "plugin") {
+                  return (
+                    <PluginOutputRow
+                      key={`p${item.entity.id}`}
+                      entity={item.entity}
+                      output={item.output}
+                      active={item.entity.id === props.activePluginOutputId}
+                      onOpen={() => props.onOpenPluginOutput(item.entity)}
+                      onDelete={() => askDeletePluginOutput(item.entity, item.output)}
                     />
                   );
                 }

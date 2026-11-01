@@ -9,6 +9,8 @@ export type Track = {
   source: string;
   license: string;
   offset: number;
+  /** 曲长（秒），需要接第二遍时用 */
+  duration?: number;
   bpm?: number;
   beats?: number[];
 };
@@ -21,6 +23,16 @@ export const TRACKS = {
     source: "https://pixabay.com/music/build-up-scenes-inspiring-piano-amp-strings-127139/",
     license: "Pixabay Content License（可商用，无需署名）",
     offset: 0,
+  },
+  /** 教程片配乐：前 10 秒近乎无声、之后平稳，没有鼓 */
+  chillax: {
+    file: "music/mixkit-chillax.mp3",
+    title: "Chillax",
+    author: "Francisco Alvear",
+    source: "https://mixkit.co/free-stock-music/mood/calm/（音频 https://assets.mixkit.co/music/655/655.mp3）",
+    license: "Mixkit Stock Music Free License（可商用，无需署名；不得原样转售）",
+    offset: 14,
+    duration: 144,
   },
   motivationalTechnology: {
     file: "music/motivational-technology.mp3",

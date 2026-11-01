@@ -82,7 +82,7 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
       {
         key: "sync",
         label: "同步",
-        description: "把数据库和本地资源文件同步到远端，全部手动触发",
+        description: "在局域网自动同步已配对设备，或通过存储服务同步数据库与资源",
         icon: RefreshCw,
         component: SyncSection,
       },

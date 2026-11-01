@@ -48,7 +48,10 @@ export interface MaterialSourceMeta {
 }
 
 export type VLResourceSourceMeta =
-  OnlineVideoMetaInfo | RemoteSourceMeta | NoteSourceMeta | MaterialSourceMeta;
+  | OnlineVideoMetaInfo
+  | RemoteSourceMeta
+  | NoteSourceMeta
+  | MaterialSourceMeta;
 
 /**
  * 任务进度（chunk 拆分 / embedding 批次）
@@ -122,7 +125,12 @@ export type VLIndexTaskType =
   | "index_only"; // 仅索引：已有 Markdown，只需索引
 
 export type VLIndexTaskStatus =
-  "pending" | "converting" | "optimizing_transcript" | "indexing" | "completed" | "failed";
+  | "pending"
+  | "converting"
+  | "optimizing_transcript"
+  | "indexing"
+  | "completed"
+  | "failed";
 
 export interface VLIndexTask {
   resourceId: number;
@@ -169,7 +177,13 @@ export interface VLSearchParams {
 }
 
 export type VLNoteType =
-  "note" | "outline" | "highlights" | "article" | "mindmap" | "ppt" | "report" | "podcast";
+  | "note"
+  | "outline"
+  | "highlights"
+  | "article"
+  | "mindmap"
+  | "ppt"
+  | "report";
 
 export interface VLNote {
   id: number;
@@ -177,7 +191,6 @@ export interface VLNote {
   contentId: number;
   title: string;
   type: VLNoteType;
-  podcastId: number | null; // 关联的播客 ID（仅 type=podcast 时有值）
   createTime: number;
   updateTime: number;
 }
@@ -187,13 +200,11 @@ export interface CreateVLNote {
   contentId: number;
   title: string;
   type?: VLNoteType;
-  podcastId?: number; // 关联的播客 ID（仅 type=podcast 时需要）
 }
 
 export interface UpdateVLNote {
   id: number;
   title?: string;
-  podcastId?: number | null;
 }
 
 /** 带资料新建 Notebook 的计划：笔记资源、合并为一份的摘录与 PDF 标注、各成一份的剪藏 */

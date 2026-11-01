@@ -11,6 +11,7 @@ import ContentTable from "./content";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
 import CalendarEventTable from "./calendar-event";
 import TodoNoteLinkTable from "./todo-note-link";
+import ItemReminderTable from "./item-reminder";
 import { Descendant } from "slate";
 import { prepareTaskNodes } from "../content-task-patches";
 import { getNextTaskEntityId } from "./module-entity-id";
@@ -156,7 +157,13 @@ export default class TodoItemTable {
 
     const stmt = db.prepare(sql);
     const rows = params.type === "all" ? stmt.all() : stmt.all(params.type);
-    return (rows as any[]).map(this.parse);
+    const extras = ItemReminderTable.extrasByOwner(db, "todo");
+    return (rows as any[]).map(row => {
+      const item = this.parse(row);
+      const extra = extras.get(item.id);
+      if (extra && item.remindBefore != null) item.extraReminders = extra;
+      return item;
+    });
   }
 
   static getMaxSortIndexInParent(

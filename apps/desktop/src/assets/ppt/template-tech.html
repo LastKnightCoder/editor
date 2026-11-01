@@ -151,7 +151,7 @@
             transform: scale(1);
         }
 
-        .slide.exit-prev {
+        .slide.is-leaving {
             opacity: 0;
             visibility: hidden;
             transform: scale(1.08);
@@ -1289,28 +1289,16 @@
             .glow-orb { animation: none; }
         }
 
-        /* ── 全览模式 ── */
-        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
-        .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
-        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
-        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
-        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
-        .ov-inner *{transition:none !important;animation:none !important}
-        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
-        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
-        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
-<body>
+<body data-deck-lock="850">
 
     <div class="grid-bg"></div>
     <div class="glow-orb glow-orb--cyan"></div>
     <div class="glow-orb glow-orb--purple"></div>
     <div class="glow-orb glow-orb--pink"></div>
 
-    <div class="progress-bar" id="progressBar"></div>
+    <div class="progress-bar" data-deck-progress></div>
 
     <div class="presentation" id="presentation">
 
@@ -1740,284 +1728,12 @@
 
     </div>
 
-    <div class="slide-indicators" id="indicators"></div>
+    <div class="slide-indicators" data-deck-dots="slide-indicators__dot"></div>
     <div class="slide-counter">
-        <span class="slide-counter__current" id="currentSlide">01</span>
+        <span class="slide-counter__current" data-deck-current="pad2">01</span>
         <span class="slide-counter__sep">/</span>
-        <span class="slide-counter__total" id="totalSlides">13</span>
+        <span class="slide-counter__total" data-deck-total="pad2">13</span>
     </div>
 
-    <script>
-        class SlidePresentation {
-            constructor() {
-                this.slides = Array.from(document.querySelectorAll('.slide'));
-                this.total = this.slides.length;
-                this.current = 0;
-                this.isTransitioning = false;
-                this.lockDuration = 850;
-
-                this.progressBar = document.getElementById('progressBar');
-                this.currentEl = document.getElementById('currentSlide');
-                this.totalEl = document.getElementById('totalSlides');
-                this.indicatorsEl = document.getElementById('indicators');
-
-                this.touchStartY = 0;
-                this.touchStartX = 0;
-                this.touchThreshold = 50;
-                this.overviewActive = false;
-
-                this._init();
-            }
-
-            _init() {
-                this.totalEl.textContent = String(this.total).padStart(2, '0');
-                this._buildIndicators();
-                this._updateUI();
-                this._bindKeyboard();
-                this._bindWheel();
-                this._bindTouch();
-                this._bindIndicatorClicks();
-                this._animateCounters();
-            }
-
-            _buildIndicators() {
-                this.slides.forEach((_, i) => {
-                    const dot = document.createElement('div');
-                    dot.className = 'slide-indicators__dot' + (i === 0 ? ' active' : '');
-                    dot.dataset.index = i;
-                    this.indicatorsEl.appendChild(dot);
-                });
-                this.dots = Array.from(this.indicatorsEl.children);
-            }
-
-            _bindIndicatorClicks() {
-                this.indicatorsEl.addEventListener('click', (e) => {
-                    const dot = e.target.closest('.slide-indicators__dot');
-                    if (!dot) return;
-                    const idx = parseInt(dot.dataset.index, 10);
-                    if (!isNaN(idx)) this.goTo(idx);
-                });
-            }
-
-            _bindKeyboard() {
-                document.addEventListener('keydown', (e) => {
-                    switch (e.key) {
-                        case 'ArrowRight':
-                        case 'ArrowDown':
-                        case ' ':
-                        case 'PageDown':
-                            e.preventDefault();
-                            this.next();
-                            break;
-                        case 'ArrowLeft':
-                        case 'ArrowUp':
-                        case 'PageUp':
-                            e.preventDefault();
-                            this.prev();
-                            break;
-                        case 'Home':
-                            e.preventDefault();
-                            this.goTo(0);
-                            break;
-                        case 'End':
-                            e.preventDefault();
-                            this.goTo(this.total - 1);
-                            break;
-                        case 'f':
-                        case 'F':
-                            e.preventDefault();
-                            this.toggleFullscreen();
-                            break;
-                        case 'o':
-                        case 'O':
-                            e.preventDefault();
-                            this.toggleOverview();
-                            break;
-                        case 'Escape':
-                            this.closeOverview();
-                            break;
-                    }
-                });
-            }
-
-            _bindWheel() {
-                let wheelAccum = 0;
-                let wheelTimeout = null;
-
-                document.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    wheelAccum += e.deltaY;
-
-                    if (wheelTimeout) clearTimeout(wheelTimeout);
-                    wheelTimeout = setTimeout(() => { wheelAccum = 0; }, 200);
-
-                    if (Math.abs(wheelAccum) > 80) {
-                        if (wheelAccum > 0) this.next();
-                        else this.prev();
-                        wheelAccum = 0;
-                    }
-                }, { passive: false });
-            }
-
-            _bindTouch() {
-                document.addEventListener('touchstart', (e) => {
-                    this.touchStartY = e.touches[0].clientY;
-                    this.touchStartX = e.touches[0].clientX;
-                }, { passive: true });
-
-                document.addEventListener('touchend', (e) => {
-                    const dy = this.touchStartY - e.changedTouches[0].clientY;
-                    const dx = this.touchStartX - e.changedTouches[0].clientX;
-
-                    if (Math.abs(dy) < this.touchThreshold && Math.abs(dx) < this.touchThreshold) return;
-
-                    if (Math.abs(dy) > Math.abs(dx)) {
-                        dy > 0 ? this.next() : this.prev();
-                    } else {
-                        dx > 0 ? this.next() : this.prev();
-                    }
-                }, { passive: true });
-            }
-
-            next() {
-                if (this.isTransitioning || this.current >= this.total - 1) return;
-                this.goTo(this.current + 1);
-            }
-
-            prev() {
-                if (this.isTransitioning || this.current <= 0) return;
-                this.goTo(this.current - 1);
-            }
-
-            goTo(index) {
-                if (this.isTransitioning || index === this.current || index < 0 || index >= this.total) return;
-                this.isTransitioning = true;
-
-                const prev = this.slides[this.current];
-                prev.classList.remove('active');
-                prev.classList.add('exit-prev');
-
-                this.current = index;
-                this._updateUI();
-                this._animateCounters();
-
-                setTimeout(() => {
-                    prev.classList.remove('exit-prev');
-                }, 400);
-
-                setTimeout(() => {
-                    this.isTransitioning = false;
-                }, this.lockDuration);
-            }
-
-            _updateUI() {
-                this.slides.forEach((s, i) => {
-                    if (i === this.current) {
-                        s.classList.add('active');
-                    } else {
-                        s.classList.remove('active');
-                    }
-                });
-
-                this.dots.forEach((d, i) => d.classList.toggle('active', i === this.current));
-                this.currentEl.textContent = String(this.current + 1).padStart(2, '0');
-                this.progressBar.style.width = ((this.current + 1) / this.total * 100) + '%';
-            }
-
-            _animateCounters() {
-                const activeSlide = this.slides[this.current];
-                const counters = activeSlide.querySelectorAll('[data-count]');
-
-                counters.forEach((el) => {
-                    const target = parseFloat(el.dataset.count);
-                    const isDecimal = target % 1 !== 0;
-                    const duration = 1200;
-                    const startTime = performance.now();
-
-                    el.textContent = '0';
-
-                    const step = (now) => {
-                        const elapsed = now - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
-                        const eased = 1 - Math.pow(1 - progress, 3);
-                        const val = eased * target;
-
-                        el.textContent = isDecimal ? val.toFixed(2) : Math.floor(val).toString();
-
-                        if (progress < 1) {
-                            requestAnimationFrame(step);
-                        } else {
-                            el.textContent = isDecimal ? target.toFixed(2) : target.toString();
-                        }
-                    };
-
-                    setTimeout(() => requestAnimationFrame(step), 400);
-                });
-
-                activeSlide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
-                    if (!el.dataset.filled) {
-                        setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
-                        el.dataset.filled = 'true';
-                    }
-                });
-            }
-
-            toggleFullscreen() {
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-                else document.exitFullscreen().catch(() => {});
-            }
-
-            toggleOverview() {
-                if (this.overviewActive) { this.closeOverview(); return; }
-                this.overviewActive = true;
-                const ov = document.createElement('div');
-                ov.className = 'ov-grid';
-                const close = document.createElement('button');
-                close.className = 'ov-close';
-                close.innerHTML = '&times;';
-                close.onclick = () => this.closeOverview();
-                ov.appendChild(close);
-                const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
-                this.slides.forEach((slide, i) => {
-                    const card = document.createElement('div');
-                    card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
-                    card.style.aspectRatio = vpAR;
-                    const inner = document.createElement('div');
-                    inner.className = 'ov-inner';
-                    const clone = slide.cloneNode(true);
-                    clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
-                    clone.classList.add('active');
-                    inner.appendChild(clone);
-                    const num = document.createElement('span');
-                    num.className = 'ov-num';
-                    num.textContent = i + 1;
-                    card.appendChild(inner);
-                    card.appendChild(num);
-                    card.onclick = () => { this.goTo(i); this.closeOverview(); };
-                    ov.appendChild(card);
-                });
-                document.body.appendChild(ov);
-                this._ovEl = ov;
-                requestAnimationFrame(() => {
-                    ov.querySelectorAll('.ov-inner').forEach(inner => {
-                        const card = inner.parentElement;
-                        const sx = card.offsetWidth / window.innerWidth;
-                        const sy = card.offsetHeight / window.innerHeight;
-                        inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
-                    });
-                    ov.classList.add('ov-visible');
-                });
-            }
-
-            closeOverview() {
-                this.overviewActive = false;
-                if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            new SlidePresentation();
-        });
-    </script>
 </body>
 </html>

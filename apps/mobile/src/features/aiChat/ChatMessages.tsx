@@ -1,5 +1,5 @@
-// 消息列表：与桌面、浏览器扩展同一套 MessageView（用户气泡、助手通栏、思考与工具行按原序）。
-// 触屏没有悬停：相邻工具收成过程胶囊，操作行只常显在最后一条回答下，其余操作靠长按菜单。
+// 消息列表：与桌面、浏览器扩展同一套 MessageView（用户气泡、助手通栏、思考与工具按原序）。
+// 触屏没有悬停：工具逐条进时间线（features/aiChat/tools），操作行只常显在最后一条回答下，其余操作靠长按菜单。
 // 生成中用户上滑阅读时停止跟随，出现「回到最新」。
 
 import {
@@ -36,17 +36,12 @@ import {
   type ContentBlock,
   type ToolCallExecutionState,
 } from "@tau/shared/chat-renderers";
-import {
-  MarkdownRenderer,
-  MessageView,
-  ToolApprovalBar,
-  ToolCallBlock,
-  ToolCallRow,
-} from "@tau/chat-ui/conversation";
+import { MarkdownRenderer, MessageView } from "@tau/chat-ui/conversation";
 import { useThemeStore } from "@tau/themes/react";
 import { cn } from "@tau/ui";
-import { TOOL_LABELS } from "./interactions";
-import { ToolSteps } from "./ToolSteps";
+import { ChatToolContext, type ChatToolHost } from "./tools/context";
+import { ReasoningRow } from "./tools/ToolRow";
+import { ToolTimeline } from "./tools/ToolTimeline";
 import { createReferenceSpan } from "./ReferencePill";
 import { resolveChatReference } from "./references";
 import { useAppContext } from "../../app/AppContext";
@@ -133,16 +128,6 @@ const MENTION_KIND: Record<string, string> = {
   diary: "日记",
 };
 
-/** 宿主工具的可读叫法；插件与未知工具返回 undefined，回落为工具名 */
-function toolTitle(execution: ToolCallExecutionState) {
-  const label = TOOL_LABELS[execution.toolName];
-  return label ? <span className="text-tau-meta">{label}</span> : undefined;
-}
-
-const ToolLine = memo(function ToolLine({ execution }: { execution: ToolCallExecutionState }) {
-  return <ToolCallRow execution={execution} title={toolTitle(execution)} />;
-});
-
 const LONG_PRESS_MS = 450;
 const LONG_PRESS_SLOP_PX = 10;
 
@@ -202,15 +187,9 @@ const ChatMessage = memo(function ChatMessage(props: {
     [isUser, message]
   );
   const plainText = isUser ? userText(message.content) : getDisplayTextFromBlocks(blocks);
-  const renderStandalone = useCallback(
+  const renderToolCall = useCallback(
     (execution: ToolCallExecutionState) => (
-      <ToolCallBlock
-        execution={execution}
-        isDark={isDark}
-        renderApproval={item => <ToolApprovalBar execution={item} />}
-        renderDefaultItem={({ execution: item }) => <ToolLine execution={item} />}
-        toolTitle={toolTitle}
-      />
+      <ToolTimeline executions={[execution]} isDark={isDark} />
     ),
     [isDark]
   );
@@ -241,25 +220,34 @@ const ChatMessage = memo(function ChatMessage(props: {
         assistantBlocks={blocks}
         hideActions
         userBubbleClassName="bg-[color-mix(in_srgb,var(--tau-accent)_16%,var(--tau-bg-surface))] text-tau-body-lg rounded-[18px_18px_5px_18px] px-[13px] py-2 max-w-[80%]"
-        renderMarkdown={({ content }) => (
+        renderMarkdown={({ content, blockIndex }) => (
           <MarkdownRenderer
             content={content}
             isDark={isDark}
             enableDocumentReference
             components={markdownComponents}
-            className={isUser ? undefined : ANSWER_TYPOGRAPHY}
+            className={
+              isUser
+                ? undefined
+                : blockIndex === undefined
+                  ? REASONING_TYPOGRAPHY
+                  : ANSWER_TYPOGRAPHY
+            }
           />
         )}
         renderImage={(image, imageIndex, className) => (
           <img key={imageIndex} src={image.url} alt={image.alt ?? ""} className={className} />
         )}
-        renderToolCall={renderStandalone}
-        renderToolGroup={executions => (
-          <ToolSteps
-            executions={executions}
-            renderStandalone={renderStandalone}
-            toolTitle={toolTitle}
-          />
+        renderToolCall={renderToolCall}
+        renderToolGroup={executions => <ToolTimeline executions={executions} isDark={isDark} />}
+        renderReasoning={(block, content) => (
+          <ReasoningRow
+            startTime={block.startTime}
+            endTime={block.endTime}
+            duration={block.duration}
+          >
+            {content}
+          </ReasoningRow>
         )}
       />
       {streaming && !isUser && blocks.length === 0 && (
@@ -311,6 +299,9 @@ const ChatMessage = memo(function ChatMessage(props: {
 const ANSWER_TYPOGRAPHY =
   "text-[15.5px] leading-[1.75] [&_h1]:text-[17px] [&_h2]:text-[16px] [&_h3]:text-[15.5px] [&_h4]:text-[15.5px] [&_li]:my-1 [&_p]:my-2.5";
 
+/** 思考内容：比正文小一档、淡墨，展开在思考行下 */
+const REASONING_TYPOGRAPHY = "text-tau-meta leading-[1.7] [&_p]:my-1.5";
+
 /** 回答下方的文字胶囊：手指好点，意思一眼能懂 */
 const ANSWER_PILL =
   "bg-surface text-ink-2 text-tau-sm flex h-[34px] shrink-0 items-center justify-center rounded-full font-medium transition-transform active:scale-95";
@@ -338,6 +329,10 @@ export function ChatMessages(props: {
     },
     [databaseName]
   );
+  const toolHost = useMemo<ChatToolHost>(
+    () => ({ openReference, isDark }),
+    [openReference, isDark]
+  );
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
@@ -360,48 +355,50 @@ export function ChatMessages(props: {
   };
 
   return (
-    <div className="relative min-h-0 flex-1">
-      <div
-        ref={scrollRef}
-        onScroll={onScroll}
-        data-allow-touchmove="true"
-        className="h-full overflow-y-auto overscroll-contain px-[18px] pb-2"
-      >
-        {props.messages.length === 0
-          ? props.empty
-          : props.messages.map((message, index) => (
-              <ChatMessage
-                key={(message as { clientId?: string }).clientId ?? index}
-                message={message}
-                index={index}
-                isDark={isDark}
-                streaming={props.running && index === props.messages.length - 1}
-                showActions={
-                  !props.running &&
-                  index === props.messages.length - 1 &&
-                  message.role !== Role.User
-                }
-                onAction={props.onAction}
-                onMenu={props.onMenu}
-                onReference={openReference}
-              />
-            ))}
-      </div>
-      {detached && props.messages.length > 0 && (
-        <button
-          type="button"
-          onClick={toLatest}
-          className="bg-surface text-ink-2 shadow-float text-tau-sm absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1 rounded-full px-3 font-semibold"
+    <ChatToolContext.Provider value={toolHost}>
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          data-allow-touchmove="true"
+          className="h-full overflow-y-auto overscroll-contain px-[18px] pb-2"
         >
-          <ArrowDown size={13} aria-hidden="true" />
-          {props.running ? "回到最新" : "回到底部"}
-        </button>
-      )}
-      <ContentLinkPreviewSheet
-        open={preview !== null}
-        target={preview}
-        onClose={() => setPreview(null)}
-      />
-    </div>
+          {props.messages.length === 0
+            ? props.empty
+            : props.messages.map((message, index) => (
+                <ChatMessage
+                  key={(message as { clientId?: string }).clientId ?? index}
+                  message={message}
+                  index={index}
+                  isDark={isDark}
+                  streaming={props.running && index === props.messages.length - 1}
+                  showActions={
+                    !props.running &&
+                    index === props.messages.length - 1 &&
+                    message.role !== Role.User
+                  }
+                  onAction={props.onAction}
+                  onMenu={props.onMenu}
+                  onReference={openReference}
+                />
+              ))}
+        </div>
+        {detached && props.messages.length > 0 && (
+          <button
+            type="button"
+            onClick={toLatest}
+            className="bg-surface text-ink-2 shadow-float text-tau-sm absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1 rounded-full px-3 font-semibold"
+          >
+            <ArrowDown size={13} aria-hidden="true" />
+            {props.running ? "回到最新" : "回到底部"}
+          </button>
+        )}
+        <ContentLinkPreviewSheet
+          open={preview !== null}
+          target={preview}
+          onClose={() => setPreview(null)}
+        />
+      </div>
+    </ChatToolContext.Provider>
   );
 }

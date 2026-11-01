@@ -21,6 +21,7 @@ import type { CollaborationLocalStore } from "../../desktop/src-electron/main/mo
 const harness = vi.hoisted(() => ({
   url: "",
   key: "",
+  failCache: false,
   mobile: null as DeviceIdentity | null,
   cache: new Map<string, { metadata: any; state: string; updates: string[]; revision: string }>(),
 }));
@@ -54,6 +55,10 @@ vi.mock("../../mobile/src/services/tauri", () => ({
     payload: { documentId: string; metadata: unknown; state: string },
     snapshot: boolean
   ) => {
+    if (harness.failCache) {
+      harness.failCache = false;
+      throw new Error("协作缓存暂时不可写");
+    }
     const previous = harness.cache.get(payload.documentId);
     const revision = String(Number(previous?.revision ?? 0) + 1);
     harness.cache.set(payload.documentId, {
@@ -292,138 +297,144 @@ function appendBody(doc: Y.Doc, text: string) {
 }
 
 describe("Cloudflare 原型与现有两端客户端", () => {
-  it("注册需要凭据，审批加入后双向同步，离线改动合并，服务重启后恢复", async () => {
-    console.info("验证阶段：注册保护与发布");
-    if (!productionRehearsal)
-      expect((await request("/v1/devices", "POST", { nickname: "未授权" })).response.status).toBe(
-        403
-      );
-    const id = await publish("双端协作");
-    const initial = await desktop.request<{ state: string }>(
-      harness.url,
-      "/v1/documents/" + id + "/state",
-      "GET",
-      undefined,
-      2
-    );
-    const initialDoc = new Y.Doc();
-    Y.applyUpdate(initialDoc, Buffer.from(initial.state, "base64"));
-    expect(readNodeDocument(initialDoc).title).toBe("双端协作");
-    initialDoc.destroy();
-    console.info("验证阶段：双端加入与同步");
-    const owner = connect(id);
-    await until(() => owner.provider.synced, "桌面端应完成初始同步");
-    await mobile.start({ nickname: "移动端原型" });
-    const invitation = await desktop.request<{ code: string }>(
-      harness.url,
-      "/v1/documents/" + id + "/invitation",
-      "POST"
-    );
-    const pending = await mobile.joinByCode(invitation.code);
-    expect(pending.status).toBe("pending");
-    const identity = required(harness.mobile, "移动端测试身份未初始化");
-    const forbidden = await fetch(harness.url + "/v1/documents/" + id + "/state", {
-      headers: { authorization: "Bearer " + identity.id + ":" + identity.secret },
-    });
-    expect(forbidden.status).toBe(403);
-    if (pending.status !== "pending") throw new Error("未创建申请");
-    await desktop.request(harness.url, "/v1/join-requests/" + pending.id + "/decision", "POST", {
-      approve: true,
-    });
-    await mobile.openDocument(id);
-    const guest = required(mobile.session(id), "移动端未建立协作会话");
-    cleanups.push(() => guest.doc.destroy());
-    await until(() => !!guest.provider?.synced, "移动端应完成初始同步");
-    appendBody(owner.doc, "｜桌面输入");
-    await until(
-      () => JSON.stringify(readNodeDocument(guest.doc).content).includes("桌面输入"),
-      "移动端应收到桌面正文"
-    );
-    appendBody(guest.doc, "｜手机输入");
-    await until(
-      () => JSON.stringify(readNodeDocument(owner.doc).content).includes("手机输入"),
-      "桌面端应收到手机正文"
-    );
-    await until(
-      () => !guest.provider?.hasUnsyncedChanges && !owner.provider.hasUnsyncedChanges,
-      "编辑应确认已保存"
-    );
-
-    required(guest.provider, "移动端未建立协作连接").configuration.websocketProvider.disconnect();
-    await until(() => guest.info.connection === "offline", "移动端应进入离线状态");
-    appendBody(guest.doc, "｜手机离线");
-    appendBody(owner.doc, "｜桌面在线");
-    window.dispatchEvent(new Event("online"));
-    await until(() => {
-      const text = JSON.stringify(readNodeDocument(owner.doc).content);
-      return (
-        text.includes("手机离线") &&
-        text.includes("桌面在线") &&
-        !!guest.provider?.synced &&
-        !guest.provider?.hasUnsyncedChanges
-      );
-    }, "移动端恢复网络后应自动合并离线和在线改动");
-    expect(readNodeDocument(guest.doc)).toEqual(readNodeDocument(owner.doc));
-    console.info("验证阶段：桌面端离线恢复");
-
-    owner.transport.disconnect();
-    await until(() => !owner.provider.synced, "桌面端应进入离线状态");
-    appendBody(owner.doc, "｜桌面离线");
-    appendBody(guest.doc, "｜手机在线");
-    await owner.transport.connect();
-    await until(
-      () =>
-        JSON.stringify(readNodeDocument(guest.doc).content).includes("桌面离线") &&
-        !owner.provider.hasUnsyncedChanges,
-      "桌面端恢复连接后应合并离线改动"
-    );
-    await until(() => !guest.provider?.hasUnsyncedChanges, "手机改动应已保存");
-    const expected = readNodeDocument(owner.doc);
-    const oldPort = Number(new URL(harness.url).port);
-    console.info("验证阶段：重启 workerd 并读取持久化数据");
-    if (worker) {
-      await worker.dispose();
-      worker = undefined;
-      await start(oldPort);
-    } else if (productionRehearsal) {
-      expect(
-        (await request("/_admin/maintenance", "POST", { enabled: true }, true)).response.status
-      ).toBe(200);
-      expect(
-        (await request("/_admin/maintenance", "POST", { enabled: false }, true)).response.status
-      ).toBe(200);
-    } else
-      expect((await request("/__prototype/restart", "POST", undefined, true)).response.status).toBe(
-        200
-      );
-    await until(async () => {
-      const snapshot = await desktop.request<{ state: string }>(
+  it.each([false, true])(
+    "注册需要凭据，审批后双向同步并恢复离线改动与服务重启（缓存失败=%s）",
+    async cacheFailure => {
+      console.info("验证阶段：注册保护与发布");
+      if (!productionRehearsal)
+        expect((await request("/v1/devices", "POST", { nickname: "未授权" })).response.status).toBe(
+          403
+        );
+      const id = await publish("双端协作");
+      const initial = await desktop.request<{ state: string }>(
         harness.url,
         "/v1/documents/" + id + "/state",
         "GET",
         undefined,
         2
       );
-      const recovered = new Y.Doc();
-      try {
-        Y.applyUpdate(recovered, Buffer.from(snapshot.state, "base64"));
-        return JSON.stringify(readNodeDocument(recovered)) === JSON.stringify(expected);
-      } finally {
-        recovered.destroy();
-      }
-    }, "服务重启后应从持久化数据恢复正文");
-    await until(
-      () => owner.provider.synced && !!guest.provider?.synced,
-      "两端应在服务恢复后自动重连"
-    );
-    appendBody(guest.doc, "｜重启后继续编辑");
-    await until(
-      () => JSON.stringify(readNodeDocument(owner.doc).content).includes("重启后继续编辑"),
-      "恢复后应能继续协作"
-    );
-    await closeDocument(id);
-    await until(() => !mobile.session(id), "结束共享事件应送达移动端");
-  });
+      const initialDoc = new Y.Doc();
+      Y.applyUpdate(initialDoc, Buffer.from(initial.state, "base64"));
+      expect(readNodeDocument(initialDoc).title).toBe("双端协作");
+      initialDoc.destroy();
+      console.info("验证阶段：双端加入与同步");
+      const owner = connect(id);
+      await until(() => owner.provider.synced, "桌面端应完成初始同步");
+      await mobile.start({ nickname: "移动端原型" });
+      const invitation = await desktop.request<{ code: string }>(
+        harness.url,
+        "/v1/documents/" + id + "/invitation",
+        "POST"
+      );
+      const pending = await mobile.joinByCode(invitation.code);
+      expect(pending.status).toBe("pending");
+      const identity = required(harness.mobile, "移动端测试身份未初始化");
+      const forbidden = await fetch(harness.url + "/v1/documents/" + id + "/state", {
+        headers: { authorization: "Bearer " + identity.id + ":" + identity.secret },
+      });
+      expect(forbidden.status).toBe(403);
+      if (pending.status !== "pending") throw new Error("未创建申请");
+      await desktop.request(harness.url, "/v1/join-requests/" + pending.id + "/decision", "POST", {
+        approve: true,
+      });
+      await mobile.openDocument(id);
+      const guest = required(mobile.session(id), "移动端未建立协作会话");
+      cleanups.push(() => guest.doc.destroy());
+      await until(() => !!guest.provider?.synced, "移动端应完成初始同步");
+      appendBody(owner.doc, "｜桌面输入");
+      await until(
+        () => JSON.stringify(readNodeDocument(guest.doc).content).includes("桌面输入"),
+        "移动端应收到桌面正文"
+      );
+      appendBody(guest.doc, "｜手机输入");
+      await until(
+        () => JSON.stringify(readNodeDocument(owner.doc).content).includes("手机输入"),
+        "桌面端应收到手机正文"
+      );
+      await until(
+        () => !guest.provider?.hasUnsyncedChanges && !owner.provider.hasUnsyncedChanges,
+        "编辑应确认已保存"
+      );
+
+      required(guest.provider, "移动端未建立协作连接").configuration.websocketProvider.disconnect();
+      await until(() => guest.info.connection === "offline", "移动端应进入离线状态");
+      await guest.writeTail;
+      harness.failCache = cacheFailure;
+      appendBody(guest.doc, "｜手机离线");
+      appendBody(owner.doc, "｜桌面在线");
+      if (cacheFailure) await until(() => !!guest.saveError, "本机缓存失败后应暂停编辑");
+      window.dispatchEvent(new Event("online"));
+      await until(() => {
+        const text = JSON.stringify(readNodeDocument(owner.doc).content);
+        return (
+          text.includes("手机离线") &&
+          text.includes("桌面在线") &&
+          !!guest.provider?.synced &&
+          !guest.provider?.hasUnsyncedChanges
+        );
+      }, "移动端恢复网络后应自动合并离线和在线改动");
+      expect(readNodeDocument(guest.doc)).toEqual(readNodeDocument(owner.doc));
+      console.info("验证阶段：桌面端离线恢复");
+
+      owner.transport.disconnect();
+      await until(() => !owner.provider.synced, "桌面端应进入离线状态");
+      appendBody(owner.doc, "｜桌面离线");
+      appendBody(guest.doc, "｜手机在线");
+      await owner.transport.connect();
+      await until(
+        () =>
+          JSON.stringify(readNodeDocument(guest.doc).content).includes("桌面离线") &&
+          !owner.provider.hasUnsyncedChanges,
+        "桌面端恢复连接后应合并离线改动"
+      );
+      await until(() => !guest.provider?.hasUnsyncedChanges, "手机改动应已保存");
+      const expected = readNodeDocument(owner.doc);
+      const oldPort = Number(new URL(harness.url).port);
+      console.info("验证阶段：重启 workerd 并读取持久化数据");
+      if (worker) {
+        await worker.dispose();
+        worker = undefined;
+        await start(oldPort);
+      } else if (productionRehearsal) {
+        expect(
+          (await request("/_admin/maintenance", "POST", { enabled: true }, true)).response.status
+        ).toBe(200);
+        expect(
+          (await request("/_admin/maintenance", "POST", { enabled: false }, true)).response.status
+        ).toBe(200);
+      } else
+        expect(
+          (await request("/__prototype/restart", "POST", undefined, true)).response.status
+        ).toBe(200);
+      await until(async () => {
+        const snapshot = await desktop.request<{ state: string }>(
+          harness.url,
+          "/v1/documents/" + id + "/state",
+          "GET",
+          undefined,
+          2
+        );
+        const recovered = new Y.Doc();
+        try {
+          Y.applyUpdate(recovered, Buffer.from(snapshot.state, "base64"));
+          return JSON.stringify(readNodeDocument(recovered)) === JSON.stringify(expected);
+        } finally {
+          recovered.destroy();
+        }
+      }, "服务重启后应从持久化数据恢复正文");
+      await until(
+        () => owner.provider.synced && !!guest.provider?.synced,
+        "两端应在服务恢复后自动重连"
+      );
+      appendBody(guest.doc, "｜重启后继续编辑");
+      await until(
+        () => JSON.stringify(readNodeDocument(owner.doc).content).includes("重启后继续编辑"),
+        "恢复后应能继续协作"
+      );
+      await closeDocument(id);
+      await until(() => !mobile.session(id), "结束共享事件应送达移动端");
+    }
+  );
 
   it("超过 2MB 的文档快照分块持久化并能完整读取", async () => {
     const text = "x".repeat(3 * 1024 * 1024);

@@ -4,6 +4,7 @@ import { createEditorKit, defaultExtensions, type EditorKit } from "@tau/editor"
 import { previewMenuExtension } from "@tau/editor/source-view/menu";
 import webviewExtension from "@tau/editor/extensions/webview";
 import { createImageExtensions, type ImageAppearanceConfig } from "@tau/editor/extensions/media";
+import { IHighlightStyle, isHighlightStyle } from "@tau/editor/extensions/text-formatting";
 import {
   IEditorSlots,
   IMediaAppearance,
@@ -32,10 +33,12 @@ const videoProviders: VideoContentProvider[] = [
 
 const kits = new Map<string, EditorKit>();
 
-/** 发布内容的完整渲染组合；图片外观取发布设置，同一设置复用同一个 kit。 */
+/** 发布内容的完整渲染组合；图片外观与高亮笔触取发布设置，同一设置复用同一个 kit。 */
 export function publishedKit(settings?: PublishSettings): EditorKit {
   const appearance = (settings?.appearance?.image ?? {}) as ImageAppearanceConfig;
-  const key = `${appearance.borderRadius ?? ""}|${String(appearance.shadow ?? "")}`;
+  const rawHighlightStyle = settings?.appearance?.highlight?.style;
+  const highlightStyle = isHighlightStyle(rawHighlightStyle) ? rawHighlightStyle : "flat";
+  const key = `${appearance.borderRadius ?? ""}|${String(appearance.shadow ?? "")}|${highlightStyle}`;
   let kit = kits.get(key);
   if (!kit) {
     kit = createEditorKit({
@@ -56,6 +59,7 @@ export function publishedKit(settings?: PublishSettings): EditorKit {
           });
           register(IVideoContentProviders, videoProviders);
           register(IMediaAppearance, appearance);
+          register(IHighlightStyle, highlightStyle);
         },
       ],
       // 图片扩展按 type 替换默认组合里的同名扩展。

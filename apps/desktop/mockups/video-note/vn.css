@@ -1,0 +1,1298 @@
+/* 视频笔记样板间 · 页面专属样式（主题 / 窗口 / 侧栏 / 标题栏 / 输入框复用 ../chat/shared.css） */
+
+/* ── 纸与纸内栏：透明栏，靠留白和极淡的内阴影分开 ── */
+.vn-paper {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+.vn-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.vn-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+.vn-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.vn-col.grow {
+  flex: 1;
+}
+.vn-col.fix {
+  flex: none;
+}
+.vn-col.bl {
+  box-shadow: inset 1px 0 0 var(--line-2);
+}
+.vn-col.br {
+  box-shadow: inset -1px 0 0 var(--line-2);
+}
+.vn-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  position: relative;
+}
+
+/* 项目文档树（纸内透明左栏，同项目详情页） */
+.vn-tree {
+  width: 252px;
+  flex: none;
+  padding: 10px 8px;
+  box-shadow: inset -1px 0 0 var(--line-2);
+  overflow: hidden;
+}
+.vn-tree .n {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.vn-tree .n span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vn-tree .n.f {
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.vn-tree .n.on {
+  background: var(--selected);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.vn-tree .n svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+}
+.vn-tree .n.on svg.lucide {
+  color: var(--accent-text);
+}
+.vn-tree .lv1 {
+  padding-left: 24px;
+}
+
+/* 条目头（StageHeader：图标 + 标题 + 元信息 + 动作） */
+.vn-head {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 20px;
+}
+.vn-head .t {
+  font-weight: 600;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.vn-head .m {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.vn-head .sp {
+  flex: 1;
+}
+.vn-head > svg.lucide {
+  color: var(--ink-2);
+}
+.vn-head .kb {
+  font: 10.5px/1 var(--mono);
+  color: var(--ink-3);
+  margin-left: 2px;
+}
+
+/* 栏内小节头 */
+.vn-sec {
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 20px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.vn-sec b {
+  color: var(--ink-1);
+  font-weight: 600;
+  font-size: 13px;
+}
+.vn-sec .sp {
+  flex: 1;
+}
+.vn-sec .ib svg.lucide {
+  width: 15px;
+  height: 15px;
+}
+
+/* 窄窗自动收起文档树时的一次性提示 */
+.vn-toast {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  border-radius: 999px;
+  background: var(--ink-1);
+  color: var(--surface);
+  font-size: 12px;
+  box-shadow: var(--shadow-float);
+  white-space: nowrap;
+}
+.vn-toast button {
+  color: var(--surface);
+  opacity: 0.75;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.vn-toast button:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── 画面（演示用矢量帧） ── */
+.vn-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #14161c;
+  overflow: hidden;
+}
+.vn-frame svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.vn-frame .sub {
+  position: absolute;
+  left: 50%;
+  bottom: 7%;
+  transform: translateX(-50%);
+  max-width: 86%;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+.vn-frame .bigplay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-text);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-float);
+}
+
+/* ── 播放器：纸框底栏（同视频播放器定稿 A），进度条带章节分段 + 笔记刻度 ── */
+.vn-player {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  container-type: inline-size;
+}
+.vn-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 52px;
+  padding: 14px 8px 2px;
+}
+.vn-bar .play {
+  width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--ink-inv);
+  flex: none;
+}
+.vn-bar .play svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.vn-bar .tc {
+  font: 12px var(--mono);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.vn-bar .tc em {
+  font-style: normal;
+  color: var(--ink-3);
+}
+.vn-bar .chap {
+  flex: 1;
+  min-width: 0;
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vn-bar .rate {
+  font: 11.5px var(--mono);
+  color: var(--ink-2);
+  padding: 0 6px;
+  height: 26px;
+  border-radius: 6px;
+}
+.vn-bar .rate:hover {
+  background: var(--hover);
+}
+@container (max-width: 380px) {
+  .vn-bar .chap,
+  .vn-bar .opt {
+    display: none;
+  }
+  .vn-bar .sp2 {
+    flex: 1;
+  }
+}
+
+/* 进度条：贴在画面与底栏接缝处 */
+.vn-seek {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 6px;
+}
+.vn-seek .seg {
+  position: absolute;
+  top: 0;
+  height: 6px;
+  background: var(--line-1);
+}
+.vn-seek .seg.done {
+  background: var(--accent);
+}
+.vn-seek .seg.part {
+  background: linear-gradient(90deg, var(--accent) var(--p), var(--line-1) var(--p));
+}
+.vn-seek .knob {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 2px 6px rgba(0, 0, 0, 0.2);
+}
+/* 笔记刻度：进度条下方的小圆点（时间戳空心 / 摘录实心 / 截帧方块），悬停浮出内容 */
+.vn-mark {
+  position: absolute;
+  top: 4px;
+  width: 14px;
+  height: 12px;
+  margin-left: -7px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+}
+.vn-mark::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--accent-text);
+}
+.vn-mark.shot::before {
+  border-radius: 2px;
+}
+.vn-mark.quote::before {
+  background: var(--accent-text);
+}
+.vn-mark .tip {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  width: 210px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-1);
+  box-shadow: var(--shadow-float);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+}
+.vn-mark .tip b {
+  font: 11px var(--mono);
+  color: var(--accent-text);
+  margin-right: 6px;
+  font-weight: 500;
+}
+.vn-mark .tip .src {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.vn-mark:hover .tip,
+.vn-mark.show .tip {
+  display: block;
+}
+.vn-mark:hover::before {
+  background: var(--accent-soft);
+}
+.vn-mark.quote:hover::before {
+  background: var(--accent);
+}
+
+/* 吸顶迷你条（B：滚动后播放器缩成一行） */
+.vn-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 10px 0 6px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  position: relative;
+  overflow: hidden;
+}
+.vn-mini .th {
+  width: 72px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  flex: none;
+  background: #14161c;
+}
+.vn-mini .th svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.vn-mini .tx {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+}
+.vn-mini .tx div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vn-mini .tx .s {
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.vn-mini .line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--line-1);
+}
+.vn-mini .line i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+}
+
+/* 画中画胶囊（C：视频收起后） */
+.vn-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 6px 0 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  font-size: 12px;
+}
+.vn-pill .play {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+}
+.vn-pill .play svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── 转录列表（A / C 展开）：章节作吸顶段头 ── */
+.vn-tr {
+  padding: 0 8px 24px;
+}
+.vn-ch {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  background: var(--surface);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.vn-ch .tm {
+  font: 11px var(--mono);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.vn-ch .ai {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.vn-ch .ai svg.lucide {
+  width: 11px;
+  height: 11px;
+}
+.vn-seg {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 10px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ink-2);
+  line-height: 1.7;
+}
+.vn-seg:hover {
+  background: var(--hover);
+}
+.vn-seg .tm {
+  font: 11.5px var(--mono);
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+.vn-seg.on {
+  background: var(--selected);
+  color: var(--ink-1);
+}
+.vn-seg.on .tm {
+  color: var(--accent-text);
+}
+.vn-seg .q {
+  background: var(--accent-soft);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.vn-seg .q + .qi {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  vertical-align: -3px;
+  color: var(--accent-text);
+}
+.vn-seg .q + .qi svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+.vn-gap {
+  padding: 2px 12px 2px 68px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.vn-follow {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  font-size: 12px;
+  color: var(--ink-1);
+}
+.vn-follow svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-text);
+}
+
+/* 选区工具条（转录里划词：摘到笔记 / 问 AI / 复制 / 从这句播放） */
+.vn-sel {
+  background: hsla(210, 60%, 60%, 0.22);
+  border-radius: 2px;
+  color: var(--ink-1);
+  position: relative;
+}
+.vn-pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  white-space: nowrap;
+  font-size: 12.5px;
+  line-height: 1;
+}
+.vn-pop button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 7px;
+  color: var(--ink-1);
+}
+.vn-pop button:hover {
+  background: var(--hover);
+}
+.vn-pop button.pri {
+  color: var(--accent-text);
+  font-weight: 500;
+}
+.vn-pop svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.vn-pop i.dv {
+  width: 1px;
+  height: 16px;
+  background: var(--line-1);
+  margin: 0 2px;
+}
+.vn-pop .k {
+  font: 10.5px var(--mono);
+  color: var(--ink-3);
+  margin-left: 2px;
+}
+
+/* ── 文稿（B）：转录排成文章，时间在页边 ── */
+.vn-article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 40px 60px 84px;
+}
+.vn-article h2 {
+  position: relative;
+  font-size: 17px;
+  font-weight: 600;
+  margin: 30px 0 6px;
+}
+.vn-article h2 .tm {
+  position: absolute;
+  left: -64px;
+  top: 4px;
+  font: 11.5px var(--mono);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.vn-article .sum {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--hover);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.vn-article .sum svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  margin-top: 3px;
+}
+.vn-article p {
+  position: relative;
+  margin: 0 0 14px;
+  font-size: 14.5px;
+  line-height: 1.95;
+  color: var(--ink-2);
+}
+.vn-article p > .tm {
+  position: absolute;
+  left: -64px;
+  top: 4px;
+  font: 11.5px var(--mono);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.vn-article p > .tm:hover {
+  color: var(--accent-text);
+}
+.vn-article .s {
+  cursor: pointer;
+  border-radius: 3px;
+}
+.vn-article .s:hover {
+  background: var(--hover);
+}
+.vn-article .s.on {
+  background: var(--selected);
+  color: var(--ink-1);
+  box-shadow: 0 0 0 2px var(--selected);
+}
+.vn-article .s.q {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.vn-article .pin {
+  position: absolute;
+  right: -28px;
+  top: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.vn-article .pin svg.lucide {
+  width: 11px;
+  height: 11px;
+}
+.vn-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 10px 40px 10px 84px;
+  background: linear-gradient(var(--surface) 82%, transparent);
+}
+.vn-hero {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 4px 40px 0 84px;
+}
+
+/* ── 笔记栏：头部篇目胶囊 + 插入工具，正文是编辑器 ── */
+.vn-nhead {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 16px;
+}
+.vn-nhead .sp {
+  flex: 1;
+}
+.vn-tab {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.vn-tab:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.vn-tab.on {
+  background: var(--selected);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.vn-tab.add {
+  width: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+.vn-tab.add svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.vn-nhead .tool {
+  white-space: nowrap;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.vn-nhead .tool:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.vn-nhead .tool .k {
+  font: 10.5px var(--mono);
+  color: var(--ink-3);
+}
+@container (max-width: 480px) {
+  .vn-nhead .tool .lb,
+  .vn-nhead .tool .k {
+    display: none;
+  }
+}
+.vn-notes {
+  container-type: inline-size;
+}
+
+.vn-doc {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 4px 32px 60px;
+  font-size: 14px;
+  line-height: 1.85;
+}
+.vn-doc h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 4px 0 14px;
+}
+.vn-doc h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 6px;
+}
+.vn-doc p {
+  margin: 0 0 10px;
+}
+.vn-doc ul {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+.vn-doc blockquote {
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent-soft);
+  color: var(--ink-2);
+  background: transparent;
+}
+.vn-doc .ts {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  height: 21px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 500 12px var(--mono);
+  vertical-align: 1px;
+  cursor: pointer;
+  margin-right: 4px;
+}
+.vn-doc .ts svg.lucide {
+  width: 11px;
+  height: 11px;
+}
+.vn-doc .shot {
+  margin: 4px 0 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  max-width: 420px;
+}
+.vn-doc .shot .vn-frame {
+  border-radius: 10px;
+}
+.vn-doc .shot .ts {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  background: rgba(20, 22, 28, 0.78);
+  color: #fff;
+}
+.vn-doc .caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  background: var(--accent);
+  vertical-align: -2px;
+  margin-left: 1px;
+  animation: vnblink 1s steps(1) infinite;
+}
+@keyframes vnblink {
+  50% {
+    opacity: 0;
+  }
+}
+.vn-doc .ph {
+  color: var(--ink-3);
+}
+
+/* C：笔记左缘的时间刻度（块以时间戳开头时，时间移到页边） */
+.vn-doc.ruler {
+  padding-left: 92px;
+}
+.vn-doc.ruler .rb {
+  position: relative;
+}
+.vn-doc.ruler .rb > .rt {
+  position: absolute;
+  left: -72px;
+  top: 3px;
+  font: 11.5px var(--mono);
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.vn-doc.ruler .rb > .rt:hover {
+  color: var(--accent-text);
+}
+.vn-doc.ruler .rb > .rt svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+.vn-doc.ruler .rb.now > .rt {
+  color: var(--accent-text);
+}
+.vn-doc.ruler .rb.now > .rt::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ── 对话栏 ── */
+.vn-chat .thread-inner {
+  padding: 14px 16px 8px;
+}
+.vn-chat .md p {
+  margin: 0 0 8px;
+}
+.vn-cite {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  height: 19px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 11.5px var(--mono);
+  vertical-align: 1px;
+  cursor: pointer;
+}
+.vn-quote {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--hover);
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.vn-quote .vn-cite {
+  flex: none;
+}
+.vn-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background: var(--surface);
+  box-shadow: -16px 0 32px -18px rgba(60, 45, 25, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 空态 / 转录中 ── */
+.vn-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 24px 30px;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.vn-empty > svg.lucide {
+  width: 22px;
+  height: 22px;
+  color: var(--ink-3);
+}
+.vn-empty .s {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.vn-prog {
+  width: 180px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line-1);
+  overflow: hidden;
+}
+.vn-prog i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.vn-stream {
+  padding: 0 8px;
+}
+.vn-stream .vn-seg {
+  cursor: default;
+}
+.vn-stream .vn-seg:last-child {
+  color: var(--ink-3);
+}
+
+/* C 右轨：跟随字幕（当前句放大、前后句淡出） */
+.vn-roll {
+  padding: 6px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vn-roll .l {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+.vn-roll .l.on {
+  font-size: 15px;
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.vn-roll .l .tm {
+  font: 11px var(--mono);
+  color: var(--ink-3);
+  margin-right: 8px;
+  font-weight: 400;
+}
+.vn-roll .l.on .tm {
+  color: var(--accent-text);
+}
+
+/* 右上角的按钮态（对话 / 转录开关） */
+.vn-head .ib.on,
+.vn-sec .ib.on {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+/* ── 总览页 ── */
+.ov {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+.ov h1 {
+  font-size: 25px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.ov .lead {
+  color: var(--ink-2);
+  margin: 0 0 22px;
+  max-width: 960px;
+}
+.ov h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 34px 0 4px;
+}
+.ov h2 + p {
+  color: var(--ink-2);
+  margin: 0 0 14px;
+}
+.ov .grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.ov .card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  padding: 16px 18px;
+}
+.ov a.card:hover {
+  box-shadow: var(--shadow-lift);
+}
+.ov .card h3 {
+  margin: 0 0 4px;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ov .card p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.ov .card .fit {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.ov .rec {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.ov .wf {
+  height: 120px;
+  border-radius: 10px;
+  background: var(--page);
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  margin-bottom: 12px;
+}
+.ov .wf .p {
+  flex: 1;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  border-radius: 6px;
+  display: flex;
+  gap: 5px;
+  padding: 6px;
+}
+.ov .wf i {
+  display: block;
+  border-radius: 3px;
+}
+.ov .wf .v {
+  background: #2a2d36;
+}
+.ov .wf .a {
+  background: var(--accent-soft);
+}
+.ov .wf .l {
+  background: var(--line-1);
+}
+.ov .wf .c {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ov table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.ov th,
+.ov td {
+  text-align: left;
+  padding: 9px 14px;
+  vertical-align: top;
+}
+.ov th {
+  color: var(--ink-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ov tr + tr td {
+  border-top: 1px solid var(--line-2);
+}
+.ov td b {
+  font-weight: 600;
+}
+.ov td.old {
+  color: var(--ink-3);
+}
+.k {
+  font: 12px var(--mono);
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--line-1);
+}
+.ov a {
+  color: var(--accent-text);
+}
+.ov .dec {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  padding: 4px 0;
+}
+.ov .dec .q {
+  display: grid;
+  grid-template-columns: 34px 160px 1fr;
+  gap: 12px;
+  padding: 12px 18px;
+}
+.ov .dec .q + .q {
+  border-top: 1px solid var(--line-2);
+}
+.ov .dec .no {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 12px;
+}
+.ov .dec .t {
+  font-weight: 600;
+}
+.ov .dec .opt {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ov .dec .o {
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-1);
+  font-size: 12.5px;
+  max-width: 340px;
+}
+.ov .dec .o.r {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ov .dec .o b {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+.ov .dec .o span {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.ov ul.issues {
+  margin: 0;
+  padding: 14px 20px 14px 36px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  color: var(--ink-2);
+}
+.ov ul.issues li {
+  margin: 4px 0;
+}
+.ov ul.issues b {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+.ov h3.pl {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 26px 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ov h3.pl a {
+  color: var(--ink-1);
+  text-decoration: none;
+}
+.ov h3.pl a:hover {
+  color: var(--accent-text);
+}
+.ov .pd {
+  color: var(--ink-2);
+  margin: 0 0 10px;
+}
+.ov .shots {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.ov .shots figure {
+  margin: 0;
+}
+.ov .shots img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+.ov .shots figcaption {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}

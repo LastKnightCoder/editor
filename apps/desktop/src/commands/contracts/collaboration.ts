@@ -11,6 +11,8 @@ import type {
   ContentSessionTarget,
   ContentInputDraft,
   ContentNode,
+  JoinRequestResult,
+  SourceType,
 } from "@tau/collaboration";
 
 export interface SharedContentResult {
@@ -42,16 +44,15 @@ export const collaborationCommands = {
   updateNodeView: command<[string, string, Record<string, unknown>], Record<string, unknown>>(
     "collaboration:node-view"
   ),
-  join: command<[string], void>("collaboration:join"),
+  join: command<[string], JoinRequestResult>("collaboration:join"),
   decide: command<[string, boolean], void>("collaboration:decide"),
   leave: command<[string, (boolean | undefined)?], void>("collaboration:leave"),
   discardLocal: command<[string], void>("collaboration:discard-local"),
   removeMember: command<[string, string], void>("collaboration:remove-member"),
   setNickname: command<[string], CollaborationState>("collaboration:set-nickname"),
-  createSharedContent: command<
-    [number | string, string, number | string, (string | undefined)?],
-    SharedContentResult
-  >("collaboration:create-content"),
+  createSharedContent: command<[number, SourceType?, number?, string?], SharedContentResult>(
+    "collaboration:create-content"
+  ),
   generateInvitation: command<[string], CollaborationInvitation>("collaboration:invitation"),
   getCurrentInvitation: command<[string], CollaborationInvitation | null>(
     "collaboration:invitation-current"

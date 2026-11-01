@@ -87,7 +87,9 @@ class KnowledgeInsightsModule implements Module {
     };
     applySetting(await userSettingModule.getSettingSnapshot());
     userSettingModule.onSettingChanged(({ newSetting }) => applySetting(newSetting));
-    databaseModule.onDatabaseConnected(dbName => this.onConnected(dbName));
+    databaseModule.onDatabaseConnected(dbName => {
+      if (databaseModule.getCurrentDatabaseName() === dbName) this.onConnected(dbName);
+    });
     databaseModule.onDatabaseWrite((dbName, eventName) => {
       // 归档即结项：项目一改就稍后检查一次，回顾很快出现在今日页
       if (eventName === "update-project" && dbName === this.dbName) {

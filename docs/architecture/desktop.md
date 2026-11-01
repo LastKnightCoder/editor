@@ -63,9 +63,11 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 - 默认系统分组、日记标签、日历与待释放数据回收仍按原维护流程执行。网页摘录的 `web` 提供方由共享 SQL 初始化，已保存名称不覆盖。
 - `migration_meta` 保存项目域共用实体序列与任务、日程、正文的非复用编号高水位，不属于历史转换代码。卡片显式连接只存 `content_links`，`cards` 不含 `links` 列。
 
-整库同步只搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
+云端提供方整库同步搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
 
-正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。主库保存 JSON 投影，不保存或重建原 CRDT 基线；缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
+正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。未配对库保存 JSON 投影，缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。配对库由资料库内的真实 Yjs 检查点接管，二进制与投影同事务保存，缓存丢失从原检查点恢复；本机会话的 database 标题归属随缓存持久保存，不随同步健康状态切换；正文连带关系按确认事务重放，见[个人设备同步](/docs/architecture/device-sync.md)。
+
+桌面设备同步支持作为协调电脑或连接另一台协调电脑，入口是设置 › 同步的「设备同步」页签（`features/settings/sections/DeviceSyncPanel.tsx`，数据层 `deviceSyncModel.ts`；覆盖后窗口重载的结果提示由壳层 `useDeviceDownloadNotice` 读出）。连接端在主进程随资料库连接启动自动对账，恢复及窗口聚焦唤醒，网络失败不阻塞本机开库。同步设置首次配对创建并登记独立本机副本；同源重配保留离线修改。明确覆盖复用 `database.closeForSync`、候选文件安装和重连边界，释放本库正文/白板会话、缓存和草稿后重新加载受影响窗口；新窗口完成资料库连接前不接受业务数据库命令，已释放正文会话拒绝迟到持久化。显式数据库命令携带绑定时固定的本机命令上下文，覆盖关库使旧上下文失效；普通上传重连保留它，迟到的旧连接响应不能覆盖窗口当前上下文。维护重连与覆盖窗口恢复不切换其他活动库。日常补齐刷新正文及所属库查询；涉及白板的安装在既有排空屏障内提交，失败恢复原租约，成功释放旧租约并由现有客户端重新打开，不重建窗口。协议与边界以设备同步架构为准。
 
 ### 正文与白板格式边界
 
@@ -112,6 +114,10 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
+插件环境的 connect 也提供窗口前后台生命周期，页面保活与应用恢复分开处理；事件、防抖与注销边界统一见[应用前后台生命周期](/docs/architecture/plugin-portability.md#应用前后台生命周期)。
+
+插件材料动作走 `material:resolve-ref` / `material:create-card`：按不透明稳定身份解析规范编号，正文准备完成后再在同一 SQLite 事务内复验材料快照、创建卡片并写谱系；结果由 PluginHost 统一提示。该写事件同时触发脉络与索引刷新，引用格式及跨端边界见[摘录与材料动作](/docs/architecture/plugin-portability.md#摘录与材料动作)。
+
 桌面 0.59.1 的固定插件中心安装接受格式 3，目录/详情/版本/下载使用 v2，主进程提供 desktop 宿主版本与协议集合。格式 3 targets 只声明平台最低版本，不再携带能力列表、节点等级或贡献标记；宿主从实际定义识别静态贡献。安装复用原事务、启停和启动快照，清单不改写为旧格式；下载前后复查精确发布版本，暂存/恢复与启动对账原始清单及来源。正式构建忽略调试中心覆盖，拒绝无固定中心来源的格式 3；旧格式读取与系统后台审核保持。
 
 ### 聊天工具自定义渲染
@@ -145,6 +151,9 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 三者为同一模式：渲染进程注册实例、主进程 `plugin-local:<域>-*` 只转发请求/取消/通知、账号配置只接受当前插件结构，由插件设置显式保存，不在启动时转换旧配置。
 
 - **TTS**：注册与会话核心为 `@tau/plugins/tts-host`（移动端共用），`context.tts` 实例只在主窗口渲染端创建，账号配置按实例 ID 隔离；设置页「试听」用已保存配置合成并页内播放，选择不写回当前服务；播客从脚本到提交固定实例，会话关闭使后续上传/保存失效，普通失败保留空片段。设置提交走 user-setting 串行队列（原子落盘→快照→广播），失败保留已提交快照可重试。
+- **插件调用朗读与保存资源**：`context.tts.open` 经 `app/plugins/tts-synthesis.ts` 走 `TTSProviderFactory`（「设置 › 语音」当前服务与模型，与编辑器朗读同一路径），会话随插件停用关闭，权限 `tts:synthesize`；`context.upload.save` 经 `runtime.ts` 交给 `uploadResource`（本地库或资源上传插件，与正文插图同一路径）。两者只在桌面接线，移动端返回不可用。
+- **播客迁入插件**：宿主不再持有播客。`app/plugins/podcast-migration.ts` 在插件运行时就绪后读取 `podcast-migration:pending` 的 `pending/requiresPlugin`：原文上的 `podcast_id` 或 Notebook 播客笔记需要先准备插件；只剩残留 `podcasts` 表时直接清理，不安装或启用插件。有待迁数据时，先确保 `tau.podcast` 至少为 0.2.0（旧版从中心升级），并确认激活后声明了 `episode` 的 Notebook 输出，才调用 `podcast-migration:run`（`modules/podcast-plugin-migration.ts`，先 `VACUUM INTO` 备份，单事务）。卡片、文章、项目文档的播客写成插件实体并建 `source` 关联、清空 `podcast_id`；Notebook 的播客笔记写成插件实体并建指向 Notebook 的 `output` 关联，删笔记与正文；最后 DROP `podcasts`。两类都登记插件引用。失败保留原数据并弹可重试通知。按插件 ID 写入属一次性迁移的破例，全部设备迁移后随清洁版删除。
+- **Notebook 输出**（`context.notebooks.registerOutput`）：运行时登记在 `DesktopPluginRuntime.notebookOutputs`，`app/plugins/notebook-outputs.tsx` 提供列表与挂载插件组件的 `PluginNotebookSlot`；图标、选项与阅读组件接受函数及 React memo/forwardRef 组件，对象动作图标使用同一校验。Notebook 的 ＋ 菜单与资料页「基于这份资料」在内置应用之后列出插件输出；`GenerateDialog` 以 `kind: "plugin"` 承载，中间嵌插件 `options`。`tasks/runner.ts` 调插件 `prepare` 得到任务说明，校验产物属于该插件、类型一致后登记 Notebook 引用并建 `output` 关联，再以生成任务 `plugin`（`generation-orchestrator`，`vibe_learning` 来源：通用规则 + 资料清单 + 检索工具 + 插件的 `instructions`）用 `chat` 模型生成，正文交 `complete`，阶段与进度写回同一条任务；失败或停止先等待 `fail` 清理，再发布可重试状态。重新生成前检查实体是否仍存在：存在时复用任务说明，已删除时重新 `prepare`、建立关联并打开新实体。产物列表由主进程 `plugin-entities:notebook-outputs`（经 `output` 关联指向该 Notebook 的非孤儿实体）给出，插件停用时不列；阅读区 `PluginOutputStage` 渲染插件 `view`。列表尚未成功加载或仍为上一版本占位数据时保留阅读区选择，未成功的任务可在实体缺失时继续承载生成过程与重试。用量记在 `generation:plugin:<插件 ID>`。
 - **图片生成/编辑**：`context.images.register` 注册实例（生成与编辑至少实现一项，输出图片字节与实际 MIME）；`target: "images"` 配置视图接收 imageConfig。聊天/编辑器/白板共用 `services/image-generation.ts`；输入输出各最多 16 张、总字节各 ≤128 MiB，只收 PNG/JPEG/WebP；能力状态按配置与激活代次异步刷新，执行时复核；历史工具来源与结果键稳定，已生成图片无需插件即可展示。
 - **在线视频**：`context.video.register` 注册实例（`matches / resolve / cacheKey / getPlayback`，返回播放源描述——file 单流 / split 音视频分离 / extract 走宿主 yt-dlp，不传视频字节）。宿主无平台代码：主窗口 `app/plugins/video-registry.ts` 执行并归一化结果，下载/合并/缓存统一在主进程 `online-video-cache`（缓存身份 = 插件 ID + cacheKey 摘要，已缓存不向插件取流）。视频元数据 `metaInfo.type` 即插件 ID（`type/title/thumbnail` 宿主占用，其余字段归插件）；编辑器/白板/视频笔记/学习资料共用 `useOnlineVideo` 与 `OnlineVideoSelectModal`，添加入口按插件生成、弹窗只用该插件解析（链接属其他插件时提示改入口）。界面文案不出现「视频插件」统称：能用来源名用来源名，统称叫「在线视频」；移动端/博客/浏览器扩展只显示降级提示。
 - **嵌入**：`context.embeddings.register` 注册提供方（maxBatchSize 可选），主窗口经 `app/plugins/embeddings-bridge.ts` 连接并上报 provider 集合；主进程 `PluginEmbeddingsRelay`（`services/plugin-embeddings.ts`）无会话地转发一次性请求/应答，按 requestId 管理 pending，reply 校验宿主与 generation，abort/超时（TimeoutError）/宿主断开时向宿主发 cancel 并回收。嵌入调用由主进程发起（检索与索引），`embedding-service` 插件分支从 `embedding.plugins[pluginId].config` 取连接配置、按 maxBatchSize（缺省 32）顺序分批并逐批回调进度，整体做维度断言；编排器在插件未就绪时跳过 reconcile 且不落指纹，宿主从未就绪翻转为就绪时自动恢复，插件仍按量计费不参与自动空闲索引。
@@ -219,6 +228,8 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 **标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。两端复用内部 `@tau/plugins/fetch-bridge`，上传按最多 256 KiB 分块并等待背压，响应按需读取；该入口不进入作者 tarball。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
 
 数据库、资源及会话文件同步的对象布局、校验、发布和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
+
+同步设置的手动下载与启动自动下载共用命令层 `onProgress`，在分块校验写入后推进进度；设置数据库卡和下载确认框通过公共 `ProgressStatus` 展示百分比、数据库已处理大小、对话记录完成数及安装阶段。上传与下载共用忙态，下载期间禁用再次同步、检查和服务切换；维护重连完成后才报告下载完成。计数口径见[分块传输与重试](/docs/architecture/storage-sync.md#分块传输与重试)。
 
 ### 插件业务数据与授权
 
@@ -356,6 +367,8 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 
 协作主进程默认使用共享产品入口；每个服务器地址独立保存身份，缺失时向原地址注册。REST、WebSocket、附件和白板会话使用实际地址，不应用旧别名，不扫描或搬迁其他服务器的凭据，也不自动改写正文绑定。并发注册去重、失败重试与各地址的服务端 Date 保留。持久化与权限协议见[协作架构](/docs/architecture/collaboration.md)。
 
+正文协作 IPC 从 `commands/contracts/collaboration.ts` 的命令引用推导 channel、参数和返回类型，主进程注册适配同时检查处理器签名；来源类型使用 `SourceType`，内容与来源编号为数字，运行时校验仍在 IPC 边界执行。
+
 ### 内容导入导出与资源搬运
 
 - HTML 异步导出在序列化前准备当前编辑器与插件两份契约目录：前者校验节点保存版本，后者为插件选择对应版本的 HTML 导出器；首次导出不依赖其他入口预热契约。
@@ -443,6 +456,10 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
   禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
+- **把窗口带到前台**：系统通知窗口不可聚焦，点卡片主体一律激活来源窗口（main origin 激活主窗口）；
+  按钮默认不抢前台（同意 / 重试等就地作答），「查看」类按钮标 `reveal: true`，先激活来源窗口
+  再执行回调。`revealWindow` / `showOrCreateMainWindow` 在 macOS 上用 `app.focus({ steal: true })`
+  抢占激活，主进程其他唤起窗口的入口同样走这两个函数，不要直接调 `win.focus()`。
 
 ## 3. 三大协议（照抄即用）
 
@@ -489,7 +506,7 @@ export function useXxxSnapshot() {
 
 **主题模式与切换**：`@tau/themes/react` 提供 `createThemeRuntime` 与默认 store；mode 可以是主题 key 或 system。AppShell 挂载运行时并在清理时释放系统监听；DOM 应用由公共主题实现负责，业务代码不操作 data-theme。Vite 构建入口调用 `createThemeBootstrapScript()` 注入首帧脚本。桌面侧栏、标题栏尺寸留在 app/base.css，不作为公共主题尺度。
 
-**编辑器主题与局部明暗**：`data-theme` 是主题族 key，明暗由 `data-mode` 与主题运行时管理。编辑器无全局 Provider，宿主显式传场景 EditorKit，取色走 `--ed-*`/`--tau-*` 与 ThemeService；`useEditorTheme` 订阅明暗、主题族与通知修订号（同明暗换主题也刷新 ECharts 等取色组件）。新 editor 实例有独立 Slate 挂载键与内容/选区快照；同谱系文档换源保留实例；换源等待只复用仍存活的文档，底层 Y.Doc 销毁后撤下旧绑定，异步契约准备不向已销毁文档发布结果；新页面不以 documentId 为 key 强制重建内容编辑器。编辑器子树用 `<EditorThemeOverride mode>`；整块区域换主题族（导出图片）节点同时写 data-theme/data-mode；演示和沉浸舞台经 PortalScope 挂回 UI 浮层避免继承 body 明暗。JavaScript 明暗统一消费 `useThemeStore(s => s.mode)`；设置不再有 darkMode/accent，图片圆角/阴影在 appearance.image。
+**编辑器主题与局部明暗**：`data-theme` 是主题族 key，明暗由 `data-mode` 与主题运行时管理。编辑器无全局 Provider，宿主显式传场景 EditorKit，取色走 `--ed-*`/`--tau-*` 与 ThemeService；`useEditorTheme` 订阅明暗、主题族与通知修订号（同明暗换主题也刷新 ECharts 等取色组件）。新 editor 实例有独立 Slate 挂载键与内容/选区快照；同谱系文档换源保留实例；换源等待只复用仍存活的文档，底层 Y.Doc 销毁后撤下旧绑定，异步契约准备不向已销毁文档发布结果；新页面不以 documentId 为 key 强制重建内容编辑器。编辑器子树用 `<EditorThemeOverride mode>`；整块区域换主题族（导出图片）节点同时写 data-theme/data-mode；演示和沉浸舞台经 PortalScope 挂回 UI 浮层避免继承 body 明暗。JavaScript 明暗统一消费 `useThemeStore(s => s.mode)`；设置不再有 darkMode/accent，图片圆角/阴影在 appearance.image，背景高亮笔触在 appearance.highlight.style（平涂 / 平头荧光笔 / 下半划线 / 干笔颗粒），经 `IHighlightStyle` 服务注入编辑器，发布时随 PublishSettings 进入博客渲染。
 
 **字体设置链路**：`fontSetting` → `useSyncFont()`（App 根挂载一次）→ root 级覆盖。用户字体/字号是应用级默认（界面与编辑器统一）：字体族覆盖 `--tau-font`/`--tau-font-mono`；字号按 13px 基准**阻尼**缩放 `--tau-text-*` 全部档位（半速率传导，与内容区解耦——宿主可用 `--font-size` 为内容容器提供原始字号，Editor 继承所在容器；排版层级保持，间距圆角不动；例外：侧边栏条目行高/图标按 em 折算）；`--font / --font-size / --mono-font` 一并写 root。默认字体变量在 :root，body 不重复声明；Editor 根节点不声明字体族/字号。**Tailwind v4 陷阱**：`@theme inline` 对字面值会把值内联进工具类，运行时覆盖 CSS 变量无效——字号 token 必须经 `:root` 字面值层 + `@theme inline` var 桥接，`useSyncFont` 覆盖字面值层。
 
@@ -523,9 +540,11 @@ export function useXxxSnapshot() {
 
 聊天操作区区分「重试」与「重新生成」：末尾用户问题尚无正文、工具调用时原位重试，复用原用户 entry（含附件与展示信息），不增加问题版本或分支。主进程重新核验当前投影，以隐藏的 `desktop-retry` 自定义消息触发 pi 完整运行与 settled 流程，空失败回答通过 context_edit 省略，系统提示仍取当前配置。上次在用户消息写入前失败则正常提交一次。已有正文、工具调用或后续追问时仍回退重发并保留旧版本；编辑重发不走失败重试。
 
-视频学习台与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
+项目视频笔记（`features/projects/components/ProjectView/VideoNoteView/`）是「左看右记」两栏：左栏 `MaterialColumn` 为播放器 + 跟随转录，右栏 `NotesStage` 笔记常驻（多篇用栏头胶囊切换，暴露 `insertQuote` 把转录摘录作为「引用块 + 时间戳」插到光标处）。对话默认收起，页面经 `useOwnAssist` 接管 Ctrl/⌘+J：条目区放得下「左栏最小 440 + 笔记最小 360 + 对话宽」时停成第三栏，否则作为抽屉盖在笔记栏上（Esc 退场），画面不让位；条目区收起文档树后仍放不下两栏时，经 `projectTreeStore.setAutoCollapse` 临时收起项目文档树（不写持久化偏好，期间用户点展开以用户为准）。转录划选弹工具条（摘到笔记 / 问 AI / 从这句播放 / 复制），问 AI 把原句作为引用带进对话输入框、不自动发送。笔记里的 `video-timestamp` / `video-screenshot` 节点经 `noteMarkers.ts` 扫出时间点（引用块内为「摘录」），作为 `VideoPlayer` 的 `markers` 刻度并给已摘录的转录句加底色，不另存数据。AI 章节由 `useVideoNoteChapters` 在转录就绪且配了「视频总结」模型位时自动生成，存 `video_notes.insights`（`{ version: 2, transcriptHash, chapters }`，hash 对不上即过期重生成，其他形态按无章节读），供进度条分段（`VideoPlayer` 的 `chapters`）与转录分组；未配模型时不生成也不提示。
 
-两处视频笔记共用 `useVideoNoteTranscription`：空白在线视频笔记经 `useVideoNoteCaptions` 的 react-query 查询优先调用插件可选的 `getCaptions(ref, signal)`（毫秒时间戳、无字幕为 null），30 秒超时后保留手动转录；查询按库、笔记身份和来源引用隔离，取消后不写库。字幕读取与模型配置无关；结果经原库命令 `import-video-note-captions` 仅在笔记修订一致且仍为空时写入，复用转录字段和检索索引；重新打开不会替换已有内容。用户的「开始 / 重新转录」直接走音频识别，不再次优先取字幕。YouTube 消费通用 `videoExtractor.getCaptions`，经 plugin-services 的任务生命周期调用 yt-dlp，只下载选定 JSON3 字幕（人工优先、同类原语言优先），沿用代理并在结束后清理任务目录；Bilibili 的认证和字幕 API 留在插件内。
+视频笔记、视频学习资料与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
+
+两处视频笔记共用 `useVideoNoteTranscription`：空白在线视频笔记经 `useVideoNoteCaptions` 的 react-query 查询优先调用插件可选的 `getCaptions(ref, signal)`（毫秒时间戳、无字幕为 null），30 秒超时后保留手动转录；查询按库、笔记身份和来源引用隔离，取消后不写库。字幕读取与模型配置无关；结果经原库命令 `import-video-note-captions` 仅在笔记修订一致且仍为空时写入，复用转录字段和检索索引；重新打开不会替换已有内容。用户的「开始 / 重新转录」直接走音频识别，不再次优先取字幕。YouTube 消费通用 `videoExtractor.getCaptions`，经 plugin-services 的任务生命周期调用 yt-dlp，只下载一条受支持的字幕轨（JSON3 / WebVTT / SRT；人工优先、同类原语言优先，同一语言按 JSON3 → VTT → SRT 选格式），统一为纯文本与毫秒起止时间，沿用代理并在结束后清理任务目录；Bilibili 的认证和字幕 API 留在插件内。
 
 纯聊天模型、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用，ThinkingLevel 与 MentionRef 也归该层，不反向引用输入组件目录。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
 
@@ -535,7 +554,7 @@ export function useXxxSnapshot() {
 
 会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
 
-数据库同步只搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。当前任务的跨存储提交仍使用原幂等记录；实体编号高水位不复用。
+云端提供方数据库同步搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。当前任务的跨存储提交仍使用原幂等记录；实体编号高水位不复用。
 
 数据库同步的提供方由 `src/services/syncRequestRetry.ts` 按对象请求包装，会话编排不重放整个文件；资源同步不经该包装，保留主进程自身的重试策略。请求退避、进度计数与分块复用规则以[宿主分块同步](/docs/architecture/storage-sync.md)为准。
 
@@ -758,6 +777,12 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 删除日程走 `pendingDeleteStore`：隐藏 + Toast 撤销，到时或 ScheduleView 卸载才落库；过滤在 `useCalendarEvents` 里统一做。不得改回「先删再重建」（删除会连带备注 content）。
 - 日程侧勾选完成待办后必须 `emitTodoMutation`，否则待办快照（待办页、待安排面板）不刷新。
 
+### 提醒
+
+- 截止任务与独立日程各最多 3 个提醒，预设、文案与拆合口径在 `@tau/shared/reminders`（移动端共用）。存储：待办首个提醒仍在 `todo_item.remind_before`（AI 工具、插件等只认单值的写入方照旧读写），其余在 `item_reminder`；日程全部在 `item_reminder`，全天日程以当天零点为基准（「当天 9:00」是负 offset）。改首个提醒的单值写入会经触发器清掉追加提醒，删待办 / 日程同样清理。
+- 写提醒只走 `todo:update-reminders` / `calendar-event:update-reminders`（`tables/item-reminder.ts`），先写 `remind_before` 再写追加提醒；界面统一用 `components/ReminderMenu`（勾选不关菜单）。待办列表快照经 `extraReminders` 带出追加提醒，展示用 `todoReminders(entry)` 合并。
+- 主进程 `todo-reminder` 每分钟扫描截止任务（含追加提醒）、周期与文档待办、独立日程（`todo_item_id` 为空，待办安排出的日程跟随待办）；通知正文由 `reminderBody` 生成，周期实例与只写了日期的文档待办按全天（「今天到期」），没有截止时间的写「待办提醒」。通知「查看」带 `reveal`，并向主窗口发 `reminder:open`，由壳层 `useReminderOpen` 打开待办页（`selectedId`）或日程页（`eventId`）。
+
 ### 文档待办
 
 个人助理任务工具在 `task-assistant` 主进程模块与同名 provider 中承载。写入按项校验、事务提交和幂等回执；正文路径使用内容层节点补丁与同步会话落盘，跨正文/主库失败返回 pending 并恢复。工具与卡片操作支持 30 天持久化撤销，检查后续修改和原位置，不回写整篇旧快照。数据库、日程、正文编号经持久化高水位分配，不复用被删除对象的编号。批量为逐项成功，不承诺全局回滚。工具风险沿用既有权限模式。
@@ -795,11 +820,11 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 
 ### 卡片库
 
-`features/cards/queries.ts` 按 `["cards", databaseName, "all"]` 隔离缓存，仅数据库就绪时读取；列表走主进程轻表（content 为截好的预览块，不 JOIN 播客表），单卡全文/播客按需经 `["cards", db, "detail", id]`（预览弹窗、导出与演示动作）。写入与卡片创建/更新/删除事件按 id 单卡并入缓存（事件载荷即全量卡片，跨窗口按 id 回查后广播），不做整域失效。`cards:*` 命令在主进程校验数据库身份，元数据只提交字段补丁并在当前记录上合并，拒绝跨库或已删除卡片写入。CardDatabaseView 经必传 `onUpdateCard(id, patch)` 接入宿主写入；连接列数据走 `useContentLinksByContentIds`，筛选结果只用于列表展示；时间组用本地自然日/周一周/自然月。标签持久化为名称字符串，表格保存标签补丁时按列选项把选项 ID 转回名称，不能保存通用多选组件的 UUID。
+`features/cards/queries.ts` 按 `["cards", databaseName, "all"]` 隔离缓存，仅数据库就绪时读取；列表走主进程轻表（content 为截好的预览块），单卡全文按需经 `["cards", db, "detail", id]`（预览弹窗、导出与演示动作）。写入与卡片创建/更新/删除事件按 id 单卡并入缓存（事件载荷即全量卡片，跨窗口按 id 回查后广播），不做整域失效。`cards:*` 命令在主进程校验数据库身份，元数据只提交字段补丁并在当前记录上合并，拒绝跨库或已删除卡片写入。CardDatabaseView 经必传 `onUpdateCard(id, patch)` 接入宿主写入；连接列数据走 `useContentLinksByContentIds`，筛选结果只用于列表展示；时间组用本地自然日/周一周/自然月。标签持久化为名称字符串，表格保存标签补丁时按列选项把选项 ID 转回名称，不能保存通用多选组件的 UUID。
 
 卡片墙与表格共用预览：数据就绪后隐藏挂载 ContentEditor，正文会话与 `onInit` 完成才显示；读取失败展示错误可重试；关闭预览保留正文/标题/标签到 Dialog `onAfterClose` 再清理，避免退场中高度塌缩。卡片墙的普通与置顶卡共用 `CardContentPreview`（只读 Editor 渲染前 3 块，不开协作会话），摘要变化重建实例，列表按 contentId 更新正文与字数不重拉。
 
-视图与排序由 `features/cards/preferences.ts` 按库持久化；视图切换经 `usePageBreadcrumb` 挂标题栏面包屑。筛选只剩标签条件（卡片墙/列表/表格共用同一会话查询，数据库视图将其与内置筛选叠加、会话条件不写入用户视图）；卡片库不设页内搜索——语义检索走命令面板，空态文案引导同一入口。卡片详情页（card-detail，match params 按 id 去重，连接 chip 经栈机异参原位更新）数据 = `useCardDetail` 单卡全量（含 linkCount），正文由 ContentEditor 文档会话持久化，元数据即时 patch；显式连接不经卡片元数据，存主库 `content_links`（按 contentId 绑定），脉络浮层与 ⋯ 菜单都走 `content-links:add/remove`（原子双边）。播客经 `usePodcastAttachment`。
+视图与排序由 `features/cards/preferences.ts` 按库持久化；视图切换经 `usePageBreadcrumb` 挂标题栏面包屑。筛选只剩标签条件（卡片墙/列表/表格共用同一会话查询，数据库视图将其与内置筛选叠加、会话条件不写入用户视图）；卡片库不设页内搜索——语义检索走命令面板，空态文案引导同一入口。卡片详情页（card-detail，match params 按 id 去重，连接 chip 经栈机异参原位更新）数据 = `useCardDetail` 单卡全量（含 linkCount），正文由 ContentEditor 文档会话持久化，元数据即时 patch；显式连接不经卡片元数据，存主库 `content_links`（按 contentId 绑定），脉络浮层与 ⋯ 菜单都走 `content-links:add/remove`（原子双边）。播客由插件 `tau.podcast` 经对象动作与详情区块提供，宿主不再持有卡片、文章、项目文档的播客。
 
 **卡片数据库视图**：`CardDatabaseView` 与专属链接插件只服务卡片页，通用 Database 留共享层。视图、筛选/排序/分组、列宽按库持久化（`databasePreferences.ts`，tau-card-database-views，库名去 .db 后缀；只读取当前版本，每个新库从默认视图初始化，不继承旧模板）；实例按库重建，旧实例迟到回调只持有原库动作不认领新库；跨窗口配置经 `view.receive/remove`、`views.reorder`、`column.resize` external 命令接入，不监听 props 覆盖内部状态。宿主经 `dispatch(command, "external")` 接入确认更新（`rows.apply` 提交字段差量、`rows.receive` 提交确认快照），变更事件携带 user/external 来源，保存回调只消费 user 事件。
 

@@ -12,7 +12,7 @@ import { ArrowLeft, PanelLeft } from "lucide-react";
 import { usePage, usePageParams, usePageBreadcrumb } from "@/page/PageProvider";
 import { Button, IconButton, Loading, Tooltip } from "@tau/ui";
 import { useProjectDetail, useRecordProjectOpen } from "../queries";
-import { useProjectTreeStore } from "../projectTreeStore";
+import { selectTreeCollapsed, useProjectTreeStore } from "../projectTreeStore";
 import ProjectView from "../components/ProjectView";
 
 export function ProjectDetailView() {
@@ -20,7 +20,7 @@ export function ProjectDetailView() {
   const { project, loading } = useProjectDetail(id);
   useRecordProjectOpen(id, itemId, !!project);
   const { navigator } = usePage();
-  const treeCollapsed = useProjectTreeStore(s => s.collapsed);
+  const treeCollapsed = useProjectTreeStore(selectTreeCollapsed);
   const toggleTree = useProjectTreeStore(s => s.toggle);
 
   /* 标题栏面包屑（node 须 useMemo 稳定化）：文档树切换按钮 + 项目标题。

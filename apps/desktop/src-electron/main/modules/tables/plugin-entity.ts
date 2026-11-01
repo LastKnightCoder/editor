@@ -128,6 +128,7 @@ export default class PluginEntityTable {
       "plugin-entities:update": this.update.bind(this),
       "plugin-entities:delete": this.remove.bind(this),
       "plugin-entities:locate": this.locate.bind(this),
+      "plugin-entities:notebook-outputs": this.notebookOutputs.bind(this),
       "plugin-entities:owners": this.owners.bind(this),
       "plugin-entities:declare-kind": this.declareKind.bind(this),
       "plugin-entities:kinds": this.kinds.bind(this),
@@ -165,6 +166,30 @@ export default class PluginEntityTable {
   ): PluginEntityRecord | null {
     this.assertDatabase(db, request.databaseName);
     return this.byId(db, request.id);
+  }
+
+  /**
+   * Notebook 的插件产物：经 output 关联指向这个 Notebook 的插件实体（孤儿不算）。关联记下的目标
+   * 创建时间与 Notebook 当前不一致（编号被复用）时不算。
+   */
+  static notebookOutputs(
+    db: Database.Database,
+    request: { databaseName: string; notebookId: number }
+  ): PluginEntityRecord[] {
+    this.assertDatabase(db, request.databaseName);
+    const notebook = db
+      .prepare("SELECT create_time FROM vibe_learning_project WHERE id = ?")
+      .get(request.notebookId) as { create_time: number } | undefined;
+    if (!notebook) return [];
+    const rows = db
+      .prepare(
+        `${BASE_SQL} JOIN plugin_links l ON l.from_id = e.id AND l.plugin_id = e.plugin_id
+         WHERE l.to_kind = 'notebook' AND l.to_id = ? AND l.to_created_at = ? AND l.role = 'output'
+           AND e.orphaned_time IS NULL
+         ORDER BY updated DESC, e.id DESC`
+      )
+      .all(String(request.notebookId), notebook.create_time) as Row[];
+    return rows.map(toRecord);
   }
 
   /** 一批插件内容所属的插件与类型，供各处按声明的外观显示；不存在的 ID 不返回 */
@@ -534,7 +559,7 @@ export default class PluginEntityTable {
     options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
   ): number {
     return db.transaction(() => {
-      markOrphans(db, "plugin_entities", options.installed, options.now);
+      if (!markOrphans(db, "plugin_entities", options.installed, options.now)) return 0;
       const due = db
         .prepare(
           "SELECT id, content_id FROM plugin_entities WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"

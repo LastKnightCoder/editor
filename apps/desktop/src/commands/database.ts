@@ -1,9 +1,11 @@
 import { invoke } from "@/electron";
+import { rememberDatabaseConnection } from "@/services/command-context";
+import type { DatabaseConnection } from "@/types/database-connection";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
-export type DatabaseConnectSource =
-  | "sync_upload_reconnect"
-  | "sync_download_reconnect";
+export type DatabaseConnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
+
+let connecting = 0;
 
 type ConnectDatabaseOptions = {
   force?: boolean;
@@ -11,9 +13,7 @@ type ConnectDatabaseOptions = {
   source?: DatabaseConnectSource;
 };
 
-const normalizeOptions = (
-  options?: boolean | ConnectDatabaseOptions,
-): ConnectDatabaseOptions => {
+const normalizeOptions = (options?: boolean | ConnectDatabaseOptions): ConnectDatabaseOptions => {
   if (typeof options === "boolean") {
     return {
       force: options,
@@ -29,23 +29,31 @@ const normalizeOptions = (
 
 export const connectDatabaseByName = async (
   databaseName: string,
-  options?: boolean | ConnectDatabaseOptions,
+  options?: boolean | ConnectDatabaseOptions
 ) => {
   const { force, mode, source } = normalizeOptions(options);
-  return await invoke(
+  const request = ++connecting;
+  const connection = await invoke<DatabaseConnection>(
     "create-or-connect-database",
     databaseName,
     force,
     mode,
-    source,
+    source
   );
+  if (request === connecting) rememberDatabaseConnection(connection);
 };
 
 export const reconnectDatabaseFast = async (
   databaseName: string,
-  source?: DatabaseConnectSource,
+  source?: DatabaseConnectSource
 ) => {
-  return await invoke("reconnect-database-fast", databaseName, source);
+  const request = ++connecting;
+  const connection = await invoke<DatabaseConnection>(
+    "reconnect-database-fast",
+    databaseName,
+    source
+  );
+  if (request === connecting) rememberDatabaseConnection(connection);
 };
 
 export const closeDatabase = async (databaseName: string) => {

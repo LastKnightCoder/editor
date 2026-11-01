@@ -2,7 +2,7 @@ import type { ContentContractDictionary } from "@tau/db-schema/content-contracts
 import { countTextWords } from "@tau/db-schema/content-metrics";
 import { mobileContentMetrics, mobileContentPlugins } from "../app/plugins/content";
 import type { SettingCompat } from "../types";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
 import type {
   ActiveDatabaseResponse,
@@ -42,6 +42,7 @@ import type {
   ResourceSyncStatusFile,
   SettingWriteResponse,
   SyncActionResponse,
+  SyncProgress,
   SyncVersionResponse,
   UploadTestResponse,
   PomodoroDailySummary,
@@ -75,19 +76,37 @@ import type {
 } from "../features/calendar/types";
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
+import { notifyReminderSourceChanged } from "../features/reminders/changes";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
+import { deviceReplacementState } from "./device-sync/native";
+import {
+  assertContentWriteContext,
+  captureContentWriteContext,
+  type ContentWriteContext,
+} from "./content-write-context";
+import { trackLibraryRequest } from "./ipc-requests";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
 function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (
+    deviceReplacementState().active &&
+    cmd !== "set_active_database" &&
+    /^(create|update|delete|remove|insert|move|reorder|archive|restore|toggle|complete|set|clear|save|batch)_/.test(
+      cmd
+    )
+  )
+    return Promise.reject(new Error("DEVICE_SYNC_REPLACED: 当前库正在恢复"));
   const start = performance.now();
-  return invoke<T>(cmd, args)
+  const task = invoke<T>(cmd, args)
     .then(result => {
       invalidateCalendarAfterMutation(cmd);
+      notifyReminderSourceChanged(cmd);
       return result;
     })
     .finally(() => {
       logPerf("ipc", cmd, performance.now() - start);
     });
+  return trackLibraryRequest(task);
 }
 
 // 传递时区身份，Rust 按目标日期解析偏移，覆盖历史和未来的夏令时。
@@ -289,7 +308,8 @@ export async function createQuickCard(params: {
   );
 }
 
-export function updateContent(params: {
+export async function updateContent(params: {
+  writeContext?: ContentWriteContext;
   contentId: number;
   content: unknown[];
   count: number;
@@ -298,9 +318,26 @@ export function updateContent(params: {
   expectedDocumentId?: string;
   expectedSourceId?: string;
 }) {
+  const context = params.writeContext ?? (await captureContentWriteContext());
+  assertContentWriteContext(context);
+  const { consumeDeviceProjection, replaceDeviceContent } = await import("./device-sync/content");
+  assertContentWriteContext(context);
+  if (
+    (await consumeDeviceProjection(params.contentId, params.content)) ||
+    (await replaceDeviceContent(params, context))
+  )
+    return trackedInvoke<ContentDetailResponse>("get_content_detail", {
+      contentId: params.contentId,
+    });
+  assertContentWriteContext(context);
   return withCardTimeout(
     trackedInvoke<ContentDetailResponse>("update_content", {
-      payload: { ...params, count: mobileContentMetrics.count(params.content) },
+      payload: {
+        ...params,
+        expectedGeneration: context.generation,
+        expectedDatabaseName: context.database || undefined,
+        count: mobileContentMetrics.count(params.content),
+      },
     }),
     "保存卡片内容"
   );
@@ -825,12 +862,27 @@ export function syncCheckVersions(provider?: string) {
   );
 }
 
-export function syncUploadDatabase() {
-  return trackedInvoke<SyncActionResponse>("sync_upload_database");
+export function syncUploadDatabase(onProgress?: (progress: SyncProgress) => void) {
+  return runDatabaseSync("sync_upload_database", onProgress);
 }
 
-export function syncDownloadDatabase() {
-  return trackedInvoke<SyncActionResponse>("sync_download_database");
+export function syncDownloadDatabase(onProgress?: (progress: SyncProgress) => void) {
+  return runDatabaseSync("sync_download_database", onProgress);
+}
+
+async function runDatabaseSync(
+  command: "sync_upload_database" | "sync_download_database",
+  onProgress?: (progress: SyncProgress) => void
+) {
+  const channel = new Channel<SyncProgress>();
+  channel.onmessage = progress => onProgress?.(progress);
+  try {
+    return await trackedInvoke<SyncActionResponse>(command, {
+      onProgress: channel,
+    });
+  } finally {
+    channel.onmessage = () => undefined;
+  }
 }
 
 export function resourceSyncRefresh() {
@@ -1379,4 +1431,43 @@ export function collabInputDraft(payload: {
   sequence: number;
 }) {
   return trackedInvoke<void>("collab_input_draft", { payload });
+}
+
+// ==================== 提醒 ====================
+
+export type ReminderOwnerKind = "todo" | "event";
+
+export interface UpcomingReminder {
+  key: string;
+  /** `todo:<id>` / `event:<id>` / `doc:<内容 id>:<待办 id>` */
+  owner: string;
+  kind: ReminderOwnerKind | "doc";
+  /** 待办 / 日程 id；文档待办为所在内容 id */
+  ownerId: number;
+  taskId: string | null;
+  title: string;
+  /** 截止 / 开始时间（全天为当天零点）；没有截止时间的文档待办为 null */
+  anchor: number | null;
+  remindAt: number;
+  allDay: boolean;
+  endAt: number | null;
+  /** 周期实例：通知上不提供「完成」 */
+  recurring: boolean;
+}
+
+/** 提醒列表（基准前毫秒数，升序）；待办首个提醒即 remindBefore */
+export function reminderList(kind: ReminderOwnerKind, id: number) {
+  return trackedInvoke<number[]>("reminder_list", { payload: { kind, id } });
+}
+
+export function reminderSet(kind: ReminderOwnerKind, id: number, offsets: number[]) {
+  return trackedInvoke<number[]>("reminder_set", { payload: { kind, id, offsets } });
+}
+
+/** (from, to] 内待送达的提醒，以及仍有效的提醒归属（`todo:<id>` / `event:<id>`） */
+export function reminderUpcoming(from: number, to: number, limit: number) {
+  return trackedInvoke<{ items: UpcomingReminder[]; owners: string[] }>("reminder_upcoming", {
+    payload: { from, to, limit },
+    timeZone: localTimeZone(),
+  });
 }

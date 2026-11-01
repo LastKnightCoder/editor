@@ -1,4 +1,4 @@
-import type { ContentSessionTarget, ContentInputDraft } from "@tau/collaboration";
+import type { ContentSessionTarget, ContentInputDraft, SourceType } from "@tau/collaboration";
 import {
   collaborationCommands,
   type CollaborationInvitation,
@@ -43,9 +43,9 @@ export const setCollaborationNickname = async (nickname: string) => {
 };
 
 export const createSharedContent = async (
-  contentId: number | string,
-  contentType: string,
-  sourceId: number | string,
+  contentId: number,
+  contentType?: SourceType,
+  sourceId?: number,
   title?: string
 ): Promise<SharedContentResult> => {
   return collaborationCommands.createSharedContent.call(contentId, contentType, sourceId, title);

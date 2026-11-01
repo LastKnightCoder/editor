@@ -1,14 +1,13 @@
 /**
  * pi 会话文件的存储层：会话目录的定位、读投影、改历史、删除、浏览器扩展会话列表、
- * 同步下载的替换。electron-free，可单测；IPC 壳在 pi-session-host.ts。
+ * 同步上传文件清单。electron-free，可单测；IPC 壳在 pi-session-host.ts。
  *
  * 两类会话目录：
  * - 应用对话：`sessions/<库名>/`，目录行在 chat_session 表里，文件名存在目录行；
  * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
  *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { ChatSessionMessage } from "@/types";
 import type { PiBrowserSessionInfo } from "@/types/pi-session";
@@ -99,19 +98,4 @@ export function listSessionFiles(sessionDir: string): string[] {
         .filter(name => name.endsWith(".jsonl"))
         .sort()
     : [];
-}
-/** 数据库已关闭且持有同步锁时，用下载结果替换库文件；云端带对话记录时一并替换会话目录。 */
-export function installDatabaseDownload(
-  databasePath: string,
-  downloadPath: string,
-  sessionDir: string,
-  downloadedSessions?: string
-): void {
-  for (const suffix of ["-wal", "-shm"]) rmSync(`${databasePath}${suffix}`, { force: true });
-  renameSync(downloadPath, databasePath);
-  if (downloadedSessions) {
-    mkdirSync(dirname(sessionDir), { recursive: true });
-    rmSync(sessionDir, { recursive: true, force: true });
-    renameSync(downloadedSessions, sessionDir);
-  }
 }

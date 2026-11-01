@@ -32,9 +32,8 @@ export function ShareContentSheet(props: {
   const [result, setResult] = useState<ShareResult>();
   const [message, setMessage] = useState<string>();
   const started = useRef(false);
-  // 发起可能发生在从未进过协作页的会话：挂载即以用户配置启动运行时，
-  // 否则 manager 未启动时会误用默认服务器地址
-  useCollaborationRuntime();
+  // 只有打开面板才持有运行时，关闭后的退场组件不再触发启动。
+  useCollaborationRuntime(props.open);
 
   const run = async () => {
     setPhase("sharing");

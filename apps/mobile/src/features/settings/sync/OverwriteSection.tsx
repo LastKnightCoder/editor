@@ -1,6 +1,7 @@
 // 整库覆盖：以一侧为准整体上传或下载；覆盖较新一侧时在确认面板里警示。
 
 import { useState } from "react";
+import { ProgressStatus } from "@tau/ui";
 import {
   ArrowRight,
   ChevronRight,
@@ -9,7 +10,7 @@ import {
   CloudUpload,
   Smartphone,
 } from "lucide-react";
-import type { SyncActionResponse, SyncVersionResponse } from "../../../types";
+import type { SyncActionResponse, SyncVersionResponse, SyncProgress } from "../../../types";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { toast } from "../../../components/toast";
 import { GroupCard, GroupNote, GroupRow } from "../components/ui";
@@ -22,6 +23,7 @@ type Direction = "upload" | "download";
 export type OverwriteSectionProps = {
   versions: SyncVersionResponse | null;
   isSyncing: boolean;
+  syncProgress?: SyncProgress | null;
   onSyncUpload: () => Promise<SyncActionResponse>;
   onSyncDownload: () => Promise<SyncActionResponse>;
 };
@@ -101,6 +103,11 @@ export function OverwriteSection(props: OverwriteSectionProps) {
       <GroupNote className="pt-1 pb-2">
         日常使用同步页的主按钮即可。只有一侧数据出了问题、需要强制以另一侧为准时，才使用整库覆盖。
       </GroupNote>
+      {props.isSyncing && props.syncProgress && (
+        <div className="setting-group px-[18px] py-4">
+          <ProgressStatus value={props.syncProgress.value} label={props.syncProgress.status} />
+        </div>
+      )}
       <GroupCard>
         {rows.map(row => {
           const availability = overwriteAvailability(props.versions, row.direction);

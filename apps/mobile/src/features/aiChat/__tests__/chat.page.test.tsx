@@ -1,5 +1,5 @@
 // 对话页：经真实 router 入栈；AI 服务替身只在运行层发快照，覆盖新对话首发建会话、
-// 流式回答、写入审批走宿主作答、过程胶囊与回答操作、未配置引导与对话记录。
+// 流式回答、写入审批走宿主作答、工具时间线与回答操作、未配置引导与对话记录。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -379,9 +379,10 @@ it("写入工具等待审批：确认条可见，点「允许」经宿主作答"
       ],
     },
   });
-  await waitFor(() => text().includes("需要你确认"));
+  await waitFor(() => text().includes("新建这条待办？"));
   expect(text()).toContain("修改你的数据");
-  expect(text()).toContain("新建待办");
+  expect(text()).toContain("交周报");
+  expect(pressable("本次对话不再询问")).toBeTruthy();
   await click(pressable("允许"));
   await waitFor(() => service.interactions.resolveApproval.mock.calls.length === 1);
   expect(service.interactions.resolveApproval).toHaveBeenCalledWith({
@@ -442,22 +443,22 @@ function answeredChat(): ChatState {
   } as unknown as ChatState;
 }
 
-it("回答完成：相邻工具收成一枚过程胶囊，最后一条回答常显操作", async () => {
+it("回答完成：工具逐条一行、点开看详情，最后一条回答常显操作", async () => {
   setting = makeSetting(true);
   service.sessions.get.mockResolvedValue(session("s4", answeredChat().messages, "明天的日程"));
   useChatStore.setState({ chats: { s4: answeredChat() } });
   mount();
   await open("aiChat", { sessionId: "s4" });
   await waitFor(() => text().includes("明天没有安排"));
-  expect(text()).toContain("查询日程、查询待办");
-  expect(text()).toContain("2 步");
-  // 未展开时不逐条列出，也不出现「完成」
-  expect(text()).not.toContain("完成");
+  // 不合并：两次调用各占一行，不写耗时
+  expect(pressable("查询日程")).toBeTruthy();
+  expect(pressable("查询待办")).toBeTruthy();
+  expect(text()).not.toContain("步");
   expect(pressable("复制")).toBeTruthy();
   expect(pressable("重新生成")).toBeTruthy();
   expect(pressable("存为卡片")).toBeTruthy();
   await click(pressable("查询日程"));
-  expect(activePage().querySelectorAll("[aria-expanded='true']").length).toBeGreaterThan(0);
+  await waitFor(() => (document.body.textContent ?? "").includes("原始数据"));
 });
 
 it("回答操作：文字胶囊「存为卡片 / 复制」，⋯ 打开操作面板；引用胶囊点开预览", async () => {

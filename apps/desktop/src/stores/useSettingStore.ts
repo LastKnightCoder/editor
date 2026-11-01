@@ -5,6 +5,7 @@ import {
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
+import type { HighlightStyle } from "@tau/editor/extensions/text-formatting/types";
 
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import type { EmbeddingSetting } from "@/types/embedding";
@@ -105,6 +106,9 @@ export interface ISetting {
       borderRadius?: ImageBorderRadiusPreset;
       shadow?: ImageShadowPreset;
     };
+    highlight?: {
+      style?: HighlightStyle;
+    };
   };
   imageBed: {
     active: EImageBed;
@@ -159,7 +163,6 @@ export interface ISetting {
     chat: LLMUsageConfigV2 | null;
     titleSummary: LLMUsageConfigV2 | null;
     webClip: LLMUsageConfigV2 | null;
-    podcastGeneration: LLMUsageConfigV2 | null;
     flashcardGeneration: LLMUsageConfigV2 | null;
     transcriptionOptimization: LLMUsageConfigV2 | null;
     speechInputRefinement: LLMUsageConfigV2 | null;
@@ -383,7 +386,6 @@ const initialState: IState = {
       chat: null,
       titleSummary: null,
       webClip: null,
-      podcastGeneration: null,
       flashcardGeneration: null,
       transcriptionOptimization: null,
       speechInputRefinement: null,

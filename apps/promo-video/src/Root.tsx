@@ -14,11 +14,14 @@ import { StyleProbe } from "./films/gallery/StyleProbe";
 import { ManifestoProbe, type ManifestoVariant } from "./films/gallery/ManifestoProbe";
 import { Measure, MEASURES, type MeasureKey } from "./films/gallery/Measure";
 import { StageProvider } from "./kit/Stage";
+import { TutorialFilm } from "./films/tutorial/TutorialFilm";
+import { TUTORIAL_DURATION } from "./films/tutorial/timeline";
+import { TUTORIAL_GLYPHS } from "./films/tutorial/script";
 import { AppThemeProvider } from "./app-kit/theme";
 import { STAGES } from "./brand/stage";
 import { BOARD_TEXT } from "./mock/board";
 
-preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS, BOARD_TEXT);
+preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS, BOARD_TEXT);
 
 const FEATURE_IDS: Record<Feature, string> = { editor: "Feature-Editor", compose: "Feature-Compose" };
 
@@ -29,6 +32,7 @@ export function Root() {
       {(Object.keys(FEATURE_RANGES) as Feature[]).map(feature => (
         <Composition key={feature} id={FEATURE_IDS[feature]} component={FeatureFilm} defaultProps={{ feature }} durationInFrames={featureDuration(feature)} {...VIDEO} />
       ))}
+      <Composition id="Tutorial-Syntax" component={TutorialFilm} durationInFrames={TUTORIAL_DURATION} {...VIDEO} />
       <Composition id="DayInLife" component={DayFilm} durationInFrames={DAY_DURATION} {...VIDEO} />
 
       {(Object.keys(GALLERY_PAGES) as GalleryPage[]).map(page => (

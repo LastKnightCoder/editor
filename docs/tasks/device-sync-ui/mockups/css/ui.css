@@ -1,0 +1,414 @@
+/* 产品界面共用件：只消费 --tau-* token，形制对齐 @tau/ui（Button 六档 / Dialog / Menu） */
+.ico {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ico.sm {
+  width: 14px;
+  height: 14px;
+}
+.ico.lg {
+  width: 20px;
+  height: 20px;
+}
+.spin {
+  animation: tau-spin 1.1s linear infinite;
+}
+@keyframes tau-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: var(--tau-radius-md);
+  font-size: var(--tau-text-body);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-1);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+  transition:
+    background-color 160ms,
+    color 160ms;
+}
+.btn:hover {
+  background: var(--tau-bg-surface-hover);
+}
+.btn.primary {
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  box-shadow: none;
+}
+.btn.primary:hover {
+  background: var(--tau-accent-hover);
+}
+.btn.soft {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  box-shadow: none;
+}
+.btn.ghost {
+  background: transparent;
+  box-shadow: none;
+  color: var(--tau-ink-2);
+}
+.btn.ghost:hover {
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-1);
+}
+.btn.danger {
+  background: var(--tau-danger);
+  color: var(--tau-ink-inverse);
+  box-shadow: none;
+}
+.btn.danger-soft {
+  background: var(--tau-danger-soft);
+  color: var(--tau-danger);
+  box-shadow: none;
+}
+.btn.sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--tau-text-meta);
+}
+.btn.icon {
+  width: 32px;
+  padding: 0;
+}
+.btn.icon.sm {
+  width: 28px;
+}
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--tau-ink-3);
+}
+.dot.ok {
+  background: var(--tau-ok);
+}
+.dot.warn {
+  background: var(--tau-warn);
+}
+.dot.danger {
+  background: var(--tau-danger);
+}
+.dot.accent {
+  background: var(--tau-accent);
+}
+.dot.ring {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--tau-ink-3);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--tau-text-tiny);
+  font-weight: 500;
+  color: var(--tau-ink-2);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+  white-space: nowrap;
+}
+.badge.accent {
+  color: var(--tau-accent-text);
+  background: var(--tau-accent-soft);
+  box-shadow: none;
+}
+.badge.warn {
+  color: var(--tau-warn);
+  background: var(--tau-warn-soft);
+  box-shadow: none;
+}
+.badge.ok {
+  color: var(--tau-ok);
+  background: var(--tau-ok-soft);
+  box-shadow: none;
+}
+.badge.danger {
+  color: var(--tau-danger);
+  background: var(--tau-danger-soft);
+  box-shadow: none;
+}
+
+.muted {
+  color: var(--tau-ink-3);
+}
+.ink2 {
+  color: var(--tau-ink-2);
+}
+.mono {
+  font-family: var(--tau-font-mono);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.link {
+  color: var(--tau-accent-text);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 不确定进度：没有精确百分比时只表达"在进行" */
+.indet {
+  position: relative;
+  height: 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--tau-bg-track);
+}
+.indet::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+  border-radius: 4px;
+  background: var(--tau-accent);
+  animation: indet 1.4s var(--tau-ease-out) infinite;
+}
+@keyframes indet {
+  from {
+    left: -34%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+/* 配对载荷：等宽单行省略，复制按钮才是主角 */
+.code-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--tau-radius-md);
+  background: var(--tau-bg-surface);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+}
+.code-field .val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 12px var(--tau-font-mono);
+  color: var(--tau-ink-2);
+}
+.code-field.dead .val {
+  text-decoration: line-through;
+  color: var(--tau-ink-3);
+}
+textarea.paste {
+  width: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  border-radius: var(--tau-radius-md);
+  padding: 10px 12px;
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-1);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+  font: 12px/1.55 var(--tau-font-mono);
+}
+textarea.paste:focus {
+  box-shadow:
+    inset 0 0 0 1px var(--tau-accent),
+    var(--tau-focus-ring);
+}
+textarea.paste.bad {
+  box-shadow: inset 0 0 0 1px var(--tau-danger);
+}
+
+.step-n {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tau-accent-text);
+  background: var(--tau-accent-soft);
+}
+.step-n.done {
+  color: var(--tau-ink-inverse);
+  background: var(--tau-ok);
+}
+.step-n.idle {
+  color: var(--tau-ink-3);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+}
+
+/* 浮层：遮罩 + 对话框 + 菜单 + toast，限定在产品框内 */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: var(--tau-overlay);
+  backdrop-filter: blur(4px);
+  animation: fade 180ms;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+.dialog {
+  width: 440px;
+  max-width: calc(100% - 32px);
+  border-radius: var(--tau-radius-lg);
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-float);
+  padding: 20px 22px 18px;
+  animation: rise 220ms var(--tau-ease-out);
+}
+.dialog.lg {
+  width: 560px;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+.dialog h3 {
+  margin: 0;
+  font-size: var(--tau-text-title);
+  font-weight: 600;
+}
+.dialog .ctx {
+  display: inline-flex;
+  margin: 8px 0 12px;
+}
+.dialog p {
+  margin: 0 0 10px;
+  color: var(--tau-ink-2);
+}
+.dialog .impact {
+  margin: 14px 0 0;
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-2);
+}
+.dialog .foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.fact-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.fact-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.fact-list .ico {
+  margin-top: 3px;
+}
+
+.menu {
+  position: absolute;
+  z-index: 25;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: var(--tau-radius-md);
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-float),
+    0 0 0 1px var(--tau-line-1);
+  animation: rise 160ms var(--tau-ease-out);
+}
+.menu .mi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: var(--tau-radius-sm);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--tau-text-body);
+  color: var(--tau-ink-1);
+}
+.menu .mi:hover {
+  background: var(--tau-bg-hover);
+}
+.menu .mi.danger {
+  color: var(--tau-danger);
+}
+.menu .mi[disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.menu .mi small {
+  display: block;
+  color: var(--tau-ink-3);
+  font-size: var(--tau-text-tiny);
+}
+
+.toast {
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: var(--tau-radius-md);
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+  font-size: var(--tau-text-meta);
+  box-shadow: var(--tau-shadow-float);
+  white-space: nowrap;
+  animation: rise 200ms var(--tau-ease-out);
+}
+.toast .ico {
+  color: var(--tau-ok-soft);
+}

@@ -14,7 +14,7 @@ export function useReadingFontCatalog(enabled = true) {
   });
 }
 
-/** 本机已安装字体；壳层据此决定能否加载所选字体，下载/移除后失效重读 */
+/** 本机已安装字体；壳层据此决定能否加载所选字体，下载后失效重读 */
 export function useInstalledReadingFonts() {
   return useQuery({
     queryKey: [...READING_FONT_KEY, "installed"],

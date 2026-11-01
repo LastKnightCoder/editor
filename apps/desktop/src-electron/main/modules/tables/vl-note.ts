@@ -1,7 +1,14 @@
 import Database from "better-sqlite3";
 import ContentTable from "./content";
 
-export type VLNoteType = "note" | "outline" | "highlights" | "mindmap" | "ppt" | "podcast";
+export type VLNoteType =
+  | "note"
+  | "outline"
+  | "highlights"
+  | "article"
+  | "mindmap"
+  | "ppt"
+  | "report";
 
 export interface VLNote {
   id: number;
@@ -9,7 +16,6 @@ export interface VLNote {
   contentId: number;
   title: string;
   type: VLNoteType;
-  podcastId: number | null; // 关联的播客 ID（仅 type=podcast 时有值）
   createTime: number;
   updateTime: number;
 }
@@ -19,13 +25,11 @@ export interface CreateVLNotePayload {
   contentId: number;
   title: string;
   type?: VLNoteType;
-  podcastId?: number; // 关联的播客 ID（仅 type=podcast 时需要）
 }
 
 export interface UpdateVLNotePayload {
   id: number;
   title?: string;
-  podcastId?: number | null;
 }
 
 export default class VLNoteTable {
@@ -38,7 +42,6 @@ export default class VLNoteTable {
       contentId: row.content_id as number,
       title: row.title as string,
       type: (row.type as VLNoteType) || "note",
-      podcastId: (row.podcast_id as number) ?? null,
     };
   }
 
@@ -55,20 +58,11 @@ export default class VLNoteTable {
   static create(db: Database.Database, payload: CreateVLNotePayload): VLNote {
     const now = Date.now();
     const noteType = payload.type || "note";
-    const podcastId = payload.podcastId ?? null;
     const stmt = db.prepare(`
-      INSERT INTO vl_note (create_time, update_time, project_id, content_id, title, type, podcast_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO vl_note (create_time, update_time, project_id, content_id, title, type)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-    const res = stmt.run(
-      now,
-      now,
-      payload.projectId,
-      payload.contentId,
-      payload.title,
-      noteType,
-      podcastId
-    );
+    const res = stmt.run(now, now, payload.projectId, payload.contentId, payload.title, noteType);
     const note = this.getById(db, Number(res.lastInsertRowid));
     if (!note) {
       throw new Error("Failed to create VL note");
@@ -78,18 +72,18 @@ export default class VLNoteTable {
 
   static update(db: Database.Database, payload: UpdateVLNotePayload): VLNote {
     const existing = db.prepare(`SELECT * FROM vl_note WHERE id = ?`).get(payload.id) as
-      Record<string, unknown> | undefined;
+      | Record<string, unknown>
+      | undefined;
     if (!existing) {
       throw new Error(`VL note ${payload.id} not found`);
     }
     const now = Date.now();
     const newTitle = payload.title ?? (existing.title as string);
-    const newPodcastId =
-      payload.podcastId !== undefined ? payload.podcastId : (existing.podcast_id as number | null);
-    const stmt = db.prepare(`
-      UPDATE vl_note SET title = ?, podcast_id = ?, update_time = ? WHERE id = ?
-    `);
-    stmt.run(newTitle, newPodcastId, now, payload.id);
+    db.prepare(`UPDATE vl_note SET title = ?, update_time = ? WHERE id = ?`).run(
+      newTitle,
+      now,
+      payload.id
+    );
     const note = this.getById(db, payload.id);
     if (!note) {
       throw new Error("Failed to update VL note");
@@ -99,7 +93,8 @@ export default class VLNoteTable {
 
   static getById(db: Database.Database, id: number): VLNote | null {
     const row = db.prepare(`SELECT * FROM vl_note WHERE id = ?`).get(id) as
-      Record<string, unknown> | undefined;
+      | Record<string, unknown>
+      | undefined;
     return row ? this.parse(row) : null;
   }
 

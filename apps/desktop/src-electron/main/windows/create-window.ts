@@ -99,8 +99,17 @@ export function createWindow({
   return win;
 }
 
-/** 恢复、显示并聚焦 */
+/**
+ * macOS 把应用切到前台：win.focus() 只在没有别的应用处于激活态时生效，
+ * 从不可聚焦的系统通知窗口、托盘等入口唤起时必须抢占激活。
+ */
+export function activateApp() {
+  if (process.platform === "darwin") app.focus({ steal: true });
+}
+
+/** 恢复、显示并聚焦（macOS 同时把应用切到前台） */
 export function revealWindow(win: BrowserWindow) {
+  activateApp();
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();

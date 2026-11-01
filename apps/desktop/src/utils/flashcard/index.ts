@@ -1,18 +1,5 @@
 import { FlashcardType, FlashcardData, FlashcardReviewRating } from "@/types";
 import type { Descendant } from "slate";
-import {
-  Brain,
-  BookOpen,
-  Zap,
-  Target,
-  Puzzle,
-  Microscope,
-  Star,
-  Rocket,
-  Lightbulb,
-  NotebookPen,
-  type LucideIcon,
-} from "lucide-react";
 
 const genId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -103,22 +90,6 @@ export const flashcardDeckColors = [
   "#8b5cf6",
   "#ef4444",
 ];
-
-/** 卡组封面图标集（deck.emoji 字段存这里的 key；存量 emoji 字符由渲染侧兼容显示） */
-export const flashcardDeckIcons: Record<string, LucideIcon> = {
-  brain: Brain,
-  book: BookOpen,
-  zap: Zap,
-  target: Target,
-  puzzle: Puzzle,
-  microscope: Microscope,
-  star: Star,
-  rocket: Rocket,
-  lightbulb: Lightbulb,
-  notes: NotebookPen,
-};
-
-export const flashcardDeckIconKeys = Object.keys(flashcardDeckIcons);
 
 export const createEmptyFlashcardData = (type: FlashcardType): FlashcardData => {
   switch (type) {

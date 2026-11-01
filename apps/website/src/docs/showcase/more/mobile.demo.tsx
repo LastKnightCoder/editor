@@ -15,6 +15,7 @@ import {
   House,
   Image as ImageIcon,
   Layers,
+  Mic,
   NotebookPen,
   Plus,
   RefreshCw,
@@ -48,6 +49,7 @@ const HERO: Record<State, { title: string; description: string; button: string; 
 const FAB = [
   { icon: Layers, label: "新卡片", tone: "bg-tag-2-soft text-tag-2" },
   { icon: FileText, label: "新文章", tone: "bg-accent-soft text-accent-text" },
+  { icon: Mic, label: "说一段", tone: "bg-tag-5-soft text-tag-5" },
   { icon: CalendarPlus, label: "新日程", tone: "bg-tag-3-soft text-tag-3" },
   { icon: BookOpen, label: "写日记", tone: "bg-tag-1-soft text-tag-1" },
 ];

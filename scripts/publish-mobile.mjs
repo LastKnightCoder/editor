@@ -117,6 +117,13 @@ function resolveAndroidEnv() {
   if (!existsSync(env.ANDROID_HOME)) throw new Error(`Android SDK 不存在: ${env.ANDROID_HOME}`);
   env.NDK_HOME ??= latestSubdir(join(env.ANDROID_HOME, "ndk")) ?? "";
   if (!env.NDK_HOME) throw new Error("未找到 NDK，请设置 NDK_HOME");
+  if (!existsSync(join(env.NDK_HOME, "build/cmake/android.toolchain.cmake"))) {
+    throw new Error(
+      "NDK_HOME 未指向有效的 NDK，请将其设为包含 build/cmake/android.toolchain.cmake 的单个目录"
+    );
+  }
+  // opusic-sys 通过 ANDROID_NDK_HOME 选择 CMake 工具链，与 Tauri 使用同一份 NDK。
+  env.ANDROID_NDK_HOME = env.NDK_HOME;
   const buildTools = latestSubdir(join(env.ANDROID_HOME, "build-tools"));
   if (!buildTools) throw new Error(`${env.ANDROID_HOME}/build-tools 下没有可用的构建工具`);
   prependEnvPath(env, [join(env.JAVA_HOME, "bin"), join(env.ANDROID_HOME, "platform-tools")]);

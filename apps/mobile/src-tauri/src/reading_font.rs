@@ -365,26 +365,6 @@ pub fn reading_font_cancel_download() {
     CANCEL_REQUESTED.store(true, Ordering::Release);
 }
 
-/// 移除一款字体：先删标记（立即视为未安装），再删文件
-#[tauri::command]
-pub async fn reading_font_remove(app: AppHandle, id: String) -> Result<(), String> {
-    if !valid_id(&id) {
-        return Err(format!("READING_FONT_NOT_FOUND: {id}"));
-    }
-    let dir = font_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        match std::fs::remove_file(marker_path(&dir, &id)) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("READING_FONT_STORAGE: {e}")),
-        }
-        remove_font_files(&dir, &id, &[]);
-        Ok(())
-    })
-    .await
-    .map_err(|e| format!("READING_FONT_STORAGE: {e}"))?
-}
-
 /// 读出已安装字体某个字重文件的字节，前端以 ArrayBuffer 接收后注册 FontFace
 #[tauri::command]
 pub async fn reading_font_read(

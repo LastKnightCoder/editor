@@ -844,6 +844,13 @@ code {
   }
 }
 
+/* 刚插入的录音块：描边 1.5 秒提示位置（录音期间光标不跳过去） */
+[data-recording-flash] {
+  outline: 1.5px dashed var(--tau-accent);
+  outline-offset: 2px;
+  border-radius: 16px;
+}
+
 /* 识别中的预览文字：不进文档，仅颜色区分，尾句更浅 */
 .dictation-preview {
   color: var(--tau-ink-2);

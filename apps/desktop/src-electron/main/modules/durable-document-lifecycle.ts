@@ -1,6 +1,8 @@
 export interface DocumentDrainScope {
   databaseName?: string;
   windowId?: number;
+  /** 覆盖安装期间旧正文视图保持冻结，直到会话被释放。 */
+  replace?: boolean;
   reason: "window-close" | "database-change" | "quit";
 }
 export interface DocumentDrain {

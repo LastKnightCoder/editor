@@ -33,6 +33,7 @@ export const IDLE_INDEX_DELAY_MS = 2 * 60 * 1000;
 const MAIN_CONTENT_WRITE_EVENTS = new Set([
   "content:update",
   "create-card",
+  "material:create-card",
   "create-card-from-project-item",
   "update-card",
   "create-article",

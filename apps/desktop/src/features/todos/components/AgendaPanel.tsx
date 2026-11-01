@@ -34,13 +34,14 @@ import {
   monthDay,
   nextOccurrence,
   recurrenceText,
-  remindText,
   scheduledToday,
   sortKey,
+  todoReminders,
   streakOf,
   WEEKDAY_CN,
   DAY_MS,
 } from "../model";
+import { summarizeReminders } from "@tau/shared/reminders";
 import type { BucketKey, TodoEntry, TodoSnapshot } from "../types";
 import { GroupDot, TodoCheck, TypeIcon } from "./TodoBits";
 import { DocTaskRow, docTaskBucket } from "./DocTaskBits";
@@ -206,7 +207,7 @@ export function AgendaPanel({
 
   return (
     // 滚动区离纸底留 16px（同右栏分隔线），滚动条不压纸的圆角；段头吸顶处也走顶部渐隐
-    <FadeScroll layoutScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pb-6 pl-[22px] pr-2">
+    <FadeScroll layoutScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pr-2 pb-6 pl-[22px]">
       {sections.length === 0 && (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">
           <p className="text-ink-2 text-[15px] font-medium">这里很清爽</p>
@@ -233,7 +234,7 @@ export function AgendaPanel({
             className="relative mb-[18px]"
           >
             {/* 段头与行同宽（-mx-1.5）：吸顶时完整盖住下面行的 hover 底色 */}
-            <header className="sticky top-0 z-[2] -mx-1.5 flex items-baseline gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_10px),transparent)] px-2.5 pb-2.5 pt-1.5">
+            <header className="sticky top-0 z-[2] -mx-1.5 flex items-baseline gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_10px),transparent)] px-2.5 pt-1.5 pb-2.5">
               <span
                 className={cn(
                   "text-[16px] font-semibold tracking-[-0.01em]",
@@ -475,7 +476,7 @@ function AgendaRow({
               !checked && entry.remindBefore != null && entry.type !== "normal" && !recurring && (
                 <>
                   <Bell strokeWidth={1.75} />
-                  {remindText(entry.remindBefore).replace("提前 ", "")}
+                  {summarizeReminders(todoReminders(entry)).replaceAll("前", "")}
                 </>
               ),
               streak > 0 && (
@@ -489,7 +490,7 @@ function AgendaRow({
         </span>
         <span className="flex items-center gap-2.5">
           {group && (
-            <span className="text-ink-2 flex items-center gap-1.5 whitespace-nowrap text-[11.5px]">
+            <span className="text-ink-2 flex items-center gap-1.5 text-[11.5px] whitespace-nowrap">
               <GroupDot color={group.color} className="size-[7px] rounded-[2.5px]" />
               {group.title}
             </span>

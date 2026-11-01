@@ -1,7 +1,7 @@
 /**
  * 阅读区 · 生成过程：一次生成任务的执行过程与输出中间态。
  * 推理、工具调用沿用对话的淡墨折叠行；输出按类型实时呈现（文档直接渲染、导图实时出图、
- * 测验逐题出现、HTML 看源码尾部、播客先脚本后合成进度）；底部计数条的数字在涨就是在干活。
+ * 测验逐题出现、HTML 看源码尾部、插件产物看正文尾部与后续处理进度）；底部计数条的数字在涨就是在干活。
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -20,14 +20,17 @@ import { GENERATE_APPS, NOTE_ICONS } from "../appMeta";
 import { cancelVLTask, retryVLTask } from "../tasks/runner";
 import type { VLTask, VLTaskKind, VLTaskTurn } from "../tasks/store";
 import { StageHeader } from "@/components/StageHeader";
+import { notebookOutputIcon, useNotebookOutputFor } from "@/app/plugins/notebook-outputs";
 
 const DOC_KINDS: VLTaskKind[] = ["outline", "highlights", "article"];
 const HTML_KINDS: VLTaskKind[] = ["ppt", "report", "ppt_edit", "report_edit"];
 
-const kindLabel = (kind: VLTaskKind) =>
-  kind === "ppt_edit" || kind === "report_edit"
-    ? "AI 编辑"
-    : (GENERATE_APPS.find(a => a.key === kind)?.label ?? "生成");
+const kindLabel = (task: VLTask) =>
+  task.plugin
+    ? task.plugin.label
+    : task.kind === "ppt_edit" || task.kind === "report_edit"
+      ? "AI 编辑"
+      : (GENERATE_APPS.find(a => a.key === task.kind)?.label ?? "生成");
 
 const kindIcon = (kind: VLTaskKind) =>
   kind === "ppt_edit"
@@ -65,7 +68,7 @@ function Markdown({ text, className }: { text: string; className?: string }) {
 /** 输出区的小标题：「正在写」时带一个呼吸点 */
 function OutputTitle({ running, children }: { running: boolean; children: ReactNode }) {
   return (
-    <div className="text-tau-sm text-ink-3 mb-2 mt-5 flex items-center gap-1.5">
+    <div className="text-tau-sm text-ink-3 mt-5 mb-2 flex items-center gap-1.5">
       {running && <span className="bg-accent size-1.5 animate-pulse rounded-full" />}
       {children}
     </div>
@@ -126,30 +129,21 @@ function OutputView({ task }: { task: VLTask }) {
         <OutputTitle running={running}>
           HTML 源码 · {fmt(lines.length)} 行{running ? "（显示最新部分）" : ""}
         </OutputTitle>
-        <pre className="border-line-1 rounded-tau-md font-tau-mono text-ink-2 relative m-0 max-h-[360px] overflow-hidden whitespace-pre-wrap break-all border px-3.5 py-3 text-[12px] leading-[1.65] [mask-image:linear-gradient(to_bottom,transparent,black_48px)]">
+        <pre className="border-line-1 rounded-tau-md font-tau-mono text-ink-2 relative m-0 max-h-[360px] overflow-hidden border [mask-image:linear-gradient(to_bottom,transparent,black_48px)] px-3.5 py-3 text-[12px] leading-[1.65] break-all whitespace-pre-wrap">
           {tail}
         </pre>
       </>
     );
   }
 
-  if (task.kind === "podcast") {
-    const rows = output
-      .split("\n")
-      .map(line => line.match(/^([^:：]{1,20})[：:]\s*(.+)$/))
-      .filter((m): m is RegExpMatchArray => !!m);
+  if (task.kind === "plugin") {
+    const tail = output.split("\n").slice(-24).join("\n");
     return (
       <>
-        <OutputTitle running={running && !task.progress}>脚本 · {rows.length} 句</OutputTitle>
-        <div className="flex flex-col gap-2">
-          {rows.map((m, i) => (
-            <p key={i} className="text-tau-body m-0 leading-relaxed">
-              <span className="text-ink-1 font-semibold">{m[1].trim()}</span>
-              <span className="text-ink-3">：</span>
-              <span className="text-ink-2">{m[2]}</span>
-            </p>
-          ))}
-        </div>
+        <OutputTitle running={running && !task.progress}>正文</OutputTitle>
+        <pre className="border-line-1 rounded-tau-md text-ink-2 text-tau-meta relative m-0 max-h-[360px] overflow-hidden border [mask-image:linear-gradient(to_bottom,transparent,black_48px)] px-3.5 py-3 font-[inherit] leading-[1.7] break-words whitespace-pre-wrap">
+          {tail}
+        </pre>
         {task.progress && (
           <div className="mt-5">
             <div className="text-tau-sm text-ink-2 mb-1.5 flex justify-between">
@@ -244,7 +238,8 @@ export function TaskStage({
   onShowProduct,
   onStartQuiz,
 }: TaskStageProps) {
-  const Icon = kindIcon(task.kind);
+  const pluginOutput = useNotebookOutputFor(task.plugin?.pluginId, task.plugin?.kind);
+  const Icon = task.plugin ? notebookOutputIcon(pluginOutput) : kindIcon(task.kind);
   const elapsed = useElapsed(task);
   const running = task.status === "running";
   const lastTurn = task.turns[task.turns.length - 1];
@@ -272,7 +267,7 @@ export function TaskStage({
       <StageHeader
         icon={<Icon className="size-4" strokeWidth={1.75} />}
         title={task.title}
-        meta={`${kindLabel(task.kind)} · 生成过程`}
+        meta={`${kindLabel(task)} · 生成过程`}
         chatOpen={chatOpen}
         onToggleChat={onToggleChat}
         onClose={onClose}
@@ -302,7 +297,7 @@ export function TaskStage({
         }
       />
       <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1">
-        <div className="mx-auto max-w-[760px] px-10 pb-10 pt-1">
+        <div className="mx-auto max-w-[760px] px-10 pt-1 pb-10">
           <p className="text-tau-sm text-ink-3 m-0 mb-3 leading-relaxed">
             基于 {task.resourceNames.length > 0 ? task.resourceNames.join("、") : "已有内容"}
             {task.userPrompt && <span className="text-ink-2"> · 要求：{task.userPrompt}</span>}

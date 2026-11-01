@@ -31,6 +31,7 @@ export function useContentCollabEntry(
   const navigator = useNavigator();
   const app = useAppContext();
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareMounted, setShareMounted] = useState(false);
   // onResume 重查协作绑定：下层协作页结束共享/投影变更后回本页保持状态最新
   const [resumeRev, setResumeRev] = useState(0);
   const [endedRev, setEndedRev] = useState(0);
@@ -50,11 +51,14 @@ export function useContentCollabEntry(
     menuItems: collabMenuItems({
       contentId,
       binding,
-      onStartShare: () => setShareOpen(true),
+      onStartShare: () => {
+        setShareMounted(true);
+        setShareOpen(true);
+      },
       onOpenBinding: documentId => navigator.push("collabEditor", { documentId }),
     }),
     /** 发起协作面板（懒加载，含未使用协作用户的不加载），渲染在页面根部 */
-    shareSheet: (
+    shareSheet: shareMounted ? (
       <Suspense fallback={null}>
         <ShareContentSheet
           open={shareOpen}
@@ -72,6 +76,6 @@ export function useContentCollabEntry(
           onError={(error, fallback) => app.presentError(error, fallback)}
         />
       </Suspense>
-    ),
+    ) : null,
   };
 }

@@ -40,6 +40,7 @@ export function useTranscriptSync({ segments, mediaRef }: UseTranscriptSyncOptio
     []
   );
 
+  // 上一句在视口里才跟着滚：用户手动滚走后不抢回，由 currentOutOfView 提示回到当前
   const checkShouldAutoScroll = useCallback((prevIndex: number | null): boolean => {
     if (prevIndex === null) return false;
     const container = transcriptContainerRef.current;
@@ -49,6 +50,9 @@ export function useTranscriptSync({ segments, mediaRef }: UseTranscriptSyncOptio
     const elementRect = prevElement.getBoundingClientRect();
     return elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
   }, []);
+  const [currentOutOfView, setCurrentOutOfView] = useState(false);
+  const currentIndexRef = useRef<number | null>(null);
+  currentIndexRef.current = currentSegmentIndex;
 
   const scrollToSegment = useCallback((index: number) => {
     const element = segmentRefsMap.current.get(index);
@@ -78,6 +82,7 @@ export function useTranscriptSync({ segments, mediaRef }: UseTranscriptSyncOptio
         const shouldScroll = checkShouldAutoScroll(currentSegmentIndex);
         setCurrentSegmentIndex(newIndex);
         if (shouldScroll) scrollToSegment(newIndex);
+        else setCurrentOutOfView(currentSegmentIndex !== null);
       }
     },
     { wait: 100 }
@@ -103,8 +108,29 @@ export function useTranscriptSync({ segments, mediaRef }: UseTranscriptSyncOptio
     [mediaRef, onTimeUpdate]
   );
 
+  const segmentCount = segments?.length ?? 0;
+  useEffect(() => {
+    const container = transcriptContainerRef.current;
+    if (!container || !segmentCount) return;
+    const onScroll = () => {
+      const index = currentIndexRef.current;
+      setCurrentOutOfView(index !== null && !checkShouldAutoScroll(index));
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [segmentCount, checkShouldAutoScroll]);
+
+  const jumpToCurrent = useCallback(() => {
+    if (currentIndexRef.current === null) return;
+    scrollToSegment(currentIndexRef.current);
+    setCurrentOutOfView(false);
+  }, [scrollToSegment]);
+
   return {
     currentSegmentIndex,
+    /** 当前句被手动滚出视口（显示「回到当前播放」） */
+    currentOutOfView,
+    jumpToCurrent,
     transcriptContainerRef,
     segmentRefsMap,
     handleSegmentClick,

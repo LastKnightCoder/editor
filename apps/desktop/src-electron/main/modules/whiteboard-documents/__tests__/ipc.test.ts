@@ -11,6 +11,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import { WhiteboardModel, createWhiteboardDocument } from "@tau/collaboration";
 import { CollaborationAssetService } from "../../collaboration/asset-service";
@@ -64,6 +65,9 @@ vi.mock("../../database", () => ({
     onDatabaseConnected: vi.fn(),
     formatDatabaseName: (name: string) => name.replace(/\.db$/, ""),
   },
+}));
+vi.mock("../../pi-session-host", () => ({
+  default: { acquireLibrary: async () => () => {} },
 }));
 vi.mock("../../../utils/PathUtil", () => ({ default: { getAppDir: () => state.dir } }));
 vi.mock("../../tables/data-table", () => ({
@@ -207,6 +211,121 @@ it("窗口不能提交、关闭或确认另一窗口的租约", async () => {
   const drain = await pending;
   drain.rollback();
   expect(call("snapshot", 2, b.leaseId).leaseId).toBe(b.leaseId);
+});
+
+it.each([false, true])("设备安装白板后重新打开，失败则恢复原租约（失败=%s）", async fail => {
+  const [a] = await opened();
+  const { DeviceSyncModule } = await import("../../device-sync");
+  const { DeviceDatabaseStore, initializeDeviceSyncDatabase } =
+    await import("../../device-sync/database-store");
+  const { DeviceSyncEngine, synchronizeDevice } =
+    await import("@tau/collaboration/src/device-sync/engine");
+  const { WhiteboardDocumentSessions } = await import("../sessions");
+  const { WhiteboardJournal } = await import("../journal");
+  const { default: sql } = await import("@tau/db-schema/schema/device-sync.sql?raw");
+  const db = state.databases.get("A")!;
+  const path = join(state.dir, "coordinator.db");
+  await db.backup(path);
+  const coordinator = new Database(path);
+  const journal = new WhiteboardJournal(join(state.dir, "coordinator-journal.db"));
+  const sessions = new WhiteboardDocumentSessions(journal, () => coordinator);
+  const authority = randomUUID(),
+    head = randomUUID();
+  const identity = {
+    library: ContentIdentityTable.library(db)!.sourceId,
+    schema: "whiteboard-test",
+    node: authority,
+    authority,
+    head,
+    ackHead: head,
+    ackSeq: 0,
+    revision: 0,
+    epoch: randomUUID(),
+    enabled: true,
+  };
+  for (const [database, node] of [
+    [coordinator, authority],
+    [db, randomUUID()],
+  ] as const) {
+    initializeDeviceSyncDatabase(database, sql);
+    database
+      .prepare("INSERT INTO _tau_device_state(id,payload) VALUES(1,?)")
+      .run(JSON.stringify({ ...identity, node }));
+    initializeDeviceSyncDatabase(database, sql);
+  }
+  const module = new DeviceSyncModule();
+  const local = new DeviceDatabaseStore(
+    db,
+    () => {},
+    plan =>
+      (
+        module as unknown as {
+          guardCommit(name: string, plan: unknown): Promise<(committed: boolean) => void>;
+        }
+      ).guardCommit("A", plan)
+  );
+  const remote = new DeviceSyncEngine(new DeviceDatabaseStore(coordinator, () => {}));
+  const model = new WhiteboardModel(new Y.Doc({ gc: false }));
+  try {
+    await model.receive(a.state);
+    const view = await sessions.open("coordinator", 1, 3, "remote");
+    const vector = Y.encodeStateVector(model.doc);
+    model.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: "远端" } }], {});
+    await sessions.append(view.leaseId, 3, "remote-edit", Y.encodeStateAsUpdate(model.doc, vector));
+    const before = await local.read();
+    const pending = fail
+      ? local.commit({
+          expectedHead: before.state.head,
+          expectedSequence: before.sequence,
+          expectedGeneration: before.generation,
+          state: before.state,
+          snapshot: { rows: {}, documents: [] },
+        })
+      : synchronizeDevice(new DeviceSyncEngine(local), offer => remote.accept(offer));
+    const result = fail ? expect(pending).rejects.toThrow("SNAPSHOT_TABLES") : pending;
+    await vi.waitFor(() => expect(requests()).toHaveLength(2));
+    for (const request of requests()) await call("drained", request.owner, request.data.requestId);
+    await result;
+    if (fail) {
+      expect(call("snapshot", 1, a.leaseId).leaseId).toBe(a.leaseId);
+      expect(state.sent.some(event => event.channel === "whiteboard-document:detached")).toBe(
+        false
+      );
+    } else {
+      expect(() => call("snapshot", 1, a.leaseId)).toThrow("视图不属于");
+      expect(
+        state.sent.filter(event => event.channel === "whiteboard-document:detached")
+      ).toHaveLength(2);
+    }
+    const next = fail ? a : await call("open", 1, "A", 1, "a");
+    const client = new WhiteboardModel(new Y.Doc({ gc: false }));
+    try {
+      await client.receive(next.state);
+      expect(client.read().title).toBe(fail ? "" : "远端");
+      const vector = Y.encodeStateVector(client.doc);
+      client.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: "继续" } }], {});
+      const receipt = await call(
+        "append",
+        1,
+        next.leaseId,
+        "after-sync",
+        Y.encodeStateAsUpdate(client.doc, vector)
+      );
+      expect(receipt.error).toBeUndefined();
+      await expect(call("flush", 1, next.leaseId)).resolves.toMatchObject({
+        revision: receipt.revision,
+      });
+    } finally {
+      client.dispose();
+      client.doc.destroy();
+    }
+  } finally {
+    model.dispose();
+    model.doc.destroy();
+    sessions.dispose();
+    journal.close();
+    coordinator.close();
+  }
 });
 it("未绑定共享基线的本机白板不能隐式打开远端房间", async () => {
   const [a] = await opened();

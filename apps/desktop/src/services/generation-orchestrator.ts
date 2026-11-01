@@ -5,7 +5,6 @@ import type { ToolExecutionResult } from "@/types";
 import type { ModelUsage as AgentModelUsage } from "@tau/shared";
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
-import type { PodcastSpeaker } from "@/types/podcast";
 import { runPiAgent } from "@/services/piAgentRunner";
 import { PiChatEventReducer } from "@/services/piChatEvents";
 import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
@@ -45,12 +44,9 @@ import {
 import { getReportEditPrompt, buildReportEditUserPrompt } from "@/constants/prompts/report-edit";
 import { PROVIDED_CONTENT_GENERATION_RULES } from "@/constants/prompts/provided-content-generation";
 import {
-  buildPodcastProvidedContentSystemPrompt,
-  buildPodcastProvidedContentUserPrompt,
-  buildPodcastToolsSystemPrompt,
-  buildPodcastToolsUserPrompt,
-  type PodcastTTSPromptOptions,
-} from "@/services/podcast";
+  VIBE_LEARNING_GENERATION_RULES,
+  buildVibeLearningGenerationUserPrompt,
+} from "@/constants/prompts/vibe-learning-generation";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 
 type EmptyTaskPayload = Record<string, never>;
@@ -63,7 +59,7 @@ export type GenerationTaskType =
   | "quiz"
   | "ppt"
   | "ppt_edit"
-  | "podcast"
+  | "plugin"
   | "report"
   | "report_edit";
 
@@ -89,11 +85,12 @@ export interface GenerationTaskPayloadMap {
   quiz: EmptyTaskPayload;
   ppt: { template: PPTTemplate };
   ppt_edit: { currentHtml: string };
-  podcast: {
-    speakers: PodcastSpeaker[];
-    ttsPromptOptions: PodcastTTSPromptOptions;
-    durationMin?: number;
-    durationMax?: number;
+  /** 插件的 Notebook 输出：任务要求由插件给，通用规则、资料清单与检索工具由宿主补 */
+  plugin: {
+    pluginId: string;
+    title: string;
+    instructions: string;
+    reminders?: readonly string[];
   };
   report: { template: ReportTemplate };
   report_edit: { currentHtml: string };
@@ -185,10 +182,12 @@ export function runGenerationTask(
   options: GenerationRunOptions = {}
 ): void {
   const buildResult = buildGenerationRequest(request);
-  // 用量归属：播客走独立功能槽，其余生成任务按任务类型区分
+  // 用量归属按任务类型区分；插件输出再细分到插件
   const source = {
     feature:
-      request.taskType === "podcast" ? "podcastGeneration" : `generation:${request.taskType}`,
+      request.taskType === "plugin"
+        ? `generation:plugin:${(request.taskPayload as GenerationTaskPayloadMap["plugin"]).pluginId}`
+        : `generation:${request.taskType}`,
   };
 
   // 单发路径（provided_content）：直接消费 pi 原生事件（partial 全量快照）
@@ -432,27 +431,23 @@ function buildVibeLearningGenerationRequest(
         enableTools: true,
       };
     }
-    case "podcast": {
-      const payload = taskPayload as GenerationTaskPayloadMap["podcast"];
+    case "plugin": {
+      const payload = taskPayload as GenerationTaskPayloadMap["plugin"];
       return {
         messages: [
           createTextMessage(
             Role.System,
-            buildPodcastToolsSystemPrompt(
-              payload.speakers,
-              payload.ttsPromptOptions,
-              payload.durationMin,
-              payload.durationMax
-            )
+            `${VIBE_LEARNING_GENERATION_RULES}\n\n## 任务要求\n\n${payload.instructions}`
           ),
           createTextMessage(
             Role.User,
-            buildPodcastToolsUserPrompt(
-              sourcePayload.resourceNames,
-              sourcePayload.userPrompt,
-              payload.durationMin,
-              payload.durationMax
-            )
+            buildVibeLearningGenerationUserPrompt({
+              title: payload.title,
+              resourceNames: sourcePayload.resourceNames,
+              userPrompt: sourcePayload.userPrompt,
+              extraReminders: [...(payload.reminders ?? [])],
+              finalOutput: ["获取足够信息后，严格按任务要求的格式直接输出最终结果"],
+            })
           ),
         ],
         enableTools: true,
@@ -465,7 +460,7 @@ function buildVibeLearningGenerationRequest(
 
 function buildProvidedContentGenerationRequest(
   taskType: GenerationTaskType,
-  taskPayload: GenerationTaskPayloadMap[GenerationTaskType],
+  _taskPayload: GenerationTaskPayloadMap[GenerationTaskType],
   sourcePayload: ProvidedContentSourcePayload
 ): GenerationBuildResult {
   switch (taskType) {
@@ -501,32 +496,6 @@ function buildProvidedContentGenerationRequest(
         ],
         enableTools: false,
       };
-    case "podcast": {
-      const payload = taskPayload as GenerationTaskPayloadMap["podcast"];
-      return {
-        messages: [
-          createTextMessage(
-            Role.System,
-            buildPodcastProvidedContentSystemPrompt(
-              payload.speakers,
-              payload.ttsPromptOptions,
-              payload.durationMin,
-              payload.durationMax
-            )
-          ),
-          createTextMessage(
-            Role.User,
-            buildPodcastProvidedContentUserPrompt(
-              sourcePayload.content,
-              sourcePayload.userPrompt,
-              payload.durationMin,
-              payload.durationMax
-            )
-          ),
-        ],
-        enableTools: false,
-      };
-    }
     case "mindmap":
     case "highlights":
     case "article":
@@ -534,6 +503,7 @@ function buildProvidedContentGenerationRequest(
     case "ppt_edit":
     case "report":
     case "report_edit":
+    case "plugin":
       throw new Error(`任务 ${taskType} 当前未接入 provided_content 数据源，请改用对应专用入口`);
     default:
       throw new Error(`不支持的生成任务: ${taskType}`);

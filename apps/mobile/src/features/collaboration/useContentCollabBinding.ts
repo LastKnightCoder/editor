@@ -27,4 +27,3 @@ export function useContentCollabBinding(contentId: number | undefined, refreshKe
   }, [contentId, refreshKey]);
   return binding;
 }
-

@@ -24,6 +24,11 @@ import VideoPreview from "../ResourcePreview/VideoPreview";
 import AudioPreview from "../ResourcePreview/AudioPreview";
 import HtmlPreview from "../ResourcePreview/HtmlPreview";
 import { GENERATE_APPS, type GenerateAppKey } from "../appMeta";
+import {
+  notebookOutputIcon,
+  useNotebookOutputs,
+  type RegisteredPluginNotebookOutput,
+} from "@/app/plugins/notebook-outputs";
 import { isDocument, openResourceExternally, resourceIcon } from "../resourceKinds";
 import { MarkdownReader } from "./MarkdownReader";
 import { StageHeader } from "@/components/StageHeader";
@@ -69,11 +74,18 @@ function metaOf(resource: VLResource, providers: readonly { id: string; name: st
 /** 快捷生成：前 4 个常用应用直接给按钮，其余收进更多 */
 const QUICK: GenerateAppKey[] = ["outline", "highlights", "mindmap", "quiz"];
 
-function QuickGenerate({ onGenerate }: { onGenerate: (key: GenerateAppKey) => void }) {
+function QuickGenerate({
+  onGenerate,
+  onGenerateOutput,
+}: {
+  onGenerate: (key: GenerateAppKey) => void;
+  onGenerateOutput: (output: RegisteredPluginNotebookOutput) => void;
+}) {
+  const outputs = useNotebookOutputs();
   const quick = GENERATE_APPS.filter(a => QUICK.includes(a.key));
   const rest = GENERATE_APPS.filter(a => !QUICK.includes(a.key));
   return (
-    <div className="flex shrink-0 items-center justify-center gap-1 px-4 pb-3 pt-2">
+    <div className="flex shrink-0 items-center justify-center gap-1 px-4 pt-2 pb-3">
       <span className="text-tau-sm text-ink-3 mr-1 whitespace-nowrap">基于这份资料</span>
       {quick.map(app => (
         <Button
@@ -103,6 +115,18 @@ function QuickGenerate({ onGenerate }: { onGenerate: (key: GenerateAppKey) => vo
             {app.label}
           </Menu.Item>
         ))}
+        {outputs.map(output => {
+          const Icon = notebookOutputIcon(output);
+          return (
+            <Menu.Item
+              key={output.id}
+              icon={<Icon className="size-4" strokeWidth={1.75} />}
+              onSelect={() => onGenerateOutput(output)}
+            >
+              {output.definition.title}
+            </Menu.Item>
+          );
+        })}
       </Menu>
     </div>
   );
@@ -139,7 +163,7 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
     );
   return (
     <FadeScroll className="min-h-0 flex-1">
-      <div className="mx-auto max-w-[760px] px-10 pb-16 pt-2">
+      <div className="mx-auto max-w-[760px] px-10 pt-2 pb-16">
         <ErrorBoundary>
           <Editor
             key={meta.contentId}
@@ -174,6 +198,7 @@ interface ResourceStageProps {
   onToggleChat: () => void;
   onClose: () => void;
   onGenerate: (key: GenerateAppKey, resourceId: number) => void;
+  onGenerateOutput: (output: RegisteredPluginNotebookOutput, resourceId: number) => void;
 }
 
 export function ResourceStage(props: ResourceStageProps) {
@@ -249,7 +274,10 @@ export function ResourceStage(props: ResourceStageProps) {
       />
       {body}
       {resource.markdownPath && (
-        <QuickGenerate onGenerate={key => props.onGenerate(key, resource.id)} />
+        <QuickGenerate
+          onGenerate={key => props.onGenerate(key, resource.id)}
+          onGenerateOutput={output => props.onGenerateOutput(output, resource.id)}
+        />
       )}
     </div>
   );

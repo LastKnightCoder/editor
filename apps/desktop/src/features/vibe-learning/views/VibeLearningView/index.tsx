@@ -17,7 +17,7 @@ import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { ResizableAndHideableSidebar as ResizeableAndHideableSidebar } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { useVibeLearningPanelStore } from "../../panelStore";
-import { useRecordVibeLearningOpen } from "../../queries";
+import { useNotebookPluginOutputs, useRecordVibeLearningOpen } from "../../queries";
 import type { VibeLearningProject } from "@/types";
 import type { VLNote, VLResource } from "@/types/vibe-learning";
 
@@ -29,15 +29,18 @@ import { ResourceGroup } from "./tree/ResourceGroup";
 import { SourceRow } from "./tree/SourceRow";
 import { OutputGroup, type OutputGroupRef } from "./tree/OutputGroup";
 import { TaskStage } from "./stage/TaskStage";
-import { useNoteTask, useVLTaskStore } from "./tasks/store";
+import { useNoteTask, usePluginOutputTask, useVLTaskStore } from "./tasks/store";
 import { ResourceStage } from "./stage/ResourceStage";
 import NoteEditorView from "./stage/NoteEditorView";
+import { PluginOutputStage } from "./stage/PluginOutputStage";
 import { canOpenInStage, openResourceExternally } from "./resourceKinds";
 
 type Opened =
   | { kind: "resource"; id: number }
   | { kind: "note"; id: number }
   | { kind: "new-note" }
+  /** 插件产物（插件实体 ID） */
+  | { kind: "plugin-output"; id: number }
   /** 测验集的生成过程（笔记类任务跟着笔记走） */
   | { kind: "task"; id: string };
 
@@ -145,7 +148,16 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   if (stableNoteRef.current.key !== noteKey)
     stableNoteRef.current = { key: noteKey, note: listNote };
   const openedNote = stableNoteRef.current.note;
-  const noteTask = useNoteTask(opened?.kind === "note" ? opened.id : null);
+  const productVersion = useVLTaskStore(s => s.productVersion[projectId] ?? 0);
+  const { outputs: pluginOutputs, ready: pluginOutputsReady } = useNotebookPluginOutputs(
+    mainDbName,
+    projectId,
+    productVersion
+  );
+  const openedPluginOutput =
+    opened?.kind === "plugin-output" ? (pluginOutputs.find(e => e.id === opened.id) ?? null) : null;
+  const pluginTask = usePluginOutputTask(opened?.kind === "plugin-output" ? opened.id : null);
+  const noteTask = useNoteTask(opened?.kind === "note" ? opened.id : null) ?? pluginTask;
   const openedTask = useVLTaskStore(s =>
     opened?.kind === "task" ? s.tasks[opened.id] : undefined
   );
@@ -155,10 +167,11 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     (opened?.kind === "new-note" ||
       (openedResource !== null && canOpenInStage(openedResource)) ||
       openedNote !== null ||
+      openedPluginOutput !== null ||
+      (pluginTask !== undefined && pluginTask.status !== "succeeded") ||
       !!openedTask);
 
   // 后台任务建产物 / 落库后刷新列表（离开页面期间完成的，回来时也会拉到最新）
-  const productVersion = useVLTaskStore(s => s.productVersion[projectId] ?? 0);
   useEffect(() => {
     if (productVersion === 0) return;
     void refreshNotes();
@@ -176,8 +189,9 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
 
   // 加载完成后，记住的条目已不存在则清掉
   useEffect(() => {
+    if (opened?.kind === "plugin-output" && !pluginOutputsReady) return;
     if (!loading && opened && opened.kind !== "new-note" && !hasStage) setOpened(null);
-  }, [loading, opened, hasStage, setOpened]);
+  }, [loading, opened, hasStage, pluginOutputsReady, setOpened]);
 
   const openStage = useMemoizedFn((next: Opened) => {
     setStageKey(k => k + 1);
@@ -197,6 +211,8 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     if (started.note) {
       setDraftNote(started.note);
       openStage({ kind: "note", id: started.note.id });
+    } else if (started.pluginEntityId !== undefined) {
+      openStage({ kind: "plugin-output", id: started.pluginEntityId });
     } else {
       openStage({ kind: "task", id: started.taskId });
     }
@@ -212,6 +228,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     handledOpenSeq.current = openRequest.seq;
     const { target } = openRequest;
     if (target.kind === "task") openStage({ kind: "task", id: target.id });
+    else if (target.kind === "plugin-output") openStage({ kind: "plugin-output", id: target.id });
     else if (target.kind === "quiz") outputRef.current?.startQuiz(target.id);
     else if (notes.some(n => n.id === target.id)) openStage({ kind: "note", id: target.id });
     else void refreshNotes().then(() => openStage({ kind: "note", id: target.id }));
@@ -248,7 +265,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   const toggleChat = () => setChatOpen(!chatOpen);
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col px-4 pb-4 pt-1">
+    <div className="flex h-full min-h-0 w-full flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 overflow-hidden">
         {/* 左：纸内目录 */}
         <ResizeableAndHideableSidebar
@@ -262,7 +279,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
           showDivider
           className="h-full"
         >
-          <FadeScroll className="h-full py-3 pl-2.5 pr-1">
+          <FadeScroll className="h-full py-3 pr-1 pl-2.5">
             <SourceRow projectId={projectId} />
             <ResourceGroup
               projectId={projectId}
@@ -286,6 +303,13 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
                 openStage({ kind: "new-note" });
               }}
               onGenerate={key => generate(key)}
+              pluginOutputs={pluginOutputs}
+              activePluginOutputId={openedPluginOutput?.id ?? null}
+              onOpenPluginOutput={entity => openStage({ kind: "plugin-output", id: entity.id })}
+              onGenerateOutput={output => generationRef.current?.openOutput(output)}
+              onPluginOutputDeleted={id =>
+                opened?.kind === "plugin-output" && opened.id === id && setOpened(null)
+              }
               onEditPPT={note => generationRef.current?.editPPT(note)}
               onEditReport={note => generationRef.current?.editReport(note)}
               onNotesChange={refreshNotes}
@@ -319,10 +343,14 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
                 chatOpen={!!chatOpen}
                 onToggleChat={toggleChat}
                 onClose={closeStage}
-                onShowProduct={() => {
-                  setTraceView(false);
-                  setStageKey(k => k + 1);
-                }}
+                onShowProduct={
+                  openedNote || openedPluginOutput
+                    ? () => {
+                        setTraceView(false);
+                        setStageKey(k => k + 1);
+                      }
+                    : undefined
+                }
               />
             ) : openedResource ? (
               <ResourceStage
@@ -334,6 +362,19 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
                 onToggleChat={toggleChat}
                 onClose={closeStage}
                 onGenerate={generate}
+                onGenerateOutput={(output, resourceId) =>
+                  generationRef.current?.openOutput(output, resourceId)
+                }
+              />
+            ) : openedPluginOutput ? (
+              <PluginOutputStage
+                key={`s${stageKey}`}
+                entity={openedPluginOutput}
+                notebook={{ id: projectId, title: project.title }}
+                chatOpen={!!chatOpen}
+                onToggleChat={toggleChat}
+                onClose={closeStage}
+                onShowTrace={noteTask ? () => setTraceView(true) : undefined}
               />
             ) : (
               <NoteEditorView
@@ -400,6 +441,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
         ref={generationRef}
         projectId={projectId}
         mainDbName={mainDbName}
+        notebookTitle={project.title}
         onTaskStarted={handleTaskStarted}
       />
     </div>

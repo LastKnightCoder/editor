@@ -1,5 +1,22 @@
 # 更新记录
 
+## 0.56.0
+
+- `ASRAudioFile` 新增可选 `url`，宿主已有公网副本时可供识别提供方直接下载；发布外观新增可选 `highlight.style`，用于保留背景高亮笔触。
+- 材料引用新增宿主生成的稳定 `identity`，必须从 `excerpts.items()` 原样保留整个 `ref`，不要仅重建 `kind/id`。匹配的客户端在设备同步归并编号后按稳定身份解析材料，并在最终写入事务内复验快照，避免转错摘录；缺少有效身份会明确拒绝操作。
+- 移动端接入摘录提供方注册、快照/增量读写、软删除恢复、打开原处及摘录转卡片，卡片与来源谱系同事务提交；材料动作由两端宿主统一提示结果。
+- 新增通用前端生命周期事件 `tau:app-foreground` / `tau:app-background`，合并原生恢复、窗口焦点及可见性信号并防抖；插件仍需清理监听和排队任务。移动宿主统一将外部新窗口请求交给系统浏览器。
+- 更新作者文档的页面、权限、正文、服务提供方和多端说明。上述运行能力依赖相应客户端更新，发布 SDK 不会替用户升级客户端。
+
+## 0.55.0
+
+- 新增 `context.notebooks.registerOutput({ id, title, icon?, description?, kind, options?, view, prepare, complete, fail? })`：在 Notebook 的生成菜单里加一种产物。对话框、资料勾选与 AI 生成由 Tau 负责（走 Notebook 已有的生成流程与资料检索）；`prepare` 建好产物占位并返回任务说明 `{ entity, title, instructions, reminders? }`，`complete` 收到最终正文与 `task`（`phase` / `progress`），`fail` 在失败或停止时调用。Tau 自动建立产物到 Notebook 的 `output` 关联。新增宿主接口 `NotebooksAdapter`，贡献类型 `notebook-output`。目前只有桌面支持。
+
+## 0.54.0
+
+- 新增 `context.tts.open({ signal })` 朗读：沿用用户在「设置 › 语音」里选的服务与模型，返回会话 `{ providerName, textInstructions, getVoices, synthesize, close }`，插件停用时自动关闭；`unavailableReason()` 判断能否朗读。需要在 manifest 声明新权限 `tts:synthesize`，首次调用时询问用户；宿主未接入时 `open` 抛 `TTS_UNAVAILABLE`。新增宿主接口 `TTSSynthesisAdapter`。目前只有桌面支持。
+- 新增 `context.upload.save(file, { signal })`：按用户当前的资源存储（本地库或资源上传插件）保存文件，返回可写入正文、可交给 `useResource` / `MediaAudio` 的地址。宿主上传适配器新增可选 `save`，未提供时抛 `UPLOAD_UNAVAILABLE`。目前只有桌面支持。
+
 ## 0.53.0
 
 - 新增 `useSettingsDraft({ dirty, errors?, changes?, save, reset, onInvalid?, saveLabel?, savingText? })`：插件设置组件报告草稿状态，Tau 在有改动时显示悬浮保存条（⌘S 保存），切换页面、标签、设置分组或关闭窗口前询问「保存并离开 / 继续编辑 / 放弃修改」。`save` 抛错时保存条显示错误；`errors` 大于 0 时不能保存。返回 `{ saving, save }`，不在 Tau 设置分区内时返回 null，组件需要自己提供保存入口。

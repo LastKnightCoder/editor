@@ -462,7 +462,7 @@ function Installed({
           ))}
         </Group>
       )}
-      <Group title="已安装" hint="启用状态在所有工作区保持一致">
+      <Group title="已安装" hint="启用状态在所有资料库保持一致">
         {normal.length === 0 ? (
           <p className="text-tau-meta text-ink-2 px-3 py-4">
             {query ? "没有匹配的插件" : "当前没有可管理的插件"}

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
+import DeckIcon from "@tau/shared/deck-icon";
 import { PageHeader } from "../../components/PageHeader";
 import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
@@ -112,7 +113,7 @@ export function FlashcardHomePage({
         }
       />
       <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-[22px] px-5 pb-4 pt-2">
+        <div className="flex flex-col gap-[22px] px-5 pt-2 pb-4">
           {/* 今日待复习概览 */}
           <div
             className="shadow-lift text-ink-inverse rounded-[24px] p-5"
@@ -121,7 +122,7 @@ export function FlashcardHomePage({
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-[12.5px] font-bold opacity-85">今日待复习</div>
-                <div className="mt-1.5 text-[42px] font-extrabold leading-[1.15]">
+                <div className="mt-1.5 text-[42px] leading-[1.15] font-extrabold">
                   {totalDue} <span className="text-[16px] font-bold opacity-85">张</span>
                 </div>
                 <div className="mt-1 text-[11.5px] font-semibold opacity-80">
@@ -197,9 +198,9 @@ export function FlashcardHomePage({
                     >
                       <div
                         className="grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[22px]"
-                        style={{ background: hexToSoft(deck.coverColor) }}
+                        style={{ background: hexToSoft(deck.coverColor), color: deck.coverColor }}
                       >
-                        {deck.emoji}
+                        <DeckIcon emoji={deck.emoji} className="size-[22px]" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[15px] font-extrabold">{deck.name}</div>
@@ -234,7 +235,7 @@ export function FlashcardHomePage({
                             : { background: "var(--tau-bg-page)", color: "var(--tau-ink-3)" }
                         }
                       >
-                        <div className="text-[16px] font-extrabold leading-none">{due}</div>
+                        <div className="text-[16px] leading-none font-extrabold">{due}</div>
                         <div className="mt-0.5 text-[9.5px] font-bold opacity-75">
                           {due > 0 ? "待复习" : "已清空"}
                         </div>

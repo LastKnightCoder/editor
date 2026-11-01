@@ -38,6 +38,7 @@ import { recordUploadFailure, recordUploadSuccess } from "./uploadOutcome";
 import { IEditorInteraction, IOverlayBackDismiss } from "@tau/editor/api";
 import { MobileEditorOverlayDismiss } from "./editorOverlayDismiss";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
+import { IHighlightStyle } from "@tau/editor/extensions/text-formatting";
 import { mobileRuntimeStyleCompiler } from "./runtimeStyles";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
@@ -119,6 +120,11 @@ export const mobileEditorServices: ServiceRegistration = register => {
   register(IEditorSlots, mobileEditorSlots);
   register(IVideoContentProviders, mobileVideoContentProviders);
   register(IEditorNotifier, mobileEditorNotifier);
+  // 背景高亮笔触与桌面端共用 setting.json 的 appearance.highlight
+  register(IHighlightStyle, {
+    get: () => getMobileSettingByPath<string>("appearance.highlight.style"),
+    subscribe: subscribeMobileSettingSnapshot,
+  });
 };
 
 export function createMobileEditorRegistry(): ServiceRegistry {

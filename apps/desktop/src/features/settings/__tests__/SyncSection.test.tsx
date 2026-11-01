@@ -55,7 +55,8 @@ const file = (syncStatus: ResourceSyncStatus, extra: Record<string, unknown> = {
 let container: HTMLDivElement;
 let root: Root;
 let queryClient: QueryClient;
-const render = () =>
+// 默认页签是设备同步；这里的用例都在云端存储页签上
+const render = () => {
   act(() =>
     root.render(
       <QueryClientProvider client={queryClient}>
@@ -63,6 +64,8 @@ const render = () =>
       </QueryClientProvider>
     )
   );
+  act(() => (container.querySelector('[role="tab"][data-tab="overview"]') as HTMLElement).click());
+};
 const text = () => container.textContent ?? "";
 const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;

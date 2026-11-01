@@ -32,6 +32,8 @@ export interface ASRAudioFile {
   name: string;
   mimeType: string;
   sizeBytes: number;
+  /** 同一份音频的公网可下载地址；宿主有远程副本时提供，提供方可直接交给云端服务下载 */
+  url?: string;
   open(signal: AbortSignal): Promise<ReadableStream<Uint8Array>>;
 }
 export interface ASRRequest {
@@ -48,7 +50,12 @@ export interface ASRProbeRequest extends ASRRequest {
 }
 export interface ASRAvailability {
   state:
-    "ready" | "needs-permission" | "needs-assets" | "needs-config" | "unavailable" | "unsupported";
+    | "ready"
+    | "needs-permission"
+    | "needs-assets"
+    | "needs-config"
+    | "unavailable"
+    | "unsupported";
   reason?: string;
   execution: "device" | "remote" | "unknown";
   textUpdates: "partial" | "segments" | "final-only";

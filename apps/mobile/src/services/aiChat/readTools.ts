@@ -90,6 +90,37 @@ export const searchKnowledgeTool: HostTool = {
   },
 };
 
+/** contentId 归属的实体，供对话里显示「读取「标题」」并打开预览；查不到时省略 */
+const OWNER_SQL = `
+SELECT 'card' AS type, id, '' AS title FROM cards WHERE content_id = :contentId
+UNION ALL SELECT 'article', id, title FROM articles WHERE content_id = :contentId
+UNION ALL SELECT 'project-item', id, title FROM project_item WHERE content_id = :contentId
+UNION ALL SELECT 'diary-moment', s.id, d.date FROM diary_segments s
+  JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id = :contentId
+UNION ALL SELECT 'diary-daily', id, date FROM diary_entries WHERE content_id = :contentId
+UNION ALL SELECT 'plugin-entity', id, title FROM plugin_entities WHERE content_id = :contentId
+LIMIT 1`;
+
+async function contentOwner(databaseName: string, contentId: number, markdown: string) {
+  try {
+    const { rows } = await tauri.aiSqlQuery(databaseName, {
+      sql: OWNER_SQL,
+      params: { contentId },
+    });
+    const row = rows[0] as { type?: unknown; id?: unknown; title?: unknown } | undefined;
+    if (!row || typeof row.type !== "string" || typeof row.id !== "number") return undefined;
+    // 卡片没有标题字段，取正文第一行
+    const firstLine = markdown
+      .split("\n")
+      .map(line => line.replace(/^[#>\-*\s]+/, "").trim())
+      .find(Boolean);
+    const title = (typeof row.title === "string" && row.title) || firstLine?.slice(0, 40) || "";
+    return { type: row.type, id: row.id, title };
+  } catch {
+    return undefined;
+  }
+}
+
 export const getContentMarkdownTool: HostTool = {
   name: "get_content_markdown",
   risk: "read",
@@ -111,7 +142,7 @@ export const getContentMarkdownTool: HostTool = {
     },
     ["contentId"]
   ),
-  execute: async input => {
+  execute: async (input, context) => {
     const contentId = integer(input, "contentId");
     if (!contentId) return failure("CONTENT_NOT_FOUND", "contentId 无效");
     let detail;
@@ -126,9 +157,11 @@ export const getContentMarkdownTool: HostTool = {
     const end = range
       ? Math.min(markdown.length, Math.floor(range[1] ?? markdown.length))
       : markdown.length;
+    const entity = await contentOwner(context.session.databaseName, contentId, markdown);
     return ok({
       success: true,
       contentId,
+      ...(entity ? { entity } : {}),
       length: markdown.length,
       range: [start, end],
       truncated: start > 0 || end < markdown.length,

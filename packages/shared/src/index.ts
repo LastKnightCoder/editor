@@ -8,6 +8,8 @@ export { default as ModernTabs } from "./components/ModernTabs";
 export {
   default as VideoPlayer,
   type VideoPlayerProps,
+  type VideoChapter,
+  type VideoMarker,
 } from "./components/MediaPlayer/VideoPlayer";
 export {
   default as AudioPlayer,

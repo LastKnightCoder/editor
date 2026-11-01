@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>桌面端 · 首次启动创建工作区</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="onboarding.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>桌面端 · 首次启动创建工作区<small>颜色取自 @tau/themes · 主窗口 1080×680 缩放展示 · 移动端见 apps/mobile/mockups/workspace-onboarding-mobile/</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="dir">0 方向与流程</button>
+    <button class="tab" data-tab="b">1 方案 B：主窗口整屏引导<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="a">2 方案 A：独立欢迎小窗</button>
+    <button class="tab" data-tab="c">3 方案 C：空壳 + 对话框</button>
+    <button class="tab" data-tab="pair">4 连接另一台设备</button>
+    <button class="tab" data-tab="cloud">5 从云端恢复</button>
+    <button class="tab" data-tab="state">6 状态与边界</button>
+    <button class="tab" data-tab="decide">7 待你决定</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 方向与流程 ═══════════ -->
+<section class="scene" data-scene="dir">
+  <p class="intro">现在首次启动会静默在 <code>~/.editor/data.db</code> 建库（<code>useSettingStore</code> 默认清单 + 主进程 <code>currentDatabaseName = "data.db"</code>），用户不知道数据放在哪、叫什么。等到第二台设备想用云端同步时，才发现两边库名必须一致（云端对象按<b>库名哈希</b>分目录），手机上那份也叫 <code>data.db</code>，只是碰巧对上。引导的目的是让用户<b>第一次就明确「我在建一个叫什么的工作区」</b>，并在同一处给已有数据的人一条「接上原来那份」的路。</p>
+
+  <div class="flow">
+    <div class="n">启动应用</div><span class="arr" data-i="arrow-right" data-s="16"></span>
+    <div class="n">读设置里的工作区清单<small>并扫描 ~/.editor/*.db</small></div><span class="arr" data-i="arrow-right" data-s="16"></span>
+    <div class="fork">
+      <div><span class="lbl">清单非空</span><div class="n">直接打开上次的工作区<small>老用户升级后不会看到引导</small></div></div>
+      <div><span class="lbl">清单空、目录有 .db</span><div class="n">引导页列出找到的工作区<small>重装、设置丢失时</small></div></div>
+      <div><span class="lbl">都没有</span><div class="n key">首次引导<small>新建 / 连接电脑 / 从云端恢复</small></div></div>
+    </div>
+    <span class="arr" data-i="arrow-right" data-s="16"></span>
+    <div class="n">登记、设为当前、连接<small>进入「今日」</small></div>
+  </div>
+
+  <div class="cards3">
+    <div class="card"><h3><span class="tile t-acc" data-i="pencil" data-s="16" style="width:26px;height:26px;border-radius:7px"></span>一步就能建好</h3>名称<b>预填「我的工作区」</b>，直接按回车即可进入。不问主题、不问字体、不问云端，这些都能在设置里改；引导只回答「数据放哪」这一个问题。</div>
+    <div class="card"><h3><span class="tile t-sky" data-i="arrow-left-right" data-s="16" style="width:26px;height:26px;border-radius:7px"></span>老数据有正门</h3>「连接另一台电脑」和「从云端恢复」与新建并列，但做成次要按钮。已经在别的设备上用 Tau 的人，第一步就能接上原来那份，不会先造一个空库再被覆盖。</div>
+    <div class="card"><h3><span class="tile t-sage" data-i="layers" data-s="16" style="width:26px;height:26px;border-radius:7px"></span>建好就是空的</h3>不放示例卡片或演示文档，进入后各页面走现有空态。引导结束只弹一条「已创建」提示，不做功能导览。</div>
+  </div>
+
+  <h2 class="sec">叫法：对外统一叫「工作区」</h2>
+  <p class="intro" style="margin-bottom:0">侧边栏「知识 › <b>数据库</b>」已经是结构化数据表，设置里再把 <code>.db</code> 文件也叫「数据库」，用户会混。设备同步文档里用过「资料库」。建议对外统一为<b>工作区</b>：引导、设置 › 同步里的「本地数据库」页签、切换器都改叫工作区，文件名仍是 <code>名称.db</code>，界面不显示后缀。这一条在「7 待你决定」里单列。</p>
+</section>
+
+<!-- ═══════════ 1 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="intro">主窗口照常打开，但壳层在<b>工作区就绪之前不渲染侧边栏</b>，整窗只放一列引导（和 <code>ensureDatabaseReady</code> 是同一个前置关口）。窗口尺寸、标题栏、主题和之后进入的主界面完全连续，没有「小窗关掉、大窗弹出」的跳变；移动端也是整屏，两端结构一致。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <div class="center-col">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="hello">欢迎使用 Tau</div>
+            <div class="sub">先建一个工作区。卡片、文章、日记和项目都会存在里面，<br />数据只保存在这台电脑上。</div>
+            <div class="field">
+              <label>工作区名称</label>
+              <div class="input focus">我的工作区<span class="caret"></span></div>
+              <div class="hint"><span data-i="hard-drive" data-s="13"></span><span>保存为 <code>~/.editor/我的工作区.db</code></span></div>
+            </div>
+            <button class="btn pri block">创建并开始</button>
+            <div class="divider-text">已经在其他设备上用 Tau？</div>
+            <div class="alt-row">
+              <button class="alt"><span data-i="laptop" data-s="17"></span>连接另一台电脑</button>
+              <button class="alt"><span data-i="cloud-download" data-s="17"></span>从云端恢复</button>
+            </div>
+          </div>
+          <span class="ring good" style="left:322px;top:286px;width:436px;height:96px"></span>
+          <span class="anno good" style="left:772px;top:300px">名称预填并已选中，直接回车即可；想改就直接打字</span>
+          <span class="ring" style="left:322px;top:480px;width:436px;height:60px;border-color:var(--tau-tag-2)"></span>
+          <span class="anno" style="left:772px;top:492px;background:var(--tau-tag-2)">已有数据的入口与新建并列，但用次要样式，不和主按钮抢</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>首次启动</div>
+      <div class="frame-note">没有侧边栏，标题栏只留红绿灯。⌘Q、窗口缩放照常可用。</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <div class="center-col">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="hello">欢迎使用 Tau</div>
+            <div class="sub">先建一个工作区。卡片、文章、日记和项目都会存在里面，<br />数据只保存在这台电脑上。</div>
+            <div class="field" style="opacity:.6">
+              <label>工作区名称</label>
+              <div class="input">读书笔记</div>
+              <div class="hint"><span data-i="hard-drive" data-s="13"></span><span>保存为 <code>~/.editor/读书笔记.db</code></span></div>
+            </div>
+            <button class="btn pri block"><span class="spin" data-i="loader-circle" data-s="16"></span>正在创建…</button>
+            <div class="divider-text" style="opacity:.4">已经在其他设备上用 Tau？</div>
+            <div class="alt-row" style="opacity:.4">
+              <button class="alt"><span data-i="laptop" data-s="17"></span>连接另一台电脑</button>
+              <button class="alt"><span data-i="cloud-download" data-s="17"></span>从云端恢复</button>
+            </div>
+          </div>
+          <span class="anno good" style="left:772px;top:396px">建表和连接通常不到一秒；按钮原位转圈，不换页</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>改了名字，正在创建</div>
+      <div class="frame-note">提示路径随输入实时变化；创建期间整列禁用。</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span><span class="ttl">今日</span></div>
+        <div class="win-body">
+          <div class="side">
+            <div class="grp">日常</div>
+            <div class="it on"><span data-i="flame" data-s="16"></span>今日</div>
+            <div class="it"><span data-i="calendar" data-s="16"></span>日程</div>
+            <div class="it"><span data-i="list-todo" data-s="16"></span>待办</div>
+            <div class="it"><span data-i="pen-line" data-s="16"></span>日记</div>
+            <div class="grp">知识</div>
+            <div class="it"><span data-i="layers" data-s="16"></span>卡片库</div>
+            <div class="it"><span data-i="file-text" data-s="16"></span>文章</div>
+            <div class="it"><span data-i="folder-kanban" data-s="16"></span>项目</div>
+            <div class="it"><span data-i="presentation" data-s="16"></span>白板</div>
+            <div class="it"><span data-i="table" data-s="16"></span>数据库</div>
+          </div>
+          <div class="main-paper">
+            <h3>今日</h3>
+            <div class="muted">（这里是「今日」页现有的空态，引导不额外加内容）</div>
+            <div class="empty-state">
+              <span class="tile t-acc" data-i="sparkles" data-s="22"></span>
+              <b>工作区是空的</b>
+              写一张卡片或今天的日记，内容会出现在这里。
+            </div>
+          </div>
+          <div class="toast"><span data-i="circle-check" data-s="16"></span>已创建工作区「读书笔记」</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B3</span>进入主界面</div>
+      <div class="frame-note">侧边栏淡入，落在「今日」，底部一条提示后自动消失。</div>
+    </div>
+  </div>
+
+  <div class="pc">
+    <div><h4>好处</h4><ul>
+      <li>和移动端同构：两端都是「整屏一列 + 预填名称 + 次要入口」，文案共用。</li>
+      <li>实现集中在渲染端壳层：工作区未就绪就渲染引导页，不新增窗口类型，不改主进程窗口管理。</li>
+      <li>进入主界面是同一窗口的状态切换，没有闪窗。</li>
+    </ul></div>
+    <div><h4>代价</h4><ul>
+      <li>引导页挤在 1080 宽的大窗里，内容只占中间一列，左右留白多（用淡色背景兜住，观感接近 Notion / Linear 的首屏）。</li>
+      <li>以后若要做「启动时选工作区」，要在这个整屏页上加列表，而不是现成的小窗。</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="intro">首次启动先开一个 <b>760×480 的固定尺寸欢迎小窗</b>（类似 Obsidian 的仓库选择、VS Code 的欢迎窗），建好后小窗关闭、主窗口打开。左栏放品牌和「已有工作区」列表的位置，首次为空；右栏是三个并列入口。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:760;--h:480"><div class="win">
+        <div class="titlebar" style="position:absolute;left:0;right:0;z-index:2"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <div class="wel-left" style="padding-top:56px">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="name">Tau</div>
+            <div class="ver">版本 0.61.0</div>
+            <div class="empty">还没有工作区。<br />工作区是一份独立的数据，卡片、文章、日记和项目都存在里面。</div>
+          </div>
+          <div class="wel-right" style="padding-top:56px">
+            <h2>开始使用</h2>
+            <div class="sub">选一种方式准备你的第一个工作区</div>
+            <button class="choice hot"><span class="tile t-acc" data-i="plus" data-s="19"></span><span class="mid"><b>新建工作区</b><span class="d">从空白开始，数据保存在这台电脑上</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></button>
+            <button class="choice"><span class="tile t-sky" data-i="laptop" data-s="19"></span><span class="mid"><b>连接另一台电脑</b><span class="d">粘贴那台电脑上的配对信息，同步它的工作区</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></button>
+            <button class="choice"><span class="tile t-lilac" data-i="cloud-download" data-s="19"></span><span class="mid"><b>从云端恢复</b><span class="d">从 WebDAV、S3 等已同步过的位置下载</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></button>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>首次启动的小窗</div>
+      <div class="frame-note">三个入口等宽并列，新建默认高亮，回车即进入 A2。</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:760;--h:480"><div class="win">
+        <div class="titlebar" style="position:absolute;left:0;right:0;z-index:2"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <div class="wel-left" style="padding-top:56px">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="name">Tau</div>
+            <div class="ver">版本 0.61.0</div>
+            <div class="empty">还没有工作区。<br />工作区是一份独立的数据，卡片、文章、日记和项目都存在里面。</div>
+          </div>
+          <div class="wel-right" style="padding-top:56px">
+            <h2>新建工作区</h2>
+            <div class="sub">名称会显示在设置和同步里，之后也可以再建别的工作区</div>
+            <div class="field" style="margin-top:4px">
+              <label>名称</label>
+              <div class="input focus">我的工作区<span class="caret"></span></div>
+              <div class="hint"><span data-i="hard-drive" data-s="13"></span><span>保存为 <code>~/.editor/我的工作区.db</code></span></div>
+            </div>
+            <div class="foot"><button class="btn sec">返回</button><button class="btn pri">创建并打开</button></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>填写名称</div>
+      <div class="frame-note">右栏原地换成表单；创建后小窗关闭，主窗口带着新工作区打开。</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:760;--h:480"><div class="win">
+        <div class="titlebar" style="position:absolute;left:0;right:0;z-index:2"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <div class="wel-left" style="padding-top:56px">
+            <div style="display:flex;gap:10px;align-items:center"><img class="logo sm" src="/apps/desktop/build/icon.png" alt="" /><div><div style="font-weight:700;font-size:16px">Tau</div><div class="ver" style="margin:0">版本 0.61.0</div></div></div>
+            <div class="ws-list">
+              <div class="ws-item on"><span class="tile t-acc">读</span><span><b style="font-weight:600">读书笔记</b><small>上次打开 · 今天</small></span></div>
+              <div class="ws-item"><span class="tile t-sky">工</span><span>工作<small>3 天前</small></span></div>
+            </div>
+          </div>
+          <div class="wel-right" style="padding-top:56px">
+            <h2>开始使用</h2>
+            <div class="sub">打开左侧的工作区，或者再准备一个</div>
+            <button class="choice"><span class="tile t-acc" data-i="plus" data-s="19"></span><span class="mid"><b>新建工作区</b></span><span class="chev" data-i="chevron-right" data-s="16"></span></button>
+            <button class="choice"><span class="tile t-sky" data-i="laptop" data-s="19"></span><span class="mid"><b>连接另一台电脑</b></span><span class="chev" data-i="chevron-right" data-s="16"></span></button>
+            <button class="choice"><span class="tile t-lilac" data-i="cloud-download" data-s="19"></span><span class="mid"><b>从云端恢复</b></span><span class="chev" data-i="chevron-right" data-s="16"></span></button>
+          </div>
+          <span class="anno" style="left:16px;top:300px;max-width:228px;background:var(--tau-tag-2)">以后可演变成「切换工作区」窗口，不在本次范围</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>延伸：已有工作区时</div>
+      <div class="frame-note">只说明这条路能长成什么，本次只做首次启动。</div>
+    </div>
+  </div>
+
+  <div class="pc">
+    <div><h4>好处</h4><ul>
+      <li>尺寸合身：内容不会被大窗稀释，第一眼就是「选一种方式开始」。</li>
+      <li>天然留出「多工作区」的位置，以后启动选库、菜单切换都能复用这扇窗。</li>
+    </ul></div>
+    <div><h4>代价</h4><ul>
+      <li>主进程要新增一种窗口：启动顺序变成「欢迎窗 → 关闭 → 主窗」，要处理用户直接关掉欢迎窗、Dock 点击重开、多窗口恢复等情况。</li>
+      <li>和移动端结构不同（手机只能整屏），两端文案和状态要各写一份。</li>
+      <li>小窗关闭、大窗弹出有一次明显跳变。</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 方案 C ═══════════ -->
+<section class="scene" data-scene="c">
+  <p class="intro">主窗口和侧边栏照常渲染，页面区先放空态，上面<b>压一个不能关闭的对话框</b>。改动最小，用户一进来就能看到软件长什么样；但对话框没有「取消」，背后的界面也点不了，本质仍是一道门。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span><span class="ttl">今日</span></div>
+        <div class="win-body">
+          <div class="side">
+            <div class="grp">日常</div>
+            <div class="it on"><span data-i="flame" data-s="16"></span>今日</div>
+            <div class="it"><span data-i="calendar" data-s="16"></span>日程</div>
+            <div class="it"><span data-i="list-todo" data-s="16"></span>待办</div>
+            <div class="it"><span data-i="pen-line" data-s="16"></span>日记</div>
+            <div class="grp">知识</div>
+            <div class="it"><span data-i="layers" data-s="16"></span>卡片库</div>
+            <div class="it"><span data-i="file-text" data-s="16"></span>文章</div>
+            <div class="it"><span data-i="folder-kanban" data-s="16"></span>项目</div>
+            <div class="it"><span data-i="presentation" data-s="16"></span>白板</div>
+            <div class="it"><span data-i="table" data-s="16"></span>数据库</div>
+          </div>
+          <div class="main-paper"><h3>今日</h3></div>
+          <div class="scrim"></div>
+          <div class="dialog">
+            <div style="display:flex;gap:12px;align-items:center"><img class="logo sm" src="/apps/desktop/build/icon.png" alt="" /><div><h3>欢迎使用 Tau</h3><div class="sub" style="margin:2px 0 0">先建一个工作区，数据保存在这台电脑上</div></div></div>
+            <div class="field" style="margin-top:20px">
+              <label>工作区名称</label>
+              <div class="input focus">我的工作区<span class="caret"></span></div>
+              <div class="hint"><span data-i="hard-drive" data-s="13"></span><span>保存为 <code>~/.editor/我的工作区.db</code></span></div>
+            </div>
+            <div class="foot" style="justify-content:space-between">
+              <button class="btn ghost sm" style="padding:0">已有数据？连接电脑或从云端恢复</button>
+              <button class="btn pri">创建</button>
+            </div>
+          </div>
+          <span class="anno" style="left:236px;top:120px">背后的侧边栏可见但点了没用，Esc 也关不掉</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C1</span>首次启动</div>
+      <div class="frame-note">「已有数据？」点开后对话框内换成两个入口，流程同「4 连接」「5 云端」。</div>
+    </div>
+  </div>
+
+  <div class="pc">
+    <div><h4>好处</h4><ul>
+      <li>改动最小：复用 <code>@tau/ui</code> 的 Dialog，壳层只加一个「无工作区时挂载」的判断。</li>
+      <li>用户第一眼就看到完整界面，知道这是什么软件。</li>
+    </ul></div>
+    <div><h4>代价</h4><ul>
+      <li>侧边栏各页的查询在没有数据库时会报「No database name found」，要逐一挡住或让壳层不挂页面，最后还是要做 B 的那道关口。</li>
+      <li>不能关闭的对话框违背浮层「Esc 退场」的约定，需要在 <code>useOverlayDismiss</code> 里开例外。</li>
+      <li>连接电脑、云端恢复的多步流程塞在对话框里，空间紧。</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 连接另一台电脑 ═══════════ -->
+<section class="scene" data-scene="pair">
+  <p class="intro">复用现有局域网设备同步的连接端流程（<code>DeviceSyncReplica</code>），只是挪到引导里：粘贴配对信息 → 本地解出主机名和有效期 → 下载协调电脑的快照建库 → 登记并切换。下面以方案 B 的整屏为例，A、C 的承载不同但步骤一样。<b>缺口</b>：配对现在把新库存成 <code>device-&lt;uuid&gt;.db</code>，配对信息里只有资料库 ID 没有名称，所以这里加一个「在这台电脑上叫」，预填「我的工作区」。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <button class="back"><span data-i="chevron-left" data-s="15"></span>返回</button>
+          <div class="step-col">
+            <span class="tile t-sky" data-i="laptop" data-s="20"></span>
+            <h2>连接另一台电脑</h2>
+            <div class="sub">这台电脑会拿到一份完整副本，之后两边离线编辑、自动补齐。</div>
+            <ol class="steps-ol">
+              <li>在已有数据的电脑上打开 <b>设置 › 同步 › 设备同步</b></li>
+              <li>点 <b>添加设备</b>，复制配对信息</li>
+              <li>两台电脑连在同一个局域网，粘贴到下面</li>
+            </ol>
+            <div class="field" style="margin-top:18px">
+              <label>配对信息</label>
+              <div class="input area focus">tau-pair:v1:eyJleHBpcmVzIjoxNzk0MDM2MDAwMDAwLCJhZGRyZXNzZXMiOlsiMTkyLjE2OC4xLjIzIiwi…</div>
+              <div class="parsed"><span data-i="circle-check" data-s="14"></span>来自 <b style="color:var(--tau-ink-1)">MacBook-Pro</b><span>· 9 分钟后过期</span></div>
+            </div>
+            <div class="field">
+              <label>在这台电脑上叫</label>
+              <div class="input">我的工作区</div>
+            </div>
+            <button class="btn pri block">连接并下载</button>
+          </div>
+          <span class="anno good" style="left:772px;top:452px">只解出主机名和有效期，不读密钥（<code style="background:none;border:0;color:#fff;padding:0">previewDevicePairCode</code>）</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P1</span>粘贴配对信息</div>
+      <div class="frame-note">粘贴即校验；格式不对、已过期在输入框下方直接说（见「6 状态」）。</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <div class="step-col" style="text-align:center">
+            <span class="tile t-sky" data-i="refresh-cw" data-s="20" style="margin:0 auto"></span>
+            <h2>正在从 MacBook-Pro 下载</h2>
+            <div class="sub">请保持两台电脑都开着、在同一个网络里。</div>
+            <div class="progress"><i style="width:62%"></i></div>
+            <div class="prog-meta"><span>正文与附件 · 1,284 / 2,071</span><span>62%</span></div>
+            <button class="btn ghost" style="margin-top:22px">取消</button>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P2</span>首次下载</div>
+      <div class="frame-note">取消或失败都不留下半个库（配对先写 <code>.pairing</code> 临时文件，成功才改名）。完成后同 B3 进入主界面，提示「已连接 MacBook-Pro」。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 从云端恢复 ═══════════ -->
+<section class="scene" data-scene="cloud">
+  <p class="intro">云端同步走插件提供方（桌面内置 S3，WebDAV、GitHub 等在插件中心）。云端按<b>库名哈希</b>存放，没法列出「云上有哪些工作区」，所以必须让用户<b>输入原来的工作区名称</b>，再按名称去查版本文件。查到了才下载；查不到说明名称不对或那边还没上传过。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <button class="back"><span data-i="chevron-left" data-s="15"></span>返回</button>
+          <div class="step-col">
+            <span class="tile t-lilac" data-i="cloud-download" data-s="20"></span>
+            <h2>从云端恢复</h2>
+            <div class="sub">选你在其他设备上用过的同步服务。</div>
+            <div class="svc-grid">
+              <button class="choice hot"><span class="tile t-acc" style="font-weight:700">S3</span><span class="mid"><b>S3 兼容存储</b><span class="d">已内置</span></span></button>
+              <button class="choice"><span class="tile t-sage" style="font-weight:700">W</span><span class="mid"><b>WebDAV</b><span class="d">安装插件后使用</span></span></button>
+              <button class="choice"><span class="tile t-lilac" style="font-weight:700">G</span><span class="mid"><b>GitHub</b><span class="d">安装插件后使用</span></span></button>
+              <button class="choice"><span class="tile t-butter" style="font-weight:700">A</span><span class="mid"><b>阿里云 OSS</b><span class="d">安装插件后使用</span></span></button>
+            </div>
+            <div class="hint" style="margin-top:12px"><span data-i="info" data-s="13"></span><span>未安装的服务点一下即从插件中心安装并启用</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R1</span>选同步服务</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <button class="back"><span data-i="chevron-left" data-s="15"></span>返回</button>
+          <div class="step-col">
+            <span class="tile t-acc" style="font-weight:700">S3</span>
+            <h2>连接 S3 兼容存储</h2>
+            <div class="sub">填写和其他设备相同的配置。</div>
+            <div class="field" style="margin-top:18px"><label>Endpoint</label><div class="input">https://s3.example.com</div></div>
+            <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div><label>Access Key</label><div class="input">AKIA••••••••</div></div>
+              <div><label>Secret Key</label><div class="input">••••••••••••</div></div>
+            </div>
+            <div class="field"><label>Bucket</label><div class="input">tau-notes</div></div>
+            <div class="field">
+              <label>原来的工作区名称</label>
+              <div class="input focus">我的工作区<span class="caret"></span></div>
+              <div class="hint"><span data-i="info" data-s="13"></span><span>必须和其他设备上的名称完全一致，在那边的 设置 › 同步 里能看到</span></div>
+            </div>
+            <button class="btn pri block">查找</button>
+          </div>
+          <span class="anno" style="left:772px;top:470px">云端按名称分目录，这是唯一能定位到原数据的线索</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R2</span>填写配置与名称</div>
+      <div class="frame-note">配置表单直接复用插件声明的字段，和设置里同一个组件。</div>
+    </div>
+
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win">
+        <div class="titlebar"><span class="lights" data-lights></span></div>
+        <div class="win-body">
+          <button class="back"><span data-i="chevron-left" data-s="15"></span>返回</button>
+          <div class="step-col">
+            <span class="tile t-acc" style="font-weight:700">S3</span>
+            <h2>找到了</h2>
+            <div class="sub">下载后这台电脑就有一份同样的工作区，同步服务也一并设好。</div>
+            <div class="found">
+              <span class="tile t-sage" data-i="database" data-s="18"></span>
+              <span style="flex:1"><b>我的工作区</b><span>云端版本 131 · 11 月 3 日 21:40 上传</span></span>
+              <span data-i="circle-check" data-s="18" style="color:var(--tau-ok)"></span>
+            </div>
+            <button class="btn pri block">下载并打开</button>
+            <div class="hint" style="justify-content:center;margin-top:10px">图片和附件走资源同步，进入工作区后再拉取</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R3</span>确认并下载</div>
+      <div class="frame-note">下载进度同 P2；没找到时见「6 状态」。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 状态与边界 ═══════════ -->
+<section class="scene" data-scene="state">
+  <p class="intro">只画引导主体，承载方案不影响这些状态。名称规则沿用设置里新建数据库的逻辑：自动补 <code>.db</code>、按补后缀后的名称不区分大小写判重；另外拒绝文件名非法字符。</p>
+  <div class="state-grid">
+    <div class="state">
+      <div class="cap"><span data-i="pencil" data-s="14"></span>名称为空</div>
+      <div class="when">用户删光了预填名称。</div>
+      <div class="field"><label>工作区名称</label><div class="input focus"><span class="ph">比如：我的工作区</span><span class="caret" style="margin-left:-92px"></span></div></div>
+      <button class="btn pri block dis">创建并开始</button>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="triangle-alert" data-s="14"></span>名称含非法字符</div>
+      <div class="when">输入时即时校验，不等点按钮。</div>
+      <div class="field"><label>工作区名称</label><div class="input err">工作/笔记</div><div class="hint err"><span data-i="info" data-s="13"></span><span>名称不能包含 / \ : * ? " &lt; &gt; |</span></div></div>
+      <button class="btn pri block dis">创建并开始</button>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="folder-open" data-s="14"></span>本机已有工作区文件</div>
+      <div class="when">设置清单为空，但 <code>~/.editor</code> 下有 .db（重装、设置文件丢失）。引导顶部先列出来，下面仍可新建。</div>
+      <div class="banner info"><span data-i="info" data-s="15"></span><span><b>在这台电脑上找到 2 个工作区</b>打开即可继续使用，原有数据不会改动。</span></div>
+      <div class="rows">
+        <div class="r"><span class="tile t-acc" data-i="database" data-s="15"></span><span class="mid">data<small>48.2 MB · 11 月 2 日修改</small></span><button class="btn sec sm">打开</button></div>
+        <div class="r"><span class="tile t-sky" data-i="database" data-s="15"></span><span class="mid">工作<small>3.1 MB · 9 月 18 日修改</small></span><button class="btn sec sm">打开</button></div>
+      </div>
+      <div class="hint" style="margin-top:10px"><span data-i="plus" data-s="13"></span><span>下方照常显示「新建工作区」表单</span></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="triangle-alert" data-s="14"></span>和已有文件重名</div>
+      <div class="when">输入的名称与目录里已有 .db 相同。不覆盖，给两个选择。</div>
+      <div class="field"><label>工作区名称</label><div class="input err">data</div><div class="hint err"><span data-i="info" data-s="13"></span><span>这台电脑上已有名为「data」的工作区</span></div></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn sec sm">打开它</button><button class="btn ghost sm">换个名字</button></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="triangle-alert" data-s="14"></span>创建失败</div>
+      <div class="when">目录不可写、磁盘满等。原位提示，可重试。</div>
+      <div class="banner danger"><span data-i="triangle-alert" data-s="15"></span><span><b>没能创建工作区</b>~/.editor 无法写入（EACCES）。检查目录权限后重试。</span></div>
+      <button class="btn pri block">重试</button>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="clipboard-paste" data-s="14"></span>配对信息过期 / 格式不对</div>
+      <div class="when">文案复用 <code>device-sync/messages</code> 的说明与下一步。</div>
+      <div class="field"><label>配对信息</label><div class="input area err">tau-pair:v1:eyJleHBpcmVzIjoxNzk0…</div><div class="hint err"><span data-i="info" data-s="13"></span><span>配对信息已过期。在那台电脑上点「重新生成」后再复制。</span></div></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="wifi" data-s="14"></span>连不上协调电脑</div>
+      <div class="when">不在同一局域网、对方已关机或暂停。</div>
+      <div class="banner"><span data-i="triangle-alert" data-s="15"></span><span><b>找不到 MacBook-Pro</b>确认两台电脑在同一个网络，并且那边的 Tau 开着。</span></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn pri sm">重试</button><button class="btn ghost sm">改为新建工作区</button></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="cloud-download" data-s="14"></span>云端没有这个名称</div>
+      <div class="when">版本文件不存在（版本为 0）。</div>
+      <div class="banner"><span data-i="triangle-alert" data-s="15"></span><span><b>云端没有「我的工作区」</b>名称要和其他设备完全一致；也可能那边还没上传过。</span></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn sec sm">改名称再找</button><button class="btn ghost sm">就用这个名称新建</button></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="history" data-s="14"></span>老用户升级</div>
+      <div class="when">设置清单里已有 <code>data.db</code> 且文件存在。</div>
+      <div class="banner info"><span data-i="circle-check" data-s="15"></span><span><b>不出现引导</b>照常打开上次的工作区。界面上名称显示为「data」，用户可在 设置 › 同步 › 工作区 里改名（改名不在本次范围）。</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 待你决定 ═══════════ -->
+<section class="scene" data-scene="decide">
+  <p class="intro">高亮项是我的推荐。移动端页面也有一份同样的清单，其中桌面独有的是第 1、5 条，移动独有的见那边。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><span class="t">桌面端怎么承载<small>决定改动落在渲染端壳层还是主进程窗口管理</small></span>
+      <div class="opt">
+        <div class="o r"><b>B 主窗口整屏引导</b><span>与移动端同构；只改壳层前置关口</span></div>
+        <div class="o"><b>A 独立欢迎小窗</b><span>尺寸合身、为多工作区留位；要新增窗口类型</span></div>
+        <div class="o"><b>C 空壳 + 对话框</b><span>看起来改得少，实际仍要挡住所有页面查询</span></div>
+      </div></div>
+    <div class="q"><span class="no">2</span><span class="t">对外叫什么<small>侧边栏已有「数据库」= 数据表</small></span>
+      <div class="opt">
+        <div class="o r"><b>工作区</b><span>引导、设置、切换器统一改叫工作区</span></div>
+        <div class="o"><b>资料库</b><span>与设备同步现有文案一致</span></div>
+        <div class="o"><b>保持「数据库」</b><span>不改设置页，但和数据表重名</span></div>
+      </div></div>
+    <div class="q"><span class="no">3</span><span class="t">引导里放哪些入口</span>
+      <div class="opt">
+        <div class="o r"><b>新建 + 连接电脑 + 云端恢复</b><span>多设备用户第一步就能接上原数据</span></div>
+        <div class="o"><b>新建 + 连接电脑</b><span>云端留给设置；用户需先建同名空库再下载覆盖</span></div>
+        <div class="o"><b>只有新建</b><span>最简单；已有数据的人要绕一圈</span></div>
+      </div></div>
+    <div class="q"><span class="no">4</span><span class="t">默认名称</span>
+      <div class="opt">
+        <div class="o r"><b>预填「我的工作区」</b><span>回车即可；想改直接打字</span></div>
+        <div class="o"><b>留空必填</b><span>逼用户想一个名字，多一步</span></div>
+      </div></div>
+    <div class="q"><span class="no">5</span><span class="t">存放位置能不能选<small>现在所有库都在 ~/.editor</small></span>
+      <div class="opt">
+        <div class="o r"><b>固定，只展示路径</b><span>不动 PathUtil、备份与同步的路径假设</span></div>
+        <div class="o"><b>允许选文件夹</b><span>类似 Obsidian 仓库；牵涉路径登记、备份目录、索引库，单独立项</span></div>
+      </div></div>
+    <div class="q"><span class="no">6</span><span class="t">连接电脑后本地叫什么<small>现在配对新库存成 device-&lt;uuid&gt;.db</small></span>
+      <div class="opt">
+        <div class="o r"><b>用户在引导里填的名称</b><span>需改 replica 建库时的文件名</span></div>
+        <div class="o"><b>沿用 device-&lt;uuid&gt;</b><span>零改动，但界面上显示一串 ID</span></div>
+      </div></div>
+  </div>
+
+  <h2 class="sec">选定后的实现要点（供估算，不是计划）</h2>
+  <table class="cmp">
+    <tr><th>位置</th><th>现状</th><th>要改</th></tr>
+    <tr><td><code>stores/useSettingStore.ts</code></td><td>默认 <code>database.active = "data.db"</code>，清单含 data.db</td><td>默认清单为空、active 为空；持久化里已有值的老用户不受影响</td></tr>
+    <tr><td><code>main/modules/database.ts</code></td><td><code>currentDatabaseName = "data.db"</code></td><td>没有工作区时不连库，命令返回「尚未创建工作区」</td></tr>
+    <tr><td><code>app/databaseReady.ts</code> + 壳层</td><td>active 为空时只打警告</td><td>active 为空或文件不存在 → 渲染引导页，不挂侧边栏和页面</td></tr>
+    <tr><td>移动端 <code>src-tauri/src/setting.rs</code>、<code>hooks/useSyncSettings.ts</code></td><td>读不到 active 时兜底为 <code>DEFAULT_DATABASE_NAME</code> / <code>"data.db"</code>，打开即建库</td><td>兜底改为「无工作区」，由前端渲染引导；<code>sync/common.rs</code> 的 <code>DEFAULT_DB_NAME</code> 只用于错误响应，顺带改成当前库名</td></tr>
+    <tr><td><code>device-sync/replica.ts</code></td><td>新库名 <code>device-&lt;uuid&gt;.db</code></td><td>接受调用方传入名称（第 6 条选推荐时）</td></tr>
+  </table>
+</section>
+
+<script src="onboarding.js"></script>
+</body>
+</html>

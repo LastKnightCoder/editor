@@ -1,12 +1,13 @@
 {
   "name": "@tau/plugins",
-  "version": "0.53.0",
+  "version": "0.56.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
   "exports": {
     ".": "./src/index.ts",
     "./host": "./src/host.ts",
+    "./material-ref": "./src/material-ref.ts",
     "./environment-host": "./src/environment.tsx",
     "./package": "./src/package.ts",
     "./portable": "./src/portable.ts",
