@@ -36,7 +36,7 @@ export function Avatar(props: {
       {avatarInitial(props.name)}
       {props.online ? (
         <span
-          className={`border-surface bg-tag-1 absolute -bottom-px -right-px rounded-full border-[2.5px] ${dotClass}`}
+          className={`border-surface bg-tag-1 absolute -right-px -bottom-px rounded-full border-[2.5px] ${dotClass}`}
         />
       ) : null}
     </span>

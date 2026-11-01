@@ -1,6 +1,7 @@
 import { readDocumentIdentity } from "@tau/collaboration";
 import { readDeviceSyncState } from "../device-sync/database-store";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { collaborationCommands } from "@/commands/contracts/collaboration";
 import * as Y from "yjs";
 import { applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import {
@@ -17,6 +18,7 @@ import {
   SOURCE_TYPES,
   type SourceType,
   type ContentSessionTarget,
+  type JoinRequestResult,
 } from "@tau/collaboration";
 import type { CollaborationIpcContext } from "./types";
 import { NodeSessionUpdates } from "./node-session-updates";
@@ -29,27 +31,31 @@ import type {
   OwnerImageReply,
 } from "../../../../shared/collaboration-image-storage";
 
+type Commands = typeof collaborationCommands;
+type CommandHandler<Key extends keyof Commands> = (
+  event: IpcMainInvokeEvent,
+  ...args: Parameters<Commands[Key]["call"]>
+) => Awaited<ReturnType<Commands[Key]["call"]>> | ReturnType<Commands[Key]["call"]>;
+
 export function registerCollaborationIpc(context: CollaborationIpcContext) {
   const nodeUpdates = new NodeSessionUpdates(context.store, context.contentState);
-  const handle = <Args extends unknown[]>(
-    name: string,
-    fn: (event: IpcMainInvokeEvent, ...args: Args) => unknown
-  ) => ipcMain.handle(`collaboration:${name}`, fn);
+  const handle = <Key extends keyof Commands>(key: Key, fn: NoInfer<CommandHandler<Key>>) =>
+    ipcMain.handle(collaborationCommands[key].channel, fn);
   handle("state", () => context.state());
-  handle("owner-image-connect", async (event, session: string) => {
+  handle("ownerImageConnect", async (event, session: string) => {
     const { getMainWindows } = await import("../../windows");
     if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
       throw new Error("作者图片只能交给主窗口保存");
     collaborationImageStorage.connect(event.sender, session);
   });
-  handle("owner-image-release", (event, session: string) =>
+  handle("ownerImageRelease", (event, session: string) =>
     collaborationImageStorage.release(event.sender.id, session)
   );
-  handle("owner-image-reply", (event, reply: OwnerImageReply) =>
+  handle("ownerImageReply", (event, reply: OwnerImageReply) =>
     collaborationImageStorage.reply(event.sender.id, reply)
   );
   handle(
-    "prepare-fragment",
+    "prepareFragment",
     async (
       event,
       viewId: string,
@@ -116,16 +122,16 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       return prepared.content;
     }
   );
-  handle("open-content", (event, target: ContentSessionTarget) =>
+  handle("openContent", (event, target: ContentSessionTarget) =>
     context.openContent(event, target)
   );
-  handle("freeze-ack", (event, viewId: string, requestId?: string) => {
+  handle("freezeAck", (event, viewId: string, requestId?: string) => {
     const view = context.views.get(viewId);
     if (view?.windowId === BrowserWindow.fromWebContents(event.sender)?.id)
       context.acknowledgeFreeze(viewId, requestId);
   });
   // 服务器地址不对用户开放（固定默认服务，开发模式为启动命令指定的本地服务）；本机只改昵称
-  handle("set-nickname", async (_event, value: unknown) => {
+  handle("setNickname", async (_event, value: unknown) => {
     const nickname = typeof value === "string" ? value.trim() : "";
     if (!nickname || nickname.length > 40) throw new Error("昵称长度应为 1 至 40 个字符");
     const url = context.serverUrl();
@@ -137,8 +143,8 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     return context.state();
   });
   handle(
-    "create-content",
-    (event, contentId: number, sourceType: unknown, sourceId: unknown, sourceTitle: unknown) => {
+    "createSharedContent",
+    (event, contentId: number, sourceType?: unknown, sourceId?: unknown, sourceTitle?: unknown) => {
       if (
         !Number.isSafeInteger(contentId) ||
         contentId <= 0 ||
@@ -158,9 +164,14 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     }
   );
   handle("join", async (_event, code: string) => {
-    const result = await context.client.request(context.serverUrl(), "/v1/join-requests", "POST", {
-      code,
-    });
+    const result = await context.client.request<JoinRequestResult>(
+      context.serverUrl(),
+      "/v1/join-requests",
+      "POST",
+      {
+        code,
+      }
+    );
     await context.refresh();
     return result;
   });
@@ -176,10 +187,10 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   // 白板房间与正文会话共用协作码和成员入口；权限仍由服务端按设备身份裁决。
   const sharedServerUrl = (id: string) =>
     context.whiteboardRoom(id)?.serverUrl ?? context.requireSession(id).info.serverUrl;
-  handle("invitation", async (_event, id: string) => {
+  handle("generateInvitation", async (_event, id: string) => {
     return context.issueInvitation(sharedServerUrl(id), id);
   });
-  handle("invitation-current", (_event, id: string) => {
+  handle("getCurrentInvitation", (_event, id: string) => {
     sharedServerUrl(id);
     const cached = context.store.get<{ code: string; expiresAt: number } | null>(
       `invitation:${id}`,
@@ -187,7 +198,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     );
     return cached && cached.expiresAt > Date.now() ? cached : null;
   });
-  handle("remove-member", async (_event, id: string, memberId: string) => {
+  handle("removeMember", async (_event, id: string, memberId: string) => {
     await context.client.request(
       sharedServerUrl(id),
       `/v1/documents/${id}/members/${encodeURIComponent(memberId)}`,
@@ -213,7 +224,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       }
     }
     context.views.set(viewId, {
-      // 视图按会话当前身份登记：换身份时 rekeySession 会一并改写
+      // 视图绑定当前会话身份，换源后由渲染端重新订阅。
       documentId: session.info.id,
       windowId: window.id,
       clientIds: [],
@@ -238,9 +249,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         ).map(row => [row.node_id, JSON.parse(row.value)])
       ),
       state: Y.encodeStateAsUpdate(session.doc),
-      awareness: awareness
-        ? encodeAwarenessUpdate(awareness, [...awareness.getStates().keys()])
-        : null,
+      awareness: encodeAwarenessUpdate(awareness, [...awareness.getStates().keys()]),
       session: session.info,
       user: {
         id: deviceId,
@@ -249,34 +258,37 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       },
     };
   });
-  handle("node-view", (event, viewId: string, nodeId: string, patch: Record<string, unknown>) => {
-    const view = context.views.get(viewId);
-    if (!view || view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id)
-      throw new Error("编辑视图已失效");
-    const session = context.requireSession(view.documentId);
-    if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
-      throw new Error("正文格式不受支持");
-    const tree = new NodeTree(session.doc);
-    try {
-      const contract = tree.contract(nodeId);
-      if (!contract) throw new Error("节点已失效");
-      const key = {
-        workspaceId: view.inputIdentity.workspaceId,
-        documentId: session.info.source?.contentDocumentId ?? session.info.id,
-        nodeId,
-        owner: contract.owner,
-      };
-      return context.contentState.db.transaction(() => {
-        const previous = context.contentState.readView(key);
-        const value = { ...previous?.value, ...patch };
-        context.contentState.writeView(key, value, previous?.revision ?? null);
-        return value;
-      })();
-    } finally {
-      tree.dispose();
+  handle(
+    "updateNodeView",
+    (event, viewId: string, nodeId: string, patch: Record<string, unknown>) => {
+      const view = context.views.get(viewId);
+      if (!view || view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id)
+        throw new Error("编辑视图已失效");
+      const session = context.requireSession(view.documentId);
+      if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
+        throw new Error("正文格式不受支持");
+      const tree = new NodeTree(session.doc);
+      try {
+        const contract = tree.contract(nodeId);
+        if (!contract) throw new Error("节点已失效");
+        const key = {
+          workspaceId: view.inputIdentity.workspaceId,
+          documentId: session.info.source?.contentDocumentId ?? session.info.id,
+          nodeId,
+          owner: contract.owner,
+        };
+        return context.contentState.db.transaction(() => {
+          const previous = context.contentState.readView(key);
+          const value = { ...previous?.value, ...patch };
+          context.contentState.writeView(key, value, previous?.revision ?? null);
+          return value;
+        })();
+      } finally {
+        tree.dispose();
+      }
     }
-  });
-  handle("input-draft", (event, viewId: string, draft: ContentInputDraft) => {
+  );
+  handle("inputDraft", (event, viewId: string, draft: ContentInputDraft) => {
     const view = context.views.get(viewId);
     if (!view || view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id)
       throw new Error("输入副本的编辑视图已失效");
@@ -293,7 +305,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     }
   });
   handle(
-    "document-draft",
+    "documentDraft",
     (event, viewId: string, draft: { state: Uint8Array; sequence: number }) => {
       const view = context.views.get(viewId);
       if (!view || view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id)
@@ -312,7 +324,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     }
   );
   handle("unsubscribe", (_event, viewId: string) => context.removeView(viewId));
-  handle("discard-local", async (_event, id: string) => {
+  handle("discardLocal", async (_event, id: string) => {
     const session = context.findSession(id);
     if (!session) return;
     const unavailable =
@@ -415,7 +427,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     check();
     return { session, check };
   };
-  handle("upload-shared-resource", async (event, viewId: string, file: CollaborationImageFile) => {
+  handle("uploadSharedResource", async (event, viewId: string, file: CollaborationImageFile) => {
     const { session, check } = resourceView(event, viewId);
     if (!(file.bytes instanceof Uint8Array)) throw new Error("文件数据无效");
     if (session.info.mode === "local" || (session.info.role !== "editor" && !isVideoFile(file)))
@@ -434,7 +446,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     }
     return reference;
   });
-  handle("prepare-resource", async (event, viewId: string, reference: string) => {
+  handle("prepareResource", async (event, viewId: string, reference: string) => {
     const { session, check } = resourceView(event, viewId);
     if (typeof reference !== "string" || !reference) throw new Error("上传未返回资源地址");
     if (session.info.mode === "local") {
@@ -460,7 +472,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     }
     return prepared;
   });
-  handle("resource", (_event, id: string, reference: string) => {
+  handle("resolveResource", (_event, id: string, reference: string) => {
     const session = context.requireSession(id);
     return context.assets.resolveReference(session.info.serverUrl, session.info.id, reference);
   });

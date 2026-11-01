@@ -36,7 +36,7 @@ export interface RuntimeSession {
   persistNodeUpdate?: (update: Uint8Array) => void;
   persistDeviceState?: (candidate: Y.Doc) => void;
   refreshDeviceState?: () => void;
-  deviceAuditPending?:boolean;
+  deviceAuditPending?: boolean;
   retainNodeState?: (candidate: Y.Doc) => void;
 }
 

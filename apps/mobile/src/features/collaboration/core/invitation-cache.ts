@@ -23,10 +23,7 @@ export function readCachedInvitation(documentId: string): CachedInvitation | und
 
 export function writeCachedInvitation(documentId: string, invitation: CachedInvitation) {
   try {
-    window.localStorage.setItem(
-      `${STORAGE_PREFIX}${documentId}`,
-      JSON.stringify(invitation)
-    );
+    window.localStorage.setItem(`${STORAGE_PREFIX}${documentId}`, JSON.stringify(invitation));
   } catch {
     // 存储不可用时退化为仅本次会话可见，不影响协作功能
   }

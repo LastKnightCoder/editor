@@ -1,4 +1,4 @@
-import { assertPresenceBudget } from "@tau/collaboration";
+import { assertPresenceBudget, memberActivities } from "@tau/collaboration";
 import Fastify, { type FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
@@ -82,17 +82,10 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
 
   const onlineActivities = (documentId: string): Map<string, Member["activity"]> => {
     const document = hocuspocus.documents.get(documentId);
-    const online = new Map<string, Member["activity"]>();
-    for (const connection of document?.getConnections() || [])
-      online.set(connection.context.deviceId, "background");
-    for (const state of document?.awareness.getStates().values() || []) {
-      const id = state.user?.id;
-      if (typeof id !== "string" || !online.has(id)) continue;
-      const activity = state.activity;
-      if (activity === "editing" || (activity === "viewing" && online.get(id) !== "editing"))
-        online.set(id, activity);
-    }
-    return online;
+    return memberActivities(
+      [...(document?.getConnections() ?? [])].map(connection => connection.context.deviceId),
+      document?.awareness.getStates().values() ?? []
+    );
   };
   /** 把持久化成员行合并实时在线态；文档列表与 presence 共用。 */
   const mergeOnline = (

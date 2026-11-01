@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { CollaborationBackground } from "../CollaborationBackground";
+import { useCollaborationRuntime } from "../hooks/useCollaborationRuntime";
 
 const io = vi.hoisted(() => ({
   cached: vi.fn(),
@@ -29,6 +30,27 @@ vi.mock("../core/manager", () => ({
 afterEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
+});
+
+it("隐藏面板不持有运行时，开关与卸载只释放各自取得的持有", async () => {
+  function Panel({ open }: { open: boolean }) {
+    useCollaborationRuntime(open);
+    return null;
+  }
+  const root = createRoot(document.createElement("div"));
+  try {
+    await act(async () => root.render(<Panel open={false} />));
+    expect(io.start).not.toHaveBeenCalled();
+    expect(io.retain).not.toHaveBeenCalled();
+    await act(async () => root.render(<Panel open />));
+    expect(io.start).toHaveBeenCalledTimes(1);
+    expect(io.retain).toHaveBeenCalledTimes(1);
+    await act(async () => root.render(<Panel open={false} />));
+    expect(io.release).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root.unmount());
+  }
+  expect(io.release).toHaveBeenCalledTimes(1);
 });
 
 it.each(["none", "local", "shared", "closing"])(
