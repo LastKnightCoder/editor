@@ -32,7 +32,7 @@ import type { SettingModuleKey } from "../components/types";
 import { GroupCard, GroupRow, LetterTile } from "../components/ui";
 import { ActionButton } from "../storage/fields";
 import { useSyncProviders } from "./providers";
-import { countResources, resourceBadge } from "./resourceState";
+import { countResources, resourceBadge, resourceSummary } from "./resourceState";
 import { resolveSyncErrorMessage } from "./syncErrors";
 import {
   deriveSyncHero,
@@ -62,6 +62,7 @@ const BADGE_TONE = {
   info: "bg-info-soft text-info",
   warn: "bg-warn-soft text-warn",
   danger: "bg-danger-soft text-danger",
+  ok: "bg-ok-soft text-ok",
 } as const;
 
 const ORB_TONE: Record<SyncTone, string> = {
@@ -106,6 +107,7 @@ function SyncHero(props: {
         {props.hero.title}
       </h2>
       <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">{props.hero.description}</p>
+      <p className="text-ink-3 text-tau-sm mt-1">以上为数据库状态，图片与附件见下方资源文件</p>
       {props.lastSyncText && (
         <p className="text-ink-2 text-tau-sm leading-relaxed">上次同步 {props.lastSyncText}</p>
       )}
@@ -253,7 +255,12 @@ function CloudSyncSection(props: SyncCenterProps) {
       setErrorMessage(null);
       toast.success(result.message || (direction === "upload" ? "上传完成" : "下载完成"));
       // 数据库完成后顺带同步资源文件；它在后台跑，失败会体现在「资源文件」行上
-      void props.onResourceSyncStart().catch(() => undefined);
+      void props.onResourceSyncStart().catch(error => {
+        toast({
+          type: "warning",
+          text: `数据库同步成功，资源文件未能开始同步：${resolveSyncErrorMessage(error, "请重试")}`,
+        });
+      });
     } catch (error) {
       const message = resolveSyncErrorMessage(error, "同步失败");
       setErrorMessage(message);
@@ -280,7 +287,11 @@ function CloudSyncSection(props: SyncCenterProps) {
   const lastSyncTime = databaseName ? readLastSyncTime(databaseName) : null;
   const lastSyncText = lastSyncTime ? formatRelativeTime(lastSyncTime, Date.now()) : null;
   const resourceCounts = countResources(props.resourceStatusFile);
-  const badge = resourceBadge(props.resourceProgress, resourceCounts);
+  const badge = resourceBadge(
+    props.resourceProgress,
+    resourceCounts,
+    props.resourceStatusFile !== null
+  );
 
   return (
     <div className="page-enter space-y-1">
@@ -343,7 +354,10 @@ function CloudSyncSection(props: SyncCenterProps) {
           <span className="min-w-0 flex-1">
             <span className="text-ink-1 text-tau-body block font-medium">资源文件</span>
             <span className="text-ink-3 text-tau-sm block truncate">
-              {resourceCounts.total > 0 ? `${resourceCounts.total} 个` : "图片与附件"}
+              {props.resourceProgress?.errorMessage ||
+                (props.resourceStatusFile
+                  ? `${resourceCounts.total} 个 · ${resourceSummary(resourceCounts)}`
+                  : "图片与附件 · 尚未检查")}
             </span>
           </span>
           {badge && (

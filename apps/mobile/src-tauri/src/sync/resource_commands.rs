@@ -38,6 +38,7 @@ pub async fn resource_sync_start(app: AppHandle) -> ResourceSyncActionResponse {
             let mut runtime = resource_runtime().lock().unwrap();
             runtime.progress.status = "error".to_string();
             runtime.progress.current_file = None;
+            runtime.progress.error_message = Some(error.message.clone());
             println!(
                 "[resource-sync] start failed: {}:{}",
                 error.code, error.message
@@ -76,6 +77,7 @@ pub async fn resource_sync_retry_failed(app: AppHandle) -> ResourceSyncActionRes
             let mut runtime = resource_runtime().lock().unwrap();
             runtime.progress.status = "error".to_string();
             runtime.progress.current_file = None;
+            runtime.progress.error_message = Some(error.message.clone());
             println!(
                 "[resource-sync] retry failed start failed: {}:{}",
                 error.code, error.message

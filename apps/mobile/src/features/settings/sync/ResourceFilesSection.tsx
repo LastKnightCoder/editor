@@ -28,6 +28,7 @@ import {
   deriveResourceHero,
   filterResources,
   isResourceSyncRunning,
+  resourceSummary,
   type ResourceFilter,
   type ResourceHeroState,
 } from "./resourceState";
@@ -143,13 +144,16 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
     errorMessage,
     configMissing,
     lastSyncText: lastSyncTime ? formatRelativeTime(lastSyncTime, Date.now()) : null,
+    checked: props.statusFile !== null,
   });
 
   const runAction = async (action: () => Promise<ResourceSyncActionResponse>) => {
     setBusy(true);
     try {
-      await action();
+      const result = await action();
+      if (!result.ok) throw new Error(`${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`);
       setErrorMessage(null);
+      setConfigMissing(false);
     } catch (error) {
       handleError(error, "资源同步执行失败", false);
     } finally {
@@ -194,6 +198,9 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
         </span>
         <h2 className="text-ink-1 text-tau-title-lg font-extrabold tracking-tight">{hero.title}</h2>
         <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">{hero.description}</p>
+        {props.statusFile && !hero.description.includes(resourceSummary(counts)) && (
+          <p className="text-ink-3 text-tau-sm mt-1">{resourceSummary(counts)}</p>
+        )}
         {running && props.progress.currentFile && (
           <p className="text-ink-3 text-tau-sm mt-0.5 truncate">{props.progress.currentFile}</p>
         )}
@@ -259,7 +266,7 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                       {baseName(path)}
                     </span>
                     <span
-                      className={`text-tau-sm block truncate ${status.syncStatus === "error" ? "text-danger" : "text-ink-3"}`}
+                      className={`text-tau-sm block ${status.syncStatus === "error" ? "text-danger break-words" : "text-ink-3 truncate"}`}
                     >
                       {status.syncStatus === "error"
                         ? [
@@ -295,7 +302,9 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
           </div>
         </>
       )}
-      <GroupNote>资源同步只增不删：本机删掉的文件不会从云端删除。</GroupNote>
+      <GroupNote>
+        同步保存在本机的图片和附件，网络链接不参与。资源同步只增不删：本机删掉的文件不会从云端删除。
+      </GroupNote>
     </div>
   );
 }

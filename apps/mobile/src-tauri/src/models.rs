@@ -243,6 +243,8 @@ pub struct ResourceSyncProgress {
     pub skipped_count: u64,
     pub error_count: u64,
     pub start_time: Option<u64>,
+    #[serde(default)]
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

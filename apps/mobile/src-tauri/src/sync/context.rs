@@ -10,6 +10,14 @@ use super::error::AppError;
 
 pub(crate) use crate::plugin_provider::PluginProvider as SyncProvider;
 
+fn provider_error(error: String, config_code: &str) -> AppError {
+    if let Some(message) = error.strip_prefix("SYNC_PROVIDER_UNAVAILABLE:") {
+        AppError::new("SYNC_PROVIDER_UNAVAILABLE", message)
+    } else {
+        AppError::new(config_code, error)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct SyncContext {
     pub(crate) provider: SyncProvider,
@@ -33,7 +41,7 @@ pub(crate) fn build_sync_context_for(
     })?;
     let provider = SyncProvider::from_setting(app, &setting, "sync", provider_override)
         .map(SyncProvider::with_transfer_retries)
-        .map_err(|error| AppError::new("SYNC_CONFIG_MISSING", error))?;
+        .map_err(|error| provider_error(error, "SYNC_CONFIG_MISSING"))?;
     let database_name = get_active_database_name(&setting);
     let local_version = get_database_version(&setting, &database_name);
     let database_path = resolve_database_path(app, &database_name)
@@ -51,5 +59,5 @@ pub(crate) fn build_resource_provider(app: &AppHandle) -> Result<SyncProvider, A
     let setting = load_or_init_setting(app)
         .map_err(|e| AppError::new("SETTING_INVALID", format!("读取 setting.json 失败: {e}")))?;
     SyncProvider::from_setting(app, &setting, "sync", None)
-        .map_err(|error| AppError::new("RESOURCE_SYNC_CONFIG_MISSING", error))
+        .map_err(|error| provider_error(error, "RESOURCE_SYNC_CONFIG_MISSING"))
 }

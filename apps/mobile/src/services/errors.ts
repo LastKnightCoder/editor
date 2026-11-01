@@ -69,6 +69,7 @@ export function mapErrorToMessage(code: string, fallback: string): string {
     TODO_RECURRENCE_DELETE_FAILED: "周期规则删除失败，请稍后重试",
     TODO_RECURRENCE_COMPLETE_FAILED: "周期任务打卡状态更新失败，请稍后重试",
     SYNC_CONFIG_MISSING: "同步配置不完整，请先填写并保存同步参数",
+    SYNC_PROVIDER_UNAVAILABLE: "同步插件尚未就绪或已失效，请稍后重试",
     REMOTE_VERSION_PARSE_FAILED: "远端版本信息无法解析",
     SYNC_CHECK_FAILED: "同步状态刷新失败，请检查同步配置或网络",
     REMOTE_FILE_NOT_FOUND: "云端还没有这个数据库，请先在另一台设备上传",

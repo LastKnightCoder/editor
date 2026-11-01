@@ -130,10 +130,12 @@ fn scan_local_resource_files(
     let entries = fs::read_dir(resources_dir)
         .map_err(|e| AppError::new("RESOURCE_SYNC_FAILED", format!("扫描资源目录失败: {e}")))?;
     for entry in entries {
-        let entry = match entry {
-            Ok(value) => value,
-            Err(_) => continue,
-        };
+        let entry = entry.map_err(|error| {
+            AppError::new(
+                "RESOURCE_SYNC_LOCAL_IO_FAILED",
+                format!("读取资源目录项失败: {error}"),
+            )
+        })?;
         let path = entry.path();
         if !path.is_file() {
             continue;
@@ -146,7 +148,14 @@ fn scan_local_resource_files(
         if name.ends_with(crate::resource_upload::THUMB_SUFFIX) {
             continue;
         }
-        let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let size = fs::metadata(&path)
+            .map_err(|error| {
+                AppError::new(
+                    "RESOURCE_SYNC_LOCAL_IO_FAILED",
+                    format!("读取资源文件信息失败: {error}"),
+                )
+            })?
+            .len();
         files.push((name, path, size));
     }
     Ok(files)
@@ -422,6 +431,8 @@ pub(crate) async fn run_resource_sync_job(
     if tasks.is_empty() {
         progress.status = if progress.error_count > 0 {
             "error".to_string()
+        } else if progress.processed_files < progress.total_files {
+            "idle".to_string()
         } else {
             "completed".to_string()
         };
@@ -524,6 +535,8 @@ pub(crate) async fn run_resource_sync_job(
     if progress.status != "cancelled" {
         progress.status = if progress.error_count > 0 {
             "error".to_string()
+        } else if progress.processed_files < progress.total_files {
+            "idle".to_string()
         } else {
             "completed".to_string()
         };
@@ -542,15 +555,30 @@ pub(crate) async fn refresh_resource_status(
     app: &AppHandle,
     provider: &SyncProvider,
 ) -> Result<ResourceSyncStatusFile, AppError> {
+    {
+        let runtime = resource_runtime().lock().unwrap();
+        if runtime.running {
+            return runtime.status_file.clone().ok_or_else(|| {
+                AppError::new("RESOURCE_SYNC_ALREADY_RUNNING", "正在比对资源文件，请稍候")
+            });
+        }
+    }
     let mut status_meta = load_resource_status_meta(app, provider)?;
     let previous = status_meta.file.files.clone();
     let (_tasks, statuses) = build_resource_sync_plan(app, provider, &previous, None).await?;
+    // 云端列举期间可能已启动同步，不能用旧计划覆盖正在运行的任务。
+    let mut runtime = resource_runtime().lock().unwrap();
+    if runtime.running {
+        return runtime.status_file.clone().ok_or_else(|| {
+            AppError::new("RESOURCE_SYNC_ALREADY_RUNNING", "正在比对资源文件，请稍候")
+        });
+    }
     persist_resource_status_meta(&mut status_meta, statuses.clone())?;
-
     let mut progress = empty_resource_progress();
     progress.status = "idle".to_string();
     recalculate_resource_progress(&mut progress, &statuses);
-    update_resource_runtime_snapshot(progress, Some(status_meta.file.clone()));
+    runtime.progress = progress;
+    runtime.status_file = Some(status_meta.file.clone());
     Ok(status_meta.file)
 }
 

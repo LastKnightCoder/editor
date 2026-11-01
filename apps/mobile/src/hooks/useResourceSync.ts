@@ -7,6 +7,8 @@ import type {
 } from "../types";
 import * as tauri from "../services/tauri";
 import { getMobileSettingSnapshot } from "../services/mobileSettingsBridge";
+import { waitForMobilePluginReady } from "../app/plugins/content";
+import { resolveSyncErrorMessage } from "../features/settings/sync/syncErrors";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -30,6 +32,9 @@ export function useResourceSync() {
   const [progress, setProgress] = useState<ResourceSyncProgress>(EMPTY_RESOURCE_PROGRESS);
   const [statusFile, setStatusFile] = useState<ResourceSyncStatusFile | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const polling = useRef(false);
+  const starting = useRef(false);
+  const pendingStart = useRef<AbortController | null>(null);
   const statusRefresh = useRef<{
     setting: ReturnType<typeof getMobileSettingSnapshot>;
     task: Promise<ResourceSyncStatusFile | null>;
@@ -51,25 +56,34 @@ export function useResourceSync() {
     return next;
   });
 
+  const recordError = useMemoizedFn((error: unknown) => {
+    setProgress(previous => ({
+      ...previous,
+      status: "error",
+      currentFile: null,
+      errorMessage: resolveSyncErrorMessage(error, "资源同步失败，请重试"),
+    }));
+  });
+
   const refreshResourceStatus = useMemoizedFn(() => {
+    if (starting.current || pollTimer.current) return Promise.resolve(statusFile);
     const setting = getMobileSettingSnapshot();
     if (statusRefresh.current?.setting === setting) return statusRefresh.current.task;
     const task = (async () => {
       try {
         const status = await tauri.resourceSyncRefresh();
-        if (getMobileSettingSnapshot() === setting) {
+        const next = await tauri.resourceSyncGetProgress();
+        if (getMobileSettingSnapshot() === setting && !starting.current && !pollTimer.current) {
           setStatusFile(status);
-          await refreshResourceProgress();
+          setProgress(next);
+          if (isRunningStatus(next.status)) startPolling();
         }
         return status;
       } catch (error) {
-        console.error("刷新资源同步状态失败", error);
-        const fallback = await tauri.resourceSyncGetStatus();
-        if (getMobileSettingSnapshot() === setting) {
-          setStatusFile(fallback);
-          await refreshResourceProgress();
+        if (getMobileSettingSnapshot() === setting && !starting.current && !pollTimer.current) {
+          recordError(error);
         }
-        return fallback;
+        throw error;
       }
     })();
     const request = { setting, task };
@@ -87,40 +101,69 @@ export function useResourceSync() {
       return;
     }
     pollTimer.current = setInterval(() => {
+      if (polling.current) return;
+      polling.current = true;
       void (async () => {
         try {
           const next = await refreshResourceProgress();
+          // 读取本轮账本；再次比对云端会抹掉完成、停止和失败状态。
+          const status = await tauri.resourceSyncGetStatus();
+          setStatusFile(status);
           if (!isRunningStatus(next.status)) {
             stopPolling();
-            await refreshResourceStatus();
           }
         } catch (error) {
-          console.error("轮询资源同步进度失败", error);
+          recordError(error);
           stopPolling();
+        } finally {
+          polling.current = false;
         }
       })();
     }, POLL_INTERVAL_MS);
   });
 
-  const startResourceSync = useMemoizedFn(async (): Promise<ResourceSyncActionResponse> => {
-    const result = await tauri.resourceSyncStart();
-    await refreshResourceProgress();
-    if (result.ok) {
-      startPolling();
+  const runResourceSync = useMemoizedFn(
+    async (retry: boolean): Promise<ResourceSyncActionResponse> => {
+      if (starting.current) throw new Error("RESOURCE_SYNC_ALREADY_RUNNING:资源同步正在准备中");
+      if (pollTimer.current) return { ok: true, message: "资源同步正在进行中" };
+      starting.current = true;
+      const controller = new AbortController();
+      pendingStart.current = controller;
+      const setting = getMobileSettingSnapshot();
+      setProgress({ ...EMPTY_RESOURCE_PROGRESS, status: "scanning" });
+      try {
+        await waitForMobilePluginReady(controller.signal);
+        pendingStart.current = null;
+        if (getMobileSettingSnapshot() !== setting) {
+          throw new Error("SYNC_PROVIDER_UNAVAILABLE:同步设置已改变，请重新同步资源文件");
+        }
+        const result = await (retry ? tauri.resourceSyncRetryFailed() : tauri.resourceSyncStart());
+        if (!result.ok)
+          throw new Error(`${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`);
+        await refreshResourceProgress();
+        setStatusFile(await tauri.resourceSyncGetStatus());
+        startPolling();
+        return result;
+      } catch (error) {
+        if (controller.signal.aborted) return { ok: true, message: "资源同步已停止" };
+        recordError(error);
+        throw error;
+      } finally {
+        starting.current = false;
+        pendingStart.current = null;
+      }
     }
-    return result;
-  });
+  );
 
-  const retryFailedResourceSync = useMemoizedFn(async (): Promise<ResourceSyncActionResponse> => {
-    const result = await tauri.resourceSyncRetryFailed();
-    await refreshResourceProgress();
-    if (result.ok) {
-      startPolling();
-    }
-    return result;
-  });
+  const startResourceSync = useMemoizedFn(() => runResourceSync(false));
+  const retryFailedResourceSync = useMemoizedFn(() => runResourceSync(true));
 
   const cancelResourceSync = useMemoizedFn(async (): Promise<ResourceSyncActionResponse> => {
+    if (pendingStart.current) {
+      pendingStart.current.abort();
+      setProgress(previous => ({ ...previous, status: "cancelled", errorMessage: null }));
+      return { ok: true, message: "资源同步已停止" };
+    }
     const result = await tauri.resourceSyncCancel();
     await refreshResourceProgress();
     return result;
@@ -129,6 +172,7 @@ export function useResourceSync() {
   useEffect(() => {
     return () => {
       stopPolling();
+      pendingStart.current?.abort();
     };
   }, [stopPolling]);
 

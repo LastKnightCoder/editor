@@ -85,6 +85,7 @@ pub(crate) fn empty_resource_progress() -> ResourceSyncProgress {
         skipped_count: 0,
         error_count: 0,
         start_time: None,
+        error_message: None,
     }
 }
 
