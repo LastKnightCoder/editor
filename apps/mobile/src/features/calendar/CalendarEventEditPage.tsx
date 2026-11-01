@@ -37,6 +37,9 @@ import {
 } from "./utils";
 import { CalendarPickerSheet } from "./components/CalendarPickerSheet";
 import { ColorPickerSheet } from "./components/ColorPickerSheet";
+import { summarizeReminders } from "@tau/shared/reminders";
+import { ReminderSheet } from "../reminders/ReminderSheet";
+import { readReminderSettings } from "../reminders/settings";
 
 type CalendarEventEditPageProps = {
   /** 0 表示新建 */
@@ -58,6 +61,8 @@ interface EventDraft {
   color: string | null;
   detailContentId: number;
   detailContent: Descendant[];
+  /** 开始前毫秒数（全天以当天零点为基准） */
+  reminders: number[];
 }
 
 const DEFAULT_START_MINUTE = 9 * 60;
@@ -97,13 +102,17 @@ export function CalendarEventEditPage({
     color: null,
     detailContentId: 0,
     detailContent: createEmptyEditorContent(),
+    // 新建日程套用设置里的默认提醒（编辑态加载后被服务端数据覆盖）
+    reminders: readReminderSettings().event,
   }));
   const [loaded, setLoaded] = useState(!isEdit);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [picker, setPicker] = useState<"none" | "calendar" | "color" | "start" | "end">("none");
+  const [picker, setPicker] = useState<
+    "none" | "calendar" | "color" | "start" | "end" | "reminder"
+  >("none");
   const page = useOptionalPageInstanceContext();
   const hostRevision = useMobileEntityHostRevision();
   const mentionDocument = useMemo(
@@ -123,9 +132,8 @@ export function CalendarEventEditPage({
       return;
     }
     let cancelled = false;
-    tauri
-      .calendarEventGetById(eventId)
-      .then(event => {
+    Promise.all([tauri.calendarEventGetById(eventId), tauri.reminderList("event", eventId)])
+      .then(([event, reminders]) => {
         if (cancelled) {
           return;
         }
@@ -142,6 +150,7 @@ export function CalendarEventEditPage({
           color: event.color,
           detailContentId: event.detailContentId,
           detailContent,
+          reminders,
         });
         setLoaded(true);
       })
@@ -232,11 +241,10 @@ export function CalendarEventEditPage({
         color: draft.color,
         allDay: draft.allDay,
       };
-      if (isEdit) {
-        await tauri.calendarEventUpdate({ id: eventId, ...payload });
-      } else {
-        await tauri.calendarEventCreate(payload);
-      }
+      const saved = isEdit
+        ? await tauri.calendarEventUpdate({ id: eventId, ...payload })
+        : await tauri.calendarEventCreate(payload);
+      await tauri.reminderSet("event", saved.id, draft.reminders);
       invalidateCalendarQueries();
       onSaved();
     } catch (error) {
@@ -349,7 +357,15 @@ export function CalendarEventEditPage({
                 role="switch"
                 aria-checked={draft.allDay}
                 aria-label="全天"
-                onClick={() => setValue({ allDay: !draft.allDay })}
+                // 全天与定时的提醒基准不同，切换后旧提醒失去含义；新建日程换成对应的默认提醒
+                onClick={() => {
+                  const allDay = !draft.allDay;
+                  const defaults = readReminderSettings();
+                  setValue({
+                    allDay,
+                    reminders: isEdit ? [] : allDay ? defaults.allDay : defaults.event,
+                  });
+                }}
                 className={`relative h-[30px] w-[50px] flex-none rounded-full transition-colors ${
                   draft.allDay ? "bg-[var(--tau-accent)]" : "bg-[var(--ring-track)]"
                 }`}
@@ -383,6 +399,12 @@ export function CalendarEventEditPage({
               }
               onClick={() => setPicker("end")}
               danger={error}
+            />
+            <FormRow
+              label="提醒"
+              value={summarizeReminders(draft.reminders, draft.allDay)}
+              placeholder={!draft.reminders.length}
+              onClick={() => setPicker("reminder")}
             />
             {error ? (
               <div className="pt-2 text-[11.5px] font-semibold text-[var(--tau-tag-5)]">
@@ -473,6 +495,14 @@ export function CalendarEventEditPage({
         selected={draft.color}
         calendarColor={selectedCalendar?.color ?? null}
         onSelect={color => setValue({ color })}
+        onClose={() => setPicker("none")}
+      />
+      <ReminderSheet
+        open={picker === "reminder"}
+        value={draft.reminders}
+        allDay={draft.allDay}
+        anchor={draft.allDay ? draft.startDate : atLocalTime(draft.startDate, draft.startTime)}
+        onChange={reminders => setValue({ reminders })}
         onClose={() => setPicker("none")}
       />
       <DateTimePickerSheet

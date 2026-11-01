@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), invalidate: vi.
 vi.mock("../../../services/tauri", () => ({
   calendarEventGetById: mocks.get,
   calendarEventUpdate: mocks.update,
+  reminderList: () => Promise.resolve([]),
+  reminderSet: () => Promise.resolve([]),
 }));
 vi.mock("../queries", () => ({
   useCalendars: () => ({ data: [{ id: 1, title: "工作", color: "blue" }] }),

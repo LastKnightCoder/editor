@@ -575,6 +575,19 @@ plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签�
 
 停靠区按内容取宽，两侧至少留 16px；提示文字保持单行，超出胶囊上限时省略，动作按钮保持可见。
 
+## 提醒与系统通知
+
+待办、日程、正文待办的提醒与倒计时番茄结束都用本地系统通知，不经推送服务器；提醒数据与桌面共用 `item_reminder` 口径（见[桌面提醒](/docs/architecture/desktop.md#提醒)），Rust 命令在 `src-tauri/src/database/reminders.rs`（`reminder_list / reminder_set / reminder_upcoming`）。
+
+- **范围**：截止任务（最多 3 个提醒）、周期待办（`remind_before` 为当天时刻，逐个未打卡实例提醒，实例与日历物化同源 `recurring_occurrences`）、独立日程（待办安排出的日程跟随待办）、正文待办（`taskReminder.at`；排除文档、已提升为独立待办、已勾选或已完成的实例不提醒）。有「排除节假日」规则时才取节假日，取不到按无节假日排期。
+- **原生插件**：`plugins/local-notify`（Rust 只注册，命令直通原生）+ `native-notify/`。Android 用 AlarmManager（有「闹钟和提醒」授权时准点，否则可延后）与三个通知渠道「待办提醒 / 日程提醒 / 番茄专注」，排期存 SharedPreferences，开机、应用更新、准点授权变化后重排；状态栏小图标 `ic_stat_tau` 是应用图标的单色剪影（按系统要求只取 alpha）。iOS 用 UNUserNotificationCenter，通知图标即应用图标。
+- **排期**：`features/reminders/scheduler` 取 14 天内的提醒，加上进行中的倒计时番茄（按剩余时长算到点时刻），整体替换系统排期（iOS 系统上限 64 条，只排最近 50 条；Android 200 条）。启动、回到前台、影响提醒的写命令（含番茄开始 / 暂停 / 继续 / 结束与正文保存）之后合并重排（`changes.ts` 按命令名识别）。别的设备新建的提醒要同步下载后才会排进系统。
+- **按钮**：每条通知带 `actions`——`complete`（单次截止任务：「完成」会拉起应用后勾选）、`ack`（日程、周期实例、正文待办：「知道了」只关通知）、`none`（番茄）；前两种另有「N 分钟后」，原生直接重排，键为 `<owner>:snooze`，事项完成或删除后的下一次重排撤销。点通知本体打开对应待办 / 日程 / 正文（定位到该待办）/ 番茄页。点击与「完成」先入原生队列，`ReminderHost` 收到信号或回到前台时 `take_actions` 取走处理，冷启动不丢。
+- **前台**：应用在前台时原生不弹系统横幅，改发 `delivered`，由 `ReminderHost` 显示顶部横幅（应用图标 + 按钮同上 + 查看）；已在番茄页时不叠番茄横幅（页面自己展示完成态）。设置里可关掉横幅，改为前台也弹系统通知。
+- **番茄**：会话在 Rust 内存里，WebView 挂起后页面计时器不走，回到前台才自动收尾；倒计时会话收尾时专注时长封顶为预设时长，结束时刻记为到点那一刻。应用在后台被系统回收时会话丢失，通知仍会响。
+- **偏好**：`setting.json` 的 `reminders`（本机，`features/reminders/settings.ts`）——新建截止任务 / 日程 / 全天日程的默认提醒（todo 在任务刚成为有截止时间的截止任务且没有提醒时由 `useTodoStore` 套用，日程在新建表单初始化与切换全天时套用；AI 工具新建的任务不套用）、稍后间隔（5–60 分钟，随排期写给原生，原生按钮在应用未运行时也用它）、前台横幅开关。
+- **权限**：首次在 `ReminderSheet` 勾选提醒时先说明再请求系统权限；被拒后面板顶部提示去设置。设置 › 提醒与通知显示授权状态、Android 准点授权、已排期数量与上述偏好。
+
 ## 外部打开 Markdown（导入预览）
 
 Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开」`.md` 时可选 Tau；文件进入只读预览页 `markdownImport`（`features/markdownImport/`），由用户选择存为卡片、存为文章或加入项目（项目根目录文档），导入后 `replace` 到对应编辑页。

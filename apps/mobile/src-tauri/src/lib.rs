@@ -76,6 +76,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_native_speech::init())
+        .plugin(tauri_plugin_local_notify::init())
         .invoke_handler(tauri::generate_handler![
             ai::ai_library_acquire,
             ai::ai_library_assert,
@@ -228,6 +229,9 @@ pub fn run() {
             database::todo_create_item,
             database::todo_create_item_relative,
             database::todo_update_item,
+            database::reminder_list,
+            database::reminder_set,
+            database::reminder_upcoming,
             database::todo_toggle_complete_cascade,
             database::todo_move_and_reorder,
             database::todo_archive_item,

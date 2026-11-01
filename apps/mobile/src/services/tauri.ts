@@ -76,6 +76,7 @@ import type {
 } from "../features/calendar/types";
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
+import { notifyReminderSourceChanged } from "../features/reminders/changes";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
@@ -84,6 +85,7 @@ function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<
   return invoke<T>(cmd, args)
     .then(result => {
       invalidateCalendarAfterMutation(cmd);
+      notifyReminderSourceChanged(cmd);
       return result;
     })
     .finally(() => {
@@ -1395,4 +1397,43 @@ export function collabInputDraft(payload: {
   sequence: number;
 }) {
   return trackedInvoke<void>("collab_input_draft", { payload });
+}
+
+// ==================== 提醒 ====================
+
+export type ReminderOwnerKind = "todo" | "event";
+
+export interface UpcomingReminder {
+  key: string;
+  /** `todo:<id>` / `event:<id>` / `doc:<内容 id>:<待办 id>` */
+  owner: string;
+  kind: ReminderOwnerKind | "doc";
+  /** 待办 / 日程 id；文档待办为所在内容 id */
+  ownerId: number;
+  taskId: string | null;
+  title: string;
+  /** 截止 / 开始时间（全天为当天零点）；没有截止时间的文档待办为 null */
+  anchor: number | null;
+  remindAt: number;
+  allDay: boolean;
+  endAt: number | null;
+  /** 周期实例：通知上不提供「完成」 */
+  recurring: boolean;
+}
+
+/** 提醒列表（基准前毫秒数，升序）；待办首个提醒即 remindBefore */
+export function reminderList(kind: ReminderOwnerKind, id: number) {
+  return trackedInvoke<number[]>("reminder_list", { payload: { kind, id } });
+}
+
+export function reminderSet(kind: ReminderOwnerKind, id: number, offsets: number[]) {
+  return trackedInvoke<number[]>("reminder_set", { payload: { kind, id, offsets } });
+}
+
+/** (from, to] 内待送达的提醒，以及仍有效的提醒归属（`todo:<id>` / `event:<id>`） */
+export function reminderUpcoming(from: number, to: number, limit: number) {
+  return trackedInvoke<{ items: UpcomingReminder[]; owners: string[] }>("reminder_upcoming", {
+    payload: { from, to, limit },
+    timeZone: localTimeZone(),
+  });
 }

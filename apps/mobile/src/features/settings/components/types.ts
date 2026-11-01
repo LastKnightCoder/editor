@@ -23,6 +23,7 @@ export const SETTINGS_MODULE_KEYS = [
   "speech-input",
   "ai-models",
   "image-generation",
+  "notifications",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;

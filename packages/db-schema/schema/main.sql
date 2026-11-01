@@ -946,6 +946,32 @@ CREATE TABLE IF NOT EXISTS todo_schedule_occurrence (
   occurrence_date TEXT NOT NULL
 );
 
+-- 提醒：owner_type = 'todo' 时只存首个之外的追加提醒（首个仍在 todo_item.remind_before），
+-- 'event' 时存日程的全部提醒；offset_ms = 基准时刻 - 提醒时刻（全天日程基准为当天零点）。
+CREATE TABLE IF NOT EXISTS item_reminder (
+  owner_type TEXT NOT NULL CHECK(owner_type IN ('todo','event')),
+  owner_id INTEGER NOT NULL,
+  offset_ms INTEGER NOT NULL,
+  PRIMARY KEY(owner_type, owner_id, offset_ms)
+) WITHOUT ROWID;
+-- 只认 remind_before 的写入方改动首个提醒时，追加提醒随之失效，保持「单值写入 = 只剩一个提醒」。
+CREATE TRIGGER IF NOT EXISTS trg_item_reminder_todo_reset
+AFTER UPDATE OF remind_before ON todo_item
+WHEN OLD.remind_before IS NOT NEW.remind_before
+BEGIN
+  DELETE FROM item_reminder WHERE owner_type = 'todo' AND owner_id = NEW.id;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_item_reminder_todo_delete
+AFTER DELETE ON todo_item
+BEGIN
+  DELETE FROM item_reminder WHERE owner_type = 'todo' AND owner_id = OLD.id;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_item_reminder_event_delete
+AFTER DELETE ON calendar_event
+BEGIN
+  DELETE FROM item_reminder WHERE owner_type = 'event' AND owner_id = OLD.id;
+END;
+
 -- 插件对业务数据的可恢复操作：删除前的快照或待办撤销凭据，宽限期内可由用户在插件详情页恢复
 CREATE TABLE IF NOT EXISTS plugin_operations (
   id INTEGER PRIMARY KEY,

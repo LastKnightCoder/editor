@@ -764,6 +764,12 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 删除日程走 `pendingDeleteStore`：隐藏 + Toast 撤销，到时或 ScheduleView 卸载才落库；过滤在 `useCalendarEvents` 里统一做。不得改回「先删再重建」（删除会连带备注 content）。
 - 日程侧勾选完成待办后必须 `emitTodoMutation`，否则待办快照（待办页、待安排面板）不刷新。
 
+### 提醒
+
+- 截止任务与独立日程各最多 3 个提醒，预设、文案与拆合口径在 `@tau/shared/reminders`（移动端共用）。存储：待办首个提醒仍在 `todo_item.remind_before`（AI 工具、插件等只认单值的写入方照旧读写），其余在 `item_reminder`；日程全部在 `item_reminder`，全天日程以当天零点为基准（「当天 9:00」是负 offset）。改首个提醒的单值写入会经触发器清掉追加提醒，删待办 / 日程同样清理。
+- 写提醒只走 `todo:update-reminders` / `calendar-event:update-reminders`（`tables/item-reminder.ts`），先写 `remind_before` 再写追加提醒；界面统一用 `components/ReminderMenu`（勾选不关菜单）。待办列表快照经 `extraReminders` 带出追加提醒，展示用 `todoReminders(entry)` 合并。
+- 主进程 `todo-reminder` 每分钟扫描截止任务（含追加提醒）、周期与文档待办、独立日程（`todo_item_id` 为空，待办安排出的日程跟随待办）；通知正文由 `reminderBody` 生成，周期实例与只写了日期的文档待办按全天（「今天到期」），没有截止时间的写「待办提醒」。通知「查看」带 `reveal`，并向主窗口发 `reminder:open`，由壳层 `useReminderOpen` 打开待办页（`selectedId`）或日程页（`eventId`）。
+
 ### 文档待办
 
 个人助理任务工具在 `task-assistant` 主进程模块与同名 provider 中承载。写入按项校验、事务提交和幂等回执；正文路径使用内容层节点补丁与同步会话落盘，跨正文/主库失败返回 pending 并恢复。工具与卡片操作支持 30 天持久化撤销，检查后续修改和原位置，不回写整篇旧快照。数据库、日程、正文编号经持久化高水位分配，不复用被删除对象的编号。批量为逐项成功，不承诺全局回滚。工具风险沿用既有权限模式。
