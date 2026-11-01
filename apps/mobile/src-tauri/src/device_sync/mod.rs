@@ -2,6 +2,7 @@ pub(crate) mod assets;
 pub(crate) mod database;
 mod local_generation;
 mod recovery;
+mod transfer;
 pub(crate) mod transport;
 
 use rusqlite::OptionalExtension;

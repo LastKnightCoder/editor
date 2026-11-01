@@ -1,3 +1,4 @@
+import { TransferFiles, TRANSFER_CHUNK_BYTES } from "./transfer-files";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { createServer, type Server } from "node:https";
@@ -26,6 +27,7 @@ export class DeviceSyncServer {
   private port = 0;
   private active = false;
   private inFlight = 0;
+  private transfers?: TransferFiles;
   private readonly peers: Peer[];
   private pairing?: { secret: string; expires: number; node?: string; token?: string };
   readonly certificate: { cert: string; key: string };
@@ -79,6 +81,7 @@ export class DeviceSyncServer {
   async listen(port = 24721) {
     if (this.server) return;
     this.confirmHead((await this.engine.offer()).state);
+    this.transfers = new TransferFiles();
     this.server = createServer(
       { ...this.certificate, minVersion: "TLSv1.2" },
       async (request, response) => {
@@ -104,14 +107,37 @@ export class DeviceSyncServer {
             if (size > limit) throw new Error("DEVICE_SYNC_BUDGET: 请求超过预算");
             chunks.push(Buffer.from(chunk));
           }
-          const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          let body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
           const assertActive = () => {
+            if (supplied && !this.peers.some(peer => peer.hash === hash(supplied)))
+              throw new Error("DEVICE_SYNC_UNTRUSTED: 设备授权已撤销");
             if (!this.active)
               throw new Error("DEVICE_SYNC_CLOSED: 局域网连接已停止，原有改动仍保留");
           };
           assertActive();
+          const transfers = this.transfers;
+          if (!transfers) throw new Error("DEVICE_SYNC_CLOSED: 文件传输已停止");
+          if (body.kind === "transfer-use") {
+            if (!supplied) throw new Error("DEVICE_SYNC_UNTRUSTED: 文件传输需要设备授权");
+            body = transfers.consume(body.id, hash(supplied));
+            if (body?.kind !== "sync")
+              throw new Error("DEVICE_SYNC_TRANSFER: 文件载荷不是同步请求");
+          }
           let result: unknown;
-          if (body.kind === "pair") {
+          if (typeof body.kind === "string" && body.kind.startsWith("transfer-")) {
+            if (!supplied) throw new Error("DEVICE_SYNC_UNTRUSTED: 文件传输需要设备授权");
+            const owner = hash(supplied);
+            if (body.kind === "transfer-begin") result = transfers.begin(body.file, owner);
+            else if (body.kind === "transfer-write") {
+              transfers.write(body.id, body.chunk, owner);
+              result = { ok: true };
+            } else if (body.kind === "transfer-read")
+              result = transfers.read(body.id, body.offset, owner);
+            else if (body.kind === "transfer-drop") {
+              transfers.drop(body.id, owner);
+              result = { ok: true };
+            } else throw new Error("DEVICE_SYNC_REQUEST: 未知文件传输操作");
+          } else if (body.kind === "pair") {
             const pairing = this.pairing;
             if (
               !pairing ||
@@ -205,13 +231,22 @@ export class DeviceSyncServer {
             (result as { reply?: { state: DeviceState } }).reply?.state;
           if (header) this.confirmHead(header);
           const bytes = Buffer.from(JSON.stringify(result));
-          if (bytes.length > MAX_BYTES)
-            throw new Error("DEVICE_SYNC_BUDGET: 资料库超过当前传输预算");
+          const fileResponse =
+            bytes.length > TRANSFER_CHUNK_BYTES && ["sync", "pair", "download"].includes(body.kind);
+          const token = (result as { token?: string }).token;
+          const payload = fileResponse
+            ? Buffer.from(
+                JSON.stringify({
+                  transfer: transfers.publish(bytes, hash(supplied ?? token ?? "")),
+                  ...(token ? { token } : {}),
+                })
+              )
+            : bytes;
           response.writeHead(200, {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
           });
-          response.end(bytes);
+          response.end(payload);
         } catch (error) {
           if (response.headersSent) {
             response.destroy();
@@ -277,6 +312,8 @@ export class DeviceSyncServer {
     const server = this.server;
     this.server = undefined;
     this.pairing = undefined;
+    this.transfers?.close();
+    this.transfers = undefined;
     if (server) {
       server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));
