@@ -14,10 +14,8 @@ vi.mock("@tauri-apps/api/core", () => ({
   },
 }));
 vi.mock("../../../../app/AppContext", () => ({ useAppContext: () => appContextHolder.current }));
-vi.mock("../../../../components/toast", () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 vi.mock("../../readingFont/runtime", () => ({
   loadReadingFontFaces: vi.fn(() => Promise.resolve([])),
-  forgetReadingFontFaces: vi.fn(),
 }));
 
 import { ReadingFontSection } from "../ReadingFontSection";
@@ -53,7 +51,6 @@ function mockCommands(overrides: Record<string, (args?: unknown) => unknown> = {
       release("lxgw-wenkai", "1.530"),
       release("noto-serif-sc", "2.003"),
     ],
-    reading_font_remove: () => undefined,
     ...overrides,
   };
   invoke.mockImplementation(async (command: string, args?: unknown) => commands[command]?.(args));
@@ -166,17 +163,15 @@ describe("ReadingFontSection", () => {
     expect(invoke).toHaveBeenCalledWith("reading_font_cancel_download");
   });
 
-  it("已下载的字体点行即切换；未选中的可移除，选中的不能移除", async () => {
+  it("已下载的字体点行即切换；未选中的不显示操作按钮", async () => {
     installed = [release("lxgw-wenkai", "1.530"), release("noto-serif-sc", "2.003")];
     mockCommands();
     await render("lxgw-wenkai");
     expect(row("霞鹜文楷").querySelectorAll("button")).toHaveLength(0);
+    expect(row("思源宋体").querySelectorAll("button")).toHaveLength(0);
 
     await act(async () => row("思源宋体").click());
     expect(appliedSetting()).toBe("noto-serif-sc");
-
-    await act(async () => buttonIn(row("思源宋体"), "移除").click());
-    expect(invoke).toHaveBeenCalledWith("reading_font_remove", { id: "noto-serif-sc" });
   });
 
   it("线上有新版本时已下载未选中的字体显示更新", async () => {

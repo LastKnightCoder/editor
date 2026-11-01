@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS vl_note (
         project_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         title TEXT NOT NULL
-      , type TEXT NOT NULL DEFAULT 'note', podcast_id INTEGER DEFAULT NULL);
+      , type TEXT NOT NULL DEFAULT 'note');
 CREATE TABLE IF NOT EXISTS vl_quiz_set (
         id INTEGER PRIMARY KEY,
         project_id INTEGER NOT NULL,

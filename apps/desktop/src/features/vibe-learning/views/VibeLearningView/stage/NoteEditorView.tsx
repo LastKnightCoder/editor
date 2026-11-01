@@ -1,5 +1,6 @@
 import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
+import { withPPTRuntime } from "@/utils/ppt-runtime";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
 import {
@@ -24,10 +25,7 @@ import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
 import MindMapRenderer from "@/components/ChatSidebar/MindMapRenderer";
-import PodcastPlayer from "@/components/PodcastPlayer";
 import { VLNote } from "@/types/vibe-learning";
-import type { IPodcast } from "@/types/podcast";
-import { getPodcastById } from "@/commands/podcast";
 import {
   createVLNote,
   updateVLNote,
@@ -130,12 +128,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // 是否是报告类型笔记
   const isReport = currentNote?.type === "report";
 
-  // 是否是播客类型笔记
-  const isPodcast = currentNote?.type === "podcast";
-
-  // 播客数据
-  const [podcast, setPodcast] = useState<IPodcast | null>(null);
-
   // 检查是否是 Electron 环境
 
   // 检查笔记是否已是卡片
@@ -163,8 +155,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     return cleanPPTHtmlContent(markdown);
   }, [isPPT, content]);
 
-  // PPT 预览 URL
-  const pptPreviewUrl = useHtmlPreviewUrl(pptHtmlContent);
+  // 预览与下载用的完整 HTML：内联公共运行时，离线可用
+  const pptDeckHtml = useMemo(() => withPPTRuntime(pptHtmlContent), [pptHtmlContent]);
+  const pptPreviewUrl = useHtmlPreviewUrl(pptDeckHtml);
 
   // 报告的 HTML 内容（从代码块中提取并清理）
   const reportHtmlContent = useMemo(() => {
@@ -200,21 +193,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           if (contentData) {
             setContent(contentData.content);
           }
-
-          // 如果是播客类型，加载播客数据
-          if (note.type === "podcast" && note.podcastId) {
-            const podcastData = await getPodcastById(note.podcastId);
-            setPodcast(podcastData);
-          } else {
-            setPodcast(null);
-          }
         } else {
           // 新建笔记
           setTitle("");
           setCurrentNote(null);
           setContentId(null);
           setContent(DEFAULT_CONTENT);
-          setPodcast(null);
         }
       } catch (error) {
         console.error("Failed to load note content:", error);
@@ -406,7 +390,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       return;
     }
     const filename = `${sanitizeFileName(title, "演示文稿")}.html`;
-    downloadTextFile(pptHtmlContent, filename, "text/html;charset=utf-8");
+    downloadTextFile(pptDeckHtml, filename, "text/html;charset=utf-8");
     toast.success("PPT 已下载");
   });
 
@@ -691,105 +675,65 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             onClick: handleDelete,
           },
         ]
-      : isPodcast
-        ? [
-            {
-              key: "add-to-resources",
-              icon: <Import className="size-4" strokeWidth={1.75} />,
-              label: "添加到资源列表",
-              onClick: handleAddToResourceList,
-            },
-            {
-              key: "insert-to-project",
-              icon: <Import className="size-4" strokeWidth={1.75} />,
-              label: "插入到项目",
-              onClick: handleInsertToProject,
-            },
-            {
-              key: "download-md",
-              icon: <Download className="size-4" strokeWidth={1.75} />,
-              label: "下载 Markdown",
-              onClick: handleDownloadMarkdown,
-            },
-            {
-              key: "export-pdf",
-              icon: <FileText className="size-4" strokeWidth={1.75} />,
-              label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
-              onClick: handleExportPdf,
-            },
-            {
-              key: "export-epub",
-              icon: <FileText className="size-4" strokeWidth={1.75} />,
-              label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
-              onClick: handleExportEpub,
-            },
-            {
-              key: "delete",
-              icon: <Trash2 className="size-4" strokeWidth={1.75} />,
-              label: "删除笔记",
-              danger: true,
-              onClick: handleDelete,
-            },
-          ]
-        : [
-            ...(!isCard
-              ? [
-                  {
-                    key: "convert-to-card",
-                    icon: <CreditCard className="size-4" strokeWidth={1.75} />,
-                    label: "转为卡片",
-                    onClick: handleConvertToCard,
-                  },
-                ]
-              : []),
-            ...(!isArticle
-              ? [
-                  {
-                    key: "convert-to-article",
-                    icon: <FileText className="size-4" strokeWidth={1.75} />,
-                    label: "转为文章",
-                    onClick: handleConvertToArticle,
-                  },
-                ]
-              : []),
-            {
-              key: "add-to-resources",
-              icon: <Import className="size-4" strokeWidth={1.75} />,
-              label: "添加到资源列表",
-              onClick: handleAddToResourceList,
-            },
-            {
-              key: "insert-to-project",
-              icon: <Import className="size-4" strokeWidth={1.75} />,
-              label: "插入到项目",
-              onClick: handleInsertToProject,
-            },
-            {
-              key: "download-md",
-              icon: <Download className="size-4" strokeWidth={1.75} />,
-              label: "下载 Markdown",
-              onClick: handleDownloadMarkdown,
-            },
-            {
-              key: "export-pdf",
-              icon: <FileText className="size-4" strokeWidth={1.75} />,
-              label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
-              onClick: handleExportPdf,
-            },
-            {
-              key: "export-epub",
-              icon: <FileText className="size-4" strokeWidth={1.75} />,
-              label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
-              onClick: handleExportEpub,
-            },
-            {
-              key: "delete",
-              icon: <Trash2 className="size-4" strokeWidth={1.75} />,
-              label: "删除笔记",
-              danger: true,
-              onClick: handleDelete,
-            },
-          ];
+      : [
+          ...(!isCard
+            ? [
+                {
+                  key: "convert-to-card",
+                  icon: <CreditCard className="size-4" strokeWidth={1.75} />,
+                  label: "转为卡片",
+                  onClick: handleConvertToCard,
+                },
+              ]
+            : []),
+          ...(!isArticle
+            ? [
+                {
+                  key: "convert-to-article",
+                  icon: <FileText className="size-4" strokeWidth={1.75} />,
+                  label: "转为文章",
+                  onClick: handleConvertToArticle,
+                },
+              ]
+            : []),
+          {
+            key: "add-to-resources",
+            icon: <Import className="size-4" strokeWidth={1.75} />,
+            label: "添加到资源列表",
+            onClick: handleAddToResourceList,
+          },
+          {
+            key: "insert-to-project",
+            icon: <Import className="size-4" strokeWidth={1.75} />,
+            label: "插入到项目",
+            onClick: handleInsertToProject,
+          },
+          {
+            key: "download-md",
+            icon: <Download className="size-4" strokeWidth={1.75} />,
+            label: "下载 Markdown",
+            onClick: handleDownloadMarkdown,
+          },
+          {
+            key: "export-pdf",
+            icon: <FileText className="size-4" strokeWidth={1.75} />,
+            label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
+            onClick: handleExportPdf,
+          },
+          {
+            key: "export-epub",
+            icon: <FileText className="size-4" strokeWidth={1.75} />,
+            label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
+            onClick: handleExportEpub,
+          },
+          {
+            key: "delete",
+            icon: <Trash2 className="size-4" strokeWidth={1.75} />,
+            label: "删除笔记",
+            danger: true,
+            onClick: handleDelete,
+          },
+        ];
 
   // 返回并保存
   const handleBack = useMemoizedFn(async () => {
@@ -892,7 +836,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       >
         <div
           className={
-            isMindMap || isPPT || isReport ? "h-full" : "mx-auto max-w-[760px] px-10 pb-16 pt-2"
+            isMindMap || isPPT || isReport ? "h-full" : "mx-auto max-w-[760px] px-10 pt-2 pb-16"
           }
         >
           <ErrorBoundary>
@@ -956,28 +900,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                     title="Report Preview"
                   />
                 )}
-              </div>
-            ) : isPodcast ? (
-              <div className="space-y-4">
-                {/* 播客播放器 */}
-                {podcast && (
-                  // 播客类型笔记不单独删除播客（随笔记删除），故不传 onDelete
-                  <PodcastPlayer podcast={podcast} />
-                )}
-                {!podcast && currentNote?.podcastId && (
-                  <div className="bg-warn-soft text-tau-meta text-warn rounded-tau-sm px-4 py-2.5">
-                    播客数据加载失败，请刷新页面重试
-                  </div>
-                )}
-                {/* 脚本内容（只读） */}
-                <Editor
-                  contentId={contentId || undefined}
-                  key={currentNote?.id || "new"}
-                  ref={editorRef}
-                  initValue={content}
-                  onChange={handleContentChange}
-                  readonly={true}
-                />
               </div>
             ) : (
               <Editor

@@ -1,6 +1,5 @@
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
-import type { IPodcast } from "./podcast";
 
 export interface ICreateArticle {
   contracts?: ContentContractDictionary;
@@ -26,8 +25,6 @@ export interface IArticle extends ICreateArticle {
   create_time: number;
   update_time: number;
   contentId: number;
-  podcastId?: number;
-  podcast?: IPodcast;
 }
 
 /** 文章页分页排序（置顶始终在前）：网格按更新时间分月，列表可点列头切换 */

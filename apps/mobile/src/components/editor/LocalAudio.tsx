@@ -4,6 +4,7 @@ import { resolveLocalMediaSource } from "./localMedia";
 import { useOptionalService } from "@tau/editor";
 import { IResourceService } from "@tau/shared/host-services";
 import { AudioPlayer, type AudioPlayerProps } from "@tau/shared";
+import { TranscriptionStatus } from "../../features/cards/recording/TranscriptionStatus";
 
 type LocalAudioProps = AudioPlayerProps & {
   src: string;
@@ -44,7 +45,12 @@ const LocalAudio = forwardRef<HTMLAudioElement, LocalAudioProps>(
       onError?.(event);
     };
 
-    return <AudioPlayer ref={ref} src={resolvedSrc || src} onError={handleError} {...restProps} />;
+    return (
+      <>
+        <AudioPlayer ref={ref} src={resolvedSrc || src} onError={handleError} {...restProps} />
+        <TranscriptionStatus src={src} />
+      </>
+    );
   }
 );
 

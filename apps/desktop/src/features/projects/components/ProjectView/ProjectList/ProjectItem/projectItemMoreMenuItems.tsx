@@ -6,7 +6,6 @@ import {
   CreditCard,
   Download,
   ExternalLink,
-  FileAudio,
   FileText,
   FileType,
   Image as ImageIcon,
@@ -27,7 +26,7 @@ import type { PluginEntityPanelTarget } from "@tau/plugins";
 import { EProjectItemType, type ProjectItem } from "@/types/project";
 import { isElectron } from "@/electron";
 
-type ProjectItemMenuSource = Partial<Pick<ProjectItem, "projectItemType" | "refType" | "podcast">>;
+type ProjectItemMenuSource = Partial<Pick<ProjectItem, "projectItemType" | "refType">>;
 
 type ProjectItemMenuItems = MenuEntryList;
 type ProjectItemMenuItem = ProjectItemMenuItems[number];
@@ -123,11 +122,6 @@ export const getProjectItemMoreMenuItems = (
             : undefined,
           { key: "ai-flashcard", label: "AI 制卡（闪卡）", icon: menuIcon(Sparkles) },
           { key: "manual-flashcard", label: "手动制卡（闪卡）", icon: menuIcon(CreditCard) },
-          {
-            key: "generate-podcast",
-            label: projectItem?.podcast ? "编辑播客" : "生成播客",
-            icon: menuIcon(FileAudio),
-          },
         ]),
       },
       { key: "remove-divider", label: "", divider: true },

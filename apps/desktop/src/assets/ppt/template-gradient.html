@@ -170,7 +170,7 @@
             content-visibility: visible;
         }
 
-        .slide.exiting {
+        .slide.is-leaving {
             opacity: 0;
             transform: translateX(-20px) scale(0.97);
             filter: blur(3px);
@@ -180,12 +180,8 @@
                 filter var(--dur-exit) ease-in;
         }
 
-        .slide.enter-backward {
+        [data-deck-direction="backward"] .slide.is-entering {
             transform: translateX(-30px) scale(0.98);
-        }
-
-        .slide.enter-backward.active {
-            transform: none;
         }
 
         .slide-center { align-items: center; text-align: center; }
@@ -1194,20 +1190,16 @@
 
         /* ── Overview ── */
 
-        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(12,10,26,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
-        .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:10px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+        /* ── 全览配色（结构由公共运行时提供） ── */
+        :root { --deck-ov-backdrop: rgba(12,10,26,.97); }
         .ov-card:hover{border-color:rgba(6,182,212,.4);transform:scale(1.03);box-shadow:0 4px 20px rgba(6,182,212,.12)}
         .ov-card.ov-current{border-color:rgba(6,182,212,.6);box-shadow:0 0 20px rgba(6,182,212,.12)}
-        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden;content-visibility:auto}
-        .ov-inner *{transition:none !important;animation:none !important}
-        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-clip,.ov-inner .reveal-blur,.ov-inner .reveal-spring{opacity:1 !important;transform:none !important;clip-path:none !important;filter:none !important}
         .ov-num{position:absolute;top:6px;right:8px;font-size:11px;color:var(--text-muted);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:6px;z-index:2;font-family:var(--font)}
         .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
         .ov-close:hover{background:rgba(255,255,255,.12)}
     </style>
 </head>
-<body>
+<body data-deck-lock="650">
 
     <div class="presentation" role="region" aria-roledescription="slide deck" aria-label="元宇宙与数字未来">
 
@@ -1582,260 +1574,20 @@
     </div>
 
     <!-- Progress (minimal visual, kept for API) -->
-    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-        <div class="progress-fill" id="progressFill"></div>
+    <div class="progress-bar">
+        <div class="progress-fill" data-deck-progress role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
 
     <!-- Dot Navigation -->
-    <nav class="nav-dots" role="tablist" aria-label="幻灯片导航" id="navDots"></nav>
+    <nav class="nav-dots" aria-label="幻灯片导航" data-deck-dots="nav-dot"></nav>
 
     <!-- Counter -->
     <div class="slide-counter" aria-live="polite">
-        <span class="current" id="counterCurrent">01</span>
+        <span class="current" data-deck-current="pad2">01</span>
         <span> / </span>
-        <span id="counterTotal">18</span>
+        <span data-deck-total="pad2">18</span>
     </div>
 
-    <script>
-    class SlidePresentation {
-        constructor() {
-            this.slides = Array.from(document.querySelectorAll('.slide'));
-            this.total = this.slides.length;
-            this.current = 0;
-            this.isTransitioning = false;
-            this.transitionDuration = 650;
-            this.wheelThreshold = 120;
-            this.wheelAccumulator = 0;
-            this.wheelTimer = null;
-            this.wheelCooldown = false;
-            this.touchStartY = 0;
-            this.touchStartX = 0;
-            this.swipeThreshold = 50;
-            this.overviewActive = false;
-            this.direction = 'forward';
-
-            this.progressFill = document.getElementById('progressFill');
-            this.counterCurrent = document.getElementById('counterCurrent');
-            this.counterTotal = document.getElementById('counterTotal');
-            this.navDotsContainer = document.getElementById('navDots');
-            this.progressBar = document.querySelector('.progress-bar');
-
-            if (this.counterTotal) this.counterTotal.textContent = String(this.total).padStart(2, '0');
-
-            this.createDotNav();
-            this.bindEvents();
-            this.updateUI();
-        }
-
-        createDotNav() {
-            if (!this.navDotsContainer) return;
-            for (let i = 0; i < this.total; i++) {
-                const dot = document.createElement('button');
-                dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
-                dot.setAttribute('role', 'tab');
-                dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-                dot.setAttribute('aria-label', `第${i + 1}页`);
-                dot.addEventListener('click', () => this.goTo(i));
-                this.navDotsContainer.appendChild(dot);
-            }
-            this.dots = Array.from(this.navDotsContainer.querySelectorAll('.nav-dot'));
-        }
-
-        bindEvents() {
-            document.addEventListener('keydown', (e) => this.handleKeyboard(e));
-            document.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
-            document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
-            document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
-        }
-
-        handleKeyboard(e) {
-            if (this.overviewActive && e.key !== 'Escape' && e.key !== 'o' && e.key !== 'O') return;
-            const map = {
-                'ArrowRight': 'next', 'ArrowDown': 'next', ' ': 'next', 'PageDown': 'next',
-                'ArrowLeft': 'prev', 'ArrowUp': 'prev', 'PageUp': 'prev',
-                'Home': 'first', 'End': 'last'
-            };
-            const action = map[e.key];
-            if (!action) {
-                if (e.key === 'f' || e.key === 'F') { e.preventDefault(); this.toggleFullscreen(); }
-                else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); this.toggleOverview(); }
-                else if (e.key === 'Escape') { this.closeOverview(); }
-                return;
-            }
-            e.preventDefault();
-            if (action === 'next') this.next();
-            else if (action === 'prev') this.prev();
-            else if (action === 'first') this.goTo(0);
-            else if (action === 'last') this.goTo(this.total - 1);
-        }
-
-        handleWheel(e) {
-            e.preventDefault();
-            if (this.isTransitioning || this.wheelCooldown) return;
-            this.wheelAccumulator += e.deltaY;
-            clearTimeout(this.wheelTimer);
-            this.wheelTimer = setTimeout(() => { this.wheelAccumulator = 0; }, 200);
-            if (Math.abs(this.wheelAccumulator) >= this.wheelThreshold) {
-                this.wheelAccumulator > 0 ? this.next() : this.prev();
-                this.wheelAccumulator = 0;
-                this.wheelCooldown = true;
-                setTimeout(() => { this.wheelCooldown = false; }, 400);
-            }
-        }
-
-        handleTouchStart(e) {
-            const t = e.changedTouches[0];
-            this.touchStartY = t.clientY;
-            this.touchStartX = t.clientX;
-        }
-
-        handleTouchEnd(e) {
-            const t = e.changedTouches[0];
-            const dy = this.touchStartY - t.clientY;
-            const dx = this.touchStartX - t.clientX;
-            if (Math.abs(dy) < this.swipeThreshold && Math.abs(dx) < this.swipeThreshold) return;
-            if (Math.abs(dy) > Math.abs(dx)) { dy > 0 ? this.next() : this.prev(); }
-            else { dx > 0 ? this.next() : this.prev(); }
-        }
-
-        next() { this.direction = 'forward'; this.goTo(this.current + 1); }
-        prev() { this.direction = 'backward'; this.goTo(this.current - 1); }
-
-        goTo(index) {
-            if (this.isTransitioning) return;
-            const target = Math.max(0, Math.min(this.total - 1, index));
-            if (target === this.current) return;
-
-            this.isTransitioning = true;
-            const outgoing = this.slides[this.current];
-            const incoming = this.slides[target];
-
-            this.direction = target > this.current ? 'forward' : 'backward';
-
-            outgoing.classList.add('exiting');
-            outgoing.classList.remove('active');
-            outgoing.removeAttribute('aria-current');
-
-            if (this.direction === 'backward') {
-                incoming.classList.add('enter-backward');
-            }
-
-            requestAnimationFrame(() => {
-                incoming.classList.add('active');
-                incoming.setAttribute('aria-current', 'true');
-                this.current = target;
-                this.updateUI();
-                this.triggerEffects();
-            });
-
-            setTimeout(() => {
-                outgoing.classList.remove('exiting');
-                incoming.classList.remove('enter-backward');
-                this.isTransitioning = false;
-            }, this.transitionDuration);
-        }
-
-        updateUI() {
-            const progress = this.total > 1 ? (this.current / (this.total - 1)) * 100 : 100;
-            if (this.progressFill) this.progressFill.style.width = progress + '%';
-            if (this.progressBar) this.progressBar.setAttribute('aria-valuenow', Math.round(progress));
-            if (this.counterCurrent) this.counterCurrent.textContent = String(this.current + 1).padStart(2, '0');
-            if (this.dots) {
-                this.dots.forEach((dot, i) => {
-                    const isActive = i === this.current;
-                    dot.classList.toggle('active', isActive);
-                    dot.setAttribute('aria-selected', isActive ? 'true' : 'false');
-                });
-            }
-        }
-
-        triggerEffects() {
-            const slide = this.slides[this.current];
-            slide.querySelectorAll('[data-count]').forEach(el => {
-                if (el.dataset.counted) return;
-                el.dataset.counted = 'true';
-                const target = parseFloat(el.dataset.count);
-                if (isNaN(target)) return;
-                const suffix = el.dataset.suffix || '';
-                const isFloat = String(target).includes('.');
-                const decimals = isFloat ? (String(target).split('.')[1] || '').length : 0;
-                const duration = 1400;
-                const start = performance.now();
-                const tick = (now) => {
-                    const elapsed = now - start;
-                    const p = Math.min(elapsed / duration, 1);
-                    const eased = 1 - Math.pow(1 - p, 4);
-                    const value = eased * target;
-                    el.textContent = (isFloat ? value.toFixed(decimals) : Math.round(value)) + suffix;
-                    if (p < 1) requestAnimationFrame(tick);
-                    else el.textContent = (isFloat ? target.toFixed(decimals) : target) + suffix;
-                };
-                el.textContent = (isFloat ? (0).toFixed(decimals) : '0') + suffix;
-                setTimeout(() => requestAnimationFrame(tick), 400);
-            });
-            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
-                if (!el.dataset.filled) {
-                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 400);
-                    el.dataset.filled = 'true';
-                }
-            });
-        }
-
-        toggleFullscreen() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-            else document.exitFullscreen().catch(() => {});
-        }
-
-        toggleOverview() {
-            if (this.overviewActive) { this.closeOverview(); return; }
-            this.overviewActive = true;
-            const ov = document.createElement('div');
-            ov.className = 'ov-grid';
-            const close = document.createElement('button');
-            close.className = 'ov-close';
-            close.innerHTML = '&times;';
-            close.onclick = () => this.closeOverview();
-            ov.appendChild(close);
-            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
-            this.slides.forEach((slide, i) => {
-                const card = document.createElement('div');
-                card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
-                card.style.aspectRatio = vpAR;
-                const inner = document.createElement('div');
-                inner.className = 'ov-inner';
-                const clone = slide.cloneNode(true);
-                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;filter:none;pointer-events:none;content-visibility:visible;';
-                clone.classList.add('active');
-                inner.appendChild(clone);
-                const num = document.createElement('span');
-                num.className = 'ov-num';
-                num.textContent = i + 1;
-                card.appendChild(inner);
-                card.appendChild(num);
-                card.onclick = () => { this.goTo(i); this.closeOverview(); };
-                ov.appendChild(card);
-            });
-            document.body.appendChild(ov);
-            this._ovEl = ov;
-            requestAnimationFrame(() => {
-                ov.querySelectorAll('.ov-inner').forEach(inner => {
-                    const card = inner.parentElement;
-                    const sx = card.offsetWidth / window.innerWidth;
-                    const sy = card.offsetHeight / window.innerHeight;
-                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
-                });
-                ov.classList.add('ov-visible');
-            });
-        }
-
-        closeOverview() {
-            this.overviewActive = false;
-            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
-    </script>
 
 </body>
 </html>

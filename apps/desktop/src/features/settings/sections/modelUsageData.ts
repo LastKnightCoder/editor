@@ -144,6 +144,8 @@ const GENERATION_LABELS: Record<string, string> = {
 export function featureLabel(feature: string): string {
   if (feature === OTHER_KEY) return "其他";
   if (FEATURE_LABELS[feature]) return FEATURE_LABELS[feature];
+  if (feature.startsWith("generation:plugin:"))
+    return `生成·${feature.slice("generation:plugin:".length)}`;
   if (feature.startsWith("generation:")) {
     const task = feature.slice("generation:".length);
     return `生成·${GENERATION_LABELS[task] ?? task}`;

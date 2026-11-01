@@ -21,6 +21,7 @@ import type { PluginSidebar } from "./sidebar";
 import type { PluginHome } from "./home";
 import type { PluginActions } from "./actions";
 import type { PluginViews } from "./views";
+import type { PluginNotebooks } from "./notebooks";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
@@ -85,6 +86,8 @@ export interface PluginContext {
   readonly actions: PluginActions;
   /** 卡片、文章、项目文档详情里的区块 */
   readonly views: PluginViews;
+  /** Notebook 的生成菜单里加产物；只在桌面主窗口 */
+  readonly notebooks: PluginNotebooks;
   readonly excerpts: PluginExcerpts;
   readonly materials: PluginMaterials;
   readonly fetch: typeof globalThis.fetch;

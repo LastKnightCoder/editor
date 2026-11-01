@@ -5,7 +5,7 @@ import { type AnnotationElement } from "./types.ts";
 
 import blockPanelItems from "./block-panel-items/index.ts";
 import Annotation from "./components/Annotation/index.tsx";
-import { annotationCommands, annotationHotkeys } from "./commands.ts";
+import { annotationCommands } from "./commands.ts";
 
 const annotationExtension = defineExtension({
   id: "tau.annotation",
@@ -24,7 +24,6 @@ const annotationExtension = defineExtension({
   ],
   blockPanel: blockPanelItems,
   commands: annotationCommands,
-  hotkeys: annotationHotkeys,
 });
 
 export default annotationExtension;

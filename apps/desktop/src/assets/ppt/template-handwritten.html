@@ -263,22 +263,18 @@
         }
 
         /* Overview */
-        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(253,248,240,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
-        .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px dashed rgba(61,44,44,.12);border-radius:12px;cursor:pointer;transition:border-color .2s,transform .15s;background:var(--paper);box-shadow:2px 2px 8px rgba(61,44,44,.06)}
+        /* ── 全览配色（结构由公共运行时提供） ── */
+        :root { --deck-ov-backdrop: rgba(253,248,240,.97); --deck-ov-card-bg: var(--paper); }
         .ov-card:hover{border-color:var(--pink);transform:scale(1.03)}
         .ov-card.ov-current{border-color:var(--pink);box-shadow:0 0 0 3px rgba(244,160,176,.3)}
-        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
-        .ov-inner *{transition:none !important}
-        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right{opacity:1 !important;transform:none !important}
         .ov-num{position:absolute;top:6px;right:8px;font-size:11px;color:var(--ink-mid);background:rgba(255,255,255,.8);padding:2px 8px;border-radius:10px;z-index:2;font-family:var(--font-display)}
         .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:none;background:white;color:var(--ink);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 6px rgba(61,44,44,.08)}
         .ov-close:hover{background:var(--pink-light)}
     </style>
 </head>
-<body>
-    <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="page-num" id="pageNum">1 / 17</div>
+<body data-deck-lock="600">
+    <div class="progress-wrap"><div class="progress-fill" data-deck-progress></div></div>
+    <div class="page-num"><span data-deck-current>1</span> / <span data-deck-total>17</span></div>
 
     <!-- S1: COVER -->
     <section class="slide slide-cover active">
@@ -927,55 +923,8 @@
         }
     }
 
-    class SlidePresentation {
-        constructor() {
-            this.slides = document.querySelectorAll('.slide');
-            this.totalSlides = this.slides.length;
-            this.currentSlide = 0;
-            this.isLocked = false;
-            this.overviewActive = false;
-            this.lockDuration = 600;
-            this.progressFill = document.getElementById('progressFill');
-            this.pageNum = document.getElementById('pageNum');
-            this.updateUI();
-            this.bindKeyboard();
-            this.bindWheel();
-            this.bindTouch();
-        }
-        bindKeyboard() {
-            window.addEventListener('keydown', e => {
-                switch(e.key) {
-                    case 'ArrowRight':case 'ArrowDown':case ' ':case 'PageDown': e.preventDefault(); this.next(); break;
-                    case 'ArrowLeft':case 'ArrowUp':case 'PageUp': e.preventDefault(); this.prev(); break;
-                    case 'Home': e.preventDefault(); this.goTo(0); break;
-                    case 'End': e.preventDefault(); this.goTo(this.totalSlides-1); break;
-                    case 'f':case 'F': e.preventDefault(); this.toggleFullscreen(); break;
-                    case 'o':case 'O': e.preventDefault(); this.toggleOverview(); break;
-                    case 'Escape': this.closeOverview(); break;
-                }
-            });
-        }
-        bindWheel() {
-            let acc=0;
-            window.addEventListener('wheel', e => { e.preventDefault(); acc+=e.deltaY; if(Math.abs(acc)>=50){acc>0?this.next():this.prev();acc=0;} clearTimeout(this._wt); this._wt=setTimeout(()=>{acc=0;},200); }, {passive:false});
-        }
-        bindTouch() {
-            let sx=0,sy=0;
-            window.addEventListener('touchstart', e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
-            window.addEventListener('touchend', e=>{const dx=sx-e.changedTouches[0].clientX,dy=sy-e.changedTouches[0].clientY;if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>50){dx>0?this.next():this.prev();}else if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>50){dy>0?this.next():this.prev();}},{passive:true});
-        }
-        next(){this.goTo(this.currentSlide+1);}
-        prev(){this.goTo(this.currentSlide-1);}
-        goTo(i){if(this.isLocked||i<0||i>=this.totalSlides||i===this.currentSlide)return;this.isLocked=true;this.slides[this.currentSlide].classList.remove('active');this.currentSlide=i;this.slides[this.currentSlide].classList.add('active');this.updateUI();this.triggerEffects(i);setTimeout(()=>{this.isLocked=false;},this.lockDuration);}
-        updateUI(){const pct=this.totalSlides>1?(this.currentSlide/(this.totalSlides-1))*100:100;if(this.progressFill)this.progressFill.style.width=pct+'%';if(this.pageNum)this.pageNum.textContent=(this.currentSlide+1)+' / '+this.totalSlides;}
-        triggerEffects(i){const slide=this.slides[i];slide.querySelectorAll('.chart-fill[data-percent]').forEach(el=>{if(!el.dataset.filled){setTimeout(()=>{el.style.width=el.dataset.percent+'%';},300);el.dataset.filled='true';}});}
-        toggleFullscreen(){if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});else document.exitFullscreen().catch(()=>{});}
-        toggleOverview(){if(this.overviewActive){this.closeOverview();return;}this.overviewActive=true;const ov=document.createElement('div');ov.className='ov-grid';const close=document.createElement('button');close.className='ov-close';close.innerHTML='&times;';close.onclick=()=>this.closeOverview();ov.appendChild(close);this.slides.forEach((slide,i)=>{const card=document.createElement('div');card.className='ov-card'+(i===this.currentSlide?' ov-current':'');const inner=document.createElement('div');inner.className='ov-inner';const clone=slide.cloneNode(true);clone.style.cssText='position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;';clone.classList.add('active');inner.appendChild(clone);const num=document.createElement('span');num.className='ov-num';num.textContent=i+1;card.appendChild(inner);card.appendChild(num);card.onclick=()=>{this.goTo(i);this.closeOverview();};ov.appendChild(card);});document.body.appendChild(ov);this._ovEl=ov;requestAnimationFrame(()=>{ov.querySelectorAll('.ov-inner').forEach(inner=>{const card=inner.parentElement;inner.style.transform='scale('+Math.min(card.offsetWidth/window.innerWidth,card.offsetHeight/window.innerHeight)+')';});ov.classList.add('ov-visible');});}
-        closeOverview(){this.overviewActive=false;if(this._ovEl){this._ovEl.remove();this._ovEl=null;}}
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
-        requestAnimationFrame(() => { requestAnimationFrame(() => { new RoughDecorations(); new SlidePresentation(); }); });
+        requestAnimationFrame(() => { requestAnimationFrame(() => { new RoughDecorations(); }); });
     });
     let resizeTimeout;
     window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { document.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);}}); new RoughDecorations(); }, 300); });

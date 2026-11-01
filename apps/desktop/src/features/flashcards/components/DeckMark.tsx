@@ -1,4 +1,4 @@
-import DeckIcon from "@/components/DeckIcon";
+import DeckIcon from "@tau/shared/deck-icon";
 import type { FlashcardDeck } from "@/types";
 import { cn } from "@tau/ui";
 import { TONE_MARK, deckTone } from "../deckColors";

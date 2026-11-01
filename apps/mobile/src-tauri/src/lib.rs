@@ -2,10 +2,14 @@ mod ai;
 mod ai_settings;
 mod app_feedback;
 mod app_update;
+mod audio_transcode;
 mod chunked_sync;
 mod collaboration;
 mod collaboration_assets;
 mod database;
+mod device_sync;
+#[cfg(feature = "device-sync-spike")]
+pub use device_sync::spike as device_sync_spike;
 mod image_settings;
 mod incoming_file;
 #[cfg(target_os = "ios")]
@@ -25,6 +29,7 @@ mod plugin_transport;
 mod plugins;
 mod provider_settings;
 mod reading_font;
+mod recording;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -76,7 +81,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_native_speech::init())
+        .plugin(tauri_plugin_native_record::init())
+        .plugin(tauri_plugin_local_notify::init())
         .invoke_handler(tauri::generate_handler![
+            device_sync::device_sync_store,
+            device_sync::transport::device_sync_pair,
+            device_sync::transport::device_sync_request,
+            device_sync::assets::device_sync_asset,
             ai::ai_library_acquire,
             ai::ai_library_assert,
             ai::ai_library_release,
@@ -111,7 +122,6 @@ pub fn run() {
             reading_font::reading_font_installed,
             reading_font::reading_font_download,
             reading_font::reading_font_cancel_download,
-            reading_font::reading_font_remove,
             reading_font::reading_font_read,
             plugin_center::plugin_center_refresh,
             plugin_center::plugin_center_config,
@@ -167,6 +177,9 @@ pub fn run() {
             plugins::plugin_set_enabled,
             plugins::plugin_uninstall,
             database::plugin_data_read,
+            database::plugin_excerpts,
+            database::excerpt_open_target,
+            database::plugin_material_card,
             database::ai_sql_query,
             database::plugin_flashcards,
             database::plugin_app_query,
@@ -228,6 +241,9 @@ pub fn run() {
             database::todo_create_item,
             database::todo_create_item_relative,
             database::todo_update_item,
+            database::reminder_list,
+            database::reminder_set,
+            database::reminder_upcoming,
             database::todo_toggle_complete_cascade,
             database::todo_move_and_reorder,
             database::todo_archive_item,
@@ -308,6 +324,18 @@ pub fn run() {
             resource_upload::read_image_resource,
             resource_upload::read_resource_thumb,
             remote_resource_cache::remote_resource_to_local,
+            recording::recording_start,
+            recording::recording_pause,
+            recording::recording_resume,
+            recording::recording_stop,
+            recording::recording_cancel,
+            recording::recording_discard,
+            recording::recording_open_settings,
+            recording::recording_pending,
+            recording::recording_recover,
+            recording::transcript_audio_prepare,
+            recording::transcript_audio_read,
+            recording::transcript_audio_release,
             sync::sync_check_versions,
             sync::sync_upload_database,
             sync::sync_download_database,
@@ -360,6 +388,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {
+            if matches!(_event, tauri::RunEvent::Resumed) {
+                use tauri::Emitter;
+                let _ = _app.emit("device-sync-resume", ());
+                let _ = _app.emit("app-foreground", ());
+            }
             #[cfg(target_os = "ios")]
             if let tauri::RunEvent::Opened { urls } = _event {
                 incoming_file::receive_opened(_app, urls);

@@ -11,6 +11,7 @@
     "core:window:allow-close",
     "core:window:allow-destroy",
     "opener:default",
-    "native-speech:default"
+    "native-speech:default",
+    "local-notify:default"
   ]
 }

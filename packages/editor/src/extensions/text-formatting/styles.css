@@ -39,3 +39,39 @@
   --ed-highlight-bg-mix: 24%;
   --ed-highlight-line-mix: 75%;
 }
+
+/*
+ * 马克笔高亮：左笔头 + 中段平铺 + 右笔头三张切片（取值由 Highlight 组件按色与明暗内联）。
+ * 笔头画在左右 padding 里，再用等量负 margin 抵消，开关笔触时文字位置不变；
+ * clone 让换行后的每一行片段各自带两端笔头。
+ */
+.ed-marker {
+  --ed-marker-cap-l: 6px;
+  --ed-marker-cap-r: 6px;
+  padding: 0 var(--ed-marker-cap-r) 0 var(--ed-marker-cap-l);
+  margin: 0 calc(-1 * var(--ed-marker-cap-r)) 0 calc(-1 * var(--ed-marker-cap-l));
+  background-image: var(--ed-marker-left), var(--ed-marker-right), var(--ed-marker-mid);
+  background-repeat: no-repeat, no-repeat, repeat-x;
+  background-size:
+    var(--ed-marker-cap-l) 100%,
+    var(--ed-marker-cap-r) 100%,
+    var(--ed-marker-mid-size) 100%;
+  background-position:
+    left top,
+    right top,
+    left top;
+  background-origin: border-box, border-box, content-box;
+  background-clip: border-box, border-box, content-box;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* 同一段高亮被加粗、链接、装饰等拆成相邻叶子时，衔接处不画笔头，避免中间叠出一道深色 */
+[data-slate-node="text"]:has(+ [data-slate-node="text"] [data-ed-highlight]) .ed-marker,
+[data-slate-leaf]:has(+ [data-slate-leaf] [data-ed-highlight]) .ed-marker {
+  --ed-marker-cap-r: 0px;
+}
+[data-slate-node="text"]:has([data-ed-highlight]) + [data-slate-node="text"] .ed-marker,
+[data-slate-leaf]:has([data-ed-highlight]) + [data-slate-leaf] .ed-marker {
+  --ed-marker-cap-l: 0px;
+}

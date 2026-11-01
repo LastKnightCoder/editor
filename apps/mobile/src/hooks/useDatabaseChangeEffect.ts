@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export type DatabaseChangeReason = "switch" | "syncDownload";
+export type DatabaseChangeReason = "switch" | "syncDownload" | "deviceSync" | "deviceDownload";
 
 export type DatabaseChangeEvent = {
   reason: DatabaseChangeReason;
@@ -10,9 +10,7 @@ export type DatabaseChangeEvent = {
   timestamp: number;
 };
 
-type DatabaseChangeEffect = (
-  event: DatabaseChangeEvent,
-) => void | Promise<void>;
+type DatabaseChangeEffect = (event: DatabaseChangeEvent) => void | Promise<void>;
 
 const listeners = new Set<DatabaseChangeEffect>();
 
@@ -24,17 +22,17 @@ function subscribeDatabaseChange(listener: DatabaseChangeEffect): () => void {
 }
 
 export async function emitDatabaseChange(
-  event: DatabaseChangeEvent,
+  event: DatabaseChangeEvent
 ): Promise<PromiseSettledResult<void>[]> {
-  const tasks = Array.from(listeners).map((listener) =>
-    Promise.resolve().then(() => listener(event)),
+  const tasks = Array.from(listeners).map(listener =>
+    Promise.resolve().then(() => listener(event))
   );
   return Promise.allSettled(tasks);
 }
 
 export function useDatabaseChangeEffect(
   callback: DatabaseChangeEffect,
-  deps: React.DependencyList = [],
+  deps: React.DependencyList = []
 ) {
   const callbackRef = useRef(callback);
 
@@ -43,9 +41,7 @@ export function useDatabaseChangeEffect(
   }, [callback]);
 
   useEffect(() => {
-    const unsubscribe = subscribeDatabaseChange((event) =>
-      callbackRef.current(event),
-    );
+    const unsubscribe = subscribeDatabaseChange(event => callbackRef.current(event));
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);

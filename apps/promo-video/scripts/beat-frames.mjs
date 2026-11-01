@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("../src/brand/music.ts", import.meta.url), "utf8");
 const track = source.slice(source.indexOf("motivationalTechnology"));
-const beats = JSON.parse(track.match(/beats: (\[[^\]]+\])/)[1]);
+const beats = JSON.parse(track.match(/beats: (\[[^\]]+\])/)[1].replace(/,\s*\]$/, "]"));
 const bpm = Number(track.match(/bpm: ([\d.]+)/)[1]);
 const beatLen = 60 / bpm;
 const wholeBeat = n => (n < beats.length ? beats[n] : beats[beats.length - 1] + (n - beats.length + 1) * beatLen);

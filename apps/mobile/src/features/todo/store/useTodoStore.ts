@@ -22,6 +22,7 @@ import type {
   UpdateTodoItemPayload,
 } from "../../../types";
 import { resolveStatsMap } from "../queries";
+import { readReminderSettings } from "../../reminders/settings";
 
 const TODO_SYSTEM_TYPES: Exclude<TodoSystemGroupType, null>[] = [
   "all",
@@ -72,6 +73,33 @@ type TodoState = {
 
 function invalidateTodoQueries() {
   getQueryClient().invalidateQueries({ queryKey: ["todo"] });
+}
+
+/** 缓存里查任务原状态（任一 items 订阅里有即可） */
+function cachedItem(id: number): TodoItem | undefined {
+  for (const [, items] of getQueryClient().getQueriesData<TodoItem[]>({
+    queryKey: ["todo", "items"],
+  })) {
+    const hit = Array.isArray(items) ? items.find(item => item.id === id) : undefined;
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+/**
+ * 任务刚成为「有截止时间的截止任务」且还没有提醒时，套用设置里的默认提醒；
+ * 已有提醒或原本就是截止任务的不动。
+ */
+async function applyDefaultReminders(item: TodoItem, before?: TodoItem): Promise<TodoItem> {
+  const becameDeadline =
+    item.type === "deadline" &&
+    item.dueAt != null &&
+    !(before?.type === "deadline" && before.dueAt != null);
+  if (!becameDeadline || item.remindBefore != null) return item;
+  const defaults = readReminderSettings().todo;
+  if (!defaults.length) return item;
+  const saved = await tauri.reminderSet("todo", item.id, defaults);
+  return { ...item, remindBefore: saved[0] ?? null };
 }
 
 async function fetchAllGroupData() {
@@ -204,17 +232,18 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
   },
 
   createItem: async payload => {
-    const item = await tauri.todoCreateItem(payload);
+    const item = await applyDefaultReminders(await tauri.todoCreateItem(payload));
     invalidateTodoQueries();
     return item;
   },
   createItemRelative: async payload => {
-    const item = await tauri.todoCreateItemRelative(payload);
+    const item = await applyDefaultReminders(await tauri.todoCreateItemRelative(payload));
     invalidateTodoQueries();
     return item;
   },
   updateItem: async payload => {
-    const item = await tauri.todoUpdateItem(payload);
+    const before = cachedItem(payload.id);
+    const item = await applyDefaultReminders(await tauri.todoUpdateItem(payload), before);
     invalidateTodoQueries();
     return item;
   },

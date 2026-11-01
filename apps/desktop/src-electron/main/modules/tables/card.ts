@@ -38,8 +38,6 @@ export default class CardTable {
       "is-content-is-card": this.isContentIsCard.bind(this),
       "get-card-by-content-id": this.getCardByContentId.bind(this),
       "build-card-from-content": this.buildCardFromContent.bind(this),
-      "attach-podcast-to-card": this.attachPodcast.bind(this),
-      "detach-podcast-from-card": this.detachPodcast.bind(this),
       "get-cards-by-dates": this.getCardsByDates.bind(this),
       "get-cards-by-date-range": this.getCardsByDateRange.bind(this),
       "get-cards-content-by-ids": asynchronousDatabaseCommand(this.getCardsContentByIds.bind(this)),
@@ -54,9 +52,9 @@ export default class CardTable {
 
   static getScopedCards(db: Database.Database, scope: CardDatabaseScope) {
     this.assertDatabase(db, scope);
-    // 列表轻表：不 JOIN podcasts、content 截为预览块，全量数据经 getScopedCard 按需单卡获取
+    // 列表轻表：content 截为预览块，全量数据经 getScopedCard 按需单卡获取
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top,
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
@@ -129,24 +127,6 @@ export default class CardTable {
       ? Math.max(card.update_time, card.content_update_time)
       : card.update_time;
 
-    // 解析 podcast 数据
-    let podcast = undefined;
-    if (card.podcast_id && card.podcast_audio_url) {
-      try {
-        podcast = {
-          id: card.podcast_id,
-          name: card.podcast_name || undefined,
-          audioUrl: card.podcast_audio_url,
-          script: card.podcast_script || "",
-          scriptLines: card.podcast_script_lines ? JSON.parse(card.podcast_script_lines) : [],
-          duration: card.podcast_duration || 0,
-          speakers: card.podcast_speakers ? JSON.parse(card.podcast_speakers) : [],
-        };
-      } catch (error) {
-        console.error("Error parsing podcast data:", error);
-      }
-    }
-
     return {
       id: card.id,
       create_time: card.create_time,
@@ -157,8 +137,6 @@ export default class CardTable {
       count: count,
       contentId: card.content_id,
       isTop: !!card.is_top,
-      podcastId: card.podcast_id || undefined,
-      podcast,
       aiTitle: parseContentAiMeta(card.ai_meta)?.title || undefined,
     };
   }
@@ -185,14 +163,12 @@ export default class CardTable {
 
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top,
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
-             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      LEFT JOIN podcasts p ON c.podcast_id = p.id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
     const cards = stmt.all();
@@ -201,14 +177,12 @@ export default class CardTable {
 
   static getCardById(db: Database.Database, cardId: number | bigint): ICard | null {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top,
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
-             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.id = ?
     `);
     const card = stmt.get(cardId);
@@ -223,14 +197,12 @@ export default class CardTable {
 
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top,
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
-             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.id IN (${placeholders})
     `);
     const cards = stmt.all(cardIds);
@@ -428,36 +400,18 @@ export default class CardTable {
     return this.getCardById(db, cardId) as ICard;
   }
 
-  static attachPodcast(db: Database.Database, cardId: number, podcastId: number): ICard | null {
-    const stmt = db.prepare("UPDATE cards SET podcast_id = ?, update_time = ? WHERE id = ?");
-    const now = Date.now();
-    stmt.run(podcastId, now, cardId);
-    Operation.insertOperation(db, "card", "update", cardId, now);
-    return this.getCardById(db, cardId);
-  }
-
-  static detachPodcast(db: Database.Database, cardId: number): ICard | null {
-    const stmt = db.prepare("UPDATE cards SET podcast_id = NULL, update_time = ? WHERE id = ?");
-    const now = Date.now();
-    stmt.run(now, cardId);
-    Operation.insertOperation(db, "card", "update", cardId, now);
-    return this.getCardById(db, cardId);
-  }
-
   // 批量日期查询
   static getCardsByDates(db: Database.Database, dates: string[]): Record<string, ICard[]> {
     if (dates.length === 0) return {};
 
     const placeholders = dates.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top,
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
-             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE date(c.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY c.update_time DESC
     `);
@@ -486,14 +440,12 @@ export default class CardTable {
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
 
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top,
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
-             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
-             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+             ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
-      LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.update_time >= ? AND c.update_time <= ?
       ORDER BY c.update_time DESC
     `);

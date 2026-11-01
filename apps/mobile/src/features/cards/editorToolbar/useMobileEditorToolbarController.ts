@@ -76,6 +76,8 @@ import {
   type EditingContext,
 } from "./editingContext";
 import { promptInsertWebview } from "./mediaActions";
+import { startEditorRecording } from "../recording/recordingSession";
+import type { RecordingPersistence } from "../recording/recordingPersistence";
 import {
   captureTtsInsertTarget,
   selectedPlainText,
@@ -117,7 +119,8 @@ export type InsertSheetItemKind =
   | "webview"
   | "annotation"
   | "content-link"
-  | "tts";
+  | "tts"
+  | "record";
 
 /** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 / 媒体尺寸面板（选中媒体时，键盘已收起）/ 语音面板 */
 export type EditorPanelKind = "style" | "insert" | "media" | "voice";
@@ -145,8 +148,18 @@ const LIST_INDENT_COMMANDS: Partial<Record<string, Record<ListIndentDirection, s
   },
 };
 
+/** 宿主页开启录音：录音与文档绑定（离开确认、找回都按文档），所以由能确定文档身份的页面声明 */
+export type EditorRecordingHost = {
+  /** 文档 key，如 `content:12` */
+  document: () => string | null;
+  /** 面板里显示的文档名 */
+  documentTitle: () => string;
+  persistence: () => RecordingPersistence;
+};
+
 type UseMobileEditorToolbarControllerOptions = {
   editorRef: RefObject<EditorRef | null>;
+  recording?: EditorRecordingHost;
 };
 
 export type MobileEditorToolbarController = {
@@ -249,6 +262,13 @@ export type MobileEditorToolbarController = {
   closeTts: () => void;
   /** 写入成功：关闭面板、光标落到新内容后，并给出可撤销提示 */
   handleTtsInserted: (kind: TtsInsertIntent["kind"]) => void;
+  /** 宿主开启了录音（插入面板显示「录音」） */
+  recordingEnabled: boolean;
+  /** 重新录制：录完原地换掉这个音频块的音频 */
+  rerecordAudio: (element: SlateElement, path: Path) => void;
+  /** 麦克风权限被拒，提示去系统设置 */
+  recordingPermissionDenied: boolean;
+  closeRecordingPermission: () => void;
 };
 
 function getListIndentCommand(node: unknown, direction: ListIndentDirection): string | null {
@@ -263,7 +283,11 @@ function getEditorFromRef(editorRef: RefObject<EditorRef | null>): SlateEditor |
 export function useMobileEditorToolbarController(
   options: UseMobileEditorToolbarControllerOptions
 ): MobileEditorToolbarController {
-  const { editorRef } = options;
+  const { editorRef, recording: recordingHost } = options;
+  const recordingHostRef = useRef(recordingHost);
+  recordingHostRef.current = recordingHost;
+  const recordingEnabled = Boolean(recordingHost);
+  const [recordingPermissionDenied, setRecordingPermissionDenied] = useState(false);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isContentLinkPickerOpen, setIsContentLinkPickerOpen] = useState(false);
   const [contentLinkPickerIntent, setContentLinkPickerIntent] =
@@ -502,7 +526,32 @@ export function useMobileEditorToolbarController(
     "mermaid",
     "webview",
     "tts",
+    "record",
   ]);
+
+  const startRecording = useCallback(
+    (editor: SlateEditor, replace?: { element: SlateElement; path: Path }) => {
+      const host = recordingHostRef.current;
+      const document = host?.document();
+      if (!host || !document) {
+        toast.warning("这里暂不支持录音");
+        return;
+      }
+      try {
+        void startEditorRecording({
+          editor,
+          document,
+          documentTitle: host.documentTitle(),
+          persistence: host.persistence(),
+          replace,
+          onPermissionDenied: () => setRecordingPermissionDenied(true),
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "当前正文不可录音");
+      }
+    },
+    []
+  );
 
   /** 插入面板条目分发；面板打开时作用于面板选区且不聚焦，面板开合由调用方负责 */
   const handleSelectInsertItem = useCallback(
@@ -588,6 +637,9 @@ export function useMobileEditorToolbarController(
         case "tts":
           openTts(editor, { kind: "insert" });
           break;
+        case "record":
+          startRecording(editor);
+          break;
       }
       if (editor.selection) {
         lastSelectionRef.current = editor.selection;
@@ -595,7 +647,7 @@ export function useMobileEditorToolbarController(
       markSelectionDirty();
     },
     // executeAction 为稳定引用（依赖均为 useCallback），此处引用安全
-    [executeAction, markSelectionDirty, openTts, restoreEditorSelection]
+    [executeAction, markSelectionDirty, openTts, restoreEditorSelection, startRecording]
   );
 
   /** 工具条图片直达按钮：一步拉起系统选图（上传/占位/回填由共享包 mediaInsert 完成），
@@ -941,6 +993,15 @@ export function useMobileEditorToolbarController(
     },
     [editorRef, openTts]
   );
+
+  const rerecordAudio = useCallback(
+    (element: SlateElement, path: Path) => {
+      const editor = getEditorFromRef(editorRef);
+      if (editor) startRecording(editor, { element, path });
+    },
+    [editorRef, startRecording]
+  );
+  const closeRecordingPermission = useCallback(() => setRecordingPermissionDenied(false), []);
 
   const closeTts = useCallback(() => {
     ttsTargetRef.current?.dispose();
@@ -1328,6 +1389,10 @@ export function useMobileEditorToolbarController(
       openTtsForAudio,
       closeTts,
       handleTtsInserted,
+      recordingEnabled,
+      rerecordAudio,
+      recordingPermissionDenied,
+      closeRecordingPermission,
     }),
     [
       openContentMention,
@@ -1391,6 +1456,10 @@ export function useMobileEditorToolbarController(
       openTtsForAudio,
       closeTts,
       handleTtsInserted,
+      recordingEnabled,
+      rerecordAudio,
+      recordingPermissionDenied,
+      closeRecordingPermission,
     ]
   );
 }

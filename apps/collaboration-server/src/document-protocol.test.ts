@@ -56,8 +56,14 @@ async function setup() {
 }
 
 describe("真实服务发布与版本边界", () => {
-  it("Node 导出使用当前备份格式，保留正文与协议且不附带迁移账本", async () => {
+  it("Node 导出使用当前备份格式，保留正文、协议与历史账本", async () => {
     const { store, row } = await setup();
+    store.db.exec(`
+      CREATE TABLE identity_merges(source_id TEXT PRIMARY KEY, target_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE collaboration_migrations(operation_id TEXT PRIMARY KEY, document_id TEXT NOT NULL, value TEXT NOT NULL);
+      INSERT INTO identity_merges VALUES ('former', 'current', 1);
+      INSERT INTO collaboration_migrations VALUES ('historical', 'retired', '{"phase":"COMPLETE"}');
+    `);
     const target = join(store.config.dataDir, "export");
     execFileSync(process.execPath, [
       fileURLToPath(
@@ -67,11 +73,15 @@ describe("真实服务发布与版本边界", () => {
       target,
     ]);
     const metadata = JSON.parse(readFileSync(join(target, "metadata.json"), "utf8"));
-    expect(metadata.format).toBe(5);
+    expect(metadata.format).toBe(6);
     expect(metadata.tables.collaboration_protocol).toHaveLength(1);
     expect(metadata.tables.collaboration_operations).toEqual([]);
-    expect(metadata.tables).not.toHaveProperty("collaboration_migrations");
-    expect(metadata.tables).not.toHaveProperty("identity_merges");
+    expect(metadata.tables.collaboration_migrations).toEqual([
+      { operation_id: "historical", document_id: "retired", value: '{"phase":"COMPLETE"}' },
+    ]);
+    expect(metadata.tables.identity_merges).toEqual([
+      { source_id: "former", target_id: "current", created_at: 1 },
+    ]);
     const doc = new Y.Doc();
     try {
       Y.applyUpdate(doc, readFileSync(join(target, "documents", row.id)));

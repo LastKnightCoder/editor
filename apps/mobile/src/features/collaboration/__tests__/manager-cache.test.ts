@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
 import * as Y from "yjs";
+import { HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
   createNodeDocument,
   NodeTree,
@@ -58,6 +59,7 @@ vi.mock("../core/rest", () => ({
 const manager = collaborationManager as unknown as {
   stopped: boolean;
   sessions: Map<string, RuntimeSession>;
+  transports: Map<string, HocuspocusProviderWebsocket>;
   attach(session: RuntimeSession): void;
   createSession(info: SharedDocumentInfo): Promise<RuntimeSession>;
   openSession(info: SharedDocumentInfo): Promise<RuntimeSession>;
@@ -200,6 +202,74 @@ async function imageFixture() {
   io.read.mockResolvedValue({ metadata: value.info, state, updates: [], revision: "cache" });
   return { ...value, reference, state };
 }
+
+it.each(["reconnect", "cache-retry"])(
+  "%s 保留其他房间的传输、当前文档的 Awareness 与视图订阅",
+  async action => {
+    const { doc, info, state, content, contracts } = await fixture();
+    io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+    const first = await manager.createSession(info);
+    const other = await createNodeDocument(
+      { documentId: "other", baselineId: "base", epoch: 0 },
+      content,
+      contracts
+    );
+    io.read.mockResolvedValue(null);
+    io.remote.mockResolvedValue({ state: bytesToBase64(Y.encodeStateAsUpdate(other)) });
+    const second = await manager.createSession({ ...info, id: "other" });
+    const socket = new HocuspocusProviderWebsocket({
+      url: "ws://127.0.0.1:9/ws",
+      autoConnect: false,
+    });
+    vi.spyOn(socket, "connect").mockResolvedValue(undefined);
+    vi.mocked(manager.attach).mockRestore();
+    manager.transports.set(info.serverUrl, socket);
+    manager.attach(first);
+    manager.attach(second);
+    const provider = first.provider;
+    const otherProvider = second.provider;
+    const viewChanged = vi.fn();
+    first.awareness.on("change", viewChanged);
+    const destroyed = vi.spyOn(first.awareness, "destroy");
+    const socketDestroyed = vi.spyOn(socket, "destroy");
+    try {
+      if (action === "reconnect") {
+        await collaborationManager.reconnect(info.id);
+      } else {
+        io.write.mockRejectedValueOnce(new Error("缓存暂时不可写"));
+        const tree = new NodeTree(first.doc);
+        try {
+          tree.insertText("p", 0, "离线", {});
+          await expect(first.writeTail).rejects.toThrow("缓存暂时不可写");
+          expect(first.provider?.isAttached).toBe(false);
+          expect(first.info.frozen).toBe(true);
+          io.write.mockResolvedValue("saved");
+          await collaborationManager.flushCache(info.id);
+        } finally {
+          tree.dispose();
+        }
+      }
+      expect(first.provider).toBe(provider);
+      expect(second.provider).toBe(otherProvider);
+      expect(first.provider?.isAttached).toBe(true);
+      expect(second.provider?.isAttached).toBe(true);
+      expect(socket.configuration.providerMap.size).toBe(2);
+      expect(manager.transports.get(info.serverUrl)).toBe(socket);
+      expect(socketDestroyed).not.toHaveBeenCalled();
+      expect(destroyed).not.toHaveBeenCalled();
+      first.awareness.setLocalStateField("activity", "editing");
+      expect(viewChanged).toHaveBeenCalled();
+      expect(first.info.frozen).toBe(false);
+    } finally {
+      first.provider?.destroy();
+      second.provider?.destroy();
+      socket.destroy();
+      manager.transports.clear();
+      other.destroy();
+      doc.destroy();
+    }
+  }
+);
 
 it("作者新图保留图床地址，成员上传显式走协作通道且不走作者转换", async () => {
   const { doc, info, state } = await fixture();
@@ -361,7 +431,9 @@ function syncedProvider(session: RuntimeSession) {
   session.provider = {
     synced: true,
     hasUnsyncedChanges: false,
-    attach: vi.fn(),
+    attach: vi.fn(() => {
+      if (session.provider) session.provider.synced = true;
+    }),
     detach: vi.fn(),
     destroy: vi.fn(),
   } as unknown as RuntimeSession["provider"];

@@ -4,6 +4,7 @@
  * 颜色统一取 --tau-*（编辑器 --ed-* 即由其派生）。
  */
 import clsx from "clsx";
+import type { CSSProperties, ReactNode } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { staticFile } from "remotion";
@@ -46,17 +47,21 @@ export function TableBlock({ rows = TABLE_ROWS }: { rows?: string[][] }) {
   );
 }
 
-const CALLOUT = {
+/** 五类提示块：默认标题同 callout/constants.ts 的 DEFAULT_TITLE，配色同 callout/styles.css */
+export const CALLOUT = {
   tip: { title: "技巧", border: "var(--tau-ok)", bg: "var(--tau-ok-soft)" },
   info: { title: "信息", border: "var(--tau-info)", bg: "var(--tau-info-soft)" },
   warning: { title: "警告", border: "var(--tau-warn)", bg: "var(--tau-warn-soft)" },
+  danger: { title: "危险", border: "var(--tau-danger)", bg: "var(--tau-danger-soft)" },
+  note: { title: "注意", border: "var(--tau-ink-2)", bg: "var(--tau-bg-hover)" },
 } as const;
 
-export function CalloutBlock({ type = "tip", text }: { type?: keyof typeof CALLOUT; text: string }) {
+/** 提示块外框：左边线 + 淡底 + 图标标题（callout/components/Callout.tsx） */
+export function CalloutFrame({ type, title, children, style }: { type: keyof typeof CALLOUT; title?: ReactNode; children: ReactNode; style?: CSSProperties }) {
   const c = CALLOUT[type];
   return (
-    <div className="relative rounded-[0.5em] border-l-[0.25em] p-[0.5em] pb-[1.25em] pl-[1em] text-[var(--tau-ink-1)]" style={{ borderLeftColor: c.border, backgroundColor: c.bg }}>
-      <p className="relative mt-[0.625em] mb-[0.6em] pl-[1.5em] leading-tight font-semibold">
+    <div className="relative rounded-[0.5em] border-l-[0.25em] p-[0.5em] pb-[1.25em] pl-[1em] text-[var(--tau-ink-1)]" style={{ borderLeftColor: c.border, backgroundColor: c.bg, ...style }}>
+      <p className="relative mt-[0.625em] mb-[1em] pl-[1.5em] leading-tight font-semibold">
         <span
           className="absolute top-[-0.1em] left-0 h-[1.25em] w-[1.25em]"
           style={{
@@ -65,11 +70,15 @@ export function CalloutBlock({ type = "tip", text }: { type?: keyof typeof CALLO
             mask: `url(${staticFile(`callout/${type}.svg`)}) left center / contain no-repeat`,
           }}
         />
-        {c.title}
+        {title ?? c.title}
       </p>
-      <div>{text}</div>
+      <div>{children}</div>
     </div>
   );
+}
+
+export function CalloutBlock({ type = "tip", text }: { type?: keyof typeof CALLOUT; text: string }) {
+  return <CalloutFrame type={type}>{text}</CalloutFrame>;
 }
 
 export function MathShowcase({ tex }: { tex: string }) {
@@ -83,24 +92,28 @@ export function MathShowcase({ tex }: { tex: string }) {
 }
 
 /** Mermaid 流程图：按 mermaid-theme.ts 的取色手绘（节点 accent-soft 底 + accent 描边，连线 ink-3） */
-export function MermaidBlock() {
-  const node = (x: number, y: number, w: number, label: string, alt?: boolean) => (
-    <g key={label}>
-      <rect
-        x={x - w / 2}
-        y={y - 21}
-        width={w}
-        height={42}
-        rx={6}
-        fill={alt ? "var(--tau-tag-2-soft)" : "var(--tau-accent-soft)"}
-        stroke={alt ? "var(--tau-tag-2)" : "var(--tau-accent)"}
-        strokeWidth={1.25}
-      />
-      <text x={x} y={y + 5} textAnchor="middle" fontSize={14} fontWeight={500} fill="var(--tau-ink-1)" fontFamily="var(--tau-font)">
-        {label}
-      </text>
-    </g>
-  );
+/** uniform：默认样式（没有 classDef），四个节点同色 */
+export function MermaidBlock({ uniform = false }: { uniform?: boolean }) {
+  const node = (x: number, y: number, w: number, label: string, highlight?: boolean) => {
+    const alt = highlight && !uniform;
+    return (
+      <g key={label}>
+        <rect
+          x={x - w / 2}
+          y={y - 21}
+          width={w}
+          height={42}
+          rx={6}
+          fill={alt ? "var(--tau-tag-2-soft)" : "var(--tau-accent-soft)"}
+          stroke={alt ? "var(--tau-tag-2)" : "var(--tau-accent)"}
+          strokeWidth={1.25}
+        />
+        <text x={x} y={y + 5} textAnchor="middle" fontSize={14} fontWeight={500} fill="var(--tau-ink-1)" fontFamily="var(--tau-font)">
+          {label}
+        </text>
+      </g>
+    );
+  };
   const arrow = (x1: number, y1: number, x2: number, y2: number) => (
     <path key={`${x1}${y1}${x2}`} d={`M${x1} ${y1} L${x2} ${y2}`} stroke="var(--tau-ink-3)" strokeWidth={1.5} markerEnd="url(#mm-arrow)" fill="none" />
   );
@@ -148,31 +161,40 @@ export function GalleryBlock() {
   );
 }
 
-export function TabsBlock() {
-  const tabs = ["概念", "例子", "延伸阅读"];
+/** 标签页外框：tabs/components/TabsHeader（标题 + 「添加标签」按钮）+ 当前页正文；hit 前缀给教程片点按定位 */
+export function TabsFrame({ titles, active, children, hit }: { titles: string[]; active: number; children: ReactNode; hit?: string }) {
   return (
-    <div className="bg-surface overflow-hidden rounded-[10px] border border-[var(--tau-line-1)]">
+    <div className="bg-surface overflow-hidden rounded-[10px] border border-solid border-[var(--tau-line-1)]">
       <div className="flex h-[42px] items-stretch gap-2.5 pr-2 pl-4 shadow-[inset_0_-1px_0_var(--tau-line-1)]">
         <div className="relative flex min-w-0 flex-1 items-stretch gap-[22px]">
-          {tabs.map((tab, i) => (
+          {titles.map((tab, i) => (
             <div
-              key={tab}
+              key={tab + i}
+              data-hit={hit && `tab:${hit}:${i}`}
               className={clsx(
                 "relative flex shrink-0 items-center gap-0.5 px-px text-[13.5px] leading-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-t-sm after:content-['']",
-                i === 0 ? "text-ink-1 font-medium after:bg-[var(--tau-accent)]" : "text-ink-2"
+                i === active ? "text-ink-1 font-medium after:bg-[var(--tau-accent)]" : "text-ink-2"
               )}
             >
               <span>{tab}</span>
-              {i === 0 && <X className="text-ink-3 -mr-1 size-3" />}
+              {i === active && <X className="text-ink-3 -mr-1 size-3" />}
             </div>
           ))}
         </div>
-        <span className="text-ink-3 flex h-7 w-7 items-center justify-center self-center">
+        <span data-hit={hit && `tab-add:${hit}`} className="text-ink-3 flex h-7 w-7 items-center justify-center self-center">
           <Plus size={15} />
         </span>
       </div>
-      <div className="relative px-[18px] pt-3.5 pb-4">卡片笔记法的核心：一张卡片只写一个观点，并用链接把它们织成网络。</div>
+      <div className="relative px-[18px] pt-3.5 pb-4">{children}</div>
     </div>
+  );
+}
+
+export function TabsBlock() {
+  return (
+    <TabsFrame titles={["概念", "例子", "延伸阅读"]} active={0}>
+      卡片笔记法的核心：一张卡片只写一个观点，并用链接把它们织成网络。
+    </TabsFrame>
   );
 }
 
@@ -263,6 +285,18 @@ export function CodeShowcase({ dark = false }: { dark?: boolean }) {
   );
 }
 
+/** 任务列表的复选框（shared CustomCheckbox）；pop 为勾选瞬间的回弹 0→1 */
+export function CheckBox({ done, pop = 1, hit }: { done: boolean; pop?: number; hit?: string }) {
+  return (
+    <span data-hit={hit} className="relative mt-[0.25em] size-[1.25em] shrink-0" style={{ transform: `scale(${0.82 + 0.18 * pop})` }}>
+      <svg className="size-full" viewBox="0 0 24 24">
+        <rect x={2} y={2} width={20} height={20} rx={4} strokeWidth={2} fill={done ? "var(--tau-accent)" : "transparent"} stroke={done ? "var(--tau-accent)" : "var(--tau-line-1)"} />
+        {done && <path d="M7 13L10 16L17 9" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" stroke="var(--tau-ink-inverse)" />}
+      </svg>
+    </span>
+  );
+}
+
 /** 任务列表：list/check-list + shared CustomCheckbox（已勾项文字不划线） */
 const TASK_ITEMS = [
   { text: "读完《延展心智》第三章", done: true },
@@ -275,12 +309,7 @@ export function TaskListBlock({ items = TASK_ITEMS }: { items?: { text: string; 
     <ul className="m-0 ps-[0.75em]">
       {items.map(item => (
         <li key={item.text} className="relative mb-[0.9em] flex items-start gap-[0.5em] leading-[1.8]">
-          <span className="relative mt-[0.25em] size-[1.25em] shrink-0">
-            <svg className="size-full" viewBox="0 0 24 24">
-              <rect x={2} y={2} width={20} height={20} rx={4} strokeWidth={2} fill={item.done ? "var(--tau-accent)" : "transparent"} stroke={item.done ? "var(--tau-accent)" : "var(--tau-line-1)"} />
-              {item.done && <path d="M7 13L10 16L17 9" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" stroke="var(--tau-ink-inverse)" />}
-            </svg>
-          </span>
+          <CheckBox done={item.done} />
           <div className="flex-1">{item.text}</div>
         </li>
       ))}
@@ -288,31 +317,61 @@ export function TaskListBlock({ items = TASK_ITEMS }: { items?: { text: string; 
   );
 }
 
-/** 高亮块：highlight-block，配色写死（configs.ts） */
-export function HighlightBlock() {
+/** 高亮块配色（highlight-block/configs.ts 浅色），从菜单插入默认红色 */
+export const HIGHLIGHT_COLORS = {
+  red: { backgroundColor: "#fef1f1", borderColor: "#fde2e2" },
+  blue: { backgroundColor: "#f0f4ff", borderColor: "#e1eaff" },
+  green: { backgroundColor: "#f0fbef", borderColor: "#f0fbef" },
+} as const;
+
+export function HighlightFrame({ color, children, style }: { color: keyof typeof HIGHLIGHT_COLORS; children: ReactNode; style?: CSSProperties }) {
+  const c = HIGHLIGHT_COLORS[color];
   return (
-    <div className="rounded-[0.5em] p-[1.25em]" style={{ backgroundColor: "#f0f4ff", border: "0.125em solid #e1eaff" }}>
-      <p className="font-semibold">核心观点</p>
-      <p className="mt-1">工具不只是存放想法的地方——记录的方式，会反过来塑造想法本身。</p>
+    <div className="rounded-[0.5em] p-[1.25em]" style={{ backgroundColor: c.backgroundColor, border: `0.125em solid ${c.borderColor}`, ...style }}>
+      {children}
     </div>
   );
 }
 
-/** 详情块（展开态）：detail，箭头为 CaretRight 自绘 SVG */
-export function DetailBlock() {
+export function HighlightBlock() {
   return (
-    <div className="relative rounded-[0.5em] border border-[var(--tau-line-1)] bg-[var(--tau-bg-sunken)] px-[1em] py-[1.25em]">
-      <div className="mb-[0.625em] flex gap-[0.25em]">
-        <div className="rotate-90">
+    <HighlightFrame color="blue">
+      <p className="font-semibold">核心观点</p>
+      <p className="mt-1">工具不只是存放想法的地方——记录的方式，会反过来塑造想法本身。</p>
+    </HighlightFrame>
+  );
+}
+
+/**
+ * 详情块：detail/components/Detail（hover 底 + 描边，标题行箭头 CaretRight，正文左缩 1.5em）。
+ * open 0→1 为展开进度（箭头转 90°，正文高度经 grid-rows 0fr→1fr 过渡）；hit 给教程片点按定位。
+ */
+export function DetailFrame({ title, open = 1, children, hit }: { title: ReactNode; open?: number; children: ReactNode; hit?: string }) {
+  return (
+    <div className="relative rounded-[0.5em] border border-solid border-[var(--tau-line-1)] bg-[var(--tau-bg-hover)] px-[0.75em]">
+      <div className="flex items-center gap-[0.375em] py-[0.5em]">
+        <div
+          data-hit={hit && `detail-arrow:${hit}`}
+          className="grid size-[1.25em] shrink-0 place-items-center rounded-[0.25em] text-[0.875em] text-[var(--tau-ink-2)]"
+          style={{ transform: `rotate(${90 * open}deg)` }}
+        >
           <svg viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor">
             <path d="M6 3.5v9a.6.6 0 0 0 1 .45l5-4.5a.6.6 0 0 0 0-.9l-5-4.5A.6.6 0 0 0 6 3.5Z" />
           </svg>
         </div>
-        <div>为什么间隔重复有效？</div>
+        <div data-hit={hit && `detail-title:${hit}`} className="min-w-0 flex-1 font-medium">
+          {title}
+        </div>
       </div>
-      <div className="pl-[1em]">每次在快要遗忘时回想，记忆的稳定性就会提升一截，下一次遗忘来得更晚。</div>
+      <div data-hit={hit && `detail-body:${hit}`} className="grid overflow-hidden pl-[1.5em] [&>div]:min-h-0" style={{ gridTemplateRows: `${open}fr`, paddingBottom: `${0.5 * open}em` }}>
+        <div>{children}</div>
+      </div>
     </div>
   );
+}
+
+export function DetailBlock() {
+  return <DetailFrame title="为什么间隔重复有效？">每次在快要遗忘时回想，记忆的稳定性就会提升一截，下一次遗忘来得更晚。</DetailFrame>;
 }
 
 /** 视频：shared MediaPlayer/VideoPlayer 的暂停态（画面用渐变代替） */

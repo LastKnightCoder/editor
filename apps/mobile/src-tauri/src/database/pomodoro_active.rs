@@ -130,12 +130,19 @@ pub fn pomodoro_stop_session(
         .map(|p| p.end.unwrap_or(now) - p.start)
         .sum::<i64>()
         .max(0);
-    let focus_ms = (now - session.start_time - pause_total_ms).max(0);
+    let mut focus_ms = (now - session.start_time - pause_total_ms).max(0);
+    let mut end_time = now;
+    // 倒计时在后台到点时 WebView 已挂起，回到前台才收尾：专注时长与结束时刻按到点那一刻记，
+    // 不把锁屏后多出的时间算进去
+    if let Some(expected) = session.expected_ms.filter(|value| focus_ms > *value) {
+        focus_ms = expected;
+        end_time = session.start_time + pause_total_ms + expected;
+    }
     // 对齐桌面端：不足 5 分钟不落库，直接丢弃
     if focus_ms < MIN_FOCUS_MS {
         return Ok(None);
     }
-    session.end_time = Some(now);
+    session.end_time = Some(end_time);
     session.focus_ms = focus_ms;
     session.pause_total_ms = pause_total_ms;
     session.status = if payload.as_complete {

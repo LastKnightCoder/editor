@@ -38,6 +38,7 @@ const Tag = (props: ITagProps) => {
       style={style}
       className={cn(
         hoverAble && "hover:bg-surface-hover hover:text-ink-1 cursor-pointer",
+        isEditing && "border-accent bg-surface text-ink-1 hover:bg-surface cursor-text",
         className
       )}
     >

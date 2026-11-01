@@ -95,6 +95,41 @@ export const insertVideoTimestamp = async (editor: Editor, videoController: Vide
   ReactEditor.focus(editor);
 };
 
+/** 插入转录摘录：引用块（时间戳 + 原句）放在光标所在块之后，光标所在是空段落时直接替换它 */
+export const insertTranscriptQuote = (editor: Editor, text: string, timeSec: number) => {
+  const anchor = editor.selection?.anchor ?? Editor.end(editor, []);
+  const blockPath = anchor.path.slice(0, 1);
+  const block = Node.get(editor, blockPath) as { type?: string };
+  const replaceEmpty = block.type === "paragraph" && !Node.string(block as Node).trim();
+  const quote = {
+    type: "blockquote",
+    children: [
+      {
+        type: "paragraph",
+        children: [
+          { type: "formatted", text: "" },
+          { type: "video-timestamp", time: timeSec, children: [{ type: "formatted", text: "" }] },
+          { type: "formatted", text: ` ${text}` },
+        ],
+      },
+    ],
+  };
+  const at = replaceEmpty ? blockPath : Path.next(blockPath);
+  Editor.withoutNormalizing(editor, () => {
+    if (replaceEmpty) Transforms.removeNodes(editor, { at: blockPath });
+    Transforms.insertNodes(editor, quote as never, { at });
+    Transforms.insertNodes(
+      editor,
+      { type: "paragraph", children: [{ type: "formatted", text: "" }] } as never,
+      {
+        at: Path.next(at),
+      }
+    );
+  });
+  Transforms.select(editor, Editor.start(editor, Path.next(at)));
+  ReactEditor.focus(editor);
+};
+
 const timestampCommand = (videoController: VideoController): EditorCommand => ({
   id: "host.video-note.timestamp",
   title: "插入当前时间戳",

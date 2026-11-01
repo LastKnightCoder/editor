@@ -43,7 +43,6 @@ describe("getProjectItemMoreMenuItems", () => {
       "to-card",
       "ai-flashcard",
       "manual-flashcard",
-      "generate-podcast",
     ]);
   });
 

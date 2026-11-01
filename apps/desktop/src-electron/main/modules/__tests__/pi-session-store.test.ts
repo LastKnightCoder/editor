@@ -14,7 +14,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { installDatabaseDownload, listSessionFiles, listSessionsInDir } from "../pi-session-store";
+import { listSessionFiles, listSessionsInDir } from "../pi-session-store";
+import { installDatabaseDownload } from "../database-download";
 import { browserPageKey, browserSessionDirOf, normalizePageUrl } from "../pi-session-paths";
 import { writeSessionFile } from "../pi-session-files";
 

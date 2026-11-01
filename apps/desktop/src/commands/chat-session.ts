@@ -4,6 +4,7 @@
  */
 import { invoke } from "@/electron";
 import { getChatDatabase } from "@/services/chatDatabase";
+import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
 import type {
   ChatSessionInsert,
   ChatSessionListFilter,
@@ -11,31 +12,40 @@ import type {
   ChatSessionRow,
 } from "@/types/chat-session";
 
+const commands = (databaseName: string) => {
+  const scope = currentCommandScope();
+  return bindDatabaseCommands(
+    { invoke },
+    scope?.databaseName?.replace(/\.db$/, "") === databaseName.replace(/\.db$/, "")
+      ? scope
+      : { databaseName }
+  );
+};
+
 export const createChatSession = (
   input: ChatSessionInsert,
   databaseName = getChatDatabase()
-): Promise<ChatSessionRow> =>
-  invoke("chat-session:create", input, { chatDatabaseName: databaseName });
+): Promise<ChatSessionRow> => commands(databaseName).invoke("chat-session:create", input);
 
 export const updateChatSession = (
   id: string,
   patch: ChatSessionPatch,
   databaseName = getChatDatabase()
 ): Promise<ChatSessionRow | null> =>
-  invoke("chat-session:update", id, patch, { chatDatabaseName: databaseName });
+  commands(databaseName).invoke("chat-session:update", id, patch);
 
 /** 删除目录行与它的会话文件（分支都在文件内部的会话树上，一起删掉） */
 export const deleteChatSession = (id: string, databaseName = getChatDatabase()): Promise<void> =>
-  invoke("chat-session:delete", id, { chatDatabaseName: databaseName });
+  commands(databaseName).invoke("chat-session:delete", id);
 
 export const getChatSession = (id: string): Promise<ChatSessionRow | null> =>
-  invoke("chat-session:get", id, { chatDatabaseName: getChatDatabase() });
+  commands(getChatDatabase()).invoke("chat-session:get", id);
 
 export const listChatSessions = (filter?: ChatSessionListFilter): Promise<ChatSessionRow[]> =>
-  invoke("chat-session:list", filter, { chatDatabaseName: getChatDatabase() });
+  commands(getChatDatabase()).invoke("chat-session:list", filter);
 
 export const pinChatSession = (id: string): Promise<ChatSessionRow | null> =>
-  invoke("chat-session:pin", id, { chatDatabaseName: getChatDatabase() });
+  commands(getChatDatabase()).invoke("chat-session:pin", id);
 
 export const unpinChatSession = (id: string): Promise<ChatSessionRow | null> =>
-  invoke("chat-session:unpin", id, { chatDatabaseName: getChatDatabase() });
+  commands(getChatDatabase()).invoke("chat-session:unpin", id);

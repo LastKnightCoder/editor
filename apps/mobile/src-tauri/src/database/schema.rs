@@ -22,6 +22,7 @@ pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String
     let conn = Connection::open(&database_path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open database: {e}"))?;
     migrator::ensure_main_schema(&conn)?;
+    crate::device_sync::database::initialize(&conn)?;
     index_db::ensure_index_database(app, db_name, &conn)?;
     Ok(())
 }
@@ -149,8 +150,32 @@ fn install_download_locked(
     let _install_guard = crate::ai::install::lock()?;
     *connections = None;
     let destination = resolve_database_path(app, name)?;
+    let candidate = Connection::open(download).map_err(|e| e.to_string())?;
+    migrator::ensure_main_schema(&candidate)?;
+    let integrity: String = candidate
+        .pragma_query_value(None, "quick_check", |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    if integrity != "ok" {
+        return Err("下载的资料库未通过完整性检查".into());
+    }
+    crate::device_sync::database::generation(&candidate)?;
+    candidate
+        .execute(
+            "UPDATE _tau_device_local SET generation=?1 WHERE id=1",
+            [uuid::Uuid::new_v4().to_string()],
+        )
+        .map_err(|e| e.to_string())?;
+    drop(candidate);
+    let mut workspace = None;
     if destination.exists() {
         let main = Connection::open(&destination).map_err(|e| e.to_string())?;
+        workspace = main
+            .query_row(
+                "SELECT source_id FROM library_identity WHERE id=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .ok();
         main.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
             .map_err(|e| e.to_string())?;
         drop(main);
@@ -166,6 +191,7 @@ fn install_download_locked(
     crate::collaboration::release_library_sessions(
         &crate::collaboration::session_store(app)?,
         name,
+        workspace.as_deref(),
     )?;
     let root = crate::setting::resolve_app_dir(app)?;
     crate::ai::install::prepare(&root, name, true)?;

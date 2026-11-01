@@ -81,7 +81,13 @@ beforeEach(async () => {
   vi.mocked(useLocalContentDocument).mockImplementation(options => {
     binding = options;
     return options.metadata
-      ? { lineage: "doc", history: "external", initialValue: options.content, flush }
+      ? {
+          lineage: "doc",
+          history: "external",
+          initialValue: options.content,
+          flush,
+          prepareResource: path => path,
+        }
       : undefined;
   });
   host = document.createElement("div");

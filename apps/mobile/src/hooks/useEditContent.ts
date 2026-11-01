@@ -1,6 +1,16 @@
 import { registerContentWriter } from "../services/contentWriteCoordinator";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  assertContentWriteContext,
+  captureContentWriteContext,
+  type ContentWriteContext,
+} from "../services/content-write-context";
+import {
+  deviceSyncDatabase,
+  deviceReplacementState,
+  subscribeDeviceReplacement,
+} from "../services/device-sync/native";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import type { Descendant } from "slate";
 import * as tauri from "../services/tauri";
@@ -37,6 +47,7 @@ type UseEditContentOptions = {
   onLoaded?: (detail: ContentDetailResponse) => void;
   onLoadError?: (error: unknown) => void;
 };
+type SaveRequest = { content: Descendant[]; context: ContentWriteContext; sequence: number };
 
 type UseEditContentResult = {
   content: Descendant[];
@@ -60,11 +71,18 @@ export function useEditContent(
   const [error, setError] = useState("");
 
   const metadataRef = useRef<ContentDetailResponse | undefined>(undefined);
+  const databaseName = deviceSyncDatabase();
+  const replacement = useSyncExternalStore(subscribeDeviceReplacement, () =>
+    deviceReplacementState(databaseName)
+  );
+  const writeContextRef = useRef<ContentWriteContext | undefined>(undefined);
+  const replacementVersionRef = useRef(replacement.version);
+  const latestRequestRef = useRef<SaveRequest | null>(null);
   const writeTail = useRef<Promise<boolean>>(Promise.resolve(true));
   const sourceIdRef = useRef(createContentSyncSourceId());
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const lastSavedSnapshotRef = useRef(JSON.stringify(EMPTY_EDITOR_CONTENT));
-  const lastFailedContentRef = useRef<Descendant[] | null>(null);
+  const lastFailedContentRef = useRef<SaveRequest | null>(null);
   const loadRequestSeqRef = useRef(0);
   const onLoadedRef = useRef(options?.onLoaded);
   onLoadedRef.current = options?.onLoaded;
@@ -76,9 +94,9 @@ export function useEditContent(
     options?.onContentSync?.(next);
   });
 
-  const saveContent = useMemoizedFn((next?: Descendant[]) => {
-    const requested = structuredClone(next ?? latestContentRef.current);
-    const generation = loadRequestSeqRef.current;
+  const saveContent = useMemoizedFn((request: SaveRequest) => {
+    const requested = request.content;
+    const generation = request.sequence;
     const write = writeTail.current.then(async () => {
       if (generation !== loadRequestSeqRef.current) return false;
       if (!contentId || contentId <= 0) {
@@ -97,15 +115,18 @@ export function useEditContent(
       setSaving(true);
       setError("");
       try {
+        assertContentWriteContext(request.context);
         options?.guard?.();
         if (options?.canWrite?.() === false) throw new Error("当前正文不可编辑");
         await options?.beforeSave?.();
         if (generation !== loadRequestSeqRef.current) return false;
+        assertContentWriteContext(request.context);
         options?.guard?.();
         if (options?.canWrite?.() === false) throw new Error("当前正文不可编辑");
         const count = getContentLength(normalized);
         const updatedDetail = await (options?.transport?.save ?? tauri.updateContent)({
           contentId,
+          writeContext: request.context,
           content: normalized,
           count,
           contracts: metadataRef.current?.contracts ?? undefined,
@@ -113,6 +134,7 @@ export function useEditContent(
           expectedDocumentId: metadataRef.current?.documentId ?? undefined,
           expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
         });
+        assertContentWriteContext(request.context);
         options?.guard?.();
         const savedContent = normalizeEditorContent(updatedDetail.content);
         const savedCount = updatedDetail.count;
@@ -141,7 +163,15 @@ export function useEditContent(
         options?.onSaved?.(updatedDetail);
         return true;
       } catch (saveError) {
-        lastFailedContentRef.current = normalized;
+        if (generation !== loadRequestSeqRef.current) return false;
+        try {
+          assertContentWriteContext(request.context);
+        } catch {
+          return false;
+        }
+        lastFailedContentRef.current = String(saveError).includes("DEVICE_SYNC_REPLACED")
+          ? null
+          : request;
         // 协作内容被数据库层守卫拒绝直写：给出明确指引而非通用保存失败
         const parsed = parseInvokeError(saveError);
         setError(
@@ -152,7 +182,7 @@ export function useEditContent(
         options?.onSaveError?.(saveError);
         return false;
       } finally {
-        setSaving(false);
+        if (generation === loadRequestSeqRef.current) setSaving(false);
       }
     });
     writeTail.current = write;
@@ -160,8 +190,8 @@ export function useEditContent(
   });
 
   const { run: throttledSave, cancel: cancelThrottledSave } = useThrottleFn(
-    (next: Descendant[]) => {
-      void saveContent(next);
+    (request: SaveRequest) => {
+      void saveContent(request);
     },
     {
       wait: options?.wait ?? 1000,
@@ -177,14 +207,29 @@ export function useEditContent(
       if (metadataRef.current && contracts)
         metadataRef.current = { ...metadataRef.current, contracts };
       const normalized = normalizeEditorContent(next);
+      const context = writeContextRef.current;
+      if (!context) return;
+      try {
+        assertContentWriteContext(context);
+      } catch {
+        return;
+      }
       latestContentRef.current = normalized;
-      throttledSave(normalized);
+      const request = {
+        content: structuredClone(normalized),
+        context,
+        sequence: loadRequestSeqRef.current,
+      };
+      latestRequestRef.current = request;
+      throttledSave(request);
     }
   );
 
   const flushNow = useMemoizedFn(async () => {
     cancelThrottledSave();
-    return await saveContent(latestContentRef.current);
+    return latestRequestRef.current
+      ? await saveContent(latestRequestRef.current)
+      : await writeTail.current;
   });
 
   const retryLastFailed = useMemoizedFn(async () => {
@@ -216,6 +261,26 @@ export function useEditContent(
   const refreshKey = options?.refreshKey;
   useEffect(() => {
     const requestSeq = ++loadRequestSeqRef.current;
+    const pendingRequest = latestRequestRef.current;
+    const failedRequest = lastFailedContentRef.current;
+    cancelThrottledSave();
+    latestRequestRef.current = null;
+    lastFailedContentRef.current = null;
+    writeContextRef.current = undefined;
+    if (replacementVersionRef.current !== replacement.version) {
+      replacementVersionRef.current = replacement.version;
+      metadataRef.current = undefined;
+      latestContentRef.current = EMPTY_EDITOR_CONTENT;
+      lastSavedSnapshotRef.current = JSON.stringify(EMPTY_EDITOR_CONTENT);
+      writeTail.current = Promise.resolve(true);
+      setDocumentIdentity(undefined);
+      setSaving(false);
+    }
+    if (replacement.active) {
+      writeTail.current = Promise.resolve(true);
+      setSaving(false);
+      return;
+    }
     const nextId = contentId ?? -1;
     if (nextId <= 0) {
       latestContentRef.current = EMPTY_EDITOR_CONTENT;
@@ -232,22 +297,33 @@ export function useEditContent(
     setError("");
     const current = optionsRef.current;
     Promise.resolve()
-      .then(() => {
+      .then(async () => {
+        const context = await captureContentWriteContext(databaseName);
         current?.guard?.();
-        return (current?.transport?.load ?? tauri.getContentDetail)(nextId);
+        const result = await (current?.transport?.load ?? tauri.getContentDetail)(nextId);
+        assertContentWriteContext(context);
+        return { result, context };
       })
-      .then(result => {
+      .then(({ result, context }) => {
         if (loadRequestSeqRef.current !== requestSeq) {
           return;
         }
         current?.guard?.();
+        writeContextRef.current = context;
         const incoming = JSON.stringify(normalizeEditorContent(result.content));
         if (
           current?.transport &&
+          pendingRequest?.context.database === context.database &&
+          pendingRequest.context.generation === context.generation &&
+          pendingRequest.context.version === context.version &&
           metadataRef.current?.contentId === nextId &&
           JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current &&
           incoming !== JSON.stringify(latestContentRef.current)
         ) {
+          latestRequestRef.current = { ...pendingRequest, sequence: requestSeq };
+          lastFailedContentRef.current = failedRequest
+            ? { ...failedRequest, sequence: requestSeq }
+            : null;
           setError("正文已变化，本机输入仍保留，请先处理保存冲突");
           return;
         }
@@ -286,7 +362,15 @@ export function useEditContent(
     return () => {
       if (loadRequestSeqRef.current === requestSeq) loadRequestSeqRef.current++;
     };
-  }, [contentId, refreshKey, notifyContentSync]);
+  }, [
+    contentId,
+    refreshKey,
+    notifyContentSync,
+    databaseName,
+    replacement.version,
+    replacement.active,
+    cancelThrottledSave,
+  ]);
 
   useEffect(() => {
     const nextId = contentId ?? -1;
@@ -312,6 +396,7 @@ export function useEditContent(
       lastSavedSnapshotRef.current = JSON.stringify(normalized);
       lastFailedContentRef.current = null;
       setContent(normalized);
+      latestRequestRef.current = null;
       setSyncVersion(value => value + 1);
       setError("");
       notifyContentSync(normalized);

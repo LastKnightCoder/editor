@@ -4,6 +4,7 @@ import { createMemoryStorage, PluginHost } from "@tau/plugins/host";
 import { createDesktopExcerpts } from "@/app/plugins/excerpts";
 import { openExcerptAtProvider } from "@/services/excerpt-providers";
 import { currentCommandScope } from "@/services/command-context";
+import { createExcerptMaterialRef } from "@tau/plugins/material-ref";
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -15,7 +16,7 @@ vi.mock("@/commands/extra", () => ({ openExternal: mocks.openExternal }));
 vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: "A.db" } } }) },
 }));
-vi.mock("@/services/material-to-card", () => ({ convertMaterialToCard: mocks.convert }));
+vi.mock("@/services/material-to-card", () => ({ createCardFromPluginMaterial: mocks.convert }));
 
 const target = {
   page: "excerpt-provider" as const,
@@ -91,7 +92,7 @@ describe("桌面摘录提供方适配", () => {
     expect(scopes).toEqual(["A.db", "A.db"]);
     expect(await context().excerpts.items("b1")).toEqual([
       {
-        ref: { kind: "excerpt", id: 7 },
+        ref: createExcerptMaterialRef(7, "weread", "b1:1"),
         externalId: "b1:1",
         quote: "甲",
         note: "",
@@ -135,14 +136,15 @@ describe("桌面摘录提供方适配", () => {
 
   it("材料动作走客户端既有流程，非法地址拒绝", async () => {
     const { context } = await setup();
-    const actions = await context().materials.actions({ kind: "excerpt", id: 7 });
+    const ref = createExcerptMaterialRef(7, "weread", "b1:1");
+    const actions = await context().materials.actions(ref);
     // 只有宿主自己的动作：「转为问题」不由宿主提供
     expect(actions.map(action => action.id)).toEqual(["card"]);
     await actions[0].run();
     const scope = { databaseName: "A.db", signal: context().signal };
-    expect(mocks.convert).toHaveBeenCalledWith({ kind: "excerpt", id: 7 }, scope);
-    await expect(context().materials.actions({ kind: "card", id: 1 })).rejects.toThrow(
-      "材料地址无效"
-    );
+    expect(mocks.convert).toHaveBeenCalledWith(ref, scope);
+    await expect(
+      context().materials.actions({ kind: "card", id: 1, identity: "invalid" })
+    ).rejects.toThrow("材料地址无效");
   });
 });

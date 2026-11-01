@@ -3,6 +3,8 @@ import { createMobileFlashcards } from "./flashcards";
 import { PluginPermissionError, PLUGIN_ENTITY_READ_PERMISSIONS } from "@tau/plugins";
 import { createMobileApp } from "./app";
 import { createMobileOwnData } from "./own-data";
+import { createMobileExcerpts } from "./excerpts";
+import { installMobileExcerptHost } from "../../services/excerpts";
 import { createMobileEvents } from "./events";
 import { createMobileData } from "./data";
 import { getQueryClient } from "../../router";
@@ -176,6 +178,7 @@ export async function connectMobilePluginTransport(
   let token: string | undefined;
   let disposed = false;
   let stopAiRefresh: (() => void) | undefined;
+  let stopExcerpts: (() => void) | undefined;
   const openings = new Map<string, Promise<unknown>>();
   let fileQueue = Promise.resolve();
   const activeSync = new Map<string, number>();
@@ -279,6 +282,10 @@ export async function connectMobilePluginTransport(
       }
     );
     runtime.permissions = createMobilePermissions(runtime.workspaceId, token);
+    runtime.excerpts = createMobileExcerpts(runtime.workspaceId, token, runtime.data, () => {
+      void getQueryClient().invalidateQueries();
+    });
+    stopExcerpts = installMobileExcerptHost(runtime.excerpts);
     runtime.speech = createMobilePluginSpeech(runtime.asr);
     runtime.ai = createMobilePluginAI({
       databaseName: runtime.workspaceId,
@@ -397,6 +404,8 @@ export async function connectMobilePluginTransport(
     const hostFetch = runtime.fetch;
     setMobileHostFetch((input, init) => hostFetch(input, init));
   } catch (error) {
+    stopExcerpts?.();
+    runtime.excerpts?.dispose();
     stopAiRefresh?.();
     void runtime.ai?.dispose().catch(() => undefined);
     void runtime.aiMcp?.dispose().catch(() => undefined);
@@ -411,6 +420,8 @@ export async function connectMobilePluginTransport(
   }
   return () => {
     disposed = true;
+    stopExcerpts?.();
+    runtime.excerpts?.dispose();
     stopAiRefresh?.();
     void runtime.ai?.dispose().catch(() => undefined);
     void runtime.aiMcp?.dispose().catch(() => undefined);

@@ -1,7 +1,11 @@
-import { withDurableDocuments } from "./durable-document-lifecycle";
+import { prepareDurableDocuments, withDurableDocuments } from "./durable-document-lifecycle";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
+import type { DatabaseConnection } from "@/types/database-connection";
+import DEVICE_SYNC_SQL from "@tau/db-schema/schema/device-sync.sql?raw";
+import { initializeDeviceSyncDatabase } from "./device-sync/database-store";
 import { join } from "node:path";
 import { readdirSync } from "node:fs";
 import log from "electron-log";
@@ -47,7 +51,8 @@ import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
 import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
-import PodcastTable from "./tables/podcast";
+import ItemReminderTable from "./tables/item-reminder";
+import { PodcastMigrationTable } from "./podcast-plugin-migration";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
@@ -139,6 +144,26 @@ class DatabaseModule implements Module {
     (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => any
   >;
   private currentDatabaseName = "data.db"; // 默认数据库
+  /** 普通关库与上传重连保留命令上下文，明确覆盖才使旧任务失效。 */
+  private readonly connectionIds = new Map<string, string>();
+  private readonly replacedWindows = new Map<number, string>();
+
+  commandConnection(name: string): DatabaseConnection {
+    const db = this.getDatabase(name);
+    if (!db?.open) throw new Error("资料库尚未连接");
+    const key = this.formatDatabaseName(name);
+    let connectionId = this.connectionIds.get(key);
+    if (!connectionId) {
+      connectionId = randomUUID();
+      this.connectionIds.set(key, connectionId);
+    }
+    return { databaseName: name, connectionId };
+  }
+
+  private assertCommandConnection(name: string, connectionId: unknown): void {
+    if (connectionId !== this.commandConnection(name).connectionId)
+      throw new Error("DATABASE_CONNECTION_CHANGED: 原资料库连接已失效，请重新打开后再操作");
+  }
   private databaseChangeCallbacks: Array<(dbName: string) => void> = [];
   private hasConnectedDatabase = false;
   private databaseConnectedCallbacks: Array<
@@ -157,8 +182,7 @@ class DatabaseModule implements Module {
   }
 
   /** 不经 eventAndHandlers 的写入（如自有 IPC 的模块）提交后，补发写事件给订阅方 */
-  notifyExternalWrite(eventName: string): void {
-    const dbName = this.getCurrentDatabaseName();
+  notifyExternalWrite(eventName: string, dbName = this.getCurrentDatabaseName()): void {
     if (dbName) this.notifyDatabaseWrite(dbName, eventName);
   }
 
@@ -249,7 +273,7 @@ class DatabaseModule implements Module {
     this.databases = new Map();
     this.windowToDatabase = new Map();
     this.tables = [
-      PodcastTable,
+      PodcastMigrationTable,
       ContentTable,
       WhiteBoardContentTable,
       WhiteboardTable,
@@ -283,6 +307,7 @@ class DatabaseModule implements Module {
       CalendarGroupTable, // 必须在 TodoCalendarSyncTable 和 PomodoroSessionTable 之前
       CalendarTable,
       CalendarEventTable,
+      ItemReminderTable,
       TodoCalendarSyncTable, // 移到 CalendarGroupTable 之后
       WebLinkTable,
       WebClipTable,
@@ -377,6 +402,7 @@ class DatabaseModule implements Module {
 
       const schemaStartAt = Date.now();
       ensureMainSchema(database);
+      initializeDeviceSyncDatabase(database, DEVICE_SYNC_SQL);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
@@ -590,10 +616,41 @@ class DatabaseModule implements Module {
         true
       );
       this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
-      this.currentDatabaseName = name;
       this.notifyDatabaseConnected(name, source);
       this.hasConnectedDatabase = true;
     });
+  }
+
+  async closeForSync(name: string, install?: () => Promise<void>) {
+    const drain = await prepareDurableDocuments({
+      databaseName: name,
+      reason: "database-change",
+      replace: Boolean(install),
+    });
+    try {
+      const db = this.databases.get(name);
+      if (!db) {
+        if (install) throw new Error("资料库已关闭，不能继续覆盖");
+        drain.commit();
+        return;
+      }
+      if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
+      db.close();
+      this.databases.delete(name);
+      if (install) this.connectionIds.delete(this.formatDatabaseName(name));
+      this.indexEnsurePromises.delete(name);
+      mainContentIndexDBManager.closeDatabase(name);
+      for (const [id, dbName] of this.windowToDatabase)
+        if (dbName === name) {
+          if (install) this.replacedWindows.set(id, name);
+          this.windowToDatabase.delete(id);
+        }
+      drain.commit();
+      await install?.();
+    } catch (error) {
+      drain.rollback();
+      throw error;
+    }
   }
 
   async init() {
@@ -620,6 +677,7 @@ class DatabaseModule implements Module {
     ) => {
       const ownerWindow = BrowserWindow.fromWebContents(event.sender);
       const previousName = ownerWindow ? this.windowToDatabase.get(ownerWindow.id) : undefined;
+      const restoring = ownerWindow && this.replacedWindows.get(ownerWindow.id) === name;
       const run = async () => {
         const connectMode: DatabaseConnectMode = mode === "normal" ? "normal" : "maintenance";
         const appDir = PathUtil.getAppDir();
@@ -628,7 +686,7 @@ class DatabaseModule implements Module {
 
         // 检测数据库切换
         const oldDbName = this.currentDatabaseName;
-        const dbChanged = oldDbName !== name;
+        const dbChanged = oldDbName !== name && !restoring;
 
         if (!this.databases.has(name) || force) {
           log.info(
@@ -669,6 +727,7 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (win) {
           this.windowToDatabase.set(win.id, name);
+          this.replacedWindows.delete(win.id);
         }
 
         let connectReason: DatabaseConnectReason | null = null;
@@ -683,7 +742,7 @@ class DatabaseModule implements Module {
         }
 
         if (connectReason) {
-          this.currentDatabaseName = name;
+          if (!restoring) this.currentDatabaseName = name;
           if (dbChanged) {
             log.info(`Database changed from ${oldDbName} to ${name}`);
             this.notifyDatabaseChange(name);
@@ -691,6 +750,7 @@ class DatabaseModule implements Module {
           this.notifyDatabaseConnected(name, connectReason);
           this.hasConnectedDatabase = true;
         }
+        return this.commandConnection(name);
       };
       const connect = () =>
         force && this.databases.has(name)
@@ -713,14 +773,14 @@ class DatabaseModule implements Module {
         mode?: DatabaseConnectMode,
         source?: DatabaseReconnectSource
       ) => {
-        await connectDatabase(event, name, force, mode, source);
+        return connectDatabase(event, name, force, mode, source);
       }
     );
 
     ipcMain.handle(
       "reconnect-database-fast",
       async (event, name, source?: DatabaseReconnectSource) => {
-        await connectDatabase(event, name, true, "normal", source);
+        return connectDatabase(event, name, true, "normal", source);
       }
     );
 
@@ -767,17 +827,15 @@ class DatabaseModule implements Module {
 
     Object.keys(this.eventAndHandlers).forEach(eventName => {
       ipcMain.handle(eventName, async (event, ...args) => {
+        if (event.senderFrame?.isDestroyed()) throw new Error("资料库窗口已重新加载");
         const sender = event.sender;
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
         const scope = args.at(-1);
+        if (!this.windowToDatabase.has(win.id)) throw new Error("资料库窗口尚未连接");
         const explicit =
-          scope && typeof scope.toolDatabaseName === "string"
-            ? scope.toolDatabaseName
-            : eventName.startsWith("chat-session:") && typeof scope?.chatDatabaseName === "string"
-              ? scope.chatDatabaseName
-              : undefined;
+          scope && typeof scope.toolDatabaseName === "string" ? scope.toolDatabaseName : undefined;
         if (explicit !== undefined) args.pop();
         const dbName = explicit
           ? [...this.databases.keys()].find(
@@ -785,6 +843,8 @@ class DatabaseModule implements Module {
             )
           : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
+        if (explicit !== undefined)
+          this.assertCommandConnection(dbName, scope.toolDatabaseConnection);
 
         const db = this.getDatabase(dbName);
         if (!db) throw new Error("No database found");
@@ -846,11 +906,16 @@ class DatabaseModule implements Module {
             )
           : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
+        if (explicit !== undefined)
+          this.assertCommandConnection(dbName, scope.toolDatabaseConnection);
 
         const mainDb = this.getDatabase(dbName);
         if (!mainDb) throw new Error("No main database found");
 
         await this.ensureIndexDatabaseReady(dbName, `ipc:${eventName}`);
+
+        if (this.getDatabase(dbName) !== mainDb || !mainDb.open)
+          throw new Error("DATABASE_CONNECTION_CHANGED: 原资料库连接已失效");
 
         const indexDb = this.getIndexDatabase(dbName);
         if (!indexDb) throw new Error("No index database found");
@@ -904,26 +969,7 @@ class DatabaseModule implements Module {
       });
     });
 
-    ipcMain.handle("close-database", async (_event, name) =>
-      withDurableDocuments({ databaseName: name, reason: "database-change" }, async () => {
-        if (this.databases.has(name)) {
-          const database = this.databases.get(name);
-          if (!database) throw new Error("No database found");
-
-          if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
-
-          database.close();
-          this.databases.delete(name);
-          this.indexEnsurePromises.delete(name);
-          mainContentIndexDBManager.closeDatabase(name);
-          for (const [id, dbName] of this.windowToDatabase) {
-            if (dbName === name) {
-              this.windowToDatabase.delete(id);
-            }
-          }
-        }
-      })
-    );
+    ipcMain.handle("close-database", (_event, name) => this.closeForSync(name));
 
     ipcMain.handle("close-all-database", async () =>
       withDurableDocuments({ reason: "database-change" }, async () => {

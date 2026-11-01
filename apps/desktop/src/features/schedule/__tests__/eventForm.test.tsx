@@ -10,6 +10,7 @@ const { fetchContent, updateContent, updateEvent, done } = vi.hoisted(() => ({
   updateEvent: vi.fn(),
   done: vi.fn(),
 }));
+const NO_REMINDERS = { data: [] as number[] };
 vi.mock("@tau/editor", () => ({ Editor: () => null }));
 vi.mock("@/services/editorKit", () => ({ getContentKit: () => ({}) }));
 vi.mock("../queries", () => ({
@@ -19,7 +20,8 @@ vi.mock("../queries", () => ({
     commands: { updateContent },
     assertCurrentDatabase: () => undefined,
   }),
-  useScheduleMutations: () => ({ updateEvent }),
+  useScheduleMutations: () => ({ updateEvent, setEventReminders: vi.fn() }),
+  useEventReminders: () => NO_REMINDERS,
   useEventContent: (id: number, enabled: boolean) =>
     useQuery({
       queryKey: ["content", id],

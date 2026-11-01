@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="ocean" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端对话 · 工具渲染设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../chat-polish-v2/v2.css" />
+<link rel="stylesheet" href="tools.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端对话 · 工具渲染<small>颜色取自 @tau/themes · 手机帧 360×760 · 字号按移动端档位（正文 16 / 附注 14 / 小字 13）· 对话内容为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">0 现状</button>
+    <button class="tab" data-tab="rows">1 工具行</button>
+    <button class="tab" data-tab="detail">2 点开看详情</button>
+    <button class="tab" data-tab="read">3 查询类工具</button>
+    <button class="tab" data-tab="write">4 写入与图片</button>
+    <button class="tab" data-tab="confirm">5 确认与提问</button>
+    <button class="tab" data-tab="states">6 异常与插件工具</button>
+    <button class="tab" data-tab="cmp">7 待确认</button>
+  </nav>
+</header>
+
+<!-- ═════════ 0 现状 ═════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">按现在的代码还原（<code>ToolSteps.tsx</code> 过程胶囊 + <code>@tau/chat-ui</code> 的 <code>ToolCallRow</code> / <code>ToolApprovalBar</code>）。红色数字对应右侧问题清单。除了「提问」，手机端没有注册任何工具的自定义展示，所有工具展开后都是原始 JSON；图片生成的结果也一样，图不会显示出来。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread">
+          <div class="v-u">我这周记了哪些同步相关的东西？顺便建个待办提醒我周五复盘</div>
+          <div><span class="old-steps mark" data-mark="1"><span class="ok" data-i="check" data-s="14"></span>搜索笔记、读取笔记 等<em>· 4 步</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></span></div>
+          <div class="old-row" style="margin-top:6px"><span style="color:var(--warn)" data-i="shield-alert" data-s="14"></span>新建待办<em>· 等待确认</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+          <div class="old-approve mark" data-mark="4">
+            <div style="display:flex;gap:6px;align-items:center"><span style="color:var(--warn)" data-i="shield-alert" data-s="15"></span>AI 想要<b>修改你的数据</b>，需要你确认</div>
+            <div class="old-pre" style="margin:7px 0 0;background:var(--bg-surface)">{
+  "title": "复盘同步方案",
+  "dueAt": "2026-11-06T18:00",
+  "groupId": "3"
+}</div>
+            <div class="bt"><span class="p">允许</span><span>本会话始终允许</span><span>拒绝</span></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">折叠时<small>四次调用挤成一枚胶囊，只看得到两个名字；需要确认的调用又单独拆出来，顺序被打乱（它其实是第 5 步）。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread fadeout">
+          <div class="v-u">我这周记了哪些同步相关的东西？</div>
+          <div><span class="old-steps"><span class="ok" data-i="check" data-s="14"></span>搜索笔记、读取笔记 等<em>· 4 步</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3);transform:rotate(90deg)"></span></span></div>
+          <div class="old-body">
+            <div class="old-row"><span class="ok" data-i="check" data-s="14"></span>查看日期<em>· 3 毫秒</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+            <div class="old-row mark" data-mark="2" style="width:fit-content"><span class="ok" data-i="check" data-s="14"></span>搜索笔记<em>· 212 毫秒</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3);transform:rotate(90deg)"></span></div>
+            <div class="old-sec">输入</div>
+            <div class="old-pre">{
+  "query": "同步",
+  "limit": 5
+}</div>
+            <div class="old-sec">输出</div>
+            <div class="old-pre mark" data-mark="3">{"success":true,"count":5,"total":12,"results":[{"id":182,"type":"card","title":"同步冲突策略","excerpt":"周二把冲突处理改成按字段合并，比整篇覆盖少丢数据……","contentId":4410,"date":null,"container":null,"updateTime":1730...</div>
+            <div class="old-row"><span class="ok" data-i="check" data-s="14"></span>读取笔记<em>· 48 毫秒</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+            <div class="old-row"><span class="ok" data-i="check" data-s="14"></span><code>bookmarks_search</code><em>· 1.2 秒</em><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">展开后<small>折叠行 26px 高、14px 字，手指不好点；输出是一整段不换行的 JSON，用户读不懂；插件工具直接露出英文工具名。</small></div>
+    </div>
+    <div class="card" style="flex:1;min-width:340px;max-width:520px">
+      <h3>现状问题</h3>
+      <ol class="issue-list">
+        <li><b>合并成胶囊</b>：相邻调用收成一枚「A、B 等 · N 步」，看不出 AI 做了什么、做到哪一步；等待确认 / 失败的调用又被抽出来放到胶囊后面，顺序和真实执行不一致。</li>
+        <li><b>桌面密度直接搬来</b>：<code>FoldRow</code> 行高 26px、图标 14px、点击区不到 30px；附注「· 212 毫秒」这种耗时信息对手机用户没有意义。</li>
+        <li><b>只有原始 JSON</b>：手机端只注册了提问卡，搜索、读笔记、查询待办日程、SQL、新建 / 修改 / 删除都落到通用行，展开就是 12px 等宽字的输入输出；输出不格式化，长字符串挤成一坨。</li>
+        <li><b>确认条</b>：参数也是 JSON；三个 28px 的小按钮挤一行，「本会话始终允许」和「允许」同等分量，容易误点。</li>
+        <li><b>图片生成看不到图</b>：<code>generate_image</code> / <code>edit_image</code> 结果带 <code>openai-image-result</code> 展示键，但手机端没有注册这个展示，只剩一段地址 JSON。</li>
+        <li><b>插件工具</b>：没有可读叫法时直接显示 <code>bookmarks_search</code> 这类英文名。</li>
+        <li><b>提问卡</b>：选项行用桌面的 Radio / Checkbox 尺寸，「其他」是小输入框，提交按钮是 sm 号。</li>
+      </ol>
+      <h3 style="margin-top:14px">这次的思路</h3>
+      <ul>
+        <li><b>不合并</b>：每次调用一行，按真实顺序排，确认 / 失败就在它自己的位置。</li>
+        <li><b>行里说人话</b>：标题写「搜索笔记「同步」」，右边写结果「5 篇」，不写耗时。</li>
+        <li><b>查询类轻、写入类重</b>：查询只是一行，点开看底部面板；写入（新建 / 修改 / 删除）直接出结果卡，改了什么一眼可见。</li>
+        <li><b>原始数据兜底</b>：每个详情面板底部都有折叠的「原始数据」，排查问题时还看得到。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 1 工具行 ═════════ -->
+<section class="scene" data-scene="rows">
+  <p class="scene-intro">已定 <b>A 时间线</b>：每次调用单独一行，不再合并，按执行顺序和思考、正文穿插排列。<b>标题是「动作 + 对象」</b>（搜索笔记「同步」、读取「同步冲突策略」），<b>右侧是结果</b>（5 篇、2,140 字）而不是耗时，<b>整行可点</b>（40px）打开详情。左侧图标和 C 一样只有淡墨线条、不加圆底，按工具类别区分；细竖线在图标之间留空，把一串步骤连起来。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread">
+          <div class="v-u">我这周记了哪些同步相关的东西？</div>
+          <div class="tl">
+            <div data-tr="dim|brain|思考了 6 秒"></div>
+            <div data-tr="ok|calendar|查看今天日期|11月1日 周六"></div>
+            <div data-tr="ok|search|搜索笔记 <q>同步</q>|5 篇"></div>
+            <div data-tr="ok|search|搜索笔记 <q>冲突 合并</q>|3 篇"></div>
+            <div data-tr="ok|file-text|读取 <q>同步冲突策略</q>|2,140 字"></div>
+            <div data-tr="ok|calendar-days|查询日程 <q>本周</q>|3 个"></div>
+          </div>
+          <div class="v-a tight"><p>这周和同步有关的记录有 <b>3 处</b>：</p>
+            <ul><li><b>同步冲突策略</b>（卡片）：周二把冲突处理改成按字段合并。</li><li><b>10 月 29 日日记</b>：记了分块上传的进度条想法。</li></ul></div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">时间线 · 完成<small>14px 淡墨线条图标、无底色，按工具类别区分（搜索 / 笔记 / 日程 / 待办 / 数据库）；思考行同一套样式。行高 40px。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread">
+          <div class="v-u">我这周记了哪些同步相关的东西？</div>
+          <div class="tl">
+            <div data-tr="dim|brain|思考了 6 秒"></div>
+            <div data-tr="ok|calendar|查看今天日期|11月1日 周六"></div>
+            <div data-tr="ok|search|搜索笔记 <q>同步</q>|5 篇"></div>
+            <div data-tr="ok|search|搜索笔记 <q>冲突 合并</q>|3 篇"></div>
+            <div data-tr="run|file-text|正在读取 <q>同步冲突策略</q>"></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">时间线 · 进行中<small>正在执行的那一行图标换成转圈，文字带一道流光；完成后原地变成结果，不跳动、不重排。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 2 详情 ═════════ -->
+<section class="scene" data-scene="detail">
+  <p class="scene-intro">已定 <b>底部面板</b>：点工具行，详情从下往上升起，有足够的宽度和高度放结果列表；结果行能直接点开笔记预览（复用现有 <code>ContentLinkPreviewSheet</code>）；对话位置不动，下滑或点 × 关闭。<b>原始数据</b>放在最底下，默认折叠。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread">
+          <div class="v-u">我这周记了哪些同步相关的东西？</div>
+          <div class="tl">
+            <div data-tr="ok|calendar|查看今天日期|11月1日 周六"></div>
+            <div data-tr="ok press|search|搜索笔记 <q>同步</q>|5 篇"></div>
+          </div>
+        </div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k sky" data-i="search" data-s="19"></span><span><b>搜索笔记</b><small>关键词「同步」· 共 12 篇，返回 5 篇</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div>
+              <div class="hits">
+                <div data-hit="sage|layers|同步冲突策略|卡片 · 周二把冲突处理改成按字段合并，比整篇覆盖…"></div>
+                <div data-hit="lilac|notebook-pen|10 月 29 日|日记 · 分块上传的进度条可以按块数显示…"></div>
+                <div data-hit="sky|newspaper|移动端同步设计|文章 · 宿主分块同步的上传、下载与安装…"></div>
+                <div data-hit="butter|folder-kanban|同步重构 · 里程碑|项目文档 · 第二阶段：数据库与会话文件…"></div>
+                <div data-hit="sage|layers|离线优先的取舍|卡片 · 先写本地再同步，冲突留给合并…"></div>
+              </div>
+            </div>
+            <div class="raw"><span data-i="code" data-s="15"></span>原始数据<span class="sp"></span><span style="color:var(--ink-3)" data-i="chevron-down" data-s="15"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">搜索结果<small>标题说清搜了什么、命中多少；结果按类型着色（卡片绿、日记紫、文章蓝，与回答里的引用胶囊一致），点一行打开笔记预览。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread">
+          <div class="v-u">我这周记了哪些同步相关的东西？</div>
+          <div class="tl">
+            <div data-tr="ok press|file-text|读取 <q>同步冲突策略</q>|2,140 字"></div>
+          </div>
+        </div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k sage" data-i="layers" data-s="19"></span><span><b>同步冲突策略</b><small>卡片 · AI 读取了全文 2,140 字</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div style="font-size:15.5px;line-height:1.75;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-1);border-radius:14px;padding:12px 14px;max-height:220px;overflow:hidden;position:relative">
+              <b style="color:var(--ink-1)">背景</b><br />两台设备同时改同一篇时，旧方案整篇覆盖，后同步的一方会丢掉先同步的修改。<br /><b style="color:var(--ink-1)">做法</b><br />周二改成按字段合并：标题、标签、正文块分别比较版本……
+              <span style="position:absolute;left:0;right:0;bottom:0;height:44px;background:linear-gradient(transparent,var(--bg-surface));border-radius:0 0 14px 14px"></span>
+            </div>
+            <div class="ap" style="box-shadow:none;padding:0;margin:0;background:none"><div class="bts"><span class="p">打开笔记</span></div></div>
+            <div class="raw"><span data-i="code" data-s="15"></span>原始数据<span class="sp"></span><span style="color:var(--ink-3)" data-i="chevron-down" data-s="15"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">读取笔记<small>显示笔记标题和开头一段，按钮直接打开。<b>需要改工具</b>：<code>get_content_markdown</code> 现在只返回 contentId，要补上标题与类型。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周同步相关的事"></div>
+        <div class="v-thread"><div class="v-u">我这周记了哪些同步相关的东西？</div></div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k sky" data-i="search" data-s="19"></span><span><b>搜索笔记</b><small>关键词「同步」· 返回 5 篇</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div class="hits"><div data-hit="sage|layers|同步冲突策略|卡片 · 周二把冲突处理改成按字段合并…"></div></div>
+            <div class="raw-open">
+              <div class="hd">输入<span class="sp"></span><span data-i="copy" data-s="14"></span></div>
+              <pre>{
+  "query": "同步",
+  "limit": 5
+}</pre>
+              <div class="hd" style="margin-top:10px">输出<span class="sp"></span><span data-i="copy" data-s="14"></span></div>
+              <pre>{
+  "success": true,
+  "count": 5,
+  "total": 12,
+  "results": [
+    {
+      "id": 182,
+      "type": "card",
+      "title": "同步冲突策略",
+      …</pre>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">原始数据展开<small>格式化后的 JSON（12.5px 等宽、可横向滚动），每段右上角一键复制，方便反馈问题。没有专门展示的工具（插件、MCP）详情面板只有这一块。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 3 查询类 ═════════ -->
+<section class="scene" data-scene="read">
+  <p class="scene-intro">只读工具在对话里只占一行（按方案 A 画），用户关心的是「AI 看到了什么」，所以详情面板<b>按手机端各自页面的样子</b>来画：待办像待办列表，日程像日程列表，数据库查询给 SQL 和一张能横向滑动的表。第一帧是全部内置工具在行里的写法。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="内置工具的行写法"></div>
+        <div class="v-thread">
+          <div class="v-u">下周我有多少事要做？</div>
+          <div class="tl">
+            <div data-tr="ok|calendar|查看今天日期|11月1日 周六"></div>
+            <div data-tr="ok|search|搜索笔记 <q>周报</q>|5 篇"></div>
+            <div data-tr="ok|file-text|读取 <q>周报模板</q>|860 字"></div>
+            <div data-tr="ok|list-todo|查询待办 <q>未完成</q>|8 项"></div>
+            <div data-tr="ok|calendar-days|查询日程 <q>11月3日–9日</q>|3 个"></div>
+            <div data-tr="ok|book-open|读取技能 <q>数据库结构</q>"></div>
+            <div data-tr="ok|database|查询数据库|12 行"></div>
+            <div data-tr="ok|search|搜索笔记 <q>出差</q>|没找到"></div>
+          </div>
+          <div class="v-a tight"><p>下周有 <b>8 个待办</b>、<b>3 个日程</b>，周三最满。</p></div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">行写法一览<small>动作 + 对象 +（右侧）结果数。没找到也写出来，用户能看出 AI 为什么换了关键词。技能读取不写数量。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="下周的事"></div>
+        <div class="v-thread"><div class="v-u">下周我有多少事要做？</div></div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k sage" data-i="list-todo" data-s="19"></span><span><b>查询待办</b><small>未完成 · 8 项</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div class="kv" style="padding:4px 14px">
+              <div class="rc-list" style="margin:0">
+                <div class="li"><span class="ck"></span><span class="tt">提交报销单</span><em class="late">昨天</em></div>
+                <div class="li"><span class="ck"></span><span class="tt">复盘同步方案</span><em>周三 18:00</em></div>
+                <div class="li"><span class="ck"></span><span class="tt">给阿杰回电话</span><em>周三</em></div>
+                <div class="li"><span class="ck"></span><span class="tt">整理读书笔记</span><em>周四</em></div>
+                <div class="li"><span class="ck"></span><span class="tt">续费域名</span><em>周五</em></div>
+                <div class="li"><span class="ck"></span><span class="tt">预约体检</span><em>无截止</em></div>
+              </div>
+            </div>
+            <div style="font-size:13px;color:var(--ink-3);text-align:center">还有 2 项 · <span style="color:var(--brand-text);font-weight:600">在待办中查看</span></div>
+            <div class="raw"><span data-i="code" data-s="15"></span>原始数据<span class="sp"></span><span style="color:var(--ink-3)" data-i="chevron-down" data-s="15"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">查询待办<small>和待办页一样的行：圆勾、标题、截止（过期标红）。只看不改，勾选框不可点，点行进入待办详情。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="下周的事"></div>
+        <div class="v-thread"><div class="v-u">下周我有多少事要做？</div></div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k lilac" data-i="calendar-days" data-s="19"></span><span><b>查询日程</b><small>11月3日（周一）至 9日（周日）· 3 个</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div>
+              <div class="sh-lab">周一 11月3日</div>
+              <div class="kv" style="padding:4px 14px"><div class="rc-list" style="margin:0"><div class="li"><span class="tm">10:00</span><span class="bar"></span><span class="tt">产品周会</span><em>工作</em></div></div></div>
+            </div>
+            <div>
+              <div class="sh-lab">周三 11月5日</div>
+              <div class="kv" style="padding:4px 14px"><div class="rc-list" style="margin:0">
+                <div class="li"><span class="tm">全天</span><span class="bar" style="background:var(--rose)"></span><span class="tt">妈妈生日</span><em>家庭</em></div>
+                <div class="li"><span class="tm">14:30</span><span class="bar"></span><span class="tt">同步方案评审</span><em>工作</em></div>
+              </div></div>
+            </div>
+            <div class="raw"><span data-i="code" data-s="15"></span>原始数据<span class="sp"></span><span style="color:var(--ink-3)" data-i="chevron-down" data-s="15"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">查询日程<small>按天分组的日程列表，色条取日历颜色；点一条进日程详情。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="下周的事"></div>
+        <div class="v-thread"><div class="v-u">我今年每个月写了多少张卡片？</div></div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k butter" data-i="database" data-s="19"></span><span><b>查询数据库</b><small>只读查询 · 10 行 · 38 毫秒</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div class="code"><span class="kw">SELECT</span> strftime('%m', create_time/1000,
+  'unixepoch') <span class="kw">AS</span> 月份, <span class="kw">COUNT</span>(*) <span class="kw">AS</span> 数量
+<span class="kw">FROM</span> cards <span class="kw">WHERE</span> create_time &gt;= :start
+<span class="kw">GROUP BY</span> 月份</div>
+            <div class="tbl"><table>
+              <tr><th>月份</th><th>数量</th></tr>
+              <tr><td>01</td><td>42</td></tr><tr><td>02</td><td>37</td></tr><tr><td>03</td><td>58</td></tr><tr><td>04</td><td>61</td></tr>
+            </table><div class="ft">共 10 行，左右滑动看更多列</div></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">查询数据库<small>SQL 关键字着色、可横滑；结果是表格，列多时横向滚动，最多显示 50 行。耗时只在这里写（SQL 用户才在意）。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 4 写入与图片 ═════════ -->
+<section class="scene" data-scene="write">
+  <p class="scene-intro">改了用户数据的调用（新建 / 修改 / 完成 / 删除待办与日程）<b>不收成一行，直接出结果卡</b>：卡片就是那条待办 / 日程本身，点「查看」跳到详情页，一次改多条就多张卡，不合并。修改只列变了的字段（旧值划掉）；删除整条划掉。图片生成直接把图画在对话里，点开全屏，可保存到相册。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="周五复盘"></div>
+        <div class="v-thread">
+          <div class="v-u">建个待办提醒我周五复盘同步方案，再建一个下周一交周报</div>
+          <div class="tl"><div data-tr="ok|list-todo|查询待办分组|4 个"></div></div>
+          <div class="rc">
+            <div class="hd"><span class="ok" data-i="circle-check" data-s="15"></span>已新建待办<span class="sp"></span><a>查看<span data-i="chevron-right" data-s="14"></span></a></div>
+            <div class="bd"><span class="ck"></span><span class="tt"><b>复盘同步方案</b>
+              <span class="chips"><span class="chip" data-i="calendar-clock" data-s="13">周五 18:00</span><span class="chip" data-i="hash" data-s="13">工作</span></span></span></div>
+          </div>
+          <div class="rc">
+            <div class="hd"><span class="ok" data-i="circle-check" data-s="15"></span>已新建待办<span class="sp"></span><a>查看<span data-i="chevron-right" data-s="14"></span></a></div>
+            <div class="bd"><span class="ck"></span><span class="tt"><b>交周报</b>
+              <span class="chips"><span class="chip" data-i="calendar-clock" data-s="13">11月3日 周一</span><span class="chip" data-i="hash" data-s="13">工作</span></span></span></div>
+          </div>
+          <div class="v-a tight"><p>好了，两个待办都放进了「工作」分组。</p></div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">新建待办<small>卡片长得像待办本身：圆勾、标题、截止、分组。勾选框此处不可点（避免误触），点「查看」或整卡进详情。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="改评审时间"></div>
+        <div class="v-thread">
+          <div class="v-u">评审挪到周四下午三点，报销单我交了</div>
+          <div class="tl"><div data-tr="ok|calendar-days|查询日程 <q>本周</q>|3 个"></div><div data-tr="ok|list-todo|查询待办 <q>报销</q>|1 项"></div></div>
+          <div class="rc">
+            <div class="hd"><span class="ok" data-i="circle-check" data-s="15"></span>已修改日程<span class="sp"></span><a>查看<span data-i="chevron-right" data-s="14"></span></a></div>
+            <div class="bd"><span class="bar"></span><span class="tt"><b>同步方案评审</b>
+              <span class="chips"><span class="chip"><s>周三 14:30</s></span><span data-i="arrow-up-right" data-s="13" style="color:var(--ink-3);transform:rotate(45deg)"></span><span class="chip warn">周四 15:00–16:00</span></span></span></div>
+          </div>
+          <div class="rc">
+            <div class="hd"><span class="ok" data-i="circle-check" data-s="15"></span>已完成待办<span class="sp"></span><a>查看<span data-i="chevron-right" data-s="14"></span></a></div>
+            <div class="bd"><span class="ck on" data-i="check" data-s="13"></span><span class="tt"><b style="color:var(--ink-3)">提交报销单</b></span></div>
+          </div>
+          <div class="v-a tight"><p>评审改到了<b>周四 15:00</b>，报销单已勾掉。</p></div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">修改与完成<small>只显示变了的字段：旧值划掉 → 新值高亮。完成待办就是一个打了勾的待办。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="生成插画"></div>
+        <div class="v-thread">
+          <div class="v-u">给「离线优先的取舍」这张卡片配一张插画，日落、远山、安静一点</div>
+          <div class="tl"><div data-tr="ok|search|搜索笔记 <q>离线优先</q>|1 篇"></div><div data-tr="run|image|正在生成 2 张图片"></div></div>
+          <div class="ig"><div class="im load" style="aspect-ratio:16/10">约 20 秒</div><div class="im load" style="aspect-ratio:16/10"></div></div>
+          <div style="height:10px"></div>
+          <div class="tl"><div data-tr="ok|image|生成了 2 张图片|1024×1024"></div></div>
+          <div class="ig"><div class="im a"><i class="sun"></i><i class="hill"></i></div><div class="im b"><i class="sun"></i><i class="hill"></i></div></div>
+          <div class="ig-cap"><span data-i="sparkles" data-s="13"></span>已保存到资源库 · 点开查看大图</div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">图片生成 · 生成中 → 完成<small>生成中先占好图片位置（流光骨架），完成后原地换成图片，不跳动。单张时铺满宽度。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="viewer">
+          <div class="top"><span data-i="x" data-s="22"></span><span>1 / 2</span><span style="width:22px"></span></div>
+          <div class="pic"><div class="im a" style="position:relative"><i class="sun"></i><i class="hill"></i></div></div>
+          <div class="prompt">日落时分的远山剪影，暖橙到紫色的渐变天空，极简扁平插画，安静克制</div>
+          <div class="bot"><span><span data-i="download" data-s="22"></span>保存到相册</span><span><span data-i="share-2" data-s="22"></span>分享</span><span><span data-i="copy" data-s="22"></span>复制地址</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">全屏查看<small>左右滑切换，双指缩放；底部显示服务商改写后的提示词。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="清理待办"></div>
+        <div class="v-thread">
+          <div class="v-u">把「预约体检」删掉，周日那个跑步日程也不要了</div>
+          <div class="tl"><div data-tr="ok|list-todo|查询待办 <q>体检</q>|1 项"></div><div data-tr="ok|calendar-days|查询日程 <q>周日</q>|1 个"></div></div>
+          <div class="rc">
+            <div class="hd"><span class="del" data-i="trash-2" data-s="15"></span>已删除待办</div>
+            <div class="bd"><span class="ck" style="border-style:dashed"></span><span class="tt"><b class="gone">预约体检</b></span></div>
+          </div>
+          <div class="rc">
+            <div class="hd"><span class="del" data-i="trash-2" data-s="15"></span>已删除日程</div>
+            <div class="bd"><span class="bar" style="background:var(--line-2)"></span><span class="tt"><b class="gone">晨跑 5 公里</b><span class="chips"><span class="chip"><s>周日 07:00</s></span></span></span></div>
+          </div>
+          <div class="v-a tight"><p>都删掉了。</p></div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">删除<small>标题划掉、红色垃圾桶。删除已经发生（手机端没有撤销），所以没有「查看」。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 5 确认与提问 ═════════ -->
+<section class="scene" data-scene="confirm">
+  <p class="scene-intro">需要用户动手的调用就在它执行顺序的位置出现，不再被抽到胶囊后面。<b>确认卡</b>把参数翻译成字段（标题、截止、分组），和结果卡长得一样，用户确认的就是「将会出现的那条待办」；按钮 46px 两等分，「本次对话都允许」降成一行文字链接，避免和「允许」误点。删除用红色描边并写清后果。<b>提问卡</b>的选项是整行 50px 的可点块，多个问题分页，一次只答一题。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="周五复盘"></div>
+        <div class="v-thread">
+          <div class="v-u">建个待办提醒我周五复盘同步方案</div>
+          <div class="tl"><div data-tr="ok|list-todo|查询待办分组|4 个"></div></div>
+          <div class="ap">
+            <div class="hd"><span data-i="shield-alert" data-s="20"></span>新建这条待办？</div>
+            <div class="sub">AI 想修改你的数据，确认后才会执行</div>
+            <div class="kv">
+              <div class="r"><span>标题</span><span>复盘同步方案</span></div>
+              <div class="r"><span>截止</span><span>11月7日 周五 18:00</span></div>
+              <div class="r"><span>分组</span><span>工作</span></div>
+            </div>
+            <div class="bts"><span>拒绝</span><span class="p">允许</span></div>
+            <div class="alw">本次对话不再询问 <b>新建待办</b></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">确认 · 新建<span class="rec-badge">推荐</span><small>标题是一句问话；字段从工具输入翻译（分组 id → 分组名、ISO 时间 → 「周五 18:00」）。确认后原地变成第 4 页的结果卡。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="清理待办"></div>
+        <div class="v-thread">
+          <div class="v-u">把「搬家」那组待办都删了</div>
+          <div class="tl"><div data-tr="ok|list-todo|查询待办 <q>搬家</q>|1 项"></div></div>
+          <div class="ap danger">
+            <div class="hd"><span data-i="trash-2" data-s="20"></span>删除这条待办？</div>
+            <div class="sub">删除后无法恢复</div>
+            <div class="kv">
+              <div class="r"><span>标题</span><span>搬家准备</span></div>
+              <div class="r"><span>截止</span><span>11月15日 周六</span></div>
+            </div>
+            <div class="warnline"><span data-i="circle-alert" data-s="15"></span>连同 4 个子待办一起删除</div>
+            <div class="bts"><span>拒绝</span><span class="p">删除</span></div>
+            <div class="alw">本次对话不再询问 <b>删除待办</b></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">确认 · 删除<small>红色描边，主按钮写「删除」而不是「允许」；有子待办时单独一行提示后果。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="整理读书笔记"></div>
+        <div class="v-thread">
+          <div class="v-u">帮我把这个月的读书笔记整理一下</div>
+          <div class="tl"><div data-tr="ok|search|搜索笔记 <q>读书</q>|9 篇"></div></div>
+          <div class="qa">
+            <div class="hd"><span data-i="message-circle-question" data-s="16"></span>AI 想先问你 · 1/2</div>
+            <div class="q">整理成什么形式？</div>
+            <div class="op on"><span class="rd" data-i="check" data-s="13"></span><span class="tt">一篇总结文章<small>按书归类，每本写要点和摘录</small></span></div>
+            <div class="op"><span class="rd"></span><span class="tt">每本书一张卡片</span></div>
+            <div class="op"><span class="rd"></span><span class="tt">只列一个清单</span></div>
+            <div class="op other"><span class="rd" data-i="pencil" data-s="12" style="border:0;color:var(--ink-3)"></span><span class="tt">其他，我来写…</span></div>
+            <div class="ft"><span class="dots"><i class="on"></i><i></i></span><span class="skip">跳过</span><span class="go">下一题</span></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">提问 · 单选<small>选项整行可点（50px），说明写在第二行；「其他」点开后换成输入框并弹键盘。多题分页，底部圆点表示进度。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="整理读书笔记"></div>
+        <div class="v-thread">
+          <div class="v-u">帮我把这个月的读书笔记整理一下</div>
+          <div class="tl"><div data-tr="ok|search|搜索笔记 <q>读书</q>|9 篇"></div></div>
+          <div class="qa-done">
+            <div class="q">整理成什么形式？</div>
+            <div class="a"><span data-i="circle-check" data-s="15"></span>一篇总结文章</div>
+            <div class="q" style="margin-top:8px">包括哪几本？</div>
+            <div class="a"><span data-i="circle-check" data-s="15"></span>《置身事内》《被讨厌的勇气》</div>
+          </div>
+          <div class="tl">
+            <div data-tr="ok|file-text|读取 <q>置身事内 · 摘录</q>|3,200 字"></div>
+            <div data-tr="run|file-text|正在读取 <q>被讨厌的勇气</q>"></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">提问 · 已作答<small>作答后收成一张问答小卡，只读；之后的工具行接着往下排。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 6 异常与插件 ═════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro">失败、重试、被拒绝、中断都留在原位，用图标颜色和一行说明区分，不额外弹框。插件和 MCP 工具没有专门展示，<b>标题用插件名 + 工具的可读名</b>（读插件清单里的 title，没有时把 <code>search_bookmarks</code> 转成「search bookmarks」），图标统一用插头；详情面板写明来源，只有原始数据。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="各种状态"></div>
+        <div class="v-thread">
+          <div class="v-u">查一下上个月的支出，再把明天的会议改到下午</div>
+          <div class="tl">
+            <div data-tr="fail|database|查询数据库|没有这张表"></div>
+            <div class="tr-sub">AI 会根据错误自己改写查询</div>
+            <div data-tr="ok|book-open|读取技能 <q>数据库结构</q>"></div>
+            <div data-tr="ok|database|查询数据库|31 行"></div>
+            <div data-tr="retry|calendar-days|查询日程 <q>明天</q>|重试 1/2"></div>
+            <div data-tr="ok|calendar-days|查询日程 <q>明天</q>|2 个"></div>
+            <div data-tr="deny|calendar-check|修改日程 <q>需求评审</q>|你拒绝了"></div>
+            <div data-tr="fail|plug|网页书签 · 搜索书签|已中断"></div>
+            <div class="tr-sub err">等待结果时对话被中断，这次调用的结果未知</div>
+          </div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">失败 / 重试 / 拒绝 / 中断<small>失败：红色感叹号 + 右侧一句原因（取工具错误的 message），下一行说明 AI 会怎么做。重试：黄色转圈图标 + 次数。拒绝：整行变淡。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="收藏的文章"></div>
+        <div class="v-thread">
+          <div class="v-u">我收藏过哪些讲 CRDT 的文章？</div>
+          <div class="tl">
+            <div data-tr="ok|plug|网页书签 · 搜索书签|4 条"></div>
+            <div data-tr="ok press|plug|网页书签 · 读取书签正文"></div>
+          </div>
+        </div>
+        <div class="sh-scrim"></div>
+        <div class="sh">
+          <div class="grab"></div>
+          <div class="sh-h"><span class="k gray" data-i="plug" data-s="19"></span><span><b>读取书签正文</b><small>来自插件「网页书签」</small></span><span class="x" data-i="x" data-s="16"></span></div>
+          <div class="sh-b">
+            <div class="raw-open">
+              <div class="hd">输入<span class="sp"></span><span data-i="copy" data-s="14"></span></div>
+              <pre>{
+  "bookmarkId": "bk_92f1"
+}</pre>
+              <div class="hd" style="margin-top:10px">输出<span class="sp"></span><span data-i="copy" data-s="14"></span></div>
+              <pre>CRDT 入门：从 G-Counter 到
+RGA。无冲突复制数据类型的核心
+是让合并满足交换律、结合律……</pre>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">插件工具详情<small>输出是纯文本时按原文显示，不再套 JSON 格式化。插件注册了自己的展示时照常用插件的。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="长任务"></div>
+        <div class="v-thread fadeout">
+          <div class="v-u">把这个月所有和同步相关的笔记读一遍，总结成一篇</div>
+          <div class="tl">
+            <div data-tr="dim|brain|思考了 4 秒"></div>
+            <div data-tr="ok|search|搜索笔记 <q>同步</q>|10 篇"></div>
+            <div data-tr="ok|file-text|读取 <q>同步冲突策略</q>|2,140 字"></div>
+            <div data-tr="ok|file-text|读取 <q>10 月 29 日</q>|680 字"></div>
+            <div data-tr="ok|file-text|读取 <q>移动端同步设计</q>|5,300 字"></div>
+            <div data-tr="ok|file-text|读取 <q>同步重构 · 里程碑</q>|1,920 字"></div>
+            <div data-tr="ok|file-text|读取 <q>离线优先的取舍</q>|1,100 字"></div>
+            <div data-tr="dim|brain|思考了 9 秒"></div>
+            <div data-tr="ok|search|搜索笔记 <q>分块上传</q>|2 篇"></div>
+            <div data-tr="ok|file-text|读取 <q>上传进度设计</q>|900 字"></div>
+            <div data-tr="run|file-text|正在读取 <q>同步日志格式</q>"></div>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">很多步时<small>不合并也不折叠，11 行约 440px，一屏放得下；正文开始输出后页面跟随到底部，步骤自然滚到上面。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 7 待确认 ═════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="cards">
+    <div class="card">
+      <h3>移动端尺寸</h3>
+      <table class="cmp spec">
+        <tr><td>工具行</td><td>行高 40px，图标 14px 淡墨线条、无底色，标题 14px（text-tau-meta），右侧结果 13px（text-tau-sm）</td></tr>
+        <tr><td>结果卡</td><td>圆角 18px，标题 16px 半粗，字段胶囊 26px 高 13px 字</td></tr>
+        <tr><td>详情面板</td><td>最高 80% 屏，标题 17px，列表行 ≥52px，原始数据 12.5px 等宽、可横滑</td></tr>
+        <tr><td>确认卡</td><td>按钮 46px 两等分，字段行 42px</td></tr>
+        <tr><td>提问卡</td><td>选项行 50px，题目 16.5px，提交按钮 44px</td></tr>
+        <tr><td>颜色</td><td>只用 <code>--tau-*</code>：类别色取 tag-1~5（与回答里引用胶囊同色），状态取 ok / warn / danger；卡片和面板里的块与容器同底色，只用 line-1 细描边区分，不铺 page 深底</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>大概要改的地方</h3>
+      <ul>
+        <li>删掉 <code>ToolSteps.tsx</code> 过程胶囊，工具按原顺序逐条渲染。</li>
+        <li>移动端自己的工具行与详情面板（放在 <code>features/aiChat/</code>），<b>不改</b> <code>@tau/chat-ui</code> 共享的 <code>ToolCallRow</code>，桌面不受影响。</li>
+        <li>每个内置工具一份「怎么写标题、结果、详情」的描述（从输入输出解析），取代现在只有名字的 <code>TOOL_LABELS</code>。</li>
+        <li>注册移动端展示：写入结果卡、<code>openai-image-result</code> 图片、确认卡、提问卡（覆盖共享的桌面版）。</li>
+        <li><code>get_content_markdown</code> 结果补标题与类型。</li>
+        <li>思考行要和工具行同一样式，需要给 <code>MessageView</code> 加一个思考块的渲染插槽（共享包小改，桌面默认不变）。</li>
+        <li>同步 <code>docs/architecture/mobile.md</code>「AI 对话 › 界面」一节。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>需要你确认</h3>
+      <ol>
+        <li>写入类（新建 / 修改 / 完成 / 删除）直接出<b>结果卡</b>，查询类只占一行，这个轻重区分是否认可？</li>
+        <li>确认卡把「本会话始终允许」降成底部一行文字链接，可以吗？</li>
+        <li>思考行是否改成和工具行同一样式（要动共享包的 <code>MessageView</code>）？</li>
+        <li>图片的全屏查看里，除了保存和分享，还要不要「复制地址」？</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="../chat-polish-v2/v2.js"></script>
+<script src="tools.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>

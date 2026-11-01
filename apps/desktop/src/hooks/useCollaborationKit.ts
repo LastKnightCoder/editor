@@ -6,7 +6,7 @@ import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
 import { ITaskIdSource } from "@tau/editor/extensions/list/task-ids";
-import { NODE_DOCUMENT_VERSION, isVideoResource } from "@tau/collaboration";
+import { NODE_DOCUMENT_VERSION, isSafeResource, isVideoResource } from "@tau/collaboration";
 import { codeBlockV2Extension } from "@tau/editor/extensions/code-block";
 
 const derived = new WeakMap<ContentCollaborationBinding, Map<EditorKit, EditorKit>>();
@@ -39,7 +39,12 @@ export function collaborationKit(
       remoteResourceToLocal: url => binding.resolveResource(url),
       upload:
         binding.mode === "local"
-          ? base.get(IResourceService).upload
+          ? async file => {
+              const reference = await base.get(IResourceService).upload(file);
+              return !isSafeResource(reference) && binding.prepareResource
+                ? binding.prepareResource(reference)
+                : reference;
+            }
           : async file => {
               if (binding.role !== "owner" || isVideoResource(file.name, file.type))
                 return binding.uploadResource(file);

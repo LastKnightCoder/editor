@@ -106,3 +106,47 @@ it("等待 IPC 时中止，拒绝返回并阻止后续写入", async () => {
   await expect(run).rejects.toThrow();
   expect(invoke).toHaveBeenCalledOnce();
 });
+
+it("旧命令与异步准备在重新连接后仍携带原连接，不能领取新连接", async () => {
+  const invoke = vi.fn(async () => []);
+  window.electron = { platform: "darwin", invoke } as unknown as ElectronAPI;
+  const { bindDatabaseCommands, currentCommandScope, rememberDatabaseConnection } =
+    await import("../command-context");
+  const commands = await import("@/commands/calendar");
+  rememberDatabaseConnection({ databaseName: "a.db", connectionId: "before" });
+  const captured = currentCommandScope();
+  const request = { databaseName: "a" };
+  const old = bindDatabaseCommands(commands, request);
+  rememberDatabaseConnection({ databaseName: "b.db", connectionId: "other" });
+  rememberDatabaseConnection({ databaseName: "a.db", connectionId: "after" });
+
+  await old.deleteCalendarEvent(17);
+  await bindDatabaseCommands(commands, captured).deleteCalendarEvent(18);
+  await bindDatabaseCommands(commands, { databaseName: "a" }).deleteCalendarEvent(19);
+  await bindDatabaseCommands(commands, request).deleteCalendarEvent(20);
+  expect(invoke.mock.calls).toEqual([
+    ["calendar-event:delete", 17, { toolDatabaseName: "a", toolDatabaseConnection: "before" }],
+    ["calendar-event:delete", 18, { toolDatabaseName: "a.db", toolDatabaseConnection: "before" }],
+    ["calendar-event:delete", 19, { toolDatabaseName: "a", toolDatabaseConnection: "after" }],
+    ["calendar-event:delete", 20, { toolDatabaseName: "a", toolDatabaseConnection: "before" }],
+  ]);
+});
+
+it("迟到的旧连接响应不能覆盖当前窗口的命令上下文", async () => {
+  let finish!: (value: unknown) => void;
+  window.electron = {
+    invoke: async (_channel: string, name: string) =>
+      name === "a"
+        ? new Promise(resolve => {
+            finish = resolve;
+          })
+        : { databaseName: name, connectionId: "current" },
+  } as unknown as ElectronAPI;
+  const { connectDatabaseByName } = await import("@/commands/database");
+  const { currentCommandScope } = await import("../command-context");
+  const previous = connectDatabaseByName("a");
+  await connectDatabaseByName("b");
+  finish({ databaseName: "a", connectionId: "old" });
+  await previous;
+  expect(currentCommandScope()).toEqual({ databaseName: "b", connectionId: "current" });
+});

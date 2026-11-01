@@ -236,7 +236,7 @@ fn local_path(app: &AppHandle, reference: &str) -> Result<PathBuf, String> {
     local_path_in(&root, reference)
 }
 
-fn local_path_in(root: &Path, reference: &str) -> Result<PathBuf, String> {
+pub(crate) fn local_path_in(root: &Path, reference: &str) -> Result<PathBuf, String> {
     let reference = reference.replace('\\', "/");
     let path = if let Some(relative) = reference
         .strip_prefix("~/.editor/")

@@ -20,19 +20,15 @@ function SettingsScreen() {
       isSavingSetting={app.syncSettings.isSavingSetting}
       isSyncing={app.syncSettings.isSyncing}
       onOpenModule={module => navigator.push("settingsModule", { module })}
-      onOpenTodo={
-        app.todoModuleEnabled
-          ? () => {
-              const databaseName =
-                app.syncSettings.safeSetting?.database?.active ??
-                app.bootstrap.databases?.activeDatabase ??
-                null;
-              void useTodoStore.getState().initialize(databaseName);
-              navigator.push("todo");
-            }
-          : undefined
-      }
-      onOpenPomodoro={app.pomodoroModuleEnabled ? () => navigator.push("pomodoro") : undefined}
+      onOpenTodo={() => {
+        const databaseName =
+          app.syncSettings.safeSetting?.database?.active ??
+          app.bootstrap.databases?.activeDatabase ??
+          null;
+        void useTodoStore.getState().initialize(databaseName);
+        navigator.push("todo");
+      }}
+      onOpenPomodoro={() => navigator.push("pomodoro")}
       onOpenSearch={() => navigator.push("search")}
       onOpenArticles={() => navigator.push("articles")}
       onOpenProjects={() => navigator.push("projects")}

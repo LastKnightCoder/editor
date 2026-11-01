@@ -31,3 +31,8 @@ export const textFormattingExtension = defineExtension({
     fallback: true,
   })),
 });
+
+export { IHighlightStyle, useHighlightStyle } from "./highlightStyle.ts";
+export type { HighlightStyleOption, HighlightStyleSource } from "./highlightStyle.ts";
+export { default as HighlightMark } from "./components/Highlight/index.tsx";
+export { HIGHLIGHT_STYLES, isHighlightStyle, type HighlightStyle } from "./types.ts";

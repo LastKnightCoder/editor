@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { ArrowLeftRight, SlidersHorizontal, Trash2 } from "lucide-react";
+import DeckIcon from "@tau/shared/deck-icon";
 import { BottomSheet } from "../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { toast } from "../../components/toast";
@@ -55,11 +56,18 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
     }
   };
 
+  const shown = open && count > 0;
+
   return (
     <>
       <div
-        className={`bg-surface shadow-float absolute bottom-[calc(22px+var(--mobile-screen-safe-bottom))] left-3.5 right-3.5 z-40 flex gap-1 rounded-[20px] p-1.5 transition-transform duration-300 ${
-          open && count > 0 ? "translate-y-0" : "translate-y-[140%]"
+        aria-hidden={shown ? undefined : true}
+        inert={!shown}
+        className={`bg-surface shadow-float absolute right-3.5 bottom-[calc(22px+var(--mobile-screen-safe-bottom))] left-3.5 z-40 flex gap-1 rounded-[20px] p-1.5 transition-transform duration-300 ${
+          // 隐藏位移须含底距与安全区，否则浮条会露出半截
+          shown
+            ? "translate-y-0"
+            : "translate-y-[calc(100%+22px+var(--mobile-screen-safe-bottom)+24px)]"
         }`}
         style={{ transitionTimingFunction: "var(--ease-bounce)" }}
       >
@@ -112,7 +120,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
                 }}
                 className="bg-page active:bg-hover flex items-center gap-3 rounded-[16px] p-3 text-left disabled:opacity-50"
               >
-                <span className="text-[20px]">{item.emoji}</span>
+                <DeckIcon emoji={item.emoji} className="text-ink-2 size-5 flex-none text-[20px]" />
                 <span className="text-ink-1 flex-1 text-[14.5px] font-extrabold">{item.name}</span>
                 <span className="text-ink-3 text-[11.5px] font-semibold">
                   {item.stats?.totalCards ?? 0} 张

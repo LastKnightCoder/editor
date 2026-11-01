@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Button, Dialog, DialogBody, Input, Textarea, toast } from "@tau/ui";
 import type { FlashcardDeck } from "@/types";
 import { useFlashcardMutations } from "../../queries";
-import { flashcardDeckColors, flashcardDeckIconKeys, flashcardDeckIcons } from "@/utils/flashcard";
+import { deckIconKeys, deckIcons } from "@tau/shared/deck-icon";
+import { flashcardDeckColors } from "@/utils/flashcard";
 
 interface DeckFormModalProps {
   state: {
@@ -23,7 +24,7 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
     name: "",
     description: "",
     coverColor: flashcardDeckColors[0],
-    emoji: flashcardDeckIconKeys[0],
+    emoji: deckIconKeys[0],
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,14 +35,14 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
         name: state.deck.name,
         description: state.deck.description ?? "",
         coverColor: state.deck.coverColor ?? flashcardDeckColors[0],
-        emoji: state.deck.emoji ?? flashcardDeckIconKeys[0],
+        emoji: state.deck.emoji ?? deckIconKeys[0],
       });
     } else {
       setForm({
         name: "",
         description: "",
         coverColor: flashcardDeckColors[0],
-        emoji: flashcardDeckIconKeys[0],
+        emoji: deckIconKeys[0],
       });
     }
   }, [state]);
@@ -155,8 +156,8 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
           <div className="flex flex-col gap-1.5">
             <label className={FIELD_LABEL}>封面图标</label>
             <div className="flex flex-wrap gap-2">
-              {flashcardDeckIconKeys.map(key => {
-                const Icon = flashcardDeckIcons[key];
+              {deckIconKeys.map(key => {
+                const Icon = deckIcons[key];
                 return (
                   <button
                     key={key}

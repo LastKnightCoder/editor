@@ -9,10 +9,10 @@ import { ease, progress } from "../../brand/motion";
 import { useShikiHtml } from "../../kit/Shiki";
 import { MARK, PACE, type InlinePart, type Timed } from "./script";
 
-const Caret = () => <i className="bg-ink-1 ml-px inline-block h-[1.1em] w-[2px] translate-y-[0.18em]" />;
+export const Caret = () => <i data-caret className="bg-ink-1 ml-px inline-block h-[1.1em] w-[2px] translate-y-[0.18em]" />;
 
 /** 成型瞬间的「弹出」：轻微放大回落 + accent 淡底闪一下 */
-function formStyle(t: number, frame: number, formAt: number) {
+export function formStyle(t: number, frame: number, formAt: number) {
   const pop = progress(frame, formAt, 16, ease.out);
   const flash = Math.max(0, 1 - Math.abs(frame - formAt - 6) / 18);
   return {
@@ -79,7 +79,7 @@ function InlineText({ parts, count, caret }: { parts: InlinePart[]; count: numbe
   );
 }
 
-function MathBlock({ tex }: { tex: string }) {
+export function MathBlock({ tex }: { tex: string }) {
   const html = katex.renderToString(tex, { displayMode: true, throwOnError: false });
   return <div className="text-[1.15em] [&_.katex-display]:py-[2px] [&_.katex-display>.katex]:mx-auto" dangerouslySetInnerHTML={{ __html: html }} />;
 }
@@ -87,20 +87,77 @@ function MathBlock({ tex }: { tex: string }) {
 const LANG_LABEL: Record<string, string> = { ts: "TypeScript", tsx: "TSX", js: "JavaScript", py: "Python" };
 
 /** 代码块：结构摘自 code-block/components/CodeBlock + CodeBlockHeader，高亮同 shikiHighlighter（github-light / github-dark） */
-export function CodeBlock({ code, lang, dark, lines }: { code: string; lang: string; dark: boolean; lines?: number }) {
+/** 标题各级字号（h1–h3） */
+export const HEADING_SIZE = { 1: "text-[2em] leading-[1.3]", 2: "text-[1.75em]", 3: "text-[1.5em]" } as const;
+
+/** 列表项：accent 圆点画在 ::before（同 bulleted-list 的 LIST_CLASS） */
+export const BULLET_ITEM =
+  "relative mb-[0.5em] list-none pl-[0.5em] before:absolute before:top-[0.7em] before:-left-[1em] before:h-[0.35em] before:w-[0.35em] before:rounded-full before:bg-[var(--tau-accent)]";
+
+/** 引用块外框：左上角 accent 大引号 + 左侧竖线（同 blockquote 组件） */
+export function QuoteFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative pl-[2em] text-[var(--tau-ink-1)]">
+      <span
+        className="text-accent pointer-events-none absolute -top-[0.12em] -left-[0.02em] text-[2.9em] leading-none opacity-55 select-none"
+        style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+      >
+        “
+      </span>
+      <span className="absolute top-[1.6em] bottom-[0.35em] left-[0.5em] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--tau-ink-1)_20%,transparent)]" />
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Shiki 高亮的源码区：可选的打字光标用同字体的透明副本按真实排版定位；lines 只露出前几行（逐行展开）。
+ * 代码块与教程片的流程图源码共用。
+ */
+export function HighlightedSource({
+  code,
+  lang,
+  dark,
+  padding,
+  lineHeight = 1.8,
+  lines,
+  caret,
+}: {
+  code: string;
+  lang: string;
+  dark: boolean;
+  padding: string;
+  lineHeight?: number;
+  lines?: number;
+  caret?: boolean;
+}) {
   const html = useShikiHtml(code, lang, dark ? "github-dark" : "github-light");
   const total = code.split("\n").length;
   const shown = lines ?? total;
+  return (
+    <div className="relative text-[0.8em] whitespace-pre" style={{ fontFamily: "var(--tau-font-mono)", lineHeight }}>
+      <div
+        className="[&_pre]:m-0 [&_pre]:!bg-transparent"
+        style={{ padding, clipPath: shown < total ? `inset(0 0 ${((total - shown) / total) * 100}% 0)` : undefined }}
+        dangerouslySetInnerHTML={{ __html: html ?? "" }}
+      />
+      {caret && (
+        <div className="pointer-events-none absolute inset-0 text-transparent" style={{ padding }}>
+          {code}
+          <Caret />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CodeBlock({ code, lang, dark, lines, caret }: { code: string; lang: string; dark: boolean; lines?: number; caret?: boolean }) {
   return (
     <div className="overflow-hidden rounded-[0.625em] bg-[var(--tau-bg-surface-hover)] shadow-[inset_0_0_0_1px_var(--tau-line-1)]">
       <div className="text-ink-2 flex h-[2.25em] items-center gap-[0.25em] border-b border-solid border-[var(--tau-line-1)] px-[0.375em]">
         <span className="text-ink-2 inline-flex h-[1.75em] items-center rounded-[0.375em] px-[0.5em] text-[0.75em] font-medium">{LANG_LABEL[lang] ?? lang}</span>
       </div>
-      <div
-        className="text-[0.8em] leading-[1.8] whitespace-pre [&_pre]:m-0 [&_pre]:!bg-transparent"
-        style={{ fontFamily: "var(--tau-font-mono)", padding: "0.9em 1em 0.9em 1.25em", clipPath: shown < total ? `inset(0 0 ${((total - shown) / total) * 100}% 0)` : undefined }}
-        dangerouslySetInnerHTML={{ __html: html ?? "" }}
-      />
+      <HighlightedSource code={code} lang={lang} dark={dark} padding="0.9em 1em 0.9em 1.25em" lines={lines} caret={caret} />
     </div>
   );
 }
@@ -130,7 +187,7 @@ export function LiveDoc({ timed, frame, dark = false }: { timed: Timed[]; frame:
         switch (block.kind) {
           case "heading": {
             const count = typedCount(frame, item.bodyAt, [...block.text].length);
-            const size = { 1: "text-[2em] leading-[1.3]", 2: "text-[1.75em]", 3: "text-[1.5em]" }[block.level];
+            const size = HEADING_SIZE[block.level];
             return (
               <div key={index} className="relative mt-[1.3em] first:mt-0" style={animated}>
                 <h2 className={`relative mb-[0.6em] w-fit leading-[1.5] font-bold ${size}`}>
@@ -153,14 +210,7 @@ export function LiveDoc({ timed, frame, dark = false }: { timed: Timed[]; frame:
             const count = typedCount(frame, item.bodyAt, [...block.text].length);
             return (
               <div key={index} className="relative mb-[1.25em]" style={animated}>
-                <div className="relative pl-[2em] text-[var(--tau-ink-1)]">
-                  <span
-                    className="text-accent pointer-events-none absolute -top-[0.12em] -left-[0.02em] text-[2.9em] leading-none opacity-55 select-none"
-                    style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-                  >
-                    “
-                  </span>
-                  <span className="absolute top-[1.6em] bottom-[0.35em] left-[0.5em] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--tau-ink-1)_20%,transparent)]" />
+                <QuoteFrame>
                   <p className="relative">
                     {[...block.text].slice(0, count).join("")}
                     {isActive && <Caret />}
@@ -170,7 +220,7 @@ export function LiveDoc({ timed, frame, dark = false }: { timed: Timed[]; frame:
                       —— <span className="text-accent-text decoration-accent/40 underline decoration-dotted decoration-[1.5px] underline-offset-[3px]">{block.source}</span>
                     </p>
                   )}
-                </div>
+                </QuoteFrame>
               </div>
             );
           }
@@ -185,10 +235,7 @@ export function LiveDoc({ timed, frame, dark = false }: { timed: Timed[]; frame:
                   const count = typedCount(frame, itemAt, [...text].length);
                   const last = frame < at || i === block.items.length - 1;
                   return (
-                    <li
-                      key={i}
-                      className="relative mb-[0.5em] list-none pl-[0.5em] before:absolute before:top-[0.7em] before:-left-[1em] before:h-[0.35em] before:w-[0.35em] before:rounded-full before:bg-[var(--tau-accent)]"
-                    >
+                    <li key={i} className={BULLET_ITEM}>
                       {[...text].slice(0, count).join("")}
                       {isActive && last && frame < at + 6 && <Caret />}
                     </li>

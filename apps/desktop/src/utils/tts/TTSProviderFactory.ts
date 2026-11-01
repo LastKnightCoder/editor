@@ -10,7 +10,7 @@ import useSettingStore from "@/stores/useSettingStore";
 /**
  * TTS Provider Factory
  * 从 ttsProviders / ttsUsageSettings 解析当前语音服务并创建提供商实例。
- * 合成类消费方（编辑器朗读、播客生成、Vibe Learning）经 getSpeechSynthesizer()
+ * 合成类消费方（编辑器朗读、插件 tts.open）经 getSpeechSynthesizer()
  * 取朗读合成能力；克隆类消费方经 getVoiceCloner() 取克隆能力——面向能力编程，
  * 不感知具体提供商。
  */

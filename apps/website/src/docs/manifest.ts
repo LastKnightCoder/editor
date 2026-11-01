@@ -97,6 +97,11 @@ const DOC_GROUPS: DocGroup[] = [
         summary: "网页、PDF 与书里的划线，带着出处收进 Tau。",
       },
       {
+        slug: "video-notes",
+        title: "视频笔记",
+        summary: "左边看、右边记：跟着字幕读，划一句摘进笔记，按章节跳着看。",
+      },
+      {
         slug: "notebook",
         title: "Notebook",
         summary: "围绕一组资料提问，把读懂的整理成大纲。",
@@ -124,7 +129,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         slug: "skills-mcp",
         title: "Skill 与 MCP",
-        summary: "教 AI 新的做事方法，接入更多外部工具。",
+        summary: "把常用做法存成 Skill，接上 MCP 让 AI 用外部工具。",
       },
     ],
   },
@@ -149,7 +154,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         slug: "mobile",
         title: "手机端",
-        summary: "在 Android 上随手记、随时复习。",
+        summary: "在手机上随手记、刷闪卡、录音转文字，和电脑自动同步。",
       },
       {
         slug: "plugins",
@@ -158,8 +163,8 @@ const DOC_GROUPS: DocGroup[] = [
       },
       {
         slug: "data",
-        title: "数据与备份",
-        summary: "你的数据存在哪里，如何导出与备份。",
+        title: "数据与同步",
+        summary: "数据存在哪里，怎样在设备之间同步、备份和迁移。",
       },
       { slug: "shortcuts", title: "快捷键", summary: "常用操作的快捷键速查。" },
       {

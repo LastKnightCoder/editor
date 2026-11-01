@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>微信读书 · 移动端设计方案 v1</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="wr.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row" style="display:flex;align-items:center;gap:12px">
+    <h1 style="flex:1">微信读书 · 移动端设计方案 v1<small>插件 1.0.15 → 加 android / ios 目标 · 颜色取自 @tau/themes · 手机帧 360×760 · 划线与想法为示意文本，不是原书内容</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="principle">0 方向</button>
+    <button class="tab" data-tab="gap">1 宿主缺口<span class="rec">先看</span></button>
+    <button class="tab" data-tab="entry">2 入口</button>
+    <button class="tab" data-tab="shelf">3 书架</button>
+    <button class="tab" data-tab="filter">4 筛选与列表</button>
+    <button class="tab" data-tab="connect">5 连接与同步</button>
+    <button class="tab" data-tab="book">6 单书笔记</button>
+    <button class="tab" data-tab="note">7 一条划线</button>
+    <button class="tab" data-tab="toc">8 目录与跳回</button>
+    <button class="tab" data-tab="settings">9 设置与异常</button>
+    <button class="tab" data-tab="decide">10 待你决定</button>
+  </nav>
+</header>
+
+<!-- ───────────── 0 方向 ───────────── -->
+<section class="scene" data-scene="principle">
+  <p class="scene-intro">桌面版是两整张纸：书架页把统计、搜索、同步、分类、状态 / 排序 / 排布三个下拉挤在一行；单书页左边常驻目录，右边按章节排划线，鼠标悬停才出现「转为卡片 / 复制」。手机上按<b>「找到书 → 翻笔记 → 用一条划线」</b>重排：书架只留一行工具和一行分类，三个下拉合成一个筛选面板；单书页目录收进底部面板，划线点一下出操作。<b>插件仍是一份代码、一个 ZIP</b>，按平台切界面：手机（含平板）用本稿，电脑用原来的双栏；状态与同步逻辑两端共用（同记账本插件）。数据、同步口径、摘录 externalId 全部不变。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 入口换成跨端的 navigation</h3><p>现在用 <code>sidebar.registerItem</code> 挂侧边栏，手机宿主没有侧边栏，激活时会直接抛「当前宿主不支持侧边栏」。改为 <code>navigation.registerEntry</code>：桌面仍在侧边栏「学习」组，手机出现在「我的」顶部功能宫格。命令面板在手机上没有，「打开 / 同步」两条命令保留注册但不承担入口。</p></div>
+    <div class="card"><h3>2 · 书架两行工具</h3><p>宿主顶栏只有返回和标题，插件不能往里加按钮，所以工具放在内容顶部：第一行「12 本 · 累计 60 小时 · 10 分钟前同步」+ 搜索 + 同步 + ⋯（同步面板）；第二行分类胶囊横滑 + 筛选按钮。往下滚时分类行吸顶，统计行滚走。</p></div>
+    <div class="card"><h3>3 · 三个下拉合成一个面板</h3><p>状态、排序、排布在手机上很少改，各占一个按钮太挤。合成一个「筛选与排列」底部面板；筛选或排序不是默认值时按钮上出一个点。不用 Segmented，状态用胶囊、排序和排布用单选行。</p></div>
+    <div class="card"><h3>4 · 在读竖排、全部三列</h3><p>「在读」是一张卡，竖排最近读过的 3 本，一行一本（缩略封面、书名、作者 · 最近阅读、右侧进度），不横滑；「全部」封面墙固定三列，列表排布改成一行一本（封面缩略 + 书名作者 + 进度和划线数），桌面列表的七列和点列头排序不搬到手机。</p></div>
+    <div class="card"><h3>5 · 单书页：目录收进面板</h3><p>书头（封面、书名、进度、阅读时长 / 划线 / 想法数）→ 两个按钮「在微信读书中打开」「重新拉取」+ ⋯ → 书评 → 吸顶过滤条。过滤条最右是目录按钮，滚动后按钮上显示当前章节名，点开是目录面板。</p></div>
+    <div class="card"><h3>6 · 划线点一下出操作</h3><p>手机没有悬停。点一条划线弹出底部面板：顶部是这条原文预览，下面「转为卡片 / 复制划线 / 复制划线和想法」。长按留给系统选字，可以只复制半句。</p></div>
+    <div class="card"><h3>7 · 连接和同步口径不变</h3><p>API Key、书架缓存、偏好仍在插件私有存储，按工作区分开；整库同步时随主库一起到手机，电脑上连过的话手机打开就是已连接状态。同步仍是增量 + 全量两种：书架上的「同步」是增量，全量在旁边 ⋯ 的同步面板里，和桌面「同步」旁的下拉箭头同一位置。</p></div>
+    <div class="card"><h3>8 · 不做的</h3><ul><li>不做手机专用插件，也不另起节点类型或摘录口径。</li><li>不在手机上做阅读器、不做划线编辑：划线只来自微信读书。</li><li>不做今天页卡片（见「待你决定」）。</li></ul></div>
+  </div>
+</section>
+<!-- ───────────── 1 宿主缺口 ───────────── -->
+<section class="scene" data-scene="gap">
+  <p class="scene-intro">你判断「移动端宿主能力已经满足」，我核对后<b>不完全成立</b>：页面、设置、存储、网络都有了，但插件的核心——<b>把划线和想法写成 Tau 摘录</b>——手机宿主还没有提供。依据是 <code>apps/mobile/src/app/plugins/runtime.ts</code> 给 PluginHost 的适配器里没有 <code>excerpts</code> / <code>materials</code>，<code>@tau/plugins</code> 的 host 在缺适配器时直接抛错；插件模板的 <a href="/plugins/tau-plugin-template/docs/portability.md">接口表</a> 也把这两项标为仅桌面。所以现在给 manifest 加上 android / ios，插件在手机上<b>激活即失败</b>。</p>
+  <div class="cards">
+    <div class="card wide">
+      <h3>插件用到的接口 × 手机宿主现状</h3>
+      <table class="r-cap">
+        <tr><th>接口</th><th>插件里做什么</th><th>手机</th><th>适配做法</th></tr>
+        <tr><td>pages.register</td><td>书架页、单书页（match: params）</td><td class="yes">有</td><td>原样使用</td></tr>
+        <tr><td>sidebar.registerItem</td><td>侧边栏入口</td><td class="no">无，抛错</td><td>插件改用 <code>navigation.registerEntry</code>，两端都有入口</td></tr>
+        <tr><td>settings.register</td><td>账号与连接</td><td class="yes">有</td><td>原样使用，宿主卡片承载</td></tr>
+        <tr><td>storage · fetch</td><td>API Key / 书架缓存 / 偏好；调微信读书网关</td><td class="yes">有</td><td>原样使用，fetch 走原生网络桥</td></tr>
+        <tr><td>commands.register</td><td>打开、同步</td><td class="part">部分</td><td>能注册，手机没有命令面板，不影响</td></tr>
+        <tr><td>excerpts.register / replace / sources / items</td><td>划线与想法的事实源；同步按书 replace；未连接时从摘录还原单书页</td><td class="no">无，抛错</td><td><b>需要宿主补</b>：TS 适配器 + 原生 excerpt 读写命令（快照 diff、软删除与复位、提供方名称）</td></tr>
+        <tr><td>excerpts.register 的 open</td><td>点摘录引用跳回这本书的那一条</td><td class="no">无</td><td><b>需要宿主补</b>：脉络 / 引用里的摘录现在只读不可点（<code>features/context/open.ts</code>），要接到提供方的 open</td></tr>
+        <tr><td>materials.actions</td><td>划线「转为卡片」，并记谱系 excerpt_of</td><td class="no">无，抛错</td><td><b>需要宿主补</b>，或插件改用手机已有的 <code>app.run("card.create")</code>（没有谱系，见「待你决定」1）</td></tr>
+        <tr><td>window.open · clipboard</td><td>打开获取页 / 回原书；复制、复制为 Markdown</td><td class="part">待真机确认</td><td>宿主自己用 <code>plugin-opener</code> 开外链；插件 WebView 里 <code>window.open</code> 是否交给系统浏览器、剪贴板是否可写，实现时先在真机上验</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">方案 A · 宿主补齐摘录与材料动作<span class="rec-badge">已定</span></h3>
+      <ul>
+        <li>手机宿主实现 <code>excerpts</code> 全套与 <code>materials.actions("card")</code>，口径照搬桌面 <code>tables/excerpt.ts</code> 与 <code>material-to-card.ts</code>；脉络与引用里的摘录可点，交给提供方 open。</li>
+        <li>插件只改入口注册和窄屏布局，两端功能一致，符合「列出平台 = 全部功能已适配」。</li>
+        <li>代价：宿主侧工作量最大（Rust 读写与搜索索引、TS 适配器、脉络跳转、转卡片与谱系），之后网页摘录、其他摘录插件上手机也直接受益。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">方案 B · 手机只读<span class="alt-badge">备选</span></h3>
+      <ul>
+        <li>宿主只做 <code>excerpts.sources / items</code> 与 open，不做写入；插件在手机上隐藏「同步 / 重新拉取」，只看电脑同步过来的笔记。</li>
+        <li>代价小，但新划线要等电脑同步一次再整库同步到手机才看得到；且只有部分功能，按规则不应列出手机平台，需要额外约定。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">方案 C · 插件绕开摘录<span class="alt-badge">不推荐</span></h3>
+      <ul>
+        <li>手机上把笔记存进插件私有存储自己画。</li>
+        <li>单值 1 MiB 上限装不下大书架；划线不进搜索、不能引用、不能转卡片；两端事实源分裂，以后很难收回来。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>两端都写摘录要先确认的事</h3>
+      <ul>
+        <li><b>云端整库同步</b>：后上传的整库覆盖，和其他数据一样，没有新问题。</li>
+        <li><b>局域网设备同步</b>按行合并：手机和电脑各自离线同步同一本书，会各插一行相同 <code>(source_type, external_id)</code>，撞 <code>idx_excerpt_external</code> 唯一索引。实现方案 A 前要先确认设备同步对唯一键冲突怎么处理。</li>
+        <li>API Key 在 <code>plugin_kv</code>：整库同步会带到手机；设备同步是否同步这张表（它不传「设置凭据」）也要确认，不同步时手机首次要再填一次。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 2 入口 ───────────── -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro">入口只有一个：<b>「我的」顶部功能宫格</b>，图标沿用桌面的 BookOpen。点开推入书架页，宿主顶栏是返回 + 「微信读书」，Dock 隐藏。另一个入口是摘录引用：在卡片、文章里点开一条微信读书摘录，直接到单书页的那一条（第 8 页）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="r-thead"><h2>我的</h2><span class="sp"></span><span data-i="search" data-s="20"></span></div>
+        <div class="r-body r-pad" style="padding-top:12px">
+          <div class="r-fgrid">
+            <span><b style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)" data-i="list-checks" data-s="24"></b>任务</span>
+            <span><b style="background:var(--brand-soft);color:var(--brand)" data-i="file-text" data-s="24"></b>文章</span>
+            <span><b style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)" data-i="folder-open" data-s="24"></b>项目</span>
+            <span><b style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)" data-i="layers" data-s="24"></b>闪卡</span>
+            <span><b style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="timer" data-s="24"></b>番茄</span>
+            <span><b style="background:var(--tau-tag-1-soft);color:var(--tau-tag-1)" data-i="scale" data-s="24"></b>减重</span>
+            <span><b style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)" data-i="wallet" data-s="24"></b>记账本</span>
+            <span class="new"><b style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)" data-i="book-open" data-s="24"></b>微信读书</span>
+          </div>
+          <div class="r-form">
+            <div class="row"><span data-i="puzzle" data-s="18" style="color:var(--ink-2)"></span>插件中心<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+          <div class="r-form" style="margin-top:12px">
+            <div class="row"><span data-i="refresh-cw" data-s="18" style="color:var(--ink-2)"></span>同步<span class="val">刚刚<span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="sparkles" data-s="18" style="color:var(--ink-2)"></span>AI 模型<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="settings" data-s="18" style="color:var(--ink-2)"></span>设置<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+        </div>
+        <div data-dock="me"></div>
+      </div></div>
+      <div class="frame-cap">「我的」功能宫格<small>插件改用 navigation.registerEntry 后由宿主放进宫格，位置跟着启用顺序，不由插件决定。桌面上同一条注册仍出现在侧边栏「学习」组。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="sec" data-title="全部" data-hint="12 本 · 按最近阅读"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">点开后：书架<small>宿主顶栏只有返回和标题，同步、搜索都放在插件内容里。下一页细看书架。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 3 书架 ───────────── -->
+<section class="scene" data-scene="shelf">
+  <p class="scene-intro">书架从上到下：<b>工具行</b>（统计、搜索、同步、⋯）→ <b>分类胶囊</b>（全部 + 微信读书的书架分组，按本数排，横滑）+ 筛选按钮 → <b>在读</b>（一张卡竖排最近 3 本，只在没筛选、没搜索时出现）→ <b>全部</b>（三列封面墙，在读的书封面底部有进度细条）。往下滚，工具行滚走、分类行吸顶。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="sec" data-title="全部" data-hint="12 本 · 按最近阅读"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>首屏<span class="rec-badge">推荐</span><small>同步按钮只做增量（新书 + 最近读过、记过笔记的书）；⋯ 打开同步面板（第 5 页）。统计行太长时截断最后的同步时间。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="pills" data-stuck></div>
+          <div style="height:14px"></div>
+          <div data-tpl="grid" data-from="3" data-n="9"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>往下滚<small>分类行吸在宿主顶栏下面，随时能切分类、开筛选；统计和同步不吸顶，回到顶部才看得到。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar" data-state="search" data-q="史"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="搜索结果" data-hint="2 本"></div>
+          <div class="r-grid">
+            <div class="r-tile"><div class="r-cover t4 pbar"><span class="ct">人类简史</span><span class="ca">尤瓦尔·赫拉利</span><span class="pb"><i style="width:41%"></i></span></div><span class="tt">人类简史</span><span class="mt num"><span>41%</span><span>31 划线</span></span></div>
+            <div class="r-tile"><div class="r-cover t5"><span class="ct">我与地坛</span><span class="ca">史铁生</span></div><span class="tt">我与地坛</span><span class="mt num"><span class="ok">读完</span><span>8 划线</span></span></div>
+          </div>
+          <div class="sp"></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>搜索<small>点放大镜，工具行变成搜索框并弹出键盘，书名和作者都匹配；「取消」清空并收回。搜索时「在读」不出现。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills" data-active="心理"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="心理"></div>
+          <div data-tpl="reading" data-archive="心理"></div>
+          <div data-tpl="sec" data-title="全部" data-hint="3 本 · 按最近阅读"></div>
+          <div data-tpl="grid" data-archive="心理"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>切到一个分类<small>分类是微信读书里的书架分组；在读和全部都只看这一类。分类被同步掉后自动回到「全部」，同桌面。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 4 筛选与列表 ───────────── -->
+<section class="scene" data-scene="filter">
+  <p class="scene-intro">桌面的「状态 / 排序 / 排布」三个下拉在手机上合成一个<b>筛选与排列</b>面板，从分类行最右的按钮打开。选完即生效、不用点确定；状态或排序不是默认值时按钮变成强调色并带一个点。排序和排布写进插件偏好，两端共用；状态筛选同桌面，只在本次打开有效。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div data-tpl="filterSheet"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>筛选与排列面板<span class="rec-badge">推荐</span><small>状态是胶囊单选，排序、排布是单选行，都不用 Segmented。面板是 @tau/ui 的 Drawer，系统返回键关闭。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills" data-filter></div>
+          <div data-tpl="sec" data-title="有笔记" data-hint="11 本 · 按笔记数"></div>
+          <div data-tpl="list" data-filter="notes" data-sort="notes" data-n="9"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>列表排布 · 有笔记 · 按笔记数<small>一行一本：缩略封面、书名、作者 · 最近阅读，右侧进度和划线数。桌面列表的阅读时长、分类列不进手机，排序改到面板里选。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills" data-active="管理" data-filter></div>
+          <div data-tpl="sec" data-title="在读" data-hint="管理 · 0 本 · 按最近阅读"></div>
+          <div class="r-empty" style="padding-top:40px">
+            <span class="muted" data-i="search-x" data-s="26"></span>
+            <p>没有符合条件的书</p>
+            <span class="r-btn">清除筛选</span>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>筛完没有书<small>示意「管理」分类里没有在读的书。「清除筛选」把状态和搜索恢复默认，分类不动，同桌面。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 5 连接与同步 ───────────── -->
+<section class="scene" data-scene="connect">
+  <p class="scene-intro">如果电脑上已经连过，整库同步后手机打开就是已连接，<b>直接看到书架</b>。只有从没连过的工作区才看到首次引导：两步，打开获取页复制 API Key，粘贴回来，校验通过后自动同步一次书架。<b>微信读书的获取页在手机浏览器里能否直接登录取 Key</b>，实现时要先在真机上确认；如果必须扫码，引导第一步改成「在电脑上打开」。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div class="r-connect">
+            <span class="badge" data-i="book-open" data-s="24"></span>
+            <h3>连接微信读书</h3>
+            <p>连接后同步书架，打开一本书时再拉取它的划线、想法和章节。数据只存在当前工作区。</p>
+            <div class="r-steps">
+              <div class="r-step"><span class="n">1</span><div>在微信读书「AI 技能」页获取 API Key<br /><span class="lnk">打开获取页<span data-i="external-link" data-s="13"></span></span></div></div>
+              <div class="r-step"><span class="n">2</span><div>粘贴到下方，校验通过后自动开始首次同步</div></div>
+            </div>
+            <div class="r-input" style="margin-top:16px"><span data-i="key-round" data-s="17"></span><span class="ph">粘贴 API Key</span><span class="paste"><span data-i="clipboard-paste" data-s="14"></span>粘贴</span></div>
+            <div class="r-btn primary lg dis" style="width:100%;margin-top:10px">连接并同步</div>
+          </div>
+          <p class="r-hint r-pad">API Key 相当于你的账号凭证，不要发给别人，也不要贴在截图里。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>从没连过<small>和桌面同一份 ConnectPanel 内容。输入框右侧加「粘贴」，省去长按输入框再点粘贴；读剪贴板失败时不出这个按钮。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div class="r-connect">
+            <span class="badge" data-i="book-open" data-s="24"></span>
+            <h3>连接微信读书</h3>
+            <div class="r-input focus" style="margin-top:14px"><span data-i="key-round" data-s="17"></span><span class="num">••••••••••••••••••••3f9a</span></div>
+            <div class="r-err">API Key 校验失败：已过期或已在微信读书里重置</div>
+            <div class="r-btn primary lg" style="width:100%;margin-top:10px">连接并同步</div>
+          </div>
+          <div class="sp"></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>校验失败<small>错误原因原样显示在输入框下，键盘不收起，改完直接再点。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div class="r-loading"><span data-i="loader-circle" data-s="26"></span><span class="num">正在同步书架 12 / 40</span><span class="muted" style="font-size:12px">可以离开这一页，同步会继续</span></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>首次同步<small>书架为空时整页显示进度。后台同步不阻塞页面；手机切到后台可能被系统挂起，回来后从已落盘的那一步继续（详情先落盘的现有逻辑）。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar" data-state="syncing"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div class="r-toast solo" style="top:auto;bottom:40px" data-i="circle-check" data-s="16">同步完成，共 12 本书，更新 3 本</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>日常同步<small>按钮变成「同步中 12/40」，书架照常可点。完成后底部提示；有失败的写「2 本下次重试」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div data-tpl="syncSheet"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4b</span>⋯ 同步面板<span class="rec-badge">已定</span><small>标题旁是上次同步结果（本次打开以来，不落盘；没同步过只显示时间）。全量点了直接开始，进度显示在书架的「同步」按钮上。「账号与连接」进插件设置页，已连接时手机书架上只有这一条近路。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar" data-state="invalid" data-when="3 天前同步"></div>
+          <div class="r-banner"><span data-i="key-round" data-s="16"></span><span>API Key 已失效，显示的是上次同步的本地缓存，不能拉取新笔记。</span><span class="a">重新填写</span></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>Key 失效<small>书架照常展示缓存。「重新填写」打开插件设置页（第 9 页），换 Key 后书架和笔记都在。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 6 单书笔记 ───────────── -->
+<section class="scene" data-scene="book">
+  <p class="scene-intro">单书页从上到下：<b>书头</b>（封面、书名、作者 · 出版社、进度、阅读时长 / 划线 / 想法 / 最近阅读）→ <b>两个按钮 + ⋯</b> → <b>我的书评</b> → <b>吸顶过滤条</b>（全部 / 有想法 / 本书出现过的颜色 + 目录）→ 按章节排的划线。划线照搬桌面的三种样式（下划线、马克笔、波浪线）和五种颜色，想法是浅强调色底的批注块。宿主顶栏标题固定为「微信读书」，书名在书头里。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bookHead"></div>
+          <div data-tpl="bookActs"></div>
+          <div data-tpl="review"></div>
+          <div data-tpl="fbar"></div>
+          <div data-tpl="chapters" data-n="1"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>打开一本书<span class="rec-badge">推荐</span><small>已连接时进页就后台拉一次最新笔记并写回摘录，先显示本地摘录不等网络。「复制为 Markdown」收进 ⋯。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-chapter="第二章 财税与政府行为"></div>
+          <div data-tpl="chapters" data-from="1" data-n="2"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>往下滚<small>过滤条吸顶，目录按钮显示当前章节名（正文滚过的最后一个章节，同桌面目录高亮的口径），点开跳章。没有对应原文的章节想法排在该章划线之后。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-f="5"></div>
+          <div data-tpl="chapters" data-n="3" data-f="5"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>只看黄色划线<small>颜色点再点一次回到全部；本书只用过一种颜色时不出颜色点。没有命中的章节整章隐藏，章节序号保持原书顺序。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bookHead"></div>
+          <div data-tpl="bookActs" data-offline></div>
+          <p class="r-status">未连接微信读书，显示的是本地缓存</p>
+          <div data-tpl="fbar"></div>
+          <div data-tpl="chapters" data-n="1"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>未连接 / 拉取失败<small>从 Tau 摘录还原划线与想法；整书书评和没有原文的想法不在摘录里，这时不显示。拉取失败时这一行写「拉取失败，显示的是本地缓存：原因」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bookHead"></div>
+          <div data-tpl="bookActs"></div>
+          <div data-tpl="review"></div>
+          <div data-tpl="fbar"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div data-tpl="moreSheet"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>⋯ 菜单<small>放不常用的：复制全书笔记为 Markdown、重新拉取、在微信读书中打开（与上方按钮重复，方便单手）。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 7 一条划线 ───────────── -->
+<section class="scene" data-scene="note">
+  <p class="scene-intro">桌面在悬停时露出「转为卡片 / 复制」两个小按钮。手机上<b>点一下划线</b>，弹出底部面板：顶部是原文预览和出处，下面三个动作。「转为卡片」建一张文献卡片（引用块原文 + 想法 + 出处），并记谱系「摘自」，成功后提示条上有「打开」。<b>长按</b>不拦截，交给系统选字。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-chapter="第一章 地方政府的…"></div>
+          <div data-tpl="chapters" data-n="2" data-pressed="b101"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div data-tpl="noteSheet"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>点一条划线<span class="rec-badge">推荐</span><small>被点的那条加深底色。「复制划线和想法」只在有想法时出现，格式同桌面：原文，空一行，想法。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-chapter="第一章 地方政府的…"></div>
+          <div data-tpl="chapters" data-n="2"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div class="r-toast"><span data-i="circle-check" data-s="16"></span>已转为卡片<span class="a">打开</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>转为卡片之后<small>面板收起，停在原处。「打开」推入卡片详情；不点就继续翻笔记。同一条可以再转，每次都是新卡片（复制不是投影，同桌面）。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="r-host"><span class="ib" data-i="chevron-left" data-s="24"></span><span class="t"></span><span class="ib" data-i="waypoints" data-s="19"></span><span class="ib" data-i="ellipsis" data-s="19"></span></div>
+        <div class="r-body">
+          <div class="r-doc">
+            <div class="meta">刚刚 · 卡片</div>
+            <blockquote>理解政府在经济中扮演的角色，要先看清它手里有哪些事、哪些钱。</blockquote>
+            <p>先看事权，再看财权，这条线索可以贯穿全书。</p>
+            <p class="src">—— 《置身事内》· 第一章 地方政府的权力与事务</p>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>生成的卡片<small>宿主的卡片详情页，正文格式与桌面转出的完全一样。右上角脉络能看到它「摘自」哪条划线（第 8 页）。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-chapter="第一章 地方政府的…"></div>
+          <section class="r-ch"><h2><span class="no">01</span>第一章 地方政府的权力与事务<span class="n">12</span></h2>
+            <div class="r-notes"><div class="r-note"><div class="q"><mark class="m1 k5">理解政府在经济中扮演的角色，要先看清<span class="sel">它手里有哪些事<i class="h1"></i><i class="h2"></i></span>、哪些钱。</mark></div></div></div>
+            <div class="r-sysmenu"><span>拷贝</span><span>全选</span><span>查询</span><span>共享…</span></div>
+          </section>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>长按选字<small>系统选字菜单，插件不画。点按和长按互不干扰：选区存在时点按只取消选区，不弹面板。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 8 目录与跳回 ───────────── -->
+<section class="scene" data-scene="toc">
+  <p class="scene-intro">桌面左侧常驻的目录，手机上收进<b>目录面板</b>：只列有笔记的章节和每章条数，当前章节加底色，点一章关面板并滚到那里。<b>跳回</b>是另一条路：卡片脉络里的「来源 · 摘录」现在只读，方案 A 让它可点，交给插件注册的 open，推入单书页并定位到那一条，闪一下描边。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-chapter="第三章 政府投融资…"></div>
+          <div data-tpl="chapters" data-from="2" data-n="1"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div data-tpl="tocSheet" data-active="2"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>目录面板<small>章节多时面板最高到屏幕 3/4，内部滚动，打开时自动滚到当前章节。只有一章时目录按钮不出现。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="r-host"><span class="ib" data-i="chevron-left" data-s="24"></span><span class="t"></span><span class="ib" data-i="waypoints" data-s="19"></span><span class="ib" data-i="ellipsis" data-s="19"></span></div>
+        <div class="r-body">
+          <div class="r-doc">
+            <div class="meta">刚刚 · 卡片</div>
+            <blockquote>理解政府在经济中扮演的角色，要先看清它手里有哪些事、哪些钱。</blockquote>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+        <div class="r-mask"></div>
+        <div class="r-sheet"><div class="grab"></div><div class="sh">脉络<small>1</small></div>
+          <div class="grp">来源 1</div>
+          <div class="r-ctx-row"><span class="ico" data-i="highlighter" data-s="16"></span><div class="m"><b>摘录 · 微信读书</b><small>置身事内 · 第一章 地方政府的权力与事务</small></div><span class="go" data-i="chevron-right" data-s="16"></span></div>
+          <div style="height:120px"></div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>卡片脉络里的来源<small>现在这一行没有箭头、点了没反应。宿主补上后：插件启用时可点；插件停用或卸载时仍显示，只读。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="fbar" data-stuck data-chapter="第一章 地方政府的…"></div>
+          <div data-tpl="chapters" data-n="2" data-flash="b101"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>跳回原处<small>推入单书页，清掉过滤，滚到那条划线并描边闪 1.6 秒，同桌面 scrollToAndFlash。这本书已不在书架上时显示「书架上找不到这本书」+「回到书架」。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 9 设置与异常 ───────────── -->
+<section class="scene" data-scene="settings">
+  <p class="scene-intro">插件设置页由宿主的设置卡片承载，插件只写内容，两端相同。手机上从书架进入有两条近路：Key 失效时提示条上的「重新填写」，以及 ⋯ 同步面板里的「账号与连接」。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host" data-title="账号与连接"></div>
+        <div class="r-body" style="padding-top:8px">
+          <div class="r-group">
+            <div class="gh">API Key<span class="ok"><span data-i="circle-check" data-s="13"></span>已连接</span></div>
+            <div class="gd">在微信读书「AI 技能」页获取。按工作区分开保存。</div>
+            <div class="r-input"><span data-i="key-round" data-s="17"></span><span class="ph">已保存，粘贴新的 API Key 替换</span></div>
+            <div class="r-btn primary dis" style="margin-top:10px">保存并校验</div>
+            <div class="r-links"><span class="r-btn ghost"><span data-i="external-link" data-s="14"></span>获取 API Key</span><span class="r-btn ghost">重新校验</span><span class="r-btn ghost danger">断开</span></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>账号与连接<small>「断开」后提示「已断开，书架与摘录保留」，同桌面。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bar" data-when="10 分钟前同步"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="sec" data-title="在读" data-hint="最近读过的书"></div>
+          <div data-tpl="reading"></div>
+          <div data-tpl="grid" data-n="6"></div>
+        </div>
+        <div class="home-ind"></div>
+        <div class="r-toast solo" style="top:auto;bottom:40px">同步失败：网络不可用，请稍后再试</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>断网时点同步<small>只给提示，不改书架、不出横幅；已同步的划线照常看、照常引用。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div class="r-empty">
+            <span class="badge" data-i="book-open" data-s="24"></span>
+            <b>书架还是空的</b>
+            <p>同步一次，把微信读书书架上的书带进来。</p>
+            <span class="r-btn soft"><span data-i="refresh-cw" data-s="15"></span>同步书架</span>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>已连接但书架为空<small>同桌面 EmptyShelf。Key 失效时标题改「API Key 已失效」，按钮改「重新填写」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="r-body">
+          <div data-tpl="bookHead"></div>
+          <div data-tpl="bookActs"></div>
+          <div class="r-empty" style="padding-top:50px">
+            <span class="muted" data-i="highlighter" data-s="28"></span>
+            <b>这本书还没有划线</b>
+            <p>在微信读书里划线或写想法后，回到这里点「重新拉取」。</p>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>一本书没有划线<small>不出过滤条和目录按钮。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 10 待你决定 ───────────── -->
+<section class="scene" data-scene="decide">
+  <p class="scene-intro">下面是需要你拍板的地方，每条都写了我的默认选择。确认后我再写任务文档（<code>docs/tasks/weread-mobile/</code>），分宿主与插件两部分实施。</p>
+  <div class="cards">
+    <div class="card">
+      <h3>1 · 宿主缺口怎么补（第 1 页）<span class="tag">已定 A</span></h3>
+      <ul>
+        <li><b>已定：方案 A</b>，手机宿主补 <code>excerpts</code> 全套、摘录 open 跳转和 <code>materials.actions</code>，两端功能一致；宿主能力由另一路在补，补齐后再开始插件适配。</li>
+        <li>选 A 时「转为卡片」走宿主材料动作，<b>记谱系「摘自」</b>，和桌面一样；如果想先少做一块，可以让插件在手机上改用已有的 <code>app.run("card.create")</code> 预填正文，代价是没有谱系、会弹出新建卡片窗口而不是直接建好。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>2 · 划线怎么出操作（第 7 页）</h3>
+      <ul>
+        <li><b>默认：点一下出底部面板</b>，长按交给系统选字。界面最干净，划线本身就是按钮。</li>
+        <li><b>备选：每条右上角常驻 ⋯</b>（像桌面悬停按钮的位置），更好发现，但每条都多一个图标。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>3 · 今天页要不要放「在读」卡片</h3>
+      <ul>
+        <li><b>默认：不做</b>，第一版只有「我的」宫格入口。</li>
+        <li>要做的话：两列卡片中的一格，显示最近在读的一本（封面、书名、进度），点「继续读」打开微信读书 App 里的这本书、点卡片进单书页。需要插件注册 <code>home</code> 面板。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>4 · 全量重新同步放哪<span class="tag">已定</span></h3>
+      <ul>
+        <li><b>已定：书架「同步」旁的 ⋯ 打开同步面板</b>（第 5 页）：上次同步结果、全量重新同步、账号与连接。设置页不再放全量。</li>
+        <li>桌面不变：仍是「同步」旁的下拉箭头。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>5 · 其余我已按桌面定好的</h3>
+      <ul>
+        <li>手机与平板都用本稿（内容最宽 720px 居中），电脑用原来的双栏，按平台切，同记账本插件。</li>
+        <li>颜色、划线样式、封面兜底、空态文案全部沿用桌面；新增的只有筛选面板、目录面板、划线面板。</li>
+        <li>数据与口径不变：摘录 externalId、同书想法并入划线、软删除与复位、私有存储键都不动；手机只加界面和 manifest 的 android / ios 目标。</li>
+        <li>实施顺序：先宿主（能力 + 接口表 + 架构文档），再插件（入口、窄屏布局、目标平台），最后真机走一遍：安装、启用、连接、同步、转卡片、跳回、停用、杀进程重开。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>6 · 实现前要在真机上确认</h3>
+      <ul>
+        <li>手机浏览器能否直接登录微信读书获取页拿到 API Key（不能的话首次引导第一步改成在电脑上打开）。</li>
+        <li>插件 WebView 里的 <code>window.open</code> 是否交给系统浏览器、能否唤起微信读书 App；<code>navigator.clipboard</code> 读写是否可用。</li>
+        <li>局域网设备同步遇到两端各自写入的同一条摘录（同 externalId）怎么合并。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="wr-data.js"></script>
+<script src="wr.js"></script>
+<script src="wr-book.js"></script>
+<script src="wr-fill.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>

@@ -217,6 +217,11 @@ export interface SyncActionResponse {
   remoteVersion: number;
 }
 
+export interface SyncProgress {
+  value: number;
+  status: string;
+}
+
 export type ResourceSyncStatus = "pending" | "syncing" | "synced" | "error";
 
 export interface ResourceFileSyncStatus {
@@ -706,24 +711,17 @@ export interface SettingCompat {
     readingFont?: string;
     [key: string]: unknown;
   };
+  /** 提醒偏好（本机）：新建事项的默认提醒、稍后提醒间隔、前台横幅；见 features/reminders/settings */
+  reminders?: {
+    todo?: number[];
+    event?: number[];
+    allDay?: number[];
+    snoozeMinutes?: number;
+    foregroundBanner?: boolean;
+  };
   /** 移动端编辑器偏好：openMode 为打开已有文档时的初始状态，缺省为 read（阅读态） */
   editor?: {
     openMode?: "read" | "edit";
-  };
-  module?: {
-    todo?: {
-      enable?: boolean;
-    };
-    dailyNote?: {
-      enable?: boolean;
-    };
-    pomodoro?: {
-      enable?: boolean;
-    };
-    calendar?: {
-      enable?: boolean;
-    };
-    [key: string]: unknown;
   };
   /** 协作设置：展示昵称（服务器固定为默认协作服务器，协作常开） */
   collaboration?: {

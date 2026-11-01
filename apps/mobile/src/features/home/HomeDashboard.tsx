@@ -12,6 +12,7 @@ import {
   CheckCircle,
   FolderOpen,
   Stack,
+  Timer,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { Descendant } from "slate";
@@ -121,11 +122,7 @@ const AGENDA_STYLE: Record<AgendaKind, { icon: ReactNode; tone: string; soft: st
     soft: "var(--tau-tag-1-soft)",
   },
   pomodoro: {
-    icon: (
-      <span className="text-[18px] leading-none" aria-hidden="true">
-        🍅
-      </span>
-    ),
+    icon: <Timer size={19} weight="duotone" color="var(--tau-tag-5)" aria-hidden="true" />,
     tone: "var(--tau-tag-5)",
     soft: "var(--tau-tag-5-soft)",
   },
@@ -135,10 +132,6 @@ type HomeDashboardProps = {
   cardsTotal: number;
   recentCards: CardListItem[];
   isLoadingCards: boolean;
-  todoEnabled: boolean;
-  diaryEnabled: boolean;
-  pomodoroEnabled: boolean;
-  calendarEnabled: boolean;
   onOpenCards: () => void;
   onOpenTodo: () => void;
   onOpenPomodoro: () => void;
@@ -157,11 +150,9 @@ type HomeDashboardProps = {
 };
 
 export function HomeDashboard(props: HomeDashboardProps) {
-  const agenda = useTodayAgenda(props);
-  const allItemsQuery = useTodoItems(
-    props.todoEnabled ? { systemType: "all" as const } : { groupId: -1 }
-  );
-  const diaryEntriesQuery = useDiaryEntries(props.diaryEnabled);
+  const agenda = useTodayAgenda();
+  const allItemsQuery = useTodoItems({ systemType: "all" });
+  const diaryEntriesQuery = useDiaryEntries();
   const articlesQuery = useArticlesQuery();
   const projectItemsQuery = useProjectItemsQuery();
   const homeStats = useHomeStatsQuery().data ?? null;
@@ -232,21 +223,19 @@ export function HomeDashboard(props: HomeDashboardProps) {
         });
       });
 
-    if (props.todoEnabled) {
-      (allItemsQuery.data ?? [])
-        .filter(item => item.isCompleted && !item.isArchived)
-        .sort((a, b) => (b.completedAt ?? b.updateTime) - (a.completedAt ?? a.updateTime))
-        .slice(0, 2)
-        .forEach(item => {
-          items.push({
-            key: `todo-${item.id}`,
-            kind: "todo",
-            title: `完成了「${item.title}」`,
-            time: item.completedAt ?? item.updateTime,
-            action: props.onOpenTodo,
-          });
+    (allItemsQuery.data ?? [])
+      .filter(item => item.isCompleted && !item.isArchived)
+      .sort((a, b) => (b.completedAt ?? b.updateTime) - (a.completedAt ?? a.updateTime))
+      .slice(0, 2)
+      .forEach(item => {
+        items.push({
+          key: `todo-${item.id}`,
+          kind: "todo",
+          title: `完成了「${item.title}」`,
+          time: item.completedAt ?? item.updateTime,
+          action: props.onOpenTodo,
         });
-    }
+      });
 
     // 项目文档：仅自持正文的 document 节点（引用型节点会与卡片/文章条目重复）
     pickRecent(
@@ -301,16 +290,12 @@ export function HomeDashboard(props: HomeDashboardProps) {
       viewAll: props.onOpenProjects,
       viewAllLabel: `查看全部 ${homeStats?.projectsTotal ?? ""} 个项目`,
     },
-    ...(props.diaryEnabled
-      ? [
-          {
-            key: "diary" as const,
-            label: "日记",
-            viewAll: props.onOpenDiary,
-            viewAllLabel: "查看全部日记",
-          },
-        ]
-      : []),
+    {
+      key: "diary",
+      label: "日记",
+      viewAll: props.onOpenDiary,
+      viewAllLabel: "查看全部日记",
+    },
   ];
   const activeFilter = feedFilters.find(filter => filter.key === feedFilter) ?? feedFilters[0];
   const filteredFeed =
@@ -340,39 +325,37 @@ export function HomeDashboard(props: HomeDashboardProps) {
         </div>
       ) : null}
 
-      {props.todoEnabled ? (
-        <section className="mt-6">
-          <div className="mb-2.5 flex items-baseline justify-between px-1">
-            <h2 className="text-ink-1 text-[16.5px] font-extrabold">任务</h2>
-            <button
-              type="button"
-              onClick={props.onOpenTodo}
-              className="text-ink-3 active:text-ink-1 text-[12.5px] font-semibold"
-            >
-              全部 ›
-            </button>
-          </div>
-          <div className="list-group pop-in" style={{ animationDelay: "0.06s" }}>
-            {todayTodos.length === 0 ? (
-              <p className="text-ink-3 px-4 py-6 text-center text-[13px]">
-                {agenda.todoTotals && agenda.todoTotals.total > 0
-                  ? "任务都完成了，休息一下"
-                  : "还没有安排任务"}
-              </p>
-            ) : (
-              todayTodos.map(item => (
-                <TodoSummaryRow
-                  key={item.id}
-                  title={item.title}
-                  onToggle={isCompleted => {
-                    void toggleTodoComplete(item, isCompleted, props.onError);
-                  }}
-                />
-              ))
-            )}
-          </div>
-        </section>
-      ) : null}
+      <section className="mt-6">
+        <div className="mb-2.5 flex items-baseline justify-between px-1">
+          <h2 className="text-ink-1 text-[16.5px] font-extrabold">任务</h2>
+          <button
+            type="button"
+            onClick={props.onOpenTodo}
+            className="text-ink-3 active:text-ink-1 text-[12.5px] font-semibold"
+          >
+            全部 ›
+          </button>
+        </div>
+        <div className="list-group pop-in" style={{ animationDelay: "0.06s" }}>
+          {todayTodos.length === 0 ? (
+            <p className="text-ink-3 px-4 py-6 text-center text-[13px]">
+              {agenda.todoTotals && agenda.todoTotals.total > 0
+                ? "任务都完成了，休息一下"
+                : "还没有安排任务"}
+            </p>
+          ) : (
+            todayTodos.map(item => (
+              <TodoSummaryRow
+                key={item.id}
+                title={item.title}
+                onToggle={isCompleted => {
+                  void toggleTodoComplete(item, isCompleted, props.onError);
+                }}
+              />
+            ))
+          )}
+        </div>
+      </section>
 
       <section className="mt-6">
         <div className="mb-2.5 px-1">

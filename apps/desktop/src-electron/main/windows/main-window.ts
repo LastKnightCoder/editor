@@ -1,7 +1,7 @@
 import { app, type BrowserWindow } from "electron";
 import log from "electron-log";
 import { ensureMacOSForegroundApplication } from "../utils/macos-activation";
-import { createWindow, revealWindow } from "./create-window";
+import { activateApp, createWindow, revealWindow } from "./create-window";
 
 // 主窗口内容下限（CSS px）：实际 minWidth 按页面 zoomFactor 放大，
 // 保证任意缩放下壳层内容不被裁（渲染端在 zoom 变化时经 refresh-window-min-size 上报）
@@ -39,7 +39,10 @@ export function showOrCreateMainWindow() {
   ensureMacOSForegroundApplication(app);
   const [existing] = getMainWindows();
   if (existing) revealWindow(existing);
-  else createMainWindow();
+  else {
+    activateApp();
+    createMainWindow();
+  }
 }
 
 /** 最小尺寸 = 内容下限 × zoomFactor；Windows 上 setMinimumSize 不钳制当前尺寸，须手动撑到新下限 */

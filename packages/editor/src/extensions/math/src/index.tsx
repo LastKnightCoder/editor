@@ -6,12 +6,7 @@ import type { BlockMathElement, InlineMathElement } from "./types";
 const InlineMath = React.lazy(() => import("./components/InlineMath"));
 const BlockMath = React.lazy(() => import("./components/BlockMath"));
 
-import {
-  inlineMathCommands,
-  inlineMathHotkeys,
-  blockMathCommands,
-  blockMathHotkeys,
-} from "./commands";
+import { inlineMathCommands, inlineMathHotkeys, blockMathCommands } from "./commands";
 import blockPanelItems from "./block-panel-items";
 import hoveringBarConfigs from "./hovering-bar-configs";
 import { convertDollarsToBlockMath, normalizeInlineMath } from "./behaviors";
@@ -67,7 +62,6 @@ export const blockMathExtension = defineExtension({
     }),
   ],
   commands: blockMathCommands,
-  hotkeys: blockMathHotkeys,
   behaviorsFor: {
     paragraph: { insertBreak: convertDollarsToBlockMath },
   },

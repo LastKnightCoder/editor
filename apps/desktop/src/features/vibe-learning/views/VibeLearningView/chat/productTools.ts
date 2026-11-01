@@ -24,8 +24,6 @@ import { startVLTask } from "../tasks/runner";
 import { useVLTaskStore } from "../tasks/store";
 import { VL_PRODUCT_RENDERER_KEY, type VLProductPayload } from "./productPayload";
 
-/** 播客要选音色、依赖 TTS 配置，暂不开放给对话 */
-const GENERATE_KINDS = GENERATE_APPS.filter(app => app.key !== "podcast");
 const SAVE_TYPES: { type: VLNoteType; label: string; hint: string }[] = [
   { type: "note", label: "笔记", hint: "普通 Markdown" },
   { type: "outline", label: "学习大纲", hint: "Markdown 标题 / 列表分层" },
@@ -91,8 +89,8 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
       properties: {
         kind: {
           type: "string",
-          enum: GENERATE_KINDS.map(a => a.key),
-          description: `产物类型：${GENERATE_KINDS.map(a => `${a.key}=${a.label}`).join("，")}`,
+          enum: GENERATE_APPS.map(a => a.key),
+          description: `产物类型：${GENERATE_APPS.map(a => `${a.key}=${a.label}`).join("，")}`,
         },
         brief: {
           type: "string",
@@ -118,10 +116,10 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
     },
     executor: async (args, context) => {
       const kind = asString(args.kind) as GenerateAppKey;
-      const app = GENERATE_KINDS.find(a => a.key === kind);
+      const app = GENERATE_APPS.find(a => a.key === kind);
       if (!app) {
         return paramError(
-          `不支持的产物类型：${kind || "未填写"}。可选：${GENERATE_KINDS.map(a => a.key).join("、")}`
+          `不支持的产物类型：${kind || "未填写"}。可选：${GENERATE_APPS.map(a => a.key).join("、")}`
         );
       }
       const brief = asString(args.brief);
@@ -242,7 +240,9 @@ function createSaveNoteTool(projectId: number, mainDbName: string): ToolDefiniti
       const contentId = await commands.createContent(content, getContentLength(content));
       if (!contentId) return { content: "保存失败：创建内容失败" };
       const note = await commands.createVLNote({ projectId, contentId, title, type: meta.type });
-      const chatId = context?.conversationKey ? chatIdFromSessionKey(context.conversationKey) : null;
+      const chatId = context?.conversationKey
+        ? chatIdFromSessionKey(context.conversationKey)
+        : null;
       // 产物记得它存自哪段对话；工具调用拿不到所在消息的 entry id，只记会话
       if (chatId) {
         await commands.recordLineage({

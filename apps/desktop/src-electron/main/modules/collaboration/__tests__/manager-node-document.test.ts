@@ -20,6 +20,9 @@ import {
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { applyNodeTreeContent } from "@tau/editor-collab";
 import schema from "@tau/db-schema/schema/main.sql?raw";
+import deviceSchema from "@tau/db-schema/schema/device-sync.sql?raw";
+import { deviceDocument, initializeDeviceSyncDatabase } from "../../device-sync/database-store";
+import { prepareDeviceDocument } from "@tau/collaboration/src/device-sync/documents";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { CollaborationManager } from "../index";
@@ -65,6 +68,7 @@ afterEach(async () => {
   host.serverUrl = "http://test";
 });
 type Runtime = {
+  prepareDeviceLibrary(event: IpcMainInvokeEvent, name: string, fresh?: boolean): Promise<void>;
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   assets: CollaborationAssetService;
@@ -114,9 +118,14 @@ async function setup(realtime = false) {
   const owner = server.store.register("作者");
   let losePublish = false;
   let loseCommit = false;
+  let serverDate: number | undefined;
   const client = {
     identities: new Map([[host.serverUrl, owner]]),
     identity: async () => owner,
+    serverTime: () => {
+      if (serverDate === undefined) throw new Error("缺少服务端时间");
+      return serverDate;
+    },
     request: async (
       _url: string,
       path: string,
@@ -133,6 +142,7 @@ async function setup(realtime = false) {
         },
         payload: body as Record<string, unknown>,
       });
+      serverDate = Date.parse(String(response.headers.date));
       const value = response.json();
       if (response.statusCode >= 400)
         throw Object.assign(new Error(value.message), {
@@ -472,6 +482,69 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect((await runtime.openContent(event, { contentId: 7 })).mode).toBe("local");
     expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
   });
+  it("首次开启设备同步保留缓存输入，并从本机图片建立不含原始路径的可传输基线", async () => {
+    const { runtime, localId, event, db } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const path = join(host.dir, "resources", "private-local-image.png");
+    mkdirSync(join(host.dir, "resources"), { recursive: true });
+    writeFileSync(path, "LOCAL_IMAGE");
+    const tree = new NodeTree(session.doc);
+    await tree.installContracts({ [image.id]: image.contract }, null);
+    tree.insertText("paragraph", 0, "缓存未投影输入", {});
+    tree.insertNode(
+      {
+        type: "image",
+        collabId: "private-image",
+        tauContract: image.id,
+        url: path,
+        children: [{ text: "" }],
+      },
+      null,
+      tree.spans(null).reduce((size, span) => size + span.length, 0),
+      {},
+      true
+    );
+    tree.dispose();
+    expect(Buffer.from(Y.encodeStateAsUpdate(session.doc)).includes(Buffer.from(path))).toBe(true);
+    initializeDeviceSyncDatabase(db, deviceSchema);
+    const node = crypto.randomUUID(),
+      head = crypto.randomUUID();
+    db.prepare("INSERT INTO _tau_device_state(id,payload) VALUES(1,?)").run(
+      JSON.stringify({
+        library: ContentIdentityTable.library(db)!.sourceId,
+        schema: "schema",
+        node,
+        authority: node,
+        epoch: crypto.randomUUID(),
+        head,
+        ackHead: head,
+        ackSeq: 0,
+        revision: 0,
+        enabled: true,
+      })
+    );
+    initializeDeviceSyncDatabase(db, deviceSchema);
+    await runtime.prepareDeviceLibrary(event, "library", true);
+    const entry = deviceDocument(db, 7)!;
+    const prepared = await prepareDeviceDocument(entry);
+    expect(prepared.projection.contentJson).toContain("缓存未投影输入");
+    expect(prepared.projection.contentJson).not.toContain(path);
+    expect(Buffer.from(entry.state, "base64").includes(Buffer.from(path))).toBe(false);
+    expect(Object.keys(entry.paths)[0]).toMatch(/^tau-collab-local:/);
+    expect(runtime.sessions.has(localId)).toBe(false);
+    await runtime.openContent(event, { contentId: 7 });
+    expect(runtime.sessions.get(localId)!.doc.getMap("meta").get("baselineId")).toBe(
+      entry.baselineId
+    );
+  });
+
   it("本机图片保存保留路径和图床 URL，存量编号转存后缓存重建仍能读取", async () => {
     const { runtime, localId, event, db, store } = await setup();
     const image = await prepareContentContract("tau.image", {
@@ -1021,12 +1094,16 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
   it("整库被下载替换后丢弃本库的本地缓存，重开正文读新库内容", async () => {
     const { runtime, event, store, localId } = await setup();
+    const retired = runtime.sessions.get(localId)!;
     const drain = await runtime.drainDatabase({
       databaseName: "library",
       reason: "database-change",
+      replace: true,
     });
     drain.commit();
+    expect(retired.info.frozen).toBe(true);
     await runtime.releaseLibrary("library");
+    expect(() => retired.persistDeviceState?.(retired.doc)).toThrow(/DEVICE_SYNC_REPLACED/);
     expect(runtime.sessions.has(localId)).toBe(false);
     expect(store.list().some(session => session.id === localId)).toBe(false);
     const opened = await runtime.openContent(event, { contentId: 7 });

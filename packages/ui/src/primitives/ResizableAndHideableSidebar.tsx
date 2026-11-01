@@ -34,8 +34,6 @@ interface ResizeableAndHideableSidebarProps {
   showInternalExpandButtonWhenClosed?: boolean;
   /** 透传 WidthResizable：常驻淡分隔线标出拖拽边界 */
   showDivider?: boolean;
-  /** 以 flex 铺满父级剩余空间，替代固定宽度（如视频笔记收起对话后材料栏独占） */
-  fillRemaining?: boolean;
 }
 
 const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) => {
@@ -56,7 +54,6 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     handleOffset,
     showInternalExpandButtonWhenClosed = false,
     showDivider,
-    fillRemaining = false,
   } = props;
 
   const [isHoveringEdge, setIsHoveringEdge] = useState(false);
@@ -91,11 +88,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
   }, [onActualWidthChange]);
 
   return (
-    <div
-      ref={ref}
-      style={{ ...style, ...(fillRemaining ? undefined : { width: actualWidth }) }}
-      className={cn("relative", fillRemaining && "min-w-0 flex-1", className)}
-    >
+    <div ref={ref} style={{ ...style, width: actualWidth }} className={cn("relative", className)}>
       <div className={`h-full w-full ${open ? "" : "overflow-hidden"}`}>
         <WidthResizable
           defaultWidth={actualWidth}
@@ -104,7 +97,6 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
           onResize={width => {
             onWidthChange?.(width, width);
           }}
-          fillRemaining={fillRemaining}
           style={{
             height: "100%",
           }}

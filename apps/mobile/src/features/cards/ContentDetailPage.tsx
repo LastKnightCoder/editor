@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -29,6 +30,9 @@ import useLocalContentDocument, {
 } from "../../hooks/useLocalContentDocument";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
+import { RecordingRecoveryBanner } from "./recording/RecordingRecoveryBanner";
+import { useRecordingLeaveGuard } from "./recording/useRecordingLeaveGuard";
+import type { RecordingPersistence } from "./recording/recordingPersistence";
 import ContextBadge from "../context/ContextBadge";
 import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
@@ -223,7 +227,39 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       props.onError?.(error, "内容自动保存失败");
     },
   });
-  const toolbarController = useMobileEditorToolbarController({ editorRef });
+  // 录音只在本机文档里开放：协作文档的附件归属规则不同，首版不接
+  const recordingDocument = editMode === "local" ? `content:${props.contentId}` : null;
+  const recordingDocumentRef = useRef(recordingDocument);
+  recordingDocumentRef.current = recordingDocument;
+  const recordingTitleRef = useRef("");
+  recordingTitleRef.current = props.diaryDate?.title ?? resolveTitle(props);
+  const captureRecordingPersistence = useCallback((): RecordingPersistence => {
+    const source = localDocumentRef.current;
+    if (!source || source.readonly) throw new Error("当前正文不可编辑");
+    return {
+      prepareResource: path => source.prepareResource(path),
+      flush: async () => {
+        await source.flush();
+        if (!(await flushNow())) throw new Error("录音尚未保存到正文，请稍后重试");
+      },
+    };
+  }, [flushNow]);
+  const recordingHost = useMemo(
+    () =>
+      recordingDocument
+        ? {
+            document: () => recordingDocumentRef.current,
+            documentTitle: () => recordingTitleRef.current,
+            persistence: captureRecordingPersistence,
+          }
+        : undefined,
+    [recordingDocument, captureRecordingPersistence]
+  );
+  const toolbarController = useMobileEditorToolbarController({
+    editorRef,
+    recording: recordingHost,
+  });
+  const recordingLeave = useRecordingLeaveGuard(editorRef);
   const localDocument = useLocalContentDocument({
     contentId: collabDocument ? undefined : props.contentId,
     content,
@@ -237,6 +273,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   localDocumentRef.current = localDocument;
   const beforeLeave = useRef<() => Promise<boolean>>(async () => true);
   beforeLeave.current = async () => {
+    if (!(await recordingLeave.confirmLeave())) return false;
     try {
       (
         editorRef.current?.getEditor() as Partial<NodeTreeEditor> | undefined
@@ -713,6 +750,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       </div>
     );
 
+  const recoveryBanner = (
+    <RecordingRecoveryBanner
+      document={recordingDocument}
+      editorRef={editorRef}
+      editable={!forcedReadonly}
+      persistence={captureRecordingPersistence}
+    />
+  );
+
   return (
     <div
       ref={setPageRootEl}
@@ -746,7 +792,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             onScroll={syncCoverHeaderFade}
           >
             {props.coverSlot}
-            <div className="px-6">{body}</div>
+            <div className="px-6">
+              {recoveryBanner}
+              {body}
+            </div>
           </div>
         </div>
       ) : (
@@ -768,6 +817,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               ref={noCoverScrollRef}
               className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-6"
             >
+              {recoveryBanner}
               {body}
             </div>
           </div>
@@ -821,6 +871,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         />
       )}
       <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
+      {recordingLeave.sheets}
     </div>
   );
 }

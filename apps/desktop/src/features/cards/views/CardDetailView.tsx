@@ -11,13 +11,11 @@
  *
  * 搬用（§6.1 共存期复用，legacy 组件直接消费）：ContentEditor / AddTag /
  * PresentationMode / ImmersiveEditorMode（退出后恢复光标）/ 导出弹窗×3 /
- * 播客（usePodcastAttachment + PodcastPlayer + PodcastGenerationModal）/
  * 统一制卡入口（useFlashcardCreation）/ 协作控制。
  * 图谱入口不做（卡片库列表页已有）。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import type { Descendant, Range } from "slate";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
@@ -28,7 +26,6 @@ import {
   CreditCard,
   Download,
   ExternalLink,
-  FileAudio,
   FileType,
   FileText,
   Image as ImageIcon,
@@ -60,22 +57,12 @@ import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
 import useContentShared from "@/hooks/useContentShared";
-import PodcastPlayer from "@/components/PodcastPlayer";
-import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
-import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
-import { attachPodcastToCard, detachPodcastFromCard } from "@/commands/podcast";
-import { getScopedCard, openCardInNewWindow } from "@/commands/card";
-import {
-  copyMarkdownToClipboard,
-  copyWechatHtmlToClipboard,
-  defaultCardEventBus,
-  formatDate,
-} from "@/utils";
-import type { ICard } from "@/types";
+import { openCardInNewWindow } from "@/commands/card";
+import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, formatDate } from "@/utils";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
-import { cardsKey, cardDetailKey, useCardDetail, useCardsMutations } from "../queries";
+import { useCardDetail, useCardsMutations } from "../queries";
 import { AddContentLinkDialog } from "@/features/context/components/ContextLinks";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
@@ -110,7 +97,6 @@ export function CardDetailView() {
   const detailQuery = useCardDetail(Number.isFinite(id) ? id : null);
   const card = detailQuery.data ?? null;
   const mutations = useCardsMutations();
-  const queryClient = useQueryClient();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
@@ -167,24 +153,6 @@ export function CardDetailView() {
       contentId: card?.contentId ?? 0,
       title: cardTitle || "卡片参考",
     }),
-  });
-
-  /* 播客：挂载到卡片（attach/detach 命令），重载后同步单卡缓存并广播多实例 */
-  const podcast = usePodcastAttachment({
-    hostId: id,
-    currentPodcast: card?.podcast,
-    attachPodcast: attachPodcastToCard,
-    detachPodcast: detachPodcastFromCard,
-    reloadHost: async (hostId: number) =>
-      databaseName ? getScopedCard(databaseName, hostId) : null,
-    onHostReloaded: updated => {
-      queryClient.setQueryData(cardDetailKey(databaseName, updated.id), updated);
-      queryClient.setQueryData<ICard[]>(cardsKey(databaseName), list =>
-        list?.map(item => (item.id === updated.id ? updated : item))
-      );
-      defaultCardEventBus.createEditor().publishCardEvent("card:updated", updated);
-    },
-    messages: { created: "播客已添加到卡片" },
   });
 
   /* 标题栏面包屑（静态，v2 无速切器）：「卡片库 / #12 首行」；须 useMemo 稳定化 */
@@ -401,12 +369,6 @@ export function CardDetailView() {
                       >
                         手动制卡（闪卡）
                       </Menu.Item>
-                      <Menu.Item
-                        onSelect={podcast.openPodcastModal}
-                        icon={<FileAudio className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        {card.podcast ? "编辑播客" : "生成播客"}
-                      </Menu.Item>
                     </Menu.Submenu>
                     <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
                     <Menu.Separator />
@@ -420,17 +382,6 @@ export function CardDetailView() {
                   </Menu>
                 </span>
               </div>
-
-              {/* 播客条：已挂载时在正文顶（生成/编辑入口在 ⋯ 菜单） */}
-              {card.podcast && (
-                <div className="mb-[30px]">
-                  <PodcastPlayer
-                    podcast={card.podcast}
-                    onDelete={podcast.handleDeletePodcast}
-                    onEdit={podcast.openPodcastModal}
-                  />
-                </div>
-              )}
 
               {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
               <PluginEntityPanels target={{ kind: "card", id: String(card.id) }} className="mb-5" />
@@ -542,16 +493,6 @@ export function CardDetailView() {
         onClose={() => setExportKind(null)}
         content={card.content}
         title={cardTitle}
-      />
-
-      {/* 播客生成（legacy 搬用） */}
-      <PodcastGenerationModal
-        open={podcast.podcastModalOpen}
-        cardContent={card.content}
-        initialPodcast={card.podcast}
-        onSuccess={podcast.handlePodcastSuccess}
-        onCancel={podcast.closePodcastModal}
-        saveText="保存到卡片"
       />
 
       {/* 演示模式（legacy 搬用） */}

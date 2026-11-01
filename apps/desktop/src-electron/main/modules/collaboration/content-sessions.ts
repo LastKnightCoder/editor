@@ -1,5 +1,6 @@
 import { mapNodeResources } from "@tau/db-schema/content-resources";
 import type Database from "better-sqlite3";
+import { readDeviceSyncState } from "../device-sync/database-store";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import {
@@ -126,6 +127,7 @@ function patchNodeSession(
   textPatcher?: TextPatcher,
   paragraphPatcher?: ParagraphPatcher
 ): number {
+  session.refreshDeviceState?.();
   const candidate = new Y.Doc({ gc: false });
   Y.applyUpdate(candidate, Y.encodeStateAsUpdate(session.doc));
   const before = Y.encodeStateVector(candidate);
@@ -210,6 +212,7 @@ function patchNodeSession(
       if (!session.persistNodeUpdate) throw new Error("正文持久化服务尚未就绪");
       const update = Y.encodeStateAsUpdate(candidate, before);
       session.retainNodeState?.(candidate);
+      session.persistDeviceState?.(candidate);
       session.persistNodeUpdate(update);
       Y.applyUpdate(session.doc, update, "renderer-persisted");
     }
@@ -242,6 +245,12 @@ export function patchSessionNodes(
 }
 
 export function canonicalContentTitle(db: Database.Database, contentId: number) {
+  const session = contentSession(db, contentId);
+  if (
+    readDeviceSyncState(db)?.enabled ||
+    (session?.info.mode === "local" && session.info.source?.titleAuthority === "database")
+  )
+    return findContentTitle(db, contentId) || undefined;
   // 协作标题为空时返回 undefined，让调用方回退到自己传入的标题，避免空串清空标题。
   const title = contentSession(db, contentId)?.doc.getText("title").toString();
   return title || undefined;
@@ -252,8 +261,10 @@ export function canonicalContentTitle(db: Database.Database, contentId: number) 
  * 不回写会在投影时被旧协作标题覆盖（表现为重命名静默失效）。
  */
 export function setCanonicalContentTitle(db: Database.Database, contentId: number, title: string) {
+  if (readDeviceSyncState(db)?.enabled) return;
   if (!title) return;
   const session = contentSession(db, contentId);
+  if (session?.info.mode === "local" && session.info.source?.titleAuthority === "database") return;
   if (!session || session.info.frozen || session.info.leaving) return;
   const text = session.doc.getText("title");
   if (text.toString() === title) return;

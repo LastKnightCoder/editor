@@ -5,15 +5,7 @@ import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useEdgeFade } from "../../hooks/useScrollState";
-import {
-  Article,
-  Cards,
-  DotsThree,
-  FolderOpen,
-  ListChecks,
-  Palette,
-  Timer,
-} from "@phosphor-icons/react";
+import { Article, Cards, DotsThree, FolderOpen, ListChecks, Timer } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { OverviewSection } from "./components/OverviewSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
@@ -34,17 +26,16 @@ type SettingsScreenProps = SettingsPageProps & {
   pluginFeatures?: readonly FeatureGridEntry[];
   /** 打开二级模块（压入 settingsModule 路由页） */
   onOpenModule: (module: SettingModuleKey) => void;
-  /** 功能宫格：任务中心（模块启用时展示） */
-  onOpenTodo?: () => void;
-  /** 功能宫格：番茄专注（模块启用时展示） */
-  onOpenPomodoro?: () => void;
+  /** 功能宫格：任务 / 番茄专注 */
+  onOpenTodo: () => void;
+  onOpenPomodoro: () => void;
   /** 页头：全局搜索 */
   onOpenSearch?: () => void;
   /** 功能宫格：文章 / 项目 / 知识库 / 闪卡 */
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
   onOpenKnowledge?: () => void;
-  onOpenFlashcard?: () => void;
+  onOpenFlashcard: () => void;
 };
 
 /** 宫格最多两行；超出时第 8 格换成「更多」 */
@@ -54,18 +45,17 @@ type FeatureItem = {
   key: string;
   label: string;
   tile: ReactNode;
-  soon?: boolean;
   onClick: () => void;
 };
 
 /** 功能宫格：内置功能在前，插件功能入口按启用顺序接在后面 */
 function FeatureGrid(props: {
-  onOpenTodo?: () => void;
-  onOpenPomodoro?: () => void;
+  onOpenTodo: () => void;
+  onOpenPomodoro: () => void;
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
   onOpenKnowledge?: () => void;
-  onOpenFlashcard?: () => void;
+  onOpenFlashcard: () => void;
   pluginItems?: readonly FeatureGridEntry[];
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -75,12 +65,10 @@ function FeatureGrid(props: {
     tone: string,
     soft: string,
     label: string,
-    onClick: () => void,
-    soon?: boolean
+    onClick: () => void
   ): FeatureItem => ({
     key,
     label,
-    soon,
     onClick,
     tile: (
       <span
@@ -98,7 +86,7 @@ function FeatureGrid(props: {
       "var(--tau-tag-4)",
       "var(--tau-tag-4-soft)",
       "任务",
-      props.onOpenTodo ?? (() => toast({ type: "info", text: "任务模块未启用" }))
+      props.onOpenTodo
     ),
     builtin(
       "article",
@@ -122,24 +110,15 @@ function FeatureGrid(props: {
       "var(--tau-tag-3)",
       "var(--tau-tag-3-soft)",
       "闪卡",
-      props.onOpenFlashcard ?? (() => toast({ type: "info", text: "闪卡模块未启用" }))
-    ),
-    builtin(
-      "whiteboard",
-      Palette,
-      "var(--tau-tag-5)",
-      "var(--tau-tag-5-soft)",
-      "白板",
-      () => toast({ type: "info", text: "白板即将上线" }),
-      true
+      props.onOpenFlashcard
     ),
     builtin(
       "pomodoro",
       Timer,
       "var(--tau-tag-5)",
       "var(--tau-tag-5-soft)",
-      "番茄",
-      props.onOpenPomodoro ?? (() => toast({ type: "info", text: "番茄模块未启用" }))
+      "番茄专注",
+      props.onOpenPomodoro
     ),
     ...(props.pluginItems ?? []).map(entry => ({
       key: `plugin:${entry.key}`,
@@ -194,13 +173,8 @@ function FeatureButton({ item }: { item: FeatureItem }) {
     <button
       type="button"
       onClick={item.onClick}
-      className="relative flex min-w-0 flex-col items-center gap-[7px] py-2 transition-transform duration-200 active:scale-90"
+      className="flex min-w-0 flex-col items-center gap-[7px] py-2 transition-transform duration-200 active:scale-90"
     >
-      {item.soon ? (
-        <span className="bg-tag-4-soft text-tag-4 absolute top-0 right-1 rounded-full px-[5px] py-[1.5px] text-[8.5px] font-bold tracking-wide">
-          即将
-        </span>
-      ) : null}
       {item.tile}
       <span className="text-ink-2 max-w-full truncate px-0.5 text-[11px] font-semibold">
         {item.label}

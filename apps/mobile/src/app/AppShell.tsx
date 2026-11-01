@@ -46,6 +46,9 @@ import { HomeScreen } from "./HomeScreen";
 import { StartupFailure } from "./StartupFailure";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
+import { startDeviceSync, replaceLocalLibrary } from "../services/device-sync/runtime";
+import { setDeviceSyncDatabase } from "../services/device-sync/native";
+import { ReminderHost } from "../features/reminders/ReminderHost";
 import { CollaborationBackground } from "../features/collaboration/CollaborationBackground";
 import "../pages";
 
@@ -114,6 +117,9 @@ export default function AppShell() {
 
 function AppShellInner() {
   const bootstrap = useBootstrap();
+  const deviceSyncName = bootstrap.databases?.activeDatabase ?? "";
+  setDeviceSyncDatabase(deviceSyncName);
+  useEffect(() => (deviceSyncName ? startDeviceSync(deviceSyncName) : undefined), [deviceSyncName]);
   const cards = useCardsQuery();
   const syncSettings = useSyncSettings();
   const resourceSync = useResourceSync();
@@ -150,36 +156,49 @@ function AppShellInner() {
     }
   );
 
-  const refreshAfterDatabaseChange = useMemoizedFn(async (event: { databaseName: string }) => {
-    const targetDatabaseName =
-      event.databaseName ||
-      syncSettings.safeSetting?.database?.active ||
-      bootstrap.databases?.activeDatabase ||
-      null;
-    const taskResults = await Promise.allSettled([
-      syncSettings.loadSetting(),
-      bootstrap.refreshDatabases(),
-      refreshCardsSafe({ page: 1 }),
-      refreshVersionsSafe(),
-      useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-      useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-      invalidateCalendarQueries(),
-    ]);
-    const fallbackMessages = [
-      "刷新设置快照失败",
-      "刷新数据库列表失败",
-      "刷新卡片列表失败",
-      "刷新同步状态失败",
-      "刷新任务数据失败",
-      "刷新日记数据失败",
-      "刷新日历数据失败",
-    ] as const;
-    taskResults.forEach((result, index) => {
-      if (result.status === "rejected") {
-        presentError(result.reason, fallbackMessages[index] ?? "数据库变更后刷新失败");
+  const refreshAfterDatabaseChange = useMemoizedFn(
+    async (event: { databaseName: string; reason?: string }) => {
+      const targetDatabaseName =
+        event.databaseName ||
+        syncSettings.safeSetting?.database?.active ||
+        bootstrap.databases?.activeDatabase ||
+        null;
+      if (event.reason === "deviceSync" || event.reason === "deviceDownload") {
+        const results = await Promise.allSettled([
+          refreshCardsSafe({ page: 1 }),
+          useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+          useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+          invalidateCalendarQueries(),
+        ]);
+        for (const result of results)
+          if (result.status === "rejected") presentError(result.reason, "设备同步后刷新数据失败");
+        return;
       }
-    });
-  });
+      const taskResults = await Promise.allSettled([
+        syncSettings.loadSetting(),
+        bootstrap.refreshDatabases(),
+        refreshCardsSafe({ page: 1 }),
+        refreshVersionsSafe(),
+        useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+        useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+        invalidateCalendarQueries(),
+      ]);
+      const fallbackMessages = [
+        "刷新设置快照失败",
+        "刷新数据库列表失败",
+        "刷新卡片列表失败",
+        "刷新同步状态失败",
+        "刷新任务数据失败",
+        "刷新日记数据失败",
+        "刷新日历数据失败",
+      ] as const;
+      taskResults.forEach((result, index) => {
+        if (result.status === "rejected") {
+          presentError(result.reason, fallbackMessages[index] ?? "数据库变更后刷新失败");
+        }
+      });
+    }
+  );
 
   useDatabaseChangeEffect(
     async event => {
@@ -313,16 +332,18 @@ function AppShellInner() {
   });
 
   const handleSyncDownload = useMemoizedFn(async () => {
-    const result = await syncSettings.runSyncAction("syncDownloadDatabase");
-    writeLastSyncTime(result.databaseName, Date.now());
-    await emitDatabaseChange({
-      reason: "syncDownload",
-      databaseName: result.databaseName,
-      localVersion: result.localVersion,
-      remoteVersion: result.remoteVersion,
-      timestamp: Date.now(),
+    return replaceLocalLibrary(deviceSyncName, async () => {
+      const result = await syncSettings.runSyncAction("syncDownloadDatabase");
+      writeLastSyncTime(result.databaseName, Date.now());
+      await emitDatabaseChange({
+        reason: "syncDownload",
+        databaseName: result.databaseName,
+        localVersion: result.localVersion,
+        remoteVersion: result.remoteVersion,
+        timestamp: Date.now(),
+      });
+      return result;
     });
-    return result;
   });
 
   const handleResourceSyncRefresh = useMemoizedFn(async () => {
@@ -385,10 +406,6 @@ function AppShellInner() {
       handleResourceSyncStart,
       handleResourceSyncRetryFailed,
       handleResourceSyncCancel,
-      diaryModuleEnabled: syncSettings.safeSetting?.module?.dailyNote?.enable !== false,
-      todoModuleEnabled: syncSettings.safeSetting?.module?.todo?.enable !== false,
-      pomodoroModuleEnabled: syncSettings.safeSetting?.module?.pomodoro?.enable !== false,
-      calendarModuleEnabled: syncSettings.safeSetting?.module?.calendar?.enable !== false,
     }),
     // context 值随 hook 数据更新即可，页面订阅自己的字段
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -479,6 +496,7 @@ function AppShellInner() {
                       <EditorPromptHost />
                       <ToastViewport />
                       <IncomingFileHost />
+                      <ReminderHost />
                       {import.meta.env.DEV && <RouterDevTools />}
                     </main>
                   </MobilePluginProvider>

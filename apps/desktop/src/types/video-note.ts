@@ -38,27 +38,26 @@ export interface VideoNoteHighlight {
   confidence?: number;
 }
 
-export type VideoNoteTopicSource = "auto" | "custom";
-
-export interface VideoNoteTopic {
-  id: string;
-  name: string;
-  summary?: string;
-  source: VideoNoteTopicSource;
+/** AI 章节：起点毫秒 + 标题 + 一句摘要 */
+export interface VideoNoteChapter {
+  start: number;
+  title: string;
+  summary: string;
 }
 
+/** 存于 video_notes.insights；transcriptHash 对不上当前转录即视为过期、自动重新生成 */
 export interface VideoNoteInsights {
-  version: number;
+  version: 2;
   transcriptHash: string;
   generatedAt: number;
-  topics: VideoNoteTopic[];
-  highlights: VideoNoteHighlight[];
-  modelMeta?: {
-    providerId?: string;
-    providerName?: string;
-    modelName?: string;
-  };
+  chapters: VideoNoteChapter[];
 }
+
+export const isVideoNoteInsights = (value: unknown): value is VideoNoteInsights =>
+  !!value &&
+  typeof value === "object" &&
+  (value as { version?: unknown }).version === 2 &&
+  Array.isArray((value as { chapters?: unknown }).chapters);
 
 export interface VideoNote {
   id: number;

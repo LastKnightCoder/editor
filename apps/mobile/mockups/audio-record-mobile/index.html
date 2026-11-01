@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端录音插入 · 方案 mockup</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../media-mobile/media.css" />
+<link rel="stylesheet" href="../tts-entry-mobile/tts-entry.css" />
+<link rel="stylesheet" href="record.css" />
+<script src="../editor-mobile/icons.js"></script>
+<script src="../media-mobile/icons-media.js"></script>
+<script src="icons-record.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端录音插入<small>决策稿 · 手机帧 360×760 · 颜色取自 @tau/themes · 虚线框 = 新增 · 时长与文字均为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="entry">1 入口</button>
+    <button class="tab" data-tab="capsule">2 边录边写<span class="rec">已定</span></button>
+    <button class="tab" data-tab="modal">3 备选：录音面板（未采用）</button>
+    <button class="tab" data-tab="after">4 插入后的音频块</button>
+    <button class="tab" data-tab="transcribe">5 转文字<span class="rec">新增</span></button>
+    <button class="tab" data-tab="states">6 权限、打断与异常</button>
+    <button class="tab" data-tab="decisions">7 实现要点与待决策</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 入口 ═══════════ -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro"><b>现在「+ → 媒体 → 音频」只能选已有文件，录音要先去系统录音机录好再导入。</b>这次在插入面板加一格「录音」，点一下就开始录，停止后直接在原位置插入音频块。另外在音频块的「替换」里加「重新录制」。配件栏上已有的麦克风是<b>语音输入</b>（说话变文字、不留声音），和录音是两件事，图标和文案都要分开。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <p><span class="caret"></span></p>
+        </div>
+        <div class="acc">
+          <span class="ab plus on" data-i="x" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="panel"><div class="panel-in">
+          <div class="search"><span data-i="search" data-s="16"></span>搜索块，或在正文输入 /</div>
+          <div class="p-label"><span>媒体</span></div>
+          <div class="grid">
+            <div class="tile"><span class="ti c2" data-i="image" data-s="20"></span>照片</div>
+            <div class="tile"><span class="ti c2" data-i="camera" data-s="20"></span>拍照</div>
+            <div class="tile"><span class="ti c2" data-i="video" data-s="20"></span>视频</div>
+            <div class="tile"><span class="ti c2 new-mark rec-red" data-i="circle-dot" data-s="20"></span>录音</div>
+            <div class="tile"><span class="ti c2" data-i="file-audio" data-s="20"></span>音频文件</div>
+            <div class="tile"><span class="ti c2" data-i="volume-2" data-s="20"></span>文字转语音</div>
+            <div class="tile"><span class="ti c2" data-i="link-2" data-s="20"></span>网络图片</div>
+            <div class="tile"><span class="ti c2" data-i="link-2" data-s="20"></span>网络视频</div>
+          </div>
+        </div><div class="fade-b"></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">①</span>插入面板：媒体组新增「录音」</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>放在「视频」之后、原「音频」之前；原「音频」改名「音频文件」，图标换成文件样式，两格一看就能分清。</li>
+        <li>图标用 <code>circle-dot</code>（录制键），不用麦克风：麦克风已经代表语音输入。</li>
+        <li>搜索关键词：luyin / ly / record / 录制 / 录音笔。正文输入 <code>/录音</code> 也能直接开始。</li>
+        <li>点击后面板收起、键盘回来，录音立刻开始，不再多一步「开始」（见 2）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc">
+          <h1>周会 · 11 月 2 日</h1>
+          <div class="aud sel">
+            <span class="mtag">音频</span>
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 10:02<small>录音 · 00:41</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+          </div>
+        </div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="sheet-h" style="justify-content:center"><span>替换音频</span></div>
+          <div class="as-group">
+            <div class="as-item hot" style="border-radius:0"><span class="rec-red" data-i="circle-dot" data-s="19"></span>重新录制</div>
+            <div class="as-item"><span data-i="file-audio" data-s="19"></span>选择文件</div>
+            <div class="as-item"><span data-i="link-2" data-s="19"></span>网络地址</div>
+            <div class="as-item"><span data-i="volume-2" data-s="19"></span>用文字生成</div>
+          </div>
+          <div class="as-group"><div class="as-item" style="justify-content:center;color:var(--ink-2)">取消</div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">②</span>音频块「替换」→ 重新录制</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>录坏了、开头没录上时用：录完<b>原地替换</b>这个块的音频，块位置和自定义标题不变；标题仍是默认值时更新为新的录制时间。</li>
+        <li>录音期间旧音频保留，放弃录制即什么都不变。</li>
+        <li>排第一位：对录音块来说这是最常用的替换方式。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame" style="width:auto;max-width:520px">
+      <div class="card">
+        <h3>录音 ≠ 语音输入</h3>
+        <table class="cmp"><thead><tr><th></th><th>语音输入（已有）</th><th>录音（本次）</th></tr></thead><tbody>
+          <tr><td>入口</td><td>配件栏麦克风</td><td>「+」→ 录音</td></tr>
+          <tr><td>产物</td><td>文字写进正文</td><td>音频块，保留原声</td></tr>
+          <tr><td>时长</td><td>单次 ≤ 2 分钟</td><td>默认上限 3 小时</td></tr>
+          <tr><td>需要识别服务</td><td>需要（系统或插件）</td><td>录音不需要，离线可用；转文字需要</td></tr>
+          <tr><td>录音时能否打字</td><td>不能，面板占键盘</td><td>能（方案 A）</td></tr>
+        </tbody></table>
+        <p style="margin-top:10px;font-size:12.5px;color:var(--ink-3);line-height:1.7">两者共用麦克风，同一时间只能开一个。录音期间配件栏麦克风置灰，点击提示「正在录音」。</p>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 2 边录边写（推荐） ═══════════ -->
+<section class="scene" data-scene="capsule">
+  <p class="scene-intro"><b>推荐 A：录音不占屏，键盘照常可用，边录边记。</b>手机录音最常见的场景是听课、开会、采访，录的同时要记要点。所以录音开始后只在配件栏上方浮一个胶囊（计时、电平、暂停、完成），正文里在开始位置显示一条“将插入这里”的标记。点「完成」后音频块插在标记处，光标不动，可以接着写。点胶囊左半边展开完整面板，看波形、换输入设备。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="anchor"><span class="rdot"></span>录音将插入这里<small>00:03</small></div>
+          <p><span class="caret blink"></span></p>
+        </div>
+        <div class="rec-cap" style="top:402px">
+          <span class="rdot"></span><span class="rtime">00:03</span>
+          <span class="lwave" data-lwave="26"></span>
+          <span class="rc-btn" data-i="pause" data-s="18"></span>
+          <span class="rc-done"><span data-i="check" data-s="16"></span>完成</span>
+        </div>
+        <div data-acc="mic-off"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>点「录音」后：立即开始</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>开始时在当前段落之后记下落点；光标所在段为空时，落点在这段之前，光标留在空段里继续写。</li>
+        <li>落点标记是渲染层装饰，不写进文档：不触发保存、不进撤销栈、协作者看不到，崩溃也不会在文档里留下半成品块。</li>
+        <li>胶囊深色底 + 红点，任何主题下都和正文区分得开；开始时轻触感反馈一次。</li>
+        <li>配件栏的语音输入键置灰（两者抢同一个麦克风）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="anchor"><span class="rdot"></span>录音将插入这里<small>23:18</small></div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>组块靠长期记忆里的已有结构</li><li>例：棋手记残局<span class="caret blink"></span></li></ul>
+        </div>
+        <div class="rec-cap" style="top:402px">
+          <span class="rdot"></span><span class="rtime">23:18</span>
+          <span class="lwave" data-lwave="26"></span>
+          <span class="rc-btn" data-i="pause" data-s="18"></span>
+          <span class="rc-done"><span data-i="check" data-s="16"></span>完成</span>
+        </div>
+        <div data-acc="mic-off"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>边录边记：正文照常编辑</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>落点跟着文档变化移动（Slate <code>PathRef</code>），上方插入或删除内容都不会让它错位。</li>
+        <li>可以滚到别处、改别的段落，胶囊一直在；配件栏其他功能照常可用（插图片、加待办）。</li>
+        <li>「+」面板里的「录音」此时置灰，提示「正在录音」，一次只录一段。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="anchor"><span class="rdot"></span>录音将插入这里<small>23:40</small></div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>组块靠长期记忆里的已有结构</li><li>例：棋手记残局</li></ul>
+          <h2>工作记忆模型</h2>
+          <p>Baddeley：语音环路、视空间画板、中央执行。</p>
+        </div>
+        <div class="rec-cap" style="top:630px">
+          <span class="rdot"></span><span class="rtime">23:40</span>
+          <span class="lwave" data-lwave="26"></span>
+          <span class="rc-btn" data-i="pause" data-s="18"></span>
+          <span class="rc-done"><span data-i="check" data-s="16"></span>完成</span>
+        </div>
+        <div data-acc="mic-off"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>收起键盘：胶囊下移</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>胶囊始终贴在配件栏上方 10px，键盘升降时跟着动画。</li>
+        <li>退出编辑态（点「完成」进入阅读态）时录音继续，胶囊留在底部；退出文档才需要确认（见 6）。</li>
+        <li>点胶囊左半边（红点 + 计时 + 电平）展开 A4。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+        </div>
+        <div class="mask" style="top:0"></div>
+        <div class="rsheet">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l" style="display:flex"><span data-i="chevron-down" data-s="20"></span></span><span class="t">录音中</span><span class="r"></span></div>
+          <div class="big-time">23:40<small>认知心理学 · 第 7 讲</small></div>
+          <div class="rwave" data-rwave="70,0.72"></div>
+          <div class="rctl">
+            <span class="rb" data-i="trash-2" data-s="20"><em>放弃</em></span>
+            <span class="rb main" data-i="pause" data-s="26" style="color:var(--danger)"><em>暂停</em></span>
+            <span class="rb done" data-i="check" data-s="22"><em>完成并插入</em></span>
+          </div>
+          <div class="gen-rows rinfo">
+            <div class="gen-row"><span data-i="map-pin" data-s="17" style="color:var(--ink-2)"></span><span class="k">插入位置</span><span class="v">「主题：工作记忆…」之后</span></div>
+            <div class="gen-row"><span data-i="headphones" data-s="17" style="color:var(--ink-2)"></span><span class="k">输入设备</span><span class="v">iPhone 麦克风<span data-i="chevron-right" data-s="15"></span></span></div>
+            <div class="gen-row"><span data-i="hard-drive" data-s="17" style="color:var(--ink-2)"></span><span class="k">已占用</span><span class="v">11.6 MB · 剩余约 40 小时</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A4</span>展开：完整录音面板</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>下拉或点左上角收回胶囊，录音不受影响。</li>
+        <li>波形从右向左滚动，只显示最近约 30 秒，不支持在录音中回放或剪辑（首版不做）。</li>
+        <li>「放弃」需要二次确认：超过 10 秒的录音丢了很可惜。</li>
+        <li>输入设备只在接了耳机或蓝牙时可选，否则只显示名称。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="anchor paused"><span class="rdot"></span>录音已暂停<small>23:40</small></div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>组块靠长期记忆里的已有结构</li><li>例：棋手记残局<span class="caret blink"></span></li></ul>
+        </div>
+        <div class="rec-cap paused" style="top:402px">
+          <span class="rdot"></span><span class="rtime">23:40</span>
+          <span class="rlabel">已暂停 · 课间休息</span>
+          <span class="rc-btn" data-i="mic" data-s="18" style="background:var(--danger);color:#fff"></span>
+          <span class="rc-done"><span data-i="check" data-s="16"></span>完成</span>
+        </div>
+        <div data-acc="normal"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A5</span>暂停：同一段录音继续录</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>暂停后继续，写进同一个文件，最后只插入一个音频块。</li>
+        <li>暂停态红点变灰、电平停住，「继续」键换成红色。暂停期间麦克风释放，语音输入键恢复可用。</li>
+        <li>暂停超过 30 分钟不自动结束：课间、午休都可能更长；只在离开文档时询问（见 6）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 3 备选：录音面板 ═══════════ -->
+<section class="scene" data-scene="modal">
+  <p class="scene-intro"><b>备选 B：底部录音面板，录完试听再插入。</b>和系统录音机一样：面板盖住正文，录音时不能打字，停止后可以先听一遍，满意再插入。实现最简单（不需要落点追踪、不需要处理录音中的编辑），适合“说一段话存进文档”的短录音；但听课、开会时没法同时记笔记，这是它最大的问题。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p></div>
+        <div class="mask" style="top:0"></div>
+        <div class="rsheet" style="top:330px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">录音</span><span class="r"></span></div>
+          <div class="big-time" style="color:var(--ink-3)">00:00<small>点下方按钮开始</small></div>
+          <div class="rwave" data-rwave="70,0" style="margin-top:20px"></div>
+          <div class="rctl" style="justify-content:center;padding-top:18px">
+            <span class="rb main"><span class="core round"></span><em>开始录音</em></span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>打开面板，等用户按开始</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>多一步「开始」：面板弹出时立即录会录进手忙脚乱的声音，所以这里不自动开始。</li>
+        <li>高度约 55% 屏高，正文只露出顶部，用户知道自己还在这篇文档里。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p></div>
+        <div class="mask" style="top:0"></div>
+        <div class="rsheet" style="top:330px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">录音中</span><span class="r"></span></div>
+          <div class="big-time">01:26<small>iPhone 麦克风</small></div>
+          <div class="rwave" data-rwave="70,0.64" style="margin-top:20px"></div>
+          <div class="rctl">
+            <span class="rb" data-i="trash-2" data-s="20"><em>放弃</em></span>
+            <span class="rb main"><span class="core"></span><em>停止</em></span>
+            <span class="rb" data-i="pause" data-s="20"><em>暂停</em></span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>录音中：正文不可操作</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>点遮罩、下拉都不关闭，防止误触丢录音；「取消」走放弃确认。</li>
+        <li>想同时记要点只能停掉录音，或切到系统备忘录。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p></div>
+        <div class="mask" style="top:0"></div>
+        <div class="rsheet" style="top:330px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">录音</span><span class="r">插入</span></div>
+          <div class="aud" style="margin:12px 14px 0">
+            <div class="aud-top"><span class="aplay" data-i="pause" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 01:26</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="52,0.3"></div>
+            <div class="aud-meta"><span>00:26</span><span></span><span>−01:00</span></div>
+          </div>
+          <div style="flex:1"></div>
+          <div class="gen-foot">
+            <span class="gbtn ghost"><span data-i="rotate-ccw" data-s="17"></span>重录</span>
+            <span class="gbtn"><span data-i="plus" data-s="18"></span>插入到文档</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B3</span>停止后：试听，再插入</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>试听卡片与文档里的音频块同一形态。</li>
+        <li>「重录」丢弃当前录音回到 B1，需要确认。</li>
+        <li>插入后面板关闭，光标落到音频块之后。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 4 插入后的音频块 ═══════════ -->
+<section class="scene" data-scene="after">
+  <p class="scene-intro"><b>插入后就是现有的音频块</b>（媒体稿 AU-A 卡片），编辑、播放、替换都走已有实现，录音只是多了一种来源。默认标题「录音 + 开始时间」，副标题「录音 · 时长」。插入是一个撤销步，撤销即删除整个块，录音文件保留在资源里，由现有资源清理处理。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="aud new-mark">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 52:16</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+          </div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>例：棋手记残局<span class="caret blink"></span></li></ul>
+        </div>
+        <div class="toast" style="top:410px">已插入录音 52:16<b>撤销</b></div>
+        <div data-acc="normal"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P1</span>点「完成」：插在落点，光标不动</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>插入位置 = 开始录音时记下的落点，不是完成时的光标位置。</li>
+        <li>光标留在用户正在写的地方，不跳到音频块；新块描边 1.5 秒提示位置。落点不在屏幕内时，toast 多一个「查看」。</li>
+        <li>写文件需要一点时间（长录音约 1 秒）：期间胶囊显示「正在保存」，完成后再插块，不出现上传中的占位块。</li>
+        <li>不足 1 秒的录音不插入，提示「录音太短」。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="aud sel">
+            <span class="mtag">音频</span>
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 52:16</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+          </div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li></ul>
+        </div>
+        <div class="acc">
+          <span class="ctx-chip"><span data-i="music" data-s="14"></span>音频</span>
+          <div class="scroll" style="gap:2px">
+            <span class="ab txt" style="gap:4px"><span data-i="square-pen" data-s="16"></span>重命名</span>
+            <span class="ab txt" style="gap:4px"><span data-i="replace" data-s="16"></span>替换</span>
+            <span class="ab txt new-mark" style="gap:4px"><span data-i="captions" data-s="16"></span>转文字</span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="ellipsis" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P2</span>选中录音块：配件栏</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>重命名、替换（含「重新录制」）沿用现有音频配件栏。</li>
+        <li>新增「转文字」：识别整段录音，文字稿插在音频块下方（见 5）。任何音频块都有，不限于录音。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="edit-btn"><span data-i="pencil" data-s="14"></span>编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc read-doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="pause" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 52:16</small></span><span class="spd">1.5×</span></div>
+            <div class="wave" data-wave="56,0.38"></div>
+            <div class="aud-meta"><span>19:52</span><span></span><span>−32:24</span></div>
+          </div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>组块靠长期记忆里的已有结构</li><li>例：棋手记残局</li></ul>
+          <h2>工作记忆模型</h2>
+          <p>Baddeley：语音环路、视空间画板、中央执行。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P3</span>阅读态回听</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>播放器不改：倍速、拖动、±15 秒都已有。</li>
+        <li>文件是 m4a（AAC），桌面端 Electron 与两端 WebView 都能直接播放，同步后桌面可听。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 5 转文字 ═══════════ -->
+<section class="scene" data-scene="transcribe">
+  <p class="scene-intro"><b>选中音频块 →「转文字」，识别整段录音，文字稿写进正文。</b>文字稿以折叠块插在音频块正下方，每段前面标开始时间，可以直接改、能被全文搜索搜到、导出 Markdown 时原样保留。识别在后台进行，期间可以继续编辑；手动触发、不在录完后自动开始，因为云端识别按时长计费，一小时录音不该在用户不知情时花掉。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 52:16</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+            <div class="tx-row"><span class="spin" data-i="loader-circle" data-s="15"></span>正在转文字<span class="bar"><i style="width:38%"></i></span>38%<span class="x">取消</span></div>
+          </div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>例：棋手记残局<span class="caret blink"></span></li></ul>
+        </div>
+        <div data-acc="normal"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">T1</span>识别中：块内进度，正文照常写</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>进度行是运行时状态，不写进文档；离开文档识别继续，回来仍显示进度。</li>
+        <li>进度取识别服务的 <code>progress</code> 事件；服务不报进度时显示「正在转文字…」不带百分比。</li>
+        <li>同一时间只转一段；其他音频块的「转文字」置灰并提示「正在转另一段录音」。</li>
+        <li>录音中也能对别的音频块转文字（不占麦克风）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 52:16</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+          </div>
+          <div class="fold new-mark">
+            <div class="fh"><span data-i="chevron-down" data-s="15"></span>文字稿<small>52:16 · 约 1.2 万字</small></div>
+            <div class="fb">
+              <p><span class="ts">00:00</span>好，我们接着上周讲。今天的主题是工作记忆……</p>
+              <p><span class="ts">03:42</span>Miller 当年说七加减二，但后来大家发现……</p>
+              <p><span class="ts">09:15</span>组块这件事情，关键在于长期记忆里……</p>
+            </div>
+          </div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li></ul>
+        </div>
+        <div class="toast" style="top:410px">已插入文字稿<b>撤销</b></div>
+        <div data-acc="normal"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">T2</span>完成：音频块下方插入「文字稿」</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>用现有<b>折叠块</b>承载，标题「文字稿」。有分段时每段一个段落，没有时全文按换行分段。不新增块类型、不改音频块结构。</li>
+        <li>时间戳不是协议必有的：只有每段都带开始时间时才在段首标时间，否则都不标（如只返回整段文字的服务）。</li>
+        <li>插入是一个撤销步；光标不动。识别完成时用户已离开文档，下次打开时文字稿已在。</li>
+        <li>默认展开；长文字稿用户可以折叠，折叠状态是现有折叠块行为。</li>
+        <li>再点一次「转文字」会再插一份新的，不覆盖：用户可能已经改过旧文字稿。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="edit-btn"><span data-i="pencil" data-s="14"></span>编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc read-doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="pause" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:05<small>录音 · 52:16</small></span><span class="spd">1.5×</span></div>
+            <div class="wave" data-wave="56,0.18"></div>
+            <div class="aud-meta"><span>09:15</span><span></span><span>−43:01</span></div>
+          </div>
+          <div class="fold">
+            <div class="fh"><span data-i="chevron-down" data-s="15"></span>文字稿<small>52:16</small></div>
+            <div class="fb">
+              <p><span class="ts">03:42</span>Miller 当年说七加减二，但后来大家发现……</p>
+              <p><span class="ts">09:15</span><span class="hit">组块</span>这件事情，关键在于长期记忆里已有的结构……</p>
+              <p><span class="ts">14:30</span>棋手的实验大家应该听说过……</p>
+            </div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">T3</span>阅读态：搜索命中文字稿</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>文字稿是普通正文，全文搜索、文内查找、AI 对话都能直接用到。</li>
+        <li>时间戳首版是纯文本，点了不跳转播放；要做跳转需要给音频块和段落建关联，列为后续。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:330px;padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="gen-empty">
+            <div class="ei" data-i="captions" data-s="24"></div>
+            <h3>还不能转文字</h3>
+            <p>当前识别服务只支持实时语音输入，不支持识别录好的音频。在「我的 → 语音 → 语音识别」选一个支持「录音转文字」的服务。</p>
+          </div>
+          <div class="gen-foot" style="padding-top:14px">
+            <span class="gbtn ghost">取消</span>
+            <span class="gbtn">去设置</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">T4</span>识别服务不支持整段识别</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>点击时先 <code>probe({ input: "file" })</code>，不是 <code>ready</code> 就显示这里，文案按返回的原因区分：未配置、不支持、需要下载资源。</li>
+        <li>Seed 账号标准版、极速版都未开通时也用这个面板，按钮换成「去开通」打开火山引擎控制台。</li>
+        <li>「转文字」按钮始终显示，不因服务不支持而隐藏，避免用户找不到功能。</li>
+        <li>设置页的识别服务列表给每个服务标「语音输入 / 录音转文字」两种能力。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>周会 · 11 月 2 日</h1>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 10:02<small>录音 · 2:41:08</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+            <div class="tx-row err"><span data-i="triangle-alert" data-s="15"></span><span style="flex:1">音频超过 100 MB，需要放在可公开访问的远程存储里</span><span class="x">了解</span></div>
+          </div>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">录音 11 月 2 日 14:30<small>录音 · 18:20</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+            <div class="tx-row err"><span data-i="triangle-alert" data-s="15"></span><span style="flex:1">网络中断，转文字失败</span><span class="x">重试</span></div>
+          </div>
+        </div>
+        <div data-acc="normal"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">T5</span>超出上限 / 识别失败</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>提供方报了 <code>maxDurationMs</code> 且宿主知道音频时长时，点击前就拦下，不发请求。</li>
+        <li>上限取决于这次怎么传的（如 Seed 本地资源只能上传字节），由提供方在识别时以 <code>invalid-input</code> 拒绝，原因显示在块上。</li>
+        <li>首版不切段：超长录音明确告知；按上限自动切段识别再拼接列为后续。</li>
+        <li>失败保留在块上直到用户处理；不写入半截文字稿。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 6 权限、打断与异常 ═══════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro"><b>长录音最怕两件事：录到一半停了自己不知道，以及录完找不到。</b>所以原则是：任何打断都转成“暂停”并明确告诉用户；录音文件边录边写盘，进程被杀也能找回；离开文档前必须做出选择。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p><p><span class="caret"></span></p></div>
+        <div class="mask" style="top:0;z-index:6"></div>
+        <div class="sys-alert">
+          <h4>“Tau”想访问麦克风</h4>
+          <p>用于语音输入，以及在文档中录音并插入音频。</p>
+          <div class="btns"><span>不允许</span><span>好</span></div>
+        </div>
+        <div data-acc="normal"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E1</span>首次录音：系统授权</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>现有 <code>NSMicrophoneUsageDescription</code> 只写了“转换为文字”，要改成同时覆盖录音，否则审核可能以用途不符拒绝。</li>
+        <li>授权前不显示胶囊和落点；拒绝后见 E2。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:330px;padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="gen-empty">
+            <div class="ei warn" data-i="mic-off" data-s="24"></div>
+            <h3>没有麦克风权限</h3>
+            <p>在系统设置里允许 Tau 使用麦克风后，回到这里重新点「录音」。</p>
+          </div>
+          <div class="gen-foot" style="padding-top:14px">
+            <span class="gbtn ghost">取消</span>
+            <span class="gbtn">打开系统设置</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E2</span>权限被拒绝</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>系统不会再弹授权框，只能引导去设置。语音输入已有同样的提示，文案和跳转复用。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <div class="anchor paused"><span class="rdot"></span>录音已暂停<small>31:07</small></div>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li></ul>
+        </div>
+        <div class="rec-cap paused" style="top:630px">
+          <span class="rdot"></span><span class="rtime">31:07</span>
+          <span class="rlabel"><span data-i="phone" data-s="13" style="display:inline-block;vertical-align:-2px;margin-right:4px"></span>来电，已自动暂停</span>
+          <span class="rc-btn" data-i="mic" data-s="18" style="background:var(--danger);color:#fff"></span>
+          <span class="rc-done"><span data-i="check" data-s="16"></span>完成</span>
+        </div>
+        <div data-acc="normal"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E3</span>被打断：转为暂停</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>来电、闹钟、其他 App 抢占音频、拔掉耳机时自动暂停，胶囊写明原因；<b>不自动继续</b>，避免把通话后的环境声录进去。</li>
+        <li>在文档里点播放别的音频或视频：提示「正在录音，先暂停录音」，不播放。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="lock">
+          <div class="status" data-status style="width:100%"></div>
+          <div style="margin-top:6px" data-i="lock" data-s="18"></div>
+          <div class="clock">14:41</div>
+          <div class="date">11 月 2 日 星期日</div>
+          <div class="live">
+            <span class="app">T</span>
+            <span class="mid">正在录音<small>认知心理学 · 第 7 讲</small></span>
+            <span class="t">36:12</span>
+            <span class="pb" data-i="pause" data-s="16"></span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E4</span>锁屏 / 切后台：继续录</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>iOS：开启后台音频模式，状态栏出现红色录音标识；锁屏卡片（实时活动）可暂停。</li>
+        <li>Android：前台服务 + 常驻通知「正在录音 36:12」，通知里有暂停 / 完成。</li>
+        <li>这是原生录音的主要理由：WebView 录音切后台就会停。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="doc dim"><h1>认知心理学 · 第 7 讲</h1><p>主题：工作记忆的容量与组块。</p></div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding:6px 0 26px">
+          <div class="grabber"></div>
+          <div style="text-align:center;padding:8px 24px 14px;font-size:13px;color:var(--ink-3);line-height:1.6">正在录音 41:30。<br>离开文档前要先处理这段录音。</div>
+          <div class="as-group">
+            <div class="as-item" style="justify-content:center;color:var(--brand);font-weight:600">完成并插入</div>
+            <div class="as-item danger" style="justify-content:center">放弃录音</div>
+          </div>
+          <div class="as-group"><div class="as-item" style="justify-content:center;color:var(--ink-2)">继续录音</div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E5</span>录音中离开文档</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>返回键、侧滑返回、切换到其他页面都会先弹这个确认；切 App、锁屏不算离开。</li>
+        <li>「放弃录音」再确认一次：「41 分钟的录音将被删除」。</li>
+        <li>录音和文档绑定，不做跨页面的全局录音：落点在这篇文档里，离开后无处插入。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="edit-btn"><span data-i="pencil" data-s="14"></span>编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="banner">
+          <div class="bh"><span class="ei" data-i="history" data-s="16"></span>有一段录音没有插入</div>
+          <p>11 月 2 日 14:05 开始，已录 47:52。App 意外退出，录到的部分已保存。</p>
+          <div class="acts"><span class="pri">插入到原位置</span><span>删除</span></div>
+        </div>
+        <div class="doc read-doc">
+          <h1>认知心理学 · 第 7 讲</h1>
+          <p>主题：工作记忆的容量与组块。</p>
+          <ul><li>Miller 7±2 → 现在多认为是 4 个组块</li><li>组块靠长期记忆里的已有结构</li></ul>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E6</span>进程被杀后找回</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>录音时把「文档 id + 落点前一块的 uuid + 开始时间」写进本地小文件，录音文件边录边落盘。</li>
+        <li>重新打开<b>这篇文档</b>时检查到未完成录音就显示横幅；落点块已不存在则插到文末。</li>
+        <li>7 天没处理自动删除，和收集箱同一期限。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame" style="width:auto;max-width:460px">
+      <div class="card">
+        <h3>其他边界</h3>
+        <ul>
+          <li><b>录音太短</b>：不足 1 秒不插入，提示「录音太短」。</li>
+          <li><b>存储不足</b>：剩余空间低于 200 MB 时开始前提示；录音中低于 50 MB 自动完成并插入，提示原因。</li>
+          <li><b>时长上限</b>：默认 3 小时自动完成并插入（约 90 MB），到点前 5 分钟胶囊提示。</li>
+          <li><b>耳机 / 蓝牙</b>：录音中切换输入设备不中断；蓝牙断开转为暂停（同 E3）。</li>
+          <li><b>只读、他人文档</b>：插入面板本就不出现，无需处理。</li>
+          <li><b>协作中的文档</b>：落点只存在本机；完成时插入作为一次普通编辑同步。落点所在块被他人删除时插到文末并提示。</li>
+          <li><b>同步</b>：录音文件按现有资源同步走，大文件（几十 MB）不需要新逻辑，但首次同步时间会变长。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 7 实现要点与待决策 ═══════════ -->
+<section class="scene" data-scene="decisions">
+  <div class="cards">
+    <div class="card">
+      <h3>交互：为什么推荐「胶囊边录边写」</h3>
+      <table class="cmp"><thead><tr><th></th><th>A 胶囊（推荐）</th><th>B 录音面板</th></tr></thead><tbody>
+        <tr><td>录音时能否记笔记</td><td class="good">能</td><td class="bad">不能</td></tr>
+        <tr><td>插入前试听</td><td>不能，插入后直接听</td><td>能</td></tr>
+        <tr><td>操作步数</td><td>点录音 → 完成</td><td>点录音 → 开始 → 停止 → 插入</td></tr>
+        <tr><td>额外实现</td><td>落点追踪、落点装饰、离开确认</td><td>只有面板</td></tr>
+        <tr><td>适合</td><td>听课、会议、采访（长）</td><td>口述一段话（短）</td></tr>
+      </tbody></table>
+      <p style="margin-top:8px">录音不像文字转语音那样按次计费，录坏了删掉重录成本很低，所以不需要 B 的试听关卡。</p>
+    </div>
+    <div class="card">
+      <h3>录音引擎：原生 vs WebView</h3>
+      <table class="cmp"><thead><tr><th></th><th>原生（推荐）</th><th>WebView MediaRecorder</th></tr></thead><tbody>
+        <tr><td>锁屏 / 后台</td><td class="good">继续录</td><td class="bad">切后台即停</td></tr>
+        <tr><td>来电等打断</td><td>系统回调，可转暂停</td><td>只能事后发现</td></tr>
+        <tr><td>输出格式</td><td>两端统一 m4a / AAC</td><td>iOS mp4、Android webm，格式不一</td></tr>
+        <tr><td>崩溃后找回</td><td>边录边写盘</td><td>数据在内存，丢失</td></tr>
+        <tr><td>大文件写入</td><td>原生直接写文件</td><td>几十 MB 经 IPC 分块传输</td></tr>
+        <tr><td>工作量</td><td>Swift + Kotlin 各一个录音类</td><td>纯前端</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3>接线位置</h3>
+      <ul>
+        <li>插入项：<code>editorToolbar/insertItems.ts</code> 新增 <code>kind: "record"</code>，原 <code>audio</code> 改名「音频文件」；<code>useMobileEditorToolbarController</code> 分发到录音会话。</li>
+        <li>落点：参照 <code>tts/ttsInsertTarget.ts</code> 的「打开时锁定写入位置 + pathRef 跟踪」，录音完成时按落点插入 <code>AudioElement</code>（<code>src</code>、<code>title</code>）。</li>
+        <li>前端：新建 <code>features/cards/recording/</code>：会话状态机（idle → recording ⇄ paused → saving → 插入 / 失败）、胶囊、展开面板、落点装饰、离开确认。</li>
+        <li>替换：<code>mediaAccessory.tsx</code> 音频「替换」菜单加「重新录制」，完成后 <code>setNodes</code> 换 <code>src</code>。</li>
+        <li>原生：在 <code>src-tauri/native</code> 现有 <code>NativeSpeechPlugin</code> 旁新增录音插件：<code>start / pause / resume / stop / cancel</code> + 电平 Channel（约 10 次/秒）。iOS 用 <code>AVAudioRecorder</code>，Android 用 <code>MediaRecorder</code> + 前台服务。</li>
+        <li>落库：录音停止后由 Rust 把临时文件移入资源目录并返回资源地址（新增一个按路径导入的命令），不再走 <code>uploadResource</code> 的分块字节通道。</li>
+        <li>配置：改 <code>NSMicrophoneUsageDescription</code> 文案；iOS 加 <code>UIBackgroundModes: audio</code>；Android 加 <code>FOREGROUND_SERVICE_MICROPHONE</code> 与通知权限。</li>
+        <li>格式：AAC 单声道 44.1 kHz / 64 kbps，约 0.5 MB/分钟，1 小时约 29 MB。</li>
+        <li>转文字（宿主）：<code>@tau/plugins</code> 的 <code>ASRProviderRegistry</code> 现在只有 <code>openStream</code>，补一个对称的 <code>transcribeFile</code>（同样的 signal 合并、取消与结果校验）。音频经 <code>ASRAudioFile.open()</code> 从资源文件流式读出，不整段进内存。</li>
+        <li>转文字（前端）：<code>features/cards/recording/</code> 内新增转写任务，进度挂在音频块上（运行时状态）；完成时在音频块之后插入折叠块「文字稿」，按 <code>segments</code> 分段、段首写 <code>mm:ss</code>。</li>
+        <li>转文字（服务）：跟随「我的 → 语音识别」当前选择，<code>probe({ input: "file" })</code> 决定能不能用；Seed 插件的实现见下方「接入要点」。</li>
+      </ul>
+    </div>
+    <div class="card wide"><h3 style="font-size:16px">已定</h3><p>D1 交互用 A 胶囊；D2 锁屏 / 后台继续录（原生录音）；D3 入口为「+ → 录音」、<code>/录音</code>、「替换 → 重新录制」；D4 转文字本次一起做（第 5 页）；D5 单段录音上限 3 小时；D6 整段识别由 Seed 插件实现 <code>transcribeFile</code>：标准版优先，极速版兜底，自动选择。</p></div>
+    <div class="card">
+      <h3>Seed 文件识别：标准版优先，极速版兜底</h3>
+      <table class="cmp"><thead><tr><th></th><th>标准版（优先）</th><th>极速版（兜底）</th></tr></thead><tbody>
+        <tr><td>调用</td><td>提交任务后轮询</td><td>一次请求返回结果</td></tr>
+        <tr><td>音频来源</td><td>公网可下载的 URL</td><td>请求里直接带 base64</td></tr>
+        <tr><td>上限</td><td>512 MB</td><td>2 小时 / 100 MB（base64 建议 20 MB 内）</td></tr>
+        <tr><td>格式</td><td>wav / mp3 / ogg（codec raw / opus）</td><td>WAV / MP3 / OGG Opus</td></tr>
+        <tr><td>分句时间戳</td><td>有，毫秒</td><td>有</td></tr>
+      </tbody></table>
+      <p style="margin-top:8px"><b>自动选择，不让用户选：</b></p>
+      <ul>
+        <li>资源走远程存储（OSS、S3 等上传插件）：转码后的 Ogg 用<b>同一个</b>存储上传，拿到地址交给标准版。录音本来就在这个存储里，多放一份转写用的副本不改变数据存放位置。</li>
+        <li>标准版失败（地址下载不到、账号未开通标准版）：改用极速版。</li>
+        <li>资源存在本地：直接用极速版，不为转文字上传任何文件。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>接入要点</h3>
+      <ul>
+        <li><b>格式</b>：按提供方 <code>probe</code> 声明的 <code>fileMimeTypes</code> 决定。不声明或声明里含原文件格式时原样交出；否则宿主在 Rust 侧转成 16 kHz 单声道 Ogg Opus（约 16 kbps，1 小时约 7 MB），声明里没有 Ogg 时提示换服务。Seed 两个版本都不收 m4a，所以手机录音会被转码。转码副本用完即删；上传的副本由上传插件决定能否删除。</li>
+        <li><b>协议</b>：<code>ASRAudioFile</code> 增加可选 <code>url</code>（公网可下载的同一份音频）。宿主有远程地址就填，插件自行决定用 URL 还是 <code>open()</code> 读字节。这是插件 SDK 的公开接口变更，模板文档同步。</li>
+        <li><b>插件</b>：<code>tau-plugin-asr-seed</code> 新增 <code>transcribeFile</code>。有 <code>url</code> 时调标准版（<code>volc.seedasr.auc</code>，submit / query，<code>format</code> / <code>codec</code> 按交来的格式填，<code>show_utterances</code>），失败回落极速版（<code>volc.bigasr.auc_turbo</code>）；<code>utterances</code> 映射为 <code>segments</code>。<code>probe</code> 声明 <code>audio/ogg</code>、<code>audio/mpeg</code>、<code>audio/wav</code>，不报 <code>maxDurationMs</code>；极速版超过 100 MB 在插件里拒绝。</li>
+        <li><b>轮询</b>：标准版轮询在内存里进行；转写期间 App 被杀，回来后需要重新点「转文字」。</li>
+        <li><b>开通</b>：标准版与极速版是两个计费资源，与实时识别也不同。两个都未开通时映射成「账号未开通录音文件识别」，归入 T4 面板，按钮去控制台。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>需要实测的点</h3>
+      <ul>
+        <li>用真实 API Key 验证两个版本：新版控制台 Key 能否直接调用、开通流程、错误码；标准版接受 <code>format</code> / <code>codec</code> 按交来的格式填 的 Ogg 文件。</li>
+        <li>常见存储（阿里云 OSS、S3、GitHub 公开仓库）的公开地址火山侧能否下载；私有桶确认回落极速版。</li>
+        <li><code>volc.bigasr.auc_turbo</code> 对应的模型版本（文档未写明是 1.0 还是 2.0），识别效果与实时识别是否一致。</li>
+        <li>约 20 MB 请求体经移动端插件 fetch 桥（<code>plugin_fetch.rs</code>）的耗时与内存峰值；必要时让桥接支持从文件读请求体。</li>
+        <li>转码依赖：AAC 解码与 Opus 编码在 iOS / Android 交叉编译下的体积与可用性。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<script src="record.js"></script>
+</body>
+</html>

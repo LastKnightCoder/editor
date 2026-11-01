@@ -1,0 +1,481 @@
+/* 方案 A：一张纸 */
+.intro h2 {
+  margin: 12px 0 4px;
+  font-size: var(--tau-text-title-lg);
+  font-weight: 600;
+}
+.intro p {
+  margin: 0;
+  color: var(--tau-ink-2);
+  max-width: 620px;
+}
+.roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 22px;
+}
+.role {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--tau-radius-lg);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+}
+.role.on {
+  box-shadow: inset 0 0 0 1.5px var(--tau-accent);
+}
+.role-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.role-h b {
+  font-size: var(--tau-text-title);
+  font-weight: 600;
+}
+.role-i {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-2);
+}
+.role.on .role-i {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.role p {
+  margin: 0;
+  color: var(--tau-ink-2);
+  font-size: var(--tau-text-meta);
+}
+.role-f {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--tau-text-sm);
+}
+
+.pair {
+  margin-top: 18px;
+  padding: 18px 18px 14px;
+  border-radius: var(--tau-radius-lg);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+}
+.pair-h {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.pair-h b {
+  font-weight: 600;
+}
+.pair-h span {
+  font-size: var(--tau-text-meta);
+}
+.pair-steps {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.pair-steps li {
+  display: flex;
+  gap: 10px;
+}
+.pair-steps b {
+  display: block;
+  font-weight: 500;
+}
+.pair-steps span {
+  display: block;
+  color: var(--tau-ink-2);
+  font-size: var(--tau-text-meta);
+  margin-top: 1px;
+}
+.pair-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-2);
+}
+.pair-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.pair-meta .end {
+  margin-left: auto;
+}
+.waiting {
+  color: var(--tau-ink-3);
+}
+.ring-spin {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tau-line-1);
+  border-top-color: var(--tau-accent);
+  animation: tau-spin 0.9s linear infinite;
+}
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 16px;
+  border-radius: var(--tau-radius-md);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+}
+.rec-row > div {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.rec-row b {
+  font-weight: 500;
+}
+.rec-row span {
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-2);
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.copies {
+  display: grid;
+  gap: 2px;
+  margin: 4px -8px 0;
+}
+.reason ul {
+  color: var(--tau-ink-2);
+}
+.reason .btn {
+  margin-left: 8px;
+}
+
+/* 方案 B：向导 + 摘要 */
+.wiz {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 28px;
+}
+.wiz-rail {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+.wiz-rail div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--tau-radius-md);
+  color: var(--tau-ink-3);
+}
+.wiz-rail div.on {
+  color: var(--tau-ink-1);
+  background: var(--tau-bg-selected);
+  font-weight: 500;
+}
+.wiz-rail div.done {
+  color: var(--tau-ink-2);
+}
+.wiz-main h2 {
+  margin: 2px 0 4px;
+  font-size: var(--tau-text-title-lg);
+  font-weight: 600;
+}
+.wiz-main > p {
+  margin: 0 0 18px;
+  color: var(--tau-ink-2);
+}
+.pick {
+  display: grid;
+  gap: 10px;
+}
+.pick label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--tau-radius-md);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+  cursor: pointer;
+}
+.pick label.on {
+  box-shadow: inset 0 0 0 1.5px var(--tau-accent);
+  background: var(--tau-bg-selected);
+}
+.pick .radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex: none;
+  margin-top: 2px;
+  box-shadow: inset 0 0 0 1.5px var(--tau-ink-3);
+}
+.pick label.on .radio {
+  box-shadow: inset 0 0 0 5px var(--tau-accent);
+}
+.pick b {
+  display: block;
+  font-weight: 600;
+}
+.pick span {
+  display: block;
+  color: var(--tau-ink-2);
+  font-size: var(--tau-text-meta);
+}
+.wiz-foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.strip .t {
+  font-weight: 600;
+}
+.strip .s {
+  color: var(--tau-ink-2);
+  font-size: var(--tau-text-meta);
+}
+.strip .acts {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  position: relative;
+}
+.disc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 4px 4px;
+  cursor: pointer;
+}
+.disc b {
+  font-weight: 600;
+}
+.disc .muted {
+  font-size: var(--tau-text-meta);
+}
+.disc .ico.chev {
+  margin-left: auto;
+  color: var(--tau-ink-3);
+  transition: transform 200ms;
+}
+.disc.open .ico.chev {
+  transform: rotate(180deg);
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px 10px;
+  margin-top: 6px;
+}
+.adv {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.adv .peer {
+  padding: 10px 8px;
+}
+.sec-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 4px 8px;
+}
+.sec-title h3 {
+  margin: 0;
+  font-size: var(--tau-text-body-lg);
+  font-weight: 600;
+}
+.sec-title span {
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-2);
+}
+
+/* 方案 C：关系图 */
+.graph-sheet {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+.graph {
+  position: relative;
+  height: 300px;
+  border-radius: var(--tau-radius-lg);
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+}
+.graph svg.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.graph svg.lines line {
+  stroke: var(--tau-ink-3);
+  stroke-width: 1.5;
+}
+.graph svg.lines line.dash {
+  stroke-dasharray: 4 5;
+}
+.graph svg.lines line.live {
+  stroke: var(--tau-ok);
+}
+.gnode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 92px;
+  text-align: center;
+}
+.gnode .gi {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-2);
+  box-shadow:
+    var(--tau-shadow-card),
+    0 0 0 1px var(--tau-line-1);
+}
+.gnode.hub {
+  z-index: 2;
+}
+.gnode.hub .gi {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  box-shadow: none;
+}
+.gnode.ghost .gi {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--tau-line-1);
+  color: var(--tau-ink-3);
+}
+.gnode b {
+  font-size: var(--tau-text-sm);
+  font-weight: 500;
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gnode small {
+  font-size: var(--tau-text-tiny);
+  color: var(--tau-ink-3);
+  margin-top: -3px;
+}
+.gnode .menu {
+  text-align: left;
+}
+.legend {
+  position: absolute;
+  left: 14px;
+  bottom: 10px;
+  font-size: var(--tau-text-tiny);
+  color: var(--tau-ink-3);
+}
+.side-col .t {
+  font-size: var(--tau-text-title-lg);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.side-col .s {
+  margin: 6px 0 16px;
+  color: var(--tau-ink-2);
+}
+.side-col .row-acts {
+  display: flex;
+  gap: 8px;
+  position: relative;
+  flex-wrap: wrap;
+}
+.side-col .list {
+  margin-top: 22px;
+  display: grid;
+  gap: 2px;
+}
+.choice {
+  display: grid;
+  gap: 10px;
+}
+.choice .peer {
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+  cursor: pointer;
+}
+.wsteps {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 16px;
+}
+.wsteps span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-3);
+}
+.wsteps span.on {
+  color: var(--tau-ink-1);
+  font-weight: 500;
+}
+.wsteps i {
+  width: 18px;
+  height: 1px;
+  background: var(--tau-line-1);
+  align-self: center;
+}
+.m-graph {
+  position: relative;
+  height: 112px;
+  margin: 2px 0 14px;
+}
+.m-graph svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.m-graph line {
+  stroke: var(--tau-ink-3);
+  stroke-width: 1.5;
+}
+.m-graph line.dash {
+  stroke-dasharray: 4 5;
+}
+.m-graph line.live {
+  stroke: var(--tau-ok);
+}
+.m-graph .gnode {
+  width: 110px;
+}

@@ -1,8 +1,10 @@
 import {
   waitForASR,
   validateTranscript,
+  type ASRFileRequest,
   type ASRInstance,
   type ASRRunOptions,
+  type ASRTask,
   type ASRStreamRequest,
   type ASRStreamSession,
 } from "@tau/asr";
@@ -62,6 +64,50 @@ export class ASRProviderRegistry {
     return {
       instance: registered.definition.create(structuredClone(config), modelId),
       signal: AbortSignal.any([registered.context.signal, registered.controller.signal]),
+    };
+  }
+  async transcribeFile(
+    pluginId: string,
+    config: JsonValue,
+    modelId: string,
+    request: ASRFileRequest,
+    options: ASRRunOptions
+  ): Promise<ASRTask> {
+    const { instance, signal: pluginSignal } = this.create(pluginId, config, modelId);
+    if (!instance.transcribeFile) throw new Error("所选识别插件不支持录音转文字");
+    const lifetime = new AbortController();
+    const signal = AbortSignal.any([pluginSignal, options.signal, lifetime.signal]);
+    const starting = instance.transcribeFile(request, {
+      ...options,
+      signal,
+      onEvent: event => {
+        if (!signal.aborted) options.onEvent(event);
+      },
+    });
+    void starting
+      .then(task => {
+        if (signal.aborted) return task.cancel();
+      })
+      .catch(() => undefined);
+    const task = await waitForASR(starting, signal);
+    const abort = () => {
+      void task.cancel().catch(() => undefined);
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    const result = waitForASR(task.result, signal)
+      .then(value => {
+        validateTranscript(value);
+        return value;
+      })
+      .finally(() => signal.removeEventListener("abort", abort));
+    void result.catch(() => undefined);
+    return {
+      result,
+      async cancel() {
+        lifetime.abort();
+        await task.cancel();
+      },
     };
   }
   async openStream(

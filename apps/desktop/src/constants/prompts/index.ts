@@ -35,7 +35,7 @@ export {
 } from "./transcription-optimization";
 export { VIDEO_SUMMARY_SYSTEM_PROMPT, buildVideoSummaryUserPrompt } from "./video-summary";
 export { VIDEO_HIGHLIGHTS_SYSTEM_PROMPT, buildVideoHighlightsUserPrompt } from "./video-highlights";
-export { VIDEO_INSIGHTS_SYSTEM_PROMPT, buildVideoInsightsUserPrompt } from "./video-insights";
+export { VIDEO_CHAPTERS_SYSTEM_PROMPT, buildVideoChaptersUserPrompt } from "./video-chapters";
 export { TOPIC_HIGHLIGHTS_SYSTEM_PROMPT, buildTopicHighlightsUserPrompt } from "./topic-highlights";
 export {
   VIDEO_EBOOK_REWRITE_SYSTEM_PROMPT,

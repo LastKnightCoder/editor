@@ -6,14 +6,15 @@ Tau 的宣传视频工程（Remotion 4 + React 19 + Tailwind v4：React 写视�
 
 ## 片子
 
-| Composition                          | 内容                                                                                                               | 状态 |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ---- |
-| `Product`                            | 产品介绍片，166 秒：开场 → 写作 → 白板 → 数据库 → 一个想法的一生 → AI → 知识地图 → All in one → 插件 + 本地 → 收尾 | 主线 |
-| `Feature-Editor` / `Feature-Compose` | 功能片：所见即所得 + 块（30 秒）、创作模式（20 秒）                                                                | 冻结 |
-| `DayInLife`                          | 场景片「一天的知识生活」（90 秒）                                                                                  | 归档 |
-| `Gallery-*`                          | 每个重建页面一帧，核对界面用                                                                                       | 调试 |
-| `Measure-*`                          | 量点按坐标（光标 TARGET 用），读数写在画面右侧                                                                     | 调试 |
-| `Probe-Manifesto-*` / `Stage-*`      | 宣言样式、舞台配色对比                                                                                             | 调试 |
+| Composition                          | 内容                                                                                                               | 状态     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------- |
+| `Product`                            | 产品介绍片，166 秒：开场 → 写作 → 白板 → 数据库 → 一个想法的一生 → AI → 知识地图 → All in one → 插件 + 本地 → 收尾 | 主线     |
+| `Tutorial-Syntax`                    | 教程片：所见即所得快捷语法 + 斜杠菜单 + 块，只用字幕；见 [`docs/交接-教程片.md`](docs/交接-教程片.md)              | 全片样片 |
+| `Feature-Editor` / `Feature-Compose` | 功能片：所见即所得 + 块（30 秒）、创作模式（20 秒）                                                                | 冻结     |
+| `DayInLife`                          | 场景片「一天的知识生活」（90 秒）                                                                                  | 归档     |
+| `Gallery-*`                          | 每个重建页面一帧，核对界面用                                                                                       | 调试     |
+| `Measure-*`                          | 量点按坐标（光标 TARGET 用），读数写在画面右侧                                                                     | 调试     |
+| `Probe-Manifesto-*` / `Stage-*`      | 宣言样式、舞台配色对比                                                                                             | 调试     |
 
 ## 常用命令（在本目录下执行）
 
@@ -43,7 +44,7 @@ src/
     features/  功能片（冻结）
     gallery/   Gallery（界面核对）、Measure（坐标测量）、各类对比探针
     day/       场景片（归档）
-scripts/     beat-frames.mjs、stills-grid.sh、scan-glitches.py（丢帧扫描）、render.mjs、analyze-beats.py / analyze-bars.py（librosa 节拍分析）、export-srt.ts
+scripts/     sfx/（教程片音效合成）、export-tutorial-sfx.ts、beat-frames.mjs、stills-grid.sh、scan-glitches.py（丢帧扫描）、render.mjs、analyze-beats.py / analyze-bars.py（librosa 节拍分析）、export-srt.ts
 ```
 
 ## 做一段新内容
@@ -55,5 +56,6 @@ scripts/     beat-frames.mjs、stills-grid.sh、scan-glitches.py（丢帧扫描�
 
 ## 配乐与字体
 
+- 教程片配乐：[Chillax](https://mixkit.co/free-stock-music/mood/calm/)，作者 Francisco Alvear，Mixkit Stock Music Free License（可商用，无需署名），文件 `public/music/mixkit-chillax.mp3`。
 - 配乐：[Motivational Technology](https://pixabay.com/)，作者 Rockot，Pixabay Content License（可商用，无需署名），117.45 BPM，从曲内第 11 小节截入。文件 `public/music/motivational-technology.mp3`，原件在 `assets/`。请保存 Pixabay 的 License Certificate。
 - 字体：思源宋体 / 思源黑体（Noto Serif / Sans SC）、JetBrains Mono、白板手绘字体（小赖 SC + Shantell Sans），均为 SIL OFL，经 Fontsource 或 apps/desktop 引用打包。

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudUpload, Database, Download, RefreshCw } from "lucide-react";
 import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
-import { Button, ConfirmDialog, Panel, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Panel, ProgressStatus, toast } from "@tau/ui";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import useSettingStore from "@/stores/useSettingStore";
 import { download, getRemoteDatabaseVersion, upload } from "@/commands";
@@ -16,11 +16,12 @@ import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
 import { SyncActions, SyncStats } from "../components/SyncCard";
 import { LocalDatabasePanel } from "./LocalDatabasePanel";
+import { DeviceSyncPanel } from "./DeviceSyncPanel";
 import { isProviderSection, ProviderChoiceList } from "../components/ProviderChoiceList";
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 
-type SyncTab = "overview" | "files" | "database";
+type SyncTab = "device" | "overview" | "files" | "database";
 
 export function SyncSection() {
   const queryClient = useQueryClient();
@@ -35,6 +36,8 @@ export function SyncSection() {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncPercent, setSyncPercent] = useState(0);
+  const [syncStatus, setSyncStatus] = useState("");
+  const [syncDirection, setSyncDirection] = useState<"upload" | "download" | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false);
   const [forceSyncConfirmOpen, setForceSyncConfirmOpen] = useState(false);
@@ -74,10 +77,18 @@ export function SyncSection() {
   const hasUpdate = remoteKnown && remoteVersion > localVersion;
 
   const doUpload = async () => {
+    if (isSyncing || !isReady) return;
     setIsSyncing(true);
+    setSyncDirection("upload");
     setSyncPercent(0);
+    setSyncStatus("正在准备上传...");
     try {
-      const ok = await upload({ onProgress: ({ value }) => setSyncPercent(Math.round(value)) });
+      const ok = await upload({
+        onProgress: ({ value, status }) => {
+          setSyncPercent(value);
+          setSyncStatus(status);
+        },
+      });
       if (ok) {
         queryClient.setQueryData(remoteKey, {
           version: localDatabaseVersion(
@@ -96,6 +107,7 @@ export function SyncSection() {
       toast.error(`同步失败：${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSyncing(false);
+      setSyncDirection(null);
     }
   };
 
@@ -110,7 +122,7 @@ export function SyncSection() {
   };
 
   const onCheckUpdate = async () => {
-    if (!isReady) return;
+    if (!isReady || isSyncing) return;
     setIsChecking(true);
     try {
       const remote = await getRemoteDatabaseVersion();
@@ -129,8 +141,18 @@ export function SyncSection() {
   };
 
   const onDownload = async () => {
+    if (isSyncing || !isReady) return;
+    setIsSyncing(true);
+    setSyncDirection("download");
+    setSyncPercent(0);
+    setSyncStatus("正在准备下载...");
     try {
-      const ok = await download();
+      const ok = await download({
+        onProgress: ({ value, status }) => {
+          setSyncPercent(value);
+          setSyncStatus(status);
+        },
+      });
       if (ok) {
         queryClient.setQueryData(remoteKey, remoteQuery.data);
         toast.success("更新成功，已刷新数据库，原文件已备份至 backup 文件夹");
@@ -139,10 +161,13 @@ export function SyncSection() {
       }
     } catch (error) {
       toast.error(`下载失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsSyncing(false);
+      setSyncDirection(null);
     }
   };
 
-  const [tab, setTab] = useState<SyncTab>("overview");
+  const [tab, setTab] = useState<SyncTab>("device");
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const resourceSync = useResourceSyncModel();
 
@@ -152,6 +177,8 @@ export function SyncSection() {
     <StatusChip tone="warn">
       {pluginState === "failed" || pluginState === "restart-required" ? "插件不可用" : "准备中"}
     </StatusChip>
+  ) : isSyncing ? (
+    <StatusChip tone="accent">{syncDirection === "download" ? "下载中" : "上传中"}</StatusChip>
   ) : remoteQuery.isFetching ? (
     <StatusChip tone="accent">检查中</StatusChip>
   ) : remoteQuery.isError ? (
@@ -171,13 +198,16 @@ export function SyncSection() {
         value={tab}
         onChange={setTab}
         items={[
-          { key: "overview", label: "概览" },
+          { key: "device", label: "设备同步" },
+          { key: "overview", label: "云端存储" },
           { key: "files", label: "资源文件", badge: resourceSync.counts.error || undefined },
           { key: "database", label: "本地数据库" },
         ]}
       />
 
-      {tab === "overview" ? (
+      {tab === "device" ? (
+        <DeviceSyncPanel />
+      ) : tab === "overview" ? (
         <>
           <SettingsGroup bare>
             <div className="grid grid-cols-2 gap-3">
@@ -205,6 +235,9 @@ export function SyncSection() {
                     },
                   ]}
                 />
+                {isSyncing && (
+                  <ProgressStatus className="mt-4" value={syncPercent} label={syncStatus} />
+                )}
                 <SyncActions>
                   {!isConfigured ? (
                     <span className="text-tau-meta text-ink-2">在下方选择同步服务后即可同步</span>
@@ -214,6 +247,7 @@ export function SyncSection() {
                         variant="primary"
                         size="sm"
                         icon={Download}
+                        disabled={isSyncing || !isReady}
                         onClick={() => setDownloadConfirmOpen(true)}
                       >
                         拉取远程
@@ -222,8 +256,9 @@ export function SyncSection() {
                         variant="secondary"
                         size="sm"
                         icon={CloudUpload}
-                        loading={isSyncing}
-                        loadingText={`上传中 ${syncPercent}%`}
+                        loading={syncDirection === "upload"}
+                        loadingText={`上传中 ${Math.floor(syncPercent)}%`}
+                        disabled={isSyncing || !isReady}
                         onClick={() => setForceSyncConfirmOpen(true)}
                       >
                         强制上传
@@ -236,8 +271,8 @@ export function SyncSection() {
                         size="sm"
                         icon={CloudUpload}
                         loading={isSyncing}
-                        loadingText={`同步中 ${syncPercent}%`}
-                        disabled={!isReady}
+                        loadingText={`同步中 ${Math.floor(syncPercent)}%`}
+                        disabled={!isReady || isSyncing}
                         onClick={onSyncClick}
                       >
                         同步到云端
@@ -248,7 +283,7 @@ export function SyncSection() {
                         icon={RefreshCw}
                         loading={isChecking}
                         loadingText="检查中…"
-                        disabled={!isReady}
+                        disabled={!isReady || isSyncing}
                         onClick={() => void onCheckUpdate()}
                       >
                         检查
@@ -309,9 +344,17 @@ export function SyncSection() {
         title="下载更新"
         size="lg"
         context={database.active}
-        description={`远程 v${remoteVersion} 有新版本，下载后将覆盖本地并刷新。`}
+        description={
+          syncDirection === "download" ? (
+            <ProgressStatus value={syncPercent} label={syncStatus} />
+          ) : (
+            `远程 v${remoteVersion} 有新版本，下载后将覆盖本地并刷新。`
+          )
+        }
         impact="本地当前文件会备份至 backup 文件夹"
         confirmText="下载"
+        confirmDisabled={isSyncing || !isReady}
+        loadingText={`下载中 ${Math.floor(syncPercent)}%`}
         onConfirm={onDownload}
       />
       <ConfirmDialog
@@ -323,6 +366,7 @@ export function SyncSection() {
         description={`本地 v${localVersion} 落后于远程 v${remoteVersion}，继续同步将以本地内容覆盖远端。`}
         impact="远端新版本的变更将丢失"
         confirmText="强制同步"
+        confirmDisabled={isSyncing || !isReady}
         onConfirm={doUpload}
       />
     </>

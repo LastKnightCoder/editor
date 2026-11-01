@@ -91,8 +91,7 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
   {
     label: "多媒体",
     features: [
-      { key: "podcastGeneration", label: "播客生成", desc: "长文转播客脚本" },
-      { key: "videoSummary", label: "视频总结", desc: "视频转写稿的摘要与要点" },
+      { key: "videoSummary", label: "视频总结", desc: "视频笔记的章节划分与每章摘要" },
       { key: "videoEbookRewrite", label: "视频电子书重写", desc: "视频内容重写为电子书章节" },
       { key: "transcriptionOptimization", label: "转录断句优化", desc: "语音转录文本的断句与顺滑" },
       {

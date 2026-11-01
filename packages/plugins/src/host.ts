@@ -47,6 +47,7 @@ import {
   type PluginActionTargetKind,
 } from "./actions";
 import { PLUGIN_ENTITY_PANEL_KINDS, type PluginEntityPanelDefinition } from "./views";
+import type { PluginNotebookOutputDefinition, PluginNotebookOutputPlan } from "./notebooks";
 import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
@@ -55,7 +56,13 @@ import {
 } from "./content-input";
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
-import type { TTSProviderDefinition } from "./tts";
+import type {
+  TTSAudio,
+  TTSProviderDefinition,
+  TTSSynthesisSession,
+  TTSSynthesizeRequest,
+  TTSVoice,
+} from "./tts";
 import type { ASRProviderDefinition } from "./asr";
 import type { PluginWebSocket, PluginSocketOptions } from "./websocket";
 import type { ImageProviderDefinition } from "./images";
@@ -203,6 +210,14 @@ export interface ViewsAdapter {
   registerEntityPanel(
     context: PluginContext,
     definition: Readonly<PluginEntityPanelDefinition>
+  ): Disposable;
+}
+
+export interface NotebooksAdapter {
+  /** 定义已冻结；prepare / complete / fail 已包装，插件停用或注销后调用会抛错，prepare 的返回值已校验 */
+  registerOutput(
+    context: PluginContext,
+    definition: Readonly<PluginNotebookOutputDefinition>
   ): Disposable;
 }
 
@@ -582,6 +597,12 @@ const exportFormats = new Set<string>(PLUGIN_EXPORT_FORMATS);
 
 const MAX_ENTITY_META = 64 * 1024;
 
+function isComponentType(value: unknown): boolean {
+  return (
+    typeof value === "function" || !!(value && typeof value === "object" && "$$typeof" in value)
+  );
+}
+
 function readEntityMeta(value: unknown): PluginOwnEntityMeta {
   if (value === undefined) return {};
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -603,14 +624,8 @@ function readEntityKind(value: unknown): PluginOwnEntityKind {
     throw new Error("open.params 必须是函数");
   if (definition.mentionable !== undefined && typeof definition.mentionable !== "boolean")
     throw new Error("mentionable 无效");
-  // React 组件可能是函数，也可能是 memo / forwardRef 包装出的对象
   const icon = definition.icon;
-  if (
-    icon !== undefined &&
-    typeof icon !== "function" &&
-    !(icon && typeof icon === "object" && "$$typeof" in icon)
-  )
-    throw new Error("icon 必须是 SVG 组件");
+  if (icon !== undefined && !isComponentType(icon)) throw new Error("icon 必须是 SVG 组件");
   return Object.freeze({
     kind: definition.kind,
     label: readText(definition.label, "类型名", 50),
@@ -1021,7 +1036,8 @@ export type PluginContributionKind =
   | "excerpts"
   | "home"
   | "action"
-  | "entity-panel";
+  | "entity-panel"
+  | "notebook-output";
 
 export interface PluginInfo {
   backend?: import("./package").PluginBackendManifest;
@@ -1087,6 +1103,47 @@ export interface SpeechAdapter {
   ): Promise<PluginSpeechSession>;
 }
 
+/** 宿主语音合成：授权已由 PluginHost 检查；signal 在插件停用时同样中止，届时宿主须释放会话 */
+export interface TTSSynthesisAdapter {
+  unavailableReason(): string | null;
+  open(
+    context: PluginContext,
+    signal: AbortSignal
+  ): Promise<{
+    providerName: string;
+    textInstructions?: string;
+    getVoices(signal: AbortSignal): Promise<TTSVoice[]>;
+    synthesize(request: TTSSynthesizeRequest, signal: AbortSignal): Promise<TTSAudio>;
+    close(): Promise<void>;
+  }>;
+}
+
+/** prepare 的返回值：只取公开字段，文字长度按提示词预算收窄 */
+function readNotebookOutputPlan(value: unknown): PluginNotebookOutputPlan {
+  if (!value || typeof value !== "object") throw new Error("prepare 必须返回任务说明");
+  const plan = value as Record<string, unknown>;
+  if (typeof plan.entity !== "string" || !/^\d+$/.test(plan.entity))
+    throw new Error("prepare 返回的 entity 必须是插件实体 ID");
+  if (typeof plan.title !== "string" || !plan.title.trim()) throw new Error("prepare 需要 title");
+  if (typeof plan.instructions !== "string" || !plan.instructions.trim())
+    throw new Error("prepare 需要 instructions");
+  if (plan.instructions.length > 20000) throw new Error("instructions 最多 20000 字");
+  const reminders = plan.reminders;
+  if (
+    reminders !== undefined &&
+    (!Array.isArray(reminders) ||
+      reminders.length > 20 ||
+      reminders.some(item => typeof item !== "string" || item.length > 500))
+  )
+    throw new Error("reminders 最多 20 条，每条最多 500 字");
+  return Object.freeze({
+    entity: plan.entity,
+    title: plan.title.trim().slice(0, 100),
+    instructions: plan.instructions,
+    ...(reminders ? { reminders: Object.freeze([...(reminders as string[])]) } : {}),
+  });
+}
+
 /** 只接收宿主显式信任的代码；此宿主不提供第三方沙箱或授权界面。 */
 export class PluginHost {
   private readonly entries = new Map<string, Entry>();
@@ -1129,8 +1186,10 @@ export class PluginHost {
       upload?: {
         register(context: PluginContext, definition: UploadProviderDefinition): Disposable;
         uploadRemote?(file: UploadFile, signal: AbortSignal): Promise<string>;
+        save?(file: UploadFile, signal: AbortSignal): Promise<string>;
       };
       tts?: { register(context: PluginContext, definition: TTSProviderDefinition): Disposable };
+      ttsSynthesis?: TTSSynthesisAdapter;
       asr?: { register(context: PluginContext, definition: ASRProviderDefinition): Disposable };
       websocket?: PluginWebSocket;
       images?: {
@@ -1146,8 +1205,10 @@ export class PluginHost {
       home?: HomeAdapter;
       actions?: ActionsAdapter;
       views?: ViewsAdapter;
+      notebooks?: NotebooksAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      materialActionFeedback?: { success(label: string): void; error(message: string): void };
       flashcards?: FlashcardsAdapter;
       mcp?: MCPAdapter;
       chat?: ChatAdapter;
@@ -1956,8 +2017,102 @@ export class PluginHost {
             })
           );
         },
+        unavailableReason: () => {
+          this.assertActive(entry, activation);
+          if (!this.options.ttsSynthesis) return "当前设备不支持插件语音合成";
+          return this.options.ttsSynthesis.unavailableReason();
+        },
+        open: async (options?: { signal?: AbortSignal }): Promise<TTSSynthesisSession> => {
+          this.assertActive(entry, activation);
+          const adapter = this.options.ttsSynthesis;
+          if (!adapter) throw new Error("TTS_UNAVAILABLE：当前宿主不支持插件语音合成");
+          await guard("tts:synthesize");
+          const signal = options?.signal
+            ? AbortSignal.any([options.signal, scope.signal])
+            : scope.signal;
+          signal.throwIfAborted();
+          const session = await adapter.open(context, signal);
+          let closed = false;
+          const close = async () => {
+            if (closed) return;
+            closed = true;
+            scope.signal.removeEventListener("abort", onAbort);
+            await session.close();
+          };
+          const onAbort = () =>
+            void close().catch(error => console.error("关闭语音会话失败", error));
+          scope.signal.addEventListener("abort", onAbort, { once: true });
+          const callSignal = (callOptions?: { signal?: AbortSignal }) => {
+            this.assertActive(entry, activation);
+            if (closed) throw new DOMException("语音会话已关闭", "AbortError");
+            const merged = callOptions?.signal
+              ? AbortSignal.any([callOptions.signal, scope.signal])
+              : scope.signal;
+            merged.throwIfAborted();
+            return merged;
+          };
+          return Object.freeze({
+            providerName: String(session.providerName),
+            ...(typeof session.textInstructions === "string"
+              ? { textInstructions: session.textInstructions }
+              : {}),
+            getVoices: async (callOptions?: { signal?: AbortSignal }) => {
+              const voices = await session.getVoices(callSignal(callOptions));
+              this.assertActive(entry, activation);
+              return voices.map((voice): TTSVoice => ({
+                id: String(voice.id),
+                name: String(voice.name),
+                type: voice.type,
+                ...(voice.description ? { description: String(voice.description) } : {}),
+              }));
+            },
+            synthesize: async (
+              request: TTSSynthesizeRequest,
+              callOptions?: { signal?: AbortSignal }
+            ) => {
+              if (typeof request?.text !== "string" || !request.text.trim())
+                throw new Error("朗读文字不能为空");
+              if (typeof request.voiceId !== "string" || !request.voiceId)
+                throw new Error("请指定音色");
+              const signal = callSignal(callOptions);
+              const audio = await session.synthesize(
+                {
+                  text: request.text,
+                  voiceId: request.voiceId,
+                  ...(request.options ? { options: { ...request.options } } : {}),
+                },
+                signal
+              );
+              signal.throwIfAborted();
+              this.assertActive(entry, activation);
+              return { audio: new Uint8Array(audio.audio), mime: String(audio.mime) };
+            },
+            close,
+          });
+        },
       }),
       upload: Object.freeze({
+        save: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
+          this.assertActive(entry, activation);
+          const save = this.options.upload?.save;
+          if (!save) throw new Error("UPLOAD_UNAVAILABLE：当前宿主不支持保存资源文件");
+          if (
+            typeof file?.name !== "string" ||
+            !file.name.trim() ||
+            typeof file.mimeType !== "string" ||
+            !(file.content instanceof Uint8Array)
+          )
+            throw new Error("文件无效");
+          const signal = AbortSignal.any([
+            scope.signal,
+            ...(options?.signal ? [options.signal] : []),
+          ]);
+          signal.throwIfAborted();
+          const url = await save({ ...file, content: new Uint8Array(file.content) }, signal);
+          signal.throwIfAborted();
+          this.assertActive(entry, activation);
+          return url;
+        },
         uploadRemote: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
           this.assertActive(entry, activation);
           const uploadRemote = this.options.upload?.uploadRemote;
@@ -2336,7 +2491,17 @@ export class PluginHost {
               label: action.label,
               run: async () => {
                 this.assertActive(entry, activation);
-                await action.run();
+                const feedback = this.options.materialActionFeedback;
+                try {
+                  await action.run();
+                  this.assertActive(entry, activation);
+                  feedback?.success(action.label);
+                } catch (error) {
+                  if (!feedback || context.signal.aborted) throw error;
+                  feedback.error(
+                    error instanceof Error ? error.message : String(error) || "材料操作失败"
+                  );
+                }
               },
             })
           );
@@ -3192,6 +3357,98 @@ export class PluginHost {
           );
         },
       }),
+      notebooks: Object.freeze({
+        registerOutput: (definition: PluginNotebookOutputDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          assertLocalId(definition.kind);
+          if (typeof definition.title !== "string" || !definition.title.trim())
+            throw new Error("Notebook 输出的名称不能为空");
+          if (definition.icon !== undefined && !isComponentType(definition.icon))
+            throw new Error("Notebook 输出的图标必须是 React 组件");
+          if (definition.options !== undefined && !isComponentType(definition.options))
+            throw new Error("options 必须是 React 组件");
+          if (!isComponentType(definition.view)) throw new Error("view 必须是 React 组件");
+          if (typeof definition.prepare !== "function" || typeof definition.complete !== "function")
+            throw new Error("Notebook 输出必须提供 prepare 与 complete");
+          if (definition.fail !== undefined && typeof definition.fail !== "function")
+            throw new Error("fail 必须是函数");
+          if (!this.options.notebooks) throw new Error("当前宿主不支持 Notebook 输出");
+          const { prepare, complete, fail } = definition;
+          let removed = false;
+          const guardCall = () => {
+            this.assertActive(entry, activation);
+            if (removed) throw new Error("Notebook 输出已注销");
+          };
+          const owned = registerAs(
+            "notebook-output",
+            this.options.notebooks.registerOutput(
+              context,
+              Object.freeze({
+                id: definition.id,
+                title: definition.title.trim(),
+                ...(definition.icon ? { icon: definition.icon } : {}),
+                ...(typeof definition.description === "string" && definition.description.trim()
+                  ? { description: definition.description.trim() }
+                  : {}),
+                kind: definition.kind,
+                ...(definition.options ? { options: definition.options } : {}),
+                view: definition.view,
+                prepare: async (
+                  input: Parameters<PluginNotebookOutputDefinition["prepare"]>[0]
+                ) => {
+                  guardCall();
+                  const plan = readNotebookOutputPlan(
+                    await prepare({
+                      notebook: { ...input.notebook },
+                      resources: input.resources.map(item => ({
+                        id: String(item.id),
+                        name: String(item.name),
+                      })),
+                      userPrompt: input.userPrompt,
+                      options: input.options === undefined ? undefined : copyJson(input.options),
+                      signal: AbortSignal.any([input.signal, scope.signal]),
+                    })
+                  );
+                  guardCall();
+                  return plan;
+                },
+                complete: async (
+                  input: Parameters<PluginNotebookOutputDefinition["complete"]>[0]
+                ) => {
+                  guardCall();
+                  await complete({
+                    entity: input.entity,
+                    text: String(input.text),
+                    task: input.task,
+                    signal: AbortSignal.any([input.signal, scope.signal]),
+                  });
+                },
+                ...(fail
+                  ? {
+                      fail: async (
+                        input: Parameters<NonNullable<PluginNotebookOutputDefinition["fail"]>>[0]
+                      ) => {
+                        guardCall();
+                        await fail({
+                          entity: input.entity,
+                          reason: input.reason,
+                          message: String(input.message),
+                        });
+                      },
+                    }
+                  : {}),
+              })
+            )
+          );
+          return Object.freeze({
+            dispose: () => {
+              removed = true;
+              return owned.dispose();
+            },
+          });
+        },
+      }),
       actions: Object.freeze({
         register: <K extends PluginActionTargetKind>(input: PluginActionDefinition<K>) => {
           this.assertActive(entry, activation);
@@ -3199,7 +3456,7 @@ export class PluginHost {
           assertLocalId(definition.id);
           if (typeof definition.title !== "string" || !definition.title.trim())
             throw new Error("对象动作标题不能为空");
-          if (definition.icon !== undefined && typeof definition.icon !== "function")
+          if (definition.icon !== undefined && !isComponentType(definition.icon))
             throw new Error("对象动作图标必须是 React 组件");
           if (typeof definition.run !== "function") throw new Error("对象动作必须提供 run");
           const targets = definition.targets;

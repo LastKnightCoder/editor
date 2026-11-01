@@ -336,6 +336,34 @@
       "runtimeArgs": ["-m", "http.server", "8847", "--bind", "127.0.0.1", "-d", "."],
       "port": 8847,
       "url": "http://localhost:8847"
+    },
+    {
+      "name": "reminder-mobile-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8848", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8848,
+      "url": "http://localhost:8848"
+    },
+    {
+      "name": "podcast-plugin-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8861",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups"
+      ],
+      "port": 8861
+    },
+    {
+      "name": "weread-mobile-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8849", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8849,
+      "url": "http://localhost:8849"
     }
   ]
 }

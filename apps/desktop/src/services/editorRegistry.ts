@@ -16,6 +16,7 @@ import {
   IMediaInsertSources,
   IVideoContentProviders,
 } from "@tau/editor/extensions/media/services";
+import { IHighlightStyle } from "@tau/editor/extensions/text-formatting";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { desktopRuntimeStyleCompiler } from "./tailwindRuntime";
 import { IOverlayBackDismiss } from "@tau/editor/api";
@@ -30,6 +31,7 @@ import { openExternal } from "@/commands/extra";
 import { desktopFetch } from "@/commands/fetch";
 import { IDocTaskGroups } from "@/editor-extensions/doc-tasks/service";
 import { desktopDocTaskGroups } from "./docTaskGroups";
+import useSettingStore from "@/stores/useSettingStore";
 
 import {
   desktopEditorSlots,
@@ -68,6 +70,12 @@ export const desktopEditorServices: ServiceRegistration = register => {
     aiImageInsertSource,
   ]);
   register(IMediaActions, [aiImageEditAction]);
+
+  // 背景高亮笔触随外观设置切换，已打开的正文即时重绘
+  register(IHighlightStyle, {
+    get: () => useSettingStore.getState().setting.appearance?.highlight?.style,
+    subscribe: listener => useSettingStore.subscribe(listener),
+  });
 };
 
 export function createEditorRegistry(): ServiceRegistry {

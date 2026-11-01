@@ -1,6 +1,5 @@
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
-import { IPodcast } from "./podcast";
 
 export interface ICard {
   contracts?: ContentContractDictionary;
@@ -14,8 +13,6 @@ export interface ICard {
   count: number;
   contentId: number;
   isTop: boolean;
-  podcastId?: number;
-  podcast?: IPodcast;
   /** AI 生成的精简标题（content_ai_meta），没有时取正文开头，见 utils/card-title */
   aiTitle?: string;
 }

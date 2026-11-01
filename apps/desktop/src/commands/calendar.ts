@@ -136,3 +136,15 @@ export const getEventsWithContent = async (params: {
 > => {
   return await invoke("calendar-event:get-events-with-content", params);
 };
+
+// 日程提醒（开始前毫秒数；全天日程以当天零点为基准）
+export const getCalendarEventReminders = async (eventId: number): Promise<number[]> => {
+  return invoke("calendar-event:get-reminders", eventId);
+};
+
+export const updateCalendarEventReminders = async (
+  eventId: number,
+  offsets: number[]
+): Promise<number[]> => {
+  return invoke("calendar-event:update-reminders", { eventId, offsets });
+};

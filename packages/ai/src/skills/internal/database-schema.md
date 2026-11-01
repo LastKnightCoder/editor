@@ -264,20 +264,15 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `series_id`         | `TEXT NOT NULL`       |
 | `occurrence_date`   | `TEXT NOT NULL`       |
 
-### `podcasts`
+### `item_reminder`
 
-| 字段           | SQLite 定义           |
-| -------------- | --------------------- |
-| `id`           | `INTEGER PRIMARY KEY` |
-| `create_time`  | `INTEGER NOT NULL`    |
-| `update_time`  | `INTEGER NOT NULL`    |
-| `audio_url`    | `TEXT NOT NULL`       |
-| `script`       | `TEXT`                |
-| `duration`     | `INTEGER`             |
-| `speakers`     | `TEXT NOT NULL`       |
-| `ref_count`    | `INTEGER DEFAULT 0`   |
-| `name`         | `TEXT`                |
-| `script_lines` | `TEXT`                |
+待办与日程的提醒。`owner_type='todo'` 只存首个之外的追加提醒（首个在 `todo_item.remind_before`）；`owner_type='event'` 存日程的全部提醒。`offset_ms` 为基准时刻减提醒时刻（毫秒），全天日程以当天零点为基准。
+
+| 字段         | SQLite 定义        |
+| ------------ | ------------------ |
+| `owner_type` | `TEXT NOT NULL`    |
+| `owner_id`   | `INTEGER NOT NULL` |
+| `offset_ms`  | `INTEGER NOT NULL` |
 
 ### `contents`
 
@@ -396,15 +391,14 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `cards`
 
-| 字段          | SQLite 定义            |
-| ------------- | ---------------------- |
-| `id`          | `INTEGER PRIMARY KEY`  |
-| `create_time` | `INTEGER NOT NULL`     |
-| `update_time` | `INTEGER NOT NULL`     |
-| `tags`        | `TEXT`                 |
-| `content_id`  | `INTEGER`              |
-| `is_top`      | `INTEGER DEFAULT 0`    |
-| `podcast_id`  | `INTEGER DEFAULT NULL` |
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `id`          | `INTEGER PRIMARY KEY` |
+| `create_time` | `INTEGER NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL`    |
+| `tags`        | `TEXT`                |
+| `content_id`  | `INTEGER`             |
+| `is_top`      | `INTEGER DEFAULT 0`   |
 
 ### `articles`
 
@@ -422,7 +416,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `is_delete`       | `INTEGER DEFAULT 0`     |
 | `banner_position` | `TEXT DEFAULT 'center'` |
 | `content_id`      | `INTEGER`               |
-| `podcast_id`      | `INTEGER DEFAULT NULL`  |
 
 ### `collaboration_bindings`
 
@@ -710,7 +703,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `project_item_type`      | `TEXT DEFAULT 'document'`    |
 | `content_id`             | `INTEGER`                    |
 | `white_board_content_id` | `INTEGER`                    |
-| `podcast_id`             | `INTEGER DEFAULT NULL`       |
 | `tags`                   | `TEXT NOT NULL DEFAULT '[]'` |
 
 ### `migration_meta`
@@ -1258,7 +1250,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `content_id`  | `INTEGER NOT NULL`             |
 | `title`       | `TEXT NOT NULL`                |
 | `type`        | `TEXT NOT NULL DEFAULT 'note'` |
-| `podcast_id`  | `INTEGER DEFAULT NULL`         |
 
 ### `vl_quiz_set`
 

@@ -26,7 +26,6 @@ import {
   ClipboardCopy,
   CreditCard,
   Download,
-  FileAudio,
   FileType,
   FileText,
   Image as ImageIcon,
@@ -69,12 +68,10 @@ import {
   copyWechatHtmlToClipboard,
   defaultArticleEventBus,
 } from "@/utils";
-import type { IArticle } from "@/types";
 import AddTag from "@/components/AddTag";
 import { ConfirmDialog, Loading, Menu, cn, toast } from "@tau/ui";
 
 import { useArticleMutations } from "../queries";
-import { ArticlePodcast } from "../components/ArticlePodcast";
 import { ArticleHero } from "../components/ArticleHero";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
 import { ArticleBodyFallback } from "../components/ArticleBodyFallback";
@@ -156,7 +153,6 @@ export function ArticleDetailView() {
   /* 版心滚动容器：callback ref（挂载后接线目录同步与阅读进度） */
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
-  const [podcastModalOpen, setPodcastModalOpen] = useState(false);
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
   const [immersive, setImmersive] = useState(false);
   const [editorRemountKey, setEditorRemountKey] = useState(0);
@@ -268,10 +264,6 @@ export function ArticleDetailView() {
     });
   };
 
-  const handlePodcastUpdated = (updated: IArticle) => {
-    setEditingArticle(updated);
-  };
-
   /* 标题栏面包屑（usePageBreadcrumb）：「文章 / [速切器]」——须 useMemo 稳定化
      （注册协议要求，见 PageProvider 的 usePageSlot JSDoc）；加载中传 null 回退默认 */
   const breadcrumbNode = useMemo(() => {
@@ -301,7 +293,7 @@ export function ArticleDetailView() {
   usePageBreadcrumb("article-detail", breadcrumbNode);
 
   /* 元信息行右侧 ⋯ 菜单（结构对齐卡片详情）：场景（高频）与协作在前，复制/导出居中，
-     生成类（制卡/播客，低频）收二级垫底，删除殿后 */
+     生成类（制卡，低频）收二级垫底，删除殿后 */
   const moreMenuNode = useMemo(() => {
     if (!editingArticle) return null;
     return (
@@ -433,12 +425,6 @@ export function ArticleDetailView() {
           >
             手动制卡（闪卡）
           </Menu.Item>
-          <Menu.Item
-            icon={<FileAudio className="size-[15px] shrink-0" strokeWidth={1.75} />}
-            onSelect={() => setPodcastModalOpen(true)}
-          >
-            {editingArticle.podcast ? "编辑播客" : "生成播客"}
-          </Menu.Item>
         </Menu.Submenu>
         <PluginActionMenuItems target={{ kind: "article", id: String(editingArticle.id) }} />
         <Menu.Separator />
@@ -552,14 +538,7 @@ export function ArticleDetailView() {
                     target={{ kind: "article", id: String(editingArticle.id) }}
                     className="mb-6"
                   />
-                  <ArticlePodcast
-                    article={editingArticle}
-                    modalOpen={podcastModalOpen}
-                    onModalOpenChange={setPodcastModalOpen}
-                    onUpdated={handlePodcastUpdated}
-                  />
-
-                  <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
+                  <div>
                     {insights.frame(
                       <ErrorBoundary>
                         <ContentEditor

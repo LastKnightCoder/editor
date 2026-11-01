@@ -1,4 +1,5 @@
 import { ASRProviderRegistry } from "@tau/plugins/asr-host";
+import { toast } from "@tau/ui";
 import { RendererTTSRegistry } from "@tau/plugins/tts-host";
 import { ImageProviderRegistry } from "@tau/plugins/images-host";
 import type { PluginWebSocket } from "@tau/plugins";
@@ -55,6 +56,7 @@ export class MobilePluginRuntime {
     { context: PluginContext; definition: PluginOwnEntityKind }
   >();
   own?: import("./own-data").MobileOwnData;
+  excerpts?: import("./excerpts").MobileExcerpts;
   app?: import("./app").MobileAppAdapter;
   events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
   data?: import("./data").MobileDataAdapter;
@@ -109,6 +111,14 @@ export class MobilePluginRuntime {
     restartRequired?: Set<string>
   ) {
     this.host = new PluginHost({
+      materialActionFeedback: {
+        success: label => {
+          toast.success(`已${label}`);
+        },
+        error: message => {
+          toast.error(message);
+        },
+      },
       workspaceId,
       restartRequired,
       environmentSource: environment,
@@ -124,6 +134,16 @@ export class MobilePluginRuntime {
         },
       },
       chat: this.aiChat.adapter,
+      excerpts: {
+        register: (...args) => this.excerptAdapter().excerpts.register(...args),
+        replace: (...args) => this.excerptAdapter().excerpts.replace(...args),
+        patch: (...args) => this.excerptAdapter().excerpts.patch(...args),
+        sources: (...args) => this.excerptAdapter().excerpts.sources(...args),
+        items: (...args) => this.excerptAdapter().excerpts.items(...args),
+      },
+      materials: {
+        actions: (...args) => this.excerptAdapter().materials.actions(...args),
+      },
       flashcards: {
         listDecks: (...args) => this.flashcardAdapter().listDecks(...args),
         createDeck: (...args) => this.flashcardAdapter().createDeck(...args),
@@ -573,6 +593,10 @@ export class MobilePluginRuntime {
     if (!this.app) throw new Error("插件内容交互尚未就绪");
     return this.app.adapter;
   }
+  private excerptAdapter() {
+    if (!this.excerpts) throw new Error("摘录能力尚未就绪");
+    return this.excerpts;
+  }
   private permissionBroker() {
     if (!this.permissions) throw new Error("插件授权尚未就绪");
     return this.permissions;
@@ -719,6 +743,7 @@ export class MobilePluginRuntime {
   async dispose() {
     this.disposed = true;
     this.flashcards?.dispose();
+    this.excerpts?.dispose();
     this.app?.dispose();
     this.own?.dispose();
     this.permissions?.dispose();

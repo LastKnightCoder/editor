@@ -14,7 +14,6 @@ export const useLLMConfig = (
     | "chat"
     | "titleSummary"
     | "webClip"
-    | "podcastGeneration"
     | "flashcardGeneration"
     | "transcriptionOptimization"
     | "speechInputRefinement"
