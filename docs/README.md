@@ -16,7 +16,7 @@
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                               |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                               |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                           |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、外部打开 Markdown、正文统计与空文档判断                                                           |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                           |
 | [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                       |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、AI 接线、私有包事务及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md)               |
 | [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                   |
@@ -42,6 +42,7 @@
 | ------------------------------------------------------------------- | ---------------------------------------- |
 | [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                       |
 | [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程                 |
+| [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收               |
 | [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查           |
 | [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查           |
 | [ops-device-sync-spike.md](./guides/ops-device-sync-spike.md)       | 设备同步复现与真机功能验收               |

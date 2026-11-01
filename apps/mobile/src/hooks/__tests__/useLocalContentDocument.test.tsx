@@ -159,6 +159,11 @@ it("明确覆盖后同基线旧缓存和旧会话不能重新带回本地输入�
     const reference = await resources!.upload(new File(["image"], "paired-image.png"));
     expect(reference).toMatch(/^tau-collab-local:/);
     expect(await resources!.remoteResourceToLocal!(reference)).toBe(imagePath);
+    const recordingPath = "~/.editor/resources/recording.m4a";
+    const recordingReference = document!.prepareResource(recordingPath);
+    expect(recordingReference).toMatch(/^tau-collab-local:/);
+    expect(document!.prepareResource(recordingPath)).toBe(recordingReference);
+    expect(await resources!.remoteResourceToLocal!(recordingReference)).toBe(recordingPath);
     const previous = io.tree,
       oldDocument = document!;
     let finish = () => {};
@@ -166,6 +171,7 @@ it("明确覆盖后同基线旧缓存和旧会话不能重新带回本地输入�
       finish = deviceNative.beginDeviceReplacement("restore-test.db");
     });
     const writesBefore = io.write.mock.calls.length;
+    expect(() => oldDocument.prepareResource(recordingPath)).toThrow("正文已重新下载");
     await oldDocument.flush();
     expect(io.write.mock.calls.length).toBe(writesBefore);
     generation = "restored";
@@ -236,6 +242,9 @@ it("本机正文保存失败后冲刷重试完整因果链，重开能恢复失�
     const imagePath = "~/.editor/resources/image.png";
     io.resources.upload.mockResolvedValue(imagePath);
     expect(await resources!.upload(new File(["image"], "image.png"))).toBe(imagePath);
+    expect(document!.prepareResource("~/.editor/resources/recording.m4a")).toBe(
+      "~/.editor/resources/recording.m4a"
+    );
     expect(await resources!.remoteResourceToLocal!(imagePath)).toBe(imagePath);
     expect(io.resources.remoteResourceToLocal).not.toHaveBeenCalled();
     const seed = io.write.mock.calls[0][0].state;

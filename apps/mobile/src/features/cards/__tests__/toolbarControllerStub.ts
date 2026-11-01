@@ -69,6 +69,10 @@ export function createControllerStub(
     openTtsForAudio: vi.fn(),
     closeTts: vi.fn(),
     handleTtsInserted: vi.fn(),
+    recordingEnabled: false,
+    rerecordAudio: vi.fn(),
+    recordingPermissionDenied: false,
+    closeRecordingPermission: vi.fn(),
     ...overrides,
   };
 }

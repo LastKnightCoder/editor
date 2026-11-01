@@ -1,0 +1,524 @@
+/* 录音插入 mockup：在 editor-mobile / media-mobile / tts-entry 基础样式上补充录音专用部件 */
+.rec-red {
+  color: var(--danger);
+}
+.new-mark {
+  outline: 1.5px dashed var(--brand);
+  outline-offset: 2px;
+}
+
+/* 录音胶囊：浮在配件栏上方，录音期间常驻 */
+.rec-cap {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  z-index: 5;
+  height: 52px;
+  padding: 0 6px 0 14px;
+  border-radius: 26px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rec-cap .rdot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+.rec-cap .rtime {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+}
+.rec-cap .lwave {
+  flex: 1;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+}
+.rec-cap .lwave i {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink-inv) 70%, transparent);
+  animation: rec-bar 0.9s ease-in-out infinite alternate;
+}
+.rec-cap .rc-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--ink-inv) 16%, transparent);
+}
+.rec-cap .rc-done {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 19px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--danger);
+  color: #fff;
+}
+.rec-cap.paused .rdot {
+  animation: none;
+  background: color-mix(in srgb, var(--ink-inv) 55%, transparent);
+}
+.rec-cap.paused .lwave i {
+  animation: none;
+  height: 3px !important;
+}
+.rec-cap .rlabel {
+  flex: 1;
+  font-size: 13px;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec-cap.mini {
+  left: auto;
+  right: 12px;
+  width: auto;
+  padding: 0 14px 0 12px;
+  height: 40px;
+  gap: 8px;
+}
+.rec-cap.mini .rtime {
+  font-size: 13.5px;
+  min-width: 0;
+}
+
+@keyframes rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes rec-bar {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* 正文里的落点标记：装饰层，不是文档节点 */
+.anchor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin: 8px 0;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1.5px dashed color-mix(in srgb, var(--danger) 55%, transparent);
+  background: color-mix(in srgb, var(--danger) 7%, var(--bg-page));
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.anchor .rdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+.anchor small {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.anchor.paused .rdot {
+  animation: none;
+  background: var(--ink-3);
+}
+
+/* 展开的录音面板 */
+.rsheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  background: var(--bg-page);
+  border-radius: 20px 20px 0 0;
+  box-shadow: var(--shadow-float);
+  padding-bottom: 26px;
+  display: flex;
+  flex-direction: column;
+}
+.big-time {
+  text-align: center;
+  font-size: 44px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 10px;
+}
+.big-time small {
+  display: block;
+  font-size: 12.5px;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.rwave {
+  position: relative;
+  height: 72px;
+  margin: 16px 16px 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+}
+.rwave i {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--danger);
+}
+.rwave i.f {
+  background: var(--line-1);
+  height: 3px !important;
+}
+.rwave .head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ink-1);
+}
+.rwave.dim i:not(.f) {
+  background: var(--ink-3);
+}
+.rctl {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 14px 30px 6px;
+}
+.rb {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  position: relative;
+}
+.rb > em {
+  position: absolute;
+  top: 62px;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.rb.main {
+  width: 76px;
+  height: 76px;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 3px var(--danger);
+}
+.rb.main .core {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--danger);
+}
+.rb.main .core.round {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+}
+.rb.main > em {
+  top: 82px;
+}
+.rb.done {
+  background: var(--danger);
+  color: #fff;
+}
+.rb.off {
+  opacity: 0.4;
+}
+.rinfo {
+  margin: 34px 14px 0;
+}
+
+/* 系统权限弹窗（OS 绘制） */
+.sys-alert {
+  position: absolute;
+  left: 50%;
+  top: 270px;
+  z-index: 7;
+  transform: translateX(-50%);
+  width: 270px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--kb-key) 92%, transparent);
+  backdrop-filter: blur(20px);
+  color: var(--kb-ink);
+  text-align: center;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.sys-alert h4 {
+  font-size: 16px;
+  padding: 18px 16px 4px;
+}
+.sys-alert p {
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 0 16px 16px;
+}
+.sys-alert .btns {
+  display: flex;
+  border-top: 1px solid color-mix(in srgb, var(--kb-ink) 15%, transparent);
+}
+.sys-alert .btns span {
+  flex: 1;
+  padding: 11px 0;
+  font-size: 16px;
+  color: #0a84ff;
+}
+.sys-alert .btns span + span {
+  border-left: 1px solid color-mix(in srgb, var(--kb-ink) 15%, transparent);
+  font-weight: 600;
+}
+
+/* 顶部横幅（恢复未完成录音等） */
+.banner {
+  margin: 4px 14px 2px;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.banner .bh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.banner .bh .ei {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-surface));
+  color: var(--danger);
+}
+.banner p {
+  color: var(--ink-3);
+  margin: 6px 0 10px 38px;
+}
+.banner .acts {
+  display: flex;
+  gap: 8px;
+  margin-left: 38px;
+}
+.banner .acts span {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--line-1);
+  color: var(--ink-2);
+}
+.banner .acts span.pri {
+  border-color: transparent;
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+
+/* 锁屏（OS 绘制） */
+.lock {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(170deg, #3a4a5e, #1d2430 70%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.lock .clock {
+  font-size: 76px;
+  font-weight: 300;
+  margin-top: 70px;
+  line-height: 1;
+}
+.lock .date {
+  font-size: 16px;
+  opacity: 0.85;
+  margin-top: 8px;
+}
+.lock .live {
+  margin-top: auto;
+  margin-bottom: 120px;
+  width: 330px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: rgba(20, 22, 28, 0.72);
+  backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.lock .live .app {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.lock .live .mid {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+.lock .live .mid small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.lock .live .t {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: #ff6b6b;
+}
+.lock .live .pb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 音频块上的转文字进度 */
+.tx-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.tx-row .spin {
+  color: var(--brand);
+  animation: tx-spin 1s linear infinite;
+}
+.tx-row .bar {
+  flex: 1;
+  margin: 0;
+}
+.tx-row .x {
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 0 4px;
+}
+.tx-row.err {
+  color: var(--danger);
+}
+.tx-row.err .x {
+  color: var(--brand-text);
+}
+@keyframes tx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 文字稿折叠块（复用正文的折叠块） */
+.fold {
+  margin: 6px 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.fold .fh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.fold .fh small {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.fold .fb {
+  padding: 0 12px 10px 30px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.fold .fb p + p {
+  margin-top: 4px;
+}
+.fold .ts {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  margin-right: 6px;
+}
+.fold.collapsed .fb {
+  display: none;
+}
+.hit {
+  background: var(--hl-3);
+  border-radius: 3px;
+}
+
+/* 对照表补充 */
+.cmp td.good {
+  color: var(--sage);
+}
+.cmp td.bad {
+  color: var(--danger);
+}

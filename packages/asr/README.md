@@ -5,7 +5,10 @@
 ## 公共接口
 
 - `ASRInstance.probe` 针对语言与输入模式探测。`transcribeFile`、`openStream` 是可选能力，不实现即不支持。
-- `ASRAudioFile` 是受限读取句柄，`open(signal)` 返回流，不要求整文件进入内存。对象内的函数／ReadableStream 不直接跨 IPC 传输。
+- `ASRAudioFile` 是受限读取句柄，`open(signal)` 返回流，不要求整文件进入内存。对象内的函数／ReadableStream 不直接跨 IPC 传输。可选 `url` 是 `open()` 读出的同一份音频的公网可下载地址，宿主有远程副本时提供；地址可能下载不到，提供方须能退回读 `open()`。
+- 文件格式：`probe` 未声明 `acceptedAudio.fileMimeTypes` 表示收任何格式，宿主交出原文件，`mimeType` 为真实类型（识别不出时 `application/octet-stream`）。声明后宿主只交列表内的格式：原文件不在列表时由宿主转换，宿主转不出时不调用 `transcribeFile`。
+- `maxDurationMs` 是提供方能接受的最大时长，宿主只在已知音频时长时据此提前拦截。上限取决于具体路径（例如有无 `url`）时不要报，由 `transcribeFile` 以 `ASRError("invalid-input", 原因)` 拒绝。
+- 结果只要求 `text`。分段、时间、词、语言与时长均按引擎实际能力给出，`probe.timestamps` 如实声明 `none`、`segment` 或 `word`；宿主不得假定有分段或时间。
 - `ASRTask.result` 是唯一成功终态。`cancel()` 取消任务并等待执行路径收尾；已经成功的结果不撤回。
 - `ASRStreamSession.write` 接收有序 PCM 帧，`endInput` 停止接收并排空此前已接受的帧；最终文字仍等待 result。
 - `ASRTranscript` 包含 text、可选 segments、顶层 words、language 和 durationMs。所有时间统一毫秒；缺失的事实不补假值。顶层 words 用于原引擎只有词／令牌对齐、没有句级分段的场景。

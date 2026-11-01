@@ -5,6 +5,7 @@ import {
   AlignRight,
   Camera,
   Captions,
+  CircleDot,
   Copy,
   Crop,
   Ellipsis,
@@ -49,6 +50,8 @@ import {
   setInlineImageSize,
 } from "./mediaActions";
 import type { MobileEditorToolbarController } from "./useMobileEditorToolbarController";
+import { transcribeAudioBlock } from "../recording/transcription";
+import { useMobilePlugins } from "../../../app/plugins/context";
 
 const ICON_SIZE = 18;
 const ICON_STROKE = 2.1;
@@ -97,6 +100,7 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
   );
   const pendingRef = useRef<(() => void) | null>(null);
 
+  const asrRegistry = useMobilePlugins()?.asr ?? null;
   const run = (fn: (editor: SlateEditor) => void) => controller.runMediaEdit(fn);
 
   const openSheet = (kind: MediaSheetKind, target: MediaEditingContext) => {
@@ -192,6 +196,15 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
     const element = target.element as Parameters<typeof openLocalMediaPicker>[2];
     if (target.mediaType === "audio") {
       return [
+        ...(controller.recordingEnabled
+          ? [
+              {
+                label: "重新录制",
+                icon: menuIcon(CircleDot),
+                onClick: afterSheet(() => controller.rerecordAudio(target.element, target.path)),
+              },
+            ]
+          : []),
         {
           label: "选择文件",
           icon: menuIcon(FileAudio),
@@ -300,6 +313,14 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
             onPress={() => run(editor => void renameAudio(editor, target))}
           />,
           replaceButton(target),
+          <LabeledButton
+            key="transcribe"
+            label="转文字"
+            icon={icon(Captions)}
+            onPress={() =>
+              run(editor => void transcribeAudioBlock(editor, asrRegistry, target.element))
+            }
+          />,
         ];
       case "inline-image": {
         const size = getInlineImageSize(target);

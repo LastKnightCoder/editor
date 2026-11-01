@@ -77,6 +77,11 @@ import {
 import { useSourceBlockAccessory } from "./sourceBlockAccessory";
 import StylePanel from "./StylePanel";
 import { TtsGenerateSheet } from "../tts/TtsGenerateSheet";
+import { toast } from "../../../components/toast";
+import { RecordingCapsule } from "../recording/RecordingCapsule";
+import { RecordingPermissionSheet } from "../recording/RecordingPermissionSheet";
+import { TranscriptionUnavailableSheet } from "../recording/TranscriptionUnavailableSheet";
+import { useRecordingState } from "../recording/recordingSession";
 import { VoicePanel } from "../../speechInput/VoicePanel";
 import { useVoiceDictation } from "../../speechInput/useVoiceDictation";
 import { VoiceModeCoach, useVoiceModeCoach } from "../../speechInput/VoiceModeCoach";
@@ -738,9 +743,12 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     !isFormatMode;
   const showVoiceMode = isGeneralMode && isVisible("dictation") && !readonly;
   const coach = useVoiceModeCoach(showToolbar && showVoiceMode && !voiceOpen);
+  const recordingActive = useRecordingState() !== null;
   const toggleVoiceMode = () => {
     coach.dismiss();
     if (voiceOpen) returnToKeyboard();
+    // 录音与语音输入共用麦克风，一次只能开一个
+    else if (recordingActive) toast.info("正在录音，暂停或完成录音后再用语音输入");
     else controller.openPanel("voice", resolvePanelHeight(keyboardViewport));
   };
   const voiceModeNode = showVoiceMode ? (
@@ -751,7 +759,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         aria-pressed={voiceOpen}
         className={cn(
           "mx-0.5 flex h-[34px] w-10 items-center justify-center rounded-[10px] transition-colors",
-          voiceOpen ? "bg-press text-ink-1" : "bg-accent-soft text-accent-text"
+          voiceOpen ? "bg-press text-ink-1" : "bg-accent-soft text-accent-text",
+          recordingActive && !voiceOpen && "opacity-40"
         )}
         onPointerDown={keepEditorFocus}
         onMouseDown={keepEditorFocus}
@@ -1008,6 +1017,12 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     <>
       {toolbarNode}
       {panelNode}
+      <RecordingCapsule aboveToolbar={showToolbar} portalRoot={portalRoot} />
+      <RecordingPermissionSheet
+        open={controller.recordingPermissionDenied}
+        onClose={controller.closeRecordingPermission}
+      />
+      <TranscriptionUnavailableSheet />
       <ActionSheet
         open={controller.isTableMenuOpen}
         title="表格"

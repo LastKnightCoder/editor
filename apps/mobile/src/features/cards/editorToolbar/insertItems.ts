@@ -1,7 +1,8 @@
 import {
-  AudioLines,
   Camera,
   ChevronDown,
+  CircleDot,
+  FileAudio,
   FileSymlink,
   Globe,
   Highlighter,
@@ -129,11 +130,19 @@ export const INSERT_ITEMS: InsertItem[] = [
     tone: 2,
   },
   {
-    kind: "audio",
-    label: "音频",
-    keywords: ["录音", "yinpin", "yp", "luyin", "audio"],
+    kind: "record",
+    label: "录音",
+    keywords: ["录制", "录音笔", "luyin", "ly", "luzhi", "record", "recording", "voice memo"],
     group: "media",
-    icon: AudioLines,
+    icon: CircleDot,
+    tone: 2,
+  },
+  {
+    kind: "audio",
+    label: "音频文件",
+    keywords: ["音频", "yinpin", "yp", "yinpinwenjian", "audio", "file"],
+    group: "media",
+    icon: FileAudio,
     tone: 2,
   },
   {

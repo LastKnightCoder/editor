@@ -429,29 +429,88 @@ pub async fn upload_resource(
     .map_err(|e| e.to_string())??;
     drop(compression_memory);
     with_host(&token, || Ok(()))?;
-    let object_name = build_object_name(&file_name);
+    store_file(&app, provider, &file.path, &file_name, &mime_type).await
+}
+
+/// 按路径写入资源：本地复制、插件流式上传、协作入队，不把文件整段读进内存
+async fn store_file(
+    app: &AppHandle,
+    provider: ResourceProvider,
+    path: &Path,
+    file_name: &str,
+    mime_type: &str,
+) -> Result<String, String> {
+    let object_name = build_object_name(file_name);
     match provider {
         ResourceProvider::Local(config) => {
             let local_path = sanitize_local_path(&config.path);
-            let directory = resolve_app_dir(&app)?.join(&local_path);
+            let directory = resolve_app_dir(app)?.join(&local_path);
             fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-            fs::copy(&file.path, directory.join(&object_name)).map_err(|e| e.to_string())?;
+            fs::copy(path, directory.join(&object_name)).map_err(|e| e.to_string())?;
             Ok(format!("~/.editor/{local_path}/{object_name}"))
         }
         ResourceProvider::Plugin(plugin) => {
             plugin
-                .upload_resource_path(&object_name, &mime_type, &file.path)
+                .upload_resource_path(&object_name, mime_type, path)
                 .await
         }
         ResourceProvider::Collaboration(context) => crate::collaboration_assets::enqueue_file(
-            &app,
+            app,
             &context,
-            &file.path,
+            path,
             &object_name,
-            &mime_type,
+            mime_type,
             None,
         ),
     }
+}
+
+/// 宿主自有文件（录音、转写副本）写入资源，上传位置的选择与 `resource_upload_begin` 一致
+pub(crate) async fn store_owned_file(
+    app: &AppHandle,
+    path: &Path,
+    file_name: &str,
+    mime_type: &str,
+    database: Option<String>,
+    collaboration: Option<crate::collaboration_assets::AssetContext>,
+) -> Result<String, String> {
+    let setting = load_or_init_setting(app)?;
+    if let Some(database) = database {
+        crate::provider_settings::check_database(&setting, &database)?;
+    }
+    let provider = if let Some(mut context) = collaboration {
+        context.server_url = crate::collaboration::normalize_server_url(&context.server_url)?;
+        crate::collaboration_assets::validate_upload(app, &context, file_name, mime_type)?;
+        ResourceProvider::Collaboration(context)
+    } else {
+        parse_resource_provider(
+            app,
+            &setting,
+            &as_string(setting.pointer("/imageBed/active")),
+        )
+        .map_err(format_error)?
+    };
+    store_file(
+        app,
+        provider,
+        path,
+        &normalized_file_name(file_name),
+        mime_type,
+    )
+    .await
+}
+
+/// 当前上传位置是否为远程插件存储（转写副本只在这种情况下上传）
+pub(crate) fn active_provider_is_plugin(app: &AppHandle) -> Result<bool, String> {
+    let setting = load_or_init_setting(app)?;
+    Ok(matches!(
+        parse_resource_provider(
+            app,
+            &setting,
+            &as_string(setting.pointer("/imageBed/active"))
+        ),
+        Ok(ResourceProvider::Plugin(_))
+    ))
 }
 
 async fn upload_with_provider(
