@@ -134,47 +134,63 @@ describe("YtDlpService", () => {
     expect(options.env.ELECTRON_RUN_AS_NODE).toBe("1");
   });
 
-  it("只下载选定字幕，复用探测信息与代理，完成后清理临时目录", async () => {
-    spawnPlans.push(
-      {
-        code: 0,
-        stdout: JSON.stringify({
-          language: "en",
-          subtitles: { en: [{ ext: "json3", url: "https://cdn.test/sub" }] },
-        }),
-      },
-      { code: 0 }
-    );
-    readdirMock.mockResolvedValue(["info.json", "captions.en.json3"]);
-    readFileMock.mockResolvedValue(
-      JSON.stringify({ events: [{ tStartMs: 10, dDurationMs: 900, segs: [{ utf8: "hello" }] }] })
-    );
-    const result = await YtDlpService.getCaptions(
-      "https://video.test/v",
-      "http://proxy.test:7890",
-      new AbortController().signal
-    );
-    expect(result).toEqual({ language: "en", segments: [{ text: "hello", start: 10, end: 910 }] });
-    const args = spawnMock.mock.calls[1][1];
-    expect(args).toEqual(
-      expect.arrayContaining([
-        "--skip-download",
-        "--write-subs",
-        "--sub-format",
-        "json3",
-        "--sub-langs",
-        "^en$",
-        "--load-info-json",
-        "--proxy",
+  it.each([
+    {
+      format: "json3",
+      source: JSON.stringify({
+        events: [{ tStartMs: 10, dDurationMs: 900, segs: [{ utf8: "hello" }] }],
+      }),
+    },
+    { format: "vtt", source: "WEBVTT\n\n00:00.010 --> 00:00.910\nhello" },
+    { format: "srt", source: "1\n00:00:00,010 --> 00:00:00,910\nhello" },
+  ])(
+    "只下载选定的 $format 字幕，复用探测信息与代理，完成后清理临时目录",
+    async ({ format, source }) => {
+      spawnPlans.push(
+        {
+          code: 0,
+          stdout: JSON.stringify({
+            language: "en",
+            subtitles: { en: [{ ext: format, url: "https://cdn.test/sub" }] },
+          }),
+        },
+        { code: 0 }
+      );
+      readdirMock.mockResolvedValue(["info.json", "captions.en.ass", `captions.en.${format}`]);
+      readFileMock.mockResolvedValue(source);
+      const result = await YtDlpService.getCaptions(
+        "https://video.test/v",
         "http://proxy.test:7890",
-      ])
-    );
-    expect(args).not.toContain("--write-auto-subs");
-    expect(writeFileMock).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
-      mode: 0o600,
-    });
-    expect(rmMock).toHaveBeenCalledWith("/tmp/tau-captions-test", { recursive: true, force: true });
-  });
+        new AbortController().signal
+      );
+      expect(result).toEqual({
+        language: "en",
+        segments: [{ text: "hello", start: 10, end: 910 }],
+      });
+      const args = spawnMock.mock.calls[1][1];
+      expect(args).toEqual(
+        expect.arrayContaining([
+          "--skip-download",
+          "--write-subs",
+          "--sub-format",
+          format,
+          "--sub-langs",
+          "^en$",
+          "--load-info-json",
+          "--proxy",
+          "http://proxy.test:7890",
+        ])
+      );
+      expect(args).not.toContain("--write-auto-subs");
+      expect(writeFileMock).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
+        mode: 0o600,
+      });
+      expect(rmMock).toHaveBeenCalledWith("/tmp/tau-captions-test", {
+        recursive: true,
+        force: true,
+      });
+    }
+  );
 
   it("无字幕时不启动下载，取消时不开始探测", async () => {
     spawnPlans.push({ code: 0, stdout: "{}" });
