@@ -67,9 +67,11 @@ function RoleChoice({ model }: { model: DeviceSyncModel }) {
   const busy = model.enable.isPending || model.pair.isPending;
   return (
     <>
-      <Tag className="gap-1">
-        <Database size={12} strokeWidth={1.75} aria-hidden />
-        当前资料库 · {model.name}
+      <Tag>
+        <span className="flex items-center gap-1">
+          <Database size={12} strokeWidth={1.75} className="shrink-0" aria-hidden />
+          <span className="truncate">当前资料库 · {model.name}</span>
+        </span>
       </Tag>
       <h2 className="text-tau-title-lg text-ink-1 mt-3 font-semibold">
         让这份资料库在你的设备之间自动同步
