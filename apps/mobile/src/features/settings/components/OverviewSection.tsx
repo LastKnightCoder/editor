@@ -1,6 +1,6 @@
 // 我的页根视图（v2 模板）：行内直显关键值，数据域入口收敛为两个独立页面——
 // 数据库同步（同步中心：状态 + 服务 + 数据库切换）/ 资源与存储（资源同步 + 存储目标）。
-// 外观（主题 / 图片渲染 / 正文字体 overlay 路由页）/ 编辑器（打开文档时）/ 关于与更新（版本、新版本提示）。
+// 外观（主题 / 图片渲染 / 背景高亮 / 正文字体 overlay 路由页）/ 编辑器（打开文档时）/ 关于与更新（版本、新版本提示）。
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import {
   IconCircleHelp,
   IconCloud,
   IconFolder,
+  IconHighlighter,
   IconImage,
   IconMessageSquare,
   IconMic,
@@ -46,6 +47,7 @@ import {
   type EditorOpenMode,
 } from "../../../hooks/useEditorOpenMode";
 import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts";
+import { highlightStyleLabel, normalizeHighlightStyle } from "./highlightStyle";
 import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
 import { findAssignedModel, modelLabel } from "../../../services/ai-settings";
@@ -224,6 +226,7 @@ export function OverviewSection(props: OverviewSectionProps) {
           value={imageAppearanceValue}
           onClick={() => navigator.push("settings-image-appearance")}
         />
+        <HighlightStyleItem />
         <ReadingFontItem />
       </div>
 
@@ -289,6 +292,21 @@ function AiModelsItem(props: { onOpen: () => void }) {
   const chat = findAssignedModel(setting, "chat");
   const value = chat ? modelLabel(chat.model) : setting?.llmProviders?.length ? "未分配" : "未设置";
   return <ListItem icon={<IconSparkles />} label="AI 模型" value={value} onClick={props.onOpen} />;
+}
+
+/** 「背景高亮」：行尾显示当前笔触，未设置为平涂 */
+function HighlightStyleItem() {
+  const app = useAppContext();
+  const navigator = useNavigator();
+  const style = normalizeHighlightStyle(app.syncSettings.safeSetting?.appearance?.highlight?.style);
+  return (
+    <ListItem
+      icon={<IconHighlighter />}
+      label="背景高亮"
+      value={highlightStyleLabel(style)}
+      onClick={() => navigator.push("settings-highlight-style")}
+    />
+  );
 }
 
 /** 「正文字体」：行尾显示所选字体；所选字体未下载（被清理）时提示需重新下载 */
