@@ -245,7 +245,10 @@ class PiSessionHostModule {
     );
     PiSessionHostModule.shellPath = detectBashShellPath();
     setInterval(() => PiSessionHostModule.sweepIdleSessions(), IDLE_SWEEP_INTERVAL_MS).unref?.();
-    databaseModule.onDatabaseConnected(dbName => PiSessionHostModule.releaseOtherLibraries(dbName));
+    databaseModule.onDatabaseConnected(dbName => {
+      if (databaseModule.getCurrentDatabaseName() === dbName)
+        PiSessionHostModule.releaseOtherLibraries(dbName);
+    });
     if (PiSessionHostModule.requestDumpDir) {
       mkdirSync(PiSessionHostModule.requestDumpDir, { recursive: true });
       console.log(`[PiSessionHost] 请求 dump 已开启：${PiSessionHostModule.requestDumpDir}`);

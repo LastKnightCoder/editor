@@ -83,7 +83,10 @@ vi.mock("../../collaboration", () => ({
   },
 }));
 vi.mock("../../whiteboard-documents", () => ({
-  default: { releaseLibrary: () => host.events.push("whiteboard-cache") },
+  default: {
+    releaseLibrary: () => host.events.push("whiteboard-cache"),
+    prepareDeviceSync: async () => ({ commit() {}, rollback() {} }),
+  },
 }));
 vi.mock("../../main-content-index-db", () => ({
   default: { resetDatabase: () => host.events.push("index") },
@@ -274,7 +277,7 @@ it("桌面生产处理器编排：配对副本、自动补齐、暂停恢复、�
   expect(body(source)).toContain("重配保留");
 
   await invoke("pause");
-  edit(db, "应丢弃输入");
+  edit(db, "下载失败前输入");
   const generation = deviceGeneration(db);
   const port = (module as any).peer().port;
   await server.close();
@@ -282,7 +285,6 @@ it("桌面生产处理器编排：配对副本、自动补齐、暂停恢复、�
   await expect(invoke("download")).rejects.toThrow(/OFFLINE/);
   expect(db.open).toBe(true);
   edit(db, "下载失败后可编辑");
-  await invoke("pause");
   server = new DeviceSyncServer(
     join(root, "server"),
     engine,
@@ -291,6 +293,11 @@ it("桌面生产处理器编排：配对副本、自动补齐、暂停恢复、�
     () => {}
   );
   await server.listen(port);
+  await until(
+    () => body(source).includes("下载失败后可编辑") && invoke("status").phase === "synced"
+  );
+  await invoke("pause");
+  edit(db, "应丢弃输入");
   const invalid = structuredClone(await engine.download((module as any).peer().node));
   invalid.snapshot!.rows.contents[0].create_time = null;
   vi.spyOn(engine, "download").mockResolvedValueOnce(invalid);

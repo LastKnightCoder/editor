@@ -22,13 +22,17 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { hostname } from "node:os";
-import type { DeviceReply, RowChange } from "@tau/collaboration/src/device-sync/protocol";
+import type {
+  DeviceCommit,
+  DeviceReply,
+  RowChange,
+} from "@tau/collaboration/src/device-sync/protocol";
 import { DeviceSyncEngine } from "@tau/collaboration/src/device-sync/engine";
 import database from "../database";
 import collaboration from "../collaboration";
 import PathUtil from "../../utils/PathUtil";
 import { ContentIdentityTable } from "../tables/content-identity";
-import { prepareDurableDocuments } from "../durable-document-lifecycle";
+import { prepareDurableDocuments, type DocumentDrain } from "../durable-document-lifecycle";
 import {
   DeviceDatabaseStore,
   readDeviceSyncState,
@@ -65,6 +69,44 @@ export class DeviceSyncModule {
   private clientDatabase?: Database.Database;
   private replacing = new Set<string>();
   private pairing = false;
+  private async guardCommit(name: string, plan: DeviceCommit, assertActive = () => {}) {
+    assertActive();
+    const release =
+      plan.snapshot || plan.changes?.length ? await PiSessionHost.acquireLibrary(name) : () => {};
+    let drain: DocumentDrain | undefined;
+    try {
+      assertActive();
+      if (
+        plan.snapshot ||
+        [...(plan.changes ?? []), ...(plan.rollback ?? [])].some(change =>
+          [
+            "white_boards",
+            "white_board_contents",
+            "whiteboard_documents",
+            "whiteboard_document_pages",
+            "whiteboard_entity_relations",
+          ].includes(change.table)
+        )
+      )
+        drain = await whiteboards.prepareDeviceSync(name);
+      assertActive();
+      return (committed: boolean) => {
+        try {
+          if (committed) drain?.commit();
+          else drain?.rollback();
+        } finally {
+          release();
+        }
+      };
+    } catch (error) {
+      try {
+        drain?.rollback();
+      } finally {
+        release();
+      }
+      throw error;
+    }
+  }
   private peer() {
     try {
       return readDesktopPeer(this.directory());
@@ -106,20 +148,7 @@ export class DeviceSyncModule {
       new DeviceDatabaseStore(
         db,
         (document, settings) => projectDeviceDocument(db, document, settings),
-        async plan => {
-          client.assertActive();
-          const release =
-            plan.snapshot || plan.changes?.length
-              ? await PiSessionHost.acquireLibrary(name)
-              : () => {};
-          try {
-            client.assertActive();
-            return release;
-          } catch (error) {
-            release();
-            throw error;
-          }
-        }
+        plan => this.guardCommit(name, plan, client.assertActive)
       )
     );
     const client: DeviceSyncClient = new DeviceSyncClient(peer, {
@@ -344,8 +373,7 @@ export class DeviceSyncModule {
     const store = new DeviceDatabaseStore(
       db,
       (document, options) => projectDeviceDocument(db, document, options),
-      async plan =>
-        plan.snapshot || plan.changes?.length ? PiSessionHost.acquireLibrary(name) : () => {}
+      plan => this.guardCommit(name, plan)
     );
     const engine = new DeviceSyncEngine(store);
     const directory = join(

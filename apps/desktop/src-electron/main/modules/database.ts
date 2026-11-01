@@ -2,6 +2,8 @@ import { prepareDurableDocuments, withDurableDocuments } from "./durable-documen
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
+import type { DatabaseConnection } from "@/types/database-connection";
 import DEVICE_SYNC_SQL from "@tau/db-schema/schema/device-sync.sql?raw";
 import { initializeDeviceSyncDatabase } from "./device-sync/database-store";
 import { join } from "node:path";
@@ -141,6 +143,26 @@ class DatabaseModule implements Module {
     (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => any
   >;
   private currentDatabaseName = "data.db"; // 默认数据库
+  /** 普通关库与上传重连保留命令上下文，明确覆盖才使旧任务失效。 */
+  private readonly connectionIds = new Map<string, string>();
+  private readonly replacedWindows = new Map<number, string>();
+
+  commandConnection(name: string): DatabaseConnection {
+    const db = this.getDatabase(name);
+    if (!db?.open) throw new Error("资料库尚未连接");
+    const key = this.formatDatabaseName(name);
+    let connectionId = this.connectionIds.get(key);
+    if (!connectionId) {
+      connectionId = randomUUID();
+      this.connectionIds.set(key, connectionId);
+    }
+    return { databaseName: name, connectionId };
+  }
+
+  private assertCommandConnection(name: string, connectionId: unknown): void {
+    if (connectionId !== this.commandConnection(name).connectionId)
+      throw new Error("DATABASE_CONNECTION_CHANGED: 原资料库连接已失效，请重新打开后再操作");
+  }
   private databaseChangeCallbacks: Array<(dbName: string) => void> = [];
   private hasConnectedDatabase = false;
   private databaseConnectedCallbacks: Array<
@@ -592,7 +614,6 @@ class DatabaseModule implements Module {
         true
       );
       this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
-      this.currentDatabaseName = name;
       this.notifyDatabaseConnected(name, source);
       this.hasConnectedDatabase = true;
     });
@@ -614,10 +635,14 @@ class DatabaseModule implements Module {
       if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
       db.close();
       this.databases.delete(name);
+      if (install) this.connectionIds.delete(this.formatDatabaseName(name));
       this.indexEnsurePromises.delete(name);
       mainContentIndexDBManager.closeDatabase(name);
       for (const [id, dbName] of this.windowToDatabase)
-        if (dbName === name) this.windowToDatabase.delete(id);
+        if (dbName === name) {
+          if (install) this.replacedWindows.set(id, name);
+          this.windowToDatabase.delete(id);
+        }
       drain.commit();
       await install?.();
     } catch (error) {
@@ -650,6 +675,7 @@ class DatabaseModule implements Module {
     ) => {
       const ownerWindow = BrowserWindow.fromWebContents(event.sender);
       const previousName = ownerWindow ? this.windowToDatabase.get(ownerWindow.id) : undefined;
+      const restoring = ownerWindow && this.replacedWindows.get(ownerWindow.id) === name;
       const run = async () => {
         const connectMode: DatabaseConnectMode = mode === "normal" ? "normal" : "maintenance";
         const appDir = PathUtil.getAppDir();
@@ -658,7 +684,7 @@ class DatabaseModule implements Module {
 
         // 检测数据库切换
         const oldDbName = this.currentDatabaseName;
-        const dbChanged = oldDbName !== name;
+        const dbChanged = oldDbName !== name && !restoring;
 
         if (!this.databases.has(name) || force) {
           log.info(
@@ -699,6 +725,7 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (win) {
           this.windowToDatabase.set(win.id, name);
+          this.replacedWindows.delete(win.id);
         }
 
         let connectReason: DatabaseConnectReason | null = null;
@@ -713,7 +740,7 @@ class DatabaseModule implements Module {
         }
 
         if (connectReason) {
-          this.currentDatabaseName = name;
+          if (!restoring) this.currentDatabaseName = name;
           if (dbChanged) {
             log.info(`Database changed from ${oldDbName} to ${name}`);
             this.notifyDatabaseChange(name);
@@ -721,6 +748,7 @@ class DatabaseModule implements Module {
           this.notifyDatabaseConnected(name, connectReason);
           this.hasConnectedDatabase = true;
         }
+        return this.commandConnection(name);
       };
       const connect = () =>
         force && this.databases.has(name)
@@ -743,14 +771,14 @@ class DatabaseModule implements Module {
         mode?: DatabaseConnectMode,
         source?: DatabaseReconnectSource
       ) => {
-        await connectDatabase(event, name, force, mode, source);
+        return connectDatabase(event, name, force, mode, source);
       }
     );
 
     ipcMain.handle(
       "reconnect-database-fast",
       async (event, name, source?: DatabaseReconnectSource) => {
-        await connectDatabase(event, name, true, "normal", source);
+        return connectDatabase(event, name, true, "normal", source);
       }
     );
 
@@ -805,11 +833,7 @@ class DatabaseModule implements Module {
         const scope = args.at(-1);
         if (!this.windowToDatabase.has(win.id)) throw new Error("资料库窗口尚未连接");
         const explicit =
-          scope && typeof scope.toolDatabaseName === "string"
-            ? scope.toolDatabaseName
-            : eventName.startsWith("chat-session:") && typeof scope?.chatDatabaseName === "string"
-              ? scope.chatDatabaseName
-              : undefined;
+          scope && typeof scope.toolDatabaseName === "string" ? scope.toolDatabaseName : undefined;
         if (explicit !== undefined) args.pop();
         const dbName = explicit
           ? [...this.databases.keys()].find(
@@ -817,6 +841,8 @@ class DatabaseModule implements Module {
             )
           : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
+        if (explicit !== undefined)
+          this.assertCommandConnection(dbName, scope.toolDatabaseConnection);
 
         const db = this.getDatabase(dbName);
         if (!db) throw new Error("No database found");
@@ -878,11 +904,16 @@ class DatabaseModule implements Module {
             )
           : this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error("No database name found");
+        if (explicit !== undefined)
+          this.assertCommandConnection(dbName, scope.toolDatabaseConnection);
 
         const mainDb = this.getDatabase(dbName);
         if (!mainDb) throw new Error("No main database found");
 
         await this.ensureIndexDatabaseReady(dbName, `ipc:${eventName}`);
+
+        if (this.getDatabase(dbName) !== mainDb || !mainDb.open)
+          throw new Error("DATABASE_CONNECTION_CHANGED: 原资料库连接已失效");
 
         const indexDb = this.getIndexDatabase(dbName);
         if (!indexDb) throw new Error("No index database found");

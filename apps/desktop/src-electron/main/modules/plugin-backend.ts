@@ -401,7 +401,8 @@ export default {
       return updateBackgroundPreferences(patch);
     });
     databaseModule.onDatabaseConnected(name => {
-      void changeWorkspace(name).catch(() => undefined);
+      if (databaseModule.getCurrentDatabaseName() === name)
+        void changeWorkspace(name).catch(() => undefined);
     });
     if (databaseModule.getCurrentDatabase())
       await changeWorkspace(databaseModule.getCurrentDatabaseName());
