@@ -15,7 +15,6 @@ vi.mock("@/tools", () => ({
 }));
 import { buildGenerationRequest, type GenerationRequest } from "@/services/generation-orchestrator";
 import type { RequestMessage } from "@/types/llm";
-import { SpeakerRole } from "@/types/podcast";
 import useSettingStore from "@/stores/useSettingStore";
 import useMCPStore from "@/stores/useMCPStore";
 
@@ -115,30 +114,15 @@ describe("services/generation-orchestrator", () => {
     expect(userText).toContain("生成 5 题");
   });
 
-  it("podcast + vibe_learning 应构建工具探索式播客请求", () => {
-    const request: GenerationRequest<"podcast", "vibe_learning"> = {
-      taskType: "podcast",
+  it("plugin + vibe_learning 用插件的任务要求，通用规则、资料与检索工具由宿主补", () => {
+    const request: GenerationRequest<"plugin", "vibe_learning"> = {
+      taskType: "plugin",
       sourceType: "vibe_learning",
       taskPayload: {
-        speakers: [
-          {
-            name: "主持人A",
-            voiceId: "v1",
-            voiceName: "v1",
-            role: SpeakerRole.Host,
-          },
-          {
-            name: "嘉宾B",
-            voiceId: "v2",
-            voiceName: "v2",
-            role: SpeakerRole.Guest,
-          },
-        ],
-        ttsPromptOptions: {
-          textInstructions: "插件文本规则：允许 (laughs) 与 <#x#>",
-        },
-        durationMin: 4,
-        durationMax: 6,
+        pluginId: "tau.podcast",
+        title: "播客脚本",
+        instructions: "写一段双人对话，每行「说话人: 内容」",
+        reminders: ["不要输出标题"],
       },
       sourcePayload: {
         resourceNames: ["资料 X"],
@@ -151,10 +135,12 @@ describe("services/generation-orchestrator", () => {
     const userText = getMessageText(result.messages[1]);
 
     expect(result.enableTools).toBe(true);
-    expect(systemText).toContain("先主动探索资料");
-    expect(systemText).toContain("主持人A");
+    expect(systemText).toContain("vibe_learning_query");
+    expect(systemText).toContain("写一段双人对话");
+    expect(userText).toContain("播客脚本");
     expect(userText).toContain("资料 X");
     expect(userText).toContain("强调案例");
+    expect(userText).toContain("不要输出标题");
   });
 
   it("article + vibe_learning 应注入文章质量要求与风格", () => {

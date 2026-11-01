@@ -69,6 +69,13 @@ export const locatePluginEntity = (
   id: number
 ): Promise<PluginEntityRecord | null> => invoke("plugin-entities:locate", { databaseName, id });
 
+/** Notebook 的插件产物（经 output 关联指向它的插件实体），按更新时间倒序 */
+export const listNotebookPluginOutputs = (
+  databaseName: string,
+  notebookId: number
+): Promise<PluginEntityRecord[]> =>
+  invoke("plugin-entities:notebook-outputs", { databaseName, notebookId });
+
 export const deletePluginEntity = (
   databaseName: string,
   pluginId: string,

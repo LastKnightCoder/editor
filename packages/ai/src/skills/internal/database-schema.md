@@ -274,21 +274,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `owner_id`   | `INTEGER NOT NULL` |
 | `offset_ms`  | `INTEGER NOT NULL` |
 
-### `podcasts`
-
-| 字段           | SQLite 定义           |
-| -------------- | --------------------- |
-| `id`           | `INTEGER PRIMARY KEY` |
-| `create_time`  | `INTEGER NOT NULL`    |
-| `update_time`  | `INTEGER NOT NULL`    |
-| `audio_url`    | `TEXT NOT NULL`       |
-| `script`       | `TEXT`                |
-| `duration`     | `INTEGER`             |
-| `speakers`     | `TEXT NOT NULL`       |
-| `ref_count`    | `INTEGER DEFAULT 0`   |
-| `name`         | `TEXT`                |
-| `script_lines` | `TEXT`                |
-
 ### `contents`
 
 | 字段          | SQLite 定义           |
@@ -1265,7 +1250,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `content_id`  | `INTEGER NOT NULL`             |
 | `title`       | `TEXT NOT NULL`                |
 | `type`        | `TEXT NOT NULL DEFAULT 'note'` |
-| `podcast_id`  | `INTEGER DEFAULT NULL`         |
 
 ### `vl_quiz_set`
 

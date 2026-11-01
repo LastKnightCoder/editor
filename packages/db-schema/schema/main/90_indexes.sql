@@ -1,5 +1,4 @@
 -- 主库索引
-CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
 CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
 CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);

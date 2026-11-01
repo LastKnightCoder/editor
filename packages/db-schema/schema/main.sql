@@ -13,16 +13,6 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 );
 
 -- 核心内容域表
-CREATE TABLE IF NOT EXISTS podcasts (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        audio_url TEXT NOT NULL,
-        script TEXT,
-        duration INTEGER,
-        speakers TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0
-      , name TEXT, script_lines TEXT);
 CREATE TABLE IF NOT EXISTS contents (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -819,7 +809,7 @@ CREATE TABLE IF NOT EXISTS vl_note (
         project_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         title TEXT NOT NULL
-      , type TEXT NOT NULL DEFAULT 'note', podcast_id INTEGER DEFAULT NULL);
+      , type TEXT NOT NULL DEFAULT 'note');
 CREATE TABLE IF NOT EXISTS vl_quiz_set (
         id INTEGER PRIMARY KEY,
         project_id INTEGER NOT NULL,
@@ -1076,7 +1066,6 @@ CREATE TABLE IF NOT EXISTS plugin_ref_grants (
 );
 
 -- 主库索引
-CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
 CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
 CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);

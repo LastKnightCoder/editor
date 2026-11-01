@@ -33,6 +33,7 @@ import type {
   PluginActionTargetKind,
   PluginEntityRef,
   PluginEntityPanelDefinition,
+  PluginNotebookOutputDefinition,
   PluginEntityPanelKind,
 } from "@tau/plugins";
 import {
@@ -126,6 +127,15 @@ export interface RegisteredPluginEntityPanel {
   mountId: number;
 }
 
+/** Notebook 输出：prepare / complete / fail 已由 PluginHost 包装 */
+export interface RegisteredPluginNotebookOutput {
+  /** plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<PluginNotebookOutputDefinition>;
+  context: PluginContext;
+  mountId: number;
+}
+
 /** 对象动作：run 已由 PluginHost 包装，经 runAction 调用 */
 export interface RegisteredPluginAction {
   /** plugin:<pluginId>:<id> */
@@ -174,6 +184,7 @@ export class DesktopPluginRuntime {
   private readonly homePanels = new Map<string, RegisteredPluginHomePanel>();
   private readonly actions = new Map<string, RegisteredPluginAction>();
   private readonly entityPanels = new Map<string, RegisteredPluginEntityPanel>();
+  private readonly notebookOutputs = new Map<string, RegisteredPluginNotebookOutput>();
   private readonly listeners = new Set<() => void>();
   private revision = 0;
   private disposed = false;
@@ -271,6 +282,9 @@ export class DesktopPluginRuntime {
       views: {
         registerEntityPanel: (context, definition) => this.registerEntityPanel(context, definition),
       },
+      notebooks: {
+        registerOutput: (context, definition) => this.registerNotebookOutput(context, definition),
+      },
       sidebar: {
         registerGroup: (context, definition) => this.registerSidebarGroup(context, definition),
         registerItem: (context, definition, pageId) =>
@@ -355,6 +369,26 @@ export class DesktopPluginRuntime {
     );
   }
 
+  /** Notebook 的插件输出，按注册顺序（排在内置生成应用之后） */
+  listNotebookOutputs(): RegisteredPluginNotebookOutput[] {
+    if (this.disposed) return [];
+    return [...this.notebookOutputs.values()].filter(
+      ({ context }) => !context.signal.aborted && this.host.getState(context.pluginId) === "active"
+    );
+  }
+
+  /** 某插件声明的这一类产物对应的输出；插件停用或未声明时为 undefined */
+  findNotebookOutput(pluginId: string, kind: string): RegisteredPluginNotebookOutput | undefined {
+    return this.listNotebookOutputs().find(
+      output => output.context.pluginId === pluginId && output.definition.kind === kind
+    );
+  }
+
+  /** 把 Notebook 登记为插件选择过的引用：插件此后能显示、打开和关联它 */
+  grantNotebook(pluginId: string, notebookId: number) {
+    return this.options.grantRefs?.(pluginId, [{ kind: "notebook", id: String(notebookId) }]);
+  }
+
   /** 某类对象可用的插件动作，按注册顺序 */
   listActions(kind: PluginActionTargetKind): RegisteredPluginAction[] {
     if (this.disposed) return [];
@@ -431,6 +465,25 @@ export class DesktopPluginRuntime {
       dispose: () => {
         if (this.entityPanels.get(id) !== panel) return;
         this.entityPanels.delete(id);
+        this.publish();
+      },
+    };
+  }
+
+  private registerNotebookOutput(
+    context: PluginContext,
+    definition: Readonly<PluginNotebookOutputDefinition>
+  ) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.notebookOutputs.has(id)) throw new Error(`Notebook 输出已注册：${definition.id}`);
+    const output = { id, definition, context, mountId: ++nextMountId };
+    this.notebookOutputs.set(id, output);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.notebookOutputs.get(id) !== output) return;
+        this.notebookOutputs.delete(id);
         this.publish();
       },
     };

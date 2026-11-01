@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect } from "react";
 import { AudioLines, Check, ChevronDown, FileAudio, Plus, Trash2, Upload, X } from "lucide-react";
 import { Button, IconButton, Input, cn } from "@tau/ui";
-import { Field } from "./ui";
+import { Field } from "./Field";
 import type { CloneVoiceItem, NoticeType } from "./types";
 import type { VoiceOption } from "./types";
 import { TTSProviderFactory } from "@/utils/tts";

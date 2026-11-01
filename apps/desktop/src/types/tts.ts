@@ -57,7 +57,7 @@ export interface VoiceCloneOptions {
 
 /**
  * 能力：语音合成（文本 + 音色 → 音频）
- * 消费方（编辑器朗读、播客生成）面向此能力编程，不感知具体提供商/模型。
+ * 消费方（编辑器朗读、插件 tts.open）面向此能力编程，不感知具体提供商/模型。
  */
 export interface SpeechSynthesisCapability {
   readonly signal?: AbortSignal;

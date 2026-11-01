@@ -4,11 +4,19 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import {
   hasLegacyPodcasts,
   migratePodcastsToPlugin,
+  PodcastMigrationTable,
   PODCAST_PLUGIN_ID,
 } from "../podcast-plugin-migration";
 
-/** 已从主库 schema 删除的原文播客列（迁移的输入；已有资料库里仍有） */
-const LEGACY_COLUMNS = `
+/** 已从主库 schema 删除的播客表与列（迁移的输入；已有资料库里仍有） */
+const LEGACY_PODCASTS = `
+CREATE TABLE IF NOT EXISTS podcasts (
+  id INTEGER PRIMARY KEY, create_time INTEGER NOT NULL, update_time INTEGER NOT NULL,
+  audio_url TEXT NOT NULL, script TEXT, duration INTEGER, speakers TEXT NOT NULL,
+  ref_count INTEGER DEFAULT 0, name TEXT, script_lines TEXT);
+`;
+const LEGACY_COLUMNS = `${LEGACY_PODCASTS}
+ALTER TABLE vl_note ADD COLUMN podcast_id INTEGER DEFAULT NULL;
 ALTER TABLE cards ADD COLUMN podcast_id INTEGER DEFAULT NULL;
 ALTER TABLE articles ADD COLUMN podcast_id INTEGER DEFAULT NULL;
 ALTER TABLE project_item ADD COLUMN podcast_id INTEGER DEFAULT NULL;
@@ -31,6 +39,9 @@ function addPodcast(id: number, name: string | null) {
      VALUES (?, 100, 200, ?, '', 7, ?, 1, ?, ?)`
   ).run(id, `~/.editor/resources/p${id}.mp3`, SPEAKERS, name, LINES);
 }
+
+const tableExists = (name: string) =>
+  Boolean(db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(name));
 
 const entities = () =>
   db
@@ -59,10 +70,22 @@ beforeEach(() => {
 afterEach(() => db.close());
 
 describe("原文播客迁入插件", () => {
-  it("没有挂播客时不迁", () => {
-    addPodcast(1, "无主播客");
+  it("没有播客数据时不迁；只剩残留的 podcasts 表时把它删掉", () => {
+    expect(PodcastMigrationTable.pending(db, { databaseName: ":memory:" })).toEqual({
+      pending: true,
+      requiresPlugin: false,
+    });
+    db.exec("DROP TABLE podcasts");
+    expect(PodcastMigrationTable.pending(db, { databaseName: ":memory:" })).toEqual({
+      pending: false,
+      requiresPlugin: false,
+    });
     expect(hasLegacyPodcasts(db)).toBe(false);
     expect(migratePodcastsToPlugin(db)).toBeNull();
+    db.exec(LEGACY_PODCASTS);
+    addPodcast(1, "无主播客");
+    expect(migratePodcastsToPlugin(db)).toEqual({ episodes: 0, skipped: 0, notebook: 0 });
+    expect(tableExists("podcasts")).toBe(false);
   });
 
   it("每个原文写成一期：meta 与插件一致，建关联与引用登记，清空旧指针，删掉没人用的旧播客", () => {
@@ -73,8 +96,12 @@ describe("原文播客迁入插件", () => {
              UPDATE articles SET podcast_id = 2 WHERE id = 20;
              UPDATE project_item SET podcast_id = 3 WHERE id = 30;`);
     expect(hasLegacyPodcasts(db)).toBe(true);
+    expect(PodcastMigrationTable.pending(db, { databaseName: ":memory:" })).toEqual({
+      pending: true,
+      requiresPlugin: true,
+    });
 
-    expect(migratePodcastsToPlugin(db, 999)).toEqual({ episodes: 3, skipped: 0 });
+    expect(migratePodcastsToPlugin(db, 999)).toEqual({ episodes: 3, skipped: 0, notebook: 0 });
 
     const rows = entities();
     expect(rows.map(r => [r.key, r.title])).toEqual([
@@ -136,25 +163,57 @@ describe("原文播客迁入插件", () => {
     expect(db.prepare(`SELECT podcast_id FROM cards WHERE id = 10`).get()).toEqual({
       podcast_id: null,
     });
-    expect(db.prepare(`SELECT COUNT(*) AS n FROM podcasts`).get()).toEqual({ n: 0 });
+    expect(tableExists("podcasts")).toBe(false);
     expect(hasLegacyPodcasts(db)).toBe(false);
   });
 
-  it("旧端同步回来再挂上时不重复写入；Notebook 仍在用的旧播客保留", () => {
+  it("Notebook 的播客笔记写成一期并挂到 Notebook，笔记与正文删除；没生成完的笔记直接删", () => {
+    addPodcast(5, "Raft 选主");
+    db.exec(`
+      INSERT INTO vibe_learning_project (id, create_time, update_time, title) VALUES (9, 90, 90, '分布式');
+      INSERT INTO contents (id, create_time, update_time, content, ref_count) VALUES (40, 1, 1, '[]', 1), (41, 1, 1, '[]', 1);
+      INSERT INTO vl_note (id, create_time, update_time, project_id, content_id, title, type, podcast_id)
+        VALUES (70, 1, 1, 9, 40, '旧标题', 'podcast', 5), (71, 1, 1, 9, 41, '没生成完', 'podcast', NULL);`);
+    expect(hasLegacyPodcasts(db)).toBe(true);
+
+    expect(migratePodcastsToPlugin(db, 999)).toEqual({ episodes: 0, skipped: 0, notebook: 1 });
+
+    const [row] = entities();
+    expect(row).toMatchObject({ key: "notebook:9:legacy-70", title: "Raft 选主" });
+    expect(JSON.parse(row.meta)).toMatchObject({
+      source: { kind: "notebook", id: "9" },
+      sourceKind: "notebook",
+      sourceTitle: "分布式",
+      status: "ready",
+    });
+    expect(
+      db
+        .prepare(`SELECT to_kind, to_id, to_created_at, role FROM plugin_links WHERE from_id = ?`)
+        .get(row.id)
+    ).toEqual({ to_kind: "notebook", to_id: "9", to_created_at: 90, role: "output" });
+    expect(db.prepare(`SELECT kind, ref_id FROM plugin_ref_grants`).all()).toEqual([
+      { kind: "notebook", ref_id: "9" },
+    ]);
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM vl_note`).get()).toEqual({ n: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM contents WHERE id IN (40, 41)`).get()).toEqual({
+      n: 0,
+    });
+    expect(hasLegacyPodcasts(db)).toBe(false);
+  });
+
+  it("旧端同步回来再挂上时只清旧指针，不重复写入", () => {
     addPodcast(1, "KV Cache");
     db.exec(`UPDATE cards SET podcast_id = 1 WHERE id = 10;`);
     migratePodcastsToPlugin(db);
+    db.exec(LEGACY_PODCASTS);
     addPodcast(2, "又生成了一期");
-    db.exec(`UPDATE cards SET podcast_id = 2 WHERE id = 10;
-             INSERT INTO vl_note (create_time, update_time, project_id, content_id, title, type, podcast_id)
-               VALUES (1, 1, 1, 1, 'Notebook 播客', 'podcast', 2);`);
+    db.exec(`UPDATE cards SET podcast_id = 2 WHERE id = 10;`);
 
-    expect(migratePodcastsToPlugin(db)).toEqual({ episodes: 0, skipped: 1 });
+    expect(migratePodcastsToPlugin(db)).toEqual({ episodes: 0, skipped: 1, notebook: 0 });
     expect(entities()).toHaveLength(1);
     expect(db.prepare(`SELECT podcast_id FROM cards WHERE id = 10`).get()).toEqual({
       podcast_id: null,
     });
-    expect(db.prepare(`SELECT id FROM podcasts`).all()).toEqual([{ id: 2 }]);
   });
 
   it("中途失败整体回滚，旧指针原样保留", () => {

@@ -293,7 +293,7 @@ export function ArticleDetailView() {
   usePageBreadcrumb("article-detail", breadcrumbNode);
 
   /* 元信息行右侧 ⋯ 菜单（结构对齐卡片详情）：场景（高频）与协作在前，复制/导出居中，
-     生成类（制卡/播客，低频）收二级垫底，删除殿后 */
+     生成类（制卡，低频）收二级垫底，删除殿后 */
   const moreMenuNode = useMemo(() => {
     if (!editingArticle) return null;
     return (

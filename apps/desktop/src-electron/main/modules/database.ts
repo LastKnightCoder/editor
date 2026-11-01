@@ -52,7 +52,6 @@ import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 import ItemReminderTable from "./tables/item-reminder";
-import PodcastTable from "./tables/podcast";
 import { PodcastMigrationTable } from "./podcast-plugin-migration";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
@@ -274,7 +273,6 @@ class DatabaseModule implements Module {
     this.databases = new Map();
     this.windowToDatabase = new Map();
     this.tables = [
-      PodcastTable,
       PodcastMigrationTable,
       ContentTable,
       WhiteBoardContentTable,

@@ -1,14 +1,4 @@
 -- 核心内容域表
-CREATE TABLE IF NOT EXISTS podcasts (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        audio_url TEXT NOT NULL,
-        script TEXT,
-        duration INTEGER,
-        speakers TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0
-      , name TEXT, script_lines TEXT);
 CREATE TABLE IF NOT EXISTS contents (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,

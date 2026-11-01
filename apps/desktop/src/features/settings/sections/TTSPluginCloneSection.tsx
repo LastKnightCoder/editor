@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SettingRow, Select, toast } from "@tau/ui";
-import { VoiceClonePanel } from "@/components/PodcastGenerationModal/VoiceClonePanel";
-import type { CloneVoiceItem } from "@/components/PodcastGenerationModal/types";
+import { VoiceClonePanel } from "./voice-clone/VoiceClonePanel";
+import type { CloneVoiceItem } from "./voice-clone/types";
 import type { PluginTTSProviderSetting } from "@/types/tts";
 import { TTSProviderFactory } from "@/utils/tts";
 import { SettingsCardSection } from "@/features/plugins/components/SettingsCard";
