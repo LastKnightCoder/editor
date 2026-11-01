@@ -47,6 +47,16 @@ pub async fn run(path: &str, action: &str, payload: Value) -> Result<Value, Stri
         return Ok(json!({"ok":true}));
     }
     match action {
+        "json-save" => {
+            let input: crate::database::UpdateContentPayload =
+                serde_json::from_value(payload).map_err(|e| e.to_string())?;
+            let name = std::path::Path::new(path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or("库名无效")?;
+            crate::database::update_content_snapshot(&mut conn, &input, name)?;
+            Ok(json!({"ok":true}))
+        }
         "cache-reset" => {
             crate::collaboration::release_library_sessions(
                 &conn,
@@ -69,6 +79,10 @@ pub async fn run(path: &str, action: &str, payload: Value) -> Result<Value, Stri
             Ok(json!({"ok":true}))
         }
         "open" => {
+            if let Some(limit) = payload["maxPages"].as_u64() {
+                conn.pragma_update(None, "max_page_count", limit)
+                    .map_err(|e| e.to_string())?;
+            }
             super::database::initialize(&conn)?;
             Ok(json!({"ok":true}))
         }

@@ -112,6 +112,7 @@ pub(super) fn restore(
     Ok(state)
 }
 pub(super) fn check(conn: &Connection) -> Result<(), String> {
+    super::local_generation::ensure(conn)?;
     let mut statement = conn
         .prepare(include_str!(
             "../../../../../packages/db-schema/schema/device-sync-health.sql"

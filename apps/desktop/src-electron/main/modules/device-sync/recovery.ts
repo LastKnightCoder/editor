@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import HEALTH_SQL from "@tau/db-schema/schema/device-sync-health.sql?raw";
 import type { DeviceState } from "@tau/collaboration/src/device-sync/protocol";
 import { validDocumentRecord } from "./record-integrity";
+import { ensureLocalGeneration } from "./local-generation";
 
 export function assertDeviceDamage(error: unknown) {
   const code = (error as { code?: string })?.code;
@@ -148,6 +149,7 @@ export function recoverDeviceDatabase(
 }
 
 export function checkDeviceDatabase(db: Database.Database) {
+  ensureLocalGeneration(db);
   if (db.prepare(HEALTH_SQL).get()) throw new Error("DEVICE_SYNC_DAMAGED: 辅助记录不可读");
   const row = db.prepare("SELECT payload FROM _tau_device_state WHERE id=1").get() as
     | { payload: string }

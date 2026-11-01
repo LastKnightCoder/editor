@@ -110,7 +110,8 @@ export const subscribeDeviceSyncStatus = (listener: () => void) => {
 };
 
 async function prepareMissing(name: string) {
-  await resolveDeviceJsonIntents();
+  const generation = await deviceStore<string>("generation", {}, name);
+  await resolveDeviceJsonIntents(undefined, name);
   for (let batch = 0; batch < 100; batch++) {
     const rows = await deviceStore<
       {
@@ -172,7 +173,11 @@ async function prepareMissing(name: string) {
           updatedAt: Date.now(),
           metricRules: mobileContentMetrics.rules,
         });
-        await deviceStore("save-document", { document, expectedRevision: row.revision }, name);
+        await deviceStore(
+          "save-document",
+          { document, expectedRevision: row.revision, expectedGeneration: generation },
+          name
+        );
       } finally {
         doc.destroy();
       }

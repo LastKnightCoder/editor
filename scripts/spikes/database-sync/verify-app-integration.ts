@@ -49,6 +49,7 @@ import {
   downloadDeviceLibrary,
 } from "../../../apps/mobile/src/services/device-sync/runtime";
 import { emitNativeResume } from "./verify-native-bridge";
+import { verifyLocalGeneration } from "./verify-local-generation";
 import {
   wakeDeviceSync,
   deviceReplacementState,
@@ -74,11 +75,7 @@ async function main() {
   const run = (action: string, payload: unknown = {}, path = mobilePath) =>
     JSON.parse(
       execFileSync(peer, [path, action], {
-        input: JSON.stringify(
-          action === "save"
-            ? { expectedGeneration: run("generation", {}, path), ...(payload as object) }
-            : payload
-        ),
+        input: JSON.stringify(payload),
         maxBuffer: 128 * 1024 * 1024,
         encoding: "utf8",
       })
@@ -221,12 +218,14 @@ async function main() {
     }) as Promise<DeviceReply>;
   const readMobile = (): DeviceDocument => run("documents", { ids: [1] })[0];
   const initialMobile = readMobile();
+  await verifyLocalGeneration(db, Database, root, extension, run);
   const initialMobilePlan = await prepareDeviceDocument(initialMobile);
   for (const field of ["expectedDocumentId", "expectedSourceId"]) {
     assert.throws(
       () =>
         run("save", {
           document: initialMobilePlan,
+          expectedGeneration: run("generation"),
           expectedState: initialMobile.state,
           [field]: randomUUID(),
         }),
@@ -260,6 +259,7 @@ async function main() {
     }
   };
   const editMobile = async (value: string, contentId = 1, nodeId = "paragraph-1") => {
+    const generation = run("generation");
     const entry: DeviceDocument = run("documents", { ids: [contentId] })[0],
       document = restoreDeviceDocument(entry),
       tree = new NodeTree(document);
@@ -275,7 +275,11 @@ async function main() {
         state: Buffer.from(Y.encodeStateAsUpdate(document)).toString("base64"),
         updatedAt: Date.now(),
       });
-      run("save", { document: prepared, expectedState: entry.state });
+      run("save", {
+        document: prepared,
+        expectedState: entry.state,
+        expectedGeneration: generation,
+      });
     } finally {
       tree.dispose();
       document.destroy();
@@ -376,6 +380,7 @@ async function main() {
   draft.destroy();
   run("save", {
     document: converted,
+    expectedGeneration: run("generation"),
     expectedState: readMobile().state,
     intentToken: intent.token,
   });
@@ -525,7 +530,8 @@ async function main() {
           );
         return result;
       }
-      if (args.action === "document") return readMobile();
+      if (args.action === "document")
+        return run("documents", { ids: [args.payload.contentId] })[0] ?? null;
       if (args.action === "documents") return run("documents", args.payload);
       throw new Error(`验证桥未处理 ${args.action}`);
     }
@@ -740,7 +746,11 @@ async function main() {
   });
   removeTree.dispose();
   removed.destroy();
-  run("save", { document: removePlan, expectedState: readMobile().state });
+  run("save", {
+    document: removePlan,
+    expectedState: readMobile().state,
+    expectedGeneration: run("generation"),
+  });
   await synchronizeDevice(client, exchange);
   assert.equal(db.prepare("SELECT ref_count FROM contents WHERE id=4").get().ref_count, 0);
   assert.equal(
@@ -806,7 +816,11 @@ async function main() {
   });
   phoneTree.dispose();
   phoneDoc.destroy();
-  run("save", { document: phonePlan, expectedState: phoneEntry.state });
+  run("save", {
+    document: phonePlan,
+    expectedState: phoneEntry.state,
+    expectedGeneration: run("generation"),
+  });
   stopRuntime = startDeviceSync("mobile.db");
   wakeDeviceSync();
   await until(() => assets.has(phoneName) && getDeviceSyncStatus().phase === "synced");
@@ -980,6 +994,7 @@ async function main() {
           updatedAt: Date.now(),
         }),
         expectedState: entry.state,
+        expectedGeneration: run("generation", {}, copy),
       },
       copy
     );
@@ -1003,6 +1018,62 @@ async function main() {
   await synchronizeDevice(new DeviceSyncEngine(nativeStore), exchange);
   assert.match(text(deviceDocument(db, 1)!), /覆盖后重启仍可编辑/);
   await sameRows();
+
+  const importBody = (id: number) => {
+    const content = run("query", { sql: "SELECT content FROM contents WHERE id=1" })[0];
+    const contracts = run("query", {
+      sql: "SELECT contracts FROM content_documents WHERE content_id=1",
+    })[0];
+    const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+    run("sql", {
+      sql: `INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(${id},1000,1000,${quote(content)},4,1);
+      INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES(${id},${quote(randomUUID())},2,${quote(contracts)},'imported');
+      INSERT INTO cards(id,create_time,update_time,content_id) VALUES(${id},1000,1000,${id});`,
+    });
+  };
+  assert.notEqual(run("generation"), "");
+  importBody(777);
+  stopRuntime = startDeviceSync("mobile.db");
+  await until(() => getDeviceSyncStatus().phase === "synced" && Boolean(deviceDocument(db, 777)));
+  stopRuntime();
+  assert.equal(run("documents", { ids: [777] }).length, 1);
+  const beforePreparation = await request({
+    ...endpoint,
+    token: paired.token,
+    body: { kind: "download" },
+  });
+  importBody(778);
+  let stalePreparation: any;
+  (globalThis as any).__deviceSyncNative = async (command: string, args: any) => {
+    if (
+      command === "device_sync_store" &&
+      args.action === "save-document" &&
+      args.payload.document.contentId === 778
+    ) {
+      stalePreparation = args.payload;
+      await new DeviceSyncEngine({
+        ...nativeStore,
+        replacementBase: async () => run("replacement-base"),
+      }).replace(beforePreparation);
+      return run("save", args.payload);
+    }
+    return nativeBridge(command, args);
+  };
+  try {
+    stopRuntime = startDeviceSync("mobile.db");
+    await until(() => Boolean(stalePreparation) && getDeviceSyncStatus().phase === "error");
+    stopRuntime();
+    assert.ok(stalePreparation.expectedGeneration);
+    assert.notEqual(stalePreparation.expectedGeneration, run("generation"));
+    assert.match(getDeviceSyncStatus().error!, /DEVICE_SYNC_REPLACED/);
+    assert.equal(run("documents", { ids: [778] }).length, 0);
+  } finally {
+    (globalThis as any).__deviceSyncNative = nativeBridge;
+  }
+  await sameRows();
+  console.log(
+    "P1-2：生产 startDeviceSync 原样传参，覆盖后导入自动补齐；准备期间真实覆盖拒绝旧结果"
+  );
 
   await editMobile("回执癸");
   const pending = await client.offer(),

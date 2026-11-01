@@ -136,7 +136,7 @@ pub fn initialize(conn: &Connection) -> Result<(), String> {
         super::recovery::remove_triggers(conn)?;
     }
     if let Err(error) = install(conn).and_then(|_| super::recovery::check(conn)) {
-        if !super::recovery::damaged(&error) {
+        if error.starts_with("DEVICE_SYNC_LOCAL:") || !super::recovery::damaged(&error) {
             return Err(error);
         }
         super::recovery::recover(conn, None)?;
@@ -144,6 +144,7 @@ pub fn initialize(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 pub(super) fn install(conn: &Connection) -> Result<(), String> {
+    super::local_generation::ensure(conn)?;
     conn.execute_batch(SQL).map_err(err)?;
     if conn
         .query_row("SELECT 1 FROM _tau_device_state WHERE id=1", [], |_| Ok(()))
@@ -294,12 +295,7 @@ pub fn state(conn: &Connection) -> Result<Option<Value>, String> {
     .transpose()
 }
 pub fn generation(conn: &Connection) -> Result<String, String> {
-    conn.query_row(
-        "SELECT generation FROM _tau_device_local WHERE id=1",
-        [],
-        |row| row.get(0),
-    )
-    .map_err(err)
+    super::local_generation::ensure(conn)
 }
 pub fn replacement_base(conn: &Connection) -> Result<Value, String> {
     Ok(

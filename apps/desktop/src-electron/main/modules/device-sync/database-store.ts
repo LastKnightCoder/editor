@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { documentChecksum, validDocumentRecord } from "./record-integrity";
+import { ensureLocalGeneration } from "./local-generation";
 import { canonicalContractJson } from "@tau/db-schema/content-contracts";
 import DEVICE_SQL from "@tau/db-schema/schema/device-sync.sql?raw";
 import {
@@ -96,6 +97,7 @@ export function deviceSyncTables(db: Database.Database): SyncTable[] {
     });
 }
 function installDeviceSyncDatabase(db: Database.Database, sql: string) {
+  ensureLocalGeneration(db);
   db.exec(sql);
   if (!db.prepare("SELECT 1 FROM _tau_device_state WHERE id=1").get()) return;
   const tables = deviceSyncTables(db);
@@ -109,11 +111,7 @@ export function recoverDeviceSyncDatabase(db: Database.Database, contentId?: num
   recoverDeviceDatabase(db, () => installDeviceSyncDatabase(db, DEVICE_SQL), contentId);
 }
 export function deviceGeneration(db: Database.Database): string {
-  return (
-    db.prepare("SELECT generation FROM _tau_device_local WHERE id=1").get() as {
-      generation: string;
-    }
-  ).generation;
+  return ensureLocalGeneration(db);
 }
 export function ensureDeviceSyncHealthy(db: Database.Database) {
   try {

@@ -76,7 +76,12 @@ import type {
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
-import { deviceReplacementState, deviceSyncDatabase } from "./device-sync/native";
+import { deviceReplacementState } from "./device-sync/native";
+import {
+  assertContentWriteContext,
+  captureContentWriteContext,
+  type ContentWriteContext,
+} from "./content-write-context";
 import { trackLibraryRequest } from "./ipc-requests";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
@@ -301,6 +306,7 @@ export async function createQuickCard(params: {
 }
 
 export async function updateContent(params: {
+  writeContext?: ContentWriteContext;
   contentId: number;
   content: unknown[];
   count: number;
@@ -309,24 +315,26 @@ export async function updateContent(params: {
   expectedDocumentId?: string;
   expectedSourceId?: string;
 }) {
-  const context = deviceReplacementState(),
-    name = deviceSyncDatabase();
+  const context = params.writeContext ?? (await captureContentWriteContext());
+  assertContentWriteContext(context);
   const { consumeDeviceProjection, replaceDeviceContent } = await import("./device-sync/content");
-  if (
-    context.version !== deviceReplacementState(name).version ||
-    deviceReplacementState(name).active
-  )
-    throw new Error("DEVICE_SYNC_REPLACED: 当前库已重新下载");
+  assertContentWriteContext(context);
   if (
     (await consumeDeviceProjection(params.contentId, params.content)) ||
-    (await replaceDeviceContent(params))
+    (await replaceDeviceContent(params, context))
   )
     return trackedInvoke<ContentDetailResponse>("get_content_detail", {
       contentId: params.contentId,
     });
+  assertContentWriteContext(context);
   return withCardTimeout(
     trackedInvoke<ContentDetailResponse>("update_content", {
-      payload: { ...params, count: mobileContentMetrics.count(params.content) },
+      payload: {
+        ...params,
+        expectedGeneration: context.generation,
+        expectedDatabaseName: context.database || undefined,
+        count: mobileContentMetrics.count(params.content),
+      },
     }),
     "保存卡片内容"
   );

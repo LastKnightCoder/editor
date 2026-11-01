@@ -1,8 +1,3 @@
-CREATE TABLE IF NOT EXISTS _tau_device_local (
-  id INTEGER PRIMARY KEY CHECK(id=1),
-  generation TEXT NOT NULL
-);
-INSERT OR IGNORE INTO _tau_device_local VALUES(1,'');
 CREATE TABLE IF NOT EXISTS _tau_device_state (
   id INTEGER PRIMARY KEY CHECK(id=1),
   payload TEXT NOT NULL,

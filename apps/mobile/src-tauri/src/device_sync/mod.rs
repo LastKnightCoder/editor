@@ -1,5 +1,6 @@
 pub(crate) mod assets;
 pub(crate) mod database;
+mod local_generation;
 mod recovery;
 pub(crate) mod transport;
 
@@ -304,9 +305,7 @@ pub(crate) fn save_document(
     conn: &mut rusqlite::Connection,
     payload: &Value,
 ) -> Result<Value, String> {
-    if payload["expectedGeneration"].as_str().unwrap_or("") != database::generation(conn)? {
-        return Err("DEVICE_SYNC_REPLACED: 本机资料库已重新下载".into());
-    }
+    database::generation(conn)?;
     if database::state(&conn)?.is_none() {
         return Err("DEVICE_SYNC_DISABLED: 资料库未配对".into());
     }
@@ -322,6 +321,9 @@ pub(crate) fn save_document(
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|error| error.to_string())?;
+    if payload["expectedGeneration"].as_str().unwrap_or("") != database::generation(&tx)? {
+        return Err("DEVICE_SYNC_REPLACED: 本机资料库已重新下载".into());
+    }
     let original = database::document(&tx, id)?;
     if let Some(expected) = payload["expectedDocumentId"].as_str() {
         let current = tx
