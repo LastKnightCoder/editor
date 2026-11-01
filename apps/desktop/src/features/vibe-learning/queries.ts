@@ -5,6 +5,10 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { off, on } from "@/electron";
+import { listNotebookPluginOutputs } from "@/commands/plugin-entities";
+import type { DomainEventMessage } from "@/types/domain-events";
+import type { PluginEntityRecord } from "@/types/plugin-entities";
 import {
   listVibeLearningProjects,
   getVibeLearningProject,
@@ -118,4 +122,39 @@ async function findProject(
   const hit = cached?.find(item => item.id === id);
   if (hit) return hit;
   return getVibeLearningProject(id);
+}
+
+const EMPTY_OUTPUTS: PluginEntityRecord[] = [];
+
+/**
+ * Notebook 的插件产物（经 output 关联指向它的插件实体）。插件实体增删改、同步下载替换库时刷新；
+ * 插件自己改名、删除也会经业务事件反映到列表。
+ */
+export function useNotebookPluginOutputs(
+  databaseName: string,
+  notebookId: number,
+  version: number
+) {
+  const queryClient = useQueryClient();
+  const queryKey = ["vibe-learning", "plugin-outputs", databaseName, notebookId] as const;
+  useEffect(() => {
+    const handle = (_event: unknown, message: DomainEventMessage) => {
+      if (message.databaseName.replace(/\.db$/, "") !== databaseName.replace(/\.db$/, "")) return;
+      if (message.events.some(e => e.type.startsWith("entity.") || e.type === "workspace.reset"))
+        void queryClient.invalidateQueries({ queryKey });
+    };
+    on("domain-events", handle);
+    return () => off("domain-events", handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [databaseName, notebookId, queryClient]);
+  const query = useQuery({
+    queryKey: [...queryKey, version],
+    queryFn: () => listNotebookPluginOutputs(databaseName, notebookId),
+    enabled: !!databaseName && notebookId > 0,
+    placeholderData: previous => previous,
+  });
+  return {
+    outputs: query.data ?? EMPTY_OUTPUTS,
+    ready: query.isSuccess && !query.isPlaceholderData,
+  };
 }

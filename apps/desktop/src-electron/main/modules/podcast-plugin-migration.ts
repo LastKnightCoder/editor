@@ -1,13 +1,16 @@
 /**
- * 卡片、文章、项目文档上的播客迁入插件 tau.podcast：每个挂着播客的原文写成一期插件实体（key 为
- * 「类型:ID」，与插件「一篇原文一期」一致），由实体指向原文建关联、登记原文引用，原文的 podcast_id 清空。
- * 数据形状与插件 src/data/model.ts 的 episodeMeta 一致。调用方先确认插件已安装并启用，否则迁入的
- * 实体会被当作孤儿回收。Notebook 的播客仍由宿主管理，不迁。
+ * 宿主的播客迁入插件 tau.podcast，迁完删除 podcasts 表。数据形状与插件 src/data/model.ts 的
+ * episodeMeta 一致。有待迁数据时调用方先确认插件已安装并启用；只剩空表时无需插件。
  *
- * - 单事务；失败整体回滚、原文的 podcast_id 原样保留，下次重试。
- * - 动手前在库旁生成 `<数据库路径>.pre-podcast-plugin-migration-v1-<UUID>.bak` 快照，备份失败不迁移。
- * - 同一原文已有插件实体时只清空 podcast_id，不重复写入（旧端同步回来的库再次执行不会重复）。
- * - 迁走后不再被任何地方引用的 podcasts 行删除；音频文件不动，地址原样写进插件实体。
+ * - 卡片、文章、项目文档：每个挂着播客的原文写成一期（key「类型:ID」，与插件「一篇原文一期」一致），
+ *   由实体指向原文建 source 关联、登记原文引用，原文的 podcast_id 清空。
+ * - Notebook：每篇播客笔记写成一期（key「notebook:<Notebook ID>:legacy-<笔记 ID>」），由实体指向所在
+ *   Notebook 建 output 关联（Notebook 产物列表据此显示）、登记 Notebook 引用，再删除这篇笔记与它的正文。
+ *   没有生成完的播客笔记（没有音频）直接删除。
+ * - 单事务；失败整体回滚、旧数据原样保留，下次重试。动手前在库旁生成
+ *   `<数据库路径>.pre-podcast-plugin-migration-v1-<UUID>.bak` 快照，备份失败不迁移。
+ * - key 由旧 ID 推出：旧端同步回来的库再次执行只清旧指针，不重复写入。
+ * - 迁完后 DROP podcasts（已从主库 schema 删除，legacy-tables 登记）；音频文件不动，地址原样写进插件实体。
  * 全部设备迁移后随清洁版删除。
  */
 
@@ -23,6 +26,7 @@ import { NUMERIC_KINDS } from "./tables/plugin-ref-kinds";
 export const PODCAST_PLUGIN_ID = "tau.podcast";
 const EPISODE_KIND = "episode";
 const SOURCE_ROLE = "source";
+const OUTPUT_ROLE = "output";
 /** 插件给说话人的默认配色顺序（src/ui/GenerateDialog.tsx 的 blankSpeaker） */
 const TONES = [2, 5, 3, 4, 1];
 const MINUTES = [3, 5, 10, 15];
@@ -50,6 +54,8 @@ export interface PodcastMigrationResult {
   episodes: number;
   /** 原文已有插件实体、只清空了旧指针的数量 */
   skipped: number;
+  /** Notebook 播客笔记迁成的期数 */
+  notebook: number;
 }
 
 const hasColumn = (db: Database.Database, table: string, column: string) =>
@@ -62,11 +68,21 @@ const hasTable = (db: Database.Database, name: string) =>
 const sourceTables = (db: Database.Database) =>
   hasTable(db, "podcasts") ? SOURCES.filter(s => hasColumn(db, s.table, "podcast_id")) : [];
 
-/** 还有没有挂在卡片、文章、项目文档上的播客 */
-export function hasLegacyPodcasts(db: Database.Database): boolean {
-  return sourceTables(db).some(({ table }) =>
-    Boolean(db.prepare(`SELECT 1 FROM ${table} WHERE podcast_id IS NOT NULL LIMIT 1`).get())
+const hasNotebookPodcasts = (db: Database.Database) =>
+  hasTable(db, "vl_note") &&
+  Boolean(db.prepare(`SELECT 1 FROM vl_note WHERE type = 'podcast' LIMIT 1`).get());
+
+function hasLegacyPodcastData(db: Database.Database): boolean {
+  return (
+    sourceTables(db).some(({ table }) =>
+      Boolean(db.prepare(`SELECT 1 FROM ${table} WHERE podcast_id IS NOT NULL LIMIT 1`).get())
+    ) || hasNotebookPodcasts(db)
   );
+}
+
+/** 待迁数据与残留表都需要处理，但只有待迁数据需要先准备插件。 */
+export function hasLegacyPodcasts(db: Database.Database): boolean {
+  return hasLegacyPodcastData(db) || hasTable(db, "podcasts");
 }
 
 function parseJson<T>(value: string | null, fallback: T): T {
@@ -163,7 +179,7 @@ export function migratePodcastsToPlugin(
     );
   return db.transaction(() => {
     const pluginId = PODCAST_PLUGIN_ID;
-    const result: PodcastMigrationResult = { episodes: 0, skipped: 0 };
+    const result: PodcastMigrationResult = { episodes: 0, skipped: 0, notebook: 0 };
     const findEntity = db.prepare(
       `SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?`
     );
@@ -180,8 +196,9 @@ export function migratePodcastsToPlugin(
       `INSERT OR IGNORE INTO plugin_ref_grants (plugin_id, kind, ref_id, target_created_at, create_time)
        VALUES (?, ?, ?, ?, ?)`
     );
-    const getPodcast = db.prepare(`SELECT * FROM podcasts WHERE id = ?`);
-    const touched = new Set<number>();
+    const getPodcast = hasTable(db, "podcasts")
+      ? db.prepare(`SELECT * FROM podcasts WHERE id = ?`)
+      : { get: () => undefined };
 
     for (const { table, kind, title } of sourceTables(db)) {
       const rows = db
@@ -192,7 +209,6 @@ export function migratePodcastsToPlugin(
         .all() as { id: number; create_time: number; podcast_id: number; title?: string }[];
       const clear = db.prepare(`UPDATE ${table} SET podcast_id = NULL WHERE id = ?`);
       for (const row of rows) {
-        touched.add(row.podcast_id);
         clear.run(row.id);
         const podcast = getPodcast.get(row.podcast_id) as PodcastRow | undefined;
         if (!podcast?.audio_url) continue;
@@ -236,12 +252,68 @@ export function migratePodcastsToPlugin(
       }
     }
 
-    // 迁走后没有其他引用（Notebook 笔记仍可能引用）的旧播客删除
-    const stillUsed = hasTable(db, "vl_note")
-      ? db.prepare(`SELECT 1 FROM vl_note WHERE podcast_id = ? LIMIT 1`)
-      : null;
-    const remove = db.prepare(`DELETE FROM podcasts WHERE id = ?`);
-    for (const id of touched) if (!stillUsed?.get(id)) remove.run(id);
+    // Notebook 的播客笔记：有音频的写成一期并挂到 Notebook，笔记与正文随后删除
+    if (hasTable(db, "vl_note")) {
+      const podcastColumn = hasColumn(db, "vl_note", "podcast_id");
+      const notes = db
+        .prepare(
+          `SELECT n.id, n.project_id, n.content_id, n.title${podcastColumn ? ", n.podcast_id" : ""},
+                  p.create_time AS notebook_created, p.title AS notebook_title
+           FROM vl_note n LEFT JOIN vibe_learning_project p ON p.id = n.project_id
+           WHERE n.type = 'podcast'`
+        )
+        .all() as {
+        id: number;
+        project_id: number;
+        content_id: number;
+        title: string;
+        podcast_id?: number | null;
+        notebook_created: number | null;
+        notebook_title: string | null;
+      }[];
+      for (const note of notes) {
+        const podcast = note.podcast_id
+          ? (getPodcast.get(note.podcast_id) as PodcastRow | undefined)
+          : undefined;
+        const key = `notebook:${note.project_id}:legacy-${note.id}`;
+        if (
+          podcast?.audio_url &&
+          note.notebook_created !== null &&
+          !findEntity.get(pluginId, EPISODE_KIND, key)
+        ) {
+          const source = { kind: "notebook", id: String(note.project_id) };
+          const episode = episodeFromPodcast(podcast, source, note.notebook_title ?? "");
+          const entityId = getNextTaskEntityId(db, "plugin_entities");
+          insertEntity.run(
+            entityId,
+            pluginId,
+            EPISODE_KIND,
+            key,
+            podcast.name?.trim() || note.title || episode.title,
+            ContentTable.createContent(db, { content: episode.content }),
+            JSON.stringify(episode.meta),
+            podcast.create_time,
+            podcast.update_time
+          );
+          insertLink.run(
+            `legacy-podcast-${entityId}`,
+            pluginId,
+            entityId,
+            "notebook",
+            source.id,
+            note.notebook_created,
+            OUTPUT_ROLE,
+            now
+          );
+          grant.run(pluginId, "notebook", source.id, note.notebook_created, now);
+          result.notebook++;
+        }
+        db.prepare(`DELETE FROM vl_note WHERE id = ?`).run(note.id);
+        ContentTable.deleteContent(db, note.content_id);
+      }
+    }
+
+    db.exec("DROP TABLE IF EXISTS podcasts");
     return result;
   })();
 }
@@ -266,9 +338,10 @@ export class PodcastMigrationTable {
     };
   }
 
-  static pending(db: Database.Database, request: { databaseName: string }): boolean {
+  static pending(db: Database.Database, request: { databaseName: string }) {
     assertDatabase(db, request?.databaseName);
-    return hasLegacyPodcasts(db);
+    const requiresPlugin = hasLegacyPodcastData(db);
+    return { pending: requiresPlugin || hasTable(db, "podcasts"), requiresPlugin };
   }
 
   static run(

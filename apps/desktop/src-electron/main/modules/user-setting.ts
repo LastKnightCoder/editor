@@ -13,19 +13,27 @@ import {
 
 type UserSetting = Record<string, any>;
 
-/** 合并旧判分分配，已有闪卡模型优先；删除旧键后再次执行不产生变化。 */
+/** 已退役、没有消费者的模型槽：播客生成交给播客插件后删除 */
+const RETIRED_USAGE_SLOTS = ["podcastGeneration"];
+
+/**
+ * 合并旧判分分配（已有闪卡模型优先）并删除退役的模型槽；删除旧键后再次执行不产生变化。
+ */
 export function upgradeFlashcardModelSetting(setting: unknown): boolean {
   if (!setting || typeof setting !== "object" || Array.isArray(setting)) return false;
   const record = setting as Record<string, unknown>;
   const value = record.llmUsageSettings;
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    !Object.hasOwn(value, "aiJudgement")
-  )
-    return false;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const retired = RETIRED_USAGE_SLOTS.filter(slot => Object.hasOwn(value, slot));
+  if (!Object.hasOwn(value, "aiJudgement")) {
+    if (!retired.length) return false;
+    const usage = { ...value } as Record<string, unknown>;
+    for (const slot of retired) delete usage[slot];
+    record.llmUsageSettings = usage;
+    return true;
+  }
   const usage = { ...value } as Record<string, unknown>;
+  for (const slot of retired) delete usage[slot];
   const legacy = usage.aiJudgement as { providerId?: unknown; modelId?: unknown } | null;
   if (
     !usage.flashcardGeneration &&

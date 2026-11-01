@@ -6,7 +6,6 @@ import {
   FileText,
   Highlighter,
   ListOrdered,
-  Mic,
   Network,
   PenLine,
   Presentation,
@@ -15,7 +14,13 @@ import {
 import type { VLNoteType } from "@/types/vibe-learning";
 
 export type GenerateAppKey =
-  "outline" | "highlights" | "article" | "mindmap" | "ppt" | "report" | "quiz" | "podcast";
+  | "outline"
+  | "highlights"
+  | "article"
+  | "mindmap"
+  | "ppt"
+  | "report"
+  | "quiz";
 
 export const GENERATE_APPS: { key: GenerateAppKey; label: string; icon: LucideIcon }[] = [
   { key: "outline", label: "学习大纲", icon: ListOrdered },
@@ -25,7 +30,6 @@ export const GENERATE_APPS: { key: GenerateAppKey; label: string; icon: LucideIc
   { key: "ppt", label: "PPT", icon: Presentation },
   { key: "report", label: "报告", icon: FileBarChart },
   { key: "quiz", label: "测验", icon: CircleHelp },
-  { key: "podcast", label: "播客", icon: Mic },
 ];
 
 export const NOTE_ICONS: Record<VLNoteType, LucideIcon> = {
@@ -36,5 +40,4 @@ export const NOTE_ICONS: Record<VLNoteType, LucideIcon> = {
   mindmap: Network,
   ppt: Presentation,
   report: FileBarChart,
-  podcast: Mic,
 };

@@ -1,5 +1,9 @@
 # 更新记录
 
+## 0.55.0
+
+- 新增 `context.notebooks.registerOutput({ id, title, icon?, description?, kind, options?, view, prepare, complete, fail? })`：在 Notebook 的生成菜单里加一种产物。对话框、资料勾选与 AI 生成由 Tau 负责（走 Notebook 已有的生成流程与资料检索）；`prepare` 建好产物占位并返回任务说明 `{ entity, title, instructions, reminders? }`，`complete` 收到最终正文与 `task`（`phase` / `progress`），`fail` 在失败或停止时调用。Tau 自动建立产物到 Notebook 的 `output` 关联。新增宿主接口 `NotebooksAdapter`，贡献类型 `notebook-output`。目前只有桌面支持。
+
 ## 0.54.0
 
 - 新增 `context.tts.open({ signal })` 朗读：沿用用户在「设置 › 语音」里选的服务与模型，返回会话 `{ providerName, textInstructions, getVoices, synthesize, close }`，插件停用时自动关闭；`unavailableReason()` 判断能否朗读。需要在 manifest 声明新权限 `tts:synthesize`，首次调用时询问用户；宿主未接入时 `open` 抛 `TTS_UNAVAILABLE`。新增宿主接口 `TTSSynthesisAdapter`。目前只有桌面支持。

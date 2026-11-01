@@ -8,7 +8,8 @@ import { getChatDatabase } from "@/services/chatDatabase";
 import type { ToolCallExecutionState } from "@/types/llm";
 import type { GenerateAppKey } from "../appMeta";
 
-export type VLTaskKind = GenerateAppKey | "ppt_edit" | "report_edit";
+/** plugin：插件的 Notebook 输出 */
+export type VLTaskKind = GenerateAppKey | "ppt_edit" | "report_edit" | "plugin";
 export type VLTaskStatus = "running" | "succeeded" | "failed" | "cancelled";
 
 /** 一轮模型调用：推理 → 工具调用 / 正文 */
@@ -27,9 +28,10 @@ export interface VLTask {
   projectId: number;
   kind: VLTaskKind;
   title: string;
-  /** 落库目标：笔记类产物 / 测验集 */
+  /** 落库目标：笔记类产物 / 测验集 / 插件产物 */
   noteId?: number;
   quizSetId?: number;
+  plugin?: { pluginId: string; kind: string; entityId: number; label: string };
   status: VLTaskStatus;
   /** 当前阶段（执行过程页顶部的一句话） */
   phase: string;
@@ -41,7 +43,7 @@ export interface VLTask {
   output: string;
   /** 已结束各轮的输出 token 合计 */
   outputTokens: number;
-  /** 分步进度（播客合成语音） */
+  /** 分步进度（插件产物生成后的处理，如合成语音） */
   progress?: { done: number; total: number };
   /** 测验：已解析出的题干 */
   quizPrompts?: string[];
@@ -51,7 +53,10 @@ export interface VLTask {
 
 /** 请阅读区打开的产物（对话里的产物卡片发起，项目页订阅） */
 export type VLOpenTarget =
-  { kind: "note"; id: number } | { kind: "task"; id: string } | { kind: "quiz"; id: number };
+  | { kind: "note"; id: number }
+  | { kind: "task"; id: string }
+  | { kind: "quiz"; id: number }
+  | { kind: "plugin-output"; id: number };
 
 interface VLTaskState {
   tasks: Record<string, VLTask>;
@@ -110,5 +115,10 @@ export const useNoteTask = (noteId: number | null | undefined) =>
 
 export const useQuizTask = (quizSetId: number | null | undefined) =>
   useVLTaskStore(s => (quizSetId ? latest(s.tasks, t => t.quizSetId === quizSetId) : undefined));
+
+export const usePluginOutputTask = (entityId: number | null | undefined) =>
+  useVLTaskStore(s =>
+    entityId ? latest(s.tasks, t => t.plugin?.entityId === entityId) : undefined
+  );
 
 export const isTaskActive = (task: VLTask | undefined) => task?.status === "running";
