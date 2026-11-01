@@ -1,7 +1,7 @@
 [package]
 name = "Tau"
 default-run = "Tau"
-version = "0.3.0"
+version = "0.3.2"
 description = "A Note App"
 authors = ["LastKnightCoder"]
 edition = "2021"
@@ -27,7 +27,7 @@ path = "src/device_sync/peer_main.rs"
 required-features = ["device-sync-spike"]
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2.11.3", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-native-speech = { path = "plugins/native-speech" }
 tauri-plugin-native-record = { path = "plugins/native-record" }

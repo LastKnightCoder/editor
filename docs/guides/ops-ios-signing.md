@@ -19,7 +19,7 @@
 2. 登录 Apple Developer 的 Certificates, Identifiers & Profiles，确认正式 Bundle ID 对应的显式 App ID 存在。
 3. 在 Profiles 创建 App Store Connect 类型，选择该 App ID 和本机分发证书，生成后下载并安装描述文件；该类型不选择设备。
 4. 在 Tau_iOS 的 Signing & Capabilities 选择 release 配置，关闭该配置的自动签名，选择团队、Apple Distribution 和 Tau App Store 描述文件；debug 保持开发签名。用 `xcodebuild -showBuildSettings` 确认 CODE_SIGN_STYLE、CODE_SIGN_IDENTITY、PROVISIONING_PROFILE_SPECIFIER 已生效。生成工程被重新初始化时，须重新配置。
-5. 本仓库 `apps/mobile/src-tauri/ios-export.plist` 保存正式导出映射，构建入口将其复制到生成工程。描述文件改名、团队或 Bundle ID 改变时同步该文件；不要提交私钥或 mobileprovision。当前 Tauri 2.10.0 不依靠 XCODE_XCCONFIG_FILE 传递签名覆盖。
+5. 本仓库 `apps/mobile/src-tauri/ios-export.plist` 保存正式导出映射，构建入口将其复制到生成工程。描述文件改名、团队或 Bundle ID 改变时同步该文件；不要提交私钥或 mobileprovision。生成工程的签名设置直接配置，不依靠 XCODE_XCCONFIG_FILE 覆盖。
 6. 再运行正式构建并核对最终产物签名。归档构建本身就要使用分发签名；仅指定导出 app-store-connect 不会替代先前的开发签名配置。
 
 网页登录和 Xcode 账号登录可能分别要求验证。证书私钥保留在钥匙串，不为了本机打包创建额外 API 密钥或公开导出私钥。步骤依据 [Apple 描述文件说明](https://developer.apple.com/help/account/provisioning-profiles/create-an-app-store-provisioning-profile/)。
