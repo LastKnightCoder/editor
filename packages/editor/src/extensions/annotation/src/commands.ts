@@ -1,7 +1,7 @@
-import { type EditorCommand, type EditorHotkey } from "@tau/editor/api";
+import { type EditorCommand } from "@tau/editor/api";
 import { insertAnnotation } from "./operations.ts";
 
-/** mod+shift+n：插入注解 */
+/** 插入注解；不绑热键（mod+shift+n 在桌面端是系统级速记快捷键），入口是插入菜单 */
 export const annotationCommands: EditorCommand[] = [
   {
     id: "tau.annotation.insert",
@@ -11,8 +11,4 @@ export const annotationCommands: EditorCommand[] = [
       ctx.event?.preventDefault();
     },
   },
-];
-
-export const annotationHotkeys: EditorHotkey[] = [
-  { key: "mod+shift+n", command: "tau.annotation.insert" },
 ];
