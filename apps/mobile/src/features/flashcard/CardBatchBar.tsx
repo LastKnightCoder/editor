@@ -55,11 +55,18 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
     }
   };
 
+  const shown = open && count > 0;
+
   return (
     <>
       <div
-        className={`bg-surface shadow-float absolute bottom-[calc(22px+var(--mobile-screen-safe-bottom))] left-3.5 right-3.5 z-40 flex gap-1 rounded-[20px] p-1.5 transition-transform duration-300 ${
-          open && count > 0 ? "translate-y-0" : "translate-y-[140%]"
+        aria-hidden={shown ? undefined : true}
+        inert={!shown}
+        className={`bg-surface shadow-float absolute right-3.5 bottom-[calc(22px+var(--mobile-screen-safe-bottom))] left-3.5 z-40 flex gap-1 rounded-[20px] p-1.5 transition-transform duration-300 ${
+          // 隐藏位移须含底距与安全区，否则浮条会露出半截
+          shown
+            ? "translate-y-0"
+            : "translate-y-[calc(100%+22px+var(--mobile-screen-safe-bottom)+24px)]"
         }`}
         style={{ transitionTimingFunction: "var(--ease-bounce)" }}
       >
