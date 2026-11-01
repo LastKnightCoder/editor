@@ -48,6 +48,4 @@ export const articleCommands = {
   buildFromContent: command<[number, (string | undefined)?], IArticle>(
     "build-article-from-content"
   ),
-  attachPodcast: command<[number, number], IArticle | null>("attach-podcast-to-article"),
-  detachPodcast: command<[number], IArticle | null>("detach-podcast-from-article"),
 };

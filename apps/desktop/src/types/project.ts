@@ -1,6 +1,5 @@
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
-import { IPodcast } from "./podcast";
 
 export interface Project {
   id: number;
@@ -49,7 +48,6 @@ export interface ProjectItem {
   count: number;
   contentId: number;
   whiteBoardContentId: number;
-  podcast?: IPodcast;
   tags?: string[];
 }
 

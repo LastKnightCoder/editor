@@ -6,15 +6,12 @@ import { produce } from "immer";
 import ContentExportModal from "@/components/ContentExportModal";
 import EditTitleModal from "@/components/EditTitleModal";
 import EpubExportModal from "@/components/EpubExportModal";
-import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import PresentationMode from "@/components/PresentationMode";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
-import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
 import { usePage } from "@/page/PageProvider";
-import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import {
   getProjectItemById,
   openProjectItemInNewWindow,
@@ -93,7 +90,7 @@ export const useProjectItemMoreActions = (
   const shared = useContentShared(projectItem?.contentId);
   const builtinMenuItems: MenuEntryList = useMemo(
     () => getProjectItemMoreMenuItems(projectItem, shared),
-    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast, shared]
+    [projectItem?.projectItemType, projectItem?.refType, shared]
   );
   const pluginEntries = usePluginMenuEntries(projectItemActionTarget(projectItem));
   const moreMenuItems = pluginEntries.insert(builtinMenuItems);
@@ -111,19 +108,6 @@ export const useProjectItemMoreActions = (
       title: projectItem?.title || "项目文档参考",
     }),
   });
-
-  const { podcastModalOpen, openPodcastModal, closePodcastModal, handlePodcastSuccess } =
-    usePodcastAttachment({
-      hostId: projectItem?.id || 0,
-      currentPodcast: projectItem?.podcast,
-      attachPodcast: attachPodcastToProjectItem,
-      detachPodcast: detachPodcastFromProjectItem,
-      reloadHost: getProjectItemById,
-      onHostReloaded: publishProjectItemUpdate,
-      messages: {
-        created: "播客已添加到文档",
-      },
-    });
 
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const handleRemoveProjectItem = useMemoizedFn(() => {
@@ -293,8 +277,6 @@ export const useProjectItemMoreActions = (
       flashcard.openManualFlashcard();
     } else if (key === "ai-flashcard") {
       flashcard.openAiFlashcard();
-    } else if (key === "generate-podcast") {
-      openPodcastModal();
     }
   });
 
@@ -356,14 +338,6 @@ export const useProjectItemMoreActions = (
         onClose={() => setPdfExportModalOpen(false)}
         content={projectItem?.content || []}
         title={projectItem?.title || "项目文档"}
-      />
-      <PodcastGenerationModal
-        open={podcastModalOpen}
-        cardContent={projectItem?.content || []}
-        initialPodcast={projectItem?.podcast}
-        onSuccess={handlePodcastSuccess}
-        onCancel={closePodcastModal}
-        saveText="保存到文档"
       />
     </>
   );

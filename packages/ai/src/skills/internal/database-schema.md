@@ -406,15 +406,14 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `cards`
 
-| 字段          | SQLite 定义            |
-| ------------- | ---------------------- |
-| `id`          | `INTEGER PRIMARY KEY`  |
-| `create_time` | `INTEGER NOT NULL`     |
-| `update_time` | `INTEGER NOT NULL`     |
-| `tags`        | `TEXT`                 |
-| `content_id`  | `INTEGER`              |
-| `is_top`      | `INTEGER DEFAULT 0`    |
-| `podcast_id`  | `INTEGER DEFAULT NULL` |
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `id`          | `INTEGER PRIMARY KEY` |
+| `create_time` | `INTEGER NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL`    |
+| `tags`        | `TEXT`                |
+| `content_id`  | `INTEGER`             |
+| `is_top`      | `INTEGER DEFAULT 0`   |
 
 ### `articles`
 
@@ -432,7 +431,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `is_delete`       | `INTEGER DEFAULT 0`     |
 | `banner_position` | `TEXT DEFAULT 'center'` |
 | `content_id`      | `INTEGER`               |
-| `podcast_id`      | `INTEGER DEFAULT NULL`  |
 
 ### `collaboration_bindings`
 
@@ -720,7 +718,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `project_item_type`      | `TEXT DEFAULT 'document'`    |
 | `content_id`             | `INTEGER`                    |
 | `white_board_content_id` | `INTEGER`                    |
-| `podcast_id`             | `INTEGER DEFAULT NULL`       |
 | `tags`                   | `TEXT NOT NULL DEFAULT '[]'` |
 
 ### `migration_meta`

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>播客插件 · 播客库</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="podcast.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>插件页 · 播客库（sidebar.registerItem 挂在「学习」组）</h3>
+  一整张纸：页头「播客」+ 搜索 + 「新建播客」；生成中 / 待审稿 / 失败的任务置顶；下面是全部播客，按来源类型筛选。每行都露出原文，点原文直接跳过去（app.open），点行进单期详情。
+  <ul>
+    <li>播放不离开列表：点封面就播，底部出迷你播放条，翻到别的页面也继续（插件页面 Activity 保活）。</li>
+    <li>单期详情 = 播放器 + 说话人分色波形 + 跟读脚本；悬停一句可「从这里播」「改这句重合成」。</li>
+    <li>原文被删：播客保留可听，来源显示删除线，详情页提示可删除这期。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, seg, sidebar, titlebar, anno, icons, PODS, byId, KIND, SPEAKERS, SCRIPT, fmtDur, fmtMin, fmtDate, av, avs, srcLink, wave, legend } from "./podcast.js?v=1";
+
+mockBar("library.html", seg([
+  ["normal", "列表 · 播放中"], ["jobs", "生成中任务"], ["menu", "条目菜单"], ["detail", "单期详情"], ["segedit", "改一句重合成"], ["gone", "原文已删除"], ["empty", "空态"], ["del", "删除确认"],
+]));
+
+const win = document.getElementById("win");
+const state = { m: "normal", kind: "all" };
+const PLAYING = 1;
+
+function head() {
+  const total = PODS.reduce((n, p) => n + p.dur, 0);
+  return `<div class="pc-head">
+    <div><h1>播客</h1><p class="pc-lead">${PODS.length} 期 · 共 ${fmtMin(total)}</p></div>
+    <span class="sp"></span>
+    <div class="pc-search"><i data-lucide="search"></i>搜索标题或原文</div>
+    <button class="btn primary"><i data-lucide="plus"></i>新建播客</button>
+  </div>`;
+}
+
+function jobs() {
+  return `
+  <div class="job">
+    <span class="ic"><i data-lucide="loader-circle" class="spin"></i></span>
+    <div class="bd"><div class="t">Transformer 架构图解</div>
+      <div class="steps"><span class="s done"><i data-lucide="check"></i>写脚本</span><span class="ar">—</span><span class="s cur">合成语音 23 / 41 段</span><span class="ar">—</span><span class="s">合并</span><span class="muted">· 约 2 分钟</span></div>
+      <div class="prog"><i style="width:56%"></i></div></div>
+    <button class="btn sm">取消</button>
+  </div>
+  <div class="job">
+    <span class="ic"><i data-lucide="file-pen-line"></i></span>
+    <div class="bd"><div class="t">注意力机制的直觉</div><div class="m">脚本已写好（32 句），合成前等你过一遍</div></div>
+    <button class="btn sm">放弃</button><button class="btn sm primary">审稿</button>
+  </div>
+  <div class="job">
+    <span class="ic err"><i data-lucide="circle-alert"></i></span>
+    <div class="bd"><div class="t">向量数据库选型</div><div class="m err">语音服务限流，已合成 12 / 38 段</div></div>
+    <button class="btn sm">放弃</button><button class="btn sm line">从第 13 段继续</button>
+  </div>`;
+}
+
+const KINDS = [["all", "全部"], ["article", "文章"], ["card", "卡片"], ["document", "项目文档"]];
+
+function rowMenu() {
+  return `<div class="menu" style="right:8px;top:46px;width:180px">
+    <div class="mi"><i data-lucide="external-link"></i>打开原文</div>
+    <div class="mi"><i data-lucide="pencil"></i>重命名</div>
+    <div class="mi"><i data-lucide="refresh-cw"></i>按原文重新生成</div>
+    <div class="mi"><i data-lucide="download"></i>导出音频</div>
+    <div class="msep"></div>
+    <div class="mi" style="color:var(--danger)"><i data-lucide="trash-2"></i>删除</div>
+  </div>`;
+}
+
+function row(p) {
+  const playing = p.id === PLAYING;
+  const tone = SPEAKERS[p.speakers[0]].tone;
+  return `<div class="pc-row ${playing ? "on" : ""} ${state.m === "menu" && p.id === 2 ? "menu-on" : ""}" data-open="${p.id}">
+    <span class="cov t${tone}"><i data-lucide="audio-lines"></i><span class="pp"><i data-lucide="${playing ? "pause" : "play"}"></i></span></span>
+    <div style="min-width:0">
+      <div class="tt">${playing ? '<span class="eq"><i></i><i></i><i></i></span> ' : ""}${p.title}</div>
+      <div class="sub">${srcLink(p)}${p.gone ? '<span class="muted" style="font-size:12px">· 原文已删除</span>' : ""}</div>
+    </div>
+    <div>${avs(p.speakers)}</div>
+    <div class="col-m">${fmtDur(p.dur)}</div>
+    <div class="col-m">${fmtDate(p.date)}</div>
+    <button class="ib more"><i data-lucide="more-horizontal"></i></button>
+    ${state.m === "menu" && p.id === 2 ? rowMenu() : ""}
+  </div>`;
+}
+
+function dock() {
+  const p = byId(PLAYING);
+  return `<div class="dock">
+    <button class="play"><i data-lucide="pause"></i></button>
+    <div class="info"><div class="t">${p.title}</div>${srcLink(p)}</div>
+    <span class="tc">2:24</span>
+    ${wave(p.dur, 0.35, { bars: 150, cls: "sm" })}
+    <span class="tc">${fmtDur(p.dur)}</span>
+    <span class="spd">1.25×</span>
+    <button class="ib" title="打开详情"><i data-lucide="maximize-2"></i></button>
+    <button class="ib" title="关闭"><i data-lucide="x"></i></button>
+  </div>`;
+}
+
+function listBody() {
+  if (state.m === "empty") {
+    return `<div class="pc-wrap">${head().replace(/<p class="pc-lead">.*?<\/p>/, "")}
+      <div class="empty"><span class="ic"><i data-lucide="podcast"></i></span>
+        <h3>还没有播客</h3>
+        <p>在卡片、文章或项目文档的「⋯」菜单里选「生成播客」，把内容变成一期对话，通勤路上听。</p>
+        <button class="btn primary"><i data-lucide="plus"></i>选一篇内容生成</button></div></div>`;
+  }
+  const list = PODS.filter(p => state.kind === "all" || p.kind === state.kind);
+  return `<div class="pc-wrap">
+    ${head()}
+    ${state.m === "jobs" ? jobs() : ""}
+    <div class="pc-bar">
+      ${KINDS.map(([k, l]) => `<span class="chip ${state.kind === k ? "on" : ""}" data-kind="${k}">${l}</span>`).join("")}
+      <span class="sp"></span>
+      <button class="btn sm">最近生成<i data-lucide="chevron-down"></i></button>
+    </div>
+    <div class="pc-lh"><span></span><span>标题 · 原文</span><span>说话人</span><span>时长</span><span>生成于</span><span></span></div>
+    <div class="pc-list">${list.map(row).join("")}</div>
+  </div>`;
+}
+
+function scriptLines(cur) {
+  return SCRIPT.map(([who, st, text], i) => {
+    const s = SPEAKERS[who];
+    if (state.m === "segedit" && i === 4) {
+      return `<div class="ln edit t${s.tone}">${av(who, "lg")}<div>
+        <div class="who">${s.name}<span class="tc">${fmtDur(st)}</span></div>
+        <textarea class="ta" rows="2">不缓存的话就是这样。KV Cache 把前面每个字算好的 Key 和 Value 存起来，新来的字只需要算自己那一份，再和缓存拼起来。</textarea>
+        <div class="ebar"><span class="muted" style="font-size:12px">只重新合成这一句，其余不动；时间轴自动顺延</span><span style="flex:1"></span>
+          <button class="btn sm">取消</button><button class="btn sm primary"><i data-lucide="audio-lines"></i>重新合成</button></div>
+      </div><span></span></div>`;
+    }
+    const cls = i === cur ? "cur" : i < cur ? "past" : "";
+    return `<div class="ln t${s.tone} ${cls}">${av(who, "lg")}<div>
+      <div class="who">${s.name}<span class="tc">${fmtDur(st)}</span></div>
+      <div class="tx">${text}</div></div>
+      <div class="acts"><button class="ib" title="从这里播"><i data-lucide="play"></i></button><button class="ib" title="改这句并重新合成"><i data-lucide="pencil"></i></button></div></div>`;
+  }).join("");
+}
+
+function detailBody() {
+  const gone = state.m === "gone";
+  const p = gone ? byId(7) : byId(1);
+  const cur = gone ? -1 : 3;
+  const played = gone ? 0 : 0.36;
+  return `<div class="pc-wrap narrow">
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="btn sm" data-back><i data-lucide="arrow-left"></i>全部播客</button><span style="flex:1"></span>
+      <button class="ib" title="导出音频"><i data-lucide="download"></i></button>
+      <button class="ib" title="更多"><i data-lucide="more-horizontal"></i></button>
+    </div>
+    <div class="dt-title">${p.title}</div>
+    <div class="dt-meta"><span>${fmtDur(p.dur)}</span><span>36 句</span><span>${fmtDate(p.date)}生成</span>${legend(p.speakers)}</div>
+    ${gone
+      ? `<div class="src-card gone"><span class="ic"><i data-lucide="${KIND[p.kind][0]}"></i></span><div style="flex:1"><div class="t" style="color:var(--ink-3)">${p.src}</div><div class="m">原文已删除，这期播客还能继续听</div></div><button class="btn sm" style="color:var(--danger)">删除这期</button></div>`
+      : `<div class="src-card"><span class="ic"><i data-lucide="${KIND[p.kind][0]}"></i></span><div style="flex:1"><div class="t">${p.src}</div><div class="m">${KIND[p.kind][1]} · 原文在生成后改过 2 处</div></div><button class="btn sm"><i data-lucide="refresh-cw"></i>按新原文重新生成</button><button class="btn sm line">打开原文<i data-lucide="arrow-up-right"></i></button></div>`}
+    <div class="player">
+      <div class="row">
+        <button class="play lg"><i data-lucide="${gone ? "play" : "pause"}"></i></button>
+        <span class="tc">${gone ? "0:00" : "2:28"}</span>
+        ${wave(p.dur, played, { bars: 110 })}
+        <span class="tc">${fmtDur(p.dur)}</span>
+      </div>
+      <div class="ctl">
+        <button class="ib" title="后退 15 秒"><i data-lucide="rotate-ccw"></i></button>
+        <button class="ib" title="前进 15 秒"><i data-lucide="rotate-cw"></i></button>
+        <span class="spd" style="font:11.5px var(--mono);border:1px solid var(--line-1);border-radius:6px;padding:1px 6px;margin-left:4px">1.25×</span>
+        <span class="sp"></span>
+        <span class="muted" style="font-size:12px">点波形跳转 · 空格播放 / 暂停</span>
+      </div>
+    </div>
+    <div class="script"><h3>脚本<span class="muted" style="font-weight:400;font-size:12px">跟随播放高亮</span></h3>${scriptLines(cur)}</div>
+  </div>`;
+}
+
+function delDialog() {
+  const p = byId(2);
+  return `<div class="scrim"></div>
+  <div class="dlg" style="width:400px;top:180px"><div class="dh"><h3>删除「${p.title}」？</h3></div>
+    <div class="db" style="font-size:12.5px;color:var(--ink-2)">音频文件和脚本一起删除，卡片「${p.src}」本身不受影响。</div>
+    <div class="df"><span class="sp"></span><button class="btn" data-close>取消</button><button class="btn danger">删除</button></div></div>`;
+}
+
+function render() {
+  const detail = ["detail", "segedit", "gone"].includes(state.m);
+  win.innerHTML = `
+    ${sidebar({ busy: state.m === "jobs" })}
+    <div class="col">
+      ${titlebar(detail ? `<span>播客</span><i data-lucide="chevron-right" style="width:13px"></i><b>${byId(state.m === "gone" ? 7 : 1).title}</b>` : "<b>播客</b>")}
+      <div class="main"><section class="paper pc-paper">
+        <div class="pc-scroll">${detail ? detailBody() : listBody()}</div>
+        ${!detail && state.m !== "empty" ? dock() : ""}
+      </section></div>
+    </div>
+    ${state.m === "del" ? delDialog() : ""}
+    ${state.m === "normal" ? anno(1, "原文链接：点击 app.open 跳到原文", "left:330px;top:300px") + anno(2, "点封面即播，不进详情", "left:250px;top:250px") + anno(3, "迷你播放条：切页不断", "left:560px;top:770px") + anno(4, "来源类型筛选", "left:330px;top:150px") : ""}
+    ${state.m === "detail" ? anno(1, "关联原文：打开 / 原文改过可重新生成", "left:620px;top:190px") + anno(2, "说话人分色波形", "left:620px;top:300px") + anno(3, "悬停一句：从这里播 / 改句重合成", "left:900px;top:470px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+  const on = (sel, fn) => win.querySelectorAll(sel).forEach(el => (el.onclick = e => { e.stopPropagation(); fn(el); render(); }));
+  on("[data-kind]", el => (state.kind = el.dataset.kind));
+  on("[data-open]", () => (state.m = "detail"));
+  on("[data-back]", () => (state.m = "normal"));
+  on("[data-close]", () => (state.m = "normal"));
+  on(".scrim", () => (state.m = "normal"));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => { state.m = b.dataset.m; render(); }));
+render();
+</script>
+</body>
+</html>

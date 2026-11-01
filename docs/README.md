@@ -58,6 +58,7 @@
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
+- [播客插件化](./tasks/podcast-pluginization/README.md)：生成播客抽成插件 `tau.podcast`，自带播客库页面并重做生成界面，进行中。
 - [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。
 - [网页书签块](./tasks/editor-bookmark.md)：编辑器块级网页书签（三种外观、粘贴菜单、封面存储），进行中。
 - [局域网设备同步 UI 重设计](./tasks/device-sync-ui/README.md)：选定方案 A，桌面「设备同步」页签与手机连接端已实现，待视觉验收。

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>播客插件化 · 结论与方案</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 940px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; }
+  a.card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); }
+  .st { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .st.ok { background: var(--ok-soft); color: var(--ok); }
+  .st.gap { background: var(--danger-soft); color: var(--danger); }
+  .st.part { background: var(--warn-soft); color: var(--warn); }
+  .verdict { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; border-left: 3px solid var(--accent); }
+  .verdict b { color: var(--accent-text); }
+  .dec { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 4px 0; }
+  .dec .q { display: grid; grid-template-columns: 34px 170px 1fr; gap: 12px; padding: 12px 18px; }
+  .dec .q + .q { border-top: 1px solid var(--line-2); }
+  .dec .q .no { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+  .dec .q .t { font-weight: 600; }
+  .dec .opt { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dec .o { padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); font-size: 12.5px; max-width: 340px; }
+  .dec .o.r { border-color: var(--accent); background: var(--accent-soft); }
+  .dec .o b { display: block; font-weight: 600; margin-bottom: 1px; }
+  .dec .o span { color: var(--ink-2); font-size: 12px; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>播客插件化 · 结论与方案</h1>
+  <p class="lead">现状：播客是宿主内置功能。<code>podcasts</code> 表在核心库，卡片 / 文章 / 项目文档 / Notebook 笔记四张表各有 <code>podcast_id</code>；生成逻辑全在 <code>usePodcastGeneration</code>（700 行）里，绑定弹窗生命周期，关弹窗即中断；Notebook 另有一份后台合成实现。入口散在四个详情页的「⋯」菜单。</p>
+
+  <div class="verdict"><b>结论：可行，但宿主要先补两项能力。</b>页面、入口挂载、读原文、跳转、关联、事件、后台任务、FFmpeg 都已就绪；缺的是<b>插件调用语音合成</b>和<b>插件保存音频文件</b>。另需一次数据迁移，把现有播客搬进插件。</div>
+
+  <h2>① 宿主能力对账</h2>
+  <p>按播客插件要做的每件事逐项核对 <code>packages/plugins/src</code>。</p>
+  <table>
+    <tr><th>插件要做的事</th><th>现有接口</th><th>状态</th><th>说明</th></tr>
+    <tr><td>侧栏入口 + 播客库页面</td><td><code>pages.register</code> · <code>sidebar.registerItem</code></td><td><span class="st ok">已支持</span></td><td>React 页面，共享 <code>@tau/ui</code>；挂「学习」组，可带生成中角标</td></tr>
+    <tr><td>原文「⋯ › 生成播客」</td><td><code>actions.register</code></td><td><span class="st ok">已支持</span></td><td>目标 card / article / document；只在主窗口出现</td></tr>
+    <tr><td>原文正文上方的播放器 / 进度</td><td><code>views.registerEntityPanel</code></td><td><span class="st ok">已支持</span></td><td>返回 null 不占位，没有播客的原文不受影响</td></tr>
+    <tr><td>读原文标题和正文</td><td><code>data.*</code> + <code>content.read</code>（markdown）</td><td><span class="st ok">已支持</span></td><td>需 <code>cards:read / articles:read / documents:read</code>；经 ⋯ 菜单传入的对象读标题免授权</td></tr>
+    <tr><td>跳转原文</td><td><code>app.open(ref)</code></td><td><span class="st ok">已支持</span></td><td>须由用户点击触发，正好对应「打开原文」</td></tr>
+    <tr><td>每期播客的存储</td><td><code>entities</code>（正文 + 64KB meta）</td><td><span class="st ok">已支持</span></td><td>脚本放正文（可搜、可 @），时间轴 / 说话人 / 音频地址放 meta；随云同步</td></tr>
+    <tr><td>播客 ↔ 原文关联</td><td><code>links.add</code></td><td><span class="st ok">已支持</span></td><td>来源是插件实体、目标是原文；原文侧脉络也能看到</td></tr>
+    <tr><td>原文删除 / 改名</td><td><code>events</code>（<code>*.deleted</code> / <code>*.updated</code>）</td><td><span class="st ok">已支持</span></td><td>删除时标记「原文已删除」，不自动删播客</td></tr>
+    <tr><td>拼接音频 / 替换单句</td><td><code>services.ffmpeg.run</code></td><td><span class="st ok">已支持</span></td><td>替代宿主私有的 <code>replace_podcast_segment</code></td></tr>
+    <tr><td>播放</td><td><code>MediaAudio</code> / <code>useResource</code></td><td><span class="st ok">已支持</span></td><td>远程资源走宿主缓存解析</td></tr>
+    <tr><td>后台跑几分钟的任务</td><td>插件实例随工作区存活 · <code>notifications.send</code></td><td><span class="st part">部分</span></td><td>切页不中断；关窗 / 切库 / 停用插件会中断。Node 后端拿不到 AI 和语音，只能跑在渲染端</td></tr>
+    <tr><td>写脚本（LLM）</td><td><code>definition.ai.features</code> + <code>ai.stream</code></td><td><span class="st ok">已支持</span></td><td>插件自己声明「播客脚本」AI 功能，用户在插件详情页「AI 配置」里分配模型；没装插件的人看不到这项。没有结构化输出，脚本按行解析</td></tr>
+    <tr><td>合成语音</td><td><code>tts.register</code></td><td><span class="st gap">缺口</span></td><td>插件只能<b>提供</b>语音，不能<b>调用</b>用户选好的语音服务</td></tr>
+    <tr><td>保存生成的音频</td><td><code>useResourceUpload</code>（hook）· <code>upload.uploadRemote</code></td><td><span class="st gap">缺口</span></td><td>前者是编辑器内 hook，后台任务里用不了；后者本地模式直接失败</td></tr>
+  </table>
+
+  <h2>② 宿主要补的两项（都是通用能力，不为播客单开口子）</h2>
+  <p>参照已有的 <code>speech:input</code>（插件调用用户选好的语音输入）做对称设计。</p>
+  <table>
+    <tr><th>新增</th><th>形态</th><th>为什么这样做</th></tr>
+    <tr><td><b>A 调用语音合成</b></td><td><code>context.tts.getVoices()</code> / <code>synthesize(text, voiceId)</code> / <code>textInstructions</code>，权限 <code>tts:synthesize</code></td><td>沿用用户在「设置 › 语音」里选的服务，内部复用 <code>TTSProviderFactory</code>；返回现有 <code>TTSAudio</code>。朗读、配音类插件以后都能用</td></tr>
+    <tr><td><b>B 保存资源文件</b></td><td>非 hook 的 <code>context.resources.upload(file) → url</code></td><td>包装现有 desktopResourceService：本地模式写工作区 resources、远程模式走用户的上传配置，和正文资源一样同步、可被引用计数回收</td></tr>
+  </table>
+  <p style="color:var(--ink-2);font-size:12.5px;margin:10px 0 0">模型不再由宿主管：「设置 › 模型」里的「播客生成」一行删除，宿主不再认识这个功能。</p>
+
+  <h2>③ 插件结构（<code>plugins/tau-plugin-podcast</code>）</h2>
+  <table>
+    <tr><th>部分</th><th>内容</th></tr>
+    <tr><td>实体 <code>episode</code></td><td>key = 来源（如 <code>article:123</code>），标题由 AI 起；正文 = 带说话人的可读脚本；meta = <code>audioUrl / duration / speakers / timeline[]（起点、时长、说话人）/ source / sourceGone</code>。open 指向单期详情页</td></tr>
+    <tr><td>AI 功能</td><td><code>ai: { features: [{ id: "script", name: "播客脚本", description: "把原文改写成多人对话脚本" }] }</code>；生成前 <code>ai.getStatus("script")</code>，没配模型时对话框引导 <code>ai.openSettings("script")</code></td></tr>
+    <tr><td>页面</td><td>播客库（列表 + 迷你播放条）· 单期详情（播放器 + 跟读脚本 + 逐句重合成）· 审稿页</td></tr>
+    <tr><td>入口</td><td>card / article / document 的「⋯ › 生成播客」；原文正文上方的实体面板（生成中进度 / 完成后播放条 / 失败续跑）；侧栏角标</td></tr>
+    <tr><td>任务队列</td><td>activate 里起的单并发队列，与页面解耦；已合成的段落留在内存，失败从断点续；关窗后只保留脚本，重开从「合成语音」重来</td></tr>
+    <tr><td>从宿主搬过来</td><td>脚本提示词与解析（<code>services/podcast.ts</code>）、逐句合成与拼接（Notebook 的 <code>podcastAudio.ts</code> 与 hook 里的两份合为一份）、说话人配色（<code>PodcastPlayer/speakers.ts</code>）</td></tr>
+  </table>
+
+  <h2>④ 设计稿</h2>
+  <p>旧弹窗推翻重做：生成改成三问的轻对话框 + 后台任务；新增插件页管理全部播客。</p>
+  <div class="grid2">
+    <a class="card" href="library.html"><h3><i data-lucide="podcast"></i>插件页：播客库</h3><p>列表露出原文并可跳转、点封面即播、迷你播放条；生成中 / 待审稿 / 失败任务置顶；单期详情含分色波形、跟读脚本、改句重合成；原文已删除与空态。</p></a>
+    <a class="card" href="generate.html"><h3><i data-lucide="audio-lines"></i>生成流程</h3><p>⋯ 菜单入口 → 三问对话框（形式 / 谁来说 / 多长）→ 后台生成，进度在原文上方 → 可选审稿页 → 完成后原文上方播放条；无语音服务引导、失败续跑。</p></a>
+  </div>
+
+  <h2>⑤ 需要你拍板的点</h2>
+  <p>高亮的是我的推荐。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><div class="t">插件怎么到用户手里</div><div class="opt">
+      <div class="o r"><b>内置插件，默认启用</b><span>存量用户已有播客，迁移后必须立刻能看到；用户可在插件中心停用</span></div>
+      <div class="o"><b>插件中心自选安装</b><span>更纯粹；但有存量播客的用户要先装才看得到</span></div></div></div>
+    <div class="q"><span class="no">2</span><div class="t">Notebook 里的「播客」生成</div><div class="opt">
+      <div class="o r"><b>一并移交插件</b><span>Notebook 生成类型里去掉播客；插件 action 增加 notebook 目标（宿主已有该实体类型），旧 Notebook 播客迁成插件实体</span></div>
+      <div class="o"><b>Notebook 保留自己的</b><span>两套实现继续并存，宿主删不干净</span></div></div></div>
+    <div class="q"><span class="no">3</span><div class="t">一篇原文几期播客</div><div class="opt">
+      <div class="o r"><b>一篇一期</b><span>重新生成直接替换，新的成功后才删旧的；和现在一致</span></div>
+      <div class="o"><b>可以多期</b><span>同一篇换风格各生成一期；面板要改成列表</span></div></div></div>
+    <div class="q"><span class="no">4</span><div class="t">合成前审稿</div><div class="opt">
+      <div class="o r"><b>可选，默认不审</b><span>对话框里一个勾选框，记住上次的选择；不审也能事后逐句改</span></div>
+      <div class="o"><b>总是先审</b><span>和现在一样每次停在脚本编辑</span></div></div></div>
+    <div class="q"><span class="no">5</span><div class="t">新形式：单人讲述 / 圆桌</div><div class="opt">
+      <div class="o r"><b>都加</b><span>只是提示词与默认人数不同；单人需放开「至少 2 人」</span></div>
+      <div class="o"><b>只保留双人</b><span>形式卡去掉，对话框更短</span></div></div></div>
+    <div class="q"><span class="no">6</span><div class="t">音色克隆入口</div><div class="opt">
+      <div class="o r"><b>只留在设置 › 语音</b><span>生成对话框里只放跳转链接；克隆是一次性配置，不该挤在每次生成里</span></div>
+      <div class="o"><b>对话框里保留</b><span>和现在一样可折叠展开</span></div></div></div>
+  </div>
+
+  <h2>⑥ 迁移与删码</h2>
+  <table>
+    <tr><th>步骤</th><th>做法</th></tr>
+    <tr><td>备份</td><td>迁移前 <code>VACUUM INTO</code> 备份主库</td></tr>
+    <tr><td>搬数据</td><td>宿主迁移把 <code>podcasts</code> 每行写成插件实体（固定插件 ID），按卡片 / 文章 / 项目文档 / Notebook 笔记上的 <code>podcast_id</code> 补关联；音频地址原样保留，不搬文件</td></tr>
+    <tr><td>搬模型配置</td><td>用户原来给「播客生成」分配的模型写进插件的 AI 配置（<code>assignments.script</code>），并开启插件 AI；没配过的保持未配置</td></tr>
+    <tr><td>删表删列</td><td>删 <code>podcasts</code> 表、四张表的 <code>podcast_id</code> 列与 4 个索引；同步 <code>check-schema-parity.mjs</code> 常量和 <code>database-schema.md</code></td></tr>
+    <tr><td>删宿主实现</td><td><code>PodcastGenerationModal</code>、<code>PodcastPlayer</code>、<code>usePodcastGeneration / usePodcastAttachment</code>、<code>commands/podcast*</code>、主进程 <code>podcast-audio</code> 与 <code>tables/podcast</code>、四个详情页入口、Notebook 播客分支、<code>useLLMConfig</code> / <code>LLMSection</code> / <code>modelUsageData</code> 里的 <code>podcastGeneration</code>；删前 <code>rg</code> 复核消费者清零。<code>VoiceClonePanel</code> 移到设置页自有目录</td></tr>
+  </table>
+
+  <h2>⑦ 落地分期（按推荐组合）</h2>
+  <div class="ph"><ol>
+    <li><b>宿主能力</b>：A 调用语音合成、B 保存资源文件；补插件作者文档。</li>
+    <li><b>插件 MVP</b>：⋯ 入口 + 生成对话框 + 后台队列 + 原文面板；播客库与单期详情。</li>
+    <li><b>迁移收尾</b>：数据迁移、删表删列、删宿主实现，与 MVP 同一版本发布。</li>
+    <li><b>完善</b>：审稿页、逐句重合成、失败续跑、Notebook 目标。</li>
+  </ol></div>
+</div>
+</body>
+</html>

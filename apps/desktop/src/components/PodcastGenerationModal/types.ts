@@ -1,23 +1,3 @@
-import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
-import type { Descendant } from "slate";
-import type { IPodcast } from "@/types/podcast";
-
-export interface PodcastGenerationModalProps {
-  open: boolean;
-  cardContent: Descendant[];
-  onSuccess: (
-    audioUrl: string,
-    script: string,
-    scriptLines: PodcastScriptLine[],
-    duration: number,
-    speakers: PodcastSpeaker[],
-    name?: string
-  ) => void;
-  onCancel: () => void;
-  initialPodcast?: IPodcast;
-  saveText?: string;
-}
-
 export interface CloneVoiceItem {
   id: string;
   voiceId: string;
@@ -34,12 +14,6 @@ export interface AudioFileItem {
 }
 
 export type NoticeType = "success" | "error" | "warning" | "info";
-
-export interface Notice {
-  id: number;
-  type: NoticeType;
-  text: string;
-}
 
 export interface VoiceOption {
   id: string;
