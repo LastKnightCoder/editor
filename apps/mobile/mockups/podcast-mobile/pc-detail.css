@@ -1,0 +1,225 @@
+/* 收听页：头部、跟读脚本、吸底播放器、波形 */
+.p-head {
+  padding: 4px 18px 0;
+}
+.p-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 99px;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.p-src span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.p-src > [data-i]:last-child {
+  color: var(--ink-3);
+}
+.p-head h2 {
+  margin-top: 10px;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.p-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.p-legend {
+  display: inline-flex;
+  gap: 10px;
+  color: var(--ink-2);
+}
+.p-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.p-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+.p-script {
+  padding: 14px 10px 0;
+}
+.p-script .cap {
+  padding: 0 8px 6px;
+  font-size: 13px;
+  font-weight: 650;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.p-script .cap small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.p-line {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 14px;
+}
+.p-line .av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  font-weight: 650;
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.p-line .who {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--tone);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.p-line .who span {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.p-line .tx {
+  margin-top: 1px;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.p-line.past .tx {
+  color: var(--ink-2);
+}
+.p-line.cur {
+  background: var(--brand-soft);
+}
+.p-line.press {
+  background: var(--tau-bg-press);
+}
+.p-back {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-float);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-text);
+  white-space: nowrap;
+}
+
+/* 吸底播放器 */
+.p-player {
+  flex: none;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--line-2);
+  padding: 10px 16px 6px;
+}
+.p-wave {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.p-wave svg {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  display: block;
+}
+.p-wave.small svg {
+  height: 22px;
+}
+.p-wave.loading svg {
+  opacity: 0.55;
+}
+.p-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.p-ctrl .c {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--ink-2);
+  position: relative;
+}
+.p-ctrl .c b {
+  position: absolute;
+  font-size: 8.5px;
+  font-weight: 700;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -38%);
+}
+.p-ctrl .rate {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-1);
+}
+.p-ctrl .big {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+}
+.p-ctrl .big.dis {
+  opacity: 0.45;
+}
+.p-status {
+  margin-top: 6px;
+  min-height: 18px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.p-status.err {
+  color: var(--tau-danger);
+}
+.p-dl {
+  height: 3px;
+  margin: 2px 44px 0;
+  border-radius: 2px;
+  background: var(--tau-bg-track);
+  overflow: hidden;
+}
+.p-dl i {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}

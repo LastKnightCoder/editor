@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>播客 · 移动端收听设计方案 v1</title>
+<link rel="stylesheet" href="../../../../packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="pc.css" />
+<link rel="stylesheet" href="pc-list.css" />
+<link rel="stylesheet" href="pc-detail.css" />
+<link rel="stylesheet" href="pc-sheet.css" />
+<link rel="stylesheet" href="pc-system.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row" style="display:flex;align-items:center;gap:12px">
+    <h1 style="flex:1">播客 · 移动端收听设计方案 v1<small>插件 0.2.1 → 加 android / ios 目标 · 手机只收听不新建 · 颜色取自 @tau/themes · 手机帧 360×760 · 标题与对白为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="principle">0 方向</button>
+    <button class="tab" data-tab="gap">1 宿主缺口<span class="rec">先看</span></button>
+    <button class="tab" data-tab="library">2 入口与播客库</button>
+    <button class="tab" data-tab="listen">3 收听页</button>
+    <button class="tab" data-tab="download">4 下载与失败</button>
+    <button class="tab" data-tab="background">5 后台与锁屏</button>
+    <button class="tab" data-tab="sheets">6 操作面板</button>
+    <button class="tab" data-tab="decide">7 待你决定</button>
+  </nav>
+</header>
+
+<!-- ───────────── 0 方向 ───────────── -->
+<section class="scene" data-scene="principle">
+  <p class="scene-intro">桌面的播客有三处界面：播客库（列表 + 底部播放条）、单期详情（播放器 + 跟读脚本，可改句重合成）、原文上方的播客条，外加生成对话框和 Notebook 输出。手机上只做<b>「找到一期 → 听 → 跟着脚本看」</b>：从「我的」宫格进播客库，点一期进收听页。新建、审稿、改句、导出都留在电脑上。<b>插件仍是一份代码、一个 ZIP</b>，按平台切界面，播放逻辑（刚做的加载 / 缓冲 / 自动开播）两端共用。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 播客随主库同步到手机</h3><p>每期播客是插件内容（<code>entities</code>），跟着主库同步，手机打开就有。音频文件看存在哪：<b>远端存储</b>的地址手机第一次播时下载；<b>本地资源库</b>里的文件要先经资源同步到手机才能播（第 4 页）。</p></div>
+    <div class="card"><h3>2 · 入口换成跨端的 navigation</h3><p>现在用 <code>sidebar.registerItem</code> 挂侧边栏，手机宿主没有侧边栏，激活时直接抛「当前宿主不支持侧边栏」。手机上改用 <code>navigation.registerEntry</code>，出现在「我的」功能宫格；桌面仍用侧边栏，因为任务数角标只有侧边栏条目能更新。</p></div>
+    <div class="card"><h3>3 · 收听页：播放器放到拇指区</h3><p>桌面详情是「播放器固定在上、只滚脚本」。手机上标题和脚本一起滚，播放器吸底，大播放键在拇指够得到的地方；当前句高亮并自动跟随，点一句从这句播，翻走了给「回到当前句」。</p></div>
+    <div class="card"><h3>4 · 手机是先下载再播</h3><p>手机宿主解析远端音频时，先把整段下载进本地缓存（上限 500 MB），再交给播放器；桌面是边下边播。所以手机上「正在下载音频」是真实的一段时间：播放键转圈，下完自动开播，之后不用网也能听。</p></div>
+    <div class="card"><h3>5 · 锁屏和离开页面要能继续听</h3><p>通勤场景下，锁屏、切到别的 App、回到 Tau 去翻原文都不能停。页面里的 <code>&lt;audio&gt;</code> 撑不住这些（第 5 页），推荐由宿主提供原生播放，插件只给地址和标题、读进度。</p></div>
+    <div class="card"><h3>6 · 不做的</h3><ul><li>不在手机上新建播客，「⋯ › 生成播客」和 Notebook 输出只在电脑上注册。</li><li>不审稿、不改句重合成、不导出音频、不按原文重新生成。</li><li>生成中 / 待审 / 失败的任务不进手机列表，只给一行提示。</li><li>不做原文上方的播客条（手机没有 <code>views</code>）；Notebook 来源只显示不能点开。</li><li>不做定时关闭、倍速以外的音效设置。</li></ul></div>
+  </div>
+</section>
+<!-- ───────────── 1 宿主缺口 ───────────── -->
+<section class="scene" data-scene="gap">
+  <p class="scene-intro">只做收听，插件侧改动不大；卡住的是两件宿主的事：<b>manifest 里的 <code>tts:synthesize</code> 会让整个包上不了手机</b>，以及<b>页面里的播放撑不住锁屏收听</b>。依据：<code>packages/plugins/src/portable.ts</code> 的手机权限白名单（与原生 <code>plugin_permissions.rs</code> 一致）没有它，声明了 android / ios 的包会在构建和上架时被拒；<code>@tau/plugins</code> 的 host 在缺 <code>sidebar</code> / <code>views</code> / <code>notebooks</code> 适配器时直接抛错。</p>
+  <div class="cards">
+    <div class="card wide">
+      <h3>插件用到的接口 × 手机宿主现状</h3>
+      <table class="p-cap">
+        <tr><th>接口</th><th>插件里做什么</th><th>手机</th><th>适配做法</th></tr>
+        <tr><td>pages.register</td><td>播客库页（episode / review 参数）</td><td class="yes">有</td><td>原样使用，窄屏换布局</td></tr>
+        <tr><td>sidebar.registerItem</td><td>侧边栏入口 + 任务数角标</td><td class="no">无，抛错</td><td>手机改用 <code>navigation.registerEntry</code>；桌面保留侧边栏（入口没有角标字段）</td></tr>
+        <tr><td>views.registerEntityPanel</td><td>原文上方的播客条</td><td class="no">无，抛错</td><td>手机不注册</td></tr>
+        <tr><td>notebooks.registerOutput</td><td>Notebook 生成播客、阅读区显示</td><td class="no">无，抛错</td><td>手机不注册；Notebook 来源的那几期照常能听</td></tr>
+        <tr><td>actions.register</td><td>「⋯ › 生成播客」</td><td class="part">部分</td><td>手机不注册（不新建）</td></tr>
+        <tr><td>entities · data</td><td>列表、改名、删除、按原文查找</td><td class="yes">有</td><td>原样使用，随主库同步</td></tr>
+        <tr><td>app.open / describe</td><td>打开原文、读原文最新标题</td><td class="part">部分</td><td>卡片、文章、项目文档可以；Notebook 不能，来源只显示</td></tr>
+        <tr><td>tts.synthesize（权限）</td><td>合成、改句重合成</td><td class="no">白名单拒绝</td><td><b>需要宿主补</b>：把 <code>tts:synthesize</code> 加进手机白名单（TS + 原生）；插件在手机上不调用，只是声明不再挡安装</td></tr>
+        <tr><td>upload.save</td><td>保存合成好的音频</td><td class="no">无</td><td>手机不合成，用不到</td></tr>
+        <tr><td>useResource（远端地址）</td><td>播放</td><td class="part">能播</td><td>整段下载后才给地址，没有进度；进度要宿主补（待你决定 3）</td></tr>
+        <tr><td>useResource（本地资源库）</td><td>播放</td><td class="part">看同步</td><td>文件经资源同步到手机才能播，否则加载失败（第 4 页）</td></tr>
+        <tr><td>&lt;audio&gt; 后台播放</td><td>锁屏、切 App、离开页面继续听</td><td class="part">待真机</td><td>播客页出栈就停；iOS 声明了后台音频但 WebView 里未验证；Android 没有媒体前台服务。推荐宿主原生播放（第 5 页）</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>插件侧要改的</h3>
+      <ul>
+        <li><code>activate</code> 按 <code>context.environment</code> 分两路：桌面照旧；手机只注册页面和功能入口。</li>
+        <li>播客库页按容器宽度切窄屏布局（列表行、收听页、底部面板），宽屏仍是桌面版式。</li>
+        <li>手机上隐藏新建、审稿、改句、导出、重新生成，保留改名、删除、打开原文。</li>
+        <li>manifest 加 android / ios 目标，minAppVersion 填宿主补齐后的版本。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>和平台规则的冲突</h3>
+      <p>接口表那篇写着「列出一个平台，表示插件的<b>全部功能</b>都已在这个平台上适配」。手机只收听不新建，严格按这条不能列手机。要么放宽规则（只要手机上出现的功能都可用、并在插件说明里写清楚），要么等手机能新建再上（待你决定 2）。</p>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 2 入口与播客库 ───────────── -->
+<section class="scene" data-scene="library">
+  <p class="scene-intro">入口只有一个：<b>「我的」顶部功能宫格</b>的「播客」，图标沿用桌面的 Podcast。播客库把桌面六列表格收成一行一期：封面、标题（最多两行）、原文、时长和日期，右侧 ⋯。<b>点封面就地播，点其余地方进收听页</b>，和桌面一致。宿主顶栏只有返回和标题，插件放不进按钮，所以统计、搜索、筛选放在内容顶部。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="p-thead"><h2>我的</h2><span data-i="search" data-s="20"></span></div>
+        <div class="p-body">
+          <div class="p-fgrid">
+            <span class="t4"><b data-i="list-checks" data-s="24"></b>任务</span>
+            <span class="t2"><b data-i="file-text" data-s="24"></b>文章</span>
+            <span class="t3"><b data-i="folder-kanban" data-s="24"></b>项目</span>
+            <span class="t3"><b data-i="layers" data-s="24"></b>闪卡</span>
+            <span class="t5"><b data-i="timer" data-s="24"></b>番茄</span>
+            <span class="t2"><b data-i="wallet" data-s="24"></b>记账本</span>
+            <span class="t1"><b data-i="book-open" data-s="24"></b>微信读书</span>
+            <span class="t2 new"><b data-i="podcast" data-s="24"></b>播客</span>
+          </div>
+          <div class="p-form">
+            <div class="row"><span data-i="puzzle" data-s="18"></span>插件中心<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="refresh-cw" data-s="18"></span>同步<span class="val">刚刚<span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="settings" data-s="18"></span>设置<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+        </div>
+        <div data-dock="me"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>「我的」功能宫格<small>插件用 navigation.registerEntry 注册后由宿主放进宫格，位置跟着启用顺序，不由插件决定。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div class="p-hint"><span data-i="clock" data-s="14"></span>还有 2 期在电脑上生成或待审稿</div>
+          <div data-tpl="rows" data-ids="feynman,spaced,plugin,deep,compound"></div>
+        </div></div>
+        <div class="p-homebar page"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>播客库<small>统计、搜索、筛选随内容滚走，往下滚时筛选行吸顶。生成中 / 待审 / 失败的不进列表，只在列表上方给一行提示，没有时不显示。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="rows" data-ids="feynman,spaced,plugin,deep,compound" data-on="feynman"></div>
+        </div>
+        <div data-tpl="mini" data-ep="feynman"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>点封面就地播<small>封面变成暂停键，底部吸出迷你播放条：顶边细进度线、标题、时间 · 原文、关闭。点播放条进收听页。远端音频第一次播时封面和播放条一起转圈（第 4 页）。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-empty">
+          <span class="ill" data-i="podcast" data-s="26"></span>
+          <h3>还没有播客</h3>
+          <p>在电脑上打开卡片、文章或项目文档，从「⋯」菜单选「生成播客」。生成好的播客会随同步出现在这里。</p>
+        </div></div>
+        <div class="p-homebar page"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>空态<small>手机不新建，所以没有「新建播客」按钮，只说清楚去哪里生成。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="bar"></div>
+          <div class="p-resume"><span class="p-tile t2" data-i="audio-lines" data-s="22"></span><div class="m"><div class="lb num">继续听 · 剩 15 分钟</div><div class="tt">费曼学习法：把一件事讲给外行听</div><div class="pg"><i style="width:18%"></i></div></div><span class="go" data-i="play" data-s="18"></span></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="rows" data-ids="feynman,spaced,plugin,deep" data-heard></div>
+        </div></div>
+        <div class="p-homebar page"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>记住听到哪（待你决定 4）<small>听了一半的那期顶部给「继续听」；列表里听过的封面底边有进度线，元信息加「剩 N 分钟」或「已听完」。进度记在插件存储里，不改播客内容，不影响按生成时间排序。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 3 收听页 ───────────── -->
+<section class="scene" data-scene="listen">
+  <p class="scene-intro">两种排法。<b>方案 A（推荐）脚本铺满、播放器吸底</b>：延续桌面「跟着脚本听」的特色，只是把控件挪到拇指区。<b>方案 B 封面式</b>：常见播客 App 的样子，脚本收进面板。宿主顶栏只有返回和标题，这一期的操作（打开原文、改名、删除）放在播放器最右的 ⋯ 里。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="head" data-ep="feynman"></div>
+          <div data-tpl="script" data-cap data-cur="0" data-n="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="paused" data-time="151"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>刚打开<small>来源胶囊点开原文（Notebook 来源不能点，不带箭头）；标题、时长、句数、生成日期、说话人图例。播放器：倍速 · 后退 15 秒 · 播放 · 前进 15 秒 · ⋯。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="script" data-from="2" data-cur="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="205"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>播放中，自动跟随<small>当前句浅底高亮，已播的句子文字变浅；当前句换行时页面平滑滚动，让它停在可视区上三分之一。点波形任意位置跳转。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div data-tpl="head" data-ep="feynman"></div>
+          <div data-tpl="script" data-cap data-cur="7" data-n="4" data-press="1"></div>
+          <span class="p-back"><span data-i="locate-fixed" data-s="14"></span>回到当前句</span>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="247"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>往回翻 · 点一句从这里播<small>手动滚动后暂停自动跟随，底部浮出「回到当前句」；点任意一句（这里按下了第 2 句）跳到 2:43 播放并恢复跟随。手机没有悬停，不做「改这句」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div class="p-cover" data-i="audio-lines" data-s="72"></div>
+          <div class="p-btitle"><h2>费曼学习法：把一件事讲给外行听</h2><p>文章 · 《学习之道》读书笔记</p></div>
+          <div class="p-nowline t2"><div class="who">林溪 · 3:25</div>讲着讲着就会发现，有些地方你只是记住了术语，换成大白话就说不下去了。</div>
+          <div class="p-center"><span class="p-mbtn"><span data-i="file-text" data-s="14"></span>看脚本</span></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="205"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>封面式<small>封面用说话人色渐变；正中只露当前一句，「看脚本」打开整篇。首屏更干净，但跟读要多点一下。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div class="p-cover" data-i="audio-lines" data-s="72"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="205"></div></div>
+        <div class="p-homebar"></div>
+        <div class="p-mask"></div>
+        <div class="p-sheet tall"><div class="grab"></div><div class="sh"><div class="m"><b>脚本</b><small>跟随播放高亮 · 点一句从这里播</small></div><span data-i="x" data-s="20" class="muted"></span></div>
+          <div data-tpl="script" data-from="2" data-cur="4"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>脚本面板<small>面板盖住播放器，暂停、跳转要先关面板。这是不推荐 B 的主要原因。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 4 下载与失败 ───────────── -->
+<section class="scene" data-scene="download">
+  <p class="scene-intro">手机上播远端音频是<b>先整段下载再播</b>：宿主 <code>components/editor/localMedia.ts</code> 先调 <code>remote_resource_to_local</code> 把文件存进本地缓存（<code>remote_resource_cache.rs</code>，上限 500 MB），再读成地址交给播放器。所以这里的「正在下载」是真实的一段等待。宿主现在不报进度，插件只能转圈；宿主补上进度后可以显示百分比（待你决定 3）。下完自动开播，之后不用网也能听，直到缓存被挤掉。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="head" data-ep="feynman"></div>
+          <div data-tpl="script" data-cap data-cur="-1" data-n="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="loading"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D1</span>正在下载（现在就能做）<small>点了播放：播放键转圈，波形变淡，下方一行「正在下载音频…」。再点一次取消。插件现有的 loading 状态直接可用。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="head" data-ep="feynman"></div>
+          <div data-tpl="script" data-cap data-cur="-1" data-n="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="dl" data-pct="50"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D2</span>带进度（要宿主补）<small>细进度条 + 百分比 + 已下 / 总大小。长音频要下几十 MB，有进度才知道要等多久。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="head" data-ep="feynman"></div>
+          <div data-tpl="script" data-cap data-cur="0" data-n="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="151" data-note="已下载到手机，没网也能听"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D3</span>下完自动开播<small>不用再点；提示只在下完这一次出现几秒。以后再听这期直接走缓存，没有下载这一段。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="head" data-ep="plugin"></div>
+          <div data-tpl="script" data-cap data-cur="-1" data-n="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="plugin" data-state="error-sync"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D4</span>本地资源库的音频还没同步<small>音频地址是本地路径（不是 http）时就知道是这种情况，说清楚去哪同步；播放键置灰，同步后点重试。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll p-fade">
+          <div data-tpl="head" data-ep="deep"></div>
+          <div data-tpl="script" data-cap data-cur="-1" data-n="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="deep" data-state="error-net"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D5</span>远端下载失败<small>没网或存储服务没响应。已经下过的那几期不受影响，照常离线播。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div data-tpl="bar"></div>
+          <div data-tpl="pills"></div>
+          <div data-tpl="rows" data-ids="feynman,spaced,plugin,deep,compound" data-on="feynman" data-state="loading"></div>
+        </div>
+        <div data-tpl="mini" data-ep="feynman" data-state="loading"></div></div>
+        <div class="p-homebar"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D6</span>列表里点封面<small>封面和播放条一起转圈，播放条写「正在下载音频…」，下完自动开播；失败时播放条写「音频加载失败」。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 5 后台与锁屏 ───────────── -->
+<section class="scene" data-scene="background">
+  <p class="scene-intro">通勤收听要求三件事：<b>锁屏继续播、锁屏 / 通知栏能控制、离开播客页还在播</b>。现在的播放是页面里的一个 <code>&lt;audio&gt;</code>：播客页返回出栈就停；iOS 的 Info.plist 声明了后台音频，但 WebView 里的音频锁屏后能否继续没有验证；Android 只有录音用的前台服务，没有媒体播放的，后台随时可能被系统结束，也没有通知栏控件。<b>推荐方案 B：宿主提供原生播放</b>，和录音选原生是同一个理由。下面三帧是方案 B 的样子。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="p-lock">
+          <div class="status" data-status></div>
+          <span class="lk" data-i="lock" data-s="18"></span>
+          <div class="date">11月2日 星期一</div>
+          <div class="time">9:41</div>
+          <div data-tpl="np" data-ep="feynman"></div>
+          <span class="hb"></span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">L1</span>iOS 锁屏（系统绘制）<small>标题、原文、进度、后退 / 前进 15 秒、暂停；耳机线控与蓝牙按键走同一套。封面先用 Tau 图标。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="p-shade">
+          <div class="status" data-status></div>
+          <div class="qs"><span>11月2日 周一</span><span data-i="settings" data-s="16"></span></div>
+          <div data-tpl="np" data-ep="feynman" data-app></div>
+          <div class="other">微信 · 2 条新消息</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">L2</span>Android 通知栏（系统绘制）<small>媒体前台服务的通知，播放期间常驻；暂停一段时间后可以划掉。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="p-thead"><h2>今天</h2><span data-i="search" data-s="20"></span></div>
+        <div class="p-body"><div class="p-scroll">
+          <div class="p-sec">待办 · 3</div>
+          <div class="p-form">
+            <div class="row"><span data-i="list-checks" data-s="18"></span>整理费曼学习法的卡片</div>
+            <div class="row"><span data-i="list-checks" data-s="18"></span>读完《学习之道》第 4 章</div>
+            <div class="row"><span data-i="list-checks" data-s="18"></span>周报</div>
+          </div>
+          <div class="p-sec gap">今天要复习</div>
+          <div class="p-form">
+            <div class="row"><span data-i="layers" data-s="18"></span>学习方法<span class="val num">12 张<span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+        </div>
+        <div data-tpl="mini" data-ep="feynman" data-float></div></div>
+        <div data-dock="home"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">L3</span>宿主全局播放条<small>离开播客页后，播放条浮在 Dock 上方，任何页面都在；点它回到收听页，× 停止。这条由宿主画，插件不画。</small></div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card">
+      <h3 class="opt-h">方案 A · 页面里的 &lt;audio&gt;<span class="alt-badge">备选</span></h3>
+      <ul>
+        <li>插件现在就能做，不等宿主；播放、跟读、倍速和桌面共用一份代码。</li>
+        <li>播客页出栈就停，没有全局播放条；锁屏能否继续要真机验证，iOS 也许能，Android 大概率不稳。</li>
+        <li>没有锁屏 / 通知栏控件，耳机线控不一定生效。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">方案 B · 宿主原生播放<span class="rec-badge">推荐</span></h3>
+      <ul>
+        <li>iOS 用 AVPlayer + 锁屏控件；Android 用 Media3 + 媒体前台服务 + 通知栏控件。</li>
+        <li>SDK 加一个跨端播放接口：插件传音频地址、标题、来源，读进度与状态，调跳转和倍速；桌面先用现有 <code>&lt;audio&gt;</code> 实现同一接口。</li>
+        <li>宿主画全局播放条，离开播客页、锁屏、切 App 都继续；来电打断后的恢复交给系统。</li>
+        <li>代价：两端原生 + SDK 接口 + 宿主发版，插件的 minAppVersion 要等这一版。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 6 操作面板 ───────────── -->
+<section class="scene" data-scene="sheets">
+  <p class="scene-intro">手机没有悬停和右键，操作都走底部面板（<code>@tau/ui</code> 的 Drawer，处理系统返回和安全区）。入口有两处：收听页播放器最右的 ⋯、列表行右侧的 ⋯，内容相同。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div data-tpl="script" data-from="2" data-cur="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="205"></div></div>
+        <div class="p-homebar"></div>
+        <div class="p-mask"></div>
+        <div class="p-sheet"><div class="grab"></div>
+          <div class="sh"><span class="p-tile t2" data-i="audio-lines" data-s="22"></span><div class="m"><b>费曼学习法：把一件事讲给外行听</b><small class="num">18:42 · 11 月 1 日生成</small></div></div>
+          <div class="p-opt"><span data-i="arrow-up-right" data-s="19"></span>打开原文<small>《学习之道》读书笔记</small></div>
+          <div class="p-opt"><span data-i="pencil" data-s="19"></span>改名</div>
+          <div class="p-opt danger"><span data-i="trash-2" data-s="19"></span>删除播客</div>
+          <div class="note">改句、重新生成、导出音频请在电脑上操作。</div>
+          <div class="p-homebar"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S1</span>这一期的操作<small>Notebook 来源的没有「打开原文」。改名规则同桌面（最多 100 字）；删除后提示「可在插件详情页的『最近删除』里恢复」，手机插件详情已有这一栏。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-tpl="host"></div>
+        <div class="p-body"><div class="p-scroll">
+          <div data-tpl="script" data-from="2" data-cur="4"></div>
+        </div>
+        <div data-tpl="player" data-ep="feynman" data-state="playing" data-time="205"></div></div>
+        <div class="p-homebar"></div>
+        <div class="p-mask"></div>
+        <div class="p-sheet"><div class="grab"></div>
+          <div class="sh"><div class="m"><b>播放速度</b></div></div>
+          <div class="p-opt">0.75×</div>
+          <div class="p-opt">1×</div>
+          <div class="p-opt on">1.25×<span class="chk" data-i="check" data-s="18"></span></div>
+          <div class="p-opt">1.5×</div>
+          <div class="p-opt">2×</div>
+          <div class="p-homebar"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S2</span>倍速<small>点播放器左侧的「1.25×」打开。档位同桌面，单选行，不用 Segmented；选过的速度记在插件里，下次沿用。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 7 待你决定 ───────────── -->
+<section class="scene" data-scene="decide">
+  <p class="scene-intro">这几件会改变实现范围，按影响大小排。每条给了推荐，你定了之后再拆实现步骤。</p>
+  <div class="cards">
+    <div class="card">
+      <h3 class="opt-h">1 · 后台与锁屏怎么播<span class="rec-badge">推荐 B</span></h3>
+      <p><b>A 页面里的 &lt;audio&gt;</b>：插件现在就能做，但播客页返回就停，锁屏不保证，没有锁屏控件。<b>B 宿主原生播放</b>：锁屏 / 通知栏控件、全局播放条、离开页面继续听，代价是两端原生 + SDK 接口 + 宿主发版。也可以先 A 上线、B 跟进，但 A 的体验和「通勤路上听」的说法对不上。</p>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">2 · 手机只收听，能不能列手机平台<span class="rec-badge">推荐放宽规则</span></h3>
+      <p>现行规则要求列出的平台全部功能可用。推荐改成「手机上出现的功能都可用，没有的功能在插件说明里写清楚」，并把 <code>tts:synthesize</code> 加进手机白名单（插件在手机上不调用）。备选：等手机也能新建再上，范围大很多。</p>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">3 · 下载进度要不要<span class="rec-badge">推荐先转圈</span></h3>
+      <p>先做 D1（只转圈，插件现在就能做）。要显示百分比，宿主的 <code>useResource</code> 得报下载进度（D2）。若选了决定 1 的 B，进度改由原生播放器报，不必再改 <code>useResource</code>。</p>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">4 · 记不记听到哪<span class="rec-badge">推荐做</span></h3>
+      <p>通勤一段一段听，下次打开接着上次的位置；播客库顶部给「继续听」，列表标「剩 N 分钟 / 已听完」（第 2 页第 5 帧）。进度存插件存储，不动播客内容。桌面也一起受益。不做的话每次从头播。</p>
+    </div>
+    <div class="card">
+      <h3 class="opt-h">5 · 原文详情里加不加「收听播客」<span class="alt-badge">倾向先不做</span></h3>
+      <p>手机没有原文上方的播客条。可以在原文「⋯」菜单注册「收听播客」，但动作不能按是否有播客显示或隐藏，没有播客的原文点了只能提示「这篇还没有播客」。先只留宫格入口，用下来觉得不够再加。</p>
+    </div>
+    <div class="card">
+      <h3>实现前要在真机上确认</h3>
+      <ul>
+        <li>iOS WebView 里的 <code>&lt;audio&gt;</code> 锁屏后会不会停（决定方案 A 能走多远）。</li>
+        <li>电脑本地资源库里的音频，资源同步到手机后路径能不能解析到。</li>
+        <li>长音频在手机上走「整段读成 base64 → Blob」，二三十 MB 的内存占用和读取耗时，要不要改成文件地址直接播。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="pc-data.js"></script>
+<script src="pc.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>

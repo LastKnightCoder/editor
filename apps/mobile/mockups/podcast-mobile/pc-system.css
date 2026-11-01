@@ -1,0 +1,259 @@
+/* 系统界面（锁屏、通知栏，由系统绘制、不随应用主题）、「我的」宫格、说明卡片件 */
+.p-lock {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(170deg, #2d3a4f 0%, #4b4f6b 45%, #7a6a74 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.p-lock .st {
+  align-self: stretch;
+  color: #fff;
+}
+.p-lock .lk {
+  margin-top: 18px;
+  opacity: 0.85;
+}
+.p-lock .date {
+  margin-top: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+.p-lock .time {
+  font-size: 84px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+.p-np {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 96px;
+  border-radius: 24px;
+  padding: 14px 16px 12px;
+  background: rgba(30, 30, 40, 0.45);
+  backdrop-filter: blur(20px);
+  color: #fff;
+}
+.p-np .top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.p-np .art {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--tau-accent);
+  color: #fff;
+  flex: none;
+}
+.p-np .m {
+  min-width: 0;
+  flex: 1;
+}
+.p-np b {
+  display: block;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.p-np small {
+  font-size: 12.5px;
+  opacity: 0.7;
+}
+.p-np .bar {
+  margin-top: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+.p-np .bar i {
+  display: block;
+  height: 100%;
+  background: #fff;
+}
+.p-np .tm {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+.p-np .ct {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-top: 4px;
+}
+.p-np .ct b {
+  position: absolute;
+  font-size: 8.5px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -38%);
+}
+.p-np .ct span {
+  position: relative;
+}
+.p-shade {
+  position: absolute;
+  inset: 0;
+  background: #1f2023;
+  color: #e8e8ea;
+  padding: 0 10px;
+}
+.p-shade .qs {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 10px 14px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.p-shade .p-np {
+  position: static;
+  background: #2e3035;
+  backdrop-filter: none;
+  border-radius: 22px;
+}
+.p-lock .hb {
+  position: absolute;
+  bottom: 8px;
+  width: 130px;
+  height: 5px;
+  border-radius: 3px;
+  background: #fff;
+}
+.p-sec.gap {
+  padding-top: 16px;
+}
+.p-shade .app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 10px;
+}
+.p-shade .other {
+  margin-top: 10px;
+  border-radius: 22px;
+  background: #2e3035;
+  padding: 14px 16px;
+  font-size: 13px;
+  opacity: 0.55;
+}
+
+/* 「我的」页 */
+.p-thead {
+  display: flex;
+  align-items: center;
+  padding: 8px 18px 6px;
+}
+.p-thead h2 {
+  font-size: 26px;
+  font-weight: 700;
+  flex: 1;
+}
+.p-fgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 6px;
+  padding: 12px 20px 16px;
+}
+.p-fgrid > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.p-fgrid b {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.p-fgrid .new {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+.p-fgrid .new b {
+  box-shadow:
+    0 0 0 2px var(--bg-page),
+    0 0 0 3.5px var(--brand);
+}
+
+/* 说明卡片 */
+.card.wide {
+  grid-column: 1 / -1;
+}
+.card .opt-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+table.p-cap {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+table.p-cap th,
+table.p-cap td {
+  text-align: left;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line-1);
+  vertical-align: top;
+}
+table.p-cap th {
+  color: var(--meta);
+  font-weight: 600;
+  white-space: nowrap;
+}
+table.p-cap td:first-child {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.yes {
+  color: var(--tau-ok);
+  font-weight: 600;
+}
+.no {
+  color: var(--tau-danger);
+  font-weight: 600;
+}
+.part {
+  color: var(--tau-warn);
+  font-weight: 600;
+}
+.theme-pick {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.theme-pick select {
+  height: 32px;
+  border-radius: 99px;
+  padding: 0 10px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  font: inherit;
+  font-size: 13px;
+}
