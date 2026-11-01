@@ -1,8 +1,8 @@
-const pending = new Set<Promise<unknown>>();
+const pending = new Map<Promise<unknown>, { command: string; startedAt: number }>();
 
-export function trackLibraryRequest<T>(task: Promise<T>): Promise<T> {
-  pending.add(task);
-  void task.finally(() => pending.delete(task)).catch(() => {});
+export function trackLibraryRequest<T>(task: Promise<T>, command: string): Promise<T> {
+  pending.set(task, { command, startedAt: Date.now() });
+  void task.finally(() => pending.delete(task)).catch(() => undefined);
   return task;
 }
 
@@ -22,6 +22,20 @@ export async function drainWithinBudget(task: Promise<unknown>) {
     clearTimeout(timer);
   }
 }
-export function settleLibraryRequests() {
-  return drainWithinBudget(Promise.allSettled([...pending]));
+export async function settleLibraryRequests() {
+  const tasks = [...pending.keys()];
+  try {
+    await drainWithinBudget(Promise.allSettled(tasks));
+  } catch (error) {
+    console.warn(
+      "[sync] 等待本机数据请求超时",
+      tasks.flatMap(task => {
+        const request = pending.get(task);
+        return request
+          ? [{ command: request.command, elapsedMs: Date.now() - request.startedAt }]
+          : [];
+      })
+    );
+    throw error;
+  }
 }

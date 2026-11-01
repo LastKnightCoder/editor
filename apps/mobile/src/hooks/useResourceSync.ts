@@ -6,6 +6,7 @@ import type {
   ResourceSyncStatusFile,
 } from "../types";
 import * as tauri from "../services/tauri";
+import { getMobileSettingSnapshot } from "../services/mobileSettingsBridge";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -29,6 +30,10 @@ export function useResourceSync() {
   const [progress, setProgress] = useState<ResourceSyncProgress>(EMPTY_RESOURCE_PROGRESS);
   const [statusFile, setStatusFile] = useState<ResourceSyncStatusFile | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusRefresh = useRef<{
+    setting: ReturnType<typeof getMobileSettingSnapshot>;
+    task: Promise<ResourceSyncStatusFile | null>;
+  } | null>(null);
 
   const stopPolling = useMemoizedFn(() => {
     if (pollTimer.current) {
@@ -46,19 +51,35 @@ export function useResourceSync() {
     return next;
   });
 
-  const refreshResourceStatus = useMemoizedFn(async () => {
-    try {
-      const status = await tauri.resourceSyncRefresh();
-      setStatusFile(status);
-      await refreshResourceProgress();
-      return status;
-    } catch (error) {
-      console.error("刷新资源同步状态失败", error);
-      const fallback = await tauri.resourceSyncGetStatus();
-      setStatusFile(fallback);
-      await refreshResourceProgress();
-      return fallback;
-    }
+  const refreshResourceStatus = useMemoizedFn(() => {
+    const setting = getMobileSettingSnapshot();
+    if (statusRefresh.current?.setting === setting) return statusRefresh.current.task;
+    const task = (async () => {
+      try {
+        const status = await tauri.resourceSyncRefresh();
+        if (getMobileSettingSnapshot() === setting) {
+          setStatusFile(status);
+          await refreshResourceProgress();
+        }
+        return status;
+      } catch (error) {
+        console.error("刷新资源同步状态失败", error);
+        const fallback = await tauri.resourceSyncGetStatus();
+        if (getMobileSettingSnapshot() === setting) {
+          setStatusFile(fallback);
+          await refreshResourceProgress();
+        }
+        return fallback;
+      }
+    })();
+    const request = { setting, task };
+    statusRefresh.current = request;
+    void task
+      .finally(() => {
+        if (statusRefresh.current === request) statusRefresh.current = null;
+      })
+      .catch(() => undefined);
+    return task;
   });
 
   const startPolling = useMemoizedFn(() => {
