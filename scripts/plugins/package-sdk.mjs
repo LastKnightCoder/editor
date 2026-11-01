@@ -196,7 +196,6 @@ try {
       await writeFile(path.join(directory, "publish-data.js"), "export {};\n");
       await build({
         absWorkingDir: root,
-        preserveSymlinks: true,
         entryPoints: {
           "publish-client": clientEntry,
           "publish-artifacts": artifactsEntry,
