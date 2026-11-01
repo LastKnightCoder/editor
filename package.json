@@ -1,7 +1,7 @@
 {
   "name": "tau",
   "private": true,
-  "version": "0.61.0",
+  "version": "0.61.1",
   "scripts": {
     "code:stats": "node scripts/count-code.mjs",
     "check:whiteboard-boundaries": "node scripts/check-whiteboard-boundaries.mjs",
