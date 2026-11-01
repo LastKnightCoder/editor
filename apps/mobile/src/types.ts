@@ -723,21 +723,6 @@ export interface SettingCompat {
   editor?: {
     openMode?: "read" | "edit";
   };
-  module?: {
-    todo?: {
-      enable?: boolean;
-    };
-    dailyNote?: {
-      enable?: boolean;
-    };
-    pomodoro?: {
-      enable?: boolean;
-    };
-    calendar?: {
-      enable?: boolean;
-    };
-    [key: string]: unknown;
-  };
   /** 协作设置：展示昵称（服务器固定为默认协作服务器，协作常开） */
   collaboration?: {
     nickname?: string;

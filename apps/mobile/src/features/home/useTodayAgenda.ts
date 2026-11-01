@@ -28,13 +28,6 @@ export type AgendaItem = {
   progress?: { completed: number; total: number };
 };
 
-export type TodayAgendaModules = {
-  todoEnabled: boolean;
-  diaryEnabled: boolean;
-  pomodoroEnabled: boolean;
-  calendarEnabled: boolean;
-};
-
 export type TodoTotals = { total: number; uncompleted: number; completed: number };
 
 const AGENDA_PRIORITY: AgendaKind[] = ["calendar", "flashcard", "todo", "diary", "pomodoro"];
@@ -49,13 +42,13 @@ function diaryStatusOf(entries: DiaryEntry[]): { writtenToday: boolean; streak: 
   };
 }
 
-export function useTodayAgenda(modules: TodayAgendaModules) {
-  const todoStatsQuery = useTodoGroupStats(modules.todoEnabled);
-  const systemGroupsQuery = useTodoSystemGroups(modules.todoEnabled);
-  const diaryEntriesQuery = useDiaryEntries(modules.diaryEnabled);
+export function useTodayAgenda() {
+  const todoStatsQuery = useTodoGroupStats();
+  const systemGroupsQuery = useTodoSystemGroups();
+  const diaryEntriesQuery = useDiaryEntries();
   const flashcardDecksQuery = useFlashcardDecks();
   const flashcardStatsQuery = useFlashcardReviewStats(1);
-  const pomodoroSummaryQuery = usePomodoroTodaySummary(modules.pomodoroEnabled);
+  const pomodoroSummaryQuery = usePomodoroTodaySummary();
   // 「今天」每次渲染重算，跨午夜后 queryKey 变化自动重新查询
   const todayStartMs = todayStart();
   // 与日历主页可见性语义一致：按库内 visible 过滤
@@ -67,11 +60,10 @@ export function useTodayAgenda(modules: TodayAgendaModules) {
     endDate: addDays(todayStartMs, 1) - 1,
     calendarIds: visibleCalendarIds ?? [],
     // 日历列表未加载完成前不发查询；空 ids 表示不显示任何日历
-    enabled: modules.calendarEnabled && visibleCalendarIds !== null,
+    enabled: visibleCalendarIds !== null,
   });
 
   const todoTotals = useMemo<TodoTotals | null>(() => {
-    if (!modules.todoEnabled) return null;
     const allGroupId = (systemGroupsQuery.data ?? []).find(group => group.systemType === "all")?.id;
     const stats = allGroupId != null ? todoStatsQuery.data?.[allGroupId] : undefined;
     if (!stats) return null;
@@ -80,12 +72,12 @@ export function useTodayAgenda(modules: TodayAgendaModules) {
       uncompleted: stats.uncompleted,
       completed: Math.max(0, stats.total - stats.uncompleted),
     };
-  }, [modules.todoEnabled, systemGroupsQuery.data, todoStatsQuery.data]);
+  }, [systemGroupsQuery.data, todoStatsQuery.data]);
 
   const items = useMemo(() => {
     const result: AgendaItem[] = [];
 
-    if (modules.calendarEnabled && calendarTodayQuery.data) {
+    if (calendarTodayQuery.data) {
       const summary = summarizeToday(calendarTodayQuery.data);
       const done = summary.upcoming === 0;
       result.push({
@@ -130,7 +122,7 @@ export function useTodayAgenda(modules: TodayAgendaModules) {
       });
     }
 
-    if (modules.diaryEnabled && diaryEntriesQuery.data) {
+    if (diaryEntriesQuery.data) {
       const { writtenToday, streak } = diaryStatusOf(diaryEntriesQuery.data);
       result.push({
         kind: "diary",
@@ -140,7 +132,7 @@ export function useTodayAgenda(modules: TodayAgendaModules) {
       });
     }
 
-    if (modules.pomodoroEnabled && pomodoroSummaryQuery.data) {
+    if (pomodoroSummaryQuery.data) {
       const { count, focusMs } = pomodoroSummaryQuery.data;
       result.push({
         kind: "pomodoro",
@@ -154,9 +146,6 @@ export function useTodayAgenda(modules: TodayAgendaModules) {
       (item.done ? AGENDA_PRIORITY.length : 0) + AGENDA_PRIORITY.indexOf(item.kind);
     return result.sort((a, b) => rank(a) - rank(b));
   }, [
-    modules.calendarEnabled,
-    modules.diaryEnabled,
-    modules.pomodoroEnabled,
     calendarTodayQuery.data,
     flashcardDecksQuery.data,
     flashcardStatsQuery.data,
