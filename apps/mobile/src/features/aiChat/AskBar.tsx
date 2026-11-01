@@ -2,13 +2,16 @@
 // 按住麦克风在对话页里说，这里只是入口，避免首页挂上录音会话。
 
 import { Mic, Sparkles } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
+import { useEdgeFadeX } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { suggestionsFor } from "./suggestions";
 
 export function AskBar() {
   const navigator = useNavigator();
   const suggestions = useMemo(() => suggestionsFor(), []);
+  const suggestionsRef = useRef<HTMLDivElement | null>(null);
+  useEdgeFadeX(suggestionsRef);
   const open = (prompt?: string) =>
     navigator.push("aiChat", {
       sessionId: crypto.randomUUID(),
@@ -28,7 +31,10 @@ export function AskBar() {
           <Mic size={17} aria-hidden="true" />
         </span>
       </button>
-      <div className="scrollbar-hide -mx-4 mt-2.5 flex gap-2 overflow-x-auto px-4">
+      <div
+        ref={suggestionsRef}
+        className="edge-fade-x-scroll scrollbar-hide mt-2.5 flex gap-2 overflow-x-auto"
+      >
         {suggestions.map(text => (
           <button
             key={text}
