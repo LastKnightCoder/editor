@@ -1,7 +1,7 @@
 // 局域网设备同步（手机只做连接端）：状态卡在上；未配对时三步说明 + 拇指区「粘贴配对信息」，
 // 配对后只留一句状态 +「立即补齐」。覆盖在「恢复」组，经底部面板确认一次；暂停与解除配对在协调电脑上操作。
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -182,20 +182,6 @@ function UnpairedView(props: {
 }) {
   const [code, setCode] = useState("");
   const [manual, setManual] = useState(false);
-  const [clipboardReady, setClipboardReady] = useState(false);
-
-  // 进入时探测一次剪贴板：只提示，不自动配对（尊重系统剪贴板权限，失败静默）
-  useEffect(() => {
-    let disposed = false;
-    void readClipboard()
-      .then(text => {
-        if (!disposed) setClipboardReady(text.startsWith(PAIR_PREFIX));
-      })
-      .catch(() => undefined);
-    return () => {
-      disposed = true;
-    };
-  }, []);
 
   const paste = async () => {
     props.onEdit();
@@ -302,12 +288,6 @@ function UnpairedView(props: {
           ))}
         </ol>
       </GroupCard>
-      {clipboardReady && (
-        <div className="bg-accent-soft text-accent-text text-tau-meta mt-3 flex items-center gap-2.5 rounded-[14px] px-3.5 py-3">
-          <Clipboard size={18} strokeWidth={1.9} className="flex-none" aria-hidden="true" />
-          剪贴板里有配对信息，点下面的按钮即可使用
-        </div>
-      )}
       <GroupNote className="mt-[7px]">首次配对会新建一份本机副本，现有资料库保持原样。</GroupNote>
       <div className="mt-4 flex">
         <ActionButton label="粘贴配对信息" emphasis onClick={() => void paste()} />

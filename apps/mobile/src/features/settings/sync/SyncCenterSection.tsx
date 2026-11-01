@@ -1,9 +1,9 @@
-// 同步中心：状态卡回答「数据库同步了没」，拇指区一个主按钮（同步数据库后顺带同步资源文件），
-// 服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。资源文件跟随同一个同步服务。
+// 同步中心以分段页签切换云端与设备同步，两侧保留各自的操作和输入状态。
+// 云端状态卡提供主操作，服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。
 
-import { useEffect, useState } from "react";
+import { Activity, useEffect, useState } from "react";
 import { DeviceSyncSection } from "./DeviceSyncSection";
-import { ProgressStatus } from "@tau/ui";
+import { ProgressStatus, Segmented } from "@tau/ui";
 import {
   ChevronRight,
   CircleCheck,
@@ -165,6 +165,35 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
 }
 
 export function SyncCenterSection(props: SyncCenterProps) {
+  const [mode, setMode] = useState<"cloud" | "device">("cloud");
+
+  if (!props.setting) return null;
+
+  return (
+    <div className="space-y-4">
+      <Segmented label="同步方式" value={mode} onValueChange={setMode} size="md" className="w-full">
+        <Segmented.Item value="cloud" label="云端同步" className="min-h-11 flex-1 justify-center" />
+        <Segmented.Item
+          value="device"
+          label="设备同步"
+          className="min-h-11 flex-1 justify-center"
+        />
+      </Segmented>
+      <Activity mode={mode === "cloud" ? "visible" : "hidden"}>
+        <div data-sync-panel="cloud" hidden={mode !== "cloud"}>
+          <CloudSyncSection {...props} />
+        </div>
+      </Activity>
+      <Activity mode={mode === "device" ? "visible" : "hidden"}>
+        <div data-sync-panel="device" hidden={mode !== "device"}>
+          <DeviceSyncSection />
+        </div>
+      </Activity>
+    </div>
+  );
+}
+
+function CloudSyncSection(props: SyncCenterProps) {
   const navigator = useNavigator();
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -242,8 +271,6 @@ export function SyncCenterSection(props: SyncCenterProps) {
   if (!provider || !configured) {
     return (
       <div className="page-enter">
-        <DeviceSyncSection />
-        <GroupLabel>云端存储同步</GroupLabel>
         <FirstRunView setting={props.setting} onOpenProvider={openProvider} />
       </div>
     );
@@ -257,8 +284,6 @@ export function SyncCenterSection(props: SyncCenterProps) {
 
   return (
     <div className="page-enter space-y-1">
-      <DeviceSyncSection />
-      <GroupLabel>云端存储同步</GroupLabel>
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
       {props.isSyncing && props.syncProgress && (
         <div className="setting-group px-[18px] py-4">
