@@ -15,6 +15,7 @@ import { ArticleEditorPage } from "../../../app-kit/pages/ArticleEditorPage";
 import { CardCrumb } from "../../../app-kit/parts/Crumbs";
 import { bodyLength, PACE, schedule, type Timed } from "../../../app-kit/doc/script";
 import { SlashMenu } from "../../../app-kit/doc/SlashMenu";
+import { SLASH_ITEMS, SLASH_ROW } from "../../../app-kit/doc/slashItems";
 import { CalloutBlock, CodeShowcase, DatabaseBlock, MathShowcase, MermaidBlock, TableBlock, TaskListBlock } from "../../../app-kit/doc/Blocks";
 import { BOARD_PAPER, LIVE_BLOCK, LiveBoardBlock } from "../../../app-kit/whiteboard/LiveBoardBlock";
 import { ARTICLE, BLOCK_CONTENT } from "../../../mock/deepwork";
@@ -42,6 +43,8 @@ const TYPE_X = -110;
 const SCROLL_END = 380;
 /** 新一节各行在世界坐标里的纵向中心（滚动后，按已知机位的静帧实测）：标题、段落、引用、列表各项、斜杠命令 */
 const LINE_Y = { heading: -240, paragraph: -188, quote: -141, bullets: [-95, -60, -25], slash: 20 };
+/** 斜杠菜单停在「表格」上，表格排在可视区第 8 行（同改版前的画面） */
+const TABLE_INDEX = SLASH_ITEMS.findIndex(item => item.title === "表格");
 /** 斜杠菜单弹出后，镜头对准命令行与菜单的中间 */
 const MENU_Y = 180;
 
@@ -151,7 +154,7 @@ export function WriteChapter() {
         <i className="bg-ink-1 ml-px inline-block h-[1.1em] w-[2px] translate-y-[0.18em]" />
         {menuOpen > 0 && (
           <span className="font-tau absolute top-[calc(100%+6px)] left-[10px] z-10">
-            <SlashMenu active={9} scroll={84} open={menuOpen} />
+            <SlashMenu active={TABLE_INDEX} scroll={(TABLE_INDEX - 7) * SLASH_ROW} open={menuOpen} />
           </span>
         )}
       </p>
