@@ -1208,6 +1208,7 @@ export class PluginHost {
       notebooks?: NotebooksAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      materialActionFeedback?: { success(label: string): void; error(message: string): void };
       flashcards?: FlashcardsAdapter;
       mcp?: MCPAdapter;
       chat?: ChatAdapter;
@@ -2490,7 +2491,17 @@ export class PluginHost {
               label: action.label,
               run: async () => {
                 this.assertActive(entry, activation);
-                await action.run();
+                const feedback = this.options.materialActionFeedback;
+                try {
+                  await action.run();
+                  this.assertActive(entry, activation);
+                  feedback?.success(action.label);
+                } catch (error) {
+                  if (!feedback || context.signal.aborted) throw error;
+                  feedback.error(
+                    error instanceof Error ? error.message : String(error) || "材料操作失败"
+                  );
+                }
               },
             })
           );

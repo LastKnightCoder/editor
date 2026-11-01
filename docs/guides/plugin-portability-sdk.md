@@ -22,6 +22,8 @@ node scripts/plugins/package-sdk.mjs output/plugin-phase-a/sdk
 
 判据：生成插件 SDK 与 UI 两个 tgz；版本取各自 package.json。仅打包，不执行 npm publish；已发布版本不可覆盖，修改公共包内容须使用新版本。
 
+正式发行先固定模板作者文档提交，打包时追加 `--docs-ref=<模板完整提交SHA>`，从该提交的 docs 快照打包；不读取该子仓库后续未提交编辑。记录 SDK 源码提交、模板文档提交和本地 tgz 摘要，以便核验发行输入。
+
 正式发布这两个 tgz 后，确认注册表可查询版本，且 dist.integrity 与本地包一致，再开始真实 npm 验证。npm 返回 202 表示已受理，发布扫描结束前可能仍无法安装；等待扫描完成，不重复发布或覆盖版本。
 
 ## 准备模板输入

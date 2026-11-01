@@ -7,6 +7,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { createAppForegroundBridge } from "./foreground-host";
+export { APP_FOREGROUND_EVENT, APP_BACKGROUND_EVENT } from "./foreground-host";
 
 export interface PluginEnvironment {
   readonly platform: "desktop" | "android" | "ios" | "web";
@@ -58,14 +60,24 @@ export function createBrowserPluginEnvironment(
     input: { coarsePointer: coarse.matches, finePointer: fine.matches },
   });
   const source = createPluginEnvironmentStore({ platform, ...read() });
+  let foreground: ReturnType<typeof createAppForegroundBridge> | undefined;
   return {
     ...source,
+    notifyForeground: (force = true) => foreground?.resume(force),
+    notifyBackground: () => foreground?.background(),
     connect() {
+      foreground?.dispose();
+      const bridge = createAppForegroundBridge(viewport);
+      foreground = bridge;
       const update = () => source.update(read());
       const queries = [coarse, fine];
       queries.forEach(query => query.addEventListener("change", update));
       update();
-      return () => queries.forEach(query => query.removeEventListener("change", update));
+      return () => {
+        queries.forEach(query => query.removeEventListener("change", update));
+        bridge.dispose();
+        if (foreground === bridge) foreground = undefined;
+      };
     },
   };
 }

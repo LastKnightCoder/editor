@@ -4,6 +4,8 @@ import type { Disposable, JsonValue } from "./contract";
 export interface PluginMaterialRef {
   readonly kind: string;
   readonly id: number;
+  /** 宿主签发的稳定身份，必须与整个引用一起原样传回。 */
+  readonly identity: string;
 }
 
 /** 摘录来源：一本书、一个网页、一篇文献 */
@@ -89,6 +91,7 @@ export interface PluginExcerpts {
 export interface PluginMaterialAction {
   id: string;
   label: string;
+  /** 动作结果由宿主统一提示，插件不重复提示。 */
   run(): Promise<void>;
 }
 
