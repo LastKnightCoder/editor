@@ -105,6 +105,8 @@ pub struct CardsByIdsPayload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateContentPayload {
+    pub expected_generation: Option<String>,
+    pub expected_database_name: Option<String>,
     pub expected_source_id: Option<String>,
     pub contracts: Option<Value>,
     pub expected_revision: Option<String>,
@@ -696,8 +698,24 @@ pub fn update_content(
     payload: UpdateContentPayload,
 ) -> Result<ContentDetailResponse, String> {
     let mut conn = schema::open_active_database(&app)?;
+    let database_name = conn.database_name().to_string();
+    update_content_snapshot(&mut conn, &payload, &database_name)?;
+
+    let setting = load_or_init_setting(&app)?;
+    let db_name = get_active_database_name(&setting);
+    reconcile::trigger_reconcile(&app, &db_name);
+
+    query::query_content_detail(&conn, payload.content_id)
+}
+
+pub(crate) fn update_content_snapshot(
+    conn: &mut rusqlite::Connection,
+    payload: &UpdateContentPayload,
+    database_name: &str,
+) -> Result<(), String> {
+    crate::device_sync::database::generation(conn)?;
     // 绑定协作的内容只允许经协作投影管线写入，避免与云端投影互相覆盖
-    collaboration::assert_content_local(&conn, payload.content_id)?;
+    collaboration::assert_content_local(conn, payload.content_id)?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis() as i64)
@@ -706,6 +724,15 @@ pub fn update_content(
     let tx = conn
         .transaction()
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
+    if payload
+        .expected_database_name
+        .as_deref()
+        .is_some_and(|expected| expected != database_name)
+        || payload.expected_generation.as_deref().unwrap_or("")
+            != crate::device_sync::database::generation(&tx)?
+    {
+        return Err("DEVICE_SYNC_REPLACED: 正文写入上下文已失效".into());
+    }
     write_content_snapshot(
         &tx,
         payload.content_id,
@@ -721,11 +748,7 @@ pub fn update_content(
     tx.commit()
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
 
-    let setting = load_or_init_setting(&app)?;
-    let db_name = get_active_database_name(&setting);
-    reconcile::trigger_reconcile(&app, &db_name);
-
-    query::query_content_detail(&conn, payload.content_id)
+    Ok(())
 }
 
 fn normalize_card_tags(tags: Vec<String>) -> Result<String, String> {

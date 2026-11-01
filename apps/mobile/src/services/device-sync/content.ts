@@ -22,6 +22,7 @@ import {
   prepareDeviceDocument,
 } from "@tau/collaboration/src/device-sync/documents";
 import type { DeviceDocument, DeviceJsonIntent } from "@tau/collaboration/src/device-sync/protocol";
+import { assertContentWriteContext, type ContentWriteContext } from "../content-write-context";
 import {
   deviceAsset,
   deviceStore,
@@ -155,17 +156,20 @@ export async function persistDeviceContent(
   return false;
 }
 
-export async function replaceDeviceContent(params: {
-  contentId: number;
-  content: unknown[];
-  contracts?: ContentContractDictionary;
-  expectedRevision?: string;
-  expectedDocumentId?: string;
-  expectedSourceId?: string;
-}) {
-  const name = deviceSyncDatabase();
+export async function replaceDeviceContent(
+  params: {
+    contentId: number;
+    content: unknown[];
+    contracts?: ContentContractDictionary;
+    expectedRevision?: string;
+    expectedDocumentId?: string;
+    expectedSourceId?: string;
+  },
+  context: ContentWriteContext
+) {
+  assertContentWriteContext(context);
+  const name = context.database;
   if (!name) return false;
-  const generation = await deviceStore<string>("generation", {}, name);
   const current = await readDeviceContent(params.contentId, name);
   if (!current) return false;
   const doc = new Y.Doc({ gc: false });
@@ -211,6 +215,7 @@ export async function replaceDeviceContent(params: {
       updatedAt: Date.now(),
       metricRules: combineDeviceMetrics(current.metricRules, mobileContentMetrics.rules),
     });
+    assertContentWriteContext(context);
     await deviceStore(
       "save-document",
       {
@@ -219,7 +224,7 @@ export async function replaceDeviceContent(params: {
         expectedRevision: params.expectedRevision,
         expectedDocumentId: params.expectedDocumentId,
         expectedSourceId: params.expectedSourceId,
-        expectedGeneration: generation,
+        expectedGeneration: context.generation,
       },
       name
     );

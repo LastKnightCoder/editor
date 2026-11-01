@@ -158,8 +158,13 @@ fn install_download_locked(
     if integrity != "ok" {
         return Err("下载的资料库未通过完整性检查".into());
     }
-    candidate.execute_batch("CREATE TABLE IF NOT EXISTS _tau_device_local(id INTEGER PRIMARY KEY CHECK(id=1),generation TEXT NOT NULL)").map_err(|e|e.to_string())?;
-    candidate.execute("INSERT INTO _tau_device_local VALUES(1,?1) ON CONFLICT(id) DO UPDATE SET generation=excluded.generation",[uuid::Uuid::new_v4().to_string()]).map_err(|e|e.to_string())?;
+    crate::device_sync::database::generation(&candidate)?;
+    candidate
+        .execute(
+            "UPDATE _tau_device_local SET generation=?1 WHERE id=1",
+            [uuid::Uuid::new_v4().to_string()],
+        )
+        .map_err(|e| e.to_string())?;
     drop(candidate);
     let mut workspace = None;
     if destination.exists() {
