@@ -66,7 +66,7 @@ import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
 import { usePage } from "@/page/PageProvider";
-import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
+import { selectTreeCollapsed, useProjectTreeStore } from "@/features/projects/projectTreeStore";
 import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpandedStore";
 import { toast, Tooltip, Menu } from "@tau/ui";
 import { importMarkdownFiles } from "@/services/content-transfer";
@@ -79,7 +79,7 @@ const Project = () => {
   const { setting } = useSettingStore(state => ({ setting: state.setting }));
   const databaseName = setting.database.active;
   // 收起/展开入口在标题栏面包屑（ProjectDetailView），此处只读
-  const hideSidebar = useProjectTreeStore(s => s.collapsed);
+  const hideSidebar = useProjectTreeStore(selectTreeCollapsed);
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState("project-list-sidebar-width", {
     defaultValue: 300,
   });

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 A · 剧场（看为主）</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vn.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 A · 剧场：左边看，右边记（参照 B 站笔记 / Coursera 视频笔记）</h3>
+  一整张纸分两栏：左栏是<b>大画面</b> + 跟随播放的转录（章节作吸顶段头），右栏是<b>笔记</b>。对话不再默认占中间，<span class="k">⌘J</span> 打开：条目区够宽（≥ 1200）就停成第三栏，否则作为抽屉盖在笔记栏上，<b>画面永远不让位</b>。
+  <ul>
+    <li>进度条按章节分段，笔记里的时间戳 / 摘录 / 截帧在进度条下方留小圆点，悬停看内容、点击跳播。</li>
+    <li>转录里划一句 → 「摘到笔记」以引用块 + 时间戳插到笔记光标处，原句留浅色底，表示已摘。</li>
+    <li class="pro">＋ 画面最大，适合有板书 / 演示 / 代码的课程；和现在的「材料 | 笔记」心智一致，迁移成本最低。</li>
+    <li class="con">－ 转录只有半栏宽，长段落读起来不如 B 舒服；窄窗口时对话和笔记不能同屏。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mount, shell, frameLayout, head, toggle, player, transcriptList, notesHead, noteDoc, chatCol, trEmpty, trBusy, SEGMENTS } from "./vn.js?v=1";
+
+const STATES = [
+  ["write", "边看边记"],
+  ["sel", "划词摘录"],
+  ["chat", "展开对话"],
+  ["none", "未转录"],
+  ["busy", "转录中"],
+];
+
+mount("a-theater.html", STATES, s => {
+  const L = frameLayout(860);
+  const chat = s === "chat";
+  const dock = chat && L.w >= 1200;
+  const chatW = 340;
+  const avail = dock ? L.w - chatW : L.w;
+  const watchW = Math.max(440, Math.min(760, Math.round(avail * (dock ? 0.56 : 0.56))));
+  const tr = s === "none" ? trEmpty() : s === "busy" ? trBusy()
+    : `<div class="vn-scroll">${transcriptList({ sel: s === "sel" ? 9 : -1 })}</div>`;
+  const trMeta = s === "none" ? "" : s === "busy" ? "· 识别中" : `· ${SEGMENTS.length} 段 · 按 AI 章节分组`;
+
+  const watch = `
+    <div class="vn-col fix br" style="width:${watchW}px">
+      <div style="padding:0 14px 6px 16px;flex:none">${player({ showMark: s === "sel" ? 2 : -1 })}</div>
+      <div class="vn-sec" style="padding-left:24px"><b>转录</b><span>${trMeta}</span><span class="sp"></span>
+        ${s === "none" || s === "busy" ? "" : `<button class="ib" title="在转录中查找（⌘F）"><i data-lucide="search"></i></button><button class="ib on" title="跟随播放滚动"><i data-lucide="locate-fixed"></i></button>`}
+      </div>
+      ${tr}
+    </div>`;
+
+  const notes = `
+    <div class="vn-col grow vn-notes" style="position:relative">
+      ${notesHead()}
+      <div class="vn-scroll">${noteDoc({ typing: s !== "none" })}</div>
+      ${chat && !dock ? `<div class="vn-drawer" style="left:0">${chatCol()}</div>` : ""}
+    </div>`;
+
+  const chatDock = dock ? `<div class="vn-col fix bl" style="width:${chatW}px">${chatCol()}</div>` : "";
+
+  return shell(L, `
+    ${head({ state: s === "none" ? "none" : s === "busy" ? "busy" : "ok", right: toggle("message-circle", chat ? "收起对话" : "展开对话", chat, "⌘J") })}
+    <div class="vn-body">${watch}${notes}${chatDock}</div>`);
+});
+</script>
+</body>
+</html>

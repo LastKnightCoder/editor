@@ -531,7 +531,9 @@ export function useXxxSnapshot() {
 
 聊天操作区区分「重试」与「重新生成」：末尾用户问题尚无正文、工具调用时原位重试，复用原用户 entry（含附件与展示信息），不增加问题版本或分支。主进程重新核验当前投影，以隐藏的 `desktop-retry` 自定义消息触发 pi 完整运行与 settled 流程，空失败回答通过 context_edit 省略，系统提示仍取当前配置。上次在用户消息写入前失败则正常提交一次。已有正文、工具调用或后续追问时仍回退重发并保留旧版本；编辑重发不走失败重试。
 
-视频学习台与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
+项目视频笔记（`features/projects/components/ProjectView/VideoNoteView/`）是「左看右记」两栏：左栏 `MaterialColumn` 为播放器 + 跟随转录，右栏 `NotesStage` 笔记常驻（多篇用栏头胶囊切换，暴露 `insertQuote` 把转录摘录作为「引用块 + 时间戳」插到光标处）。对话默认收起，页面经 `useOwnAssist` 接管 Ctrl/⌘+J：条目区放得下「左栏最小 440 + 笔记最小 360 + 对话宽」时停成第三栏，否则作为抽屉盖在笔记栏上（Esc 退场），画面不让位；条目区收起文档树后仍放不下两栏时，经 `projectTreeStore.setAutoCollapse` 临时收起项目文档树（不写持久化偏好，期间用户点展开以用户为准）。转录划选弹工具条（摘到笔记 / 问 AI / 从这句播放 / 复制），问 AI 把原句作为引用带进对话输入框、不自动发送。笔记里的 `video-timestamp` / `video-screenshot` 节点经 `noteMarkers.ts` 扫出时间点（引用块内为「摘录」），作为 `VideoPlayer` 的 `markers` 刻度并给已摘录的转录句加底色，不另存数据。AI 章节由 `useVideoNoteChapters` 在转录就绪且配了「视频总结」模型位时自动生成，存 `video_notes.insights`（`{ version: 2, transcriptHash, chapters }`，hash 对不上即过期重生成，其他形态按无章节读），供进度条分段（`VideoPlayer` 的 `chapters`）与转录分组；未配模型时不生成也不提示。
+
+视频笔记、视频学习资料与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
 
 两处视频笔记共用 `useVideoNoteTranscription`：空白在线视频笔记经 `useVideoNoteCaptions` 的 react-query 查询优先调用插件可选的 `getCaptions(ref, signal)`（毫秒时间戳、无字幕为 null），30 秒超时后保留手动转录；查询按库、笔记身份和来源引用隔离，取消后不写库。字幕读取与模型配置无关；结果经原库命令 `import-video-note-captions` 仅在笔记修订一致且仍为空时写入，复用转录字段和检索索引；重新打开不会替换已有内容。用户的「开始 / 重新转录」直接走音频识别，不再次优先取字幕。YouTube 消费通用 `videoExtractor.getCaptions`，经 plugin-services 的任务生命周期调用 yt-dlp，只下载选定 JSON3 字幕（人工优先、同类原语言优先），沿用代理并在结束后清理任务目录；Bilibili 的认证和字幕 API 留在插件内。
 

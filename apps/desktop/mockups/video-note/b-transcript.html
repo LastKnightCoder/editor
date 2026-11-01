@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 B · 文稿（读为主）</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vn.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 B · 文稿：把视频当一篇文章读（参照 Readwise Reader 视频 / 飞书妙记 / 通义听悟）</h3>
+  主栏是<b>排成文章的转录</b>：按章节成节、句子连成段落，时间在左页边，当前句高亮；画面在文章顶部，往下读时缩成吸顶的一行迷你条（缩略图 + 播放 + 章节），点 ⤢ 回到大画面。右栏是笔记，对话同 A（够宽第三栏，否则盖在笔记栏上）。
+  <ul>
+    <li>章节下面一行 AI 摘要（待决：是否做 AI 分章节）；已摘录的句子留浅色底，右页边一枚小标记，同 PDF 边注的处理。</li>
+    <li class="pro">＋ 读起来最舒服，适合讲座、访谈、播客式视频；划词摘录、问 AI 的手感和 PDF / 网页阅读一致。</li>
+    <li class="con">－ 画面变成配角，演示 / 代码类视频要频繁点回大画面；文章化排版依赖断句质量（需要 AI 优化断句兜底）。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mount, shell, frameLayout, head, toggle, player, mini, article, notesHead, noteDoc, chatCol, trEmpty } from "./vn.js?v=1";
+
+const STATES = [
+  ["hero", "刚打开"],
+  ["read", "往下读"],
+  ["sel", "划词摘录"],
+  ["chat", "展开对话"],
+  ["none", "未转录"],
+];
+
+mount("b-transcript.html", STATES, s => {
+  const L = frameLayout(860);
+  const chat = s === "chat";
+  const dock = chat && L.w >= 1200;
+  const chatW = 340;
+  const avail = dock ? L.w - chatW : L.w;
+  const notesW = Math.max(320, Math.min(440, Math.round(avail * 0.36)));
+  const scrolled = s !== "hero" && s !== "none";
+
+  const reading = s === "none"
+    ? `<div class="vn-hero" style="padding-top:4px">${player({ sub: false })}</div>${trEmpty()}`
+    : `<div class="vn-scroll">
+        ${scrolled ? `<div class="vn-sticky">${mini()}</div>` : `<div class="vn-hero">${player({ sub: false })}</div>`}
+        <div class="vn-article">${article({ sel: s === "sel" ? 9 : -1 })}</div>
+        ${s === "read" ? `<div style="height:1px" data-scroll-to="0.98"></div>` : ""}
+      </div>`;
+
+  const notes = `
+    <div class="vn-col fix bl vn-notes" style="width:${notesW}px;position:relative">
+      ${notesHead({ compact: true })}
+      <div class="vn-scroll">${noteDoc({ typing: s !== "none" })}</div>
+      ${chat && !dock ? `<div class="vn-drawer" style="left:0">${chatCol()}</div>` : ""}
+    </div>`;
+
+  const chatDock = dock ? `<div class="vn-col fix bl" style="width:${chatW}px">${chatCol()}</div>` : "";
+
+  return shell(L, `
+    ${head({ state: s === "none" ? "none" : "ok", right:
+      (s === "none" ? "" : `<button class="ib" title="在文稿中查找（⌘F）"><i data-lucide="search"></i></button><button class="ib on" title="跟随播放滚动"><i data-lucide="locate-fixed"></i></button>`) +
+      toggle("message-circle", chat ? "收起对话" : "展开对话", chat, "⌘J") })}
+    <div class="vn-body">
+      <div class="vn-col grow" style="position:relative">${reading}${s === "read" ? `<button class="vn-follow" style="right:24px"><i data-lucide="locate-fixed"></i>回到当前播放</button>` : ""}</div>
+      ${notes}${chatDock}
+    </div>`);
+});
+</script>
+</body>
+</html>

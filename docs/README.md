@@ -58,6 +58,7 @@
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
+- [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。
 - [网页书签块](./tasks/editor-bookmark.md)：编辑器块级网页书签（三种外观、粘贴菜单、封面存储），进行中。
 - [局域网设备同步 UI 重设计](./tasks/device-sync-ui/README.md)：选定方案 A，桌面「设备同步」页签与手机连接端已实现，待视觉验收。
 - [移动端 AI 基础能力](./tasks/mobile-ai-foundation/README.md)：公共会话 v3、移动无 UI 服务、原生网络存储、MCP/Skills 与聊天同步已接入，待实际存储插件往返及设备验收。

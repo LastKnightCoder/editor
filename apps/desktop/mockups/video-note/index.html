@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>视频笔记 · 方案与决策</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vn.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>[data-theme] body { background: var(--page); }</style>
+</head>
+<body>
+<div class="ov">
+  <h1>视频笔记 · 方案与决策</h1>
+  <p class="lead">
+    范围：项目里的视频笔记条目（<code>VideoNoteView</code>）。三套版面共用同一套播放器（纸框底栏，已定稿）、同一套笔记编辑器和对话，只是<b>看 / 读 / 写</b>谁当主角不同。每个方案页顶部可以切状态、切窗口宽度、开关项目文档树，窄窗口下的让位顺序也一并演示。
+  </p>
+
+  <h2>现在的问题</h2>
+  <p>按当前代码梳理（1440 宽窗口、文档树展开时，条目区约 950px）。</p>
+  <ul class="issues">
+    <li><b>主角是对话，不是笔记</b>：默认中间是 AI 对话，笔记要点顶栏按钮才出来；可「视频笔记」最常做的事是边看边记。</li>
+    <li><b>画面太小</b>：视频挤在 380px 的左栏里，16:9 只有约 200px 高，看板书、代码基本要全屏。</li>
+    <li><b>记笔记时视频会消失</b>：笔记打开且条目区窄于 1080 时，整个材料栏自动收起——1440 宽窗口开着文档树，一打开笔记就看不到视频了。</li>
+    <li><b>笔记和视频没有回连</b>：时间戳、截帧只活在笔记正文里，进度条上看不出「我在哪儿记过」。</li>
+    <li><b>转录只能点</b>：点句跳播，但不能划一句摘到笔记，也不能带着原句问 AI。</li>
+    <li><b>多篇笔记藏在下拉里</b>：标题旁的下拉菜单切换，看不出这个视频有几篇笔记。</li>
+  </ul>
+
+  <h2>参照了哪些产品</h2>
+  <p>只借结构，皮仍是我们的纸面语言。</p>
+  <table>
+    <tr><th>产品</th><th>值得借的</th><th>落到我们这里</th></tr>
+    <tr><td><b>B 站笔记</b></td><td>播放页旁开笔记，一键插时间戳 / 截图，点时间戳跳回</td><td>A 的「左看右记」；已有的 <span class="k">⌘⇧T</span> / <span class="k">⌘⇧S</span> 保留</td></tr>
+    <tr><td><b>Coursera 视频笔记</b></td><td>「保存笔记」一次带走当前画面 + 当前字幕 + 时间</td><td>划词「摘到笔记」：原句 + 时间戳作为引用块插入</td></tr>
+    <tr><td><b>YouTube 章节</b></td><td>进度条按章节分段，悬停看章节名</td><td>进度条分段 + 下方笔记刻度</td></tr>
+    <tr><td><b><a href="https://docs.readwise.io/reader/docs/faqs/videos" target="_blank">Readwise Reader</a></b></td><td>视频旁边是时间同步的转录，可以像文章一样高亮、写笔记，点句跳播</td><td>B 的「文稿」主栏；三案通用的划词工具条</td></tr>
+    <tr><td><b>飞书妙记 / <a href="https://help.aliyun.com/zh/tingwu/chapter-quick-view" target="_blank">通义听悟</a></b></td><td>文字随播放高亮；按主题切出章节，每章一个标题 + 摘要</td><td>转录按 AI 章节分组（待决 ②）</td></tr>
+  </table>
+
+  <h2>① 三套版面</h2>
+  <p>以下是 1440 宽窗口、文档树收起时的实际界面截图（点图看原图；点标题进可交互页面，能切状态、窗口宽、文档树、深浅色）。对话三案一致：<span class="k">⌘J</span> 打开，条目区 ≥ 1200 停成第三栏，否则作为抽屉盖在笔记上，画面永远不让位。</p>
+  <h3 class="pl"><a href="a-theater.html">A 剧场 · 看为主</a> <span class="rec">推荐</span></h3>
+  <p class="pd">左栏大画面 + 跟随转录（章节作段头），右栏笔记；对话 ⌘J 打开，够宽停成第三栏。</p>
+  <div class="shots">
+    <figure><a href="shots/a-theater-write.png" target="_blank"><img src="shots/a-theater-write.png" loading="lazy" alt="边看边记：进度条下的小圆点是笔记里的时间戳 / 摘录 / 截帧" /></a><figcaption>边看边记：进度条下的小圆点是笔记里的时间戳 / 摘录 / 截帧</figcaption></figure>
+    <figure><a href="shots/a-theater-sel.png" target="_blank"><img src="shots/a-theater-sel.png" loading="lazy" alt="划一句转录 → 摘到笔记 / 问 AI；悬停圆点看到对应笔记" /></a><figcaption>划一句转录 → 摘到笔记 / 问 AI；悬停圆点看到对应笔记</figcaption></figure>
+    <figure><a href="shots/a-theater-chat.png" target="_blank"><img src="shots/a-theater-chat.png" loading="lazy" alt="展开对话：1440 宽收起文档树时停成第三栏" /></a><figcaption>展开对话：1440 宽收起文档树时停成第三栏</figcaption></figure>
+  </div>
+  <h3 class="pl"><a href="b-transcript.html">B 文稿 · 读为主</a></h3>
+  <p class="pd">转录排成文章做主栏，时间在左页边；画面往下读时缩成吸顶迷你条；右栏笔记。</p>
+  <div class="shots">
+    <figure><a href="shots/b-transcript-hero.png" target="_blank"><img src="shots/b-transcript-hero.png" loading="lazy" alt="刚打开：画面在文章顶部" /></a><figcaption>刚打开：画面在文章顶部</figcaption></figure>
+    <figure><a href="shots/b-transcript-read.png" target="_blank"><img src="shots/b-transcript-read.png" loading="lazy" alt="往下读：画面缩成迷你条，手动滚走后出「回到当前播放」" /></a><figcaption>往下读：画面缩成迷你条，手动滚走后出「回到当前播放」</figcaption></figure>
+    <figure><a href="shots/b-transcript-sel.png" target="_blank"><img src="shots/b-transcript-sel.png" loading="lazy" alt="划词摘录；已摘过的句子留浅色底，右页边有标记" /></a><figcaption>划词摘录；已摘过的句子留浅色底，右页边有标记</figcaption></figure>
+  </div>
+  <h3 class="pl"><a href="c-notebook.html">C 笔记本 · 写为主</a></h3>
+  <p class="pd">整页笔记，段首时间移到左页边成刻度；右轨是小画面 + 跟随字幕，转录 / 对话在右轨切换。</p>
+  <div class="shots">
+    <figure><a href="shots/c-notebook-write.png" target="_blank"><img src="shots/c-notebook-write.png" loading="lazy" alt="边看边记：右轨跟随字幕，当前句放大" /></a><figcaption>边看边记：右轨跟随字幕，当前句放大</figcaption></figure>
+    <figure><a href="shots/c-notebook-list.png" target="_blank"><img src="shots/c-notebook-list.png" loading="lazy" alt="右轨切到全部转录" /></a><figcaption>右轨切到全部转录</figcaption></figure>
+    <figure><a href="shots/c-notebook-pip.png" target="_blank"><img src="shots/c-notebook-pip.png" loading="lazy" alt="收起右轨：视频缩成底部播放胶囊，笔记占满" /></a><figcaption>收起右轨：视频缩成底部播放胶囊，笔记占满</figcaption></figure>
+  </div>
+
+  <h2>② 交互升级（三案通用）</h2>
+  <table>
+    <tr><th>动作</th><th>现在</th><th>新</th></tr>
+    <tr><td><b>进度条</b></td><td class="old">一条通长进度</td><td>按章节分段（没有章节就是一整段）；下方小圆点标出笔记里的时间戳（空心）/ 摘录（实心）/ 截帧（方块），悬停浮出那段笔记，点击跳播。刻度来自扫描笔记正文里的时间戳节点，不新增表</td></tr>
+    <tr><td><b>转录划词</b></td><td class="old">只能点句跳播</td><td>划选弹工具条：<b>摘到笔记</b>（原句 + 时间戳作为引用块插到笔记光标处，<span class="k">⌘⇧E</span>）/ 问 AI（带进输入框作引用，不自动发送）/ 从这句播放 / 复制；已摘过的句子留浅色底</td></tr>
+    <tr><td><b>跟随滚动</b></td><td class="old">上一句在视口里才跟着滚</td><td>保留这个规则；手动滚走后出「回到当前播放」胶囊，栏头有跟随开关</td></tr>
+    <tr><td><b>多篇笔记</b></td><td class="old">标题旁下拉菜单</td><td>笔记栏头一排胶囊 + 「＋」；只有一篇时只显示这一篇的胶囊</td></tr>
+    <tr><td><b>对话</b></td><td class="old">默认占中间；笔记打开后退右栏</td><td>默认收起，<span class="k">⌘J</span> 开关；回答里引用的时间可点跳播，回答可「插入到笔记」</td></tr>
+    <tr><td><b>窄窗口</b></td><td class="old">先收起整个材料栏（视频消失）</td><td>先自动收起项目文档树（一次性提示，可再展开）→ 对话改抽屉 → 画面始终在</td></tr>
+    <tr><td><b>转录中</b></td><td class="old">转录区显示进度</td><td>同现在，另提示「可以先开始记笔记」——时间戳和截帧不依赖转录</td></tr>
+  </table>
+
+  <h2>③ 需要你定的</h2>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><span class="t">选哪套版面</span><div class="opt">
+      <div class="o r"><b>A 剧场（推荐）</b><span>边看边记是主场景；画面最大，改动集中在现有两栏上</span></div>
+      <div class="o"><b>B 文稿</b><span>读为主，画面成配角</span></div>
+      <div class="o"><b>C 笔记本</b><span>写为主，画面最小</span></div>
+      <div class="o"><b>A + B 的文稿视图</b><span>默认 A，栏头切到 B 的文章排版；多做一个文稿排版组件</span></div>
+    </div></div>
+    <div class="q"><span class="no">2</span><span class="t">做不做 AI 分章节</span><div class="opt">
+      <div class="o r"><b>做（推荐）</b><span>转录完成后自动生成章节标题 + 一句摘要，用已配好的模型；进度条分段、转录分组、B 的文章排版都靠它</span></div>
+      <div class="o"><b>先不做</b><span>按停顿自动分段，没有标题；进度条是一整段</span></div>
+    </div></div>
+    <div class="q"><span class="no">3</span><span class="t">对话默认状态</span><div class="opt">
+      <div class="o r"><b>默认收起，记住上次（推荐）</b><span>第一次打开是「看 + 记」，用过对话后保持展开</span></div>
+      <div class="o"><b>默认展开</b><span>同现在</span></div>
+    </div></div>
+    <div class="q"><span class="no">4</span><span class="t">白板里的视频笔记面板</span><div class="opt">
+      <div class="o r"><b>这轮不动（推荐）</b><span>白板侧栏仍是旧的「转录 / 对话 / 笔记」三页签面板，项目页定稿后再单独换</span></div>
+      <div class="o"><b>一起换</b><span>侧栏宽度有限，只能用 C 的右轨形态</span></div>
+    </div></div>
+  </div>
+
+  <h2>④ 落地时要改的</h2>
+  <table>
+    <tr><th>部分</th><th>改动</th></tr>
+    <tr><td><b>播放器</b></td><td><code>@tau/shared</code> 的 <code>VideoPlayer</code> / <code>LocalVideo</code> 加章节分段与刻度插槽（三案都要）</td></tr>
+    <tr><td><b>版面</b></td><td>A：重排 <code>VideoNoteView</code>，<code>MaterialColumn</code> 加宽、<code>NotesStage</code> 常驻右栏、对话改 ⌘J 停靠 / 抽屉。B：新增文稿排版组件（句子并段、页边时间、吸顶迷你条）。C：笔记编辑器给「段首时间戳」做页边渲染</td></tr>
+    <tr><td><b>划词摘录</b></td><td><code>TranscriptPanel</code> 支持选区工具条；笔记编辑器新增「插入引用 + 时间戳」命令</td></tr>
+    <tr><td><b>AI 章节（若做）</b></td><td><code>video_note</code> 加章节字段，需同步 schema 校验脚本与 <code>database-schema.md</code>；转录完成后后台生成</td></tr>
+  </table>
+</div>
+<script>document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream"; window.lucide && lucide.createIcons();</script>
+</body>
+</html>

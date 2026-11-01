@@ -1,8 +1,8 @@
 /**
- * 项目条目 · 视频笔记（学习台布局，同 Vibe Learning）：
- * 左 = 材料（视频 + 跟随播放的转录），中 = 本视频的 AI 对话；打开「笔记」后笔记占中间、
- * 对话退到右栏（可拖宽 / 收起）。收起对话的开关常驻顶栏，笔记打开时收起由笔记占满中间、
- * 关闭时材料栏独占。对话面板始终挂在同一位置，切换布局不打断进行中的回答。
+ * 项目条目 · 视频笔记（剧场版面）：左栏看（播放器 + 跟随转录），右栏记（笔记常驻）。
+ * 对话默认收起、Ctrl/⌘+J 开合（接管壳层停靠栏开关）：条目区放得下三栏时停成第三栏，
+ * 否则作为抽屉盖在笔记栏上——画面任何宽度都不让位。条目区放不下两栏时临时收起项目文档树。
+ * 对话面板首次打开才挂载，之后只隐藏，切换停靠 / 抽屉不打断进行中的回答。
  * 会话与工具跟视频走（useScopedChat / 视频专属工具），与壳层全局 AI 栏无关。
  */
 
@@ -10,9 +10,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorageState, useSize } from "ahooks";
 import {
   BookText,
+  ListTree,
   MessageCircle,
   MoreHorizontal,
-  NotebookPen,
   RefreshCw,
   Subtitles,
   Video,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog, IconButton, Loading, Menu, Tooltip, cn, toast } from "@tau/ui";
 import { ResizableAndHideableSidebar as ResizeableAndHideableSidebar } from "@tau/ui";
+import type { VideoMarker } from "@tau/shared";
 import { StageHeader } from "@/components/StageHeader";
 import { DOCK_CHAT_MIN, clampDockChatWidth, useDockResize } from "@/hooks/useDockResize";
 import useSettingStore from "@/stores/useSettingStore";
@@ -27,13 +28,20 @@ import useUploadResource from "@/hooks/useUploadResource";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { openLLMSettingsSection } from "@/utils/transcription";
 import { getProjectItemById, getVideoNoteById } from "@/commands";
-import type { VideoNote } from "@/types";
+import type { TranscriptSegment, VideoNote } from "@/types";
 import { useVideoProviderName } from "@/hooks/useVideoProviders";
-import VideoNoteChatPanel from "@/components/VideoNotePanel/VideoNoteChatPanel";
+import { useOwnAssist } from "@/app/assistOwner";
+import { useOverlayDismiss } from "@/page/PageProvider";
+import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
+import VideoNoteChatPanel, {
+  type TranscriptQuote,
+  type VideoNoteChatPanelHandle,
+} from "@/components/VideoNotePanel/VideoNoteChatPanel";
 import VideoNoteEpubExportModal from "@/components/VideoNotePanel/VideoNoteEpubExportModal";
 import { VideoController } from "@/components/VideoNotePanel/VideoController";
 import { useVideoNoteSource } from "@/components/VideoNotePanel/useVideoNoteSource";
 import { useVideoNoteTranscription } from "@/components/VideoNotePanel/useVideoNoteTranscription";
+import { useVideoNoteChapters } from "@/components/VideoNotePanel/useVideoNoteChapters";
 import {
   TRANSCRIPTION_LANGUAGES,
   VIDEO_NOTE_AUTO_LANGUAGE,
@@ -43,15 +51,33 @@ import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { useProjectContext } from "../ProjectContext";
 import { buildWebVtt } from "./subtitle";
 import { MaterialColumn } from "./MaterialColumn";
-import { NotesStage } from "./NotesStage";
+import { NotesStage, type NotesStageHandle } from "./NotesStage";
+import { quotedSegmentIndexes, type NoteMarker } from "./noteMarkers";
 
 const SOURCE_LABELS: Record<string, string> = {
   local: "本地视频",
   remote: "远程视频",
 };
 
-/** 笔记打开时，条目宽度低于此值自动收起材料栏（三栏放不下） */
-const MATERIAL_AUTO_COLLAPSE_WIDTH = 1080;
+/** 左栏（看）与右栏（记）的最小宽度 */
+const WATCH_MIN = 440;
+const NOTES_MIN = 360;
+/** 条目区低于此值（两栏放不下）时临时收起项目文档树 */
+const TWO_COLUMNS_MIN = WATCH_MIN + NOTES_MIN + 60;
+/** 项目文档树宽度（ProjectList 持久化的键），用于判断收起后是否放得下 */
+const readTreeWidth = () => {
+  try {
+    return Number(JSON.parse(localStorage.getItem("project-list-sidebar-width") ?? "300")) || 300;
+  } catch {
+    return 300;
+  }
+};
+
+const MARKER_LABEL: Record<NoteMarker["kind"], string> = {
+  timestamp: "时间戳",
+  quote: "摘录",
+  screenshot: "截帧",
+};
 
 interface VideoNoteViewProps {
   videoNoteId: number;
@@ -59,7 +85,7 @@ interface VideoNoteViewProps {
 
 const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const mainDbName = useSettingStore(state => state.setting.database.active);
-  const { itemId: activeProjectItemId } = useProjectContext();
+  const { itemId: activeProjectItemId, containerWidth } = useProjectContext();
   const uploadResource = useUploadResource();
   const ebookLLM = useLLMConfig("videoEbookRewrite");
 
@@ -73,30 +99,46 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const [ebookOpen, setEbookOpen] = useState(false);
   const providerName = useVideoProviderName(videoNote?.metaInfo.type);
 
-  const [materialWidth, setMaterialWidth] = useLocalStorageState("video-note-material-width", {
-    defaultValue: 380,
-  });
-  const [notesOpen, setNotesOpen] = useLocalStorageState(`video-note-notes-open-${videoNoteId}`, {
-    defaultValue: false,
-  });
+  const [watchWidth, setWatchWidth] = useLocalStorageState<number | undefined>(
+    "video-note-watch-width"
+  );
   const [chatWidth, setChatWidth] = useLocalStorageState("video-note-chat-width", {
     defaultValue: DOCK_CHAT_MIN,
   });
   const [chatOpen, setChatOpen] = useLocalStorageState("video-note-chat-open", {
-    defaultValue: true,
+    defaultValue: false,
   });
+  // 首次打开才挂载，之后收起只隐藏（保留进行中的回答）
+  const [chatMounted, setChatMounted] = useState(!!chatOpen);
+  if (chatOpen && !chatMounted) setChatMounted(true);
   const [subtitleMounted, setSubtitleMounted] = useLocalStorageState<boolean>(
     `video_note_subtitle_mounted_${videoNoteId}`,
     { defaultValue: false }
   );
 
+  // 宽度裁决：左栏默认占约 56%，任何时候都给笔记留出 NOTES_MIN；放得下三栏才停靠对话
   const dockWidth = clampDockChatWidth(chatWidth ?? DOCK_CHAT_MIN);
   const startDockResize = useDockResize(dockWidth, setChatWidth);
-  const dockChat = !!notesOpen;
-  // 笔记关闭且对话收起：材料栏独占整行（专注看视频/转录）
-  const materialFills = !dockChat && !chatOpen;
-  // 材料栏常驻；仅笔记打开且条目过窄（三栏放不下）时让位，关掉笔记即恢复
-  const materialVisible = !(dockChat && rootWidth > 0 && rootWidth < MATERIAL_AUTO_COLLAPSE_WIDTH);
+  const chatDocked = !!chatOpen && rootWidth >= WATCH_MIN + NOTES_MIN + dockWidth;
+  const columnsWidth = rootWidth - (chatDocked ? dockWidth : 0);
+  const watchMax = Math.max(WATCH_MIN, columnsWidth - NOTES_MIN);
+  const watchActual = Math.min(
+    watchMax,
+    Math.max(WATCH_MIN, watchWidth ?? Math.round(columnsWidth * 0.56))
+  );
+  const chatOverlay = !!chatOpen && !chatDocked;
+  useOverlayDismiss(() => setChatOpen(false), chatOverlay);
+
+  const toggleChat = useCallback(() => setChatOpen(open => !open), [setChatOpen]);
+  useOwnAssist("project-detail", toggleChat);
+
+  // 条目区放不下两栏：临时收起项目文档树（按「收起后能否放下」判断，避免来回切换）
+  const setTreeAutoCollapse = useProjectTreeStore(s => s.setAutoCollapse);
+  useEffect(() => {
+    if (!containerWidth) return;
+    setTreeAutoCollapse(containerWidth - readTreeWidth() < TWO_COLUMNS_MIN);
+  }, [containerWidth, setTreeAutoCollapse]);
+  useEffect(() => () => setTreeAutoCollapse(false), [setTreeAutoCollapse]);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,6 +212,62 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     return videoNote.transcriptSegments?.map(item => item.text).join(" ") ?? "";
   }, [videoNote]);
 
+  const chapterState = useVideoNoteChapters({
+    videoNote,
+    busy: transcription.isTranscribing,
+    onSaved: insights => setVideoNote(prev => (prev ? { ...prev, insights } : prev)),
+  });
+  const chapters = chapterState.chapters;
+
+  // 笔记里的时间点 → 进度条刻度 + 转录「已摘录」
+  const [noteMarkers, setNoteMarkers] = useState<NoteMarker[]>([]);
+  const playerMarkers = useMemo<VideoMarker[]>(
+    () =>
+      noteMarkers.map(marker => ({
+        id: marker.id,
+        time: marker.time,
+        kind: marker.kind,
+        content: (
+          <>
+            {marker.text || MARKER_LABEL[marker.kind]}
+            <span className="text-ink-3 text-tau-micro mt-0.5 block">
+              {MARKER_LABEL[marker.kind]} · {marker.noteTitle}
+            </span>
+          </>
+        ),
+      })),
+    [noteMarkers]
+  );
+  const quotedIndexes = useMemo(
+    () => quotedSegmentIndexes(noteMarkers, videoNote?.transcriptSegments),
+    [noteMarkers, videoNote?.transcriptSegments]
+  );
+
+  const notesRef = useRef<NotesStageHandle>(null);
+  const handleQuote = useCallback((text: string, segment: TranscriptSegment) => {
+    notesRef.current?.insertQuote(text, segment.start / 1000);
+  }, []);
+
+  // 问 AI：展开对话并带上原句；对话尚未挂载时等挂载后补上
+  const chatRef = useRef<VideoNoteChatPanelHandle | null>(null);
+  const pendingQuote = useRef<TranscriptQuote | null>(null);
+  const handleAsk = useCallback(
+    (text: string, segment: TranscriptSegment) => {
+      const quote = { text, time: segment.start / 1000 };
+      setChatOpen(true);
+      if (chatRef.current) chatRef.current.attachQuote(quote);
+      else pendingQuote.current = quote;
+    },
+    [setChatOpen]
+  );
+  const onChatRef = useCallback((handle: VideoNoteChatPanelHandle | null) => {
+    chatRef.current = handle;
+    if (handle && pendingQuote.current) {
+      handle.attachQuote(pendingQuote.current);
+      pendingQuote.current = null;
+    }
+  }, []);
+
   if (loading) return <Loading minHeight={0} />;
 
   if (!videoNote) {
@@ -207,6 +305,14 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
       disabled: transcription.isTranscribing,
     });
   }
+  if (chapterState.canRegenerate) {
+    moreMenuItems.push({
+      key: "chapters",
+      label: chapterState.generating ? "正在生成章节…" : "重新生成章节",
+      icon: <ListTree className="size-4" strokeWidth={1.75} />,
+      disabled: chapterState.generating || transcription.isTranscribing,
+    });
+  }
   if (hasSegments) {
     moreMenuItems.push({
       key: "subtitle",
@@ -229,6 +335,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
       setLanguage(next);
       void transcription.transcribe(next);
     } else if (key === "optimize") transcription.optimize();
+    else if (key === "chapters") chapterState.regenerate();
     else if (key === "subtitle") setSubtitleMounted(!subtitleMounted);
     else if (key === "ebook") setEbookOpen(true);
   };
@@ -249,21 +356,14 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         meta={meta}
         actions={
           <>
-            <Tooltip content={notesOpen ? "收起笔记" : "打开笔记"} placement="bottom">
-              <IconButton
-                aria-label={notesOpen ? "收起笔记" : "打开笔记"}
-                aria-pressed={!!notesOpen}
-                onClick={() => setNotesOpen(!notesOpen)}
-                className={toggleClass(!!notesOpen)}
-              >
-                <NotebookPen className="size-4" strokeWidth={1.75} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip content={chatOpen ? "收起对话" : "展开对话"} placement="bottom">
+            <Tooltip
+              content={chatOpen ? "收起对话 (Ctrl/⌘ J)" : "展开对话 (Ctrl/⌘ J)"}
+              placement="bottom"
+            >
               <IconButton
                 aria-label={chatOpen ? "收起对话" : "展开对话"}
                 aria-pressed={!!chatOpen}
-                onClick={() => setChatOpen(!chatOpen)}
+                onClick={toggleChat}
                 className={toggleClass(!!chatOpen)}
               >
                 <MessageCircle className="size-4" strokeWidth={1.75} />
@@ -289,17 +389,15 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         }
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <ResizeableAndHideableSidebar
-          width={materialWidth ?? 380}
-          onWidthChange={setMaterialWidth}
-          open={materialVisible}
+          width={watchActual}
+          onWidthChange={width => setWatchWidth(width)}
+          open
           sidebarPosition="left"
-          minWidth={280}
-          maxWidth={560}
-          disableResize={!materialVisible || materialFills}
+          minWidth={WATCH_MIN}
+          maxWidth={watchMax}
           showDivider
-          fillRemaining={materialFills}
           className="h-full"
         >
           <MaterialColumn
@@ -308,41 +406,56 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
             transcription={transcription}
             subtitleTrackUrl={subtitleTrackUrl}
             subtitleLanguage={resolveVideoNoteOptimizationLanguage(language, null)}
+            chapters={chapters}
+            chaptersGenerating={chapterState.generating}
+            markers={playerMarkers}
+            quotedIndexes={quotedIndexes}
             onVideoElement={handleVideoElement}
+            onQuote={handleQuote}
+            onAsk={handleAsk}
           />
         </ResizeableAndHideableSidebar>
 
-        {dockChat && (
-          <div className="min-w-0 flex-1">
-            <NotesStage videoNoteId={videoNoteId} videoController={videoController} />
-          </div>
-        )}
-
-        {/* 对话：笔记关闭时占中间，打开时停靠右栏；收起只隐藏（保留流式回答），入口常驻顶栏 */}
-        <div
-          className={cn(
-            "relative flex min-h-0 min-w-0 flex-col",
-            dockChat ? "shrink-0 shadow-[inset_1px_0_0_var(--tau-line-2)]" : "flex-1",
-            !chatOpen && "hidden"
-          )}
-          style={dockChat ? { width: dockWidth } : undefined}
-        >
-          {dockChat && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="调整对话栏宽度"
-              onPointerDown={startDockResize}
-              className="hover:bg-accent/30 absolute inset-y-0 -left-[3px] z-10 w-[6px] cursor-col-resize transition-colors"
-            />
-          )}
-          <VideoNoteChatPanel
+        <div className="min-w-0 flex-1">
+          <NotesStage
+            ref={notesRef}
             videoNoteId={videoNoteId}
-            mainDbName={mainDbName}
-            transcript={transcriptText}
-            docked={dockChat}
+            videoController={videoController}
+            onMarkersChange={setNoteMarkers}
           />
         </div>
+
+        {/* 对话：放得下三栏时停靠右栏，否则作为抽屉盖在笔记栏上；同一位置挂载，切换不打断回答 */}
+        {chatMounted && (
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col",
+              chatDocked
+                ? "relative shrink-0 shadow-[inset_1px_0_0_var(--tau-line-2)]"
+                : "bg-surface shadow-float absolute inset-y-0 right-0 z-20",
+              !chatOpen && "hidden"
+            )}
+            style={chatDocked ? { width: dockWidth } : { left: watchActual }}
+          >
+            {chatDocked && (
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="调整对话栏宽度"
+                onPointerDown={startDockResize}
+                className="hover:bg-accent/30 absolute inset-y-0 -left-[3px] z-10 w-[6px] cursor-col-resize transition-colors"
+              />
+            )}
+            <VideoNoteChatPanel
+              ref={onChatRef}
+              videoNoteId={videoNoteId}
+              mainDbName={mainDbName}
+              transcript={transcriptText}
+              docked
+              onClose={() => setChatOpen(false)}
+            />
+          </div>
+        )}
       </div>
 
       <ConfirmDialog

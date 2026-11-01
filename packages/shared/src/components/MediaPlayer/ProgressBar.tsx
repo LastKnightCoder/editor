@@ -23,10 +23,18 @@ interface ProgressBarProps {
   square?: boolean;
   /** 触屏：拖动圆点常显、触控区加高 */
   touch?: boolean;
+  /** 分段边界（0 - 1，不含两端），在轨道上切出细缝，如视频章节 */
+  breaks?: number[];
   className?: string;
 }
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
+
+/** 分段细缝取所在容器的底色：常态底栏是纸面，全屏胶囊是深墨 */
+const BREAK_CLASS: Record<MediaTone, string> = {
+  surface: "bg-surface",
+  float: "bg-ink-1",
+};
 
 const BUFFER_CLASS: Record<MediaTone, string> = {
   surface: "bg-accent-soft",
@@ -43,6 +51,7 @@ const ProgressBar = ({
   tone = "surface",
   square = false,
   touch = false,
+  breaks,
   className,
 }: ProgressBarProps) => {
   const scrubber = useScrubber({ onScrub, onCommit, onPointerValue });
@@ -78,6 +87,13 @@ const ProgressBar = ({
           className={cn("absolute inset-y-0 left-0", !square && "rounded-full", colors.fill)}
           style={{ width: `${shown * 100}%` }}
         />
+        {breaks?.map(at => (
+          <div
+            key={at}
+            className={cn("absolute inset-y-0 w-0.5 -translate-x-1/2", BREAK_CLASS[tone])}
+            style={{ left: `${clamp(at) * 100}%` }}
+          />
+        ))}
       </div>
       <span
         aria-hidden
