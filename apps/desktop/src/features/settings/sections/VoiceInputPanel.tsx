@@ -154,7 +154,11 @@ export function VoiceInputPanel() {
 
   return (
     <>
-      <SettingsGroup title="识别服务" description="搜索、聊天与编辑器的语音输入使用这里的选择" bare>
+      <SettingsGroup
+        title="识别服务"
+        description="电脑上没有语音输入入口，这里的选择不会被用到；手机上请在「我的 › 语音输入」里设置"
+        bare
+      >
         <div role="radiogroup" aria-label="识别服务" className="grid grid-cols-3 gap-2">
           <EngineCard
             selected={setting.active === "native"}
