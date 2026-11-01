@@ -26,6 +26,7 @@
     "./markdown-directives": "./markdown-directives.ts",
     "./browser-companion": "./browser-companion.ts",
     "./custom-checkbox": "./custom-checkbox.ts",
+    "./deck-icon": "./deck-icon.ts",
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

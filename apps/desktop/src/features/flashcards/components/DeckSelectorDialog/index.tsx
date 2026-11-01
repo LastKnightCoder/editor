@@ -4,7 +4,7 @@ import { Button, Dialog, DialogBody, Spinner } from "@tau/ui";
 import { useFlashcardDecks } from "../../queries";
 import type { FlashcardDeck } from "@/types";
 import DeckFormModal from "./DeckFormModal";
-import DeckIcon from "@/components/DeckIcon";
+import DeckIcon from "@tau/shared/deck-icon";
 
 interface DeckSelectorModalProps {
   open: boolean;

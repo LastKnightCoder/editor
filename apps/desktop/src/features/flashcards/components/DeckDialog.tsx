@@ -1,11 +1,10 @@
 /**
- * 卡组新建 / 编辑 Dialog：图标（legacy flashcardDeckIcons 键）· 名称 · 颜色（6 色设计板）· 描述。
+ * 卡组新建 / 编辑 Dialog：图标（@tau/shared/deck-icon 的 key）· 名称 · 颜色（6 色设计板）· 描述。
  * 删除卡组会连带删除卡片与复习记录，走 ConfirmDialog 并写明张数（卡片删除不确认、可撤销，卡组不可撤销）。
  */
 
-import DeckIcon from "@/components/DeckIcon";
+import DeckIcon, { deckIconKeys } from "@tau/shared/deck-icon";
 import type { FlashcardDeck } from "@/types";
-import { flashcardDeckIconKeys } from "@/utils/flashcard";
 import { Button, Dialog, DialogBody, Input, Textarea, cn, toast } from "@tau/ui";
 import { Folder } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -38,7 +37,7 @@ export function DeckDialog({
     name: "",
     description: "",
     coverColor: TONE_OPTIONS[0].color,
-    emoji: flashcardDeckIconKeys[0],
+    emoji: deckIconKeys[0],
   });
   const [saving, setSaving] = useState(false);
 
@@ -56,7 +55,7 @@ export function DeckDialog({
             name: "",
             description: "",
             coverColor: TONE_OPTIONS[0].color,
-            emoji: flashcardDeckIconKeys[0],
+            emoji: deckIconKeys[0],
           }
     );
   }, [open, deck]);
@@ -132,7 +131,7 @@ export function DeckDialog({
           <div className="flex flex-col gap-1.5">
             <span className="text-ink-2 text-[12px] font-medium">图标</span>
             <div className="flex flex-wrap gap-1">
-              {flashcardDeckIconKeys.map(key => (
+              {deckIconKeys.map(key => (
                 <button
                   key={key}
                   type="button"
