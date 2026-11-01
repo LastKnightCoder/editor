@@ -524,6 +524,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 - **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、边缘渐隐）、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
 - **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式；旧 `tau-mobile-theme` 不读取、不转换，缺少当前偏好时使用共享默认值。
 - **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
+- **背景高亮笔触**：「我的 → 外观 → 背景高亮」（overlay 页 `settings-highlight-style`，`components/HighlightStyleSection.tsx`）选平涂 / 平头荧光笔 / 下半划线 / 干笔颗粒，写 `setting.json` 的 `appearance.highlight.style`（与桌面同构，缺省平涂）；编辑器经 `IHighlightStyle` 订阅设置桥快照（`services/editorRegistry.tsx`），选中即重绘，预览用 `HighlightMark` 的 `variant` 直接绘制。
 - **字号档位**：`src/styles.css` 的 `:root` 覆盖 `@tau/themes` 的 9 档 `--tau-text-*`（桌面密度正文 13px 不适合手机），`text-tau-*` 语义类随之取移动端值：
   hero 28 / title-lg 22 / title 17 / body-lg 17 / body 16 / meta 14 / sm 13 / micro 12 / tiny 11。`body` 基准字号取 body 档。
   新代码用 `text-tau-*`，同一角色同一档：时间 sm、标签 chip micro、列表行与按钮 body、说明 meta。

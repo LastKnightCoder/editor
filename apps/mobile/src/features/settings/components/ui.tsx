@@ -7,6 +7,7 @@ import {
   Cloud,
   Database,
   Folder,
+  Highlighter,
   Image as ImageIcon,
   MessageSquare,
   Plug,
@@ -126,6 +127,14 @@ export function IconType() {
   return (
     <IconTile className="bg-tag-2-soft text-tag-2">
       <Type size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconHighlighter() {
+  return (
+    <IconTile className="bg-tag-4-soft text-tag-4">
+      <Highlighter size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

@@ -4,6 +4,7 @@ import {
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
+import type { HighlightStyle } from "@tau/editor/extensions/text-formatting/types";
 
 export interface DatabaseItem {
   name: string;
@@ -702,11 +703,14 @@ export interface SettingCompat {
   };
 
   /** 外观类设置（与桌面端 setting.json 的 appearance 节同构）：image 为图片渲染默认外观；
-   *  readingFont 为移动端正文字体 id（本机设置，缺省 system） */
+   *  highlight.style 为背景高亮笔触（缺省平涂）；readingFont 为移动端正文字体 id（本机设置，缺省 system） */
   appearance?: {
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
       shadow?: ImageShadowPreset | boolean;
+    };
+    highlight?: {
+      style?: HighlightStyle;
     };
     readingFont?: string;
     [key: string]: unknown;
