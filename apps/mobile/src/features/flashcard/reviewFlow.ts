@@ -65,8 +65,8 @@ function checkCloze(card: Flashcard, answer: ReviewAnswer): boolean {
   return blanks.every(blank => isBlankCorrect(blank, answer.cloze?.[blank.blankId]));
 }
 
-/** 判分：问答题恒 true（自评）；多选题要求集合完全一致 */
-export function checkAnswer(card: Flashcard, answer: ReviewAnswer): boolean {
+/** 问答题由 AI 或用户自评，在结果产生前不预判对错。 */
+export function checkAnswer(card: Flashcard, answer: ReviewAnswer): boolean | null {
   switch (card.type) {
     case "single-choice": {
       const correct = card.data.options?.find(option => option.isCorrect);
@@ -82,7 +82,7 @@ export function checkAnswer(card: Flashcard, answer: ReviewAnswer): boolean {
     case "boolean":
       return answer.boolean === card.data.booleanAnswer;
     case "qa":
-      return true;
+      return null;
     default:
       return false;
   }

@@ -86,11 +86,21 @@ it("点麦克风只切到语音模式，不开始录音；键盘图标切回并�
   expect(speech.service.start).not.toHaveBeenCalled();
   expect(byLabel("按住说话")?.textContent).toBe("按住 说话");
   expect(textarea().hidden).toBe(true);
+  expect(textarea().classList.contains("hidden")).toBe(true);
 
+  const input = textarea();
+  const focus = vi.spyOn(input, "focus").mockImplementation(() => {
+    // 模拟浏览器：隐藏的输入框无法聚焦。
+    if (!input.hidden && !input.classList.contains("hidden")) {
+      HTMLTextAreaElement.prototype.focus.call(input);
+    }
+  });
   act(() => byLabel("切换到键盘")!.click());
   expect(byLabel("按住说话")).toBeNull();
   expect(textarea().hidden).toBe(false);
   expect(document.activeElement).toBe(textarea());
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  focus.mockRestore();
 });
 
 it("语音模式下按住录音，松手把识别结果直接发送", async () => {
@@ -179,6 +189,14 @@ it("按下输入框时先按预计键盘高度收起外壳，聚焦时输入框�
   expect(kbHeight()).toBe("0px");
   pointer(textarea(), "pointerdown");
   expect(Number.parseInt(kbHeight(), 10)).toBeGreaterThan(0);
+  // 键盘尚未升起就切到语音，不保留预计键盘高度。
+  act(() => byLabel("切换到语音输入")!.click());
+  expect(kbHeight()).toBe("0px");
+  act(() => byLabel("切换到键盘")!.click());
+  expect(Number.parseInt(kbHeight(), 10)).toBeGreaterThan(0);
+  act(() => textarea().blur());
+  expect(kbHeight()).toBe("0px");
+  pointer(textarea(), "pointerdown");
   // 键盘迟迟没升起（只是滑动、没有聚焦）：超时后释放，外壳回到原高
   act(() => vi.advanceTimersByTime(700));
   expect(kbHeight()).toBe("0px");

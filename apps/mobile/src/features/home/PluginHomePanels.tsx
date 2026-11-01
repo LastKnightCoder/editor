@@ -35,10 +35,12 @@ function PanelCard({
     <section
       aria-label={title}
       data-home-panel={panel.id}
+      onClick={action ? () => runAction(action.run) : undefined}
       className={cn(
         "bg-surface shadow-card flex min-w-0 flex-col rounded-[18px] px-3 pt-2.5 pb-2.5",
         // 正文为空（组件返回 null）时整块收起，不留空卡
         "has-[[data-home-panel-body]:empty]:hidden",
+        action && "cursor-pointer",
         fullRow && "col-span-2"
       )}
     >
@@ -47,7 +49,10 @@ function PanelCard({
         {action ? (
           <button
             type="button"
-            onClick={() => runAction(action.run)}
+            onClick={event => {
+              event.stopPropagation();
+              runAction(action.run);
+            }}
             className="text-ink-3 active:text-ink-1 -mr-1 flex h-6 max-w-[60%] items-center gap-0.5 rounded-lg px-1 text-[12px] font-medium"
           >
             <span className="truncate">{action.title}</span>

@@ -282,7 +282,7 @@ iOS 的音频引擎在专用串行后台队列上惰性创建，音频会话激�
 
 设置继续使用 llmProviders / llmUsageSettings，模型转换与桌面同源。
 
-**AI 模型设置**（我的 › AI › AI 模型，设置模块 `ai-models`；`features/settings/ai/`）：上方按功能分配模型（`chat`、`speechInputRefinement`，键与桌面一致），下方是服务商列表。添加服务商从 `@tau/ai/catalog` 的内置目录选预设（只列三种受支持协议、有官方地址的服务商），或选「自定义」；两者都先推入 `aiProvider` 页作为未保存草稿，点「保存」才写入，返回有未保存修改时先确认。详情页填 API Key、地址（自定义另填名称与协议）、测试连接（保存后经 `models.verify` 单发），预设模型按目录开关，目录外模型手填 id 与容量。目录含全部内置模型元数据，添加面板与详情页均懒加载，不进首屏包。设置文件不参与数据库同步，手机服务商独立配置。
+**AI 模型设置**（我的 › AI › AI 模型，设置模块 `ai-models`；`features/settings/ai/`）：上方按功能分配模型（`chat`、`flashcardGeneration`、`speechInputRefinement`，键与桌面一致），下方是服务商列表。「闪卡」单独分配模型，插件宿主的 AI 制卡、草稿生成、生成后保存与复习简答题评判均使用该项，未分配时明确失败，不回退到对话模型；流程见 [移动闪卡接口](/docs/architecture/plugin-portability.md#移动闪卡接口)。添加服务商从 `@tau/ai/catalog` 的内置目录选预设（只列三种受支持协议、有官方地址的服务商），或选「自定义」；两者都先推入 `aiProvider` 页作为未保存草稿，点「保存」才写入，返回有未保存修改时先确认。详情页填 API Key、地址（自定义另填名称与协议）、测试连接（保存后经 `models.verify` 单发），预设模型按目录开关，目录外模型手填 id 与容量。目录含全部内置模型元数据，添加面板与详情页均懒加载，不进首屏包。设置文件不参与数据库同步，手机服务商独立配置。
 
 - **Key 不进 WebView**：凡是把设置交给页面的命令（`read_setting_json`、`ai_settings_mutate`、`plugin_provider_*`、`plugin_tts_mutate`）都经 `ai_settings::public_setting`，删去服务商与模型的 apiKey/headers，加 `configured` 与 `keyHint`（Key 末 4 位，短于 8 位时为空）。原生其他模块直接读完整设置。
 - **写入**：只经原生 `ai_settings_mutate`（`src-tauri/src/ai_settings.rs`，`mutate_setting_value` 串行队列，前端经 `enqueueProviderConfigWrite` 排队）：`upsertProvider`（apiKey 缺省保留原值、空串清除；校验 id/名称/http(s) 地址/协议/模型 id 唯一与正整数容量；缺失的 headers 按原值补回；丢弃 configured/keyHint）、`removeProvider`、`assign`（功能白名单，目标须存在）、`setSpeechRefinement`（保留 instructions）。任何写入后清除指向已不存在服务商或模型的分配。返回 `{ llmProviders, llmUsageSettings, speechInput }` 脱敏快照，前端 `mergeAiSettings` 并回设置。普通全量写入由 `preserve_managed_fields` 保留这两个字段。data URL 内联图片和文本可直接准备，纯图片消息不要求文字；新输入或恢复上下文含图时要求模型 input 支持 image，否则在请求前拒绝。单发用户消息的 images 字段与桌面同形。其他附件由调用者的 prepareInput 解析；同步会话不会让另一设备的绝对路径自动可用。
@@ -302,7 +302,11 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 - **宿主工具**（`services/aiChat/`）：工具名、入参与桌面同名同义，描述写明手机端差异。只读：`get_current_date`、`search_knowledge`（FTS5 全文检索，无向量）、`get_content_markdown`、`sql_query`（原生 `ai_sql_query`：query_only + 只读语句校验 + 进度回调超时，规则与桌面一致，错误串 `CODE: message|hint`）、`query_todos`、`query_calendar_events`；写入：`create_todo` / `update_todo` / `set_todo_completed` / `delete_todo` / `create_calendar_event` / `update_calendar_event` / `delete_calendar_event`。待办与日程执行端是应用页面用的原生命令（不借插件数据层身份），只处理独立待办，版本以 updateTime 承担，写后失效 todo / calendar 查询。另注册 `ask-question` 与内置 Skill 来源（`@tau/ai/skills/internal`，与桌面同一份正文）。周期规则、单次实例、撤销、正文待办与内容改写未迁移。
 - **就近提问**（`features/aiChat/pages/aiContentChat.page.tsx`）：`ContentDetailPage` 传入 `aiContext`（卡片、文章、项目文档、日记由各宿主页给出）时，顶栏出现 ✦（整篇提问），阅读态选区标注条最前多出「问 AI」（选中片段提问）。两者推入整页就近对话 `aiContentChat`（按 contentId 去重）：会话作用域 `content-chat`、domainRef `content:<contentId>`，同一篇再次进入续上最近一次；首次在首条消息发出时才建会话，标题为「关于「篇名」」。页面复用 `ChatPage`（传 `content`）：输入框上方预置整篇 / 片段引用与快捷问法，顶部原文条（`SourceBar`）点按就地展开正文片段并高亮选中原文，不显示「新对话」。对话记录不分作用域取页、只留 `main-chat` 与 `content-chat`，后者显示「来自笔记」。
 - **引用与附件**：引用沿用 chat-core 的 `TextContent.mentions`（`MentionRef` 增加 `diary` 类型与 `quote` 标记：选中片段的原文放在 previewText）。对话页输入框都可 @（按钮或输入 `@`）经内容引用选择器加整篇引用；＋ 面板提供拍照 / 相册（压到长边 1568px 的 JPEG data URL，一次最多 4 张，模型不接受图片时提示换模型）与引用笔记。服务的 `prepareInput`（`services/aiChat/mentions.ts`）把引用展开成正文前缀：片段给原文，整篇只给身份并提示用 `get_content_markdown` 读取；会话 display 条目保留原始消息，历史里用户消息上方显示引用条与图片。
-- **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），点键盘图标切回并在点击里聚焦弹出键盘。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
+- **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：生成中为停止、有字（或打字模式下有图片）为发送、否则为语音 / 键盘切换。语音模式与微信一致：点麦克风只切换，输入框换成整条「按住 说话」（复用听写手势与沉浸区，上滑取消，松手发送，不经语音整理），切到语音或输入框失焦时立即释放尚未兑现的键盘预留；点键盘图标时同步显示输入框并完成键盘避让，再在当前点击内聚焦（preventScroll），聚焦失败立即释放预留。聊天页全屏背景与随键盘缩放的内容外壳分离，切换期间背景始终覆盖底层页面。输入区带 `data-kb-optout`：它由外壳贴在键盘上沿本就可见，参与自动露出会对它 scrollIntoView 把整页卷上去。键盘未弹出时按下或聚焦输入框，先 reserve(预计键盘高度) 收起外壳、再 releaseWhenKeyboardShown，键盘升起前输入框已在其上方，iOS 不再平移可视视口把顶栏推出屏幕；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。下排「引用笔记」后是思考强度胶囊（`useThinkingLevel`）：可选档位由 `@tau/ai/models` 的 `thinkingLevelsOf` 按模型真实能力给出（目录命中用 pi 的档位，目录外按「推理」开关给通用四档），只有一档时不显示；所选档位存本机 localStorage、所有对话共用，没选过取模型设置的默认档，随发送与重新生成写入 `runs.start` 的 `thinkingLevel`。档位文案与桌面同源（`@tau/shared/chat-core` 的 `THINKING_LEVEL_OPTIONS`）。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
+
+### 闪卡简答题评判
+
+复习简答题时，有文字作答且已分配「闪卡」模型才在翻面后请求 AI 评判，使用 `llmUsageSettings.flashcardGeneration`，不回退到对话模型。`services/flashcardJudgement.ts` 通过本机 AI 的 `generation.start` 无工具单发，不创建聊天会话；提示词、结果类型与 JSON 校验共用 `@tau/ai/flashcards`。界面展示 1–10 分、总体评价、亮点、遗漏与建议，6 分及以上显示回答正确，最终复习评分仍由用户选择。空答、未配置及失败时保留自评，未评判不预判为正确，自评的正确率按用户选取的复习评分计算。换卡、模型分配变化、切库及卸载中止在途请求并丢弃迟到结果，失败可重试。
 
 ### 图片生成与编辑
 
@@ -323,7 +327,7 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 
 ## 安全区与键盘避让
 
-iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚动内容末尾，每个变量只有一个写入方。
+iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有一个写入方。普通页面的安全区留白放在滚动内容末尾；插件域页面由宿主在滚动区外固定预留底部安全区。
 
 - **写入方**：
   - `--mobile-safe-top/bottom` 取 `max(env(safe-area-inset-*), --native-safe-*)`。`--native-safe-*` 由 Android
@@ -555,7 +559,9 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
 
-插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签），右上角搜索经共享的 `components/PageHeaderSearch` 横向展开，关键词在当前标签内生效；商店为全宽列表行，右侧 `StoreActionButton` 按「获取 / 排队或下载中（点按取消）/ 校验中 / 待生效 / 已安装 / 更新 / 不可用 / 重试」投影商店主动作与该插件的应用级安装任务；已安装为开关 + 状态行，顶部 `PluginChangesBanner` 汇总已保存未生效的变更（启停、恢复上一版等）并提供「立即生效」，中心更新下载完成后自动生效；有可用更新时其下的更新条提供「全部更新」（`UpdateAllSheet` 逐项列出版本变化与新增权限，确认后全部入队，更新检查与各行共用选版查询缓存）。pluginDetail 按 pluginId 保活，商店资料与已安装管理合一：头部为图标、状态、启停开关与同源的大号主按钮，下面是统计行、一句话兼容结论与「介绍 / 设置 / 权限 / 版本」分段标签（介绍按 `@tau/plugins/document` 清洗后用编辑器只读渲染；设置内嵌通用插件设置组件，同步/上传设置进入对应宿主服务页；权限只读展示声明的权限、本会话登记的贡献与安全提示；版本含历史、更新日志与兼容性详情），⋯ 菜单承载取消待生效、恢复上一版、清除数据与卸载；插件中心没有记录时只展示本机信息。安装面板消费原生选版和安装阶段，不生成虚假百分比；下载中可关闭面板（「后台下载」），任务继续，进度留在列表行与详情主按钮上，重新打开面板读同一任务。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
+插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。外壳在滚动区外固定预留 `--mobile-screen-safe-bottom`，键盘弹出时该预留归零；内容容器不使用 `.mobile-page-scroll`，不追加末尾占位。所有插件页面、设置与管理页默认使用这一边界，不需要额外声明。宿主不探测插件 DOM；插件在已避开系统区域的容器内布局，底栏可正常 `sticky bottom: 0`，只保留自身呼吸间距。作者规范见[页面布局](/plugins/tau-plugin-template/docs/ui.md#手机页面的布局边界)。
+
+plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签），右上角搜索经共享的 `components/PageHeaderSearch` 横向展开，关键词在当前标签内生效；商店为全宽列表行，右侧 `StoreActionButton` 按「获取 / 排队或下载中（点按取消）/ 校验中 / 待生效 / 已安装 / 更新 / 不可用 / 重试」投影商店主动作与该插件的应用级安装任务；已安装为开关 + 状态行，顶部 `PluginChangesBanner` 汇总已保存未生效的变更（启停、恢复上一版等）并提供「立即生效」，中心更新下载完成后自动生效；有可用更新时其下的更新条提供「全部更新」（`UpdateAllSheet` 逐项列出版本变化与新增权限，确认后全部入队，更新检查与各行共用选版查询缓存）。pluginDetail 按 pluginId 保活，商店资料与已安装管理合一：头部为图标、状态、启停开关与同源的大号主按钮，下面是统计行、一句话兼容结论与「介绍 / 设置 / 权限 / 版本」分段标签（介绍按 `@tau/plugins/document` 清洗后用编辑器只读渲染；设置内嵌通用插件设置组件，同步/上传设置进入对应宿主服务页；权限只读展示声明的权限、本会话登记的贡献与安全提示；版本含历史、更新日志与兼容性详情），⋯ 菜单承载取消待生效、恢复上一版、清除数据与卸载；插件中心没有记录时只展示本机信息。安装面板消费原生选版和安装阶段，不生成虚假百分比；下载中可关闭面板（「后台下载」），任务继续，进度留在列表行与详情主按钮上，重新打开面板读同一任务。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
 
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。
 
@@ -564,6 +570,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 ## 全局提示
 
 提示只有 `@tau/ui` 的 toast 一套实现：`components/ToastViewport` 挂 `ToastHost variant="inverse"`（墨色胶囊，停靠在顶栏下方，层级 `Z_INDEX.TOAST`）。`components/toast` 保留移动端的调用形态（`toast({ type, text })`、`toast.success(...)`），内部转到 `@tau/ui`，`id` 映射为同 key 原位替换；`toastQueue` 供测试读取当前提示。插件、编辑器与公共包直接调用的 `@tau/ui` toast 走同一队列显示；编辑器进行中提示用 `loading` → `resolve/reject` 落定。
+
+停靠区按内容取宽，两侧至少留 16px；提示文字保持单行，超出胶囊上限时省略，动作按钮保持可见。
 
 ## 外部打开 Markdown（导入预览）
 
@@ -608,6 +616,8 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 ## 语音输入
 
 移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的服务即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页，原生识别接线见[系统语音输入](#系统语音输入)。
+
+业务插件通过 `context.speech` 使用同一识别设置，`app/plugins/speech` 为应用听写与插件录音复用服务实例并互斥占用麦克风。`unavailableReason()` 返回 `null` 表示可用，宿主原样透传；只有语音适配器尚未装配时才返回「插件语音输入尚未就绪」。
 
 Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；握手失败只保留 HTTP 状态码或 TLS、网络、超时类别，公共连接桥经白名单映射后放入 `error` 事件的 `message`，不传递原始错误、请求头或响应正文。作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户开始语音输入时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 

@@ -161,7 +161,6 @@ export interface ISetting {
     webClip: LLMUsageConfigV2 | null;
     podcastGeneration: LLMUsageConfigV2 | null;
     flashcardGeneration: LLMUsageConfigV2 | null;
-    aiJudgement: LLMUsageConfigV2 | null;
     transcriptionOptimization: LLMUsageConfigV2 | null;
     speechInputRefinement: LLMUsageConfigV2 | null;
     videoSummary: LLMUsageConfigV2 | null;
@@ -386,7 +385,6 @@ const initialState: IState = {
       webClip: null,
       podcastGeneration: null,
       flashcardGeneration: null,
-      aiJudgement: null,
       transcriptionOptimization: null,
       speechInputRefinement: null,
       videoSummary: null,

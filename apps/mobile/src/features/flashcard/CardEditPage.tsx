@@ -29,7 +29,7 @@ import {
   FLASHCARD_TYPE_ORDER,
   FLASHCARD_TYPE_TONE,
 } from "./constants";
-import type { Flashcard, FlashcardDifficulty, FlashcardType } from "./types";
+import type { Flashcard, FlashcardDifficulty, FlashcardOption, FlashcardType } from "./types";
 
 // 轻纸面：非核心输入无底色无边框，光标即焦点反馈（对齐 card-edit-redesign-a 方案）
 const bareInputClass =
@@ -66,10 +66,13 @@ type CardEditPageProps = {
   /** 从内容详情进入时携带的参考资料（仅新建生效） */
   reference?: { refType: "content"; contentId: number; title: string };
   initialPrompt?: Descendant[];
+  initialDraft?: import("@tau/plugins").PluginFlashcardDraft;
   createCard?: (
     input: import("@tau/plugins").PluginFlashcardDraft & { deckId: number }
   ) => Promise<void>;
   onBack: () => void;
+  /** 页内编辑步骤的系统返回交给 onBack，不弹出整个页面。 */
+  backWithinPage?: boolean;
   onSaved: () => void;
   onError: (error: unknown, fallback: string) => void;
 };
@@ -80,8 +83,10 @@ export function CardEditPage({
   type: initialType,
   reference,
   initialPrompt,
+  initialDraft,
   createCard,
   onBack,
+  backWithinPage = false,
   onSaved,
   onError,
 }: CardEditPageProps) {
@@ -97,19 +102,31 @@ export function CardEditPage({
   const [cardType, setCardType] = useState<FlashcardType>(initialType);
   // 各自独立副本：同屏两个编辑器共享同一 EMPTY 引用会触发 slate WeakMap 映射冲突（findPath 崩溃）
   const [promptValue, setPromptValue] = useState<Descendant[]>(() =>
-    initialPrompt?.length ? structuredClone(initialPrompt) : createEmptyEditorContent()
+    initialDraft?.prompt?.length
+      ? structuredClone(initialDraft.prompt)
+      : initialPrompt?.length
+        ? structuredClone(initialPrompt)
+        : createEmptyEditorContent()
   );
-  const [detailValue, setDetailValue] = useState<Descendant[]>(createEmptyEditorContent);
-  const [options, setOptions] = useState<Array<{ id: string; label: string; isCorrect: boolean }>>([
-    { id: genId(), label: "", isCorrect: true },
-    { id: genId(), label: "", isCorrect: false },
-  ]);
-  const [answerText, setAnswerText] = useState("");
-  const [hintText, setHintText] = useState("");
-  const [booleanAnswer, setBooleanAnswer] = useState(true);
-  const [explanation, setExplanation] = useState("");
-  const [difficulty, setDifficulty] = useState<FlashcardDifficulty>("standard");
-  const [tags, setTags] = useState<string[]>([]);
+  const [detailValue, setDetailValue] = useState<Descendant[]>(() =>
+    initialDraft?.detail?.length ? structuredClone(initialDraft.detail) : createEmptyEditorContent()
+  );
+  const [options, setOptions] = useState<FlashcardOption[]>(() =>
+    initialDraft?.data.options
+      ? structuredClone(initialDraft.data.options)
+      : [
+          { id: genId(), label: "", isCorrect: true },
+          { id: genId(), label: "", isCorrect: false },
+        ]
+  );
+  const [answerText, setAnswerText] = useState(initialDraft?.data.answer ?? "");
+  const [hintText, setHintText] = useState(initialDraft?.data.hint ?? "");
+  const [booleanAnswer, setBooleanAnswer] = useState(initialDraft?.data.booleanAnswer ?? true);
+  const [explanation, setExplanation] = useState(initialDraft?.data.explanation ?? "");
+  const [difficulty, setDifficulty] = useState<FlashcardDifficulty>(
+    initialDraft?.difficulty ?? "standard"
+  );
+  const [tags, setTags] = useState<string[]>(() => [...(initialDraft?.tags ?? [])]);
   const [tagDraft, setTagDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -148,13 +165,7 @@ export function CardEditPage({
             ? (item.detail as Descendant[])
             : createEmptyEditorContent()
         );
-        setOptions(
-          (item.data.options ?? []).map(option => ({
-            id: option.id,
-            label: option.label,
-            isCorrect: option.isCorrect,
-          }))
-        );
+        setOptions(structuredClone(item.data.options ?? []));
         setAnswerText(item.data.answer ?? "");
         setHintText(item.data.hint ?? "");
         setBooleanAnswer(item.data.booleanAnswer ?? true);
@@ -220,7 +231,11 @@ export function CardEditPage({
   // 有未保存改动则弹确认，确认后的退出走 goBackBypassed
   useBackHandler(() => {
     if (savingRef.current) return true;
-    if (!dirty) return false;
+    if (!dirty) {
+      if (!backWithinPage) return false;
+      onBack();
+      return true;
+    }
     setConfirmExit(true);
     return true;
   });
@@ -272,7 +287,7 @@ export function CardEditPage({
   const buildData = (): Record<string, unknown> => {
     // 以原卡 data 为底合并：桌面端写入的 hint/referenceNotes 等字段不能被静默清空
     const base: Record<string, unknown> = {
-      ...((isEditing ? card?.data : null) as Record<string, unknown> | null),
+      ...((isEditing ? card?.data : initialDraft?.data) as Record<string, unknown> | undefined),
       explanation: explanation.trim(),
       hint: hintText.trim(),
     };
@@ -282,9 +297,8 @@ export function CardEditPage({
         base.options = options
           .filter(option => option.label.trim() !== "")
           .map(option => ({
-            id: option.id,
+            ...option,
             label: option.label.trim(),
-            isCorrect: option.isCorrect,
           }));
         break;
       case "qa":

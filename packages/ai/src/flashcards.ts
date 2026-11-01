@@ -50,7 +50,7 @@ export const buildAnswerJudgementUserPrompt = (
   question: string,
   userAnswer: string,
   referenceAnswer: string,
-  referenceMaterial?: string,
+  referenceMaterial?: string
 ): string => {
   let prompt = `## 题目
 ${question}
@@ -74,3 +74,49 @@ ${referenceMaterial}`;
 
   return prompt;
 };
+
+export interface AIJudgementResult {
+  score: number;
+  comment: string;
+  highlights: string[];
+  missingPoints: string[];
+  suggestions: string[];
+}
+
+/** 两端按同一协议读取模型评判，格式异常时保留用户自评入口。 */
+export function parseAnswerJudgementResponse(response: string): AIJudgementResult {
+  let cleaned = response
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start !== -1 && end > start) cleaned = cleaned.slice(start, end + 1);
+  const value: unknown = JSON.parse(cleaned);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("AI 评判结果格式无效");
+  const result = value as Record<string, unknown>;
+  if (
+    typeof result.score !== "number" ||
+    !Number.isFinite(result.score) ||
+    result.score < 1 ||
+    result.score > 10
+  )
+    throw new Error("AI 评判分数必须为 1–10");
+  if (result.comment !== undefined && typeof result.comment !== "string")
+    throw new Error("AI 评判说明格式无效");
+  const strings = (key: string): string[] => {
+    const items = result[key];
+    if (items === undefined) return [];
+    if (!Array.isArray(items) || items.some(item => typeof item !== "string"))
+      throw new Error("AI 评判反馈格式无效");
+    return items;
+  };
+  return {
+    score: Math.round(result.score),
+    comment: typeof result.comment === "string" ? result.comment : "",
+    highlights: strings("highlights"),
+    missingPoints: strings("missingPoints"),
+    suggestions: strings("suggestions"),
+  };
+}

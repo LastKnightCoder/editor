@@ -175,3 +175,52 @@ it("旧窗口全量设置提交不能删除或覆盖新保存的语音输入账�
   await settings.handleSetUserSetting({ ...initial, speechInput: { active: "native" } });
   expect((await settings.getSettingSnapshot()).speechInput).toEqual(speechInput);
 });
+
+it.each([false, true])(
+  "旧判分模型迁移到闪卡，已有闪卡配置优先（%s）且重复读取不写盘",
+  async hasFlashcard => {
+    const legacy = { providerId: "old", modelId: "judge" };
+    const current = { providerId: "current", modelId: "flashcard" };
+    mocks.read.mockResolvedValue(
+      JSON.stringify({
+        ...initial,
+        llmUsageSettings: {
+          chat: current,
+          flashcardGeneration: hasFlashcard ? current : null,
+          aiJudgement: legacy,
+        },
+      })
+    );
+    const settings = await setup();
+    const snapshot = await settings.getSettingSnapshot();
+    expect(snapshot.llmUsageSettings).toEqual({
+      chat: current,
+      flashcardGeneration: hasFlashcard ? current : legacy,
+    });
+    expect(mocks.write).toHaveBeenCalledOnce();
+    await settings.handleSetUserSetting(snapshot);
+    mocks.read.mockResolvedValue(mocks.write.mock.calls[0][1]);
+    vi.resetModules();
+    const reloaded = (await import("../user-setting")).default;
+    expect((await reloaded.getSettingSnapshot()).llmUsageSettings).toEqual(
+      snapshot.llmUsageSettings
+    );
+    expect(mocks.write).toHaveBeenCalledOnce();
+  }
+);
+
+it("闪卡配置升级保存失败时不发布半迁移状态，允许重新读取并重试", async () => {
+  mocks.read.mockResolvedValue(
+    JSON.stringify({
+      ...initial,
+      llmUsageSettings: { aiJudgement: { providerId: "old", modelId: "judge" } },
+    })
+  );
+  mocks.move.mockRejectedValueOnce(new Error("migration disk"));
+  const settings = (await import("../user-setting")).default;
+  await expect(settings.getSettingSnapshot()).rejects.toThrow("migration disk");
+  await expect(settings.getSettingSnapshot()).resolves.toMatchObject({
+    llmUsageSettings: { flashcardGeneration: { providerId: "old", modelId: "judge" } },
+  });
+  expect(mocks.read).toHaveBeenCalledTimes(2);
+});

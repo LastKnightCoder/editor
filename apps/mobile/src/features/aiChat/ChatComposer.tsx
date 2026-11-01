@@ -3,6 +3,7 @@
 // 语音模式与微信一致：上行换成「按住 说话」，松手发送；再点键盘图标回到打字并弹出键盘。
 
 import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   ArrowUp,
   AtSign,
@@ -81,8 +82,13 @@ export function ChatComposer(props: {
     reservation.releaseWhenKeyboardShown();
   };
   const focusInput = () => {
-    liftAboveKeyboard();
-    inputRef.current?.focus();
+    // 同步显示输入框并完成避让，再在当前点击内聚焦，避免隐藏元素聚焦失败。
+    flushSync(() => {
+      setVoiceMode(false);
+      liftAboveKeyboard();
+    });
+    inputRef.current?.focus({ preventScroll: true });
+    if (document.activeElement !== inputRef.current) reservation.releaseNow();
   };
   const cameraRef = useRef<HTMLInputElement>(null);
   const albumRef = useRef<HTMLInputElement>(null);
@@ -158,11 +164,7 @@ export function ChatComposer(props: {
     <button
       type="button"
       aria-label="切换到键盘"
-      onClick={() => {
-        setVoiceMode(false);
-        // 在点击里同步聚焦，移动端才会弹出键盘
-        focusInput();
-      }}
+      onClick={focusInput}
       className={cn(ROUND_BUTTON, "bg-page text-ink-1")}
     >
       <Keyboard size={18} aria-hidden="true" />
@@ -172,6 +174,7 @@ export function ChatComposer(props: {
       type="button"
       aria-label="切换到语音输入"
       onClick={() => {
+        reservation.releaseNow();
         inputRef.current?.blur();
         setVoiceMode(true);
       }}
@@ -261,6 +264,7 @@ export function ChatComposer(props: {
           hidden={voiceMode}
           value={value}
           placeholder={props.placeholder ?? "发消息"}
+          onBlur={() => reservation.releaseNow()}
           onPointerDown={() => {
             if (document.activeElement !== inputRef.current) liftAboveKeyboard();
           }}
@@ -280,7 +284,10 @@ export function ChatComposer(props: {
               submit();
             }
           }}
-          className="text-ink-1 placeholder:text-ink-3 block field-sizing-content max-h-36 min-h-6 w-full resize-none bg-transparent pr-2 text-[15.5px] leading-normal outline-none"
+          className={cn(
+            "text-ink-1 placeholder:text-ink-3 field-sizing-content max-h-36 min-h-6 w-full resize-none bg-transparent pr-2 text-[15.5px] leading-normal outline-none",
+            voiceMode ? "hidden" : "block"
+          )}
         />
         <div className="mt-2.5 flex items-center gap-1.5">
           <button

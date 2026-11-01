@@ -8,6 +8,7 @@
     "./contracts": "./src/contracts.ts",
     "./session": "./src/session/index.ts",
     "./models": "./src/models.ts",
+    "./flashcards": "./src/flashcards.ts",
     "./catalog": "./src/catalog.ts",
     "./runtime": "./src/runtime/index.ts",
     "./tools": "./src/tools/index.ts",
@@ -16,6 +17,7 @@
     "./skills/internal/*.md": "./src/skills/internal/*.md",
     "./mcp": "./src/mcp/index.ts",
     "./tool-identity": "./src/tool-identity.ts",
+    "./plugin-quota": "./src/plugin-quota.ts",
     "./think-stream": "./src/think-stream.ts"
   },
   "scripts": {
