@@ -12,7 +12,7 @@
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                    |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                         |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
-| [device-sync.md](./architecture/device-sync.md)               | 一台电脑协调、多电脑与手机配对、声明式身份归并、冲突保全、正文合并、离线补齐及覆盖恢复                                                               |
+| [device-sync.md](./architecture/device-sync.md)               | 一台电脑协调、多电脑与手机配对、分批基线准备与中断续做、声明式身份归并、冲突保全、正文合并、离线补齐及覆盖恢复                                       |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                       |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                       |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                   |

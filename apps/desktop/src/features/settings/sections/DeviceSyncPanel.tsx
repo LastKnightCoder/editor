@@ -22,7 +22,20 @@ export function DeviceSyncPanel() {
   const { status } = model;
   let body;
   // 首次配对才显示建立副本；连接端重新配对在自己的对话框里等待
-  if (model.pair.isPending && status.data?.role !== "replica") body = <FirstSync />;
+  if (status.data?.preparation && !status.data.enabled)
+    body = (
+      <>
+        <StatusBand
+          tone="accent"
+          icon={LoaderCircle}
+          spinning
+          title="正在准备设备同步"
+          subtitle={`已准备 ${status.data.preparation.completed} / ${status.data.preparation.total} 篇正文，完成后即可添加设备；中断后会继续补齐。`}
+        />
+        <Failure error={model.enable.error ?? status.data.error} className="mt-3" />
+      </>
+    );
+  else if (model.pair.isPending && status.data?.role !== "replica") body = <FirstSync />;
   else if (!status.data)
     body = status.error ? (
       <Failure error={status.error} />

@@ -14,6 +14,7 @@ export interface DeviceSyncStatus {
   /** 只有连接端有 */
   phase?: "idle" | "syncing" | "synced" | "offline" | "error";
   pendingAssets: number;
+  preparation?: { completed: number; total: number };
   enabled: boolean;
   database: string;
   /** 已授权设备，不代表在线 */
