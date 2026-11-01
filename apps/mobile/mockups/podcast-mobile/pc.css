@@ -1,0 +1,249 @@
+/* 播客移动端 mockup：外壳与手机帧复用 editor-mobile / ai-mobile，这里只放本稿的页面件，类名统一 p- 前缀 */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.sp {
+  flex: 1;
+}
+.muted {
+  color: var(--ink-3);
+}
+.t1 {
+  --tone: var(--tau-tag-1);
+  --tone-soft: var(--tau-tag-1-soft);
+}
+.t2 {
+  --tone: var(--tau-tag-2);
+  --tone-soft: var(--tau-tag-2-soft);
+}
+.t3 {
+  --tone: var(--tau-tag-3);
+  --tone-soft: var(--tau-tag-3-soft);
+}
+.t4 {
+  --tone: var(--tau-tag-4);
+  --tone-soft: var(--tau-tag-4-soft);
+}
+.t5 {
+  --tone: var(--tau-tag-5);
+  --tone-soft: var(--tau-tag-5-soft);
+}
+.spin .ic,
+.spin.ic {
+  animation: p-spin 1s linear infinite;
+}
+@keyframes p-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 宿主顶栏（PageHeader）：返回 + 标题，右侧不归插件 */
+.p-host {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+}
+.p-host .ib {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+.p-host .t {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 650;
+  padding-left: 2px;
+}
+
+/* 页面内容区：宿主滚动，吸底件放在末尾 */
+.p-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.p-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.p-fade::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background: linear-gradient(transparent, var(--bg-page));
+  pointer-events: none;
+}
+
+/* 播客库：统计 + 搜索 */
+.p-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px 0 16px;
+  flex: none;
+}
+.p-bar .stat {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.p-bar .stat b {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+.p-bar .stat i {
+  font-style: normal;
+  color: var(--ink-3);
+  margin: 0 5px;
+}
+.p-ib {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  flex: none;
+}
+.p-pills {
+  display: flex;
+  gap: 6px;
+  padding: 4px 16px 10px;
+  flex: none;
+  overflow: hidden;
+}
+.p-pill {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  white-space: nowrap;
+  flex: none;
+}
+.p-pill.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  box-shadow: none;
+  font-weight: 600;
+}
+.p-hint {
+  margin: 0 16px 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.p-pills {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+}
+
+/* 空态 */
+.p-empty {
+  padding: 70px 32px 0;
+  text-align: center;
+}
+.p-empty .ill {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.p-empty h3 {
+  margin-top: 14px;
+  font-size: 16px;
+  font-weight: 650;
+}
+.p-empty p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+/* 推入页的系统手势条（宿主安全区，滚动区外） */
+.p-homebar {
+  height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--bg-surface);
+}
+.p-homebar.page {
+  background: var(--bg-page);
+}
+.p-homebar::after {
+  content: "";
+  width: 130px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--ink-1);
+}
+.p-center {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+/* 「我的」与「今天」页里的分组行 */
+.p-form {
+  margin: 0 12px;
+  background: var(--bg-surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  padding: 2px 16px;
+}
+.p-form .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  font-size: 14.5px;
+}
+.p-form .row + .row {
+  border-top: 1px solid var(--line-2);
+}
+.p-form .row .val {
+  margin-left: auto;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+}
+.p-form .row > [data-i] {
+  color: var(--ink-2);
+}
+.p-sec {
+  padding: 4px 18px 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.p-sheet.tall {
+  top: 120px;
+  overflow: hidden;
+}
