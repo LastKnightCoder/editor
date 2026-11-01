@@ -1,0 +1,418 @@
+/* 移动：390×844 手机框；分组卡沿用 .setting-group 形制（surface + 16 圆角 + shadow-card），组内不画分隔线 */
+.phone {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 46px;
+  background: var(--tau-bg-page);
+  box-shadow:
+    0 0 0 10px #1f1a14,
+    0 0 0 11px #3a3128,
+    var(--tau-shadow-float);
+}
+.phone .sbar {
+  height: 48px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 30px 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.phone .sbar .r {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.phone .sbar .bat {
+  width: 22px;
+  height: 11px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.2px var(--tau-ink-1);
+  position: relative;
+}
+.phone .sbar .bat::after {
+  content: "";
+  position: absolute;
+  inset: 2px 5px 2px 2px;
+  border-radius: 1.5px;
+  background: var(--tau-ink-1);
+}
+.phone .hdr {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+}
+.phone .hdr .back {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 40px;
+  color: var(--tau-accent-text);
+  font-size: 15px;
+  gap: 0;
+}
+.phone .hdr h2 {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.phone .hdr .end {
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
+}
+.phone .body {
+  position: absolute;
+  top: 96px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  overflow-y: auto;
+  padding: 4px 16px 120px;
+}
+.phone .body.with-dock {
+  padding-bottom: 150px;
+}
+.phone .home {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 134px;
+  height: 5px;
+  margin-left: -67px;
+  border-radius: 3px;
+  background: var(--tau-ink-1);
+  opacity: 0.85;
+  z-index: 60;
+}
+
+.m-label {
+  margin: 18px 0 7px;
+  padding: 0 15px;
+  font-size: 13px;
+  color: var(--tau-ink-3);
+}
+.m-label:first-child {
+  margin-top: 4px;
+}
+.m-group {
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  box-shadow: var(--tau-shadow-card);
+  overflow: hidden;
+}
+.m-group.pad {
+  padding: 18px 16px;
+}
+.m-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  font-size: 15px;
+}
+.m-row.tap:active {
+  background: var(--tau-bg-hover);
+}
+.m-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.m-row .grow small {
+  display: block;
+  font-size: 12.5px;
+  color: var(--tau-ink-3);
+  line-height: 1.45;
+}
+.m-row .val {
+  color: var(--tau-ink-3);
+  font-size: 14px;
+  max-width: 46%;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-row.danger {
+  color: var(--tau-danger);
+}
+.m-row .chev {
+  color: var(--tau-ink-3);
+}
+.m-tile {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-2);
+}
+.m-note {
+  margin: 7px 0 0;
+  padding: 0 15px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--tau-ink-3);
+}
+
+.m-status {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.m-status .lead {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-2);
+}
+.m-status .lead.ok {
+  background: var(--tau-ok-soft);
+  color: var(--tau-ok);
+}
+.m-status .lead.warn {
+  background: var(--tau-warn-soft);
+  color: var(--tau-warn);
+}
+.m-status .lead.danger {
+  background: var(--tau-danger-soft);
+  color: var(--tau-danger);
+}
+.m-status .lead.accent {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.m-status .t {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.m-status .s {
+  margin-top: 3px;
+  font-size: 13.5px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+}
+.m-sub {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+}
+
+.m-steps {
+  display: grid;
+  gap: 16px;
+}
+.m-step {
+  display: flex;
+  gap: 12px;
+}
+.m-step .step-n {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+.m-step b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.m-step div > span {
+  display: block;
+  font-size: 13px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+  margin-top: 2px;
+}
+
+/* 拇指区：底部固定动作条，触控高 48 */
+.m-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 12px 16px 30px;
+  background: linear-gradient(to bottom, transparent, var(--tau-bg-page) 26%);
+  display: grid;
+  gap: 8px;
+}
+.m-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-1);
+  box-shadow: var(--tau-shadow-card);
+}
+.m-btn.primary {
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  box-shadow: var(--tau-shadow-lift);
+}
+.m-btn.danger {
+  background: var(--tau-danger);
+  color: var(--tau-ink-inverse);
+  box-shadow: none;
+}
+.m-btn.plain {
+  background: transparent;
+  box-shadow: none;
+  color: var(--tau-ink-2);
+  font-weight: 500;
+  height: 40px;
+}
+.m-btn.sm {
+  height: 36px;
+  width: auto;
+  padding: 0 14px;
+  font-size: 13.5px;
+  border-radius: 11px;
+}
+.m-btn[disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.m-clip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  font-size: 13.5px;
+}
+.m-clip .grow {
+  flex: 1;
+  min-width: 0;
+}
+.m-clip small {
+  display: block;
+  font: 11.5px var(--tau-font-mono);
+  color: var(--tau-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 底部面板：覆盖确认在移动端用 sheet，危险按钮落在拇指区 */
+.m-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--tau-overlay);
+  animation: fade 180ms;
+}
+.m-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 31;
+  padding: 10px 20px 34px;
+  border-radius: 24px 24px 0 0;
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-float);
+  animation: sheet-up 260ms var(--tau-ease-out);
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+.m-sheet .grab {
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  margin: 0 auto 14px;
+  background: var(--tau-line-1);
+}
+.m-sheet h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.m-sheet p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+}
+.m-sheet .fact-list {
+  font-size: 14px;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.m-sheet .acts {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.m-dialog {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 50%;
+  z-index: 31;
+  transform: translateY(-50%);
+  padding: 22px 20px 16px;
+  border-radius: 20px;
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-float);
+  animation: fade 200ms;
+}
+.m-dialog h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.m-dialog p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+}
+.m-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  z-index: 40;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: var(--tau-shadow-float);
+  animation: rise 200ms var(--tau-ease-out);
+}

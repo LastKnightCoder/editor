@@ -240,6 +240,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
     return (
       <div className="page-enter">
         <DeviceSyncSection />
+        <GroupLabel>云端存储同步</GroupLabel>
         <FirstRunView setting={props.setting} onOpenProvider={openProvider} />
       </div>
     );
@@ -254,6 +255,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
   return (
     <div className="page-enter space-y-1">
       <DeviceSyncSection />
+      <GroupLabel>云端存储同步</GroupLabel>
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
 
       <div className="flex gap-2.5 pt-3">

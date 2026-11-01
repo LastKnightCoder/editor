@@ -21,7 +21,7 @@ import { isProviderSection, ProviderChoiceList } from "../components/ProviderCho
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 
-type SyncTab = "overview" | "files" | "database";
+type SyncTab = "device" | "overview" | "files" | "database";
 
 export function SyncSection() {
   const queryClient = useQueryClient();
@@ -143,7 +143,7 @@ export function SyncSection() {
     }
   };
 
-  const [tab, setTab] = useState<SyncTab>("overview");
+  const [tab, setTab] = useState<SyncTab>("device");
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const resourceSync = useResourceSyncModel();
 
@@ -167,19 +167,21 @@ export function SyncSection() {
 
   return (
     <>
-      <DeviceSyncPanel />
       <SettingsTabs
         label="同步视图"
         value={tab}
         onChange={setTab}
         items={[
-          { key: "overview", label: "概览" },
+          { key: "device", label: "设备同步" },
+          { key: "overview", label: "云端存储" },
           { key: "files", label: "资源文件", badge: resourceSync.counts.error || undefined },
           { key: "database", label: "本地数据库" },
         ]}
       />
 
-      {tab === "overview" ? (
+      {tab === "device" ? (
+        <DeviceSyncPanel />
+      ) : tab === "overview" ? (
         <>
           <SettingsGroup bare>
             <div className="grid grid-cols-2 gap-3">

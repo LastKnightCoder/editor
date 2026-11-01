@@ -1,0 +1,170 @@
+/* 原型外壳：控制区与说明栏，刻意用深墨底与产品界面区分 */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-1);
+  font: 13px/1.6 var(--tau-font);
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.ctl {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: #2b241c;
+  color: #f3eee2;
+  padding: 10px 24px 12px;
+  display: grid;
+  gap: 8px;
+}
+.ctl .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.ctl .grp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.ctl .lbl {
+  font-size: 11.5px;
+  color: #b8a991;
+  margin-right: 4px;
+}
+.ctl .title {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-right: 10px;
+}
+.ctl .title small {
+  font-weight: 400;
+  color: #b8a991;
+  margin-left: 8px;
+  font-size: 11.5px;
+}
+.ctl .chip {
+  border: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 12px;
+  background: rgba(255, 248, 239, 0.08);
+  color: #e9dfcd;
+}
+.ctl .chip:hover {
+  background: rgba(255, 248, 239, 0.16);
+}
+.ctl .chip.on {
+  background: #f3eee2;
+  color: #2b241c;
+  font-weight: 600;
+}
+.ctl .chip.rec::after {
+  content: "推荐";
+  margin-left: 5px;
+  font-size: 10.5px;
+  color: #d9a27f;
+}
+.ctl .chip.on.rec::after {
+  color: #a05236;
+}
+.ctl .chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ctl .chip.act {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 239, 0.25);
+}
+.ctl .sep {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 248, 239, 0.15);
+}
+.ctl .demo-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #a38c4d;
+  color: #2b241c;
+  font-weight: 600;
+}
+
+.stage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+  padding: 28px 24px 80px;
+}
+.frame-host {
+  flex: none;
+}
+.notes {
+  width: 300px;
+  flex: none;
+  position: sticky;
+  top: 132px;
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+}
+.notes h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--tau-ink-1);
+  font-weight: 600;
+}
+.notes .tagline {
+  margin: 0 0 14px;
+}
+.notes h4 {
+  margin: 16px 0 4px;
+  font-size: 12.5px;
+  color: var(--tau-ink-1);
+  font-weight: 600;
+}
+.notes ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.notes li {
+  margin: 3px 0;
+}
+.notes code {
+  font-family: var(--tau-font-mono);
+  font-size: 11.5px;
+  color: var(--tau-ink-1);
+}
+.notes .need {
+  color: var(--tau-accent-text);
+}
+.notes .need::before {
+  content: "需新增 · ";
+  font-weight: 600;
+}
+
+@media (max-width: 1500px) {
+  .stage {
+    flex-direction: column;
+    align-items: center;
+  }
+  .notes {
+    position: static;
+    width: min(1120px, 100%);
+    columns: 2;
+    column-gap: 32px;
+  }
+}
