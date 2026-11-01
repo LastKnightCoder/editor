@@ -2,6 +2,8 @@ import { withDurableDocuments } from "./durable-document-lifecycle";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
+import DEVICE_SYNC_SQL from "@tau/db-schema/schema/device-sync.sql?raw";
+import { initializeDeviceSyncDatabase } from "./device-sync/database-store";
 import { join } from "node:path";
 import { readdirSync } from "node:fs";
 import log from "electron-log";
@@ -377,6 +379,7 @@ class DatabaseModule implements Module {
 
       const schemaStartAt = Date.now();
       ensureMainSchema(database);
+      initializeDeviceSyncDatabase(database, DEVICE_SYNC_SQL);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );

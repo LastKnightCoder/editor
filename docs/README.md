@@ -12,6 +12,7 @@
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                            |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                 |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                               |
+| [device-sync.md](./architecture/device-sync.md) | 局域网个人设备配对、正文 Yjs、线性事务、长期离线检查点和图片同步 |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                               |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                               |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                           |
@@ -43,6 +44,7 @@
 | [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程                 |
 | [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查           |
 | [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查           |
+| [ops-device-sync-spike.md](./guides/ops-device-sync-spike.md) | 设备同步复现与真机功能验收 |
 | [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、图标同步、TestFlight 与安装    |
 | [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                             |
 | [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布 |

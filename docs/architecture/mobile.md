@@ -543,6 +543,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
 
+局域网实验入口位于同步中心：TS 复用正文协议 2，Rust 原子保存检查点、条件安装主库与校验附件。配对库的本机正文从真实二进制恢复；编辑器外 JSON 先转成原基线上的操作。AppShell 按库启动串行调度，网页恢复/联网事件及原生 `RunEvent::Resumed` 唤醒补齐，隐藏时冲刷输入。接收后刷新本机查询而不查询云端版本；协议、保全与限制见[个人设备同步](/docs/architecture/device-sync.md)。
+
 ## 全局提示
 
 提示只有 `@tau/ui` 的 toast 一套实现：`components/ToastViewport` 挂 `ToastHost variant="inverse"`（墨色胶囊，停靠在顶栏下方，层级 `Z_INDEX.TOAST`）。`components/toast` 保留移动端的调用形态（`toast({ type, text })`、`toast.success(...)`），内部转到 `@tau/ui`，`id` 映射为同 key 原位替换；`toastQueue` 供测试读取当前提示。插件、编辑器与公共包直接调用的 `@tau/ui` toast 走同一队列显示；编辑器进行中提示用 `loading` → `resolve/reject` 落定。

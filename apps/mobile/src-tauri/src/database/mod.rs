@@ -70,6 +70,7 @@ pub use pomodoro::*;
 pub use project::*;
 pub use schema::ensure_database_file;
 pub(crate) use schema::install_download;
+pub(crate) use schema::{open_active_database, open_database_by_name};
 pub use sql_query::*;
 pub use todo::*;
 
@@ -141,7 +142,170 @@ fn write_content_snapshot(
         None,
     )
 }
+
+pub(crate) fn install_device_sync_projection(
+    tx: &rusqlite::Transaction,
+    document: &Value,
+) -> Result<(), String> {
+    let id = document["contentId"]
+        .as_i64()
+        .ok_or("DEVICE_SYNC_CONTENT: 正文编号无效")?;
+    if !tx
+        .prepare("SELECT 1 FROM content_documents WHERE content_id=?1")
+        .map_err(|error| error.to_string())?
+        .exists([id])
+        .map_err(|error| error.to_string())?
+    {
+        return Ok(());
+    }
+    let projection = &document["projection"];
+    content_contracts::validate_projection(&projection["content"], &projection["contracts"])?;
+    use sha2::{Digest, Sha256};
+    let content = projection["contentJson"]
+        .as_str()
+        .ok_or("正文投影缺少规范字节")?
+        .to_string();
+    let contracts = projection["contractsJson"]
+        .as_str()
+        .ok_or("正文契约缺少规范字节")?
+        .to_string();
+    if serde_json::from_str::<Value>(&content).map_err(|error| error.to_string())?
+        != projection["content"]
+        || serde_json::from_str::<Value>(&contracts).map_err(|error| error.to_string())?
+            != projection["contracts"]
+    {
+        return Err("正文投影与规范字节不同".into());
+    }
+    let revision = format!("{:x}", Sha256::digest(format!("{content}\n{contracts}")));
+    tx.execute(
+        "UPDATE contents SET content=?1,count=?2,update_time=?3 WHERE id=?4",
+        params![
+            content,
+            projection["count"].as_i64(),
+            document["updatedAt"].as_i64(),
+            id
+        ],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.execute(
+        "UPDATE content_documents SET contracts=?1,revision=?2 WHERE content_id=?3",
+        params![contracts, revision, id],
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(())
+}
+pub(crate) fn project_device_sync_document(
+    tx: &rusqlite::Transaction,
+    document: &Value,
+    audit: bool,
+) -> Result<(), String> {
+    let id = document["contentId"]
+        .as_i64()
+        .ok_or("DEVICE_SYNC_CONTENT: 正文编号无效")?;
+    let current = tx
+        .query_row(
+            "SELECT d.document_id,d.revision,c.content FROM content_documents d JOIN contents c ON c.id=d.content_id WHERE d.content_id=?1",
+            [id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?,row.get::<_,String>(2)?)),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    let Some((identity, revision, old_content)) = current else {
+        return Ok(());
+    };
+    let projection = &document["projection"];
+    let now = document["updatedAt"]
+        .as_i64()
+        .ok_or("DEVICE_SYNC_CONTENT: 正文时间无效")?;
+    let source = tx
+        .query_row(
+            "SELECT source_id FROM library_identity WHERE id=1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    content_contracts::write(
+        tx,
+        id,
+        &projection["content"],
+        Some(&projection["contracts"]),
+        Some(&revision),
+        Some(&identity),
+        source.as_deref(),
+        now,
+    )?;
+    tx.execute(
+        "UPDATE contents SET content=?1,count=?2,update_time=?3 WHERE id=?4",
+        params![
+            projection["content"].to_string(),
+            projection["count"].as_i64(),
+            now,
+            id
+        ],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.execute(
+        "UPDATE cards SET update_time=max(coalesce(update_time,0),?1) WHERE content_id=?2",
+        params![now, id],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.execute(
+        "UPDATE diary_segments SET update_time=max(coalesce(update_time,0),?1) WHERE content_id=?2",
+        params![now, id],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.execute("UPDATE diary_entries SET update_time=max(coalesce(update_time,0),?1),word_count=coalesce((SELECT sum(c.count) FROM diary_segments s JOIN contents c ON c.id=s.content_id WHERE s.diary_id=diary_entries.id),0) WHERE id IN (SELECT diary_id FROM diary_segments WHERE content_id=?2)",params![now,id]).map_err(|error|error.to_string())?;
+    install_device_sync_projection(tx, document)?;
+    let clock = common::now_millis();
+    if audit&&serde_json::from_str::<Value>(&old_content).ok().as_ref()!=Some(&projection["content"])&&!tx.prepare("SELECT 1 FROM operation WHERE operation_content_type='content' AND operation_id=?1 AND operation_action='update' AND operation_time>=?2 LIMIT 1").map_err(|error|error.to_string())?.exists(params![id,clock-1000]).map_err(|error|error.to_string())? {common::write_operation(tx,"content","update",id,clock)?;}
+
+    Ok(())
+}
 pub(super) fn write_content_snapshot_in_zone(
+    tx: &rusqlite::Transaction,
+    content_id: i64,
+    content: &Value,
+    count: i64,
+    now: i64,
+    code: &str,
+    contracts: Option<&Value>,
+    expected_revision: Option<&str>,
+    expected_document_id: Option<&str>,
+    expected_source_id: Option<&str>,
+    zone: Option<calendar_time::CalendarTimeZone>,
+) -> Result<i64, String> {
+    let ready = tx
+        .prepare("SELECT 1 FROM sqlite_master WHERE name='_tau_device_state'")
+        .map_err(|error| error.to_string())?
+        .exists([])
+        .map_err(|error| error.to_string())?;
+    let managed=ready&&tx.query_row("SELECT CASE WHEN json_valid(payload) THEN applying=0 AND json_extract(payload,'$.enabled')=1 ELSE 0 END FROM _tau_device_state WHERE id=1",[],|row|row.get::<_,bool>(0)).optional().map_err(|error|error.to_string())?.unwrap_or(false)&&crate::device_sync::database::document(tx,content_id)?.is_some();
+    if managed {
+        tx.execute("UPDATE _tau_device_state SET applying=3 WHERE id=1", [])
+            .map_err(|error| error.to_string())?;
+    }
+    let result = write_content_snapshot_in_zone_inner(
+        tx,
+        content_id,
+        content,
+        count,
+        now,
+        code,
+        contracts,
+        expected_revision,
+        expected_document_id,
+        expected_source_id,
+        zone,
+    );
+    if managed && !tx.is_autocommit() {
+        tx.execute("UPDATE _tau_device_state SET applying=0 WHERE id=1", [])
+            .map_err(|error| error.to_string())?;
+        crate::device_sync::database::compact_projection(tx)?;
+    }
+    result
+}
+fn write_content_snapshot_in_zone_inner(
     tx: &rusqlite::Transaction,
     content_id: i64,
     content: &Value,

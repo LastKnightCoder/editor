@@ -1113,15 +1113,23 @@ fn view_scope(conn: &rusqlite::Connection, document_id: &str) -> Result<(String,
         )
         .map_err(|_| "COLLAB_CACHE_MISSING: 本机文档尚未就绪".to_string())?;
     let value: Value = serde_json::from_str(&metadata).map_err(|e| e.to_string())?;
+    let mut document = value["source"]["contentDocumentId"]
+        .as_str()
+        .unwrap_or(document_id)
+        .to_string();
+    if let Some(generation) = value["source"]["generation"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+    {
+        document.push(':');
+        document.push_str(generation);
+    }
     Ok((
         value["source"]["librarySourceId"]
             .as_str()
             .unwrap_or("application")
             .to_string(),
-        value["source"]["contentDocumentId"]
-            .as_str()
-            .unwrap_or(document_id)
-            .to_string(),
+        document,
     ))
 }
 #[tauri::command]
@@ -1194,37 +1202,51 @@ pub(crate) static CACHE_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new
 pub(crate) fn release_library_sessions(
     conn: &rusqlite::Connection,
     database: &str,
+    workspace: Option<&str>,
 ) -> Result<(), String> {
     let stem = database.trim_end_matches(".db");
     let full = format!("{stem}.db");
     conn.execute_batch("BEGIN IMMEDIATE")
         .map_err(|e| e.to_string())?;
     let result = (|| {
-        let owned = "json_extract(metadata,'$.source.databaseName') IN (?1,?2)";
+        let owned = "(json_extract(metadata,'$.source.databaseName') IN (?1,?2) OR json_extract(metadata,'$.source.librarySourceId')=?3)";
         let local =
             format!("{owned} AND coalesce(json_extract(metadata,'$.mode'),'shared')='local'");
         for table in ["updates", "resources", "input_drafts", "document_drafts"] {
             conn.execute(
                 &format!("DELETE FROM {table} WHERE document_id IN (SELECT id FROM sessions WHERE {local})"),
-                rusqlite::params![stem, full],
+                rusqlite::params![stem, full,workspace],
             )
             .map_err(|e| e.to_string())?;
         }
         conn.execute(
             &format!("DELETE FROM entity_holds WHERE holder IN (SELECT 'document:' || id FROM sessions WHERE {local})"),
-            rusqlite::params![stem, full],
+            rusqlite::params![stem, full,workspace],
         )
         .map_err(|e| e.to_string())?;
         conn.execute(
             &format!("DELETE FROM sessions WHERE {local}"),
-            rusqlite::params![stem, full],
+            rusqlite::params![stem, full, workspace],
         )
         .map_err(|e| e.to_string())?;
         conn.execute(
             &format!("UPDATE sessions SET metadata=json_remove(metadata,'$.source') WHERE {owned}"),
-            rusqlite::params![stem, full],
+            rusqlite::params![stem, full, workspace],
         )
         .map_err(|e| e.to_string())?;
+        for table in [
+            "node_views",
+            "input_drafts",
+            "document_drafts",
+            "entity_holds",
+            "migrations",
+        ] {
+            conn.execute(
+                &format!("DELETE FROM {table} WHERE workspace_id IN (?1,?2,?3)"),
+                rusqlite::params![stem, full, workspace],
+            )
+            .map_err(|e| e.to_string())?;
+        }
         Ok(())
     })();
     conn.execute_batch(if result.is_ok() { "COMMIT" } else { "ROLLBACK" })
