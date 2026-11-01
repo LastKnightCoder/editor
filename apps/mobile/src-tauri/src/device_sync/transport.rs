@@ -69,7 +69,7 @@ fn local_ip(value: &str) -> Result<Ipv4Addr, String> {
     }
     Ok(ip)
 }
-pub(super) async fn request(
+async fn request_raw(
     addresses: &[String],
     port: u16,
     certificate: &str,
@@ -193,8 +193,8 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|error| error.to_string())?
         .as_millis() as u64;
-    if code.protocol != 3 {
-        return Err("DEVICE_SYNC_VERSION: 请将配对设备更新到支持稳定身份归并的版本".into());
+    if code.protocol != 4 {
+        return Err("DEVICE_SYNC_VERSION: 请将配对设备更新到支持文件分块传输的版本".into());
     }
     if code.expires < now
         || code.expires > now + 6 * 60_000
@@ -331,4 +331,130 @@ pub async fn device_sync_request(
         &Value::Object(body),
     )
     .await
+}
+
+pub(super) async fn request(
+    addresses: &[String],
+    port: u16,
+    certificate: &str,
+    token: Option<&str>,
+    body: &Value,
+) -> Result<Value, String> {
+    use super::transfer::{Chunk, Descriptor, TransferFile, CHUNK_BYTES, CONCURRENCY};
+    use futures_util::stream::{self, StreamExt, TryStreamExt};
+    let mut outgoing = body.clone();
+    let bytes = serde_json::to_vec(body).map_err(|error| error.to_string())?;
+    let mut uploaded = None;
+    if body["kind"] == "sync" && bytes.len() > CHUNK_BYTES {
+        if token.is_none() {
+            return Err("DEVICE_SYNC_UNTRUSTED: 文件传输需要设备授权".into());
+        }
+        let file = TransferFile::publish(&bytes)?;
+        let remote: Descriptor = serde_json::from_value(
+            request_raw(
+                addresses,
+                port,
+                certificate,
+                token,
+                &json!({"kind":"transfer-begin","file":file.descriptor}),
+            )
+            .await?,
+        )
+        .map_err(|_| "DEVICE_SYNC_TRANSFER: 文件清单无效")?;
+        remote.validate()?;
+        if remote.size != file.descriptor.size || remote.sha256 != file.descriptor.sha256 {
+            return Err("DEVICE_SYNC_TRANSFER: 文件清单不匹配".into());
+        }
+        let upload = stream::iter((0..remote.size).step_by(CHUNK_BYTES))
+            .map(|offset| {
+                let file = &file;
+                let remote = &remote;
+                async move {
+                    request_raw(
+                        addresses,
+                        port,
+                        certificate,
+                        token,
+                        &json!({"kind":"transfer-write","id":remote.id,"chunk":file.read(offset)?}),
+                    )
+                    .await
+                    .map(|_| ())
+                }
+            })
+            .buffer_unordered(CONCURRENCY)
+            .try_collect::<Vec<_>>()
+            .await;
+        if let Err(error) = upload {
+            let _ = request_raw(
+                addresses,
+                port,
+                certificate,
+                token,
+                &json!({"kind":"transfer-drop","id":remote.id}),
+            )
+            .await;
+            return Err(error);
+        }
+        uploaded = Some(remote.id.clone());
+        outgoing = json!({"kind":"transfer-use","id":remote.id});
+    }
+    drop(bytes);
+    let result = request_raw(addresses, port, certificate, token, &outgoing).await;
+    if let Some(id) = uploaded {
+        let _ = request_raw(
+            addresses,
+            port,
+            certificate,
+            token,
+            &json!({"kind":"transfer-drop","id":id}),
+        )
+        .await;
+    }
+    let result = result?;
+    if !result["transfer"].is_object() {
+        return Ok(result);
+    }
+    let descriptor: Descriptor = serde_json::from_value(result["transfer"].clone())
+        .map_err(|_| "DEVICE_SYNC_TRANSFER: 文件清单无效")?;
+    descriptor.validate()?;
+    let authorization = result["token"].as_str().or(token);
+    let download = async {
+        let mut file = TransferFile::begin(descriptor.clone())?;
+        let mut chunks = stream::iter((0..descriptor.size).step_by(CHUNK_BYTES))
+            .map(|offset| {
+                let descriptor = &descriptor;
+                async move {
+                    let chunk: Chunk = serde_json::from_value(
+                        request_raw(
+                            addresses,
+                            port,
+                            certificate,
+                            authorization,
+                            &json!({"kind":"transfer-read","id":descriptor.id,"offset":offset}),
+                        )
+                        .await?,
+                    )
+                    .map_err(|_| "DEVICE_SYNC_TRANSFER: 文件分块无效")?;
+                    if chunk.offset != offset {
+                        return Err("DEVICE_SYNC_TRANSFER: 文件分块偏移不匹配".into());
+                    }
+                    Ok::<_, String>(chunk)
+                }
+            })
+            .buffer_unordered(CONCURRENCY);
+        while let Some(chunk) = chunks.next().await {
+            file.write(chunk?)?;
+        }
+        file.consume()
+    }
+    .await;
+    let _ = request_raw(
+        addresses,
+        port,
+        certificate,
+        authorization,
+        &json!({"kind":"transfer-drop","id":descriptor.id}),
+    )
+    .await;
+    download
 }

@@ -44,7 +44,7 @@ const PROBLEMS: Record<string, Omit<DeviceSyncProblem, "detail">> = {
   },
   VERSION: {
     title: "两台设备的同步协议不兼容",
-    hint: "先将配对设备都更新到支持稳定身份归并的版本，再重试。",
+    hint: "先将配对设备都更新到支持文件分块传输的版本，再重试。",
   },
   AUTHORITY: {
     title: "这份资料库由另一台电脑协调",
@@ -56,11 +56,15 @@ const PROBLEMS: Record<string, Omit<DeviceSyncProblem, "detail">> = {
     hint: "可能是从旧备份恢复的。为了不覆盖其他设备，已停止同步，请先检查协调电脑的整库备份。",
   },
   BUDGET: {
-    title: "这次修改太大，无法一次同步",
-    hint: "原有资料都已保留。单次同步上限 64 MiB，图片单张上限 25 MiB。",
+    title: "同步请求超过处理上限",
+    hint: "这是单个控制请求的大小限制，不是资料库总大小限制。原有资料和待同步修改都已保留，请将两端 Tau 更新后重试。",
+  },
+  TRANSFER: {
+    title: "同步文件未完整收到或校验失败",
+    hint: "未完成的文件不会安装。已保存的资料不受影响，请保持两台设备在线后重试。",
   },
   DISABLED: { title: "协调电脑暂停了局域网连接", hint: "在协调电脑上恢复连接后会自动补齐。" },
-  BUSY: { title: "配对还在进行", hint: "请等这次配对完成后再试。" },
+  BUSY: { title: "协调电脑正在处理其他同步请求", hint: "请稍候，同步会自动重试。" },
   CLOSED: { title: "连接已停止", hint: "稍后会自动重新连接。" },
   REPLACED: { title: "当前资料库正在恢复", hint: "完成后会自动继续同步。" },
 };

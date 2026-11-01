@@ -3,7 +3,7 @@ import type { ContentNode } from "../protocol";
 import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import type { SyncTable } from "./sql";
 
-export const DEVICE_SYNC_PROTOCOL = 3;
+export const DEVICE_SYNC_PROTOCOL = 4;
 export const DEVICE_SYNC_HISTORY_LIMIT = 128;
 export const DEVICE_SYNC_CHUNK_BYTES = 256 * 1024;
 export type SqlValue = null | string | number | { $blob: string } | { $integer: string };

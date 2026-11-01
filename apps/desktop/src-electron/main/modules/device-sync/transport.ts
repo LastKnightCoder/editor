@@ -1,3 +1,11 @@
+import {
+  TransferFiles,
+  transferChunks,
+  TRANSFER_CHUNK_BYTES,
+  assertTransferFile,
+  type TransferFile,
+  type TransferChunk,
+} from "./transfer-files";
 import { lookup } from "node:dns/promises";
 import { isIPv4 } from "node:net";
 import { request } from "node:https";
@@ -45,7 +53,7 @@ export function parseDevicePairCode(value: string): DevicePairCode {
   }
   const now = Date.now();
   if (code && typeof code.protocol === "number" && code.protocol !== DEVICE_SYNC_PROTOCOL)
-    throw new Error("DEVICE_SYNC_VERSION: 请将配对设备更新到支持稳定身份归并的版本");
+    throw new Error("DEVICE_SYNC_VERSION: 请将配对设备更新到支持文件分块传输的版本");
   if (
     !code ||
     code.protocol !== DEVICE_SYNC_PROTOCOL ||
@@ -61,7 +69,7 @@ export function parseDevicePairCode(value: string): DevicePairCode {
     throw new Error("DEVICE_SYNC_PAIR_EXPIRED: 请在协调电脑重新生成配对信息");
   return code;
 }
-export async function requestDevice<T>(
+async function requestDeviceRaw<T>(
   endpoint: DeviceEndpoint,
   body: unknown,
   token?: string,
@@ -175,4 +183,63 @@ export async function requestDevice<T>(
     }
   }
   throw new Error("DEVICE_SYNC_OFFLINE: 协调电脑离线、局域网权限未开启或证书校验失败");
+}
+
+export async function requestDevice<T>(
+  endpoint: DeviceEndpoint,
+  body: unknown,
+  token?: string,
+  signal?: AbortSignal
+): Promise<T> {
+  const call = <R>(value: unknown, authorization = token) =>
+    requestDeviceRaw<R>(endpoint, value, authorization, signal);
+  let files: TransferFiles | undefined, uploaded: string | undefined;
+  try {
+    const bytes = Buffer.from(JSON.stringify(body));
+    let outgoing = body;
+    if ((body as { kind?: string }).kind === "sync" && bytes.length > TRANSFER_CHUNK_BYTES) {
+      if (!token) throw new Error("DEVICE_SYNC_UNTRUSTED: 文件传输需要设备授权");
+      const uploads = new TransferFiles();
+      files = uploads;
+      const file = uploads.publish(bytes, "local");
+      const remote = await call<TransferFile>({ kind: "transfer-begin", file });
+      assertTransferFile(remote);
+      if (remote.size !== file.size || remote.sha256 !== file.sha256)
+        throw new Error("DEVICE_SYNC_TRANSFER: 文件清单不匹配");
+      uploaded = remote.id;
+      await transferChunks(file.size, async offset => {
+        await call({
+          kind: "transfer-write",
+          id: remote.id,
+          chunk: uploads.read(file.id, offset, "local"),
+        });
+      });
+      outgoing = { kind: "transfer-use", id: remote.id };
+    }
+    const result = await call<T | { transfer: TransferFile; token?: string }>(outgoing);
+    if (!result || typeof result !== "object" || !("transfer" in result)) return result as T;
+    const descriptor = result.transfer;
+    assertTransferFile(descriptor);
+    files ??= new TransferFiles();
+    const downloads = files;
+    const local = downloads.begin(descriptor, "local");
+    try {
+      await transferChunks(descriptor.size, async offset => {
+        const chunk = await call<TransferChunk>(
+          { kind: "transfer-read", id: descriptor.id, offset },
+          result.token ?? token
+        );
+        if (chunk.offset !== offset) throw new Error("DEVICE_SYNC_TRANSFER: 文件分块偏移不匹配");
+        downloads.write(local.id, chunk, "local");
+      });
+      return downloads.consume<T>(local.id, "local");
+    } finally {
+      await call({ kind: "transfer-drop", id: descriptor.id }, result.token ?? token).catch(
+        () => undefined
+      );
+    }
+  } finally {
+    if (uploaded) await call({ kind: "transfer-drop", id: uploaded }).catch(() => undefined);
+    files?.close();
+  }
 }

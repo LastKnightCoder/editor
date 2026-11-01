@@ -16,7 +16,7 @@ export function ActionButton(props: {
       type="button"
       onClick={props.onClick}
       disabled={props.disabled}
-      className={`text-tau-body flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-50 ${
+      className={`text-tau-body flex h-12 min-h-12 flex-1 shrink-0 items-center justify-center gap-2 rounded-[14px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-50 ${
         props.danger
           ? "bg-danger text-ink-inverse"
           : props.emphasis
