@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>马克笔高亮 · 笔触探索</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="marker.css">
+<script src="marker.js"></script>
+</head>
+<body class="doc">
+<header>
+  <h1>马克笔高亮 · 三种笔触</h1>
+  <p class="sub">现在的背景高亮是一段 <code>span</code>：同色相 16% 淡底 + 2px 底线（<code>text-formatting/src/components/Highlight</code>），干净但像「标签」不像「划过的笔」。下面三种笔触都在同一段正文、同一套 7 色色板上对比，每种都给浅色 / 深色两张纸。</p>
+  <p class="sub">A / B / C 都是纯 CSS 背景图（SVG 切片），跟随换行、不动排版，与平涂一起在「设置 › 外观 › 高亮」里选择，发布博客时跟随设置。平头荧光笔的切片与 <code>Highlight/marker.ts</code> 一致。</p>
+  <p class="meta">2026-11-01 · mockup 只作视觉参考，不作为导出源（D-001）· 只出方案，不动 src/</p>
+</header>
+
+<template id="sample">
+  <p>读完这一章，最大的收获是<mark data-c="yellow">间隔重复比集中复习更有效</mark>。作者用了一个很朴素的实验：两组学生背同样的单词，<mark data-c="green">一组每天十分钟，另一组考前</mark><mark data-c="green"><b>突击两小时</b></mark><mark data-c="green">，一周后前者记住的多出近一倍</mark>。<mark data-c="blue">这段高亮故意写得很长，用来看换行之后第二行的笔头是不是还自然，会不会在行尾被切成直角</mark>。</p>
+  <p>不过我对<mark data-c="red">「越早复习越好」</mark>这个结论有保留，<mark data-c="purple">需要回头查原始论文</mark>。</p>
+  <div class="chips"><mark data-c="gray">灰色</mark><mark data-c="red">红色</mark><mark data-c="orange">橙色</mark><mark data-c="yellow">黄色</mark><mark data-c="green">绿色</mark><mark data-c="blue">蓝色</mark><mark data-c="purple">紫色</mark></div>
+</template>
+
+<h2>一 · 三种笔触<small>同一段正文、同一套色板，左浅右深</small></h2>
+<div class="variants">
+  <div class="card">
+    <div class="no">现状</div>
+    <h3>平涂：淡底 + 底线</h3>
+    <p>对照组。整块矩形，上下沿笔直，看不出「划过」的动作。</p>
+    <div class="panes" data-v="flat"></div>
+  </div>
+
+  <div class="card rec">
+    <div class="no">A <em>推荐</em></div>
+    <h3>平头荧光笔</h3>
+    <p>斜切的笔头，上下沿轻微起伏，沿笔画方向有积墨和两道淡纹，起笔略深、收笔略淡。笔迹比字身略宽，两端各伸出约半个字。浅色纸用正片叠底，墨色和字不打架。</p>
+    <div class="panes" data-v="chisel"></div>
+    <div class="verdict">
+      <span class="good">＋ 一眼就是荧光笔；纯 CSS 背景图，跟随换行（box-decoration-break: clone），每行各自有笔头</span>
+      <span class="bad">－ 是平铺的切片，看久了能看出每 64px 一个周期；整笔没有倾斜</span>
+      <span class="cost">成本：小。只改 Highlight 组件 + 样式，7 色 × 明暗的切片启动时生成一次</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="no">B</div>
+    <h3>下半划线（swipe）</h3>
+    <p>只覆盖字身下半，圆头。像用马克笔在字底下快速扫一道，字形完全露在外面。</p>
+    <div class="panes" data-v="swipe"></div>
+    <div class="verdict">
+      <span class="good">＋ 字最清楚，长段高亮也不压抑；中文方块字上半留白，读起来更轻</span>
+      <span class="bad">－ 更像彩铅 / 记号笔划线，「荧光笔」感弱；和现有下划线功能观感接近</span>
+      <span class="cost">成本：同 A</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="no">C</div>
+    <h3>干笔颗粒</h3>
+    <p>毛边 + 横向噪声镂空，像墨快干的马克笔压在纸纹上。</p>
+    <div class="panes" data-v="grain"></div>
+    <div class="verdict">
+      <span class="good">＋ 纸感最强，和白板手绘风格一个味道</span>
+      <span class="bad">－ 小字号下颗粒像脏点；深色纸上颗粒几乎看不见</span>
+      <span class="cost">成本：同 A，但切片带 SVG 滤镜，每个色值光栅化一次，长文需实测</span>
+    </div>
+  </div>
+</div>
+
+<h2>平头荧光笔 · 边缘修复前后<small>放大字号看笔头与中段的接缝</small></h2>
+<div class="zoom">
+  <div class="pane hl-host" data-mode="light" data-v="chisel-old"><div class="label">修复前：左笔头浓于中段，接缝处有一道竖向硬边</div><mark data-c="gray">灰色</mark> <mark data-c="yellow">间隔重复</mark> <mark data-c="purple">紫色</mark></div>
+  <div class="pane hl-host" data-mode="light" data-v="chisel"><div class="label">修复后：笔头与中段同浓度、同上下沿，积墨在笔头内渐变</div><mark data-c="gray">灰色</mark> <mark data-c="yellow">间隔重复</mark> <mark data-c="purple">紫色</mark></div>
+  <div class="pane hl-host" data-mode="dark" data-v="chisel-old"><div class="label">修复前 · 深色</div><mark data-c="gray">灰色</mark> <mark data-c="yellow">间隔重复</mark> <mark data-c="purple">紫色</mark></div>
+  <div class="pane hl-host" data-mode="dark" data-v="chisel"><div class="label">修复后 · 深色</div><mark data-c="gray">灰色</mark> <mark data-c="yellow">间隔重复</mark> <mark data-c="purple">紫色</mark></div>
+</div>
+
+<h2>二 · 放进正文<small>切换笔触 / 明暗 / 色板，看整页的密度</small></h2>
+<div class="scene">
+  <div class="bar">
+    <span class="t">笔触</span>
+    <button class="tbtn" data-set="v:flat">现状</button>
+    <button class="tbtn" data-set="v:chisel" aria-pressed="true">A 平头荧光笔</button>
+    <button class="tbtn" data-set="v:swipe">B 下半划线</button>
+    <button class="tbtn" data-set="v:grain">C 干笔颗粒</button>
+    <span class="gap"></span>
+    <span class="t">纸面</span>
+    <button class="tbtn" data-set="mode:light" aria-pressed="true">浅色</button>
+    <button class="tbtn" data-set="mode:dark">深色</button>
+    <span class="gap"></span>
+    <span class="t">色板</span>
+    <button class="tbtn" data-set="fluo:off" aria-pressed="true">现有色板</button>
+    <button class="tbtn" data-set="fluo:on">荧光色（备选）</button>
+  </div>
+  <div class="doc-page pane hl-host" data-mode="light" data-v="chisel" data-fluo="off">
+    <h1>《认知天性》读书笔记</h1>
+    <div class="meta">文章 · 2026-10-28 编辑</div>
+    <p>这本书反复在讲一件事：<mark data-c="yellow">让学习变难的方法，往往记得更牢</mark>。重读和划线给人「我懂了」的错觉，真正起作用的是<mark data-c="yellow"><b>提取练习</b></mark>——合上书，试着把刚才的内容讲出来。</p>
+    <h2>三个可以马上用的做法</h2>
+    <ul>
+      <li><mark data-c="green">间隔复习</mark>：第一天、第三天、第七天各回顾一次，比一口气看三遍有效。</li>
+      <li><mark data-c="green">穿插练习</mark>：不同类型的题目混在一起做，逼自己先判断「这是哪类题」。</li>
+      <li>先试着解答再看讲解，<mark data-c="blue">哪怕答错，后面看到正确答案时也记得更深，这一点和直觉正好相反</mark>。</li>
+    </ul>
+    <blockquote>「<mark data-c="orange">犯错并纠正，是学习的一部分，而不是学习失败的证据。</mark>」</blockquote>
+    <h2>存疑</h2>
+    <p>书里引用的<mark data-c="red">大学课堂实验样本偏小</mark>，结论能不能推广到成年人自学，<mark data-c="purple">要找后续的元分析看看</mark>。另外<mark data-c="gray">第六章关于学习风格的部分</mark>可以先跳过。</p>
+  </div>
+</div>
+
+<h2>三 · 入口放哪<small>两种口径，倾向左边</small></h2>
+<div class="two">
+  <div class="card entry rec">
+    <div class="no">甲 <em>倾向</em></div>
+    <h3>全局：设置 › 编辑器 › 高亮样式</h3>
+    <p>笔触是整个编辑器的画风，切换后所有已有高亮立刻换样子，正文数据一个字不改。颜色面板保持现状。</p>
+    <div class="set-row">
+      <div class="txt"><b>高亮样式</b><span>背景高亮的笔触，对所有文档生效</span></div>
+      <div class="menu-wrap">
+        <div class="menu-btn">平头荧光笔 <span class="chev">▾</span></div>
+        <div class="menu">
+          <div class="item"><span class="nm">平涂</span><span class="prev hl-host" data-mode="light" data-v="flat"><mark data-c="yellow">示例文字</mark></span></div>
+          <div class="item on"><span class="nm">平头荧光笔</span><span class="prev hl-host" data-mode="light" data-v="chisel"><mark data-c="yellow">示例文字</mark></span><span class="ok">✓</span></div>
+          <div class="item"><span class="nm">下半划线</span><span class="prev hl-host" data-mode="light" data-v="swipe"><mark data-c="yellow">示例文字</mark></span></div>
+          <div class="item"><span class="nm">干笔颗粒</span><span class="prev hl-host" data-mode="light" data-v="grain"><mark data-c="yellow">示例文字</mark></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="good">＋ 不新增数据字段，Markdown 的 <code>==高亮==</code> 往返不丢信息；同一篇文档里画风统一</span>
+      <span class="cost">发布：博客渲染复用同一组件和样式，跟随发布时的设置；公众号导出不支持背景图，回落平涂</span>
+    </div>
+  </div>
+
+  <div class="card entry">
+    <div class="no">乙</div>
+    <h3>逐个：颜色面板里加「笔触」一行</h3>
+    <p>每段高亮单独选平涂还是马克笔。</p>
+    <div class="cpanel">
+      <div class="grp">
+        <div class="lbl"><span>高亮</span><b>黄色</b></div>
+        <div class="row">
+          <span class="sw" style="color:var(--ink-3)">⌀</span>
+          <span class="sw hl-host" data-mode="light" data-v="flat"><mark data-c="gray">A</mark></span>
+          <span class="sw hl-host" data-mode="light" data-v="flat"><mark data-c="red">A</mark></span>
+          <span class="sw hl-host" data-mode="light" data-v="flat"><mark data-c="orange">A</mark></span>
+          <span class="sw hl-host on" data-mode="light" data-v="flat"><mark data-c="yellow">A</mark></span>
+          <span class="sw hl-host" data-mode="light" data-v="flat"><mark data-c="green">A</mark></span>
+          <span class="sw hl-host" data-mode="light" data-v="flat"><mark data-c="blue">A</mark></span>
+          <span class="sw hl-host" data-mode="light" data-v="flat"><mark data-c="purple">A</mark></span>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="lbl"><span>笔触</span><b>马克笔</b></div>
+        <div class="row">
+          <span class="stroke-opt hl-host" data-mode="light" data-v="flat"><mark data-c="yellow">平涂</mark></span>
+          <span class="stroke-opt hl-host on" data-mode="light" data-v="chisel"><mark data-c="yellow">马克笔</mark></span>
+        </div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="bad">－ 高亮要从「色相 id」扩成「色相 + 笔触」，<code>==高亮==</code> 写不下，转 Markdown 会丢；一篇里两种画风混排不好看</span>
+    </div>
+  </div>
+</div>
+
+<h2>四 · 实现上要处理的几件事</h2>
+<table>
+  <tr><th>问题</th><th>做法</th></tr>
+  <tr><td>跨行</td><td>用 <code>box-decoration-break: clone</code>，每行片段各自画两端笔头。</td></tr>
+  <tr><td>同一段被拆成多个叶子</td><td>高亮里有加粗、字色、链接时，Slate 会拆成几个相邻 span，每个都画笔头就会在中间叠出一道深色（下图左）。相邻叶子都是高亮时，衔接侧不画笔头（下图右）。</td></tr>
+  <tr><td>不动排版</td><td>笔头画在左右 padding 里，再用等量负 margin 抵消，开关笔触时文字位置不变。</td></tr>
+  <tr><td>深色纸</td><td>正片叠底在深色上看不见，深色改普通混合、压低透明度；对比度沿用色板的 AA 单测口径兜住。</td></tr>
+  <tr><td>导出</td><td>公众号不支持 CSS 变量和背景图，继续用 <code>exportHighlightColors</code> 的平涂色值；博客渲染同组件同样式。</td></tr>
+  <tr><td>性能</td><td>切片是每笔触 7 色 × 明暗 × 3 张的 data URI，首次用到时生成，所有高亮共用；C 带滤镜需长文实测。</td></tr>
+</table>
+<div class="seam">
+  <div class="pane" data-mode="light" data-v="chisel" data-join="off"><div class="label">不处理：加粗处两个笔头叠在一起</div>先回顾<mark data-c="yellow">一组每天十分钟，另一组考前</mark><mark data-c="yellow"><b>突击两小时</b></mark><mark data-c="yellow">，一周后差距明显</mark>。</div>
+  <div class="pane" data-mode="light" data-v="chisel"><div class="label">处理后：同色相邻叶子按一段画</div>先回顾<mark data-c="yellow">一组每天十分钟，另一组考前</mark><mark data-c="yellow"><b>突击两小时</b></mark><mark data-c="yellow">，一周后差距明显</mark>。</div>
+</div>
+
+<script>
+  document.querySelectorAll(".card .panes").forEach(panes => {
+    const v = panes.dataset.v;
+    panes.removeAttribute("data-v");
+    ["light", "dark"].forEach(mode => {
+      const pane = document.createElement("div");
+      pane.className = "pane hl-host";
+      pane.dataset.mode = mode;
+      pane.dataset.v = v;
+      pane.append(document.getElementById("sample").content.cloneNode(true));
+      panes.append(pane);
+    });
+  });
+
+  const page = document.querySelector(".scene .doc-page");
+  document.querySelectorAll(".scene [data-set]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const [key, value] = btn.dataset.set.split(":");
+      page.dataset[key] = value;
+      document
+        .querySelectorAll(`.scene [data-set^="${key}:"]`)
+        .forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+      window.markerMockup.drawAll();
+    });
+  });
+</script>
+</body>
+</html>

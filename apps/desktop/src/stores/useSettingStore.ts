@@ -5,6 +5,7 @@ import {
   type ImageBorderRadiusPreset,
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
+import type { HighlightStyle } from "@tau/editor/extensions/text-formatting/types";
 
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import type { EmbeddingSetting } from "@/types/embedding";
@@ -104,6 +105,9 @@ export interface ISetting {
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
       shadow?: ImageShadowPreset;
+    };
+    highlight?: {
+      style?: HighlightStyle;
     };
   };
   imageBed: {

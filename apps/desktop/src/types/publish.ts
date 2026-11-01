@@ -165,6 +165,9 @@ export interface IPublishAppearanceSettings {
       borderRadius?: import("@tau/editor/extensions/media/types").ImageBorderRadiusPreset;
       shadow?: import("@tau/editor/extensions/media/types").ImageShadowPreset;
     };
+    highlight?: {
+      style?: import("@tau/editor/extensions/text-formatting/types").HighlightStyle;
+    };
   };
 }
 
