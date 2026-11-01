@@ -1,10 +1,11 @@
-// 卡组新建/编辑表单（BottomSheet）：名称、描述、emoji、调色板。
+// 卡组新建/编辑表单（BottomSheet）：名称、描述、图标、调色板。
 
 import { useEffect, useRef, useState } from "react";
+import DeckIcon, { deckIconKeys, toDeckIconKey } from "@tau/shared/deck-icon";
 import { BottomSheet } from "../../components/BottomSheet";
 import { toast } from "../../components/toast";
 import * as tauri from "../../services/tauri";
-import { DECK_COLORS, DECK_EMOJIS } from "./constants";
+import { DECK_COLORS } from "./constants";
 import type { FlashcardDeck } from "./types";
 import { invalidateFlashcardQueries } from "./queries";
 
@@ -27,7 +28,7 @@ type DeckFormSheetProps = {
 export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: DeckFormSheetProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [emoji, setEmoji] = useState(DECK_EMOJIS[0]);
+  const [emoji, setEmoji] = useState(deckIconKeys[0]);
   const [color, setColor] = useState(DECK_COLORS[0]);
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +39,7 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
     if (open && !wasOpenRef.current) {
       setName(deck?.name ?? "");
       setDescription(deck?.description ?? "");
-      setEmoji(deck?.emoji || DECK_EMOJIS[0]);
+      setEmoji(toDeckIconKey(deck?.emoji) ?? (deck?.emoji || deckIconKeys[0]));
       setColor(deck?.coverColor || DECK_COLORS[0]);
     }
     wasOpenRef.current = open;
@@ -106,16 +107,20 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
         <div>
           <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">图标</div>
           <div className="grid grid-cols-6 gap-2">
-            {DECK_EMOJIS.map(item => (
+            {deckIconKeys.map(item => (
               <button
                 key={item}
                 type="button"
+                aria-label={item}
+                aria-pressed={emoji === item}
                 onClick={() => setEmoji(item)}
-                className={`grid h-11 place-items-center rounded-[14px] text-[20px] transition-colors ${
-                  emoji === item ? "bg-accent-soft ring-accent ring-2" : "bg-page active:bg-hover"
+                className={`grid h-11 place-items-center rounded-[14px] transition-colors ${
+                  emoji === item
+                    ? "bg-accent-soft text-accent-text ring-accent ring-2"
+                    : "bg-page text-ink-2 active:bg-hover"
                 }`}
               >
-                {item}
+                <DeckIcon emoji={item} className="size-5" />
               </button>
             ))}
           </div>
@@ -145,7 +150,7 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
           className="bg-surface shadow-card flex items-center gap-3 rounded-[18px] p-3.5"
           style={{ borderLeft: `4px solid ${color}` }}
         >
-          <span className="text-[20px]">{emoji}</span>
+          <DeckIcon emoji={emoji} className="size-5 flex-none" />
           <span className="text-ink-1 text-[14px] font-extrabold">{name.trim() || "卡组预览"}</span>
         </div>
         <button

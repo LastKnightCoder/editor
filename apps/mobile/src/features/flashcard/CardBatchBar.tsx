@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { ArrowLeftRight, SlidersHorizontal, Trash2 } from "lucide-react";
+import DeckIcon from "@tau/shared/deck-icon";
 import { BottomSheet } from "../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { toast } from "../../components/toast";
@@ -119,7 +120,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
                 }}
                 className="bg-page active:bg-hover flex items-center gap-3 rounded-[16px] p-3 text-left disabled:opacity-50"
               >
-                <span className="text-[20px]">{item.emoji}</span>
+                <DeckIcon emoji={item.emoji} className="text-ink-2 size-5 flex-none text-[20px]" />
                 <span className="text-ink-1 flex-1 text-[14.5px] font-extrabold">{item.name}</span>
                 <span className="text-ink-3 text-[11.5px] font-semibold">
                   {item.stats?.totalCards ?? 0} 张

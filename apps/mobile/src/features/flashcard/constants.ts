@@ -106,8 +106,6 @@ export const DECK_COLORS = [
   "#4a4136",
 ];
 
-export const DECK_EMOJIS = ["🧠", "📚", "⚡", "🎯", "🧩", "🔬", "🌟", "🚀", "💡", "📝", "📖", "🗺️"];
-
 /** 到期时间的展示文案（列表行用） */
 export function formatDueTime(dueTime: number): string {
   const diff = dueTime - Date.now();

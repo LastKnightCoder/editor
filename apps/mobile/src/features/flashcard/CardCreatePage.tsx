@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
+import DeckIcon from "@tau/shared/deck-icon";
 import { PageHeader } from "../../components/PageHeader";
 import { BottomSheet } from "../../components/BottomSheet";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -86,8 +87,8 @@ export function CardCreatePage({
               onClick={() => setPickerOpen(true)}
               className="flex w-full items-center gap-3 text-left active:opacity-70"
             >
-              <span className="bg-page grid h-[42px] w-[42px] place-items-center rounded-[13px] text-[20px]">
-                {deck?.emoji ?? "🧠"}
+              <span className="bg-page text-ink-2 grid h-[42px] w-[42px] place-items-center rounded-[13px] text-[20px]">
+                <DeckIcon emoji={deck?.emoji} className="size-5" />
               </span>
               <span className="flex-1">
                 <span className="text-ink-1 block text-[14.5px] font-extrabold">
@@ -172,7 +173,7 @@ export function CardCreatePage({
                 item.id === deckId ? "bg-accent-soft" : "bg-page"
               }`}
             >
-              <span className="text-[20px]">{item.emoji}</span>
+              <DeckIcon emoji={item.emoji} className="text-ink-2 size-5 flex-none text-[20px]" />
               <span className="text-ink-1 flex-1 text-[14.5px] font-extrabold">{item.name}</span>
               <span className="text-ink-3 text-[11.5px] font-semibold">
                 {item.stats?.totalCards ?? 0} 张

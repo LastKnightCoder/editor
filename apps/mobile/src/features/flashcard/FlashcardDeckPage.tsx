@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
+import DeckIcon from "@tau/shared/deck-icon";
 import { PageHeader } from "../../components/PageHeader";
 import { SearchField } from "../../components/SearchField";
 import { ActionSheet } from "../../components/ActionSheet";
@@ -257,7 +258,7 @@ export function FlashcardDeckPage({
     <div className="mobile-kb-screen bg-page relative flex h-full flex-col">
       {/* 顶栏：常规 / 多选两态（mobile-topbar 补安全区，状态栏不再压住按钮） */}
       {batchMode ? (
-        <div className="mobile-topbar flex min-h-14 flex-none items-center justify-between pl-3 pr-2">
+        <div className="mobile-topbar flex min-h-14 flex-none items-center justify-between pr-2 pl-3">
           <button
             type="button"
             onClick={exitBatch}
@@ -310,8 +311,8 @@ export function FlashcardDeckPage({
           {/* 概要 + 开始复习 */}
           <div className="flex-none px-5">
             <div className="bg-surface shadow-card flex items-center gap-3.5 rounded-[20px] p-3.5">
-              <div className="bg-page grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[22px]">
-                {deck?.emoji ?? "🧠"}
+              <div className="bg-page text-ink-2 grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[22px]">
+                <DeckIcon emoji={deck?.emoji} className="size-[22px]" />
               </div>
               <div className="text-ink-2 min-w-0 flex-1 text-[12.5px] font-semibold">
                 {deck?.stats?.totalCards ?? 0} 张卡片 · 今日到期 {dueCount} 张
@@ -337,7 +338,7 @@ export function FlashcardDeckPage({
             />
           </div>
           {/* 状态筛选：左右间距挂外层（同上方搜索框），滚动层只负责滚动与渐隐 */}
-          <div className="flex-none px-5 pb-1 pt-3">
+          <div className="flex-none px-5 pt-3 pb-1">
             <div
               ref={statusFilterRef}
               className="edge-fade-x-scroll flex gap-2 overflow-x-auto"
@@ -465,7 +466,7 @@ export function FlashcardDeckPage({
                         {card.status === "new" ? "新卡" : formatDueTime(card.dueTime)}
                       </span>
                     </div>
-                    <div className="text-ink-1 line-clamp-2 text-[14px] font-semibold leading-[1.55]">
+                    <div className="text-ink-1 line-clamp-2 text-[14px] leading-[1.55] font-semibold">
                       {clampText(richTextPlainText(card.prompt), 80) || "（空白卡片）"}
                     </div>
                     <div className="flex items-center justify-between">
