@@ -178,9 +178,12 @@ export default class ExcerptTable {
     assertProviderSourceType(sourceType);
     return db
       .prepare(
-        `SELECT source_key AS key, MAX(source_title) AS title,
-           SUM(CASE WHEN is_deleted = 0 THEN 1 ELSE 0 END) AS count
-         FROM excerpt WHERE source_type = ? GROUP BY source_key ORDER BY source_key`
+        `SELECT e.source_key AS key,
+           (SELECT source_title FROM excerpt t
+            WHERE t.source_type = e.source_type AND t.source_key = e.source_key
+            ORDER BY is_deleted, update_time DESC, id DESC LIMIT 1) AS title,
+           SUM(CASE WHEN e.is_deleted = 0 THEN 1 ELSE 0 END) AS count
+         FROM excerpt e WHERE e.source_type = ? GROUP BY e.source_key ORDER BY e.source_key`
       )
       .all(sourceType) as ExcerptSourceSummary[];
   }

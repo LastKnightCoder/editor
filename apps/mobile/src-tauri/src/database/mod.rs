@@ -31,6 +31,8 @@ mod migrator;
 mod plugin_app;
 pub use plugin_app::*;
 mod plugin_data;
+mod plugin_excerpts;
+pub use plugin_excerpts::*;
 mod plugin_document_tasks;
 mod plugin_entities;
 mod plugin_kv;

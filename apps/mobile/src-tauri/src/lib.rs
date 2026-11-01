@@ -177,6 +177,9 @@ pub fn run() {
             plugins::plugin_set_enabled,
             plugins::plugin_uninstall,
             database::plugin_data_read,
+            database::plugin_excerpts,
+            database::excerpt_open_target,
+            database::plugin_material_card,
             database::ai_sql_query,
             database::plugin_flashcards,
             database::plugin_app_query,
@@ -388,6 +391,7 @@ pub fn run() {
             if matches!(_event, tauri::RunEvent::Resumed) {
                 use tauri::Emitter;
                 let _ = _app.emit("device-sync-resume", ());
+                let _ = _app.emit("app-foreground", ());
             }
             #[cfg(target_os = "ios")]
             if let tauri::RunEvent::Opened { urls } = _event {

@@ -42,6 +42,10 @@ const PROBLEMS: Record<string, Omit<DeviceSyncProblem, "detail">> = {
     title: "这份资料库有正在云端共享的正文",
     hint: "设备同步不能和云端共享正文同时使用。先在协作里结束共享，再回来开启。",
   },
+  VERSION: {
+    title: "两台设备的同步协议不兼容",
+    hint: "先将配对设备都更新到支持稳定身份归并的版本，再重试。",
+  },
   AUTHORITY: {
     title: "这份资料库由另一台电脑协调",
     hint: "请连接这份资料库原来的协调电脑。",

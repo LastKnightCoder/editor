@@ -1,6 +1,8 @@
 import { mergeDeviceDocument, prepareDeviceDocument } from "./documents";
 import { canonicalContractJson } from "@tau/db-schema/content-contracts";
 import * as Y from "yjs";
+import { mergeMetadata } from "./metadata";
+import { metadataRules } from "./metadata-contract";
 import { bytesToBase64, base64ToBytes } from "../encoding";
 import {
   DEVICE_SYNC_PROTOCOL,
@@ -27,7 +29,7 @@ const basePlan = (view: DeviceView): DeviceCommit => ({
   state: { ...view.state },
 });
 
-/** 无读依赖信息的数据库事务只允许沿共同头重放，正文另行合并。 */
+/** 声明为独立记录的数据可按身份归并，其余事务沿共同头重放或完整保全。 */
 export class DeviceSyncEngine {
   private tail = Promise.resolve();
   private readonly knownVectors = new Map<number, { baselineId: string; vector: string }>();
@@ -269,7 +271,7 @@ export class DeviceSyncEngine {
           const receipt = view.receipts[offer.state.node];
           const already =
             receipt?.sequence === offer.sequence && receipt.fingerprint === fingerprint;
-          const metadataFork =
+          let metadataFork =
             !already &&
             (offer.changes.length > 0 || offer.state.recovering) &&
             (offer.state.recovering || preserveMetadata || offer.state.ackHead !== view.state.head);
@@ -283,6 +285,32 @@ export class DeviceSyncEngine {
               changes: [],
               documents: [],
             };
+          let metadataChanges = offer.changes;
+          if (metadataFork && offer.snapshot && !offer.state.recovering && !preserveMetadata) {
+            const full = await this.storage.read(true);
+            if (full.sequence !== view.sequence || full.state.head !== view.state.head)
+              throw new Error("DEVICE_SYNC_RETRY: 身份归并期间本机已变化");
+            if (full.tables && full.snapshot && !offer.forceSnapshot) {
+              try {
+                const merged = mergeMetadata(
+                  full.tables,
+                  full.snapshot.rows,
+                  offer.changes,
+                  metadataRules
+                );
+                if (merged.aliases.length && offer.documents.length)
+                  throw new Error("DEVICE_SYNC_METADATA_CONFLICT: 正文中可能存在待映射引用");
+                metadataChanges = merged.changes;
+                metadataFork = false;
+              } catch (error) {
+                if (
+                  !(error instanceof Error) ||
+                  !error.message.startsWith("DEVICE_SYNC_METADATA_CONFLICT:")
+                )
+                  throw error;
+              }
+            }
+          }
           if (!already && (offer.changes.length || offer.documents.length || metadataFork)) {
             const local = new Map(
               (
@@ -368,7 +396,7 @@ export class DeviceSyncEngine {
             const history: HistoryEntry = {
               id: id(),
               parent: view.state.head,
-              changes: metadataFork ? [] : [...offer.changes],
+              changes: metadataFork ? [] : [...metadataChanges],
               documents: documents.map(({ projection: _, ...document }) => document),
             };
             const plan = basePlan(view);
@@ -477,7 +505,7 @@ export class DeviceSyncEngine {
             };
           if (
             error instanceof Error &&
-            error.message.includes("DEVICE_SYNC_PREIMAGE") &&
+            /DEVICE_SYNC_(PREIMAGE|UNIQUE)/.test(error.message) &&
             offer.changes.length
           ) {
             if (!offer.snapshot)

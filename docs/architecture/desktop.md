@@ -114,6 +114,10 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
+插件环境的 connect 也提供窗口前后台生命周期，页面保活与应用恢复分开处理；事件、防抖与注销边界统一见[应用前后台生命周期](/docs/architecture/plugin-portability.md#应用前后台生命周期)。
+
+插件材料动作走 `material:resolve-ref` / `material:create-card`：按不透明稳定身份解析规范编号，正文准备完成后再在同一 SQLite 事务内复验材料快照、创建卡片并写谱系；结果由 PluginHost 统一提示。该写事件同时触发脉络与索引刷新，引用格式及跨端边界见[摘录与材料动作](/docs/architecture/plugin-portability.md#摘录与材料动作)。
+
 桌面 0.59.1 的固定插件中心安装接受格式 3，目录/详情/版本/下载使用 v2，主进程提供 desktop 宿主版本与协议集合。格式 3 targets 只声明平台最低版本，不再携带能力列表、节点等级或贡献标记；宿主从实际定义识别静态贡献。安装复用原事务、启停和启动快照，清单不改写为旧格式；下载前后复查精确发布版本，暂存/恢复与启动对账原始清单及来源。正式构建忽略调试中心覆盖，拒绝无固定中心来源的格式 3；旧格式读取与系统后台审核保持。
 
 ### 聊天工具自定义渲染

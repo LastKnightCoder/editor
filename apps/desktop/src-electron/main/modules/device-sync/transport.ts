@@ -44,6 +44,8 @@ export function parseDevicePairCode(value: string): DevicePairCode {
     throw new Error("DEVICE_SYNC_PAIR: 配对信息格式无效");
   }
   const now = Date.now();
+  if (code && typeof code.protocol === "number" && code.protocol !== DEVICE_SYNC_PROTOCOL)
+    throw new Error("DEVICE_SYNC_VERSION: 请将配对设备更新到支持稳定身份归并的版本");
   if (
     !code ||
     code.protocol !== DEVICE_SYNC_PROTOCOL ||

@@ -31,7 +31,7 @@ import { mobileContentPlugins, mobilePluginElementSupport, mobilePluginState } f
 import { MobilePluginRuntime } from "./runtime";
 import { connectMobilePluginTransport } from "./transport";
 import { MobilePluginReloadContext, MobilePluginsContext } from "./context";
-import { subscribePluginForeground } from "./foreground";
+import { subscribePluginForeground, connectPluginForeground } from "./foreground";
 import { getMobileCenterInstallStore } from "./center-install";
 import { disposeMobileRuntimeStyles } from "../../services/runtimeStyles";
 import { installMobileEntityHost } from "../../services/pluginEntities";
@@ -100,7 +100,12 @@ export function MobilePluginProvider({
       });
       if (cancelled) return;
       const environment = createBrowserPluginEnvironment(data.platform, window);
-      disconnect = environment.connect();
+      const stopEnvironment = environment.connect();
+      const stopForeground = connectPluginForeground(environment);
+      disconnect = () => {
+        stopForeground();
+        stopEnvironment();
+      };
       runtime = new MobilePluginRuntime(
         environment,
         mobilePluginStorage(database),

@@ -1,8 +1,9 @@
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type { ContentNode } from "../protocol";
 import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
+import type { SyncTable } from "./sql";
 
-export const DEVICE_SYNC_PROTOCOL = 2;
+export const DEVICE_SYNC_PROTOCOL = 3;
 export const DEVICE_SYNC_HISTORY_LIMIT = 128;
 export const DEVICE_SYNC_CHUNK_BYTES = 256 * 1024;
 export type SqlValue = null | string | number | { $blob: string } | { $integer: string };
@@ -61,6 +62,7 @@ export interface HistoryEntry {
   snapshot?: boolean;
 }
 export interface DeviceView {
+  tables?: SyncTable[];
   generation?: string;
   state: DeviceState;
   sequence: number;

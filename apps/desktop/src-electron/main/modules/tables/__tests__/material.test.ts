@@ -1,8 +1,29 @@
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import ExcerptTable from "../excerpt";
 import MaterialTable from "../material";
+import { createExcerptMaterialRef } from "@tau/plugins/material-ref";
+
+// 最小卡片工厂保留真实 SQLite 写入，隔离无关后台模块，验证外层事务边界。
+vi.mock("../card", () => ({
+  default: {
+    createCard(db: Database.Database) {
+      const content = db
+        .prepare(
+          "INSERT INTO contents(create_time,update_time,content,count,ref_count) VALUES(1,1,'[]',0,1)"
+        )
+        .run();
+      const contentId = Number(content.lastInsertRowid);
+      const result = db
+        .prepare(
+          "INSERT INTO cards(create_time,update_time,tags,content_id,is_top) VALUES(1,1,'[]',?,0)"
+        )
+        .run(contentId);
+      return { id: Number(result.lastInsertRowid), contentId };
+    },
+  },
+}));
 
 const input = (externalId: string, quote: string) => ({
   externalId,
@@ -24,6 +45,40 @@ describe("MaterialTable.resolve", () => {
     db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0)");
   });
   afterEach(() => db.close());
+
+  it("过期数字引用按稳定身份解析，提交期间变化拒绝，谱系失败回滚整张卡片", async () => {
+    ExcerptTable.syncSource(db, "reader.plugin", "book", "书", [input("book:mark", "原文")]);
+    const [first] = ExcerptTable.listItemsOfProvider(db, "reader.plugin", "book");
+    const ref = createExcerptMaterialRef(first.id, "reader.plugin", first.externalId);
+    const canonical = first.id + 10;
+    db.prepare("UPDATE excerpt SET id=? WHERE id=?").run(canonical, first.id);
+    db.prepare(
+      "INSERT INTO excerpt(id,source_type,source_key,external_id,quote,create_time,update_time) VALUES(?,'reader.plugin','other','other','另一条',1,1)"
+    ).run(first.id);
+    const expected = MaterialTable.resolvePluginRef(db, ref);
+    expect(expected.ref.id).toBe(canonical);
+    expect(expected.quote).toBe("原文");
+    const card = { content: [], contracts: {}, tags: [], count: 0, isTop: false };
+    db.exec(
+      "CREATE TRIGGER reject_lineage BEFORE INSERT ON entity_lineage BEGIN SELECT RAISE(ABORT,'模拟谱系失败'); END;"
+    );
+    await expect(MaterialTable.createPluginCard(db, ref, expected, card)).rejects.toThrow(
+      "模拟谱系失败"
+    );
+    expect(db.prepare("SELECT count(*) AS count FROM cards").get()).toEqual({ count: 0 });
+    expect(db.prepare("SELECT count(*) AS count FROM contents").get()).toEqual({ count: 0 });
+    db.exec("DROP TRIGGER reject_lineage");
+    const created = await MaterialTable.createPluginCard(db, ref, expected, card);
+    expect(db.prepare("SELECT src_id,dst_id FROM entity_lineage").get()).toEqual({
+      src_id: String(canonical),
+      dst_id: String(created.id),
+    });
+    db.prepare("UPDATE excerpt SET note='已变化' WHERE id=?").run(canonical);
+    await expect(MaterialTable.createPluginCard(db, ref, expected, card)).rejects.toThrow(
+      "材料已变化"
+    );
+    expect(db.prepare("SELECT count(*) AS count FROM cards").get()).toEqual({ count: 1 });
+  });
 
   it("摘录按提供方名称、来源与位置展示，打开交给提供方并带外链兜底；软删除不可打开", () => {
     ExcerptTable.syncSource(db, "weread", "b1", "置身事内", [

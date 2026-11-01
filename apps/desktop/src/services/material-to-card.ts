@@ -5,6 +5,8 @@
 
 import { toast } from "@tau/ui";
 import { createScopedCard } from "@/commands/card";
+import { resolvePluginMaterial, createPluginMaterialCard } from "@/commands/material";
+import type { PluginMaterialRef } from "@tau/plugins";
 import { recordLineage } from "@/commands/lineage";
 import type { MaterialInfo, MaterialRef } from "@/entity/material";
 import { materialQuoteMarkdown } from "@/entity/material-markdown";
@@ -21,6 +23,34 @@ import { assertMaterialActionActive, captureMaterialActionScope } from "./materi
 /** 卡片正文的 Markdown：引用块原文，空一行写想法，末行出处 */
 export const materialCardMarkdown = (info: Pick<MaterialInfo, "quote" | "note" | "meta">) =>
   materialQuoteMarkdown(info);
+
+/** 插件动作只返回结果；稳定身份解析、快照复验与谱系提交由宿主负责。 */
+export async function createCardFromPluginMaterial(
+  ref: PluginMaterialRef,
+  options: CommandScope
+): Promise<ICard> {
+  const scope = captureMaterialActionScope(options);
+  assertMaterialActionActive(scope);
+  const commands = bindDatabaseCommands({ resolvePluginMaterial, createPluginMaterialCard }, scope);
+  const info = await commands.resolvePluginMaterial(ref);
+  assertMaterialActionActive(scope);
+  if (!info.quote && !info.note) throw new Error("这条划线没有可转的文字");
+  const { prepareNewContent } = await import("@/services/editorKit");
+  const prepared = await prepareNewContent(importFromMarkdown(materialCardMarkdown(info)));
+  assertMaterialActionActive(scope);
+  const card = await commands.createPluginMaterialCard(ref, info, {
+    ...prepared,
+    count: getContentLength(prepared.content),
+    tags: [],
+    isTop: false,
+  });
+  if (
+    !scope.signal?.aborted &&
+    useSettingStore.getState().setting.database.active === scope.databaseName
+  )
+    defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
+  return card;
+}
 
 export async function createCardFromMaterial(
   ref: MaterialRef,

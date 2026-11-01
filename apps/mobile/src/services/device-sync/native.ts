@@ -47,7 +47,9 @@ export function deviceStore<T>(
     (action === "save-document" || (action === "commit" && !(payload as DeviceCommit).replaceLocal))
   )
     return Promise.reject(new Error("DEVICE_SYNC_REPLACED: 当前库正在恢复"));
-  const task = invoke<T>("device_sync_store", { name, action, payload });
+  const task = invoke<T>("device_sync_store", { name, action, payload }).catch(error => {
+    throw error instanceof Error ? error : new Error(String(error));
+  });
   if (action === "save-document" || action === "commit") {
     const pending = writes.get(name) ?? new Set();
     pending.add(task);
