@@ -86,6 +86,9 @@ import {
 } from "./content-write-context";
 import { trackLibraryRequest } from "./ipc-requests";
 
+// 云端元数据和共享资源账本不持有主库连接，不参与数据库替换前的排空。
+const LIBRARY_INDEPENDENT_COMMANDS = new Set(["sync_check_versions", "resource_sync_refresh"]);
+
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
 function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (
@@ -106,7 +109,7 @@ function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<
     .finally(() => {
       logPerf("ipc", cmd, performance.now() - start);
     });
-  return trackLibraryRequest(task);
+  return LIBRARY_INDEPENDENT_COMMANDS.has(cmd) ? task : trackLibraryRequest(task, cmd);
 }
 
 // 传递时区身份，Rust 按目标日期解析偏移，覆盖历史和未来的夏令时。
