@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
+import { installDatabaseDownload } from "../database-download";
 const paths = vi.hoisted(() => ({
   root: "",
   handlers: new Map<string, (...args: any[]) => any>(),
@@ -22,7 +23,7 @@ vi.mock("electron", () => ({
   BrowserWindow: {
     getAllWindows: () => [],
     getFocusedWindow: () => null,
-    fromWebContents: () => ({ id: 1 }),
+    fromWebContents: (sender: { id?: number }) => ({ id: sender.id ?? 1 }),
   },
   ipcMain: {
     handle: (name: string, handler: (...args: any[]) => any) => paths.handlers.set(name, handler),
@@ -51,14 +52,18 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
   try {
     await database.init();
     const create = paths.handlers.get("content:create")!;
-    await create({ sender: {} }, { content: [], count: 1 }, { toolDatabaseName: "a" });
+    const scope = {
+      toolDatabaseName: "a",
+      toolDatabaseConnection: database.commandConnection("a").connectionId,
+    };
+    await create({ sender: {} }, { content: [], count: 1 }, scope);
     expect(a.prepare("SELECT COUNT(*) AS n FROM contents").get()).toEqual({ n: 1 });
     expect(b.prepare("SELECT COUNT(*) AS n FROM contents").get()).toEqual({ n: 0 });
     a.pragma("wal_checkpoint(TRUNCATE)");
     reader = new Database(join(paths.root, "a.db"));
     reader.exec("BEGIN");
     reader.prepare("SELECT * FROM contents").all();
-    await create({ sender: {} }, { content: [], count: 1 }, { toolDatabaseName: "a" });
+    await create({ sender: {} }, { content: [], count: 1 }, scope);
     expect(database.forceCheckpoint("a")).toBe(false);
     await expect(paths.handlers.get("close-database")!({}, "a")).rejects.toThrow("不能安全关闭");
     expect(a.open).toBe(true);
@@ -70,6 +75,66 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
     reader?.close();
     a.close();
     b.close();
+    database.databases.clear();
+    database.windowToDatabase.clear();
+    paths.handlers.clear();
+    rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
+it("覆盖拒绝其他窗口及重载后迟到的旧请求，重连不切换活动库", async () => {
+  paths.root = mkdtempSync(join(tmpdir(), "database-overwrite-"));
+  const { default: database } = await import("../database");
+  const { default: indexManager } = await import("../main-content-index-db");
+  await database.init();
+  const connect = paths.handlers.get("create-or-connect-database")!;
+  const save = paths.handlers.get("home-layout:save")!;
+  const a = { sender: { id: 1 } },
+    b = { sender: { id: 2 } };
+  try {
+    const original = await connect(a, "A.db", false, "normal");
+    await database.closeForSync("A.db");
+    const uploaded = await connect(a, "A.db", false, "normal", "sync_upload_reconnect");
+    expect(uploaded.connectionId).toBe(original.connectionId);
+    await connect(b, "B.db", false, "normal");
+    const old = database.getDatabase("A.db")!;
+    const queued = {
+      toolDatabaseName: "A.db",
+      toolDatabaseConnection: original.connectionId,
+    };
+    await save(b, [{ id: "旧修改", hidden: false }], queued);
+    const candidate = database.openDatabase("candidate.db", "normal");
+    candidate.prepare("INSERT INTO home_panel_layout VALUES('协调端',0,0,1)").run();
+    candidate.close();
+    await database.closeForSync("A.db", async () => {
+      installDatabaseDownload(join(paths.root, "A.db"), join(paths.root, "candidate.db"), "");
+    });
+    await database.reconnectForSync("A.db", "sync_download_reconnect");
+    expect(old.open).toBe(false);
+    expect(database.getCurrentDatabaseName()).toBe("B.db");
+    expect(database.windowToDatabase.get(2)).toBe("B.db");
+    await expect(save(b, [{ id: "旧修改", hidden: false }], queued)).rejects.toThrow(
+      "CONNECTION_CHANGED"
+    );
+    await expect(save(b, [], { toolDatabaseName: "A.db" })).rejects.toThrow("CONNECTION_CHANGED");
+    expect(
+      database.getDatabase("A.db")!.prepare("SELECT panel_id FROM home_panel_layout").all()
+    ).toEqual([{ panel_id: "协调端" }]);
+    const current = await connect(a, "A.db", false, "normal");
+    expect(database.getCurrentDatabaseName()).toBe("B.db");
+    await expect(save(a, [], queued)).rejects.toThrow("CONNECTION_CHANGED");
+    await save(a, [{ id: "新编辑", hidden: false }], {
+      toolDatabaseName: "A.db",
+      toolDatabaseConnection: current.connectionId,
+    });
+    expect(
+      database.getDatabase("A.db")!.prepare("SELECT panel_id FROM home_panel_layout").all()
+    ).toEqual([{ panel_id: "新编辑" }]);
+  } finally {
+    for (const [name, db] of database.databases) {
+      indexManager.closeDatabase(name);
+      if (db.open) db.close();
+    }
     database.databases.clear();
     database.windowToDatabase.clear();
     paths.handlers.clear();

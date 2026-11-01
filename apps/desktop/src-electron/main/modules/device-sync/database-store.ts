@@ -283,7 +283,7 @@ export class DeviceDatabaseStore implements DeviceStorage {
       document: PreparedDeviceDocument,
       options?: { replica: boolean; audit?: boolean }
     ) => void,
-    private readonly guard?: (plan: DeviceCommit) => Promise<() => void>
+    private readonly guard?: (plan: DeviceCommit) => Promise<(committed: boolean) => void>
   ) {
     this.tables = syncTableOrder(deviceSyncTables(db));
   }
@@ -499,6 +499,7 @@ export class DeviceDatabaseStore implements DeviceStorage {
   }
   async commit(plan: DeviceCommit): Promise<void> {
     const release = await this.guard?.(plan);
+    let committed = false;
     let previousTimeout: number | undefined;
     try {
       previousTimeout = this.db.pragma("busy_timeout", { simple: true }) as number;
@@ -652,12 +653,13 @@ export class DeviceDatabaseStore implements DeviceStorage {
           restore();
         }
       })();
+      committed = true;
     } finally {
       try {
         if (this.db.open && previousTimeout !== undefined)
           this.db.pragma(`busy_timeout=${previousTimeout}`);
       } finally {
-        release?.();
+        release?.(committed);
       }
     }
   }

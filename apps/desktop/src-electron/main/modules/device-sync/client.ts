@@ -88,6 +88,7 @@ export class DeviceSyncClient {
     this.version++;
     this.controller.abort();
     this.controller = new AbortController();
+    const version = this.version;
     return this.serial(async () => {
       const reply = await this.request<DeviceReply>({ kind: "download" });
       this.assertActive();
@@ -96,7 +97,9 @@ export class DeviceSyncClient {
         this.host.changed(reply);
         await this.synchronizeAssets();
       }
-    }, true);
+    }, true).finally(() => {
+      if (!this.stopped && this.version === version) this.schedule(this.retryDelay());
+    });
   }
   private async synchronizeAssets() {
     let pending = 0;
@@ -139,6 +142,9 @@ export class DeviceSyncClient {
     this.checkedAssets.clear();
     this.schedule(0);
   }
+  private retryDelay() {
+    return this.failures ? Math.min(60_000, 2000 * 2 ** Math.min(this.failures - 1, 5)) : 1000;
+  }
   private schedule(delay: number) {
     if (this.stopped) return;
     clearTimeout(this.timer);
@@ -146,9 +152,7 @@ export class DeviceSyncClient {
       void this.synchronize()
         .catch(() => undefined)
         .finally(() => {
-          this.schedule(
-            this.failures ? Math.min(60_000, 2000 * 2 ** Math.min(this.failures - 1, 5)) : 1000
-          );
+          this.schedule(this.retryDelay());
         });
     }, delay);
     this.timer.unref();

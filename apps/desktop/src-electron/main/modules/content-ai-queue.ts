@@ -479,7 +479,9 @@ class ContentAiQueueModule implements Module {
       return Object.fromEntries(contentTitles(mainDb, contentIds.map(Number), 0));
     });
     userSettingModule.onSettingChanged(({ newSetting }) => queue.applySetting(newSetting));
-    databaseModule.onDatabaseConnected(dbName => queue.onDatabaseConnected(dbName));
+    databaseModule.onDatabaseConnected(dbName => {
+      if (databaseModule.getCurrentDatabaseName() === dbName) queue.onDatabaseConnected(dbName);
+    });
     onContentWritten(({ dbName, contentId, action }) =>
       queue.onContentWritten(dbName, contentId, action)
     );

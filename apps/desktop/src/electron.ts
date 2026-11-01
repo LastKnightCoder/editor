@@ -1,4 +1,4 @@
-import { currentCommandScope, type CommandScope } from "@/services/command-context";
+import { invokingCommandScope, type CommandScope } from "@/services/command-context";
 
 const bridge = window.electron;
 
@@ -68,10 +68,18 @@ async function invokeWithRetry<T>(
 }
 
 export const invoke = <T = unknown>(channel: string, ...args: unknown[]): Promise<T> => {
-  const scope = currentCommandScope();
+  const scope = invokingCommandScope();
   return invokeWithRetry<T>(
     channel,
-    scope?.databaseName ? [...args, { toolDatabaseName: scope.databaseName }] : args,
+    scope?.databaseName
+      ? [
+          ...args,
+          {
+            toolDatabaseName: scope.databaseName,
+            ...(scope.connectionId ? { toolDatabaseConnection: scope.connectionId } : {}),
+          },
+        ]
+      : args,
     scope
   );
 };
