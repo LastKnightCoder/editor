@@ -118,9 +118,14 @@ async function setup(realtime = false) {
   const owner = server.store.register("作者");
   let losePublish = false;
   let loseCommit = false;
+  let serverDate: number | undefined;
   const client = {
     identities: new Map([[host.serverUrl, owner]]),
     identity: async () => owner,
+    serverTime: () => {
+      if (serverDate === undefined) throw new Error("缺少服务端时间");
+      return serverDate;
+    },
     request: async (
       _url: string,
       path: string,
@@ -137,6 +142,7 @@ async function setup(realtime = false) {
         },
         payload: body as Record<string, unknown>,
       });
+      serverDate = Date.parse(String(response.headers.date));
       const value = response.json();
       if (response.statusCode >= 400)
         throw Object.assign(new Error(value.message), {

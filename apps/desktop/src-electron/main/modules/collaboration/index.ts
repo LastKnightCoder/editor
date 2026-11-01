@@ -1498,7 +1498,7 @@ export class CollaborationManager {
             expectedRevision,
             expectedSequence: protocol.sequence,
             updateHash: createHash("sha256").update(update).digest("hex"),
-            expiresAt: Date.now() + 4 * 60_000,
+            expiresAt: this.client.serverTime(session.info.serverUrl) + 4 * 60_000,
             update: Buffer.from(update).toString("base64"),
           });
         } catch (failure) {

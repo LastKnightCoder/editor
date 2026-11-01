@@ -2,26 +2,26 @@
 //
 // 生命周期采用引用计数：所有协作页面卸载后运行时保留一段空闲窗口（覆盖「跳出去看
 // 一眼设置再回来」）；仍有活跃会话时持续保活，避免页面转场导致连接和会话被清空——
-// 未使用协作的用户不加载运行时，也不会在服务器上静默注册设备身份。
+// 未启用的入口不启动运行时，也不在服务器上静默注册设备身份。
 import { useEffect } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { toast } from "../../../components/toast";
 import { consumeCollaborationNotice, useCollaborationStore } from "../core/store";
 
-export function useCollaborationRuntime() {
+export function useCollaborationRuntime(enabled = true) {
   const safeSetting = useAppContext().syncSettings.safeSetting;
   const notices = useCollaborationStore(state => state.notices);
 
   const nickname = safeSetting?.collaboration?.nickname || "Tau 用户";
 
   useEffect(() => {
+    if (!enabled) return;
     let disposed = false;
+    let retained: { release(): void } | undefined;
     void import("../core/manager").then(({ collaborationManager }) => {
+      if (disposed) return;
       collaborationManager.retain();
-      if (disposed) {
-        collaborationManager.release();
-        return;
-      }
+      retained = collaborationManager;
       return collaborationManager.start({ nickname }).catch(failure => {
         const message = failure instanceof Error ? failure.message : String(failure);
         toast.error(message);
@@ -29,11 +29,9 @@ export function useCollaborationRuntime() {
     });
     return () => {
       disposed = true;
-      void import("../core/manager").then(({ collaborationManager }) => {
-        collaborationManager.release();
-      });
+      retained?.release();
     };
-  }, [nickname]);
+  }, [enabled, nickname]);
 
   // 被撤权 / 被结束：服务端已断连，这里只做一次性提示
   useEffect(() => {
