@@ -72,154 +72,160 @@ export function ChatPage(props: {
   const error = chat?.error ? describeChatError(chat.error) : null;
   return (
     <PortalScope>
-      <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader
-          onBack={() => void navigator.goBack("ui")}
-          center={
-            <button
-              type="button"
-              disabled={!providers.length}
-              onClick={() => setPicking(true)}
-              className="flex max-w-full flex-col items-center"
-            >
-              <span className="text-ink-1 max-w-full truncate text-[16px] font-bold">
-                {content
-                  ? CONTENT_KIND_TITLE[content.entityType]
-                  : chat?.title && chat.title !== "新对话"
-                    ? chat.title
-                    : "新对话"}
-              </span>
-              {model && (
-                <span className="text-ink-2 text-tau-sm flex max-w-full items-center gap-1">
-                  <span className="bg-ok h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
-                  <span className="truncate">
-                    {modelInfo ? modelLabel(modelInfo) : model.modelId}
-                  </span>
-                  <ChevronDown size={12} className="shrink-0" aria-hidden="true" />
-                </span>
-              )}
-            </button>
-          }
-          actions={
-            <>
-              <PageHeaderButton
-                icon={<History size={20} />}
-                aria-label="对话记录"
-                className="text-ink-2 [&_svg]:stroke-2"
-                onClick={() => navigator.push("aiChatHistory", {})}
-              />
-              {!content && (
-                <PageHeaderButton
-                  icon={<SquarePen size={19} />}
-                  className="text-ink-2 [&_svg]:stroke-2"
-                  disabled={!chat?.messages.length}
-                  aria-label="新对话"
-                  onClick={() =>
-                    navigator.replace("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })
-                  }
-                />
-              )}
-            </>
-          }
-        />
-        {content && (
-          <SourceBar contentId={content.contentId} title={content.title} quote={content.quote} />
-        )}
-        {!model ? (
-          <div className="flex-1 overflow-y-auto px-4">
-            <ChatSetup hasProvider={providers.length > 0} onSetup={openSettings} />
-          </div>
-        ) : (
-          <>
-            <ChatMessages
-              messages={chat?.messages ?? []}
-              running={running}
-              empty={
-                content ? (
-                  <p className="text-ink-3 text-tau-meta px-6 pt-10 text-center leading-relaxed">
-                    {content.quote ? "问问选中的这段，或用下面的快捷问法。" : "问问这篇内容。"}
-                  </p>
-                ) : (
-                  <ChatEmpty onPick={text => void send(text)} />
-                )
-              }
-              onAction={actions.onAction}
-              onMenu={actions.onMenu}
-            />
-            {(error || loadError) && (
-              <div
-                role="alert"
-                className="bg-danger-soft text-tau-meta mx-4 mb-1 flex items-start gap-2.5 rounded-2xl px-3.5 py-2.5"
+      <div className="bg-page fixed inset-0 z-50">
+        <div className="mobile-kb-screen bg-page flex flex-col">
+          <PageHeader
+            onBack={() => void navigator.goBack("ui")}
+            center={
+              <button
+                type="button"
+                disabled={!providers.length}
+                onClick={() => setPicking(true)}
+                className="flex max-w-full flex-col items-center"
               >
-                <CircleAlert size={16} className="text-danger mt-0.5 shrink-0" aria-hidden="true" />
-                <span className="text-ink-2 min-w-0 flex-1 leading-relaxed">
-                  <b className="text-ink-1 text-tau-body block font-semibold">
-                    {error?.title ?? "对话读取失败"}
-                  </b>
-                  {error?.detail ?? loadError}
+                <span className="text-ink-1 max-w-full truncate text-[16px] font-bold">
+                  {content
+                    ? CONTENT_KIND_TITLE[content.entityType]
+                    : chat?.title && chat.title !== "新对话"
+                      ? chat.title
+                      : "新对话"}
                 </span>
-                {error?.action === "settings" && (
-                  <button
-                    type="button"
-                    onClick={openSettings}
-                    className="text-accent-text self-center font-semibold"
-                  >
-                    去检查
-                  </button>
+                {model && (
+                  <span className="text-ink-2 text-tau-sm flex max-w-full items-center gap-1">
+                    <span className="bg-ok h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
+                    <span className="truncate">
+                      {modelInfo ? modelLabel(modelInfo) : model.modelId}
+                    </span>
+                    <ChevronDown size={12} className="shrink-0" aria-hidden="true" />
+                  </span>
                 )}
-                {error?.action === "model" && (
-                  <button
-                    type="button"
-                    onClick={() => setPicking(true)}
-                    className="text-accent-text self-center font-semibold"
-                  >
-                    换模型
-                  </button>
+              </button>
+            }
+            actions={
+              <>
+                <PageHeaderButton
+                  icon={<History size={20} />}
+                  aria-label="对话记录"
+                  className="text-ink-2 [&_svg]:stroke-2"
+                  onClick={() => navigator.push("aiChatHistory", {})}
+                />
+                {!content && (
+                  <PageHeaderButton
+                    icon={<SquarePen size={19} />}
+                    className="text-ink-2 [&_svg]:stroke-2"
+                    disabled={!chat?.messages.length}
+                    aria-label="新对话"
+                    onClick={() =>
+                      navigator.replace("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })
+                    }
+                  />
                 )}
-              </div>
-            )}
-            <ChatComposer
-              key={databaseName}
-              databaseName={databaseName}
-              running={running}
-              disabled={!!loadError}
-              imageInput={!!modelInfo?.input.includes("image")}
-              {...(thinking.level && {
-                thinking: {
-                  level: thinking.level,
-                  options: thinking.options,
-                  onPick: thinking.pick,
-                },
-              })}
-              {...(content && {
-                placeholder: "问问这段内容…",
-                mentions,
-                onMentionsChange: setMentions,
-                quickPrompts: content.quote ? QUOTE_PROMPTS : WHOLE_PROMPTS,
-              })}
-              onSend={input => void send(input)}
-              onStop={() => void stopRun(props.sessionId)}
-            />
-          </>
-        )}
-        {actions.sheets}
-        <ModelPickerSheet
-          open={picking}
-          title="本次对话使用的模型"
-          description="只影响这段对话；默认模型在「我的 › AI 模型」里设置。"
-          providers={providers}
-          value={model}
-          clearable={false}
-          onSelect={next => {
-            pickModel(next);
-            setPicking(false);
-          }}
-          onOpenProvider={providerId => {
-            setPicking(false);
-            navigator.push("aiProvider", { providerId });
-          }}
-          onClose={() => setPicking(false)}
-        />
+              </>
+            }
+          />
+          {content && (
+            <SourceBar contentId={content.contentId} title={content.title} quote={content.quote} />
+          )}
+          {!model ? (
+            <div className="flex-1 overflow-y-auto px-4">
+              <ChatSetup hasProvider={providers.length > 0} onSetup={openSettings} />
+            </div>
+          ) : (
+            <>
+              <ChatMessages
+                messages={chat?.messages ?? []}
+                running={running}
+                empty={
+                  content ? (
+                    <p className="text-ink-3 text-tau-meta px-6 pt-10 text-center leading-relaxed">
+                      {content.quote ? "问问选中的这段，或用下面的快捷问法。" : "问问这篇内容。"}
+                    </p>
+                  ) : (
+                    <ChatEmpty onPick={text => void send(text)} />
+                  )
+                }
+                onAction={actions.onAction}
+                onMenu={actions.onMenu}
+              />
+              {(error || loadError) && (
+                <div
+                  role="alert"
+                  className="bg-danger-soft text-tau-meta mx-4 mb-1 flex items-start gap-2.5 rounded-2xl px-3.5 py-2.5"
+                >
+                  <CircleAlert
+                    size={16}
+                    className="text-danger mt-0.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span className="text-ink-2 min-w-0 flex-1 leading-relaxed">
+                    <b className="text-ink-1 text-tau-body block font-semibold">
+                      {error?.title ?? "对话读取失败"}
+                    </b>
+                    {error?.detail ?? loadError}
+                  </span>
+                  {error?.action === "settings" && (
+                    <button
+                      type="button"
+                      onClick={openSettings}
+                      className="text-accent-text self-center font-semibold"
+                    >
+                      去检查
+                    </button>
+                  )}
+                  {error?.action === "model" && (
+                    <button
+                      type="button"
+                      onClick={() => setPicking(true)}
+                      className="text-accent-text self-center font-semibold"
+                    >
+                      换模型
+                    </button>
+                  )}
+                </div>
+              )}
+              <ChatComposer
+                key={databaseName}
+                databaseName={databaseName}
+                running={running}
+                disabled={!!loadError}
+                imageInput={!!modelInfo?.input.includes("image")}
+                {...(thinking.level && {
+                  thinking: {
+                    level: thinking.level,
+                    options: thinking.options,
+                    onPick: thinking.pick,
+                  },
+                })}
+                {...(content && {
+                  placeholder: "问问这段内容…",
+                  mentions,
+                  onMentionsChange: setMentions,
+                  quickPrompts: content.quote ? QUOTE_PROMPTS : WHOLE_PROMPTS,
+                })}
+                onSend={input => void send(input)}
+                onStop={() => void stopRun(props.sessionId)}
+              />
+            </>
+          )}
+          {actions.sheets}
+          <ModelPickerSheet
+            open={picking}
+            title="本次对话使用的模型"
+            description="只影响这段对话；默认模型在「我的 › AI 模型」里设置。"
+            providers={providers}
+            value={model}
+            clearable={false}
+            onSelect={next => {
+              pickModel(next);
+              setPicking(false);
+            }}
+            onOpenProvider={providerId => {
+              setPicking(false);
+              navigator.push("aiProvider", { providerId });
+            }}
+            onClose={() => setPicking(false)}
+          />
+        </div>
       </div>
     </PortalScope>
   );

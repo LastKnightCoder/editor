@@ -22,6 +22,7 @@ import {
   fetchReviewQueue,
 } from "./queries";
 import type { Flashcard, FlashcardReviewRating } from "./types";
+import { useAnswerJudgement } from "./useAnswerJudgement";
 
 const SWIPE_COMMIT_PX = 96;
 
@@ -51,6 +52,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [confirmExit, setConfirmExit] = useState(false);
   const [referenceCard, setReferenceCard] = useState<Flashcard | null>(null);
+  const judgement = useAnswerJudgement();
+  const { reset: resetJudgement, judge: judgeAnswer, isConfigured: canJudge } = judgement;
+  const revealedRef = useRef(false);
   // 滑动跟手位移（仅揭示态生效；ref 同步记录，touchend 时读最新值）
   const [swipeDx, setSwipeDx] = useState(0);
   const swipeDxRef = useRef(0);
@@ -90,6 +94,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
   }, [loadQueue]);
 
   const current = queue?.[index];
+  const effectiveCorrect =
+    current?.type === "qa" ? (judgement.result ? judgement.result.score >= 6 : null) : isCorrect;
   const total = queue?.length ?? 0;
   const finished = queue !== null && index >= total;
   // 续批：一批复完检查是否仍有到期卡（本批评分已实时落库，重新拉队列即为剩余部分）
@@ -150,11 +156,13 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
   });
 
   const resetForCard = useCallback(() => {
+    revealedRef.current = false;
+    resetJudgement();
     setFlipped(false);
     setAnswer({});
     setIsCorrect(null);
     setSwipeDx(0);
-  }, []);
+  }, [resetJudgement]);
 
   const goToNext = useCallback(() => {
     resetForCard();
@@ -175,7 +183,16 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         invalidateFlashcardDeckStats();
         setStats(prev =>
           prev
-            ? { ...prev, ratings: [...prev.ratings, { rating, correct: isCorrect ?? true }] }
+            ? {
+                ...prev,
+                ratings: [
+                  ...prev.ratings,
+                  {
+                    rating,
+                    correct: effectiveCorrect ?? (rating === "easy" || rating === "normal"),
+                  },
+                ],
+              }
             : prev
         );
         goToNext();
@@ -186,15 +203,18 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         setSubmitting(false);
       }
     },
-    [current, isCorrect, goToNext, onError]
+    [current, effectiveCorrect, goToNext, onError]
   );
 
   /** 正面翻到背面：作答后自动判分；未作答（如 QA 直接翻面）视为自评 */
   const reveal = useCallback(() => {
-    if (!current || flipped) return;
+    if (!current || flipped || revealedRef.current) return;
+    revealedRef.current = true;
     setIsCorrect(checkAnswer(current, answer));
     setFlipped(true);
-  }, [current, flipped, answer]);
+    if (current.type === "qa" && answer.qa?.trim() && canJudge)
+      void judgeAnswer(answer.qa, current);
+  }, [current, flipped, answer, canJudge, judgeAnswer]);
 
   // ── 卡片滑动手势（仅揭示态；热区为卡片本身，避开左缘返回区）──
   // 拖拽位移经 rAF 合帧写 state：touchmove 逐帧 setState 会连带整张背面子树重渲染
@@ -471,7 +491,12 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
                 ref={backScrollRef}
                 className="edge-fade-scroll min-h-0 flex-1 overflow-y-auto py-2"
               >
-                <ReviewCardBack card={current} answer={answer} isCorrect={isCorrect ?? true} />
+                <ReviewCardBack
+                  card={current}
+                  answer={answer}
+                  isCorrect={effectiveCorrect}
+                  judgement={judgement}
+                />
               </div>
               {current.references[0] ? (
                 <div className="flex-none pt-2.5">
@@ -549,20 +574,20 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         onClose={() => setReferenceCard(null)}
       >
         <SnapSheet.Handle />
-        <header className="border-line-1 flex items-center gap-2 border-b border-dashed px-5 pb-2.5 pt-1">
+        <header className="border-line-1 flex items-center gap-2 border-b border-dashed px-5 pt-1 pb-2.5">
           <Paperclip size={14} className="text-accent flex-none" />
           <span className="text-ink-1 min-w-0 flex-1 truncate text-[14.5px] font-bold">
             {referenceCard?.references[0]?.title ?? "参考资料"}
           </span>
         </header>
-        <SnapSheet.FixedFooterScroll className="px-5 pb-6 pt-2">
+        <SnapSheet.FixedFooterScroll className="px-5 pt-2 pb-6">
           {/* 用完整编辑器只读渲染（同内容详情页）：RichContent 只认基础节点，
               桌面端建的 tabs/表格/图片等富节点会被降级成纯文本 */}
           {referenceCard?.references[0]?.content ? (
             <Editor
               kit={contentKit}
               initValue={referenceCard.references[0].content.content as Descendant[]}
-              className="text-ink-1 min-h-[160px] w-full text-[14px] font-medium leading-[1.8] outline-none"
+              className="text-ink-1 min-h-[160px] w-full text-[14px] leading-[1.8] font-medium outline-none"
             />
           ) : (
             <div className="text-ink-3 py-6 text-center text-[13px] font-semibold">

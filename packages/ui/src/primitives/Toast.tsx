@@ -241,7 +241,7 @@ export function ToastHost({
           <div
             key={pos}
             className={cn(
-              "pointer-events-none fixed z-[360] flex flex-col gap-[9px]",
+              "pointer-events-none fixed z-[360] flex w-max max-w-[calc(100vw-32px)] flex-col gap-[9px]",
               POSITION_ZONE[pos],
               zoneClassName
             )}
@@ -258,9 +258,9 @@ export function ToastHost({
 
 const VARIANT_PILL: Record<ToastVariant, string> = {
   default:
-    "border-line-1 bg-surface text-ink-1 shadow-float text-tau-sm min-h-[36px] max-w-[420px] gap-2.5 border px-[15px]",
+    "border-line-1 bg-surface text-ink-1 shadow-float text-tau-sm min-h-[36px] max-w-[min(420px,calc(100vw-32px))] gap-2.5 border px-[15px]",
   inverse:
-    "bg-ink-1 text-ink-inverse min-h-[42px] max-w-[min(92vw,520px)] gap-2.5 px-[20px] text-[13px] font-[550] shadow-[0_14px_30px_rgba(0,0,0,0.22)]",
+    "bg-ink-1 text-ink-inverse min-h-[42px] max-w-[min(520px,calc(100vw-32px))] gap-2.5 px-[20px] text-[13px] font-[550] shadow-[0_14px_30px_rgba(0,0,0,0.22)]",
 };
 /** 深底上的图标色：语义色在墨色底上同样可读 */
 const INVERSE_COLOR: Record<ToastType, string> = {
@@ -366,7 +366,7 @@ export function ToastPill({
       onClick={close}
       title="点击关闭"
       className={clsx(
-        "ease-tau-out pointer-events-auto flex cursor-pointer items-center rounded-full transition-[opacity,transform] duration-200",
+        "ease-tau-out pointer-events-auto flex min-w-0 cursor-pointer items-center rounded-full transition-[opacity,transform] duration-200",
         VARIANT_PILL[variant],
         leaving
           ? clsx("opacity-0", POSITION_LEAVE[item.position])
@@ -385,15 +385,7 @@ export function ToastPill({
         )}
       />
       {/* 竖直 padding 只在这一层（模板同款 7px），胶囊本身不叠 py——否则高度胀到 ~40px */}
-      <span
-        className={clsx(
-          "py-[7px]",
-          // 手机上提示常带原因，换行而不截断
-          variant === "inverse" ? "break-words [overflow-wrap:anywhere]" : "truncate"
-        )}
-      >
-        {item.message}
-      </span>
+      <span className="min-w-0 truncate py-[7px]">{item.message}</span>
       {item.action && (
         <button
           type="button"

@@ -72,7 +72,7 @@ export const useFlashcardGeneration = (
 
   const startGeneration = useMemoizedFn((content: Descendant[]) => {
     if (!generate && (!provider || !model)) {
-      setError(new Error("未配置闪卡生成模型"));
+      setError(new Error("未配置闪卡模型"));
       return;
     }
 

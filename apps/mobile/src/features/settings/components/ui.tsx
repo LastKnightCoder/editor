@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   MessageSquare,
   Plug,
+  Puzzle,
   Sparkles,
   WandSparkles,
   Mic,
@@ -148,6 +149,14 @@ export function IconPlug() {
   return (
     <IconTile className="bg-tag-1-soft text-tag-1">
       <Plug size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconPuzzle() {
+  return (
+    <IconTile className="bg-tag-5-soft text-tag-5">
+      <Puzzle size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

@@ -27,7 +27,7 @@ export interface PluginHomePanelDefinition {
   component: ComponentType<PluginHomePanelProps>;
   /** 缺省为 wide */
   size?: PluginHomePanelSize;
-  /** 可选，由宿主画在标题行右侧 */
+  /** 可选，由宿主画在标题行右侧；手机卡片主体点击也执行此入口，独立控件与浮层须自行阻止点击冒泡。 */
   action?: PluginHomePanelAction;
 }
 

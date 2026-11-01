@@ -130,7 +130,7 @@ it("流式只交付文本增量和中立用量，模型由宿主分配，图片�
     expect.objectContaining({
       token: "host-token",
       database: "one.db",
-      capacity: { contextWindow: 8192, maxTokens: 1024 },
+      capacity: { contextWindow: 8192, maxTokens: 1024, inputTokens: 8192 },
       reference: { model: { providerId: "host", modelId: "model" }, revision: "one" },
     })
   );
@@ -138,11 +138,20 @@ it("流式只交付文本增量和中立用量，模型由宿主分配，图片�
 
 it("请求输入在等待授权前冻结，外部修改不改变模型请求", async () => {
   const f = await setup();
+  f.resolveModel.mockResolvedValueOnce({
+    model: { contextWindow: 2_000_000, maxTokens: 1024, input: ["text"] },
+  });
   const request = input();
   const pending = f.client.chat(request);
   request.messages[0].content = "被修改的正文";
   await f.started();
   expect(f.start.mock.calls[0][0].messages[0].content).toBe("正文");
+  expect(f.call).toHaveBeenCalledWith(
+    "plugin_ai_begin",
+    expect.objectContaining({
+      capacity: { contextWindow: 2_000_000, maxTokens: 1024, inputTokens: 326 },
+    })
+  );
   f.result.resolve({ outcome: "completed", response: response("好") });
   await pending;
 });

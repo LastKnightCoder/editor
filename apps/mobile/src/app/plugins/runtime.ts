@@ -298,7 +298,8 @@ export class MobilePluginRuntime {
         },
       },
       speech: {
-        unavailableReason: () => this.speech?.unavailableReason() ?? "插件语音输入尚未就绪",
+        unavailableReason: () =>
+          this.speech ? this.speech.unavailableReason() : "插件语音输入尚未就绪",
         start: (context, options) => {
           if (!this.speech) throw new Error("SPEECH_UNAVAILABLE：插件语音输入尚未就绪");
           return this.speech.start(context, options);

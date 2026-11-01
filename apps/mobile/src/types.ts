@@ -616,7 +616,7 @@ export type MobileLlmProvider = Omit<import("@tau/ai/models").LLMProviderSetting
   keyHint?: string;
 };
 
-export type LlmFeatureKey = "chat" | "speechInputRefinement";
+export type LlmFeatureKey = "chat" | "speechInputRefinement" | "flashcardGeneration";
 
 export type AiSettingsMutation =
   | { kind: "upsertProvider"; provider: MobileLlmProvider; apiKey?: string }
