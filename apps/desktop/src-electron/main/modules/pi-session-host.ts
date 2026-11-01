@@ -30,7 +30,6 @@ import { retryHostSession } from "./pi-session-retry";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import {
   applySessionEdit,
-  installDatabaseDownload,
   applySessionEditToFile,
   browserSessionFile,
   listSessionFiles,
@@ -38,6 +37,7 @@ import {
   readTranscript,
   type SessionEdit,
 } from "./pi-session-store";
+import { installDatabaseDownload } from "./database-download";
 import {
   assertSafeSessionId,
   browserSessionDirOf,

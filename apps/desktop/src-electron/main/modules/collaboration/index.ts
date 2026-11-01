@@ -325,6 +325,8 @@ export class CollaborationManager {
       Y.applyUpdate(session.doc, Buffer.from(entry.state, "base64"), "device-sync");
     };
     session.persistDeviceState = candidate => {
+      if (this.sessions.get(session.info.id) !== session)
+        throw new Error("DEVICE_SYNC_REPLACED: 原正文会话已释放");
       const source = session.info.source;
       const db = source && databaseModule.getDatabase(source.databaseName);
       if (
@@ -1896,6 +1898,7 @@ export class CollaborationManager {
     const resumed: RuntimeSession[] = [];
     const resume = () => {
       for (const session of resumed) {
+        if (this.sessions.get(session.info.id) !== session) continue;
         this.unfreeze(session);
         session.provider?.attach();
         this.attach(session);
@@ -1951,7 +1954,7 @@ export class CollaborationManager {
       return {
         commit: () => {
           if (scope.reason === "quit") return;
-          resume();
+          if (!scope.replace) resume();
           for (const session of affected) unregisterContentSession(session);
         },
         rollback: resume,

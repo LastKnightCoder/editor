@@ -35,7 +35,7 @@ export function DeviceSyncSection() {
       : status.phase === "synced"
         ? "已自动补齐"
         : status.phase === "offline"
-          ? "等待配对电脑回到局域网"
+          ? "等待协调电脑回到局域网"
           : status.phase === "error"
             ? "同步暂未完成"
             : "粘贴电脑上的配对信息，建立自动同步";
@@ -46,7 +46,7 @@ export function DeviceSyncSection() {
         <div className="space-y-3 p-4">
           <p className="text-tau-body text-ink-2">{text}</p>
           <label htmlFor="mobile-device-pairing" className="text-tau-meta text-ink-3">
-            电脑设置 → 同步 → 生成配对信息
+            协调电脑设置 → 同步 → 生成配对信息
           </label>
           <textarea
             id="mobile-device-pairing"

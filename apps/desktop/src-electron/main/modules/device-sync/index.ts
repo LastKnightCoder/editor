@@ -1,11 +1,28 @@
-import { app, BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  powerMonitor,
+  shell,
+  type IpcMainInvokeEvent,
+} from "electron";
 import Database from "better-sqlite3";
 import MAIN_SQL from "@tau/db-schema/schema/main.sql?raw";
 import DEVICE_SQL from "@tau/db-schema/schema/device-sync.sql?raw";
 import { prepareDeviceDocument } from "@tau/collaboration/src/device-sync/documents";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
+import { hostname } from "node:os";
+import type { DeviceReply, RowChange } from "@tau/collaboration/src/device-sync/protocol";
 import { DeviceSyncEngine } from "@tau/collaboration/src/device-sync/engine";
 import database from "../database";
 import collaboration from "../collaboration";
@@ -22,8 +39,19 @@ import { DeviceAssetStore } from "./asset-store";
 import { DeviceSyncServer } from "./server";
 import PiSessionHost from "../pi-session-host";
 import { parseDeviceState } from "./recovery";
+import { DeviceSyncClient } from "./client";
+import {
+  pairDesktopReplica,
+  prepareReplicaDownload,
+  readDesktopPeer,
+  type DesktopDevicePeer,
+} from "./replica";
+import { writeDeviceState } from "./atomic-file";
+import whiteboards from "../whiteboard-documents";
+import mainContentIndexDBManager from "../main-content-index-db";
+import { installDatabaseDownload } from "../database-download";
 
-class DeviceSyncModule {
+export class DeviceSyncModule {
   name = "device-sync";
   private server?: DeviceSyncServer;
   private openedDatabase?: Database.Database;
@@ -33,6 +61,174 @@ class DeviceSyncModule {
   private starting: Promise<void> = Promise.resolve();
   private preparing = new Map<string, Promise<void>>();
   private bootstrapping = new Set<string>();
+  private client?: DeviceSyncClient;
+  private clientDatabase?: Database.Database;
+  private replacing = new Set<string>();
+  private pairing = false;
+  private peer() {
+    try {
+      return readDesktopPeer(this.directory());
+    } catch (error) {
+      this.error = String(error);
+      return undefined;
+    }
+  }
+  private startReplica(name: string) {
+    if (this.replacing.has(name)) return;
+    const peer = this.peer(),
+      db = database.getDatabase(name);
+    if (!peer?.enabled || peer.database !== name || !db?.open) return;
+    if (
+      this.clientDatabase === db &&
+      this.client?.peer.database === name &&
+      this.client.peer.token === peer.token
+    )
+      return;
+    this.client?.stop();
+    this.client = undefined;
+    this.clientDatabase = undefined;
+    const state = readDeviceSyncState(db);
+    if (
+      !state ||
+      state.node !== this.nodeId() ||
+      state.library !== peer.library ||
+      state.authority === state.node
+    ) {
+      this.error = "DEVICE_SYNC_IDENTITY: 本机副本与配对身份不同，请重新配对";
+      return;
+    }
+    const assertActive = () => {
+      if (this.client !== client || database.getDatabase(name) !== db || !db.open)
+        throw new Error("DEVICE_SYNC_CLOSED: 当前设备连接已变化");
+    };
+    const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
+    const engine = new DeviceSyncEngine(
+      new DeviceDatabaseStore(
+        db,
+        (document, settings) => projectDeviceDocument(db, document, settings),
+        async plan => {
+          client.assertActive();
+          const release =
+            plan.snapshot || plan.changes?.length
+              ? await PiSessionHost.acquireLibrary(name)
+              : () => {};
+          try {
+            client.assertActive();
+            return release;
+          } catch (error) {
+            release();
+            throw error;
+          }
+        }
+      )
+    );
+    const client: DeviceSyncClient = new DeviceSyncClient(peer, {
+      engine,
+      assets,
+      assertActive,
+      prepare: () => this.prepare(name),
+      assetNames: () => [
+        ...new Set(
+          (db.prepare("SELECT paths FROM _tau_device_documents").all() as { paths: string }[])
+            .flatMap(row => Object.values(JSON.parse(row.paths) as Record<string, string>))
+            .map(path => path.split("/").at(-1)!)
+            .filter(name => /^[a-f0-9]{64}\.(png|jpg|webp|gif|bin)$/.test(name))
+        ),
+      ],
+      changed: reply => {
+        if (reply.snapshot || reply.changes.length || reply.documents.length)
+          this.changed(name, reply.changes);
+      },
+      replace: reply => this.replaceReplica(peer, reply),
+    });
+    this.client = client;
+    this.clientDatabase = db;
+    this.error = undefined;
+    client.start();
+  }
+  private changed(name: string, changes: RowChange[]) {
+    this.error = undefined;
+    collaboration.receiveDeviceDocuments(name);
+    this.lastSync = Date.now();
+    const events = {
+      cards: ["card:updated", "cardId"],
+      articles: ["article:updated", "articleId"],
+      project_item: ["project-item:updated", "projectItemId"],
+    } as const;
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+      window.webContents.send("device-sync:changed", { databaseName: name });
+      for (const change of changes) {
+        const event = events[change.table as keyof typeof events];
+        if (!change.after || !event) continue;
+        const key = change.key[0],
+          id = Number(typeof key === "object" && key && "$integer" in key ? key.$integer : key);
+        if (Number.isSafeInteger(id))
+          window.webContents.send(event[0], { databaseName: name, [event[1]]: id });
+      }
+    }
+    database.notifyExternalWrite("device-sync:changed", name);
+  }
+  private async replaceReplica(peer: DesktopDevicePeer, reply: DeviceReply) {
+    const name = peer.database,
+      path = join(PathUtil.getAppDir(), name);
+    const temporary = `${path}.${randomUUID()}.download`;
+    const windows = BrowserWindow.getAllWindows().filter(
+      window => database.windowToDatabase.get(window.id) === name
+    );
+    const release = await PiSessionHost.acquireLibrary(name);
+    this.replacing.add(name);
+    this.bootstrapping.add(name);
+    let closed = false;
+    try {
+      if (this.client?.peer !== peer) throw new Error("DEVICE_SYNC_CLOSED: 原设备连接已停止");
+      this.client.assertActive();
+      await database.closeForSync(name, async () => {
+        closed = true;
+        this.client?.stop();
+        this.client = undefined;
+        const original = new Database(path, { readonly: true });
+        try {
+          const state = readDeviceSyncState(original);
+          if (!state || state.library !== peer.library || state.node !== peer.node)
+            throw new Error("DEVICE_SYNC_IDENTITY: 覆盖目标不同");
+          const sequence =
+            (
+              original
+                .prepare("SELECT seq FROM sqlite_sequence WHERE name='_tau_device_log'")
+                .get() as { seq: number } | undefined
+            )?.seq ?? 0;
+          await prepareReplicaDownload(temporary, state, sequence, reply);
+        } finally {
+          original.close();
+        }
+        await collaboration.releaseLibrary(name);
+        whiteboards.releaseLibrary(name);
+        const backup = join(PathUtil.getAppDir(), "backup");
+        mkdirSync(backup, { recursive: true });
+        copyFileSync(path, join(backup, `device-${Date.now()}-${name}`));
+        installDatabaseDownload(path, temporary, "");
+        mainContentIndexDBManager.resetDatabase(name);
+      });
+    } finally {
+      try {
+        for (const file of [temporary, `${temporary}-wal`, `${temporary}-shm`])
+          rmSync(file, { force: true });
+        if (closed) {
+          await database.reconnectForSync(name, "sync_download_reconnect");
+          for (const window of windows)
+            if (!window.isDestroyed()) {
+              window.webContents.reload();
+            }
+        }
+      } finally {
+        release();
+        this.bootstrapping.delete(name);
+        this.replacing.delete(name);
+        this.startReplica(name);
+      }
+    }
+  }
   private prepare(name: string) {
     const pending = this.preparing.get(name);
     if (pending) return pending;
@@ -83,7 +279,8 @@ class DeviceSyncModule {
   private forEvent(event: IpcMainInvokeEvent) {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window) throw new Error("窗口已关闭");
-    const name = database.windowToDatabase.get(window.id) ?? database.getCurrentDatabaseName();
+    const name = database.windowToDatabase.get(window.id);
+    if (!name) throw new Error("资料库尚未就绪，请等待窗口重新连接");
     const db = database.getDatabase(name);
     if (!db?.open) throw new Error("资料库尚未就绪");
     return { name, db };
@@ -164,30 +361,7 @@ class DeviceSyncModule {
           throw new Error("DEVICE_SYNC_LIBRARY: 资料库已关闭");
         await this.prepare(name);
       },
-      changes => {
-        collaboration.receiveDeviceDocuments(name);
-        this.lastSync = Date.now();
-        for (const window of BrowserWindow.getAllWindows())
-          if (!window.isDestroyed() && !window.webContents.isDestroyed())
-            window.webContents.send("device-sync:changed", { databaseName: name });
-        const events = {
-          cards: ["card:updated", "cardId"],
-          articles: ["article:updated", "articleId"],
-          project_item: ["project-item:updated", "projectItemId"],
-        } as const;
-        for (const change of changes) {
-          if (!change.after) continue;
-          const event = events[change.table as keyof typeof events];
-          if (!event) continue;
-          const key = change.key[0],
-            id = Number(typeof key === "object" && key && "$integer" in key ? key.$integer : key);
-          if (!Number.isSafeInteger(id)) continue;
-          for (const window of BrowserWindow.getAllWindows())
-            if (!window.isDestroyed() && !window.webContents.isDestroyed())
-              window.webContents.send(event[0], { databaseName: name, [event[1]]: id });
-        }
-        database.notifyExternalWrite("device-sync:changed");
-      },
+      changes => this.changed(name, changes),
       asset => {
         const rows = db
           .prepare(
@@ -216,11 +390,17 @@ class DeviceSyncModule {
   }
   async init() {
     database.onDatabaseConnected(name => {
+      this.startReplica(name);
       if (this.setting()?.enabled && this.setting()?.database === name)
         void this.start(name).catch(error => {
           this.error = error instanceof Error ? error.message : "局域网同步启动失败";
         });
     });
+    const savedPeer = this.peer();
+    if (savedPeer) this.startReplica(savedPeer.database);
+    const wake = () => this.client?.wake();
+    powerMonitor.on("resume", wake);
+    app.on("browser-window-focus", wake);
     const setting = this.setting();
     if (setting?.enabled)
       await this.start(setting.database).catch(error => {
@@ -235,17 +415,27 @@ class DeviceSyncModule {
     }, 1000);
     timer.unref();
     app.on("quit", () => {
+      this.client?.stop();
       void this.server?.close();
     });
     ipcMain.handle("device-sync:status", event => {
       const { name, db } = this.forEvent(event);
+      const state = readDeviceSyncState(db);
+      const replica = state && state.node !== state.authority;
+      const peer = this.peer();
+      const client = this.client?.peer.database === name ? this.client : undefined;
       return {
-        enabled: Boolean(this.server && name === this.nameOfLibrary),
+        role: replica ? "replica" : state ? "coordinator" : "unpaired",
+        phase: client?.status.phase,
+        pendingAssets: client?.status.pendingAssets ?? 0,
+        enabled: replica
+          ? Boolean(peer?.database === name && peer.enabled && client)
+          : Boolean(this.server && name === this.nameOfLibrary),
         database: name,
         enrolled: Boolean(readDeviceSyncState(db)),
-        peers: this.server?.listPeers() ?? [],
-        lastSync: this.lastSync,
-        error: this.error,
+        peers: name === this.nameOfLibrary ? (this.server?.listPeers() ?? []) : [],
+        lastSync: client?.status.lastSync ?? this.lastSync,
+        error: client?.status.error ?? this.error,
         branches: (
           db.prepare("SELECT count(*) AS n FROM _tau_device_branches").get() as { n: number }
         ).n,
@@ -256,6 +446,14 @@ class DeviceSyncModule {
     });
     ipcMain.handle("device-sync:enable", async event => {
       const { name, db } = this.forEvent(event);
+      const state = readDeviceSyncState(db);
+      if (state && state.node !== state.authority) {
+        const peer = this.peer();
+        if (!peer || peer.database !== name) throw new Error("请重新配对协调电脑");
+        writeDeviceState(join(this.directory(), "peer.json"), { ...peer, enabled: true });
+        this.startReplica(name);
+        return;
+      }
       const drain = await prepareDurableDocuments({
         databaseName: name,
         reason: "database-change",
@@ -302,6 +500,46 @@ class DeviceSyncModule {
         drain.rollback();
       }
     });
+    ipcMain.handle("device-sync:pair", async (event, code: string) => {
+      if (this.pairing) throw new Error("DEVICE_SYNC_BUSY: 配对仍在进行");
+      const { name } = this.forEvent(event);
+      this.pairing = true;
+      this.client?.stop();
+      this.client = undefined;
+      try {
+        const result = await pairDesktopReplica({
+          directory: this.directory(),
+          databases: PathUtil.getAppDir(),
+          node: this.nodeId(),
+          code,
+          name: hostname(),
+          existingDatabase: name,
+        });
+        this.startReplica(result.peer.database);
+        return { database: result.peer.database, existing: result.existing };
+      } finally {
+        this.pairing = false;
+        const peer = this.peer();
+        if (peer) this.startReplica(peer.database);
+      }
+    });
+    ipcMain.handle("device-sync:sync", async event => {
+      const { name } = this.forEvent(event);
+      if (!this.client || this.client.peer.database !== name)
+        throw new Error("请先连接当前库的协调电脑");
+      await this.client.synchronize();
+    });
+    ipcMain.handle("device-sync:download", async event => {
+      const { name } = this.forEvent(event);
+      if (!this.client || this.client.peer.database !== name)
+        throw new Error("请先连接当前库的协调电脑");
+      try {
+        await this.client.download();
+      } catch (error) {
+        this.error = String(error);
+        throw error;
+      }
+    });
     ipcMain.handle("device-sync:pairing", async event => {
       const { name } = this.forEvent(event);
       if (name !== this.nameOfLibrary || !this.server)
@@ -310,6 +548,12 @@ class DeviceSyncModule {
     });
     ipcMain.handle("device-sync:pause", async event => {
       const { name } = this.forEvent(event);
+      const peer = this.peer();
+      if (peer?.database === name) {
+        writeDeviceState(join(this.directory(), "peer.json"), { ...peer, enabled: false });
+        this.client?.stop();
+        this.client = undefined;
+      }
       if (name === this.nameOfLibrary) {
         this.save(name, false);
         await this.server?.close();
