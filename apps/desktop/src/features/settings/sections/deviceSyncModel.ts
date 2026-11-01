@@ -16,6 +16,7 @@ export interface DeviceSyncStatus {
   pendingAssets: number;
   preparation?: { completed: number; total: number };
   enabled: boolean;
+  enrolled: boolean;
   database: string;
   /** 已授权设备，不代表在线 */
   peers: { id: string; name: string }[];
@@ -84,6 +85,22 @@ export function useDeviceSyncModel() {
       return refresh();
     },
   });
+  const stop = useMutation({
+    mutationFn: async () => {
+      sessionStorage.setItem(EXIT_MARK, JSON.stringify({ database: name, at: Date.now() }));
+      try {
+        await callDeviceSync("stop");
+      } finally {
+        sessionStorage.removeItem(EXIT_MARK);
+      }
+    },
+    onSuccess: () => {
+      setPairing(undefined);
+      toast.success("已退出本机协调，同步状态已清理；重新开启后需要重新配对");
+      return refresh();
+    },
+    onError: refresh,
+  });
   const sync = useMutation({ mutationFn: () => callDeviceSync("sync"), onSettled: refresh });
   const pair = useMutation({
     mutationFn: (code: string) => callDeviceSync<{ database: string }>("pair", code.trim()),
@@ -121,6 +138,7 @@ export function useDeviceSyncModel() {
     generate,
     enable,
     pause,
+    stop,
     sync,
     pair,
     revoke,
@@ -174,6 +192,7 @@ export function usePeerJoined(
 
 // 覆盖成功时主进程会重载持有该库的窗口，渲染端拿不到 IPC 返回；用会话存储把结果带过重载
 const DOWNLOAD_MARK = "tau:device-sync:download";
+const EXIT_MARK = "tau:device-sync:exit";
 function markDeviceDownload(database: string, previousError?: string) {
   sessionStorage.setItem(
     DOWNLOAD_MARK,
@@ -187,8 +206,10 @@ function clearDeviceDownload() {
 /** 壳层挂载一次：覆盖导致的窗口重载后，告诉用户结果 */
 export function useDeviceDownloadNotice() {
   useEffect(() => {
-    const raw = sessionStorage.getItem(DOWNLOAD_MARK);
+    const exiting = sessionStorage.getItem(EXIT_MARK);
+    const raw = exiting ?? sessionStorage.getItem(DOWNLOAD_MARK);
     if (!raw) return;
+    sessionStorage.removeItem(EXIT_MARK);
     clearDeviceDownload();
     let mark: { database?: string; previousError?: string; at?: number };
     try {
@@ -203,7 +224,10 @@ export function useDeviceDownloadNotice() {
       void callDeviceSync<DeviceSyncStatus>("status")
         .then(status => {
           if (disposed) return;
-          if (status.error && status.error !== mark.previousError)
+          if (exiting) {
+            if (status.enrolled) toast.error("退出协调未完成，本机资料已保留，请重试");
+            else toast.success("已退出本机协调，同步状态已清理；重新开启后需要重新配对");
+          } else if (status.error && status.error !== mark.previousError)
             toast.error(
               `下载没有完成，资料库已恢复原样：${describeDeviceSyncError(status.error).title}`
             );

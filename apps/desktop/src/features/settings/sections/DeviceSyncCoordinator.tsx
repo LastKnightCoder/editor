@@ -5,6 +5,7 @@ import {
   Clock,
   Ellipsis,
   Laptop,
+  LogOut,
   MonitorSmartphone,
   Network,
   Pause,
@@ -42,9 +43,11 @@ export function CoordinatorView({
 }) {
   const { pairing, setPairing } = model;
   const [revoking, setRevoking] = useState<DeviceSyncStatus["peers"][number]>();
+  const [exiting, setExiting] = useState(false);
   const paused = !status.enabled;
   const count = status.peers.length;
   const since = formatSince(status.lastSync);
+  const busy = model.enable.isPending || model.pause.isPending || model.stop.isPending;
   usePeerJoined(
     status.peers,
     useCallback(
@@ -54,6 +57,26 @@ export function CoordinatorView({
       },
       [setPairing]
     )
+  );
+
+  const menu = (
+    <Menu
+      align="end"
+      trigger={
+        <IconButton aria-label="协调电脑的更多操作" disabled={busy}>
+          <Ellipsis {...ICON} />
+        </IconButton>
+      }
+    >
+      {!paused && (
+        <Menu.Item icon={<Pause {...ICON} />} onSelect={() => model.pause.mutate()}>
+          暂停局域网连接
+        </Menu.Item>
+      )}
+      <Menu.Item icon={<LogOut {...ICON} />} onSelect={() => setExiting(true)}>
+        退出本机协调…
+      </Menu.Item>
+    </Menu>
   );
 
   const band = paused ? (
@@ -67,17 +90,21 @@ export function CoordinatorView({
           : "恢复后才能添加设备。"
       }
       actions={
-        <Button
-          variant="primary"
-          icon={Play}
-          loading={model.enable.isPending}
-          loadingText="正在恢复…"
-          onClick={() =>
-            model.enable.mutate(undefined, { onSuccess: () => toast.success("已恢复局域网连接") })
-          }
-        >
-          恢复连接
-        </Button>
+        <>
+          <Button
+            variant="primary"
+            icon={Play}
+            loading={model.enable.isPending}
+            loadingText="正在恢复…"
+            disabled={busy}
+            onClick={() =>
+              model.enable.mutate(undefined, { onSuccess: () => toast.success("已恢复局域网连接") })
+            }
+          >
+            恢复连接
+          </Button>
+          {menu}
+        </>
       }
     />
   ) : (
@@ -102,23 +129,13 @@ export function CoordinatorView({
               icon={Plus}
               loading={model.generate.isPending}
               loadingText="正在生成…"
+              disabled={busy}
               onClick={() => model.generate.mutate()}
             >
               添加设备
             </Button>
           )}
-          <Menu
-            align="end"
-            trigger={
-              <IconButton aria-label="协调电脑的更多操作">
-                <Ellipsis {...ICON} />
-              </IconButton>
-            }
-          >
-            <Menu.Item icon={<Pause {...ICON} />} onSelect={() => model.pause.mutate()}>
-              暂停局域网连接
-            </Menu.Item>
-          </Menu>
+          {menu}
         </>
       }
     />
@@ -128,7 +145,13 @@ export function CoordinatorView({
     <>
       {band}
       <Failure
-        error={model.generate.error ?? model.pause.error ?? model.enable.error ?? status.error}
+        error={
+          model.stop.error ??
+          model.generate.error ??
+          model.pause.error ??
+          model.enable.error ??
+          status.error
+        }
         className="mt-3"
       />
       <PreservedCopies status={status} />
@@ -192,6 +215,27 @@ export function CoordinatorView({
           </ul>
         </div>
       </div>
+      <ConfirmDialog
+        open={exiting}
+        onOpenChange={setExiting}
+        title="退出本机协调"
+        context={status.database}
+        danger
+        description={
+          <>
+            <p className="text-tau-body text-ink-2">
+              先保存并备份本机资料，再清理配对关系、同步基线、同步记录和运行缓存。重新开启会建立新的一轮同步，其他设备需要重新配对。
+            </p>
+            <p className="text-tau-body text-ink-2 mt-2">
+              各设备已经保存的资料会保留；其他设备尚未同步过来的修改仍留在原设备上。完成后将重新加载当前资料库。
+            </p>
+            <Failure error={model.stop.error} className="mt-2" />
+          </>
+        }
+        confirmText="保存并退出"
+        loadingText="正在保存并清理…"
+        onConfirm={() => model.stop.mutateAsync()}
+      />
       <ConfirmDialog
         open={Boolean(revoking)}
         onOpenChange={open => !open && setRevoking(undefined)}

@@ -13,7 +13,7 @@ import {
   useDeviceSyncModel,
   type DeviceSyncModel,
 } from "./deviceSyncModel";
-import { Failure, PasteField, StatusBand } from "./deviceSyncParts";
+import { Failure, PasteField, PreservedCopies, StatusBand } from "./deviceSyncParts";
 import { CoordinatorView } from "./DeviceSyncCoordinator";
 import { ReplicaView } from "./DeviceSyncReplica";
 
@@ -150,9 +150,11 @@ function RoleChoice({ model }: { model: DeviceSyncModel }) {
         </div>
         <div>
           <div className="text-ink-1 mb-0.5 font-semibold">先想好哪台电脑协调</div>
-          一份资料库只由一台电脑协调，之后不能改由其他设备协调。{NOT_ALL_ONLINE}
+          暂停会保留同步状态；退出会保存本机资料并清理同步状态，再次开启需要重新配对。
+          {NOT_ALL_ONLINE}
         </div>
       </div>
+      {model.status.data && <PreservedCopies status={model.status.data} />}
     </>
   );
 }

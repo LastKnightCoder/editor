@@ -120,6 +120,18 @@ function installDeviceSyncDatabase(db: Database.Database, sql: string) {
 export function recoverDeviceSyncDatabase(db: Database.Database, contentId?: number) {
   recoverDeviceDatabase(db, () => installDeviceSyncDatabase(db, DEVICE_SQL), contentId);
 }
+/** 仅在已保存并备份资料库的独立候选文件上清理同步会话。 */
+export function resetDeviceSyncDatabase(db: Database.Database) {
+  db.transaction(() => {
+    removeDeviceTriggers(db);
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name GLOB '_tau_device_*'")
+      .all() as { name: string }[];
+    for (const { name } of tables) db.exec(`DROP TABLE ${quote(name)}`);
+    installDeviceSyncDatabase(db, DEVICE_SQL);
+    db.prepare("UPDATE _tau_device_local SET generation=? WHERE id=1").run(randomUUID());
+  })();
+}
 export function deviceGeneration(db: Database.Database): string {
   return ensureLocalGeneration(db);
 }

@@ -219,7 +219,7 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         .map(|peer| peer.database)
         .unwrap_or_else(|| format!("device-{:x}.db", Sha256::digest(code.library.as_bytes())));
     let database_path = crate::setting::resolve_database_path(&app, &database)?;
-    let existing = if database_path.exists() {
+    let previous_state = if database_path.exists() {
         rusqlite::Connection::open_with_flags(
             &database_path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -234,10 +234,11 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
             .ok()
         })
         .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-        .is_some_and(|state| state["library"].as_str() == Some(code.library.as_str()))
+        .filter(|state| state["library"].as_str() == Some(code.library.as_str()))
     } else {
-        false
+        None
     };
+    let mut existing = previous_state.is_some();
     if database_path.exists() && !existing {
         database = format!(
             "device-{:x}-{}.db",
@@ -245,7 +246,37 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
             uuid::Uuid::new_v4()
         );
     }
-    let result=request(&code.addresses,code.port,&code.certificate,None,&json!({"kind":"pair","secret":code.secret,"node":node,"name":name.chars().take(80).collect::<String>(),"existing":existing})).await?;
+    let mut pairing = json!({"kind":"pair","secret":code.secret,"node":node,"name":name.chars().take(80).collect::<String>(),"existing":existing});
+    let mut result = request(
+        &code.addresses,
+        code.port,
+        &code.certificate,
+        None,
+        &pairing,
+    )
+    .await?;
+    if existing
+        && previous_state
+            .as_ref()
+            .and_then(|state| state["epoch"].as_str())
+            != result["reply"]["state"]["epoch"].as_str()
+    {
+        existing = false;
+        database = format!(
+            "device-{:x}-{}.db",
+            Sha256::digest(code.library.as_bytes()),
+            uuid::Uuid::new_v4()
+        );
+        pairing["existing"] = json!(false);
+        result = request(
+            &code.addresses,
+            code.port,
+            &code.certificate,
+            None,
+            &pairing,
+        )
+        .await?;
+    }
     if result["reply"]["state"]["library"].as_str() != Some(code.library.as_str()) {
         return Err("DEVICE_SYNC_IDENTITY: 配对资料库不同".into());
     }
