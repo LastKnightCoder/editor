@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS cards (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
+            content_id INTEGER, is_top INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL,
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS articles (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER, podcast_id INTEGER DEFAULT NULL);
+            links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER);
 CREATE TABLE IF NOT EXISTS collaboration_bindings (
             content_id INTEGER PRIMARY KEY,
             content_created_at INTEGER NOT NULL,

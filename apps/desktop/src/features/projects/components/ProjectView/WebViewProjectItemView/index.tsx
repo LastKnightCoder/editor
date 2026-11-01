@@ -20,7 +20,6 @@ import {
   MoreHorizontal,
   Trash2,
   PenLine,
-  Volume2,
   Globe,
   FileText,
   PanelRight,
@@ -83,9 +82,6 @@ import {
 import { type ProjectItem, WebClip, WebNote } from "@/types";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useWebClip from "@/hooks/useWebClip";
-import usePodcastAttachment from "@/hooks/usePodcastAttachment";
-import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
-import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import { usePage } from "@/page/PageProvider";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
@@ -374,20 +370,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       cancelLocalClip();
     }
   });
-
-  // 播客生成
-  const { podcastModalOpen, openPodcastModal, closePodcastModal, handlePodcastSuccess } =
-    usePodcastAttachment({
-      hostId: projectItemId,
-      currentPodcast: projectItem?.podcast,
-      attachPodcast: attachPodcastToProjectItem,
-      detachPodcast: detachPodcastFromProjectItem,
-      reloadHost: getProjectItemById,
-      onHostReloaded: setProjectItem,
-      messages: {
-        created: "播客已添加到文档",
-      },
-    });
 
   const saveLocalClipResult = useMemoizedFn(async (content: Descendant[]) => {
     if (!currentUrl) {
@@ -723,14 +705,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 是否有解析结果
   const hasClipResult = savedWebClip !== null;
 
-  const handleGeneratePodcast = useMemoizedFn(() => {
-    if (!hasClipResult || parsedContent.length === 0) {
-      toast.warning("请先转录网页内容后再生成播客");
-      return;
-    }
-    openPodcastModal();
-  });
-
   const moreMenuItems: MenuEntryList = [];
   if (isAnyClipping) {
     moreMenuItems.push({
@@ -769,16 +743,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       icon: <AppWindow className="size-[15px]" strokeWidth={1.75} />,
     }
   );
-  if (hasClipResult) {
-    moreMenuItems.push(
-      { key: "divider-2", label: "", divider: true },
-      {
-        key: "generate-podcast",
-        label: projectItem?.podcast ? "编辑播客" : "生成播客",
-        icon: <Volume2 className="size-[15px]" strokeWidth={1.75} />,
-      }
-    );
-  }
 
   // 剪藏成功后，剪藏本身作为材料接插件对象动作
   const pluginEntries = usePluginMenuEntries(
@@ -800,8 +764,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       handleOpenInBrowser();
     } else if (key === "new-tab") {
       handleOpenInNewTab();
-    } else if (key === "generate-podcast") {
-      handleGeneratePodcast();
     }
   });
 
@@ -1154,15 +1116,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         placeholder="请输入笔记标题"
       />
 
-      {/* 播客生成弹窗 */}
-      <PodcastGenerationModal
-        open={podcastModalOpen}
-        cardContent={parsedContent}
-        initialPodcast={projectItem?.podcast}
-        onSuccess={handlePodcastSuccess}
-        onCancel={closePodcastModal}
-        saveText="保存到文档"
-      />
       <ConfirmDialog
         open={pendingConfirm !== null}
         onOpenChange={next => {

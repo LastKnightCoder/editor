@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { Download, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, IconButton, Menu, cn, toast } from "@tau/ui";
+import { useMemo } from "react";
+import { Download, MoreHorizontal } from "lucide-react";
+import { IconButton, Menu, cn, toast } from "@tau/ui";
 import LocalAudio from "@/components/LocalAudio";
 import { getHomeDir, readBinaryFile } from "@/commands";
 import { saveFileWithDialog } from "@/commands/extra";
@@ -11,10 +11,6 @@ import { buildSpeakerSegments, buildSpeakerTones, type SpeakerTone } from "./spe
 
 interface PodcastPlayerProps {
   podcast: IPodcast;
-  /** 打开生成/编辑弹窗；不传则菜单不出现「编辑」 */
-  onEdit?: () => void;
-  /** 删除播客（播放器内已确认）；不传则菜单不出现「删除」 */
-  onDelete?: () => Promise<void> | void;
   className?: string;
 }
 
@@ -43,10 +39,7 @@ const readPodcastAudio = async (audioUrl: string) => {
  * 播客播放器：Audio 波形卡 + 说话人分色波形 + 脚本跟读。
  * 时长取库里记录值先行显示，音频由 LocalAudio 流式加载，不阻塞卡片渲染。
  */
-const PodcastPlayer = ({ podcast, onEdit, onDelete, className }: PodcastPlayerProps) => {
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
+const PodcastPlayer = ({ podcast, className }: PodcastPlayerProps) => {
   const lines = useMemo(() => podcast.scriptLines ?? [], [podcast.scriptLines]);
   const tones = useMemo(
     () => buildSpeakerTones(podcast.speakers, lines),
@@ -66,16 +59,6 @@ const PodcastPlayer = ({ podcast, onEdit, onDelete, className }: PodcastPlayerPr
     } catch (error) {
       console.error("[PodcastPlayer] 下载失败", error);
       toast.error("下载音频失败");
-    }
-  };
-
-  const confirmDelete = async () => {
-    setDeleting(true);
-    try {
-      await onDelete?.();
-      setDeleteOpen(false);
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -109,60 +92,31 @@ const PodcastPlayer = ({ podcast, onEdit, onDelete, className }: PodcastPlayerPr
         </IconButton>
       }
     >
-      {onEdit && (
-        <Menu.Item icon={<Pencil {...iconProps} />} onSelect={onEdit}>
-          编辑播客
-        </Menu.Item>
-      )}
       <Menu.Item icon={<Download {...iconProps} />} onSelect={() => void downloadAudio()}>
         下载音频
       </Menu.Item>
-      {onDelete && (
-        <>
-          <Menu.Separator />
-          <Menu.Item danger icon={<Trash2 {...iconProps} />} onSelect={() => setDeleteOpen(true)}>
-            删除播客
-          </Menu.Item>
-        </>
-      )}
     </Menu>
   );
 
   return (
-    <>
-      <LocalAudio
-        src={podcast.audioUrl}
-        label={title}
-        info={info}
-        durationHint={podcast.duration}
-        segments={segments}
-        actions={actions}
-        className={className}
-        footer={({ currentTime, playFrom }) => (
-          <PodcastScript
-            lines={lines}
-            fallbackScript={podcast.script}
-            tones={tones}
-            currentTime={currentTime}
-            onSeek={playFrom}
-          />
-        )}
-      />
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={open => {
-          if (!open) setDeleteOpen(false);
-        }}
-        title="删除播客"
-        context={title}
-        description="将删除音频与脚本。"
-        impact="生成记录不可恢复，重新生成需再次调用语音服务"
-        danger
-        confirmText="删除"
-        loading={deleting}
-        onConfirm={() => void confirmDelete()}
-      />
-    </>
+    <LocalAudio
+      src={podcast.audioUrl}
+      label={title}
+      info={info}
+      durationHint={podcast.duration}
+      segments={segments}
+      actions={actions}
+      className={className}
+      footer={({ currentTime, playFrom }) => (
+        <PodcastScript
+          lines={lines}
+          fallbackScript={podcast.script}
+          tones={tones}
+          currentTime={currentTime}
+          onSeek={playFrom}
+        />
+      )}
+    />
   );
 };
 

@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS cards (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
+            content_id INTEGER, is_top INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL,
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS articles (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER, podcast_id INTEGER DEFAULT NULL);
+            links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER);
 CREATE TABLE IF NOT EXISTS collaboration_bindings (
             content_id INTEGER PRIMARY KEY,
             content_created_at INTEGER NOT NULL,
@@ -396,7 +396,7 @@ CREATE TABLE IF NOT EXISTS project_item (
             projects TEXT,
             ref_type TEXT,
             ref_id INTEGER
-        , project_item_type TEXT DEFAULT 'document', content_id INTEGER, white_board_content_id INTEGER, podcast_id INTEGER DEFAULT NULL, tags TEXT NOT NULL DEFAULT '[]');
+        , project_item_type TEXT DEFAULT 'document', content_id INTEGER, white_board_content_id INTEGER, tags TEXT NOT NULL DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS migration_meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -1080,8 +1080,6 @@ CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
 CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
 CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);
-CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);
-CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
@@ -1095,7 +1093,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_t
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
-CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);

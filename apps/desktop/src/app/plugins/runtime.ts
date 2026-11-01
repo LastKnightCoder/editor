@@ -12,6 +12,8 @@ import { rendererUploadRegistry } from "./upload-registry";
 import { desktopPluginChat } from "./chat";
 import { desktopPluginNotifications } from "./notifications";
 import { uploadRemoteResource } from "@/services/resource-upload";
+import { uploadResource } from "@/hooks/useUploadResource";
+import { desktopTTSSynthesis } from "./tts-synthesis";
 import type {
   PluginContext,
   PluginServices,
@@ -215,6 +217,7 @@ export class DesktopPluginRuntime {
       backend: createPluginBackend,
       sync: rendererSyncRegistry,
       tts: rendererTTSRegistry,
+      ttsSynthesis: desktopTTSSynthesis,
       asr: rendererASRRegistry,
       websocket: desktopWebSocket,
       images: rendererImagesRegistry,
@@ -224,6 +227,13 @@ export class DesktopPluginRuntime {
       upload: {
         register: (context, definition) => rendererUploadRegistry.register(context, definition),
         uploadRemote: uploadRemoteResource,
+        save: (file, signal) =>
+          uploadResource(
+            new File([file.content.slice().buffer as ArrayBuffer], file.name, {
+              type: file.mimeType,
+            }),
+            signal
+          ),
       },
       storage: options.storage,
       fetch: options.fetch,

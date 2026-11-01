@@ -91,3 +91,6 @@
 [submodule "plugins/tau-plugin-expense"]
 	path = plugins/tau-plugin-expense
 	url = https://github.com/LastKnightCoder/tau-plugin-expense.git
+[submodule "plugins/tau-plugin-podcast"]
+	path = plugins/tau-plugin-podcast
+	url = https://github.com/LastKnightCoder/tau-plugin-podcast.git

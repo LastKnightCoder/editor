@@ -3,8 +3,6 @@ CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
 CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
 CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);
-CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);
-CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
@@ -18,7 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_t
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
-CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);

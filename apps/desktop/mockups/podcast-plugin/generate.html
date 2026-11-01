@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>播客插件 · 生成流程</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="podcast.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>生成流程 · 从原文「⋯ › 生成播客」开始（actions.register）</h3>
+  对话框只问三件事：形式、谁来说、多长；名字由 AI 起，之后在播客库里改。点「生成」后对话框立刻关闭，任务在后台跑，进度显示在原文正文上方（views.registerEntityPanel）和侧栏「播客」角标上，切走页面不中断。
+  <ul>
+    <li>旧弹窗的问题：先填名字、Speaker1/2 占位名、原始日志、两个数字框填时长、音色克隆塞在里面、生成期间锁死不能关。</li>
+    <li>「先让我审稿」默认关闭：勾上后脚本写完停下，进审稿页改完再合成（省语音额度）；不勾就一路合成到底，之后仍可逐句改。</li>
+    <li>没有可用的语音服务时，对话框直接引导去插件中心装语音插件；没给插件的「播客脚本」分配模型时，引导到插件的 AI 配置。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, seg, sidebar, titlebar, anno, icons, SPEAKERS, SCRIPT, fmtDur, av, avs, wave, legend } from "./podcast.js?v=1";
+
+mockBar("generate.html", seg([
+  ["dialog", "生成对话框"], ["voice", "选音色"], ["menu", "⋯ 入口"], ["notts", "没有语音服务"], ["nomodel", "没配脚本模型"], ["running", "后台生成中"], ["review", "审稿页"], ["done", "完成 · 原文面板"], ["failed", "失败 · 续跑"],
+]));
+
+const win = document.getElementById("win");
+const state = { m: "dialog", fmt: "duo" };
+
+const FORMATS = [
+  ["duo", "双人对谈", "一问一答，轻松易懂", ["lin", "xia"]],
+  ["panel", "圆桌讨论", "三人各执一词，适合有争议的话题", ["lin", "xia", "chen"]],
+  ["solo", "单人讲述", "像有声书，一个人讲完", ["lin"]],
+];
+const ROLE = { 0: "主持", 1: "嘉宾", 2: "嘉宾" };
+
+/* 模拟的原文：文章详情页 */
+function articleDoc(panel = "") {
+  return `<div class="doc">
+    <div class="dtitle">大模型推理优化笔记</div>
+    <div class="dmeta"><span>文章 · 4,860 字</span><span>10 月 8 日更新</span><span class="sp"></span>
+      <span style="position:relative"><button class="ib" ${state.m === "menu" ? 'style="background:var(--hover)"' : ""}><i data-lucide="more-horizontal"></i></button>${state.m === "menu" ? actionMenu() : ""}</span></div>
+    ${panel}
+    <p>推理阶段的瓶颈往往不在算力，而在显存带宽。自回归生成时，每一步都要读取全部历史 token 的 Key 与 Value……</p>
+    <h2>一、KV Cache</h2>
+    <p>把每一层已经算好的 K、V 存下来，新 token 只计算自身的投影，再与缓存拼接参与注意力。代价是显存随上下文线性增长。</p>
+    <h2>二、PagedAttention</h2>
+    <p>借鉴操作系统的分页思想，把 KV Cache 切成固定大小的块，按需分配，碎片率从 60% 降到 4% 以下。</p>
+    <p>连续批处理（continuous batching）让不同长度的请求共享一个批次，GPU 利用率显著提高。</p>
+  </div>`;
+}
+
+function actionMenu() {
+  return `<div class="menu" style="right:0;top:34px;width:200px;text-align:left">
+    <div class="mi"><i data-lucide="pin"></i>置顶</div>
+    <div class="mi"><i data-lucide="tag"></i>编辑标签</div>
+    <div class="mi"><i data-lucide="share"></i>导出</div>
+    <div class="mh">插件</div>
+    <div class="mi on"><i data-lucide="podcast"></i>生成播客<span class="meta">播客</span></div>
+    <div class="mi"><i data-lucide="image"></i>生成配图<span class="meta">图片生成</span></div>
+    <div class="msep"></div>
+    <div class="mi" style="color:var(--danger)"><i data-lucide="trash-2"></i>删除文章</div>
+  </div>`;
+}
+
+function voicePop() {
+  const sys = [["温润男声", "沉稳、语速适中", true], ["明亮女声", "清脆、有活力"], ["沉稳男声", "低沉、适合讲解"], ["知性女声", "柔和、像电台主播"]];
+  return `<div class="vpop" style="left:150px;top:36px">
+    <div class="search-in"><i data-lucide="search"></i>搜索音色</div>
+    <div class="mh">我的音色</div>
+    <div class="vi"><span class="av t1">我</span><span>我的声音</span><span class="d">克隆 · 9 月 30 日</span><span class="sp"></span><span class="pv"><i data-lucide="play"></i></span></div>
+    <div class="mh">MiniMax 语音</div>
+    ${sys.map(([n, d, on], i) => `<div class="vi ${on ? "on" : ""}"><span>${n}</span><span class="d">${d}</span><span class="sp"></span>${on ? '<i data-lucide="check" style="color:var(--accent-text)"></i>' : ""}<span class="pv ${i === 1 ? "on" : ""}"><i data-lucide="${i === 1 ? "pause" : "play"}"></i></span></div>`).join("")}
+    <div class="ft"><i data-lucide="mic"></i>想用自己的声音？<span class="link">去设置 › 语音克隆</span></div>
+  </div>`;
+}
+
+function speakerRows(keys) {
+  return keys.map((k, i) => {
+    const s = SPEAKERS[k];
+    return `<div class="spk t${s.tone}">${av(k, "lg")}
+      <div class="inp">${s.name}</div>
+      <div class="vbtn ${state.m === "voice" && i === 0 ? "open" : ""}" data-voice><span class="nm">${s.voice}</span><span class="tg">${ROLE[i]}</span><span class="pv" title="试听"><i data-lucide="play"></i></span>${state.m === "voice" && i === 0 ? voicePop() : ""}</div>
+      <button class="ib" ${keys.length <= 1 || state.fmt !== "panel" ? 'style="visibility:hidden"' : ""}><i data-lucide="x"></i></button>
+    </div>`;
+  }).join("");
+}
+
+function genDialog() {
+  if (state.m === "notts") {
+    return `<div class="scrim"></div><div class="dlg">
+      <div class="dh"><h3><i data-lucide="podcast"></i>生成播客<button class="ib x" data-close><i data-lucide="x"></i></button></h3></div>
+      <div class="db"><div class="notice"><i data-lucide="volume-x"></i><div><b>还没有可用的语音合成服务</b><br />播客要把脚本念出来，需要先装一个语音插件（如 MiniMax 语音、通义语音），配好账号后回到这里。</div></div></div>
+      <div class="df"><span class="sp"></span><button class="btn">已经装了，去设置 › 语音</button><button class="btn primary"><i data-lucide="blocks"></i>去插件中心</button></div></div>`;
+  }
+  if (state.m === "nomodel") {
+    return `<div class="scrim"></div><div class="dlg">
+      <div class="dh"><h3><i data-lucide="podcast"></i>生成播客<button class="ib x" data-close><i data-lucide="x"></i></button></h3></div>
+      <div class="db"><div class="notice"><i data-lucide="sparkles"></i><div><b>还没给「播客脚本」选模型</b><br />播客插件用 AI 把原文改写成对话脚本。选一个已配置的模型后就能生成，用量计入插件的每日额度。</div></div></div>
+      <div class="df"><span class="sp"></span><button class="btn" data-close>取消</button><button class="btn primary"><i data-lucide="settings-2"></i>去选模型</button></div></div>`;
+  }
+  const fmt = FORMATS.find(f => f[0] === state.fmt);
+  return `<div class="scrim"></div><div class="dlg">
+    <div class="dh"><h3><i data-lucide="podcast"></i>生成播客<button class="ib x" data-close><i data-lucide="x"></i></button></h3></div>
+    <div class="db">
+      <div class="srcpill"><i data-lucide="file-text"></i><b>大模型推理优化笔记</b><span class="m">文章 · 4,860 字</span></div>
+      <div class="fl"><div class="lb">形式</div><div class="fmts">
+        ${FORMATS.map(([k, t, d, ks]) => `<div class="fmt ${state.fmt === k ? "on" : ""}" data-fmt="${k}"><div class="t">${t}</div><div class="d">${d}</div>${avs(ks)}</div>`).join("")}
+      </div></div>
+      <div class="fl"><div class="lb">谁来说<span class="h">上次的选择会记住</span></div>
+        <div>${speakerRows(fmt[3])}</div>
+        ${state.fmt === "panel" ? '<div class="rv-add" style="padding-left:40px"><i data-lucide="plus"></i>再加一位（最多 5 位）</div>' : ""}
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:14px">
+        <div class="fl"><div class="lb">时长</div><button class="vbtn"><span class="nm">约 5 分钟</span><i data-lucide="chevron-down" style="color:var(--ink-3)"></i></button></div>
+        <div class="fl"><div class="lb">想多聊点什么<span class="h">选填</span></div><div class="inp ph">例如：多举例子，少讲公式</div></div>
+      </div>
+      <label class="chk"><i class="box"></i>脚本写好后先给我看一遍，再合成语音</label>
+    </div>
+    <div class="df">
+      <span class="modelline" title="脚本模型在插件详情页 › AI 配置里改"><i data-lucide="sparkles"></i>脚本 Claude Sonnet 5 · 语音 MiniMax</span>
+      <span class="sp"></span><button class="btn" data-close>取消</button><button class="btn primary" data-go><i data-lucide="audio-lines"></i>生成</button>
+    </div></div>`;
+}
+
+function runningPanel() {
+  return `<div class="panel"><div class="row">
+    <span class="play ghost" style="width:36px;height:36px"><i data-lucide="loader-circle" class="spin"></i></span>
+    <div style="flex:1;min-width:0"><div class="t">正在生成播客</div>
+      <div class="steps"><span class="s done"><i data-lucide="check"></i>写脚本</span><span class="ar">—</span><span class="s cur">合成语音 23 / 41 段</span><span class="ar">—</span><span class="s">合并</span></div>
+      <div class="prog"><i style="width:56%"></i></div></div>
+    <button class="btn sm">取消</button></div>
+    <div class="m" style="margin-top:8px"><i data-lucide="info" style="width:13px;height:13px"></i>可以离开这个页面，完成后会通知你</div></div>`;
+}
+
+function donePanel() {
+  return `<div class="panel"><div class="row">
+    <button class="play"><i data-lucide="play"></i></button>
+    <div style="min-width:0;width:220px"><div class="t">KV Cache 为什么能让推理快十倍</div><div class="m">6:52 · ${legend(["lin", "xia"])}</div></div>
+    ${wave(412, 0, { bars: 90, cls: "sm" })}
+    <button class="ib" title="在播客库打开"><i data-lucide="arrow-up-right"></i></button>
+    <button class="ib" title="更多"><i data-lucide="more-horizontal"></i></button></div></div>`;
+}
+
+function failedPanel() {
+  return `<div class="panel" style="border-color:var(--danger-soft)"><div class="row">
+    <span class="play" style="background:var(--danger-soft);color:var(--danger)"><i data-lucide="circle-alert"></i></span>
+    <div style="flex:1"><div class="t">播客没有生成完</div><div class="m" style="color:var(--danger)">语音服务限流（429），已合成 23 / 41 段，已合成的部分保留</div></div>
+    <button class="btn sm">放弃</button><button class="btn sm primary"><i data-lucide="play"></i>从第 24 段继续</button></div></div>`;
+}
+
+function reviewBody() {
+  const lines = SCRIPT.map(([who, , text], i) => {
+    const s = SPEAKERS[who];
+    return `<div class="rv t${s.tone}"><span class="grip"><i data-lucide="grip-vertical"></i></span>
+      <span class="who">${av(who)}${s.name}<i data-lucide="chevron-down"></i></span>
+      <div class="tx ${i === 2 ? "focus" : ""}">${text}</div>
+      <button class="ib del" title="删除这句"><i data-lucide="x"></i></button></div>`;
+  }).join("");
+  return `<div class="pc-wrap narrow" style="padding-top:14px">
+    <div class="rv-bar">
+      <div><div style="font-weight:600;font-size:15px">审稿 · KV Cache 为什么能让推理快十倍</div>
+        <div class="muted" style="font-size:12px">原文「大模型推理优化笔记」· 32 句 · 预计 6 分 40 秒 · ${legend(["lin", "xia"])}</div></div>
+      <span class="sp"></span>
+      <button class="btn sm"><i data-lucide="sparkles"></i>让 AI 改写…</button>
+      <button class="btn sm">放弃</button>
+      <button class="btn primary"><i data-lucide="audio-lines"></i>开始合成</button>
+    </div>
+    ${lines}
+    <div class="rv-add"><i data-lucide="plus"></i>加一句</div>
+    <div class="muted" style="font-size:12px;padding:6px 0 0 32px">点说话人换人 · 拖动调整顺序 · 编辑自动保存，关掉也能回来接着审</div>
+  </div>`;
+}
+
+function render() {
+  const review = state.m === "review";
+  const panel = { running: runningPanel(), failed: failedPanel(), done: donePanel() }[state.m] || "";
+  const dialog = ["dialog", "voice", "notts", "nomodel"].includes(state.m);
+  win.innerHTML = `
+    ${sidebar({ on: review, busy: state.m === "running" })}
+    <div class="col">
+      ${titlebar(review ? "<span>播客</span><i data-lucide='chevron-right' style='width:13px'></i><b>审稿</b>" : "<span>文章</span><i data-lucide='chevron-right' style='width:13px'></i><b>大模型推理优化笔记</b>")}
+      <div class="main"><section class="paper pc-paper"><div class="pc-scroll">${review ? reviewBody() : articleDoc(panel)}</div></section></div>
+    </div>
+    ${dialog ? genDialog() : ""}
+    ${state.m === "running" ? `<div class="toast"><i data-lucide="check-circle-2"></i>已开始生成，可以离开这个页面</div>` : ""}
+    ${state.m === "dialog" ? anno(1, "来源只读展示，字数决定时长建议", "left:920px;top:150px") + anno(2, "三种形式，决定默认说话人数", "left:920px;top:230px") + anno(3, "名字取自说话人，音色可试听", "left:920px;top:350px") + anno(4, "时长用菜单：3 / 5 / 10 / 15 分钟", "left:420px;top:520px") + anno(5, "默认一路到底；勾上才停下审稿", "left:420px;top:575px") : ""}
+    ${state.m === "running" ? anno(1, "插件的实体面板：原文正文上方", "left:1000px;top:150px") + anno(2, "侧栏角标：生成中", "left:40px;top:560px") : ""}
+    ${state.m === "menu" ? anno(1, "actions.register：卡片 / 文章 / 项目文档的 ⋯ 菜单", "left:640px;top:280px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+  const on = (sel, fn) => win.querySelectorAll(sel).forEach(el => (el.onclick = e => { e.stopPropagation(); fn(el); render(); }));
+  on("[data-fmt]", el => (state.fmt = el.dataset.fmt));
+  on("[data-voice]", () => (state.m = state.m === "voice" ? "dialog" : "voice"));
+  on("[data-go]", () => (state.m = "running"));
+  on("[data-close]", () => (state.m = "plain"));
+  on(".scrim", () => (state.m = "plain"));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => { state.m = b.dataset.m; render(); }));
+render();
+</script>
+</body>
+</html>

@@ -15,15 +15,13 @@ beforeEach(() => {
   db = new Database(":memory:");
   db.exec(`
     CREATE TABLE cards (id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
-      tags TEXT, content_id INTEGER, is_top INTEGER, podcast_id INTEGER);
+      tags TEXT, content_id INTEGER, is_top INTEGER);
     CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, count INTEGER, update_time INTEGER);
     CREATE TABLE content_ai_meta (content_id INTEGER PRIMARY KEY, schema_ver INTEGER, text_digest TEXT,
       meta TEXT, model TEXT, create_time INTEGER, update_time INTEGER);
-    CREATE TABLE podcasts (id INTEGER PRIMARY KEY, name TEXT, audio_url TEXT, script TEXT,
-      script_lines TEXT, duration INTEGER, speakers TEXT);
     CREATE TABLE content_links (content_id INTEGER, target_content_id INTEGER, create_time INTEGER);
     INSERT INTO contents VALUES (10, '[]', 0, 0);
-    INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', 10, 0, NULL);
+    INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', 10, 0);
   `);
 });
 afterEach(() => db.close());
@@ -48,25 +46,18 @@ describe("卡片数据库作用域命令", () => {
       cardId: 1,
     });
   });
-  it("列表轻表只带预览块与播客 id，单卡命令回全量", () => {
+  it("列表轻表只带预览块，单卡命令回全量", () => {
     const content = JSON.stringify(
       Array.from({ length: 20 }, (_, i) => ({ type: "p", children: [{ text: `第${i}段` }] }))
     );
-    db.exec(`
-      INSERT INTO podcasts VALUES (7, '播客', 'http://audio', '脚本', '[]', 60, '[]');
-      UPDATE cards SET podcast_id = 7 WHERE id = 1;
-    `);
     db.prepare("UPDATE contents SET content = ? WHERE id = 10").run(content);
 
     const list = CardTable.getScopedCards(db, scope);
-    expect(list[0].podcast).toBeUndefined();
-    expect(list[0].podcastId).toBe(7);
     // 每块约 3~4 字，凑不满 200 字目标即按预览块上限截断
     expect(list[0].content).toHaveLength(12);
 
     const detail = CardTable.getScopedCard(db, { ...scope, id: 1 });
     expect(detail.content).toHaveLength(20);
-    expect(detail.podcast?.id).toBe(7);
   });
   it("单卡命令校验库身份并拒绝不存在的卡片", () => {
     expect(() => CardTable.getScopedCard(db, { databaseName: "another", id: 1 })).toThrow(
