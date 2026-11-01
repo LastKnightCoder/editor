@@ -5,13 +5,7 @@ import { useEffect } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { CheckBubble } from "../../../components/CheckBubble";
-import { toast } from "../../../components/toast";
-import {
-  fontTotalSize,
-  readingFontErrorMessage,
-  removeReadingFont,
-  type ReadingFontRelease,
-} from "../readingFont/api";
+import { fontTotalSize, type ReadingFontRelease } from "../readingFont/api";
 import { useReadingFontDownload } from "../readingFont/downloadStore";
 import {
   READING_FONT_OPTIONS,
@@ -28,7 +22,7 @@ import {
   useInvalidateInstalledReadingFonts,
   useReadingFontCatalog,
 } from "../readingFont/queries";
-import { forgetReadingFontFaces, loadReadingFontFaces } from "../readingFont/runtime";
+import { loadReadingFontFaces } from "../readingFont/runtime";
 import { GroupRow } from "./ui";
 
 const NO_FONTS: ReadingFontRelease[] = [];
@@ -56,7 +50,6 @@ function FontRow(props: {
   latest: ReadingFontRelease | undefined;
   onSelect: () => void;
   onDownload: () => void;
-  onRemove: () => void;
 }) {
   const { option, active, installed, latest } = props;
   const downloadingId = useReadingFontDownload(state => state.downloadingId);
@@ -91,8 +84,6 @@ function FontRow(props: {
         更新{sizeLabel}
       </TrailingButton>
     );
-  } else if (!isSystem) {
-    trailing = <TrailingButton onClick={props.onRemove}>移除</TrailingButton>;
   }
 
   return (
@@ -139,16 +130,6 @@ export function ReadingFontSection() {
     });
   };
 
-  const remove = async (id: ReadingFontId) => {
-    try {
-      await removeReadingFont(id);
-      forgetReadingFontFaces(id);
-      await invalidateInstalled();
-    } catch (error) {
-      toast.error(readingFontErrorMessage(error));
-    }
-  };
-
   return (
     <div className="space-y-3">
       <div className="setting-group">
@@ -161,7 +142,6 @@ export function ReadingFontSection() {
             latest={catalog.find(font => font.id === option.id)}
             onSelect={() => select(option.id)}
             onDownload={() => startDownload(option.id)}
-            onRemove={() => void remove(option.id)}
           />
         ))}
       </div>
