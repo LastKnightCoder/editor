@@ -700,12 +700,16 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
   it("整库被下载替换后丢弃本库的本地缓存，重开正文读新库内容", async () => {
     const { runtime, event, store, localId } = await setup();
+    const retired = runtime.sessions.get(localId)!;
     const drain = await runtime.drainDatabase({
       databaseName: "library",
       reason: "database-change",
+      replace: true,
     });
     drain.commit();
+    expect(retired.info.frozen).toBe(true);
     await runtime.releaseLibrary("library");
+    expect(() => retired.persistDeviceState?.(retired.doc)).toThrow(/DEVICE_SYNC_REPLACED/);
     expect(runtime.sessions.has(localId)).toBe(false);
     expect(store.list().some(session => session.id === localId)).toBe(false);
     const opened = await runtime.openContent(event, { contentId: 7 });

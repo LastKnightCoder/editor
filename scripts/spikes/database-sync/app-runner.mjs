@@ -9,9 +9,10 @@ const require = createRequire(
 );
 const { build } = require("esbuild");
 const stress = process.argv.includes("--stress");
+const multi = process.argv.includes("--multi");
 const output = join(
   root,
-  `apps/desktop/node_modules/.cache/device-sync/${stress ? "resilience-verify" : "app-verify"}.cjs`
+  `apps/desktop/node_modules/.cache/device-sync/${stress ? "resilience-verify" : multi ? "multi-verify" : "app-verify"}.cjs`
 );
 mkdirSync(join(root, "apps/desktop/node_modules/.cache/device-sync"), { recursive: true });
 const dependencies = Object.keys(
@@ -21,7 +22,11 @@ await build({
   entryPoints: [
     join(
       import.meta.dirname,
-      process.argv.includes("--stress") ? "verify-resilience.ts" : "verify-app-integration.ts"
+      stress
+        ? "verify-resilience.ts"
+        : multi
+          ? "verify-multi-device.ts"
+          : "verify-app-integration.ts"
     ),
   ],
   outfile: output,

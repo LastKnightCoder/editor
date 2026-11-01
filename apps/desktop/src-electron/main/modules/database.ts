@@ -1,4 +1,4 @@
-import { withDurableDocuments } from "./durable-document-lifecycle";
+import { prepareDurableDocuments, withDurableDocuments } from "./durable-document-lifecycle";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
@@ -159,8 +159,7 @@ class DatabaseModule implements Module {
   }
 
   /** 不经 eventAndHandlers 的写入（如自有 IPC 的模块）提交后，补发写事件给订阅方 */
-  notifyExternalWrite(eventName: string): void {
-    const dbName = this.getCurrentDatabaseName();
+  notifyExternalWrite(eventName: string, dbName = this.getCurrentDatabaseName()): void {
     if (dbName) this.notifyDatabaseWrite(dbName, eventName);
   }
 
@@ -599,6 +598,34 @@ class DatabaseModule implements Module {
     });
   }
 
+  async closeForSync(name: string, install?: () => Promise<void>) {
+    const drain = await prepareDurableDocuments({
+      databaseName: name,
+      reason: "database-change",
+      replace: Boolean(install),
+    });
+    try {
+      const db = this.databases.get(name);
+      if (!db) {
+        if (install) throw new Error("资料库已关闭，不能继续覆盖");
+        drain.commit();
+        return;
+      }
+      if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
+      db.close();
+      this.databases.delete(name);
+      this.indexEnsurePromises.delete(name);
+      mainContentIndexDBManager.closeDatabase(name);
+      for (const [id, dbName] of this.windowToDatabase)
+        if (dbName === name) this.windowToDatabase.delete(id);
+      drain.commit();
+      await install?.();
+    } catch (error) {
+      drain.rollback();
+      throw error;
+    }
+  }
+
   async init() {
     ipcMain.handle("reset-content-index", (_event, name: string) => {
       // 同步替换主库后本地索引的 ID 空间整体失效，删除索引文件令其全量重建。
@@ -770,11 +797,13 @@ class DatabaseModule implements Module {
 
     Object.keys(this.eventAndHandlers).forEach(eventName => {
       ipcMain.handle(eventName, async (event, ...args) => {
+        if (event.senderFrame?.isDestroyed()) throw new Error("资料库窗口已重新加载");
         const sender = event.sender;
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error("No window found");
 
         const scope = args.at(-1);
+        if (!this.windowToDatabase.has(win.id)) throw new Error("资料库窗口尚未连接");
         const explicit =
           scope && typeof scope.toolDatabaseName === "string"
             ? scope.toolDatabaseName
@@ -907,26 +936,7 @@ class DatabaseModule implements Module {
       });
     });
 
-    ipcMain.handle("close-database", async (_event, name) =>
-      withDurableDocuments({ databaseName: name, reason: "database-change" }, async () => {
-        if (this.databases.has(name)) {
-          const database = this.databases.get(name);
-          if (!database) throw new Error("No database found");
-
-          if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
-
-          database.close();
-          this.databases.delete(name);
-          this.indexEnsurePromises.delete(name);
-          mainContentIndexDBManager.closeDatabase(name);
-          for (const [id, dbName] of this.windowToDatabase) {
-            if (dbName === name) {
-              this.windowToDatabase.delete(id);
-            }
-          }
-        }
-      })
-    );
+    ipcMain.handle("close-database", (_event, name) => this.closeForSync(name));
 
     ipcMain.handle("close-all-database", async () =>
       withDurableDocuments({ reason: "database-change" }, async () => {
