@@ -1,0 +1,350 @@
+/* 移动端工作区引导 mockup：展示页外壳、表单、状态卡复用桌面同名 mockup 的 onboarding.css，这里只放手机帧与移动端组件 */
+:root {
+  --s: 0.9;
+}
+.phone-box {
+  width: calc(360px * var(--s));
+  height: calc(760px * var(--s));
+}
+.phone {
+  width: 360px;
+  height: 760px;
+  transform: scale(var(--s));
+  transform-origin: top left;
+  position: relative;
+  overflow: hidden;
+  border-radius: 42px;
+  background: var(--tau-bg-page);
+  box-shadow:
+    0 0 0 9px #26221d,
+    0 24px 50px -18px rgba(60, 45, 25, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+.status {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 26px 0 32px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.status .r {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.nav {
+  height: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+.nav .ib {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--tau-ink-2);
+}
+.nav .t {
+  flex: 1;
+  text-align: center;
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.scr {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px;
+  min-height: 0;
+}
+.home-ind {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 5px;
+  border-radius: 9px;
+  background: var(--tau-ink-1);
+  opacity: 0.85;
+  z-index: 12;
+}
+
+/* 欢迎页 */
+.m-hero {
+  padding-top: 64px;
+}
+.m-hero .logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+.m-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  margin-top: 18px;
+  line-height: 1.25;
+}
+.m-sub {
+  font-size: 15px;
+  color: var(--tau-ink-2);
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.scr .field {
+  margin-top: 26px;
+}
+.scr .input {
+  height: 50px;
+  border-radius: 14px;
+  font-size: 16px;
+  padding: 0 14px;
+}
+.scr .input.area {
+  height: 92px;
+  font-size: 13px;
+}
+.m-foot {
+  margin-top: auto;
+  padding-bottom: 34px;
+}
+.m-foot .btn.block,
+.scr .btn.block {
+  height: 52px;
+  border-radius: 14px;
+  font-size: 16px;
+}
+.m-link {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--tau-accent-text);
+  font-weight: 500;
+  margin-top: 14px;
+  padding: 6px 0;
+}
+.m-link.muted {
+  color: var(--tau-ink-2);
+}
+
+/* 大选项卡片 */
+.m-choice {
+  border-radius: 18px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  padding: 18px;
+  text-align: left;
+  width: 100%;
+  display: block;
+}
+.m-choice + .m-choice {
+  margin-top: 12px;
+}
+.m-choice.hot {
+  border-color: var(--tau-accent);
+  box-shadow: 0 0 0 3px var(--tau-accent-soft);
+}
+.m-choice .tile {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+.m-choice b {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 12px;
+}
+.m-choice span.d {
+  display: block;
+  font-size: 13.5px;
+  color: var(--tau-ink-2);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* 分组列表 */
+.m-grp {
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  border: 1px solid var(--tau-line-1);
+  overflow: hidden;
+}
+.m-row {
+  min-height: 60px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  font-size: 15px;
+}
+.m-row + .m-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 64px;
+  right: 0;
+  border-top: 1px solid var(--tau-line-2);
+}
+.m-row .mid {
+  flex: 1;
+  min-width: 0;
+}
+.m-row .mid b {
+  display: block;
+  font-weight: 600;
+}
+.m-row .mid span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+  margin-top: 1px;
+}
+.m-row .chev {
+  color: var(--tau-ink-3);
+}
+.m-gl {
+  font-size: 12.5px;
+  color: var(--tau-ink-3);
+  padding: 18px 4px 7px;
+}
+
+/* 底部面板 */
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--tau-overlay);
+  z-index: 10;
+}
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 11;
+  background: var(--tau-bg-page);
+  border-radius: 24px 24px 0 0;
+  padding: 10px 18px 40px;
+  box-shadow: var(--tau-shadow-float);
+}
+.sheet .grab {
+  width: 38px;
+  height: 5px;
+  border-radius: 9px;
+  background: var(--tau-line-1);
+  margin: 0 auto 14px;
+}
+.sheet h3 {
+  font-size: 18px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+.sheet .m-sub {
+  font-size: 13.5px;
+  padding: 0 4px;
+  margin: 4px 0 16px;
+}
+
+/* 主页空态 */
+.m-tabbar {
+  height: 82px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  display: flex;
+  justify-content: space-around;
+  padding-top: 10px;
+  font-size: 10.5px;
+  color: var(--tau-ink-3);
+}
+.m-tabbar > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.m-tabbar > span.on {
+  color: var(--tau-accent-text);
+}
+.m-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%);
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+  padding: 10px 16px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+  box-shadow: var(--tau-shadow-float);
+  z-index: 9;
+}
+.m-toast .ic {
+  color: var(--tau-ok);
+}
+
+/* 系统键盘（OS 绘制，不随应用主题） */
+.kb {
+  flex-shrink: 0;
+  height: 292px;
+  background: #d1d3d9;
+  padding: 8px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+[data-mode="dark"] .kb {
+  background: #2b2b2d;
+}
+.kb .cand {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0 12px;
+  font-size: 16px;
+  color: #111;
+}
+[data-mode="dark"] .kb .cand {
+  color: #eee;
+}
+.kb .rowk {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.kb .rowk i {
+  width: 30px;
+  height: 40px;
+  border-radius: 5px;
+  background: #fdfdfe;
+  box-shadow: 0 1px 0 #8e939b;
+}
+[data-mode="dark"] .kb .rowk i {
+  background: #6b6b6e;
+  box-shadow: 0 1px 0 #111;
+}
+.kb .rowk i.w {
+  width: 170px;
+}
+.kb .rowk i.m {
+  width: 44px;
+  background: #aeb3bc;
+}
+[data-mode="dark"] .kb .rowk i.m {
+  background: #464648;
+}

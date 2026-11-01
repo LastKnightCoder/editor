@@ -357,6 +357,13 @@
         "apps/desktop/mockups"
       ],
       "port": 8861
+    },
+    {
+      "name": "weread-mobile-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8849", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8849,
+      "url": "http://localhost:8849"
     }
   ]
 }

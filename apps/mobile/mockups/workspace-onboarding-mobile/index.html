@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端 · 首次启动创建工作区</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="/apps/desktop/mockups/workspace-onboarding/onboarding.css" />
+<link rel="stylesheet" href="mobile.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端 · 首次启动创建工作区<small>颜色取自 @tau/themes · 手机帧 360×760 · 桌面端见 apps/desktop/mockups/workspace-onboarding/</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="dir">0 方向</button>
+    <button class="tab" data-tab="a">1 方案 A：一屏直填<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="b">2 方案 B：先选再填</button>
+    <button class="tab" data-tab="pair">3 连接电脑</button>
+    <button class="tab" data-tab="cloud">4 从云端恢复</button>
+    <button class="tab" data-tab="state">5 状态与边界</button>
+    <button class="tab" data-tab="decide">6 待你决定</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 方向 ═══════════ -->
+<section class="scene" data-scene="dir">
+  <p class="intro">移动端现在由 <code>src-tauri/src/setting.rs</code> 在读不到当前库时兜底为 <code>data.db</code>，打开即建库，前端 <code>useSyncSettings</code> 也兜底同名。原则与桌面端相同（判定流程、叫法、空工作区、名称规则见桌面页「0 方向与流程」），这里只说移动端的不同点：</p>
+  <div class="cards3">
+    <div class="card"><h3><span class="tile t-acc" data-i="smartphone" data-s="16" style="width:26px;height:26px;border-radius:7px"></span>只能整屏</h3>没有小窗可选。引导是根路由之前的一屏，不挂底部 Dock，系统返回手势在引导首屏无效果（Android 返回键退到后台）。</div>
+    <div class="card"><h3><span class="tile t-sky" data-i="keyboard" data-s="16" style="width:26px;height:26px;border-radius:7px"></span>键盘会顶起来</h3>名称输入框获得焦点后，主按钮贴在键盘上方，保证不收键盘也能点到。首屏默认<b>不自动弹键盘</b>，避免一进来就被键盘挡住一半。</div>
+    <div class="card"><h3><span class="tile t-butter" data-i="shield-check" data-s="16" style="width:26px;height:26px;border-radius:7px"></span>卸载即清空</h3>iOS、Android 的应用目录都随卸载删除，「重装后在本机找到旧文件」基本不会发生，不做这个分支；改为在首屏提示一句「卸载会删除」，引导用户之后开同步。</div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="intro">和桌面推荐方案 B 同构：一屏放下欢迎语、<b>预填名称</b>和主按钮，大多数人点一下「创建并开始」就进去了。已有数据的人点底部的文字链接，弹出底部面板选「连接电脑」或「从云端恢复」。</p>
+  <div class="frames">
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div class="m-hero">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="m-title">欢迎使用 Tau</div>
+            <div class="m-sub">先建一个工作区，卡片、文章和日记都存在里面。</div>
+          </div>
+          <div class="field">
+            <label>工作区名称</label>
+            <div class="input">我的工作区<span class="end" data-i="pencil" data-s="15"></span></div>
+            <div class="hint"><span data-i="smartphone" data-s="13"></span><span>只保存在这台手机上，卸载应用会一并删除</span></div>
+          </div>
+          <div class="m-foot">
+            <button class="btn pri block">创建并开始</button>
+            <button class="m-link">已经在电脑或其他设备上用过 Tau？</button>
+          </div>
+          <span class="ring good" style="left:12px;top:254px;width:336px;height:112px"></span>
+          <span class="anno good" style="left:150px;top:228px">预填名称，不自动弹键盘</span>
+          <span class="ring good" style="left:12px;top:574px;width:336px;height:112px"></span>
+          <span class="anno good" style="left:130px;top:548px">主按钮在拇指区</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>首次打开</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div style="padding-top:22px;display:flex;gap:12px;align-items:center">
+            <img class="logo sm" src="/apps/desktop/build/icon.png" alt="" style="border-radius:11px" />
+            <div class="m-title" style="font-size:21px;margin:0">欢迎使用 Tau</div>
+          </div>
+          <div class="field" style="margin-top:22px">
+            <label>工作区名称</label>
+            <div class="input focus">读书笔记<span class="caret" style="margin-left:-6px"></span></div>
+            <div class="hint"><span data-i="smartphone" data-s="13"></span><span>只保存在这台手机上，卸载应用会一并删除</span></div>
+          </div>
+          <div style="margin-top:auto;padding-bottom:12px"><button class="btn pri block">创建并开始</button></div>
+          <span class="anno good" style="left:150px;top:206px">聚焦时头部收成一行</span>
+        </div>
+        <div class="kb" data-kb="读书　　读　　笔记"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>改名字（键盘弹起）</div>
+      <div class="frame-note">按钮贴在键盘上方；键盘「完成」键等同点按钮。</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div class="m-hero">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="m-title">欢迎使用 Tau</div>
+            <div class="m-sub">先建一个工作区，卡片、文章和日记都存在里面。</div>
+          </div>
+        </div>
+        <div class="sheet-scrim"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <h3>接上已有的数据</h3>
+          <div class="m-sub">手机会拿到一份同样的工作区</div>
+          <div class="m-grp">
+            <div class="m-row"><span class="tile t-sky" data-i="laptop" data-s="19"></span><span class="mid"><b>连接电脑</b><span>粘贴电脑上的配对信息，局域网内自动补齐</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="m-row"><span class="tile t-lilac" data-i="cloud-download" data-s="19"></span><span class="mid"><b>从云端恢复</b><span>从 WebDAV、S3 等已同步过的位置下载</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <button class="m-link muted" style="margin-top:12px">取消</button>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>点「已经用过 Tau？」</div>
+      <div class="frame-note">下滑或返回手势关闭面板。</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div class="m-title" style="font-size:30px;margin-top:14px">今天</div>
+          <div class="m-sub" style="font-size:13px">（「今天」页现有空态，引导不额外加内容）</div>
+          <div class="empty-state" style="width:auto;margin-top:120px">
+            <span class="tile t-acc" data-i="sparkles" data-s="22"></span>
+            <b>工作区是空的</b>
+            写一张卡片或今天的日记，内容会出现在这里。
+          </div>
+          <div class="m-toast"><span data-i="circle-check" data-s="16"></span>已创建工作区「读书笔记」</div>
+        </div>
+        <div class="m-tabbar">
+          <span class="on"><span data-i="house" data-s="22"></span>今天</span>
+          <span><span data-i="layers" data-s="22"></span>卡片</span>
+          <span><span data-i="notebook-pen" data-s="22"></span>日记</span>
+          <span><span data-i="user" data-s="22"></span>我的</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A4</span>进入「今天」</div>
+      <div class="frame-note">Dock 出现，落在「今天」，提示自动消失。</div>
+    </div>
+  </div>
+  <div class="pc">
+    <div><h4>好处</h4><ul><li>新用户一次点击完成，和桌面端文案、结构一致。</li><li>「已有数据」入口不占首屏空间，又始终可见。</li></ul></div>
+    <div><h4>代价</h4><ul><li>老用户换新手机时入口是一行文字链接，比 B 的大卡片弱一些。</li></ul></div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="intro">首屏先问「你是新来的，还是已经在用」，两张大卡片二选一，再进入各自的页面。新老用户的路径同样显眼，但新用户要多点一步。和桌面方案 A（欢迎小窗的三个并列入口）是同一种思路。</p>
+  <div class="frames">
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div class="m-hero" style="padding-top:48px">
+            <img class="logo" src="/apps/desktop/build/icon.png" alt="" />
+            <div class="m-title">欢迎使用 Tau</div>
+            <div class="m-sub">卡片、文章和日记都存在工作区里。先准备一个。</div>
+          </div>
+          <div style="margin-top:30px">
+            <button class="m-choice hot"><span class="tile t-acc" data-i="plus" data-s="21"></span><b>新建工作区</b><span class="d">从空白开始，只保存在这台手机上</span></button>
+            <button class="m-choice"><span class="tile t-sky" data-i="arrow-left-right" data-s="21"></span><b>我已经在用 Tau</b><span class="d">连接电脑，或从云端恢复原来的工作区</span></button>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>首次打开</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="m-title" style="margin-top:8px">给工作区起个名字</div>
+          <div class="m-sub">会显示在设置和同步里，以后可以再建别的工作区。</div>
+          <div class="field">
+            <div class="input">我的工作区<span class="end" data-i="pencil" data-s="15"></span></div>
+            <div class="hint"><span data-i="smartphone" data-s="13"></span><span>只保存在这台手机上，卸载应用会一并删除</span></div>
+          </div>
+          <div class="m-foot"><button class="btn pri block">创建并开始</button></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>新建：起名</div>
+      <div class="frame-note">完成后同 A4。</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="m-title" style="margin-top:8px">接上已有的数据</div>
+          <div class="m-sub">手机会拿到一份同样的工作区。</div>
+          <div class="m-gl">选一种方式</div>
+          <div class="m-grp">
+            <div class="m-row"><span class="tile t-sky" data-i="laptop" data-s="19"></span><span class="mid"><b>连接电脑</b><span>粘贴电脑上的配对信息，局域网内自动补齐</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="m-row"><span class="tile t-lilac" data-i="cloud-download" data-s="19"></span><span class="mid"><b>从云端恢复</b><span>从 WebDAV、S3 等已同步过的位置下载</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B3</span>已在用：选方式</div>
+    </div>
+  </div>
+  <div class="pc">
+    <div><h4>好处</h4><ul><li>两类用户的入口一样醒目，换新手机的老用户不会错过。</li><li>每页只做一件事，文案可以更宽松。</li></ul></div>
+    <div><h4>代价</h4><ul><li>占多数的新用户要多点一次。</li><li>和桌面推荐方案 B 的结构不同；若桌面选 A 小窗，两端反而更一致。</li></ul></div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 连接电脑 ═══════════ -->
+<section class="scene" data-scene="pair">
+  <p class="intro">复用「设置 › 同步 › 局域网设备同步」现有连接端流程，三步说明与文案照搬 <code>DeviceSyncSection</code>。手机只能当连接端，所以这里只有「连接电脑」，没有「由本机协调」。</p>
+  <div class="frames">
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">连接电脑</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="m-gl" style="padding-top:6px">怎么连接</div>
+          <div class="m-grp" style="padding:14px 16px;font-size:13.5px;line-height:1.6">
+            <div style="display:flex;gap:10px"><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700">1</span><span><b>在电脑上打开同步设置</b><br /><span style="color:var(--tau-ink-2)">设置 → 同步 → 设备同步，选「由本机协调」</span></span></div>
+            <div style="display:flex;gap:10px;margin-top:12px"><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700">2</span><span><b>点「添加设备」，复制配对信息</b><br /><span style="color:var(--tau-ink-2)">经隔空投送、备忘录或聊天工具发到手机</span></span></div>
+            <div style="display:flex;gap:10px;margin-top:12px"><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700">3</span><span><b>回到这里粘贴</b><br /><span style="color:var(--tau-ink-2)">第一次会请求「本地网络」权限，选允许</span></span></div>
+          </div>
+          <div class="field" style="margin-top:18px">
+            <label>配对信息</label>
+            <div class="input area">tau-pair:v1:eyJleHBpcmVzIjoxNzk0MDM2MDAwMDAwLCJhZGRyZXNzZXMiOlsiMTkyLjE2OC4xLjIzIi…</div>
+            <div class="parsed"><span data-i="circle-check" data-s="14"></span>来自 <b style="color:var(--tau-ink-1)">MacBook-Pro</b><span>· 9 分钟后过期</span></div>
+          </div>
+          <div class="field" style="margin-top:14px"><label>在这台手机上叫</label><div class="input">我的工作区</div></div>
+          <div class="m-foot"><button class="btn pri block">连接并下载</button></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P1</span>粘贴配对信息</div>
+      <div class="frame-note">进入页面先读一次剪贴板，有 <code>tau-pair:</code> 就自动填入。</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr" style="justify-content:center;text-align:center">
+          <span class="tile t-sky" data-i="refresh-cw" data-s="22" style="margin:0 auto;width:52px;height:52px;border-radius:15px"></span>
+          <div class="m-title" style="font-size:22px">正在从 MacBook-Pro 下载</div>
+          <div class="m-sub">保持手机亮屏、和电脑在同一个网络里。</div>
+          <div class="progress"><i style="width:62%"></i></div>
+          <div class="prog-meta"><span>正文与附件 · 1,284 / 2,071</span><span>62%</span></div>
+          <button class="m-link muted" style="margin-top:26px">取消</button>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P2</span>首次下载</div>
+      <div class="frame-note">移动端同步只在前台调度，所以明确要求亮屏。完成后同 A4，提示「已连接 MacBook-Pro」。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 从云端恢复 ═══════════ -->
+<section class="scene" data-scene="cloud">
+  <p class="intro">与桌面相同：云端按<b>工作区名称的哈希</b>分目录，必须输入原名称才能定位。移动端没有内置同步插件，选中服务后从插件中心安装并启用。</p>
+  <div class="frames">
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">从云端恢复</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="m-sub" style="margin-top:4px">选你在其他设备上用过的同步服务</div>
+          <div class="m-gl">同步服务</div>
+          <div class="m-grp">
+            <div class="m-row"><span class="tile t-sage" style="font-weight:700">W</span><span class="mid"><b>WebDAV</b><span>坚果云、群晖、Nextcloud 等</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="m-row"><span class="tile t-acc" style="font-weight:700">S3</span><span class="mid"><b>S3 兼容存储</b><span>AWS、Cloudflare R2、MinIO 等</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="m-row"><span class="tile t-lilac" style="font-weight:700">G</span><span class="mid"><b>GitHub</b><span>私有仓库</span></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="m-row"><span class="tile t-butter" style="font-weight:700">A</span><span class="mid"><b>阿里云 OSS</b></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="hint" style="margin-top:10px"><span data-i="info" data-s="13"></span><span>选中后自动从插件中心安装并启用</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R1</span>选服务</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">WebDAV</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="m-sub" style="margin-top:4px">填写和其他设备相同的配置</div>
+          <div class="field" style="margin-top:16px"><label>服务器地址</label><div class="input">https://dav.jianguoyun.com/dav/</div></div>
+          <div class="field" style="margin-top:12px"><label>账号</label><div class="input">me@example.com</div></div>
+          <div class="field" style="margin-top:12px"><label>应用密码</label><div class="input">••••••••••••</div></div>
+          <div class="field" style="margin-top:12px">
+            <label>原来的工作区名称</label>
+            <div class="input focus">我的工作区<span class="caret"></span></div>
+            <div class="hint"><span data-i="info" data-s="13"></span><span>必须和其他设备上完全一致</span></div>
+          </div>
+          <div class="m-foot"><button class="btn pri block">查找</button></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R2</span>配置与名称</div>
+      <div class="frame-note">表单由插件声明，与设置里同一组件。</div>
+    </div>
+
+    <div>
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">WebDAV</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="m-title" style="font-size:24px;margin-top:8px">找到了</div>
+          <div class="m-sub">下载后手机上就有一份同样的工作区，同步服务也一并设好。</div>
+          <div class="found" style="border-radius:16px">
+            <span class="tile t-sage" data-i="database" data-s="18"></span>
+            <span style="flex:1"><b>我的工作区</b><span>云端版本 131 · 11 月 3 日 21:40</span></span>
+            <span data-i="circle-check" data-s="18" style="color:var(--tau-ok)"></span>
+          </div>
+          <div class="m-foot">
+            <button class="btn pri block">下载并打开</button>
+            <div class="hint" style="justify-content:center;margin-top:10px">图片和附件走资源同步，进入工作区后再拉取</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R3</span>确认并下载</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 状态与边界 ═══════════ -->
+<section class="scene" data-scene="state">
+  <p class="intro">名称规则、创建失败、配对与云端的错误文案和桌面一致（两端共用 <code>device-sync/messages</code>）。下面只列移动端会遇到的情况，宽度按手机内容区 316px 画。</p>
+  <div class="state-grid" style="grid-template-columns:repeat(auto-fill,minmax(316px,340px))">
+    <div class="state">
+      <div class="cap"><span data-i="pencil" data-s="14"></span>名称为空</div>
+      <div class="when">删光了预填名称，按钮禁用。</div>
+      <div class="field"><div class="input focus" style="height:50px;border-radius:14px"><span class="ph">比如：我的工作区</span></div></div>
+      <button class="btn pri block dis" style="height:50px;border-radius:14px">创建并开始</button>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="triangle-alert" data-s="14"></span>名称含非法字符</div>
+      <div class="when">输入即校验。</div>
+      <div class="field"><div class="input err" style="height:50px;border-radius:14px">工作/笔记</div><div class="hint err"><span data-i="info" data-s="13"></span><span>名称不能包含 / \ : * ? " &lt; &gt; |</span></div></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="wifi" data-s="14"></span>没给「本地网络」权限</div>
+      <div class="when">iOS 首次连接电脑时系统弹窗选了「不允许」。</div>
+      <div class="banner"><span data-i="triangle-alert" data-s="15"></span><span><b>找不到电脑</b>需要「本地网络」权限才能连接。到系统设置 › Tau 打开后重试。</span></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn pri sm">打开系统设置</button><button class="btn ghost sm">重试</button></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="clipboard-paste" data-s="14"></span>剪贴板没有配对信息</div>
+      <div class="when">进入页面自动读剪贴板没读到。不弹错误，只留空输入框和按钮。</div>
+      <div class="field"><div class="input area" style="height:80px;border-radius:14px"><span class="ph" style="font-family:var(--font)">粘贴以 tau-pair: 开头的配对信息</span></div></div>
+      <button class="btn sec block" style="height:46px;border-radius:14px">粘贴配对信息</button>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="cloud-download" data-s="14"></span>插件安装失败</div>
+      <div class="when">选了 WebDAV，但手机离线或插件中心不可用。</div>
+      <div class="banner danger"><span data-i="triangle-alert" data-s="15"></span><span><b>没能安装 WebDAV 插件</b>检查网络后重试，或先新建一个工作区，之后在设置里恢复。</span></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn pri sm">重试</button><button class="btn ghost sm">先新建工作区</button></div>
+    </div>
+    <div class="state">
+      <div class="cap"><span data-i="history" data-s="14"></span>老用户升级</div>
+      <div class="when">设置里已有 <code>data.db</code> 且文件存在。</div>
+      <div class="banner info"><span data-i="circle-check" data-s="15"></span><span><b>不出现引导</b>照常进入「今天」。名称显示为「data」。</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 待你决定 ═══════════ -->
+<section class="scene" data-scene="decide">
+  <p class="intro">叫法、入口范围、默认名称、配对后的本地名称与桌面页「7 待你决定」第 2、3、4、6 条是同一个决定，两端一起定。移动端独有的是下面两条。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><span class="t">移动端首屏结构</span>
+      <div class="opt">
+        <div class="o r"><b>A 一屏直填</b><span>新用户一次点击；与桌面方案 B 同构</span></div>
+        <div class="o"><b>B 先选再填</b><span>新老用户入口同样醒目；与桌面方案 A 同构</span></div>
+      </div></div>
+    <div class="q"><span class="no">2</span><span class="t">手机连接电脑要不要扫码<small>现在只能粘贴，配对信息要经隔空投送或聊天工具转一手</small></span>
+      <div class="opt">
+        <div class="o r"><b>这次只做粘贴</b><span>与设置里现有流程一致，零新增能力</span></div>
+        <div class="o"><b>加扫码</b><span>桌面「添加设备」要渲染二维码，手机要接相机权限与扫码插件，单独立项更合适</span></div>
+      </div></div>
+  </div>
+</section>
+
+<script src="mobile.js"></script>
+</body>
+</html>
