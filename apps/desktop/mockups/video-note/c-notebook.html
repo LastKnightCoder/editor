@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 C · 笔记本（写为主）</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vn.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 C · 笔记本：笔记是主角，视频退到右轨（参照 Notion / Obsidian 的「媒体 + 文档」、B 站笔记的小窗模式）</h3>
+  主栏是<b>整页笔记</b>；以时间戳开头的段落，时间移到左页边成为一列刻度（当前播放到哪段，刻度上亮一个点），点刻度跳播。右轨从上到下是小画面 + 跟随字幕（当前句放大、前后句淡出），「全部转录」和「对话」在右轨里切换。右轨可以整个收起，视频缩成笔记底部的一枚播放胶囊，声音照常。
+  <ul>
+    <li class="pro">＋ 写长笔记最舒服，笔记本身就是一条带时间轴的大纲；只想听（播客式视频）时收起右轨，几乎就是一篇普通文档。</li>
+    <li class="con">－ 画面最小（约 320–400 宽），看板书 / 代码要全屏；对话和转录挤在同一条右轨里，不能同时看。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mount, shell, frameLayout, head, toggle, player, pill, transcriptList, notesHead, noteDoc, chatCol, trEmpty, SEGMENTS, NOW_INDEX, fmt } from "./vn.js?v=1";
+
+const STATES = [
+  ["write", "边看边记"],
+  ["list", "全部转录"],
+  ["chat", "展开对话"],
+  ["pip", "收起右轨"],
+  ["none", "未转录"],
+];
+
+const roll = () => `<div class="vn-roll">${SEGMENTS.slice(NOW_INDEX - 2, NOW_INDEX + 3).map((g, i) =>
+  `<div class="l ${i === 2 ? "on" : ""}"><span class="tm num">${fmt(g.t)}</span>${g.text}</div>`).join("")}</div>`;
+
+mount("c-notebook.html", STATES, s => {
+  const L = frameLayout(820);
+  const railOpen = s !== "pip";
+  const railW = Math.max(320, Math.min(400, Math.round(L.w * 0.34)));
+
+  const secTitle = { write: "跟随字幕", list: "全部转录", chat: "对话", none: "转录" }[s];
+  const railBody = s === "chat" ? chatCol({ header: false })
+    : s === "list" ? `<div class="vn-scroll">${transcriptList()}</div>`
+    : s === "none" ? trEmpty()
+    : `<div class="vn-scroll">${roll()}</div>`;
+
+  const rail = railOpen ? `
+    <div class="vn-col fix bl" style="width:${railW}px">
+      <div style="padding:2px 14px 4px;flex:none">${player({ sub: false })}</div>
+      <div class="vn-sec"><b>${secTitle}</b>${s === "list" ? `<span>· ${SEGMENTS.length} 段</span>` : ""}<span class="sp"></span>
+        ${s === "none" ? "" : `${toggle("list", "全部转录", s === "list")}${toggle("message-circle", "对话", s === "chat", "⌘J")}`}
+      </div>
+      ${railBody}
+    </div>` : "";
+
+  const main = `
+    <div class="vn-col grow vn-notes" style="position:relative">
+      ${notesHead()}
+      <div class="vn-scroll">${noteDoc({ ruler: true, typing: s !== "none" })}</div>
+      ${railOpen ? "" : `<div style="position:absolute;left:50%;bottom:16px;transform:translateX(-50%)">${pill()}</div>`}
+    </div>`;
+
+  return shell(L, `
+    ${head({ state: s === "none" ? "none" : "ok", right: toggle("panel-right", railOpen ? "收起视频栏" : "展开视频栏", railOpen) })}
+    <div class="vn-body">${main}${rail}</div>`);
+});
+</script>
+</body>
+</html>

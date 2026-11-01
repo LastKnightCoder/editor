@@ -2,6 +2,7 @@ import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { basename } from "node:path";
 import { VideoNote } from "@/types";
+import { isVideoNoteInsights } from "@/types/video-note";
 import type { VideoCaptions } from "@tau/plugins";
 import Operation from "./operation";
 import VideoNoteItemTable from "./video-note-item";
@@ -67,10 +68,12 @@ export default class VideoNoteTable {
       }
     }
 
+    // 只认当前章节结构，旧版主题 / 高亮结构视为没有章节
     let insights: VideoNote["insights"] = undefined;
     if (note.insights) {
       try {
-        insights = JSON.parse(note.insights);
+        const parsed: unknown = JSON.parse(note.insights);
+        insights = isVideoNoteInsights(parsed) ? parsed : undefined;
       } catch {
         insights = undefined;
       }

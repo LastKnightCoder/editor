@@ -20,6 +20,20 @@ import {
   VolumeControl,
 } from "./MediaControls";
 
+/** 章节：起点秒数 + 标题；进度条按章节分段，底栏信息位显示当前章节 */
+export interface VideoChapter {
+  start: number;
+  title: string;
+}
+
+/** 进度条刻度：宿主在某个时间点留下的标记（如笔记时间戳），悬停显示 content，点击跳播 */
+export interface VideoMarker {
+  id: string;
+  time: number;
+  kind: "timestamp" | "quote" | "screenshot";
+  content: React.ReactNode;
+}
+
 export interface VideoPlayerProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   /** 长按加速倍率，默认 2；设为 0 关闭长按加速 */
   longPressRate?: number;
@@ -33,6 +47,12 @@ export interface VideoPlayerProps extends React.VideoHTMLAttributes<HTMLVideoEle
   persistKey?: string;
   /** 进度条悬停帧预览，默认开启 */
   framePreview?: boolean;
+  /** 章节（按 start 升序） */
+  chapters?: VideoChapter[];
+  /** 进度条下方的刻度 */
+  markers?: VideoMarker[];
+  /** 点击刻度：缺省跳到刻度时间 */
+  onMarkerClick?: (marker: VideoMarker) => void;
 }
 
 const LONG_PRESS_DELAY = 400;
@@ -69,6 +89,9 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       info,
       persistKey,
       framePreview = true,
+      chapters,
+      markers,
+      onMarkerClick,
       onClick,
       onDoubleClick,
       onLoadedMetadata,
@@ -337,6 +360,31 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const showPreview = framePreview && hasPicture && duration > 0;
     const preview = useFramePreview(showPreview ? src : undefined, rest.crossOrigin);
 
+    // ---- 章节与刻度 ----
+    const chapterBreaks = useMemo(
+      () =>
+        duration > 0 && chapters?.length
+          ? chapters.filter(c => c.start > 0 && c.start < duration).map(c => c.start / duration)
+          : undefined,
+      [chapters, duration]
+    );
+    const chapterAt = useCallback(
+      (time: number) => {
+        if (!chapters?.length) return null;
+        let found: VideoChapter | null = null;
+        for (const chapter of chapters) {
+          if (chapter.start <= time) found = chapter;
+          else break;
+        }
+        return found;
+      },
+      [chapters]
+    );
+    const currentChapter = chapterAt(displayTime);
+    const [hoverMarkerId, setHoverMarkerId] = useState<string | null>(null);
+    const hoverMarker = markers?.find(marker => marker.id === hoverMarkerId) ?? null;
+    const visibleMarkers = duration > 0 ? markers : undefined;
+
     // ---- 音量 ----
     const { toggleMute, lastVolumeRef } = useToggleMute(volume, muted, setVolume, setMuted);
     const handleVolumeChange = useCallback(
@@ -396,8 +444,11 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             style={{ width: preview.previewWidth, aspectRatio }}
           />
         )}
-        <span className="font-tau-mono text-tau-micro px-1 tabular-nums leading-snug">
+        <span className="font-tau-mono text-tau-micro px-1 leading-snug tabular-nums">
           {formatTime(value * duration)}
+          {chapters?.length ? (
+            <span className="font-tau ml-1.5">{chapterAt(value * duration)?.title}</span>
+          ) : null}
         </span>
       </div>
     );
@@ -410,6 +461,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         className={progressClassName}
         value={progress}
         buffered={buffered}
+        breaks={chapterBreaks}
         onScrub={next => setScrubTime(next * duration)}
         onCommit={next => {
           seek(next * duration);
@@ -455,7 +507,11 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       resume.resumedAt != null ? (
         <ResumeNotice label={formatTime(resume.resumedAt)} onRestart={resume.restart} />
       ) : info ? (
-        <span className="@max-sm:hidden flex min-w-0 items-center gap-1.5">{info}</span>
+        <span className="flex min-w-0 items-center gap-1.5 @max-sm:hidden">{info}</span>
+      ) : currentChapter ? (
+        <span className="min-w-0 truncate @max-sm:hidden" title={currentChapter.title}>
+          {currentChapter.title}
+        </span>
       ) : null;
 
     return (
@@ -549,7 +605,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.15 }}
-                  className="bg-ink-1 text-ink-inverse shadow-float text-tau-meta pointer-events-none absolute left-1/2 top-3.5 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full px-3 py-1 font-semibold"
+                  className="bg-ink-1 text-ink-inverse shadow-float text-tau-meta pointer-events-none absolute top-3.5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full px-3 py-1 font-semibold"
                 >
                   {longPressRate}×
                   <FastForward size={13} fill="currentColor" />
@@ -587,7 +643,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                     {formatTime(displayTime)}
                   </TimeCode>
                   {renderProgress("float", "mx-2.5 flex-1")}
-                  <TimeCode tone="float" className="@max-sm:hidden mr-1">
+                  <TimeCode tone="float" className="mr-1 @max-sm:hidden">
                     {formatTime(duration)}
                   </TimeCode>
                   {renderTrailingControls("float")}
@@ -598,10 +654,54 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
 
           {/* 常态底栏：进度条横贯画面与底栏的接缝 */}
           {!fullscreen && (
-            <div className="@container relative flex h-12 shrink-0 items-center gap-0.5 px-2 pt-1">
+            <div
+              className={cn(
+                "@container relative flex shrink-0 items-center gap-0.5 px-2",
+                visibleMarkers?.length ? "h-[54px] pt-3" : "h-12 pt-1"
+              )}
+            >
               {renderProgress(
                 "surface",
                 cn("absolute inset-x-0", coarse ? "-top-3.5" : "-top-1.5")
+              )}
+              {visibleMarkers?.map(marker => (
+                <button
+                  key={marker.id}
+                  type="button"
+                  aria-label={`跳到 ${formatTime(marker.time)}`}
+                  className="group/marker absolute top-1.5 z-10 grid h-3 w-3.5 -translate-x-1/2 cursor-pointer place-items-center"
+                  style={{ left: `${Math.min(1, marker.time / duration) * 100}%` }}
+                  onPointerEnter={() => setHoverMarkerId(marker.id)}
+                  onPointerLeave={() => setHoverMarkerId(id => (id === marker.id ? null : id))}
+                  onClick={() => {
+                    if (onMarkerClick) onMarkerClick(marker);
+                    else seek(marker.time);
+                    resume.dismiss();
+                  }}
+                >
+                  <span
+                    className={cn(
+                      "size-[7px] shadow-[inset_0_0_0_1.5px_var(--tau-accent-text)] transition-colors",
+                      marker.kind === "screenshot" ? "rounded-[2px]" : "rounded-full",
+                      marker.kind === "quote"
+                        ? "bg-accent-text group-hover/marker:bg-accent"
+                        : "bg-surface group-hover/marker:bg-accent-soft"
+                    )}
+                  />
+                </button>
+              ))}
+              {hoverMarker && (
+                <div
+                  className="bg-surface text-ink-1 shadow-float rounded-tau-sm text-tau-sm pointer-events-none absolute bottom-[calc(100%-4px)] z-30 w-[220px] -translate-x-1/2 px-2.5 py-2 leading-relaxed"
+                  style={{
+                    left: `clamp(110px, ${Math.min(1, hoverMarker.time / duration) * 100}%, calc(100% - 110px))`,
+                  }}
+                >
+                  <span className="font-tau-mono text-accent-text mr-1.5">
+                    {formatTime(hoverMarker.time)}
+                  </span>
+                  {hoverMarker.content}
+                </div>
               )}
               <PlayButton tone="surface" playing={playing} onToggle={togglePlay} />
               <TimeCode tone="surface" className="ml-2">
