@@ -1,5 +1,6 @@
 import type { ExcerptsAdapter, MaterialsAdapter } from "@tau/plugins/host";
 import type { PluginContext, PluginExcerptEntry } from "@tau/plugins";
+import { createExcerptMaterialRef, parseExcerptMaterialRef } from "@tau/plugins/material-ref";
 import * as excerptCommands from "@/commands/excerpt";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { registerExcerptOpener } from "@/services/excerpt-providers";
@@ -53,7 +54,7 @@ export function createDesktopExcerpts(databaseName: string): {
     async items(context, sourceKey) {
       const rows = await commands(context).listProviderExcerpts(context.pluginId, sourceKey);
       return rows.map(row => ({
-        ref: { kind: "excerpt", id: row.id },
+        ref: createExcerptMaterialRef(row.id, context.pluginId, row.externalId),
         externalId: row.externalId,
         quote: row.quote,
         note: row.note,
@@ -70,8 +71,17 @@ export function createDesktopExcerpts(databaseName: string): {
   const materials: MaterialsAdapter = {
     async actions(context, ref) {
       // 动作依赖卡片、问题等业务模块，按需加载，不拖重插件宿主的启动
-      const { materialActions, parseMaterialRef } = await import("@/services/material-actions");
-      return materialActions(parseMaterialRef(ref), { databaseName, signal: context.signal });
+      parseExcerptMaterialRef(ref);
+      const { createCardFromPluginMaterial } = await import("@/services/material-to-card");
+      return [
+        {
+          id: "card",
+          label: "转为卡片",
+          run: async () => {
+            await createCardFromPluginMaterial(ref, { databaseName, signal: context.signal });
+          },
+        },
+      ];
     },
   };
   return { excerpts, materials };

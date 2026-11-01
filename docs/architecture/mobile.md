@@ -563,6 +563,10 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 ## 插件宿主
 
+原生 App 恢复、窗口焦点与浏览器可见性经通用环境源归一化，供前端插件订阅恢复/离开事件；规则见[应用前后台生命周期](/docs/architecture/plugin-portability.md#应用前后台生命周期)。安全核验的周期补偿不触发业务同步。
+
+入口在 React 渲染前安装通用外链桥，插件的新窗口外链通过系统打开器处理；材料动作使用宿主生成的稳定引用，并由原生事务解析与复验。格式、错误反馈与生命周期边界统一维护于[摘录与材料动作](/docs/architecture/plugin-portability.md#摘录与材料动作)。
+
 正常 AppShell 按数据库作用域挂载插件宿主，“我的”功能宫格与今天页插件卡片消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
 插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。

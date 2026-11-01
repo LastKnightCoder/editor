@@ -11,6 +11,7 @@ import { EXCERPT_WRITE_EVENTS } from "../tables/excerpt";
 export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   // 卡片
   "cards:create-scoped",
+  "material:create-card",
   "cards:remove-scoped",
   "create-card",
   "create-card-from-project-item",

@@ -86,13 +86,23 @@ export function deviceSyncTables(db: Database.Database): SyncTable[] {
         }
       }
       if (!key.length) throw new Error(`DEVICE_SYNC_SCHEMA_KEY: 表 ${name} 缺少稳定键`);
+      const foreignKeys = db.prepare(`PRAGMA foreign_key_list(${quote(name)})`).all() as {
+        id: number;
+        table: string;
+        from: string;
+        to: string;
+        seq: number;
+      }[];
       return {
         name,
         key,
         columns: columns.map(column => column.name),
-        parents: (
-          db.prepare(`PRAGMA foreign_key_list(${quote(name)})`).all() as { table: string }[]
-        ).map(row => row.table),
+        parents: foreignKeys.map(row => row.table),
+        references: foreignKeys
+          .filter(
+            row => row.to === "id" && foreignKeys.filter(other => other.id === row.id).length === 1
+          )
+          .map(row => ({ column: row.from, table: row.table })),
       };
     });
 }
@@ -388,6 +398,7 @@ export class DeviceDatabaseStore implements DeviceStorage {
           ).map(row => deviceDocument(this.db, row.content_id)!)
         : [];
       return {
+        ...(snapshot ? { tables: this.tables } : {}),
         state,
         generation: deviceGeneration(this.db),
         sequence,
@@ -450,9 +461,19 @@ export class DeviceDatabaseStore implements DeviceStorage {
       .filter(column => !table.key.includes(column))
       .map(column => `${quote(column)}=excluded.${quote(column)}`)
       .join(",");
-    this.statement(
-      `INSERT INTO ${quote(table.name)}(${table.columns.map(quote).join(",")}) VALUES(${table.columns.map(() => "?").join(",")}) ON CONFLICT(${table.key.map(quote).join(",")}) DO ${updates ? `UPDATE SET ${updates}` : "NOTHING"}`
-    ).run(...table.columns.map(column => decode(row[column])));
+    try {
+      this.statement(
+        `INSERT INTO ${quote(table.name)}(${table.columns.map(quote).join(",")}) VALUES(${table.columns.map(() => "?").join(",")}) ON CONFLICT(${table.key.map(quote).join(",")}) DO ${updates ? `UPDATE SET ${updates}` : "NOTHING"}`
+      ).run(...table.columns.map(column => decode(row[column])));
+    } catch (error) {
+      if (
+        ["SQLITE_CONSTRAINT_UNIQUE", "SQLITE_CONSTRAINT_PRIMARYKEY"].includes(
+          (error as { code?: string }).code ?? ""
+        )
+      )
+        throw new Error(`DEVICE_SYNC_UNIQUE: 表 ${table.name} 的唯一约束冲突`, { cause: error });
+      throw error;
+    }
   }
   private apply(change: RowChange) {
     const table = this.tables.find(table => table.name === change.table);

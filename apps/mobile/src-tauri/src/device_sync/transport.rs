@@ -193,8 +193,10 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|error| error.to_string())?
         .as_millis() as u64;
-    if code.protocol != 2
-        || code.expires < now
+    if code.protocol != 3 {
+        return Err("DEVICE_SYNC_VERSION: 请将配对设备更新到支持稳定身份归并的版本".into());
+    }
+    if code.expires < now
         || code.expires > now + 6 * 60_000
         || code.secret.len() < 40
         || code.library.len() > 256

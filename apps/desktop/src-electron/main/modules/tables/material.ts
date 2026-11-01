@@ -4,6 +4,12 @@ import { excerptMeta } from "@/entity/excerpt/display";
 import type { MaterialInfo, MaterialOpenTarget, MaterialRef } from "@/entity/material";
 import { pdfAnnotationNote, pdfAnnotationQuote } from "@/entity/pdf-annotation-text";
 import ExcerptTable from "./excerpt";
+import { parseExcerptMaterialRef } from "@tau/plugins/material-ref";
+import type { PluginMaterialRef } from "@tau/plugins";
+import { canonicalContractJson } from "@tau/db-schema/content-contracts";
+import type { ICreateCard } from "@/types";
+import EntityLineageTable from "./entity-lineage";
+import { asynchronousDatabaseCommand } from "../database-command";
 
 const TITLE_CHARS = 80;
 
@@ -82,7 +88,37 @@ export default class MaterialTable {
   static getListenEvents() {
     return {
       "material:resolve": this.resolve.bind(this),
+      "material:resolve-ref": this.resolvePluginRef.bind(this),
+      "material:create-card": asynchronousDatabaseCommand(this.createPluginCard.bind(this)),
     };
+  }
+
+  static resolvePluginRef(db: Database.Database, ref: PluginMaterialRef): MaterialInfo {
+    const identity = parseExcerptMaterialRef(ref);
+    const excerpt = ExcerptTable.findByExternal(db, identity.provider, [identity.externalId]);
+    if (!excerpt) throw new Error("材料身份已失效，请重新读取");
+    return excerptInfo(excerpt, ExcerptTable.providerLabels(db));
+  }
+
+  static async createPluginCard(
+    db: Database.Database,
+    ref: PluginMaterialRef,
+    expected: MaterialInfo,
+    card: ICreateCard
+  ) {
+    const { default: CardTable } = await import("./card");
+    return db.transaction(() => {
+      const current = this.resolvePluginRef(db, ref);
+      if (canonicalContractJson(current) !== canonicalContractJson(expected))
+        throw new Error("材料已变化，请重新获取材料动作");
+      const created = CardTable.createCard(db, card);
+      EntityLineageTable.record(db, {
+        src: current.ref,
+        dst: { kind: "card", id: created.id },
+        relation: "excerpt_of",
+      });
+      return created;
+    })();
   }
 
   /** 解析一批材料；不存在的（PDF 标注、剪藏已删除）不返回，摘录软删除的照常返回并标记 deleted */

@@ -1,4 +1,5 @@
 import { rendererASRRegistry } from "./asr-registry";
+import { toast } from "@tau/ui";
 import { desktopWebSocket } from "@/commands/plugin-websocket";
 import type { PluginEnvironmentSource } from "@tau/plugins/environment-host";
 import { rendererSyncRegistry } from "./sync-registry";
@@ -223,6 +224,14 @@ export class DesktopPluginRuntime {
     }
   ) {
     this.host = new PluginHost({
+      materialActionFeedback: {
+        success: label => {
+          toast.success(`已${label}`);
+        },
+        error: message => {
+          toast.error(message);
+        },
+      },
       workspaceId: options.workspaceId,
       environmentSource: options.environmentSource,
       backend: createPluginBackend,

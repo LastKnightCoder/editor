@@ -4,6 +4,10 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { initPerfObservers } from "./utils/perf";
 import "./styles.css";
+import { isTauri } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { toast } from "./components/toast";
+import { installExternalLinkBridge } from "./services/external-links";
 
 type ErrorBoundaryState = {
   error: Error | null;
@@ -59,6 +63,13 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
 // 在此设为 true 并打 debug 包，用法见 docs/slate-react-Android光标修复与补丁维护指南.md
 
 initPerfObservers();
+
+if (isTauri()) {
+  const release = installExternalLinkBridge(window, openUrl, message => {
+    toast.error(message);
+  });
+  import.meta.hot?.dispose(release);
+}
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <AppErrorBoundary>

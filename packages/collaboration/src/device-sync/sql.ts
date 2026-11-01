@@ -7,6 +7,7 @@ export interface SyncTable {
   columns: string[];
   key: string[];
   parents: string[];
+  references?: { column: string; table: string }[];
 }
 
 export function syncCaptureSql(table: SyncTable) {

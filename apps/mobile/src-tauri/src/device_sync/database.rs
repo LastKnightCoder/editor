@@ -28,6 +28,14 @@ struct Table {
 fn err(error: impl std::fmt::Display) -> String {
     format!("DEVICE_SYNC_DATABASE: {error}")
 }
+fn row_error(error: rusqlite::Error) -> String {
+    match &error {
+        rusqlite::Error::SqliteFailure(code, _) if matches!(code.extended_code, 2067 | 1555) => {
+            format!("DEVICE_SYNC_UNIQUE: {error}")
+        }
+        _ => err(error),
+    }
+}
 fn strings(conn: &Connection, sql: &str, column: usize) -> Result<Vec<String>, String> {
     conn.prepare(sql)
         .map_err(err)?
@@ -568,7 +576,7 @@ fn write_row(conn: &Connection, table: &Table, row: &Value) -> Result<(), String
         ),
         params_from_iter(values),
     )
-    .map_err(err)?;
+    .map_err(row_error)?;
     Ok(())
 }
 fn apply(conn: &Connection, tables: &[Table], change: &Value) -> Result<(), String> {
