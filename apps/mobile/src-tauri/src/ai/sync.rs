@@ -40,7 +40,8 @@ pub async fn upload(
         crate::plugin_files::MAX_FILE_TRANSFERS,
     ));
     let directory = &directory;
-    let report = session_progress(plan.pending.len(), on_progress);
+    let upload_progress = |fraction, done, total, _, _| on_progress(fraction, done, total);
+    let report = session_progress(plan.pending.len(), &upload_progress);
     let report = &report;
     transfer_files(plan.pending.clone(), |name| async move {
         safe_file(&name)?;
@@ -57,10 +58,10 @@ pub async fn upload(
                 &crate::chunked_sync::database_session_object(database, &name)?,
                 &name,
                 &path,
-                &|done, size| report(&name, done, size, false),
+                &|done, size| report(&name, done, size, false, 0),
             )
             .await?;
-        report(&name, 1, 1, true);
+        report(&name, 1, 1, true, 0);
         Ok(())
     })
     .await?;
@@ -97,7 +98,7 @@ pub async fn download(
     app: &AppHandle,
     database: &str,
     provider: &PluginProvider,
-    on_progress: &(dyn Fn(f64, usize, usize) + Send + Sync),
+    on_progress: &(dyn Fn(f64, usize, usize, u64, u64) + Send + Sync),
 ) -> Result<Option<DownloadedSessions>, String> {
     let object = crate::chunked_sync::database_sessions_object(database);
     if !provider
@@ -136,11 +137,11 @@ pub async fn download(
                 &crate::chunked_sync::database_session_object(database, &file)?,
                 &file,
                 &local.join(&file),
-                &|done, size| report(&file, done, size, false),
+                &|done, size, reused| report(&file, done, size, false, reused),
             )
             .await?;
         fs::rename(&downloaded.path, directory.join(&file)).map_err(|error| error.to_string())?;
-        report(&file, 1, 1, true);
+        report(&file, 1, 1, true, 0);
         Ok(())
     })
     .await?;
@@ -149,31 +150,39 @@ pub async fn download(
 
 fn session_progress(
     total: usize,
-    on_progress: &(dyn Fn(f64, usize, usize) + Send + Sync),
-) -> impl Fn(&str, u64, u64, bool) + Send + Sync + '_ {
-    on_progress(if total == 0 { 1.0 } else { 0.0 }, 0, total);
-    let progress = Mutex::new((std::collections::HashMap::<String, f64>::new(), 0));
-    move |name: &str, done: u64, size: u64, finished: bool| {
+    on_progress: &(dyn Fn(f64, usize, usize, u64, u64) + Send + Sync),
+) -> impl Fn(&str, u64, u64, bool, u64) + Send + Sync + '_ {
+    on_progress(if total == 0 { 1.0 } else { 0.0 }, 0, total, 0, 0);
+    let progress = Mutex::new((
+        std::collections::HashMap::<String, (f64, u64, u64)>::new(),
+        0,
+        0,
+        0,
+    ));
+    move |name: &str, done: u64, size: u64, finished: bool, reused: u64| {
         let mut state = progress.lock().unwrap();
         if finished {
             state.0.remove(name);
             state.1 += 1;
         } else {
-            state.0.insert(
-                name.into(),
-                if size == 0 {
-                    1.0
-                } else {
-                    done as f64 / size as f64
-                },
-            );
+            let previous = state.0.get(name).copied().unwrap_or_default();
+            state.2 += reused - previous.1;
+            state.3 += (done - reused) - previous.2;
+            let fraction = if size == 0 {
+                1.0
+            } else {
+                done as f64 / size as f64
+            };
+            state
+                .0
+                .insert(name.into(), (fraction, reused, done - reused));
         }
         let fraction = if total == 0 {
             1.0
         } else {
-            (state.1 as f64 + state.0.values().sum::<f64>()) / total as f64
+            (state.1 as f64 + state.0.values().map(|value| value.0).sum::<f64>()) / total as f64
         };
-        on_progress(fraction, state.1, total);
+        on_progress(fraction, state.1, total, state.2, state.3);
     }
 }
 

@@ -24,7 +24,7 @@ export interface ObjectStorage {
 export interface ChunkDownloadOptions {
   expectedName?: string;
   readLocalChunk?(offset: number, length: number): Promise<Uint8Array | null>;
-  onProgress?(completedBytes: number, totalBytes: number): void;
+  onProgress?(completedBytes: number, totalBytes: number, reusedBytes: number): void;
 }
 export const chunkObject = (hash: string) =>
   `${protocol.namespace}/chunks/${hash.slice(0, 2)}/${hash.slice(2)}.bin`;
@@ -140,7 +140,8 @@ export async function downloadChunkedFile(
   if (options.expectedName !== undefined && manifest.name !== options.expectedName)
     throw new Error("同步文件身份不匹配");
   let offset = 0;
-  options.onProgress?.(0, manifest.size);
+  let reusedBytes = 0;
+  options.onProgress?.(0, manifest.size, reusedBytes);
   for (const chunk of manifest.chunks) {
     check();
     let bytes = options.readLocalChunk
@@ -150,10 +151,12 @@ export async function downloadChunkedFile(
       bytes = await store.downloadFile(chunkObject(chunk.sha256));
       if (bytes.length !== chunk.size || (await digest(bytes)) !== chunk.sha256)
         throw new Error("同步分块内容校验失败");
+    } else {
+      reusedBytes += bytes.length;
     }
     await write(bytes, offset);
     offset += bytes.length;
-    options.onProgress?.(offset, manifest.size);
+    options.onProgress?.(offset, manifest.size, reusedBytes);
   }
   check();
   return manifest;
