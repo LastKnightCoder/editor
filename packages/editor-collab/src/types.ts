@@ -22,5 +22,7 @@ export interface ContentCollaborationBinding {
   /** 本地写入标识（区分本机改动与远端更新）；换源时由编辑器改写为它已有的 origin */
   origin: object;
   uploadResource: (file: File) => Promise<string>;
+  /** 宿主上传完成后，将本地路径转换为共享引用，公网地址保持不变。 */
+  prepareResource?: (reference: string) => Promise<string>;
   resolveResource: (url: string) => Promise<string>;
 }

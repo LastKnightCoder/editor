@@ -82,7 +82,9 @@ export class NodeSessionUpdates {
         };
         const before = Y.encodeStateVector(session.doc),
           baseline = Y.encodeStateAsUpdate(session.doc);
-        const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity);
+        const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity, {
+          allowLocalResources: session.info.mode === "local",
+        });
         try {
           assertWritable();
           session.refreshDeviceState?.();

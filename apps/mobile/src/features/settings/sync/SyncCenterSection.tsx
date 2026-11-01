@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { DeviceSyncSection } from "./DeviceSyncSection";
+import { ProgressStatus } from "@tau/ui";
 import {
   ChevronRight,
   CircleCheck,
@@ -21,6 +22,7 @@ import type {
   ResourceSyncStatusFile,
   SettingCompat,
   SyncActionResponse,
+  SyncProgress,
   SyncVersionResponse,
 } from "../../../types";
 import { GroupLabel } from "../../../components/GroupLabel";
@@ -44,6 +46,7 @@ export type SyncCenterProps = {
   setting: SettingCompat | null;
   versions: SyncVersionResponse | null;
   isSyncing: boolean;
+  syncProgress?: SyncProgress | null;
   activeDatabase: string | null;
   onCheckVersions: () => Promise<SyncVersionResponse>;
   onSyncUpload: () => Promise<SyncActionResponse>;
@@ -257,6 +260,11 @@ export function SyncCenterSection(props: SyncCenterProps) {
       <DeviceSyncSection />
       <GroupLabel>云端存储同步</GroupLabel>
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
+      {props.isSyncing && props.syncProgress && (
+        <div className="setting-group px-[18px] py-4">
+          <ProgressStatus value={props.syncProgress.value} label={props.syncProgress.status} />
+        </div>
+      )}
 
       <div className="flex gap-2.5 pt-3">
         {hero.tone === "error" && (

@@ -12,8 +12,9 @@ import type { Descendant } from "slate";
 import {
   createNodeDocument,
   NodeTree,
-  LOCAL_ASSET_PREFIX,
+  isCollaborationResource,
   isSafeResource,
+  LOCAL_ASSET_PREFIX,
   type ContentNode,
 } from "@tau/collaboration";
 import { createNodeTreeDocument } from "@tau/editor-collab";
@@ -34,6 +35,10 @@ import {
   subscribeDeviceReplacement,
 } from "../services/device-sync/native";
 import { persistDeviceContent, registerDeviceContent } from "../services/device-sync/content";
+import {
+  localizeFragmentResources,
+  registerContentResourceSource,
+} from "../features/collaboration/core/resources";
 
 export type LocalContentDocument = EditorDocument & {
   flush(): Promise<void>;
@@ -92,6 +97,7 @@ export default function useLocalContentDocument(options: {
     key: string;
     tree: NodeTree;
     paths: Map<string, string>;
+    prepareResource: (path: string) => string;
     metadata: tauri.CachedContentSession;
     views: Record<string, Record<string, unknown>>;
     persist: (update?: Uint8Array) => Promise<void>;
@@ -99,7 +105,11 @@ export default function useLocalContentDocument(options: {
       import("@tau/editor-collab").ContentCollaborationBinding["preserveInputDraft"]
     >;
     flush: () => Promise<void>;
-    map: (nodes: ContentNode[], transform: (url: string) => string) => ContentNode[];
+    map: (
+      nodes: ContentNode[],
+      transform: (url: string) => string,
+      contracts?: ContentContractDictionary
+    ) => ContentNode[];
   }>();
   const [storageError, setStorageError] = useState<string>();
   const [prepared, setPrepared] = useState<{
@@ -122,6 +132,7 @@ export default function useLocalContentDocument(options: {
     let cancelled = false,
       tree: NodeTree | undefined;
     let dispose = () => {};
+    let releaseResourceSource = () => {};
     setStorageError(undefined);
     const paths = new Map<string, string>(),
       references = new Map<string, string>();
@@ -139,16 +150,7 @@ export default function useLocalContentDocument(options: {
           children: map(node.children, transform, dictionary),
         };
       });
-    const content = map(structuredClone(current.content) as ContentNode[], path => {
-      if (isSafeResource(path)) return path;
-      let reference = references.get(path);
-      if (!reference) {
-        reference = LOCAL_ASSET_PREFIX + crypto.randomUUID();
-        references.set(path, reference);
-        paths.set(reference, path);
-      }
-      return reference;
-    });
+    let content = structuredClone(current.content) as ContentNode[];
     void (async () => {
       assertActive();
       if (
@@ -165,6 +167,21 @@ export default function useLocalContentDocument(options: {
       let cached = await tauri.collabReadCache(cacheId);
       const durable = await readDeviceContent(current.contentId!);
       assertActive();
+      const paired = Boolean(
+        durable ||
+        (databaseName && (await deviceStore<{ state: unknown }>("status", {}, databaseName)).state)
+      );
+      assertActive();
+      const prepareResource = (path: string) => {
+        if (!paired || isSafeResource(path)) return path;
+        const previous = references.get(path);
+        if (previous) return previous;
+        const reference = LOCAL_ASSET_PREFIX + crypto.randomUUID();
+        paths.set(reference, path);
+        references.set(path, reference);
+        return reference;
+      };
+      content = map(content, prepareResource);
       let doc: Y.Doc | undefined;
       let metadata: tauri.CachedContentSession;
       if (durable) {
@@ -214,11 +231,16 @@ export default function useLocalContentDocument(options: {
           doc = new Y.Doc({ gc: false });
           Y.applyUpdate(doc, base64ToBytes(restored.state));
           for (const update of restored.updates) Y.applyUpdate(doc, base64ToBytes(update));
-          await validateNodeDocument(doc, {
-            documentId: restored.metadata.source.contentDocumentId!,
-            baselineId: restored.metadata.baselineId,
-            epoch: restored.metadata.epoch,
-          });
+          await validateNodeDocument(
+            doc,
+            {
+              documentId: restored.metadata.source.contentDocumentId!,
+              baselineId: restored.metadata.baselineId,
+              epoch: restored.metadata.epoch,
+            },
+            undefined,
+            { allowLocalResources: true }
+          );
           const resourcePaths = new Map(Object.entries(restored.metadata.resourcePaths ?? {}));
           const value = map(
             readNodeDocument(doc).content,
@@ -272,17 +294,16 @@ export default function useLocalContentDocument(options: {
       } else if (cached && doc) {
         metadata = cached.metadata;
         paths.clear();
-        references.clear();
         for (const [reference, path] of Object.entries(metadata.resourcePaths ?? {})) {
           paths.set(reference, path);
-          references.set(path, reference);
         }
         metadata.source!.projectionRevision = current.metadata.revision;
       } else {
         doc = await createNodeDocument(
           { documentId: current.metadata.documentId, baselineId: crypto.randomUUID(), epoch: 0 },
           { title: "", bannerBg: "", bannerPosition: "center", content },
-          contracts
+          contracts,
+          { allowLocalResources: true }
         );
         metadata = {
           id: cacheId,
@@ -357,11 +378,16 @@ export default function useLocalContentDocument(options: {
               const state = bytesToBase64(
                 updates.length ? Y.mergeUpdates(updates) : new Uint8Array()
               );
-              await validateNodeDocument(doc, {
-                documentId: String(doc.getMap("meta").get("documentId")),
-                baselineId: metadata.baselineId,
-                epoch: metadata.epoch,
-              });
+              await validateNodeDocument(
+                doc,
+                {
+                  documentId: String(doc.getMap("meta").get("documentId")),
+                  baselineId: metadata.baselineId,
+                  epoch: metadata.epoch,
+                },
+                undefined,
+                { allowLocalResources: true }
+              );
               for (const draft of drafts) {
                 assertActive();
                 await tauri.collabInputDraft({
@@ -447,10 +473,22 @@ export default function useLocalContentDocument(options: {
           inputDrafts.set(JSON.stringify([viewId, nodeId, field]), payload);
           void persist().catch(() => {});
         };
+        releaseResourceSource = registerContentResourceSource(cacheId, {
+          doc,
+          localize: async references =>
+            Object.fromEntries(
+              references.map(reference => {
+                const path = paths.get(reference) ?? reference;
+                if (isCollaborationResource(path)) throw new Error("来源附件缺少本地映射");
+                return [reference, path];
+              })
+            ),
+        });
         setLoaded({
           key,
           tree,
           paths,
+          prepareResource,
           map,
           metadata,
           views,
@@ -490,6 +528,7 @@ export default function useLocalContentDocument(options: {
     });
     return () => {
       cancelled = true;
+      releaseResourceSource();
       dispose();
       tree?.dispose();
       tree?.doc.destroy();
@@ -513,6 +552,15 @@ export default function useLocalContentDocument(options: {
         if (cancelled) return;
         assertActive();
         const source = createNodeTreeDocument(loaded.tree, {
+          clipboardDocumentId: loaded.metadata.id,
+          prepareFragment: async (sourceId, content, contracts) => {
+            assertActive();
+            const result = await localizeFragmentResources(sourceId, content, contracts);
+            assertActive();
+            if (cancelled || loaded.key !== identity(latest.current) || !canWrite())
+              throw new Error("粘贴目标已变化");
+            return loaded.map(result, loaded.prepareResource, contracts);
+          },
           lineage: contentLineage(options.contentId),
           versions: catalog,
           cursors: false,
@@ -557,19 +605,20 @@ export default function useLocalContentDocument(options: {
             });
             register(IResourceService, {
               ...resources,
-              remoteResourceToLocal: reference =>
-                resources.remoteResourceToLocal?.(loaded.paths.get(reference) ?? reference) ??
-                Promise.resolve(loaded.paths.get(reference) ?? reference),
+              remoteResourceToLocal: async reference => {
+                const path = loaded.paths.get(reference) ?? reference;
+                if (isCollaborationResource(path)) throw new Error("来源附件缺少本地映射");
+                return /^https?:\/\//i.test(path) && resources.remoteResourceToLocal
+                  ? resources.remoteResourceToLocal(path)
+                  : path;
+              },
               upload: async file => {
                 assertActive();
                 if (!canWrite()) throw new Error("当前正文不可编辑");
                 const path = await resources.upload(file);
                 assertActive();
                 if (!canWrite()) throw new Error("当前正文不可编辑");
-                if (isSafeResource(path)) return path;
-                const reference = LOCAL_ASSET_PREFIX + crypto.randomUUID();
-                loaded.paths.set(reference, path);
-                return reference;
+                return loaded.prepareResource(path);
               },
             });
           },

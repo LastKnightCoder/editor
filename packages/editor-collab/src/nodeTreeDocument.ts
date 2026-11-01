@@ -20,6 +20,8 @@ import { CollaborationContext } from "./context";
 import { NodeTreeCursors } from "./NodeTreeCursors";
 
 export interface NodeTreeDocumentOptions {
+  clipboardDocumentId?: string;
+  prepareFragment?: ContentCollaborationBinding["prepareFragment"];
   preserveInputDraft?: (nodeId: string, field: string, snapshot: TextFieldSnapshot) => void;
   collaboration?: ContentCollaborationBinding;
   cursors?: boolean;
@@ -50,7 +52,8 @@ export function createNodeTreeDocument(
   if (options.history) tree.attachUndoManager(options.history);
   if (!bindingIdentities.has(tree)) bindingIdentities.set(tree, ++bindingSequence);
   const configuration = {
-    prepareFragment: options.collaboration?.prepareFragment,
+    clipboardDocumentId: options.clipboardDocumentId,
+    prepareFragment: options.prepareFragment ?? options.collaboration?.prepareFragment,
     preserveInputDraft: options.preserveInputDraft ?? options.collaboration?.preserveInputDraft,
     history: options.history,
     mutate: options.mutate,

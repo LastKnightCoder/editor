@@ -73,7 +73,7 @@ fn client() -> &'static reqwest::Client {
 
 /// 与 packages/collaboration/src/protocol.ts 的 normalizeServerUrl 对齐：
 /// 强制 HTTPS（回环地址可用 HTTP），拒绝凭据、路径、查询与锚点。
-fn normalize_server_url(value: &str) -> Result<String, String> {
+pub(crate) fn normalize_server_url(value: &str) -> Result<String, String> {
     let parsed = url::Url::parse(value.trim())
         .map_err(|_| "COLLAB_INVALID_URL: 协作服务器地址无效".to_string())?;
     if !parsed.username().is_empty()
@@ -213,7 +213,7 @@ async fn send_json(
 
 /// 取（必要时注册）指定服务器的设备身份。同一服务器的并发请求经缓存锁串行化，
 /// 注册只发生一次。
-async fn ensure_identity(
+pub(crate) async fn ensure_identity(
     app: &AppHandle,
     server_url: &str,
     nickname: Option<&str>,
@@ -319,6 +319,166 @@ pub(crate) fn session_store(app: &AppHandle) -> Result<rusqlite::Connection, Str
     open_session_store(&directory)
 }
 
+fn recovery_metadata(metadata: &Value) -> Option<Value> {
+    if metadata["mode"] == "local"
+        || metadata["serverUrl"].as_str().unwrap_or("").is_empty()
+        || !matches!(metadata["role"].as_str(), Some("owner" | "editor"))
+    {
+        return None;
+    }
+    let mut value = metadata.clone();
+    let object = value.as_object_mut()?;
+    object.remove("resources");
+    object.remove("resourcePaths");
+    object.insert("members".into(), json!([]));
+    Some(value)
+}
+
+fn read_recovery(conn: &rusqlite::Connection, id: &str) -> Result<Option<Value>, String> {
+    use rusqlite::OptionalExtension;
+    let raw: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key=?1",
+            [format!("session-recovery:{id}")],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    raw.map(|raw| {
+        serde_json::from_str::<Value>(&raw).map_err(|e| format!("共享恢复记录不可读：{e}"))
+    })
+    .transpose()
+}
+
+fn remember_recovery(conn: &rusqlite::Connection, metadata: &Value) -> Result<(), String> {
+    let Some(mut value) = recovery_metadata(metadata) else {
+        return Ok(());
+    };
+    let id = value["id"]
+        .as_str()
+        .ok_or("共享恢复记录缺少身份")?
+        .to_string();
+    if let Some(previous) = read_recovery(conn, &id)? {
+        // 已发起的关闭只能由明确回执推进，迟到的缓存写入不能撤销它。
+        if previous["close"].is_object() {
+            return Ok(());
+        }
+        if value["source"].is_null() && previous["source"].is_object() {
+            value["source"] = previous["source"].clone();
+        }
+    }
+    conn.execute(
+        "INSERT OR REPLACE INTO settings(key,value) VALUES (?1,?2)",
+        rusqlite::params![format!("session-recovery:{id}"), value.to_string()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn update_recovery(
+    conn: &mut rusqlite::Connection,
+    id: &str,
+    action: &str,
+) -> Result<Value, String> {
+    use rusqlite::OptionalExtension;
+    if action == "read" {
+        return Ok(read_recovery(conn, id)?.unwrap_or(Value::Null));
+    }
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let Some(mut record) = read_recovery(&tx, id)? else {
+        return if action == "release" {
+            Ok(Value::Null)
+        } else {
+            Err("共享恢复记录不存在".into())
+        };
+    };
+    match action {
+        "confirm-close" => {
+            if !record["close"].is_object() {
+                return Err("关闭请求尚未持久保存".into());
+            }
+            record["close"]["confirmed"] = json!(true);
+            record["status"] = json!("closed");
+            record["leaving"] = json!(true);
+        }
+        "clear-close" => {
+            if record["close"]["confirmed"] == true {
+                return Err("已经结束的共享不能恢复编辑".into());
+            }
+            record
+                .as_object_mut()
+                .ok_or("共享恢复记录无效")?
+                .remove("close");
+            record["leaving"] = json!(false);
+        }
+        "release" => {
+            if record["close"]["confirmed"] != true
+                && !(record["status"] == "closed" && record["close"].is_null())
+            {
+                return Err("关闭结果尚未确认，不能清理共享记录".into());
+            }
+            record
+                .as_object_mut()
+                .ok_or("共享恢复记录无效")?
+                .remove("close");
+            record["status"] = json!("closed");
+            record["leaving"] = json!(false);
+        }
+        _ => return Err("共享恢复操作无效".into()),
+    }
+    let cached: Option<String> = tx
+        .query_row("SELECT metadata FROM sessions WHERE id=?1", [id], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if let Some(mut cached) = cached
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .filter(Value::is_object)
+    {
+        for key in ["close", "status", "leaving"] {
+            if let Some(value) = record.get(key) {
+                cached[key] = value.clone();
+            } else {
+                cached.as_object_mut().unwrap().remove(key);
+            }
+        }
+        tx.execute(
+            "UPDATE sessions SET metadata=?1 WHERE id=?2",
+            rusqlite::params![cached.to_string(), id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    if action == "release" {
+        tx.execute(
+            "DELETE FROM settings WHERE key=?1",
+            [format!("session-recovery:{id}")],
+        )
+        .map_err(|e| e.to_string())?;
+    } else {
+        tx.execute(
+            "INSERT OR REPLACE INTO settings(key,value) VALUES (?1,?2)",
+            rusqlite::params![format!("session-recovery:{id}"), record.to_string()],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(record)
+}
+
+#[tauri::command]
+pub fn collab_recovery(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    document_id: String,
+    action: String,
+) -> Result<Value, String> {
+    crate::plugin_transport::window_allowed(&window)?;
+    session_id(&document_id)?;
+    let _lock = CACHE_WRITE_LOCK.lock().map_err(|_| "缓存保存锁不可用")?;
+    update_recovery(&mut session_store(&app)?, &document_id, &action)
+}
+
 /// 协作缓存可重建：文件版本不是当前格式（含较新版本写入）时整体移入 discarded/ 后新建，不阻断协作。
 fn open_session_store(directory: &std::path::Path) -> Result<rusqlite::Connection, String> {
     let path = directory.join("collaboration.db");
@@ -334,7 +494,54 @@ fn open_session_store(directory: &std::path::Path) -> Result<rusqlite::Connectio
             |row| row.get(0),
         )
         .unwrap_or(true);
+    let mut settings = Vec::<(String, String)>::new();
+    let mut resources = Vec::<(String, String, String, String, String, i64)>::new();
     let conn = if existing && version != 2 {
+        settings = conn
+            .prepare("SELECT key,value FROM settings")
+            .and_then(|mut query| {
+                query
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .unwrap_or_default();
+        let metadata = conn
+            .prepare("SELECT metadata FROM sessions")
+            .and_then(|mut query| {
+                query
+                    .query_map([], |row| row.get::<_, String>(0))?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .unwrap_or_default();
+        for value in metadata
+            .into_iter()
+            .filter_map(|raw| serde_json::from_str::<Value>(&raw).ok())
+            .filter_map(|value| recovery_metadata(&value))
+        {
+            if let Some(id) = value["id"].as_str() {
+                let key = format!("session-recovery:{id}");
+                if !settings.iter().any(|(existing, _)| existing == &key) {
+                    settings.push((key, value.to_string()));
+                }
+            }
+        }
+        resources = conn
+            .prepare("SELECT id,document_id,name,mime,path,uploaded FROM resources")
+            .and_then(|mut query| {
+                query
+                    .query_map([], |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+            })
+            .unwrap_or_default();
         drop(conn);
         let discarded = directory.join("discarded");
         fs::create_dir_all(&discarded).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
@@ -366,6 +573,19 @@ fn open_session_store(directory: &std::path::Path) -> Result<rusqlite::Connectio
         "../../../../packages/db-schema/schema/collaboration.sql"
     ))
     .map_err(|e| e.to_string())?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    for (key, value) in settings {
+        tx.execute(
+            "INSERT OR IGNORE INTO settings(key,value) VALUES (?1,?2)",
+            rusqlite::params![key, value],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    for (id, document, name, mime, path, uploaded) in resources {
+        tx.execute("INSERT OR IGNORE INTO resources(id,document_id,name,mime,path,uploaded) VALUES (?1,?2,?3,?4,?5,?6)", rusqlite::params![id,document,name,mime,path,uploaded])
+            .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
     conn.pragma_update(None, "user_version", 2)
         .map_err(|e| e.to_string())?;
     Ok(conn)
@@ -496,6 +716,11 @@ fn discard_cache(
     let Some((metadata, state)) = row else {
         return Ok(());
     };
+    if let Ok(value) = serde_json::from_str::<Value>(&metadata) {
+        if read_recovery(&tx, document_id)?.is_none() {
+            remember_recovery(&tx, &value)?;
+        }
+    }
     let updates = tx
         .prepare("SELECT state FROM updates WHERE document_id=?1 ORDER BY id")
         .and_then(|mut statement| {
@@ -515,6 +740,20 @@ fn discard_cache(
         })
         .map_err(|e| e.to_string())?;
     let discarded = directory.join("discarded");
+    let resources = tx
+        .prepare("SELECT id,name,mime,path,uploaded FROM resources WHERE document_id=?1")
+        .and_then(|mut query| {
+            query
+                .query_map([document_id], |row| {
+                    Ok(json!({
+                        "id": row.get::<_, String>(0)?, "name": row.get::<_, String>(1)?,
+                        "mime": row.get::<_, String>(2)?, "path": row.get::<_, String>(3)?,
+                        "uploaded": row.get::<_, i64>(4)?,
+                    }))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .map_err(|e| e.to_string())?;
     fs::create_dir_all(&discarded).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
     let name = format!(
         "{}-{}.json",
@@ -528,10 +767,12 @@ fn discard_cache(
         "state": encode(state),
         "updates": updates.into_iter().map(encode).collect::<Vec<_>>(),
         "inputDrafts": drafts,
+        "resources": resources,
     });
     fs::write(discarded.join(name), backup.to_string())
         .map_err(|e| format!("COLLAB_CACHE_FAILED: 备份协作缓存失败: {e}"))?;
-    for table in ["updates", "resources", "input_drafts", "document_drafts"] {
+    // 资源队列与本机附件不可由远端正文重建，保留到明确退出共享时再释放。
+    for table in ["updates", "input_drafts", "document_drafts"] {
         tx.execute(
             &format!("DELETE FROM {table} WHERE document_id=?1"),
             [document_id],
@@ -691,6 +932,7 @@ fn cache_metadata(tx: &rusqlite::Transaction, input: &SessionCacheWrite) -> Resu
     }
     let mut metadata = input.metadata.clone();
     metadata["resources"] = json!(resources);
+    remember_recovery(tx, &metadata)?;
     let result = metadata.to_string();
     if result.len() > 1024 * 1024 {
         return Err("COLLAB_CACHE_CAPACITY: 缓存元数据超过容量".into());
@@ -700,6 +942,13 @@ fn cache_metadata(tx: &rusqlite::Transaction, input: &SessionCacheWrite) -> Resu
 
 fn cache_baseline(tx: &rusqlite::Transaction, input: &SessionCacheWrite) -> Result<bool, String> {
     use rusqlite::OptionalExtension;
+    if let Some(record) = read_recovery(tx, &input.document_id)? {
+        if record["close"].is_object()
+            && (!input.state.is_empty() || input.metadata["close"] != record["close"])
+        {
+            return Err("COLLAB_CLOSING: 共享正在结束，不能继续写入正文".into());
+        }
+    }
     let previous: Option<String> = tx
         .query_row(
             "SELECT metadata FROM sessions WHERE id=?1",
@@ -846,8 +1095,27 @@ fn list_cache(
     let mut values = Vec::new();
     for (id, metadata) in rows {
         match serde_json::from_str::<Value>(&metadata) {
-            Ok(value) if value.is_object() => values.push(value),
+            Ok(value) if value.is_object() => {
+                remember_recovery(conn, &value)?;
+                values.push(read_recovery(conn, &id)?.unwrap_or(value));
+            }
             _ => discard_cache(conn, directory, &id, "协作缓存元数据不可读")?,
+        }
+    }
+    let recovery = conn
+        .prepare("SELECT value FROM settings WHERE key LIKE 'session-recovery:%'")
+        .and_then(|mut query| {
+            query
+                .query_map([], |row| row.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .map_err(|e| e.to_string())?;
+    for value in recovery
+        .into_iter()
+        .filter_map(|raw| serde_json::from_str::<Value>(&raw).ok())
+    {
+        if !values.iter().any(|cached| cached["id"] == value["id"]) {
+            values.push(value);
         }
     }
     Ok(values)
@@ -875,6 +1143,62 @@ mod cache_tests {
             state: base64::engine::general_purpose::STANDARD.encode(bytes),
             expected_revision: expected,
         }
+    }
+    #[test]
+    fn recovery_preserves_source_close_and_retry_after_cache_corruption() {
+        let directory = std::env::temp_dir().join(format!("tau-recovery-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&directory).unwrap();
+        let mut db = open_session_store(&directory).unwrap();
+        let mut initial = payload(&[1, 2], None);
+        initial.metadata["mode"] = json!("shared");
+        initial.metadata["role"] = json!("owner");
+        initial.metadata["status"] = json!("active");
+        initial.metadata["serverUrl"] = json!("https://collab.test");
+        initial.metadata["source"] = json!({"librarySourceId":"library","contentDocumentId":"body","projectionRevision":"observed","contentId":7});
+        write_cache_snapshot(&mut db, initial).unwrap();
+        db.execute("UPDATE sessions SET metadata='{broken'", [])
+            .unwrap();
+        assert!(read_cache_or_discard(&mut db, &directory, "doc")
+            .unwrap()
+            .is_null());
+        let record = read_recovery(&db, "doc").unwrap().unwrap();
+        assert_eq!(record["source"]["projectionRevision"], "observed");
+        assert_eq!(
+            list_cache(&mut db, &directory).unwrap()[0]["source"],
+            record["source"]
+        );
+        let mut rebuilt = payload(&[3], None);
+        rebuilt.metadata = record;
+        write_cache_snapshot(&mut db, rebuilt).unwrap();
+        let mut closing = payload(&[], None);
+        closing.metadata = read_recovery(&db, "doc").unwrap().unwrap();
+        closing.metadata["close"] = json!({"revision":"final-revision","confirmed":false});
+        closing.metadata["leaving"] = json!(true);
+        write_cache_update(&mut db, closing).unwrap();
+        assert!(write_cache_update(&mut db, payload(&[4], None))
+            .unwrap_err()
+            .contains("CLOSING"));
+        db.execute("UPDATE sessions SET state_hash='broken'", [])
+            .unwrap();
+        assert!(read_cache_or_discard(&mut db, &directory, "doc")
+            .unwrap()
+            .is_null());
+        drop(db);
+        let mut db = open_session_store(&directory).unwrap();
+        assert_eq!(
+            list_cache(&mut db, &directory).unwrap()[0]["close"]["revision"],
+            "final-revision"
+        );
+        assert!(update_recovery(&mut db, "doc", "release").is_err());
+        update_recovery(&mut db, "doc", "confirm-close").unwrap();
+        assert!(update_recovery(&mut db, "doc", "clear-close").is_err());
+        update_recovery(&mut db, "doc", "release").unwrap();
+        assert!(read_recovery(&db, "doc").unwrap().is_none());
+        assert!(update_recovery(&mut db, "doc", "release")
+            .unwrap()
+            .is_null());
+        drop(db);
+        fs::remove_dir_all(directory).unwrap();
     }
     #[test]
     fn drafts_are_confirmed_with_durable_state_and_late_receipts_keep_newer_input() {
@@ -1026,6 +1350,8 @@ mod cache_tests {
         let mut db = open_session_store(&directory).unwrap();
         write_cache_snapshot(&mut db, payload(&[1, 2], None)).unwrap();
         write_cache_update(&mut db, payload(&[3], None)).unwrap();
+        db.execute("INSERT INTO resources VALUES ('queued','doc','image.png','image/png','/resources/image.png',0)", []).unwrap();
+        db.execute("INSERT INTO resources VALUES ('video','doc','clip.mp4','video/mp4','/resources/clip.mp4',2)", []).unwrap();
         db.execute("UPDATE sessions SET state_hash='broken'", [])
             .unwrap();
         assert_eq!(
@@ -1035,6 +1361,16 @@ mod cache_tests {
         let backups = discarded(&directory);
         assert_eq!(backups.len(), 1);
         assert_eq!(backups[0]["updates"].as_array().unwrap().len(), 1);
+        assert_eq!(backups[0]["resources"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            db.query_row(
+                "SELECT count(*) FROM resources WHERE document_id='doc'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
         assert_eq!(
             db.query_row("SELECT count(*) FROM updates", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
@@ -1072,10 +1408,36 @@ mod cache_tests {
         fs::create_dir_all(&directory).unwrap();
         {
             let old = rusqlite::Connection::open(directory.join("collaboration.db")).unwrap();
-            old.execute_batch("CREATE TABLE sessions(id TEXT); PRAGMA user_version=9;")
+            old.execute_batch(include_str!(
+                "../../../../packages/db-schema/schema/collaboration.sql"
+            ))
+            .unwrap();
+            old.execute_batch("PRAGMA user_version=9; INSERT INTO settings VALUES ('owner-image:doc:asset','https://owner.test/image.png'); INSERT INTO resources VALUES ('queued','doc','image.png','image/png','/resources/image.png',0);")
                 .unwrap();
+            old.execute("INSERT INTO sessions(id,metadata,state) VALUES ('doc',?1,x'00')", [json!({
+                "id":"doc","mode":"shared","role":"owner","status":"active","serverUrl":"https://collab.test",
+                "source":{"librarySourceId":"original-library","contentDocumentId":"body","projectionRevision":"observed"}
+            }).to_string()]).unwrap();
         }
         let mut db = open_session_store(&directory).unwrap();
+        assert_eq!(
+            read_recovery(&db, "doc").unwrap().unwrap()["source"]["projectionRevision"],
+            "observed"
+        );
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM resources", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT value FROM settings WHERE key='owner-image:doc:asset'",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "https://owner.test/image.png"
+        );
         write_cache_snapshot(&mut db, payload(&[1], None)).unwrap();
         assert_eq!(
             db.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))

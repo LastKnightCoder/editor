@@ -105,4 +105,27 @@ describe("Windows 本地图片引用", () => {
   ])("直接资源地址保持不变：%s", async reference => {
     expect(await resolveLocalMediaPath(reference)).toBe(reference);
   });
+
+  it.each([
+    ["C:\\Users\\Administrator\\.editor", "\\"],
+    ["/Users/test/.editor", "/"],
+  ])("协作缓存经文件通道生成预览，不请求被禁止的静态目录：%s", async (editor, sep) => {
+    mocks.editor = editor;
+    const path = `${editor}${sep}collaboration${sep}assets${sep}local%3Aid${sep}image.png`;
+    const createObjectURL = vi.fn<(blob: Blob) => string>(() => "blob:local-image");
+    const original = URL.createObjectURL;
+    URL.createObjectURL = createObjectURL;
+    mocks.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    try {
+      expect(await toLocalMediaPreviewUrl(path)).toEqual({
+        url: "blob:local-image",
+        method: "blob",
+      });
+      expect(mocks.readBinaryFile).toHaveBeenCalledWith(path);
+      expect(mocks.convertFileSrc).not.toHaveBeenCalled();
+      expect(createObjectURL.mock.calls[0][0]).toMatchObject({ type: "image/png" });
+    } finally {
+      URL.createObjectURL = original;
+    }
+  });
 });

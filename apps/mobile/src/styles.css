@@ -68,6 +68,8 @@
   --mobile-screen-safe-bottom: max(0px, calc(var(--mobile-safe-bottom) - var(--kb-height) * 1000));
   /* 不收缩的浮层（贴屏幕底）底部避让：键盘与安全区取大者，二者不叠加 */
   --mobile-overlay-bottom: max(var(--kb-height), var(--mobile-safe-bottom));
+  /* 编辑器贴底浮层（注解抽屉）的键盘避让 */
+  --ed-overlay-bottom: var(--mobile-overlay-bottom);
   --mobile-sheet-footer-height: 56px;
   /* 输入文字字号：手机端可读下限，也是 iOS 不自动放大输入框的阈值；就地编辑大标题沿用展示态字号 */
   --mobile-input-font-size: 16px;

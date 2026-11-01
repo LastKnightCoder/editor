@@ -56,7 +56,7 @@
 
 ## 移动首页面板与语音输入
 
-`home.registerPanel` 由 `MobilePluginRuntime.homePanels` 登记，今天页在问答条与日程之间渲染 `features/home/PluginHomePanels`：两列网格，`compact` 占一格，`wide` 与紧邻 wide 之前落单的 compact 占整行；宿主画 surface 圆角卡、标题与 action，正文为空（组件返回 null）时整块收起，渲染出错只影响该卡。正文经 `PluginPageComponentScope` 获得页面作用域，`PluginHomePanelProps.registerDismiss` 接今天页的返回仲裁（阻断边缘返回），桌面首页传同名回调接 Esc 浮层仲裁。手机没有面板排序与隐藏，按注册顺序排列。
+`home.registerPanel` 由 `MobilePluginRuntime.homePanels` 登记，今天页在问答条与日程之间渲染 `features/home/PluginHomePanels`：两列网格，`compact` 占一格，`wide` 与紧邻 wide 之前落单的 compact 占整行；宿主画 surface 圆角卡、标题与 action；声明 action 时，点击卡片主体也执行该入口，插件内部的独立按钮与浮层自行阻止点击冒泡，宿主不识别其 DOM 结构。正文为空（组件返回 null）时整块收起，渲染出错只影响该卡。正文经 `PluginPageComponentScope` 获得页面作用域，`PluginHomePanelProps.registerDismiss` 接今天页的返回仲裁（阻断边缘返回），桌面首页传同名回调接 Esc 浮层仲裁。手机没有面板排序与隐藏，按注册顺序排列。
 
 `context.speech` 经 `app/plugins/speech` 的 `createMobilePluginSpeech` 接入：PluginHost 先校验 `speech:input` 声明与授权、把激活 signal 并入录音 signal，再调用与应用听写同一个识别服务实例（`speechServiceFor(runtime.asr)`，应用与插件录音互斥）；不可用原因与应用听写共用 `speechUnavailableReason`。插件只拿到识别文字，不接触音频。`speech:input` 在 TS（`portable.ts`）与原生（`plugin_permissions.rs`）白名单中开放，移动目标最低版本 `MOBILE_SPEECH_MIN_VERSION`（0.2.16）；桌面未接 `SpeechAdapter`，`start` 抛 `SPEECH_UNAVAILABLE`。
 
@@ -74,13 +74,15 @@
 
 协作引用按正文创建身份解析；未共享内容先展示来源与正文摘要，用户确认才打开发布流程，已有绑定打开成员管理。发布流程在异步步骤之间检查请求有效性及正文创建身份，失效后不继续绑定、投影或生成邀请码；已经发出的远端操作不承诺撤回。编辑器契约、copyOf 准备与分享内容复用现有数据和协作协议，不新增数据库表或业务授权。
 
-## 移动闪卡基础接口
+## 移动闪卡接口
 
-`context.flashcards` 支持 listDecks、createDeck、createCard 和手动 openCreate；generate、generateAndSave 与 mode: ai 明确拒绝。SDK 在查询牌组时要求 flashcards:read，直接创建牌组和闪卡要求 flashcards:write，移动适配器在异步准备参考资料后复验写权限。构建、中心与原生授权存储共用新增权限范围。
+`context.flashcards` 支持 listDecks、createDeck、createCard、手动与 AI openCreate、generate 和 generateAndSave。SDK 在查询牌组时要求 flashcards:read，直接创建牌组和闪卡要求 flashcards:write，移动适配器在异步准备参考资料后复验写权限。AI 生成通过 context.ai.requestCapability("flashcardGeneration") 取得宿主能力，沿用逐能力授权与 llmUsageSettings.flashcardGeneration 模型分配；不隐式回退。构建、中心与原生授权存储共用权限范围。
 
 原生 plugin_flashcards 固定工作区 token，核对活动库后复用现有闪卡事务；不新增表，不修改复习调度。正文参考先检查插件读取资格，写入事务再核验创建身份并增持引用；自定义参考资料按正文契约创建独立 contents 行，任何参考失败则整张卡片回滚。返回 SDK 公开字段，不交付复习统计等宿主内部字段。
 
 手动建卡是独立 pluginFlashcardCreate 页面，复用 CardCreatePage、CardEditPage 和牌组表单，可选择或新建牌组、选择五种题型并修改预填题干。请求固定发起插件与工作区，单会话互斥；保存由用户确认，不要求插件整类闪卡写权限，引用其他正文仍需读取权限。未指定 references 时把输入 content 作为自定义来源；显式空数组不添加来源。保存后返回 completed 与真实卡片，退出返回 cancelled 与已保存卡片；停用或切库撤销请求，旧页面不能继续保存，已经提交的数据不回滚。
+
+AI 建卡复用同一页面与卡组选择，确认资料后生成五题型草稿，逐张进入 CardEditPage 审阅、修改并保存；题干、答案、解析、背面补充、难度和标签均预填，选项解析在编辑保存时保留。未指定 references 时，默认来源使用用户确认生成的资料；显式提供的引用保持原意，空数组不添加来源。`features/flashcard/generation.ts` 提供生成提示与 JSON 解析，填空标记转换为 flashcard-blank 节点，整批草稿通过保存校验后才交付。generate 只返回草稿，generateAndSave 逐张复验写权限并返回成功卡片及失败索引，取消、停用或切库阻止后续写入，保留已提交卡片。关闭宿主流程会中止在途 AI 请求并拒收迟到结果。
 
 ## 同步与资源上传提供方
 
@@ -142,15 +144,15 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 默认连接使用惰性单例；`connectMobilePluginTransport(runtime, { ai, openSettings })` 也允许宿主注入同一 AI 服务与设置打开回调。需要审批/提问时由宿主配置该服务的交互端口，插件不能修改权限模式。插件运行时只回收自己的请求、工具和来源，不销毁注入的共享 AI 服务。
 
-`context.ai.requestCapability` 仅开放聊天 `chat` 与闪卡生成 `flashcardGeneration`，原生能力表与 SDK 保持一致；复用 PluginHost 的清单声明、逐能力授权与撤权订阅，模型取 `llmUsageSettings` 对应项，不隐式回退。`ai.features` 自定义功能默认关闭，由宿主通过 `runtime.ai.info/configure` 维护功能模型分配和每日请求、Token、并发额度；`running/cancel/revoke` 管理在途请求，`usage` 分页读取当日额度与审计记录。额度与桌面一致，按同一设备的 pluginId 计数、跨工作区共享，调用授权仍绑定工作区。插件只收到文本增量、最终文本与可确认的 Token 用量；未知用量为 null。模型、网络与鉴权的原始错误不交付插件。
+`context.ai.requestCapability` 仅开放聊天 `chat` 与闪卡 `flashcardGeneration`，原生能力表与 SDK 保持一致；复用 PluginHost 的清单声明、逐能力授权与撤权订阅，模型取 `llmUsageSettings` 对应项，不隐式回退。`ai.features` 自定义功能默认关闭，由宿主通过 `runtime.ai.info/configure` 维护功能模型分配和每日请求、Token、并发额度；`running/cancel/revoke` 管理在途请求，`usage` 分页读取当日额度与审计记录。额度按同一设备的 pluginId 计数、跨工作区共享，调用授权仍绑定工作区。插件只收到文本增量、最终文本与可确认的 Token 用量；未知用量为 null。模型、网络与鉴权的原始错误不交付插件。
 
-原生 `plugin_ai_*` 命令使用当前插件 transport token 与数据库身份，模型分配由宿主读取。prepare 到 begin 之间比较配置指纹，begin 持久预占额度并返回提供方指纹；创建模型上下文时以同一设置快照复验指纹，再冻结凭据，冲突不发网。结束时按可确认的实际用量结算；未知用量保留预占，不把 SDK 默认零值当作免费调用；明确尚未接受生成或发网前配置冲突的请求按零用量结算。finish 再检查调用身份与配置，撤回后不能交付迟到成功。配额与请求账本放应用私有 `plugin-ai.json`，不进入主库插件 KV，不保存提示词、回复或凭据；已结束审计保留最近 30 天且最多 1000 条，未结束请求不丢弃，当日额度独立保留。插件停用、提前退出流、调用者取消及切库会停止模型调用并回收绑定。移动端没有独立 AI 配置页面，未注入宿主打开回调时 `openSettings` 返回 `AI_SETTINGS_UNAVAILABLE`。
+原生 `plugin_ai_*` 命令使用当前插件 transport token 与数据库身份，模型分配由宿主读取。prepare 到 begin 之间比较配置指纹，begin 持久预占额度并返回提供方指纹；两端宿主通过 `@tau/ai/plugin-quota` 对纯文本请求按 UTF-8 字节数加消息封装余量估算输入（不超过模型上下文容量），与输出上限相加作为本次预占，图片请求仍按模型上下文容量保守预占输入；创建模型上下文时以同一设置快照复验指纹，再冻结凭据，冲突不发网。结束时按可确认的实际用量结算；未知用量保留预占，不把 SDK 默认零值当作免费调用；明确尚未接受生成或发网前配置冲突的请求按零用量结算。finish 再检查调用身份与配置，撤回后不能交付迟到成功。配额与请求账本放应用私有 `plugin-ai.json`，不进入主库插件 KV，不保存提示词、回复或凭据；已结束审计保留最近 30 天且最多 1000 条，未结束请求不丢弃，当日额度独立保留。插件停用、提前退出流、调用者取消及切库会停止模型调用并回收绑定。移动端没有独立 AI 配置页面，未注入宿主打开回调时 `openSettings` 返回 `AI_SETTINGS_UNAVAILABLE`。
 
 插件 MCP 支持内联工具及 Streamable HTTP；工具按当前库注册，默认 execute 风险，执行前后仍经过 AI 服务的库租约与工具权限检查。宿主暴露注册状态和等待就绪接口，连接失败不伪装为已可用。stdio 不受支持。工具名与稳定历史 ID 由 `@tau/ai/tool-identity` 同时供桌面与移动使用，展示数据沿用既有 render 版本与载荷。聊天工具渲染器保存为宿主注册表，按工具名或历史 ID 取用；此注册表不创建聊天界面，缺少渲染器时历史仍可使用公共工具投影。
 
 Skills 来源包括已激活的 portable 应用插件和已安装启用的独立 Skill 包。应用插件的 `skills` 元数据进入 PluginHost；独立包不求值 JS、不进入 PluginHost，沿用同一安装、待生效更新、恢复、卸载和来源校验事务。原生清单读取和资源读取核验工作区、当前安装代次、声明路径、完整性与文本预算，拒绝符号链接和越界资源。JS 再对照当前已加载包的 skillRevision 与包类型，旧实例不能读取更新后的包；安全模式不自动恢复独立来源。技能目录按需注册到 AI 服务，停用、重载、撤回、卸载及切库撤销来源；ID 采用桌面的 `包ID:目录ID`。移动端可安装和保留带脚本的独立包，但只暴露受限 Markdown 正文与参考资料，不执行脚本；桌面脚本继续沿用既有审核与执行确认。
 
-以上是宿主与数据能力；闪卡 AI 生成等领域流程、聊天/模型设置界面和 MCP 管理入口不随注册自动产生。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
+宿主与数据能力由领域流程显式调用，闪卡接入见 [移动闪卡接口](#移动闪卡接口)。插件 Skill 与 MCP 的管理界面见 [移动端 Skill 与 MCP 管理](/docs/architecture/mobile.md)。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
 
 ## ASR 与 WebSocket 宿主
 

@@ -25,6 +25,7 @@ vi.mock("../queries", () => ({
 }));
 vi.mock("../../../services/tauri", () => ({
   calendarEventGetById: () => Promise.resolve(state.event),
+  reminderList: () => Promise.resolve([]),
 }));
 vi.mock("../../../router", () => ({ useBackHandler: () => () => {} }));
 vi.mock("../../../components/ActionSheet", () => ({ ActionSheet: () => null }));

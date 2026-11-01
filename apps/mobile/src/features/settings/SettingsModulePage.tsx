@@ -7,6 +7,7 @@
 import { useRef } from "react";
 import { AboutSection } from "./about/AboutSection";
 import { FeedbackSection } from "./feedback/FeedbackSection";
+import { NotificationsSection } from "../reminders/NotificationsSection";
 import { CollaborationSection } from "./components/CollaborationSection";
 import { OverwriteSection } from "./sync/OverwriteSection";
 import { ResourceFilesSection } from "./sync/ResourceFilesSection";
@@ -50,6 +51,8 @@ function getTitle(module: SettingModuleKey): string {
       return "图片生成";
     case "feedback":
       return "反馈";
+    case "notifications":
+      return "提醒与通知";
     default:
       return "设置";
   }
@@ -91,6 +94,7 @@ function ModuleSection(props: ModuleSectionProps) {
           setting={props.safeSetting}
           versions={props.versions}
           isSyncing={props.isSyncing}
+          syncProgress={props.syncProgress}
           activeDatabase={props.databases?.activeDatabase ?? null}
           onCheckVersions={props.onCheckVersions}
           onSyncUpload={props.onSyncUpload}
@@ -109,6 +113,7 @@ function ModuleSection(props: ModuleSectionProps) {
         <OverwriteSection
           versions={props.versions}
           isSyncing={props.isSyncing}
+          syncProgress={props.syncProgress}
           onSyncUpload={props.onSyncUpload}
           onSyncDownload={props.onSyncDownload}
         />
@@ -133,6 +138,8 @@ function ModuleSection(props: ModuleSectionProps) {
       return <AboutSection />;
     case "feedback":
       return <FeedbackSection />;
+    case "notifications":
+      return <NotificationsSection />;
     case "collaboration":
       return <CollaborationSection />;
     case "sync-status-resource":
@@ -179,6 +186,7 @@ export function SettingsModulePage(props: { module: SettingModuleKey }) {
           versions={app.bootstrap.versions}
           isSavingSetting={app.syncSettings.isSavingSetting}
           isSyncing={app.syncSettings.isSyncing}
+          syncProgress={app.syncSettings.syncProgress}
           resourceSyncProgress={app.resourceSync.progress}
           resourceSyncStatusFile={app.resourceSync.statusFile}
           isResourceSyncing={app.resourceSync.isResourceSyncing}

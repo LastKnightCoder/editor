@@ -264,6 +264,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `series_id`         | `TEXT NOT NULL`       |
 | `occurrence_date`   | `TEXT NOT NULL`       |
 
+### `item_reminder`
+
+待办与日程的提醒。`owner_type='todo'` 只存首个之外的追加提醒（首个在 `todo_item.remind_before`）；`owner_type='event'` 存日程的全部提醒。`offset_ms` 为基准时刻减提醒时刻（毫秒），全天日程以当天零点为基准。
+
+| 字段         | SQLite 定义        |
+| ------------ | ------------------ |
+| `owner_type` | `TEXT NOT NULL`    |
+| `owner_id`   | `INTEGER NOT NULL` |
+| `offset_ms`  | `INTEGER NOT NULL` |
+
 ### `podcasts`
 
 | 字段           | SQLite 定义           |

@@ -10,7 +10,8 @@
  */
 
 import dayjs from "dayjs";
-import type { TodoRecurrence } from "@/types";
+import type { TodoItem, TodoRecurrence } from "@/types";
+import { joinTodoReminders } from "@tau/shared/reminders";
 import { isDateScheduledForRecurrence } from "@/utils/recurrence";
 import {
   DAY_MS,
@@ -260,25 +261,7 @@ export function habitStats(
 
 /* ---------- 提醒 ---------- */
 
-const MINUTE = 60_000;
-
-/** 提前提醒选项（remindBefore 单位毫秒；与 legacy ReminderSelect 同档） */
-export const REMIND_OPTIONS: { value: number | null; label: string }[] = [
-  { value: null, label: "不提醒" },
-  { value: 0, label: "准时" },
-  { value: 5 * MINUTE, label: "提前 5 分钟" },
-  { value: 10 * MINUTE, label: "提前 10 分钟" },
-  { value: 15 * MINUTE, label: "提前 15 分钟" },
-  { value: 30 * MINUTE, label: "提前 30 分钟" },
-  { value: 60 * MINUTE, label: "提前 1 小时" },
-  { value: 120 * MINUTE, label: "提前 2 小时" },
-  { value: 1440 * MINUTE, label: "提前 1 天" },
-];
-
-export function remindText(remindBefore: number | null | undefined): string {
-  if (remindBefore == null) return "不提醒";
-  const hit = REMIND_OPTIONS.find(o => o.value === remindBefore);
-  if (hit) return hit.label;
-  const minutes = Math.round(remindBefore / MINUTE);
-  return minutes >= 60 ? `提前 ${Math.round(minutes / 60)} 小时` : `提前 ${minutes} 分钟`;
+/** 截止任务的全部提醒（首个 + 追加，截止前毫秒数升序） */
+export function todoReminders(entry: Pick<TodoItem, "remindBefore" | "extraReminders">): number[] {
+  return joinTodoReminders(entry.remindBefore, entry.extraReminders ?? []);
 }

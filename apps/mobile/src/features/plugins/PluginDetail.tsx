@@ -8,7 +8,14 @@ import { PluginPageComponentScope } from "../../app/plugins/component-page-scope
 import { PluginPermissionControls } from "./PluginPermissionControls";
 import { MobileProviderSettings } from "./ProviderSettings";
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { ExternalLink, Github, Layers, MoreHorizontal, ShieldAlert } from "lucide-react";
+import {
+  ChevronRight,
+  ExternalLink,
+  Github,
+  Layers,
+  MoreHorizontal,
+  ShieldAlert,
+} from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { comparePluginVersions } from "@tau/plugins/package";
 import {
@@ -256,6 +263,10 @@ export function PluginDetail() {
               permissions={permissions}
               contributions={installed?.active && runtime ? runtime.contributions(pluginId) : null}
               installed={!!installed}
+              pluginId={pluginId}
+              mcpSourceId={
+                runtime?.aiMcp?.getSnapshot().find(state => state.pluginId === pluginId)?.id
+              }
             />
           )}
           {activeTab === "versions" && (
@@ -623,17 +634,29 @@ const CONTRIBUTION_LABELS = {
   entries: "功能入口",
   settings: "设置页",
   homePanels: "今天页卡片",
+  skills: "Skill",
+  mcp: "MCP",
 } as const;
 
 function PermissionsTab({
   permissions,
   contributions,
   installed,
+  pluginId,
+  mcpSourceId,
 }: {
   permissions: readonly string[];
   contributions: Record<keyof typeof CONTRIBUTION_LABELS, number> | null;
   installed: boolean;
+  pluginId: string;
+  mcpSourceId?: string;
 }) {
+  const navigator = useNavigator();
+  // Skill 与 MCP 可点：直达对应管理页，其余贡献只展示数量
+  const openers: Partial<Record<keyof typeof CONTRIBUTION_LABELS, () => void>> = {
+    skills: () => navigator.push("aiSkills", { sourceId: pluginId }),
+    ...(mcpSourceId ? { mcp: () => navigator.push("aiMcpDetail", { sourceId: mcpSourceId }) } : {}),
+  };
   const provided = contributions
     ? (Object.keys(CONTRIBUTION_LABELS) as (keyof typeof CONTRIBUTION_LABELS)[]).filter(
         key => contributions[key] > 0
@@ -646,15 +669,29 @@ function PermissionsTab({
           <h2 className="text-ink-3 px-1 text-[12px] font-semibold">此插件提供</h2>
           {provided.length ? (
             <ul className="flex flex-wrap gap-2">
-              {provided.map(key => (
-                <li
-                  key={key}
-                  className="bg-surface text-ink-1 flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-[12.5px]"
-                >
-                  {CONTRIBUTION_LABELS[key]}
-                  <span className="text-ink-3 tabular-nums">{contributions?.[key]}</span>
-                </li>
-              ))}
+              {provided.map(key => {
+                const open = openers[key];
+                const label = (
+                  <>
+                    {CONTRIBUTION_LABELS[key]}
+                    <span className="text-ink-3 tabular-nums">{contributions?.[key]}</span>
+                    {open && <ChevronRight size={12} className="text-ink-3" aria-hidden />}
+                  </>
+                );
+                const className =
+                  "bg-surface text-ink-1 flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-[12.5px]";
+                return (
+                  <li key={key}>
+                    {open ? (
+                      <button type="button" className={className} onClick={open}>
+                        {label}
+                      </button>
+                    ) : (
+                      <span className={className}>{label}</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-ink-3 flex items-center gap-2 px-1 text-[12.5px]">

@@ -5,6 +5,8 @@ import { useMobilePlugins } from "../../app/plugins/context";
 import { BottomSheet } from "../../components/BottomSheet";
 import { CheckBubble } from "../../components/CheckBubble";
 import { listChatSkills } from "../../services/aiChat/chatController";
+import { useLibraryPreferences } from "../../services/aiChat/capabilityPreferences";
+import { getNavigator } from "../../router";
 
 const subscribeEmpty = () => () => undefined;
 const emptySnapshot = () => 0;
@@ -22,8 +24,10 @@ export function SkillPickerSheet(props: {
     sources ? () => sources.getSnapshot().revision : emptySnapshot,
     emptySnapshot
   );
+  // 偏好变化后目录要跟着变：停用的 Skill 从这里消失
+  const preferences = useLibraryPreferences(props.databaseName);
   const query = useQuery({
-    queryKey: ["ai-chat-skills", props.databaseName, revision],
+    queryKey: ["ai-chat-skills", props.databaseName, revision, preferences.skills],
     queryFn: ({ signal }) => listChatSkills(props.databaseName, signal),
     gcTime: 0,
     refetchOnWindowFocus: true,
@@ -46,7 +50,11 @@ export function SkillPickerSheet(props: {
             </button>
           </div>
         )}
-        {query.data?.length === 0 && <p className="text-ink-3 text-tau-sm py-4">暂无可用 Skill</p>}
+        {query.data?.length === 0 && (
+          <p className="text-ink-3 text-tau-sm py-4 text-center">
+            没有可用的 Skill。停用的 Skill 可以在 Skill 管理里重新启用。
+          </p>
+        )}
         {query.data?.map(skill => (
           <button
             key={skill.id}
@@ -79,6 +87,16 @@ export function SkillPickerSheet(props: {
           onClick={props.onClose}
         >
           完成
+        </button>
+        <button
+          type="button"
+          className="text-accent-text text-tau-sm mt-2 w-full py-2 font-semibold"
+          onClick={() => {
+            props.onClose();
+            getNavigator().push("aiSkills", {});
+          }}
+        >
+          管理 Skill
         </button>
       </div>
     </BottomSheet>

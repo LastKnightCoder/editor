@@ -314,7 +314,7 @@ function AppDock() {
                   aria-label={item.label}
                   className="shadow-card absolute top-0 left-0 grid h-[46px] w-[46px] place-items-center rounded-[16px]"
                   style={{
-                    ...highlightBackground(item.soft, "var(--surface)"),
+                    ...highlightBackground(item.soft, "var(--tau-bg-surface)"),
                     opacity: menuOpen ? 1 : 0,
                     transform: menuOpen
                       ? `translate(-50%, -50%) translate(${x}px, ${y - 32}px)`

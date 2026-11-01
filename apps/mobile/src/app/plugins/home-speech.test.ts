@@ -76,7 +76,11 @@ it("插件语音输入沿用应用的识别设置：插件账号未配置时给�
 });
 
 it("插件语音输入的不可用原因与应用听写一致", async () => {
-  const { speechUnavailableReason } = await import("./speech");
+  const { createMobilePluginSpeech, speechUnavailableReason } = await import("./speech");
+  const target = runtime();
+  const context = await activate(target, ["speech:input"]);
+  expect(context.speech.unavailableReason()).toBe("插件语音输入尚未就绪");
+  target.speech = createMobilePluginSpeech(target.asr);
   setMobileSettingSnapshot({
     speechInput: {
       active: "plugin",
@@ -85,8 +89,20 @@ it("插件语音输入的不可用原因与应用听写一致", async () => {
     },
   } as unknown as SettingCompat);
   expect(speechUnavailableReason()).toBe("识别插件账号尚未配置");
+  expect(context.speech.unavailableReason()).toBe(speechUnavailableReason());
   setMobileSettingSnapshot({
     speechInput: { active: "native", language: "zh-CN", plugin: { id: "", configurations: {} } },
   } as unknown as SettingCompat);
   expect(speechUnavailableReason()).toBeNull();
+  expect(context.speech.unavailableReason()).toBeNull();
+  setMobileSettingSnapshot({
+    speechInput: {
+      active: "plugin",
+      language: "zh-CN",
+      plugin: { id: "asr.x", configurations: { "asr.x": { config: {}, modelId: "default" } } },
+    },
+  } as unknown as SettingCompat);
+  expect(speechUnavailableReason()).toBeNull();
+  expect(context.speech.unavailableReason()).toBeNull();
+  await target.dispose();
 });

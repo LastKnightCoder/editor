@@ -8,6 +8,7 @@ import { CardEditPage } from "../flashcard/CardEditPage";
 import type { FlashcardType } from "../flashcard/types";
 import { PluginPageShell } from "./PluginPageView";
 import { toast } from "../../components/toast";
+import { PluginFlashcardAiCreation } from "./PluginFlashcardAiCreation";
 
 const empty = () => null;
 const subscribeEmpty = () => () => undefined;
@@ -63,6 +64,19 @@ function Creation({ request, onBack }: { request: MobileFlashcardRequest; onBack
         createDeck={request.createDeck}
         onBack={close}
         onChoose={(deckId, type) => setSelection({ deckId, type })}
+        onGenerate={
+          request.options.mode === "ai" ? deckId => setSelection({ deckId, type: "qa" }) : undefined
+        }
+      />
+    );
+  if (request.options.mode === "ai")
+    return (
+      <PluginFlashcardAiCreation
+        request={request}
+        deckId={selection.deckId}
+        content={prepared.data}
+        onBack={close}
+        onCompleted={onBack}
       />
     );
   return (

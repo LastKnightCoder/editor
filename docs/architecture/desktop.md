@@ -77,7 +77,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 白板自愈（`whiteboard-documents/repair.ts`，由 `white-board-content:get-by-id` 与 `WhiteboardDocumentSessions.open` 触发，备份在 `whiteboard-documents/repairs/`）：主库检查点摘要不符或字节读不出时，按同事务写入的 JSON 快照投影经 `createWhiteboardBaseline` 重建状态。本机日志读不出或与主库分叉时，`WhiteboardJournal.quarantine` 把原始行写入 `whiteboard-documents/discarded/` 后按主库重建；日志文件版本高于当前客户端时整份移入 `discarded/` 后新建。主库是权威，日志只是可重建的缓存。来源基线或拥有者错位不改写、保持报错（身份问题，改写会掩盖它）；旧 JSON 页（无文档记录）不转换，所有用户已在 0.60.1 完成转换。
 
-正文与白板保留正常创建、保存、协作同步、输入草稿和撤销重做。共享发布、退出协作通过既有提交记录确认跨存储写入结果；这些记录保存本次待提交候选及回执，不用于备份或恢复历史正文。安装候选与回执使用共享的 `DocumentInstallFingerprint/DocumentInstallReceipt`，与服务端文档格式升级状态机无关。共享正文远端换代时，主进程在刷新共享列表时备份旧缓存后按远端确认快照重建会话（编辑视图经 `collaboration:removed` 的 replaced 事件重开），重建保持静默不提示；白板远端换代仍停止旧副本同步。结束共享在服务端确认后固定本机候选；落盘失败的重试和重新打开复用同一候选，不再受旧升级超时限制，也不重新生成文档身份。已存在的用户备份文件不由客户端删除。
+正文与白板保留正常创建、保存、协作同步、输入草稿和撤销重做。共享发布、退出协作通过既有提交记录确认跨存储写入结果；这些记录保存本次待提交候选及回执，不用于备份或恢复历史正文。安装候选与回执使用共享的 `DocumentInstallFingerprint/DocumentInstallReceipt`，与服务端文档格式升级状态机无关。共享正文远端换代时，主进程在刷新共享列表时备份旧缓存后按远端确认快照重建会话（编辑视图经 `collaboration:removed` 的 replaced 事件重开），重建保持静默不提示；白板远端换代仍停止旧副本同步。结束共享先冻结视图并确认上传队列与正文同步，再断开实时收发，按远端快照与修订补存附件、提交最终主库投影和本机检查点；本地确认完成后才按修订关闭房间。关闭结果未知时保留冻结会话并幂等重试，确认回执写入本机后才解除绑定并转为本机会话。已存在的用户备份文件不由客户端删除。
 
 ### 业务代码写正文
 
@@ -156,7 +156,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `baseUrl/apiKey` 配置转换为传输配置。读取失败保留原存储且不装配服务器；当前提供方默认开关仍按注册表补齐，已保存意图优先。
 
 - `ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥。激活成功才发布，失败/停用/切库回收；调用名使用可读的「插件 ID__MCP 局部 ID__工具名」（插件 ID 的点转下划线，工具名的下划线转连字符，MCP ID 与插件 ID 末段相同时省去重复段）；有损输入或超长名称带摘要消歧，名称限制为模型接口支持的字符及 64 字符以内。界面显示「MCP ID:工具名」，不展示内部摘要；逐工具开关使用独立 settingsKey，沿用原 SHA-256 稳定 ID。激活/重连代次进执行身份；执行复核实例、数据库、整项与逐工具开关，合并取消信号、限时 60 秒。MCP 页面与聊天快捷面板经 useMcpServers 同源展示并注明插件来源；外部项复用配置/日志/重连，本地项只展示工具；外部连接绑定窗口，窗口关闭/崩溃断开不改变手动服务器生命周期。
-- 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。仅开放聊天 `chat` 与闪卡生成 `flashcardGeneration`，其他内置用途保留为应用内部能力。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供，公开能力必须对应 llmUsageSettings 中的模型分配；新增内置分配不自动对插件开放。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
+- 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。仅开放聊天 `chat` 与闪卡 `flashcardGeneration`，其他内置用途保留为应用内部能力。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供，公开能力必须对应 llmUsageSettings 中的模型分配；新增内置分配不自动对插件开放。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。文本输入通过 `@tau/ai/plugin-quota` 按本次 UTF-8 字节数加封装余量预占，与移动宿主共用算法，合并输出上限后占用额度；图片输入仍按模型上下文容量保守预占。已知实际用量在结束时结算，未知用量保留本次预占。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
 
 ### 独立后台
 
@@ -206,6 +206,14 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **资源上传**：默认本地，远端由渲染进程插件经 `context.upload.register` 提供（设置分区 `target: "upload"` 挂「资源存储」）；宿主负责压缩、唯一命名与配置快照；独立编辑/Markdown 窗口经 plugin-local IPC 转发到已连接的主窗口渲染宿主（主进程不加载插件、不建隐藏窗口）；窗口关闭/导航/宿主释放/插件停用后拒绝在途结果。GitHub/OSS/S3 旧图床与 WebDAV 图床已退役；GitHub/S3 博客账号已迁到发布插件配置。
 
+普通正文及共享作者的 `collaborationKit` 先调用场景 `IResourceService.upload`，遵守压缩与图床设置。未共享时直接保留返回地址；作者共享时再经绑定的 `prepareResource` → `collaboration:prepare-resource` 转换：公网 URL 原样返回，本地图片按保存后的文件登记待上传资产。共享成员插图经 `collaboration:upload-shared-resource` 直接进入协作服务器，不读取成员的图床配置。共享视频不走图床，两种角色均经该视图绑定上传命令保存为仅本机资源；作者图片不能借该入口绕过自己的存储配置。两种服务器图片上传沿原资源队列补传，完成前暂停文档网络发送；上传前后复核视图归属、角色、会话与冻结状态，作者图床失败不触发协作转换。
+
+作者接收服务器图片时，主进程 `CollaborationAssetService.preserveOwnerImages` 下载后经 `services/collaboration-image-storage` 交给主窗口，渲染端复用 `uploadResource` 按作者当前的压缩和存储配置保存；作者自己已存到持久资源目录的图片不重复处理，`remote-resources` 与协作缓存不能充当完成凭据；本地完成地址须仍位于真实的 `resources` 目录，失效映射重新补存。同一资源的在途任务去重，成功地址按文档保存在本机协作库 `owner-images:<documentId>`，不发给成员；共享内容保留服务器资产，作者的正文读取、主库投影与结束共享使用保存后的路径或公网 URL。主窗口关闭、导航、重连代次变化与超时取消存储请求，失败保留服务器资源并重试；结束共享在服务器关闭前补收最终快照中的图片并等待作者存储成功，失败恢复可编辑状态。明确移除会话时清理地址映射，持久资源文件保留；单篇缓存重建保留资源队列与完成映射，整库缓存版本重建迁入可读取的资源记录和设置。带资源的 `discarded/` 备份建立 `resource-backup:<id>` 持有标记，替库释放及后续会话清理均保留其附件目录，不能只保留清单而删除文件；没有备份持有的会话仍按正常退出流程清理临时附件。
+
+作者离线不影响成员向服务器提交图片。作者恢复连接后，WebSocket 的文档更新标记 `projectionDirty`，`startAutoFlush` 的后台投影定时器先补存图片、再检查主库是否可写，不依赖正文视图或原资料库打开；资料库随后连接时继续完成正文投影。应用启动恢复冷缓存时也先标记待投影，即使旧缓存已投影，随后到达的远端更新仍重新触发。作者设置未加载、主窗口存储宿主尚未就绪或图床失败时保持待投影，定时重试，禁止使用启动默认配置提前保存；仅保存成功才写入持久地址映射，已完成的图片不因重连重复上传。
+
+本机正文的创建、增量、整篇替换与渲染订阅显式使用 `allowLocalResources` 校验选项，保留原始资源路径或公网 URL，不生成仅本机资源编号。共享候选与服务器仍使用默认严格校验，发起共享时只有本地资源经资产服务转换，公网 URL 原样保留。跨文档粘贴先校验结构，所有本地路径及内部编号均核对来源文档实际持有的引用，再按目标会话转换资源。自动共享上传只读取应用 `resources`、`remote-resources` 及当前文档的协作资产目录，真实路径校验拒绝私有文件、越界路径与符号链接逃逸；其他路径需经文件上传入口导入。存量 `tau-collab-local:` 仍经所属会话解析，打开或整篇替换本机正文时把可读取的缓存文件转存 `resources/collaboration/`；普通投影保存同样保全文件，缺失编号保持原值。`collaboration/` 不经本地 HTTP 静态服务公开，媒体预览通过文件 IPC 读取后生成 Blob 地址。
+
 本地上传返回 `~/.editor/resources/...` 形式的引用，目录分隔符固定为 `/`。图片与行内图片的 Markdown 导入、导出，以及桌面媒体和协作资源的路径解析共用 `@tau/shared/resource-path`：规范 Windows 本地路径，并修复旧引用 `~.editor/...` 缺失的主目录分隔符；带协议的资源地址保持原样。存量正文在读取时兼容，不执行整库改写；Markdown 再保存时输出规范引用。
 
 会话正文读取将可解析的附件引用转为本机路径；附件未下载、仅在其他设备上或路径解析失败时，保留原引用，不阻断正文读取、再次打开和文本索引。仅本机附件在当前设备缺失时仍可编辑、保存正文。资源组件独立处理加载失败，读取过程不删除节点、不改写会话原引用；实际请求附件文件的命令仍返回资源不可用错误。
@@ -213,6 +221,8 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 **标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。两端复用内部 `@tau/plugins/fetch-bridge`，上传按最多 256 KiB 分块并等待背压，响应按需读取；该入口不进入作者 tarball。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
 
 数据库、资源及会话文件同步的对象布局、校验、发布和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
+
+同步设置的手动下载与启动自动下载共用命令层 `onProgress`，在分块校验写入后推进进度；设置数据库卡和下载确认框通过公共 `ProgressStatus` 展示百分比、数据库已处理大小、对话记录完成数及安装阶段。上传与下载共用忙态，下载期间禁用再次同步、检查和服务切换；维护重连完成后才报告下载完成。计数口径见[分块传输与重试](/docs/architecture/storage-sync.md#分块传输与重试)。
 
 ### 插件业务数据与授权
 
@@ -437,6 +447,10 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
   禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
+- **把窗口带到前台**：系统通知窗口不可聚焦，点卡片主体一律激活来源窗口（main origin 激活主窗口）；
+  按钮默认不抢前台（同意 / 重试等就地作答），「查看」类按钮标 `reveal: true`，先激活来源窗口
+  再执行回调。`revealWindow` / `showOrCreateMainWindow` 在 macOS 上用 `app.focus({ steal: true })`
+  抢占激活，主进程其他唤起窗口的入口同样走这两个函数，不要直接调 `win.focus()`。
 
 ## 3. 三大协议（照抄即用）
 
@@ -752,6 +766,12 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 删除日程走 `pendingDeleteStore`：隐藏 + Toast 撤销，到时或 ScheduleView 卸载才落库；过滤在 `useCalendarEvents` 里统一做。不得改回「先删再重建」（删除会连带备注 content）。
 - 日程侧勾选完成待办后必须 `emitTodoMutation`，否则待办快照（待办页、待安排面板）不刷新。
 
+### 提醒
+
+- 截止任务与独立日程各最多 3 个提醒，预设、文案与拆合口径在 `@tau/shared/reminders`（移动端共用）。存储：待办首个提醒仍在 `todo_item.remind_before`（AI 工具、插件等只认单值的写入方照旧读写），其余在 `item_reminder`；日程全部在 `item_reminder`，全天日程以当天零点为基准（「当天 9:00」是负 offset）。改首个提醒的单值写入会经触发器清掉追加提醒，删待办 / 日程同样清理。
+- 写提醒只走 `todo:update-reminders` / `calendar-event:update-reminders`（`tables/item-reminder.ts`），先写 `remind_before` 再写追加提醒；界面统一用 `components/ReminderMenu`（勾选不关菜单）。待办列表快照经 `extraReminders` 带出追加提醒，展示用 `todoReminders(entry)` 合并。
+- 主进程 `todo-reminder` 每分钟扫描截止任务（含追加提醒）、周期与文档待办、独立日程（`todo_item_id` 为空，待办安排出的日程跟随待办）；通知正文由 `reminderBody` 生成，周期实例与只写了日期的文档待办按全天（「今天到期」），没有截止时间的写「待办提醒」。通知「查看」带 `reveal`，并向主窗口发 `reminder:open`，由壳层 `useReminderOpen` 打开待办页（`selectedId`）或日程页（`eventId`）。
+
 ### 文档待办
 
 个人助理任务工具在 `task-assistant` 主进程模块与同名 provider 中承载。写入按项校验、事务提交和幂等回执；正文路径使用内容层节点补丁与同步会话落盘，跨正文/主库失败返回 pending 并恢复。工具与卡片操作支持 30 天持久化撤销，检查后续修改和原位置，不回写整篇旧快照。数据库、日程、正文编号经持久化高水位分配，不复用被删除对象的编号。批量为逐项成功，不承诺全局回滚。工具风险沿用既有权限模式。
@@ -863,6 +883,8 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 作答输入框隔离空格、字母、数字和撤销等按键，外层复习快捷键同时检查事件目标与当前输入焦点；空输入框也不触发复习撤销。问答保留 Ctrl/⌘+Enter 提交、普通 Enter 换行，填空保留 Enter 跳空/提交，输入法组合期间不提交；Esc 仍交给页面浮层仲裁。
 - 暂停与移动在主进程写入成功后更新缓存；失败保留原状态。评分、撤销和暂停互斥，写入期间禁止跳过与结束；AI 评判通过请求版本丢弃换卡后迟到的响应。输入框不自行拦截 Esc，退场统一经页面浮层仲裁。
 - `flashcard:submit-review` 在事务中更新排期并写入复习记录，返回卡片及 `undo` 凭据（记录 ID、主进程读取的评分前排期）。`flashcard:undo-review` 只接受仍指向最新评分的凭据，校验、删除记录与恢复排期在同一事务中完成，拒绝旧凭据与重复撤销。
+
+闪卡制作与简答题答案评判共用 `llmUsageSettings.flashcardGeneration`，设置中只显示「闪卡」，判分的用量也归入该功能。提示词、结果类型与 JSON 校验由 `@tau/ai/flashcards` 与移动端共享。`user-setting.ts` 在设置加载及提交时幂等合并旧 `aiJudgement`：已有闪卡分配优先，未分配时承接旧判分模型，然后删除旧键；加载升级必须成功落盘才发布快照，失败允许重试，不保留运行时双模型回退。历史用量中的旧判分标识继续可读。
 
 ### PDF 列表、阅读页与阅读状态
 

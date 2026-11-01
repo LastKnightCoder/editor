@@ -13,7 +13,7 @@ const MAX_SAFE: u64 = 9_007_199_254_740_991;
 const MAX_SESSIONS: usize = 128;
 const MAX_ACTIVE: usize = 128;
 const MAX_STORE_BYTES: u64 = 32 * 1024 * 1024;
-const CAPABILITIES: &[(&str, &str)] = &[("chat", "对话功能"), ("flashcardGeneration", "闪卡制作")];
+const CAPABILITIES: &[(&str, &str)] = &[("chat", "对话功能"), ("flashcardGeneration", "闪卡")];
 
 pub(crate) fn is_capability(value: &str) -> bool {
     CAPABILITIES.iter().any(|(id, _)| *id == value)
@@ -97,6 +97,7 @@ pub struct BeginInput {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Capacity {
+    pub input_tokens: u64,
     pub context_window: u64,
     pub max_tokens: u64,
 }
@@ -636,7 +637,9 @@ impl Engine {
         {
             return Err(fail("AI_CONCURRENCY_LIMIT", "并发额度已满"));
         }
-        if capacity.context_window == 0
+        if capacity.input_tokens == 0
+            || capacity.input_tokens > capacity.context_window
+            || capacity.context_window == 0
             || capacity.context_window > MAX_SAFE
             || capacity.max_tokens == 0
             || capacity.max_tokens > MAX_SAFE
@@ -650,7 +653,7 @@ impl Engine {
             return Err(fail("AI_INVALID_REQUEST", "输出上限无效"));
         }
         let reserved = capacity
-            .context_window
+            .input_tokens
             .checked_add(output)
             .filter(|value| *value <= MAX_SAFE)
             .ok_or_else(|| fail("AI_INVALID_REQUEST", "模型容量超限"))?;
@@ -1314,7 +1317,8 @@ mod tests {
                 },
                 reference,
                 Capacity {
-                    context_window: 100,
+                    input_tokens: 100,
+                    context_window: 2_000_000,
                     max_tokens: 32,
                 },
                 &day(),
@@ -1480,7 +1484,8 @@ mod tests {
                 },
                 reference,
                 Capacity {
-                    context_window: 100,
+                    input_tokens: 100,
+                    context_window: 2_000_000,
                     max_tokens: 32
                 },
                 &day(),
@@ -1512,7 +1517,8 @@ mod tests {
                 },
                 reference,
                 Capacity {
-                    context_window: 100,
+                    input_tokens: 100,
+                    context_window: 2_000_000,
                     max_tokens: 32
                 },
                 &day(),
@@ -1616,7 +1622,8 @@ mod tests {
                 },
                 reference,
                 Capacity {
-                    context_window: 100,
+                    input_tokens: 100,
+                    context_window: 2_000_000,
                     max_tokens: 32
                 },
                 &day(),

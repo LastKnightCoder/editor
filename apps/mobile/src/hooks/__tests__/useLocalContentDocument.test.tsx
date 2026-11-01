@@ -11,6 +11,7 @@ import {
   type ContentNode,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { IResourceService, type ResourceService } from "@tau/shared/host-services";
 import type { ContentDetailResponse } from "../../types";
 import useLocalContentDocument, { type LocalContentDocument } from "../useLocalContentDocument";
 import * as deviceNative from "../../services/device-sync/native";
@@ -21,6 +22,7 @@ const io = vi.hoisted(() => ({
   write: vi.fn(),
   draft: vi.fn(),
   tree: null as NodeTree | null,
+  resources: { upload: vi.fn(), remoteResourceToLocal: vi.fn() },
 }));
 vi.mock("../../services/tauri", () => ({
   collabReadCache: io.read,
@@ -30,7 +32,7 @@ vi.mock("../../services/tauri", () => ({
   collabNodeViews: async () => ({}),
 }));
 vi.mock("../../services/editorKit", () => ({
-  getMobileContentKit: () => ({ extensions: [], registry: { get: () => ({}) } }),
+  getMobileContentKit: () => ({ extensions: [], registry: { get: () => io.resources } }),
 }));
 vi.mock("../../app/plugins/content", () => ({
   mobileContentPlugins: {
@@ -148,6 +150,15 @@ it("明确覆盖后同基线旧缓存和旧会话不能重新带回本地输入�
     await act(async () => root.render(<Harness />));
     await vi.waitFor(() => expect(io.tree).not.toBeNull());
     expect(JSON.stringify(io.tree!.read())).toContain("本地旧字");
+    let resources: ResourceService | undefined;
+    document!.services!((id, service) => {
+      if (id === IResourceService) resources = service as ResourceService;
+    });
+    const imagePath = "~/.editor/resources/paired-image.png";
+    io.resources.upload.mockResolvedValue(imagePath);
+    const reference = await resources!.upload(new File(["image"], "paired-image.png"));
+    expect(reference).toMatch(/^tau-collab-local:/);
+    expect(await resources!.remoteResourceToLocal!(reference)).toBe(imagePath);
     const previous = io.tree,
       oldDocument = document!;
     let finish = () => {};
@@ -218,6 +229,15 @@ it("本机正文保存失败后冲刷重试完整因果链，重开能恢复失�
       root.render(<Harness />);
     });
     await vi.waitFor(() => expect(io.tree).not.toBeNull());
+    let resources: ResourceService | undefined;
+    document!.services!((id, service) => {
+      if (id === IResourceService) resources = service as ResourceService;
+    });
+    const imagePath = "~/.editor/resources/image.png";
+    io.resources.upload.mockResolvedValue(imagePath);
+    expect(await resources!.upload(new File(["image"], "image.png"))).toBe(imagePath);
+    expect(await resources!.remoteResourceToLocal!(imagePath)).toBe(imagePath);
+    expect(io.resources.remoteResourceToLocal).not.toHaveBeenCalled();
     const seed = io.write.mock.calls[0][0].state;
     const tree = io.tree!;
     const saved: string[] = [];

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { CollaborationStore, fail } from "./store";
+import { collaborationAssetMime } from "@tau/collaboration";
 
 export class AssetOperations {
   private pending = new Map<string, Promise<void>>();
@@ -68,12 +69,7 @@ export async function assetRequest(
       return fail("INVALID_ASSET", "资源标识无效");
     const previous = store.assetByHash(documentId, digest);
     if (previous && (!requestedId || previous.id === requestedId)) return Response.json(previous);
-    const mime =
-      /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+|application\/pdf)$/.test(
-        file.type
-      )
-        ? file.type
-        : "application/octet-stream";
+    const mime = collaborationAssetMime(file.type, new Uint8Array(bytes).subarray(0, 64));
     const row = {
       id: requestedId ?? crypto.randomUUID(),
       document_id: documentId,

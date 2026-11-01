@@ -3,8 +3,10 @@ import { appDataDir } from "@tauri-apps/api/path";
 import * as tauri from "../../services/tauri";
 import { base64ToUint8Array } from "../../utils/base64";
 import { logPerf } from "../../utils/perf";
+import { isCollaborationResource } from "@tau/collaboration";
 
 const KNOWN_DIRECT_SOURCE_PATTERN = /^(data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
+const isManagedMediaSource = (source: string): boolean => isCollaborationResource(source);
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
@@ -140,11 +142,17 @@ export async function getMobileHomeDir(): Promise<string> {
 
 export async function resolveLocalMediaSource(
   source: string,
-  options: { thumbnail?: boolean } = {}
+  options: { thumbnail?: boolean; resolveResource?: (reference: string) => Promise<string> } = {}
 ): Promise<string> {
   const normalizedSource = source.trim();
   if (!normalizedSource) {
     return normalizedSource;
+  }
+  if (isManagedMediaSource(normalizedSource)) {
+    if (!options.resolveResource) throw new Error("协作图片缺少所属文档会话");
+    const path = await options.resolveResource(normalizedSource);
+    if (isCollaborationResource(path)) throw new Error("协作资源尚未解析");
+    return resolveLocalMediaSource(path, { thumbnail: options.thumbnail });
   }
 
   if (KNOWN_DIRECT_SOURCE_PATTERN.test(normalizedSource)) {

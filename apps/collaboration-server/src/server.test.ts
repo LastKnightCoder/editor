@@ -27,6 +27,62 @@ const auth = (identity: { id: string; secret: string }) => ({
 });
 
 describe("协作权限和持久化", () => {
+  it.each(["image/bmp", "image/x-ms-bmp", "application/octet-stream"])(
+    "上传与下载保留 BMP 的图片 MIME：%s",
+    async mime => {
+      const { app, store } = await setup();
+      const owner = store.register("作者"),
+        document = store.create(owner.id, "bmp");
+      const bytes = Buffer.alloc(58);
+      bytes.write("BM");
+      bytes[2] = 58;
+      bytes[10] = 54;
+      bytes[14] = 40;
+      bytes[18] = 1;
+      bytes[22] = 1;
+      bytes[26] = 1;
+      bytes[28] = 24;
+      const assetId = crypto.randomUUID();
+      const payload = Buffer.concat([
+        Buffer.from(
+          `--image-boundary\r\nContent-Disposition: form-data; name="file"; filename="photo.bmp"\r\nContent-Type: ${mime}\r\n\r\n`
+        ),
+        bytes,
+        Buffer.from("\r\n--image-boundary--\r\n"),
+      ]);
+      const uploaded = await app.inject({
+        method: "POST",
+        url: `/v1/documents/${document.id}/assets`,
+        headers: {
+          ...auth(owner),
+          "content-type": "multipart/form-data; boundary=image-boundary",
+          "x-asset-id": assetId,
+        },
+        payload,
+      });
+      expect(uploaded.statusCode).toBe(200);
+      expect(uploaded.json().mime).toBe("image/bmp");
+      // 草稿不能读取，发布后验证实际下载头和原始字节。
+      const doc = await createTestDocument(
+        {
+          title: "图片",
+          content: [{ type: "paragraph", children: [{ text: "正文" }] }],
+          bannerBg: "",
+          bannerPosition: "center",
+        },
+        { documentId: document.id, baselineId: "base", epoch: 0 }
+      );
+      await store.publish(document.id, owner.id, Y.encodeStateAsUpdate(doc));
+      const downloaded = await app.inject({
+        method: "GET",
+        url: `/v1/documents/${document.id}/assets/${assetId}`,
+        headers: auth(owner),
+      });
+      expect(downloaded.headers["content-type"]).toBe("image/bmp");
+      expect(downloaded.rawPayload).toEqual(bytes);
+      doc.destroy();
+    }
+  );
   it.each([undefined, 1, 4])("拒绝发布版本 %s，不激活草稿或写入快照", async version => {
     const { app, store } = await setup();
     expect(

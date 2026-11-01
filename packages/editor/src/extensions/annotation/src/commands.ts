@@ -7,7 +7,7 @@ export const annotationCommands: EditorCommand[] = [
     id: "tau.annotation.insert",
     title: "插入注解",
     run: (editor, ctx) => {
-      insertAnnotation(editor, "注解内容");
+      insertAnnotation(editor);
       ctx.event?.preventDefault();
     },
   },

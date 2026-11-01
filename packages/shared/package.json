@@ -13,6 +13,7 @@
     "./inline-refs": "./inline-refs.ts",
     "./database-types": "./database-types.ts",
     "./calendar-utils": "./calendar-utils.ts",
+    "./reminders": "./reminders.ts",
     "./task-assistant": "./task-assistant.ts",
     "./fsrs-schedule": "./fsrs-schedule.ts",
     "./chat-renderers": "./chat-renderers.ts",

@@ -9,7 +9,7 @@ const SUPPORTED_APIS: [&str; 3] = [
     "openai-responses",
     "anthropic-messages",
 ];
-const FEATURES: [&str; 2] = ["chat", "speechInputRefinement"];
+const FEATURES: [&str; 3] = ["chat", "speechInputRefinement", "flashcardGeneration"];
 const REFINEMENT_STYLES: [&str; 2] = ["light", "paragraphs"];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -52,11 +52,14 @@ fn key_hint(key: &str) -> String {
     chars[chars.len() - 4..].iter().collect()
 }
 
-/// 返回给页面的整份设置快照：凡是把设置交给 WebView 的命令都经过这里。
+/// 返回给页面的整份设置快照：凡是把设置交给 WebView 的命令都经过这里（去掉 Key 与请求头）。
 pub(crate) fn public_setting(setting: &Value) -> Value {
     let mut public = setting.clone();
     if public.get("llmProviders").is_some() {
         public["llmProviders"] = public_llm_providers(setting);
+    }
+    if public.get("mcpServers").is_some() {
+        public["mcpServers"] = crate::mcp_settings::public_servers(setting);
     }
     public
 }
@@ -508,6 +511,17 @@ mod tests {
         assert_eq!(setting["llmUsageSettings"]["chat"], model("p", "m2"));
         mutate(&mut setting, assign("chat", Value::Null)).unwrap();
         assert!(setting["llmUsageSettings"]["chat"].is_null());
+        mutate(
+            &mut setting,
+            assign("flashcardGeneration", model("p", "m1")),
+        )
+        .unwrap();
+        assert_eq!(
+            setting["llmUsageSettings"]["flashcardGeneration"],
+            model("p", "m1")
+        );
+        mutate(&mut setting, assign("flashcardGeneration", Value::Null)).unwrap();
+        assert!(setting["llmUsageSettings"]["flashcardGeneration"].is_null());
 
         let mut empty = json!({ "llmUsageSettings": [] });
         assert!(mutate(&mut empty, assign("chat", model("p", "m1"))).is_err());

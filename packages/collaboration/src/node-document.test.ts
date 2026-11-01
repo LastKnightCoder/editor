@@ -44,6 +44,57 @@ async function setup() {
 }
 
 describe("节点文档协议与增量准入", () => {
+  it("仅本机准入显式保留图片路径，同一文档及增量不能直接进入共享", async () => {
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const doc = await createNodeDocument(
+      identity,
+      {
+        title: "本机",
+        bannerBg: "",
+        bannerPosition: "center",
+        content: [
+          {
+            type: "image",
+            collabId: "image",
+            tauContract: image.id,
+            url: "~/.editor/resources/image.png",
+            children: [{ text: "" }],
+          },
+        ],
+      },
+      { [image.id]: image.contract },
+      { allowLocalResources: true }
+    );
+    const peer = new Y.Doc({ gc: false });
+    let accepted: Y.Doc | undefined;
+    try {
+      Y.applyUpdate(peer, Y.encodeStateAsUpdate(doc));
+      await expect(validateNodeDocument(peer, identity)).rejects.toMatchObject({
+        code: "INVALID_DOCUMENT",
+      });
+      const tree = new NodeTree(peer);
+      tree.setProperties("image", { url: "~/.editor/resources/replaced.webp" }, null);
+      tree.dispose();
+      const update = Y.encodeStateAsUpdate(peer, Y.encodeStateVector(doc));
+      await expect(applyNodeDocumentUpdate(doc, update, identity)).rejects.toMatchObject({
+        code: "INVALID_DOCUMENT",
+      });
+      accepted = await applyNodeDocumentUpdate(doc, update, identity, {
+        allowLocalResources: true,
+      });
+      expect(readNodeDocument(accepted).content[0].url).toBe("~/.editor/resources/replaced.webp");
+    } finally {
+      accepted?.destroy();
+      peer.destroy();
+      doc.destroy();
+    }
+  });
   it("标题保留原有文本增量合并语义", async () => {
     const { doc, fork, dispose } = await setup();
     let accepted: Y.Doc | undefined;

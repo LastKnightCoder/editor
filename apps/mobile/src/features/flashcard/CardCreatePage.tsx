@@ -19,6 +19,7 @@ type CardCreatePageProps = {
   referenceTitle?: string;
   onBack: () => void;
   onChoose: (deckId: number, type: FlashcardType) => void;
+  onGenerate?: (deckId: number) => void;
   createDeck?: (input: {
     name: string;
     description: string;
@@ -32,6 +33,7 @@ export function CardCreatePage({
   referenceTitle,
   onBack,
   onChoose,
+  onGenerate,
   createDeck,
 }: CardCreatePageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -106,40 +108,53 @@ export function CardCreatePage({
             </div>
           ) : null}
 
-          <div className="text-ink-2 mt-1 px-1 text-[12.5px] font-extrabold">选择题型</div>
+          <div className="text-ink-2 mt-1 px-1 text-[12.5px] font-extrabold">
+            {onGenerate ? "AI 制作" : "选择题型"}
+          </div>
           {decks.length === 0 ? (
             <div className="border-line-1 text-ink-3 rounded-[16px] border-2 border-dashed py-4 text-center text-[13px] font-semibold">
               还没有卡组，先回闪卡主页创建一个再来建卡
             </div>
           ) : null}
-          {FLASHCARD_TYPE_ORDER.map(type => {
-            const tone = TYPE_TONE[type];
-            return (
-              <button
-                key={type}
-                type="button"
-                disabled={decks.length === 0 || deckId === -1}
-                onClick={() => onChoose(deckId, type)}
-                className="bg-surface shadow-card active:bg-hover flex items-center gap-3.5 rounded-[20px] p-4 text-left disabled:opacity-45"
-              >
-                <span
-                  className="grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[20px] font-extrabold"
-                  style={{ background: tone.soft, color: tone.color }}
+          {onGenerate ? (
+            <button
+              type="button"
+              disabled={!deck}
+              onClick={() => onGenerate(deckId)}
+              className="bg-accent text-ink-inverse rounded-tau-lg px-4 py-3 font-semibold disabled:opacity-45"
+            >
+              用 AI 制作闪卡
+            </button>
+          ) : (
+            FLASHCARD_TYPE_ORDER.map(type => {
+              const tone = TYPE_TONE[type];
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  disabled={decks.length === 0 || deckId === -1}
+                  onClick={() => onChoose(deckId, type)}
+                  className="bg-surface shadow-card active:bg-hover flex items-center gap-3.5 rounded-[20px] p-4 text-left disabled:opacity-45"
                 >
-                  {tone.icon}
-                </span>
-                <span className="flex-1">
-                  <span className="text-ink-1 block text-[15px] font-extrabold">
-                    {FLASHCARD_TYPE_META[type].label}
+                  <span
+                    className="grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[20px] font-extrabold"
+                    style={{ background: tone.soft, color: tone.color }}
+                  >
+                    {tone.icon}
                   </span>
-                  <span className="text-ink-2 mt-0.5 block text-[11.5px] font-semibold">
-                    {FLASHCARD_TYPE_META[type].description}
+                  <span className="flex-1">
+                    <span className="text-ink-1 block text-[15px] font-extrabold">
+                      {FLASHCARD_TYPE_META[type].label}
+                    </span>
+                    <span className="text-ink-2 mt-0.5 block text-[11.5px] font-semibold">
+                      {FLASHCARD_TYPE_META[type].description}
+                    </span>
                   </span>
-                </span>
-                <span className="text-ink-3">›</span>
-              </button>
-            );
-          })}
+                  <span className="text-ink-3">›</span>
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 

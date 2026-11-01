@@ -66,6 +66,7 @@ export class MobilePluginRuntime {
   aiSkills?: ReturnType<typeof import("./ai-skills").createMobilePluginAiSkills>;
   readonly aiChat = createMobilePluginChat();
   private readonly aiPackages = new Map<string, MobileAiSkillPackage>();
+  private readonly skillCounts = new Map<string, number>();
   private readonly skillEligibility = new Set<string>();
   private skillInventoryEpoch = 0;
   private skillPackagesAllowed = true;
@@ -297,7 +298,8 @@ export class MobilePluginRuntime {
         },
       },
       speech: {
-        unavailableReason: () => this.speech?.unavailableReason() ?? "插件语音输入尚未就绪",
+        unavailableReason: () =>
+          this.speech ? this.speech.unavailableReason() : "插件语音输入尚未就绪",
         start: (context, options) => {
           if (!this.speech) throw new Error("SPEECH_UNAVAILABLE：插件语音输入尚未就绪");
           return this.speech.start(context, options);
@@ -465,6 +467,7 @@ export class MobilePluginRuntime {
         );
         if (this.disposed || epoch !== this.skillInventoryEpoch) return;
         if (artifact.kind !== "skills" || !revision) continue;
+        this.skillCounts.set(item.id, artifact.manifest.skills?.length ?? 0);
         skills.push({
           id: item.id,
           kind: "skills",
@@ -631,6 +634,7 @@ export class MobilePluginRuntime {
             skillRevision: item.skillRevision,
           });
           this.skillEligibility.add(item.id);
+          this.skillCounts.set(item.id, artifact.manifest.skills?.length ?? 0);
           continue;
         }
         const definition = evaluatePortablePluginPackage(artifact, modules, {
@@ -656,6 +660,7 @@ export class MobilePluginRuntime {
             skillRevision: item.skillRevision,
           });
         if (item.skillRevision) this.skillEligibility.add(item.id);
+        this.skillCounts.set(item.id, artifact.manifest.skills?.length ?? 0);
         this.content.install(candidate.list());
         nodeTypes.forEach(type => this.elementSupport.set(type, "edit"));
         this.packageNodes.set(item.id, nodeTypes);
@@ -695,7 +700,13 @@ export class MobilePluginRuntime {
       entries: count(this.entries),
       settings: count(this.settings),
       homePanels: count(this.homePanels),
+      skills: this.skillCounts.get(pluginId) ?? 0,
+      mcp: this.aiMcp?.getSnapshot().filter(state => state.pluginId === pluginId).length ?? 0,
     };
+  }
+  /** Skill 来源分类：插件自带还是独立 Skill 包；未知来源返回 null */
+  aiPackageKind(id: string) {
+    return this.aiPackages.get(id)?.kind ?? null;
   }
   async blockFromCenter(id: string) {
     if (this.disposed) return;

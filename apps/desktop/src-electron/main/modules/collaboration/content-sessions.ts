@@ -105,7 +105,11 @@ export function readLocalSessionContent(session: RuntimeSession) {
         if (!isLocalAssetReference(reference) && !reference.startsWith(ASSET_PREFIX))
           return reference;
         try {
-          return session.assets?.resolveLocalFile(reference, session.info.id) || reference;
+          const owned =
+            session.info.mode !== "local" && session.info.role === "owner"
+              ? session.assets?.ownerImageReference(session.info.id, reference)
+              : undefined;
+          return owned || session.assets?.resolveLocalFile(reference, session.info.id) || reference;
         } catch {
           // 附件解析失败只影响该附件，原引用保留以便资源恢复后重新加载。
           return reference;

@@ -184,6 +184,12 @@ pub struct SyncActionResponse {
     pub remote_version: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SyncProgress {
+    pub value: f64,
+    pub status: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseSchemaStatusResponse {

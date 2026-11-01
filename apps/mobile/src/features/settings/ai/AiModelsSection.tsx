@@ -2,7 +2,7 @@
 // API Key 由原生持有，页面只看到 configured 与末 4 位提示。
 
 import { lazy, Suspense, useState } from "react";
-import { AudioLines, ChevronRight, MessagesSquare, Plus } from "lucide-react";
+import { AudioLines, ChevronRight, Layers, MessagesSquare, Plus } from "lucide-react";
 import { GroupLabel } from "../../../components/GroupLabel";
 import { toast } from "../../../components/toast";
 import { useNavigator } from "../../../router";
@@ -20,6 +20,7 @@ const AddProviderSheet = lazy(() =>
 
 const FEATURE_ICONS: Record<LlmFeatureKey, { icon: typeof AudioLines; tone: string }> = {
   chat: { icon: MessagesSquare, tone: "bg-accent-soft text-accent-text" },
+  flashcardGeneration: { icon: Layers, tone: "bg-tag-3-soft text-tag-3" },
   speechInputRefinement: { icon: AudioLines, tone: "bg-tag-1-soft text-tag-1" },
 };
 

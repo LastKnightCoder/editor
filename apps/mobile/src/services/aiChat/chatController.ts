@@ -13,7 +13,10 @@ import {
 import type { AiModelRef } from "@tau/ai/contracts";
 import type { AiApproval, AiQuestion, AiRunSnapshot, MobileAiService } from "../ai";
 import { registerHostCapabilities } from "./hostTools";
+import { toolSourceOf } from "./tool";
 import { INTERNAL_SKILL_SOURCE_ID } from "./skills";
+import { isToolEnabled, libraryPreferences } from "./capabilityPreferences";
+import { syncCustomMcpServers } from "./customMcp";
 
 export const CHAT_SCOPE = "main-chat";
 /** 就近对话：domainRef 为 content:<contentId>，同一篇再次打开续上最近一次 */
@@ -64,8 +67,10 @@ const capabilities = new Map<
   string,
   Promise<{ service: MobileAiService; toolIds: string[]; dispose(): void }>
 >();
+/** 用户添加的远程 MCP 只在对话或 MCP 管理页用到时才连接，读 Skill 目录不触发网络 */
+const customMcpSync = new Map<string, () => void>();
 
-function capabilitiesFor(databaseName: string) {
+function capabilitiesFor(databaseName: string, options: { connectCustomMcp?: boolean } = {}) {
   let entry = capabilities.get(databaseName);
   if (!entry) {
     entry = loadService().then(service => ({
@@ -75,18 +80,45 @@ function capabilitiesFor(databaseName: string) {
     entry.catch(() => capabilities.delete(databaseName));
     capabilities.set(databaseName, entry);
   }
+  if (options.connectCustomMcp !== false)
+    void entry.then(
+      ({ service }) => {
+        if (capabilities.has(databaseName) && !customMcpSync.has(databaseName))
+          customMcpSync.set(databaseName, syncCustomMcpServers(service, databaseName));
+      },
+      () => undefined
+    );
   return entry;
 }
 
 export async function releaseChatLibrary(databaseName: string) {
   const entry = capabilities.get(databaseName);
   capabilities.delete(databaseName);
+  customMcpSync.get(databaseName)?.();
+  customMcpSync.delete(databaseName);
   (await entry?.catch(() => null))?.dispose();
 }
 
+/** 「选择 Skill」用：已按本机偏好去掉停用的 Skill */
 export async function listChatSkills(databaseName: string, signal?: AbortSignal) {
-  const { service } = await capabilitiesFor(databaseName);
+  const { service } = await capabilitiesFor(databaseName, { connectCustomMcp: false });
+  return service.skills.available(databaseName, signal);
+}
+
+/** 管理页用：包含停用的 Skill，使用方式由页面按偏好计算 */
+export async function listAllSkills(databaseName: string, signal?: AbortSignal) {
+  const { service } = await capabilitiesFor(databaseName, { connectCustomMcp: false });
   return service.skills.list(signal);
+}
+
+export async function readSkillDocument(databaseName: string, id: string, signal?: AbortSignal) {
+  const { service } = await capabilitiesFor(databaseName, { connectCustomMcp: false });
+  return service.skills.load(id, { manual: true, signal });
+}
+
+/** 管理页用：本库全部已注册工具（宿主工具 + 插件 MCP + 自定义 MCP） */
+export async function chatCapabilities(databaseName: string) {
+  return (await capabilitiesFor(databaseName)).service;
 }
 
 const toError = (error: unknown) => {
@@ -322,12 +354,7 @@ async function runChat(
       message,
       model: state.model,
       ...(thinkingLevel && { thinkingLevel }),
-      toolIds: [
-        ...new Set([
-          ...toolIds,
-          ...service.tools.list({ databaseName: state.databaseName }).map(tool => tool.id),
-        ]),
-      ],
+      toolIds: enabledToolIds(service, state.databaseName, toolIds),
       skillIds: [
         ...new Set(
           message
@@ -343,6 +370,16 @@ async function runChat(
       .getState()
       .patch(sessionId, { runId: null, status: "idle", error: toError(error) });
   }
+}
+
+function enabledToolIds(service: MobileAiService, databaseName: string, hostToolIds: string[]) {
+  const preferences = libraryPreferences(databaseName);
+  const tools = service.tools.list({ databaseName });
+  const byId = new Map(tools.map(tool => [tool.id, tool]));
+  return [...new Set([...hostToolIds, ...tools.map(tool => tool.id)])].filter(id => {
+    const tool = byId.get(id);
+    return !tool || isToolEnabled(preferences, { id, sourceId: toolSourceOf(tool) });
+  });
 }
 
 export async function stopRun(sessionId: string) {
