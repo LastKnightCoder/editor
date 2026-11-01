@@ -1,0 +1,136 @@
+/*
+ * Tau PPT 公共样式：只包含 deck.js 生成的全览层和导航点基础重置。
+ * 颜色通过 --deck-ov-* 变量覆盖；模板也可以直接重写 .ov-* 规则（本文件内联在 <head> 最前，模板 <style> 在后）。
+ */
+
+:root {
+  --deck-ov-backdrop: rgba(10, 10, 15, 0.97);
+  --deck-ov-card-bg: var(--bg, #111);
+  --deck-ov-accent: rgba(100, 170, 255, 0.5);
+}
+
+.ov-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-content: start;
+  gap: clamp(10px, 1.5vw, 16px);
+  padding: clamp(20px, 3vw, 48px);
+  background: var(--deck-ov-backdrop);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.ov-grid.ov-visible {
+  opacity: 1;
+}
+
+.ov-card {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: var(--deck-ov-card-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    transform 0.15s,
+    box-shadow 0.2s;
+}
+
+.ov-card:hover {
+  border-color: var(--deck-ov-accent);
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.ov-card.ov-current {
+  border-color: var(--deck-ov-accent);
+  box-shadow: 0 0 16px rgba(100, 170, 255, 0.12);
+}
+
+.ov-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* 缩略图直接呈现每页的最终状态 */
+.ov-inner .slide {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+.ov-inner * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.ov-inner [class*="reveal"] {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+}
+
+.ov-num {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font:
+    12px system-ui,
+    monospace;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.ov-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ov-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 导航点由 deck.js 生成为 <button>；:where 零特异性，模板类名规则总能覆盖 */
+:where([data-deck-dots] > button) {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}

@@ -18,7 +18,8 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "bench:whiteboard-hit": "pnpm --filter @tau/whiteboard bench:hit",
     "bench:whiteboard-render-profile": "pnpm --filter @tau/whiteboard bench:render",
-    "build:native-speech": "node scripts/build-native-speech.mjs"
+    "build:native-speech": "node scripts/build-native-speech.mjs",
+    "preview:ppt": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/preview-ppt-templates.mjs"
   },
   "dependencies": {
     "7zip-min": "^2.1.0",

@@ -39,7 +39,7 @@ const cinematicStyleGuide = `
 - **章节过渡**: 巨型背景数字 + 衬线章节标题，居中布局
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，支持键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"
 `;
 
 const minimalStyleGuide = `
@@ -57,26 +57,32 @@ const minimalStyleGuide = `
 - **对比度**: 所有文本至少 WCAG AA（4.5:1+），主文本 #141414 on #ffffff ≈ 18.3:1，次要文本 #525252 ≈ 7.5:1
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"
 `;
 
 const corporateStyleGuide = `
 ### 视觉风格 (Corporate Style - 商务权威)
-- **字体**: Google Fonts 导入 Source Serif 4（衬线标题展示 300-700）+ Work Sans（正文 300-600）+ Fira Code（标签/数据/等宽）
-- **配色**: OKLCH 色彩系统——深暖灰板岩 oklch(0.22 0.01 250)，赤陶强调 oklch(0.65 0.14 35)，鼠尾草绿次要 oklch(0.72 0.06 160)，暖白文字 oklch(0.93 0.01 80)
-- **排版**: 所有字号 clamp()，衬线标题对比无衬线正文，层级通过 ≥1.5 倍比 + weight 对比（Display 400 vs Body 300）
-- **动效**: 指数 ease-out cubic-bezier(0.16, 1, 0.3, 1)，500-600ms，无弹性回弹
-- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + .d1~d8 延迟交错（每级 80ms）
-- **背景**: 暖深灰板岩色 + body::after SVG feTurbulence 噪点纹理 (0.025 opacity)
-- **装饰**: 克制——2px 赤陶色短横线作为分隔符，巨型衬线幽灵数字 (6-8% opacity) 营造层次，建筑感直角 border-radius: 2-6px
-- **布局**: 不对称网格（35/65 分栏），内容左对齐为主，留白不均匀营造节奏感，1px 分隔线替代卡片包裹
-- **数据展示**: Source Serif 4 大号数字左对齐 + Fira Code 标签，四列统计通过竖线分隔而非卡片，进度条置于 graph-paper 网格背景上
-- **时间线**: 竖向布局 + 赤陶方形节点 + 等宽日期左置
-- **章节过渡**: 巨型幽灵数字（14vw 衬线，底部右侧出血）+ 居中衬线标题 + 赤陶短线
-- **进度条**: 底部 2px 细线（赤陶→鼠尾草渐变），Fira Code 等宽页码
+- **字体**: Google Fonts 导入 Source Serif 4（衬线标题 300-700）+ Work Sans（正文 300-600）+ Fira Code（标签/数据/等宽）
+- **配色**: OKLCH 色彩系统——深暖灰板岩 oklch(0.22 0.01 250)，赤陶强调 oklch(0.65 0.14 35)，鼠尾草绿 oklch(0.72 0.06 160) 表示超额/正向，暖白文字 oklch(0.93 0.01 80)；下降用 --negative
+- **排版**: 所有字号 clamp()，衬线标题对比无衬线正文；内容页标题用 --fs-title（比章节标题 --fs-h2 小一档），层级通过字号比 + 字重对比（Display 400 vs Body 300）
+- **标题写法**: 内容页标题写结论而不是主题（「营收与用户双增长，利润率小幅回落」，而不是「年度核心数据」），副标题补一句原因或影响
+- **动效**: 指数 ease-out cubic-bezier(0.16, 1, 0.3, 1)，500-600ms，无弹性回弹；.reveal / .reveal-scale / .reveal-left / .reveal-right + .delay-1~8（每级 80ms）
+- **背景与装饰**: 深板岩色 + body::after SVG 噪点 (0.025)；2px 赤陶短线作分隔，巨型衬线幽灵数字 (6% opacity)，1px 分隔线替代卡片包裹，圆角 2-6px
+- **页面框架**: 内容页顶部固定 .slide-header（左侧品牌名、右侧英文栏目名），高度为 --header-h；内容页 padding-top 用 calc(var(--header-h) + var(--header-gap))，让小标签与顶栏分隔线始终保持一段明确距离；标题区（eyebrow + 标题 + 副标题）固定在左上角；正文包在 .slide-body 中，占满标题下方的剩余高度，内容保持自然高度并在其中垂直居中（safe center），不拉伸行高；内容量要撑起一整页（约占正文区六到八成），数字一律配解读或对比；底部 2px 赤陶→鼠尾草渐变进度条，右下角等宽页码
+- **特色页型（优先使用）**:
+  - 执行摘要：紧跟封面，.exec-points 三条结论，每条左侧一个关键数字（.exec-figure，问题项用 .alt）
+  - 议程：.agenda-grid 编号列表，条目与章节一一对应，每章右侧写本章要回答的问题（.agenda-q）和包含的页码
+  - 章节过渡：.slide-chapter 巨型幽灵数字 + Section 0n + 衬线标题
+  - KPI：.stats-row 四列竖线分隔的大数字 + .stat-trend 同比（.up / .down）+ .stat-spark 季度迷你柱（\`style="--h: 68%"\`）+ .stat-note 一句原因
+  - 目标达成：.target-split 左侧 .chart-list 条形图（.chart-label 下写「实际 / 目标」，超额用 .alt，下方 .chart-note 写口径），右侧 .target-callout 写未达成原因
+  - 前后对比：.comparison-split Before / After，每侧先放一个代表性数字（.compare-hero），再列不超过 4 条
+  - 里程碑：.timeline-vertical 等宽日期 + 方形节点，不超过 5 项
+  - 优先级矩阵：.matrix-split 左侧 .matrix-grid 2×2（格内写「影响 · 投入 — 结论」，重点格 .is-key，暂缓格 .is-muted，下方 .matrix-legend 说明坐标轴），右侧 .matrix-decisions 三条结论
+  - 行动计划：.action-table 举措（下方 .action-sub 写范围）/ 负责人 / 完成时间 / 衡量指标，表格下方 .plan-summary 汇总预算、编制与首批交付，放在结束页之前
+- **不适合本风格**: 卡片网格与 hover 上浮、图标装饰、渐变/霓虹、大段引言独占一页、超过 6 条的清单
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total（不补零）
 `;
 
 const techStyleGuide = `
@@ -92,7 +98,7 @@ const techStyleGuide = `
 - **代码块**: 终端风格头部（红黄绿三圆点）+ 深色背景 + 语法高亮色
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"，指示点 data-deck-dots="slide-indicators__dot"
 `;
 
 const creativeStyleGuide = `
@@ -109,23 +115,32 @@ const creativeStyleGuide = `
 - **大字排版**: clamp(2.5rem, 8vw, 7rem) 超大冲击字号
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"，导航点 data-deck-dots="nav-dots__dot"
 `;
 
 const academicStyleGuide = `
 ### 视觉风格 (Academic Style - 学术论文)
-- **字体**: Google Fonts 导入 Crimson Text（标题衬线）+ Source Sans 3（正文）+ JetBrains Mono（代码/数据）
+- **字体**: Google Fonts 导入 Crimson Text（西文衬线）+ Noto Serif SC（中文衬线）+ Source Sans 3（正文）+ JetBrains Mono（数据）
 - **配色**: 米白纸张 #fffef9，浅米灰 #f5f4ef，深蓝灰 #2c3e50，学术蓝 #1a5f7a，高亮黄 #fff3cd
-- **排版**: 所有字号用 clamp()，传统论文排版 text-align: justify，章节编号 SECTION I/II/III
-- **动效**: 克制稳重 400-600ms，ease 缓动
-- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
-- **背景**: 温暖米白纸张质感，无花哨装饰
-- **装饰**: 细线进度条，1/12 格式页码，左侧蓝色边框定义框
-- **学术组件**: 上标引用 [1][2]，脚注区，参考文献悬挂缩进，数据表格含 caption+note
-- **卡片**: 定义框（蓝色左边框 + 浅色背景），blockquote 左边框引用
+- **排版**: 所有字号用 clamp()，正文 text-align: justify，章节编号 SECTION I/II/III，目录用罗马数字
+- **动效**: 克制稳重 500ms，ease 缓动，只用 .reveal + .delay-1~7 交错入场
+- **装饰**: 无花哨装饰，只有顶部细线进度条和右下角页码
+- **页面框架**: 内容页分三区——标题区（.slide-header + .slide-title）固定在左上角；正文包在 .slide-body 中，占满剩余高度并在其中垂直居中；脚注 .footnotes 放在 .slide-body 之后，位于页面底部。只有封面、目录/章节页（.slide-section）和引言页（.slide-quote）整页居中
+- **引用体系**: 正文上标 .cite-mark [n] 与参考文献页编号一一对应；需要出处细节时在页脚 .footnotes 放脚注
+- **图表编号**: 表格用 .data-table 三线表（顶线、栏目线、底线，无竖线无底色），表题「表 n」在表上方，.table-note「注：」在表下方；图用 figure.figure 包裹，figcaption「图 n」在图下方
+- **特色页型（优先使用）**:
+  - 封面：作者姓名带上标单位编号，下方列单位
+  - 研究问题与假设：.hypothesis-list，RQ / H1 / H2 斜体编号 + 衬线陈述句
+  - 概念定义：.definition-box「定义 n　术语（English）」+ 页脚脚注
+  - 三线表数据页、带图题的图表页（.chart-list 横向条形图）
+  - 对照研究：.two-col 案例 A / B，每栏 .col-heading + 不超过 3 条要点
+  - 学者引言：.academic-quote 单句引文 + cite 出处
+  - 结论与局限：.summary-grid 四格（主要结论 / 应用价值 / 研究局限 / 未来方向）
+  - 参考文献：.ref-item APA 格式悬挂缩进，放在结束页之前
+- **不适合本风格**: 大字口号页、象限矩阵、霓虹或渐变装饰、卡片 hover 上浮
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total（不补零）
 `;
 
 const natureStyleGuide = `
@@ -141,7 +156,7 @@ const natureStyleGuide = `
 - **有机元素**: 波浪分隔线（CSS clip-path），温暖大地色系
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"，data-count 支持小数
 `;
 
 const retroStyleGuide = `
@@ -157,7 +172,7 @@ const retroStyleGuide = `
 - **时间线**: 竖向时间线 + 金色圆点标记
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画，罗马数字页码
+- **JS**: 不写导航脚本（由公共运行时注入）；页码只显示当前页 data-deck-current="roman"（罗马数字）
 `;
 
 const gradientStyleGuide = `
@@ -173,7 +188,7 @@ const gradientStyleGuide = `
 - **hover**: 玻璃加深 + 微浮 + glow 效果
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持（禁用渐变动画和光球浮动）
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"，导航点 data-deck-dots="nav-dot"，后退方向用 [data-deck-direction="backward"] .slide.is-entering 区分入场
 `;
 
 const darkElegantStyleGuide = `
@@ -192,7 +207,7 @@ const darkElegantStyleGuide = `
 - **页码**: 点分隔符 · 代替斜杠
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画（支持小数）
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"，data-count 支持小数
 `;
 
 const handwrittenStyleGuide = `
@@ -209,7 +224,7 @@ const handwrittenStyleGuide = `
 - **复选框**: ☐ / ☑ 手绘复选框列表
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total（不补零）；RoughJS 手绘装饰脚本单独写在 type="module" 中，只负责绘制
 `;
 
 const cyberpunkStyleGuide = `
@@ -226,7 +241,7 @@ const cyberpunkStyleGuide = `
 - **进度条**: 顶部 2px 渐变线（绿→青），右下角 Orbitron 等宽页码
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持（禁用 glitch 动画）
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"
 `;
 
 const zenStyleGuide = `
@@ -243,7 +258,7 @@ const zenStyleGuide = `
 - **章节**: 极淡巨型汉字底部水印 + 醒目标题前景
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，汉字页码，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="cjk"（汉字）
 `;
 
 const watercolorStyleGuide = `
@@ -260,7 +275,7 @@ const watercolorStyleGuide = `
 - **进度条**: 顶部 3px 渐变线（粉→蓝），右下角 Playfair Display 斜体页码
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"
 `;
 
 const blueprintStyleGuide = `
@@ -277,7 +292,7 @@ const blueprintStyleGuide = `
 - **标签**: 方括号边框 [TAG] 风格，单色细边框
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画（支持小数）
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"，data-count 支持小数
 `;
 
 const brutalismStyleGuide = `
@@ -300,7 +315,7 @@ const brutalismStyleGuide = `
 - **章节过渡**: 巨型 900 字重数字铺底（18vw）+ 粗短横线 + 标题叠加
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"
 `;
 
 const capsuleStyleGuide = `
@@ -313,9 +328,10 @@ const capsuleStyleGuide = `
 - **动效**: 650ms 页面淡入，620ms reveal，cubic-bezier(0.16, 1, 0.3, 1) 指数缓出；无弹性回弹
 - **背景**: 暖纸色 + 极淡网格纹理，保持胶囊和大字的舞台感；不使用玻璃拟态或大面积模糊光球
 - **数据**: data-count 数字动效、.bar-fill[data-percent] 胶囊进度条；数字用 Bodoni，解释文字保持短句
-- **导航**: 顶部糖果渐变进度条，右下角描边胶囊页码；支持键盘、滚轮、触摸、全屏和 overview
+- **导航**: 顶部糖果渐变进度条，右下角描边胶囊页码
 - **断点**: max-width 900px / 620px 响应式降列，移动端允许纵向滚动避免内容溢出
 - **无障碍**: prefers-reduced-motion 禁用动画；深色文字与浅纸背景保持高对比
+- **JS**: 不写导航脚本（由公共运行时注入）；页码 data-deck-current/total="pad2"
 `;
 
 const generatePreviewHtml = (
@@ -324,7 +340,7 @@ const generatePreviewHtml = (
   accentColor: string,
   title: string,
   subtitle: string,
-  style: "dark" | "light" | "gradient",
+  style: "dark" | "light" | "gradient"
 ): string => {
   const bgStyle =
     style === "gradient"
@@ -380,7 +396,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#d4af37",
       "电影质感",
       "CINEMATIC",
-      "dark",
+      "dark"
     ),
     fullTemplate: templateCinematic,
     styleGuide: cinematicStyleGuide,
@@ -395,7 +411,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#141414",
       "极简中性",
       "MINIMAL",
-      "light",
+      "light"
     ),
     fullTemplate: templateMinimal,
     styleGuide: minimalStyleGuide,
@@ -404,14 +420,14 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     id: "corporate",
     name: "商务权威",
     description:
-      "深暖灰板岩背景，赤陶色强调，衬线/无衬线双字体系统，适合高端商业报告与咨询演示",
+      "深暖灰板岩背景，赤陶色强调，结论先行的咨询式结构，适合年度汇报、经营分析与战略规划",
     previewHtml: generatePreviewHtml(
       "#2a2d32",
       "#ece5d8",
       "#c4704a",
       "商务权威",
       "CORPORATE",
-      "dark",
+      "dark"
     ),
     fullTemplate: templateCorporate,
     styleGuide: corporateStyleGuide,
@@ -420,14 +436,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     id: "tech",
     name: "科技感",
     description: "深色背景，霓虹渐变，网格动效，适合技术分享",
-    previewHtml: generatePreviewHtml(
-      "#0a0a0f",
-      "#e4e4e7",
-      "#00d4ff",
-      "科技感",
-      "TECH",
-      "dark",
-    ),
+    previewHtml: generatePreviewHtml("#0a0a0f", "#e4e4e7", "#00d4ff", "科技感", "TECH", "dark"),
     fullTemplate: templateTech,
     styleGuide: techStyleGuide,
   },
@@ -441,7 +450,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#ff6b6b",
       "创意艺术",
       "CREATIVE",
-      "gradient",
+      "gradient"
     ),
     fullTemplate: templateCreative,
     styleGuide: creativeStyleGuide,
@@ -456,7 +465,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#1a5f7a",
       "学术论文",
       "ACADEMIC",
-      "light",
+      "light"
     ),
     fullTemplate: templateAcademic,
     styleGuide: academicStyleGuide,
@@ -471,7 +480,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#95d5b2",
       "自然清新",
       "NATURE",
-      "light",
+      "light"
     ),
     fullTemplate: templateNature,
     styleGuide: natureStyleGuide,
@@ -480,14 +489,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     id: "retro",
     name: "复古怀旧",
     description: "深棕色调，做旧质感，适合历史文化主题",
-    previewHtml: generatePreviewHtml(
-      "#1a1612",
-      "#e8dcc8",
-      "#c9a96e",
-      "复古怀旧",
-      "RETRO",
-      "dark",
-    ),
+    previewHtml: generatePreviewHtml("#1a1612", "#e8dcc8", "#c9a96e", "复古怀旧", "RETRO", "dark"),
     fullTemplate: templateRetro,
     styleGuide: retroStyleGuide,
   },
@@ -501,7 +503,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#f093fb",
       "渐变流光",
       "GRADIENT",
-      "gradient",
+      "gradient"
     ),
     fullTemplate: templateGradient,
     styleGuide: gradientStyleGuide,
@@ -510,14 +512,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     id: "dark-elegant",
     name: "暗夜优雅",
     description: "深色背景，非对称编辑排版，纯色调层级极简",
-    previewHtml: generatePreviewHtml(
-      "#0f0e0d",
-      "#e8e5e0",
-      "#9c9590",
-      "暗夜优雅",
-      "AXIS",
-      "dark",
-    ),
+    previewHtml: generatePreviewHtml("#0f0e0d", "#e8e5e0", "#9c9590", "暗夜优雅", "AXIS", "dark"),
     fullTemplate: templateDarkElegant,
     styleGuide: darkElegantStyleGuide,
   },
@@ -531,7 +526,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#e07b53",
       "手绘风格",
       "SKETCH",
-      "light",
+      "light"
     ),
     fullTemplate: templateHandwritten,
     styleGuide: handwrittenStyleGuide,
@@ -546,7 +541,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#0dff8c",
       "赛博未来",
       "CYBERPUNK",
-      "dark",
+      "dark"
     ),
     fullTemplate: templateCyberpunk,
     styleGuide: cyberpunkStyleGuide,
@@ -555,14 +550,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     id: "zen",
     name: "禅意东方",
     description: "宣纸质感，墨黑文字，朱红点缀，极简东方美学",
-    previewHtml: generatePreviewHtml(
-      "#f9f5ec",
-      "#1a1a1a",
-      "#c0392b",
-      "禅意东方",
-      "ZEN",
-      "light",
-    ),
+    previewHtml: generatePreviewHtml("#f9f5ec", "#1a1a1a", "#c0392b", "禅意东方", "ZEN", "light"),
     fullTemplate: templateZen,
     styleGuide: zenStyleGuide,
   },
@@ -576,7 +564,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#f4a8b8",
       "水彩插画",
       "WATERCOLOR",
-      "gradient",
+      "gradient"
     ),
     fullTemplate: templateWatercolor,
     styleGuide: watercolorStyleGuide,
@@ -591,7 +579,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
       "#ffcb00",
       "系统蓝图",
       "BLUEPRINT",
-      "dark",
+      "dark"
     ),
     fullTemplate: templateBlueprint,
     styleGuide: blueprintStyleGuide,
@@ -599,15 +587,14 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
   {
     id: "brutalism",
     name: "粗野主义",
-    description:
-      "厚重黑色边框，硬阴影，明黄红蓝撞色，原始结构外露，适合先锋创意与潮流品牌",
+    description: "厚重黑色边框，硬阴影，明黄红蓝撞色，原始结构外露，适合先锋创意与潮流品牌",
     previewHtml: generatePreviewHtml(
       "#FFFDF5",
       "#1A1A1A",
       "#FFE600",
       "粗野主义",
       "BRUTALISM",
-      "light",
+      "light"
     ),
     fullTemplate: templateBrutalism,
     styleGuide: brutalismStyleGuide,
@@ -615,15 +602,14 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
   {
     id: "capsule",
     name: "胶囊叙事",
-    description:
-      "粗描边胶囊、糖果语义色、编辑式大字与多变版式，适合产品发布、创意提案和品牌叙事",
+    description: "粗描边胶囊、糖果语义色、编辑式大字与多变版式，适合产品发布、创意提案和品牌叙事",
     previewHtml: generatePreviewHtml(
       "#F5F2EA",
       "#2B211B",
       "#E85D4E",
       "胶囊叙事",
       "CAPSULE",
-      "light",
+      "light"
     ),
     fullTemplate: templateCapsule,
     styleGuide: capsuleStyleGuide,
@@ -633,11 +619,11 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
 export const DEFAULT_TEMPLATE_ID = "cinematic";
 
 export const getTemplateById = (id: string): PPTTemplate | undefined => {
-  return PPT_TEMPLATES.find((t) => t.id === id);
+  return PPT_TEMPLATES.find(t => t.id === id);
 };
 
 export const getDefaultTemplate = (): PPTTemplate => {
-  const template = PPT_TEMPLATES.find((t) => t.id === DEFAULT_TEMPLATE_ID);
+  const template = PPT_TEMPLATES.find(t => t.id === DEFAULT_TEMPLATE_ID);
   // 由于 DEFAULT_TEMPLATE_ID 是硬编码的 'cinematic'，且 PPT_TEMPLATES 第一个就是该模板
   // 所以这里一定能找到，使用 fallback 只是为了满足类型检查
   return template ?? PPT_TEMPLATES[0];

@@ -35,6 +35,8 @@ _tmp_*
 design-proposals/
 apps/mobile/docs/design/
 .shot-*.tmp.mjs
+# PPT 模板注入运行时后的本地预览（pnpm --filter desktop preview:ppt）
+apps/desktop/.ppt-preview/
 
 **/*/src-tauri/target
 # 例外：apps/mobile 的 Android MainActivity.kt（键盘高度注入、外部文件接收）与 AndroidManifest.xml（Markdown 打开方式）已用 git add -f 入库（目录被忽略时无法用 ! 反选）

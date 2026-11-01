@@ -1,5 +1,6 @@
 import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
+import { withPPTRuntime } from "@/utils/ppt-runtime";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
 import {
@@ -163,8 +164,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     return cleanPPTHtmlContent(markdown);
   }, [isPPT, content]);
 
-  // PPT 预览 URL
-  const pptPreviewUrl = useHtmlPreviewUrl(pptHtmlContent);
+  // 预览与下载用的完整 HTML：内联公共运行时，离线可用
+  const pptDeckHtml = useMemo(() => withPPTRuntime(pptHtmlContent), [pptHtmlContent]);
+  const pptPreviewUrl = useHtmlPreviewUrl(pptDeckHtml);
 
   // 报告的 HTML 内容（从代码块中提取并清理）
   const reportHtmlContent = useMemo(() => {
@@ -406,7 +408,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       return;
     }
     const filename = `${sanitizeFileName(title, "演示文稿")}.html`;
-    downloadTextFile(pptHtmlContent, filename, "text/html;charset=utf-8");
+    downloadTextFile(pptDeckHtml, filename, "text/html;charset=utf-8");
     toast.success("PPT 已下载");
   });
 
@@ -892,7 +894,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       >
         <div
           className={
-            isMindMap || isPPT || isReport ? "h-full" : "mx-auto max-w-[760px] px-10 pb-16 pt-2"
+            isMindMap || isPPT || isReport ? "h-full" : "mx-auto max-w-[760px] px-10 pt-2 pb-16"
           }
         >
           <ErrorBoundary>
