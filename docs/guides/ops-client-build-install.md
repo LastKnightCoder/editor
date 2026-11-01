@@ -23,7 +23,7 @@
 
 ## Android 构建与覆盖安装
 
-1. 设置 `JAVA_HOME`、`ANDROID_HOME`、`NDK_HOME`，将 JDK bin、SDK platform-tools 加入 PATH；使用符合生成工程要求的版本。`adb devices -l` 应识别指定设备，手机信任授权由用户完成。
+1. 设置 `JAVA_HOME`、`ANDROID_HOME`、`NDK_HOME`，再设置 `ANDROID_NDK_HOME` 为与 `NDK_HOME` 相同的路径，供原生音频依赖选择 NDK CMake 工具链；将 JDK bin、SDK platform-tools 加入 PATH，使用符合生成工程要求的版本。`adb devices -l` 应识别指定设备，手机信任授权由用户完成。
 2. 恢复正式签名目录（默认 `~/.editor-mobile-signing`）中的 keystore 与 credentials.env，或通过现有 `TAURI_ANDROID_*` 环境变量提供同一证书。备份存私有位置，不打印密码、不入库。
 3. 没有生成工程时才执行 `pnpm --filter mobile exec tauri android init`。已有工程不要因签名错误直接删除；备份原生自定义配置后再决定是否重建。
 4. 可先执行 `pnpm --filter mobile prepare:android:signing` 检查已有签名，再执行 `pnpm --filter mobile build:android:release`。正式构建与调试包入口会先运行 `check:rust`（Rust 格式检查、clippy 与单元测试，rustc 级 warning 即失败）再校验签名、更新工程签名配置并继续 Tauri；dev 入口不跑该检查。典型产物为 `apps/mobile/src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk`，以本次 CLI 输出为准。
@@ -59,7 +59,7 @@
 发布让已安装用户在「我的 → 关于与更新」收到更新，并更新官网的 Android 下载。只发 Android，iOS 不经此流程。
 
 1. 写好 `apps/mobile/release-notes/<版本>.md`（写法见同目录 README）；缺失或为空时脚本拒绝发布。
-2. 准备 Android 签名（同上节）与 R2 凭据 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。JAVA_HOME、ANDROID_HOME、NDK_HOME 未设置时，脚本按本机默认位置查找。
+2. 准备 Android 签名（同上节）与 R2 凭据 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。JAVA_HOME、ANDROID_HOME、NDK_HOME 未设置时，脚本按本机默认位置查找，并自动将 `ANDROID_NDK_HOME` 同步为 `NDK_HOME`。已设置的 `NDK_HOME` 必须指向包含 `build/cmake/android.toolchain.cmake` 的单个 NDK 目录，不可拼接多个版本。
 3. 先本地演练：`pnpm publish:mobile --version <版本> --dry-run`。dry-run 不回写版本号，所以 `--version` 只在与当前版本相同时能走通；要升版本，就先手动改好四处版本，或直接正式发布。
 4. 正式发布：`pnpm publish:mobile --version <版本>`。脚本依次：
    - 回写 apps/mobile 的 package.json、tauri.conf.json、Cargo.toml、Cargo.lock 四处版本；
