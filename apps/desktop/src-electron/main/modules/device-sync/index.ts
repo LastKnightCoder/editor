@@ -37,6 +37,7 @@ import {
   DeviceDatabaseStore,
   readDeviceSyncState,
   initializeDeviceSyncDatabase,
+  resetDeviceSyncDatabase,
 } from "./database-store";
 import { projectDeviceDocument } from "./content-state";
 import { DeviceAssetStore } from "./asset-store";
@@ -65,6 +66,7 @@ export class DeviceSyncModule {
   private starting: Promise<void> = Promise.resolve();
   private preparing = new Map<Database.Database, Promise<void>>();
   private enabling = new Map<Database.Database, Promise<void>>();
+  private stopping = new Map<Database.Database, Promise<void>>();
   private preparationProgress = new Map<Database.Database, { completed: number; total: number }>();
   private bootstrapping = new Set<string>();
   private client?: DeviceSyncClient;
@@ -382,6 +384,85 @@ export class DeviceSyncModule {
     writeFileSync(`${path}.tmp`, JSON.stringify({ database: name, enabled }), { mode: 0o600 });
     renameSync(`${path}.tmp`, path);
   }
+  private async stopCoordinator(name: string, db: Database.Database) {
+    await Promise.allSettled([this.enabling.get(db)]);
+    await Promise.allSettled([this.starting]);
+    if (!db.open || database.getDatabase(name) !== db)
+      throw new Error("DEVICE_SYNC_CLOSED: 停止期间资料库已变化");
+    const state = readDeviceSyncState(db);
+    if (!state || state.node !== state.authority || state.node !== this.nodeId())
+      throw new Error("DEVICE_SYNC_AUTHORITY: 当前资料库不是由本机协调");
+    const path = join(PathUtil.getAppDir(), name),
+      temporary = `${path}.${randomUUID()}.reset`,
+      backup = join(PathUtil.getAppDir(), "backup", `device-sync-exit-${randomUUID()}`),
+      session = join(this.directory(), createHash("sha256").update(state.library).digest("hex")),
+      savedSession = join(backup, "session"),
+      settingsPath = join(this.directory(), "host.json"),
+      settings = this.setting()?.database === name ? readFileSync(settingsPath, "utf8") : undefined;
+    const windows = BrowserWindow.getAllWindows().filter(
+      window => database.windowToDatabase.get(window.id) === name
+    );
+    const release = await PiSessionHost.acquireLibrary(name);
+    this.bootstrapping.add(name);
+    this.replacing.add(name);
+    let closed = false,
+      installed = false,
+      moved = false;
+    try {
+      if (this.nameOfLibrary === name) {
+        const server = this.server;
+        this.server = undefined;
+        this.openedDatabase = undefined;
+        this.nameOfLibrary = undefined;
+        await server?.close();
+      }
+      await Promise.allSettled([this.preparing.get(db)]);
+      await collaboration.resolveDeviceJsonIntents(name);
+      await database.closeForSync(name, async () => {
+        closed = true;
+        mkdirSync(backup, { recursive: true, mode: 0o700 });
+        copyFileSync(path, join(backup, name));
+        copyFileSync(path, temporary);
+        const candidate = new Database(temporary);
+        try {
+          resetDeviceSyncDatabase(candidate);
+          candidate.pragma("wal_checkpoint(TRUNCATE)");
+        } finally {
+          candidate.close();
+        }
+        await collaboration.releaseLibrary(name);
+        whiteboards.releaseLibrary(name);
+        if (existsSync(session)) {
+          renameSync(session, savedSession);
+          moved = true;
+        }
+        if (settings !== undefined) rmSync(settingsPath, { force: true });
+        installDatabaseDownload(path, temporary, "");
+        installed = true;
+      });
+      this.lastSync = undefined;
+      this.error = undefined;
+    } catch (error) {
+      if (!installed) {
+        if (moved) renameSync(savedSession, session);
+        if (settings !== undefined) writeFileSync(settingsPath, settings, { mode: 0o600 });
+      }
+      throw error;
+    } finally {
+      try {
+        for (const file of [temporary, `${temporary}-wal`, `${temporary}-shm`])
+          rmSync(file, { force: true });
+        if (closed) {
+          await database.reconnectForSync(name, "sync_download_reconnect");
+          for (const window of windows) if (!window.isDestroyed()) window.webContents.reload();
+        }
+      } finally {
+        release();
+        this.bootstrapping.delete(name);
+        this.replacing.delete(name);
+      }
+    }
+  }
   private forEvent(event: IpcMainInvokeEvent) {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window) throw new Error("窗口已关闭");
@@ -527,10 +608,11 @@ export class DeviceSyncModule {
       const { name, db } = this.forEvent(event);
       const state = readDeviceSyncState(db);
       const replica = state && state.node !== state.authority;
+      const coordinator = state && (this.setting()?.database === name || this.enabling.has(db));
       const peer = this.peer();
       const client = this.client?.peer.database === name ? this.client : undefined;
       return {
-        role: replica ? "replica" : state ? "coordinator" : "unpaired",
+        role: replica ? "replica" : coordinator ? "coordinator" : "unpaired",
         phase: client?.status.phase,
         pendingAssets: client?.status.pendingAssets ?? 0,
         preparation: this.preparationProgress.get(db),
@@ -552,6 +634,7 @@ export class DeviceSyncModule {
     });
     ipcMain.handle("device-sync:enable", event => {
       const { name, db } = this.forEvent(event);
+      if (this.stopping.has(db)) throw new Error("DEVICE_SYNC_BUSY: 正在停止本机协调，请稍后重试");
       const state = readDeviceSyncState(db);
       if (state && state.node !== state.authority) {
         const peer = this.peer();
@@ -630,6 +713,14 @@ export class DeviceSyncModule {
       const { name } = this.forEvent(event);
       if (name !== this.nameOfLibrary) throw new Error("资料库已变化");
       this.server?.revoke(id);
+    });
+    ipcMain.handle("device-sync:stop", event => {
+      const { name, db } = this.forEvent(event);
+      const pending = this.stopping.get(db);
+      if (pending) return pending;
+      const task = this.stopCoordinator(name, db).finally(() => this.stopping.delete(db));
+      this.stopping.set(db, task);
+      return task;
     });
     ipcMain.handle("device-sync:copies", event => {
       const { db } = this.forEvent(event);

@@ -48,7 +48,8 @@ export async function pairDesktopReplica(options: {
   mkdirSync(options.directory, { recursive: true, mode: 0o700 });
   const code = parseDevicePairCode(options.code);
   let database: string | undefined,
-    existing = false;
+    existing = false,
+    epoch: string | undefined;
   let previous: DesktopDevicePeer | undefined;
   try {
     previous = readDesktopPeer(options.directory);
@@ -77,27 +78,36 @@ export async function pairDesktopReplica(options: {
       ) {
         database = candidate;
         existing = true;
+        epoch = state.epoch;
         break;
       }
     } finally {
       db.close();
     }
   }
-  const result = await requestDevice<{ reply: DeviceReply; token: string }>(code, {
-    kind: "pair",
-    secret: code.secret,
-    node: options.node,
-    name: options.name.slice(0, 80),
-    existing,
-  });
-  if (
-    result.reply?.state?.library !== code.library ||
-    result.reply.protocol !== code.protocol ||
-    result.reply.state.authority === options.node ||
-    typeof result.token !== "string" ||
-    result.token.length < 40
-  )
-    throw new Error("DEVICE_SYNC_IDENTITY: 配对身份或资料库不同");
+  const pair = async (existing: boolean) => {
+    const result = await requestDevice<{ reply: DeviceReply; token: string }>(code, {
+      kind: "pair",
+      secret: code.secret,
+      node: options.node,
+      name: options.name.slice(0, 80),
+      existing,
+    });
+    if (
+      result.reply?.state?.library !== code.library ||
+      result.reply.protocol !== code.protocol ||
+      result.reply.state.authority === options.node ||
+      typeof result.token !== "string" ||
+      result.token.length < 40
+    )
+      throw new Error("DEVICE_SYNC_IDENTITY: 配对身份或资料库不同");
+    return result;
+  };
+  let result = await pair(existing);
+  if (existing && result.reply.state.epoch !== epoch) {
+    existing = false;
+    result = await pair(false);
+  }
   if (!existing) {
     if (!result.reply.snapshot) throw new Error("DEVICE_SYNC_PAIR: 配对快照不完整");
     database = `device-${randomUUID()}.db`;
