@@ -8,7 +8,7 @@ import { pipeline } from "node:stream/promises";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import log from "electron-log";
 import type { VideoCaptions, VideoFormat, VideoProbeResult } from "@tau/plugins";
-import { parseJson3Captions, selectCaptionTrack, type SubtitleInfo } from "./video-captions";
+import { parseCaptions, selectCaptionTrack, type SubtitleInfo } from "./video-captions";
 import { waitForCompiler } from "../services/compiler-process";
 import PathUtil from "./PathUtil";
 import FfmpegService from "./FfmpegService";
@@ -167,7 +167,7 @@ export default class YtDlpService {
         "--sub-langs",
         `^${track.language.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
         "--sub-format",
-        "json3",
+        track.format,
         "--load-info-json",
         infoFile,
         "--output",
@@ -177,11 +177,11 @@ export default class YtDlpService {
       if (proxy) args.push("--proxy", proxy);
       await this.exec(bin, args, signal);
       signal.throwIfAborted();
-      const files = (await fs.readdir(directory)).filter(file => file.endsWith(".json3"));
+      const files = (await fs.readdir(directory)).filter(file => file.endsWith(`.${track.format}`));
       if (!files.length) return null;
       const file = path.join(directory, files[0]);
       if ((await fs.stat(file)).size > 8 * 1024 * 1024) throw new Error("字幕文件过大");
-      return parseJson3Captions(JSON.parse(await fs.readFile(file, "utf-8")), track.language);
+      return parseCaptions(await fs.readFile(file, "utf-8"), track.format, track.language);
     } finally {
       await fs.rm(directory, { recursive: true, force: true });
     }
