@@ -13,7 +13,7 @@ const wrapInline: EditorCommand = {
   },
 };
 
-/** mod+shift+m：光标在段落内时插入块级公式 */
+/** 光标在段落内时插入块级公式；不绑热键（mod+shift+m 归批注），入口是 `$$` 回车与插入菜单 */
 const insertBlock: EditorCommand = {
   id: "tau.math.insert-block",
   title: "块级公式",
@@ -35,6 +35,3 @@ export const inlineMathHotkeys: EditorHotkey[] = [
 ];
 
 export const blockMathCommands: EditorCommand[] = [insertBlock];
-export const blockMathHotkeys: EditorHotkey[] = [
-  { key: "mod+shift+m", command: "tau.math.insert-block" },
-];
