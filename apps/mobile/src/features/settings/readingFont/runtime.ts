@@ -45,14 +45,6 @@ export function loadReadingFontFaces(font: ReadingFontRelease): Promise<FontFace
   return faces;
 }
 
-/** 移除字体文件后撤下已注册的字形 */
-export function forgetReadingFontFaces(id: string) {
-  const current = loaded.get(id);
-  if (!current) return;
-  dropFaces(current);
-  loaded.delete(id);
-}
-
 export function applyReadingFontVars(option: ReadingFontOption | null) {
   const style = document.documentElement.style;
   if (!option || option.id === "system") {

@@ -6,7 +6,9 @@ vi.mock("../../../../components/toast", () => ({ toast: { warning: vi.fn() } }))
 
 import type { ReadingFontRelease } from "../api";
 import { normalizeReadingFontId, readingFontOption, withReadingFont } from "../fonts";
-import { applyReadingFontVars, forgetReadingFontFaces, loadReadingFontFaces } from "../runtime";
+
+// 已注册字形缓存在模块级，每个用例重新加载模块以隔离
+let runtime: typeof import("../runtime");
 
 class FakeFontFace {
   constructor(
@@ -39,7 +41,9 @@ function release(id: string, version: string): ReadingFontRelease {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  runtime = await import("../runtime");
   invoke.mockReset();
   invoke.mockResolvedValue(new ArrayBuffer(4));
   added.clear();
@@ -54,8 +58,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  forgetReadingFontFaces("lxgw-wenkai");
-  applyReadingFontVars(null);
+  runtime.applyReadingFontVars(null);
   vi.unstubAllGlobals();
 });
 
@@ -78,8 +81,8 @@ describe("fonts", () => {
 describe("loadReadingFontFaces", () => {
   it("按字重文件读字节注册 FontFace，同一版本只注册一次", async () => {
     const font = release("lxgw-wenkai", "1.530");
-    const faces = await loadReadingFontFaces(font);
-    await loadReadingFontFaces(font);
+    const faces = await runtime.loadReadingFontFaces(font);
+    await runtime.loadReadingFontFaces(font);
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("reading_font_read", {
       id: "lxgw-wenkai",
@@ -92,22 +95,20 @@ describe("loadReadingFontFaces", () => {
     expect(added.size).toBe(1);
   });
 
-  it("换版本时撤下旧字形，移除字体后全部撤下", async () => {
-    const [oldFace] = await loadReadingFontFaces(release("lxgw-wenkai", "1.530"));
-    const [newFace] = await loadReadingFontFaces(release("lxgw-wenkai", "1.600"));
+  it("换版本时撤下旧字形", async () => {
+    const [oldFace] = await runtime.loadReadingFontFaces(release("lxgw-wenkai", "1.530"));
+    const [newFace] = await runtime.loadReadingFontFaces(release("lxgw-wenkai", "1.600"));
     await Promise.resolve();
     expect(added.has(oldFace)).toBe(false);
     expect(added.has(newFace)).toBe(true);
-
-    forgetReadingFontFaces("lxgw-wenkai");
-    await Promise.resolve();
-    expect(added.size).toBe(0);
   });
 
   it("读取失败时不缓存，下次重新读取", async () => {
     invoke.mockRejectedValueOnce("READING_FONT_NOT_INSTALLED: lxgw-wenkai");
-    await expect(loadReadingFontFaces(release("lxgw-wenkai", "1.530"))).rejects.toBeTruthy();
-    await loadReadingFontFaces(release("lxgw-wenkai", "1.530"));
+    await expect(
+      runtime.loadReadingFontFaces(release("lxgw-wenkai", "1.530"))
+    ).rejects.toBeTruthy();
+    await runtime.loadReadingFontFaces(release("lxgw-wenkai", "1.530"));
     expect(invoke).toHaveBeenCalledTimes(2);
   });
 });
@@ -116,16 +117,16 @@ describe("applyReadingFontVars", () => {
   const style = () => document.documentElement.style;
 
   it("文楷写入 family 并开启合成粗体，宋体不合成，系统默认清空变量", () => {
-    applyReadingFontVars(readingFontOption("lxgw-wenkai"));
+    runtime.applyReadingFontVars(readingFontOption("lxgw-wenkai"));
     expect(style().getPropertyValue("--mobile-reading-font")).toBe(
       '"Tau Reading lxgw-wenkai", var(--tau-font)'
     );
     expect(style().getPropertyValue("--mobile-reading-font-synthesis")).toBe("weight");
 
-    applyReadingFontVars(readingFontOption("noto-serif-sc"));
+    runtime.applyReadingFontVars(readingFontOption("noto-serif-sc"));
     expect(style().getPropertyValue("--mobile-reading-font-synthesis")).toBe("");
 
-    applyReadingFontVars(readingFontOption("system"));
+    runtime.applyReadingFontVars(readingFontOption("system"));
     expect(style().getPropertyValue("--mobile-reading-font")).toBe("");
   });
 });

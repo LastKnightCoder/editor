@@ -119,7 +119,6 @@ pub fn run() {
             reading_font::reading_font_installed,
             reading_font::reading_font_download,
             reading_font::reading_font_cancel_download,
-            reading_font::reading_font_remove,
             reading_font::reading_font_read,
             plugin_center::plugin_center_refresh,
             plugin_center::plugin_center_config,

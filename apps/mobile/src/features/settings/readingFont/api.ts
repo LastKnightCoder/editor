@@ -43,10 +43,6 @@ export function cancelReadingFontDownload() {
   return invoke<void>("reading_font_cancel_download");
 }
 
-export function removeReadingFont(id: string) {
-  return invoke<void>("reading_font_remove", { id });
-}
-
 export function readReadingFontFile(id: string, style: string) {
   return invoke<ArrayBuffer>("reading_font_read", { id, style });
 }
