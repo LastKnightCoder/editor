@@ -12,6 +12,7 @@ import {
   CheckCircle,
   FolderOpen,
   Stack,
+  Timer,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { Descendant } from "slate";
@@ -121,11 +122,7 @@ const AGENDA_STYLE: Record<AgendaKind, { icon: ReactNode; tone: string; soft: st
     soft: "var(--tau-tag-1-soft)",
   },
   pomodoro: {
-    icon: (
-      <span className="text-[18px] leading-none" aria-hidden="true">
-        🍅
-      </span>
-    ),
+    icon: <Timer size={19} weight="duotone" color="var(--tau-tag-5)" aria-hidden="true" />,
     tone: "var(--tau-tag-5)",
     soft: "var(--tau-tag-5-soft)",
   },
