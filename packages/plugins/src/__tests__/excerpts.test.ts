@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { definePlugin, type PluginContext } from "../index";
 import { createMemoryStorage, PluginHost, type ExcerptsAdapter } from "../host";
+import { createExcerptMaterialRef } from "../material-ref";
 
 const entry = {
-  ref: { kind: "excerpt", id: 7 },
+  ref: createExcerptMaterialRef(7, "weread", "b1:1"),
   externalId: "b1:1",
   quote: "甲",
   note: "",
@@ -62,6 +63,43 @@ function setup(adapter?: Partial<ExcerptsAdapter>) {
 }
 
 describe("摘录提供方", () => {
+  it("材料动作统一由宿主提示成功或失败，旧实例不再提示", async () => {
+    const feedback = { success: vi.fn(), error: vi.fn() };
+    const run = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("写入失败"));
+    let context!: PluginContext;
+    const host = new PluginHost({
+      workspaceId: "work",
+      storage: createMemoryStorage(),
+      materialActionFeedback: feedback,
+      materials: { actions: async () => [{ id: "card", label: "转为卡片", run }] },
+    });
+    host.registerTrusted(
+      definePlugin({
+        id: "reader.plugin",
+        name: "读书",
+        version: "1",
+        create: () => ({
+          activate: ctx => {
+            context = ctx;
+          },
+        }),
+      })
+    );
+    await host.enable("reader.plugin");
+    const [action] = await context.materials.actions(
+      createExcerptMaterialRef(1, "reader.plugin", "book:mark")
+    );
+    await action.run();
+    await action.run();
+    expect(feedback.success).toHaveBeenCalledExactlyOnceWith("转为卡片");
+    expect(feedback.error).toHaveBeenCalledExactlyOnceWith("写入失败");
+    await host.disable("reader.plugin");
+    await expect(action.run()).rejects.toThrow();
+    expect(feedback.error).toHaveBeenCalledTimes(1);
+  });
   it("写入前须注册；注册随停用回收，写入参数为副本", async () => {
     const { host, calls, context } = setup();
     await host.enable("weread");
@@ -122,7 +160,7 @@ describe("摘录提供方", () => {
   it("材料动作经宿主执行，旧实例的动作失效", async () => {
     const { host, calls, context } = setup();
     await host.enable("weread");
-    const [action] = await context().materials.actions({ kind: "excerpt", id: 7 });
+    const [action] = await context().materials.actions(entry.ref);
     expect(action.label).toBe("转为卡片");
     await action.run();
     expect(calls.at(-1)).toEqual(["card"]);
@@ -143,8 +181,8 @@ describe("摘录提供方", () => {
     );
     await host.enable("weread");
     expect(() => context.excerpts.register({ label: "微信读书" })).toThrow("不支持摘录");
-    await expect(context.materials.actions({ kind: "excerpt", id: 1 })).rejects.toThrow(
-      "不支持材料动作"
-    );
+    await expect(
+      context.materials.actions(createExcerptMaterialRef(1, "weread", "b1:1"))
+    ).rejects.toThrow("不支持材料动作");
   });
 });

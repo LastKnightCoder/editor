@@ -21,6 +21,19 @@ const output = path.resolve(process.argv[2] ?? path.join(root, "output/plugin-sd
 await mkdir(path.dirname(output), { recursive: true });
 const staging = await mkdtemp(path.join(output + "-"));
 try {
+  const docsRef = process.argv.find(value => value.startsWith("--docs-ref="))?.slice(11);
+  let docsSource = path.join(root, "plugins/tau-plugin-template/docs");
+  if (docsRef) {
+    if (!/^[a-f0-9]{40}$/.test(docsRef)) throw new Error("作者文档快照必须是完整提交 SHA");
+    const frozen = path.join(staging, "author-docs");
+    await mkdir(frozen, { recursive: true });
+    const archive = execFileSync("git", ["archive", "--format=tar", docsRef, "docs"], {
+      cwd: path.join(root, "plugins/tau-plugin-template"),
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    execFileSync("tar", ["-xf", "-", "-C", frozen], { input: archive });
+    docsSource = path.join(frozen, "docs");
+  }
   const options = {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ESNext,
@@ -257,7 +270,7 @@ try {
       `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实现由 Tau 在运行时提供，插件构建时需设为 external。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n开发文档见 [docs/README.md](docs/README.md)。\n" : ""}`
     );
     if (name === "plugins") {
-      await cp(path.join(root, "plugins/tau-plugin-template/docs"), path.join(directory, "docs"), {
+      await cp(docsSource, path.join(directory, "docs"), {
         recursive: true,
       });
       await writeFile(
