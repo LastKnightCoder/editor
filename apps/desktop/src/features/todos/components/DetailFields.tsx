@@ -38,7 +38,9 @@ import type {
   TodoRecurrence,
 } from "@/types";
 import type { ComponentProps, ReactNode } from "react";
-import { REMIND_OPTIONS, dayWord, recurrenceText, remindText } from "../model";
+import { summarizeReminders } from "@tau/shared/reminders";
+import { ReminderMenu } from "@/components/ReminderMenu";
+import { dayWord, recurrenceText, todoReminders } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry } from "../types";
 import { GroupDot } from "./TodoBits";
@@ -156,27 +158,16 @@ export function DetailFields({
 
       {entry.type === "deadline" && (
         <Field icon={Bell} label="提醒">
-          <Menu
+          <ReminderMenu
+            value={todoReminders(entry)}
+            onChange={offsets => void mutations.setReminders(entry, offsets)}
             trigger={
               <FieldButton muted={entry.remindBefore == null}>
-                {remindText(entry.remindBefore)}
+                {summarizeReminders(todoReminders(entry))}
                 <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
               </FieldButton>
             }
-          >
-            <Menu.RadioGroup
-              value={String(entry.remindBefore ?? "none")}
-              onValueChange={v =>
-                void mutations.updateItem(entry, { remindBefore: v === "none" ? null : Number(v) })
-              }
-            >
-              {REMIND_OPTIONS.map(option => (
-                <Menu.RadioItem key={option.label} value={String(option.value ?? "none")}>
-                  {option.label}
-                </Menu.RadioItem>
-              ))}
-            </Menu.RadioGroup>
-          </Menu>
+          />
         </Field>
       )}
 

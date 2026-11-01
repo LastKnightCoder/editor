@@ -18,6 +18,7 @@ import {
   Type,
   Users,
   Wifi,
+  Bell,
 } from "lucide-react";
 
 // 图标统一为「彩色圆角块」形态（34px 方块 + soft 底色）
@@ -101,6 +102,14 @@ export function IconMic() {
   return (
     <IconTile className="bg-tag-1-soft text-tag-1">
       <Mic size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconBell() {
+  return (
+    <IconTile className="bg-accent-soft text-accent-text">
+      <Bell size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

@@ -46,6 +46,7 @@ import { HomeScreen } from "./HomeScreen";
 import { StartupFailure } from "./StartupFailure";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
+import { ReminderHost } from "../features/reminders/ReminderHost";
 import { CollaborationBackground } from "../features/collaboration/CollaborationBackground";
 import "../pages";
 
@@ -479,6 +480,7 @@ function AppShellInner() {
                       <EditorPromptHost />
                       <ToastViewport />
                       <IncomingFileHost />
+                      <ReminderHost />
                       {import.meta.env.DEV && <RouterDevTools />}
                     </main>
                   </MobilePluginProvider>

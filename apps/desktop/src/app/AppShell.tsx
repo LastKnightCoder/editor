@@ -41,6 +41,7 @@ import {
 } from "./shellStore";
 import { ensureDatabaseReady } from "./databaseReady";
 import { useNotificationBridge } from "@/features/notifications/useNotificationBridge";
+import { useReminderOpen } from "./useReminderOpen";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
 import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import "./base.css";
@@ -168,6 +169,7 @@ function ShellLayout() {
 
   // 跨窗口通知桥：系统窗口转发的按钮执行 + 主进程直投卡与卡栈生命周期的回报
   const onNotificationItemsChange = useNotificationBridge();
+  useReminderOpen();
 
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
@@ -186,7 +188,7 @@ function ShellLayout() {
             min-w-0 必需：clip 不是滚动容器，不会清零自动最小宽度，页面内容（nowrap 长标题等）
             的 min-content 会经隐式 auto 列轨道把整列连同标题栏撑出窗口 */}
         <div className="relative flex min-h-0 min-w-0 overflow-x-clip">
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <PageHost state={state} />
           </main>
           <AssistDock />

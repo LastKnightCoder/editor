@@ -701,6 +701,32 @@ fn sync_recurring_tasks_for_range(
     )
 }
 
+/// 周期待办在 [start_day, end_day]（日序号）内的实例：原定日 → 实际日。与日历物化同源，
+/// 已跳过的实例不在结果里；完成状态由调用方另查。
+pub(crate) fn recurring_occurrences(
+    tx: &Transaction<'_>,
+    todo_item_id: i64,
+    start_day: i64,
+    end_day: i64,
+    zone: CalendarTimeZone,
+    holidays: &HolidayDays,
+) -> Result<std::collections::BTreeMap<i64, i64>, String> {
+    if let Some(result) =
+        assistant_occurrences(tx, todo_item_id, start_day, end_day, zone, holidays)?
+    {
+        return Ok(result);
+    }
+    let Some(recurrence) = load_recurrence(tx, todo_item_id)? else {
+        return Ok(Default::default());
+    };
+    Ok(
+        generate_occurrences_in_window(&recurrence, start_day, end_day, zone, holidays)
+            .into_iter()
+            .map(|day| (day, day))
+            .collect(),
+    )
+}
+
 // 范围查询编排层已 ensure 过日历，传入复用，避免逐 todo 重复 4+ 条查询
 pub(crate) fn sync_recurring_tasks_with_calendars(
     tx: &Transaction<'_>,

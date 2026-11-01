@@ -29,6 +29,7 @@ dependencies = [
  "sqlite-vec",
  "tauri",
  "tauri-build",
+ "tauri-plugin-local-notify",
  "tauri-plugin-native-speech",
  "tauri-plugin-opener",
  "tokio",
@@ -4506,6 +4507,14 @@ dependencies = [
  "tauri-utils",
  "toml 0.9.12+spec-1.1.0",
  "walkdir",
+]
+
+[[package]]
+name = "tauri-plugin-local-notify"
+version = "0.1.0"
+dependencies = [
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

@@ -362,3 +362,10 @@ export const dismissReminder = async (todoId: number, recurrenceDate?: number): 
 export const dismissAllReminders = async (): Promise<void> => {
   return invoke("todo-reminder:dismiss-all");
 };
+
+// ==================== Reminders ====================
+
+/** 待办提醒列表（截止前毫秒数，升序）：首个写 remind_before，其余写 item_reminder */
+export const updateTodoReminders = async (todoId: number, offsets: number[]): Promise<number[]> => {
+  return invoke("todo:update-reminders", { todoId, offsets });
+};

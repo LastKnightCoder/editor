@@ -16,7 +16,10 @@ export interface AssistantReminder {
   taskRef: TaskRef;
   occurrence?: TaskOccurrenceRef;
   title: string;
-  dueAt: number;
+  /** 截止时间；周期任务为当次所在日零点（allDay）；没有截止时间为 null */
+  dueAt: number | null;
+  /** 只有日期没有时刻（周期任务、只写了日期的文档待办） */
+  allDay?: boolean;
   remindAt: number;
 }
 export const assistantReminderKey = (value: AssistantReminder) =>
@@ -76,7 +79,8 @@ export function assistantReminders(
         result.push({
           taskRef: ref,
           title: task.title,
-          dueAt: task.dueAt ? dateTime(task.dueAt) : remindAt,
+          dueAt: task.dueAt ? dateTime(task.dueAt) : null,
+          allDay: task.dueAt?.length === 10,
           remindAt,
         });
       continue;
@@ -119,7 +123,8 @@ export function assistantReminders(
           taskRef: ref,
           occurrence: entry.occurrence,
           title: task.title,
-          dueAt,
+          dueAt: dateTime(localDate(dueAt)),
+          allDay: true,
           remindAt,
         });
     }

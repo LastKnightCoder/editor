@@ -14,16 +14,27 @@ import { getContentKit } from "@/services/editorKit";
 import dayjs from "dayjs";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor";
-import { AlarmClock, CalendarDays, NotebookText, Palette, Sun } from "lucide-react";
+import {
+  AlarmClock,
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  NotebookText,
+  Palette,
+  Sun,
+} from "lucide-react";
 import { Button, DatePicker, Input, Select, Switch, cn, toast, type SelectOption } from "@tau/ui";
 import { PROJECT_COLORS, type ProjectColorName } from "@/constants/project-colors";
 import type { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
+import { summarizeReminders } from "@tau/shared/reminders";
+import { ReminderMenu } from "@/components/ReminderMenu";
 import { TONE, toneStyle } from "../../eventTone";
 import {
   useCalendarCatalog,
   useCalendarKinds,
   useEventContent,
+  useEventReminders,
   useScheduleCommands,
   useScheduleMutations,
 } from "../../queries";
@@ -53,7 +64,7 @@ export function useEventForm(
   { autoFocusTitle = false }: { autoFocusTitle?: boolean } = {}
 ) {
   const { calendars } = useCalendarCatalog();
-  const { createEvent, updateEvent, deleteEvent } = useScheduleMutations();
+  const { createEvent, updateEvent, deleteEvent, setEventReminders } = useScheduleMutations();
   const { commands, assertCurrentDatabase } = useScheduleCommands();
   const needsContent = !!editingEvent?.detailContentId && !editingEvent.detailContent;
   const contentQuery = useEventContent(editingEvent?.detailContentId ?? 0, needsContent);
@@ -68,6 +79,7 @@ export function useEventForm(
   const [allDay, setAllDay] = useState(false);
   const [color, setColor] = useState<ProjectColorName | null>(null);
   const [description, setDescription] = useState<Descendant[]>(DEFAULT_CONTENT);
+  const [reminders, setReminders] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   // 未保存修改：载入完成后记下基线快照，当前值与之不同即 dirty。
   // 备注按纯文本比较——编辑器载入时的规范化会改动 JSON，按 JSON 比会误报
@@ -81,6 +93,7 @@ export function useEventForm(
     allDay,
     color,
     richTextPlainText(description),
+    reminders,
   ]);
   const [baseline, setBaseline] = useState<string | null>(null);
   const [baselineToken, setBaselineToken] = useState(0);
@@ -104,6 +117,9 @@ export function useEventForm(
   const isTodoEvent = editingEvent
     ? kinds.get(editingEvent.calendarId) === "todo" || editingEvent.todoItemId != null
     : false;
+  // 待办的日程跟随待办自身的提醒，系统日历（番茄钟记录等）不设提醒
+  const remindable = !isTodoEvent && !isSystemCalendarEvent;
+  const remindersQuery = useEventReminders(editingEvent?.id ?? 0, remindable);
 
   useEffect(() => {
     if (!editingEvent) return;
@@ -135,6 +151,13 @@ export function useEventForm(
       apply(DEFAULT_CONTENT);
     }
   }, [editingEvent, reloadToken, contentQuery.data]);
+
+  // 提醒随日程载入；已有日程等查询完成再定基线，避免载入中被当成修改
+  useEffect(() => {
+    if (!editingEvent) return;
+    if (!remindable || editingEvent.id === 0) setReminders([]);
+    else if (remindersQuery.data) setReminders(remindersQuery.data);
+  }, [editingEvent, reloadToken, remindable, remindersQuery.data]);
 
   const calendarOptions = useMemo<SelectOption<number>[]>(
     () =>
@@ -197,11 +220,11 @@ export function useEventForm(
         allDay,
         color,
       };
-      if (editingEvent && editingEvent.id !== 0) {
-        await updateEvent({ ...editingEvent, ...fields } satisfies UpdateCalendarEvent);
-      } else {
-        await createEvent(fields satisfies CreateCalendarEvent);
-      }
+      const saved =
+        editingEvent && editingEvent.id !== 0
+          ? await updateEvent({ ...editingEvent, ...fields } satisfies UpdateCalendarEvent)
+          : await createEvent(fields satisfies CreateCalendarEvent);
+      if (remindable && saved) await setEventReminders(saved.id, reminders);
       setBaseline(snapshot);
       onDone();
     } catch (error) {
@@ -312,10 +335,32 @@ export function useEventForm(
           size="sm"
           checked={allDay}
           disabled={isSystemCalendarEvent}
-          onCheckedChange={setAllDay}
+          onCheckedChange={next => {
+            // 全天与定时的提醒基准不同（当天零点 / 开始时刻），切换后旧提醒失去含义
+            setAllDay(next);
+            setReminders([]);
+          }}
           aria-label="全天"
         />
       </FieldRow>
+
+      {remindable && (
+        <FieldRow icon={Bell} label="提醒">
+          <ReminderMenu
+            allDay={allDay}
+            value={reminders}
+            onChange={setReminders}
+            trigger={
+              <Button variant="secondary" size="sm">
+                <span className={cn(!reminders.length && "text-ink-3")}>
+                  {summarizeReminders(reminders, allDay)}
+                </span>
+                <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
+              </Button>
+            }
+          />
+        </FieldRow>
+      )}
 
       <FieldRow icon={CalendarDays} label="日历">
         <Select
