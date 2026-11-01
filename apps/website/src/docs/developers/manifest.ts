@@ -35,22 +35,72 @@ const DEVELOPER_GROUPS: DocGroup[] = [
     ],
   },
   {
-    title: "界面与数据",
+    title: "界面",
     items: [
       {
         slug: "ui",
-        title: "界面",
-        summary: "页面、功能入口、设置、命令，以及桌面的侧边栏与通知。",
+        title: "界面概览",
+        summary: "插件能出现在 Tau 哪些位置，按位置查对应的接口和篇目。",
       },
+      {
+        slug: "ui-components",
+        title: "界面组件与样式",
+        summary: "用 @tau/ui 组件搭界面，取主题变量，Tailwind 类名加前缀。",
+      },
+      {
+        slug: "pages",
+        title: "页面与入口",
+        summary: "注册页面并配一个入口，让用户在侧边栏或手机「我的」里打开它。",
+      },
+      {
+        slug: "settings-and-commands",
+        title: "设置与命令",
+        summary: "在插件详情页放设置、交给 Tau 保存草稿，在命令面板加操作。",
+      },
+      {
+        slug: "app-surfaces",
+        title: "挂到 Tau 的界面里",
+        summary: "出现在首页、对象菜单、详情页和 Notebook 的「生成」菜单里。",
+      },
+      {
+        slug: "notifications-and-voice",
+        title: "通知、语音输入与朗读",
+        summary: "任务完成后发通知，听写拿文字，把文字合成音频。",
+      },
+    ],
+  },
+  {
+    title: "数据",
+    items: [
       {
         slug: "storage-and-network",
         title: "存储与网络",
         summary: "保存插件自己的数据，发起网络请求与 WebSocket 连接。",
       },
       {
+        slug: "references",
+        title: "引用用户的内容",
+        summary: "让用户选择、打开和引用已有的卡片、文章与文档，不需要权限。",
+      },
+      {
+        slug: "permissions",
+        title: "权限",
+        summary: "声明要读写哪些用户数据，处理用户拒绝授权的情况。",
+      },
+      {
         slug: "user-data",
-        title: "用户数据",
-        summary: "读写用户的卡片、文章、项目文档、待办与日程，以及插件自己的内容。",
+        title: "读写用户数据",
+        summary: "读取和修改卡片、文章、项目文档、待办与日程，订阅它们的变化。",
+      },
+      {
+        slug: "document-body",
+        title: "正文",
+        summary: "读写文档正文，或在插件界面里嵌入 Tau 的正文编辑器。",
+      },
+      {
+        slug: "plugin-content",
+        title: "插件内容与记录",
+        summary: "保存插件自己的内容、记录和关联，保存资源文件。",
       },
       {
         slug: "excerpts",
@@ -69,8 +119,23 @@ const DEVELOPER_GROUPS: DocGroup[] = [
     items: [
       {
         slug: "editor",
-        title: "编辑器扩展",
-        summary: "在文档里添加自定义块，显示图片、视频与音频。",
+        title: "第一个块",
+        summary: "从一个计数器块开始，在文档里添加自定义块。",
+      },
+      {
+        slug: "editor-interactions",
+        title: "块的交互",
+        summary: "给块加外框、属性条、命令、菜单和快捷语法。",
+      },
+      {
+        slug: "editor-source-media",
+        title: "源码块与媒体块",
+        summary: "写源码预览块，显示图片、视频与音频。",
+      },
+      {
+        slug: "editor-export",
+        title: "导出与字数统计",
+        summary: "块的 Markdown 导入导出、HTML 导出和字数统计。",
       },
       {
         slug: "editor-collaboration",
@@ -114,6 +179,11 @@ const DEVELOPER_GROUPS: DocGroup[] = [
         summary: "运行 Node.js 代码、调用本机程序。",
       },
       {
+        slug: "blog-templates",
+        title: "博客模板",
+        summary: "把自己设计的博客页面打包成模板，用户发布时选用。",
+      },
+      {
         slug: "site-data",
         title: "站点数据",
         summary: "开发独立博客站点，读取 Tau 发布的数据。",
@@ -131,7 +201,7 @@ const DEVELOPER_GROUPS: DocGroup[] = [
       {
         slug: "providers/sync",
         title: "同步存储",
-        summary: "让用户把笔记库同步到你接入的存储服务。",
+        summary: "让用户把资料库同步到你接入的存储服务。",
       },
       {
         slug: "providers/upload",
