@@ -40,6 +40,8 @@ const ROUND_BUTTON =
 const TOOL_BUTTON =
   "border-line-2 text-ink-2 flex h-[34px] shrink-0 items-center justify-center rounded-full border transition-transform active:scale-95";
 const MAX_IMAGES = 4;
+/** 抬手时位移超过此值视为滑动，不接管聚焦 */
+const TAP_SLOP_PX = 10;
 
 export function ChatComposer(props: {
   running: boolean;
@@ -72,6 +74,7 @@ export function ChatComposer(props: {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<AiSkillDescriptor[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const reservation = useKeyboardReservation();
   const keyboardViewport = useKeyboardViewport();
   // 聚焦前先按预计键盘高度收起外壳，输入框在键盘升起前已在其上方，iOS 就不会平移整页把顶栏推出屏幕；
@@ -265,8 +268,20 @@ export function ChatComposer(props: {
           value={value}
           placeholder={props.placeholder ?? "发消息"}
           onBlur={() => reservation.releaseNow()}
-          onPointerDown={() => {
-            if (document.activeElement !== inputRef.current) liftAboveKeyboard();
+          onTouchStart={event => {
+            const touch = event.touches[0];
+            touchStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+          }}
+          onTouchEnd={event => {
+            const start = touchStartRef.current;
+            touchStartRef.current = null;
+            const touch = event.changedTouches[0];
+            if (!start || !touch || document.activeElement === inputRef.current) return;
+            if (Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP_PX) return;
+            // 按下时抬高会让输入框在抬手前移走，iOS 与 Android 都按原落点命中别处而不聚焦；
+            // 改为抬手时取消系统默认聚焦，抬高与聚焦在同一手势内完成
+            event.preventDefault();
+            focusInput();
           }}
           onChange={event => {
             const next = event.currentTarget.value;

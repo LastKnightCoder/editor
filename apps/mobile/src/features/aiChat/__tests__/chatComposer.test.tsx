@@ -177,7 +177,20 @@ it("两行卡片：引用挂在卡片第一行可删除，下排是 ＋、引用
   expect(onMentionsChange).toHaveBeenCalledWith([]);
 });
 
-it("按下输入框时先按预计键盘高度收起外壳，聚焦时输入框已在键盘上方，iOS 不会平移整页", () => {
+/** jsdom 的 TouchEvent 不带坐标，用 Event 补上 touches / changedTouches */
+function touch(target: HTMLElement, type: "touchstart" | "touchend", clientY: number) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  const point = [{ clientX: 100, clientY }];
+  Object.defineProperty(event, type === "touchstart" ? "touches" : "changedTouches", {
+    value: point,
+  });
+  act(() => {
+    target.dispatchEvent(event);
+  });
+  return event;
+}
+
+it("点按输入框在抬手时收起外壳并聚焦，按下与滑动不移动输入框", () => {
   act(() =>
     root.render(
       <KeyboardViewportProvider>
@@ -187,7 +200,16 @@ it("按下输入框时先按预计键盘高度收起外壳，聚焦时输入框�
   );
   const kbHeight = () => document.documentElement.style.getPropertyValue("--kb-height");
   expect(kbHeight()).toBe("0px");
-  pointer(textarea(), "pointerdown");
+  // 按下时输入框不能移动，否则抬手按原落点命中别处
+  touch(textarea(), "touchstart", 700);
+  expect(kbHeight()).toBe("0px");
+  // 滑动不接管
+  expect(touch(textarea(), "touchend", 640).defaultPrevented).toBe(false);
+  expect(kbHeight()).toBe("0px");
+  touch(textarea(), "touchstart", 700);
+  const tapEnd = touch(textarea(), "touchend", 702);
+  expect(tapEnd.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(textarea());
   expect(Number.parseInt(kbHeight(), 10)).toBeGreaterThan(0);
   // 键盘尚未升起就切到语音，不保留预计键盘高度。
   act(() => byLabel("切换到语音输入")!.click());
@@ -195,9 +217,5 @@ it("按下输入框时先按预计键盘高度收起外壳，聚焦时输入框�
   act(() => byLabel("切换到键盘")!.click());
   expect(Number.parseInt(kbHeight(), 10)).toBeGreaterThan(0);
   act(() => textarea().blur());
-  expect(kbHeight()).toBe("0px");
-  pointer(textarea(), "pointerdown");
-  // 键盘迟迟没升起（只是滑动、没有聚焦）：超时后释放，外壳回到原高
-  act(() => vi.advanceTimersByTime(700));
   expect(kbHeight()).toBe("0px");
 });
