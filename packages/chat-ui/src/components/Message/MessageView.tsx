@@ -22,6 +22,7 @@ import {
 import {
   getDisplayTextFromBlocks,
   type ContentBlock,
+  type ReasoningContentBlock,
   type ToolCallExecutionState,
 } from "@tau/shared/chat-renderers";
 import { IconButton, Tooltip, cn, toast } from "@tau/ui";
@@ -67,8 +68,10 @@ export interface MessageViewProps {
   hideActions?: boolean;
   /** 覆盖用户气泡底色等外观（经 cn 合并，宿主页面底色与桌面不同时用） */
   userBubbleClassName?: string;
-  /** 相邻工具调用合并后的整组渲染（如触屏的过程胶囊）；缺省逐条 renderToolCall */
+  /** 相邻工具调用块拼成的一组（如触屏的工具时间线）；缺省逐条 renderToolCall */
   renderToolGroup?: (executions: ToolCallExecutionState[], index: number) => ReactNode;
+  /** 思考块的渲染（如触屏与工具行同一样式）；缺省 ReasoningBlock 折叠行，content 为已渲染的思考正文 */
+  renderReasoning?: (block: ReasoningContentBlock, content: ReactNode, index: number) => ReactNode;
   renderMarkdown: (params: MessageMarkdownParams) => ReactNode;
   renderImage: (image: MessageViewImage, index: number, className: string) => ReactNode;
   renderToolCall: (execution: ToolCallExecutionState, index: number) => ReactNode;
@@ -111,6 +114,7 @@ export const MessageView = memo(function MessageView({
   hideActions = false,
   userBubbleClassName,
   renderToolGroup,
+  renderReasoning,
   renderMarkdown,
   renderImage,
   renderToolCall,
@@ -304,6 +308,12 @@ export const MessageView = memo(function MessageView({
             );
           }
           if (block.type === "reasoning") {
+            if (renderReasoning)
+              return (
+                <div key={`reasoning-${index}`} className="min-w-0">
+                  {renderReasoning(block, renderMarkdown({ content: block.content }), index)}
+                </div>
+              );
             return (
               <ReasoningBlock
                 key={`reasoning-${index}`}

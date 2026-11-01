@@ -36,6 +36,11 @@ const LOOKUP: Record<string, { sql: string; kind: string }> = {
 
 const ALIASES: Record<string, string> = { project_item: "project-item", diary: "diary-daily" };
 
+/** 这类引用能否在手机上预览（闪卡等没有正文预览） */
+export function canResolveChatReference(type: string) {
+  return !!LOOKUP[ALIASES[type] ?? type];
+}
+
 /** 解析失败（类型不认识、实体已删）返回 null，由调用方提示 */
 export async function resolveChatReference(
   databaseName: string,
