@@ -37,7 +37,6 @@
             --fs-display: clamp(3rem, 7vw, 8rem);
             --fs-hero: clamp(2.2rem, 5.5vw, 6rem);
             --fs-h2: clamp(1.5rem, 3.2vw, 3.8rem);
-            --fs-title: clamp(1.35rem, 2.4vw, 2.7rem);
             --fs-h3: clamp(1.2rem, 2.2vw, 2.4rem);
             --fs-body: clamp(0.9rem, 1.15vw, 1.15rem);
             --fs-body-lg: clamp(1rem, 1.4vw, 1.5rem);
@@ -53,9 +52,6 @@
             --space-xl: clamp(3rem, 5.5vw, 6rem);
             --pad-slide-x: clamp(3rem, 9vw, 11vw);
             --pad-slide-y: clamp(2.5rem, 6vh, 7rem);
-            --header-h: clamp(44px, 6vh, 56px);
-            /* 顶栏分隔线到小标签的距离 */
-            --header-gap: clamp(2rem, 5.5vh, 4.5rem);
             --radius: 4px;
             --radius-sm: 2px;
             --radius-lg: 6px;
@@ -149,14 +145,14 @@
             opacity: 1;
             transform: translate(0) scale(1);
         }
-        .active .reveal.delay-1, .active .reveal-scale.delay-1, .active .reveal-left.delay-1, .active .reveal-right.delay-1 { transition-delay: 0.08s; }
-        .active .reveal.delay-2, .active .reveal-scale.delay-2, .active .reveal-left.delay-2, .active .reveal-right.delay-2 { transition-delay: 0.16s; }
-        .active .reveal.delay-3, .active .reveal-scale.delay-3, .active .reveal-left.delay-3, .active .reveal-right.delay-3 { transition-delay: 0.24s; }
-        .active .reveal.delay-4, .active .reveal-scale.delay-4, .active .reveal-left.delay-4, .active .reveal-right.delay-4 { transition-delay: 0.32s; }
-        .active .reveal.delay-5, .active .reveal-scale.delay-5, .active .reveal-left.delay-5, .active .reveal-right.delay-5 { transition-delay: 0.40s; }
-        .active .reveal.delay-6, .active .reveal-scale.delay-6, .active .reveal-left.delay-6, .active .reveal-right.delay-6 { transition-delay: 0.48s; }
-        .active .reveal.delay-7, .active .reveal-scale.delay-7, .active .reveal-left.delay-7, .active .reveal-right.delay-7 { transition-delay: 0.56s; }
-        .active .reveal.delay-8, .active .reveal-scale.delay-8, .active .reveal-left.delay-8, .active .reveal-right.delay-8 { transition-delay: 0.64s; }
+        .active .reveal.d1, .active .reveal-scale.d1, .active .reveal-left.d1, .active .reveal-right.d1 { transition-delay: 0.08s; }
+        .active .reveal.d2, .active .reveal-scale.d2, .active .reveal-left.d2, .active .reveal-right.d2 { transition-delay: 0.16s; }
+        .active .reveal.d3, .active .reveal-scale.d3, .active .reveal-left.d3, .active .reveal-right.d3 { transition-delay: 0.24s; }
+        .active .reveal.d4, .active .reveal-scale.d4, .active .reveal-left.d4, .active .reveal-right.d4 { transition-delay: 0.32s; }
+        .active .reveal.d5, .active .reveal-scale.d5, .active .reveal-left.d5, .active .reveal-right.d5 { transition-delay: 0.40s; }
+        .active .reveal.d6, .active .reveal-scale.d6, .active .reveal-left.d6, .active .reveal-right.d6 { transition-delay: 0.48s; }
+        .active .reveal.d7, .active .reveal-scale.d7, .active .reveal-left.d7, .active .reveal-right.d7 { transition-delay: 0.56s; }
+        .active .reveal.d8, .active .reveal-scale.d8, .active .reveal-left.d8, .active .reveal-right.d8 { transition-delay: 0.64s; }
 
         /* ═══════════════════════════════════════
            SLIDE HEADER
@@ -165,7 +161,7 @@
         .slide-header {
             position: absolute;
             top: 0; left: 0; right: 0;
-            height: var(--header-h);
+            height: clamp(44px, 6vh, 56px);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -200,7 +196,7 @@
             color: var(--accent);
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin-bottom: var(--space-xs);
+            margin-bottom: var(--space-sm);
         }
 
         /* ═══════════════════════════════════════
@@ -327,15 +323,12 @@
            CONTENT SLIDES
            ═══════════════════════════════════════ */
 
-        /* 内容页：标题区固定在左上角；正文区占满标题下方的剩余高度，内容按自然高度在其中垂直居中，不拉伸 */
-        /* 加 .slide 提高优先级，断点里 .slide 的 padding 简写不会覆盖它 */
-        .slide.slide-content {
-            justify-content: flex-start;
-            padding-top: calc(var(--header-h) + var(--header-gap));
+        .slide-content {
+            padding-top: clamp(4rem, 9vh, 8rem);
         }
         .slide-content .title-main {
             font-family: var(--serif);
-            font-size: var(--fs-title);
+            font-size: var(--fs-h2);
             font-weight: 400;
             color: var(--text);
             letter-spacing: -0.01em;
@@ -347,54 +340,7 @@
             font-weight: 300;
             color: var(--text-dim);
             line-height: 1.7;
-        }
-        .slide-body {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: safe center;
-            margin-top: var(--space-md);
-        }
-        /* 首尾元素的外边距会让居中偏移 */
-        .slide-body > :first-child { margin-top: 0; }
-        .slide-body > :last-child { margin-bottom: 0; }
-
-        /* ═══════════════════════════════════════
-           EXECUTIVE SUMMARY
-           ═══════════════════════════════════════ */
-
-        .exec-points {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-        }
-        .exec-points li {
-            display: grid;
-            grid-template-columns: clamp(6rem, 11vw, 10rem) 1fr;
-            gap: var(--space-md);
-            align-items: baseline;
-            padding: var(--space-md) 0;
-            border-top: 1px solid var(--border);
-        }
-        .exec-figure {
-            font-family: var(--serif);
-            font-size: clamp(1.8rem, 3.4vw, 3.4rem);
-            font-weight: 600;
-            color: var(--accent);
-            line-height: 1;
-        }
-        .exec-figure.alt { color: var(--sage); }
-        .exec-body h4 {
-            font-family: var(--sans);
-            font-size: var(--fs-body-lg);
-            font-weight: 500;
-            color: var(--text);
-            margin-bottom: 2px;
-        }
-        .exec-body p {
-            font-size: var(--fs-small);
-            color: var(--text-dim);
+            margin-bottom: var(--space-lg);
         }
 
         /* ═══════════════════════════════════════
@@ -414,24 +360,20 @@
             font-size: clamp(1.3rem, 2vw, 2rem);
             font-weight: 600;
             color: var(--accent);
-            padding: var(--space-md) 0;
+            padding: var(--space-sm) 0;
             line-height: 1.4;
         }
         .agenda-body {
-            display: grid;
-            grid-template-columns: 1fr minmax(0, 0.9fr);
-            gap: var(--space-lg);
-            align-items: baseline;
-            padding: var(--space-md) 0;
+            padding: var(--space-sm) 0;
             border-bottom: 1px solid var(--border);
         }
-        .agenda-item:last-child .agenda-body {
+        .agenda-body:last-child {
             border-bottom: none;
         }
         .agenda-body h4 {
-            font-family: var(--serif);
-            font-size: var(--fs-h3);
-            font-weight: 400;
+            font-family: var(--sans);
+            font-size: var(--fs-body-lg);
+            font-weight: 500;
             color: var(--text);
             margin-bottom: 2px;
         }
@@ -439,21 +381,6 @@
             font-size: var(--fs-small);
             color: var(--text-dim);
             font-weight: 300;
-        }
-
-        .agenda-q {
-            font-family: var(--serif);
-            font-size: var(--fs-body-lg);
-            font-style: italic;
-            color: var(--text-mid);
-        }
-        .agenda-meta span {
-            display: block;
-            margin-top: var(--space-xs);
-            font-family: var(--mono);
-            font-size: var(--fs-label);
-            color: var(--text-muted);
-            letter-spacing: 0.5px;
         }
 
         /* ═══════════════════════════════════════
@@ -505,42 +432,85 @@
             font-size: var(--fs-label);
             font-weight: 500;
         }
-        .stat-spark {
-            display: flex;
-            align-items: flex-end;
-            gap: 4px;
-            height: clamp(2.5rem, 7vh, 5rem);
-            margin-top: var(--space-md);
+        .stat-trend.up { color: var(--sage); }
+        .stat-trend.flat { color: var(--text-muted); }
+
+        /* ═══════════════════════════════════════
+           BIG STATEMENT
+           ═══════════════════════════════════════ */
+
+        .slide-statement {
+            background: var(--bg-alt);
+            padding-left: clamp(5rem, 12vw, 14rem);
         }
-        .stat-spark i {
-            flex: 1;
-            height: var(--h);
-            background: var(--bg-elevated);
-            border-radius: 1px;
-            transform: scaleY(0);
-            transform-origin: bottom;
-            transition: transform 0.7s var(--ease) 0.3s;
+        .slide-statement .statement-rule {
+            width: 2px;
+            height: clamp(3rem, 8vh, 6rem);
+            background: var(--accent);
+            position: absolute;
+            left: clamp(3.5rem, 9vw, 10rem);
+            top: 50%;
+            transform: translateY(-50%);
         }
-        .stat-spark i:last-child { background: var(--accent); }
-        .active .stat-spark i { transform: none; }
-        .stat-spark-axis {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 4px;
+        .slide-statement .statement-text {
+            font-family: var(--serif);
+            font-size: clamp(1.8rem, 4vw, 4.5rem);
+            font-weight: 300;
+            font-style: italic;
+            line-height: 1.35;
+            color: var(--text);
+        }
+        .slide-statement .statement-attr {
+            margin-top: var(--space-lg);
             font-family: var(--mono);
-            font-size: 0.65rem;
-            color: var(--text-muted);
-        }
-        .stat-note {
-            margin-top: var(--space-sm);
-            padding-top: var(--space-sm);
-            border-top: 1px solid var(--border);
             font-size: var(--fs-small);
             color: var(--text-dim);
-            line-height: 1.6;
+            letter-spacing: 1px;
         }
-        .stat-trend.up { color: var(--sage); }
-        .stat-trend.down { color: var(--negative); }
+
+        /* ═══════════════════════════════════════
+           FEATURES (NUMBERED TYPOGRAPHIC BLOCKS)
+           ═══════════════════════════════════════ */
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            position: relative;
+        }
+        .feature-block {
+            padding: var(--space-md) var(--space-md);
+            position: relative;
+        }
+        .feature-block + .feature-block::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 10%;
+            bottom: 10%;
+            width: 1px;
+            background: var(--border);
+        }
+        .feature-num {
+            font-family: var(--serif);
+            font-size: clamp(1.8rem, 3vw, 3rem);
+            font-weight: 600;
+            color: var(--sage);
+            line-height: 1;
+            margin-bottom: var(--space-sm);
+        }
+        .feature-block h4 {
+            font-family: var(--sans);
+            font-size: var(--fs-body-lg);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+        }
+        .feature-block p {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
 
         /* ═══════════════════════════════════════
            COMPARISON
@@ -568,33 +538,6 @@
             pointer-events: none;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-        }
-        .compare-hero {
-            padding-bottom: var(--space-md);
-            margin-bottom: var(--space-sm);
-            border-bottom: 1px solid var(--border);
-        }
-        .compare-hero-value {
-            font-family: var(--serif);
-            font-size: var(--fs-stat);
-            font-weight: 600;
-            line-height: 1;
-            color: var(--text-mid);
-        }
-        .compare-side.after .compare-hero-value { color: var(--text); }
-        .compare-hero-unit {
-            margin-left: 4px;
-            font-size: var(--fs-body-lg);
-            font-weight: 300;
-            color: var(--text-dim);
-        }
-        .compare-side.after .compare-hero-unit { color: var(--accent); }
-        .compare-hero p {
-            margin-top: var(--space-xs);
-            font-family: var(--mono);
-            font-size: var(--fs-label);
-            color: var(--text-muted);
-            letter-spacing: 0.5px;
         }
         .compare-divider-line {
             background: var(--accent);
@@ -632,7 +575,7 @@
         .chart-list {
             display: flex;
             flex-direction: column;
-            gap: var(--space-md);
+            gap: var(--space-sm);
             position: relative;
         }
         .chart-list::before {
@@ -667,7 +610,7 @@
             text-align: right;
         }
         .chart-bar {
-            height: clamp(10px, 1.6vh, 16px);
+            height: clamp(6px, 1vh, 10px);
             background: var(--bg-surface);
             border-radius: var(--radius-sm);
             overflow: hidden;
@@ -679,13 +622,6 @@
             border-radius: var(--radius-sm);
             transition: width 1s var(--ease);
         }
-        .chart-label span {
-            display: block;
-            font-family: var(--mono);
-            font-size: var(--fs-label);
-            font-weight: 400;
-            color: var(--text-muted);
-        }
         .chart-fill.alt { background: var(--sage); }
         .chart-val {
             font-family: var(--mono);
@@ -694,48 +630,170 @@
             color: var(--accent);
         }
         .chart-val.alt { color: var(--sage); }
-        .target-split {
+
+        /* ═══════════════════════════════════════
+           PROCESS / STEPS
+           ═══════════════════════════════════════ */
+
+        .steps-row {
             display: grid;
-            grid-template-columns: 1fr clamp(14rem, 24vw, 22rem);
-            gap: var(--space-xl);
-            align-items: start;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--space-sm);
+            position: relative;
         }
-        .target-callout {
-            padding: var(--space-md) var(--space-lg);
-            background: var(--accent-subtle);
-            border-left: 2px solid var(--accent);
+        .steps-row::before {
+            content: '';
+            position: absolute;
+            top: clamp(1.2rem, 2vw, 1.8rem);
+            left: clamp(1rem, 2vw, 2rem);
+            right: clamp(1rem, 2vw, 2rem);
+            height: 1px;
+            background: linear-gradient(90deg, var(--accent), var(--border) 80%);
         }
-        .target-callout-value {
+        .step-item {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .step-num {
+            font-family: var(--serif);
+            font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+            font-weight: 600;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: var(--space-sm);
+            background: var(--bg);
+            display: inline-block;
+            padding: 0 var(--space-xs);
+        }
+        .step-item h4 {
+            font-family: var(--sans);
+            font-size: var(--fs-small);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+        .step-item p {
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════════════
+           SPLIT DETAIL
+           ═══════════════════════════════════════ */
+
+        .split-layout {
+            display: grid;
+            grid-template-columns: 35fr 1px 65fr;
+            gap: var(--space-lg);
+            align-items: center;
+        }
+        .split-metric {
+            text-align: center;
+            padding: var(--space-lg) var(--space-md);
+        }
+        .split-metric .metric-value {
             font-family: var(--serif);
             font-size: var(--fs-stat);
             font-weight: 600;
+            color: var(--text);
             line-height: 1;
-            color: var(--text);
         }
-        .target-callout-value span { font-size: 0.45em; font-weight: 300; color: var(--accent); }
-        .target-callout h4 {
-            margin-top: var(--space-sm);
-            font-size: var(--fs-body-lg);
-            font-weight: 500;
-            color: var(--text);
-        }
-        .target-callout p {
-            margin-top: var(--space-xs);
-            font-size: var(--fs-small);
-            color: var(--text-dim);
-            line-height: 1.7;
-        }
-        .target-callout .target-callout-next {
-            margin-top: var(--space-md);
-            font-family: var(--mono);
-            font-size: var(--fs-label);
+        .split-metric .metric-value .unit {
+            font-size: 0.4em;
             color: var(--accent);
+            font-weight: 300;
         }
-        .chart-note {
-            margin-top: var(--space-md);
+        .split-metric .metric-label {
             font-family: var(--mono);
             font-size: var(--fs-label);
             color: var(--text-muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-top: var(--space-sm);
+        }
+        .split-divider {
+            width: 1px;
+            height: 60%;
+            background: var(--border);
+            align-self: center;
+            justify-self: center;
+        }
+        .split-info h3 {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-md);
+        }
+        .split-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+        }
+        .split-list li {
+            display: flex;
+            align-items: baseline;
+            gap: var(--space-sm);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border);
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-mid);
+            line-height: 1.7;
+        }
+        .split-list li:last-child { border-bottom: none; }
+        .split-list .dash {
+            color: var(--accent);
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           DATA HIGHLIGHTS (2x2 GRID)
+           ═══════════════════════════════════════ */
+
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .highlight-cell {
+            background: var(--bg);
+            padding: var(--space-lg) var(--space-lg);
+        }
+        .highlight-cell .hl-value {
+            font-family: var(--serif);
+            font-size: clamp(2rem, 4vw, 4rem);
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1;
+            margin-bottom: var(--space-xs);
+        }
+        .highlight-cell .hl-value .unit {
+            font-size: 0.4em;
+            color: var(--accent);
+            font-weight: 300;
+        }
+        .highlight-cell:nth-child(even) .hl-value .unit { color: var(--sage); }
+        .highlight-cell h4 {
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            font-weight: 500;
+            color: var(--text-mid);
+            margin-bottom: 2px;
+        }
+        .highlight-cell p {
+            font-size: var(--fs-small);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.6;
         }
 
         /* ═══════════════════════════════════════
@@ -789,6 +847,7 @@
             align-self: center;
             flex-shrink: 0;
         }
+        .tl-content {}
         .tl-title {
             font-family: var(--sans);
             font-size: var(--fs-body-lg);
@@ -804,9 +863,116 @@
         }
 
         /* ═══════════════════════════════════════
+           CHECKLIST
+           ═══════════════════════════════════════ */
+
+        .check-list-wrap {
+            position: relative;
+        }
+        .check-list-wrap .completion {
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-family: var(--mono);
+            font-size: var(--fs-small);
+            color: var(--sage);
+            font-weight: 500;
+        }
+        .check-list {
+            list-style: none;
+            columns: 2;
+            column-gap: var(--space-xl);
+        }
+        .check-list li {
+            display: flex;
+            align-items: baseline;
+            gap: var(--space-sm);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border);
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-mid);
+            line-height: 1.6;
+            break-inside: avoid;
+        }
+        .check-list li .dash {
+            color: var(--accent);
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           KEY TAKEAWAYS (VERTICAL STACK)
+           ═══════════════════════════════════════ */
+
+        .takeaways {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .takeaway-item {
+            display: grid;
+            grid-template-columns: clamp(3rem, 5vw, 5rem) 1fr;
+            gap: var(--space-md);
+            padding: var(--space-md) 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .takeaway-item:last-child { border-bottom: none; }
+        .takeaway-num {
+            font-family: var(--serif);
+            font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+            font-weight: 600;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+        .takeaway-body h4 {
+            font-family: var(--sans);
+            font-size: var(--fs-body-lg);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+        }
+        .takeaway-body p {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ═══════════════════════════════════════
            STRATEGY MATRIX / QUADRANT
            ═══════════════════════════════════════ */
 
+        .matrix-wrap {
+            position: relative;
+        }
+        .matrix-axes {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .matrix-axes .axis-x {
+            position: absolute;
+            bottom: -1.5em;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .matrix-axes .axis-y {
+            position: absolute;
+            left: -2em;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
         .matrix-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -817,13 +983,11 @@
             overflow: hidden;
         }
         .matrix-cell {
-            min-height: clamp(7rem, 17vh, 12rem);
             background: var(--bg);
             padding: var(--space-md);
+            transition: background 0.3s var(--ease);
         }
-        .matrix-cell.is-key { background: var(--accent-subtle); }
-        .matrix-cell.is-key .cell-label { color: var(--accent); }
-        .matrix-cell.is-muted .cell-title { color: var(--text-dim); }
+        .matrix-cell:hover { background: var(--bg-surface); }
         .matrix-cell .cell-label {
             font-family: var(--mono);
             font-size: var(--fs-label);
@@ -846,103 +1010,98 @@
             line-height: 1.6;
         }
 
-        .matrix-split {
-            display: grid;
-            grid-template-columns: 1fr clamp(14rem, 24vw, 22rem);
-            gap: var(--space-xl);
-            align-items: start;
+        /* ═══════════════════════════════════════
+           EXECUTIVE QUOTE
+           ═══════════════════════════════════════ */
+
+        .slide-quote {
+            background: var(--bg-alt);
+            padding-left: clamp(5rem, 12vw, 14rem);
         }
-        .matrix-decisions { list-style: none; border-top: 1px solid var(--border-strong); }
-        .matrix-decisions li { padding: var(--space-md) 0; border-bottom: 1px solid var(--border); }
-        .md-verdict {
-            font-family: var(--mono);
-            font-size: var(--fs-label);
-            letter-spacing: 1px;
-            color: var(--text-muted);
+        .slide-quote .quote-mark {
+            position: absolute;
+            top: 15%;
+            left: var(--pad-slide-x);
+            font-family: var(--serif);
+            font-size: clamp(6rem, 12vw, 14rem);
+            font-weight: 300;
+            color: var(--accent);
+            opacity: 0.2;
+            line-height: 1;
+            pointer-events: none;
         }
-        .matrix-decisions li.is-key .md-verdict { color: var(--accent); }
-        .matrix-decisions h4 {
-            margin-top: var(--space-xs);
-            font-size: var(--fs-body-lg);
-            font-weight: 500;
+        .slide-quote .quote-text {
+            font-family: var(--serif);
+            font-size: clamp(1.4rem, 2.8vw, 3rem);
+            font-weight: 300;
+            font-style: italic;
             color: var(--text);
+            line-height: 1.5;
         }
-        .matrix-decisions li.is-muted h4 { color: var(--text-dim); }
-        .matrix-decisions p { margin-top: 2px; font-size: var(--fs-small); color: var(--text-dim); }
-        .matrix-legend {
-            display: flex;
-            gap: var(--space-lg);
-            margin-top: var(--space-sm);
+        .slide-quote .quote-attr {
+            margin-top: var(--space-lg);
+        }
+        .slide-quote .quote-attr .name {
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            font-weight: 600;
+            color: var(--text-mid);
+        }
+        .slide-quote .quote-attr .role {
             font-family: var(--mono);
             font-size: var(--fs-label);
             color: var(--text-muted);
             letter-spacing: 1px;
+            margin-top: 2px;
         }
 
         /* ═══════════════════════════════════════
-           ACTION PLAN
+           KPI SCORECARD
            ═══════════════════════════════════════ */
 
-        .action-table {
-            width: 100%;
-            border-collapse: collapse;
+        .scorecard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
         }
-        .action-table th {
+        .scorecard-header {
+            background: var(--bg-surface);
+            padding: var(--space-sm) var(--space-md);
             font-family: var(--mono);
             font-size: var(--fs-label);
             font-weight: 500;
             color: var(--text-muted);
             letter-spacing: 1px;
-            text-align: left;
-            padding: var(--space-sm) var(--space-sm) var(--space-sm) 0;
-            border-bottom: 1px solid var(--border-strong);
+            text-transform: uppercase;
         }
-        .action-table td {
-            font-size: var(--fs-body);
-            color: var(--text-mid);
-            padding: var(--space-sm) var(--space-sm) var(--space-sm) 0;
-            border-bottom: 1px solid var(--border);
+        .scorecard-cell {
+            background: var(--bg);
+            padding: var(--space-md);
         }
-        .action-table td:first-child {
+        .scorecard-cell .sc-value {
+            font-family: var(--serif);
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-weight: 600;
             color: var(--text);
-            font-weight: 500;
+            line-height: 1;
+            margin-bottom: var(--space-xs);
         }
-        .action-sub {
-            display: block;
-            margin-top: 2px;
+        .scorecard-cell .sc-label {
             font-size: var(--fs-small);
             font-weight: 300;
             color: var(--text-dim);
+            margin-bottom: var(--space-xs);
         }
-        .plan-summary {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            margin-top: var(--space-lg);
-        }
-        .plan-summary > div {
-            padding: var(--space-sm) var(--space-md) 0;
-            border-left: 1px solid var(--border);
-        }
-        .plan-summary > div:first-child { padding-left: 0; border-left: none; }
-        .ps-value {
-            display: block;
-            font-family: var(--serif);
-            font-size: clamp(1.6rem, 3vw, 3rem);
-            font-weight: 600;
-            line-height: 1.1;
-            color: var(--text);
-        }
-        .ps-value small { margin-left: 2px; font-size: 0.45em; font-weight: 300; color: var(--accent); }
-        .ps-label {
-            display: block;
-            margin-top: var(--space-xs);
-            font-size: var(--fs-small);
-            color: var(--text-dim);
-        }
-        .action-table td.num {
+        .scorecard-cell .sc-delta {
             font-family: var(--mono);
-            color: var(--accent);
+            font-size: var(--fs-label);
+            font-weight: 500;
         }
+        .sc-delta.up { color: var(--sage); }
+        .sc-delta.down { color: var(--negative); }
 
         /* ═══════════════════════════════════════
            END SLIDE
@@ -1056,33 +1215,41 @@
 
         @media (max-height: 750px) {
             .slide { padding: clamp(2rem, 4vh, 4rem) clamp(2rem, 6vw, 6rem); }
-            :root { --header-h: clamp(36px, 5vh, 44px); --header-gap: clamp(1.6rem, 4.5vh, 3rem); }
+            .slide-content { padding-top: clamp(3rem, 7vh, 5rem); }
+            .slide-header { height: clamp(36px, 5vh, 44px); }
         }
 
         @media (max-height: 650px) {
             .slide { padding: clamp(1.5rem, 3vh, 3rem) clamp(1.5rem, 5vw, 4rem); }
-            :root { --header-gap: clamp(1.2rem, 3.5vh, 2rem); }
+            .slide-content { padding-top: clamp(2.5rem, 6vh, 4rem); }
+            .check-list { columns: 1; }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-height: 500px) and (orientation: landscape) {
             .slide { padding: clamp(1rem, 2vh, 2rem) clamp(1.5rem, 4vw, 3rem); }
-            :root { --header-gap: clamp(0.8rem, 2.5vh, 1.2rem); }
+            .slide-content { padding-top: clamp(2rem, 5vh, 3rem); }
+            .features-grid { gap: var(--space-xs); }
             .timeline-vertical { padding-left: clamp(4rem, 7vw, 6rem); }
         }
 
         @media (max-width: 768px) {
             .slide { padding: clamp(1.5rem, 3vh, 3rem) clamp(1rem, 4vw, 2rem); }
-            :root { --header-gap: clamp(1.6rem, 4vh, 2.4rem); }
+            .slide-content { padding-top: clamp(3rem, 6vh, 4rem); }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .features-grid { grid-template-columns: 1fr; }
+            .feature-block + .feature-block::before { display: none; }
             .comparison-split { grid-template-columns: 1fr; gap: var(--space-md); }
             .compare-divider-line { display: none; }
+            .steps-row { grid-template-columns: 1fr; gap: var(--space-md); }
+            .steps-row::before { display: none; }
+            .split-layout { grid-template-columns: 1fr; }
+            .split-divider { width: 60%; height: 1px; }
+            .highlights-grid { grid-template-columns: 1fr; }
+            .highlights-grid::before { display: none; }
             .matrix-grid { grid-template-columns: 1fr; }
-            .agenda-body { grid-template-columns: 1fr; gap: var(--space-xs); }
-            .target-split, .matrix-split { grid-template-columns: 1fr; }
-            .plan-summary { grid-template-columns: 1fr; gap: var(--space-sm); }
-            .exec-points li { grid-template-columns: 1fr; gap: var(--space-xs); }
-            .action-table th:nth-child(4), .action-table td:nth-child(4) { display: none; }
+            .check-list { columns: 1; }
+            .scorecard { grid-template-columns: repeat(2, 1fr); }
             .timeline-vertical .tl-item { grid-template-columns: clamp(3.5rem, 6vw, 5rem) 7px 1fr; }
             .end-contacts { flex-direction: column; gap: var(--space-sm); }
         }
@@ -1112,444 +1279,552 @@
 
     <div class="presentation">
 
-        <!-- ====== 封面：品牌 + 元信息 ====== -->
-        <section class="slide slide-cover active">
+        <!-- ====== Slide 1: Cover ====== -->
+        <section class="slide slide-cover active" data-section="年度业务回顾">
             <span class="cover-logo reveal">星辰科技集团</span>
-            <div class="ghost-num reveal delay-1">2025</div>
-            <h1 class="reveal delay-2">年度业务回顾</h1>
-            <div class="cover-rule reveal delay-3"></div>
-            <p class="cover-sub reveal delay-4">回顾关键业绩与增长驱动力，为 2026 年战略决策提供依据</p>
-            <div class="cover-meta reveal delay-5">
+            <div class="ghost-num reveal d1">01</div>
+            <h1 class="reveal d2">年度业务回顾</h1>
+            <div class="cover-rule reveal d3"></div>
+            <p class="cover-sub reveal d4">回顾关键业绩、深度洞察业务增长驱动力，<br>为下一阶段战略决策提供数据支撑</p>
+            <div class="cover-meta reveal d5">
                 <span>战略发展部</span>
                 <div class="sep"></div>
                 <span>2025.12</span>
                 <div class="sep"></div>
-                <span>内部资料</span>
+                <span>内部报告</span>
             </div>
         </section>
 
-        <!-- ====== 执行摘要：结论先行，每条结论配一个关键数字 ====== -->
-        <section class="slide slide-content">
-            <div class="slide-header">
-                <div class="logo">星辰科技</div>
-                <div class="section-label">Executive Summary</div>
-            </div>
-            <div class="eyebrow reveal">Executive Summary</div>
-            <h2 class="title-main reveal delay-1">营收超额完成目标，增长主要来自三项可复制的举措</h2>
-            <p class="desc-text reveal delay-2">海外与新产品收入低于预期，是 2026 年的重点改进方向</p>
-            <div class="slide-body">
-                <ol class="exec-points">
-                    <li class="reveal delay-3">
-                        <div class="exec-figure">+32%</div>
-                        <div class="exec-body">
-                            <h4>营收增长超出目标 15%</h4>
-                            <p>年度营收 12.6 亿，大客户续约贡献超过一半增量</p>
-                        </div>
-                    </li>
-                    <li class="reveal delay-4">
-                        <div class="exec-figure">−35%</div>
-                        <div class="exec-body">
-                            <h4>流程自动化降低人力成本</h4>
-                            <p>数据中台上线后，报表与审批全面线上化</p>
-                        </div>
-                    </li>
-                    <li class="reveal delay-5">
-                        <div class="exec-figure alt">86%</div>
-                        <div class="exec-body">
-                            <h4>海外营收目标达成率偏低</h4>
-                            <p>东南亚本地化进度慢于计划，建议 2026 年追加渠道投入</p>
-                        </div>
-                    </li>
-                </ol>
-            </div>
-        </section>
-
-        <!-- ====== 议程：与章节一一对应 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 2: Agenda ====== -->
+        <section class="slide slide-content" data-section="议程概览">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
                 <div class="section-label">Agenda</div>
             </div>
-            <div class="eyebrow reveal">Agenda</div>
-            <h2 class="title-main reveal delay-1">今日议程</h2>
-            <p class="desc-text reveal delay-2">三个部分，约 30 分钟</p>
-            <div class="slide-body">
-                <div class="agenda-grid">
-                    <div class="agenda-item reveal delay-3">
-                        <div class="agenda-num">01</div>
-                        <div class="agenda-body">
-                            <div>
-                                <h4>年度业绩</h4>
-                                <p>核心指标与目标达成情况</p>
-                            </div>
-                            <div class="agenda-meta">
-                                <p class="agenda-q">增长是否健康、可持续？</p>
-                                <span>P.05 核心指标 · P.06 目标达成</span>
-                            </div>
-                        </div>
+            <div class="eyebrow reveal">Overview</div>
+            <h2 class="title-main reveal d1">今日议程</h2>
+            <p class="desc-text reveal d2">围绕五大核心板块，全方位回顾年度表现</p>
+            <div class="agenda-grid">
+                <div class="agenda-item reveal d3">
+                    <div class="agenda-num">01</div>
+                    <div class="agenda-body">
+                        <h4>核心业绩指标</h4>
+                        <p>营收、用户增长、利润率等关键数据回顾</p>
                     </div>
-                    <div class="agenda-item reveal delay-4">
-                        <div class="agenda-num">02</div>
-                        <div class="agenda-body">
-                            <div>
-                                <h4>业务进展</h4>
-                                <p>数字化转型成果与年度里程碑</p>
-                            </div>
-                            <div class="agenda-meta">
-                                <p class="agenda-q">数字化投入换来了什么？</p>
-                                <span>P.08 转型成果 · P.09 年度里程碑</span>
-                            </div>
-                        </div>
+                </div>
+                <div class="agenda-item reveal d4">
+                    <div class="agenda-num">02</div>
+                    <div class="agenda-body">
+                        <h4>产品与技术进展</h4>
+                        <p>新产品发布、技术创新及平台能力提升</p>
                     </div>
-                    <div class="agenda-item reveal delay-5">
-                        <div class="agenda-num">03</div>
-                        <div class="agenda-body">
-                            <div>
-                                <h4>2026 规划</h4>
-                                <p>战略优先级与行动计划</p>
-                            </div>
-                            <div class="agenda-meta">
-                                <p class="agenda-q">资源该优先投向哪里？</p>
-                                <span>P.11 优先级矩阵 · P.12 行动计划</span>
-                            </div>
-                        </div>
+                </div>
+                <div class="agenda-item reveal d5">
+                    <div class="agenda-num">03</div>
+                    <div class="agenda-body">
+                        <h4>业务转型成果</h4>
+                        <p>数字化转型前后关键指标对比分析</p>
+                    </div>
+                </div>
+                <div class="agenda-item reveal d6">
+                    <div class="agenda-num">04</div>
+                    <div class="agenda-body">
+                        <h4>重要里程碑</h4>
+                        <p>年度关键事件与战略节点梳理</p>
+                    </div>
+                </div>
+                <div class="agenda-item reveal d7">
+                    <div class="agenda-num">05</div>
+                    <div class="agenda-body">
+                        <h4>未来展望与规划</h4>
+                        <p>新一年战略方向与核心目标</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ====== 章节过渡：幽灵数字 ====== -->
-        <section class="slide slide-chapter">
+        <!-- ====== Slide 3: Chapter — 业绩概览 ====== -->
+        <section class="slide slide-chapter" data-section="业绩概览">
             <div class="ghost-num reveal">01</div>
-            <div class="chapter-label reveal delay-1">Section 01</div>
-            <div class="chapter-rule reveal delay-2"></div>
-            <h2 class="reveal delay-3">年度业绩</h2>
-            <p class="chapter-desc reveal delay-4">核心指标与目标达成情况</p>
+            <div class="chapter-label reveal d1">Section 01</div>
+            <div class="chapter-rule reveal d2"></div>
+            <h2 class="reveal d3">核心业绩指标</h2>
+            <p class="chapter-desc reveal d4">用数据说话，全面回顾年度经营成果</p>
         </section>
 
-        <!-- ====== KPI：竖线分隔的四列数字 + 同比 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 4: Key Metrics ====== -->
+        <section class="slide slide-content" data-section="业绩概览">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
                 <div class="section-label">Key Metrics</div>
             </div>
-            <div class="eyebrow reveal">Key Metrics</div>
-            <h2 class="title-main reveal delay-1">营收与用户双增长，利润率小幅回落</h2>
-            <p class="desc-text reveal delay-2">利润率下降来自海外市场的前期投入，属计划内</p>
-            <div class="slide-body">
-                <div class="stats-row">
-                    <div class="stat-cell reveal-scale delay-3">
-                        <div class="stat-value"><span data-count="12.6">0</span><span class="unit">亿</span></div>
-                        <div class="stat-label">年度营收</div>
-                        <div class="stat-trend up">+32% YoY</div>
-                        <div class="stat-spark"><i style="--h: 68%"></i><i style="--h: 76%"></i><i style="--h: 87%"></i><i style="--h: 100%"></i></div>
-                        <div class="stat-spark-axis"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div>
-                        <p class="stat-note">大客户续约贡献 54% 增量</p>
-                    </div>
-                    <div class="stat-cell reveal-scale delay-4">
-                        <div class="stat-value"><span data-count="580">0</span><span class="unit">万</span></div>
-                        <div class="stat-label">活跃用户</div>
-                        <div class="stat-trend up">+48% YoY</div>
-                        <div class="stat-spark"><i style="--h: 66%"></i><i style="--h: 78%"></i><i style="--h: 90%"></i><i style="--h: 100%"></i></div>
-                        <div class="stat-spark-axis"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div>
-                        <p class="stat-note">覆盖全国 300+ 城市</p>
-                    </div>
-                    <div class="stat-cell reveal-scale delay-5">
-                        <div class="stat-value"><span data-count="96.8">0</span><span class="unit">%</span></div>
-                        <div class="stat-label">客户续约率</div>
-                        <div class="stat-trend up">+3.2pp</div>
-                        <div class="stat-spark"><i style="--h: 97%"></i><i style="--h: 98%"></i><i style="--h: 99%"></i><i style="--h: 100%"></i></div>
-                        <div class="stat-spark-axis"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div>
-                        <p class="stat-note">健康评分系统提前预警流失</p>
-                    </div>
-                    <div class="stat-cell reveal-scale delay-6">
-                        <div class="stat-value"><span data-count="23.5">0</span><span class="unit">%</span></div>
-                        <div class="stat-label">净利润率</div>
-                        <div class="stat-trend down">−0.8pp</div>
-                        <div class="stat-spark"><i style="--h: 100%"></i><i style="--h: 98%"></i><i style="--h: 97%"></i><i style="--h: 97%"></i></div>
-                        <div class="stat-spark-axis"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div>
-                        <p class="stat-note">海外前期投入所致，属计划内</p>
-                    </div>
+            <div class="eyebrow reveal">Performance</div>
+            <h2 class="title-main reveal d1">年度核心数据</h2>
+            <p class="desc-text reveal d2">全年营收与用户双增长，利润率稳步提升</p>
+            <div class="stats-row">
+                <div class="stat-cell reveal-scale d3">
+                    <div class="stat-value"><span data-count="12.6">0</span><span class="unit">亿</span></div>
+                    <div class="stat-label">年度营收</div>
+                    <div class="stat-trend up">+32% YoY</div>
+                </div>
+                <div class="stat-cell reveal-scale d4">
+                    <div class="stat-value"><span data-count="580">0</span><span class="unit">万</span></div>
+                    <div class="stat-label">活跃用户</div>
+                    <div class="stat-trend up">+48% YoY</div>
+                </div>
+                <div class="stat-cell reveal-scale d5">
+                    <div class="stat-value"><span data-count="96.8">0</span><span class="unit">%</span></div>
+                    <div class="stat-label">客户续约率</div>
+                    <div class="stat-trend up">+3.2pp</div>
+                </div>
+                <div class="stat-cell reveal-scale d6">
+                    <div class="stat-value"><span data-count="23.5">0</span><span class="unit">%</span></div>
+                    <div class="stat-label">净利润率</div>
+                    <div class="stat-trend flat">— 持平</div>
                 </div>
             </div>
         </section>
 
-        <!-- ====== 目标达成：网格背景上的条形图，超额用鼠尾草色 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 5: Big Statement ====== -->
+        <section class="slide slide-statement" data-section="核心观点">
+            <div class="statement-rule reveal"></div>
+            <div class="statement-text reveal d1">当业务全面数字化，每一个决策都有数据支撑，增长便不再是偶然。</div>
+            <div class="statement-attr reveal d2">数据驱动增长飞轮</div>
+        </section>
+
+        <!-- ====== Slide 6: Features ====== -->
+        <section class="slide slide-content" data-section="产品与技术">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
-                <div class="section-label">Targets</div>
+                <div class="section-label">Products</div>
             </div>
-            <div class="eyebrow reveal">Target vs Actual</div>
-            <h2 class="title-main reveal delay-1">五项年度目标中两项超额完成</h2>
-            <p class="desc-text reveal delay-2">海外营收与新产品收入未达标，差距集中在下半年</p>
-            <div class="slide-body">
-                <div class="target-split">
-                    <div>
-                    <div class="chart-list">
-                        <div class="chart-row reveal delay-3">
-                            <div class="chart-label">营收<span>12.6 亿 / 目标 11.0 亿</span></div>
-                            <div class="chart-bar"><div class="chart-fill alt" data-percent="100"></div></div>
-                            <div class="chart-val alt">115%</div>
-                        </div>
-                        <div class="chart-row reveal delay-3">
-                            <div class="chart-label">新签客户<span>540 家 / 目标 500 家</span></div>
-                            <div class="chart-bar"><div class="chart-fill alt" data-percent="100"></div></div>
-                            <div class="chart-val alt">108%</div>
-                        </div>
-                        <div class="chart-row reveal delay-4">
-                            <div class="chart-label">人效提升<span>+23% / 目标 +25%</span></div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
-                            <div class="chart-val">92%</div>
-                        </div>
-                        <div class="chart-row reveal delay-4">
-                            <div class="chart-label">海外营收<span>2.4 亿 / 目标 2.8 亿</span></div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="86"></div></div>
-                            <div class="chart-val">86%</div>
-                        </div>
-                        <div class="chart-row reveal delay-5">
-                            <div class="chart-label">新产品收入<span>1.1 亿 / 目标 1.5 亿</span></div>
-                            <div class="chart-bar"><div class="chart-fill" data-percent="74"></div></div>
-                            <div class="chart-val">74%</div>
-                        </div>
-                    </div>
-                    <p class="chart-note reveal delay-6">达成率 = 实际 / 年度目标；超过 100% 的条形按满格显示</p>
-                    </div>
-                    <aside class="target-callout reveal delay-4">
-                        <div class="target-callout-value">2<span> / 5</span></div>
-                        <h4>两项目标未达成</h4>
-                        <p>东南亚渠道签约比计划晚一个季度，海外营收缺口约 0.4 亿；新产品线定价调整推迟了三家大客户的采购。</p>
-                        <p class="target-callout-next">2026 年对策见 P.12 行动计划</p>
-                    </aside>
+            <div class="eyebrow reveal">Product Matrix</div>
+            <h2 class="title-main reveal d1">核心产品矩阵</h2>
+            <p class="desc-text reveal d2">三大核心产品线持续发力，构建一体化解决方案</p>
+            <div class="features-grid">
+                <div class="feature-block reveal d3">
+                    <div class="feature-num">01</div>
+                    <h4>智能分析平台</h4>
+                    <p>基于 AI 的智能数据分析引擎，帮助企业从海量数据中快速提取商业洞察，决策效率提升 60%。</p>
+                </div>
+                <div class="feature-block reveal d4">
+                    <div class="feature-num">02</div>
+                    <h4>云端协作套件</h4>
+                    <p>一站式团队协作工具，支持实时编辑、任务管理和视频会议，已服务超过 2000 家企业客户。</p>
+                </div>
+                <div class="feature-block reveal d5">
+                    <div class="feature-num">03</div>
+                    <h4>安全合规中心</h4>
+                    <p>企业级安全管理方案，涵盖数据加密、访问控制和合规审计，获 ISO 27001 认证。</p>
                 </div>
             </div>
         </section>
 
-        <!-- ====== 章节过渡 ====== -->
-        <section class="slide slide-chapter">
-            <div class="ghost-num reveal">02</div>
-            <div class="chapter-label reveal delay-1">Section 02</div>
-            <div class="chapter-rule reveal delay-2"></div>
-            <h2 class="reveal delay-3">业务进展</h2>
-            <p class="chapter-desc reveal delay-4">数字化转型成果与年度里程碑</p>
-        </section>
-
-        <!-- ====== 转型前后对比：Before 灰底，After 赤陶淡底 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 7: Comparison ====== -->
+        <section class="slide slide-content" data-section="业务转型">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
                 <div class="section-label">Transformation</div>
             </div>
-            <div class="eyebrow reveal">Before &amp; After</div>
-            <h2 class="title-main reveal delay-1">数据中台上线后，响应周期从 48 小时降到 2 小时</h2>
-            <div class="slide-body">
-                <div class="comparison-split">
-                    <div class="compare-side before reveal-left delay-2">
-                        <div class="ghost-label">Before</div>
-                        <div class="compare-hero"><span class="compare-hero-value">48</span><span class="compare-hero-unit">小时</span><p>平均客户响应</p></div>
-                        <ul class="compare-items">
-                            <li><span class="dash">—</span>手工报表，数据滞后 3–5 天</li>
-                            <li><span class="dash">—</span>部门数据孤岛，协同困难</li>
-                            <li><span class="dash">—</span>客户响应平均 48 小时</li>
-                            <li><span class="dash">—</span>纸质审批，流程冗长</li>
-                        </ul>
-                    </div>
-                    <div class="compare-divider-line reveal-scale delay-3"></div>
-                    <div class="compare-side after reveal-right delay-4">
-                        <div class="ghost-label">After</div>
-                        <div class="compare-hero"><span class="compare-hero-value">2</span><span class="compare-hero-unit">小时</span><p>平均客户响应，提速 24 倍</p></div>
-                        <ul class="compare-items">
-                            <li><span class="dash">—</span>实时看板，秒级刷新</li>
-                            <li><span class="dash">—</span>统一数据中台，全链路打通</li>
-                            <li><span class="dash">—</span>智能客服 + 人工，响应低于 2 小时</li>
-                            <li><span class="dash">—</span>全流程线上化，审批提速 70%</li>
-                        </ul>
-                    </div>
+            <div class="eyebrow reveal">Before & After</div>
+            <h2 class="title-main reveal d1">数字化转型成果</h2>
+            <div class="comparison-split">
+                <div class="compare-side before reveal-left d2">
+                    <div class="ghost-label">Before</div>
+                    <ul class="compare-items">
+                        <li><span class="dash">—</span>手工报表，数据滞后 3-5 天</li>
+                        <li><span class="dash">—</span>部门数据孤岛，协同困难</li>
+                        <li><span class="dash">—</span>客户响应周期平均 48 小时</li>
+                        <li><span class="dash">—</span>人力成本占比超过 40%</li>
+                        <li><span class="dash">—</span>纸质审批，流程冗长</li>
+                    </ul>
+                </div>
+                <div class="compare-divider-line reveal-scale d3"></div>
+                <div class="compare-side after reveal-right d4">
+                    <div class="ghost-label">After</div>
+                    <ul class="compare-items">
+                        <li><span class="dash">—</span>实时数据看板，秒级刷新</li>
+                        <li><span class="dash">—</span>统一数据中台，全链路打通</li>
+                        <li><span class="dash">—</span>智能客服 + 人工，响应低于 2 小时</li>
+                        <li><span class="dash">—</span>自动化流程节省 35% 人力成本</li>
+                        <li><span class="dash">—</span>全流程线上化，审批提速 70%</li>
+                    </ul>
                 </div>
             </div>
         </section>
 
-        <!-- ====== 里程碑：竖向时间线，等宽日期左置 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 8: Progress Bars ====== -->
+        <section class="slide slide-content" data-section="转型进度">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">Progress</div>
+            </div>
+            <div class="eyebrow reveal">Transformation Progress</div>
+            <h2 class="title-main reveal d1">数字化转型关键指标</h2>
+            <p class="desc-text reveal d2">各业务线数字化渗透率稳步提升，超额达成年度目标</p>
+            <div class="chart-list">
+                <div class="chart-row reveal d3">
+                    <div class="chart-label">流程自动化</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="87"></div></div>
+                    <div class="chart-val">87%</div>
+                </div>
+                <div class="chart-row reveal d3">
+                    <div class="chart-label">数据实时分析</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
+                    <div class="chart-val">92%</div>
+                </div>
+                <div class="chart-row reveal d4">
+                    <div class="chart-label">客户响应效率</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="95"></div></div>
+                    <div class="chart-val">95%</div>
+                </div>
+                <div class="chart-row reveal d4">
+                    <div class="chart-label">系统可用性</div>
+                    <div class="chart-bar"><div class="chart-fill alt" data-percent="99"></div></div>
+                    <div class="chart-val alt">99.97%</div>
+                </div>
+                <div class="chart-row reveal d5">
+                    <div class="chart-label">员工数字技能</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="78"></div></div>
+                    <div class="chart-val">78%</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 9: Process Steps ====== -->
+        <section class="slide slide-content" data-section="战略路径">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">Process</div>
+            </div>
+            <div class="eyebrow reveal">Growth Flywheel</div>
+            <h2 class="title-main reveal d1">增长飞轮五步法</h2>
+            <p class="desc-text reveal d2">构建正向循环，驱动可持续增长</p>
+            <div class="steps-row">
+                <div class="step-item reveal d3">
+                    <div class="step-num">1</div>
+                    <h4>洞察需求</h4>
+                    <p>深度用户调研<br>识别核心痛点</p>
+                </div>
+                <div class="step-item reveal d4">
+                    <div class="step-num">2</div>
+                    <h4>快速验证</h4>
+                    <p>MVP 上线<br>A/B 测试迭代</p>
+                </div>
+                <div class="step-item reveal d5">
+                    <div class="step-num">3</div>
+                    <h4>规模推广</h4>
+                    <p>精准营销<br>高效获客转化</p>
+                </div>
+                <div class="step-item reveal d6">
+                    <div class="step-num">4</div>
+                    <h4>深度运营</h4>
+                    <p>客户成功体系<br>提升留存</p>
+                </div>
+                <div class="step-item reveal d7">
+                    <div class="step-num">5</div>
+                    <h4>生态扩展</h4>
+                    <p>合作伙伴网络<br>价值倍增</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 10: Split Detail ====== -->
+        <section class="slide slide-content" data-section="客户成功">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">Customer Success</div>
+            </div>
+            <div class="eyebrow reveal">Retention</div>
+            <h2 class="title-main reveal d1">客户成功体系详解</h2>
+            <div class="split-layout">
+                <div class="split-metric reveal-left d2">
+                    <div class="metric-value"><span data-count="96.8">0</span><span class="unit">%</span></div>
+                    <div class="metric-label">客户续约率</div>
+                </div>
+                <div class="split-divider reveal-scale d3"></div>
+                <div class="split-info reveal-right d4">
+                    <h3>为什么续约率持续走高</h3>
+                    <ul class="split-list">
+                        <li><span class="dash">—</span>专属客户成功经理，全生命周期 1v1 陪伴</li>
+                        <li><span class="dash">—</span>智能健康评分系统，提前预警流失风险</li>
+                        <li><span class="dash">—</span>季度业务复盘机制，持续优化使用价值</li>
+                        <li><span class="dash">—</span>7x24 技术支持，平均响应时间低于 15 分钟</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 11: Data Highlights ====== -->
+        <section class="slide slide-content" data-section="运营数据">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">Operations</div>
+            </div>
+            <div class="eyebrow reveal">Data Highlights</div>
+            <h2 class="title-main reveal d1">关键运营指标</h2>
+            <p class="desc-text reveal d2">精细化运营成效显著，各项指标全面向好</p>
+            <div class="highlights-grid">
+                <div class="highlight-cell reveal d3">
+                    <div class="hl-value"><span data-count="3200">0</span><span class="unit">+</span></div>
+                    <h4>企业客户</h4>
+                    <p>覆盖金融、制造、零售等 12 个行业</p>
+                </div>
+                <div class="highlight-cell reveal d4">
+                    <div class="hl-value"><span data-count="99.97">0</span><span class="unit">%</span></div>
+                    <h4>服务可用性</h4>
+                    <p>全年平台 SLA 达标率</p>
+                </div>
+                <div class="highlight-cell reveal d5">
+                    <div class="hl-value"><span data-count="150">0</span><span class="unit">PB</span></div>
+                    <h4>数据处理量</h4>
+                    <p>年度累计处理，同比增长 120%</p>
+                </div>
+                <div class="highlight-cell reveal d6">
+                    <div class="hl-value"><span data-count="4.8">0</span><span class="unit">/5</span></div>
+                    <h4>NPS 客户评分</h4>
+                    <p>连续 3 年持续上升</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 12: Timeline ====== -->
+        <section class="slide slide-content" data-section="重要里程碑">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
                 <div class="section-label">Milestones</div>
             </div>
-            <div class="eyebrow reveal">Milestones</div>
-            <h2 class="title-main reveal delay-1">年度五个关键节点</h2>
-            <div class="slide-body">
-                <div class="timeline-vertical">
-                    <div class="tl-item reveal delay-2">
-                        <div class="tl-date">Q1 · 01</div>
-                        <div class="tl-marker"></div>
-                        <div>
-                            <div class="tl-title">完成 B 轮融资</div>
-                            <div class="tl-desc">获 3 亿元投资，估值突破 50 亿</div>
-                        </div>
+            <div class="eyebrow reveal">Timeline</div>
+            <h2 class="title-main reveal d1">年度重要里程碑</h2>
+            <div class="timeline-vertical">
+                <div class="tl-item reveal d2">
+                    <div class="tl-date">Q1 · 1月</div>
+                    <div class="tl-marker"></div>
+                    <div class="tl-content">
+                        <div class="tl-title">完成 B 轮融资</div>
+                        <div class="tl-desc">获 3 亿元投资，估值突破 50 亿</div>
                     </div>
-                    <div class="tl-item reveal delay-3">
-                        <div class="tl-date">Q1 · 03</div>
-                        <div class="tl-marker"></div>
-                        <div>
-                            <div class="tl-title">平台 3.0 发布</div>
-                            <div class="tl-desc">全新架构，性能提升 200%</div>
-                        </div>
+                </div>
+                <div class="tl-item reveal d3">
+                    <div class="tl-date">Q1 · 3月</div>
+                    <div class="tl-marker"></div>
+                    <div class="tl-content">
+                        <div class="tl-title">平台 3.0 发布</div>
+                        <div class="tl-desc">全新架构，性能提升 200%</div>
                     </div>
-                    <div class="tl-item reveal delay-4">
-                        <div class="tl-date">Q2 · 06</div>
-                        <div class="tl-marker"></div>
-                        <div>
-                            <div class="tl-title">海外市场启动</div>
-                            <div class="tl-desc">东南亚三国同步上线</div>
-                        </div>
+                </div>
+                <div class="tl-item reveal d4">
+                    <div class="tl-date">Q2 · 6月</div>
+                    <div class="tl-marker"></div>
+                    <div class="tl-content">
+                        <div class="tl-title">海外市场启动</div>
+                        <div class="tl-desc">东南亚三国同步上线运营</div>
                     </div>
-                    <div class="tl-item reveal delay-5">
-                        <div class="tl-date">Q3 · 09</div>
-                        <div class="tl-marker"></div>
-                        <div>
-                            <div class="tl-title">AI 引擎上线</div>
-                            <div class="tl-desc">自研模型集成进全产品线</div>
-                        </div>
+                </div>
+                <div class="tl-item reveal d5">
+                    <div class="tl-date">Q3 · 9月</div>
+                    <div class="tl-marker"></div>
+                    <div class="tl-content">
+                        <div class="tl-title">AI 引擎上线</div>
+                        <div class="tl-desc">自研大模型集成，智能化升级</div>
                     </div>
-                    <div class="tl-item reveal delay-6">
-                        <div class="tl-date">Q4 · 12</div>
-                        <div class="tl-marker"></div>
-                        <div>
-                            <div class="tl-title">年度营收破 12 亿</div>
-                            <div class="tl-desc">超额完成全年目标 15%</div>
-                        </div>
+                </div>
+                <div class="tl-item reveal d6">
+                    <div class="tl-date">Q4 · 11月</div>
+                    <div class="tl-marker"></div>
+                    <div class="tl-content">
+                        <div class="tl-title">行业峰会举办</div>
+                        <div class="tl-desc">首届生态大会，5000+ 参会者</div>
+                    </div>
+                </div>
+                <div class="tl-item reveal d7">
+                    <div class="tl-date">Q4 · 12月</div>
+                    <div class="tl-marker"></div>
+                    <div class="tl-content">
+                        <div class="tl-title">年度营收破 12 亿</div>
+                        <div class="tl-desc">超额完成全年目标 115%</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ====== 章节过渡 ====== -->
-        <section class="slide slide-chapter">
-            <div class="ghost-num reveal">03</div>
-            <div class="chapter-label reveal delay-1">Section 03</div>
-            <div class="chapter-rule reveal delay-2"></div>
-            <h2 class="reveal delay-3">2026 规划</h2>
-            <p class="chapter-desc reveal delay-4">战略优先级与行动计划</p>
-        </section>
-
-        <!-- ====== 优先级矩阵：纵轴影响、横轴投入，四格结论 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 13: Checklist ====== -->
+        <section class="slide slide-content" data-section="年度成就">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
-                <div class="section-label">Priorities</div>
+                <div class="section-label">Achievements</div>
             </div>
-            <div class="eyebrow reveal">Priority Matrix</div>
-            <h2 class="title-main reveal delay-1">优先做速赢项，重点投入 AI 与海外</h2>
-            <div class="slide-body">
-                <div class="matrix-split">
-                    <div>
-                    <div class="matrix-grid reveal-scale delay-2">
-                        <div class="matrix-cell">
-                            <div class="cell-label">高影响 · 低投入 — 速赢</div>
-                            <div class="cell-title">开放 API 生态</div>
-                            <div class="cell-desc">复用现有平台能力，目标 200+ 合作伙伴</div>
-                        </div>
-                        <div class="matrix-cell is-key">
-                            <div class="cell-label">高影响 · 高投入 — 重点投入</div>
-                            <div class="cell-title">AI 深度融合与海外扩张</div>
-                            <div class="cell-desc">智能化覆盖 80% 核心场景，海外营收占比 20%</div>
-                        </div>
-                        <div class="matrix-cell">
-                            <div class="cell-label">低影响 · 低投入 — 顺手做</div>
-                            <div class="cell-title">体验细节优化</div>
-                            <div class="cell-desc">加载提速 40%，操作路径精简 30%</div>
-                        </div>
-                        <div class="matrix-cell is-muted">
-                            <div class="cell-label">低影响 · 高投入 — 暂缓</div>
-                            <div class="cell-title">自建数据中心</div>
-                            <div class="cell-desc">云成本仍有优势，2027 年再评估</div>
-                        </div>
-                    </div>
-                    <p class="matrix-legend reveal delay-3"><span>纵轴：业务影响（上高下低）</span><span>横轴：资源投入（左低右高）</span></p>
-                    </div>
-                    <ol class="matrix-decisions reveal delay-4">
-                        <li><span class="md-verdict">立即启动</span><h4>开放 API 生态</h4><p>Q2 上线开发者平台，复用现有能力</p></li>
-                        <li class="is-key"><span class="md-verdict">重点投入</span><h4>AI 融合与海外扩张</h4><p>占 2026 年新增预算的 70%</p></li>
-                        <li class="is-muted"><span class="md-verdict">暂缓</span><h4>自建数据中心</h4><p>云成本仍有优势，2027 年再评估</p></li>
-                    </ol>
-                </div>
+            <div class="eyebrow reveal">Accomplishments</div>
+            <h2 class="title-main reveal d1">年度关键成就</h2>
+            <p class="desc-text reveal d2">团队协作、全力以赴，交出一份亮眼答卷</p>
+            <div class="check-list-wrap">
+                <div class="completion reveal d2">10/10</div>
+                <ul class="check-list">
+                    <li class="reveal d3"><span class="dash">—</span>营收突破 12 亿，同比增长 32%</li>
+                    <li class="reveal d3"><span class="dash">—</span>完成 B 轮融资 3 亿元，估值翻倍</li>
+                    <li class="reveal d4"><span class="dash">—</span>活跃用户突破 580 万，覆盖全国 300+ 城市</li>
+                    <li class="reveal d4"><span class="dash">—</span>自研 AI 引擎上线，推荐准确率 92%</li>
+                    <li class="reveal d5"><span class="dash">—</span>海外市场成功落地东南亚三国</li>
+                    <li class="reveal d5"><span class="dash">—</span>获得 ISO 27001 和 SOC 2 双认证</li>
+                    <li class="reveal d6"><span class="dash">—</span>客户续约率提升至 96.8%，NPS 达 4.8</li>
+                    <li class="reveal d6"><span class="dash">—</span>团队规模扩展至 600 人，人效比提升 25%</li>
+                    <li class="reveal d7"><span class="dash">—</span>举办首届生态大会，建立 80+ 合作伙伴网络</li>
+                    <li class="reveal d7"><span class="dash">—</span>荣获"年度最具创新力科技企业"奖项</li>
+                </ul>
             </div>
         </section>
 
-        <!-- ====== 行动计划：举措 / 负责人 / 时间 / 衡量指标 ====== -->
-        <section class="slide slide-content">
+        <!-- ====== Slide 14: Chapter — 未来展望 ====== -->
+        <section class="slide slide-chapter" data-section="未来展望">
+            <div class="ghost-num reveal">02</div>
+            <div class="chapter-label reveal d1">Section 02</div>
+            <div class="chapter-rule reveal d2"></div>
+            <h2 class="reveal d3">未来展望与规划</h2>
+            <p class="chapter-desc reveal d4">锚定长期价值，布局下一增长曲线</p>
+        </section>
+
+        <!-- ====== Slide 15: Strategy Matrix ====== -->
+        <section class="slide slide-content" data-section="战略矩阵">
             <div class="slide-header">
                 <div class="logo">星辰科技</div>
-                <div class="section-label">Action Plan</div>
+                <div class="section-label">Strategy</div>
             </div>
-            <div class="eyebrow reveal">Next Steps</div>
-            <h2 class="title-main reveal delay-1">2026 年四项行动，请管理层确认资源</h2>
-            <div class="slide-body">
-                <table class="action-table reveal delay-2">
-                    <thead>
-                        <tr>
-                            <th>举措</th>
-                            <th>负责人</th>
-                            <th>完成时间</th>
-                            <th>衡量指标</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>AI 能力覆盖核心场景<span class="action-sub">推荐、搜索、客服三条链路</span></td>
-                            <td>产品与技术中心</td>
-                            <td class="num">Q3</td>
-                            <td>覆盖率 80%</td>
-                        </tr>
-                        <tr>
-                            <td>东南亚本地化与渠道扩张<span class="action-sub">新增印尼、越南两个本地团队</span></td>
-                            <td>国际业务部</td>
-                            <td class="num">Q4</td>
-                            <td>海外营收占比 20%</td>
-                        </tr>
-                        <tr>
-                            <td>开放 API 与开发者平台<span class="action-sub">首批开放 40 个核心接口</span></td>
-                            <td>平台事业部</td>
-                            <td class="num">Q2</td>
-                            <td>合作伙伴 200+</td>
-                        </tr>
-                        <tr>
-                            <td>新产品线商业化<span class="action-sub">重做定价，聚焦中大型客户</span></td>
-                            <td>增长中心</td>
-                            <td class="num">Q4</td>
-                            <td>收入达成率 100%</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div class="plan-summary reveal delay-3">
-                    <div><span class="ps-value">2.4<small>亿</small></span><span class="ps-label">新增预算，70% 投向 AI 与海外</span></div>
-                    <div><span class="ps-value">120<small>人</small></span><span class="ps-label">新增编制，Q1 完成招聘</span></div>
-                    <div><span class="ps-value">Q2</span><span class="ps-label">首批交付：开放 API 平台</span></div>
+            <div class="eyebrow reveal">Strategy Matrix</div>
+            <h2 class="title-main reveal d1">2026 战略优先级矩阵</h2>
+            <p class="desc-text reveal d2">四大维度布局，平衡创新投入与稳健增长</p>
+            <div class="matrix-wrap">
+                <div class="matrix-grid">
+                    <div class="matrix-cell reveal-scale d3">
+                        <div class="cell-label">高影响 / 高投入</div>
+                        <div class="cell-title">AI 深度创新</div>
+                        <div class="cell-desc">大模型能力嵌入全产品线，智能化覆盖 80% 核心场景</div>
+                    </div>
+                    <div class="matrix-cell reveal-scale d4">
+                        <div class="cell-label">高影响 / 低投入</div>
+                        <div class="cell-title">全球化扩张</div>
+                        <div class="cell-desc">东南亚、中东双线并进，海外营收占比目标 20%</div>
+                    </div>
+                    <div class="matrix-cell reveal-scale d5">
+                        <div class="cell-label">快速见效 / 高投入</div>
+                        <div class="cell-title">产品体验优化</div>
+                        <div class="cell-desc">页面加载提速 40%，操作路径精简 30%，NPS 目标 4.9</div>
+                    </div>
+                    <div class="matrix-cell reveal-scale d6">
+                        <div class="cell-label">快速见效 / 低投入</div>
+                        <div class="cell-title">生态开放合作</div>
+                        <div class="cell-desc">开放 API 与开发者平台，构建 200+ 合作伙伴网络</div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ====== 结束页 ====== -->
-        <section class="slide slide-end">
-            <h2 class="reveal delay-1">讨论与决策</h2>
-            <div class="end-rule reveal delay-2"></div>
-            <p class="end-sub reveal delay-3">请在会后一周内反馈对行动计划的意见</p>
-            <div class="end-contacts reveal delay-4">
-                <span>战略发展部</span>
+        <!-- ====== Slide 16: Key Takeaways ====== -->
+        <section class="slide slide-content" data-section="战略要点">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">Takeaways</div>
+            </div>
+            <div class="eyebrow reveal">Key Takeaways</div>
+            <h2 class="title-main reveal d1">三大战略要点</h2>
+            <p class="desc-text reveal d2">面向 2026，聚焦三大核心方向，持续打造竞争壁垒</p>
+            <div class="takeaways">
+                <div class="takeaway-item reveal d3">
+                    <div class="takeaway-num">01</div>
+                    <div class="takeaway-body">
+                        <h4>AI 深度融合</h4>
+                        <p>将大模型能力深度嵌入全产品线，实现从数据采集到决策输出的端到端智能化，目标覆盖 80% 核心场景。</p>
+                    </div>
+                </div>
+                <div class="takeaway-item reveal d4">
+                    <div class="takeaway-num">02</div>
+                    <div class="takeaway-body">
+                        <h4>全球化扩张</h4>
+                        <p>以东南亚为起点，逐步进入中东和拉美市场。2026 年海外营收占比目标提升至 20%，建立 5 个区域中心。</p>
+                    </div>
+                </div>
+                <div class="takeaway-item reveal d5">
+                    <div class="takeaway-num">03</div>
+                    <div class="takeaway-body">
+                        <h4>生态开放战略</h4>
+                        <p>发布开放 API 与开发者平台，构建覆盖 200+ 合作伙伴的生态体系，共同服务中大型企业客户群体。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 17: Executive Quote ====== -->
+        <section class="slide slide-quote" data-section="管理层观点">
+            <div class="quote-mark reveal">"</div>
+            <div class="quote-text reveal d1">技术是手段，客户成功才是目的。我们的每一行代码，最终都要转化为客户的商业价值。</div>
+            <div class="quote-attr reveal d2">
+                <div class="name">张明远</div>
+                <div class="role">星辰科技集团 CEO</div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 18: KPI Scorecard ====== -->
+        <section class="slide slide-content" data-section="KPI 全景">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">Scorecard</div>
+            </div>
+            <div class="eyebrow reveal">KPI Dashboard</div>
+            <h2 class="title-main reveal d1">业务全景记分卡</h2>
+            <p class="desc-text reveal d2">八大核心指标一览，量化年度经营健康度</p>
+            <div class="scorecard reveal-scale d3">
+                <div class="scorecard-header">营收</div>
+                <div class="scorecard-header">增长</div>
+                <div class="scorecard-header">效率</div>
+                <div class="scorecard-header">质量</div>
+                <div class="scorecard-cell">
+                    <div class="sc-value"><span data-count="12.6">0</span>亿</div>
+                    <div class="sc-label">年度营收</div>
+                    <div class="sc-delta up">+32%</div>
+                </div>
+                <div class="scorecard-cell">
+                    <div class="sc-value"><span data-count="580">0</span>万</div>
+                    <div class="sc-label">活跃用户</div>
+                    <div class="sc-delta up">+48%</div>
+                </div>
+                <div class="scorecard-cell">
+                    <div class="sc-value"><span data-count="35">0</span>%</div>
+                    <div class="sc-label">人力节省</div>
+                    <div class="sc-delta up">+12pp</div>
+                </div>
+                <div class="scorecard-cell">
+                    <div class="sc-value"><span data-count="99.97">0</span>%</div>
+                    <div class="sc-label">SLA 达标</div>
+                    <div class="sc-delta up">+0.05pp</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 19: End ====== -->
+        <section class="slide slide-end" data-section="感谢">
+            <h2 class="reveal d1">感谢聆听</h2>
+            <div class="end-rule reveal d2"></div>
+            <p class="end-sub reveal d3">期待您的宝贵意见与建议</p>
+            <div class="end-contacts reveal d4">
+                <span>contact@starchentech.com</span>
                 <div class="sep"></div>
-                <span>strategy@starchentech.com</span>
+                <span>www.starchentech.com</span>
+                <div class="sep"></div>
+                <span>400-888-9999</span>
             </div>
         </section>
 
     </div>
 
-    <!-- 进度条与页码由公共运行时更新 -->
+    <!-- Progress Bar -->
     <div class="progress-bar"><div class="progress-fill" data-deck-progress></div></div>
+
+    <!-- Slide Counter -->
     <div class="slide-counter">
         <span class="current" data-deck-current>1</span>
         <span>/</span>
-        <span data-deck-total>13</span>
+        <span data-deck-total>19</span>
     </div>
+
 
 </body>
 </html>
