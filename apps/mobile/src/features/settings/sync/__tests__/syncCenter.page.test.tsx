@@ -145,9 +145,9 @@ function createApp(options: {
     handleSyncUpload: vi.fn(async () => ({ ok: true, message: "上传成功，版本已更新" })),
     handleSyncDownload: vi.fn(async () => ({ ok: true, message: "下载成功" })),
     handleResourceSyncRefresh: vi.fn(async () => {}),
-    handleResourceSyncStart: vi.fn(async () => ({})),
-    handleResourceSyncRetryFailed: vi.fn(async () => ({})),
-    handleResourceSyncCancel: vi.fn(async () => ({})),
+    handleResourceSyncStart: vi.fn(async () => ({ ok: true, message: "资源同步已启动" })),
+    handleResourceSyncRetryFailed: vi.fn(async () => ({ ok: true, message: "重试已启动" })),
+    handleResourceSyncCancel: vi.fn(async () => ({ ok: true, message: "已停止" })),
   } as unknown as AppContextValue;
   return { app, setting: () => setting };
 }
@@ -345,6 +345,62 @@ describe("同步中心", () => {
     await click(row);
     await waitFor(() => activeTitle() === "资源文件");
     expect(activePage()?.textContent).toContain("有 2 个文件待同步");
+  });
+
+  it("资源全部成功时首页与详情页都明确显示结果", async () => {
+    const { app } = createApp({
+      setting: makeSetting("s3"),
+      versions: { databaseName: "data.db", localVersion: 5, remoteVersion: 5 },
+      resourceStatusFile: {
+        provider: "plugin",
+        config: {},
+        lastSyncTime: null,
+        files: Object.fromEntries(
+          ["图片.webp", "附件.pdf"].map(name => [
+            name,
+            {
+              syncStatus: "synced",
+              syncDirection: null,
+              fileSize: 1024,
+              lastSyncTime: null,
+              errorMessage: null,
+              retryCount: 0,
+            },
+          ])
+        ),
+      },
+    });
+    mount(app);
+    await openCenter(app);
+    const row = findButton("资源文件", activePage());
+    expect(row?.textContent).toContain("全部已同步");
+    expect(row?.textContent).toContain("已同步 2 个");
+    await click(row);
+    await waitFor(() => activeTitle() === "资源文件");
+    expect(activePage()?.textContent).toContain("图片.webp");
+    expect(activePage()?.textContent).toContain("附件.pdf");
+    expect(activePage()?.textContent).toContain("已同步 2 个");
+  });
+
+  it("资源后台整体失败时不能因旧账本为空而显示没有文件", async () => {
+    const { app } = createApp({
+      setting: makeSetting("s3"),
+      versions: { databaseName: "data.db", localVersion: 5, remoteVersion: 5 },
+    });
+    app.resourceSync.progress = {
+      ...app.resourceSync.progress,
+      status: "error",
+      errorMessage: "云端列表读取失败",
+    };
+    mount(app);
+    await openCenter(app);
+    const row = findButton("资源文件", activePage());
+    expect(row?.textContent).toContain("同步异常");
+    expect(row?.textContent).toContain("云端列表读取失败");
+    await click(row);
+    await waitFor(() => activeTitle() === "资源文件");
+    expect(activePage()?.textContent).toContain("资源同步未完成");
+    expect(activePage()?.textContent).not.toContain("还没有资源文件");
   });
 
   it("检查失败时错误留在状态卡上，并给出检查配置入口", async () => {

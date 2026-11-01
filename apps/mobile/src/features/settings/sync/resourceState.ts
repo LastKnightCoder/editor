@@ -68,12 +68,25 @@ export function isResourceSyncRunning(progress: ResourceSyncProgress | null): bo
   return progress?.status === "scanning" || progress?.status === "syncing";
 }
 
+export function resourceSummary(counts: ResourceCounts): string {
+  const synced = counts.total - counts.upload - counts.download - counts.error;
+  return [
+    `已同步 ${synced} 个`,
+    counts.upload > 0 ? `待上传 ${counts.upload} 个` : "",
+    counts.download > 0 ? `待下载 ${counts.download} 个` : "",
+    counts.error > 0 ? `失败 ${counts.error} 个` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function deriveResourceHero(input: {
   progress: ResourceSyncProgress | null;
   counts: ResourceCounts;
   errorMessage: string | null;
   configMissing: boolean;
   lastSyncText: string | null;
+  checked?: boolean;
 }): ResourceHeroState {
   const { progress, counts } = input;
   if (isResourceSyncRunning(progress) && progress) {
@@ -102,12 +115,13 @@ export function deriveResourceHero(input: {
       primaryEmphasis: true,
     };
   }
-  if (input.errorMessage) {
+  const errorMessage = input.errorMessage || progress?.errorMessage;
+  if (errorMessage || (progress?.status === "error" && counts.error === 0)) {
     return {
       tone: "error",
       icon: "error",
-      title: "连接失败",
-      description: input.errorMessage,
+      title: "资源同步未完成",
+      description: errorMessage || "资源同步发生异常，请重试；数据库同步结果不受影响",
       primaryLabel: "重试",
       primaryAction: "refresh",
       primaryEmphasis: true,
@@ -119,11 +133,31 @@ export function deriveResourceHero(input: {
       tone: "error",
       icon: "error",
       title: `${counts.error} 个文件同步失败`,
-      description: [`其余 ${counts.total - counts.error} 个正常`, since]
-        .filter(Boolean)
-        .join(" · "),
+      description: [resourceSummary(counts), since].filter(Boolean).join(" · "),
       primaryLabel: `重试 ${counts.error} 个文件`,
       primaryAction: "retry",
+      primaryEmphasis: true,
+    };
+  }
+  if (progress?.status === "cancelled") {
+    return {
+      tone: "warn",
+      icon: "cloud",
+      title: "资源同步已停止",
+      description: resourceSummary(counts),
+      primaryLabel: "继续同步",
+      primaryAction: "start",
+      primaryEmphasis: true,
+    };
+  }
+  if (input.checked === false) {
+    return {
+      tone: "idle",
+      icon: "cloud",
+      title: "资源文件尚未检查",
+      description: "检查后可确认图片和附件是否已同步",
+      primaryLabel: "检查云端",
+      primaryAction: "refresh",
       primaryEmphasis: true,
     };
   }
@@ -165,14 +199,20 @@ export function deriveResourceHero(input: {
   };
 }
 
-/** 同步中心「资源文件」行右侧的徽标，没什么要提醒时返回 null */
+/** 同步中心始终显示资源结果，尚未检查不能当作成功空集。 */
 export function resourceBadge(
   progress: ResourceSyncProgress | null,
-  counts: ResourceCounts
-): { tone: "warn" | "danger" | "info"; text: string } | null {
+  counts: ResourceCounts,
+  checked = counts.total > 0
+): { tone: "warn" | "danger" | "info" | "ok"; text: string } {
   if (isResourceSyncRunning(progress)) return { tone: "info", text: "同步中" };
+  if (progress?.errorMessage || (progress?.status === "error" && counts.error === 0)) {
+    return { tone: "danger", text: "同步异常" };
+  }
   if (counts.error > 0) return { tone: "danger", text: `${counts.error} 个失败` };
+  if (progress?.status === "cancelled") return { tone: "warn", text: "已停止" };
+  if (!checked) return { tone: "info", text: "未检查" };
   const pending = counts.upload + counts.download;
   if (pending > 0) return { tone: "warn", text: `${pending} 个待同步` };
-  return null;
+  return { tone: "ok", text: counts.total > 0 ? "全部已同步" : "无资源文件" };
 }

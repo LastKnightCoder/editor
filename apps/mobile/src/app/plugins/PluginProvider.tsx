@@ -265,7 +265,10 @@ export function MobilePluginProvider({
     let cancelled = false;
     let stop: (() => void) | undefined;
     void listen<string>("plugin-workspace-reset", ({ payload }) => {
-      if (!cancelled && payload === database) reload();
+      if (!cancelled && payload === database) {
+        mobilePluginState.set({ phase: "starting", message: "" });
+        reload();
+      }
     })
       .then(dispose => {
         if (cancelled) dispose();

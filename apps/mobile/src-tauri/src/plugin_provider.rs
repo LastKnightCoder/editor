@@ -63,7 +63,8 @@ impl PluginProvider {
         Ok(Self {
             inner: Arc::new(Session {
                 app: app.clone(),
-                token: plugin_transport::host_token(&database)?,
+                token: plugin_transport::host_token(&database)
+                    .map_err(|error| format!("SYNC_PROVIDER_UNAVAILABLE:{error}"))?,
                 id: id.into(),
                 config,
                 session: uuid::Uuid::new_v4().to_string(),

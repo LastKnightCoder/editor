@@ -14,7 +14,11 @@ import {
 
 import { useBootstrap } from "../hooks/useBootstrap";
 import { useCardsQuery } from "../hooks/useCardsQuery";
-import { emitDatabaseChange, useDatabaseChangeEffect } from "../hooks/useDatabaseChangeEffect";
+import {
+  emitDatabaseChange,
+  useDatabaseChangeEffect,
+  type DatabaseChangeEvent,
+} from "../hooks/useDatabaseChangeEffect";
 import { useResourceSync } from "../hooks/useResourceSync";
 import { useSyncSettings } from "../hooks/useSyncSettings";
 import { mapErrorToMessage, parseInvokeError } from "../services/errors";
@@ -156,49 +160,59 @@ function AppShellInner() {
     }
   );
 
-  const refreshAfterDatabaseChange = useMemoizedFn(
-    async (event: { databaseName: string; reason?: string }) => {
-      const targetDatabaseName =
-        event.databaseName ||
-        syncSettings.safeSetting?.database?.active ||
-        bootstrap.databases?.activeDatabase ||
-        null;
-      if (event.reason === "deviceSync" || event.reason === "deviceDownload") {
-        const results = await Promise.allSettled([
-          refreshCardsSafe({ page: 1 }),
-          useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-          useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-          invalidateCalendarQueries(),
-        ]);
-        for (const result of results)
-          if (result.status === "rejected") presentError(result.reason, "设备同步后刷新数据失败");
-        return;
-      }
-      const taskResults = await Promise.allSettled([
-        syncSettings.loadSetting(),
-        bootstrap.refreshDatabases(),
+  const refreshAfterDatabaseChange = useMemoizedFn(async (event: DatabaseChangeEvent) => {
+    const targetDatabaseName =
+      event.databaseName ||
+      syncSettings.safeSetting?.database?.active ||
+      bootstrap.databases?.activeDatabase ||
+      null;
+    if (event.reason === "deviceSync" || event.reason === "deviceDownload") {
+      const results = await Promise.allSettled([
         refreshCardsSafe({ page: 1 }),
-        refreshVersionsSafe(),
         useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
         useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
         invalidateCalendarQueries(),
       ]);
-      const fallbackMessages = [
-        "刷新设置快照失败",
-        "刷新数据库列表失败",
-        "刷新卡片列表失败",
-        "刷新同步状态失败",
-        "刷新任务数据失败",
-        "刷新日记数据失败",
-        "刷新日历数据失败",
-      ] as const;
-      taskResults.forEach((result, index) => {
-        if (result.status === "rejected") {
-          presentError(result.reason, fallbackMessages[index] ?? "数据库变更后刷新失败");
-        }
-      });
+      for (const result of results)
+        if (result.status === "rejected") presentError(result.reason, "设备同步后刷新数据失败");
+      return;
     }
-  );
+    // 下载结果已包含复核后的版本；替换期间插件会话正在重建，不再发起远端检查。
+    const downloadedVersions =
+      event.reason === "syncDownload" &&
+      event.localVersion !== undefined &&
+      event.remoteVersion !== undefined
+        ? {
+            databaseName: event.databaseName,
+            localVersion: event.localVersion,
+            remoteVersion: event.remoteVersion,
+          }
+        : null;
+    if (downloadedVersions) bootstrap.setVersions(downloadedVersions);
+    const taskResults = await Promise.allSettled([
+      syncSettings.loadSetting(),
+      bootstrap.refreshDatabases(),
+      refreshCardsSafe({ page: 1 }),
+      downloadedVersions ? Promise.resolve() : refreshVersionsSafe(),
+      useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+      useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+      invalidateCalendarQueries(),
+    ]);
+    const fallbackMessages = [
+      "刷新设置快照失败",
+      "刷新数据库列表失败",
+      "刷新卡片列表失败",
+      "刷新同步状态失败",
+      "刷新任务数据失败",
+      "刷新日记数据失败",
+      "刷新日历数据失败",
+    ] as const;
+    taskResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        presentError(result.reason, fallbackMessages[index] ?? "数据库变更后刷新失败");
+      }
+    });
+  });
 
   useDatabaseChangeEffect(
     async event => {

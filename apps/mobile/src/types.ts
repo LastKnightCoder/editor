@@ -251,6 +251,7 @@ export interface ResourceSyncProgress {
   skippedCount: number;
   errorCount: number;
   startTime: number | null;
+  errorMessage?: string | null;
 }
 
 export interface UploadTestResponse {

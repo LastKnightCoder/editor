@@ -40,3 +40,33 @@ export const mobilePluginState = {
 };
 
 export const isMobilePluginSettled = () => state.phase !== "starting";
+
+/** 下载替换资料库后，资源同步须等插件会话重新就绪。 */
+export function waitForMobilePluginReady(signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      signal?.removeEventListener("abort", abort);
+    };
+    const abort = () => {
+      cleanup();
+      reject(new DOMException("资源同步已停止", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("SYNC_PROVIDER_UNAVAILABLE:同步插件准备超时，请稍后重试"));
+    }, 30000);
+    const check = () => {
+      const current = mobilePluginState.get();
+      if (current.phase === "starting") return;
+      cleanup();
+      if (current.phase === "ready") resolve();
+      else reject(new Error("SYNC_PROVIDER_UNAVAILABLE:同步插件不可用，请到插件中心检查"));
+    };
+    const unsubscribe = mobilePluginState.subscribe(check);
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+    else check();
+  });
+}
