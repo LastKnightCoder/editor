@@ -230,6 +230,9 @@ async function synchronizeAssets(name: string, checked = new Map<string, number>
 }
 
 export async function pairDevice(code: string, deviceName = "我的手机") {
+  const started = Date.now();
+  let stage = "native-pair";
+  console.info(`[device-sync-pair] 开始 code_chars=${code.length}`);
   publish({ phase: "syncing", error: undefined });
   try {
     const paired = await invoke<{
@@ -238,6 +241,10 @@ export async function pairDevice(code: string, deviceName = "我的手机") {
       database: string;
       existing?: boolean;
     }>("device_sync_pair", { code, name: deviceName });
+    stage = "validate-reply";
+    console.info(
+      `[device-sync-pair] 原生配对返回 kind=${paired.reply.kind} existing=${Boolean(paired.existing)} snapshot=${Boolean(paired.reply.snapshot)} documents=${paired.reply.snapshot?.documents.length ?? 0} elapsed_ms=${Date.now() - started}`
+    );
     if (!paired.reply.snapshot && !paired.existing)
       throw new Error("DEVICE_SYNC_PAIR: 配对快照不完整");
     const state: DeviceState = {
@@ -247,9 +254,12 @@ export async function pairDevice(code: string, deviceName = "我的手机") {
       ackSeq: 0,
       enabled: true,
     };
+    stage = "prepare-documents";
     const documents = await Promise.all(
       (paired.reply.snapshot?.documents ?? []).map(prepareDeviceDocument)
     );
+    stage = "adopt";
+    console.info(`[device-sync-pair] 写入本机副本 documents=${documents.length}`);
     await deviceStore(
       "adopt",
       {
@@ -261,16 +271,23 @@ export async function pairDevice(code: string, deviceName = "我的手机") {
       },
       paired.database
     );
+    stage = "switch-database";
     setDeviceSyncDatabase(paired.database);
     await emitDatabaseChange({
       reason: "switch",
       databaseName: paired.database,
       timestamp: Date.now(),
     });
+    stage = "sync-assets";
     await synchronizeAssets(paired.database);
     publish({ phase: "synced", lastSync: Date.now(), error: undefined });
+    console.info(`[device-sync-pair] 完成 elapsed_ms=${Date.now() - started}`);
     return paired.database;
   } catch (error) {
+    console.error(
+      `[device-sync-pair] 失败 stage=${stage} elapsed_ms=${Date.now() - started}`,
+      String(error)
+    );
     publish({ phase: "error", error: String(error) });
     throw error;
   }

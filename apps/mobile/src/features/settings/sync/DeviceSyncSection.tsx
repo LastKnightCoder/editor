@@ -163,6 +163,7 @@ function PasteArea(props: { value: string; onChange: (value: string) => void; in
       aria-invalid={props.invalid || undefined}
       placeholder="粘贴以 tau-pair: 开头的配对信息"
       onChange={event => props.onChange(event.target.value)}
+      onBlur={event => logPairCodeValidation(event.target.value, "manual")}
       className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 focus:border-accent aria-[invalid=true]:border-danger font-tau-mono w-full resize-none rounded-xl border p-3 text-[13px] leading-relaxed outline-none"
     />
   );
@@ -173,6 +174,14 @@ function localPairProblem(code: string) {
   const preview = previewDevicePairCode(code);
   if (!preview) return "DEVICE_SYNC_PAIR";
   return preview.expires < Date.now() ? "DEVICE_SYNC_PAIR_EXPIRED" : undefined;
+}
+
+function logPairCodeValidation(code: string, source: string) {
+  if (!code.trim()) return;
+  const problem = localPairProblem(code);
+  const message = `[device-sync-pair] 本地校验 source=${source} code_chars=${code.length} result=${problem ?? "ok"}`;
+  if (problem) console.warn(message);
+  else console.info(message);
 }
 function UnpairedView(props: {
   pairing: boolean;
@@ -186,6 +195,7 @@ function UnpairedView(props: {
   const paste = async () => {
     props.onEdit();
     const text = await readClipboard().catch(() => "");
+    logPairCodeValidation(text, "clipboard");
     if (text.startsWith(PAIR_PREFIX)) {
       setCode(text);
       setManual(false);
