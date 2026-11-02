@@ -88,7 +88,7 @@
 
 ## iOS 构建与安装
 
-按 [iOS 签名、构建和 TestFlight 手册](/docs/guides/ops-ios-signing.md)执行。App Store Connect 分发 IPA 不能像 APK 一样直接点开安装；本人测试通过 TestFlight，不要求先注册测试设备。
+连接 iPhone 后，在仓库根执行 `pnpm ios:install` 可构建 Release 并覆盖安装；多设备选择、签名准备与故障恢复按 [iOS 签名、构建和 TestFlight 手册](/docs/guides/ops-ios-signing.md)执行。App Store Connect 分发 IPA 不能像 APK 一样直接点开安装；该分发方式通过 TestFlight 安装，不要求先注册测试设备。
 
 分开记录：归档/IPA 成功、Apple 上传与处理成功、内部群组可测试、真机实际安装及插件行为通过。前一项不能代替后一项。
 

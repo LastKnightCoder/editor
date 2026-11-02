@@ -32,6 +32,7 @@
     "predev:android": "pnpm run db:schema:prepare",
     "dev:android": "pnpm run sync:android:app-name && pnpm run prepare:android:signing && tauri android dev",
     "icon:regen": "pnpm run icon:prepare:android-fg && tauri icon src-tauri/icon-manifest.json && node ./scripts/collect-ios-icons.mjs",
+    "ios:install": "node ./scripts/ios-release-install.mjs",
     "apk": "bash ./scripts/android-release-install.sh"
   },
   "dependencies": {
