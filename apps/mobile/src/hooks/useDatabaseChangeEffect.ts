@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export type DatabaseChangeReason = "switch" | "syncDownload" | "deviceSync" | "deviceDownload";
+export type DatabaseChangeReason = "switch" | "syncDownload";
 
 export type DatabaseChangeEvent = {
   reason: DatabaseChangeReason;

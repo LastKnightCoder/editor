@@ -22,7 +22,6 @@ pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String
     let conn = Connection::open(&database_path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open database: {e}"))?;
     migrator::ensure_main_schema(&conn)?;
-    crate::device_sync::database::initialize(&conn)?;
     index_db::ensure_index_database(app, db_name, &conn)?;
     Ok(())
 }
@@ -158,13 +157,10 @@ fn install_download_locked(
     if integrity != "ok" {
         return Err("下载的资料库未通过完整性检查".into());
     }
-    crate::device_sync::database::generation(&candidate)?;
-    candidate
-        .execute(
-            "UPDATE _tau_device_local SET generation=?1 WHERE id=1",
-            [uuid::Uuid::new_v4().to_string()],
-        )
-        .map_err(|e| e.to_string())?;
+    candidate.execute(
+        "INSERT INTO schema_meta(key,value,updated_at) VALUES('local_generation',?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
+        rusqlite::params![uuid::Uuid::new_v4().to_string(),chrono::Utc::now().timestamp_millis()],
+    ).map_err(|e| e.to_string())?;
     drop(candidate);
     let mut workspace = None;
     if destination.exists() {
@@ -243,4 +239,33 @@ mod replacement_tests {
         assert_eq!(fs::read(&original).unwrap(), b"original");
         fs::remove_dir_all(dir).unwrap();
     }
+}
+
+pub(crate) fn database_generation(conn: &Connection) -> Result<String, String> {
+    use rusqlite::OptionalExtension;
+    let stored = conn
+        .query_row(
+            "SELECT value FROM schema_meta WHERE key='local_generation'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if let Some(generation) = stored {
+        return Ok(generation);
+    }
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_meta(key,value,updated_at) VALUES('local_generation',?1,?2)",
+        rusqlite::params![
+            uuid::Uuid::new_v4().to_string(),
+            chrono::Utc::now().timestamp_millis()
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.query_row(
+        "SELECT value FROM schema_meta WHERE key='local_generation'",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
 }

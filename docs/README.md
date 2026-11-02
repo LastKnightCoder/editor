@@ -12,7 +12,6 @@
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                    |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                         |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
-| [device-sync.md](./architecture/device-sync.md)               | 一台电脑协调、多电脑与手机配对、分批基线准备与中断续做、声明式身份归并、冲突保全、正文合并、离线补齐及覆盖恢复                                       |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                       |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                       |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                   |
@@ -45,7 +44,6 @@
 | [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收               |
 | [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查           |
 | [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查           |
-| [ops-device-sync-spike.md](./guides/ops-device-sync-spike.md)       | 设备同步复现、大文件分块与真机功能验收   |
 | [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight     |
 | [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                             |
 | [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布 |
@@ -63,7 +61,6 @@
 - [播客插件化](./tasks/podcast-pluginization/README.md)：生成播客抽成插件 `tau.podcast`，自带播客库页面并重做生成界面，进行中。
 - [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。
 - [网页书签块](./tasks/editor-bookmark.md)：编辑器块级网页书签（三种外观、粘贴菜单、封面存储），进行中。
-- [局域网设备同步 UI 重设计](./tasks/device-sync-ui/README.md)：选定方案 A，桌面「设备同步」页签与手机连接端已实现，待视觉验收。
 - [移动端 AI 基础能力](./tasks/mobile-ai-foundation/README.md)：公共会话 v3、移动无 UI 服务、原生网络存储、MCP/Skills 与聊天同步已接入，待实际存储插件往返及设备验收。
 
 - [移动插件业务授权与数据访问](./tasks/mobile-plugin-data/README.md)：六批授权、业务读写恢复、引用交互、自有数据事务、实体检索/@/打开与公共正文组件已实现并通过自动检查；待设备及真实共享服务验收，暂不发布。

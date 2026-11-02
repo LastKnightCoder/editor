@@ -4,8 +4,6 @@ import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import type { DatabaseConnection } from "@/types/database-connection";
-import DEVICE_SYNC_SQL from "@tau/db-schema/schema/device-sync.sql?raw";
-import { initializeDeviceSyncDatabase } from "./device-sync/database-store";
 import { join } from "node:path";
 import { readdirSync } from "node:fs";
 import log from "electron-log";
@@ -89,7 +87,7 @@ import mainContentIndexDBManager, {
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
-import { ensureMainSchema } from "./main-schema";
+import { ensureMainSchema, removeRetiredDatabaseState } from "./main-schema";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 
@@ -402,7 +400,6 @@ class DatabaseModule implements Module {
 
       const schemaStartAt = Date.now();
       ensureMainSchema(database);
-      initializeDeviceSyncDatabase(database, DEVICE_SYNC_SQL);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
@@ -654,6 +651,7 @@ class DatabaseModule implements Module {
   }
 
   async init() {
+    removeRetiredDatabaseState(PathUtil.getAppDir());
     ipcMain.handle("reset-content-index", (_event, name: string) => {
       // 同步替换主库后本地索引的 ID 空间整体失效，删除索引文件令其全量重建。
       mainContentIndexDBManager.resetDatabase(name);

@@ -34,9 +34,6 @@ export interface RuntimeSession {
   drainingViews?: Set<string>;
   /** 宿主补丁在应用和广播前先写入协作缓存。 */
   persistNodeUpdate?: (update: Uint8Array) => void;
-  persistDeviceState?: (candidate: Y.Doc) => void;
-  refreshDeviceState?: () => void;
-  deviceAuditPending?: boolean;
   retainNodeState?: (candidate: Y.Doc) => void;
 }
 

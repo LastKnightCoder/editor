@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
-import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { canonicalContractJson, prepareContentContract } from "@tau/db-schema/content-contracts";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
 import { ContentIdentityTable } from "../content-identity";
 import { ContentDocumentTable, type ContentDocumentWrite } from "../content-document";
@@ -95,6 +95,28 @@ const count = (db: Database.Database) =>
   ).ref_count;
 
 describe("正文身份、契约与关系账的持久化", () => {
+  it("移动端排序后的契约经整库同步进入桌面仍可保存正文", async () => {
+    const db = database();
+    const value = await payload(db);
+    const saved = ContentDocumentTable.commit(db, 1, value, {
+      installDocument: true,
+      count: 0,
+    });
+    db.prepare("UPDATE content_documents SET contracts=? WHERE content_id=1").run(
+      canonicalContractJson(saved.contracts)
+    );
+    const incoming = ContentDocumentTable.read(db, 1)!;
+    expect(JSON.stringify(incoming.contracts)).not.toBe(JSON.stringify(saved.contracts));
+    incoming.content[0].custom = { preserve: true, edited: true };
+    const updated = ContentDocumentTable.commit(db, 1, incoming, {
+      expectedRevision: incoming.revision,
+      count: 0,
+    });
+    expect(ContentDocumentTable.read(db, 1)).toEqual(updated);
+    expect(updated.content[0].custom).toEqual({ preserve: true, edited: true });
+    expect(count(db)).toBe(1);
+  });
+
   it.each(["missing", "invalid", "available"])(
     "会话附件%s时正文读取和文本转换保持可用且不改写原引用",
     async availability => {

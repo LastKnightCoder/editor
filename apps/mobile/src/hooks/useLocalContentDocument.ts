@@ -13,8 +13,6 @@ import {
   createNodeDocument,
   NodeTree,
   isCollaborationResource,
-  isSafeResource,
-  LOCAL_ASSET_PREFIX,
   type ContentNode,
 } from "@tau/collaboration";
 import { createNodeTreeDocument } from "@tau/editor-collab";
@@ -28,17 +26,16 @@ import { getMobileContentKit } from "../services/editorKit";
 import type { ContentDetailResponse } from "../types";
 import { toast } from "../components/toast";
 import {
-  readDeviceContent,
-  deviceStore,
-  deviceSyncDatabase,
-  deviceReplacementState,
-  subscribeDeviceReplacement,
-} from "../services/device-sync/native";
-import { persistDeviceContent, registerDeviceContent } from "../services/device-sync/content";
-import {
   localizeFragmentResources,
   registerContentResourceSource,
 } from "../features/collaboration/core/resources";
+
+import {
+  activeDatabase,
+  databaseGeneration,
+  databaseReplacementState,
+  subscribeDatabaseReplacement,
+} from "../services/database-runtime";
 
 export type LocalContentDocument = EditorDocument & {
   flush(): Promise<void>;
@@ -59,16 +56,18 @@ export default function useLocalContentDocument(options: {
 }): LocalContentDocument | undefined {
   const latest = useRef(options);
   latest.current = options;
-  const databaseName = deviceSyncDatabase();
-  const replacement = useSyncExternalStore(subscribeDeviceReplacement, () =>
-    deviceReplacementState(databaseName)
+  const databaseName = activeDatabase();
+  const replacement = useSyncExternalStore(subscribeDatabaseReplacement, () =>
+    databaseReplacementState(databaseName)
   );
   const assertActive = () => {
+    const current = databaseReplacementState(databaseName);
     if (
-      deviceReplacementState(databaseName).active ||
-      deviceReplacementState(databaseName).version !== replacement.version
+      current.active ||
+      current.version !== replacement.version ||
+      activeDatabase() !== databaseName
     )
-      throw new Error("DEVICE_SYNC_REPLACED: 当前正文已重新下载");
+      throw new Error("DATABASE_REPLACED: 当前正文已重新下载");
     latest.current.guard?.();
   };
   const canWrite = () => {
@@ -87,8 +86,6 @@ export default function useLocalContentDocument(options: {
       value.version,
     ]);
   const key = identity(options);
-  const [reload, setReload] = useState(0);
-  const initializationRetries = useRef(0);
   const revision = useSyncExternalStore(
     mobileContentPlugins.subscribe,
     mobileContentPlugins.getRevision,
@@ -135,8 +132,7 @@ export default function useLocalContentDocument(options: {
     let dispose = () => {};
     let releaseResourceSource = () => {};
     setStorageError(undefined);
-    const paths = new Map<string, string>(),
-      references = new Map<string, string>();
+    const paths = new Map<string, string>();
     const contracts = current.metadata.contracts;
     const map = (
       nodes: ContentNode[],
@@ -151,7 +147,7 @@ export default function useLocalContentDocument(options: {
           children: map(node.children, transform, dictionary),
         };
       });
-    let content = structuredClone(current.content) as ContentNode[];
+    const content = structuredClone(current.content) as ContentNode[];
     void (async () => {
       assertActive();
       if (
@@ -160,68 +156,15 @@ export default function useLocalContentDocument(options: {
         !current.metadata.revision
       )
         throw new Error("正文来源身份尚未建立");
-      const generation = databaseName
-        ? await deviceStore<string>("generation", {}, databaseName)
-        : "";
+      const generation = await databaseGeneration(databaseName);
       assertActive();
       const cacheId = `local:${current.metadata.librarySourceId}:${current.metadata.documentId}${generation ? `:${generation}` : ""}`;
       let cached = await tauri.collabReadCache(cacheId);
-      const durable = await readDeviceContent(current.contentId!);
       assertActive();
-      const paired = Boolean(
-        durable ||
-        (databaseName && (await deviceStore<{ state: unknown }>("status", {}, databaseName)).state)
-      );
-      assertActive();
-      const prepareResource = (path: string) => {
-        if (!paired || isSafeResource(path)) return path;
-        const previous = references.get(path);
-        if (previous) return previous;
-        const reference = LOCAL_ASSET_PREFIX + crypto.randomUUID();
-        paths.set(reference, path);
-        references.set(path, reference);
-        return reference;
-      };
-      content = map(content, prepareResource);
+      const prepareResource = (path: string) => path;
       let doc: Y.Doc | undefined;
       let metadata: tauri.CachedContentSession;
-      if (durable) {
-        if (cached && cached.metadata.baselineId !== durable.baselineId) {
-          await tauri.collabDiscardCache(cacheId, "设备同步的权威基线已变化");
-          cached = null;
-        }
-        doc = new Y.Doc({ gc: false });
-        Y.applyUpdate(doc, base64ToBytes(durable.state));
-        if (cached) {
-          try {
-            Y.applyUpdate(doc, base64ToBytes(cached.state));
-            for (const update of cached.updates) Y.applyUpdate(doc, base64ToBytes(update));
-            await validateNodeDocument(doc, {
-              documentId: durable.documentId,
-              baselineId: durable.baselineId,
-              epoch: durable.epoch,
-            });
-          } catch {
-            doc.destroy();
-            doc = new Y.Doc({ gc: false });
-            Y.applyUpdate(doc, base64ToBytes(durable.state));
-            await tauri.collabDiscardCache(cacheId, "本机缓存不可读，已按耐久正文恢复");
-            cached = null;
-          }
-        }
-        await validateNodeDocument(doc, {
-          documentId: durable.documentId,
-          baselineId: durable.baselineId,
-          epoch: durable.epoch,
-        });
-        paths.clear();
-        references.clear();
-        for (const [reference, path] of Object.entries(durable.paths)) {
-          paths.set(reference, path);
-          references.set(path, reference);
-        }
-      }
-      if (cached && !durable) {
+      if (cached) {
         const restored = cached;
         try {
           if (
@@ -266,33 +209,7 @@ export default function useLocalContentDocument(options: {
           cached = null;
         }
       }
-      if (durable && doc) {
-        metadata = {
-          id: cacheId,
-          mode: "local",
-          title: "",
-          ownerId: "local",
-          role: "owner",
-          status: "active",
-          members: [],
-          updatedAt: Date.now(),
-          serverUrl: "",
-          connection: "connected",
-          pending: false,
-          leaving: false,
-          baselineId: durable.baselineId,
-          epoch: durable.epoch,
-          resourcePaths: durable.paths,
-          source: {
-            databaseName: current.metadata.librarySourceId,
-            librarySourceId: current.metadata.librarySourceId,
-            contentDocumentId: current.metadata.documentId,
-            contentId: current.contentId!,
-            contentCreatedAt: current.metadata.createTime,
-            projectionRevision: current.metadata.revision,
-          },
-        };
-      } else if (cached && doc) {
+      if (cached && doc) {
         metadata = cached.metadata;
         paths.clear();
         for (const [reference, path] of Object.entries(metadata.resourcePaths ?? {})) {
@@ -331,8 +248,8 @@ export default function useLocalContentDocument(options: {
           },
         };
       }
-      let tail = Promise.resolve();
       metadata.source!.generation = generation;
+      let tail = Promise.resolve();
       const pendingUpdates: Uint8Array[] = [];
       const inputDrafts = new Map(
         (cached?.inputDrafts ?? []).map(draft => [
@@ -341,13 +258,6 @@ export default function useLocalContentDocument(options: {
         ])
       );
       try {
-        await persistDeviceContent(
-          current.contentId!,
-          doc,
-          paths,
-          durable ? undefined : current.metadata.revision,
-          generation
-        );
         metadata.resourcePaths = Object.fromEntries(paths);
         assertActive();
         await tauri.collabWriteCache(
@@ -400,7 +310,6 @@ export default function useLocalContentDocument(options: {
               }
               assertActive();
               metadata.resourcePaths = Object.fromEntries(paths);
-              await persistDeviceContent(current.contentId!, doc, paths);
               await tauri.collabWriteCache({
                 documentId: cacheId,
                 ...nodeRetentions(doc),
@@ -431,20 +340,7 @@ export default function useLocalContentDocument(options: {
           void persist(bytes).catch(() => {});
         };
         doc.on("update", update);
-        const stopDevice = registerDeviceContent(
-          current.contentId!,
-          entry => {
-            if (entry.baselineId !== metadata.baselineId || entry.epoch !== metadata.epoch) return;
-            assertActive();
-            for (const [reference, path] of Object.entries(entry.paths)) paths.set(reference, path);
-            Y.applyUpdate(doc, base64ToBytes(entry.state), "device-sync");
-          },
-          () => tail.catch(() => persist())
-        );
-        dispose = () => {
-          doc.off("update", update);
-          stopDevice();
-        };
+        dispose = () => doc.off("update", update);
         assertActive();
         const views = await tauri.collabNodeViews(cacheId);
         assertActive();
@@ -513,14 +409,6 @@ export default function useLocalContentDocument(options: {
       }
     })().catch(failure => {
       if (!cancelled) {
-        if (/DEVICE_SYNC_REPLACED/.test(String(failure))) return;
-        if (
-          /DEVICE_SYNC_(RETRY|BASELINE_CHANGED)/.test(String(failure)) &&
-          initializationRetries.current++ < 3
-        ) {
-          setReload(value => value + 1);
-          return;
-        }
         const message =
           failure instanceof Error ? failure.message : "正文契约无法读取，已保留原数据";
         setStorageError(message);
@@ -534,7 +422,7 @@ export default function useLocalContentDocument(options: {
       tree?.dispose();
       tree?.doc.destroy();
     };
-  }, [key, reload, databaseName, replacement.version]);
+  }, [key, databaseName, replacement.version, replacement.active]);
 
   useEffect(() => {
     if (!loaded || loaded.key !== key) return;

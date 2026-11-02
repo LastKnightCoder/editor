@@ -393,24 +393,6 @@ export class CollaborationAssetService {
     return this.localPath(reference);
   }
 
-  registerDevicePaths(documentId: string, paths: Record<string, string>) {
-    for (const [reference, path] of Object.entries(paths)) {
-      if (
-        !isLocalAssetReference(reference) ||
-        !/^~\/\.editor\/resources\/device-sync\/[a-f0-9]{64}\.(png|jpg|gif|webp|bin)$/.test(path)
-      )
-        continue;
-      this.record({
-        id: reference.slice(LOCAL_ASSET_PREFIX.length),
-        document_id: documentId,
-        name: "",
-        mime: "",
-        path,
-        uploaded: LOCAL_ONLY,
-      });
-    }
-  }
-
   resolve(url: string, documentId: string, assetId: string): Promise<string> {
     if (!/^[a-f0-9-]{36}$/.test(assetId)) return Promise.reject(new Error("资源标识不合法"));
     const key = `${url}/${documentId}/${assetId}`;
@@ -578,20 +560,11 @@ export class CollaborationAssetService {
     );
   }
 
-  async prepareLocalReference(documentId: string, reference: string): Promise<string> {
-    return isSafeResource(reference) ? reference : this.keepLocalReference(documentId, reference);
-  }
-
   async prepareLocalDocument(
     documentId: string,
     value: SharedContent,
-    contracts: ContentContractDictionary,
-    portable = false
+    contracts: ContentContractDictionary
   ): Promise<SharedContent> {
-    if (portable)
-      return this.mapContractDocument(value, contracts, reference =>
-        this.prepareLocalReference(documentId, reference)
-      );
     return this.mapContractDocument(value, contracts, async reference => {
       const local = isLocalAssetReference(reference);
       const row = local ? this.localRow(documentId, reference) : undefined;

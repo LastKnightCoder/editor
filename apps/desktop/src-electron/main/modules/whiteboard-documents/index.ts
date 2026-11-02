@@ -31,11 +31,7 @@ import { ContentRetention } from "../collaboration/content-retention";
 import { WhiteboardJournal, stateHash } from "./journal";
 import { WhiteboardDocumentSessions } from "./sessions";
 import { WhiteboardDocumentRepository } from "./repository";
-import {
-  registerDurableDocuments,
-  type DocumentDrain,
-  type DocumentDrainScope,
-} from "../durable-document-lifecycle";
+import { registerDurableDocuments, type DocumentDrainScope } from "../durable-document-lifecycle";
 import { registerDurableEntityHolds } from "../durable-entity-holds";
 import type {
   WhiteboardRemoteStatus,
@@ -206,10 +202,6 @@ class WhiteboardDocumentsModule {
     const released = this.sessions.releaseLibrary(name);
     if (released)
       console.info(`[whiteboard-documents] 资料库 ${name} 被替换，释放 ${released} 份白板日志`);
-  }
-  async prepareDeviceSync(name: string): Promise<DocumentDrain> {
-    if (!this.sessions) return { commit() {}, rollback() {} };
-    return this.drain({ databaseName: name, reason: "database-change" });
   }
   collectPendingDocuments(db: Database.Database, now: number, graceMs: number): number {
     const name = [...databaseModule.databases].find(([, value]) => value === db)?.[0];

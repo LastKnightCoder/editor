@@ -1,8 +1,3 @@
-import {
-  readDeviceSyncState,
-  deviceDocument,
-  withDeviceJsonProjection,
-} from "../device-sync/database-store";
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import { applyContentEntityRelations } from "./content-entity-relations";
@@ -157,95 +152,83 @@ export class ContentDocumentTable {
       .update("\n")
       .update(contractsJson)
       .digest("hex");
-    const commit = () =>
-      db.transaction(() => {
-        const content = db.prepare("SELECT id FROM contents WHERE id=?").get(contentId);
-        if (!content) throw new Error("正文已删除，不能重新创建");
-        const previous = this.read(db, contentId);
-        if (previous && previous.documentId !== value.documentId)
-          throw new Error("正文稳定身份已变化");
-        if (previous && options.expectedRevision !== previous.revision)
-          throw new Error("正文修订冲突");
-        if (!options.installDocument) {
-          if (!previous) throw new Error("正文尚未完成格式转换");
-          for (const [id, contract] of Object.entries(previous.contracts))
-            if (
-              !Object.hasOwn(contracts, id) ||
-              canonicalContractJson(contracts[id]) !== canonicalContractJson(contract)
-            )
-              throw new Error("已有契约不能删除或修改");
-        }
-        const old = db
-          .prepare(
-            "SELECT node_id,slot,source_id,entity_kind,entity_id FROM content_entity_relations WHERE document_id=?"
+    return db.transaction(() => {
+      const content = db.prepare("SELECT id FROM contents WHERE id=?").get(contentId);
+      if (!content) throw new Error("正文已删除，不能重新创建");
+      const previous = this.read(db, contentId);
+      if (previous && previous.documentId !== value.documentId)
+        throw new Error("正文稳定身份已变化");
+      if (previous && options.expectedRevision !== previous.revision)
+        throw new Error("正文修订冲突");
+      if (!options.installDocument) {
+        if (!previous) throw new Error("正文尚未完成格式转换");
+        for (const [id, contract] of Object.entries(previous.contracts))
+          if (
+            !Object.hasOwn(contracts, id) ||
+            canonicalContractJson(contracts[id]) !== canonicalContractJson(contract)
           )
-          .all(value.documentId) as {
-          node_id: string;
-          slot: string;
-          source_id: string;
-          entity_kind: ContentEntityKind;
-          entity_id: string;
-        }[];
-        const prior: ContentEntityRelation[] = old.map(row => ({
-          nodeId: row.node_id,
-          slot: row.slot,
-          target: { sourceId: row.source_id, kind: row.entity_kind, entityId: row.entity_id },
-        }));
-        const key = (relation: ContentEntityRelation) =>
-          JSON.stringify([
-            relation.nodeId,
-            relation.slot,
-            relation.target.sourceId,
-            relation.target.kind,
-            relation.target.entityId,
-          ]);
-        const before = new Set(prior.map(key)),
-          after = new Set(relations.map(key));
-        const removed = prior.filter(relation => !after.has(key(relation))),
-          added = relations.filter(relation => !before.has(key(relation)));
-        const applyRelations =
-          options.applyRelations ??
-          ((removed, added) => applyContentEntityRelations(db, removed, added));
-        db.prepare(
-          `INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (?,?,2,?,?)
+            throw new Error("已有契约不能删除或修改");
+      }
+      const old = db
+        .prepare(
+          "SELECT node_id,slot,source_id,entity_kind,entity_id FROM content_entity_relations WHERE document_id=?"
+        )
+        .all(value.documentId) as {
+        node_id: string;
+        slot: string;
+        source_id: string;
+        entity_kind: ContentEntityKind;
+        entity_id: string;
+      }[];
+      const prior: ContentEntityRelation[] = old.map(row => ({
+        nodeId: row.node_id,
+        slot: row.slot,
+        target: { sourceId: row.source_id, kind: row.entity_kind, entityId: row.entity_id },
+      }));
+      const key = (relation: ContentEntityRelation) =>
+        JSON.stringify([
+          relation.nodeId,
+          relation.slot,
+          relation.target.sourceId,
+          relation.target.kind,
+          relation.target.entityId,
+        ]);
+      const before = new Set(prior.map(key)),
+        after = new Set(relations.map(key));
+      const removed = prior.filter(relation => !after.has(key(relation))),
+        added = relations.filter(relation => !before.has(key(relation)));
+      const applyRelations =
+        options.applyRelations ??
+        ((removed, added) => applyContentEntityRelations(db, removed, added));
+      db.prepare(
+        `INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (?,?,2,?,?)
         ON CONFLICT(content_id) DO UPDATE SET contracts=excluded.contracts,revision=excluded.revision`
-        ).run(contentId, value.documentId, contractsJson, revision);
-        const remove = db.prepare(
-          "DELETE FROM content_entity_relations WHERE document_id=? AND node_id=? AND slot=?"
-        );
-        removed.forEach(relation => remove.run(value.documentId, relation.nodeId, relation.slot));
-        const insert = db.prepare(
-          "INSERT INTO content_entity_relations(document_id,node_id,slot,source_id,entity_kind,entity_id) VALUES (?,?,?,?,?,?)"
-        );
-        added.forEach(relation =>
-          insert.run(
-            value.documentId,
-            relation.nodeId,
-            relation.slot,
-            relation.target.sourceId,
-            relation.target.kind,
-            relation.target.entityId
-          )
-        );
-        applyRelations(removed, added);
-        db.prepare("UPDATE contents SET content=?,count=?,update_time=? WHERE id=?").run(
-          contentJson,
-          options.count,
-          Date.now(),
-          contentId
-        );
-        return { ...value, contracts, content: structuredClone(value.content), revision };
-      })();
-    const state = readDeviceSyncState(db);
-    const applying = state
-      ? (
-          db.prepare("SELECT applying FROM _tau_device_state WHERE id=1").get() as {
-            applying: number;
-          }
-        ).applying
-      : 0;
-    return state?.enabled && applying === 0 && deviceDocument(db, contentId)
-      ? withDeviceJsonProjection(db, commit)
-      : commit();
+      ).run(contentId, value.documentId, contractsJson, revision);
+      const remove = db.prepare(
+        "DELETE FROM content_entity_relations WHERE document_id=? AND node_id=? AND slot=?"
+      );
+      removed.forEach(relation => remove.run(value.documentId, relation.nodeId, relation.slot));
+      const insert = db.prepare(
+        "INSERT INTO content_entity_relations(document_id,node_id,slot,source_id,entity_kind,entity_id) VALUES (?,?,?,?,?,?)"
+      );
+      added.forEach(relation =>
+        insert.run(
+          value.documentId,
+          relation.nodeId,
+          relation.slot,
+          relation.target.sourceId,
+          relation.target.kind,
+          relation.target.entityId
+        )
+      );
+      applyRelations(removed, added);
+      db.prepare("UPDATE contents SET content=?,count=?,update_time=? WHERE id=?").run(
+        contentJson,
+        options.count,
+        Date.now(),
+        contentId
+      );
+      return { ...value, contracts, content: structuredClone(value.content), revision };
+    })();
   }
 }

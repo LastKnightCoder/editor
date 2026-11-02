@@ -78,7 +78,7 @@ import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
 import { notifyReminderSourceChanged } from "../features/reminders/changes";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
-import { deviceReplacementState } from "./device-sync/native";
+import { databaseReplacementState } from "./database-runtime";
 import {
   assertContentWriteContext,
   captureContentWriteContext,
@@ -92,13 +92,13 @@ const LIBRARY_INDEPENDENT_COMMANDS = new Set(["sync_check_versions", "resource_s
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
 function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (
-    deviceReplacementState().active &&
+    databaseReplacementState().active &&
     cmd !== "set_active_database" &&
     /^(create|update|delete|remove|insert|move|reorder|archive|restore|toggle|complete|set|clear|save|batch)_/.test(
       cmd
     )
   )
-    return Promise.reject(new Error("DEVICE_SYNC_REPLACED: 当前库正在恢复"));
+    return Promise.reject(new Error("DATABASE_REPLACED: 当前库正在恢复"));
   const start = performance.now();
   const task = invoke<T>(cmd, args)
     .then(result => {
@@ -322,16 +322,6 @@ export async function updateContent(params: {
   expectedSourceId?: string;
 }) {
   const context = params.writeContext ?? (await captureContentWriteContext());
-  assertContentWriteContext(context);
-  const { consumeDeviceProjection, replaceDeviceContent } = await import("./device-sync/content");
-  assertContentWriteContext(context);
-  if (
-    (await consumeDeviceProjection(params.contentId, params.content)) ||
-    (await replaceDeviceContent(params, context))
-  )
-    return trackedInvoke<ContentDetailResponse>("get_content_detail", {
-      contentId: params.contentId,
-    });
   assertContentWriteContext(context);
   return withCardTimeout(
     trackedInvoke<ContentDetailResponse>("update_content", {

@@ -6,15 +6,6 @@ use std::collections::{BTreeMap, HashSet};
 fn fail(message: &str) -> String {
     format!("CONTENT_CONTRACT_INVALID: {message}")
 }
-pub(super) fn validate_projection(content: &Value, contracts: &Value) -> Result<(), String> {
-    dictionary(contracts)?;
-    data(content, 0, &mut 0)?;
-    relations(content, contracts)?;
-    if serialized(content)?.len() > 8 * 1024 * 1024 {
-        return Err(fail("正文超过容量"));
-    }
-    Ok(())
-}
 
 pub(super) fn prepare_new(
     content: &Value,

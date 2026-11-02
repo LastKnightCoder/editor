@@ -1,31 +1,4 @@
-import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import { readDocumentIdentity } from "@tau/collaboration";
-import {
-  deviceDocument,
-  deviceGeneration,
-  readDeviceSyncState,
-  writeDeviceDocument,
-  withDeviceProjection,
-  ensureDeviceSyncHealthy,
-  recoverDeviceSyncDatabase,
-} from "../device-sync/database-store";
-import {
-  persistDeviceContent,
-  projectDeviceDocument,
-  recordDeviceAudit,
-  restoreActiveDeviceContent,
-} from "../device-sync/content-state";
-import { DeviceAssetStore } from "../device-sync/asset-store";
-import { hasDeviceEntityHold } from "../device-sync/retention";
-import { assertDeviceDamage } from "../device-sync/recovery";
-import {
-  combineDeviceMetrics,
-  mergeDeviceDocument,
-  restoreDeviceDocument,
-} from "@tau/collaboration/src/device-sync/documents";
-import { mapNodeResources } from "@tau/db-schema/content-resources";
-import { isSafeResource, LOCAL_ASSET_PREFIX } from "@tau/collaboration";
-import type { DeviceDocument } from "@tau/collaboration/src/device-sync/protocol";
 import { applyNodeTreeContent } from "@tau/editor-collab";
 import { NodeSessionUpdates } from "./node-session-updates";
 import {
@@ -36,8 +9,6 @@ import {
   type DocumentDrainScope,
 } from "../durable-document-lifecycle";
 import { app, BrowserWindow, type IpcMainInvokeEvent } from "electron";
-import type Database from "better-sqlite3";
-import { setImmediate } from "node:timers/promises";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
@@ -304,71 +275,12 @@ export class CollaborationManager {
     session.replaceContent = (content, contracts, expectedRevision) =>
       this.replaceContentSnapshot(session, content, contracts, expectedRevision);
     session.persistNodeUpdate = update => this.store.append(session.info.id, update);
-    session.refreshDeviceState = () => {
-      const source = session.info.source,
-        db = source && databaseModule.getDatabase(source.databaseName);
-      if (
-        !source ||
-        !db?.open ||
-        session.info.mode !== "local" ||
-        !readDeviceSyncState(db)?.enabled
-      )
-        return;
-      if (
-        db
-          .prepare("SELECT 1 FROM _tau_device_json_intents WHERE content_id=?")
-          .get(source.contentId)
-      )
-        throw new Error("DEVICE_SYNC_RETRY: 正文业务修改尚待转换");
-      const entry = deviceDocument(db, source.contentId);
-      if (!entry) return;
-      if (entry.baselineId !== session.doc.getMap("meta").get("baselineId"))
-        throw new Error("DEVICE_SYNC_BASELINE_CHANGED: 正文基线已变化");
-      source.projectionRevision = ContentDocumentTable.read(db, source.contentId)?.revision;
-      this.assets.registerDevicePaths(session.info.id, entry.paths);
-      Y.applyUpdate(session.doc, Buffer.from(entry.state, "base64"), "device-sync");
-    };
-    session.persistDeviceState = candidate => {
-      if (this.sessions.get(session.info.id) !== session)
-        throw new Error("DEVICE_SYNC_REPLACED: 原正文会话已释放");
-      const source = session.info.source;
-      const db = source && databaseModule.getDatabase(source.databaseName);
-      if (
-        !source ||
-        !db?.open ||
-        session.info.mode !== "local" ||
-        !readDeviceSyncState(db)?.enabled
-      )
-        return;
-      if (source.titleAuthority !== "database") {
-        source.titleAuthority = "database";
-        this.store.metadata(session.info);
-      }
-      const stored = ContentDocumentTable.read(db, source.contentId);
-      if (stored?.revision !== source.projectionRevision)
-        throw new Error("DEVICE_SYNC_RETRY: 正文投影已变化，请重试");
-      const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
-      const previousPaths = deviceDocument(db, source.contentId)?.paths;
-      const bodyChanged = persistDeviceContent(db, source.contentId, candidate, reference => {
-        const previous = previousPaths?.[reference];
-        if (previous) return previous;
-        try {
-          const path = this.assets.resolveLocalFile(reference, session.info.id);
-          return path ? assets.import(path) : null;
-        } catch {
-          return null;
-        }
-      });
-      if (bodyChanged) session.deviceAuditPending = true;
-      source.projectionRevision = ContentDocumentTable.read(db, source.contentId)?.revision;
-    };
     session.retainNodeState = candidate => this.retainNodeState(session, candidate);
     this.retainNodeState(session, doc);
     doc.on("update", (update: Uint8Array, origin: unknown) => {
-      session.persistDeviceState?.(doc);
       if (origin !== "renderer-persisted") this.store.append(session.info.id, update);
       session.dirty = true;
-      if (origin !== "device-sync") session.projectionDirty = true;
+      session.projectionDirty = true;
       try {
         this.retainNodeState(session, doc);
       } catch (failure) {
@@ -489,15 +401,6 @@ export class CollaborationManager {
     const binding = findCollaborationBinding(db, target.contentId);
     const id = binding?.document_id || localSessionId(db.name, content.id, content.createTime);
     let session = this.findSession(id);
-    const primary = readDeviceSyncState(db)?.enabled ? deviceDocument(db, content.id) : null;
-    if (
-      session?.info.mode === "local" &&
-      primary &&
-      session.doc.getMap("meta").get("baselineId") !== primary.baselineId
-    ) {
-      await this.releaseReplacedSession(session, "设备同步的权威基线已变化");
-      return this.openContent(event, target);
-    }
     // 本地缓存的资料库或正文身份与主库不一致（如同步替换后的冷缓存）：丢弃旧缓存，从当前主库重建
     if (session?.info.mode === "local" && session.info.source) {
       const source = session.info.source;
@@ -567,46 +470,18 @@ export class CollaborationManager {
         bannerPosition: "center",
       };
       if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
-      const durable = readDeviceSyncState(db)?.enabled ? deviceDocument(db, content.id) : null;
-      let doc: Y.Doc;
-      if (durable) {
-        this.assets.registerDevicePaths(id, durable.paths);
-        doc = new Y.Doc({ gc: false });
-        try {
-          Y.applyUpdate(doc, Buffer.from(durable.state, "base64"));
-          await validateNodeDocument(doc, {
-            documentId: durable.documentId,
-            baselineId: durable.baselineId,
-            epoch: durable.epoch,
-          });
-        } catch {
-          doc.destroy();
-          recoverDeviceSyncDatabase(db, content.id);
-          return this.openContent(event, target);
-        }
-      } else
-        doc = await createNodeDocument(
-          { documentId: id, baselineId: randomUUID(), epoch: 0 },
-          await this.assets.prepareLocalDocument(
-            id,
-            value,
-            stored.contracts,
-            Boolean(readDeviceSyncState(db)?.enabled)
-          ),
-          stored.contracts,
-          { allowLocalResources: true }
-        );
+      const doc = await createNodeDocument(
+        { documentId: id, baselineId: randomUUID(), epoch: 0 },
+        await this.assets.prepareLocalDocument(id, value, stored.contracts),
+        stored.contracts,
+        { allowLocalResources: true }
+      );
       if (!db.open || databaseModule.getDatabase(name) !== db) {
         doc.destroy();
         throw new Error("资料库已切换，请重新打开内容");
       }
       const concurrent = this.findSession(id);
       if (concurrent) {
-        doc.destroy();
-        return this.openContent(event, target);
-      }
-      const established = readDeviceSyncState(db)?.enabled ? deviceDocument(db, content.id) : null;
-      if (established && established.baselineId !== doc.getMap("meta").get("baselineId")) {
         doc.destroy();
         return this.openContent(event, target);
       }
@@ -631,7 +506,6 @@ export class CollaborationManager {
       };
       this.store.create(info, doc);
       session = this.restore(info, doc);
-      session.persistDeviceState?.(doc);
     }
     if (session.info.source?.contentCreatedAt !== content.createTime)
       throw new Error("原内容关联已变化");
@@ -640,11 +514,7 @@ export class CollaborationManager {
     return {
       documentId: id,
       mode: session.info.mode || "shared",
-      title:
-        readDeviceSyncState(db)?.enabled ||
-        (session.info.mode === "local" && session.info.source?.titleAuthority === "database")
-          ? findContentTitle(db, content.id)
-          : session.doc.getText("title").toString(),
+      title: session.doc.getText("title").toString(),
       frozen: Boolean(session.info.frozen),
       source: session.info.source,
     };
@@ -1043,9 +913,7 @@ export class CollaborationManager {
     sourceTitle?: string
   ) {
     if (!Number.isSafeInteger(contentId) || contentId <= 0) throw new Error("内容 ID 不合法");
-    const { name, db } = this.databaseForEvent(event);
-    if (readDeviceSyncState(db)?.enabled)
-      throw new Error("DEVICE_SYNC_SHARED_CONTENT: 当前设备同步入口暂不支持同时建立云端共享正文");
+    const { name } = this.databaseForEvent(event);
     const key = `${name}:${contentId}`;
     let operation = this.pendingCreates.get(key);
     if (!operation) {
@@ -1438,7 +1306,6 @@ export class CollaborationManager {
         throw new Error("CONTENT_VERSION_CONFLICT: 正文已变化，请保留待应用结果后重试");
     };
     check();
-    const db = session.info.source && databaseModule.getDatabase(session.info.source.databaseName);
     const candidate = new Y.Doc({ gc: false });
     Y.applyUpdate(candidate, Y.encodeStateAsUpdate(session.doc));
     const vector = Y.encodeStateVector(candidate),
@@ -1449,12 +1316,7 @@ export class CollaborationManager {
       const value = { ...readNodeDocument(candidate), content };
       const mapped =
         session.info.mode === "local"
-          ? await this.assets.prepareLocalDocument(
-              session.info.id,
-              value,
-              contracts,
-              Boolean(db?.open && readDeviceSyncState(db)?.enabled)
-            )
+          ? await this.assets.prepareLocalDocument(session.info.id, value, contracts)
           : await this.assets.shareDocument(
               session.info.serverUrl,
               session.info.id,
@@ -1466,7 +1328,7 @@ export class CollaborationManager {
       applyNodeTreeContent(tree, mapped.content, {});
       const meta = session.doc.getMap("meta"),
         identity = {
-          documentId: String(meta.get("documentId")),
+          documentId: session.info.id,
           baselineId: String(meta.get("baselineId")),
           epoch: Number(meta.get("epoch")),
         };
@@ -1555,22 +1417,6 @@ export class CollaborationManager {
         session.projectionDirty = true;
         return;
       }
-      if (local && readDeviceSyncState(database)?.enabled) {
-        session.persistDeviceState?.(session.doc);
-        if (session.deviceAuditPending) {
-          withDeviceProjection(database, () => recordDeviceAudit(database, source.contentId));
-          session.deviceAuditPending = false;
-        }
-        session.projectionDirty = false;
-        source.projectionRevision = ContentDocumentTable.read(database, source.contentId)?.revision;
-        this.store.metadata(session.info);
-        this.broadcast("content:updated", {
-          databaseName: basename(database.name),
-          contentId: source.contentId,
-        });
-        emitContentWritten(database, source.contentId, "update");
-        return;
-      }
       const stored = ContentDocumentTable.read(database, source.contentId);
       if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
       const contracts = session.doc
@@ -1601,13 +1447,7 @@ export class CollaborationManager {
       );
       source.projectionRevision = ContentDocumentTable.read(database, source.contentId)!.revision;
       this.store.metadata(session.info);
-      const title =
-        local && source.titleAuthority === "database"
-          ? findContentTitle(database, source.contentId)
-          : value.title;
-      for (const entry of local && source.titleAuthority === "database"
-        ? []
-        : projectContentTitle(database, source.contentId, title))
+      for (const entry of projectContentTitle(database, source.contentId, value.title))
         this.broadcast(entry.channel, {
           databaseName: basename(database.name),
           [entry.field]: entry.id,
@@ -1619,7 +1459,7 @@ export class CollaborationManager {
         });
         emitContentWritten(database, source.contentId, "update");
       }
-      session.info.title = title;
+      session.info.title = value.title;
       if (local && session.info.error) {
         session.info.error = undefined;
         this.changed(session);
@@ -1807,272 +1647,6 @@ export class CollaborationManager {
     if (!this.assets) throw new Error("资源服务未就绪");
     return this.assets;
   }
-  private async prepareDeviceContent(
-    db: Database.Database,
-    name: string,
-    id: number,
-    assets: DeviceAssetStore,
-    assertCurrent: () => void
-  ) {
-    assertCurrent();
-    if (deviceDocument(db, id)) return;
-    if (findCollaborationBinding(db, id))
-      throw new Error("DEVICE_SYNC_SHARED_CONTENT: 设备同步不接受双重正文绑定");
-    await repairContentForOpen(db, name, id, () => {
-      assertCurrent();
-      return true;
-    });
-    assertCurrent();
-    const content = db.prepare("SELECT create_time FROM contents WHERE id=?").get(id) as
-      | { create_time: number }
-      | undefined;
-    if (!content) return;
-    const sessionId = localSessionId(db.name, id, content.create_time);
-    // 只恢复真实存在的缓存，批量准备不创建临时编辑会话。
-    let session = this.findSession(sessionId);
-    if (session) {
-      const opened = await this.openContent({ db, name }, { contentId: id });
-      assertCurrent();
-      session = this.sessions.get(opened.documentId);
-      if (!session) throw new Error("DEVICE_SYNC_RETRY: 正文会话已变化");
-      if (deviceDocument(db, id)) return;
-    }
-    const stored = ContentDocumentTable.read(db, id);
-    if (!stored) throw new Error("DEVICE_SYNC_CONTENT: 正文契约尚未就绪");
-    if (session && readDocumentIdentity(session.doc).documentId === stored.documentId) {
-      if (await restoreActiveDeviceContent(db, id, assertCurrent)) return;
-      throw new Error("DEVICE_SYNC_RETRY: 正文会话与主库修订不同");
-    }
-    const revision = session && contentRevision(session);
-    const contracts = session
-      ? (session.doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary)
-      : stored.contracts;
-    const context = session?.info.id ?? stored.documentId;
-    const value = session
-      ? readNodeDocument(session.doc)
-      : {
-          title: findContentTitle(db, id),
-          content: stored.content,
-          bannerBg: "",
-          bannerPosition: "center",
-        };
-    const prepared = await this.assets.prepareLocalDocument(context, value, contracts, true);
-    assertCurrent();
-    const doc = await createNodeDocument(
-      { documentId: stored.documentId, baselineId: randomUUID(), epoch: 0 },
-      prepared,
-      contracts
-    );
-    try {
-      assertCurrent();
-      if (deviceDocument(db, id)) return;
-      if (
-        ContentDocumentTable.read(db, id)?.revision !== stored.revision ||
-        (session &&
-          (this.sessions.get(session.info.id) !== session ||
-            contentRevision(session) !== revision ||
-            session.info.source?.projectionRevision !== stored.revision))
-      )
-        throw new Error("DEVICE_SYNC_RETRY: 正文准备期间发生变化");
-      persistDeviceContent(db, id, doc, reference => {
-        try {
-          const path = this.assets.resolveLocalFile(reference, context);
-          return path ? assets.import(path) : null;
-        } catch {
-          return null;
-        }
-      });
-    } finally {
-      doc.destroy();
-    }
-    if (session) await this.releaseReplacedSession(session, "已建立设备同步的可传输基线");
-  }
-  async prepareDeviceDocuments(
-    name: string,
-    progress?: (completed: number, total: number) => void
-  ) {
-    const db = databaseModule.getDatabase(name);
-    if (db?.open) ensureDeviceSyncHealthy(db);
-    if (!db?.open || !readDeviceSyncState(db)?.enabled) return;
-    const generation = deviceGeneration(db);
-    const assertCurrent = () => {
-      if (
-        !db.open ||
-        databaseModule.getDatabase(name) !== db ||
-        deviceGeneration(db) !== generation
-      )
-        throw new Error("DEVICE_SYNC_CLOSED: 正文准备期间资料库已变化");
-    };
-    try {
-      await this.resolveDeviceJsonIntents(name);
-    } catch (error) {
-      if (/DEVICE_SYNC_RETRY/.test(String(error))) throw error;
-      assertDeviceDamage(error);
-      recoverDeviceSyncDatabase(db);
-    }
-    assertCurrent();
-    const counts = db.prepare(
-      "SELECT count(*) AS total,count(d.content_id) AS completed FROM contents c LEFT JOIN _tau_device_documents d ON d.content_id=c.id"
-    );
-    let { completed, total } = counts.get() as { completed: number; total: number };
-    if (completed === total) return;
-    const started = Date.now();
-    let yielded = started,
-      reported = started,
-      cursor = 0;
-    const rows = db.prepare(
-      "SELECT c.id FROM contents c LEFT JOIN _tau_device_documents d ON d.content_id=c.id WHERE c.id>? AND d.content_id IS NULL ORDER BY c.id LIMIT 16"
-    );
-    const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
-    progress?.(completed, total);
-    console.info(`[device-sync] 正文准备开始: db=${name}, completed=${completed}, total=${total}`);
-    try {
-      await setImmediate();
-      for (;;) {
-        assertCurrent();
-        const batch = rows.all(cursor) as { id: number }[];
-        if (!batch.length) {
-          ({ completed, total } = counts.get() as { completed: number; total: number });
-          progress?.(completed, total);
-          if (completed === total) break;
-          cursor = 0;
-          continue;
-        }
-        for (const { id } of batch) {
-          await this.prepareDeviceContent(db, name, id, assets, assertCurrent);
-          cursor = id;
-          if (Date.now() - yielded >= 16) {
-            await setImmediate();
-            assertCurrent();
-            yielded = Date.now();
-          }
-        }
-        ({ completed, total } = counts.get() as { completed: number; total: number });
-        progress?.(completed, total);
-        if (Date.now() - reported >= 1000) {
-          console.info(
-            `[device-sync] 正文准备进度: db=${name}, completed=${completed}, total=${total}, elapsedMs=${Date.now() - started}`
-          );
-          reported = Date.now();
-        }
-        await setImmediate();
-        yielded = Date.now();
-      }
-      console.info(
-        `[device-sync] 正文准备完成: db=${name}, total=${total}, elapsedMs=${Date.now() - started}`
-      );
-    } catch (error) {
-      if (db.open && databaseModule.getDatabase(name) === db && deviceGeneration(db) === generation)
-        ({ completed, total } = counts.get() as { completed: number; total: number });
-      console.warn(
-        `[device-sync] 正文准备中断: db=${name}, completed=${completed}, total=${total}, elapsedMs=${Date.now() - started}`,
-        error
-      );
-      throw error;
-    }
-  }
-  async resolveDeviceJsonIntents(name: string) {
-    const db = databaseModule.getDatabase(name);
-    if (!db?.open || !readDeviceSyncState(db)?.enabled) return;
-    const rows = db.prepare("SELECT * FROM _tau_device_json_intents ORDER BY content_id").all() as {
-      content_id: number;
-      base_entry: string;
-      target_content: string;
-      target_contracts: string;
-      token: string;
-    }[];
-    if (!rows.length) {
-      this.receiveDeviceDocuments(name);
-      return;
-    }
-    const assets = new DeviceAssetStore(join(PathUtil.getAppDir(), "resources"));
-    for (const row of rows) {
-      const base = JSON.parse(row.base_entry) as DeviceDocument,
-        current = deviceDocument(db, row.content_id);
-      if (!current) throw new Error("DEVICE_SYNC_RETRY: 正文基线缺失");
-      const doc = restoreDeviceDocument(base),
-        tree = new NodeTree(doc);
-      try {
-        const contracts = JSON.parse(row.target_contracts) as ContentContractDictionary;
-        await tree.installContracts(contracts, null);
-        const paths = { ...base.paths },
-          reverse = new Map(Object.entries(paths).map(([reference, path]) => [path, reference]));
-        const map = (nodes: ContentNode[]): ContentNode[] =>
-          nodes.map(node =>
-            Array.isArray(node.children)
-              ? {
-                  ...mapNodeResources(
-                    node,
-                    contracts[String(node.tauContract)]?.resources,
-                    reference => {
-                      if (reverse.has(reference)) return reverse.get(reference)!;
-                      if (isSafeResource(reference)) return reference;
-                      const opaque = LOCAL_ASSET_PREFIX + randomUUID();
-                      try {
-                        const path = this.assets.resolveLocalFile(reference);
-                        if (path) paths[opaque] = assets.import(path);
-                      } catch {
-                        /* 缺图仍保留正文引用。 */
-                      }
-                      reverse.set(reference, opaque);
-                      return opaque;
-                    }
-                  ),
-                  children: map(node.children),
-                }
-              : node
-          );
-        applyNodeTreeContent(tree, map(JSON.parse(row.target_content)), {});
-        await validateNodeDocument(doc, {
-          documentId: base.documentId,
-          baselineId: base.baselineId,
-          epoch: base.epoch,
-        });
-        const merged = await mergeDeviceDocument(current, {
-          ...base,
-          state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
-          paths,
-          updatedAt: Date.now(),
-          metricRules: combineDeviceMetrics(base.metricRules, desktopContentMetrics.rules),
-        });
-        db.transaction(() => {
-          if (
-            (
-              db
-                .prepare("SELECT token FROM _tau_device_json_intents WHERE content_id=?")
-                .get(row.content_id) as { token: string } | undefined
-            )?.token !== row.token ||
-            deviceDocument(db, row.content_id)?.state !== current.state
-          )
-            throw new Error("DEVICE_SYNC_RETRY: 正文业务修改已变化");
-          const { projection: _, ...entry } = merged;
-          writeDeviceDocument(db, entry);
-          withDeviceProjection(db, () => projectDeviceDocument(db, merged));
-          db.prepare("DELETE FROM _tau_device_json_intents WHERE content_id=? AND token=?").run(
-            row.content_id,
-            row.token
-          );
-        })();
-      } finally {
-        tree.dispose();
-        doc.destroy();
-      }
-    }
-    this.receiveDeviceDocuments(name);
-  }
-  receiveDeviceDocuments(name: string) {
-    const db = databaseModule.getDatabase(name);
-    if (!db?.open) return;
-    for (const session of this.sessions.values()) {
-      const source = session.info.source;
-      if (session.info.mode !== "local" || source?.databaseName !== name) continue;
-      const entry = deviceDocument(db, source.contentId);
-      if (!entry || entry.baselineId !== session.doc.getMap("meta").get("baselineId")) continue;
-      this.assets.registerDevicePaths(session.info.id, entry.paths);
-      source.projectionRevision = ContentDocumentTable.read(db, source.contentId)?.revision;
-      Y.applyUpdate(session.doc, Buffer.from(entry.state, "base64"), "device-sync");
-    }
-  }
   documentClient(): CollaborationClient {
     if (!this.client) throw new Error("文档传输服务未就绪");
     return this.client;
@@ -2093,7 +1667,6 @@ export class CollaborationManager {
     const resumed: RuntimeSession[] = [];
     const resume = () => {
       for (const session of resumed) {
-        if (this.sessions.get(session.info.id) !== session) continue;
         this.unfreeze(session);
         session.provider?.attach();
         this.attach(session);
@@ -2149,7 +1722,7 @@ export class CollaborationManager {
       return {
         commit: () => {
           if (scope.reason === "quit") return;
-          if (!scope.replace) resume();
+          resume();
           for (const session of affected) unregisterContentSession(session);
         },
         rollback: resume,
@@ -2223,7 +1796,6 @@ export class CollaborationManager {
       if (info.source?.databaseName !== name) continue;
       const session = this.findSession(info.id);
       if (session) await this.releaseReplacedSession(session);
-      else if (info.mode === "local") this.store.discard(info.id, "下载覆盖，丢弃旧库缓存");
     }
     for (const table of [
       "input_drafts",
@@ -2252,7 +1824,6 @@ export class CollaborationManager {
             session.info.source?.databaseName === workspaceId &&
             (session.projectionDirty || Boolean(session.info.error))
         ) ||
-        hasDeviceEntityHold(db, kind, id) ||
         retention.has(db, workspaceId, kind, id)
       );
     }, "content");

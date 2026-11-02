@@ -11,7 +11,6 @@ import type {
   PluginRecordUpdate,
 } from "@/types/plugin-records";
 import { writeAsPlugin } from "../domain-event-origin";
-import { hasDeviceSyncMaterial } from "../device-sync/recovery";
 import { runPage, whereClause, type QuerySource, type SqlFragment } from "./plugin-query";
 
 const MAX_LIMIT = 200;
@@ -71,9 +70,7 @@ export function markOrphans(
   installed: ReadonlySet<string> | null,
   now: number
 ) {
-  // 本机未安装不能证明其他设备已停用插件。
-  if (hasDeviceSyncMaterial(db)) return false;
-  if (!installed) return true;
+  if (!installed) return;
   const pluginIds = (
     db.prepare(`SELECT DISTINCT plugin_id FROM ${table}`).all() as Array<{ plugin_id: string }>
   ).map(row => row.plugin_id);
@@ -86,7 +83,6 @@ export function markOrphans(
   for (const pluginId of pluginIds)
     if (installed.has(pluginId)) adopt.run(pluginId);
     else mark.run(now, pluginId);
-  return true;
 }
 
 /**
@@ -245,7 +241,7 @@ export default class PluginRecordTable {
     options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
   ): number {
     return db.transaction(() => {
-      if (!markOrphans(db, "plugin_records", options.installed, options.now)) return 0;
+      markOrphans(db, "plugin_records", options.installed, options.now);
       return db
         .prepare(
           "DELETE FROM plugin_records WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"

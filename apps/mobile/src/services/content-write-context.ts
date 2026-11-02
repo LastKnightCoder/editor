@@ -1,4 +1,4 @@
-import { deviceReplacementState, deviceStore, deviceSyncDatabase } from "./device-sync/native";
+import { databaseReplacementState, databaseGeneration, activeDatabase } from "./database-runtime";
 
 export type ContentWriteContext = Readonly<{
   database: string;
@@ -7,20 +7,20 @@ export type ContentWriteContext = Readonly<{
 }>;
 
 export function assertContentWriteContext(context: ContentWriteContext) {
-  const current = deviceReplacementState(context.database);
+  const current = databaseReplacementState(context.database);
   if (
-    context.database !== deviceSyncDatabase() ||
+    context.database !== activeDatabase() ||
     current.active ||
     current.version !== context.version
   )
-    throw new Error("DEVICE_SYNC_REPLACED: 正文写入上下文已失效");
+    throw new Error("DATABASE_REPLACED: 正文写入上下文已失效");
 }
 
 export async function captureContentWriteContext(
-  database = deviceSyncDatabase()
+  database = activeDatabase()
 ): Promise<ContentWriteContext> {
-  const version = deviceReplacementState(database).version;
-  const generation = database ? await deviceStore<string>("generation", {}, database) : "";
+  const version = databaseReplacementState(database).version;
+  const generation = database ? await databaseGeneration(database) : "";
   const context = Object.freeze({ database, generation, version });
   assertContentWriteContext(context);
   return context;

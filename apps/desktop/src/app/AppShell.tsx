@@ -30,8 +30,6 @@ import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
 import { useThemeRuntime } from "./useThemeRuntime";
-import { useDeviceSyncChanges } from "./useDeviceSyncChanges";
-import { useDeviceDownloadNotice } from "@/features/settings/sections/deviceSyncModel";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { AssistDock } from "./AssistDock";
@@ -73,8 +71,6 @@ function ShellBody() {
   const [bootError, setBootError] = useState("");
 
   useThemeRuntime();
-  useDeviceSyncChanges();
-  useDeviceDownloadNotice();
 
   const connect = useCallback(() => {
     setBoot("connecting");

@@ -7,10 +7,10 @@ import {
   type ContentWriteContext,
 } from "../services/content-write-context";
 import {
-  deviceSyncDatabase,
-  deviceReplacementState,
-  subscribeDeviceReplacement,
-} from "../services/device-sync/native";
+  activeDatabase,
+  databaseReplacementState,
+  subscribeDatabaseReplacement,
+} from "../services/database-runtime";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import type { Descendant } from "slate";
 import * as tauri from "../services/tauri";
@@ -71,9 +71,9 @@ export function useEditContent(
   const [error, setError] = useState("");
 
   const metadataRef = useRef<ContentDetailResponse | undefined>(undefined);
-  const databaseName = deviceSyncDatabase();
-  const replacement = useSyncExternalStore(subscribeDeviceReplacement, () =>
-    deviceReplacementState(databaseName)
+  const databaseName = activeDatabase();
+  const replacement = useSyncExternalStore(subscribeDatabaseReplacement, () =>
+    databaseReplacementState(databaseName)
   );
   const writeContextRef = useRef<ContentWriteContext | undefined>(undefined);
   const replacementVersionRef = useRef(replacement.version);
@@ -169,7 +169,7 @@ export function useEditContent(
         } catch {
           return false;
         }
-        lastFailedContentRef.current = String(saveError).includes("DEVICE_SYNC_REPLACED")
+        lastFailedContentRef.current = String(saveError).includes("DATABASE_REPLACED")
           ? null
           : request;
         // 协作内容被数据库层守卫拒绝直写：给出明确指引而非通用保存失败

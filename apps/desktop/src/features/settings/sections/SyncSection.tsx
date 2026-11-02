@@ -16,12 +16,11 @@ import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
 import { SyncActions, SyncStats } from "../components/SyncCard";
 import { LocalDatabasePanel } from "./LocalDatabasePanel";
-import { DeviceSyncPanel } from "./DeviceSyncPanel";
 import { isProviderSection, ProviderChoiceList } from "../components/ProviderChoiceList";
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 
-type SyncTab = "device" | "overview" | "files" | "database";
+type SyncTab = "overview" | "files" | "database";
 
 export function SyncSection() {
   const queryClient = useQueryClient();
@@ -167,7 +166,7 @@ export function SyncSection() {
     }
   };
 
-  const [tab, setTab] = useState<SyncTab>("device");
+  const [tab, setTab] = useState<SyncTab>("overview");
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const resourceSync = useResourceSyncModel();
 
@@ -198,16 +197,13 @@ export function SyncSection() {
         value={tab}
         onChange={setTab}
         items={[
-          { key: "device", label: "设备同步" },
           { key: "overview", label: "云端存储" },
           { key: "files", label: "资源文件", badge: resourceSync.counts.error || undefined },
           { key: "database", label: "本地数据库" },
         ]}
       />
 
-      {tab === "device" ? (
-        <DeviceSyncPanel />
-      ) : tab === "overview" ? (
+      {tab === "overview" ? (
         <>
           <SettingsGroup bare>
             <div className="grid grid-cols-2 gap-3">

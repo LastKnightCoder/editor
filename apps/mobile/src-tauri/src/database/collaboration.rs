@@ -70,11 +70,6 @@ pub fn collab_bind_content(
     payload: BindContentPayload,
 ) -> Result<CollaborationBinding, String> {
     let mut connection = open_active_database(&app)?;
-    if crate::device_sync::database::state(&connection)?.is_some() {
-        return Err(
-            "DEVICE_SYNC_SHARED_CONTENT: 当前设备同步入口暂不支持同时建立云端共享正文".into(),
-        );
-    }
     let conn = connection.transaction().map_err(|e| e.to_string())?;
     let identity: (String, String, String) = conn.query_row("SELECT d.document_id,d.revision,l.source_id FROM content_documents d CROSS JOIN library_identity l WHERE d.content_id=?1 AND l.id=1", [payload.content_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).map_err(|_| "COLLAB_BIND_FAILED: 正文身份尚未建立".to_string())?;
     if identity

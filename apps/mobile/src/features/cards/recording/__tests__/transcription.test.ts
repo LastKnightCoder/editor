@@ -41,7 +41,7 @@ function setup(
     { type: "detail", children: [audio, { type: "paragraph", children: [{ text: "原有内容" }] }] },
     { type: "paragraph", children: [{ text: "文末" }] },
   ] as Descendant[];
-  const resolveResource = vi.fn(async () => "~/.editor/resources/device-sync/audio.bin");
+  const resolveResource = vi.fn(async () => "~/.editor/resources/audio.bin");
   Object.assign(editor, {
     getService: (id: unknown) => {
       if (id === IResourceService) return { remoteResourceToLocal: resolveResource };
@@ -68,7 +68,7 @@ it("解析文档资源引用后转写，文字稿紧跟嵌套音频", async () =
   expect(resolveResource).toHaveBeenCalledWith(reference);
   expect(native.prepareTranscriptAudio).toHaveBeenCalledWith(
     expect.any(String),
-    "~/.editor/resources/device-sync/audio.bin",
+    "~/.editor/resources/audio.bin",
     ["audio/ogg"]
   );
   expect(Node.get(editor, [0, 1])).toMatchObject({ type: "detail", title: "文字稿" });

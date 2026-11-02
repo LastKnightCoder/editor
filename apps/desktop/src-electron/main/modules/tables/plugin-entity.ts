@@ -559,7 +559,7 @@ export default class PluginEntityTable {
     options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
   ): number {
     return db.transaction(() => {
-      if (!markOrphans(db, "plugin_entities", options.installed, options.now)) return 0;
+      markOrphans(db, "plugin_entities", options.installed, options.now);
       const due = db
         .prepare(
           "SELECT id, content_id FROM plugin_entities WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"

@@ -7,9 +7,6 @@ mod chunked_sync;
 mod collaboration;
 mod collaboration_assets;
 mod database;
-mod device_sync;
-#[cfg(feature = "device-sync-spike")]
-pub use device_sync::spike as device_sync_spike;
 mod image_settings;
 mod incoming_file;
 #[cfg(target_os = "ios")]
@@ -84,10 +81,6 @@ pub fn run() {
         .plugin(tauri_plugin_native_record::init())
         .plugin(tauri_plugin_local_notify::init())
         .invoke_handler(tauri::generate_handler![
-            device_sync::device_sync_store,
-            device_sync::transport::device_sync_pair,
-            device_sync::transport::device_sync_request,
-            device_sync::assets::device_sync_asset,
             ai::ai_library_acquire,
             ai::ai_library_assert,
             ai::ai_library_release,
@@ -207,6 +200,7 @@ pub fn run() {
             database::get_card_detail,
             database::get_content_detail,
             database::create_quick_card,
+            database::database_generation,
             database::update_content,
             database::update_card_tags,
             database::update_card_links,
@@ -369,6 +363,10 @@ pub fn run() {
         .setup(|app| {
             // 最先打开日志文件，后续所有模块的启动输出才能落盘
             logger::init(app.handle());
+            database::remove_retired_database_state(
+                &setting::resolve_app_dir(app.handle()).map_err(std::io::Error::other)?,
+            )
+            .map_err(std::io::Error::other)?;
             #[cfg(target_os = "ios")]
             {
                 use tauri::Manager;
@@ -390,7 +388,6 @@ pub fn run() {
         .run(|_app, _event| {
             if matches!(_event, tauri::RunEvent::Resumed) {
                 use tauri::Emitter;
-                let _ = _app.emit("device-sync-resume", ());
                 let _ = _app.emit("app-foreground", ());
             }
             #[cfg(target_os = "ios")]

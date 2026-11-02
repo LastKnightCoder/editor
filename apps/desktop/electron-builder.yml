@@ -103,7 +103,6 @@ mac:
       isPackage: false
   # 文件夹：访达「打开方式」与拖到 Dock 图标（Alternate = 仅作备选，不抢访达的默认打开）
   extendInfo:
-    NSLocalNetworkUsageDescription: "连接你配对的手机和电脑，自动同步笔记、数据库修改与图片附件。"
     NSMicrophoneUsageDescription: "录制语音并转换为文字，停止后填入输入框。"
     CFBundleDocumentTypes:
       - CFBundleTypeName: Folder
