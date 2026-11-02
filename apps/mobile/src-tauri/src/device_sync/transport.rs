@@ -145,7 +145,13 @@ async fn request_raw(
                 request = request.bearer_auth(token);
             }
             match request.send().await {
-                Err(_) => {
+                Err(error) => {
+                    crate::logger::warn(format!(
+                        "[device-sync-request] 请求失败 kind={} timeout={} connect={} error={error:?}",
+                        body["kind"].as_str().unwrap_or("unknown"),
+                        error.is_timeout(),
+                        error.is_connect(),
+                    ));
                     last = "DEVICE_SYNC_OFFLINE: 设备离线、局域网权限未开启或证书校验失败".into();
                     continue;
                 }
@@ -177,6 +183,32 @@ async fn request_raw(
 }
 #[tauri::command]
 pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Result<Value, String> {
+    let started = std::time::Instant::now();
+    let mut stage = "decode-code";
+    crate::logger::info(format!(
+        "[device-sync-pair] 原生配对开始 code_bytes={}",
+        code.len()
+    ));
+    let result = pair_device(&app, &code, &name, &mut stage).await;
+    match &result {
+        Ok(_) => crate::logger::info(format!(
+            "[device-sync-pair] 原生配对完成 elapsed_ms={}",
+            started.elapsed().as_millis()
+        )),
+        Err(error) => crate::logger::error(format!(
+            "[device-sync-pair] 原生配对失败 stage={stage} elapsed_ms={} error={error}",
+            started.elapsed().as_millis()
+        )),
+    }
+    result
+}
+
+async fn pair_device(
+    app: &AppHandle,
+    code: &str,
+    name: &str,
+    stage: &mut &'static str,
+) -> Result<Value, String> {
     if code.len() > 16 * 1024 {
         return Err("DEVICE_SYNC_PAIR: 配对信息过长".into());
     }
@@ -189,6 +221,13 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         .map_err(|_| "DEVICE_SYNC_PAIR: 配对信息格式无效")?;
     let code: PairCode =
         serde_json::from_slice(&raw).map_err(|_| "DEVICE_SYNC_PAIR: 配对信息格式无效")?;
+    *stage = "validate-code";
+    crate::logger::info(format!(
+        "[device-sync-pair] 格式解析完成 protocol={} addresses={} port={}",
+        code.protocol,
+        code.addresses.len(),
+        code.port
+    ));
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|error| error.to_string())?
@@ -203,7 +242,8 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
     {
         return Err("DEVICE_SYNC_PAIR_EXPIRED: 请在电脑上重新生成配对信息".into());
     }
-    let directory = directory(&app)?;
+    *stage = "read-local-state";
+    let directory = directory(app)?;
     let path = directory.join("node-id");
     let node = if path.exists() {
         std::fs::read_to_string(path).map_err(|error| error.to_string())?
@@ -213,12 +253,12 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         node
     };
     use sha2::{Digest, Sha256};
-    let mut database = peer(&app)
+    let mut database = peer(app)
         .ok()
         .filter(|peer| peer.library == code.library)
         .map(|peer| peer.database)
         .unwrap_or_else(|| format!("device-{:x}.db", Sha256::digest(code.library.as_bytes())));
-    let database_path = crate::setting::resolve_database_path(&app, &database)?;
+    let database_path = crate::setting::resolve_database_path(app, &database)?;
     let previous_state = if database_path.exists() {
         rusqlite::Connection::open_with_flags(
             &database_path,
@@ -247,6 +287,10 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         );
     }
     let mut pairing = json!({"kind":"pair","secret":code.secret,"node":node,"name":name.chars().take(80).collect::<String>(),"existing":existing});
+    *stage = "request-pair";
+    crate::logger::info(format!(
+        "[device-sync-pair] 请求协调电脑 existing={existing}"
+    ));
     let mut result = request(
         &code.addresses,
         code.port,
@@ -255,6 +299,11 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         &pairing,
     )
     .await?;
+    crate::logger::info(format!(
+        "[device-sync-pair] 协调电脑返回 kind={} snapshot={}",
+        result["reply"]["kind"].as_str().unwrap_or("missing"),
+        result["reply"]["snapshot"].is_object()
+    ));
     if existing
         && previous_state
             .as_ref()
@@ -268,6 +317,8 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
             uuid::Uuid::new_v4()
         );
         pairing["existing"] = json!(false);
+        *stage = "request-new-baseline";
+        crate::logger::info("[device-sync-pair] 基线变化，重新请求首次配对快照");
         result = request(
             &code.addresses,
             code.port,
@@ -277,6 +328,7 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
         )
         .await?;
     }
+    *stage = "validate-reply";
     if result["reply"]["state"]["library"].as_str() != Some(code.library.as_str()) {
         return Err("DEVICE_SYNC_IDENTITY: 配对资料库不同".into());
     }
@@ -293,6 +345,7 @@ pub async fn device_sync_pair(app: AppHandle, code: String, name: String) -> Res
             .ok_or("DEVICE_SYNC_PAIR: 设备凭据无效")?
             .to_string(),
     };
+    *stage = "save-peer";
     atomic(
         &directory.join("peer.json"),
         &serde_json::to_vec(&peer).map_err(|error| error.to_string())?,
