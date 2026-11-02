@@ -13,6 +13,18 @@
 
 若自动签名提示团队没有设备、缺少 iOS App Development profile，先通过 USB 连接并解锁 iPhone，在手机确认信任此电脑，再让 Xcode 完成设备注册并重试。该要求来自开发签名构建阶段，不表示 App Store 分发必须绑定设备。手机的信任、开发者模式或账号验证提示由用户本人处理。
 
+## 数据线一键安装 Release
+
+1. 将 iPhone 通过数据线连接 Mac，解锁并确认信任电脑，启用“设置 → 隐私与安全性 → 开发者模式”。Xcode 已登录项目团队，并有可用于该设备的 Apple Development 证书和描述文件；首次缺少描述文件时先在 Xcode 的 Signing & Capabilities 完成自动开发签名。
+2. 在仓库根执行 `pnpm ios:install`。连接多台 iPhone 时执行 `pnpm ios:install --device <设备标识或 UDID>`；标识可用 `xcrun devicectl list devices` 查询。在 apps/mobile 目录可执行相同命令。
+3. 等待 Rust 检查、图标同步、数据库校验、前端类型检查与生产构建、arm64 Release 归档完成。脚本临时将生成工程的 release 配置切换为自动开发签名，构建结束、失败或收到中断信号后恢复原工程文件；不改正式导出配置。钥匙串授权或手机提示仍由本人处理。
+4. 脚本核验签名、版本、团队、描述文件有效期与设备列表，通过后覆盖安装，读取设备上的版本再次核对并启动应用。检查手机上的原工作区与实际功能；脚本不卸载或清空数据。安装成功但启动失败时解锁手机，查看输出与核验报告后重试。
+5. 归档、设备安装用途 IPA、检查/构建/安装日志和 verification.json 保留在 `output/ios-device-<版本>-build<构建号>/<本次运行目录>/`，每次独立保存。此包采用 Release 编译和 Apple Development 签名，设备必须包含在描述文件中；上传 App Store Connect 仍使用下文正式构建入口。
+
+判据：命令成功退出，核验报告 installed 与 launched 均为 true，设备读取的版本和构建号与本次配置相符。没有设备、连接多台未指定、未开启开发者模式、签名或版本校验失败时停止；不删除旧应用解决安装错误。
+
+禁止同时运行此命令与其他 iOS 构建。脚本用生成工程下的 `.ios-release-install.lock` 阻止自身并发；进程被强制杀死或断电后，先确认没有构建进程，再用锁目录内 `project.pbxproj.before` 恢复 `<产品名>.xcodeproj/project.pbxproj`（若备份存在），移除锁目录后重试。
+
 ## 无测试设备的分发签名
 
 1. 在 Xcode 的 Apple Accounts → 团队 → Manage Certificates 中创建或选择 Apple Distribution 证书，确认本机具有对应私钥，不撤销现有证书。

@@ -46,7 +46,7 @@
 | [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查           |
 | [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查           |
 | [ops-device-sync-spike.md](./guides/ops-device-sync-spike.md)       | 设备同步复现、大文件分块与真机功能验收   |
-| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、图标同步、TestFlight 与安装    |
+| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight     |
 | [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                             |
 | [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布 |
 | [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                     |

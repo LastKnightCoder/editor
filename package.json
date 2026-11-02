@@ -10,6 +10,7 @@
     "check:docs": "node scripts/check-docs.mjs",
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
+    "ios:install": "pnpm --filter mobile ios:install",
     "showcase": "pnpm --filter desktop showcase",
     "dev:collaboration": "node scripts/dev-collaboration.mjs",
     "deploy:collaboration": "node apps/collaboration-cloudflare/scripts/production.mjs deploy --execute",
