@@ -496,8 +496,6 @@ it("旧 Windows 附件路径跨平台并随资料目录迁移，本机引用指�
     "~/.editor/resources/历史附件.png",
   ]) {
     expect(assets.resolveLocalFile(reference)).toBe(file);
-    const local = await assets.prepareLocalReference(DOCUMENT, reference);
-    expect(assets.resolveLocalFile(local, DOCUMENT)).toBe(file);
     expect(readFileSync(file, "utf8")).toBe("原始附件字节");
   }
 });

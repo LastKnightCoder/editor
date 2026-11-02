@@ -13,7 +13,6 @@ import pluginServicesModule from "../modules/plugin-services";
 import pluginBackendModule from "../modules/plugin-backend";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
-import deviceSyncModule from "../modules/device-sync";
 import collaborationModule from "../modules/collaboration";
 import whiteboardDocumentsModule from "../modules/whiteboard-documents";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
@@ -137,12 +136,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => collaborationModule.init(),
-  },
-  {
-    name: "device-sync",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "database", "collaboration"],
-    init: () => deviceSyncModule.init(),
   },
   {
     name: "extra",

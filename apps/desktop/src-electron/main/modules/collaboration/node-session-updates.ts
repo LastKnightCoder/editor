@@ -70,13 +70,12 @@ export class NodeSessionUpdates {
     const bytes = new Uint8Array(update);
     return this.queue.run(session.info.id, bytes.byteLength, async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
-        session.refreshDeviceState?.();
         assertWritable();
         const meta = session.doc.getMap("meta");
         if (meta.get("version") !== NODE_DOCUMENT_VERSION)
           throw new Error("正文协议已变化，请重新打开");
         const identity = {
-          documentId: String(meta.get("documentId")),
+          documentId: session.info.id,
           baselineId: String(meta.get("baselineId")),
           epoch: Number(meta.get("epoch")),
         };
@@ -87,7 +86,6 @@ export class NodeSessionUpdates {
         });
         try {
           assertWritable();
-          session.refreshDeviceState?.();
           if (!equal(baseline, Y.encodeStateAsUpdate(session.doc))) continue;
           if (equal(baseline, Y.encodeStateAsUpdate(candidate))) {
             session.retainNodeState?.(candidate);
@@ -96,7 +94,6 @@ export class NodeSessionUpdates {
             return;
           }
           const delta = Y.encodeStateAsUpdate(candidate, before);
-          session.persistDeviceState?.(candidate);
           this.store.db.transaction(() => {
             session.retainNodeState?.(candidate);
             this.store.append(session.info.id, delta);

@@ -15,6 +15,34 @@ fn main_schema_version() -> i64 {
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
+pub(crate) fn remove_retired_database_state(directory: &std::path::Path) -> Result<(), String> {
+    if !directory.exists() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(directory).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if !entry.file_type().map_err(|e| e.to_string())?.is_file()
+            || !path
+                .extension()
+                .and_then(|value| value.to_str())
+                .is_some_and(|value| value.eq_ignore_ascii_case("db"))
+        {
+            continue;
+        }
+        let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+            .map_err(|e| e.to_string())?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))
+            .map_err(|e| e.to_string())?;
+        remove_retired_tables(&conn)?;
+    }
+    let retired = directory.join("device-sync");
+    if retired.exists() {
+        std::fs::remove_dir_all(retired).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "migration_tests.rs"]
 mod tests;
@@ -180,7 +208,7 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to set main PRAGMA: {e}"))?;
 
     if !needs_main_initialization(conn)? {
-        return Ok(());
+        return remove_retired_tables(conn);
     }
 
     let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
@@ -202,7 +230,42 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
     tx.commit()
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to commit schema update: {e}"))?;
-    Ok(())
+    remove_retired_tables(conn)
+}
+
+fn remove_retired_tables(conn: &Connection) -> Result<(), String> {
+    let objects = conn
+        .prepare("SELECT type,name FROM sqlite_master WHERE name GLOB '_tau_device_*' AND type IN ('trigger','table') ORDER BY type DESC")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    if objects.is_empty() {
+        return Ok(());
+    }
+    let secure_delete: i64 = conn
+        .pragma_query_value(None, "secure_delete", |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    conn.pragma_update(None, "secure_delete", true)
+        .map_err(|e| e.to_string())?;
+    let result = (|| {
+        let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+            .map_err(|e| e.to_string())?;
+        for (kind, name) in objects {
+            let kind = if kind == "trigger" {
+                "TRIGGER"
+            } else {
+                "TABLE"
+            };
+            tx.execute_batch(&format!("DROP {kind} \"{}\"", name.replace('"', "\"\"")))
+                .map_err(|e| e.to_string())?;
+        }
+        tx.commit().map_err(|e| e.to_string())
+    })();
+    conn.pragma_update(None, "secure_delete", secure_delete)
+        .map_err(|e| e.to_string())?;
+    result
 }
 
 pub fn ensure_index_schema(conn: &Connection, vec_dimension: i64) -> Result<bool, String> {

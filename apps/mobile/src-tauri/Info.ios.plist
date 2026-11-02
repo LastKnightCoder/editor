@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>连接你配对的电脑，自动同步笔记、数据库修改与图片附件。</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>

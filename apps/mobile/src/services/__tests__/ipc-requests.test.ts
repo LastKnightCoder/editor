@@ -74,7 +74,7 @@ it("等待真实写入超时时只记录命令与耗时，不记录内容", asyn
   const local = deferred();
   vi.mocked(invoke).mockImplementation(() => local.promise);
   void todoCreateGroup({ title: "不应记录的私人内容" });
-  const failure = expect(settleLibraryRequests()).rejects.toThrow("DEVICE_SYNC_BUSY");
+  const failure = expect(settleLibraryRequests()).rejects.toThrow("DATABASE_BUSY");
   await vi.advanceTimersByTimeAsync(8000);
   await failure;
   expect(warn).toHaveBeenCalledWith("[sync] 等待本机数据请求超时", [

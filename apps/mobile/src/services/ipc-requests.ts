@@ -13,7 +13,7 @@ export async function drainWithinBudget(task: Promise<unknown>) {
       task,
       new Promise((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error("DEVICE_SYNC_BUSY: 仍有本机操作未完成，请稍后重新下载")),
+          () => reject(new Error("DATABASE_BUSY: 仍有本机操作未完成，请稍后重新下载")),
           8000
         );
       }),

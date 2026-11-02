@@ -50,8 +50,7 @@ import { HomeScreen } from "./HomeScreen";
 import { StartupFailure } from "./StartupFailure";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
-import { startDeviceSync, replaceLocalLibrary } from "../services/device-sync/runtime";
-import { setDeviceSyncDatabase } from "../services/device-sync/native";
+import { replaceLocalLibrary, setActiveDatabase } from "../services/database-runtime";
 import { ReminderHost } from "../features/reminders/ReminderHost";
 import { CollaborationBackground } from "../features/collaboration/CollaborationBackground";
 import "../pages";
@@ -121,9 +120,8 @@ export default function AppShell() {
 
 function AppShellInner() {
   const bootstrap = useBootstrap();
-  const deviceSyncName = bootstrap.databases?.activeDatabase ?? "";
-  setDeviceSyncDatabase(deviceSyncName);
-  useEffect(() => (deviceSyncName ? startDeviceSync(deviceSyncName) : undefined), [deviceSyncName]);
+  const databaseName = bootstrap.databases?.activeDatabase ?? "";
+  setActiveDatabase(databaseName);
   const cards = useCardsQuery();
   const syncSettings = useSyncSettings();
   const resourceSync = useResourceSync();
@@ -166,17 +164,6 @@ function AppShellInner() {
       syncSettings.safeSetting?.database?.active ||
       bootstrap.databases?.activeDatabase ||
       null;
-    if (event.reason === "deviceSync" || event.reason === "deviceDownload") {
-      const results = await Promise.allSettled([
-        refreshCardsSafe({ page: 1 }),
-        useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-        useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-        invalidateCalendarQueries(),
-      ]);
-      for (const result of results)
-        if (result.status === "rejected") presentError(result.reason, "设备同步后刷新数据失败");
-      return;
-    }
     // 下载结果已包含复核后的版本；替换期间插件会话正在重建，不再发起远端检查。
     const downloadedVersions =
       event.reason === "syncDownload" &&
@@ -346,7 +333,7 @@ function AppShellInner() {
   });
 
   const handleSyncDownload = useMemoizedFn(async () => {
-    return replaceLocalLibrary(deviceSyncName, async () => {
+    return replaceLocalLibrary(databaseName, async () => {
       const result = await syncSettings.runSyncAction("syncDownloadDatabase");
       writeLastSyncTime(result.databaseName, Date.now());
       await emitDatabaseChange({

@@ -96,8 +96,7 @@
       <h3>两端都写摘录要先确认的事</h3>
       <ul>
         <li><b>云端整库同步</b>：后上传的整库覆盖，和其他数据一样，没有新问题。</li>
-        <li><b>局域网设备同步</b>按行合并：手机和电脑各自离线同步同一本书，会各插一行相同 <code>(source_type, external_id)</code>，撞 <code>idx_excerpt_external</code> 唯一索引。实现方案 A 前要先确认设备同步对唯一键冲突怎么处理。</li>
-        <li>API Key 在 <code>plugin_kv</code>：整库同步会带到手机；设备同步是否同步这张表（它不传「设置凭据」）也要确认，不同步时手机首次要再填一次。</li>
+        <li>API Key 在 <code>plugin_kv</code>：整库同步会带到手机。</li>
       </ul>
     </div>
   </div>
@@ -692,7 +691,6 @@
       <ul>
         <li>手机浏览器能否直接登录微信读书获取页拿到 API Key（不能的话首次引导第一步改成在电脑上打开）。</li>
         <li>插件 WebView 里的 <code>window.open</code> 是否交给系统浏览器、能否唤起微信读书 App；<code>navigator.clipboard</code> 读写是否可用。</li>
-        <li>局域网设备同步遇到两端各自写入的同一条摘录（同 externalId）怎么合并。</li>
       </ul>
     </div>
   </div>

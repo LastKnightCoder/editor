@@ -14,7 +14,6 @@ import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { IResourceService, type ResourceService } from "@tau/shared/host-services";
 import type { ContentDetailResponse } from "../../types";
 import useLocalContentDocument, { type LocalContentDocument } from "../useLocalContentDocument";
-import * as deviceNative from "../../services/device-sync/native";
 
 const io = vi.hoisted(() => ({
   read: vi.fn(),
@@ -50,148 +49,8 @@ vi.mock("@tau/editor-collab", () => ({
 const toast = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn() }));
 vi.mock("../../components/toast", () => ({ toast }));
 afterEach(() => {
-  vi.restoreAllMocks();
   vi.clearAllMocks();
   io.tree = null;
-});
-
-it("明确覆盖后同基线旧缓存和旧会话不能重新带回本地输入，新会话可继续编辑", async () => {
-  const contract = await prepareContentContract("tau.paragraph", {
-    type: "paragraph",
-    dataVersion: 1,
-    kind: "block",
-  });
-  const contracts = { [contract.id]: contract.contract };
-  const content = [
-    {
-      type: "paragraph",
-      collabId: "p",
-      tauContract: contract.id,
-      children: [{ text: "远端正文" }],
-    },
-  ] as ContentNode[];
-  const remote = await createNodeDocument(
-    { documentId: "body", baselineId: "same-base", epoch: 0 },
-    { title: "", bannerBg: "", bannerPosition: "center", content },
-    contracts
-  );
-  const local = new Y.Doc({ gc: false });
-  Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
-  const localTree = new NodeTree(local);
-  localTree.insertText("p", 4, "本地旧字", {});
-  const entry = (doc: Y.Doc) => ({
-    contentId: 7,
-    documentId: "body",
-    baselineId: "same-base",
-    epoch: 0,
-    state: bytesToBase64(Y.encodeStateAsUpdate(doc)),
-    paths: {},
-    updatedAt: 1,
-  });
-  let current = entry(local),
-    generation = "";
-  vi.spyOn(deviceNative, "deviceSyncDatabase").mockReturnValue("restore-test.db");
-  vi.spyOn(deviceNative, "readDeviceContent").mockImplementation(async () => current);
-  vi.spyOn(deviceNative, "deviceStore").mockImplementation((async (action: string) =>
-    action === "generation"
-      ? generation
-      : action === "status"
-        ? { state: null }
-        : []) as typeof deviceNative.deviceStore);
-  const metadata = {
-    contentId: 7,
-    createTime: 1,
-    updateTime: 1,
-    librarySourceId: "library",
-    documentId: "body",
-    revision: "r",
-    contracts,
-    content,
-    count: 4,
-    card: null,
-  } as ContentDetailResponse;
-  io.read.mockImplementation(async (id: string) =>
-    id === "local:library:body"
-      ? {
-          metadata: {
-            id,
-            mode: "local",
-            baselineId: "same-base",
-            epoch: 0,
-            source: {
-              librarySourceId: "library",
-              contentDocumentId: "body",
-              projectionRevision: "r",
-            },
-          },
-          state: entry(local).state,
-          updates: [],
-          revision: "cached",
-          inputDrafts: [],
-        }
-      : null
-  );
-  io.write.mockResolvedValue("saved");
-  let document: LocalContentDocument | undefined;
-  function Harness() {
-    document = useLocalContentDocument({
-      contentId: 7,
-      metadata,
-      content: content as Descendant[],
-      version: 1,
-      onChange: vi.fn(),
-    });
-    return null;
-  }
-  const container = window.document.createElement("div"),
-    root = createRoot(container);
-  window.document.body.append(container);
-  try {
-    await act(async () => root.render(<Harness />));
-    await vi.waitFor(() => expect(io.tree).not.toBeNull());
-    expect(JSON.stringify(io.tree!.read())).toContain("本地旧字");
-    let resources: ResourceService | undefined;
-    document!.services!((id, service) => {
-      if (id === IResourceService) resources = service as ResourceService;
-    });
-    const imagePath = "~/.editor/resources/paired-image.png";
-    io.resources.upload.mockResolvedValue(imagePath);
-    const reference = await resources!.upload(new File(["image"], "paired-image.png"));
-    expect(reference).toMatch(/^tau-collab-local:/);
-    expect(await resources!.remoteResourceToLocal!(reference)).toBe(imagePath);
-    const recordingPath = "~/.editor/resources/recording.m4a";
-    const recordingReference = document!.prepareResource(recordingPath);
-    expect(recordingReference).toMatch(/^tau-collab-local:/);
-    expect(document!.prepareResource(recordingPath)).toBe(recordingReference);
-    expect(await resources!.remoteResourceToLocal!(recordingReference)).toBe(recordingPath);
-    const previous = io.tree,
-      oldDocument = document!;
-    let finish = () => {};
-    await act(async () => {
-      finish = deviceNative.beginDeviceReplacement("restore-test.db");
-    });
-    const writesBefore = io.write.mock.calls.length;
-    expect(() => oldDocument.prepareResource(recordingPath)).toThrow("正文已重新下载");
-    await oldDocument.flush();
-    expect(io.write.mock.calls.length).toBe(writesBefore);
-    generation = "restored";
-    current = entry(remote);
-    await act(async () => finish());
-    await vi.waitFor(() => {
-      expect(io.tree).not.toBe(previous);
-      expect(JSON.stringify(io.tree!.read())).not.toContain("本地旧字");
-    });
-    expect(io.read).toHaveBeenCalledWith("local:library:body:restored");
-    await act(async () => io.tree!.insertText("p", 4, "新编辑", {}));
-    await document!.flush();
-    expect(JSON.stringify(io.tree!.read())).toContain("新编辑");
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-    localTree.dispose();
-    local.destroy();
-    remote.destroy();
-  }
 });
 
 it("本机正文保存失败后冲刷重试完整因果链，重开能恢复失败期间的输入", async () => {

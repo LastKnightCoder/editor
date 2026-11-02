@@ -154,7 +154,6 @@ function createApp(options: {
 
 let host: HTMLDivElement | null = null;
 let root: Root | null = null;
-const originalClipboard = Object.getOwnPropertyDescriptor(window.navigator, "clipboard");
 
 function mount(app: AppContextValue): void {
   host = document.createElement("div");
@@ -228,8 +227,6 @@ describe("同步中心", () => {
     act(() => root?.unmount());
     host?.remove();
     document.body.innerHTML = "";
-    if (originalClipboard) Object.defineProperty(window.navigator, "clipboard", originalClipboard);
-    else Reflect.deleteProperty(window.navigator, "clipboard");
   });
 
   it("云端有更新时主按钮直接下载，进入页面自动检查一次", async () => {
@@ -247,52 +244,6 @@ describe("同步中心", () => {
     expect(app.handleSyncUpload).not.toHaveBeenCalled();
     await waitFor(() => toastSpies.success.mock.calls.length > 0);
     expect(toastSpies.success).toHaveBeenCalledWith("下载成功");
-  });
-
-  it("默认云端页签，进入与切换不读剪贴板，主动粘贴后保留设备输入", async () => {
-    const readText = vi.fn().mockResolvedValue("不是配对信息");
-    Object.defineProperty(window.navigator, "clipboard", {
-      configurable: true,
-      value: { readText },
-    });
-    const { app } = createApp({
-      setting: makeSetting("s3"),
-      versions: { databaseName: "data.db", localVersion: 5, remoteVersion: 5 },
-    });
-    mount(app);
-    await openCenter(app);
-    const mode = (value: string) =>
-      activePage()?.querySelector<HTMLInputElement>(`input[value="${value}"]`) ?? null;
-    const panel = (value: string) =>
-      activePage()?.querySelector<HTMLElement>(`[data-sync-panel="${value}"]`) ?? null;
-    expect(mode("cloud")?.checked).toBe(true);
-    expect(readText).not.toHaveBeenCalled();
-
-    await click(mode("device"));
-    await waitFor(() => panel("device")?.hidden === false);
-    expect(panel("cloud")?.hidden).toBe(true);
-    expect(readText).not.toHaveBeenCalled();
-    await click(findButton("粘贴配对信息", panel("device")));
-    expect(readText).toHaveBeenCalledTimes(1);
-    const input = panel("device")?.querySelector<HTMLTextAreaElement>(
-      'textarea[aria-label="配对信息"]'
-    );
-    if (!input) throw new Error("缺少配对信息输入框");
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
-        input,
-        "配对草稿"
-      );
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    await click(mode("cloud"));
-    expect(panel("device")?.hidden).toBe(true);
-    await click(mode("device"));
-    await waitFor(() => panel("device")?.hidden === false);
-    expect(
-      panel("device")?.querySelector<HTMLTextAreaElement>('textarea[aria-label="配对信息"]')?.value
-    ).toBe("配对草稿");
-    expect(readText).toHaveBeenCalledTimes(1);
   });
 
   it("版本一致时「立即同步」先查版本再上传", async () => {

@@ -20,9 +20,6 @@ import {
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { applyNodeTreeContent } from "@tau/editor-collab";
 import schema from "@tau/db-schema/schema/main.sql?raw";
-import deviceSchema from "@tau/db-schema/schema/device-sync.sql?raw";
-import { deviceDocument, initializeDeviceSyncDatabase } from "../../device-sync/database-store";
-import { prepareDeviceDocument } from "@tau/collaboration/src/device-sync/documents";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { CollaborationManager } from "../index";
@@ -68,10 +65,6 @@ afterEach(async () => {
   host.serverUrl = "http://test";
 });
 type Runtime = {
-  prepareDeviceDocuments(
-    name: string,
-    progress?: (completed: number, total: number) => void
-  ): Promise<void>;
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   assets: CollaborationAssetService;
@@ -485,133 +478,6 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect((await runtime.openContent(event, { contentId: 7 })).mode).toBe("local");
     expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
   });
-  it("首次开启设备同步分批续做，保留缓存输入和图片，完成后不重建已有基线", async () => {
-    const { runtime, localId, event, db } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    const stored = ContentDocumentTable.read(db, 7)!;
-    db.transaction(() => {
-      for (let id = 100; id < 140; id++) {
-        db.prepare(
-          "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (?,1,1,?,2,1)"
-        ).run(id, JSON.stringify(stored.content));
-        ContentDocumentTable.commit(
-          db,
-          id,
-          {
-            documentId: crypto.randomUUID(),
-            content: stored.content,
-            contracts: stored.contracts,
-          },
-          { installDocument: true, count: 2 }
-        );
-      }
-    })();
-    const image = await prepareContentContract("tau.image", {
-      type: "image",
-      dataVersion: 1,
-      kind: "block",
-      isVoid: true,
-      resources: [{ path: "url", kind: "image" }],
-    });
-    const path = join(host.dir, "resources", "private-local-image.png");
-    mkdirSync(join(host.dir, "resources"), { recursive: true });
-    writeFileSync(path, "LOCAL_IMAGE");
-    const tree = new NodeTree(session.doc);
-    await tree.installContracts({ [image.id]: image.contract }, null);
-    tree.insertText("paragraph", 0, "缓存未投影输入", {});
-    tree.insertNode(
-      {
-        type: "image",
-        collabId: "private-image",
-        tauContract: image.id,
-        url: path,
-        children: [{ text: "" }],
-      },
-      null,
-      tree.spans(null).reduce((size, span) => size + span.length, 0),
-      {},
-      true
-    );
-    tree.dispose();
-    expect(Buffer.from(Y.encodeStateAsUpdate(session.doc)).includes(Buffer.from(path))).toBe(true);
-    initializeDeviceSyncDatabase(db, deviceSchema);
-    const node = crypto.randomUUID(),
-      head = crypto.randomUUID();
-    db.prepare("INSERT INTO _tau_device_state(id,payload) VALUES(1,?)").run(
-      JSON.stringify({
-        library: ContentIdentityTable.library(db)!.sourceId,
-        schema: "schema",
-        node,
-        authority: node,
-        epoch: crypto.randomUUID(),
-        head,
-        ackHead: head,
-        ackSeq: 0,
-        revision: 0,
-        enabled: true,
-      })
-    );
-    initializeDeviceSyncDatabase(db, deviceSchema);
-    const open = vi.spyOn(runtime, "openContent");
-    const create = vi.spyOn(runtime.store, "create");
-    const discard = vi.spyOn(runtime.store, "discard");
-    const prepare = runtime.assets.prepareLocalDocument.bind(runtime.assets);
-    let preparedCount = 0;
-    const preparing = vi
-      .spyOn(runtime.assets, "prepareLocalDocument")
-      .mockImplementation(async (...args) => {
-        if (++preparedCount === 3) throw new Error("模拟准备中断");
-        return prepare(...args);
-      });
-    const progress = vi.fn();
-    let responsive = false;
-    const heartbeat = setInterval(() => {
-      const { n } = db.prepare("SELECT count(*) AS n FROM _tau_device_documents").get() as {
-        n: number;
-      };
-      if (n > 2 && n < 41) responsive = true;
-    }, 0);
-    try {
-      await expect(runtime.prepareDeviceDocuments("library", progress)).rejects.toThrow(
-        "模拟准备中断"
-      );
-      const completed = deviceDocument(db, 7)!;
-      expect(db.prepare("SELECT count(*) AS n FROM _tau_device_documents").get()).toEqual({ n: 2 });
-      preparing.mockImplementationOnce(async (...args) => {
-        const value = await prepare(...args);
-        db.prepare("UPDATE _tau_device_local SET generation=? WHERE id=1").run(crypto.randomUUID());
-        return value;
-      });
-      await expect(runtime.prepareDeviceDocuments("library", progress)).rejects.toThrow(
-        "DEVICE_SYNC_CLOSED"
-      );
-      expect(db.prepare("SELECT count(*) AS n FROM _tau_device_documents").get()).toEqual({ n: 2 });
-      await runtime.prepareDeviceDocuments("library", progress);
-      expect(deviceDocument(db, 7)).toEqual(completed);
-      expect(progress).toHaveBeenLastCalledWith(41, 41);
-      expect(responsive).toBe(true);
-      const calls = preparing.mock.calls.length;
-      await runtime.prepareDeviceDocuments("library");
-      expect(preparing).toHaveBeenCalledTimes(calls);
-    } finally {
-      clearInterval(heartbeat);
-    }
-    expect(open).toHaveBeenCalledTimes(1);
-    expect(create).not.toHaveBeenCalled();
-    expect(discard).toHaveBeenCalledTimes(1);
-    const entry = deviceDocument(db, 7)!;
-    const prepared = await prepareDeviceDocument(entry);
-    expect(prepared.projection.contentJson).toContain("缓存未投影输入");
-    expect(prepared.projection.contentJson).not.toContain(path);
-    expect(Buffer.from(entry.state, "base64").includes(Buffer.from(path))).toBe(false);
-    expect(Object.keys(entry.paths)[0]).toMatch(/^tau-collab-local:/);
-    expect(runtime.sessions.has(localId)).toBe(false);
-    await runtime.openContent(event, { contentId: 7 });
-    expect(runtime.sessions.get(localId)!.doc.getMap("meta").get("baselineId")).toBe(
-      entry.baselineId
-    );
-  });
-
   it("本机图片保存保留路径和图床 URL，存量编号转存后缓存重建仍能读取", async () => {
     const { runtime, localId, event, db, store } = await setup();
     const image = await prepareContentContract("tau.image", {
@@ -1161,16 +1027,41 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
   it("整库被下载替换后丢弃本库的本地缓存，重开正文读新库内容", async () => {
     const { runtime, event, store, localId } = await setup();
-    const retired = runtime.sessions.get(localId)!;
     const drain = await runtime.drainDatabase({
       databaseName: "library",
       reason: "database-change",
-      replace: true,
     });
     drain.commit();
-    expect(retired.info.frozen).toBe(true);
-    await runtime.releaseLibrary("library");
-    expect(() => retired.persistDeviceState?.(retired.doc)).toThrow(/DEVICE_SYNC_REPLACED/);
+    for (const workspace of ["library", "library.db", "other.db"]) {
+      store.db
+        .prepare("INSERT INTO input_drafts VALUES (?,?,?,?,?,?,?,?,?,?,0,?)")
+        .run(workspace, "old-body", "old-base", 0, workspace, "node", "text", "旧草稿", "r", 1, 1);
+      store.db
+        .prepare("INSERT INTO document_drafts VALUES (?,?,?,?,?,?,?,?,0)")
+        .run(workspace, workspace, "old-body", "old-base", 0, Buffer.from([1]), "digest", 1);
+      store.db
+        .prepare("INSERT INTO node_views VALUES (?,?,?,?,?,?)")
+        .run(workspace, "old-body", "node", "host", '{"expanded":true}', "r");
+      store.db
+        .prepare("INSERT INTO entity_holds VALUES (?,?,?,?,?,?)")
+        .run(workspace, "old-holder", "undo", "source", "content", "old-entity");
+      store.db
+        .prepare("INSERT INTO migrations VALUES (?,?,?,?)")
+        .run(workspace, workspace, "old-body", '{"phase":"PREPARED"}');
+    }
+    for (const name of ["library", "library.db"]) {
+      await runtime.releaseLibrary(name);
+      for (const table of [
+        "input_drafts",
+        "document_drafts",
+        "node_views",
+        "entity_holds",
+        "migrations",
+      ])
+        expect(store.db.prepare(`SELECT DISTINCT workspace_id FROM ${table}`).all()).toEqual([
+          { workspace_id: "other.db" },
+        ]);
+    }
     expect(runtime.sessions.has(localId)).toBe(false);
     expect(store.list().some(session => session.id === localId)).toBe(false);
     const opened = await runtime.openContent(event, { contentId: 7 });

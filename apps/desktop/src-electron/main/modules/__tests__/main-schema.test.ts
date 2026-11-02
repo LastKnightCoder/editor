@@ -1,11 +1,11 @@
 // @vitest-environment node
 import Database from "better-sqlite3";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import version from "@tau/db-schema/schema/main-version.json";
-import { ensureMainSchema } from "../main-schema";
+import { ensureMainSchema, removeRetiredDatabaseState } from "../main-schema";
 
 let db: Database.Database;
 const directories: string[] = [];
@@ -20,6 +20,65 @@ afterEach(() => {
 const schema = () => db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all();
 
 describe("主库当前基线", () => {
+  it("启动清理所有本机资料库与旧配对目录，保留普通数据和云端设置", () => {
+    const directory = mkdtempSync(join(tmpdir(), "tau-retired-state-"));
+    directories.push(directory);
+    mkdirSync(join(directory, "device-sync"));
+    writeFileSync(join(directory, "device-sync", "host.json"), "旧配置");
+    writeFileSync(join(directory, "setting.json"), "云端设置");
+    for (const name of ["active.db", "inactive.DB"]) {
+      const library = new Database(join(directory, name));
+      library.exec(
+        "CREATE TABLE notes(content TEXT); INSERT INTO notes VALUES('正文'); CREATE TABLE _tau_device_state(payload TEXT); INSERT INTO _tau_device_state VALUES('旧同步状态')"
+      );
+      library.close();
+    }
+    removeRetiredDatabaseState(directory);
+    removeRetiredDatabaseState(directory);
+    expect(existsSync(join(directory, "device-sync"))).toBe(false);
+    expect(readFileSync(join(directory, "setting.json"), "utf8")).toBe("云端设置");
+    for (const name of ["active.db", "inactive.DB"]) {
+      const library = new Database(join(directory, name));
+      try {
+        expect(
+          library.prepare("SELECT name FROM sqlite_master WHERE name GLOB '_tau_device_*'").all()
+        ).toEqual([]);
+        expect(library.prepare("SELECT content FROM notes").get()).toEqual({ content: "正文" });
+      } finally {
+        library.close();
+      }
+    }
+  });
+
+  it("当前版本仍清退同步内部表与触发器，保留业务数据并允许继续写入", () => {
+    ensureMainSchema(db);
+    db.pragma("secure_delete = OFF");
+    db.exec(`
+      INSERT INTO contents(id,create_time,update_time,content,count) VALUES(1,1,1,'[]',0);
+      CREATE TABLE _tau_device_log(id INTEGER PRIMARY KEY, payload TEXT);
+      INSERT INTO _tau_device_log VALUES(1,'旧同步日志');
+      CREATE TABLE "_tau_device_quarantine_a""b"(payload TEXT);
+      CREATE INDEX _tau_device_log_index ON _tau_device_log(payload);
+      CREATE TRIGGER _tau_device_capture_contents_UPDATE AFTER UPDATE ON contents
+      BEGIN INSERT INTO _tau_device_log(payload) VALUES(NEW.content); END;
+      CREATE TABLE _tau_devices_keep(id INTEGER);
+    `);
+    ensureMainSchema(db);
+    expect(
+      db.prepare("SELECT name FROM sqlite_master WHERE name GLOB '_tau_device_*'").all()
+    ).toEqual([]);
+    expect(db.pragma("secure_delete", { simple: true })).toBe(0);
+    expect(
+      db.prepare("SELECT name FROM sqlite_master WHERE name='_tau_devices_keep'").get()
+    ).toBeTruthy();
+    db.prepare("UPDATE contents SET count=1 WHERE id=1").run();
+    expect(db.prepare("SELECT count FROM contents WHERE id=1").get()).toEqual({ count: 1 });
+    expect(db.pragma("foreign_key_check")).toEqual([]);
+    const before = schema();
+    ensureMainSchema(db);
+    expect(schema()).toEqual(before);
+  });
+
   it("文件数据库启用 WAL 与外键，重开继续使用同一基线", () => {
     const directory = mkdtempSync(join(tmpdir(), "tau-schema-"));
     directories.push(directory);

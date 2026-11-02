@@ -1,5 +1,4 @@
 import { readDocumentIdentity } from "@tau/collaboration";
-import { readDeviceSyncState } from "../device-sync/database-store";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import { collaborationCommands } from "@/commands/contracts/collaboration";
 import * as Y from "yjs";
@@ -100,12 +99,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         : value;
       const prepared =
         target.info.mode === "local"
-          ? await context.assets.prepareLocalDocument(
-              target.info.id,
-              localized,
-              contracts,
-              Boolean(readDeviceSyncState(context.databaseForEvent(event).db)?.enabled)
-            )
+          ? await context.assets.prepareLocalDocument(target.info.id, localized, contracts)
           : await context.assets.shareDocument(
               target.info.serverUrl,
               target.info.id,
@@ -451,12 +445,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   handle("prepareResource", async (event, viewId: string, reference: string) => {
     const { session, check } = resourceView(event, viewId);
     if (typeof reference !== "string" || !reference) throw new Error("上传未返回资源地址");
-    if (session.info.mode === "local") {
-      if (!readDeviceSyncState(context.databaseForEvent(event).db)?.enabled) return reference;
-      const prepared = await context.assets.prepareLocalReference(session.info.id, reference);
-      check();
-      return prepared;
-    }
+    if (session.info.mode === "local") return reference;
     if (session.info.role !== "owner") throw new Error("成员图片必须先上传到协作服务器");
     const prepared = await context.assets.shareReference(
       session.info.serverUrl,

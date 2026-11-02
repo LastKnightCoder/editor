@@ -77,8 +77,7 @@ export interface SourceBinding {
   contentDocumentId?: string;
   /** 本机缓存最后确认的主库投影修订，不随文档共享。 */
   projectionRevision?: string;
-  /** 本机会话的标题归属不随同步辅助状态的健康情况切换。 */
-  titleAuthority?: "database";
+  /** 本机数据库替换后隔离旧缓存与延迟写入。 */
   generation?: string;
   sourceType?: SourceType;
   sourceId?: number;
