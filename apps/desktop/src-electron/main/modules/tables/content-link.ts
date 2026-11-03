@@ -38,11 +38,20 @@ function parseRef(raw: unknown): EntityRef {
   return { kind, id };
 }
 
+function parseContentId(raw: unknown, label: string): number {
+  if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw <= 0) {
+    throw new Error(`${label} 必须是正整数 contentId`);
+  }
+  return raw;
+}
+
 export default class ContentLinkTable {
   static getListenEvents() {
     return {
       "content-links:add": this.addLink.bind(this),
       "content-links:remove": this.removeLink.bind(this),
+      "content-links:add-by-content-id": this.addLinkByContentId.bind(this),
+      "content-links:remove-by-content-id": this.removeLinkByContentId.bind(this),
       "content-links:list-by-content-ids": this.listByContentIds.bind(this),
     } as const;
   }
@@ -75,6 +84,45 @@ export default class ContentLinkTable {
   /** 实体的正文是连接的落点 */
   static canonicalContentIdOf(db: Database.Database, ref: EntityRef): number | null {
     return this.contentIdsOfEntity(db, ref)[0] ?? null;
+  }
+
+  private static insertLink(
+    db: Database.Database,
+    fromContentId: number,
+    toContentId: number,
+    ctx: CommandContext
+  ): boolean {
+    if (fromContentId === toContentId) return false;
+    const [low, high] =
+      fromContentId < toContentId ? [fromContentId, toContentId] : [toContentId, fromContentId];
+    const inserted = db
+      .prepare(
+        `INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
+         VALUES (?, ?, ?)`
+      )
+      .run(low, high, Date.now()).changes;
+    if (inserted > 0) {
+      ctx.broadcastAll("content-links:changed", { databaseName: basename(db.name) });
+    }
+    return inserted > 0;
+  }
+
+  private static deleteLink(
+    db: Database.Database,
+    fromContentId: number,
+    toContentId: number,
+    ctx: CommandContext
+  ): boolean {
+    if (fromContentId === toContentId) return false;
+    const [low, high] =
+      fromContentId < toContentId ? [fromContentId, toContentId] : [toContentId, fromContentId];
+    const removed = db
+      .prepare("DELETE FROM content_links WHERE content_id = ? AND target_content_id = ?")
+      .run(low, high).changes;
+    if (removed > 0) {
+      ctx.broadcastAll("content-links:changed", { databaseName: basename(db.name) });
+    }
+    return removed > 0;
   }
 
   /** 一组正文的连接邻接表（边无向，两个方向都计入） */
@@ -125,19 +173,7 @@ export default class ContentLinkTable {
     if (fromContent == null) throw new Error("连接起点不存在或没有正文");
     if (toContent == null) throw new Error("连接目标不存在或没有正文");
     // 同一份正文（含共用正文的身份，如卡片与从它创建的项目文档）不互连
-    if (fromContent === toContent) return false;
-    const [low, high] =
-      fromContent < toContent ? [fromContent, toContent] : [toContent, fromContent];
-    const inserted = db
-      .prepare(
-        `INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
-         VALUES (?, ?, ?)`
-      )
-      .run(low, high, Date.now()).changes;
-    if (inserted > 0) {
-      ctx.broadcastAll("content-links:changed", { databaseName: basename(db.name) });
-    }
-    return inserted > 0;
+    return this.insertLink(db, fromContent, toContent, ctx);
   }
 
   static removeLink(
@@ -151,15 +187,34 @@ export default class ContentLinkTable {
     const fromContent = this.canonicalContentIdOf(db, from);
     const toContent = this.canonicalContentIdOf(db, to);
     if (fromContent == null || toContent == null || fromContent === toContent) return false;
-    const [low, high] =
-      fromContent < toContent ? [fromContent, toContent] : [toContent, fromContent];
-    const removed = db
-      .prepare(`DELETE FROM content_links WHERE content_id = ? AND target_content_id = ?`)
-      .run(low, high).changes;
-    if (removed > 0) {
-      ctx.broadcastAll("content-links:changed", { databaseName: basename(db.name) });
-    }
-    return removed > 0;
+    return this.deleteLink(db, fromContent, toContent, ctx);
+  }
+
+  static addLinkByContentId(
+    db: Database.Database,
+    rawFromContentId: unknown,
+    rawToContentId: unknown,
+    ctx: CommandContext = fallbackCommandContext
+  ): boolean {
+    const fromContentId = parseContentId(rawFromContentId, "fromContentId");
+    const toContentId = parseContentId(rawToContentId, "toContentId");
+    const hasContent = db.prepare("SELECT 1 FROM contents WHERE id = ?");
+    if (!hasContent.get(fromContentId)) throw new Error("连接起点正文不存在");
+    if (!hasContent.get(toContentId)) throw new Error("连接目标正文不存在");
+    return this.insertLink(db, fromContentId, toContentId, ctx);
+  }
+
+  static removeLinkByContentId(
+    db: Database.Database,
+    rawFromContentId: unknown,
+    rawToContentId: unknown,
+    ctx: CommandContext = fallbackCommandContext
+  ): boolean {
+    const fromContentId = parseContentId(rawFromContentId, "fromContentId");
+    const toContentId = parseContentId(rawToContentId, "toContentId");
+    const hasContent = db.prepare("SELECT 1 FROM contents WHERE id = ?");
+    if (!hasContent.get(fromContentId) || !hasContent.get(toContentId)) return false;
+    return this.deleteLink(db, fromContentId, toContentId, ctx);
   }
 
   /** 批量取一组正文各自的连接目标（代表身份 + 标题，供列表徽标与表格列） */

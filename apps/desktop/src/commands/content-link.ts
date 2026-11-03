@@ -12,6 +12,22 @@ export async function removeContentLink(from: EntityRef, to: EntityRef): Promise
   return contentLinkCommands.remove.call(from, to);
 }
 
+/** 按 contents.id 建立显式连接；边直接绑定两份正文。 */
+export async function addContentLinkByContentId(
+  fromContentId: number,
+  toContentId: number
+): Promise<boolean> {
+  return contentLinkCommands.addByContentId.call(fromContentId, toContentId);
+}
+
+/** 按 contents.id 解除显式连接。 */
+export async function removeContentLinkByContentId(
+  fromContentId: number,
+  toContentId: number
+): Promise<boolean> {
+  return contentLinkCommands.removeByContentId.call(fromContentId, toContentId);
+}
+
 /** 批量取一组正文各自的连接目标（已解析为代表身份与标题） */
 export async function listContentLinksByContentIds(
   contentIds: number[]

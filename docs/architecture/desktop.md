@@ -834,7 +834,7 @@ AI 的「卡片工具」由 `mcp/providers/card-tools.ts` 默认注册：`set_ca
 
 ### 脉络（features/context）
 
-AI 的「内容连接工具」由 `mcp/providers/content-link-tools.ts` 默认注册：`add_content_link(from, to)` / `remove_content_link(from, to)` 直接增删双向显式连接；端点为 `{kind, id}` 实体地址，支持卡片、文章、项目文档、日记片段与插件内容，日记传片段 ID，不传正文 contentId。两者均声明 `write`，数据库与取消信号取执行上下文，经 `bindDatabaseCommands` 复用 `content-links:add/remove`；返回 `changed` 区分实际变更与无需变更，正文内联引用不经此工具删除。连接列表和脉络缓存沿用主进程按库广播失效。
+AI 的「内容连接工具」由 `mcp/providers/content-link-tools.ts` 默认注册：`add_content_link(fromContentId, toContentId)` / `remove_content_link(fromContentId, toContentId)` 直接按 `contents.id` 增删双向显式连接。两者均声明 `write`，数据库与取消信号取执行上下文，经 `bindDatabaseCommands` 调用 `content-links:add-by-content-id/remove-by-content-id`；主进程校验两份正文存在并规范化无向边。返回 `changed` 区分实际变更与无需变更，正文内联引用不经此工具删除；连接列表和脉络缓存沿用主进程按库广播失效。
 
 卡片、文章、项目文档详情的元信息行挂 `ContextBadge`（文章经 ArticleHero 的 extraMeta 插槽），数据走 `useEntityContext(ref)` → 主进程 `entity-context:get`，分区与数据源：
 
