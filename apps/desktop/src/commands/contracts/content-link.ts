@@ -9,6 +9,8 @@ import type { ContentLinksOfContent } from "@/types/content-link";
 export const contentLinkCommands = {
   add: command<[EntityRef, EntityRef], boolean>("content-links:add"),
   remove: command<[EntityRef, EntityRef], boolean>("content-links:remove"),
+  addByContentId: command<[number, number], boolean>("content-links:add-by-content-id"),
+  removeByContentId: command<[number, number], boolean>("content-links:remove-by-content-id"),
   listByContentIds: command<[number[]], ContentLinksOfContent[]>(
     "content-links:list-by-content-ids"
   ),
