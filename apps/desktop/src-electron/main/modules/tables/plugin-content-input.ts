@@ -22,7 +22,7 @@ function copyContent(
   source: { contentId: number; createdAt: number }
 ): Pick<import("@/types/content").IContent, "content" | "contracts"> {
   const exists = db
-    .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
+    .prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?")
     .get(source.contentId, source.createdAt);
   const content =
     exists && isAddressable(db, source.contentId)
@@ -43,7 +43,7 @@ export function sharedContentId(
 ): number {
   const owned = db
     .prepare(
-      `SELECT 1 FROM plugin_entities e JOIN contents c ON c.id = e.content_id
+      `SELECT 1 FROM plugin_entities e JOIN content_snapshots c ON c.id = e.content_id
        WHERE e.plugin_id = ? AND e.content_id = ? AND e.orphaned_time IS NULL AND c.create_time = ?`
     )
     .get(pluginId, source.contentId, source.createdAt);

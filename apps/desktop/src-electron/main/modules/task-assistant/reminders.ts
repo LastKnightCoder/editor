@@ -53,7 +53,7 @@ export function assistantReminders(
       )
         continue;
       const content = db
-        .prepare("SELECT create_time FROM contents WHERE id=?")
+        .prepare("SELECT create_time FROM content_snapshots WHERE id=?")
         .get(row.content_id) as { create_time: number } | undefined;
       if (content)
         refs.push({

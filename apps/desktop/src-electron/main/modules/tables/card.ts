@@ -58,7 +58,7 @@ export default class CardTable {
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
@@ -167,7 +167,7 @@ export default class CardTable {
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
@@ -181,7 +181,7 @@ export default class CardTable {
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.id = ?
     `);
@@ -201,7 +201,7 @@ export default class CardTable {
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.id IN (${placeholders})
     `);
@@ -410,7 +410,7 @@ export default class CardTable {
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE date(c.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY c.update_time DESC
@@ -444,7 +444,7 @@ export default class CardTable {
              (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
-      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON c.content_id = ct.id
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.update_time >= ? AND c.update_time <= ?
       ORDER BY c.update_time DESC

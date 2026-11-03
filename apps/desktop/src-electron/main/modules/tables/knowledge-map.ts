@@ -143,15 +143,15 @@ export default class KnowledgeMapTable {
         `SELECT 'card' AS kind, c.id, c.content_id AS contentId, c.tags,
                 MAX(c.update_time, COALESCE(ct.update_time, 0)) AS updateTime,
                 c.create_time AS createdAt, '' AS title, NULL AS projects
-         FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
+         FROM cards c LEFT JOIN content_snapshots ct ON ct.id = c.content_id
          UNION ALL
          SELECT 'article', a.id, a.content_id, a.tags, MAX(a.update_time, COALESCE(ct.update_time, 0)),
                 a.create_time, a.title, NULL
-         FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id WHERE a.is_delete = 0
+         FROM articles a LEFT JOIN content_snapshots ct ON ct.id = a.content_id WHERE a.is_delete = 0
          UNION ALL
          SELECT 'project-item', p.id, p.content_id, p.tags, MAX(p.update_time, COALESCE(ct.update_time, 0)),
                 p.create_time, p.title, p.projects
-         FROM project_item p JOIN contents ct ON ct.id = p.content_id
+         FROM project_item p JOIN content_snapshots ct ON ct.id = p.content_id
          WHERE p.project_item_type = 'document' AND ct.count > 0
            AND (p.ref_type IS NULL OR p.ref_type NOT IN ('card', 'article', 'content'))`
       )
@@ -335,7 +335,8 @@ export default class KnowledgeMapTable {
 
   private static getMeta(indexDb: Database.Database, key: string): string | null {
     const row = indexDb.prepare("SELECT value FROM index_meta WHERE key = ?").get(key) as
-      { value: string } | undefined;
+      | { value: string }
+      | undefined;
     return row?.value ?? null;
   }
 

@@ -95,7 +95,7 @@ export function projectTree(
     .prepare(
       `SELECT p.id, p.title, p.children, p.content_id, p.ref_type, p.ref_id,
               MAX(p.update_time, COALESCE(c.update_time, 0)) AS update_time
-       FROM project_item p LEFT JOIN contents c ON c.id = p.content_id
+       FROM project_item p LEFT JOIN content_snapshots c ON c.id = p.content_id
        WHERE EXISTS (SELECT 1 FROM json_each(p.projects) WHERE value = ?)`
     )
     .all(projectId) as Array<{

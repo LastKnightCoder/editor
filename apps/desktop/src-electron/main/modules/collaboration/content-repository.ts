@@ -14,7 +14,7 @@ export function restoreContentBinding(
 ): SourceBinding | undefined {
   const row = db
     .prepare(
-      `SELECT b.* FROM collaboration_bindings b JOIN contents c
+      `SELECT b.* FROM collaboration_bindings b JOIN content_snapshots c
     ON c.id=b.content_id AND c.create_time=b.content_created_at
     WHERE b.document_id=? AND b.server_url=?`
     )
@@ -47,7 +47,7 @@ export function bindingMatches(
   serverUrl: string
 ): boolean {
   const original = db
-    .prepare("SELECT create_time FROM contents WHERE id=?")
+    .prepare("SELECT create_time FROM content_snapshots WHERE id=?")
     .get(source.contentId) as { create_time: number } | undefined;
   const binding = findCollaborationBinding(db, source.contentId);
   return Boolean(

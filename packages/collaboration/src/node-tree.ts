@@ -586,6 +586,19 @@ export class NodeTree {
     return node;
   }
 
+  rootBlockId(id: string): string | undefined {
+    const parents = this.routing().parents;
+    if (!parents.has(id)) return undefined;
+    let current = id;
+    for (let depth = 0; depth <= DEPTH_LIMIT; depth++) {
+      const parent = parents.get(current);
+      if (parent === null) return current;
+      if (parent === undefined) return undefined;
+      current = parent;
+    }
+    throw new Error("正文层级超过限制");
+  }
+
   read(): ContentNode[] {
     return structuredClone(this.snapshot()) as ContentNode[];
   }

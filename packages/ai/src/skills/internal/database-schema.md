@@ -6,7 +6,7 @@
 
 - 只查询当前主库；`sql_query` 只允许单条 SELECT/WITH/EXPLAIN 或受限结构 PRAGMA。
 - 优先显式列名、必要 JOIN、WHERE 和 LIMIT；默认最多返回 200 行。
-- `contents` 保存富文本编辑器结构，正文 Markdown、编辑快照和语义检索继续调用专用工具，不要把整列内容直接返回。
+- `contents` 保存正文元数据及尚未拆块的快照；完整当前正文从只读视图 `content_snapshots` 读取，字段与 `contents` 相同。正文 Markdown、编辑快照和语义检索继续调用专用工具，不要把整列内容直接返回。
 - 读取数据表内容优先使用 `list_data_tables` 与 `read_data_table`（单元格已按字段模型转纯文本、公式列现算）；`sql_query` 查询 `data_tables` 只用于统计聚合，`columns`/`rows` 是 JSON 列，不要整列返回。
 
 ## 常用查询
@@ -42,9 +42,40 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `confirmed_snapshot` | `TEXT`                              |
 | `create_time`        | `INTEGER NOT NULL`                  |
 
+### `content_document_blocks`
+
+当前正文的顶层块，单块编辑仅更新对应行；完整正文从 `content_snapshots` 视图读取。
+
+| 字段         | 类型                                                         |
+| ------------ | ------------------------------------------------------------ |
+| `content_id` | `INTEGER NOT NULL REFERENCES contents(id) ON DELETE CASCADE` |
+| `block_id`   | `TEXT NOT NULL`                                              |
+| `position`   | `INTEGER NOT NULL`                                           |
+| `content`    | `TEXT NOT NULL`                                              |
+| `count`      | `INTEGER NOT NULL`                                           |
+
+### `content_document_node_blocks`
+
+元素节点到顶层块的归属，支持按变更节点定位受影响正文块。
+
+| 字段         | 类型               |
+| ------------ | ------------------ |
+| `content_id` | `INTEGER NOT NULL` |
+| `node_id`    | `TEXT NOT NULL`    |
+| `block_id`   | `TEXT NOT NULL`    |
+
+### `content_document_block_counts`
+
+正文块字数所用的声明规则及当前整篇结构预算，保存为 JSON；规则变化时重算一次已有块的字数。
+
+| 字段         | 类型                                                            |
+| ------------ | --------------------------------------------------------------- |
+| `content_id` | `INTEGER PRIMARY KEY REFERENCES contents(id) ON DELETE CASCADE` |
+| `rules`      | `TEXT NOT NULL`                                                 |
+
 ### `content_documents`
 
-正文的稳定身份、格式与不可变契约目录，与 `contents` 同归属；不要整列返回 `contracts`。
+正文的稳定身份、存储格式与不可变契约目录，与 `contents` 同归属；存储格式 2 为整篇快照、3 为分块，正文协作协议仍为 2。不要整列返回 `contracts`。
 
 | 字段                     | SQLite 定义                                                     |
 | ------------------------ | --------------------------------------------------------------- |
@@ -275,6 +306,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `offset_ms`  | `INTEGER NOT NULL` |
 
 ### `contents`
+
+`content` 非空时承载整篇快照，为 NULL 时当前正文由 `content_document_blocks` 持有。读取正文使用 `content_snapshots`，不要把 NULL 当作空正文。
 
 | 字段          | SQLite 定义           |
 | ------------- | --------------------- |

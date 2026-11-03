@@ -167,7 +167,7 @@ pub(crate) fn release_content_reference(tx: &Connection, content_id: i64) -> Res
     }
     let before: Option<i64> = tx
         .query_row(
-            "SELECT ref_count FROM contents WHERE id=?1",
+            "SELECT ref_count FROM content_snapshots WHERE id=?1",
             [content_id],
             |row| row.get(0),
         )

@@ -33,14 +33,14 @@ const LOCATE_BATCH = 180;
 type RowKind = Exclude<EntityKind, "chat-session">;
 
 const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
-  card: kw => `SELECT c.id, c.update_time AS t FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
+  card: kw => `SELECT c.id, c.update_time AS t FROM cards c LEFT JOIN content_snapshots ct ON ct.id = c.content_id
     ${kw ? "WHERE ct.content LIKE @kw" : ""} ORDER BY c.update_time DESC LIMIT @limit`,
   article:
-    kw => `SELECT a.id, a.update_time AS t FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id
+    kw => `SELECT a.id, a.update_time AS t FROM articles a LEFT JOIN content_snapshots ct ON ct.id = a.content_id
     WHERE a.is_delete = 0 ${kw ? "AND (a.title LIKE @kw OR ct.content LIKE @kw)" : ""}
     ORDER BY a.update_time DESC LIMIT @limit`,
   project_item:
-    kw => `SELECT p.id, p.update_time AS t FROM project_item p LEFT JOIN contents ct ON ct.id = p.content_id
+    kw => `SELECT p.id, p.update_time AS t FROM project_item p LEFT JOIN content_snapshots ct ON ct.id = p.content_id
     WHERE p.content_id IS NOT NULL ${kw ? "AND (p.title LIKE @kw OR ct.content LIKE @kw)" : ""}
     ORDER BY p.update_time DESC LIMIT @limit`,
   project:
@@ -52,7 +52,7 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
   white_board: kw => `SELECT id, update_time AS t FROM white_boards
     ${kw ? "WHERE title LIKE @kw OR description LIKE @kw" : ""} ORDER BY update_time DESC LIMIT @limit`,
   "diary-moment": kw => `SELECT s.id, MAX(s.update_time, ct.update_time) AS t FROM diary_segments s
-    JOIN contents ct ON ct.id = s.content_id
+    JOIN content_snapshots ct ON ct.id = s.content_id
     ${kw ? "WHERE ct.content LIKE @kw" : ""}
     ORDER BY t DESC, s.id DESC LIMIT @limit`,
   // 摘录可达数万条：LIKE 全表扫 + LIMIT，规模实测见 entity-search-scale.eval.test.ts
@@ -76,7 +76,7 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
     ORDER BY e.update_time DESC LIMIT @limit`,
   "plugin-entity":
     kw => `SELECT e.id, MAX(e.update_time, ct.update_time) AS t FROM plugin_entities e
-    JOIN contents ct ON ct.id = e.content_id
+    JOIN content_snapshots ct ON ct.id = e.content_id
     ${kw ? "WHERE e.title LIKE @kw OR ct.content LIKE @kw" : ""}
     ORDER BY t DESC, e.id DESC LIMIT @limit`,
   "web-clip": kw => `SELECT c.id, c.update_time AS t FROM web_clip c
@@ -315,7 +315,8 @@ export default class EntitySearchTable {
         const project =
           projectId != null
             ? (db.prepare(`SELECT title FROM project WHERE id = ?`).get(projectId) as
-                { title: string } | undefined)
+                | { title: string }
+                | undefined)
             : undefined;
         return {
           ...base,

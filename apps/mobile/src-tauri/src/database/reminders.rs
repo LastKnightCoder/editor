@@ -424,7 +424,7 @@ fn document_tasks(
         let mut stmt = conn
             .prepare(
                 "SELECT c.id, j.value FROM
-                   (SELECT id, content FROM contents WHERE instr(content, '\"taskReminder\"') > 0) c,
+                   (SELECT id, content FROM content_snapshots WHERE instr(content, '\"taskReminder\"') > 0) c,
                    json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j
                  WHERE j.type = 'object'
                    AND json_extract(j.value, '$.type') = 'check-list-item'
@@ -583,7 +583,7 @@ fn needs_holidays(conn: &Connection) -> Result<bool, String> {
         "SELECT EXISTS(SELECT 1 FROM todo_recurrence r JOIN todo_item t ON t.id = r.todo_item_id
            WHERE r.exclude_holidays = 1 AND t.type = 'recurring' AND t.remind_before IS NOT NULL)
          OR EXISTS(SELECT 1 FROM todo_recurrence_history WHERE instr(COALESCE(rule_json, ''), '\"excludeHolidays\":true') > 0)
-         OR EXISTS(SELECT 1 FROM contents WHERE instr(content, '\"taskReminder\"') > 0 AND instr(content, '\"excludeHolidays\":true') > 0)",
+         OR EXISTS(SELECT 1 FROM content_snapshots WHERE instr(content, '\"taskReminder\"') > 0 AND instr(content, '\"excludeHolidays\":true') > 0)",
         [],
         |row| row.get(0),
     )

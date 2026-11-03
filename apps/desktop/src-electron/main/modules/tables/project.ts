@@ -423,7 +423,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.id = ?
     `);
     const item = stmt.get(id);
@@ -437,7 +437,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE 1=1 AND EXISTS (
         SELECT 1 FROM json_each(pi.projects)
         WHERE value = ?
@@ -452,7 +452,7 @@ export default class ProjectTable {
     const stmt = db.prepare(
       `SELECT pi.*, c.content, c.count, c.update_time as content_update_time
        FROM project_item pi
-       LEFT JOIN contents c ON pi.content_id = c.id
+       LEFT JOIN content_snapshots c ON pi.content_id = c.id
        WHERE pi.id IN (${placeholders})`
     );
     const items = stmt.all(ids);
@@ -463,7 +463,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.ref_type = ? AND pi.ref_id = ?
     `);
     const items = stmt.all(refType, refId);
@@ -524,7 +524,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE json_array_length(pi.projects) = 0
       OR NOT EXISTS (
         SELECT 1 FROM json_each(pi.projects)
@@ -539,7 +539,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.projects = '[]'
     `);
     const items = stmt.all();
@@ -589,7 +589,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
     `);
     const items = stmt.all();
     return items.map(item => this.parseProjectItem(item));
@@ -599,7 +599,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
-      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.content_id = ?
       ORDER BY pi.update_time DESC, pi.id DESC
     `);
@@ -1253,7 +1253,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, ct.content, ct.count
       FROM project_item pi
-      LEFT JOIN contents ct ON pi.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON pi.content_id = ct.id
       WHERE date(pi.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY pi.update_time DESC
     `);
@@ -1284,7 +1284,7 @@ export default class ProjectTable {
     const stmt = db.prepare(`
       SELECT pi.*, ct.content, ct.count
       FROM project_item pi
-      LEFT JOIN contents ct ON pi.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON pi.content_id = ct.id
       WHERE pi.update_time >= ? AND pi.update_time <= ?
       ORDER BY pi.update_time DESC
     `);

@@ -8,6 +8,7 @@ import {
   type ContentContractDictionary,
 } from "@tau/db-schema/content-contracts";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
+import { isSupportedContentStorageVersion } from "@tau/db-schema";
 import {
   isContentEntityReference,
   CONTENT_ENTITY_NODE_CONTRACTS,
@@ -32,10 +33,7 @@ const validId = (value: unknown): value is string =>
     return code >= 32 && code !== 127;
   });
 
-function validateContent(
-  content: ContentNode[],
-  contracts: ContentContractDictionary
-): ContentEntityRelation[] {
+export function inspectStoredContent(content: ContentNode[], contracts: ContentContractDictionary) {
   if (!Array.isArray(content)) throw new Error("正文必须是节点数组");
   const ids = new Set<string>(),
     relations: ContentEntityRelation[] = [];
@@ -88,15 +86,30 @@ function validateContent(
     }
     node.children.forEach(child => visit(child, false, depth + 1));
   };
-  content.forEach(node => visit(node, true));
-  return relations;
+  const costs = new Map<string, number>();
+  content.forEach(node => {
+    const before = count;
+    visit(node, true);
+    costs.set(String(node.collabId), count - before);
+  });
+  return { relations, cost: count, costs };
+}
+
+export function validateStoredContent(
+  content: ContentNode[],
+  contracts: ContentContractDictionary
+): ContentEntityRelation[] {
+  return inspectStoredContent(content, contracts).relations;
 }
 
 export class ContentDocumentTable {
   /** 正文与字典是否能通过写入校验；不合格时返回原因，供打开前判断是否需要修复 */
   static problem(content: unknown, contracts: unknown): string | null {
     try {
-      validateContent(content as ContentNode[], validateContentContractsSync(contracts as never));
+      validateStoredContent(
+        content as ContentNode[],
+        validateContentContractsSync(contracts as never)
+      );
       return null;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -106,7 +119,7 @@ export class ContentDocumentTable {
   static read(db: Database.Database, contentId: number): StoredContentDocument | null {
     const row = db
       .prepare(
-        `SELECT d.*,c.content FROM content_documents d JOIN contents c ON c.id=d.content_id WHERE d.content_id=?`
+        `SELECT d.*,c.content FROM content_documents d JOIN content_snapshots c ON c.id=d.content_id WHERE d.content_id=?`
       )
       .get(contentId) as
       | {
@@ -118,7 +131,8 @@ export class ContentDocumentTable {
         }
       | undefined;
     if (!row) return null;
-    if (row.format_version !== 2) throw new Error("正文数据格式不兼容");
+    if (!isSupportedContentStorageVersion(row.format_version))
+      throw new Error("正文数据格式不兼容");
     return {
       documentId: row.document_id,
       contracts: JSON.parse(row.contracts),
@@ -134,6 +148,7 @@ export class ContentDocumentTable {
     options: {
       expectedRevision?: string;
       installDocument?: boolean;
+      preserveUpdateTime?: boolean;
       count: number;
       applyRelations?: (
         removed: readonly ContentEntityRelation[],
@@ -144,7 +159,7 @@ export class ContentDocumentTable {
     if (!validId(value.documentId) || !Number.isSafeInteger(options.count) || options.count < 0)
       throw new Error("正文身份或字数无效");
     const contracts = validateContentContractsSync(value.contracts);
-    const relations = validateContent(value.content, contracts);
+    const relations = validateStoredContent(value.content, contracts);
     const contentJson = JSON.stringify(value.content),
       contractsJson = JSON.stringify(contracts);
     const revision = createHash("sha256")
@@ -153,7 +168,7 @@ export class ContentDocumentTable {
       .update(contractsJson)
       .digest("hex");
     return db.transaction(() => {
-      const content = db.prepare("SELECT id FROM contents WHERE id=?").get(contentId);
+      const content = db.prepare("SELECT id FROM content_snapshots WHERE id=?").get(contentId);
       if (!content) throw new Error("正文已删除，不能重新创建");
       const previous = this.read(db, contentId);
       if (previous && previous.documentId !== value.documentId)
@@ -202,7 +217,7 @@ export class ContentDocumentTable {
         ((removed, added) => applyContentEntityRelations(db, removed, added));
       db.prepare(
         `INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (?,?,2,?,?)
-        ON CONFLICT(content_id) DO UPDATE SET contracts=excluded.contracts,revision=excluded.revision`
+        ON CONFLICT(content_id) DO UPDATE SET format_version=excluded.format_version,contracts=excluded.contracts,revision=excluded.revision`
       ).run(contentId, value.documentId, contractsJson, revision);
       const remove = db.prepare(
         "DELETE FROM content_entity_relations WHERE document_id=? AND node_id=? AND slot=?"
@@ -222,12 +237,9 @@ export class ContentDocumentTable {
         )
       );
       applyRelations(removed, added);
-      db.prepare("UPDATE contents SET content=?,count=?,update_time=? WHERE id=?").run(
-        contentJson,
-        options.count,
-        Date.now(),
-        contentId
-      );
+      db.prepare(
+        "UPDATE contents SET content=?,count=?,update_time=CASE WHEN ? THEN update_time ELSE ? END WHERE id=?"
+      ).run(contentJson, options.count, options.preserveUpdateTime ? 1 : 0, Date.now(), contentId);
       return { ...value, contracts, content: structuredClone(value.content), revision };
     })();
   }

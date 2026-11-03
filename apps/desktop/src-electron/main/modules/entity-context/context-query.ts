@@ -96,7 +96,7 @@ function backlinksOf(
   const updateTimes = new Map(
     (
       mainDb
-        .prepare(`SELECT id, update_time FROM contents WHERE id IN (${marksSrc})`)
+        .prepare(`SELECT id, update_time FROM content_snapshots WHERE id IN (${marksSrc})`)
         .all(...srcIds) as Array<{ id: number; update_time: number }>
     ).map(row => [row.id, row.update_time])
   );
@@ -185,7 +185,7 @@ function linksOf(db: Database.Database, contentIds: number[], exclude: Set<strin
     const marks = contentIds.map(() => "?").join(",");
     const rows = db
       .prepare(
-        `SELECT content FROM contents WHERE id IN (${marks}) AND instr(content, '"content-link"') > 0`
+        `SELECT content FROM content_snapshots WHERE id IN (${marks}) AND instr(content, '"content-link"') > 0`
       )
       .all(...contentIds) as Array<{ content: string }>;
     outer: for (const row of rows) {

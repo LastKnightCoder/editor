@@ -178,6 +178,10 @@ CREATE TEMP TRIGGER IF NOT EXISTS tau_de_resources_upd AFTER UPDATE ON main.vibe
 CREATE TEMP TRIGGER IF NOT EXISTS tau_de_resources_del AFTER DELETE ON main.vibe_learning_resources
   BEGIN SELECT ${FUNCTION_NAME}('notebook', OLD.project_id, 'updated'); END;
 CREATE TEMP TRIGGER IF NOT EXISTS tau_de_contents_upd AFTER UPDATE OF content ON main.contents
+  WHEN OLD.content IS NOT NEW.content
+  BEGIN SELECT ${FUNCTION_NAME}('content', NEW.id, 'updated'); END;
+CREATE TEMP TRIGGER IF NOT EXISTS tau_de_content_blocks_upd AFTER UPDATE OF update_time ON main.contents
+  WHEN NEW.content IS NULL
   BEGIN SELECT ${FUNCTION_NAME}('content', NEW.id, 'updated'); END;`,
 ].join("\n");
 

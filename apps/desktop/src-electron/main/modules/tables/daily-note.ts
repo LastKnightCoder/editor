@@ -104,7 +104,7 @@ export default class DailyNoteTable {
     const stmt = db.prepare(`
       SELECT d.id, d.date, d.content_id, c.content
       FROM daily_notes d
-      LEFT JOIN contents c ON d.content_id = c.id
+      LEFT JOIN content_snapshots c ON d.content_id = c.id
       WHERE d.id = ?
     `);
     const note = stmt.get(id);
@@ -115,7 +115,7 @@ export default class DailyNoteTable {
     const stmt = db.prepare(`
       SELECT d.id, d.date, d.content_id, c.content
       FROM daily_notes d
-      LEFT JOIN contents c ON d.content_id = c.id
+      LEFT JOIN content_snapshots c ON d.content_id = c.id
       WHERE d.date = ?
     `);
     const note = stmt.get(date);
@@ -126,7 +126,7 @@ export default class DailyNoteTable {
     const stmt = db.prepare(`
       SELECT d.id, d.date, d.content_id, c.content
       FROM daily_notes d
-      LEFT JOIN contents c ON d.content_id = c.id
+      LEFT JOIN content_snapshots c ON d.content_id = c.id
       ORDER BY d.date DESC
     `);
     const notes = stmt.all();

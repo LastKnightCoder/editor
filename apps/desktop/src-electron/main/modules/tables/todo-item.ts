@@ -128,7 +128,7 @@ export default class TodoItemTable {
         ti.*,
         c.content as content_content
       FROM todo_item ti
-      LEFT JOIN contents c ON ti.description_content_id = c.id
+      LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
       WHERE ti.group_id = ? AND ti.is_archived = 0
       ORDER BY ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index`
     );
@@ -145,7 +145,7 @@ export default class TodoItemTable {
         ti.*,
         c.content as content_content
       FROM todo_item ti
-      LEFT JOIN contents c ON ti.description_content_id = c.id
+      LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
       WHERE ti.is_archived = 0
     `;
 
@@ -236,7 +236,7 @@ export default class TodoItemTable {
           ti.*,
           c.content as content_content
         FROM todo_item ti
-        LEFT JOIN contents c ON ti.description_content_id = c.id
+        LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
         WHERE ti.id = ?`
       )
       .get(id);
@@ -289,7 +289,7 @@ export default class TodoItemTable {
           ti.*,
           c.content as content_content
         FROM todo_item ti
-        LEFT JOIN contents c ON ti.description_content_id = c.id
+        LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
         WHERE ti.id = ?`
       )
       .get(payload.id);

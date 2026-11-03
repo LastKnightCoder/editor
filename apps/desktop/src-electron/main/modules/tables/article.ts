@@ -106,7 +106,7 @@ export default class ArticleTable {
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
              c.content, c.count, c.update_time as content_update_time
       FROM articles a
-      LEFT JOIN contents c ON a.content_id = c.id
+      LEFT JOIN content_snapshots c ON a.content_id = c.id
       WHERE a.is_delete = 0 
       ORDER BY a.create_time DESC
     `);
@@ -120,7 +120,7 @@ export default class ArticleTable {
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
              c.content, c.count, c.update_time as content_update_time
       FROM articles a
-      LEFT JOIN contents c ON a.content_id = c.id
+      LEFT JOIN content_snapshots c ON a.content_id = c.id
       WHERE a.id = ? AND a.is_delete = 0
     `);
     const article = stmt.get(articleId);
@@ -136,7 +136,7 @@ export default class ArticleTable {
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
              c.content, c.count, c.update_time as content_update_time
       FROM articles a
-      LEFT JOIN contents c ON a.content_id = c.id
+      LEFT JOIN content_snapshots c ON a.content_id = c.id
       WHERE a.id IN (${placeholders}) AND a.is_delete = 0
     `);
     const articles = stmt.all(articleIds);
@@ -356,7 +356,7 @@ export default class ArticleTable {
              a.content_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
              ct.content, ct.count
       FROM articles a
-      LEFT JOIN contents ct ON a.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON a.content_id = ct.id
       WHERE a.is_delete = 0
       AND date(a.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY a.update_time DESC
@@ -390,7 +390,7 @@ export default class ArticleTable {
              a.content_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
              ct.content, ct.count
       FROM articles a
-      LEFT JOIN contents ct ON a.content_id = ct.id
+      LEFT JOIN content_snapshots ct ON a.content_id = ct.id
       WHERE a.is_delete = 0
       AND a.update_time >= ? AND a.update_time <= ?
       ORDER BY a.update_time DESC
@@ -442,7 +442,7 @@ export default class ArticleTable {
       .prepare(
         `SELECT COUNT(*) AS n, COALESCE(SUM(ct.count), 0) AS words
          FROM articles a
-         LEFT JOIN contents ct ON a.content_id = ct.id
+         LEFT JOIN content_snapshots ct ON a.content_id = ct.id
          ${where}`
       )
       .get(...params) as { n: number; words: number };
@@ -453,7 +453,7 @@ export default class ArticleTable {
                 a.banner_bg, a.banner_position, a.is_top,
                 ct.count, substr(ct.content, 1, 1200) AS excerpt
          FROM articles a
-         LEFT JOIN contents ct ON a.content_id = ct.id
+         LEFT JOIN content_snapshots ct ON a.content_id = ct.id
          ${where}
          ORDER BY a.is_top DESC, ${articlePageOrder(sort)}, a.id DESC
          LIMIT ? OFFSET ?`

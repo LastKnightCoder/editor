@@ -87,7 +87,7 @@ function locate(db: Database.Database, kind: string, id: string): Located | null
         taskId: task[3],
       };
       const time = createdAt(
-        "SELECT create_time FROM contents WHERE id = ? AND create_time = ?",
+        "SELECT create_time FROM content_snapshots WHERE id = ? AND create_time = ?",
         ref.contentId,
         ref.createdAt
       );
@@ -126,7 +126,8 @@ function locate(db: Database.Database, kind: string, id: string): Located | null
     }
     case "chat-session": {
       const row = db.prepare("SELECT create_time, title FROM chat_session WHERE id = ?").get(id) as
-        { create_time: number; title: string } | undefined;
+        | { create_time: number; title: string }
+        | undefined;
       return row ? { createdAt: row.create_time, title: () => row.title || "新对话" } : null;
     }
     default:

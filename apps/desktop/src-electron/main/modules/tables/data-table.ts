@@ -351,7 +351,7 @@ export default class DataTableTable {
     const counts = new Map<number, number>();
     let parseFailures = 0;
     const rows = db
-      .prepare(`SELECT id, content FROM contents WHERE content LIKE '%"database"%'`)
+      .prepare(`SELECT id, content FROM content_snapshots WHERE content LIKE '%"database"%'`)
       .all() as Array<{ id: number; content: string }>;
     for (const row of rows) {
       let nodes: Descendant[];

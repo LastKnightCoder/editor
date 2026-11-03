@@ -35,7 +35,7 @@ export function* listContentIndexCandidates(db: Database.Database): Generator<In
         `
       SELECT e.id, e.content_id AS contentId, ${source.title} AS title,
              MAX(e.update_time, c.update_time) AS updateTime
-      FROM ${source.table} e JOIN contents c ON c.id = e.content_id
+      FROM ${source.table} e JOIN content_snapshots c ON c.id = e.content_id
       WHERE c.content IS NOT NULL ${source.where}
     `
       )

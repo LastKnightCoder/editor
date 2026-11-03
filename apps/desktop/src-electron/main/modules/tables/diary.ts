@@ -31,7 +31,7 @@ interface RawDiaryEntryRow {
   update_time: number;
 }
 
-// diary_segments JOIN contents 后的 DB 行结构
+// diary_segments JOIN content_snapshots 后的 DB 行结构
 interface RawDiarySegmentRow {
   id: number;
   diary_id: number;
@@ -209,12 +209,12 @@ export default class DiaryTable {
     };
   }
 
-  // 查询某篇 diary 的所有 segments（按创建时间升序，JOIN contents 取 content）
+  // 查询某篇 diary 的所有 segments（按创建时间升序，JOIN content_snapshots 取 content）
   static getDiarySegmentsByDiaryId(db: Database.Database, diaryId: number): DiarySegment[] {
     const stmt = db.prepare(`
       SELECT s.*, c.content, c.count as word_count
       FROM diary_segments s
-      LEFT JOIN contents c ON s.content_id = c.id
+      LEFT JOIN content_snapshots c ON s.content_id = c.id
       WHERE s.diary_id = ?
       ORDER BY s.create_time ASC, s.id ASC
     `);
@@ -233,7 +233,7 @@ export default class DiaryTable {
     const stmt = db.prepare(`
       SELECT s.*, c.content, c.count as word_count
       FROM diary_segments s
-      LEFT JOIN contents c ON s.content_id = c.id
+      LEFT JOIN content_snapshots c ON s.content_id = c.id
       WHERE s.diary_id IN (${placeholders})
       ORDER BY s.diary_id ASC, s.create_time ASC, s.id ASC
     `);
@@ -540,7 +540,7 @@ export default class DiaryTable {
       SELECT d.date, COALESCE(SUM(c.count), 0) as wordCount
       FROM diary_entries d
       LEFT JOIN diary_segments s ON s.diary_id = d.id
-      LEFT JOIN contents c ON s.content_id = c.id
+      LEFT JOIN content_snapshots c ON s.content_id = c.id
       WHERE d.type = 'daily' AND d.date >= ? AND d.date < ?
       GROUP BY d.id, d.date
       ORDER BY d.date
@@ -814,7 +814,7 @@ export default class DiaryTable {
     const stmt = db.prepare(`
       SELECT s.*, c.content, c.count as word_count
       FROM diary_segments s
-      LEFT JOIN contents c ON s.content_id = c.id
+      LEFT JOIN content_snapshots c ON s.content_id = c.id
       WHERE s.id = ?
     `);
     const row = stmt.get(segmentId) as RawDiarySegmentRow | undefined;
@@ -840,7 +840,7 @@ export default class DiaryTable {
       .prepare(
         `SELECT COALESCE(SUM(c.count), 0) as total
          FROM diary_segments s
-         LEFT JOIN contents c ON s.content_id = c.id
+         LEFT JOIN content_snapshots c ON s.content_id = c.id
          WHERE s.diary_id = ?`
       )
       .get(diaryId) as { total: number };
@@ -870,7 +870,7 @@ export default class DiaryTable {
              c.content, c.count as word_count, s.tags,
              d.type as entry_type, d.date as entry_date, d.weather, d.mood
       FROM diary_segments s
-      LEFT JOIN contents c ON s.content_id = c.id
+      LEFT JOIN content_snapshots c ON s.content_id = c.id
       LEFT JOIN diary_entries d ON s.diary_id = d.id
       ${where}
       ORDER BY

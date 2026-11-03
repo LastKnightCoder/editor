@@ -12,8 +12,8 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 98;
-const MAIN_INDEX_COUNT = 118;
+const MAIN_TABLE_COUNT = 101;
+const MAIN_INDEX_COUNT = 120;
 const INDEX_CORE_TABLES = [
   "content_fts",
   "vec_index_meta",
@@ -86,6 +86,18 @@ function main() {
   const mainVersion = JSON.parse(readText(path.join(schemaDir, "main-version.json")));
   assert(Number.isSafeInteger(mainVersion) && mainVersion > 0, "主库基线版本必须是正整数");
   assert(mainTables.includes("schema_meta"), "主库缺少两端共用的 schema_meta");
+  for (const table of [
+    "content_document_blocks",
+    "content_document_node_blocks",
+    "content_document_block_counts",
+  ])
+    assert(mainTables.includes(table), `缺少正文分块表 ${table}`);
+  for (const index of [
+    "idx_content_document_blocks_position",
+    "idx_content_document_node_blocks_block",
+  ])
+    assert(mainIndexes.includes(index), `缺少正文分块索引 ${index}`);
+  assert(mainSql.includes("CREATE VIEW IF NOT EXISTS content_snapshots"), "缺少完整正文读取视图");
   const cardsSql = mainSql.match(/CREATE TABLE IF NOT EXISTS cards\s*\(([\s\S]*?)\);/i)?.[1] ?? "";
   assert(!/\blinks\s+TEXT\b/i.test(cardsSql), "cards.links 已退役，显式连接只存 content_links");
   const contentDocumentSql =

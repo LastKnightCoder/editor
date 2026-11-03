@@ -105,7 +105,7 @@ const yieldToEventLoop = () => new Promise<void>(resolve => setImmediate(resolve
 export function listCandidates(mainDb: Database.Database, ids?: number[]): Candidate[] {
   const select = `SELECT ct.id, ct.update_time AS updateTime, ct.count, s.rank,
       m.schema_ver AS schemaVer, m.update_time AS metaTime
-    FROM (${SCOPE_SQL}) s JOIN contents ct ON ct.id = s.content_id
+    FROM (${SCOPE_SQL}) s JOIN content_snapshots ct ON ct.id = s.content_id
     LEFT JOIN content_ai_meta m ON m.content_id = ct.id
     WHERE ct.count > 0`;
   if (!ids) return mainDb.prepare(select).all() as Candidate[];

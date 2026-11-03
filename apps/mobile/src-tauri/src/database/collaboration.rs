@@ -89,7 +89,7 @@ pub fn collab_bind_content(
     }
     let created_at: i64 = conn
         .query_row(
-            "SELECT create_time FROM contents WHERE id = ?1",
+            "SELECT create_time FROM content_snapshots WHERE id = ?1",
             params![payload.content_id],
             |row| row.get(0),
         )
@@ -287,7 +287,7 @@ fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Val
         .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "begin transaction", e))?;
     let create_time: Option<i64> = tx
         .query_row(
-            "SELECT create_time FROM contents WHERE id = ?1",
+            "SELECT create_time FROM content_snapshots WHERE id = ?1",
             params![payload.content_id],
             |row| row.get(0),
         )

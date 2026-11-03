@@ -13,6 +13,7 @@ const mainSegments = [
   "main/00_meta.sql",
   "main/10_core.sql",
   "main/11_content_contracts.sql",
+  "main/13_content_blocks.sql",
   "main/12_whiteboard_documents.sql",
   "main/20_content.sql",
   "main/30_project.sql",

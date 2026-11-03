@@ -209,7 +209,7 @@ class TaskAssistantModule {
                 taskId: link.task_id,
               };
               const row = db
-                .prepare("SELECT 1 FROM contents WHERE id=? AND create_time=?")
+                .prepare("SELECT 1 FROM content_snapshots WHERE id=? AND create_time=?")
                 .get(ref.contentId, ref.createdAt);
               const exists =
                 row &&
@@ -256,7 +256,7 @@ class TaskAssistantModule {
               };
               let title: string | null = null;
               const exists = db
-                .prepare("SELECT 1 FROM contents WHERE id=? AND create_time=?")
+                .prepare("SELECT 1 FROM content_snapshots WHERE id=? AND create_time=?")
                 .get(contentId, ref.createdAt);
               if (exists && taskNode(readTaskContent(db, contentId, ref.createdAt), ref.taskId))
                 title = readDocumentTask(db, ref).title;

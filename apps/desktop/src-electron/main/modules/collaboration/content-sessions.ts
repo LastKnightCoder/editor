@@ -1,6 +1,7 @@
 import { mapNodeResources } from "@tau/db-schema/content-resources";
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
+import isEqual from "lodash/isEqual";
 import * as Y from "yjs";
 import {
   replaceText,
@@ -23,6 +24,8 @@ import { ContentDocumentTable, type ContentDocumentWrite } from "../tables/conte
 import { ContentIdentityTable } from "../tables/content-identity";
 import { bindingMatches } from "./content-repository";
 import { findCollaborationBinding } from "../collaboration-guard";
+import { isSupportedContentStorageVersion } from "@tau/db-schema";
+import { ContentDocumentBlocks, type ContentBlockWrite } from "../tables/content-document-blocks";
 export type { NodeAttributePatcher, TextPatcher } from "../content-node-patches";
 
 const sessions = new Map<Database.Database, Map<number, RuntimeSession>>();
@@ -46,7 +49,7 @@ export function unregisterContentSession(session: RuntimeSession) {
 export function contentSession(db: Database.Database, contentId: number) {
   const session = sessions.get(db)?.get(contentId);
   if (!session) return;
-  const row = db.prepare("SELECT create_time FROM contents WHERE id=?").get(contentId) as
+  const row = db.prepare("SELECT create_time FROM content_snapshots WHERE id=?").get(contentId) as
     | { create_time: number }
     | undefined;
   const binding = findCollaborationBinding(db, contentId);
@@ -66,7 +69,8 @@ export function contentSession(db: Database.Database, contentId: number) {
     const document = db
       .prepare("SELECT document_id,format_version FROM content_documents WHERE content_id=?")
       .get(contentId) as { document_id: string; format_version: number } | undefined;
-    if (document && document.format_version !== 2) throw new Error("正文数据格式不兼容");
+    if (document && !isSupportedContentStorageVersion(document.format_version))
+      throw new Error("正文数据格式不兼容");
     identityMatches = source.contentDocumentId === document?.document_id;
   }
   if (
@@ -294,47 +298,147 @@ export function projectContentTitle(db: Database.Database, contentId: number, ti
   return changed;
 }
 
+// 节点投影会补默认文本类型并重排对象键，这些差异不属于正文编辑。
+function contentProjectionsEqual(previous: ContentNode[], next: ContentNode[]): boolean {
+  if (previous === next) return true;
+  return (
+    previous.length === next.length &&
+    previous.every((node, index) => {
+      const candidate = next[index];
+      if (node === candidate) return true;
+      const text = !node.children && !candidate.children;
+      if (text && (node.type ?? "formatted") !== (candidate.type ?? "formatted")) return false;
+      const keys = Object.keys(node).filter(key => !text || key !== "type");
+      const nextKeys = Object.keys(candidate).filter(key => !text || key !== "type");
+      return (
+        keys.length === nextKeys.length &&
+        keys.every(key => {
+          if (!Object.hasOwn(candidate, key)) return false;
+          if (key === "children" && node.children && candidate.children)
+            return contentProjectionsEqual(node.children, candidate.children);
+          return isEqual(node[key], candidate[key]);
+        })
+      );
+    })
+  );
+}
+
+// 重复设置同值也会产生 Yjs 事务，按本次触及的字段过滤空变化。
+export function contentProjectionChanges(doc: Y.Doc, transaction: Y.Transaction) {
+  const changed = (key: string): boolean => {
+    const root = doc.share.get(key);
+    const events = root && transaction.changedParentTypes.get(root);
+    return (
+      events?.some(event => {
+        if (event instanceof Y.YMapEvent)
+          return [...event.changes.keys].some(([field, change]) => {
+            if (change.action !== "update") return true;
+            const current = event.target.get(field);
+            if (current instanceof Y.AbstractType || change.oldValue instanceof Y.AbstractType)
+              return current !== change.oldValue;
+            return !isEqual(change.oldValue, current);
+          });
+        if (event instanceof Y.YTextEvent) return event.delta.length > 0;
+        return true;
+      }) ?? false
+    );
+  };
+  return {
+    content: [
+      "node-tree:nodes",
+      "node-tree:root",
+      "node-tree:creations",
+      "node-tree:segments",
+    ].some(changed),
+    contracts: changed("node-tree:contracts"),
+  };
+}
+
+export function readContentProjectionHead(
+  db: Database.Database,
+  source: SourceBinding,
+  session: RuntimeSession
+): { documentId: string; revision: string; formatVersion: number | null } {
+  const row = db
+    .prepare(`
+    SELECT c.create_time,d.document_id,d.format_version,d.revision
+    FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id=?
+  `)
+    .get(source.contentId) as
+    | {
+        create_time: number;
+        document_id: string | null;
+        format_version: number | null;
+        revision: string | null;
+      }
+    | undefined;
+  if (!row || row.create_time !== source.contentCreatedAt) throw new Error("原内容关联已变化");
+  const local = session.info.mode === "local";
+  if (
+    local
+      ? Boolean(findCollaborationBinding(db, source.contentId))
+      : !bindingMatches(db, source, session.info.id, session.info.serverUrl)
+  )
+    throw new Error("正文会话绑定已变化，停止回写");
+  if (row.format_version !== null && !isSupportedContentStorageVersion(row.format_version))
+    throw new Error("正文数据格式不兼容");
+  if (!row.document_id || !row.revision)
+    throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+  if (
+    (source.librarySourceId &&
+      source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
+    (source.contentDocumentId && source.contentDocumentId !== row.document_id)
+  )
+    throw new Error("资料库或正文身份已变化，已暂停原会话写入");
+  return { documentId: row.document_id, revision: row.revision, formatVersion: row.format_version };
+}
+
 export function projectContractContent(
   db: Database.Database,
   source: SourceBinding,
   session: RuntimeSession,
   value: ContentDocumentWrite,
   expectedRevision: string | undefined,
-  count: number
+  count: number,
+  changes?: { content: boolean; contracts: boolean }
 ): boolean {
   return db.transaction(() => {
-    const row = db
-      .prepare("SELECT create_time,content FROM contents WHERE id=?")
-      .get(source.contentId) as { create_time: number; content: string } | undefined;
-    if (!row || row.create_time !== source.contentCreatedAt) throw new Error("原内容关联已变化");
-    const local = session.info.mode === "local";
-    if (
-      local
-        ? Boolean(findCollaborationBinding(db, source.contentId))
-        : !bindingMatches(db, source, session.info.id, session.info.serverUrl)
-    )
-      throw new Error("正文会话绑定已变化，停止回写");
-    const previous = ContentDocumentTable.read(db, source.contentId);
-    if (
-      (source.librarySourceId &&
-        source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
-      (source.contentDocumentId && source.contentDocumentId !== previous?.documentId)
-    )
-      throw new Error("资料库或正文身份已变化，已暂停原会话写入");
-    if (!previous) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
-    if (previous.documentId !== value.documentId)
-      throw new Error("正文身份已变化，请重新打开当前正文");
-    if (
-      row.content === JSON.stringify(value.content) &&
-      JSON.stringify(previous.contracts) === JSON.stringify(value.contracts)
-    )
-      return false;
+    const head = readContentProjectionHead(db, source, session);
+    if (head.documentId !== value.documentId) throw new Error("正文身份已变化，请重新打开当前正文");
+    const previous = ContentDocumentTable.read(db, source.contentId)!;
+    const contentChanged =
+      changes?.content ?? !contentProjectionsEqual(previous.content, value.content);
+    const contractsChanged = changes?.contracts ?? !isEqual(previous.contracts, value.contracts);
+    if (!contentChanged && !contractsChanged) return false;
     if (previous.revision !== expectedRevision)
       throw new Error("正文投影修订冲突，已保留原缓存并暂停写入");
-    ContentDocumentTable.commit(db, source.contentId, value, { expectedRevision, count });
-    db.prepare(
-      "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
-    ).run(Date.now(), source.contentId);
-    return true;
+    ContentDocumentTable.commit(
+      db,
+      source.contentId,
+      { ...value, content: contentChanged ? value.content : previous.content },
+      { expectedRevision, count, preserveUpdateTime: !contentChanged }
+    );
+    if (contentChanged)
+      db.prepare(
+        "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
+      ).run(Date.now(), source.contentId);
+    return contentChanged;
+  })();
+}
+
+export function projectContentBlocks(
+  db: Database.Database,
+  source: SourceBinding,
+  session: RuntimeSession,
+  value: ContentBlockWrite
+) {
+  return db.transaction(() => {
+    readContentProjectionHead(db, source, session);
+    const result = ContentDocumentBlocks.commit(db, source.contentId, value);
+    if (result.changed)
+      db.prepare(
+        "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
+      ).run(Date.now(), source.contentId);
+    return result;
   })();
 }

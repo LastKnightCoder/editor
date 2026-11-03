@@ -493,7 +493,8 @@ export class CollaborationAssetService {
     documentId: string,
     references: Iterable<string>,
     save: (file: CollaborationImageFile) => Promise<string>
-  ): Promise<void> {
+  ): Promise<string[]> {
+    const preserved: string[] = [];
     for (const reference of new Set(references)) {
       if (!reference.startsWith(ASSET_PREFIX)) continue;
       if (this.ownerImageReference(documentId, reference)) continue;
@@ -506,7 +507,9 @@ export class CollaborationAssetService {
         this.ownerImages.set(key, pending);
       }
       await pending;
+      if (this.ownerImageReference(documentId, reference)) preserved.push(reference);
     }
+    return preserved;
   }
 
   private async preserveOwnerImage(

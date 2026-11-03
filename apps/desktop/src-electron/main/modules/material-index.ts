@@ -61,7 +61,7 @@ const parseContent = (raw: string | null): Descendant[] => {
 const ATTACHED_WEB_CLIP_SQL = `
   SELECT c.id, c.title, c.url, c.content_id,
          MAX(c.update_time, COALESCE(ct.update_time, 0)) AS update_time
-  FROM web_clip c LEFT JOIN contents ct ON ct.id = c.content_id
+  FROM web_clip c LEFT JOIN content_snapshots ct ON ct.id = c.content_id
   WHERE EXISTS (
     SELECT 1 FROM entity_lineage l JOIN project_item i ON i.id = CAST(l.src_id AS INTEGER)
     WHERE l.dst_kind = 'web-clip' AND l.dst_id = CAST(c.id AS TEXT)
@@ -149,7 +149,7 @@ export function* listMaterialIndexCandidates(mainDb: Database.Database): Generat
     content_id: number;
     update_time: number;
   }>;
-  const readContent = mainDb.prepare(`SELECT content FROM contents WHERE id = ?`);
+  const readContent = mainDb.prepare(`SELECT content FROM content_snapshots WHERE id = ?`);
   for (const clip of clips) {
     yield {
       id: clip.id,
@@ -180,7 +180,7 @@ export function materialSearchDetails(
   if (type === "web-clip") {
     const row = mainDb
       .prepare(
-        `SELECT c.content_id, ct.content FROM web_clip c LEFT JOIN contents ct ON ct.id = c.content_id WHERE c.id = ?`
+        `SELECT c.content_id, ct.content FROM web_clip c LEFT JOIN content_snapshots ct ON ct.id = c.content_id WHERE c.id = ?`
       )
       .get(id) as { content_id: number; content: string | null } | undefined;
     return {

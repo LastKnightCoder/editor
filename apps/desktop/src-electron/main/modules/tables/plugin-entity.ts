@@ -42,7 +42,7 @@ const EMPTY_CONTENT = [{ type: "paragraph", children: [{ text: "" }] }] as Desce
 const UPDATED_SQL = "MAX(e.update_time, IFNULL(ct.update_time, 0))";
 const BASE_COLUMNS = `e.id, e.plugin_id, e.kind, e.key, e.title, e.meta, e.create_time,
     e.update_time, e.content_id, ct.create_time AS content_created, ${UPDATED_SQL} AS updated`;
-const BASE_FROM = "plugin_entities e JOIN contents ct ON ct.id = e.content_id";
+const BASE_FROM = "plugin_entities e JOIN content_snapshots ct ON ct.id = e.content_id";
 const BASE_SQL = `SELECT ${BASE_COLUMNS} FROM ${BASE_FROM}`;
 
 /** 事务预留的实体 ID：库名 + ID → 插件 ID */
@@ -486,9 +486,9 @@ export default class PluginEntityTable {
           .get(row.plugin_id, row.kind, row.key)
       )
         throw new Error("插件已重新创建了同一项内容，无法恢复");
-      const content = db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
-        | { create_time: number }
-        | undefined;
+      const content = db
+        .prepare("SELECT create_time FROM content_snapshots WHERE id = ?")
+        .get(contentId) as { create_time: number } | undefined;
       if (!content || content.create_time !== snapshot.contentCreatedAt)
         throw new Error("正文已被清理，无法恢复");
       ContentTable.retain(db, contentId);
@@ -522,7 +522,7 @@ export default class PluginEntityTable {
     const rows = db
       .prepare(
         `SELECT e.id, e.content_id, e.title, MAX(e.update_time, ct.update_time) AS update_time, ct.content
-         FROM plugin_entities e JOIN contents ct ON ct.id = e.content_id
+         FROM plugin_entities e JOIN content_snapshots ct ON ct.id = e.content_id
          ${id === undefined ? "" : "WHERE e.id = ?"}`
       )
       .all(...(id === undefined ? [] : [id])) as Array<{

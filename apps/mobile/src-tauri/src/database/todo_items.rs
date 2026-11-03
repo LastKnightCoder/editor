@@ -88,7 +88,7 @@ fn get_item_by_id(tx: &Transaction<'_>, id: i64) -> Result<Option<TodoItem>, Str
           tr.id, tr.todo_item_id, tr.type, tr.interval, tr.weekdays, tr.month_day, tr.year_month, tr.year_day,
           tr.exclude_holidays, tr.start_date, tr.end_date, tr.max_occurrences, tr.create_time, tr.update_time
         FROM todo_item ti
-        LEFT JOIN contents c ON c.id = ti.description_content_id
+        LEFT JOIN content_snapshots c ON c.id = ti.description_content_id
         LEFT JOIN todo_recurrence tr ON tr.todo_item_id = ti.id
         WHERE ti.id = ?1
         LIMIT 1
@@ -381,7 +381,7 @@ pub fn todo_list_items(app: AppHandle, payload: ListItemsPayload) -> Result<Vec<
           tr.id, tr.todo_item_id, tr.type, tr.interval, tr.weekdays, tr.month_day, tr.year_month, tr.year_day,
           tr.exclude_holidays, tr.start_date, tr.end_date, tr.max_occurrences, tr.create_time, tr.update_time
         FROM todo_item ti
-        LEFT JOIN contents c ON c.id = ti.description_content_id
+        LEFT JOIN content_snapshots c ON c.id = ti.description_content_id
         LEFT JOIN todo_recurrence tr ON tr.todo_item_id = ti.id
         WHERE ti.group_id = ?1 AND ti.is_archived = 0
         ORDER BY ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index ASC
@@ -414,7 +414,7 @@ pub fn todo_list_items_by_type(
               tr.id, tr.todo_item_id, tr.type, tr.interval, tr.weekdays, tr.month_day, tr.year_month, tr.year_day,
               tr.exclude_holidays, tr.start_date, tr.end_date, tr.max_occurrences, tr.create_time, tr.update_time
             FROM todo_item ti
-            LEFT JOIN contents c ON c.id = ti.description_content_id
+            LEFT JOIN content_snapshots c ON c.id = ti.description_content_id
             LEFT JOIN todo_recurrence tr ON tr.todo_item_id = ti.id
             WHERE ti.is_archived = 0
             ORDER BY ti.group_id, ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index ASC
@@ -433,7 +433,7 @@ pub fn todo_list_items_by_type(
               tr.id, tr.todo_item_id, tr.type, tr.interval, tr.weekdays, tr.month_day, tr.year_month, tr.year_day,
               tr.exclude_holidays, tr.start_date, tr.end_date, tr.max_occurrences, tr.create_time, tr.update_time
             FROM todo_item ti
-            LEFT JOIN contents c ON c.id = ti.description_content_id
+            LEFT JOIN content_snapshots c ON c.id = ti.description_content_id
             LEFT JOIN todo_recurrence tr ON tr.todo_item_id = ti.id
             WHERE ti.is_archived = 0 AND ti.type = ?1
             ORDER BY ti.group_id, ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index ASC
@@ -514,7 +514,7 @@ pub fn todo_create_item_relative(
               tr.id, tr.todo_item_id, tr.type, tr.interval, tr.weekdays, tr.month_day, tr.year_month, tr.year_day,
               tr.exclude_holidays, tr.start_date, tr.end_date, tr.max_occurrences, tr.create_time, tr.update_time
             FROM todo_item ti
-            LEFT JOIN contents c ON c.id = ti.description_content_id
+            LEFT JOIN content_snapshots c ON c.id = ti.description_content_id
             LEFT JOIN todo_recurrence tr ON tr.todo_item_id = ti.id
             WHERE ti.group_id = ?1
               AND ((ti.parent_id IS NULL AND ?2 IS NULL) OR ti.parent_id = ?2)

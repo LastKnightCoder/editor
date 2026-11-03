@@ -205,7 +205,7 @@ export class ContentRetention {
             .all(document.document_id) as ContentEntityReference[];
           relations.forEach(reference);
         } else {
-          const row = db.prepare("SELECT content FROM contents WHERE id=?").get(id) as
+          const row = db.prepare("SELECT content FROM content_snapshots WHERE id=?").get(id) as
             | { content: string }
             | undefined;
           if (row) legacy(JSON.parse(row.content), false);

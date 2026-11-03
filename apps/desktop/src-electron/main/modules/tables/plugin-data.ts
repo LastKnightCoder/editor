@@ -73,13 +73,13 @@ const BASE_SQL: Record<PluginDataEntity, string> = {
       c.tags, c.is_top AS pinned, '' AS title, c.content_id AS content_id,
       ct.create_time AS content_created, IFNULL(ct.count, 0) AS word_count,
       NULL AS kind, NULL AS projects
-    FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id`,
+    FROM cards c LEFT JOIN content_snapshots ct ON ct.id = c.content_id`,
   article: `SELECT a.id, a.create_time AS created, a.update_time AS revision,
       MAX(a.update_time, IFNULL(ct.update_time, 0)) AS updated,
       a.tags, a.is_top AS pinned, a.title, a.content_id AS content_id,
       ct.create_time AS content_created, IFNULL(ct.count, 0) AS word_count,
       NULL AS kind, NULL AS projects
-    FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id
+    FROM articles a LEFT JOIN content_snapshots ct ON ct.id = a.content_id
     WHERE a.is_delete = 0`,
   // 引用型条目只是指向卡片 / 文章的入口，正文归被引用的实体
   document: `SELECT p.id, p.create_time AS created, p.update_time AS revision,
@@ -87,7 +87,7 @@ const BASE_SQL: Record<PluginDataEntity, string> = {
       p.tags, 0 AS pinned, p.title, p.content_id AS content_id,
       ct.create_time AS content_created, IFNULL(ct.count, 0) AS word_count,
       p.project_item_type AS kind, p.projects
-    FROM project_item p LEFT JOIN contents ct ON ct.id = p.content_id
+    FROM project_item p LEFT JOIN content_snapshots ct ON ct.id = p.content_id
     WHERE p.ref_type IS NULL OR p.ref_type = ''`,
   // 白板与项目没有正文：画板内容不开放，项目文档另见 document
   whiteboard: `SELECT w.id, w.create_time AS created, w.update_time AS revision,
@@ -249,7 +249,7 @@ export default class PluginDataTable {
     this.assertDatabase(db, request);
     const row = db
       .prepare(
-        "SELECT id, create_time, update_time, content, count FROM contents WHERE id = ? AND create_time = ?"
+        "SELECT id, create_time, update_time, content, count FROM content_snapshots WHERE id = ? AND create_time = ?"
       )
       .get(request.contentId, request.createdAt) as
       | { id: number; create_time: number; update_time: number; content: string; count: number }
@@ -723,7 +723,7 @@ export default class PluginDataTable {
     const contentId = Number(row.content_id) || null;
     const contentCreatedAt = contentId
       ? ((
-          db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
+          db.prepare("SELECT create_time FROM content_snapshots WHERE id = ?").get(contentId) as
             | { create_time: number }
             | undefined
         )?.create_time ?? null)
@@ -823,7 +823,7 @@ export default class PluginDataTable {
     if (!contentId) return null;
     return (
       (
-        db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
+        db.prepare("SELECT create_time FROM content_snapshots WHERE id = ?").get(contentId) as
           | { create_time: number }
           | undefined
       )?.create_time ?? null
@@ -843,7 +843,7 @@ export default class PluginDataTable {
   ): Promise<{ revision: string }> {
     this.assertDatabase(db, request);
     const exists = db
-      .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
+      .prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?")
       .get(request.contentId, request.createdAt);
     const current = exists ? ContentTable.getContentById(db, request.contentId) : null;
     if (!current) throw new Error("正文不存在");
@@ -855,7 +855,7 @@ export default class PluginDataTable {
     if (!db.open) throw new Error("数据库连接已失效");
     if (
       !db
-        .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
+        .prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?")
         .get(request.contentId, request.createdAt) ||
       this.contentRevision(db, request.contentId) !== revision
     )
