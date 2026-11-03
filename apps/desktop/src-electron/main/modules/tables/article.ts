@@ -10,6 +10,8 @@ import {
   ArticlePageItem,
   ArticlePageSort,
   ArticleTagCount,
+  ArticleMetadataPatch,
+  ArticleDatabaseScope,
 } from "@/types";
 import Operation from "./operation";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
@@ -36,6 +38,7 @@ function articlePageOrder(sort: unknown): string {
 export default class ArticleTable {
   static getListenEvents() {
     return {
+      "articles:patch-scoped": this.patchScopedArticle.bind(this),
       "create-article": this.createArticle.bind(this),
       "create-article-from-project-item": this.createArticleFromProjectItem.bind(this),
       "update-article": this.updateArticle.bind(this),
@@ -196,6 +199,38 @@ export default class ArticleTable {
     Operation.insertOperation(db, "article", "insert", createdArticleId, now);
 
     return this.getArticleById(db, createdArticleId);
+  }
+
+  static patchScopedArticle(
+    db: Database.Database,
+    request: ArticleDatabaseScope & { id: number; patch: ArticleMetadataPatch },
+    ctx: CommandContext = fallbackCommandContext
+  ): IArticle {
+    if (basename(db.name).replace(/\.db$/, "") !== request.databaseName.replace(/\.db$/, "")) {
+      throw new Error("数据库已切换，请重新打开文章");
+    }
+    const current = db
+      .prepare("SELECT is_top FROM articles WHERE id = ? AND is_delete = 0")
+      .get(request.id) as { is_top: number } | undefined;
+    if (!current) throw new Error("文章不存在或已删除");
+    const { tags, isTop } = request.patch;
+    if (tags === undefined) {
+      if (isTop === undefined) throw new Error("请提供文章标签或置顶状态");
+      return this.updateArticleIsTop(db, request.id, isTop, ctx);
+    }
+    const now = Date.now();
+    db.prepare("UPDATE articles SET update_time = ?, tags = ?, is_top = ? WHERE id = ?").run(
+      now,
+      JSON.stringify(tags),
+      Number(isTop ?? current.is_top),
+      request.id
+    );
+    Operation.insertOperation(db, "article", "update", request.id, now);
+    ctx.broadcastOthers("article:updated", {
+      databaseName: basename(db.name),
+      articleId: request.id,
+    });
+    return this.getArticleById(db, request.id);
   }
 
   static updateArticle(

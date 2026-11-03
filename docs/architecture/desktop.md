@@ -822,6 +822,8 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 
 ### 卡片库
 
+AI 的「卡片工具」由 `mcp/providers/card-tools.ts` 默认注册：`set_card_pinned(cardId, pinned)` 显式设置或取消置顶，`update_card_tags(cardId, tags)` 整体替换标签（空数组清空，名称去首尾空白与重复项）；两者均声明 `write`，按现有工具权限审批。工具只接受卡片实体 ID，数据库与取消信号取执行上下文，经 `bindDatabaseCommands` 调用原库 `patchScopedCard`；只写对应元数据字段。成功后复用 `features/cards/cache.ts` 单卡并入原库缓存，仅原库仍为活动库时发布本窗口卡片更新事件，其他窗口沿用主进程广播。
+
 `features/cards/queries.ts` 按 `["cards", databaseName, "all"]` 隔离缓存，仅数据库就绪时读取；列表走主进程轻表（content 为截好的预览块），单卡全文按需经 `["cards", db, "detail", id]`（预览弹窗、导出与演示动作）。写入与卡片创建/更新/删除事件按 id 单卡并入缓存（事件载荷即全量卡片，跨窗口按 id 回查后广播），不做整域失效。`cards:*` 命令在主进程校验数据库身份，元数据只提交字段补丁并在当前记录上合并，拒绝跨库或已删除卡片写入。CardDatabaseView 经必传 `onUpdateCard(id, patch)` 接入宿主写入；连接列数据走 `useContentLinksByContentIds`，筛选结果只用于列表展示；时间组用本地自然日/周一周/自然月。标签持久化为名称字符串，表格保存标签补丁时按列选项把选项 ID 转回名称，不能保存通用多选组件的 UUID。
 
 卡片墙与表格共用预览：数据就绪后隐藏挂载 ContentEditor，正文会话与 `onInit` 完成才显示；读取失败展示错误可重试；关闭预览保留正文/标题/标签到 Dialog `onAfterClose` 再清理，避免退场中高度塌缩。卡片墙的普通与置顶卡共用 `CardContentPreview`（只读 Editor 渲染前 3 块，不开协作会话），摘要变化重建实例，列表按 contentId 更新正文与字数不重拉。
@@ -831,6 +833,8 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 **卡片数据库视图**：`CardDatabaseView` 与专属链接插件只服务卡片页，通用 Database 留共享层。视图、筛选/排序/分组、列宽按库持久化（`databasePreferences.ts`，tau-card-database-views，库名去 .db 后缀；只读取当前版本，每个新库从默认视图初始化，不继承旧模板）；实例按库重建，旧实例迟到回调只持有原库动作不认领新库；跨窗口配置经 `view.receive/remove`、`views.reorder`、`column.resize` external 命令接入，不监听 props 覆盖内部状态。宿主经 `dispatch(command, "external")` 接入确认更新（`rows.apply` 提交字段差量、`rows.receive` 提交确认快照），变更事件携带 user/external 来源，保存回调只消费 user 事件。
 
 ### 脉络（features/context）
+
+AI 的「内容连接工具」由 `mcp/providers/content-link-tools.ts` 默认注册：`add_content_link(from, to)` / `remove_content_link(from, to)` 直接增删双向显式连接；端点为 `{kind, id}` 实体地址，支持卡片、文章、项目文档、日记片段与插件内容，日记传片段 ID，不传正文 contentId。两者均声明 `write`，数据库与取消信号取执行上下文，经 `bindDatabaseCommands` 复用 `content-links:add/remove`；返回 `changed` 区分实际变更与无需变更，正文内联引用不经此工具删除。连接列表和脉络缓存沿用主进程按库广播失效。
 
 卡片、文章、项目文档详情的元信息行挂 `ContextBadge`（文章经 ArticleHero 的 extraMeta 插槽），数据走 `useEntityContext(ref)` → 主进程 `entity-context:get`，分区与数据源：
 
@@ -919,6 +923,8 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
   - Notebook：`vibe-learning-project:record-open`（随 `VibeLearningView` 的 `opened` 变化：资料 / 笔记记为上次条目，其余只刷新时间），`vibe-learning-project:list` 直接带 `openedAt / lastItemTitle`。详情页恢复仍读本机 `vibe-learning-opened-<id>`，数据库记录只供列表展示。
 
 ### 文章 / 卡片库的列表排布
+
+AI 的「文章工具」由 `mcp/providers/article-tools.ts` 默认注册：`set_article_pinned(articleId, pinned)` 设置或取消置顶，`update_article_tags(articleId, tags)` 整体替换标签；参数校验、标签清理与写操作声明和卡片共用 `entity-metadata-tools.ts`。数据库与取消信号取执行上下文，经 `bindDatabaseCommands` 调用 `articles:patch-scoped`，主进程校验库身份与文章存在性，并在当前记录上合并元数据；置顶沿用独立置顶命令，不改变编辑时间。成功且原库仍为活动库时回填文章详情、失效文章分页与标签计数，并发布本窗口文章更新事件；其他窗口沿用主进程广播，切库后的迟到结果不更新新库缓存。
 
 - 通用控件在 `features/shared/list/ListControls.tsx`：`CommandMenu`（工具栏「按钮 + Menu」）、`LayoutMenu`（网格 / 列表）、`SortHeader`（列头排序，每列方向固定）、`ListTags`（两枚 + `+N`）。驾驶舱的 `CockpitToolbar` 与列表列头也用它们。
 - 卡片库：`CardsViewMode` 增加 `list`（速切器顺序 卡片墙 / 列表 / 表格），`CardListView` 平铺行、定高虚拟滚动、列头吸顶；排序（创建 / 更新 / 字数 / 连接，置顶在前；连接数来自轻表 `linkCount`）是 `listModel.ts` 纯函数，在内存全集上排。行标题 AI 标题优先，没有时取首个非空块，摘要取其余块（`cardListText`）。点行打开预览弹窗，操作复用 `CardActionMenu`。
