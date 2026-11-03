@@ -3,7 +3,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
-import type { ContentSessionTarget, ContentSessionSnapshot } from "@tau/collaboration";
+import type { ContentSessionTarget, ContentSessionSnapshot, NodeTree } from "@tau/collaboration";
 import type { CollaborationSession, CollaborationState, ContentNode } from "@tau/collaboration";
 import type { CollaborationClient } from "./client";
 import type { CollaborationAssetService } from "./asset-service";
@@ -30,11 +30,22 @@ export interface RuntimeSession {
   ) => Promise<void>;
   provider?: HocuspocusProvider;
   dirty: boolean;
+  cacheWriteFailed?: boolean;
   projectionDirty?: boolean;
+  projectionVersion?: ContentProjectionVersion;
+  projectedVersion?: ContentProjectionVersion;
+  projectionTree?: NodeTree;
+  projectionNodes?: Map<string, number>;
+  projectionStructure?: number;
   drainingViews?: Set<string>;
   /** 宿主补丁在应用和广播前先写入协作缓存。 */
   persistNodeUpdate?: (update: Uint8Array) => void;
   retainNodeState?: (candidate: Y.Doc) => void;
+}
+
+export interface ContentProjectionVersion {
+  content: number;
+  contracts: number;
 }
 
 export interface CollaborationIpcContext {

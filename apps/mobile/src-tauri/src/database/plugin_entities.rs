@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 const MAX_META: usize = 64 * 1024;
 const RETENTION: i64 = 7 * 24 * 60 * 60 * 1000;
 const COLUMNS: &str = "e.id,e.kind,e.key,e.title,e.meta,e.create_time,e.update_time,e.content_id,c.create_time AS content_created,MAX(e.update_time,c.update_time) AS updated";
-const FROM: &str = "plugin_entities e JOIN contents c ON c.id=e.content_id";
+const FROM: &str = "plugin_entities e JOIN content_snapshots c ON c.id=e.content_id";
 const SORT_FIELDS: [&str; 3] = ["createdAt", "updatedAt", "title"];
 
 fn source() -> query::QuerySource<'static> {
@@ -343,7 +343,7 @@ fn delete(tx: &Transaction<'_>, plugin: &str, request: &Value) -> Result<Value, 
     let content_id = row["content_id"].as_i64().ok_or("正文身份无效")?;
     let created: i64 = tx
         .query_row(
-            "SELECT create_time FROM contents WHERE id=?1",
+            "SELECT create_time FROM content_snapshots WHERE id=?1",
             [content_id],
             |row| row.get(0),
         )
@@ -408,7 +408,7 @@ pub(super) fn share_content(
     let (id, created) = reference.split_once(':').ok_or("正文引用无效")?;
     let id = identifier(&json!(id))?;
     let created = created.parse::<i64>().map_err(|_| "正文引用无效")?;
-    let owned=tx.query_row("SELECT EXISTS(SELECT 1 FROM plugin_entities e JOIN contents c ON c.id=e.content_id WHERE e.plugin_id=?1 AND e.content_id=?2 AND e.orphaned_time IS NULL AND c.create_time=?3 AND c.ref_count>0)",params![plugin,id,created],|row|row.get::<_,bool>(0)).map_err(sql_error)?;
+    let owned=tx.query_row("SELECT EXISTS(SELECT 1 FROM plugin_entities e JOIN content_snapshots c ON c.id=e.content_id WHERE e.plugin_id=?1 AND e.content_id=?2 AND e.orphaned_time IS NULL AND c.create_time=?3 AND c.ref_count>0)",params![plugin,id,created],|row|row.get::<_,bool>(0)).map_err(sql_error)?;
     if !owned {
         return Err("只能共用本插件持有的正文".into());
     }
@@ -448,7 +448,7 @@ pub(super) fn restore(
     let created = payload["contentCreatedAt"].as_i64().ok_or("正文身份无效")?;
     if !tx
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM contents WHERE id=?1 AND create_time=?2)",
+            "SELECT EXISTS(SELECT 1 FROM content_snapshots WHERE id=?1 AND create_time=?2)",
             params![content, created],
             |row| row.get::<_, bool>(0),
         )

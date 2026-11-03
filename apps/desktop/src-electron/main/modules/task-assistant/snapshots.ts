@@ -151,8 +151,9 @@ function references(snapshot: Snapshot): Map<number, number> {
 }
 export function pinSnapshot(db: Database.Database, operationId: string, snapshot: Snapshot) {
   for (const id of references(snapshot).keys()) {
-    const row = db.prepare("SELECT create_time FROM contents WHERE id=?").get(id) as
-      { create_time: number } | undefined;
+    const row = db.prepare("SELECT create_time FROM content_snapshots WHERE id=?").get(id) as
+      | { create_time: number }
+      | undefined;
     if (!row) fail("NOT_FOUND", "关联正文不存在");
     const inserted = db
       .prepare("INSERT OR IGNORE INTO task_assistant_content_pin VALUES (?,?,?)")
@@ -166,7 +167,7 @@ export function releasePins(db: Database.Database, operationId: string) {
     .all(operationId) as Array<{ content_id: number; content_created_at: number }>;
   for (const pin of pins) {
     const row = db
-      .prepare("SELECT create_time,ref_count FROM contents WHERE id=?")
+      .prepare("SELECT create_time,ref_count FROM content_snapshots WHERE id=?")
       .get(pin.content_id) as { create_time: number; ref_count: number } | undefined;
     if (row?.create_time === pin.content_created_at) {
       if (row.ref_count > 1) ContentTable.decrementRefCount(db, pin.content_id);
@@ -185,7 +186,8 @@ export function restoreSnapshot(
   for (const table of dependencies)
     for (const identity of before[table] ?? []) {
       const current = db.prepare(`SELECT create_time FROM ${table} WHERE id=?`).get(identity.id) as
-        { create_time: number } | undefined;
+        | { create_time: number }
+        | undefined;
       if (!current || current.create_time !== identity.create_time)
         fail("UNDO_CONFLICT", "原项目或日历已删除或被重新创建，不能自动撤销");
     }

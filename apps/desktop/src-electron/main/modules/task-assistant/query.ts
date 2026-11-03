@@ -264,7 +264,7 @@ export function queryTasks(
           )
             continue;
           const content = db
-            .prepare("SELECT create_time FROM contents WHERE id=?")
+            .prepare("SELECT create_time FROM content_snapshots WHERE id=?")
             .get(contentId) as { create_time: number } | undefined;
           if (!content) continue;
           ref = { kind: "document", contentId, taskId, createdAt: content.create_time };

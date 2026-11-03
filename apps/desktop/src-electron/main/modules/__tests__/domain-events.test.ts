@@ -40,6 +40,9 @@ vi.mock("../database", () => ({
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
+import { ContentDocumentTable } from "../tables/content-document";
+import { ContentDocumentBlocks } from "../tables/content-document-blocks";
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { broadcastDatabaseChange } from "../database-notifications";
 import domainEvents from "../domain-events";
 import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
@@ -98,6 +101,64 @@ describe("业务数据变更事件", () => {
     await vi.advanceTimersByTimeAsync(600);
     expect(events()).toEqual([{ type: "card.updated", id }]);
     expect(hoisted.send.mock.calls[0][1].databaseName).toBe("alpha.db");
+  });
+
+  it("分块正文在同一毫秒保存仍通知拥有者，无变化确认不发事件", async () => {
+    const definition = await prepareContentContract("tau.paragraph", {
+      type: "paragraph",
+      dataVersion: 1,
+      kind: "block",
+    });
+    const contentId = ContentTable.createContent(db, {
+      content: [
+        {
+          type: "paragraph",
+          tauContract: definition.id,
+          children: [{ type: "formatted", text: "甲" }],
+        },
+      ] as never,
+      contracts: { [definition.id]: definition.contract },
+    });
+    const id = card(contentId);
+    await vi.advanceTimersByTimeAsync(600);
+    hoisted.send.mockClear();
+    const saved = ContentDocumentTable.read(db, contentId)!;
+    const firstTime = Date.now();
+    const block = { ...saved.content[0], children: [{ type: "formatted", text: "甲乙" }] };
+    const first = ContentDocumentBlocks.commit(db, contentId, {
+      documentId: saved.documentId,
+      expectedRevision: saved.revision,
+      contracts: saved.contracts,
+      blocks: [block],
+      count: () => 2,
+      countRules: "test",
+    });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([{ type: "card.updated", id }]);
+    hoisted.send.mockClear();
+    vi.setSystemTime(firstTime);
+    const modified = { ...block, children: [{ type: "formatted", text: "甲丙" }] };
+    const second = ContentDocumentBlocks.commit(db, contentId, {
+      documentId: saved.documentId,
+      expectedRevision: first.revision,
+      contracts: saved.contracts,
+      blocks: [modified],
+      count: () => 2,
+      countRules: "test",
+    });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([{ type: "card.updated", id }]);
+    hoisted.send.mockClear();
+    ContentDocumentBlocks.commit(db, contentId, {
+      documentId: saved.documentId,
+      expectedRevision: second.revision,
+      contracts: saved.contracts,
+      blocks: [modified],
+      count: () => 2,
+      countRules: "test",
+    });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([]);
   });
 
   it("先建后删不产生事件；文章软删按删除处理", async () => {

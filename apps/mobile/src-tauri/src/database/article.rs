@@ -85,7 +85,7 @@ const ARTICLE_SELECT: &str = "
            MAX(a.update_time, COALESCE(c.update_time, 0)),
            c.content
     FROM articles a
-    LEFT JOIN contents c ON c.id = a.content_id
+    LEFT JOIN content_snapshots c ON c.id = a.content_id
     WHERE a.is_delete = 0
 ";
 

@@ -265,7 +265,7 @@ class FlashcardTable {
     if (!cardIds.length) return {};
     const placeholders = cardIds.map(() => "?").join(",");
 
-    // LEFT JOIN contents to get full content data
+    // LEFT JOIN content_snapshots to get full content data
     const rows = db
       .prepare(
         `SELECT
@@ -279,7 +279,7 @@ class FlashcardTable {
           d.contracts as content_contracts,
           d.revision as content_revision
         FROM flashcard_references fr
-        LEFT JOIN contents c ON fr.content_id = c.id
+        LEFT JOIN content_snapshots c ON fr.content_id = c.id
         LEFT JOIN content_documents d ON d.content_id = c.id
         WHERE fr.card_id IN (${placeholders})`
       )

@@ -277,7 +277,8 @@ export default class RandomWalkTable {
     const date = parseDate((rawParams as Partial<RandomWalkDailyDeckParams> | null)?.date);
     if (!date) throw new Error("漫步日期无效");
     const previous = db.prepare(`SELECT items FROM walk_daily_decks WHERE date = ?`).get(date) as
-      { items: string } | undefined;
+      | { items: string }
+      | undefined;
     const previousRefs = previous
       ? this.parseDeckItems(db, previous.items).map(item => item.ref)
       : [];
@@ -298,19 +299,19 @@ export default class RandomWalkTable {
         `SELECT 'card' AS kind, c.id AS id, c.create_time AS create_time, c.update_time AS update_time,
                 CAST(NULL AS TEXT) AS day, 0 AS day_created, v.last_seen_time AS last_seen_time,
                 CAST(NULL AS INTEGER) AS quote_len, CAST(NULL AS TEXT) AS notes, c.tags AS tags
-         FROM cards c JOIN contents ct ON ct.id = c.content_id
+         FROM cards c JOIN content_snapshots ct ON ct.id = c.content_id
          LEFT JOIN walk_visits v ON v.kind = 'card' AND v.entity_id = c.id
          WHERE IFNULL(ct.count, 0) >= ${MIN_WORDS} AND IFNULL(v.muted, 0) = 0
          UNION ALL
          SELECT 'article', a.id, a.create_time, a.update_time, CAST(NULL AS TEXT), 0, v.last_seen_time,
                 CAST(NULL AS INTEGER), CAST(NULL AS TEXT), a.tags
-         FROM articles a JOIN contents ct ON ct.id = a.content_id
+         FROM articles a JOIN content_snapshots ct ON ct.id = a.content_id
          LEFT JOIN walk_visits v ON v.kind = 'article' AND v.entity_id = a.id
          WHERE a.is_delete = 0 AND IFNULL(ct.count, 0) >= ${MIN_WORDS} AND IFNULL(v.muted, 0) = 0
          UNION ALL
          SELECT 'project-item', p.id, p.create_time, p.update_time, CAST(NULL AS TEXT), 0, v.last_seen_time,
                 CAST(NULL AS INTEGER), CAST(NULL AS TEXT), p.tags
-         FROM project_item p JOIN contents ct ON ct.id = p.content_id
+         FROM project_item p JOIN content_snapshots ct ON ct.id = p.content_id
          LEFT JOIN walk_visits v ON v.kind = 'project-item' AND v.entity_id = p.id
          WHERE p.project_item_type = 'document' AND IFNULL(ct.count, 0) >= ${MIN_WORDS}
            AND IFNULL(v.muted, 0) = 0
@@ -318,7 +319,7 @@ export default class RandomWalkTable {
          SELECT 'diary-moment', s.id, s.create_time, s.update_time, d.date, d.create_time, v.last_seen_time,
                 CAST(NULL AS INTEGER), CAST(NULL AS TEXT), s.tags
          FROM diary_segments s
-         JOIN contents ct ON ct.id = s.content_id
+         JOIN content_snapshots ct ON ct.id = s.content_id
          JOIN diary_entries d ON d.id = s.diary_id
          LEFT JOIN walk_visits v ON v.kind = 'diary-moment' AND v.entity_id = s.id
          WHERE IFNULL(ct.count, 0) >= ${MIN_WORDS} AND IFNULL(v.muted, 0) = 0
@@ -405,7 +406,8 @@ export default class RandomWalkTable {
     switch (ref.kind) {
       case "card": {
         const row = db.prepare(`SELECT content_id FROM cards WHERE id = ?`).get(ref.id) as
-          { content_id: number | null } | undefined;
+          | { content_id: number | null }
+          | undefined;
         if (!row?.content_id) return null;
         const aiTitle = contentTitles(db, [row.content_id], 0).get(row.content_id);
         return (
@@ -436,7 +438,8 @@ export default class RandomWalkTable {
              JOIN diary_entries d ON d.id = s.diary_id WHERE s.id = ?`
           )
           .get(ref.id) as
-          { content_id: number | null; date: string; create_time: number } | undefined;
+          | { content_id: number | null; date: string; create_time: number }
+          | undefined;
         if (!row?.content_id) return null;
         return dayjs(normalizeDiaryDay(row.date, row.create_time)).format("YYYY年M月D日");
       }
@@ -516,7 +519,8 @@ export default class RandomWalkTable {
         const row = db
           .prepare(`SELECT title, content_id, tags FROM articles WHERE id = ? AND is_delete = 0`)
           .get(candidate.id) as
-          { title: string | null; content_id: number | null; tags: string | null } | undefined;
+          | { title: string | null; content_id: number | null; tags: string | null }
+          | undefined;
         if (!row?.content_id) return null;
         return {
           ...base,
@@ -544,7 +548,8 @@ export default class RandomWalkTable {
         const project =
           projectId != null
             ? (db.prepare(`SELECT title FROM project WHERE id = ?`).get(projectId) as
-                { title: string | null } | undefined)
+                | { title: string | null }
+                | undefined)
             : undefined;
         return {
           ...base,

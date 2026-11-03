@@ -69,13 +69,17 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 正文订阅快照以 `documentIdentity` 单独返回主进程确认的正文 ID、基线 ID 与代次；渲染端按该身份校验快照。本机订阅会话 ID 只用于 IPC 路由、视图与草稿归属，不能代替正文的稳定 ID。
 
+卡片、文章与项目文档的编辑时间取实体与正文更新时间的较大值。正文会话按主进程已应用的 Yjs 事务分别推进正文与契约的变更代次，覆盖本地输入、撤销重做、协作更新与宿主补丁；仅比较事务触及字段的旧值与当前值，同值属性写入和空文本增量不推进代次。正常投影以本轮代次与已确认代次的差异判断改动，不比较全文。仅补充内部契约时持久化字典并保持原正文与更新时间，不记编辑操作；正文事务推进更新时间并记操作，标题变化独立投影。打开前的正文自愈保留原更新时间，不记编辑操作，仍发送正文写入通知以刷新派生数据。
+
+正文自动投影每秒检查文档脏标记，没有文档更新时不执行投影；光标与在线状态独立于正文更新。常规编辑按事务触及节点定位顶层块，只对受影响块执行本地化、字数计算与主库提交；完整正文通过统一视图读取。首次拆块、恢复对账、整篇替换、跨端和检查点边界以[正文持久化](/docs/architecture/content-storage.md)为准。
+
 主库开库会事务性删除已退役的 `_tau_device_*` 内部表、索引与捕获触发器，包括隔离副本和同步日志；应用启动逐一清理应用数据目录中的全部 `.db` 文件（包括未打开的库），然后删除旧配对与协调配置。普通正文、资源文件、云端同步配置和实时协作身份保留。
 
 ### 正文与白板格式边界
 
 客户端只编辑当前格式：正文协议 2、白板协议 3。旧正文的解码、只读替代文档和 XmlText 补丁分支已删除；当前节点补丁、输入草稿、跨视图同步与撤销保留。不执行后台扫描或插件数据版本升级，也不创建、登记、导出或安装正文/白板恢复包；格式问题一律在读取与打开时自愈（见下两段）。
 
-正文自愈（`src-electron/main/modules/content-repair.ts`）：`content:get-by-id` 与打开正文会话前，若正文缺 `collabId`、缺或错 `tauContract`、身份重复或尚无 `content_documents` 记录，先把原始正文与文档行写入 `content-repairs/<时间>-<库>-<id>.json`，再经内容转换窗口的 `repair-content`（`ElementContractCatalog.repairDocument`）补齐并同事务落库，原有有效身份与契约保留，稳定正文身份不变。当前没有声明的节点以 `host.recovered` 名下合成的契约原样保留（编辑器显示「内容已保留」占位），实体块缺有效来源引用时同样只保留不伪造引用。合格正文只做一次校验、不改写；协作中的正文以会话为准，不按主库修复。`format_version` 不是 2 的文档记录只可能由更新的客户端写入，不修复，读取方照常报「正文数据格式不兼容」，避免旧端按旧理解改写新数据。
+正文自愈（`src-electron/main/modules/content-repair.ts`）：`content:get-by-id` 与打开正文会话前，若正文缺 `collabId`、缺或错 `tauContract`、身份重复或尚无 `content_documents` 记录，先把原始正文与文档行写入 `content-repairs/<时间>-<库>-<id>.json`，再经内容转换窗口的 `repair-content`（`ElementContractCatalog.repairDocument`）补齐并同事务落库，原有有效身份与契约保留，稳定正文身份不变。当前没有声明的节点以 `host.recovered` 名下合成的契约原样保留（编辑器显示「内容已保留」占位），实体块缺有效来源引用时同样只保留不伪造引用。合格正文只做一次校验、不改写；协作中的正文以会话为准，不按主库修复。主库存储布局不是 2 或 3 的文档记录不修复，读取方照常报「正文数据格式不兼容」，避免按旧理解改写新数据；它与正文 Yjs 协议 2 独立。
 
 白板自愈（`whiteboard-documents/repair.ts`，由 `white-board-content:get-by-id` 与 `WhiteboardDocumentSessions.open` 触发，备份在 `whiteboard-documents/repairs/`）：主库检查点摘要不符或字节读不出时，按同事务写入的 JSON 快照投影经 `createWhiteboardBaseline` 重建状态。本机日志读不出或与主库分叉时，`WhiteboardJournal.quarantine` 把原始行写入 `whiteboard-documents/discarded/` 后按主库重建；日志文件版本高于当前客户端时整份移入 `discarded/` 后新建。主库是权威，日志只是可重建的缓存。来源基线或拥有者错位不改写、保持报错（身份问题，改写会掩盖它）；旧 JSON 页（无文档记录）不转换，所有用户已在 0.60.1 完成转换。
 

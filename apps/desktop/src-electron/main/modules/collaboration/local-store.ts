@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import type { CollaborationSession } from "@tau/collaboration";
 import type { ResourceRow } from "./asset-service";
+import { writeContentSaveLog, contentSaveError } from "./persistence-diagnostics";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
@@ -116,6 +117,7 @@ export class CollaborationLocalStore {
     doc: Y.Doc;
     info: CollaborationSession;
   } {
+    const started = performance.now();
     const row = this.db
       .prepare("SELECT state,state_hash,metadata FROM sessions WHERE id=?")
       .get(id) as { state: Buffer; state_hash: string | null; metadata: string } | undefined;
@@ -125,17 +127,32 @@ export class CollaborationLocalStore {
       if (row.state_hash && row.state_hash !== digest(row.state))
         throw new Error("协作缓存快照摘要不匹配");
       Y.applyUpdate(doc, row.state);
-      for (const update of this.db
+      const updates = this.db
         .prepare("SELECT state,hash FROM updates WHERE document_id=? ORDER BY id")
-        .all(id) as { state: Buffer; hash: string | null }[]) {
+        .all(id) as { state: Buffer; hash: string | null }[];
+      for (const update of updates) {
         if (update.hash && update.hash !== digest(update.state))
           throw new Error("协作缓存增量摘要不匹配");
         Y.applyUpdate(doc, update.state);
       }
       const info = JSON.parse(row.metadata) as CollaborationSession;
       if (info.id !== id) throw new Error("协作缓存元数据身份不匹配");
+      writeContentSaveLog("info", "正文缓存恢复完成", {
+        sessionId: id,
+        documentId: info.source?.contentDocumentId,
+        contentId: info.source?.contentId,
+        snapshotBytes: row.state.byteLength,
+        replayedUpdates: updates.length,
+        elapsedMs: Math.round(performance.now() - started),
+      });
       return { doc, info };
     } catch (error) {
+      writeContentSaveLog("warn", "正文缓存恢复失败，保留原始材料", {
+        sessionId: id,
+        snapshotBytes: row.state.byteLength,
+        elapsedMs: Math.round(performance.now() - started),
+        ...contentSaveError(error),
+      });
       doc.destroy();
       throw error;
     }
@@ -149,9 +166,10 @@ export class CollaborationLocalStore {
       .run(session.id, JSON.stringify(session), state, digest(state));
   }
   metadata(session: CollaborationSession) {
+    const value = JSON.stringify(session);
     this.db
-      .prepare("UPDATE sessions SET metadata=? WHERE id=?")
-      .run(JSON.stringify(session), session.id);
+      .prepare("UPDATE sessions SET metadata=? WHERE id=? AND metadata IS NOT ?")
+      .run(value, session.id, value);
   }
   append(id: string, update: Uint8Array) {
     if (!this.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id))
@@ -161,14 +179,30 @@ export class CollaborationLocalStore {
       .run(id, Buffer.from(update), digest(update));
   }
   compact(id: string, doc: Y.Doc) {
+    const started = performance.now();
     const state = Buffer.from(Y.encodeStateAsUpdate(doc));
-    this.db.transaction(() => {
+    const removedUpdates = this.db.transaction(() => {
       const result = this.db
         .prepare("UPDATE sessions SET state=?,state_hash=? WHERE id=?")
         .run(state, digest(state), id);
       if (result.changes !== 1) throw new Error("协作缓存会话已失效，不能清理增量");
-      this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
+      return this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id).changes;
     })();
+    writeContentSaveLog("info", "正文检查点完成", {
+      sessionId: id,
+      snapshotBytes: state.byteLength,
+      removedUpdates,
+      elapsedMs: Math.round(performance.now() - started),
+    });
+  }
+
+  shouldCompact(id: string): boolean {
+    const pending = this.db
+      .prepare(
+        "SELECT count(*) AS count,coalesce(sum(length(state)),0) AS bytes FROM updates WHERE document_id=?"
+      )
+      .get(id) as { count: number; bytes: number };
+    return pending.count >= 128 || pending.bytes >= 512 * 1024;
   }
   /**
    * 无法恢复的缓存：原始快照与增量写入 discarded/ 备份后删除，

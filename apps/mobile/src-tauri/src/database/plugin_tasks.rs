@@ -872,7 +872,7 @@ async fn task_holidays(
         if conn.database_name() != database {
             return Err("插件工作区已失效".into());
         }
-        conn.query_row("SELECT EXISTS(SELECT 1 FROM todo_recurrence WHERE exclude_holidays=1) OR EXISTS(SELECT 1 FROM todo_recurrence_history WHERE json_valid(rule_json) AND json_extract(rule_json,'$.excludeHolidays')=1) OR EXISTS(SELECT 1 FROM contents WHERE instr(content,'excludeHolidays')>0)",[],|row|row.get::<_,bool>(0)).map_err(sql_error)
+        conn.query_row("SELECT EXISTS(SELECT 1 FROM todo_recurrence WHERE exclude_holidays=1) OR EXISTS(SELECT 1 FROM todo_recurrence_history WHERE json_valid(rule_json) AND json_extract(rule_json,'$.excludeHolidays')=1) OR EXISTS(SELECT 1 FROM content_snapshots WHERE instr(content,'excludeHolidays')>0)",[],|row|row.get::<_,bool>(0)).map_err(sql_error)
     })?;
     if needs {
         super::calendar_holidays::load_task_holidays(app, start, end - 1, zone).await

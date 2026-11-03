@@ -420,7 +420,7 @@ fn remove(
             super::collaboration::assert_content_local(conn, content)?;
             payload["contentCreatedAt"] = json!(conn
                 .query_row(
-                    "SELECT create_time FROM contents WHERE id=?1",
+                    "SELECT create_time FROM content_snapshots WHERE id=?1",
                     [content],
                     |row| row.get::<_, i64>(0)
                 )

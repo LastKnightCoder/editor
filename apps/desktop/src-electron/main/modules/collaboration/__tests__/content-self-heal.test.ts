@@ -248,6 +248,16 @@ describe("打开时自愈", () => {
         ).run(JSON.stringify(ContentDocumentTable.read(db, 7)!.contracts));
       await expect(runtime.openContent(event, { contentId: 8 })).resolves.toBeTruthy();
       const stored = ContentDocumentTable.read(db, 8)!;
+      expect(db.prepare("SELECT update_time FROM contents WHERE id=8").get()).toEqual({
+        update_time: 2,
+      });
+      expect(
+        db
+          .prepare(
+            "SELECT * FROM operation WHERE operation_content_type='content' AND operation_id=8"
+          )
+          .all()
+      ).toHaveLength(0);
       expect(ContentDocumentTable.problem(stored.content, stored.contracts)).toBeNull();
       if (name !== "旧格式正文") expect(stored.documentId).toBe("doc-8");
       for (const word of JSON.stringify(shape(paragraph)).match(/"text":"([^"]+)"/g) ?? [])
@@ -270,7 +280,7 @@ describe("打开时自愈", () => {
       ])
     );
     db.prepare(
-      "INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (8,'doc-8',3,'{\"未来\":1}','r9')"
+      "INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (8,'doc-8',4,'{\"未来\":1}','r9')"
     ).run();
     await expect(runtime.openContent(event, { contentId: 8 })).rejects.toThrow("格式不兼容");
     expect(
@@ -279,7 +289,7 @@ describe("打开时自愈", () => {
           "SELECT format_version,contracts,revision FROM content_documents WHERE content_id=8"
         )
         .get()
-    ).toEqual({ format_version: 3, contracts: '{"未来":1}', revision: "r9" });
+    ).toEqual({ format_version: 4, contracts: '{"未来":1}', revision: "r9" });
     expect(existsSync(join(host.dir, "content-repairs"))).toBe(false);
   });
 

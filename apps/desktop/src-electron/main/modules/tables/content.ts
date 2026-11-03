@@ -36,6 +36,7 @@ import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import { getNextTaskEntityId } from "./module-entity-id";
 import { ContentDocumentTable } from "./content-document";
 import { NODE_CONTRACT_PROPERTY } from "@tau/db-schema/content-contracts";
+import { isSupportedContentStorageVersion } from "@tau/db-schema";
 
 /** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */
 export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -88,7 +89,7 @@ export default class ContentTable {
   }
 
   static getContentById(db: Database.Database, contentId: number | bigint): IContent | null {
-    const stmt = db.prepare("SELECT * FROM contents WHERE id = ?");
+    const stmt = db.prepare("SELECT * FROM content_snapshots WHERE id = ?");
     const content = stmt.get(contentId);
     if (!content) {
       return null;
@@ -117,7 +118,7 @@ export default class ContentTable {
 
   static getAllContents(db: Database.Database): IContent[] {
     const stmt = db.prepare(
-      "SELECT c.*,d.contracts,d.revision FROM contents c LEFT JOIN content_documents d ON d.content_id=c.id ORDER BY c.create_time DESC"
+      "SELECT c.*,d.contracts,d.revision FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id ORDER BY c.create_time DESC"
     );
     const contents = stmt.all();
     return contents.map(content => this.parseContent(content));
@@ -128,7 +129,7 @@ export default class ContentTable {
 
     const placeholders = contentIds.map(() => "?").join(",");
     const stmt = db.prepare(
-      `SELECT c.*,d.contracts,d.revision FROM contents c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id IN (${placeholders})`
+      `SELECT c.*,d.contracts,d.revision FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id IN (${placeholders})`
     );
     const contents = stmt.all(contentIds);
     return contents.map(content => this.parseContent(content));
@@ -150,13 +151,16 @@ export default class ContentTable {
     if (signal?.aborted) throw new Error("正文转换已结束");
     const document = db
       .prepare(
-        "SELECT c.content, d.contracts, d.format_version FROM contents c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id=?"
+        "SELECT c.content, d.contracts, d.format_version FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id=?"
       )
       .get(contentId) as
       | { content: string; contracts: string | null; format_version: number | null }
       | undefined;
     if (!document) return { content: "", sections: sections ? [] : undefined };
-    if (document.format_version !== null && document.format_version !== 2)
+    if (
+      document.format_version !== null &&
+      !isSupportedContentStorageVersion(document.format_version)
+    )
       throw new Error("正文数据格式不兼容");
     const session = contentSession(db, contentId);
     const active = session?.doc.getMap("meta").get("version") === 2;
@@ -334,7 +338,7 @@ export default class ContentTable {
       if (findCollaborationBinding(db, contentId)) return 0;
     } else assertContentIsLocal(db, contentId);
 
-    const row = db.prepare("SELECT content FROM contents WHERE id = ?").get(contentId) as
+    const row = db.prepare("SELECT content FROM content_snapshots WHERE id = ?").get(contentId) as
       | { content: string }
       | undefined;
     if (!row) return 0;
@@ -392,7 +396,7 @@ export default class ContentTable {
     if (stored) {
       db.transaction(() => {
         const previous = db
-          .prepare("SELECT update_time FROM contents WHERE id=?")
+          .prepare("SELECT update_time FROM content_snapshots WHERE id=?")
           .get(contentId) as { update_time: number };
         ContentDocumentTable.commit(
           db,
@@ -446,7 +450,7 @@ export default class ContentTable {
     decrementStmt.run(contentId);
 
     // 查询当前引用计数
-    const refCountStmt = db.prepare("SELECT ref_count FROM contents WHERE id = ?");
+    const refCountStmt = db.prepare("SELECT ref_count FROM content_snapshots WHERE id = ?");
     const result = refCountStmt.get(contentId) as { ref_count: number } | undefined;
 
     // 如果引用计数为0，则删除
@@ -515,9 +519,9 @@ export default class ContentTable {
     db.prepare("UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0").run(
       contentId
     );
-    const row = db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
-      | { ref_count: number }
-      | undefined;
+    const row = db
+      .prepare("SELECT ref_count FROM content_snapshots WHERE id = ?")
+      .get(contentId) as { ref_count: number } | undefined;
     if (!row || row.ref_count > 0) return;
     db.prepare(
       "INSERT OR IGNORE INTO content_pending_releases (content_id, released_at) VALUES (?, ?)"
@@ -538,9 +542,9 @@ export default class ContentTable {
       try {
         // better-sqlite3 事务可嵌套（自动降级为 savepoint），外层已有事务时也能安全调用
         purged += db.transaction(() => {
-          const row = db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
-            | { ref_count: number }
-            | undefined;
+          const row = db
+            .prepare("SELECT ref_count FROM content_snapshots WHERE id = ?")
+            .get(contentId) as { ref_count: number } | undefined;
           if (!row || row.ref_count > 0) {
             db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);
             return 0;
@@ -556,14 +560,14 @@ export default class ContentTable {
 
   static searchContentByText(db: Database.Database, text: string, limit = 100): IContent[] {
     const stmt = db.prepare(
-      `SELECT * FROM contents WHERE content LIKE ? ORDER BY update_time DESC LIMIT ?`
+      `SELECT * FROM content_snapshots WHERE content LIKE ? ORDER BY update_time DESC LIMIT ?`
     );
     const contents = stmt.all(`%${text}%`, limit);
     return contents.map(content => this.parseContent(content));
   }
 
   static getTotalCount(db: Database.Database): number {
-    const stmt = db.prepare("SELECT COUNT(*) as count FROM contents");
+    const stmt = db.prepare("SELECT COUNT(*) as count FROM content_snapshots");
     const result = stmt.get() as { count: number };
     return result.count;
   }
@@ -572,10 +576,10 @@ export default class ContentTable {
     totalCount: number;
     totalCharacters: number;
   } {
-    const countStmt = db.prepare("SELECT COUNT(*) as count FROM contents");
+    const countStmt = db.prepare("SELECT COUNT(*) as count FROM content_snapshots");
     const totalCountResult = countStmt.get() as { count: number };
 
-    const charsStmt = db.prepare("SELECT SUM(count) as totalChars FROM contents");
+    const charsStmt = db.prepare("SELECT SUM(count) as totalChars FROM content_snapshots");
     const totalCharsResult = charsStmt.get() as { totalChars: number };
 
     return {

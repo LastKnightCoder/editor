@@ -154,7 +154,7 @@ export default class ContentAiInsightsTable {
     return db
       .prepare(
         `DELETE FROM content_ai_insights
-         WHERE NOT EXISTS (SELECT 1 FROM contents c WHERE c.id = content_ai_insights.content_id)`
+         WHERE NOT EXISTS (SELECT 1 FROM content_snapshots c WHERE c.id = content_ai_insights.content_id)`
       )
       .run().changes;
   }

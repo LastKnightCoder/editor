@@ -70,11 +70,16 @@ import {
   findContentTitle,
   projectContentTitle,
   projectContractContent,
+  projectContentBlocks,
+  contentProjectionChanges,
+  readContentProjectionHead,
   registerContentSession,
   contentSession,
   unregisterContentSession,
   contentRevision,
 } from "./content-sessions";
+import { desktopContentMetrics } from "../../../../shared/content-metrics";
+import { reportContentSaveIssue, reportContentSaveComplete } from "./persistence-diagnostics";
 
 export class CollaborationManager {
   name = "collaboration";
@@ -84,7 +89,7 @@ export class CollaborationManager {
   private stopDocumentDrain?: () => void;
   private assets!: CollaborationAssetService;
   private client!: CollaborationClient;
-  private projecting = new Set<string>();
+  private projecting = new Map<string, Promise<void>>();
   private directory = "";
   private sessions = new Map<string, RuntimeSession>();
   private transports = new Map<string, HocuspocusProviderWebsocket>();
@@ -258,6 +263,9 @@ export class CollaborationManager {
       store: this.store,
       dirty: true,
       projectionDirty: true,
+      projectionVersion: { content: 0, contracts: 0 },
+      projectionTree: new NodeTree(doc),
+      projectionNodes: new Map(),
     };
     session.awareness.setLocalState(null);
     // 广播与落盘一律读 session.info.id：发起或结束共享会换 documentId，
@@ -277,34 +285,71 @@ export class CollaborationManager {
     session.persistNodeUpdate = update => this.store.append(session.info.id, update);
     session.retainNodeState = candidate => this.retainNodeState(session, candidate);
     this.retainNodeState(session, doc);
-    doc.on("update", (update: Uint8Array, origin: unknown) => {
-      if (origin !== "renderer-persisted") this.store.append(session.info.id, update);
-      session.dirty = true;
-      session.projectionDirty = true;
-      try {
-        this.retainNodeState(session, doc);
-      } catch (failure) {
-        session.info.error = failure instanceof Error ? failure.message : "实体持有记录尚未保存";
-        this.changed(session);
+    doc.on(
+      "update",
+      (update: Uint8Array, origin: unknown, _doc: Y.Doc, transaction: Y.Transaction) => {
+        session.dirty = true;
+        session.projectionDirty = true;
+        const version = session.projectionVersion!;
+        const changes = contentProjectionChanges(doc, transaction);
+        const treeChanges = session.projectionTree?.transactionChanges(transaction);
+        if (changes.content) {
+          version.content++;
+          if (!treeChanges || treeChanges.structural) session.projectionStructure = version.content;
+          for (const id of treeChanges?.nodes ?? [])
+            session.projectionNodes?.set(id, version.content);
+        }
+        if (changes.contracts) version.contracts++;
+        if (origin !== "renderer-persisted") {
+          try {
+            this.store.append(session.info.id, update);
+          } catch (error) {
+            session.cacheWriteFailed = true;
+            session.info.error = `正文缓存尚未保存：${error instanceof Error ? error.message : String(error)}`;
+            reportContentSaveIssue(session, "journal", error, { bytes: update.byteLength });
+            throw error;
+          }
+        }
+        try {
+          this.retainNodeState(session, doc);
+        } catch (failure) {
+          session.info.error = failure instanceof Error ? failure.message : "实体持有记录尚未保存";
+          this.changed(session);
+        }
+        if (session.info.mode !== "local" && origin !== session.provider)
+          session.info.pending = true;
+        const title = doc.getText("title").toString();
+        if (session.info.title !== title) {
+          session.info.title = title;
+          this.changed(session);
+        }
+        this.store.metadata(session.info);
+        this.broadcast("collaboration:update", { documentId: session.info.id, update });
+        this.broadcast("collaboration:content", {
+          documentId: session.info.id,
+          source: session.info.source,
+          title,
+        });
+        const source = session.info.source;
+        const db = source && databaseModule.getDatabase(source.databaseName);
+        const nodeEvents = transaction.changedParentTypes.get(doc.share.get("node-tree:nodes")!);
+        // 文字输入沿用已有任务身份，结构或 taskId 变化才需要重新核对。
+        const needsTaskIds =
+          treeChanges?.structural ||
+          nodeEvents?.some(
+            event =>
+              event instanceof Y.YMapEvent &&
+              (event.keysChanged.has("type") || event.keysChanged.has("taskId"))
+          );
+        if (
+          changes.content &&
+          needsTaskIds &&
+          db?.open &&
+          contentSession(db, source!.contentId) === session
+        )
+          ContentTable.ensureTaskIds(db, source!.contentId);
       }
-      if (session.info.mode !== "local" && origin !== session.provider) session.info.pending = true;
-      const title = doc.getText("title").toString();
-      if (session.info.title !== title) {
-        session.info.title = title;
-        this.changed(session);
-      }
-      this.store.metadata(session.info);
-      this.broadcast("collaboration:update", { documentId: session.info.id, update });
-      this.broadcast("collaboration:content", {
-        documentId: session.info.id,
-        source: session.info.source,
-        title,
-      });
-      const source = session.info.source;
-      const db = source && databaseModule.getDatabase(source.databaseName);
-      if (db?.open && contentSession(db, source!.contentId) === session)
-        ContentTable.ensureTaskIds(db, source!.contentId);
-    });
+    );
     const source = session.info.source;
     const db = source && databaseModule.getDatabase(source.databaseName);
     if (db?.open && source) {
@@ -1394,13 +1439,37 @@ export class CollaborationManager {
     }
   }
 
-  private async project(session: RuntimeSession) {
-    if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return;
-    if (this.projecting.has(session.info.id)) return;
-    this.projecting.add(session.info.id);
+  private project(session: RuntimeSession): Promise<void> {
+    if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
+      return Promise.resolve();
+    const id = session.info.id;
+    const pending = this.projecting.get(id);
+    if (pending) return pending;
+    const task = this.projectSession(session).finally(() => {
+      if (this.projecting.get(id) === task) this.projecting.delete(id);
+    });
+    this.projecting.set(id, task);
+    return task;
+  }
+
+  private async projectSession(session: RuntimeSession) {
+    const started = performance.now();
+    let stage = "checkpoint",
+      path = "idle",
+      selectedBlocks = 0,
+      writtenBlocks = 0;
+    let committed = false;
+    let storageBefore: number | null | undefined;
+    let expectedRevision: string | undefined, actualRevision: string | undefined;
     try {
       // 异步补存期间收到的新更新仍须触发下一轮投影。
       session.projectionDirty = false;
+      if (session.cacheWriteFailed) {
+        this.store.compact(session.info.id, session.doc);
+        session.cacheWriteFailed = false;
+        session.dirty = false;
+      }
+      stage = "assets";
       await this.preserveOwnerImages(session);
       const source = session.info.source;
       if (!source) {
@@ -1410,44 +1479,124 @@ export class CollaborationManager {
       const database = databaseModule.getDatabase(source.databaseName);
       if (!database?.open) {
         session.projectionDirty = true;
+        reportContentSaveIssue(session, "database-unavailable");
         return;
       }
       const local = session.info.mode === "local";
       if (local && findCollaborationBinding(database, source.contentId)) {
         session.projectionDirty = true;
+        reportContentSaveIssue(session, "binding-changed");
         return;
       }
-      const stored = ContentDocumentTable.read(database, source.contentId);
-      if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
-      const contracts = session.doc
-        .getMap("node-tree:contracts")
-        .toJSON() as ContentContractDictionary;
-      const value = await this.assets.localizeDocument(
-        session.info.serverUrl,
-        session.info.id,
-        readNodeDocument(session.doc),
-        contracts
-      );
-      if (
-        databaseModule.getDatabase(source.databaseName) !== database ||
-        !database.open ||
-        this.sessions.get(session.info.id) !== session
-      ) {
-        session.projectionDirty = true;
-        return;
+      stage = "identity";
+      expectedRevision = source.projectionRevision;
+      const head = readContentProjectionHead(database, source, session);
+      actualRevision = head.revision;
+      storageBefore = head.formatVersion;
+      // 只确认本轮快照的代次，异步期间到达的新事务留给下一轮。
+      const version = session.projectionVersion && { ...session.projectionVersion };
+      const confirmed = session.projectedVersion;
+      const changes =
+        version && confirmed
+          ? {
+              content: version.content !== confirmed.content,
+              contracts: version.contracts !== confirmed.contracts,
+            }
+          : undefined;
+      if (changes && head.revision !== source.projectionRevision)
+        throw new Error("正文投影修订冲突，已保留原缓存并暂停写入");
+      let changed = false;
+      if (!changes || changes.content || changes.contracts) {
+        const contracts = session.doc
+          .getMap("node-tree:contracts")
+          .toJSON() as ContentContractDictionary;
+        const tree = session.projectionTree;
+        const incremental = Boolean(changes && tree);
+        const structural = Boolean(
+          incremental && changes!.content && (session.projectionStructure ?? 0) > confirmed!.content
+        );
+        path = !incremental
+          ? "reconcile"
+          : structural
+            ? "structure"
+            : changes!.content
+              ? "blocks"
+              : "contracts";
+        let content: ContentNode[];
+        if (changes && !changes.content) content = [];
+        else if (incremental && !structural) {
+          const roots = new Set<string>();
+          for (const [id, changedAt] of session.projectionNodes ?? []) {
+            if (changedAt <= confirmed!.content || changedAt > version!.content) continue;
+            const root = tree!.rootBlockId(id);
+            if (root) roots.add(root);
+          }
+          content = [...roots].map(id => tree!.nodeSnapshot(id));
+        } else
+          content = tree
+            ? (tree.snapshot() as ContentNode[])
+            : readNodeDocument(session.doc).content;
+        if (content.length) {
+          stage = "localize";
+          const meta = session.doc.getMap("meta");
+          const value = await this.assets.localizeDocument(
+            session.info.serverUrl,
+            session.info.id,
+            {
+              title: session.doc.getText("title").toString(),
+              bannerBg: String(meta.get("bannerBg")),
+              bannerPosition: String(meta.get("bannerPosition")),
+              content,
+            },
+            contracts
+          );
+          content = value.content;
+        }
+        selectedBlocks = content.length;
+        if (
+          databaseModule.getDatabase(source.databaseName) !== database ||
+          !database.open ||
+          this.sessions.get(session.info.id) !== session
+        ) {
+          session.projectionDirty = true;
+          reportContentSaveIssue(session, "target-changed");
+          return;
+        }
+        stage = "commit";
+        if (incremental) {
+          const result = projectContentBlocks(database, source, session, {
+            documentId: head.documentId,
+            expectedRevision: source.projectionRevision!,
+            contracts,
+            blocks: content,
+            order: structural ? content.map(node => String(node.collabId)) : undefined,
+            count: blocks => getContentLength(blocks as import("slate").Descendant[]),
+            countRules: JSON.stringify(desktopContentMetrics.rules),
+          });
+          changed = result.changed;
+          writtenBlocks = result.writtenBlocks;
+        } else
+          changed = projectContractContent(
+            database,
+            source,
+            session,
+            { documentId: head.documentId, contracts, content },
+            source.projectionRevision,
+            getContentLength(content as import("slate").Descendant[]),
+            changes
+          );
+        committed = true;
       }
-      const count = getContentLength(value.content as import("slate").Descendant[]);
-      const changed = projectContractContent(
-        database,
-        source,
-        session,
-        { documentId: stored.documentId, contracts, content: value.content },
-        source.projectionRevision,
-        count
-      );
-      source.projectionRevision = ContentDocumentTable.read(database, source.contentId)!.revision;
+      stage = "acknowledge";
+      const saved = readContentProjectionHead(database, source, session);
+      source.projectionRevision = saved.revision;
+      session.projectedVersion = version;
+      for (const [id, changedAt] of session.projectionNodes ?? [])
+        if (version && changedAt <= version.content) session.projectionNodes!.delete(id);
       this.store.metadata(session.info);
-      for (const entry of projectContentTitle(database, source.contentId, value.title))
+      stage = "notify";
+      const title = session.doc.getText("title").toString();
+      for (const entry of projectContentTitle(database, source.contentId, title))
         this.broadcast(entry.channel, {
           databaseName: basename(database.name),
           [entry.field]: entry.id,
@@ -1459,23 +1608,40 @@ export class CollaborationManager {
         });
         emitContentWritten(database, source.contentId, "update");
       }
-      session.info.title = value.title;
-      if (local && session.info.error) {
+      session.info.title = title;
+      if ((local || session.info.error?.startsWith("正文缓存尚未保存：")) && session.info.error) {
         session.info.error = undefined;
         this.changed(session);
       }
+      if (version && session.projectionVersion)
+        session.projectionDirty =
+          version.content !== session.projectionVersion.content ||
+          version.contracts !== session.projectionVersion.contracts;
+      reportContentSaveComplete(session, {
+        path,
+        changed,
+        selectedBlocks,
+        writtenBlocks,
+        elapsedMs: Math.round(performance.now() - started),
+        storageBefore,
+        storageAfter: saved.formatVersion,
+      });
     } catch (error) {
       session.projectionDirty = true;
+      reportContentSaveIssue(session, stage, error, {
+        elapsedMs: Math.round(performance.now() - started),
+        committed,
+        expectedRevision,
+        actualRevision,
+      });
       throw error;
-    } finally {
-      this.projecting.delete(session.info.id);
     }
   }
 
   private async preserveOwnerImages(session: RuntimeSession, references?: Iterable<string>) {
     if (session.info.mode === "local" || session.info.role !== "owner") return;
     try {
-      await this.assets.preserveOwnerImages(
+      const preserved = await this.assets.preserveOwnerImages(
         session.info.serverUrl,
         session.info.id,
         references ?? collectNodeDocumentResources(session.doc),
@@ -1485,6 +1651,10 @@ export class CollaborationManager {
           return reference;
         }
       );
+      if (preserved.length && session.projectionVersion) {
+        session.projectionStructure = ++session.projectionVersion.content;
+        session.projectionDirty = true;
+      }
     } catch (error) {
       throw new Error(
         `作者图片尚未保存：${error instanceof Error ? error.message : String(error)}`
@@ -1688,7 +1858,7 @@ export class CollaborationManager {
         const database = source && databaseModule.getDatabase(source.databaseName);
         if (source && database?.open) {
           const row = database
-            .prepare("SELECT create_time FROM contents WHERE id=?")
+            .prepare("SELECT create_time FROM content_snapshots WHERE id=?")
             .get(source.contentId) as { create_time: number } | undefined;
           const stored = ContentDocumentTable.read(database, source.contentId);
           const matches =
@@ -1879,9 +2049,13 @@ export class CollaborationManager {
     this.autoFlushInterval = setInterval(() => {
       for (const session of this.sessions.values()) {
         try {
-          if (session.dirty) {
+          if (
+            session.dirty &&
+            (session.cacheWriteFailed || this.store.shouldCompact(session.info.id))
+          ) {
             this.store.compact(session.info.id, session.doc);
             session.dirty = false;
+            session.cacheWriteFailed = false;
           }
           if (session.projectionDirty && !session.info.leaving && session.info.status === "active")
             void this.project(session).catch(error => {
@@ -1889,6 +2063,7 @@ export class CollaborationManager {
               this.changed(session);
             });
         } catch (error) {
+          reportContentSaveIssue(session, "checkpoint", error);
           session.info.error = error instanceof Error ? error.message : "本地保存失败";
           this.changed(session);
         }

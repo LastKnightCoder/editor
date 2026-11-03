@@ -258,7 +258,7 @@ export default class CalendarEventTable {
         e.*,
         c.content as detail_content
       FROM calendar_event e
-      LEFT JOIN contents c ON e.detail_content_id = c.id
+      LEFT JOIN content_snapshots c ON e.detail_content_id = c.id
       WHERE (
         (e.start_date >= ? AND e.start_date <= ?) OR
         (e.end_date IS NOT NULL AND e.end_date >= ? AND e.end_date <= ?) OR
@@ -414,7 +414,7 @@ export default class CalendarEventTable {
         e.*,
         c.content as detail_content
       FROM calendar_event e
-      LEFT JOIN contents c ON e.detail_content_id = c.id
+      LEFT JOIN content_snapshots c ON e.detail_content_id = c.id
       WHERE (${dateConditions})
     `;
 

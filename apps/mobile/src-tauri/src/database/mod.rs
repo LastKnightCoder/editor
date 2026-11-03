@@ -163,7 +163,7 @@ pub(super) fn write_content_snapshot_in_zone(
 ) -> Result<i64, String> {
     let had_tasks = tx
         .query_row(
-            "SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM contents WHERE id=?1",
+            "SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM content_snapshots WHERE id=?1",
             [content_id],
             |row| row.get::<_, bool>(0),
         )

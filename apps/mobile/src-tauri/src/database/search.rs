@@ -148,7 +148,7 @@ fn query_cards_by_like(
             "
             SELECT COUNT(1)
             FROM cards c
-            LEFT JOIN contents ct ON c.content_id = ct.id
+            LEFT JOIN content_snapshots ct ON c.content_id = ct.id
             WHERE (
                 ct.content LIKE ?1 ESCAPE '\\'
                 OR c.tags LIKE ?1 ESCAPE '\\'
@@ -164,7 +164,7 @@ fn query_cards_by_like(
             "
             SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
             FROM cards c
-            LEFT JOIN contents ct ON c.content_id = ct.id
+            LEFT JOIN content_snapshots ct ON c.content_id = ct.id
             WHERE (
                 ct.content LIKE ?1 ESCAPE '\\'
                 OR c.tags LIKE ?1 ESCAPE '\\'
@@ -265,7 +265,7 @@ fn query_cards_by_fts(
             SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
             FROM ids i
             JOIN cards c ON c.id = i.card_id
-            LEFT JOIN contents ct ON c.content_id = ct.id
+            LEFT JOIN content_snapshots ct ON c.content_id = ct.id
             ORDER BY c.is_top DESC, i.rank ASC, c.create_time DESC
             LIMIT ?2 OFFSET ?3
             ",
@@ -411,7 +411,7 @@ fn hydrate_unified_result(
         "plugin-entity" => {
             let Some(target)=super::plugin_app::entity_target(conn,id)? else { return Ok(None) };
             let (raw,updated):(Option<String>,i64)=conn.query_row(
-                "SELECT c.content,MAX(e.update_time,c.update_time) FROM plugin_entities e JOIN contents c ON c.id=e.content_id WHERE e.id=?1",
+                "SELECT c.content,MAX(e.update_time,c.update_time) FROM plugin_entities e JOIN content_snapshots c ON c.id=e.content_id WHERE e.id=?1",
                 [id],|row|Ok((row.get(0)?,row.get(1)?)),
             ).map_err(|error|format!("DB_OPEN_FAILED: hydrate plugin entity failed: {error}"))?;
             Ok(Some(UnifiedSearchResult {
@@ -449,7 +449,7 @@ fn hydrate_unified_result(
         "card" => conn
             .query_row(
                 "SELECT c.content_id, c.update_time, c.tags, ct.content
-                 FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id WHERE c.id = ?1",
+                 FROM cards c LEFT JOIN content_snapshots ct ON c.content_id = ct.id WHERE c.id = ?1",
                 params![id],
                 |row| {
                     let content: Option<String> = row.get(3)?;
@@ -474,7 +474,7 @@ fn hydrate_unified_result(
         "article" => conn
             .query_row(
                 "SELECT a.title, a.content_id, MAX(a.update_time, COALESCE(c.update_time, 0)), c.content
-                 FROM articles a LEFT JOIN contents c ON a.content_id = c.id
+                 FROM articles a LEFT JOIN content_snapshots c ON a.content_id = c.id
                  WHERE a.id = ?1 AND a.is_delete = 0",
                 params![id],
                 |row| {
@@ -498,7 +498,7 @@ fn hydrate_unified_result(
         "project-item" => conn
             .query_row(
                 "SELECT pi.title, pi.content_id, pi.update_time, pi.projects, c.content
-                 FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id WHERE pi.id = ?1",
+                 FROM project_item pi LEFT JOIN content_snapshots c ON pi.content_id = c.id WHERE pi.id = ?1",
                 params![id],
                 |row| {
                     let projects: Option<String> = row.get(3)?;
@@ -546,7 +546,7 @@ fn hydrate_unified_result(
             let mut segments_stmt = conn
                 .prepare(
                     "SELECT s.content_id, c.content FROM diary_segments s
-                     JOIN contents c ON c.id = s.content_id WHERE s.diary_id = ?1 ORDER BY s.create_time, s.id",
+                     JOIN content_snapshots c ON c.id = s.content_id WHERE s.diary_id = ?1 ORDER BY s.create_time, s.id",
                 )
                 .map_err(|e| format!("DB_OPEN_FAILED: prepare diary search details: {e}"))?;
             let mut segments = segments_stmt
@@ -587,28 +587,28 @@ fn hydrate_unified_result(
 fn unified_like_sql() -> &'static str {
     "SELECT prefixed_id, type, update_time FROM (
        SELECT 'card:' || c.id AS prefixed_id, 'card' AS type, c.update_time
-       FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id
+       FROM cards c LEFT JOIN content_snapshots ct ON c.content_id = ct.id
        WHERE ct.content LIKE ?1 ESCAPE '\\' OR c.tags LIKE ?1 ESCAPE '\\'
        UNION ALL
        SELECT 'article:' || a.id, 'article', MAX(a.update_time, COALESCE(c.update_time, 0))
-       FROM articles a LEFT JOIN contents c ON a.content_id = c.id
+       FROM articles a LEFT JOIN content_snapshots c ON a.content_id = c.id
        WHERE a.is_delete = 0 AND (a.title LIKE ?1 ESCAPE '\\' OR a.author LIKE ?1 ESCAPE '\\' OR a.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
        UNION ALL
        SELECT 'project-item:' || pi.id, 'project-item', MAX(pi.update_time, COALESCE(c.update_time, 0))
-       FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id
+       FROM project_item pi LEFT JOIN content_snapshots c ON pi.content_id = c.id
        WHERE COALESCE(pi.ref_type, '') = '' AND (pi.title LIKE ?1 ESCAPE '\\' OR pi.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
        UNION ALL
        SELECT 'diary-daily:' || d.id, 'diary-daily', d.update_time
-       FROM diary_entries d LEFT JOIN contents c ON d.content_id = c.id
+       FROM diary_entries d LEFT JOIN content_snapshots c ON d.content_id = c.id
        WHERE d.date LIKE ?1 ESCAPE '\\' OR d.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\'
-         OR EXISTS (SELECT 1 FROM diary_segments s JOIN contents sc ON sc.id = s.content_id WHERE s.diary_id = d.id AND sc.content LIKE ?1 ESCAPE '\\')
+         OR EXISTS (SELECT 1 FROM diary_segments s JOIN content_snapshots sc ON sc.id = s.content_id WHERE s.diary_id = d.id AND sc.content LIKE ?1 ESCAPE '\\')
        UNION ALL
        SELECT 'flashcard:' || f.id, 'flashcard', f.update_time
        FROM flashcards f
        WHERE f.prompt LIKE ?1 ESCAPE '\\' OR f.detail LIKE ?1 ESCAPE '\\' OR f.tags LIKE ?1 ESCAPE '\\'
        UNION ALL
        SELECT 'plugin-entity:' || e.id, 'plugin-entity', MAX(e.update_time,c.update_time)
-       FROM plugin_entities e JOIN contents c ON c.id=e.content_id
+       FROM plugin_entities e JOIN content_snapshots c ON c.id=e.content_id
        WHERE e.title LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\'
      )"
 }
@@ -630,7 +630,7 @@ fn plugin_kind_filter(kinds: Option<&[PluginEntityKindFilter]>) -> Result<Option
 }
 
 // 白名单与真实存在性在分页前过滤，不把插件未安装误认为内容已删除。
-const PLUGIN_KIND_FILTER: &str = "(type<>'plugin-entity' OR EXISTS(SELECT 1 FROM plugin_entities pe JOIN contents pc ON pc.id=pe.content_id WHERE prefixed_id='plugin-entity:'||pe.id AND (?2 IS NULL OR EXISTS(SELECT 1 FROM json_each(?2) allowed WHERE pe.plugin_id=json_extract(allowed.value,'$.pluginId') AND pe.kind=json_extract(allowed.value,'$.kind')))))";
+const PLUGIN_KIND_FILTER: &str = "(type<>'plugin-entity' OR EXISTS(SELECT 1 FROM plugin_entities pe JOIN content_snapshots pc ON pc.id=pe.content_id WHERE prefixed_id='plugin-entity:'||pe.id AND (?2 IS NULL OR EXISTS(SELECT 1 FROM json_each(?2) allowed WHERE pe.plugin_id=json_extract(allowed.value,'$.pluginId') AND pe.kind=json_extract(allowed.value,'$.kind')))))";
 
 fn hit_id(prefixed_id: &str) -> Option<(&str, i64)> {
     let (result_type, raw_id) = prefixed_id.split_once(':')?;
@@ -765,6 +765,7 @@ mod tests {
         conn.execute_batch(
             "
             CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER);
+            CREATE VIEW content_snapshots AS SELECT * FROM contents;
             CREATE TABLE cards (id INTEGER PRIMARY KEY, content_id INTEGER, update_time INTEGER, tags TEXT);
             CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, author TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, is_delete INTEGER);
             CREATE TABLE project (id INTEGER PRIMARY KEY, title TEXT);
@@ -819,6 +820,7 @@ mod tests {
         let conn = Connection::open(&base).unwrap();
         conn.execute_batch(
             "CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER);
+             CREATE VIEW content_snapshots AS SELECT * FROM contents;
              CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, author TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, is_delete INTEGER);
              CREATE TABLE cards (id INTEGER PRIMARY KEY, content_id INTEGER, update_time INTEGER, tags TEXT);
              CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT, tags TEXT);

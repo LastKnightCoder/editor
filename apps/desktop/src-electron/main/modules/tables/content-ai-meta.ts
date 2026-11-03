@@ -81,7 +81,8 @@ const BATCH = 500;
 export default class ContentAiMetaTable {
   static get(db: Database.Database, contentId: number): ContentAiMetaRow | null {
     const row = db.prepare(`SELECT * FROM content_ai_meta WHERE content_id = ?`).get(contentId) as
-      RawRow | undefined;
+      | RawRow
+      | undefined;
     return row ? toRow(row) : null;
   }
 
@@ -141,7 +142,7 @@ export default class ContentAiMetaTable {
     return db
       .prepare(
         `DELETE FROM content_ai_meta
-         WHERE NOT EXISTS (SELECT 1 FROM contents c WHERE c.id = content_ai_meta.content_id)`
+         WHERE NOT EXISTS (SELECT 1 FROM content_snapshots c WHERE c.id = content_ai_meta.content_id)`
       )
       .run().changes;
   }
@@ -173,7 +174,7 @@ export function contentTitles(
     const batch = ids.slice(start, start + BATCH);
     const rows = db
       .prepare(
-        `SELECT ct.id, m.meta FROM contents ct LEFT JOIN content_ai_meta m ON m.content_id = ct.id
+        `SELECT ct.id, m.meta FROM content_snapshots ct LEFT JOIN content_ai_meta m ON m.content_id = ct.id
          WHERE ct.id IN (${marks(batch)})`
       )
       .all(...batch) as Array<{ id: number; meta: string | null }>;
@@ -187,7 +188,7 @@ export function contentTitles(
   for (let start = 0; start < missing.length; start += BATCH) {
     const batch = missing.slice(start, start + BATCH);
     const rows = db
-      .prepare(`SELECT id, content FROM contents WHERE id IN (${marks(batch)})`)
+      .prepare(`SELECT id, content FROM content_snapshots WHERE id IN (${marks(batch)})`)
       .all(...batch) as Array<{ id: number; content: string | null }>;
     for (const row of rows) {
       const first = contentBlockLines(parseJsonOrNull(row.content))[0];

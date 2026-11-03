@@ -38,7 +38,7 @@ function readContents(mainDb: Database.Database, ids: number[]): Map<number, Con
       `SELECT id, update_time,
          CASE WHEN instr(content, '"content-link"') > 0
                 OR instr(content, '"whiteBoardContentId"') > 0 THEN content END AS content
-       FROM contents WHERE id IN (${marks})`
+       FROM content_snapshots WHERE id IN (${marks})`
     )
     .all(...ids) as ContentRow[];
   return new Map(rows.map(row => [row.id, row]));
@@ -129,7 +129,7 @@ export function diffSources(mainDb: Database.Database, indexDb: Database.Databas
     ).map(row => [row.content_id, row.update_time])
   );
   const stale: number[] = [];
-  const contents = mainDb.prepare(`SELECT id, update_time FROM contents`).all() as Array<{
+  const contents = mainDb.prepare(`SELECT id, update_time FROM content_snapshots`).all() as Array<{
     id: number;
     update_time: number;
   }>;

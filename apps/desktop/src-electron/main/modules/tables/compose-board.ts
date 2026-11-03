@@ -80,7 +80,8 @@ export default class ComposeBoardTable {
     const id = contentIdOf(contentId);
     const existing = this.get(db, id);
     if (existing) return existing;
-    if (!db.prepare(`SELECT 1 FROM contents WHERE id = ?`).get(id)) throw new Error("正文不存在");
+    if (!db.prepare(`SELECT 1 FROM content_snapshots WHERE id = ?`).get(id))
+      throw new Error("正文不存在");
     const page = WhiteBoardContentTable.createWhiteboardContent(db, {
       name: PAGE_NAME,
       imgUrl: "",
@@ -167,7 +168,7 @@ export default class ComposeBoardTable {
   static removeOrphans(db: Database.Database): number {
     const orphans = db
       .prepare(
-        `SELECT content_id FROM compose_boards WHERE content_id NOT IN (SELECT id FROM contents)`
+        `SELECT content_id FROM compose_boards WHERE content_id NOT IN (SELECT id FROM content_snapshots)`
       )
       .all() as Array<{ content_id: number }>;
     if (orphans.length === 0) return 0;

@@ -68,7 +68,7 @@ pub(super) fn candidates(
     if !matches!(source, "all" | "todo" | "document") {
         return Err("待办来源无效".into());
     }
-    let sql="SELECT kind,identity,node FROM (SELECT 0 AS kind,t.id AS identity,0 AS position,NULL AS node FROM todo_item t WHERE ?1<>'document' AND t.is_archived=0 UNION ALL SELECT 1,c.id,j.id,j.value FROM contents c,json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j WHERE ?1<>'todo' AND j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item' AND COALESCE(json_extract(j.value,'$.taskId'),'')<>'' AND COALESCE(json_extract(j.value,'$.taskArchived'),0)=0 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=c.id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=json_extract(j.value,'$.taskId'))))) ORDER BY kind,identity,position LIMIT ?2 OFFSET ?3";
+    let sql="SELECT kind,identity,node FROM (SELECT 0 AS kind,t.id AS identity,0 AS position,NULL AS node FROM todo_item t WHERE ?1<>'document' AND t.is_archived=0 UNION ALL SELECT 1,c.id,j.id,j.value FROM content_snapshots c,json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j WHERE ?1<>'todo' AND j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item' AND COALESCE(json_extract(j.value,'$.taskId'),'')<>'' AND COALESCE(json_extract(j.value,'$.taskArchived'),0)=0 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=c.id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=json_extract(j.value,'$.taskId'))))) ORDER BY kind,identity,position LIMIT ?2 OFFSET ?3";
     let mut stmt = conn.prepare(sql).map_err(sql_error)?;
     let rows = stmt
         .query_map(params![source, limit as i64, offset as i64], |row| {
@@ -197,7 +197,7 @@ pub(super) fn query_candidate(
 
     let created = conn
         .query_row(
-            "SELECT create_time FROM contents WHERE id=?1",
+            "SELECT create_time FROM content_snapshots WHERE id=?1",
             [content],
             |row| row.get::<_, i64>(0),
         )

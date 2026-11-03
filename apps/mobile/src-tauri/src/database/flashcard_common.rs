@@ -130,7 +130,7 @@ pub(crate) fn query_card_by_id(conn: &Connection, id: i64) -> Result<Option<Flas
     })
 }
 
-/// 批量取卡片的参考资料（LEFT JOIN contents 带出完整内容快照）
+/// 批量取卡片的参考资料（LEFT JOIN content_snapshots 带出完整内容快照）
 pub(crate) fn query_references_by_card_ids(
     conn: &Connection,
     card_ids: &[i64],
@@ -144,7 +144,7 @@ pub(crate) fn query_references_by_card_ids(
         "SELECT fr.id, fr.card_id, fr.content_id, fr.ref_type, fr.title, fr.create_time, fr.update_time, \
          c.id, c.content, c.create_time, c.update_time, c.count, c.ref_count \
          FROM flashcard_references fr \
-         LEFT JOIN contents c ON fr.content_id = c.id \
+         LEFT JOIN content_snapshots c ON fr.content_id = c.id \
          WHERE fr.card_id IN ({placeholders}) \
          ORDER BY fr.update_time ASC"
     );
@@ -277,7 +277,7 @@ pub(crate) fn release_references(conn: &Connection, scope: ReferenceScope) -> Re
 mod tests {
     use super::*;
 
-    /// 回归：references LEFT JOIN contents 的列索引曾整体错位一位，
+    /// 回归：references LEFT JOIN content_snapshots 的列索引曾整体错位一位，
     /// 把 c.content(TEXT) 当 c.id(INTEGER) 读，带参考资料的卡组整个列表报
     /// "Invalid column type Text"——此测试钉住列序与解析的对齐
     #[test]
@@ -289,6 +289,7 @@ mod tests {
              create_time INTEGER NOT NULL, update_time INTEGER NOT NULL);
              CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, create_time INTEGER, \
              update_time INTEGER, count INTEGER, ref_count INTEGER);
+             CREATE VIEW content_snapshots AS SELECT * FROM contents;
              INSERT INTO flashcard_references VALUES (1, 10, 77, 'content', '标题', 1, 1);
              INSERT INTO contents VALUES (77, '{\"type\":\"paragraph\"}', 5, 6, 3, 2);",
         )

@@ -25,6 +25,7 @@ import {
 } from "@tau/collaboration";
 import {
   prepareContentContract,
+  canonicalContractJson,
   type ContentContractDictionary,
 } from "@tau/db-schema/content-contracts";
 import { ContentDocumentTable } from "../../tables/content-document";
@@ -185,6 +186,14 @@ describe("本机内容会话", () => {
     expect(
       projectContractContent(db, session.info.source!, session, stored, stored.revision, 12)
     ).toBe(false);
+    const reordered = JSON.parse(canonicalContractJson(stored));
+    expect(JSON.stringify(reordered.content)).not.toBe(JSON.stringify(stored.content));
+    const updateTime = ContentTable.getContentById(db, 7)!.updateTime;
+    expect(
+      projectContractContent(db, session.info.source!, session, reordered, stored.revision, 12)
+    ).toBe(false);
+    expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(updateTime);
+    expect(ContentDocumentTable.read(db, 7)).toEqual(stored);
     expect(
       db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all()
     ).toHaveLength(1);

@@ -37,19 +37,19 @@ export function resolveDocTaskSources(
             WHERE key = 'text' AND type = 'text'
           ) WHERE COALESCE(before_length, 0) < 80), ''), '无标题卡片') AS title,
         '' AS meta, ct.update_time, c.create_time AS created_at
-      FROM cards c JOIN contents ct ON ct.id = c.content_id LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
+      FROM cards c JOIN content_snapshots ct ON ct.id = c.content_id LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.content_id IN (${marks})
       UNION ALL
       SELECT a.content_id, 'article', a.id, COALESCE(NULLIF(a.title, ''), '无标题文章'), '', ct.update_time, a.create_time
-      FROM articles a JOIN contents ct ON ct.id = a.content_id WHERE a.is_delete = 0 AND a.content_id IN (${marks})
+      FROM articles a JOIN content_snapshots ct ON ct.id = a.content_id WHERE a.is_delete = 0 AND a.content_id IN (${marks})
       UNION ALL
       SELECT i.content_id, 'project-item', i.id, COALESCE(NULLIF(i.title, ''), '无标题文档'), COALESCE(p.title, ''), ct.update_time, i.create_time
-      FROM project_item i JOIN contents ct ON ct.id = i.content_id
+      FROM project_item i JOIN content_snapshots ct ON ct.id = i.content_id
       LEFT JOIN project p ON p.id = CASE WHEN json_valid(i.projects) THEN json_extract(i.projects, '$[0]') END
       WHERE i.content_id IN (${marks})
       UNION ALL
       SELECT s.content_id, 'diary-moment', s.id, d.date, CASE WHEN dc.n > 1 THEN dc.n || ' 段' ELSE '' END, ct.update_time, d.create_time
-      FROM diary_segments s JOIN diary_entries d ON d.id = s.diary_id JOIN contents ct ON ct.id = s.content_id
+      FROM diary_segments s JOIN diary_entries d ON d.id = s.diary_id JOIN content_snapshots ct ON ct.id = s.content_id
       JOIN diary_counts dc ON dc.diary_id = d.id
       WHERE s.content_id IN (${marks})
     `

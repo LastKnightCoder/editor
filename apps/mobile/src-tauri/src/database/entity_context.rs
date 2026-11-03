@@ -565,7 +565,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
 
 fn content_raw_of(conn: &Connection, content_id: i64) -> Option<String> {
     conn.query_row(
-        "SELECT content FROM contents WHERE id = ?1",
+        "SELECT content FROM content_snapshots WHERE id = ?1",
         params![content_id],
         |row| row.get::<_, Option<String>>(0),
     )
@@ -579,7 +579,7 @@ fn content_update_times(conn: &Connection, ids: &[i64]) -> HashMap<i64, i64> {
         return times;
     }
     let marks = vec!["?"; ids.len()].join(",");
-    let sql = format!("SELECT id, update_time FROM contents WHERE id IN ({marks})");
+    let sql = format!("SELECT id, update_time FROM content_snapshots WHERE id IN ({marks})");
     let Ok(mut stmt) = conn.prepare(&sql) else {
         return times;
     };
@@ -1350,7 +1350,7 @@ fn inline_link_sources(conn: &Connection, content_ids: &[i64]) -> Vec<String> {
     }
     let marks = vec!["?"; content_ids.len()].join(",");
     let sql = format!(
-        "SELECT content FROM contents WHERE id IN ({marks}) AND instr(content, '\"content-link\"') > 0"
+        "SELECT content FROM content_snapshots WHERE id IN ({marks}) AND instr(content, '\"content-link\"') > 0"
     );
     conn.prepare(&sql)
         .and_then(|mut stmt| {

@@ -555,7 +555,7 @@ pub fn project_item_list(app: AppHandle) -> Result<Vec<ProjectItem>, String> {
             "SELECT pi.id, pi.title, pi.children, pi.parents, pi.projects, pi.project_item_type,
                     pi.ref_type, pi.ref_id, pi.content_id, COALESCE(c.count, 0), pi.create_time, pi.update_time, pi.tags
              FROM project_item pi
-             LEFT JOIN contents c ON c.id = pi.content_id
+             LEFT JOIN content_snapshots c ON c.id = pi.content_id
              ORDER BY pi.create_time ASC",
         )
         .map_err(|e| db_err("PROJECT_QUERY_FAILED", "prepare items query", e))?;

@@ -165,7 +165,7 @@ fn query_cards_plain(
             "
             SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
             FROM cards c
-            LEFT JOIN contents ct ON c.content_id = ct.id
+            LEFT JOIN content_snapshots ct ON c.content_id = ct.id
             ORDER BY c.is_top DESC, c.create_time DESC
             LIMIT ?1 OFFSET ?2
             ",
@@ -224,7 +224,7 @@ pub fn query_cards_by_ids(conn: &Connection, ids: &[i64]) -> Result<Vec<CardList
     let sql = format!(
         "SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
         FROM cards c
-        LEFT JOIN contents ct ON c.content_id = ct.id
+        LEFT JOIN content_snapshots ct ON c.content_id = ct.id
         WHERE c.id IN ({placeholders})
         ORDER BY c.update_time DESC"
     );
@@ -276,7 +276,7 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
               ct.content,
               ct.count
             FROM cards c
-            LEFT JOIN contents ct ON c.content_id = ct.id
+            LEFT JOIN content_snapshots ct ON c.content_id = ct.id
             WHERE c.id = ?1
             LIMIT 1
             ",
@@ -343,7 +343,7 @@ pub fn query_content_detail(
               c.create_time,
               c.update_time,
               c.tags
-            FROM contents ct
+            FROM content_snapshots ct
             LEFT JOIN cards c ON c.content_id = ct.id
             WHERE ct.id = ?1
             ORDER BY c.update_time DESC
@@ -397,16 +397,19 @@ pub fn query_content_detail(
         None
     };
 
-    let metadata: Option<(String, String, String)> = conn
+    let metadata: Option<(String, String, String, i64)> = conn
         .query_row(
-            "SELECT contracts,revision,document_id FROM content_documents WHERE content_id=?1",
+            "SELECT contracts,revision,document_id,format_version FROM content_documents WHERE content_id=?1",
             [id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()
         .map_err(|e| format!("DB_OPEN_FAILED: 正文契约读取失败: {e}"))?;
     let (contracts, revision, document_id) = match metadata {
-        Some((contracts, revision, document)) => (
+        Some((_, _, _, version)) if version != 2 && version != 3 => {
+            return Err("CONTENT_CONTRACT_INVALID: 正文数据格式不兼容".into())
+        }
+        Some((contracts, revision, document, _)) => (
             Some(
                 serde_json::from_str(&contracts)
                     .map_err(|_| "CONTENT_CONTRACT_INVALID: 正文契约损坏".to_string())?,

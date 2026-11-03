@@ -8,6 +8,7 @@ import {
 import type { RuntimeSession } from "./types";
 import type { CollaborationLocalStore } from "./local-store";
 import type { ContentLocalState } from "./content-local-state";
+import { reportContentSaveIssue, reportContentSaveComplete } from "./persistence-diagnostics";
 
 const equal = (left: Uint8Array, right: Uint8Array) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -68,44 +69,86 @@ export class NodeSessionUpdates {
 
   apply(session: RuntimeSession, update: Uint8Array, assertWritable: () => void): Promise<void> {
     const bytes = new Uint8Array(update);
-    return this.queue.run(session.info.id, bytes.byteLength, async () => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        assertWritable();
-        const meta = session.doc.getMap("meta");
-        if (meta.get("version") !== NODE_DOCUMENT_VERSION)
-          throw new Error("正文协议已变化，请重新打开");
-        const identity = {
-          documentId: session.info.id,
-          baselineId: String(meta.get("baselineId")),
-          epoch: Number(meta.get("epoch")),
-        };
-        const before = Y.encodeStateVector(session.doc),
-          baseline = Y.encodeStateAsUpdate(session.doc);
-        const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity, {
-          allowLocalResources: session.info.mode === "local",
-        });
-        try {
-          assertWritable();
-          if (!equal(baseline, Y.encodeStateAsUpdate(session.doc))) continue;
-          if (equal(baseline, Y.encodeStateAsUpdate(candidate))) {
-            session.retainNodeState?.(candidate);
-            this.store.compact(session.info.id, session.doc);
-            this.confirmDrafts(session.doc, session.info.id);
-            return;
+    const started = performance.now();
+    let stage = "delta.queue",
+      attempts = 0,
+      journalSaved = false;
+    const failed = (error: unknown): never => {
+      reportContentSaveIssue(session, stage, error, {
+        bytes: bytes.byteLength,
+        attempts,
+        journalSaved,
+        elapsedMs: Math.round(performance.now() - started),
+      });
+      throw error;
+    };
+    try {
+      return this.queue
+        .run(session.info.id, bytes.byteLength, async () => {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            attempts = attempt + 1;
+            stage = "delta.validate";
+            assertWritable();
+            const meta = session.doc.getMap("meta");
+            if (meta.get("version") !== NODE_DOCUMENT_VERSION)
+              throw new Error("正文协议已变化，请重新打开");
+            const identity = {
+              documentId: session.info.id,
+              baselineId: String(meta.get("baselineId")),
+              epoch: Number(meta.get("epoch")),
+            };
+            const before = Y.encodeStateVector(session.doc),
+              baseline = Y.encodeStateAsUpdate(session.doc);
+            const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity, {
+              allowLocalResources: session.info.mode === "local",
+            });
+            try {
+              assertWritable();
+              if (!equal(baseline, Y.encodeStateAsUpdate(session.doc))) continue;
+              if (equal(baseline, Y.encodeStateAsUpdate(candidate))) {
+                stage = "delta.journal";
+                session.retainNodeState?.(candidate);
+                if (session.cacheWriteFailed || this.store.shouldCompact(session.info.id)) {
+                  this.store.compact(session.info.id, session.doc);
+                  session.cacheWriteFailed = false;
+                  session.dirty = false;
+                }
+                journalSaved = true;
+                stage = "delta.confirm";
+                this.confirmDrafts(session.doc, session.info.id);
+                return;
+              }
+              const delta = Y.encodeStateAsUpdate(candidate, before);
+              stage = "delta.journal";
+              this.store.db.transaction(() => {
+                session.retainNodeState?.(candidate);
+                this.store.append(session.info.id, delta);
+              })();
+              journalSaved = true;
+              stage = "delta.apply";
+              Y.applyUpdate(session.doc, delta, "renderer-persisted");
+              stage = "delta.confirm";
+              this.confirmDrafts(session.doc, session.info.id);
+              return;
+            } finally {
+              candidate.destroy();
+            }
           }
-          const delta = Y.encodeStateAsUpdate(candidate, before);
-          this.store.db.transaction(() => {
-            session.retainNodeState?.(candidate);
-            this.store.append(session.info.id, delta);
-          })();
-          Y.applyUpdate(session.doc, delta, "renderer-persisted");
-          this.confirmDrafts(session.doc, session.info.id);
-          return;
-        } finally {
-          candidate.destroy();
-        }
-      }
-      throw new Error("正文持续变化，编辑尚未确认保存，请重试");
-    });
+          throw new Error("正文持续变化，编辑尚未确认保存，请重试");
+        })
+        .then(() => {
+          reportContentSaveComplete(session, {
+            path: "delta",
+            changed: false,
+            selectedBlocks: 0,
+            writtenBlocks: 0,
+            elapsedMs: Math.round(performance.now() - started),
+            bytes: bytes.byteLength,
+            attempts,
+          });
+        }, failed);
+    } catch (error) {
+      return failed(error);
+    }
   }
 }

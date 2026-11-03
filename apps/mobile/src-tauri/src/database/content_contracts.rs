@@ -326,8 +326,8 @@ fn table_contents(tx: &Transaction, id: i64, delta: i64, now: i64) -> Result<(),
         if changed != 1 {
             return Err(fail("数据表引用的正文已缺失或计数无效"));
         }
-        tx.execute("INSERT OR IGNORE INTO content_pending_releases SELECT id,?1 FROM contents WHERE id=?2 AND ref_count<=0", params![now, id]).map_err(|e| fail(&e.to_string()))?;
-        tx.execute("DELETE FROM content_pending_releases WHERE content_id=?1 AND EXISTS(SELECT 1 FROM contents WHERE id=?1 AND ref_count>0)", [id]).map_err(|e| fail(&e.to_string()))?;
+        tx.execute("INSERT OR IGNORE INTO content_pending_releases SELECT id,?1 FROM content_snapshots WHERE id=?2 AND ref_count<=0", params![now, id]).map_err(|e| fail(&e.to_string()))?;
+        tx.execute("DELETE FROM content_pending_releases WHERE content_id=?1 AND EXISTS(SELECT 1 FROM content_snapshots WHERE id=?1 AND ref_count>0)", [id]).map_err(|e| fail(&e.to_string()))?;
     }
     Ok(())
 }
@@ -343,6 +343,17 @@ pub(super) fn write(
     expected_source: Option<&str>,
     now: i64,
 ) -> Result<(), String> {
+    let storage: Option<i64> = tx
+        .query_row(
+            "SELECT format_version FROM content_documents WHERE content_id=?1",
+            [content_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| fail(&e.to_string()))?;
+    if storage.is_some_and(|version| version != 2 && version != 3) {
+        return Err(fail("正文数据格式不兼容"));
+    }
     let previous: Option<(String, String, String)> = tx
         .query_row(
             "SELECT document_id,contracts,revision FROM content_documents WHERE content_id=?1",
@@ -372,7 +383,7 @@ pub(super) fn write(
         if expected != Some(revision.as_str()) {
             let current: String = tx
                 .query_row(
-                    "SELECT content FROM contents WHERE id=?1",
+                    "SELECT content FROM content_snapshots WHERE id=?1",
                     [content_id],
                     |row| row.get(0),
                 )
@@ -509,7 +520,7 @@ pub(super) fn write(
         "{:x}",
         Sha256::digest(format!("{content_json}\n{contracts_json}").as_bytes())
     );
-    tx.execute("INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (?1,?2,2,?3,?4) ON CONFLICT(content_id) DO UPDATE SET contracts=excluded.contracts,revision=excluded.revision", params![content_id, document_id, contracts_json, revision]).map_err(|e| fail(&e.to_string()))?;
+    tx.execute("INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (?1,?2,2,?3,?4) ON CONFLICT(content_id) DO UPDATE SET format_version=excluded.format_version,contracts=excluded.contracts,revision=excluded.revision", params![content_id, document_id, contracts_json, revision]).map_err(|e| fail(&e.to_string()))?;
     tx.execute(
         "DELETE FROM content_entity_relations WHERE document_id=?1",
         [&document_id],
@@ -553,6 +564,101 @@ mod tests {
         let contracts = json!({id.clone(): contract});
         let content = json!([{"type":"whiteboard","collabId":"node","tauContract":id,"entityRef":{"sourceId":"library","kind":"whiteboard-content","entityId":"board"},"children":[{"text":""}]}]);
         (db, content, contracts)
+    }
+
+    #[test]
+    fn block_storage_reads_and_full_mobile_write_preserve_current_content() {
+        let (mut db, content, contracts) = fixture();
+        let tx = db.transaction().unwrap();
+        super::super::write_content_snapshot(
+            &tx,
+            1,
+            &content,
+            0,
+            1,
+            "TEST",
+            Some(&contracts),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        let (document, revision): (String, String) = db
+            .query_row(
+                "SELECT document_id,revision FROM content_documents WHERE content_id=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        db.execute("INSERT INTO content_document_blocks(content_id,block_id,position,content,count) VALUES (1,'node',0,?1,0)", [serialized(&content[0]).unwrap()]).unwrap();
+        db.execute(
+            "INSERT INTO content_document_node_blocks VALUES (1,'node','node')",
+            [],
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO content_document_block_counts VALUES (1,'rules')",
+            [],
+        )
+        .unwrap();
+        db.execute("UPDATE contents SET content=NULL WHERE id=1", [])
+            .unwrap();
+        db.execute(
+            "UPDATE content_documents SET format_version=3 WHERE content_id=1",
+            [],
+        )
+        .unwrap();
+        let current = super::super::query::query_content_detail(&db, 1).unwrap();
+        assert_eq!(current.content, content);
+        let mut edited = content.clone();
+        edited[0]["custom"] = json!("移动端改写");
+        let tx = db.transaction().unwrap();
+        super::super::write_content_snapshot(
+            &tx,
+            1,
+            &edited,
+            0,
+            2,
+            "TEST",
+            Some(&contracts),
+            Some(&revision),
+            Some(&document),
+            Some("library"),
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        assert_eq!(
+            super::super::query::query_content_detail(&db, 1)
+                .unwrap()
+                .content,
+            edited
+        );
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM content_document_blocks", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT count(*) FROM content_document_node_blocks",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT ref_count FROM white_board_contents WHERE id=7",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
     }
 
     #[test]

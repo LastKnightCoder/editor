@@ -2,10 +2,12 @@
 import Database from "better-sqlite3";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
+import { createEditor, Transforms } from "slate";
 import { WebSocket } from "ws";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
@@ -18,18 +20,23 @@ import {
   type SharedDocumentInfo,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
-import { applyNodeTreeContent } from "@tau/editor-collab";
+import { applyNodeTreeContent, withNodeTree } from "@tau/editor-collab";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { CollaborationManager } from "../index";
 import { CollaborationLocalStore } from "../local-store";
 import { ContentLocalState } from "../content-local-state";
+import { NodeSessionUpdates } from "../node-session-updates";
 import { CollaborationAssetService } from "../asset-service";
 import type { CollaborationClient } from "../client";
 import type { RuntimeSession } from "../types";
 import ContentTable from "../../tables/content";
+import CardTable from "../../tables/card";
+import ArticleTable from "../../tables/article";
+import ProjectTable from "../../tables/project";
 import { ContentDocumentTable } from "../../tables/content-document";
+import { ContentDocumentBlocks } from "../../tables/content-document-blocks";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { unregisterContentSession } from "../content-sessions";
 import { collaborationImageStorage } from "../../../services/collaboration-image-storage";
@@ -93,7 +100,7 @@ type Runtime = {
   shutdown(): void;
   syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void>;
 };
-async function setup(realtime = false) {
+async function setup(realtime = false, paragraphs?: readonly string[]) {
   const root = mkdtempSync(join(tmpdir(), "tau-manager-flow-"));
   host.dir = root;
   const db = new Database(join(root, "library.db"));
@@ -196,18 +203,28 @@ async function setup(realtime = false) {
     {
       documentId: "test-content",
       contracts: { [paragraph.id]: paragraph.contract },
-      content: [
-        {
-          type: "paragraph",
-          collabId: "paragraph",
-          tauContract: paragraph.id,
-          svg: "用户业务内容",
-          isFold: true,
-          children: [{ text: "正文" }],
-        },
-      ],
+      content: paragraphs
+        ? paragraphs.map((text, index) => ({
+            type: "paragraph",
+            collabId: index === 0 ? "paragraph" : `paragraph-${index}`,
+            tauContract: paragraph.id,
+            children: [{ type: "formatted", text }],
+          }))
+        : [
+            {
+              type: "paragraph",
+              collabId: "paragraph",
+              tauContract: paragraph.id,
+              svg: "用户业务内容",
+              isFold: true,
+              children: [{ text: "正文" }],
+            },
+          ],
     },
-    { installDocument: true, count: 2 }
+    {
+      installDocument: true,
+      count: paragraphs?.reduce((total, text) => total + text.length, 0) ?? 2,
+    }
   );
   const opened = await runtime.openContent(event, { contentId: 7 });
   return {
@@ -229,6 +246,227 @@ async function setup(realtime = false) {
 }
 
 describe("桌面生产会话与真实服务贯通", () => {
+  it("并发保存调用等待同一在途提交，不能在正文落库前返回完成", async () => {
+    const { runtime, db, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    await runtime.project(session);
+    const tree = new NodeTree(session.doc);
+    const localize = runtime.assets.localizeDocument.bind(runtime.assets);
+    let release!: () => void;
+    const paused = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+      await paused;
+      return localize(...args);
+    });
+    try {
+      tree.insertText("paragraph", 0, "等待", {});
+      const first = runtime.project(session);
+      let finished = false;
+      const second = runtime.project(session).then(() => {
+        finished = true;
+      });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(finished).toBe(false);
+      release();
+      await Promise.all([first, second]);
+      expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].text).toBe("等待正文");
+      expect(session.projectionDirty).toBe(false);
+    } finally {
+      release();
+      tree.dispose();
+    }
+  });
+
+  it("缓存增量写入失败后保留变更代次，未达压缩阈值也先补存再投影", async () => {
+    const { runtime, db, localId, store } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    await runtime.project(session);
+    const tree = new NodeTree(session.doc);
+    const append = vi.spyOn(store, "append").mockImplementationOnce(() => {
+      throw new Error("模拟缓存写入失败");
+    });
+    try {
+      expect(() => tree.insertText("paragraph", 0, "保留", {})).toThrow("模拟缓存写入失败");
+      expect(session.cacheWriteFailed).toBe(true);
+      expect(session.projectionVersion).not.toEqual(session.projectedVersion);
+      append.mockRestore();
+      const compact = vi.spyOn(store, "compact");
+      await runtime.project(session);
+      expect(compact).toHaveBeenCalledOnce();
+      expect(session.cacheWriteFailed).toBe(false);
+      expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].text).toBe("保留正文");
+      const recovered = store.load(localId);
+      try {
+        expect(readNodeDocument(recovered.doc).content[0].children![0].text).toBe("保留正文");
+      } finally {
+        recovered.doc.destroy();
+      }
+    } finally {
+      tree.dispose();
+    }
+  });
+
+  it("拆分、合并后的共享文字片段按可见归属块保存，撤销重做不漏字", async () => {
+    const { runtime, db, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    await runtime.project(session);
+    const tree = new NodeTree(session.doc);
+    const editor = withNodeTree(createEditor(), tree, {}, { normalizeOnConnect: false });
+    try {
+      editor.connectNodeTree();
+      Transforms.select(editor, { path: [0, 0], offset: 1 });
+      Transforms.splitNodes(editor, { always: true });
+      editor.undoManager.stopCapturing();
+      await runtime.project(session);
+      Transforms.select(editor, { path: [1, 0], offset: 0 });
+      Transforms.insertText(editor, "后半");
+      editor.undoManager.stopCapturing();
+      await runtime.project(session);
+      const texts = () =>
+        ContentDocumentTable.read(db, 7)!.content.map(node =>
+          node.children!.map(child => child.text).join("")
+        );
+      expect(texts()).toEqual(["正", "后半文"]);
+      editor.undoManager.undo();
+      await runtime.project(session);
+      expect(texts()).toEqual(["正", "文"]);
+      editor.undoManager.redo();
+      await runtime.project(session);
+      expect(texts()).toEqual(["正", "后半文"]);
+      Transforms.mergeNodes(editor, { at: [1] });
+      await runtime.project(session);
+      expect(texts()).toEqual(["正后半文"]);
+      Transforms.insertText(editor, "合并", { at: { path: [0, 0], offset: 1 } });
+      await runtime.project(session);
+      expect(texts()).toEqual(["正合并后半文"]);
+    } finally {
+      editor.disposeNodeTree();
+      tree.dispose();
+    }
+  });
+
+  it("打开、选区移动和补充契约不计编辑，实际修改正文才更新时间", async () => {
+    const { runtime, db, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    const before = ContentDocumentTable.read(db, 7)!;
+    db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
+    db.exec(`
+      INSERT INTO cards(id,create_time,update_time,content_id) VALUES (1,1,50,7);
+      INSERT INTO articles(id,title,create_time,update_time,content_id) VALUES (1,'',1,50,7);
+      INSERT INTO project_item(id,title,create_time,update_time,content_id) VALUES (1,'',1,50,7);
+    `);
+    const updateTimes = () => [
+      ContentTable.getContentById(db, 7)!.updateTime,
+      CardTable.getCardById(db, 1)!.update_time,
+      ArticleTable.getArticleById(db, 1).update_time,
+      ProjectTable.getProjectItem(db, 1)!.updateTime,
+    ];
+    const operationCount = () =>
+      db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all().length;
+    const initialOperations = operationCount();
+    const tree = new NodeTree(session.doc);
+    const editor = withNodeTree(createEditor(), tree, {}, { normalizeOnConnect: false });
+    try {
+      editor.connectNodeTree();
+      Transforms.select(editor, { path: [0, 0], offset: 0 });
+      Transforms.move(editor, { distance: 1 });
+      await runtime.project(session);
+      expect(ContentDocumentTable.read(db, 7)).toEqual(before);
+      expect(updateTimes()).toEqual([100, 100, 100, 100]);
+      expect(operationCount()).toBe(initialOperations);
+
+      const read = vi.spyOn(ContentDocumentTable, "read");
+      const localize = vi.spyOn(runtime.assets, "localizeDocument");
+      tree.setProperties("paragraph", { isFold: true, svg: "用户业务内容" }, {});
+      await runtime.project(session);
+      expect(read).not.toHaveBeenCalled();
+      expect(localize).not.toHaveBeenCalled();
+      read.mockRestore();
+
+      const extra = await prepareContentContract("tau.heading", {
+        type: "header",
+        dataVersion: 1,
+        kind: "block",
+      });
+      await tree.installContracts({ [extra.id]: extra.contract }, {});
+      await runtime.project(session);
+      const prepared = ContentDocumentTable.read(db, 7)!;
+      expect(prepared.contracts[extra.id]).toEqual(extra.contract);
+      expect(updateTimes()).toEqual([100, 100, 100, 100]);
+      expect(operationCount()).toBe(initialOperations);
+      expect(prepared.content).toEqual(before.content);
+      expect(localize).not.toHaveBeenCalled();
+
+      Transforms.insertText(editor, "修改");
+      await runtime.project(session);
+      for (const time of updateTimes()) expect(time).toBeGreaterThan(100);
+      expect(operationCount()).toBe(initialOperations + 1);
+      expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("正修改文");
+      expect(session.projectedVersion).toEqual(session.projectionVersion);
+    } finally {
+      editor.disposeNodeTree();
+      tree.dispose();
+    }
+  });
+
+  it("只改标题不读取或转换正文，正常更新文章和项目标题", async () => {
+    const { runtime, db, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    await runtime.project(session);
+    db.exec(`
+      INSERT INTO articles(id,title,create_time,update_time,content_id) VALUES (1,'',1,50,7);
+      INSERT INTO project_item(id,title,create_time,update_time,content_id) VALUES (1,'',1,50,7);
+    `);
+    const before = ContentTable.getContentById(db, 7)!.updateTime;
+    const read = vi.spyOn(ContentDocumentTable, "read");
+    const localize = vi.spyOn(runtime.assets, "localizeDocument");
+    session.doc.getText("title").insert(0, "修改标题");
+    await runtime.project(session);
+    expect(read).not.toHaveBeenCalled();
+    expect(localize).not.toHaveBeenCalled();
+    expect(ArticleTable.getArticleById(db, 1).title).toBe("修改标题");
+    expect(ProjectTable.getProjectItem(db, 1)!.title).toBe("修改标题");
+    expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(before);
+  });
+
+  it("投影期间的新输入与落库失败不会被当成本轮已保存", async () => {
+    const { runtime, db, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    await runtime.project(session);
+    const tree = new NodeTree(session.doc);
+    const localize = runtime.assets.localizeDocument.bind(runtime.assets);
+    try {
+      tree.insertText("paragraph", 0, "先", {});
+      vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+        const value = await localize(...args);
+        tree.insertText("paragraph", 0, "后", {});
+        return value;
+      });
+      await runtime.project(session);
+      expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("先正文");
+      expect(session.projectedVersion).not.toEqual(session.projectionVersion);
+      expect(session.projectionDirty).toBe(true);
+      await runtime.project(session);
+      expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("后先正文");
+      expect(session.projectedVersion).toEqual(session.projectionVersion);
+
+      tree.insertText("paragraph", 0, "重试", {});
+      vi.spyOn(ContentDocumentBlocks, "commit").mockImplementationOnce(() => {
+        throw new Error("模拟落库失败");
+      });
+      await expect(runtime.project(session)).rejects.toThrow("模拟落库失败");
+      expect(session.projectedVersion).not.toEqual(session.projectionVersion);
+      expect(session.projectionDirty).toBe(true);
+      await runtime.project(session);
+      expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("重试后先正文");
+      expect(session.projectedVersion).toEqual(session.projectionVersion);
+    } finally {
+      tree.dispose();
+    }
+  });
+
   it.each([false, true])(
     "作者离线期间的成员图片在上线后自动补存，无需打开正文（冷缓存=%s）",
     async cold => {
@@ -1268,4 +1506,639 @@ describe("桌面生产会话与真实服务贯通", () => {
       count: 1,
     });
   });
+});
+
+const stressResults: Record<string, unknown>[] = [];
+
+async function measureStress(name: string, run: () => Promise<Record<string, unknown>>) {
+  const started = performance.now();
+  const before = process.memoryUsage();
+  let result: Record<string, unknown> = { name, status: "running" };
+  try {
+    result = { name, status: "passed", ...(await run()) };
+  } catch (error) {
+    result = {
+      name,
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+    };
+    throw error;
+  } finally {
+    const after = process.memoryUsage();
+    result = {
+      ...result,
+      elapsedMs: Math.round(performance.now() - started),
+      heapUsedMiB: Math.round(after.heapUsed / 1024 / 1024),
+      rssMiB: Math.round(after.rss / 1024 / 1024),
+      rssChangeMiB: Math.round((after.rss - before.rss) / 1024 / 1024),
+    };
+    stressResults.push(result);
+    console.info("[content-projection-stress]", JSON.stringify(result));
+    const report = process.env.TAU_CONTENT_STRESS_REPORT;
+    if (report) {
+      mkdirSync(dirname(report), { recursive: true });
+      writeFileSync(
+        report,
+        JSON.stringify(
+          { recordedAt: new Date().toISOString(), node: process.version, scenarios: stressResults },
+          null,
+          2
+        )
+      );
+    }
+  }
+}
+
+function stressLatency(samples: number[]) {
+  const sorted = [...samples].sort((left, right) => left - right);
+  return {
+    samples: samples.length,
+    p50Ms: +sorted[Math.floor(sorted.length * 0.5)].toFixed(3),
+    p95Ms: +sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))].toFixed(3),
+    maxMs: +sorted[sorted.length - 1].toFixed(3),
+  };
+}
+
+function stressRandom(seed: number) {
+  let state = seed;
+  return (limit: number) => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) % limit;
+  };
+}
+
+// 显式开启压力场景，避免常规回归承担长文构建与持续保存的成本。
+describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () => {
+  it("单个大块的大增量先按大小压缩，主库和缓存恢复保持一致", async () => {
+    await measureStress("large-single-block", async () => {
+      const original = "大段正文".repeat(60 * 1024);
+      const addition = "新增".repeat(120 * 1024);
+      const { runtime, db, localId, store } = await setup(false, [original]);
+      const session = runtime.sessions.get(localId)!;
+      await runtime.project(session);
+      const tree = new NodeTree(session.doc);
+      const compact = vi.spyOn(store, "compact");
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+      runtime.startAutoFlush();
+      const started = performance.now();
+      try {
+        tree.insertText("paragraph", 0, addition, {});
+        const pending = store.db
+          .prepare(
+            "SELECT count(*) AS count,sum(length(state)) AS bytes FROM updates WHERE document_id=?"
+          )
+          .get(localId) as { count: number; bytes: number };
+        expect(pending.count).toBe(1);
+        expect(pending.bytes).toBeGreaterThan(512 * 1024);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(compact).toHaveBeenCalledOnce();
+        expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].text).toBe(
+          addition + original
+        );
+        const restored = store.load(localId);
+        try {
+          expect(readNodeDocument(restored.doc).content[0].children![0].text).toBe(
+            addition + original
+          );
+        } finally {
+          restored.doc.destroy();
+        }
+        return {
+          singleBlockCharacters: original.length + addition.length,
+          inputBytes: pending.bytes,
+          editAndCheckpointMs: +(performance.now() - started).toFixed(3),
+          checkpoints: compact.mock.calls.length,
+        };
+      } finally {
+        tree.dispose();
+        vi.useRealTimers();
+      }
+    });
+  }, 120000);
+
+  it("自动保存二十轮：增量日志有界压缩，恢复后与主库一致", async () => {
+    await measureStress("auto-flush-incremental", async () => {
+      const { runtime, db, localId, store } = await setup(
+        false,
+        Array.from({ length: 128 }, () => "正文压力".repeat(64))
+      );
+      const session = runtime.sessions.get(localId)!;
+      await runtime.project(session);
+      const tree = new NodeTree(session.doc);
+      const compact = vi.spyOn(store, "compact");
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+      runtime.startAutoFlush();
+      let expected = "正文压力".repeat(64);
+      try {
+        for (let round = 0; round < 20; round++) {
+          for (let input = 0; input < 16; input++) {
+            const token = `[${round}:${input}]`;
+            tree.insertText("paragraph", 0, token, {});
+            expected = token + expected;
+          }
+          await vi.advanceTimersByTimeAsync(1000);
+          expect(session.projectedVersion).toEqual(session.projectionVersion);
+          expect(
+            ContentDocumentTable.read(db, 7)!
+              .content[0].children!.map(leaf => leaf.text)
+              .join("")
+          ).toBe(expected);
+        }
+        expect(compact).toHaveBeenCalledTimes(2);
+        const pending = store.db
+          .prepare("SELECT count(*) AS count FROM updates WHERE document_id=?")
+          .get(localId) as { count: number };
+        expect(pending.count).toBe(64);
+        const loaded = store.load(localId);
+        try {
+          expect(readNodeDocument(loaded.doc).content).toEqual(
+            readNodeDocument(session.doc).content
+          );
+        } finally {
+          loaded.doc.destroy();
+        }
+        return {
+          autoFlushRounds: 20,
+          inputs: 320,
+          fullCheckpoints: compact.mock.calls.length,
+          retainedUpdates: pending.count,
+        };
+      } finally {
+        tree.dispose();
+        vi.useRealTimers();
+      }
+    });
+  }, 120000);
+
+  it.each([
+    [32, 256],
+    [256, 512],
+    [1024, 1024],
+  ])(
+    "长文 %i 段 × %i 字：空保存、契约与连续编辑",
+    async (paragraphCount, paragraphLength) => {
+      await measureStress(`long-${paragraphCount}-${paragraphLength}`, async () => {
+        const text = "长文压力验证"
+          .repeat(Math.ceil(paragraphLength / 6))
+          .slice(0, paragraphLength);
+        const expected = Array.from({ length: paragraphCount }, () => text);
+        const { runtime, db, localId } = await setup(false, expected);
+        const session = runtime.sessions.get(localId)!;
+        await runtime.project(session);
+        db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
+        const tree = new NodeTree(session.doc);
+        const read = vi.spyOn(ContentDocumentTable, "read");
+        const localize = vi.spyOn(runtime.assets, "localizeDocument");
+        const idle: number[] = [],
+          saves: number[] = [];
+        try {
+          for (let iteration = 0; iteration < 500; iteration++) {
+            const started = performance.now();
+            await runtime.project(session);
+            idle.push(performance.now() - started);
+          }
+          expect(read).not.toHaveBeenCalled();
+          expect(localize).not.toHaveBeenCalled();
+          read.mockRestore();
+          for (let iteration = 0; iteration < 5; iteration++) {
+            const definition = await prepareContentContract("stress.extra", {
+              type: `stress.extra-${iteration}`,
+              dataVersion: 1,
+              kind: "block",
+            });
+            await tree.installContracts({ [definition.id]: definition.contract }, {});
+            await runtime.project(session);
+          }
+          expect(localize).not.toHaveBeenCalled();
+          expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(100);
+          for (let iteration = 0; iteration < 36; iteration++) {
+            const index = iteration % 2 ? paragraphCount - 1 : 0;
+            const id = index ? `paragraph-${index}` : "paragraph";
+            const addition = `改${iteration}`;
+            const started = performance.now();
+            tree.insertText(id, 0, addition, {});
+            expected[index] = addition + expected[index];
+            await runtime.project(session);
+            saves.push(performance.now() - started);
+            expect(
+              ContentDocumentTable.read(db, 7)!.content.map(node =>
+                node.children!.map(leaf => leaf.text).join("")
+              )
+            ).toEqual(expected);
+            expect(session.projectedVersion).toEqual(session.projectionVersion);
+          }
+          const operations = db
+            .prepare(
+              "SELECT count(*) AS count FROM operation WHERE operation_content_type='content'"
+            )
+            .get() as { count: number };
+          expect(operations.count).toBe(36);
+          expect(ContentTable.getContentById(db, 7)!.updateTime).toBeGreaterThan(100);
+          return {
+            characters: paragraphCount * paragraphLength,
+            paragraphCount,
+            idle: stressLatency(idle),
+            editAndSave: stressLatency(saves),
+            contractWrites: 5,
+            operations: operations.count,
+          };
+        } finally {
+          tree.dispose();
+        }
+      });
+    },
+    120000
+  );
+
+  it("同值属性与重复确认：不能产生编辑时间或编辑记录", async () => {
+    await measureStress("idempotent-properties", async () => {
+      const { runtime, db, localId } = await setup();
+      const session = runtime.sessions.get(localId)!;
+      await runtime.project(session);
+      db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
+      const tree = new NodeTree(session.doc);
+      const before = ContentDocumentTable.read(db, 7)!;
+      try {
+        for (let iteration = 0; iteration < 100; iteration++) {
+          tree.setProperties("paragraph", { isFold: true, svg: "用户业务内容" }, {});
+          await runtime.project(session);
+        }
+        expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(100);
+        expect(ContentDocumentTable.read(db, 7)).toEqual(before);
+        expect(
+          db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all()
+        ).toHaveLength(0);
+        return { sameValueTransactions: 100 };
+      } finally {
+        tree.dispose();
+      }
+    });
+  }, 60000);
+
+  it.each([7, 43, 137, 20261102])(
+    "随机编辑种子 %i：增删改移与未投影冷缓存恢复",
+    async seed => {
+      await measureStress(`random-${seed}`, async () => {
+        const { runtime, db, localId, event, store } = await setup(false, [
+          "起点甲",
+          "起点乙",
+          "起点丙",
+          "起点丁",
+        ]);
+        let session = runtime.sessions.get(localId)!;
+        let tree = new NodeTree(session.doc);
+        const contract = String(tree.nodeSnapshot("paragraph").tauContract);
+        const expected = ["起点甲", "起点乙", "起点丙", "起点丁"].map((text, index) => ({
+          id: index ? `paragraph-${index}` : "paragraph",
+          text,
+          level: undefined as number | undefined,
+        }));
+        const random = stressRandom(seed);
+        const verify = () => {
+          const actual = ContentDocumentTable.read(db, 7)!.content;
+          expect(
+            actual.map(node => ({
+              id: node.collabId,
+              text: node.children!.map(leaf => leaf.text).join(""),
+              level: node.level,
+            }))
+          ).toEqual(expected);
+          expect(session.projectedVersion).toEqual(session.projectionVersion);
+        };
+        let recoveries = 0,
+          saves = 0;
+        try {
+          for (let step = 0; step < 256; step++) {
+            const index = random(expected.length);
+            const target = expected[index];
+            const action = random(6);
+            if (action === 0 && Array.from(target.text).length > 1) {
+              const letters = Array.from(target.text);
+              const point = random(letters.length);
+              tree.deleteText(
+                target.id,
+                letters.slice(0, point).join("").length,
+                letters[point].length,
+                {}
+              );
+              letters.splice(point, 1);
+              target.text = letters.join("");
+            } else if (action === 1) {
+              const level = random(7);
+              tree.setProperties(target.id, { level }, {});
+              target.level = level;
+            } else if (action === 2 && expected.length > 1) {
+              const destination = random(expected.length);
+              tree.moveNode(target.id, null, destination, {});
+              expected.splice(index, 1);
+              expected.splice(destination, 0, target);
+            } else if (action === 3 && expected.length < 12) {
+              const created = { id: `new-${seed}-${step}`, text: `新增${step}`, level: undefined };
+              tree.insertNode(
+                {
+                  type: "paragraph",
+                  collabId: created.id,
+                  tauContract: contract,
+                  children: [{ type: "formatted", text: created.text }],
+                },
+                null,
+                index,
+                {},
+                true
+              );
+              expected.splice(index, 0, created);
+            } else if (action === 4 && expected.length > 1) {
+              tree.removeNodes([target.id], {});
+              expected.splice(index, 1);
+            } else {
+              const letters = Array.from(target.text);
+              const point = random(letters.length + 1);
+              const addition = ["中", "ab", "🙂", "é"][random(4)];
+              tree.insertText(target.id, letters.slice(0, point).join("").length, addition, {});
+              letters.splice(point, 0, addition);
+              target.text = letters.join("");
+            }
+            if (step % 64 === 63) {
+              tree.dispose();
+              store.compact(localId, session.doc);
+              unregisterContentSession(session);
+              session.awareness.destroy();
+              session.doc.destroy();
+              runtime.sessions.delete(localId);
+              await runtime.openContent(event, { contentId: 7 });
+              session = runtime.sessions.get(localId)!;
+              tree = new NodeTree(session.doc);
+              recoveries++;
+            }
+            if (step % 8 === 7) {
+              await runtime.project(session);
+              verify();
+              saves++;
+            }
+          }
+          return {
+            seed,
+            mutations: 256,
+            saves,
+            coldRecoveries: recoveries,
+            finalNodes: expected.length,
+          };
+        } finally {
+          tree.dispose();
+        }
+      });
+    },
+    120000
+  );
+
+  it("源码、格式、撤销重做：各类正文事务都正常推进保存", async () => {
+    await measureStress("source-format-history", async () => {
+      const { runtime, db, localId } = await setup();
+      const session = runtime.sessions.get(localId)!;
+      const tree = new NodeTree(session.doc);
+      const source = await prepareContentContract("stress.source", {
+        type: "stress.source",
+        dataVersion: 1,
+        kind: "block",
+        isVoid: true,
+        collaboration: { textFields: ["code"] },
+      });
+      await tree.installContracts({ [source.id]: source.contract }, {});
+      tree.insertNode(
+        {
+          type: "stress.source",
+          collabId: "source",
+          tauContract: source.id,
+          code: "初始源码",
+          children: [{ text: "" }],
+        },
+        null,
+        1,
+        {},
+        true
+      );
+      await runtime.project(session);
+      const origin = {};
+      const history = tree.createUndoManager({
+        trackedOrigins: new Set([origin]),
+        captureTimeout: 0,
+      });
+      let expected = "初始源码";
+      try {
+        for (let step = 0; step < 80; step++) {
+          const before = expected;
+          const addition = `片段${step}🙂`;
+          tree.doc.transact(
+            () => tree.textField("source", "code").insert(expected.length, addition),
+            origin
+          );
+          history.stopCapturing();
+          expected += addition;
+          await runtime.project(session);
+          expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(expected);
+          history.undo();
+          await runtime.project(session);
+          expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(before);
+          history.redo();
+          await runtime.project(session);
+          expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(expected);
+          tree.formatText("paragraph", 0, 2, { bold: step % 2 === 0 ? true : null }, {});
+          await runtime.project(session);
+          expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].bold).toBe(
+            step % 2 === 0 ? true : undefined
+          );
+        }
+        expect(session.projectedVersion).toEqual(session.projectionVersion);
+        return { sourceEdits: 80, undos: 80, redos: 80, formatChanges: 80, saves: 320 };
+      } finally {
+        history.destroy();
+        tree.dispose();
+      }
+    });
+  }, 120000);
+
+  it("投影重叠、写入后回滚与切库竞态：新输入始终可重试", async () => {
+    await measureStress("overlap-rollback-database-switch", async () => {
+      const { runtime, db, localId } = await setup();
+      const session = runtime.sessions.get(localId)!;
+      await runtime.project(session);
+      const tree = new NodeTree(session.doc);
+      const originalLocalize = runtime.assets.localizeDocument.bind(runtime.assets);
+      const originalCommit = ContentDocumentBlocks.commit.bind(ContentDocumentBlocks);
+      let expected = "正文";
+      try {
+        for (let step = 0; step < 30; step++) {
+          const addition = `前${step}`;
+          tree.insertText("paragraph", 0, addition, {});
+          expected = addition + expected;
+          vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+            const value = await originalLocalize(...args);
+            tree.insertText("paragraph", 0, "晚到", {});
+            expected = "晚到" + expected;
+            return value;
+          });
+          await Promise.all(Array.from({ length: 8 }, () => runtime.project(session)));
+          expect(session.projectedVersion).not.toEqual(session.projectionVersion);
+          const before = ContentDocumentTable.read(db, 7)!;
+          vi.spyOn(ContentDocumentBlocks, "commit").mockImplementationOnce((...args) => {
+            originalCommit(...args);
+            throw new Error("写入后模拟故障，事务必须回滚");
+          });
+          await expect(runtime.project(session)).rejects.toThrow("事务必须回滚");
+          expect(ContentDocumentTable.read(db, 7)).toEqual(before);
+          expect(session.projectedVersion).not.toEqual(session.projectionVersion);
+          vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+            const value = await originalLocalize(...args);
+            host.databases.delete("library");
+            return value;
+          });
+          await runtime.project(session);
+          expect(ContentDocumentTable.read(db, 7)).toEqual(before);
+          expect(session.projectionDirty).toBe(true);
+          host.databases.set("library", db);
+          await runtime.project(session);
+          expect(
+            ContentDocumentTable.read(db, 7)!
+              .content[0].children!.map(leaf => leaf.text)
+              .join("")
+          ).toBe(expected);
+          expect(session.projectedVersion).toEqual(session.projectionVersion);
+        }
+        return {
+          rounds: 30,
+          overlappingRequests: 240,
+          lateInputs: 30,
+          rollbacks: 30,
+          databaseSwitches: 30,
+        };
+      } finally {
+        host.databases.set("library", db);
+        tree.dispose();
+      }
+    });
+  }, 120000);
+
+  it("双视图并发输入与重复增量：接纳后收敛且不重复文字", async () => {
+    await measureStress("two-view-increments", async () => {
+      const { runtime, db, localId, store, state } = await setup();
+      const session = runtime.sessions.get(localId)!;
+      await runtime.project(session);
+      const queue = new NodeSessionUpdates(store, state);
+      const peers = [
+        new NodeTree(new Y.Doc({ gc: false })),
+        new NodeTree(new Y.Doc({ gc: false })),
+      ];
+      const updates: Uint8Array[][] = [[], []];
+      try {
+        peers.forEach((peer, index) => {
+          Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(session.doc));
+          peer.doc.on("update", update => updates[index].push(new Uint8Array(update)));
+        });
+        for (let step = 0; step < 120; step++)
+          peers.forEach((peer, index) => peer.insertText("paragraph", 0, `[${index}:${step}]`, {}));
+        const delivered = updates[0].flatMap((update, index) => [
+          update,
+          updates[1][index],
+          ...(index % 4 === 0 ? [update, updates[1][index]] : []),
+        ]);
+        for (let offset = 0; offset < delivered.length; offset += 8) {
+          await Promise.all(
+            delivered
+              .slice(offset, offset + 8)
+              .map(update => queue.apply(session, update, () => {}))
+          );
+          await runtime.project(session);
+        }
+        const actual = ContentDocumentTable.read(db, 7)!
+          .content[0].children!.map(leaf => leaf.text)
+          .join("");
+        for (let step = 0; step < 120; step++)
+          for (let peer = 0; peer < 2; peer++)
+            expect(actual.split(`[${peer}:${step}]`)).toHaveLength(2);
+        const converged = Y.encodeStateAsUpdate(session.doc);
+        for (const peer of peers) {
+          Y.applyUpdate(peer.doc, converged);
+          expect(peer.read()).toEqual(readNodeDocument(session.doc).content);
+        }
+        const loaded = store.load(localId);
+        try {
+          expect(readNodeDocument(loaded.doc).content).toEqual(
+            readNodeDocument(session.doc).content
+          );
+        } finally {
+          loaded.doc.destroy();
+        }
+        return {
+          writers: 2,
+          edits: 240,
+          duplicateUpdates: delivered.length - 240,
+          deliveredUpdates: delivered.length,
+          parallelBatch: 8,
+        };
+      } finally {
+        for (const peer of peers) {
+          peer.dispose();
+          peer.doc.destroy();
+        }
+      }
+    });
+  }, 120000);
+
+  it("真实 WebSocket 六轮断线重连：离线编辑最终进入服务端", async () => {
+    await measureStress("websocket-reconnect", async () => {
+      const { runtime, db, event, server } = await setup(true);
+      const shared = await runtime.createContent(event, 7);
+      const session = runtime.sessions.get(shared.documentId)!;
+      await vi.waitFor(() => expect(session.provider?.synced).toBe(true), { timeout: 10000 });
+      await runtime.project(session);
+      const tree = new NodeTree(session.doc);
+      let expected = "正文";
+      try {
+        for (let round = 0; round < 6; round++) {
+          for (const transport of runtime.transports.values()) transport.disconnect();
+          await vi.waitFor(
+            () =>
+              expect(
+                [...runtime.transports.values()].every(
+                  transport => transport.status === "disconnected"
+                )
+              ).toBe(true),
+            { timeout: 10000 }
+          );
+          for (let edit = 0; edit < 40; edit++) {
+            const token = `[${round}:${edit}]`;
+            tree.insertText("paragraph", 0, token, {});
+            expected = token + expected;
+          }
+          await runtime.project(session);
+          expect(
+            ContentDocumentTable.read(db, 7)!
+              .content[0].children!.map(leaf => leaf.text)
+              .join("")
+          ).toBe(expected);
+          await Promise.all([...runtime.transports.values()].map(transport => transport.connect()));
+          await vi.waitFor(
+            () => {
+              const remote = server.store.loadDocument(shared.documentId);
+              try {
+                expect(
+                  readNodeDocument(remote)
+                    .content[0].children!.map(leaf => leaf.text)
+                    .join("")
+                ).toBe(expected);
+              } finally {
+                remote.destroy();
+              }
+            },
+            { timeout: 10000 }
+          );
+        }
+        return { reconnects: 6, offlineEdits: 240 };
+      } finally {
+        tree.dispose();
+      }
+    });
+  }, 120000);
 });

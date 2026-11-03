@@ -48,7 +48,7 @@ fn base(entity: &str) -> Result<String, String> {
     } else {
         "e.is_top AS pinned,'document' AS kind,'[]' AS projects"
     };
-    Ok(format!("SELECT e.id,e.create_time AS created,e.update_time AS revision,MAX(e.update_time,COALESCE(c.update_time,0)) AS updated,e.tags,{fields},{title} AS title,e.content_id,c.create_time AS content_created,COALESCE(c.count,0) AS word_count,c.content,'{entity}' AS entity FROM {table} e LEFT JOIN contents c ON c.id=e.content_id LEFT JOIN content_ai_meta m ON m.content_id=c.id WHERE {filter}"))
+    Ok(format!("SELECT e.id,e.create_time AS created,e.update_time AS revision,MAX(e.update_time,COALESCE(c.update_time,0)) AS updated,e.tags,{fields},{title} AS title,e.content_id,c.create_time AS content_created,COALESCE(c.count,0) AS word_count,c.content,'{entity}' AS entity FROM {table} e LEFT JOIN content_snapshots c ON c.id=e.content_id LEFT JOIN content_ai_meta m ON m.content_id=c.id WHERE {filter}"))
 }
 fn entity_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
     let entity: String = row.get("entity")?;
@@ -198,7 +198,7 @@ fn read_content(conn: &Connection, reference: &str, plugin_id: &str) -> Result<V
     let (id, created) = content_ref(reference)?;
     if !conn
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM contents WHERE id=?1 AND create_time=?2)",
+            "SELECT EXISTS(SELECT 1 FROM content_snapshots WHERE id=?1 AND create_time=?2)",
             params![id, created],
             |row| row.get::<_, bool>(0),
         )
@@ -443,7 +443,7 @@ fn change(conn: &mut Connection, plugin_id: &str, request: &Value) -> Result<Val
                 super::collaboration::assert_content_local(&tx, content_id)?;
                 let created = tx
                     .query_row(
-                        "SELECT create_time FROM contents WHERE id=?1",
+                        "SELECT create_time FROM content_snapshots WHERE id=?1",
                         [content_id],
                         |row| row.get::<_, i64>(0),
                     )
@@ -476,7 +476,7 @@ fn edit_content(conn: &mut Connection, plugin_id: &str, request: &Value) -> Resu
     let tx = conn.transaction().map_err(sql_error)?;
     if !tx
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM contents WHERE id=?1 AND create_time=?2)",
+            "SELECT EXISTS(SELECT 1 FROM content_snapshots WHERE id=?1 AND create_time=?2)",
             params![id, created],
             |row| row.get::<_, bool>(0),
         )
@@ -593,7 +593,7 @@ pub(super) fn restore(conn: &mut Connection, plugin_id: &str, id: i64) -> Result
     let content_created = integer(&payload, "contentCreatedAt")?;
     if !tx
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM contents WHERE id=?1 AND create_time=?2)",
+            "SELECT EXISTS(SELECT 1 FROM content_snapshots WHERE id=?1 AND create_time=?2)",
             params![content_id, content_created],
             |row| row.get::<_, bool>(0),
         )
@@ -949,7 +949,7 @@ pub(super) fn changes(conn: &Connection, token: &str, after: Option<i64>) -> Res
                     let (entity,owner,kind)=item.map_err(sql_error)?;
                     events.push(json!({"type":"entity.updated","id":entity.to_string(),"kind":kind,"ownerPluginId":owner,"at":at,"origin":origin}));
                 }
-                if conn.query_row("SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM contents WHERE id=?1",[id],|row|row.get::<_,bool>(0)).optional().map_err(sql_error)?.unwrap_or(false) {
+                if conn.query_row("SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM content_snapshots WHERE id=?1",[id],|row|row.get::<_,bool>(0)).optional().map_err(sql_error)?.unwrap_or(false) {
                     events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}}));
                 }
                 for (entity,table) in [("card","cards"),("article","articles"),("document","project_item")] {

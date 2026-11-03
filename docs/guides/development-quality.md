@@ -89,6 +89,24 @@ pnpm --filter @example/whiteboard build
 
 ## 性能验证
 
+### 正文保存压力验证
+
+1. 在仓库根目录运行 `pnpm --filter desktop test:content-projection:stress`，使用临时资料库与本机测试协作服务。
+2. 需要保存结构化指标时，通过环境变量 `TAU_CONTENT_STRESS_REPORT` 指定 JSON 输出绝对路径；多次运行使用不同文件名，避免覆盖。
+3. 核对自动保存日志有界压缩、长文空保存与连续编辑、同值属性、固定种子随机增删改移、冷缓存恢复、源码与格式、撤销重做、重叠保存、回滚重试、切库竞态、双视图增量去重及断线重连全部通过。
+4. 按相同规模顺序运行三次，保留每轮的空保存与实际编辑保存 P50/P95/最大耗时；RSS 与堆占用是测试进程的采样值，不作为桌面应用内存峰值。
+5. 判据为预期正文逐字一致、节点顺序与格式一致、无变化不改更新时间、不重复编辑记录、失败与迟到输入可重试，且重开与服务端结果一致。
+
+### 正文保存故障排查
+
+1. 在本次 `session-*.log` 搜索 `[content-save]`，日志目录以应用启动日志为准。
+2. 按 `sessionId` 串联增量接纳、主库投影、缓存恢复和检查点；通过 `documentId` 或 `contentId` 定位正文，勿要求用户提供正文内容。
+3. 先看 `stage`：`delta.validate` 为增量校验，`delta.journal` 为耐久写入，`delta.apply`/`delta.confirm` 为应用与确认；主库的 `identity`/`localize`/`commit`/`acknowledge`/`notify` 分别对应身份、资源转换、提交、回执与通知。
+4. `committed=false` 时检查错误代码、分类、修订摘要与待保存代次；`committed=true` 时先核查后续缓存或通知阶段，不能直接认定主库正文丢失。`journalSaved=true` 只证明输入增量已耐久，不代替主库提交回执。
+5. 保存后 `pending=true` 且 `version` 大于 `confirmed` 时，继续查下一轮提交；缓存恢复结合 `replayedUpdates`，检查点结合 `snapshotBytes` 与 `removedUpdates` 判断。故障限频期间查看下一条日志的省略次数，恢复须看到对应接纳或投影恢复事件。
+
+### 代码检查工具对比
+
 1. 固定同一提交、文件清单、Node.js 版本及运行机器。
 2. 旧、新工具使用相同文件批次，不启用缓存、不执行写入。
 3. 分别预热一次，再顺序执行三次，记录全部耗时与中位数。

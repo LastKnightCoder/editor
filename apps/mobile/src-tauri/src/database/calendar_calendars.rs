@@ -306,7 +306,7 @@ pub(crate) fn content_by_id(conn: &Connection, content_id: i64) -> Result<Option
         return Ok(None);
     }
     conn.query_row(
-        "SELECT content FROM contents WHERE id = ?1",
+        "SELECT content FROM content_snapshots WHERE id = ?1",
         params![content_id],
         |row| row.get::<_, String>(0),
     )

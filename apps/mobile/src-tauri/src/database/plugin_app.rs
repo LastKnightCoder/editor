@@ -99,7 +99,7 @@ fn document_node(
     }
     let raw: Option<String> = conn
         .query_row(
-            "SELECT content FROM contents WHERE id=?1 AND create_time=?2",
+            "SELECT content FROM content_snapshots WHERE id=?1 AND create_time=?2",
             params![content, created],
             |row| row.get(0),
         )
@@ -150,7 +150,7 @@ pub(super) fn entity_target(
         return Ok(None);
     }
     conn.query_row(
-        "SELECT e.plugin_id,e.kind,e.create_time,e.content_id,c.create_time,e.title,k.label,k.icon,c.content FROM plugin_entities e JOIN contents c ON c.id=e.content_id LEFT JOIN plugin_entity_kinds k ON k.plugin_id=e.plugin_id AND k.kind=e.kind WHERE e.id=?1",
+        "SELECT e.plugin_id,e.kind,e.create_time,e.content_id,c.create_time,e.title,k.label,k.icon,c.content FROM plugin_entities e JOIN content_snapshots c ON c.id=e.content_id LEFT JOIN plugin_entity_kinds k ON k.plugin_id=e.plugin_id AND k.kind=e.kind WHERE e.id=?1",
         [id], |row| {
             let title:String=row.get(5)?;
             let title=if title.trim().is_empty() { common::json_content_plain_text(row.get(8)?).chars().take(80).collect::<String>() } else { title };
@@ -180,7 +180,7 @@ pub(super) fn locate(
                 return Ok(None);
             };
             let row: Option<(i64, i64, String, String, String)> = conn.query_row(
-                "SELECT s.content_id,s.create_time,d.type,d.date,c.content FROM diary_segments s JOIN diary_entries d ON d.id=s.diary_id JOIN contents c ON c.id=s.content_id WHERE s.id=?1",
+                "SELECT s.content_id,s.create_time,d.type,d.date,c.content FROM diary_segments s JOIN diary_entries d ON d.id=s.diary_id JOIN content_snapshots c ON c.id=s.content_id WHERE s.id=?1",
                 [id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
             ).optional().map_err(sql_error)?;
             Ok(row.map(|(content_id, created_at, diary_type, date, content)| {
@@ -523,7 +523,7 @@ fn query_refs(
                         let content = candidate["contentId"].as_i64().ok_or("正文身份无效")?;
                         let created: i64 = conn
                             .query_row(
-                                "SELECT create_time FROM contents WHERE id=?1",
+                                "SELECT create_time FROM content_snapshots WHERE id=?1",
                                 [content],
                                 |row| row.get(0),
                             )

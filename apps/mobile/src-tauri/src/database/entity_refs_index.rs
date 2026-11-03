@@ -131,7 +131,7 @@ fn diff_pending(
 
     let mut pending_ids = Vec::new();
     let mut main_stmt = conn
-        .prepare("SELECT id, update_time FROM contents")
+        .prepare("SELECT id, update_time FROM content_snapshots")
         .map_err(|e| format!("ENTITY_REFS_FAILED: Failed to read contents: {e}"))?;
     let main_rows = main_stmt
         .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))
@@ -171,7 +171,7 @@ fn read_contents(conn: &Connection, ids: &[i64]) -> Result<HashMap<i64, Option<S
     }
     let marks = vec!["?"; ids.len()].join(",");
     let sql = format!(
-        "SELECT id, CASE WHEN instr(content, '\"content-link\"') > 0 THEN content END FROM contents
+        "SELECT id, CASE WHEN instr(content, '\"content-link\"') > 0 THEN content END FROM content_snapshots
          WHERE id IN ({marks})"
     );
     let mut stmt = conn

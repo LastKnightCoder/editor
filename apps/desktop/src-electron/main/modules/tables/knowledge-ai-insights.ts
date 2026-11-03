@@ -215,7 +215,8 @@ export function linkCardsMutually(db: Database.Database, a: number, b: number, n
 export default class KnowledgeAiInsightsTable {
   static get(db: Database.Database, id: number): KnowledgeAiInsightsRow | null {
     const row = db.prepare(`SELECT * FROM knowledge_ai_insights WHERE id = ?`).get(id) as
-      RawRow | undefined;
+      | RawRow
+      | undefined;
     return row ? toRow(row) : null;
   }
 
@@ -351,7 +352,7 @@ export default class KnowledgeAiInsightsTable {
            AND NOT EXISTS (SELECT 1 FROM project p WHERE p.id = knowledge_ai_insights.project_id)`
       )
       .run().changes;
-    const exists = db.prepare(`SELECT 1 FROM contents WHERE id = ?`);
+    const exists = db.prepare(`SELECT 1 FROM content_snapshots WHERE id = ?`);
     for (const row of this.list(db)) {
       if (row.scope !== "subtopic" && row.scope !== "topic") continue;
       if (row.members.length === 0) continue;

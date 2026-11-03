@@ -323,7 +323,7 @@ export default class TodoCalendarSyncTable {
           ti.*,
           c.content as content_content
         FROM todo_item ti
-        LEFT JOIN contents c ON ti.description_content_id = c.id
+        LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
         WHERE ti.id = ?`
       )
       .get(todoItemId) as any;

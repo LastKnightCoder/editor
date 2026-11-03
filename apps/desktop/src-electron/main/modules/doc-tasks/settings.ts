@@ -90,7 +90,8 @@ interface TaskRow {
 }
 
 export type PromoteResult =
-  { ok: true; todoId: number } | { ok: false; reason: "not-found" | "no-group" };
+  | { ok: true; todoId: number }
+  | { ok: false; reason: "not-found" | "no-group" };
 
 /**
  * 转为独立待办：项目取正文里写的 `#项目`，没写则用 fallbackGroupId；子项按原层级建为子任务。
@@ -161,7 +162,8 @@ export function promoteDocTask(
     );
     const build = (row: TaskRow, parentId: number | null) => {
       const existing = existingOf.get(contentId, row.task_id) as
-        { todo_item_id: number } | undefined;
+        | { todo_item_id: number }
+        | undefined;
       if (existing) {
         TodoItemTable.moveAndReorder(mainDb, {
           id: existing.todo_item_id,
@@ -258,7 +260,7 @@ export function renameGroupTokens(
   if (!oldTitle || oldTitle === newTitle) return 0;
   const contentIds = (
     mainDb
-      .prepare(`SELECT id FROM contents WHERE instr(content, '"check-list-item"') > 0`)
+      .prepare(`SELECT id FROM content_snapshots WHERE instr(content, '"check-list-item"') > 0`)
       .all() as Array<{ id: number }>
   ).map(row => row.id);
   if (!contentIds.length) return 0;

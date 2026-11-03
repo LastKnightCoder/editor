@@ -9,10 +9,8 @@ import PathUtil from "../utils/PathUtil";
 import { contentExecutor } from "../services/content-execution";
 import { ContentDocumentTable } from "./tables/content-document";
 import { ContentIdentityTable } from "./tables/content-identity";
-import Operation from "./tables/operation";
 import { emitContentWritten } from "./content-events";
-
-const CONTENT_DOCUMENT_FORMAT = 2;
+import { isSupportedContentStorageVersion } from "@tau/db-schema";
 
 interface RawContent {
   content: string;
@@ -20,7 +18,7 @@ interface RawContent {
 }
 
 const readRaw = (db: Database.Database, contentId: number): RawContent | null => {
-  const row = db.prepare("SELECT content FROM contents WHERE id=?").get(contentId) as
+  const row = db.prepare("SELECT content FROM content_snapshots WHERE id=?").get(contentId) as
     | { content: string }
     | undefined;
   if (!row) return null;
@@ -52,7 +50,7 @@ export async function repairContentForOpen(
   current: () => boolean
 ): Promise<boolean> {
   const raw = readRaw(db, contentId);
-  if (!raw || (raw.document && raw.document.format_version !== CONTENT_DOCUMENT_FORMAT))
+  if (!raw || (raw.document && !isSupportedContentStorageVersion(raw.document.format_version)))
     return false;
   const content = parse(raw.content);
   const contracts = parse(raw.document?.contracts) as ContentContractDictionary | undefined;
@@ -88,11 +86,11 @@ export async function repairContentForOpen(
       },
       {
         installDocument: true,
+        preserveUpdateTime: true,
         expectedRevision: raw.document?.revision,
         count: getContentLength(repaired.content as never),
       }
     );
-    Operation.insertOperation(db, "content", "update", contentId, Date.now());
   })();
   emitContentWritten(db, contentId, "update");
   console.warn(`[content-repair] 正文 ${contentId} 已自愈，原文备份在 content-repairs/`);

@@ -246,7 +246,7 @@ fn hydrate_entry(conn: &rusqlite::Connection, mut entry: DiaryEntry) -> Result<D
     entry.tags = serde_json::from_str(tags.as_deref().unwrap_or("[]"))
         .map_err(|e| format!("DIARY_INVALID_JSON: {e}"))?;
     entry.segments = conn.prepare("SELECT s.id,s.diary_id,s.content_id,s.tags,s.create_time,s.update_time,COALESCE(c.count,0),c.content
-        FROM diary_segments s JOIN contents c ON c.id=s.content_id WHERE s.diary_id=?1 ORDER BY s.create_time,s.id")
+        FROM diary_segments s JOIN content_snapshots c ON c.id=s.content_id WHERE s.diary_id=?1 ORDER BY s.create_time,s.id")
         .map_err(|e| e.to_string())?.query_map([entry.id], |r| Ok(DiarySegment {
             id:r.get(0)?,diary_id:r.get(1)?,content_id:r.get(2)?,create_time:r.get(4)?,update_time:r.get(5)?,word_count:r.get(6)?,content:parse_diary_content(r.get(7)?),tags:parse_segment_tags(r.get(3)?),
         })).map_err(|e| e.to_string())?.collect::<rusqlite::Result<Vec<_>>>().map_err(|e| e.to_string())?;
@@ -270,7 +270,7 @@ fn query_entry_by_id(conn: &rusqlite::Connection, id: i64) -> Result<DiaryEntry,
           d.id, d.type, d.date, d.content_id, d.weather, d.mood,
           d.word_count, d.create_time, d.update_time, c.content
         FROM diary_entries d
-        LEFT JOIN contents c ON c.id = d.content_id
+        LEFT JOIN content_snapshots c ON c.id = d.content_id
         WHERE d.id = ?1
         LIMIT 1
         ",
@@ -306,7 +306,7 @@ pub fn diary_list_entries(
               d.id, d.type, d.date, d.content_id, d.weather, d.mood,
               d.word_count, d.create_time, d.update_time, c.content
             FROM diary_entries d
-            LEFT JOIN contents c ON c.id = d.content_id
+            LEFT JOIN content_snapshots c ON c.id = d.content_id
             WHERE d.type = ?1
             ORDER BY d.date DESC
             LIMIT ?2 OFFSET ?3
@@ -320,7 +320,7 @@ pub fn diary_list_entries(
               d.id, d.type, d.date, d.content_id, d.weather, d.mood,
               d.word_count, d.create_time, d.update_time, c.content
             FROM diary_entries d
-            LEFT JOIN contents c ON c.id = d.content_id
+            LEFT JOIN content_snapshots c ON c.id = d.content_id
             ORDER BY d.date DESC
             LIMIT ?1 OFFSET ?2
             ",
@@ -373,7 +373,7 @@ pub fn diary_get_entry(
           d.id, d.type, d.date, d.content_id, d.weather, d.mood,
           d.word_count, d.create_time, d.update_time, c.content
         FROM diary_entries d
-        LEFT JOIN contents c ON c.id = d.content_id
+        LEFT JOIN content_snapshots c ON c.id = d.content_id
         WHERE d.type = ?1 AND d.date = ?2
         LIMIT 1
         ",
@@ -558,7 +558,7 @@ fn delete_entry(conn: &mut rusqlite::Connection, entry_id: i64) -> Result<i64, S
 }
 
 fn sync_word_counts(conn: &rusqlite::Connection) -> Result<(), String> {
-    conn.execute_batch("UPDATE diary_entries SET word_count=COALESCE((SELECT SUM(c.count) FROM diary_segments s JOIN contents c ON c.id=s.content_id WHERE s.diary_id=diary_entries.id),0);").map_err(|e| e.to_string())
+    conn.execute_batch("UPDATE diary_entries SET word_count=COALESCE((SELECT SUM(c.count) FROM diary_segments s JOIN content_snapshots c ON c.id=s.content_id WHERE s.diary_id=diary_entries.id),0);").map_err(|e| e.to_string())
 }
 
 pub(super) fn touch_content_diaries(
@@ -571,7 +571,7 @@ pub(super) fn touch_content_diaries(
         params![now, content_id],
     )
     .map_err(|e| e.to_string())?;
-    conn.execute("UPDATE diary_entries SET update_time=?1,word_count=COALESCE((SELECT SUM(c.count) FROM diary_segments s JOIN contents c ON c.id=s.content_id WHERE s.diary_id=diary_entries.id),0)
+    conn.execute("UPDATE diary_entries SET update_time=?1,word_count=COALESCE((SELECT SUM(c.count) FROM diary_segments s JOIN content_snapshots c ON c.id=s.content_id WHERE s.diary_id=diary_entries.id),0)
         WHERE id IN (SELECT diary_id FROM diary_segments WHERE content_id=?2)", params![now,content_id]).map_err(|e| e.to_string())?;
     Ok(())
 }

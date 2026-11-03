@@ -77,9 +77,12 @@ fn current_schema_removes_retired_sync_objects_and_preserves_business_data() {
     conn.execute("UPDATE contents SET count=1 WHERE id=1", [])
         .unwrap();
     assert_eq!(
-        conn.query_row("SELECT count FROM contents WHERE id=1", [], |row| row
-            .get::<_, i64>(0))
-            .unwrap(),
+        conn.query_row(
+            "SELECT count FROM content_snapshots WHERE id=1",
+            [],
+            |row| row.get::<_, i64>(0)
+        )
+        .unwrap(),
         1
     );
     let changes = total_changes(&conn);

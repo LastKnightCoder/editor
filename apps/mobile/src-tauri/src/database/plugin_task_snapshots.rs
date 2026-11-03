@@ -223,7 +223,7 @@ pub(super) fn record(
     for id in references(before).keys() {
         let created = conn
             .query_row(
-                "SELECT create_time FROM contents WHERE id=?1",
+                "SELECT create_time FROM content_snapshots WHERE id=?1",
                 [id],
                 |row| row.get::<_, i64>(0),
             )
@@ -277,7 +277,7 @@ pub(super) fn release_pins(conn: &Connection, operation: &str) -> Result<(), Str
     for (id, created) in pins {
         if conn
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM contents WHERE id=?1 AND create_time=?2)",
+                "SELECT EXISTS(SELECT 1 FROM content_snapshots WHERE id=?1 AND create_time=?2)",
                 params![id, created],
                 |row| row.get::<_, bool>(0),
             )
@@ -364,7 +364,7 @@ pub(super) fn restore(conn: &Connection, operation: &str) -> Result<(), String> 
         let task = link["task_id"].as_str().ok_or("关联待办身份无效")?;
         let current = conn
             .query_row(
-                "SELECT create_time,content FROM contents WHERE id=?1",
+                "SELECT create_time,content FROM content_snapshots WHERE id=?1",
                 [content],
                 |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
             )

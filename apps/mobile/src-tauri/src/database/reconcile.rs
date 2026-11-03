@@ -151,7 +151,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
     let mut stmt = main_conn
         .prepare(
             "SELECT c.id, c.update_time, c.tags, ct.update_time, ct.content
-             FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id",
+             FROM cards c LEFT JOIN content_snapshots ct ON c.content_id = ct.id",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare cards index query: {e}"))?;
     let card_rows = stmt
@@ -181,7 +181,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
     let mut stmt = main_conn
         .prepare(
             "SELECT a.id, a.title, a.author, a.tags, a.update_time, c.update_time, c.content
-             FROM articles a LEFT JOIN contents c ON a.content_id = c.id
+             FROM articles a LEFT JOIN content_snapshots c ON a.content_id = c.id
              WHERE a.is_delete = 0",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare articles index query: {e}"))?;
@@ -219,7 +219,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
     let mut stmt = main_conn
         .prepare(
             "SELECT pi.id, pi.title, pi.update_time, c.update_time, c.content, pi.tags
-             FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id
+             FROM project_item pi LEFT JOIN content_snapshots c ON pi.content_id = c.id
              WHERE COALESCE(pi.ref_type, '') = ''",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare project index query: {e}"))?;
@@ -252,7 +252,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
     let mut stmt = main_conn
         .prepare(
             "SELECT s.diary_id, s.update_time, c.content
-             FROM diary_segments s JOIN contents c ON s.content_id = c.id",
+             FROM diary_segments s JOIN content_snapshots c ON s.content_id = c.id",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare diary segment index query: {e}"))?;
     let segment_rows = stmt
@@ -279,7 +279,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
     let mut stmt = main_conn
         .prepare(
             "SELECT d.id, d.type, d.date, d.tags, d.update_time, c.update_time, c.content
-             FROM diary_entries d LEFT JOIN contents c ON d.content_id = c.id",
+             FROM diary_entries d LEFT JOIN content_snapshots c ON d.content_id = c.id",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare diary index query: {e}"))?;
     let diary_rows = stmt
@@ -365,7 +365,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
     }
 
     let mut stmt=main_conn.prepare(
-        "SELECT e.id,e.title,e.update_time,c.update_time,c.content FROM plugin_entities e JOIN contents c ON c.id=e.content_id"
+        "SELECT e.id,e.title,e.update_time,c.update_time,c.content FROM plugin_entities e JOIN content_snapshots c ON c.id=e.content_id"
     ).map_err(|error|format!("DB_OPEN_FAILED: Failed to prepare plugin entity index query: {error}"))?;
     let entities = stmt
         .query_map([], |row| {

@@ -63,7 +63,7 @@ function readContents(mainDb: Database.Database, ids: number[]): Map<number, Con
     .prepare(
       `SELECT id, update_time,
          CASE WHEN instr(content, '"check-list-item"') > 0 THEN content END AS content
-       FROM contents WHERE id IN (${marks})`
+       FROM content_snapshots WHERE id IN (${marks})`
     )
     .all(...ids) as ContentRow[];
   return new Map(rows.map(row => [row.id, row]));
@@ -171,7 +171,8 @@ export function reindexDocTasks(
             return Object.keys(patch).length ? patch : null;
           }
           const anchor = node.taskDateAnchor as
-            { hint?: string; at?: number; date?: string } | undefined;
+            | { hint?: string; at?: number; date?: string }
+            | undefined;
           const anchored =
             anchor?.hint === hint && typeof anchor.at === "number" && Number.isFinite(anchor.at);
           if (!(anchored && anchor.date && resolveDocTaskDue(anchor.date, now) != null)) {
@@ -389,7 +390,7 @@ export function diffDocTaskSources(
   const version = indexDb
     .prepare(`SELECT value FROM index_meta WHERE key = 'doc_tasks_version'`)
     .get() as { value: string } | undefined;
-  const contents = mainDb.prepare(`SELECT id, update_time FROM contents`).all() as Array<{
+  const contents = mainDb.prepare(`SELECT id, update_time FROM content_snapshots`).all() as Array<{
     id: number;
     update_time: number;
   }>;

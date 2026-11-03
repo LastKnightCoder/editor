@@ -260,7 +260,7 @@ class DocTasksModule implements Module {
       broadcastDatabaseChange(DOC_TASKS_CHANGED, dbName);
     const ids = (
       dbs.mainDb
-        .prepare(`SELECT id FROM contents WHERE instr(content, '"check-list-item"') > 0`)
+        .prepare(`SELECT id FROM content_snapshots WHERE instr(content, '"check-list-item"') > 0`)
         .all() as Array<{ id: number }>
     ).map(row => row.id);
     if (renamed.size) await this.reindex(dbName, ids);
