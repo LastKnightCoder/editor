@@ -6,6 +6,8 @@ import type {
   ArticlePageItem,
   ArticlePageSort,
   ArticleTagCount,
+  ArticleMetadataPatch,
+  ArticleDatabaseScope,
 } from "@/types";
 
 /** 文章内容按 id 批量取回的条目（供 AI 等消费方的受控摘要） */
@@ -23,6 +25,10 @@ export interface ArticleContentResult {
  * 渲染侧调用的 channel 与类型；主进程注册点契约化随 tables 批次推进。
  */
 export const articleCommands = {
+  patchScoped: command<
+    [ArticleDatabaseScope & { id: number; patch: ArticleMetadataPatch }],
+    IArticle
+  >("articles:patch-scoped"),
   create: command<[ICreateArticle], IArticle>("create-article"),
   createFromProjectItem: command<[number], IArticle | null>("create-article-from-project-item"),
   update: command<[IUpdateArticle], IArticle>("update-article"),

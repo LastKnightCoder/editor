@@ -9,9 +9,18 @@ import {
   ArticlePageItem,
   ArticlePageSort,
   ArticleTagCount,
+  ArticleMetadataPatch,
 } from "@/types";
 
 export type { ArticleContentResult };
+
+export async function patchScopedArticle(
+  databaseName: string,
+  id: number,
+  patch: ArticleMetadataPatch
+): Promise<IArticle> {
+  return articleCommands.patchScoped.call({ databaseName, id, patch });
+}
 
 export async function createArticle(article: ICreateArticle): Promise<IArticle> {
   const command = bindDatabaseCommands(articleCommands.create, currentCommandScope());

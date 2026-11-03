@@ -30,31 +30,10 @@ import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultContentEventBus } from "@/utils/event-bus/content-event-bus";
 import { startOfWeek } from "@/utils/time";
 import { toast } from "@tau/ui";
+import { cardDetailKey, cardsKey, mergeCardIntoCache } from "./cache";
 import type { CardFilter, CardTagNode, CardTimeGroup, CardTimeGroupKey } from "./types";
 
-export const cardsKey = (databaseName: string) => ["cards", databaseName, "all"] as const;
-
-export const cardDetailKey = (databaseName: string, id: number | null) =>
-  ["cards", databaseName, "detail", id] as const;
-
-/** 单卡并入列表缓存：更新/新增在位替换或追加，删除移除，并同步单卡详情缓存 */
-function mergeCardIntoCache(
-  queryClient: QueryClient,
-  databaseName: string,
-  card: ICard,
-  change: "upsert" | "deleted"
-) {
-  queryClient.setQueryData<ICard[]>(cardsKey(databaseName), cards => {
-    if (change === "deleted") return cards?.filter(item => item.id !== card.id);
-    if (!cards) return [card];
-    return cards.some(item => item.id === card.id)
-      ? cards.map(item => (item.id === card.id ? card : item))
-      : [...cards, card];
-  });
-  if (change !== "deleted") {
-    queryClient.setQueryData(cardDetailKey(databaseName, card.id), card);
-  }
-}
+export { cardDetailKey, cardsKey } from "./cache";
 
 const sameDatabase = (a: unknown, b: string) =>
   typeof a === "string" && a.replace(/\.db$/, "") === b.replace(/\.db$/, "");
