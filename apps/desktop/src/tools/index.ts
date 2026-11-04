@@ -5,11 +5,11 @@ import { registerBuiltinTools } from "./builtinTools";
 import { disconnectFromServer, fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
 import useSettingStore from "@/stores/useSettingStore";
 import { useImageCapabilities } from "@/services/image-capabilities";
+import { isMainWindow } from "@/utils/window-role";
 
 let initialized = false;
 /** 上次加载时的服务器配置：store 只替换被改动的那一项，按引用比较即可只重载变化的服务器 */
 let loadedCustomServers = new Map<string, CustomMCPServer>();
-let mcpStatusUnsubscribe: (() => void) | null = null;
 
 const isProviderAvailable = (provider: (typeof MCP_PROVIDERS)[number]) =>
   provider.isAvailable?.() ?? true;
@@ -56,6 +56,7 @@ const loadCustomServer = async (server: CustomMCPServer) => {
 
 /** 手动重连：断开后按当前配置重新连接并刷新工具列表 */
 export const reloadCustomServer = async (server: CustomMCPServer) => {
+  if (!isMainWindow()) return;
   await disconnectFromServer(server.id).catch(() => undefined);
   await loadCustomServer(server);
 };
@@ -88,9 +89,10 @@ export const initializeTooling = () => {
   }
   initialized = true;
 
-  if (!mcpStatusUnsubscribe) {
+  const mainWindow = isMainWindow();
+  if (mainWindow) {
     const store = useMCPStore.getState();
-    mcpStatusUnsubscribe = onConnectionStatusChange(data => {
+    onConnectionStatusChange(data => {
       if (store.getCustomServer(data.serverId))
         store.setConnectionStatus(data.serverId, data.status, data.error);
     });
@@ -99,7 +101,7 @@ export const initializeTooling = () => {
   syncDisabledTools(useMCPStore.getState().disabledTools);
   registerBuiltinTools(toolRegistry);
   registerBuiltinProviders(toolRegistry);
-  syncCustomServers(useMCPStore.getState().customServers);
+  if (mainWindow) syncCustomServers(useMCPStore.getState().customServers);
   useImageCapabilities.subscribe(() => registerBuiltinProviders(toolRegistry));
 
   useMCPStore.subscribe((state, prevState) => {
@@ -128,7 +130,7 @@ export const initializeTooling = () => {
       syncDisabledTools(state.disabledTools, prevState?.disabledTools);
     }
 
-    if (!prevState || state.customServers !== prevState.customServers) {
+    if (mainWindow && state.customServers !== prevState?.customServers) {
       syncCustomServers(state.customServers);
     }
   });
