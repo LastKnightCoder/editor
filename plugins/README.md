@@ -19,3 +19,7 @@ git submodule update --init --recursive
 升级 SDK/UI 时，同步 npm 别名、锁文件和 `pnpm-workspace.yaml` 中自有开发包的 `minimumReleaseAgeExclude` 确切版本，保留其他依赖的发布等待策略。发布后核对 npm 元数据与实际下载摘要，再执行正式冻结安装验证；全部通过后才推送插件发行标签。
 
 推送源码工作分支不等于发布插件。发布标签可能触发插件中心上传；只在明确授权发行时创建标签或执行发布流程。
+
+## 插件说明
+
+[豆包语音合成](tau-plugin-tts-seed/README.md)的独立仓库为 [tau-plugin-tts-seed](https://github.com/LastKnightCoder/tau-plugin-tts-seed)，协议依据、验证步骤与标签发行流程见其 [开发文档](tau-plugin-tts-seed/DEVELOPMENT.md)。
