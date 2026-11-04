@@ -89,15 +89,17 @@ const describeTransport = (transport: TransportConfig): string =>
     ? `启动进程 ${[transport.command, ...(transport.args ?? [])].join(" ")}`
     : `连接 ${transport.url}（streamable-http）`;
 
+type PluginMcpLease = Awaited<ReturnType<typeof import("./plugin-backend").authorizePluginMcp>>;
+
 class MCPConnectionManager {
-  readonly pluginLeases = new Map<
-    string,
-    Awaited<ReturnType<typeof import("./plugin-backend").authorizePluginMcp>>
-  >();
+  readonly pluginLeases = new Map<string, PluginMcpLease>();
   readonly logs = new MCPLogBuffer();
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
-  private pendingClients = new Map<string, { client: Client; transport: Transport }>();
+  private pendingClients = new Map<
+    string,
+    { client: Client; transport: Transport; ready: Promise<void> }
+  >();
   private serverConfigs: Map<string, CustomMCPServer> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private maxReconnectReached: Set<string> = new Set(); // 记录已达到最大重连次数的服务器
@@ -109,19 +111,29 @@ class MCPConnectionManager {
     if (server.id.startsWith("plugin:") && server.transport.type === "stdio" && !lease)
       throw new Error("插件 stdio MCP 缺少后台授权");
     await lease?.validate();
+
+    while (true) {
+      if (lease && this.pluginLeases.get(server.id) !== lease)
+        throw new Error("插件 MCP 授权已变化");
+      const pending = this.pendingClients.get(server.id);
+      const connected = this.clients.has(server.id);
+      if (!pending && !connected) break;
+      if (
+        !isManualReconnect &&
+        !server.id.startsWith("plugin:") &&
+        JSON.stringify(this.serverConfigs.get(server.id)?.transport) ===
+          JSON.stringify(server.transport)
+      ) {
+        return pending?.ready;
+      }
+      await this.disconnect(server.id);
+    }
+
     // 如果是手动重连，重置重连计数
     if (isManualReconnect) {
       this.reconnectAttempts.set(server.id, 0);
       this.maxReconnectReached.delete(server.id);
     }
-
-    // 如果已连接，先断开
-    if (this.clients.has(server.id) || this.pendingClients.has(server.id)) {
-      await this.disconnect(server.id);
-    }
-    if (lease && this.pluginLeases.get(server.id) !== lease) throw new Error("插件 MCP 授权已变化");
-
-    this.serverConfigs.set(server.id, server);
 
     this.logs.push(
       server.id,
@@ -133,19 +145,31 @@ class MCPConnectionManager {
       { name: "tau-desktop", version: app.getVersion() },
       { capabilities: {} }
     );
-    const pending = { client, transport };
-    this.pendingClients.set(server.id, pending);
+    // 先登记握手任务，其他窗口才能复用同一次连接。
+    const ready = Promise.resolve().then(() => this.handshake(server, client, transport, lease));
+    this.serverConfigs.set(server.id, server);
+    this.pendingClients.set(server.id, { client, transport, ready });
 
     // 设置自动重连（仅 stdio）
     if (server.transport.type === "stdio") {
       this.setupAutoReconnect(server.id, transport as StdioClientTransport);
     }
+    return ready;
+  }
 
+  private async handshake(
+    server: CustomMCPServer,
+    client: Client,
+    transport: Transport,
+    lease: PluginMcpLease | undefined
+  ): Promise<void> {
+    const isCurrent = () => this.pendingClients.get(server.id)?.client === client;
     try {
+      if (!isCurrent()) throw new Error("MCP 连接已取消");
       lease?.signal.throwIfAborted();
       await client.connect(transport);
       await lease?.validate();
-      if (this.serverConfigs.get(server.id) !== server) throw new Error("MCP 连接已取消");
+      if (!isCurrent()) throw new Error("MCP 连接已取消");
       this.clients.set(server.id, client);
       this.transports.set(server.id, transport);
       this.reconnectAttempts.set(server.id, 0);
@@ -155,12 +179,12 @@ class MCPConnectionManager {
       console.error(`[MCP] Failed to connect to ${server.name}:`, error);
       const normalized = this.normalizeConnectionError(error);
       this.logs.push(server.id, "error", `连接失败：${normalized.message}`);
-      if (this.serverConfigs.get(server.id) === server) this.serverConfigs.delete(server.id);
+      if (isCurrent()) this.serverConfigs.delete(server.id);
       await client.close().catch(() => undefined);
       await transport.close().catch(() => undefined);
       throw normalized;
     } finally {
-      if (this.pendingClients.get(server.id) === pending) this.pendingClients.delete(server.id);
+      if (isCurrent()) this.pendingClients.delete(server.id);
     }
   }
 
@@ -171,6 +195,10 @@ class MCPConnectionManager {
     // 先撤销重连依据，再关闭传输，避免 onclose 把主动停用认作连接故障。
     this.serverConfigs.delete(serverId);
     this.pendingClients.delete(serverId);
+    this.clients.delete(serverId);
+    this.transports.delete(serverId);
+    this.reconnectAttempts.delete(serverId);
+    this.maxReconnectReached.delete(serverId);
     if (pending) {
       await pending.client.close().catch(() => undefined);
       await pending.transport.close().catch(() => undefined);
@@ -182,7 +210,6 @@ class MCPConnectionManager {
       } catch (error) {
         console.error(`[MCP] Error closing client ${serverId}:`, error);
       }
-      this.clients.delete(serverId);
     }
 
     if (transport) {
@@ -191,12 +218,8 @@ class MCPConnectionManager {
       } catch (error) {
         console.error(`[MCP] Error closing transport ${serverId}:`, error);
       }
-      this.transports.delete(serverId);
     }
 
-    this.serverConfigs.delete(serverId);
-    this.reconnectAttempts.delete(serverId);
-    this.maxReconnectReached.delete(serverId);
     if (client) this.logs.push(serverId, "info", "已断开连接");
     console.log(`[MCP] Disconnected from server: ${serverId}`);
   }

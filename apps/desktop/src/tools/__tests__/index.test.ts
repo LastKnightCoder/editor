@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockContext = vi.hoisted(() => {
   const subscribeCallbacks: Array<(state: any, prevState: any) => void> = [];
@@ -101,6 +101,8 @@ vi.mock("@/mcp/providers", () => ({
 describe("tools/index", () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.stubGlobal("electron", { windowRole: "main" });
+    mockContext.registerBuiltinToolsMock.mockClear();
     mockContext.fetchToolsFromServerMock.mockReset();
     mockContext.fetchToolsFromServerMock.mockResolvedValue([
       {
@@ -120,6 +122,25 @@ describe("tools/index", () => {
     mockContext.mcpState.setConnectionStatus.mockReset();
     mockContext.toolRegistryMock.setDisabledTools.mockReset();
     mockContext.subscribeCallbacks.length = 0;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("辅助窗口按需初始化工具和修改配置时不加载自定义 MCP", async () => {
+    vi.stubGlobal("electron", { windowRole: "utility" });
+    const toolsModule = await import("../index");
+    toolsModule.ensureToolingReady();
+
+    const prev = mockContext.mcpState;
+    const changed = { ...prev.customServers[0], name: "更新配置" };
+    const next = { ...prev, customServers: [changed] };
+    mockContext.subscribeCallbacks.forEach(cb => cb(next, prev));
+
+    expect(mockContext.registerBuiltinToolsMock).toHaveBeenCalledTimes(1);
+    expect(mockContext.onConnectionStatusChangeMock).not.toHaveBeenCalled();
+    expect(mockContext.fetchToolsFromServerMock).not.toHaveBeenCalled();
   });
 
   it("初始化后应为已启用自定义 MCP 同步 connected 状态", async () => {

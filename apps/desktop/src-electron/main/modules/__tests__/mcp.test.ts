@@ -230,6 +230,37 @@ describe("mcp module", () => {
     await handler("mcp-disconnect")({}, { serverId: "manual" });
   });
 
+  it("多窗口连接同一自定义服务器时共享握手并复用连接", async () => {
+    const client = new mockContext.MockClient();
+    let finishHandshake!: () => void;
+    client.connect.mockImplementationOnce(
+      () =>
+        new Promise<undefined>(resolve => {
+          finishHandshake = () => resolve(undefined);
+        })
+    );
+    const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+    vi.mocked(Client).mockImplementationOnce(() => client as never);
+    await mcpModule.init();
+
+    const connect = handler("mcp-connect");
+    const id = "shared-custom";
+    const first = connect({ sender: new EventEmitter() }, { server: server(id) });
+    const second = connect({ sender: new EventEmitter() }, { server: server(id) });
+    const results = Promise.all([first, second]);
+    try {
+      await vi.waitFor(() => expect(client.connect).toHaveBeenCalledTimes(1));
+      finishHandshake();
+      await expect(results).resolves.toEqual([{ success: true }, { success: true }]);
+
+      await connect({ sender: new EventEmitter() }, { server: server(id) });
+      expect(Client).toHaveBeenCalledTimes(1);
+      expect(client.close).not.toHaveBeenCalled();
+    } finally {
+      await handler("mcp-disconnect")({}, { serverId: id });
+    }
+  });
+
   it("连接握手期间停用，迟到的握手成功不能复活连接", async () => {
     let resolve!: () => void;
     const client = new mockContext.MockClient();
