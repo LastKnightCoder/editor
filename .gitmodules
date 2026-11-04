@@ -94,3 +94,6 @@
 [submodule "plugins/tau-plugin-podcast"]
 	path = plugins/tau-plugin-podcast
 	url = https://github.com/LastKnightCoder/tau-plugin-podcast.git
+[submodule "plugins/tau-plugin-tts-seed"]
+	path = plugins/tau-plugin-tts-seed
+	url = https://github.com/LastKnightCoder/tau-plugin-tts-seed.git

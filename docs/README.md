@@ -90,7 +90,7 @@
 
 当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。
 
-设备验证与待验收范围见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
+设备验证与待验收范围见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
 
 SDK 0.37.0 的正式 npm 发布、24 仓构建及 CI 结果见 [SDK 发行](./tasks/plugin-portability-bcd/sdk-037-release.md)。24 个官方包、Worker 与网页已上线，macOS / Android 正式包已交付，用户已确认两端功能测试通过；发行证据与专项边界见 [正式安装闭环](./tasks/plugin-portability-bcd/production-closeout.md)。[iOS 正式 IPA](./tasks/plugin-portability-bcd/ios-release.md) 已进入 [TestFlight 内部测试](./tasks/plugin-portability-bcd/testflight.md)，图标修复后的 0.2.3（2）可供本人测试，iOS 插件分发已开放；未提交 App Store 正式上架，真机与 D 专项继续保留。
 
