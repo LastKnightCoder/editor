@@ -2,6 +2,7 @@ import { Editor, Element, Node, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import type { ElementSpec } from "../api/extension";
 import { canEditElement } from "../api/elementVersions";
+import { withNewUndoStep } from "../utils/undoStep";
 import { submissionScopeSignal } from "./submissionScope";
 import type {
   EditorTextField,
@@ -151,7 +152,11 @@ export function createLocalTextFields(
         )
           throw new Error("源码已变化，请保留当前输入后重试");
       };
-      const editBatch: EditorTextField["editBatch"] = (changes, revision) => {
+      const editBatch = (
+        changes: Parameters<EditorTextField["editBatch"]>[0],
+        revision: string,
+        isolateUndo = false
+      ) => {
         check(revision);
         let next = snapshot.value;
         for (const change of changes) {
@@ -169,10 +174,13 @@ export function createLocalTextFields(
         }
         writing = true;
         try {
-          Transforms.setNodes(editor, { [field]: next } as never, {
-            at: reference.current!,
-            voids: true,
-          });
+          const write = () =>
+            Transforms.setNodes(editor, { [field]: next } as never, {
+              at: reference.current!,
+              voids: true,
+            });
+          if (isolateUndo) withNewUndoStep(editor, write, { isolate: true });
+          else write();
         } finally {
           writing = false;
         }
@@ -191,7 +199,7 @@ export function createLocalTextFields(
           listeners.add(listener);
           return () => listeners.delete(listener);
         },
-        edit: change => editBatch([change], change.revision),
+        edit: (change, options) => editBatch([change], change.revision, options?.isolateUndo),
         editBatch,
         replace: (next, revision) =>
           editBatch([{ offset: 0, remove: snapshot.value.length, text: next }], revision),

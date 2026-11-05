@@ -11,6 +11,7 @@ import { useContentLocation } from "./useContentLocation";
 import { DocTasksStatusBar } from "./DocTasksStatusBar";
 import { Loader2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
+import { useInlineSuggestionProvider } from "@/hooks/useInlineSuggestionProvider";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import useContentDocument, { useTransientContentDocument } from "@/hooks/useContentDocument";
@@ -126,6 +127,13 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     );
     const document = storedDocument ?? transient.document;
     const error = storedError ?? transient.error;
+    const editorReadonly =
+      readonly || frozen || swapping || Boolean(session && session.status !== "active");
+
+    const inlineSuggestions = useInlineSuggestionProvider(
+      Boolean(contentId && binding && document && !editorReadonly),
+      binding?.mode !== "local"
+    );
 
     // AI 编辑上下文（active-editor-session）注册：非只读 + 声明身份才登记
     const { entityType, entityId } = editingContext ?? {};
@@ -204,12 +212,11 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         <Editor
           {...props}
           kit={kit}
+          inlineSuggestions={inlineSuggestions}
           onInit={handleInit}
           ref={setEditorRef}
           document={document}
-          readonly={
-            readonly || frozen || swapping || Boolean(session && session.status !== "active")
-          }
+          readonly={editorReadonly}
           onChange={
             document
               ? undefined

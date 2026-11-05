@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
-import { useNotifier, useTextFieldBinding, canEditElement } from "@tau/editor/api";
+import {
+  useNotifier,
+  useTextFieldBinding,
+  canEditElement,
+  useInlineSuggestionProvider,
+} from "@tau/editor/api";
 import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import type { HighlighterCore } from "shiki/core";
@@ -98,6 +103,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const localView = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
   const selectedStep = stepsModel ? activeCodeStep(slateEditor, stepsModel) : undefined;
   const source = useTextFieldBinding(selectedStep?.step, "code");
+  const inlineSuggestions = useInlineSuggestionProvider();
   const readOnly = contextReadOnly || !canEditElement(slateEditor, element);
   const isFold = stepsModel ? (localView.isFold ?? false) : legacyIsFold;
   const foldHeight = stepsModel ? (localView.foldHeight ?? DEFAULT_FOLD_HEIGHT) : legacyFoldHeight;
@@ -777,6 +783,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
               <ShikiOverlayEditor
                 key={selectedStep?.step ? codeStepId(slateEditor, selectedStep.step) : "legacy"}
                 textBinding={stepsModel ? source.binding : undefined}
+                inlineSuggestions={inlineSuggestions}
                 value={code || ""}
                 language={language}
                 isDark={isDark}

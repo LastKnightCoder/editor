@@ -36,8 +36,10 @@ import {
   IconButton,
   Input,
   Select,
+  Switch,
   toast,
 } from "@tau/ui";
+import { INLINE_SUGGESTION_SLOT } from "@/types/inline-suggestions";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import type {
   LLMModelSetting,
@@ -77,7 +79,14 @@ interface FeatureDef {
 const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = [
   {
     label: "对话与写作",
-    features: [{ key: "chat", label: "对话功能", desc: "聊天与写作助手的主力模型" }],
+    features: [
+      { key: "chat", label: "对话功能", desc: "聊天与写作助手的主力模型" },
+      {
+        key: INLINE_SUGGESTION_SLOT,
+        label: "行内建议",
+        desc: "正文与代码块补全。分配模型后，会向该服务发送光标附近的文字。",
+      },
+    ],
   },
   {
     label: "内容处理",
@@ -351,6 +360,7 @@ export function LLMSection() {
   const llmConfigs = useSettingStore(s => s.setting.llmProviders);
   const llmUsageSettings = useSettingStore(s => s.setting.llmUsageSettings);
   const updateUsage = useSettingStore(s => s.updateLLMUsageSetting);
+  const inlineSuggestionShared = useSettingStore(s => s.setting.inlineSuggestionShared);
 
   /* ── 切换条：editingId 失效时回落第一家 ── */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -658,7 +668,11 @@ export function LLMSection() {
           placeholder="未分配"
           emptyText="暂无模型——先在上方添加"
           value={selectedIndex >= 0 ? String(selectedIndex) : null}
-          options={modelOptions}
+          options={
+            feature.key === INLINE_SUGGESTION_SLOT
+              ? [{ value: "off", label: "关闭行内建议" }, ...modelOptions]
+              : modelOptions
+          }
           onValueChange={value => {
             const entry =
               value == null || value === "off" ? undefined : modelEntries[Number(value)];
@@ -806,6 +820,22 @@ export function LLMSection() {
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>
             {cat.features.map(renderAssignmentRow)}
+            {cat.features.some(feature => feature.key === INLINE_SUGGESTION_SLOT) && (
+              <SettingRow
+                title="协作正文的行内建议"
+                description="允许将共享正文或代码块中光标附近的文字发送给所选模型。"
+              >
+                <Switch
+                  aria-label="协作正文的行内建议"
+                  checked={inlineSuggestionShared}
+                  onCheckedChange={value =>
+                    useSettingStore.setState(state => ({
+                      setting: { ...state.setting, inlineSuggestionShared: value },
+                    }))
+                  }
+                />
+              </SettingRow>
+            )}
             {cat.features.some(feature => feature.key === "contentMetadata") && (
               <ContentMetadataProgressRow />
             )}

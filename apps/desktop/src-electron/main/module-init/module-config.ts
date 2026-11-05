@@ -49,6 +49,7 @@ import docTasksModule from "../modules/doc-tasks";
 import taskAssistantModule from "../modules/task-assistant";
 import contentAiQueueModule from "../modules/content-ai-queue";
 import contentInsightsModule from "../modules/content-insights";
+import inlineSuggestionsModule from "../modules/inline-suggestions";
 import composeGatherModule from "../modules/compose-gather";
 import knowledgeInsightsModule from "../modules/knowledge-insights-module";
 import updaterModule from "../modules/updater";
@@ -221,6 +222,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: async () => {
       piAiRuntimeModule.init();
     },
+  },
+  {
+    name: "inline-suggestions",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["setting", "pi-ai"],
+    init: () => inlineSuggestionsModule.init(),
   },
   {
     name: "pi-session",

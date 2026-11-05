@@ -14,7 +14,10 @@ export interface EditorTextField {
   subscribe(
     listener: (event: { delta: readonly TextFieldDelta[]; local: boolean }) => void
   ): () => void;
-  edit(change: { offset: number; remove: number; text: string; revision: string }): void;
+  edit(
+    change: { offset: number; remove: number; text: string; revision: string },
+    options?: { isolateUndo?: boolean }
+  ): void;
   editBatch(
     changes: readonly { offset: number; remove: number; text: string }[],
     revision: string

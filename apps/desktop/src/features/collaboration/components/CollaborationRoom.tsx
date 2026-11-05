@@ -33,6 +33,7 @@ import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import { Editor } from "@tau/editor";
 import { useBoundContentDocument } from "@/hooks/useContentDocument";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
+import { useInlineSuggestionProvider } from "@/hooks/useInlineSuggestionProvider";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
 import {
@@ -65,6 +66,7 @@ function RoomEditor({
   const presence = useCollaborationPresence(binding, readonly);
   const kit = useCollaborationKit(binding);
   const bound = useBoundContentDocument(binding, { frozen: readonly });
+  const inlineSuggestions = useInlineSuggestionProvider(!bound.frozen && !!bound.document, true);
   if (bound.error)
     return (
       <div role="alert" className="text-danger">
@@ -76,6 +78,7 @@ function RoomEditor({
     <Editor
       kit={kit}
       document={bound.document}
+      inlineSuggestions={inlineSuggestions}
       readonly={bound.frozen}
       onFocus={presence.onFocus}
       onBlur={presence.onBlur}

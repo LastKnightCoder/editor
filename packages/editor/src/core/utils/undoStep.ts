@@ -9,15 +9,20 @@ export function registerUndoStepSplitter(editor: Editor, split: () => void): voi
 }
 
 /** `fn` 内的修改单独成一个撤销步，不与之前的输入合并 */
-export function withNewUndoStep(editor: Editor, fn: () => void): void {
+export function withNewUndoStep(editor: Editor, fn: () => void, { isolate = false } = {}): void {
   const split = splitters.get(editor);
   if (split) {
     split();
-    fn();
+    try {
+      fn();
+    } finally {
+      if (isolate) split();
+    }
     return;
   }
   if (HistoryEditor.isHistoryEditor(editor)) {
     HistoryEditor.withNewBatch(editor, fn);
+    if (isolate) HistoryEditor.setSplittingOnce(editor, true);
     return;
   }
   fn();

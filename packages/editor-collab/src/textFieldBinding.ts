@@ -85,7 +85,8 @@ export function createSharedTextField(
   };
   const editBatch = (
     changes: readonly { offset: number; remove: number; text: string }[],
-    expected: string
+    expected: string,
+    isolateUndo = false
   ) => {
     assertWritable();
     if (expected !== snapshot.revision) throw new Error("SOURCE_CONFLICT: 源码已变化，请重新读取");
@@ -102,14 +103,19 @@ export function createSharedTextField(
         throw new Error("源码编辑范围无效");
       length += change.text.length - change.remove;
     }
-    if (changes.length)
+    if (!changes.length) return;
+    if (isolateUndo) undo.stopCapturing();
+    try {
       writeChanges(
         changes.map(({ offset, remove, text }) => ({ offset, remove, text })),
         origin
       );
+    } finally {
+      if (isolateUndo) undo.stopCapturing();
+    }
   };
-  const edit = (change: { offset: number; remove: number; text: string; revision: string }) =>
-    editBatch([change], change.revision);
+  const edit: EditorTextField["edit"] = (change, options) =>
+    editBatch([change], change.revision, options?.isolateUndo);
   return {
     preserveDraft,
     registerInput: flush => {

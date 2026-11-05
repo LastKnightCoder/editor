@@ -57,6 +57,9 @@ import { withIngest, resolveFileDropPoint } from "./plugins/withIngest";
 import { withCaretAffinity } from "./plugins/withCaretAffinity";
 import { withInputRules } from "./kit/inputRules";
 import { registerUndoStepSplitter } from "./utils/undoStep";
+import { InlineSuggestionContext } from "./inlineSuggestion/providerContext";
+import { useInlineSuggestion } from "./inlineSuggestion/useInlineSuggestion";
+import type { InlineSuggestionProvider } from "./inlineSuggestion/controller";
 import type { EditorExtension } from "./api/extension";
 import type { EditorRef } from "./types/editor";
 
@@ -112,6 +115,8 @@ export interface IEditorProps {
   decorate?: (entry: [Node, Path]) => Range[];
   /** 包装已经应用标记的内容，不接管 Slate attributes。 */
   leafWrapper?: ComponentType<MarkRenderProps>;
+  /** 当前视图的行内纯文本建议来源。 */
+  inlineSuggestions?: InlineSuggestionProvider;
   /**
    * 聚焦模式：沿光标所在的文档路径，同级兄弟元素退后（其余顶层块、列表的其他项、表格的其他单元格…）。
    * 退后程度由宿主在容器上设置 `--ed-focus-dim`（缺省 0.26）。
@@ -166,6 +171,7 @@ const Index = memo(
       placeHolder,
       decorate,
       leafWrapper,
+      inlineSuggestions,
       focusMode = false,
     } = props;
 
@@ -335,6 +341,13 @@ const Index = memo(
       return slateEditor;
     }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);
 
+    const {
+      binding: suggestion,
+      preview: suggestionPreview,
+      decorate: decorateSuggestion,
+    } = useInlineSuggestion(editor, inlineSuggestions);
+    useLayoutEffect(() => () => suggestion?.clear(), [suggestion, documentProp, binding, readonly]);
+
     // 快照与 Slate 挂载键归实例所有；同谱系换绑保留，重建编辑器时一起复位。
     // 初始内容深拷贝成实例独占：Slate 按节点对象身份记录父节点（NODE_TO_PARENT），调用方的数据
     // （查询缓存、共享常量）若同时交给多个编辑器，后渲染的会覆盖记录，其余编辑器 findPath 抛错
@@ -450,10 +463,13 @@ const Index = memo(
     }, [assembly, editor, registry, breaker]);
     // 扩展装饰与宿主 decorate 合并；单个扩展出错只丢它自己的装饰并计入熔断
     const mergedDecorate = useMemo(() => {
+      // 扩展外部状态变化时需要新的 decorate 函数身份。
+      void decorationRevision;
       const extensionDecorations = assembly.decorations;
-      if (!extensionDecorations.length) return decorate;
+      if (!extensionDecorations.length && !decorateSuggestion) return decorate;
       return (entry: NodeEntry): Range[] => {
         const ranges = decorate ? [...decorate(entry as [Node, Path])] : [];
+        if (decorateSuggestion) ranges.push(...decorateSuggestion(entry));
         for (const { owner, spec } of extensionDecorations) {
           if (breaker.isDisabled(owner)) continue;
           try {
@@ -464,7 +480,7 @@ const Index = memo(
         }
         return ranges;
       };
-    }, [assembly, decorate, editor, breaker, decorationRevision]);
+    }, [assembly, decorate, editor, breaker, decorationRevision, decorateSuggestion]);
     const renderLeaf = useMemoizedFn((props: RenderLeafProps) => (
       <LeafRenderer
         {...props}
@@ -559,6 +575,7 @@ const Index = memo(
     );
 
     const handleOnChange = (value: Descendant[]) => {
+      suggestion?.revalidate();
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
@@ -590,7 +607,16 @@ const Index = memo(
                 className="tau-editor"
                 data-theme={scope.overridden ? scope.themeKey || undefined : undefined}
                 data-mode={scope.overridden ? scope.mode : undefined}
-                style={binding?.renderOverlay ? { position: "relative" } : { display: "contents" }}
+                style={
+                  {
+                    ...(binding?.renderOverlay
+                      ? { position: "relative" }
+                      : { display: "contents" }),
+                    ...(suggestionPreview && {
+                      "--ed-inline-suggestion": JSON.stringify(suggestionPreview.text),
+                    }),
+                  } as CSSProperties
+                }
               >
                 <Editable
                   className={cn(EDITABLE_CLASS, focusMode && FOCUS_MODE_CLASS, props.className)}
@@ -601,8 +627,13 @@ const Index = memo(
                   renderChunk={renderChunk}
                   placeholder={placeHolder}
                   decorate={mergedDecorate}
+                  onDOMBeforeInput={suggestion?.onBeforeInput}
+                  onCompositionStart={suggestion?.clear}
+                  onCompositionEnd={suggestion?.onCompositionEnd}
                   onKeyDown={event => {
+                    if (suggestion?.deferEscape(event)) return true;
                     registerHotKey(editor, event, finalHotkeys, commandDispatcher);
+                    suggestion?.acceptTab(event);
                   }}
                   onDrag={e => {
                     e.preventDefault();
@@ -629,6 +660,7 @@ const Index = memo(
                     }
                   }}
                   onSelect={() => {
+                    suggestion?.revalidate();
                     if (syncSelectionSnapshot()) {
                       onSelectionChange?.();
                     }
@@ -643,7 +675,10 @@ const Index = memo(
                       event.stopPropagation();
                   }}
                   onFocus={onFocus}
-                  onBlur={onBlur}
+                  onBlur={() => {
+                    suggestion?.clear();
+                    onBlur?.();
+                  }}
                 />
                 {binding?.renderOverlay?.(overlayContainerRef)}
                 {!readonly && <CaretAffinityIndicator />}
@@ -671,7 +706,11 @@ const Index = memo(
     );
 
     return (
-      <EditorKitScope kit={kit}>{binding?.wrap ? binding.wrap(content) : content}</EditorKitScope>
+      <EditorKitScope kit={kit}>
+        <InlineSuggestionContext.Provider value={readonly ? undefined : inlineSuggestions}>
+          {binding?.wrap ? binding.wrap(content) : content}
+        </InlineSuggestionContext.Provider>
+      </EditorKitScope>
     );
   })
 );
