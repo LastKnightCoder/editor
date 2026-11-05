@@ -173,7 +173,9 @@ export interface ISetting {
     contentMetadata: LLMUsageConfigV2 | null;
     /** AI 洞见：在详情页点「AI 洞见」时对这一篇分析一次 */
     contentInsights: LLMUsageConfigV2 | null;
+    inlineSuggestion: LLMUsageConfigV2 | null;
   };
+  inlineSuggestionShared: boolean;
   /** 嵌入模型（提供方模型）：active 为当前生效模型，未启用时为 null */
   embedding: EmbeddingSetting;
   /** 在线视频提供方插件配置，键为插件 ID，结构由插件定义。 */
@@ -394,7 +396,9 @@ const initialState: IState = {
       vibeLearningImageDescription: null,
       contentMetadata: null,
       contentInsights: null,
+      inlineSuggestion: null,
     },
+    inlineSuggestionShared: false,
     embedding: {
       active: null,
       local: {

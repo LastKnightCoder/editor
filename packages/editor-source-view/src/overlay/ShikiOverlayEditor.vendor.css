@@ -208,3 +208,8 @@
 .ed-code-overlay .code-block-shiki-magic .dishonored {
   opacity: 0.45;
 }
+
+.ed-code-overlay .code-block-inline-suggestion {
+  opacity: 0.48;
+  user-select: none;
+}

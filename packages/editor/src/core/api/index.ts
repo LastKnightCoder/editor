@@ -169,3 +169,9 @@ export { bindTextFieldTextarea, rebaseTextFieldInput } from "./textFieldInput";
 
 export { IEditorTextFields } from "../../../source-contracts";
 export { slateTextFields } from "./slateTextFields";
+
+export { useInlineSuggestionProvider } from "../inlineSuggestion/providerContext";
+export {
+  createInlineSuggestionController,
+  type InlineSuggestionProvider,
+} from "../inlineSuggestion/controller";

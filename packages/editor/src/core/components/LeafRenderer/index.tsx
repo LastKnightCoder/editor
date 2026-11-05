@@ -92,6 +92,14 @@ export default function LeafRenderer({
     children
   );
   const values = leaf as unknown as Record<string, unknown>;
+  if (values.tauInlineSuggestionAnchor === true) {
+    content = (
+      <span className="ed-inline-suggestion-anchor">
+        {content}
+        <span className="ed-inline-suggestion" contentEditable={false} aria-hidden />
+      </span>
+    );
+  }
   for (const { owner, spec } of marks) {
     if (
       !spec.keys.some(

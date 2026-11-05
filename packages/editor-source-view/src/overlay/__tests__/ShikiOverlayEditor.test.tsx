@@ -6,7 +6,11 @@ import ShikiOverlayEditor, { type OverlayKeydownHelpers } from "../ShikiOverlayE
 import { Field } from "../../__tests__/fixtures/textField";
 
 vi.mock("../shikiHighlighter", () => ({
-  renderCodeWithShiki: vi.fn(async (code: string) => code),
+  renderCodeWithShiki: vi.fn(async (code: string) => {
+    const text = document.createElement("code");
+    text.textContent = code;
+    return `<pre>${text.outerHTML}</pre>`;
+  }),
   resolveShikiLanguage: vi.fn((language: string) => language),
 }));
 
@@ -37,6 +41,7 @@ describe("ShikiOverlayEditor selection", () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
     if (root) {
       await act(async () => {
         root?.unmount();
@@ -93,6 +98,55 @@ describe("ShikiOverlayEditor selection", () => {
     });
     expect(field.getSnapshot().value).toBe("绑定内容！");
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("源码建议只渲染在影子树，字段变化后旧候选不能采纳", async () => {
+    vi.useFakeTimers();
+    const field = new Field("const x = ;");
+    const provider = { suggest: vi.fn(async () => "value") };
+    const fallback = vi.fn();
+    const textarea = await renderEditor(field.getSnapshot().value, {
+      textBinding: field,
+      inlineSuggestions: provider,
+      onKeyDown: fallback,
+    });
+    textarea.focus();
+    const type = async (next: string, position: number) => {
+      await act(async () => {
+        setNativeTextareaValue(textarea, next);
+        textarea.setSelectionRange(position, position);
+        textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+        await vi.advanceTimersByTimeAsync(400);
+      });
+    };
+    const tab = () =>
+      textarea.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })
+      );
+    await type("const x = a;", 11);
+    expect(provider.suggest).toHaveBeenCalledTimes(1);
+    expect(field.writes).toBe(1);
+    const preview = container?.querySelector(".code-block-inline-suggestion");
+    expect(preview?.shadowRoot?.textContent).toBe("value");
+    expect(preview?.textContent).toBe("");
+    expect(textarea.value).toBe("const x = a;");
+
+    await act(async () => {
+      field.remote(0, 0, " ");
+      tab();
+    });
+    expect(fallback).toHaveBeenCalledOnce();
+    expect(field.getSnapshot().value).toBe(" const x = a;");
+    expect(field.writes).toBe(1);
+    expect(container?.querySelector(".code-block-inline-suggestion")).toBeNull();
+
+    await type(" const x = ab;", 13);
+    await act(async () => {
+      tab();
+    });
+    expect(field.getSnapshot().value).toBe(" const x = abvalue;");
+    expect(field.writes).toBe(3);
+    expect(textarea.selectionStart).toBe(18);
   });
 
   it("受控 value 重新渲染后保留输入位置，而不是跳到末尾", async () => {

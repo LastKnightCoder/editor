@@ -117,6 +117,7 @@ const FEATURE_LABELS: Record<string, string> = {
   vibeLearningImageDescription: "图片理解",
   contentMetadata: "笔记元信息",
   contentInsights: "AI 洞见",
+  inlineSuggestion: "行内建议",
   videoInsights: "视频洞察",
   videoHighlights: "视频要点",
   topicHighlights: "话题要点",

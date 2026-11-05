@@ -12,6 +12,8 @@ import {
   buildPiProvider,
   createProviderRegistry,
 } from "../pi-ai-runtime-core";
+import { createInlineSuggestionService } from "../inline-suggestions-service";
+import { randomUUID } from "node:crypto";
 import { rewriteThinkTagStream, type PiRewrittenEvent } from "../think-stream-rewriter";
 import type { LLMProviderSetting, PiSingleShotRequest } from "@/types/pi-llm";
 
@@ -214,6 +216,38 @@ describe("pi-ai-runtime-core", () => {
       expect(body.model).toBe("mock-model");
       expect(body.messages[0]).toMatchObject({ role: "system", content: "你是测试助手" });
       expect(body.messages.at(-1)).toMatchObject({ role: "user", content: "打个招呼" });
+    });
+
+    it("行内建议通过真实 HTTP SSE 发送限量上下文并解析返回", async () => {
+      const inlineGateway = await startMockGateway(() => [
+        chunk({ role: "assistant" }),
+        chunk({ content: '{"text":" foo()"}' }),
+        chunk({}, "stop"),
+      ]);
+      try {
+        const registry = createProviderRegistry();
+        const setting = settingOf({ baseUrl: `http://127.0.0.1:${inlineGateway.port}/v1` });
+        const model = { providerId: setting.id, modelId: setting.models[0].id };
+        const service = createInlineSuggestionService(async request => {
+          const events = await runSingleShot(registry, setting, request);
+          return { ok: true, text: textOf(events) ?? "" };
+        });
+        service.configure(model, false);
+        const context = { before: "const x =", after: ";", language: "typescript" };
+        await expect(
+          service.suggest(7, {
+            ...model,
+            ...context,
+            shared: false,
+            requestId: randomUUID(),
+          })
+        ).resolves.toBe(" foo()");
+        const body = inlineGateway.requests[0];
+        expect(body.model).toBe(model.modelId);
+        expect(JSON.parse(body.messages.at(-1).content)).toEqual(context);
+      } finally {
+        await inlineGateway.close();
+      }
     });
 
     // pi 原生不剥 <think>（thinkingFormat 仅请求侧）；开启 stripThinkTags 后经桥层重写器归一化

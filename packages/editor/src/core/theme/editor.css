@@ -121,3 +121,17 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* 建议与正文共用排版，候选文字只由编辑区外层提供。 */
+.ed-inline-suggestion::after {
+  content: var(--ed-inline-suggestion, "");
+  opacity: 0.48;
+  pointer-events: none;
+  user-select: none;
+  white-space: inherit;
+  overflow-wrap: inherit;
+}
+
+.ed-inline-suggestion-anchor [data-slate-zero-width="n"] > br {
+  display: none;
+}

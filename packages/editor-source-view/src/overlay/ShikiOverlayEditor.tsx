@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 
 import { cn } from "@tau/ui";
 import { bindTextFieldTextarea, type EditorTextField } from "@tau/editor/api";
+import type { InlineSuggestionProvider } from "@tau/editor/api";
+import { codeWithSuggestionAnchor, useSourceInlineSuggestion } from "./inlineSuggestion";
 import { ShikiMagicMove } from "shiki-magic-move/react";
 import type { HighlighterCore } from "shiki/core";
 
@@ -53,6 +55,7 @@ export interface OverlayKeydownHelpers {
 interface ShikiOverlayEditorProps {
   value: string;
   textBinding?: EditorTextField | null;
+  inlineSuggestions?: InlineSuggestionProvider;
   language: string;
   isDark: boolean;
   readOnly?: boolean;
@@ -159,6 +162,7 @@ const clampSelectionSnapshot = (snapshot: SelectionSnapshot, value: string): Sel
 const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   value: propValue,
   textBinding,
+  inlineSuggestions,
   language,
   isDark,
   readOnly = false,
@@ -214,6 +218,48 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   const [lineLayout, setLineLayout] = useState<LineBox[]>([]);
   const valueRef = useRef(value);
   const [codeHtml, setCodeHtml] = useState("");
+  const suggestion = useSourceInlineSuggestion(
+    textareaRef,
+    textBinding,
+    readOnly || bindingError || enableMagicMovePreview ? undefined : inlineSuggestions,
+    language
+  );
+  const previewHtml = useMemo(
+    () =>
+      suggestion.preview
+        ? codeWithSuggestionAnchor(codeHtml, value, suggestion.preview.stamp.offset)
+        : null,
+    [codeHtml, value, suggestion.preview]
+  );
+  useLayoutEffect(() => {
+    if (!previewHtml || !suggestion.preview) return;
+    const layer = codeLayerRef.current;
+    const ghost = layer?.querySelector(".code-block-inline-suggestion");
+    const pre = layer?.querySelector("pre");
+    if (!layer || !ghost || !pre) return;
+    const before = ghost.getBoundingClientRect();
+    const height = pre.getBoundingClientRect().height;
+    // 影子树里的候选不会被富文本剪贴板克隆。
+    const shadow = ghost.shadowRoot ?? ghost.attachShadow({ mode: "open" });
+    shadow.textContent = suggestion.preview.text;
+    const after = ghost.getBoundingClientRect();
+    const viewport = layer.getBoundingClientRect();
+    const reflowed =
+      Math.abs(pre.getBoundingClientRect().height - height) > 0.5 ||
+      (wrap &&
+        (Math.abs(after.left - before.left) > 0.5 || Math.abs(after.top - before.top) > 0.5));
+    if (
+      reflowed ||
+      (viewport.width > 0 &&
+        (after.left < viewport.left - 0.5 ||
+          after.right > viewport.right + 0.5 ||
+          after.top < viewport.top - 0.5 ||
+          after.bottom > viewport.bottom + 0.5))
+    ) {
+      shadow.textContent = "";
+      suggestion.controller?.clear();
+    }
+  }, [previewHtml, suggestion.controller, suggestion.preview, wrap]);
   const [editorHeight, setEditorHeight] = useState(0);
   const renderTaskIdRef = useRef(0);
   const measuredContentHeightRef = useRef(0);
@@ -370,10 +416,10 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
     };
   }, [readOnly, value]);
 
+  const needsStaticLayer =
+    !(magicMoveEnabled && magicMoveHighlighter) || Boolean(suggestion.preview);
   useEffect(() => {
-    if (magicMoveEnabled && magicMoveHighlighter) {
-      return;
-    }
+    if (!needsStaticLayer) return;
 
     const taskId = renderTaskIdRef.current + 1;
     renderTaskIdRef.current = taskId;
@@ -390,7 +436,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [value, language, isDark, highlightLines, magicMoveEnabled, magicMoveHighlighter]);
+  }, [value, language, isDark, highlightLines, needsStaticLayer]);
 
   const applyMagicMoveLineHighlight = useCallback(() => {
     if (!magicMoveEnabled || !magicMoveHighlighter) {
@@ -660,7 +706,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         onWheel={handleModWheelScroll}
         aria-hidden={true}
       >
-        {magicMoveEnabled && magicMoveHighlighter ? (
+        {magicMoveEnabled && magicMoveHighlighter && !previewHtml ? (
           <ShikiMagicMove
             key={magicMoveKey}
             highlighter={magicMoveHighlighter}
@@ -674,7 +720,10 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
             }}
           />
         ) : (
-          <div className="code-block-shiki-html" dangerouslySetInnerHTML={{ __html: codeHtml }} />
+          <div
+            className="code-block-shiki-html"
+            dangerouslySetInnerHTML={{ __html: previewHtml ?? codeHtml }}
+          />
         )}
       </div>
       {bindingError && <div role="alert">{bindingError}</div>}
@@ -704,13 +753,42 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           };
           onChange(event.target.value);
         }}
+        onInput={
+          suggestion.controller &&
+          (event => {
+            const input = event.nativeEvent as InputEvent;
+            if (suggestion.composing.current || input.isComposing) return;
+            if (input.inputType === "insertText" || input.inputType === "insertFromComposition")
+              suggestion.controller?.userInput();
+            else suggestion.controller?.clear();
+          })
+        }
+        onCompositionStart={
+          suggestion.controller &&
+          (() => {
+            suggestion.composing.current = true;
+            suggestion.controller?.clear();
+          })
+        }
+        onCompositionEnd={
+          suggestion.controller &&
+          (() => {
+            suggestion.composing.current = false;
+            suggestion.controller?.userInput();
+          })
+        }
+        onPointerDown={suggestion.controller?.clear}
         onSelect={event => {
+          suggestion.controller?.revalidate();
           if (selectionSnapshotRef.current?.pendingRestore) {
             return;
           }
           saveSelectionSnapshot(event.currentTarget);
         }}
-        onBlur={onBlur}
+        onBlur={() => {
+          suggestion.controller?.clear();
+          onBlur?.();
+        }}
         onContextMenu={e => {
           if (!onContextMenu) return;
           const textarea = textareaRef.current;
@@ -720,10 +798,34 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           onContextMenu(e, { start, end });
         }}
         onScroll={event => {
+          suggestion.controller?.clear();
           syncScrollPosition(event.currentTarget, codeLayerRef.current);
         }}
         onWheel={handleModWheelScroll}
-        onKeyDown={event => onKeyDown?.(event, helpers)}
+        onKeyDown={event => {
+          const native = event.nativeEvent;
+          const plain =
+            !event.defaultPrevented &&
+            !native.isComposing &&
+            !suggestion.composing.current &&
+            native.keyCode !== 229 &&
+            !event.altKey &&
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.shiftKey;
+          if (previewHtml && plain && event.key === "Tab" && suggestion.controller?.accept()) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          const preview = suggestion.preview;
+          if (previewHtml && plain && event.key === "Escape" && preview) {
+            setTimeout(() => {
+              if (!native.defaultPrevented) suggestion.controller?.dismiss(preview);
+            }, 0);
+          }
+          onKeyDown?.(event, helpers);
+        }}
         data-shiki-language={shikiLanguage}
       />
     </div>
