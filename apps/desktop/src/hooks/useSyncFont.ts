@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import useSettingStore from "@/stores/useSettingStore.ts";
+import { resolveFontFamily } from "@/utils/bundled-fonts";
 
 /**
  * tau 字号档位默认值——与 packages/themes/src/scale.css 的 :root 字面值层（--tau-text-*）
@@ -32,7 +33,8 @@ const useSyncFont = () => {
 
   useEffect(() => {
     const { chineseFont, englishFont, fontSize, codeFont } = fontSetting;
-    const font = `${englishFont}, ${chineseFont}`;
+    const font = `${resolveFontFamily(englishFont)}, ${resolveFontFamily(chineseFont)}`;
+    const codeFontFamily = resolveFontFamily(codeFont);
     const root = document.documentElement;
     for (const token of ["--font", "--font-size", "--mono-font"]) {
       document.body.style.removeProperty(token);
@@ -45,11 +47,11 @@ const useSyncFont = () => {
     // --font / --font-size / --mono-font 是 legacy 样式与编辑器包的既有变量，一并写 root
     root.style.setProperty("--font", font);
     root.style.setProperty("--font-size", `${fontSize}px`);
-    root.style.setProperty("--mono-font", `${codeFont}, ${font}, monospace`);
+    root.style.setProperty("--mono-font", `${codeFontFamily}, ${font}, monospace`);
     root.style.setProperty("--tau-font", font);
     root.style.setProperty(
       "--tau-font-mono",
-      `${codeFont}, ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace`
+      `${codeFontFamily}, ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace`
     );
     for (const [token, base] of Object.entries(TAU_TEXT_STEPS)) {
       root.style.setProperty(token, `${(base * scale).toFixed(2)}px`);

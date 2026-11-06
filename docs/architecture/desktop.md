@@ -521,6 +521,8 @@ export function useXxxSnapshot() {
 
 **字体设置链路**：`fontSetting` → `useSyncFont()`（App 根挂载一次）→ root 级覆盖。用户字体/字号是应用级默认（界面与编辑器统一）：字体族覆盖 `--tau-font`/`--tau-font-mono`；字号按 13px 基准**阻尼**缩放 `--tau-text-*` 全部档位（半速率传导，与内容区解耦——宿主可用 `--font-size` 为内容容器提供原始字号，Editor 继承所在容器；排版层级保持，间距圆角不动；例外：侧边栏条目行高/图标按 em 折算）；`--font / --font-size / --mono-font` 一并写 root。默认字体变量在 :root，body 不重复声明；Editor 根节点不声明字体族/字号。**Tailwind v4 陷阱**：`@theme inline` 对字面值会把值内联进工具类，运行时覆盖 CSS 变量无效——字号 token 必须经 `:root` 字面值层 + `@theme inline` var 桥接，`useSyncFont` 覆盖字面值层。
 
+外观设置的中文字体提供内置「小赖 SC」，英文字体提供内置「Shantell Sans」，与系统字体合并去重；系统字体清单未返回时也可选择内置字体。`utils/bundled-fonts.ts` 统一保存选项名称与实际字体栈的映射，预览与 `useSyncFont` 共用；小赖按 `assets/fonts/hand/hand-font.json` 展开全部独立 family 分片，沿用现有按需加载与导出内嵌机制。
+
 **颜色与尺度消费**：组件样式一律 Tailwind 工具类；颜色写语义类（`bg-page / bg-surface / text-ink-1/2/3 / hover:bg-hover / bg-accent-soft / text-accent / bg-ok-soft / text-warn`…），尺度写 tau 命名空间词（`text-tau-body / rounded-tau-sm|md|lg / shadow-card / ease-tau-out / font-tau / font-tau-mono / font-tau-hand`，`font-tau-hand` 只用于白板手绘文字），词表见 [design-system.md](./design-system.md)。禁止裸色值、antd token、内联十六进制、白名单外手写 CSS。数据驱动的动态值（进度宽度等）允许 inline style 但色值仍走语义类；热力图色阶这类主题 accent 的 alpha 派生以 arbitrary 注明出处。跨域视觉模式收口 `packages/ui/src/primitives/`。**不存在 bg-group**：小面积填充用 `bg-hover`；容器 = 透明底 + `border-line-1` 描边、输入控件 = `bg-surface` + 描边，嵌套底色叠层是常见腐化点。
 
 **编辑器集成要点**（扩展与包的完整约定见 `packages/editor/README.md` 与 [架构手册](/packages/editor/docs/architecture.md)）：
