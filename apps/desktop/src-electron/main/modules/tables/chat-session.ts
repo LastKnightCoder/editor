@@ -7,6 +7,8 @@
  */
 import Database from "better-sqlite3";
 import { rmSync } from "node:fs";
+import { basename } from "node:path";
+import { emitMemorySourceChanged } from "../assistant-memory/activity";
 import { chatSessionDirOfDb, resolveSessionFile } from "../pi-session-paths";
 import type {
   ChatSessionInsert,
@@ -105,6 +107,8 @@ export default class ChatSessionTable {
       input.createTime ?? now,
       input.updateTime ?? input.createTime ?? now
     );
+    if (input.scope === "main-chat")
+      emitMemorySourceChanged(basename(db.name), { kind: "chat", id: input.id });
     return this.getById(db, input.id) as ChatSessionRow;
   }
 
@@ -210,7 +214,11 @@ export default class ChatSessionTable {
   private static deleteRows(db: Database.Database, rows: ChatSessionRow[]): void {
     if (rows.length === 0) return;
     const remove = db.prepare("DELETE FROM chat_session WHERE id = ?");
-    for (const row of rows) remove.run(row.id);
+    for (const row of rows) {
+      remove.run(row.id);
+      if (row.scope === "main-chat")
+        emitMemorySourceChanged(basename(db.name), { kind: "chat", id: row.id });
+    }
     const sessionDir = chatSessionDirOfDb(db);
     if (!sessionDir) return;
     for (const row of rows) {

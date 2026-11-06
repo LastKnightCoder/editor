@@ -10,6 +10,7 @@
 
 import type { ComponentType } from "react";
 import {
+  Brain,
   Palette,
   RefreshCw,
   HardDrive,
@@ -23,6 +24,7 @@ import {
   Globe,
   type LucideIcon,
 } from "lucide-react";
+import { AssistantMemorySection } from "./sections/AssistantMemorySection";
 import { AppearanceSection } from "./sections/AppearanceSection";
 import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
@@ -44,6 +46,7 @@ export type SettingsSectionKey =
   | "integration"
   | "browserExtension"
   | "llm"
+  | "assistantMemory"
   | "embedding"
   | "imageGeneration"
   | "voice"
@@ -130,6 +133,13 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         description: "接入服务商与模型，再为各项功能指定模型",
         icon: Sparkles,
         component: LLMSection,
+      },
+      {
+        key: "assistantMemory",
+        label: "个人助手记忆",
+        description: "查看后台记住的内容，回查出处，或更正与忘记记忆",
+        icon: Brain,
+        component: AssistantMemorySection,
       },
       {
         key: "embedding",

@@ -93,6 +93,11 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
     features: [
       { key: "titleSummary", label: "标题总结", desc: "笔记与文档的命名摘要" },
       { key: "webClip", label: "网页剪藏", desc: "剪藏页面的正文抽取与清洗" },
+      {
+        key: "assistantMemory",
+        label: "个人助手记忆",
+        desc: "分配模型后，当前资料库的正文和主对话片段会由该模型在后台整理。",
+      },
       { key: "contentMetadata", label: "笔记元信息", desc: <ContentMetadataDescription /> },
       { key: "contentInsights", label: "AI 洞见", desc: <ContentInsightsDescription /> },
     ],

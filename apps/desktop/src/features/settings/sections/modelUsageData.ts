@@ -104,6 +104,7 @@ export const OTHER_KEY = "\u0000other";
 
 /** 功能槽 / 会话类别 → 中文名；未登记的原样显示 */
 const FEATURE_LABELS: Record<string, string> = {
+  assistantMemory: "个人助手记忆",
   chat: "对话",
   titleSummary: "标题总结",
   webClip: "网页剪藏",

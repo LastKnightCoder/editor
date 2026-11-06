@@ -8,6 +8,8 @@
  * 模型注册中心与设置订阅复用 pi-ai 模块的同一数据源（v2 llmProviders）。
  */
 import { ipcMain } from "electron";
+import assistantMemory from "./assistant-memory";
+import { emitMemorySourceChanged, setMemoryForeground } from "./assistant-memory/activity";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
 import collaborationModule from "./collaboration";
@@ -117,6 +119,7 @@ interface HostedSession {
   detachSender: () => void;
   /** 动态 systemPrompt（before_agent_start 每轮替换，渲染端经 set-system-prompt 更新） */
   systemPromptRef: { current: string };
+  memoryContext: () => string;
   /** 桥接工具名全集：切活跃集时据此只动桥接工具，保留 pi 自己的内置默认 */
   bridgedToolNames: Set<string>;
   scope: string;
@@ -453,6 +456,7 @@ class PiSessionHostModule {
             const hosted = PiSessionHostModule.findByFile(file);
             if (!hosted) {
               applySessionEditToFile(file, edit);
+              notifyMemorySessionEdit(file, location);
               return { messages: readTranscript(file, sessionDir) };
             }
             const { session } = hosted;
@@ -465,6 +469,7 @@ class PiSessionHostModule {
               throw new Error("回答进行中，请先停止再修改历史");
             }
             applySessionEdit(session.sessionManager, edit);
+            notifyMemorySessionEdit(file, location);
             session.refreshContext();
             hosted.lastActive = Date.now();
             return {
@@ -703,6 +708,11 @@ class PiSessionHostModule {
         ...interactions.hostTools(),
       ];
       const systemPromptRef = { current: request.systemPrompt ?? "" };
+      const memoryDatabase =
+        sessionDir && !request.browserPageUrl && request.chatScope === "main-chat"
+          ? (request.databaseName ?? basename(sessionDir))
+          : undefined;
+      const memoryContext = () => (memoryDatabase ? assistantMemory.context(memoryDatabase) : "");
       // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
       // 不存在时 assembleHostSession 按 piSessionId 新建（见其注释）
       if (request.piSessionId) assertSafeSessionId(request.piSessionId);
@@ -773,7 +783,9 @@ class PiSessionHostModule {
                 cwd: workspace.cwd,
                 agentDir: join(PathUtil.getAppDir(), "pi"),
                 systemPrompt: request.systemPrompt,
-                extensionFactories: [createDynamicSystemPromptExtension(systemPromptRef)],
+                extensionFactories: [
+                  createDynamicSystemPromptExtension(systemPromptRef, memoryContext),
+                ],
                 ...(PiSessionHostModule.requestDumpDir
                   ? { dumpRequestDir: PiSessionHostModule.requestDumpDir }
                   : {}),
@@ -817,6 +829,12 @@ class PiSessionHostModule {
         input => modelUsageModule.record(input)
       );
       const unsubscribe = session.subscribe(sessionEvent => {
+        if (sessionEvent.type === "agent_start") setMemoryForeground(request.sessionId, true);
+        if (sessionEvent.type === "agent_end") {
+          if (memoryDatabase && session.sessionFile)
+            emitMemorySourceChanged(memoryDatabase, { kind: "chat", id: session.sessionId });
+          setMemoryForeground(request.sessionId, false);
+        }
         trackUsage(sessionEvent);
         PiSessionHostModule.touch(request.sessionId);
         if (sender.isDestroyed()) return;
@@ -840,6 +858,7 @@ class PiSessionHostModule {
           sender.removeListener("render-process-gone", onSenderClosed);
         },
         systemPromptRef,
+        memoryContext,
         bridgedToolNames,
         scope: request.scope,
         modelRef: request.modelRef,
@@ -905,7 +924,12 @@ class PiSessionHostModule {
       try {
         if (
           retry &&
-          (await retryHostSession(hosted.session, retry, hosted.systemPromptRef.current, signal))
+          (await retryHostSession(
+            hosted.session,
+            retry,
+            joinMemoryPrompt(hosted.systemPromptRef.current, hosted.memoryContext()),
+            signal
+          ))
         ) {
           hosted.lastActive = Date.now();
           return { ok: true };
@@ -1042,6 +1066,7 @@ class PiSessionHostModule {
       hosted.displayWriter.dispose();
       hosted.interactions.dispose();
       hosted.unsubscribe();
+      setMemoryForeground(sessionId, false);
       hosted.session.dispose();
       hosted.bridge.dispose();
       PiSessionHostModule.sessions.delete(sessionId);
@@ -1109,14 +1134,34 @@ const toDisplayData = (
     : undefined;
 
 /** 动态 systemPrompt 扩展：每轮 agent start 前用宿主当前值替换（渲染端 set-system-prompt 更新） */
-const createDynamicSystemPromptExtension = (systemPromptRef: {
-  current: string;
-}): InlineExtension => ({
+const joinMemoryPrompt = (prompt: string, memory: string) =>
+  [prompt, memory].filter(Boolean).join("\n\n");
+
+function notifyMemorySessionEdit(file: string, location: PiSessionLocation) {
+  if (!("sessionFile" in location)) return;
+  const name = location.databaseName ?? databaseModule.getCurrentDatabaseName();
+  const db = databaseModule.getCurrentDatabase();
+  if (
+    !db?.open ||
+    databaseModule.formatDatabaseName(name) !==
+      databaseModule.formatDatabaseName(databaseModule.getCurrentDatabaseName())
+  )
+    return;
+  const row = db
+    .prepare("SELECT id FROM chat_session WHERE session_file=? AND scope='main-chat'")
+    .get(basename(file)) as { id: string } | undefined;
+  if (row) emitMemorySourceChanged(name, { kind: "chat", id: row.id }, true);
+}
+
+const createDynamicSystemPromptExtension = (
+  systemPromptRef: { current: string },
+  memoryContext: () => string
+): InlineExtension => ({
   name: "dynamic-system-prompt",
   hidden: true,
   factory: (pi: ExtensionAPI) => {
     pi.on("before_agent_start", () => {
-      const current = systemPromptRef.current;
+      const current = joinMemoryPrompt(systemPromptRef.current, memoryContext());
       return current ? { systemPrompt: current } : undefined;
     });
   },
