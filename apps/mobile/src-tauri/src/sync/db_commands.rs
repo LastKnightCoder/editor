@@ -242,7 +242,7 @@ async fn sync_upload_database_impl(
         &sessions,
         &plan,
         &|fraction, done, total| {
-            let skipped = sessions.len() - plan.pending.len();
+            let skipped = sessions.len() - total;
             let detail = if skipped == 0 {
                 String::new()
             } else {

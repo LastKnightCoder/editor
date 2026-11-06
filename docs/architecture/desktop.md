@@ -571,7 +571,7 @@ export function useXxxSnapshot() {
 
 数据库同步的提供方由 `src/services/syncRequestRetry.ts` 按对象请求包装，会话编排不重放整个文件；资源同步不经该包装，保留主进程自身的重试策略。请求退避、进度计数与分块复用规则以[宿主分块同步](/docs/architecture/storage-sync.md)为准。
 
-会话下载与上传共用 `commands/sync.ts` 的有限并发调度器；下载通过 `piSessionSyncFiles` 取得本地候选，`services/chunkedSync.ts` 经分块文件 IPC 提供可选本地字节来源，公共下载算法先校验远端文件名，再按块校验并复用本地内容，临时目录全部完成后才进入原安装入口。本地候选不可读时回退为远端下载，不影响修复缺失会话。
+会话下载与上传共用 `commands/sync.ts` 的有限并发调度器；每轮读取完整对话索引，在本地比对内容摘要，未变会话不发逐文件远端校验请求。下载通过 `piSessionSyncFiles` 取得本地候选，`services/chunkedSync.ts` 经分块文件 IPC 提供可选本地字节来源，公共下载算法使用索引中的清单校验文件名，再按块校验并复用本地内容，临时目录全部完成后才进入原安装入口。本地候选不可读时回退为远端下载，不影响修复缺失会话。
 
 桌面同步使用公共 Node 入口 `@tau/db-schema/sync` 的数据库锁。CLI已整体退役；数据库访问仍检查维护锁并保留必要的崩溃恢复，不允许并发写入正在维护的数据库。
 

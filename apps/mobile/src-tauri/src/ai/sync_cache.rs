@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +11,8 @@ use super::store::{safe_file, session_dir, FileFingerprint};
 struct Cache {
     version: u64,
     files: BTreeMap<String, FileFingerprint>,
+    #[serde(default)]
+    roots: BTreeMap<String, String>,
 }
 
 pub(crate) struct UploadPlan {
@@ -17,6 +20,7 @@ pub(crate) struct UploadPlan {
     directory: PathBuf,
     files: BTreeMap<String, FileFingerprint>,
     pub pending: Vec<String>,
+    roots: Mutex<BTreeMap<String, String>>,
 }
 
 fn fingerprint(path: &Path) -> Result<FileFingerprint, String> {
@@ -61,7 +65,29 @@ impl UploadPlan {
             directory,
             files: fingerprints,
             pending,
+            roots: Mutex::new(
+                cached
+                    .map(|cache| {
+                        cache
+                            .roots
+                            .into_iter()
+                            .filter(|(name, _)| files.contains(name))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            ),
         })
+    }
+
+    pub fn matches_manifest(&self, manifest: &crate::chunked_sync::Manifest) -> bool {
+        self.roots.lock().unwrap().get(&manifest.name) == Some(&manifest.root_hash)
+    }
+
+    pub fn record_manifest(&self, manifest: &crate::chunked_sync::Manifest) {
+        self.roots
+            .lock()
+            .unwrap()
+            .insert(manifest.name.clone(), manifest.root_hash.clone());
     }
 
     pub fn invalidate(&self) -> Result<(), String> {
@@ -88,6 +114,7 @@ impl UploadPlan {
         let cache = Cache {
             version,
             files: self.files.clone(),
+            roots: self.roots.lock().unwrap().clone(),
         };
         let directory = self.cache_path.parent().ok_or("会话同步缓存路径无效")?;
         let temporary = crate::plugin_files::TemporaryFile::new_in(directory)?;
@@ -96,7 +123,9 @@ impl UploadPlan {
             serde_json::to_vec(&cache).map_err(|error| error.to_string())?,
         )
         .map_err(|error| error.to_string())?;
-        fs::File::open(&temporary.path)
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&temporary.path)
             .and_then(|file| file.sync_all())
             .map_err(|error| error.to_string())?;
         fs::rename(&temporary.path, &self.cache_path).map_err(|error| error.to_string())?;
@@ -118,6 +147,36 @@ mod tests {
         let root = std::env::temp_dir().join(format!("tau-sync-cache-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(session_dir(&root, "data.db").unwrap()).unwrap();
         Fixture(root)
+    }
+
+    #[test]
+    fn cached_fingerprints_require_the_same_remote_manifest() {
+        let fixture = fixture();
+        let files = vec!["chat.jsonl".into()];
+        fs::write(
+            session_dir(&fixture.0, "data.db")
+                .unwrap()
+                .join("chat.jsonl"),
+            [0u8, 255, 1, 2],
+        )
+        .unwrap();
+        let shared: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../packages/db-schema/fixtures/chunked-storage-v1.json"
+        ))
+        .unwrap();
+        let mut manifest = crate::chunked_sync::Manifest::parse(
+            &serde_json::to_vec(&shared["sessionIndex"]["manifests"][0]).unwrap(),
+        )
+        .unwrap();
+        let plan = UploadPlan::prepare(&fixture.0, "data.db", "target", 8, &files).unwrap();
+        assert!(!plan.matches_manifest(&manifest));
+        plan.record_manifest(&manifest);
+        plan.commit(9).unwrap();
+        let plan = UploadPlan::prepare(&fixture.0, "data.db", "target", 9, &files).unwrap();
+        assert!(plan.pending.is_empty());
+        assert!(plan.matches_manifest(&manifest));
+        manifest.root_hash = "0".repeat(64);
+        assert!(!plan.matches_manifest(&manifest));
     }
 
     #[test]

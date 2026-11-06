@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::future::Future;
 use std::path::PathBuf;
@@ -8,7 +9,37 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use super::store::{safe_file, Store};
+use crate::chunked_sync::{protocol, Manifest};
 use crate::plugin_provider::PluginProvider;
+
+struct SessionIndex {
+    files: Vec<String>,
+    manifests: BTreeMap<String, Manifest>,
+}
+
+fn decode_index(bytes: &[u8]) -> Result<SessionIndex, String> {
+    let files = decode_list(bytes)?;
+    let value: Value = serde_json::from_slice(bytes).map_err(|error| error.to_string())?;
+    let mut manifests = BTreeMap::new();
+    if let Some(items) = value.get("manifests") {
+        let items = items
+            .as_array()
+            .ok_or("AI_SESSION_INVALID:对话记录索引无效")?;
+        if items.len() != files.len() {
+            return Err("AI_SESSION_INVALID:对话记录索引不完整".into());
+        }
+        let names: HashSet<_> = files.iter().map(String::as_str).collect();
+        for item in items {
+            let manifest =
+                Manifest::parse(&serde_json::to_vec(item).map_err(|error| error.to_string())?)?;
+            if !names.contains(manifest.name.as_str()) || manifests.contains_key(&manifest.name) {
+                return Err("AI_SESSION_INVALID:对话记录索引文件名不匹配".into());
+            }
+            manifests.insert(manifest.name.clone(), manifest);
+        }
+    }
+    Ok(SessionIndex { files, manifests })
+}
 
 pub struct DownloadedSessions {
     pub path: PathBuf,
@@ -32,18 +63,50 @@ pub async fn upload(
         database: database.into(),
     };
     let directory = store.directory()?;
+    let object = crate::chunked_sync::database_sessions_object(database);
+    let index = if provider
+        .exists(&object)
+        .await
+        .map_err(|error| format!("{}:{}", error.code, error.message))?
+    {
+        decode_index(
+            &provider
+                .download(&object)
+                .await
+                .map_err(|error| format!("{}:{}", error.code, error.message))?,
+        )?
+    } else {
+        SessionIndex {
+            files: vec![],
+            manifests: BTreeMap::new(),
+        }
+    };
+    let planned: HashSet<_> = plan.pending.iter().collect();
+    let pending: Vec<_> = files
+        .iter()
+        .filter(|name| {
+            planned.contains(name)
+                || !index
+                    .manifests
+                    .get(*name)
+                    .is_some_and(|manifest| plan.matches_manifest(manifest))
+        })
+        .cloned()
+        .collect();
+    let manifests = Mutex::new(index.manifests);
     crate::logger::info(format!(
         "[sync] sessions-upload db={database} total={} pending={} skipped={} concurrency={}",
         files.len(),
-        plan.pending.len(),
-        files.len() - plan.pending.len(),
+        pending.len(),
+        files.len() - pending.len(),
         crate::plugin_files::MAX_FILE_TRANSFERS,
     ));
     let directory = &directory;
     let upload_progress = |fraction, done, total, _, _| on_progress(fraction, done, total);
-    let report = session_progress(plan.pending.len(), &upload_progress);
+    let report = session_progress(pending.len(), &upload_progress);
     let report = &report;
-    transfer_files(plan.pending.clone(), |name| async move {
+    let manifests = &manifests;
+    transfer_files(pending, |name| async move {
         safe_file(&name)?;
         let path = directory.join(&name);
         let kind = path
@@ -53,21 +116,39 @@ pub async fn upload(
         if !kind.is_file() || kind.is_symlink() {
             return Err("AI_SESSION_INVALID:同步记录不允许符号链接或目录".into());
         }
-        provider
-            .upload_chunked(
+        let previous = manifests.lock().unwrap().get(&name).cloned();
+        let manifest = provider
+            .upload_session_chunked(
                 &crate::chunked_sync::database_session_object(database, &name)?,
                 &name,
                 &path,
+                previous.as_ref(),
                 &|done, size| report(&name, done, size, false, 0),
             )
             .await?;
+        plan.record_manifest(&manifest);
+        manifests.lock().unwrap().insert(name.clone(), manifest);
         report(&name, 1, 1, true, 0);
         Ok(())
     })
     .await?;
     plan.verify()?;
-    let manifest = serde_json::to_vec(&serde_json::json!({"files":files}))
-        .map_err(|error| error.to_string())?;
+    let manifest = {
+        let manifests = manifests.lock().unwrap();
+        let entries: Vec<_> = files
+            .iter()
+            .map(|name| {
+                manifests
+                    .get(name)
+                    .ok_or("AI_SESSION_INVALID:对话记录索引不完整")
+            })
+            .collect::<Result<_, _>>()?;
+        serde_json::to_vec(&serde_json::json!({"files":files, "manifests":entries}))
+            .map_err(|error| error.to_string())?
+    };
+    if manifest.len() > protocol().manifest_bytes {
+        return Err("AI_SESSION_INVALID:对话记录索引过大".into());
+    }
     provider
         .upload(
             &crate::chunked_sync::database_sessions_object(database),
@@ -77,6 +158,9 @@ pub async fn upload(
         .map_err(|error| format!("{}:{}", error.code, error.message))
 }
 pub fn decode_list(bytes: &[u8]) -> Result<Vec<String>, String> {
+    if bytes.len() > protocol().manifest_bytes {
+        return Err("AI_SESSION_INVALID:对话记录索引过大".into());
+    }
     let value: Value = serde_json::from_slice(bytes)
         .map_err(|error| format!("AI_SESSION_INVALID:清单解析失败：{error}"))?;
     let files = value["files"]
@@ -112,7 +196,9 @@ pub async fn download(
         .download(&object)
         .await
         .map_err(|error| format!("{}:{}", error.code, error.message))?;
-    let files = decode_list(&bytes)?;
+    let index = decode_index(&bytes)?;
+    let files = index.files;
+    let manifests = &index.manifests;
     let root = crate::setting::resolve_app_dir(app)?;
     let local = Store {
         root: root.clone(),
@@ -137,6 +223,7 @@ pub async fn download(
                 &crate::chunked_sync::database_session_object(database, &file)?,
                 &file,
                 &local.join(&file),
+                manifests.get(&file),
                 &|done, size, reused| report(&file, done, size, false, reused),
             )
             .await?;
@@ -263,6 +350,34 @@ mod tests {
         completed.borrow_mut().sort();
         assert_eq!(*started.borrow(), vec!["0", "1", "2"]);
         assert_eq!(*completed.borrow(), vec!["1", "2"]);
+    }
+
+    #[test]
+    fn session_index_matches_shared_fixture_and_rejects_incomplete_metadata() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/db-schema/fixtures/chunked-storage-v1.json"
+        ))
+        .unwrap();
+        let mut value = fixture["sessionIndex"].clone();
+        let index = decode_index(&serde_json::to_vec(&value).unwrap()).unwrap();
+        assert_eq!(index.files, vec!["chat.jsonl"]);
+        assert_eq!(
+            serde_json::to_value(index.manifests.get("chat.jsonl").unwrap()).unwrap(),
+            value["manifests"][0]
+        );
+        value["manifests"] = serde_json::json!([]);
+        assert!(decode_index(&serde_json::to_vec(&value).unwrap()).is_err());
+        value = fixture["sessionIndex"].clone();
+        value["files"] = serde_json::json!(["other.jsonl"]);
+        assert!(decode_index(&serde_json::to_vec(&value).unwrap()).is_err());
+        value = fixture["sessionIndex"].clone();
+        value["manifests"][0]["rootHash"] = serde_json::json!("0".repeat(64));
+        assert!(decode_index(&serde_json::to_vec(&value).unwrap()).is_err());
+        assert!(decode_index(br#"{"files":[],"manifests":null}"#).is_err());
+        assert!(decode_index(br#"{"files":["chat.jsonl"]}"#)
+            .unwrap()
+            .manifests
+            .is_empty());
     }
 
     #[test]

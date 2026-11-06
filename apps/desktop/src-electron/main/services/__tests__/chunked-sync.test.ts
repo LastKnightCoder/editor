@@ -28,6 +28,8 @@ import {
   resourceManifestObject,
   databaseSyncObjects,
   decodeSessionList,
+  decodeSessionIndex,
+  encodeSessionList,
   uploadChunkedFile,
 } from "@tau/db-schema/sync-protocol";
 let root: string;
@@ -55,6 +57,17 @@ it("TypeScript 与 Rust 共用清单、根哈希和对象名夹具", async () =>
   expect((await databaseSyncObjects(fixture.databaseName, chunkDigest)).version).toBe(
     fixture.versionObject
   );
+  const index = await decodeSessionIndex(
+    new TextEncoder().encode(JSON.stringify(fixture.sessionIndex)),
+    chunkDigest
+  );
+  expect(index.files).toEqual(fixture.sessionIndex.files);
+  expect([...index.manifests.values()]).toEqual(fixture.sessionIndex.manifests);
+  expect(
+    JSON.parse(
+      new TextDecoder().decode(encodeSessionList(index.files, [...index.manifests.values()]))
+    )
+  ).toEqual(fixture.sessionIndex);
   fixture.manifest.name = "../escape";
   await expect(
     decodeChunkManifest(new TextEncoder().encode(JSON.stringify(fixture.manifest)), chunkDigest)
