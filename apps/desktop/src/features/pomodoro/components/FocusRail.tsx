@@ -3,7 +3,7 @@
  * 专注中顶部换成竖版播放器（时间 / 状态 / 进度线 / 小窗 · 沉浸 / 背景音 / 结束 / 暂停继续）。
  * 「专注于…」可选关联今天的日程或待办：开始前由页面暂存、随任一开始入口带上；专注中直接改会话绑定。
  *
- * 预设行的数字键提示与 ▶ 按钮共用固定槽位原位交叉淡入——悬停不改变行宽。
+ * 预设行的数字键提示与 ▶ 按钮在固定点击区域内交叉淡入，提示层不接收指针事件。
  * 行可纵向拖动排序（落 reorderPomodoroPresets），右键开始 / 编辑 / 归档；专注中不可开始（详情照常可看）。
  * 结束时专注不足 5 分钟：弹确认对话框（主进程会直接丢弃这次记录）。
  */
@@ -64,7 +64,7 @@ export function FocusRail({
 }) {
   const live = session !== null && timing !== null;
   return (
-    <aside className="flex min-h-0 flex-col pb-4 pl-6 pr-4 pt-3">
+    <aside className="flex min-h-0 flex-col pt-3 pr-4 pb-4 pl-6">
       {live ? (
         <Player key={session.startTime} session={session} timing={timing} presetName={presetName} />
       ) : (
@@ -143,7 +143,7 @@ function PresetList({
   return (
     <>
       {disabled && (
-        <h3 className="text-ink-3 text-tau-sm mb-1 mt-5 px-2.5">预设 · 结束当前专注后可开始</h3>
+        <h3 className="text-ink-3 text-tau-sm mt-5 mb-1 px-2.5">预设 · 结束当前专注后可开始</h3>
       )}
       {/* -mr-1.5：FadeScroll 右侧 6px 透明边吃进栏内边距，行右缘与标题对齐 */}
       <FadeScroll className="-mr-1.5 flex min-h-0 flex-1 flex-col gap-px py-1">
@@ -227,13 +227,13 @@ function PresetList({
               <span className="text-ink-3 text-tau-sm flex-none font-normal tabular-nums">
                 {presetShort(preset)}
               </span>
-              {/* 固定槽位：数字键提示 ⇄ ▶ 按钮 原位交叉淡入 */}
+              {/* 固定点击区域：只切换透明度，避免悬停时命中范围变化 */}
               <span className="relative ml-0.5 grid size-[18px] flex-none place-items-center">
                 {index < 9 && (
                   <kbd
                     className={cn(
-                      "bg-hover text-ink-2 absolute inset-0 grid place-items-center rounded-[5px] font-mono text-[11px] leading-none transition-[opacity,transform] duration-150",
-                      !disabled && "group-hover/chip:scale-75 group-hover/chip:opacity-0"
+                      "bg-hover text-ink-2 pointer-events-none absolute inset-0 grid place-items-center rounded-[5px] font-mono text-[11px] leading-none transition-opacity duration-150",
+                      !disabled && "group-hover/chip:opacity-0 group-focus-within/chip:opacity-0"
                     )}
                   >
                     {index + 1}
@@ -250,7 +250,7 @@ function PresetList({
                       e.stopPropagation();
                       start(preset);
                     }}
-                    className="bg-accent text-ink-inverse hover:bg-accent-hover absolute -inset-[3px] grid scale-75 place-items-center rounded-full opacity-0 outline-none transition-[opacity,transform,background] duration-150 focus-visible:scale-100 focus-visible:opacity-100 group-hover/chip:scale-100 group-hover/chip:opacity-100"
+                    className="bg-accent text-ink-inverse hover:bg-accent-hover absolute -inset-[3px] grid place-items-center rounded-full opacity-0 transition-[opacity,background] duration-150 outline-none group-focus-within/chip:opacity-100 group-hover/chip:opacity-100 hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Play className="ml-px size-2.5 fill-current" strokeWidth={0} />
                   </button>
@@ -301,7 +301,7 @@ function Player({
   };
 
   return (
-    <section className="border-line-1 relative flex-none overflow-hidden rounded-[18px] border px-5 pb-4 pt-4">
+    <section className="border-line-1 relative flex-none overflow-hidden rounded-[18px] border px-5 pt-4 pb-4">
       <div className="flex items-center gap-[7px] font-semibold">
         <PresetDot presetId={session.presetId} />
         {/* 有关联时主标题是关联对象，预设名降为副文字 */}
@@ -323,7 +323,7 @@ function Player({
           )}
         </span>
       </div>
-      <div className="mt-2 text-[44px] font-medium tabular-nums leading-none tracking-[-0.03em]">
+      <div className="mt-2 text-[44px] leading-none font-medium tracking-[-0.03em] tabular-nums">
         {formatClock(timing.displayMs)}
       </div>
       {/* 栏窄：只放起止时间一行，暂停次数移到状态标签后，避免折行 */}
