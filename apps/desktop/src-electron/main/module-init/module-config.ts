@@ -48,6 +48,7 @@ import entityContextModule from "../modules/entity-context";
 import docTasksModule from "../modules/doc-tasks";
 import taskAssistantModule from "../modules/task-assistant";
 import contentAiQueueModule from "../modules/content-ai-queue";
+import assistantMemoryModule from "../modules/assistant-memory";
 import contentInsightsModule from "../modules/content-insights";
 import inlineSuggestionsModule from "../modules/inline-suggestions";
 import composeGatherModule from "../modules/compose-gather";
@@ -202,6 +203,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
 
   // AI 模块
+  {
+    name: "assistant-memory",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["database", "pi-ai"],
+    init: () => assistantMemoryModule.init(),
+  },
   {
     name: "plugin-ai",
     layer: InitLayer.BACKGROUND,

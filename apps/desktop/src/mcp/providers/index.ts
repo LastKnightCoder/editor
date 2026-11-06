@@ -11,6 +11,7 @@ export { openAIImageToolsProvider } from "./openai-image-tools";
 export { sqlQueryToolsProvider } from "./sql-query-tools";
 export { taskAssistantToolsProvider } from "./task-assistant-tools";
 
+import { assistantMemoryToolsProvider } from "./assistant-memory-tools";
 import { articleToolsProvider } from "./article-tools";
 import { cardToolsProvider } from "./card-tools";
 import { contentEditToolsProvider } from "./content-edit-tools";
@@ -36,4 +37,5 @@ export const MCP_PROVIDERS: MCPProviderDefinition[] = [
   openAIImageToolsProvider,
   sqlQueryToolsProvider,
   taskAssistantToolsProvider,
+  assistantMemoryToolsProvider,
 ];
