@@ -5,6 +5,7 @@
 
 import { useMemo } from "react";
 import { Select } from "@tau/ui";
+import { BUNDLED_FONTS, resolveFontFamily } from "@/utils/bundled-fonts";
 
 export type FontKind = "chinese" | "english" | "code";
 
@@ -16,10 +17,12 @@ const FONT_PREVIEW: Record<FontKind, string> = {
 
 /** 预览字体栈：目标字体在前，按类别回退到同形制系统字体 */
 function previewStack(font: string, kind: FontKind) {
+  const family = resolveFontFamily(font);
+  const stack = family === font ? `"${font}"` : family;
   if (kind === "chinese")
-    return `"${font}", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif`;
-  if (kind === "code") return `"${font}", "SF Mono", "JetBrains Mono", monospace`;
-  return `"${font}", "Helvetica Neue", Arial, sans-serif`;
+    return `${stack}, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif`;
+  if (kind === "code") return `${stack}, "SF Mono", "JetBrains Mono", monospace`;
+  return `${stack}, "Helvetica Neue", Arial, sans-serif`;
 }
 
 export function FontSelect({
@@ -36,14 +39,18 @@ export function FontSelect({
   "aria-label"?: string;
 }) {
   const options = useMemo(() => {
-    const list = fonts ?? [];
+    const bundled = BUNDLED_FONTS.filter(font => font.kind === kind).map(font => font.name);
+    const list = [...new Set([...bundled, ...(fonts ?? [])])];
     const withCurrent = list.includes(value) ? list : [value, ...list];
     return withCurrent.map(f => ({
       value: f,
       searchText: f,
       label: (
         <span className="flex min-w-0 items-baseline gap-2.5">
-          <span className="text-tau-sm text-ink-1 truncate">{f}</span>
+          <span className="text-tau-sm text-ink-1 truncate">
+            {f}
+            {BUNDLED_FONTS.some(font => font.name === f) && "（内置）"}
+          </span>
           <span
             className="text-tau-meta text-ink-3 ml-auto flex-none truncate"
             style={{ fontFamily: previewStack(f, kind) }}
