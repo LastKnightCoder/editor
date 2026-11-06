@@ -7,6 +7,7 @@ import {
   uploadChunkedFile,
   downloadChunkedFile,
   type ChunkDownloadOptions,
+  type ChunkManifest,
   type ObjectStorage,
 } from "@tau/db-schema/sync-protocol";
 export const chunkDigest = async (bytes: Uint8Array) => {
@@ -18,7 +19,8 @@ export async function uploadChunkedPath(
   object: string,
   filePath: string,
   name: string,
-  onChunk?: (bytes: number) => void
+  onChunk?: (bytes: number) => void,
+  previousManifest?: ChunkManifest
 ) {
   const size = await fileCall<number>("sync:file-size", filePath);
   return uploadChunkedFile(
@@ -35,14 +37,17 @@ export async function uploadChunkedPath(
     },
     chunkDigest,
     undefined,
-    onChunk
+    onChunk,
+    previousManifest
   );
 }
 export async function downloadChunkedPath(
   store: Pick<ObjectStorage, "downloadFile">,
   object: string,
   target: string,
-  options: Pick<ChunkDownloadOptions, "expectedName" | "onProgress"> & { localPath?: string } = {}
+  options: Pick<ChunkDownloadOptions, "expectedName" | "onProgress" | "manifest"> & {
+    localPath?: string;
+  } = {}
 ) {
   await fileCall("sync:file-write", target, 0, new Uint8Array());
   return downloadChunkedFile(
@@ -53,6 +58,7 @@ export async function downloadChunkedPath(
     undefined,
     {
       expectedName: options.expectedName,
+      manifest: options.manifest,
       onProgress: options.onProgress,
       readLocalChunk: options.localPath
         ? (offset, length) =>

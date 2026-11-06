@@ -9,12 +9,13 @@ import { readSessionUploadCache, writeSessionUploadCache } from "@/services/sess
 import { withSyncRequestRetry } from "@/services/syncRequestRetry";
 import {
   databaseSyncObjects,
-  decodeSessionList,
+  decodeSessionIndex,
   encodeDatabaseSyncVersion,
   encodeSessionList,
   localDatabaseVersion,
   readDatabaseSyncVersion,
   type DatabaseSyncVersion,
+  type ChunkManifest,
 } from "@tau/db-schema/sync-protocol";
 import { toast } from "@tau/ui";
 import { produce } from "immer";
@@ -161,16 +162,22 @@ async function runWithConcurrency<T>(items: T[], limit: number, run: (item: T) =
   if (failure) throw (failure as { error: unknown }).error;
 }
 
-/** 云端版本仍是本机上次写入的版本时，期间没有其他设备上传，未变的对话文件可直接沿用云端副本。 */
+/** 版本、索引摘要与本地指纹一致时，直接沿用云端副本。 */
 const sessionsToUpload = (
   files: SessionSyncFile[],
   cache: Awaited<ReturnType<typeof readSessionUploadCache>>,
-  remoteVersion: number
+  remoteVersion: number,
+  manifests: Map<string, ChunkManifest>
 ) =>
   cache && cache.version === remoteVersion
     ? files.filter(file => {
         const previous = cache.files[file.name];
-        return previous?.size !== file.size || previous.mtimeMs !== file.mtimeMs;
+        return (
+          !manifests.has(file.name) ||
+          previous?.rootHash !== manifests.get(file.name)?.rootHash ||
+          previous?.size !== file.size ||
+          previous.mtimeMs !== file.mtimeMs
+        );
       })
     : files;
 
@@ -227,6 +234,10 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     const prepared = await piSessionSyncFiles(databaseName);
     if (!prepared.ok || !prepared.files) throw new Error(prepared.error ?? "读取对话记录失败");
     const sessionFiles = prepared.files;
+    const remoteIndex = (await syncProvider.fileExists(objects.sessions))
+      ? await decodeSessionIndex(await syncProvider.downloadFile(objects.sessions), chunkDigest)
+      : { files: [], manifests: new Map<string, ChunkManifest>() };
+    const manifests = remoteIndex.manifests;
     console.info("[database-sync] upload session files prepared", {
       databaseName,
       count: sessionFiles.length,
@@ -235,7 +246,8 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     const pending = sessionsToUpload(
       sessionFiles,
       await readSessionUploadCache(cacheTarget),
-      remote.version
+      remote.version,
+      manifests
     );
 
     // 进度按已处理字节计：准备占 2%，库文件与待传对话记录占 2%–97%，清单与版本号收尾
@@ -256,16 +268,24 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     status = "正在上传对话记录...";
     report(0);
     await runWithConcurrency(pending, SESSION_TRANSFER_CONCURRENCY, async file => {
-      await uploadChunkedPath(
+      const manifest = await uploadChunkedPath(
         syncProvider,
         objects.session(file.name),
         file.path,
         file.name,
-        report
+        report,
+        manifests.get(file.name)
       );
+      manifests.set(file.name, manifest);
     });
     const names = sessionFiles.map(file => file.name);
-    if (!(await syncProvider.uploadFile(objects.sessions, encodeSessionList(names))))
+    const sessionManifests = names.map(name => {
+      const manifest = manifests.get(name);
+      if (!manifest) throw new Error("对话记录索引不完整");
+      return manifest;
+    });
+    const index = encodeSessionList(names, sessionManifests);
+    if (!(await syncProvider.uploadFile(objects.sessions, index)))
       throw new Error("对话记录清单上传失败");
 
     emitProgress(options, 98, "正在上传版本信息...");
@@ -282,7 +302,14 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     await writeSessionUploadCache(cacheTarget, {
       version,
       files: Object.fromEntries(
-        sessionFiles.map(file => [file.name, { size: file.size, mtimeMs: file.mtimeMs }])
+        sessionFiles.map((file, index) => [
+          file.name,
+          {
+            size: file.size,
+            mtimeMs: file.mtimeMs,
+            rootHash: sessionManifests[index].rootHash,
+          },
+        ])
       ),
     }).catch(error => console.warn("记录对话上传状态失败，下次上传将全量检查:", error));
 
@@ -392,7 +419,11 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         emitProgress(options, 60, "正在读取对话记录清单...");
         await removeFile(sessionDirectory).catch(() => undefined);
         await createDir(sessionDirectory);
-        const sessionNames = decodeSessionList(await syncProvider.downloadFile(objects.sessions));
+        const sessionIndex = await decodeSessionIndex(
+          await syncProvider.downloadFile(objects.sessions),
+          chunkDigest
+        );
+        const sessionNames = sessionIndex.files;
         const fractions = new Map<string, number>();
         let completedFiles = 0;
         const transferBytes = new Map<string, { reused: number; downloaded: number }>();
@@ -432,6 +463,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
           try {
             await downloadChunkedPath(syncProvider, objects.session(name), target, {
               expectedName: name,
+              manifest: sessionIndex.manifests.get(name),
               localPath: localFiles.get(name)?.path,
               onProgress: (done, total, reused) => {
                 const previous = transferBytes.get(name) ?? { reused: 0, downloaded: 0 };

@@ -27,7 +27,7 @@ const provider = {
   getProviderName: () => "test.sync",
   uploadFile: state.upload,
   downloadFile: state.download,
-  fileExists: async (name: string) => state.remote.has(name),
+  fileExists: vi.fn(async (name: string) => state.remote.has(name)),
 };
 const toast = vi.hoisted(() => ({ error: vi.fn(), warning: vi.fn() }));
 vi.mock("@tau/ui", () => ({ toast }));
@@ -143,7 +143,10 @@ it("库文件与对话记录写到固定位置，版本号最后写入", async (
     name: "data.db",
     size: 3,
   });
-  expect(decode(state.remote.get(`${root}/sessions.json`))).toEqual({ files: ["chat.jsonl"] });
+  expect(decode(state.remote.get(`${root}/sessions.json`))).toEqual({
+    files: ["chat.jsonl"],
+    manifests: [decode(state.remote.get(`${root}/sessions/chat.jsonl`))],
+  });
   expect(state.remote.has(`${root}/sessions/chat.jsonl`)).toBe(true);
   expect(state.upload.mock.calls.at(-1)?.[0]).toBe(versionObject);
   expect(state.factory).toHaveBeenCalledTimes(1);
@@ -176,10 +179,10 @@ it("云端仍是本机上次写入的版本时，跳过未变的对话记录", a
   vi.clearAllMocks();
   expect(await upload()).toBe(true);
   expect(sessionUploads()).toHaveLength(0);
-  expect(decode(state.remote.get(`${root}/sessions.json`))).toEqual({ files: ["chat.jsonl"] });
+  expect(decode(state.remote.get(`${root}/sessions.json`)).files).toEqual(["chat.jsonl"]);
   expect(decode(state.remote.get(versionObject)).version).toBe(3);
 });
-it("对话文件变化或云端被其他设备写过时重新上传", async () => {
+it("按索引比较内容，修改时间或云端版本变化不重复上传未变化的对话", async () => {
   expect(await upload()).toBe(true);
   vi.clearAllMocks();
   state.sessions.mockResolvedValue({
@@ -187,11 +190,103 @@ it("对话文件变化或云端被其他设备写过时重新上传", async () =
     files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl", size: 2, mtimeMs: 2 }],
   });
   expect(await upload()).toBe(true);
-  expect(sessionUploads()).toHaveLength(1);
+  expect(sessionUploads()).toHaveLength(0);
   vi.clearAllMocks();
   state.remote.set(versionObject, encode({ version: 9 }));
   expect(await upload()).toBe(true);
+  expect(sessionUploads()).toHaveLength(0);
+  vi.clearAllMocks();
+  state.local.set("/tmp/chat.jsonl", new Uint8Array([8, 8]));
+  state.sessions.mockResolvedValue({
+    ok: true,
+    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl", size: 2, mtimeMs: 3 }],
+  });
+  expect(await upload()).toBe(true);
   expect(sessionUploads()).toHaveLength(1);
+});
+
+it("400 个未变对话只读取一个索引，缓存丢失后上传和下载均无逐文件远端校验", async () => {
+  const files = Array.from({ length: 400 }, (_, index) => ({
+    name: `chat-${index}.jsonl`,
+    path: `/tmp/chat-${index}.jsonl`,
+    size: 2,
+    mtimeMs: 1,
+  }));
+  files.forEach((file, index) =>
+    state.local.set(file.path, new Uint8Array([index >> 8, index & 255]))
+  );
+  state.sessions.mockResolvedValue({ ok: true, files });
+  expect(await upload()).toBe(true);
+  state.uploadCache.clear();
+  state.remote.set(versionObject, encode({ version: 9 }));
+  vi.clearAllMocks();
+  expect(await upload()).toBe(true);
+  expect(sessionUploads()).toHaveLength(0);
+  expect(state.download.mock.calls.map(([name]) => name)).toEqual([
+    versionObject,
+    `${root}/sessions.json`,
+  ]);
+  expect(provider.fileExists.mock.calls.filter(([name]) => name.includes("/chunks/"))).toHaveLength(
+    1
+  );
+  vi.clearAllMocks();
+  expect(await download()).toBe(true);
+  expect(
+    state.download.mock.calls.filter(([name]) => name === `${root}/sessions.json`)
+  ).toHaveLength(1);
+  expect(state.download.mock.calls.some(([name]) => name.startsWith(`${root}/sessions/`))).toBe(
+    false
+  );
+  expect(state.download.mock.calls.filter(([name]) => name.includes("/chunks/"))).toHaveLength(1);
+});
+
+it("旧文件名清单仍能下载，下一次上传补齐完整索引", async () => {
+  expect(await upload()).toBe(true);
+  state.remote.set(`${root}/sessions.json`, encode({ files: ["chat.jsonl"] }));
+  vi.clearAllMocks();
+  expect(await download()).toBe(true);
+  expect(state.download).toHaveBeenCalledWith(`${root}/sessions/chat.jsonl`);
+  vi.clearAllMocks();
+  expect(await upload()).toBe(true);
+  expect(decode(state.remote.get(`${root}/sessions.json`)).manifests).toHaveLength(1);
+});
+
+it("失败上传改写了索引但未发布版本时，不以旧缓存跳过恢复的本地文件", async () => {
+  expect(await upload()).toBe(true);
+  const original = decode(state.remote.get(`${root}/sessions.json`));
+  const write = state.upload.getMockImplementation();
+  if (!write) throw new Error("缺少上传实现");
+  state.local.set("/tmp/chat.jsonl", new Uint8Array([8, 8]));
+  state.sessions.mockResolvedValue({
+    ok: true,
+    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl", size: 2, mtimeMs: 2 }],
+  });
+  state.upload.mockImplementation((name: string, bytes: Uint8Array) =>
+    name === versionObject ? false : write(name, bytes)
+  );
+  expect(await upload()).toBe(false);
+  expect(decode(state.remote.get(versionObject)).version).toBe(2);
+  state.local.set("/tmp/chat.jsonl", new Uint8Array([7, 7]));
+  state.sessions.mockResolvedValue({
+    ok: true,
+    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl", size: 2, mtimeMs: 1 }],
+  });
+  state.upload.mockImplementation(write);
+  expect(await upload()).toBe(true);
+  expect(decode(state.remote.get(`${root}/sessions.json`))).toEqual(original);
+});
+
+it.each(["missing", "duplicate", "hash", "name"])("索引元信息损坏时拒绝安装：%s", async defect => {
+  await uploadedFromOtherDevice();
+  const index = decode(state.remote.get(`${root}/sessions.json`));
+  if (defect === "missing") index.manifests = [];
+  if (defect === "duplicate") index.files.push("chat.jsonl");
+  if (defect === "hash") index.manifests[0].rootHash = "0".repeat(64);
+  if (defect === "name") index.files = ["other.jsonl"];
+  state.remote.set(`${root}/sessions.json`, encode(index));
+  expect(await download()).toBe(false);
+  expect(state.install).not.toHaveBeenCalled();
+  expect(state.setting.setting.database.databases[0].version).toBe(1);
 });
 it("对话记录并发上传，单个失败会重试，进度只增不减并以 100 结束", async () => {
   const files = Array.from({ length: 5 }, (_, index) => ({
@@ -318,7 +413,7 @@ it("未变的本地对话按内容复用，仅组装远端清单列出的待安�
   expect(state.download.mock.calls.filter(([name]) => name === chunk)).toHaveLength(0);
   expect(
     state.download.mock.calls.filter(([name]) => name === `${root}/sessions/chat.jsonl`)
-  ).toHaveLength(1);
+  ).toHaveLength(0);
   expect(state.local.get("/tmp/chat.jsonl")).toEqual(new Uint8Array([7, 7]));
 });
 
@@ -366,11 +461,19 @@ async function prepareSessionDownloads() {
   files.forEach((file, index) => state.local.set(file.path, new Uint8Array([index, 1])));
   state.sessions.mockResolvedValue({ ok: true, files });
   await uploadedFromOtherDevice();
+  const sessionChunks = new Set(
+    files.flatMap(file =>
+      decode(state.remote.get(`${root}/sessions/${file.name}`)).chunks.map(
+        (chunk: { sha256: string }) => chunkObject(chunk.sha256)
+      )
+    )
+  );
+  files.forEach(file => state.local.delete(file.path));
   const pending: { resolve(): void; reject(error: Error): void }[] = [];
   let active = 0;
   let peak = 0;
   state.download.mockImplementation(async (name: string) => {
-    if (name.startsWith(`${root}/sessions/`)) {
+    if (sessionChunks.has(name)) {
       active++;
       peak = Math.max(peak, active);
       try {

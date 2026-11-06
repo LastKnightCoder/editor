@@ -91,7 +91,7 @@ pub(crate) struct Manifest {
     version: u64,
     pub name: String,
     pub size: u64,
-    root_hash: String,
+    pub root_hash: String,
     chunks: Vec<Chunk>,
 }
 impl Manifest {
@@ -174,6 +174,17 @@ async fn upload_chunks(
     check: impl Fn() -> Result<(), String>,
     on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
 ) -> Result<Manifest, String> {
+    upload_indexed_chunks(store, object, name, file, check, on_progress, None).await
+}
+async fn upload_indexed_chunks(
+    store: &impl ObjectStore,
+    object: &str,
+    name: &str,
+    file: &mut File,
+    check: impl Fn() -> Result<(), String>,
+    on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
+    previous: Option<&Manifest>,
+) -> Result<Manifest, String> {
     if !valid_name(name) {
         return Err("同步文件名无效".into());
     }
@@ -193,6 +204,11 @@ async fn upload_chunks(
         chunks: vec![],
     };
     let mut remaining = before.len();
+    let known_chunks: std::collections::HashSet<_> = previous
+        .into_iter()
+        .flat_map(|manifest| &manifest.chunks)
+        .map(|chunk| (chunk.size, chunk.sha256.as_str()))
+        .collect();
     if let Some(report) = on_progress {
         report(0, before.len());
     }
@@ -207,7 +223,8 @@ async fn upload_chunks(
             "[sync] chunk-check file={name:?} index={} bytes={length} object={key}",
             manifest.chunks.len()
         ));
-        let reusable = store.exists(&key).await?;
+        let reusable =
+            known_chunks.contains(&(length as u64, sha256.as_str())) || store.exists(&key).await?;
         if !reusable {
             store.put(&key, &bytes).await?;
         } else {
@@ -230,6 +247,10 @@ async fn upload_chunks(
         return Err("同步期间本地文件已变化".into());
     }
     manifest.root_hash = hash(&manifest.root_payload());
+    if previous.is_some_and(|previous| previous.root_hash == manifest.root_hash) {
+        check()?;
+        return Ok(manifest);
+    }
     let bytes = serde_json::to_vec(&manifest).map_err(|e| e.to_string())?;
     if bytes.len() > protocol().manifest_bytes {
         return Err("同步文件清单过大".into());
@@ -251,6 +272,27 @@ async fn download_chunks(
 ) -> Result<Manifest, String> {
     check()?;
     let manifest = Manifest::parse(&store.get(object, protocol().manifest_bytes as u64).await?)?;
+    download_manifest_chunks(
+        store,
+        manifest,
+        file,
+        expected_name,
+        local,
+        check,
+        on_progress,
+    )
+    .await
+}
+async fn download_manifest_chunks(
+    store: &impl ObjectStore,
+    manifest: Manifest,
+    file: &mut File,
+    expected_name: Option<&str>,
+    local: Option<&Path>,
+    check: impl Fn() -> Result<(), String>,
+    on_progress: Option<&(dyn Fn(u64, u64, u64) + Send + Sync)>,
+) -> Result<Manifest, String> {
+    check()?;
     if expected_name.is_some_and(|name| manifest.name != name) {
         return Err("同步文件身份不匹配".into());
     }
@@ -307,6 +349,26 @@ fn resource_check() -> Result<(), String> {
     }
 }
 impl PluginProvider {
+    pub(crate) async fn upload_session_chunked(
+        &self,
+        object: &str,
+        name: &str,
+        path: &Path,
+        previous: Option<&Manifest>,
+        on_progress: &(dyn Fn(u64, u64) + Send + Sync),
+    ) -> Result<Manifest, String> {
+        let mut file = File::open(path).map_err(|e| e.to_string())?;
+        upload_indexed_chunks(
+            self,
+            object,
+            name,
+            &mut file,
+            || Ok(()),
+            Some(on_progress),
+            previous,
+        )
+        .await
+    }
     pub(crate) async fn upload_chunked(
         &self,
         object: &str,
@@ -344,6 +406,7 @@ impl PluginProvider {
             None,
             || Ok(()),
             Some(&|done, total, _| on_progress(done, total)),
+            None,
         )
         .await
     }
@@ -352,6 +415,7 @@ impl PluginProvider {
         object: &str,
         name: &str,
         local: &Path,
+        manifest: Option<&Manifest>,
         on_progress: &(dyn Fn(u64, u64, u64) + Send + Sync),
     ) -> Result<TemporaryFile, String> {
         self.download_checked(
@@ -360,6 +424,7 @@ impl PluginProvider {
             Some(local),
             || Ok(()),
             Some(on_progress),
+            manifest,
         )
         .await
     }
@@ -368,7 +433,7 @@ impl PluginProvider {
         object: &str,
         name: &str,
     ) -> Result<TemporaryFile, String> {
-        self.download_checked(object, Some(name), None, resource_check, None)
+        self.download_checked(object, Some(name), None, resource_check, None, None)
             .await
     }
     async fn download_checked(
@@ -378,22 +443,39 @@ impl PluginProvider {
         local: Option<&Path>,
         check: impl Fn() -> Result<(), String>,
         on_progress: Option<&(dyn Fn(u64, u64, u64) + Send + Sync)>,
+        manifest: Option<&Manifest>,
     ) -> Result<TemporaryFile, String> {
         let temp = self.new_temporary()?;
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .open(&temp.path)
             .map_err(|e| e.to_string())?;
-        download_chunks(
-            self,
-            object,
-            &mut file,
-            expected_name,
-            local,
-            check,
-            on_progress,
-        )
-        .await?;
+        match manifest {
+            Some(manifest) => {
+                download_manifest_chunks(
+                    self,
+                    manifest.clone(),
+                    &mut file,
+                    expected_name,
+                    local,
+                    check,
+                    on_progress,
+                )
+                .await?;
+            }
+            None => {
+                download_chunks(
+                    self,
+                    object,
+                    &mut file,
+                    expected_name,
+                    local,
+                    check,
+                    on_progress,
+                )
+                .await?;
+            }
+        }
         Ok(temp)
     }
 }
@@ -454,6 +536,59 @@ mod tests {
         corrupt["name"] = serde_json::json!("../escape");
         assert!(Manifest::parse(&serde_json::to_vec(&corrupt).unwrap()).is_err());
     }
+    #[tokio::test]
+    async fn indexed_unchanged_sessions_need_no_remote_requests_in_either_direction() {
+        struct NoRequests;
+        impl ObjectStore for NoRequests {
+            async fn exists(&self, _: &str) -> Result<bool, String> {
+                Err("未变化会话不应发起存在性请求".into())
+            }
+            async fn put(&self, _: &str, _: &[u8]) -> Result<(), String> {
+                Err("未变化会话不应上传".into())
+            }
+            async fn get(&self, _: &str, _: u64) -> Result<Vec<u8>, String> {
+                Err("未变化会话不应下载".into())
+            }
+        }
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../packages/db-schema/fixtures/chunked-storage-v1.json"
+        ))
+        .unwrap();
+        let manifest =
+            Manifest::parse(&serde_json::to_vec(&fixture["sessionIndex"]["manifests"][0]).unwrap())
+                .unwrap();
+        let root = std::env::temp_dir().join(format!("tau-session-index-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("chat.jsonl");
+        std::fs::write(&source, [0u8, 255, 1, 2]).unwrap();
+        let uploaded = upload_indexed_chunks(
+            &NoRequests,
+            "manifest",
+            "chat.jsonl",
+            &mut File::open(&source).unwrap(),
+            || Ok(()),
+            None,
+            Some(&manifest),
+        )
+        .await
+        .unwrap();
+        assert_eq!(uploaded.root_hash, manifest.root_hash);
+        let target = root.join("received.jsonl");
+        download_manifest_chunks(
+            &NoRequests,
+            manifest,
+            &mut File::create(&target).unwrap(),
+            Some("chat.jsonl"),
+            Some(&source),
+            || Ok(()),
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), vec![0, 255, 1, 2]);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[tokio::test]
     async fn repeated_upload_never_downloads_existing_chunks_and_uploads_only_new_content() {
         let root = std::env::temp_dir().join(format!("tau-upload-reuse-{}", uuid::Uuid::new_v4()));

@@ -23,6 +23,7 @@ export interface ObjectStorage {
 }
 export interface ChunkDownloadOptions {
   expectedName?: string;
+  manifest?: ChunkManifest;
   readLocalChunk?(offset: number, length: number): Promise<Uint8Array | null>;
   onProgress?(completedBytes: number, totalBytes: number, reusedBytes: number): void;
 }
@@ -94,7 +95,8 @@ export async function uploadChunkedFile(
   },
   digest: Digest,
   check: () => void = () => undefined,
-  onChunk: (bytes: number) => void = () => undefined
+  onChunk: (bytes: number) => void = () => undefined,
+  previousManifest?: ChunkManifest
 ): Promise<ChunkManifest> {
   assertFileName(name);
   if (!Number.isSafeInteger(source.size) || source.size < 0) throw new Error("本地文件大小无效");
@@ -106,6 +108,9 @@ export async function uploadChunkedFile(
     chunks: [],
     rootHash: "",
   };
+  const knownChunks = new Set(
+    previousManifest?.chunks.map(chunk => `${chunk.size}:${chunk.sha256}`)
+  );
   for (let offset = 0; offset < source.size; offset += CHUNK_BYTES) {
     check();
     const length = Math.min(CHUNK_BYTES, source.size - offset);
@@ -113,7 +118,7 @@ export async function uploadChunkedFile(
     if (bytes.length !== length) throw new Error("本地文件读取不完整");
     const hash = await digest(bytes);
     const key = chunkObject(hash);
-    const reusable = await store.fileExists?.(key);
+    const reusable = knownChunks.has(`${length}:${hash}`) || (await store.fileExists?.(key));
     if (!reusable && !(await store.uploadFile(key, bytes))) throw new Error("同步分块上传失败");
     manifest.chunks.push({ size: length, sha256: hash });
     if (manifest.chunks.length * 100 > MANIFEST_BYTES) throw new Error("同步文件清单过大");
@@ -121,6 +126,10 @@ export async function uploadChunkedFile(
   }
   await source.assertUnchanged?.();
   manifest.rootHash = await digest(rootPayload(manifest));
+  if (manifest.rootHash === previousManifest?.rootHash) {
+    check();
+    return manifest;
+  }
   const bytes = new TextEncoder().encode(JSON.stringify(manifest));
   if (bytes.length > MANIFEST_BYTES) throw new Error("同步文件清单过大");
   check();
@@ -136,7 +145,12 @@ export async function downloadChunkedFile(
   options: ChunkDownloadOptions = {}
 ): Promise<ChunkManifest> {
   check();
-  const manifest = await decodeChunkManifest(await store.downloadFile(object), digest);
+  const manifest = await decodeChunkManifest(
+    options.manifest
+      ? new TextEncoder().encode(JSON.stringify(options.manifest))
+      : await store.downloadFile(object),
+    digest
+  );
   if (options.expectedName !== undefined && manifest.name !== options.expectedName)
     throw new Error("同步文件身份不匹配");
   let offset = 0;
