@@ -673,11 +673,7 @@ export function LLMSection() {
           placeholder="未分配"
           emptyText="暂无模型——先在上方添加"
           value={selectedIndex >= 0 ? String(selectedIndex) : null}
-          options={
-            feature.key === INLINE_SUGGESTION_SLOT
-              ? [{ value: "off", label: "关闭行内建议" }, ...modelOptions]
-              : modelOptions
-          }
+          options={[{ value: "off", label: "取消分配（不使用 AI）" }, ...modelOptions]}
           onValueChange={value => {
             const entry =
               value == null || value === "off" ? undefined : modelEntries[Number(value)];
