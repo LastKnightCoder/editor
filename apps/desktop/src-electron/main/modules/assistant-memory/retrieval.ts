@@ -8,7 +8,9 @@ import { reciprocalRankFusion } from "../search-core/rrf";
 import { DEFAULT_SEARCH_CORE_CONFIG, type SearchCandidate } from "../search-core/types";
 import type { MemorySourcesPort } from "./sources";
 import type { MemoryStore } from "./store";
-import { isPersonalEpisode } from "./reflection";
+import { isPersonalEpisode, isRhythmModel } from "./reflection";
+import { searchTerms } from "./extraction";
+import { currentPortrait, PORTRAIT_META, readPortrait } from "./portrait";
 
 export function resolveMemory(sources: MemorySourcesPort, item: AssistantMemory): AssistantMemory {
   const evidence = item.evidence.flatMap(ref => {
@@ -21,6 +23,15 @@ export function resolveMemory(sources: MemorySourcesPort, item: AssistantMemory)
     }
   });
   return { ...item, evidence };
+}
+
+export interface MemoryBrief {
+  portrait: string[];
+  profile: PersonalMemoryModel[];
+  recent: PersonalMemoryModel[];
+  openItems: Array<{ text: string; observedAt: number }>;
+  recentSessions: Array<{ topic: string; text: string; observedAt: number }>;
+  currentMood: { text: string; observedAt: number } | null;
 }
 
 interface MemoryRetrievalOptions {
@@ -78,35 +89,66 @@ export class MemoryRetrieval {
   private validModel(model: PersonalMemoryModel) {
     if (model.expiresAt !== null && model.expiresAt <= this.now()) return false;
     const supported =
-      model.episodeIds.length > 0 &&
-      model.episodeIds.every(id => {
-        const item = this.get(id);
-        return item && (model.layer !== "profile" || item.state !== "history");
-      });
+      (isRhythmModel(model) && model.episodeIds.length === 0) ||
+      (model.episodeIds.length > 0 &&
+        model.episodeIds.every(id => {
+          const item = this.get(id);
+          return item && (model.layer !== "profile" || item.state !== "history");
+        }));
     const current = this.options.store.getModel(model.id);
     return supported && current?.text === model.text && current.observedAt === model.observedAt;
   }
 
-  brief(query?: string): {
-    profile: PersonalMemoryModel[];
-    recent: PersonalMemoryModel[];
-    recentSessions: Array<{ topic: string; text: string; observedAt: number }>;
-    currentMood: { text: string; observedAt: number } | null;
-  } {
-    if (this.disposed) return { profile: [], recent: [], recentSessions: [], currentMood: null };
+  /** 依据仍成立的画像（不含已降级的推断）与近期状态。 */
+  validModels(profiles: number, states: number): PersonalMemoryModel[] {
+    if (this.disposed) return [];
+    return this.options.store
+      .listModels(this.now(), profiles, states)
+      .filter(model => model.confidence !== "observation" && this.validModel(model));
+  }
+
+  brief(query?: string): MemoryBrief {
+    if (this.disposed)
+      return {
+        portrait: [],
+        profile: [],
+        recent: [],
+        openItems: [],
+        recentSessions: [],
+        currentMood: null,
+      };
     const now = this.now();
+    const { store } = this.options;
     // dirty-at 比最后一次 reflection 新超过 5 分钟，说明有新 episode 待归纳，state model 可能过时
-    const dirtyAt = Number(this.options.store.meta("dirty-at") ?? 0);
-    const reflectedAt = Number(this.options.store.meta("reflected-at") ?? 0);
+    const dirtyAt = Number(store.meta("dirty-at") ?? 0);
+    const reflectedAt = Number(store.meta("reflected-at") ?? 0);
     const stateStale = dirtyAt > reflectedAt && now - reflectedAt > 5 * 60_000;
-    const select = (layer: "profile" | "state", budget: number) => {
+    const stored = readPortrait(store.meta(PORTRAIT_META));
+    const portrait = stored
+      ? currentPortrait(stored, id => {
+          const model = store.getModel(id);
+          return model && this.validModel(model) ? model : null;
+        }).lines.map(line => line.text)
+      : [];
+    const covered = new Set(stored?.lines.flatMap(line => line.modelIds) ?? []);
+    const select = (layer: "profile" | "state", count: number, budget: number) => {
       let remaining = budget;
       // 有 query 时按相关性排序（searchModels 内部用 instr 打分），无 query 时退回 observed_at DESC
       return (
-        this.options.store
+        store
           .searchModels({ layer, limit: 20, query }, now)
           .filter(model => this.validModel(model))
           .filter(model => layer !== "profile" || model.confidence !== "observation")
+          // 有总述时画像只补充总述未覆盖、且与本轮话题相关的条目
+          .filter(model => layer !== "profile" || !portrait.length || !covered.has(model.id))
+          .filter(
+            model =>
+              layer !== "profile" ||
+              !portrait.length ||
+              searchTerms(query ?? "").some(term =>
+                (model.topic + " " + model.text).toLowerCase().includes(term)
+              )
+          )
           // state model 在 reflection 尚未追上新数据时不注入，避免向 AI 提供过时状态
           .filter(() => layer !== "state" || !stateStale)
           .filter(model => {
@@ -115,9 +157,17 @@ export class MemoryRetrieval {
             remaining -= size;
             return true;
           })
-          .slice(0, 6)
+          .slice(0, count)
       );
     };
+    const openItems = query
+      ? store
+          .openIntentions(query, 4)
+          .map(item => resolveMemory(this.options.sources, item))
+          .filter(item => item.manual || item.evidence.length)
+          .slice(0, 2)
+          .map(({ text, observedAt }) => ({ text, observedAt }))
+      : [];
     // 最近 3 条对话摘要（kind=event，topic 以"对话摘要："开头）
     const recentSessions = this.options.store
       .search({ query: "对话摘要：", kind: "event", state: "current", limit: 6 }, false)
@@ -133,8 +183,10 @@ export class MemoryRetrieval {
       ? { text: currentMoodItem.text, observedAt: currentMoodItem.observedAt }
       : null;
     return {
-      profile: select("profile", 1200),
-      recent: select("state", 1400),
+      portrait,
+      profile: portrait.length ? select("profile", 3, 600) : select("profile", 6, 1200),
+      recent: select("state", 3, 900),
+      openItems,
       recentSessions,
       currentMood,
     };

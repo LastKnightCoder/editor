@@ -118,7 +118,7 @@ interface HostedSession {
   interactions: PiSessionInteractions;
   detachSender: () => void;
   /** 动态 systemPrompt（before_agent_start 每轮替换，渲染端经 set-system-prompt 更新） */
-  systemPromptRef: { current: string };
+  systemPromptRef: HostSystemPrompt;
   /** main-chat 场景下对应的资料库名，供增量记忆提取使用；其余场景为 undefined */
   memoryDatabase: string | undefined;
   /** 桥接工具名全集：切活跃集时据此只动桥接工具，保留 pi 自己的内置默认 */
@@ -708,29 +708,16 @@ class PiSessionHostModule {
         ...bridge.toToolDefinitions(request.customTools ?? []),
         ...interactions.hostTools(),
       ];
-      const systemPromptRef = { current: request.systemPrompt ?? "" };
       const memoryDatabase =
         sessionDir && !request.browserPageUrl && request.chatScope === "main-chat"
           ? (request.databaseName ?? basename(sessionDir))
           : undefined;
-      // 记忆背景在会话创建时一次性拼入 systemPrompt，之后不再修改，保持 provider 缓存稳定。
-      const firstUserQuery = (() => {
-        const first = request.initialMessages?.find(m => m.role === "user");
-        if (!first) return undefined;
-        const content = first.content;
-        if (typeof content === "string") return content.slice(0, 300);
-        if (Array.isArray(content))
-          return content
-            .filter((p): p is { type: "text"; text: string } => p.type === "text")
-            .map(p => p.text)
-            .join(" ")
-            .slice(0, 300);
-        return undefined;
-      })();
-      const memoryContext = memoryDatabase
-        ? assistantMemory.context(memoryDatabase, firstUserQuery)
-        : "";
-      const initialSystemPrompt = joinMemoryPrompt(request.systemPrompt ?? "", memoryContext);
+      const systemPromptRef: HostSystemPrompt = {
+        current: request.systemPrompt ?? "",
+        memory: memoryDatabase ? null : "",
+        memoryDatabase,
+      };
+      const initialSystemPrompt = systemPromptRef.current;
       // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
       // 不存在时 assembleHostSession 按 piSessionId 新建（见其注释）
       if (request.piSessionId) assertSafeSessionId(request.piSessionId);
@@ -795,7 +782,7 @@ class PiSessionHostModule {
           ? { dumpRequestDir: PiSessionHostModule.requestDumpDir }
           : {}),
         // 动态 systemPrompt：渲染端经 set-system-prompt 更新，每轮 agent start 前替换；
-        // 记忆背景已在会话创建时一次性拼入，不在此处重复注入。
+        // 个人背景在本宿主第一轮计算后冻结（见 renderHostSystemPrompt）。
         ...(initialSystemPrompt !== undefined
           ? {
               resourceLoader: await createHostResourceLoader({
@@ -941,7 +928,12 @@ class PiSessionHostModule {
       try {
         if (
           retry &&
-          (await retryHostSession(hosted.session, retry, hosted.systemPromptRef.current, signal))
+          (await retryHostSession(
+            hosted.session,
+            retry,
+            renderHostSystemPrompt(hosted.systemPromptRef),
+            signal
+          ))
         ) {
           hosted.lastActive = Date.now();
           return { ok: true };
@@ -1145,9 +1137,26 @@ const toDisplayData = (
       }
     : undefined;
 
-/** 动态 systemPrompt 扩展：每轮 agent start 前用宿主当前值替换（渲染端 set-system-prompt 更新） */
-const joinMemoryPrompt = (prompt: string, memory: string) =>
-  [prompt, memory].filter(Boolean).join("\n\n");
+/**
+ * 宿主会话的系统提示：current 由渲染端 set-system-prompt 更新；memory 是个人背景，
+ * 在本宿主第一轮按该轮输入计算后冻结，后台归纳不改动它，保证同一宿主内系统提示逐字稳定。
+ */
+interface HostSystemPrompt {
+  current: string;
+  memory: string | null;
+  memoryDatabase: string | undefined;
+}
+
+function renderHostSystemPrompt(prompt: HostSystemPrompt, query?: string): string {
+  if (prompt.memory === null && prompt.memoryDatabase) {
+    try {
+      prompt.memory = assistantMemory.context(prompt.memoryDatabase, query?.slice(0, 300));
+    } catch {
+      prompt.memory = "";
+    }
+  }
+  return [prompt.current, prompt.memory ?? ""].filter(Boolean).join("\n\n");
+}
 
 function notifyMemorySessionEdit(file: string, location: PiSessionLocation) {
   if (!("sessionFile" in location)) return;
@@ -1165,14 +1174,15 @@ function notifyMemorySessionEdit(file: string, location: PiSessionLocation) {
   if (row) emitMemorySourceChanged(name, { kind: "chat", id: row.id }, true);
 }
 
-const createDynamicSystemPromptExtension = (systemPromptRef: {
-  current: string;
-}): InlineExtension => ({
+/** 动态 systemPrompt 扩展：每轮 agent start 前替换为渲染端当前值 + 冻结的个人背景 */
+const createDynamicSystemPromptExtension = (
+  systemPromptRef: HostSystemPrompt
+): InlineExtension => ({
   name: "dynamic-system-prompt",
   hidden: true,
   factory: (pi: ExtensionAPI) => {
-    pi.on("before_agent_start", () => {
-      const current = systemPromptRef.current;
+    pi.on("before_agent_start", event => {
+      const current = renderHostSystemPrompt(systemPromptRef, event.prompt);
       return current ? { systemPrompt: current } : undefined;
     });
   },

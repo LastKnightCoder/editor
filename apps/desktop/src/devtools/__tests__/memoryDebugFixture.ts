@@ -37,6 +37,7 @@ export function memoryDebugFixture(revision = 1): MemoryDebugSnapshot {
       progress: { checked: 1, pending: 0, failed: 0 },
       limit: 40,
       profile: [],
+      portrait: [],
       episodes: [],
       recent: [
         {

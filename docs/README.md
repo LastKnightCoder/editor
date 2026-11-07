@@ -62,6 +62,7 @@
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
 - [个人记忆实时调试](./tasks/memory-debug/README.md)：开发工具只读面板、处理状态与沉淀内容的实时推送。
+- [个人助手记忆：从记得准到懂你](./tasks/assistant-memory-understanding.md)：背景送达且系统提示稳定、画像合并、用户总述、事项闭环，进行中。
 
 - [播客插件化](./tasks/podcast-pluginization/README.md)：生成播客抽成插件 `tau.podcast`，自带播客库页面并重做生成界面，进行中。
 - [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。

@@ -58,6 +58,8 @@ export interface MemoryDebugData {
   progress: { checked: number; pending: number; failed: number };
   profile: MemoryDebugModel[];
   recent: MemoryDebugModel[];
+  /** 用户总述的全部行；stale 表示引用的模型已变化，简报中暂不使用。 */
+  portrait: { text: string; modelIds: number[]; stale: boolean }[];
   episodes: MemoryDebugEpisode[];
   limit: number;
 }

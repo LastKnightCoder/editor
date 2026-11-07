@@ -156,6 +156,26 @@ export function MemoryDebugDrawer({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           {view === "overview" && snapshot.data && <Overview snapshot={snapshot.data} now={now} />}
+          {view === "overview" && snapshot.data && snapshot.data.data.portrait.length > 0 && (
+            <section className="mb-3 flex flex-col gap-1">
+              <h3 className="text-ink-2 text-tau-caption px-2.5 font-medium">用户总述</h3>
+              {snapshot.data.data.portrait.map((line, index) => (
+                <p
+                  key={index}
+                  className={cn(
+                    "text-tau-meta px-2.5",
+                    line.stale ? "text-ink-3 line-through" : "text-ink-2"
+                  )}
+                >
+                  {line.text}
+                  <span className="text-ink-3 text-tau-caption ml-2">
+                    依据 {line.modelIds.join("、")}
+                    {line.stale ? " · 依据已变化" : ""}
+                  </span>
+                </p>
+              ))}
+            </section>
+          )}
           {(view === "state" ||
             view === "profile" ||
             view === "episodes" ||

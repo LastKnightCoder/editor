@@ -193,7 +193,12 @@ describe("个人理解的准入与自动维护", () => {
     expect(
       parseExtraction(JSON.stringify([{ ...candidate, temporal: "past" }]), part)[0]?.profile
     ).toBe(false);
-    const temporary = { ...candidate, text: "这次请给例子", quote: "这次请给例子" };
+    const temporary = {
+      ...candidate,
+      horizon: "recent",
+      text: "这次请给例子",
+      quote: "这次请给例子",
+    };
     expect(
       parseExtraction(JSON.stringify([temporary]), { ...part, text: temporary.quote })[0]?.profile
     ).toBe(false);
@@ -253,6 +258,7 @@ describe("个人理解的准入与自动维护", () => {
       ...extracted[0],
       id: 1,
       manual: false,
+      stable: extracted[0].profile,
       expiresAt: null,
     };
     const model = {

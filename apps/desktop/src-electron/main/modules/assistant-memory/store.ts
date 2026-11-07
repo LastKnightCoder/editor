@@ -4,15 +4,22 @@ import Database from "better-sqlite3";
 import type {
   AssistantMemory,
   MemoryCorrection,
+  MemoryOutcome,
   MemoryEvidence,
   MemorySearch,
   MemorySource,
   MemorySourceKind,
   PersonalMemoryModel,
 } from "@/types/assistant-memory";
-import { normalizeMemory, searchTerms, type MemoryCandidate } from "./extraction";
+import {
+  CHAT_SUMMARY_ANCHOR,
+  normalizeMemory,
+  searchTerms,
+  type MemoryCandidate,
+} from "./extraction";
 import { loadSqliteVecExtension } from "../../utils/sqlite-vec-loader";
 import type { MemoryModelCandidate } from "./reflection";
+import { PORTRAIT_CHANGES_META, PORTRAIT_META, readPortrait } from "./portrait";
 import type { ReconcileEntry, ReconcileOp } from "./reconcile";
 import { MEMORY_INGEST_KINDS } from "@/types/assistant-memory";
 import type { MemoryDebugData, MemoryDebugModel } from "@/types/assistant-memory-debug";
@@ -23,7 +30,8 @@ CREATE TABLE IF NOT EXISTS memory (
   kind TEXT NOT NULL, topic TEXT NOT NULL, topic_key TEXT NOT NULL,
   text TEXT NOT NULL, fact_key TEXT NOT NULL UNIQUE,
   state TEXT NOT NULL, observed_at INTEGER NOT NULL, expires_at INTEGER,
-  manual INTEGER NOT NULL DEFAULT 0, touched_at INTEGER NOT NULL
+  manual INTEGER NOT NULL DEFAULT 0, touched_at INTEGER NOT NULL, outcome TEXT,
+  stable INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS memory_topic ON memory(topic_key, state, observed_at);
 CREATE INDEX IF NOT EXISTS memory_expiry ON memory(expires_at) WHERE state = 'current';
@@ -117,11 +125,12 @@ const EMBEDDING_INPUT = "m.topic || char(10) || m.text";
 const PERSONAL_EPISODE =
   "(m.manual=1 OR EXISTS(SELECT 1 FROM evidence e WHERE e.memory_id=m.id AND e.kind<>'content'))";
 
-type MemoryRow = Omit<AssistantMemory, "evidence" | "manual"> & {
+type MemoryRow = Omit<AssistantMemory, "evidence" | "manual" | "stable"> & {
   manual: number;
+  stable: number;
 };
 const MEMORY_COLUMNS = `m.id, m.kind, m.topic, m.text, m.state,
-  m.observed_at AS observedAt, m.expires_at AS expiresAt, m.manual`;
+  m.observed_at AS observedAt, m.expires_at AS expiresAt, m.manual, m.outcome, m.stable`;
 const PROGRESS_COLUMNS = `kind, source_id AS id, checked_at AS checkedAt, reading_at AS readingAt,
   cursor, checked_cursor AS checkedCursor, due_at AS dueAt, failures`;
 const MODEL_COLUMNS = `id,layer,kind,topic,text,confidence,observed_at AS observedAt,expires_at AS expiresAt`;
@@ -157,6 +166,17 @@ export class MemoryStore {
       // 词级索引的触发器依赖此函数，所有写 memory 的连接都必须先注册。
       this.db.function("memory_segment", { deterministic: true }, segmentWords);
       this.db.exec(SCHEMA);
+      const columns = this.db.prepare("SELECT name FROM pragma_table_info('memory')").pluck().all();
+      if (!columns.includes("outcome")) this.db.exec("ALTER TABLE memory ADD COLUMN outcome TEXT");
+      // 存量经历按是否支撑明确自述画像补齐稳定标记，与新写入的升格口径一致。
+      if (!columns.includes("stable"))
+        this.atomic(() => {
+          this.db.exec(`ALTER TABLE memory ADD COLUMN stable INTEGER NOT NULL DEFAULT 0;
+            UPDATE memory SET stable=1 WHERE id IN (
+              SELECT e.memory_id FROM memory_model_evidence e JOIN memory_model mm ON mm.id=e.model_id
+              WHERE mm.layer='profile' AND mm.confidence='explicit'
+            );`);
+        });
       if (!this.meta("words-indexed"))
         this.atomic(() => {
           this.db.exec(`DELETE FROM memory_words;
@@ -315,8 +335,13 @@ export class MemoryStore {
   }
 
   private toMemory(row: MemoryRow): AssistantMemory {
-    const { manual, ...rest } = row;
-    return { ...rest, manual: Boolean(manual), evidence: this.evidence(row.id) };
+    const { manual, stable, ...rest } = row;
+    return {
+      ...rest,
+      manual: Boolean(manual),
+      stable: Boolean(stable),
+      evidence: this.evidence(row.id),
+    };
   }
 
   get(id: number): AssistantMemory | null {
@@ -605,6 +630,13 @@ export class MemoryStore {
       progress: this.counts(),
       profile: models("profile"),
       recent: models("state"),
+      portrait: (() => {
+        const portrait = readPortrait(this.meta(PORTRAIT_META));
+        return (portrait?.lines ?? []).map(line => ({
+          ...line,
+          stale: line.modelIds.some(id => this.getModel(id)?.text !== portrait?.basis[id]),
+        }));
+      })(),
       limit: bounded,
       episodes: rows.map(row => {
         const { evidence, ...item } = this.toMemory(row);
@@ -660,6 +692,50 @@ export class MemoryStore {
     return rows.map(row => this.toModel(row));
   }
 
+  /** 归纳与总述的输入：有效画像（上限 profiles）与最近的近期状态（上限 states）。 */
+  listModels(now: number, profiles: number, states: number): PersonalMemoryModel[] {
+    const select = this.db.prepare(`SELECT ${MODEL_COLUMNS} FROM memory_model
+      WHERE layer=? AND (expires_at IS NULL OR expires_at>?)
+      ORDER BY (confidence='explicit') DESC,observed_at DESC,id DESC LIMIT ?`);
+    return [
+      ...(select.all("profile", now, profiles) as Omit<PersonalMemoryModel, "episodeIds">[]),
+      ...(select.all("state", now, states) as Omit<PersonalMemoryModel, "episodeIds">[]),
+    ].map(row => this.toModel(row));
+  }
+
+  /**
+   * 合并同一认识的多条画像：依据挂到保留项后删除其余。只合并同层同类，
+   * 明确自述不并入推断项。
+   */
+  mergeModels(groups: { keep: number; merge: number[] }[]): number {
+    let merged = 0;
+    this.atomic(() => {
+      for (const { keep, merge } of groups) {
+        const target = this.getModel(keep);
+        if (!target) continue;
+        for (const id of merge) {
+          const item = this.getModel(id);
+          if (
+            !item ||
+            id === keep ||
+            item.layer !== target.layer ||
+            item.kind !== target.kind ||
+            (item.confidence === "explicit" && target.confidence !== "explicit")
+          )
+            continue;
+          this.db
+            .prepare(`INSERT OR IGNORE INTO memory_model_evidence(model_id,memory_id)
+            SELECT ?,memory_id FROM memory_model_evidence WHERE model_id=?`)
+            .run(keep, id);
+          this.db.prepare("DELETE FROM memory_model WHERE id=?").run(id);
+          merged++;
+          this.bumpPortrait();
+        }
+      }
+    });
+    return merged;
+  }
+
   applyModels(
     candidates: MemoryModelCandidate[],
     snapshots: Map<number, AssistantMemory>,
@@ -697,6 +773,7 @@ export class MemoryStore {
           | { id: number }
           | undefined;
         if (!row) continue;
+        if (candidate.layer === "profile") this.bumpPortrait();
         this.db.prepare("DELETE FROM memory_model_evidence WHERE model_id=?").run(row.id);
         const insert = this.db.prepare("INSERT INTO memory_model_evidence VALUES(?,?)");
         for (const id of candidate.episodeIds) insert.run(row.id, id);
@@ -704,8 +781,21 @@ export class MemoryStore {
     });
   }
 
+  /** 画像变化计数，用于判断用户总述是否该重建。 */
+  private bumpPortrait() {
+    this.db
+      .prepare(`INSERT INTO meta VALUES(?,'1')
+        ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1`)
+      .run(PORTRAIT_CHANGES_META);
+  }
+
   retireModels(ids: number[]) {
-    for (const id of ids) this.db.prepare("DELETE FROM memory_model WHERE id=?").run(id);
+    for (const id of ids)
+      if (
+        this.db.prepare("DELETE FROM memory_model WHERE id=? AND layer='profile'").run(id).changes
+      )
+        this.bumpPortrait();
+      else this.db.prepare("DELETE FROM memory_model WHERE id=?").run(id);
   }
 
   upsertRhythmModel(topic: string, text: string, observedAt: number, expiresAt: number) {
@@ -766,6 +856,18 @@ export class MemoryStore {
     }
   }
 
+  /** 移除某条经历在指定来源锚点上的证据，失去全部证据的非手动经历随之删除。 */
+  removeEvidence(id: number, source: MemorySource, anchor: string) {
+    this.db
+      .prepare("DELETE FROM evidence WHERE memory_id=? AND kind=? AND source_id=? AND anchor=?")
+      .run(id, source.kind, source.id, anchor);
+    this.db
+      .prepare(
+        "DELETE FROM memory WHERE id=? AND manual=0 AND NOT EXISTS(SELECT 1 FROM evidence WHERE memory_id=?)"
+      )
+      .run(id, id);
+  }
+
   removeSource(source: MemorySource) {
     this.pruneEvidence(source, () => false);
     this.db
@@ -805,7 +907,8 @@ export class MemoryStore {
       ON CONFLICT(fact_key) DO UPDATE SET touched_at=excluded.touched_at,
         observed_at=MAX(memory.observed_at,excluded.observed_at),
         expires_at=CASE WHEN memory.manual=0 AND excluded.observed_at>=memory.observed_at THEN excluded.expires_at ELSE memory.expires_at END,
-        state=CASE WHEN memory.manual=0 AND excluded.state='current' AND excluded.observed_at>=memory.observed_at THEN 'current' ELSE memory.state END
+        state=CASE WHEN memory.manual=0 AND excluded.state='current' AND excluded.observed_at>=memory.observed_at THEN 'current' ELSE memory.state END,
+        outcome=CASE WHEN memory.manual=0 AND excluded.state='current' AND excluded.observed_at>=memory.observed_at THEN NULL ELSE memory.outcome END
       RETURNING id`);
     for (const candidate of candidates) {
       const key = factKey(candidate.kind, candidate.topic, candidate.text);
@@ -883,7 +986,9 @@ export class MemoryStore {
     });
   }
 
+  /** 经历被判定为稳定的本人表达：标记升格并即时形成明确画像。 */
   private declareProfile(id: number, now: number) {
+    this.db.prepare("UPDATE memory SET stable=1 WHERE id=?").run(id);
     const item = this.get(id);
     if (!item) return;
     this.applyModels(
@@ -922,7 +1027,13 @@ export class MemoryStore {
 
   /** 按对账结果落库；目标在模型等待期间被改动时按新增处理。 */
   reconcile(entries: ReconcileEntry[], now: number) {
-    for (const { candidate, op, target } of entries) {
+    for (const { candidate, op, target, outcome } of entries) {
+      if (op === "fulfill") {
+        if (target && outcome && sameMemory(target, this.get(target.id)))
+          this.closeIntention(target.id, outcome, now);
+        this.apply([candidate], now);
+        continue;
+      }
       if (op === "add" || !target || !sameMemory(target, this.get(target.id))) {
         this.apply([candidate], now);
         continue;
@@ -948,8 +1059,8 @@ export class MemoryStore {
           continue;
         }
         this.db
-          .prepare(`UPDATE memory SET text=?,fact_key=?,state=?,observed_at=?,expires_at=?,touched_at=?
-          WHERE id=?`)
+          .prepare(`UPDATE memory SET text=?,fact_key=?,state=?,observed_at=?,expires_at=?,touched_at=?,
+            stable=0 WHERE id=?`)
           .run(
             candidate.text,
             key,
@@ -968,15 +1079,22 @@ export class MemoryStore {
 
   /** 复核已有经历之间的对账：重复的并入一条，被推翻的转为历史。 */
   reconcileEpisodes(
-    entries: Array<{ subject: AssistantMemory; op: ReconcileOp; target?: AssistantMemory }>,
+    entries: Array<{
+      subject: AssistantMemory;
+      op: ReconcileOp;
+      target?: AssistantMemory;
+      outcome?: MemoryOutcome;
+    }>,
     now: number
   ) {
     this.atomic(() => {
-      for (const { subject, op, target } of entries) {
+      for (const { subject, op, target, outcome } of entries) {
         if (op === "add" || !target || subject.manual) continue;
         if (!sameMemory(subject, this.get(subject.id)) || !sameMemory(target, this.get(target.id)))
           continue;
-        if (op === "supersede")
+        if (op === "fulfill") {
+          if (outcome) this.closeIntention(target.id, outcome, now);
+        } else if (op === "supersede")
           this.db
             .prepare("UPDATE memory SET state='history',touched_at=? WHERE id=?")
             .run(now, target.id);
@@ -1007,6 +1125,7 @@ export class MemoryStore {
 
   private absorb(keep: AssistantMemory, drop: AssistantMemory, now: number) {
     this.addEvidence(keep.id, drop.evidence);
+    if (drop.stable) this.db.prepare("UPDATE memory SET stable=1 WHERE id=?").run(keep.id);
     this.db
       .prepare("UPDATE OR IGNORE memory_model_evidence SET memory_id=? WHERE memory_id=?")
       .run(keep.id, drop.id);
@@ -1027,9 +1146,46 @@ export class MemoryStore {
   expire(now: number) {
     this.db
       .prepare(
-        "UPDATE memory SET state='history' WHERE state='current' AND expires_at<=? AND manual=0"
+        `UPDATE memory SET state='history',
+          outcome=CASE WHEN kind='intention' THEN COALESCE(outcome,'expired') ELSE outcome END
+        WHERE state='current' AND expires_at<=? AND manual=0`
       )
       .run(now);
+  }
+
+  /** 关闭一项意图或遗留事项：转为历史并记录结局，不删除经历。 */
+  closeIntention(id: number, outcome: MemoryOutcome, now: number) {
+    this.db
+      .prepare(`UPDATE memory SET state='history',outcome=?,touched_at=?
+        WHERE id=? AND kind='intention' AND state='current' AND manual=0`)
+      .run(outcome, now, id);
+  }
+
+  /** 某个对话来源上一版摘要与遗留事项。 */
+  chatSummary(source: MemorySource): AssistantMemory[] {
+    return (
+      this.db
+        .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m
+        WHERE m.id IN (SELECT memory_id FROM evidence WHERE kind=? AND source_id=? AND anchor=?)
+        ORDER BY m.id`)
+        .all(source.kind, source.id, CHAT_SUMMARY_ANCHOR) as MemoryRow[]
+    ).map(row => this.toMemory(row));
+  }
+
+  /** 与查询相关、仍未关闭的意图与遗留事项，供开场背景跟进。 */
+  openIntentions(query: string, limit: number): AssistantMemory[] {
+    const terms = searchTerms(query);
+    if (!terms.length) return [];
+    const score = terms.map(() => "(instr(lower(m.topic || ' ' || m.text),?)>0)").join(" + ");
+    return (
+      this.db
+        .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m
+        WHERE m.kind='intention' AND m.state='current' AND ${PERSONAL_EPISODE}
+          AND m.id NOT IN (SELECT memory_id FROM evidence WHERE kind IN ('todo','calendar'))
+          AND (${score})>0
+        ORDER BY (${score}) DESC,m.observed_at DESC LIMIT ?`)
+        .all(...terms, ...terms, limit) as MemoryRow[]
+    ).map(row => this.toMemory(row));
   }
 
   /** 将长期未被新证据强化的 supported profile 模型降级为 observation，防止旧推断以高置信度幽灵留存。 */
