@@ -196,19 +196,30 @@ class AssistantMemoryModule {
       if (name === databaseModule.getCurrentDatabaseName())
         this.safe(() => this.connect(name, true));
     });
-    onContentWritten(({ dbName, action }) => {
+    onContentWritten(({ dbName, contentId, action }) => {
+      const state = this.current;
       if (
-        !this.current ||
-        databaseModule.formatDatabaseName(this.current.name) !==
-          databaseModule.formatDatabaseName(dbName)
+        !state ||
+        databaseModule.formatDatabaseName(state.name) !== databaseModule.formatDatabaseName(dbName)
       )
         return;
-      this.current.sources.invalidate();
-      if (action === "delete")
+      state.sources.invalidate();
+      // 正文通知可能早于日记关系提交，下一轮事件循环再定位所属片段。
+      setImmediate(() => {
+        if (this.current !== state) return;
         this.safe(() => {
-          this.current?.worker.interrupt();
-          this.current?.worker.reconcile(["activity"], true, true);
+          if (action === "delete") {
+            state.worker.interrupt();
+            state.worker.reconcile(["activity", "diary"], true, true);
+            return;
+          }
+          const segments = state.db
+            .prepare("SELECT id FROM diary_segments WHERE content_id=?")
+            .all(contentId) as { id: number }[];
+          for (const segment of segments)
+            state.worker.changed({ kind: "diary", id: String(segment.id) });
         });
+      });
     });
     onOperationRecorded(event => {
       if (
@@ -235,11 +246,15 @@ class AssistantMemoryModule {
       if (/^(todo[-:]|calendar[-:])/.test(event)) {
         this.current.sources.invalidate();
         this.safe(() => this.current?.worker.reconcile(["todo", "calendar"], true, true));
+      } else if (/^(create|update|delete)-diary-(entry|segment|moment)$/.test(event)) {
+        this.current.sources.invalidate();
+        this.current.worker.interrupt();
+        this.safe(() => this.current?.worker.reconcile(["diary"], true, true));
       } else if (
         /^(delete-article|restore-article|articles:patch-scoped|database:import)/.test(event)
       ) {
         this.current.sources.invalidate();
-        this.safe(() => this.current?.worker.reconcile(["activity"], true, true));
+        this.safe(() => this.current?.worker.reconcile(["activity", "diary"], true, true));
       }
     });
     onMemoryForeground(busy => {

@@ -228,6 +228,73 @@ describe("个人理解的准入与自动维护", () => {
     }
   });
 
+  it("日记的明确观点可形成画像，当天情绪按归属日到期且不能被归纳续期", () => {
+    const part: MemoryPart = {
+      kind: "diary",
+      id: "1",
+      anchor: "day:block:0",
+      next: "day:block:0",
+      quote: "",
+      text: "我一直重视自主安排时间",
+      role: "diary",
+      observedAt: START,
+    };
+    const candidate = {
+      subject: "user",
+      horizon: "stable",
+      temporal: "current",
+      kind: "fact",
+      topic: "自主性",
+      text: "用户重视自主安排时间",
+      quote: part.text,
+      certainty: "explicit",
+    };
+    const extracted = parseExtraction(JSON.stringify([candidate]), part, []);
+    expect(extracted[0]?.profile).toBe(true);
+    const episode: AssistantMemory = {
+      ...extracted[0],
+      id: 1,
+      manual: false,
+      expiresAt: null,
+    };
+    const model = {
+      layer: "profile",
+      kind: "fact",
+      topic: candidate.topic,
+      text: candidate.text,
+      confidence: "explicit",
+      episodeIds: [1],
+    };
+    expect(parseReflection(output([model]), [episode], [], START).models[0]).toMatchObject({
+      confidence: "explicit",
+      text: candidate.text,
+    });
+    const mood = {
+      ...candidate,
+      horizon: "recent",
+      kind: "event",
+      topic: "当下状态",
+      text: "今天有些难过",
+      quote: "今天有些难过",
+      expiresAt: START + 30 * DAY,
+    };
+    const emotion = parseExtraction(JSON.stringify([mood]), { ...part, text: mood.quote }, [])[0];
+    const end = new Date(START);
+    end.setHours(24, 0, 0, 0);
+    expect(emotion.profile).toBe(false);
+    expect(emotion.expiresAt).toBe(end.getTime());
+    const recent = parseReflection(
+      output([{ ...model, layer: "state", kind: "event", topic: mood.topic, text: mood.text }]),
+      [{ ...emotion, id: 1, manual: false, expiresAt: emotion.expiresAt ?? null }],
+      [],
+      START
+    );
+    expect(recent.models[0]?.expiresAt).toBe(end.getTime());
+    expect(
+      parseReflection(output([model]), [{ ...episode, state: "history" }], [], START).models
+    ).toEqual([]);
+  });
+
   it("编辑行为不能升格为爱好，近期状态须跨日且采用客观措辞", () => {
     const f = fixture();
     try {

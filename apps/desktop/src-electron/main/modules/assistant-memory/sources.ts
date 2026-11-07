@@ -1,7 +1,9 @@
 import { statSync } from "node:fs";
 import type Database from "better-sqlite3";
 import { contentBlockLines } from "@/entity/text-digest";
+import type { EntityRef } from "@/entity/ref";
 import type { MemoryEvidence, MemorySource, MemorySourceKind } from "@/types/assistant-memory";
+import { dayKey, normalizeDiaryDay } from "@/utils/diary-day";
 import { loadSessionTranscript } from "../pi-session-host-core";
 import { chatSessionDirOfDb, resolveSessionFile } from "../pi-session-paths";
 import ContentTable from "../tables/content";
@@ -24,6 +26,10 @@ const activityQuery = (filter = "") => `SELECT CAST(o.operation_id AS TEXT) || '
 const SOURCE_QUERIES: Record<MemorySourceKind, string> = {
   activity: activityQuery(),
   content: "SELECT id,create_time,update_time FROM content_snapshots WHERE ref_count>0",
+  diary: `SELECT s.id,s.content_id,s.create_time,d.date AS entry_date,
+      d.create_time AS entry_create_time,MAX(s.update_time,c.update_time,d.update_time) AS update_time
+    FROM diary_segments s JOIN diary_entries d ON d.id=s.diary_id
+    JOIN content_snapshots c ON c.id=s.content_id WHERE c.ref_count>0`,
   chat: "SELECT id,create_time,update_time,title,session_file FROM chat_session WHERE scope='main-chat'",
   todo: `SELECT t.id,t.create_time,t.update_time,t.title,t.due_at,t.is_completed,t.is_archived
     FROM todo_item t JOIN todo_group g ON g.id=t.group_id WHERE g.is_system=0`,
@@ -34,6 +40,8 @@ const SOURCE_QUERIES: Record<MemorySourceKind, string> = {
 
 interface SourceRow {
   content_id?: number;
+  entry_date?: string;
+  entry_create_time?: number;
   id: string | number;
   create_time: number;
   update_time: number;
@@ -80,6 +88,12 @@ const timestamp = (value: number | undefined, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) && value > MIN_TIME ? value : fallback;
 const displayDate = (time: number) =>
   new Date(time).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+const diaryDay = (row: SourceRow) =>
+  normalizeDiaryDay(row.entry_date ?? "", row.entry_create_time ?? row.create_time);
+const documentAnchor = (head: MemoryHead) =>
+  head.kind === "diary"
+    ? `${head.row.create_time}:${head.row.content_id}:${diaryDay(head.row)}:`
+    : head.row.create_time + ":";
 
 function calendarTime(
   day: number | null | undefined,
@@ -211,7 +225,8 @@ export class LibraryMemorySources implements MemorySourcesPort {
         if (!part?.text.includes(evidence.quote)) {
           // 正文插入新段落会移动块下标；只在同一正文身份中按原话重新定位。
           part =
-            head.kind === "content" && evidence.anchor.startsWith(head.row.create_time + ":")
+            (head.kind === "content" || head.kind === "diary") &&
+            evidence.anchor.startsWith(documentAnchor(head))
               ? parts.find(item => item.text.includes(evidence.quote))
               : undefined;
         }
@@ -283,30 +298,48 @@ export class LibraryMemorySources implements MemorySourcesPort {
         ),
       };
     }
-    if (kind === "content") {
-      const target = EntitySearchTable.locateAll(this.db, [Number(id)]).get(Number(id))?.[0];
+    if (kind === "content" || kind === "diary") {
+      const contentId = kind === "diary" ? row.content_id : Number(id);
+      if (!contentId) return { parts: [] };
+      const target: EntityRef | undefined =
+        kind === "diary"
+          ? { kind: "diary-moment", id: Number(id) }
+          : EntitySearchTable.locateAll(this.db, [contentId]).get(contentId)?.[0];
       if (!target) return { parts: [] };
-      const snapshot = this.db
-        .prepare("SELECT * FROM content_snapshots WHERE id=?")
-        .get(Number(id));
+      const snapshot = this.db.prepare("SELECT * FROM content_snapshots WHERE id=?").get(contentId);
       if (!snapshot) return { parts: [] };
       const { content } = ContentTable.parseContent(snapshot);
       const lines = Array.isArray(content)
         ? content.map(block => contentBlockLines([block])[0] ?? "")
         : [];
-      const title =
-        lines
-          .find(line => line.trim())
-          ?.trim()
-          .slice(0, 90) ?? "正文";
+      const day = kind === "diary" ? diaryDay(row) : undefined;
+      const writtenAt = day
+        ? dayKey(row.create_time) === day
+          ? row.create_time
+          : timestamp(new Date(day + "T00:00:00").getTime(), row.create_time)
+        : observedAt;
+      const title = day
+        ? "日记 · " + day
+        : (lines
+            .find(line => line.trim())
+            ?.trim()
+            .slice(0, 90) ?? "正文");
       const parts: MemoryPart[] = [];
       let buffered = "";
       let firstBlock = 0;
       const flush = () => {
         parts.push(
           ...textParts(
-            { kind, id, target, title, block: firstBlock, role: "document", observedAt },
-            row.create_time + ":" + firstBlock,
+            {
+              kind,
+              id,
+              target,
+              title,
+              block: firstBlock,
+              role: kind === "diary" ? "diary" : "document",
+              observedAt: writtenAt,
+            },
+            documentAnchor(head) + firstBlock,
             buffered
           )
         );

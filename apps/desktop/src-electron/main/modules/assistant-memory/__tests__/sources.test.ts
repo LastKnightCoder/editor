@@ -151,4 +151,67 @@ describe("个人记忆的真实资料来源", () => {
       rmSync(temp, { recursive: true, force: true });
     }
   });
+
+  it("日记独立准入，补写与修订保持归属日期，改期、删文和删除片段使旧证据失效", () => {
+    const db = new Database(":memory:");
+    try {
+      db.exec(mainSchema);
+      const created = new Date(2026, 10, 7, 10).getTime();
+      const quote = "我一直更重视自主安排时间";
+      const blocks = [{ children: [{ text: quote }] }];
+      db.prepare(
+        "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(1,?,?,?,30,1)"
+      ).run(created, created, JSON.stringify(blocks));
+      db.prepare(
+        "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(2,?,?,?,30,1)"
+      ).run(created, created, JSON.stringify(blocks));
+      db.exec("INSERT INTO cards(id,create_time,update_time,content_id) VALUES(2,1,2,2)");
+      db.prepare(
+        "INSERT INTO diary_entries(id,type,date,create_time,update_time) VALUES(1,'daily','2026-10-01',?,?)"
+      ).run(created, created);
+      db.prepare(
+        "INSERT INTO diary_segments(id,diary_id,content_id,create_time,update_time) VALUES(3,1,1,?,?)"
+      ).run(created, created);
+      const sources = new LibraryMemorySources(db);
+      const source = { kind: "diary", id: "3" } as const;
+      expect(sources.list("diary", "", 10)).toEqual([{ ...source, modifiedAt: created }]);
+      expect(sources.list("diary", "3", 10)).toEqual([]);
+      expect(sources.recent("diary", 1)).toEqual([{ ...source, modifiedAt: created }]);
+      const snapshot = sources.read(present(sources.head(source)));
+      expect(snapshot.parts[0]).toMatchObject({
+        role: "diary",
+        title: "日记 · 2026-10-01",
+        observedAt: new Date(2026, 9, 1).getTime(),
+        target: { kind: "diary-moment", id: 3 },
+      });
+      const evidence = { ...source, anchor: snapshot.parts[0].anchor, quote };
+      db.prepare("UPDATE contents SET content=?,update_time=? WHERE id=1").run(
+        JSON.stringify([{ children: [{ text: "新增段落".repeat(1000) }] }, ...blocks]),
+        created + 1
+      );
+      const edited = sources.read(present(sources.head(source)));
+      expect(edited.validate(evidence)).toMatchObject({
+        block: 1,
+        observedAt: new Date(2026, 9, 1).getTime(),
+      });
+      db.prepare("UPDATE diary_entries SET date='2026-10-02',update_time=? WHERE id=1").run(
+        created + 2
+      );
+      const moved = sources.read(present(sources.head(source)));
+      expect(moved.validate(evidence)).toBeNull();
+      const movedEvidence = {
+        ...evidence,
+        anchor: present(moved.parts.find(part => part.text.includes(quote))).anchor,
+      };
+      expect(moved.validate(movedEvidence)).toMatchObject({
+        observedAt: new Date(2026, 9, 2).getTime(),
+      });
+      db.prepare("UPDATE contents SET content='[]',update_time=? WHERE id=1").run(created + 3);
+      expect(sources.read(present(sources.head(source))).validate(movedEvidence)).toBeNull();
+      db.exec("DELETE FROM diary_segments WHERE id=3");
+      expect(sources.head(source)).toBeNull();
+    } finally {
+      db.close();
+    }
+  });
 });

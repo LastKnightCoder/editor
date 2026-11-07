@@ -725,7 +725,7 @@ export class MemoryStore {
   }
 
   hiddenAnchor(source: MemorySource, anchor: string): boolean {
-    if (source.kind === "content") return this.hiddenSource(source);
+    if (source.kind === "content" || source.kind === "diary") return this.hiddenSource(source);
     if (source.kind === "chat") {
       const message = anchor.split(":")[0];
       return !!this.db
