@@ -14,3 +14,82 @@ body {
   font-family: var(--tau-font);
   -webkit-font-smoothing: antialiased;
 }
+
+/* 顶栏高度：<768px 为两行（56+44），≥768px 单行，供滚动渐隐定位消费 */
+:root {
+  --site-topbar-h: 100px;
+}
+@media (min-width: 768px) {
+  :root {
+    --site-topbar-h: 56px;
+  }
+}
+
+:root.site-custom-scrollbar {
+  scrollbar-width: none;
+}
+:root.site-custom-scrollbar::-webkit-scrollbar,
+:root.site-custom-scrollbar body::-webkit-scrollbar {
+  display: none;
+}
+
+/* 顶栏第二行主导航在窄屏横向滚动时隐藏自身滚动条 */
+.site-nav-scroll {
+  scrollbar-width: none;
+}
+.site-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.site-root-scrollbar {
+  position: fixed;
+  top: 10px;
+  right: 6px;
+  bottom: 10px;
+  z-index: 60;
+  width: 4px;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  transition: opacity 0.18s var(--tau-ease-out);
+}
+:root.scrollbar-live .site-root-scrollbar,
+.site-root-scrollbar.dragging {
+  opacity: 1;
+  pointer-events: auto;
+}
+.site-root-scrollbar-thumb {
+  position: absolute;
+  inset: 0 0 auto;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tau-ink-1) 22%, transparent);
+  will-change: transform;
+}
+
+.site-scroll-fade {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 10;
+  height: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s var(--tau-ease-out);
+}
+.site-scroll-fade.on {
+  opacity: 1;
+}
+.site-scroll-fade-top {
+  top: var(--site-topbar-h);
+  background: linear-gradient(180deg, var(--tau-bg-page), transparent);
+}
+.site-scroll-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(0deg, var(--tau-bg-page), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-root-scrollbar,
+  .site-scroll-fade {
+    transition: none;
+  }
+}
