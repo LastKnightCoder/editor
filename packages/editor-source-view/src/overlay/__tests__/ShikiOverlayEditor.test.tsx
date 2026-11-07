@@ -41,6 +41,7 @@ describe("ShikiOverlayEditor selection", () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     if (root) {
       await act(async () => {
@@ -316,6 +317,102 @@ describe("ShikiOverlayEditor selection", () => {
 
     const unwrapped = await renderEditor("const a = 1;", { wrap: false });
     expect(unwrapped.getAttribute("wrap")).toBe("off");
+  });
+
+  it("源码不变时切换自动换行会重新计算高度，关闭后恢复原高度", async () => {
+    vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockImplementation(function (
+      this: HTMLTextAreaElement
+    ) {
+      return this.wrap === "soft" ? 120 : 40;
+    });
+    const value = "const message = '这是一行需要自动换行显示的长代码';";
+    const onContentHeightChange = vi.fn();
+    const textarea = await renderEditor(value, { onContentHeightChange });
+    const editor = textarea.parentElement;
+    expect(editor?.style.height).toBe("40px");
+    onContentHeightChange.mockClear();
+
+    await renderEditor(value, { wrap: true, onContentHeightChange });
+    expect(editor?.style.height).toBe("120px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(120);
+
+    await renderEditor(value, { wrap: false, onContentHeightChange });
+    expect(editor?.style.height).toBe("40px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(40);
+  });
+
+  it("自动换行时切换行号会按变化后的可用宽度重新计算高度", async () => {
+    vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockImplementation(function (
+      this: HTMLTextAreaElement
+    ) {
+      return this.parentElement?.hasAttribute("data-line-numbers") ? 120 : 80;
+    });
+    const value = "const message = '这是一行需要自动换行显示的长代码';";
+    const onContentHeightChange = vi.fn();
+    const textarea = await renderEditor(value, { wrap: true, onContentHeightChange });
+    const editor = textarea.parentElement;
+    expect(editor?.style.height).toBe("80px");
+
+    await renderEditor(value, { wrap: true, lineNumbers: true, onContentHeightChange });
+    expect(editor?.style.height).toBe("120px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(120);
+
+    await renderEditor(value, { wrap: true, lineNumbers: false, onContentHeightChange });
+    expect(editor?.style.height).toBe("80px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(80);
+  });
+
+  it.each([false, true])("自动换行时容器缩放会更新高度（行号=%s）", async lineNumbers => {
+    let contentHeight = 80;
+    vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockImplementation(
+      () => contentHeight
+    );
+    const resizeCallbacks = new Set<() => void>();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly callback: () => void) {}
+        observe() {
+          resizeCallbacks.add(this.callback);
+        }
+        disconnect() {
+          resizeCallbacks.delete(this.callback);
+        }
+      }
+    );
+    const value = "const message = '这是一行需要自动换行显示的长代码';";
+    const onContentHeightChange = vi.fn();
+    const props = { wrap: true, lineNumbers, onContentHeightChange };
+    const textarea = await renderEditor(value, props);
+    const editor = textarea.parentElement;
+    expect(editor?.style.height).toBe("80px");
+    onContentHeightChange.mockClear();
+
+    await act(async () => {
+      contentHeight = 160;
+      resizeCallbacks.forEach(callback => callback());
+    });
+    expect(editor?.style.height).toBe("160px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(160);
+
+    await act(async () => {
+      contentHeight = 80;
+      resizeCallbacks.forEach(callback => callback());
+    });
+    expect(editor?.style.height).toBe("80px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(80);
+
+    await renderEditor(value, { ...props, allowScroll: true, displayHeight: 40 });
+    await act(async () => {
+      contentHeight = 160;
+      resizeCallbacks.forEach(callback => callback());
+    });
+    expect(editor?.style.height).toBe("40px");
+    expect(onContentHeightChange).toHaveBeenLastCalledWith(160);
+
+    await act(async () => root?.unmount());
+    root = null;
+    expect(resizeCallbacks.size).toBe(0);
   });
 
   it("改动行标记只给传入的行渲染", async () => {
