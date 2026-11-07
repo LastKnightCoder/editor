@@ -1,5 +1,7 @@
 import "@tau/themes/tokens.css";
+import "@tau/ui/styles.css";
 import "./styles/base.css";
+import "./styles/scroll.css";
 import "./styles/shell.css";
 import "./styles/hero.css";
 import "./styles/feel.css";
@@ -10,6 +12,7 @@ import "./styles/daily.css";
 import "./styles/sections.css";
 import "./styles/responsive.css";
 
+import { initScrollbarAutoHide } from "@tau/ui";
 import { renderAppShells } from "./modules/appShell.ts";
 import { initBoard } from "./modules/board.ts";
 import { initDaily } from "./modules/daily.ts";
@@ -19,6 +22,7 @@ import { renderIllustrations } from "./modules/illustrations.ts";
 import { initLayout } from "./modules/layout.ts";
 import { initLoop } from "./modules/loop.ts";
 import { initMarkdownDemo } from "./modules/markdownDemo.ts";
+import { initScrollFade } from "./modules/scrollFade.ts";
 import { initTheme } from "./modules/theme.ts";
 
 // 先把示意窗口画完整，再复制深色副本，最后统一套主题
@@ -32,3 +36,5 @@ initLoop();
 initDaily();
 initLayout();
 initGithubStars();
+initScrollFade();
+initScrollbarAutoHide();

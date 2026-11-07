@@ -4,6 +4,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor";
+import { FadeScroll } from "@tau/ui";
 import type { DocCollection, DocEntry } from "./collection.ts";
 import { DocsHeader } from "./DocsHeader.tsx";
 import { DocsNav } from "./DocsNav.tsx";
@@ -248,14 +249,16 @@ function DocArticle({
           )}
         </article>
       </main>
-      <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[200px] shrink-0 overflow-y-auto py-12 xl:block">
-        {current && current.outline.length > 0 && (
-          <DocsOutline
-            items={current.outline}
-            activeIndex={activeIndex}
-            onSelect={scrollToHeading}
-          />
-        )}
+      <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[200px] shrink-0 xl:block">
+        <FadeScroll className="h-full py-12">
+          {current && current.outline.length > 0 && (
+            <DocsOutline
+              items={current.outline}
+              activeIndex={activeIndex}
+              onSelect={scrollToHeading}
+            />
+          )}
+        </FadeScroll>
       </aside>
     </>
   );
@@ -304,13 +307,17 @@ export function DocsApp({
         search={<DocsSearch collection={collection} indexUrl={searchIndexUrl} onOpen={closeNav} />}
       />
       {navOpen && entry && (
-        <div className="bg-page fixed inset-x-0 top-[60px] bottom-0 z-30 overflow-y-auto px-4 py-6 lg:hidden">
-          <DocsNav collection={collection} current={entry} onNavigate={closeNav} />
+        <div className="bg-page fixed inset-x-0 top-[60px] bottom-0 z-50 lg:hidden">
+          <FadeScroll className="h-full px-4 py-6">
+            <DocsNav collection={collection} current={entry} onNavigate={closeNav} />
+          </FadeScroll>
         </div>
       )}
       <div className="mx-auto flex max-w-[1440px] gap-12 px-6 max-sm:px-5">
-        <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[220px] shrink-0 overflow-y-auto py-10 lg:block">
-          {entry && <DocsNav collection={collection} current={entry} />}
+        <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[220px] shrink-0 lg:block">
+          <FadeScroll className="h-full py-10">
+            {entry && <DocsNav collection={collection} current={entry} />}
+          </FadeScroll>
         </aside>
         {entry ? (
           <DocArticle collection={collection} entry={entry} loadDoc={loadDoc} />

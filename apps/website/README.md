@@ -40,7 +40,7 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 - 页面标题与描述来自 manifest，正文里从二级标题写起；右侧大纲取正文中的各级标题。
 - 站内链接写 `/docs/<slug>/`，点击时在文档页内切换，不整页刷新。
 - 构建时为每篇文档各生成一份 `docs/<slug>/index.html`（标题和描述已填好），静态托管直接命中；开发服务器把 `/docs/<slug>/` 改写到同一个模板。
-- 文档页的样式只用 Tailwind 和 `@tau/themes` 的语义类，不引入首页的 `src/styles/*.css`：那里有不在 layer 里的通配规则，会压过 Tailwind 工具类。
+- 文档页的样式只用 Tailwind 和 `@tau/themes` 的语义类，不引入首页区块样式：那里有不在 layer 里的通配规则，会压过 Tailwind 工具类。`src/styles/scroll.css` 是唯一的共享例外，为首页、文档与更新日志统一根滚动条间距和视口渐隐。
 
 ## 文档搜索
 

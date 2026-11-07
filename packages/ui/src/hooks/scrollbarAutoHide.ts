@@ -1,5 +1,5 @@
 /**
- * 滚动条自动隐藏 —— 事件委托驱动，AppShell 初始化一次、全局滚动区生效。
+ * 滚动条自动隐藏 —— 事件委托驱动，宿主入口初始化一次、全局滚动区（含窗口根滚动）生效。
  *
  * 为什么不用纯 CSS（.app *:hover::-webkit-scrollbar-thumb）：Chromium 的滚动条
  * 伪元素不随 :hover 常规重算，显形后可能冻结不消失。改为 mouseover/scroll/mouseout
@@ -76,7 +76,7 @@ export function initScrollbarAutoHide(owner: Document = document): () => void {
     let found: Element | null = null;
     for (
       let el: Element | null = from;
-      el && el !== document.documentElement;
+      el && el !== owner.documentElement;
       el = el.parentElement
     ) {
       const { overflowX, overflowY } = getComputedStyle(el);
@@ -87,6 +87,14 @@ export function initScrollbarAutoHide(owner: Document = document): () => void {
         found = el;
         break;
       }
+    }
+    const root = owner.scrollingElement;
+    if (
+      !found &&
+      root &&
+      (root.scrollHeight > root.clientHeight || root.scrollWidth > root.clientWidth)
+    ) {
+      found = root;
     }
     scrollAncestorCache.set(from, found);
     return found;
@@ -108,12 +116,18 @@ export function initScrollbarAutoHide(owner: Document = document): () => void {
 
   owner.addEventListener("mouseover", handleHover, { signal: abort.signal });
 
-  // scroll 不冒泡，capture 捕获所有内部滚动（含键盘滚动）
+  // scroll 不冒泡，capture 捕获内部滚动；窗口根滚动在 Document 上派发，也归一到 scrollingElement
   owner.addEventListener(
     "scroll",
     e => {
-      if (e.target instanceof Element && e.target !== document.documentElement) {
-        show(e.target);
+      const el =
+        e.target === owner || e.target === owner.documentElement
+          ? owner.scrollingElement
+          : e.target instanceof Element
+            ? e.target
+            : null;
+      if (el) {
+        show(el);
         scheduleHide();
       }
     },
