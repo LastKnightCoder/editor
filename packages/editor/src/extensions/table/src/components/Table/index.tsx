@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ReactEditor,
   useReadOnly,
@@ -8,12 +8,13 @@ import {
 } from "slate-react";
 import { Node, Path, type Editor } from "slate";
 import { Menu, cn } from "@tau/ui";
-import { GripHorizontal, GripVertical, Plus } from "lucide-react";
+import { GripHorizontal, GripVertical, Plus, TableCellsMerge, TableCellsSplit } from "lucide-react";
 import {
   AddParagraph,
   OverlayBackDismiss,
   findPathSafely,
   useIsLastElement,
+  useNotifier,
 } from "@tau/editor/api";
 
 import type { TableAlign, TableElement } from "../../types";
@@ -24,14 +25,25 @@ import {
   deleteRows,
   insertColumns,
   insertRows,
+  mergeCells,
+  mergedCellCount,
   moveColumn,
   moveRow,
+  moveSplitsMerge,
   selectCell,
   setColumnAlign,
+  splitCells,
 } from "../../transforms";
-import { getCellSelection, selectColumns, selectRows, type CellSelection } from "../../selection";
-import { TableAlignContext } from "../context";
-import { boundaryAt, measureTable, type TableGeometry } from "./geometry";
+import {
+  getCellSelection,
+  selectCells,
+  selectColumns,
+  selectRows,
+  type CellSelection,
+} from "../../selection";
+import { buildCoverMap, originsIn, regionAt, sameRect } from "../../span";
+import { TableAlignContext, TableCoverContext, type TableCoverInfo } from "../context";
+import { boundaryAt, measureTable, spanIndexAt, type TableGeometry } from "./geometry";
 import HandleMenuItems, { type HandleKind } from "./HandleMenuItems";
 
 interface ITableProps {
@@ -50,6 +62,8 @@ interface DragState {
   from: number;
   /** 放置边界 0..n；未越过阈值前为 null */
   target: number | null;
+  /** 放到 target 会切开合并单元格 */
+  blocked?: boolean;
 }
 
 const GRIP_CLASS =
@@ -78,6 +92,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
+  const notifier = useNotifier();
+  const cover = useMemo<TableCoverInfo>(() => {
+    const map = buildCoverMap(element);
+    return {
+      map,
+      rows: element.children.length,
+      cols: columnCount(element),
+      rowIndex: new Map(element.children.map((row, index) => [row, index])),
+    };
+  }, [element]);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement | null>(null);
@@ -117,7 +141,10 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const colAnchor = anchorOf("col");
   const chromeVisible = !readOnly && (rowAnchor !== undefined || colAnchor !== undefined);
 
-  const measure = useCallback(() => measureTable(boxRef.current, tableRef.current), []);
+  const measure = useCallback(
+    () => measureTable(boxRef.current, tableRef.current, cover.map),
+    [cover]
+  );
 
   useLayoutEffect(() => {
     setGeometry(chromeVisible || cellSelection ? measure() : null);
@@ -187,6 +214,12 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
     if (readOnly) setMenu(null);
   }, [readOnly]);
 
+  /** 手柄所选整行 / 整列对应的矩形 */
+  const handleRect = ({ kind, from, to }: Range2) =>
+    kind === "row"
+      ? { rowStart: from, rowEnd: to, colStart: 0, colEnd: columnCount(element) - 1 }
+      : { rowStart: 0, rowEnd: element.children.length - 1, colStart: from, colEnd: to };
+
   const menuActions = (range: Range2) => {
     const { kind, from, to } = range;
     const insert = (index: number) =>
@@ -209,19 +242,17 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
         }),
       clear: () =>
         withPath(path => {
-          const cols = columnCount(element) - 1;
-          const rows = element.children.length - 1;
-          clearCells(
-            editor,
-            path,
-            kind === "row"
-              ? { rowStart: from, rowEnd: to, colStart: 0, colEnd: cols }
-              : { rowStart: 0, rowEnd: rows, colStart: from, colEnd: to }
-          );
+          clearCells(editor, path, handleRect(range));
           if (kind === "row") selectRows(editor, path, from, to);
           else selectColumns(editor, path, from, to);
         }),
       remove: () => removeRange(range),
+      split: () =>
+        withPath(path => {
+          splitCells(editor, path, handleRect(range));
+          if (kind === "row") selectRows(editor, path, from, to);
+          else selectColumns(editor, path, from, to);
+        }),
     };
   };
 
@@ -231,6 +262,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
     if (event.button !== 0 || readOnly || from === undefined) return;
     const origin = { x: event.clientX, y: event.clientY };
     let moved = false;
+    let blocked = false;
     let target: number | null = null;
 
     const onMove = (ev: PointerEvent) => {
@@ -256,8 +288,10 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
               current.rows.map(r => ({ start: r.top, end: r.bottom })),
               ev.clientY - box.top
             );
+      const finalIndex = target > from ? target - 1 : target;
+      blocked = finalIndex !== from && moveSplitsMerge(element, kind, from, finalIndex);
       setGeometry(current);
-      setDrag({ kind, from, target });
+      setDrag({ kind, from, target, blocked });
     };
 
     const onUp = () => {
@@ -268,6 +302,10 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
       suppressClickRef.current = true;
       setTimeout(() => (suppressClickRef.current = false));
       if (target === null || target === from || target === from + 1) return;
+      if (blocked) {
+        notifier.warning(`不能拆开合并单元格移动${kind === "row" ? "行" : "列"}，请先拆分`);
+        return;
+      }
       const to = target > from ? target - 1 : target;
       withPath(path => {
         if (kind === "row") {
@@ -289,8 +327,18 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
     if (readOnly || drag) return;
     const cell = (event.target as HTMLElement).closest("td");
     if (!cell || cell.closest("table") !== tableRef.current) return;
-    const row = (cell.parentElement as HTMLTableRowElement).sectionRowIndex;
-    const col = cell.cellIndex;
+    // 合并格横跨多行 / 列：按指针位置取逻辑行列
+    const box = boxRef.current?.getBoundingClientRect();
+    const current = geometry ?? measure();
+    if (!box || !current) return;
+    const row = spanIndexAt(
+      current.rows.map(r => ({ start: r.top, end: r.bottom })),
+      event.clientY - box.top
+    );
+    const col = spanIndexAt(
+      current.cols.map(c => ({ start: c.left, end: c.right })),
+      event.clientX - box.left
+    );
     if (hover?.row !== row || hover?.col !== col) setHover({ row, col });
   };
 
@@ -348,6 +396,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
             from={range.from}
             to={range.to}
             align={align}
+            mergedCount={mergedCellCount(element, handleRect(range))}
             actions={menuActions(range)}
           />
         )}
@@ -374,9 +423,58 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
           };
     return (
       <div
-        className="pointer-events-none absolute z-[7] rounded-[2px] bg-[var(--ed-accent)]"
+        className={cn(
+          "pointer-events-none absolute z-[7] rounded-[2px]",
+          drag.blocked ? "bg-[var(--ed-danger)]" : "bg-[var(--ed-accent)]"
+        )}
         style={style}
       />
+    );
+  })();
+
+  /** 格选区的合并 / 拆分角标：≥2 格可合并，恰好选中一个合并格时可拆分 */
+  const mergeAction = (() => {
+    if (readOnly || cellSelection?.kind !== "cells") return null;
+    const count = originsIn(cover.map, cellSelection).length;
+    if (count >= 2) return { kind: "merge" as const, count };
+    const region = regionAt(cover.map, cellSelection.rowStart, cellSelection.colStart);
+    const single = sameRect(region, cellSelection);
+    const isMerged = region.rowEnd > region.rowStart || region.colEnd > region.colStart;
+    return single && isMerged ? { kind: "split" as const, count } : null;
+  })();
+
+  const runMergeAction = () =>
+    withPath(path => {
+      if (!cellSelection || !mergeAction) return;
+      const rect = {
+        rowStart: cellSelection.rowStart,
+        rowEnd: cellSelection.rowEnd,
+        colStart: cellSelection.colStart,
+        colEnd: cellSelection.colEnd,
+      };
+      if (mergeAction.kind === "merge") mergeCells(editor, path, rect);
+      else splitCells(editor, path, rect);
+      selectCells(editor, path, rect);
+    });
+
+  const mergeChip = (() => {
+    if (!mergeAction || !cellSelection || !geometry) return null;
+    const right = geometry.cols[cellSelection.colEnd]?.right;
+    const bottom = geometry.rows[cellSelection.rowEnd]?.bottom;
+    if (right === undefined || bottom === undefined) return null;
+    const isMerge = mergeAction.kind === "merge";
+    return (
+      <button
+        type="button"
+        contentEditable={false}
+        className="absolute z-[8] flex h-[26px] -translate-x-full translate-y-[6px] items-center gap-[5px] rounded-[8px] bg-[var(--ed-bg-surface)] pr-[9px] pl-[7px] text-[12.5px] whitespace-nowrap text-[var(--ed-text)] shadow-[0_0_0_1px_var(--ed-border),0_8px_24px_-8px_rgba(0,0,0,.25)] transition-colors select-none hover:bg-[var(--ed-accent)] hover:text-[var(--ed-text-inverse)] hover:shadow-none"
+        style={{ left: right, top: bottom }}
+        onMouseDown={preventMouseDown}
+        onClick={runMergeAction}
+      >
+        {isMerge ? <TableCellsMerge size={14} /> : <TableCellsSplit size={14} />}
+        {isMerge ? `合并 ${mergeAction.count} 格` : "拆分单元格"}
+      </button>
     );
   })();
 
@@ -415,17 +513,20 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
             className={cn(
               "w-full border-separate border-spacing-0",
               "[&_td]:min-w-[4.5em] [&_td]:border-0 [&_td]:border-b [&_td]:border-r [&_td]:border-solid [&_td]:border-[var(--ed-border)] [&_td]:px-3 [&_td]:py-[7px] [&_td]:text-left [&_td]:align-top [&_td]:[word-break:break-word]",
-              "[&_td:last-child]:border-r-0 [&_tr:last-child_td]:border-b-0",
+              "[&_td[data-edge-right]]:border-r-0 [&_td[data-edge-bottom]]:border-b-0",
               "[&_tr:first-child_td]:bg-[var(--ed-bg-hover)] [&_tr:first-child_td]:font-semibold",
               cellSelection && "caret-transparent [&_*::selection]:bg-transparent"
             )}
           >
             <TableAlignContext.Provider value={element.align}>
-              <tbody>{children}</tbody>
+              <TableCoverContext.Provider value={cover}>
+                <tbody>{children}</tbody>
+              </TableCoverContext.Provider>
             </TableAlignContext.Provider>
           </table>
         </div>
         {selectionOverlay}
+        {mergeChip}
         {!readOnly && (
           <div contentEditable={false} className="select-none">
             {renderGrip("col", colAnchor)}

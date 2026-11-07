@@ -11,6 +11,8 @@ import {
   selectCell,
   type CellPosition,
 } from "./transforms";
+import { buildCoverMap, isOriginCell, regionAt } from "./span";
+import { selectCells } from "./selection";
 
 /** 单元格内的导航动作；返回 true 表示已处理（阻止默认按键行为） */
 type CellAction = (editor: Editor, at: CellPosition, table: TableElement) => boolean;
@@ -38,28 +40,50 @@ const appendRowAndSelect = (editor: Editor, at: CellPosition, table: TableElemen
 const isMultiline = (table: TableElement, { row, col }: CellPosition) =>
   Node.string(table.children[row].children[col]).includes("\n");
 
+/** 按阅读顺序找下一个 / 上一个非覆盖格 */
+function stepCell(table: TableElement, { row, col }: CellPosition, direction: 1 | -1) {
+  const map = buildCoverMap(table);
+  const cols = columnCount(table);
+  for (
+    let index = row * cols + col + direction;
+    index >= 0 && index < map.length * cols;
+    index += direction
+  ) {
+    const [r, c] = [Math.floor(index / cols), index % cols];
+    if (isOriginCell(map, r, c)) return [r, c] as const;
+  }
+}
+
+/** 光标所在合并格的上 / 下边界之外的那一行；越过表格时为 undefined */
+function verticalNeighbor(table: TableElement, { row, col }: CellPosition, direction: 1 | -1) {
+  const region = regionAt(buildCoverMap(table), row, col);
+  const target = direction === 1 ? region.rowEnd + 1 : region.rowStart - 1;
+  return target >= 0 && target < table.children.length ? target : undefined;
+}
+
 const nextCell: CellAction = (editor, at, table) => {
-  const { tablePath, row, col } = at;
-  if (col < columnCount(table) - 1) return selectCell(editor, tablePath, row, col + 1);
-  if (row < table.children.length - 1) return selectCell(editor, tablePath, row + 1, 0);
+  const next = stepCell(table, at, 1);
+  if (next) return selectCell(editor, at.tablePath, next[0], next[1]);
   return appendRowAndSelect(editor, at, table, 0);
 };
 
-const prevCell: CellAction = (editor, { tablePath, row, col }, table) => {
-  if (col > 0) return selectCell(editor, tablePath, row, col - 1);
-  if (row > 0) return selectCell(editor, tablePath, row - 1, columnCount(table) - 1);
+const prevCell: CellAction = (editor, at, table) => {
+  const previous = stepCell(table, at, -1);
+  if (previous) selectCell(editor, at.tablePath, previous[0], previous[1]);
   return true;
 };
 
-const nextRow: CellAction = (editor, at, table) =>
-  at.row < table.children.length - 1
-    ? selectCell(editor, at.tablePath, at.row + 1, at.col)
+const nextRow: CellAction = (editor, at, table) => {
+  const row = verticalNeighbor(table, at, 1);
+  return row !== undefined
+    ? selectCell(editor, at.tablePath, row, at.col)
     : appendRowAndSelect(editor, at, table, at.col);
+};
 
 const moveDown: CellAction = (editor, at, table) => {
   if (isMultiline(table, at)) return false;
-  if (at.row < table.children.length - 1)
-    return selectCell(editor, at.tablePath, at.row + 1, at.col);
+  const row = verticalNeighbor(table, at, 1);
+  if (row !== undefined) return selectCell(editor, at.tablePath, row, at.col);
   const next = Editor.next(editor, { at: at.tablePath });
   if (next) Transforms.select(editor, Editor.start(editor, next[1]));
   else insertParagraphAndFocus(editor, table);
@@ -68,11 +92,19 @@ const moveDown: CellAction = (editor, at, table) => {
 
 const moveUp: CellAction = (editor, at, table) => {
   if (isMultiline(table, at)) return false;
-  if (at.row > 0) return selectCell(editor, at.tablePath, at.row - 1, at.col);
+  const row = verticalNeighbor(table, at, -1);
+  if (row !== undefined) return selectCell(editor, at.tablePath, row, at.col);
   const previous = Editor.previous(editor, { at: at.tablePath });
   if (!previous) return false;
   Transforms.select(editor, Editor.end(editor, previous[1]));
   return true;
+};
+
+/** 光标在合并格内时 Esc 选中整格（可接着拆分）；普通格放行给其它 Esc 处理 */
+const selectMergedCell: CellAction = (editor, at, table) => {
+  const region = regionAt(buildCoverMap(table), at.row, at.col);
+  if (region.rowStart === region.rowEnd && region.colStart === region.colEnd) return false;
+  return selectCells(editor, at.tablePath, region);
 };
 
 export const tableCommands: EditorCommand[] = [
@@ -81,6 +113,7 @@ export const tableCommands: EditorCommand[] = [
   tableCommand("tau.table.next-row", "下一行", nextRow),
   tableCommand("tau.table.move-down", "移到下方单元格", moveDown),
   tableCommand("tau.table.move-up", "移到上方单元格", moveUp),
+  tableCommand("tau.table.select-merged-cell", "选中合并单元格", selectMergedCell),
 ];
 
 export const tableHotkeys: EditorHotkey[] = [
@@ -89,4 +122,5 @@ export const tableHotkeys: EditorHotkey[] = [
   { key: "enter", command: "tau.table.next-row" },
   { key: "ArrowDown", command: "tau.table.move-down" },
   { key: "ArrowUp", command: "tau.table.move-up" },
+  { key: "escape", command: "tau.table.select-merged-cell" },
 ];

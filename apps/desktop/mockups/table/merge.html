@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表格 · 合并单元格 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5; --surface-hover:#f3f8f3;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-lift:0 2px 4px rgba(60,90,70,.07),0 16px 32px -14px rgba(60,90,70,.28);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a; --surface-hover:#252d28;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3; --surface-hover:#f8f3ea;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-lift:0 2px 4px rgba(120,100,70,.06),0 16px 32px -14px rgba(120,100,70,.26);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31; --surface-hover:#362f26;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 200px; transition:background .2s; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { flex:none; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:var(--hover); padding:1px 5px; border-radius:4px; }
+  kbd { font:500 11.5px ui-monospace,monospace; padding:1px 6px; border-radius:5px; background:var(--surface); border:1px solid var(--line-1); color:var(--ink-2); }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  section { margin-top:64px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:96ch; margin:6px 0 22px; }
+  .desc b, .notes b, .mat b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:96ch; }
+  .notes li { margin:5px 0; }
+  .grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr); gap:32px; align-items:start; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:24px; align-items:start; }
+  .tag { font:500 11px/1 -apple-system,sans-serif; padding:3px 7px; border-radius:99px; background:var(--accent-soft); color:var(--accent-text); }
+  .tag.new { background:var(--sunken); color:var(--ink-2); }
+  .specbox { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); padding:30px 44px 26px 44px; font-size:15px; line-height:1.85; }
+  .specbox > p { margin:0 0 4px; }
+  .specbox > p.after { margin-top:8px; color:var(--ink-2); }
+  .try { font-size:12.5px; color:var(--ink-2); background:var(--surface); border:1px dashed var(--line-1); border-radius:10px; padding:10px 14px; margin-bottom:14px; line-height:1.85; }
+  .try b { color:var(--accent-text); font-weight:600; }
+  .h4 { font-size:13px; font-weight:600; margin:16px 0 4px; }
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); }
+  .ib { height:26px; padding:0 9px; border-radius:7px; display:inline-flex; align-items:center; gap:5px; color:var(--ink-2); font-size:12.5px; }
+  .ib:hover { background:var(--hover); color:var(--ink-1); }
+
+  .mat { width:100%; border-collapse:collapse; font-size:13px; background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); overflow:hidden; }
+  .mat th, .mat td { text-align:left; padding:9px 14px; border-bottom:1px solid var(--line-1); vertical-align:top; }
+  .mat tr:last-child td { border-bottom:0; }
+  .mat th { color:var(--ink-2); font-weight:500; font-size:12.5px; }
+  .mat td:first-child { white-space:nowrap; font-weight:500; }
+  .mat td:last-child { color:var(--ink-2); }
+  .card { background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); padding:16px 20px; font-size:13.5px; }
+  .card h4 { font-size:14px; font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+  .card p { color:var(--ink-2); font-size:13px; }
+  .card .rec { margin-top:8px; font-size:12.5px; color:var(--accent-text); }
+  .pc { list-style:none; font-size:12.5px; color:var(--ink-2); margin-top:8px; }
+  .pc li { padding-left:16px; position:relative; margin:3px 0; }
+  .pc li::before { position:absolute; left:0; font-weight:700; }
+  .pc li.p::before { content:"+"; color:var(--accent-text); }
+  .pc li.c::before { content:"−"; color:var(--danger); }
+  /* ════ 表格：同定稿的细框线样式 ════ */
+  .blk { position:relative; margin:14px 0 30px; }
+  .tw { position:relative; }
+  .tclip { overflow-x:auto; border:1px solid var(--line-1); border-radius:10px; }
+  table.t { border-collapse:separate; border-spacing:0; width:100%; font-size:14.5px; line-height:1.6; }
+  table.t td { padding:7px 12px; vertical-align:top; text-align:left; outline:none; min-width:72px; word-break:break-word; caret-color:var(--accent); border-right:1px solid var(--line-1); border-bottom:1px solid var(--line-1); }
+  table.t td.er { border-right:0; }
+  table.t td.eb { border-bottom:0; }
+  table.t td.hd { font-weight:600; background:var(--surface-hover); }
+  table.t td[data-al="center"] { text-align:center; }
+  table.t td[data-al="right"] { text-align:right; }
+  .tw.cellsel { user-select:none; }
+  .tw.cellsel td { caret-color:transparent; }
+  .sel { position:absolute; pointer-events:none; border-radius:3px; box-shadow:0 0 0 1.5px var(--accent); background:var(--accent-soft); z-index:3; display:none; }
+
+  /* 选区角标：格选区 ≥2 格时贴在右下角 */
+  .chip { position:absolute; z-index:8; display:none; align-items:center; gap:5px; height:26px; padding:0 9px 0 7px; border-radius:8px; background:var(--surface); color:var(--ink-1); font-size:12.5px; white-space:nowrap; box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); transform:translate(-100%, 6px); }
+  .chip:hover { background:var(--accent); color:var(--ink-inv); box-shadow:none; }
+  .chip svg { color:currentColor; }
+  .chip[aria-disabled="true"] { color:var(--ink-3); cursor:not-allowed; }
+  .chip[aria-disabled="true"]:hover { background:var(--surface); color:var(--ink-3); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); }
+
+  /* 行 / 列手柄（同定稿方向 A） */
+  .grip { position:absolute; z-index:6; display:none; align-items:center; justify-content:center; border-radius:6px; color:var(--ink-3); background:var(--surface); box-shadow:0 0 0 1px var(--line-1), 0 1px 3px rgba(0,0,0,.06); cursor:grab; transition:background .12s,color .12s; }
+  .grip:hover, .grip.on { background:var(--accent); color:var(--ink-inv); box-shadow:none; }
+  .grip.col { width:26px; height:14px; }
+  .grip.row { width:14px; height:26px; }
+  .grip.blocked { cursor:not-allowed; }
+  .add { position:absolute; z-index:4; display:flex; align-items:center; justify-content:center; color:var(--ink-3); border-radius:6px; opacity:0; transition:opacity .15s, background .15s, color .15s; }
+  .tw:hover .add { opacity:1; }
+  .add:hover { background:var(--hover); color:var(--ink-1); }
+  .add.r { top:0; right:-24px; width:18px; bottom:0; }
+  .add.b { left:0; right:0; bottom:-24px; height:18px; }
+  .dropline { position:absolute; z-index:7; background:var(--accent); border-radius:2px; display:none; pointer-events:none; }
+  .dropline.bad { background:var(--danger); }
+
+  /* 菜单 */
+  .pm { position:absolute; z-index:50; min-width:208px; padding:5px; border-radius:11px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); display:none; font-size:13px; }
+  .pm .it { display:flex; align-items:center; gap:9px; width:100%; height:30px; padding:0 9px; border-radius:7px; color:var(--ink-1); text-align:left; }
+  .pm .it:hover { background:var(--hover); }
+  .pm .it svg { color:var(--ink-2); }
+  .pm .it .kb { margin-left:auto; font:11.5px ui-monospace,monospace; color:var(--ink-3); }
+  .pm .it.danger:hover { background:var(--danger-soft); color:var(--danger); }
+  .pm .it.danger:hover svg { color:var(--danger); }
+  .pm .it[disabled] { opacity:.38; pointer-events:none; }
+  .pm .why { font-size:11.5px; color:var(--ink-3); padding:0 9px 4px 33px; margin-top:-3px; }
+  .pm .sep { height:1px; background:var(--line-1); margin:4px 6px; }
+  .pm .hd { font-size:11.5px; color:var(--ink-3); padding:3px 9px; }
+
+  .toast { position:fixed; left:50%; bottom:28px; transform:translate(-50%,12px); padding:7px 14px; border-radius:9px; background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; opacity:0; transition:opacity .18s, transform .18s; pointer-events:none; z-index:60; }
+  .toast.on { opacity:1; transform:translate(-50%,0); }
+
+  /* 实时数据面板 */
+  .panel { background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); overflow:hidden; }
+  .panel .ph { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border-bottom:1px solid var(--line-1); font-size:12.5px; color:var(--ink-2); }
+  .panel pre { margin:0; padding:12px 14px; font:12px/1.6 ui-monospace,Menlo,monospace; color:var(--ink-1); max-height:380px; overflow:auto; white-space:pre; }
+  .panel pre .k { color:var(--accent-text); }
+  .panel pre .dim { color:var(--ink-3); }
+  .panel + .panel { margin-top:16px; }
+  .switch.sm button { padding:1px 9px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>表格 · 合并单元格</h1>
+    <p>在定稿的「边缘手柄 + 细框线」上增加合并 / 拆分。下面的表格可以真的操作，右侧实时显示按推荐数据结构存下来的模型与导出结果。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-theme"><button data-v="paper" class="on">Paper</button><button data-v="mint">Mint</button></div>
+    <div class="switch" id="sw-mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="no">00</span>现状：数据模型不支持合并</h2>
+  <ul class="notes">
+    <li><b>没有跨度字段。</b><code>TableCellElement</code> 只有 <code>type</code> 和 <code>children</code>。</li>
+    <li><b>不变式按满格矩形写死。</b><code>normalize.ts</code> 把每行补齐到最大列数；如果像 HTML 那样省略被覆盖的格，下一轮 normalize 会把它们补回来。</li>
+    <li><b>所有能力都按「路径下标 = 逻辑坐标」寻址。</b>行列增删移动、格选区矩形、复制子表、粘贴填充、手柄几何（<code>measureTable</code> 取首行 <code>cells</code> 当列）、移动端 <code>editingContext</code> 都依赖这一点。</li>
+    <li><b>Markdown 是 GFM 表格</b>，语法里没有合并，导出必然有损。</li>
+  </ul>
+  <p class="desc" style="margin-top:12px">所以需要扩模型。推荐方案保留满格矩形和「下标 = 坐标」，改动面最小，见 03。</p>
+</section>
+
+<section>
+  <h2><span class="no">01</span>交互 <span class="tag">可操作</span></h2>
+  <div class="grid">
+    <div>
+      <div class="try">
+        试试：<b>跨格拖选</b>，右下角出现「合并 n 格」· 拖选时碰到已合并的格，选区会<b>自动扩到整块</b> · 在合并格里按 <kbd>Esc</kbd> 选中它，角标变成「拆分」· <kbd>Tab</kbd> / <kbd>Enter</kbd> 跳过被覆盖的格 · 点<b>左边行手柄</b>插入 / 删除行，看合并区域怎么伸缩 · 拖动「设计」那两行的行手柄，会被拦下
+      </div>
+      <div class="bar"><span>示例</span><button class="ib" id="reset">恢复示例</button></div>
+      <div class="specbox">
+        <p>迭代排期：</p>
+        <div class="blk" id="demo"></div>
+        <p class="after">表格后面的段落。</p>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="ph"><span>实时数据</span>
+          <div class="switch sm" id="sw-view"><button data-v="slate" class="on">Slate 模型</button><button data-v="md">Markdown 导出</button><button data-v="html">HTML 导出</button></div>
+        </div>
+        <pre id="out"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">02</span>行为规则</h2>
+  <table class="mat">
+    <tr><th style="width:150px">场景</th><th>规则</th><th style="width:30%">理由</th></tr>
+    <tr><td>入口</td><td>格选区 ≥ 2 格时，选区右下角浮出「合并 n 格」角标；选区恰好是一个合并格时变成「拆分单元格」。行 / 列手柄菜单在所选行列含合并格时多一项「拆分合并单元格」。</td><td>只在有选区时出现，不给普通编辑加噪音；和手柄菜单是同一套浮层。</td></tr>
+    <tr><td>合并内容</td><td>所有非空格的内容按阅读顺序拼进左上格，格之间用软换行；其余格清空。合并后选中新格，可以直接再拆。</td><td>不丢内容。只有一格有内容时不产生多余换行。</td></tr>
+    <tr><td>拆分</td><td>内容留在左上格，其余格为空。<kbd>⌘Z</kbd> 一步回到合并前。</td><td>和 Google 文档、飞书一致。</td></tr>
+    <tr><td>选区</td><td>矩形碰到合并格的一部分时，扩到包住整块，反复扩到稳定。整行 / 整列选区不扩。</td><td>保证合并区域永远不会被切开。</td></tr>
+    <tr><td>插入行 / 列</td><td>插在合并区域内部：区域跨度 +1，新格成为被覆盖格。插在边界上：不影响。</td><td>和电子表格一致。</td></tr>
+    <tr><td>删除行 / 列</td><td>删掉区域的一部分：跨度收缩；左上格所在行 / 列被删时，内容和跨度移到剩下的第一行 / 列。区域全被删时随之消失。</td><td>不留下悬空的跨度。</td></tr>
+    <tr><td>拖动排序</td><td>被拖的行 / 列在某个多行 / 多列合并区域里，或放置位置落在区域内部：放置线变红，松手不移动并提示原因。</td><td>移动会切开区域。先拆分再移动，规则简单可预期。</td></tr>
+    <tr><td>导航</td><td><kbd>Tab</kbd> 跳到下一个非覆盖格；<kbd>Enter</kbd> 跳到合并格底边下一行的同列格；<kbd>↑</kbd><kbd>↓</kbd> 同理按区域边界跳。光标不会落进被覆盖格。</td><td>被覆盖格不可见。</td></tr>
+    <tr><td>对齐</td><td>合并格用左上格所在列的对齐；垂直方向保持顶对齐。</td><td>对齐仍按列存储，不新增格级字段。</td></tr>
+    <tr><td>表头</td><td>首行仍是表头。允许表头内横向合并；跨表头和正文的合并按表头样式渲染。</td><td>不额外设限，见 04 待定。</td></tr>
+    <tr><td>复制</td><td>选区已扩成完整区域，子表片段带跨度；HTML 写 <code>rowspan</code> / <code>colspan</code>；TSV 被覆盖格为空。</td><td>粘回编辑器和粘到飞书 / Word 都保留合并。</td></tr>
+    <tr><td>粘贴</td><td>粘贴区域覆盖到的合并格先拆分再填充。从网页 / Word 粘贴带 <code>colspan</code> / <code>rowspan</code> 的 HTML 表格时还原合并。</td><td>现在 <code>parseHtmlTable</code> 已处理 colspan（补空格），改为保留跨度。</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="no">03</span>数据结构 <span class="tag">推荐方案 A</span></h2>
+  <p class="desc">实现后的规则见 <code>packages/editor/src/extensions/table/README.md</code>。这里只比较三种存法。</p>
+  <div class="grid2">
+    <div class="card">
+      <h4>A · 满格矩形 + 左上格带跨度 <span class="tag">推荐</span></h4>
+      <p>每行仍然有全部列的格。左上格存 <code>colSpan</code> / <code>rowSpan</code>（等于 1 时省略），被覆盖的格保留为空的占位格，渲染成 <code>hidden</code>。被覆盖状态由跨度推出，不单独存。</p>
+      <ul class="pc">
+        <li class="p">路径下标仍等于逻辑坐标，现有变换、选区、粘贴、移动端都只需「加规则」不需「改寻址」</li>
+        <li class="p">字段落在格上，复制出的子表、HTML 序列化自带跨度</li>
+        <li class="p">旧数据零迁移：没有跨度字段就是普通表格</li>
+        <li class="c">占位格要靠 normalize 保持为空、光标要绕开</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>B · 省略被覆盖格（HTML / ProseMirror 式）</h4>
+      <p>格带跨度，被覆盖的格不存在，各行长度不同。需要一张 TableMap 把逻辑坐标换算成路径。</p>
+      <ul class="pc">
+        <li class="p">和 HTML 一一对应，没有占位格</li>
+        <li class="c">路径不再等于坐标：<code>transforms / selection / paste / geometry</code> 和移动端全部要改成经 TableMap 寻址</li>
+        <li class="c">「每行补齐」不变式要重写成「按跨度算宽度后补齐」</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>C · 表级 <code>merges</code> 数组</h4>
+      <p>格不变，表上加 <code>merges: [{ row, col, rowSpan, colSpan }]</code>，类似现在的 <code>align</code>。</p>
+      <ul class="pc">
+        <li class="p">格节点完全不动</li>
+        <li class="c">每个行列变换都要二维重算坐标并整体 <code>setNodes</code>，协同时任意两个合并操作都冲突在同一个属性上</li>
+        <li class="c">格自身不知道自己的跨度，渲染、复制都要回查表</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">04</span>需要你拍板</h2>
+  <div class="grid2">
+    <div class="card"><h4>① Markdown 导出</h4><p>GFM 表示不了合并。降级：左上格保留内容，被覆盖格写空，Markdown 往返会丢掉合并（编辑器自身存 JSON，不受影响）。或者：有合并的表整张导出成 HTML <code>&lt;table&gt;</code>，往返无损但 Markdown 里可读性差，导入侧也要新增 HTML 表格解析。</p><p class="rec">建议：降级为 GFM。</p></div>
+    <div class="card"><h4>② 跨表头合并</h4><p>是否允许把表头行和正文行合在一起？允许时那一格按表头样式渲染；禁止时选区跨首行就不出现「合并」。</p><p class="rec">建议：允许，不额外设限。</p></div>
+    <div class="card"><h4>③ 入口</h4><p>除了选区角标和手柄菜单，要不要加快捷键（如 <kbd>⌘⇧M</kbd> 合并 / 拆分切换）？移动端是否这一期就做（工具栏表格面板加「合并 / 拆分」）？</p><p class="rec">建议：桌面端角标 + 菜单先做，移动端下一期。</p></div>
+  </div>
+</section>
+
+<div class="pm" role="menu"></div>
+<div class="toast"></div>
+
+<script>
+const S = (p, w = 15) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const dots = (pts, w) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="currentColor">${pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.8"/>`).join("")}</svg>`;
+const IC = {
+  gripV: dots([[9, 6], [15, 6], [9, 12], [15, 12], [9, 18], [15, 18]], 13),
+  gripH: dots([[6, 9], [12, 9], [18, 9], [6, 15], [12, 15], [18, 15]], 13),
+  plus: S('<path d="M12 5v14M5 12h14"/>', 14),
+  up: S('<path d="M12 19V5M5 12l7-7 7 7"/>'),
+  down: S('<path d="M12 5v14M19 12l-7 7-7-7"/>'),
+  left: S('<path d="M19 12H5M12 19l-7-7 7-7"/>'),
+  right: S('<path d="M5 12h14M12 5l7 7-7 7"/>'),
+  erase: S('<path d="m7 21-4.3-4.3a2.4 2.4 0 0 1 0-3.4l9.6-9.6a2.4 2.4 0 0 1 3.4 0l5.6 5.6a2.4 2.4 0 0 1 0 3.4L13 21"/><path d="M22 21H7M5 11l9 9"/>'),
+  trash: S('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+  merge: S('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 21v-6M12 9V3M3 15h18M3 9h18"/>', 14),
+  split: S('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 15V9M3 15h18M3 9h18"/>', 14),
+};
+
+const cellOf = (text, span = {}) => ({ text, ...span });
+const SEED = [
+  [cellOf("模块"), cellOf("负责人"), cellOf("第 1 周"), cellOf("第 2 周"), cellOf("备注")],
+  [cellOf("设计", { rowSpan: 2 }), cellOf("阿树"), cellOf("交互稿", { colSpan: 2 }), cellOf(""), cellOf("评审通过")],
+  [cellOf(""), cellOf("Claude"), cellOf("视觉稿"), cellOf("标注"), cellOf("")],
+  [cellOf("开发"), cellOf("Claude"), cellOf("数据模型与 normalize", { colSpan: 2 }), cellOf(""), cellOf("")],
+  [cellOf("测试"), cellOf("阿树"), cellOf(""), cellOf("回归"), cellOf("")],
+];
+const clone = v => JSON.parse(JSON.stringify(v));
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const px = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v === "number" ? `${v}px` : v]));
+
+let rows = clone(SEED);
+let sel = null;          // { r0, c0, r1, c1, kind: "cells" | "row" | "col" }
+let history = [];
+let view = "slate";
+let hover = null;        // 悬停格的左上角坐标 [r, c]
+let menuState = null;    // { kind, idx }
+let dragSel = null;      // 格拖选起点
+let gdrag = null;        // 手柄拖动
+let tw = null, table = null;
+
+const blk = document.getElementById("demo");
+const pm = document.querySelector(".pm");
+const toastEl = document.querySelector(".toast");
+function toast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("on");
+  clearTimeout(toastEl._t); toastEl._t = setTimeout(() => toastEl.classList.remove("on"), 1800);
+}
+/* ─── 模型：满格矩形，左上格带 rowSpan / colSpan，被覆盖格为空占位 ─── */
+const R = () => rows.length, C = () => rows[0]?.length ?? 0;
+const spanOf = cell => [cell.rowSpan ?? 1, cell.colSpan ?? 1];
+const spanProps = (rs, cs) => ({ ...(rs > 1 ? { rowSpan: rs } : {}), ...(cs > 1 ? { colSpan: cs } : {}) });
+const snapshot = () => { history.push(clone(rows)); if (history.length > 50) history.shift(); };
+
+/** 每个逻辑格属于哪个合并区域（区域左上角坐标）；跨度只在非覆盖格上生效 */
+function coverMap() {
+  const map = rows.map(row => row.map(() => null));
+  rows.forEach((row, r) => row.forEach((cell, c) => {
+    if (map[r][c]) return;
+    const [rs, cs] = spanOf(cell);
+    for (let i = r; i < Math.min(r + rs, R()); i++)
+      for (let j = c; j < Math.min(c + cs, C()); j++) if (!map[i][j]) map[i][j] = [r, c];
+  }));
+  return map;
+}
+const isOrigin = (map, r, c) => map[r][c][0] === r && map[r][c][1] === c;
+const origins = () => { const map = coverMap(), out = []; rows.forEach((row, r) => row.forEach((_, c) => isOrigin(map, r, c) && out.push([r, c]))); return out; };
+const regionOf = (r, c) => { const [rs, cs] = spanOf(rows[r][c]); return { r0: r, c0: c, r1: r + rs - 1, c1: c + cs - 1 }; };
+const regionAt = (r, c) => { const [ar, ac] = coverMap()[r][c]; return regionOf(ar, ac); };
+const originsIn = rect => origins().filter(([r, c]) => r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1);
+
+/** 不变式：跨度不越界、被覆盖格无跨度且为空 */
+function normalize() {
+  rows.forEach((row, r) => row.forEach((cell, c) => {
+    if (cell.rowSpan && r + cell.rowSpan > R()) cell.rowSpan = R() - r;
+    if (cell.colSpan && c + cell.colSpan > C()) cell.colSpan = C() - c;
+    if (cell.rowSpan <= 1) delete cell.rowSpan;
+    if (cell.colSpan <= 1) delete cell.colSpan;
+  }));
+  const map = coverMap();
+  rows.forEach((row, r) => row.forEach((cell, c) => { if (!isOrigin(map, r, c)) row[c] = cellOf(""); }));
+}
+
+/** 矩形碰到合并区域的一部分就扩到包住整块，直到稳定 */
+function expand(rect) {
+  let { r0, c0, r1, c1 } = rect, changed = true;
+  const map = coverMap();
+  while (changed) {
+    changed = false;
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const g = regionOf(...map[r][c]);
+      const next = [Math.min(r0, g.r0), Math.min(c0, g.c0), Math.max(r1, g.r1), Math.max(c1, g.c1)];
+      if (next.join() !== [r0, c0, r1, c1].join()) { [r0, c0, r1, c1] = next; changed = true; }
+    }
+  }
+  return { r0, c0, r1, c1 };
+}
+
+function mergeCells(rect) {
+  snapshot();
+  const texts = originsIn(rect).map(([r, c]) => rows[r][c].text).filter(t => t.trim());
+  for (let r = rect.r0; r <= rect.r1; r++) for (let c = rect.c0; c <= rect.c1; c++) rows[r][c] = cellOf("");
+  rows[rect.r0][rect.c0] = cellOf(texts.join("\n"), spanProps(rect.r1 - rect.r0 + 1, rect.c1 - rect.c0 + 1));
+}
+function splitCells(rect) {
+  snapshot();
+  originsIn(rect).forEach(([r, c]) => { delete rows[r][c].rowSpan; delete rows[r][c].colSpan; });
+}
+const mergedIn = rect => originsIn(rect).filter(([r, c]) => spanOf(rows[r][c]).some(n => n > 1));
+
+function insertRow(i) {
+  snapshot();
+  origins().forEach(([r, c]) => { const [rs] = spanOf(rows[r][c]); if (r < i && i < r + rs) rows[r][c].rowSpan = rs + 1; });
+  rows.splice(i, 0, Array.from({ length: C() }, () => cellOf("")));
+}
+function insertCol(i) {
+  snapshot();
+  origins().forEach(([r, c]) => { const [, cs] = spanOf(rows[r][c]); if (c < i && i < c + cs) rows[r][c].colSpan = cs + 1; });
+  rows.forEach(row => row.splice(i, 0, cellOf("")));
+}
+
+/** 删除 [a, b] 行：区域收缩；左上格被删时内容与跨度移到区域剩下的第一行 */
+function deleteRows(a, b) {
+  snapshot();
+  origins().forEach(([r, c]) => {
+    const cell = rows[r][c], [rs] = spanOf(cell), end = r + rs - 1;
+    const overlap = Math.max(0, Math.min(end, b) - Math.max(r, a) + 1);
+    if (!overlap || overlap === rs) return;
+    if (r >= a) { rows[b + 1][c] = { ...cell, rowSpan: rs - overlap }; rows[r][c] = cellOf(""); }
+    else cell.rowSpan = rs - overlap;
+  });
+  rows.splice(a, b - a + 1);
+}
+function deleteCols(a, b) {
+  snapshot();
+  origins().forEach(([r, c]) => {
+    const cell = rows[r][c], [, cs] = spanOf(cell), end = c + cs - 1;
+    const overlap = Math.max(0, Math.min(end, b) - Math.max(c, a) + 1);
+    if (!overlap || overlap === cs) return;
+    if (c >= a) { rows[r][b + 1] = { ...cell, colSpan: cs - overlap }; rows[r][c] = cellOf(""); }
+    else cell.colSpan = cs - overlap;
+  });
+  rows.forEach(row => row.splice(a, b - a + 1));
+}
+
+/** 行 / 列移动会切开纵向 / 横向合并区域时拒绝，返回原因 */
+function moveBlocked(kind, from, boundary) {
+  const isRow = kind === "row";
+  for (const [r, c] of origins()) {
+    const [rs, cs] = spanOf(rows[r][c]);
+    const [start, span] = isRow ? [r, rs] : [c, cs];
+    if (span < 2) continue;
+    if (from >= start && from < start + span) return `第 ${from + (isRow ? 0 : 1)} ${isRow ? "行" : "列"}在合并单元格里，先拆分再移动`;
+    if (boundary > start && boundary < start + span) return "不能放进合并单元格中间";
+  }
+  return null;
+}
+function moveLine(kind, from, to) {
+  snapshot();
+  const mv = arr => { const [x] = arr.splice(from, 1); arr.splice(to, 0, x); };
+  if (kind === "row") mv(rows); else rows.forEach(mv);
+}
+/* ─── 渲染 ─── */
+const td = (r, c) => table?.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+
+function render() {
+  normalize();
+  const map = coverMap();
+  blk.innerHTML = `<div class="tw"><div class="tclip"><table class="t"><tbody>${rows.map((row, r) => `<tr>${row.map((cell, c) => {
+    if (!isOrigin(map, r, c)) return `<td hidden data-r="${r}" data-c="${c}"></td>`;
+    const g = regionOf(r, c), [rs, cs] = spanOf(cell);
+    const cls = [g.r0 === 0 && "hd", g.c1 === C() - 1 && "er", g.r1 === R() - 1 && "eb"].filter(Boolean).join(" ");
+    return `<td contenteditable="true" spellcheck="false" data-r="${r}" data-c="${c}"${rs > 1 ? ` rowspan="${rs}"` : ""}${cs > 1 ? ` colspan="${cs}"` : ""} class="${cls}">${esc(cell.text).replace(/\n/g, "<br>")}</td>`;
+  }).join("")}</tr>`).join("")}</tbody></table></div>
+    <div class="sel"></div>
+    <button class="chip" type="button"></button>
+    <button class="grip col" type="button" aria-label="列操作">${IC.gripH}</button>
+    <button class="grip row" type="button" aria-label="行操作">${IC.gripV}</button>
+    <div class="dropline"></div>
+    <button class="add r" type="button" title="添加列">${IC.plus}</button>
+    <button class="add b" type="button" title="添加行">${IC.plus}</button></div>`;
+  tw = blk.querySelector(".tw"); table = blk.querySelector("table");
+  bind();
+  drawSel(); placeGrips(); dump();
+}
+
+/** 行列像素边界：行取 tr；列取该列任意一个不跨列的格，整列都被跨列格覆盖时按跨列格均分 */
+function geo() {
+  const base = tw.getBoundingClientRect();
+  const rowsG = Array.from(table.rows, tr => { const b = tr.getBoundingClientRect(); return { top: b.top - base.top, bottom: b.bottom - base.top }; });
+  const cols = [];
+  for (let c = 0; c < C(); c++) {
+    let hit = null;
+    for (let r = 0; r < R() && !hit; r++) { const el = td(r, c); if (el && !el.hidden && (rows[r][c].colSpan ?? 1) === 1) hit = el.getBoundingClientRect(); }
+    if (!hit) { const g = rows.map((_, r) => regionAt(r, c)).sort((x, y) => (x.c1 - x.c0) - (y.c1 - y.c0))[0], b = td(g.r0, g.c0).getBoundingClientRect(), w = b.width / (g.c1 - g.c0 + 1); hit = { left: b.left + w * (c - g.c0), right: b.left + w * (c - g.c0 + 1) }; }
+    cols.push({ left: hit.left - base.left, right: hit.right - base.left });
+  }
+  return { rows: rowsG, cols, width: cols.at(-1).right, height: rowsG.at(-1).bottom };
+}
+const indexAt = (spans, pos) => { const i = spans.findIndex(s => pos < s.end); return i === -1 ? spans.length - 1 : Math.max(0, i); };
+
+function drawSel() {
+  const box = tw.querySelector(".sel"), chip = tw.querySelector(".chip");
+  tw.classList.toggle("cellsel", !!sel);
+  if (!sel) { box.style.display = chip.style.display = "none"; return; }
+  const g = geo();
+  const top = g.rows[sel.r0].top, bottom = g.rows[sel.r1].bottom, left = g.cols[sel.c0].left, right = g.cols[sel.c1].right;
+  Object.assign(box.style, px({ display: "block", top, left, width: right - left, height: bottom - top }));
+  const count = originsIn(sel).length, merged = mergedIn(sel);
+  const single = count === 1 && merged.length === 1;
+  if (sel.kind !== "cells" || (count < 2 && !single)) { chip.style.display = "none"; return; }
+  chip.innerHTML = single ? `${IC.split}拆分单元格` : `${IC.merge}合并 ${count} 格`;
+  Object.assign(chip.style, px({ display: "flex", left: right, top: bottom }));
+  chip.onmousedown = e => e.preventDefault();
+  chip.onclick = () => {
+    const rect = { ...sel };
+    if (single) { splitCells(rect); toast("已拆分，内容留在左上格 · ⌘Z 撤销"); }
+    else { mergeCells(rect); toast(`已合并 ${count} 格 · ⌘Z 撤销`); }
+    sel = { ...rect, kind: "cells" };
+    render();
+  };
+}
+
+function placeGrips() {
+  const colG = tw.querySelector(".grip.col"), rowG = tw.querySelector(".grip.row");
+  const anchor = menuState ?? (gdrag && { kind: gdrag.kind, idx: gdrag.from });
+  const show = (el, kind, idx) => {
+    if (idx == null) { el.style.display = "none"; return; }
+    const g = geo();
+    if (kind === "col") Object.assign(el.style, px({ display: "flex", left: (g.cols[idx].left + g.cols[idx].right) / 2 - 13, top: -7 }));
+    else Object.assign(el.style, px({ display: "flex", top: (g.rows[idx].top + g.rows[idx].bottom) / 2 - 13, left: -7 }));
+    el.classList.toggle("on", anchor?.kind === kind || (sel?.kind === kind));
+    el.dataset.idx = idx;
+  };
+  const pick = kind => anchor ? (anchor.kind === kind ? anchor.idx : null)
+    : sel && sel.kind !== "cells" ? (sel.kind === kind ? (kind === "row" ? sel.r1 : sel.c1) : null)
+    : hover ? (kind === "row" ? hover[0] : hover[1]) : null;
+  show(colG, "col", pick("col"));
+  show(rowG, "row", pick("row"));
+}
+/* ─── 交互 ─── */
+const posOf = el => [Number(el.dataset.r), Number(el.dataset.c)];
+function placeCaret(r, c, atStart = false) {
+  const el = td(r, c); if (!el) return;
+  el.focus();
+  const range = document.createRange(); range.selectNodeContents(el); range.collapse(atStart);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(range);
+}
+function setSel(rect, kind = "cells") {
+  sel = kind === "cells" ? { ...expand(rect), kind } : { ...rect, kind };
+  getSelection().removeAllRanges(); table.focus?.();
+  drawSel(); placeGrips(); dump();
+}
+function clearSel() { if (!sel) return; sel = null; drawSel(); placeGrips(); dump(); }
+function commit(next) { render(); if (next) next(); }
+
+/** 下一个 / 上一个非覆盖格（按阅读顺序） */
+function stepCell(r, c, dir) {
+  const list = origins();
+  const i = list.findIndex(([a, b]) => a === r && b === c);
+  return list[i + dir];
+}
+
+function bind() {
+  table.querySelectorAll("td:not([hidden])").forEach(el => {
+    el.addEventListener("input", () => {
+      const [r, c] = posOf(el);
+      rows[r][c].text = el.innerText.replace(/\n$/, "");
+      dump();
+    });
+    el.addEventListener("focus", () => clearSel());
+    el.addEventListener("keydown", e => cellKeys(e, el));
+  });
+
+  table.addEventListener("mousedown", e => {
+    const el = e.target.closest("td"); if (!el) return;
+    closeMenu();
+    dragSel = posOf(el);
+    if (sel) { sel = null; drawSel(); placeGrips(); }
+  });
+  tw.addEventListener("mousemove", e => {
+    if (gdrag) return;
+    const el = e.target.closest("td");
+    if (el && !el.hidden) {
+      const g = geo(), base = tw.getBoundingClientRect();
+      const r = indexAt(g.rows.map(s => ({ end: s.bottom })), e.clientY - base.top);
+      const c = indexAt(g.cols.map(s => ({ end: s.right })), e.clientX - base.left);
+      if (!hover || hover[0] !== r || hover[1] !== c) { hover = [r, c]; placeGrips(); }
+    }
+    if (dragSel && e.buttons === 1 && el) {
+      const [r, c] = posOf(el);
+      if (r === dragSel[0] && c === dragSel[1] && !sel) return;
+      e.preventDefault();
+      const a = regionAt(...dragSel), b = regionAt(r, c);
+      setSel({ r0: Math.min(a.r0, b.r0), c0: Math.min(a.c0, b.c0), r1: Math.max(a.r1, b.r1), c1: Math.max(a.c1, b.c1) });
+    }
+  });
+  tw.addEventListener("mouseleave", () => { if (!menuState && !gdrag) { hover = null; placeGrips(); } });
+
+  tw.querySelectorAll(".grip").forEach(el => {
+    el.onmousedown = e => e.preventDefault();
+    el.onpointerdown = e => gripDown(el.classList.contains("col") ? "col" : "row", Number(el.dataset.idx), e);
+  });
+  tw.querySelector(".add.r").onclick = () => { insertCol(C()); commit(); };
+  tw.querySelector(".add.b").onclick = () => { insertRow(R()); commit(); };
+}
+document.addEventListener("mouseup", () => { dragSel = null; });
+
+function cellKeys(e, el) {
+  const [r, c] = posOf(el);
+  const g = regionOf(r, c);
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const next = stepCell(r, c, e.shiftKey ? -1 : 1);
+    if (next) placeCaret(...next);
+    else if (!e.shiftKey) { insertRow(R()); commit(() => placeCaret(R() - 1, 0)); }
+  } else if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (g.r1 + 1 < R()) { const t = regionAt(g.r1 + 1, c); placeCaret(t.r0, t.c0); }
+    else { insertRow(R()); commit(() => placeCaret(R() - 1, c)); }
+  } else if (e.key === "Escape") {
+    e.preventDefault(); e.stopPropagation(); el.blur();
+    setSel({ r0: g.r0, c0: g.c0, r1: g.r1, c1: g.c1 });
+  }
+}
+
+document.addEventListener("keydown", e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "z" && history.length) {
+    e.preventDefault(); rows = history.pop(); sel = null; render(); toast("已撤销"); return;
+  }
+  if (!sel || document.activeElement?.isContentEditable) return;
+  if (e.key === "Backspace" || e.key === "Delete") {
+    e.preventDefault();
+    if (sel.kind === "row") { deleteRows(sel.r0, sel.r1); sel = null; }
+    else if (sel.kind === "col") { deleteCols(sel.c0, sel.c1); sel = null; }
+    else { snapshot(); originsIn(sel).forEach(([r, c]) => rows[r][c].text = ""); }
+    closeMenu(); commit();
+  } else if (e.key === "Escape") { clearSel(); closeMenu(); }
+});
+/* ─── 手柄菜单与拖动 ─── */
+function openMenu(kind, from, to, anchorEl) {
+  menuState = { kind, idx: to };
+  const isCol = kind === "col";
+  const rect = isCol ? { r0: 0, r1: R() - 1, c0: from, c1: to } : { r0: from, r1: to, c0: 0, c1: C() - 1 };
+  const merged = mergedIn(rect).length;
+  const count = to - from + 1;
+  const title = isCol ? (count > 1 ? `已选 ${count} 列` : `第 ${from + 1} 列`) : count > 1 ? `已选 ${count} 行` : from === 0 ? "表头行" : `第 ${from} 行`;
+  const items = [
+    { icon: isCol ? IC.left : IC.up, label: isCol ? "在左侧插入列" : "在上方插入行", run: () => isCol ? insertCol(from) : insertRow(from) },
+    { icon: isCol ? IC.right : IC.down, label: isCol ? "在右侧插入列" : "在下方插入行", run: () => isCol ? insertCol(to + 1) : insertRow(to + 1) },
+    "sep",
+    ...(merged ? [{ icon: IC.split, label: `拆分合并单元格${merged > 1 ? `（${merged}）` : ""}`, run: () => splitCells(expand(rect)) }] : []),
+    { icon: IC.erase, label: "清空内容", run: () => { snapshot(); originsIn(rect).forEach(([r, c]) => rows[r][c].text = ""); } },
+    { icon: IC.trash, label: count > 1 ? `删除 ${count} ${isCol ? "列" : "行"}` : isCol ? "删除列" : "删除行", kb: "⌫", danger: true,
+      run: () => { isCol ? deleteCols(from, to) : deleteRows(from, to); sel = null; } },
+  ];
+  pm.innerHTML = `<div class="hd">${title}</div>` + items.map((it, i) => it === "sep" ? `<div class="sep"></div>`
+    : `<button class="it${it.danger ? " danger" : ""}" data-i="${i}">${it.icon}<span>${it.label}</span>${it.kb ? `<span class="kb">${it.kb}</span>` : ""}</button>`).join("");
+  pm.querySelectorAll(".it").forEach(b => {
+    b.onmousedown = e => e.preventDefault();
+    b.onclick = () => { items[b.dataset.i].run(); closeMenu(); if (sel && sel.kind !== "cells") sel = null; commit(); };
+  });
+  const a = anchorEl.getBoundingClientRect();
+  Object.assign(pm.style, px({ display: "block", left: a.left + scrollX + (isCol ? -8 : 20), top: a.top + scrollY + (isCol ? 20 : -6) }));
+  if (isCol) setSel(rect, "col"); else setSel(rect, "row");
+}
+function closeMenu() { if (!menuState) return; pm.style.display = "none"; menuState = null; placeGrips(); }
+document.addEventListener("mousedown", e => { if (menuState && !pm.contains(e.target) && !e.target.closest(".grip")) { closeMenu(); clearSel(); } });
+
+function gripDown(kind, idx, e) {
+  e.preventDefault();
+  const el = e.currentTarget, startX = e.clientX, startY = e.clientY;
+  gdrag = { kind, from: idx, target: null, moved: false };
+  const line = tw.querySelector(".dropline");
+  const g = geo(), base = tw.getBoundingClientRect();
+  const spans = kind === "row" ? g.rows.map(s => (s.top + s.bottom) / 2) : g.cols.map(s => (s.left + s.right) / 2);
+  const onMove = ev => {
+    if (!gdrag.moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) < 4) return;
+    if (!gdrag.moved) { gdrag.moved = true; closeMenu(); }
+    const pos = kind === "row" ? ev.clientY - base.top : ev.clientX - base.left;
+    const boundary = spans.filter(mid => mid < pos).length;
+    gdrag.target = boundary;
+    gdrag.blocked = moveBlocked(kind, idx, boundary);
+    const edge = kind === "row" ? (boundary < R() ? g.rows[boundary].top : g.height) : (boundary < C() ? g.cols[boundary].left : g.width);
+    line.classList.toggle("bad", !!gdrag.blocked);
+    Object.assign(line.style, px(kind === "row" ? { display: "block", top: edge - 1.5, left: 0, width: g.width, height: 3 } : { display: "block", left: edge - 1.5, top: 0, height: g.height, width: 3 }));
+  };
+  const onUp = () => {
+    removeEventListener("pointermove", onMove); removeEventListener("pointerup", onUp);
+    line.style.display = "none";
+    const d = gdrag; gdrag = null;
+    if (!d.moved) {
+      const s = sel && sel.kind === kind && ((kind === "row" ? sel.r0 <= idx && idx <= sel.r1 : sel.c0 <= idx && idx <= sel.c1)) ? sel : null;
+      const [from, to] = s ? (kind === "row" ? [s.r0, s.r1] : [s.c0, s.c1])
+        : sel && sel.kind === "cells" ? (kind === "row" ? [sel.r0, sel.r1] : [sel.c0, sel.c1]) : [idx, idx];
+      openMenu(kind, from, to, el);
+      return;
+    }
+    if (d.blocked) { toast(d.blocked); placeGrips(); return; }
+    const to = d.target > idx ? d.target - 1 : d.target;
+    if (to === idx) { placeGrips(); return; }
+    moveLine(kind, idx, to); sel = null; hover = null; commit();
+  };
+  addEventListener("pointermove", onMove); addEventListener("pointerup", onUp);
+}
+/* ─── 实时数据 ─── */
+const J = v => JSON.stringify(v);
+function slateJson() {
+  const map = coverMap();
+  const lines = ['{ <span class="k">"type"</span>: "table", <span class="k">"children"</span>: ['];
+  rows.forEach((row, r) => {
+    lines.push('  { "type": "table-row", "children": [');
+    row.forEach((cell, c) => {
+      const covered = !isOrigin(map, r, c);
+      const [rs, cs] = spanOf(cell);
+      const span = `${rs > 1 ? `, <span class="k">"rowSpan"</span>: ${rs}` : ""}${cs > 1 ? `, <span class="k">"colSpan"</span>: ${cs}` : ""}`;
+      const text = covered ? "" : esc(cell.text).replace(/\n/g, "\\n");
+      const body = `{ "type": "table-cell"${span}, "children": [{ "text": "${text}" }] }`;
+      lines.push(`    ${covered ? `<span class="dim">${body}  // 被 [${map[r][c]}] 覆盖</span>` : body}${c < row.length - 1 ? "," : ""}`);
+    });
+    lines.push(`  ]}${r < rows.length - 1 ? "," : ""}`);
+  });
+  lines.push("]}");
+  return lines.join("\n");
+}
+function markdown() {
+  const map = coverMap();
+  const line = row => `| ${row.join(" | ")} |`;
+  const text = (r, c) => isOrigin(map, r, c) ? rows[r][c].text.replace(/\|/g, "\\|").replace(/\n/g, "<br>") : "";
+  const out = rows.map((row, r) => line(row.map((_, c) => text(r, c))));
+  out.splice(1, 0, line(rows[0].map(() => "---")));
+  return `<span class="dim">&lt;!-- 降级：GFM 没有合并语法，被覆盖格写空 --&gt;</span>\n` + esc(out.join("\n"));
+}
+function html() {
+  const map = coverMap();
+  const body = rows.map((row, r) => `  <tr>${row.map((cell, c) => {
+    if (!isOrigin(map, r, c)) return "";
+    const [rs, cs] = spanOf(cell);
+    return `<td${rs > 1 ? ` rowspan="${rs}"` : ""}${cs > 1 ? ` colspan="${cs}"` : ""}>${esc(cell.text).replace(/\n/g, "&lt;br&gt;")}</td>`;
+  }).join("")}</tr>`).join("\n");
+  return esc("<table><tbody>\n") + body.replace(/<(?!span|\/span)/g, "&lt;").replace(/(rowspan|colspan)/g, '<span class="k">$1</span>') + esc("\n</tbody></table>");
+}
+function dump() {
+  document.getElementById("out").innerHTML = view === "slate" ? slateJson() : view === "md" ? markdown() : html();
+}
+
+document.querySelectorAll(".switch").forEach(sw => sw.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  if (sw.id === "sw-theme") document.documentElement.dataset.theme = b.dataset.v;
+  if (sw.id === "sw-mode") document.documentElement.dataset.mode = b.dataset.v;
+  if (sw.id === "sw-view") { view = b.dataset.v; dump(); }
+  if (tw) { drawSel(); placeGrips(); }
+}));
+document.getElementById("reset").onclick = () => { snapshot(); rows = clone(SEED); sel = null; render(); };
+addEventListener("resize", () => { drawSel(); placeGrips(); });
+render();
+</script>
+</body>
+</html>

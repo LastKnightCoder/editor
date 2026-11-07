@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowUp,
   Eraser,
+  TableCellsSplit,
   Trash2,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ export interface HandleMenuActions {
   setAlign: (align: TableAlign) => void;
   clear: () => void;
   remove: () => void;
+  split: () => void;
 }
 
 interface HandleMenuItemsProps {
@@ -30,6 +32,8 @@ interface HandleMenuItemsProps {
   to: number;
   /** 所选列的共同对齐；不一致时为 undefined（仅列菜单） */
   align?: TableAlign;
+  /** 所选行列涉及的合并格数量；为 0 时不显示拆分 */
+  mergedCount: number;
   actions: HandleMenuActions;
 }
 
@@ -43,7 +47,14 @@ const title = (kind: HandleKind, from: number, to: number) => {
 };
 
 /** 行 / 列手柄菜单：作用于手柄所选的整行 / 整列（可多选） */
-export default function HandleMenuItems({ kind, from, to, align, actions }: HandleMenuItemsProps) {
+export default function HandleMenuItems({
+  kind,
+  from,
+  to,
+  align,
+  mergedCount,
+  actions,
+}: HandleMenuItemsProps) {
   const count = to - from + 1;
   const isCol = kind === "col";
   return (
@@ -81,6 +92,11 @@ export default function HandleMenuItems({ kind, from, to, align, actions }: Hand
         </React.Fragment>
       )}
       <Menu.Separator />
+      {mergedCount > 0 && (
+        <Menu.Item icon={<TableCellsSplit size={ICON} />} onSelect={actions.split}>
+          {mergedCount > 1 ? `拆分合并单元格（${mergedCount}）` : "拆分合并单元格"}
+        </Menu.Item>
+      )}
       <Menu.Item icon={<Eraser size={ICON} />} onSelect={actions.clear}>
         清空内容
       </Menu.Item>

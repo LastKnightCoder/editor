@@ -3,6 +3,13 @@ import { renderBlockMath } from "./mathjax-renderer";
 import { renderCodeWithShiki } from "./shiki-renderer";
 import { buildPlantumlSvgUrl } from "@tau/editor/extensions/diagram/plantuml";
 import { CALLOUT_ICONS } from "../wechat";
+import {
+  buildCoverMap,
+  cellSpan,
+  isOriginCell,
+  type TableCellElement,
+  type TableElement,
+} from "@tau/editor/extensions/table/span";
 
 const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
   tip: "技巧",
@@ -176,6 +183,17 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "table",
     isBlock: true,
+    prepare: element => {
+      const table = element as unknown as TableElement;
+      const map = buildCoverMap(table);
+      const excludedElements = new Set<TableCellElement>();
+      table.children.forEach((row, r) =>
+        row.children.forEach((cell, c) => {
+          if (!isOriginCell(map, r, c)) excludedElements.add(cell);
+        })
+      );
+      return { excludedElements };
+    },
     toHtml: (_element, childrenHtml) => {
       return `<table class="table"><tbody>${childrenHtml}</tbody></table>`;
     },
@@ -193,8 +211,10 @@ export const blockSerializers: HtmlSerializer[] = [
   // Table Cell
   {
     type: "table-cell",
-    toHtml: (_element, childrenHtml) => {
-      return `<td class="table-cell">${childrenHtml}</td>`;
+    toHtml: (element: TableCellElement, childrenHtml) => {
+      const [rowSpan, colSpan] = cellSpan(element);
+      const spans = `${rowSpan > 1 ? ` rowspan="${rowSpan}"` : ""}${colSpan > 1 ? ` colspan="${colSpan}"` : ""}`;
+      return `<td class="table-cell"${spans}>${childrenHtml}</td>`;
     },
   },
 

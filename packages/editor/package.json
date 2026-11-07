@@ -97,6 +97,7 @@
     "./extensions/styled-text/colors": "./src/extensions/styled-text/src/colors.ts",
     "./extensions/table": "./src/extensions/table/src/index.tsx",
     "./extensions/table/types": "./src/extensions/table/src/types.ts",
+    "./extensions/table/span": "./src/extensions/table/span.ts",
     "./extensions/table/markdown": "./src/extensions/table/markdown.ts",
     "./extensions/tabs": "./src/extensions/tabs/src/index.tsx",
     "./extensions/tabs/types": "./src/extensions/tabs/src/types.ts",
