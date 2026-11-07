@@ -8,7 +8,7 @@ import { loadSessionTranscript } from "../pi-session-host-core";
 import { chatSessionDirOfDb, resolveSessionFile } from "../pi-session-paths";
 import ContentTable from "../tables/content";
 import EntitySearchTable from "../tables/entity-search";
-import type { MemoryPart } from "./extraction";
+import { CHAT_SUMMARY_ANCHOR, type MemoryPart } from "./extraction";
 
 const CHUNK = 3600;
 const MIN_TIME = 0;
@@ -221,6 +221,9 @@ export class LibraryMemorySources implements MemorySourcesPort {
     const snapshot: MemorySnapshot = {
       parts,
       validate(evidence) {
+        // 对话摘要的引文是模型归纳而非原话，会话仍在即视为有效。
+        if (head.kind === "chat" && evidence.anchor === CHAT_SUMMARY_ANCHOR)
+          return { ...evidence, title: head.row.title || "对话" };
         let part = byAnchor.get(evidence.anchor);
         if (!part?.text.includes(evidence.quote)) {
           // 正文插入新段落会移动块下标；只在同一正文身份中按原话重新定位。

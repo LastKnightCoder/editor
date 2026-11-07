@@ -10,6 +10,8 @@ export const MEMORY_KINDS = [
 ] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
 export type MemoryState = "current" | "history" | "observation";
+/** 意图与遗留事项的结局：本人自述完成、放弃，或到期未跟进。 */
+export type MemoryOutcome = "done" | "dropped" | "expired";
 export const MEMORY_SOURCE_KINDS = [
   "todo",
   "calendar",
@@ -46,6 +48,9 @@ export interface AssistantMemory {
   observedAt: number;
   expiresAt: number | null;
   manual: boolean;
+  outcome?: MemoryOutcome | null;
+  /** 提炼时被判定为稳定的本人表达，已升格为明确画像。 */
+  stable?: boolean;
   evidence: MemoryEvidence[];
 }
 
@@ -81,3 +86,9 @@ export interface PersonalMemoryModel {
 }
 
 export type MemoryCorrection = Pick<AssistantMemory, "kind" | "topic" | "text" | "state">;
+
+/** 用户总述：每行引用支撑它的模型 ID，依据变化后该行隐藏直到重建。 */
+export interface MemoryPortrait {
+  lines: { text: string; modelIds: number[] }[];
+  generatedAt: number;
+}

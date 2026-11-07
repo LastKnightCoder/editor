@@ -18,6 +18,7 @@ import {
   parseExtraction,
   parseSessionSummary,
   SESSION_SUMMARY_SYSTEM,
+  CHAT_SUMMARY_ANCHOR,
   safeMemoryText,
   type MemoryCandidate,
   type MemoryPart,
@@ -29,6 +30,10 @@ import { resolveMemory } from "./retrieval";
 import {
   isPersonalEpisode,
   isSelfDeclaration,
+  RHYTHM_TOPIC,
+  isRhythmModel,
+  MERGE_SYSTEM,
+  parseMerge,
   MEMORY_REVIEW_INTERVAL,
   parseReflection,
   REFLECT_SYSTEM,
@@ -40,6 +45,17 @@ import {
   type ReconcileEntry,
   type ReconcileSubject,
 } from "./reconcile";
+import {
+  parsePortrait,
+  PORTRAIT_CHANGES_META,
+  PORTRAIT_META,
+  PORTRAIT_SYSTEM,
+  portraitInput,
+  readPortrait,
+  PORTRAIT_CHANGES,
+  PORTRAIT_INTERVAL,
+  PORTRAIT_MIN_PROFILES,
+} from "./portrait";
 
 const PAGE = 48;
 const QUIET_MS = 1800;
@@ -56,6 +72,8 @@ const RELATED_EACH = 4;
 const RELATED_LIMIT = 24;
 const REVIEW_CHUNK = 12;
 const RHYTHM_INTERVAL_MS = 7 * 86_400_000;
+const PROFILE_LIMIT = 60;
+const STATE_LIMIT = 24;
 
 type Scan = { phase: "discover" | "recheck"; cursor: string; repeat?: boolean };
 type SourceWork = {
@@ -86,6 +104,8 @@ export interface MemoryWorkerOptions {
   allowed: () => boolean;
   busy: () => boolean;
   queryRhythm?: () => ActivityRhythm | null;
+  /** 依据仍成立的画像与近期状态，供用户总述使用。 */
+  validModels?: (now: number) => PersonalMemoryModel[];
   now?: () => number;
   changed?: () => void;
   progressed?: MemoryDebugReporter;
@@ -238,7 +258,8 @@ export class MemoryWorker {
       mayScan ? now : Infinity,
       this.reflectionDue(now),
       this.reviewDue(now),
-      this.rhythmDue(now)
+      this.rhythmDue(now),
+      this.portraitDue(now)
     );
     if (!Number.isFinite(next)) return;
     this.timer = setTimeout(
@@ -291,6 +312,9 @@ export class MemoryWorker {
         index++;
       } else if (this.rhythmDue(now) <= now && (!jobs.length || historical)) {
         this.analyzeRhythm(now);
+        index++;
+      } else if (this.portraitDue(now) <= now && (!jobs.length || historical)) {
+        await this.writePortrait(now);
         index++;
       } else if (jobs.length) {
         index += await this.process(jobs);
@@ -495,20 +519,28 @@ export class MemoryWorker {
       const messageParts = snapshot.parts
         .filter(p => p.role === "user" || p.role === "assistant")
         .slice(-12);
-      const input = JSON.stringify(
-        messageParts.map(p => ({
+      const before = store.chatSummary(job);
+      const pending = before.filter(item => item.kind === "intention" && item.state === "current");
+      const input = JSON.stringify({
+        previous: pending.map(({ id, text }) => ({ id, text })),
+        messages: messageParts.map(p => ({
           role: p.role,
           text: p.text.slice(0, 600),
           date: new Date(p.observedAt).toISOString(),
-        }))
-      );
+        })),
+      });
       const text = await this.options.complete(SESSION_SUMMARY_SYSTEM, input, signal, "extract");
       if (!this.canRun() || signal.aborted) return;
-      const result = parseSessionSummary(text);
+      const result = parseSessionSummary(
+        text,
+        pending.map(item => item.id)
+      );
       if (!result) return;
       const now = this.now();
       const sessionTitle = safeMemoryText(head.row.title, 40) ?? "对话";
-      const evidence = [{ kind: job.kind, id: job.id, anchor: "summary", quote: result.summary }];
+      const evidence = [
+        { kind: job.kind, id: job.id, anchor: CHAT_SUMMARY_ANCHOR, quote: result.summary },
+      ];
       const candidates: MemoryCandidate[] = [
         {
           kind: "event",
@@ -530,6 +562,12 @@ export class MemoryWorker {
         })),
       ];
       store.atomic(() => {
+        // 同一对话只保留最新一版摘要；遗留事项按模型判定关闭，其余原样保留或强化。
+        for (const item of before)
+          if (item.kind === "event")
+            store.removeEvidence(item.id, { kind: job.kind, id: job.id }, CHAT_SUMMARY_ANCHOR);
+        for (const id of result.resolved) store.closeIntention(id, "done", now);
+        for (const id of result.dropped) store.closeIntention(id, "dropped", now);
         store.apply(candidates, now);
         store.setMeta("dirty-at", String(now));
       });
@@ -598,10 +636,14 @@ export class MemoryWorker {
       // 语义召回不可用时仍按关键词对账。
     }
     if (signal.aborted) return { memories: [], models: [] };
+    // 本人自述可能关闭任意类别的目标，额外召回相关的未完成意图供 fulfill 判定。
     const ranked = subjects.map((subject, index) =>
       [
         ...store.related(queries[index].query, subject.kind, RELATED_EACH + 1),
         ...(semantic[index] ?? []),
+        ...(subject.kind !== "intention" && subject.state === "current"
+          ? store.openIntentions(queries[index].query, 2)
+          : []),
       ].filter(item => item.id !== subject.id)
     );
     const found = new Map<number, AssistantMemory>();
@@ -733,7 +775,7 @@ export class MemoryWorker {
       .join("，");
     if (!text) return;
     store.atomic(() => {
-      store.upsertRhythmModel("使用节律", text, now, now + RHYTHM_INTERVAL_MS * 2);
+      store.upsertRhythmModel(RHYTHM_TOPIC, text, now, now + RHYTHM_INTERVAL_MS * 2);
       store.setMeta("rhythm-at", String(now));
     });
     this.report("节律分析完成", true);
@@ -762,11 +804,112 @@ export class MemoryWorker {
     if (!(await this.reviewReconcile(page, now))) return;
     if (page.length === PAGE) store.setMeta("review-cursor", String(page[page.length - 1].id));
     this.report(`已复核 ${page.length} 条经历`, true);
-    if (page.length < PAGE && (await this.reflect(now, "review"))) {
+    if (
+      page.length < PAGE &&
+      (await this.reflect(now, "review")) &&
+      (await this.mergeProfiles(now))
+    ) {
       store.atomic(() => {
         store.setMeta("review-at", String(now));
         store.setMeta("review-cursor", "");
       });
+      await this.writePortrait(now, true);
+    }
+  }
+
+  /** 复核时合并换了说法的同一画像；失败不推进复核完成时间。 */
+  private async mergeProfiles(now: number): Promise<boolean> {
+    const { store } = this.options;
+    const models = store.listModels(now, PROFILE_LIMIT, 0).filter(model => !isRhythmModel(model));
+    if (models.length < 2) return true;
+    const controller = new AbortController();
+    this.active = { controller };
+    this.progress("reviewing", [], `合并重复画像（${models.length} 条）`);
+    try {
+      const text = await this.options.complete(
+        MERGE_SYSTEM,
+        JSON.stringify({
+          models: models.map(({ id, kind, topic, text, confidence }) => ({
+            id,
+            kind,
+            topic,
+            text,
+            confidence,
+          })),
+        }),
+        controller.signal,
+        "review"
+      );
+      if (!this.canRun() || controller.signal.aborted) return false;
+      // 等待期间被改写的画像不参与合并。
+      const groups = parseMerge(text, models).filter(group =>
+        [group.keep, ...group.merge].every(id => {
+          const before = models.find(model => model.id === id);
+          return before && store.getModel(id)?.text === before.text;
+        })
+      );
+      const merged = store.mergeModels(groups);
+      if (merged) this.report(`已合并 ${merged} 条重复画像`, true);
+      return true;
+    } catch {
+      if (!controller.signal.aborted) {
+        this.reflectionRetryAt = now + REFLECTION_RETRY_MS;
+        this.report("画像合并失败，将在约一小时后重试", false, "error");
+      }
+      return false;
+    } finally {
+      if (this.active?.controller === controller) this.active = undefined;
+    }
+  }
+
+  private portraitDue(now: number): number {
+    const { store } = this.options;
+    const stored = readPortrait(store.meta(PORTRAIT_META));
+    const last = stored?.generatedAt ?? 0;
+    const changes = Number(store.meta(PORTRAIT_CHANGES_META) ?? 0);
+    if (changes < (stored ? PORTRAIT_CHANGES : 1)) return Infinity;
+    return Math.max(last + (stored ? PORTRAIT_INTERVAL : 0), this.reflectionRetryAt, now);
+  }
+
+  /** 基于有效画像与近期状态生成用户总述；画像过少时清除旧总述。 */
+  private async writePortrait(now: number, force = false): Promise<void> {
+    const { store } = this.options;
+    if (!force && this.portraitDue(now) > now) return;
+    const models =
+      this.options.validModels?.(now) ??
+      store.listModels(now, PROFILE_LIMIT, STATE_LIMIT).filter(model => !isRhythmModel(model));
+    if (models.filter(model => model.layer === "profile").length < PORTRAIT_MIN_PROFILES) {
+      store.atomic(() => {
+        store.setMeta(PORTRAIT_META, "");
+        store.setMeta(PORTRAIT_CHANGES_META, "0");
+      });
+      return;
+    }
+    const controller = new AbortController();
+    this.active = { controller };
+    this.progress("reflecting", [], "正在生成用户总述");
+    try {
+      const text = await this.options.complete(
+        PORTRAIT_SYSTEM,
+        portraitInput(models),
+        controller.signal,
+        "reflect"
+      );
+      if (!this.canRun() || controller.signal.aborted) return;
+      const portrait = parsePortrait(text, models, now);
+      store.atomic(() => {
+        if (portrait) store.setMeta(PORTRAIT_META, JSON.stringify(portrait));
+        store.setMeta(PORTRAIT_CHANGES_META, "0");
+      });
+      this.report(portrait ? "用户总述已更新" : "用户总述依据不足，保留原版", true);
+    } catch {
+      if (!controller.signal.aborted) {
+        this.reflectionRetryAt = now + REFLECTION_RETRY_MS;
+        this.report("用户总述生成失败，将在约一小时后重试", false, "error");
+      }
+    } finally {
+      if (this.active?.controller === controller) this.active = undefined;
+      this.progress("idle");
     }
   }
 
@@ -791,7 +934,9 @@ export class MemoryWorker {
           size += length;
           return true;
         });
-      const previous = store.searchModels({ layer: "all", limit: 24 }, now);
+      const previous = store
+        .listModels(now, PROFILE_LIMIT, STATE_LIMIT)
+        .filter(model => !isRhythmModel(model));
       if (!episodes.length) {
         store.expireModels(now);
         store.setMeta("reflected-at", String(now));
