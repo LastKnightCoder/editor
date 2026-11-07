@@ -653,11 +653,28 @@ export class MemoryStore {
     for (const id of ids) this.db.prepare("DELETE FROM memory_model WHERE id=?").run(id);
   }
 
-  expireModels(now: number) {
+  upsertRhythmModel(topic: string, text: string, observedAt: number, expiresAt: number) {
     this.db
-      .prepare(`DELETE FROM memory_model WHERE expires_at<=? OR NOT EXISTS
-      (SELECT 1 FROM memory_model_evidence e WHERE e.model_id=memory_model.id)`)
+      .prepare(`INSERT INTO memory_model
+        (layer,kind,topic,topic_key,text,confidence,observed_at,expires_at,updated_at)
+        VALUES('profile','routine',@topic,@topicKey,@text,'supported',@observedAt,@expiresAt,@observedAt)
+        ON CONFLICT(layer,kind,topic_key) DO UPDATE SET
+          text=excluded.text,observed_at=excluded.observed_at,
+          expires_at=excluded.expires_at,updated_at=excluded.updated_at`)
+      .run({ topic, topicKey: topicKey("routine", topic), text, observedAt, expiresAt });
+  }
+
+  expireModels(now: number) {
+    // 按到期时间清理：有 expires_at 的 model 到期后删除
+    this.db
+      .prepare("DELETE FROM memory_model WHERE expires_at IS NOT NULL AND expires_at<=?")
       .run(now);
+    // 清理孤立 model：无 expires_at 且无 evidence（episode 被删后 trigger 级联删了 evidence，model 残留）
+    this.db
+      .prepare(
+        "DELETE FROM memory_model WHERE expires_at IS NULL AND NOT EXISTS(SELECT 1 FROM memory_model_evidence e WHERE e.model_id=memory_model.id)"
+      )
+      .run();
   }
 
   pruneMemory(id: number, keep: (evidence: MemoryEvidence) => boolean) {
@@ -765,6 +782,20 @@ export class MemoryStore {
           .run(now, candidate.replaces, candidate.observedAt);
       }
       if (candidate.profile && state === "current") this.declareProfile(row.id, now);
+      // activity 深度编辑写入时，续期同 topic 的 current state memory（最多 90 天）
+      if (
+        candidate.evidence.every(ref => ref.kind === "activity") &&
+        candidate.text.includes("深度编辑") &&
+        state === "current"
+      ) {
+        const extendedExpiry = now + 90 * 86_400_000;
+        this.db
+          .prepare(`UPDATE memory SET expires_at=?,touched_at=?
+          WHERE topic_key=? AND state='current' AND manual=0
+            AND (expires_at IS NULL OR expires_at > ?)
+            AND EXISTS(SELECT 1 FROM evidence WHERE memory_id=memory.id AND kind<>'activity')`)
+          .run(extendedExpiry, now, topic, now);
+      }
     }
   }
 
@@ -902,49 +933,6 @@ export class MemoryStore {
         WHERE layer='profile' AND confidence='supported' AND updated_at<=?`
       )
       .run(now - decayMs);
-  }
-
-  // ── 主动澄清队列 ──────────────────────────────────────────────────────────
-
-  pendingClarification(): { kind: string; topic: string; question: string } | null {
-    const raw = this.meta("clarify-queue");
-    if (!raw) return null;
-    try {
-      const queue = JSON.parse(raw) as Array<{
-        kind: string;
-        topic: string;
-        question: string;
-        priority: number;
-      }>;
-      if (!Array.isArray(queue) || !queue.length) return null;
-      return queue.sort((a, b) => b.priority - a.priority)[0] ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  setClarifyQueue(
-    queue: Array<{ kind: string; topic: string; question: string; priority: number }>
-  ) {
-    this.setMeta("clarify-queue", JSON.stringify(queue));
-  }
-
-  resolveClarification(topic: string) {
-    const raw = this.meta("clarify-queue");
-    if (!raw) return;
-    try {
-      const queue = JSON.parse(raw) as Array<{
-        kind: string;
-        topic: string;
-        question: string;
-        priority: number;
-      }>;
-      const filtered = queue.filter(item => item.topic !== topic);
-      this.setMeta("clarify-queue", JSON.stringify(filtered));
-    } catch {
-      // 格式损坏时直接清空
-      this.setMeta("clarify-queue", "[]");
-    }
   }
 }
 

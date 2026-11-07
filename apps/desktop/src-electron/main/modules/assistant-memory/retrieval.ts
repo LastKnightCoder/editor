@@ -87,23 +87,57 @@ export class MemoryRetrieval {
     return supported && current?.text === model.text && current.observedAt === model.observedAt;
   }
 
-  brief(): { profile: PersonalMemoryModel[]; recent: PersonalMemoryModel[] } {
-    if (this.disposed) return { profile: [], recent: [] };
+  brief(query?: string): {
+    profile: PersonalMemoryModel[];
+    recent: PersonalMemoryModel[];
+    recentSessions: Array<{ topic: string; text: string; observedAt: number }>;
+    currentMood: { text: string; observedAt: number } | null;
+  } {
+    if (this.disposed) return { profile: [], recent: [], recentSessions: [], currentMood: null };
+    const now = this.now();
+    // dirty-at 比最后一次 reflection 新超过 5 分钟，说明有新 episode 待归纳，state model 可能过时
+    const dirtyAt = Number(this.options.store.meta("dirty-at") ?? 0);
+    const reflectedAt = Number(this.options.store.meta("reflected-at") ?? 0);
+    const stateStale = dirtyAt > reflectedAt && now - reflectedAt > 5 * 60_000;
     const select = (layer: "profile" | "state", budget: number) => {
       let remaining = budget;
-      return this.options.store
-        .searchModels({ layer, limit: 12 }, this.now())
-        .filter(model => this.validModel(model))
-        .filter(model => layer !== "profile" || model.confidence !== "observation")
-        .filter(model => {
-          const size = model.topic.length + model.text.length;
-          if (size > remaining) return false;
-          remaining -= size;
-          return true;
-        })
-        .slice(0, 4);
+      // 有 query 时按相关性排序（searchModels 内部用 instr 打分），无 query 时退回 observed_at DESC
+      return (
+        this.options.store
+          .searchModels({ layer, limit: 20, query }, now)
+          .filter(model => this.validModel(model))
+          .filter(model => layer !== "profile" || model.confidence !== "observation")
+          // state model 在 reflection 尚未追上新数据时不注入，避免向 AI 提供过时状态
+          .filter(() => layer !== "state" || !stateStale)
+          .filter(model => {
+            const size = model.topic.length + model.text.length;
+            if (size > remaining) return false;
+            remaining -= size;
+            return true;
+          })
+          .slice(0, 6)
+      );
     };
-    return { profile: select("profile", 800), recent: select("state", 1000) };
+    // 最近 3 条对话摘要（kind=event，topic 以"对话摘要："开头）
+    const recentSessions = this.options.store
+      .search({ query: "对话摘要：", kind: "event", state: "current", limit: 6 }, false)
+      .filter(item => item.topic.startsWith("对话摘要："))
+      .sort((a, b) => b.observedAt - a.observedAt)
+      .slice(0, 3)
+      .map(({ topic, text, observedAt }) => ({ topic, text, observedAt }));
+    // 当天有效的当下状态（4小时内，kind=event，topic="当下状态"）
+    const currentMoodItem = this.options.store
+      .search({ kind: "event", state: "current", limit: 6 }, false)
+      .find(item => item.topic === "当下状态" && now - item.observedAt < 4 * 3_600_000);
+    const currentMood = currentMoodItem
+      ? { text: currentMoodItem.text, observedAt: currentMoodItem.observedAt }
+      : null;
+    return {
+      profile: select("profile", 1200),
+      recent: select("state", 1400),
+      recentSessions,
+      currentMood,
+    };
   }
 
   async recall(params: MemorySearch): Promise<MemorySearchResult> {
@@ -121,8 +155,7 @@ export class MemoryRetrieval {
     }
     if (this.disposed) return emptyResult();
     const result = this.collect({ ...params, layer: params.layer ?? "overview" }, true, semantic);
-    const clarifyPending = this.options.store.pendingClarification() ?? undefined;
-    return clarifyPending ? { ...result, clarifyPending } : result;
+    return result;
   }
 
   private collect(

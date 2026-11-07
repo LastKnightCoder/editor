@@ -10,6 +10,8 @@ import {
   deterministicRecord,
   EXTRACT_SYSTEM,
   parseExtraction,
+  parseSessionSummary,
+  SESSION_SUMMARY_SYSTEM,
   safeMemoryText,
   type MemoryCandidate,
   type MemoryPart,
@@ -36,6 +38,7 @@ const REFLECTION_RETRY_MS = 3_600_000;
 const REFLECTION_QUIET_MS = 60_000;
 const REFLECTION_INTERVAL_MS = 5 * 60_000;
 const PROFILE_DECAY_MS = 60 * 86_400_000;
+const RHYTHM_INTERVAL_MS = 7 * 86_400_000;
 
 type Scan = { phase: "discover" | "recheck"; cursor: string; repeat?: boolean };
 type SourceWork = {
@@ -46,6 +49,12 @@ type SourceWork = {
   end: number;
   parts: MemoryPart[];
 };
+export interface ActivityRhythm {
+  peakHours: number[]; // 最活跃的小时（0-23），最多 3 个
+  weekdayRatio: number; // 工作日活跃量占比（0-1）
+  activeDays: number; // 近 30 天的活跃天数
+}
+
 export interface MemoryWorkerOptions {
   store: MemoryStore;
   sources: MemorySourcesPort;
@@ -57,6 +66,7 @@ export interface MemoryWorkerOptions {
   ) => Promise<string>;
   allowed: () => boolean;
   busy: () => boolean;
+  queryRhythm?: () => ActivityRhythm | null;
   now?: () => number;
   changed?: () => void;
   progressed?: MemoryDebugReporter;
@@ -204,7 +214,8 @@ export class MemoryWorker {
       expiry ?? Infinity,
       mayScan ? now : Infinity,
       this.reflectionDue(now),
-      this.reviewDue(now)
+      this.reviewDue(now),
+      this.rhythmDue(now)
     );
     if (!Number.isFinite(next)) return;
     this.timer = setTimeout(
@@ -254,6 +265,9 @@ export class MemoryWorker {
         index++;
       } else if (this.reflectionDue(now) <= now && (!jobs.length || historical)) {
         await this.reflect(now, "reflect");
+        index++;
+      } else if (this.rhythmDue(now) <= now && (!jobs.length || historical)) {
+        this.analyzeRhythm(now);
         index++;
       } else if (jobs.length) {
         index += await this.process(jobs);
@@ -394,6 +408,13 @@ export class MemoryWorker {
           item,
           candidates.filter(candidate => candidate.evidence.some(ref => sameSource(ref, item.job)))
         );
+        // chat 来源全部处理完毕时，生成或更新对话摘要
+        if (
+          item.job.kind === "chat" &&
+          item.end >= item.snapshot.parts.length &&
+          item.snapshot.parts.filter(p => p.role === "user").length >= 3
+        )
+          await this.summarizeChat(item, controller.signal);
       }
     } catch {
       if (this.canRun() && !controller.signal.aborted) {
@@ -435,6 +456,63 @@ export class MemoryWorker {
       id: job.id,
       title: safeMemoryText(item.parts[0]?.title ?? head.row.title, 90) ?? undefined,
     });
+  }
+
+  private async summarizeChat(item: SourceWork, signal: AbortSignal) {
+    const { store } = this.options;
+    const { job, snapshot, head } = item;
+    if (!this.canRun() || signal.aborted) return;
+    this.progress("extracting", [{ kind: job.kind, id: job.id }], "正在生成对话摘要");
+    try {
+      // 取最后 12 条用户+助手消息，控制 token 开销
+      const messageParts = snapshot.parts
+        .filter(p => p.role === "user" || p.role === "assistant")
+        .slice(-12);
+      const input = JSON.stringify(
+        messageParts.map(p => ({
+          role: p.role,
+          text: p.text.slice(0, 600),
+          date: new Date(p.observedAt).toISOString(),
+        }))
+      );
+      const text = await this.options.complete(SESSION_SUMMARY_SYSTEM, input, signal, "extract");
+      if (!this.canRun() || signal.aborted) return;
+      const result = parseSessionSummary(text);
+      if (!result) return;
+      const now = this.now();
+      const sessionTitle = safeMemoryText(head.row.title, 40) ?? "对话";
+      const evidence = [{ kind: job.kind, id: job.id, anchor: "summary", quote: result.summary }];
+      const candidates: MemoryCandidate[] = [
+        {
+          kind: "event",
+          topic: `对话摘要：${sessionTitle}`,
+          text: result.summary,
+          state: "current",
+          observedAt: now,
+          expiresAt: now + 90 * 86_400_000,
+          evidence,
+        },
+        ...result.pendingItems.map(item => ({
+          kind: "intention" as const,
+          topic: `遗留：${item.slice(0, 60)}`,
+          text: item,
+          state: "current" as const,
+          observedAt: now,
+          expiresAt: now + 30 * 86_400_000,
+          evidence,
+        })),
+      ];
+      store.atomic(() => {
+        store.apply(candidates, now);
+        store.setMeta("dirty-at", String(now));
+      });
+      this.report(`已生成对话摘要（${result.pendingItems.length} 条遗留事项）`, true, "info", {
+        kind: job.kind,
+        id: job.id,
+      });
+    } catch {
+      // 摘要生成失败不影响主流程
+    }
   }
 
   private async extract(parts: MemoryPart[], signal: AbortSignal): Promise<MemoryCandidate[]> {
@@ -509,6 +587,42 @@ export class MemoryWorker {
         ? dirtyAt + REFLECTION_QUIET_MS
         : Infinity;
     return Math.max(due, this.reflectionRetryAt);
+  }
+
+  private rhythmDue(now: number): number {
+    if (!this.options.queryRhythm) return Infinity;
+    const last = Number(this.options.store.meta("rhythm-at") ?? 0);
+    return last ? last + RHYTHM_INTERVAL_MS : now;
+  }
+
+  private analyzeRhythm(now: number) {
+    const { store } = this.options;
+    const rhythm = this.options.queryRhythm?.();
+    if (!rhythm) return;
+    const peakDesc = rhythm.peakHours.length
+      ? rhythm.peakHours
+          .map(h => (h < 12 ? `上午${h}点` : h < 18 ? `下午${h - 12}点` : `晚上${h - 12}点`))
+          .join("、")
+      : null;
+    const sessionDesc =
+      rhythm.weekdayRatio > 0.8
+        ? "主要在工作日活跃"
+        : rhythm.weekdayRatio < 0.4
+          ? "主要在周末活跃"
+          : "工作日和周末都会使用";
+    const text = [
+      peakDesc ? `通常在 ${peakDesc} 最活跃` : null,
+      sessionDesc,
+      rhythm.activeDays > 0 ? `近30天有 ${rhythm.activeDays} 天使用记录` : null,
+    ]
+      .filter(Boolean)
+      .join("，");
+    if (!text) return;
+    store.atomic(() => {
+      store.upsertRhythmModel("使用节律", text, now, now + RHYTHM_INTERVAL_MS * 2);
+      store.setMeta("rhythm-at", String(now));
+    });
+    this.report("节律分析完成", true);
   }
 
   private async review(now: number) {
@@ -636,8 +750,6 @@ export class MemoryWorker {
       });
       this.reflectionRetryAt = 0;
       this.report("个人理解归纳检查完成", true);
-      // 归纳完成后更新主动澄清队列：supported profile 中无 explicit 证据的偏好类模型入队
-      this.updateClarifyQueue(store, now);
       return true;
     } catch {
       if (!controller.signal.aborted) {
@@ -649,54 +761,5 @@ export class MemoryWorker {
       if (this.active?.controller === controller) this.active = undefined;
       this.progress("idle");
     }
-  }
-
-  private updateClarifyQueue(store: MemoryStore, now: number) {
-    const CLARIFY_KINDS = ["preference", "routine", "interest"] as const;
-    const models = store.searchModels({ layer: "profile", limit: 32 }, now);
-    const QUESTIONS: Record<string, string> = {
-      preference: "你有什么偏好或习惯想让我了解？",
-      routine: "你有什么固定的工作或生活方式？",
-      interest: "你对哪些领域或主题比较感兴趣？",
-    };
-    const existing = (() => {
-      try {
-        const raw = store.meta("clarify-queue");
-        return raw
-          ? (JSON.parse(raw) as Array<{
-              kind: string;
-              topic: string;
-              question: string;
-              priority: number;
-            }>)
-          : [];
-      } catch {
-        return [];
-      }
-    })();
-    // 找出 supported 且无同 topic explicit 的模型，保留或新建澄清条目
-    const newQueue = models
-      .filter(
-        m =>
-          CLARIFY_KINDS.includes(m.kind as (typeof CLARIFY_KINDS)[number]) &&
-          m.confidence === "supported"
-      )
-      .filter(
-        m =>
-          !models.some(e => e.kind === m.kind && e.topic === m.topic && e.confidence === "explicit")
-      )
-      .slice(0, 5)
-      .map(m => {
-        const prev = existing.find(e => e.topic === m.topic && e.kind === m.kind);
-        return (
-          prev ?? {
-            kind: m.kind,
-            topic: m.topic,
-            question: `关于「${m.topic}」，${QUESTIONS[m.kind] ?? "能告诉我更多吗？"}`,
-            priority: 1,
-          }
-        );
-      });
-    store.setClarifyQueue(newQueue);
   }
 }

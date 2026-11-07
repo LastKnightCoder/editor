@@ -59,7 +59,6 @@ export interface MemorySearchResult {
   memories: AssistantMemory[];
   sources: MemoryEvidence[];
   nextBefore: number | null;
-  clarifyPending?: { kind: string; topic: string; question: string };
 }
 
 export interface PersonalMemoryModel {
