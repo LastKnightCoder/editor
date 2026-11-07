@@ -43,9 +43,11 @@ class Sources implements MemorySourcesPort {
           ? "record"
           : kind === "chat"
             ? "user"
-            : kind === "activity"
-              ? "activity"
-              : "document",
+            : kind === "diary"
+              ? "diary"
+              : kind === "activity"
+                ? "activity"
+                : "document",
       title: text,
       current: kind === "todo" ? "待办" : undefined,
     }));
@@ -441,7 +443,7 @@ describe("个人助手记忆", () => {
     }
   }, 120_000);
 
-  it("来源变化、前台忙碌和删除都能阻断迟到提交", async () => {
+  it.each(["chat", "diary"] as const)("%s 来源变化、前台忙碌和删除都能阻断迟到提交", async kind => {
     const f = setup();
     try {
       let release!: (text: string) => void;
@@ -452,12 +454,12 @@ describe("个人助手记忆", () => {
           release = resolve;
         });
       });
-      const source = f.sources.put("chat", "1", START, ["旧稿：周五评审"]);
+      const source = f.sources.put(kind, "1", START, ["旧稿：周五评审"]);
       f.worker.changed(source);
       f.advance(2000);
       const run = f.worker.runBatch(1);
       expect(pendingInput).toContain("周五");
-      f.sources.put("chat", "1", START + 1, ["新稿：周二评审"]);
+      f.sources.put(kind, "1", START + 1, ["新稿：周二评审"]);
       f.worker.changed(source);
       release(extraction(pendingInput));
       await run;
@@ -479,7 +481,7 @@ describe("个人助手记忆", () => {
           release = resolve;
         });
       });
-      f.sources.put("chat", "1", START + 2, ["第三稿：周三评审"]);
+      f.sources.put(kind, "1", START + 2, ["第三稿：周三评审"]);
       f.worker.changed(source);
       f.advance(2000);
       const deleting = f.worker.runBatch(1);

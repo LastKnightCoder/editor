@@ -22,6 +22,7 @@ import { MemoryStore, type MemoryProgress } from "./store";
 import { resolveMemory } from "./retrieval";
 import {
   isPersonalEpisode,
+  isSelfDeclaration,
   MEMORY_REVIEW_INTERVAL,
   parseReflection,
   REFLECT_SYSTEM,
@@ -169,7 +170,11 @@ export class MemoryWorker {
   changed(source: MemorySource, resetHistory = false) {
     if (this.disposed || source.kind === "content") return;
     this.options.sources.invalidate(source);
-    this.options.store.mark(source, this.now() + (source.kind === "activity" ? QUIET_MS : 0), 3);
+    this.options.store.mark(
+      source,
+      this.now() + (source.kind === "activity" || source.kind === "diary" ? QUIET_MS : 0),
+      3
+    );
     this.options.store.setMeta("dirty-at", String(this.now()));
     if (resetHistory) this.options.store.resetHistory(source);
     if (
@@ -365,7 +370,7 @@ export class MemoryWorker {
           const item = this.prepare(job, available, MAX_PARTS - input.length);
           if (!item) continue;
           work.push(item);
-          const modeled = item.parts.filter(part => part.role === "user");
+          const modeled = item.parts.filter(part => part.role === "user" || part.role === "diary");
           input.push(...modeled);
           available -= modeled.reduce((sum, part) => sum + part.text.length, 0);
         } catch {
@@ -532,9 +537,13 @@ export class MemoryWorker {
       JSON.stringify({
         parts: parts.map((part, index) => ({
           part: index,
+          source: part.kind,
           role: part.role,
           text: part.text,
-          date: new Date(part.observedAt).toISOString(),
+          date:
+            part.kind === "diary"
+              ? new Date(part.observedAt).toLocaleString("zh-CN")
+              : new Date(part.observedAt).toISOString(),
         })),
         related: related.map(({ id, kind, topic, text }) => ({ id, kind, topic, text })),
       }),
@@ -688,22 +697,19 @@ export class MemoryWorker {
         JSON.stringify({
           now: new Date(now).toISOString(),
           previous,
-          episodes: episodes.map(
-            ({ id, kind, topic, text, state, observedAt, evidence, manual }) => ({
-              id,
-              kind,
-              topic,
-              text,
-              state,
-              observedAt,
-              basis:
-                manual || (state === "current" && evidence.some(ref => ref.kind === "chat"))
-                  ? "self-declaration"
-                  : evidence.every(ref => ref.kind === "activity")
-                    ? "activity"
-                    : "observation",
-            })
-          ),
+          episodes: episodes.map(item => ({
+            id: item.id,
+            kind: item.kind,
+            topic: item.topic,
+            text: item.text,
+            state: item.state,
+            observedAt: item.observedAt,
+            basis: isSelfDeclaration(item)
+              ? "self-declaration"
+              : item.evidence.every(ref => ref.kind === "activity")
+                ? "activity"
+                : "observation",
+          })),
         }),
         controller.signal,
         purpose

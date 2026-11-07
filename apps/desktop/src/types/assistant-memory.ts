@@ -10,9 +10,16 @@ export const MEMORY_KINDS = [
 ] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
 export type MemoryState = "current" | "history" | "observation";
-export const MEMORY_SOURCE_KINDS = ["todo", "calendar", "content", "chat", "activity"] as const;
+export const MEMORY_SOURCE_KINDS = [
+  "todo",
+  "calendar",
+  "content",
+  "chat",
+  "activity",
+  "diary",
+] as const;
 export type MemorySourceKind = (typeof MEMORY_SOURCE_KINDS)[number];
-export const MEMORY_INGEST_KINDS = ["todo", "calendar", "chat", "activity"] as const;
+export const MEMORY_INGEST_KINDS = ["todo", "calendar", "chat", "activity", "diary"] as const;
 export type MemoryLayer = "overview" | "episode" | "state" | "profile";
 export interface MemorySource {
   kind: MemorySourceKind;
