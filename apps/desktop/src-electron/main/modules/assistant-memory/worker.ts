@@ -1,24 +1,29 @@
 import { setImmediate as yieldTurn } from "node:timers/promises";
+import type { MemorySource, MemorySourceKind } from "@/types/assistant-memory";
 import type {
-  AssistantMemory,
-  MemorySearch,
-  MemorySearchResult,
-  MemorySource,
-  MemorySourceKind,
-} from "@/types/assistant-memory";
+  MemoryDebugPhase,
+  MemoryDebugReporter,
+  MemoryDebugSource,
+  MemoryWorkerDebug,
+} from "@/types/assistant-memory-debug";
 import {
   deterministicRecord,
-  DREAM_SYSTEM,
   EXTRACT_SYSTEM,
-  parseDream,
   parseExtraction,
   safeMemoryText,
   type MemoryCandidate,
   type MemoryPart,
 } from "./extraction";
-import { MEMORY_SOURCE_KINDS as SOURCE_KINDS } from "@/types/assistant-memory";
+import { MEMORY_INGEST_KINDS as SOURCE_KINDS } from "@/types/assistant-memory";
 import type { MemoryHead, MemorySnapshot, MemorySourcesPort } from "./sources";
 import { MemoryStore, type MemoryProgress } from "./store";
+import { resolveMemory } from "./retrieval";
+import {
+  isPersonalEpisode,
+  MEMORY_REVIEW_INTERVAL,
+  parseReflection,
+  REFLECT_SYSTEM,
+} from "./reflection";
 
 const PAGE = 48;
 const QUIET_MS = 1800;
@@ -27,8 +32,10 @@ const GROUP_SOURCES = 6;
 const INPUT_CHARS = 9000;
 const SLICE_JOBS = 12;
 const SLICE_MS = 1200;
-const DAY = 86_400_000;
-const DREAM_RETRY_MS = 3_600_000;
+const REFLECTION_RETRY_MS = 3_600_000;
+const REFLECTION_QUIET_MS = 60_000;
+const REFLECTION_INTERVAL_MS = 5 * 60_000;
+const PROFILE_DECAY_MS = 60 * 86_400_000;
 
 type Scan = { phase: "discover" | "recheck"; cursor: string; repeat?: boolean };
 type SourceWork = {
@@ -46,18 +53,18 @@ export interface MemoryWorkerOptions {
     system: string,
     input: string,
     signal: AbortSignal,
-    purpose: "extract" | "dream"
+    purpose: "extract" | "reflect" | "review"
   ) => Promise<string>;
   allowed: () => boolean;
   busy: () => boolean;
   now?: () => number;
   changed?: () => void;
+  progressed?: MemoryDebugReporter;
 }
 
 const sameSource = (a: MemorySource, b: MemorySource) => a.kind === b.kind && a.id === b.id;
 const sameHead = (a: MemoryHead, b: MemoryHead | null) =>
   b !== null && a.modifiedAt === b.modifiedAt && a.row.create_time === b.row.create_time;
-const today = (time: number) => new Date(time).toLocaleDateString("en-CA");
 
 export class MemoryWorker {
   private active?: { sources?: MemorySource[]; controller: AbortController };
@@ -65,8 +72,11 @@ export class MemoryWorker {
   private disposed = false;
   private ticking?: Promise<void>;
   private turns = 0;
-  private dreamRetryAt = 0;
+  private reflectionRetryAt = 0;
   private readonly now: () => number;
+  private phase: MemoryDebugPhase = "idle";
+  private phaseStartedAt: number | null = null;
+  private currentSources: MemoryDebugSource[] = [];
 
   constructor(private readonly options: MemoryWorkerOptions) {
     this.now = options.now ?? Date.now;
@@ -84,11 +94,51 @@ export class MemoryWorker {
     return SOURCE_KINDS.some(kind => this.scan(kind));
   }
 
+  debugState(): MemoryWorkerDebug {
+    const now = this.now();
+    const finite = (value: number) => (Number.isFinite(value) ? value : null);
+    const { store } = this.options;
+    return {
+      phase: this.phase,
+      startedAt: this.phaseStartedAt,
+      sources: [...this.currentSources],
+      scanning: this.scanning,
+      running: this.running,
+      nextSourceAt: store.nextDue(),
+      nextReflectionAt: finite(this.reflectionDue(now)),
+      nextReviewAt: finite(this.reviewDue(now)),
+      lastReflectionAt: Number(store.meta("reflected-at")) || null,
+      lastReviewAt: Number(store.meta("review-at")) || null,
+      reviewCursor: store.meta("review-cursor") ? Number(store.meta("review-cursor")) : null,
+    };
+  }
+
+  private report(
+    message: string,
+    contentChanged = false,
+    level: "info" | "error" = "info",
+    source?: MemoryDebugSource
+  ) {
+    this.options.progressed?.(
+      { at: this.now(), area: "worker", level, message, source },
+      contentChanged
+    );
+  }
+
+  private progress(phase: MemoryDebugPhase, sources: MemoryDebugSource[] = [], message?: string) {
+    if (phase === this.phase && !message && !sources.length && !this.currentSources.length) return;
+    if (phase !== this.phase) this.phaseStartedAt = phase === "idle" ? null : this.now();
+    this.phase = phase;
+    this.currentSources = sources;
+    this.report(message ?? "本批处理结束，等待下一次工作");
+  }
+
   reconcile(kinds: readonly MemorySourceKind[] = SOURCE_KINDS, repeat = false, seed = false) {
     if (this.disposed) return;
     const { store, sources } = this.options;
     store.atomic(() => {
       for (const kind of kinds) {
+        if (kind === "content") continue;
         const existing = this.scan(kind);
         if (!existing || (repeat && !existing.repeat))
           store.setMeta(
@@ -102,22 +152,29 @@ export class MemoryWorker {
             store.observe(source, source.modifiedAt, this.now(), 2);
       }
     });
+    this.report("已安排来源对账");
     this.wake();
   }
 
   changed(source: MemorySource, resetHistory = false) {
-    if (this.disposed) return;
+    if (this.disposed || source.kind === "content") return;
     this.options.sources.invalidate(source);
-    this.options.store.mark(source, this.now() + (source.kind === "content" ? QUIET_MS : 0), 3);
+    this.options.store.mark(source, this.now() + (source.kind === "activity" ? QUIET_MS : 0), 3);
+    this.options.store.setMeta("dirty-at", String(this.now()));
     if (resetHistory) this.options.store.resetHistory(source);
-    if (this.active?.sources?.some(item => sameSource(item, source)))
+    if (
+      this.active &&
+      (!this.active.sources || this.active.sources.some(item => sameSource(item, source)))
+    )
       this.active.controller.abort();
+    this.report("来源发生变化，已进入处理队列", true, "info", source);
     this.wake();
   }
 
   interrupt() {
     this.active?.controller.abort();
     this.clearTimer();
+    if (this.active) this.report("后台任务已中断，等待恢复");
   }
 
   close() {
@@ -142,8 +199,13 @@ export class MemoryWorker {
     const expiry = store.nextExpiry();
     const pending = store.nextDue();
     const mayScan = this.scanning && store.pendingCount(PAGE * 2) < PAGE * 2;
-    const dream = this.dreamDue(now);
-    const next = Math.min(pending ?? Infinity, expiry ?? Infinity, mayScan ? now : Infinity, dream);
+    const next = Math.min(
+      pending ?? Infinity,
+      expiry ?? Infinity,
+      mayScan ? now : Infinity,
+      this.reflectionDue(now),
+      this.reviewDue(now)
+    );
     if (!Number.isFinite(next)) return;
     this.timer = setTimeout(
       () => {
@@ -163,6 +225,7 @@ export class MemoryWorker {
     this.clearTimer();
     this.ticking = this.run(maxJobs).finally(() => {
       this.ticking = undefined;
+      this.progress("idle");
       if (!this.disposed) {
         this.options.changed?.();
         this.wake();
@@ -178,12 +241,19 @@ export class MemoryWorker {
       const now = this.now();
       const { store } = this.options;
       const expiry = store.nextExpiry();
-      if (expiry !== null && expiry <= now) store.expire(now);
+      if (expiry !== null && expiry <= now) {
+        store.expire(now);
+        store.decayModels(now, PROFILE_DECAY_MS);
+        this.report("已更新到期经历及依赖模型", true);
+      }
       if (this.scanning && store.pendingCount(PAGE * 2) < PAGE * 2) this.scanPage();
       const historical = ++this.turns % 6 === 0;
       const jobs = store.due(now, Math.min(GROUP_SOURCES, maxJobs - index), historical);
-      if (this.dreamDue(now) <= now && (!jobs.length || historical)) {
-        await this.dream(now);
+      if (this.reviewDue(now) <= now && (!jobs.length || historical)) {
+        await this.review(now);
+        index++;
+      } else if (this.reflectionDue(now) <= now && (!jobs.length || historical)) {
+        await this.reflect(now, "reflect");
         index++;
       } else if (jobs.length) {
         index += await this.process(jobs);
@@ -201,6 +271,7 @@ export class MemoryWorker {
     if (!kind) return;
     const scan = this.scan(kind);
     if (!scan) return;
+    this.progress("scanning", [], `分页对账：${kind}`);
     store.atomic(() => {
       const page =
         scan.phase === "discover"
@@ -234,6 +305,7 @@ export class MemoryWorker {
     const head = sources.head(job);
     if (!head) {
       store.atomic(() => store.removeSource(job));
+      this.report("来源已删除，已清理关联经历", true, "info", job);
       return null;
     }
     const snapshot = sources.read(head);
@@ -270,6 +342,7 @@ export class MemoryWorker {
     const input: MemoryPart[] = [];
     let available = INPUT_CHARS;
     let visited = 0;
+    this.progress("reading", jobs, "正在读取来源片段");
     try {
       for (const job of jobs) {
         if (available < 3600 || input.length >= MAX_PARTS) break;
@@ -278,17 +351,27 @@ export class MemoryWorker {
           const item = this.prepare(job, available, MAX_PARTS - input.length);
           if (!item) continue;
           work.push(item);
-          const modeled = item.parts.filter(part => part.role !== "record");
+          const modeled = item.parts.filter(part => part.role === "user");
           input.push(...modeled);
           available -= modeled.reduce((sum, part) => sum + part.text.length, 0);
         } catch {
           store.fail(job, this.now());
+          this.report("读取来源失败，已安排自动重试", false, "error", job);
         }
       }
       this.active = { sources: work.map(item => item.job), controller };
+      this.currentSources = work.map(item => ({
+        kind: item.job.kind,
+        id: item.job.id,
+        title: safeMemoryText(item.parts[0]?.title ?? item.head.row.title, 90) ?? undefined,
+      }));
       // 明确的事项状态独立提交，不受同批模型失败影响。
       for (const item of work) {
-        if (item.job.kind === "todo" || item.job.kind === "calendar")
+        if (
+          item.job.kind === "todo" ||
+          item.job.kind === "calendar" ||
+          item.job.kind === "activity"
+        )
           this.commit(
             item,
             item.parts.flatMap(part => deterministicRecord(part, this.now()))
@@ -297,7 +380,12 @@ export class MemoryWorker {
       const candidates = await this.extract(input, controller.signal);
       if (!this.canRun() || controller.signal.aborted) return Math.max(1, visited);
       for (const item of work) {
-        if (item.job.kind === "todo" || item.job.kind === "calendar") continue;
+        if (
+          item.job.kind === "todo" ||
+          item.job.kind === "calendar" ||
+          item.job.kind === "activity"
+        )
+          continue;
         if (!sameHead(item.head, sources.head(item.job))) {
           this.changed(item.job);
           continue;
@@ -309,10 +397,12 @@ export class MemoryWorker {
       }
     } catch {
       if (this.canRun() && !controller.signal.aborted) {
+        this.report("提炼模型调用或输出校验失败，已安排自动重试", false, "error");
         for (const item of work) {
           if (
             item.job.kind !== "todo" &&
             item.job.kind !== "calendar" &&
+            item.job.kind !== "activity" &&
             store.progress(item.job)?.dueAt !== null
           )
             store.fail(item.job, this.now());
@@ -320,6 +410,7 @@ export class MemoryWorker {
       }
     } finally {
       if (this.active?.controller === controller) this.active = undefined;
+      this.progress("idle");
     }
     return Math.max(1, visited);
   }
@@ -339,10 +430,16 @@ export class MemoryWorker {
       );
       if (candidates.length) store.setMeta("dirty-at", String(this.now()));
     });
+    this.report(`已核对来源（${candidates.length} 条候选）`, true, "info", {
+      kind: job.kind,
+      id: job.id,
+      title: safeMemoryText(item.parts[0]?.title ?? head.row.title, 90) ?? undefined,
+    });
   }
 
   private async extract(parts: MemoryPart[], signal: AbortSignal): Promise<MemoryCandidate[]> {
     if (!parts.length) return [];
+    this.progress("extracting", this.currentSources, "正在调用模型提炼个人经历");
     const { store } = this.options;
     const related = store.search({
       query: parts
@@ -386,111 +483,220 @@ export class MemoryWorker {
     return candidates;
   }
 
-  private dreamDue(now: number): number {
+  private reflectionDue(now: number): number {
     const { store } = this.options;
+    if (!store.hasMemories()) return Infinity;
     const dirtyAt = Number(store.meta("dirty-at") ?? 0);
-    const last = Number(store.meta("dream-at") ?? 0);
-    if (!dirtyAt || last >= dirtyAt) return Infinity;
-    if (last && today(last) === today(now)) {
-      const next = new Date(now);
-      next.setHours(24, 0, 0, 0);
-      return next.getTime();
-    }
-    return Math.max(dirtyAt + QUIET_MS, this.dreamRetryAt);
+    const last = Number(store.meta("reflected-at") ?? 0);
+    if (!dirtyAt || dirtyAt <= last) return Infinity;
+    return Math.max(
+      dirtyAt + REFLECTION_QUIET_MS,
+      last ? last + REFLECTION_INTERVAL_MS : 0,
+      this.reflectionRetryAt,
+      now
+    );
   }
 
-  private async dream(now: number) {
+  private reviewDue(now: number): number {
     const { store } = this.options;
+    if (!store.hasMemories()) return Infinity;
+    if (store.meta("review-cursor")) return Math.max(now, this.reflectionRetryAt);
+    const last = Number(store.meta("review-at") ?? 0);
+    const dirtyAt = Number(store.meta("dirty-at") ?? 0);
+    const due = last
+      ? last + MEMORY_REVIEW_INTERVAL
+      : dirtyAt
+        ? dirtyAt + REFLECTION_QUIET_MS
+        : Infinity;
+    return Math.max(due, this.reflectionRetryAt);
+  }
+
+  private async review(now: number) {
+    const { store, sources } = this.options;
+    const cursor = Number(store.meta("review-cursor") || 0);
+    this.progress("reviewing", [], `全面复核经历，当前断点 ${cursor}`);
+    store.setMeta("review-cursor", String(cursor));
+    const page = store.reviewPage(cursor, PAGE);
+    store.atomic(() => {
+      for (const item of page)
+        store.pruneMemory(item.id, ref => {
+          try {
+            const head = sources.head(ref);
+            return head !== null && sources.read(head).validate(ref) !== null;
+          } catch {
+            // 暂时未同步到的来源不等于已删除，召回时仍会隐藏不可核对的条目。
+            return true;
+          }
+        });
+      store.expire(now);
+      store.expireModels(now);
+      if (page.length === PAGE) store.setMeta("review-cursor", String(page[page.length - 1].id));
+    });
+    this.report(`已复核 ${page.length} 条经历`, true);
+    if (page.length < PAGE && (await this.reflect(now, "review"))) {
+      store.atomic(() => {
+        store.setMeta("review-at", String(now));
+        store.setMeta("review-cursor", "");
+      });
+    }
+  }
+
+  private async reflect(now: number, purpose: "reflect" | "review"): Promise<boolean> {
+    const { store, sources } = this.options;
     const controller = new AbortController();
     this.active = { controller };
+    this.progress(
+      purpose === "review" ? "reviewing" : "reflecting",
+      [],
+      purpose === "review" ? "复核后重新归纳个人理解" : "正在归纳近期状态和长期画像"
+    );
     try {
-      const items = store
-        .dreamCandidates(Math.max(Number(store.meta("dream-at") ?? 0), now - 7 * DAY))
-        .map(item => this.resolveMemory(item))
-        .filter(item => !item.manual && item.evidence.length);
-      const groups =
-        items.length > 1
-          ? parseDream(
-              await this.options.complete(
-                DREAM_SYSTEM,
-                JSON.stringify(
-                  items.map(({ id, kind, topic, text, state, observedAt }) => ({
-                    id,
-                    kind,
-                    topic,
-                    text,
-                    state,
-                    observedAt,
-                  }))
-                ),
-                controller.signal,
-                "dream"
-              )
-            )
-          : [];
-      if (this.canRun() && !controller.signal.aborted)
-        store.atomic(() => {
-          store.applyDream(groups, new Set(items.map(item => item.id)), now);
-          store.setMeta("dream-at", String(now));
+      let size = 0;
+      const episodes = store
+        .reflectionEpisodes()
+        .map(item => resolveMemory(sources, item))
+        .filter(item => isPersonalEpisode(item) && (item.manual || item.evidence.length))
+        .filter(item => {
+          const length = item.text.length + item.topic.length + 200;
+          if (size + length > 20_000) return false;
+          size += length;
+          return true;
         });
+      const previous = store.searchModels({ layer: "all", limit: 24 }, now);
+      if (!episodes.length) {
+        store.expireModels(now);
+        store.setMeta("reflected-at", String(now));
+        this.report("归纳检查完成，目前没有可用的个人经历", true);
+        return true;
+      }
+      const text = await this.options.complete(
+        REFLECT_SYSTEM,
+        JSON.stringify({
+          now: new Date(now).toISOString(),
+          previous,
+          episodes: episodes.map(
+            ({ id, kind, topic, text, state, observedAt, evidence, manual }) => ({
+              id,
+              kind,
+              topic,
+              text,
+              state,
+              observedAt,
+              basis:
+                manual || (state === "current" && evidence.some(ref => ref.kind === "chat"))
+                  ? "self-declaration"
+                  : evidence.every(ref => ref.kind === "activity")
+                    ? "activity"
+                    : "observation",
+            })
+          ),
+        }),
+        controller.signal,
+        purpose
+      );
+      if (!this.canRun() || controller.signal.aborted) return false;
+      const reflection = parseReflection(text, episodes, previous, now);
+      const valid = episodes.filter(item => {
+        const current = store.get(item.id);
+        return (
+          current &&
+          current.kind === item.kind &&
+          current.topic === item.topic &&
+          current.text === item.text &&
+          current.state === item.state &&
+          current.observedAt === item.observedAt &&
+          (current.manual || resolveMemory(sources, current).evidence.length)
+        );
+      });
+      const allowed = new Set(valid.map(item => item.id));
+      store.atomic(() => {
+        store.retireModels(
+          reflection.retire
+            .filter(item => {
+              const before = previous.find(model => model.id === item.id);
+              const current = store.getModel(item.id);
+              return (
+                before &&
+                current &&
+                before.text === current.text &&
+                before.observedAt === current.observedAt &&
+                item.episodeIds.every(id => allowed.has(id))
+              );
+            })
+            .map(item => item.id)
+        );
+        store.applyModels(
+          reflection.models.filter(item => item.episodeIds.every(id => allowed.has(id))),
+          new Map(episodes.map(item => [item.id, item])),
+          now
+        );
+        store.mergeEpisodes(reflection.merge, allowed, now);
+        store.expireModels(now);
+        store.setMeta("reflected-at", String(now));
+      });
+      this.reflectionRetryAt = 0;
+      this.report("个人理解归纳检查完成", true);
+      // 归纳完成后更新主动澄清队列：supported profile 中无 explicit 证据的偏好类模型入队
+      this.updateClarifyQueue(store, now);
+      return true;
     } catch {
-      if (!controller.signal.aborted) this.dreamRetryAt = now + DREAM_RETRY_MS;
+      if (!controller.signal.aborted) {
+        this.reflectionRetryAt = now + REFLECTION_RETRY_MS;
+        this.report("归纳模型调用或输出校验失败，将在约一小时后重试", false, "error");
+      }
+      return false;
     } finally {
       if (this.active?.controller === controller) this.active = undefined;
+      this.progress("idle");
     }
   }
 
-  private resolveMemory(item: AssistantMemory): AssistantMemory {
-    const evidence = item.evidence.flatMap(ref => {
+  private updateClarifyQueue(store: MemoryStore, now: number) {
+    const CLARIFY_KINDS = ["preference", "routine", "interest"] as const;
+    const models = store.searchModels({ layer: "profile", limit: 32 }, now);
+    const QUESTIONS: Record<string, string> = {
+      preference: "你有什么偏好或习惯想让我了解？",
+      routine: "你有什么固定的工作或生活方式？",
+      interest: "你对哪些领域或主题比较感兴趣？",
+    };
+    const existing = (() => {
       try {
-        const head = this.options.sources.head(ref);
-        const resolved = head && this.options.sources.read(head).validate(ref);
-        return resolved ? [resolved] : [];
+        const raw = store.meta("clarify-queue");
+        return raw
+          ? (JSON.parse(raw) as Array<{
+              kind: string;
+              topic: string;
+              question: string;
+              priority: number;
+            }>)
+          : [];
       } catch {
         return [];
       }
-    });
-    return { ...item, evidence };
-  }
-
-  get(id: number): AssistantMemory | null {
-    this.options.store.expire(this.now());
-    const item = this.options.store.get(id);
-    if (!item) return null;
-    const resolved = this.resolveMemory(item);
-    return resolved.manual || resolved.evidence.length ? resolved : null;
-  }
-
-  search(params: MemorySearch, includeSources: boolean): MemorySearchResult {
-    const { store, sources } = this.options;
-    store.expire(this.now());
-    const limit = params.limit ?? 12;
-    const rows = store.search({ ...params, limit: Math.min(limit * 2, 100) }, includeSources);
-    const memories: AssistantMemory[] = [];
-    let scanned = 0;
-    for (const row of rows) {
-      scanned++;
-      const item = this.resolveMemory(row);
-      if (item.manual || item.evidence.length) memories.push(item);
-      if (memories.length >= limit) break;
-    }
-    const nextBefore =
-      scanned > 0 && (scanned < rows.length || rows.length >= Math.min(limit * 2, 100))
-        ? rows[scanned - 1].id
-        : null;
-    return {
-      memories,
-      sources:
-        includeSources && params.query?.trim()
-          ? sources
-              .fallback(params.query, Math.min(6, limit), source => !store.hiddenSource(source))
-              .filter(
-                ref =>
-                  (params.from === undefined || (ref.observedAt ?? 0) >= params.from) &&
-                  (params.to === undefined || (ref.observedAt ?? Infinity) <= params.to)
-              )
-          : [],
-      nextBefore,
-    };
+    })();
+    // 找出 supported 且无同 topic explicit 的模型，保留或新建澄清条目
+    const newQueue = models
+      .filter(
+        m =>
+          CLARIFY_KINDS.includes(m.kind as (typeof CLARIFY_KINDS)[number]) &&
+          m.confidence === "supported"
+      )
+      .filter(
+        m =>
+          !models.some(e => e.kind === m.kind && e.topic === m.topic && e.confidence === "explicit")
+      )
+      .slice(0, 5)
+      .map(m => {
+        const prev = existing.find(e => e.topic === m.topic && e.kind === m.kind);
+        return (
+          prev ?? {
+            kind: m.kind,
+            topic: m.topic,
+            question: `关于「${m.topic}」，${QUESTIONS[m.kind] ?? "能告诉我更多吗？"}`,
+            priority: 1,
+          }
+        );
+      });
+    store.setClarifyQueue(newQueue);
   }
 }

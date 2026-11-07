@@ -47,6 +47,8 @@ export function DevFloatingBall() {
   const [position, setPosition] = useState(() => clampPosition(readPosition()));
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
+  const [Panel, setPanel] = useState<NonNullable<DevAction["panel"]> | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [ball, setBall] = useState<HTMLButtonElement | null>(null);
   const drag = useRef<{ x: number; y: number; origin: Position; moved: boolean } | null>(null);
   /** 拖动中的最新位置：松手时落盘用，不从 state 更新函数里做副作用 */
@@ -93,6 +95,12 @@ export function DevFloatingBall() {
 
   const run = async (action: DevAction) => {
     if (running) return;
+    if (action.panel) {
+      setOpen(false);
+      setPanel(() => action.panel ?? null);
+      setPanelOpen(true);
+      return;
+    }
     setRunning(action.id);
     try {
       const result = await action.run();
@@ -208,6 +216,7 @@ export function DevFloatingBall() {
           )}
         </Popover.Body>
       </Popover>
+      {Panel && <Panel open={panelOpen} onOpenChange={setPanelOpen} />}
     </>
   );
 }

@@ -17,8 +17,18 @@ import {
 import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
 import { registerDevAction } from "./registry";
+import { MemoryDebugDrawer } from "./MemoryDebugDrawer";
 
 export function registerBuiltinDevActions() {
+  registerDevAction({
+    id: "assistant-memory:debug",
+    group: "个人助手记忆",
+    label: "实时处理面板",
+    description: "查看后台处理、近期状态、长期画像与依据",
+    panel: MemoryDebugDrawer,
+    run: () => undefined,
+  });
+
   registerDevAction({
     id: "knowledge-map:rebuild",
     group: "知识地图",

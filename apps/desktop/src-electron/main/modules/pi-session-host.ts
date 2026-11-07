@@ -119,7 +119,8 @@ interface HostedSession {
   detachSender: () => void;
   /** 动态 systemPrompt（before_agent_start 每轮替换，渲染端经 set-system-prompt 更新） */
   systemPromptRef: { current: string };
-  memoryContext: () => string;
+  /** main-chat 场景下对应的资料库名，供增量记忆提取使用；其余场景为 undefined */
+  memoryDatabase: string | undefined;
   /** 桥接工具名全集：切活跃集时据此只动桥接工具，保留 pi 自己的内置默认 */
   bridgedToolNames: Set<string>;
   scope: string;
@@ -712,7 +713,9 @@ class PiSessionHostModule {
         sessionDir && !request.browserPageUrl && request.chatScope === "main-chat"
           ? (request.databaseName ?? basename(sessionDir))
           : undefined;
-      const memoryContext = () => (memoryDatabase ? assistantMemory.context(memoryDatabase) : "");
+      // 记忆背景在会话创建时一次性拼入 systemPrompt，之后不再修改，保持 provider 缓存稳定。
+      const memoryContext = memoryDatabase ? assistantMemory.context(memoryDatabase) : "";
+      const initialSystemPrompt = joinMemoryPrompt(request.systemPrompt ?? "", memoryContext);
       // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
       // 不存在时 assembleHostSession 按 piSessionId 新建（见其注释）
       if (request.piSessionId) assertSafeSessionId(request.piSessionId);
@@ -776,16 +779,15 @@ class PiSessionHostModule {
         ...(PiSessionHostModule.requestDumpDir
           ? { dumpRequestDir: PiSessionHostModule.requestDumpDir }
           : {}),
-        // 动态 systemPrompt：渲染端经 set-system-prompt 更新，每轮 agent start 前替换
-        ...(request.systemPrompt !== undefined
+        // 动态 systemPrompt：渲染端经 set-system-prompt 更新，每轮 agent start 前替换；
+        // 记忆背景已在会话创建时一次性拼入，不在此处重复注入。
+        ...(initialSystemPrompt !== undefined
           ? {
               resourceLoader: await createHostResourceLoader({
                 cwd: workspace.cwd,
                 agentDir: join(PathUtil.getAppDir(), "pi"),
-                systemPrompt: request.systemPrompt,
-                extensionFactories: [
-                  createDynamicSystemPromptExtension(systemPromptRef, memoryContext),
-                ],
+                systemPrompt: initialSystemPrompt,
+                extensionFactories: [createDynamicSystemPromptExtension(systemPromptRef)],
                 ...(PiSessionHostModule.requestDumpDir
                   ? { dumpRequestDir: PiSessionHostModule.requestDumpDir }
                   : {}),
@@ -858,7 +860,7 @@ class PiSessionHostModule {
           sender.removeListener("render-process-gone", onSenderClosed);
         },
         systemPromptRef,
-        memoryContext,
+        memoryDatabase,
         bridgedToolNames,
         scope: request.scope,
         modelRef: request.modelRef,
@@ -924,12 +926,7 @@ class PiSessionHostModule {
       try {
         if (
           retry &&
-          (await retryHostSession(
-            hosted.session,
-            retry,
-            joinMemoryPrompt(hosted.systemPromptRef.current, hosted.memoryContext()),
-            signal
-          ))
+          (await retryHostSession(hosted.session, retry, hosted.systemPromptRef.current, signal))
         ) {
           hosted.lastActive = Date.now();
           return { ok: true };
@@ -941,6 +938,9 @@ class PiSessionHostModule {
         signal.throwIfAborted();
         if (displayData) hosted.displayWriter.expect(displayData);
         hosted.lastActive = Date.now();
+        // 改动5：规则匹配提取高置信度自述，不等后台 LLM 提取，不影响 system prompt
+        if (hosted.memoryDatabase && hosted.session.sessionId)
+          assistantMemory.onUserMessage(hosted.memoryDatabase, hosted.session.sessionId, text);
         await hosted.session.prompt(text, {
           // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
           expandPromptTemplates: false,
@@ -1153,15 +1153,14 @@ function notifyMemorySessionEdit(file: string, location: PiSessionLocation) {
   if (row) emitMemorySourceChanged(name, { kind: "chat", id: row.id }, true);
 }
 
-const createDynamicSystemPromptExtension = (
-  systemPromptRef: { current: string },
-  memoryContext: () => string
-): InlineExtension => ({
+const createDynamicSystemPromptExtension = (systemPromptRef: {
+  current: string;
+}): InlineExtension => ({
   name: "dynamic-system-prompt",
   hidden: true,
   factory: (pi: ExtensionAPI) => {
     pi.on("before_agent_start", () => {
-      const current = joinMemoryPrompt(systemPromptRef.current, memoryContext());
+      const current = systemPromptRef.current;
       return current ? { systemPrompt: current } : undefined;
     });
   },

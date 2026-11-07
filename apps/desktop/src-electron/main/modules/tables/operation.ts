@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { Operation } from "@/types";
 import dayjs from "dayjs";
+import { emitOperationRecorded } from "../operation-events";
 
 export default class OperationTable {
   static getListenEvents() {
@@ -28,6 +29,13 @@ export default class OperationTable {
       VALUES (?, ?, ?, ?)
     `);
     const res = stmt.run(operation_time, operation_id, operation_content_type, operation_action);
+    emitOperationRecorded(
+      db,
+      operation_content_type,
+      operation_action,
+      operation_id,
+      operation_time
+    );
     return this.getOperationById(db, Number(res.lastInsertRowid));
   }
 
@@ -99,6 +107,13 @@ export default class OperationTable {
       `INSERT INTO operation (operation_content_type, operation_action, operation_id, operation_time) VALUES (?, ?, ?, ?)`
     );
     stmt.run(operationContentType, operationAction, operationId, operationTime);
+    emitOperationRecorded(
+      db,
+      operationContentType,
+      operationAction,
+      Number(operationId),
+      operationTime
+    );
   }
 
   // 批量日期查询
