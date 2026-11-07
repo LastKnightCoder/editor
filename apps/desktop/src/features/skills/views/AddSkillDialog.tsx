@@ -233,7 +233,7 @@ function AiPane({
         )}
       </div>
       {(draft || generating) && (
-        <pre className="font-tau-mono border-line-1 text-ink-1 m-0 min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-[12px] border px-3.5 py-3 text-[12px] leading-[1.7]">
+        <pre className="font-tau-mono border-line-1 text-ink-1 m-0 min-h-0 flex-1 overflow-auto rounded-[12px] border px-3.5 py-3 text-[12px] leading-[1.7] whitespace-pre-wrap">
           {draft || "起草中…"}
         </pre>
       )}
@@ -524,7 +524,7 @@ export function AddSkillDialog({
   const { navigator } = usePage();
   const open = tab !== null;
   const current = tab ?? "new";
-  const { provider, model } = useLLMConfig("chat");
+  const { provider, model, thinkingLevel: chatThinkingLevel } = useLLMConfig("chat");
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -587,6 +587,7 @@ export function AddSkillDialog({
       {
         provider,
         model,
+        ...(chatThinkingLevel ? { thinking: chatThinkingLevel } : {}),
         messages: [
           { role: Role.System, content: [{ type: "text", text: AI_SYSTEM_PROMPT }] },
           { role: Role.User, content: [{ type: "text", text: prompt.trim() }] },

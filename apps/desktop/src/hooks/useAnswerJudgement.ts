@@ -33,7 +33,11 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
     []
   );
 
-  const { provider, model } = useLLMConfig("flashcardGeneration");
+  const {
+    provider,
+    model,
+    thinkingLevel: flashcardThinkingLevel,
+  } = useLLMConfig("flashcardGeneration");
   const isConfigured = !!(provider && model);
 
   const judge = useMemoizedFn(async (userAnswer: string, flashcard: Flashcard) => {
@@ -85,6 +89,7 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
       const outcome = await piCompleteChat({
         provider,
         model,
+        ...(flashcardThinkingLevel ? { thinking: flashcardThinkingLevel } : {}),
         messages,
         source: { feature: "flashcardGeneration" },
       });

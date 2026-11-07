@@ -129,6 +129,8 @@ export interface LLMProviderSetting {
 export interface LLMUsageConfigV2 {
   providerId: string;
   modelId: string;
+  /** 该功能的推理档位；空 = 交给 pi 按模型能力取默认（即模型设置里的 thinkingLevel） */
+  thinkingLevel?: PiThinkingLevel;
 }
 
 import { getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";

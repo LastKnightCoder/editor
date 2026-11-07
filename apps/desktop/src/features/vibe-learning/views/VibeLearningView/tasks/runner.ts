@@ -19,7 +19,7 @@ import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { getTemplateById, getDefaultTemplate } from "@/constants/ppt-templates";
 import { getReportTemplateById, getDefaultReportTemplate } from "@/constants/report-templates";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
-import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { VLNote, VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, getMarkdown } from "@/utils";
 import { parsePartialQuizPrompts, parseQuizResponse } from "./quizParse";
@@ -105,13 +105,14 @@ const commandsFor = (databaseName: string, signal?: AbortSignal) =>
 function llmConfig(): {
   provider: LLMProviderSetting;
   model: LLMModelSetting;
+  thinkingLevel?: PiThinkingLevel;
 } {
   const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
   const usage = llmUsageSettings.chat;
   const provider = usage ? llmConfigs.find(c => c.id === usage.providerId) : undefined;
   const model = usage ? provider?.models?.find(m => m.id === usage.modelId) : undefined;
   if (!provider || !model) throw new Error("请先在设置中配置 AI 模型");
-  return { provider, model };
+  return { provider, model, thinkingLevel: usage?.thinkingLevel };
 }
 
 const htmlTitle = (html: string) => html.match(/<title>(.*?)<\/title>/i)?.[1]?.trim();
@@ -412,7 +413,7 @@ export async function retryVLTask(taskId: string) {
 async function executeInner(
   taskId: string,
   runtime: Runtime,
-  config: { provider: LLMProviderSetting; model: LLMModelSetting },
+  config: { provider: LLMProviderSetting; model: LLMModelSetting; thinkingLevel?: PiThinkingLevel },
   currentHtml?: string
 ) {
   const { input } = runtime;
@@ -544,7 +545,8 @@ async function executeInner(
             });
             return typeof result === "string" ? { content: result } : (result ?? { content: "" });
           },
-        }
+        },
+        config.thinkingLevel
       );
     });
   } catch (error) {

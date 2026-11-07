@@ -1346,13 +1346,13 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             log.info(
               `[VibeLearningIndexQueue] Optimizing chunk ${i + 1}/${chunks.length}, attempt=${attempt}, segments=${chunk.length}`
             );
-            // 断句是机械任务：关推理省 token；kimi 官方推荐 0.6，o 系 / gpt-5 不接受 temperature
+            // 断句是机械任务：kimi 官方推荐 0.6，o 系 / gpt-5 不接受 temperature
             const result = await PiAiRuntimeModule.complete({
               providerId: config.llm.providerId,
               modelId: config.llm.modelId,
               system: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
               messages: [{ role: "user", content: userPrompt }],
-              thinking: "off",
+              ...(config.llm.thinkingLevel ? { thinking: config.llm.thinkingLevel } : {}),
               ...(isKimiModel ? { temperature: 0.6 } : noTemperature ? {} : { temperature: 0.3 }),
               source: {
                 feature: "transcriptionOptimization",

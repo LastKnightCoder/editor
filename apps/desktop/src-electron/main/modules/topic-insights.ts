@@ -418,7 +418,7 @@ export async function callModel<T>(
         modelId: slot.modelId,
         system,
         messages: [{ role: "user", content: prompt }],
-        thinking: "off",
+        ...(slot.thinkingLevel ? { thinking: slot.thinkingLevel } : {}),
         source: { feature: TOPIC_INSIGHTS_SLOT, entityId },
       },
       signal

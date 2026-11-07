@@ -348,6 +348,89 @@ function MetaChip({ children }: { children: ReactNode }) {
   );
 }
 
+/** 功能分配行：模型选择 + 思考档位选择（reasoning 模型专属，inlineSuggestion 不显示） */
+function AssignmentRow({
+  feature,
+  usage,
+  modelEntries,
+  modelOptions,
+  updateUsage,
+}: {
+  feature: FeatureDef;
+  usage: LLMUsageConfigV2 | null;
+  modelEntries: { provider: LLMProviderSetting; model: LLMModelSetting }[];
+  modelOptions: {
+    value: string;
+    group: string | undefined;
+    label: ReactNode;
+    searchText: string;
+  }[];
+  updateUsage: (feature: FeatureKey, config: LLMUsageConfigV2 | null) => void;
+}) {
+  const selectedIndex = usage
+    ? modelEntries.findIndex(
+        entry => entry.provider.id === usage.providerId && entry.model.id === usage.modelId
+      )
+    : -1;
+  const selectedEntry = selectedIndex >= 0 ? modelEntries[selectedIndex] : null;
+
+  // inlineSuggestion 始终不思考（8 秒超时、单行 JSON，思考有害无益）
+  const showThinking =
+    feature.key !== INLINE_SUGGESTION_SLOT && Boolean(selectedEntry?.model.reasoning);
+  const { levels: thinkingLevels } = useThinkingLevels(
+    selectedEntry?.provider,
+    selectedEntry?.model.id ?? ""
+  );
+  const thinkingOptions = useMemo(
+    () => [
+      { value: "", label: "默认（跟随模型）" },
+      ...thinkingLevels.map(level => ({ value: level, label: THINKING_LEVEL_LABELS[level] })),
+    ],
+    [thinkingLevels]
+  );
+
+  return (
+    <SettingRow title={feature.label} description={feature.desc}>
+      <div className="flex items-center gap-2">
+        <Select
+          aria-label={`${feature.label}的模型`}
+          className="w-[250px]"
+          searchable
+          placeholder="未分配"
+          emptyText="暂无模型——先在上方添加"
+          value={selectedIndex >= 0 ? String(selectedIndex) : null}
+          options={[{ value: "off", label: "取消分配（不使用 AI）" }, ...modelOptions]}
+          onValueChange={value => {
+            const entry =
+              value == null || value === "off" ? undefined : modelEntries[Number(value)];
+            updateUsage(
+              feature.key,
+              entry ? { providerId: entry.provider.id, modelId: entry.model.id } : null
+            );
+          }}
+        />
+        {showThinking && (
+          <Select
+            aria-label={`${feature.label}的思考强度`}
+            className="w-[148px]"
+            placeholder="默认（跟随模型）"
+            value={usage?.thinkingLevel ?? ""}
+            options={thinkingOptions}
+            onValueChange={value => {
+              if (!selectedEntry) return;
+              updateUsage(feature.key, {
+                providerId: selectedEntry.provider.id,
+                modelId: selectedEntry.model.id,
+                ...(value ? { thinkingLevel: value as PiThinkingLevel } : {}),
+              });
+            }}
+          />
+        )}
+      </div>
+    </SettingRow>
+  );
+}
+
 /** 组合选择器的选项行：模型名 + 能力角标（供应商由分组头承担，行保持短；触发器回填同 label） */
 function ModelOptionLabel({ model }: { model: LLMModelSetting }) {
   const caps = capabilityLabels(model);
@@ -659,31 +742,15 @@ export function LLMSection() {
 
   const renderAssignmentRow = (feature: FeatureDef) => {
     const usage = llmUsageSettings[feature.key];
-    const selectedIndex = usage
-      ? modelEntries.findIndex(
-          entry => entry.provider.id === usage.providerId && entry.model.id === usage.modelId
-        )
-      : -1;
     return (
-      <SettingRow key={feature.key} title={feature.label} description={feature.desc}>
-        <Select
-          aria-label={`${feature.label}的模型`}
-          className="w-[250px]"
-          searchable
-          placeholder="未分配"
-          emptyText="暂无模型——先在上方添加"
-          value={selectedIndex >= 0 ? String(selectedIndex) : null}
-          options={[{ value: "off", label: "取消分配（不使用 AI）" }, ...modelOptions]}
-          onValueChange={value => {
-            const entry =
-              value == null || value === "off" ? undefined : modelEntries[Number(value)];
-            updateUsage(
-              feature.key,
-              entry ? { providerId: entry.provider.id, modelId: entry.model.id } : null
-            );
-          }}
-        />
-      </SettingRow>
+      <AssignmentRow
+        key={feature.key}
+        feature={feature}
+        usage={usage ?? null}
+        modelEntries={modelEntries}
+        modelOptions={modelOptions}
+        updateUsage={updateUsage}
+      />
     );
   };
 

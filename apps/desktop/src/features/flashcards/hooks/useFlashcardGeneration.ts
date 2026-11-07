@@ -5,7 +5,7 @@ import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import { getMarkdown } from "@/utils/markdown";
 import { FLASHCARD_GENERATION_PROMPT, FLASHCARD_GENERATION_USER_PROMPT } from "@/constants/prompts";
 import { Role } from "@/constants";
-import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 import type { FlashcardType, FlashcardData, FlashcardDifficulty } from "@/types/flashcard";
 import { parseFlashcardResponse } from "../generation/parse";
@@ -44,7 +44,8 @@ interface UseFlashcardGenerationResult {
 export const useFlashcardGeneration = (
   provider: LLMProviderSetting | null,
   model: LLMModelSetting | null,
-  generate?: FlashcardGenerator
+  generate?: FlashcardGenerator,
+  thinkingLevel?: PiThinkingLevel
 ): UseFlashcardGenerationResult => {
   const [generatedCards, setGeneratedCards] = useState<GeneratedFlashcard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -122,7 +123,13 @@ export const useFlashcardGeneration = (
     ];
 
     const handle = piStreamText(
-      { provider, model, messages, source: { feature: "flashcardGeneration" } },
+      {
+        provider,
+        model,
+        ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
+        messages,
+        source: { feature: "flashcardGeneration" },
+      },
       ({ text }) => {
         if (revision !== generationRevision.current) return;
         setIsPending(false);

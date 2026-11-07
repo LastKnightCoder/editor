@@ -6,7 +6,7 @@ import {
   buildTranscriptionOptimizationUserPrompt,
 } from "@/constants/prompts/transcription-optimization";
 import { Role } from "@/constants";
-import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 
 interface TranscriptSegment {
@@ -219,7 +219,8 @@ function finalizeSegments(
 
 export const useTranscriptionOptimization = (
   provider: LLMProviderSetting | null,
-  model: LLMModelSetting | null
+  model: LLMModelSetting | null,
+  thinkingLevel?: PiThinkingLevel
 ): UseTranscriptionOptimizationResult => {
   // 状态
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -287,7 +288,13 @@ export const useTranscriptionOptimization = (
     ];
 
     const handle = piStreamText(
-      { provider, model, messages, source: { feature: "transcriptionOptimization" } },
+      {
+        provider,
+        model,
+        ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
+        messages,
+        source: { feature: "transcriptionOptimization" },
+      },
       ({ text }) => {
         setIsPending(false);
         setRawOutput(text);

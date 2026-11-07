@@ -6,7 +6,7 @@ import { createWebClip, getWebClipById, updateWebClip } from "@/commands/web-cli
 import { piStreamChat, piTextOf, type PiChatHandle } from "@/services/piLLM";
 import useSettingStore from "@/stores/useSettingStore";
 import type { RequestMessage } from "@/types/llm";
-import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import { getContentLength } from "@/utils/helper";
 import { importFromMarkdown } from "@/utils/markdown";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
@@ -55,6 +55,7 @@ export interface WebClipTaskRunnerDeps {
   getLLMConfig: () => {
     provider: LLMProviderSetting;
     model: LLMModelSetting;
+    thinkingLevel?: PiThinkingLevel;
   };
   chatStream: typeof piStreamChat;
   saveWebClip: (params: {
@@ -112,7 +113,7 @@ const getDefaultLLMConfig = () => {
     throw new Error("找不到 webClip 功能的 model 配置");
   }
 
-  return { provider, model };
+  return { provider, model, thinkingLevel: usageConfig.thinkingLevel };
 };
 
 const saveWebClipToDatabase = async (params: {
@@ -235,7 +236,7 @@ export class WebClipTaskRunner {
 
   private async runTask(params: WebClipStartParams, task: WebClipTask) {
     try {
-      const { provider, model } = this.deps.getLLMConfig();
+      const { provider, model, thinkingLevel } = this.deps.getLLMConfig();
       const messages: RequestMessage[] = [
         {
           role: Role.System,
@@ -252,23 +253,26 @@ export class WebClipTaskRunner {
         },
       ];
 
-      const chatHandle = this.deps.chatStream({ provider, model, messages }, event => {
-        if (task.status !== "processing") {
-          return;
+      const chatHandle = this.deps.chatStream(
+        { provider, model, ...(thinkingLevel ? { thinking: thinkingLevel } : {}), messages },
+        event => {
+          if (task.status !== "processing") {
+            return;
+          }
+          if (event.type !== "text_delta" && event.type !== "text_end") {
+            return;
+          }
+          const markdown = normalizeThinkTaggedText(piTextOf(event.partial)).content;
+          const delta =
+            event.type === "text_delta" ? normalizeThinkTaggedText(event.delta).content : "";
+          task.markdown = markdown;
+          this.emitProgress({
+            projectItemId: task.projectItemId,
+            markdown,
+            delta,
+          });
         }
-        if (event.type !== "text_delta" && event.type !== "text_end") {
-          return;
-        }
-        const markdown = normalizeThinkTaggedText(piTextOf(event.partial)).content;
-        const delta =
-          event.type === "text_delta" ? normalizeThinkTaggedText(event.delta).content : "";
-        task.markdown = markdown;
-        this.emitProgress({
-          projectItemId: task.projectItemId,
-          markdown,
-          delta,
-        });
-      });
+      );
       task.chatHandle = chatHandle;
       const result = await chatHandle.result;
 

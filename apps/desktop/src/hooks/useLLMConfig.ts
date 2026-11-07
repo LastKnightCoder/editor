@@ -1,5 +1,5 @@
 import useSettingStore from "@/stores/useSettingStore";
-import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { loadCatalogModels } from "@/services/llmCatalog";
@@ -7,6 +7,8 @@ import { loadCatalogModels } from "@/services/llmCatalog";
 interface LLMConfigResult {
   provider: LLMProviderSetting | null;
   model: LLMModelSetting | null;
+  /** 该功能的推理档位；undefined = 未指定，交由 runtime 按模型能力取默认 */
+  thinkingLevel?: PiThinkingLevel;
 }
 
 export const useLLMConfig = (
@@ -60,6 +62,7 @@ export const useLLMConfig = (
   return {
     provider,
     model: effectiveModel || null,
+    thinkingLevel: usageConfig.thinkingLevel,
   };
 };
 

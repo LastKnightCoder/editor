@@ -94,8 +94,11 @@ const VideoNotePanel = ({
   const uploadResource = useUploadResource();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
-  const { provider: ebookRewriteLLMProviderSetting, model: ebookRewriteLLMModelSetting } =
-    useLLMConfig("videoEbookRewrite");
+  const {
+    provider: ebookRewriteLLMProviderSetting,
+    model: ebookRewriteLLMModelSetting,
+    thinkingLevel: ebookRewriteThinkingLevel,
+  } = useLLMConfig("videoEbookRewrite");
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [noteItems, setNoteItems] = useState<VideoNoteItem[]>([]);
@@ -641,7 +644,7 @@ const VideoNotePanel = ({
         {activeTab === "transcript" && (
           <FadeScroll
             scrollRef={transcriptContainerRef}
-            className="mb-4 h-[calc(100%-16px)] pb-1 pl-6 pr-[18px] pt-5"
+            className="mb-4 h-[calc(100%-16px)] pt-5 pr-[18px] pb-1 pl-6"
           >
             {isTranscribing ? (
               <div className="flex h-full flex-col">
@@ -718,7 +721,7 @@ const VideoNotePanel = ({
                       {segment.text}
                     </span>
                     <button
-                      className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 group-hover:visible dark:hover:bg-zinc-700 dark:hover:text-gray-300"
+                      className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 group-hover:visible hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-zinc-700 dark:hover:text-gray-300"
                       onClick={e => {
                         e.stopPropagation();
                         handleStartEditSegment(index);
@@ -731,11 +734,11 @@ const VideoNotePanel = ({
                 ))}
               </div>
             ) : videoNote.transcript ? (
-              <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+              <div className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                 {videoNote.transcript}
               </div>
             ) : videoNote.description ? (
-              <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+              <div className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                 {videoNote.description}
               </div>
             ) : (
@@ -840,7 +843,7 @@ const VideoNotePanel = ({
                     删除
                   </button>
                 </div>
-                <FadeScroll className="min-h-0 flex-1 pb-2 pl-5 pr-3.5">
+                <FadeScroll className="min-h-0 flex-1 pr-3.5 pb-2 pl-5">
                   <Editor
                     key={`video-note-item-${activeNoteItem.id}`}
                     contentId={activeNoteItem.contentId}
@@ -1034,6 +1037,7 @@ const VideoNotePanel = ({
         videoDescription={videoNote?.description || ""}
         provider={ebookRewriteLLMProviderSetting}
         model={ebookRewriteLLMModelSetting}
+        thinkingLevel={ebookRewriteThinkingLevel}
         onOpenLLMSettings={() => openLLMSettingsSection()}
       />
     </>

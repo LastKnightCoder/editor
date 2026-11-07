@@ -116,7 +116,8 @@ function selfOf(mainDb: Database.Database, contentId: number): SelfDoc {
   const projectItem = identities.find(ref => ref.kind === "project-item");
   const titleRow = (table: string, id: number) =>
     mainDb.prepare(`SELECT title FROM ${table} WHERE id = ?`).get(id) as
-      { title: string } | undefined;
+      | { title: string }
+      | undefined;
   const title = article
     ? (titleRow("articles", article.id)?.title ?? "")
     : projectItem
@@ -247,7 +248,8 @@ export function findGatherCandidates(
     if (!resolved) continue;
     const section = hit.updateTime
       ? (sectionText.get(hit.key, Math.round(hit.updateTime), hit.chunk) as
-          { heading_path: string; block_start: number; text: string } | undefined)
+          | { heading_path: string; block_start: number; text: string }
+          | undefined)
       : undefined;
     const meta = metas.get(contentId)?.meta;
     const no = candidates.length + 1;
@@ -393,7 +395,7 @@ export async function gather(
         modelId: slot.modelId,
         system: COMPOSE_GATHER_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],
-        thinking: "off",
+        ...(slot.thinkingLevel ? { thinking: slot.thinkingLevel } : {}),
         source: { feature: CONTENT_INSIGHTS_SLOT, entityId: String(input.contentId) },
       },
       signal

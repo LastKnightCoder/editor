@@ -31,7 +31,7 @@ import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/
 import { FadeScroll } from "@tau/ui";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
-import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
 import { remoteResourceToLocal } from "@/utils/resouce";
@@ -90,6 +90,7 @@ interface VideoNoteEpubExportModalProps {
   videoDescription?: string;
   provider: LLMProviderSetting | null;
   model: LLMModelSetting | null;
+  thinkingLevel?: PiThinkingLevel;
   onOpenLLMSettings: () => void;
 }
 
@@ -269,6 +270,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     videoDescription,
     provider,
     model,
+    thinkingLevel: ebookThinkingLevel,
     onOpenLLMSettings,
   } = props;
   const [step, setStep] = useState<Step>("rewrite");
@@ -316,7 +318,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     startRewrite,
     stopRewrite,
     reset: resetRewriteState,
-  } = useVideoEbookRewrite(provider, model);
+  } = useVideoEbookRewrite(provider, model, ebookThinkingLevel);
 
   const loadCoverCandidates = useMemoizedFn(
     async (contentForCover: Descendant[], defaultMetadata: EpubMetadataInput) => {
@@ -725,7 +727,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       : "选好风格后生成草稿，也可以直接在这里写";
 
   const renderRewriteStep = () => (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-5 pt-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pt-4 pb-5">
       <Field label="写作风格">
         <div role="radiogroup" aria-label="写作风格" className="grid grid-cols-4 gap-2">
           {STYLE_OPTIONS.map(option => {
@@ -762,7 +764,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       </Field>
 
       <div className="border-line-1 rounded-tau-md flex min-h-0 flex-1 flex-col overflow-hidden border">
-        <div className="border-line-2 flex h-10 shrink-0 items-center gap-2 border-b pl-3.5 pr-1.5">
+        <div className="border-line-2 flex h-10 shrink-0 items-center gap-2 border-b pr-1.5 pl-3.5">
           {isRewriting ? (
             <Loader2 className="text-accent size-3.5 animate-spin" strokeWidth={2} />
           ) : (
@@ -783,7 +785,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           )}
         </div>
         <FadeScroll className="min-h-0 flex-1">
-          <div className="pb-8 pl-8 pr-[26px] pt-5 [&_[data-slate-editor]]:outline-none">
+          <div className="pt-5 pr-[26px] pb-8 pl-8 [&_[data-slate-editor]]:outline-none">
             <Editor
               kit={getEpubDraftKit()}
               key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
@@ -890,7 +892,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
   const renderExportSettingsStep = () => (
     <FadeScroll className="min-h-0 flex-1">
-      <div className="grid grid-cols-[196px_minmax(0,1fr)] gap-7 pb-5 pl-6 pr-[18px] pt-4">
+      <div className="grid grid-cols-[196px_minmax(0,1fr)] gap-7 pt-4 pr-[18px] pb-5 pl-6">
         {renderCoverColumn()}
 
         <div className="flex min-w-0 flex-col gap-4">

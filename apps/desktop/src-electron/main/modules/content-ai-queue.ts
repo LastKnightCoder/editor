@@ -367,7 +367,7 @@ export class ContentAiQueue {
           modelId: slot.modelId,
           system: CONTENT_AI_SYSTEM_PROMPT,
           messages: [{ role: "user", content: userPrompt }],
-          thinking: "off",
+          ...(slot.thinkingLevel ? { thinking: slot.thinkingLevel } : {}),
           source: { feature: CONTENT_AI_SLOT, entityId: String(task.id) },
         },
         signal
