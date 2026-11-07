@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Download, Menu, Star, X } from "lucide-react";
 import { formatStars, loadGithubStars } from "../lib/githubStars.ts";
 import { GITHUB_MARK_PATH, GITHUB_URL, SITE_LINKS, type SiteLink } from "../lib/site.ts";
@@ -42,9 +42,24 @@ interface DocsHeaderProps {
 
 /** 使用文档与更新日志共用的吸顶导航 */
 export function DocsHeader({ current, nav, search }: DocsHeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 点击外部关闭移动端菜单
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [mobileMenuOpen]);
+
   return (
     <header className="border-line-1 bg-page/85 sticky top-0 z-50 border-b backdrop-blur-md">
-      <div className="mx-auto flex h-[60px] max-w-[1440px] items-center gap-6 px-6 max-sm:gap-2 max-sm:px-4">
+      <div className="mx-auto flex h-[60px] max-w-[1440px] items-center gap-3 px-6 max-sm:px-4 sm:gap-4 lg:gap-6">
         {nav && (
           <button
             type="button"
@@ -56,11 +71,14 @@ export function DocsHeader({ current, nav, search }: DocsHeaderProps) {
             {nav.open ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
           </button>
         )}
-        <a href="/" className="flex items-center gap-2.5 font-serif text-[20px] font-semibold">
+        <a
+          href="/"
+          className="flex shrink-0 items-center gap-2.5 font-serif text-[20px] font-semibold"
+        >
           <img src="/tau-icon.png" alt="" className="shadow-card size-7 rounded-[8px]" />
           Tau
         </a>
-        <nav className="text-ink-2 flex items-center gap-7 text-[15px] max-sm:hidden">
+        <nav className="text-ink-2 flex shrink-0 items-center gap-4 text-[15px] whitespace-nowrap max-md:hidden lg:gap-7">
           {SITE_LINKS.map(link => (
             <a
               key={link.key}
@@ -73,17 +91,45 @@ export function DocsHeader({ current, nav, search }: DocsHeaderProps) {
             </a>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {search}
           <GithubLink />
           <a
             href="/#download"
             aria-label="下载 Tau"
-            className="bg-ink-1 text-page inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[14px] font-medium transition-transform hover:-translate-y-px max-sm:px-2.5"
+            className="bg-ink-1 text-page inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[14px] font-medium whitespace-nowrap transition-transform hover:-translate-y-px max-sm:px-2.5"
           >
-            <Download className="size-4" strokeWidth={1.75} />
+            <Download className="size-4 shrink-0" strokeWidth={1.75} />
             <span className="max-sm:hidden">下载</span>
           </a>
+          {/* 移动端汉堡菜单，768px 以下显示 */}
+          <div ref={menuRef} className="relative md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(v => !v)}
+              aria-label={mobileMenuOpen ? "关闭导航菜单" : "打开导航菜单"}
+              aria-expanded={mobileMenuOpen}
+              className="text-ink-2 hover:bg-hover grid size-9 place-items-center rounded-[10px]"
+            >
+              {mobileMenuOpen ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
+            </button>
+            {mobileMenuOpen && (
+              <div className="bg-page border-line-1 absolute top-[calc(100%+8px)] right-0 min-w-[160px] rounded-[12px] border py-1.5 shadow-lg">
+                {SITE_LINKS.map(link => (
+                  <a
+                    key={link.key}
+                    href={link.href}
+                    {...(link.external ? { target: "_blank", rel: "noopener" } : {})}
+                    aria-current={link.key === current ? "page" : undefined}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-[current=page]:text-ink-1 flex items-center px-4 py-2.5 text-[15px] transition-colors aria-[current=page]:font-medium"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
