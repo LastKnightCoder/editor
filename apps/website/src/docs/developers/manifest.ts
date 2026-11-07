@@ -261,4 +261,7 @@ export const developerDocs = createDocCollection({
 
 /** 模板 docs/ 下的相对路径 → slug：providers/asr.md → providers/asr，README.md 对应所在目录 */
 export const docSlugOfFile = (file: string) =>
-  file.replace(/(^|\/)README\.md$/, "").replace(/\.md$/, "");
+  file
+    .replaceAll("\\", "/")
+    .replace(/(^|\/)README\.md$/, "")
+    .replace(/\.md$/, "");
