@@ -58,7 +58,10 @@ export function Tabs<K extends string = string>({
         ref={listRef}
         role="tablist"
         onKeyDown={onKeyDown}
-        className={cn("border-line-2 flex gap-[22px] border-b px-1", centered && "justify-center")}
+        className={cn(
+          "flex gap-[22px] px-1 shadow-[inset_0_-1px_0_var(--tau-line-2)]",
+          centered && "justify-center"
+        )}
       >
         {items.map(item => {
           const selected = item.key === activeKey;
@@ -74,7 +77,7 @@ export function Tabs<K extends string = string>({
               tabIndex={selected ? 0 : -1}
               onClick={() => select(item.key)}
               className={cn(
-                "text-tau-body relative -mb-px inline-flex cursor-pointer items-center gap-1.5 pb-[7px] pt-2",
+                "text-tau-body relative inline-flex cursor-pointer items-center gap-1.5 pb-[7px] pt-2",
                 "ease-tau-out outline-none transition-colors duration-[160ms]",
                 "focus-visible:text-ink-1",
                 "after:bg-accent after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full",
