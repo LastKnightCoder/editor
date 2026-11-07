@@ -379,8 +379,8 @@ export function Select<V = string>({
               aria-activedescendant={hlOptionId}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="输入过滤…"
-              className="text-ink-1 placeholder:text-ink-3 h-[30px] w-full bg-transparent pl-7 pr-2.5 text-[12.5px] outline-none"
+              placeholder={creatable ? "搜索或输入自定义值…" : "输入过滤…"}
+              className="text-ink-1 placeholder:text-ink-3 h-[30px] w-full bg-transparent pr-2.5 pl-7 text-[12.5px] outline-none"
             />
           </div>
         </div>
@@ -390,7 +390,7 @@ export function Select<V = string>({
           row.kind === "group" ? (
             <div
               key={`g-${row.key}`}
-              className="text-ink-3 text-tau-tiny px-2.5 pb-1 pt-2 font-semibold first:pt-1"
+              className="text-ink-3 text-tau-tiny px-2.5 pt-2 pb-1 font-semibold first:pt-1"
             >
               {row.key || "其他"}
             </div>

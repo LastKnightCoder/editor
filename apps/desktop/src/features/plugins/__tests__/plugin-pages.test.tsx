@@ -565,7 +565,7 @@ it("插件设置有未保存修改时显示保存条，离开前确认", async (
   );
   await act(async () => runtime.host.enable("draft"));
   await openDetail("draft");
-  const bar = () => page().querySelector('[role="region"][aria-label="未保存的修改"]');
+  const bar = () => document.querySelector('[role="region"][aria-label="未保存的修改"]');
   expect(bar()?.getAttribute("aria-hidden")).toBe("true");
   const input = page().querySelector<HTMLInputElement>('input[aria-label="名称"]')!;
   await act(async () => {
