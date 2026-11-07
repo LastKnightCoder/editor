@@ -1,9 +1,11 @@
-import type { LLMProviderSetting, LLMUsageConfigV2 } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMUsageConfigV2, PiThinkingLevel } from "@/types/pi-llm";
 
 /** 设置里分配给某功能槽的模型（llmUsageSettings 的 v2 形态） */
 export interface LlmRef {
   providerId: string;
   modelId: string;
+  /** 该功能的推理档位；undefined = 交给 runtime 按模型能力取默认 */
+  thinkingLevel?: PiThinkingLevel;
 }
 
 /** setting.json 里读功能槽所需的 v2 字段 */
@@ -21,5 +23,9 @@ export function resolveUsageSlot(setting: SettingForLlmSlots, slot: string): Llm
   if (!usage?.providerId || !usage.modelId) return null;
   const provider = setting.llmProviders?.find(p => p.id === usage.providerId);
   if (!provider?.models.some(m => m.id === usage.modelId)) return null;
-  return { providerId: usage.providerId, modelId: usage.modelId };
+  return {
+    providerId: usage.providerId,
+    modelId: usage.modelId,
+    thinkingLevel: usage.thinkingLevel,
+  };
 }

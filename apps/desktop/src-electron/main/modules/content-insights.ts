@@ -102,7 +102,8 @@ function selfOf(mainDb: Database.Database, ref: EntityRef): SelfInfo | null {
           : null;
   if (!sql) return null;
   const row = mainDb.prepare(sql).get(ref.id) as
-    { content_id: number | null; title: string | null } | undefined;
+    | { content_id: number | null; title: string | null }
+    | undefined;
   if (!row?.content_id) return null;
   const content = ContentTable.getContentById(mainDb, row.content_id);
   if (!content) return null;
@@ -207,7 +208,8 @@ export function findCandidates(
     const id = `${key}#${updateTime}#${chunk}`;
     if (!proseCache.has(id)) {
       const row = sectionText.get(key, Math.round(updateTime), chunk) as
-        { text: string } | undefined;
+        | { text: string }
+        | undefined;
       // 没有节信息（卡片等整篇一节的旧索引）时不按文字量过滤
       proseCache.set(id, row ? proseOf(row.text).length : MIN_PROSE_CHARS);
     }
@@ -302,7 +304,8 @@ export function findCandidates(
     if (!resolved) continue;
     const section = hit.updateTime
       ? (sectionText.get(hit.key, Math.round(hit.updateTime), hit.chunk) as
-          { heading_path: string; block_start: number; text: string } | undefined)
+          | { heading_path: string; block_start: number; text: string }
+          | undefined)
       : undefined;
     const meta = metas.get(contentId)?.meta;
     const excerpt = (section?.text ?? resolved.excerpt).replace(/\s+/g, " ").trim();
@@ -409,7 +412,7 @@ export async function analyzeContent(
         modelId: slot.modelId,
         system: CONTENT_INSIGHTS_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],
-        thinking: "off",
+        ...(slot.thinkingLevel ? { thinking: slot.thinkingLevel } : {}),
         source: { feature: CONTENT_INSIGHTS_SLOT, entityId: String(self.contentId) },
       },
       signal

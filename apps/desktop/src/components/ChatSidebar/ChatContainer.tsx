@@ -238,7 +238,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     ref
   ) => {
     const message = toast;
-    const { provider: chatProviderConfig, model: chatModelConfig } = useLLMConfig("chat");
+    const {
+      provider: chatProviderConfig,
+      model: chatModelConfig,
+      thinkingLevel: chatDefaultThinkingLevel,
+    } = useLLMConfig("chat");
     const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
     // 草稿也有真 id，会话键从头到尾不变（不再有 id 0→N 的迁移）
@@ -279,11 +283,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       loadSkills();
     }, [loadSkills]);
 
-    // 档位取值即运行时档位（旧键存过 "none"，读出时归一为 "off"）
-    const [storedThinkingLevel, setStoredThinkingLevel] = useLocalStorageState<string>(
-      "reasoningEffort",
-      { defaultValue: "off" }
-    );
+    // 档位取值：localStorage 有显式值优先，否则回退到功能分配的 chat 默认档位，再回退 "off"
+    const [storedThinkingLevel, setStoredThinkingLevel] =
+      useLocalStorageState<string>("reasoningEffort");
     // 档位按模型真实能力给（经主进程查预设目录）：目录未收录的模型退回通用档
     const { levels: catalogLevels } = useThinkingLevels(
       chatProviderConfig ?? undefined,
@@ -298,7 +300,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       [chatModelConfig?.reasoning, catalogLevels]
     );
     const thinkingLevel = clampThinkingLevel(
-      normalizeStoredThinkingLevel(storedThinkingLevel),
+      normalizeStoredThinkingLevel(storedThinkingLevel || chatDefaultThinkingLevel || "off"),
       thinkingLevelOptions
     );
 
@@ -1408,7 +1410,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return;
         }
         const target = visibleMessagesOf(actualChatRef.current)[messageIndex] as
-          RequestMessage | undefined;
+          | RequestMessage
+          | undefined;
         const entryId = target?.piVersions?.ids[versionIndex];
         if (!entryId) return;
         setEditingDraft(null);
@@ -1649,7 +1652,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                               strokeWidth={1.75}
                               className="text-ink-3 mt-0.5 shrink-0"
                             />
-                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 whitespace-pre-wrap break-words">
+                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
                               {queuedMessageText(steer.content) || "（附件消息）"}
                             </div>
                           </div>
@@ -1667,7 +1670,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                             key={`queued-${index}`}
                             className="bg-accent-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
                           >
-                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 whitespace-pre-wrap break-words">
+                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
                               {queuedMessageText(content) || "（附件消息）"}
                             </div>
                             <div className="flex shrink-0 items-center gap-0.5">
@@ -1706,7 +1709,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     {/* 附件区排在编辑横幅之前：横幅靠 -mb-2 贴住输入框，中间不能插别的 */}
                     {composerAccessory}
                     {editingDraft || hiddenPromptContext ? (
-                      <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pb-4 pt-2">
+                      <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pt-2 pb-4">
                         <div className="text-accent-text min-w-0">
                           <span className="font-semibold">
                             {editingDraft ? "正在编辑消息" : "正在编辑生成的图片"}
@@ -1731,7 +1734,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     {/* 输入框外框：＋ / @ 面板按它的矩形定位（同宽、贴上沿） */}
                     <div
                       {...{ [COMPOSER_ANCHOR_ATTR]: "" }}
-                      className="border-line-1 bg-surface ease-tau-out focus-within:border-accent relative rounded-[16px] border pb-2.5 pl-3.5 pr-2.5 pt-3 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]"
+                      className="border-line-1 bg-surface ease-tau-out focus-within:border-accent relative rounded-[16px] border pt-3 pr-2.5 pb-2.5 pl-3.5 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]"
                     >
                       {inputNode}
                     </div>

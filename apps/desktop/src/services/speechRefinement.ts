@@ -32,7 +32,7 @@ export function prepareSpeechRefinement(): SpeechRefiner | undefined {
     const handle = piStreamText(
       {
         ...selected,
-        thinking: selected.model.thinkingLevel,
+        ...(selection.thinkingLevel ? { thinking: selection.thinkingLevel } : {}),
         messages: [
           { role: Role.System, content: prompt.system },
           { role: Role.User, content: prompt.user(text) },

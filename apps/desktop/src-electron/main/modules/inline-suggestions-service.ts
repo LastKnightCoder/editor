@@ -110,6 +110,7 @@ export function createInlineSuggestionService(complete: Complete) {
             {
               providerId: request.providerId,
               modelId: request.modelId,
+              // 行内补全：8 秒超时、输出 160 tokens，强制关推理以控制延迟；不受功能分配档位影响
               thinking: "off",
               maxOutputTokens: 160,
               source: { feature: INLINE_SUGGESTION_SLOT },

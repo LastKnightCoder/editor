@@ -66,7 +66,11 @@ interface UseVideoNoteChaptersOptions {
 }
 
 export function useVideoNoteChapters({ videoNote, busy, onSaved }: UseVideoNoteChaptersOptions) {
-  const { provider, model } = useLLMConfig("videoSummary");
+  const {
+    provider,
+    model,
+    thinkingLevel: videoSummaryThinkingLevel,
+  } = useLLMConfig("videoSummary");
   const segments = videoNote?.transcriptSegments;
   const hash = useMemo(() => (segments?.length ? hashTranscript(segments) : null), [segments]);
   const insights = videoNote?.insights;
@@ -86,6 +90,7 @@ export function useVideoNoteChapters({ videoNote, busy, onSaved }: UseVideoNoteC
       const result = await piCompleteChat({
         provider,
         model,
+        ...(videoSummaryThinkingLevel ? { thinking: videoSummaryThinkingLevel } : {}),
         messages,
         source: { feature: "videoSummary", entityId: String(input.id) },
       });

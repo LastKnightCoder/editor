@@ -28,7 +28,11 @@ const ConversationFlashcardModal = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   // LLM 配置
-  const { provider, model } = useLLMConfig("flashcardGeneration");
+  const {
+    provider,
+    model,
+    thinkingLevel: flashcardThinkingLevel,
+  } = useLLMConfig("flashcardGeneration");
 
   // 闪卡生成 hook
   const {
@@ -43,7 +47,7 @@ const ConversationFlashcardModal = () => {
     deselectAll,
     updateCard,
     reset: resetGeneration,
-  } = useFlashcardGeneration(provider, model);
+  } = useFlashcardGeneration(provider, model, undefined, flashcardThinkingLevel);
 
   const { createCard: createFlashcard } = useFlashcardMutations();
   const database = useSettingStore(state => state.setting.database.active);

@@ -8,7 +8,7 @@ import {
 } from "@/constants/prompts/video-ebook-rewrite";
 import { importFromMarkdown } from "@/utils/markdown";
 import { Role } from "@/constants";
-import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 
@@ -33,7 +33,8 @@ interface UseVideoEbookRewriteResult {
 
 export const useVideoEbookRewrite = (
   provider: LLMProviderSetting | null,
-  model: LLMModelSetting | null
+  model: LLMModelSetting | null,
+  thinkingLevel?: PiThinkingLevel
 ): UseVideoEbookRewriteResult => {
   const [isRewriting, setIsRewriting] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -99,7 +100,13 @@ export const useVideoEbookRewrite = (
     ];
 
     const handle = piStreamText(
-      { provider, model, messages, source: { feature: "videoEbookRewrite" } },
+      {
+        provider,
+        model,
+        ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
+        messages,
+        source: { feature: "videoEbookRewrite" },
+      },
       ({ text }) => {
         if (request !== requestVersion.current) return;
         setIsPending(false);

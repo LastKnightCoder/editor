@@ -1,5 +1,5 @@
 import { Role } from "@/constants";
-import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage, ToolCallExecutionState, ToolCallPayload } from "@/types/llm";
 import type { ToolExecutionResult } from "@/types";
 import type { ModelUsage as AgentModelUsage } from "@tau/shared";
@@ -179,7 +179,8 @@ export function runGenerationTask(
   model: LLMModelSetting,
   request: GenerationRequest,
   callbacks: GenerationRunCallbacks,
-  options: GenerationRunOptions = {}
+  options: GenerationRunOptions = {},
+  thinkingLevel?: PiThinkingLevel
 ): void {
   const buildResult = buildGenerationRequest(request);
   // 用量归属按任务类型区分；插件输出再细分到插件
@@ -193,7 +194,13 @@ export function runGenerationTask(
   // 单发路径（provided_content）：直接消费 pi 原生事件（partial 全量快照）
   if (!buildResult.enableTools) {
     const handle = piStreamChat(
-      { provider, model, messages: buildResult.messages, source },
+      {
+        provider,
+        model,
+        ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
+        messages: buildResult.messages,
+        source,
+      },
       event => {
         if (event.type === "text_delta" || event.type === "text_end") {
           callbacks.onUpdate(piTextOf(event.partial));

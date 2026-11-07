@@ -23,11 +23,11 @@ export function useFormulaAssist(): ReturnType<NonNullable<DatabaseSlots["useFor
           role: message.role as Role,
           content: message.content,
         })),
-        thinking: "off",
+        ...(usage?.thinkingLevel ? { thinking: usage.thinkingLevel } : {}),
         source: { feature: "formulaAssist" },
       });
       if (!outcome.ok) throw new Error(outcome.error ?? "模型调用失败");
       return outcome.text;
     };
-  }, [providers, usage?.providerId, usage?.modelId]);
+  }, [providers, usage?.providerId, usage?.modelId, usage?.thinkingLevel]);
 }

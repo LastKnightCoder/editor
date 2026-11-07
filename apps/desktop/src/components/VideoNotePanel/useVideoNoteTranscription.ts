@@ -60,7 +60,11 @@ export function useVideoNoteTranscription({
   language,
   onTranscriptSaved,
 }: UseVideoNoteTranscriptionOptions) {
-  const { provider, model } = useLLMConfig("transcriptionOptimization");
+  const {
+    provider,
+    model,
+    thinkingLevel: transcriptionThinkingLevel,
+  } = useLLMConfig("transcriptionOptimization");
   const {
     isOptimizing,
     streamingSegments,
@@ -68,7 +72,7 @@ export function useVideoNoteTranscription({
     startOptimization,
     stopOptimization,
     error: optimizationError,
-  } = useTranscriptionOptimization(provider, model);
+  } = useTranscriptionOptimization(provider, model, transcriptionThinkingLevel);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const isLoadingCaptions = useVideoNoteCaptions(videoNote, isTranscribing, onTranscriptSaved);

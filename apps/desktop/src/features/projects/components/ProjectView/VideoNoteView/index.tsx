@@ -478,6 +478,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         videoDescription={videoNote.description || ""}
         provider={ebookLLM.provider}
         model={ebookLLM.model}
+        thinkingLevel={ebookLLM.thinkingLevel}
         onOpenLLMSettings={openLLMSettingsSection}
       />
     </div>

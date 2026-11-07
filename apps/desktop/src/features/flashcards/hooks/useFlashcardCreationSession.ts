@@ -36,8 +36,11 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
   const [generatedCardEditModalOpen, setGeneratedCardEditModalOpen] = useState(false);
 
   // LLM 配置
-  const { provider: flashcardLLMProviderSetting, model: flashcardLLMModelSetting } =
-    useLLMConfig("flashcardGeneration");
+  const {
+    provider: flashcardLLMProviderSetting,
+    model: flashcardLLMModelSetting,
+    thinkingLevel: flashcardThinkingLevel,
+  } = useLLMConfig("flashcardGeneration");
 
   // 闪卡生成 hook
   const {
@@ -56,7 +59,8 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
   } = useFlashcardGeneration(
     flashcardLLMProviderSetting,
     flashcardLLMModelSetting,
-    options.generate
+    options.generate,
+    flashcardThinkingLevel
   );
 
   const { createCard: createFlashcard } = useFlashcardMutations();
