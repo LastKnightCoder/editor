@@ -216,12 +216,24 @@
   align-items: center;
   gap: 48px;
   padding: 0 40px;
-  background: color-mix(in srgb, var(--tau-bg-page) 84%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--tau-line-1);
   transform: translateY(-101%);
   transition: transform 0.4s var(--ease);
+}
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--tau-bg-page);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .topbar::before {
+    background: color-mix(in srgb, var(--tau-bg-page) 72%, transparent);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
 }
 .topbar.show {
   transform: none;
