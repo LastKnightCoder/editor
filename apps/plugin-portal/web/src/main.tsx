@@ -10,6 +10,7 @@ import { createHttpApi } from "./api/http";
 import type { PortalApi } from "./api/types";
 import { ApiProvider, createQueryClient } from "./app/api";
 import { createPortalRouter } from "./app/router";
+import { initScrollFade } from "./app/scrollFade";
 import { sessionExpiry } from "./app/session";
 import { resolvePortalEnv } from "./env";
 
@@ -31,6 +32,7 @@ async function bootstrap() {
   const api = guardSession(transport, () => sessionExpiry.mark(queryClient));
 
   initThemeRuntime();
+  initScrollFade();
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <ApiProvider api={api}>
