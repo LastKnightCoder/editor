@@ -13,6 +13,7 @@ import type {
 import { normalizeMemory, searchTerms, type MemoryCandidate } from "./extraction";
 import { loadSqliteVecExtension } from "../../utils/sqlite-vec-loader";
 import type { MemoryModelCandidate } from "./reflection";
+import type { ReconcileEntry, ReconcileOp } from "./reconcile";
 import { MEMORY_INGEST_KINDS } from "@/types/assistant-memory";
 import type { MemoryDebugData, MemoryDebugModel } from "@/types/assistant-memory-debug";
 
@@ -84,6 +85,17 @@ CREATE TRIGGER IF NOT EXISTS memory_update AFTER UPDATE OF text, topic ON memory
   DELETE FROM memory_search WHERE rowid = old.id;
   INSERT INTO memory_search(rowid, text, topic) VALUES(new.id, new.text, new.topic);
 END;
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_words USING fts5(body, tokenize='unicode61');
+CREATE TRIGGER IF NOT EXISTS memory_words_insert AFTER INSERT ON memory BEGIN
+  INSERT INTO memory_words(rowid, body) VALUES(new.id, memory_segment(new.topic || ' ' || new.text));
+END;
+CREATE TRIGGER IF NOT EXISTS memory_words_delete AFTER DELETE ON memory BEGIN
+  DELETE FROM memory_words WHERE rowid = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS memory_words_update AFTER UPDATE OF text, topic ON memory BEGIN
+  DELETE FROM memory_words WHERE rowid = old.id;
+  INSERT INTO memory_words(rowid, body) VALUES(new.id, memory_segment(new.topic || ' ' || new.text));
+END;
 `;
 
 export interface MemoryProgress extends MemorySource {
@@ -118,6 +130,20 @@ const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const topicKey = (kind: string, topic: string) => hash(kind + "\0" + normalizeMemory(topic));
 const factKey = (kind: string, topic: string, text: string) =>
   hash([kind, normalizeMemory(topic), normalizeMemory(text)].join("\0"));
+const wordSegmenter = new Intl.Segmenter("zh", { granularity: "word" });
+/** 与 searchTerms 同口径分词，供词级索引按空格切分。 */
+const segmentWords = (text: unknown) =>
+  [...wordSegmenter.segment(String(text).normalize("NFKC").toLowerCase())]
+    .filter(word => word.isWordLike)
+    .map(word => word.segment)
+    .join(" ");
+const sameMemory = (before: AssistantMemory, current: AssistantMemory | null) =>
+  current !== null &&
+  before.kind === current.kind &&
+  before.topic === current.topic &&
+  before.text === current.text &&
+  before.state === current.state &&
+  before.observedAt === current.observedAt;
 
 export class MemoryStore {
   private readonly db: Database.Database;
@@ -128,7 +154,15 @@ export class MemoryStore {
     try {
       this.db.pragma("journal_mode = WAL");
       this.db.pragma("foreign_keys = ON");
+      // 词级索引的触发器依赖此函数，所有写 memory 的连接都必须先注册。
+      this.db.function("memory_segment", { deterministic: true }, segmentWords);
       this.db.exec(SCHEMA);
+      if (!this.meta("words-indexed"))
+        this.atomic(() => {
+          this.db.exec(`DELETE FROM memory_words;
+            INSERT INTO memory_words(rowid, body) SELECT id, memory_segment(topic || ' ' || text) FROM memory;`);
+          this.setMeta("words-indexed", "1");
+        });
     } catch (error) {
       this.db.close();
       throw error;
@@ -321,6 +355,27 @@ export class MemoryStore {
       .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m
       ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${score ? "(" + score + ") DESC," : ""} m.id DESC LIMIT ?`)
       .all(...args) as MemoryRow[];
+    return rows.map(row => this.toMemory(row));
+  }
+
+  /** 对账用的相关经历：词级索引 bm25 排序；跳过出现在大多数经历里的通用词，免得为全表打分。 */
+  related(query: string, kind: AssistantMemory["kind"], limit: number): AssistantMemory[] {
+    const total = this.db.prepare("SELECT count(*) FROM memory").pluck().get() as number;
+    const common = Math.max(64, Math.floor(total * 0.05));
+    const frequency = this.db
+      .prepare(
+        "SELECT count(*) FROM (SELECT 1 FROM memory_words WHERE memory_words MATCH ? LIMIT ?)"
+      )
+      .pluck();
+    const quote = (term: string) => '"' + term.replace(/"/g, '""') + '"';
+    const terms = searchTerms(query).filter(
+      term => (frequency.get(quote(term), common + 1) as number) <= common
+    );
+    if (!terms.length) return [];
+    const rows = this.db
+      .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory_words w JOIN memory m ON m.id=w.rowid
+      WHERE memory_words MATCH ? AND m.kind=? AND ${PERSONAL_EPISODE} ORDER BY w.rank LIMIT ?`)
+      .all(terms.map(quote).join(" OR "), kind, limit) as MemoryRow[];
     return rows.map(row => this.toMemory(row));
   }
 
@@ -775,12 +830,6 @@ export class MemoryStore {
         now,
       }) as { id: number };
       this.addEvidence(row.id, evidence);
-      if (candidate.replaces && candidate.replaces !== row.id && state === "current") {
-        this.db
-          .prepare(`UPDATE memory SET state='history',touched_at=?
-          WHERE id=? AND observed_at<=? AND state='current'`)
-          .run(now, candidate.replaces, candidate.observedAt);
-      }
       if (candidate.profile && state === "current") this.declareProfile(row.id, now);
       // activity 深度编辑写入时，续期同 topic 的 current state memory（最多 90 天）
       if (
@@ -871,41 +920,99 @@ export class MemoryStore {
     });
   }
 
-  mergeEpisodes(groups: { keep: number; merge: number[] }[], allowed: Set<number>, now: number) {
-    this.atomic(() => {
-      for (const group of groups) {
-        if (!allowed.has(group.keep)) continue;
-        const keep = this.get(group.keep);
-        if (!keep || keep.manual) continue;
-        for (const id of group.merge) {
-          if (id === keep.id || !allowed.has(id)) continue;
-          const duplicate = this.get(id);
-          if (
-            !duplicate ||
-            duplicate.manual ||
-            duplicate.kind !== keep.kind ||
-            duplicate.state !== keep.state ||
-            normalizeMemory(duplicate.topic) !== normalizeMemory(keep.topic) ||
-            duplicate.expiresAt !== keep.expiresAt
-          )
-            continue;
-          this.addEvidence(keep.id, duplicate.evidence);
-          this.db
-            .prepare("UPDATE OR IGNORE memory_model_evidence SET memory_id=? WHERE memory_id=?")
-            .run(keep.id, duplicate.id);
-          this.db.prepare("DELETE FROM memory_model_evidence WHERE memory_id=?").run(duplicate.id);
-          this.db
-            .prepare("UPDATE memory SET observed_at=MAX(observed_at,?),touched_at=? WHERE id=?")
-            .run(duplicate.observedAt, now, keep.id);
-          this.db.prepare("DELETE FROM memory WHERE id=?").run(id);
-        }
+  /** 按对账结果落库；目标在模型等待期间被改动时按新增处理。 */
+  reconcile(entries: ReconcileEntry[], now: number) {
+    for (const { candidate, op, target } of entries) {
+      if (op === "add" || !target || !sameMemory(target, this.get(target.id))) {
+        this.apply([candidate], now);
+        continue;
       }
-      this.db
-        .prepare(
-          "UPDATE memory SET state='history' WHERE state='current' AND expires_at<=? AND manual=0"
-        )
-        .run(now);
+      const forgotten = this.db.prepare("SELECT 1 FROM forgotten_fact WHERE fact_key=?");
+      if (forgotten.get(factKey(candidate.kind, candidate.topic, candidate.text))) continue;
+      const evidence = candidate.evidence.filter(ref => !this.hiddenAnchor(ref, ref.anchor));
+      if (!evidence.length) continue;
+      if (op === "supersede") {
+        this.db
+          .prepare("UPDATE memory SET state='history',touched_at=? WHERE id=?")
+          .run(now, target.id);
+        this.apply([{ ...candidate, topic: target.topic }], now);
+        continue;
+      }
+      if (op === "revise") {
+        const key = factKey(target.kind, target.topic, candidate.text);
+        if (forgotten.get(key)) continue;
+        if (
+          this.db.prepare("SELECT 1 FROM memory WHERE fact_key=? AND id<>?").get(key, target.id)
+        ) {
+          this.apply([{ ...candidate, topic: target.topic }], now);
+          continue;
+        }
+        this.db
+          .prepare(`UPDATE memory SET text=?,fact_key=?,state=?,observed_at=?,expires_at=?,touched_at=?
+          WHERE id=?`)
+          .run(
+            candidate.text,
+            key,
+            candidate.state,
+            candidate.observedAt,
+            candidate.expiresAt ?? null,
+            now,
+            target.id
+          );
+      } else this.reinforce(target.id, candidate, now);
+      this.addEvidence(target.id, evidence);
+      if (candidate.profile && this.get(target.id)?.state === "current")
+        this.declareProfile(target.id, now);
+    }
+  }
+
+  /** 复核已有经历之间的对账：重复的并入一条，被推翻的转为历史。 */
+  reconcileEpisodes(
+    entries: Array<{ subject: AssistantMemory; op: ReconcileOp; target?: AssistantMemory }>,
+    now: number
+  ) {
+    this.atomic(() => {
+      for (const { subject, op, target } of entries) {
+        if (op === "add" || !target || subject.manual) continue;
+        if (!sameMemory(subject, this.get(subject.id)) || !sameMemory(target, this.get(target.id)))
+          continue;
+        if (op === "supersede")
+          this.db
+            .prepare("UPDATE memory SET state='history',touched_at=? WHERE id=?")
+            .run(now, target.id);
+        else if (op === "revise") this.absorb(subject, target, now);
+        else this.absorb(target, subject, now);
+      }
     });
+  }
+
+  private reinforce(
+    id: number,
+    by: Pick<AssistantMemory, "state" | "observedAt"> & { expiresAt?: number | null },
+    now: number
+  ) {
+    this.db
+      .prepare(`UPDATE memory SET touched_at=@now,observed_at=MAX(observed_at,@observedAt),
+        expires_at=CASE WHEN manual=0 AND @observedAt>=observed_at THEN @expiresAt ELSE expires_at END,
+        state=CASE WHEN manual=0 AND @state='current' AND @observedAt>=observed_at THEN 'current' ELSE state END
+      WHERE id=@id`)
+      .run({
+        id,
+        now,
+        state: by.state,
+        observedAt: by.observedAt,
+        expiresAt: by.expiresAt ?? null,
+      });
+  }
+
+  private absorb(keep: AssistantMemory, drop: AssistantMemory, now: number) {
+    this.addEvidence(keep.id, drop.evidence);
+    this.db
+      .prepare("UPDATE OR IGNORE memory_model_evidence SET memory_id=? WHERE memory_id=?")
+      .run(keep.id, drop.id);
+    this.db.prepare("DELETE FROM memory_model_evidence WHERE memory_id=?").run(drop.id);
+    this.reinforce(keep.id, drop, now);
+    this.db.prepare("DELETE FROM memory WHERE id=?").run(drop.id);
   }
 
   nextExpiry(): number | null {

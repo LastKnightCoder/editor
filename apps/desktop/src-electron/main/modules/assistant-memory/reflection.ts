@@ -4,7 +4,7 @@ import {
   type MemorySource,
   type PersonalMemoryModel,
 } from "@/types/assistant-memory";
-import { normalizeMemory, parseMerges, safeMemoryText } from "./extraction";
+import { normalizeMemory, safeMemoryText } from "./extraction";
 
 export const MEMORY_REVIEW_INTERVAL = 14 * 86_400_000;
 export const MEMORY_STATE_LIFETIME = 30 * 86_400_000;
@@ -12,7 +12,6 @@ export const MEMORY_STATE_LIFETIME = 30 * 86_400_000;
 export type MemoryModelCandidate = Omit<PersonalMemoryModel, "id">;
 export interface MemoryReflection {
   models: MemoryModelCandidate[];
-  merge: { keep: number; merge: number[] }[];
   retire: { id: number; episodeIds: number[] }[];
 }
 
@@ -22,8 +21,8 @@ state 是近期状态：用户正在做的项目、正在学习的内容、具�
 profile 是长期画像：明确的个人事实、稳定偏好、价值取向、个人观点、做事方式、长期目标和兴趣。日记与主对话中的本人表达均可作为自述证据，个人观点保留「用户认为／重视」的主观归属。用户明确自述可标 explicit，topic 沿用该自述的主题，text 保留最新自述的含义；仅推断须多日、多个独立的用户表达支持，标 supported；资料编辑和收藏不能证明长期兴趣或个人能力。一时要求、情绪与尚在探索的想法不要升格长期偏好、性格或信念。
 使用稳定且具体的 topic，同一认识发生改变时让新自述优先，替换同主题旧认识，保留时间和不确定性；旧经历不当作最近发生。证据矛盾又没有明确新结论时不要生成肯定画像。
 models 每项提供 layer、kind、topic、text、confidence、episodeIds；kind 为 event/fact/preference/routine/intention/interest。text 最多 240 字，episodeIds 最多 8 个，必须是本次输入 ID。总共最多 12 项，优先新近变化和对帮助用户最有价值的认识，宁缺毋滥。
-merge 只合并同一事实、适用范围和时间一致的重复经历，不合并不同经历或相互矛盾的说法。retire 仅在新明确自述推翻旧模型时给出旧模型 id 和支持这个变更的 episodeIds。不要因为片段不全删除仍有效的认识。
-返回 JSON 对象 {models:[{layer:"state"|"profile",kind,topic,text,confidence:"explicit"|"supported",episodeIds:[数字ID]}],merge:[{keep:数字ID,merge:[数字ID]}],retire:[{id:旧模型ID,episodeIds:[新证据ID]}]}。没有足够依据时各数组为空。`;
+retire 仅在新明确自述推翻旧模型时给出旧模型 id 和支持这个变更的 episodeIds。不要因为片段不全删除仍有效的认识。
+返回 JSON 对象 {models:[{layer:"state"|"profile",kind,topic,text,confidence:"explicit"|"supported",episodeIds:[数字ID]}],retire:[{id:旧模型ID,episodeIds:[新证据ID]}]}。没有足够依据时各数组为空。`;
 
 export const isPersonalEpisode = (item: AssistantMemory) =>
   item.manual || item.evidence.some(ref => ref.kind !== "content");
@@ -158,9 +157,5 @@ export function parseReflection(
     )
       retire.push({ id: old.id, episodeIds: evidence.map(item => item.id) });
   }
-  return {
-    models,
-    merge: parseMerges(JSON.stringify(Array.isArray(output.merge) ? output.merge : [])),
-    retire,
-  };
+  return { models, retire };
 }

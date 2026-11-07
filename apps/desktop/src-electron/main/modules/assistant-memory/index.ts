@@ -374,6 +374,7 @@ class AssistantMemoryModule {
         sources,
         allowed,
         busy: memoryForegroundBusy,
+        related: list => vectors.searchMany(list),
         complete: async (system, input, signal, purpose) => {
           const slot = this.slot;
           if (!slot) throw new Error("未配置个人助手记忆模型");
@@ -382,7 +383,7 @@ class AssistantMemoryModule {
               ...slot,
               system,
               messages: [{ role: "user", content: input }],
-              maxOutputTokens: purpose === "extract" ? 4500 : 6000,
+              maxOutputTokens: purpose === "reconcile" ? 2000 : purpose === "extract" ? 4500 : 6000,
               ...(slot.thinkingLevel ? { thinking: slot.thinkingLevel } : {}),
               source: { feature: SLOT, entityId: purpose, library: name },
             },

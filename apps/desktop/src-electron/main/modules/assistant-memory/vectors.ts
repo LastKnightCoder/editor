@@ -180,19 +180,31 @@ export class MemoryVectorIndex {
   }
 
   async search(params: MemorySearch): Promise<AssistantMemory[]> {
-    const query = params.query?.trim();
+    return (await this.searchMany([params]))[0];
+  }
+
+  /** 一次嵌入整批查询再逐条近邻检索，批量对账只等待一次模型。 */
+  async searchMany(list: MemorySearch[]): Promise<AssistantMemory[][]> {
+    const empty = list.map(() => [] as AssistantMemory[]);
+    const queries = list.map(params => params.query?.trim() ?? "");
     const config = this.config;
-    if (!query || !config || !this.allowed()) return [];
+    if (!queries.some(Boolean) || !config || !this.allowed()) return empty;
     const generation = this.generation;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     this.queries.add(controller);
     try {
-      if (!this.options.ready(config)) return [];
+      if (!this.options.ready(config)) return empty;
       this.prepare(config);
-      if (!this.options.store.hasEmbeddings(config.fingerprint)) return [];
+      if (!this.options.store.hasEmbeddings(config.fingerprint)) return empty;
+      const asked = queries.flatMap((query, index) => (query ? [index] : []));
       const embeddings = await Promise.race([
-        this.options.embed(config, [query], true, controller.signal),
+        this.options.embed(
+          config,
+          asked.map(index => queries[index]),
+          true,
+          controller.signal
+        ),
         new Promise<null>(resolve => {
           timer = setTimeout(() => resolve(null), QUERY_TIMEOUT_MS);
           timer.unref();
@@ -204,17 +216,20 @@ export class MemoryVectorIndex {
         generation !== this.generation ||
         !this.allowed()
       )
-        return [];
-      const vector = embeddings[0];
-      if (vector?.length !== config.dimensions || !vector.every(Number.isFinite)) return [];
-      return this.options.store.searchEmbeddings(
-        vector,
-        params,
-        config.fingerprint,
-        config.distance
-      );
+        return empty;
+      asked.forEach((index, position) => {
+        const vector = embeddings[position];
+        if (vector?.length !== config.dimensions || !vector.every(Number.isFinite)) return;
+        empty[index] = this.options.store.searchEmbeddings(
+          vector,
+          list[index],
+          config.fingerprint,
+          config.distance
+        );
+      });
+      return empty;
     } catch {
-      return [];
+      return empty;
     } finally {
       if (timer) clearTimeout(timer);
       controller.abort();

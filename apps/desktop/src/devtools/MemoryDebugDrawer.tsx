@@ -18,6 +18,7 @@ const phaseLabel = {
   scanning: "分页对账来源",
   reading: "读取来源",
   extracting: "提炼个人经历",
+  reconciling: "对账已有经历",
   reflecting: "归纳个人理解",
   reviewing: "全面复核",
 } as const;
