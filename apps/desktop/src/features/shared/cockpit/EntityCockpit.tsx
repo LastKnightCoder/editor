@@ -118,7 +118,7 @@ export function EntityCockpit({
   );
 
   return (
-    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：工具栏固定在纸顶，段落在纸内滚动 */}
       <div
         className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -128,7 +128,7 @@ export function EntityCockpit({
         <div className="flex flex-none flex-col px-8 pt-5">
           {/* 工具栏：标题 + 摘要 + 排序 / 视图 + 唯一的「新建」 */}
           <div className="flex h-10 flex-none items-center gap-3.5">
-            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
               {copy.title}
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
@@ -160,7 +160,7 @@ export function EntityCockpit({
         {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8）；
           不留 pt：段头贴滚动区顶边，scrollTop=0 起即处于吸顶位，滚动时不抖。
           首行卡片 hover 的 lift 阴影由段头的 pb 留白承接，不会被顶边裁掉 */}
-        <FadeScroll topFade={false} className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px]">
+        <FadeScroll topFade={false} className="mb-4 min-h-0 flex-1 pr-[26px] pb-2 pl-8">
           {/* 最近打开：只在网格时出现；列表由「上次打开」列承担 */}
           {layout === "grid" && recent.length > 0 && (
             <section className="mb-[26px]">
@@ -195,7 +195,7 @@ export function EntityCockpit({
               <button
                 type="button"
                 onClick={() => setArchivedOpen(prev => !prev)}
-                className="group/head sticky top-0 z-[2] flex w-full items-center gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] px-0.5 pb-[13px] pt-0.5 text-left"
+                className="group/head sticky top-0 z-[2] flex w-full items-center gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] px-0.5 pt-0.5 pb-[13px] text-left"
               >
                 <ChevronDown
                   className={cn(
@@ -215,7 +215,7 @@ export function EntityCockpit({
                   archivedOpen && "grid-rows-[1fr]"
                 )}
               >
-                <div className="overflow-hidden">{collection(archived, false)}</div>
+                <div className="-mx-3 overflow-hidden px-3">{collection(archived, false)}</div>
               </div>
             </section>
           )}
@@ -336,7 +336,7 @@ function ItemCollection({
 
 function CockpitSectionHead({ label, hint }: { label: string; hint: string }) {
   return (
-    <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
+    <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pt-0.5 pb-[13px] pl-0.5">
       <span className="text-[16px] font-semibold tracking-[-0.01em]">{label}</span>
       <span className="text-ink-3 text-[11.5px] tabular-nums">{hint}</span>
     </header>
