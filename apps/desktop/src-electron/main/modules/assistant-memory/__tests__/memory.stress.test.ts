@@ -3,10 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { MemoryEvidence, MemorySource, MemorySourceKind } from "@/types/assistant-memory";
-import { parseExtraction, type MemoryPart } from "../extraction";
+import { parseExtraction, type MemoryCandidate, type MemoryPart } from "../extraction";
 import type { MemoryHead, MemorySnapshot, MemorySourcesPort } from "../sources";
 import { MemoryStore, openMemoryStoreForLibrary } from "../store";
 import { MemoryWorker, type MemoryWorkerOptions } from "../worker";
+import { MemoryRetrieval } from "../retrieval";
+import { MemoryVectorIndex, type MemoryVectorOptions } from "../vectors";
+import type { ResolvedEmbeddingConfig } from "../../../utils/embedding-config";
 
 function present<T>(value: T | null | undefined): T {
   if (value == null) throw new Error("缺少测试资料");
@@ -36,7 +39,13 @@ class Sources implements MemorySourcesPort {
       next: "段" + index + ":0",
       observedAt: at,
       role:
-        kind === "todo" || kind === "calendar" ? "record" : kind === "chat" ? "user" : "document",
+        kind === "todo" || kind === "calendar"
+          ? "record"
+          : kind === "chat"
+            ? "user"
+            : kind === "activity"
+              ? "activity"
+              : "document",
       title: text,
       current: kind === "todo" ? "待办" : undefined,
     }));
@@ -79,16 +88,6 @@ class Sources implements MemorySourcesPort {
   invalidate() {
     /* 测试来源没有缓存。 */
   }
-  fallback(query: string, limit: number, allow: (source: MemorySource) => boolean) {
-    return [...this.data.values()]
-      .filter(item => allow(item.head))
-      .flatMap(item =>
-        item.parts
-          .filter(part => part.text.includes(query))
-          .map(part => ({ ...part, quote: part.text }))
-      )
-      .slice(0, limit);
-  }
 }
 
 function extraction(input: string) {
@@ -97,6 +96,8 @@ function extraction(input: string) {
   };
   return JSON.stringify(
     parsed.parts.map(({ part, role, text }) => ({
+      subject: "user",
+      temporal: "current",
       part,
       kind: role === "user" ? "preference" : "fact",
       topic: text,
@@ -117,7 +118,7 @@ function setup() {
   let calls = 0;
   let maxInput = 0;
   let complete: MemoryWorkerOptions["complete"] = async (_system, input, _signal, purpose) => {
-    if (purpose === "dream") return "[]";
+    if (purpose !== "extract") return JSON.stringify({ models: [], merge: [], retire: [] });
     calls++;
     maxInput = Math.max(maxInput, input.length);
     return extraction(input);
@@ -133,6 +134,7 @@ function setup() {
     });
   }
   let worker = createWorker();
+  let retrieval = new MemoryRetrieval({ store, sources, now: () => now });
   return {
     sources,
     get store() {
@@ -140,6 +142,9 @@ function setup() {
     },
     get worker() {
       return worker;
+    },
+    get retrieval() {
+      return retrieval;
     },
     get calls() {
       return calls;
@@ -165,19 +170,226 @@ function setup() {
     },
     reopen() {
       worker.close();
+      retrieval.close();
       store.close();
       store = new MemoryStore(file);
       worker = createWorker();
+      retrieval = new MemoryRetrieval({ store, sources, now: () => now });
     },
     close() {
       worker.close();
+      retrieval.close();
       store.close();
       rmSync(temp, { recursive: true, force: true });
     },
   };
 }
 
+const vectorConfig: ResolvedEmbeddingConfig = {
+  provider: "local",
+  model: "memory-test",
+  dimensions: 3,
+  distance: 0.4,
+  devicePolicy: "cpu",
+  batchSize: 8,
+  fingerprint: "memory-model-a",
+};
+
+function remember(
+  fixture: ReturnType<typeof setup>,
+  id: string,
+  text: string,
+  fields: Partial<Pick<MemoryCandidate, "state" | "kind" | "expiresAt">> = {}
+) {
+  const source = fixture.sources.put("chat", id, START, [text]);
+  const part = fixture.sources.read(present(fixture.sources.head(source))).parts[0];
+  fixture.store.apply(
+    [
+      {
+        kind: "preference",
+        state: "current",
+        topic: text,
+        text,
+        observedAt: START,
+        evidence: [{ ...source, anchor: part.anchor, quote: text }],
+        ...fields,
+      },
+    ],
+    START
+  );
+  return present(fixture.store.search({ state: "all", limit: 1 })[0]);
+}
+
+function createVectors(
+  fixture: ReturnType<typeof setup>,
+  embed: MemoryVectorOptions["embed"] = async (_config, texts) =>
+    texts.map(text => (/写作|创作|通知/.test(text) ? [1, 0, 0] : [0, 1, 0]))
+) {
+  const vectors = new MemoryVectorIndex({
+    store: fixture.store,
+    allowed: () => true,
+    busy: () => false,
+    ready: () => true,
+    embed,
+  });
+  vectors.configure(vectorConfig);
+  return vectors;
+}
+
 describe("个人助手记忆", () => {
+  it("真实向量跨措辞召回并去重，状态、类型、时间和原文证据仍限制结果", async () => {
+    const f = setup();
+    const current = remember(f, "1", "写作时关闭所有通知");
+    remember(f, "2", "使用中文标题");
+    remember(f, "3", "创作期间不接收消息", { state: "history" });
+    remember(f, "4", "创作计划已经确定", { kind: "fact" });
+    remember(f, "5", "创作休息时间", { expiresAt: START - 1 });
+    const vectors = createVectors(f);
+    const retrieval = new MemoryRetrieval({
+      store: f.store,
+      sources: f.sources,
+      vectors,
+      now: () => START,
+    });
+    try {
+      await vectors.runBatch();
+      const query = {
+        query: "专注创作",
+        state: "current",
+        kind: "preference",
+        layer: "episode",
+      } as const;
+      expect(f.retrieval.search(query).memories).toEqual([]);
+      expect((await retrieval.recall(query)).memories.map(item => item.id)).toEqual([current.id]);
+      expect(
+        (await retrieval.recall({ ...query, query: "通知" })).memories.map(item => item.id)
+      ).toEqual([current.id]);
+      expect((await retrieval.recall({ ...query, from: START + 1 })).memories).toEqual([]);
+      expect((await retrieval.recall({ ...query, to: START - 1 })).memories).toEqual([]);
+      f.sources.drop({ kind: "chat", id: "1" });
+      expect((await retrieval.recall(query)).memories).toEqual([]);
+    } finally {
+      retrieval.close();
+      vectors.close();
+      f.close();
+    }
+  });
+
+  it("更正和遗忘使旧向量失效，重启保留可用向量，换模型只重建派生索引", () => {
+    const f = setup();
+    try {
+      const item = remember(f, "1", "写作时关闭所有通知");
+      f.store.prepareEmbeddings("a", 3);
+      const original = f.store.pendingEmbeddings(8);
+      f.store.writeEmbeddings(original, [[1, 0, 0]], "a", 3);
+      expect(f.store.searchEmbeddings([1, 0, 0], {}, "a", 0.4)).toHaveLength(1);
+      f.store.correct(
+        item.id,
+        {
+          kind: "preference",
+          topic: "写作",
+          text: "写作时保留重要通知",
+          state: "current",
+        },
+        START + 1
+      );
+      f.store.writeEmbeddings(original, [[1, 0, 0]], "a", 3);
+      expect(f.store.searchEmbeddings([1, 0, 0], {}, "a", 0.4)).toEqual([]);
+      f.store.writeEmbeddings(f.store.pendingEmbeddings(8), [[1, 0, 0]], "a", 3);
+      f.reopen();
+      f.store.prepareEmbeddings("a", 3);
+      expect(f.store.pendingEmbeddings(1)).toEqual([]);
+      expect(f.store.searchEmbeddings([1, 0, 0], {}, "a", 0.4)[0]?.text).toBe("写作时保留重要通知");
+      f.reopen();
+      expect(f.store.forget(item.id)).toBe(true);
+      f.store.prepareEmbeddings("a", 3);
+      expect(f.store.searchEmbeddings([1, 0, 0], {}, "a", 0.4)).toEqual([]);
+      const next = remember(f, "2", "使用中文标题");
+      f.store.writeEmbeddings(f.store.pendingEmbeddings(8), [[0, 1, 0]], "a", 3);
+      f.store.prepareEmbeddings("b", 4);
+      expect(f.store.get(next.id)?.text).toBe(next.text);
+      expect(f.store.hasEmbeddings("a")).toBe(false);
+      expect(f.store.pendingEmbeddings(8).map(document => document.id)).toEqual([next.id]);
+      f.store.writeEmbeddings(f.store.pendingEmbeddings(8), [[0, 1, 0]], "a", 3);
+      expect(f.store.hasEmbeddings("b")).toBe(false);
+      f.store.writeEmbeddings(f.store.pendingEmbeddings(8), [[0, 1, 0, 0]], "b", 4);
+      expect(f.store.searchEmbeddings([0, 1, 0, 0], {}, "b", 0.4)[0]?.id).toBe(next.id);
+    } finally {
+      f.close();
+    }
+  });
+
+  it("后台嵌入等待期间换模型或关闭资料库，不接收迟到结果", async () => {
+    const f = setup();
+    remember(f, "1", "写作时关闭所有通知");
+    let release: ((vectors: number[][]) => void) | undefined;
+    let blocked = true;
+    const vectors = createVectors(f, async (_config, texts) =>
+      blocked
+        ? new Promise(resolve => {
+            release = resolve;
+          })
+        : texts.map(() => [1, 0, 0])
+    );
+    try {
+      const indexing = vectors.runBatch();
+      vectors.configure({ ...vectorConfig, fingerprint: "memory-model-b" });
+      present(release)([[1, 0, 0]]);
+      await indexing;
+      expect(f.store.hasEmbeddings(vectorConfig.fingerprint)).toBe(false);
+      blocked = false;
+      await vectors.runBatch();
+      expect(f.store.hasEmbeddings("memory-model-b")).toBe(true);
+      remember(f, "2", "写作使用中文标题");
+      blocked = true;
+      const closing = vectors.runBatch();
+      vectors.close();
+      f.reopen();
+      present(release)([[1, 0, 0]]);
+      await closing;
+      expect(f.store.pendingEmbeddings(8)).toHaveLength(1);
+    } finally {
+      vectors.close();
+      f.close();
+    }
+  });
+
+  it("语义查询超时仍返回关键词结果，关闭的召回不再读取旧资料库", async () => {
+    const f = setup();
+    const item = remember(f, "1", "写作时关闭所有通知");
+    let release: ((vectors: number[][]) => void) | undefined;
+    const vectors = createVectors(f, async (_config, texts, interactive) =>
+      interactive
+        ? new Promise(resolve => {
+            release = resolve;
+          })
+        : texts.map(() => [1, 0, 0])
+    );
+    const retrieval = new MemoryRetrieval({
+      store: f.store,
+      sources: f.sources,
+      vectors,
+      now: () => START,
+    });
+    try {
+      await vectors.runBatch();
+      expect(
+        (await retrieval.recall({ query: "写作", state: "current", layer: "episode" })).memories[0]
+          ?.id
+      ).toBe(item.id);
+      const closing = retrieval.recall({ query: "写作" });
+      retrieval.close();
+      vectors.close();
+      f.reopen();
+      present(release)([[1, 0, 0]]);
+      expect(await closing).toEqual({ models: [], memories: [], sources: [], nextBefore: null });
+    } finally {
+      retrieval.close();
+      vectors.close();
+      f.close();
+    }
+  });
+
   it("分页补录 23,000 个来源，重启续跑且对账不重复调用模型", async () => {
     const f = setup();
     const started = performance.now();
@@ -185,7 +397,7 @@ describe("个人助手记忆", () => {
       const count = 23_000;
       for (let id = 1; id <= count; id++)
         f.sources.put(
-          id <= 20_000 ? "content" : id <= 22_000 ? "chat" : "todo",
+          id <= 20_000 ? "chat" : id <= 22_000 ? "activity" : "todo",
           String(id),
           START,
           [`项目条目 ${id} 已确认`]
@@ -202,7 +414,7 @@ describe("个人助手记忆", () => {
       expect(initialCalls).toBeLessThan(5_000);
       expect(f.sources.maxPage).toBeLessThanOrEqual(48);
       expect(f.maxInput).toBeLessThan(15_000);
-      expect(f.worker.search({ query: "12937", limit: 5 }, false).memories[0]?.text).toBe(
+      expect(f.retrieval.search({ query: "12937", limit: 5 }, false).memories[0]?.text).toBe(
         "项目条目 12937 已确认"
       );
 
@@ -210,7 +422,7 @@ describe("个人助手记忆", () => {
       await f.drain();
       expect(f.calls).toBe(initialCalls);
       for (let id = 1; id <= 700; id++) {
-        const ref = f.sources.put("content", String(id), START + 20, [`文档修订 ${id} 已确认`]);
+        const ref = f.sources.put("chat", String(id), START + 20, [`文档修订 ${id} 已确认`]);
         f.worker.changed(ref);
         f.worker.changed(ref);
       }
@@ -218,7 +430,7 @@ describe("个人助手记忆", () => {
       await f.drain();
       expect(f.calls - initialCalls).toBeLessThan(130);
       expect(
-        f.worker.search({ query: "文档修订 37", limit: 8 }, false).memories.length
+        f.retrieval.search({ query: "文档修订 37", limit: 8 }, false).memories.length
       ).toBeGreaterThan(0);
       expect(f.store.counts()).toEqual({ checked: count, pending: 0, failed: 0 });
       console.log(
@@ -229,7 +441,7 @@ describe("个人助手记忆", () => {
     }
   }, 120_000);
 
-  it("正文变化、前台忙碌和删除都能阻断迟到提交", async () => {
+  it("来源变化、前台忙碌和删除都能阻断迟到提交", async () => {
     const f = setup();
     try {
       let release!: (text: string) => void;
@@ -240,12 +452,12 @@ describe("个人助手记忆", () => {
           release = resolve;
         });
       });
-      const source = f.sources.put("content", "1", START, ["旧稿：周五评审"]);
+      const source = f.sources.put("chat", "1", START, ["旧稿：周五评审"]);
       f.worker.changed(source);
       f.advance(2000);
       const run = f.worker.runBatch(1);
       expect(pendingInput).toContain("周五");
-      f.sources.put("content", "1", START + 1, ["新稿：周二评审"]);
+      f.sources.put("chat", "1", START + 1, ["新稿：周二评审"]);
       f.worker.changed(source);
       release(extraction(pendingInput));
       await run;
@@ -257,7 +469,7 @@ describe("个人助手记忆", () => {
       expect(f.store.counts().pending).toBe(1);
       f.busy(false);
       await f.drain();
-      const memory = f.worker.search({ query: "周二" }, false).memories[0];
+      const memory = f.retrieval.search({ query: "周二" }, false).memories[0];
       expect(memory?.text).toContain("周二");
       expect(memory?.evidence[0].quote).toContain("周二");
 
@@ -267,7 +479,7 @@ describe("个人助手记忆", () => {
           release = resolve;
         });
       });
-      f.sources.put("content", "1", START + 2, ["第三稿：周三评审"]);
+      f.sources.put("chat", "1", START + 2, ["第三稿：周三评审"]);
       f.worker.changed(source);
       f.advance(2000);
       const deleting = f.worker.runBatch(1);
@@ -277,7 +489,7 @@ describe("个人助手记忆", () => {
       await deleting;
       f.advance(2000);
       await f.drain();
-      expect(f.worker.get(memory.id)).toBeNull();
+      expect(f.retrieval.get(memory.id)).toBeNull();
       expect(f.store.search({})).toEqual([]);
     } finally {
       f.close();
@@ -301,19 +513,19 @@ describe("个人助手记忆", () => {
       f.worker.changed(source);
       await f.drain();
       expect(f.calls).toBe(4);
-      const item = f.worker.search({ query: "结构图" }, true).memories[0];
+      const item = f.retrieval.search({ query: "结构图" }, true).memories[0];
       expect(item.text).toBe("我更喜欢结构图");
       f.store.correct(
         item.id,
         { kind: "preference", state: "current", topic: "图示", text: "评审时更喜欢流程图" },
         START + 5
       );
-      expect(f.worker.get(item.id)?.manual).toBe(true);
+      expect(f.retrieval.get(item.id)?.manual).toBe(true);
       expect(f.store.forget(item.id)).toBe(true);
       f.reopen();
       f.worker.changed(source, true);
       await f.drain();
-      expect(f.worker.search({ query: "结构图" }, true)).toMatchObject({
+      expect(f.retrieval.search({ query: "结构图" }, true)).toMatchObject({
         memories: [],
         sources: [],
       });
@@ -321,7 +533,7 @@ describe("个人助手记忆", () => {
       f.sources.put("chat", "1", START + 2, [initial[0], "我喜欢文字清单"]);
       f.worker.changed(source, true);
       await f.drain();
-      expect(f.worker.search({ query: "文字清单" }, false).memories[0]?.text).toBe(
+      expect(f.retrieval.search({ query: "文字清单" }, false).memories[0]?.text).toBe(
         "我喜欢文字清单"
       );
       expect(f.store.search({})).toHaveLength(2);
@@ -336,6 +548,8 @@ describe("个人助手记忆", () => {
       const first = f.sources.put("chat", "1", START, ["我喜欢简洁答复"]);
       const part = f.sources.read(present(f.sources.head(first))).parts[0];
       const candidate = {
+        subject: "user",
+        temporal: "current",
         kind: "preference",
         topic: "交流",
         text: "用户喜欢简洁答复",
@@ -363,13 +577,17 @@ describe("个人助手记忆", () => {
       );
       const [latest, older] = f.store.search({});
       f.store.setMeta("dirty-at", String(START));
-      f.advance(2000);
+      f.advance(60_001);
       f.complete(async (_system, _input, _signal, purpose) => {
-        expect(purpose).toBe("dream");
-        return JSON.stringify([{ keep: latest.id, merge: [older.id] }]);
+        expect(purpose).toBe("review");
+        return JSON.stringify({
+          models: [],
+          merge: [{ keep: latest.id, merge: [older.id] }],
+          retire: [],
+        });
       });
       await f.worker.runBatch();
-      const result = f.worker.get(latest.id);
+      const result = f.retrieval.get(latest.id);
       expect(result?.evidence).toHaveLength(2);
       expect(f.store.get(older.id)).toBeNull();
     } finally {
@@ -410,7 +628,7 @@ describe("个人助手记忆", () => {
     }
   });
 
-  it("模型失败只重试三次，恢复后可以继续", async () => {
+  it("模型连续失败退避一小时后自动恢复", async () => {
     const f = setup();
     try {
       const source = f.sources.put("chat", "1", START, ["我偏好简洁的评审清单"]);
@@ -422,13 +640,13 @@ describe("个人助手记忆", () => {
         await f.worker.runBatch(1);
         f.advance(100_000);
       }
-      expect(f.store.counts()).toEqual({ checked: 0, pending: 0, failed: 1 });
-      expect(f.worker.search({ query: "评审" }, false).memories).toEqual([]);
+      expect(f.store.counts()).toEqual({ checked: 0, pending: 1, failed: 1 });
+      expect(f.retrieval.search({ query: "评审" }, false).memories).toEqual([]);
       f.complete(async (_system, input) => extraction(input));
-      f.store.retry(START + 300_000);
+      f.advance(3_600_000);
       await f.drain();
       expect(f.store.counts()).toEqual({ checked: 1, pending: 0, failed: 0 });
-      expect(f.worker.search({ query: "评审" }, false).memories[0]?.text).toContain("评审清单");
+      expect(f.retrieval.search({ query: "评审" }, false).memories[0]?.text).toContain("评审清单");
     } finally {
       f.close();
     }

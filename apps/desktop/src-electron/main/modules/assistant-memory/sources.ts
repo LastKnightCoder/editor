@@ -6,14 +6,21 @@ import { loadSessionTranscript } from "../pi-session-host-core";
 import { chatSessionDirOfDb, resolveSessionFile } from "../pi-session-paths";
 import ContentTable from "../tables/content";
 import EntitySearchTable from "../tables/entity-search";
-import { searchResultDetails } from "../search-details";
-import type { IndexType } from "@/types";
-import { safeMemoryText, searchTerms, type MemoryPart } from "./extraction";
+import type { MemoryPart } from "./extraction";
 
-export { MEMORY_SOURCE_KINDS as SOURCE_KINDS } from "@/types/assistant-memory";
 const CHUNK = 3600;
 const MIN_TIME = 0;
+const activityQuery = (filter = "") => `SELECT CAST(o.operation_id AS TEXT) || ':' ||
+      date(o.operation_time/1000,'unixepoch','localtime') AS id,
+      MIN(o.operation_time) AS create_time,MAX(o.operation_time) AS update_time,
+      o.operation_id AS content_id
+    FROM operation o JOIN content_snapshots c ON c.id=o.operation_id AND c.ref_count>0
+    WHERE o.operation_content_type='content' AND o.operation_action='update'
+      AND o.operation_time >= (CAST(strftime('%s','now') AS INTEGER)*1000-2592000000)
+      ${filter}
+    GROUP BY o.operation_id,date(o.operation_time/1000,'unixepoch','localtime')`;
 const SOURCE_QUERIES: Record<MemorySourceKind, string> = {
+  activity: activityQuery(),
   content: "SELECT id,create_time,update_time FROM content_snapshots WHERE ref_count>0",
   chat: "SELECT id,create_time,update_time,title,session_file FROM chat_session WHERE scope='main-chat'",
   todo: `SELECT t.id,t.create_time,t.update_time,t.title,t.due_at,t.is_completed,t.is_archived
@@ -24,6 +31,7 @@ const SOURCE_QUERIES: Record<MemorySourceKind, string> = {
 };
 
 interface SourceRow {
+  content_id?: number;
   id: string | number;
   create_time: number;
   update_time: number;
@@ -60,11 +68,6 @@ export interface MemorySourcesPort {
   head(source: MemorySource): MemoryHead | null;
   read(head: MemoryHead): MemorySnapshot;
   invalidate(source?: MemorySource): void;
-  fallback(
-    query: string,
-    limit: number,
-    allow: (source: MemorySource) => boolean
-  ): MemoryEvidence[];
 }
 
 const idKey = (source: MemorySource) => source.kind + "\0" + source.id;
@@ -119,10 +122,7 @@ export class LibraryMemorySources implements MemorySourcesPort {
     { modifiedAt: number; createdAt: number; snapshot: MemorySnapshot }
   >();
 
-  constructor(
-    private readonly db: Database.Database,
-    private readonly index: () => Database.Database | undefined = () => undefined
-  ) {}
+  constructor(private readonly db: Database.Database) {}
 
   invalidate(source?: MemorySource) {
     if (source) this.cache.delete(idKey(source));
@@ -132,7 +132,7 @@ export class LibraryMemorySources implements MemorySourcesPort {
   list(kind: MemorySourceKind, after: string, limit: number) {
     const rows = this.db
       .prepare(`SELECT * FROM (${SOURCE_QUERIES[kind]}) WHERE id>? ORDER BY id LIMIT ?`)
-      .all(kind === "chat" ? after : Number(after), limit) as SourceRow[];
+      .all(kind === "chat" || kind === "activity" ? after : Number(after), limit) as SourceRow[];
     return rows.map(row => ({ kind, id: String(row.id), modifiedAt: this.modifiedAt(kind, row) }));
   }
 
@@ -157,6 +157,20 @@ export class LibraryMemorySources implements MemorySourcesPort {
   }
 
   head(source: MemorySource): MemoryHead | null {
+    if (source.kind === "activity") {
+      const match = /^(\d+):(\d{4}-\d{2}-\d{2})$/.exec(source.id);
+      if (!match) return null;
+      const start = new Date(match[2] + "T00:00:00");
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      if (!Number.isFinite(start.getTime())) return null;
+      const row = this.db
+        .prepare(
+          activityQuery("AND o.operation_id=? AND o.operation_time>=? AND o.operation_time<?")
+        )
+        .get(Number(match[1]), start.getTime(), end.getTime()) as SourceRow | undefined;
+      return row ? { ...source, row, modifiedAt: row.update_time } : null;
+    }
     const row = this.db
       .prepare(`SELECT * FROM (${SOURCE_QUERIES[source.kind]}) WHERE id=?`)
       .get(source.kind === "chat" ? source.id : Number(source.id)) as SourceRow | undefined;
@@ -223,6 +237,39 @@ export class LibraryMemorySources implements MemorySourcesPort {
   private parts(head: MemoryHead): { parts: MemoryPart[]; lines?: string[] } {
     const { kind, id, row } = head;
     const observedAt = timestamp(row.update_time, row.create_time);
+    if (kind === "activity") {
+      const contentId = row.content_id;
+      if (!contentId) return { parts: [] };
+      const snapshot = this.db
+        .prepare("SELECT * FROM content_snapshots WHERE id=? AND ref_count>0")
+        .get(contentId);
+      if (!snapshot) return { parts: [] };
+      const { content } = ContentTable.parseContent(snapshot);
+      const title =
+        (Array.isArray(content)
+          ? contentBlockLines(content.slice(0, 3)).find(line => line.trim())
+          : undefined
+        )
+          ?.trim()
+          .slice(0, 90) || "正文";
+      const target = EntitySearchTable.locateAll(this.db, [contentId]).get(contentId)?.[0];
+      const text = `在 ${id.slice(-10)} 编辑了资料《${title}》`;
+      return {
+        parts: textParts(
+          {
+            kind,
+            id,
+            title,
+            target,
+            role: "activity",
+            observedAt,
+            expiresAt: observedAt + 30 * 86_400_000,
+          },
+          row.create_time + ":activity",
+          text
+        ),
+      };
+    }
     if (kind === "content") {
       const target = EntitySearchTable.locateAll(this.db, [Number(id)]).get(Number(id))?.[0];
       if (!target) return { parts: [] };
@@ -324,95 +371,5 @@ export class LibraryMemorySources implements MemorySourcesPort {
         },
       ],
     };
-  }
-
-  fallback(
-    query: string,
-    limit: number,
-    allow: (source: MemorySource) => boolean
-  ): MemoryEvidence[] {
-    const terms = searchTerms(query).slice(0, 4);
-    if (!terms.length) return [];
-    const candidates = new Map<string, MemorySource>();
-    for (const term of terms) {
-      for (const entry of EntitySearchTable.search(this.db, {
-        kind: ["chat-session", "todo", "calendar-event"],
-        keyword: term,
-        limit: 8,
-      })) {
-        const source: MemorySource | undefined =
-          entry.kind === "chat-session" && entry.sessionId
-            ? { kind: "chat", id: entry.sessionId }
-            : entry.kind === "todo" || entry.kind === "calendar-event"
-              ? { kind: entry.kind === "todo" ? "todo" : "calendar", id: String(entry.id) }
-              : entry.contentId
-                ? { kind: "content", id: String(entry.contentId) }
-                : undefined;
-        if (source) candidates.set(idKey(source), source);
-      }
-    }
-    try {
-      const index = this.index();
-      const match = terms.map(term => '"' + term.replace(/"/g, '""') + '"').join(" OR ");
-      const indexed = index?.open
-        ? (index
-            .prepare(`SELECT prefixed_id FROM content_fts
-        WHERE content_fts MATCH ? AND type IN ('card','article','project-item','diary-moment','plugin-entity')
-        ORDER BY rank LIMIT 12`)
-            .pluck()
-            .all(match) as string[])
-        : [];
-      for (const key of new Set(indexed)) {
-        const [type, id] = key.split(":");
-        const detail = searchResultDetails(this.db, type as IndexType, Number(id));
-        if (detail?.contentId) {
-          const source = { kind: "content", id: String(detail.contentId) } as const;
-          candidates.set(idKey(source), source);
-        }
-      }
-    } catch {
-      // 索引未重建完成时，仍可查最近的原文。
-    }
-    for (const source of this.recent("content", 8)) candidates.set(idKey(source), source);
-    for (const source of this.recent("chat", 8)) candidates.set(idKey(source), source);
-    const output: MemoryEvidence[] = [];
-    for (const source of candidates.values()) {
-      if (!allow(source)) continue;
-      try {
-        const head = this.head(source);
-        if (!head) continue;
-        const matches = this.read(head).parts.filter(
-          part =>
-            safeMemoryText(part.text, 6000) &&
-            terms.some(term => part.text.toLowerCase().includes(term))
-        );
-        for (const part of matches.slice(-2).reverse()) {
-          const lower = part.text.toLowerCase();
-          const first = Math.min(...terms.map(term => lower.indexOf(term)).filter(at => at >= 0));
-          const quote = safeMemoryText(
-            part.text.slice(Math.max(0, first - 50), Math.max(0, first - 50) + 180),
-            180
-          );
-          if (!quote) continue;
-          const { kind, id, anchor, title, target, block, messageId, current, observedAt } = part;
-          output.push({
-            kind,
-            id,
-            anchor,
-            title,
-            target,
-            block,
-            messageId,
-            current,
-            observedAt,
-            quote,
-          });
-          if (output.length >= limit) return output;
-        }
-      } catch {
-        // 单个来源未就绪不影响其它命中。
-      }
-    }
-    return output;
   }
 }

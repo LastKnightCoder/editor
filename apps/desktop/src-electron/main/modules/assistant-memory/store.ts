@@ -3,14 +3,18 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import type {
   AssistantMemory,
-  AssistantMemoryStatus,
   MemoryCorrection,
   MemoryEvidence,
   MemorySearch,
   MemorySource,
   MemorySourceKind,
+  PersonalMemoryModel,
 } from "@/types/assistant-memory";
 import { normalizeMemory, searchTerms, type MemoryCandidate } from "./extraction";
+import { loadSqliteVecExtension } from "../../utils/sqlite-vec-loader";
+import type { MemoryModelCandidate } from "./reflection";
+import { MEMORY_INGEST_KINDS } from "@/types/assistant-memory";
+import type { MemoryDebugData, MemoryDebugModel } from "@/types/assistant-memory-debug";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS memory (
@@ -41,6 +45,34 @@ CREATE TABLE IF NOT EXISTS progress (
 );
 CREATE INDEX IF NOT EXISTS progress_due ON progress(priority DESC, due_at) WHERE due_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS memory_embedding (
+  memory_id INTEGER PRIMARY KEY REFERENCES memory(id) ON DELETE CASCADE,
+  input TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS memory_model (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  layer TEXT NOT NULL,kind TEXT NOT NULL,topic TEXT NOT NULL,topic_key TEXT NOT NULL,
+  text TEXT NOT NULL,confidence TEXT NOT NULL,observed_at INTEGER NOT NULL,
+  expires_at INTEGER,updated_at INTEGER NOT NULL,
+  UNIQUE(layer,kind,topic_key)
+);
+CREATE TABLE IF NOT EXISTS memory_model_evidence (
+  model_id INTEGER NOT NULL REFERENCES memory_model(id) ON DELETE CASCADE,
+  memory_id INTEGER NOT NULL REFERENCES memory(id) ON DELETE CASCADE,
+  PRIMARY KEY(model_id,memory_id)
+);
+CREATE INDEX IF NOT EXISTS memory_model_source ON memory_model_evidence(memory_id);
+CREATE TRIGGER IF NOT EXISTS memory_model_delete BEFORE DELETE ON memory BEGIN
+  DELETE FROM memory_model WHERE id IN (
+    SELECT model_id FROM memory_model_evidence WHERE memory_id=old.id
+  );
+END;
+CREATE TRIGGER IF NOT EXISTS memory_model_invalidate BEFORE UPDATE OF kind,topic,text,state ON memory
+WHEN old.kind IS NOT new.kind OR old.topic IS NOT new.topic OR old.text IS NOT new.text OR old.state IS NOT new.state BEGIN
+  DELETE FROM memory_model WHERE id IN (
+    SELECT model_id FROM memory_model_evidence WHERE memory_id=old.id
+  );
+END;
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_search USING fts5(text, topic, tokenize='trigram');
 CREATE TRIGGER IF NOT EXISTS memory_insert AFTER INSERT ON memory BEGIN
   INSERT INTO memory_search(rowid, text, topic) VALUES(new.id, new.text, new.topic);
@@ -63,6 +95,16 @@ export interface MemoryProgress extends MemorySource {
   failures: number;
 }
 
+export interface MemoryEmbeddingDocument {
+  id: number;
+  input: string;
+}
+
+const EMBEDDING_FINGERPRINT = "embedding-fingerprint";
+const EMBEDDING_INPUT = "m.topic || char(10) || m.text";
+const PERSONAL_EPISODE =
+  "(m.manual=1 OR EXISTS(SELECT 1 FROM evidence e WHERE e.memory_id=m.id AND e.kind<>'content'))";
+
 type MemoryRow = Omit<AssistantMemory, "evidence" | "manual"> & {
   manual: number;
 };
@@ -70,6 +112,8 @@ const MEMORY_COLUMNS = `m.id, m.kind, m.topic, m.text, m.state,
   m.observed_at AS observedAt, m.expires_at AS expiresAt, m.manual`;
 const PROGRESS_COLUMNS = `kind, source_id AS id, checked_at AS checkedAt, reading_at AS readingAt,
   cursor, checked_cursor AS checkedCursor, due_at AS dueAt, failures`;
+const MODEL_COLUMNS = `id,layer,kind,topic,text,confidence,observed_at AS observedAt,expires_at AS expiresAt`;
+const ACTIVE_PROGRESS = `kind IN (${MEMORY_INGEST_KINDS.map(kind => `'${kind}'`).join(",")})`;
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const topicKey = (kind: string, topic: string) => hash(kind + "\0" + normalizeMemory(topic));
 const factKey = (kind: string, topic: string, text: string) =>
@@ -77,6 +121,7 @@ const factKey = (kind: string, topic: string, text: string) =>
 
 export class MemoryStore {
   private readonly db: Database.Database;
+  private vectorsLoaded = false;
 
   constructor(file: string) {
     this.db = new Database(file);
@@ -159,7 +204,8 @@ export class MemoryStore {
       ? "priority ASC,due_at,kind,source_id"
       : "priority DESC,due_at,kind,source_id";
     return this.db
-      .prepare(`SELECT ${PROGRESS_COLUMNS} FROM progress WHERE due_at<=?
+      .prepare(`SELECT ${PROGRESS_COLUMNS} FROM progress INDEXED BY progress_due
+        WHERE due_at IS NOT NULL AND ${ACTIVE_PROGRESS} AND due_at<=?
       ORDER BY ${order} LIMIT ?`)
       .all(now, limit) as MemoryProgress[];
   }
@@ -167,7 +213,9 @@ export class MemoryStore {
   nextDue(): number | null {
     return (
       (this.db
-        .prepare("SELECT MIN(due_at) FROM progress WHERE due_at IS NOT NULL")
+        .prepare(
+          `SELECT MIN(due_at) FROM progress INDEXED BY progress_due WHERE ${ACTIVE_PROGRESS} AND due_at IS NOT NULL`
+        )
         .pluck()
         .get() as number | null) ?? null
     );
@@ -196,24 +244,33 @@ export class MemoryStore {
     const failures = source.failures + 1;
     this.db
       .prepare("UPDATE progress SET failures=?,due_at=? WHERE kind=? AND source_id=?")
-      .run(failures, failures >= 3 ? null : now + 2000 * 2 ** failures, source.kind, source.id);
+      .run(
+        failures,
+        now + (failures >= 3 ? 3_600_000 : 2000 * 2 ** failures),
+        source.kind,
+        source.id
+      );
   }
 
   retry(now: number) {
-    this.db.prepare("UPDATE progress SET failures=0,due_at=? WHERE failures>0").run(now);
+    this.db
+      .prepare(`UPDATE progress SET failures=0,due_at=? WHERE ${ACTIVE_PROGRESS} AND failures>0`)
+      .run(now);
   }
 
   pendingCount(limit: number): number {
     return this.db
-      .prepare("SELECT COUNT(*) FROM (SELECT 1 FROM progress WHERE due_at IS NOT NULL LIMIT ?)")
+      .prepare(
+        `SELECT COUNT(*) FROM (SELECT 1 FROM progress INDEXED BY progress_due WHERE ${ACTIVE_PROGRESS} AND due_at IS NOT NULL LIMIT ?)`
+      )
       .pluck()
       .get(limit) as number;
   }
 
-  counts(): Pick<AssistantMemoryStatus, "checked" | "pending" | "failed"> {
+  counts(): { checked: number; pending: number; failed: number } {
     return this.db
       .prepare(`SELECT COUNT(checked_at) AS checked, COUNT(due_at) AS pending,
-      COUNT(CASE WHEN failures>=3 THEN 1 END) AS failed FROM progress`)
+      COUNT(CASE WHEN failures>=3 THEN 1 END) AS failed FROM progress WHERE ${ACTIVE_PROGRESS}`)
       .get() as ReturnType<MemoryStore["counts"]>;
   }
 
@@ -251,6 +308,25 @@ export class MemoryStore {
       args.push(term);
     }
     if (hits.length) where.push("(" + hits.join(" OR ") + ")");
+    const filters = this.searchFilters(params);
+    where.push(...filters.where);
+    args.push(...filters.args);
+    const score =
+      relevance && terms.length
+        ? terms.map(() => "(instr(lower(m.topic || ' ' || m.text),?)>0)").join(" + ")
+        : "";
+    if (score) args.push(...terms);
+    args.push(Math.min(100, Math.max(1, params.limit ?? 12)));
+    const rows = this.db
+      .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m
+      ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${score ? "(" + score + ") DESC," : ""} m.id DESC LIMIT ?`)
+      .all(...args) as MemoryRow[];
+    return rows.map(row => this.toMemory(row));
+  }
+
+  private searchFilters(params: MemorySearch) {
+    const where: string[] = [PERSONAL_EPISODE];
+    const args: Array<string | number> = [];
     if (params.kind) {
       where.push("m.kind=?");
       args.push(params.kind);
@@ -271,17 +347,330 @@ export class MemoryStore {
       where.push("m.id<?");
       args.push(params.before);
     }
-    const score =
-      relevance && terms.length
-        ? terms.map(() => "(instr(lower(m.topic || ' ' || m.text),?)>0)").join(" + ")
-        : "";
-    if (score) args.push(...terms);
-    args.push(Math.min(100, Math.max(1, params.limit ?? 12)));
+    return { where, args };
+  }
+
+  prepareEmbeddings(fingerprint: string, dimensions: number) {
+    if (!Number.isSafeInteger(dimensions) || dimensions <= 0) throw new Error("记忆嵌入维度无效");
+    if (!this.vectorsLoaded) {
+      loadSqliteVecExtension(this.db);
+      this.vectorsLoaded = true;
+    }
+    this.atomic(() => {
+      const table = this.db
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='memory_vec'")
+        .get();
+      if (!table || this.meta(EMBEDDING_FINGERPRINT) !== fingerprint) {
+        this.db.exec(`
+          DROP TRIGGER IF EXISTS temp.memory_vec_delete;
+          DROP TRIGGER IF EXISTS temp.memory_vec_update;
+          DROP TABLE IF EXISTS memory_vec;
+          DELETE FROM memory_embedding;
+          CREATE VIRTUAL TABLE memory_vec USING vec0(
+            embedding FLOAT[${dimensions}] distance_metric=cosine
+          );
+        `);
+        this.setMeta(EMBEDDING_FINGERPRINT, fingerprint);
+      }
+      // 临时触发器只在扩展可用的连接上安装，不让派生索引阻断记忆读写。
+      this.db.exec(`
+        CREATE TEMP TRIGGER IF NOT EXISTS memory_vec_delete AFTER DELETE ON main.memory BEGIN
+          DELETE FROM memory_vec WHERE rowid=old.id;
+        END;
+        CREATE TEMP TRIGGER IF NOT EXISTS memory_vec_update AFTER UPDATE OF topic,text ON main.memory
+        WHEN old.topic IS NOT new.topic OR old.text IS NOT new.text BEGIN
+          DELETE FROM memory_vec WHERE rowid=old.id;
+          DELETE FROM memory_embedding WHERE memory_id=old.id;
+        END;
+        DELETE FROM memory_vec WHERE rowid NOT IN (
+          SELECT m.id FROM memory m JOIN memory_embedding e ON e.memory_id=m.id
+          WHERE e.input=${EMBEDDING_INPUT}
+        );
+      `);
+    });
+  }
+
+  pendingEmbeddings(limit: number): MemoryEmbeddingDocument[] {
+    return this.db
+      .prepare(`SELECT m.id,${EMBEDDING_INPUT} AS input FROM memory m
+        LEFT JOIN memory_embedding e ON e.memory_id=m.id
+        WHERE (e.memory_id IS NULL OR e.input<>${EMBEDDING_INPUT}) AND ${PERSONAL_EPISODE}
+        ORDER BY m.id DESC LIMIT ?`)
+      .all(limit) as MemoryEmbeddingDocument[];
+  }
+
+  hasEmbeddings(fingerprint: string): boolean {
+    return (
+      this.vectorsLoaded &&
+      this.meta(EMBEDDING_FINGERPRINT) === fingerprint &&
+      Boolean(this.db.prepare("SELECT 1 FROM memory_embedding LIMIT 1").get())
+    );
+  }
+
+  writeEmbeddings(
+    documents: MemoryEmbeddingDocument[],
+    embeddings: number[][],
+    fingerprint: string,
+    dimensions: number
+  ) {
+    if (
+      embeddings.length !== documents.length ||
+      embeddings.some(vector => vector.length !== dimensions || !vector.every(Number.isFinite))
+    )
+      throw new Error("记忆嵌入结果无效");
+    if (!this.vectorsLoaded || this.meta(EMBEDDING_FINGERPRINT) !== fingerprint) return;
+    this.atomic(() => {
+      const current = this.db.prepare(`SELECT 1 FROM memory m WHERE id=? AND ${EMBEDDING_INPUT}=?`);
+      const remove = this.db.prepare("DELETE FROM memory_vec WHERE rowid=?");
+      const insert = this.db.prepare("INSERT INTO memory_vec(rowid,embedding) VALUES(?,?)");
+      const checkpoint = this.db.prepare(`INSERT INTO memory_embedding VALUES(?,?)
+        ON CONFLICT(memory_id) DO UPDATE SET input=excluded.input`);
+      for (const [index, document] of documents.entries()) {
+        if (!current.get(document.id, document.input)) continue;
+        remove.run(BigInt(document.id));
+        insert.run(BigInt(document.id), JSON.stringify(embeddings[index]));
+        checkpoint.run(document.id, document.input);
+      }
+    });
+  }
+
+  searchEmbeddings(
+    vector: number[],
+    params: MemorySearch,
+    fingerprint: string,
+    distance: number
+  ): AssistantMemory[] {
+    if (!this.hasEmbeddings(fingerprint)) return [];
+    const filters = this.searchFilters(params);
+    // 先按事实库过滤再取近邻，避免历史条目占满当前记忆的候选名额。
     const rows = this.db
+      .prepare(`SELECT rowid AS id,distance FROM memory_vec
+        WHERE embedding MATCH ? AND k=? AND rowid IN (
+          SELECT m.id FROM memory m JOIN memory_embedding e ON e.memory_id=m.id
+          WHERE e.input=${EMBEDDING_INPUT}
+            ${filters.where.length ? "AND " + filters.where.join(" AND ") : ""}
+        ) AND distance<? ORDER BY distance`)
+      .all(
+        JSON.stringify(vector),
+        Math.min(100, params.limit ?? 12),
+        ...filters.args,
+        distance
+      ) as Array<{ id: number }>;
+    return rows.flatMap(row => {
+      const memory = this.get(row.id);
+      return memory ? [memory] : [];
+    });
+  }
+
+  hasMemories(): boolean {
+    return Boolean(
+      this.db.prepare(`SELECT 1 FROM memory m WHERE ${PERSONAL_EPISODE} LIMIT 1`).get()
+    );
+  }
+
+  reviewPage(after: number, limit: number): AssistantMemory[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT ${MEMORY_COLUMNS} FROM memory m WHERE m.id>? AND ${PERSONAL_EPISODE} ORDER BY m.id LIMIT ?`
+        )
+        .all(after, limit) as MemoryRow[]
+    ).map(row => this.toMemory(row));
+  }
+
+  reflectionEpisodes(): AssistantMemory[] {
+    const linked = this.db
       .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m
-      ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${score ? "(" + score + ") DESC," : ""} m.id DESC LIMIT ?`)
-      .all(...args) as MemoryRow[];
-    return rows.map(row => this.toMemory(row));
+      WHERE m.id IN (SELECT memory_id FROM memory_model_evidence)
+      ORDER BY m.observed_at DESC LIMIT 64`)
+      .all() as MemoryRow[];
+    const recent = this.db
+      .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m
+      WHERE ${PERSONAL_EPISODE}
+      ORDER BY m.observed_at DESC,m.id DESC LIMIT 64`)
+      .all() as MemoryRow[];
+    return [...new Map([...recent, ...linked].map(row => [row.id, this.toMemory(row)])).values()];
+  }
+
+  private toModel(row: Omit<PersonalMemoryModel, "episodeIds">): PersonalMemoryModel {
+    const episodeIds = this.db
+      .prepare(
+        "SELECT memory_id FROM memory_model_evidence WHERE model_id=? ORDER BY memory_id LIMIT 8"
+      )
+      .pluck()
+      .all(row.id) as number[];
+    return { ...row, episodeIds };
+  }
+
+  getModel(id: number): PersonalMemoryModel | null {
+    const row = this.db.prepare(`SELECT ${MODEL_COLUMNS} FROM memory_model WHERE id=?`).get(id) as
+      | Omit<PersonalMemoryModel, "episodeIds">
+      | undefined;
+    return row ? this.toModel(row) : null;
+  }
+
+  debugData(fingerprint: string | null, limit = 40): MemoryDebugData {
+    const bounded = Math.min(200, Math.max(1, limit));
+    const total = this.db.prepare("SELECT COUNT(*) FROM memory").pluck().get() as number;
+    const episodes = this.db
+      .prepare(`SELECT COUNT(*) FROM memory m WHERE ${PERSONAL_EPISODE}`)
+      .pluck()
+      .get() as number;
+    const modelCounts = this.db
+      .prepare(`SELECT COUNT(CASE WHEN layer='profile' THEN 1 END) AS profile,
+      COUNT(CASE WHEN layer='state' THEN 1 END) AS state FROM memory_model`)
+      .get() as { profile: number; state: number };
+    const indexed =
+      fingerprint && this.meta(EMBEDDING_FINGERPRINT) === fingerprint
+        ? (this.db
+            .prepare(`SELECT COUNT(*) FROM memory_embedding e JOIN memory m ON m.id=e.memory_id
+          WHERE e.input=${EMBEDDING_INPUT} AND ${PERSONAL_EPISODE}`)
+            .pluck()
+            .get() as number)
+        : 0;
+    const models = (layer: "state" | "profile"): MemoryDebugModel[] => {
+      const rows = this.db
+        .prepare(`SELECT ${MODEL_COLUMNS},updated_at AS updatedAt FROM memory_model
+        WHERE layer=? ORDER BY updated_at DESC,id DESC LIMIT ?`)
+        .all(layer, bounded) as Omit<MemoryDebugModel, "episodeIds">[];
+      return rows.map(row => ({ ...this.toModel(row), updatedAt: row.updatedAt }));
+    };
+    const rows = this.db
+      .prepare(`SELECT ${MEMORY_COLUMNS},m.touched_at AS updatedAt FROM memory m
+      WHERE ${PERSONAL_EPISODE} ORDER BY m.touched_at DESC,m.id DESC LIMIT ?`)
+      .all(bounded) as Array<MemoryRow & { updatedAt: number }>;
+    return {
+      counts: {
+        episodes,
+        excluded: total - episodes,
+        ...modelCounts,
+        indexed,
+        pendingVectors: Math.max(0, episodes - indexed),
+      },
+      progress: this.counts(),
+      profile: models("profile"),
+      recent: models("state"),
+      limit: bounded,
+      episodes: rows.map(row => {
+        const { evidence, ...item } = this.toMemory(row);
+        return {
+          ...item,
+          updatedAt: row.updatedAt,
+          evidenceCount: evidence.length,
+          sourceKinds: [...new Set(evidence.map(ref => ref.kind))],
+        };
+      }),
+    };
+  }
+
+  searchModels(
+    params: MemorySearch,
+    now: number,
+    relatedIds: number[] = []
+  ): PersonalMemoryModel[] {
+    if (params.layer === "episode" || params.state === "history" || params.state === "observation")
+      return [];
+    const terms = searchTerms(params.query ?? "");
+    const where = ["(expires_at IS NULL OR expires_at>?)"];
+    const args: Array<string | number> = [now];
+    if (params.layer === "state" || params.layer === "profile") {
+      where.push("layer=?");
+      args.push(params.layer);
+    }
+    if (params.kind) {
+      where.push("kind=?");
+      args.push(params.kind);
+    }
+    if (params.from !== undefined) {
+      where.push("observed_at>=?");
+      args.push(params.from);
+    }
+    if (params.to !== undefined) {
+      where.push("observed_at<=?");
+      args.push(params.to);
+    }
+    const related = relatedIds.length
+      ? `EXISTS(SELECT 1 FROM memory_model_evidence e WHERE e.model_id=memory_model.id AND e.memory_id IN (${relatedIds.map(() => "?").join(",")}))`
+      : "0.0";
+    const score = [...terms.map(() => "(instr(lower(topic || ' ' || text),?)>0)"), related].join(
+      " + "
+    );
+    const rows = this.db
+      .prepare(`SELECT ${MODEL_COLUMNS} FROM memory_model
+      WHERE ${where.join(" AND ")} ORDER BY (${score}) DESC,observed_at DESC,id DESC LIMIT ?`)
+      .all(...args, ...terms, ...relatedIds, Math.min(32, params.limit ?? 12)) as Omit<
+      PersonalMemoryModel,
+      "episodeIds"
+    >[];
+    return rows.map(row => this.toModel(row));
+  }
+
+  applyModels(
+    candidates: MemoryModelCandidate[],
+    snapshots: Map<number, AssistantMemory>,
+    now: number
+  ) {
+    this.atomic(() => {
+      for (const candidate of candidates) {
+        if (
+          !candidate.episodeIds.every(id => {
+            const before = snapshots.get(id);
+            const current = this.get(id);
+            return (
+              before &&
+              current &&
+              before.kind === current.kind &&
+              before.topic === current.topic &&
+              before.text === current.text &&
+              before.state === current.state &&
+              before.observedAt === current.observedAt
+            );
+          })
+        )
+          continue;
+        const row = this.db
+          .prepare(`INSERT INTO memory_model
+          (layer,kind,topic,topic_key,text,confidence,observed_at,expires_at,updated_at)
+          VALUES(@layer,@kind,@topic,@topicKey,@text,@confidence,@observedAt,@expiresAt,@now)
+          ON CONFLICT(layer,kind,topic_key) DO UPDATE SET topic=excluded.topic,text=excluded.text,
+            confidence=excluded.confidence,observed_at=excluded.observed_at,
+            expires_at=excluded.expires_at,updated_at=excluded.updated_at
+          WHERE memory_model.observed_at<=excluded.observed_at AND
+            (memory_model.confidence<>'explicit' OR excluded.confidence='explicit' OR memory_model.expires_at<=@now)
+          RETURNING id`)
+          .get({ ...candidate, topicKey: topicKey(candidate.kind, candidate.topic), now }) as
+          | { id: number }
+          | undefined;
+        if (!row) continue;
+        this.db.prepare("DELETE FROM memory_model_evidence WHERE model_id=?").run(row.id);
+        const insert = this.db.prepare("INSERT INTO memory_model_evidence VALUES(?,?)");
+        for (const id of candidate.episodeIds) insert.run(row.id, id);
+      }
+    });
+  }
+
+  retireModels(ids: number[]) {
+    for (const id of ids) this.db.prepare("DELETE FROM memory_model WHERE id=?").run(id);
+  }
+
+  expireModels(now: number) {
+    this.db
+      .prepare(`DELETE FROM memory_model WHERE expires_at<=? OR NOT EXISTS
+      (SELECT 1 FROM memory_model_evidence e WHERE e.model_id=memory_model.id)`)
+      .run(now);
+  }
+
+  pruneMemory(id: number, keep: (evidence: MemoryEvidence) => boolean) {
+    const remove = this.db.prepare(
+      "DELETE FROM evidence WHERE memory_id=? AND kind=? AND source_id=? AND anchor=? AND quote=?"
+    );
+    for (const ref of this.evidence(id))
+      if (!keep(ref)) remove.run(id, ref.kind, ref.id, ref.anchor, ref.quote);
+    this.db
+      .prepare(
+        "DELETE FROM memory WHERE id=? AND manual=0 AND NOT EXISTS(SELECT 1 FROM evidence WHERE memory_id=?)"
+      )
+      .run(id, id);
   }
 
   sourceEvidence(source: MemorySource) {
@@ -343,7 +732,8 @@ export class MemoryStore {
       VALUES(@kind,@topic,@topicKey,@text,@key,@state,@observedAt,@expiresAt,@now)
       ON CONFLICT(fact_key) DO UPDATE SET touched_at=excluded.touched_at,
         observed_at=MAX(memory.observed_at,excluded.observed_at),
-        state=CASE WHEN memory.manual=0 AND memory.state='observation' AND excluded.state='current' THEN 'current' ELSE memory.state END
+        expires_at=CASE WHEN memory.manual=0 AND excluded.observed_at>=memory.observed_at THEN excluded.expires_at ELSE memory.expires_at END,
+        state=CASE WHEN memory.manual=0 AND excluded.state='current' AND excluded.observed_at>=memory.observed_at THEN 'current' ELSE memory.state END
       RETURNING id`);
     for (const candidate of candidates) {
       const key = factKey(candidate.kind, candidate.topic, candidate.text);
@@ -353,12 +743,10 @@ export class MemoryStore {
       const topic = topicKey(candidate.kind, candidate.topic);
       const latest = this.db
         .prepare(`SELECT id,observed_at,manual FROM memory
-        WHERE topic_key=? AND state='current' ORDER BY manual DESC,observed_at DESC LIMIT 1`)
+        WHERE topic_key=? AND state='current' ORDER BY observed_at DESC,manual DESC LIMIT 1`)
         .get(topic) as { id: number; observed_at: number; manual: number } | undefined;
       const state =
-        candidate.state === "current" &&
-        latest &&
-        (latest.observed_at > candidate.observedAt || latest.manual)
+        candidate.state === "current" && latest && latest.observed_at > candidate.observedAt
           ? "history"
           : candidate.state;
       const row = insert.get({
@@ -373,9 +761,10 @@ export class MemoryStore {
       if (candidate.replaces && candidate.replaces !== row.id && state === "current") {
         this.db
           .prepare(`UPDATE memory SET state='history',touched_at=?
-          WHERE id=? AND manual=0 AND observed_at<=? AND state='current'`)
+          WHERE id=? AND observed_at<=? AND state='current'`)
           .run(now, candidate.replaces, candidate.observedAt);
       }
+      if (candidate.profile && state === "current") this.declareProfile(row.id, now);
     }
   }
 
@@ -405,8 +794,34 @@ export class MemoryStore {
           topicKey: topicKey(correction.kind, correction.topic),
           now,
         });
+      if (
+        correction.state === "current" &&
+        ["preference", "routine", "interest"].includes(correction.kind)
+      )
+        this.declareProfile(id, now);
       return this.get(id);
     });
+  }
+
+  private declareProfile(id: number, now: number) {
+    const item = this.get(id);
+    if (!item) return;
+    this.applyModels(
+      [
+        {
+          layer: "profile",
+          kind: item.kind,
+          topic: item.topic,
+          text: item.text,
+          confidence: "explicit",
+          observedAt: item.observedAt,
+          expiresAt: null,
+          episodeIds: [id],
+        },
+      ],
+      new Map([[id, item]]),
+      now
+    );
   }
 
   forget(id: number): boolean {
@@ -425,16 +840,7 @@ export class MemoryStore {
     });
   }
 
-  dreamCandidates(since: number): AssistantMemory[] {
-    return (
-      this.db
-        .prepare(`SELECT ${MEMORY_COLUMNS} FROM memory m WHERE m.touched_at>=? AND m.manual=0
-      ORDER BY m.touched_at DESC LIMIT 36`)
-        .all(since) as MemoryRow[]
-    ).map(row => this.toMemory(row));
-  }
-
-  applyDream(groups: { keep: number; merge: number[] }[], allowed: Set<number>, now: number) {
+  mergeEpisodes(groups: { keep: number; merge: number[] }[], allowed: Set<number>, now: number) {
     this.atomic(() => {
       for (const group of groups) {
         if (!allowed.has(group.keep)) continue;
@@ -453,6 +859,13 @@ export class MemoryStore {
           )
             continue;
           this.addEvidence(keep.id, duplicate.evidence);
+          this.db
+            .prepare("UPDATE OR IGNORE memory_model_evidence SET memory_id=? WHERE memory_id=?")
+            .run(keep.id, duplicate.id);
+          this.db.prepare("DELETE FROM memory_model_evidence WHERE memory_id=?").run(duplicate.id);
+          this.db
+            .prepare("UPDATE memory SET observed_at=MAX(observed_at,?),touched_at=? WHERE id=?")
+            .run(duplicate.observedAt, now, keep.id);
           this.db.prepare("DELETE FROM memory WHERE id=?").run(id);
         }
       }
@@ -479,6 +892,59 @@ export class MemoryStore {
         "UPDATE memory SET state='history' WHERE state='current' AND expires_at<=? AND manual=0"
       )
       .run(now);
+  }
+
+  /** 将长期未被新证据强化的 supported profile 模型降级为 observation，防止旧推断以高置信度幽灵留存。 */
+  decayModels(now: number, decayMs: number) {
+    this.db
+      .prepare(
+        `UPDATE memory_model SET confidence='observation'
+        WHERE layer='profile' AND confidence='supported' AND updated_at<=?`
+      )
+      .run(now - decayMs);
+  }
+
+  // ── 主动澄清队列 ──────────────────────────────────────────────────────────
+
+  pendingClarification(): { kind: string; topic: string; question: string } | null {
+    const raw = this.meta("clarify-queue");
+    if (!raw) return null;
+    try {
+      const queue = JSON.parse(raw) as Array<{
+        kind: string;
+        topic: string;
+        question: string;
+        priority: number;
+      }>;
+      if (!Array.isArray(queue) || !queue.length) return null;
+      return queue.sort((a, b) => b.priority - a.priority)[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  setClarifyQueue(
+    queue: Array<{ kind: string; topic: string; question: string; priority: number }>
+  ) {
+    this.setMeta("clarify-queue", JSON.stringify(queue));
+  }
+
+  resolveClarification(topic: string) {
+    const raw = this.meta("clarify-queue");
+    if (!raw) return;
+    try {
+      const queue = JSON.parse(raw) as Array<{
+        kind: string;
+        topic: string;
+        question: string;
+        priority: number;
+      }>;
+      const filtered = queue.filter(item => item.topic !== topic);
+      this.setMeta("clarify-queue", JSON.stringify(filtered));
+    } catch {
+      // 格式损坏时直接清空
+      this.setMeta("clarify-queue", "[]");
+    }
   }
 }
 

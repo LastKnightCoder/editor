@@ -3,14 +3,15 @@ import { currentCommandScope } from "@/services/command-context";
 import { withModule } from "./module-init";
 
 export type AssistantMemoryChannel =
-  | "status"
-  | "search"
-  | "get"
+  | "model-get"
   | "recall"
   | "recall-get"
   | "correct"
   | "forget"
-  | "retry";
+  | "debug-snapshot"
+  | "debug-detail"
+  | "debug-subscribe"
+  | "debug-unsubscribe";
 
 export function assistantMemoryRequest<T>(channel: AssistantMemoryChannel, ...args: unknown[]) {
   const scope = currentCommandScope();

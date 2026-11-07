@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import mainSchema from "@tau/db-schema/schema/main.sql?raw";
 import PathUtil from "../../../utils/PathUtil";
 import { LibraryMemorySources } from "../sources";
+import OperationTable from "../../tables/operation";
+import { onOperationRecorded } from "../../operation-events";
 
 function present<T>(value: T | null | undefined): T {
   if (value == null) throw new Error("缺少测试资料");
@@ -26,6 +28,41 @@ vi.mock("../../user-setting", () => ({ default: {} }));
 afterEach(() => vi.restoreAllMocks());
 
 describe("个人记忆的真实资料来源", () => {
+  it("只把真实更新流水按日聚合为编辑活动，不把新建和卡片知识当作用户经历", () => {
+    const db = new Database(":memory:");
+    const recorded: string[] = [];
+    const unsubscribe = onOperationRecorded(event => recorded.push(event.action));
+    try {
+      db.exec(mainSchema);
+      db.prepare(
+        "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(1,1,2,?,30,1)"
+      ).run(
+        JSON.stringify([
+          { children: [{ text: "Rust 学习资料" }] },
+          { children: [{ text: "不可写入个人记忆的知识点定义" }] },
+        ])
+      );
+      db.exec("INSERT INTO cards(id,create_time,update_time,content_id) VALUES(2,1,2,1)");
+      const sources = new LibraryMemorySources(db);
+      const at = Date.now() - 10_000;
+      OperationTable.insertOperation(db, "content", "insert", 1, at);
+      expect(sources.list("activity", "", 10)).toEqual([]);
+      OperationTable.insertOperation(db, "content", "update", 1, at + 1000);
+      OperationTable.insertOperation(db, "content", "update", 1, at + 2000);
+      const rows = sources.list("activity", "", 10);
+      expect(rows).toHaveLength(1);
+      expect(recorded).toEqual(["insert", "update", "update"]);
+      const snapshot = sources.read(present(sources.head(rows[0])));
+      expect(snapshot.parts[0].text).toContain("编辑了资料《Rust 学习资料》");
+      expect(snapshot.parts[0].text).not.toContain("知识点定义");
+      expect(snapshot.parts[0].observedAt).toBe(at + 2000);
+      expect(snapshot.parts[0].role).toBe("activity");
+    } finally {
+      unsubscribe();
+      db.close();
+    }
+  });
+
   it("按正文块定位已提交的引文，并用本地日期和分钟还原当前日程", () => {
     const db = new Database(":memory:");
     try {

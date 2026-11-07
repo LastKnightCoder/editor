@@ -8,7 +8,7 @@
 
 | 位置                                                          | 内容                                                                                                                                                 |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议         |
+| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、交互规范、数据接线、个人助手分层记忆、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议 |
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                    |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                         |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
@@ -31,6 +31,8 @@
 用户偏好与工作方式：喜欢什么、讨厌什么、什么场景——页面设计的输入。
 
 ## guides/ — 操作指南
+
+未发布个人记忆的卡片知识摘要清理、预览和备份恢复见 [个人记忆清理](./guides/ops-personal-memory-cleanup.md)。
 
 日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
 
@@ -58,6 +60,8 @@
 ## tasks/ — 进行中任务
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
+
+- [个人记忆实时调试](./tasks/memory-debug/README.md)：开发工具只读面板、处理状态与沉淀内容的实时推送。
 
 - [播客插件化](./tasks/podcast-pluginization/README.md)：生成播客抽成插件 `tau.podcast`，自带播客库页面并重做生成界面，进行中。
 - [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。

@@ -6,7 +6,7 @@
  * 只在开发构建里有意义：悬浮球不挂载时注册了也没有入口（生产包里注册表只是一个空转的 Map）。
  */
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, type ComponentType } from "react";
 
 export interface DevAction {
   /** 全局唯一，重复注册会覆盖（HMR 重新执行模块时不会出现两份） */
@@ -15,6 +15,7 @@ export interface DevAction {
   group: string;
   label: string;
   description?: string;
+  panel?: ComponentType<{ open: boolean; onOpenChange: (open: boolean) => void }>;
   /** 紧凑小按钮：组内横向换行排（动作多、label 短的调试组用），description 转为悬停提示 */
   compact?: boolean;
   /** 返回的字符串作为成功提示；抛错显示为失败提示 */
