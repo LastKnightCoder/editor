@@ -383,13 +383,17 @@ function AccountForm({
         </SettingsCardSection>
       ) : (
         <SettingsCardSection title="模型">
-          <SettingRow title="图片模型" description="生成与修改图片都用这个模型">
+          <SettingRow
+            title="图片模型"
+            description="生成与修改图片共用；可选择预置项，或展开后输入自定义模型 ID"
+          >
             <Select
               className="w-[300px] max-w-full"
               aria-label="图片模型"
               searchable
               creatable
               value={modelId || null}
+              placeholder="选择或输入模型 ID"
               options={defaults.map(model => ({
                 value: model.id,
                 label: model.label ?? model.id,

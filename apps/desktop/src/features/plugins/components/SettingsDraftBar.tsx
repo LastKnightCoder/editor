@@ -1,13 +1,21 @@
 /* eslint-disable react-refresh/only-export-components -- 保存条与同域的草稿接线 hook 一起导出 */
 /**
  * 插件设置的悬浮保存条与离开确认：读 SettingsDraftController，插件或宿主表单只报告草稿状态。
- * 保存条吸附在所在滚动区底部；页面导航、切换设置分组与关窗口都先经离开确认。
+ * 保存条距窗口底部 24px，并在设置区内水平居中；页面导航、切换设置分组与关窗口都先经离开确认。
  */
 
-import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 import type { SettingsDraftController, SettingsDraftSnapshot } from "@tau/plugins/settings-draft";
-import { Button, Dialog, DialogBody, cn } from "@tau/ui";
+import { Button, Dialog, DialogBody, cn, usePortalContainer } from "@tau/ui";
 import { closeWindow } from "@/commands";
 import { usePage } from "@/page/PageProvider";
 
@@ -131,44 +139,75 @@ export function SettingsDraftBar({
   region: RefObject<HTMLElement | null>;
 }) {
   const snapshot = useSettingsDraftSnapshot(controller);
+  const portalContainer = usePortalContainer();
+  const anchor = useRef<HTMLDivElement | null>(null);
+  const floating = useRef<HTMLDivElement | null>(null);
   const bar = useRef<HTMLDivElement | null>(null);
   useInvalidFeedback(snapshot, bar, region);
+  useLayoutEffect(() => {
+    const element = anchor.current;
+    const frame = floating.current;
+    if (!snapshot.attached || !element || !frame) return;
+    const place = () => {
+      const rect = element.getBoundingClientRect();
+      frame.style.left = `${rect.left}px`;
+      frame.style.width = `${rect.width}px`;
+    };
+    place();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
+    observer?.observe(element);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [snapshot.attached, portalContainer]);
   if (!snapshot.attached) return null;
   const saving = snapshot.phase === "saving";
   const shown = snapshot.dirty || snapshot.phase !== "idle";
   return (
-    <div className="pointer-events-none sticky bottom-0 z-10 flex justify-center pt-5 pb-4">
-      <div
-        ref={bar}
-        role="region"
-        aria-label="未保存的修改"
-        aria-hidden={shown ? undefined : true}
-        inert={!shown}
-        className={cn(
-          "bg-surface border-line-1 shadow-float flex w-[min(100%,480px)] items-center gap-2 rounded-[14px] border py-[7px] pr-[7px] pl-3.5",
-          "ease-tau-out transition-[translate,opacity] duration-200",
-          shown ? "pointer-events-auto" : "translate-y-[calc(100%+24px)] opacity-0"
-        )}
-      >
-        <p
-          role={snapshot.phase === "failed" ? "alert" : "status"}
-          className="text-tau-meta text-ink-1 flex min-w-0 flex-1 items-center gap-[7px]"
-        >
-          <Status snapshot={snapshot} />
-        </p>
-        {snapshot.dirty && (
-          <Button variant="ghost" disabled={saving} onClick={() => controller.reset()}>
-            还原
-          </Button>
-        )}
-        {(snapshot.dirty || snapshot.phase === "failed" || saving) && (
-          <Button variant="primary" loading={saving} onClick={() => void controller.save()}>
-            {snapshot.saveLabel}
-            <kbd className="font-tau-mono text-tau-micro opacity-60">{isMac ? "⌘S" : "Ctrl S"}</kbd>
-          </Button>
-        )}
-      </div>
-    </div>
+    <>
+      <div ref={anchor} aria-hidden className="h-24" />
+      {createPortal(
+        <div ref={floating} className="pointer-events-none fixed bottom-6 z-10 flex justify-center">
+          <div
+            ref={bar}
+            role="region"
+            aria-label="未保存的修改"
+            aria-hidden={shown ? undefined : true}
+            inert={!shown}
+            className={cn(
+              "bg-surface border-line-1 shadow-float flex w-[min(100%,480px)] items-center gap-2 rounded-[14px] border py-[7px] pr-[7px] pl-3.5",
+              "ease-tau-out transition-[translate,opacity] duration-200",
+              shown ? "pointer-events-auto" : "translate-y-[calc(100%+24px)] opacity-0"
+            )}
+          >
+            <p
+              role={snapshot.phase === "failed" ? "alert" : "status"}
+              className="text-tau-meta text-ink-1 flex min-w-0 flex-1 items-center gap-[7px]"
+            >
+              <Status snapshot={snapshot} />
+            </p>
+            {snapshot.dirty && (
+              <Button variant="ghost" disabled={saving} onClick={() => controller.reset()}>
+                还原
+              </Button>
+            )}
+            {(snapshot.dirty || snapshot.phase === "failed" || saving) && (
+              <Button variant="primary" loading={saving} onClick={() => void controller.save()}>
+                {snapshot.saveLabel}
+                <kbd className="font-tau-mono text-tau-micro opacity-60">
+                  {isMac ? "⌘S" : "Ctrl S"}
+                </kbd>
+              </Button>
+            )}
+          </div>
+        </div>,
+        portalContainer
+      )}
+    </>
   );
 }
 
