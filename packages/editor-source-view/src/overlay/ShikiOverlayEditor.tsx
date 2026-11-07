@@ -324,15 +324,6 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   }, [needsLineLayout, measureLineLayout, value, wrap, lineNumbers, isDark]);
 
   useEffect(() => {
-    // 换行时宽度变化会改变折行，需要重新测量
-    const root = rootRef.current;
-    if (!needsLineLayout || !wrap || !root || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => measureLineLayout());
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [needsLineLayout, wrap, measureLineLayout]);
-
-  useEffect(() => {
     onLineTopsChange?.(lineLayout.map(box => box.top));
   }, [lineLayout, onLineTopsChange]);
 
@@ -380,7 +371,19 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
 
   useLayoutEffect(() => {
     syncHeight();
-  }, [measureContent, isDark, syncHeight]);
+  }, [measureContent, isDark, syncHeight, wrap, lineNumbers]);
+
+  useEffect(() => {
+    // 换行时宽度变化会同时影响内容高度与逻辑行的位置。
+    const root = rootRef.current;
+    if (!wrap || !root || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      syncHeight();
+      if (needsLineLayout) measureLineLayout();
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [wrap, needsLineLayout, syncHeight, measureLineLayout]);
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
