@@ -5,6 +5,7 @@ export type MemoryDebugPhase =
   | "scanning"
   | "reading"
   | "extracting"
+  | "reconciling"
   | "reflecting"
   | "reviewing";
 export type MemoryDebugSource = MemorySource & { title?: string };

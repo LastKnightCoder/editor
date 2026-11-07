@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AssistantMemory, MemorySource, MemorySourceKind } from "@/types/assistant-memory";
 import { parseExtraction, type MemoryPart } from "../extraction";
 import { parseReflection, MEMORY_REVIEW_INTERVAL } from "../reflection";
@@ -13,7 +13,7 @@ import { MemoryWorker, type MemoryWorkerOptions } from "../worker";
 const START = Date.UTC(2026, 10, 6, 12);
 const DAY = 86_400_000;
 const key = (source: MemorySource) => `${source.kind}:${source.id}`;
-const output = (models: unknown[] = []) => JSON.stringify({ models, merge: [], retire: [] });
+const output = (models: unknown[] = []) => JSON.stringify({ models, retire: [] });
 
 function fixture() {
   const directory = mkdtempSync(join(tmpdir(), "tau-personal-models-"));
@@ -24,7 +24,8 @@ function fixture() {
   let busy = false;
   let nextId = 0;
   let store = new MemoryStore(file);
-  let complete: MemoryWorkerOptions["complete"] = async () => output();
+  let complete: MemoryWorkerOptions["complete"] = async (_system, _input, _signal, purpose) =>
+    purpose === "reconcile" ? "[]" : output();
   const sources: MemorySourcesPort = {
     list: (kind, after, limit) =>
       [...data.values()]
@@ -178,26 +179,23 @@ describe("个人理解的准入与自动维护", () => {
       quote: part.text,
       certainty: "explicit",
     };
-    expect(parseExtraction(JSON.stringify([candidate]), part, [])[0]?.profile).toBe(true);
-    expect(
-      parseExtraction(JSON.stringify([{ ...candidate, subject: "knowledge" }]), part, [])
-    ).toEqual([]);
-    expect(parseExtraction(JSON.stringify([candidate]), { ...part, role: "document" }, [])).toEqual(
+    expect(parseExtraction(JSON.stringify([candidate]), part)[0]?.profile).toBe(true);
+    expect(parseExtraction(JSON.stringify([{ ...candidate, subject: "knowledge" }]), part)).toEqual(
+      []
+    );
+    expect(parseExtraction(JSON.stringify([candidate]), { ...part, role: "document" })).toEqual([]);
+    expect(parseExtraction(JSON.stringify([candidate]), { ...part, role: "assistant" })).toEqual(
       []
     );
     expect(
-      parseExtraction(JSON.stringify([candidate]), { ...part, role: "assistant" }, [])
-    ).toEqual([]);
-    expect(
-      parseExtraction(JSON.stringify([{ ...candidate, temporal: "past" }]), part, [])[0]?.state
+      parseExtraction(JSON.stringify([{ ...candidate, temporal: "past" }]), part)[0]?.state
     ).toBe("history");
     expect(
-      parseExtraction(JSON.stringify([{ ...candidate, temporal: "past" }]), part, [])[0]?.profile
+      parseExtraction(JSON.stringify([{ ...candidate, temporal: "past" }]), part)[0]?.profile
     ).toBe(false);
     const temporary = { ...candidate, text: "这次请给例子", quote: "这次请给例子" };
     expect(
-      parseExtraction(JSON.stringify([temporary]), { ...part, text: temporary.quote }, [])[0]
-        ?.profile
+      parseExtraction(JSON.stringify([temporary]), { ...part, text: temporary.quote })[0]?.profile
     ).toBe(false);
   });
 
@@ -249,7 +247,7 @@ describe("个人理解的准入与自动维护", () => {
       quote: part.text,
       certainty: "explicit",
     };
-    const extracted = parseExtraction(JSON.stringify([candidate]), part, []);
+    const extracted = parseExtraction(JSON.stringify([candidate]), part);
     expect(extracted[0]?.profile).toBe(true);
     const episode: AssistantMemory = {
       ...extracted[0],
@@ -278,7 +276,7 @@ describe("个人理解的准入与自动维护", () => {
       quote: "今天有些难过",
       expiresAt: START + 30 * DAY,
     };
-    const emotion = parseExtraction(JSON.stringify([mood]), { ...part, text: mood.quote }, [])[0];
+    const emotion = parseExtraction(JSON.stringify([mood]), { ...part, text: mood.quote })[0];
     const end = new Date(START);
     end.setHours(24, 0, 0, 0);
     expect(emotion.profile).toBe(false);
@@ -434,7 +432,7 @@ describe("个人理解的准入与自动维护", () => {
           })
       );
       const running = f.worker.runBatch(1);
-      expect(release).toBeDefined();
+      await vi.waitFor(() => expect(release).toBeDefined());
       f.store.correct(
         item.id,
         { kind: "preference", state: "current", topic: item.topic, text: "我现在偏好完整论证" },

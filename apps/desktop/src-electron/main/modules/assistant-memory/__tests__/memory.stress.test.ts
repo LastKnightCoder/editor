@@ -120,7 +120,8 @@ function setup() {
   let calls = 0;
   let maxInput = 0;
   let complete: MemoryWorkerOptions["complete"] = async (_system, input, _signal, purpose) => {
-    if (purpose !== "extract") return JSON.stringify({ models: [], merge: [], retire: [] });
+    if (purpose === "reconcile") return "[]";
+    if (purpose !== "extract") return JSON.stringify({ models: [], retire: [] });
     calls++;
     maxInput = Math.max(maxInput, input.length);
     return extraction(input);
@@ -544,7 +545,7 @@ describe("个人助手记忆", () => {
     }
   });
 
-  it("拒绝伪造引用和助手输出推断的用户偏好，梦境仅合并重复且保留证据", async () => {
+  it("拒绝伪造引用和助手输出推断的用户偏好，全面复核对账合并重复且保留证据", async () => {
     const f = setup();
     try {
       const first = f.sources.put("chat", "1", START, ["我喜欢简洁答复"]);
@@ -558,21 +559,18 @@ describe("个人助手记忆", () => {
         certainty: "explicit",
         quote: part.text,
       };
-      expect(parseExtraction(JSON.stringify([{ ...candidate, quote: "编造" }]), part, [])).toEqual(
+      expect(parseExtraction(JSON.stringify([{ ...candidate, quote: "编造" }]), part)).toEqual([]);
+      expect(parseExtraction(JSON.stringify([candidate]), { ...part, role: "assistant" })).toEqual(
         []
       );
-      expect(
-        parseExtraction(JSON.stringify([candidate]), { ...part, role: "assistant" }, [])
-      ).toEqual([]);
       const second = f.sources.put("chat", "2", START, ["我喜欢简短回应"]);
       const other = f.sources.read(present(f.sources.head(second))).parts[0];
       f.store.apply(
         [
-          ...parseExtraction(JSON.stringify([candidate]), part, []),
+          ...parseExtraction(JSON.stringify([candidate]), part),
           ...parseExtraction(
             JSON.stringify([{ ...candidate, text: "用户偏好简短回应", quote: other.text }]),
-            other,
-            []
+            other
           ),
         ],
         START
@@ -580,18 +578,17 @@ describe("个人助手记忆", () => {
       const [latest, older] = f.store.search({});
       f.store.setMeta("dirty-at", String(START));
       f.advance(60_001);
-      f.complete(async (_system, _input, _signal, purpose) => {
-        expect(purpose).toBe("review");
-        return JSON.stringify({
-          models: [],
-          merge: [{ keep: latest.id, merge: [older.id] }],
-          retire: [],
-        });
+      const purposes: string[] = [];
+      f.complete(async (_system, input, _signal, purpose) => {
+        purposes.push(purpose);
+        if (purpose !== "reconcile") return JSON.stringify({ models: [], retire: [] });
+        const { memories } = JSON.parse(input) as { memories: Array<{ id: number }> };
+        return JSON.stringify([{ candidate: 0, op: "reinforce", target: memories[0].id }]);
       });
       await f.worker.runBatch();
-      const result = f.retrieval.get(latest.id);
-      expect(result?.evidence).toHaveLength(2);
+      expect(purposes).toEqual(["reconcile", "review"]);
       expect(f.store.get(older.id)).toBeNull();
+      expect(f.retrieval.get(latest.id)?.evidence).toHaveLength(2);
     } finally {
       f.close();
     }

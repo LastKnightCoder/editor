@@ -1,5 +1,11 @@
 import { setImmediate as yieldTurn } from "node:timers/promises";
-import type { MemorySource, MemorySourceKind } from "@/types/assistant-memory";
+import type {
+  AssistantMemory,
+  MemorySearch,
+  MemorySource,
+  MemorySourceKind,
+  PersonalMemoryModel,
+} from "@/types/assistant-memory";
 import type {
   MemoryDebugPhase,
   MemoryDebugReporter,
@@ -27,6 +33,13 @@ import {
   parseReflection,
   REFLECT_SYSTEM,
 } from "./reflection";
+import {
+  parseReconcile,
+  RECONCILE_SYSTEM,
+  reconcileInput,
+  type ReconcileEntry,
+  type ReconcileSubject,
+} from "./reconcile";
 
 const PAGE = 48;
 const QUIET_MS = 1800;
@@ -39,6 +52,9 @@ const REFLECTION_RETRY_MS = 3_600_000;
 const REFLECTION_QUIET_MS = 60_000;
 const REFLECTION_INTERVAL_MS = 5 * 60_000;
 const PROFILE_DECAY_MS = 60 * 86_400_000;
+const RELATED_EACH = 4;
+const RELATED_LIMIT = 24;
+const REVIEW_CHUNK = 12;
 const RHYTHM_INTERVAL_MS = 7 * 86_400_000;
 
 type Scan = { phase: "discover" | "recheck"; cursor: string; repeat?: boolean };
@@ -63,8 +79,10 @@ export interface MemoryWorkerOptions {
     system: string,
     input: string,
     signal: AbortSignal,
-    purpose: "extract" | "reflect" | "review"
+    purpose: "extract" | "reconcile" | "reflect" | "review"
   ) => Promise<string>;
+  /** 整批语义召回相关经历，结果与查询一一对应；未提供或不可用时只用关键词检索。 */
+  related?: (list: MemorySearch[]) => Promise<AssistantMemory[][]>;
   allowed: () => boolean;
   busy: () => boolean;
   queryRhythm?: () => ActivityRhythm | null;
@@ -393,10 +411,14 @@ export class MemoryWorker {
         )
           this.commit(
             item,
-            item.parts.flatMap(part => deterministicRecord(part, this.now()))
+            item.parts
+              .flatMap(part => deterministicRecord(part, this.now()))
+              .map(candidate => ({ candidate, op: "add" as const }))
           );
       }
       const candidates = await this.extract(input, controller.signal);
+      if (!this.canRun() || controller.signal.aborted) return Math.max(1, visited);
+      const entries = await this.reconcileCandidates(candidates, controller.signal);
       if (!this.canRun() || controller.signal.aborted) return Math.max(1, visited);
       for (const item of work) {
         if (
@@ -411,7 +433,7 @@ export class MemoryWorker {
         }
         this.commit(
           item,
-          candidates.filter(candidate => candidate.evidence.some(ref => sameSource(ref, item.job)))
+          entries.filter(entry => entry.candidate.evidence.some(ref => sameSource(ref, item.job)))
         );
         // chat 来源全部处理完毕时，生成或更新对话摘要
         if (
@@ -441,12 +463,12 @@ export class MemoryWorker {
     return Math.max(1, visited);
   }
 
-  private commit(item: SourceWork, candidates: MemoryCandidate[]) {
+  private commit(item: SourceWork, candidates: ReconcileEntry[]) {
     const { store } = this.options;
     const { job, head, snapshot, continuing, end } = item;
     store.atomic(() => {
       if (!continuing) store.pruneEvidence(job, ref => snapshot.validate(ref) !== null);
-      store.apply(candidates, this.now());
+      store.reconcile(candidates, this.now());
       store.checkpoint(
         job,
         head.modifiedAt,
@@ -523,15 +545,6 @@ export class MemoryWorker {
   private async extract(parts: MemoryPart[], signal: AbortSignal): Promise<MemoryCandidate[]> {
     if (!parts.length) return [];
     this.progress("extracting", this.currentSources, "正在调用模型提炼个人经历");
-    const { store } = this.options;
-    const related = store.search({
-      query: parts
-        .map(part => part.text.slice(0, 130))
-        .join(" ")
-        .slice(0, 440),
-      state: "current",
-      limit: 8,
-    });
     const text = await this.options.complete(
       EXTRACT_SYSTEM + "\n每项加 part 字段，填写证据所在片段的数字编号。",
       JSON.stringify({
@@ -545,7 +558,6 @@ export class MemoryWorker {
               ? new Date(part.observedAt).toLocaleString("zh-CN")
               : new Date(part.observedAt).toISOString(),
         })),
-        related: related.map(({ id, kind, topic, text }) => ({ id, kind, topic, text })),
       }),
       signal,
       "extract"
@@ -564,10 +576,103 @@ export class MemoryWorker {
           : parts.length === 1
             ? parts[0]
             : undefined;
-      return part ? parseExtraction(JSON.stringify([item]), part, related) : [];
+      return part ? parseExtraction(JSON.stringify([item]), part) : [];
     });
     if (output.length && !candidates.length) throw new Error("记忆整理没有返回可核对的原文引用");
     return candidates;
+  }
+
+  /** 为每条候选分别召回相关经历（关键词 + 语义），按名次轮转合并，避免前几条候选占满名额。 */
+  private async relatedTo(subjects: ReconcileSubject[], signal: AbortSignal) {
+    const { store } = this.options;
+    const queries = subjects.map(subject => ({
+      query: `${subject.topic} ${subject.text}`.slice(0, 200),
+      kind: subject.kind,
+      state: "all" as const,
+      limit: RELATED_EACH,
+    }));
+    let semantic: AssistantMemory[][] = [];
+    try {
+      semantic = (await this.options.related?.(queries)) ?? [];
+    } catch {
+      // 语义召回不可用时仍按关键词对账。
+    }
+    if (signal.aborted) return { memories: [], models: [] };
+    const ranked = subjects.map((subject, index) =>
+      [
+        ...store.related(queries[index].query, subject.kind, RELATED_EACH + 1),
+        ...(semantic[index] ?? []),
+      ].filter(item => item.id !== subject.id)
+    );
+    const found = new Map<number, AssistantMemory>();
+    const depth = Math.max(0, ...ranked.map(list => list.length));
+    for (let rank = 0; rank < depth && found.size < RELATED_LIMIT; rank++)
+      for (const list of ranked) {
+        const item = list[rank];
+        if (item && found.size < RELATED_LIMIT) found.set(item.id, item);
+      }
+    const models = new Map<number, PersonalMemoryModel>();
+    for (const { query } of queries)
+      for (const model of store.searchModels({ layer: "all", query, limit: 2 }, this.now()))
+        if (models.size < 8) models.set(model.id, model);
+    return { memories: [...found.values()], models: [...models.values()] };
+  }
+
+  private async decide(subjects: ReconcileSubject[], signal: AbortSignal) {
+    const { memories, models } = await this.relatedTo(subjects, signal);
+    if (!memories.length || signal.aborted) return subjects.map(() => ({ op: "add" as const }));
+    const text = await this.options.complete(
+      RECONCILE_SYSTEM,
+      reconcileInput(subjects, memories, models),
+      signal,
+      "reconcile"
+    );
+    return parseReconcile(text, subjects, memories);
+  }
+
+  private async reconcileCandidates(
+    candidates: MemoryCandidate[],
+    signal: AbortSignal
+  ): Promise<ReconcileEntry[]> {
+    if (!candidates.length) return [];
+    this.progress("reconciling", this.currentSources, "正在与已有经历对账");
+    const decisions = await this.decide(candidates, signal);
+    return candidates.map((candidate, index) => ({ candidate, ...decisions[index] }));
+  }
+
+  /** 复核页内的经历与已有经历对账，归并重复、退役被推翻的认识；失败时不推进断点。 */
+  private async reviewReconcile(page: AssistantMemory[], now: number): Promise<boolean> {
+    const { store } = this.options;
+    const subjects = page.flatMap(item => {
+      const current = store.get(item.id);
+      return current && !current.manual ? [current] : [];
+    });
+    if (!subjects.length) return true;
+    const controller = new AbortController();
+    this.active = { controller };
+    this.progress("reconciling", [], `复核对账 ${subjects.length} 条经历`);
+    try {
+      for (let start = 0; start < subjects.length; start += REVIEW_CHUNK) {
+        const chunk = subjects.slice(start, start + REVIEW_CHUNK);
+        const decisions = await this.decide(chunk, controller.signal);
+        if (!this.canRun() || controller.signal.aborted) return false;
+        store.reconcileEpisodes(
+          chunk.map((subject, index) => ({ subject, ...decisions[index] })),
+          now
+        );
+      }
+      store.setMeta("dirty-at", String(now));
+      this.report(`复核对账完成（${subjects.length} 条经历）`, true);
+      return true;
+    } catch {
+      if (!controller.signal.aborted) {
+        this.reflectionRetryAt = now + REFLECTION_RETRY_MS;
+        this.report("复核对账失败，将在约一小时后重试", false, "error");
+      }
+      return false;
+    } finally {
+      if (this.active?.controller === controller) this.active = undefined;
+    }
   }
 
   private reflectionDue(now: number): number {
@@ -653,8 +758,9 @@ export class MemoryWorker {
         });
       store.expire(now);
       store.expireModels(now);
-      if (page.length === PAGE) store.setMeta("review-cursor", String(page[page.length - 1].id));
     });
+    if (!(await this.reviewReconcile(page, now))) return;
+    if (page.length === PAGE) store.setMeta("review-cursor", String(page[page.length - 1].id));
     this.report(`已复核 ${page.length} 条经历`, true);
     if (page.length < PAGE && (await this.reflect(now, "review"))) {
       store.atomic(() => {
@@ -750,7 +856,6 @@ export class MemoryWorker {
           new Map(episodes.map(item => [item.id, item])),
           now
         );
-        store.mergeEpisodes(reflection.merge, allowed, now);
         store.expireModels(now);
         store.setMeta("reflected-at", String(now));
       });
