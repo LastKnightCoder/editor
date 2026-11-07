@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Search, X } from "lucide-react";
-import { Dialog } from "@tau/ui";
+import { Dialog, FadeScroll } from "@tau/ui";
 import type { DocCollection } from "./collection.ts";
 import { navigate } from "./router.ts";
 import type { DocSearchEngine, DocSearchHit, SearchTextPart } from "./search.ts";
@@ -190,7 +190,7 @@ export function DocsSearch({
           </div>
         }
       >
-        <div className="min-h-0 overflow-y-auto p-2">
+        <FadeScroll className="min-h-0 p-2">
           <p role="status" className="text-ink-3 px-3 py-3 text-[13px]">
             {error
               ? "搜索加载失败，请重试。"
@@ -246,7 +246,7 @@ export function DocsSearch({
                 </li>
               ))}
           </ul>
-        </div>
+        </FadeScroll>
         <p className="text-ink-3 border-line-1 border-t px-5 py-3 text-[12px]">
           ↑ ↓ 选择 · Enter 打开 · Esc 关闭
         </p>

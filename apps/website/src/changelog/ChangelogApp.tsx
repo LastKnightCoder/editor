@@ -10,7 +10,7 @@ import {
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor } from "@tau/editor";
-import { cn } from "@tau/ui";
+import { cn, FadeScroll } from "@tau/ui";
 import { DocsHeader } from "../docs/DocsHeader.tsx";
 import { getDocsKit } from "../docs/editorKit.ts";
 import { docsMarkdown } from "../docs/editorMarkdown.ts";
@@ -207,29 +207,31 @@ export function ChangelogApp() {
             )}
           </div>
         </main>
-        <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[180px] shrink-0 overflow-y-auto py-12 lg:block">
-          <nav aria-label="版本列表" className="text-[13px]">
-            <p className="text-ink-3 mb-2 text-[12px] font-medium tracking-[0.12em]">
-              {current?.label}版本
-            </p>
-            <ul className="border-line-1 flex flex-col border-l">
-              {notes.map(note => (
-                <li key={note.version}>
-                  <button
-                    type="button"
-                    onClick={() => selectVersion(note.version)}
-                    aria-current={note.version === active ? "location" : undefined}
-                    className={cn(
-                      "text-ink-2 hover:text-ink-1 -ml-px block w-full border-l border-transparent py-1 pl-3 pr-2 text-left tabular-nums leading-snug transition-colors",
-                      "aria-[current=location]:border-accent aria-[current=location]:text-accent-text"
-                    )}
-                  >
-                    v{note.version}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
+        <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[180px] shrink-0 lg:block">
+          <FadeScroll className="h-full py-12">
+            <nav aria-label="版本列表" className="text-[13px]">
+              <p className="text-ink-3 mb-2 text-[12px] font-medium tracking-[0.12em]">
+                {current?.label}版本
+              </p>
+              <ul className="border-line-1 flex flex-col border-l">
+                {notes.map(note => (
+                  <li key={note.version}>
+                    <button
+                      type="button"
+                      onClick={() => selectVersion(note.version)}
+                      aria-current={note.version === active ? "location" : undefined}
+                      className={cn(
+                        "text-ink-2 hover:text-ink-1 -ml-px block w-full border-l border-transparent py-1 pl-3 pr-2 text-left tabular-nums leading-snug transition-colors",
+                        "aria-[current=location]:border-accent aria-[current=location]:text-accent-text"
+                      )}
+                    >
+                      v{note.version}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </FadeScroll>
         </aside>
       </div>
     </div>

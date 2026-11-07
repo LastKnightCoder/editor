@@ -1,0 +1,37 @@
+:root::-webkit-scrollbar {
+  width: 10px;
+}
+:root::-webkit-scrollbar-track {
+  margin: 10px 6px 10px 0;
+}
+
+.site-scroll-fade {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 40;
+  height: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s var(--tau-ease-out);
+}
+.site-scroll-fade.on {
+  opacity: 1;
+}
+.site-scroll-fade-top {
+  top: 0;
+  background: linear-gradient(180deg, var(--tau-bg-page), transparent);
+}
+.site-scroll-fade-top.site-scroll-fade-header,
+.topbar.show ~ .site-scroll-fade-top {
+  height: 84px;
+}
+.site-scroll-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(0deg, var(--tau-bg-page), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-scroll-fade {
+    transition: none;
+  }
+}

@@ -43,7 +43,7 @@ interface DocsHeaderProps {
 /** 使用文档与更新日志共用的吸顶导航 */
 export function DocsHeader({ current, nav, search }: DocsHeaderProps) {
   return (
-    <header className="border-line-1 bg-page/85 sticky top-0 z-40 border-b backdrop-blur-md">
+    <header className="border-line-1 bg-page/85 sticky top-0 z-50 border-b backdrop-blur-md">
       <div className="mx-auto flex h-[60px] max-w-[1440px] items-center gap-6 px-6 max-sm:gap-2 max-sm:px-4">
         {nav && (
           <button
