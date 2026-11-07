@@ -4,14 +4,13 @@ import type { ElementBehaviors } from "@tau/editor/api";
 import type { ParagraphElement, TableCellElement } from "./types";
 import { isAtParagraphStart, isParagraphAndEmpty } from "@tau/editor/api";
 import { columnCount, getCellPosition, getTableAt, selectCell } from "./transforms";
+import { buildCoverMap, isOriginCell } from "./span";
 
 /** 单元格内回车不拆行（Enter 由导航热键接管，格内换行走 ⇧Enter 软换行） */
 const insertBreak: ElementBehaviors<TableCellElement>["insertBreak"] = editor => {
   const { selection } = editor;
   if (!selection || !Range.isCollapsed(selection)) return false;
-  const [match] = Editor.nodes(editor, {
-    match: n => n.type === "table-cell",
-  });
+  const [match] = Editor.nodes(editor, { match: n => n.type === "table-cell" });
   return !!match;
 };
 
@@ -19,17 +18,23 @@ const insertBreak: ElementBehaviors<TableCellElement>["insertBreak"] = editor =>
 const deleteBackward: ElementBehaviors<TableCellElement>["deleteBackward"] = editor => {
   const { selection } = editor;
   if (!selection || !Range.isCollapsed(selection)) return false;
-  const [text] = Editor.nodes(editor, {
-    match: n => n.type === "formatted",
-  });
+  const [text] = Editor.nodes(editor, { match: n => n.type === "formatted" });
   if (!text) return false;
   const [, path] = text;
   if (path[path.length - 1] === 0 && Editor.isStart(editor, selection.anchor, path)) {
     const at = getCellPosition(editor);
     const table = at && getTableAt(editor, at.tablePath);
     if (!at || !table) return false;
-    if (at.col > 0) selectCell(editor, at.tablePath, at.row, at.col - 1);
-    else if (at.row > 0) selectCell(editor, at.tablePath, at.row - 1, columnCount(table) - 1);
+    // selectCell 会把被覆盖格换成所在合并格；落回自身时继续往前找
+    const map = buildCoverMap(table);
+    const cols = columnCount(table);
+    for (let index = at.row * cols + at.col - 1; index >= 0; index--) {
+      const [row, col] = [Math.floor(index / cols), index % cols];
+      if (isOriginCell(map, row, col)) {
+        selectCell(editor, at.tablePath, row, col);
+        break;
+      }
+    }
     return true;
   }
   return false;
@@ -48,9 +53,7 @@ const blockAfterTable: ElementBehaviors<ParagraphElement>["deleteBackward"] = (
   if (!isAtParagraphStart(editor)) return false;
   // 单元格内的段首退格归 table-cell 自己的行为（旧插件里 cell 分支在前；分发后 paragraph
   // 层先试，这里必须让路——否则下面按祖先链找 table 会误命中单元格内的段落）
-  const [inCell] = Editor.nodes(editor, {
-    match: n => n.type === "table-cell",
-  });
+  const [inCell] = Editor.nodes(editor, { match: n => n.type === "table-cell" });
   if (inCell) return false;
   const prevPath = Editor.before(editor, path);
   if (!prevPath) return false;

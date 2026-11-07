@@ -6,6 +6,10 @@ export type { TableAlign };
 
 export interface TableCellElement {
   type: "table-cell";
+  /** 向下合并的行数（含自身），等于 1 时省略；只在合并区域左上格上存在 */
+  rowSpan?: number;
+  /** 向右合并的列数（含自身），等于 1 时省略；只在合并区域左上格上存在 */
+  colSpan?: number;
   children: Array<InlineElement | FormattedText>;
 }
 

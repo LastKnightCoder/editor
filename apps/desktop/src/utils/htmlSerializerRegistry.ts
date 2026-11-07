@@ -7,6 +7,8 @@ import { compileTailwindForHtml } from "./html-serializers/tailwind-compiler";
 export interface HtmlSerializer {
   type: string;
   isBlock?: boolean;
+  /** 准备当前子树的序列化上下文，不与其它子树或导出共享 */
+  prepare?: (element: CustomElement) => HtmlSerializationContext;
   toHtml: (
     element: any,
     childrenHtml: string,
@@ -20,6 +22,10 @@ export interface HtmlSerializerOptions {
   codeTheme?: string;
   imageBaseUrl?: string;
   tailwindCssCollector?: string[];
+}
+
+export interface HtmlSerializationContext {
+  excludedElements?: ReadonlySet<CustomElement>;
 }
 
 export class HtmlSerializerRegistry {
@@ -114,9 +120,12 @@ export class HtmlSerializerRegistry {
   async serializeElementAsync(
     element: CustomElement,
     parentElement: CustomElement | null,
-    options?: HtmlSerializerOptions
+    options?: HtmlSerializerOptions,
+    context: HtmlSerializationContext = {}
   ): Promise<string> {
+    if (context.excludedElements?.has(element)) return "";
     const { type, children } = element;
+    const childContext = this.getSerializer(type)?.prepare?.(element) ?? context;
 
     // Serialize children first (async)
     const childrenHtmlArray = children
@@ -125,7 +134,12 @@ export class HtmlSerializerRegistry {
             if ("text" in node && !("children" in node)) {
               return this.serializeLeaf(node as FormattedText, options);
             }
-            return this.serializeElementAsync(node as CustomElement, element, options);
+            return this.serializeElementAsync(
+              node as CustomElement,
+              element,
+              options,
+              childContext
+            );
           })
         )
       : [];

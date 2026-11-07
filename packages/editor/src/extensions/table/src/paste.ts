@@ -21,6 +21,7 @@ import {
   selectCell,
   type CellContent,
   type CellPosition,
+  type CellSpanProps,
 } from "./transforms";
 
 /**
@@ -68,8 +69,21 @@ const cellText = (cell: Element) => {
     .trim();
 };
 
-/** 剪贴板 HTML 的主体就是一张表格时解析为文本网格；夹带其它正文时返回 null（交给默认粘贴） */
-export function parseHtmlTable(html: string): string[][] | null {
+export interface HtmlTableGrid {
+  /** 满格文本网格；被合并覆盖的位置为空串 */
+  texts: string[][];
+  /** 与 texts 同形；合并区域左上格给出跨度，其余为 undefined */
+  spans: Array<Array<CellSpanProps | undefined>>;
+}
+
+const spanValue = (cell: Element, name: string) =>
+  Math.max(1, Math.min(1000, Number(cell.getAttribute(name)) || 1));
+
+/**
+ * 剪贴板 HTML 的主体就是一张表格时按 HTML 表格算法展开 rowspan / colspan 为满格网格；
+ * 夹带其它正文时返回 null（交给默认粘贴）
+ */
+export function parseHtmlTableGrid(html: string): HtmlTableGrid | null {
   if (!html || !/<table[\s>]/i.test(html) || typeof DOMParser === "undefined") return null;
   const doc = new DOMParser().parseFromString(html, "text/html");
   doc.querySelectorAll("style, script").forEach(node => node.remove());
@@ -78,34 +92,57 @@ export function parseHtmlTable(html: string): string[][] | null {
   const compact = (value: string | null) => (value ?? "").replace(/\s/g, "");
   if (!compact(table.textContent) || compact(doc.body.textContent) !== compact(table.textContent))
     return null;
-  const rows = Array.from(table.querySelectorAll("tr"))
+  const rowCells = Array.from(table.querySelectorAll("tr"))
     .filter(row => row.closest("table") === table)
     .map(row =>
-      Array.from(row.children)
-        .filter(cell => cell.tagName === "TD" || cell.tagName === "TH")
-        .flatMap(cell => {
-          const span = Math.max(1, Number(cell.getAttribute("colspan")) || 1);
-          return [cellText(cell), ...Array<string>(span - 1).fill("")];
-        })
-    )
-    .filter(row => row.length > 0);
-  return rows.length ? rows : null;
+      Array.from(row.children).filter(cell => cell.tagName === "TD" || cell.tagName === "TH")
+    );
+  if (!rowCells.some(cells => cells.length > 0)) return null;
+  const texts: Array<Array<string | undefined>> = rowCells.map(() => []);
+  const spans: Array<Array<CellSpanProps | undefined>> = rowCells.map(() => []);
+  rowCells.forEach((cells, r) => {
+    let c = 0;
+    for (const cell of cells) {
+      while (texts[r][c] !== undefined) c++;
+      // rowspan 不越过最后一行
+      const rowSpan = Math.min(spanValue(cell, "rowspan"), rowCells.length - r);
+      const colSpan = spanValue(cell, "colspan");
+      for (let i = 0; i < rowSpan; i++) {
+        for (let j = 0; j < colSpan; j++) texts[r + i][c + j] = "";
+      }
+      texts[r][c] = cellText(cell);
+      if (rowSpan > 1 || colSpan > 1) {
+        spans[r][c] = { ...(rowSpan > 1 ? { rowSpan } : {}), ...(colSpan > 1 ? { colSpan } : {}) };
+      }
+      c += colSpan;
+    }
+  });
+  const width = Math.max(...texts.map(row => row.length));
+  return {
+    texts: texts.map(row => Array.from({ length: width }, (_, i) => row[i] ?? "")),
+    spans: spans.map(row => Array.from({ length: width }, (_, i) => row[i])),
+  };
 }
+
+/** 剪贴板 HTML 表格的文本网格（合并展开为空格） */
+export const parseHtmlTable = (html: string): string[][] | null =>
+  parseHtmlTableGrid(html)?.texts ?? null;
 
 const textGrid = (grid: string[][]): CellContent[][] =>
   grid.map(row => row.map(text => [{ type: "formatted", text }] as CellContent));
 
-const tableFromGrid = (grid: string[][]): TableElement => {
-  const width = Math.max(...grid.map(row => row.length));
+const tableFromGrid = ({ texts, spans }: HtmlTableGrid): TableElement => {
+  const width = Math.max(...texts.map(row => row.length));
   return {
     type: "table",
-    children: grid.map(row => ({
+    children: texts.map((row, r) => ({
       type: "table-row",
-      children: Array.from({ length: width }, (_, i) =>
-        row[i]
+      children: Array.from({ length: width }, (_, i) => ({
+        ...(row[i]
           ? { type: "table-cell", children: [{ type: "formatted", text: row[i] }] }
-          : createTableCell()
-      ),
+          : createTableCell()),
+        ...spans[r]?.[i],
+      })) as TableElement["children"][number]["children"],
     })),
   };
 };
@@ -125,8 +162,13 @@ function pasteTarget(editor: Editor): CellPosition | undefined {
   return anchor.row === focus.row && anchor.col === focus.col ? anchor : undefined;
 }
 
-function fillAndSelect(editor: Editor, target: CellPosition, grid: CellContent[][]) {
-  if (!fillCells(editor, target.tablePath, target.row, target.col, grid)) return;
+function fillAndSelect(
+  editor: Editor,
+  target: CellPosition,
+  grid: CellContent[][],
+  spans?: Array<Array<CellSpanProps | undefined>>
+) {
+  if (!fillCells(editor, target.tablePath, target.row, target.col, grid, spans)) return;
   const width = Math.max(...grid.map(row => row.length));
   selectCells(editor, target.tablePath, {
     rowStart: target.row,
@@ -151,15 +193,24 @@ function flattenToInline(editor: Editor, fragment: Descendant[]): Descendant[] {
 }
 
 /** 片段是否就是一张表（或表的若干行）——编辑器内复制的子表 */
-function fragmentGrid(fragment: Descendant[]): CellContent[][] | undefined {
+function fragmentRows(fragment: Descendant[]): TableElement["children"] | undefined {
   const rows =
     fragment.length === 1 && isTableElement(fragment[0])
       ? fragment[0].children
       : fragment.every(node => SlateElement.isElement(node) && node.type === "table-row")
         ? (fragment as TableElement["children"])
         : undefined;
-  return rows?.length ? rows.map(row => row.children.map(cell => cell.children)) : undefined;
+  return rows?.length ? rows : undefined;
 }
+
+const spanGrid = (rows: TableElement["children"]) =>
+  rows.map(row =>
+    row.children.map(({ rowSpan, colSpan }) =>
+      rowSpan || colSpan
+        ? { ...(rowSpan ? { rowSpan } : {}), ...(colSpan ? { colSpan } : {}) }
+        : undefined
+    )
+  );
 
 export const withTablePaste: Plugin = editor => {
   const { insertData, insertFragment } = editor;
@@ -168,9 +219,9 @@ export const withTablePaste: Plugin = editor => {
     // 编辑器自有片段走默认链，在 insertFragment 处处理
     if (data.getData("application/x-slate-fragment")) return insertData(data);
     const target = pasteTarget(editor);
-    const htmlGrid = parseHtmlTable(data.getData("text/html"));
+    const htmlGrid = parseHtmlTableGrid(data.getData("text/html"));
     if (htmlGrid) {
-      if (target) fillAndSelect(editor, target, textGrid(htmlGrid));
+      if (target) fillAndSelect(editor, target, textGrid(htmlGrid.texts), htmlGrid.spans);
       else {
         if (editor.selection && Range.isExpanded(editor.selection)) Transforms.delete(editor);
         const path = setOrInsertNode(editor, tableFromGrid(htmlGrid));
@@ -191,8 +242,11 @@ export const withTablePaste: Plugin = editor => {
     const target = options?.at ? undefined : pasteTarget(editor);
     if (!target) return insertFragment(nodes, options);
     const fragment = nodes as Descendant[];
-    const grid = fragmentGrid(fragment);
-    if (grid) return fillAndSelect(editor, target, grid);
+    const rows = fragmentRows(fragment);
+    if (rows) {
+      const grid = rows.map(row => row.children.map(cell => cell.children));
+      return fillAndSelect(editor, target, grid, spanGrid(rows));
+    }
     // 格选区上粘贴普通内容：清空所选格，内容落进左上格
     const cellSelection = getCellSelection(editor);
     if (cellSelection) {
