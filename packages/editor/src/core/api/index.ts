@@ -174,4 +174,5 @@ export { useInlineSuggestionProvider } from "../inlineSuggestion/providerContext
 export {
   createInlineSuggestionController,
   type InlineSuggestionProvider,
+  type InlineSuggestionPreview,
 } from "../inlineSuggestion/controller";

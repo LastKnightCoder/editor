@@ -8,7 +8,7 @@ export interface InlineSuggestionProvider {
   suggest(context: InlineSuggestionContext, signal: AbortSignal): Promise<string | null>;
 }
 
-interface Preview<Stamp> {
+export interface InlineSuggestionPreview<Stamp> {
   readonly stamp: Stamp;
   readonly text: string;
 }
@@ -31,10 +31,10 @@ export function createInlineSuggestionController<Stamp>(
     request: AbortController;
     timer: ReturnType<typeof setTimeout>;
   } | null = null;
-  let preview: Preview<Stamp> | null = null;
+  let preview: InlineSuggestionPreview<Stamp> | null = null;
   const listeners = new Set<() => void>();
 
-  const publish = (value: Preview<Stamp> | null) => {
+  const publish = (value: InlineSuggestionPreview<Stamp> | null) => {
     if (preview === value) return;
     preview = value;
     listeners.forEach(listener => listener());
@@ -96,7 +96,7 @@ export function createInlineSuggestionController<Stamp>(
       clear();
       return editor.tryInsert(current.stamp, current.text);
     },
-    dismiss(current: Preview<Stamp>) {
+    dismiss(current: InlineSuggestionPreview<Stamp>) {
       if (preview !== current) return false;
       clear();
       return true;

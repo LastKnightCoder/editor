@@ -6,7 +6,7 @@ import { submissionScopeSignal } from "../kit/submissionScope";
 import { withNewUndoStep } from "../utils/undoStep";
 import type { InlineSuggestionEditorPort } from "./controller";
 
-interface Stamp {
+export interface Stamp {
   readonly scope: AbortSignal;
   readonly children: Descendant[];
   readonly point: Point;
