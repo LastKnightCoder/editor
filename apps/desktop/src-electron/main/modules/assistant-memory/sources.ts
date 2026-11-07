@@ -13,7 +13,9 @@ const MIN_TIME = 0;
 const activityQuery = (filter = "") => `SELECT CAST(o.operation_id AS TEXT) || ':' ||
       date(o.operation_time/1000,'unixepoch','localtime') AS id,
       MIN(o.operation_time) AS create_time,MAX(o.operation_time) AS update_time,
-      o.operation_id AS content_id
+      o.operation_id AS content_id,
+      COUNT(*) AS edit_count,
+      CAST((MAX(o.operation_time) - MIN(o.operation_time)) / 60000 AS INTEGER) AS active_minutes
     FROM operation o JOIN content_snapshots c ON c.id=o.operation_id AND c.ref_count>0
     WHERE o.operation_content_type='content' AND o.operation_action='update'
       AND o.operation_time >= (CAST(strftime('%s','now') AS INTEGER)*1000-2592000000)
@@ -45,6 +47,9 @@ interface SourceRow {
   end_date?: number | null;
   end_time?: number | null;
   all_day?: number;
+  // activity 来源独有：当天编辑次数和首末操作时间跨度（分钟）
+  edit_count?: number;
+  active_minutes?: number;
 }
 
 export interface MemoryHead extends MemorySource {
@@ -253,7 +258,15 @@ export class LibraryMemorySources implements MemorySourcesPort {
           ?.trim()
           .slice(0, 90) || "正文";
       const target = EntitySearchTable.locateAll(this.db, [contentId]).get(contentId)?.[0];
-      const text = `在 ${id.slice(-10)} 编辑了资料《${title}》`;
+      const editCount = row.edit_count ?? 1;
+      const activeMinutes = row.active_minutes ?? 0;
+      // 轻量编辑（少于 3 次且不足 2 分钟）噪声大，不产生 episode
+      if (editCount < 3 && activeMinutes < 2) return { parts: [] };
+      const date = (id as string).slice(-10);
+      const text =
+        editCount > 15 || activeMinutes > 15
+          ? `在 ${date} 深度编辑了资料《${title}》（${editCount} 次操作，约 ${activeMinutes} 分钟）`
+          : `在 ${date} 编辑了资料《${title}》（${editCount} 次操作）`;
       return {
         parts: textParts(
           {

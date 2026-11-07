@@ -714,7 +714,22 @@ class PiSessionHostModule {
           ? (request.databaseName ?? basename(sessionDir))
           : undefined;
       // 记忆背景在会话创建时一次性拼入 systemPrompt，之后不再修改，保持 provider 缓存稳定。
-      const memoryContext = memoryDatabase ? assistantMemory.context(memoryDatabase) : "";
+      const firstUserQuery = (() => {
+        const first = request.initialMessages?.find(m => m.role === "user");
+        if (!first) return undefined;
+        const content = first.content;
+        if (typeof content === "string") return content.slice(0, 300);
+        if (Array.isArray(content))
+          return content
+            .filter((p): p is { type: "text"; text: string } => p.type === "text")
+            .map(p => p.text)
+            .join(" ")
+            .slice(0, 300);
+        return undefined;
+      })();
+      const memoryContext = memoryDatabase
+        ? assistantMemory.context(memoryDatabase, firstUserQuery)
+        : "";
       const initialSystemPrompt = joinMemoryPrompt(request.systemPrompt ?? "", memoryContext);
       // 文件可能还不存在：pi 等第一条 assistant 消息出现才落盘（首轮预检失败就没有文件），
       // 不存在时 assembleHostSession 按 piSessionId 新建（见其注释）
@@ -938,9 +953,6 @@ class PiSessionHostModule {
         signal.throwIfAborted();
         if (displayData) hosted.displayWriter.expect(displayData);
         hosted.lastActive = Date.now();
-        // 改动5：规则匹配提取高置信度自述，不等后台 LLM 提取，不影响 system prompt
-        if (hosted.memoryDatabase && hosted.session.sessionId)
-          assistantMemory.onUserMessage(hosted.memoryDatabase, hosted.session.sessionId, text);
         await hosted.session.prompt(text, {
           // 与插话同理：关掉模板/技能展开，落盘的用户消息与送出文本逐字一致，展示 entry 才认领得上
           expandPromptTemplates: false,
