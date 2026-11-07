@@ -48,16 +48,13 @@ const SENTENCE_BREAK_PATTERNS: Array<[RegExp, number]> = [
   [/[，,:：]+(?:\s+|$)/g, 5],
 ];
 
-export function smartChunk(
-  content: string,
-  options: SmartChunkOptions = {},
-): string[] {
-  return smartChunkWithRanges(content, options).map((chunk) => chunk.text);
+export function smartChunk(content: string, options: SmartChunkOptions = {}): string[] {
+  return smartChunkWithRanges(content, options).map(chunk => chunk.text);
 }
 
 export function smartChunkWithRanges(
   content: string,
-  options: SmartChunkOptions = {},
+  options: SmartChunkOptions = {}
 ): SmartChunkRange[] {
   const rawContent = content || "";
   const leadingTrimLength = rawContent.length - rawContent.trimStart().length;
@@ -67,15 +64,9 @@ export function smartChunkWithRanges(
   }
 
   const maxLength = Math.max(1, options.maxLength || DEFAULT_MAX_LENGTH);
-  const minLength = Math.max(
-    1,
-    Math.min(options.minLength || DEFAULT_MIN_LENGTH, maxLength),
-  );
+  const minLength = Math.max(1, Math.min(options.minLength || DEFAULT_MIN_LENGTH, maxLength));
   const overlap = Math.max(0, Math.min(options.overlap || 0, maxLength - 1));
-  const windowSize = Math.max(
-    120,
-    Math.min(DEFAULT_WINDOW, Math.floor(maxLength * 0.35)),
-  );
+  const windowSize = Math.max(120, Math.min(DEFAULT_WINDOW, Math.floor(maxLength * 0.35)));
   const splitter = options.splitter || "paragraph";
 
   if (normalizedContent.length <= maxLength) {
@@ -84,7 +75,7 @@ export function smartChunkWithRanges(
         normalizedContent,
         leadingTrimLength,
         leadingTrimLength + normalizedContent.length,
-        rawContent,
+        rawContent
       ),
     ];
   }
@@ -100,13 +91,7 @@ export function smartChunkWithRanges(
     let endPos = targetEnd;
 
     if (targetEnd < normalizedContent.length) {
-      const bestCutoff = findBestCutoff(
-        breakPoints,
-        targetEnd,
-        windowSize,
-        codeFences,
-        charPos,
-      );
+      const bestCutoff = findBestCutoff(breakPoints, targetEnd, windowSize, codeFences, charPos);
       if (bestCutoff > charPos && bestCutoff <= targetEnd) {
         endPos = bestCutoff;
       }
@@ -116,17 +101,23 @@ export function smartChunkWithRanges(
       endPos = Math.min(charPos + maxLength, normalizedContent.length);
     }
 
+    // 若 endPos 落在 code fence 内部，回退到 fence 起点；
+    // 若整段都在 fence 内（fence 起点 <= charPos），则推进到 fence 终点以保持完整性
+    if (targetEnd < normalizedContent.length) {
+      const fenceAtEnd = codeFences.find(f => endPos > f.start && endPos < f.end);
+      if (fenceAtEnd) {
+        endPos = fenceAtEnd.start > charPos ? fenceAtEnd.start : fenceAtEnd.end;
+      }
+    }
+
     const rawChunkText = normalizedContent.slice(charPos, endPos);
-    const trimStartOffset =
-      rawChunkText.length - rawChunkText.trimStart().length;
+    const trimStartOffset = rawChunkText.length - rawChunkText.trimStart().length;
     const trimEndOffset = rawChunkText.trimEnd().length;
     const chunkText = rawChunkText.trim();
     if (chunkText) {
       const sourceStart = leadingTrimLength + charPos + trimStartOffset;
       const sourceEnd = leadingTrimLength + charPos + trimEndOffset;
-      chunks.push(
-        buildRangeChunk(chunkText, sourceStart, sourceEnd, rawContent),
-      );
+      chunks.push(buildRangeChunk(chunkText, sourceStart, sourceEnd, rawContent));
     }
 
     if (endPos >= normalizedContent.length) {
@@ -144,7 +135,7 @@ function buildRangeChunk(
   text: string,
   startOffset: number,
   endOffset: number,
-  source: string,
+  source: string
 ): SmartChunkRange {
   return {
     text,
@@ -167,14 +158,8 @@ function offsetToLine(source: string, offset: number): number {
   return line;
 }
 
-function scanBreakPoints(
-  content: string,
-  splitter: "paragraph" | "sentence",
-): BreakPoint[] {
-  const patterns =
-    splitter === "sentence"
-      ? SENTENCE_BREAK_PATTERNS
-      : PARAGRAPH_BREAK_PATTERNS;
+function scanBreakPoints(content: string, splitter: "paragraph" | "sentence"): BreakPoint[] {
+  const patterns = splitter === "sentence" ? SENTENCE_BREAK_PATTERNS : PARAGRAPH_BREAK_PATTERNS;
   const points = new Map<number, BreakPoint>();
 
   for (const [pattern, score] of patterns) {
@@ -192,9 +177,7 @@ function scanBreakPoints(
     }
   }
 
-  return Array.from(points.values()).sort(
-    (left, right) => left.pos - right.pos,
-  );
+  return Array.from(points.values()).sort((left, right) => left.pos - right.pos);
 }
 
 function findCodeFences(content: string): CodeFenceRegion[] {
@@ -232,7 +215,7 @@ function findBestCutoff(
   targetPos: number,
   windowSize: number,
   codeFences: CodeFenceRegion[],
-  chunkStart: number,
+  chunkStart: number
 ): number {
   const windowStart = Math.max(chunkStart + 1, targetPos - windowSize);
   let bestPos = targetPos;
@@ -256,17 +239,14 @@ function findBestCutoff(
   return bestPos;
 }
 
-function isInsideCodeFence(
-  pos: number,
-  codeFences: CodeFenceRegion[],
-): boolean {
-  return codeFences.some((region) => pos > region.start && pos < region.end);
+function isInsideCodeFence(pos: number, codeFences: CodeFenceRegion[]): boolean {
+  return codeFences.some(region => pos > region.start && pos < region.end);
 }
 
 function mergeSmallChunks(
   chunks: SmartChunkRange[],
   minLength: number,
-  maxLength: number,
+  maxLength: number
 ): SmartChunkRange[] {
   if (chunks.length <= 1) {
     return chunks;
@@ -277,8 +257,7 @@ function mergeSmallChunks(
     if (
       merged.length > 0 &&
       chunk.text.length < minLength &&
-      `${merged[merged.length - 1].text}\n\n${chunk.text}`.length <=
-        maxLength * 1.3
+      `${merged[merged.length - 1].text}\n\n${chunk.text}`.length <= maxLength * 1.3
     ) {
       const previous = merged[merged.length - 1];
       merged[merged.length - 1] = {
