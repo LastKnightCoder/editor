@@ -8,6 +8,7 @@ import type {
 import type { ToolRisk } from "@/types/tool";
 import { requiresApproval, type ToolPermissionMode } from "@/services/tool-permission/mode";
 import { ASK_QUESTION_TOOL_NAME } from "@tau/shared/chat-core";
+import { PiPermissionScope } from "./pi-permission-scope";
 
 type ToolHook = NonNullable<AgentSession["agent"]["beforeToolCall"]>;
 type ToolDecision = Awaited<ReturnType<ToolHook>>;
@@ -26,7 +27,8 @@ const BUILTIN_RISKS: Record<string, ToolRisk> = {
 
 /** 等待与授权归会话宿主所有；页面切换、渲染层重载都不改变授权事实。 */
 export class PiToolPermissions {
-  private readonly allowed = new Set<string>();
+  public readonly scope: PiPermissionScope;
+  private readonly unsubscribe: () => void;
   private readonly pending = new Map<
     string,
     {
@@ -42,10 +44,25 @@ export class PiToolPermissions {
       interactive: boolean;
       tools: PiHostToolSpec[];
       getMode: () => ToolPermissionMode;
+      permissionScope?: PiPermissionScope;
       /** 等待集合变化时通知宿主发布交互快照；通知失败（窗口已关闭）会抛出 */
       onChange: () => void;
     }
-  ) {}
+  ) {
+    this.scope = options.permissionScope ?? new PiPermissionScope();
+    this.unsubscribe = this.scope.subscribe(() => this.modeChanged());
+  }
+
+  private identity(name: string): string {
+    const spec = this.options.tools.find(tool => tool.name === name);
+    return JSON.stringify([
+      name,
+      spec?.source ?? "builtin",
+      spec?.executionIdentity ?? "",
+      spec?.parameters ?? null,
+      spec?.risk ?? BUILTIN_RISKS[name] ?? "execute",
+    ]);
+  }
 
   public pendingRequests(): PiToolApprovalRequest[] {
     return [...this.pending.values()].map(item => item.request);
@@ -67,7 +84,7 @@ export class PiToolPermissions {
     const risk = spec ? (spec.risk ?? "execute") : (BUILTIN_RISKS[toolCall.name] ?? "execute");
     if (
       !requiresApproval(risk, this.options.getMode()) ||
-      this.allowed.has(toolCall.name) ||
+      this.scope.has(this.identity(toolCall.name)) ||
       (this.options.interactive && spec?.source === "content-edit-tools")
     )
       return undefined;
@@ -112,7 +129,7 @@ export class PiToolPermissions {
   public decide(requestId: string, choice: PiToolApprovalChoice): boolean {
     const item = this.pending.get(requestId);
     if (!item || !["allow", "allow-session", "deny"].includes(choice)) return false;
-    if (choice === "allow-session") this.allowed.add(item.request.toolName);
+    if (choice === "allow-session") this.scope.allow(this.identity(item.request.toolName));
     item.settle(choice === "deny" ? { block: true, reason: "用户拒绝执行此工具" } : undefined);
     if (choice === "allow-session") {
       for (const pending of this.pending.values()) {
@@ -124,7 +141,11 @@ export class PiToolPermissions {
 
   public modeChanged(): void {
     for (const item of this.pending.values()) {
-      if (!requiresApproval(item.request.risk, this.options.getMode())) item.settle(undefined);
+      if (
+        !requiresApproval(item.request.risk, this.options.getMode()) ||
+        this.scope.has(this.identity(item.request.toolName))
+      )
+        item.settle(undefined);
     }
   }
 
@@ -133,6 +154,6 @@ export class PiToolPermissions {
     for (const item of this.pending.values()) {
       item.settle({ block: true, reason: "会话已关闭，工具未执行" });
     }
-    this.allowed.clear();
+    this.unsubscribe();
   }
 }

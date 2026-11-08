@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>子 Agent · 方案 B 任务坞 + 分屏</title>
+<link rel="stylesheet" href="shared.css?v=4" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { SCENES, scene, mount, ic, avatar, statusTag, needsUser, isActive, agentById, rail, titlebar, attentionPop, composer, chatHead, otherPage, renderFlow, askCard, detailInner } from "./shared.js?v=4";
+
+const NOTE = `<h3>方案 B · 任务坞 + 分屏</h3>
+<p>对话流保持干净：派发只留一行轻量标记。所有子 Agent 收进输入框上方的「任务坞」，像后台任务栏一样常驻；点开某个子 Agent，右侧以分屏打开它的对话（与主对话并排，不遮挡）。</p>
+<ul><li class="pro">无论对话多长，子 Agent 状态始终在视线底部，不会被滚走</li>
+<li class="pro">分屏可边看子 Agent 工作边和主 Agent 聊；顶部 tab 在多个子 Agent 间切换</li>
+<li class="pro">待处理项在坞里置顶展开，答完自动收起</li>
+<li class="con">坞占据输入框上方一行空间；空闲时折叠成一行摘要</li>
+<li class="con">「是哪条回复派的」需要靠流里的轻量标记回溯</li></ul>
+<p>跨页面：右下角弹出待处理通知卡，就地作答；标题栏同样显示计数。</p>`;
+
+function agentRow(a, ui) {
+  const right = `<span class="rt">${a.elapsed && a.status !== "queued" ? `<span class="num">${a.elapsed}</span>` : ""}${statusTag(a)}${ic("panel-right-open", "chev")}</span>`;
+  const sub = a.status === "running" || a.status === "queued" ? `<div class="act ${a.status === "running" ? "live" : ""}">${ic(a.status === "running" ? "loader" : "clock")}<span>${a.act}</span></div>`
+    : a.status === "completed" ? `<div class="act"><span>${a.result}</span></div>`
+    : a.error ? `<div class="act" style="color:var(--danger)"><span>${a.error}</span></div>` : "";
+  return `<button class="ag-row ${ui.drawer === a.id ? "sel" : ""} ${needsUser(a) ? "att" : ""} ${a.status === "completed" ? "done" : ""}" data-act="open:${a.id}">${avatar(a)}<span class="nm">${a.title}</span>${right}${sub}</button>`;
+}
+
+function dock(sc, ui) {
+  const att = sc.agents.filter(needsUser);
+  const active = sc.agents.filter(isActive).length;
+  const done = sc.agents.filter(a => a.status === "completed").length;
+  const open = ui.dockOpen ?? (att.length > 0 || ui.dockDefault);
+  const summary = att.length ? `<span class="stt attention">${ic("bell-ring")}${att.length} 个等你处理</span>` : "";
+  const label = active ? `<b class="num">${active} 个子 Agent 进行中</b><span>· ${done} 个已完成</span>` : `<b>${sc.agents.length} 个子 Agent</b><span>· 全部结束</span>`;
+  const head = `<button class="dock-bar" data-act="dockOpen:${open ? "" : "1"}"><span class="avs">${sc.agents.map(a => avatar(a, "xs")).join("")}</span>${label}<span class="sp"></span>${summary}${ic("chevron-up", "chev")}</button>`;
+  if (!open) return `<div class="dock">${head}</div>`;
+  const sorted = [...att, ...sc.agents.filter(a => !needsUser(a))];
+  const body = sorted.map(a => needsUser(a) ? `<div class="dock-ask">${agentRow(a, ui)}<div style="padding:0 6px 6px 38px">${askCard(a, { compact: true })}</div></div>` : agentRow(a, ui)).join("");
+  return `<div class="dock open">${head}<div class="dock-list">${body}</div></div>`;
+}
+
+const special = (sc, ui) => item => {
+  const chip = a => `<button class="agchip" data-act="open:${a.id}">${avatar(a, "xs")}${a.title}</button>`;
+  if (item.spawn) return `<div class="msg-a"><span class="fold">${ic("git-fork")}<span>派出 ${item.spawn.length} 个子 Agent</span><span class="meta">异步</span></span><div class="chipline">${item.spawn.map(id => chip(agentById(sc, id))).join("")}</div></div>`;
+  if (item.send) return `<div class="msg-a"><span class="fold">${ic("corner-down-right")}<span>续派给</span></span><div class="chipline">${chip(agentById(sc, item.send))}</div></div>`;
+  if (item.spawnSync) {
+    const a = agentById(sc, item.spawnSync);
+    return `<div class="msg-a"><p>我派一个子 Agent 去核对官方文档，等它回来再答你。</p><span class="fold">${ic("git-fork")}<span>等待子 Agent</span><span class="meta">同步</span></span><div class="chipline">${chip(a)}</div>
+    <div class="act live" style="margin-top:2px">${ic("loader")}<span>${a.title}：${a.act}</span></div></div>`;
+  }
+  if (item.inbox) return `<div class="msg-a"><span class="fold">${ic("inbox")}<span>收到 ${item.inbox.length} 条子 Agent 结果</span>${ic("chevron-right", "chev")}</span></div>`;
+  return "";
+};
+
+function splitPane(sc, ui) {
+  const a = agentById(sc, ui.drawer);
+  const tabs = sc.agents.map(x => `<button class="${x.id === a.id ? "on" : ""}" data-act="open:${x.id}">${avatar(x, "xs")}${x.title.slice(0, 6)}</button>`).join("");
+  return `<aside class="split"><div class="split-nav"><div class="tabs">${tabs}</div></div>${detailInner(a)}</aside>`;
+}
+
+mount("b-dock.html", (key, ui) => {
+  const sc = scene(key);
+  if (ui._k !== key) { ui._k = key; ui.dockOpen = undefined; ui.dockDefault = key === "s1" || key === "s5"; if (key === "s7") ui.drawer = sc.detail; }
+  const attention = sc.agents.filter(needsUser);
+  const running = sc.agents.filter(a => a.status === "running").length;
+  const onChat = !sc.page;
+  const tb = titlebar({
+    crumb: onChat ? `AI 对话 ${ic("chevron-right")} <b>三家同步方案调研</b>` : `<b>卡片库</b>`,
+    attention, running: onChat ? 0 : running, popOpen: ui.pop && attention.length, popHtml: attentionPop(sc),
+  });
+  let content;
+  if (onChat) {
+    content = `<section class="panel">${chatHead()}<div class="flow"><div class="flow-in">${renderFlow(sc, special(sc, ui))}</div></div>${sc.agents.length ? dock(sc, ui) : ""}${composer({ busy: sc.parentBusy })}</section>${ui.drawer ? splitPane(sc, ui) : ""}`;
+  } else {
+    const a = attention[0];
+    content = otherPage() + `<div class="toast"><div class="h">${avatar(a, "xs")}<b>${a.title}</b><span style="color:var(--ink-3)">· 三家同步方案调研</span><span class="sp"></span><span style="font-size:11.5px;color:var(--ink-3)">还有 ${attention.length - 1} 项</span><span class="ib sm">${ic("x")}</span></div>${askCard(a, { compact: true })}</div>`;
+  }
+  const anno = `<div class="anno" style="left:430px;bottom:150px">任务坞：常驻输入框上方，待处理置顶并展开</div>
+    <div class="anno" style="left:430px;top:240px">流里只留一行派发标记 + 子 Agent 小胶囊</div>`;
+  return { html: `<div class="win">${rail(onChat ? "chat" : "cards")}<div class="col">${tb}<div class="body">${content}</div></div>${anno}</div>`, note: NOTE };
+}, { scenes: SCENES.filter(([k]) => k !== "s10" && k !== "s11") });
+</script>
+</body>
+</html>

@@ -6,6 +6,8 @@
 
 每个常设子系统一个文件或目录，替换式更新：只写「现在是什么」，改代码的同一提交里更新对应小节。
 
+桌面可复用子 Agent 的会话、执行、权限与消息协议见 [子 Agent 架构](./architecture/subagents.md)。
+
 | 位置                                                          | 内容                                                                                                                                                 |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、交互规范、数据接线、个人助手分层记忆、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议 |
@@ -35,6 +37,8 @@
 未发布个人记忆的卡片知识摘要清理、预览和备份恢复见 [个人记忆清理](./guides/ops-personal-memory-cleanup.md)。
 
 日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
+
+子 Agent 的批量、故障与本地 HTTP 测试步骤及判据见 [子 Agent 压测](./guides/dev-subagent-stress.md)。
 
 跨端 SDK、统一模板与官方格式 3 插件的候选验证、真实 npm 冻结验证、发行顺序与分发包摘要核验见 [plugin-portability-sdk.md](./guides/plugin-portability-sdk.md)，真实客户端接入校验见 [plugin-portability-hosts.md](./guides/plugin-portability-hosts.md)。
 

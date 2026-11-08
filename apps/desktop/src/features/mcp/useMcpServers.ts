@@ -16,6 +16,8 @@ import { clearMcpServerLogs, getMcpServerLogs, type McpLogEntry } from "@/comman
 import { off, on } from "@/electron";
 import type { SettingsSectionKey } from "@/features/settings/sections";
 import { PI_BUILTIN_TOOLS } from "./piBuiltinTools";
+import { SUBAGENT_TOOL_CATALOG } from "@/agent/subagentToolCatalog";
+import { SUBAGENT_TOOL_NAMES } from "@/types/subagent";
 import { SCOPED_TOOL_GROUPS } from "./scopedToolCatalog";
 import { describeTransport, draftToPayload, type ServerDraft } from "./serverConfig";
 import {
@@ -216,6 +218,29 @@ export function getPiBuiltinServerItem(): McpServerItem {
   };
 }
 
+/** 主进程子会话工具目录；子专用工具只展示归属，不向父会话开放执行。 */
+export function getSubagentServerItem(): McpServerItem {
+  return {
+    id: "subagent-tools",
+    kind: "pi",
+    name: "子 Agent",
+    description: "Subagent 工具：创建、复用、等待和取消子 Agent；send_parent 仅供子会话报告进度。",
+    enabled: true,
+    status: "ready",
+    locked: true,
+    tools: SUBAGENT_TOOL_NAMES.map(name => {
+      const tool = SUBAGENT_TOOL_CATALOG[name];
+      return {
+        name,
+        displayName: tool.audience === "child" ? `${name}（仅子会话）` : name,
+        description: `${tool.label}：${tool.audience === "child" ? "仅子 Agent 可调用。" : ""}${tool.description}`,
+        parameters: tool.parameters,
+      };
+    }),
+    disabledTools: new Set<string>(),
+  };
+}
+
 /** 已启用且连接失败的自定义服务器数（侧栏徽标） */
 export function useMcpErrorCount(): number {
   const { custom } = useMcpServers();
@@ -234,6 +259,7 @@ export async function setServerEnabled(item: McpServerItem, enabled: boolean) {
 }
 
 export function setToolsEnabled(item: McpServerItem, toolNames: string[], enabled: boolean) {
+  if (item.locked) return;
   useMCPStore.getState().setToolsEnabled(item.id, toolNames, enabled);
 }
 

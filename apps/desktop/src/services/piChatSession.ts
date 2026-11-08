@@ -280,7 +280,7 @@ class PiChatSessionManager {
       toolScope: options.toolScope,
       scopedTools: loadout.tools.filter(tool => tool.source === options.toolScope),
       conversationKey: key,
-      // 子代理沿用对话的工作目录（subagentTool 从 toolContext.cwd 读）
+      // 子代理继承本会话的工具执行上下文。
       ...(options.toolContext || options.cwd
         ? { toolContext: { ...options.toolContext, ...(options.cwd ? { cwd: options.cwd } : {}) } }
         : {}),

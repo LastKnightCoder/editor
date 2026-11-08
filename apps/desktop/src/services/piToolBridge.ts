@@ -14,6 +14,7 @@ import toolRegistry, { ensureToolingReady } from "@/tools";
 import type { MessageContent, ToolCallPayload } from "@/types";
 import type { PiHostToolCallResult, PiToolCallPayload } from "@/types/pi-session";
 import { initPiInteractions } from "./piInteractions";
+import { on } from "@/electron";
 import type { RegisteredTool } from "@/tools/toolRegistry";
 
 /** 会话级执行器（一次性会话的 additionalTools 路由）：返回 null 表示未接管，落回 ToolRegistry */
@@ -89,6 +90,24 @@ export function initPiToolBridge(): void {
   initialized = true;
   initPiInteractions();
   ensureToolingReady();
+
+  on(
+    "pi-subagents:inherit-tools",
+    (_event: unknown, payload: { parentSessionId: string; sessionId: string; agentId: string }) => {
+      const parent = sessionContexts.get(payload.parentSessionId);
+      if (!parent) return;
+      registerPiToolSessionContext(payload.sessionId, {
+        ...parent,
+        conversationKey: `${parent.conversationKey}:subagent:${payload.agentId}`,
+        sessionTools: parent.sessionTools ? [...parent.sessionTools] : undefined,
+        scopedTools: parent.scopedTools ? [...parent.scopedTools] : undefined,
+        toolContext: { ...parent.toolContext },
+      });
+    }
+  );
+  on("pi-subagents:release-tools", (_event: unknown, payload: { sessionId: string }) =>
+    unregisterPiToolSessionContext(payload.sessionId)
+  );
 
   onPiToolCancel(({ sessionId, toolCallId, executionId }) => {
     calls.get(callKey(sessionId, toolCallId, executionId))?.controller.abort();

@@ -177,6 +177,10 @@ export class PiChatEventReducer {
         return;
       }
       case "message_start": {
+        if (event.message.role === "custom") {
+          this.awaitingInitialUserMessage = false;
+          return;
+        }
         if (event.message.role === "assistant") {
           this.flushPendingSnapshots();
           globalTurnCounter += 1;

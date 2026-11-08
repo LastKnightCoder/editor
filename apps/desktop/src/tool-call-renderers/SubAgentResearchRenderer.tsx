@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Ban, Check, CircleAlert, Clock, X } from "lucide-react";
 import { Button, Dialog, Spinner, cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@/types";
@@ -11,7 +11,6 @@ import {
   type SubAgentResearchPayload,
   type SubAgentTaskView,
 } from "@/agent/subagentResearch";
-import { subAgentResearchStore } from "@/agent/subagentResearchStore";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   ToolCard,
@@ -82,19 +81,6 @@ const StatusIcon = ({ status }: { status: string }) => {
       {visual.icon}
     </span>
   );
-};
-
-const getSessionId = (payload: SubAgentResearchPayload | null) => payload?.sessionId || "";
-
-const useLivePayload = (payload: SubAgentResearchPayload | null) => {
-  const sessionId = getSessionId(payload);
-  const livePayload = useSyncExternalStore(
-    listener =>
-      sessionId ? subAgentResearchStore.subscribe(sessionId, listener) : () => undefined,
-    () => (sessionId ? subAgentResearchStore.getSession(sessionId) : undefined),
-    () => undefined
-  );
-  return livePayload || payload;
 };
 
 const formatDuration = (duration?: number) => {
@@ -226,7 +212,7 @@ const TaskOutputBlocks = ({
         </ToolMutedText>
         <pre
           data-testid="subagent-prompt"
-          className="bg-hover text-ink-2 text-tau-sm rounded-tau-sm m-0 max-h-48 overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 font-[inherit] leading-[1.65]"
+          className="bg-hover text-ink-2 text-tau-sm rounded-tau-sm m-0 max-h-48 overflow-auto px-3 py-2.5 font-[inherit] leading-[1.65] break-words whitespace-pre-wrap"
         >
           {task.prompt}
         </pre>
@@ -279,8 +265,7 @@ const SubAgentResearchRenderer = ({
   rendererContext,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const initialPayload = useMemo(() => getPayload(execution.metadata), [execution.metadata]);
-  const payload = useLivePayload(initialPayload);
+  const payload = useMemo(() => getPayload(execution.metadata), [execution.metadata]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState("");
   const [now, setNow] = useState(Date.now());
@@ -368,7 +353,7 @@ const SubAgentResearchRenderer = ({
         height={760}
       >
         <MarkdownProvider isDark={isDark} isVisible>
-          <div className="border-line-2 mt-[14px] flex min-h-0 flex-1 flex-col gap-4 border-t px-6 pb-5 pt-3">
+          <div className="border-line-2 mt-[14px] flex min-h-0 flex-1 flex-col gap-4 border-t px-6 pt-3 pb-5">
             <TaskTabs
               tasks={payload.tasks}
               activeTaskId={activeTask?.id || ""}

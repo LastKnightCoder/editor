@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useMemo, useState } from "react";
-import type { ContentBlock } from "@tau/shared";
+import type { ContentBlock, ToolCallExecutionState } from "@tau/shared";
 import { ConfirmDialog, toast } from "@tau/ui";
 import { ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
@@ -17,6 +17,8 @@ import {
 import { ToolCallBlock } from "@/components/ChatUI";
 import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
 import { PluginActionsMenu } from "@/app/plugins/action-menu";
+import { SubagentToolGroup } from "@/features/chat/components/subagents/SubagentToolGroup";
+import { isSubagentDispatch } from "@/features/chat/components/subagents/dispatch";
 import { IconButton } from "@tau/ui";
 import { MoreHorizontal } from "lucide-react";
 
@@ -194,6 +196,39 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       [pluginSessionId, messageIds, isUser]
     );
 
+    const renderToolCall = useCallback(
+      (execution: ToolCallExecutionState) => (
+        <ToolCallBlock execution={execution} isDark={isDark} rendererContext={rendererContext} />
+      ),
+      [isDark, rendererContext]
+    );
+    // 子 Agent 派发按组合成任务卡；没有派发的工具组仍逐条渲染
+    const hasDispatch = assistantBlocks.some(
+      block => block.type === "tool_calls" && block.executions.some(isSubagentDispatch)
+    );
+    const renderToolGroup = useMemo(
+      () =>
+        hasDispatch
+          ? (executions: ToolCallExecutionState[]) =>
+              executions.some(isSubagentDispatch) ? (
+                <SubagentToolGroup
+                  executions={executions}
+                  isDark={isDark}
+                  renderTool={renderToolCall}
+                />
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  {executions.map(execution => (
+                    <div key={execution.toolCallId} className="min-w-0">
+                      {renderToolCall(execution)}
+                    </div>
+                  ))}
+                </div>
+              )
+          : undefined,
+      [hasDispatch, isDark, renderToolCall]
+    );
+
     return (
       <>
         <MessageView
@@ -221,13 +256,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
               className={className}
             />
           )}
-          renderToolCall={execution => (
-            <ToolCallBlock
-              execution={execution}
-              isDark={isDark}
-              rendererContext={rendererContext}
-            />
-          )}
+          renderToolCall={renderToolCall}
+          renderToolGroup={renderToolGroup}
         />
         <ConfirmDialog
           open={pendingDelete !== null}

@@ -231,7 +231,7 @@ export default function ToolCallSection() {
           {show(imageGeneration)}
         </MatrixRow>
         <MatrixRow
-          name="subagent_research · 子代理调研"
+          name="历史子代理调研结果"
           desc="SubAgentResearchRenderer（经 rendererKey + payload）：任务列表 + 状态 / 耗时，可点开看子代理的工具执行与结论"
           trayClassName={tray}
         >

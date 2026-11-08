@@ -532,6 +532,18 @@ class PiChatRuntime {
         onAgentStart: () => {
           entry.stopRequested = false;
           if (!entry.streaming) {
+            const last = entry.chat.current.messages.at(-1);
+            if (
+              last?.role === Role.Assistant &&
+              (last.content || (last as ResponseMessage).assistant_blocks?.length)
+            ) {
+              entry.reducer?.reset();
+              entry.chat.current = {
+                ...entry.chat.current,
+                messages: [...entry.chat.current.messages, createAssistantMessage()],
+              };
+              entry.deps.publish(entry.chat.current);
+            }
             entry.streaming = true;
             this.notify(key);
           }

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>子 Agent · 方案 A 内联任务卡 + 侧抽屉</title>
+<link rel="stylesheet" href="shared.css?v=4" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { scene, mount, ic, avatar, statusTag, needsUser, isActive, stClass, agentById, rail, titlebar, attentionPop, composer, chatHead, otherPage, renderFlow, askCard, detailInner } from "./shared.js?v=4";
+
+const NOTE = `<h3>方案 A · 内联任务卡 + 侧抽屉</h3>
+<p>子 Agent 是主 Agent 的一次「派活」，所以它就长在派发它的那条回复里：一次派发 = 一张任务卡，卡内一行一个子 Agent。点一行，右侧滑出抽屉看它的完整对话。</p>
+<ul><li class="pro">信息就在上下文里：谁派的、为什么派、结果去了哪，一眼可见</li>
+<li class="pro">问题 / 审批直接在卡里答，不用跳转</li>
+<li class="pro">改动最小：替换 SubagentRenderer + 现有 Dialog 改抽屉，去掉对话顶部那排按钮</li>
+<li class="con">任务卡会随消息滚走；长对话里要靠标题栏「进行中」入口找回</li>
+<li class="con">多次派发分散在多张卡里 → 由对话顶部常驻入口补足总览（场景 11）</li></ul>
+<p>跨页面：标题栏显示「N 个子任务进行中」和「待你处理」，弹层内就地回答。</p>`;
+
+const prog = agents => `<span class="prog">${agents.map(a => `<i class="${a.status === "completed" ? "ok" : needsUser(a) ? "att" : a.status === "running" ? "run" : a.status === "failed" ? "bad" : "idle"}" style="flex:1"></i>`).join("")}</span>`;
+
+function row(a, ui) {
+  const open = ui.drawer === a.id;
+  const right = `<span class="rt">${a.elapsed && a.status !== "queued" ? `<span class="num">${a.elapsed}</span>` : ""}${statusTag(a)}${ic("chevron-right", "chev")}</span>`;
+  let extra = "";
+  if (needsUser(a)) extra = `<div class="inl">${askCard(a, { compact: true })}</div>`;
+  else if (a.status === "completed") extra = `<div class="res">${a.result}</div>`;
+  else if (a.status === "failed" || a.status === "interrupted") extra = `<div class="errline">${ic(a.status === "failed" ? "circle-x" : "circle-pause")}<span>${a.error}</span></div>`;
+  const act = a.status === "running" || a.status === "queued" ? `<div class="act ${a.status === "running" ? "live" : ""}">${ic(a.status === "running" ? "loader" : "clock")}<span>${a.act}</span></div>` : "";
+  return `<button class="ag-row ${open ? "sel" : ""} ${a.status === "completed" ? "done" : ""}" data-act="open:${a.id}">${avatar(a)}<span class="nm">${a.title}</span>${right}${act}</button>${extra}`;
+}
+
+function taskCard(sc, ids, ui, { label = "派出子任务" } = {}) {
+  const list = ids.map(id => agentById(sc, id));
+  const done = list.filter(a => a.status === "completed").length;
+  const att = list.filter(needsUser).length;
+  const summary = att ? `<span class="stt attention">${ic("bell-ring")}${att} 个等你处理</span>` : list.every(a => !isActive(a)) ? `<span>${done}/${list.length} 完成</span>` : `<span class="num">${done}/${list.length} 完成</span>`;
+  return `<div class="tcard"><div class="tcard-h">${ic("git-fork")}<b>${label}</b><span class="meta2">${list.length} 个子 Agent · 异步</span><span class="sp"></span>${summary}${prog(list)}</div>
+    <div class="tcard-list">${list.map(a => row(a, ui)).join("")}</div></div>`;
+}
+
+function special(sc, ui) {
+  return item => {
+    if (item.spawn) return taskCard(sc, item.spawn, ui);
+    if (item.send) {
+      const a = agentById(sc, item.send);
+      return `<div class="tcard"><div class="tcard-h">${ic("corner-down-right")}<b>续派</b><span>交给已有子 Agent · 第 ${a.runs} 次任务</span></div><div class="tcard-list">${row(a, ui)}</div></div>`;
+    }
+    if (item.spawnSync) {
+      const a = agentById(sc, item.spawnSync);
+      return `<div class="msg-a"><p>我派一个子 Agent 去核对官方文档，等它回来再答你。</p></div>
+      <div class="tcard"><div class="tcard-h">${ic("git-fork")}<b>派出子任务</b><span>同步 · 主 Agent 等待结果</span><span class="sp"></span><span class="stt running"><span class="spin"></span>${a.elapsed}</span></div>
+      <div class="tcard-list">${row(a, ui)}</div>
+      <div style="margin:0 10px 10px 42px" class="report">${ic("arrow-up-right")}<span>${a.progress[0]}</span></div></div>`;
+    }
+    if (item.inbox) {
+      const list = item.inbox.map(id => agentById(sc, id));
+      return `<div class="inbox"><span class="line"></span>${list.map(a => `<span class="tag">${avatar(a, "xs")}${a.title} ${a.status === "completed" ? "已回传" : STATUS_TXT(a)}</span>`).join("")}<span class="line"></span></div>`;
+    }
+    return "";
+  };
+}
+
+/** 对话顶部常驻入口：本会话所有子 Agent 的汇总胶囊，点开为分组列表，再点进入详情 */
+function hub(sc, ui) {
+  if (!sc.agents.length) return "";
+  const att = sc.agents.filter(needsUser).length;
+  const run = sc.agents.filter(a => a.status === "running" || a.status === "queued").length;
+  const label = att ? `${att} 个等你处理` : run ? `${run} 个子 Agent 工作中` : `${sc.agents.length} 个子 Agent · 已结束`;
+  const lead = att ? ic("bell-ring") : run ? `<span class="spin"></span>` : "";
+  return `<button class="hub ${att ? "att" : ""} ${ui.hub ? "on" : ""}" data-act="hub">${`<span class="avs">${sc.agents.map(a => avatar(a, "xs")).join("")}</span>`}${lead}<span class="lb">${label}</span><span class="short num">${att || run || sc.agents.length}</span>${ic("chevron-down", "chev")}</button>`;
+}
+
+function hubRow(a, ui) {
+  const sub = needsUser(a) ? `<div class="act" style="color:var(--warn)">${ic(a.ask.type === "question" ? "message-circle-question" : "shield-question")}<span>${a.ask.type === "question" ? a.ask.q : `允许 ${a.ask.tool}：${a.ask.code}`}</span></div>`
+    : a.status === "running" || a.status === "queued" ? `<div class="act ${a.status === "running" ? "live" : ""}">${ic(a.status === "running" ? "loader" : "clock")}<span>${a.act}</span></div>`
+    : a.status === "completed" ? `<div class="act"><span>${a.result}</span></div>`
+    : a.error ? `<div class="act" style="color:var(--danger)"><span>${a.error}</span></div>` : "";
+  const row = `<button class="ag-row ${needsUser(a) ? "att" : ""} ${a.status === "completed" ? "done" : ""}" data-act="open:${a.id}">${avatar(a)}<span class="nm">${a.title}</span><span class="rt"><span class="loc ib sm" title="定位到派发消息">${ic("locate")}</span>${statusTag(a)}${ic("chevron-right", "chev")}</span>${sub}</button>`;
+  return row;
+}
+
+function hubPop(sc, ui) {
+  const groups = [
+    ["等你处理", "bell-ring", sc.agents.filter(needsUser)],
+    ["工作中", "loader", sc.agents.filter(a => a.status === "running" || a.status === "queued")],
+    ["已结束", "check-check", sc.agents.filter(a => !isActive(a))],
+  ].filter(g => g[2].length);
+  return `<div class="pop hub-pop"><div class="hd"><b>本对话的子 Agent</b><span class="num">${sc.agents.length}</span><span class="sp"></span><span>同时最多 3 个执行</span></div>
+    <div class="list">${groups.map(([t, i, list]) => `<div class="grp">${ic(i)}${t} · ${list.length}</div>${list.map(a => hubRow(a, ui)).join("")}`).join("")}</div>
+    <div class="ft"><span style="flex:1"></span><button class="btn ghost sm" data-act="hub">收起 · Esc</button></div></div>`;
+}
+
+const STATUS_TXT = a => ({ failed: "失败", interrupted: "已中断", cancelled: "已取消" })[a.status] || "";
+
+function chatPanel(sc, ui) {
+  const drawer = ui.drawer ? agentById(sc, ui.drawer) : null;
+  const peers = drawer ? `<div class="peers">${sc.agents.map(a => `<button class="${a.id === drawer.id ? "on" : ""}" data-act="open:${a.id}">${avatar(a, "xs")}${a.title.slice(0, 8)}</button>`).join("")}</div>` : "";
+  return `<section class="panel">${chatHead(hub(sc, ui))}${ui.hub ? hubPop(sc, ui) : ""}
+    <div class="flow" style="${drawer ? "padding-right:440px" : ""}"><div class="flow-in">${renderFlow(sc, special(sc, ui))}</div></div>
+    ${composer({ busy: sc.parentBusy })}
+    ${drawer ? `<aside class="drawer">${detailInner(drawer).replace('<div class="dt-tabs">', peers + '<div class="dt-tabs">')}</aside>` : ""}
+  </section>`;
+}
+
+const SIDE_NOTE = `<h3>场景 10 · AI 对话开在右侧辅助栏</h3>
+<p>辅助栏只有 360–560px（默认 400），放不下第二个右侧抽屉。两种变体，上方可切换：</p>
+<ul><li><b>栏内下钻（定稿）</b>：点子 Agent 行，详情在栏内从右滑入替换对话；顶部「← 返回对话」回到原滚动位置，Esc 同样返回。右上角头像组可在兄弟子 Agent 间横切。单栏宽度足够读子会话；正文页面不被遮挡。</li>
+<li><b>向左外展</b>：详情浮在辅助栏左侧、压在正文上，对话保持可见，适合边对照边看；代价是遮挡正文，窄窗口（正文 &lt; 560）时自动退回下钻。</li></ul>
+<p class="pro">两种都保留「在对话页打开」按钮：需要长时间盯着时一键升级到方案 A 的完整布局，抽屉自动带过去。</p>`;
+
+function assistPanel(sc, ui) {
+  const a = ui.drawer ? agentById(sc, ui.drawer) : null;
+  const head = `<div class="chat-head"><span class="t">三家同步方案调研</span><span class="sp"></span>${hub(sc, ui)}<span class="ib sm">${ic("history")}</span><span class="ib sm">${ic("plus")}</span><span class="ib sm">${ic("maximize-2")}</span><span class="ib sm">${ic("panel-right-close")}</span></div>`;
+  const chat = `${head}${ui.hub && !a ? hubPop(sc, ui) : ""}<div class="flow"><div class="flow-in">${renderFlow(sc, special(sc, ui))}</div></div>${composer({ busy: sc.parentBusy })}`;
+  let layer = "";
+  if (a && ui.variant !== "fly") {
+    const peers = sc.agents.map(x => `<button class="peer ${x.id === a.id ? "on" : ""}" data-act="open:${x.id}" title="${x.title}">${avatar(x, "xs")}</button>`).join("");
+    layer = `<div class="drill"><div class="drill-nav"><button class="back" data-act="close">${ic("chevron-left")}<span>返回对话</span></button><span class="sp"></span>${peers}<span class="ib sm" title="在对话页打开">${ic("maximize-2")}</span></div>${detailInner(a)}</div>`;
+  }
+  const fly = a && ui.variant === "fly" ? `<aside class="flyout">${detailInner(a)}</aside>` : "";
+  return { panel: `<section class="assist">${chat}${layer}</section>`, fly };
+}
+
+mount("a-inline.html", (key, ui) => {
+  const sc = scene(key);
+  if (ui._k !== key) { ui._k = key; if (key === "s7" || key === "s10") ui.drawer = sc.detail; if (key === "s8") ui.pop = true; ui.hub = Boolean(sc.hubOpen); }
+  const attention = sc.agents.filter(needsUser);
+  const running = sc.agents.filter(a => a.status === "running").length;
+  const onChat = !sc.page;
+  const tb = titlebar({
+    crumb: onChat && !sc.assist ? `AI 对话 ${ic("chevron-right")} <b>三家同步方案调研</b>` : `<b>卡片库</b>`,
+    attention, running: onChat ? 0 : running, popOpen: ui.pop && attention.length, popHtml: attentionPop(sc),
+  });
+  let content = onChat ? chatPanel(sc, ui) : otherPage();
+  let note = NOTE;
+  let pre = "";
+  if (sc.assist) {
+    const side = assistPanel(sc, ui);
+    content = `${otherPage()}${side.fly}${side.panel}`;
+    note = SIDE_NOTE;
+    const v = ui.variant === "fly" ? "fly" : "drill";
+    pre = `<div class="var-bar">详情打开方式<span class="seg2"><button class="${v === "drill" ? "on" : ""}" data-act="variant:drill">栏内下钻<span class="rec">定稿</span></button><button class="${v === "fly" ? "on" : ""}" data-act="variant:fly">向左外展</button></span><span style="color:var(--ink-3)">点任务卡里任一子 Agent 行</span></div>`;
+  }
+  const anno = `<div class="anno" style="right:150px;top:44px">只在<b>离开对话</b>时出现「进行中」；待处理在任何页面都显示</div>
+    <div class="anno" style="left:420px;top:250px">一次派发 = 一张卡；问题/审批直接在行下作答</div>`;
+  return { html: `${pre}<div class="win">${rail(onChat ? "chat" : "cards")}<div class="col">${tb}<div class="body">${content}</div></div>${anno}</div>`, note };
+});
+</script>
+</body>
+</html>

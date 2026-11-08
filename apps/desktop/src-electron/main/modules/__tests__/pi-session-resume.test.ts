@@ -214,7 +214,10 @@ describe("重启后悬挂的工具调用（M4-e：标为已中断）", () => {
     const beforeBlock = (
       before.at(-1) as { assistant_blocks?: Array<{ execution?: unknown }> }
     ).assistant_blocks?.find(block => "toolCall" in block);
-    expect(beforeBlock?.execution).toBeUndefined();
+    expect(beforeBlock?.execution).toMatchObject({
+      status: "failed",
+      metadata: { outcomeUnknown: true },
+    });
 
     await assemble(file);
 
@@ -237,7 +240,8 @@ describe("重启后悬挂的工具调用（M4-e：标为已中断）", () => {
     faux.setResponses([
       context => {
         const result = context.messages.find(message => message.role === "toolResult") as
-          { content: Array<{ text?: string }> } | undefined;
+          | { content: Array<{ text?: string }> }
+          | undefined;
         seenResult = result?.content.map(block => block.text ?? "").join("") ?? "";
         return fauxAssistantMessage([fauxText("好的，重新来")]);
       },

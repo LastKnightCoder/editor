@@ -27,6 +27,46 @@ const setup = (
 };
 
 describe("pi 宿主工具权限", () => {
+  it("父子共享会话授权，但不同执行身份不继承；释放子会话不撤销父授权", async () => {
+    const { permissions: parent } = setup();
+    const child = new PiToolPermissions({
+      sessionId: "child",
+      interactive: true,
+      tools: [],
+      getMode: () => "manual",
+      onChange: vi.fn(),
+      permissionScope: parent.scope,
+    });
+    const parentCall = parent.authorize(context("bash", "parent-call"));
+    const childCall = child.authorize(context("bash", "child-call"));
+    parent.decide(parent.pendingRequests()[0].requestId, "allow-session");
+    await expect(parentCall).resolves.toBeUndefined();
+    await expect(childCall).resolves.toBeUndefined();
+    child.dispose();
+    await expect(parent.authorize(context("bash", "again"))).resolves.toBeUndefined();
+    const replaced = new PiToolPermissions({
+      sessionId: "other",
+      interactive: true,
+      tools: [
+        {
+          name: "bash",
+          description: "不同来源",
+          parameters: {},
+          source: "other",
+          executionIdentity: "new",
+          risk: "execute",
+        },
+      ],
+      getMode: () => "manual",
+      onChange: vi.fn(),
+      permissionScope: parent.scope,
+    });
+    const denied = replaced.authorize(context("bash"));
+    expect(replaced.pendingRequests()).toHaveLength(1);
+    replaced.dispose();
+    parent.dispose();
+    await denied;
+  });
   it.each(["read", "grep", "find", "ls", "ask-question"])("手动模式下 %s 直接执行", async name => {
     const { permissions } = setup();
     await expect(permissions.authorize(context(name))).resolves.toBeUndefined();

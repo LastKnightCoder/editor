@@ -195,7 +195,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
 
       /** 目录行增删改都走这里：定位到所在桶替换（桶还没加载就跳过，加载时会从库里读到） */
       const upsertRow = (row: ChatSessionRow) => {
-        const key = bucketKeyOf({ scope: row.scope as ChatSessionScope, domainRef: row.domainRef });
+        const key = bucketKeyOf({
+          scope: row.scope as ChatSessionScope,
+          domainRef: row.domainRef,
+        });
         set(state => {
           const bucket = state.buckets[key];
           if (!bucket) return state;
@@ -211,7 +214,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
               }
             : state.opened;
           return {
-            buckets: { ...state.buckets, [key]: { ...bucket, rows: sortRows(rows) } },
+            buckets: {
+              ...state.buckets,
+              [key]: { ...bucket, rows: sortRows(rows) },
+            },
             opened,
           };
         });
@@ -266,14 +272,20 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
             set(state => ({
               buckets: {
                 ...state.buckets,
-                [key]: { rows: sortRows(rows), status: ChatBucketStatus.SUCCESS },
+                [key]: {
+                  rows: sortRows(rows),
+                  status: ChatBucketStatus.SUCCESS,
+                },
               },
             }));
           } catch (error) {
             console.error("[chatSession] 加载对话列表失败:", error);
             if (bucketSequences.get(key) !== sequence) return;
             set(state => ({
-              buckets: { ...state.buckets, [key]: { rows: [], status: ChatBucketStatus.FAIL } },
+              buckets: {
+                ...state.buckets,
+                [key]: { rows: [], status: ChatBucketStatus.FAIL },
+              },
             }));
           }
         },
@@ -345,7 +357,9 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
         },
 
         setCurrent: (bucket, id) => {
-          set(state => ({ currentIds: { ...state.currentIds, [bucketKeyOf(bucket)]: id } }));
+          set(state => ({
+            currentIds: { ...state.currentIds, [bucketKeyOf(bucket)]: id },
+          }));
         },
 
         openChat: async id => {
@@ -357,7 +371,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           if (existing) return existing;
           const row = findRow(id);
           if (!row) return undefined;
-          const outcome = await piSessionTranscript({ sessionFile: row.sessionFile, databaseName });
+          const outcome = await piSessionTranscript({
+            sessionFile: row.sessionFile,
+            databaseName,
+          });
           if (
             generation !== generationOf(databaseName) ||
             databaseName !== getChatDatabase() ||
@@ -447,7 +464,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           const row = databaseName === getChatDatabase() ? findRow(id) : undefined;
           const file = sessionFile ?? row?.sessionFile;
           if (!file) return null;
-          const outcome = await piSessionTranscript({ sessionFile: file, databaseName });
+          const outcome = await piSessionTranscript({
+            sessionFile: file,
+            databaseName,
+          });
           if (
             generation !== generationOf(databaseName) ||
             deletedChats.has(chatIdentity(id, databaseName))
@@ -521,7 +541,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           set(state => {
             const buckets: Record<string, ChatBucket> = {};
             for (const [key, bucket] of Object.entries(state.buckets)) {
-              buckets[key] = { ...bucket, rows: bucket.rows.filter(item => item.id !== id) };
+              buckets[key] = {
+                ...bucket,
+                rows: bucket.rows.filter(item => item.id !== id),
+              };
             }
             const opened = { ...state.opened };
             delete opened[id];
@@ -558,7 +581,9 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
 
         renameGroup: async (id, name) => {
           const group = await updateChatGroup({ id, name });
-          set(state => ({ groups: state.groups.map(item => (item.id === id ? group : item)) }));
+          set(state => ({
+            groups: state.groups.map(item => (item.id === id ? group : item)),
+          }));
           return group;
         },
 
@@ -575,7 +600,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
                 ),
               };
             }
-            return { buckets, groups: state.groups.filter(group => group.id !== id) };
+            return {
+              buckets,
+              groups: state.groups.filter(group => group.id !== id),
+            };
           });
         },
       };
@@ -607,7 +635,10 @@ export const selectRows = (bucket: ChatBucketRef) => (state: ChatSessionState) =
 export const selectBucketStatus = (bucket: ChatBucketRef) => (state: ChatSessionState) =>
   state.buckets[bucketKeyOf(bucket)]?.status ?? ChatBucketStatus.UN_INIT;
 
-export const MAIN_CHAT_BUCKET: ChatBucketRef = { scope: "main-chat", domainRef: null };
+export const MAIN_CHAT_BUCKET: ChatBucketRef = {
+  scope: "main-chat",
+  domainRef: null,
+};
 
 /** 已登记的对话才有会话文件；草稿没有（首轮发送后才登记） */
 export const isDraftChat = (chat: Pick<ChatMessage, "sessionFile">): boolean => !chat.sessionFile;
@@ -632,6 +663,10 @@ export const draftFor = (slot: string, bucket: ChatBucketRef): ChatMessage => {
 export const resetDraft = (slot: string): void => {
   draftSlots.delete(slot);
 };
+
+/** 草稿已不在槽里（登记过）：面板若仍退回到它，用的就是旧对话的 id */
+export const isDraftReleased = (slot: string, draft: ChatMessage): boolean =>
+  draftSlots.get(slot) !== draft;
 
 /** 草稿已登记为正式对话：从所有槽里摘掉 */
 export const releaseDraft = (id: string): void => {

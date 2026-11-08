@@ -468,7 +468,9 @@ export async function assembleHostSession(
         : process.platform === "win32"
           ? { defaultTools: ["read", "powershell", "edit", "write"] }
           : {}),
-      ...(options.retry ? { retry: { enabled: true, maxRetries: options.retry.maxRetries } } : {}),
+      ...(options.retry
+        ? { retry: { enabled: options.retry.maxRetries > 0, maxRetries: options.retry.maxRetries } }
+        : {}),
     }),
   });
   return session;

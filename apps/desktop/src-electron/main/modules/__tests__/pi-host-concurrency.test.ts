@@ -1,5 +1,10 @@
-import { afterEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ assemble: vi.fn() }));
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+const mocks = vi.hoisted(() => ({
+  assemble: vi.fn(),
+  root: `${process.env.TEMP ?? process.cwd()}/tau-pi-host-test-${Date.now()}`,
+}));
 vi.mock("electron", () => ({ ipcMain: { handle: vi.fn() } }));
 vi.mock("../database", () => ({ default: { onDatabaseConnected: vi.fn() } }));
 vi.mock("../user-setting", () => ({
@@ -8,9 +13,10 @@ vi.mock("../user-setting", () => ({
     onSettingChanged: vi.fn(),
   },
 }));
-vi.mock("../../utils/PathUtil", () => ({ default: { getAppDir: () => "/tmp/pi-host-test" } }));
+vi.mock("../../utils/PathUtil", () => ({ default: { getAppDir: () => mocks.root } }));
 vi.mock("../pi-session-host-core", () => ({
   createHostModelRuntime: async () => ({}),
+  createHostResourceLoader: async () => ({}),
   assembleHostSession: (...args: unknown[]) => mocks.assemble(...args),
   resolveAgentShellPath: () => ({}),
   createDisplayEntryWriter: () => ({ expect: vi.fn(), discard: vi.fn(), dispose: vi.fn() }),
@@ -20,15 +26,22 @@ const client = { isDestroyed: () => false, send: vi.fn(), once: vi.fn(), removeL
 const request = (sessionId: string) => ({
   sessionId,
   scope: "main-chat:chat",
-  cwd: "/tmp",
+  cwd: mocks.root,
   modelRef: { providerId: "p", modelId: "m" },
   sessionFile: "chat.jsonl",
   piSessionId: "chat",
 });
 const session = () => ({
-  sessionFile: "/tmp/pi-host-test/sessions/review/chat.jsonl",
+  sessionFile: join(mocks.root, "sessions/review/chat.jsonl"),
   sessionId: "chat",
   agent: {},
+  sessionManager: {
+    getCwd: () => mocks.root,
+    getLeafId: () => null,
+    getBranch: () => [],
+    getEntries: () => [],
+  },
+  state: {},
   isStreaming: false,
   isCompacting: false,
   subscribe: () => () => {},
@@ -36,6 +49,12 @@ const session = () => ({
   dispose: vi.fn(),
   prompt: vi.fn(async () => {}),
   clearQueue: () => ({ steering: [], followUp: [] }),
+});
+beforeEach(() => {
+  mkdirSync(join(mocks.root, "sessions/review"), { recursive: true });
+});
+afterAll(() => {
+  rmSync(mocks.root, { recursive: true, force: true });
 });
 afterEach(async () => {
   await Host.dispose("first");
@@ -69,4 +88,14 @@ it("图片下载期间释放会话，会取消准备且不再提交 prompt", asy
   expect((await prompt).ok).toBe(false);
   expect(hosted.prompt).not.toHaveBeenCalled();
   expect(hosted.dispose).toHaveBeenCalledOnce();
+});
+it("同一时刻多个 prompt 竞争应接受一个，不能全部因互相占位而失败", async () => {
+  const hosted = session();
+  mocks.assemble.mockResolvedValue(hosted);
+  expect((await Host.create(client, request("first"))).ok).toBe(true);
+  const results = await Promise.all(
+    Array.from({ length: 20 }, (_, index) => Host.prompt("first", `消息 ${index}`))
+  );
+  expect(results.filter(result => result.ok)).toHaveLength(1);
+  expect(hosted.prompt).toHaveBeenCalledOnce();
 });

@@ -49,6 +49,17 @@ const COLUMN_BY_FIELD: Record<keyof ChatSessionPatch, string> = {
   updateTime: "update_time",
 };
 
+type DeletedListener = (database: string, ids: string[]) => void;
+const deletedListeners = new Set<DeletedListener>();
+
+/** 对话被删后通知依附它的本机记录（子 Agent 编排等）一起清理；database 不含 .db 后缀 */
+export const onChatSessionsDeleted = (listener: DeletedListener) => {
+  deletedListeners.add(listener);
+  return () => {
+    deletedListeners.delete(listener);
+  };
+};
+
 const toSqlValue = (field: keyof ChatSessionPatch, value: unknown): unknown =>
   field === "titleDirty" || field === "archived" ? (value ? 1 : 0) : (value ?? null);
 
@@ -108,7 +119,10 @@ export default class ChatSessionTable {
       input.updateTime ?? input.createTime ?? now
     );
     if (input.scope === "main-chat")
-      emitMemorySourceChanged(basename(db.name), { kind: "chat", id: input.id });
+      emitMemorySourceChanged(basename(db.name), {
+        kind: "chat",
+        id: input.id,
+      });
     return this.getById(db, input.id) as ChatSessionRow;
   }
 
@@ -217,13 +231,29 @@ export default class ChatSessionTable {
     for (const row of rows) {
       remove.run(row.id);
       if (row.scope === "main-chat")
-        emitMemorySourceChanged(basename(db.name), { kind: "chat", id: row.id });
+        emitMemorySourceChanged(basename(db.name), {
+          kind: "chat",
+          id: row.id,
+        });
+    }
+    const database = basename(db.name).replace(/\.db$/, "");
+    for (const listener of deletedListeners) {
+      try {
+        listener(
+          database,
+          rows.map(row => row.id)
+        );
+      } catch (error) {
+        console.error("[chat-session] 删除后清理失败:", error);
+      }
     }
     const sessionDir = chatSessionDirOfDb(db);
     if (!sessionDir) return;
     for (const row of rows) {
       try {
-        rmSync(resolveSessionFile(sessionDir, row.sessionFile), { force: true });
+        rmSync(resolveSessionFile(sessionDir, row.sessionFile), {
+          force: true,
+        });
       } catch (error) {
         console.error("[chat-session] 删除会话文件失败:", row.sessionFile, error);
       }

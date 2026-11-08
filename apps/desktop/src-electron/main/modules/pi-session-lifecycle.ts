@@ -17,6 +17,8 @@ export interface HostedSessionState {
   id: string;
   file: string | undefined;
   busy: boolean;
+  /** 子任务仍持有父会话时不能回收，但父会话仍可接受用户输入。 */
+  retained?: boolean;
   /** 最近一次活动（创建、prompt/steer、事件、交互变化）的时间 */
   lastActive: number;
 }
@@ -28,7 +30,7 @@ export function resolveFileConflict(
 ): { dispose: string[] } | { reject: string } {
   if (!file) return { dispose: [] };
   const same = existing.filter(session => session.file === file);
-  if (same.some(session => session.busy)) {
+  if (same.some(session => session.busy || session.retained)) {
     return { reject: "这个对话正在另一处运行，请等它结束或先停止" };
   }
   return { dispose: same.map(session => session.id) };
@@ -41,7 +43,7 @@ export function idleSessionsToDispose(
   idleMs = IDLE_DISPOSE_MS
 ): string[] {
   return sessions
-    .filter(session => !session.busy && now - session.lastActive >= idleMs)
+    .filter(session => !session.busy && !session.retained && now - session.lastActive >= idleMs)
     .map(session => session.id);
 }
 
@@ -64,6 +66,7 @@ export function idleSessionsOfOtherLibraries(
     .filter(
       session =>
         !session.busy &&
+        !session.retained &&
         session.file !== undefined &&
         isInsideDir(session.file, sessionsRoot) &&
         !isInsideDir(session.file, currentLibraryDir)
