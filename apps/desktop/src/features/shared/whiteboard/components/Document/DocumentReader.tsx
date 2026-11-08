@@ -22,7 +22,7 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import { cn, FadeScroll, IconButton, toast, Tooltip } from "@tau/ui";
+import { cn, FadeScroll, IconButton, Loading, toast, Tooltip } from "@tau/ui";
 import {
   BoardUtil,
   CANVAS_OVERLAY_ATTR,
@@ -38,7 +38,6 @@ import {
 } from "@tau/whiteboard";
 import ContentEditor from "@/components/ContentEditor";
 import { updateDiarySegment } from "@/commands/diary";
-import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
 import { getContentKit } from "@/services/editorKit";
 import { openEntity } from "@/services/open-content";
 import { openPage } from "@/services/page-navigation";
@@ -124,11 +123,6 @@ function HeaderButton({
 /** 碎碎念节流同步字数与时间（同日记页）；主进程的 diary:changed 只广播其他窗口，同窗口的日记缓存在这里失效 */
 const MOMENT_SYNC_WAIT = 800;
 
-/** 只读全文：编辑器会话就绪前的占位，与编辑器同排版（去掉预览自带的上下内边距），换上编辑器时不位移 */
-const BodyPreview = ({ source }: { source: DocumentSource }) => (
-  <CardContentPreview content={source.content} blocks={Infinity} className="py-0" />
-);
-
 /** 正文编辑器：正文经文档会话落库；碎碎念另外节流同步片段的字数与时间 */
 function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly: boolean }) {
   const client = useQueryClient();
@@ -162,7 +156,6 @@ function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly
       kit={getContentKit()}
       initValue={source.content}
       readonly={readonly}
-      fallback={<BodyPreview source={source} />}
       {...(sessionSource ? { source: sessionSource } : {})}
       editingContext={{ entityType: source.kind, entityId: moment?.segmentId ?? source.id }}
       {...(moment
@@ -463,7 +456,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
               style={boxStyle(box)}
             >
               <div
-                className="flex shrink-0 items-center gap-1 pl-2.5 pr-2"
+                className="flex shrink-0 items-center gap-1 pr-2 pl-2.5"
                 style={{ height: HEADER_HEIGHT }}
               >
                 {mode === "center" && closeButton}
@@ -501,7 +494,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
                       readonly={board.readonly}
                     />
                   ) : (
-                    <BodyPreview source={source} />
+                    <Loading minHeight={160} />
                   )}
                 </DocumentPaper>
               </FadeScroll>

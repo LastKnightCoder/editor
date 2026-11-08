@@ -6,8 +6,8 @@
  * 特有差异，经 props 注入）。元数据由卡片查询同步，标签仅提交字段补丁；
  * 正文经 ContentEditor 文档会话同步。「进入详情」落盘后交 actions.onOpenDetail，
  * 由宿主在同一次形变里收起预览并 push 详情（D-106）；ref 指向弹窗卡体，宿主据此
- * 定位形变的起止元素（卡体 data-state="open" 即内容就绪）。正文会话就绪前以只读全文
- * 占位显示，弹窗随卡片数据就位即可展示，形变不等会话加载。
+ * 定位形变的起止元素（卡体 data-state="open" 即内容就绪）。正文会话就绪前显示 Loading，
+ * 弹窗随卡片数据就位即可展示，形变不等会话加载。
  */
 
 import { useEffect, useMemo, useRef, useState, type Ref } from "react";
@@ -23,7 +23,6 @@ import { formatDate, getContentLength } from "@/utils";
 import { useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
 import { CardActionMenu } from "./CardActionMenu";
-import { CardContentPreview } from "./CardContentPreview";
 import type { CardItemActions } from "../types";
 import { Dialog, DialogBody, IconButton, Button } from "@tau/ui";
 
@@ -262,13 +261,6 @@ export function CardPreviewDialog({
                 key={editing.id}
                 initValue={initValue}
                 onInit={handleInit}
-                fallback={
-                  <CardContentPreview
-                    content={initValue}
-                    blocks={Infinity}
-                    className="min-h-[240px]"
-                  />
-                }
                 onChange={handleContentChange}
                 readonly={false}
                 source={{ sourceType: "card", sourceId: editing.id }}

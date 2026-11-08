@@ -77,20 +77,18 @@ vi.mock("@/components/ContentEditor", () => ({
   default: ({
     contentId,
     onChange,
+    readonly,
   }: {
     contentId: number;
     onChange?: (content: unknown[]) => void;
+    readonly: boolean;
   }) => {
-    mocks.editorChange = onChange;
-    return <div data-testid="editor">{contentId}</div>;
+    if (onChange) mocks.editorChange = onChange;
+    return <div data-testid={readonly ? "content-reader" : "editor"}>{contentId}</div>;
   },
 }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
-vi.mock("@/features/cards/components/CardContentPreview", () => ({
-  CardContentPreview: () => <div data-testid="preview" />,
-}));
 vi.mock("@/components/LocalImage", () => ({ default: () => null }));
-vi.mock("@/hooks/useContentDocument", () => ({ default: () => ({ article: undefined }) }));
 vi.mock("@/services/editorKit", () => ({ getContentKit: vi.fn() }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
@@ -195,6 +193,7 @@ afterEach(async () => {
 describe("文档阅读纸", () => {
   it("居中展开：正文进编辑器，收起后复位", async () => {
     expect(card("a")?.textContent).not.toContain("编辑中");
+    expect(card("a")?.querySelector('[data-testid="content-reader"]')?.textContent).toBe("101");
     await act(async () => board.emit(DOCUMENT_OPEN_EVENT, "a"));
     await flush();
 
@@ -309,9 +308,9 @@ describe("文档阅读纸", () => {
     const paper = calls.find(({ keyframes }) => keyframes[0].clipPath)!;
     expect(String(paper.keyframes[0].clipPath)).toMatch(/^inset\(20px .* 10px round 8px\)$/);
     expect(paper.el.contains(el)).toBe(true);
-    // 动画期间正文是只读全文，不挂编辑器（主线程长任务会让裁切动画停住）
+    // 动画期间显示加载状态，不提前初始化阅读纸的正文会话。
     expect(host.querySelector('[data-testid="editor"]')).toBeNull();
-    expect(reader()?.querySelector('[data-testid="preview"]')).not.toBeNull();
+    expect(reader()?.querySelector('[role="status"]')).not.toBeNull();
     rect.mockRestore();
   });
 });

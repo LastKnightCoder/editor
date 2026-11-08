@@ -3,11 +3,12 @@
  * 标签行与动作条（打开原文 / 做成闪卡 / 别再抽到这条）。内容切换走 walk-in 入场动效。
  */
 
+import type { RefObject } from "react";
 import { BookOpen, EyeOff, Layers } from "lucide-react";
 import dayjs from "dayjs";
-import type { Descendant } from "slate";
+import type { EditorRef } from "@tau/editor";
 import { Button, FadeScroll, IconButton, Panel } from "@tau/ui";
-import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
+import ContentEditor from "@/components/ContentEditor";
 import { WALK_KIND_META, formatWalkWhy } from "../model";
 import type { WalkStep } from "../trail";
 import { useEntityKindMeta } from "@/components/EntityKind";
@@ -15,6 +16,7 @@ import { useEntityKindMeta } from "@/components/EntityKind";
 export function WalkCard({
   step,
   stepKey,
+  editorRef,
   onOpenSource,
   onMute,
   onMakeFlashcard,
@@ -22,6 +24,7 @@ export function WalkCard({
   step: WalkStep;
   /** 内容切换动效的 key（kind:id:index） */
   stepKey: string;
+  editorRef: RefObject<EditorRef | null>;
   onOpenSource(): void;
   onMute(): void;
   onMakeFlashcard(): void;
@@ -41,7 +44,7 @@ export function WalkCard({
     >
       <div
         key={stepKey}
-        className="motion-safe:animate-walk-in flex min-h-0 flex-1 flex-col px-8 pb-4 pt-6"
+        className="motion-safe:animate-walk-in flex min-h-0 flex-1 flex-col px-8 pt-6 pb-4"
       >
         <div className="text-tau-micro text-ink-3 flex flex-wrap items-center gap-2">
           <span className="bg-accent-soft text-accent-text inline-flex h-[22px] items-center gap-1 rounded-full px-2">
@@ -55,12 +58,12 @@ export function WalkCard({
           <WhyIcon className="text-accent size-3.5 shrink-0" strokeWidth={1.75} />
           {why.text}
         </p>
-        <h2 className="text-tau-title text-ink-1 mb-3 mt-3 line-clamp-2 font-semibold leading-snug">
+        <h2 className="text-tau-title text-ink-1 mt-3 mb-3 line-clamp-2 leading-snug font-semibold">
           {item.title}
         </h2>
         {/* 宽屏：正文区内滚，滚动区右扩到卡片边缘，4px 滚动条居中于正文与卡边之间（14 + 4 + 14 = px-8）；
             窄屏（上下布局）：正文全量展开，由页面主体统一滚动，避免卡片被压扁成一条缝 */}
-        <FadeScroll className="@max-[900px]:flex-none @max-[900px]:overflow-y-visible -mr-8 min-h-0 flex-1 border-r-[14px] pr-[14px]">
+        <FadeScroll className="-mr-8 min-h-0 flex-1 border-r-[14px] pr-[14px] @max-[900px]:flex-none @max-[900px]:overflow-y-visible">
           {isPdfAnnotation ? (
             <>
               {item.excerpt && (
@@ -76,11 +79,12 @@ export function WalkCard({
               )}
             </>
           ) : (
-            item.content && (
-              <CardContentPreview
-                content={item.content as Descendant[]}
-                blocks={Infinity}
-                interactive
+            item.contentId && (
+              <ContentEditor
+                ref={editorRef}
+                contentId={item.contentId}
+                readonly
+                className="overflow-hidden py-0.5"
               />
             )
           )}

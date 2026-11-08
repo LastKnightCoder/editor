@@ -24,7 +24,7 @@ vi.mock("ahooks", () => ({
 }));
 vi.mock("@/utils", () => ({ formatDate: () => "日期", getContentLength: () => 0 }));
 vi.mock("@/components/ContentEditor", () => ({
-  default: function MockContentEditor({ contentId, onInit, fallback }: any) {
+  default: function MockContentEditor({ contentId, onInit }: any) {
     const [ready, setReady] = useState(!mocks.delayEditor);
     mocks.editorReady = () => {
       setReady(true);
@@ -33,11 +33,12 @@ vi.mock("@/components/ContentEditor", () => ({
     useEffect(() => {
       if (!mocks.delayEditor) onInit?.({}, []);
     }, []);
-    return ready ? <div data-testid="editor">正文 {contentId}</div> : <>{fallback}</>;
+    return ready ? (
+      <div data-testid="editor">正文 {contentId}</div>
+    ) : (
+      <div role="status">加载中…</div>
+    );
   },
-}));
-vi.mock("../components/CardContentPreview", () => ({
-  CardContentPreview: () => <div data-testid="reader">只读全文</div>,
 }));
 vi.mock("@/components/ErrorBoundary", () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
@@ -271,7 +272,7 @@ it("退场中重新打开另一张卡片，不会被旧的关闭任务清空", a
   expect(dialog?.textContent).toContain("正文 20");
 });
 
-it("正文会话就绪前以只读全文占位立即显示，编辑器初始化后换成可编辑正文", async () => {
+it("正文会话就绪前显示加载状态，编辑器初始化后切换为正文", async () => {
   vi.useFakeTimers();
   mocks.realDialog = true;
   mocks.delayEditor = true;
@@ -289,10 +290,10 @@ it("正文会话就绪前以只读全文占位立即显示，编辑器初始化�
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
   expect(dialog.closest('[aria-hidden="true"]')).toBeNull();
   expect(dialog.dataset.state).toBe("open");
-  expect(dialog.querySelector('[data-testid="reader"]')).not.toBeNull();
+  expect(dialog.querySelector('[role="status"]')).not.toBeNull();
   expect(dialog.querySelector('[data-testid="editor"]')).toBeNull();
 
   await act(async () => mocks.editorReady());
-  expect(dialog.querySelector('[data-testid="reader"]')).toBeNull();
+  expect(dialog.querySelector('[role="status"]')).toBeNull();
   expect(dialog.querySelector('[data-testid="editor"]')?.textContent).toBe("正文 10");
 });

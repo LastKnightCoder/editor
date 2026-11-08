@@ -1,7 +1,7 @@
 import { resolveWhiteboardEntity } from "@/commands/whiteboard-document";
 /**
  * 文档卡的数据：按 entityRef 读出卡片 / 文章 / 项目文档 / 碎碎念的元信息与正文首屏。
- * 正文后续变化由 useContentDocument(contentId) 订阅，这里只负责身份、标题与封面这类元信息。
+ * 正文后续变化由 ContentEditor 订阅，这里只负责身份、标题与封面这类元信息。
  */
 
 import { useQuery } from "@tanstack/react-query";

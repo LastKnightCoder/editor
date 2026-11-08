@@ -8,9 +8,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import type { Descendant } from "slate";
 import { ChevronRight, EyeOff, Footprints, Shuffle } from "lucide-react";
-import { Button, Panel, PanelAction, PanelNote, PanelTitle, cn, toast } from "@tau/ui";
+import {
+  Button,
+  ErrorBoundary,
+  Panel,
+  PanelAction,
+  PanelNote,
+  PanelTitle,
+  cn,
+  toast,
+} from "@tau/ui";
+import ContentEditor from "@/components/ContentEditor";
 import { usePage } from "@/page/PageProvider";
 import {
   advanceRandomWalkDailyDeck,
@@ -18,7 +27,6 @@ import {
   muteRandomWalk,
   rerollRandomWalkDailyDeck,
 } from "@/commands/random-walk";
-import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
 import { openWalkItem } from "@/features/walk/open";
 import { WALK_KIND_META, formatWalkWhy } from "@/features/walk/model";
 import type { WalkDailyDeck, WalkItem } from "@/types";
@@ -144,7 +152,7 @@ export function WalkDeckPanel() {
         </PanelAction>
       </PanelTitle>
 
-      <div className="@max-[860px]:grid-cols-1 grid grid-cols-[minmax(0,760px)_minmax(200px,1fr)] gap-8">
+      <div className="grid grid-cols-[minmax(0,760px)_minmax(200px,1fr)] gap-8 @max-[860px]:grid-cols-1">
         {/* 左列：牌堆 + 动作条 */}
         <div className="flex flex-col gap-3">
           <div
@@ -331,7 +339,7 @@ function DeckCard({
             <WhyIcon className="text-accent size-3.5 shrink-0" strokeWidth={1.75} />
             {why.text}
           </p>
-          <p className="text-tau-body-lg text-ink-1 mb-2 mt-2.5 line-clamp-1 font-semibold">
+          <p className="text-tau-body-lg text-ink-1 mt-2.5 mb-2 line-clamp-1 font-semibold">
             {item.title}
           </p>
           <div className="min-h-0 flex-1 overflow-hidden [mask-image:linear-gradient(#000_65%,transparent)]">
@@ -341,7 +349,15 @@ function DeckCard({
                     {item.excerpt}
                   </p>
                 )
-              : item.content && <CardContentPreview content={item.content as Descendant[]} />}
+              : item.contentId && (
+                  <ErrorBoundary>
+                    <ContentEditor
+                      contentId={item.contentId}
+                      readonly
+                      className="pointer-events-none overflow-hidden py-0.5 *:pointer-events-none"
+                    />
+                  </ErrorBoundary>
+                )}
           </div>
         </>
       )}

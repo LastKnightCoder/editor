@@ -12,7 +12,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowUp, Pin } from "lucide-react";
 import type { ICard } from "@/types";
-import { CardContentPreview } from "./CardContentPreview";
+import { ContentPreivew } from "@/components/ContentPreivew";
 import { cn, useEdgeFade, IconButton, Tag } from "@tau/ui";
 import { bucketByTimeGroups } from "../queries";
 import { CardItemView, formatMonthDay } from "./CardItemView";
@@ -255,7 +255,7 @@ function FeaturedCard({
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <FadeWhenOverflow style={{ maxHeight: previewMaxHeight }}>
-            <CardContentPreview content={card.content} />
+            <ContentPreivew content={card.content} />
           </FadeWhenOverflow>
         </div>
         <div className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[11.5px] tabular-nums">

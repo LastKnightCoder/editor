@@ -8,7 +8,7 @@
 
 import { Maximize2, MoreHorizontal, Pin } from "lucide-react";
 import type { ICard } from "@/types";
-import { CardContentPreview } from "./CardContentPreview";
+import { ContentPreivew } from "@/components/ContentPreivew";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { IconButton, cn, Tag } from "@tau/ui";
 import { CardActionMenu } from "./CardActionMenu";
@@ -67,7 +67,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
       {/* 正文预览保留格式，限高避免长内容撑开卡片；溢出时底部一行渐隐替代硬切 */}
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <FadeWhenOverflow style={{ maxHeight: previewMaxHeight }}>
-          <CardContentPreview content={card.content} />
+          <ContentPreivew content={card.content} />
         </FadeWhenOverflow>
       </div>
 

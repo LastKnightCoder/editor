@@ -1,23 +1,21 @@
 import { useMemo } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor";
-import type { ICard } from "@/types";
+import type { Descendant } from "slate";
 import { ErrorBoundary } from "@tau/ui";
 import { cn } from "@tau/ui";
 
 /**
- * 卡片正文只读渲染：卡面只取前 blocks 个块；预览弹窗 / 详情页在正文会话就绪前
- * 用它渲染全文占位（blocks = Infinity），转场不必等会话（D-106）。
- * 默认禁止指针事件（卡面点击穿透到整卡）；interactive 用于漫步这类独立阅读场景，
- * 恢复链接点击与内嵌交互组件的操作。
+ * 正文快照预览：只渲染传入内容的前 blocks 个块，不建立正文会话或订阅。
+ * 用于卡片墙等静态摘要；interactive 恢复链接与内嵌组件交互。
  */
-export function CardContentPreview({
+export function ContentPreivew({
   content,
   blocks = 3,
   interactive = false,
   className,
 }: {
-  content: ICard["content"];
+  content: Descendant[];
   blocks?: number;
   interactive?: boolean;
   className?: string;

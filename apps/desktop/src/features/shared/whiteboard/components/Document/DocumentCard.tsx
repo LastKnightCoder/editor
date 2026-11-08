@@ -5,9 +5,8 @@
  */
 
 import { memo } from "react";
-import type { Descendant } from "slate";
 import { FileX2 } from "lucide-react";
-import { cn } from "@tau/ui";
+import { cn, ErrorBoundary } from "@tau/ui";
 import {
   DOCUMENT_CARD_RADIUS,
   useBoard,
@@ -15,16 +14,12 @@ import {
   useViewPort,
   type DocumentElement,
 } from "@tau/whiteboard";
-import useContentDocument from "@/hooks/useContentDocument";
-import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
+import ContentEditor from "@/components/ContentEditor";
 import { DocumentPaper } from "./DocumentPaper";
 import { DOCUMENT_PAPER_WIDTH } from "./layout";
 import { useDocumentSource } from "./source";
 import { useDocumentReaderPreference, useDocumentReaderState } from "./readerStore";
 import { useDocumentHost } from "./DocumentHostContext";
-
-/** 卡面只渲染首屏的块数，长文不必整篇挂只读编辑器 */
-const PREVIEW_BLOCKS = 12;
 
 const SKELETON_WIDTHS = [100, 92, 96, 70];
 
@@ -46,7 +41,6 @@ function Skeleton({ title }: { title?: string }) {
 export const DocumentCard = memo(({ element }: { element: DocumentElement; sketch: boolean }) => {
   const board = useBoard();
   const { source, missing } = useDocumentSource(element);
-  const { article } = useContentDocument(source?.contentId);
   const { zoom } = useViewPort();
   const { simplifiedRenderZoomThreshold } = useBoardState();
   const open = useDocumentReaderState(board, state => state.openId === element.id);
@@ -56,7 +50,6 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
   const preferred = useDocumentReaderPreference(state => state.mode);
   const mode = host.allowDock ? preferred : "center";
 
-  const content = (article?.content as Descendant[] | undefined) ?? source?.content ?? [];
   const lowZoom = zoom < simplifiedRenderZoomThreshold;
   const paperWidth = DOCUMENT_PAPER_WIDTH[source?.kind ?? element.entityRef?.kind ?? "article"];
 
@@ -82,7 +75,13 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
           style={{ transform: `scale(${element.width / paperWidth})` }}
         >
           <DocumentPaper source={source}>
-            <CardContentPreview content={content} blocks={PREVIEW_BLOCKS} />
+            <ErrorBoundary>
+              <ContentEditor
+                contentId={source.contentId}
+                readonly
+                className="pointer-events-none overflow-hidden py-0.5 *:pointer-events-none"
+              />
+            </ErrorBoundary>
           </DocumentPaper>
         </div>
       )}

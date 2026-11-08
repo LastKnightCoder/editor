@@ -68,8 +68,12 @@ vi.mock("@/features/flashcards/components/GeneratedFlashcardEditDialog", () => (
   default: () => null,
 }));
 vi.mock("@/features/flashcards/components/CreateFlashcardDialog", () => ({ default: () => null }));
-vi.mock("@/features/cards/components/CardContentPreview", () => ({
-  CardContentPreview: () => <div>正文预览</div>,
+vi.mock("@/components/ContentEditor", () => ({
+  default: ({ contentId, readonly }: { contentId: number; readonly: boolean }) => (
+    <div data-content-id={contentId} data-readonly={readonly}>
+      正文订阅
+    </div>
+  ),
 }));
 vi.mock("@/services/open-content", () => ({ openEntity: vi.fn() }));
 vi.mock("@/services/open-material", () => ({ openMaterial: vi.fn() }));
@@ -158,6 +162,9 @@ describe("WalkView", () => {
     expect(text).toContain("漫步");
     expect(text).toContain("重排与重绘");
     expect(text).toContain("从这里走向");
+    expect(document.querySelector('[data-content-id="1"]')?.getAttribute("data-readonly")).toBe(
+      "true"
+    );
     expect(mocks.pick).toHaveBeenCalledWith({ bias: "stale", kinds: expect.any(Array) });
     expect(mocks.markSeen).toHaveBeenCalledWith(ITEM_A.ref);
   });
@@ -175,6 +182,8 @@ describe("WalkView", () => {
       (document.querySelector('[aria-current="step"]')?.textContent ?? "").includes("合成层与 GPU")
     );
     expect(mocks.get).toHaveBeenCalledWith(NEIGHBOR.ref);
+    expect(document.querySelector('[data-content-id="2"]')).not.toBeNull();
+    expect(document.querySelector('[data-content-id="1"]')).toBeNull();
     expect(mocks.markSeen).toHaveBeenCalledTimes(2);
     expect(mocks.markSeen).toHaveBeenLastCalledWith(ITEM_B.ref);
   });

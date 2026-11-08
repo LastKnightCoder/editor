@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import { Footprints } from "lucide-react";
 import { usePage, usePageParams } from "@/page/PageProvider";
@@ -58,6 +59,7 @@ export function WalkView() {
   const [prefs, setPrefs] = useState<WalkPrefs>(readWalkPrefs);
   const [trail, setTrail] = useState<WalkTrail | null>(null);
   const [jumping, setJumping] = useState(false);
+  const contentEditorRef = useRef<EditorRef>(null);
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
 
@@ -165,7 +167,10 @@ export function WalkView() {
 
   /* 做成闪卡（PDF 批注不显示入口）：闪卡引用指向当前正文 */
   const flashcard = useFlashcardCreation({
-    getContent: () => (currentItem?.content ?? []) as Descendant[],
+    getContent: () =>
+      (contentEditorRef.current?.getEditor().children ??
+        currentItem?.content ??
+        []) as Descendant[],
     getReference: () => ({
       refType: "content" as const,
       contentId: currentItem?.contentId ?? 0,
@@ -207,7 +212,7 @@ export function WalkView() {
   };
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg @container flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 头部：标题 + 偏好选择器 */}
         <div className="flex flex-none items-end gap-3 px-8 pt-5">
@@ -221,7 +226,7 @@ export function WalkView() {
         </div>
 
         {startQuery.isPending || !trail || !current ? (
-          <div className="grid min-h-0 flex-1 place-items-center px-8 pb-6 pt-3">
+          <div className="grid min-h-0 flex-1 place-items-center px-8 pt-3 pb-6">
             {startQuery.isPending ? (
               <Loading minHeight={0} />
             ) : startQuery.data === null ? (
@@ -239,11 +244,12 @@ export function WalkView() {
             />
             {/* 窄屏上下布局时外层整体滚动，内边距放在内层，滚到底仍保留底边距；
                 滚动条居中于内容与纸边之间（14 + 4 + 14 = px-8） */}
-            <div className="@max-[900px]:overflow-y-auto @max-[900px]:border-r-[14px] @max-[900px]:border-r-transparent min-h-0 flex-1">
-              <div className="@max-[900px]:h-auto @max-[900px]:grid-cols-1 @max-[900px]:pr-[14px] grid h-full grid-cols-[minmax(0,1fr)_272px] gap-5 px-8 pb-6 pt-3">
+            <div className="min-h-0 flex-1 @max-[900px]:overflow-y-auto @max-[900px]:border-r-[14px] @max-[900px]:border-r-transparent">
+              <div className="grid h-full grid-cols-[minmax(0,1fr)_272px] gap-5 px-8 pt-3 pb-6 @max-[900px]:h-auto @max-[900px]:grid-cols-1 @max-[900px]:pr-[14px]">
                 <WalkCard
                   step={current}
                   stepKey={`${current.item.ref.kind}:${current.item.ref.id}:${trail.index}`}
+                  editorRef={contentEditorRef}
                   onOpenSource={openSource}
                   onMute={() => void muteCurrent()}
                   onMakeFlashcard={flashcard.openAiFlashcard}

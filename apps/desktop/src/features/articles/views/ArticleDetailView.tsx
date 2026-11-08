@@ -74,7 +74,6 @@ import { ConfirmDialog, Loading, Menu, cn, toast } from "@tau/ui";
 import { useArticleMutations } from "../queries";
 import { ArticleHero } from "../components/ArticleHero";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
-import { ArticleBodyFallback } from "../components/ArticleBodyFallback";
 import { articleMorphKey } from "../morph";
 import {
   ContentOutline,
@@ -547,7 +546,6 @@ export function ArticleDetailView() {
                           contentId={editingArticle.contentId}
                           key={`${editingArticle.id}-${editorRemountKey}`}
                           initValue={editingArticle.content}
-                          fallback={<ArticleBodyFallback content={editingArticle.content} />}
                           onInit={onInit}
                           onChange={content => {
                             onContentChange(content);
