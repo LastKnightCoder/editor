@@ -143,7 +143,7 @@ const ChatArea = memo(
       return (
         <MarkdownProvider isDark={isDark} isVisible={true}>
           <div className="flex h-full min-w-0 flex-col overflow-hidden">
-            <div className="flex h-12 flex-none items-center gap-1 pl-5 pr-3">
+            <div className="flex h-12 flex-none items-center gap-1 pr-3 pl-5">
               <div className="min-w-0 flex-1">
                 <ChatDropdownSelector
                   chats={rows}

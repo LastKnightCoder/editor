@@ -131,7 +131,11 @@ const ChatManagementSidebar = memo(
 
     const handleCreateGroup = useMemoizedFn((parentId?: number | null) => {
       setGroupName("");
-      setGroupDialog({ mode: "create", groupId: null, parentId: parentId ?? null });
+      setGroupDialog({
+        mode: "create",
+        groupId: null,
+        parentId: parentId ?? null,
+      });
     });
 
     const handleEditGroup = useMemoizedFn((groupId: number) => {
@@ -592,7 +596,7 @@ const ChatManagementSidebar = memo(
 
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-1 px-1 pb-2 pt-1">
+        <div className="flex shrink-0 items-center gap-1 px-1 pt-1 pb-2">
           <Button size="sm" variant="ghost" icon={SquarePen} onClick={() => createChatIn(null)}>
             新建对话
           </Button>

@@ -41,7 +41,7 @@ export function ChatNavSessions({
   );
 
   return (
-    <div className="mb-1 mt-0.5 space-y-px" role="group" aria-label="AI 会话">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="AI 会话">
       {pinned.map(chat => item(chat, true))}
       {recent.map(chat => item(chat, false))}
       <SubItem
