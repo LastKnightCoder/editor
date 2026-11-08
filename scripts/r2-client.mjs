@@ -1,5 +1,6 @@
 import { createReadStream } from "node:fs";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 
 export const R2_BUCKET = "tau-release";
 export const R2_PUBLIC_BASE_URL = "https://dl.taunote.app";
@@ -35,16 +36,13 @@ export function createR2Client() {
   });
   const isNotFound = error =>
     error?.$metadata?.httpStatusCode === 404 || error?.name === "NoSuchKey";
-  const put = (key, body, cacheControl) =>
-    client.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: key,
-        Body: body,
-        ContentType: contentTypeOf(key),
-        CacheControl: cacheControl,
-      })
-    );
+  const putParams = (key, body, cacheControl) => ({
+    Bucket: R2_BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: contentTypeOf(key),
+    CacheControl: cacheControl,
+  });
   return {
     async getText(key) {
       try {
@@ -56,10 +54,21 @@ export function createR2Client() {
       }
     },
     async putFile(key, filePath, cacheControl) {
-      await put(key, createReadStream(filePath), cacheControl);
+      const body = createReadStream(filePath);
+      try {
+        // 分段使用可重试的缓冲区，避免连接中断后重传整个文件。
+        await new Upload({
+          client,
+          params: putParams(key, body, cacheControl),
+          partSize: 8 * 1024 * 1024,
+          queueSize: 1,
+        }).done();
+      } finally {
+        body.destroy();
+      }
     },
     async putText(key, content, cacheControl) {
-      await put(key, content, cacheControl);
+      await client.send(new PutObjectCommand(putParams(key, content, cacheControl)));
     },
   };
 }
