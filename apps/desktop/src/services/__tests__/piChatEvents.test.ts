@@ -27,6 +27,21 @@ const setup = () => {
 };
 
 describe("pi 审批工具行归约", () => {
+  it("子消息触发的后台轮次不会吞掉随后送达的用户插话", () => {
+    const { handle, sink } = setup();
+    handle({ type: "agent_start" });
+    handle({
+      type: "message_start",
+      message: {
+        role: "custom",
+        customType: "subagent-message",
+        content: "子任务完成",
+        display: false,
+      },
+    });
+    handle({ type: "message_start", message: { role: "user", content: "请换个方向" } });
+    expect(sink.onUserMessageDelivered).toHaveBeenCalledWith("请换个方向");
+  });
   it.each(["success", "failed", "cancelled"] as const)(
     "turn_end 不覆盖已确认的 %s 终态",
     status => {

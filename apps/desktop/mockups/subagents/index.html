@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>子 Agent · 设计方案总览</title>
+<link rel="stylesheet" href="shared.css?v=4" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 24px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 22px; max-width: 900px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 6px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  .card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 120px; border-radius: 10px; background: var(--page); padding: 8px; margin-bottom: 12px; display: flex; gap: 6px; }
+  .wf .c { flex: 1; background: var(--surface); border-radius: 6px; box-shadow: var(--shadow-card); padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .wf i { display: block; border-radius: 4px; background: var(--hover); height: 7px; }
+  .wf i.a { background: var(--accent-soft); height: 30px; }
+  .wf i.w { background: var(--warn-soft); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  td a { color: var(--accent-text); text-decoration: none; margin-right: 10px; white-space: nowrap; }
+  .ph { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 14px 20px; }
+  .ph ul { margin: 0; padding-left: 20px; } .ph li { margin: 5px 0; }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; background: var(--page); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>子 Agent · UI 设计方案</h1>
+  <p class="lead">新运行时下，子 Agent 是<b>可复用的子会话</b>：主 Agent 用 <code>spawn_agent</code> 派发、<code>send_agent</code> 续派、<code>wait_agent</code> 等待、<code>cancel_agent</code> 取消；子 Agent 用 <code>send_parent</code> 报进度；问题与权限审批由用户直接回答。现在的 UI 只是对话顶部一排「标题 · 状态」按钮 + 一个 820px 对话框，信息量和操作入口都不够。下面三套方案共用同一套状态语言、交互卡和详情内容，差别在<b>放在哪里、怎么组织</b>。</p>
+
+  <div class="ph" style="border-left:3px solid var(--accent)"><b>定稿：方案 A · 内联任务卡 + 侧抽屉</b>。对话开在右侧辅助栏时采用<b>栏内下钻</b>查看详情（<a href="a-inline.html#s10" style="color:var(--accent-text)">场景 10</a>）；B / C 仅留作对比参考。</div>
+
+  <h2>三套方案</h2>
+  <p>每个方案页顶部都能切 9 个场景、浅/深色；按 <b>N</b> 看方案说明，按 <b>A</b> 看标注。</p>
+  <div class="grid">
+    <a class="card" href="a-inline.html#s3">
+      <div class="wf"><div class="c"><i style="width:60%"></i><i class="a"></i><i class="w" style="height:16px"></i><i style="width:80%"></i></div></div>
+      <h3>A · 内联任务卡 + 侧抽屉 <span class="rec">定稿</span></h3>
+      <p>派发那条回复里出现任务卡，一行一个子 Agent，问题直接在卡里答；点行在右侧抽屉看子会话。贴近上下文、改动最小。</p>
+    </a>
+    <a class="card" href="b-dock.html#s3">
+      <div class="wf"><div class="c"><i style="width:60%"></i><i style="width:40%"></i><span style="flex:1"></span><i class="a" style="height:22px"></i><i style="height:12px"></i></div><div class="c" style="flex:.8"><i style="width:50%"></i><i></i><i></i></div></div>
+      <h3>B · 任务坞 + 分屏</h3>
+      <p>对话流只留轻标记；输入框上方常驻「任务坞」，待处理置顶；点子 Agent 在右侧分屏打开，可边看边聊。</p>
+    </a>
+    <a class="card" href="c-board.html#s3">
+      <div class="wf"><div class="c" style="flex-direction:row"><span style="flex:1;display:flex;flex-direction:column;gap:5px"><i class="w" style="height:34px"></i></span><span style="flex:1;display:flex;flex-direction:column;gap:5px"><i class="a"></i><i class="a"></i></span><span style="flex:1;display:flex;flex-direction:column;gap:5px"><i style="height:24px"></i></span></div></div>
+      <h3>C · 子 Agent 看板</h3>
+      <p>对话头部切「对话 / 子 Agent」；看板按 等你处理 / 进行中 / 已结束 三列，卡片上作答，居中浮层看详情。适合子 Agent 多、跨轮复用。</p>
+    </a>
+  </div>
+
+  <h2>场景对照</h2>
+  <p>同一组数据（调研三家同步方案 + 一个汇总子 Agent），在三个方案里逐一对比。</p>
+  <table>
+    <tr><th style="width:150px">场景</th><th>要回答的问题</th><th style="width:230px">打开</th></tr>
+    <tr><td>1 派发</td><td>派了几个、各做什么、谁在排队（三路并发上限）</td><td data-s="s1"></td></tr>
+    <tr><td>2 并行进行中</td><td>每个子 Agent 此刻在干什么；先回来的结果怎么呈现</td><td data-s="s2"></td></tr>
+    <tr><td>3 等你处理</td><td>ask-question 与权限审批：在哪答、答完后怎样</td><td data-s="s3"></td></tr>
+    <tr><td>4 完成回传</td><td>结果如何回到主 Agent，主 Agent 续跑汇总</td><td data-s="s4"></td></tr>
+    <tr><td>5 失败/中断/取消</td><td>只展示真实 error.message；是否重试交给主 Agent</td><td data-s="s5"></td></tr>
+    <tr><td>6 续用同一子 Agent</td><td>send_agent 续派：同一身份、第 2 次任务、保留历史</td><td data-s="s6"></td></tr>
+    <tr><td>7 查看详情</td><td>子会话全文：任务说明、工具、进度报告、结果、执行记录、停止</td><td data-s="s7"></td></tr>
+    <tr><td>8 在别的页面</td><td>离开对话后怎么知道有事要处理，能否就地答</td><td data-s="s8"></td></tr>
+    <tr><td>9 同步派发</td><td>mode=sync：主 Agent 在等，界面怎么表达「卡在子任务上」</td><td data-s="s9"></td></tr>
+    <tr><td>10 侧边栏</td><td>对话开在右侧辅助栏（360–560px）时怎么看子 Agent 详情：栏内下钻 / 向左外展（仅方案 A）</td><td><a href="a-inline.html#s10">A</a></td></tr>
+    <tr><td>11 顶部常驻入口</td><td>对话头部汇总胶囊：本对话所有子 Agent 的分组列表 → 点一行进详情（页面与辅助栏都有）</td><td><a href="a-inline.html#s11">A</a></td></tr>
+  </table>
+
+  <h2>三方案共用的设计约定</h2>
+  <div class="ph"><ul>
+    <li><b>身份</b>：每个子 Agent 一枚彩色首字头像（tag-1…5 循环），右下角状态点；同一个子 Agent 在流、抽屉、标题栏里颜色一致，续派时一眼认出是「老朋友」。</li>
+    <li><b>状态语言</b>：执行中 = accent 转圈 + 活动行文字流光；等你处理 = warn 色且呼吸点；完成 = ok；失败 = danger；排队/取消/中断 = ink-3 / warn，与现有 ToolCallRow 的语义色一致。</li>
+    <li><b>活动行</b>：用子会话最新一条工具调用或思考生成一句「正在…」（如「读取 docs.logseq.com…」），这是用户最想看的信息，现有 UI 完全没有。</li>
+    <li><b>交互卡</b>：问题 / 审批复用同一组件，数字键 1-3 选项、「自己写」「跳过」；审批「允许一次 / 本会话都允许 / 拒绝」，对应 PiPermissionScope 的共享授权。</li>
+    <li><b>进度报告</b>：<code>send_parent</code> 的进度以 info 色「↗ 报告给主 Agent」出现在子会话里，主对话不单独展示（它只进父上下文）。</li>
+    <li><b>失败</b>：只显示真实错误文本，不造分类与重试按钮；底部按钮是「让主 Agent 追问」，把决定权留给主 Agent，符合运行时契约。</li>
+    <li><b>详情页底栏</b>：明示「子 Agent 只接收主 Agent 的指令」，避免用户以为能直接给子 Agent 发消息。</li>
+  </ul></div>
+</div>
+<script type="module">
+  import { PLANS } from "./shared.js?v=4";
+  document.querySelectorAll("td[data-s]").forEach(td => {
+    td.innerHTML = PLANS.slice(1).map(([f, t]) => `<a href="${f}#${td.dataset.s}">${t[0]}</a>`).join("");
+  });
+  window.lucide && window.lucide.createIcons();
+</script>
+</body>
+</html>

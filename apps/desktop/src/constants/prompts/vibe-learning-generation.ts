@@ -29,7 +29,7 @@ const EXPLORATION_RULES = `## 资料探索规则（核心要求）
 - 对复杂问题，通过 vibe_learning_query 的 operation 组合搜索、批量搜索和范围补读
 - 搜索后优先看 resourceId、chunkStartLine/chunkEndLine、startOffset/endOffset、whyMatched
 - 如果只需要某个命中附近上下文，优先使用 vibe_learning_query 的 read_lines 或 read_range
-- 如果问题需要跨多个主题、多个搜索角度搜集资料，且预计会产生较多搜索命中、上下文补读或并行查证需求，应优先使用全局工具 subagent_research 把资料搜集任务拆给多个 SubAgent；不要让主 Agent 独自串很长的资料搜集链路
+- 如果问题需要跨多个主题、多个搜索角度搜集资料，且预计会产生较多搜索命中、上下文补读或并行查证需求，应优先使用 spawn_agent（mode=sync）拆分资料搜集；本入口是一次性运行，必须等子任务完成后再汇总，不能遗留异步任务
 
 ### 4. 生成前必须达到证据门槛
 - 至少覆盖每个已选资源的核心模块，而不是只覆盖几个零散片段

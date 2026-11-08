@@ -4,7 +4,16 @@ const state = vi.hoisted(() => ({
   cancel: null as any,
   result: vi.fn(),
   error: vi.fn(),
+  events: new Map<string, (...args: any[]) => void>(),
 }));
+vi.mock("@/electron", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/electron")>();
+  return {
+    ...actual,
+    on: (channel: string, listener: (...args: any[]) => void) =>
+      state.events.set(channel, listener),
+  };
+});
 vi.mock("@/tools", async () => ({
   default: (await import("../../tools/toolRegistry")).default,
   ensureToolingReady: () => {},
@@ -17,7 +26,59 @@ vi.mock("@/commands/piSession", () => ({
   piSessionToolError: state.error,
 }));
 import registry from "../../tools/toolRegistry";
-import { initPiToolBridge, registerPiToolSessionContext } from "../piToolBridge";
+import {
+  initPiToolBridge,
+  registerPiToolSessionContext,
+  unregisterPiToolSessionContext,
+} from "../piToolBridge";
+it("子会话持有父工具快照，父上下文释放或替换后不串到新执行器", async () => {
+  initPiToolBridge();
+  const execute = vi.fn(async () => ({ content: "原父工具" }));
+  registerPiToolSessionContext("parent", {
+    databaseName: "original",
+    conversationKey: "parent-key",
+    sessionTools: [
+      {
+        name: "inherited",
+        description: "继承工具",
+        parameters: { type: "object", properties: {} },
+        executor: execute,
+        source: "parent-source",
+        enabled: true,
+      },
+    ],
+  });
+  state.events.get("pi-subagents:inherit-tools")!(null, {
+    parentSessionId: "parent",
+    sessionId: "child",
+    agentId: "child-agent",
+  });
+  unregisterPiToolSessionContext("parent");
+  registerPiToolSessionContext("parent", { databaseName: "other", sessionTools: [] });
+  state.listener({
+    sessionId: "child",
+    toolCallId: "inherited-call",
+    toolName: "inherited",
+    args: {},
+    executionId: "inherited-execution",
+  });
+  await vi.waitFor(() =>
+    expect(state.result).toHaveBeenCalledWith(
+      "child",
+      "inherited-call",
+      expect.objectContaining({ content: "原父工具" }),
+      "inherited-execution"
+    )
+  );
+  expect(execute).toHaveBeenCalledWith(
+    {},
+    expect.objectContaining({
+      databaseName: "original",
+      conversationKey: "parent-key:subagent:child-agent",
+    })
+  );
+  state.events.get("pi-subagents:release-tools")!(null, { sessionId: "child" });
+});
 it("会话持有作用域工具，页面注销后仍能执行且不串到另一份 PDF", async () => {
   const execute = vi.fn(async () => ({ content: "第一份 PDF" }));
   registry.registerScopedTools("pdf-a", "PDF", [

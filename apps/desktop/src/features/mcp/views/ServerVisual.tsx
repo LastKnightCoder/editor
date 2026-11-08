@@ -17,6 +17,7 @@ import {
   Plug,
   Terminal,
   Video,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -50,7 +51,9 @@ export function ServerIcon({ item, size = "md" }: { item: McpServerItem; size?: 
       : item.kind === "scoped"
         ? scopedIcon(item)
         : item.kind === "pi"
-          ? Terminal
+          ? item.id === "subagent-tools"
+            ? Workflow
+            : Terminal
           : item.kind === "plugin" && !item.server
             ? Plug
             : customIcon(item);

@@ -74,7 +74,19 @@ import {
 } from "@tau/shared";
 import { ChatContainerCore, type ChatContainerCoreHandle } from "@tau/chat-ui";
 import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRendererInteractionContext";
-import { createAssistantMessage } from "@/services/assistantMessageBlocks";
+import {
+  SubagentDetailLayer,
+  SubagentHub,
+} from "@/features/chat/components/subagents/SubagentPanel";
+import { dispatchedAgentId } from "@/features/chat/components/subagents/dispatch";
+import { useSubagentItems } from "@/features/chat/components/subagents/useSubagentItems";
+import { SubagentParentContext } from "@/features/chat/components/subagents/parentContext";
+import type { SubagentParentRef } from "@/types/subagent";
+import { getChatDatabase } from "@/services/chatDatabase";
+import {
+  createAssistantMessage,
+  getAssistantContentBlocks,
+} from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { latestContextUsage } from "@/services/chatContextUsage";
 import { canRetryChatMessage } from "@/services/chatRetry";
@@ -799,13 +811,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           // 必须在 prompt 之前——会话空闲时 prompt 要等整轮跑完才返回
           if (!actualCurrentChat.sessionFile && ensured.sessionFile) {
             const bucket = bucketOfChatScope(chatScope);
-            const row = await useChatSessionStore
-              .getState()
-              .registerChat(
-                { ...actualChatRef.current, scope: bucket.scope, domainRef: bucket.domainRef },
-                ensured.sessionFile
-              );
-            actualCurrentChat = { ...actualChatRef.current, sessionFile: row.sessionFile };
+            const row = await useChatSessionStore.getState().registerChat(
+              {
+                ...actualChatRef.current,
+                scope: bucket.scope,
+                domainRef: bucket.domainRef,
+              },
+              ensured.sessionFile
+            );
+            actualCurrentChat = {
+              ...actualChatRef.current,
+              sessionFile: row.sessionFile,
+            };
             actualChatRef.current = actualCurrentChat;
             useChatSessionStore.getState().publishChat(actualCurrentChat);
             onChatCreated?.(actualCurrentChat.id);
@@ -816,7 +833,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
           const contentItems = Array.isArray(requestMessage.content)
             ? requestMessage.content
-            : [{ type: "text" as const, text: requestMessage.content as string }];
+            : [
+                {
+                  type: "text" as const,
+                  text: requestMessage.content as string,
+                },
+              ];
           const { promptText, images } = options?.retryMessage?.piEntryIds?.length
             ? { promptText: "", images: [] }
             : await buildPromptPayload(contentItems as MessageContentItem[]);
@@ -1239,7 +1261,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           content,
         });
         if (!steerId) return "rejected";
-        const outcome = await piSessionSteer(sessionId, promptText, images, { content });
+        const outcome = await piSessionSteer(sessionId, promptText, images, {
+          content,
+        });
         if (outcome.ok) return "steered";
         // 失败退回待发送（settled 兜底可能已经退过，returnPendingSteerToQueue 幂等）
         const returned = piChatRuntime.returnPendingSteerToQueue(conversationKey, steerId);
@@ -1437,6 +1461,28 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
+    const subagentParent = useMemo<SubagentParentRef>(
+      () => ({
+        scope: sessionKey,
+        databaseName: currentChat.databaseName ?? getChatDatabase(),
+        chatId: currentChat.id,
+      }),
+      [sessionKey, currentChat.databaseName, currentChat.id]
+    );
+    const hasSubagents = useSubagentItems(subagentParent).items.length > 0;
+    const locateSubagentDispatch = useMemoizedFn((agentId: string) => {
+      const index = visibleMessages.findIndex(
+        message =>
+          message.role === Role.Assistant &&
+          getAssistantContentBlocks(message as ResponseMessage).some(
+            block =>
+              block.type === "tool_calls" &&
+              block.executions.some(execution => dispatchedAgentId(execution) === agentId)
+          )
+      );
+      if (index >= 0) coreRef.current?.scrollToIndex(index, { align: "start" });
+    });
+
     useChatEntryLocation({
       sessionKey,
       entry,
@@ -1503,343 +1549,358 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       );
 
     return (
-      <ToolRendererInteractionProvider
-        value={{
-          setInputValue: text => {
-            editTextRef.current?.setValue(text);
-            editTextRef.current?.focusEnd();
-          },
-          setHiddenPromptContext: payload => {
-            setHiddenPromptContext(payload);
-          },
-        }}
-      >
-        <div
-          ref={node => {
-            dropChatContent(node);
+      <SubagentParentContext.Provider value={subagentParent}>
+        <ToolRendererInteractionProvider
+          value={{
+            setInputValue: text => {
+              editTextRef.current?.setValue(text);
+              editTextRef.current?.focusEnd();
+            },
+            setHiddenPromptContext: payload => {
+              setHiddenPromptContext(payload);
+            },
           }}
-          className={cn(
-            "ease-tau-out rounded-tau-lg flex h-full min-h-0 flex-col transition-[background,box-shadow] duration-[160ms] motion-reduce:transition-none",
-            // 拖入卡片 / 文章：accent 轻染整块，提示可放下
-            isChatContentDragOver &&
-              canDropChatContent &&
-              "bg-accent-soft shadow-[inset_0_0_0_2px_var(--tau-accent)]"
-          )}
         >
-          {conversationTree.branchCount > 1 && (
-            <div className={cn("flex flex-none justify-end pt-1.5", chatGutter)}>
-              <Popover
-                open={treeOpen}
-                onOpenChange={setTreeOpen}
-                placement="bottom-end"
-                arrow={false}
-                // 覆盖卡片默认的 max-w-[340px]：窄停靠栏里不超出视口
-                className="w-[min(360px,calc(100vw-32px))] max-w-none p-1.5"
-                trigger={
-                  <button
-                    type="button"
-                    title="查看对话分支"
-                    className="hover:bg-hover aria-expanded:bg-hover text-tau-sm text-ink-2 ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2 transition-colors duration-[160ms]"
-                  >
-                    <GitBranch size={13} strokeWidth={1.75} />
-                    <span className="tabular-nums">{conversationTree.branchCount} 条分支</span>
-                  </button>
-                }
-              >
-                <ConversationTreePanel
-                  rows={conversationTree.rows}
-                  branchCount={conversationTree.branchCount}
-                  disabled={sendLoading}
-                  onSelect={row => void handleTreeSelect(row)}
-                />
-              </Popover>
-            </div>
-          )}
-          <ChatContainerCore
-            ref={coreRef}
-            isConnected={true}
-            messages={coreMessages}
-            isLoading={sendLoading}
-            allowSendWhileLoading
-            queuedMessageCount={queuedMessages.length}
-            error={chatError}
-            retryStatus={chatRetryStatus}
-            forceScrollToBottomKey={
-              sendLoading ? `${actualChatRef.current.id}:${coreMessages.length}` : undefined
-            }
-            hideInput={hideInput}
-            thinkingLevel={chatModelConfig?.reasoning ? thinkingLevel : undefined}
-            thinkingLevelOptions={thinkingLevelOptions}
-            onThinkingLevelChange={
-              chatModelConfig?.reasoning ? value => setStoredThinkingLevel(value) : undefined
-            }
-            thinkingLevelDisabled={!chatModelConfig?.reasoning}
-            currentModelName={chatModelConfig?.name ?? chatModelConfig?.id}
-            contextWindowK={
-              chatModelConfig?.contextWindow ? chatModelConfig.contextWindow / 1000 : undefined
-            }
-            contextUsage={contextUsage}
-            isSupportImage={supportImage}
-            isSupportFile={supportFile}
-            onSendMessageContent={async content => {
-              await submitMessageContent(content);
+          <div
+            ref={node => {
+              dropChatContent(node);
             }}
-            onStopGeneration={stopStreaming}
-            createMessageLoading={createMessageLoading}
-            onCreateNewMessage={onCreateNewMessage}
-            inputRef={editTextRef}
-            messagesContainerRef={setMessagesContainer}
-            messagesContainerClassName={cn(
-              FADE_SCROLL_CLASS,
-              "flex-1 min-h-0 box-border relative will-change-transform [-webkit-overflow-scrolling:touch]",
-              // 常驻滚动条槽位：消息列宽度不随「内容是否溢出」变化，输入区按 chatGutter 同宽对齐
-              "[scrollbar-gutter:stable]",
-              compact ? "pl-5 pr-2.5" : "pl-8 pr-[22px]"
+            className={cn(
+              "ease-tau-out rounded-tau-lg relative flex h-full min-h-0 flex-col transition-[background,box-shadow] duration-[160ms] motion-reduce:transition-none",
+              // 拖入卡片 / 文章：accent 轻染整块，提示可放下
+              isChatContentDragOver &&
+                canDropChatContent &&
+                "bg-accent-soft shadow-[inset_0_0_0_2px_var(--tau-accent)]"
             )}
-            renderEmptyState={() => emptyState ?? null}
-            renderStatusBanner={({ retryStatus, error }) =>
-              retryStatus || error ? (
-                <div className={cn("pt-2", chatGutter)}>
-                  {column(
-                    <div
-                      role="status"
-                      className={cn(
-                        "text-tau-sm rounded-tau-sm flex items-center gap-2 px-3 py-2",
-                        retryStatus ? "bg-warn-soft text-warn" : "bg-danger-soft text-danger"
-                      )}
-                    >
-                      {retryStatus ? (
-                        <>
-                          <RotateCw
-                            size={13}
-                            strokeWidth={1.75}
-                            className="shrink-0 animate-spin"
-                          />
-                          <span>
-                            请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxRetries}{" "}
-                            次）…
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <TriangleAlert size={13} strokeWidth={1.75} className="shrink-0" />
-                          <span className="min-w-0 break-words">{error}</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : null
-            }
-            renderInputWrapper={inputNode => (
+          >
+            {(conversationTree.branchCount > 1 || hasSubagents) && (
               <div
-                className={cn("box-border flex-none pt-2", chatGutter, compact ? "pb-3" : "pb-5")}
+                className={cn("flex flex-none items-center justify-end gap-1.5 pt-1.5", chatGutter)}
               >
-                {column(
-                  <>
-                    {pendingSteers.length > 0 ? (
-                      <div className="mb-2 space-y-1.5" aria-label="插话消息">
-                        <div className="text-tau-meta text-ink-3 px-1">
-                          插话 · 当前步骤结束后送达
-                        </div>
-                        {pendingSteers.map(steer => (
-                          <div
-                            key={steer.id}
-                            className="bg-warn-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
-                          >
-                            <CornerDownRight
-                              size={13}
-                              strokeWidth={1.75}
-                              className="text-ink-3 mt-0.5 shrink-0"
-                            />
-                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
-                              {queuedMessageText(steer.content) || "（附件消息）"}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {queuedMessages.length > 0 ? (
-                      <div className="mb-2 space-y-1.5" aria-label="待发送消息">
-                        <div className="text-tau-meta text-ink-3 px-1">
-                          待发送 · {queuedMessages.length}
-                          {queuePaused ? "（已暂停，发送或删除）" : ""}
-                        </div>
-                        {queuedMessages.map((content, index) => (
-                          <div
-                            key={`queued-${index}`}
-                            className="bg-accent-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
-                          >
-                            <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
-                              {queuedMessageText(content) || "（附件消息）"}
-                            </div>
-                            <div className="flex shrink-0 items-center gap-0.5">
-                              {canSteerNow ? (
-                                <button
-                                  type="button"
-                                  aria-label="插话：当前步骤结束后送达"
-                                  title="插话：当前步骤结束后送达本轮"
-                                  className="text-ink-3 hover:bg-hover rounded p-1"
-                                  onClick={() => void steerQueuedMessage(index)}
-                                >
-                                  <CornerDownRight size={13} strokeWidth={1.75} />
-                                </button>
-                              ) : null}
-                              <button
-                                type="button"
-                                aria-label="编辑待发送消息"
-                                className="text-ink-3 hover:bg-hover rounded p-1"
-                                onClick={() => editQueuedMessage(index)}
-                              >
-                                <Pencil size={13} strokeWidth={1.75} />
-                              </button>
-                              <button
-                                type="button"
-                                aria-label="删除待发送消息"
-                                className="text-ink-3 hover:bg-hover rounded p-1"
-                                onClick={() => removeQueuedMessage(index)}
-                              >
-                                <Trash2 size={13} strokeWidth={1.75} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {/* 附件区排在编辑横幅之前：横幅靠 -mb-2 贴住输入框，中间不能插别的 */}
-                    {composerAccessory}
-                    {editingDraft || hiddenPromptContext ? (
-                      <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pt-2 pb-4">
-                        <div className="text-accent-text min-w-0">
-                          <span className="font-semibold">
-                            {editingDraft ? "正在编辑消息" : "正在编辑生成的图片"}
-                          </span>
-                          <span className="text-ink-2 ml-2">
-                            {editingDraft
-                              ? "发送后生成这条消息的新版本，原来的内容可以切回去"
-                              : "输入调整要求，发送后基于选中的图片调用编辑工具"}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="text-accent-text hover:bg-accent/15 shrink-0 rounded-[7px] px-2 py-0.5"
-                          onClick={() =>
-                            editingDraft ? setEditingDraft(null) : setHiddenPromptContext(null)
-                          }
-                        >
-                          {editingDraft ? "取消编辑" : "退出编辑"}
-                        </button>
-                      </div>
-                    ) : null}
-                    {/* 输入框外框：＋ / @ 面板按它的矩形定位（同宽、贴上沿） */}
-                    <div
-                      {...{ [COMPOSER_ANCHOR_ATTR]: "" }}
-                      className="border-line-1 bg-surface ease-tau-out focus-within:border-accent relative rounded-[16px] border pt-3 pr-2.5 pb-2.5 pl-3.5 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]"
-                    >
-                      {inputNode}
-                    </div>
-                  </>
+                <SubagentHub
+                  parent={subagentParent}
+                  compact={compact}
+                  onLocate={locateSubagentDispatch}
+                />
+                {conversationTree.branchCount > 1 && (
+                  <Popover
+                    open={treeOpen}
+                    onOpenChange={setTreeOpen}
+                    placement="bottom-end"
+                    arrow={false}
+                    // 覆盖卡片默认的 max-w-[340px]：窄停靠栏里不超出视口
+                    className="w-[min(360px,calc(100vw-32px))] max-w-none p-1.5"
+                    trigger={
+                      <button
+                        type="button"
+                        title="查看对话分支"
+                        className="hover:bg-hover aria-expanded:bg-hover text-tau-sm text-ink-2 ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2 transition-colors duration-[160ms]"
+                      >
+                        <GitBranch size={13} strokeWidth={1.75} />
+                        <span className="tabular-nums">{conversationTree.branchCount} 条分支</span>
+                      </button>
+                    }
+                  >
+                    <ConversationTreePanel
+                      rows={conversationTree.rows}
+                      branchCount={conversationTree.branchCount}
+                      disabled={sendLoading}
+                      onSelect={row => void handleTreeSelect(row)}
+                    />
+                  </Popover>
                 )}
               </div>
             )}
-            renderChatInputArea={({ chatInputRef, inputProps }) => {
-              const {
-                onMcpManagerClick: _onMcpManagerClick,
-                modelSelectItems: _modelSelectItems,
-                onModelSelect: _onModelSelect,
-                extraToolbarButtons: _extraToolbarButtons,
-                className: _className,
-                ...desktopInputProps
-              } = inputProps;
-
-              return (
-                <ChatInputArea
-                  ref={chatInputRef}
-                  {...desktopInputProps}
-                  compact={compact}
-                  toolScope={toolScope}
-                  modelGroups={modelGroups}
-                  currentModelKey={currentModelKey}
-                  onModelSelect={handleModelSelect}
-                  placeholder={hiddenPromptContext?.label || desktopInputProps.placeholder}
-                  {...(canSteerNow ? { onSteer: () => void steerFromInput() } : {})}
-                />
-              );
-            }}
-            renderMessage={({ messageIndex }) => {
-              const item = visibleMessages[messageIndex];
-              if (!item) return null;
-
-              const streamingIndex = sendLoading ? visibleMessages.length - 1 : -1;
-              const isStreaming =
-                sendLoading && messageIndex === streamingIndex && item.role === Role.Assistant;
-              // 分叉标记：这条回答之后分出了多条下一问（它前面那条用户消息是分叉点）
-              const forkHere =
-                item.role === Role.Assistant &&
-                (() => {
-                  for (let index = messageIndex - 1; index >= 0; index -= 1) {
-                    const previous = visibleMessages[index];
-                    if (previous.role === Role.User) {
-                      const entryId = previous.piEntryIds?.[0];
-                      return Boolean(entryId && conversationTree.forkPoints.has(entryId));
-                    }
-                  }
-                  return false;
-                })();
-
-              return column(
+            <ChatContainerCore
+              ref={coreRef}
+              isConnected={true}
+              messages={coreMessages}
+              isLoading={sendLoading}
+              allowSendWhileLoading
+              queuedMessageCount={queuedMessages.length}
+              error={chatError}
+              retryStatus={chatRetryStatus}
+              forceScrollToBottomKey={
+                sendLoading ? `${actualChatRef.current.id}:${coreMessages.length}` : undefined
+              }
+              hideInput={hideInput}
+              thinkingLevel={chatModelConfig?.reasoning ? thinkingLevel : undefined}
+              thinkingLevelOptions={thinkingLevelOptions}
+              onThinkingLevelChange={
+                chatModelConfig?.reasoning ? value => setStoredThinkingLevel(value) : undefined
+              }
+              thinkingLevelDisabled={!chatModelConfig?.reasoning}
+              currentModelName={chatModelConfig?.name ?? chatModelConfig?.id}
+              contextWindowK={
+                chatModelConfig?.contextWindow ? chatModelConfig.contextWindow / 1000 : undefined
+              }
+              contextUsage={contextUsage}
+              isSupportImage={supportImage}
+              isSupportFile={supportFile}
+              onSendMessageContent={async content => {
+                await submitMessageContent(content);
+              }}
+              onStopGeneration={stopStreaming}
+              createMessageLoading={createMessageLoading}
+              onCreateNewMessage={onCreateNewMessage}
+              inputRef={editTextRef}
+              messagesContainerRef={setMessagesContainer}
+              messagesContainerClassName={cn(
+                FADE_SCROLL_CLASS,
+                "flex-1 min-h-0 box-border relative will-change-transform [-webkit-overflow-scrolling:touch]",
+                // 常驻滚动条槽位：消息列宽度不随「内容是否溢出」变化，输入区按 chatGutter 同宽对齐
+                "[scrollbar-gutter:stable]",
+                compact ? "pl-5 pr-2.5" : "pl-8 pr-[22px]"
+              )}
+              renderEmptyState={() => emptyState ?? null}
+              renderStatusBanner={({ retryStatus, error }) =>
+                retryStatus || error ? (
+                  <div className={cn("pt-2", chatGutter)}>
+                    {column(
+                      <div
+                        role="status"
+                        className={cn(
+                          "text-tau-sm rounded-tau-sm flex items-center gap-2 px-3 py-2",
+                          retryStatus ? "bg-warn-soft text-warn" : "bg-danger-soft text-danger"
+                        )}
+                      >
+                        {retryStatus ? (
+                          <>
+                            <RotateCw
+                              size={13}
+                              strokeWidth={1.75}
+                              className="shrink-0 animate-spin"
+                            />
+                            <span>
+                              请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxRetries}{" "}
+                              次）…
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <TriangleAlert size={13} strokeWidth={1.75} className="shrink-0" />
+                            <span className="min-w-0 break-words">{error}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : null
+              }
+              renderInputWrapper={inputNode => (
                 <div
-                  key={`${item.role}-${messageIndex}`}
-                  className={cn("pb-2", messageIndex === 0 ? (compact ? "pt-3" : "pt-6") : "pt-2")}
+                  className={cn("box-border flex-none pt-2", chatGutter, compact ? "pb-3" : "pb-5")}
                 >
-                  <MessageItem
-                    message={item}
-                    isDark={isDark}
-                    markdownComponents={markdownComponents}
-                    isVisible={isVisible}
-                    messageIndex={messageIndex}
-                    onDeleteMessage={handleDeleteMessage}
-                    onRegenerateMessage={handleRegenerateMessage}
-                    regenerateLabel={
-                      canRetryChatMessage(visibleMessages, messageIndex) ? "重试" : "重新生成"
-                    }
-                    onEditMessage={
-                      !hideInput &&
-                      !sendLoading &&
-                      item.role === Role.User &&
-                      getRequestMessageText(item as RequestMessage).trim().length > 0
-                        ? handleEditMessage
-                        : undefined
-                    }
-                    onCreateBranch={handleCreateBranch}
-                    {...(PLUGIN_CHAT_SCOPES.has(chatScope)
-                      ? { pluginSessionId: actualChatRef.current.id }
-                      : {})}
-                    {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
-                    messageMeta={{
-                      chatId: actualChatRef.current.id,
-                      messageIndex,
-                      isStreaming,
-                    }}
-                  />
-                  {forkHere && (
-                    <button
-                      type="button"
-                      onClick={() => setTreeOpen(true)}
-                      className="text-tau-tiny text-ink-3 hover:text-ink-1 ease-tau-out mt-2 flex w-full items-center gap-2 transition-colors duration-[160ms]"
-                    >
-                      <span aria-hidden className="bg-line-1 h-px flex-1" />
-                      <GitBranch size={12} strokeWidth={1.75} aria-hidden />
-                      <span>从这里分出了多条分支 · 查看</span>
-                      <span aria-hidden className="bg-line-1 h-px flex-1" />
-                    </button>
+                  {column(
+                    <>
+                      {pendingSteers.length > 0 ? (
+                        <div className="mb-2 space-y-1.5" aria-label="插话消息">
+                          <div className="text-tau-meta text-ink-3 px-1">
+                            插话 · 当前步骤结束后送达
+                          </div>
+                          {pendingSteers.map(steer => (
+                            <div
+                              key={steer.id}
+                              className="bg-warn-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
+                            >
+                              <CornerDownRight
+                                size={13}
+                                strokeWidth={1.75}
+                                className="text-ink-3 mt-0.5 shrink-0"
+                              />
+                              <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
+                                {queuedMessageText(steer.content) || "（附件消息）"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {queuedMessages.length > 0 ? (
+                        <div className="mb-2 space-y-1.5" aria-label="待发送消息">
+                          <div className="text-tau-meta text-ink-3 px-1">
+                            待发送 · {queuedMessages.length}
+                            {queuePaused ? "（已暂停，发送或删除）" : ""}
+                          </div>
+                          {queuedMessages.map((content, index) => (
+                            <div
+                              key={`queued-${index}`}
+                              className="bg-accent-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
+                            >
+                              <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
+                                {queuedMessageText(content) || "（附件消息）"}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                {canSteerNow ? (
+                                  <button
+                                    type="button"
+                                    aria-label="插话：当前步骤结束后送达"
+                                    title="插话：当前步骤结束后送达本轮"
+                                    className="text-ink-3 hover:bg-hover rounded p-1"
+                                    onClick={() => void steerQueuedMessage(index)}
+                                  >
+                                    <CornerDownRight size={13} strokeWidth={1.75} />
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  aria-label="编辑待发送消息"
+                                  className="text-ink-3 hover:bg-hover rounded p-1"
+                                  onClick={() => editQueuedMessage(index)}
+                                >
+                                  <Pencil size={13} strokeWidth={1.75} />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="删除待发送消息"
+                                  className="text-ink-3 hover:bg-hover rounded p-1"
+                                  onClick={() => removeQueuedMessage(index)}
+                                >
+                                  <Trash2 size={13} strokeWidth={1.75} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {/* 附件区排在编辑横幅之前：横幅靠 -mb-2 贴住输入框，中间不能插别的 */}
+                      {composerAccessory}
+                      {editingDraft || hiddenPromptContext ? (
+                        <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pt-2 pb-4">
+                          <div className="text-accent-text min-w-0">
+                            <span className="font-semibold">
+                              {editingDraft ? "正在编辑消息" : "正在编辑生成的图片"}
+                            </span>
+                            <span className="text-ink-2 ml-2">
+                              {editingDraft
+                                ? "发送后生成这条消息的新版本，原来的内容可以切回去"
+                                : "输入调整要求，发送后基于选中的图片调用编辑工具"}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-accent-text hover:bg-accent/15 shrink-0 rounded-[7px] px-2 py-0.5"
+                            onClick={() =>
+                              editingDraft ? setEditingDraft(null) : setHiddenPromptContext(null)
+                            }
+                          >
+                            {editingDraft ? "取消编辑" : "退出编辑"}
+                          </button>
+                        </div>
+                      ) : null}
+                      {/* 输入框外框：＋ / @ 面板按它的矩形定位（同宽、贴上沿） */}
+                      <div
+                        {...{ [COMPOSER_ANCHOR_ATTR]: "" }}
+                        className="border-line-1 bg-surface ease-tau-out focus-within:border-accent relative rounded-[16px] border pt-3 pr-2.5 pb-2.5 pl-3.5 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]"
+                      >
+                        {inputNode}
+                      </div>
+                    </>
                   )}
                 </div>
-              );
-            }}
-          />
-        </div>
-      </ToolRendererInteractionProvider>
+              )}
+              renderChatInputArea={({ chatInputRef, inputProps }) => {
+                const {
+                  onMcpManagerClick: _onMcpManagerClick,
+                  modelSelectItems: _modelSelectItems,
+                  onModelSelect: _onModelSelect,
+                  extraToolbarButtons: _extraToolbarButtons,
+                  className: _className,
+                  ...desktopInputProps
+                } = inputProps;
+
+                return (
+                  <ChatInputArea
+                    ref={chatInputRef}
+                    {...desktopInputProps}
+                    compact={compact}
+                    toolScope={toolScope}
+                    modelGroups={modelGroups}
+                    currentModelKey={currentModelKey}
+                    onModelSelect={handleModelSelect}
+                    placeholder={hiddenPromptContext?.label || desktopInputProps.placeholder}
+                    {...(canSteerNow ? { onSteer: () => void steerFromInput() } : {})}
+                  />
+                );
+              }}
+              renderMessage={({ messageIndex }) => {
+                const item = visibleMessages[messageIndex];
+                if (!item) return null;
+
+                const streamingIndex = sendLoading ? visibleMessages.length - 1 : -1;
+                const isStreaming =
+                  sendLoading && messageIndex === streamingIndex && item.role === Role.Assistant;
+                // 分叉标记：这条回答之后分出了多条下一问（它前面那条用户消息是分叉点）
+                const forkHere =
+                  item.role === Role.Assistant &&
+                  (() => {
+                    for (let index = messageIndex - 1; index >= 0; index -= 1) {
+                      const previous = visibleMessages[index];
+                      if (previous.role === Role.User) {
+                        const entryId = previous.piEntryIds?.[0];
+                        return Boolean(entryId && conversationTree.forkPoints.has(entryId));
+                      }
+                    }
+                    return false;
+                  })();
+
+                return column(
+                  <div
+                    key={`${item.role}-${messageIndex}`}
+                    className={cn(
+                      "pb-2",
+                      messageIndex === 0 ? (compact ? "pt-3" : "pt-6") : "pt-2"
+                    )}
+                  >
+                    <MessageItem
+                      message={item}
+                      isDark={isDark}
+                      markdownComponents={markdownComponents}
+                      isVisible={isVisible}
+                      messageIndex={messageIndex}
+                      onDeleteMessage={handleDeleteMessage}
+                      onRegenerateMessage={handleRegenerateMessage}
+                      regenerateLabel={
+                        canRetryChatMessage(visibleMessages, messageIndex) ? "重试" : "重新生成"
+                      }
+                      onEditMessage={
+                        !hideInput &&
+                        !sendLoading &&
+                        item.role === Role.User &&
+                        getRequestMessageText(item as RequestMessage).trim().length > 0
+                          ? handleEditMessage
+                          : undefined
+                      }
+                      onCreateBranch={handleCreateBranch}
+                      {...(PLUGIN_CHAT_SCOPES.has(chatScope)
+                        ? { pluginSessionId: actualChatRef.current.id }
+                        : {})}
+                      {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
+                      messageMeta={{
+                        chatId: actualChatRef.current.id,
+                        messageIndex,
+                        isStreaming,
+                      }}
+                    />
+                    {forkHere && (
+                      <button
+                        type="button"
+                        onClick={() => setTreeOpen(true)}
+                        className="text-tau-tiny text-ink-3 hover:text-ink-1 ease-tau-out mt-2 flex w-full items-center gap-2 transition-colors duration-[160ms]"
+                      >
+                        <span aria-hidden className="bg-line-1 h-px flex-1" />
+                        <GitBranch size={12} strokeWidth={1.75} aria-hidden />
+                        <span>从这里分出了多条分支 · 查看</span>
+                        <span aria-hidden className="bg-line-1 h-px flex-1" />
+                      </button>
+                    )}
+                  </div>
+                );
+              }}
+            />
+            <SubagentDetailLayer parent={subagentParent} compact={compact} isDark={isDark} />
+          </div>
+        </ToolRendererInteractionProvider>
+      </SubagentParentContext.Provider>
     );
   }
 );

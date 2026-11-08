@@ -17,6 +17,7 @@ import collaborationModule from "../modules/collaboration";
 import whiteboardDocumentsModule from "../modules/whiteboard-documents";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
+import piSubagentsModule from "../modules/pi-subagents";
 import modelUsageModule from "../modules/model-usage";
 import pluginAiModule from "../modules/plugin-ai";
 import browserCompanionModule from "../modules/browser-companion";
@@ -246,6 +247,14 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
   {
     // 浏览器伴读：扩展经 /browser 直连主进程（配对授权 + scope），对话由主进程驱动 pi 宿主会话
+    name: "pi-subagents",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["pi-session"],
+    init: async () => {
+      piSubagentsModule.init();
+    },
+  },
+  {
     name: "browser-companion",
     layer: InitLayer.BACKGROUND,
     dependencies: ["server", "pi-session"],

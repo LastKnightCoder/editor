@@ -2,7 +2,6 @@ import dayjs from "dayjs";
 import { skillToolsProvider } from "@/mcp/providers/skill-tools";
 import type { ToolRegistry } from "./toolRegistry";
 import { createKnowledgeSearchTool } from "./knowledgeSearchTool";
-import { createSubAgentResearchTool } from "./subagentTool";
 
 export const BUILTIN_SOURCE = "builtin";
 
@@ -11,7 +10,6 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
     BUILTIN_SOURCE,
     [
       createKnowledgeSearchTool(),
-      createSubAgentResearchTool(),
       {
         name: "get_current_date",
         risk: "read",

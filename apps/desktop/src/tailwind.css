@@ -58,6 +58,8 @@
   --animate-insight-grow: insight-grow 600ms ease-out both;
   /* 漫步页：内容切换与岔路入场的轻微上浮淡入 */
   --animate-walk-in: walk-in 280ms var(--tau-ease-out) both;
+  /* 子 Agent 详情在辅助栏内下钻：自右侧滑入覆盖对话 */
+  --animate-subagent-drill-in: subagent-drill-in 240ms var(--tau-ease-out) both;
   /* 知识地图的洞见视图：一道光横扫地图、线从一端画到另一端、圈依次出现、问号轻轻呼吸 */
   --animate-insight-sweep-x: insight-sweep-x 2.2s ease-in-out infinite;
   --animate-insight-stroke: insight-stroke 700ms ease-out both;
@@ -111,6 +113,17 @@
   @keyframes insight-draw {
     from {
       background-size: 0% 2px;
+    }
+  }
+
+  @keyframes subagent-drill-in {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
     }
   }
 

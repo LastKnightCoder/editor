@@ -4,6 +4,7 @@ import type { ToolPermissionMode } from "@/services/tool-permission/mode";
 import { ASK_QUESTION_TOOL_NAME } from "@tau/shared/chat-core";
 import { PiToolPermissions } from "./pi-tool-permissions";
 import { PiUserQuestions } from "./pi-user-questions";
+import type { PiPermissionScope } from "./pi-permission-scope";
 
 /**
  * 会话待用户处理的交互（工具审批 + 提问）：两类等待共用一个会话内递增版本与一条通知通道，
@@ -20,6 +21,7 @@ export class PiSessionInteractions {
       interactive: boolean;
       tools: PiHostToolSpec[];
       getMode: () => ToolPermissionMode;
+      permissionScope?: PiPermissionScope;
       /** 发送快照到创建窗口；窗口已关闭时抛出，由等待方转为拒绝 */
       send: (snapshot: PiSessionInteractionSnapshot) => void;
     }
@@ -30,6 +32,7 @@ export class PiSessionInteractions {
       interactive: options.interactive,
       tools: options.tools,
       getMode: options.getMode,
+      permissionScope: options.permissionScope,
       onChange,
     });
     this.questions = new PiUserQuestions({ sessionId: options.sessionId, onChange });

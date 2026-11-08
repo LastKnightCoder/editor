@@ -88,6 +88,10 @@ import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-work
 import { basename, dirname, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
+import { PiSubagentHost } from "./pi-subagents/host";
+import type { PiPermissionScope } from "./pi-permission-scope";
+import { SUBAGENT_TOOL_NAMES, type SubagentSession } from "@/types/subagent";
+import { onChatSessionsDeleted } from "./tables/chat-session";
 import {
   acquireDatabaseSyncLock,
   assertDatabaseSyncLockOwned,
@@ -106,7 +110,11 @@ export interface PiSessionClient {
   removeListener(event: "destroyed" | "render-process-gone", listener: () => void): unknown;
 }
 
-interface HostedSession {
+export interface HostedSession {
+  databaseName: string;
+  interactive: boolean;
+  hostToolsOnly: boolean;
+  childAgent?: SubagentSession;
   toolSpecs: PiHostToolSpec[];
   toolScope?: string;
   operations: Map<AbortController, Promise<unknown>>;
@@ -178,7 +186,31 @@ export interface PiSessionCreateRequest {
   source?: UsageSource;
 }
 
+export interface SubagentSessionOptions {
+  agent: SubagentSession;
+  directory: string;
+  permissionScope: PiPermissionScope;
+}
+
 class PiSessionHostModule {
+  private static subagentRuntime: PiSubagentHost | undefined;
+
+  public static subagents(): PiSubagentHost {
+    return (PiSessionHostModule.subagentRuntime ??= new PiSubagentHost(
+      {
+        get: id => PiSessionHostModule.sessions.get(id),
+        create: (sender, request, child) =>
+          PiSessionHostModule.createSession(sender, request, child),
+        prompt: (id, text) => PiSessionHostModule.prompt(id, text),
+        abort: id => PiSessionHostModule.abort(id),
+        dispose: id => PiSessionHostModule.disposeSession(id),
+        operation: (id, run) => PiSessionHostModule.runExclusiveSession(id, run),
+        systemPrompt: hosted => renderHostSystemPrompt(hosted.systemPromptRef),
+      },
+      join(PathUtil.getAppDir(), "subagents")
+    ));
+  }
+
   private static readonly access = new PiSessionAccess();
   private static readonly creating = new Set<string>();
   private static readonly blockedDirectories = new Set<string>();
@@ -193,6 +225,12 @@ class PiSessionHostModule {
     : undefined;
 
   public static init() {
+    // 对话删除时一起清理它的子 Agent（编排记录与子会话历史）
+    onChatSessionsDeleted((database, ids) => {
+      void PiSessionHostModule.subagents()
+        .forgetParents(database, ids)
+        .catch(error => console.error("[PiSessionHost] 清理已删对话的子 Agent 失败:", error));
+    });
     ipcMain.handle(
       "pi-session:lock-library",
       async (event, { databaseName }: { databaseName: string }) =>
@@ -372,11 +410,15 @@ class PiSessionHostModule {
     ipcMain.handle("pi-session:abort", async (event, { sessionId }: { sessionId: string }) => {
       const hosted = PiSessionHostModule.sessions.get(sessionId);
       if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
+      await PiSessionHostModule.subagentRuntime?.stop(sessionId);
       await PiSessionHostModule.abort(sessionId);
       // 中止不清 pi 的插话队列：没送达的插话会滞留，等下一次 prompt 开跑时被一起吞进去。
       // 停止的语义是「这些都别发了」，所以这里清空，未送达的文本交渲染端退回待发送队列。
       const cleared = hosted.session.clearQueue();
-      return { ok: true, stranded: [...cleared.steering, ...cleared.followUp] };
+      return {
+        ok: true,
+        stranded: [...cleared.steering, ...cleared.followUp],
+      };
     });
     ipcMain.handle("pi-session:dispose", async (event, { sessionId }: { sessionId: string }) => {
       if (PiSessionHostModule.sessions.get(sessionId)?.sender !== event.sender)
@@ -469,6 +511,9 @@ class PiSessionHostModule {
             ) {
               throw new Error("回答进行中，请先停止再修改历史");
             }
+            await PiSessionHostModule.subagentRuntime?.stop(
+              [...PiSessionHostModule.sessions].find(([, item]) => item === hosted)![0]
+            );
             applySessionEdit(session.sessionManager, edit);
             notifyMemorySessionEdit(file, location);
             session.refreshContext();
@@ -548,7 +593,12 @@ class PiSessionHostModule {
           toolCallId,
           result,
           executionId,
-        }: { sessionId: string; toolCallId: string; result: unknown; executionId?: string }
+        }: {
+          sessionId: string;
+          toolCallId: string;
+          result: unknown;
+          executionId?: string;
+        }
       ) => {
         if (!executionId) return { ok: false, error: "缺少工具执行身份" };
         PiSessionHostModule.sessions
@@ -566,7 +616,12 @@ class PiSessionHostModule {
           toolCallId,
           error,
           executionId,
-        }: { sessionId: string; toolCallId: string; error: string; executionId?: string }
+        }: {
+          sessionId: string;
+          toolCallId: string;
+          error: string;
+          executionId?: string;
+        }
       ) => {
         if (!executionId) return { ok: false, error: "缺少工具执行身份" };
         PiSessionHostModule.sessions
@@ -616,7 +671,7 @@ class PiSessionHostModule {
       const sessions = PiSessionHostModule.states().filter(
         item => item.file && dirname(item.file) === dir
       );
-      if (sessions.some(item => item.busy))
+      if (sessions.some(item => item.busy || item.retained))
         throw new Error("此库仍有对话在运行，请停止回答后再同步");
       PiSessionHostModule.blockedDirectories.add(dir);
       await Promise.all(sessions.map(item => PiSessionHostModule.disposeSession(item.id)));
@@ -645,7 +700,11 @@ class PiSessionHostModule {
     }
   }
 
-  private static async createSession(sender: PiSessionClient, request: PiSessionCreateRequest) {
+  private static async createSession(
+    sender: PiSessionClient,
+    request: PiSessionCreateRequest,
+    child?: SubagentSessionOptions
+  ) {
     if (
       PiSessionHostModule.sessions.has(request.sessionId) ||
       PiSessionHostModule.creating.has(request.sessionId)
@@ -666,15 +725,21 @@ class PiSessionHostModule {
       );
       // 会话目录：浏览器扩展对话跟页面走（与库无关），其余跟当前库
       const sessionDir =
-        request.persist === false
+        child?.directory ??
+        (request.persist === false
           ? undefined
           : request.browserPageUrl
             ? browserSessionDirOf(request.browserPageUrl)
             : request.databaseName
               ? chatSessionDirOf(request.databaseName)
-              : await PiSessionHostModule.currentSessionDir();
+              : await PiSessionHostModule.currentSessionDir());
       if (sessionDir && !request.browserPageUrl)
-        assertDatabaseNotSyncing(join(PathUtil.getAppDir(), `${basename(sessionDir)}.db`));
+        assertDatabaseNotSyncing(
+          join(
+            PathUtil.getAppDir(),
+            `${child ? child.agent.databaseName.replace(/\.db$/, "") : basename(sessionDir)}.db`
+          )
+        );
       if (sessionDir && PiSessionHostModule.blockedDirectories.has(sessionDir))
         throw new Error("对话记录正在同步，请稍后重试");
       release = PiSessionHostModule.access.acquire([
@@ -692,10 +757,26 @@ class PiSessionHostModule {
         `host:${request.sessionId}`,
       ]);
       bridge = new PiToolCallBridge(sender, request.sessionId);
+      const agentTools = request.hostToolsOnly
+        ? []
+        : PiSessionHostModule.subagents().tools(request.sessionId, child?.agent);
+      const toolSpecs = (request.customTools ?? []).filter(
+        tool => !SUBAGENT_TOOL_NAMES.includes(tool.name as never)
+      );
       interactions = new PiSessionInteractions({
         sessionId: request.sessionId,
         interactive: request.interactive === true,
-        tools: request.customTools ?? [],
+        tools: [
+          ...toolSpecs,
+          ...agentTools.map(tool => ({
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters as Record<string, unknown>,
+            risk: "read" as const,
+            source: "subagents",
+          })),
+        ],
+        permissionScope: child?.permissionScope,
         getMode: () => PiSessionHostModule.permissionMode,
         send: snapshot => {
           PiSessionHostModule.touch(request.sessionId);
@@ -703,10 +784,11 @@ class PiSessionHostModule {
           sender.send("pi-session-interactions", snapshot);
         },
       });
-      const bridgedToolNames = new Set((request.customTools ?? []).map(tool => tool.name));
+      const bridgedToolNames = new Set(toolSpecs.map(tool => tool.name));
       const customTools = [
-        ...bridge.toToolDefinitions(request.customTools ?? []),
+        ...bridge.toToolDefinitions(toolSpecs),
         ...interactions.hostTools(),
+        ...agentTools,
       ];
       const memoryDatabase =
         sessionDir && !request.browserPageUrl && request.chatScope === "main-chat"
@@ -836,20 +918,34 @@ class PiSessionHostModule {
         if (sessionEvent.type === "agent_start") setMemoryForeground(request.sessionId, true);
         if (sessionEvent.type === "agent_end") {
           if (memoryDatabase && session.sessionFile)
-            emitMemorySourceChanged(memoryDatabase, { kind: "chat", id: session.sessionId });
+            emitMemorySourceChanged(memoryDatabase, {
+              kind: "chat",
+              id: session.sessionId,
+            });
           setMemoryForeground(request.sessionId, false);
         }
         trackUsage(sessionEvent);
         PiSessionHostModule.touch(request.sessionId);
+        PiSessionHostModule.subagentRuntime?.onEvent(request.sessionId, sessionEvent);
         if (sender.isDestroyed()) return;
         try {
-          sender.send("pi-session-event", { sessionId: request.sessionId, event: sessionEvent });
+          sender.send("pi-session-event", {
+            sessionId: request.sessionId,
+            event: sessionEvent,
+          });
         } catch (error) {
           console.error("[PiSessionHost] 事件序列化失败:", error);
         }
       });
       PiSessionHostModule.sessions.set(request.sessionId, {
-        toolSpecs: structuredClone(request.customTools ?? []),
+        databaseName:
+          request.databaseName ??
+          request.source?.library ??
+          (sessionDir ? basename(sessionDir) : "data"),
+        interactive: request.interactive === true,
+        hostToolsOnly: request.hostToolsOnly === true,
+        childAgent: child?.agent,
+        toolSpecs: structuredClone(toolSpecs),
         toolScope: request.toolScope,
         operations: new Map(),
         session,
@@ -871,6 +967,8 @@ class PiSessionHostModule {
         displayWriter,
         lastActive: Date.now(),
       });
+      if (!child && !request.hostToolsOnly)
+        PiSessionHostModule.subagents().attach(request.sessionId);
       // 回传会话文件（相对会话目录）与 pi 会话 id：目录表据此登记，下次打开走 resume
       return {
         ok: true,
@@ -880,7 +978,10 @@ class PiSessionHostModule {
     } catch (error) {
       interactions?.dispose();
       bridge?.dispose();
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     } finally {
       release?.();
       PiSessionHostModule.creating.delete(request.sessionId);
@@ -920,7 +1021,7 @@ class PiSessionHostModule {
     display?: PiPromptDisplay,
     retry?: PiPromptRetry
   ): Promise<{ ok: boolean; error?: string }> {
-    return PiSessionHostModule.runWithSession(sessionId, async signal => {
+    return PiSessionHostModule.runExclusiveSession(sessionId, async signal => {
       const hosted = PiSessionHostModule.sessions.get(sessionId)!;
       if (hosted.operations.size > 1) return { ok: false, error: "Agent is already processing" };
       // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
@@ -956,9 +1057,28 @@ class PiSessionHostModule {
         return { ok: true };
       } catch (error) {
         if (displayData) hosted.displayWriter.discard(displayData);
-        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
       }
     });
+  }
+
+  /** 启动新一轮前同步占位；插话继续使用允许并行准备的普通操作入口。 */
+  private static runExclusiveSession<T extends { ok: boolean }>(
+    sessionId: string,
+    run: (signal: AbortSignal) => Promise<T>
+  ): Promise<T | { ok: false; error: string }> {
+    const hosted = PiSessionHostModule.sessions.get(sessionId);
+    if (!hosted || hosted.closing) return Promise.resolve({ ok: false, error: "会话已关闭" });
+    if (hosted.operations.size || hosted.session.isStreaming || hosted.session.isCompacting) {
+      return Promise.resolve({
+        ok: false,
+        error: "Agent is already processing",
+      });
+    }
+    return PiSessionHostModule.runWithSession(sessionId, run);
   }
 
   private static async runWithSession<T extends { ok: boolean }>(
@@ -967,12 +1087,27 @@ class PiSessionHostModule {
   ): Promise<T | { ok: false; error: string }> {
     const hosted = PiSessionHostModule.sessions.get(sessionId);
     if (!hosted || hosted.closing) return { ok: false, error: "会话已关闭" };
+    if (hosted.childAgent) {
+      try {
+        assertDatabaseNotSyncing(
+          join(PathUtil.getAppDir(), `${hosted.databaseName.replace(/\.db$/, "")}.db`)
+        );
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
     const file = hosted.session.sessionFile;
     if (file && dirname(dirname(file)) === chatSessionRoot()) {
       try {
         assertDatabaseNotSyncing(join(PathUtil.getAppDir(), `${basename(dirname(file))}.db`));
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
       }
     }
     const controller = new AbortController();
@@ -984,9 +1119,13 @@ class PiSessionHostModule {
     try {
       return await task;
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     } finally {
       hosted.operations.delete(controller);
+      PiSessionHostModule.subagentRuntime?.idle(sessionId);
     }
   }
 
@@ -1030,6 +1169,7 @@ class PiSessionHostModule {
       return {
         id,
         file: hosted.session.sessionFile,
+        retained: Boolean(PiSessionHostModule.subagentRuntime?.pinned(hosted)),
         busy:
           Boolean(hosted.closing) ||
           hosted.operations.size > 0 ||
@@ -1066,6 +1206,7 @@ class PiSessionHostModule {
     if (hosted.closing) return hosted.closing;
     hosted.closing = (async () => {
       hosted.detachSender();
+      await PiSessionHostModule.subagentRuntime?.release(sessionId);
       await PiSessionHostModule.abort(sessionId);
       hosted.displayWriter.dispose();
       hosted.interactions.dispose();
@@ -1073,6 +1214,8 @@ class PiSessionHostModule {
       setMemoryForeground(sessionId, false);
       hosted.session.dispose();
       hosted.bridge.dispose();
+      if (hosted.childAgent && !hosted.sender.isDestroyed())
+        hosted.sender.send("pi-subagents:release-tools", { sessionId });
       PiSessionHostModule.sessions.delete(sessionId);
     })();
     return hosted.closing;
@@ -1103,7 +1246,10 @@ class PiSessionHostModule {
       ? chatSessionDirOf(location.databaseName)
       : await PiSessionHostModule.currentSessionDir();
     assertDatabaseNotSyncing(join(PathUtil.getAppDir(), `${basename(sessionDir)}.db`));
-    return { file: resolveSessionFile(sessionDir, location.sessionFile), sessionDir };
+    return {
+      file: resolveSessionFile(sessionDir, location.sessionFile),
+      sessionDir,
+    };
   }
 
   private static findByFile(file: string): HostedSession | undefined {
@@ -1119,7 +1265,10 @@ class PiSessionHostModule {
     try {
       return { ok: true, ...(await run()) };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 }
@@ -1141,7 +1290,7 @@ const toDisplayData = (
  * 宿主会话的系统提示：current 由渲染端 set-system-prompt 更新；memory 是个人背景，
  * 在本宿主第一轮按该轮输入计算后冻结，后台归纳不改动它，保证同一宿主内系统提示逐字稳定。
  */
-interface HostSystemPrompt {
+export interface HostSystemPrompt {
   current: string;
   memory: string | null;
   memoryDatabase: string | undefined;

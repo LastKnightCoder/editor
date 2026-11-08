@@ -115,5 +115,5 @@ export const desktopToolInteractionHost: ToolInteractionHost = {
   answerQuestion: (_execution, request, answers) =>
     answerQuestion(request as PiUserQuestionRequest, answers),
   riskLabel: risk => RISK_LABEL[risk as keyof typeof RISK_LABEL] ?? risk,
-  approvalHint: "可在设置「AI 服务 · 工具权限」里改为自动",
+  approvalHint: "本会话授权由父对话及其子 Agent 共享；可在设置「AI 服务 · 工具权限」调整",
 };

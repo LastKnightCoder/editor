@@ -10,7 +10,7 @@ import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
 import OpenAIImageResultRenderer from "./OpenAIImageResultRenderer";
 import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import SubAgentResearchRenderer from "./SubAgentResearchRenderer";
-import { SUBAGENT_RESEARCH_RENDERER_KEY } from "@/tools/subagentTool";
+import { SUBAGENT_RESEARCH_RENDERER_KEY } from "@/agent/subagentResearch";
 import VLProductRenderer from "@/features/vibe-learning/views/VibeLearningView/chat/ProductCard";
 import { VL_PRODUCT_RENDERER_KEY } from "@/features/vibe-learning/views/VibeLearningView/chat/productPayload";
 import AssistantTaskRenderer from "./AssistantTaskRenderer";
@@ -284,6 +284,9 @@ export function initToolCallRenderers(): void {
     ].filter(entry => !assistantNames.has(entry.toolName))
   );
   registerToolCallRenderers(
-    [...assistantNames].map(toolName => ({ toolName, renderer: AssistantTaskRenderer }))
+    [...assistantNames].map(toolName => ({
+      toolName,
+      renderer: AssistantTaskRenderer,
+    }))
   );
 }

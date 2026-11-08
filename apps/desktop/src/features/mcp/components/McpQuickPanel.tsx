@@ -4,25 +4,34 @@
  * 只属于对应页面的对话（toolScope），常开，列在「当前页面」组，开关只读。
  */
 
+import { useMemo } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { Switch } from "@tau/ui";
+import { Switch, cn } from "@tau/ui";
 import { openPage } from "@/services/page-navigation";
 import type { ScopedToolSource } from "@/tools/toolRegistry";
 import {
   setServerEnabled,
   useMcpServers,
   useScopedToolSource,
+  getSubagentServerItem,
   type McpServerItem,
 } from "../useMcpServers";
 import { StatusDot, statusText } from "../views/ServerVisual";
 
 function Row({ item }: { item: McpServerItem }) {
   return (
-    <label className="text-tau-body hover:bg-hover flex h-[36px] cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5">
+    <label
+      className={cn(
+        "text-tau-body hover:bg-hover flex h-[36px] items-center gap-2.5 rounded-[10px] px-2.5",
+        item.locked ? "cursor-default" : "cursor-pointer"
+      )}
+    >
       <StatusDot status={item.status} />
       <span
         className="min-w-0 flex-1 truncate"
-        title={item.pluginName ? `来自 ${item.pluginName}` : undefined}
+        title={
+          item.pluginName ? `来自 ${item.pluginName}` : item.locked ? item.description : undefined
+        }
       >
         {item.name}
       </span>
@@ -37,9 +46,15 @@ function Row({ item }: { item: McpServerItem }) {
       </span>
       <Switch
         size="sm"
-        aria-label={item.enabled ? `停用 ${item.name}` : `启用 ${item.name}`}
+        aria-label={
+          item.locked
+            ? `${item.name}（常开）`
+            : item.enabled
+              ? `停用 ${item.name}`
+              : `启用 ${item.name}`
+        }
         checked={item.enabled}
-        disabled={item.status === "unavailable"}
+        disabled={item.locked || item.status === "unavailable"}
         onCheckedChange={v => void setServerEnabled(item, v)}
       />
     </label>
@@ -64,9 +79,10 @@ function ScopedRow({ scene }: { scene: ScopedToolSource }) {
 
 export function McpQuickPanel({ toolScope, onClose }: { toolScope?: string; onClose: () => void }) {
   const { builtin, custom } = useMcpServers();
+  const subagentServer = useMemo(() => getSubagentServerItem(), []);
   const scoped = useScopedToolSource(toolScope);
   const groupTitle = (title: string) => (
-    <div className="text-tau-sm text-ink-3 px-2.5 pb-1 pt-2 font-semibold first:pt-1">{title}</div>
+    <div className="text-tau-sm text-ink-3 px-2.5 pt-2 pb-1 font-semibold first:pt-1">{title}</div>
   );
   const group = (title: string, items: McpServerItem[]) =>
     items.length > 0 && (
@@ -87,7 +103,7 @@ export function McpQuickPanel({ toolScope, onClose }: { toolScope?: string; onCl
         </>
       )}
       {group("自定义", custom)}
-      {group("内置", builtin)}
+      {group("内置", [...builtin, subagentServer])}
       <button
         type="button"
         onClick={() => {

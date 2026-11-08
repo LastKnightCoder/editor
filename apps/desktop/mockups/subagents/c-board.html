@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>子 Agent · 方案 C 子 Agent 看板</title>
+<link rel="stylesheet" href="shared.css?v=4" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { SCENES, scene, mount, ic, avatar, statusTag, needsUser, isActive, agentById, rail, titlebar, attentionPop, composer, chatHead, otherPage, renderFlow, askCard, detailInner } from "./shared.js?v=4";
+
+const NOTE = `<h3>方案 C · 子 Agent 看板</h3>
+<p>把子 Agent 当成这次对话的「团队」：对话头部多一个「对话 / 子 Agent」切换。对话里只保留一张引用小条；切到「子 Agent」视图，按「等你处理 / 进行中 / 已结束」三列看全部子 Agent，卡片上直接作答，点卡片在居中浮层看详情。</p>
+<ul><li class="pro">子 Agent 多（5 个以上）、跨多轮复用时最清晰，状态一屏总览</li>
+<li class="pro">对话流最干净，主 Agent 的回答不被打断</li>
+<li class="pro">「等你处理」独立成列，最紧急的事永远在左上</li>
+<li class="con">要切视图才能看到进度，和对话是两个心智空间</li>
+<li class="con">只有 1~2 个子 Agent 时显得过重；需要配合对话头部的状态徽标</li></ul>
+<p>跨页面：标题栏「待你处理」弹层，与 A 相同。</p>`;
+
+function bcard(a) {
+  const ft = `<div class="ft">${statusTag(a)}<span class="sp"></span>${a.runs > 1 ? `<span>第 ${a.runs} 次</span>` : ""}<span class="num">${a.tools} 次工具</span>${a.elapsed && a.status !== "queued" ? `<span class="num">${a.elapsed}</span>` : ""}</div>`;
+  let mid = `<div class="task">${a.followup || a.task}</div>`;
+  if (needsUser(a)) mid += askCard(a, { compact: true });
+  else if (a.status === "running") mid += `<div class="tail">${a.progress?.[0] ? `<div class="ln" style="color:var(--info)">${ic("arrow-up-right")}<span>${a.progress[0]}</span></div>` : ""}<div class="ln act live" style="font-size:11.5px">${ic("loader")}<span>${a.act}</span></div></div>`;
+  else if (a.status === "queued") mid += `<div class="tail"><div class="ln">${ic("clock")}<span>${a.act}</span></div></div>`;
+  else if (a.status === "completed") mid = `<div class="res">${a.result}</div>`;
+  else if (a.error) mid += `<div class="tail" style="background:var(--danger-soft);color:var(--danger)"><div class="ln">${ic("circle-x")}<span>${a.error}</span></div></div>`;
+  return `<div class="bcard ${needsUser(a) ? "att" : ""}" data-act="open:${a.id}"><div class="h">${avatar(a)}<b>${a.title}</b>${ic("maximize-2")}</div>${mid}${ft}</div>`;
+}
+
+function board(sc) {
+  const lanes = [
+    ["等你处理", "bell-ring", sc.agents.filter(needsUser), "没有需要你处理的事"],
+    ["进行中", "loader", sc.agents.filter(a => a.status === "running" || a.status === "queued"), "没有进行中的子 Agent"],
+    ["已结束", "check-check", sc.agents.filter(a => !isActive(a)), "还没有结束的子 Agent"],
+  ];
+  return `<div class="board">${lanes.map(([t, icon, list, empty]) => `<div class="lane"><div class="lane-h">${ic(icon)}<b>${t}</b><span class="n num">${list.length}</span></div>${list.length ? list.map(bcard).join("") : `<div class="empty">${empty}</div>`}</div>`).join("")}</div>`;
+}
+
+const special = sc => item => {
+  const ids = item.spawn || (item.send && [item.send]) || (item.spawnSync && [item.spawnSync]) || item.inbox;
+  if (!ids) return "";
+  const list = ids.map(id => agentById(sc, id));
+  const verb = item.spawn ? `派出 ${list.length} 个子 Agent` : item.send ? "续派给" : item.spawnSync ? "等待子 Agent（同步）" : `收到 ${list.length} 条结果`;
+  const icon = item.spawn || item.spawnSync ? "git-fork" : item.send ? "corner-down-right" : "inbox";
+  const pre = item.spawnSync ? `<div class="msg-a"><p>我派一个子 Agent 去核对官方文档，等它回来再答你。</p></div>` : "";
+  const live = item.spawnSync ? `<span class="act live" style="margin-left:4px">${ic("loader")}<span>${list[0].act}</span></span>` : "";
+  return `${pre}<div><button class="ref" data-act="view:agents">${ic(icon)}<span>${verb}</span><span class="avs">${list.map(a => avatar(a, "xs")).join("")}</span><b>${list.length === 1 ? list[0].title : ""}</b>${live}${ic("arrow-right")}</button></div>`;
+};
+
+mount("c-board.html", (key, ui) => {
+  const sc = scene(key);
+  if (ui._k !== key) { ui._k = key; ui.view = ["s3", "s5", "s6", "s7"].includes(key) ? "agents" : "chat"; if (key === "s7") ui.drawer = sc.detail; if (key === "s8") ui.pop = true; }
+  const attention = sc.agents.filter(needsUser);
+  const running = sc.agents.filter(a => a.status === "running").length;
+  const onChat = !sc.page;
+  const tb = titlebar({
+    crumb: onChat ? `AI 对话 ${ic("chevron-right")} <b>三家同步方案调研</b>` : `<b>卡片库</b>`,
+    attention, running: onChat ? 0 : running, popOpen: ui.pop && attention.length, popHtml: attentionPop(sc),
+  });
+  const cnt = attention.length ? `<span class="cnt att num">${attention.length}</span>` : running ? `<span class="spin"></span>` : `<span class="cnt num">${sc.agents.length}</span>`;
+  const seg = `<span class="seg2"><button class="${ui.view === "chat" ? "on" : ""}" data-act="view:chat">${ic("message-circle")}对话</button><button class="${ui.view === "agents" ? "on" : ""}" data-act="view:agents">${ic("users")}子 Agent ${cnt}</button></span>`;
+  let content;
+  if (onChat) {
+    const main = ui.view === "chat" ? `<div class="flow"><div class="flow-in">${renderFlow(sc, special(sc))}</div></div>${composer({ busy: sc.parentBusy })}` : board(sc) + composer({ busy: sc.parentBusy });
+    const focus = ui.drawer ? `<div class="focus-wrap"><div class="focus">${detailInner(agentById(sc, ui.drawer))}</div></div>` : "";
+    content = `<section class="panel">${chatHead(seg)}${main}${focus}</section>`;
+  } else content = otherPage();
+  const anno = `<div class="anno" style="left:640px;top:62px">对话头部切换视图；徽标显示待处理数或进行中</div>`;
+  return { html: `<div class="win">${rail(onChat ? "chat" : "cards")}<div class="col">${tb}<div class="body">${content}</div></div>${anno}</div>`, note: NOTE };
+}, { scenes: SCENES.filter(([k]) => k !== "s10" && k !== "s11") });
+</script>
+</body>
+</html>

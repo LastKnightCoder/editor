@@ -36,6 +36,12 @@ describe("同一文件只能有一个宿主", () => {
 });
 
 describe("空闲回收", () => {
+  it("异步子任务持有的父会话不回收，但不把父会话标成忙", () => {
+    const parent = state("parent", "/s/a", { retained: true });
+    expect(parent.busy).toBe(false);
+    expect(idleSessionsToDispose([parent], IDLE_DISPOSE_MS * 3)).toEqual([]);
+    expect(resolveFileConflict([parent], "/s/a")).toHaveProperty("reject");
+  });
   it("空闲超过阈值的回收；忙的、刚活动过的不动", () => {
     const now = IDLE_DISPOSE_MS * 3;
     expect(

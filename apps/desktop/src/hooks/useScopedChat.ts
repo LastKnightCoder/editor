@@ -15,6 +15,7 @@ import useChatSessionStore, {
   ChatBucketStatus,
   bucketKeyOf,
   draftFor,
+  isDraftReleased,
   resetDraft,
   rowToChat,
   selectBucketStatus,
@@ -47,11 +48,21 @@ export function useScopedChat(bucket: ChatBucketRef, options: UseScopedChatOptio
   // 草稿槽版本：点「新对话」时换一个新草稿
   const [draftVersion, setDraftVersion] = useState(0);
   const draftSlotKey = `${draftSlot}|${key}`;
-  const draft = useMemo(
+  const memoDraft = useMemo(
     () => draftFor(draftSlotKey, bucket),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [draftSlotKey, draftVersion]
   );
+  // 草稿登记成对话后又被删除：不能再退回它（会复用旧 id，连带旧对话的子 Agent 等记录），换新草稿
+  const memoDraftLive = useChatSessionStore(
+    state =>
+      Boolean(state.opened[memoDraft.id]) ||
+      (state.buckets[key]?.rows ?? []).some(item => item.id === memoDraft.id)
+  );
+  const draft =
+    !memoDraftLive && isDraftReleased(draftSlotKey, memoDraft)
+      ? draftFor(draftSlotKey, bucket)
+      : memoDraft;
   // 选中项有效：目录里有它，或它是已打开的对话（刚登记、目录行还没回来）/ 本面板的草稿
   const requestedOpen = useChatSessionStore(state =>
     requestedId ? Boolean(state.opened[requestedId]) : false

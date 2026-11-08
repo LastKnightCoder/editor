@@ -23,6 +23,7 @@ import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 import { useShellStore } from "./shellStore";
 import { toggleAssistFor, useAssistOwned } from "./assistOwner";
+import { SubagentAttention } from "@/features/chat/components/subagents/SubagentAttention";
 
 export function Titlebar() {
   const { navigator, state, breadcrumbs } = usePage();
@@ -49,6 +50,8 @@ export function Titlebar() {
   const currentKeyRef = useRef(currentKey);
   currentKeyRef.current = currentKey;
   const assistOwned = useAssistOwned(currentKey);
+  // 对话已在眼前（对话页或辅助栏）时不再重复提示进行中的子任务
+  const chatVisible = useShellStore(s => s.assistOpen) || currentKey === "chat";
 
   // Ctrl/⌘+J 开合停靠栏；栈顶页面接管时交给页面（D-070）。
   // 输入框里同样生效——对话输入框本身就在栏内，收起不应要求先移走焦点。输入法组合期间不抢键
@@ -71,7 +74,7 @@ export function Titlebar() {
   const canForward = state.forward.length > 0;
 
   return (
-    <header className="app-region-drag flex select-none items-center gap-2.5 px-3.5">
+    <header className="app-region-drag flex items-center gap-2.5 px-3.5 select-none">
       <div className="app-region-no-drag flex items-center gap-2.5">
         <IconButton
           onClick={() => navigator.back()}
@@ -103,7 +106,7 @@ export function Titlebar() {
         type="button"
         onClick={togglePalette}
         title="搜索或跳转 (Ctrl+K)"
-        className="app-region-no-drag bg-surface text-tau-sm text-ink-2 shadow-card hover:border-accent hover:text-ink-1 flex h-[30px] items-center gap-2 rounded-full border border-transparent pl-3 pr-1"
+        className="app-region-no-drag bg-surface text-tau-sm text-ink-2 shadow-card hover:border-accent hover:text-ink-1 flex h-[30px] items-center gap-2 rounded-full border border-transparent pr-1 pl-3"
       >
         <Search size={13} strokeWidth={1.75} />
         搜索或跳转…
@@ -118,6 +121,9 @@ export function Titlebar() {
       {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
       <ThemeToggle />
       {/* Windows/Linux 三键（Mac：自绘信号灯见 Sidebar 头部）；拖拽区行为见 header 类 */}
+      <div className="app-region-no-drag">
+        <SubagentAttention showRunning={!chatVisible} />
+      </div>
       <div className="app-region-no-drag">{isWinOrLinux && <WindowControls />}</div>
     </header>
   );
@@ -180,7 +186,11 @@ function AssistToggle() {
   );
 }
 
-const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
+const APPEARANCE_LABELS = {
+  light: "浅色",
+  dark: "深色",
+  system: "跟随系统",
+} as const;
 
 /** 快捷明暗切换：icon 反映当前偏好，点击按 浅色 → 深色 → 跟随系统 循环（不动主题族）。 */
 export function ThemeToggle() {

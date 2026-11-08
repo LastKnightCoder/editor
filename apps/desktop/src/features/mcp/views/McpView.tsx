@@ -15,6 +15,7 @@ import {
   useMcpServers,
   getScopedServerItems,
   getPiBuiltinServerItem,
+  getSubagentServerItem,
   type McpServerItem,
 } from "../useMcpServers";
 import { AddServerDialog } from "./AddServerDialog";
@@ -79,7 +80,7 @@ function ServerCard({
           {item.description}
         </p>
       ) : (
-        <p className="font-tau-mono text-ink-3 line-clamp-2 min-h-[2lh] break-all text-[11.5px] leading-[1.6]">
+        <p className="font-tau-mono text-ink-3 line-clamp-2 min-h-[2lh] text-[11.5px] leading-[1.6] break-all">
           {item.target}
         </p>
       )}
@@ -117,10 +118,11 @@ export function McpView() {
   const { builtin, custom } = useMcpServers();
   const scoped = useMemo(() => getScopedServerItems(), []);
   const piBuiltin = useMemo(() => getPiBuiltinServerItem(), []);
-  /* 内置 = provider 工具 + 功能工具 + AI 基础工具：对用户一律是「内置」，只是部分常开不可关 */
+  const subagents = useMemo(() => getSubagentServerItem(), []);
+  /* 内置包含 provider、功能专属与宿主工具，宿主工具常开不可关。 */
   const builtinAll = useMemo(
-    () => [...builtin, ...scoped, piBuiltin],
-    [builtin, scoped, piBuiltin]
+    () => [...builtin, ...scoped, piBuiltin, subagents],
+    [builtin, scoped, piBuiltin, subagents]
   );
   const customServers = useMCPStore(s => s.customServers);
   const [query, setQuery] = useState("");
@@ -146,7 +148,8 @@ export function McpView() {
       0
     ) +
     scoped.reduce((n, i) => n + i.tools.length, 0) +
-    piBuiltin.tools.length;
+    piBuiltin.tools.length +
+    subagents.tools.length;
   const nothing = shownCustom.length + shownBuiltin.length === 0;
 
   const exportAll = async () => {
@@ -155,12 +158,12 @@ export function McpView() {
   };
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：页头固定在纸顶，卡片在纸内滚动（同 Skill 页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="flex h-10 flex-none items-center gap-3">
-            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
               MCP 服务器
             </h1>
             {/* w-0 + flex-1：填满剩余宽度并截断，不撑大页面的最小宽度 */}
@@ -210,7 +213,7 @@ export function McpView() {
           </p>
         </div>
 
-        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-3">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pt-3 pr-[26px] pb-2 pl-8">
           {(!q || shownCustom.length > 0) && (
             <Section title="自定义" hint={custom.length > 0 ? String(custom.length) : undefined}>
               {shownCustom.map(item => (

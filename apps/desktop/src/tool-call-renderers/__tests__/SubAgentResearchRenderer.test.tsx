@@ -2,7 +2,6 @@ import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { subAgentResearchStore } from "@/agent/subagentResearchStore";
 import type { ToolCallExecutionState } from "@/types";
 
 import SubAgentResearchRenderer from "../SubAgentResearchRenderer";
@@ -100,7 +99,6 @@ const unmount = async (root: Root, container: HTMLElement) => {
 
 describe("SubAgentResearchRenderer", () => {
   beforeEach(() => {
-    subAgentResearchStore.clear();
     vi.spyOn(window, "getComputedStyle").mockReturnValue({
       getPropertyValue: () => "0px",
     } as unknown as CSSStyleDeclaration);
@@ -158,7 +156,6 @@ describe("SubAgentResearchRenderer", () => {
   });
 
   it("刷新后仅依赖持久化 metadata 也能渲染详情", async () => {
-    subAgentResearchStore.clear();
     const execution = createExecution({
       status: "success",
     });
