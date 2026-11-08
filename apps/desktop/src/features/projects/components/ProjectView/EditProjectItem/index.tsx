@@ -237,7 +237,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         >
           <div
             ref={setScrollEl}
-            className="@container/editor edge-fade-scroll tau-sheet-scroll min-h-0 flex-1 overflow-y-auto [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
+            className="edge-fade-scroll tau-sheet-scroll @container/editor min-h-0 flex-1 overflow-y-auto [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
           >
             <div
               className={cn(
@@ -266,12 +266,16 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                       onPressEnter={onPressEnter}
                     />
                   </div>
-                  <div className="mb-6 flex items-center gap-2.5">
-                    <div className="flex gap-2.5 text-[0.9em] opacity-80">
-                      <div>创建于 {formatDate(projectItem.createTime, true)}</div>
-                      <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
+                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
+                    <div className="flex min-w-0 flex-1 flex-wrap gap-2.5 text-[0.9em] opacity-80">
+                      <div className="whitespace-nowrap">
+                        创建于 {formatDate(projectItem.createTime, true)}
+                      </div>
+                      <div className="whitespace-nowrap">
+                        最后修改于 {formatDate(projectItem.updateTime, true)}
+                      </div>
                       {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
-                      <div className="tabular-nums">
+                      <div className="whitespace-nowrap tabular-nums">
                         {projectItem.count.toLocaleString("zh-CN")} 字
                       </div>
                     </div>
@@ -384,7 +388,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               {!composing && headers.length > 0 && (
                 <div
                   ref={setOutlineScrollEl}
-                  className="@[960px]/editor:block edge-fade-scroll sticky top-5 hidden overflow-y-auto overscroll-y-contain"
+                  className="edge-fade-scroll sticky top-5 hidden overflow-y-auto overscroll-y-contain @[960px]/editor:block"
                   style={{ maxHeight: outlineMaxHeight }}
                 >
                   <ContentOutline
