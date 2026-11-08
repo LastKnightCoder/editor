@@ -25,8 +25,12 @@ vi.mock("@/page/PageProvider", () => ({
   usePage: () => ({ navigator: { push: mocks.push } }),
 }));
 vi.mock("@/features/walk/open", () => ({ openWalkItem: mocks.openWalkItem }));
-vi.mock("@/features/cards/components/CardContentPreview", () => ({
-  CardContentPreview: () => <div>正文预览</div>,
+vi.mock("@/components/ContentEditor", () => ({
+  default: ({ contentId, readonly }: { contentId: number; readonly: boolean }) => (
+    <div data-content-id={contentId} data-readonly={readonly}>
+      正文订阅
+    </div>
+  ),
 }));
 
 import { WalkDeckPanel } from "../views/WalkDeckPanel";
@@ -109,6 +113,9 @@ describe("WalkDeckPanel", () => {
     expect(text).toContain("旧卡 1");
     expect(text).toContain("1 / 5");
     expect(text).toContain("今天的 5 张");
+    expect(document.querySelector('[data-content-id="1"]')?.getAttribute("data-readonly")).toBe(
+      "true"
+    );
     expect(mocks.markSeen).toHaveBeenCalledWith(ITEMS[0].ref);
     expect(mocks.markSeen).toHaveBeenCalledTimes(1);
   });
@@ -123,6 +130,8 @@ describe("WalkDeckPanel", () => {
     expect(mocks.advance).toHaveBeenCalledWith({ date: expect.any(String), cursor: 1 });
     expect(mocks.markSeen).toHaveBeenLastCalledWith(ITEMS[1].ref);
     expect(document.body.textContent ?? "").toContain("旧卡 2");
+    expect(document.querySelector('[data-content-id="2"]')).not.toBeNull();
+    expect(document.querySelector('[data-content-id="1"]')).toBeNull();
   });
 
   it("池为空时整块（含小节标题）不渲染", async () => {

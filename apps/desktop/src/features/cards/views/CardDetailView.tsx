@@ -69,7 +69,6 @@ import { cardTitle as titleOfCard } from "@/utils/card-title";
 import { useInsightsView } from "@/features/insights/useInsightsView";
 import { cardMorphKey } from "../morph";
 import { usePatternCardDraft } from "../usePatternCardDraft";
-import { CardContentPreview } from "../components/CardContentPreview";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
 import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 import { PluginEntityPanels } from "@/app/plugins/entity-panels";
@@ -394,13 +393,6 @@ export function CardDetailView() {
                     ref={editorRef}
                     contentId={card.contentId}
                     key={`${card.id}-${editorRemountKey}`}
-                    fallback={
-                      <CardContentPreview
-                        content={card.content}
-                        blocks={Infinity}
-                        className="min-h-[80px]"
-                      />
-                    }
                     initValue={card.content}
                     readonly={false}
                     source={{ sourceType: "card", sourceId: card.id }}

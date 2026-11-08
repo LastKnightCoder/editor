@@ -2,8 +2,8 @@
  * 一条碎碎念：时间 · （补记）· 正文 · 标签。
  *
  * 阅读态 / 编辑态分离（D-044，修 legacy 常驻编辑器误触即改）：默认用只读 Editor 渲染
- * （不建协作会话，同卡片墙 CardContentPreview）；点正文才挂 ContentEditor（内容会话、
- * 协作照旧）——会话就绪前继续显示只读渲染、就绪后光标落在点击处，切换不闪不跳；
+ * （不建协作会话，同卡片墙 ContentPreivew）；点正文才挂 ContentEditor（内容会话、
+ * 协作照旧）——会话加载时显示 Loading，就绪后光标落在点击处；
  * 实时保存（节流落库、退出 / 卸载时补存），⌘↵ / Esc / 点流里别处退出，不设「完成」按钮。
  * 悬停操作（标签 / 更多）占固定槽位原位淡入，不顶开布局。
  */
@@ -155,7 +155,7 @@ export const MomentItem = memo(function MomentItem({
             · 补记于 {shortDate(dayKey(moment.createTime), today)}
           </span>
         )}
-        <div className="ml-auto flex gap-0.5 opacity-0 transition-opacity duration-[160ms] focus-within:opacity-100 group-hover/moment:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+        <div className="ml-auto flex gap-0.5 opacity-0 transition-opacity duration-[160ms] group-hover/moment:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
           <TagPicker
             placement="bottom-end"
             selected={moment.tags}
@@ -208,13 +208,7 @@ export const MomentItem = memo(function MomentItem({
             }
           }}
         >
-          <MomentEditor
-            moment={moment}
-            at={at}
-            caret={caretRef}
-            onChange={save}
-            fallback={<MomentReader content={moment.content} revision={moment.updateTime} />}
-          />
+          <MomentEditor moment={moment} at={at} caret={caretRef} onChange={save} />
         </div>
       ) : (
         <div
@@ -285,13 +279,11 @@ function MomentEditor({
   moment,
   at,
   caret,
-  fallback,
   onChange,
 }: {
   moment: DiaryMoment;
   at?: string;
   caret: React.RefObject<BasePoint | null>;
-  fallback: React.ReactNode;
   onChange: (content: Descendant[]) => void;
 }) {
   const editorRef = useRef<EditorRef | null>(null);
@@ -305,7 +297,6 @@ function MomentEditor({
         contentId={moment.contentId}
         initValue={initValue}
         readonly={false}
-        fallback={fallback}
         onInit={() => requestAnimationFrame(() => placeCaret(editorRef.current, caret.current))}
         onChange={onChange}
         source={{ sourceType: "content", sourceId: moment.contentId }}

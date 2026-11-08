@@ -1,15 +1,7 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { useContentLocation } from "./useContentLocation";
 import { DocTasksStatusBar } from "./DocTasksStatusBar";
-import { Loader2 } from "lucide-react";
+import { Loading } from "@tau/ui";
 import { Editor, type EditorRef } from "@tau/editor";
 import { useInlineSuggestionProvider } from "@/hooks/useInlineSuggestionProvider";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
@@ -34,8 +26,6 @@ type ContentEditorProps = ComponentProps<typeof Editor> & {
   contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   source?: Omit<ContentSessionTarget, "contentId">;
   onLoadError?: (error: string) => void;
-  /** 会话就绪前的占位（缺省为转圈）；传只读渲染可让「阅读 → 编辑」切换不闪不跳 */
-  fallback?: ReactNode;
   /** 声明编辑目标身份后，可写实例会注册为 AI 可感知的「当前编辑上下文」（选区/光标/内容） */
   editingContext?: { entityType: EntityType; entityId?: number | string };
 };
@@ -62,7 +52,7 @@ const containsContract = (nodes: readonly Descendant[]): boolean =>
   );
 
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, contracts, source, onLoadError, fallback, editingContext, at, ...props }, ref) => {
+  ({ contentId, contracts, source, onLoadError, editingContext, at, ...props }, ref) => {
     const [locationEditor, setLocationEditor] = useState<{
       editor: ReturnType<EditorRef["getEditor"]>;
       contentId?: number;
@@ -186,11 +176,12 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }, [canRegisterEditing, contentId, entityType, entityId]);
 
     if ((contentId || hasContracts) && !document) {
-      if (fallback !== undefined && !sessionError && !error) return <>{fallback}</>;
-      return (
+      return sessionError || error ? (
         <div role="status" className="text-ink-3 flex min-h-40 items-center justify-center">
-          {sessionError || error || <Loader2 className="animate-spin" />}
+          {sessionError || error}
         </div>
+      ) : (
+        <Loading minHeight={160} />
       );
     }
     return (

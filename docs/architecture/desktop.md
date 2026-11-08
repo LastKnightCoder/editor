@@ -345,7 +345,7 @@ FadeScroll、可拖宽侧栏、If、ErrorBoundary、PortalToBody 和编辑目标
 
 宿主提供主题运行时、UiProvider、DndProvider 和 Tailwind 扫描。缺失扩展时没有其创建入口；未知元素保留数据和子树，显示通用占位，并支持元素树定位与删除。状态和快照先提交，再逐个隔离通知观察者，扩展异常不得阻断保存通知。扩展数据契约扩展 id 与元素/命令/贡献按命名空间隔离（`tau` 保留），装配失败只禁用该扩展并清理其贡献；元素私有数据收敛在 `element.data`，由定义的 schema（Standard Schema v1，仅同步）和精确数据契约负责校验，版本转换由宿主显式发起；快照带必填顶层 `version`，文档版本高于当前应用时画布强制只读、不回调 onChange。创建交互开放元素经 `create` 声明创建方式（click/drag/自定义手势），内核统一负责约束、预览与提交（预览不写文档）；工具模型为 activeTool（`tau.select` 为显式选择工具，旧创建类型枚举与兼容层已删除），受控 API 提供 setActiveTool / onActiveToolChange、坐标转换与 canContain。事件分层与快捷键仲裁内核事件只有内核能发、扩展只能监听，扩展事件按命名空间隔离（`tau.*` 归内置，界面操作统一为 `tau.modal.open` 这类扩展事件，`internal:` 包内专用），快捷键只是「按键 → 命令」（内置优先，命令 enabled 不满足不拦截），mod+k/p/j、alt+方向、escape 为宿主保留键，显示文字统一经 `getShortcut` 取。独立 `@example/whiteboard` 构建、`pnpm check:whiteboard-boundaries` 与 pre-commit 守护源码和运行时模块图边界；Schema 不变（文档快照新增顶层 version 字段；卡片元素改为文档卡见下节），视觉验收由用户完成。
 
-**文档卡与阅读纸**：卡片 / 文章 / 项目文档 / 日记在白板上是 `document` 元素（`entityRef` + `title` 快照，不存 contentId；日记直接存 `{ kind: "diary-moment", id: 片段id }`，不额外存 segmentId，选择器经 EntityPicker 逐条检索），包内 `DocumentPlugin` 负责外壳（选中、缩放、连线、手绘框）与展开请求（双击 / ↵ / 属性条 / 右键 → `board.emit(DOCUMENT_OPEN_EVENT, id)`），纸面由宿主 `createDocumentExtension({ Body })` 渲染，阅读纸由 `position: "canvas"` 承载；两者在 `features/shared/whiteboard/components/Document/`：`source.ts`（react-query 按 entityRef 读元信息，日记按片段 id 取正文与所属日期信息，正文变化走 `useContentDocument`）、`DocumentPaper`（卡片与阅读纸共用的版式，版宽固定，形变只做 transform）、`DocumentCard`、`DocumentReader`（居中 / 停靠、形变、Esc 经 `DesktopEditorOverlayDismiss`；日记编辑时节流 `updateDiarySegment` 并失效同窗口的日记缓存）、`readerStore`（摆放方式全局偏好 + 按 Board 隔离的展开状态）、`DocumentSelectorModal`（工具条与右键共用）、`DocumentHostContext`（嵌白板的宿主定制：`allowDock` 关掉停靠、`cardAccessory` 往卡面上叠宿主内容，创作模式在用）。`position: "canvas"` 渲染在画布容器内：宿主浮层根节点必须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布；不要用 stopPropagation 截断，否则 document 上的 Esc 仲裁与编辑器弹层的外部点击会收不到事件。旧 `card` 元素不再自动改写。
+**文档卡与阅读纸**：卡片 / 文章 / 项目文档 / 日记在白板上是 `document` 元素（`entityRef` + `title` 快照，不存 contentId；日记直接存 `{ kind: "diary-moment", id: 片段id }`，不额外存 segmentId，选择器经 EntityPicker 逐条检索），包内 `DocumentPlugin` 负责外壳（选中、缩放、连线、手绘框）与展开请求（双击 / ↵ / 属性条 / 右键 → `board.emit(DOCUMENT_OPEN_EVENT, id)`），纸面由宿主 `createDocumentExtension({ Body })` 渲染，阅读纸由 `position: "canvas"` 承载；两者在 `features/shared/whiteboard/components/Document/`：`source.ts`（react-query 按 entityRef 读元信息，日记按片段 id 取正文与所属日期信息，文档卡与阅读纸通过 `ContentEditor` 订阅正文）、`DocumentPaper`（卡片与阅读纸共用的版式，版宽固定，形变只做 transform）、`DocumentCard`、`DocumentReader`（居中 / 停靠、形变、Esc 经 `DesktopEditorOverlayDismiss`；日记编辑时节流 `updateDiarySegment` 并失效同窗口的日记缓存）、`readerStore`（摆放方式全局偏好 + 按 Board 隔离的展开状态）、`DocumentSelectorModal`（工具条与右键共用）、`DocumentHostContext`（嵌白板的宿主定制：`allowDock` 关掉停靠、`cardAccessory` 往卡面上叠宿主内容，创作模式在用）。`position: "canvas"` 渲染在画布容器内：宿主浮层根节点必须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布；不要用 stopPropagation 截断，否则 document 上的 Esc 仲裁与编辑器弹层的外部点击会收不到事件。旧 `card` 元素不再自动改写。
 
 **日记正文身份与搜索**：EntityKind、EntityRefKind 与 ContentIndexType 均使用 `diary-moment`，id 为 `diary_segments.id`，界面类型 label 仍为「日记」；`diary_entries` 仅承载日期、天气心情与分组，不能作为正文搜索结果。实体候选、FTS 回退与全文/向量索引、内容链接、白板引用和脉络均落在同一条正文；`entity:locate` 返回片段 id + diaryId/date，`openEntity` 通过 date + moment + at 精确回跳。日记页的搜索命中集合使用片段 id。新增或删除片段及正文编辑继续触发现有索引对账。旧日级引用不再自动改写。
 
@@ -682,13 +682,13 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 默认页面切换即时、无转场；只有「同一个对象在新旧两处都出现」时才做形变（`page/morph.ts`，原生 View Transitions API，不用 React `<ViewTransition>`）。
 - 元素用 `data-morph-key="<对象 key>"` 声明自己代表谁（卡片是 `features/cards/morph.ts` 的 `cardMorphKey`）。运行时只在转场时给一对元素临时挂名（`page-morph`），不要自己写 `view-transition-name`；样式在 `app/base.css`，与对话页 ⇄ 停靠栏的 `assist-chat` 共用一组规则。
 - 业务发起的变化（打开浮层、push 新页）调 `morph({ from, update, to })`：`from` 是旧画面的元素，`update` 里同步改状态 / 导航（运行时 flushSync），`to` 返回新画面的元素，未就绪返回 null，最多等 400ms。找元素用 `queryActivePageMorph(key)`（当前激活页内）或 `queryMorphElement(scope, key)`。源元素缺失、目标超时或不在视口时自动退化（直接切换 / 源元素淡出），调用侧不用判断。
-- **转场里不能等慢资源**：更新回调期间画面冻结，`to` 等待的应是「数据已在缓存、一两次提交内就能渲染」的目标。正文会话这类慢资源要先用只读渲染占位（ContentEditor 的 `fallback`），必要时悬停预取数据；不要让目标等到编辑器初始化才出现，否则点击会卡顿，超时还会退化成淡出。
+- **转场里不能等慢资源**：更新回调期间画面冻结，`to` 等待的应是「数据已在缓存、一两次提交内就能渲染」的目标。正文会话这类慢资源加载期间直接显示 `Loading`，必要时悬停预取数据；不要让目标等到编辑器初始化才出现，否则点击会卡顿，超时还会退化成淡出。
 - 后退 / 前进由 PageProvider 统一处理：当前页和保活中的目标页都有同 key 元素才形变，业务不要为此监听后退键。新页（未挂载）的 push 只能由业务发起。
 - 新画面截图是实时的：转场期间目标页的任何重排都会被播出来。保活页恢复显示时 Activity 会重跑全部 effect（含 layout effect），「某值变化时做 X」的 effect 必须比对上次的值，不能把重跑当成变化（滚动归零用 `hooks/useScrollTopOnChange`）。
 - 转场期间根元素带 `data-morph`，更新回调执行时 rAF 不触发。靠 rAF 或 CSS 过渡播入场的浮层必须用 `[[data-morph]_&]` 变体直接渲染终态，否则会被截成透明或半途态（Dialog、AssistDock 已接）。
 - 只有一个旧状态时用 `startPageTransition(update)`（不配对，如 `app/assistMorph.ts` 的静态命名）；嵌套在另一次转场的 update 里发起的转场直接执行，不会互相打断。
 - 形式：`page-morph` 是放大缩小（新旧截图按容器宽度等比缩放、顶边对齐，超出的高度裁掉；不用 cover，宽高比悬殊时会剧烈缩放滑动。380ms，旧图 180ms 先淡出）；`assist-chat` 是容器裁切、内容不缩放。新场景按语义选用，不要再造第三套。
-- 已接入：卡片墙条目卡 / 置顶横卡 / 列表行 ⇄ 预览弹窗（`CardPreviewDialog` 的 `ref` 指向卡体，`data-state="open"` 即就绪）⇄ 详情页的纸；卡面「进入详情」直接由卡形变到纸；详情页后退缩回原卡。表格视图不形变。卡面悬停经 `actions.onPrefetch` 预取单卡全文；弹窗与详情页的正文在会话就绪前由 `CardContentPreview blocks={Infinity}` 只读占位。文章：网格卡 / 列表行 ⇄ 详情页的纸（`features/articles/morph.ts`），纸面在文章读到后声明 key，正文会话就绪前由 `ArticleBodyFallback` 只读渲染开头 24 块。
+- 已接入：卡片墙条目卡 / 置顶横卡 / 列表行 ⇄ 预览弹窗（`CardPreviewDialog` 的 `ref` 指向卡体，`data-state="open"` 即就绪）⇄ 详情页的纸；卡面「进入详情」直接由卡形变到纸；详情页后退缩回原卡。表格视图不形变。卡面悬停经 `actions.onPrefetch` 预取单卡全文；弹窗与详情页的正文在会话就绪前显示 `Loading`。文章：网格卡 / 列表行 ⇄ 详情页的纸（`features/articles/morph.ts`），纸面在文章读到后声明 key，正文会话就绪前显示 `Loading`。
 
 ### Button 使用边界
 
@@ -776,6 +776,7 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - features 可引用应用共享 components、hooks、utils，禁止新增 `@/pages` 依赖；共享 components 不反向 import features。
 - 纯搬家与行为修改分开；修改 props 时检查现有宿主和独立窗口，不能以旧页面退役为由破坏仍活跃的消费者。
 - 数据来自服务器时用 react-query；输入、筛选、作答会话和计时运行镜像保留各自合适的状态协议，不把所有 zustand 状态当作旧缓存删除。
+- 正文快照预览统一在 `components/ContentPreivew.tsx`：只渲染传入内容，可按块截断，不开正文会话。卡片墙使用快照；白板文档卡、漫步页和首页漫步牌堆使用只读 `ContentEditor` 订阅原文，会话就绪前统一显示 `Loading`。`ContentEditor` 不承载快照预览模式。
 
 ## 7. 今日页数据（已全部接线，features/home/queries.ts）
 
@@ -859,7 +860,7 @@ AI 的「卡片工具」由 `mcp/providers/card-tools.ts` 默认注册：`set_ca
 
 `features/cards/queries.ts` 按 `["cards", databaseName, "all"]` 隔离缓存，仅数据库就绪时读取；列表走主进程轻表（content 为截好的预览块），单卡全文按需经 `["cards", db, "detail", id]`（预览弹窗、导出与演示动作）。写入与卡片创建/更新/删除事件按 id 单卡并入缓存（事件载荷即全量卡片，跨窗口按 id 回查后广播），不做整域失效。`cards:*` 命令在主进程校验数据库身份，元数据只提交字段补丁并在当前记录上合并，拒绝跨库或已删除卡片写入。CardDatabaseView 经必传 `onUpdateCard(id, patch)` 接入宿主写入；连接列数据走 `useContentLinksByContentIds`，筛选结果只用于列表展示；时间组用本地自然日/周一周/自然月。标签持久化为名称字符串，表格保存标签补丁时按列选项把选项 ID 转回名称，不能保存通用多选组件的 UUID。
 
-卡片墙与表格共用预览：数据就绪后隐藏挂载 ContentEditor，正文会话与 `onInit` 完成才显示；读取失败展示错误可重试；关闭预览保留正文/标题/标签到 Dialog `onAfterClose` 再清理，避免退场中高度塌缩。卡片墙的普通与置顶卡共用 `CardContentPreview`（只读 Editor 渲染前 3 块，不开协作会话），摘要变化重建实例，列表按 contentId 更新正文与字数不重拉。
+卡片墙与表格共用预览：卡片数据就绪即可显示弹窗，`ContentEditor` 在正文会话就绪前显示 `Loading`；读取失败展示错误可重试；关闭预览保留正文/标题/标签到 Dialog `onAfterClose` 再清理，避免退场中高度塌缩。卡片墙的普通与置顶卡共用 `ContentPreivew`（只读 Editor 渲染前 3 块，不开协作会话），摘要变化重建实例，列表按 contentId 更新正文与字数不重拉。
 
 视图与排序由 `features/cards/preferences.ts` 按库持久化；视图切换经 `usePageBreadcrumb` 挂标题栏面包屑。筛选只剩标签条件（卡片墙/列表/表格共用同一会话查询，数据库视图将其与内置筛选叠加、会话条件不写入用户视图）；卡片库不设页内搜索——语义检索走命令面板，空态文案引导同一入口。卡片详情页（card-detail，match params 按 id 去重，连接 chip 经栈机异参原位更新）数据 = `useCardDetail` 单卡全量（含 linkCount），正文由 ContentEditor 文档会话持久化，元数据即时 patch；显式连接不经卡片元数据，存主库 `content_links`（按 contentId 绑定），脉络浮层与 ⋯ 菜单都走 `content-links:add/remove`（原子双边）。播客由插件 `tau.podcast` 经对象动作与详情区块提供，宿主不再持有卡片、文章、项目文档的播客。
 
@@ -917,6 +918,8 @@ AI 的「内容连接工具」由 `mcp/providers/content-link-tools.ts` 默认�
 **面板布局**：hero（问候与数字）固定非面板；内置面板登记在 `panels.ts`（固定 id/title/size/component，数组序即默认布局，ID 随库保存不要改名）。布局 = 有序 `{id, hidden}` 列表存主库 `home_panel_layout`（整份读写，乐观写失败回滚；保存过的顺序在前、未注册面板保留位置、新面板按默认序追加）。`HomePanels` 是 flex-wrap 流式容器：wide 占整行，compact `flex-[1_1_340px]`，同行等高不预设栏数；组件返回 null 外层不占位。编辑模式（「调整首页」按钮；编辑时 hero 右侧数字换成提示与「恢复默认」= 保存空布局 /「完成」，不另起提示条；Esc 退出）内容 `inert` 但不变淡。拖拽用指针事件（不用 HTML 拖放 API，Electron 里原生拖放可能起不来、连 dragend 都不来）：面板克隆成浮起卡片跟手（整行缩到 560px 宽），原位留 `[data-home-panel-slot]` 空位，拖动中的顺序是组件内 `preview`，其余面板经 motion `layout="position"` 实时让位（`FadeScroll layoutScroll`）；命中按布局位置 `offset*`（不受让位 transform 影响，紧凑面板看左右半边、整行看上下半边，让位后 10px 滞回防抖），松手才保存，Esc 取消回原序，退出编辑丢弃进行中的拖动，靠近滚动区边缘自动滚动；把手方向键移动并把焦点还给把手；隐藏面板区（点击恢复/拖回/拖进即隐藏，其上缘以下都算拖进）。回顾段保留自己的标题行与时间窗，懒加载滚动根经 `HomeScrollRootContext`。
 
 **插件面板**：`context.home.registerPanel` 登记为 `RegisteredPluginHomePanel`（布局 ID `plugin:<pluginId>:<id>`），排在内置面板之后作默认序；宿主画 Panel 外框与标题，可选 `action` 画成标题行右侧的 PanelAction（回调出错只弹通知），插件组件包在 RecoverableBoundary、UiProvider、PluginComponentScope 里只渲染正文，正文容器为空时外层隐藏；运行时其他变更不重挂插件面板；插件停用后位置保留。
+
+**漫步原文**：漫步页与首页牌堆的正文使用只读 `ContentEditor` 按 `contentId` 订阅当前正文会话，本地编辑与协作变化经现有文档订阅同步；会话就绪前显示 `Loading`，不展示抽取时的旧正文。足迹与抽取原因保留，正文变化不重抽、不重复记 seen；制卡从当前只读编辑器读取正文。首页只挂载当前牌与下一张牌的正文订阅。
 
 **漫步牌堆**：`useTodayWalkDeck` 按 `["home","walk-deck", 本地日期]` 查询（跨零点自然换新天）；翻牌与重抽乐观写回缓存，落库走 `random-walk:daily-advance`（绝对 cursor）与 `daily-reroll`；当前牌首次露出 mark-seen。打开统一走 `features/walk/open.ts`；「从这里继续走」push `walk` 页带起点。池为空整块不渲染；`prefers-reduced-motion` 跳过动画。
 
