@@ -111,8 +111,16 @@ export function layoutConversationTree(nodes: ConversationTreeNode[]): Conversat
   let branchCount = 0;
   const roots = sortSiblings(children.get(null) ?? []);
   // 深度优先按行输出；栈里放「段首 + 层级 + 是否分叉出来」
-  const pending: Array<{ node: ConversationTreeNode; depth: number; isBranch: boolean }> = roots
-    .map(node => ({ node, depth: roots.length > 1 ? 1 : 0, isBranch: roots.length > 1 }))
+  const pending: Array<{
+    node: ConversationTreeNode;
+    depth: number;
+    isBranch: boolean;
+  }> = roots
+    .map(node => ({
+      node,
+      depth: roots.length > 1 ? 1 : 0,
+      isBranch: roots.length > 1,
+    }))
     .reverse();
   while (pending.length > 0) {
     const { node: head, depth, isBranch } = pending.pop()!;
@@ -142,5 +150,9 @@ export function layoutConversationTree(nodes: ConversationTreeNode[]): Conversat
       pending.push({ node: kid, depth: depth + 1, isBranch: true });
     }
   }
-  return { rows, branchCount: Math.max(branchCount, nodes.length > 0 ? 1 : 0), forkPoints };
+  return {
+    rows,
+    branchCount: Math.max(branchCount, nodes.length > 0 ? 1 : 0),
+    forkPoints,
+  };
 }

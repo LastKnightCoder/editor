@@ -42,7 +42,7 @@ export function WorkspaceBar({ chatId, busy }: { chatId: string; busy: boolean }
   if (!info) return null;
 
   return (
-    <div className="-ml-1.5 mb-1 flex h-7 min-w-0 items-center gap-0.5 overflow-hidden">
+    <div className="mb-1 -ml-1.5 flex h-7 min-w-0 items-center gap-0.5 overflow-hidden">
       <Menu
         className="w-[300px]"
         trigger={
@@ -60,7 +60,7 @@ export function WorkspaceBar({ chatId, busy }: { chatId: string; busy: boolean }
         }
       >
         <Menu.Group>
-          <span className="block break-all font-normal tracking-normal">{info.path}</span>
+          <span className="block font-normal tracking-normal break-all">{info.path}</span>
         </Menu.Group>
         <Menu.Item
           icon={<FolderOpen className={MENU_ICON} strokeWidth={1.75} />}

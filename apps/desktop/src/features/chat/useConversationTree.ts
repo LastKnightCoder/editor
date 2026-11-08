@@ -20,13 +20,14 @@ export function useConversationTree(
       return;
     }
     let cancelled = false;
-    void piSessionTree({ sessionFile: chat.sessionFile, databaseName: chat.databaseName }).then(
-      outcome => {
-        if (cancelled) return;
-        if (outcome.ok) setNodes(outcome.nodes ?? []);
-        else console.error("[conversationTree] 读取分支失败:", outcome.error);
-      }
-    );
+    void piSessionTree({
+      sessionFile: chat.sessionFile,
+      databaseName: chat.databaseName,
+    }).then(outcome => {
+      if (cancelled) return;
+      if (outcome.ok) setNodes(outcome.nodes ?? []);
+      else console.error("[conversationTree] 读取分支失败:", outcome.error);
+    });
     return () => {
       cancelled = true;
     };

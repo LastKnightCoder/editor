@@ -48,7 +48,11 @@ export function startChat(
       resolve(sessionId);
     };
     const abort = () => settle(null);
-    const request: ChatStartRequest = { id: ++nextRequestId, ...options, settle };
+    const request: ChatStartRequest = {
+      id: ++nextRequestId,
+      ...options,
+      settle,
+    };
     signal.addEventListener("abort", abort, { once: true });
     useChatStartStore.setState({ request });
     if (options.placement === "dock") useShellStore.getState().setAssistOpen(true);

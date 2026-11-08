@@ -36,7 +36,12 @@ describe("layoutConversationTree", () => {
       node("c", "b", 3, { onPath: true }),
     ]);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ length: 3, isLeaf: true, onPath: true, depth: 0 });
+    expect(rows[0]).toMatchObject({
+      length: 3,
+      isLeaf: true,
+      onPath: true,
+      depth: 0,
+    });
     expect(rows[0].tail.id).toBe("c");
     expect(branchCount).toBe(1);
     expect(forkPoints.size).toBe(0);
@@ -59,7 +64,12 @@ describe("layoutConversationTree", () => {
     expect([...forkPoints]).toEqual(["b"]);
     // 分支进度：旧分支从分叉处起问了 2 轮，最后活动在它的第二问
     const old = rows.find(row => row.node.id === "old")!;
-    expect(old).toMatchObject({ isLeaf: true, turnsToLeaf: 2, lastActive: 9, isBranch: true });
+    expect(old).toMatchObject({
+      isLeaf: true,
+      turnsToLeaf: 2,
+      lastActive: 9,
+      isBranch: true,
+    });
   });
 
   it("不在当前路径上的兄弟按最后活动时间倒序；根上的多个版本也是分支", () => {
@@ -94,6 +104,9 @@ describe("layoutConversationTree", () => {
   });
 
   it("空对话", () => {
-    expect(layoutConversationTree([])).toMatchObject({ rows: [], branchCount: 0 });
+    expect(layoutConversationTree([])).toMatchObject({
+      rows: [],
+      branchCount: 0,
+    });
   });
 });
