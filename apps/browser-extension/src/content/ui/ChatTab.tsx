@@ -23,6 +23,7 @@ import {
   type ResponseMessage,
 } from "@tau/shared/chat-core";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared/chat-renderers";
+import { useChatAutoScroll } from "@tau/shared/src/hooks/useChatAutoScroll";
 import {
   MessageView,
   ToolApprovalBar,
@@ -52,18 +53,21 @@ function Conversation() {
   const controller = useController();
   const chat = useCompanion(state => state.chat);
   const canUseTools = useCompanion(state => state.status.scopes?.includes("tools") ?? false);
-  const listRef = useRef<HTMLDivElement>(null);
+  const { containerRef, enableAutoScroll, scrollToBottom } = useChatAutoScroll<HTMLDivElement>({});
 
   useLayoutEffect(() => {
-    const list = listRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [chat.messages]);
+    enableAutoScroll();
+  }, [chat.sessionId, enableAutoScroll]);
+
+  useLayoutEffect(() => {
+    scrollToBottom();
+  }, [chat.sessionId, chat.messages, scrollToBottom]);
 
   const send = (text: string) => void controller.chat.ask(text, { quote: chat.quote });
 
   return (
     <>
-      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-3">
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-3">
         {chat.messages.length === 0 ? (
           <div className="px-0.5 pt-7 pb-2">
             <h3 className="text-tau-title-lg text-ink-1 mb-1 font-semibold">
