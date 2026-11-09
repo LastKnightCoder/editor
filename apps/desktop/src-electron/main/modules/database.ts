@@ -652,11 +652,6 @@ class DatabaseModule implements Module {
 
   async init() {
     removeRetiredDatabaseState(PathUtil.getAppDir());
-    ipcMain.handle("reset-content-index", (_event, name: string) => {
-      // 同步替换主库后本地索引的 ID 空间整体失效，删除索引文件令其全量重建。
-      mainContentIndexDBManager.resetDatabase(name);
-      return true;
-    });
     // 无来源上下文（联动调用链）的全广播出口，须早于任何命令调用装配
     setCommandBroadcastSink((channel, args) => {
       for (const window of BrowserWindow.getAllWindows()) {

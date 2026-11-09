@@ -35,7 +35,8 @@ interface SessionRow {
   update_time: number;
 }
 
-const cache = new Map<string, { updateTime: number; docs: ChatPromptDoc[] }>();
+type SessionCache = Map<string, { updateTime: number; docs: ChatPromptDoc[] }>;
+let caches = new WeakMap<Database.Database, SessionCache>();
 
 export const chatPromptId = (sessionId: string, messageId: string) => `${sessionId}#${messageId}`;
 
@@ -117,9 +118,11 @@ export function listChatPromptDocs(
     )
     .all() as SessionRow[];
   const docs: ChatPromptDoc[] = [];
+  const cache = caches.get(mainDb) ?? new Map();
+  caches.set(mainDb, cache);
   const alive = new Set<string>();
   for (const session of sessions) {
-    const key = `${dir}\u0000${session.id}`;
+    const key = session.id;
     alive.add(key);
     const cached = cache.get(key);
     if (cached && cached.updateTime === session.update_time) {
@@ -137,12 +140,12 @@ export function listChatPromptDocs(
     docs.push(...found);
   }
   for (const key of cache.keys()) {
-    if (key.startsWith(`${dir}\u0000`) && !alive.has(key)) cache.delete(key);
+    if (!alive.has(key)) cache.delete(key);
   }
   return docs;
 }
 
 /** 测试用：清掉解析缓存 */
 export function resetChatPromptCache() {
-  cache.clear();
+  caches = new WeakMap();
 }

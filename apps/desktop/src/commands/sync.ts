@@ -415,6 +415,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
 
       const hasSessions = await syncProvider.fileExists(objects.sessions);
       console.info("[database-sync] database file downloaded", { databaseName, hasSessions });
+      const reusedSessionFiles: string[] = [];
       if (hasSessions) {
         emitProgress(options, 60, "正在读取对话记录清单...");
         await removeFile(sessionDirectory).catch(() => undefined);
@@ -461,19 +462,30 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         await runWithConcurrency(sessionNames, SESSION_TRANSFER_CONCURRENCY, async name => {
           const target = `${sessionDirectory}${sep}${name}`;
           try {
-            await downloadChunkedPath(syncProvider, objects.session(name), target, {
-              expectedName: name,
-              manifest: sessionIndex.manifests.get(name),
-              localPath: localFiles.get(name)?.path,
-              onProgress: (done, total, reused) => {
-                const previous = transferBytes.get(name) ?? { reused: 0, downloaded: 0 };
-                totals.reused += reused - previous.reused;
-                totals.downloaded += done - reused - previous.downloaded;
-                transferBytes.set(name, { reused, downloaded: done - reused });
-                fractions.set(name, total ? done / total : 1);
-                reportSessions();
-              },
-            });
+            const manifest = await downloadChunkedPath(
+              syncProvider,
+              objects.session(name),
+              target,
+              {
+                expectedName: name,
+                manifest: sessionIndex.manifests.get(name),
+                localPath: localFiles.get(name)?.path,
+                onProgress: (done, total, reused) => {
+                  const previous = transferBytes.get(name) ?? { reused: 0, downloaded: 0 };
+                  totals.reused += reused - previous.reused;
+                  totals.downloaded += done - reused - previous.downloaded;
+                  transferBytes.set(name, { reused, downloaded: done - reused });
+                  fractions.set(name, total ? done / total : 1);
+                  reportSessions();
+                },
+              }
+            );
+            if (
+              localFiles.get(name)?.size === manifest.size &&
+              (transferBytes.get(name)?.reused ?? 0) === manifest.size
+            ) {
+              reusedSessionFiles.push(name);
+            }
             completedFiles++;
             transferBytes.delete(name);
             fractions.delete(name);
@@ -497,10 +509,12 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         sessionDirectory,
         hasSessions,
       });
-      const installed = await piSessionInstallDownload(databaseName, hasSessions);
+      const installed = await piSessionInstallDownload(
+        databaseName,
+        hasSessions,
+        reusedSessionFiles
+      );
       if (!installed.ok) throw new Error(installed.error ?? "替换本地数据库失败");
-      // 主库已整体替换，本地索引的 ID 空间失效，重置后按需全量重建
-      await invoke("reset-content-index", databaseName);
     } finally {
       await removeFile(downloadPath).catch(() => undefined);
       await removeFile(sessionDirectory).catch(() => undefined);

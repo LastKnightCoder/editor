@@ -255,6 +255,24 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
     );
   });
 
+  it("下载后重启时继续补齐待处理索引并保留已完成向量", async () => {
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("pending");
+
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
+      "data.db",
+      {},
+      "startup_reconcile"
+    );
+
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledWith(
+      expect.objectContaining({ fingerprintChanged: false, reason: "startup_reconcile" })
+    );
+  });
+
   it("上传重连时若索引状态不是 ready，则仍应执行 reconcile", async () => {
     mockContext.metaStore.set(
       "main_content_embedding_fingerprint",

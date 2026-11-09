@@ -4,13 +4,18 @@ import type BackendWebSocketServer from "../../utils/BackendWebSocketServer";
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   write: vi.fn(),
-  move: vi.fn(),
+  rename: vi.fn(),
   broadcast: vi.fn(),
 }));
 vi.mock("node:fs/promises", () => ({
-  default: { readFile: mocks.read, writeFile: mocks.write, rm: vi.fn(async () => undefined) },
+  default: {
+    readFile: mocks.read,
+    writeFile: mocks.write,
+    rename: mocks.rename,
+    rm: vi.fn(async () => undefined),
+  },
 }));
-vi.mock("fs-extra/esm", () => ({ default: { pathExists: async () => true, move: mocks.move } }));
+vi.mock("fs-extra/esm", () => ({ default: { pathExists: async () => true } }));
 const initial = {
   imageBed: { active: "local" },
   imageGeneration: {
@@ -36,7 +41,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.read.mockResolvedValue(JSON.stringify(initial));
   mocks.write.mockResolvedValue(undefined);
-  mocks.move.mockResolvedValue(undefined);
+  mocks.rename.mockResolvedValue(undefined);
 });
 async function setup() {
   const { default: settings } = await import("../user-setting");
@@ -48,7 +53,7 @@ async function setup() {
 }
 it("图片配置按账号在提交队列合并，失败不发布，拒绝已删除或归属变化的账号", async () => {
   const settings = await setup();
-  mocks.move.mockRejectedValueOnce(new Error("disk"));
+  mocks.rename.mockRejectedValueOnce(new Error("disk"));
   await expect(
     settings.updateImagePlugin("a", "test.images", { region: "changed" }, "new-model")
   ).rejects.toThrow("disk");
@@ -73,14 +78,14 @@ it("落盘完成前不更新内存、不广播，成功后才通知", async () =
     listener = vi.fn();
   settings.onSettingChanged(listener);
   let finish!: () => void;
-  mocks.move.mockImplementationOnce(
+  mocks.rename.mockImplementationOnce(
     () =>
       new Promise<void>(resolve => {
         finish = resolve;
       })
   );
   const saved = settings.updateTTSPlugin("a", "test.tts", { key: "new-a" }, [{ id: "model" }]);
-  await vi.waitFor(() => expect(mocks.move).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => expect(mocks.rename).toHaveBeenCalledTimes(1));
   expect((await settings.getSettingSnapshot()).ttsProviders[0].config).toEqual({ key: "a" });
   expect(mocks.broadcast).not.toHaveBeenCalled();
   expect(listener).not.toHaveBeenCalled();
@@ -92,7 +97,7 @@ it("落盘完成前不更新内存、不广播，成功后才通知", async () =
 });
 it("保存失败不发布新配置，相同配置可以重试，失败不阻塞后续队列", async () => {
   const settings = await setup();
-  mocks.move.mockRejectedValueOnce(new Error("磁盘写入失败"));
+  mocks.rename.mockRejectedValueOnce(new Error("磁盘写入失败"));
   await expect(
     settings.updateTTSPlugin("a", "test.tts", { key: "new-a" }, [{ id: "model" }])
   ).rejects.toThrow("磁盘写入失败");
@@ -131,7 +136,7 @@ it("发布配置按提供方合并，保存失败不发布，保存非当前提�
   await settings.handleSetUserSetting({
     publish: { active: "local", plugin: { id: "selected.publisher", configurations: {} } },
   });
-  mocks.move.mockRejectedValueOnce(new Error("磁盘写入失败"));
+  mocks.rename.mockRejectedValueOnce(new Error("磁盘写入失败"));
   await expect(settings.updatePublishPlugin("test.publisher", { token: "draft" })).rejects.toThrow(
     "磁盘写入失败"
   );
@@ -216,7 +221,7 @@ it("闪卡配置升级保存失败时不发布半迁移状态，允许重新读�
       llmUsageSettings: { aiJudgement: { providerId: "old", modelId: "judge" } },
     })
   );
-  mocks.move.mockRejectedValueOnce(new Error("migration disk"));
+  mocks.rename.mockRejectedValueOnce(new Error("migration disk"));
   const settings = (await import("../user-setting")).default;
   await expect(settings.getSettingSnapshot()).rejects.toThrow("migration disk");
   await expect(settings.getSettingSnapshot()).resolves.toMatchObject({

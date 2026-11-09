@@ -223,7 +223,7 @@ class MainContentVecIndexQueue implements Module {
           if (emptyRevisions.get(id) === candidate.updateTime) return;
           const indexedTime = indexedTimes.get(id);
           const changed =
-            forceReindex || indexedTime === undefined || indexedTime < candidate.updateTime;
+            forceReindex || indexedTime === undefined || indexedTime !== candidate.updateTime;
           if (changed) {
             const input = await candidate.read(prepareTasks, client.signal);
             const result =
@@ -260,7 +260,7 @@ class MainContentVecIndexQueue implements Module {
           const key: keyof MainContentIndexCounts =
             indexedTime === undefined
               ? "unindexed"
-              : indexedTime < candidate.updateTime
+              : indexedTime !== candidate.updateTime
                 ? "outdated"
                 : "indexed";
           stats.total += 1;
