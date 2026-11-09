@@ -273,7 +273,7 @@ function writeHtmlReport(report, scope) {
   };
   const html = read("index.html")
     .replace(
-      '<link rel="stylesheet" href="style.css">',
+      /<link rel="stylesheet" href="style\.css"\s*\/?>/,
       () => `<style>\n${read("style.css")}</style>`
     )
     .replace("/* 数据占位 */ null", () => JSON.stringify(data).replaceAll("<", "\\u003c"))
