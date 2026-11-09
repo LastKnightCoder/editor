@@ -24,7 +24,7 @@ const setup = () => {
   const connection = {
     current: { state: "ready" as const },
     connect: vi.fn(),
-    request: vi.fn(async () => ({ runId: "r1" })),
+    request: vi.fn(async (): Promise<unknown> => ({ runId: "r1" })),
   };
   const annotations = { load: vi.fn(async () => []), save: vi.fn() };
   const library = { open: vi.fn(async () => {}) };
@@ -55,6 +55,52 @@ describe("CompanionHub", () => {
     });
     expect(a.received.filter(message => message.kind === "notify")).toHaveLength(1);
     expect(b.received.filter(message => message.kind === "notify")).toHaveLength(0);
+  });
+
+  it("历史查询保留原标签页的事件归属，原标签页换页后可接回运行", async () => {
+    const { hub, connection } = setup();
+    const a = port();
+    const b = port();
+    const pageUrl = "https://a.com/x";
+    hub.attach(a, 1);
+    hub.attach(b, 2);
+    for (const tab of [a, b]) tab.send({ kind: "page", url: pageUrl });
+    a.send({
+      kind: "call",
+      id: 1,
+      method: "rpc",
+      params: { method: "ai.run.start", params: { runId: "r1" } },
+    });
+    connection.request.mockResolvedValue({ runId: "r1", running: true });
+    const query = (id: number) =>
+      b.send({
+        kind: "call",
+        id,
+        method: "rpc",
+        params: { method: "ai.run.state", params: { session: { id: "s1", pageUrl } } },
+      });
+    query(2);
+    await vi.waitFor(() =>
+      expect(b.received.at(-1)).toMatchObject({ id: 2, result: { running: true } })
+    );
+    expect(b.received.at(-1)).not.toMatchObject({ result: { runId: "r1" } });
+    const emit = (seq: number, event: unknown) =>
+      hub.onNotification("ai.run.event", {
+        runId: "r1",
+        seq,
+        event,
+      });
+    emit(0, { type: "text", turnId: "t", fullText: "原标签页" });
+    expect(a.received.at(-1)).toMatchObject({ kind: "notify" });
+    expect(b.received.at(-1)).toMatchObject({ kind: "result" });
+
+    a.send({ kind: "page", url: "https://a.com/y" });
+    query(3);
+    await vi.waitFor(() =>
+      expect(b.received.at(-1)).toMatchObject({ id: 3, result: { runId: "r1" } })
+    );
+    emit(1, { type: "settled", ok: true, aborted: false, lastText: "" });
+    expect(b.received.at(-1)).toMatchObject({ kind: "notify" });
   });
 
   it("不透传握手类方法", async () => {

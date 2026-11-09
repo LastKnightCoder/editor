@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   Highlighter,
+  History,
   KeyRound,
   List,
   NotebookPen,
@@ -14,6 +15,8 @@ import {
   Search,
   Sparkles,
   Square,
+  SquarePen,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -22,6 +25,7 @@ import {
   type ChatSessionMessage,
   type ResponseMessage,
 } from "@tau/shared/chat-core";
+import type { ChatSessionSummary } from "@tau/shared/browser-companion";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { useChatAutoScroll } from "@tau/shared/src/hooks/useChatAutoScroll";
 import {
@@ -34,7 +38,7 @@ import { Button, cn, IconButton } from "@tau/ui";
 import { messageText, PAGE_TOOLS, splitQuote } from "../state/chat";
 import { stripCites } from "../state/controller";
 import { patchChat, showToast, useCompanion } from "../state/store";
-import { useController } from "./context";
+import { useController, useEscLayer } from "./context";
 import { Markdown } from "./Markdown";
 
 const SUGGESTIONS = [
@@ -67,6 +71,7 @@ function Conversation() {
 
   return (
     <>
+      <SessionBar />
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-3">
         {chat.messages.length === 0 ? (
           <div className="px-0.5 pt-7 pb-2">
@@ -104,6 +109,147 @@ function Conversation() {
       </div>
       <Composer onSend={send} />
     </>
+  );
+}
+
+/** 相对时间（天粒度，历史下拉用） */
+const relativeDay = (time: number): string => {
+  const days = Math.floor((Date.now() - time) / 86_400_000);
+  if (days <= 0) return "今天";
+  if (days === 1) return "昨天";
+  if (days < 30) return `${days} 天前`;
+  return `${Math.floor(days / 30)} 个月前`;
+};
+
+/** 会话标题：快答类以引用块开头，去掉引用只留问题 */
+const sessionTitle = (summary: ChatSessionSummary): string => {
+  const { quote, body } = splitQuote(summary.title);
+  return body || quote || summary.title;
+};
+
+/** 对话页签顶栏：历史对话下拉（切换 / 删除）+ 新对话；回答进行中整体禁用 */
+function SessionBar() {
+  const controller = useController();
+  const chat = useCompanion(state => state.chat);
+  const [open, setOpen] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const busy = Boolean(chat.runId);
+  useEscLayer(open, () => setOpen(false));
+
+  const current = chat.sessions.find(item => item.id === chat.sessionId);
+  const startNew = () => {
+    setOpen(false);
+    controller.chat.newSession();
+  };
+
+  return (
+    <div className="border-line-1 relative flex h-10 flex-none items-center gap-1 border-b px-2">
+      <IconButton
+        aria-label="历史对话"
+        title={busy ? "等这轮回答结束" : "历史对话"}
+        disabled={busy}
+        className={cn("size-7", open && "bg-hover")}
+        onClick={() => {
+          setOpen(value => !value);
+          setConfirmingId(null);
+          void controller.chat.listSessions();
+        }}
+      >
+        <History size={15} strokeWidth={1.8} />
+      </IconButton>
+      <span className="text-tau-sm text-ink-3 min-w-0 flex-1 truncate text-center">
+        {current ? sessionTitle(current) : "新对话"}
+      </span>
+      <IconButton
+        aria-label="新对话"
+        title={busy ? "等这轮回答结束" : "新对话"}
+        disabled={busy}
+        className="size-7"
+        onClick={startNew}
+      >
+        <SquarePen size={15} strokeWidth={1.8} />
+      </IconButton>
+      {open && (
+        <div
+          role="menu"
+          aria-label="本页的历史对话"
+          className="bg-surface shadow-float rounded-tau-md absolute top-10 right-2 left-2 z-20 max-h-[300px] overflow-y-auto p-1"
+        >
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={!current}
+            onClick={startNew}
+            className="text-ink-1 hover:bg-hover rounded-tau-sm flex h-[30px] w-full items-center gap-2 px-2 text-left"
+          >
+            <span className="grid w-4 place-items-center">
+              {!current && <Check size={14} strokeWidth={2} />}
+            </span>
+            <span className="flex-1">新对话</span>
+          </button>
+          {chat.sessions.map(item =>
+            confirmingId === item.id ? (
+              <div key={item.id} className="flex h-[44px] items-center gap-1 px-2">
+                <span className="text-tau-sm text-ink-2 min-w-0 flex-1 truncate">
+                  删除「{sessionTitle(item)}」？
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingId(null);
+                    void controller.chat.deleteSession(item.id);
+                  }}
+                  className="text-tau-sm text-danger hover:bg-hover rounded-tau-sm flex-none px-1.5 py-1"
+                >
+                  删除
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingId(null)}
+                  className="text-tau-sm text-ink-3 hover:bg-hover rounded-tau-sm flex-none px-1.5 py-1"
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <div key={item.id} className="group/session relative">
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={item.id === chat.sessionId}
+                  onClick={() => {
+                    setOpen(false);
+                    void controller.chat.switchSession(item.id);
+                  }}
+                  className="text-ink-1 hover:bg-hover rounded-tau-sm flex h-[44px] w-full items-center gap-2 pr-9 pl-2 text-left"
+                >
+                  <span className="grid w-4 flex-none place-items-center">
+                    {item.id === chat.sessionId && <Check size={14} strokeWidth={2} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{sessionTitle(item)}</span>
+                    <span className="text-tau-sm text-ink-3 block">
+                      {relativeDay(item.updateTime)} · {item.messageCount} 问
+                    </span>
+                  </span>
+                </button>
+                <IconButton
+                  aria-label="删除这段对话"
+                  title="删除这段对话"
+                  onClick={() => setConfirmingId(item.id)}
+                  className="hover:text-danger absolute top-1/2 right-1.5 size-6 -translate-y-1/2 opacity-0 transition-opacity group-hover/session:opacity-100 focus-visible:opacity-100"
+                >
+                  <Trash2 size={13} strokeWidth={1.8} />
+                </IconButton>
+              </div>
+            )
+          )}
+          {chat.sessions.length === 0 && (
+            <p className="text-tau-sm text-ink-3 px-2 py-2">还没有历史对话</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

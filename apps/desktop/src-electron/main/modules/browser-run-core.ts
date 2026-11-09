@@ -80,7 +80,8 @@ export function resolveChatModel(
 ): { providerId: string; modelId: string } {
   const usage = (
     setting.llmUsageSettings as
-      Record<string, { providerId?: string; modelId?: string }> | undefined
+      | Record<string, { providerId?: string; modelId?: string }>
+      | undefined
   )?.[feature];
   const providers = Array.isArray(setting.llmProviders)
     ? (setting.llmProviders as LLMProviderSetting[])
@@ -92,18 +93,28 @@ export function resolveChatModel(
 }
 
 /** 扩展对话的唯一键（同一页面同一对话）；一次性调用没有 */
-export const browserRunKeyOf = (params: AiRunStartParams): string | undefined =>
-  params.session
-    ? `${normalizePageUrl(params.session.pageUrl)}\u0000${params.session.id}`
-    : undefined;
+const browserRunKeyOf = (session: AiRunStartParams["session"]): string | undefined =>
+  session ? `${normalizePageUrl(session.pageUrl)}\u0000${session.id}` : undefined;
 
 export class BrowserRunRegistry {
   private readonly runs = new Map<string, ActiveRun>();
 
   constructor(
     private readonly driver: BrowserRunDriver,
-    private readonly publish: (notification: AiRunEventNotification) => void
+    private readonly publish: (
+      notification: AiRunEventNotification,
+      params: AiRunStartParams
+    ) => void
   ) {}
+
+  public runIdFor(session: NonNullable<AiRunStartParams["session"]>): string | undefined {
+    return this.activeRunFor(session)?.runId;
+  }
+
+  private activeRunFor(session: NonNullable<AiRunStartParams["session"]>): ActiveRun | undefined {
+    const key = browserRunKeyOf(session);
+    return [...this.runs.values()].find(item => item.sessionKey === key);
+  }
 
   /**
    * 某个扩展对话此刻在跑的那一轮的快照（侧栏重开后接回）。快照与 lastSeq 同步取，之后的事件
@@ -115,8 +126,7 @@ export class BrowserRunRegistry {
     session: { id: string; pageUrl: string },
     readFileBase: () => ChatSessionMessage[]
   ): AiRunSnapshot | undefined {
-    const key = browserRunKeyOf({ runId: "", messages: [], session });
-    const run = [...this.runs.values()].find(item => item.sessionKey === key);
+    const run = this.activeRunFor(session);
     if (!run) return undefined;
     return {
       runId: run.runId,
@@ -135,7 +145,7 @@ export class BrowserRunRegistry {
    */
   public start(params: AiRunStartParams): { ok: true } | { ok: false; error: string } {
     if (this.runs.has(params.runId)) return { ok: false, error: "运行已存在" };
-    const sessionKey = browserRunKeyOf(params);
+    const sessionKey = browserRunKeyOf(params.session);
     if (sessionKey && [...this.runs.values()].some(run => run.sessionKey === sessionKey)) {
       return { ok: false, error: "这个对话正在另一处回答，请等它结束或先停止" };
     }
@@ -176,7 +186,7 @@ export class BrowserRunRegistry {
     const emit = (event: AiRunEvent) => {
       reduceIntoRun(run, event);
       run.lastSeq += 1;
-      this.publish({ runId: run.runId, seq: run.lastSeq, event });
+      this.publish({ runId: run.runId, seq: run.lastSeq, event }, params);
     };
     const translator = createAiRunEventTranslator(emit);
     try {
@@ -184,8 +194,8 @@ export class BrowserRunRegistry {
         onEvent: event => translator.handle(event),
         onInteractions: snapshot => translator.applyInteractions(snapshot),
       });
-      // 停止在会话建好之前就按了：建好后立刻停
-      if (run.abortRequested) await run.handle.abort();
+      // 提前停止失败时也要等宿主退出，期间仍禁止删除。
+      if (run.abortRequested) await run.handle.abort().catch(() => undefined);
       const outcome = await run.handle.done;
       const aborted = outcome.aborted || run.abortRequested;
       const error = aborted ? undefined : (outcome.error ?? translator.lastError());

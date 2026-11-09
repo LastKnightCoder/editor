@@ -4,7 +4,12 @@ import type {
   AiRunQuestionRequest,
   ChatSessionMessage,
 } from "@tau/shared/chat-core";
-import type { HighlightColor, ModelOption, WebAnnotation } from "@tau/shared/browser-companion";
+import type {
+  ChatSessionSummary,
+  HighlightColor,
+  ModelOption,
+  WebAnnotation,
+} from "@tau/shared/browser-companion";
 import type { ConnectionStatus } from "../../shared/messages";
 
 export type PanelTab = "chat" | "annotations" | "note";
@@ -56,7 +61,10 @@ export interface QuickBubble {
 export interface ChatState {
   loaded: boolean;
   sessionId: string;
+  sessionSaved: boolean;
   messages: ChatSessionMessage[];
+  /** 本页的全部对话（历史下拉用；打开下拉或 load 时刷新） */
+  sessions: ChatSessionSummary[];
   runId: string | null;
   error: string | null;
   quote: QuoteContext | null;
@@ -98,7 +106,9 @@ export interface CompanionState {
 export const initialChat = (sessionId: string): ChatState => ({
   loaded: false,
   sessionId,
+  sessionSaved: false,
   messages: [],
+  sessions: [],
   runId: null,
   error: null,
   quote: null,

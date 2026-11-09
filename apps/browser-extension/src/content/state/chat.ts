@@ -1,7 +1,7 @@
 /**
- * 页面对话：每个页面一段持续的对话（存在 Tau，按页面归档），回答经 v2 运行协议流式推来。
- * 选区快答（解释 / 翻译 / 概括）也走同一段对话，回答同时显示在选区旁的气泡里，
- * 「在面板继续」就是打开面板接着聊。
+ * 页面对话：存在 Tau、按页面归档，一个页面可有多段（面板里可新建 / 切换 / 删除，当前选中的
+ * 会话 id 记在 chrome.storage，刷新后接着用）。回答经 v2 运行协议流式推来；选区快答
+ * （解释 / 翻译 / 概括）也走当前这段对话，回答同时显示在选区旁的气泡里，「在面板继续」就是打开面板接着聊。
  */
 import {
   applyChatStreamEvent,
@@ -16,10 +16,14 @@ import {
 import {
   COMPANION_METHODS,
   type ChatHistoryResult,
+  type ChatSessionSummary,
+  type CompanionRunEventNotification,
   type CompanionRunStartParams,
+  type CompanionRunStartResult,
   type ModelOption,
 } from "@tau/shared/browser-companion";
 import { pageKeyOf } from "../../shared/messages";
+import { storageGet, storageRemove, storageSet } from "../../shared/chrome-storage";
 import type { BackgroundBridge } from "../bridge";
 import { extractPage, pageAsPrompt, type PageContent } from "../page/extract";
 import {
@@ -27,6 +31,7 @@ import {
   initialChat,
   patchChat,
   setState,
+  showToast,
   type QuickKind,
   type QuoteContext,
 } from "./store";
@@ -73,6 +78,11 @@ export const QUICK_LABELS: Record<QuickKind, string> = {
 const randomId = (prefix: string) =>
   `${prefix}${Array.from(crypto.getRandomValues(new Uint8Array(10)), byte => byte.toString(16).padStart(2, "0")).join("")}`;
 
+/** 每页当前选中的会话 id 记在这里，刷新 / 换页回来接着用；值为 null 表示清除（跟最新走） */
+const chatSessionKey = (url: string) => `chat-session:${pageKeyOf(url)}`;
+const recallSession = (url: string) =>
+  storageGet<string>(chatSessionKey(url)).catch(() => undefined);
+
 /** 用户消息正文：引用的原文以 Markdown 引用块放在前面 */
 export function composeUserText(question: string, quote: QuoteContext | null): string {
   if (!quote) return question;
@@ -108,6 +118,11 @@ export class PageChat {
   private filters = new Map<string, (notification: AiRunEventNotification) => AiRunEvent | null>();
   private page: PageContent | null = null;
   private url = "";
+  private pageVersion = 0;
+  private selectionVersion = 0;
+  private listVersion = 0;
+  private loading: Promise<void> | null = null;
+  private readonly deletedSessions = new Set<string>();
 
   constructor(private readonly bridge: BackgroundBridge) {}
 
@@ -116,6 +131,11 @@ export class PageChat {
     if (pageKeyOf(url) === pageKeyOf(this.url)) return;
     this.url = url;
     this.page = null;
+    this.pageVersion += 1;
+    this.selectionVersion += 1;
+    this.listVersion += 1;
+    this.loading = null;
+    this.deletedSessions.clear();
     this.filters.clear();
     setState({ chat: initialChat(randomId("p")) });
   }
@@ -130,36 +150,185 @@ export class PageChat {
 
   /** 第一次打开面板（且已连接）时拉历史、模型列表，并接回正在跑的一轮 */
   async load(): Promise<void> {
+    if (this.loading) return this.loading;
     const { chat, status } = getState();
     if (chat.loaded || status.state !== "ready") return;
-    patchChat({ loaded: true });
-    const url = pageKeyOf(this.url);
-    const [history, models] = await Promise.all([
-      this.bridge.rpc<ChatHistoryResult>(COMPANION_METHODS.chatHistory, { url }).catch(() => null),
-      this.bridge.rpc<ModelOption[]>(COMPANION_METHODS.modelsList).catch(() => []),
-    ]);
-    const model = models.find(item => item.isDefault) ?? models[0] ?? null;
-    if (history?.sessionId) {
-      patchChat({ sessionId: history.sessionId, messages: history.messages, models, model });
-      await this.resume(history.sessionId, url);
-    } else patchChat({ models, model });
+    const loading = this.loadHistory();
+    this.loading = loading;
+    try {
+      await loading;
+    } finally {
+      if (this.loading === loading) this.loading = null;
+    }
   }
 
-  private async resume(sessionId: string, url: string): Promise<void> {
+  private async loadHistory(): Promise<void> {
+    const url = pageKeyOf(this.url);
+    const page = this.pageVersion;
+    const selection = this.selectionVersion;
+    void this.listSessions();
+    const [latest, models, remembered] = await Promise.all([
+      this.bridge.rpc<ChatHistoryResult>(COMPANION_METHODS.chatHistory, { url }).catch(() => null),
+      this.bridge.rpc<ModelOption[]>(COMPANION_METHODS.modelsList).catch(() => []),
+      recallSession(url),
+    ]);
+    if (page !== this.pageVersion) return;
+    const model = models.find(item => item.isDefault) ?? models[0] ?? null;
+    patchChat({ models, model });
+    if (selection === this.selectionVersion) {
+      const rememberedHistory =
+        remembered && remembered !== latest?.sessionId
+          ? await this.readSession(url, remembered)
+          : null;
+      const history = rememberedHistory?.sessionId ? rememberedHistory : latest;
+      if (history?.sessionId) await this.selectHistory(url, history, selection, false);
+    }
+    if (page === this.pageVersion) patchChat({ loaded: true });
+  }
+
+  /** 本页的全部对话，按最近活动降序（历史下拉；旧版 Tau 没有这个方法，返回空） */
+  async listSessions(): Promise<ChatSessionSummary[]> {
+    const request = ++this.listVersion;
+    const sessions = await this.bridge
+      .rpc<ChatSessionSummary[]>(COMPANION_METHODS.chatSessions, { url: pageKeyOf(this.url) })
+      .catch(() => []);
+    if (request !== this.listVersion) return [];
+    const available = sessions.filter(item => !this.deletedSessions.has(item.id));
+    patchChat({ sessions: available });
+    return available;
+  }
+
+  /** 新建对话：本地换一个新会话 id，下一条消息发出后 Tau 侧落盘新会话文件 */
+  newSession(): void {
+    const { chat } = getState();
+    if (chat.runId) {
+      patchChat({ error: "上一个回答还没结束" });
+      return;
+    }
+    if (!chat.loaded) void this.load();
+    this.resetSession();
+    this.rememberSession(null);
+  }
+
+  private rememberSession(sessionId: string | null): void {
+    const selection = this.selectionVersion;
+    const key = chatSessionKey(this.url);
+    const write = sessionId ? storageSet(key, sessionId) : storageRemove(key);
+    void write.catch(() => {
+      if (selection === this.selectionVersion) showToast("未能保存当前对话的选择");
+    });
+  }
+
+  private changeSelection(): number {
+    this.bridge.changeChatSelection();
+    return ++this.selectionVersion;
+  }
+
+  private resetSession(error: string | null = null): void {
+    this.changeSelection();
+    this.filters.clear();
+    const { sessionId, sessionSaved, messages, runId, approvals, questions } = initialChat(
+      randomId("p")
+    );
+    patchChat({
+      sessionId,
+      sessionSaved,
+      messages,
+      runId,
+      approvals,
+      questions,
+      error,
+      loaded: true,
+    });
+  }
+
+  /** 切换到本页的另一段对话 */
+  async switchSession(id: string): Promise<void> {
+    const { chat } = getState();
+    if (chat.runId) {
+      patchChat({ error: "上一个回答还没结束" });
+      return;
+    }
+    const selection = this.changeSelection();
+    if (id === chat.sessionId) return;
+    const url = pageKeyOf(this.url);
+    const result = await this.readSession(url, id);
+    if (selection !== this.selectionVersion) return;
+    if (!result?.sessionId) {
+      showToast("这段对话打不开");
+      return;
+    }
+    await this.selectHistory(url, result, selection, true);
+  }
+
+  /** 删除本页的一段对话；删的是当前对话时回到新的空对话 */
+  async deleteSession(id: string): Promise<void> {
+    const { chat } = getState();
+    if (chat.runId) {
+      patchChat({ error: "上一个回答还没结束" });
+      return;
+    }
+    const url = pageKeyOf(this.url);
+    const page = this.pageVersion;
+    try {
+      await this.bridge.rpc(COMPANION_METHODS.chatDelete, {
+        session: { id, pageUrl: url },
+      });
+    } catch (error) {
+      if (page === this.pageVersion) showToast(error instanceof Error ? error.message : "删除失败");
+      return;
+    }
+    if (page !== this.pageVersion) return;
+    this.removeSession(id);
+    if (id === getState().chat.sessionId) this.resetSession();
+    showToast("已删除这段对话");
+  }
+
+  private removeSession(id: string): void {
+    this.deletedSessions.add(id);
+    patchChat(current => ({ sessions: current.sessions.filter(item => item.id !== id) }));
+  }
+
+  private readSession(url: string, id: string): Promise<ChatHistoryResult | null> {
+    return this.bridge
+      .rpc<ChatHistoryResult>(COMPANION_METHODS.chatSession, { session: { id, pageUrl: url } })
+      .catch(() => null);
+  }
+
+  private async selectHistory(
+    url: string,
+    { sessionId, messages }: ChatHistoryResult,
+    selection: number,
+    remember: boolean
+  ): Promise<void> {
+    if (!sessionId || !this.canSelect(sessionId, selection)) return;
     const state = await this.bridge
       .rpc<AiRunStateResult>(COMPANION_METHODS.runState, {
         session: { id: sessionId, pageUrl: url },
       })
       .catch(() => null);
-    if (!state?.running || !state.runId || !state.snapshot) return;
-    const { snapshot } = state;
-    this.filters.set(state.runId, createRunEventFilter(state.runId, snapshot.lastSeq));
+    if (!this.canSelect(sessionId, selection)) return;
+    const snapshot = state?.running ? state.snapshot : undefined;
+    if (snapshot)
+      this.filters.set(snapshot.runId, createRunEventFilter(snapshot.runId, snapshot.lastSeq));
     patchChat({
-      runId: state.runId,
-      messages: [...snapshot.baseMessages, snapshot.request as never, snapshot.response],
-      approvals: snapshot.interactions.approvals,
-      questions: snapshot.interactions.questions,
+      sessionId,
+      sessionSaved: true,
+      loaded: true,
+      runId: snapshot?.runId ?? null,
+      messages: snapshot
+        ? [...snapshot.baseMessages, snapshot.request as never, snapshot.response]
+        : messages,
+      error: null,
+      approvals: snapshot?.interactions.approvals ?? [],
+      questions: snapshot?.interactions.questions ?? [],
     });
+    if (remember) this.rememberSession(sessionId);
+    if (state?.running && !snapshot) showToast("这段对话正在另一个标签页或浏览器中回答");
+  }
+
+  private canSelect(sessionId: string, selection: number): boolean {
+    return selection === this.selectionVersion && !this.deletedSessions.has(sessionId);
   }
 
   private systemPrompt(): string {
@@ -184,11 +353,17 @@ export class PageChat {
     question: string,
     options: { quote?: QuoteContext | null; quick?: QuickKind } = {}
   ): Promise<string | null> {
+    if (!getState().chat.loaded) {
+      const selection = this.selectionVersion;
+      await this.load();
+      if (selection !== this.selectionVersion) return null;
+    }
     const { chat } = getState();
     if (chat.runId) {
       patchChat({ error: "上一个回答还没结束" });
       return null;
     }
+    this.changeSelection();
     const quote = options.quote ?? null;
     const text = composeUserText(options.quick ? QUICK_PROMPTS[options.quick] : question, quote);
     const runId = randomId("r");
@@ -206,6 +381,7 @@ export class PageChat {
     const params: CompanionRunStartParams = {
       runId,
       session: { id: chat.sessionId, pageUrl: pageKeyOf(this.url) },
+      sessionMode: chat.sessionSaved ? "continue" : "create",
       messages: [{ role: "user", content: text }],
       pageContext: { url: this.url, title: document.title },
       systemPrompt: this.systemPrompt(),
@@ -215,10 +391,21 @@ export class PageChat {
         : {}),
     };
     try {
-      await this.bridge.rpc(COMPANION_METHODS.runStart, params);
+      const result = await this.bridge.rpc<CompanionRunStartResult>(
+        COMPANION_METHODS.runStart,
+        params
+      );
+      if ("missingSession" in result) {
+        if (getState().chat.runId === runId) {
+          this.removeSession(chat.sessionId);
+          this.resetSession("这段对话已删除，请在新对话中重新发送");
+        }
+        return null;
+      }
       return runId;
     } catch (error) {
       this.filters.delete(runId);
+      if (getState().chat.runId !== runId) return null;
       patchChat(current => ({
         runId: null,
         error: error instanceof Error ? error.message : String(error),
@@ -255,7 +442,9 @@ export class PageChat {
   }
 
   /** ai.run.event：归约进最后一条回答，并同步给快答气泡 */
-  onEvent(notification: AiRunEventNotification): void {
+  onEvent(notification: CompanionRunEventNotification): void {
+    const { chat } = getState();
+    if (chat.runId !== notification.runId) return;
     const filter = this.filters.get(notification.runId);
     const event = filter?.(notification);
     if (!event) return;
@@ -265,7 +454,13 @@ export class PageChat {
     }
     if (event.type === "settled") {
       this.filters.delete(notification.runId);
+      const saved = !chat.sessionSaved && (notification.sessionSaved ?? event.ok);
+      if (saved) {
+        this.rememberSession(chat.sessionId);
+        void this.listSessions();
+      }
       patchChat({
+        sessionSaved: chat.sessionSaved || saved,
         runId: null,
         approvals: [],
         questions: [],
@@ -304,9 +499,9 @@ export class PageChat {
       messages[messages.length - 1] = next;
       return { messages };
     });
-    const { bubble, chat } = getState();
+    const { bubble, chat: current } = getState();
     if (bubble?.runId === notification.runId) {
-      const last = chat.messages.at(-1);
+      const last = current.messages.at(-1);
       setState({ bubble: { ...bubble, text: messageText(last?.content) } });
     }
   }

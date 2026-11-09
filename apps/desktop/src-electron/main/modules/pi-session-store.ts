@@ -7,7 +7,7 @@
  * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
  *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { ChatSessionMessage } from "@/types";
 import type { PiBrowserSessionInfo } from "@/types/pi-session";
@@ -85,11 +85,21 @@ export async function listSessionsInDir(dir: string): Promise<PiBrowserSessionIn
   }));
 }
 
+/** 删除目录里的一段对话；不存在返回 false。调用方须同步确认它没有在跑。 */
+export function deleteSessionInDir(dir: string, sessionId: string): boolean {
+  const file = findSessionFileById(dir, sessionId);
+  if (!file) return false;
+  rmSync(file, { force: true });
+  return true;
+}
+
 // 页面 → 目录的包装（浏览器伴读用）
 export const listBrowserSessions = (pageUrl: string) =>
   listSessionsInDir(browserSessionDirOf(pageUrl));
 export const browserSessionFile = (pageUrl: string, sessionId: string) =>
   findSessionFileById(browserSessionDirOf(pageUrl), sessionId);
+export const deleteBrowserSession = (pageUrl: string, sessionId: string) =>
+  deleteSessionInDir(browserSessionDirOf(pageUrl), sessionId);
 
 /** 同步随库上传的对话记录：会话目录下的全部 .jsonl 文件。 */
 export function listSessionFiles(sessionDir: string): string[] {

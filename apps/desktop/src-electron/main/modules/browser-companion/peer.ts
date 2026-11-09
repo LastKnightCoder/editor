@@ -10,7 +10,7 @@ export interface PeerSocket {
   close(code?: number, reason?: string): void;
 }
 
-export type RequestHandler = (method: string, params: unknown) => Promise<unknown>;
+export type RequestHandler = (method: string, params: unknown) => unknown;
 
 /** 单帧上限：页面正文走对话请求，给足但不无限 */
 export const MAX_FRAME_BYTES = 8 * 1024 * 1024;
@@ -74,7 +74,9 @@ export class CompanionPeer {
       let result: unknown = null;
       let error: { code: number; message: string } | null = null;
       try {
-        result = await this.onRequest(frame.method, frame.params);
+        const handled = this.onRequest(frame.method, frame.params);
+        // 运行快照在本次事件循环回包，后续流事件才会到达接回方。
+        result = handled instanceof Promise ? await handled : handled;
       } catch (cause) {
         error = { code: -32000, message: cause instanceof Error ? cause.message : String(cause) };
       }

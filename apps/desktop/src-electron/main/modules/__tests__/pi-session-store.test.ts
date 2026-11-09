@@ -14,9 +14,14 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { listSessionFiles, listSessionsInDir } from "../pi-session-store";
+import { deleteSessionInDir, listSessionFiles, listSessionsInDir } from "../pi-session-store";
 import { installDatabaseDownload } from "../database-download";
-import { browserPageKey, browserSessionDirOf, normalizePageUrl } from "../pi-session-paths";
+import {
+  browserPageKey,
+  browserSessionDirOf,
+  findSessionFileById,
+  normalizePageUrl,
+} from "../pi-session-paths";
 import { writeSessionFile } from "../pi-session-files";
 
 const workDirs: string[] = [];
@@ -88,6 +93,20 @@ describe("扩展对话（无索引表，事实源是会话文件）", () => {
     const before = await listSessionsInDir(dir);
     expect(before.find(item => item.id === "parent-1")?.title).toBe("第一问");
     expect(before.find(item => item.id === "parent-1")?.messageCount).toBe(1);
+  });
+
+  it("按 id 删除一段对话，同页其他对话不受影响；不存在的 id 返回 false", async () => {
+    const dir = join(setup(), "page");
+    mkdirSync(dir, { recursive: true });
+    const other = writeChat(dir, "also_drop", "留下");
+    writeChat(dir, "drop", "删掉");
+
+    expect(findSessionFileById(dir, "drop")).not.toBe(join(dir, other));
+    expect(deleteSessionInDir(dir, "drop")).toBe(true);
+    expect((await listSessionsInDir(dir)).map(item => item.id)).toEqual(["also_drop"]);
+    expect(findSessionFileById(dir, "drop")).toBeUndefined();
+    expect(deleteSessionInDir(dir, "drop")).toBe(false);
+    expect(deleteSessionInDir(join(dir, "missing"), "also_drop")).toBe(false);
   });
 });
 

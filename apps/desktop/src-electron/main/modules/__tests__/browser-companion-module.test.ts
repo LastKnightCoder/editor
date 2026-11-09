@@ -11,6 +11,7 @@ const env = vi.hoisted(() => ({
   route: null as null | ((request: any, socket: any, head: Buffer) => void),
   handlers: new Map<string, (...args: any[]) => any>(),
   sent: [] as Array<[string, unknown]>,
+  startRun: vi.fn(),
 }));
 const mainWindow = vi.hoisted(() => ({
   isDestroyed: () => false,
@@ -54,6 +55,10 @@ vi.mock("../user-setting", () => ({
   },
 }));
 vi.mock("../pi-session-host", () => ({ default: {} }));
+vi.mock("../../utils/PathUtil", () => ({ default: { getAppDir: () => env.dir } }));
+vi.mock("../browser-companion/run-driver", () => ({
+  createCompanionRunDriver: () => ({ start: env.startRun }),
+}));
 vi.mock("../browser-companion/library", () => ({
   listAnnotations: () => [],
   syncAnnotations: () => ({ ok: true }),
@@ -61,6 +66,8 @@ vi.mock("../browser-companion/library", () => ({
 }));
 
 import companion from "../browser-companion";
+import { writeSessionFile } from "../pi-session-files";
+import { browserSessionDirOf } from "../pi-session-paths";
 
 const ORIGIN = `chrome-extension://${"a".repeat(32)}`;
 const CLIENT = "client00000000000001";
@@ -124,6 +131,20 @@ const connect = (origin = ORIGIN) =>
 
 const event = { sender: mainWindow.webContents };
 const INFO = { browser: "Chrome", os: "macOS", version: "0.1.0" };
+
+async function pair(clientId: string): Promise<Client> {
+  env.sent.length = 0;
+  const client = await connect();
+  await client.call("pair.request", { clientId, info: INFO, nonce: "a".repeat(32) });
+  const prompt = env.sent.find(([channel]) => channel === "browser-companion:pair-prompt")?.[1] as {
+    requestId: string;
+  };
+  const decide = env.handlers.get("browser-companion:pair-decide");
+  if (!decide) throw new Error("未注册配对处理器");
+  await decide(event, prompt.requestId, true, []);
+  await vi.waitFor(() => expect(client.notes.some(note => note.method === "ready")).toBe(true));
+  return client;
+}
 
 describe("browser-companion 模块", () => {
   it("拒绝网页来源与无来源的握手", async () => {
@@ -238,5 +259,65 @@ describe("browser-companion 模块", () => {
     });
     expect(result.status).toBe("throttled");
     expect(env.sent.some(([channel]) => channel === "browser-companion:pair-prompt")).toBe(false);
+  });
+
+  it("同一会话的启动和删除互斥，删除后拒绝继续旧会话", async () => {
+    const a = await pair("client00000000000003");
+    const b = await pair("client00000000000004");
+    const session = { id: "shared", pageUrl: "https://example.com/shared" };
+    writeSessionFile({
+      sessionDir: browserSessionDirOf(session.pageUrl),
+      sessionId: session.id,
+      cwd: env.dir,
+      createdAt: 1,
+      messages: [],
+    });
+    let finish!: () => void;
+    const done = new Promise(resolve => {
+      finish = () => resolve({ ok: true, aborted: false });
+    });
+    env.startRun.mockResolvedValue({
+      done,
+      baseMessages: [],
+      abort: vi.fn(),
+      approve: vi.fn(),
+      answer: vi.fn(),
+    });
+    const params = {
+      runId: "shared-run",
+      session,
+      sessionMode: "continue",
+      messages: [{ role: "user", content: "继续" }],
+    };
+    try {
+      await expect(a.call("ai.run.start", params)).resolves.toEqual({ runId: params.runId });
+      await expect(b.call("chat.delete", { session })).rejects.toThrow("正在回答");
+      await expect(b.call("ai.run.state", { session })).resolves.toEqual({ running: true });
+      await expect(a.call("ai.run.state", { session })).resolves.toMatchObject({
+        runId: params.runId,
+      });
+
+      finish();
+      await vi.waitFor(() =>
+        expect(a.notes).toContainEqual(
+          expect.objectContaining({
+            method: "ai.run.event",
+            data: expect.objectContaining({ event: expect.objectContaining({ type: "settled" }) }),
+          })
+        )
+      );
+      expect(b.notes.some(note => note.method === "ai.run.event")).toBe(false);
+      const deleted = b.call("chat.delete", { session });
+      const continued = b.call("ai.run.start", params);
+      await expect(Promise.all([deleted, continued])).resolves.toEqual([
+        { ok: true },
+        { missingSession: true },
+      ]);
+      expect(env.startRun).toHaveBeenCalledTimes(1);
+    } finally {
+      finish();
+      for (const client of [a, b]) client.ws.close();
+      await Promise.all([a.closed, b.closed]);
+    }
   });
 });
