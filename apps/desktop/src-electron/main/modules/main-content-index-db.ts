@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
@@ -7,6 +7,7 @@ import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
 import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
 import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
+import { compareDownloadedIndex } from "./database-download-index";
 import { resolveEmbeddingConfig } from "../utils/embedding-config";
 import {
   KNOWLEDGE_MAP_COMPUTED_AT_KEY,
@@ -117,41 +118,38 @@ class MainContentIndexDBManager {
     return this.normalizeMainDbName(mainDbName);
   }
 
-  private resolveVecDimensionsFromSetting(): number {
+  private resolveVecDimensionsFromSetting(): number | null {
     const startedAt = Date.now();
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       if (!existsSync(settingPath)) {
         log.info(
-          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=setting_missing, elapsedMs=${Date.now() - startedAt}`
+          `[MainContentIndexDB] resolveVecDimensions unavailable: reason=setting_missing, elapsedMs=${Date.now() - startedAt}`
         );
-        return DEFAULT_VEC_DIMENSION;
+        return null;
       }
       const raw = readFileSync(settingPath, "utf8");
       if (!raw.trim()) {
         log.info(
-          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=setting_empty, elapsedMs=${Date.now() - startedAt}`
+          `[MainContentIndexDB] resolveVecDimensions unavailable: reason=setting_empty, elapsedMs=${Date.now() - startedAt}`
         );
-        return DEFAULT_VEC_DIMENSION;
+        return null;
       }
       const setting = JSON.parse(raw) as Record<string, unknown>;
       const dimensions = resolveEmbeddingConfig(setting)?.dimensions;
       if (!dimensions || dimensions <= 0) {
         log.info(
-          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=config_missing, elapsedMs=${Date.now() - startedAt}`
+          `[MainContentIndexDB] resolveVecDimensions unavailable: reason=config_missing, elapsedMs=${Date.now() - startedAt}`
         );
-        return DEFAULT_VEC_DIMENSION;
+        return null;
       }
       log.info(
         `[MainContentIndexDB] resolveVecDimensions success: dimensions=${dimensions}, elapsedMs=${Date.now() - startedAt}`
       );
       return dimensions;
     } catch (error) {
-      log.warn(
-        "[MainContentIndexDB] resolveVecDimensionsFromSetting failed, fallback default:",
-        error
-      );
-      return DEFAULT_VEC_DIMENSION;
+      log.warn("[MainContentIndexDB] resolveVecDimensionsFromSetting failed, unavailable:", error);
+      return null;
     }
   }
 
@@ -185,12 +183,12 @@ class MainContentIndexDBManager {
     return this.parseVecDimensions(row.sql);
   }
 
-  private ensureVecTableByDimensions(indexDb: Database.Database, vecDimensions: number): boolean {
-    const target =
-      Number.isFinite(vecDimensions) && vecDimensions > 0
-        ? Math.floor(vecDimensions)
-        : DEFAULT_VEC_DIMENSION;
+  private ensureVecTableByDimensions(
+    indexDb: Database.Database,
+    vecDimensions: number | null
+  ): boolean {
     const current = this.getCurrentVecDimensions(indexDb);
+    const target = vecDimensions ?? current ?? DEFAULT_VEC_DIMENSION;
 
     if (current === target) {
       return false;
@@ -384,14 +382,88 @@ class MainContentIndexDBManager {
     }
   }
 
-  resetDatabase(mainDbName: string) {
-    this.closeDatabase(mainDbName);
-    const path = this.getDatabasePath(mainDbName);
-    for (const suffix of ["", "-wal", "-shm"]) {
-      const file = `${path}${suffix}`;
-      if (existsSync(file)) unlinkSync(file);
+  prepareDownload(
+    mainDbName: string,
+    databasePath: string,
+    downloadPath: string,
+    reusedFiles?: readonly string[]
+  ) {
+    if (!existsSync(this.getDatabasePath(mainDbName))) return;
+    const indexDb = this.getDatabase(mainDbName);
+    try {
+      const startedAt = performance.now();
+      const { indexed, differences } = compareDownloadedIndex(
+        indexDb,
+        databasePath,
+        downloadPath,
+        reusedFiles
+      );
+      const compareMs = Math.round(performance.now() - startedAt);
+      indexDb.transaction(() => {
+        if (differences.length) {
+          indexDb.exec(
+            "CREATE TEMP TABLE download_index_changes (key TEXT PRIMARY KEY, revision REAL)"
+          );
+          const addChange = indexDb.prepare("INSERT INTO download_index_changes VALUES (?, ?)");
+          for (const { key, revision } of differences) addChange.run(key, revision);
+          // sqlite-vec 按实体键逐条删除或更新会反复扫描向量表。
+          const rows = indexDb
+            .prepare<[], { rowid: number; revision: number | null }>(`
+            SELECT v.rowid, c.revision
+            FROM vec_documents v CROSS JOIN download_index_changes c ON c.key = v.prefixed_id
+          `)
+            .all();
+          const remove = indexDb.prepare("DELETE FROM vec_documents WHERE rowid = ?");
+          const retag = indexDb.prepare(
+            "UPDATE vec_documents SET update_time = CAST(? AS REAL) WHERE rowid = ?"
+          );
+          for (const { rowid, revision } of rows) {
+            if (revision === null) remove.run(rowid);
+            else retag.run(revision, rowid);
+          }
+          indexDb.exec("DROP TABLE download_index_changes");
+
+          const removeSections = indexDb.prepare(
+            "DELETE FROM content_sections WHERE prefixed_id = ?"
+          );
+          const retagSections = indexDb.prepare(
+            "UPDATE OR REPLACE content_sections SET update_time = ? WHERE prefixed_id = ? AND update_time = ?"
+          );
+          for (const { key, revision, oldRevision } of differences) {
+            if (revision === null) removeSections.run(key);
+            else retagSections.run(revision, key, oldRevision);
+          }
+        }
+        // 其他派生表按自己的重建协议恢复，避免旧库的实体身份泄漏到新库。
+        indexDb.exec(`
+          DELETE FROM content_fts;
+          DELETE FROM content_sections WHERE rowid IN (
+            SELECT s.rowid FROM content_sections s
+            LEFT JOIN (SELECT DISTINCT prefixed_id, update_time FROM vec_documents) v
+              ON v.prefixed_id = s.prefixed_id AND v.update_time = s.update_time
+            WHERE v.prefixed_id IS NULL
+          );
+          DELETE FROM entity_refs;
+          DELETE FROM entity_ref_sources;
+          DELETE FROM whiteboard_refs;
+          DELETE FROM whiteboard_ref_sources;
+          DELETE FROM whiteboard_embeds;
+          DELETE FROM doc_tasks;
+          DELETE FROM doc_task_sources;
+          DELETE FROM doc_task_attributes;
+          DELETE FROM knowledge_map_nodes;
+          DELETE FROM knowledge_map_topics;
+          DELETE FROM index_meta WHERE key <> 'diary_entity_version';
+        `);
+        this.writeRebuildState(indexDb, "pending", "fts");
+        this.writeRebuildState(indexDb, "pending", "vec");
+      })();
+      log.info(
+        `[MainContentIndexDB] Download index compared: db=${mainDbName}, indexed=${indexed}, invalidated=${differences.filter(item => item.revision === null).length}, retagged=${differences.filter(item => item.revision !== null).length}, compareMs=${compareMs}, elapsedMs=${Math.round(performance.now() - startedAt)}`
+      );
+    } finally {
+      this.closeDatabase(mainDbName);
     }
-    log.info(`[MainContentIndexDB] reset database done: mainDb=${mainDbName}`);
   }
 }
 

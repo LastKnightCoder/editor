@@ -164,8 +164,10 @@ export const piSessionUnlockLibrary = (databaseName: string): Promise<Outcome> =
   invoke("pi-session:unlock-library", { databaseName });
 export const piSessionInstallDownload = (
   databaseName: string,
-  hasSessions: boolean
-): Promise<Outcome> => invoke("pi-session:install-download", { databaseName, hasSessions });
+  hasSessions: boolean,
+  reusedSessionFiles: string[]
+): Promise<Outcome> =>
+  invoke("pi-session:install-download", { databaseName, hasSessions, reusedSessionFiles });
 
 export type PiSessionRecovery = Outcome & {
   sessionId?: string;

@@ -39,6 +39,7 @@ import {
   readTranscript,
   type SessionEdit,
 } from "./pi-session-store";
+import mainContentIndexDBManager from "./main-content-index-db";
 import { installDatabaseDownload } from "./database-download";
 import {
   assertSafeSessionId,
@@ -265,7 +266,18 @@ class PiSessionHostModule {
     );
     ipcMain.handle(
       "pi-session:install-download",
-      (_event, { databaseName, hasSessions }: { databaseName: string; hasSessions: boolean }) =>
+      (
+        _event,
+        {
+          databaseName,
+          hasSessions,
+          reusedSessionFiles,
+        }: {
+          databaseName: string;
+          hasSessions: boolean;
+          reusedSessionFiles?: string[];
+        }
+      ) =>
         PiSessionHostModule.guard(async () => {
           if (!PiSessionHostModule.libraryLeases.has(chatSessionDirOf(databaseName)))
             throw new Error("同步尚未锁定会话目录");
@@ -276,9 +288,18 @@ class PiSessionHostModule {
           assertDatabaseSyncLockOwned(databasePath);
           await collaborationModule.releaseLibrary(databaseName);
           whiteboardDocumentsModule.releaseLibrary(databaseName);
+          const downloadPath = `${databasePath}.download.tmp`;
+          assertDatabaseSyncLockOwned(databasePath);
+          if (databaseModule.getDatabase(databaseName)) throw new Error("替换资料库前必须先关库");
+          mainContentIndexDBManager.prepareDownload(
+            databaseName,
+            databasePath,
+            downloadPath,
+            hasSessions ? (reusedSessionFiles ?? []) : undefined
+          );
           installDatabaseDownload(
             databasePath,
-            `${databasePath}.download.tmp`,
+            downloadPath,
             chatSessionDirOf(databaseName),
             hasSessions ? `${databasePath}.sessions.download` : undefined
           );

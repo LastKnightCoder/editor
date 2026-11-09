@@ -529,7 +529,10 @@ class EmbeddingIndexOrchestrator implements Module {
     }
 
     const shouldSkipMainStartupReconcile =
-      reason === "startup_reconcile" && !mainFingerprintChanged && !resumeMainBuild;
+      reason === "startup_reconcile" &&
+      rebuildState === "ready" &&
+      !mainFingerprintChanged &&
+      !resumeMainBuild;
 
     const mainResult = shouldSkipMainStartupReconcile
       ? {

@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
@@ -7,7 +7,9 @@ import { installDatabaseDownload } from "../database-download";
 const paths = vi.hoisted(() => ({
   root: "",
   handlers: new Map<string, (...args: any[]) => any>(),
+  embed: vi.fn(async (_config: unknown, texts: string[]) => texts.map(() => [1, 0])),
 }));
+vi.mock("../embedding-service", () => ({ default: { embedTexts: paths.embed } }));
 vi.mock("../../utils/PathUtil", () => ({
   default: { getAppDir: () => paths.root, getHomeDir: () => paths.root },
 }));
@@ -176,6 +178,122 @@ it.each(["connect", "download"])("%s：版本标记缺失不阻止开库且保�
     database.databases.clear();
     database.windowToDatabase.clear();
     paths.handlers.clear();
+    rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
+it("同内容覆盖复用向量，原始字段变化后只补变化条目", async () => {
+  paths.root = mkdtempSync(join(tmpdir(), "database-download-index-"));
+  const { default: database } = await import("../database");
+  const { default: indexManager } = await import("../main-content-index-db");
+  const { default: queue } = await import("../main-content-vec-index-queue");
+  const { default: ContentTable } = await import("../tables/content");
+  const { resolveEmbeddingConfig } = await import("../../utils/embedding-config");
+  const file = join(paths.root, "data.db");
+  const staged = `${file}.download.tmp`;
+  const setting = {
+    embedding: {
+      active: { provider: "local" as const, model: "test", dimensions: 2 },
+      local: { source: "modelscope" as const, batchSize: 8, devicePolicy: "auto" as const },
+      plugins: {},
+    },
+  };
+  writeFileSync(join(paths.root, "setting.json"), JSON.stringify(setting));
+  const embeddingConfig = resolveEmbeddingConfig(setting);
+  if (!embeddingConfig) throw new Error("测试嵌入配置无效");
+  const read = vi.spyOn(ContentTable, "readText").mockImplementation(async (_db, id) => ({
+    content: `正文 ${id}`,
+    sections: [
+      {
+        chunkIndex: 0,
+        headingPath: "",
+        text: `正文 ${id}`,
+        blockStart: 0,
+        blockEnd: 0,
+        charCount: 4,
+        embeddingText: `正文 ${id}`,
+      },
+    ],
+  }));
+  let main = database.openDatabase("data.db", "normal");
+  try {
+    main.exec(`
+      INSERT INTO contents(id,create_time,update_time,content) VALUES
+        (1,1,1,'["旧正文"]'), (2,1,1,'["相同正文"]'), (3,1,1,'["要删除"]');
+      INSERT INTO cards(id,create_time,update_time,content_id) VALUES
+        (1,1,1,1), (2,1,1,2), (3,1,1,3);
+    `);
+    main.prepare("VACUUM INTO ?").run(staged);
+    main.close();
+    const index = indexManager.getDatabase("data.db");
+    index.exec(`
+      INSERT INTO vec_documents(prefixed_id,update_time,content,type,chunk_index,vec_embedding)
+      VALUES ('card:1',1.0,'旧正文','card',0,'[1,0]'),
+             ('card:2',1.0,'相同正文','card',0,'[1,0]'),
+             ('card:3',1.0,'要删除','card',0,'[1,0]');
+      INSERT INTO content_sections VALUES ('card:2',1,0,'',0,0,4,'相同正文');
+    `);
+    indexManager.closeDatabase("data.db");
+    rmSync(join(paths.root, "setting.json"));
+    indexManager.ensureReady("data.db");
+    expect(
+      indexManager
+        .getDatabase("data.db")
+        .prepare("SELECT count(*) FROM vec_documents")
+        .pluck()
+        .get()
+    ).toBe(3);
+    indexManager.closeDatabase("data.db");
+
+    const install = () => {
+      indexManager.prepareDownload("data.db", file, staged);
+      installDatabaseDownload(file, staged, "");
+      main = database.openDatabase("data.db", "normal");
+      database.databases.set("data.db", main);
+    };
+    const reconcile = () =>
+      queue.reconcileByPolicy({
+        mainDbName: "data.db",
+        embeddingConfig,
+        fingerprintChanged: false,
+        autoIndex: true,
+        reason: "sync_download_reconnect",
+      });
+    paths.embed.mockClear();
+    install();
+    expect(await reconcile()).toMatchObject({ queued: 0, indexed: 0 });
+    expect(read).not.toHaveBeenCalled();
+    expect(paths.embed).not.toHaveBeenCalled();
+
+    main.prepare("VACUUM INTO ?").run(staged);
+    main.close();
+    database.databases.delete("data.db");
+    indexManager.closeDatabase("data.db");
+    const candidate = new Database(staged);
+    candidate.exec(`
+      UPDATE contents SET content='["变更正文"]' WHERE id=1;
+      UPDATE contents SET update_time=2 WHERE id=2;
+      DELETE FROM cards WHERE id=3;
+    `);
+    candidate.close();
+    install();
+    const installed = indexManager.getDatabase("data.db");
+    expect(installed.prepare("SELECT prefixed_id,update_time FROM vec_documents").all()).toEqual([
+      { prefixed_id: "card:2", update_time: 2 },
+    ]);
+    expect(
+      installed
+        .prepare("SELECT update_time FROM content_sections WHERE prefixed_id='card:2'")
+        .pluck()
+        .get()
+    ).toBe(2);
+    expect(await reconcile()).toMatchObject({ queued: 1, indexed: 1 });
+    expect(paths.embed).toHaveBeenCalledTimes(1);
+  } finally {
+    read.mockRestore();
+    if (main.open) main.close();
+    indexManager.closeDatabase("data.db");
+    database.databases.delete("data.db");
     rmSync(paths.root, { recursive: true, force: true });
   }
 });

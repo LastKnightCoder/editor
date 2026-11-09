@@ -416,7 +416,7 @@ class UserSettingModule {
     const tempPath = join(appDir, `setting.json.${process.pid}.${++this.saveSequence}.tmp`);
     try {
       await fs.writeFile(tempPath, setting, "utf-8");
-      await fsExtra.move(tempPath, settingPath, { overwrite: true });
+      await fs.rename(tempPath, settingPath);
     } catch (error) {
       await fs.rm(tempPath, { force: true }).catch(() => undefined);
       console.error("[UserSettingModule] 保存用户设置失败", error);
