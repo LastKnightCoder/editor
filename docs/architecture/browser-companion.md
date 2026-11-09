@@ -36,7 +36,7 @@
 
 | scope         | 方法                                                                                                                    | 授予                                 |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `chat`        | `ai.run.*`、`chat.history`、`models.list`                                                                               | 必需                                 |
+| `chat`        | `ai.run.*`、`chat.history` / `chat.sessions` / `chat.session` / `chat.delete` / `chat.open`、`models.list`              | 必需                                 |
 | `annotations` | `annotations.list` / `annotations.sync`，伴读库的 `library.pages` / `library.sites` / `library.feed` / `library.rename` | 必需                                 |
 | `notes`       | `note.save` / `note.open`                                                                                               | 必需                                 |
 | `tools`       | 对话时使用桌面对话的同一份应用工具（ToolRegistry、Skill、MCP、插件工具）                                                | 可选，授权弹窗里默认勾选；设置里可关 |
@@ -60,7 +60,9 @@
 
 - 标注 = `excerpt` 表 `source_type = 'web'` 的摘录，`source_key` 为去掉 hash 的 URL。页面索引 = `web_page` 表（每页一行：域名、网页标题 `page_title`、用户起的名 `custom_title`）；显示名 = `custom_title` 否则 `page_title`，`annotations.sync` 先记网页标题再以显示名写该页摘录的 `source_title`，改名时同步改写，Tau 里其余读 `source_title` 的地方（搜索、脉络、移动端）直接读到显示名；`note.save` 的来源段同样用显示名。`annotations.sync` 是整页快照语义（`ExcerptTable.syncSource` 按 external_id diff），写后补发 `excerpt:sync-web-page` 写事件，索引与脉络随之刷新。锚点为 `{quote:{exact,prefix,suffix}, position:{start,end}}`，颜色只收编辑器行内色板的五个色相 id（yellow/green/blue/purple/red）。
 - 页面笔记 = 扩展本机按页保存的草稿（Tau 编辑器的原生节点，`note:<页面键>`）；`note.save` 把节点交给 Tau（主进程 `assertContentNodes` 校验、2 MB 上限），新建一张卡片，正文末尾附「来源：<网页标题>」链接段落。
-- 对话 = 按页面存放的 pi 会话文件（`browser-sessions/<页面键>/`），`chat.history` 取该页最近一段；一轮运行走 v2 协议（`ai.run.start` 立即返回，事件经 `ai.run.event` 只推给发起的连接）。
+- 对话按页面存放在 `browser-sessions/<页面键>/` 的 pi 会话文件中。`chat.history` 取最近一段，`chat.sessions` 按最近活动列出全部，标题取会话名或首条用户消息。`chat.session` 和 `chat.delete` 按文件头精确匹配会话 ID。运行登记覆盖 pi 宿主释放，删除在同一主进程同步检查运行状态并删除文件。
+- 新建对话先在扩展生成草稿 ID，`ai.run.start` 用 `sessionMode: "create"` 发起首轮。桌面在结束事件中确认文件是否落盘，扩展确认后按页记下仍选中的会话。继续已有会话用 `sessionMode: "continue"`，目标缺失时桌面返回 `missingSession`，扩展清理旧历史并进入空对话。未声明 `sessionMode` 的旧扩展沿用首次发送与续聊共用入口的行为。
+- 当前选择保存在 `chrome.storage.local` 的 `chat-session:<页面键>`。刷新优先读取该会话，读不到则显示最近一段。内容脚本按页面和选择版本校验异步结果。运行事件和交互归属原连接、原标签页，其他标签页查询只能得知运行中。原标签页离开后，同一扩展连接下的标签页可凭 `ai.run.state` 快照接回运行，后续事件按序号衔接。
 - 扩展离线时标注照常写本机并记待同步，就绪后按页补发；Tau 是真相源，连上后以 Tau 为准重载。
 
 ## 页内实现要点

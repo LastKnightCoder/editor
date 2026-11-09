@@ -5,10 +5,11 @@
 import {
   COMPANION_METHODS,
   WEB_HIGHLIGHT_HASH,
+  type CompanionRunEventNotification,
   type HighlightColor,
 } from "@tau/shared/browser-companion";
-import type { AiRunEventNotification } from "@tau/shared/chat-core";
 import { pageKeyOf } from "../../shared/messages";
+import { storageGet, storageSet } from "../../shared/chrome-storage";
 import { notePendingKey } from "../../shared/note-storage";
 import { BackgroundBridge } from "../bridge";
 import { readBlocks } from "../page/extract";
@@ -29,10 +30,6 @@ import {
 
 const MUTATION_DEBOUNCE_MS = 800;
 const URL_POLL_MS = 1000;
-
-const storageGet = async <T>(key: string): Promise<T | undefined> =>
-  (await chrome.storage.local.get(key))[key] as T | undefined;
-const storageSet = (key: string, value: unknown) => chrome.storage.local.set({ [key]: value });
 
 const isEditable = (node: Node | null) => {
   const element = node instanceof Element ? node : node?.parentElement;
@@ -60,7 +57,7 @@ export class CompanionController {
       },
       onNotify: (method, data) => {
         if (method === COMPANION_METHODS.runEvent)
-          this.chat.onEvent(data as AiRunEventNotification);
+          this.chat.onEvent(data as CompanionRunEventNotification);
       },
       onPageTool: (name, args) => this.runPageTool(name, args),
       onToggle: () => this.togglePanel(),
@@ -379,7 +376,6 @@ export class CompanionController {
       this.openPanel("chat");
       return;
     }
-    await this.chat.load();
     if (kind === "summarize") {
       this.openPanel("chat");
       await this.chat.ask(QUICK_LABELS[kind], { quote, quick: kind });
@@ -388,7 +384,7 @@ export class CompanionController {
     setState({ bubble: { kind, quote, rect: rect!, runId: null, text: "", status: "streaming" } });
     const runId = await this.chat.ask(QUICK_LABELS[kind], { quote, quick: kind });
     const { bubble, chat } = getState();
-    if (!bubble) return;
+    if (bubble?.quote !== quote) return;
     setState({
       bubble: runId
         ? { ...bubble, runId }

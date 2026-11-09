@@ -35,6 +35,10 @@ export class BackgroundBridge {
     this.post({ kind: "page", url });
   }
 
+  changeChatSelection(): void {
+    this.post({ kind: "chatSelection" });
+  }
+
   call<M extends BackgroundMethod>(
     method: M,
     params: BackgroundMethods[M]["params"]

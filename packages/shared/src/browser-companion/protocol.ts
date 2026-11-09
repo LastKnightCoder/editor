@@ -7,7 +7,7 @@
  * 握手：连接后扩展的第一帧必须是 `hello`（已配对）或 `pair.request`（首次），否则桌面关闭连接。
  * 之后每个方法按授予的 scope 校验，见 {@link METHOD_SCOPES}。
  */
-import type { AiRunStartParams } from "../chat-core/aiRunProtocol";
+import type { AiRunEventNotification, AiRunStartParams } from "../chat-core/aiRunProtocol";
 import type { ChatSessionMessage } from "../chat-core/messages";
 
 export const BROWSER_COMPANION_PATH = "/browser";
@@ -38,6 +38,12 @@ export const COMPANION_METHODS = {
   runAnswer: "ai.run.answer",
   runEvent: "ai.run.event",
   chatHistory: "chat.history",
+  /** 列出某网页下的全部对话（按最近活动降序） */
+  chatSessions: "chat.sessions",
+  /** 按 id 读某段对话 */
+  chatSession: "chat.session",
+  /** 删除某段对话 */
+  chatDelete: "chat.delete",
   /** 在 Tau 里打开这段网页对话（看完整的工具卡片） */
   chatOpen: "chat.open",
   modelsList: "models.list",
@@ -65,6 +71,9 @@ export const METHOD_SCOPES: Readonly<Record<string, CompanionScope>> = {
   [COMPANION_METHODS.runApprove]: "chat",
   [COMPANION_METHODS.runAnswer]: "chat",
   [COMPANION_METHODS.chatHistory]: "chat",
+  [COMPANION_METHODS.chatSessions]: "chat",
+  [COMPANION_METHODS.chatSession]: "chat",
+  [COMPANION_METHODS.chatDelete]: "chat",
   [COMPANION_METHODS.chatOpen]: "chat",
   [COMPANION_METHODS.modelsList]: "chat",
   [COMPANION_METHODS.annotationsList]: "annotations",
@@ -172,16 +181,33 @@ export interface ReadyData {
 
 // ———————— 对话 ————————
 
-/** 扩展发起一轮对话：比通用 v2 协议多了模型覆盖 */
+/** 扩展发起一轮对话：显式区分首次落盘和继续已有会话 */
 export type CompanionRunStartParams = AiRunStartParams & {
   session: { id: string; pageUrl: string };
+  sessionMode?: "create" | "continue";
   model?: { providerId: string; modelId: string };
+};
+
+export type CompanionRunStartResult = { runId: string } | { missingSession: true };
+
+export type CompanionRunEventNotification = AiRunEventNotification & {
+  /** 草稿首轮结束时，由桌面确认会话文件是否已落盘 */
+  sessionSaved?: boolean;
 };
 
 /** 某个页面最近一次对话（没有则 sessionId 为 null） */
 export interface ChatHistoryResult {
   sessionId: string | null;
   messages: ChatSessionMessage[];
+}
+
+/** 一个网页下的一段对话（标题取 pi 会话名或首条用户消息） */
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  createTime: number;
+  updateTime: number;
+  messageCount: number;
 }
 
 export interface ModelOption {

@@ -202,8 +202,8 @@ export function createCompanionRunDriver(
       const message = params.messages.at(-1);
       if (!message || message.role !== "user") {
         client.destroy();
-        PiSessionHostModule.dispose(hostId);
         releaseDesktop();
+        await PiSessionHostModule.dispose(hostId);
         throw new Error("缺少本轮的用户消息");
       }
       const baseMessages = PiSessionHostModule.transcriptOf(hostId);
@@ -224,7 +224,7 @@ export function createCompanionRunDriver(
       })().finally(() => {
         releaseDesktop();
         client.destroy();
-        PiSessionHostModule.dispose(hostId);
+        return PiSessionHostModule.dispose(hostId);
       });
 
       const handle: BrowserRunHandle = {

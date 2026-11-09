@@ -34,7 +34,7 @@ export interface BackgroundMethods {
   status: { params: void; result: ConnectionStatus };
   /** 发起配对或立即重连 */
   connect: { params: void; result: ConnectionStatus };
-  /** 透传给 Tau（ai.run.*、chat.history、models.list、note.save、note.open） */
+  /** 透传给 Tau（ai.run.*、chat.*、models.list、note.save、note.open） */
   rpc: { params: { method: string; params?: unknown }; result: unknown };
   "annotations.load": { params: { url: string }; result: WebAnnotation[] };
   "annotations.save": {
@@ -49,6 +49,7 @@ export type BackgroundMethod = keyof BackgroundMethods;
 
 export type ContentToBackground =
   | { kind: "page"; url: string }
+  | { kind: "chatSelection" }
   | { kind: "call"; id: number; method: BackgroundMethod; params: unknown }
   | { kind: "pageToolResult"; id: string; content?: string; error?: string };
 

@@ -7,7 +7,7 @@
  *   扩展对话与应用对话拆开，跟着页面走）。
  */
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, readdirSync, readSync } from "node:fs";
 import { basename, join } from "node:path";
 import PathUtil from "../utils/PathUtil";
 
@@ -74,12 +74,36 @@ export const assertSafeSessionId = (sessionId: string): void => {
 };
 
 /**
- * 按会话 id 找文件（文件名是 pi 的 `<时间戳>_<id>.jsonl`）：扩展只知道会话 id，
- * 文件名由这里在目录内查出来，不拿外部输入拼路径。找不到返回 undefined（还没落盘）。
+ * 文件名先筛出候选，再用文件头核对完整 ID，避免带下划线的 ID 命中其他会话。
  */
 export const findSessionFileById = (sessionDir: string, sessionId: string): string | undefined => {
   assertSafeSessionId(sessionId);
   if (!existsSync(sessionDir)) return undefined;
-  const name = readdirSync(sessionDir).find(file => file.endsWith(`_${sessionId}.jsonl`));
-  return name ? join(sessionDir, name) : undefined;
+  const suffix = `_${sessionId}.jsonl`;
+  for (const entry of readdirSync(sessionDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(suffix)) continue;
+    const file = join(sessionDir, entry.name);
+    if (hasSessionHeader(file, sessionId)) return file;
+  }
+  return undefined;
 };
+
+function hasSessionHeader(file: string, sessionId: string): boolean {
+  const fd = openSync(file, "r");
+  try {
+    const buffer = Buffer.alloc(8192);
+    const length = readSync(fd, buffer, 0, buffer.length, 0);
+    const head = buffer.subarray(0, length);
+    const newline = head.indexOf(10);
+    const line =
+      newline >= 0 ? head.toString("utf8", 0, newline) : readFileSync(fd, "utf8").split("\n", 1)[0];
+    if (!line) return false;
+    const header = JSON.parse(line.trim()) as { type?: string; id?: string } | null;
+    return header?.type === "session" && header.id === sessionId;
+  } catch (error) {
+    if (error instanceof SyntaxError) return false;
+    throw error;
+  } finally {
+    closeSync(fd);
+  }
+}

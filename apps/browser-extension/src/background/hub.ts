@@ -3,8 +3,8 @@
  * - 端口按标签页登记当前页 URL，Tau 反向请求页面工具时按 URL 找到对应标签页；
  * - 对话事件按 runId 只回给发起那一轮的标签页，连接状态与外观变化广播给所有标签页。
  */
-import { COMPANION_METHODS } from "@tau/shared/browser-companion";
-import type { AiRunEventNotification } from "@tau/shared/chat-core";
+import { COMPANION_METHODS, type CompanionRunStartResult } from "@tau/shared/browser-companion";
+import type { AiRunEventNotification, AiRunStateResult } from "@tau/shared/chat-core";
 import {
   pageKeyOf,
   type BackgroundToContent,
@@ -22,6 +22,9 @@ export const RPC_PASSTHROUGH = new Set<string>([
   COMPANION_METHODS.runApprove,
   COMPANION_METHODS.runAnswer,
   COMPANION_METHODS.chatHistory,
+  COMPANION_METHODS.chatSessions,
+  COMPANION_METHODS.chatSession,
+  COMPANION_METHODS.chatDelete,
   COMPANION_METHODS.chatOpen,
   COMPANION_METHODS.modelsList,
   COMPANION_METHODS.noteSave,
@@ -116,10 +119,14 @@ export class CompanionHub {
     this.ports.set(port, { tabId, url: "", lastActive: Date.now() });
     port.onDisconnect.addListener(() => {
       this.ports.delete(port);
-      for (const [runId, owner] of this.runs) if (owner === port) this.runs.delete(runId);
+      this.releaseRuns(port);
     });
     port.onMessage.addListener(message => void this.onMessage(port, message));
     port.postMessage({ kind: "status", status: this.connection.current });
+  }
+
+  private releaseRuns(port: PortLike): void {
+    for (const [runId, owner] of this.runs) if (owner === port) this.runs.delete(runId);
   }
 
   /** 扩展页面的请求：笔记页保存 / 打开卡片，伴读库读页面与标注、改名 */
@@ -185,8 +192,18 @@ export class CompanionHub {
     const state = this.ports.get(port);
     if (!state) return;
     state.lastActive = Date.now();
+    if (message.kind === "chatSelection") {
+      this.ports.set(port, { ...state });
+      this.releaseRuns(port);
+      return;
+    }
     if (message.kind === "page") {
-      state.url = message.url;
+      if (pageKeyOf(state.url) !== pageKeyOf(message.url)) {
+        this.ports.set(port, { ...state, url: message.url });
+        this.releaseRuns(port);
+      } else {
+        state.url = message.url;
+      }
       return;
     }
     if (message.kind === "pageToolResult") {
@@ -235,8 +252,12 @@ export class CompanionHub {
           throw new Error(`不支持的方法：${request.method}`);
         // 先登记 runId 再发起，避免漏掉最早的事件
         const runId = (request.params as { runId?: unknown } | undefined)?.runId;
-        if (request.method === COMPANION_METHODS.runStart && typeof runId === "string")
+        const starting = request.method === COMPANION_METHODS.runStart && typeof runId === "string";
+        if (starting) {
+          if (this.runs.has(runId)) throw new Error("运行已存在");
           this.runs.set(runId, port);
+        }
+        const page = this.ports.get(port);
         try {
           const result = await this.connection.request(
             request.method,
@@ -244,13 +265,25 @@ export class CompanionHub {
             RPC_TIMEOUT_MS
           );
           if (request.method === COMPANION_METHODS.runState) {
-            const resumed = (result as { runId?: string } | null)?.runId;
-            if (resumed) this.runs.set(resumed, port);
+            const resumed = (result as AiRunStateResult | null)?.runId;
+            if (resumed) {
+              const owner = this.runs.get(resumed);
+              if ((owner && owner !== port) || this.ports.get(port) !== page)
+                return { running: true } satisfies AiRunStateResult;
+              this.runs.set(resumed, port);
+            }
           }
+          const startResult = result as CompanionRunStartResult | null;
+          if (
+            starting &&
+            startResult &&
+            "missingSession" in startResult &&
+            this.runs.get(runId) === port
+          )
+            this.runs.delete(runId);
           return result;
         } catch (error) {
-          if (request.method === COMPANION_METHODS.runStart && typeof runId === "string")
-            this.runs.delete(runId);
+          if (starting && this.runs.get(runId) === port) this.runs.delete(runId);
           throw error;
         }
       }

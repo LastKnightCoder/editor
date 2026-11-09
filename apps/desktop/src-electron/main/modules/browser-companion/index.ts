@@ -25,8 +25,11 @@ import {
   randomHex,
   type AppearanceData,
   type ChatHistoryResult,
+  type ChatSessionSummary,
   type ClientInfo,
+  type CompanionRunEventNotification,
   type CompanionRunStartParams,
+  type CompanionRunStartResult,
   type CompanionScope,
   type ModelOption,
   type PairRequestResult,
@@ -38,7 +41,12 @@ import { normalizeWebPageUrl } from "@/entity/excerpt/web";
 import serverModule from "../server";
 import userSettingModule from "../user-setting";
 import { BrowserRunRegistry } from "../browser-run-core";
-import { browserSessionFile, listBrowserSessions, readTranscript } from "../pi-session-store";
+import {
+  browserSessionFile,
+  deleteBrowserSession,
+  listBrowserSessions,
+  readTranscript,
+} from "../pi-session-store";
 import { browserSessionDirOf } from "../pi-session-paths";
 import { getMainWindows, isMainWindow, showOrCreateMainWindow } from "../../windows/main-window";
 import { dismissNotification, routeNotification } from "../../windows/notification-router";
@@ -118,10 +126,23 @@ class BrowserCompanionModule {
           ? { peer: connection.peer, allowTools: connection.scopes.has("tools") }
           : null;
       }),
-      notification => {
+      (notification, params) => {
         const connection = this.runs.get(notification.runId);
-        connection?.peer.notify(COMPANION_METHODS.runEvent, notification);
-        if (notification.event.type === "settled") this.runs.delete(notification.runId);
+        const data: CompanionRunEventNotification = notification;
+        if (notification.event.type === "settled") {
+          this.runs.delete(notification.runId);
+          if ((params as CompanionRunStartParams).sessionMode === "create" && params.session) {
+            try {
+              data.sessionSaved = Boolean(
+                browserSessionFile(params.session.pageUrl, params.session.id)
+              );
+            } catch (error) {
+              data.sessionSaved = false;
+              log.warn("[browser-companion] 无法确认对话是否落盘", error);
+            }
+          }
+        }
+        connection?.peer.notify(COMPANION_METHODS.runEvent, data);
       }
     );
     this.wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
@@ -321,11 +342,7 @@ class BrowserCompanionModule {
 
   // ———————— 已授权连接的方法 ————————
 
-  private async dispatch(
-    connection: Connection,
-    method: string,
-    params: unknown
-  ): Promise<unknown> {
+  private dispatch(connection: Connection, method: string, params: unknown): unknown {
     const scope = METHOD_SCOPES[method];
     if (!scope) throw new Error(`未知方法：${method}`);
     if (!connection.scopes.has(scope)) throw new Error("没有这项权限，请在 Tau 设置中开启");
@@ -339,19 +356,29 @@ class BrowserCompanionModule {
           !isSessionRef(start.session)
         )
           throw new Error("对话参数无效");
+        if (
+          start.sessionMode !== undefined &&
+          start.sessionMode !== "create" &&
+          start.sessionMode !== "continue"
+        )
+          throw new Error("对话启动方式无效");
         if (this.runs.has(start.runId)) throw new Error("runId 重复");
+        if (
+          start.sessionMode === "continue" &&
+          !browserSessionFile(start.session.pageUrl, start.session.id)
+        )
+          return { missingSession: true } satisfies CompanionRunStartResult;
         this.runs.set(start.runId, connection);
         const outcome = this.registry.start(start);
         if (!outcome.ok) {
           this.runs.delete(start.runId);
           throw new Error(outcome.error);
         }
-        return { runId: start.runId };
+        return { runId: start.runId } satisfies CompanionRunStartResult;
       }
       case COMPANION_METHODS.runAbort:
         this.assertOwnRun(connection, value.runId);
-        await this.registry.abort(String(value.runId));
-        return { ok: true };
+        return this.registry.abort(String(value.runId)).then(() => ({ ok: true }));
       case COMPANION_METHODS.runApprove:
         this.assertOwnRun(connection, value.runId);
         return {
@@ -374,19 +401,35 @@ class BrowserCompanionModule {
       case COMPANION_METHODS.runState: {
         if (!isSessionRef(value.session)) throw new Error("对话参数无效");
         const session = value.session;
+        const runId = this.registry.runIdFor(session);
+        if (runId && this.runs.get(runId) !== connection)
+          return { running: true } satisfies AiRunStateResult;
         const snapshot = this.registry.snapshotFor(session, () =>
           readTranscript(
             browserSessionFile(session.pageUrl, session.id),
             browserSessionDirOf(session.pageUrl)
           )
         );
-        if (snapshot) this.runs.set(snapshot.runId, connection);
         return (
           snapshot ? { running: true, runId: snapshot.runId, snapshot } : { running: false }
         ) satisfies AiRunStateResult;
       }
       case COMPANION_METHODS.chatHistory:
         return this.chatHistory(value.url);
+      case COMPANION_METHODS.chatSessions:
+        return this.chatSessions(value.url);
+      case COMPANION_METHODS.chatSession: {
+        if (!isSessionRef(value.session)) throw new Error("对话参数无效");
+        const { id, pageUrl } = value.session;
+        const file = browserSessionFile(pageUrl, id);
+        if (!file) return { sessionId: null, messages: [] } satisfies ChatHistoryResult;
+        return {
+          sessionId: id,
+          messages: readTranscript(file, browserSessionDirOf(pageUrl)),
+        } satisfies ChatHistoryResult;
+      }
+      case COMPANION_METHODS.chatDelete:
+        return this.chatDelete(value.session);
       case COMPANION_METHODS.chatOpen: {
         if (!isSessionRef(value.session)) throw new Error("对话参数无效");
         const { id, pageUrl } = value.session;
@@ -444,6 +487,22 @@ class BrowserCompanionModule {
         browserSessionDirOf(pageUrl)
       ),
     };
+  }
+
+  private async chatSessions(url: unknown): Promise<ChatSessionSummary[]> {
+    const pageUrl = normalizeWebPageUrl(url as string);
+    if (!pageUrl) throw new Error("url 必须是 http(s) 地址");
+    return listBrowserSessions(pageUrl);
+  }
+
+  private chatDelete(session: unknown): { ok: true } {
+    if (!isSessionRef(session)) throw new Error("对话参数无效");
+    const { id, pageUrl } = session;
+    if (this.registry.runIdFor(session)) {
+      throw new Error("这段对话正在回答，请等它结束或先停止");
+    }
+    if (!deleteBrowserSession(pageUrl, id)) throw new Error("这段对话不存在");
+    return { ok: true };
   }
 
   /** 只给模型名，绝不外发服务商配置（含 API Key） */
