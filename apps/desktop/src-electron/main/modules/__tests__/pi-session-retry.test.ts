@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,6 +6,7 @@ import { fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall } from "@ear
 import { SessionManager, type AgentSession } from "@earendil-works/pi-coding-agent";
 import { assembleHostSession, createFauxModelRuntime, transcriptOf } from "../pi-session-host-core";
 import {
+  appendDisplayEntry,
   conversationTreeOf,
   messageVersionsOf,
   rewindToBeforeEntry,
@@ -72,6 +73,66 @@ async function setup() {
 }
 
 describe("失败重试不产生分支", () => {
+  it("首轮失败尚未落盘时仍能重试，保留原问题与附件", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pi-first-retry-"));
+    dirs.push(dir);
+    const faux = fauxProvider({});
+    const modelRuntime = await createFauxModelRuntime(join(dir, "auth.json"), faux);
+    const session = await assembleHostSession({
+      cwd: dir,
+      agentDir: join(dir, ".pi-agent"),
+      sessionDir: dir,
+      sessionId: "first-retry",
+      modelRuntime,
+      modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+    });
+    sessions.push(session);
+    session.setAutoRetryEnabled(false);
+    session.sessionManager.appendMessage({
+      role: "user",
+      content: "原问题与附件上下文",
+      timestamp: 1,
+    });
+    appendDisplayEntry(session.sessionManager, {
+      modelText: "原问题与附件上下文",
+      clientId: "first-question",
+      content: [
+        { type: "text", text: "原问题" },
+        { type: "file", file: "/tmp/a.pdf", fileName: "a.pdf" },
+      ],
+    });
+    faux.setResponses([
+      context => {
+        expect(
+          context.messages.filter(
+            message =>
+              message.role === "user" &&
+              JSON.stringify(message.content).includes("原问题与附件上下文")
+          )
+        ).toHaveLength(1);
+        return fauxAssistantMessage([fauxText("重试成功")]);
+      },
+    ]);
+    const file = session.sessionFile!;
+    expect(existsSync(file)).toBe(false);
+    expect(
+      await retryHostSession(
+        session,
+        { clientId: "first-question" },
+        "",
+        new AbortController().signal
+      )
+    ).toBe(true);
+    const messages = piEntriesToDesktopMessages(transcriptOf(SessionManager.open(file)));
+    expect(messages.map(message => message.role)).toEqual(["user", "assistant"]);
+    expect(messages[0].content).toContainEqual({
+      type: "file",
+      file: "/tmp/a.pdf",
+      fileName: "a.pdf",
+    });
+    expect(messages[1].content).toBe("重试成功");
+  });
+
   it("重复失败后成功：只有原问题、附件保留、重开没有版本，运行正常沉淀", async () => {
     const { session, faux, file, entryId } = await setup();
     const events: string[] = [];
