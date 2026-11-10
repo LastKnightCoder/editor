@@ -10,6 +10,7 @@
 import { ipcMain } from "electron";
 import assistantMemory from "./assistant-memory";
 import { emitMemorySourceChanged, setMemoryForeground } from "./assistant-memory/activity";
+import { emitAgentRunEnded } from "./agent-run-events";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
 import collaborationModule from "./collaboration";
@@ -944,6 +945,7 @@ class PiSessionHostModule {
               id: session.sessionId,
             });
           setMemoryForeground(request.sessionId, false);
+          emitAgentRunEnded(request.scope);
         }
         trackUsage(sessionEvent);
         PiSessionHostModule.touch(request.sessionId);
@@ -1229,6 +1231,7 @@ class PiSessionHostModule {
       hosted.detachSender();
       await PiSessionHostModule.subagentRuntime?.release(sessionId);
       await PiSessionHostModule.abort(sessionId);
+      emitAgentRunEnded(hosted.scope);
       hosted.displayWriter.dispose();
       hosted.interactions.dispose();
       hosted.unsubscribe();

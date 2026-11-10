@@ -1,6 +1,17 @@
-import { forwardRef, useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { useContentLocation } from "./useContentLocation";
 import { DocTasksStatusBar } from "./DocTasksStatusBar";
+import { useScopedEditMarks } from "./ScopedEditMarks";
+import { createAgentCommentExtension, type AgentCommentTarget } from "./AgentCommentExtension";
+import { isMainWindow } from "@/utils/window-role";
 import { Loading } from "@tau/ui";
 import { Editor, type EditorRef } from "@tau/editor";
 import { useInlineSuggestionProvider } from "@/hooks/useInlineSuggestionProvider";
@@ -92,6 +103,15 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const session = sessions.find(item => item.id === binding?.doc.guid);
     const callback = useRef(props.onChange);
     const editorRef = useRef<EditorRef | null>(null);
+    const editMarks = useScopedEditMarks(
+      contentId,
+      binding?.doc,
+      binding?.awareness,
+      article,
+      () => editorRef.current?.getEditor() ?? initializedEditor.current?.editor,
+      props.decorate,
+      props.leafWrapper
+    );
     callback.current = props.onChange;
     const forwardedRef = useRef(ref);
     forwardedRef.current = ref;
@@ -128,6 +148,27 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     // AI 编辑上下文（active-editor-session）注册：非只读 + 声明身份才登记
     const { entityType, entityId } = editingContext ?? {};
     const canRegisterEditing = Boolean(!readonly && contentId && entityType && entityId);
+
+    // 划词「交给 Agent」：可写的卡片 / 文章 / 项目文档，且对话在本窗口（主窗口）
+    const commentTarget = useMemo<AgentCommentTarget | undefined>(
+      () =>
+        canRegisterEditing &&
+        isMainWindow() &&
+        contentId &&
+        typeof entityId === "number" &&
+        (entityType === "card" || entityType === "article" || entityType === "project-item")
+          ? { contentId, entityType, entityId }
+          : undefined,
+      [canRegisterEditing, contentId, entityType, entityId]
+    );
+    const hostExtensions = props.extensions;
+    const editorExtensions = useMemo(
+      () =>
+        commentTarget
+          ? [...(hostExtensions ?? []), createAgentCommentExtension(commentTarget)]
+          : hostExtensions,
+      [commentTarget, hostExtensions]
+    );
     const editingSessionRef = useRef<string | null>(null);
     const contentRef = useRef<Descendant[] | null>(null);
     const snapshotTimerRef = useRef<number | undefined>(undefined);
@@ -155,7 +196,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         callback.current?.(article.content as Descendant[], editorRef.current.getEditor());
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [binding, article]);
+    }, [binding?.doc, article?.content]);
 
     useEffect(() => {
       if (!canRegisterEditing || !contentId || !entityType || !entityId) return;
@@ -202,6 +243,9 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         )}
         <Editor
           {...props}
+          extensions={editorExtensions}
+          decorate={editMarks.decorate}
+          leafWrapper={editMarks.leafWrapper}
           kit={kit}
           inlineSuggestions={inlineSuggestions}
           onInit={handleInit}

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import { Awareness } from "y-protocols/awareness";
+import { Awareness, encodeAwarenessUpdate } from "y-protocols/awareness";
 import { createNodeDocument } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { CollaborationLocalStore } from "../local-store";
@@ -73,6 +73,8 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
     requireSession: () => session,
     databaseForEvent: () => ({ name: "library" }),
     state: () => ({ nickname: "作者", deviceId: "device" }),
+    presenceSnapshot: (current: RuntimeSession) =>
+      encodeAwarenessUpdate(current.awareness, [...current.awareness.getStates().keys()]),
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
   const event = { sender: { id: 1 } };

@@ -9,6 +9,10 @@ import {
   type DocumentOperation,
   type DocumentOperationRequest,
   applyStructuredDocumentUpdate,
+  buildScopedContentUpdate,
+  validateScopedContentEdits,
+  ScopedContentConflictError,
+  type ScopedContentEdits,
   validateStructuredDocument,
   readDocumentProjection,
   collectDocumentResources,
@@ -187,16 +191,21 @@ export class CollaborationStore {
     id: string,
     actorId: string,
     request: DocumentOperationRequest,
-    update?: Uint8Array,
+    update?: Uint8Array | ScopedContentEdits,
     cancel = false,
     memoryBudget: number | (() => number) = MAX_DOCUMENT_BYTES
   ) {
     this.authorize(id, actorId);
+    const scoped = update !== undefined && !(update instanceof Uint8Array);
+    if (!cancel && scoped !== (request.kind === "scoped-edit"))
+      return fail("INVALID_OPERATION", "编辑请求类型不匹配", 400);
+    if (scoped) validateScopedContentEdits(update);
+    const payload = scoped ? Buffer.from(JSON.stringify(update)) : update;
     if (
       !cancel &&
-      (!update ||
-        update.byteLength > MAX_DOCUMENT_BYTES ||
-        createHash("sha256").update(update).digest("hex") !== request.updateHash)
+      (!payload ||
+        payload.byteLength > MAX_DOCUMENT_BYTES ||
+        createHash("sha256").update(payload).digest("hex") !== request.updateHash)
     )
       return fail("INVALID_OPERATION", "编辑增量摘要或大小不匹配", 400);
     if (
@@ -204,13 +213,18 @@ export class CollaborationStore {
       !this.operations.get(id, request.operationId, actorId)
     )
       this.ensureCapacity(4096);
-    const operation = this.operations.begin(id, actorId, request);
-    // 未确认提案可能缺依赖，无法完整扫描；先保守持有该房间已上传的资源，退役由恢复流程负责。
-    this.sql.exec(
-      "INSERT OR IGNORE INTO collaboration_asset_history SELECT document_id,?,id FROM assets WHERE document_id=?",
-      this.protocols.state(id).epoch,
-      id
-    );
+    const operation = this.operations.begin(id, actorId, {
+      ...request,
+      source: scoped ? update.source : undefined,
+    });
+    if (!scoped) {
+      // 未确认提案可能缺依赖，无法完整扫描；先保守持有该房间已上传的资源，退役由恢复流程负责。
+      this.sql.exec(
+        "INSERT OR IGNORE INTO collaboration_asset_history SELECT document_id,?,id FROM assets WHERE document_id=?",
+        this.protocols.state(id).epoch,
+        id
+      );
+    }
     if (cancel) return this.operations.abort(operation, "cancelled");
     if (operation.state !== "PENDING") return operation;
     try {
@@ -243,14 +257,18 @@ export class CollaborationStore {
   private appendNodeUpdate(
     id: string,
     deviceId: string,
-    update: Uint8Array,
+    update: Uint8Array | ScopedContentEdits,
     current: Y.Doc | undefined,
     protocol: DocumentProtocol,
     memoryBudget: number | (() => number),
     operation?: DocumentOperation
   ): Promise<void | DocumentOperation> {
-    const payload = update.slice();
-    return this.writes.run(id, payload.byteLength, async () => {
+    const payload = update instanceof Uint8Array ? update.slice() : structuredClone(update);
+    const bytes =
+      payload instanceof Uint8Array
+        ? payload.byteLength
+        : Buffer.byteLength(JSON.stringify(payload));
+    return this.writes.run(id, bytes, async () => {
       this.writable();
       this.authorize(id, deviceId);
       if (operation) {
@@ -261,7 +279,14 @@ export class CollaborationStore {
       const before = this.load(id);
       let candidate: Y.Doc | undefined;
       try {
-        candidate = await applyStructuredDocumentUpdate(before, payload, {
+        const scoped =
+          payload instanceof Uint8Array
+            ? undefined
+            : await buildScopedContentUpdate(before, payload, {
+                undo: operation && this.operations.isScopedUndo(operation, payload),
+              });
+        const raw = scoped?.update ?? (payload as Uint8Array);
+        candidate = await applyStructuredDocumentUpdate(before, raw, {
           documentId: id,
           epoch: protocol.epoch,
           baselineId: protocol.baselineId!,
@@ -289,7 +314,10 @@ export class CollaborationStore {
           )
             return fail("CAPACITY", "活动文档内存预算已满，请稍后重试", 429);
           if (revision === previousRevision) return;
-          this.ensureCapacity(delta.byteLength);
+          this.ensureCapacity(
+            delta.byteLength +
+              (scoped?.inverse ? Buffer.byteLength(JSON.stringify(scoped.inverse)) : 0)
+          );
           this.validateAssets(id, content, candidate);
           const { generation } = this.required<{ generation: number }>(
             "SELECT coalesce(max(generation),0)+1 AS generation FROM chunks WHERE document_id=?",
@@ -314,12 +342,17 @@ export class CollaborationStore {
                 return this.protocols.assertWritable(id, protocol);
               },
               revision,
-              install
+              install,
+              scoped?.inverse
             )
           : this.storage.transactionSync(install);
         if (result && result.state !== "COMMITTED") return result;
         if (current) Y.applyUpdate(current, Y.encodeStateAsUpdate(candidate));
         return result;
+      } catch (error) {
+        if (operation && error instanceof ScopedContentConflictError)
+          return this.operations.abort(operation, error.code, error.conflicts);
+        throw error;
       } finally {
         before.destroy();
         candidate?.destroy();

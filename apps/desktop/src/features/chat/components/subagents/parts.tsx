@@ -11,21 +11,8 @@ import {
 } from "lucide-react";
 import { Spinner, cn } from "@tau/ui";
 import type { SubagentActivity, SubagentView } from "@/types/subagent";
-import {
-  STATUS_LABEL,
-  avatarInitial,
-  avatarTone,
-  needsUser,
-  type SubagentDisplayStatus,
-} from "./model";
-
-const TONE = {
-  1: "bg-tag-1-soft text-tag-1",
-  2: "bg-tag-2-soft text-tag-2",
-  3: "bg-tag-3-soft text-tag-3",
-  4: "bg-tag-4-soft text-tag-4",
-  5: "bg-tag-5-soft text-tag-5",
-} as const;
+import { agentColorStyle } from "@/services/agent-identity";
+import { STATUS_LABEL, avatarInitial, needsUser, type SubagentDisplayStatus } from "./model";
 
 const DOT: Record<SubagentDisplayStatus, string> = {
   running: "bg-accent",
@@ -45,7 +32,7 @@ const SIZE = {
   lg: "size-[30px] rounded-[9px] text-tau-title",
 } as const;
 
-/** 子 Agent 身份：tag 色 + 首字，右下角状态点 */
+/** 子 Agent 身份：按职责名派生的身份色（与正文署名、光标同色）+ 首字，右下角状态点 */
 export function SubagentAvatar({
   view,
   status,
@@ -61,10 +48,11 @@ export function SubagentAvatar({
   return (
     <span
       aria-hidden
+      style={agentColorStyle(view.agent.title)}
       className={cn(
         "relative grid shrink-0 place-items-center font-semibold",
+        "bg-[color-mix(in_oklch,var(--agent)_16%,transparent)] text-[var(--agent)]",
         SIZE[size],
-        TONE[avatarTone(view.agent.agentId)],
         ring && cn("box-content border-2", ring)
       )}
     >

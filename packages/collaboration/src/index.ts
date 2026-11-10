@@ -21,6 +21,7 @@ export * from "./whiteboard-relations";
 export * from "./whiteboard-document";
 export * from "./document-adapter";
 export * from "./document-operations";
+export * from "./scoped-content-edit";
 export * from "./document-sync";
 
 export {

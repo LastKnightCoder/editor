@@ -69,7 +69,7 @@ export const createContentSnapshot = (
   const createdAt = Date.now();
 
   return {
-    id: `${createdAt}-${hash}`,
+    id: `${createdAt}-${crypto.randomUUID()}`,
     createdAt,
     content,
     markdown,

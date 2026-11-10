@@ -49,6 +49,8 @@ export interface ToolExecutionFlags {
 
 export interface ToolExecutionMetadata {
   flags?: ToolExecutionFlags;
+  agentTitle?: string;
+  executionId?: string;
 }
 
 export interface ToolExecutionContext {

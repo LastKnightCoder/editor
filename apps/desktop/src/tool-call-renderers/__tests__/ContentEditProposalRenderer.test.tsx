@@ -82,7 +82,6 @@ const createPayload = (): ContentEditRendererPayload => ({
       charDelta: -2,
     },
   ],
-  currentPermission: "review_required",
   targetSource: "active-session",
   createdAt: Date.now(),
   updatedAt: Date.now(),
@@ -161,7 +160,6 @@ const resetStores = () => {
   useContentEditReviewStore.setState({
     proposals: {},
     checkpoints: {},
-    permissions: {},
   });
   useContentEditReviewSessionStore.setState({
     records: {},
@@ -182,9 +180,6 @@ describe("ContentEditProposalRenderer", () => {
     useContentEditReviewStore.setState({
       proposals: {
         [proposal.proposalId]: proposal,
-      },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
       },
     });
     useContentEditReviewSessionStore.getState().createPending({
@@ -220,9 +215,6 @@ describe("ContentEditProposalRenderer", () => {
     useContentEditReviewStore.setState({
       proposals: {
         [proposal.proposalId]: proposal,
-      },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
       },
     });
     const session = useContentEditReviewSessionStore.getState().createPending({
@@ -284,9 +276,6 @@ describe("ContentEditProposalRenderer", () => {
       proposals: {
         [proposal.proposalId]: proposal,
       },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
-      },
     });
     useContentEditReviewSessionStore.getState().createPending({
       toolCallId: "content-edit-call-1",
@@ -340,9 +329,6 @@ describe("ContentEditProposalRenderer", () => {
     useContentEditReviewStore.setState({
       proposals: {
         [proposal.proposalId]: proposal,
-      },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
       },
     });
     useContentEditReviewSessionStore.getState().createPending({
@@ -399,9 +385,6 @@ describe("ContentEditProposalRenderer", () => {
       proposals: {
         [proposal.proposalId]: proposal,
       },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
-      },
     });
 
     const { root, container } = await mount(
@@ -442,9 +425,6 @@ describe("ContentEditProposalRenderer", () => {
     useContentEditReviewStore.setState({
       proposals: {
         [proposal.proposalId]: proposal,
-      },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
       },
     });
 
@@ -492,9 +472,6 @@ describe("ContentEditProposalRenderer", () => {
     useContentEditReviewStore.setState({
       proposals: {
         [proposal.proposalId]: proposal,
-      },
-      permissions: {
-        [proposal.conversationKey]: "review_required",
       },
     });
     useContentEditReviewSessionStore.getState().createPending({

@@ -20,6 +20,7 @@ import { DiffHighlightedEditor } from "./DiffHighlightedEditor";
 import { CompactSummary, ChangePreviewCard, FeedbackTemplates } from "./change-preview-components";
 import { generateChangePreviews } from "@/utils/review-change-preview";
 import { buildMergedReviewContent } from "@/utils/review-merged-content";
+import { SuggestionProposalCard } from "./SuggestionProposalCard";
 
 type ReviewResultPayload = {
   kind?: "content-edit-review-result";
@@ -32,6 +33,8 @@ type ReviewResultPayload = {
   conversationKey: string;
   checkpointId?: string;
   feedback?: string;
+  /** 逐条建议的结果：有它即为逐条建议提案，条目状态以主进程记录为准 */
+  items?: unknown[];
   proposal?: {
     sourceToolName: string;
     proposedMarkdown?: string;
@@ -130,13 +133,9 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     })
   );
   const proposalId = session?.proposalId || outputResult?.proposalId;
-  const conversationKey = session?.conversationKey || outputResult?.conversationKey;
 
   const liveProposal = useContentEditReviewStore(state =>
     proposalId ? state.proposals[proposalId] : undefined
-  );
-  const currentPermission = useContentEditReviewStore(state =>
-    conversationKey ? state.permissions[conversationKey] : undefined
   );
 
   const proposal = useMemo(() => {
@@ -144,7 +143,6 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
       const merged = {
         ...session.payload,
         ...liveProposal,
-        currentPermission: currentPermission || session.payload.currentPermission,
       };
       return merged as ContentEditRendererPayload & Partial<ContentEditProposalRecord>;
     }
@@ -169,7 +167,6 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
       diffSummary: outputResult.proposal.diffSummary,
       patches: outputResult.proposal.patches,
       checkpointId: outputResult.checkpointId || liveProposal?.checkpointId,
-      currentPermission: currentPermission || "review_required",
       targetSource: liveProposal?.targetSource || "active-session",
       lastError: liveProposal?.lastError,
       createdAt: liveProposal?.createdAt || outputResult.submittedAt,
@@ -177,7 +174,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
       proposedMarkdown: outputResult.proposal.proposedMarkdown,
     };
     return merged as ContentEditRendererPayload & Partial<ContentEditProposalRecord>;
-  }, [conversationKey, currentPermission, liveProposal, outputResult, proposalId, session]);
+  }, [liveProposal, outputResult, session]);
 
   const previewContent = useMemo(() => {
     if (!proposal?.proposedMarkdown) {
@@ -242,6 +239,24 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     return () => window.cancelAnimationFrame(frameId);
   }, [feedbackOpen]);
 
+  // 逐条建议：对话里是按条卡片，与正文右栏操作同一份主进程记录
+  const suggestionContentId =
+    liveProposal?.contentId ?? session?.payload.contentId ?? outputResult?.contentId;
+  if (
+    proposalId &&
+    suggestionContentId &&
+    (liveProposal?.suggestions || Array.isArray(outputResult?.items))
+  )
+    return (
+      <SuggestionProposalCard
+        proposalId={proposalId}
+        contentId={suggestionContentId}
+        databaseName={liveProposal?.databaseName}
+        isDark={isDark}
+        waiting={session?.status === "pending" && execution.status !== "success"}
+      />
+    );
+
   if (!proposal) {
     if (outputResult) {
       return (
@@ -271,7 +286,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
           <div className="text-tau-body text-ink-1 font-medium">内容修改处理中</div>
-          <ToolMutedText isDark={isDark} className="mb-2 mt-1">
+          <ToolMutedText isDark={isDark} className="mt-1 mb-2">
             正在准备审阅结果，请稍候。
           </ToolMutedText>
         </ToolCardHeader>
@@ -389,7 +404,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 <div className="text-tau-body text-ink-1 font-medium">
                   {actionLabelMap[outputResult?.action || ""] || "已处理"}
                 </div>
-                <div className="text-tau-meta text-ink-2 break-words leading-[1.6]">
+                <div className="text-tau-meta text-ink-2 leading-[1.6] break-words">
                   {outputResult?.message || title}
                 </div>
               </div>
@@ -473,7 +488,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                   onChange={event => setFeedbackText(event.target.value)}
                   placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
                   rows={4}
-                  className="min-h-28 resize-y [field-sizing:content]"
+                  className="[field-sizing:content] min-h-28 resize-y"
                 />
                 <div className="flex flex-wrap gap-2">
                   <Button

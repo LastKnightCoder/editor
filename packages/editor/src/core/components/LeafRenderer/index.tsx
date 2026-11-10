@@ -36,9 +36,13 @@ class MarkBoundary extends Component<BoundaryProps, { failed: boolean }> {
   }
 
   render(): ReactNode {
-    const { leaf, children, render } = this.props;
+    const { leaf, leafStart, children, render } = this.props;
     if (this.state.failed) return children;
-    return <Suspense fallback={children}>{createElement(render, { leaf, children })}</Suspense>;
+    return (
+      <Suspense fallback={children}>
+        {createElement(render, { leaf, leafStart, children })}
+      </Suspense>
+    );
   }
 }
 
@@ -124,6 +128,7 @@ export default function LeafRenderer({
     content = (
       <MarkBoundary
         leaf={leaf}
+        leafStart={leafPosition?.start ?? 0}
         render={wrapper}
         owner="host.leaf-wrapper"
         resetKey={wrapper}

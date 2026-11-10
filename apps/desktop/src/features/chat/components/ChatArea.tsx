@@ -23,6 +23,7 @@ import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer
 import type { BlockData } from "@/types/block-preview";
 import { WorkspaceBar } from "./WorkspaceBar";
 import { useChatStartConsumer } from "../chatStart";
+import { useChatSendConsumer } from "../chatSend";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -134,6 +135,13 @@ const ChatArea = memo(
       const onChatCreated = useMemoizedFn((chatId: string) => {
         startedChat(chatId);
         onSelectChat(chatId);
+      });
+      const selectChat = useMemoizedFn((chatId: string) => onSelectChat(chatId));
+      useChatSendConsumer({
+        active: true,
+        currentChatId: currentChat.id,
+        select: selectChat,
+        container: chatContainerRef,
       });
 
       useImperativeHandle(ref, () => ({

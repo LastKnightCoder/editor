@@ -49,6 +49,7 @@ export interface ContentProjectionVersion {
 }
 
 export interface CollaborationIpcContext {
+  nodeUpdates: import("./node-session-updates").NodeSessionUpdates;
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   client: CollaborationClient;
@@ -83,6 +84,8 @@ export interface CollaborationIpcContext {
     documentId: string
   ): Promise<{ code: string; expiresAt: number }>;
   removeView(id: string): void;
+  /** 视图订阅时的完整在场（会话视图 + 正文上的 Agent） */
+  presenceSnapshot(session: RuntimeSession): Uint8Array;
   clearBinding(session: RuntimeSession, discard?: boolean): Promise<void>;
   discardLocal(session: RuntimeSession): Promise<void>;
   removeSession(session: RuntimeSession): Promise<void>;

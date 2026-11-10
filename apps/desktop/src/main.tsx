@@ -32,7 +32,7 @@ async function bootstrap() {
     { default: App },
     { initializeTooling },
     { initToolCallRenderers },
-    { useContentEditReviewSessionStore },
+    { useContentEditReviewSessionStore, initSuggestionFollowUps },
     { queryClient },
     { initializeContentPlugins },
     { DesktopPluginServicesProvider },
@@ -54,6 +54,7 @@ async function bootstrap() {
   initializeTooling();
   initToolCallRenderers();
   useContentEditReviewSessionStore.getState().cleanupStalePendingSessions();
+  initSuggestionFollowUps();
 
   renderStartup("正在装配编辑器扩展…");
   const extensionsStartedAt = performance.now();

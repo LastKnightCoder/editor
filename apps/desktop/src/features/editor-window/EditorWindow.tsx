@@ -65,6 +65,7 @@ import { exportContentAsMarkdown } from "@/services/content-transfer";
 
 /** 低于该宽度大纲不再常驻右栏，改由标题栏按钮弹出 */
 const OUTLINE_COLUMN_MIN_WIDTH = 900;
+/** 建议右栏 300px：窗口不够宽时不占列，建议仍可在正文痕迹与主窗口对话里处理 */
 
 const toastAdapter = {
   success: (msg: string) => toast.success(msg),
@@ -460,7 +461,6 @@ export function EditorWindow({
             </div>
             {outlineAsColumn && !focusMode && (
               <div className="col-start-3 min-w-0 pt-8 pr-3 pl-4">
-                {/* 起始与标题同高（同正文列 pt-8），滚动后吸在同一留白处 */}
                 <div className="sticky top-8 max-w-[240px]">{outlineNode}</div>
               </div>
             )}

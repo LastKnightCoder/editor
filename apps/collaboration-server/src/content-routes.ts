@@ -5,6 +5,7 @@ import {
   type CollaborationEvent,
   type Member,
   type DocumentOperationRequest,
+  type ScopedContentEdits,
 } from "@tau/collaboration";
 import type { CollaborationStore } from "./store";
 import type { ServerConfig } from "./config";
@@ -187,10 +188,13 @@ export function registerContentRoutes(
   app.post("/v1/documents/:id/operations/:operationId", async request => {
     const { id, operationId } = params(request),
       body = objectBody(request);
-    const update = Buffer.from(
-      textField(body, "update", Math.ceil(config.maxDocumentBytes * 1.4)),
-      "base64"
-    );
+    const update =
+      body.kind === "scoped-edit"
+        ? (body.scope as ScopedContentEdits)
+        : Buffer.from(
+            textField(body, "update", Math.ceil(config.maxDocumentBytes * 1.4)),
+            "base64"
+          );
     const operation = await store.submitOperation(
       id,
       device(request).id,

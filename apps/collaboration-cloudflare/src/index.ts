@@ -10,6 +10,7 @@ import {
   type Member,
   type DocumentProtocol,
   type DocumentOperationRequest,
+  type ScopedContentEdits,
 } from "@tau/collaboration";
 import { MAX_DOCUMENT_BYTES, CollaborationStore, fail } from "./store";
 import { assetRequest, AssetOperations } from "./assets";
@@ -469,13 +470,17 @@ export class CollaborationService extends DurableObject<Env> {
                 .filter(key => key !== id)
                 .reduce((sum, key) => sum + this.store.documentBytes(key), 0)
           );
-        if (!action && typeof body.update !== "string")
+        if (!action && body.kind !== "scoped-edit" && typeof body.update !== "string")
           return fail("INVALID_OPERATION", "编辑增量缺失");
         const operation = await this.store.submitOperation(
           id,
           device.id,
           { ...body, operationId } as DocumentOperationRequest,
-          action ? undefined : Buffer.from(body.update as string, "base64"),
+          action
+            ? undefined
+            : body.kind === "scoped-edit"
+              ? (body.scope as ScopedContentEdits)
+              : Buffer.from(body.update as string, "base64"),
           action === "cancel",
           budget
         );

@@ -11,6 +11,7 @@ import type { BlockData } from "@/types/block-preview";
 import useChatSessionStore, { MAIN_CHAT_BUCKET, bucketKeyOf } from "@/stores/useChatSessionStore";
 import { useScopedChat } from "@/hooks/useScopedChat";
 import { useChatStartConsumer } from "@/features/chat/chatStart";
+import { useChatSendConsumer } from "@/features/chat/chatSend";
 import useTheme from "@/hooks/useTheme";
 
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
@@ -73,6 +74,12 @@ export const RightChatPanel = memo(
       startedChat(chatId);
       select(chatId);
     });
+    useChatSendConsumer({
+      active: open,
+      currentChatId: currentChat.id,
+      select,
+      container: chatContainerRef,
+    });
 
     const onTitleChange = useMemoizedFn(async (title: string) => {
       try {
@@ -106,7 +113,7 @@ export const RightChatPanel = memo(
     return (
       <MarkdownProvider isDark={isDark} isVisible={open}>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="flex h-11 flex-none items-center gap-0.5 pl-3 pr-2">
+          <div className="flex h-11 flex-none items-center gap-0.5 pr-2 pl-3">
             <div className="min-w-0 flex-1">
               <ChatDropdownSelector
                 chats={rows}

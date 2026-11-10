@@ -640,9 +640,9 @@ export class NodeTree {
     return visible;
   }
 
-  capturePosition(parent: string, index: number): Y.RelativePosition {
+  capturePosition(parent: string, index: number, assoc = 0): Y.RelativePosition {
     const at = this.textLocation(parent, index);
-    return Y.createRelativePositionFromTypeIndex(this.content(at.source), at.offset);
+    return Y.createRelativePositionFromTypeIndex(this.content(at.source), at.offset, assoc);
   }
 
   resolvePosition(position: Y.RelativePosition): { parent: string; offset: number } | null {

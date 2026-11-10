@@ -61,4 +61,6 @@ export interface EntityLocation {
   date?: string;
   /** 碎碎念所属的日期容器 */
   diaryId?: number;
+  /** 文章、项目文档的标题（卡片标题取自正文，不在此给出） */
+  title?: string;
 }

@@ -1,8 +1,15 @@
+import type { ContentEditState } from "@/commands/content";
 import { Descendant } from "slate";
 import type { PositionMapper } from "@tau/markdown";
 
 export type EntityType =
-  "card" | "article" | "project-item" | "diary-moment" | "vl-note" | "vl-resource" | "whiteboard";
+  | "card"
+  | "article"
+  | "project-item"
+  | "diary-moment"
+  | "vl-note"
+  | "vl-resource"
+  | "whiteboard";
 export type SnapshotSource = "active-session" | "database";
 
 export interface MarkdownPoint {
@@ -22,6 +29,11 @@ export interface SerializedSelection {
 }
 
 export interface ContentSnapshot {
+  editState?: Pick<ContentEditState, "state" | "identity"> & {
+    contentId: number;
+    databaseName: string;
+    selection?: SerializedSelection;
+  };
   revision?: string;
   id: string;
   createdAt: number;
@@ -57,6 +69,8 @@ export type EditLocator =
 interface BaseEditOperation {
   id?: string;
   locator: EditLocator;
+  /** 一句话说明为什么改（有出处附上），随逐条建议展示给用户 */
+  reason?: string;
 }
 
 export interface InsertOperation extends BaseEditOperation {
@@ -99,10 +113,13 @@ export interface EditApplyResult {
   patches: AppliedPatch[];
 }
 
-export type ContentWritePermission = "review_required" | "auto_apply_allowed";
-
 export type ContentEditProposalStatus =
-  "pending_review" | "applied" | "rejected" | "superseded" | "restored" | "apply_conflicted";
+  | "pending_review"
+  | "applied"
+  | "rejected"
+  | "superseded"
+  | "restored"
+  | "apply_conflicted";
 
 export interface ContentEditChangePreview {
   operationId: string;
@@ -140,6 +157,10 @@ export interface ContentEditProposalRecord {
   checkpointId?: string;
   feedbackHistory: string[];
   lastError?: string;
+  commitPending?: boolean;
+  agentLabel?: string;
+  /** 已拆成逐条建议，状态以主进程建议记录为准 */
+  suggestions?: boolean;
 }
 
 export interface ContentEditCheckpointRecord {
@@ -150,6 +171,8 @@ export interface ContentEditCheckpointRecord {
   beforeHash: string;
   afterHash: string;
   filePath: string;
+  /** 逐条建议的检查点：撤销这些已接受的条目，不读缓存文件 */
+  suggestionIds?: string[];
   createdAt: number;
   updatedAt: number;
   restoredAt?: number;
@@ -158,13 +181,14 @@ export interface ContentEditCheckpointRecord {
 
 export interface ContentEditProposalCachePayload {
   markdown: string;
+  baseline?: import("@tau/collaboration").ScopedContentBaseline;
 }
 
-export interface ContentEditCheckpointCachePayload {
+export type ContentEditCheckpointCachePayload = {
   content: Descendant[];
   markdown: string;
   hash: string;
-}
+};
 
 export interface ContentEditRendererPayload {
   kind: "content-edit-proposal";
@@ -179,7 +203,6 @@ export interface ContentEditRendererPayload {
   diffSummary: ContentEditDiffSummary;
   patches: AppliedPatch[];
   checkpointId?: string;
-  currentPermission: ContentWritePermission;
   targetSource: ResolvedContentTarget["source"];
   lastError?: string;
   createdAt: number;
@@ -230,6 +253,16 @@ export interface ContentEditReviewToolResult {
   conversationKey: string;
   checkpointId?: string;
   feedback?: string;
+  /** 逐条处理结果；部分接受时 action 为 applied，Agent 据此只重做退回的条目 */
+  items?: {
+    id: string;
+    status: import("@/types/content-suggestion").ContentSuggestionStatus;
+    blockId?: string;
+    beforeText: string;
+    afterText: string;
+    feedback?: string;
+    error?: string;
+  }[];
   proposal?: {
     sourceToolName: string;
     proposedMarkdown?: string;

@@ -4,6 +4,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import type { RequestMessage } from "@/types";
+import { agentEditSignal } from "../agent-run-events";
 import { desktopMessagesToPi, PiToolCallBridge } from "../pi-session-bridge";
 
 const user = (content: RequestMessage["content"]) => ({ role: "user", content }) as RequestMessage;
@@ -30,6 +31,23 @@ it("中止会通知真实执行端，迟到结果不复活已取消调用", asyn
   bridge.handleResult("call", { content: "迟到" });
   await expect(result).rejects.toThrow("中止");
   expect(send.mock.calls.map(call => call[0])).toEqual(["pi-tool-call", "pi-tool-cancel"]);
+});
+
+it("正文工具中止时同步撤销主进程写入信号", async () => {
+  const send = vi.fn();
+  const bridge = new PiToolCallBridge({ isDestroyed: () => false, send }, "s");
+  const [tool] = bridge.toToolDefinitions([
+    { name: "apply_content_edit_operations", description: "修改正文", parameters: {} },
+  ]);
+  const controller = new AbortController();
+  const pending = tool.execute("call", {}, controller.signal, undefined, {} as never);
+  const { executionId } = send.mock.calls[0][1];
+  const signal = agentEditSignal(executionId);
+  expect(signal.aborted).toBe(false);
+  controller.abort();
+  expect(signal.aborted).toBe(true);
+  expect(agentEditSignal(executionId).aborted).toBe(true);
+  await expect(pending).rejects.toThrow("中止");
 });
 
 it("参数错误、MCP 错误和执行异常均拒绝工具调用，pi 才会标记失败", async () => {

@@ -6,9 +6,7 @@ import {
   createContentEditProposal,
   getContentEditReviewSessionStore,
   restoreContentCheckpoint,
-  setConversationContentWritePermission,
   submitContentEditReviewDecisionByExecution,
-  shouldAutoApplyContentProposal,
   useContentEditReviewSessionStore,
   useContentEditReviewStore,
 } from "../review-session";
@@ -73,7 +71,6 @@ const resetReviewStore = () => {
   useContentEditReviewStore.setState({
     proposals: {},
     checkpoints: {},
-    permissions: {},
   });
   useContentEditReviewSessionStore.setState({
     records: {},
@@ -120,8 +117,8 @@ describe("content-editing/review-session", () => {
 
     const applied = await applyContentEditProposal({ proposalId });
     expect(applied.success).toBe(true);
-    if (!applied.success) {
-      throw new Error("expected apply success");
+    if (!applied.success || !applied.checkpoint) {
+      throw new Error("expected apply success and checkpoint");
     }
 
     expect(applied.proposal.status).toBe("applied");
@@ -144,18 +141,6 @@ describe("content-editing/review-session", () => {
       "hello world"
     );
     expect(restored.proposal?.status).toBe("restored");
-  });
-
-  it("应按会话保存写入权限", () => {
-    const next = setConversationContentWritePermission({
-      conversationKey: "main-chat:9",
-      permission: "auto_apply_allowed",
-    });
-
-    expect(next).toBe("auto_apply_allowed");
-    expect(useContentEditReviewStore.getState().permissions["main-chat:9"]).toBe(
-      "auto_apply_allowed"
-    );
   });
 
   it("应创建待审会话，并在用户确认应用后返回结构化工具结果", async () => {
@@ -278,31 +263,6 @@ describe("content-editing/review-session", () => {
     expect(
       useContentEditReviewStore.getState().proposals[created.proposal.proposalId]?.feedbackHistory
     ).toContain("请更简洁一些");
-  });
-
-  it("反馈修订应强制保持审核模式，即使会话允许自动应用", () => {
-    setConversationContentWritePermission({
-      conversationKey: "main-chat:1",
-      permission: "auto_apply_allowed",
-    });
-
-    expect(
-      shouldAutoApplyContentProposal({
-        conversationKey: "main-chat:1",
-      })
-    ).toBe(true);
-
-    expect(
-      shouldAutoApplyContentProposal({
-        conversationKey: "main-chat:1",
-        toolContext: {
-          flags: {
-            forceReview: true,
-            feedbackProposalId: "proposal-1",
-          },
-        },
-      })
-    ).toBe(false);
   });
 
   it("replace 场景的 diff summary 应分别累计新增与删除字符", async () => {

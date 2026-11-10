@@ -172,7 +172,7 @@ export const applyEditOperations = (payload: {
           normalizedEqual: expectedNormalized === actualNormalized,
           likelyCause: maybeRangeMismatch ? "locator_range_mismatch" : "target_text_changed",
           suggestion: maybeRangeMismatch
-            ? "match-id 对应范围明显短于 expectedText，请重新定位或改用 replace_content_by_text/rewrite_content_full"
+            ? "match-id 对应范围明显短于 expectedText，请重新读取并定位完整目标"
             : "目标片段可能被改动，请重新获取上下文后重试",
         }
       );

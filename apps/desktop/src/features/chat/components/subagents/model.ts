@@ -34,13 +34,6 @@ export const needsUser = (status: SubagentDisplayStatus) =>
 export const isActive = (status: SubagentDisplayStatus) =>
   status === "running" || status === "queued" || needsUser(status);
 
-/** 头像配色：按 agentId 稳定落在 5 个 tag 色上，同一子 Agent 处处同色 */
-export const avatarTone = (agentId: string): 1 | 2 | 3 | 4 | 5 => {
-  let hash = 0;
-  for (const char of agentId) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return ((Math.abs(hash) % 5) + 1) as 1 | 2 | 3 | 4 | 5;
-};
-
 export const avatarInitial = (title: string) => {
   const first = [...title.trim()][0] ?? "子";
   return /[a-z]/i.test(first) ? first.toUpperCase() : first;

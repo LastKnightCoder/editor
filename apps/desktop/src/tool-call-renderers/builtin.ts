@@ -7,6 +7,7 @@ import CalendarOperationRenderer from "./CalendarOperationRenderer";
 import StructuredToolResultRenderer from "./StructuredToolResultRenderer";
 import KnowledgeSearchRenderer from "./KnowledgeSearchRenderer";
 import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
+import ContentQuestionRenderer from "./ContentQuestionRenderer";
 import OpenAIImageResultRenderer from "./OpenAIImageResultRenderer";
 import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import SubAgentResearchRenderer from "./SubAgentResearchRenderer";
@@ -280,6 +281,10 @@ export function initToolCallRenderers(): void {
       {
         toolName: "rewrite_content_full",
         renderer: ContentEditProposalRenderer,
+      },
+      {
+        toolName: "ask_about_content",
+        renderer: ContentQuestionRenderer,
       },
     ].filter(entry => !assistantNames.has(entry.toolName))
   );

@@ -5,6 +5,7 @@
  * 2. 渲染端 ToolRegistry → pi customTools 工具桥（execute 经 IPC 挂起渲染端执行，
  *    onUpdate/partials 与结果回传，渲染进程断连时中止挂起调用）
  */
+import { registerAgentEditExecution } from "./agent-run-events";
 import type { AgentToolResult, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type {
   AssistantMessage,
@@ -326,6 +327,8 @@ export class PiToolCallBridge {
         executionId,
       };
       const finishers = new Set<() => void>();
+      if (toolName === "apply_content_edit_operations")
+        finishers.add(registerAgentEditExecution(executionId));
       const cleanup = () => {
         signal?.removeEventListener("abort", onAbort);
         for (const finish of finishers) {

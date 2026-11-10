@@ -62,7 +62,7 @@ export function ArticleHero({
     <div className={cn("group/hero", className)}>
       {/* 封面四周 10px：右侧 = 3px 间距 + 4px 滚动条 + 3px 透明边（滚动区覆盖为 3px），滚动条居中于右留白 */}
       {banner && (
-        <div className="group/cover relative ml-2.5 mr-[3px] mt-2.5 h-[clamp(200px,20vw,300px)] overflow-hidden rounded-[calc(var(--radius-tau-lg)-6px)]">
+        <div className="group/cover relative mt-2.5 mr-[3px] ml-2.5 h-[clamp(200px,20vw,300px)] overflow-hidden rounded-[calc(var(--radius-tau-lg)-6px)]">
           <LocalImage
             url={banner}
             className="absolute inset-0 h-full w-full object-cover"
@@ -75,7 +75,7 @@ export function ArticleHero({
             onClick={onChangeCover}
             disabled={changingCover}
             title="更换封面"
-            className="ease-tau-out absolute left-1/2 top-1/2 flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-[rgba(26,19,12,0.55)] px-3.5 text-[11.5px] text-[rgba(255,248,239,0.92)] opacity-0 backdrop-blur-[6px] transition-opacity duration-150 group-hover/cover:opacity-100"
+            className="ease-tau-out absolute top-1/2 left-1/2 flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-[rgba(26,19,12,0.55)] px-3.5 text-[11.5px] text-[rgba(255,248,239,0.92)] opacity-0 backdrop-blur-[6px] transition-opacity duration-150 group-hover/cover:opacity-100"
           >
             <ImagePlus className="size-[13px]" strokeWidth={1.75} />
             {changingCover ? "上传中…" : "更换封面"}
@@ -107,9 +107,9 @@ export function ArticleHero({
           }}
           placeholder="未命名标题"
           aria-label="文章标题"
-          className="rounded-tau-sm text-ink-1 placeholder:text-ink-3 w-full bg-transparent text-[27px] font-semibold leading-[1.35] tracking-[-0.01em] outline-none"
+          className="rounded-tau-sm text-ink-1 placeholder:text-ink-3 w-full bg-transparent text-[27px] leading-[1.35] font-semibold tracking-[-0.01em] outline-none"
         />
-        {/* 元信息行恒为一行：操作（extraMeta + actions）不换行不收缩、⋯ 靠右；信息组固定一行高、可换行并裁掉溢出，
+        {/* 元信息行恒为一行：操作（extraMeta + actions）可收缩、⋯ 靠右；信息组固定一行高、可换行并裁掉溢出，
             放不下的项落到看不见的第二行——按顺序先让出创建时间、再让字数，编辑时间最后（悬停可见创建时间） */}
         <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2.5 whitespace-nowrap tabular-nums">
           <span className="flex h-[22px] min-w-0 shrink flex-wrap items-center gap-x-2.5 overflow-hidden leading-[22px]">
@@ -119,9 +119,9 @@ export function ArticleHero({
             <MetaItem>{words} 字</MetaItem>
             <MetaItem>{formatDate(article.create_time, true)} 创建</MetaItem>
           </span>
-          <span className="flex flex-[1_0_auto] items-center gap-2.5">
+          <span className="flex min-w-0 flex-1 items-center gap-2.5">
             {extraMeta}
-            {actions && <span className="ml-auto flex items-center">{actions}</span>}
+            {actions && <span className="ml-auto flex min-w-0 items-center">{actions}</span>}
           </span>
         </div>
       </div>
