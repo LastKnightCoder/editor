@@ -119,6 +119,8 @@ function wrangler(args, input) {
   const result = spawnSync("pnpm", ["exec", "wrangler", ...args, "--config", configPath], {
     cwd: root,
     input,
+    // Windows 下 pnpm 是 .cmd，CreateProcess 不经 shell 解析不到
+    shell: process.platform === "win32",
     stdio: input === undefined ? "inherit" : ["pipe", "inherit", "inherit"],
     env: { ...process.env, pnpm_config_verify_deps_before_run: "warn" },
   });
