@@ -2,7 +2,7 @@ import { readDocumentIdentity } from "@tau/collaboration";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import { collaborationCommands } from "@/commands/contracts/collaboration";
 import * as Y from "yjs";
-import { applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
+import { applyAwarenessUpdate } from "y-protocols/awareness";
 import {
   memberColor,
   NODE_DOCUMENT_VERSION,
@@ -20,7 +20,6 @@ import {
   type JoinRequestResult,
 } from "@tau/collaboration";
 import type { CollaborationIpcContext } from "./types";
-import { NodeSessionUpdates } from "./node-session-updates";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { isVideoFile } from "./asset-service";
@@ -37,7 +36,7 @@ type CommandHandler<Key extends keyof Commands> = (
 ) => Awaited<ReturnType<Commands[Key]["call"]>> | ReturnType<Commands[Key]["call"]>;
 
 export function registerCollaborationIpc(context: CollaborationIpcContext) {
-  const nodeUpdates = new NodeSessionUpdates(context.store, context.contentState);
+  const { nodeUpdates } = context;
   const handle = <Key extends keyof Commands>(key: Key, fn: NoInfer<CommandHandler<Key>>) =>
     ipcMain.handle(collaborationCommands[key].channel, fn);
   handle("state", () => context.state());
@@ -230,7 +229,6 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         epoch,
       },
     });
-    const awareness = session.awareness;
     const deviceId = context.state().deviceId || context.store.get("localDeviceId", "local");
     return {
       documentIdentity: { documentId, baselineId, epoch },
@@ -245,7 +243,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         ).map(row => [row.node_id, JSON.parse(row.value)])
       ),
       state: Y.encodeStateAsUpdate(session.doc),
-      awareness: encodeAwarenessUpdate(awareness, [...awareness.getStates().keys()]),
+      awareness: context.presenceSnapshot(session),
       session: session.info,
       user: {
         id: deviceId,

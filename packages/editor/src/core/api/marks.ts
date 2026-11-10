@@ -3,6 +3,8 @@ import type { Editor, NodeEntry, Range, Text } from "slate";
 
 export interface MarkRenderProps {
   readonly leaf: Readonly<Text>;
+  /** 该叶子在 Slate 文本节点内的起点，未切分时为 0。 */
+  readonly leafStart?: number;
   children: ReactNode;
 }
 

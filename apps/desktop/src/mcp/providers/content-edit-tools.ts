@@ -8,21 +8,39 @@ import {
   EditEngineError,
   findContentRanges,
   getActiveEditingSessionByContentId,
+  getSnapshot,
+  getContentEditProposal,
+  askAboutContent,
+  applyDirectSuggestions,
   loadSnapshotForContent,
   resolveContentTarget,
+  resolveLocatorToRange,
   hasPendingReviewSession,
 } from "@/services/content-editing";
 import type { EditOperation } from "@/services/content-editing";
-import { offsetToMarkdownPoint } from "@/services/content-editing";
 import type { ToolExecutionContext } from "@/types";
 import { loadContentMarkdownPayload } from "./content-read-utils";
 import { getToolPermissionMode } from "@/services/tool-permission/policy";
 import { requiresApproval } from "@/services/tool-permission/mode";
 import { getChatDatabase } from "@/services/chatDatabase";
+import { presenceAgentOf, reportAgentPresence } from "@/services/agent-presence";
+import { bindDatabaseCommands } from "@/services/command-context";
+import { getAgentPermission } from "@/commands/content";
+import { isElectron } from "@/electron";
+import type { Descendant } from "slate";
 
 const reviewToolExecution = {
   timeoutMs: null,
 } as const;
+
+function findBlockPath(nodes: Descendant[], blockId: string): number[] | undefined {
+  for (const [index, node] of nodes.entries()) {
+    if (!("children" in node)) continue;
+    if ("collabId" in node && node.collabId === blockId) return [index];
+    const path = findBlockPath(node.children, blockId);
+    if (path) return [index, ...path];
+  }
+}
 
 const toToolError = (code: string, message: string, extra?: Record<string, unknown>) => {
   return {
@@ -36,18 +54,32 @@ const toToolError = (code: string, message: string, extra?: Record<string, unkno
 const previewOperationsCore = async (payload: {
   target?: { contentId?: number };
   baseHash?: string;
+  snapshotId?: string;
   operations: EditOperation[];
   dryRun?: boolean;
   context?: ToolExecutionContext;
 }) => {
-  const { target, baseHash, operations, dryRun = false, context } = payload;
+  const { target, baseHash, snapshotId, operations, dryRun = false, context } = payload;
   const resolvedTarget = await resolveContentTarget(
     {
       contentId: target?.contentId,
     },
     context
   );
-  const { snapshot } = await loadSnapshotForContent(resolvedTarget.contentId, context);
+  const captured = snapshotId && getSnapshot(snapshotId);
+  if (
+    snapshotId &&
+    (!captured ||
+      (isElectron && !captured.editState) ||
+      (captured.editState &&
+        (captured.editState.contentId !== resolvedTarget.contentId ||
+          captured.editState.databaseName !==
+            (context?.databaseName ?? getChatDatabase()).replace(/\.db$/, ""))))
+  )
+    return toToolError("SNAPSHOT_EXPIRED", "正文快照已失效，请重新读取");
+  const { snapshot } = captured
+    ? { snapshot: captured }
+    : await loadSnapshotForContent(resolvedTarget.contentId, context);
   const session =
     !context?.databaseName || context.databaseName.replace(/\.db$/, "") === getChatDatabase()
       ? getActiveEditingSessionByContentId(resolvedTarget.contentId)
@@ -106,6 +138,7 @@ const previewOperationsCore = async (payload: {
 const executeOperationsWithReviewPolicy = async (payload: {
   target?: { contentId?: number };
   baseHash?: string;
+  snapshotId?: string;
   operations: EditOperation[];
   dryRun?: boolean;
   context?: ToolExecutionContext;
@@ -116,13 +149,14 @@ const executeOperationsWithReviewPolicy = async (payload: {
     matchId: string;
   };
 }) => {
-  const { target, baseHash, operations, dryRun = false, context, matched } = payload;
+  const { target, baseHash, snapshotId, operations, dryRun = false, context, matched } = payload;
 
   if (dryRun) {
     return previewOperationsCore({
       context,
       target,
       baseHash,
+      snapshotId,
       operations,
       dryRun,
     });
@@ -145,37 +179,71 @@ const executeOperationsWithReviewPolicy = async (payload: {
     toolName: context?.toolName,
   });
 
+  // 工具权限模式（D-060）为自动允许编辑 / 跳过确认时按直接改落地；反馈续改（forceReview）始终走审阅
+  const forceReview = context?.toolContext?.flags?.forceReview === true;
+  const autoApply = !forceReview && !requiresApproval("write", getToolPermissionMode());
+  const agent = presenceAgentOf(context);
   try {
     const proposalResult = await createContentEditProposal({
       databaseName: context?.databaseName,
       signal: context?.signal,
       target,
       baseHash,
+      snapshotId,
       operations,
       sourceToolName: context?.toolName || "content-edit-tools",
+      agentId: context?.conversationKey?.split(":subagent:")[1],
+      agentLabel: agent,
       conversationKey: context?.conversationKey,
+      // Agent × 正文的权限：只读拒绝；直接改或全局自动应用时实时落地；其余等用户逐条处理
+      resolveMode: async contentId => {
+        const level = isElectron
+          ? await bindDatabaseCommands(
+              { getAgentPermission },
+              { databaseName: context?.databaseName }
+            ).getAgentPermission(contentId, agent)
+          : "suggest";
+        if (level === "readonly") return "readonly";
+        return level === "direct" || (autoApply && !forceReview) ? "direct" : "suggest";
+      },
     });
 
     if (!proposalResult.success) {
       console.log("[executeOperationsWithReviewPolicy] 创建提案失败:", proposalResult);
       return proposalResult;
     }
+    const { contentId } = proposalResult.proposal;
+    // 光标停在第一条建议的末尾：打开正文就能看到它刚在哪里动过笔
+    const first = proposalResult.suggestions?.find(item => item.edit.kind === "text")?.edit;
+    const caret =
+      first?.kind === "text" ? { blockId: first.blockId, position: first.end } : undefined;
 
-    console.log("[executeOperationsWithReviewPolicy] 提案创建成功，进入等待审核流程", {
-      proposalId: proposalResult.proposal.proposalId,
-    });
-
-    // 工具权限模式（D-060）：手动确认走审阅卡；自动允许编辑 / 跳过确认直接应用。
-    // 反馈续改（forceReview）始终走审阅卡
-    const forceReview = context?.toolContext?.flags?.forceReview === true;
-    if (!forceReview && !requiresApproval("write", getToolPermissionMode())) {
-      return autoApplyContentEditProposal(proposalResult.proposal, context?.signal);
+    if (proposalResult.mode === "direct") {
+      reportAgentPresence(context, contentId, { status: "busy", action: "正在改正文", caret });
+      const result = proposalResult.proposal.suggestions
+        ? await applyDirectSuggestions(
+            proposalResult.proposal,
+            context?.signal,
+            context?.toolContext?.executionId,
+            !autoApply
+          )
+        : await autoApplyContentEditProposal(proposalResult.proposal, context?.signal);
+      reportAgentPresence(context, contentId, { status: "busy", action: "改好了，接着做" });
+      return result;
     }
+    const count =
+      proposalResult.suggestions?.length ?? proposalResult.proposal.diffSummary.patchCount;
+    reportAgentPresence(context, contentId, {
+      status: "waiting",
+      action: `等你处理 ${count} 条建议`,
+      caret,
+    });
     const result = await createPendingContentEditReview({
       context: context!,
       proposal: proposalResult.proposal,
       matched,
     });
+    reportAgentPresence(context, contentId, { status: "busy", action: "看过你的处理，接着做" });
 
     console.log("[executeOperationsWithReviewPolicy] 用户已完成审核，工具返回结果");
     return result;
@@ -214,7 +282,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "get_content_markdown",
       risk: "read",
       description:
-        "根据 contentId 获取 Markdown 全文（可选 range 截断）。注意：仅支持 contents.contentId，不支持 cardId/articleId/projectItemId。",
+        "根据 contentId 获取 Markdown 正文。可按 range 截断，或传入冲突结果的 blockId 只重新读取目标块。仅支持 contents.contentId。",
       parameters: {
         type: "object",
         properties: {
@@ -229,6 +297,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             minItems: 2,
             maxItems: 2,
           },
+          blockId: { type: "string", description: "冲突返回的稳定块 ID，与 range 二选一" },
         } as Record<string, ToolParameterSchema>,
         required: ["contentId"],
         additionalProperties: false,
@@ -236,9 +305,40 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       executor: async (args, context) => {
         const contentId = args.contentId as number;
         const range = args.range as [number, number] | undefined;
+        reportAgentPresence(context, contentId, {
+          status: "busy",
+          action: typeof args.blockId === "string" ? "正在重读这段" : "正在读正文",
+          ...(typeof args.blockId === "string" ? { block: args.blockId } : {}),
+        });
 
         try {
-          const payload = await loadContentMarkdownPayload(contentId, range, context);
+          if (typeof args.blockId === "string") {
+            if (range) throw new Error("blockId 与 range 不能同时提供");
+            const { snapshot } = await loadSnapshotForContent(contentId, context, true);
+            const path = findBlockPath(snapshot.content, args.blockId);
+            if (!path)
+              return {
+                content: JSON.stringify(
+                  toToolError("ANCHOR_CHANGED", "原块已不存在，请读取当前正文定位")
+                ),
+              };
+            const { start, end } = resolveLocatorToRange({
+              locator: { kind: "slate-path", path },
+              snapshot,
+              selection: null,
+            });
+            return {
+              content: JSON.stringify({
+                success: true,
+                contentId,
+                blockId: args.blockId,
+                snapshotId: snapshot.id,
+                range: { start, end },
+                markdown: snapshot.markdown.slice(start, end),
+              }),
+            };
+          }
+          const payload = await loadContentMarkdownPayload(contentId, range, context, true);
 
           return {
             content: JSON.stringify(
@@ -319,7 +419,11 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             },
             context
           );
-          const { snapshot } = await loadSnapshotForContent(resolved.contentId, context);
+          reportAgentPresence(context, resolved.contentId, {
+            status: "busy",
+            action: `正在找「${queryText.replace(/\s+/g, " ").slice(0, 16)}」`,
+          });
+          const { snapshot } = await loadSnapshotForContent(resolved.contentId, context, true);
           const matches = findContentRanges(snapshot, {
             queryText,
             matchMode,
@@ -350,15 +454,59 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       },
     },
     {
-      name: "apply_content_edit_operations",
-      risk: "write",
+      name: "ask_about_content",
+      risk: "read",
       description:
-        "高级工具：对内容执行批量编辑（insert/delete/replace）。建议优先使用 replace_content_by_text 或 rewrite_content_full。注意：调用此工具后，修改不会立即生效，而是会生成一个待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。",
+        "在正文的一段原句上向用户提问，并给出 2–4 个可点的答案；工具会等用户在正文批注或对话卡片里作答后返回回答。拿不准改法、需要用户取舍时先用它问，不要用「提改动再被退回」去试探。quote 必须是正文里的原句（可先用 find_content_ranges 确认）。",
       execution: reviewToolExecution,
       parameters: {
         type: "object",
         properties: {
           target: contentTargetSchema,
+          quote: { type: "string", description: "问题所针对的正文原句，问题会锚在这里" },
+          question: { type: "string", description: "一句话的问题，如「第 ② 处你想怎么写？」" },
+          options: {
+            type: "array",
+            description: "可点的答案，2–4 个，短句；用户也可以自己写",
+            items: { type: "string" },
+            maxItems: 4,
+          },
+        } as Record<string, ToolParameterSchema>,
+        required: ["quote", "question"],
+        additionalProperties: false,
+      },
+      executor: async (args, context) => {
+        try {
+          const result = await askAboutContent({
+            context,
+            contentId: (args.target as { contentId?: number } | undefined)?.contentId,
+            quote: String(args.quote ?? ""),
+            question: String(args.question ?? ""),
+            options: Array.isArray(args.options) ? args.options.map(String) : [],
+          });
+          return { content: JSON.stringify(result, null, 2) };
+        } catch (error) {
+          return {
+            content: JSON.stringify(toToolError("ASK_FAILED", (error as Error).message), null, 2),
+          };
+        }
+      },
+    },
+    {
+      name: "apply_content_edit_operations",
+      risk: "write",
+      description:
+        "对正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取，传入 snapshotId；精确替换使用 match-id，整篇改写使用 full-document。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 时仅传 resumeProposalId 查询或补交原请求。手动确认模式下工具会等待审阅。",
+      execution: reviewToolExecution,
+      parameters: {
+        type: "object",
+        properties: {
+          target: contentTargetSchema,
+          snapshotId: { type: "string", description: "读取正文或查找范围时返回的 snapshotId" },
+          resumeProposalId: {
+            type: "string",
+            description: "提交结果未确认时，复用原请求，不传 operations",
+          },
           baseHash: {
             type: "string",
             description: "可选，快照哈希。传入后会做严格冲突校验。",
@@ -411,18 +559,43 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   enum: ["start", "end", "before", "after"],
                 },
                 expectedText: { type: "string" },
+                reason: {
+                  type: "string",
+                  description:
+                    "一句话说明为什么这样改，有出处时附上来源（如「原句没说清限制。出处：…」）；会显示在这条建议旁",
+                },
               } as Record<string, ToolParameterSchema>,
               required: ["op", "locator"],
               additionalProperties: false,
             } as ToolParameterSchema,
           } as ToolParameterSchema,
         } as Record<string, ToolParameterSchema>,
-        required: ["operations"],
         additionalProperties: false,
       },
       executor: async (args, context) => {
+        if (typeof args.resumeProposalId === "string") {
+          const proposal = getContentEditProposal(args.resumeProposalId);
+          if (
+            args.operations !== undefined ||
+            !proposal?.commitPending ||
+            proposal.conversationKey !== context?.conversationKey ||
+            proposal.databaseName?.replace(/\.db$/, "") !==
+              (context?.databaseName ?? getChatDatabase()).replace(/\.db$/, "")
+          ) {
+            return {
+              content: JSON.stringify(toToolError("INVALID_ARGUMENT", "没有可恢复的原提交")),
+            };
+          }
+          return autoApplyContentEditProposal(
+            proposal,
+            context?.signal,
+            context?.toolContext?.executionId,
+            requiresApproval("write", getToolPermissionMode())
+          );
+        }
         const operations = args.operations as EditOperation[];
         const baseHash = args.baseHash as string | undefined;
+        const snapshotId = args.snapshotId as string | undefined;
         const dryRun = args.dryRun as boolean | undefined;
         const target = args.target as { contentId?: number } | undefined;
 
@@ -440,249 +613,10 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         const result = await executeOperationsWithReviewPolicy({
           target,
           baseHash,
+          snapshotId,
           operations,
           dryRun,
           context,
-        });
-
-        if ("content" in result && typeof result.content === "string") {
-          return result;
-        }
-
-        return {
-          content: JSON.stringify(result, null, 2),
-        };
-      },
-    },
-    {
-      name: "replace_content_by_text",
-      risk: "write",
-      description:
-        "稳健替换工具：先按文本定位，再执行单次 replace。优先用于侧边对话的精准改写场景。注意：调用此工具后，修改不会立即生效，而是会生成一个待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。",
-      execution: reviewToolExecution,
-      parameters: {
-        type: "object",
-        properties: {
-          target: contentTargetSchema,
-          searchText: {
-            type: "string",
-            description: "需要替换的原始文本",
-          },
-          replaceText: {
-            type: "string",
-            description: "替换后的文本",
-          },
-          matchMode: {
-            type: "string",
-            enum: ["exact", "normalized", "fuzzy"],
-            description: "匹配模式，默认 exact",
-          },
-          occurrence: {
-            type: "number",
-            description: "可选，第 N 次出现（从 1 开始）",
-          },
-          beforeHint: {
-            type: "string",
-            description: "可选，前文提示用于消歧",
-          },
-          afterHint: {
-            type: "string",
-            description: "可选，后文提示用于消歧",
-          },
-          dryRun: {
-            type: "boolean",
-            description: "可选，仅预览不落库",
-          },
-        } as Record<string, ToolParameterSchema>,
-        required: ["searchText", "replaceText"],
-        additionalProperties: false,
-      },
-      executor: async (args, context) => {
-        const target = args.target as { contentId?: number } | undefined;
-        const searchText = args.searchText as string;
-        const replaceText = args.replaceText as string;
-        const matchMode = args.matchMode as "exact" | "normalized" | "fuzzy" | undefined;
-        const occurrence = args.occurrence as number | undefined;
-        const beforeHint = args.beforeHint as string | undefined;
-        const afterHint = args.afterHint as string | undefined;
-        const dryRun = args.dryRun as boolean | undefined;
-
-        if (!searchText?.trim()) {
-          return {
-            content: JSON.stringify(
-              toToolError("INVALID_ARGUMENT", "searchText 不能为空"),
-              null,
-              2
-            ),
-            isParameterError: true,
-          };
-        }
-
-        try {
-          const resolved = await resolveContentTarget(
-            {
-              contentId: target?.contentId,
-            },
-            context
-          );
-          const { snapshot } = await loadSnapshotForContent(resolved.contentId, context);
-
-          const matches = findContentRanges(snapshot, {
-            queryText: searchText,
-            matchMode,
-            occurrence,
-            beforeHint,
-            afterHint,
-            maxCandidates: 5,
-          });
-
-          if (matches.length === 0) {
-            return {
-              content: JSON.stringify(
-                toToolError("NO_MATCH_FOUND", "未找到可替换的目标文本", {
-                  contentId: resolved.contentId,
-                  snapshotId: snapshot.id,
-                  documentHash: snapshot.hash,
-                }),
-                null,
-                2
-              ),
-            };
-          }
-
-          if (!occurrence && matches.length > 1) {
-            return {
-              content: JSON.stringify(
-                toToolError(
-                  "AMBIGUOUS_MATCH",
-                  "匹配到多个候选，请提供 occurrence 或 beforeHint/afterHint 消歧",
-                  {
-                    contentId: resolved.contentId,
-                    snapshotId: snapshot.id,
-                    candidates: matches.map(item => ({
-                      matchId: item.matchId,
-                      start: item.start,
-                      end: item.end,
-                      confidence: item.confidence,
-                      excerpt: item.excerpt,
-                    })),
-                  }
-                ),
-                null,
-                2
-              ),
-            };
-          }
-
-          const pick = matches[0];
-          const actualText = snapshot.markdown.slice(pick.start, pick.end);
-          const start = offsetToMarkdownPoint(pick.start, snapshot.lineOffsets);
-          const end = offsetToMarkdownPoint(pick.end, snapshot.lineOffsets);
-
-          const result = await executeOperationsWithReviewPolicy({
-            target: { contentId: resolved.contentId },
-            baseHash: snapshot.hash,
-            dryRun,
-            context,
-            matched: {
-              start: pick.start,
-              end: pick.end,
-              confidence: pick.confidence,
-              matchId: pick.matchId,
-            },
-            operations: [
-              {
-                id: "replace-by-text",
-                op: "replace",
-                locator: {
-                  kind: "markdown-range",
-                  start,
-                  end,
-                },
-                expectedText: actualText,
-                text: replaceText,
-              },
-            ],
-          });
-
-          if ("content" in result && typeof result.content === "string") {
-            return result;
-          }
-
-          return {
-            content: JSON.stringify(
-              {
-                ...result,
-                matched: {
-                  start: pick.start,
-                  end: pick.end,
-                  confidence: pick.confidence,
-                  matchId: pick.matchId,
-                },
-              },
-              null,
-              2
-            ),
-          };
-        } catch (error) {
-          return {
-            content: JSON.stringify(
-              toToolError("REPLACE_BY_TEXT_FAILED", (error as Error).message),
-              null,
-              2
-            ),
-          };
-        }
-      },
-    },
-    {
-      name: "rewrite_content_full",
-      risk: "write",
-      description:
-        "全文替换快捷工具，等价于对 full-document 执行一次 replace。必须显式提供 contentId。注意：调用此工具后，修改不会立即生效，而是会生成一个待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。",
-      execution: reviewToolExecution,
-      parameters: {
-        type: "object",
-        properties: {
-          contentId: {
-            type: "number",
-            description: "必填。contents 表中的 contentId。不是 cardId/articleId/projectItemId。",
-          },
-          markdown: {
-            type: "string",
-            description: "完整替换后的 Markdown 内容",
-          },
-          baseHash: {
-            type: "string",
-            description: "可选，快照哈希",
-          },
-          dryRun: {
-            type: "boolean",
-            description: "可选，仅预览不落库",
-          },
-        } as Record<string, ToolParameterSchema>,
-        required: ["contentId", "markdown"],
-        additionalProperties: false,
-      },
-      executor: async (args, context) => {
-        const contentId = args.contentId as number;
-        const markdown = args.markdown as string;
-        const baseHash = args.baseHash as string | undefined;
-        const dryRun = args.dryRun as boolean | undefined;
-
-        const result = await executeOperationsWithReviewPolicy({
-          target: { contentId },
-          baseHash,
-          dryRun,
-          context,
-          operations: [
-            {
-              id: "full-rewrite",
-              op: "replace",
-              locator: { kind: "full-document" },
-              text: markdown,
-            },
-          ],
         });
 
         if ("content" in result && typeof result.content === "string") {

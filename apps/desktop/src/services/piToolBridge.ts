@@ -93,7 +93,10 @@ export function initPiToolBridge(): void {
 
   on(
     "pi-subagents:inherit-tools",
-    (_event: unknown, payload: { parentSessionId: string; sessionId: string; agentId: string }) => {
+    (
+      _event: unknown,
+      payload: { parentSessionId: string; sessionId: string; agentId: string; agentTitle?: string }
+    ) => {
       const parent = sessionContexts.get(payload.parentSessionId);
       if (!parent) return;
       registerPiToolSessionContext(payload.sessionId, {
@@ -101,7 +104,7 @@ export function initPiToolBridge(): void {
         conversationKey: `${parent.conversationKey}:subagent:${payload.agentId}`,
         sessionTools: parent.sessionTools ? [...parent.sessionTools] : undefined,
         scopedTools: parent.scopedTools ? [...parent.scopedTools] : undefined,
-        toolContext: { ...parent.toolContext },
+        toolContext: { ...parent.toolContext, agentTitle: payload.agentTitle },
       });
     }
   );
@@ -145,7 +148,7 @@ export function initPiToolBridge(): void {
           sessionTools: context.sessionTools ?? context.scopedTools ?? [],
           scopedTools: context?.scopedTools,
           conversationKey: context?.conversationKey,
-          toolContext: context?.toolContext,
+          toolContext: { ...context.toolContext, executionId },
         });
         if (!result) {
           await piSessionToolError(sessionId, toolCallId, "工具执行未返回结果", executionId);

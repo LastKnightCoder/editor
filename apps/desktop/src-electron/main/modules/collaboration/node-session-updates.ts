@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import {
   applyNodeDocumentUpdate,
+  ScopedContentConflictError,
   DocumentWriteQueue,
   NODE_DOCUMENT_VERSION,
   NodeTree,
@@ -67,15 +68,24 @@ export class NodeSessionUpdates {
     }
   }
 
-  apply(session: RuntimeSession, update: Uint8Array, assertWritable: () => void): Promise<void> {
-    const bytes = new Uint8Array(update);
+  apply(
+    session: RuntimeSession,
+    update:
+      | Uint8Array
+      | { bytes: number; build: () => Promise<Uint8Array | null>; commit: () => void },
+    assertWritable: () => void
+  ): Promise<void> {
+    const scoped = update instanceof Uint8Array ? undefined : update;
+    const raw = update instanceof Uint8Array ? new Uint8Array(update) : undefined;
+    const size = raw?.byteLength ?? scoped!.bytes;
     const started = performance.now();
     let stage = "delta.queue",
       attempts = 0,
       journalSaved = false;
     const failed = (error: unknown): never => {
+      if (error instanceof ScopedContentConflictError) throw error;
       reportContentSaveIssue(session, stage, error, {
-        bytes: bytes.byteLength,
+        bytes: size,
         attempts,
         journalSaved,
         elapsedMs: Math.round(performance.now() - started),
@@ -84,7 +94,7 @@ export class NodeSessionUpdates {
     };
     try {
       return this.queue
-        .run(session.info.id, bytes.byteLength, async () => {
+        .run(session.info.id, size, async () => {
           for (let attempt = 0; attempt < 3; attempt++) {
             attempts = attempt + 1;
             stage = "delta.validate";
@@ -99,6 +109,12 @@ export class NodeSessionUpdates {
             };
             const before = Y.encodeStateVector(session.doc),
               baseline = Y.encodeStateAsUpdate(session.doc);
+            const bytes = scoped ? await scoped.build() : raw;
+            if (!bytes) return;
+            if (scoped) {
+              assertWritable();
+              if (!equal(baseline, Y.encodeStateAsUpdate(session.doc))) continue;
+            }
             const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity, {
               allowLocalResources: session.info.mode === "local",
             });
@@ -113,6 +129,7 @@ export class NodeSessionUpdates {
                   session.cacheWriteFailed = false;
                   session.dirty = false;
                 }
+                if (scoped) this.store.db.transaction(scoped.commit)();
                 journalSaved = true;
                 stage = "delta.confirm";
                 this.confirmDrafts(session.doc, session.info.id);
@@ -123,6 +140,7 @@ export class NodeSessionUpdates {
               this.store.db.transaction(() => {
                 session.retainNodeState?.(candidate);
                 this.store.append(session.info.id, delta);
+                scoped?.commit();
               })();
               journalSaved = true;
               stage = "delta.apply";
@@ -143,7 +161,7 @@ export class NodeSessionUpdates {
             selectedBlocks: 0,
             writtenBlocks: 0,
             elapsedMs: Math.round(performance.now() - started),
-            bytes: bytes.byteLength,
+            bytes: size,
             attempts,
           });
         }, failed);

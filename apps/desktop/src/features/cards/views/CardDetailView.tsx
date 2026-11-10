@@ -224,7 +224,7 @@ export function CardDetailView() {
                 {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。
                   图标全局同动作同 icon 且菜单内互不重复（02 规范 §6） */}
-                <span className="ml-auto flex items-center gap-1">
+                <span className="ml-auto flex min-w-0 items-center gap-1">
                   {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
                   <ContentCollaborationControl
                     ref={collaborationRef}

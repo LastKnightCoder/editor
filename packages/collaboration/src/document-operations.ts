@@ -1,5 +1,11 @@
 import { CollaborationError } from "./protocol";
 import type { DocumentSql, DocumentProtocol } from "./document-protocol";
+import {
+  scopedUndoSourceId,
+  type ScopedContentConflict,
+  type ScopedContentEdits,
+} from "./scoped-content-edit";
+import { sharedValueEquals } from "./shared-values";
 
 export interface DocumentOperationRequest {
   operationId: string;
@@ -10,18 +16,22 @@ export interface DocumentOperationRequest {
   expiresAt: number;
   expectedRevision?: string;
   expectedSequence?: number;
+  kind?: "scoped-edit";
+  source?: ScopedContentEdits["source"];
 }
 export interface DocumentOperation extends DocumentOperationRequest {
   documentId: string;
   actorId: string;
   state: "PENDING" | "COMMITTED" | "ABORTED" | "EXPIRED";
   reason?: string;
+  conflicts?: ScopedContentConflict[];
   receipt?: {
     documentId: string;
     epoch: number;
     baselineId: string;
     revision: string;
     sequence: number;
+    inverse?: ScopedContentEdits;
   };
 }
 const fail = (code: string, message: string): never => {
@@ -37,6 +47,7 @@ const fingerprint = (request: DocumentOperationRequest) =>
     request.expiresAt,
     request.expectedRevision ?? null,
     request.expectedSequence ?? null,
+    request.kind ?? null,
   ]);
 
 /** 普通条件提交保留 epoch，回执与更新必须同事务提交。 */
@@ -92,6 +103,21 @@ export class DocumentOperationLedger {
       return this.save({ ...operation, state: "EXPIRED", reason: "deadline" });
     return operation;
   }
+  isScopedUndo(operation: DocumentOperation, scope: ScopedContentEdits): boolean {
+    const sourceId = scopedUndoSourceId(operation.operationId);
+    if (sourceId === undefined) return false;
+    const source = this.get(operation.documentId, sourceId, operation.actorId);
+    if (
+      source?.state !== "COMMITTED" ||
+      source.baselineId !== operation.baselineId ||
+      source.epoch !== operation.epoch ||
+      !source.receipt?.inverse ||
+      scope.contracts !== undefined ||
+      !sharedValueEquals(scope.edits, source.receipt.inverse.edits)
+    )
+      fail("INVALID_UNDO", "撤销请求与原操作回执不符");
+    return true;
+  }
   begin(documentId: string, actorId: string, request: DocumentOperationRequest): DocumentOperation {
     if (
       !request ||
@@ -106,6 +132,11 @@ export class DocumentOperationLedger {
       [...request.baselineId].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127) ||
       !/^[a-f0-9]{64}$/.test(request.updateHash) ||
       !Number.isSafeInteger(request.expiresAt) ||
+      (request.kind !== undefined &&
+        (request.kind !== "scoped-edit" ||
+          request.version !== 2 ||
+          request.expectedRevision !== undefined ||
+          request.expectedSequence !== undefined)) ||
       (request.expectedRevision !== undefined &&
         (!/^[a-f0-9]{64}$/.test(request.expectedRevision) ||
           !Number.isSafeInteger(request.expectedSequence) ||
@@ -128,6 +159,7 @@ export class DocumentOperationLedger {
         version: request.version,
         updateHash: request.updateHash,
         expiresAt: request.expiresAt,
+        ...(request.kind === "scoped-edit" ? { kind: request.kind, source: request.source } : {}),
         ...(request.expectedRevision === undefined
           ? {}
           : {
@@ -140,12 +172,16 @@ export class DocumentOperationLedger {
       });
     });
   }
-  abort(operation: DocumentOperation, reason: string): DocumentOperation {
+  abort(
+    operation: DocumentOperation,
+    reason: string,
+    conflicts?: ScopedContentConflict[]
+  ): DocumentOperation {
     return this.sql.transaction(() => {
       const current = this.get(operation.documentId, operation.operationId, operation.actorId);
       if (!current) return fail("OPERATION_NOT_FOUND", "操作不存在");
       return current.state === "PENDING"
-        ? this.save({ ...current, state: "ABORTED", reason })
+        ? this.save({ ...current, state: "ABORTED", reason, ...(conflicts ? { conflicts } : {}) })
         : current;
     });
   }
@@ -153,7 +189,8 @@ export class DocumentOperationLedger {
     operation: DocumentOperation,
     read: () => DocumentProtocol,
     revision: string,
-    install: () => void
+    install: () => void,
+    inverse?: ScopedContentEdits
   ): DocumentOperation {
     return this.sql.transaction(() => {
       const current = this.get(operation.documentId, operation.operationId, operation.actorId);
@@ -182,6 +219,7 @@ export class DocumentOperationLedger {
           baselineId: current.baselineId,
           revision,
           sequence: this.sequence(current.documentId),
+          ...(inverse ? { inverse } : {}),
         },
       });
     });

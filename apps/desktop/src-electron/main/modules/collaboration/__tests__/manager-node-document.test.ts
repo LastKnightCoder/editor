@@ -14,6 +14,7 @@ import {
   NodeTree,
   readNodeDocument,
   validateNodeDocument,
+  captureScopedTextEdit,
   type ContentSessionSnapshot,
   type CollaborationSession,
   type ContentNode,
@@ -25,6 +26,7 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { CollaborationManager } from "../index";
+import { registerAgentEditExecution } from "../../agent-run-events";
 import { CollaborationLocalStore } from "../local-store";
 import { ContentLocalState } from "../content-local-state";
 import { NodeSessionUpdates } from "../node-session-updates";
@@ -71,7 +73,10 @@ afterEach(async () => {
   host.databases.clear();
   host.serverUrl = "http://test";
 });
-type Runtime = {
+type Runtime = Pick<
+  CollaborationManager,
+  "readEditSnapshot" | "applyScopedEdit" | "suggestions"
+> & {
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   assets: CollaborationAssetService;
@@ -2141,4 +2146,268 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
       }
     });
   }, 120000);
+});
+
+it.each([false, true])("正文范围提交和撤销保持其他内容完整（共享=%s）", async shared => {
+  const { runtime, localId, event, db, server } = await setup(false, ["第一段", "第二段"]);
+  const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
+  const original = await runtime.readEditSnapshot(db, 7);
+  const snapshot = new Y.Doc();
+  Y.applyUpdate(snapshot, original.state);
+  const tree = new NodeTree(snapshot);
+  try {
+    const blockId = String(readNodeDocument(snapshot).content[0].collabId);
+    const edit = captureScopedTextEdit(tree, "edit", blockId, 0, 1, "AI");
+    const request = { ...original.identity, operationId: "scope-edit", scope: { edits: [edit] } };
+    if (shared) {
+      const transport = runtime.client.request.bind(runtime.client);
+      let lost = 2;
+      vi.spyOn(runtime.client, "request").mockImplementation(
+        async (url, path, method, body, version) => {
+          const result = await transport(url, path, method, body, version);
+          if (path.endsWith("/operations/scope-edit") && lost > 0) {
+            lost--;
+            throw new Error("模拟响应丢失");
+          }
+          return result;
+        }
+      );
+      expect(await runtime.applyScopedEdit(db, 7, request)).toEqual({ status: "pending" });
+    } else {
+      const append = vi.spyOn(runtime.store, "append").mockImplementationOnce(() => {
+        throw new Error("模拟本机落盘失败");
+      });
+      await expect(runtime.applyScopedEdit(db, 7, request)).rejects.toThrow("模拟本机落盘失败");
+      expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+      append.mockRestore();
+    }
+    const applied = await runtime.applyScopedEdit(db, 7, request);
+    expect(applied.status).toBe("committed");
+    if (applied.status !== "committed" || !applied.inverse) throw new Error("缺少撤销操作");
+    expect(await runtime.applyScopedEdit(db, 7, request)).toEqual(applied);
+    const updated = await runtime.readEditSnapshot(db, 7);
+    expect(updated.content[0].children?.[0].text).toBe("AI一段");
+    expect(updated.content[1]).toEqual(original.content[1]);
+    const conflict = await runtime.applyScopedEdit(db, 7, { ...request, operationId: "stale" });
+    expect(conflict).toMatchObject({ status: "conflict", conflicts: [{ opId: "edit", blockId }] });
+    const reverted = await runtime.applyScopedEdit(db, 7, {
+      ...original.identity,
+      operationId: "scope-edit-undo",
+      scope: applied.inverse,
+    });
+    expect(reverted.status).toBe("committed");
+    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    if (shared) expect(server.store.operations.sequence(sessionId)).toBe(2);
+  } finally {
+    tree.dispose();
+    snapshot.destroy();
+  }
+});
+
+it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%s）", async shared => {
+  const longOriginal = "原".repeat(40_000);
+  const { runtime, localId, event, db, server } = await setup(false, [
+    "原文",
+    "第二段保留",
+    longOriginal,
+  ]);
+  const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
+  const original = await runtime.readEditSnapshot(db, 7);
+  const originalSequence = shared ? server.store.operations.sequence(sessionId) : 0;
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, original.state);
+  const tree = new NodeTree(doc);
+  const propose = (proposalId: string, block: number, before: string, text: string) =>
+    runtime.suggestions.create(db, 7, {
+      proposalId,
+      conversationKey: proposalId,
+      baseline: original.identity,
+      items: [
+        {
+          edit: captureScopedTextEdit(
+            tree,
+            "edit",
+            String(original.content[block].collabId),
+            0,
+            before.length,
+            text
+          ),
+          beforeText: before,
+          afterText: text,
+        },
+      ],
+    })[0];
+  const key = (id: string) =>
+    `scoped-edit:${original.identity.documentId}:${original.identity.baselineId}:${original.identity.epoch}:${id}`;
+  try {
+    const oversized = propose("oversized", 2, longOriginal, "新句");
+    expect(await runtime.suggestions.accept(db, 7, [oversized.id])).toMatchObject([
+      { id: oversized.id, status: "expired", error: expect.stringContaining("可撤销容量") },
+    ]);
+    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    if (shared) {
+      const ownerId = server.store.document(sessionId).owner_id;
+      expect(server.store.operations.get(sessionId, oversized.id, ownerId)).toMatchObject({
+        state: "ABORTED",
+        reason: "UNDO_LIMIT",
+      });
+      expect(server.store.operations.sequence(sessionId)).toBe(originalSequence);
+    } else expect(runtime.store.get(key(oversized.id), null)).toBeNull();
+
+    // 正向回执在预算内，若额外记录重做，撤销回执会超限。
+    const text = "新".repeat(12_000);
+    const accepted = propose("large", 0, "原文", text);
+    expect(await runtime.suggestions.accept(db, 7, [accepted.id])).toEqual([
+      { id: accepted.id, status: "accepted" },
+    ]);
+    const changed = (await runtime.readEditSnapshot(db, 7)).content;
+    expect(changed[0].children?.map(leaf => leaf.text).join("")).toBe(text);
+    expect(changed.slice(1)).toEqual(original.content.slice(1));
+    expect(await runtime.suggestions.undo(db, 7, [accepted.id])).toEqual([
+      { id: accepted.id, status: "undone" },
+    ]);
+    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    if (shared) {
+      const ownerId = server.store.document(sessionId).owner_id;
+      const forward = server.store.operations.get(sessionId, accepted.id, ownerId);
+      const reverse = server.store.operations.get(sessionId, `${accepted.id}-undo`, ownerId);
+      expect(forward?.receipt?.inverse?.edits).toHaveLength(1);
+      expect(reverse?.state).toBe("COMMITTED");
+      expect(reverse?.receipt?.inverse).toBeUndefined();
+      expect(server.store.operations.sequence(sessionId)).toBe(originalSequence + 2);
+    } else {
+      expect(runtime.store.get(key(accepted.id), null)).toMatchObject({
+        inverse: { edits: [expect.anything()] },
+      });
+      expect(runtime.store.get(key(`${accepted.id}-undo`), null)).toMatchObject({
+        hash: expect.any(String),
+      });
+    }
+  } finally {
+    tree.dispose();
+    doc.destroy();
+  }
+});
+
+it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销", async () => {
+  const { runtime, db, localId } = await setup(false, ["第一段原文", "第二段保留"]);
+  const original = await runtime.readEditSnapshot(db, 7);
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, original.state);
+  const tree = new NodeTree(doc);
+  const stop = registerAgentEditExecution("manager-scoped-edit");
+  try {
+    const id = String(original.content[0].collabId);
+    const text = "甲乙丙丁戊己";
+    const [item] = runtime.suggestions.create(db, 7, {
+      proposalId: "manager-stop",
+      conversationKey: "test-chat",
+      baseline: original.identity,
+      mode: "direct",
+      items: [
+        {
+          edit: captureScopedTextEdit(tree, "edit", id, 0, 2, text),
+          beforeText: "第一",
+          afterText: text,
+        },
+      ],
+    });
+    const append = runtime.store.append.bind(runtime.store);
+    const spy = vi.spyOn(runtime.store, "append").mockImplementation((...args) => {
+      append(...args);
+      queueMicrotask(stop);
+    });
+    await runtime.suggestions.accept(db, 7, [item.id], {
+      typing: true,
+      executionId: "manager-scoped-edit",
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+    const saved = runtime.store.load(localId)?.doc;
+    if (!saved) throw new Error("缺少落盘正文");
+    try {
+      const content = readNodeDocument(saved).content;
+      expect(content[0].children?.[0].text).toBe("甲乙段原文");
+      expect(content[1]).toEqual(original.content[1]);
+    } finally {
+      saved.destroy();
+    }
+    expect(
+      runtime.suggestions.list(db, { proposalId: "manager-stop" }).map(row => row.status)
+    ).toEqual(["accepted", "pending"]);
+    expect((await runtime.suggestions.undo(db, 7, [item.id]))[0].status).toBe("undone");
+    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+  } finally {
+    stop();
+    tree.dispose();
+    doc.destroy();
+  }
+});
+
+it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", async () => {
+  const { runtime, db, event, server } = await setup(false, ["第一段原文", "第二段保留"]);
+  const { documentId } = await runtime.createContent(event, 7);
+  const original = await runtime.readEditSnapshot(db, 7);
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, original.state);
+  const tree = new NodeTree(doc);
+  const stop = registerAgentEditExecution("shared-stopped");
+  let release!: () => void;
+  let arrival!: () => void;
+  let cancelled!: () => void;
+  const delayed = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const arrived = new Promise<void>(resolve => {
+    arrival = resolve;
+  });
+  const cancelSeen = new Promise<void>(resolve => {
+    cancelled = resolve;
+  });
+  try {
+    const id = String(original.content[0].collabId);
+    const [item] = runtime.suggestions.create(db, 7, {
+      proposalId: "shared-stop",
+      conversationKey: "test-chat",
+      baseline: original.identity,
+      mode: "direct",
+      items: [
+        {
+          edit: captureScopedTextEdit(tree, "edit", id, 0, 2, "替换"),
+          beforeText: "第一",
+          afterText: "替换",
+        },
+      ],
+    });
+    const transport = runtime.client.request.bind(runtime.client);
+    vi.spyOn(runtime.client, "request").mockImplementation(
+      async (url, path, method, body, version) => {
+        if (method === "POST" && path.endsWith(`/operations/${item.id}`)) {
+          arrival();
+          await delayed;
+        }
+        const result = await transport(url, path, method, body, version);
+        if (path.endsWith(`/operations/${item.id}/cancel`)) cancelled();
+        return result;
+      }
+    );
+    const pending = runtime.suggestions.accept(db, 7, [item.id], {
+      typing: true,
+      executionId: "shared-stopped",
+    });
+    await arrived;
+    stop();
+    await cancelSeen;
+    release();
+    expect(await pending).toMatchObject([
+      { id: item.id, status: "expired", error: "Agent 已停止，提交已取消" },
+    ]);
+    expect(server.store.operations.sequence(documentId)).toBe(0);
+    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+  } finally {
+    release();
+    stop();
+    tree.dispose();
+    doc.destroy();
+  }
 });

@@ -569,7 +569,6 @@ export function ArticleDetailView() {
                   />
                 </article>
 
-                {/* 目录：贴正文右缘 sticky（不参与版心计算）；创作模式正文栏窄，不显示 */}
                 {!composing && (
                   <div className="sticky top-4 col-start-3 ml-7">
                     <ContentOutline

@@ -1,3 +1,4 @@
+import { ContentDocumentTable } from "../../src-electron/main/modules/tables/content-document";
 import type Database from "better-sqlite3";
 import {
   contentSession,
@@ -10,16 +11,21 @@ export default class ContentTable {
     const row = db.prepare("SELECT * FROM contents WHERE id=?").get(id) as any;
     if (!row) return null;
     const session = contentSession(db, id);
+    const stored = ContentDocumentTable.read(db, id);
     return {
       id,
       createTime: row.create_time,
       updateTime: row.update_time,
       count: row.count,
       refCount: row.ref_count,
-      content: session ? readSessionContent(session).content : JSON.parse(row.content),
+      content: session
+        ? readSessionContent(session).content
+        : (stored?.content ?? JSON.parse(row.content)),
+      contracts: stored?.contracts,
       revision: session ? contentRevision(session) : undefined,
     };
   }
+  static ensureTaskIds() {}
   static createContent(db: Database.Database, value: { content: unknown; count: number }) {
     return Number(
       db
@@ -28,3 +34,5 @@ export default class ContentTable {
     );
   }
 }
+
+export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;

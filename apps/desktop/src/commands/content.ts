@@ -3,6 +3,21 @@ import type { ContentContractDictionary } from "@tau/db-schema/content-contracts
 import { invoke } from "@/electron";
 import { Descendant } from "slate";
 import { IContent } from "@/types";
+import { withModule } from "./module-init";
+import type {
+  AgentPermissionLevel,
+  ContentAgentPermission,
+  ContentQuestionRequest,
+  ContentSuggestion,
+  ContentSuggestionAcceptOptions,
+  ContentSuggestionBatch,
+  ContentSuggestionQuery,
+} from "@/types/content-suggestion";
+import type {
+  ScopedContentBaseline,
+  ScopedContentResult,
+  ScopedContentSubmission,
+} from "@tau/collaboration";
 
 export const createContent = async (
   content: Descendant[],
@@ -75,6 +90,81 @@ export const replaceContent = async (
 export const getContentById = async (contentId: number): Promise<IContent | null> => {
   return await invoke("content:get-by-id", contentId);
 };
+
+export interface ContentEditState {
+  content: Descendant[];
+  state: Uint8Array;
+  identity: ScopedContentBaseline;
+  revision: string;
+}
+
+export const readContentEditState = (contentId: number) => {
+  const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
+  return withModule("collaboration", () =>
+    commands.invoke<ContentEditState>("content:edit-snapshot", contentId)
+  );
+};
+
+export const applyScopedContentEdit = (contentId: number, request: ScopedContentSubmission) => {
+  const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
+  return withModule("collaboration", () =>
+    commands.invoke<ScopedContentResult>("content:apply-scoped-edit", contentId, request)
+  );
+};
+
+export interface ContentSuggestionOutcome {
+  id: string;
+  status: ContentSuggestion["status"];
+  error?: string;
+}
+
+const suggestionCommand = <T>(channel: string, ...args: unknown[]) => {
+  const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
+  return withModule("collaboration", () => commands.invoke<T>(channel, ...args));
+};
+
+export const listContentSuggestions = (query: ContentSuggestionQuery) =>
+  suggestionCommand<ContentSuggestion[]>("content:suggestions", query);
+
+export const createContentSuggestions = (contentId: number, batch: ContentSuggestionBatch) =>
+  suggestionCommand<ContentSuggestion[]>("content:suggestions-create", contentId, batch);
+
+/** typing：直接改的条目在本机正文上逐段实时落地（有人在编辑那一块就让出） */
+export const acceptContentSuggestions = (
+  contentId: number,
+  ids: string[],
+  options?: ContentSuggestionAcceptOptions
+) =>
+  suggestionCommand<ContentSuggestionOutcome[]>(
+    "content:suggestions-accept",
+    contentId,
+    ids,
+    options
+  );
+
+export const rejectContentSuggestions = (contentId: number, ids: string[], feedback?: string) =>
+  suggestionCommand<string[]>("content:suggestions-reject", contentId, ids, feedback);
+
+export const supersedeContentSuggestions = (contentId: number, proposalId: string) =>
+  suggestionCommand<void>("content:suggestions-supersede", contentId, proposalId);
+
+export const undoContentSuggestions = (contentId: number, ids: string[]) =>
+  suggestionCommand<ContentSuggestionOutcome[]>("content:suggestions-undo", contentId, ids);
+
+export const createContentQuestion = (contentId: number, request: ContentQuestionRequest) =>
+  suggestionCommand<ContentSuggestion>("content:suggestions-question", contentId, request);
+
+export const answerContentQuestion = (contentId: number, id: string, answer: string) =>
+  suggestionCommand<boolean>("content:suggestions-answer", contentId, id, answer);
+
+export const listAgentPermissions = (contentId: number) =>
+  suggestionCommand<ContentAgentPermission[]>("content:agent-permissions", contentId);
+
+export const getAgentPermission = (contentId: number, agent: string) =>
+  suggestionCommand<AgentPermissionLevel>("content:agent-permission", contentId, agent);
+
+export const setAgentPermission = (contentId: number, agent: string, level: AgentPermissionLevel) =>
+  suggestionCommand<void>("content:agent-permission-set", contentId, agent, level);
 
 export const deleteContent = async (contentId: number): Promise<number> => {
   return await invoke("content:delete", contentId);

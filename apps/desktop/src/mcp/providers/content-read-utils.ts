@@ -66,9 +66,12 @@ const applyMarkdownRange = (markdown: string, range?: ContentRange) => {
 
 export const loadContentMarkdownBase = async (
   contentId: number,
-  scope?: CommandScope
+  scope?: CommandScope,
+  forEditing = false
 ): Promise<ContentMarkdownBase> => {
-  const { snapshot, source } = await loadSnapshotForContent(contentId, scope);
+  const { snapshot, source } = await (forEditing
+    ? loadSnapshotForContent(contentId, scope, true)
+    : loadSnapshotForContent(contentId, scope));
 
   return {
     contentId,
@@ -83,9 +86,10 @@ export const loadContentMarkdownBase = async (
 export const loadContentMarkdownPayload = async (
   contentId: number,
   range?: ContentRange,
-  scope?: CommandScope
+  scope?: CommandScope,
+  forEditing = false
 ) => {
-  const payload = await loadContentMarkdownBase(contentId, scope);
+  const payload = await loadContentMarkdownBase(contentId, scope, forEditing);
   const rangePayload = applyMarkdownRange(payload.markdown, range);
 
   return {

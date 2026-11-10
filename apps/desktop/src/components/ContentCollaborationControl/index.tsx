@@ -19,6 +19,7 @@ import { createSharedContent } from "@/commands";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import { openPage } from "@/services/page-navigation";
+import { AgentCollaborators } from "@/components/AgentIdentity";
 import {
   AvatarStack,
   LeaveDialog,
@@ -134,7 +135,13 @@ export default function ContentCollaborationControl({
   if (!contentId) return null;
 
   return (
-    <span onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
+    <span
+      className="inline-flex max-w-full min-w-0 items-center gap-2"
+      onClick={event => event.stopPropagation()}
+      onMouseDown={event => event.stopPropagation()}
+    >
+      {/* Agent 协作者：本机与共享正文都显示（谁在这篇干活、在等你，点开设权限） */}
+      {presence && <AgentCollaborators contentId={contentId} />}
       {presence && session && (
         <Popover
           placement="bottom-end"
@@ -146,14 +153,14 @@ export default function ContentCollaborationControl({
             <button
               type="button"
               aria-label={`协作成员：${summary}`}
-              className="rounded-tau-sm text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[26px] cursor-pointer items-center gap-1.5 pl-1 pr-2 transition-colors"
+              className="rounded-tau-sm text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[26px] cursor-pointer items-center gap-1.5 pr-2 pl-1 transition-colors"
             >
               <AvatarStack members={session.members} max={3} size={18} />
               <span className="whitespace-nowrap">
                 {session.status === "active" ? summary : "共享已结束"}
               </span>
               {pending.length > 0 && (
-                <span className="bg-accent text-ink-inverse min-w-4 rounded-full px-1 text-center text-[10.5px] font-[600] tabular-nums leading-4">
+                <span className="bg-accent text-ink-inverse min-w-4 rounded-full px-1 text-center text-[10.5px] leading-4 font-[600] tabular-nums">
                   {pending.length}
                 </span>
               )}
@@ -205,7 +212,7 @@ export default function ContentCollaborationControl({
               </span>
               <AvatarStack members={session.members} max={3} size={16} />
               {pending.length > 0 && (
-                <span className="bg-accent text-ink-inverse min-w-4 rounded-full px-1 text-center text-[10.5px] font-[600] tabular-nums leading-4">
+                <span className="bg-accent text-ink-inverse min-w-4 rounded-full px-1 text-center text-[10.5px] leading-4 font-[600] tabular-nums">
                   {pending.length}
                 </span>
               )}

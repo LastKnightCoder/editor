@@ -599,7 +599,6 @@ export const contentEditPending: ToolCallExecutionState = {
     snapshotId: "",
     diffSummary: editDiffSummary,
     patches: editPatches,
-    currentPermission: "review_required",
     targetSource: "active-session",
     createdAt: NOW - MIN,
     updatedAt: NOW - MIN,

@@ -27,13 +27,21 @@ const schema = (properties: ToolJsonSchema["properties"], required: string[]): T
 export const SUBAGENT_TOOL_CATALOG: Record<SubagentToolName, SubagentToolInfo> = {
   spawn_agent: {
     label: "创建子 Agent",
-    description: "创建有独立上下文的子 Agent。可同步等待或异步返回身份；子 Agent 不能继续派发。",
+    description:
+      "创建有独立上下文的子 Agent。可同步等待或异步返回身份；子 Agent 不能继续派发。用户在消息里「@某个职责名」点名时，把这件事交给同名子 Agent：本对话已有同名的用 send_agent 继续，没有就用这个名字作 title 创建。",
     audience: "parent",
-    parameters: schema({ title: textField, message: textField, mode: modeField }, [
-      "title",
-      "message",
-      "mode",
-    ]),
+    parameters: schema(
+      {
+        title: {
+          ...textField,
+          description:
+            "子 Agent 的职责名，2–4 个字，像给同事起的称呼（如「校对」「调研员」「改写」）；会作为它在正文里的署名与颜色来源。",
+        },
+        message: textField,
+        mode: modeField,
+      },
+      ["title", "message", "mode"]
+    ),
   },
   send_agent: {
     label: "继续子 Agent",

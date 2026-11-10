@@ -342,6 +342,7 @@ export class PiSubagentHost {
           parentSessionId: parent.hostId,
           sessionId: hostId,
           agentId: agent.agentId,
+          agentTitle: agent.title,
         });
       } catch (error) {
         await this.access.dispose(hostId);

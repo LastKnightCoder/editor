@@ -203,14 +203,19 @@ export default class EntitySearchTable {
           break;
         }
         case "article": {
-          const row = get(`SELECT id FROM articles WHERE content_id = ? AND is_delete = 0`);
-          if (row) return { kind, id: row.id };
+          const row = get(`SELECT id, title FROM articles WHERE content_id = ? AND is_delete = 0`);
+          if (row) return { kind, id: row.id, title: row.title || undefined };
           break;
         }
         case "project_item": {
-          const row = get(`SELECT id, projects FROM project_item WHERE content_id = ?`);
+          const row = get(`SELECT id, projects, title FROM project_item WHERE content_id = ?`);
           if (row)
-            return { kind, id: row.id, projectId: Number(parseJsonArray(row.projects)[0]) || null };
+            return {
+              kind,
+              id: row.id,
+              projectId: Number(parseJsonArray(row.projects)[0]) || null,
+              title: row.title || undefined,
+            };
           break;
         }
         case "diary-moment": {

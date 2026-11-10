@@ -1,4 +1,5 @@
-import { getContentById } from "@/commands/content";
+import { getContentById, readContentEditState } from "@/commands/content";
+import { isElectron } from "@/electron";
 import {
   getAllActiveEditingSessions,
   getActiveEditingSessionByContentId,
@@ -46,11 +47,34 @@ export const resolveContentTarget = async (
 
 export const loadSnapshotForContent = async (
   contentId: number,
-  scope?: CommandScope
+  scope?: CommandScope,
+  forEditing = false
 ): Promise<{
   snapshot: ContentSnapshot;
   source: "active-session" | "database";
 }> => {
+  if (forEditing && isElectron) {
+    const databaseName = (scope?.databaseName ?? getChatDatabase()).replace(/\.db$/, "");
+    const state = await bindDatabaseCommands({ readContentEditState }, scope).readContentEditState(
+      contentId
+    );
+    const snapshot = createContentSnapshot(state.content, "database");
+    snapshot.revision = state.revision;
+    const session =
+      databaseName === getChatDatabase()
+        ? getActiveEditingSessionByContentId(contentId)
+        : undefined;
+    snapshot.editState = {
+      state: state.state,
+      identity: state.identity,
+      contentId,
+      databaseName,
+      selection:
+        session?.snapshot.hash === snapshot.hash ? (session.selection ?? undefined) : undefined,
+    };
+    putSnapshot(snapshot);
+    return { snapshot, source: "database" };
+  }
   const activeSession =
     !scope?.databaseName || scope.databaseName.replace(/\.db$/, "") === getChatDatabase()
       ? getActiveEditingSessionByContentId(contentId)

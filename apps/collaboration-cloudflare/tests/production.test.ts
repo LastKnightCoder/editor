@@ -7,6 +7,9 @@ import * as Y from "yjs";
 import {
   createNodeDocument,
   createWhiteboardDocument,
+  captureScopedTextEdit,
+  NodeTree,
+  readNodeDocument,
   WhiteboardModel,
   type DeviceIdentity,
 } from "@tau/collaboration";
@@ -99,6 +102,131 @@ async function create(owner: DeviceIdentity) {
 }
 
 describe("正式 Cloudflare 协作能力", () => {
+  it("范围编辑复用正式 Worker 队列，同段并发、重复请求和冲突均保持正文完整", async () => {
+    await initialize();
+    const owner = await register("作者");
+    const id = await create(owner);
+    const doc = await createTestDocument(
+      {
+        title: "共编",
+        bannerBg: "",
+        bannerPosition: "center",
+        content: [
+          { type: "paragraph", collabId: "main", children: [{ text: "甲👩‍💻乙" }] },
+          { type: "paragraph", collabId: "untouched", children: [{ text: "保留整段" }] },
+        ],
+      },
+      { documentId: id, baselineId: "scope-base", epoch: 0 }
+    );
+    const tree = new NodeTree(doc);
+    try {
+      expect(
+        (
+          await request(
+            `/v1/documents/${id}/publish`,
+            "POST",
+            {
+              state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+            },
+            owner
+          )
+        ).response.status
+      ).toBe(200);
+      const expected = readNodeDocument(doc);
+      const a = captureScopedTextEdit(tree, "a", "main", 0, 1, "丙");
+      const b = captureScopedTextEdit(tree, "b", "main", 6, 7, "丁");
+      const send = (operationId: string, edits: (typeof a)[]) => {
+        const scope = { edits };
+        return request(
+          `/v1/documents/${id}/operations/${operationId}`,
+          "POST",
+          {
+            kind: "scoped-edit",
+            version: 2,
+            baselineId: "scope-base",
+            epoch: 0,
+            expiresAt: deadline,
+            scope,
+            updateHash: createHash("sha256").update(JSON.stringify(scope)).digest("hex"),
+          },
+          owner
+        );
+      };
+      const deadline = Date.now() + 240_000;
+      const oversized = { ...a, text: "超".repeat(22_000) };
+      expect((await send("oversized", [oversized])).value.operation).toMatchObject({
+        state: "ABORTED",
+        reason: "UNDO_LIMIT",
+      });
+      expect((await send("unknown-undo", [oversized])).value.operation).toMatchObject({
+        state: "ABORTED",
+        reason: "INVALID_UNDO",
+      });
+      const [first, second, duplicate] = await Promise.all([
+        send("first", [a]),
+        send("second", [b]),
+        send("first", [a]),
+      ]);
+      for (const result of [first, second, duplicate])
+        expect(result.value.operation.state).toBe("COMMITTED");
+      expect((await send("stale", [a])).value.operation).toMatchObject({
+        state: "ABORTED",
+        reason: "SCOPE_CONFLICT",
+        conflicts: [{ opId: "a", blockId: "main" }],
+      });
+      const rounds = process.env.TAU_SCOPED_STRESS === "1" ? 96 : 3;
+      const readState = async () => {
+        const response = await fetch(url + `/v1/documents/${id}/state`, {
+          headers: {
+            Authorization: `Bearer ${owner.id}:${owner.secret}`,
+            "x-tau-document-version": "2",
+          },
+        });
+        expect(response.status).toBe(200);
+        return (await response.json()) as { state: string; protocol: { sequence: number } };
+      };
+      expected.content[0].children![0].text = "丙👩‍💻丁";
+      for (let round = 0; round < rounds; round++) {
+        const state = await readState();
+        expect(state.protocol.sequence).toBe((round + 1) * 2);
+        const peer = new Y.Doc();
+        Y.applyUpdate(peer, Buffer.from(state.state, "base64"));
+        const current = new NodeTree(peer);
+        try {
+          expect(readNodeDocument(peer)).toEqual(expected);
+          const left = round % 2 ? "丙" : "甲";
+          const right = round % 2 ? "丁" : "乙";
+          const firstEdit = captureScopedTextEdit(current, "a", "main", 0, 1, left);
+          const secondEdit = captureScopedTextEdit(current, "b", "main", 6, 7, right);
+          const written = await Promise.all([
+            send(`left-${round}`, [firstEdit]),
+            send(`right-${round}`, [secondEdit]),
+            send(`left-${round}`, [firstEdit]),
+          ]);
+          for (const result of written) expect(result.value.operation.state).toBe("COMMITTED");
+          const conflict = await send(`conflict-${round}`, [firstEdit]);
+          expect(conflict.value.operation.reason).toBe("SCOPE_CONFLICT");
+          expected.content[0].children![0].text = `${left}👩‍💻${right}`;
+        } finally {
+          current.dispose();
+          peer.destroy();
+        }
+      }
+      const final = await readState();
+      expect(final.protocol.sequence).toBe((rounds + 1) * 2);
+      const finalDoc = new Y.Doc();
+      try {
+        Y.applyUpdate(finalDoc, Buffer.from(final.state, "base64"));
+        expect(readNodeDocument(finalDoc)).toEqual(expected);
+      } finally {
+        finalDoc.destroy();
+      }
+      console.log(`Worker 范围编辑压力：${(rounds + 1) * 4} 次并发、重放与冲突提交`);
+    } finally {
+      tree.dispose();
+      doc.destroy();
+    }
+  });
   it.each([undefined, 1, 4])("不支持的文档版本 %s 不能发布或取得正文票据", async version => {
     await initialize();
     const owner = await register("作者"),
