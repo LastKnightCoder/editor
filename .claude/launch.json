@@ -87,6 +87,12 @@
       "port": 6211
     },
     {
+      "name": "mockup-nav",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", "apps/website", "-l", "6260"],
+      "port": 6260
+    },
+    {
       "name": "pdf-detail-mock",
       "runtimeExecutable": "python",
       "runtimeArgs": [
@@ -364,6 +370,20 @@
       "runtimeArgs": ["-m", "http.server", "8849", "--bind", "127.0.0.1", "-d", "."],
       "port": 8849,
       "url": "http://localhost:8849"
+    },
+    {
+      "name": "subagents-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8862",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/subagents"
+      ],
+      "port": 8862
     }
   ]
 }
