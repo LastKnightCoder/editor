@@ -229,7 +229,14 @@ export function withNodeTree<T extends Editor>(
   };
   editor.normalizeNode = (entry, options) => {
     if (!editablePath(entry[1])) return;
-    normalizeNode(entry, options);
+    // 只读规范化只整理 Slate 投影，不能写回节点树或新增撤销记录。
+    const wasProjecting = projecting;
+    if (configuration.readonly) projecting = true;
+    try {
+      normalizeNode(entry, options);
+    } finally {
+      projecting = wasProjecting;
+    }
   };
 
   const context = (path: Path) => {
