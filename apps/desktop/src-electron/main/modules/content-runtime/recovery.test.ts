@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as Y from "yjs";
@@ -14,6 +14,8 @@ import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { CollaborationLocalStore } from "../collaboration/local-store";
 import { ContentLocalState } from "../collaboration/content-local-state";
 import { importLegacyContent, recoverContentDrafts } from "./recovery";
+import { prepareContentAgentStore } from "./agent/store";
+import agentSchema from "@tau/db-schema/schema/content-agent.sql?raw";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -217,4 +219,40 @@ it("源码草稿只在原字段内容一致时恢复，并保留冲突输入", a
     tauContract: id,
   });
   expect(state.inputDrafts("library").map(draft => draft.value)).toEqual(["另一个旧草稿"]);
+});
+
+it("旧协作库恢复后迁入审阅和权限，保留故障期间已写入的本机记录", () => {
+  const root = directory();
+  const collaboration = join(root, "collaboration");
+  const path = join(collaboration, "collaboration.db");
+  mkdirSync(collaboration);
+  writeFileSync(path, "独立故障样本");
+  const local = store(join(root, "local-content"), "content.db");
+  prepareContentAgentStore(root, local);
+  expect(local.get("legacy-content-agent-imported", false)).toBe(false);
+  local.db.prepare("INSERT INTO content_agent_permissions VALUES ('a',1,'助手','suggest',2)").run();
+
+  const backup = store(join(root, "backup"));
+  backup.db.exec(agentSchema);
+  backup.db.exec(`
+    INSERT INTO content_agent_permissions VALUES ('a',1,'助手','direct',1);
+    INSERT INTO content_agent_permissions VALUES ('a',1,'校对','readonly',1);
+    INSERT INTO content_suggestions
+      (id,workspace_id,content_id,document_id,baseline_id,epoch,proposal_id,conversation_key,
+       sequence,edit,before_text,after_text,status,inverse,created_at,updated_at)
+    VALUES ('p.0','library',1,'local:fixture','baseline',0,'p','chat',0,'{}','旧文','新文','accepted','{}',1,1);
+  `);
+  backup.db.close();
+  writeFileSync(path, readFileSync(join(root, "backup", "collaboration.db")));
+  prepareContentAgentStore(root, local);
+  prepareContentAgentStore(root, local);
+  expect(
+    local.db.prepare("SELECT agent,level FROM content_agent_permissions ORDER BY agent").all()
+  ).toEqual([
+    { agent: "助手", level: "suggest" },
+    { agent: "校对", level: "readonly" },
+  ]);
+  expect(local.db.prepare("SELECT id,status,inverse FROM content_suggestions").all()).toEqual([
+    { id: "p.0", status: "accepted", inverse: "{}" },
+  ]);
 });

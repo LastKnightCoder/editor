@@ -6,8 +6,8 @@
 
 import { toast } from "@tau/ui";
 import { bindDatabaseCommands } from "@/services/command-context";
-import { rejectContentSuggestions } from "@/commands/content";
-import { invoke, isElectron, on } from "@/electron";
+import { contentAgentCommand, rejectContentSuggestions } from "@/commands/content";
+import { isElectron, on } from "@/electron";
 import { sendToChat } from "@/features/chat/chatSend";
 import { isMainWindow } from "@/utils/window-role";
 import { MAIN_AGENT_NAME } from "@/services/agent-identity";
@@ -86,10 +86,10 @@ export async function requestSuggestionRewrite(
     text: `按当前原文重写这条建议：「${clip(suggestion.beforeText)}」→「${clip(suggestion.afterText)}」，原文已被改动`,
   };
   if (isMainWindow()) return deliver(request);
-  return bindDatabaseCommands({ invoke }, { databaseName }).invoke<boolean>(
-    "content:suggestions-follow-up",
-    request
-  );
+  return bindDatabaseCommands(
+    { contentAgentCommand },
+    { databaseName }
+  ).contentAgentCommand<boolean>("content:suggestions-follow-up", request);
 }
 
 /** 已处理改动的续改是原对话的新消息，不改变上一条的接受或撤销记录。 */
@@ -114,8 +114,8 @@ export async function requestSuggestionContinuation(
     text: `继续处理修改 ${suggestion.id}「${clip(suggestion.beforeText)}」→「${clip(suggestion.afterText)}」。先重读当前正文${blockId ? `的目标块 ${blockId}` : ""}，保留后续人工编辑。新要求：${text}`,
   };
   if (isMainWindow()) return deliver(request);
-  return bindDatabaseCommands({ invoke }, { databaseName }).invoke<boolean>(
-    "content:suggestions-follow-up",
-    request
-  );
+  return bindDatabaseCommands(
+    { contentAgentCommand },
+    { databaseName }
+  ).contentAgentCommand<boolean>("content:suggestions-follow-up", request);
 }

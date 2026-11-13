@@ -4,10 +4,9 @@ import type { IpcMainInvokeEvent } from "electron";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
-import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
   replaceText,
@@ -15,13 +14,11 @@ import {
   WHITEBOARD_DOCUMENT_VERSION,
   readNodeDocument,
   buildScopedContentUpdate,
-  validateScopedContentEdits,
   ScopedContentConflictError,
   ScopedUndoLimitError,
   type DocumentOperation,
   type ScopedContentSubmission,
   type ScopedContentResult,
-  type ScopedContentEdits,
   createNodeDocument,
   validateNodeDocument,
   collectNodeDocumentResources,
@@ -50,22 +47,13 @@ import type { RuntimeSession } from "./types";
 import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "./local-store";
 import { ContentLocalState } from "./content-local-state";
-import { ContentSuggestionStore } from "./content-suggestions";
-import { ContentSuggestionService, type ScopedWriteOptions } from "./suggestion-service";
-import { AgentPresenceHub } from "./agent-presence";
-import { AgentPermissionStore } from "./agent-permissions";
-import type { TypingHost } from "./agent-typing";
-import type { ContentSuggestionRow } from "./content-suggestions";
-import { MAIN_AGENT_NAME } from "@/services/agent-identity";
-import { broadcastDatabaseChange } from "../database-notifications";
-import { CONTENT_AGENT_PRESENCE_CHANGED } from "@/types/agent-presence";
+import type { ScopedWriteOptions } from "../content-runtime/agent/suggestion-service";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { localSessionId } from "./session-identity";
 import { collaborationImageStorage } from "../../services/collaboration-image-storage";
 import {
   registerContentSession,
-  contentSession,
   unregisterContentSession,
   contentRevision,
 } from "./content-sessions";
@@ -74,9 +62,6 @@ export class CollaborationManager extends ContentSessionManager {
   name = "collaboration";
   private localRuntime?: ContentSessionManager;
   private client!: CollaborationClient;
-  private contentSuggestions?: ContentSuggestionService;
-  private presenceHub?: AgentPresenceHub;
-  private permissionStore?: AgentPermissionStore;
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private events = new Map<string, WebSocket>();
   private requests: JoinRequest[] = [];
@@ -99,20 +84,17 @@ export class CollaborationManager extends ContentSessionManager {
   protected override flushSessionResources() {
     void this.flushResources();
   }
-  protected override scheduleSuggestionValidation(
-    workspaceId: string,
-    contentId: number,
-    doc: () => Y.Doc | undefined
-  ) {
-    this.suggestions.scheduleValidation(workspaceId, contentId, doc);
+  protected override agentOwner(): ContentSessionManager {
+    return this.localRuntime ?? this;
   }
+
   protected override async openSharedContent(
     event: IpcMainInvokeEvent | ContentDatabase,
     target: ContentSessionTarget
   ): Promise<ContentSessionSnapshot> {
     const { db } = this.databaseForEvent(event);
     const binding = findCollaborationBinding(db, target.contentId);
-    if (!binding) return (this.localRuntime ?? this).open(event, target);
+    if (!binding) return this.openAfterUnbind(event, target);
     const id = binding.document_id;
     let session = this.findSession(id);
     if (!session) {
@@ -123,7 +105,7 @@ export class CollaborationManager extends ContentSessionManager {
           target.contentId,
           id
         );
-        return (this.localRuntime ?? this).open(event, target);
+        return this.openAfterUnbind(event, target);
       }
       if (!session) throw new Error("协作会话尚未恢复，请稍后重试");
     }
@@ -141,6 +123,14 @@ export class CollaborationManager extends ContentSessionManager {
       frozen: Boolean(session.info.frozen),
       source: session.info.source,
     };
+  }
+
+  private openAfterUnbind(
+    event: IpcMainInvokeEvent | ContentDatabase,
+    target: ContentSessionTarget
+  ) {
+    // 本机 open 可能正在等待这次共享查询，直接续走当前打开请求。
+    return (this.localRuntime ?? this).resumeLocalOpen(event, target);
   }
 
   protected override async confirmSharedReplacement(
@@ -903,225 +893,24 @@ export class CollaborationManager extends ContentSessionManager {
     }
   }
 
-  get suggestions() {
-    return (this.contentSuggestions ??= new ContentSuggestionService(
-      new ContentSuggestionStore(this.store.db),
-      this.applyScopedEdit.bind(this),
-      this.typingHost.bind(this),
-      (db, contentId) => contentSession(db, contentId)?.doc,
-      (db, contentId, agent) => this.agentPermissions.level(db, contentId, agent)
-    ));
+  protected override async readSharedAgentState(session: RuntimeSession) {
+    const remote = await this.client.request<{ state: string }>(
+      session.info.serverUrl,
+      `/v1/documents/${session.info.id}/state`,
+      "GET",
+      undefined,
+      NODE_DOCUMENT_VERSION
+    );
+    return Buffer.from(remote.state, "base64");
   }
 
-  get agentPermissions() {
-    return (this.permissionStore ??= new AgentPermissionStore(this.store.db));
-  }
-
-  /** 直接改的落地环境：正文会话（没打开就先打开）、按块检查有没有人在编辑、光标随写随走 */
-  private async typingHost(
-    db: import("better-sqlite3").Database,
-    contentId: number,
-    row: ContentSuggestionRow
-  ): Promise<TypingHost | undefined> {
-    const workspaceId = basename(db.name, ".db");
-    if (!contentSession(db, contentId))
-      await (this.localRuntime ?? this).open({ db, name: workspaceId }, { contentId });
-    const session = this.sessionOfContent(workspaceId, contentId);
-    if (!session) return undefined;
-    const agent = row.agent_label ?? MAIN_AGENT_NAME;
-    return {
-      local: session.info.mode === "local",
-      session: () => {
-        const current = this.sessionOfContent(workspaceId, contentId);
-        return current && { doc: current.doc, awareness: current.awareness };
-      },
-      submit: (request, assertCanWrite) =>
-        this.applyScopedEdit(db, contentId, request, { assertCanWrite }),
-      receipt: operationId => {
-        const result = (session.store ?? this.store).get<{ inverse?: ScopedContentEdits } | null>(
-          this.scopedEditReceiptKey({
-            documentId: row.document_id,
-            baselineId: row.baseline_id,
-            epoch: row.epoch,
-            operationId,
-          }),
-          null
-        );
-        return result ? { status: "committed", inverse: result.inverse } : undefined;
-      },
-      moved: caret =>
-        this.agentPresence.set(workspaceId, contentId, {
-          agent,
-          owner: row.conversation_key,
-          status: "busy",
-          action: "正在改这段",
-          caret,
-          block: caret.blockId,
-          editing: true,
-        }),
-      delay: ms => new Promise(resolve => setTimeout(resolve, ms)),
-    };
-  }
-
-  /** 正文当前的主进程会话（按库与正文 ID 找，打开着才有） */
-  private sessionOfContent(workspaceId: string, contentId: number) {
-    const local = this.localRuntime?.findContent(workspaceId, contentId);
-    if (local) return local;
-    for (const session of this.sessions.values()) {
-      const source = session.info.source;
-      if (
-        source?.contentId === contentId &&
-        source.databaseName.replace(/\.db$/, "") === workspaceId &&
-        !session.doc.isDestroyed
-      )
-        return session;
-    }
-  }
-
-  get agentPresence() {
-    return (this.presenceHub ??= new AgentPresenceHub({
-      doc: (workspaceId, contentId) => {
-        const session = this.sessionOfContent(workspaceId, contentId);
-        return session && { documentId: session.info.id, doc: session.doc };
-      },
-      broadcastAwareness: (documentId, update) =>
-        this.broadcast("collaboration:awareness", { documentId, update }),
-      changed: (workspaceId, contentId) =>
-        broadcastDatabaseChange(CONTENT_AGENT_PRESENCE_CHANGED, workspaceId, { contentId }),
-    }));
-  }
-
-  /** 视图订阅时的完整在场：会话里各视图的状态 + 这篇正文上 Agent 的状态 */
-  presenceSnapshot(session: RuntimeSession) {
-    const keys = [...session.awareness.getStates().keys()];
-    const source = session.info.source;
-    const agents = source
-      ? this.agentPresence.updates(source.databaseName.replace(/\.db$/, ""), source.contentId)
-      : [];
-    if (!agents.length) return encodeAwarenessUpdate(session.awareness, keys);
-    const merged = new Awareness(new Y.Doc());
-    try {
-      merged.setLocalState(null);
-      applyAwarenessUpdate(merged, encodeAwarenessUpdate(session.awareness, keys), "snapshot");
-      for (const update of agents) applyAwarenessUpdate(merged, update, "snapshot");
-      return encodeAwarenessUpdate(merged, [...merged.getStates().keys()]);
-    } finally {
-      merged.destroy();
-      merged.doc.destroy();
-    }
-  }
-
-  async readEditSnapshot(db: import("better-sqlite3").Database, contentId: number) {
-    const name = basename(db.name, ".db");
-    if (!contentSession(db, contentId))
-      await (this.localRuntime ?? this).open({ db, name }, { contentId });
-    const session = contentSession(db, contentId);
-    if (!session) throw new Error("正文会话未就绪");
-    const identity = readDocumentIdentity(session.doc);
-    const candidate = new Y.Doc({ gc: false });
-    try {
-      if (session.info.mode !== "local") {
-        const remote = await this.client.request<{ state: string }>(
-          session.info.serverUrl,
-          `/v1/documents/${session.info.id}/state`,
-          "GET",
-          undefined,
-          NODE_DOCUMENT_VERSION
-        );
-        Y.applyUpdate(candidate, Buffer.from(remote.state, "base64"));
-        const confirmed = readDocumentIdentity(candidate);
-        if (
-          confirmed.documentId !== identity.documentId ||
-          confirmed.epoch !== identity.epoch ||
-          confirmed.baselineId !== identity.baselineId
-        )
-          throw new Error("DOCUMENT_CHANGED: 正文基线已变化，请重新读取");
-      }
-      if (contentSession(db, contentId) !== session) throw new Error("正文会话已变化");
-      Y.applyUpdate(candidate, Y.encodeStateAsUpdate(session.doc));
-      return {
-        content: readNodeDocument(candidate).content,
-        state: Y.encodeStateAsUpdate(candidate),
-        identity,
-        revision: contentRevision(session),
-      };
-    } finally {
-      candidate.destroy();
-    }
-  }
-
-  private scopedEditReceiptKey(request: Omit<ScopedContentSubmission, "scope">) {
-    return `scoped-edit:${request.documentId}:${request.baselineId}:${request.epoch}:${request.operationId}`;
-  }
-
-  async applyScopedEdit(
-    db: import("better-sqlite3").Database,
-    contentId: number,
+  protected override async submitSharedAgentEdit(
+    session: RuntimeSession,
     request: ScopedContentSubmission,
-    { assertCanWrite, signal, undo }: ScopedWriteOptions = {}
+    updateHash: string,
+    check: () => void,
+    { signal, undo }: ScopedWriteOptions
   ): Promise<ScopedContentResult> {
-    assertCanWrite?.();
-    validateScopedContentEdits(request.scope);
-    if (!/^[A-Za-z0-9._-]{1,128}$/.test(request.operationId)) throw new Error("编辑操作 ID 无效");
-    if (!contentSession(db, contentId))
-      await (this.localRuntime ?? this).open({ db, name: basename(db.name, ".db") }, { contentId });
-    const session = contentSession(db, contentId);
-    if (!session) return { status: "rejected", reason: "DOCUMENT_CHANGED" };
-    const check = () => {
-      assertCanWrite?.();
-      const identity = readDocumentIdentity(session.doc);
-      if (
-        session.info.frozen ||
-        session.info.leaving ||
-        session.info.status !== "active" ||
-        contentSession(db, contentId) !== session ||
-        identity.documentId !== request.documentId ||
-        identity.baselineId !== request.baselineId ||
-        identity.epoch !== request.epoch
-      )
-        throw new Error("DOCUMENT_CHANGED: 正文会话已变化，请重新读取");
-    };
-    check();
-    const encoded = JSON.stringify(request.scope);
-    const updateHash = createHash("sha256").update(encoded).digest("hex");
-    if (session.info.mode === "local") {
-      const body = this.localRuntime ?? this;
-      const store = session.store ?? this.store;
-      const key = this.scopedEditReceiptKey(request);
-      let inverse: ScopedContentEdits | undefined;
-      try {
-        await body.acceptUpdates(
-          session,
-          {
-            bytes: Buffer.byteLength(encoded),
-            build: async () => {
-              const previous = store.get<{
-                hash: string;
-                inverse?: ScopedContentEdits;
-              } | null>(key, null);
-              if (previous) {
-                if (previous.hash !== updateHash) throw new Error("操作身份已被另一请求使用");
-                inverse = previous.inverse;
-                return null;
-              }
-              const prepared = await buildScopedContentUpdate(session.doc, request.scope, { undo });
-              inverse = prepared.inverse;
-              return prepared.update;
-            },
-            commit: () => store.set(key, { hash: updateHash, inverse }),
-          },
-          check
-        );
-      } catch (error) {
-        if (error instanceof ScopedContentConflictError)
-          return { status: "conflict", conflicts: error.conflicts };
-        if (error instanceof ScopedUndoLimitError)
-          return { status: "rejected", reason: error.code };
-        throw error;
-      }
-      void body.save(session).catch(error => body.reportSaveFailure(session, error));
-      return { status: "committed", inverse };
-    }
     const route = `/v1/documents/${session.info.id}/operations/${request.operationId}`;
     const url = session.info.serverUrl;
     const key = `scoped-edit-request:${url}:${session.info.id}:${request.operationId}`;
@@ -1407,7 +1196,7 @@ export class CollaborationManager extends ContentSessionManager {
       createContent: this.createContent.bind(this),
       issueInvitation: this.issueInvitation.bind(this),
       removeView: this.removeView.bind(this),
-      presenceSnapshot: this.presenceSnapshot.bind(this),
+      presenceSnapshot: session => localContent.agent.presenceSnapshot(session),
       clearBinding: this.clearBinding.bind(this),
       discardLocal: this.discardLocal.bind(this),
       removeSession: this.removeSession.bind(this),
@@ -1417,8 +1206,11 @@ export class CollaborationManager extends ContentSessionManager {
     localContent.connectSharing({
       open: this.openSharedContent.bind(this),
       find: this.findSession.bind(this),
-      presence: this.presenceSnapshot.bind(this),
-      validate: this.scheduleSuggestionValidation.bind(this),
+      findContent: this.findContent.bind(this),
+      readAgentState: this.readSharedAgentState.bind(this),
+      submitAgentEdit: this.submitSharedAgentEdit.bind(this),
+      broadcastPresence: (documentId, update) =>
+        this.broadcast("collaboration:awareness", { documentId, update }),
       windows: id => this.removeWindowViews(id),
     });
     this.startAutoFlush();
@@ -1435,8 +1227,6 @@ export class CollaborationManager extends ContentSessionManager {
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     for (const socket of this.events.values()) socket.close();
     for (const transport of this.transports.values()) transport.disconnect();
-    this.contentSuggestions?.dispose();
-    this.presenceHub?.dispose();
     this.contentState = undefined;
   }
 }

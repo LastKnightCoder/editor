@@ -11,7 +11,7 @@ import {
   type ScopedContentSubmission,
 } from "@tau/collaboration";
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
-import { typeEdit, typingChunks, type TypingHost } from "../agent-typing";
+import { typeEdit, typingChunks, type TypingHost } from "../../content-runtime/agent/agent-typing";
 
 const ORIGINAL = "到 2025 年才支持整页离线编辑。";
 const REPLACED = "在 2025 年 8 月推出离线模式，但需要逐页开启";

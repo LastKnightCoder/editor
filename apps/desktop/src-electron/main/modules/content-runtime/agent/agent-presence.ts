@@ -13,7 +13,7 @@ import type {
   AgentPresence,
   AgentPresenceUpdate,
 } from "@/types/agent-presence";
-import { onAgentRunEnded } from "../agent-run-events";
+import { onAgentRunEnded } from "../../agent-run-events";
 
 /** 兜底：异常退出的 Agent 不会发结束通知，久无更新就清掉 */
 const PRESENCE_TTL_MS = 10 * 60 * 1000;
