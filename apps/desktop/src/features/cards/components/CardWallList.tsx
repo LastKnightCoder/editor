@@ -224,7 +224,7 @@ function SectionHead({
   );
 }
 
-/** 置顶横卡：双列宽，左缘置顶色脊，正文 Editor 只读预览（同条目卡口径） */
+/** 置顶横卡：双列宽，左缘置顶色脊，正文静态摘要（同条目卡口径） */
 function FeaturedCard({
   card,
   actions,

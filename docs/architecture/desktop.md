@@ -786,7 +786,7 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - features 可引用应用共享 components、hooks、utils，禁止新增 `@/pages` 依赖；共享 components 不反向 import features。
 - 纯搬家与行为修改分开；修改 props 时检查现有宿主和独立窗口，不能以旧页面退役为由破坏仍活跃的消费者。
 - 数据来自服务器时用 react-query；输入、筛选、作答会话和计时运行镜像保留各自合适的状态协议，不把所有 zustand 状态当作旧缓存删除。
-- 正文快照预览统一在 `components/ContentPreivew.tsx`：只渲染传入内容，可按块截断，不开正文会话。卡片墙使用快照；白板文档卡、漫步页和首页漫步牌堆使用只读 `ContentEditor` 订阅原文，会话就绪前统一显示 `Loading`。`ContentEditor` 不承载快照预览模式。
+- 正文快照摘要统一在 `components/ContentPreivew.tsx`：以静态 React 节点渲染传入内容，按块、节点数、字符数和深度限制规模，不创建 Editor、不加载媒体或查询引用全文。卡片墙使用快照；白板文档卡、漫步页和首页漫步牌堆使用只读 `ContentEditor` 订阅原文，会话就绪前统一显示 `Loading`。`ContentEditor` 不承载快照预览模式。
 
 ## 7. 今日页数据（已全部接线，features/home/queries.ts）
 
@@ -870,7 +870,7 @@ AI 的「卡片工具」由 `mcp/providers/card-tools.ts` 默认注册：`set_ca
 
 `features/cards/queries.ts` 按 `["cards", databaseName, "all"]` 隔离缓存，仅数据库就绪时读取；列表走主进程轻表（content 为截好的预览块），单卡全文按需经 `["cards", db, "detail", id]`（预览弹窗、导出与演示动作）。写入与卡片创建/更新/删除事件按 id 单卡并入缓存（事件载荷即全量卡片，跨窗口按 id 回查后广播），不做整域失效。`cards:*` 命令在主进程校验数据库身份，元数据只提交字段补丁并在当前记录上合并，拒绝跨库或已删除卡片写入。CardDatabaseView 经必传 `onUpdateCard(id, patch)` 接入宿主写入；连接列数据走 `useContentLinksByContentIds`，筛选结果只用于列表展示；时间组用本地自然日/周一周/自然月。标签持久化为名称字符串，表格保存标签补丁时按列选项把选项 ID 转回名称，不能保存通用多选组件的 UUID。
 
-卡片墙与表格共用预览：卡片数据就绪即可显示弹窗，`ContentEditor` 在正文会话就绪前显示 `Loading`；读取失败展示错误可重试；关闭预览保留正文/标题/标签到 Dialog `onAfterClose` 再清理，避免退场中高度塌缩。卡片墙的普通与置顶卡共用 `ContentPreivew`（只读 Editor 渲染前 3 块，不开协作会话），摘要变化重建实例，列表按 contentId 更新正文与字数不重拉。
+卡片墙与表格共用预览：卡片数据就绪即可显示弹窗，`ContentEditor` 在正文会话就绪前显示 `Loading`；读取失败展示错误可重试；关闭预览保留正文/标题/标签到 Dialog `onAfterClose` 再清理，避免退场中高度塌缩。卡片墙的普通与置顶卡共用 `ContentPreivew`，默认静态展示前 3 块，单卡最多遍历 120 个节点、输出 1200 字符、深入 12 层；保留基础文字格式，媒体显示摘要标识，公式与代码展示源码，未知块保留可读子内容或占位。摘要不创建 Editor、不执行插件组件、不读取引用全文，快照变化直接更新；列表按 contentId 更新正文与字数不重拉。
 
 视图与排序由 `features/cards/preferences.ts` 按库持久化；视图切换经 `usePageBreadcrumb` 挂标题栏面包屑。筛选只剩标签条件（卡片墙/列表/表格共用同一会话查询，数据库视图将其与内置筛选叠加、会话条件不写入用户视图）；卡片库不设页内搜索——语义检索走命令面板，空态文案引导同一入口。卡片详情页（card-detail，match params 按 id 去重，连接 chip 经栈机异参原位更新）数据 = `useCardDetail` 单卡全量（含 linkCount），正文由 ContentEditor 文档会话持久化，元数据即时 patch；显式连接不经卡片元数据，存主库 `content_links`（按 contentId 绑定），脉络浮层与 ⋯ 菜单都走 `content-links:add/remove`（原子双边）。播客由插件 `tau.podcast` 经对象动作与详情区块提供，宿主不再持有卡片、文章、项目文档的播客。
 
