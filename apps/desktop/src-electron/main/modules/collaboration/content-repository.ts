@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import type { CollaborationSession, SourceBinding, SourceType } from "@tau/collaboration";
 import { SOURCE_TYPES } from "@tau/collaboration";
 import { findCollaborationBinding } from "../collaboration-guard";
+import { ContentIdentityTable } from "../tables/content-identity";
 
 const parseSourceType = (value: string | undefined | null): SourceType | undefined =>
   SOURCE_TYPES.includes(value as SourceType) ? (value as SourceType) : undefined;
@@ -14,8 +15,10 @@ export function restoreContentBinding(
 ): SourceBinding | undefined {
   const row = db
     .prepare(
-      `SELECT b.* FROM collaboration_bindings b JOIN content_snapshots c
-    ON c.id=b.content_id AND c.create_time=b.content_created_at
+      `SELECT b.*, d.document_id AS local_document_id, d.revision
+    FROM collaboration_bindings b JOIN contents c
+      ON c.id=b.content_id AND c.create_time=b.content_created_at
+    JOIN content_documents d ON d.content_id=b.content_id
     WHERE b.document_id=? AND b.server_url=?`
     )
     .get(documentId, serverUrl) as
@@ -25,6 +28,8 @@ export function restoreContentBinding(
         source_type?: string;
         source_id?: number;
         source_title?: string;
+        local_document_id: string;
+        revision: string;
       }
     | undefined;
   return row
@@ -32,6 +37,9 @@ export function restoreContentBinding(
         databaseName,
         contentId: row.content_id,
         contentCreatedAt: row.content_created_at,
+        librarySourceId: ContentIdentityTable.library(db)?.sourceId,
+        contentDocumentId: row.local_document_id,
+        projectionRevision: row.revision,
         sourceType: parseSourceType(row.source_type),
         sourceId: row.source_id,
         sourceTitle: row.source_title,

@@ -378,6 +378,7 @@ it("下载先把旧库复制进 backup，再替换并维护重连", async () => 
     "/tmp/data.db",
     expect.stringMatching(/^\/tmp\/backup\/version-1-.*-data\.db$/)
   );
+  expect(state.close).toHaveBeenCalledWith("data.db", true);
   expect(state.install).toHaveBeenCalledWith("data.db", true, ["chat.jsonl"]);
   expect(state.connect).toHaveBeenCalledWith("data.db", {
     force: true,

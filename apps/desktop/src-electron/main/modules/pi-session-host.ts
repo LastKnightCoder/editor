@@ -13,7 +13,6 @@ import { emitMemorySourceChanged, setMemoryForeground } from "./assistant-memory
 import { emitAgentRunEnded } from "./agent-run-events";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
-import collaborationModule from "./collaboration";
 import localContent from "./content-runtime";
 import whiteboardDocumentsModule from "./whiteboard-documents";
 import PathUtil from "../utils/PathUtil";
@@ -293,23 +292,34 @@ class PiSessionHostModule {
             const ready = await modules.initModule(name);
             if (!ready.success) throw new Error(ready.error ?? "文档保存服务尚未就绪");
           }
-          await localContent.releaseLibrary(databaseName);
-          await collaborationModule.releaseSharedLibrary(databaseName);
-          whiteboardDocumentsModule.releaseLibrary(databaseName);
-          const downloadPath = `${databasePath}.download.tmp`;
           assertDatabaseSyncLockOwned(databasePath);
-          if (databaseModule.getDatabase(databaseName)) throw new Error("替换资料库前必须先关库");
+          if (
+            [...databaseModule.databases.keys()].some(
+              name =>
+                databaseModule.formatDatabaseName(name) ===
+                databaseModule.formatDatabaseName(databaseName)
+            )
+          )
+            throw new Error("替换资料库前必须先关库");
+          const downloadPath = `${databasePath}.download.tmp`;
+          if (!existsSync(downloadPath)) throw new Error("待安装的资料库文件不存在");
+          const downloadedSessions = hasSessions ? `${databasePath}.sessions.download` : undefined;
+          if (downloadedSessions && !existsSync(downloadedSessions))
+            throw new Error("待安装的对话目录不存在");
           mainContentIndexDBManager.prepareDownload(
             databaseName,
             databasePath,
             downloadPath,
             hasSessions ? (reusedSessionFiles ?? []) : undefined
           );
+          whiteboardDocumentsModule.releaseLibrary(databaseName);
+          localContent.releaseLibrary(databaseName);
+          assertDatabaseSyncLockOwned(databasePath);
           installDatabaseDownload(
             databasePath,
             downloadPath,
             chatSessionDirOf(databaseName),
-            hasSessions ? `${databasePath}.sessions.download` : undefined
+            downloadedSessions
           );
           return {};
         })

@@ -48,6 +48,17 @@ export function initializeContentSessions() {
       revision: state.revision + 1,
     }));
   });
+  on("database:sync-reconnected", (_event, { databaseName }: { databaseName: string }) => {
+    const prefix = `${databaseName}:`;
+    useContentSessionStore.setState(state => ({
+      entries: Object.fromEntries(
+        Object.entries(state.entries).filter(
+          ([key, entry]) => !key.startsWith(prefix) || entry.mode !== "local"
+        )
+      ),
+      revision: state.revision + 1,
+    }));
+  });
   on(
     "collaboration:content",
     (_event, payload: { documentId: string; source?: SourceBinding; title: string }) => {

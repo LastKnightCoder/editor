@@ -1,3 +1,4 @@
+import { queryClient } from "@/queryClient";
 import {
   uploadChunkedPath,
   downloadChunkedPath,
@@ -384,7 +385,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       remoteVersion: remote.version,
     });
     setDatabaseConnectionStatus(databaseName, "reconnecting");
-    await closeDatabase(databaseName);
+    await closeDatabase(databaseName, true);
 
     emitProgress(options, 20, "正在备份本地数据库...");
     const sep = await getSep();
@@ -543,7 +544,10 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       await reconnectAfterSync(databaseName, "sync_download_reconnect", {
         mode: "maintenance",
       });
-      if (succeeded) emitProgress(options, 100, "下载完成");
+      if (succeeded) {
+        void queryClient.invalidateQueries();
+        emitProgress(options, 100, "下载完成");
+      }
     } finally {
       await piSessionUnlockLibrary(databaseName);
     }
