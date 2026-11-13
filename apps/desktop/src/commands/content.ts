@@ -98,19 +98,11 @@ export interface ContentEditState {
   revision: string;
 }
 
-export const readContentEditState = (contentId: number) => {
-  const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
-  return withModule("collaboration", () =>
-    commands.invoke<ContentEditState>("content:edit-snapshot", contentId)
-  );
-};
+export const readContentEditState = (contentId: number) =>
+  contentAgentCommand<ContentEditState>("content:edit-snapshot", contentId);
 
-export const applyScopedContentEdit = (contentId: number, request: ScopedContentSubmission) => {
-  const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
-  return withModule("collaboration", () =>
-    commands.invoke<ScopedContentResult>("content:apply-scoped-edit", contentId, request)
-  );
-};
+export const applyScopedContentEdit = (contentId: number, request: ScopedContentSubmission) =>
+  contentAgentCommand<ScopedContentResult>("content:apply-scoped-edit", contentId, request);
 
 export interface ContentSuggestionOutcome {
   id: string;
@@ -118,16 +110,16 @@ export interface ContentSuggestionOutcome {
   error?: string;
 }
 
-const suggestionCommand = <T>(channel: string, ...args: unknown[]) => {
+export const contentAgentCommand = <T>(channel: string, ...args: unknown[]) => {
   const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
-  return withModule("collaboration", () => commands.invoke<T>(channel, ...args));
+  return withModule("local-content", () => commands.invoke<T>(channel, ...args));
 };
 
 export const listContentSuggestions = (query: ContentSuggestionQuery) =>
-  suggestionCommand<ContentSuggestion[]>("content:suggestions", query);
+  contentAgentCommand<ContentSuggestion[]>("content:suggestions", query);
 
 export const createContentSuggestions = (contentId: number, batch: ContentSuggestionBatch) =>
-  suggestionCommand<ContentSuggestion[]>("content:suggestions-create", contentId, batch);
+  contentAgentCommand<ContentSuggestion[]>("content:suggestions-create", contentId, batch);
 
 /** typing：直接改的条目在本机正文上逐段实时落地（有人在编辑那一块就让出） */
 export const acceptContentSuggestions = (
@@ -135,7 +127,7 @@ export const acceptContentSuggestions = (
   ids: string[],
   options?: ContentSuggestionAcceptOptions
 ) =>
-  suggestionCommand<ContentSuggestionOutcome[]>(
+  contentAgentCommand<ContentSuggestionOutcome[]>(
     "content:suggestions-accept",
     contentId,
     ids,
@@ -143,28 +135,28 @@ export const acceptContentSuggestions = (
   );
 
 export const rejectContentSuggestions = (contentId: number, ids: string[], feedback?: string) =>
-  suggestionCommand<string[]>("content:suggestions-reject", contentId, ids, feedback);
+  contentAgentCommand<string[]>("content:suggestions-reject", contentId, ids, feedback);
 
 export const supersedeContentSuggestions = (contentId: number, proposalId: string) =>
-  suggestionCommand<void>("content:suggestions-supersede", contentId, proposalId);
+  contentAgentCommand<void>("content:suggestions-supersede", contentId, proposalId);
 
 export const undoContentSuggestions = (contentId: number, ids: string[]) =>
-  suggestionCommand<ContentSuggestionOutcome[]>("content:suggestions-undo", contentId, ids);
+  contentAgentCommand<ContentSuggestionOutcome[]>("content:suggestions-undo", contentId, ids);
 
 export const createContentQuestion = (contentId: number, request: ContentQuestionRequest) =>
-  suggestionCommand<ContentSuggestion>("content:suggestions-question", contentId, request);
+  contentAgentCommand<ContentSuggestion>("content:suggestions-question", contentId, request);
 
 export const answerContentQuestion = (contentId: number, id: string, answer: string) =>
-  suggestionCommand<boolean>("content:suggestions-answer", contentId, id, answer);
+  contentAgentCommand<boolean>("content:suggestions-answer", contentId, id, answer);
 
 export const listAgentPermissions = (contentId: number) =>
-  suggestionCommand<ContentAgentPermission[]>("content:agent-permissions", contentId);
+  contentAgentCommand<ContentAgentPermission[]>("content:agent-permissions", contentId);
 
 export const getAgentPermission = (contentId: number, agent: string) =>
-  suggestionCommand<AgentPermissionLevel>("content:agent-permission", contentId, agent);
+  contentAgentCommand<AgentPermissionLevel>("content:agent-permission", contentId, agent);
 
 export const setAgentPermission = (contentId: number, agent: string, level: AgentPermissionLevel) =>
-  suggestionCommand<void>("content:agent-permission-set", contentId, agent, level);
+  contentAgentCommand<void>("content:agent-permission-set", contentId, agent, level);
 
 export const deleteContent = async (contentId: number): Promise<number> => {
   return await invoke("content:delete", contentId);

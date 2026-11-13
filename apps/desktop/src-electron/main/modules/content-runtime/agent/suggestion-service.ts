@@ -20,9 +20,9 @@ import {
   type AgentPermissionLevel,
   type ContentSuggestionQuery,
 } from "@/types/content-suggestion";
-import { broadcastDatabaseChange } from "../database-notifications";
+import { broadcastDatabaseChange } from "../../database-notifications";
 import { ContentSuggestionStore, type ContentSuggestionRow } from "./content-suggestions";
-import { agentEditSignal } from "../agent-run-events";
+import { agentEditSignal } from "../../agent-run-events";
 import { canType, humanEditing, typeEdit, type TypingHost } from "./agent-typing";
 
 export interface ScopedWriteOptions {
@@ -38,7 +38,7 @@ type ApplyScoped = (
   options?: ScopedWriteOptions
 ) => Promise<ScopedContentResult>;
 
-/** 直接改的落地环境：会话、光标上报；由协作管理器按正文提供 */
+/** 直接改的落地环境：会话、光标上报；由正文会话按需提供 */
 export type TypingHostFactory = (
   db: Database.Database,
   contentId: number,
@@ -310,8 +310,8 @@ export class ContentSuggestionService {
   /** 独立窗口里的跟进请求（如让 Agent 重写）转给持有对话的主窗口处理 */
   async followUp(db: Database.Database, request: Record<string, unknown>) {
     const [{ getMainWindows }, { default: database }] = await Promise.all([
-      import("../../windows"),
-      import("../database"),
+      import("../../../windows"),
+      import("../../database"),
     ]);
     const workspaceId = workspaceOf(db);
     const target = getMainWindows().find(

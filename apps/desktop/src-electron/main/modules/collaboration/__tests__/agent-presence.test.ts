@@ -6,7 +6,7 @@ import { afterEach, expect, it } from "vitest";
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { captureScopedTextEdit, NodeTree } from "@tau/collaboration";
 import { emitAgentRunEnded } from "../../agent-run-events";
-import { AgentPresenceHub } from "../agent-presence";
+import { AgentPresenceHub } from "../../content-runtime/agent/agent-presence";
 
 const MAIN = "library\u0000main-chat:c1";
 let hub: AgentPresenceHub;

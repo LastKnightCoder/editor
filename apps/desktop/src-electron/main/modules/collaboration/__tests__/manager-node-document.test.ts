@@ -22,6 +22,7 @@ import {
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { applyNodeTreeContent, withNodeTree } from "@tau/editor-collab";
+import agentSchema from "@tau/db-schema/schema/content-agent.sql?raw";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
@@ -73,10 +74,7 @@ afterEach(async () => {
   host.databases.clear();
   host.serverUrl = "http://test";
 });
-type Runtime = Pick<
-  CollaborationManager,
-  "readEditSnapshot" | "applyScopedEdit" | "suggestions"
-> & {
+type Runtime = Pick<CollaborationManager, "agent"> & {
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   assets: CollaborationAssetService;
@@ -171,6 +169,7 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
   const directory = join(root, "collaboration");
   const store = new CollaborationLocalStore(directory),
     state = new ContentLocalState(store.db);
+  store.db.exec(agentSchema);
   const runtime = new CollaborationManager() as unknown as Runtime;
   Object.assign(runtime, {
     store,
@@ -2151,7 +2150,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 it.each([false, true])("正文范围提交和撤销保持其他内容完整（共享=%s）", async shared => {
   const { runtime, localId, event, db, server } = await setup(false, ["第一段", "第二段"]);
   const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
-  const original = await runtime.readEditSnapshot(db, 7);
+  const original = await runtime.agent.readEditSnapshot(db, 7);
   const snapshot = new Y.Doc();
   Y.applyUpdate(snapshot, original.state);
   const tree = new NodeTree(snapshot);
@@ -2172,31 +2171,36 @@ it.each([false, true])("正文范围提交和撤销保持其他内容完整（�
           return result;
         }
       );
-      expect(await runtime.applyScopedEdit(db, 7, request)).toEqual({ status: "pending" });
+      expect(await runtime.agent.applyScopedEdit(db, 7, request)).toEqual({ status: "pending" });
     } else {
       const append = vi.spyOn(runtime.store, "append").mockImplementationOnce(() => {
         throw new Error("模拟本机落盘失败");
       });
-      await expect(runtime.applyScopedEdit(db, 7, request)).rejects.toThrow("模拟本机落盘失败");
-      expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+      await expect(runtime.agent.applyScopedEdit(db, 7, request)).rejects.toThrow(
+        "模拟本机落盘失败"
+      );
+      expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
       append.mockRestore();
     }
-    const applied = await runtime.applyScopedEdit(db, 7, request);
+    const applied = await runtime.agent.applyScopedEdit(db, 7, request);
     expect(applied.status).toBe("committed");
     if (applied.status !== "committed" || !applied.inverse) throw new Error("缺少撤销操作");
-    expect(await runtime.applyScopedEdit(db, 7, request)).toEqual(applied);
-    const updated = await runtime.readEditSnapshot(db, 7);
+    expect(await runtime.agent.applyScopedEdit(db, 7, request)).toEqual(applied);
+    const updated = await runtime.agent.readEditSnapshot(db, 7);
     expect(updated.content[0].children?.[0].text).toBe("AI一段");
     expect(updated.content[1]).toEqual(original.content[1]);
-    const conflict = await runtime.applyScopedEdit(db, 7, { ...request, operationId: "stale" });
+    const conflict = await runtime.agent.applyScopedEdit(db, 7, {
+      ...request,
+      operationId: "stale",
+    });
     expect(conflict).toMatchObject({ status: "conflict", conflicts: [{ opId: "edit", blockId }] });
-    const reverted = await runtime.applyScopedEdit(db, 7, {
+    const reverted = await runtime.agent.applyScopedEdit(db, 7, {
       ...original.identity,
       operationId: "scope-edit-undo",
       scope: applied.inverse,
     });
     expect(reverted.status).toBe("committed");
-    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
     if (shared) expect(server.store.operations.sequence(sessionId)).toBe(2);
   } finally {
     tree.dispose();
@@ -2212,13 +2216,13 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
     longOriginal,
   ]);
   const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
-  const original = await runtime.readEditSnapshot(db, 7);
+  const original = await runtime.agent.readEditSnapshot(db, 7);
   const originalSequence = shared ? server.store.operations.sequence(sessionId) : 0;
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
   const tree = new NodeTree(doc);
   const propose = (proposalId: string, block: number, before: string, text: string) =>
-    runtime.suggestions.create(db, 7, {
+    runtime.agent.suggestions.create(db, 7, {
       proposalId,
       conversationKey: proposalId,
       baseline: original.identity,
@@ -2241,10 +2245,10 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
     `scoped-edit:${original.identity.documentId}:${original.identity.baselineId}:${original.identity.epoch}:${id}`;
   try {
     const oversized = propose("oversized", 2, longOriginal, "新句");
-    expect(await runtime.suggestions.accept(db, 7, [oversized.id])).toMatchObject([
+    expect(await runtime.agent.suggestions.accept(db, 7, [oversized.id])).toMatchObject([
       { id: oversized.id, status: "expired", error: expect.stringContaining("可撤销容量") },
     ]);
-    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
     if (shared) {
       const ownerId = server.store.document(sessionId).owner_id;
       expect(server.store.operations.get(sessionId, oversized.id, ownerId)).toMatchObject({
@@ -2257,16 +2261,16 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
     // 正向回执在预算内，若额外记录重做，撤销回执会超限。
     const text = "新".repeat(12_000);
     const accepted = propose("large", 0, "原文", text);
-    expect(await runtime.suggestions.accept(db, 7, [accepted.id])).toEqual([
+    expect(await runtime.agent.suggestions.accept(db, 7, [accepted.id])).toEqual([
       { id: accepted.id, status: "accepted" },
     ]);
-    const changed = (await runtime.readEditSnapshot(db, 7)).content;
+    const changed = (await runtime.agent.readEditSnapshot(db, 7)).content;
     expect(changed[0].children?.map(leaf => leaf.text).join("")).toBe(text);
     expect(changed.slice(1)).toEqual(original.content.slice(1));
-    expect(await runtime.suggestions.undo(db, 7, [accepted.id])).toEqual([
+    expect(await runtime.agent.suggestions.undo(db, 7, [accepted.id])).toEqual([
       { id: accepted.id, status: "undone" },
     ]);
-    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
     if (shared) {
       const ownerId = server.store.document(sessionId).owner_id;
       const forward = server.store.operations.get(sessionId, accepted.id, ownerId);
@@ -2291,7 +2295,7 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
 
 it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销", async () => {
   const { runtime, db, localId } = await setup(false, ["第一段原文", "第二段保留"]);
-  const original = await runtime.readEditSnapshot(db, 7);
+  const original = await runtime.agent.readEditSnapshot(db, 7);
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
   const tree = new NodeTree(doc);
@@ -2299,7 +2303,7 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
   try {
     const id = String(original.content[0].collabId);
     const text = "甲乙丙丁戊己";
-    const [item] = runtime.suggestions.create(db, 7, {
+    const [item] = runtime.agent.suggestions.create(db, 7, {
       proposalId: "manager-stop",
       conversationKey: "test-chat",
       baseline: original.identity,
@@ -2317,7 +2321,7 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
       append(...args);
       queueMicrotask(stop);
     });
-    await runtime.suggestions.accept(db, 7, [item.id], {
+    await runtime.agent.suggestions.accept(db, 7, [item.id], {
       typing: true,
       executionId: "manager-scoped-edit",
     });
@@ -2333,10 +2337,10 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
       saved.destroy();
     }
     expect(
-      runtime.suggestions.list(db, { proposalId: "manager-stop" }).map(row => row.status)
+      runtime.agent.suggestions.list(db, { proposalId: "manager-stop" }).map(row => row.status)
     ).toEqual(["accepted", "pending"]);
-    expect((await runtime.suggestions.undo(db, 7, [item.id]))[0].status).toBe("undone");
-    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await runtime.agent.suggestions.undo(db, 7, [item.id]))[0].status).toBe("undone");
+    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
   } finally {
     stop();
     tree.dispose();
@@ -2347,7 +2351,7 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
 it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", async () => {
   const { runtime, db, event, server } = await setup(false, ["第一段原文", "第二段保留"]);
   const { documentId } = await runtime.createContent(event, 7);
-  const original = await runtime.readEditSnapshot(db, 7);
+  const original = await runtime.agent.readEditSnapshot(db, 7);
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
   const tree = new NodeTree(doc);
@@ -2366,7 +2370,7 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
   });
   try {
     const id = String(original.content[0].collabId);
-    const [item] = runtime.suggestions.create(db, 7, {
+    const [item] = runtime.agent.suggestions.create(db, 7, {
       proposalId: "shared-stop",
       conversationKey: "test-chat",
       baseline: original.identity,
@@ -2391,7 +2395,7 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
         return result;
       }
     );
-    const pending = runtime.suggestions.accept(db, 7, [item.id], {
+    const pending = runtime.agent.suggestions.accept(db, 7, [item.id], {
       typing: true,
       executionId: "shared-stopped",
     });
@@ -2403,7 +2407,7 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
       { id: item.id, status: "expired", error: "Agent 已停止，提交已取消" },
     ]);
     expect(server.store.operations.sequence(documentId)).toBe(0);
-    expect((await runtime.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
   } finally {
     release();
     stop();

@@ -87,7 +87,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 业务代码写正文
 
-未共享正文经 local-content 模块和独立日志运行，主库存在共享绑定时才接入共享会话。打开、关闭、切库和退出共用正文保存屏障，协作库不可读时仍能编辑健康的未共享正文。恢复规则见[正文持久化](/docs/architecture/content-storage.md#耐久日志与检查点)。
+未共享正文经 local-content 模块和独立日志运行，主库存在共享绑定时才接入共享会话。打开、关闭、切库和退出共用正文保存屏障，协作库不可读时仍能编辑健康的未共享正文。正文 Agent 命令由 local-content 提供，本机保存建议、审阅和权限；已有记录从可读的旧协作库按原身份一次性迁入，无法读取时保留原库并允许新的本机操作。共享正文的远端快照与范围提交由协作模块处理。恢复规则见[正文持久化](/docs/architecture/content-storage.md#耐久日志与检查点)。
 
 正文节点的 `collabId`（节点稳定身份，协作合并、光标与实体关系按它定位）和 `tauContract`（指向文档契约字典里该节点写入时的数据版本）属于存储与协作层，业务代码不读写、不拼装：
 
@@ -97,11 +97,11 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 - 块手柄跨文档移动通过正文会话确认目标写入后才删除源块。契约与资源校验见[协作架构](/docs/architecture/collaboration.md#文档与持久化)。
 - 只读预览（`markdownToContent` 等）的结果不带身份与契约，不能写回。
 
-AI 正文写入口为 `apply_content_edit_operations`。局部提案以带库与正文身份的读取快照解析定位器，每处改动生成一条带稳定锚点、预期内容与可选理由（操作的 `reason`）的建议；预览 Markdown 不作写入候选。建议记录存于主进程协作缓存 `content_suggestions`（`src-electron/main/modules/collaboration/content-suggestions.ts`），经 `content:suggestions*` 命令列出、接受、退回、替换、撤销与作答：状态迁移为带前置状态的条件更新，不同窗口同时处理同一对话建议时先到先得；接受时每条以自身 ID 作为范围操作身份单独提交，原文变化只让该条过期，未确认的保持 applying，原对话可以按原身份确认或恢复；撤销倒序提交逆操作。主进程在正文落地后（停顿 400ms）与会话恢复时按当前正文核对待处理建议与锚定提问，正文换代、锚点解析不到或原文前提不符即转为过期（`ContentSuggestionService.validate`）。任何变化广播 `content-suggestions:changed`，渲染端 `suggestion-queries.ts` 按库失效重读，正文打开、关闭或在其他窗口打开都从同一记录投影。本机会话在原增量队列内耐久提交，已共享正文向协作服务提交范围操作。全文替换仍走整篇提案与检查点。共享端协议见[实时协作](/docs/architecture/collaboration.md)。
+AI 正文写入口为 `apply_content_edit_operations`。局部提案以带库与正文身份的读取快照解析定位器，每处改动生成一条带稳定锚点、预期内容与可选理由（操作的 `reason`）的建议；预览 Markdown 不作写入候选。建议记录存于本机正文库 `local-content/content.db` 的 `content_suggestions`（`src-electron/main/modules/content-runtime/agent/`），经 `content:suggestions*` 命令列出、接受、退回、替换、撤销与作答：状态迁移为带前置状态的条件更新，不同窗口同时处理同一对话建议时先到先得；接受时每条以自身 ID 作为范围操作身份单独提交，原文变化只让该条过期，未确认的保持 applying，原对话可以按原身份确认或恢复；撤销倒序提交逆操作。主进程在正文落地后（停顿 400ms）与会话恢复时按当前正文核对待处理建议与锚定提问，正文换代、锚点解析不到或原文前提不符即转为过期（`ContentSuggestionService.validate`）。任何变化广播 `content-suggestions:changed`，渲染端 `suggestion-queries.ts` 按库失效重读，正文打开、关闭或在其他窗口打开都从同一记录投影。本机会话在原增量队列内耐久提交，已共享正文向协作服务提交范围操作。全文替换仍走整篇提案与检查点。共享端协议见[实时协作](/docs/architecture/collaboration.md)。
 
 建议型提案的工具调用等该提案每一条都有结果（`review-session.ts` 经 `suggestion-watch.ts` 订阅广播），再把逐条结果交给 Agent：接受、退回（附意见的只重做该条）、过期（重读后再提）。署名取 `services/agent-identity` 的职责名（子 Agent 为派发时的 title，主对话为「助手」），身份色按 `agent:<职责名>` 派生，对话头像、正文痕迹、光标与右栏同色（`components/AgentIdentity`）。原对话的 `SuggestionProposalCard` 按条展示前后差异，提供接受、退回、撤销和继续修改。选中改动后，`ScopedEditMarks` 按资料库、正文 ID 和建议 ID 读取单条记录，定位不受正文近期列表的时限或数量限制。已打开的对应正文按锚点显示作者色痕迹，再点同一条清除痕迹；「在正文定位」也可打开未显示的正文。回看替换时，旧文显示删除线，新文首字与同一文本节点内的其余改动共用高亮。本机基线重建后的已应用记录只在同一稳定块内唯一精确匹配时高亮，写入与撤销仍按原协议校验。正文的目录与版心沿用原布局。继续修改向原对话发送新要求，请 Agent 先重读目标块并保留后续人工编辑。过期建议给「让它按新原文重写 / 忽略」：重写先退回并附意见，发起它的工具不在等待时由退回成功的窗口派发，主窗口经 `features/chat/chatSend.ts` 在同一资料库的原对话追加一句（独立窗口经主进程定向转发）。
 
-Agent 对每篇正文的权限存于协作缓存 `content_agent_permissions`（只读 / 建议 / 直接改，无记录即建议），以稳定库来源和正文身份定位，标题栏 `AgentCollaborators` 点开设置；工具执行时只读拒绝写入，直接改或全局工具权限为自动应用时按直接改落地（`applyDirectSuggestions`：本机正文逐段实时打字，人一进入该块即停手，剩余转为待处理条目，事后在发起对话里逐条看改动与撤销），其余等用户逐条处理。Agent 的读取、提案、等待与打字经 `services/agent-presence.ts` 上报主进程在场中枢，标题栏显示头像组与动作胶囊，正文显示 Agent 光标。划词工具条的「交给 Agent」（`AgentCommentExtension`，仅主窗口可写正文）把选中原文作为引用、可 @ 这篇出现过的 Agent，发进当前对话；`ask_about_content` 让 Agent 把问题锚在原句上并给出选项，等用户在右栏或对话卡片作答。
+Agent 对每篇正文的权限存于同一本机正文库的 `content_agent_permissions`（只读 / 建议 / 直接改，无记录即建议），以稳定库来源和正文身份定位，标题栏 `AgentCollaborators` 点开设置；工具执行时只读拒绝写入，直接改或全局工具权限为自动应用时按直接改落地（`applyDirectSuggestions`：本机正文逐段实时打字，人一进入该块即停手，剩余转为待处理条目，事后在发起对话里逐条看改动与撤销），其余等用户逐条处理。Agent 的读取、提案、等待与打字经 `services/agent-presence.ts` 上报主进程在场中枢，标题栏显示头像组与动作胶囊，正文显示 Agent 光标。划词工具条的「交给 Agent」（`AgentCommentExtension`，仅主窗口可写正文）把选中原文作为引用、可 @ 这篇出现过的 Agent，发进当前对话；`ask_about_content` 让 Agent 把问题锚在原句上并给出选项，等用户在右栏或对话卡片作答。
 
 桌面「大语言模型 → 功能分配 → 行内建议」选择正文与代码块的模型。协作正文需另行开启授权，本机和共享文档均只在可写编辑视图中触发。主进程 `inline-suggestions` 复核模型分配与共享授权，只把有界的光标前后文本及可选代码语言传给现有单发推理能力。每窗口保留一个当前请求，主进程全局限制四个在途推理，八秒超时，旧结果按视图、文档绑定和位置丢弃。
 

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import { expect, it, vi } from "vitest";
-import schema from "@tau/db-schema/schema/collaboration.sql?raw";
+import schema from "@tau/db-schema/schema/content-agent.sql?raw";
 import {
   buildScopedContentUpdate,
   captureScopedTextEdit,
@@ -17,10 +17,10 @@ import {
 } from "@tau/collaboration";
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { agentEditSignal, registerAgentEditExecution } from "../../agent-run-events";
-import { AgentPermissionStore } from "../agent-permissions";
-import { ContentSuggestionStore } from "../content-suggestions";
-import { ContentSuggestionService } from "../suggestion-service";
-import { typingChunks, type TypingHost } from "../agent-typing";
+import { AgentPermissionStore } from "../../content-runtime/agent/agent-permissions";
+import { ContentSuggestionStore } from "../../content-runtime/agent/content-suggestions";
+import { ContentSuggestionService } from "../../content-runtime/agent/suggestion-service";
+import { typingChunks, type TypingHost } from "../../content-runtime/agent/agent-typing";
 
 vi.mock("../../database-notifications", () => ({ broadcastDatabaseChange: vi.fn() }));
 const base = { documentId: "doc", baselineId: "base", epoch: 0 };
@@ -42,6 +42,7 @@ async function fixture() {
   const file = join(directory, "library.db");
   let db = new Database(file);
   db.exec(schema);
+  db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
   const doc = await createTestDocument(
     {
       title: "",

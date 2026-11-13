@@ -13,6 +13,7 @@ import {
   NodeTree,
   type ContentNode,
   type ContentSessionTarget,
+  type ScopedContentSubmission,
   type ContentSessionSnapshot,
   type CollaborationSession,
   type SourceBinding,
@@ -67,6 +68,9 @@ import {
   unregisterContentSession,
 } from "../collaboration/content-sessions";
 import { registerLocalContentIpc } from "./ipc";
+import { ContentAgent } from "./agent";
+import type { ScopedWriteOptions } from "./agent/suggestion-service";
+import { prepareContentAgentStore } from "./agent/store";
 import { importLegacyContent, recoverContentDrafts } from "./recovery";
 
 export type ContentDatabase = { db: Database.Database; name: string };
@@ -88,12 +92,15 @@ export class ContentSessionManager {
   protected closingWindows = new Set<number>();
   protected autoFlushInterval: ReturnType<typeof setInterval> | null = null;
 
+  private contentAgent?: ContentAgent;
   private opening = new WeakMap<Database.Database, Map<number, Promise<ContentSessionSnapshot>>>();
   private sharing?: {
     open(event: ContentEvent, target: ContentSessionTarget): Promise<ContentSessionSnapshot>;
     find(id: string): RuntimeSession | undefined;
-    presence(session: RuntimeSession): Uint8Array;
-    validate(workspaceId: string, contentId: number, document: () => Y.Doc | undefined): void;
+    findContent(workspaceId: string, contentId: number): RuntimeSession | undefined;
+    readAgentState: ContentSessionManager["readSharedAgentState"];
+    submitAgentEdit: ContentSessionManager["submitSharedAgentEdit"];
+    broadcastPresence(documentId: string, update: Uint8Array): void;
     windows(id: number): void;
   };
 
@@ -105,9 +112,53 @@ export class ContentSessionManager {
     this.sharing = undefined;
   }
 
-  protected openSharedContent(event: ContentEvent, target: ContentSessionTarget) {
+  protected async openSharedContent(event: ContentEvent, target: ContentSessionTarget) {
+    if (!this.sharing) {
+      const { default: modules } = await import("../../module-init/ModuleInitManager");
+      const ready = await modules.initModule("collaboration");
+      if (!ready.success) throw new Error("COLLABORATION_UNAVAILABLE: " + ready.error);
+    }
     if (!this.sharing) throw new Error("COLLABORATION_UNAVAILABLE: 共享服务尚未就绪");
     return this.sharing.open(event, target);
+  }
+
+  protected agentOwner(): ContentSessionManager {
+    return this;
+  }
+
+  get agent(): ContentAgent {
+    const owner = this.agentOwner();
+    if (owner !== this) return owner.agent;
+    if (!this.store) throw new Error("本机正文尚未就绪");
+    return (this.contentAgent ??= new ContentAgent(
+      this.store.db,
+      this,
+      (workspaceId, contentId) =>
+        this.findContent(workspaceId, contentId) ??
+        this.sharing?.findContent(workspaceId, contentId),
+      (documentId, update) => {
+        this.broadcast("collaboration:awareness", { documentId, update });
+        this.sharing?.broadcastPresence(documentId, update);
+      },
+      this.readSharedAgentState.bind(this),
+      this.submitSharedAgentEdit.bind(this)
+    ));
+  }
+
+  protected async readSharedAgentState(session: RuntimeSession): Promise<Uint8Array> {
+    if (!this.sharing) throw new Error("COLLABORATION_UNAVAILABLE: 共享服务尚未就绪");
+    return this.sharing.readAgentState(session);
+  }
+
+  protected async submitSharedAgentEdit(
+    session: RuntimeSession,
+    request: ScopedContentSubmission,
+    updateHash: string,
+    check: () => void,
+    options: ScopedWriteOptions
+  ): Promise<import("@tau/collaboration").ScopedContentResult> {
+    if (!this.sharing) throw new Error("COLLABORATION_UNAVAILABLE: 共享服务尚未就绪");
+    return this.sharing.submitAgentEdit(session, request, updateHash, check, options);
   }
 
   protected attach(_session: RuntimeSession) {}
@@ -122,13 +173,13 @@ export class ContentSessionManager {
     _operationId: string,
     _check: () => void
   ): Promise<void> {}
-  protected scheduleSuggestionValidation(
+  private scheduleSuggestionValidation(
     workspaceId: string,
     contentId: number,
     document: () => Y.Doc | undefined
   ) {
     try {
-      this.sharing?.validate(workspaceId, contentId, document);
+      this.agent.suggestions.scheduleValidation(workspaceId, contentId, document);
     } catch (error) {
       console.warn(
         "[local-content] 正文建议校验未调度",
@@ -150,6 +201,16 @@ export class ContentSessionManager {
     const snapshot = await request;
     if (this.databaseForEvent(event).db !== db) throw new Error("资料库已切换，请重新打开内容");
     return snapshot;
+  }
+
+  openForDatabase(db: Database.Database, contentId: number) {
+    const name = [...databaseModule.databases].find(([, connection]) => connection === db)?.[0];
+    if (!name) throw new Error("资料库连接已变化，请重新打开正文");
+    return this.open({ db, name }, { contentId });
+  }
+
+  resumeLocalOpen(event: ContentEvent, target: ContentSessionTarget) {
+    return this.openContent(event, target);
   }
 
   /** 发起共享先排空本机视图，再由共享方接管。 */
@@ -209,6 +270,7 @@ export class ContentSessionManager {
     this.store = new CollaborationLocalStore(this.directory, "content.db");
     this.contentState = new ContentLocalState(this.store.db);
     importLegacyContent(appDirectory, this.store);
+    prepareContentAgentStore(appDirectory, this.store);
     this.assets = new CollaborationAssetService(this.store, appDirectory, async () => {
       throw new Error("本机正文资源无需远端身份");
     });
@@ -226,9 +288,7 @@ export class ContentSessionManager {
       changed: this.changed.bind(this),
       removeView: this.removeView.bind(this),
       acknowledgeFreeze: this.acknowledgeFreeze.bind(this),
-      presenceSnapshot: session =>
-        this.sharing?.presence(session) ??
-        encodeAwarenessUpdate(session.awareness, [...session.awareness.getStates().keys()]),
+      presenceSnapshot: session => this.agent.presenceSnapshot(session),
       user: () => ({ id: this.store.get("localDeviceId", "local"), nickname: "本机" }),
     });
     for (const window of BrowserWindow.getAllWindows()) this.registerWindow(window);
@@ -281,6 +341,8 @@ export class ContentSessionManager {
   }
 
   shutdown(): void {
+    this.contentAgent?.dispose();
+    this.contentAgent = undefined;
     if (this.autoFlushInterval) clearInterval(this.autoFlushInterval);
     this.stopContentRetention?.();
     this.stopContentRetention = undefined;

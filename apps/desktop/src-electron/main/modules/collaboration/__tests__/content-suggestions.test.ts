@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import schema from "@tau/db-schema/schema/collaboration.sql?raw";
+import schema from "@tau/db-schema/schema/content-agent.sql?raw";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   captureScopedTextEdit,
@@ -16,8 +16,8 @@ import { createTestDocument } from "@tau/collaboration/src/testing/node-document
 import type { ContentSuggestionBatch } from "@/types/content-suggestion";
 
 vi.mock("../../database-notifications", () => ({ broadcastDatabaseChange: vi.fn() }));
-const { ContentSuggestionStore } = await import("../content-suggestions");
-const { ContentSuggestionService } = await import("../suggestion-service");
+const { ContentSuggestionStore } = await import("../../content-runtime/agent/content-suggestions");
+const { ContentSuggestionService } = await import("../../content-runtime/agent/suggestion-service");
 
 const edit = (id: string): ScopedContentEdit => ({
   kind: "text",

@@ -8,7 +8,10 @@ const state = vi.hoisted(() => ({
   invoke: vi.fn(),
   main: true,
 }));
-vi.mock("@/commands/content", () => ({ rejectContentSuggestions: state.reject }));
+vi.mock("@/commands/content", () => ({
+  contentAgentCommand: state.invoke,
+  rejectContentSuggestions: state.reject,
+}));
 vi.mock("@/features/chat/chatSend", () => ({ sendToChat: state.send }));
 vi.mock("@/electron", () => ({ isElectron: true, invoke: state.invoke, on: vi.fn() }));
 vi.mock("@/utils/window-role", () => ({ isMainWindow: () => state.main }));

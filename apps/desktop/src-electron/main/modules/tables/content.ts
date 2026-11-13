@@ -47,6 +47,8 @@ import type {
   ContentSuggestionQuery,
 } from "@/types/content-suggestion";
 
+const contentAgent = async () => (await import("../content-runtime")).default.agent;
+
 /** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */
 export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -70,20 +72,19 @@ export default class ContentTable {
       "content:create-pending": this.createPendingContent.bind(this),
       "content:get-by-id": asynchronousDatabaseCommand(this.readContent.bind(this)),
       "content:edit-snapshot": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number) =>
-          (await import("../collaboration")).default.readEditSnapshot(db, id)
+        async (db: Database.Database, id: number) => (await contentAgent()).readEditSnapshot(db, id)
       ),
       "content:apply-scoped-edit": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, request: ScopedContentSubmission) =>
-          (await import("../collaboration")).default.applyScopedEdit(db, id, request)
+          (await contentAgent()).applyScopedEdit(db, id, request)
       ),
       "content:suggestions": asynchronousDatabaseCommand(
         async (db: Database.Database, query: ContentSuggestionQuery) =>
-          (await import("../collaboration")).default.suggestions.list(db, query)
+          (await contentAgent()).suggestions.list(db, query)
       ),
       "content:suggestions-create": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, batch: ContentSuggestionBatch) =>
-          (await import("../collaboration")).default.suggestions.create(db, id, batch)
+          (await contentAgent()).suggestions.create(db, id, batch)
       ),
       "content:suggestions-accept": asynchronousDatabaseCommand(
         async (
@@ -91,71 +92,54 @@ export default class ContentTable {
           id: number,
           ids: string[],
           options?: ContentSuggestionAcceptOptions
-        ) => (await import("../collaboration")).default.suggestions.accept(db, id, ids, options)
+        ) => (await contentAgent()).suggestions.accept(db, id, ids, options)
       ),
       "content:suggestions-reject": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, ids: string[], feedback?: string) =>
-          (await import("../collaboration")).default.suggestions.reject(db, id, ids, feedback)
+          (await contentAgent()).suggestions.reject(db, id, ids, feedback)
       ),
       "content:suggestions-supersede": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, proposalId: string) =>
-          (await import("../collaboration")).default.suggestions.supersede(db, id, proposalId)
+          (await contentAgent()).suggestions.supersede(db, id, proposalId)
       ),
       "content:suggestions-undo": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, ids: string[]) =>
-          (await import("../collaboration")).default.suggestions.undo(db, id, ids)
+          (await contentAgent()).suggestions.undo(db, id, ids)
       ),
       "content:suggestions-question": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, request: ContentQuestionRequest) =>
-          (await import("../collaboration")).default.suggestions.createQuestion(db, id, request)
+          (await contentAgent()).suggestions.createQuestion(db, id, request)
       ),
       "content:suggestions-answer": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, suggestionId: string, answer: string) =>
-          (await import("../collaboration")).default.suggestions.answer(
-            db,
-            id,
-            suggestionId,
-            answer
-          )
+          (await contentAgent()).suggestions.answer(db, id, suggestionId, answer)
       ),
       "content:suggestions-follow-up": asynchronousDatabaseCommand(
         async (db: Database.Database, request: Record<string, unknown>) =>
-          (await import("../collaboration")).default.suggestions.followUp(db, request)
+          (await contentAgent()).suggestions.followUp(db, request)
       ),
       "content:agent-presence": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, update: AgentPresenceUpdate) =>
-          (await import("../collaboration")).default.agentPresence.set(
-            basename(db.name, ".db"),
-            id,
-            update
-          )
+          (await contentAgent()).presence.set(basename(db.name, ".db"), id, update)
       ),
       "content:agent-presence-clear": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, agent: string) =>
-          (await import("../collaboration")).default.agentPresence.clear(
-            basename(db.name, ".db"),
-            id,
-            agent
-          )
+          (await contentAgent()).presence.clear(basename(db.name, ".db"), id, agent)
       ),
       "content:agent-permissions": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number) =>
-          (await import("../collaboration")).default.agentPermissions.list(db, id)
+        async (db: Database.Database, id: number) => (await contentAgent()).permissions.list(db, id)
       ),
       "content:agent-permission": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, agent: string) =>
-          (await import("../collaboration")).default.agentPermissions.level(db, id, agent)
+          (await contentAgent()).permissions.level(db, id, agent)
       ),
       "content:agent-permission-set": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number, agent: string, level: AgentPermissionLevel) =>
-          (await import("../collaboration")).default.agentPermissions.set(db, id, agent, level)
+          (await contentAgent()).permissions.set(db, id, agent, level)
       ),
       "content:agent-presences": asynchronousDatabaseCommand(
         async (db: Database.Database, id: number) =>
-          (await import("../collaboration")).default.agentPresence.list(
-            basename(db.name, ".db"),
-            id
-          )
+          (await contentAgent()).presence.list(basename(db.name, ".db"), id)
       ),
       "content:delete": this.deleteContent.bind(this),
       "content:increment-ref-count": this.incrementRefCount.bind(this),
