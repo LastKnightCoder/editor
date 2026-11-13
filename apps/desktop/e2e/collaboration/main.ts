@@ -11,6 +11,7 @@ import { registerAgentEditExecution } from "../../src-electron/main/modules/agen
 import { join } from "node:path";
 import database from "./database";
 import ContentTable from "./content-table";
+import localContent from "../../src-electron/main/modules/content-runtime";
 import manager from "../../src-electron/main/modules/collaboration";
 import { contentSession } from "../../src-electron/main/modules/collaboration/content-sessions";
 
@@ -85,6 +86,7 @@ ContentSuggestionStore.prototype.settle = function (...args) {
 async function boot() {
   await app.whenReady();
   await seedDocuments();
+  await localContent.init();
   await manager.init();
   const open = async (databaseName = "primary") => {
     const window = new BrowserWindow({
@@ -106,6 +108,7 @@ async function boot() {
   const coeditDb = database.getDatabase("coedit")!;
   ipcMain.handle("module-init:init-module", () => ({ success: true }));
   ipcMain.handle("entity:locate", () => null);
+  ipcMain.handle("notification:dismiss", () => undefined);
   ipcMain.handle("content:suggestions", (_event, query) =>
     manager.suggestions.list(coeditDb, query)
   );
@@ -240,7 +243,7 @@ async function boot() {
   ipcMain.handle("e2e:coedit-state", () => {
     const session = contentSession(coeditDb, 7);
     if (!session) return null;
-    const { store } = manager as unknown as { store: CollaborationLocalStore };
+    const store = session.store!;
     const receipts = store.db
       .prepare("SELECT key,value FROM settings WHERE key LIKE 'scoped-edit:%' ORDER BY key")
       .all() as { key: string; value: string }[];

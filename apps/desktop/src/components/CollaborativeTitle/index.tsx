@@ -24,7 +24,10 @@ type FieldProps = ComponentProps<typeof EditText> & {
 const CollaborativeTitle = forwardRef<EditTextHandle, Props>(
   ({ contentId, source, ...props }, ref) => {
     const { entry, error: sessionError } = useContentSession(contentId, source);
-    const { binding, article, frozen, error } = useCollaborationDocument(entry?.documentId);
+    const { binding, article, frozen, error } = useCollaborationDocument(
+      entry?.documentId,
+      entry?.mode
+    );
     return (
       <CollaborativeTitleField
         {...props}

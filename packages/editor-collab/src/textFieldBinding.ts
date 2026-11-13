@@ -117,7 +117,9 @@ export function createSharedTextField(
   const edit: EditorTextField["edit"] = (change, options) =>
     editBatch([change], change.revision, options?.isolateUndo);
   return {
-    preserveDraft,
+    preserveDraft: preserveDraft
+      ? draft => preserveDraft({ ...draft, baseValue: snapshot.value })
+      : undefined,
     registerInput: flush => {
       inputs.add(flush);
       return () => {

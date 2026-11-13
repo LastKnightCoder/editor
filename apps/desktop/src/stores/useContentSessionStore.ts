@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { openCollaborationContentSession } from "@/commands";
+import { localContentCommands } from "@/commands/contracts/collaboration";
+import { withModule } from "@/commands/module-init";
 import { on } from "@/electron";
 import type {
   ContentSessionSnapshot,
@@ -66,8 +67,15 @@ export async function openContentSession(databaseName: string, target: ContentSe
   const key = contentSessionKey(databaseName, target.contentId);
   let request = pending.get(key);
   if (!request) {
-    request = openCollaborationContentSession(target)
-      .then(snapshot => snapshot as ContentSessionSnapshot)
+    request = withModule("local-content", async () => {
+      try {
+        return await localContentCommands.openContent.call(target);
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.includes("COLLABORATION_UNAVAILABLE"))
+          throw error;
+        return withModule("collaboration", () => localContentCommands.openContent.call(target));
+      }
+    })
       .then(snapshot => {
         useContentSessionStore.setState(state => {
           const previous = state.entries[key];

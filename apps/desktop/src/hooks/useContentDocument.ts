@@ -48,7 +48,7 @@ export default function useContentDocument(
 ): ContentDocument & { sessionError?: string } {
   const { entry, error: sessionError, databaseName } = useContentSession(contentId, source);
   const documentId = entry?.documentId;
-  const { binding, article, error, frozen } = useCollaborationDocument(documentId);
+  const { binding, article, error, frozen } = useCollaborationDocument(documentId, entry?.mode);
   const lineage = contentId ? `content:${databaseName}:${contentId}` : undefined;
   const bound = useBoundContentDocument(binding, { frozen, kit: scenarioKit, extensions, lineage });
   useEffect(() => {

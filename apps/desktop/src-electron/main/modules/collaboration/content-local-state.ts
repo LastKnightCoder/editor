@@ -53,6 +53,11 @@ const token = (value: unknown): value is string =>
   ![...value].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+export const sourceDraftKey = (viewId: string, nodeId: string, field: string) =>
+  "input-base:" +
+  createHash("sha256")
+    .update(JSON.stringify([viewId, nodeId, field]))
+    .digest("hex");
 const committed = (record: LocalInstallationRecord) => Boolean(record.decision);
 const same = (left: unknown, right: unknown) =>
   canonicalContractJson(left) === canonicalContractJson(right);
@@ -217,6 +222,16 @@ export class ContentLocalState {
     }[];
   }
 
+  hasPendingDrafts(documentId: string): boolean {
+    return Boolean(
+      this.db
+        .prepare(
+          "SELECT 1 FROM document_drafts WHERE document_id=? AND applied=0 UNION ALL SELECT 1 FROM input_drafts WHERE document_id=? AND applied=0 LIMIT 1"
+        )
+        .get(documentId, documentId)
+    );
+  }
+
   hasDocumentDrafts(workspaceId: string): boolean {
     return Boolean(
       this.db
@@ -327,9 +342,12 @@ export class ContentLocalState {
       const update = this.db.prepare(
         "UPDATE input_drafts SET applied=1 WHERE view_id=? AND node_id=? AND field=?"
       );
+      const removeBase = this.db.prepare("DELETE FROM settings WHERE key=?");
       for (const row of rows)
-        if (read(row.node_id, row.field) === row.value)
+        if (read(row.node_id, row.field) === row.value) {
           update.run(row.view_id, row.node_id, row.field);
+          removeBase.run(sourceDraftKey(row.view_id, row.node_id, row.field));
+        }
     })();
   }
 

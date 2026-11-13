@@ -138,6 +138,7 @@ export interface ContentInputDraft {
   value: string;
   revision: string;
   sequence: number;
+  baseValue?: string;
 }
 
 export type CollaborationEvent =
