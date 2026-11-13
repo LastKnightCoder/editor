@@ -226,4 +226,39 @@ describe("稳定节点的 Slate 操作绑定", () => {
       dispose();
     }
   });
+
+  it("同段移动跨片段的文本叶时，目标偏移按移除后计算", () => {
+    const { left, right, exchange, dispose } = setup([
+      paragraph("A", "甲乙"),
+      paragraph("B", "丙丁"),
+    ]);
+    try {
+      Transforms.mergeNodes(left.editor, { at: [1] });
+      Transforms.select(left.editor, {
+        anchor: { path: [0, 0], offset: 1 },
+        focus: { path: [0, 0], offset: 3 },
+      });
+      Editor.addMark(left.editor, "bold", true);
+      exchange();
+      const before = left.tree.read();
+      left.editor.undoManager.stopCapturing();
+      Transforms.moveNodes(left.editor, { at: [0, 1], to: [0, 2] });
+      exchange();
+      expect(right.tree.read()[0].children).toMatchObject([
+        { text: "甲丁" },
+        { text: "乙丙", bold: true },
+      ]);
+      left.editor.undo();
+      exchange();
+      expect(right.tree.read()).toEqual(before);
+      Transforms.moveNodes(left.editor, { at: [0, 1], to: [0, 0] });
+      exchange();
+      expect(right.tree.read()[0].children).toMatchObject([
+        { text: "乙丙", bold: true },
+        { text: "甲丁" },
+      ]);
+    } finally {
+      dispose();
+    }
+  });
 });

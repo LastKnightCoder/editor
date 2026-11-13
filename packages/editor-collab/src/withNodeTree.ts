@@ -409,17 +409,31 @@ export function withNodeTree<T extends Editor>(
         operation = { ...operation, node };
       } else if (operation.type === "move_node") {
         const move = operation;
-        const id = nodeIdentity(Node.get(editor, operation.path));
-        if (!id) throw new Error("不能移动无身份节点");
-        const destination = context(operation.newPath);
-        const sameParent = Path.equals(Path.parent(operation.path), Path.parent(operation.newPath));
+        const node = Node.get(editor, move.path);
+        const destination = context(move.newPath);
+        const sameParent = Path.equals(Path.parent(move.path), Path.parent(move.newPath));
         const children = destination.children.filter(
           (_, index) => !sameParent || index !== move.path[move.path.length - 1]
         );
         const offset = children
-          .slice(0, operation.newPath[operation.newPath.length - 1])
+          .slice(0, move.newPath[move.newPath.length - 1])
           .reduce((sum, child) => sum + width(child), 0);
-        tree.moveNode(id, destination.parent, offset, origin);
+        if (Text.isText(node)) {
+          const source = context(move.path);
+          if (!source.parent || !destination.parent) throw new Error("正文根不能直接移动文本");
+          tree.moveText(
+            source.parent,
+            source.offset,
+            destination.parent,
+            offset,
+            node.text.length,
+            origin
+          );
+        } else {
+          const id = nodeIdentity(node);
+          if (!id) throw new Error("不能移动无身份节点");
+          tree.moveNode(id, destination.parent, offset, origin);
+        }
       } else if (operation.type !== "set_selection") {
         const location = context(operation.path);
         const node = (
