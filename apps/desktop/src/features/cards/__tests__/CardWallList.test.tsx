@@ -1,7 +1,8 @@
-import { act, useState } from "react";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { CardWallList } from "../components/CardWallList";
+import { ContentPreivew } from "@/components/ContentPreivew";
 import { type ICard } from "@/types/card";
 import type { CardItemActions } from "../types";
 
@@ -23,11 +24,8 @@ vi.mock("@/services/editorKit", () => ({
   getArrowLabelKit: () => ({}),
 }));
 vi.mock("@tau/editor", () => ({
-  Editor: ({ initValue, collaboration, readonly }: any) => {
-    expect(collaboration).toBeUndefined();
-    expect(readonly).toBe(true);
-    const [initial] = useState(initValue);
-    return <p data-preview>{JSON.stringify(initial)}</p>;
+  Editor: () => {
+    throw new Error("卡片墙不应挂载 Editor");
   },
 }));
 vi.mock("@/components/ErrorBoundary", () => ({ default: ({ children }: any) => children }));
@@ -52,6 +50,7 @@ vi.mock("@tau/ui", async () => {
     ),
   };
 });
+
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
     getTotalSize: () => 1000,
@@ -62,6 +61,65 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
+it("静态摘要保留文字格式与引用标题，不加载媒体，并限制复杂子树规模", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const render = async (content: unknown[]) => {
+    await act(async () => root.render(<ContentPreivew content={content as ICard["content"]} />));
+  };
+  try {
+    await render([
+      {
+        type: "paragraph",
+        children: [
+          { text: "加粗摘要", bold: true },
+          {
+            type: "content-link",
+            contentId: 1,
+            contentTitle: "引用标题",
+            children: [{ text: "" }],
+          },
+        ],
+      },
+      {
+        type: "image",
+        url: "https://example.com/image.png",
+        alt: "示意图",
+        children: [{ text: "" }],
+      },
+      { type: "unknown-block", children: [{ text: "" }] },
+    ]);
+    expect(host.querySelector(".font-semibold")?.textContent).toBe("加粗摘要");
+    expect(host.textContent).toContain("引用标题");
+    expect(host.textContent).toContain("[图片：示意图]");
+    expect(host.textContent).toContain("[内容块]");
+    expect(host.querySelector("img, video, audio, iframe, [data-slate-editor]")).toBeNull();
+
+    await render([{ type: "paragraph", children: [{ text: "长".repeat(10_000) }] }]);
+    expect(host.textContent).toBe(`${"长".repeat(1_200)}…`);
+
+    await render([
+      {
+        type: "table",
+        children: Array.from({ length: 10_000 }, () => ({
+          type: "table-row",
+          children: [{ type: "table-cell", children: [{ text: "单元格" }] }],
+        })),
+      },
+    ]);
+    expect(host.querySelectorAll("td").length).toBeLessThanOrEqual(40);
+    expect(host.textContent).toContain("单元格");
+    expect(host.textContent?.endsWith("…")).toBe(true);
+
+    let nested: unknown = { type: "paragraph", children: [{ text: "深层内容" }] };
+    for (let index = 0; index < 100; index++) nested = { type: "blockquote", children: [nested] };
+    await render([nested]);
+    expect(host.querySelectorAll("blockquote").length).toBeLessThanOrEqual(12);
+    expect(host.textContent).toBe("…");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
 it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛选变更均可回顶", async () => {
   vi.stubGlobal(
     "ResizeObserver",
@@ -119,10 +177,10 @@ it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛�
       )
     );
     expect(host.querySelector("header")?.textContent).toContain("置顶");
-    expect([...host.querySelectorAll("[data-preview]")].map(node => node.textContent)).toEqual([
-      JSON.stringify(cards[0].content.slice(0, 3)),
-      JSON.stringify(cards[1].content.slice(0, 3)),
-    ]);
+    expect(
+      [...host.querySelectorAll("[data-content-preview]")].map(node => node.textContent)
+    ).toEqual(["卡片1正文1卡片1正文2卡片1正文3", "卡片2正文1卡片2正文2卡片2正文3"]);
+    expect(host.querySelector("[data-slate-editor]")).toBeNull();
     const scroller = host.querySelector(".overflow-y-auto") as HTMLDivElement;
     await act(async () => {
       scroller.scrollTop = 500;
