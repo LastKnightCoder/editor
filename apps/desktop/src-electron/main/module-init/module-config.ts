@@ -382,7 +382,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "task-assistant",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "database", "doc-tasks", "collaboration"],
+    dependencies: ["logger", "database", "doc-tasks"],
     init: () => taskAssistantModule.init(),
   },
   {
