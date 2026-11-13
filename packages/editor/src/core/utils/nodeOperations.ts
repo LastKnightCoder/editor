@@ -2,13 +2,14 @@ import { Editor, Transforms, Node, Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { EditorFeedback } from "../services/notifier";
 import { createParagraph } from "../model/paragraph";
+import { attachContentFragment, contentFragmentTransferOf } from "../api/clipboardFragment";
 
 /**
  * 复制节点到剪贴板
  * 支持两种格式：JSON 和纯文本；传入数组时按数组顺序作为一个 fragment，纯文本以换行连接
  */
 export async function copyNodeToClipboard(
-  _editor: Editor,
+  editor: Editor,
   element: Node | Node[],
   message?: EditorFeedback,
   options: { allowPlainTextFallback?: boolean; signal?: AbortSignal } = {}
@@ -21,7 +22,11 @@ export async function copyNodeToClipboard(
   try {
     const fragmentJSON = JSON.stringify(fragment);
     const encodedFragment = window.btoa(encodeURIComponent(fragmentJSON));
-    const htmlPayload = buildSlateFragmentHTML(encodedFragment, plainText);
+    const htmlPayload = buildSlateFragmentHTML(
+      encodedFragment,
+      plainText,
+      contentFragmentTransferOf(editor)?.serialize(fragment)
+    );
 
     const clipboardData: Record<string, Blob> = {
       "text/plain": new Blob([plainText], { type: "text/plain" }),
@@ -67,10 +72,15 @@ export async function copyNodeToClipboard(
 /**
  * 构造携带 data-slate-fragment 属性的 HTML，用于模拟 Slate 原生复制行为
  */
-function buildSlateFragmentHTML(encodedFragment: string, plainText: string): string {
+function buildSlateFragmentHTML(
+  encodedFragment: string,
+  plainText: string,
+  contentFragment?: string
+): string {
   const div = document.createElement("div");
   const attach = document.createElement("span");
   attach.setAttribute("data-slate-fragment", encodedFragment);
+  if (contentFragment) attachContentFragment(attach, contentFragment);
   attach.style.whiteSpace = "pre";
   attach.textContent = plainText || "";
 

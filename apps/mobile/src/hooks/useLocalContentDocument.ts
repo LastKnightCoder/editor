@@ -442,6 +442,7 @@ export default function useLocalContentDocument(options: {
         assertActive();
         const source = createNodeTreeDocument(loaded.tree, {
           clipboardDocumentId: loaded.metadata.id,
+          flushFragmentWrites: loaded.flush,
           prepareFragment: async (sourceId, content, contracts) => {
             assertActive();
             const result = await localizeFragmentResources(sourceId, content, contracts);

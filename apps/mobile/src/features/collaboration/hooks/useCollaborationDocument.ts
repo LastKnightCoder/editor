@@ -176,6 +176,7 @@ export default function useCollaborationDocument(
         collaborationManager.prepareResource(runtime.info.id, reference),
       prepareFragment: (sourceId, content, contracts) =>
         collaborationManager.prepareFragment(runtime.info.id, sourceId, content, contracts),
+      flushFragmentWrites: () => collaborationManager.flushCache(runtime.info.id),
       resolveResource: async url => {
         assertActive();
         return collaborationManager.resolveResource(runtime.info.id, url);

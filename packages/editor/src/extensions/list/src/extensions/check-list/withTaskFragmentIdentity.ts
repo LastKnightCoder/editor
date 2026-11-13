@@ -7,14 +7,15 @@ export function withTaskFragmentIdentity(editor: Editor): Editor {
     if (!Element.isElement(node)) return { ...node };
     const children = node.children.map(copy);
     if (node.type !== "check-list-item") return { ...node, children } as Descendant;
-    return {
+    const item = {
       ...node,
-      children,
-      taskId: undefined,
       ...("taskOccurrenceState" in node || "taskCompletedAt" in node
         ? { taskOccurrenceState: {}, taskCompletedAt: null }
         : {}),
-    } as Descendant;
+      children,
+    };
+    delete item.taskId;
+    return item as Descendant;
   };
   editor.insertFragment = (fragment, options) => insertFragment(fragment.map(copy), options);
   return editor;

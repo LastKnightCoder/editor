@@ -386,10 +386,17 @@ describe("check-list-item taskId", () => {
     ]);
 
     await selectTextStart(editor, [1, 0]);
+    const apply = vi.spyOn(editor, "apply");
     await act(async () =>
       editor.insertFragment([createCheckList([{ ...createCheckListItem("副本"), taskId: "src" }])])
     );
 
+    const insert = apply.mock.calls.find(
+      ([op]) => op.type === "insert_node" && op.node.type === "check-list"
+    )?.[0];
+    expect(insert).toBeDefined();
+    expect(insert).not.toHaveProperty("node.children.0.taskId");
+    apply.mockRestore();
     const ids = collectTaskIds(editor.children);
     expect(ids.filter(id => id === "src")).toHaveLength(1);
     expect(new Set(ids).size).toBe(ids.length);
