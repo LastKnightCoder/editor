@@ -20,6 +20,7 @@ import { PluginNavEntry } from "./PluginNavEntry";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
 import { openFeedbackWindow } from "@/commands/feedback";
+import useSettingStore from "@/stores/useSettingStore";
 
 export function Sidebar({ resizing }: { resizing: boolean }) {
   const { navigator, state } = usePage();
@@ -33,6 +34,8 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
   // 全屏下隐藏 mac 信号灯（对齐平台惯例），头部布局随之收拢
   const fullScreen = useFullScreen();
   const lightsShown = isMac && !fullScreen;
+  // 极光背景开启时组头落在彩色上，ink-3 不足 2:1，升一档到 ink-2
+  const onBackdrop = useSettingStore(s => s.setting.appearance?.backdrop?.enabled !== false);
 
   // 边缘渐隐：callback ref（组折叠动画经 transitionend 重测，见 useEdgeFade）
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -85,7 +88,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
             <img
               src={logo}
               alt="Tau"
-              className="size-6 shrink-0 select-none mix-blend-multiply dark:mix-blend-normal dark:brightness-[0.85]"
+              className="size-6 shrink-0 mix-blend-multiply select-none dark:mix-blend-normal dark:brightness-[0.85]"
               draggable={false}
             />
             <span className="text-tau-body-lg font-semibold">Tau</span>
@@ -128,7 +131,10 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
               {!collapsed && (
                 <button
                   type="button"
-                  className="ease-tau-out rounded-tau-sm text-tau-tiny text-ink-3 hover:text-ink-2 flex w-full items-center gap-1 px-2.5 pb-1.5 transition-colors duration-[160ms]"
+                  className={clsx(
+                    "ease-tau-out rounded-tau-sm text-tau-tiny flex w-full items-center gap-1 px-2.5 pb-1.5 transition-colors duration-[160ms]",
+                    onBackdrop ? "text-ink-2 hover:text-ink-1" : "text-ink-3 hover:text-ink-2"
+                  )}
                   onClick={() => toggleNavSection(collapseKey)}
                   aria-expanded={!folded}
                   title={folded ? `展开「${section.label}」` : `收起「${section.label}」`}
