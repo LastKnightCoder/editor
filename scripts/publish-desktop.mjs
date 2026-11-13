@@ -170,6 +170,78 @@ function createVersionTag(version) {
   }
 }
 
+const UPLOAD_CONCURRENCY = 3;
+
+function formatMb(bytes) {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function percentOf(loaded, total) {
+  return total > 0 ? Math.min(100, Math.floor((loaded / total) * 100)) : 100;
+}
+
+// 终端逐文件上传进度：TTY 下整块原地刷新（ANSI 光标控制在 macOS/Windows 终端均可用），
+// 非 TTY（CI、管道重定向）退化为每个文件完成时打印一行。
+function createUploadProgress(files) {
+  const rows = files.map(({ name, size }) => ({ name, size, loaded: 0, done: false }));
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const isInteractive = Boolean(process.stdout.isTTY);
+  let renderedLines = 0;
+  let lastRenderAt = 0;
+
+  const lineOf = row => {
+    const label = row.name.length > 40 ? `${row.name.slice(0, 39)}…` : row.name.padEnd(40);
+    if (row.failed) return `  ✖ ${label} 失败`;
+    if (row.done) return `  ✔ ${label} ${formatMb(row.size).padStart(9)}`;
+    return `  ↗ ${label} ${String(percentOf(row.loaded, row.size)).padStart(3)}%  ${formatMb(row.loaded)}/${formatMb(row.size)}`;
+  };
+
+  const summaryLine = () => {
+    const loaded = rows.reduce((sum, row) => sum + row.loaded, 0);
+    const doneCount = rows.filter(row => row.done).length;
+    return `  ▶ 总计 ${doneCount}/${rows.length} 个文件  ${String(percentOf(loaded, totalSize)).padStart(3)}%  ${formatMb(loaded)}/${formatMb(totalSize)}`;
+  };
+
+  function render(force) {
+    if (!isInteractive) return;
+    const now = Date.now();
+    if (!force && now - lastRenderAt < 200) return;
+    lastRenderAt = now;
+    const lines = [...rows.map(lineOf), summaryLine()];
+    const moveUp = renderedLines > 0 ? `\x1b[${renderedLines}A` : "";
+    process.stdout.write(`${moveUp}${lines.map(line => `\x1b[2K${line}`).join("\n")}\n`);
+    renderedLines = lines.length;
+  }
+
+  return {
+    update(index, loaded) {
+      rows[index].loaded = loaded;
+      render(false);
+    },
+    done(index) {
+      const row = rows[index];
+      row.loaded = row.size;
+      row.done = true;
+      if (isInteractive) {
+        render(true);
+      } else {
+        process.stdout.write(`  ✔ ${row.name}  ${formatMb(row.size)}\n`);
+      }
+    },
+    fail(index) {
+      rows[index].failed = true;
+      if (isInteractive) {
+        render(true);
+      } else {
+        process.stdout.write(`  ✖ ${rows[index].name} 上传失败\n`);
+      }
+    },
+    finish() {
+      render(true);
+    },
+  };
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const target = UPLOAD_TARGET;
@@ -233,15 +305,43 @@ async function main() {
     );
   }
 
-  // 先传版本产物再写 latest*.yml，保证 yml 指向的产物一定已存在
-  for (const name of versionedArtifacts) {
-    console.log(`▶ 上传 ${DESKTOP_PREFIX}/${name} ...`);
-    await client.putFile(
-      `${DESKTOP_PREFIX}/${name}`,
-      join(releaseDir, name),
-      "public, max-age=31536000, immutable"
-    );
-  }
+  // 先传版本产物再写 latest*.yml，保证 yml 指向的产物一定已存在。
+  // 产物（含 Windows 与 macOS 双平台）并发上传，小文件优先以缩短尾部等待。
+  const uploads = versionedArtifacts
+    .map(name => {
+      const size = statSync(join(releaseDir, name)).size;
+      return { name, size };
+    })
+    .sort((a, b) => a.size - b.size);
+  console.log(
+    `▶ 并发上传 ${uploads.length} 个产物（文件并发 ${UPLOAD_CONCURRENCY}，分片并发 4）...`
+  );
+  const progress = createUploadProgress(uploads);
+  const failures = [];
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, uploads.length) }, async () => {
+      while (cursor < uploads.length) {
+        const index = cursor++;
+        const file = uploads[index];
+        try {
+          await client.putFile(
+            `${DESKTOP_PREFIX}/${file.name}`,
+            join(releaseDir, file.name),
+            "public, max-age=31536000, immutable",
+            loaded => progress.update(index, loaded)
+          );
+          progress.done(index);
+        } catch (error) {
+          progress.fail(index);
+          failures.push(new Error(`上传 ${file.name} 失败: ${error?.message ?? error}`));
+        }
+      }
+    })
+  );
+  progress.finish();
+  if (failures.length > 0) throw failures[0];
+
   for (const name of latestFiles) {
     console.log(`▶ 上传 ${DESKTOP_PREFIX}/${name} ...`);
     await client.putText(
