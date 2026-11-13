@@ -33,6 +33,7 @@ import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { AssistDock } from "./AssistDock";
+import { AuroraBackdrop } from "./AuroraBackdrop";
 import {
   useShellStore,
   SIDEBAR_COLLAPSED_W,
@@ -49,9 +50,10 @@ import "../pages";
 
 // 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65。
 // 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效。
+// isolate：极光背景层用 -z-10 垫在内容之下、根底色之上，需要根自成层叠上下文。
 // app 类 = base.css 的 .app 作用域锚点（button cursor / focus-ring / 滚动条等 reset）
 const shellRootClass =
-  "app relative grid h-screen min-w-0 grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
+  "app relative isolate grid h-screen min-w-0 grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
 // 开发悬浮球：只在开发构建里加载（import.meta.env.DEV 为常量，生产包里整段被摇掉）
@@ -173,6 +175,7 @@ function ShellLayout() {
 
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
+      <AuroraBackdrop />
       <Sidebar resizing={sidebarResizing} />
       <SidebarResizer
         onResize={setWidth}

@@ -80,6 +80,10 @@ export default defineTheme({
       "shadow-float": "0 16px 40px -12px rgba(60, 90, 70, 0.4)",
       "shadow-paper":
         "0 0 0 1px rgba(60, 90, 70, 0.07), 0 2px 4px -1px rgba(60, 90, 70, 0.12), 0 22px 44px -18px rgba(60, 90, 70, 0.45)",
+      // 壳层极光背景的三团色（模糊后铺在侧栏与大卡留白下，峰值处 ink-2 仍过 AA）
+      "glow-1": "#c2ebd2",
+      "glow-2": "#bfe5e2",
+      "glow-3": "#e1efb8",
     }),
   },
   dark: {
@@ -152,6 +156,9 @@ export default defineTheme({
       "shadow-float": "0 16px 40px -12px rgba(0, 0, 0, 0.65)",
       "shadow-paper":
         "0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4), 0 24px 48px -16px rgba(0, 0, 0, 0.72)",
+      "glow-1": "#0f3a24",
+      "glow-2": "#0f3534",
+      "glow-3": "#2a3714",
     }),
   },
 });

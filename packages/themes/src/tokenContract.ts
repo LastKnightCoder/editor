@@ -33,6 +33,8 @@ export const tokenContract = {
     "tag-5-soft",
   ],
   float: ["overlay", "shadow-card", "shadow-lift", "shadow-float", "shadow-paper"],
+  // 壳层渐变背景（极光）的三团色：只由壳层背景层消费，组件不要拿来做填充色
+  backdrop: ["glow-1", "glow-2", "glow-3"],
 } as const;
 
 /** 全部词汇的平铺联合类型 */

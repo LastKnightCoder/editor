@@ -86,6 +86,26 @@
 
   /* 域内动效（keyframes 与词表同处声明，hover:animate-hm-pulse 消费） */
   --animate-hm-pulse: hmPulse 0.5s linear alternate infinite;
+  /* 壳层极光背景三团色的漂移（只动 transform，合成层完成） */
+  --animate-aurora-1: auroraDrift1 26s ease-in-out infinite alternate;
+  --animate-aurora-2: auroraDrift2 32s ease-in-out infinite alternate;
+  --animate-aurora-3: auroraDrift3 38s ease-in-out infinite alternate;
+
+  @keyframes auroraDrift1 {
+    to {
+      transform: translate(35%, 23%) scale(1.15);
+    }
+  }
+  @keyframes auroraDrift2 {
+    to {
+      transform: translate(-46%, 33%) scale(0.9);
+    }
+  }
+  @keyframes auroraDrift3 {
+    to {
+      transform: translate(-29%, -30%) scale(1.2);
+    }
+  }
 
   @keyframes hmPulse {
     0% {

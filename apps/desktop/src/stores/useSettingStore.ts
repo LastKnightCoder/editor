@@ -109,6 +109,12 @@ export interface ISetting {
     highlight?: {
       style?: HighlightStyle;
     };
+    /** 壳层极光渐变背景；缺省视为开启 */
+    backdrop?: {
+      enabled?: boolean;
+      /** 色团缓慢漂移；系统开启「减少动态效果」时始终静止 */
+      motion?: boolean;
+    };
   };
   imageBed: {
     active: EImageBed;
@@ -343,6 +349,7 @@ const initialState: IState = {
         borderRadius: "none",
         shadow: "none",
       },
+      backdrop: { enabled: true, motion: true },
     },
     imageBed: {
       active: EImageBed.Local,

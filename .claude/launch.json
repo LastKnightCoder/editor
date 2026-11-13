@@ -384,6 +384,20 @@
         "apps/desktop/mockups/subagents"
       ],
       "port": 8862
+    },
+    {
+      "name": "gradient-bg-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8863",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/gradient-bg"
+      ],
+      "port": 8863
     }
   ]
 }

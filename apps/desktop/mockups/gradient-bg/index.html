@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>渐变背景 · 设计方案</title>
+<link rel="stylesheet" href="themes.css" />
+<link rel="stylesheet" href="styles.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .grid6 { position: fixed; inset: 52px 0 0 0; display: none; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 18px 24px; overflow: auto; }
+  .grid6.on { display: grid; }
+  .cell { display: flex; flex-direction: column; gap: 6px; align-items: center; color: var(--ink-2); font-size: 12.5px; }
+  .cell .box { width: 100%; aspect-ratio: 1240 / 780; position: relative; overflow: hidden; border-radius: 10px; cursor: pointer; }
+  .cell .win { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+</style>
+</head>
+<body>
+<div class="bar" id="bar">
+  <div class="grp" data-k="style"></div>
+  <div class="grp" data-k="intensity"></div>
+  <div class="grp" data-k="theme"></div>
+  <div class="grp" data-k="mode"></div>
+  <div class="grp" data-k="page"></div>
+  <div class="grp" data-k="view"></div>
+  <span class="sp"></span>
+  <span class="hint">B 开关渐变 · N 方案说明</span>
+</div>
+
+<div class="stage" id="stage"></div>
+<div class="grid6" id="grid"></div>
+<div class="note" id="note"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

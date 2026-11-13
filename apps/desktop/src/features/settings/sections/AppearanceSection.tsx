@@ -32,7 +32,7 @@ import {
   type SemanticTokens,
   type ThemeDefinition,
 } from "@tau/themes";
-import { SettingRow, Select } from "@tau/ui";
+import { SettingRow, Select, Switch } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
 import { FontSelect } from "../components/FontSelect";
@@ -94,6 +94,17 @@ export function AppearanceSection() {
   const imageShadow: ImageShadowPreset = appearance?.image?.shadow ?? "none";
   const highlightStyle: HighlightStyle = appearance?.highlight?.style ?? "flat";
 
+  const backdropEnabled = appearance?.backdrop?.enabled !== false;
+  const backdropMotion = appearance?.backdrop?.motion !== false;
+  const updateBackdrop = (patch: NonNullable<NonNullable<ISetting["appearance"]>["backdrop"]>) => {
+    useSettingStore.setState(s => ({
+      setting: produce(s.setting, draft => {
+        if (!draft.appearance) draft.appearance = {};
+        draft.appearance.backdrop = { ...draft.appearance.backdrop, ...patch };
+      }),
+    }));
+  };
+
   const updateHighlightStyle = (style: HighlightStyle) => {
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => {
@@ -147,6 +158,24 @@ export function AppearanceSection() {
             </ChoiceCard>
           ))}
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="背景">
+        <SettingRow title="渐变背景" description="按当前主题在窗口背后铺一层柔和渐变">
+          <Switch
+            aria-label="渐变背景"
+            checked={backdropEnabled}
+            onCheckedChange={enabled => updateBackdrop({ enabled })}
+          />
+        </SettingRow>
+        <SettingRow title="动态效果" description="色块缓慢流动；系统开启「减少动态效果」时始终静止">
+          <Switch
+            aria-label="渐变动态效果"
+            checked={backdropMotion}
+            disabled={!backdropEnabled}
+            onCheckedChange={motion => updateBackdrop({ motion })}
+          />
+        </SettingRow>
       </SettingsGroup>
 
       <SettingsGroup title="字体" description="界面与编辑器内容统一生效">
