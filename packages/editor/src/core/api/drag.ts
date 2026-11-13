@@ -8,7 +8,7 @@ import type { Element } from "slate";
 export interface ElementDragSpec {
   /** 自身可拖（显示手柄）；false 时本块仅作为放置目标参与 */
   self: boolean;
-  /** 内部子内容是否参与块级拖拽；false 时更深的子块不显示手柄（如勾选项里的段落） */
+  /** 内部子块是否参与块级拖拽；false 时子块没有手柄，也不作为放置目标。 */
   children: boolean;
   /**
    * 放置谓词：拖动元素能否落到本块（含本块内部）。缺省接受任何块。

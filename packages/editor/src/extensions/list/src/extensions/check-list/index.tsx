@@ -36,8 +36,7 @@ export const checkListExtension = defineExtension({
 });
 
 /**
- * 勾选项整体可拖，内部子内容不参与（段落不显示手柄——取代旧 disableDrag 数据字段）；
- * 只接受同类落进来，拖到勾选项内部任何位置都经过本谓词。
+ * 勾选项整体参与排序，内部子块不参与拖放，落点只接受同类。
  */
 export const checkListItemExtension = defineExtension({
   id: "tau.check-list-item",

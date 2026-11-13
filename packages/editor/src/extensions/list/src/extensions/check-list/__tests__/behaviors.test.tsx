@@ -3,7 +3,7 @@
 import { createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Editor as SlateEditor, Transforms, type Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -70,6 +70,7 @@ const mount = async (initValue: Descendant[]) => {
     );
   });
   return {
+    container,
     editor: ref.current!.getEditor(),
     done: async () => {
       await act(async () => root.unmount());
@@ -95,6 +96,48 @@ const selectTextEnd = async (
     Transforms.select(editor, { anchor: point, focus: point });
   });
 };
+
+describe("check-list 拖拽排序", () => {
+  it("在第二项正文下半部放下时，两项交换且保留内容和任务状态", async () => {
+    const first = { ...createCheckListItem("第一项", true), taskId: "first" };
+    const second = { ...createCheckListItem("第二项"), taskId: "second" };
+    const { container, editor, done } = await mount([createCheckList([first, second])]);
+    try {
+      const handle = container.querySelector<HTMLElement>("[data-drag-handle]")!;
+      const target = container.querySelectorAll("[data-check-list-item]")[1];
+      const paragraph = target.querySelector("p")!;
+      for (const element of [target.querySelector("li")!, paragraph]) {
+        vi.spyOn(element, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 30, 100, 30));
+      }
+      const dataTransfer = { types: [], files: [], setData: vi.fn() };
+      const dispatch = (node: Element, type: string, clientY: number) => {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientY });
+        Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+        node.dispatchEvent(event);
+      };
+
+      await act(async () => {
+        dispatch(handle, "dragstart", 15);
+        dispatch(paragraph, "drop", 55);
+      });
+      expect(editor.children).toEqual([createCheckList([second, first])]);
+    } finally {
+      await done();
+    }
+  });
+
+  it("相邻勾选列表合并时保留两边的条目", async () => {
+    const first = { ...createCheckListItem("第一项", true), taskId: "first" };
+    const second = { ...createCheckListItem("第二项"), taskId: "second" };
+    const { editor, done } = await mount([createCheckList([first])]);
+    try {
+      await act(async () => Transforms.insertNodes(editor, createCheckList([second]), { at: [1] }));
+      expect(editor.children).toEqual([createCheckList([first, second])]);
+    } finally {
+      await done();
+    }
+  });
+});
 
 describe("check-list deleteBackward 行为", () => {
   it("顶层唯一空任务项在行首退格时应退化为单个空段落", async () => {

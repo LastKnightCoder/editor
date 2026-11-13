@@ -2,7 +2,7 @@ import { useState, useCallback, type RefCallback } from "react";
 import { Editor, Element, Node, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
-import type { DropTargetMonitor } from "react-dnd";
+import type { DropTargetMonitor, XYCoord } from "react-dnd";
 import { findPathSafely, getNodeAtPathSafely } from "../utils/path";
 import type { ElementDragSpec } from "../api/drag";
 
@@ -80,7 +80,17 @@ const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: bool
   }
 };
 
-/** 沿祖先链查 children: false——容器（如勾选项）声明子内容不参与拖拽时，更深的手柄都不显示 */
+const isBeforeBlock = (editor: Editor, element: Element, offset: XYCoord | null) => {
+  if (!offset) return undefined;
+  try {
+    const rect = ReactEditor.toDOMNode(editor, element).getBoundingClientRect();
+    return offset.y < rect.top + rect.height / 2;
+  } catch {
+    return undefined;
+  }
+};
+
+/** 祖先声明 children: false 时，子块不作为拖拽源或放置目标。 */
 const ancestorsAllowChildren = (
   editor: Editor,
   dragSpecs: ReadonlyMap<string, ElementDragSpec>,
@@ -144,7 +154,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
   }, [dragSpec, dragSpecs, editor, element, getCurrentElementPath, readOnly]);
 
   // 拖拽相关部分
-  const [{ isDragging, canDrag }, dragConnector] = useDrag(
+  const [{ isDragging }, dragConnector] = useDrag(
     {
       type: EDITOR_DRAG_TYPE,
       item: () => {
@@ -161,7 +171,6 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       canDrag: canDragFn,
       collect: monitor => ({
         isDragging: monitor.isDragging(),
-        canDrag: monitor.canDrag(),
       }),
     },
     [readOnly, element, canDragFn]
@@ -177,6 +186,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       if (!dropPath) {
         return false;
       }
+      if (!ancestorsAllowChildren(editor, dragSpecs, dropPath)) return false;
       const dragEditor = item.sourceEditor;
 
       // 放置谓词沿祖先链求值（如勾选项只接受同类落进来）
@@ -200,19 +210,8 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       if (!monitor.canDrop()) {
         return;
       }
-      const monitorClientOffset = monitor.getClientOffset();
-      if (!monitorClientOffset) {
-        return;
-      }
-      let dropDOMNode;
-      try {
-        dropDOMNode = ReactEditor.toDOMNode(editor, element);
-      } catch {
-        return;
-      }
-      const dropRect = dropDOMNode.getBoundingClientRect();
-      const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
-      setIsBefore(isBefore);
+      const before = isBeforeBlock(editor, element, monitor.getClientOffset());
+      if (before !== undefined) setIsBefore(before);
     },
     [editor, element]
   );
@@ -226,7 +225,9 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       }
       try {
         const dropPath = getCurrentElementPath();
-        if (!dropPath) {
+        // 松手可能早于插入线的状态更新，直接使用本次落点坐标。
+        const before = isBeforeBlock(editor, element, monitor.getClientOffset());
+        if (!dropPath || before === undefined) {
           return;
         }
 
@@ -247,18 +248,18 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
           });
           dragPathRef.unref();
           Transforms.insertNodes(editor, currentDragElement, {
-            at: isBefore ? dropPath : Path.next(dropPath),
+            at: before ? dropPath : Path.next(dropPath),
           });
           return;
         }
 
-        moveNode(editor, dragPath, dropPath, isBefore);
+        moveNode(editor, dragPath, dropPath, before);
         dragPathRef.unref();
       } catch (e) {
         console.error(e);
       }
     },
-    [editor, element, getCurrentElementPath, isBefore]
+    [editor, element, getCurrentElementPath]
   );
 
   // 放置相关部分
@@ -282,7 +283,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       hover: hoverFn,
       drop: dropFn,
     },
-    [readOnly, isBefore, element, canDropFn, hoverFn, dropFn]
+    [canDropFn, hoverFn, dropFn]
   );
 
   const drag = useCallback<RefCallback<HTMLDivElement>>(
@@ -298,15 +299,18 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     },
     [dropConnector]
   );
+  const path = getCurrentElementPath();
 
   return {
     drag,
-    drop,
+    // 未接入的子块由可接收放置的祖先提供插入线和落点。
+    drop: path && ancestorsAllowChildren(editor, dragSpecs, path) ? drop : undefined,
     isDragging,
     isBefore,
     isOverCurrent,
     canDrop,
-    canDrag,
+    // 拖拽期间 monitor.canDrag() 会变为 false，手柄仍需留在 DOM 中。
+    canDrag: canDragFn(),
   };
 };
 
