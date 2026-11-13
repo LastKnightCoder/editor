@@ -6,6 +6,7 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import { createHash, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
@@ -1344,17 +1345,6 @@ export class CollaborationManager extends ContentSessionManager {
     this.store.metadata(session.info);
   }
 
-  documentStorage() {
-    if (!this.contentState) throw new Error("文档存储服务未就绪");
-    return {
-      state: this.contentState,
-      store: this.store,
-    };
-  }
-  documentAssets(): CollaborationAssetService {
-    if (!this.assets) throw new Error("资源服务未就绪");
-    return this.assets;
-  }
   documentClient(): CollaborationClient {
     if (!this.client) throw new Error("文档传输服务未就绪");
     return this.client;
@@ -1374,9 +1364,13 @@ export class CollaborationManager extends ContentSessionManager {
     this.broadcast("collaboration:removed", { documentId: id, replaced: true });
   }
 
-  override async releaseLibrary(name: string): Promise<void> {
-    await this.localRuntime?.releaseLibrary(name);
-    await super.releaseLibrary(name);
+  async releaseSharedLibrary(name: string): Promise<void> {
+    if (this.localRuntime && this.contentState) {
+      await super.releaseLibrary(name);
+      return;
+    }
+    const path = join(PathUtil.getAppDir(), "collaboration", "collaboration.db");
+    if (existsSync(path)) throw new Error("协作缓存尚未确认，不能替换资料库");
   }
 
   override async init() {

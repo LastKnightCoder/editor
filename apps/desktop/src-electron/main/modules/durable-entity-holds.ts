@@ -22,12 +22,14 @@ export function registerDurableEntityHolds(
 export function hasDurableEntityHold(
   db: Database.Database,
   kind: ContentEntityKind | "content",
-  id: number
+  id: number,
+  only?: "whiteboard" | "content"
 ): boolean {
   for (const [scope, table] of [
     ["whiteboard", "whiteboard_documents"],
     ["content", "content_documents"],
   ] as const) {
+    if (only && scope !== only) continue;
     const group = providers.get(scope);
     if (group?.size) {
       for (const provider of group) if (provider(db, kind, id)) return true;

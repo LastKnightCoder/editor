@@ -132,7 +132,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "whiteboard-documents",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["database", "collaboration"],
+    dependencies: ["database"],
     init: () => whiteboardDocumentsModule.init(),
   },
   {
@@ -247,7 +247,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "pi-session",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "model-usage", "whiteboard-documents"],
+    dependencies: ["logger", "model-usage", "database"],
     init: async () => {
       piSessionHostModule.init();
     },

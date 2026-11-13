@@ -330,6 +330,8 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 新格式白板由 BACKGROUND 模块 `whiteboard-documents` 维护主进程文档会话，命令通过 `ensureModule` 接入。`whiteboard_documents` 持有完整 CRDT 检查点、契约和整板投影，`whiteboard_document_pages` 维护稳定 pageId 与本地 contentId 的映射，隐藏与恢复沿用原映射；来源与基线复用 `ContentIdentityTable`。`white_board_contents.data` 的 version 3 投影包含 documentKind/documentId/pageId/epoch/revision；旧快照、标题、页增删及排序入口拒绝覆盖托管结构。新格式创建要求库已具备来源基线，旧白板不转换。
 
+桌面本机白板由独立后台模块启动。白板绑定、发布与安装状态、附件索引在白板目录的 state.db，旧协作库中的可读白板记录一次性复制，原文件保留。只有共享操作按需取得协作客户端。本机日志和主库投影在协作库不可读时仍可恢复。聊天会话启动独立于白板和协作，整库替换才调用各文档模块释放旧库会话。
+
 本机 `whiteboard-documents/journal.db` 位于整库替换范围之外，以 SQLite FULL/WAL 保存增量幂等批次、完整检查点、已投影修订及历史实体持有。写入顺序为候选校验 → 本机提交 → 更新会话 → 主库事务更新所有页、拥有者和关系差集 → 日志推进投影回执。日志失败不广播，投影失败仍保留日志并拒绝关闭；重开与事件接收均按同源、同基线、同 epoch 校验，迟到的旧身份事件不进入当前会话；主库回退或分叉、日志损坏均保留材料并报错；整库同步替换前由 releaseLibrary 释放该库已投影的日志，新库从其自身快照重建日志。`whiteboard_entity_relations` 只记录可见关系，键包含富文本 rootId 与节点身份；曾引用实体的本机持有不计入业务 ref_count，不随主库同步。回收同时检查正文与白板的保全提供者，未建立本机持有的新文档保守阻止实体回收。
 
 本机 journal 文件版本为 2，版本 1 原位升级并保留记录，旧客户端的版本门禁拒绝回退打开；内容协议仍为白板协议 3。已投影的本机日志增量只保留批次身份、修订和摘要，删除冗余增量载荷；完整检查点、未投影增量与历史实体持有继续保留。网络终态回执存入本机 journal 的 `remote_receipts`，按 scope 与 operationId 查询，与待确认队列移除同事务提交；`remote_branches` 不携带回执历史，旧内嵌回执核验后原子转存。发布任务存入协作缓存的 `whiteboard_publications`，按文档查询未决任务；完成／取消后只保留幂等身份、页面范围和房间信息。已完成安装记录保留身份、指纹、目标和回执，释放候选正文；未决候选不压缩，旧代次检查点不按日期删除。

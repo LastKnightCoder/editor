@@ -14,7 +14,6 @@ import {
 } from "@tau/collaboration";
 import { CollaborationAssetService } from "../../collaboration/asset-service";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
-import { ContentLocalState } from "../../collaboration/content-local-state";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { replaceStoredBaseline } from "../../../../../../collaboration-server/src/testing/replace-baseline";
@@ -63,14 +62,15 @@ vi.mock("electron", () => ({
     fromWebContents: (sender: unknown) => state.windows.find(w => w.webContents === sender),
   },
 }));
+vi.mock("../local-state", () => ({
+  openWhiteboardState: () => ({ store: state.store!, assets: state.assets! }),
+}));
+vi.mock("../../../module-init/ModuleInitManager", () => ({
+  default: { initModule: async () => ({ success: true }) },
+}));
 vi.mock("../../collaboration", () => ({
   default: {
     documentClient: () => state.client,
-    documentStorage: () => ({
-      state: new ContentLocalState(state.store!.db),
-      store: state.store,
-    }),
-    documentAssets: () => state.assets,
     refreshShared: async () => {},
   },
 }));

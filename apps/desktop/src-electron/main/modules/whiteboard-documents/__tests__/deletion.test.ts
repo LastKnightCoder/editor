@@ -8,7 +8,6 @@ import { join } from "node:path";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import { WhiteboardModel } from "@tau/collaboration";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
-import { ContentLocalState } from "../../collaboration/content-local-state";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 
@@ -48,10 +47,14 @@ vi.mock("../../../utils/PathUtil", () => ({ default: { getAppDir: () => host.dir
 vi.mock("../../video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
+vi.mock("../local-state", () => ({
+  openWhiteboardState: () => ({ store: host.cache!, assets: {} }),
+}));
+vi.mock("../../../module-init/ModuleInitManager", () => ({
+  default: { initModule: async () => ({ success: true }) },
+}));
 vi.mock("../../collaboration", () => ({
   default: {
-    documentStorage: () => ({ state: new ContentLocalState(host.cache!.db), store: host.cache }),
-    documentAssets: () => ({}),
     documentClient: () => ({}),
   },
 }));

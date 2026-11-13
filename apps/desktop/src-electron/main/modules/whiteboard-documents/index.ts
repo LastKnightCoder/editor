@@ -1,6 +1,9 @@
 import { WhiteboardTransitions } from "./transitions";
 import { WhiteboardInstallation } from "./installation";
-import { isVideoFile } from "../collaboration/asset-service";
+import { CollaborationAssetService, isVideoFile } from "../collaboration/asset-service";
+import { CollaborationLocalStore } from "../collaboration/local-store";
+import { ContentLocalState } from "../collaboration/content-local-state";
+import { openWhiteboardState } from "./local-state";
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../tables/content";
 import {
   isContentEntityReference,
@@ -12,6 +15,7 @@ import {
   normalizeServerUrl,
   WhiteboardModel,
   DocumentWriteQueue,
+  WHITEBOARD_DOCUMENT_VERSION,
   readWhiteboardPresence,
   exportWhiteboardTransfer,
   type DocumentSyncSession,
@@ -27,12 +31,11 @@ import { join } from "node:path";
 import databaseModule from "../database";
 import PathUtil from "../../utils/PathUtil";
 import { ContentIdentityTable } from "../tables/content-identity";
-import { ContentRetention } from "../collaboration/content-retention";
 import { WhiteboardJournal, stateHash } from "./journal";
 import { WhiteboardDocumentSessions } from "./sessions";
 import { WhiteboardDocumentRepository } from "./repository";
 import { registerDurableDocuments, type DocumentDrainScope } from "../durable-document-lifecycle";
-import { registerDurableEntityHolds } from "../durable-entity-holds";
+import { hasDurableEntityHold, registerDurableEntityHolds } from "../durable-entity-holds";
 import type {
   WhiteboardRemoteStatus,
   WhiteboardShareCandidate,
@@ -83,6 +86,14 @@ const remoteStatus = (
 /** 排空时窗口未及回执（不可达、超时、被并发操作取消）；会话本身完好，稍后重试即可。 */
 class DrainInterrupted extends Error {}
 class WhiteboardDocumentsModule {
+  private async remoteClient() {
+    const { default: modules } = await import("../../module-init/ModuleInitManager");
+    const ready = await modules.initModule("collaboration");
+    if (!ready.success)
+      throw new Error(`COLLABORATION_UNAVAILABLE: ${ready.error ?? "共享服务尚未就绪"}`);
+    return collaborationModule.documentClient();
+  }
+
   private installation!: WhiteboardInstallation;
   private transitions!: WhiteboardTransitions;
   private transitionPreparing = new Map<string, Promise<void>>();
@@ -126,13 +137,27 @@ class WhiteboardDocumentsModule {
   async healPage(databaseName: string, contentId: number): Promise<void> {
     await this.sessions?.healPage(databaseName, contentId);
   }
-  private store!: ReturnType<typeof collaborationModule.documentStorage>["store"];
+  private store!: CollaborationLocalStore;
+  private assets!: CollaborationAssetService;
   private unshareQueue = new DocumentWriteQueue(16 * 1024 * 1024);
   private pendingUnshare(name: string, documentId: string) {
     return this.store.get<WhiteboardUnshareJob | null>(
       `whiteboard-unshare:${name}:${documentId}`,
       null
     );
+  }
+  private hasSharedBaseline(db: Database.Database, name: string, documentId: string): boolean {
+    const current = new WhiteboardDocumentRepository(db, name).read(documentId);
+    if (!current) return false;
+    const doc = new Y.Doc();
+    try {
+      Y.applyUpdate(doc, current.state);
+      return (
+        doc.share.has("meta") && doc.getMap("meta").get("version") === WHITEBOARD_DOCUMENT_VERSION
+      );
+    } finally {
+      doc.destroy();
+    }
   }
   private blocked(name: string, documentId: string) {
     return (
@@ -147,7 +172,11 @@ class WhiteboardDocumentsModule {
       .prepare("SELECT document_id FROM whiteboard_documents WHERE board_id=?")
       .get(id) as { document_id: string } | undefined;
     if (!row) return "";
-    if (this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null))
+    if (
+      this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null) ||
+      (!this.store.get("legacy-whiteboard-state-imported", false) &&
+        this.hasSharedBaseline(db, name, row.document_id))
+    )
       throw new Error("请先结束共享或退出协作，再删除本机白板");
     if (this.blocked(name, row.document_id)) throw new Error("白板仍有未完成转换，不能删除");
     return row.document_id;
@@ -164,7 +193,11 @@ class WhiteboardDocumentsModule {
     const table = (await import("../tables/whiteboard")).default;
     if (!row) return remove ? db.transaction(remove)() : table.deleteWhiteboard(db, id);
     if (name === undefined || !this.sessions) throw new Error("白板文档服务尚未就绪");
-    if (this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null))
+    if (
+      this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null) ||
+      (!this.store.get("legacy-whiteboard-state-imported", false) &&
+        this.hasSharedBaseline(db, name, row.document_id))
+    )
       throw new Error("请先结束共享或退出协作，再删除本机白板");
     const drain = await this.drain({
       databaseName: name,
@@ -206,7 +239,6 @@ class WhiteboardDocumentsModule {
   collectPendingDocuments(db: Database.Database, now: number, graceMs: number): number {
     const name = [...databaseModule.databases].find(([, value]) => value === db)?.[0];
     if (name === undefined || !this.sessions || !this.store) return 0;
-    const retention = new ContentRetention(collaborationModule.documentStorage().state);
     let collected = 0;
     for (const { document_id } of db
       .prepare("SELECT document_id FROM whiteboard_documents WHERE board_id IS NULL")
@@ -214,7 +246,9 @@ class WhiteboardDocumentsModule {
       if (
         this.sessions.isActive(name, document_id) ||
         this.blocked(name, document_id) ||
-        this.store.get(`whiteboard-binding:${name}:${document_id}`, null)
+        this.store.get(`whiteboard-binding:${name}:${document_id}`, null) ||
+        (!this.store.get("legacy-whiteboard-state-imported", false) &&
+          this.hasSharedBaseline(db, name, document_id))
       )
         continue;
       const previousRoom = this.store.get<{ roomId: string } | null>(
@@ -254,7 +288,7 @@ class WhiteboardDocumentsModule {
       if (
         pages.some(
           page =>
-            retention.has(db, name, "whiteboard-content", page.id) ||
+            hasDurableEntityHold(db, "whiteboard-content", page.id, "content") ||
             held.some(
               ref =>
                 ref.kind === "whiteboard-content" &&
@@ -274,7 +308,7 @@ class WhiteboardDocumentsModule {
   }
   /** 同一服务地址、设备身份与房间只建立一个网络会话，多窗口和多视图共用。 */
   private async remoteSession(serverUrl: string, documentId: string) {
-    const client = collaborationModule.documentClient(),
+    const client = await this.remoteClient(),
       url = normalizeServerUrl(serverUrl),
       identity = await client.identity(url);
     const key = JSON.stringify([url, identity.id, documentId]);
@@ -390,10 +424,13 @@ class WhiteboardDocumentsModule {
       projected,
       (name, id) => this.blocked(name, id)
     );
-    const services = collaborationModule.documentStorage();
-    this.store = services.store;
+    const { store, assets } = openWhiteboardState(PathUtil.getAppDir(), async url =>
+      (await this.remoteClient()).identity(url)
+    );
+    this.store = store;
+    this.assets = assets;
     this.installation = new WhiteboardInstallation(
-      services.state,
+      new ContentLocalState(store.db),
       journal,
       (db, kind, id, delta) => {
         if (kind === "data-table") {
@@ -406,9 +443,9 @@ class WhiteboardDocumentsModule {
     );
     this.transitions = new WhiteboardTransitions(
       this.installation,
-      services.store,
-      collaborationModule.documentClient(),
-      collaborationModule.documentAssets()
+      store,
+      () => this.remoteClient(),
+      this.assets
     );
     const handle = (name: string, fn: (event: IpcMainInvokeEvent, ...args: any[]) => unknown) =>
       ipcMain.handle(`whiteboard-document:${name}`, fn);
@@ -465,7 +502,11 @@ class WhiteboardDocumentsModule {
         // 已绑定时直接拒绝，不为一次必然失败的请求冻结所有视图。
         const identity = this.sessions.snapshot(leaseId, this.leaseOwner(event, leaseId)).identity,
           bindingKey = `whiteboard-binding:${identity.databaseName}:${identity.documentId}`;
-        if (services.store.get(bindingKey, null))
+        const db = databaseModule.getDatabase(identity.databaseName);
+        if (
+          store.get(bindingKey, null) ||
+          (db && this.hasSharedBaseline(db, identity.databaseName, identity.documentId))
+        )
           throw new Error("此白板已绑定共享，不能再次创建并行房间");
         const source = this.sessions.snapshot(leaseId, this.leaseOwner(event, leaseId));
         await this.transitions.preflight(source.state, identity.documentId, request.pageIds);
@@ -520,7 +561,7 @@ class WhiteboardDocumentsModule {
         const bindingKey = `whiteboard-binding:${databaseName}:${documentId}`,
           unshareKey = `whiteboard-unshare:${databaseName}:${documentId}`;
         // 本机替换已装完、只差清除绑定时补完收尾，避免本机文档再去连接已关闭的房间。
-        const unshareJob = services.store.get<WhiteboardUnshareJob | null>(unshareKey, null);
+        const unshareJob = store.get<WhiteboardUnshareJob | null>(unshareKey, null);
         if (unshareJob?.remoteDone) {
           const db = databaseModule.getDatabase(databaseName),
             stored = db && new WhiteboardDocumentRepository(db, databaseName).read(documentId);
@@ -528,9 +569,9 @@ class WhiteboardDocumentsModule {
             const doc = new Y.Doc();
             Y.applyUpdate(doc, stored.state);
             if (!doc.share.has("meta") || doc.getMap("meta").get("version") !== 3) {
-              services.store.db.transaction(() => {
-                services.store.delete(bindingKey);
-                services.store.delete(unshareKey);
+              store.db.transaction(() => {
+                store.delete(bindingKey);
+                store.delete(unshareKey);
               })();
               this.transitionDrains.get(unshareJob.operationId)?.commit();
               this.clearTransition(unshareJob.operationId);
@@ -542,7 +583,7 @@ class WhiteboardDocumentsModule {
         const unshare = this.pendingUnshare(databaseName, documentId);
         return {
           ...(unshare ? { unshare: { operationId: unshare.operationId, mode: unshare.mode } } : {}),
-          binding: services.store.get<WhiteboardShareStatus["binding"]>(bindingKey, null),
+          binding: store.get<WhiteboardShareStatus["binding"]>(bindingKey, null),
           publication,
         };
       }
@@ -573,7 +614,7 @@ class WhiteboardDocumentsModule {
           };
         };
         const prefix = `whiteboard-binding:${databaseName}:`;
-        for (const row of services.store.db
+        for (const row of store.db
           .prepare("SELECT key,value FROM settings WHERE key LIKE 'whiteboard-binding:%'")
           .all() as { key: string; value: string }[]) {
           if (!row.key.startsWith(prefix)) continue;
@@ -584,10 +625,10 @@ class WhiteboardDocumentsModule {
         }
         // 先固定本机文档身份，重试时沿用同一身份，避免在本库重复落一份副本。
         const installKey = `whiteboard-install:${databaseName}:${url}:${roomId}`;
-        const install = services.store.get<{ documentId: string } | null>(installKey, null) ?? {
+        const install = store.get<{ documentId: string } | null>(installKey, null) ?? {
           documentId: randomUUID(),
         };
-        services.store.set(installKey, install);
+        store.set(installKey, install);
         if (!pages(install.documentId)) {
           const { session, release } = await this.remoteSession(url, roomId).catch(remoteFailure);
           try {
@@ -605,11 +646,11 @@ class WhiteboardDocumentsModule {
             release();
           }
         }
-        services.store.set(`${prefix}${install.documentId}`, {
+        store.set(`${prefix}${install.documentId}`, {
           serverUrl: url,
           documentId: roomId,
         });
-        services.store.delete(installKey);
+        store.delete(installKey);
         projected(databaseName, install.documentId);
         return pages(install.documentId)!;
       }
@@ -664,7 +705,7 @@ class WhiteboardDocumentsModule {
         local = this.sessions.snapshot(leaseId, owner);
       this.assertOpenAllowed(owner, local.identity.databaseName, local.identity.documentId);
       const key = this.remoteViews.get(leaseId)?.key;
-      const binding = services.store.get<{ serverUrl: string; documentId: string } | null>(
+      const binding = store.get<{ serverUrl: string; documentId: string } | null>(
         `whiteboard-binding:${local.identity.databaseName}:${local.identity.documentId}`,
         null
       );
@@ -697,7 +738,7 @@ class WhiteboardDocumentsModule {
             ([, contract]) => contract.domain === "editor-node"
           )
         );
-        const assets = collaborationModule.documentAssets();
+        const assets = this.assets;
         for (const reference of bundle.resources.filter(ref => ref.startsWith("tau-collab-")))
           await assets.readTransferFile(context.url, context.documentId, reference);
         const value = await assets.localizeDocument(
@@ -722,9 +763,7 @@ class WhiteboardDocumentsModule {
     handle("resource-read", async (event, leaseId: string, reference: string) => {
       const context = resourceContext(event, leaseId);
       await resourceAccess(context.key);
-      const file = await collaborationModule
-        .documentAssets()
-        .readTransferFile(context.url, context.documentId, reference);
+      const file = await this.assets.readTransferFile(context.url, context.documentId, reference);
       resourceContext(event, leaseId);
       await resourceAccess(context.key);
       return file;
@@ -744,7 +783,7 @@ class WhiteboardDocumentsModule {
         const origin = resourceContext(event, source.leaseId);
         await resourceAccess(origin.key);
         await resourceAccess(target.key);
-        const assets = collaborationModule.documentAssets();
+        const assets = this.assets;
         const file = await assets.readTransferFile(origin.url, origin.documentId, reference);
         resourceContext(event, source.leaseId);
         resourceContext(event, leaseId);
@@ -777,7 +816,7 @@ class WhiteboardDocumentsModule {
         )
           throw new Error("资源超过预算或格式无效");
         await resourceAccess(context.key);
-        const assets = collaborationModule.documentAssets();
+        const assets = this.assets;
         const reference =
           !context.url || isVideoFile(payload)
             ? await assets.keepLocalFile(context.documentId, payload)
@@ -795,9 +834,7 @@ class WhiteboardDocumentsModule {
       if (!/^tau-collab-(asset|local):[a-f0-9-]{36}$/.test(reference))
         throw new Error("只允许解析此文档的资源标识");
       await resourceAccess(context.key);
-      const value = await collaborationModule
-        .documentAssets()
-        .resolveReference(context.url, context.documentId, reference);
+      const value = await this.assets.resolveReference(context.url, context.documentId, reference);
       const current = resourceContext(event, leaseId);
       if (current.key !== context.key || current.documentId !== context.documentId)
         throw new Error("资源所属会话已变化");
@@ -836,7 +873,7 @@ class WhiteboardDocumentsModule {
         if (!db) throw new Error("资料库未连接");
         const prefix = `whiteboard-binding:${databaseName}:`;
         const shared = (
-          services.store.db
+          store.db
             .prepare("SELECT key FROM settings WHERE key LIKE 'whiteboard-binding:%'")
             .all() as { key: string }[]
         )
@@ -999,7 +1036,7 @@ class WhiteboardDocumentsModule {
               if (!this.realtime.has(leaseId)) {
                 const protocol = snapshot.confirmed.protocol;
                 const realtime = new WhiteboardRealtime(
-                  collaborationModule.documentClient(),
+                  await this.remoteClient(),
                   normalizeServerUrl(serverUrl),
                   snapshot.confirmed.protocol,
                   async state => {
@@ -1330,7 +1367,7 @@ class WhiteboardDocumentsModule {
         serverUrl: job.serverUrl,
         mode,
       },
-      collaborationModule.documentAssets()
+      this.assets
     );
     const preparedJob = {
       ...job,
@@ -1360,14 +1397,15 @@ class WhiteboardDocumentsModule {
       throw new Error("退出共享的源修订不匹配，不能覆盖当前白板");
     const jobKey = `whiteboard-unshare:${context.name}:${context.documentId}`;
     if (!job.remoteDone) {
-      const client = collaborationModule.documentClient();
       try {
-        if (job.mode === "close")
-          await client.request(job.serverUrl, `/v1/documents/${job.roomId}/close`, "POST", {
-            expectedRevision: job.revision,
-          });
-        else if (job.mode === "leave")
-          await client.request(job.serverUrl, `/v1/documents/${job.roomId}/leave`, "POST", {});
+        if (job.mode !== "detach") {
+          const client = await this.remoteClient();
+          if (job.mode === "close")
+            await client.request(job.serverUrl, `/v1/documents/${job.roomId}/close`, "POST", {
+              expectedRevision: job.revision,
+            });
+          else await client.request(job.serverUrl, `/v1/documents/${job.roomId}/leave`, "POST", {});
+        }
       } catch (error) {
         // 明确拒绝关闭时没有远端提交，允许重新取回最新修订生成候选。
         if ((error as { code?: string }).code === "REVISION_CONFLICT") this.store.delete(jobKey);
