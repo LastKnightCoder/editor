@@ -28,34 +28,28 @@ export function BackgroundGroup() {
     <SettingsGroup title="启动与后台运行">
       {data ? (
         <>
-          <SettingRow
-            title="登录系统后启动 Tau"
-            description="由系统启动应用，插件不能自行添加启动项"
-          >
+          <SettingRow title="开机自动启动" description="电脑开机后自动启动 Tau">
             <Switch
-              aria-label="登录系统后启动 Tau"
+              aria-label="开机自动启动"
               checked={data.openAtLogin}
               disabled={mutation.isPending}
               onCheckedChange={value => mutation.mutate({ openAtLogin: value })}
             />
           </SettingRow>
-          <SettingRow
-            title="登录后在后台运行"
-            description="不打开主窗口；仅启动已授权、声明自动启动的后台"
-          >
+          <SettingRow title="启动时不打开窗口" description="开机后 Tau 静默运行，不弹出主界面">
             <Switch
-              aria-label="登录后在后台运行"
+              aria-label="启动时不打开窗口"
               checked={data.startHidden}
               disabled={mutation.isPending}
               onCheckedChange={value => mutation.mutate({ startHidden: value })}
             />
           </SettingRow>
           <SettingRow
-            title="关闭窗口后保持后台运行"
-            description="有插件后台运行时保留托盘，点击退出仍会结束全部后台"
+            title="关闭窗口时不退出"
+            description="窗口关闭后继续在后台运行，可从状态栏图标重新打开"
           >
             <Switch
-              aria-label="关闭窗口后保持后台运行"
+              aria-label="关闭窗口时不退出"
               checked={data.keepBackground}
               disabled={mutation.isPending}
               onCheckedChange={value => mutation.mutate({ keepBackground: value })}
