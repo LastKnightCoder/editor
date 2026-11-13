@@ -87,6 +87,8 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 业务代码写正文
 
+未共享正文经 local-content 模块和独立日志运行，主库存在共享绑定时才接入共享会话。打开、关闭、切库和退出共用正文保存屏障，协作库不可读时仍能编辑健康的未共享正文。恢复规则见[正文持久化](/docs/architecture/content-storage.md#耐久日志与检查点)。
+
 正文节点的 `collabId`（节点稳定身份，协作合并、光标与实体关系按它定位）和 `tauContract`（指向文档契约字典里该节点写入时的数据版本）属于存储与协作层，业务代码不读写、不拼装：
 
 - 新建正文：`createContent`、`createCard`、`createArticle` 等新建命令内部经 `prepareNewContent` 补齐。

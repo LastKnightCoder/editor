@@ -5,14 +5,17 @@ type Provider = (
   kind: ContentEntityKind | "content",
   localId: number
 ) => boolean;
-const providers = new Map<"whiteboard" | "content", Provider>();
+const providers = new Map<"whiteboard" | "content", Set<Provider>>();
 export function registerDurableEntityHolds(
   next: Provider,
   scope: "whiteboard" | "content" = "whiteboard"
 ): () => void {
-  providers.set(scope, next);
+  const group = providers.get(scope) ?? new Set<Provider>();
+  providers.set(scope, group);
+  group.add(next);
   return () => {
-    if (providers.get(scope) === next) providers.delete(scope);
+    group.delete(next);
+    if (!group.size && providers.get(scope) === group) providers.delete(scope);
   };
 }
 /** 有新格式文档但保全服务未就绪时，不能证明可回收，保守保留。 */
@@ -25,9 +28,9 @@ export function hasDurableEntityHold(
     ["whiteboard", "whiteboard_documents"],
     ["content", "content_documents"],
   ] as const) {
-    const provider = providers.get(scope);
-    if (provider) {
-      if (provider(db, kind, id)) return true;
+    const group = providers.get(scope);
+    if (group?.size) {
+      for (const provider of group) if (provider(db, kind, id)) return true;
       continue;
     }
     const exists = db

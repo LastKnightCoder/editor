@@ -142,7 +142,7 @@ export function EditorWindow({
     [driver.kind, doc.id, doc.title]
   );
   const { entry } = useContentSession(doc.contentId, source);
-  const collab = useCollaborationDocument(entry?.documentId);
+  const collab = useCollaborationDocument(entry?.documentId, entry?.mode);
   const session = useCollaborationStore(state =>
     entry?.mode === "shared" ? state.sessions.find(item => item.id === entry.documentId) : undefined
   );

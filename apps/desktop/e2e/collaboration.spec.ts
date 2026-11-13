@@ -236,7 +236,7 @@ test.afterEach(async ({}, info) => {
   }
 });
 
-test("本机多视图、跨窗口光标、标题和原地共享", async () => {
+test("本机多视图、跨窗口正文、标题和原地共享", async () => {
   test.skip(process.env.TAU_COEDIT_E2E === "1", "使用独立的共编夹具");
   const first = page.getByTestId("first-view").locator('[data-slate-editor="true"]');
   const second = page.getByTestId("second-view").locator('[data-slate-editor="true"]');
@@ -244,9 +244,9 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
   await page.keyboard.press("End");
   await page.keyboard.insertText("甲方编辑");
   await expect(second).toContainText("甲方编辑");
-  await expect(
-    page.getByTestId("second-view").locator("[data-collaboration-cursor]").first()
-  ).toBeVisible();
+  await expect(page.getByTestId("second-view").locator("[data-collaboration-cursor]")).toHaveCount(
+    0
+  );
   await second.click();
   await page.keyboard.press("End");
   await page.keyboard.insertText("乙方编辑");
@@ -260,9 +260,9 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
   await other.keyboard.press("End");
   await other.keyboard.insertText("窗口编辑");
   await expect(first).toContainText("窗口编辑");
-  await expect(
-    page.getByTestId("first-view").locator("[data-collaboration-cursor]").first()
-  ).toBeVisible();
+  await expect(page.getByTestId("first-view").locator("[data-collaboration-cursor]")).toHaveCount(
+    0
+  );
   const title = page.locator('main > span [contenteditable="plaintext-only"]');
   await title.fill("实时统一标题");
   await expect(other.locator('main > span [contenteditable="plaintext-only"]')).toHaveText(
@@ -302,6 +302,7 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
       headers: {
         Authorization: `Bearer ${identity.id}:${identity.secret}`,
         "Content-Type": "application/json",
+        "x-tau-document-version": "2",
       },
       body: body && JSON.stringify(body),
     });
@@ -318,6 +319,7 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
   await expect(shareDialog.getByText("测试协作者", { exact: true })).toBeVisible();
   await shareDialog.getByRole("button", { name: "关闭", exact: true }).click();
   const { documents } = await request("/v1/documents");
+  const protocol = await request(`/v1/documents/${documents[0].id}/protocol`);
   const guestDoc = new Y.Doc();
   const transport = new HocuspocusProviderWebsocket({
     url: serverUrl.replace("http", "ws") + "/ws",
@@ -328,7 +330,14 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
     document: guestDoc,
     websocketProvider: transport,
     token: async () =>
-      (await request("/v1/tickets", "POST", { documentId: documents[0].id })).ticket,
+      (
+        await request("/v1/tickets", "POST", {
+          documentId: documents[0].id,
+          protocolVersion: 2,
+          epoch: protocol.epoch,
+          baselineId: protocol.baselineId,
+        })
+      ).ticket,
   });
   try {
     guest.attach();
@@ -385,21 +394,13 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
   expect(errors).toEqual([]);
 });
 
-test("活跃协作不会阻止退出应用", async () => {
+test("活跃协作在已确认输入后允许退出", async () => {
   test.skip(process.env.TAU_COEDIT_E2E === "1", "使用独立的共编夹具");
   await page.getByRole("button", { name: "发起协作", exact: true }).click();
   // 先说明再确认：打开对话框不会静默共享
   await page.getByRole("button", { name: "发起共享", exact: true }).click();
   await expect(page.getByTestId("collaboration-code")).not.toHaveText(/^—/);
   await page.getByRole("button", { name: "关闭", exact: true }).click();
-  const sessionId = await page.evaluate(
-    async () => (await window.electron.invoke("collaboration:state")).sessions[0].id
-  );
-  await page.evaluate(
-    id => window.electron.invoke("collaboration:subscribe", id, "stale-view-without-listener"),
-    sessionId
-  );
-
   const exited = new Promise<void>(resolve => electron.process().once("exit", () => resolve()));
   await page.evaluate(() => window.electron.invoke("e2e:quit"));
   await exited;

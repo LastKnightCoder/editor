@@ -1,6 +1,7 @@
 export interface TextFieldSnapshot {
   readonly value: string;
   readonly revision: string;
+  readonly baseValue?: string;
 }
 
 export interface TextFieldDelta {

@@ -1,6 +1,7 @@
 import { prepareDurableDocuments } from "./modules/durable-document-lifecycle";
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
+import localContent from "./modules/content-runtime";
 import collaborationModule from "./modules/collaboration";
 import mcpModule from "./modules/mcp";
 import { pluginBackends, setPluginBackendsPaused } from "./modules/plugin-backend";
@@ -142,6 +143,7 @@ async function runControlledQuit(
 
     await mcpModule.disconnectAll();
     collaborationModule.shutdown();
+    localContent.shutdown();
   } catch (error) {
     log.error("受控退出流程出错:", error);
   } finally {

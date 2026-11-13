@@ -82,3 +82,30 @@ export const collaborationCommands = {
   resolveResource: command<[string, string], string>("collaboration:resource"),
   awareness: command<[string, string, Uint8Array, number], void>("collaboration:awareness"),
 };
+
+export const localContentCommands = {
+  prepareFragment: command<
+    [string, string, ContentNode[], ContentContractDictionary],
+    ContentNode[]
+  >("local-content:prepare-fragment"),
+  updateNodeView: command<[string, string, Record<string, unknown>], Record<string, unknown>>(
+    "local-content:node-view"
+  ),
+  openContent: command<[ContentSessionTarget], ContentSessionSnapshot>(
+    "local-content:open-content"
+  ),
+  subscribe: command<[string, string], CollaborationSubscribeSnapshot>("local-content:subscribe"),
+  unsubscribe: command<[string], void>("local-content:unsubscribe"),
+  update: command<[string, Uint8Array, string], void>("local-content:update"),
+  inputDraft: command<[string, ContentInputDraft], void>("local-content:input-draft"),
+  documentDraft: command<[string, { state: Uint8Array; sequence: number }], void>(
+    "local-content:document-draft"
+  ),
+  freezeAck: command<[string, string?], void>("local-content:freeze-ack"),
+  prepareResource: command<[string, string], string>("local-content:prepare-resource"),
+  uploadSharedResource: command<[string, CollaborationImageFile], string>(
+    "local-content:upload-shared-resource"
+  ),
+  resolveResource: command<[string, string], string>("local-content:resource"),
+  awareness: command<[string, string, Uint8Array, number], void>("local-content:awareness"),
+};

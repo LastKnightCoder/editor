@@ -13,6 +13,7 @@ import pluginServicesModule from "../modules/plugin-services";
 import pluginBackendModule from "../modules/plugin-backend";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
+import localContentModule from "../modules/content-runtime";
 import collaborationModule from "../modules/collaboration";
 import whiteboardDocumentsModule from "../modules/whiteboard-documents";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
@@ -135,9 +136,15 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => whiteboardDocumentsModule.init(),
   },
   {
-    name: "collaboration",
+    name: "local-content",
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
+    init: () => localContentModule.init(),
+  },
+  {
+    name: "collaboration",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "local-content"],
     init: () => collaborationModule.init(),
   },
   {

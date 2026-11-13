@@ -1,14 +1,4 @@
 import { useEffect, useState } from "react";
-import {
-  ackCollaborationFreeze,
-  resolveCollaborationResource,
-  sendCollaborationAwareness,
-  preserveCollaborationInputDraft,
-  preserveCollaborationDocumentDraft,
-  subscribeCollaborationDocument,
-  unsubscribeCollaborationDocument,
-  updateCollaborationDocument,
-} from "@/commands";
 import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
@@ -23,12 +13,12 @@ import {
 } from "@tau/collaboration";
 import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { on, off } from "@/electron";
-import { collaborationCommands } from "@/commands/contracts/collaboration";
+import { collaborationCommands, localContentCommands } from "@/commands/contracts/collaboration";
 import { uploadResource } from "@/hooks/useUploadResource";
 
 const IPC_ORIGIN = Symbol("main-process");
 
-export default function useCollaborationDocument(documentId?: string) {
+export default function useCollaborationDocument(documentId?: string, mode?: "local" | "shared") {
   const [binding, setBinding] = useState<ContentCollaborationBinding>();
   const [article, setArticle] = useState<SharedContent>();
   const [error, setError] = useState<string>();
@@ -41,6 +31,8 @@ export default function useCollaborationDocument(documentId?: string) {
     setFrozen(false);
     if (!documentId) return;
     const id = documentId;
+    const local = mode === "local";
+    const commands = local ? localContentCommands : collaborationCommands;
     const viewId = crypto.randomUUID();
     const doc = new Y.Doc({ guid: id });
     const awareness = new Awareness(doc);
@@ -57,7 +49,7 @@ export default function useCollaborationDocument(documentId?: string) {
     let draftSequence = 0;
     let documentDraftSequence = 0;
     const preserveDocument = () =>
-      preserveCollaborationDocumentDraft(viewId, {
+      commands.documentDraft.call(viewId, {
         state: Y.encodeStateAsUpdate(doc),
         sequence: ++documentDraftSequence,
       });
@@ -67,7 +59,7 @@ export default function useCollaborationDocument(documentId?: string) {
       sendingDrafts = (async () => {
         while (pendingDrafts.size) {
           for (const [key, draft] of [...pendingDrafts]) {
-            await preserveCollaborationInputDraft(viewId, draft);
+            await commands.inputDraft.call(viewId, draft);
             if (pendingDrafts.get(key) === draft) pendingDrafts.delete(key);
           }
         }
@@ -94,7 +86,7 @@ export default function useCollaborationDocument(documentId?: string) {
           const batch = pending;
           pending = [];
           try {
-            await updateCollaborationDocument(id, Y.mergeUpdates(batch), viewId);
+            await commands.update.call(id, Y.mergeUpdates(batch), viewId);
             if (!disposed) setError(undefined);
           } catch (failure) {
             pending.unshift(...batch);
@@ -123,7 +115,7 @@ export default function useCollaborationDocument(documentId?: string) {
         if (!disposed) flushSync(() => setFrozen(true));
         // 只有编辑确认进入主进程会话才回执；失败时副本已另存，不回执让冻结方超时并恢复编辑。
         void Promise.all([sendUpdates(), sendDrafts()])
-          .then(() => ackCollaborationFreeze(viewId, payload.requestId))
+          .then(() => commands.freezeAck.call(viewId, payload.requestId))
           .catch(() => {});
       } else if (!disposed) flushSync(() => setFrozen(false));
     };
@@ -160,10 +152,11 @@ export default function useCollaborationDocument(documentId?: string) {
     on("collaboration:flush", onFlush);
     on("collaboration:session-error", onSessionError);
     on("collaboration:removed", onRemoved);
-    void subscribeCollaborationDocument(id, viewId)
+    void commands.subscribe
+      .call(id, viewId)
       .then(async snapshot => {
         if (disposed) {
-          void unsubscribeCollaborationDocument(viewId).catch(() => {});
+          void commands.unsubscribe.call(viewId).catch(() => {});
           return;
         }
         Y.applyUpdate(doc, new Uint8Array(snapshot.state), IPC_ORIGIN);
@@ -194,12 +187,14 @@ export default function useCollaborationDocument(documentId?: string) {
             origin: unknown
           ) => {
             if (origin !== IPC_ORIGIN)
-              void sendCollaborationAwareness(
-                id,
-                viewId,
-                encodeAwarenessUpdate(awareness, [...added, ...updated, ...removed]),
-                doc.clientID
-              ).catch(() => {});
+              void commands.awareness
+                .call(
+                  id,
+                  viewId,
+                  encodeAwarenessUpdate(awareness, [...added, ...updated, ...removed]),
+                  doc.clientID
+                )
+                .catch(() => {});
           }
         );
         awareness.setLocalStateField("activity", "viewing");
@@ -209,16 +204,16 @@ export default function useCollaborationDocument(documentId?: string) {
         });
         setFrozen(Boolean(snapshot.session.frozen));
         const prepareResource = (reference: string) =>
-          collaborationCommands.prepareResource.call(viewId, reference);
+          commands.prepareResource.call(viewId, reference);
         activeBinding = {
           prepareFragment: (sourceId, content, contracts) =>
-            collaborationCommands.prepareFragment.call(viewId, sourceId, content, contracts),
+            commands.prepareFragment.call(viewId, sourceId, content, contracts),
           flushFragmentWrites: sendUpdates,
           nodeViews: {
             read: nodeId => snapshot.nodeViews?.[nodeId],
             write: async (nodeId, patch) => {
               await sendUpdates();
-              return collaborationCommands.updateNodeView.call(viewId, nodeId, patch);
+              return commands.updateNodeView.call(viewId, nodeId, patch);
             },
           },
           mode: snapshot.session.mode || "shared",
@@ -240,14 +235,14 @@ export default function useCollaborationDocument(documentId?: string) {
             snapshot.session.mode === "local" ||
             (snapshot.session.role === "owner" && !isVideoResource(file.name, file.type))
               ? prepareResource(await uploadResource(file))
-              : collaborationCommands.uploadSharedResource.call(viewId, {
+              : commands.uploadSharedResource.call(viewId, {
                   name: file.name,
                   mime: file.type,
                   bytes: new Uint8Array(await file.arrayBuffer()),
                 }),
           prepareResource,
           resolveResource: async url =>
-            isCollaborationResource(url) ? resolveCollaborationResource(id, url) : url,
+            isCollaborationResource(url) ? commands.resolveResource.call(id, url) : url,
         };
         setBinding(activeBinding);
         publish();
@@ -289,7 +284,7 @@ export default function useCollaborationDocument(documentId?: string) {
           !removed && pending.length ? sendUpdates() : Promise.resolve(),
           sendDrafts(),
         ])
-          .then(() => unsubscribeCollaborationDocument(viewId))
+          .then(() => commands.unsubscribe.call(viewId))
           .then(release)
           .catch(() => {
             setTimeout(finish, Math.min(30_000, attempts * 1000));
@@ -297,7 +292,7 @@ export default function useCollaborationDocument(documentId?: string) {
       };
       finish();
     };
-  }, [documentId, generation]);
+  }, [documentId, mode, generation]);
   return {
     binding: binding?.doc.guid === documentId ? binding : undefined,
     article,

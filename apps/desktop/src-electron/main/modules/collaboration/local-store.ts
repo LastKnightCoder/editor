@@ -10,21 +10,29 @@ import { writeContentSaveLog, contentSaveError } from "./persistence-diagnostics
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
-  constructor(private readonly directory: string) {
+  constructor(
+    private readonly directory: string,
+    private readonly filename = "collaboration.db"
+  ) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const path = join(directory, "collaboration.db");
+    const path = join(directory, filename);
     this.db = new Database(path);
-    const version = Number(this.db.pragma("user_version", { simple: true }));
-    const existing = this.db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions'")
-      .get();
-    if (existing && version !== 3) this.db = this.rebuild(path, version);
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("synchronous = FULL");
-    this.db.transaction(() => {
-      this.db.exec(cacheSchema);
-      this.db.pragma("user_version=3");
-    })();
+    try {
+      const version = Number(this.db.pragma("user_version", { simple: true }));
+      const existing = this.db
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions'")
+        .get();
+      if (existing && version !== 3) this.db = this.rebuild(path, version);
+      this.db.pragma("journal_mode = WAL");
+      this.db.pragma("synchronous = FULL");
+      this.db.transaction(() => {
+        this.db.exec(cacheSchema);
+        this.db.pragma("user_version=3");
+      })();
+    } catch (failure) {
+      if (this.db.open) this.db.close();
+      throw failure;
+    }
   }
   /**
    * 缓存文件不是当前格式（含较新版本写入）：整份移入 discarded/ 后新建，不阻断协作。
@@ -51,7 +59,7 @@ export class CollaborationLocalStore {
     const stamp = `${Date.now()}-version-${version}`;
     for (const suffix of ["", "-wal", "-shm"])
       if (existsSync(path + suffix))
-        renameSync(path + suffix, join(discarded, `${stamp}-collaboration.db${suffix}`));
+        renameSync(path + suffix, join(discarded, `${stamp}-${this.filename}${suffix}`));
     const db = new Database(path);
     db.exec(cacheSchema);
     const insert = db.prepare("INSERT OR IGNORE INTO settings VALUES (?,?)");

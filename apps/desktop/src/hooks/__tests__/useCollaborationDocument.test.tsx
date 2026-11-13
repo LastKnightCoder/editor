@@ -21,25 +21,24 @@ vi.mock("@/electron", () => ({
     host.listeners.set(channel, listener),
   off: (channel: string) => host.listeners.delete(channel),
 }));
-vi.mock("@/commands", () => ({
-  ackCollaborationFreeze: host.ack,
-  resolveCollaborationResource: vi.fn(),
-  sendCollaborationAwareness: vi.fn(async () => {}),
-  preserveCollaborationInputDraft: vi.fn(async () => {}),
-  preserveCollaborationDocumentDraft: host.preserveDocument,
-  subscribeCollaborationDocument: vi.fn(async () => host.snapshot),
-  unsubscribeCollaborationDocument: host.unsubscribe,
-  updateCollaborationDocument: host.update,
-}));
 vi.mock("@/hooks/useUploadResource", () => ({ uploadResource: host.upload }));
-vi.mock("@/commands/contracts/collaboration", () => ({
-  collaborationCommands: {
+vi.mock("@/commands/contracts/collaboration", () => {
+  const commands = {
+    freezeAck: { call: host.ack },
+    resolveResource: { call: vi.fn() },
+    awareness: { call: vi.fn(async () => {}) },
+    inputDraft: { call: vi.fn(async () => {}) },
+    documentDraft: { call: host.preserveDocument },
+    subscribe: { call: vi.fn(async () => host.snapshot) },
+    unsubscribe: { call: host.unsubscribe },
+    update: { call: host.update },
     prepareFragment: { call: vi.fn() },
     prepareResource: { call: host.prepareResource },
     uploadSharedResource: { call: host.memberUpload },
     updateNodeView: { call: vi.fn() },
-  },
-}));
+  };
+  return { collaborationCommands: commands, localContentCommands: commands };
+});
 
 import useCollaborationDocument from "../useCollaborationDocument";
 
@@ -58,7 +57,7 @@ afterEach(() => {
     fn.mockReset();
 });
 
-it.each(["local", "shared"])(
+it.each(["local", "shared"] as const)(
   "编辑未送达主进程时不回执冻结、不注销视图，送达后才放行（%s）",
   async mode => {
     const documentIdentity = {
@@ -120,7 +119,7 @@ it.each(["local", "shared"])(
 
     let current: ReturnType<typeof useCollaborationDocument>;
     function Harness() {
-      current = useCollaborationDocument("doc");
+      current = useCollaborationDocument("doc", mode);
       return null;
     }
     const root = createRoot(document.createElement("div"));
