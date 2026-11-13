@@ -104,12 +104,12 @@ describe("拖拽声明 → 装配与 chrome", () => {
     const blocks = host.querySelectorAll<HTMLElement>(".ed-block");
     expect(blocks.length).toBeGreaterThanOrEqual(2);
 
-    // 文档序三个手柄：独立段落（可拖）、勾选项内部段落（被 children:false 屏蔽）、勾选项自身（可拖）
+    // 勾选项内部段落的手柄被 children:false 屏蔽，避免透明节点拦截复选框点击。
+    const nestedParagraph = host.querySelector('[data-slate-node="element"] .ed-block');
+    expect(nestedParagraph?.querySelector("[data-drag-handle]")).toBeNull();
     const handles = [...host.querySelectorAll<HTMLElement>("[data-drag-handle]")];
-    expect(handles.length).toBe(3);
-    expect(handles[0].hasAttribute("data-block-reveal")).toBe(true);
-    expect(handles[1].hasAttribute("data-block-reveal")).toBe(false);
-    expect(handles[2].hasAttribute("data-block-reveal")).toBe(true);
+    expect(handles).toHaveLength(2);
+    expect(handles.every(handle => handle.hasAttribute("data-block-reveal"))).toBe(true);
   });
 
   it("未声明的块（无 drag 声明）不渲染 chrome，DOM 与迁移前一致", async () => {

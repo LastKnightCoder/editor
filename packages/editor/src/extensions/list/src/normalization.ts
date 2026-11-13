@@ -1,5 +1,5 @@
 import { Editor, Element as SlateElement, type NodeEntry, Transforms } from "slate";
-import type { BulletedListElement, NumberedListElement } from "./types";
+import type { BulletedListElement, CheckListElement, NumberedListElement } from "./types";
 import type { FormattedText } from "@tau/markdown/model";
 import { getParagraphShortcutEntry as isAtFirst } from "@tau/editor/api";
 export { hitEmptyOrInlineChild } from "@tau/editor/api";
@@ -13,7 +13,7 @@ export { hitEmptyOrInlineChild } from "@tau/editor/api";
  */
 export const mergeConsecutiveLists = (
   editor: Editor,
-  node: BulletedListElement | NumberedListElement,
+  node: BulletedListElement | CheckListElement | NumberedListElement,
   path: number[]
 ): boolean => {
   const parent = Editor.parent(editor, path)[0];

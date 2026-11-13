@@ -41,26 +41,26 @@ function BlockDragHostInner({
 
   return (
     <div
-      ref={node => {
-        drop(node);
-      }}
+      ref={drop}
       className={cn("relative", BLOCK_DRAG_GROUP, dimWhileDragging(isDragging || dropActive))}
     >
       <DropIndicator active={dropActive} before={isBefore} />
       {children}
-      {dragSpec.self && (
-        <DragHandle
-          dragRef={drag}
-          canDrag={canDrag}
-          onClick={dragHandlerProps.onClick}
-          className={
-            typeof dragSpec.handleClassName === "function"
-              ? dragSpec.handleClassName(element)
-              : dragSpec.handleClassName
-          }
-        />
+      {canDrag && (
+        <>
+          <DragHandle
+            dragRef={drag}
+            canDrag
+            onClick={dragHandlerProps.onClick}
+            className={
+              typeof dragSpec.handleClassName === "function"
+                ? dragSpec.handleClassName(element)
+                : dragSpec.handleClassName
+            }
+          />
+          <EditorContextMenu {...menuProps} readonly={readOnly} />
+        </>
       )}
-      <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
 }

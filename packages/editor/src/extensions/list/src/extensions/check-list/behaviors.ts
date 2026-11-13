@@ -1,6 +1,7 @@
 import { Editor, NodeEntry, Path, Range, Element as SlateElement, Transforms } from "slate";
 
 import type { ElementBehaviors } from "@tau/editor/api";
+import { mergeConsecutiveLists } from "../../normalization";
 import type { CheckListElement, CheckListItemElement, ParagraphElement } from "../../types";
 import {
   getClosestCurrentElement,
@@ -291,28 +292,7 @@ const normalizeContainer: ElementBehaviors<CheckListElement>["normalize"] = (
     });
     return true;
   }
-  try {
-    const prevNode = Editor.node(editor, Path.previous(path));
-    if (prevNode[0].type === "check-list") {
-      editor.withoutNormalizing(() => {
-        // 提起出 children，删除当前节点，设置上一个兄弟节点
-        const children = node.children;
-        Transforms.removeNodes(editor, { at: path });
-        Transforms.setNodes(
-          editor,
-          {
-            type: "check-list",
-            children: (prevNode as NodeEntry<CheckListElement>)[0].children.concat(children),
-          },
-          { at: Path.previous(path) }
-        );
-      });
-      return true;
-    }
-  } catch {
-    // 没有上一个兄弟节点，交给默认规范化
-  }
-  return false;
+  return mergeConsecutiveLists(editor, node, path);
 };
 
 /** 勾选项规范化：必须在 check-list 中、首子节点是段落、多余子节点拆分 */
