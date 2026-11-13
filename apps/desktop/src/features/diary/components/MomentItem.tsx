@@ -2,13 +2,12 @@
  * 一条碎碎念：时间 · （补记）· 正文 · 标签。
  *
  * 阅读态 / 编辑态分离（D-044，修 legacy 常驻编辑器误触即改）：默认用只读 Editor 渲染
- * （不建协作会话）；点正文才挂 ContentEditor（内容会话、
- * 协作照旧）——会话加载时显示 Loading，就绪后光标落在点击处；
+ * （不建协作会话）；点正文才挂 ContentEditor，保留阅读视图直到编辑器就绪，光标落在点击处；
  * 实时保存（节流落库、退出 / 卸载时补存），⌘↵ / Esc / 点流里别处退出，不设「完成」按钮。
  * 悬停操作（标签 / 更多）占固定槽位原位淡入，不顶开布局。
  */
 
-import { forwardRef, memo, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { Editor as SlateEditor, Transforms, type BasePoint, type Descendant } from "slate";
 import { ReactEditor } from "slate-react";
@@ -59,15 +58,18 @@ export const MomentItem = memo(function MomentItem({
   onDelete,
   onClearTag,
 }: MomentItemProps) {
-  const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<"reading" | "opening" | "editing">("reading");
+  const bodyRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<EditorRef | null>(null);
+  const editorRef = useRef<EditorRef | null>(null);
+  const caretRef = useRef<BasePoint | null>(null);
   const at = location?.moment === String(moment.id) ? location.at : undefined;
   useEffect(() => {
     const target = parseEntityLocation(at);
-    if (!target || editing) return;
+    if (!target) return;
     let markedElement: HTMLElement | null = null;
     const frame = requestAnimationFrame(() => {
-      const editor = readerRef.current?.getEditor();
+      const editor = (readerRef.current ?? editorRef.current)?.getEditor();
       if (!editor) return;
       const node = resolveLocationNode(editor.children, target);
       if (node) {
@@ -81,9 +83,15 @@ export const MomentItem = memo(function MomentItem({
       cancelAnimationFrame(frame);
       markedElement?.removeAttribute("data-content-location");
     };
-  }, [at, editing]);
-  /** 点进编辑时的落点（阅读态 Slate 坐标），编辑器就绪后把光标放回这里 */
-  const caretRef = useRef<BasePoint | null>(null);
+  }, [at]);
+  useLayoutEffect(() => {
+    if (mode !== "editing") return;
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === bodyRef.current)
+        placeCaret(editorRef.current, caretRef.current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mode]);
   const [flash, setFlash] = useState(fresh);
   const rootRef = useRef<HTMLElement>(null);
   const colorOf = (name: string): TagColor => tags.find(t => t.name === name)?.color ?? "gray";
@@ -113,13 +121,13 @@ export const MomentItem = memo(function MomentItem({
   };
   const exit = () => {
     saveNow();
-    setEditing(false);
+    setMode("reading");
   };
   useUnmount(saveNow);
 
   // 点流里别处退出编辑（浮层在流外的 portal 里，点它们不算离开）
   useEffect(() => {
-    if (!editing) return;
+    if (mode === "reading") return;
     const onDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (rootRef.current?.contains(target)) return;
@@ -129,7 +137,13 @@ export const MomentItem = memo(function MomentItem({
     return () => document.removeEventListener("mousedown", onDown);
     // exit 每次渲染新建但只读 ref，无需进依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing]);
+  }, [mode]);
+
+  const handleOpenError = (error: string) => {
+    if (mode !== "opening") return;
+    setMode("reading");
+    toast.error(`无法打开日记编辑器：${error}`);
+  };
 
   const backfill = isBackfill(moment);
 
@@ -139,7 +153,11 @@ export const MomentItem = memo(function MomentItem({
       data-moment={moment.id}
       className={cn(
         "group/moment ease-tau-out relative -mx-3.5 rounded-[12px] px-3.5 pb-3 pt-2.5 transition-[background] duration-[700ms]",
-        flash ? "bg-accent-soft duration-0" : editing ? "bg-transparent" : "hover:bg-hover"
+        flash
+          ? "bg-accent-soft duration-0"
+          : mode === "editing"
+            ? "bg-transparent"
+            : "hover:bg-hover"
       )}
     >
       {/* 与正文留 10px：编辑框外扩 4px + 焦点环 3px 后仍与时间 / 操作行隔开，阅读 ⇄ 编辑正文不动 */}
@@ -196,35 +214,61 @@ export const MomentItem = memo(function MomentItem({
         </div>
       </div>
 
-      {editing ? (
-        <div
-          // 负外边距抵消内边距：描边框外扩，正文位置与阅读态逐像素一致
-          className="bg-surface -mx-2 -my-1 rounded-[10px] px-2 py-1 shadow-[0_0_0_1px_var(--tau-accent),var(--tau-focus-ring)]"
-          onKeyDown={e => {
-            if ((e.key === "Enter" && (e.metaKey || e.ctrlKey)) || e.key === "Escape") {
-              e.preventDefault();
-              e.stopPropagation();
-              exit();
-            }
-          }}
-        >
-          <MomentEditor moment={moment} at={at} caret={caretRef} onChange={save} />
-        </div>
-      ) : (
-        <div
-          className="cursor-text"
-          onClick={e => {
-            // 链接 / 图片等交互元素不抢进编辑
-            if ((e.target as HTMLElement).closest("a,img,video,button")) return;
-            const selection = getSelection();
-            if (selection?.toString()) return;
-            caretRef.current = readerCaret(readerRef.current, selection);
-            setEditing(true);
-          }}
-        >
-          <MomentReader ref={readerRef} content={moment.content} revision={moment.updateTime} />
-        </div>
-      )}
+      <div
+        ref={bodyRef}
+        tabIndex={-1}
+        aria-busy={mode === "opening" || undefined}
+        className="relative outline-none"
+        onKeyDown={e => {
+          if (mode === "reading" || e.nativeEvent.isComposing) return;
+          if ((e.key === "Enter" && (e.metaKey || e.ctrlKey)) || e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            exit();
+          }
+        }}
+      >
+        {mode !== "editing" && (
+          <div
+            className="cursor-text"
+            onClick={e => {
+              if (mode !== "reading" || (e.target as HTMLElement).closest("a,img,video,button"))
+                return;
+              const selection = getSelection();
+              if (selection?.toString()) return;
+              caretRef.current = readerCaret(readerRef.current, selection);
+              bodyRef.current?.focus({ preventScroll: true });
+              setMode("opening");
+            }}
+          >
+            <MomentReader ref={readerRef} content={moment.content} revision={moment.updateTime} />
+          </div>
+        )}
+        {mode !== "reading" && (
+          <div
+            inert={mode === "opening"}
+            className={cn(
+              "bg-surface -mx-2 -my-1 rounded-[10px] px-2 py-1 shadow-[0_0_0_1px_var(--tau-accent),var(--tau-focus-ring)]",
+              // 会话准备时阅读视图撑开行高，编辑器就绪后原位接替。
+              mode === "opening" && "invisible absolute inset-x-0 top-0 h-0 overflow-clip"
+            )}
+          >
+            <ErrorBoundary onError={error => handleOpenError(error.message)}>
+              <ContentEditor
+                ref={editorRef}
+                contentId={moment.contentId}
+                readonly={false}
+                onInit={() => setMode(current => (current === "opening" ? "editing" : current))}
+                onLoadError={handleOpenError}
+                onChange={save}
+                source={{ sourceType: "content", sourceId: moment.contentId }}
+                editingContext={{ entityType: "diary-moment", entityId: moment.id }}
+                className={EDITOR_CLASS}
+              />
+            </ErrorBoundary>
+          </div>
+        )}
+      </div>
 
       {moment.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -274,38 +318,6 @@ const MomentReader = forwardRef<EditorRef, { content: Descendant[]; revision: nu
     );
   }
 );
-
-function MomentEditor({
-  moment,
-  at,
-  caret,
-  onChange,
-}: {
-  moment: DiaryMoment;
-  at?: string;
-  caret: React.RefObject<BasePoint | null>;
-  onChange: (content: Descendant[]) => void;
-}) {
-  const editorRef = useRef<EditorRef | null>(null);
-  // initValue 只在挂载时生效：编辑期间缓存回写不重建
-  const initValue = useMemo(() => moment.content, [moment.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <ErrorBoundary>
-      <ContentEditor
-        at={at}
-        ref={editorRef}
-        contentId={moment.contentId}
-        initValue={initValue}
-        readonly={false}
-        onInit={() => requestAnimationFrame(() => placeCaret(editorRef.current, caret.current))}
-        onChange={onChange}
-        source={{ sourceType: "content", sourceId: moment.contentId }}
-        editingContext={{ entityType: "diary-moment", entityId: moment.id }}
-        className={EDITOR_CLASS}
-      />
-    </ErrorBoundary>
-  );
-}
 
 /** 光标放回点击处；落点失效（协作内容已与阅读态不同）则退回末尾 */
 function placeCaret(ref: EditorRef | null, point: BasePoint | null) {
