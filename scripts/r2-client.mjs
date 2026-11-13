@@ -53,16 +53,20 @@ export function createR2Client() {
         throw error;
       }
     },
-    async putFile(key, filePath, cacheControl) {
+    async putFile(key, filePath, cacheControl, onProgress) {
       const body = createReadStream(filePath);
       try {
-        // 分段使用可重试的缓冲区，避免连接中断后重传整个文件。
-        await new Upload({
+        // 分段使用可重试的缓冲区，避免连接中断后重传整个文件；queueSize>1 让分片并发上传。
+        const upload = new Upload({
           client,
           params: putParams(key, body, cacheControl),
           partSize: 8 * 1024 * 1024,
-          queueSize: 1,
-        }).done();
+          queueSize: 4,
+        });
+        if (onProgress) {
+          upload.on("httpUploadProgress", ({ loaded, total }) => onProgress(loaded, total));
+        }
+        await upload.done();
       } finally {
         body.destroy();
       }
