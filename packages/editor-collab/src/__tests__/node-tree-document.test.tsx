@@ -1,13 +1,18 @@
 import { act } from "react";
+import { webcrypto } from "node:crypto";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Editor as SlateEditor, Transforms } from "slate";
+import { Editor as SlateEditor, Node, Transforms } from "slate";
 import { Editor, createEditorKit } from "@tau/editor";
 import { defineElement, defineExtension } from "@tau/editor/api";
-import { NodeTree } from "@tau/collaboration";
+import underline, { unwrapUnderline, wrapUnderline } from "@tau/editor/extensions/underline";
+import styledText, { unwrapStyledText, wrapStyledText } from "@tau/editor/extensions/styled-text";
+import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
+import { NodeTree, validateNodeTree } from "@tau/collaboration";
+import { ElementContractCatalog } from "../../../plugins/src/editor-contracts";
 import { createNodeTreeDocument } from "../nodeTreeDocument";
 import type { NodeTreeEditor } from "../withNodeTree";
 
@@ -83,6 +88,131 @@ describe("稳定节点文档与真实编辑器", () => {
       }
     }
   );
+
+  it.each([
+    ["underline", wrapUnderline, unwrapUnderline],
+    ["styled-text", wrapStyledText, unwrapStyledText],
+  ] as const)("%s 包裹和取消选区格式时保留文字、标记和撤销历史", async (type, wrap, unwrap) => {
+    const kit = createEditorKit({ extensions: [underline, styledText, textFormattingExtension] });
+    const tree = new NodeTree(new Y.Doc());
+    const remote = new NodeTree(new Y.Doc());
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let editor: NodeTreeEditor;
+    vi.stubGlobal("crypto", webcrypto);
+    Object.defineProperties(Range.prototype, {
+      getBoundingClientRect: { configurable: true, value: () => new DOMRect() },
+      getClientRects: { configurable: true, value: () => [] },
+    });
+    try {
+      const catalog = await ElementContractCatalog.prepare(
+        kit.extensions.map(extension => ({
+          owner: extension.id,
+          elements: extension.elements ?? [],
+        }))
+      );
+      await tree.installContracts(catalog.dictionary, null);
+      const paragraph = catalog.current("paragraph");
+      if (!paragraph) throw new Error("缺少段落契约");
+      tree.insertNode(
+        {
+          type: "paragraph",
+          collabId: "paragraph",
+          tauContract: paragraph.id,
+          children: [{ type: "formatted", text: "甲乙丙丁", bold: true }],
+        },
+        null,
+        0,
+        null,
+        true
+      );
+      Y.applyUpdate(remote.doc, Y.encodeStateAsUpdate(tree.doc));
+      const source = createNodeTreeDocument(tree, { versions: catalog });
+      await act(async () =>
+        root.render(
+          <DndProvider backend={HTML5Backend}>
+            <Editor
+              kit={kit}
+              document={source}
+              readonly={false}
+              onInit={value => (editor = value as NodeTreeEditor)}
+            />
+          </DndProvider>
+        )
+      );
+      await act(async () => {
+        Transforms.select(editor, {
+          anchor: { path: [0, 0], offset: 1 },
+          focus: { path: [0, 0], offset: 3 },
+        });
+        wrap(editor);
+      });
+      const wrapped = tree.read();
+      expect(wrapped[0].children).toMatchObject([
+        { text: "甲", bold: true },
+        { type, children: [{ text: "乙丙", bold: true }] },
+        { text: "丁", bold: true },
+      ]);
+      expect(editor.children).toEqual(wrapped);
+      await validateNodeTree(tree.doc, "content", remote.doc);
+      remote.insertText("paragraph", 2, "新", null, { type: "formatted", bold: true });
+      await act(async () => Y.applyUpdate(tree.doc, Y.encodeStateAsUpdate(remote.doc)));
+      Y.applyUpdate(remote.doc, Y.encodeStateAsUpdate(tree.doc));
+      expect(remote.read()).toEqual(tree.read());
+      expect(tree.read()[0].children?.[1].children?.[0].text).toBe("乙新丙");
+      const wrappedWithRemoteEdit = tree.read();
+      await act(async () => editor.undo());
+      expect(tree.read()[0].children).toMatchObject([{ text: "甲乙新丙丁", bold: true }]);
+      await act(async () => editor.redo());
+      expect(tree.read()).toEqual(wrappedWithRemoteEdit);
+
+      editor.undoManager.stopCapturing();
+      await act(async () => {
+        Transforms.select(editor, SlateEditor.range(editor, [0, 1]));
+        expect(editor.commands?.execute("tau.mark.code", { source: "toolbar" })).toBe(true);
+      });
+      expect(tree.read()[0].children?.[1]).toMatchObject({
+        type,
+        children: [{ text: "乙新丙", bold: true, code: true }],
+      });
+      await act(async () => editor.undo());
+      expect(tree.read()).toEqual(wrappedWithRemoteEdit);
+
+      editor.undoManager.stopCapturing();
+      await act(async () => {
+        Transforms.select(editor, SlateEditor.range(editor, [0, 1]));
+        unwrap(editor);
+      });
+      const unwrapped = tree.read();
+      expect(unwrapped[0].children).toMatchObject([{ text: "甲乙新丙丁", bold: true }]);
+      expect(editor.children).toEqual(unwrapped);
+      await act(async () => editor.undo());
+      expect(tree.read()).toEqual(wrappedWithRemoteEdit);
+      await act(async () => editor.redo());
+      expect(tree.read()).toEqual(unwrapped);
+
+      await act(async () => {
+        Transforms.select(editor, {
+          anchor: { path: [0, 0], offset: 1 },
+          focus: { path: [0, 0], offset: 4 },
+        });
+        expect(editor.commands?.execute("tau.mark.code", { source: "toolbar" })).toBe(true);
+      });
+      expect(tree.read()[0].children).toMatchObject([
+        { text: "甲", bold: true },
+        { text: "乙新丙", bold: true, code: true },
+        { text: "丁", bold: true },
+      ]);
+      expect(Node.string(editor)).toBe("甲乙新丙丁");
+    } finally {
+      await act(async () => root.unmount());
+      tree.doc.destroy();
+      remote.doc.destroy();
+      container.remove();
+      vi.unstubAllGlobals();
+    }
+  });
 
   it("两个视图共享内容，移动和输入同步，撤销只属于本地视图", async () => {
     const tree = new NodeTree(new Y.Doc());

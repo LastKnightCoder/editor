@@ -1083,6 +1083,58 @@ export class NodeTree {
     }, origin);
   }
 
+  /** 目标偏移以移除源文字后的内容为准。 */
+  moveText(
+    source: string,
+    start: number,
+    target: string,
+    index: number,
+    length: number,
+    origin: unknown
+  ): void {
+    if (!length || (source === target && start === index)) return;
+    this.textRanges(source, start, length);
+    const destination = source === target && index > start ? index + length : index;
+    this.physicalOffset(target, destination);
+    const cut = (parent: string, offset: number, transaction: Y.Transaction) => {
+      const at = this.textLocation(parent, offset);
+      const segment = this.segments.list(parent).find(piece => piece.id === at.segment);
+      if (!segment) throw new Error("移动位置缺少正文片段");
+      return this.segments.cut(segment, at.offset, transaction);
+    };
+    this.doc.transact(transaction => {
+      const end = cut(source, start + length, transaction);
+      const first = cut(source, start, transaction);
+      const after = cut(target, destination, transaction);
+      const sourcePieces = this.segments.list(source).map(piece => piece.id);
+      const firstIndex = sourcePieces.indexOf(first);
+      const endIndex = sourcePieces.indexOf(end);
+      const moved = sourcePieces.slice(firstIndex, endIndex);
+      if (source === target) {
+        const afterIndex = sourcePieces.indexOf(after);
+        const reordered =
+          index > start
+            ? [
+                ...sourcePieces.slice(endIndex, afterIndex),
+                ...moved,
+                ...sourcePieces.slice(afterIndex),
+              ]
+            : [
+                ...moved,
+                ...sourcePieces.slice(afterIndex, firstIndex),
+                ...sourcePieces.slice(endIndex),
+              ];
+        this.segments.move(reordered, target);
+      } else {
+        const targetPieces = this.segments.list(target).map(piece => piece.id);
+        // 末端分界继承被移走的片段，需要显式保留源节点的后缀。
+        this.segments.move(sourcePieces.slice(endIndex), source);
+        this.segments.move([...moved, ...targetPieces.slice(targetPieces.indexOf(after))], target);
+      }
+      this.invalidate({ structural: true, nodes: new Set() });
+    }, origin);
+  }
+
   formatText(
     id: string,
     index: number,
