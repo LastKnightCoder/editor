@@ -92,6 +92,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 - 新建正文：`createContent`、`createCard`、`createArticle` 等新建命令内部经 `prepareNewContent` 补齐。
 - 整篇替换已有正文：`replaceContent(contentId, { markdown } | { nodes })`，内部按契约解析、补齐身份与契约并带修订写入。不要把 `importFromMarkdown` 的结果直接交给 `updateContent`——主进程只校验不补齐，会以「正文节点身份或子树无效」拒绝。
 - 编辑器内编辑与粘贴：编辑器在插入时自动补齐。
+- 块手柄跨文档移动通过正文会话确认目标写入后才删除源块。契约与资源校验见[协作架构](/docs/architecture/collaboration.md#文档与持久化)。
 - 只读预览（`markdownToContent` 等）的结果不带身份与契约，不能写回。
 
 AI 正文写入口为 `apply_content_edit_operations`。局部提案以带库与正文身份的读取快照解析定位器，每处改动生成一条带稳定锚点、预期内容与可选理由（操作的 `reason`）的建议；预览 Markdown 不作写入候选。建议记录存于主进程协作缓存 `content_suggestions`（`src-electron/main/modules/collaboration/content-suggestions.ts`），经 `content:suggestions*` 命令列出、接受、退回、替换、撤销与作答：状态迁移为带前置状态的条件更新，不同窗口同时处理同一对话建议时先到先得；接受时每条以自身 ID 作为范围操作身份单独提交，原文变化只让该条过期，未确认的保持 applying，原对话可以按原身份确认或恢复；撤销倒序提交逆操作。主进程在正文落地后（停顿 400ms）与会话恢复时按当前正文核对待处理建议与锚定提问，正文换代、锚点解析不到或原文前提不符即转为过期（`ContentSuggestionService.validate`）。任何变化广播 `content-suggestions:changed`，渲染端 `suggestion-queries.ts` 按库失效重读，正文打开、关闭或在其他窗口打开都从同一记录投影。本机会话在原增量队列内耐久提交，已共享正文向协作服务提交范围操作。全文替换仍走整篇提案与检查点。共享端协议见[实时协作](/docs/architecture/collaboration.md)。

@@ -213,6 +213,7 @@ export default function useCollaborationDocument(documentId?: string) {
         activeBinding = {
           prepareFragment: (sourceId, content, contracts) =>
             collaborationCommands.prepareFragment.call(viewId, sourceId, content, contracts),
+          flushFragmentWrites: sendUpdates,
           nodeViews: {
             read: nodeId => snapshot.nodeViews?.[nodeId],
             write: async (nodeId, patch) => {

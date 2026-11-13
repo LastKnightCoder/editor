@@ -25,6 +25,9 @@ import {
   setElementVersionResolver,
   captureEditorSubmission,
   notifierOf,
+  CONTENT_FRAGMENT_MIME,
+  readContentFragment,
+  setContentFragmentTransfer,
   type ElementVersionResolver,
 } from "@tau/editor/api";
 import {
@@ -39,6 +42,7 @@ import { findNodePath, nodeIdentity, projectNodeTree } from "./nodeTreeProjectio
 export interface NodeTreeEditorConfiguration {
   clipboardDocumentId?: string;
   prepareFragment?: import("./types").ContentCollaborationBinding["prepareFragment"];
+  flushFragmentWrites?: () => Promise<void>;
   preserveInputDraft?: (nodeId: string, field: string, snapshot: TextFieldSnapshot) => void;
   history?: NodeTreeHistory;
   mutate?: (write: (target: NodeTree) => void, origin: object) => void;
@@ -127,68 +131,86 @@ export function withNodeTree<T extends Editor>(
     return true;
   };
   editor.configureNodeTree(configuration);
-  const setFragmentData = editor.setFragmentData;
-  const insertData = editor.insertData;
-  if (setFragmentData && insertData) {
-    const mime = "application/x-tau-content";
-    editor.setFragmentData = (data, event) => {
-      setFragmentData(data, event);
-      const content = editor.getFragment();
+  const sourceDocumentId = () =>
+    configuration.clipboardDocumentId ??
+    String(tree.doc.getMap("meta").get("documentId") ?? tree.doc.guid);
+  const transfer = {
+    documentKey: () => JSON.stringify([sourceDocumentId(), tree.rootId]),
+    flushInputs: () => editor.flushNodeTreeInputs(),
+    serialize(content: readonly Node[]) {
       const contracts: Record<string, ContentContractDictionary[string]> = {};
-      const collect = (nodes: Descendant[]) => {
+      const collect = (nodes: readonly Node[]) => {
         for (const node of nodes)
           if (Element.isElement(node)) {
             const id = (node as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
-            if (typeof id === "string" && tree.contracts.get(id))
-              contracts[id] = tree.contracts.get(id)!;
+            const contract = typeof id === "string" ? tree.contracts.get(id) : undefined;
+            if (typeof id === "string" && contract) contracts[id] = contract;
             collect(node.children);
           }
       };
       collect(content);
-      data.setData(
-        mime,
-        JSON.stringify({
-          format: 2,
-          sourceDocumentId:
-            configuration.clipboardDocumentId ??
-            tree.doc.getMap("meta").get("documentId") ??
-            tree.doc.guid,
-          content,
-          contracts,
-        })
+      return JSON.stringify({
+        format: 2,
+        sourceDocumentId: sourceDocumentId(),
+        content,
+        contracts,
+      });
+    },
+    async prepare(encoded: string, signal?: AbortSignal): Promise<Descendant[] | undefined> {
+      const current = configuration;
+      const writable = () =>
+        connected &&
+        !disposed &&
+        !signal?.aborted &&
+        configuration === current &&
+        !current.readonly &&
+        current.canWrite?.() !== false;
+      if (!writable()) return;
+      if (new TextEncoder().encode(encoded).length > 8 * 1024 * 1024)
+        throw new Error("片段内容超过容量");
+      const payload = JSON.parse(encoded);
+      if (payload.format !== 2 || !Array.isArray(payload.content))
+        throw new Error("片段内容格式无效");
+      const contracts = await validateContentContracts(payload.contracts);
+      let content = payload.content.map((node: Descendant) =>
+        withIdentities(node, current.currentContract)
       );
+      const candidate = await createNodeDocument(
+        { documentId: "clipboard", baselineId: "clipboard", epoch: 0 },
+        { title: "", bannerBg: "", bannerPosition: "center", content },
+        { ...tree.contracts.toJSON(), ...contracts },
+        { allowLocalResources: true }
+      );
+      candidate.destroy();
+      if (!writable()) return;
+      if (current.prepareFragment)
+        content = await current.prepareFragment(
+          String(payload.sourceDocumentId ?? ""),
+          content,
+          contracts
+        );
+      if (!writable()) return;
+      await tree.installContracts(contracts, null);
+      if (writable()) return content;
+    },
+    flushWrites: () => configuration.flushFragmentWrites?.(),
+  };
+  setContentFragmentTransfer(editor, transfer);
+  const setFragmentData = editor.setFragmentData;
+  const insertData = editor.insertData;
+  if (setFragmentData && insertData) {
+    editor.setFragmentData = (data, event) => {
+      setFragmentData(data, event);
+      data.setData(CONTENT_FRAGMENT_MIME, transfer.serialize(editor.getFragment()));
     };
     editor.insertData = async data => {
-      const encoded = data.getData(mime);
+      const encoded = readContentFragment(data);
       if (!encoded) return insertData(data);
       const submission = captureEditorSubmission(editor);
       const selection = editor.selection && Editor.rangeRef(editor, editor.selection);
       try {
-        if (new TextEncoder().encode(encoded).length > 8 * 1024 * 1024)
-          throw new Error("粘贴内容超过容量");
-        const payload = JSON.parse(encoded);
-        if (payload.format !== 2 || !Array.isArray(payload.content))
-          throw new Error("粘贴内容格式无效");
-        const contracts = await validateContentContracts(payload.contracts);
-        let content = payload.content.map((node: Descendant) =>
-          withIdentities(node, configuration.currentContract)
-        );
-        const candidate = await createNodeDocument(
-          { documentId: "clipboard", baselineId: "clipboard", epoch: 0 },
-          { title: "", bannerBg: "", bannerPosition: "center", content },
-          { ...tree.contracts.toJSON(), ...contracts },
-          { allowLocalResources: true }
-        );
-        candidate.destroy();
-        if (configuration.prepareFragment)
-          content = await configuration.prepareFragment(
-            String(payload.sourceDocumentId ?? ""),
-            content,
-            contracts
-          );
-        if (disposed || !connected || submission.check() || !selection?.current) return;
-        await tree.installContracts(contracts, null);
-        if (disposed || !connected || !selection.current) return;
+        const content = await transfer.prepare(encoded, submission.signal);
+        if (!content || !selection?.current) return;
         submission.commit(() => {
           if (!selection.current) return;
           Transforms.select(editor, selection.current);
@@ -210,8 +232,12 @@ export function withNodeTree<T extends Editor>(
   const normalizeNode = editor.normalizeNode;
   editor.isInline = element => {
     if (!configuration.resolveVersion) return isInline(element);
-    const id = nodeIdentity(element);
-    return id ? tree.contract(id)?.kind === "inline" : isInline(element);
+    // Slate 在片段节点写入节点池前就需要判定其行内语义。
+    const id = (element as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
+    const contract = typeof id === "string" ? tree.contracts.get(id) : undefined;
+    return contract?.domain === "editor-node" && contract.type === element.type
+      ? contract.kind === "inline"
+      : isInline(element);
   };
   editor.isVoid = element => {
     if (!configuration.resolveVersion) return isVoid(element);

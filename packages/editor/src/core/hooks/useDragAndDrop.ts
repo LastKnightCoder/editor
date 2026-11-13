@@ -5,6 +5,11 @@ import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import type { DropTargetMonitor, XYCoord } from "react-dnd";
 import { findPathSafely, getNodeAtPathSafely } from "../utils/path";
 import type { ElementDragSpec } from "../api/drag";
+import { contentFragmentTransferOf } from "../api/clipboardFragment";
+import { captureElementSubmission } from "../api/submission";
+import { notifierOf } from "../services/editorNotifier";
+import { getCommandElementPath } from "../utils/commandTarget";
+import { submissionScopeSignal } from "../kit/submissionScope";
 
 /**
  * 块级拖拽的内核实现（01 §5.4 拖拽声明化）：只给 BlockDragHost 用，
@@ -25,6 +30,95 @@ interface IDragItem {
   sourceEditor: Editor;
   dragPath: Path;
   dragElementSnapshot: Element;
+}
+
+const pendingMoves = new WeakSet<Element>();
+
+async function moveBetweenEditors(
+  item: IDragItem,
+  editor: Editor,
+  targetElement: Element,
+  targetPath: Path,
+  before: boolean
+): Promise<void> {
+  const { sourceEditor, dragPath, dragElementSnapshot } = item;
+  if (pendingMoves.has(dragElementSnapshot)) return;
+  const from = contentFragmentTransferOf(sourceEditor);
+  const to = contentFragmentTransferOf(editor);
+  if (from && !to) return;
+  const sourcePath = getCommandElementPath(sourceEditor, {
+    element: dragElementSnapshot,
+    path: dragPath,
+  });
+  if (!sourcePath) return;
+  const sourceRef = Editor.pathRef(sourceEditor, sourcePath);
+  let blockPath: Path | null;
+  try {
+    from?.flushInputs();
+  } catch (error) {
+    notifierOf(editor).error(error instanceof Error ? error.message : "源块输入尚未保存");
+    return;
+  } finally {
+    blockPath = sourceRef.unref();
+  }
+  const block = blockPath && getNodeAtPathSafely(sourceEditor, blockPath);
+  if (
+    !Element.isElement(block) ||
+    block.type !== dragElementSnapshot.type ||
+    pendingMoves.has(block)
+  )
+    return;
+  const source = captureElementSubmission(sourceEditor, {
+    element: block,
+    path: blockPath ?? undefined,
+  });
+  const target = captureElementSubmission(editor, {
+    element: targetElement,
+    path: targetPath,
+    signal: source.signal,
+  });
+  const targetScope = submissionScopeSignal(editor);
+  pendingMoves.add(block);
+  let inserted: ReturnType<typeof Editor.pathRef> | undefined;
+  try {
+    if (source.check() || target.check()) return;
+    if (from && to) await from.flushWrites?.();
+    if (source.check() || target.check()) return;
+    const fragment =
+      from && to
+        ? await to.prepare(from.serialize([block]), target.signal)
+        : [structuredClone(block)];
+    if (fragment?.length !== 1 || source.check()) return;
+    const result = target.commit(({ path }) => {
+      const at = before ? path : Path.next(path);
+      const previous = getNodeAtPathSafely(editor, at);
+      Editor.withoutNormalizing(editor, () => {
+        Transforms.insertNodes(editor, fragment, { at });
+        const node = getNodeAtPathSafely(editor, at);
+        if (Element.isElement(node) && node !== previous && node.type === fragment[0].type)
+          inserted = Editor.pathRef(editor, at);
+      });
+      return undefined;
+    });
+    if (result.status === "discarded") return;
+    if (!inserted?.current) throw new Error("目标未插入该块，源块已保留");
+    const confirmation = to?.flushWrites?.();
+    if (confirmation) await confirmation;
+    if (!inserted.current || targetScope?.aborted) throw new Error("目标块已失效，源块已保留");
+    const removed = source.commit(({ path }) => {
+      Transforms.removeNodes(sourceEditor, { at: path });
+      return undefined;
+    });
+    if (removed.status === "discarded")
+      notifierOf(editor).warning("源块已变化或不可编辑，目标已保留副本");
+  } catch (error) {
+    notifierOf(editor).error(error instanceof Error ? error.message : "移动失败，源块已保留");
+  } finally {
+    inserted?.unref();
+    source.dispose();
+    target.dispose();
+    pendingMoves.delete(block);
+  }
 }
 
 const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: boolean) => {
@@ -188,6 +282,11 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       }
       if (!ancestorsAllowChildren(editor, dragSpecs, dropPath)) return false;
       const dragEditor = item.sourceEditor;
+      if (editor !== dragEditor) {
+        const from = contentFragmentTransferOf(dragEditor);
+        const to = contentFragmentTransferOf(editor);
+        if (from && (!to || from.documentKey() === to.documentKey())) return false;
+      }
 
       // 放置谓词沿祖先链求值（如勾选项只接受同类落进来）
       if (!ancestorsAccept(editor, dragSpecs, dropPath, item.dragElementSnapshot)) {
@@ -196,7 +295,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
       const dragPath = item.dragPath;
       const dragElement = item.dragElementSnapshot;
-      if (editor.isBlock(dragElement) && editor.isBlock(element)) {
+      if (dragEditor.isBlock(dragElement) && editor.isBlock(element)) {
         return editor !== dragEditor || !Path.equals(dragPath, dropPath);
       }
       return false;
@@ -232,29 +331,16 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         }
 
         const dragEditor = item.sourceEditor;
-        const dragElement = item.dragElementSnapshot;
-        const dragPathRef = Editor.pathRef(dragEditor, item.dragPath);
-        const dragPath = dragPathRef.current;
-        if (!dragPath || !Node.has(dragEditor, dragPath)) {
-          dragPathRef.unref();
-          return;
-        }
-
         if (editor !== dragEditor) {
-          const currentDragElement =
-            (getNodeAtPathSafely(dragEditor, dragPath) as Element | undefined) ?? dragElement;
-          Transforms.removeNodes(dragEditor, {
-            at: dragPath,
-          });
-          dragPathRef.unref();
-          Transforms.insertNodes(editor, currentDragElement, {
-            at: before ? dropPath : Path.next(dropPath),
-          });
+          void moveBetweenEditors(item, editor, element, dropPath, before);
           return;
         }
 
-        moveNode(editor, dragPath, dropPath, before);
-        dragPathRef.unref();
+        const dragPath = getCommandElementPath(dragEditor, {
+          element: item.dragElementSnapshot,
+          path: item.dragPath,
+        });
+        if (dragPath) moveNode(editor, dragPath, dropPath, before);
       } catch (e) {
         console.error(e);
       }

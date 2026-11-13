@@ -9,6 +9,8 @@ export interface ContentCollaborationBinding {
     content: ContentNode[],
     contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
   ) => Promise<ContentNode[]>;
+  /** 跨文档移动使用宿主持久会话确认源与目标的待提交写入。 */
+  flushFragmentWrites?: () => Promise<void>;
   nodeViews?: import("@tau/editor/source-contracts").EditorNodeViews;
   preserveInputDraft?: (nodeId: string, field: string, draft: TextFieldSnapshot) => void;
   mode?: "local" | "shared";

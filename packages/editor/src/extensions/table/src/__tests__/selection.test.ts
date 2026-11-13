@@ -114,14 +114,17 @@ describe("格选区", () => {
     ]);
   });
 
-  it("复制格选区得到子表与 TSV，保留对应列对齐", () => {
+  it("复制格选区得到子表与 TSV，保留原契约和对应列对齐", () => {
     const editor = setup([
-      grid(
-        [
-          ["名称", "备注"],
-          ["a", 'say "hi"\tok'],
-        ],
-        { align: [null, "center"] }
+      Object.assign(
+        grid(
+          [
+            ["名称", "备注"],
+            ["a", 'say "hi"\tok'],
+          ],
+          { align: [null, "center"] }
+        ),
+        { tauContract: "table-contract" }
       ),
     ]);
     Transforms.select(editor, {
@@ -130,6 +133,7 @@ describe("格选区", () => {
     });
     const fragment = editor.getFragment() as TableElement[];
     expect(fragment).toHaveLength(1);
+    expect(fragment[0]).toHaveProperty("tauContract", "table-contract");
     expect(fragment[0].align).toEqual(["center"]);
     expect(fragment[0].children.map(row => row.children.length)).toEqual([1, 1]);
     const selection = getCellSelection(editor);

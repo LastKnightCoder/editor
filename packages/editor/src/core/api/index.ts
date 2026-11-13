@@ -110,6 +110,11 @@ export {
 } from "../utils/blockNavigation";
 export { isCollapsed, getCurrentTextNode } from "../utils/editor";
 export { copyNodeToClipboard, deleteVoidBlock } from "../utils/nodeOperations";
+export {
+  CONTENT_FRAGMENT_MIME,
+  readContentFragment,
+  setContentFragmentTransfer,
+} from "./clipboardFragment";
 export { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "../utils/selectionSnapshot";
 
 export { createParagraph, isParagraphElement, type ParagraphElement } from "../model/paragraph";

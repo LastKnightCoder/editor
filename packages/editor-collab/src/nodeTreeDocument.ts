@@ -22,6 +22,7 @@ import { NodeTreeCursors } from "./NodeTreeCursors";
 export interface NodeTreeDocumentOptions {
   clipboardDocumentId?: string;
   prepareFragment?: ContentCollaborationBinding["prepareFragment"];
+  flushFragmentWrites?: () => Promise<void>;
   preserveInputDraft?: (nodeId: string, field: string, snapshot: TextFieldSnapshot) => void;
   collaboration?: ContentCollaborationBinding;
   cursors?: boolean;
@@ -54,6 +55,7 @@ export function createNodeTreeDocument(
   const configuration = {
     clipboardDocumentId: options.clipboardDocumentId,
     prepareFragment: options.prepareFragment ?? options.collaboration?.prepareFragment,
+    flushFragmentWrites: options.flushFragmentWrites ?? options.collaboration?.flushFragmentWrites,
     preserveInputDraft: options.preserveInputDraft ?? options.collaboration?.preserveInputDraft,
     history: options.history,
     mutate: options.mutate,

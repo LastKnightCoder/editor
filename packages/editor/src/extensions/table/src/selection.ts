@@ -108,9 +108,10 @@ export function deleteCellSelection(editor: Editor, selection: CellSelection) {
 /** 选区矩形对应的子表（复制用），保留对应列的对齐；合并跨度截到矩形内 */
 export function extractSubTable(editor: Editor, selection: CellSelection): TableElement {
   const table = getTableAt(editor, selection.tablePath) as TableElement;
+  const { align: sourceAlign, ...properties } = table;
   const map = buildCoverMap(table);
   const cols = (cells: readonly unknown[]) => cells.slice(selection.colStart, selection.colEnd + 1);
-  const align = table.align ? (cols(table.align) as TableElement["align"]) : undefined;
+  const align = sourceAlign ? (cols(sourceAlign) as TableElement["align"]) : undefined;
   const clampSpan = (cell: TableCellElement, row: number, col: number): TableCellElement => {
     const result: TableCellElement = { ...cell };
     delete result.rowSpan;
@@ -124,7 +125,7 @@ export function extractSubTable(editor: Editor, selection: CellSelection): Table
     return result;
   };
   return structuredClone({
-    type: "table",
+    ...properties,
     children: table.children.slice(selection.rowStart, selection.rowEnd + 1).map((row, i) => ({
       ...row,
       children: (cols(row.children) as TableCellElement[]).map((cell, j) =>
