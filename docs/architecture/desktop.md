@@ -364,6 +364,8 @@ FadeScroll、可拖宽侧栏、If、ErrorBoundary、PortalToBody 和编辑目标
 
 **日记正文身份与搜索**：EntityKind、EntityRefKind 与 ContentIndexType 均使用 `diary-moment`，id 为 `diary_segments.id`，界面类型 label 仍为「日记」；`diary_entries` 仅承载日期、天气心情与分组，不能作为正文搜索结果。实体候选、FTS 回退与全文/向量索引、内容链接、白板引用和脉络均落在同一条正文；`entity:locate` 返回片段 id + diaryId/date，`openEntity` 通过 date + moment + at 精确回跳。日记页的搜索命中集合使用片段 id。新增或删除片段及正文编辑继续触发现有索引对账。旧日级引用不再自动改写。
 
+日记列表点正文后，当前只读视图继续撑开条目，正文编辑器在布局外准备会话。编辑器就绪后原位接替，并在焦点仍留在条目时恢复点击处的光标；取消或打开失败时保留阅读视图，失败以 Toast 提示。外部定位触发正文高亮，进入或退出编辑不重复定位。
+
 ### 2.1 公共 UI
 
 日记页搜索走 react-query（`["diary", "search", 关键字]`，300ms 防抖），日记变更失效同域查询；结果按片段 id 筛选，旧关键字的迟到响应不能覆盖当前查询。
