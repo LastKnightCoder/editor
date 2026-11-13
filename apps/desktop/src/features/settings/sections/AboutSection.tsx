@@ -152,17 +152,16 @@ export function AboutSection() {
         )}
       </SettingsGroup>
 
-      {/* 内置字体为 SIL OFL-1.1，许可要求随软件保留版权与许可声明（原文随安装包附在字体目录） */}
-      <SettingsGroup title="开源字体">
-        {BUNDLED_FONTS.map(font => (
-          <SettingRow key={font.name} title={font.name} description={font.credit}>
+      <SettingsGroup title="更多">
+        {APP_LINKS.map(link => (
+          <SettingRow key={link.url} title={link.label} description={link.detail}>
             <Button
               variant="ghost"
               size="sm"
               icon={ExternalLink}
-              onClick={() => openExternal(font.url)}
+              onClick={() => openExternal(link.url)}
             >
-              SIL OFL 1.1
+              打开
             </Button>
           </SettingRow>
         ))}
@@ -171,19 +170,12 @@ export function AboutSection() {
   );
 }
 
-/** 白板手绘模式的内置字体（D-107） */
-const BUNDLED_FONTS = [
-  {
-    name: "Shantell Sans",
-    credit: "白板手绘模式的英文字体 · © 2022 The Shantell Sans Project Authors",
-    url: "https://github.com/arrowtype/shantell-sans",
-  },
-  {
-    name: "小赖字体 Xiaolai SC",
-    credit: "白板手绘模式的中文字体 · © 2020-2024 LXGW，© 2014 Nozomi Seto",
-    url: "https://github.com/lxgw/kose-font",
-  },
-];
+/** 关于页底部外链，与移动端 AboutSection 的 LINKS 保持一致 */
+const APP_LINKS = [
+  { label: "官网", detail: "taunote.app", url: "https://taunote.app" },
+  { label: "使用文档", detail: "功能说明与常见问题", url: "https://taunote.app/docs/" },
+  { label: "源代码", detail: "GitHub", url: "https://github.com/LastKnightCoder/editor" },
+] as const;
 
 function UpdateChip({
   status,
