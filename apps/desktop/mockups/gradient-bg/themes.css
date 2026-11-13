@@ -1,0 +1,267 @@
+/* 渐变背景样板间 · 主题底色（取值同 packages/themes 各主题）与每主题的渐变色板 g1–g4 */
+[data-theme="paper"][data-mode="light"] {
+  --page: #f3eee2;
+  --surface: #fffdf9;
+  --ink-1: #43392c;
+  --ink-2: #6a5c49;
+  --ink-3: #a89a85;
+  --line: #e9e1d2;
+  --accent: hsl(22 58% 42%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12);
+  --accent-text: #a05236;
+  --g1: #f6d3b6;
+  --g2: #f4e3ae;
+  --g3: #efc4bb;
+  --g4: #dfe4c4;
+}
+[data-theme="paper"][data-mode="dark"] {
+  --page: #221d16;
+  --surface: #2e2820;
+  --ink-1: #ece2d0;
+  --ink-2: #a89a85;
+  --ink-3: #857768;
+  --line: #3a3227;
+  --accent: hsl(22 62% 60%);
+  --accent-soft: hsla(22, 62%, 60%, 0.16);
+  --accent-text: #e0a07e;
+  --g1: #4a2c18;
+  --g2: #3d3415;
+  --g3: #47221f;
+  --g4: #2b3220;
+}
+[data-theme="ocean"][data-mode="light"] {
+  --page: #edf2f8;
+  --surface: #fcfdff;
+  --ink-1: #2d3644;
+  --ink-2: #56637a;
+  --ink-3: #a6b1c2;
+  --line: #dde5ef;
+  --accent: hsl(214 50% 44%);
+  --accent-soft: hsla(214, 50%, 44%, 0.12);
+  --accent-text: #35659f;
+  --g1: #c5daf6;
+  --g2: #bfe8e6;
+  --g3: #d5d1f4;
+  --g4: #e3eefb;
+}
+[data-theme="ocean"][data-mode="dark"] {
+  --page: #161c25;
+  --surface: #1f2733;
+  --ink-1: #e3eaf4;
+  --ink-2: #9aa7ba;
+  --ink-3: #6f7c90;
+  --line: #2a3442;
+  --accent: hsl(214 60% 62%);
+  --accent-soft: hsla(214, 60%, 62%, 0.16);
+  --accent-text: #8fb4e8;
+  --g1: #15305a;
+  --g2: #0e3a40;
+  --g3: #272656;
+  --g4: #1a2a44;
+}
+[data-theme="mint"][data-mode="light"] {
+  --page: #eef4ee;
+  --surface: #fbfefb;
+  --ink-1: #2e3d31;
+  --ink-2: #526350;
+  --ink-3: #a5b3a3;
+  --line: #dfe9df;
+  --accent: hsl(153 40% 33%);
+  --accent-soft: hsla(153, 40%, 33%, 0.12);
+  --accent-text: #2f6b50;
+  --g1: #c2ebd2;
+  --g2: #e1efb8;
+  --g3: #bfe5e2;
+  --g4: #e9f3d9;
+}
+[data-theme="mint"][data-mode="dark"] {
+  --page: #151b18;
+  --surface: #1e2521;
+  --ink-1: #e0eae3;
+  --ink-2: #9caea2;
+  --ink-3: #6d7f73;
+  --line: #29332d;
+  --accent: hsl(155 42% 55%);
+  --accent-soft: hsla(155, 42%, 55%, 0.16);
+  --accent-text: #7fcca5;
+  --g1: #0f3a24;
+  --g2: #2a3714;
+  --g3: #0f3534;
+  --g4: #1c2c1f;
+}
+[data-theme="sakura"][data-mode="light"] {
+  --page: #f9eef1;
+  --surface: #fffafb;
+  --ink-1: #422d35;
+  --ink-2: #6d5560;
+  --ink-3: #b3a2a8;
+  --line: #f0e2e6;
+  --accent: hsl(340 62% 47%);
+  --accent-soft: hsla(340, 62%, 47%, 0.14);
+  --accent-text: #a8295a;
+  --g1: #f7c6d6;
+  --g2: #fbd8c4;
+  --g3: #e6cdf0;
+  --g4: #fbe7ec;
+}
+[data-theme="sakura"][data-mode="dark"] {
+  --page: #1c1719;
+  --surface: #271f23;
+  --ink-1: #f0e2e8;
+  --ink-2: #b39fa8;
+  --ink-3: #85727b;
+  --line: #352a2f;
+  --accent: hsl(340 70% 66%);
+  --accent-soft: hsla(340, 70%, 66%, 0.16);
+  --accent-text: #ef8fb2;
+  --g1: #4a1a2e;
+  --g2: #43251a;
+  --g3: #341d44;
+  --g4: #2e1c24;
+}
+[data-theme="wisteria"][data-mode="light"] {
+  --page: #f1eff6;
+  --surface: #fdfcff;
+  --ink-1: #342d46;
+  --ink-2: #5f5775;
+  --ink-3: #aba4bd;
+  --line: #e5e1ee;
+  --accent: hsl(262 42% 50%);
+  --accent-soft: hsla(262, 42%, 50%, 0.12);
+  --accent-text: #62449f;
+  --g1: #d8cbf6;
+  --g2: #f1cfe7;
+  --g3: #c9d6f6;
+  --g4: #ece6fa;
+}
+[data-theme="wisteria"][data-mode="dark"] {
+  --page: #1a1724;
+  --surface: #242031;
+  --ink-1: #e8e3f2;
+  --ink-2: #a59eb8;
+  --ink-3: #78718b;
+  --line: #312c40;
+  --accent: hsl(262 55% 70%);
+  --accent-soft: hsla(262, 55%, 70%, 0.16);
+  --accent-text: #b8a2ec;
+  --g1: #2f1f58;
+  --g2: #421c40;
+  --g3: #1a2752;
+  --g4: #261f38;
+}
+[data-theme="ink"][data-mode="light"] {
+  --page: #f5f4f0;
+  --surface: #fcfbf8;
+  --ink-1: #1f1f1d;
+  --ink-2: #55544f;
+  --ink-3: #a3a19a;
+  --line: #e6e4de;
+  --accent: hsl(205 18% 32%);
+  --accent-soft: hsla(205, 18%, 32%, 0.12);
+  --accent-text: #3f4f5c;
+  --g1: #dde3e8;
+  --g2: #ece4d6;
+  --g3: #e2e2dc;
+  --g4: #d9e0df;
+}
+[data-theme="ink"][data-mode="dark"] {
+  --page: #1a1a19;
+  --surface: #232321;
+  --ink-1: #e6e4df;
+  --ink-2: #a19f98;
+  --ink-3: #75736d;
+  --line: #2f2f2c;
+  --accent: hsl(205 20% 62%);
+  --accent-soft: hsla(205, 20%, 62%, 0.16);
+  --accent-text: #a3b4c2;
+  --g1: #232a31;
+  --g2: #2d2820;
+  --g3: #262624;
+  --g4: #1f2726;
+}
+[data-mode="light"] {
+  color-scheme: light;
+  --hover: rgba(40, 30, 20, 0.05);
+  --shadow-card: 0 1px 2px rgba(60, 50, 40, 0.05), 0 10px 24px -14px rgba(60, 50, 40, 0.2);
+  --stage: #d7d5d0;
+}
+[data-mode="dark"] {
+  color-scheme: dark;
+  --hover: rgba(255, 255, 255, 0.06);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --stage: #0d0d0c;
+}
+
+/* 浓烈色板 v1–v4：高饱和，接近 Craft 的满版彩色背景 */
+[data-theme="paper"][data-mode="light"] {
+  --v1: #ff8a4c;
+  --v2: #ffc94a;
+  --v3: #ff6b81;
+  --v4: #ffb38a;
+}
+[data-theme="paper"][data-mode="dark"] {
+  --v1: #a8481c;
+  --v2: #8a6512;
+  --v3: #9b2f3a;
+  --v4: #5e3f22;
+}
+[data-theme="ocean"][data-mode="light"] {
+  --v1: #4f8cff;
+  --v2: #2ed3c6;
+  --v3: #7b6cff;
+  --v4: #8ec5ff;
+}
+[data-theme="ocean"][data-mode="dark"] {
+  --v1: #1d4fb8;
+  --v2: #0b7a78;
+  --v3: #4434a8;
+  --v4: #1a3566;
+}
+[data-theme="mint"][data-mode="light"] {
+  --v1: #34d399;
+  --v2: #a3e635;
+  --v3: #22c3d6;
+  --v4: #86efac;
+}
+[data-theme="mint"][data-mode="dark"] {
+  --v1: #0e7a4c;
+  --v2: #4f7a12;
+  --v3: #0b6f78;
+  --v4: #1a4a32;
+}
+[data-theme="sakura"][data-mode="light"] {
+  --v1: #ff6fa5;
+  --v2: #ffa36c;
+  --v3: #c084fc;
+  --v4: #ffb3c7;
+}
+[data-theme="sakura"][data-mode="dark"] {
+  --v1: #a3245a;
+  --v2: #9a4a1f;
+  --v3: #6b2fa0;
+  --v4: #4a1c30;
+}
+[data-theme="wisteria"][data-mode="light"] {
+  --v1: #8b5cf6;
+  --v2: #ec6fcf;
+  --v3: #5b8cff;
+  --v4: #c4b5fd;
+}
+[data-theme="wisteria"][data-mode="dark"] {
+  --v1: #5b2fc0;
+  --v2: #8a2a80;
+  --v3: #2a46a8;
+  --v4: #33245e;
+}
+[data-theme="ink"][data-mode="light"] {
+  --v1: #8fa3b3;
+  --v2: #c9b79c;
+  --v3: #a5aaa6;
+  --v4: #b9c4c2;
+}
+[data-theme="ink"][data-mode="dark"] {
+  --v1: #3a4a58;
+  --v2: #54483a;
+  --v3: #3f3f3c;
+  --v4: #2f3d39;
+}

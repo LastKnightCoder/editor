@@ -67,6 +67,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(120, 100, 70, 0.07), 0 2px 4px -1px rgba(120, 100, 70, 0.12),
     0 22px 44px -18px rgba(120, 100, 70, 0.45);
+
+  --tau-glow-1: #f6d3b6;
+  --tau-glow-2: #f1d4ca;
+  --tau-glow-3: #f4e3ae;
 }
 
 /* 主题「暖纸」· 深色（夜）：同一张暖纸的烛光版 */
@@ -124,6 +128,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4),
     0 24px 48px -16px rgba(0, 0, 0, 0.72);
+
+  --tau-glow-1: #492c18;
+  --tau-glow-2: #47221f;
+  --tau-glow-3: #3b3215;
 }
 
 /* 主题「海盐」· 浅色（晴） */
@@ -181,6 +189,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(60, 80, 120, 0.07), 0 2px 4px -1px rgba(60, 80, 120, 0.12),
     0 22px 44px -18px rgba(60, 80, 120, 0.45);
+
+  --tau-glow-1: #d3e2f7;
+  --tau-glow-2: #dfdff6;
+  --tau-glow-3: #c0e8e6;
 }
 
 /* 主题「海盐」· 深色（夜） */
@@ -238,6 +250,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4),
     0 24px 48px -16px rgba(0, 0, 0, 0.72);
+
+  --tau-glow-1: #15305a;
+  --tau-glow-2: #272656;
+  --tau-glow-3: #0e3a40;
 }
 
 /* 主题「薄荷」· 浅色（晴） */
@@ -295,6 +311,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(60, 90, 70, 0.07), 0 2px 4px -1px rgba(60, 90, 70, 0.12),
     0 22px 44px -18px rgba(60, 90, 70, 0.45);
+
+  --tau-glow-1: #c2ebd2;
+  --tau-glow-2: #bfe5e2;
+  --tau-glow-3: #e1efb8;
 }
 
 /* 主题「薄荷」· 深色（夜林） */
@@ -352,6 +372,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4),
     0 24px 48px -16px rgba(0, 0, 0, 0.72);
+
+  --tau-glow-1: #0f3a24;
+  --tau-glow-2: #0f3534;
+  --tau-glow-3: #2a3714;
 }
 
 /* 主题「紫藤」· 浅色（晴） */
@@ -409,6 +433,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(80, 64, 120, 0.07), 0 2px 4px -1px rgba(80, 64, 120, 0.12),
     0 22px 44px -18px rgba(80, 64, 120, 0.45);
+
+  --tau-glow-1: #dbcff6;
+  --tau-glow-2: #c9d6f6;
+  --tau-glow-3: #f1cfe7;
 }
 
 /* 主题「紫藤」· 深色（夜紫） */
@@ -466,6 +494,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4),
     0 24px 48px -16px rgba(0, 0, 0, 0.72);
+
+  --tau-glow-1: #2f1f58;
+  --tau-glow-2: #1a2752;
+  --tau-glow-3: #421c40;
 }
 
 /* 主题「樱花」· 浅色（晴） */
@@ -523,6 +555,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(110, 70, 85, 0.07), 0 2px 4px -1px rgba(110, 70, 85, 0.12),
     0 22px 44px -18px rgba(110, 70, 85, 0.45);
+
+  --tau-glow-1: #f7cad9;
+  --tau-glow-2: #e6cdf0;
+  --tau-glow-3: #fbd8c4;
 }
 
 /* 主题「樱花」· 深色（夜樱） */
@@ -580,6 +616,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4),
     0 24px 48px -16px rgba(0, 0, 0, 0.72);
+
+  --tau-glow-1: #4a1a2e;
+  --tau-glow-2: #341d44;
+  --tau-glow-3: #43251a;
 }
 
 /* 主题「水墨」· 浅色（宣纸） */
@@ -637,6 +677,10 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(40, 38, 30, 0.07), 0 2px 4px -1px rgba(40, 38, 30, 0.12),
     0 22px 44px -18px rgba(40, 38, 30, 0.45);
+
+  --tau-glow-1: #dde3e8;
+  --tau-glow-2: #e2e2dc;
+  --tau-glow-3: #ece4d6;
 }
 
 /* 主题「水墨」· 深色（松烟） */
@@ -694,4 +738,8 @@
   --tau-shadow-paper:
     0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4),
     0 24px 48px -16px rgba(0, 0, 0, 0.72);
+
+  --tau-glow-1: #232a31;
+  --tau-glow-2: #262624;
+  --tau-glow-3: #2d2820;
 }

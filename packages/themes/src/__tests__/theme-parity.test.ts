@@ -170,6 +170,11 @@ describe("theme 对比度达 AA（02 规范 §2.5）", () => {
     // 凹陷底上的文字：sunken 沉在 page 之下，有人把 ink-2 放上去就会静默跌破 AA。
     { fg: "ink-2", bg: "bg-sunken", min: 4.5, why: "次要文字 / 凹陷底" },
     { fg: "ink-1", bg: "bg-sunken", min: 4.5, why: "正文 / 凹陷底" },
+    // 侧栏文字直接落在极光背景上：按色团峰值（未与纸底混合）校验
+    ...(["glow-1", "glow-2", "glow-3"] as const).flatMap(glow => [
+      { fg: "ink-1" as const, bg: glow, min: 7, why: `正文 / 极光色 ${glow}` },
+      { fg: "ink-2" as const, bg: glow, min: 4.5, why: `次要文字 / 极光色 ${glow}` },
+    ]),
   ];
 
   for (const theme of getThemeRegistry().values()) {
