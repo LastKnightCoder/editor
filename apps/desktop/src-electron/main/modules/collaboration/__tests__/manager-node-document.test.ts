@@ -42,6 +42,7 @@ import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentDocumentBlocks } from "../../tables/content-document-blocks";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { unregisterContentSession } from "../content-sessions";
+import { sourceDraftKey } from "../content-local-state";
 import { collaborationImageStorage } from "../../../services/collaboration-image-storage";
 import type { DocumentDrain, DocumentDrainScope } from "../../durable-document-lifecycle";
 import { TaskAssistantEngine, readTask } from "../../task-assistant/engine";
@@ -95,7 +96,7 @@ type Runtime = Pick<CollaborationManager, "agent"> & {
   discardLocal(session: RuntimeSession): Promise<void>;
   finishLeave(session: RuntimeSession): Promise<void>;
   drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain>;
-  releaseLibrary(name: string): Promise<void>;
+  releaseLibrary(name: string): void;
   project(session: RuntimeSession): Promise<void>;
   restore(info: CollaborationSession, doc: Y.Doc): RuntimeSession;
   transports: Map<string, HocuspocusProviderWebsocket>;
@@ -1291,6 +1292,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         .prepare("INSERT INTO migrations VALUES (?,?,?,?)")
         .run(workspace, workspace, "old-body", '{"phase":"PREPARED"}');
     }
+    store.set(sourceDraftKey("library", "node", "text"), { value: "草稿基线" });
     for (const name of ["library", "library.db"]) {
       await runtime.releaseLibrary(name);
       for (const table of [
@@ -1304,10 +1306,101 @@ describe("桌面生产会话与真实服务贯通", () => {
           { workspace_id: "other.db" },
         ]);
     }
+    const discarded = join(host.dir, "collaboration", "discarded");
+    const archives = readdirSync(discarded).filter(file => file.endsWith("-drafts.json"));
+    expect(archives).toHaveLength(1);
+    const archived = JSON.parse(readFileSync(join(discarded, archives[0]), "utf8"));
+    expect(archived.inputDrafts).toEqual([
+      expect.objectContaining({ value: "旧草稿", base: JSON.stringify({ value: "草稿基线" }) }),
+      expect.objectContaining({ value: "旧草稿" }),
+    ]);
+    expect(archived.documentDrafts).toEqual([
+      expect.objectContaining({ state: "AQ==" }),
+      expect.objectContaining({ state: "AQ==" }),
+    ]);
     expect(runtime.sessions.has(localId)).toBe(false);
     expect(store.list().some(session => session.id === localId)).toBe(false);
     const opened = await runtime.openContent(event, { contentId: 7 });
     expect(opened.frozen).toBe(false);
+  });
+
+  it("整库同步不冻结共享视图，换库后保留离线编辑和未确认草稿", async () => {
+    const { runtime, event, store, db } = await setup();
+    const { documentId } = await runtime.createContent(event, 7);
+    const session = runtime.sessions.get(documentId)!;
+    const identity = {
+      workspaceId: "library",
+      documentId,
+      baselineId: String(session.doc.getMap("meta").get("baselineId")),
+      epoch: 0,
+    };
+    const source = session.info.source!;
+    const freeze = vi.spyOn(
+      runtime as unknown as { freeze(session: RuntimeSession): Promise<void> },
+      "freeze"
+    );
+    const preserve = vi
+      .spyOn(
+        runtime as unknown as { preserveOwnerImages(session: RuntimeSession): Promise<void> },
+        "preserveOwnerImages"
+      )
+      .mockRejectedValueOnce(new Error("共享图片服务离线"));
+    runtime.views.set("shared-view", { documentId, windowId: 1 });
+    const tree = new NodeTree(session.doc);
+    tree.insertText("paragraph", 0, "共享未同步", {});
+    tree.dispose();
+    store.db
+      .prepare("INSERT INTO document_drafts VALUES (?,?,?,?,?,?,?,?,0)")
+      .run(
+        "shared-view",
+        identity.workspaceId,
+        identity.documentId,
+        identity.baselineId,
+        identity.epoch,
+        Buffer.from([1, 2, 3]),
+        "未确认草稿",
+        1
+      );
+    const drain = await runtime.drainDatabase({
+      databaseName: "library.db",
+      reason: "database-sync",
+      replace: true,
+    });
+    drain.commit();
+    expect(freeze).not.toHaveBeenCalled();
+    expect(preserve).not.toHaveBeenCalled();
+    expect(runtime.views.has("shared-view")).toBe(true);
+    expect(session.info.source).toBe(source);
+    expect(session.info.pending).toBe(true);
+    const cached = store.load(documentId);
+    try {
+      expect(JSON.stringify(readNodeDocument(cached.doc))).toContain("共享未同步");
+    } finally {
+      cached.doc.destroy();
+    }
+    expect(
+      store.db.prepare("SELECT state FROM document_drafts WHERE view_id=?").get("shared-view")
+    ).toEqual({ state: Buffer.from([1, 2, 3]) });
+
+    const downloaded = ContentDocumentTable.read(db, 7)!;
+    const content = structuredClone(downloaded.content);
+    content[0].children = [{ text: "同步下载候选" }];
+    ContentDocumentTable.commit(
+      db,
+      7,
+      { ...downloaded, content },
+      {
+        installDocument: true,
+        expectedRevision: downloaded.revision,
+        count: 6,
+      }
+    );
+    preserve.mockRestore();
+    await expect(runtime.project(session)).rejects.toThrow("投影修订已变化");
+    expect(ContentDocumentTable.read(db, 7)!.content[0].children).toEqual([
+      { text: "同步下载候选" },
+    ]);
+    expect(JSON.stringify(readNodeDocument(session.doc))).toContain("共享未同步");
   });
 
   it("同步替换释放未加载的冷缓存，之后按新库重新打开", async () => {

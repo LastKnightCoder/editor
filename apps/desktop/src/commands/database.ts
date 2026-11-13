@@ -56,8 +56,8 @@ export const reconnectDatabaseFast = async (
   if (request === connecting) rememberDatabaseConnection(connection);
 };
 
-export const closeDatabase = async (databaseName: string) => {
-  return await invoke("close-database", databaseName);
+export const closeDatabase = async (databaseName: string, replace?: boolean) => {
+  return await invoke("close-database", databaseName, replace);
 };
 
 export const forceCheckpoint = async (databaseName: string) => {

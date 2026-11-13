@@ -2,7 +2,8 @@ import { app, BrowserWindow, type IpcMainInvokeEvent } from "electron";
 import * as Y from "yjs";
 import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import { randomUUID } from "node:crypto";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
 import type Database from "better-sqlite3";
 import {
   createNodeDocument,
@@ -45,7 +46,7 @@ import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "../collaboration/local-store";
 import { CollaborationAssetService } from "../collaboration/asset-service";
-import { ContentLocalState } from "../collaboration/content-local-state";
+import { ContentLocalState, sourceDraftKey } from "../collaboration/content-local-state";
 import { NodeSessionUpdates } from "../collaboration/node-session-updates";
 import { ContentRetention } from "../collaboration/content-retention";
 import { localSessionId } from "../collaboration/session-identity";
@@ -88,6 +89,8 @@ export class ContentSessionManager {
   protected nodeUpdates?: NodeSessionUpdates;
   protected stopContentRetention?: () => void;
   protected stopDocumentDrain?: () => void;
+  private stopDatabaseReconnect?: () => void;
+  private readonly frozenForDownload = new Set<RuntimeSession>();
   protected freezeWaiters = new Map<string, { id: string; resolve(): void }>();
   protected closingWindows = new Set<number>();
   protected autoFlushInterval: ReturnType<typeof setInterval> | null = null;
@@ -275,6 +278,14 @@ export class ContentSessionManager {
       throw new Error("本机正文资源无需远端身份");
     });
     this.initDurability();
+    this.stopDatabaseReconnect = databaseModule.onDatabaseConnected((name, reason) => {
+      if (reason !== "sync_download_reconnect") return;
+      for (const session of this.frozenForDownload) {
+        if (session.info.source?.databaseName !== name) continue;
+        this.frozenForDownload.delete(session);
+        if (this.sessions.get(session.info.id) === session) this.unfreeze(session);
+      }
+    });
     registerLocalContentIpc({
       nodeUpdates: this.contentUpdates(),
       store: this.store,
@@ -328,7 +339,10 @@ export class ContentSessionManager {
     return [...this.sessions.values()].filter(
       session =>
         (scope.reason === "quit" || session.info.source) &&
-        (!scope.databaseName || session.info.source?.databaseName === scope.databaseName) &&
+        (scope.reason !== "database-sync" || session.info.mode === "local") &&
+        (!scope.databaseName ||
+          session.info.source?.databaseName.replace(/\.db$/, "") ===
+            scope.databaseName.replace(/\.db$/, "")) &&
         (scope.windowId === undefined ||
           [...this.views.values()].some(
             view => view.documentId === session.info.id && view.windowId === scope.windowId
@@ -348,6 +362,9 @@ export class ContentSessionManager {
     this.stopContentRetention = undefined;
     this.stopDocumentDrain?.();
     this.stopDocumentDrain = undefined;
+    this.stopDatabaseReconnect?.();
+    this.stopDatabaseReconnect = undefined;
+    this.frozenForDownload.clear();
   }
 
   protected broadcast(channel: string, value: unknown) {
@@ -650,7 +667,7 @@ export class ContentSessionManager {
         (source.contentDocumentId &&
           source.contentDocumentId !== ContentDocumentTable.read(db, content.id)?.documentId)
       ) {
-        await this.releaseReplacedSession(session);
+        this.releaseReplacedSession(session);
         return this.openContent(event, target);
       }
       // 主库在缓存之后被其它入口改写（插件、MCP、任务改名等）：旧缓存不能盖住新内容。
@@ -667,7 +684,7 @@ export class ContentSessionManager {
           if (ContentDocumentTable.read(db, content.id)?.revision === source.projectionRevision)
             throw error;
           console.warn(`[collaboration] 正文 ${content.id} 的缓存落后于主库，已备份后按主库重建`);
-          await this.releaseReplacedSession(session, "主库在缓存之后被改写");
+          this.releaseReplacedSession(session, "主库在缓存之后被改写");
           return this.openContent(event, target);
         }
       }
@@ -982,17 +999,18 @@ export class ContentSessionManager {
         session.cacheWriteFailed = false;
         session.dirty = false;
       }
+      const source = session.info.source;
+      const database = source && databaseModule.getDatabase(source.databaseName);
       stage = "assets";
       await this.preserveOwnerImages(session);
-      const source = session.info.source;
-      if (!source) {
+      if (
+        !source ||
+        !database?.open ||
+        databaseModule.getDatabase(source.databaseName) !== database ||
+        this.sessions.get(session.info.id) !== session ||
+        session.info.source !== source
+      ) {
         session.projectionDirty = true;
-        return;
-      }
-      const database = databaseModule.getDatabase(source.databaseName);
-      if (!database?.open) {
-        session.projectionDirty = true;
-        reportContentSaveIssue(session, "database-unavailable");
         return;
       }
       const local = session.info.mode === "local";
@@ -1006,6 +1024,8 @@ export class ContentSessionManager {
       const head = readContentProjectionHead(database, source, session);
       actualRevision = head.revision;
       storageBefore = head.formatVersion;
+      if (!local && expectedRevision && expectedRevision !== head.revision)
+        throw new Error("共享正文投影修订已变化，原共享会话仍保留");
       // 只确认本轮快照的代次，异步期间到达的新事务留给下一轮。
       const version = session.projectionVersion && { ...session.projectionVersion };
       const confirmed = session.projectedVersion;
@@ -1232,7 +1252,9 @@ export class ContentSessionManager {
       return {
         commit: () => {
           if (scope.reason === "quit") return;
-          resume();
+          if (scope.reason === "database-sync" && scope.replace)
+            for (const session of resumed) this.frozenForDownload.add(session);
+          else resume();
           if (scope.reason === "window-close") return;
           for (const session of affected) unregisterContentSession(session);
         },
@@ -1244,41 +1266,20 @@ export class ContentSessionManager {
     }
   }
 
-  /** 共享会话的缓存不能继续使用：原始字节备份后拆除会话，调用方随后按服务器内容重建。 */
-  protected readonly replacementReleases = new Map<string, Promise<void>>();
-
-  /** 本地会话备份后丢弃，共享会话解除来源；同一会话并发释放只执行一次。 */
-  protected releaseReplacedSession(
-    session: RuntimeSession,
-    reason = "资料库或正文身份已变化"
-  ): Promise<void> {
+  private releaseReplacedSession(session: RuntimeSession, reason = "资料库或正文身份已变化") {
     const id = session.info.id;
-    const pending = this.replacementReleases.get(id);
-    if (pending) return pending;
-    const release = (async () => {
-      for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
-      unregisterContentSession(session);
-      if (session.info.mode === "local") {
-        // 缓存里可能有尚未投影的编辑，删除前留一份可恢复的原始字节
-        if (session.dirty) this.store.compact(id, session.doc);
-        this.store.discard(id, reason);
-        session.provider?.destroy();
-        session.awareness.destroy();
-        session.doc.destroy();
-        this.sessions.delete(id);
-        this.contentState?.db
-          .prepare("DELETE FROM entity_holds WHERE holder=?")
-          .run(`document:${id}`);
-        this.assets.removeDocumentCache(id);
-      } else {
-        session.info.source = undefined;
-        this.retainNodeState(session, session.doc);
-        this.changed(session);
-      }
-      this.broadcast("collaboration:removed", { documentId: id, replaced: true });
-    })().finally(() => this.replacementReleases.delete(id));
-    this.replacementReleases.set(id, release);
-    return release;
+    // 先保全原始材料，磁盘失败时保留仍可重试的旧会话和视图。
+    if (session.dirty || session.cacheWriteFailed) this.store.compact(id, session.doc);
+    this.store.discard(id, reason);
+    for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
+    unregisterContentSession(session);
+    session.awareness.destroy();
+    session.doc.destroy();
+    this.sessions.delete(id);
+    this.frozenForDownload.delete(session);
+    this.contentState?.db.prepare("DELETE FROM entity_holds WHERE holder=?").run(`document:${id}`);
+    this.assets.removeDocumentCache(id);
+    this.broadcast("collaboration:removed", { documentId: id, replaced: true });
   }
 
   /**
@@ -1286,18 +1287,60 @@ export class ContentSessionManager {
    * 冷缓存从未参与关库写回，留着会在下次打开时拿旧库内容覆盖新库。
    * 调用前 close-database 已把内存会话写回旧库，旧库也已复制进 backup/。
    */
-  async releaseLibrary(name: string): Promise<void> {
+  releaseLibrary(name: string): void {
+    const workspace = name.replace(/\.db$/, "");
+    const names = [workspace, `${workspace}.db`] as const;
+    this.store.db.transaction(() => {
+      const inputs = this.store.db
+        .prepare("SELECT * FROM input_drafts WHERE workspace_id IN (?,?)")
+        .all(...names) as { view_id: string; node_id: string; field: string; applied: number }[];
+      const documents = this.store.db
+        .prepare("SELECT * FROM document_drafts WHERE workspace_id IN (?,?) AND applied=0")
+        .all(...names) as (Record<string, unknown> & { state: Buffer })[];
+      const readBase = this.store.db.prepare("SELECT value FROM settings WHERE key=?");
+      const pending = inputs
+        .filter(row => !row.applied)
+        .map(row => {
+          const key = sourceDraftKey(row.view_id, row.node_id, row.field);
+          const base = readBase.get(key) as { value: string } | undefined;
+          return { ...row, base: base?.value };
+        });
+      if (pending.length || documents.length) {
+        const directory = join(dirname(this.store.db.name), "discarded");
+        mkdirSync(directory, { recursive: true, mode: 0o700 });
+        writeFileSync(
+          join(directory, `${Date.now()}-${randomUUID()}-drafts.json`),
+          JSON.stringify({
+            workspace,
+            inputDrafts: pending,
+            documentDrafts: documents.map(({ state, ...row }) => ({
+              ...row,
+              state: state.toString("base64"),
+            })),
+          }),
+          { mode: 0o600, flush: true }
+        );
+      }
+      for (const row of inputs)
+        this.store.delete(sourceDraftKey(row.view_id, row.node_id, row.field));
+      for (const table of [
+        "input_drafts",
+        "document_drafts",
+        "node_views",
+        "entity_holds",
+        "migrations",
+      ])
+        this.store.db.prepare(`DELETE FROM ${table} WHERE workspace_id IN (?,?)`).run(...names);
+    })();
     const candidates = new Map(this.store.list().map(info => [info.id, info]));
     for (const session of this.sessions.values()) candidates.set(session.info.id, session.info);
     for (const info of candidates.values()) {
-      if (info.source?.databaseName !== name) continue;
-      const session = this.findSession(info.id);
-      if (session) await this.releaseReplacedSession(session);
+      if (info.mode !== "local" || info.source?.databaseName.replace(/\.db$/, "") !== workspace)
+        continue;
+      const session = this.sessions.get(info.id);
+      if (session) this.releaseReplacedSession(session);
+      else this.store.discard(info.id, "资料库已被下载替换");
     }
-    for (const table of ["node_views", "entity_holds", "migrations"])
-      this.store.db
-        .prepare(`DELETE FROM ${table} WHERE workspace_id IN (?,?)`)
-        .run(name, name.endsWith(".db") ? name.slice(0, -3) : `${name}.db`);
     this.changed();
   }
 

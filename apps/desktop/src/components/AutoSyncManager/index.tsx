@@ -237,14 +237,10 @@ const AutoSyncManager = () => {
       downloadInProgressRef.current = false;
       if (canceled) return;
       setDownloadState(prev => ({ ...prev, open: false }));
-      if (success) {
-        setTimeout(() => window.location.reload(), 300);
-      } else {
-        hasCheckedOnLaunch.current = false;
-      }
+      if (!success) hasCheckedOnLaunch.current = false;
     };
 
-    // 用量同步独立于库快照：启动时后台跑一轮（下载新库会重载窗口，重载后再跑一次也无妨）
+    // 用量同步独立于库快照，启动时在后台运行。
     void runUsageSync();
     checkRemoteVersion();
 

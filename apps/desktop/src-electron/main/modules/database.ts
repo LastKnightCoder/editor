@@ -263,7 +263,20 @@ class DatabaseModule implements Module {
   }
 
   private notifyDatabaseConnected(dbName: string, reason: DatabaseConnectReason): void {
-    this.databaseConnectedCallbacks.forEach(cb => cb(dbName, reason));
+    if (reason === "sync_download_reconnect")
+      for (const [id, name] of this.replacedWindows) {
+        if (name !== dbName) continue;
+        if (!this.windowToDatabase.has(id)) this.windowToDatabase.set(id, name);
+      }
+    for (const cb of this.databaseConnectedCallbacks) {
+      try {
+        cb(dbName, reason);
+      } catch (error) {
+        log.warn("[database] 连接通知失败", error);
+      }
+    }
+    if (reason === "sync_download_reconnect")
+      broadcastDatabaseChange("database:sync-reconnected", dbName);
   }
 
   constructor() {
@@ -600,7 +613,7 @@ class DatabaseModule implements Module {
   }
 
   async reconnectForSync(name: string, source: DatabaseReconnectSource) {
-    return withDurableDocuments({ databaseName: name, reason: "database-change" }, async () => {
+    return withDurableDocuments({ databaseName: name, reason: "database-sync" }, async () => {
       log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
       if (this.databases.has(name)) {
         this.databases.get(name)!.close();
@@ -618,32 +631,30 @@ class DatabaseModule implements Module {
     });
   }
 
-  async closeForSync(name: string, install?: () => Promise<void>) {
+  async closeForSync(name: string, replace = false) {
     const drain = await prepareDurableDocuments({
       databaseName: name,
-      reason: "database-change",
-      replace: Boolean(install),
+      reason: "database-sync",
+      replace,
     });
     try {
       const db = this.databases.get(name);
       if (!db) {
-        if (install) throw new Error("资料库已关闭，不能继续覆盖");
         drain.commit();
         return;
       }
       if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
       db.close();
       this.databases.delete(name);
-      if (install) this.connectionIds.delete(this.formatDatabaseName(name));
+      if (replace) this.connectionIds.delete(this.formatDatabaseName(name));
       this.indexEnsurePromises.delete(name);
       mainContentIndexDBManager.closeDatabase(name);
       for (const [id, dbName] of this.windowToDatabase)
         if (dbName === name) {
-          if (install) this.replacedWindows.set(id, name);
+          if (replace) this.replacedWindows.set(id, name);
           this.windowToDatabase.delete(id);
         }
       drain.commit();
-      await install?.();
     } catch (error) {
       drain.rollback();
       throw error;
@@ -724,12 +735,14 @@ class DatabaseModule implements Module {
         }
 
         let connectReason: DatabaseConnectReason | null = null;
-        if (!this.hasConnectedDatabase) {
+        if (source) {
+          connectReason = source;
+        } else if (!this.hasConnectedDatabase) {
           connectReason = "connect";
         } else if (dbChanged) {
           connectReason = "switch";
         } else if (force) {
-          connectReason = source || "reconnect";
+          connectReason = "reconnect";
         } else if (!existedBeforeConnect) {
           connectReason = "connect";
         }
@@ -747,7 +760,13 @@ class DatabaseModule implements Module {
       };
       const connect = () =>
         force && this.databases.has(name)
-          ? withDurableDocuments({ databaseName: name, reason: "database-change" }, run)
+          ? withDurableDocuments(
+              {
+                databaseName: name,
+                reason: source ? "database-sync" : "database-change",
+              },
+              run
+            )
           : run();
       if (previousName && previousName !== name)
         return withDurableDocuments(
@@ -962,7 +981,9 @@ class DatabaseModule implements Module {
       });
     });
 
-    ipcMain.handle("close-database", (_event, name) => this.closeForSync(name));
+    ipcMain.handle("close-database", (_event, name, replace?: boolean) =>
+      this.closeForSync(name, replace === true)
+    );
 
     ipcMain.handle("close-all-database", async () =>
       withDurableDocuments({ reason: "database-change" }, async () => {

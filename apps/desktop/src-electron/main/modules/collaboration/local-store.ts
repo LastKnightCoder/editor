@@ -237,7 +237,7 @@ export class CollaborationLocalStore {
         updates: updates.map(update => update.state.toString("base64")),
         resources,
       }),
-      { mode: 0o600 }
+      { mode: 0o600, flush: true }
     );
     if (resources.length) this.set(`resource-backup:${id}`, true);
     this.remove(id, true);

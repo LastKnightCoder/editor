@@ -5,7 +5,6 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/pro
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
@@ -39,7 +38,7 @@ import ContentTable from "../tables/content";
 import { ContentDocumentTable } from "../tables/content-document";
 import { ContentIdentityTable } from "../tables/content-identity";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
-import { bindingMatches, planClosedReshare } from "./content-repository";
+import { bindingMatches, planClosedReshare, restoreContentBinding } from "./content-repository";
 import { CollaborationAssetService } from "./asset-service";
 import { CollaborationClient } from "./client";
 import { registerCollaborationIpc } from "./ipc-controller";
@@ -92,13 +91,14 @@ export class CollaborationManager extends ContentSessionManager {
     event: IpcMainInvokeEvent | ContentDatabase,
     target: ContentSessionTarget
   ): Promise<ContentSessionSnapshot> {
-    const { db } = this.databaseForEvent(event);
+    const { db, name } = this.databaseForEvent(event);
     const binding = findCollaborationBinding(db, target.contentId);
     if (!binding) return this.openAfterUnbind(event, target);
     const id = binding.document_id;
     let session = this.findSession(id);
     if (!session) {
       await this.refresh();
+      if (this.databaseForEvent(event).db !== db) throw new Error("资料库已切换，请重新打开内容");
       session = this.findSession(id);
       if (!session && this.remoteDocuments.get(binding.server_url)?.has(id) === false) {
         db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
@@ -109,11 +109,23 @@ export class CollaborationManager extends ContentSessionManager {
       }
       if (!session) throw new Error("协作会话尚未恢复，请稍后重试");
     }
-    if (
-      session.info.source?.contentCreatedAt !== binding.content_created_at ||
-      ContentTable.getContentById(db, target.contentId)?.createTime !== binding.content_created_at
-    )
-      throw new Error("原内容关联已变化");
+    const source = restoreContentBinding(db, name, id, binding.server_url);
+    if (!source || source.contentId !== target.contentId) throw new Error("原内容关联已变化");
+    const previous = session.info.source;
+    if (previous) {
+      if (
+        previous.databaseName.replace(/\.db$/, "") !== name.replace(/\.db$/, "") ||
+        previous.contentId !== source.contentId ||
+        previous.contentCreatedAt !== source.contentCreatedAt ||
+        (previous.librarySourceId && previous.librarySourceId !== source.librarySourceId) ||
+        (previous.contentDocumentId && previous.contentDocumentId !== source.contentDocumentId)
+      )
+        throw new Error("共享正文属于另一份资料库，原共享会话仍保留");
+      source.projectionRevision = previous.projectionRevision ?? source.projectionRevision;
+    }
+    session.info.source = source;
+    this.store.metadata(session.info);
+    unregisterContentSession(session);
     registerContentSession(db, target.contentId, session);
     ContentTable.ensureTaskIds(db, target.contentId);
     return {
@@ -454,7 +466,6 @@ export class CollaborationManager extends ContentSessionManager {
     const existing = this.findSession(info.id);
     if (existing) {
       Object.assign(existing.info, info);
-      existing.info.source ||= this.findLocalSource(info.id, url);
       const protocol = await this.client.request<{
         version: number;
         epoch: number;
@@ -1151,15 +1162,6 @@ export class CollaborationManager extends ContentSessionManager {
     this.sessions.delete(id);
     this.contentState?.db.prepare("DELETE FROM entity_holds WHERE holder=?").run(`document:${id}`);
     this.broadcast("collaboration:removed", { documentId: id, replaced: true });
-  }
-
-  async releaseSharedLibrary(name: string): Promise<void> {
-    if (this.localRuntime && this.contentState) {
-      await super.releaseLibrary(name);
-      return;
-    }
-    const path = join(PathUtil.getAppDir(), "collaboration", "collaboration.db");
-    if (existsSync(path)) throw new Error("协作缓存尚未确认，不能替换资料库");
   }
 
   override async init() {

@@ -108,9 +108,8 @@ it("覆盖拒绝其他窗口及重载后迟到的旧请求，重连不切换活�
     const candidate = database.openDatabase("candidate.db", "normal");
     candidate.prepare("INSERT INTO home_panel_layout VALUES('协调端',0,0,1)").run();
     candidate.close();
-    await database.closeForSync("A.db", async () => {
-      installDatabaseDownload(join(paths.root, "A.db"), join(paths.root, "candidate.db"), "");
-    });
+    await database.closeForSync("A.db", true);
+    installDatabaseDownload(join(paths.root, "A.db"), join(paths.root, "candidate.db"), "");
     await database.reconnectForSync("A.db", "sync_download_reconnect");
     expect(old.open).toBe(false);
     expect(database.getCurrentDatabaseName()).toBe("B.db");
