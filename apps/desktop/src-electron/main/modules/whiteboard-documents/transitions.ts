@@ -58,11 +58,15 @@ export class WhiteboardTransitions {
   constructor(
     readonly installation: WhiteboardInstallation,
     private readonly store: CollaborationLocalStore,
-    private readonly client: CollaborationClient,
+    private readonly client: CollaborationClient | (() => Promise<CollaborationClient>),
     private readonly assets: CollaborationAssetService
   ) {
     this.publications = new WhiteboardPublications(store);
   }
+  private remoteClient() {
+    return typeof this.client === "function" ? this.client() : Promise.resolve(this.client);
+  }
+
   /** 只读预检不建立发布任务、不冻结视图，也不创建远端房间。 */
   async preflight(state: Uint8Array, documentId: string, pageIds: string[]) {
     const doc = new Y.Doc();
@@ -137,6 +141,7 @@ export class WhiteboardTransitions {
       throw new Error("首次发布操作不能更换目标或范围");
     if (job?.cancelled) throw new Error("已取消的发布不能复活");
     if (job?.completed) return { documentId: job.roomId!, serverUrl: url };
+    const client = await this.remoteClient();
     if (!job) {
       if (this.store.get(`whiteboard-binding:${name}:${documentId}`, null))
         throw new Error("此白板已绑定共享，不能再次创建并行房间");
@@ -169,7 +174,7 @@ export class WhiteboardTransitions {
     if (!record?.decision && repo.read(documentId)?.hash !== job.sourceHash)
       throw new Error("原白板已变化，发布候选已保留");
     if (!job.roomId) {
-      const room = await this.client.request<{ id: string; status: string }>(
+      const room = await client.request<{ id: string; status: string }>(
         url,
         "/v1/documents",
         "POST",
@@ -213,10 +218,10 @@ export class WhiteboardTransitions {
         selectedPages: request.pageIds,
       },
     });
-    await this.client.request(url, `/v1/documents/${job.roomId}/publish`, "POST", {
+    await client.request(url, `/v1/documents/${job.roomId}/publish`, "POST", {
       state: job.state,
     });
-    const status = await this.client.request<{
+    const status = await client.request<{
       state: string;
       receipt: { candidateHash: string; baselineId: string; version: number } | null;
     }>(url, `/v1/documents/${job.roomId}/publication`);
@@ -255,18 +260,16 @@ export class WhiteboardTransitions {
     const job = this.publications.get(operationId);
     if (!job || job.workspaceId !== name) throw new Error("发布操作不存在");
     if (job.cancelled) return;
+    const client = await this.remoteClient();
     // 创建响应丢失也先按原操作找回房间，再由服务端原子取消。
     if (!job.roomId) {
-      const room = await this.client.request<{ id: string }>(
-        job.serverUrl,
-        "/v1/documents",
-        "POST",
-        { idempotencyKey: operationId }
-      );
+      const room = await client.request<{ id: string }>(job.serverUrl, "/v1/documents", "POST", {
+        idempotencyKey: operationId,
+      });
       job.roomId = room.id;
       this.save(job);
     }
-    const result = await this.client.request<{ state: string }>(
+    const result = await client.request<{ state: string }>(
       job.serverUrl,
       `/v1/documents/${job.roomId}/publication/cancel`,
       "POST",

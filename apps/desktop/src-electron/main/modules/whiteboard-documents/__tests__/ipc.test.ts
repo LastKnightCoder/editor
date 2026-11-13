@@ -2,7 +2,6 @@ import {
   prepareWhiteboardContract,
   prepareContentContract,
 } from "@tau/db-schema/content-contracts";
-import { ContentLocalState } from "../../collaboration/content-local-state";
 import { ContentDocumentTable } from "../../tables/content-document";
 // @vitest-environment node
 import Database from "better-sqlite3";
@@ -43,17 +42,15 @@ vi.mock("electron", () => ({
     fromWebContents: (sender: unknown) => state.windows.find(w => w.webContents === sender),
   },
 }));
+vi.mock("../local-state", () => ({
+  openWhiteboardState: () => ({ store: state.assetStore!, assets: state.assets! }),
+}));
+vi.mock("../../../module-init/ModuleInitManager", () => ({
+  default: { initModule: async () => ({ success: true }) },
+}));
 vi.mock("../../collaboration", () => ({
   default: {
     documentClient: vi.fn(),
-    documentStorage: () => {
-      const local = new ContentLocalState(state.assetStore!.db);
-      return {
-        state: local,
-        store: state.assetStore,
-      };
-    },
-    documentAssets: () => state.assets,
   },
 }));
 vi.mock("../../database", () => ({

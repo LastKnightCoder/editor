@@ -14,6 +14,7 @@ import { emitAgentRunEnded } from "./agent-run-events";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
 import collaborationModule from "./collaboration";
+import localContent from "./content-runtime";
 import whiteboardDocumentsModule from "./whiteboard-documents";
 import PathUtil from "../utils/PathUtil";
 import {
@@ -287,7 +288,13 @@ class PiSessionHostModule {
             `${databaseName.replace(/\.db$/, "")}.db`
           );
           assertDatabaseSyncLockOwned(databasePath);
-          await collaborationModule.releaseLibrary(databaseName);
+          const { default: modules } = await import("../module-init/ModuleInitManager");
+          for (const name of ["local-content", "whiteboard-documents"]) {
+            const ready = await modules.initModule(name);
+            if (!ready.success) throw new Error(ready.error ?? "文档保存服务尚未就绪");
+          }
+          await localContent.releaseLibrary(databaseName);
+          await collaborationModule.releaseSharedLibrary(databaseName);
           whiteboardDocumentsModule.releaseLibrary(databaseName);
           const downloadPath = `${databasePath}.download.tmp`;
           assertDatabaseSyncLockOwned(databasePath);
