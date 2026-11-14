@@ -14,7 +14,10 @@ import { getContentKit } from "@/services/editorKit";
 import { desktopCodecComposition } from "@/utils/markdown";
 import { markPortableDevelopmentLoaded } from "./content-plugin-state";
 
-export const portableDevelopmentDefinitions: PluginDefinition[] = [];
+export const portableDevelopmentDefinitions: Array<{
+  definition: PluginDefinition;
+  artifact: PortableDevelopmentArtifact;
+}> = [];
 export async function initializePortableDevelopment() {
   if (!import.meta.env.DEV || !isElectron) return;
   const artifacts = await withModule("plugin-local", () =>
@@ -37,7 +40,7 @@ export async function initializePortableDevelopment() {
       ...(definition.editorCodecs ?? []),
     ]);
     desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
-    portableDevelopmentDefinitions.push(definition);
+    portableDevelopmentDefinitions.push({ definition, artifact });
     markPortableDevelopmentLoaded();
     if (artifact.css) {
       const style = document.createElement("style");

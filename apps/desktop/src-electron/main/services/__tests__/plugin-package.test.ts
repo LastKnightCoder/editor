@@ -7,11 +7,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { readPluginPackage } from "../plugin-package";
 import { PluginPackageIntegrityCache } from "../plugin-package-integrity-cache";
 
-const cryptor = {
-  encrypt: (value: string) => Buffer.from(value, "utf8"),
-  decrypt: (value: Buffer) => value.toString("utf8"),
-};
-
 const directories: string[] = [];
 afterEach(async () => {
   await Promise.all(
@@ -123,27 +118,44 @@ describe("开发插件包读取", () => {
   });
   it("重复打开未变化插件包时复用 SHA 校验，文件变化后重新校验", async () => {
     const directory = await fixture();
-    const cache = await PluginPackageIntegrityCache.load(
-      path.join(directories[0], "plugin-integrity.bin"),
-      cryptor
-    );
+    const cache = new PluginPackageIntegrityCache();
 
     await readPluginPackage(directory, undefined, cache);
     expect(cache.misses).toBe(1);
     expect(cache.hits).toBe(0);
-    await cache.save();
+    await readPluginPackage(directory, undefined, cache);
+    expect(cache.hits).toBe(1);
+    expect(cache.misses).toBe(1);
 
-    const restored = await PluginPackageIntegrityCache.load(
-      path.join(directories[0], "plugin-integrity.bin"),
-      cryptor
-    );
-    await readPluginPackage(directory, undefined, restored);
-    expect(restored.hits).toBe(1);
-    expect(restored.misses).toBe(0);
+    const restartedCache = new PluginPackageIntegrityCache();
+    await readPluginPackage(directory, undefined, restartedCache);
+    expect(restartedCache.hits).toBe(0);
+    expect(restartedCache.misses).toBe(1);
 
     await writeFile(path.join(directory, "main.js"), "changed");
-    await expect(readPluginPackage(directory, undefined, restored)).rejects.toThrow("产物不完整");
-    expect(restored.misses).toBe(1);
+    await expect(readPluginPackage(directory, undefined, cache)).rejects.toThrow("产物不完整");
+    expect(cache.misses).toBe(2);
+  });
+  it("仅文件指纹和清单摘要一致时复用包完整性结果", async () => {
+    const cache = new PluginPackageIntegrityCache();
+    const filePath = "/plugins/example/main.js";
+    const fingerprint = {
+      size: 100,
+      mtimeMs: 1,
+      ctimeMs: 2,
+      birthtimeMs: 3,
+      dev: 4,
+      ino: 5,
+    };
+    cache.set(filePath, "a".repeat(64), fingerprint);
+    expect(cache.has(filePath, "a".repeat(64), fingerprint)).toBe(true);
+    expect(cache.has(filePath, "b".repeat(64), fingerprint)).toBe(false);
+    expect(
+      cache.has(filePath, "a".repeat(64), {
+        ...fingerprint,
+        size: fingerprint.size + 1,
+      })
+    ).toBe(false);
   });
   it.each([
     { formatVersion: 1 },

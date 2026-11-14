@@ -42,12 +42,6 @@ vi.mock("electron", () => ({
     handle: (name: string, handler: (...args: unknown[]) => unknown) =>
       mock.handlers.set(name, handler),
   },
-  safeStorage: {
-    isEncryptionAvailable: () => true,
-    getSelectedStorageBackend: () => "gnome_libsecret",
-    encryptString: (value: string) => Buffer.from(value, "utf8"),
-    decryptString: (value: Buffer) => value.toString("utf8"),
-  },
   shell: { openPath: mock.openPath },
 }));
 vi.mock("../../services/plugin-center", () => ({
@@ -208,7 +202,7 @@ it("主进程恢复开发内容快照，将定义校验交给内容渲染进程"
     artifacts: [{ manifest: { id } }],
     intents: { [id]: true },
   });
-  expect(mock.validateContent).toHaveBeenCalledTimes(1);
+  expect(mock.validateContent).toHaveBeenCalledTimes(2);
 });
 afterEach(async () => {
   await rm(mock.root, { recursive: true, force: true });

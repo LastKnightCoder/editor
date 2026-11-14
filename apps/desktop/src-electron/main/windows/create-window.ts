@@ -15,14 +15,14 @@ const contentRuntimeWindows = new Set<BrowserWindow>();
 export const isContentRuntimeWindow = (window: BrowserWindow) => contentRuntimeWindows.has(window);
 
 export interface CreateWindowOptions extends BrowserWindowConstructorOptions {
-  document?: "content-runtime";
+  document?: "content-runtime" | "plugin-window";
   /** hash 路由（如 "/editor-window?..."）；空串 = 应用根 */
   route: string;
   chrome?: WindowChrome;
   /** 开发模式下是否自动打开 DevTools（隐藏窗口须关掉，否则 DevTools 会把窗口带出来） */
   devTools?: boolean;
   /** 窗口角色（渲染端经 process.argv 识别）：主窗口 = main，预热/常驻任务只在主窗口跑 */
-  role?: "main" | "markdown" | "editor" | "utility" | "notification";
+  role?: "main" | "markdown" | "editor" | "utility" | "notification" | "plugin-window";
 }
 
 function chromeOptions(chrome: WindowChrome): BrowserWindowConstructorOptions {
@@ -88,13 +88,13 @@ export function createWindow({
     win.once("closed", () => contentRuntimeWindows.delete(win));
   }
   win.webContents.setWindowOpenHandler(routeWindowOpen);
-  if (!document) win.on("closed", quitIfNoVisibleWindow);
+  if (document !== "content-runtime") win.on("closed", quitIfNoVisibleWindow);
   win.webContents.on("did-fail-load", (_event, code, description, url) => {
     log.error(`窗口加载失败: ${code} - ${description}, URL: ${url}`);
   });
 
   if (document === "content-runtime") loadContentRuntime(win);
-  else loadRoute(win, route);
+  else if (document !== "plugin-window") loadRoute(win, route);
   if (isDev() && devTools) win.webContents.openDevTools();
   return win;
 }

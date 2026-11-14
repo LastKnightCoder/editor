@@ -211,6 +211,7 @@ export default defineConfig(() => {
         input: {
           index: path.resolve(__dirname, "index.html"),
           "content-runtime": path.resolve(__dirname, "content-runtime.html"),
+          "plugin-window": path.resolve(__dirname, "plugin-window.html"),
         },
         output: {
           codeSplitting: {

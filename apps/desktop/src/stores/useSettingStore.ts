@@ -1,3 +1,4 @@
+import { DEFAULT_WINDOW_FONT, type WindowFont } from "../../shared/window-font";
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
@@ -95,12 +96,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
 
 export interface ISetting {
   speechInput?: import("@tau/asr").SpeechInputSetting;
-  fontSetting: {
-    chineseFont: string;
-    englishFont: string;
-    fontSize: number;
-    codeFont: string;
-  };
+  fontSetting: { -readonly [Key in keyof WindowFont]: WindowFont[Key] };
   appearance?: {
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
@@ -338,12 +334,7 @@ const persistSettingCache = (setting: ISetting) => {
 const initialState: IState = {
   inited: false,
   setting: {
-    fontSetting: {
-      chineseFont: "华文楷体",
-      englishFont: "American TypeWriter",
-      codeFont: "JetBrains Mono",
-      fontSize: 16,
-    },
+    fontSetting: { ...DEFAULT_WINDOW_FONT },
     appearance: {
       image: {
         borderRadius: "none",

@@ -6,6 +6,7 @@ import collaborationModule from "./modules/collaboration";
 import mcpModule from "./modules/mcp";
 import { pluginBackends, setPluginBackendsPaused } from "./modules/plugin-backend";
 import { isContentRuntimeWindow } from "./windows/create-window";
+import { disposePluginWindows } from "./windows/plugin-window-ipc";
 import { contentExecutor } from "./services/content-execution";
 
 // 主进程广播该事件后，渲染进程完成收尾（自动同步等）并通过 app:quitting-ready 回执
@@ -72,6 +73,7 @@ async function runControlledQuit(
     log.error("文档尚未确认保存，保留窗口并取消退出:", error);
     throw error;
   }
+  disposePluginWindows();
   let finished = false;
   const finish = () => {
     if (finished) return;

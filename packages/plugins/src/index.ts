@@ -196,3 +196,16 @@ export { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai";
 
 export * from "./asr";
 export type * from "./websocket";
+
+export type {
+  PluginWindowAppearance,
+  PluginWindowCommunication,
+  PluginWindowDefinition,
+  PluginWindowHandle,
+  PluginWindowMessageSender,
+  PluginWindowMessageTarget,
+  PluginWindowOptions,
+  PluginWindowParams,
+  PluginWindowProps,
+  PluginWindows,
+} from "./windows";

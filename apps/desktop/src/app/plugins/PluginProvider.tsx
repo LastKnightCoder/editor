@@ -32,6 +32,8 @@ import { connectVideoRenderer, rendererVideoRegistry } from "./video-bridge";
 import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 import { declareContentPluginResources } from "./element-resources";
+import { bindPackageWindows } from "./package-loader";
+import { connectPluginWindowTheme } from "./windows";
 import { migratePodcastsToPlugin } from "./podcast-migration";
 
 const restartRequired = new Set<string>();
@@ -39,6 +41,7 @@ let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectSyncRenderer, []);
+  useEffect(connectPluginWindowTheme, []);
   useEffect(connectUploadRenderer, []);
   useEffect(connectCollaborationImageStorage, []);
   useEffect(connectTTSRenderer, []);
@@ -122,8 +125,8 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
         if (import.meta.env.DEV) {
           const { portableDevelopmentDefinitions } = await import("./portable-development");
           if (cancelled) return;
-          for (const definition of portableDevelopmentDefinitions) {
-            current.host.registerTrusted(definition);
+          for (const { definition, artifact } of portableDevelopmentDefinitions) {
+            current.host.registerTrusted(definition, bindPackageWindows(artifact));
             await current.host.enable(definition.id);
           }
         }

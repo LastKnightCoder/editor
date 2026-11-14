@@ -22,6 +22,7 @@ import {
   runNotificationAction,
   settleNotificationAction,
 } from "./notification-router";
+import { registerPluginWindowIpc } from "./plugin-window-ipc";
 import { openMarkdownWindow } from "./markdown-window";
 import {
   hidePomodoroImmersiveWindow,
@@ -35,6 +36,7 @@ import {
 const senderWindow = (event: IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender);
 
 export function registerWindowIpc() {
+  registerPluginWindowIpc();
   // 作用于发起调用的窗口
   ipcMain.handle("close-window", event => senderWindow(event)?.close());
   ipcMain.handle("minimize-window", event => senderWindow(event)?.minimize());

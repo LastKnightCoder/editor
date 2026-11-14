@@ -48,3 +48,10 @@ export function loadContentRuntime(win: BrowserWindow) {
     : win.loadFile(path.join(path.dirname(indexHtml), "content-runtime.html"));
   task.catch(error => log.error("内容转换进程加载失败", error));
 }
+
+export function loadPluginWindow(win: BrowserWindow) {
+  const { devServerUrl, indexHtml } = windowContext();
+  return devServerUrl
+    ? win.loadURL(new URL("plugin-window.html", devServerUrl).href)
+    : win.loadFile(path.join(path.dirname(indexHtml), "plugin-window.html"));
+}

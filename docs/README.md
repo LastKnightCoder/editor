@@ -8,21 +8,21 @@
 
 桌面可复用子 Agent 的会话、执行、权限与消息协议见 [子 Agent 架构](./architecture/subagents.md)。
 
-| 位置                                                          | 内容                                                                                                                                                 |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、交互规范、数据接线、个人助手分层记忆、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议 |
-| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                    |
-| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                         |
-| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
-| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                       |
-| [content-storage.md](./architecture/content-storage.md)       | 正文按块增量持久化、完整读取、跨端写入、字数与关系事务、日志检查点边界                                                                               |
-| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                       |
-| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                   |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                   |
-| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                               |
-| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、应用生命周期、稳定材料引用与外链、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
-| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                           |
-| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                                         |
+| 位置                                                          | 内容                                                                                                                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、交互规范、插件窗口、数据接线、个人助手分层记忆、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议 |
+| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                              |
+| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                                   |
+| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                                 |
+| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                                 |
+| [content-storage.md](./architecture/content-storage.md)       | 正文按块增量持久化、完整读取、跨端写入、字数与关系事务、日志检查点边界                                                                                         |
+| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                                 |
+| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                             |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                             |
+| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                                         |
+| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、应用生命周期、稳定材料引用与外链、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md)           |
+| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                                     |
+| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                                                   |
 
 ## decisions.md — 裁决规则
 
@@ -59,6 +59,7 @@
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射             |
 | [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                 |
 | [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                       |
+| [plugin-windows.md](./guides/plugin-windows.md)                     | 桌面插件窗口、自动外观、状态和消息       |
 | [writing-reader-docs.md](./guides/writing-reader-docs.md)           | 使用文档、插件开发文档与插件 README 写法 |
 
 ## tasks/ — 进行中任务

@@ -69,7 +69,7 @@ import type { ImageProviderDefinition } from "./images";
 import type { EmbeddingProviderDefinition } from "./embeddings";
 import type { VideoProviderDefinition } from "./video";
 import type { PublishProviderDefinition } from "./publish";
-export { copyJson } from "./values";
+export { assertLocalId, copyJson } from "./values";
 import {
   unavailableAI,
   isPluginAICapability,
@@ -1052,6 +1052,7 @@ export interface PluginInfo {
 
 interface Activation {
   context?: PluginContext;
+  windows?: PluginContext["windows"];
   contributions: Map<PluginContributionKind, number>;
   ai?: PluginAIFeatures;
   controller: AbortController;
@@ -1071,11 +1072,23 @@ type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVer
   /** manifest 声明的包内 Skill 目录；Skill 由宿主从包文件读取，这里只计入贡献。 */
   readonly skills?: readonly string[];
 };
+type WindowBinding = (
+  context: PluginContext,
+  definition: PluginDefinition
+) => Promise<
+  | {
+      api: NonNullable<PluginContext["windows"]>;
+      ready(): Promise<void>;
+    }
+  | undefined
+>;
+
 type DefinitionResolver = (signal: AbortSignal) => PluginDefinition | Promise<PluginDefinition>;
 
 interface Entry {
   metadata: PluginMetadata;
   resolveDefinition: DefinitionResolver;
+  bindWindows?: WindowBinding;
   state: PluginState;
   activation?: Activation;
   pending: Promise<void>;
@@ -1260,18 +1273,27 @@ export class PluginHost {
 
   /** 权限只能随登记声明（本地包来自 manifest），不能由插件运行时追加。 */
   registerTrusted(
-    definition: PluginDefinition & Pick<PluginMetadata, "permissions" | "backend" | "skills">
+    definition: PluginDefinition & Pick<PluginMetadata, "permissions" | "backend" | "skills">,
+    bindWindows?: WindowBinding
   ): void {
     const snapshot = Object.freeze({ ...definition });
-    this.register(definition, () => snapshot);
+    this.register(definition, () => snapshot, bindWindows);
   }
 
   /** 包入口在启用时加载，静态贡献与生命周期统一由宿主处理。 */
-  registerDeferred(metadata: PluginMetadata, resolveDefinition: DefinitionResolver): void {
-    this.register(metadata, resolveDefinition);
+  registerDeferred(
+    metadata: PluginMetadata,
+    resolveDefinition: DefinitionResolver,
+    bindWindows?: WindowBinding
+  ): void {
+    this.register(metadata, resolveDefinition, bindWindows);
   }
 
-  private register(definition: PluginMetadata, resolveDefinition: DefinitionResolver): void {
+  private register(
+    definition: PluginMetadata,
+    resolveDefinition: DefinitionResolver,
+    bindWindows?: WindowBinding
+  ): void {
     this.assertOpen();
     assertLocalId(definition.id);
     if (definition.apiVersion !== 1) throw new Error("不支持的插件 API 版本");
@@ -1290,6 +1312,7 @@ export class PluginHost {
         ...(definition.skills?.length ? { skills: Object.freeze([...definition.skills]) } : {}),
       }),
       resolveDefinition,
+      bindWindows,
       state: this.restartRequired.has(definition.id) ? "restart-required" : "disabled",
       pending: Promise.resolve(),
     });
@@ -1376,7 +1399,12 @@ export class PluginHost {
               this.assertActive(entry, activation);
             }
             activation.context = this.context(entry, activation);
-            return activation.instance.activate(activation.context);
+            const windows = await entry.bindWindows?.(activation.context, definition);
+            this.assertActive(entry, activation);
+            activation.windows = windows?.api;
+            await activation.instance.activate(activation.context);
+            this.assertActive(entry, activation);
+            await windows?.ready();
           },
           Date.now() + ACTIVATION_TIMEOUT_MS,
           "激活",
@@ -1791,6 +1819,9 @@ export class PluginHost {
       return (backendClient ??= this.options.backend(context));
     };
     const context: PluginContext = {
+      get windows() {
+        return activation.windows;
+      },
       get environment() {
         if (!environmentSource) throw new Error("当前宿主未提供插件环境");
         return environmentSource.getSnapshot();
