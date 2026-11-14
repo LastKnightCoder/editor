@@ -97,7 +97,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   });
   // 白板房间与正文会话共用协作码和成员入口；权限仍由服务端按设备身份裁决。
   const sharedServerUrl = (id: string) =>
-    context.whiteboardRoom(id)?.serverUrl ?? context.requireSession(id).info.serverUrl;
+    context.roomAddress(id) ?? context.requireSession(id).info.serverUrl;
   handle("generateInvitation", async (_event, id: string) => {
     return context.issueInvitation(sharedServerUrl(id), id);
   });
@@ -130,7 +130,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   });
   handle("leave", async (_event, id: string, discardArg?: boolean) => {
     const discard = discardArg ?? false;
-    const session = context.requireSession(id);
+    const session = await context.openRoom(id);
     if (session.info.status === "closed") {
       if (session.info.pending && !discard)
         throw new Error("请先同步完成或选择丢弃未同步内容，再清理");

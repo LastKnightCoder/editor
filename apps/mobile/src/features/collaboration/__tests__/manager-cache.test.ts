@@ -10,10 +10,12 @@ import {
   readNodeDocument,
   DEFAULT_COLLABORATION_URL,
   type SharedDocumentInfo,
+  type SharedDocumentListing,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { collaborationManager, type RuntimeSession } from "../core/manager";
 import type { CachedContentSession } from "../../../services/tauri";
+import { useCollaborationStore } from "../core/store";
 const io = vi.hoisted(() => ({
   read: vi.fn(),
   write: vi.fn(),
@@ -28,6 +30,7 @@ const io = vi.hoisted(() => ({
   close: vi.fn(),
   assets: vi.fn(),
   leave: vi.fn(),
+  list: vi.fn(async (): Promise<{ documents: SharedDocumentListing[] }> => ({ documents: [] })),
   recovery: vi.fn(),
   records: new Map<string, CachedContentSession>(),
   unbind: vi.fn(),
@@ -53,12 +56,13 @@ vi.mock("../core/rest", () => ({
   listAssets: io.assets,
   closeDocument: io.close,
   leaveDocument: io.leave,
-  listDocuments: async () => ({ documents: [] }),
+  listDocuments: io.list,
   listJoinRequests: async () => ({ requests: [] }),
 }));
 const manager = collaborationManager as unknown as {
   stopped: boolean;
   sessions: Map<string, RuntimeSession>;
+  rooms: Map<string, SharedDocumentListing>;
   transports: Map<string, HocuspocusProviderWebsocket>;
   attach(session: RuntimeSession): void;
   createSession(info: SharedDocumentInfo): Promise<RuntimeSession>;
@@ -83,10 +87,41 @@ afterEach(async () => {
     session.doc.destroy();
   }
   manager.sessions.clear();
+  manager.rooms.clear();
   Object.assign(manager, { serverUrl: DEFAULT_COLLABORATION_URL });
   io.records.clear();
   vi.restoreAllMocks();
   vi.clearAllMocks();
+});
+
+it("目录只列出正文元数据，打开目标时才下载快照，撤权后移出目录", async () => {
+  const { doc, info } = await fixture();
+  doc.destroy();
+  const room: SharedDocumentListing = { ...info, kind: "content", protocolVersion: 2 };
+  io.list.mockResolvedValueOnce({
+    documents: [
+      room,
+      {
+        ...room,
+        id: "board",
+        kind: "whiteboard",
+        protocolVersion: 3,
+      },
+    ],
+  });
+  await collaborationManager.refresh();
+  expect(io.remote).not.toHaveBeenCalled();
+  expect(useCollaborationStore.getState().sessions).toMatchObject([
+    { id: room.id, connection: "idle" },
+  ]);
+  await Promise.all([
+    collaborationManager.openDocument(room.id),
+    collaborationManager.openDocument(room.id),
+  ]);
+  expect(io.remote).toHaveBeenCalledExactlyOnceWith(DEFAULT_COLLABORATION_URL, room.id);
+  expect(manager.sessions.has(room.id)).toBe(true);
+  await collaborationManager.refresh();
+  expect(useCollaborationStore.getState().sessions).toEqual([]);
 });
 async function fixture() {
   manager.stopped = false;

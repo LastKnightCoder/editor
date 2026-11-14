@@ -52,9 +52,11 @@ export function registerContentRoutes(
   app.get("/v1/documents", async request => {
     const grouped = store.membersOf(device(request).id);
     return {
-      documents: store
-        .list(device(request).id)
-        .map(item => ({ ...item, members: mergeOnline(item.id, grouped.get(item.id) ?? []) })),
+      documents: store.list(device(request).id).map(item => ({
+        ...item,
+        ...store.protocols.describe(item.id),
+        members: mergeOnline(item.id, grouped.get(item.id) ?? []),
+      })),
     };
   });
   app.post(
@@ -135,14 +137,7 @@ export function registerContentRoutes(
   app.post("/v1/documents/:id/leave", async request => {
     const identity = device(request);
     const id = params(request).id;
-    try {
-      store.removeMember(id, identity.id, identity.id);
-    } catch (error) {
-      // 幂等退出：已非成员（被移除后重试）或文档已关闭时同样视为成功；
-      // 其余错误（owner 误用 leave 等）原样透传。
-      if (!(error instanceof CollaborationError && [403, 410].includes(error.statusCode)))
-        throw error;
-    }
+    store.leave(id, identity.id);
     disconnect(id, identity.id);
     refresh();
     return { ok: true };

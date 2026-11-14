@@ -103,7 +103,7 @@ export function CollaborationRoom({
   deviceId?: string;
   onLeft: () => void;
 }) {
-  const { binding, article, error, frozen } = useCollaborationDocument(session.id);
+  const { binding, article, error, frozen, retry } = useCollaborationDocument(session.id);
   const [leaving, setLeaving] = useState(false);
 
   const ownerActive = session.role === "owner" && session.status === "active";
@@ -134,7 +134,7 @@ export function CollaborationRoom({
             ? `${session.error}。本机还有未同步的改动，可以先复制需要的内容，再清理。`
             : session.error,
       };
-    if (session.status === "active" && session.connection !== "connected")
+    if (session.status === "active" && ["offline", "error"].includes(session.connection))
       return {
         tone: "warn" as const,
         icon: WifiOff,
@@ -310,9 +310,12 @@ export function CollaborationRoom({
             </div>
           </div>
         ) : error ? (
-          <p role="alert" className="text-danger text-tau-meta pt-20 text-center">
-            {error}
-          </p>
+          <div className="text-danger text-tau-meta flex flex-col items-center gap-2 pt-20">
+            <p role="alert">{error}</p>
+            <button type="button" className="text-accent-text cursor-pointer" onClick={retry}>
+              重试
+            </button>
+          </div>
         ) : (
           <Loading />
         )}

@@ -59,7 +59,7 @@ export default function useCollaborationDocument(
   // 曾就绪的会话消失＝共享已结束/已退出/被撤权（作者主动结束时属正常路径，不是连接失败）。
   // 用 ref 记录单调事实，避免会话消失的那一帧把「已结束」误判成「连不上」而弹重试。
   const everReadyRef = useRef(false);
-  if (session) everReadyRef.current = true;
+  if (runtime) everReadyRef.current = true;
   const ended = !session && everReadyRef.current;
 
   // 反查本地绑定：仅当该房间由本机发起时才需要把云端内容投影回本地库

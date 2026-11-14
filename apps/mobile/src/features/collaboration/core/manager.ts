@@ -24,9 +24,11 @@ import {
   type ContentNode,
   type JoinRequest,
   type SharedDocumentInfo,
+  type SharedDocumentListing,
 } from "@tau/collaboration";
 import { base64ToBytes, bytesToBase64 } from "@tau/collaboration/src/encoding";
 import * as tauri from "../../../services/tauri";
+import { parseInvokeError } from "../../../services/errors";
 import {
   clearCachedInvitation,
   readCachedInvitation,
@@ -79,6 +81,20 @@ function describeError(error: unknown, fallback: string) {
   return fallback;
 }
 
+function canRetryRead(error: unknown) {
+  const { code } = parseInvokeError(error);
+  return (
+    [
+      "COLLAB_NETWORK",
+      "COLLAB_TIMEOUT",
+      "COLLAB_REQUEST_FAILED",
+      "COLLAB_RATE_LIMITED",
+      "COLLAB_CAPACITY",
+      "COLLAB_MAINTENANCE",
+    ].includes(code) || /^COLLAB_HTTP_(429|5\d\d)$/.test(code)
+  );
+}
+
 /** 幂等键摘要：与桌面端同思路，重复发起共享不会创建重复房间 */
 async function sha256Hex(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -87,8 +103,10 @@ async function sha256Hex(value: string) {
 
 class CollaborationManager {
   private sessions = new Map<string, RuntimeSession>();
+  private rooms = new Map<string, SharedDocumentListing>();
+  private listing?: Promise<Map<string, SharedDocumentListing>>;
   private leaves = new Map<string, Promise<void>>();
-  /** 进行中的会话建立（按 documentId 去重）：列表刷新与编辑页就地补建可能并发触发 */
+  /** 编辑页和后台恢复共享同一个在途打开。 */
   private opening = new Map<string, Promise<RuntimeSession>>();
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private eventSockets = new Map<string, WebSocket>();
@@ -98,7 +116,7 @@ class CollaborationManager {
   private nickname = "Tau 用户";
   private deviceId?: string;
   private error?: string;
-  private refreshing = false;
+  private refreshing?: Promise<void>;
   private starting: Promise<void> | null = null;
   /** start 的最新目标配置：启动过程中 stop→start 交错时，由启动循环接续消费 */
   private desired: { nickname: string } | null = null;
@@ -287,21 +305,21 @@ class CollaborationManager {
         await this.reconnect(documentId);
       return this.sessions.get(documentId)?.info ?? existing.info;
     }
-    let documents: SharedDocumentInfo[];
-    try {
-      ({ documents } = await rest.listDocuments(this.serverUrl));
-    } catch (failure) {
-      const cached = await tauri.collabReadCache(documentId);
-      if (
-        !cached ||
-        cached.metadata.serverUrl !== this.serverUrl ||
-        cached.metadata.status !== "active"
-      )
-        throw failure;
-      return (await this.openSession(cached.metadata)).info;
+    let info = this.rooms.get(documentId);
+    if (!info) {
+      try {
+        info = (await this.listRooms()).get(documentId);
+      } catch (failure) {
+        if (!canRetryRead(failure)) throw failure;
+        const cached = await tauri.collabReadCache(documentId);
+        if (cached?.metadata.serverUrl !== this.serverUrl || cached.metadata.status !== "active")
+          throw failure;
+        return (await this.openSession(cached.metadata)).info;
+      }
     }
-    const info = documents.find(item => item.id === documentId);
     if (!info) throw new Error("COLLAB_NOT_FOUND: 协作文档不存在或已失去访问权限");
+    if (info.kind !== "content" || info.protocolVersion !== NODE_DOCUMENT_VERSION)
+      throw new Error("COLLAB_CLIENT_UPGRADE_REQUIRED: 协作文档版本或类型不受支持");
     return (await this.openSession(info)).info;
   }
 
@@ -336,9 +354,30 @@ class CollaborationManager {
     this.attach(session);
     this.changed();
   }
-  async refresh() {
-    if (this.refreshing || this.stopped) return;
-    this.refreshing = true;
+  private listRooms() {
+    this.listing ??= rest
+      .listDocuments(this.serverUrl)
+      .then(({ documents }) => {
+        const rooms = new Map(documents.map(info => [info.id, info]));
+        if (!this.stopped) this.rooms = rooms;
+        return rooms;
+      })
+      .finally(() => {
+        this.listing = undefined;
+      });
+    return this.listing;
+  }
+
+  refresh(): Promise<void> {
+    if (this.refreshing) return this.refreshing;
+    if (this.stopped) return Promise.resolve();
+    this.refreshing = this.refreshRooms().finally(() => {
+      this.refreshing = undefined;
+    });
+    return this.refreshing;
+  }
+
+  private async refreshRooms() {
     try {
       const serverUrl = this.serverUrl;
       const recovery = await tauri.collabListCache();
@@ -360,32 +399,50 @@ class CollaborationManager {
           failures.push(describeError(failure, "共享收尾尚未完成"));
         }
       }
-      const { documents } = await rest.listDocuments(serverUrl);
-      // 会话建立幂等（按 documentId 去重），并行拉取各自 state；单个文档失败
-      // （弱网重试耗尽/迟到停机）不阻断整个列表——逐项容错，全部失败才按连接失败处理
-      const settled = await Promise.allSettled(
-        documents
-          .filter(info => !closing.some(record => record.id === info.id))
-          .map(info => this.openSession(info))
-      );
-      const firstRejection = settled.find(result => result.status === "rejected");
-      if (firstRejection && settled.every(result => result.status === "rejected"))
-        throw (firstRejection as PromiseRejectedResult).reason;
-      const available = new Set(documents.map(item => item.id));
+      const rooms = await this.listRooms();
+      if (this.stopped) return;
+      for (const info of rooms.values())
+        if (info.kind === "content") this.pendingJoins.delete(info.id);
+      this.changed();
+      const active: Promise<RuntimeSession>[] = [];
       for (const session of [...this.sessions.values()]) {
-        if (available.has(session.info.id) || session.info.status !== "active") continue;
-        this.revokeSession(session, "revoked");
+        const info = this.rooms.get(session.info.id);
+        if (info) active.push(this.openSession(info));
+        else if (session.info.status === "active") this.revokeSession(session, "revoked");
       }
+      const settled = await Promise.allSettled(active);
+      for (const result of settled)
+        if (result.status === "rejected")
+          failures.push(describeError(result.reason, "协作会话暂未完成对账"));
       this.requests = (await rest.listJoinRequests(serverUrl)).requests;
       this.error = failures[0];
       void this.connectEvents(serverUrl).catch(() => this.scheduleEventsReconnect(serverUrl));
+      this.recoverCachedSessions(recovery);
     } catch (failure) {
       this.error = describeError(failure, "协作服务器暂时无法连接");
     } finally {
-      this.refreshing = false;
       // refresh 等待期间被 stop：重新收敛到空闲态，避免迟到会话污染状态
       if (this.stopped) this.stop();
       else this.changed();
+    }
+  }
+
+  private recoverCachedSessions(cached: tauri.CachedContentSession[]) {
+    if (this.stopped) return;
+    for (const record of cached) {
+      const room = this.rooms.get(record.id);
+      if (
+        room?.kind === "content" &&
+        room.protocolVersion === NODE_DOCUMENT_VERSION &&
+        record.serverUrl === this.serverUrl &&
+        record.status === "active" &&
+        !record.close &&
+        (record.role === "owner" || record.pending) &&
+        !this.sessions.has(record.id)
+      )
+        void this.openSession(room).catch(failure =>
+          console.warn("协作缓存后台恢复暂未完成", failure)
+        );
     }
   }
 
@@ -400,7 +457,7 @@ class CollaborationManager {
 
   async joinByCode(code: string) {
     const result = await this.act(serverUrl => rest.requestJoin(serverUrl, code));
-    if (result.status === "pending" && !this.sessions.has(result.documentId)) {
+    if (result.status === "pending" && !this.rooms.has(result.documentId)) {
       this.pendingJoins.set(result.documentId, Date.now() + JOIN_REQUEST_TTL_MS);
     } else {
       this.pendingJoins.delete(result.documentId);
@@ -440,7 +497,7 @@ class CollaborationManager {
   }
 
   private async leaveSession(documentId: string) {
-    const session = this.sessions.get(documentId);
+    let session = this.sessions.get(documentId);
     const recovery = await tauri.collabRecovery(documentId);
     if (recovery?.close) {
       if (session) {
@@ -451,6 +508,10 @@ class CollaborationManager {
       }
       return this.finishClose(recovery);
     }
+    session ??= await this.opening.get(documentId);
+    const room = this.rooms.get(documentId);
+    if (!session && room?.kind === "content" && room.protocolVersion === NODE_DOCUMENT_VERSION)
+      session = await this.openSession(room);
     if (!session) return;
     if (session.close?.confirmed)
       return this.finishClose({
@@ -531,6 +592,7 @@ class CollaborationManager {
         await this.persist(session);
         await this.clearLocalBindings(documentId);
         await tauri.collabResource(this.resourceContext(session), "release");
+        this.rooms.delete(documentId);
         this.disposeSession(documentId);
       }
     } catch (failure) {
@@ -566,6 +628,7 @@ class CollaborationManager {
       });
       await tauri.collabResource({ serverUrl, documentId: id }, "release");
       await tauri.collabRecovery(id, "release");
+      this.rooms.delete(id);
       this.disposeSession(id);
       clearCachedInvitation(id);
     } catch (failure) {
@@ -1058,6 +1121,7 @@ class CollaborationManager {
     for (const documentId of [...this.sessions.keys()]) this.disposeSession(documentId);
     for (const transport of this.transports.values()) transport.destroy();
     this.transports.clear();
+    this.rooms.clear();
     this.requests = [];
     this.pendingJoins.clear();
     this.deviceId = undefined;
@@ -1143,6 +1207,7 @@ class CollaborationManager {
 
   private async createSession(info: SharedDocumentInfo): Promise<RuntimeSession> {
     if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
+    const listed = this.rooms.has(info.id);
     let cached = await tauri.collabReadCache(info.id);
     const recovery = await tauri.collabRecovery(info.id);
     if (recovery && recovery.serverUrl !== this.serverUrl)
@@ -1194,7 +1259,7 @@ class CollaborationManager {
           remote.destroy();
         }
       } catch (failure) {
-        if (!cached) throw failure;
+        if (!cached || !canRetryRead(failure)) throw failure;
       }
       if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
       const session: RuntimeSession = {
@@ -1207,7 +1272,7 @@ class CollaborationManager {
         info: {
           ...cached?.metadata,
           ...(source ? { source } : {}),
-          ...info,
+          ...(this.rooms.get(info.id) ?? info),
           serverUrl: this.serverUrl,
           mode: "shared",
           connection: "connecting",
@@ -1247,6 +1312,10 @@ class CollaborationManager {
         this.resourceContext(session),
         "pending"
       );
+      if (this.stopped || (listed && !this.rooms.has(info.id))) {
+        session.awareness.destroy();
+        throw new Error("COLLAB_NOT_FOUND: 协作会话已失效，请重新打开");
+      }
       const onDocUpdate = (update: Uint8Array) => {
         session.resourcesDirty = true;
         void this.persist(session, update).catch(() => {});
@@ -1287,6 +1356,7 @@ class CollaborationManager {
       try {
         return await rest.getDocumentState(this.serverUrl, documentId);
       } catch (failure) {
+        if (!canRetryRead(failure)) throw failure;
         lastError = failure;
         if (attempt < DOCUMENT_STATE_MAX_ATTEMPTS) {
           await new Promise(resolve => setTimeout(resolve, 400 * attempt));
@@ -1411,14 +1481,16 @@ class CollaborationManager {
       }
       if (payload.type === "presence") {
         const session = this.sessions.get(payload.documentId);
-        if (session) {
-          session.info.members = payload.members;
-          this.changed();
-        }
+        const room = this.rooms.get(payload.documentId);
+        if (room) room.members = payload.members;
+        if (session) session.info.members = payload.members;
+        if (room || session) this.changed();
         return;
       }
       const session = this.sessions.get(payload.documentId);
+      const removed = this.rooms.delete(payload.documentId);
       if (session) this.revokeSession(session, payload.type);
+      else if (removed) this.changed();
     };
     socket.onclose = () => {
       this.eventSockets.delete(url);
@@ -1490,6 +1562,23 @@ class CollaborationManager {
     // 主动 stop 经 teardown 清空 error，仍落到 idle
     const status = this.error ? "error" : this.stopped ? "idle" : "ready";
     const sessions = [...this.sessions.values()].map(session => ({ ...session.info }));
+    for (const room of this.rooms.values()) {
+      if (
+        room.kind !== "content" ||
+        room.protocolVersion !== NODE_DOCUMENT_VERSION ||
+        this.sessions.has(room.id)
+      )
+        continue;
+      sessions.push({
+        ...room,
+        serverUrl: this.serverUrl,
+        mode: "shared",
+        connection: "idle",
+        pending: false,
+        leaving: false,
+      });
+    }
+    sessions.sort((a, b) => b.updatedAt - a.updatedAt);
     const summary = JSON.stringify([
       this.serverUrl,
       this.nickname,

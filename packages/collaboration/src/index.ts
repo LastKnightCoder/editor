@@ -13,6 +13,7 @@ export * from "./model-limits";
 export * from "./whiteboard-contract";
 export * from "./node-document";
 export * from "./document-protocol";
+export { leaveDocument } from "./document-membership";
 export * from "./document-installation";
 export * from "./document-write-queue";
 export * from "./whiteboard-types";

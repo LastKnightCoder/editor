@@ -151,6 +151,7 @@ function CardEntryScreen(props: {
         contextEntity={{ kind: "card", id: card.id }}
         aiContext={{ entityType: "card", entityId: card.id }}
         collaboration={collab.collaboration}
+        collaborationBinding={collab.collaborationBinding}
         onCollaborationEnded={collab.onCollaborationEnded}
         headerRight={
           <PageHeaderButton
@@ -297,6 +298,7 @@ function ContentDetailScreen() {
       }
       refreshKey={refreshRev}
       collaboration={collab.collaboration}
+      collaborationBinding={collab.collaborationBinding}
       onCollaborationEnded={() => {
         collab.onCollaborationEnded();
         setRefreshRev(value => value + 1);

@@ -21,6 +21,7 @@ export function sessionStatus(session: CollaborationSession): SessionStatus {
       ? { label: "共享已结束，有待恢复内容", tone: "syncing" }
       : { label: "共享已结束", tone: "idle" };
   }
+  if (session.connection === "idle") return { label: "未打开", tone: "idle" };
   if (session.connection === "connected") {
     // 唯一由打字触发的同步态（error/leaving/closed 分支的 syncing 都不是）：标记供展示层延迟揭示
     return session.pending

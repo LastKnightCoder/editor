@@ -1,29 +1,34 @@
-// 内容协作绑定查询（轻量，不加载协作运行时）：详情页入口挂载/刷新时查询该内容
-// 是否绑定协作房间（collaboration_bindings 仅记录本机发起的共享），有绑定时详情页
-// 原地切换为协作编辑。查询失败按无绑定处理，常规编辑兜底由数据库层守卫拦截。
 import { useEffect, useState } from "react";
 import * as tauri from "../../services/tauri";
 import type { CollaborationBinding } from "../../types";
 
-export function useContentCollabBinding(contentId: number | undefined, refreshKey?: number) {
-  const [binding, setBinding] = useState<CollaborationBinding | null>(null);
+export type ContentCollabBindingState =
+  | { status: "loading" | "unbound" | "error" }
+  | { status: "bound"; binding: CollaborationBinding };
+
+export function useContentCollabBinding(contentId: number | undefined, refreshKey: string) {
+  const [result, setResult] = useState<{
+    contentId: number;
+    refreshKey: string;
+    state: ContentCollabBindingState;
+  }>();
   useEffect(() => {
-    if (!contentId || contentId <= 0) {
-      setBinding(null);
-      return;
-    }
+    if (!contentId || contentId <= 0) return;
     let cancelled = false;
+    const settle = (state: ContentCollabBindingState) => {
+      if (!cancelled) setResult({ contentId, refreshKey, state });
+    };
     tauri
       .collabGetBinding(contentId)
-      .then(result => {
-        if (!cancelled) setBinding(result ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setBinding(null);
-      });
+      .then(binding => settle(binding ? { status: "bound", binding } : { status: "unbound" }))
+      .catch(() => settle({ status: "error" }));
     return () => {
       cancelled = true;
     };
   }, [contentId, refreshKey]);
-  return binding;
+  if (!contentId || contentId <= 0) return { status: "unbound" } as const;
+  if (result?.contentId === contentId && result.refreshKey === refreshKey) return result.state;
+  // 同一正文刷新时保留已确认的共享来源，避免暂时卸载正在编辑的协作视图。
+  if (result?.contentId === contentId && result.state.status === "bound") return result.state;
+  return { status: "loading" } as const;
 }

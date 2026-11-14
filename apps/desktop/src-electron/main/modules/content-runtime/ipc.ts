@@ -41,6 +41,7 @@ export type ContentIpcContext = Pick<
   | "presenceSnapshot"
 > & {
   user(): { id: string; nickname: string };
+  openRoom?: CollaborationIpcContext["openRoom"];
   flushResources?(): Promise<void>;
 };
 type CommandHandler<Key extends keyof Commands> = (
@@ -124,15 +125,17 @@ export function registerContentIpc(context: ContentIpcContext, commands: Command
     if (view?.windowId === BrowserWindow.fromWebContents(event.sender)?.id)
       context.acknowledgeFreeze(viewId, requestId);
   });
-  handle("subscribe", (event, id: string, viewId: string) => {
+  handle("subscribe", async (event, id: string, viewId: string) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window) throw new Error("窗口已关闭");
+    if (context.openRoom) await context.openRoom(id);
+    if (window.isDestroyed()) throw new Error("窗口已关闭");
     const session = context.requireSession(id);
     if (
       session.info.mode === "local" &&
       context.databaseForEvent(event).name !== session.info.source?.databaseName
     )
       throw new Error("内容不属于当前数据库");
-    const window = BrowserWindow.fromWebContents(event.sender);
-    if (!window) throw new Error("窗口已关闭");
     let workspaceId = session.info.source?.databaseName;
     if (!workspaceId) {
       try {

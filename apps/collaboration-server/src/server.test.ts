@@ -179,9 +179,23 @@ describe("协作权限和持久化", () => {
       headers: auth(guest),
     });
     expect(approved.statusCode).toBe(200);
-    store.removeMember(created.id, guest.id, guest.id);
+    const list = await app.inject({ method: "GET", url: "/v1/documents", headers: auth(guest) });
+    expect(list.json().documents).toMatchObject([
+      { id: created.id, kind: "content", protocolVersion: 2 },
+    ]);
+    const leave = (identity = guest, id = created.id) =>
+      app.inject({
+        method: "POST",
+        url: `/v1/documents/${id}/leave`,
+        headers: auth(identity),
+      });
+    expect((await leave()).json()).toEqual({ ok: true });
+    expect((await leave()).json()).toEqual({ ok: true });
+    expect((await leave(owner)).json().code).toBe("OWNER_CANNOT_LEAVE");
+    expect((await leave(guest, "unknown")).statusCode).toBe(404);
     expect(() => store.authorize(created.id, guest.id)).toThrow("没有");
     store.closeDocument(created.id, owner.id, store.protocols.state(created.id).revision);
+    expect((await leave()).json()).toEqual({ ok: true });
     expect(() => store.authorize(created.id, owner.id)).toThrow("结束");
     doc.destroy();
   });
