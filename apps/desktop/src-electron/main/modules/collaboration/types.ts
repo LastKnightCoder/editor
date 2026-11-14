@@ -64,7 +64,8 @@ export interface CollaborationIpcContext {
   refresh(): Promise<void>;
   databaseForEvent(event: IpcMainInvokeEvent): { db: Database.Database; name: string };
   requireSession(id: string): RuntimeSession;
-  whiteboardRoom(id: string): import("@tau/collaboration").SharedWhiteboardInfo | undefined;
+  roomAddress(id: string): string | undefined;
+  openRoom(id: string): Promise<RuntimeSession>;
   openContent(
     event: IpcMainInvokeEvent,
     target: ContentSessionTarget

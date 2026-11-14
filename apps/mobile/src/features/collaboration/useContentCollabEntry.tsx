@@ -33,23 +33,26 @@ export function useContentCollabEntry(
   const [shareOpen, setShareOpen] = useState(false);
   const [shareMounted, setShareMounted] = useState(false);
   // onResume 重查协作绑定：下层协作页结束共享/投影变更后回本页保持状态最新
-  const [resumeRev, setResumeRev] = useState(0);
-  const [endedRev, setEndedRev] = useState(0);
-  usePageLifecycle({ onResume: () => setResumeRev(value => value + 1) });
-  const binding = useContentCollabBinding(
+  const [bindingRevision, setBindingRevision] = useState(0);
+  const retryBinding = () => setBindingRevision(value => value + 1);
+  usePageLifecycle({ onResume: retryBinding });
+  const result = useContentCollabBinding(
     contentId,
-    (options?.refreshKey ?? 0) + resumeRev + endedRev
+    `${options?.refreshKey ?? 0}:${bindingRevision}`
   );
+  const binding = result.status === "bound" ? result.binding : null;
 
   return {
-    binding,
-    /** 传给 ContentDetailPage 的 collaboration prop */
     collaboration: binding ? { documentId: binding.documentId } : undefined,
+    collaborationBinding:
+      result.status === "loading" || result.status === "error"
+        ? { status: result.status, retry: retryBinding }
+        : undefined,
     /** 共享结束（或发起面板关闭）后刷新绑定 */
-    onCollaborationEnded: () => setEndedRev(value => value + 1),
+    onCollaborationEnded: retryBinding,
     /** ⋯ 菜单中的协作项（有绑定 → 查看协作；无 → 发起协作） */
     menuItems: collabMenuItems({
-      contentId,
+      contentId: result.status === "unbound" ? contentId : undefined,
       binding,
       onStartShare: () => {
         setShareMounted(true);
@@ -71,7 +74,7 @@ export function useContentCollabEntry(
           sourceId={options?.share?.sourceId}
           onClose={() => {
             setShareOpen(false);
-            setEndedRev(value => value + 1);
+            retryBinding();
           }}
           onError={(error, fallback) => app.presentError(error, fallback)}
         />

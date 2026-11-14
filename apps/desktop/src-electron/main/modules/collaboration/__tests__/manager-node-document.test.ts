@@ -15,10 +15,13 @@ import {
   readNodeDocument,
   validateNodeDocument,
   captureScopedTextEdit,
+  createWhiteboardDocument,
+  WhiteboardModel,
   type ContentSessionSnapshot,
   type CollaborationSession,
   type ContentNode,
   type SharedDocumentInfo,
+  type CollaborationState,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { applyNodeTreeContent, withNodeTree } from "@tau/editor-collab";
@@ -102,6 +105,9 @@ type Runtime = Pick<CollaborationManager, "agent"> & {
   transports: Map<string, HocuspocusProviderWebsocket>;
   startAutoFlush(): void;
   shutdown(): void;
+  refresh(): Promise<void>;
+  openRoom(id: string): Promise<RuntimeSession>;
+  state(): CollaborationState;
   syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void>;
 };
 async function setup(realtime = false, paragraphs?: readonly string[]) {
@@ -903,10 +909,25 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(ContentDocumentTable.read(db, 7)).not.toBeNull();
   });
 
-  it("共享冷缓存损坏不阻断刷新，按远端快照重建并清除错误", async () => {
-    const { runtime, store, localId, event } = await setup();
+  it("共享冷缓存损坏不阻断目录刷新，打开时并发复用远端快照重建", async () => {
+    const { runtime, store, localId, event, server, owner } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { documentId } = await runtime.createContent(event, 7);
+    const boardRoom = server.store.create(owner.id, "board");
+    const boardSource = new Y.Doc();
+    const board = new WhiteboardModel(boardSource);
+    board.submit([{ type: "create_page", title: "页" }], {});
+    const boardDoc = await createWhiteboardDocument(
+      { documentId: boardRoom.id, epoch: 0, baselineId: "board-base" },
+      Y.encodeStateAsUpdate(boardSource)
+    );
+    try {
+      await server.store.publish(boardRoom.id, owner.id, Y.encodeStateAsUpdate(boardDoc));
+    } finally {
+      board.dispose();
+      boardSource.destroy();
+      boardDoc.destroy();
+    }
     expect(runtime.sessions.has(localId)).toBe(false);
     const shared = runtime.sessions.get(documentId)!;
     unregisterContentSession(shared);
@@ -920,9 +941,22 @@ describe("桌面生产会话与真实服务贯通", () => {
       "connectEvents"
     ).mockResolvedValue();
     store.set("identity:http://test", "{}");
-    await (runtime as unknown as { refresh(): Promise<void> }).refresh();
-    runtime.stopped = true;
-    const rebuilt = runtime.sessions.get(documentId)!;
+    const request = vi.spyOn(runtime.client, "request");
+    await runtime.refresh();
+    expect(runtime.sessions.has(documentId)).toBe(false);
+    expect(runtime.state().sessions).toContainEqual(
+      expect.objectContaining({ id: documentId, connection: "idle" })
+    );
+    expect(runtime.state().whiteboards).toMatchObject([{ id: boardRoom.id }]);
+    expect(
+      request.mock.calls.some(([, path]) => path.endsWith("/state") || path.endsWith("/protocol"))
+    ).toBe(false);
+    const [rebuilt, second] = await Promise.all([
+      runtime.openRoom(documentId),
+      runtime.openContent(event, { contentId: 7 }),
+    ]);
+    expect(second.documentId).toBe(documentId);
+    expect(request.mock.calls.filter(([, path]) => path.endsWith("/state"))).toHaveLength(1);
     expect(rebuilt.info.serverUrl).toBe("http://test");
     expect(rebuilt.info.source?.contentId).toBe(7);
     expect((runtime as unknown as { error?: string }).error).toBeUndefined();

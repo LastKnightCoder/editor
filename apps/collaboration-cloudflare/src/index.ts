@@ -399,9 +399,11 @@ export class CollaborationService extends DurableObject<Env> {
     if (path === "/v1/documents") {
       if (method === "GET")
         return Response.json({
-          documents: this.store
-            .list(device.id)
-            .map(doc => ({ ...doc, members: this.members(doc.id) })),
+          documents: this.store.list(device.id).map(doc => ({
+            ...doc,
+            ...this.store.protocols.describe(doc.id),
+            members: this.members(doc.id),
+          })),
         });
       if (method === "POST")
         return Response.json(this.store.create(device.id, field(body, "idempotencyKey", 100)));
@@ -550,8 +552,11 @@ export class CollaborationService extends DurableObject<Env> {
       (action.startsWith("members/") && method === "DELETE")
     ) {
       const target = action === "leave" ? device.id : action.slice("members/".length);
-      this.store.remove(id, device.id, target);
-      this.send(target, { type: "revoked", documentId: id });
+      if (action === "leave") this.store.leave(id, device.id);
+      else {
+        this.store.remove(id, device.id, target);
+        this.send(target, { type: "revoked", documentId: id });
+      }
       this.disconnect(id, target);
       this.refresh();
       return Response.json({ ok: true });

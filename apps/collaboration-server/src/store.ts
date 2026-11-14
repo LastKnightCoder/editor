@@ -20,6 +20,7 @@ import {
   readDocumentProjection,
   collectDocumentResources,
   readDocumentIdentity,
+  leaveDocument,
   type DocumentProtocol,
   type DocumentSql,
   type DeviceIdentity,
@@ -691,6 +692,10 @@ export class CollaborationStore {
       .prepare("UPDATE members SET status='removed' WHERE document_id=? AND device_id=?")
       .run(id, targetId);
     this.audit(actorId, id, "member_removed");
+  }
+
+  leave(id: string, deviceId: string) {
+    leaveDocument(this.document(id), deviceId, () => this.removeMember(id, deviceId, deviceId));
   }
 
   closeDocument(id: string, deviceId: string, expectedRevision?: string) {

@@ -17,6 +17,7 @@ import {
   readDocumentProjection,
   collectDocumentResources,
   readDocumentIdentity,
+  leaveDocument,
   type DocumentProtocol,
   type DocumentSql,
   ASSET_PREFIX,
@@ -62,7 +63,7 @@ type DocumentRow = {
   id: string;
   owner_id: string;
   title: string;
-  status: string;
+  status: "draft" | "active" | "closed";
   creation_key: string;
   updated_at: number;
 };
@@ -803,6 +804,11 @@ export class CollaborationStore {
       targetId
     );
     this.audit(actorId, id, "member_removed");
+  }
+
+  leave(id: string, deviceId: string) {
+    this.writable();
+    leaveDocument(this.document(id), deviceId, () => this.remove(id, deviceId, deviceId));
   }
 
   close(id: string, deviceId: string, expectedRevision?: string) {

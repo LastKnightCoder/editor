@@ -2,7 +2,7 @@
 // 现在全页只有一个编辑器实例（本机与协作是同谱系的两个文档源，切换即换源），工具栏控制器
 // 读的就是它；历史上两个编辑器各自持 ref，切换时本地编辑器卸载把 ref 清空，控制器从此
 // 读不到 editor，工具条（及全部格式按钮）静默失效。
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEditor, type Descendant } from "slate";
@@ -51,7 +51,12 @@ vi.mock("../../../hooks/useEditContent", async () => {
   };
 });
 
-vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn() }));
+vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn(), collabGetBinding: vi.fn() }));
+vi.mock("../../../hooks/useLocalContentDocument", async importOriginal => ({
+  ...(await importOriginal<typeof import("../../../hooks/useLocalContentDocument")>()),
+  default: (options: { contentId?: number; canWrite?: () => boolean }) =>
+    options.contentId ? { readonly: options.canWrite?.() === false } : undefined,
+}));
 vi.mock("../../../hooks/useScrollState", () => ({ useEdgeFade: vi.fn() }));
 vi.mock("../editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
 vi.mock("../TagChips", () => ({ default: () => null }));
@@ -132,6 +137,8 @@ vi.mock("../../collaboration/CollaborativeEditor", async () => {
 });
 
 import { ContentDetailPage } from "../ContentDetailPage";
+import { useContentCollabBinding } from "../../collaboration/useContentCollabBinding";
+import { collabGetBinding } from "../../../services/tauri";
 import { setMobileSettingSnapshot } from "../../../services/mobileSettingsBridge";
 import type { SettingCompat } from "../../../types";
 
@@ -207,6 +214,38 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     await renderCollabDetail();
     expect(document.querySelectorAll(EDITOR_SELECTOR)).toHaveLength(1);
     expect(document.querySelector('[data-testid="collab-session"]')).not.toBeNull();
+  });
+
+  it("绑定读取失败保持只读，重试确认无绑定后才开放编辑", async () => {
+    vi.mocked(collabGetBinding)
+      .mockRejectedValueOnce(new Error("资料库暂不可读"))
+      .mockResolvedValueOnce(null);
+    function Detail() {
+      const [revision, setRevision] = useState(0);
+      const binding = useContentCollabBinding(1, String(revision));
+      return (
+        <ContentDetailPage
+          contentId={1}
+          openInEditMode
+          onBack={vi.fn()}
+          collaborationBinding={
+            binding.status === "error" || binding.status === "loading"
+              ? { status: binding.status, retry: () => setRevision(value => value + 1) }
+              : undefined
+          }
+        />
+      );
+    }
+    await act(async () => root.render(<Detail />));
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("协作绑定读取失败");
+    expect(harness.readonlyProps.at(-1)).toBe(true);
+    expect(document.querySelector('button[aria-label="编辑"]')).toBeNull();
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>('[role="alert"] button')!.click()
+    );
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(harness.readonlyProps.at(-1)).toBe(false);
+    expect(collabGetBinding).toHaveBeenCalledTimes(2);
   });
 
   it("协作 live 时正文用协作文档源", async () => {

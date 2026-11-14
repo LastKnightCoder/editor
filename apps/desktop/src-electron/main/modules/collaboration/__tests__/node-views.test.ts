@@ -17,7 +17,9 @@ vi.mock("electron", () => ({
   ipcMain: {
     handle: (key: string, handler: (...args: any[]) => any) => handlers.set(key, handler),
   },
-  BrowserWindow: { fromWebContents: (sender: { id: number }) => sender },
+  BrowserWindow: {
+    fromWebContents: (sender: { id: number }) => ({ ...sender, isDestroyed: () => false }),
+  },
   app: {},
 }));
 const cleanup: (() => void)[] = [];
@@ -78,7 +80,7 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
   const event = { sender: { id: 1 } };
-  const snapshot = handlers.get("collaboration:subscribe")!(event, "room", "view");
+  const snapshot = await handlers.get("collaboration:subscribe")!(event, "room", "view");
   expect(snapshot.documentIdentity).toEqual({
     documentId: "stable",
     baselineId: "base",
@@ -103,9 +105,11 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
   context.store = cache;
   context.contentState = state;
   registerCollaborationIpc(context);
-  expect(handlers.get("collaboration:subscribe")!(event, "room", "next").nodeViews).toEqual({
-    tabs: { activeKey: "second" },
-  });
+  expect((await handlers.get("collaboration:subscribe")!(event, "room", "next")).nodeViews).toEqual(
+    {
+      tabs: { activeKey: "second" },
+    }
+  );
 });
 
 it("共享资源转换绑定视图，公网地址不触发上传，本地资产排队且迟到结果不放行", async () => {

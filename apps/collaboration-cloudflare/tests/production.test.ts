@@ -102,6 +102,55 @@ async function create(owner: DeviceIdentity) {
 }
 
 describe("正式 Cloudflare 协作能力", () => {
+  it("成员退出结果可重试，作者和不存在的房间仍拒绝退出", async () => {
+    await initialize();
+    const owner = await register("作者");
+    const guest = await register("访客");
+    const id = await create(owner);
+    const route = `/v1/documents/${id}`;
+    const doc = await createTestDocument(
+      { title: "正文", content: [], bannerBg: "", bannerPosition: "center" },
+      { documentId: id, baselineId: "base", epoch: 0 }
+    );
+    try {
+      expect(
+        (
+          await request(
+            `${route}/publish`,
+            "POST",
+            {
+              state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+            },
+            owner
+          )
+        ).response.status
+      ).toBe(200);
+    } finally {
+      doc.destroy();
+    }
+    const { code } = (await request(`${route}/invitation`, "POST", {}, owner)).value;
+    const joined = (await request("/v1/join-requests", "POST", { code }, guest)).value;
+    await request(`/v1/join-requests/${joined.id}/decision`, "POST", { approve: true }, owner);
+    const list = () => request("/v1/documents", "GET", undefined, guest);
+    expect((await list()).value.documents).toMatchObject([
+      { id, kind: "content", protocolVersion: 2 },
+    ]);
+    const leave = (identity = guest) => request(`${route}/leave`, "POST", {}, identity);
+    expect((await leave()).value).toEqual({ ok: true });
+    expect((await leave()).value).toEqual({ ok: true });
+    expect((await list()).value.documents).toEqual([]);
+    expect((await leave(owner)).value.code).toBe("OWNER_CANNOT_LEAVE");
+    expect((await request("/v1/documents/unknown/leave", "POST", {}, guest)).response.status).toBe(
+      404
+    );
+    const { revision } = (await request(`${route}/protocol`, "GET", undefined, owner)).value;
+    expect(
+      (await request(`${route}/close`, "POST", { expectedRevision: revision }, owner)).response
+        .status
+    ).toBe(200);
+    expect((await leave()).value).toEqual({ ok: true });
+  });
+
   it("范围编辑复用正式 Worker 队列，同段并发、重复请求和冲突均保持正文完整", async () => {
     await initialize();
     const owner = await register("作者");
@@ -794,6 +843,9 @@ it("白板条件提交、缺依赖与回执备份在真实 Worker SQLite 中贯�
       state: "COMMITTED",
       receipt: { version: 3, baselineId: "board" },
     });
+    expect((await request("/v1/documents", "GET", undefined, owner)).value.documents).toMatchObject(
+      [{ id, kind: "whiteboard", protocolVersion: 3 }]
+    );
     const protocol = (await request(`/v1/documents/${id}/protocol`, "GET", undefined, owner)).value;
     expect(protocol).toMatchObject({ version: 3, sequence: 0 });
     const delta = (text: string) => {

@@ -297,6 +297,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
     binding: binding?.doc.guid === documentId ? binding : undefined,
     article,
     error,
+    retry: () => setGeneration(current => current + 1),
     frozen:
       frozen ||
       Boolean(binding && binding.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION),

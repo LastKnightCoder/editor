@@ -3,7 +3,7 @@ import { useAppContext } from "../../app/AppContext";
 import { mobilePluginState } from "../../app/plugins/content";
 import { collabListCache } from "../../services/tauri";
 
-/** 只有已有作者会话才后台恢复，不为未使用协作的用户注册设备。 */
+/** 恢复作者资源与未确认改动，不为未使用协作的用户注册设备。 */
 export function CollaborationBackground() {
   const setting = useAppContext().syncSettings.safeSetting;
   const phase = useSyncExternalStore(mobilePluginState.subscribe, mobilePluginState.get);
@@ -22,7 +22,7 @@ export function CollaborationBackground() {
             session =>
               session.mode !== "local" &&
               Boolean(session.serverUrl) &&
-              session.role === "owner" &&
+              (session.role === "owner" || session.pending) &&
               (session.status === "active" || Boolean(session.close))
           )
         )

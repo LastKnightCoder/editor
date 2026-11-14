@@ -126,6 +126,7 @@ type ContentDetailPageProps = {
   /** 该内容已绑定协作房间：原地切换为协作编辑（云端 Y.Doc 为唯一真相源），
    *  本地直写停用、owner 侧经投影通道落库；点状态条打开共享与成员 Sheet */
   collaboration?: { documentId: string };
+  collaborationBinding?: { status: "loading" | "error"; retry: () => void };
   /** 在共享与成员 Sheet 里结束共享/退出协作：宿主据此重查绑定，让 collaboration prop 归位 */
   onCollaborationEnded?: () => void;
   /** 强制已有内容打开时直接编辑；未传时按「打开文档时」偏好（默认阅读态），空文档总是直接编辑 */
@@ -157,9 +158,7 @@ type DetailEditMode = "local" | "collabConnecting" | "collabLive";
 function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode): DetailEditMode {
   if (!hasCollaboration) return "local";
   if (mode === "live") return "collabLive";
-  if (mode === "connecting") return "collabConnecting";
-  if (mode === "unavailable") return "collabConnecting";
-  return "local"; // ended：共享已结束，本地即真相源
+  return "collabConnecting";
 }
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
@@ -187,7 +186,9 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const openMode = useEditorOpenMode();
   const openInEditModeRef = useRef(false);
   openInEditModeRef.current = Boolean(props.openInEditMode) || openMode === "edit";
-  const editMode = detailEditMode(Boolean(collaborationDocumentId), collabMode);
+  const editMode = props.collaborationBinding
+    ? "collabConnecting"
+    : detailEditMode(Boolean(collaborationDocumentId), collabMode);
   const {
     content,
     syncVersion,
@@ -203,6 +204,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     },
     // 绑定协作后只由会话落库，未就绪时不创建独立写入分支。
     saveMode: editMode === "local" ? "direct" : false,
+    canWrite: () => editMode === "local",
     onLoaded: result => {
       setDetail(result);
       setInitialEditing(
@@ -261,10 +263,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
   const recordingLeave = useRecordingLeaveGuard(editorRef);
   const localDocument = useLocalContentDocument({
-    contentId: collabDocument ? undefined : props.contentId,
+    contentId: collaborationDocumentId && collabDocument ? undefined : props.contentId,
     content,
     metadata: detail ?? undefined,
     version: syncVersion,
+    canWrite: () => editMode === "local",
     onChange: (value, contracts) => {
       handleEditorContentChange(value, contracts);
       toolbarController.syncSelection();
@@ -296,7 +299,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     return () => pageContext.navigator.registerGuard(pageContext.entry.id, null);
   }, [pageContext?.navigator, pageContext?.entry.id]);
   // 协作文档源就绪即用它，否则用本机文档源；两者谱系相同，换源不重建编辑器
-  const document = collabDocument ?? localDocument;
+  const document = collaborationDocumentId ? (collabDocument ?? localDocument) : localDocument;
   // 协作建立中与协作只读：强制阅读态且隐藏「编辑」
   const forcedReadonly =
     editMode === "collabConnecting"
@@ -307,7 +310,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const readingMode = useReadingMode({
     editorRef,
     forcedReadonly,
-    initialEditing,
+    initialEditing: props.collaborationBinding ? null : initialEditing,
     toolbarController,
   });
   const { blockSelection, slateEditor, blockCount, handleBlockIndex } = useEditorBlockSelection({
@@ -652,6 +655,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </div>
         ) : null}
 
+        {props.collaborationBinding?.status === "error" ? (
+          <div role="alert" className="text-warn mt-4 flex items-center gap-2.5 text-sm">
+            <span className="flex-1">协作绑定读取失败，正文暂为只读</span>
+            <button
+              type="button"
+              className="text-accent-text"
+              onClick={props.collaborationBinding.retry}
+            >
+              重试
+            </button>
+          </div>
+        ) : null}
         {props.collaboration ? (
           // 正文编辑器在下方统一渲染；本组件只管会话、状态条与裁决弹窗
           <Suspense fallback={null}>
@@ -661,7 +676,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               onDocumentChange={setCollabDocument}
               presenceRef={presence => (collabPresence.current = presence)}
               onReadonlyChange={setCollabReadonly}
-              onModeChange={setCollabMode}
+              onModeChange={mode => {
+                setCollabMode(mode);
+                if (mode === "ended") props.onCollaborationEnded?.();
+              }}
               onCollaborationEnded={props.onCollaborationEnded}
             />
           </Suspense>

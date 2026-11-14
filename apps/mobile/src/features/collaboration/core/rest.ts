@@ -5,7 +5,7 @@ import type {
   DeviceIdentity,
   JoinRequest,
   JoinRequestResult,
-  SharedDocumentInfo,
+  SharedDocumentListing,
   DocumentProtocol,
 } from "@tau/collaboration";
 
@@ -40,7 +40,7 @@ export function updateNickname(serverUrl: string, nickname: string) {
 }
 
 export function listDocuments(serverUrl: string) {
-  return request<{ documents: SharedDocumentInfo[] }>({ serverUrl, path: "/v1/documents" });
+  return request<{ documents: SharedDocumentListing[] }>({ serverUrl, path: "/v1/documents" });
 }
 
 export function getDocumentState(serverUrl: string, documentId: string) {

@@ -32,7 +32,8 @@ it("白板房间复用协作码与成员入口，未加入的房间不签发", a
     client: { request },
     refresh: vi.fn(async () => {}),
     issueInvitation,
-    whiteboardRoom: (id: string) => (id === room.id ? room : undefined),
+    roomAddress: (id: string) => (id === room.id ? room.serverUrl : undefined),
+    openRoom: vi.fn(),
     requireSession: () => {
       throw new Error("这段内容已退出协作");
     },
@@ -46,6 +47,7 @@ it("白板房间复用协作码与成员入口，未加入的房间不签发", a
     "/v1/documents/board-room/members/guest",
     "DELETE"
   );
+  expect(context.openRoom).not.toHaveBeenCalled();
   await expect(handlers.get("collaboration:invitation")!({}, "unknown")).rejects.toThrow(
     "已退出协作"
   );

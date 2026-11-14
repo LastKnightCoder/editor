@@ -78,6 +78,7 @@ export default function useLocalContentDocument(options: {
       return false;
     }
   };
+  const writable = canWrite();
   const identity = (value: typeof options) =>
     JSON.stringify([
       value.contentId,
@@ -527,7 +528,7 @@ export default function useLocalContentDocument(options: {
     return () => {
       cancelled = true;
     };
-  }, [loaded, key, revision, options.contentId, options.kit, storageError]);
+  }, [loaded, key, revision, options.contentId, options.kit, storageError, writable]);
   useEffect(() => {
     if (!loaded || loaded.key !== key || !options.metadata?.revision || !loaded.metadata.source)
       return;

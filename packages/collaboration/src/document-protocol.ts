@@ -1,5 +1,5 @@
-import { CollaborationError } from "./protocol";
-import { assertCurrentDocumentVersion } from "./document-version";
+import { CollaborationError, type SharedDocumentListing } from "./protocol";
+import { assertCurrentDocumentVersion, NODE_DOCUMENT_VERSION } from "./document-version";
 
 export interface DocumentProtocol {
   id: string;
@@ -47,11 +47,32 @@ export class DocumentProtocolStore {
       "CREATE TABLE IF NOT EXISTS collaboration_protocol (document_id TEXT PRIMARY KEY, value TEXT NOT NULL)"
     );
   }
-  publication(documentId: string) {
-    const row = this.sql.get<{ value: string }>(
+  private stored(documentId: string) {
+    return this.sql.get<{ value: string }>(
       "SELECT value FROM collaboration_protocol WHERE document_id=?",
       documentId
     );
+  }
+
+  describe(documentId: string): Pick<SharedDocumentListing, "kind" | "protocolVersion"> {
+    const row = this.stored(documentId);
+    if (row) {
+      try {
+        const protocolVersion = readDocumentProtocol(row.value).version;
+        return {
+          kind: protocolVersion === NODE_DOCUMENT_VERSION ? "content" : "whiteboard",
+          protocolVersion,
+        };
+      } catch (error) {
+        if (!(error instanceof CollaborationError || error instanceof SyntaxError)) throw error;
+      }
+    }
+    // 保留目录中的房间身份，打开时仍须通过正文协议校验。
+    return { kind: "unknown", protocolVersion: null };
+  }
+
+  publication(documentId: string) {
+    const row = this.stored(documentId);
     return row ? (readDocumentProtocol(row.value).publication ?? null) : null;
   }
 
@@ -79,10 +100,7 @@ export class DocumentProtocolStore {
   }
 
   private document(id: string): DocumentProtocol {
-    const row = this.sql.get<{ value: string }>(
-      "SELECT value FROM collaboration_protocol WHERE document_id=?",
-      id
-    );
+    const row = this.stored(id);
     if (!row) throw new CollaborationError("UNSUPPORTED_DOCUMENT", "文档缺少当前协议记录", 409);
     const stored = readDocumentProtocol(row.value);
     if (this.verified.get(id) === row.value) return stored;

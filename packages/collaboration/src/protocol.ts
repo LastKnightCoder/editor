@@ -55,6 +55,11 @@ export interface SharedDocumentInfo {
   updatedAt: number;
 }
 
+export interface SharedDocumentListing extends SharedDocumentInfo {
+  kind: "content" | "whiteboard" | "unknown";
+  protocolVersion: number | null;
+}
+
 export interface JoinRequest {
   id: string;
   documentId: string;
@@ -95,7 +100,7 @@ export interface CollaborationSession extends SharedDocumentInfo {
   mode?: "local" | "shared";
   frozen?: boolean;
   serverUrl: string;
-  connection: "connecting" | "connected" | "offline" | "error";
+  connection: "idle" | "connecting" | "connected" | "offline" | "error";
   pending: boolean;
   leaving: boolean;
   source?: SourceBinding;
