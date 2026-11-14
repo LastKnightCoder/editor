@@ -5,6 +5,8 @@ import {
   type CollaborationEvent,
   type Member,
   type DocumentOperationRequest,
+  type DocumentStateResponse,
+  type DocumentCloseReceipt,
   type ScopedContentEdits,
 } from "@tau/collaboration";
 import type { CollaborationStore } from "./store";
@@ -105,8 +107,8 @@ export function registerContentRoutes(
     try {
       return reply.header("Cache-Control", "no-store").send({
         state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
-        protocol: { ...store.protocols.state(id), sequence: store.operations.sequence(id) },
-      });
+        protocol: { ...protocol, sequence: store.operations.sequence(id) },
+      } satisfies DocumentStateResponse);
     } finally {
       doc.destroy();
     }
@@ -163,7 +165,7 @@ export function registerContentRoutes(
       send(member.deviceId, { type: "closed", documentId: id });
     disconnect(id);
     refresh();
-    return { ok: true, revision };
+    return { ok: true, revision } satisfies DocumentCloseReceipt;
   });
   app.get("/v1/documents/:id/protocol", async (request, reply) => {
     const id = params(request).id;

@@ -3,7 +3,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
-import type { ContentSessionTarget, ContentSessionSnapshot, NodeTree } from "@tau/collaboration";
+import type { NodeTree } from "@tau/collaboration";
 import type { CollaborationSession, CollaborationState, ContentNode } from "@tau/collaboration";
 import type { CollaborationClient } from "./client";
 import type { CollaborationAssetService } from "./asset-service";
@@ -66,10 +66,6 @@ export interface CollaborationIpcContext {
   requireSession(id: string): RuntimeSession;
   roomAddress(id: string): string | undefined;
   openRoom(id: string): Promise<RuntimeSession>;
-  openContent(
-    event: IpcMainInvokeEvent,
-    target: ContentSessionTarget
-  ): Promise<ContentSessionSnapshot>;
   acknowledgeFreeze(viewId: string, requestId?: string): void;
   prepareLeave(session: RuntimeSession): Promise<void>;
   createContent(

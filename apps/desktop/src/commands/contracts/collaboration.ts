@@ -61,9 +61,6 @@ export const collaborationCommands = {
     "collaboration:invitation-current"
   ),
   state: command<[], CollaborationState>("collaboration:state"),
-  openContent: command<[ContentSessionTarget], ContentSessionSnapshot>(
-    "collaboration:open-content"
-  ),
   subscribe: command<[string, string], CollaborationSubscribeSnapshot>("collaboration:subscribe"),
   unsubscribe: command<[string], void>("collaboration:unsubscribe"),
   update: command<[string, Uint8Array, string], void>("collaboration:update"),

@@ -433,11 +433,7 @@ it("作者图片补存失败不关闭共享，重试后最终正文使用持久�
     detach: vi.fn(),
     destroy: vi.fn(),
   } as unknown as RuntimeSession["provider"];
-  const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(base64ToBytes(state)));
-  const revision = [...new Uint8Array(digest)]
-    .map(byte => byte.toString(16).padStart(2, "0"))
-    .join("");
-  io.protocol.mockResolvedValue({ version: 2, baselineId: "base", epoch: 0, revision });
+  const revision = await setFinalSnapshot(state);
   io.assets.mockResolvedValue({ ids: ["11111111-1111-4111-8111-111111111111"] });
   io.resource.mockRejectedValueOnce(new Error("作者图床失败"));
   await expect(collaborationManager.leave("doc")).rejects.toThrow("作者图床失败");
@@ -448,18 +444,22 @@ it("作者图片补存失败不关闭共享，重试后最终正文使用持久�
     url: "https://owner.test/image.webp",
   });
   expect(io.close).toHaveBeenCalledWith(session.info.serverUrl, "doc", revision);
+  expect(io.protocol).not.toHaveBeenCalled();
   expect(io.project.mock.invocationCallOrder[0]).toBeLessThan(io.close.mock.invocationCallOrder[0]);
   session.awareness.destroy();
   session.doc.destroy();
   doc.destroy();
 });
 
-async function setFinalProtocol(state: string) {
+async function setFinalSnapshot(state: string) {
   const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(base64ToBytes(state)));
   const revision = [...new Uint8Array(digest)]
     .map(byte => byte.toString(16).padStart(2, "0"))
     .join("");
-  io.protocol.mockResolvedValue({ version: 2, baselineId: "base", epoch: 0, revision });
+  io.remote.mockResolvedValue({
+    state,
+    protocol: { id: "doc", version: 2, baselineId: "base", epoch: 0, revision, sequence: 0 },
+  });
   return revision;
 }
 function syncedProvider(session: RuntimeSession) {
@@ -501,8 +501,7 @@ it("结束共享等待旧投影，禁止定时器插队，并在最终远端快�
   tree.insertText("p", 2, "最终远端输入", {});
   tree.dispose();
   const final = bytesToBase64(Y.encodeStateAsUpdate(remote));
-  io.remote.mockResolvedValue({ state: final });
-  const revision = await setFinalProtocol(final);
+  const revision = await setFinalSnapshot(final);
   io.close.mockImplementation(async (_url, _id, expected) => {
     expect(main).toContain("最终远端输入");
     expect(main).toContain("https://owner.test/image.webp");
@@ -531,7 +530,7 @@ it.each(["response", "receipt-storage", "receipt-ack", "cleanup", "cleanup-ack"]
     io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
     const session = await manager.createSession(info);
     syncedProvider(session);
-    const revision = await setFinalProtocol(state);
+    const revision = await setFinalSnapshot(state);
     if (failureAt === "response") io.close.mockRejectedValueOnce(new Error("关闭已执行但响应丢失"));
     if (failureAt === "cleanup") io.unbind.mockRejectedValueOnce(new Error("请切回原资料库"));
     if (["receipt-storage", "receipt-ack", "cleanup-ack"].includes(failureAt)) {
@@ -641,7 +640,7 @@ it("只有确认房间仍活动的修订冲突才解除关闭标记，下一次�
   io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
   const session = await manager.createSession(info);
   syncedProvider(session);
-  await setFinalProtocol(state);
+  await setFinalSnapshot(state);
   io.close.mockRejectedValueOnce(
     Object.assign(new Error("正文已变化"), { code: "REVISION_CONFLICT" })
   );
@@ -649,6 +648,7 @@ it("只有确认房间仍活动的修订冲突才解除关闭标记，下一次�
   expect(session.info.leaving).toBe(false);
   expect(session.close).toBeUndefined();
   expect(io.recovery).toHaveBeenCalledWith("doc", "clear-close");
+  expect(io.protocol).toHaveBeenCalledTimes(1);
   await collaborationManager.leave("doc");
   expect(io.close).toHaveBeenCalledTimes(2);
   session.awareness.destroy();

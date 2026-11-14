@@ -21,6 +21,7 @@ import {
   type CollaborationSession,
   type ContentNode,
   type SharedDocumentInfo,
+  type DocumentStateResponse,
   type CollaborationState,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
@@ -30,6 +31,7 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { CollaborationManager } from "../index";
+import { ContentSessionManager } from "../../content-runtime";
 import { registerAgentEditExecution } from "../../agent-run-events";
 import { CollaborationLocalStore } from "../local-store";
 import { ContentLocalState } from "../content-local-state";
@@ -108,6 +110,7 @@ type Runtime = Pick<CollaborationManager, "agent"> & {
   refresh(): Promise<void>;
   openRoom(id: string): Promise<RuntimeSession>;
   state(): CollaborationState;
+  connectLocalRuntime(): void;
   syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void>;
 };
 async function setup(realtime = false, paragraphs?: readonly string[]) {
@@ -177,7 +180,27 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
   const store = new CollaborationLocalStore(directory),
     state = new ContentLocalState(store.db);
   store.db.exec(agentSchema);
-  const runtime = new CollaborationManager() as unknown as Runtime;
+  const localDirectory = join(root, "local-content");
+  const localStore = new CollaborationLocalStore(localDirectory, "content.db");
+  localStore.db.exec(agentSchema);
+  const localSessions = new Map<string, RuntimeSession>();
+  const localAssets = new CollaborationAssetService(localStore, root, async () => {
+    throw new Error("本机正文无需远端身份");
+  });
+  const localState = new ContentLocalState(localStore.db);
+  const local = Object.assign(new ContentSessionManager(), {
+    directory: localDirectory,
+    store: localStore,
+    assets: localAssets,
+    contentState: localState,
+    sessions: localSessions,
+  });
+  const localRuntime = local as unknown as Pick<
+    Runtime,
+    "project" | "drainDatabase" | "views" | "freezeWaiters" | "acknowledgeFreeze" | "startAutoFlush"
+  > &
+    Pick<ContentSessionManager, "open" | "finishShare" | "releaseLibrary">;
+  const runtime = new CollaborationManager(local) as unknown as Runtime;
   Object.assign(runtime, {
     store,
     contentState: state,
@@ -186,10 +209,12 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
     stopped: true,
     assets: new CollaborationAssetService(store, root, async () => owner),
   });
+  runtime.connectLocalRuntime();
   if (!realtime) vi.spyOn(runtime, "attach").mockImplementation(() => {});
   cleanup.push(async () => {
     runtime.shutdown();
-    for (const session of runtime.sessions.values()) {
+    local.shutdown();
+    for (const session of [...runtime.sessions.values(), ...localSessions.values()]) {
       session.provider?.destroy();
       unregisterContentSession(session);
       session.awareness.destroy();
@@ -197,6 +222,7 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
     }
     for (const transport of runtime.transports.values()) transport.destroy();
     store.db.close();
+    localStore.db.close();
     db.close();
     await server.app.close();
     rmSync(root, { recursive: true, force: true });
@@ -237,9 +263,15 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
       count: paragraphs?.reduce((total, text) => total + text.length, 0) ?? 2,
     }
   );
-  const opened = await runtime.openContent(event, { contentId: 7 });
+  const opened = await local.open(event, { contentId: 7 });
   return {
     runtime,
+    local: localRuntime,
+    localSessions,
+    localStore,
+    localDirectory,
+    localState,
+    localAssets,
     db,
     state,
     store,
@@ -258,24 +290,24 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
 
 describe("桌面生产会话与真实服务贯通", () => {
   it("并发保存调用等待同一在途提交，不能在正文落库前返回完成", async () => {
-    const { runtime, db, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    await runtime.project(session);
+    const { local, localSessions, localAssets, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    await local.project(session);
     const tree = new NodeTree(session.doc);
-    const localize = runtime.assets.localizeDocument.bind(runtime.assets);
+    const localize = localAssets.localizeDocument.bind(localAssets);
     let release!: () => void;
     const paused = new Promise<void>(resolve => {
       release = resolve;
     });
-    vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+    vi.spyOn(localAssets, "localizeDocument").mockImplementationOnce(async (...args) => {
       await paused;
       return localize(...args);
     });
     try {
       tree.insertText("paragraph", 0, "等待", {});
-      const first = runtime.project(session);
+      const first = local.project(session);
       let finished = false;
-      const second = runtime.project(session).then(() => {
+      const second = local.project(session).then(() => {
         finished = true;
       });
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -291,9 +323,9 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("缓存增量写入失败后保留变更代次，未达压缩阈值也先补存再投影", async () => {
-    const { runtime, db, localId, store } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    await runtime.project(session);
+    const { local, localSessions, db, localId, localStore: store } = await setup();
+    const session = localSessions.get(localId)!;
+    await local.project(session);
     const tree = new NodeTree(session.doc);
     const append = vi.spyOn(store, "append").mockImplementationOnce(() => {
       throw new Error("模拟缓存写入失败");
@@ -304,7 +336,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       expect(session.projectionVersion).not.toEqual(session.projectedVersion);
       append.mockRestore();
       const compact = vi.spyOn(store, "compact");
-      await runtime.project(session);
+      await local.project(session);
       expect(compact).toHaveBeenCalledOnce();
       expect(session.cacheWriteFailed).toBe(false);
       expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].text).toBe("保留正文");
@@ -320,9 +352,9 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("拆分、合并后的共享文字片段按可见归属块保存，撤销重做不漏字", async () => {
-    const { runtime, db, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    await runtime.project(session);
+    const { local, localSessions, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    await local.project(session);
     const tree = new NodeTree(session.doc);
     const editor = withNodeTree(createEditor(), tree, {}, { normalizeOnConnect: false });
     try {
@@ -330,27 +362,27 @@ describe("桌面生产会话与真实服务贯通", () => {
       Transforms.select(editor, { path: [0, 0], offset: 1 });
       Transforms.splitNodes(editor, { always: true });
       editor.undoManager.stopCapturing();
-      await runtime.project(session);
+      await local.project(session);
       Transforms.select(editor, { path: [1, 0], offset: 0 });
       Transforms.insertText(editor, "后半");
       editor.undoManager.stopCapturing();
-      await runtime.project(session);
+      await local.project(session);
       const texts = () =>
         ContentDocumentTable.read(db, 7)!.content.map(node =>
           node.children!.map(child => child.text).join("")
         );
       expect(texts()).toEqual(["正", "后半文"]);
       editor.undoManager.undo();
-      await runtime.project(session);
+      await local.project(session);
       expect(texts()).toEqual(["正", "文"]);
       editor.undoManager.redo();
-      await runtime.project(session);
+      await local.project(session);
       expect(texts()).toEqual(["正", "后半文"]);
       Transforms.mergeNodes(editor, { at: [1] });
-      await runtime.project(session);
+      await local.project(session);
       expect(texts()).toEqual(["正后半文"]);
       Transforms.insertText(editor, "合并", { at: { path: [0, 0], offset: 1 } });
-      await runtime.project(session);
+      await local.project(session);
       expect(texts()).toEqual(["正合并后半文"]);
     } finally {
       editor.disposeNodeTree();
@@ -359,8 +391,8 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("打开、选区移动和补充契约不计编辑，实际修改正文才更新时间", async () => {
-    const { runtime, db, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
+    const { local, localSessions, localAssets, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
     const before = ContentDocumentTable.read(db, 7)!;
     db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
     db.exec(`
@@ -383,15 +415,15 @@ describe("桌面生产会话与真实服务贯通", () => {
       editor.connectNodeTree();
       Transforms.select(editor, { path: [0, 0], offset: 0 });
       Transforms.move(editor, { distance: 1 });
-      await runtime.project(session);
+      await local.project(session);
       expect(ContentDocumentTable.read(db, 7)).toEqual(before);
       expect(updateTimes()).toEqual([100, 100, 100, 100]);
       expect(operationCount()).toBe(initialOperations);
 
       const read = vi.spyOn(ContentDocumentTable, "read");
-      const localize = vi.spyOn(runtime.assets, "localizeDocument");
+      const localize = vi.spyOn(localAssets, "localizeDocument");
       tree.setProperties("paragraph", { isFold: true, svg: "用户业务内容" }, {});
-      await runtime.project(session);
+      await local.project(session);
       expect(read).not.toHaveBeenCalled();
       expect(localize).not.toHaveBeenCalled();
       read.mockRestore();
@@ -402,7 +434,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         kind: "block",
       });
       await tree.installContracts({ [extra.id]: extra.contract }, {});
-      await runtime.project(session);
+      await local.project(session);
       const prepared = ContentDocumentTable.read(db, 7)!;
       expect(prepared.contracts[extra.id]).toEqual(extra.contract);
       expect(updateTimes()).toEqual([100, 100, 100, 100]);
@@ -411,7 +443,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       expect(localize).not.toHaveBeenCalled();
 
       Transforms.insertText(editor, "修改");
-      await runtime.project(session);
+      await local.project(session);
       for (const time of updateTimes()) expect(time).toBeGreaterThan(100);
       expect(operationCount()).toBe(initialOperations + 1);
       expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("正修改文");
@@ -423,18 +455,18 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("只改标题不读取或转换正文，正常更新文章和项目标题", async () => {
-    const { runtime, db, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    await runtime.project(session);
+    const { local, localSessions, localAssets, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    await local.project(session);
     db.exec(`
       INSERT INTO articles(id,title,create_time,update_time,content_id) VALUES (1,'',1,50,7);
       INSERT INTO project_item(id,title,create_time,update_time,content_id) VALUES (1,'',1,50,7);
     `);
     const before = ContentTable.getContentById(db, 7)!.updateTime;
     const read = vi.spyOn(ContentDocumentTable, "read");
-    const localize = vi.spyOn(runtime.assets, "localizeDocument");
+    const localize = vi.spyOn(localAssets, "localizeDocument");
     session.doc.getText("title").insert(0, "修改标题");
-    await runtime.project(session);
+    await local.project(session);
     expect(read).not.toHaveBeenCalled();
     expect(localize).not.toHaveBeenCalled();
     expect(ArticleTable.getArticleById(db, 1).title).toBe("修改标题");
@@ -443,23 +475,23 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("投影期间的新输入与落库失败不会被当成本轮已保存", async () => {
-    const { runtime, db, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    await runtime.project(session);
+    const { local, localSessions, localAssets, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    await local.project(session);
     const tree = new NodeTree(session.doc);
-    const localize = runtime.assets.localizeDocument.bind(runtime.assets);
+    const localize = localAssets.localizeDocument.bind(localAssets);
     try {
       tree.insertText("paragraph", 0, "先", {});
-      vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+      vi.spyOn(localAssets, "localizeDocument").mockImplementationOnce(async (...args) => {
         const value = await localize(...args);
         tree.insertText("paragraph", 0, "后", {});
         return value;
       });
-      await runtime.project(session);
+      await local.project(session);
       expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("先正文");
       expect(session.projectedVersion).not.toEqual(session.projectionVersion);
       expect(session.projectionDirty).toBe(true);
-      await runtime.project(session);
+      await local.project(session);
       expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("后先正文");
       expect(session.projectedVersion).toEqual(session.projectionVersion);
 
@@ -467,10 +499,10 @@ describe("桌面生产会话与真实服务贯通", () => {
       vi.spyOn(ContentDocumentBlocks, "commit").mockImplementationOnce(() => {
         throw new Error("模拟落库失败");
       });
-      await expect(runtime.project(session)).rejects.toThrow("模拟落库失败");
+      await expect(local.project(session)).rejects.toThrow("模拟落库失败");
       expect(session.projectedVersion).not.toEqual(session.projectionVersion);
       expect(session.projectionDirty).toBe(true);
-      await runtime.project(session);
+      await local.project(session);
       expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("重试后先正文");
       expect(session.projectedVersion).toEqual(session.projectionVersion);
     } finally {
@@ -630,7 +662,7 @@ describe("桌面生产会话与真实服务贯通", () => {
   );
 
   it("远端图片先按作者配置保存，失败不关闭共享，成功后本机正文使用作者图床地址", async () => {
-    const { runtime, event, db, server, owner } = await setup();
+    const { runtime, local, event, db, server, owner } = await setup();
     const shared = await runtime.createContent(event, 7);
     const session = runtime.sessions.get(shared.documentId)!;
     session.provider = {
@@ -724,11 +756,19 @@ describe("桌面生产会话与真实服务贯通", () => {
     await runtime.finishLeave(session);
     expect(server.store.document(shared.documentId).status).toBe("closed");
     expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
-    expect((await runtime.openContent(event, { contentId: 7 })).mode).toBe("local");
+    expect((await local.open(event, { contentId: 7 })).mode).toBe("local");
     expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
   });
   it("本机图片保存保留路径和图床 URL，存量编号转存后缓存重建仍能读取", async () => {
-    const { runtime, localId, event, db, store } = await setup();
+    const {
+      local,
+      localSessions,
+      localAssets,
+      localId,
+      event,
+      db,
+      localStore: store,
+    } = await setup();
     const image = await prepareContentContract("tau.image", {
       type: "image",
       dataVersion: 1,
@@ -739,12 +779,12 @@ describe("桌面生产会话与真实服务贯通", () => {
         { path: "previewUrl", kind: "image" },
       ],
     });
-    const legacy = await runtime.assets.keepLocalFile(localId, {
+    const legacy = await localAssets.keepLocalFile(localId, {
       name: "legacy.png",
       mime: "image/png",
       bytes: new TextEncoder().encode("LEGACY_IMAGE"),
     });
-    const local = "~/.editor/resources/new.webp";
+    const localImage = "~/.editor/resources/new.webp";
     const remote = "https://images.test/compressed.webp";
     const before = (await ContentTable.readContent(db, 7))!;
     await ContentTable.writeContent(db, 7, {
@@ -752,7 +792,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       contracts: { ...before.contracts, [image.id]: image.contract },
       content: [
         ...before.content,
-        ...[legacy, local, remote].map((url, index) => ({
+        ...[legacy, localImage, remote].map((url, index) => ({
           type: "image",
           collabId: `image-${index}`,
           tauContract: image.id,
@@ -767,23 +807,23 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(path).toContain(join("resources", "collaboration"));
     expect(readFileSync(path, "utf8")).toBe("LEGACY_IMAGE");
     expect(saved.content[1].previewUrl).toBe(path);
-    expect(saved.content.slice(2).map(node => node.url)).toEqual([local, remote]);
-    expect(readNodeDocument(runtime.sessions.get(localId)!.doc).content).toEqual(saved.content);
+    expect(saved.content.slice(2).map(node => node.url)).toEqual([localImage, remote]);
+    expect(readNodeDocument(localSessions.get(localId)!.doc).content).toEqual(saved.content);
 
-    const session = runtime.sessions.get(localId)!;
+    const session = localSessions.get(localId)!;
     unregisterContentSession(session);
     session.awareness.destroy();
     session.doc.destroy();
-    runtime.sessions.delete(localId);
+    localSessions.delete(localId);
     store.discard(localId, "验证按主库重建本机会话");
-    await runtime.openContent(event, { contentId: 7 });
-    expect(readNodeDocument(runtime.sessions.get(localId)!.doc).content).toEqual(saved.content);
+    await local.open(event, { contentId: 7 });
+    expect(readNodeDocument(localSessions.get(localId)!.doc).content).toEqual(saved.content);
     expect(readFileSync(path, "utf8")).toBe("LEGACY_IMAGE");
   });
 
   it.each([false, true])("附件仅在其他设备上时仍能打开、编辑和保存（共享=%s）", async shared => {
-    const { runtime, localId, event, db } = await setup();
-    let session = runtime.sessions.get(localId)!;
+    const { runtime, local, localSessions, localId, event, db } = await setup();
+    let session = localSessions.get(localId)!;
     const image = await prepareContentContract("tau.image", {
       type: "image",
       dataVersion: 1,
@@ -808,10 +848,10 @@ describe("桌面生产会话与真实服务贯通", () => {
       true
     );
     tree.dispose();
-    await runtime.project(session);
+    await local.project(session);
     if (shared) session = runtime.sessions.get((await runtime.createContent(event, 7)).documentId)!;
 
-    await expect(runtime.openContent(event, { contentId: 7 })).resolves.toMatchObject({
+    await expect(local.open(event, { contentId: 7 })).resolves.toMatchObject({
       documentId: session.info.id,
       frozen: false,
     });
@@ -828,89 +868,97 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(saved.content[0].children).toMatchObject([{ text: "附件不可用时仍可编辑" }]);
     expect(saved.content[1]).toMatchObject({ collabId: "missing-image", url: reference });
     expect(readNodeDocument(session.doc).content[1]).toMatchObject({ url: reference });
-    await expect(runtime.openContent(event, { contentId: 7 })).resolves.toMatchObject({
+    await expect(local.open(event, { contentId: 7 })).resolves.toMatchObject({
       frozen: false,
     });
   });
 
   it("正文退出屏障必须收到保存确认，超时恢复编辑，重试成功才保持冻结", async () => {
-    const { runtime, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    runtime.views.set("unsaved-view", { documentId: localId, windowId: 1 });
+    const { local, localSessions, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    local.views.set("unsaved-view", { documentId: localId, windowId: 1 });
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const waiting = runtime.drainDatabase({ reason: "quit" });
-    const oldRequest = runtime.freezeWaiters.get(localId)!.id;
+    const waiting = local.drainDatabase({ reason: "quit" });
+    const oldRequest = local.freezeWaiters.get(localId)!.id;
     const rejected = expect(waiting).rejects.toThrow("未完成保存");
     await vi.advanceTimersByTimeAsync(10_000);
     await rejected;
     expect(session.info.frozen).toBe(false);
-    const next = runtime.drainDatabase({ reason: "quit" });
-    runtime.acknowledgeFreeze("unsaved-view", oldRequest);
+    const next = local.drainDatabase({ reason: "quit" });
+    local.acknowledgeFreeze("unsaved-view", oldRequest);
     expect(session.drainingViews?.has("unsaved-view")).toBe(true);
-    runtime.acknowledgeFreeze("unsaved-view", runtime.freezeWaiters.get(localId)!.id);
+    local.acknowledgeFreeze("unsaved-view", local.freezeWaiters.get(localId)!.id);
     const drain = await next;
     drain.commit();
     expect(session.info.frozen).toBe(true);
   });
   it("丢弃本机会话等待保存确认超时后恢复编辑，视图与缓存保留", async () => {
-    const { runtime, store, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    runtime.views.set("unsaved-view", { documentId: localId, windowId: 1 });
+    const { local, localSessions, localStore: store, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    local.views.set("unsaved-view", { documentId: localId, windowId: 1 });
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const discarding = expect(runtime.discardLocal(session)).rejects.toThrow("未完成保存");
+    const discarding = expect(local.finishShare(session)).rejects.toThrow("未完成保存");
     await vi.advanceTimersByTimeAsync(10_000);
     await discarding;
     expect(session.info.frozen).toBe(false);
-    expect(runtime.views.has("unsaved-view")).toBe(true);
+    expect(local.views.has("unsaved-view")).toBe(true);
     expect(store.list().some(info => info.id === localId)).toBe(true);
   });
   it("正文投影失败不放行退出，已冻结会话回滚后仍可编辑", async () => {
-    const { runtime, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    vi.spyOn(runtime, "project").mockRejectedValueOnce(new Error("disk full"));
-    await expect(runtime.drainDatabase({ reason: "quit" })).rejects.toThrow("disk full");
+    const { local, localSessions, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    vi.spyOn(local, "project").mockRejectedValueOnce(new Error("disk full"));
+    await expect(local.drainDatabase({ reason: "quit" })).rejects.toThrow("disk full");
     expect(session.info.frozen).toBe(false);
   });
 
   it("缓存缺失重建使用新协作基线，稳定正文身份不变", async () => {
-    const { runtime, db, store, localId, event } = await setup();
-    const previous = runtime.sessions.get(localId)!;
+    const { local, localSessions, db, localStore: store, localId, event } = await setup();
+    const previous = localSessions.get(localId)!;
     const identity = ContentDocumentTable.read(db, 7)!.documentId;
     const baseline = previous.doc.getMap("meta").get("baselineId");
     unregisterContentSession(previous);
     previous.awareness.destroy();
     previous.doc.destroy();
-    runtime.sessions.delete(localId);
+    localSessions.delete(localId);
     store.remove(localId);
-    const opened = await runtime.openContent(event, { contentId: 7 });
-    const current = runtime.sessions.get(opened.documentId)!;
+    const opened = await local.open(event, { contentId: 7 });
+    const current = localSessions.get(opened.documentId)!;
     expect(current.doc.getMap("meta").get("baselineId")).not.toBe(baseline);
     expect(ContentDocumentTable.read(db, 7)!.documentId).toBe(identity);
     expect(current.info.source?.projectionRevision).toBe(
       ContentDocumentTable.read(db, 7)!.revision
     );
-    await runtime.project(current);
+    await local.project(current);
   });
 
   it("冷缓存损坏时备份后丢弃，打开正文按主库重建", async () => {
-    const { runtime, db, store, localId, event } = await setup();
+    const {
+      local,
+      localSessions,
+      localDirectory,
+      db,
+      localStore: store,
+      localId,
+      event,
+    } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const previous = runtime.sessions.get(localId)!;
+    const previous = localSessions.get(localId)!;
     unregisterContentSession(previous);
     previous.awareness.destroy();
     previous.doc.destroy();
-    runtime.sessions.delete(localId);
+    localSessions.delete(localId);
     store.db.prepare("UPDATE sessions SET state_hash='broken' WHERE id=?").run(localId);
-    const opened = await runtime.openContent(event, { contentId: 7 });
+    const opened = await local.open(event, { contentId: 7 });
     expect(opened.documentId).toBe(localId);
-    expect(runtime.sessions.get(localId)!.doc.getText("title")).toBeDefined();
+    expect(localSessions.get(localId)!.doc.getText("title")).toBeDefined();
     expect(() => store.load(localId)).not.toThrow();
-    expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
+    expect(readdirSync(join(localDirectory, "discarded"))).toHaveLength(1);
     expect(ContentDocumentTable.read(db, 7)).not.toBeNull();
   });
 
   it("共享冷缓存损坏不阻断目录刷新，打开时并发复用远端快照重建", async () => {
-    const { runtime, store, localId, event, server, owner } = await setup();
+    const { runtime, local, localSessions, store, localId, event, server, owner } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { documentId } = await runtime.createContent(event, 7);
     const boardRoom = server.store.create(owner.id, "board");
@@ -928,7 +976,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       boardSource.destroy();
       boardDoc.destroy();
     }
-    expect(runtime.sessions.has(localId)).toBe(false);
+    expect(localSessions.has(localId)).toBe(false);
     const shared = runtime.sessions.get(documentId)!;
     unregisterContentSession(shared);
     shared.awareness.destroy();
@@ -953,7 +1001,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     ).toBe(false);
     const [rebuilt, second] = await Promise.all([
       runtime.openRoom(documentId),
-      runtime.openContent(event, { contentId: 7 }),
+      local.open(event, { contentId: 7 }),
     ]);
     expect(second.documentId).toBe(documentId);
     expect(request.mock.calls.filter(([, path]) => path.endsWith("/state"))).toHaveLength(1);
@@ -1006,9 +1054,17 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("重启后主库先被其它入口改写：打开正文显示新内容，旧缓存备份后重建，后续编辑能落库", async () => {
-    const { runtime, db, store, localId, event } = await setup();
+    const {
+      local,
+      localSessions,
+      localDirectory,
+      db,
+      localStore: store,
+      localId,
+      event,
+    } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const previous = runtime.sessions.get(localId)!;
+    const previous = localSessions.get(localId)!;
     const tree = new NodeTree(previous.doc);
     try {
       const [node] = readNodeDocument(previous.doc).content;
@@ -1021,7 +1077,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     unregisterContentSession(previous);
     previous.awareness.destroy();
     previous.doc.destroy();
-    runtime.sessions.delete(localId);
+    localSessions.delete(localId);
     // 打开前插件/MCP 改写了主库
     const before = ContentDocumentTable.read(db, 7)!;
     const replacement = structuredClone(before);
@@ -1031,13 +1087,13 @@ describe("桌面生产会话与真实服务贯通", () => {
       count: 5,
     });
 
-    await runtime.openContent(event, { contentId: 7 });
-    const reopened = runtime.sessions.get(localId)!;
+    await local.open(event, { contentId: 7 });
+    const reopened = localSessions.get(localId)!;
     expect(JSON.stringify(readNodeDocument(reopened.doc).content)).toContain("外部新正文");
     expect(reopened.info.source?.projectionRevision).toBe(
       ContentDocumentTable.read(db, 7)!.revision
     );
-    const [backup] = readdirSync(join(runtime.directory, "discarded"));
+    const [backup] = readdirSync(join(localDirectory, "discarded"));
     expect(backup).toBeDefined();
     expect(
       JSON.stringify(
@@ -1045,7 +1101,7 @@ describe("桌面生产会话与真实服务贯通", () => {
           (() => {
             const doc = new Y.Doc({ gc: false });
             const saved = JSON.parse(
-              readFileSync(join(runtime.directory, "discarded", backup), "utf8")
+              readFileSync(join(localDirectory, "discarded", backup), "utf8")
             );
             Y.applyUpdate(doc, Buffer.from(saved.state, "base64"));
             for (const update of saved.updates) Y.applyUpdate(doc, Buffer.from(update, "base64"));
@@ -1056,26 +1112,26 @@ describe("桌面生产会话与真实服务贯通", () => {
     ).toContain("缓存里未投影的");
 
     reopened.doc.getText("title").insert(0, "新标题");
-    await expect(runtime.project(reopened)).resolves.toBeUndefined();
+    await expect(local.project(reopened)).resolves.toBeUndefined();
   });
   it("冷缓存修订落后但主库只是投影相同内容时直接写回，不重建", async () => {
-    const { runtime, store, localId, event } = await setup();
-    const previous = runtime.sessions.get(localId)!;
+    const { local, localSessions, localStore: store, localId, event } = await setup();
+    const previous = localSessions.get(localId)!;
     previous.doc.getText("title").insert(0, "未投影标题");
     store.compact(localId, previous.doc);
     const baseline = previous.doc.getMap("meta").get("baselineId");
     unregisterContentSession(previous);
     previous.awareness.destroy();
     previous.doc.destroy();
-    runtime.sessions.delete(localId);
-    await runtime.openContent(event, { contentId: 7 });
-    const reopened = runtime.sessions.get(localId)!;
+    localSessions.delete(localId);
+    await local.open(event, { contentId: 7 });
+    const reopened = localSessions.get(localId)!;
     expect(reopened.doc.getMap("meta").get("baselineId")).toBe(baseline);
     expect(reopened.doc.getText("title").toString()).toContain("未投影标题");
   });
   it("外部正文已更新时旧缓存不能借最新修订覆盖，原输入仍留在缓存", async () => {
-    const { runtime, db, store, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
+    const { local, localSessions, db, localStore: store, localId } = await setup();
+    const session = localSessions.get(localId)!;
     const before = ContentDocumentTable.read(db, 7)!;
     const replacement = structuredClone(before);
     replacement.content[0].children = [{ text: "外部新正文" }];
@@ -1083,7 +1139,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       expectedRevision: before.revision,
       count: 5,
     });
-    await expect(runtime.project(session)).rejects.toThrow("修订冲突");
+    await expect(local.project(session)).rejects.toThrow("修订冲突");
     expect(ContentDocumentTable.read(db, 7)!.content[0].children).toEqual([{ text: "外部新正文" }]);
     const retained = store.load(localId);
     try {
@@ -1095,14 +1151,14 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("替换引用后旧实体仍由撤销持有保护，撤销只恢复一次同步引用数", async () => {
-    const { runtime, db, state, localId } = await setup();
+    const { local, localSessions, db, localState: state, localId } = await setup();
     for (const id of [41, 42])
       db.prepare(
         "INSERT INTO white_board_contents(id,create_time,update_time,data,ref_count) VALUES (?,1,1,'{}',0)"
       ).run(id);
     const first = ContentIdentityTable.reference(db, "whiteboard-content", 41),
       second = ContentIdentityTable.reference(db, "whiteboard-content", 42);
-    const session = runtime.sessions.get(localId)!,
+    const session = localSessions.get(localId)!,
       tree = new NodeTree(session.doc),
       origin = {};
     const definition = await prepareContentContract("host.whiteboard", {
@@ -1125,11 +1181,11 @@ describe("桌面生产会话与真实服务贯通", () => {
       null,
       true
     );
-    await runtime.project(session);
+    await local.project(session);
     const history = tree.createUndoManager({ trackedOrigins: new Set([origin]) });
     try {
       tree.setProperties("board", { entityRef: second }, origin);
-      await runtime.project(session);
+      await local.project(session);
       expect(state.isHeld("library", first)).toBe(true);
       expect(state.isHeld("library", second)).toBe(true);
       expect(db.prepare("SELECT id,ref_count FROM white_board_contents ORDER BY id").all()).toEqual(
@@ -1139,7 +1195,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         ]
       );
       history.undo();
-      await runtime.project(session);
+      await local.project(session);
       expect(db.prepare("SELECT id,ref_count FROM white_board_contents ORDER BY id").all()).toEqual(
         [
           { id: 41, ref_count: 1 },
@@ -1153,8 +1209,19 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
   for (const shared of [false, true])
     it(`${shared ? "共享" : "本机"}快照写入复用稳定节点和源码字段，旧修订不会覆盖新正文`, async () => {
-      const { runtime, localId, event, db, server, owner, state } = await setup();
-      let session = runtime.sessions.get(localId)!;
+      const {
+        runtime,
+        local,
+        localSessions,
+        localState,
+        localId,
+        event,
+        db,
+        server,
+        owner,
+        state,
+      } = await setup();
+      let session = localSessions.get(localId)!;
       const declaration = await prepareContentContract("example", {
         type: "example.source",
         dataVersion: 1,
@@ -1178,7 +1245,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         true
       );
       tree.dispose();
-      await runtime.project(session);
+      await local.project(session);
       if (shared)
         session = runtime.sessions.get((await runtime.createContent(event, 7)).documentId)!;
       const before = ContentTable.getContentById(db, 7)!;
@@ -1194,7 +1261,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         source: "修改源码",
       });
       await validateNodeDocument(session.doc);
-      expect(state.documentDrafts("library")).toHaveLength(0);
+      expect((shared ? state : localState).documentDrafts("library")).toHaveLength(0);
       await expect(
         ContentTable.writeContent(db, 7, {
           content: before.content,
@@ -1223,7 +1290,7 @@ describe("桌面生产会话与真实服务贯通", () => {
               expectedRevision: latest.revision,
             })
           ).rejects.toThrow("VERSION_CONFLICT");
-          expect(state.documentDrafts("library")).toHaveLength(1);
+          expect((shared ? state : localState).documentDrafts("library")).toHaveLength(1);
           expect(new NodeTree(remote).textField("source", "source").toString()).toContain("远端");
           peer.dispose();
         } finally {
@@ -1233,8 +1300,8 @@ describe("桌面生产会话与真实服务贯通", () => {
       }
     });
   it("正文助理复用稳定节点操作，回执保存在本机缓存，不污染共享文档根", async () => {
-    const { runtime, localId, db, store } = await setup();
-    const session = runtime.sessions.get(localId)!,
+    const { local, localSessions, localId, db, localStore: store } = await setup();
+    const session = localSessions.get(localId)!,
       tree = new NodeTree(session.doc);
     const list = await prepareContentContract("tau.check-list", {
       type: "check-list",
@@ -1278,7 +1345,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       null,
       true
     );
-    await runtime.project(session);
+    await local.project(session);
     db.prepare(
       "INSERT INTO articles(title,content_id,create_time,update_time) VALUES ('正文',7,1,1)"
     ).run();
@@ -1303,8 +1370,15 @@ describe("桌面生产会话与真实服务贯通", () => {
     tree.dispose();
   });
   it("整库被下载替换后丢弃本库的本地缓存，重开正文读新库内容", async () => {
-    const { runtime, event, store, localId } = await setup();
-    const drain = await runtime.drainDatabase({
+    const {
+      local,
+      localSessions,
+      localDirectory,
+      event,
+      localStore: store,
+      localId,
+    } = await setup();
+    const drain = await local.drainDatabase({
       databaseName: "library",
       reason: "database-change",
     });
@@ -1328,7 +1402,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     }
     store.set(sourceDraftKey("library", "node", "text"), { value: "草稿基线" });
     for (const name of ["library", "library.db"]) {
-      await runtime.releaseLibrary(name);
+      await local.releaseLibrary(name);
       for (const table of [
         "input_drafts",
         "document_drafts",
@@ -1340,7 +1414,7 @@ describe("桌面生产会话与真实服务贯通", () => {
           { workspace_id: "other.db" },
         ]);
     }
-    const discarded = join(host.dir, "collaboration", "discarded");
+    const discarded = join(localDirectory, "discarded");
     const archives = readdirSync(discarded).filter(file => file.endsWith("-drafts.json"));
     expect(archives).toHaveLength(1);
     const archived = JSON.parse(readFileSync(join(discarded, archives[0]), "utf8"));
@@ -1352,9 +1426,9 @@ describe("桌面生产会话与真实服务贯通", () => {
       expect.objectContaining({ state: "AQ==" }),
       expect.objectContaining({ state: "AQ==" }),
     ]);
-    expect(runtime.sessions.has(localId)).toBe(false);
+    expect(localSessions.has(localId)).toBe(false);
     expect(store.list().some(session => session.id === localId)).toBe(false);
-    const opened = await runtime.openContent(event, { contentId: 7 });
+    const opened = await local.open(event, { contentId: 7 });
     expect(opened.frozen).toBe(false);
   });
 
@@ -1438,8 +1512,16 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("同步替换释放未加载的冷缓存，之后按新库重新打开", async () => {
-    const { runtime, event, store, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
+    const {
+      local,
+      localSessions,
+      localDirectory,
+      localAssets,
+      event,
+      localStore: store,
+      localId,
+    } = await setup();
+    const session = localSessions.get(localId)!;
     const image = await prepareContentContract("tau.image", {
       type: "image",
       kind: "block",
@@ -1447,12 +1529,12 @@ describe("桌面生产会话与真实服务贯通", () => {
       isVoid: true,
       resources: [{ path: "url", kind: "image" }],
     });
-    const reference = await runtime.assets.keepLocalFile(localId, {
+    const reference = await localAssets.keepLocalFile(localId, {
       name: "unprojected.png",
       mime: "image/png",
       bytes: new TextEncoder().encode("待保全的图片"),
     });
-    const path = runtime.assets.resolveLocalFile(reference, localId)!;
+    const path = localAssets.resolveLocalFile(reference, localId)!;
     const tree = new NodeTree(session.doc);
     await tree.installContracts({ [image.id]: image.contract }, null);
     tree.insertNode(
@@ -1473,50 +1555,50 @@ describe("桌面生产会话与真实服务贯通", () => {
     unregisterContentSession(session);
     session.awareness.destroy();
     session.doc.destroy();
-    runtime.sessions.delete(localId);
-    await runtime.releaseLibrary("library");
+    localSessions.delete(localId);
+    await local.releaseLibrary("library");
     expect(store.list().some(info => info.id === localId)).toBe(false);
     expect(readFileSync(path, "utf8")).toBe("待保全的图片");
-    const discarded = join(host.dir, "collaboration", "discarded");
+    const discarded = join(localDirectory, "discarded");
     expect(
       readdirSync(discarded).some(name =>
         readFileSync(join(discarded, name), "utf8").includes(path)
       )
     ).toBe(true);
-    expect((await runtime.openContent(event, { contentId: 7 })).frozen).toBe(false);
-    runtime.assets.removeDocumentCache(localId);
+    expect((await local.open(event, { contentId: 7 })).frozen).toBe(false);
+    localAssets.removeDocumentCache(localId);
     expect(readFileSync(path, "utf8")).toBe("待保全的图片");
   });
 
   it("旧来源冷缓存按当前主库重建，并发打开得到同一会话", async () => {
-    const { runtime, event, db, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
+    const { local, localSessions, event, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
     unregisterContentSession(session);
     session.awareness.destroy();
     session.doc.destroy();
-    runtime.sessions.delete(localId);
+    localSessions.delete(localId);
     db.prepare("UPDATE library_identity SET source_id='downloaded-library'").run();
     const original = ContentDocumentTable.read(db, 7)!;
     const opened = await Promise.all([
-      runtime.openContent(event, { contentId: 7 }),
-      runtime.openContent(event, { contentId: 7 }),
+      local.open(event, { contentId: 7 }),
+      local.open(event, { contentId: 7 }),
     ]);
     expect(opened[0].source?.librarySourceId).toBe("downloaded-library");
     expect(opened[1].documentId).toBe(opened[0].documentId);
     expect(ContentDocumentTable.read(db, 7)).toEqual(original);
-    await expect(runtime.project(runtime.sessions.get(localId)!)).resolves.toBeUndefined();
+    await expect(local.project(localSessions.get(localId)!)).resolves.toBeUndefined();
   });
 
   it.each(["database-change", "quit"] as const)(
     "主库回退旧格式后 %s 保留新缓存且不投影",
     async reason => {
-      const { runtime, db, store, localId } = await setup();
+      const { local, localSessions, db, localStore: store, localId } = await setup();
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
-      const session = runtime.sessions.get(localId)!;
+      const session = localSessions.get(localId)!;
       const before = Y.encodeStateAsUpdate(session.doc);
       db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
       const original = db.prepare("SELECT content FROM contents WHERE id=7").get();
-      const drain = await runtime.drainDatabase({ databaseName: "library", reason });
+      const drain = await local.drainDatabase({ databaseName: "library", reason });
       expect(session.info.frozen).toBe(true);
       const cached = store.load(localId);
       expect(Y.encodeStateAsUpdate(cached.doc)).toEqual(before);
@@ -1529,31 +1611,31 @@ describe("桌面生产会话与真实服务贯通", () => {
   );
 
   it("不同来源缓存未能保存时仍拒绝关库并恢复编辑", async () => {
-    const { runtime, db, store, localId } = await setup();
+    const { local, localSessions, db, localStore: store, localId } = await setup();
     db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
-    runtime.sessions.get(localId)!.dirty = true;
+    localSessions.get(localId)!.dirty = true;
     vi.spyOn(store, "compact").mockImplementation(() => {
       throw new Error("缓存磁盘写入失败");
     });
-    await expect(
-      runtime.drainDatabase({ databaseName: "library", reason: "quit" })
-    ).rejects.toThrow("缓存磁盘写入失败");
-    expect(runtime.sessions.get(localId)!.info.frozen).toBe(false);
+    await expect(local.drainDatabase({ databaseName: "library", reason: "quit" })).rejects.toThrow(
+      "缓存磁盘写入失败"
+    );
+    expect(localSessions.get(localId)!.info.frozen).toBe(false);
   });
 
   it("资料库连接重开但身份与正文未变时恢复原会话", async () => {
-    const { runtime, event, localId } = await setup();
-    const drain = await runtime.drainDatabase({
+    const { local, event, localId } = await setup();
+    const drain = await local.drainDatabase({
       databaseName: "library",
       reason: "database-change",
     });
     drain.commit();
-    const opened = await runtime.openContent(event, { contentId: 7 });
+    const opened = await local.open(event, { contentId: 7 });
     expect(opened.documentId).toBe(localId);
     expect(opened.frozen).toBe(false);
   });
   it("转换后发布原类型及业务字段，结束共享接回最终正文且保持主库身份", async () => {
-    const { runtime, db, server, owner, event } = await setup();
+    const { runtime, db, server, owner, event, localSessions } = await setup();
     const identity = ContentDocumentTable.read(db, 7)!.documentId;
     const shared = await runtime.createContent(event, 7);
     const session = runtime.sessions.get(shared.documentId)!;
@@ -1586,6 +1668,21 @@ describe("桌面生产会话与真实服务贯通", () => {
       remote.destroy();
       current.destroy();
     }
+    const requestSnapshot = runtime.client.request.bind(runtime.client);
+    const invalidSnapshot = vi
+      .spyOn(runtime.client, "request")
+      .mockImplementation(async (...args) => {
+        const result = await requestSnapshot(...args);
+        if (!args[1].endsWith("/state")) return result;
+        const snapshot = result as DocumentStateResponse;
+        return { ...snapshot, protocol: { ...snapshot.protocol, revision: "0".repeat(64) } };
+      });
+    await expect(runtime.prepareLeave(session)).rejects.toThrow("共享快照与协议修订不匹配");
+    expect(session.info.frozen).toBe(false);
+    expect(
+      invalidSnapshot.mock.calls.filter(([, path]) => path.endsWith("/protocol"))
+    ).toHaveLength(0);
+    invalidSnapshot.mockRestore();
     host.databases.delete("library");
     await expect(runtime.prepareLeave(session)).rejects.toThrow("原内容所在数据库");
     expect(server.store.document(shared.documentId).status).toBe("active");
@@ -1595,18 +1692,25 @@ describe("桌面生产会话与真实服务贯通", () => {
     await expect(runtime.prepareLeave(session)).rejects.toThrow("正文落库失败");
     expect(server.store.document(shared.documentId).status).toBe("active");
     project.mockRestore();
+    const snapshotRequests = vi.spyOn(runtime.client, "request");
     await runtime.prepareLeave(session);
+    expect(snapshotRequests.mock.calls.map(([, path]) => path)).toEqual([
+      `/v1/documents/${shared.documentId}/state`,
+      `/v1/documents/${shared.documentId}/assets`,
+    ]);
+    snapshotRequests.mockRestore();
     expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("远端输入正文");
     session.info.leaving = true;
     const request = runtime.client.request.bind(runtime.client);
-    let loseClose = true;
+    let attempt = 0;
     const closeRequests = vi
       .spyOn(runtime.client, "request")
       .mockImplementation(async (...args) => {
         const result = await request(...args);
-        if (String(args[1]).endsWith("/close") && loseClose) {
-          loseClose = false;
-          throw new Error("关闭回执丢失");
+        if (args[1].endsWith("/close")) {
+          attempt++;
+          if (attempt === 1) throw new Error("关闭回执丢失");
+          if (attempt === 2) return { ok: true, revision: "其他修订" };
         }
         return result;
       });
@@ -1615,22 +1719,63 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(session.info.leaving).toBe(true);
     expect(runtime.sessions.has(shared.documentId)).toBe(true);
     await runtime.finishLeave(session);
+    expect(session.info.leaving).toBe(true);
+    expect(session.info.error).toContain("关闭回执未确认");
+    expect(session.info.frozen).toBe(true);
+    await runtime.finishLeave(session);
     expect(
       closeRequests.mock.calls.filter(args => String(args[1]).endsWith("/close"))
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(server.store.document(shared.documentId).status).toBe("closed");
-    const local = [...runtime.sessions.values()].find(value => value.info.mode === "local")!;
+    const local = [...localSessions.values()][0]!;
     expect(local).toBeDefined();
     expect(JSON.stringify(readNodeDocument(local.doc).content)).toContain("远端输入正文");
     expect(ContentDocumentTable.read(db, 7)!.documentId).toBe(identity);
     expect(db.prepare("SELECT * FROM collaboration_bindings").all()).toEqual([]);
   });
 
+  it.each([false, true])("关闭修订冲突只在确认房间仍活动时解除冻结（已关闭=%s）", async closed => {
+    const { runtime, server, owner, event, store } = await setup();
+    const { documentId } = await runtime.createContent(event, 7);
+    const session = runtime.sessions.get(documentId)!;
+    await runtime.prepareLeave(session);
+    session.info.leaving = true;
+    const revision = store.get(`close-revision:${documentId}`, "");
+    const doc = server.store.loadDocument(documentId);
+    const current = server.store.loadDocument(documentId);
+    try {
+      const vector = Y.encodeStateVector(doc);
+      doc.getText("title").insert(0, "新标题");
+      await server.store.appendUpdate(
+        documentId,
+        owner.id,
+        Y.encodeStateAsUpdate(doc, vector),
+        current
+      );
+    } finally {
+      doc.destroy();
+      current.destroy();
+    }
+    if (closed)
+      server.store.closeDocument(
+        documentId,
+        owner.id,
+        server.store.protocols.state(documentId).revision
+      );
+
+    await runtime.finishLeave(session);
+
+    expect(session.info.leaving).toBe(closed);
+    expect(session.info.frozen).toBe(closed);
+    expect(store.get(`close-revision:${documentId}`, "")).toBe(closed ? revision : "");
+    expect(store.get(`close-confirmed:${documentId}`, false)).toBe(false);
+  });
+
   it("首次发布响应丢失保持本机暂停，重试复用同一候选和房间", async () => {
-    const { runtime, event, localId, server, loseResponse } = await setup();
+    const { runtime, localSessions, event, localId, server, loseResponse } = await setup();
     loseResponse();
     await expect(runtime.createContent(event, 7)).rejects.toThrow("响应丢失");
-    expect(runtime.sessions.get(localId)!.info.frozen).toBe(true);
+    expect(localSessions.get(localId)!.info.frozen).toBe(true);
     const result = await runtime.createContent(event, 7);
     expect(runtime.sessions.has(result.documentId)).toBe(true);
     expect(server.store.db.prepare("SELECT count(*) AS count FROM documents").get()).toEqual({
@@ -1706,13 +1851,19 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
     await measureStress("large-single-block", async () => {
       const original = "大段正文".repeat(60 * 1024);
       const addition = "新增".repeat(120 * 1024);
-      const { runtime, db, localId, store } = await setup(false, [original]);
-      const session = runtime.sessions.get(localId)!;
-      await runtime.project(session);
+      const {
+        local,
+        localSessions,
+        db,
+        localId,
+        localStore: store,
+      } = await setup(false, [original]);
+      const session = localSessions.get(localId)!;
+      await local.project(session);
       const tree = new NodeTree(session.doc);
       const compact = vi.spyOn(store, "compact");
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
-      runtime.startAutoFlush();
+      local.startAutoFlush();
       const started = performance.now();
       try {
         tree.insertText("paragraph", 0, addition, {});
@@ -1751,16 +1902,22 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 
   it("自动保存二十轮：增量日志有界压缩，恢复后与主库一致", async () => {
     await measureStress("auto-flush-incremental", async () => {
-      const { runtime, db, localId, store } = await setup(
+      const {
+        local,
+        localSessions,
+        db,
+        localId,
+        localStore: store,
+      } = await setup(
         false,
         Array.from({ length: 128 }, () => "正文压力".repeat(64))
       );
-      const session = runtime.sessions.get(localId)!;
-      await runtime.project(session);
+      const session = localSessions.get(localId)!;
+      await local.project(session);
       const tree = new NodeTree(session.doc);
       const compact = vi.spyOn(store, "compact");
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
-      runtime.startAutoFlush();
+      local.startAutoFlush();
       let expected = "正文压力".repeat(64);
       try {
         for (let round = 0; round < 20; round++) {
@@ -1815,19 +1972,19 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           .repeat(Math.ceil(paragraphLength / 6))
           .slice(0, paragraphLength);
         const expected = Array.from({ length: paragraphCount }, () => text);
-        const { runtime, db, localId } = await setup(false, expected);
-        const session = runtime.sessions.get(localId)!;
-        await runtime.project(session);
+        const { local, localSessions, localAssets, db, localId } = await setup(false, expected);
+        const session = localSessions.get(localId)!;
+        await local.project(session);
         db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
         const tree = new NodeTree(session.doc);
         const read = vi.spyOn(ContentDocumentTable, "read");
-        const localize = vi.spyOn(runtime.assets, "localizeDocument");
+        const localize = vi.spyOn(localAssets, "localizeDocument");
         const idle: number[] = [],
           saves: number[] = [];
         try {
           for (let iteration = 0; iteration < 500; iteration++) {
             const started = performance.now();
-            await runtime.project(session);
+            await local.project(session);
             idle.push(performance.now() - started);
           }
           expect(read).not.toHaveBeenCalled();
@@ -1840,7 +1997,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
               kind: "block",
             });
             await tree.installContracts({ [definition.id]: definition.contract }, {});
-            await runtime.project(session);
+            await local.project(session);
           }
           expect(localize).not.toHaveBeenCalled();
           expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(100);
@@ -1851,7 +2008,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
             const started = performance.now();
             tree.insertText(id, 0, addition, {});
             expected[index] = addition + expected[index];
-            await runtime.project(session);
+            await local.project(session);
             saves.push(performance.now() - started);
             expect(
               ContentDocumentTable.read(db, 7)!.content.map(node =>
@@ -1885,16 +2042,16 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 
   it("同值属性与重复确认：不能产生编辑时间或编辑记录", async () => {
     await measureStress("idempotent-properties", async () => {
-      const { runtime, db, localId } = await setup();
-      const session = runtime.sessions.get(localId)!;
-      await runtime.project(session);
+      const { local, localSessions, db, localId } = await setup();
+      const session = localSessions.get(localId)!;
+      await local.project(session);
       db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
       const tree = new NodeTree(session.doc);
       const before = ContentDocumentTable.read(db, 7)!;
       try {
         for (let iteration = 0; iteration < 100; iteration++) {
           tree.setProperties("paragraph", { isFold: true, svg: "用户业务内容" }, {});
-          await runtime.project(session);
+          await local.project(session);
         }
         expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(100);
         expect(ContentDocumentTable.read(db, 7)).toEqual(before);
@@ -1912,13 +2069,15 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
     "随机编辑种子 %i：增删改移与未投影冷缓存恢复",
     async seed => {
       await measureStress(`random-${seed}`, async () => {
-        const { runtime, db, localId, event, store } = await setup(false, [
-          "起点甲",
-          "起点乙",
-          "起点丙",
-          "起点丁",
-        ]);
-        let session = runtime.sessions.get(localId)!;
+        const {
+          local,
+          localSessions,
+          db,
+          localId,
+          event,
+          localStore: store,
+        } = await setup(false, ["起点甲", "起点乙", "起点丙", "起点丁"]);
+        let session = localSessions.get(localId)!;
         let tree = new NodeTree(session.doc);
         const contract = String(tree.nodeSnapshot("paragraph").tauContract);
         const expected = ["起点甲", "起点乙", "起点丙", "起点丁"].map((text, index) => ({
@@ -1997,14 +2156,14 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
               unregisterContentSession(session);
               session.awareness.destroy();
               session.doc.destroy();
-              runtime.sessions.delete(localId);
-              await runtime.openContent(event, { contentId: 7 });
-              session = runtime.sessions.get(localId)!;
+              localSessions.delete(localId);
+              await local.open(event, { contentId: 7 });
+              session = localSessions.get(localId)!;
               tree = new NodeTree(session.doc);
               recoveries++;
             }
             if (step % 8 === 7) {
-              await runtime.project(session);
+              await local.project(session);
               verify();
               saves++;
             }
@@ -2026,8 +2185,8 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 
   it("源码、格式、撤销重做：各类正文事务都正常推进保存", async () => {
     await measureStress("source-format-history", async () => {
-      const { runtime, db, localId } = await setup();
-      const session = runtime.sessions.get(localId)!;
+      const { local, localSessions, db, localId } = await setup();
+      const session = localSessions.get(localId)!;
       const tree = new NodeTree(session.doc);
       const source = await prepareContentContract("stress.source", {
         type: "stress.source",
@@ -2050,7 +2209,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
         {},
         true
       );
-      await runtime.project(session);
+      await local.project(session);
       const origin = {};
       const history = tree.createUndoManager({
         trackedOrigins: new Set([origin]),
@@ -2067,16 +2226,16 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           );
           history.stopCapturing();
           expected += addition;
-          await runtime.project(session);
+          await local.project(session);
           expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(expected);
           history.undo();
-          await runtime.project(session);
+          await local.project(session);
           expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(before);
           history.redo();
-          await runtime.project(session);
+          await local.project(session);
           expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(expected);
           tree.formatText("paragraph", 0, 2, { bold: step % 2 === 0 ? true : null }, {});
-          await runtime.project(session);
+          await local.project(session);
           expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].bold).toBe(
             step % 2 === 0 ? true : undefined
           );
@@ -2092,11 +2251,11 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 
   it("投影重叠、写入后回滚与切库竞态：新输入始终可重试", async () => {
     await measureStress("overlap-rollback-database-switch", async () => {
-      const { runtime, db, localId } = await setup();
-      const session = runtime.sessions.get(localId)!;
-      await runtime.project(session);
+      const { local, localSessions, localAssets, db, localId } = await setup();
+      const session = localSessions.get(localId)!;
+      await local.project(session);
       const tree = new NodeTree(session.doc);
-      const originalLocalize = runtime.assets.localizeDocument.bind(runtime.assets);
+      const originalLocalize = localAssets.localizeDocument.bind(localAssets);
       const originalCommit = ContentDocumentBlocks.commit.bind(ContentDocumentBlocks);
       let expected = "正文";
       try {
@@ -2104,32 +2263,32 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           const addition = `前${step}`;
           tree.insertText("paragraph", 0, addition, {});
           expected = addition + expected;
-          vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+          vi.spyOn(localAssets, "localizeDocument").mockImplementationOnce(async (...args) => {
             const value = await originalLocalize(...args);
             tree.insertText("paragraph", 0, "晚到", {});
             expected = "晚到" + expected;
             return value;
           });
-          await Promise.all(Array.from({ length: 8 }, () => runtime.project(session)));
+          await Promise.all(Array.from({ length: 8 }, () => local.project(session)));
           expect(session.projectedVersion).not.toEqual(session.projectionVersion);
           const before = ContentDocumentTable.read(db, 7)!;
           vi.spyOn(ContentDocumentBlocks, "commit").mockImplementationOnce((...args) => {
             originalCommit(...args);
             throw new Error("写入后模拟故障，事务必须回滚");
           });
-          await expect(runtime.project(session)).rejects.toThrow("事务必须回滚");
+          await expect(local.project(session)).rejects.toThrow("事务必须回滚");
           expect(ContentDocumentTable.read(db, 7)).toEqual(before);
           expect(session.projectedVersion).not.toEqual(session.projectionVersion);
-          vi.spyOn(runtime.assets, "localizeDocument").mockImplementationOnce(async (...args) => {
+          vi.spyOn(localAssets, "localizeDocument").mockImplementationOnce(async (...args) => {
             const value = await originalLocalize(...args);
             host.databases.delete("library");
             return value;
           });
-          await runtime.project(session);
+          await local.project(session);
           expect(ContentDocumentTable.read(db, 7)).toEqual(before);
           expect(session.projectionDirty).toBe(true);
           host.databases.set("library", db);
-          await runtime.project(session);
+          await local.project(session);
           expect(
             ContentDocumentTable.read(db, 7)!
               .content[0].children!.map(leaf => leaf.text)
@@ -2153,9 +2312,16 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 
   it("双视图并发输入与重复增量：接纳后收敛且不重复文字", async () => {
     await measureStress("two-view-increments", async () => {
-      const { runtime, db, localId, store, state } = await setup();
-      const session = runtime.sessions.get(localId)!;
-      await runtime.project(session);
+      const {
+        local,
+        localSessions,
+        db,
+        localId,
+        localStore: store,
+        localState: state,
+      } = await setup();
+      const session = localSessions.get(localId)!;
+      await local.project(session);
       const queue = new NodeSessionUpdates(store, state);
       const peers = [
         new NodeTree(new Y.Doc({ gc: false })),
@@ -2180,7 +2346,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
               .slice(offset, offset + 8)
               .map(update => queue.apply(session, update, () => {}))
           );
-          await runtime.project(session);
+          await local.project(session);
         }
         const actual = ContentDocumentTable.read(db, 7)!
           .content[0].children!.map(leaf => leaf.text)
@@ -2275,7 +2441,10 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 });
 
 it.each([false, true])("正文范围提交和撤销保持其他内容完整（共享=%s）", async shared => {
-  const { runtime, localId, event, db, server } = await setup(false, ["第一段", "第二段"]);
+  const { runtime, localStore, localId, event, db, server } = await setup(false, [
+    "第一段",
+    "第二段",
+  ]);
   const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
   const original = await runtime.agent.readEditSnapshot(db, 7);
   const snapshot = new Y.Doc();
@@ -2300,7 +2469,7 @@ it.each([false, true])("正文范围提交和撤销保持其他内容完整（�
       );
       expect(await runtime.agent.applyScopedEdit(db, 7, request)).toEqual({ status: "pending" });
     } else {
-      const append = vi.spyOn(runtime.store, "append").mockImplementationOnce(() => {
+      const append = vi.spyOn(localStore, "append").mockImplementationOnce(() => {
         throw new Error("模拟本机落盘失败");
       });
       await expect(runtime.agent.applyScopedEdit(db, 7, request)).rejects.toThrow(
@@ -2337,7 +2506,7 @@ it.each([false, true])("正文范围提交和撤销保持其他内容完整（�
 
 it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%s）", async shared => {
   const longOriginal = "原".repeat(40_000);
-  const { runtime, localId, event, db, server } = await setup(false, [
+  const { runtime, localStore, localId, event, db, server } = await setup(false, [
     "原文",
     "第二段保留",
     longOriginal,
@@ -2383,7 +2552,7 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
         reason: "UNDO_LIMIT",
       });
       expect(server.store.operations.sequence(sessionId)).toBe(originalSequence);
-    } else expect(runtime.store.get(key(oversized.id), null)).toBeNull();
+    } else expect(localStore.get(key(oversized.id), null)).toBeNull();
 
     // 正向回执在预算内，若额外记录重做，撤销回执会超限。
     const text = "新".repeat(12_000);
@@ -2407,10 +2576,10 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
       expect(reverse?.receipt?.inverse).toBeUndefined();
       expect(server.store.operations.sequence(sessionId)).toBe(originalSequence + 2);
     } else {
-      expect(runtime.store.get(key(accepted.id), null)).toMatchObject({
+      expect(localStore.get(key(accepted.id), null)).toMatchObject({
         inverse: { edits: [expect.anything()] },
       });
-      expect(runtime.store.get(key(`${accepted.id}-undo`), null)).toMatchObject({
+      expect(localStore.get(key(`${accepted.id}-undo`), null)).toMatchObject({
         hash: expect.any(String),
       });
     }
@@ -2421,7 +2590,7 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
 });
 
 it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销", async () => {
-  const { runtime, db, localId } = await setup(false, ["第一段原文", "第二段保留"]);
+  const { runtime, localStore, db, localId } = await setup(false, ["第一段原文", "第二段保留"]);
   const original = await runtime.agent.readEditSnapshot(db, 7);
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
@@ -2443,8 +2612,8 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
         },
       ],
     });
-    const append = runtime.store.append.bind(runtime.store);
-    const spy = vi.spyOn(runtime.store, "append").mockImplementation((...args) => {
+    const append = localStore.append.bind(localStore);
+    const spy = vi.spyOn(localStore, "append").mockImplementation((...args) => {
       append(...args);
       queueMicrotask(stop);
     });
@@ -2454,7 +2623,7 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
     });
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
-    const saved = runtime.store.load(localId)?.doc;
+    const saved = localStore.load(localId).doc;
     if (!saved) throw new Error("缺少落盘正文");
     try {
       const content = readNodeDocument(saved).content;

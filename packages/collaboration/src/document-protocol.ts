@@ -11,6 +11,16 @@ export interface DocumentProtocol {
   publication?: { candidateHash: string; baselineId: string; version: number };
 }
 
+export interface DocumentStateResponse {
+  state: string;
+  protocol: DocumentProtocol & { sequence: number };
+}
+
+export interface DocumentCloseReceipt {
+  ok: true;
+  revision: string | null;
+}
+
 type Parameter = string | number | null;
 export interface DocumentSql {
   exec(sql: string, ...parameters: Parameter[]): void;

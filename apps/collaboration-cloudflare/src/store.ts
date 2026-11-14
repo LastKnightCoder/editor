@@ -19,6 +19,7 @@ import {
   readDocumentIdentity,
   leaveDocument,
   type DocumentProtocol,
+  type DocumentStateResponse,
   type DocumentSql,
   ASSET_PREFIX,
   type DeviceIdentity,
@@ -899,12 +900,15 @@ export class CollaborationStore {
     );
   }
 
-  snapshot(id: string) {
+  snapshot(
+    id: string,
+    protocol = this.protocols.state(id)
+  ): DocumentStateResponse & { title: string } {
     const doc = this.load(id);
     try {
       return {
         state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
-        protocol: { ...this.protocols.state(id), sequence: this.operations.sequence(id) },
+        protocol: { ...protocol, sequence: this.operations.sequence(id) },
         title: this.retainedContent(doc).title,
       };
     } finally {

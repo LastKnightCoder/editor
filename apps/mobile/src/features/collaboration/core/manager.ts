@@ -11,6 +11,7 @@ import { Awareness } from "y-protocols/awareness";
 import {
   DEFAULT_COLLABORATION_URL,
   createNodeDocument,
+  applyNodeDocumentUpdate,
   readNodeDocument,
   validateNodeDocument,
   collectNodeDocumentResources,
@@ -95,9 +96,8 @@ function canRetryRead(error: unknown) {
   );
 }
 
-/** 幂等键摘要：与桌面端同思路，重复发起共享不会创建重复房间 */
-async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+async function sha256Hex(bytes: Uint8Array<ArrayBuffer>) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -540,28 +540,23 @@ class CollaborationManager {
       if (session.info.role === "owner") {
         if (!session.info.source?.librarySourceId)
           throw new Error("原正文关联缺失，请恢复原正文关联后再结束共享");
-        const remote = await rest.getDocumentState(session.info.serverUrl, documentId);
-        const protocol = await rest.getDocumentProtocol(session.info.serverUrl, documentId);
-        const bytes = base64ToBytes(remote.state);
-        const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes));
-        const revision = [...new Uint8Array(digest)]
-          .map(value => value.toString(16).padStart(2, "0"))
-          .join("");
-        if (revision !== protocol.revision) throw new Error("共享内容仍在变化，请重试结束共享");
+        const { state, protocol } = await rest.getDocumentState(session.info.serverUrl, documentId);
+        const bytes = base64ToBytes(state);
+        if (!protocol || (await sha256Hex(bytes)) !== protocol.revision)
+          throw new Error("共享快照与协议修订不匹配，请重试结束共享");
         check();
-        const candidate = new Y.Doc({ gc: false });
-        try {
-          Y.applyUpdate(candidate, Y.encodeStateAsUpdate(session.doc));
-          Y.applyUpdate(candidate, bytes);
-          await validateNodeDocument(
-            candidate,
-            { documentId, baselineId: protocol.baselineId, epoch: protocol.epoch },
-            session.doc
-          );
-          Y.applyUpdate(session.doc, bytes, session.provider);
-        } finally {
-          candidate.destroy();
-        }
+        const identity = readDocumentIdentity(session.doc);
+        if (
+          protocol.id !== identity.documentId ||
+          protocol.version !== identity.version ||
+          protocol.baselineId !== identity.baselineId ||
+          protocol.epoch !== identity.epoch
+        )
+          throw new Error("房间基线已变化，请重新打开共享正文");
+        const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity);
+        candidate.destroy();
+        check();
+        Y.applyUpdate(session.doc, bytes, session.provider);
         const assets = await rest.listAssets(session.info.serverUrl, documentId);
         await tauri.collabResource(
           this.resourceContext(session),
@@ -572,7 +567,7 @@ class CollaborationManager {
         check();
         await this.project(documentId, undefined, undefined, false, true);
         check();
-        session.close = { revision, confirmed: false };
+        session.close = { revision: protocol.revision, confirmed: false };
         try {
           await this.persist(session);
         } catch (failure) {
@@ -613,7 +608,7 @@ class CollaborationManager {
     try {
       if (!close.confirmed) {
         const receipt = await rest.closeDocument(serverUrl, id, close.revision);
-        if (!receipt?.ok || receipt.revision !== close.revision)
+        if (receipt?.ok !== true || receipt.revision !== close.revision)
           throw new Error("关闭回执未确认，稍后按原修订重试");
         await tauri.collabRecovery(id, "confirm-close");
         close.confirmed = true;
@@ -712,13 +707,15 @@ class CollaborationManager {
       if (pending) documentId = pending.id;
       else {
         const key = await sha256Hex(
-          JSON.stringify([
-            "tau-mobile",
-            this.serverUrl,
-            detail.librarySourceId,
-            detail.documentId,
-            previous?.id ?? "initial",
-          ])
+          new TextEncoder().encode(
+            JSON.stringify([
+              "tau-mobile",
+              this.serverUrl,
+              detail.librarySourceId,
+              detail.documentId,
+              previous?.id ?? "initial",
+            ])
+          )
         );
         guard?.();
         documentId = (await rest.createDocument(this.serverUrl, key)).id;
