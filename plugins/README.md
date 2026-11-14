@@ -23,3 +23,5 @@ git submodule update --init --recursive
 ## 插件说明
 
 [豆包语音合成](tau-plugin-tts-seed/README.md)的独立仓库为 [tau-plugin-tts-seed](https://github.com/LastKnightCoder/tau-plugin-tts-seed)，协议依据、验证步骤与标签发行流程见其 [开发文档](tau-plugin-tts-seed/DEVELOPMENT.md)。
+
+[Seedream 图片](tau-plugin-images-seedream/README.md)接入火山方舟，支持文生图和参考图编辑。安装包由 GitHub Release 提供。 [插件仓库](https://github.com/LastKnightCoder/tau-plugin-images-seedream) · [发布版本](https://github.com/LastKnightCoder/tau-plugin-images-seedream/releases)
