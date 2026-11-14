@@ -16,9 +16,12 @@ import {
   ScopedContentConflictError,
   ScopedUndoLimitError,
   type DocumentOperation,
+  type DocumentStateResponse,
+  type DocumentCloseReceipt,
   type ScopedContentSubmission,
   type ScopedContentResult,
   createNodeDocument,
+  applyNodeDocumentUpdate,
   validateNodeDocument,
   collectNodeDocumentResources,
   ASSET_PREFIX,
@@ -59,7 +62,6 @@ import {
 
 export class CollaborationManager extends ContentSessionManager {
   name = "collaboration";
-  private localRuntime?: ContentSessionManager;
   private client!: CollaborationClient;
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private events = new Map<string, WebSocket>();
@@ -75,6 +77,10 @@ export class CollaborationManager extends ContentSessionManager {
   private finishingLeaves = new Set<string>();
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
 
+  constructor(private readonly localRuntime: ContentSessionManager) {
+    super();
+  }
+
   protected override broadcastSharedState() {
     this.broadcast("collaboration:state", this.state());
   }
@@ -82,7 +88,7 @@ export class CollaborationManager extends ContentSessionManager {
     void this.flushResources();
   }
   protected override agentOwner(): ContentSessionManager {
-    return this.localRuntime ?? this;
+    return this.localRuntime;
   }
 
   protected override async openSharedContent(
@@ -142,7 +148,7 @@ export class CollaborationManager extends ContentSessionManager {
     target: ContentSessionTarget
   ) {
     // 本机 open 可能正在等待这次共享查询，直接续走当前打开请求。
-    return (this.localRuntime ?? this).resumeLocalOpen(event, target);
+    return this.localRuntime.resumeLocalOpen(event, target);
   }
 
   protected override async confirmSharedReplacement(
@@ -348,7 +354,7 @@ export class CollaborationManager extends ContentSessionManager {
         throw new Error("仍有未同步改动，请等待同步后再退出");
       session.provider?.detach();
       if (session.info.role === "owner" && session.info.mode !== "local") {
-        const { state } = await this.client.request<{ state: string }>(
+        const { state, protocol } = await this.client.request<DocumentStateResponse>(
           session.info.serverUrl,
           `/v1/documents/${session.info.id}/state`,
           "GET",
@@ -356,19 +362,20 @@ export class CollaborationManager extends ContentSessionManager {
           NODE_DOCUMENT_VERSION
         );
         const bytes = Buffer.from(state, "base64");
-        const protocol = await this.client.request<{
-          revision: string;
-          epoch: number;
-          baselineId: string;
-        }>(session.info.serverUrl, `/v1/documents/${session.info.id}/protocol`);
-        if (createHash("sha256").update(bytes).digest("hex") !== protocol.revision)
-          throw new Error("共享正文仍在变化，请稍后重新结束共享");
-        const meta = session.doc.getMap("meta");
+        if (!protocol || createHash("sha256").update(bytes).digest("hex") !== protocol.revision)
+          throw new Error("共享快照与协议修订不匹配，请重试结束共享");
+        const identity = readDocumentIdentity(session.doc);
         if (
-          Number(meta.get("epoch") ?? 0) !== protocol.epoch ||
-          readDocumentIdentity(session.doc).baselineId !== protocol.baselineId
+          protocol.id !== identity.documentId ||
+          protocol.version !== identity.version ||
+          protocol.epoch !== identity.epoch ||
+          protocol.baselineId !== identity.baselineId
         )
-          throw new Error("房间基线已变化，已暂停当前会话同步");
+          throw new Error("房间基线已变化，请重新打开共享正文");
+        const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity);
+        candidate.destroy();
+        if (this.sessions.get(session.info.id) !== session || session.info.status !== "active")
+          throw new Error("共享会话已变化，请重新打开正文");
         Y.applyUpdate(session.doc, bytes, session.provider);
         const resources = await this.client.request<{ ids: string[] }>(
           session.info.serverUrl,
@@ -601,7 +608,7 @@ export class CollaborationManager extends ContentSessionManager {
     let operation = this.pendingCreates.get(key);
     if (!operation) {
       operation = (async () => {
-        const body = this.localRuntime ?? this;
+        const body = this.localRuntime;
         let snapshot = await body.open(event, {
           contentId,
           sourceType,
@@ -678,7 +685,7 @@ export class CollaborationManager extends ContentSessionManager {
     const url = this.serverUrl;
     const identity = await this.client.identity(url);
     const previousId = session.info.id;
-    const body = this.localRuntime ?? this;
+    const body = this.localRuntime;
     let prepared = body.pendingShare<{
       documentId: string;
       baselineId: string;
@@ -851,7 +858,7 @@ export class CollaborationManager extends ContentSessionManager {
       )
         throw new Error("最终正文的来源或修订已变化，已保留共享副本");
       const nextId = localSessionId(db.name, source.contentId, source.contentCreatedAt);
-      const body = this.localRuntime ?? this;
+      const body = this.localRuntime;
       if (body.find(nextId)) throw new Error("本机正文仍在编辑，请稍后重试");
       // 共享期间的本机冷缓存早于共享内容，备份后让位给结束共享的最终正文
       body.discardCache(nextId, "结束共享时发现旧本机缓存");
@@ -1144,7 +1151,8 @@ export class CollaborationManager extends ContentSessionManager {
     if (this.finishingLeaves.has(closingId)) return;
     this.finishingLeaves.add(closingId);
     const closeConfirmed = this.store.get(`close-confirmed:${closingId}`, false);
-    let closeAttempted = closeConfirmed || this.store.get(`close-attempted:${closingId}`, false);
+    const closeAttempted = this.store.get(`close-attempted:${closingId}`, false);
+    let reopen = !closeConfirmed && !closeAttempted;
     try {
       if (session.info.role === "owner") {
         if (!closeConfirmed) {
@@ -1153,21 +1161,31 @@ export class CollaborationManager extends ContentSessionManager {
             undefined
           );
           if (!revision) throw new Error("尚未确认最终共享快照，请重新结束共享");
-          await this.persistBeforeClose(session);
-          this.store.set(`close-attempted:${closingId}`, true);
-          closeAttempted = true;
-          await this.client.request(
-            session.info.serverUrl,
-            `/v1/documents/${session.info.id}/close`,
-            "POST",
-            {
+          if (!closeAttempted) {
+            await this.persistBeforeClose(session);
+            this.store.set(`close-attempted:${closingId}`, true);
+          }
+          reopen = false;
+          const path = `/v1/documents/${closingId}`;
+          const receipt = await this.client
+            .request<DocumentCloseReceipt>(session.info.serverUrl, `${path}/close`, "POST", {
               expectedRevision: revision,
-            }
-          );
+            })
+            .catch(async (error: unknown) => {
+              if ((error as { code?: string } | null)?.code === "REVISION_CONFLICT") {
+                // 关闭终态也可能返回修订冲突，只有确认房间仍活动才解冻。
+                reopen = await this.client.request(session.info.serverUrl, `${path}/protocol`).then(
+                  () => true,
+                  () => false
+                );
+              }
+              throw error;
+            });
+          if (receipt?.ok !== true || receipt.revision !== revision)
+            throw new Error("关闭回执未确认，稍后按原修订重试");
           this.store.set(`close-confirmed:${closingId}`, true);
         }
-        // 作者结束共享：本机还有这篇内容，会话降级回本机继续编辑（同一个 Y.Doc）；
-        // 没有本地内容（源已删除等）才拆除会话
+        // 原正文仍存在时安装本机会话，否则只拆除共享会话。
         if (session.info.source) {
           await this.demoteSession(session);
           this.unfreeze(session);
@@ -1182,12 +1200,12 @@ export class CollaborationManager extends ContentSessionManager {
         await this.removeSession(session);
       }
     } catch (error) {
-      if (!closeAttempted || (error as { code?: string }).code === "REVISION_CONFLICT") {
+      if (reopen) {
         session.info.leaving = false;
         this.store.delete(`close-revision:${closingId}`);
         this.store.delete(`close-attempted:${closingId}`);
         this.unfreeze(session);
-        session.provider?.attach();
+        if (!this.assets.hasPending(closingId)) session.provider?.attach();
       }
       session.info.error = error instanceof Error ? error.message : "正在等待退出完成";
       this.changed(session);
@@ -1236,7 +1254,6 @@ export class CollaborationManager extends ContentSessionManager {
     this.assets = new CollaborationAssetService(this.store, PathUtil.getAppDir(), url =>
       this.client.identity(url)
     );
-    this.localRuntime = localContent;
     // 打不开的缓存由 loadCached 备份后丢弃，共享会话随后按远端快照重建，本机正文按主库重建
     for (const info of this.store.list()) {
       if (
@@ -1254,7 +1271,7 @@ export class CollaborationManager extends ContentSessionManager {
       assets: this.assets,
       serverUrl: () => this.serverUrl,
       sessions: this.sessions,
-      findSession: id => this.findSession(id) ?? this.localRuntime?.find(id),
+      findSession: id => this.findSession(id) ?? this.localRuntime.find(id),
       views: this.views,
       state: this.state.bind(this),
       changed: this.changed.bind(this),
@@ -1263,20 +1280,27 @@ export class CollaborationManager extends ContentSessionManager {
       requireSession: this.requireSession.bind(this),
       roomAddress: this.roomAddress.bind(this),
       openRoom: this.openRoom.bind(this),
-      openContent: this.openSharedContent.bind(this),
       acknowledgeFreeze: this.acknowledgeFreeze.bind(this),
       prepareLeave: this.prepareLeave.bind(this),
       createContent: this.createContent.bind(this),
       issueInvitation: this.issueInvitation.bind(this),
       removeView: this.removeView.bind(this),
-      presenceSnapshot: session => localContent.agent.presenceSnapshot(session),
+      presenceSnapshot: session => this.localRuntime.agent.presenceSnapshot(session),
       clearBinding: this.clearBinding.bind(this),
       discardLocal: this.discardLocal.bind(this),
       removeSession: this.removeSession.bind(this),
       finishLeave: this.finishLeave.bind(this),
       flushResources: this.flushResources.bind(this),
     });
-    localContent.connectSharing({
+    this.connectLocalRuntime();
+    this.startAutoFlush();
+    this.refreshInterval = setInterval(() => void this.refresh(), 15000);
+    this.refreshInterval.unref();
+    void this.refresh();
+  }
+
+  private connectLocalRuntime() {
+    this.localRuntime.connectSharing({
       open: this.openSharedContent.bind(this),
       find: this.findSession.bind(this),
       findContent: this.findContent.bind(this),
@@ -1286,15 +1310,11 @@ export class CollaborationManager extends ContentSessionManager {
         this.broadcast("collaboration:awareness", { documentId, update }),
       windows: id => this.removeWindowViews(id),
     });
-    this.startAutoFlush();
-    this.refreshInterval = setInterval(() => void this.refresh(), 15000);
-    this.refreshInterval.unref();
-    void this.refresh();
   }
 
   /** 受控退出收尾：停止后台任务并断开所有协作连接 */
   override shutdown(): void {
-    this.localRuntime?.disconnectSharing();
+    this.localRuntime.disconnectSharing();
     super.shutdown();
     this.stopped = true;
     this.remoteDocuments.clear();
@@ -1305,4 +1325,4 @@ export class CollaborationManager extends ContentSessionManager {
   }
 }
 
-export default new CollaborationManager();
+export default new CollaborationManager(localContent);

@@ -7,6 +7,8 @@ import type {
   JoinRequestResult,
   SharedDocumentListing,
   DocumentProtocol,
+  DocumentStateResponse,
+  DocumentCloseReceipt,
 } from "@tau/collaboration";
 
 type RequestInput = {
@@ -44,7 +46,7 @@ export function listDocuments(serverUrl: string) {
 }
 
 export function getDocumentState(serverUrl: string, documentId: string) {
-  return request<{ state: string }>({
+  return request<DocumentStateResponse>({
     serverUrl,
     path: `/v1/documents/${documentId}/state`,
   });
@@ -128,7 +130,7 @@ export function leaveDocument(serverUrl: string, documentId: string) {
 }
 
 export function closeDocument(serverUrl: string, documentId: string, expectedRevision: string) {
-  return request<{ ok: boolean; revision: string }>({
+  return request<DocumentCloseReceipt>({
     serverUrl,
     path: `/v1/documents/${documentId}/close`,
     method: "POST",

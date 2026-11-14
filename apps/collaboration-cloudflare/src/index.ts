@@ -530,7 +530,9 @@ export class CollaborationService extends DurableObject<Env> {
       const protocol = this.store.protocols.state(id);
       if (request.headers.get("x-tau-document-version") !== String(protocol.version))
         return fail("CLIENT_UPGRADE_REQUIRED", "请使用支持当前文档协议的客户端", 409);
-      return Response.json(this.store.snapshot(id), { headers: { "Cache-Control": "no-store" } });
+      return Response.json(this.store.snapshot(id, protocol), {
+        headers: { "Cache-Control": "no-store" },
+      });
     }
     if (action === "invitation" && method === "POST")
       return Response.json(this.store.rotateCode(id, device.id));

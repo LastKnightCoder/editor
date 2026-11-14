@@ -1,4 +1,4 @@
-import type { ContentSessionTarget, ContentInputDraft, SourceType } from "@tau/collaboration";
+import type { ContentInputDraft, SourceType } from "@tau/collaboration";
 import {
   collaborationCommands,
   type CollaborationInvitation,
@@ -68,11 +68,6 @@ export const getCurrentCollaborationInvitation = async (
 /** 拉取协作全局状态（连接/会话/申请等） */
 export const getCollaborationState = async () => {
   return collaborationCommands.state.call();
-};
-
-/** 打开共享内容会话，获得可编辑的快照 */
-export const openCollaborationContentSession = async (target: ContentSessionTarget) => {
-  return collaborationCommands.openContent.call(target);
 };
 
 /** 订阅共享文档（Yjs 状态 + awareness + 私有块），返回本机视图快照 */

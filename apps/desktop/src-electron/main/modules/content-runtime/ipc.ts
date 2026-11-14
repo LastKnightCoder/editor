@@ -14,7 +14,6 @@ import {
   LOCAL_ASSET_PREFIX,
   type ContentNode,
   type ContentInputDraft,
-  type ContentSessionTarget,
 } from "@tau/collaboration";
 import type { CollaborationIpcContext } from "../collaboration/types";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
@@ -23,7 +22,7 @@ import { isVideoFile } from "../collaboration/asset-service";
 import { saveSourceInput } from "./recovery";
 import type { CollaborationImageFile } from "../../../../shared/collaboration-image-storage";
 
-type Commands = typeof localContentCommands;
+type Commands = Omit<typeof localContentCommands, "openContent">;
 export type ContentIpcContext = Pick<
   CollaborationIpcContext,
   | "nodeUpdates"
@@ -31,7 +30,6 @@ export type ContentIpcContext = Pick<
   | "contentState"
   | "assets"
   | "views"
-  | "openContent"
   | "findSession"
   | "requireSession"
   | "databaseForEvent"
@@ -48,6 +46,11 @@ type CommandHandler<Key extends keyof Commands> = (
   event: IpcMainInvokeEvent,
   ...args: Parameters<Commands[Key]["call"]>
 ) => Awaited<ReturnType<Commands[Key]["call"]>> | ReturnType<Commands[Key]["call"]>;
+
+type OpenContentHandler = (
+  event: IpcMainInvokeEvent,
+  ...args: Parameters<typeof localContentCommands.openContent.call>
+) => ReturnType<typeof localContentCommands.openContent.call>;
 
 export function registerContentIpc(context: ContentIpcContext, commands: Commands) {
   const { nodeUpdates } = context;
@@ -116,9 +119,6 @@ export function registerContentIpc(context: ContentIpcContext, commands: Command
         throw new Error("粘贴视图已切换");
       return prepared.content;
     }
-  );
-  handle("openContent", (event, target: ContentSessionTarget) =>
-    context.openContent(event, target)
   );
   handle("freezeAck", (event, viewId: string, requestId?: string) => {
     const view = context.views.get(viewId);
@@ -375,6 +375,11 @@ export function registerContentIpc(context: ContentIpcContext, commands: Command
     return context.assets.resolveReference(session.info.serverUrl, session.info.id, reference);
   });
 }
-export function registerLocalContentIpc(context: ContentIpcContext) {
+export function registerLocalContentIpc(
+  context: ContentIpcContext & {
+    openContent: OpenContentHandler;
+  }
+) {
+  ipcMain.handle(localContentCommands.openContent.channel, context.openContent);
   registerContentIpc(context, localContentCommands);
 }
