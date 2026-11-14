@@ -1,3 +1,4 @@
+import type { PluginWindowDefinition, PluginWindows } from "./windows";
 import type { PluginPages } from "./pages";
 import type { PluginEnvironment } from "./environment";
 import type { PluginNavigation } from "./navigation";
@@ -68,6 +69,7 @@ export interface PluginContext {
   readonly commands: { register(command: PluginCommand): Disposable };
   readonly storage: PluginStorage;
   readonly pages: PluginPages;
+  readonly windows?: PluginWindows;
   readonly settings: PluginSettings;
   readonly sync: PluginSync;
   readonly upload: PluginUpload;
@@ -131,6 +133,7 @@ export interface PluginDefinition {
   readonly name: string;
   readonly version: string;
   readonly apiVersion: 1;
+  readonly windows?: readonly PluginWindowDefinition[];
   /** 静态声明，桌面与博客均装配同一份扩展；模块加载不得依赖桌面激活。 */
   readonly editorExtensions?: readonly PluginEditorExtension[];
   readonly whiteboardExtensions?: readonly WhiteboardExtension[];

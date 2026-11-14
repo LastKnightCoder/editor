@@ -28,7 +28,9 @@ vi.mock("@/commands/plugin-local", () => ({
 vi.mock("@/electron", () => ({
   isElectron: true,
   platform: "darwin",
-  invoke: vi.fn(),
+  invoke: vi.fn(async (channel: string) =>
+    channel === "podcast-migration:pending" ? { pending: false, requiresPlugin: false } : undefined
+  ),
   on: vi.fn(),
   off: vi.fn(),
 }));

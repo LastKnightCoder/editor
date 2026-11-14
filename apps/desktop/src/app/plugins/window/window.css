@@ -1,0 +1,15 @@
+@import "tailwindcss" source(none);
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+@import "../../../assets/fonts/hand/hand-font.css";
+@import "../../base.css";
+@source "./main.tsx";
+@source "../../../../../../packages/ui/src";
+
+@utility app-region-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+@utility app-region-no-drag {
+  -webkit-app-region: no-drag;
+}

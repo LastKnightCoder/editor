@@ -1,14 +1,14 @@
 import log from "electron-log";
-import { createHash } from "node:crypto";
 import { installDesktopPluginMetrics } from "../../../shared/content-metrics";
 import { portableDevelopmentArtifacts } from "../services/plugin-portable-development";
 import {
   assertDesktopPackageSource,
+  assertDesktopPluginCompatibility,
   type DesktopPluginPackage as DevelopmentPluginPackage,
 } from "../../../shared/plugin-package";
 import { isContentPlugin } from "@tau/plugins/package";
 import { copyJson } from "@tau/plugins/host";
-import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import PathUtil from "../utils/PathUtil";
@@ -33,10 +33,6 @@ import type {
   ContentPluginInspectionBatch,
 } from "../services/plugin-content-startup";
 import {
-  PluginContentInspectionCache,
-  type PluginCacheCryptor,
-} from "../services/plugin-content-inspection-cache";
-import {
   appendContentPluginArtifact,
   getContentPluginArtifacts,
 } from "../services/plugin-content-artifacts";
@@ -50,6 +46,8 @@ import {
 import userSetting from "./user-setting";
 import { getPluginPermissionStore } from "./plugin-permissions";
 import { getMainWindows } from "../windows/main-window";
+import { pluginWindowPackageKey } from "../../../shared/plugin-window-values";
+import { configurePluginWindowPackages, revokePluginWindows } from "../windows/plugin-window-ipc";
 import { pluginUploadRelay } from "../services/plugin-upload";
 import { pluginTTSRelay } from "../services/plugin-tts";
 import { pluginImagesRelay } from "../services/plugin-images";
@@ -93,26 +91,7 @@ const protectPluginTasks = <T>(id: string, action: () => Promise<T>) =>
 export default {
   name: "plugin-local",
   async init() {
-    let cacheCryptor: PluginCacheCryptor | undefined;
-    try {
-      if (
-        safeStorage.isEncryptionAvailable() &&
-        (process.platform !== "linux" ||
-          !["basic_text", "unknown"].includes(safeStorage.getSelectedStorageBackend()))
-      )
-        cacheCryptor = {
-          encrypt: value => safeStorage.encryptString(value),
-          decrypt: value => safeStorage.decryptString(value),
-        };
-    } catch (error) {
-      log.warn("[plugin-local] 插件缓存加密不可用", error);
-    }
-    const packageIntegrityCache = await measureStartup("package-integrity-cache", () =>
-      PluginPackageIntegrityCache.load(
-        path.join(PathUtil.getAppDir(), "plugin-package-integrity-cache.bin"),
-        cacheCryptor
-      )
-    );
+    const packageIntegrityCache = new PluginPackageIntegrityCache();
     setPluginPackageIntegrityCache(packageIntegrityCache);
     const updates = new PluginUpdates(directory(), app.getVersion(), {
       ...(app.isPackaged ? { portableCenterOrigin: API_ORIGIN } : {}),
@@ -136,14 +115,27 @@ export default {
       }
       return artifact;
     };
+    configurePluginWindowPackages(async (id, packageKey) => {
+      if (!app.isPackaged && process.env.TAU_PORTABLE_PLUGIN_DIR) {
+        const development = (await portableDevelopmentArtifacts()).find(
+          item => item.manifest.id === id
+        );
+        if (development && (await pluginWindowPackageKey(development)) === packageKey) {
+          assertDesktopPluginCompatibility(development.manifest, app.getVersion());
+          return development;
+        }
+      }
+      if (!preferences.enabled(id, false)) throw new Error("插件未启用");
+      const artifact = await readManagedPackage(id);
+      if (!preferences.enabled(id, false) || artifact.manifest.id !== id)
+        throw new Error("插件包已失效");
+      return artifact;
+    });
     const initial = await measureStartup(
       "package-discovery",
       () => discoverPlugins(directory(), app.getVersion(), packageIntegrityCache),
       result => result.entries.length
     );
-    await packageIntegrityCache.save().catch(error => {
-      log.warn("[plugin-local] 插件完整性缓存写入失败", error);
-    });
     const updateState = await measureStartup("update-state", () => updates.list());
     const initialSources: Record<string, LocalPluginSource> = await measureStartup(
       "source-records",
@@ -163,23 +155,6 @@ export default {
     const contentPluginIds = contentPluginEntries
       .filter(entry => preferences.enabled(entry.id, false))
       .map(entry => entry.id);
-    const contentSnapshotKey = createHash("sha256")
-      .update(
-        JSON.stringify({
-          appVersion: app.getVersion(),
-          electronVersion: process.versions.electron,
-          plugins: contentPluginIds.map(id => initialArtifacts.get(id)?.manifest),
-        })
-      )
-      .digest("hex");
-    const contentInspectionCryptor = cacheCryptor;
-    const contentInspectionCache = await measureStartup("content-inspection-cache", () =>
-      PluginContentInspectionCache.load(
-        path.join(PathUtil.getAppDir(), "plugin-content-inspection-cache.bin"),
-        contentSnapshotKey,
-        contentInspectionCryptor
-      )
-    );
     const contentInspectionResults = new Map<string, ContentPluginInspection>();
     const contentStartup = new PluginContentStartup(
       async id => {
@@ -196,41 +171,23 @@ export default {
       async artifacts => {
         const results: Record<string, ContentPluginInspection> = Object.create(null);
         const errors: Record<string, string> = Object.create(null);
-        const missing = artifacts.filter(artifact => {
-          const cached = contentInspectionCache.get(artifact.manifest.id);
-          if (!cached) return true;
-          results[artifact.manifest.id] = cached;
-          return false;
-        });
-        if (results && artifacts.length > missing.length)
-          recordStage(
-            "plugin-local:content-plugin-cache-hit",
-            0,
-            artifacts.length - missing.length
-          );
-
-        if (missing.length) {
+        if (artifacts.length) {
           try {
             const inspected = await measureStartup("content-plugin-inspect-batch", () =>
               contentExecutor.execute<Record<string, ContentPluginInspection>>(
-                { operation: "inspect-many", ids: missing.map(artifact => artifact.manifest.id) },
+                { operation: "inspect-many", ids: artifacts.map(artifact => artifact.manifest.id) },
                 undefined,
                 [...getContentPluginArtifacts(), ...artifacts]
               )
             );
-            for (const artifact of missing) {
+            for (const artifact of artifacts) {
               const id = artifact.manifest.id;
               const result = inspected[id];
-              if (!result) {
-                errors[id] = "内容插件未返回检查结果";
-                continue;
-              }
-              results[id] = result;
-              contentInspectionCache.set(id, result);
+              if (result) results[id] = result;
+              else errors[id] = "内容插件未返回检查结果";
             }
           } catch {
             const accepted: DevelopmentPluginPackage[] = [];
-            for (const id of Object.keys(results)) delete results[id];
             for (const artifact of artifacts) {
               const id = artifact.manifest.id;
               try {
@@ -263,9 +220,6 @@ export default {
         artifact => contentInspectionResults.get(artifact.manifest.id)?.metrics ?? []
       )
     );
-    await contentInspectionCache.save().catch(error => {
-      log.warn("[plugin-local] 内容插件检查缓存写入失败", error);
-    });
     const validContentPluginEntries = contentPluginEntries.filter(entry => {
       if (!entry.artifact || updateState.some(item => item.id === entry.id && item.blocked))
         return false;
@@ -326,6 +280,7 @@ export default {
         )
       );
       // 内容插件的启动快照不含新包，先以停用落盘，再写入启用意图，由重启加载。
+      if (applied) revokePluginWindows(installed.id);
       if (applied && fresh && enableOnInstall) {
         await protectPluginTasks(installed.id, () => preferences.set(installed.id, true));
         void activatePluginBackends().catch(() => undefined);
@@ -509,8 +464,10 @@ export default {
         : await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
       await protectPluginTasks(id, () => preferences.set(id, enabled));
-      if (!enabled) await stopPluginBackend(id);
-      else void activatePluginBackends().catch(() => undefined);
+      if (!enabled) {
+        revokePluginWindows(id);
+        await stopPluginBackend(id);
+      } else void activatePluginBackends().catch(() => undefined);
       stateChanged();
     });
     ipcMain.handle(
@@ -520,9 +477,6 @@ export default {
     ipcMain.handle("plugin-local:scan", async () => {
       const maintenance = await updates.list();
       const result = await discoverPlugins(directory(), app.getVersion(), packageIntegrityCache);
-      await packageIntegrityCache.save().catch(error => {
-        log.warn("[plugin-local] 插件完整性缓存写入失败", error);
-      });
       const sources = await updates.sources(result.entries.map(entry => entry.id));
       return {
         ...result,
@@ -657,6 +611,7 @@ export default {
           async () => {
             await stopPluginBackend(id);
             await updates.uninstall(id);
+            revokePluginWindows(id);
             await preferences.forget(id);
             await getPluginPermissionStore().forget(id);
           },
