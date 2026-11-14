@@ -53,6 +53,11 @@ const DEVELOPER_GROUPS: DocGroup[] = [
         summary: "注册页面并配一个入口，让用户在侧边栏或手机「我的」里打开它。",
       },
       {
+        slug: "windows",
+        title: "桌面插件窗口",
+        summary: "打开独立窗口，继承 Tau 外观，在同一插件的窗口间同步状态和发送即时消息。",
+      },
+      {
         slug: "settings-and-commands",
         title: "设置与命令",
         summary: "在插件详情页放设置、交给 Tau 保存草稿，在命令面板加操作。",
