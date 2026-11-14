@@ -1,0 +1,34 @@
+name: Windows desktop 0.63.5 build
+on:
+  push:
+    branches: [codex/windows-desktop-0.63.5]
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ea73d6abc
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build and verify native runtime
+        run: pnpm --filter desktop build
+      - name: Verify publishing manifest
+        run: pnpm publish:desktop --skip-build --dry-run
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tau-windows-0.63.5
+          path: |
+            apps/desktop/release/Tau-v0.63.5-win32.exe
+            apps/desktop/release/Tau-v0.63.5-win32.exe.blockmap
+            apps/desktop/release/latest.yml
+          if-no-files-found: error
