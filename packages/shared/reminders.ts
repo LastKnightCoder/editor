@@ -12,6 +12,12 @@ const DAY = 24 * HOUR;
 
 export const MAX_REMINDERS = 3;
 
+export type ReminderOpenTarget = { databaseName: string } & (
+  | { page: "todos"; params: { selectedId: number } }
+  | { page: "schedule"; params: { eventId: number } }
+  | { documentTask: { contentId: number; taskId: string } }
+);
+
 export interface ReminderPreset {
   offset: number;
   label: string;

@@ -55,9 +55,9 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 
 ## 通知分流
 
-插件通过 `context.notifications.send` 发送纯文本通知：`mode` 为 `auto`（默认，按插件所在窗口焦点分流）、`in-app`（固定应用内）或 `system`（固定独立通知窗口）。桌面适配仍经 `appNotify`，来源由宿主填写插件名，通知 ID 由宿主生成；返回的 `Disposable` 只能撤销本条通知，停用、激活失败和切库自动清理。最多两个操作按钮，回调留在插件所在渲染窗口，执行前校验激活与句柄有效性。没有新增业务数据权限或后台进程通知入口。作者示例见 `docs/plugin-system/通知能力.md`。
+插件通过 `context.notifications.send` 发送纯文本通知：`mode` 为 `auto`（默认，按插件所在窗口焦点分流）、`in-app`（固定应用内）或 `system`（固定独立通知窗口）。桌面适配经 `appNotify`，来源由宿主填写插件名，通知 ID 由宿主生成；返回的 `Disposable` 只能撤销本条通知，停用、激活失败和切库自动清理。最多两个操作按钮，其中至多一个标记 `reveal: true`。回调留在插件所在渲染窗口，执行前校验激活与句柄有效性。作者示例见 [插件通知](/plugins/tau-plugin-template/docs/notifications-and-voice.md#通知)。
 
-通知按来源窗口焦点分流（聚焦进应用内卡栈、失焦进系统通知窗口；两栈互不同步）。接入口径：
+渲染端通知按来源窗口焦点分流。主进程通知只直投聚焦的主窗口，其余交给独立通知窗口。两处卡栈分别维护。
 
 - **渲染端业务一律 `appNotify`**（`features/notifications/notify.ts`），禁止直接调用
   `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，Oxlint 守护）。`icon` 传
@@ -67,10 +67,8 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
   禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
-- **把窗口带到前台**：系统通知窗口不可聚焦，点卡片主体一律激活来源窗口（main origin 激活主窗口）；
-  按钮默认不抢前台（同意 / 重试等就地作答），「查看」类按钮标 `reveal: true`，先激活来源窗口
-  再执行回调。`revealWindow` / `showOrCreateMainWindow` 在 macOS 上用 `app.focus({ steal: true })`
-  抢占激活，主进程其他唤起窗口的入口同样走这两个函数，不要直接调 `win.focus()`。
+- **查看详情**：需要打开内容的通知按钮标 `reveal: true`，点击正文和该按钮共用执行路径。独立通知窗口先激活来源窗口（main origin 激活主窗口）再执行回调，应用内直接执行。失败在通知内显示错误。没有查看动作的通知在独立窗口点击正文时只唤回来源窗口，「同意」「重试」等按钮默认在原地执行。`revealWindow` / `showOrCreateMainWindow` 在 macOS 上用 `app.focus({ steal: true })` 抢占激活。
+- **待办与日程提醒**：查看动作携带提醒所属资料库及目标，待办和日程打开相应页面，正文待办按正文 ID 反查原文并按任务 ID 定位。切库后拒绝打开旧库目标。
 
 ## 构建与打包
 

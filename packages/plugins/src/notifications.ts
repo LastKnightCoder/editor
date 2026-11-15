@@ -5,6 +5,8 @@ export type PluginNotificationMode = "auto" | "in-app" | "system";
 export interface PluginNotificationAction {
   label: string;
   primary?: boolean;
+  /** 查看详情时使用：卡片正文也触发此动作，失焦时先唤起插件所在窗口。 */
+  reveal?: boolean;
   resolvedText?: string;
   onClick(): void | Promise<void>;
 }
@@ -50,9 +52,12 @@ export function readNotificationOptions(
       if (!action || typeof action.onClick !== "function") throw new Error("通知按钮回调无效");
       if (action.primary !== undefined && typeof action.primary !== "boolean")
         throw new Error("通知主按钮标记无效");
+      if (action.reveal !== undefined && typeof action.reveal !== "boolean")
+        throw new Error("通知查看动作标记无效");
       return {
         label: text(action.label, "通知按钮", 100),
         primary: action.primary,
+        reveal: action.reveal,
         resolvedText:
           action.resolvedText === undefined
             ? undefined
@@ -62,6 +67,8 @@ export function readNotificationOptions(
     });
   if (actions && actions.filter(action => action.primary).length > 1)
     throw new Error("通知最多支持一个主按钮");
+  if (actions && actions.filter(action => action.reveal).length > 1)
+    throw new Error("通知最多支持一个查看动作");
   return {
     title: text(input.title, "通知标题", 200),
     body: input.body === undefined ? undefined : text(input.body, "通知正文", 5000),

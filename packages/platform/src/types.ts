@@ -54,7 +54,7 @@ export interface SystemNotificationAction {
   primary?: boolean;
   /** 作答成功后的结果行文案；不给则直接退场 */
   resolvedText?: string;
-  /** 在系统通知窗口点击时先把来源窗口带到前台（「查看」类按钮） */
+  /** 卡片正文也触发此动作，在独立通知窗口点击时先唤起来源窗口 */
   reveal?: boolean;
 }
 

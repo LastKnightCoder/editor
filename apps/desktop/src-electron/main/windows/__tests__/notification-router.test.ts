@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /** 通知路由规则单测：mock BrowserWindow / webContents，只验证裁决与推送去向 */
 
 const state = vi.hoisted(() => ({
-  allWindows: [] as Array<Record<string, unknown>>,
+  mainWindows: [] as Array<Record<string, unknown>>,
   webContentsById: new Map<number, Record<string, unknown>>(),
   push: vi.fn(),
   dismissPush: vi.fn(),
@@ -13,7 +13,6 @@ const state = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({
   BrowserWindow: {
-    getAllWindows: () => state.allWindows,
     fromWebContents: (wc: Record<string, unknown>) => wc?.ownerWindow ?? null,
   },
   webContents: {
@@ -21,12 +20,14 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../notification-window", () => ({
-  NOTIFICATION_WINDOW_KEY: "notification:system",
   pushSystemNotification: state.push,
   dismissSystemNotification: state.dismissPush,
 }));
 vi.mock("../create-window", () => ({ revealWindow: state.reveal }));
-vi.mock("../main-window", () => ({ showOrCreateMainWindow: state.focusMain }));
+vi.mock("../main-window", () => ({
+  getMainWindows: () => state.mainWindows,
+  showOrCreateMainWindow: state.focusMain,
+}));
 
 import {
   routeNotification,
@@ -37,10 +38,11 @@ import {
 interface FakeWindowOptions {
   webContentsId: number;
   focused: boolean;
+  main?: boolean;
 }
 
 /** 最小可用的窗口 + webContents 对：ownerWindow 互指以走通 fromWebContents */
-function fakeWindow({ webContentsId, focused }: FakeWindowOptions) {
+function fakeWindow({ webContentsId, focused, main = true }: FakeWindowOptions) {
   const send = vi.fn();
   let isFocused = focused;
   const webContents = {
@@ -51,7 +53,7 @@ function fakeWindow({ webContentsId, focused }: FakeWindowOptions) {
   };
   const win = { webContents, isFocused: () => isFocused, isDestroyed: () => false };
   (webContents as Record<string, unknown>).ownerWindow = win;
-  state.allWindows.push(win);
+  if (main) state.mainWindows.push(win);
   state.webContentsById.set(webContentsId, webContents);
   return { win, webContents, send, setFocused: (value: boolean) => (isFocused = value) };
 }
@@ -59,7 +61,7 @@ function fakeWindow({ webContentsId, focused }: FakeWindowOptions) {
 const payload = (id: string) => ({ id, title: "标题" });
 
 beforeEach(() => {
-  state.allWindows = [];
+  state.mainWindows = [];
   state.webContentsById.clear();
   state.push.mockReset();
   state.dismissPush.mockReset();
@@ -135,13 +137,14 @@ describe("routeNotification 裁决规则", () => {
     expect(state.push).not.toHaveBeenCalled();
   });
 
-  it("全部窗口失焦（main origin）→ system 并推送", () => {
+  it("只有辅助窗口聚焦（main origin）→ 转发系统通知窗口", () => {
     fakeWindow({ webContentsId: 1, focused: false });
-    fakeWindow({ webContentsId: 2, focused: false });
+    const auxiliary = fakeWindow({ webContentsId: 2, focused: true, main: false });
     const route = routeNotification(payload("n5"), { kind: "main" });
     expect(route).toBe("system");
     expect(state.push).toHaveBeenCalledTimes(1);
     expect(state.push).toHaveBeenCalledWith(payload("n5"), null);
+    expect(auxiliary.send).not.toHaveBeenCalled();
   });
 
   it("window origin 对应窗口已销毁 → 按 system 处理（不抛错）", () => {

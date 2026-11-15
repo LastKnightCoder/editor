@@ -35,6 +35,7 @@ async function notifyIfUpgraded() {
       { label: "稍后" },
       {
         label: "查看更新内容",
+        reveal: true,
         primary: true,
         onClick: () => useReleaseNotesStore.getState().show(notes),
       },
@@ -85,6 +86,7 @@ const useAutoUpdateCheck = () => {
         releaseNotes.length > 0
           ? {
               label: "查看更新内容",
+              reveal: true,
               onClick: () =>
                 useReleaseNotesStore.getState().show(releaseNotes, { updateAction: true }),
             }

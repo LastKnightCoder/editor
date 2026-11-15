@@ -41,6 +41,8 @@ export type NotificationTone = "neutral" | "ok" | "danger";
 
 export interface NotificationAction {
   label: string;
+  /** 打开详情的动作也可从卡片正文触发 */
+  reveal?: boolean;
   /** 主动作（accent 实心）；至多一个，放在数组末尾（主按钮在最右） */
   primary?: boolean;
   /** 返回 promise 即进入作答中：按钮 loading、整条锁定，兑现后退场，拒绝则卡内报错 */
@@ -147,7 +149,14 @@ function runAction(id: string, index: number) {
   const store = useNotificationStore.getState();
   const item = store.items.find(i => i.id === id);
   const action = item?.actions?.[index];
-  if (!item || !action || item.busy !== undefined || item.leaving) return;
+  if (
+    !item ||
+    !action ||
+    item.busy !== undefined ||
+    item.leaving ||
+    item.resolvedText !== undefined
+  )
+    return;
 
   const settle = () => {
     const s = useNotificationStore.getState();
@@ -321,10 +330,10 @@ export function NotificationCard({
       ) : (
         <div className="min-w-0">
           <div className="flex min-h-[19px] items-baseline gap-2.5">
-            <span className="text-tau-body-lg min-w-0 truncate font-[600] leading-[1.4]">
+            <span className="text-tau-body-lg min-w-0 truncate leading-[1.4] font-[600]">
               {item.title}
             </span>
-            <span className="font-tau-mono text-ink-3 ml-auto shrink-0 whitespace-nowrap text-[11px]">
+            <span className="font-tau-mono text-ink-3 ml-auto shrink-0 text-[11px] whitespace-nowrap">
               {item.source && `${item.source} · `}
               {formatAgo(item.timestamp, now)}
             </span>
@@ -449,6 +458,11 @@ function HostedCard({
     remainRef.current = item.duration;
   }, [item.timestamp, item.duration]);
 
+  const revealIndex = item.actions?.findIndex(action => action.reveal) ?? -1;
+  const clickBody =
+    revealIndex >= 0
+      ? () => runAction(item.id, revealIndex)
+      : onCardClick && (() => onCardClick(item.id));
   const dx = item.leaving ? 32 : entered ? 0 : 28;
   // bottom 锚定是排布的纯镜像：slot.y 改解释为「卡片底边到容器内底边的距离」，取负即向上排
   const dy = placement === "bottom-right" ? -slot.y : slot.y;
@@ -472,7 +486,7 @@ function HostedCard({
           : "absolute left-[12px] top-[12px] origin-bottom",
         "ease-tau-out transition-[transform,opacity] duration-300",
         item.leaving || slot.opacity === 0 ? "pointer-events-none" : "pointer-events-auto",
-        slot.layer ? "[&>*]:opacity-0" : onCardClick && "cursor-pointer"
+        slot.layer ? "[&>*]:opacity-0" : clickBody && !item.resolvedText && "cursor-pointer"
       )}
       onMouseEnter={() => {
         hoveredRef.current = true;
@@ -483,11 +497,11 @@ function HostedCard({
         start();
       }}
       onClick={
-        slot.layer
+        slot.layer || !clickBody || item.busy !== undefined || item.resolvedText !== undefined
           ? undefined
           : e => {
               // 按钮与链接内的点击归控件自身，不算卡主体点击
-              if (onCardClick && !(e.target as Element).closest("button,a")) onCardClick(item.id);
+              if (!(e.target as Element).closest("button,a")) clickBody();
             }
       }
       onAction={i => runAction(item.id, i)}
@@ -509,7 +523,7 @@ export interface NotificationHostProps {
    * 原位更新等内容变化不会触发。
    */
   onItemsChange?: (ids: string[]) => void;
-  /** 非叠层卡主体被点击（卡内 button/a 上的点击不触发）；叠层卡不响应点击 */
+  /** 卡片没有 reveal 动作时，点击主体的宿主行为 */
   onCardClick?: (id: string) => void;
 }
 

@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import type Database from "better-sqlite3";
-import { joinTodoReminders, reminderBody } from "@tau/shared/reminders";
+import { joinTodoReminders, reminderBody, type ReminderOpenTarget } from "@tau/shared/reminders";
 import { getMainWindows, routeNotification, showOrCreateMainWindow } from "../windows";
 import { Module } from "../types/module";
 import databaseModule from "./database";
@@ -231,6 +231,7 @@ class TodoReminderModule implements Module {
     // 系统级提醒经通知分流（失焦进系统通知窗口）：sticky 常驻到用户处理；
     // 「查看」带 reveal，由系统通知窗口先把主窗口带到前台
     const isEvent = reminder.type === "event";
+    const databaseName = databaseModule.getCurrentDatabaseName();
     routeNotification(
       {
         id: `todo-reminder:${this.reminderKey(reminder)}`,
@@ -248,7 +249,7 @@ class TodoReminderModule implements Module {
         sticky: true,
         actions: [{ label: "查看", primary: true, reveal: true }],
       },
-      { kind: "main", handlers: [() => this.openInMainWindow(reminder)] }
+      { kind: "main", handlers: [() => this.openInMainWindow(reminder, databaseName)] }
     );
 
     log.info(
@@ -259,18 +260,25 @@ class TodoReminderModule implements Module {
     );
   }
 
-  /** 「查看」：主窗口打开对应待办 / 日程（文档待办只带回窗口） */
-  private openInMainWindow(reminder: InternalReminder) {
+  private openInMainWindow(reminder: InternalReminder, databaseName: string) {
     showOrCreateMainWindow();
     const [win] = getMainWindows();
-    if (!win) return;
-    const target =
-      reminder.eventId != null
-        ? { page: "schedule", params: { eventId: reminder.eventId } }
-        : reminder.todoId != null
-          ? { page: "todos", params: { selectedId: reminder.todoId } }
-          : null;
-    if (target) win.webContents.send("reminder:open", target);
+    if (!win || win.webContents.isLoadingMainFrame()) throw new Error("主窗口正在打开，请稍后重试");
+    if (databaseName !== databaseModule.getCurrentDatabaseName())
+      throw new Error("提醒来自其他资料库，请切回后重试");
+
+    let target: ReminderOpenTarget;
+    if (reminder.eventId != null) {
+      target = { databaseName, page: "schedule", params: { eventId: reminder.eventId } };
+    } else if (reminder.todoId != null) {
+      target = { databaseName, page: "todos", params: { selectedId: reminder.todoId } };
+    } else if (reminder.taskRef?.kind === "document") {
+      const { contentId, taskId } = reminder.taskRef;
+      target = { databaseName, documentTask: { contentId, taskId } };
+    } else {
+      throw new Error("找不到提醒对应的待办或日程");
+    }
+    win.webContents.send("reminder:open", target);
   }
 
   private getPendingReminders(): PendingReminder[] {

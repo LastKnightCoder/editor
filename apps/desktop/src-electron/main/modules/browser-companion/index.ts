@@ -296,7 +296,7 @@ class BrowserCompanionModule {
         icon: "globe",
         tone: "neutral",
         sticky: true,
-        actions: [{ label: "查看", primary: true }],
+        actions: [{ label: "查看", primary: true, reveal: true }],
       },
       { kind: "main", handlers: [() => showOrCreateMainWindow()] }
     );

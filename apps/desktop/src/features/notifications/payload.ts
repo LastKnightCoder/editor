@@ -21,6 +21,7 @@ export function toNotifyOptions(
     actions: actions?.map((action, index) => ({
       label: action.label,
       primary: action.primary,
+      reveal: action.reveal,
       resolvedText: action.resolvedText,
       onClick: () => onAction(index),
     })),

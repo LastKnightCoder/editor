@@ -114,7 +114,7 @@ describe("Notification 作答", () => {
     expect(cards()).toHaveLength(0);
   });
 
-  it("异步拒绝：说明位换成错误文案，按钮解锁", async () => {
+  it.each(["按钮", "正文"])("从%s查看失败时显示错误并解锁", async entry => {
     let fail!: (err: unknown) => void;
     act(
       () =>
@@ -125,18 +125,22 @@ describe("Notification 作答", () => {
           sticky: true,
           actions: [
             {
-              label: "重试",
+              label: "查看详情",
               primary: true,
+              reveal: true,
               onClick: () => new Promise<void>((_r, reject) => (fail = reject)),
             },
           ],
         })
     );
-    act(() => button("重试").click());
+    act(() => {
+      if (entry === "按钮") button("查看详情").click();
+      else cards()[0].querySelector("p")?.click();
+    });
     act(() => fail(new Error("网络不可用")));
     await flush();
     expect(titles()[0]).toContain("网络不可用");
-    expect(button("重试").disabled).toBe(false);
+    expect(button("查看详情").disabled).toBe(false);
   });
 
   it("同步动作：点击即离场", () => {

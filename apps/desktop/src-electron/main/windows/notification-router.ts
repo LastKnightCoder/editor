@@ -6,13 +6,8 @@ import type {
   SystemNotificationPayload,
 } from "@tau/platform";
 import { revealWindow } from "./create-window";
-import { showOrCreateMainWindow } from "./main-window";
-import {
-  dismissSystemNotification,
-  NOTIFICATION_WINDOW_KEY,
-  pushSystemNotification,
-} from "./notification-window";
-import { findWindow } from "./window-registry";
+import { getMainWindows, showOrCreateMainWindow } from "./main-window";
+import { dismissSystemNotification, pushSystemNotification } from "./notification-window";
 
 /**
  * 通知路由：失焦时通知进系统通知窗口（出生在哪就留在哪，两边栈互不同步），
@@ -49,19 +44,11 @@ function windowFromWebContentsId(id: number): BrowserWindow | null {
   return BrowserWindow.fromWebContents(wc);
 }
 
-/** 任一聚焦的普通 app 窗口（系统通知窗口自身不算） */
-function focusedAppWindow(): BrowserWindow | undefined {
-  const notificationWin = findWindow(NOTIFICATION_WINDOW_KEY);
-  return BrowserWindow.getAllWindows().find(
-    win => !win.isDestroyed() && win !== notificationWin && win.isFocused()
-  );
-}
-
 /**
  * 裁决通知去向并完成推送：
  * - 已在系统窗口的 id：原位替换（同 id 重发 = 更新那张卡）并返回 "system"；
  * - window origin 聚焦 → "in-app"（不推送，由调用方渲染端自己入栈）；
- * - main origin 时若有聚焦窗口 → 直投该窗口返回 "in-app"；
+ * - main origin 时若有聚焦的主窗口 → 直投该窗口返回 "in-app"；
  * - 其余（失焦）→ 推入系统窗口并登记 systemIds，返回 "system"。
  * window origin 的 options.force 可指定应用内或系统窗口；
  * origin 仍记发送方窗口，按钮作答经 run-action 回到本窗口执行。
@@ -87,7 +74,7 @@ export function routeNotification(
     pushSystemNotification(payload, originWin);
     return "system";
   }
-  const focused = focusedAppWindow();
+  const focused = getMainWindows().find(win => win.isFocused());
   if (focused) {
     focused.webContents.send("notification:in-app", payload);
     inAppHandlers.set(payload.id, { handlers: origin.handlers, onClose: origin.onClose });
