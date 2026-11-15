@@ -195,9 +195,9 @@ export default defineConfig(() => {
       },
     },
     envPrefix: ["VITE_"],
+    // 预构建从下方 HTML 入口扫描，避免把引用主进程的测试当作浏览器入口。
     optimizeDeps: {
       exclude: ["blog"],
-      entries: ["index.html", "src/**/*.{ts,tsx}"],
     },
     build: {
       minify: "oxc" as const,
