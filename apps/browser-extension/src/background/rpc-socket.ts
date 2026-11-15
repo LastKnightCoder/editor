@@ -46,9 +46,18 @@ export class RpcSocket {
   static open(socket: SocketLike): Promise<void> {
     return new Promise((resolve, reject) => {
       if (socket.readyState === OPEN) return resolve();
-      socket.onopen = () => resolve();
-      socket.onerror = () => reject(new Error("无法连接 Tau"));
-      socket.onclose = () => reject(new Error("无法连接 Tau"));
+      const timer = setTimeout(() => {
+        reject(new Error("无法连接 Tau"));
+        socket.close();
+      }, 3000);
+      socket.onopen = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      socket.onerror = socket.onclose = () => {
+        clearTimeout(timer);
+        reject(new Error("无法连接 Tau"));
+      };
     });
   }
 

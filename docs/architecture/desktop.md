@@ -436,6 +436,14 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 - 知识库搜索结果卡片（KnowledgeSearchRenderer）的预览消费工具输出快照做纯渲染，不按 contentId 回源拉实时内容——搜索后内容被编辑时预览不更新；点进详情弹窗才按需取实时内容。
 - AI RPC 服务随 PageNavigationBridge 启停。桌面与扩展统一使用 `content.open` 打开卡片／文章／项目引用（type/id），不注册旧 `tab.open`；块预览只走 `block.preview.open`，进入 `features/previews` 的 `block-preview` 页面。尚无承载的类型（如日记）返回明确错误，不伪报打开成功。
 
+### DeepLink 唤起
+
+桌面安装包在 `electron-builder.yml` 声明 `tau` 协议供 macOS 生成 Info.plist；Windows 的 `build/installer.nsh` 在安装时写入协议关联，命令行以 `--` 隔开 URL，未手动运行应用也能唤起。主进程通过 `setAsDefaultProtocolClient` 注册当前用户关联；卸载仅清理仍指向本安装目录的记录。开发态携带 Electron 可执行文件与应用入口参数，macOS 的系统关联仍需要应用包的 Info.plist 声明。
+
+`services/deep-link.ts` 只接受 `tau://browser-companion`（可带末尾 `/`），拒绝凭据、端口、其他路径、查询参数和片段。主入口在 ready 前监听 macOS `open-url`，Windows 从初始 argv 与 `second-instance` 获取协议请求；窗口管理器就绪前暂存显示主窗口的意图，读取后台启动偏好期间到达的请求也不会丢失。有效请求创建或前置已有主窗口，优先于登录时隐藏启动；普通 Dock 激活、文件关联与托盘入口继续沿原窗口协议运行。
+
+DeepLink 不授予权限或转发业务命令，浏览器连接继续经过既有的 Origin、token 和一次性校验码授权。插件侧的启动等待与失败提示见[浏览器伴读](/docs/architecture/browser-companion.md#唤起与启动等待)。
+
 ## 2.5 主进程模块就绪（跨进程能力）
 
 主进程能力定义在 `src-electron/main/module-init/module-config.ts`，只有两个启动阶段：

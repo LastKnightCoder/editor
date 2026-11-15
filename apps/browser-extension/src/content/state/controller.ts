@@ -3,6 +3,7 @@
  * UI 组件只读 store、调用这里的动作。
  */
 import {
+  BROWSER_COMPANION_DEEP_LINK,
   COMPANION_METHODS,
   WEB_HIGHLIGHT_HASH,
   type CompanionRunEventNotification,
@@ -431,7 +432,15 @@ export class CompanionController {
   }
 
   retryConnect(): void {
-    void this.bridge.call("connect", undefined);
+    void this.bridge.call("connect", undefined).catch(() => showToast("连接失败，请重试"));
+  }
+
+  openTau(): void {
+    // 保留点击手势，避免异步消息返回后浏览器拦截外部协议。
+    window.location.assign(BROWSER_COMPANION_DEEP_LINK);
+    void this.bridge
+      .call("connect.after-launch", undefined)
+      .catch(() => showToast("未能开始连接，请重新检测"));
   }
 
   scrollToBlock(index: number): void {

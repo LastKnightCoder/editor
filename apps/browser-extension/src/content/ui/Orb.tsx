@@ -11,6 +11,7 @@ const STATUS_DOT: Record<string, string> = {
   ready: "bg-ok",
   pairing: "bg-warn",
   connecting: "bg-warn",
+  launching: "bg-warn",
 };
 
 /**

@@ -17,6 +17,7 @@ const controller = {
   closePanel: vi.fn(() => useCompanion.setState({ panelOpen: false })),
   setTab: vi.fn((tab: string) => useCompanion.setState({ tab: tab as never })),
   retryConnect: vi.fn(),
+  openTau: vi.fn(),
   hideOnSite: vi.fn(),
   chat: { content: () => ({ blocks: [], length: 6100, title: "", url: "" }) },
 } as never;
@@ -101,6 +102,23 @@ describe("选区工具条", () => {
 });
 
 describe("面板", () => {
+  it("未连接时可唤起 Tau；启动等待与超时分别给出真实提示", async () => {
+    useCompanion.setState({ panelOpen: true, status: { state: "offline" } });
+    render(<Panel />);
+    await act(async () => button("打开 Tau 并连接")!.click());
+    expect((controller as any).openTau).toHaveBeenCalledOnce();
+    await act(async () => button("已打开 Tau？重新检测")!.click());
+    expect((controller as any).retryConnect).toHaveBeenCalledOnce();
+    await act(async () => useCompanion.setState({ status: { state: "launching" } }));
+    expect(container.textContent).toContain("正在等待 Tau");
+    expect(button("打开 Tau 并连接")).toBeUndefined();
+    await act(async () =>
+      useCompanion.setState({ status: { state: "offline", launchTimedOut: true } })
+    );
+    expect(container.textContent).toContain("还没有连上 Tau");
+    expect(button("再次打开 Tau")).toBeTruthy();
+  });
+
   it("等待授权时对话页签显示校验码", async () => {
     useCompanion.setState({ panelOpen: true, status: { state: "pairing", code: "4827" } });
     render(<Panel />);

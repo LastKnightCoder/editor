@@ -586,6 +586,40 @@ export function ConnectionCard() {
       </StateCard>
     );
 
+  if (status.state === "launching")
+    return (
+      <StateCard icon={Plug} title="正在等待 Tau…">
+        <p>如果浏览器询问是否打开 Tau，请选择「打开」。连接成功后会自动进入对话。</p>
+        <span className="text-tau-sm text-ink-3 inline-flex items-center gap-2" role="status">
+          <span className="border-line-1 border-t-accent size-[13px] animate-spin rounded-full border-[1.5px]" />
+          首次连接需要在 Tau 中确认授权
+        </span>
+      </StateCard>
+    );
+
+  if (status.state === "offline" || status.state === "unpaired")
+    return (
+      <StateCard
+        icon={Plug}
+        title={status.launchTimedOut ? "还没有连上 Tau" : "连接 Tau，开始对话"}
+      >
+        {status.launchTimedOut && (
+          <p>请确认已安装最新版 Tau，并允许浏览器打开应用。也可以手动打开 Tau 后重新检测。</p>
+        )}
+        <Button
+          variant="primary"
+          icon={ArrowUpRight}
+          className="mx-auto mt-1"
+          onClick={() => controller.openTau()}
+        >
+          {status.launchTimedOut ? "再次打开 Tau" : "打开 Tau 并连接"}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => controller.retryConnect()}>
+          已打开 Tau？重新检测
+        </Button>
+      </StateCard>
+    );
+
   const variants: Record<string, { title: string; body: string; action: string; tone?: "danger" }> =
     {
       denied: {

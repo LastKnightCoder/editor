@@ -23,6 +23,7 @@ const STATUS_LABEL: Record<string, { label: string; dot: string }> = {
   ready: { label: "Tau 已连接", dot: "bg-ok" },
   pairing: { label: "等待授权", dot: "bg-warn" },
   connecting: { label: "正在连接", dot: "bg-warn" },
+  launching: { label: "正在等待 Tau", dot: "bg-warn" },
 };
 
 const TABS: Array<{ key: PanelTab; label: string }> = [
