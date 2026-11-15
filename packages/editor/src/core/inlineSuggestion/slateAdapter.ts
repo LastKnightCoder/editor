@@ -1,10 +1,11 @@
+import { INLINE_PROSE_CONTEXT_LIMIT } from "@tau/shared/inline-suggestion-limits";
 import { Element, Editor, Node, Path, Point, Range, Text, Transforms } from "slate";
 import type { Descendant, NodeEntry } from "slate";
 import { ReactEditor } from "slate-react";
-import { canEditElement } from "../api/elementVersions";
+import { canEditElement, getElementVersionResolver } from "../api/elementVersions";
 import { submissionScopeSignal } from "../kit/submissionScope";
 import { withNewUndoStep } from "../utils/undoStep";
-import type { InlineSuggestionEditorPort } from "./controller";
+import type { InlineSuggestionContext, InlineSuggestionEditorPort } from "./controller";
 
 export interface Stamp {
   readonly scope: AbortSignal;
@@ -13,8 +14,61 @@ export interface Stamp {
   readonly anchorStart: number;
 }
 
-const CONTEXT_LENGTH = 512;
+const PARAGRAPH_SEPARATOR = "\n\n";
+const MAX_ADJACENT_BLOCKS_PER_SIDE = 32;
 const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter() : null;
+
+function limitContext(before: string, after: string, limit: number) {
+  // 前文默认多占一点，另一侧用不完的预算可以借用。
+  const beforeLength = Math.min(
+    before.length,
+    Math.max(Math.ceil((limit * 3) / 5), limit - after.length)
+  );
+  const afterLength = Math.min(after.length, limit - beforeLength);
+  return {
+    before: before.slice(before.length - beforeLength).replace(/^[\uDC00-\uDFFF]/u, ""),
+    after: after.slice(0, afterLength).replace(/[\uD800-\uDBFF]$/u, ""),
+  };
+}
+
+function adjacentText(editor: Editor, index: number, direction: -1 | 1, limit: number) {
+  const resolve = getElementVersionResolver(editor);
+  const parts = [""];
+  let length = 0;
+  for (let distance = 1; distance <= MAX_ADJACENT_BLOCKS_PER_SIDE && length < limit; distance++) {
+    const blockIndex = index + distance * direction;
+    const block = editor.children[blockIndex];
+    if (!block) break;
+    if (!Element.isElement(block) || (block.type !== "paragraph" && block.type !== "header"))
+      continue;
+    if (resolve?.(block)?.access === "none") continue;
+    const text = Editor.string(editor, [blockIndex]);
+    if (!text.trim()) continue;
+    parts.push(text);
+    length += text.length + PARAGRAPH_SEPARATOR.length;
+  }
+  return (direction === -1 ? parts.reverse() : parts).join(PARAGRAPH_SEPARATOR);
+}
+
+function captureContext(editor: Editor, point: Point): InlineSuggestionContext {
+  const index = point.path[0];
+  const path = [index];
+  const before = Editor.string(editor, { anchor: Editor.start(editor, path), focus: point });
+  const after = Editor.string(editor, { anchor: point, focus: Editor.end(editor, path) });
+  const remaining = INLINE_PROSE_CONTEXT_LIMIT - before.length - after.length;
+  if (remaining <= PARAGRAPH_SEPARATOR.length) {
+    return limitContext(before, after, INLINE_PROSE_CONTEXT_LIMIT);
+  }
+  const nearby = limitContext(
+    adjacentText(editor, index, -1, remaining),
+    adjacentText(editor, index, 1, remaining),
+    remaining
+  );
+  return {
+    before: (nearby.before.length > PARAGRAPH_SEPARATOR.length ? nearby.before : "") + before,
+    after: after + (nearby.after.length > PARAGRAPH_SEPARATOR.length ? nearby.after : ""),
+  };
+}
 
 function currentPoint(editor: Editor): Point | null {
   const { selection } = editor;
@@ -64,7 +118,6 @@ export function createSlateSuggestionPort(editor: Editor): InlineSuggestionEdito
       const scope = canSuggest();
       const point = scope && currentPoint(editor);
       if (!scope || !point) return null;
-      const path = point.path.slice(0, 1);
       const leaf = Node.leaf(editor, point.path);
       const previous = point.offset && segmenter?.segment(leaf.text).containing(point.offset - 1);
       if (
@@ -79,15 +132,7 @@ export function createSlateSuggestionPort(editor: Editor): InlineSuggestionEdito
           children: editor.children,
           anchorStart: previous ? previous.index : 0,
         },
-        context: {
-          before: Editor.string(editor, { anchor: Editor.start(editor, path), focus: point }).slice(
-            -CONTEXT_LENGTH
-          ),
-          after: Editor.string(editor, { anchor: point, focus: Editor.end(editor, path) }).slice(
-            0,
-            CONTEXT_LENGTH
-          ),
-        },
+        context: captureContext(editor, point),
       };
     },
     isCurrent,

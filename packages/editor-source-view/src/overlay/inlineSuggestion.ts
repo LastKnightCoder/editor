@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { createInlineSuggestionController, type InlineSuggestionProvider } from "@tau/editor/api";
 import type { EditorTextField } from "@tau/editor/api";
+import { INLINE_CODE_CONTEXT_LIMIT_PER_SIDE } from "@tau/shared/inline-suggestion-limits";
 
 const emptyPreview = () => null;
 const noSubscription = () => () => undefined;
@@ -38,8 +39,8 @@ export function useSourceInlineSuggestion(
           return {
             stamp: { revision, offset },
             context: {
-              before: value.slice(Math.max(0, offset - 512), offset),
-              after: value.slice(offset, offset + 512),
+              before: value.slice(Math.max(0, offset - INLINE_CODE_CONTEXT_LIMIT_PER_SIDE), offset),
+              after: value.slice(offset, offset + INLINE_CODE_CONTEXT_LIMIT_PER_SIDE),
               language: (language || "text").slice(0, 40),
             },
           };

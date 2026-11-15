@@ -41,8 +41,8 @@ it("IPC 按设置选择模型，隔离窗口取消并在进程退出时取消", 
   const payload = {
     ...mocks.model,
     shared: true,
-    before: "草稿",
-    after: "",
+    before: `${"前文".repeat(300)}\n\n到了宣德年间，奏章`,
+    after: `仍要呈给皇帝。\n\n${"后文".repeat(300)}`,
     requestId: randomUUID(),
   };
   mocks.complete.mockResolvedValueOnce({ ok: true, text: '{"text":"建议"}' });
@@ -51,6 +51,9 @@ it("IPC 按设置选择模型，隔离窗口取消并在进程退出时取消", 
   expect(mocks.complete.mock.calls[0][0]).toMatchObject({
     ...mocks.model,
     source: { feature: "inlineSuggestion" },
+    messages: [
+      { role: "user", content: JSON.stringify({ before: payload.before, after: payload.after }) },
+    ],
   });
   mocks.complete.mockImplementationOnce(
     (_, signal: AbortSignal) =>

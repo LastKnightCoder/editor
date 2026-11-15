@@ -92,6 +92,13 @@ describe("行内建议的压力与隔离", () => {
     await expect(service.suggest(1, request())).resolves.toBeNull();
     expect(complete).toHaveBeenCalledTimes(2);
     expect(parseInlineSuggestionRequest(request({ before: "x".repeat(513) }))).toBeNull();
+    const prose = request({
+      language: undefined,
+      before: "前".repeat(2048),
+      after: "后".repeat(2048),
+    });
+    expect(parseInlineSuggestionRequest(prose)).toEqual(prose);
+    expect(parseInlineSuggestionRequest({ ...prose, after: `${prose.after}后` })).toBeNull();
     expect(parseInlineSuggestionRequest(request())).toEqual(expect.objectContaining({ ...model }));
   });
 
