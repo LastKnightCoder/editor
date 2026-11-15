@@ -4,6 +4,21 @@ import type { EditorFeedback } from "../services/notifier";
 import { createParagraph } from "../model/paragraph";
 import { attachContentFragment, contentFragmentTransferOf } from "../api/clipboardFragment";
 
+const slateClipboardFormat = "application/x-slate-fragment";
+
+export function setSlateFragmentData(
+  editor: Editor,
+  data: DataTransfer,
+  fragment: Node[],
+  plainText: string,
+  richContent?: DocumentFragment
+): void {
+  const { encoded, html } = buildClipboardPayload(editor, fragment, plainText, richContent);
+  data.setData(slateClipboardFormat, encoded);
+  data.setData("text/html", html);
+  data.setData("text/plain", plainText);
+}
+
 /**
  * 复制节点到剪贴板
  * 支持两种格式：JSON 和纯文本；传入数组时按数组顺序作为一个 fragment，纯文本以换行连接
@@ -15,26 +30,19 @@ export async function copyNodeToClipboard(
   options: { allowPlainTextFallback?: boolean; signal?: AbortSignal } = {}
 ): Promise<boolean> {
   if (options.signal?.aborted) return false;
-  const slateClipboardFormat = "application/x-slate-fragment";
   const fragment = Array.isArray(element) ? element : [element];
   const plainText = fragment.map(node => Node.string(node)).join("\n");
 
   try {
-    const fragmentJSON = JSON.stringify(fragment);
-    const encodedFragment = window.btoa(encodeURIComponent(fragmentJSON));
-    const htmlPayload = buildSlateFragmentHTML(
-      encodedFragment,
-      plainText,
-      contentFragmentTransferOf(editor)?.serialize(fragment)
-    );
+    const { encoded, html } = buildClipboardPayload(editor, fragment, plainText);
 
     const clipboardData: Record<string, Blob> = {
       "text/plain": new Blob([plainText], { type: "text/plain" }),
-      "text/html": new Blob([htmlPayload], { type: "text/html" }),
+      "text/html": new Blob([html], { type: "text/html" }),
     };
 
     if (isClipboardFormatSupported(slateClipboardFormat)) {
-      clipboardData[slateClipboardFormat] = new Blob([encodedFragment], {
+      clipboardData[slateClipboardFormat] = new Blob([encoded], {
         type: slateClipboardFormat,
       });
     }
@@ -69,15 +77,39 @@ export async function copyNodeToClipboard(
   }
 }
 
+function buildClipboardPayload(
+  editor: Editor,
+  fragment: Node[],
+  plainText: string,
+  richContent?: DocumentFragment
+) {
+  const encoded = window.btoa(encodeURIComponent(JSON.stringify(fragment)));
+  const html = buildSlateFragmentHTML(
+    encoded,
+    plainText,
+    contentFragmentTransferOf(editor)?.serialize(fragment),
+    richContent
+  );
+  return { encoded, html };
+}
+
 /**
  * 构造携带 data-slate-fragment 属性的 HTML，用于模拟 Slate 原生复制行为
  */
 function buildSlateFragmentHTML(
   encodedFragment: string,
   plainText: string,
-  contentFragment?: string
+  contentFragment?: string,
+  richContent?: DocumentFragment
 ): string {
   const div = document.createElement("div");
+  if (richContent?.hasChildNodes()) {
+    const article = document.createElement("div");
+    article.setAttribute("data-slate-fragment", encodedFragment);
+    if (contentFragment) attachContentFragment(article, contentFragment);
+    article.appendChild(richContent);
+    return article.outerHTML;
+  }
   const attach = document.createElement("span");
   attach.setAttribute("data-slate-fragment", encodedFragment);
   if (contentFragment) attachContentFragment(attach, contentFragment);

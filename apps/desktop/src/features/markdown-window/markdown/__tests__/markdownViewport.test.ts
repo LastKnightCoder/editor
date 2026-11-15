@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { firstScreenContent, needsFirstScreen } from "../firstScreen";
+import { initialBlockCount, needsMarkdownViewport } from "../markdownViewport";
 import type { Descendant } from "slate";
 
 const paragraph = (text: string): Descendant => ({
@@ -7,29 +7,28 @@ const paragraph = (text: string): Descendant => ({
   children: [{ type: "formatted", text }],
 });
 
-it("短正文沿用直接编辑，大量块或巨大单块启用首屏", () => {
-  expect(needsFirstScreen([paragraph("短文")])).toBe(false);
-  expect(needsFirstScreen(Array.from({ length: 200 }, () => paragraph("正文")))).toBe(true);
-  expect(needsFirstScreen([paragraph("文".repeat(60000))])).toBe(true);
+it("短正文直接编辑，大量块或巨大单块启用视口", () => {
+  expect(needsMarkdownViewport([paragraph("短文")])).toBe(false);
+  expect(needsMarkdownViewport(Array.from({ length: 200 }, () => paragraph("正文")))).toBe(true);
+  expect(needsMarkdownViewport([paragraph("文".repeat(60000))])).toBe(true);
 });
 
-it("首屏保留完整块和未知字段，预览截取不改完整正文", () => {
+it("首屏只挑选挂载数量，完整块和未知字段仍保留", () => {
   const nodes = Array.from({ length: 200 }, (_, index) => ({
     ...paragraph(`正文${index}`),
     vendor: { keep: true },
   }));
   const original = structuredClone(nodes);
-  const head = firstScreenContent(nodes);
-  expect(head.length).toBeGreaterThan(0);
-  expect(head.length).toBeLessThan(nodes.length);
-  expect(head[0]).toBe(nodes[0]);
+  const count = initialBlockCount(nodes, 800);
+  expect(count).toBeGreaterThan(0);
+  expect(count).toBeLessThan(nodes.length);
   expect(nodes).toEqual(original);
 });
 
-it("巨大首块不截断其结构，回退完整编辑路径且不修改数据", () => {
+it("巨大首块完整挂载，不挤占后续块的初始预算", () => {
   const raw = "正文".repeat(30000),
     node = paragraph(raw);
-  expect(firstScreenContent([node])).toEqual([]);
+  expect(initialBlockCount([node, paragraph("后文")], 800)).toBe(1);
   expect(node).toEqual(paragraph(raw));
   const code = {
     type: "code-block",
@@ -38,11 +37,11 @@ it("巨大首块不截断其结构，回退完整编辑路径且不修改数据"
     uuid: "code",
     children: [{ type: "formatted", text: "" }],
   } as unknown as Descendant;
-  expect(firstScreenContent([code])).toEqual([]);
+  expect(needsMarkdownViewport([code])).toBe(true);
 });
 
 it("预览代码块运行时身份隔离，不改未知节点和持久化数据", async () => {
-  const { isolatePreviewContent } = await import("../firstScreen");
+  const { isolatePreviewContent } = await import("../imagePreviewContent");
   const code = {
     type: "code-block",
     uuid: "original",

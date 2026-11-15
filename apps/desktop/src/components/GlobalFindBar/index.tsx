@@ -4,10 +4,12 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
-import { openOwnedFind } from "./findOwner";
+import { getFindSource, openOwnedFind, subscribeFindSource, type FindResults } from "./findOwner";
+import { clearFindHighlights, showFindHighlights } from "./highlights";
 import "./highlights.css";
 
 const styles = {
@@ -29,18 +31,14 @@ interface SearchTextNode {
   end: number;
 }
 
-interface SearchMatch {
-  range: Range;
-}
-
 interface SearchState {
-  matches: SearchMatch[];
+  results: FindResults | null;
   currentIndex: number;
 }
 
-const EMPTY_STATE: SearchState = { matches: [], currentIndex: 0 };
-const HIGHLIGHT_NAME = "tau-global-find";
-const CURRENT_HIGHLIGHT_NAME = "tau-global-find-current";
+const EMPTY_STATE: SearchState = { results: null, currentIndex: 0 };
+const noFindSource = () => null;
+const noFindSubscription = () => () => undefined;
 
 const isSearchUiNode = (node: Node) =>
   node instanceof HTMLElement && Boolean(node.closest(`[data-global-find-ui="true"]`));
@@ -89,75 +87,86 @@ const createRange = (nodes: SearchTextNode[], start: number, end: number): Range
   return range;
 };
 
-const clearHighlights = () => {
-  const css = (window as any).CSS;
-  if (!css?.highlights) return;
-  css.highlights.delete(HIGHLIGHT_NAME);
-  css.highlights.delete(CURRENT_HIGHLIGHT_NAME);
-};
-
-const applyHighlights = (matches: SearchMatch[], currentIndex: number) => {
-  const css = (window as any).CSS;
-  if (!css?.highlights || typeof (window as any).Highlight !== "function") {
-    return;
-  }
-
-  const allRanges = matches.map(match => match.range);
-  css.highlights.set(HIGHLIGHT_NAME, new (window as any).Highlight(...allRanges));
-  const current = matches[currentIndex];
-  if (current) {
-    css.highlights.set(CURRENT_HIGHLIGHT_NAME, new (window as any).Highlight(current.range));
-  }
-};
-
-const scrollMatchIntoView = (match: SearchMatch | undefined) => {
-  const element = match?.range.startContainer.parentElement;
-  if (!element || typeof element.scrollIntoView !== "function") return;
-  element.scrollIntoView({
-    block: "center",
-    inline: "nearest",
-    behavior: "smooth",
-  });
-};
-
-const searchDocument = (query: string, previousState: SearchState): SearchState => {
-  clearHighlights();
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  if (!normalizedQuery) return EMPTY_STATE;
-
+const searchDocument = (query: string): FindResults => {
+  const normalizedQuery = query.toLocaleLowerCase();
   const nodes = collectTextNodes(document.body);
   const fullText = nodes
     .map(item => item.node.textContent || "")
     .join("")
     .toLocaleLowerCase();
-  const matches: SearchMatch[] = [];
+  const matches: Range[] = [];
   let start = fullText.indexOf(normalizedQuery);
   while (start !== -1) {
     const range = createRange(nodes, start, start + normalizedQuery.length);
-    if (range) matches.push({ range });
+    if (range) matches.push(range);
     start = fullText.indexOf(normalizedQuery, start + normalizedQuery.length);
   }
 
-  const currentIndex = Math.min(previousState.currentIndex, Math.max(matches.length - 1, 0));
-  applyHighlights(matches, currentIndex);
-  return { matches, currentIndex };
+  return {
+    count: matches.length,
+    reveal(index, scroll) {
+      const current = matches[index];
+      showFindHighlights(current, matches);
+      if (scroll)
+        current?.startContainer.parentElement?.scrollIntoView?.({
+          block: "center",
+          inline: "nearest",
+          behavior: "smooth",
+        });
+    },
+  };
 };
 
 const GlobalFindBar = () => {
   const [open, setOpen] = useState(false);
+  const source = useSyncExternalStore(
+    open ? subscribeFindSource : noFindSubscription,
+    open ? getFindSource : noFindSource,
+    noFindSource
+  );
   const [query, setQuery] = useState("");
   const [searchState, setSearchState] = useState<SearchState>(EMPTY_STATE);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const searchStateRef = useRef<SearchState>(EMPTY_STATE);
-  const refreshFrameRef = useRef<number | null>(null);
+  const revealFrame = useRef<number>(0);
+  const releaseMatch = useRef<(() => void) | undefined>(undefined);
 
-  const updateSearch = useCallback((nextQuery: string) => {
-    const nextState = searchDocument(nextQuery, searchStateRef.current);
-    searchStateRef.current = nextState;
-    setSearchState(nextState);
-    scrollMatchIntoView(nextState.matches[nextState.currentIndex]);
+  const clearMatch = useCallback(() => {
+    cancelAnimationFrame(revealFrame.current);
+    releaseMatch.current?.();
+    releaseMatch.current = undefined;
+    clearFindHighlights();
   }, []);
+
+  const showMatch = useCallback(
+    ({ results, currentIndex }: SearchState, scroll: boolean) => {
+      clearMatch();
+      if (!results?.count) return;
+      const show = () => {
+        releaseMatch.current = results.reveal(currentIndex, scroll) ?? undefined;
+      };
+      if (source) revealFrame.current = requestAnimationFrame(show);
+      else show();
+    },
+    [clearMatch, source]
+  );
+
+  const updateSearch = useCallback(
+    (nextQuery: string, scroll: boolean) => {
+      const trimmed = nextQuery.trim();
+      const results = trimmed ? (source?.search(trimmed) ?? searchDocument(trimmed)) : null;
+      const currentIndex = Math.min(
+        searchStateRef.current.currentIndex,
+        Math.max(0, (results?.count ?? 0) - 1)
+      );
+      const nextState = { results, currentIndex };
+      searchStateRef.current = nextState;
+      setSearchState(nextState);
+      showMatch(nextState, scroll);
+    },
+    [showMatch, source]
+  );
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -175,13 +184,13 @@ const GlobalFindBar = () => {
   }, [focusInput, open]);
 
   const closeFindBar = useCallback(() => {
-    clearHighlights();
+    clearMatch();
     searchStateRef.current = EMPTY_STATE;
     setSearchState(EMPTY_STATE);
     setQuery("");
     setOpen(false);
-    requestAnimationFrame(() => previousFocusRef.current?.focus());
-  }, []);
+    requestAnimationFrame(() => previousFocusRef.current?.focus({ preventScroll: true }));
+  }, [clearMatch]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -206,16 +215,28 @@ const GlobalFindBar = () => {
 
   useEffect(() => {
     if (!open) return;
-    updateSearch(query);
+    updateSearch(query, true);
   }, [open, query, updateSearch]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !query.trim()) return;
+    if (source) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const stop = source.subscribe(() => {
+        clearTimeout(timer);
+        timer = setTimeout(() => updateSearch(query, false), 150);
+      });
+      return () => {
+        stop();
+        clearTimeout(timer);
+      };
+    }
+    let frame = 0;
     const observer = new MutationObserver(() => {
-      if (refreshFrameRef.current !== null) return;
-      refreshFrameRef.current = requestAnimationFrame(() => {
-        refreshFrameRef.current = null;
-        updateSearch(query);
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        updateSearch(query, true);
       });
     });
     observer.observe(document.body, {
@@ -225,28 +246,23 @@ const GlobalFindBar = () => {
     });
     return () => {
       observer.disconnect();
-      if (refreshFrameRef.current !== null) {
-        cancelAnimationFrame(refreshFrameRef.current);
-        refreshFrameRef.current = null;
-      }
+      cancelAnimationFrame(frame);
     };
-  }, [open, query, updateSearch]);
+  }, [open, query, source, updateSearch]);
 
-  useEffect(() => () => clearHighlights(), []);
+  useEffect(() => clearMatch, [clearMatch]);
 
   const selectResult = useCallback(
     (forward: boolean) => {
-      if (searchState.matches.length === 0) return;
-      const nextIndex =
-        (searchState.currentIndex + (forward ? 1 : -1) + searchState.matches.length) %
-        searchState.matches.length;
+      const { results, currentIndex } = searchState;
+      if (!results?.count) return;
+      const nextIndex = (currentIndex + (forward ? 1 : -1) + results.count) % results.count;
       const nextState = { ...searchState, currentIndex: nextIndex };
       searchStateRef.current = nextState;
       setSearchState(nextState);
-      applyHighlights(nextState.matches, nextIndex);
-      scrollMatchIntoView(nextState.matches[nextIndex]);
+      showMatch(nextState, true);
     },
-    [searchState]
+    [searchState, showMatch]
   );
 
   const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -258,9 +274,10 @@ const GlobalFindBar = () => {
 
   if (!open) return null;
 
+  const count = searchState.results?.count ?? 0;
   const resultLabel = query
-    ? searchState.matches.length > 0
-      ? `${searchState.currentIndex + 1} / ${searchState.matches.length}`
+    ? count > 0
+      ? `${searchState.currentIndex + 1} / ${count}`
       : "无结果"
     : "";
 
@@ -275,10 +292,7 @@ const GlobalFindBar = () => {
       <input
         ref={inputRef}
         value={query}
-        onChange={event => {
-          setQuery(event.target.value);
-          updateSearch(event.target.value);
-        }}
+        onChange={event => setQuery(event.target.value)}
         onKeyDown={handleInputKeyDown}
         placeholder="搜索当前窗口"
         aria-label="搜索当前窗口"
@@ -286,7 +300,7 @@ const GlobalFindBar = () => {
       />
       <span
         className={styles.resultCount}
-        data-empty={query && searchState.matches.length === 0 ? "true" : undefined}
+        data-empty={query && count === 0 ? "true" : undefined}
         aria-live="polite"
       >
         {resultLabel}
@@ -295,7 +309,7 @@ const GlobalFindBar = () => {
         type="button"
         className={styles.iconButton}
         onClick={() => selectResult(false)}
-        disabled={searchState.matches.length === 0}
+        disabled={count === 0}
         aria-label="上一个结果"
         title="上一个结果 (Shift+Enter)"
       >
@@ -305,7 +319,7 @@ const GlobalFindBar = () => {
         type="button"
         className={styles.iconButton}
         onClick={() => selectResult(true)}
-        disabled={searchState.matches.length === 0}
+        disabled={count === 0}
         aria-label="下一个结果"
         title="下一个结果 (Enter)"
       >

@@ -19,16 +19,19 @@ import {
   Activity,
 } from "react";
 import type { Editor as CodeMirrorEditor } from "codemirror";
+import { Editor as SlateEditor, type Descendant } from "slate";
+import { ReactEditor } from "slate-react";
 import "codemirror/mode/markdown/markdown.js";
 import "codemirror/mode/gfm/gfm.js";
 import "codemirror/mode/yaml/yaml.js";
 import "codemirror/mode/yaml-frontmatter/yaml-frontmatter.js";
 import { useThrottleFn } from "ahooks";
 import { Code2 } from "lucide-react";
-import { type EditorRef } from "@tau/editor";
-import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
+import { Editor, type EditorRef } from "@tau/editor";
+import { ErrorBoundary, Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import ContentExportModal from "@/components/ContentExportModal";
 import { SnapshotImagePreview } from "@/components/ContentExportModal/SnapshotImagePreview";
+import { useFindSource, type FindSource } from "@/components/GlobalFindBar/findOwner";
 import {
   ContentOutline,
   extractContentHeaders,
@@ -45,8 +48,10 @@ import { useSourceMode } from "./useSourceMode";
 import { createMarkdownDocument } from "./markdownDocument";
 import { createContentLengthCounter } from "./contentLength";
 import { createMarkdownContentPreparer } from "./prepareMarkdownContent";
-import { MarkdownRichSurface, type RichSurfaceState } from "./MarkdownRichSurface";
-import { isolatePreviewContent } from "./firstScreen";
+import { isolatePreviewContent } from "./imagePreviewContent";
+import { MarkdownViewportSurface } from "./MarkdownViewportSurface";
+import { createMarkdownViewport, needsMarkdownViewport } from "./markdownViewport";
+import { createRichFind, emptyFindResults, findSourceText } from "./markdownFind";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -99,9 +104,7 @@ export const MarkdownFileView = forwardRef<
   }, [scrollEl]);
 
   const surfaceActive = useRef(true);
-  const [richState, setRichState] = useState<RichSurfaceState>({ prepared: false, preview: false });
-  const richStateRef = useRef(richState);
-  richStateRef.current = richState;
+  const [viewportReady, setViewportReady] = useState(false);
   const markdownKit = useMarkdownEditorServices(path, onOpenMarkdown);
   const [fileDocument] = useState(() =>
     createMarkdownDocument(
@@ -113,6 +116,20 @@ export const MarkdownFileView = forwardRef<
   );
   const snapshot = useSyncExternalStore(fileDocument.subscribe, fileDocument.getSnapshot);
   const content = snapshot.content;
+  const [viewport] = useState(createMarkdownViewport);
+  const useViewportRef = useRef<boolean | null>(null);
+  if (useViewportRef.current === null && snapshot.loaded && !snapshot.error) {
+    useViewportRef.current = needsMarkdownViewport(content);
+  }
+  const useViewport = useViewportRef.current === true;
+  const richReady = !useViewport || viewportReady;
+  const sourceWindowedRef = useRef<boolean | null>(null);
+  if (sourceWindowedRef.current === null && snapshot.loaded) {
+    sourceWindowedRef.current =
+      snapshot.text.length > 80_000 || snapshot.text.split("\n", 2001).length > 2000;
+  }
+  const sourceWindowed = sourceWindowedRef.current === true;
+  const [sourceScroller, setSourceScroller] = useState<HTMLElement | null>(null);
   const [imageExportTitle, setImageExportTitle] = useState<string | null>(null);
   const imageExportOpen = imageExportTitle !== null;
   const imagePreviewScope = `image-export-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -126,8 +143,17 @@ export const MarkdownFileView = forwardRef<
   }, [imageExportOpen, content, unprojectedMarkdown, imagePreviewScope, markdownKit]);
   const getText = useCallback(() => fileDocument.getText(), [fileDocument]);
   const applySource = useCallback(
-    (text: string) => fileDocument.applyMarkdown(text, "user"),
+    (text: string, parsed: Descendant[]) => fileDocument.applyMarkdown(text, "user", parsed),
     [fileDocument]
+  );
+  const prepareRichTarget = useCallback(
+    (index: number) => {
+      const editor = editorRef.current?.getEditor();
+      const node = editor?.children[index];
+      if (!editor || !node) return;
+      viewport.prepare(editor, [index]);
+    },
+    [viewport]
   );
 
   const { sourceMode, sourceCreated, toggle, showSource, sourceEditorRef, sourceTextRef } =
@@ -136,11 +162,52 @@ export const MarkdownFileView = forwardRef<
       getText,
       applySource,
       stopCapturing: fileDocument.stopCapturing,
-      richReady: richState.prepared,
+      richReady,
+      prepareRichTarget: useViewport ? prepareRichTarget : undefined,
     });
   const sourceModeRef = useRef(sourceMode);
   sourceModeRef.current = sourceMode;
-  surfaceActive.current = (!sourceMode || !richState.prepared) && !snapshot.error;
+  surfaceActive.current = (!sourceMode || !richReady) && !snapshot.error;
+
+  const [findRichText] = useState(createRichFind);
+  const findSource = useMemo<FindSource>(() => {
+    if (sourceMode)
+      return {
+        search(query) {
+          const code = sourceEditorRef.current;
+          return code
+            ? findSourceText(code, query, sourceWindowed ? null : scrollEl)
+            : emptyFindResults;
+        },
+        subscribe(listener) {
+          const code = sourceEditorRef.current;
+          code?.on("change", listener);
+          return () => {
+            code?.off("change", listener);
+          };
+        },
+      };
+    return {
+      search(query) {
+        const editor = editorRef.current?.getEditor();
+        return richReady && editor
+          ? findRichText(editor, query, useViewport ? viewport : undefined, scrollEl)
+          : emptyFindResults;
+      },
+      subscribe: fileDocument.subscribe,
+    };
+  }, [
+    fileDocument,
+    findRichText,
+    richReady,
+    scrollEl,
+    sourceEditorRef,
+    sourceMode,
+    sourceWindowed,
+    useViewport,
+    viewport,
+  ]);
+  useFindSource(findSource);
 
   const applyExternalText = useCallback(
     (text: string) => {
@@ -178,17 +245,18 @@ export const MarkdownFileView = forwardRef<
   }, [fileDocument, flush]);
 
   useEffect(() => {
-    sourceTextRef.current = snapshot.text;
+    const text = fileDocument.getText();
+    sourceTextRef.current = text;
     if (!sourceMode) return;
     const editor = sourceEditorRef.current;
-    if (editor && editor.getValue() !== snapshot.text) {
+    if (editor && editor.getValue() !== text) {
       const cursor = editor.getCursor();
-      editor.setValue(snapshot.text);
+      editor.setValue(text);
       editor.clearHistory();
       const line = Math.min(cursor.line, editor.lastLine());
       editor.setCursor({ line, ch: Math.min(cursor.ch, editor.getLine(line).length) });
     }
-  }, [snapshot.text, sourceEditorRef, sourceTextRef, sourceMode]);
+  }, [snapshot, fileDocument, sourceEditorRef, sourceTextRef, sourceMode]);
   useEffect(() => {
     if (snapshot.error && !sourceMode) showSource();
   }, [snapshot.error, sourceMode, showSource]);
@@ -204,11 +272,13 @@ export const MarkdownFileView = forwardRef<
     () => {
       if (sourceModeRef.current) {
         const sourceText = sourceTextRef.current;
-        const sourceContent = fileDocument.getSnapshot().error
-          ? [{ type: "formatted" as const, text: sourceText }]
-          : importFromMarkdown(sourceText);
-        setWords(getContentLength(sourceContent));
-        setSource(sourceHeaders(sourceTextRef.current));
+        const projected = fileDocument.getSnapshot();
+        setWords(
+          projected.error
+            ? getContentLength([{ type: "formatted", text: sourceText }])
+            : countContentLength(projected.content)
+        );
+        setSource(sourceHeaders(sourceText));
       } else {
         setWords(
           countContentLength(
@@ -230,7 +300,25 @@ export const MarkdownFileView = forwardRef<
       const inside = Boolean(
         selection?.anchorNode && richRef.current?.contains(selection.anchorNode)
       );
-      const text = inside && selection && !selection.isCollapsed ? selection.toString() : "";
+      let text = "";
+      if (inside && selection && !selection.isCollapsed) {
+        text = selection.toString();
+        const editor =
+          useViewportRef.current && !sourceModeRef.current
+            ? editorRef.current?.getEditor()
+            : undefined;
+        if (editor) {
+          try {
+            const range = ReactEditor.toSlateRange(editor, selection, {
+              exactMatch: false,
+              suppressThrow: true,
+            });
+            if (range) text = SlateEditor.string(editor, range);
+          } catch {
+            // 切换源码时 DOM 选区可能早于 Slate 重新绑定。
+          }
+        }
+      }
       setSelectedWords(text ? getContentLength([{ type: "formatted", text }]) : 0);
     };
     document.addEventListener("selectionchange", onSelectionChange);
@@ -239,10 +327,21 @@ export const MarkdownFileView = forwardRef<
 
   /* 大纲：富文本按顶层标题节点定位；源码按行定位（ContentOutline 只读锚点的 rect） */
   const richHeaders = useMemo(() => extractContentHeaders(content ?? []), [content]);
+  const headingIndexes = useMemo(
+    () =>
+      useViewport ? content.flatMap((node, index) => (node.type === "header" ? [index] : [])) : [],
+    [content, useViewport]
+  );
   const resolveAnchor = useCallback(
     (_header: OutlineHeader, index: number): HTMLElement | null => {
-      if (!sourceModeRef.current)
-        return resolveEditorHeaderAnchor(editorRef.current?.getEditor(), index);
+      if (!sourceModeRef.current) {
+        const editor = editorRef.current?.getEditor();
+        const node = editor?.children[headingIndexes[index]];
+        return (
+          (editor && node ? viewport.anchor(editor, node) : null) ??
+          resolveEditorHeaderAnchor(editor, index)
+        );
+      }
       const editor = sourceEditorRef.current;
       const line = source.lines[index];
       if (!editor || line === undefined) return null;
@@ -253,25 +352,26 @@ export const MarkdownFileView = forwardRef<
         },
       } as HTMLElement;
     },
-    [source.lines, sourceEditorRef]
+    [source.lines, sourceEditorRef, headingIndexes, viewport]
   );
 
   const dirty = session.saveState === "dirty" || session.conflict !== null || session.missing;
   const headers = sourceMode ? source.headers : richHeaders;
+  const outlineAnchorScroll = sourceMode && sourceWindowed ? sourceScroller : scrollEl;
   useEffect(() => {
     onStatus({
       dirty,
       sourceMode,
-      outline: { headers, scrollEl, resolveAnchor },
+      outline: { headers, scrollEl: outlineAnchorScroll, resolveAnchor },
     });
-  }, [dirty, onStatus, resolveAnchor, headers, scrollEl, sourceMode]);
+  }, [dirty, onStatus, resolveAnchor, headers, outlineAnchorScroll, sourceMode]);
 
   /* sheet 够宽时大纲贴正文右缘常驻（grid 三列，正文列让位）；不够宽由页面降级为弹层 */
   const outlineAsColumn = outlineColumn && headers.length > 0;
   const outlineNode = (
     <ContentOutline
       headers={headers}
-      scrollEl={scrollEl}
+      scrollEl={outlineAnchorScroll}
       resolveAnchor={resolveAnchor}
       className="w-full"
     />
@@ -301,31 +401,6 @@ export const MarkdownFileView = forwardRef<
 
   // ⌘S 立即保存（源码模式由 CodeMirror 自己的键位处理）；⌘/ 切换源码
   useEffect(() => {
-    const onPreviewHistory = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-      if (
-        !sourceModeRef.current &&
-        richStateRef.current.preview &&
-        ["z", "y"].includes(event.key.toLowerCase())
-      ) {
-        const target = event.target;
-        const input =
-          target instanceof HTMLElement &&
-          target.closest('input,textarea,[contenteditable="true"]');
-        const selection = window.getSelection();
-        if (
-          !input &&
-          ((target instanceof Node && richRef.current?.contains(target)) ||
-            richRef.current?.contains(selection?.anchorNode ?? null))
-        ) {
-          event.preventDefault();
-          event.stopPropagation();
-          if (event.shiftKey || event.key.toLowerCase() === "y") fileDocument.redo();
-          else fileDocument.undo();
-          return;
-        }
-      }
-    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
       if (event.key === "s" && !sourceModeRef.current) {
@@ -336,23 +411,20 @@ export const MarkdownFileView = forwardRef<
         toggle();
       }
     };
-    window.addEventListener("keydown", onPreviewHistory, true);
     window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onPreviewHistory, true);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [save, toggle, fileDocument]);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [save, toggle]);
 
   const onSourceMount = useCallback(
     (editor: CodeMirrorEditor | null) => {
       sourceEditorRef.current = editor;
+      if (sourceWindowed) setSourceScroller(editor?.getScrollerElement() ?? null);
       if (editor && snapshot.loaded) {
         const text = fileDocument.getText();
         if (editor.getValue() !== text) editor.setValue(text);
       }
     },
-    [sourceEditorRef, fileDocument, snapshot.loaded]
+    [sourceEditorRef, fileDocument, snapshot.loaded, sourceWindowed]
   );
 
   if (session.loadError) {
@@ -373,6 +445,7 @@ export const MarkdownFileView = forwardRef<
           value={sourceTextRef.current}
           mode={SOURCE_MODE}
           scrollEl={scrollEl}
+          windowHeight={sourceWindowed ? Math.max(160, (outlineMaxH ?? 520) - 88) : undefined}
           onMount={onSourceMount}
           onSave={() => void session.save()}
           onUndo={fileDocument.undo}
@@ -381,7 +454,8 @@ export const MarkdownFileView = forwardRef<
           onChange={(text, origin) => {
             sourceTextRef.current = text;
             if (origin === "setValue") return;
-            applySource(text);
+            fileDocument.editSource(text);
+            markDirty();
             refreshStats();
           }}
         />
@@ -390,15 +464,30 @@ export const MarkdownFileView = forwardRef<
   );
   const richView = (
     <div ref={richRef} className={cn((sourceMode || !!snapshot.error) && "hidden")}>
-      <MarkdownRichSurface
-        kit={markdownKit}
-        editorRef={editorRef}
-        document={fileDocument.document}
-        content={content}
-        scrollEl={scrollEl}
-        suspended={sourceMode || !!snapshot.error}
-        onStateChange={setRichState}
-      />
+      {useViewport ? (
+        <MarkdownViewportSurface
+          kit={markdownKit}
+          editorRef={editorRef}
+          document={fileDocument.document}
+          content={content}
+          scrollEl={scrollEl}
+          suspended={sourceMode || !!snapshot.error}
+          viewport={viewport}
+          onReadyChange={setViewportReady}
+        />
+      ) : (
+        <div data-markdown-full-editor="ready">
+          <ErrorBoundary>
+            <Editor
+              kit={markdownKit}
+              ref={editorRef}
+              document={fileDocument.document}
+              readonly={sourceMode || !!snapshot.error}
+              ariaLabel="Markdown 正文"
+            />
+          </ErrorBoundary>
+        </div>
+      )}
     </div>
   );
 
@@ -473,13 +562,6 @@ export const MarkdownFileView = forwardRef<
         </div>
       </div>
       <FileStatusBar cursor={sourceMode ? cursor : null} saveState={session.saveState}>
-        {richState.preview && !sourceMode && !snapshot.error && (
-          <span role="status">
-            {richState.prepared
-              ? "正文已就绪，结束当前操作后即可编辑"
-              : "正文已显示，正在准备编辑…"}
-          </span>
-        )}
         <button
           type="button"
           onClick={toggle}

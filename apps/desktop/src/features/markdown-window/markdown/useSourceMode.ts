@@ -83,12 +83,14 @@ export function useSourceMode({
   applySource,
   stopCapturing,
   richReady = true,
+  prepareRichTarget,
 }: {
   editorRef: RefObject<EditorRef | null>;
   getText: () => string;
-  applySource: (text: string) => boolean;
+  applySource: (text: string, parsed: Descendant[]) => boolean;
   stopCapturing: () => void;
   richReady?: boolean;
+  prepareRichTarget?: (index: number) => void;
 }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceCreated, setSourceCreated] = useState(false);
@@ -131,10 +133,12 @@ export function useSourceMode({
     stopCapturing();
     const markdown = getText();
     let positionMap: ReturnType<typeof importFromMarkdownWithPositions>["positionMap"] | undefined;
-    try {
-      positionMap = importFromMarkdownWithPositions(markdown).positionMap;
-    } catch {
-      // 原文解析失败时仍可进入源码修复，仅放弃本次光标映射。
+    if (selection?.focus) {
+      try {
+        positionMap = importFromMarkdownWithPositions(markdown).positionMap;
+      } catch {
+        // 原文解析失败时仍可进入源码修复，仅放弃本次光标映射。
+      }
     }
     sourceTextRef.current = markdown;
     const source = sourceEditorRef.current;
@@ -161,6 +165,11 @@ export function useSourceMode({
       target ??= positionMap.slateToMarkdown(selection.focus);
     }
     sourceFocusPoint.current = target;
+    const active = document.activeElement;
+    if (editor && active instanceof HTMLElement && active.closest('[data-slate-editor="true"]')) {
+      // Activity 隐藏正文前，让 Slate 仍能通过已连接的 DOM 处理失焦。
+      if (ReactEditor.hasDOMNode(editor, active)) active.blur();
+    }
     setSourceCreated(true);
     setSourceMode(true);
   };
@@ -182,7 +191,7 @@ export function useSourceMode({
   const leaveSource = () => {
     const cursor = sourceEditorRef.current?.getCursor();
     const { content, positionMap } = importFromMarkdownWithPositions(sourceTextRef.current);
-    if (!applySource(sourceTextRef.current)) return;
+    if (!applySource(sourceTextRef.current, content)) return;
     stopCapturing();
 
     const hint = cursor ? positionMap.getElementPropertyByMarkdown(cursor) : null;
@@ -254,6 +263,10 @@ export function useSourceMode({
         return;
       }
       try {
+        if (prepareRichTarget) {
+          const target = resolveSlatePoint(editor, pendingSelection.current);
+          if (target) prepareRichTarget(target.path[0]);
+        }
         if (!pendingCodeBlock.current) {
           focusFallback(editor);
           return;
@@ -294,7 +307,7 @@ export function useSourceMode({
     }, FOCUS_DELAY);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusRequest, sourceMode, richReady]);
+  }, [focusRequest, sourceMode, richReady, prepareRichTarget]);
 
   return {
     sourceMode,

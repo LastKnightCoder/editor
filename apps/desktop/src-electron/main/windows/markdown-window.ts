@@ -1,4 +1,5 @@
 import { statSync } from "node:fs";
+import { app } from "electron";
 import log from "electron-log";
 import { createWindow } from "./create-window";
 import { focusExisting, registerWindow, windowsWithPrefix } from "./window-registry";
@@ -11,6 +12,15 @@ import recentProjectsModule from "../modules/recent-projects";
  */
 
 const PREFIX = "markdown:";
+
+export function observeMarkdownAccessibility() {
+  app.on("accessibility-support-changed", (_event, enabled) => {
+    for (const window of windowsWithPrefix(PREFIX)) {
+      if (!window.webContents.isDestroyed())
+        window.webContents.send("markdown-window:accessibility-changed", enabled);
+    }
+  });
+}
 
 function isDirectoryPath(path: string) {
   try {

@@ -8,7 +8,9 @@ import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import { desktopMarkdown } from "@/utils/markdown";
 import { desktopCodecComposition } from "@/utils/markdown-composition";
 import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
-import { Text } from "slate";
+import { Text, type Descendant } from "slate";
+
+const SOURCE_PROJECTION_IDLE_MS = 400;
 
 /** 文件原文及其规范化缓存也归同一 Y.Doc，撤销时与正文一起恢复。 */
 export function createMarkdownDocument(
@@ -52,6 +54,32 @@ export function createMarkdownDocument(
     for (const listener of listeners) listener();
     for (const listener of changes) listener(source);
   });
+  let sourceDraft: string | null = null;
+  let sourceTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearSourceDraft = () => {
+    sourceDraft = null;
+    clearTimeout(sourceTimer);
+    sourceTimer = undefined;
+  };
+  const applyMarkdown = (value: string, source: LocalChangeSource, parsed?: Descendant[]) => {
+    clearSourceDraft();
+    local.transact(source, () => {
+      replaceYText(raw, value);
+      try {
+        local.updateContent(parsed ?? importFromMarkdown(value), source);
+        replaceYText(normalized, getMarkdown(local.getContent()));
+        state.delete("error");
+      } catch (error) {
+        // 转换失败时原文仍是事实源，富文本停止展示，禁止静默丢字段后写回文件。
+        state.set("error", error instanceof Error ? error.message : "暂时无法转换为富文本");
+      }
+      state.set("loaded", true);
+    });
+    return !state.has("error");
+  };
+  const flushSourceDraft = () => {
+    if (sourceDraft !== null) applyMarkdown(sourceDraft, "user");
+  };
   return {
     document: local.document,
     getSnapshot: () => snapshot,
@@ -69,30 +97,38 @@ export function createMarkdownDocument(
     },
     getText: () => {
       local.flush();
-      return snapshot.text;
+      return sourceDraft ?? snapshot.text;
     },
-    flushEditorChanges: local.flush,
-    getContent: () =>
-      state.has("error") ? importFromMarkdown(raw.toString()) : local.getContent(),
-    applyMarkdown: (value: string, source: LocalChangeSource) => {
-      local.transact(source, () => {
-        replaceYText(raw, value);
-        try {
-          local.updateContent(importFromMarkdown(value), source);
-          replaceYText(normalized, getMarkdown(local.getContent()));
-          state.delete("error");
-        } catch (error) {
-          // 转换失败时原文仍是事实源，富文本停止展示，禁止静默丢字段后写回文件。
-          state.set("error", error instanceof Error ? error.message : "暂时无法转换为富文本");
-        }
-        state.set("loaded", true);
-      });
-      return !state.has("error");
+    flushEditorChanges: () => {
+      flushSourceDraft();
+      local.flush();
     },
-    undo: local.undo,
-    redo: local.redo,
+    getContent: () => {
+      flushSourceDraft();
+      return state.has("error") ? importFromMarkdown(raw.toString()) : local.getContent();
+    },
+    applyMarkdown,
+    editSource: (value: string) => {
+      clearSourceDraft();
+      if (value === snapshot.text) return;
+      if (snapshot.error) {
+        applyMarkdown(value, "user");
+        return;
+      }
+      sourceDraft = value;
+      sourceTimer = setTimeout(flushSourceDraft, SOURCE_PROJECTION_IDLE_MS);
+    },
+    undo: () => {
+      flushSourceDraft();
+      return local.undo();
+    },
+    redo: () => {
+      flushSourceDraft();
+      return local.redo();
+    },
     stopCapturing: () => local.undoManager.stopCapturing(),
     dispose: () => {
+      clearSourceDraft();
       stop();
       listeners.clear();
       changes.clear();

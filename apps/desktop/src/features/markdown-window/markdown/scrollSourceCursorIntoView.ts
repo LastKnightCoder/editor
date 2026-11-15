@@ -4,9 +4,10 @@ const SOURCE_CURSOR_SCROLL_PADDING = 24;
 
 export const scrollSourceCursorIntoView = (
   editor: Pick<Editor, "cursorCoords" | "getCursor">,
-  container: HTMLElement
+  container: HTMLElement,
+  position = editor.getCursor()
 ) => {
-  const cursorCoords = editor.cursorCoords(editor.getCursor(), "page");
+  const cursorCoords = editor.cursorCoords(position, "page");
   const pageYOffset = typeof window === "undefined" ? 0 : window.pageYOffset;
   const containerRect = container.getBoundingClientRect();
   const topBorder = container.clientTop;

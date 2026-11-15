@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import type {
   EditorWindowTarget,
   NotificationActionResult,
@@ -23,7 +23,7 @@ import {
   settleNotificationAction,
 } from "./notification-router";
 import { registerPluginWindowIpc } from "./plugin-window-ipc";
-import { openMarkdownWindow } from "./markdown-window";
+import { observeMarkdownAccessibility, openMarkdownWindow } from "./markdown-window";
 import {
   hidePomodoroImmersiveWindow,
   hidePomodoroMiniWindow,
@@ -72,6 +72,8 @@ export function registerWindowIpc() {
     closeEditorWindow(target)
   );
   ipcMain.handle("open-markdown-window", (_event, path?: string) => openMarkdownWindow(path));
+  ipcMain.handle("markdown-window:accessibility", () => app.isAccessibilitySupportEnabled());
+  observeMarkdownAccessibility();
   ipcMain.handle("open-pomodoro-mini-window", () => showPomodoroMiniWindow());
   ipcMain.handle("hide-pomodoro-mini-window", () => hidePomodoroMiniWindow());
   ipcMain.handle("open-pomodoro-immersive-window", () => showPomodoroImmersiveWindow());

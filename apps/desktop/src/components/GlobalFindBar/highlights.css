@@ -14,3 +14,16 @@
   background-color: color-mix(in srgb, var(--tau-accent) 20%, transparent);
   color: var(--tau-ink-1);
 }
+
+.tau-source-find-current {
+  background-color: color-mix(in srgb, var(--tau-accent) 20%, transparent);
+}
+
+/* 临时显示折叠章节的当前命中，正文折叠属性仍归用户操作。 */
+[data-markdown-find-reveal] {
+  display: revert !important;
+  height: auto !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  transition: none !important;
+}

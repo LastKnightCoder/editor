@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { UnControlled as CodeMirror } from "react-codemirror2";
 import type { Editor, EditorConfiguration } from "codemirror";
 import "codemirror/lib/codemirror.css";
@@ -23,6 +23,7 @@ export function CodeMirrorView({
   onUndo,
   onRedo,
   className,
+  windowHeight,
 }: {
   value: string;
   mode: EditorConfiguration["mode"];
@@ -35,11 +36,17 @@ export function CodeMirrorView({
   onUndo?(): void;
   onRedo?(): void;
   className?: string;
+  windowHeight?: number;
 }) {
   const initialValue = useRef(value).current;
+  const lineSeparator = useRef(value.match(/\r\n|\n|\r/)?.[0]).current;
   const editorRef = useRef<Editor | null>(null);
-  const latest = useRef({ scrollEl, onCursorChange, onSave, onUndo, onRedo });
-  latest.current = { scrollEl, onCursorChange, onSave, onUndo, onRedo };
+  const latest = useRef({ scrollEl, onCursorChange, onSave, onUndo, onRedo, windowHeight });
+  latest.current = { scrollEl, onCursorChange, onSave, onUndo, onRedo, windowHeight };
+
+  useLayoutEffect(() => {
+    if (windowHeight !== undefined) editorRef.current?.setSize(null, windowHeight);
+  }, [windowHeight]);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -52,7 +59,11 @@ export function CodeMirrorView({
       raf = requestAnimationFrame(() => {
         const container = latest.current.scrollEl;
         // 隐藏时（富文本模式下常驻挂载的源码编辑器）不跟随
-        if (container && editor.getWrapperElement().offsetParent) {
+        if (
+          container &&
+          latest.current.windowHeight === undefined &&
+          editor.getWrapperElement().offsetParent
+        ) {
           scrollSourceCursorIntoView(editor, container);
         }
       });
@@ -90,6 +101,7 @@ export function CodeMirrorView({
 
   return (
     <div
+      data-windowed={windowHeight !== undefined ? true : undefined}
       className={cn(
         styles.root,
         "[&_.CodeMirror]:text-[13px] [&_.CodeMirror]:leading-[1.85]",
@@ -104,7 +116,8 @@ export function CodeMirrorView({
           mode,
           lineNumbers: true,
           lineWrapping: true,
-          viewportMargin: Infinity,
+          viewportMargin: windowHeight === undefined ? Infinity : 16,
+          lineSeparator,
           indentUnit: 2,
           tabSize: 2,
           autoCloseBrackets: true,

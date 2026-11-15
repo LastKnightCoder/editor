@@ -109,7 +109,11 @@ export {
   type BlockNavigationHandler,
 } from "../utils/blockNavigation";
 export { isCollapsed, getCurrentTextNode } from "../utils/editor";
-export { copyNodeToClipboard, deleteVoidBlock } from "../utils/nodeOperations";
+export {
+  copyNodeToClipboard,
+  deleteVoidBlock,
+  setSlateFragmentData,
+} from "../utils/nodeOperations";
 export {
   CONTENT_FRAGMENT_MIME,
   readContentFragment,

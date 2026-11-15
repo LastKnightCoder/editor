@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMarkdownDocument } from "../markdownDocument";
 
 describe("Markdown 文件的 Y.Doc 会话", () => {
@@ -61,6 +61,40 @@ describe("Markdown 文件的 Y.Doc 会话", () => {
       expect(file.getText()).toBe(raw);
     } finally {
       file.dispose();
+    }
+  });
+
+  it("源码草稿立即可保存，首次撤销和重做与磁盘文本一致", () => {
+    const file = createMarkdownDocument();
+    try {
+      const original = "# 标题\r\n\r\n正文\r\n";
+      const draft = original.replace("正文", "新正文");
+      file.applyMarkdown(original, "external");
+      file.editSource(draft);
+      expect(file.getSnapshot().text).toBe(original);
+      expect(file.getText()).toBe(draft);
+      file.undo();
+      expect(file.getText()).toBe(original);
+      file.redo();
+      expect(file.getText()).toBe(draft);
+    } finally {
+      file.dispose();
+    }
+  });
+
+  it("外部版本替换后，先前尚未投影的源码不会覆盖新内容", () => {
+    vi.useFakeTimers();
+    const file = createMarkdownDocument();
+    try {
+      file.applyMarkdown("原文\n", "external");
+      file.editSource("等待投影的旧草稿\n");
+      file.applyMarkdown("外部新版本\n", "external");
+      vi.runAllTimers();
+      expect(file.getText()).toBe("外部新版本\n");
+      expect(file.getContent()[0]).toMatchObject({ children: [{ text: "外部新版本" }] });
+    } finally {
+      file.dispose();
+      vi.useRealTimers();
     }
   });
 });

@@ -13,6 +13,8 @@ import {
   useRef,
   memo,
   CSSProperties,
+  type ReactNode,
+  type ReactElement,
 } from "react";
 import { cn } from "@tau/ui";
 import type { Node, NodeEntry, Path } from "slate";
@@ -94,6 +96,7 @@ export interface IEditorProps {
   onChange?: (value: Descendant[], editor: Editor) => void;
   onSelectionChange?: () => void;
   readonly?: boolean;
+  ariaLabel?: string;
   /** 本编辑器的组成（扩展 + 服务 + 主题）。不传则继承外层编辑器的 kit */
   kit?: EditorKit;
   /**
@@ -115,6 +118,13 @@ export interface IEditorProps {
   decorate?: (entry: [Node, Path]) => Range[];
   /** 包装已经应用标记的内容，不接管 Slate attributes。 */
   leafWrapper?: ComponentType<MarkRenderProps>;
+  /** 宿主可延迟挂载顶层块的界面，节点仍属于完整编辑器。 */
+  renderTopLevelBlock?: (args: {
+    editor: Editor;
+    index: number;
+    element: Element;
+    children: ReactNode;
+  }) => ReactElement;
   /** 当前视图的行内纯文本建议来源。 */
   inlineSuggestions?: InlineSuggestionProvider;
   /**
@@ -432,18 +442,26 @@ const Index = memo(
 
     // 每个元素一个错误边界：扩展渲染出错只影响该元素；没有扩展的类型渲染只读占位（ER-006）。
     // 聚焦标记在最外层写进 attributes，由元素组件展开到根节点（focusMode 关闭时原样透传）
-    const renderElement = useMemoizedFn((props: RenderElementProps) => (
-      <FocusAttributes
-        props={props}
-        render={focusedProps => (
-          <ElementErrorBoundary
-            props={focusedProps}
-            render={renderElementContent}
-            onError={reportRenderError}
-          />
-        )}
-      />
-    ));
+    const renderElement = useMemoizedFn((elementProps: RenderElementProps) => {
+      const children = (
+        <FocusAttributes
+          props={elementProps}
+          render={focusedProps => (
+            <ElementErrorBoundary
+              props={focusedProps}
+              render={renderElementContent}
+              onError={reportRenderError}
+            />
+          )}
+        />
+      );
+      if (!props.renderTopLevelBlock) return children;
+      const { element } = elementProps;
+      const path = ReactEditor.findPath(editor, element);
+      return path.length === 1
+        ? props.renderTopLevelBlock({ editor, index: path[0], element, children })
+        : children;
+    });
 
     const reportExtensionRenderError = useMemoizedFn((owner: string, error: unknown) =>
       breaker.report(owner, "render", error)
@@ -619,6 +637,7 @@ const Index = memo(
                 }
               >
                 <Editable
+                  aria-label={props.ariaLabel}
                   className={cn(EDITABLE_CLASS, focusMode && FOCUS_MODE_CLASS, props.className)}
                   style={props.style}
                   readOnly={readonly}

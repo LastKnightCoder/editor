@@ -2,10 +2,15 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import GlobalFindBar from ".";
-import { useFindOwner } from "./findOwner";
+import { type FindSource, useFindOwner, useFindSource } from "./findOwner";
 
 function FindOwner({ open, active = true }: { open: () => void; active?: boolean }) {
   useFindOwner(open, active);
+  return null;
+}
+
+function ModelFindSource({ source }: { source: FindSource }) {
+  useFindSource(source);
   return null;
 }
 
@@ -138,5 +143,59 @@ describe("GlobalFindBar", () => {
 
     expect(document.body.querySelector('input[aria-label="搜索当前窗口"]')).toBeNull();
     expect(highlights.size).toBe(0);
+  });
+
+  it("全文源只在查找期间响应内容变更，DOM 挂载不会触发重新匹配", async () => {
+    vi.useFakeTimers();
+    let changed: (() => void) | undefined;
+    const release = vi.fn();
+    const reveal = vi.fn(() => release);
+    const subscribe = vi.fn((listener: () => void) => {
+      changed = listener;
+      return () => {
+        changed = undefined;
+      };
+    });
+    const search = vi.fn(() => ({ count: 3, reveal }));
+    try {
+      act(() =>
+        root.render(
+          <>
+            <GlobalFindBar />
+            <ModelFindSource source={{ search, subscribe }} />
+          </>
+        )
+      );
+      expect(search).not.toHaveBeenCalled();
+      expect(subscribe).not.toHaveBeenCalled();
+      act(openFindBar);
+      const input = document.body.querySelector<HTMLInputElement>(
+        'input[aria-label="搜索当前窗口"]'
+      );
+      if (!input) throw new Error("未打开查找栏");
+      act(() => setInputValue(input, "主世界"));
+      await act(async () => vi.advanceTimersByTimeAsync(32));
+      expect(document.body.textContent).toContain("1 / 3");
+      expect(search).toHaveBeenCalledTimes(1);
+      expect(reveal).toHaveBeenLastCalledWith(0, true);
+
+      await act(async () => {
+        container.appendChild(document.createElement("p")).textContent = "屏幕刚挂载的主世界";
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      expect(search).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        changed?.();
+        changed?.();
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      expect(search).toHaveBeenCalledTimes(2);
+      expect(reveal).toHaveBeenLastCalledWith(0, false);
+      act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+      expect(changed).toBeUndefined();
+      expect(release).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

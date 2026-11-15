@@ -6,26 +6,60 @@
 
 import { useEffect, useRef } from "react";
 
-const owners: Array<{ open: () => void }> = [];
+export interface FindResults {
+  count: number;
+  reveal(index: number, scroll: boolean): void | (() => void);
+}
+
+export interface FindSource {
+  search(query: string): FindResults;
+  subscribe(listener: () => void): () => void;
+}
+
+type FindOwner = { open: () => void } | { source: FindSource };
+const owners: FindOwner[] = [];
+const listeners = new Set<() => void>();
+
+function register(owner: FindOwner) {
+  owners.push(owner);
+  for (const listener of listeners) listener();
+  return () => {
+    const index = owners.indexOf(owner);
+    if (index >= 0) owners.splice(index, 1);
+    for (const listener of listeners) listener();
+  };
+}
 
 export function useFindOwner(open: () => void, active = true) {
   const openRef = useRef(open);
   openRef.current = open;
   useEffect(() => {
     if (!active) return;
-    const entry = { open: () => openRef.current() };
-    owners.push(entry);
-    return () => {
-      const index = owners.indexOf(entry);
-      if (index >= 0) owners.splice(index, 1);
-    };
+    return register({ open: () => openRef.current() });
   }, [active]);
 }
 
 /** 交给接管者打开查找；没有接管者返回 false */
 export function openOwnedFind(): boolean {
   const owner = owners[owners.length - 1];
-  if (!owner) return false;
+  if (!owner || !("open" in owner)) return false;
   owner.open();
   return true;
+}
+
+/** 复用全局查找条，由当前页面提供命中和定位。 */
+export function useFindSource(source: FindSource) {
+  useEffect(() => register({ source }), [source]);
+}
+
+export function getFindSource(): FindSource | null {
+  const owner = owners.at(-1);
+  return owner && "source" in owner ? owner.source : null;
+}
+
+export function subscribeFindSource(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
