@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { deriveSas } from "@tau/shared/browser-companion";
 import { CompanionConnection, type KeyValueStore } from "../background/connection";
 import type { SocketLike } from "../background/rpc-socket";
@@ -11,8 +11,16 @@ class FakeSocket implements SocketLike {
   onclose: ((event: { code: number; reason: string }) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
   onmessage: ((event: { data: unknown }) => void) | null = null;
-  constructor(private readonly reply: (frame: Record<string, any>, socket: FakeSocket) => void) {
+  constructor(
+    private readonly reply: (frame: Record<string, any>, socket: FakeSocket) => void,
+    available = true
+  ) {
     queueMicrotask(() => {
+      if (!available) {
+        this.readyState = 3;
+        this.onerror?.({});
+        return;
+      }
       this.readyState = 1;
       this.onopen?.({});
     });
@@ -62,7 +70,8 @@ const READY = {
 
 const setup = (
   storage: ReturnType<typeof memory>,
-  reply: (frame: Record<string, any>, socket: FakeSocket) => void
+  reply: (frame: Record<string, any>, socket: FakeSocket) => void,
+  available = () => true
 ) => {
   const statuses: ConnectionStatus[] = [];
   const sockets: FakeSocket[] = [];
@@ -70,7 +79,7 @@ const setup = (
   const connection = new CompanionConnection({
     storage,
     createSocket: () => {
-      const socket = new FakeSocket(reply);
+      const socket = new FakeSocket(reply, available());
       sockets.push(socket);
       return socket;
     },
@@ -84,6 +93,79 @@ const setup = (
 };
 
 describe("CompanionConnection", () => {
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it("唤起后首次连接会等待 Tau 启动，配对开始即停止启动重试", async () => {
+    vi.useFakeTimers();
+    let available = false;
+    const { connection, sockets } = setup(
+      memory(),
+      (frame, socket) => socket.respond(frame, { status: "pending", nonce: "c".repeat(32) }),
+      () => available
+    );
+    connection.connectAfterLaunch();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(connection.current.state).toBe("launching");
+    available = true;
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(connection.current.state).toBe("pairing"));
+    expect(sockets).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(connection.current.state).toBe("pairing");
+    expect(sockets).toHaveLength(2);
+  });
+
+  it("取消系统打开或应用未安装时等待有界，超时后可以手动重试", async () => {
+    vi.useFakeTimers();
+    let available = false;
+    const { connection, sockets } = setup(
+      memory(),
+      (frame, socket) => socket.respond(frame, { status: "closed" }),
+      () => available
+    );
+    connection.connectAfterLaunch();
+    connection.connectAfterLaunch();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(connection.current).toEqual({ state: "offline", launchTimedOut: true });
+    const attempts = sockets.length;
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(sockets).toHaveLength(attempts);
+    available = true;
+    await connection.connect();
+    expect(connection.current).toEqual({ state: "closed" });
+  });
+
+  it("唤起后的已授权连接仍走 hello，连上即结束等待", async () => {
+    vi.useFakeTimers();
+    const { connection, sockets } = setup(memory({ "companion.token": "t" }), (frame, socket) => {
+      if (frame.method === "ping") return;
+      expect(frame.method).toBe("hello");
+      socket.respond(frame, READY);
+    });
+    connection.connectAfterLaunch();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(connection.current.state).toBe("ready");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(connection.current.state).toBe("ready");
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("启动期间被限流后停止探测，不继续发起配对", async () => {
+    vi.useFakeTimers();
+    const { connection, sockets } = setup(memory(), (frame, socket) =>
+      socket.respond(frame, { status: "throttled", retryAt: 9 })
+    );
+    connection.connectAfterLaunch();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(connection.current.state).toBe("throttled");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(sockets).toHaveLength(1);
+    expect(connection.current.state).toBe("throttled");
+  });
+
   it("没有 token 时启动不连接；打开面板才发起配对并显示校验码", async () => {
     const storage = memory();
     let appNonce = "";

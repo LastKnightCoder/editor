@@ -1,5 +1,8 @@
 appId: "com.tau.app"
 productName: "Tau"
+protocols:
+  - name: "Tau"
+    schemes: ["tau"]
 copyright: "Copyright © 2025 ${author}"
 asar: true
 asarUnpack:

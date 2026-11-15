@@ -17,6 +17,7 @@ const STATUS: Partial<Record<ConnectionState, { label: string; dot: string }>> =
   ready: { label: "Tau 已连接", dot: "bg-ok" },
   pairing: { label: "等待在 Tau 里授权", dot: "bg-warn" },
   connecting: { label: "正在连接 Tau", dot: "bg-warn" },
+  launching: { label: "正在等待 Tau", dot: "bg-warn" },
 };
 
 function NavItem({

@@ -11,6 +11,8 @@ import type { AiRunEventNotification, AiRunStartParams } from "../chat-core/aiRu
 import type { ChatSessionMessage } from "../chat-core/messages";
 
 export const BROWSER_COMPANION_PATH = "/browser";
+/** 仅唤起桌面主窗口，连接与授权仍走本机 WebSocket。 */
+export const BROWSER_COMPANION_DEEP_LINK = "tau://browser-companion";
 /** 桌面本地服务固定端口（跨应用契约，桌面 server 模块同值） */
 export const BROWSER_COMPANION_PORT = 24678;
 /** 握手首帧必须在此时间内到达 */

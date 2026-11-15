@@ -2,6 +2,12 @@
 ; 用于注册文件夹右键菜单
 
 !macro customInstall
+  ; 安装后即可通过浏览器唤起，无需先手动启动应用。
+  WriteRegStr SHCTX "Software\Classes\tau" "" "URL:Tau Protocol"
+  WriteRegStr SHCTX "Software\Classes\tau" "URL Protocol" ""
+  WriteRegStr SHCTX "Software\Classes\tau\DefaultIcon" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
+  WriteRegStr SHCTX "Software\Classes\tau\shell\open\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" -- "%1"'
+
   ; 注册文件夹右键菜单 - "使用 Tau 打开"
   WriteRegStr HKCR "Directory\shell\OpenWithTau" "" "使用 Tau 打开"
   WriteRegStr HKCR "Directory\shell\OpenWithTau" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
@@ -31,6 +37,18 @@
 !macroend
 
 !macro customUnInstall
+  ; 仅删除仍指向本安装目录的关联，保留其他安装实例的注册。
+  Push $0
+  ReadRegStr $0 SHCTX "Software\Classes\tau\shell\open\command" ""
+  StrCmp $0 '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" -- "%1"' 0 +2
+    DeleteRegKey SHCTX "Software\Classes\tau"
+  ReadRegStr $0 HKCU "Software\Classes\tau\shell\open\command" ""
+  StrCmp $0 '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"' 0 +2
+    DeleteRegKey HKCU "Software\Classes\tau"
+  StrCmp $0 '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" -- "%1"' 0 +2
+    DeleteRegKey HKCU "Software\Classes\tau"
+  Pop $0
+
   ; 清理文件夹右键菜单
   DeleteRegKey HKCR "Directory\shell\OpenWithTau"
   DeleteRegKey HKCR "Directory\Background\shell\OpenWithTau"

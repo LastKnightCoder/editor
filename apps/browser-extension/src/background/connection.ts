@@ -38,6 +38,7 @@ export interface ConnectionDeps {
 export const COMPANION_URL = `ws://127.0.0.1:${BROWSER_COMPANION_PORT}${BROWSER_COMPANION_PATH}`;
 const KEEPALIVE_MS = 20_000;
 const RETRY_DELAYS_MS = [1000, 2000, 5000, 10_000, 30_000];
+const LAUNCH_WAIT_MS = 30_000;
 
 const TOKEN_KEY = "companion.token";
 const CLIENT_ID_KEY = "companion.clientId";
@@ -49,6 +50,7 @@ export class CompanionConnection {
   private keepalive: ReturnType<typeof setInterval> | null = null;
   private attempt = 0;
   private busy = false;
+  private launchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly deps: ConnectionDeps) {}
 
@@ -70,6 +72,23 @@ export class CompanionConnection {
     if (await this.deps.storage.get<string>(TOKEN_KEY)) await this.hello();
     else await this.pair();
     return this.status;
+  }
+
+  connectAfterLaunch(): ConnectionStatus {
+    if (this.status.state === "ready" || this.status.state === "pairing" || this.launchTimer)
+      return this.status;
+    this.clearRetry();
+    this.launchTimer = setTimeout(() => this.finishLaunchWait(), LAUNCH_WAIT_MS);
+    this.setStatus({ state: "launching" });
+    void this.connect().catch(() => this.finishLaunchWait());
+    return this.status;
+  }
+
+  private finishLaunchWait(): void {
+    if (this.launchTimer) clearTimeout(this.launchTimer);
+    this.launchTimer = null;
+    this.clearRetry();
+    this.setStatus({ state: "offline", launchTimedOut: true });
   }
 
   request<T = unknown>(method: string, params?: unknown, timeoutMs?: number): Promise<T> {
@@ -201,6 +220,10 @@ export class CompanionConnection {
   }
 
   private scheduleRetry(): void {
+    if (this.launchTimer || this.status.launchTimedOut) {
+      this.setStatus({ state: "offline" });
+      return;
+    }
     this.setStatus({ state: "offline" });
     this.clearRetry();
     const delay = RETRY_DELAYS_MS[Math.min(this.attempt, RETRY_DELAYS_MS.length - 1)];
@@ -217,6 +240,24 @@ export class CompanionConnection {
   }
 
   private setStatus(status: ConnectionStatus): void {
+    if (this.launchTimer) {
+      if (status.state === "offline") {
+        this.clearRetry();
+        this.retryTimer = setTimeout(() => {
+          this.retryTimer = null;
+          void this.connect().catch(() => this.finishLaunchWait());
+        }, 1000);
+      }
+      if (status.state === "connecting" || status.state === "offline") {
+        status = { state: "launching" };
+      } else if (status.state !== "launching") {
+        clearTimeout(this.launchTimer);
+        this.launchTimer = null;
+        this.clearRetry();
+      }
+    } else if (status.state === "offline" && this.status.launchTimedOut) {
+      status = { ...status, launchTimedOut: true };
+    }
     this.status = status;
     this.deps.onStatus(status);
   }

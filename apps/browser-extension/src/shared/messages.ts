@@ -10,6 +10,7 @@ export type ConnectionState =
   /** 还没配对过；打开面板时自动发起 */
   | "unpaired"
   | "connecting"
+  | "launching"
   /** 等用户在 Tau 里确认，带校验码 */
   | "pairing"
   | "ready"
@@ -23,6 +24,7 @@ export type ConnectionState =
 
 export interface ConnectionStatus {
   state: ConnectionState;
+  launchTimedOut?: boolean;
   code?: string;
   retryAt?: number;
   scopes?: CompanionScope[];
@@ -34,6 +36,8 @@ export interface BackgroundMethods {
   status: { params: void; result: ConnectionStatus };
   /** 发起配对或立即重连 */
   connect: { params: void; result: ConnectionStatus };
+  /** 用户已点击 DeepLink，在启动期间等待连接。 */
+  "connect.after-launch": { params: void; result: ConnectionStatus };
   /** 透传给 Tau（ai.run.*、chat.*、models.list、note.save、note.open） */
   rpc: { params: { method: string; params?: unknown }; result: unknown };
   "annotations.load": { params: { url: string }; result: WebAnnotation[] };

@@ -26,6 +26,7 @@ import { RpcMessageType, type RpcRequestMessage, type RpcResponseMessage } from 
 import moduleInitManager from "./module-init/ModuleInitManager";
 import { RPC_SERVER_PORT } from "./modules/server";
 import { setupQuitController } from "./app-quit-controller";
+import { getDeepLinkFromArgs, isBrowserCompanionDeepLink } from "./services/deep-link";
 import {
   shouldStartInBackground,
   shouldKeepBackgroundAlive,
@@ -79,8 +80,12 @@ if (process.platform === "win32") {
   app.setAppUserModelId(app.getName());
 }
 
-// 注册文件关联
-app.setAsDefaultProtocolClient("tau");
+// macOS 的协议关联同时由安装包 Info.plist 声明。
+if (process.defaultApp && process.argv[1]) {
+  app.setAsDefaultProtocolClient("tau", process.execPath, [path.resolve(process.argv[1])]);
+} else {
+  app.setAsDefaultProtocolClient("tau");
+}
 
 // 窗口模块初始化前到达的打开请求（second-instance / open-file）先暂存
 let windowsReady = false;
@@ -90,6 +95,13 @@ let trayManager: Awaited<ReturnType<typeof trayModule.init>>;
 let filesToOpen: string[] = [];
 // 存储启动时要打开的窗口类型
 let windowTypeToOpen: string | null = null;
+let mainWindowRequested = false;
+
+function handleDeepLink(url: string) {
+  if (!isBrowserCompanionDeepLink(url)) return;
+  if (windowsReady) showOrCreateMainWindow();
+  else mainWindowRequested = true;
+}
 
 // 捕获命令行参数中的文件路径
 const gotTheLock = app.requestSingleInstanceLock();
@@ -98,6 +110,11 @@ if (!gotTheLock) {
   // 如果获取不到单例锁，说明已经有一个实例正在运行，直接退出
   app.quit();
 } else {
+  // macOS 冷启动的协议事件早于 ready，先记下主窗口意图。
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    handleDeepLink(url);
+  });
   // 受控退出：接管 before-quit，先完成收尾（自动同步、协作文档落盘）再真正退出
   setupQuitController({
     getTrayManager: () => trayManager,
@@ -105,6 +122,11 @@ if (!gotTheLock) {
 
   // 监听第二个实例启动时传入的参数
   app.on("second-instance", (_event, commandLine) => {
+    const deepLink = getDeepLinkFromArgs(commandLine);
+    if (deepLink) {
+      handleDeepLink(deepLink);
+      return;
+    }
     // 首先检查是否有窗口类型参数
     const windowType = getWindowTypeFromArgs(commandLine);
     if (windowType && windowsReady) {
@@ -120,6 +142,7 @@ if (!gotTheLock) {
       // 没有文件路径参数，显示或创建主窗口
       log.info("第二个实例启动，没有文件参数，显示主窗口");
       if (windowsReady) showOrCreateMainWindow();
+      else mainWindowRequested = true;
     }
   });
 
@@ -128,8 +151,11 @@ if (!gotTheLock) {
   log.info(`启动命令行参数: ${JSON.stringify(argv)}`);
 
   // 首先检查窗口类型参数
+  const initialDeepLink = getDeepLinkFromArgs(argv);
   windowTypeToOpen = getWindowTypeFromArgs(argv);
-  if (windowTypeToOpen) {
+  if (initialDeepLink) {
+    handleDeepLink(initialDeepLink);
+  } else if (windowTypeToOpen) {
     log.info(`检测到窗口类型参数: ${windowTypeToOpen}`);
   } else {
     // 检查文件路径参数
@@ -156,6 +182,11 @@ if (!gotTheLock) {
       log.info(`Node.js 版本: ${process.version}`);
       log.info(`Electron 版本: ${process.versions.electron}`);
 
+      const startInBackground = await shouldStartInBackground().catch(error => {
+        log.warn("后台启动设置读取失败，显示主窗口", error);
+        return false;
+      });
+
       // === 立即创建窗口管理器并显示窗口 ===
       initWindows({
         devServerUrl: VITE_DEV_SERVER_URL || "",
@@ -165,17 +196,14 @@ if (!gotTheLock) {
       windowsReady = true;
 
       // 根据启动参数创建窗口（窗口会显示 Loading 状态）
-      if (windowTypeToOpen) {
+      if (mainWindowRequested) {
+        showOrCreateMainWindow();
+        mainWindowRequested = false;
+      } else if (windowTypeToOpen) {
         log.info(`根据窗口类型参数打开窗口: ${windowTypeToOpen}`);
         handleWindowType(windowTypeToOpen);
         windowTypeToOpen = null;
-      } else if (
-        filesToOpen.length === 0 &&
-        !(await shouldStartInBackground().catch(error => {
-          log.warn("后台启动设置读取失败，显示主窗口", error);
-          return false;
-        }))
-      ) {
+      } else if (filesToOpen.length === 0 && !startInBackground) {
         log.info("创建主窗口");
         createMainWindow();
       } else {

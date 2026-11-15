@@ -234,6 +234,8 @@ export class CompanionHub {
         return this.connection.current;
       case "connect":
         return this.connection.connect();
+      case "connect.after-launch":
+        return this.connection.connectAfterLaunch();
       case "annotations.load":
         return this.annotations.load((params as { url: string }).url);
       case "annotations.save": {
