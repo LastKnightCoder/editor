@@ -139,7 +139,7 @@
       验证：`preview.test.tsx` 桌面用例全部改为真实输入框后通过（编辑回写、外部更新、方向键跳块、空源码退格、失焦冲刷、原位模式）；代码块现有测试不变通过；editor-collab 源码字段协作用例通过；移动端公式配件栏用例改写后通过；桌面与移动 `tsc --noEmit`、editor-source-view ESLint 无边界错误。
 - [x] **P3 正文块**：重写 `TouchPreviewWithEditor`（选中、空态、错误条、宽内容横向滚动、动作登记、`preview-editor-focus` / 块导航）；3.1 判定合一并删除 `sourcePresentation`。
       验证：`preview.test.tsx` 触屏用例改写并补充——点选进 void、插入即打开、退格进入、只读不拦截点击；`rg sourcePresentation` 为空。
-- [x] **P4 移动配件栏与验证驱动**：`source` 上下文、按钮与「⋯」、`focusAfterBlock`，删除 `mermaid` 上下文；改写 `apps/mobile/validation/host/editors.ts` / `run.ts` / `center.ts` 的源码步骤（点块 → 「编辑」→ 输入 → 返回；「取消草稿」检查改为撤销检查）。同步 `docs/architecture/mobile.md`「编辑器配件栏与键盘预留」一节，以及 `docs/architecture/desktop.md` 中「源码预览块的编辑与预览归 editor-source-view」那条描述。
+- [x] **P4 移动配件栏与验证驱动**：`source` 上下文、按钮与「⋯」、`focusAfterBlock`，删除 `mermaid` 上下文；改写 `apps/mobile/validation/host/editors.ts` / `run.ts` / `center.ts` 的源码步骤（点块 → 「编辑」→ 输入 → 返回；「取消草稿」检查改为撤销检查）。同步 `docs/architecture/mobile.md`「编辑器配件栏与键盘预留」一节，以及 `docs/architecture/desktop/page-protocol.md` 中「源码预览块的编辑与预览归 editor-source-view」那条描述。
       验证：`mobileEditorSourceToolbar.test.tsx` 改写、新增源码上下文识别与「⋯」菜单测试；mobile 构建通过；`pnpm check:docs`。
 - [x] **P5 插件与作者文档**：Typst 自身修复；作者文档。发版随插件仓库的提交进行。
       验证：Typst 插件测试；作者文档示例与 SDK 导出一致。

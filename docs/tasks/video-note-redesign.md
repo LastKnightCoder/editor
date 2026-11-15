@@ -33,7 +33,7 @@
 - [x] VideoNoteView 重排、⌘J 对话、文档树自动收起
 - [x] 转录划词摘录 / 章节分组 / 回到当前播放
 - [x] 笔记胶囊与刻度来源
-- [x] 架构事实同步到 `docs/architecture/desktop.md` 视频笔记段
+- [x] 架构事实同步到 `docs/architecture/desktop/ai-chat.md` 视频笔记段
 - [x] 删除只服务旧版面的 `ResizableAndHideableSidebar` / `WidthResizable` 的 `fillRemaining`
 - [ ] 用户视觉与交互验收
 - [ ] 验收后收尾：删本文件、更新 docs/README

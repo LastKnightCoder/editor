@@ -268,7 +268,7 @@ docs/ 按文档生命周期分区，落笔前先答三问：什么类型？唯�
 
 ## 桌面端开发规范（Page 架构）
 
-桌面端架构：Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统），权威交接文档为 `/docs/architecture/desktop.md`。
+桌面端架构：Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统），权威交接文档为 `/docs/architecture/desktop/`（索引 README + 按域分篇）。
 
 ### 验证分工
 
@@ -276,11 +276,11 @@ docs/ 按文档生命周期分区，落笔前先答三问：什么类型？唯�
 
 **上手顺序（写桌面端代码前必做）**：
 
-1. 读 `/docs/architecture/desktop.md` 全文（≈10 分钟，协议用法 + 铁律）；
+1. 读 `/docs/architecture/desktop/README.md` 索引与 `overview.md`；写页面前必读 `page-protocol.md` 与 `ui-interaction.md` 两篇（协议用法 + 铁律），其余按任务读对应分篇；
 2. 参考实现照抄结构，不要自创：页面域样板 = `apps/desktop/src/features/home/`（page 声明 / views / queries / types 四件套 + react-query 数据协议）；壳层改 `src/app/`；导航框架勿动 `src/page/`；
 3. 通用裁决查 `/docs/decisions.md`（推翻已有做法必须先记录）。
 
-**文档保鲜义务**：`/docs/architecture/desktop.md` 是代码的持久投影——每次改 page 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步对应小节（必要时 `/docs/decisions.md` 增补规则）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
+**文档保鲜义务**：`/docs/architecture/desktop/` 各分篇是代码的持久投影——每次改 page 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步对应分篇的对应小节（必要时 `/docs/decisions.md` 增补规则）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
 
 为防止腐化，新增/修改桌面端代码必须遵守：
 

@@ -38,7 +38,7 @@
 - 预览上下文的键盘撤销重做委托完整文件历史；正常保存热键保留原来的冒泡顺序，让块内编辑器先提交草稿。
 - 预览代码块使用独立运行时 uuid，真实文档和源码映射保留原 uuid。预览卸载不会删除真实代码块控制器，也不修改未知节点或持久化字段。
 
-现状与接线见 [桌面架构](/docs/architecture/desktop.md)，实现位于 [MarkdownRichSurface](/apps/desktop/src/features/markdown-window/markdown/MarkdownRichSurface.tsx)、[首屏选择与身份隔离](/apps/desktop/src/features/markdown-window/markdown/firstScreen.ts) 和 MarkdownFileView/useSourceMode。
+现状与接线见 [桌面架构](/docs/architecture/desktop/README.md)，实现位于 [MarkdownRichSurface](/apps/desktop/src/features/markdown-window/markdown/MarkdownRichSurface.tsx)、[首屏选择与身份隔离](/apps/desktop/src/features/markdown-window/markdown/firstScreen.ts) 和 MarkdownFileView/useSourceMode。
 
 ## 验证
 

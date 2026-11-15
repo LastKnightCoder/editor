@@ -24,7 +24,7 @@
 | 移动端协作 feature                    |       32 |   4523 | 页面、WebView 会话、REST 适配、资源、状态              |
 | 补充读取的桌面 hooks 与移动 Rust 文件 |        8 |   3698 | 正文视图生命周期、原生缓存、身份、资源与投影           |
 
-架构事实参照 [协作架构](/docs/architecture/collaboration.md)、[桌面架构](/docs/architecture/desktop.md)、[协作包说明](/packages/collaboration/README.md) 和 [编辑器绑定说明](/packages/editor-collab/README.md)，结论以实现与验证结果为依据。没有访问正式服务、修改云端数据或进行视觉验收。
+架构事实参照 [协作架构](/docs/architecture/collaboration.md)、[桌面架构](/docs/architecture/desktop/README.md)、[协作包说明](/packages/collaboration/README.md) 和 [编辑器绑定说明](/packages/editor-collab/README.md)，结论以实现与验证结果为依据。没有访问正式服务、修改云端数据或进行视觉验收。
 
 ## 2. 现状如何运转
 

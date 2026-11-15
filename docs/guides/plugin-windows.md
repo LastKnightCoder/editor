@@ -68,4 +68,4 @@ export default definePlugin({
 | `messages.on(name, listener)`          | 接收上线后的即时消息。回调收到载荷和发送窗口类型。                                                                                 |
 | `messages.send(name, payload, target)` | `"main"` 发给其他在线主窗口端点，`"all"` 发给同插件的其他在线端点，`{ windowId }` 定向发送。返回提交投递的数量，无在线目标返回 0。 |
 
-组件卸载可主动释放订阅和监听，宿主在停用、切库或窗口关闭时统一清理。即时消息无历史回放。需要跨应用重启保留的数据走现有插件存储。模块与时序见[桌面插件窗口架构](/docs/architecture/desktop.md#桌面插件窗口)及[通信图](/docs/architecture/plugin-windows.html)。
+组件卸载可主动释放订阅和监听，宿主在停用、切库或窗口关闭时统一清理。即时消息无历史回放。需要跨应用重启保留的数据走现有插件存储。模块与时序见[桌面插件窗口架构](/docs/architecture/desktop/plugins.md#桌面插件窗口)及[通信图](/docs/architecture/plugin-windows.html)。

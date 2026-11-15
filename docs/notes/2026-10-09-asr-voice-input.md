@@ -217,7 +217,13 @@ Whisper 的麦克风示例采用连续窗口转写，官方将其描述为简单
 type SpeechPrivacy = "local-only" | "cloud-allowed";
 
 type SpeechState =
-  "idle" | "starting" | "recording" | "finishing" | "finished" | "cancelled" | "failed";
+  | "idle"
+  | "starting"
+  | "recording"
+  | "finishing"
+  | "finished"
+  | "cancelled"
+  | "failed";
 
 type SpeechErrorCode =
   | "unsupported"
@@ -442,7 +448,7 @@ ASR 不直接写数据库。编辑器使用现有文档绑定与提交入口一�
 
 ## 12 仓库参考
 
-- [桌面架构实现指南](/docs/architecture/desktop.md)
+- [桌面架构实现指南](/docs/architecture/desktop/README.md)
 - `桌面架构裁决`
 - [平台与 RPC 架构](/docs/architecture/platform-rpc.md)
 - [编辑器异步写入与提交守卫异步写入守卫（原 editor-refactor/13，已删）

@@ -97,4 +97,4 @@ interface BookmarkElement {
 
 ## 收尾
 
-完成后：交互约定与宿主服务表已在 `packages/editor/src/extensions/bookmark/README.md`（包级说明），`IFetchService` 的跨端注册方式沉淀进 `/docs/architecture/desktop.md`、`/docs/architecture/mobile.md` 的编辑器服务小节；删除本文件并更新 `docs/README.md`。
+完成后：交互约定与宿主服务表已在 `packages/editor/src/extensions/bookmark/README.md`（包级说明），`IFetchService` 的跨端注册方式沉淀进 `/docs/architecture/desktop/page-protocol.md`、`/docs/architecture/mobile.md` 的编辑器服务小节；删除本文件并更新 `docs/README.md`。

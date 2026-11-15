@@ -596,7 +596,7 @@ plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签�
 
 ## 提醒与系统通知
 
-待办、日程、正文待办的提醒与倒计时番茄结束都用本地系统通知，不经推送服务器；提醒数据与桌面共用 `item_reminder` 口径（见[桌面提醒](/docs/architecture/desktop.md#提醒)），Rust 命令在 `src-tauri/src/database/reminders.rs`（`reminder_list / reminder_set / reminder_upcoming`）。
+待办、日程、正文待办的提醒与倒计时番茄结束都用本地系统通知，不经推送服务器；提醒数据与桌面共用 `item_reminder` 口径（见[桌面提醒](/docs/architecture/desktop/home-features.md#提醒)），Rust 命令在 `src-tauri/src/database/reminders.rs`（`reminder_list / reminder_set / reminder_upcoming`）。
 
 - **范围**：截止任务（最多 3 个提醒）、周期待办（`remind_before` 为当天时刻，逐个未打卡实例提醒，实例与日历物化同源 `recurring_occurrences`）、独立日程（待办安排出的日程跟随待办）、正文待办（`taskReminder.at`；排除文档、已提升为独立待办、已勾选或已完成的实例不提醒）。有「排除节假日」规则时才取节假日，取不到按无节假日排期。
 - **原生插件**：`plugins/local-notify`（Rust 只注册，命令直通原生）+ `native-notify/`。Android 用 AlarmManager（有「闹钟和提醒」授权时准点，否则可延后）与三个通知渠道「待办提醒 / 日程提醒 / 番茄专注」，排期存 SharedPreferences，开机、应用更新、准点授权变化后重排；状态栏小图标 `ic_stat_tau` 是应用图标的单色剪影（按系统要求只取 alpha）。iOS 用 UNUserNotificationCenter，通知图标即应用图标。

@@ -1,0 +1,90 @@
+# 数据与正文边界
+
+> 开库门禁、正文与白板格式边界、业务写入与导入导出口径；持久化细节见 [content-storage.md](/docs/architecture/content-storage.md)。
+
+## 数据基线门禁
+
+主库当前版本唯一来源是 `packages/db-schema/schema/main-version.json`，桌面 `modules/main-schema.ts` 与移动 `database/migrator.rs` 共用。`schema_meta` 属于共享主库结构，保存版本与 SQL 的 SHA-1 指纹。
+
+- 空库按共享 SQL 建表、索引和初始记录，结构与版本标记同事务提交；建库失败不留下部分结构。
+- `main_schema_version` 是初始化记录，不作为开库门禁；缺少或不同版本标记均正常初始化，并在成功事务中写入当前版本，不删除旧表或额外字段。已有桌面库的结构升级曾独立于版本标记运行，不能由旧标记推断实际结构落后。
+- 当前版本且指纹一致时不重复初始化；同版本 SQL 变化仅补齐新表、缺失索引和初始记录，不改列、不替换既有索引定义。字段或既有索引定义变化须调整共享基线版本。
+- 默认系统分组、日记标签、日历与待释放数据回收仍按原维护流程执行。网页摘录的 `web` 提供方由共享 SQL 初始化，已保存名称不覆盖。
+- `migration_meta` 保存项目域共用实体序列与任务、日程、正文的非复用编号高水位，不属于历史转换代码。卡片显式连接只存 `content_links`，`cards` 不含 `links` 列。
+
+云端提供方整库同步搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
+
+正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集，已有契约按规范化 JSON 比较，不因跨端序列化的属性顺序变化拒绝保存；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。本机正文保存 JSON 投影，缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
+
+正文订阅快照以 `documentIdentity` 单独返回主进程确认的正文 ID、基线 ID 与代次；渲染端按该身份校验快照。本机订阅会话 ID 只用于 IPC 路由、视图与草稿归属，不能代替正文的稳定 ID。
+
+卡片、文章与项目文档的编辑时间取实体与正文更新时间的较大值。正文会话按主进程已应用的 Yjs 事务分别推进正文与契约的变更代次，覆盖本地输入、撤销重做、协作更新与宿主补丁；仅比较事务触及字段的旧值与当前值，同值属性写入和空文本增量不推进代次。正常投影以本轮代次与已确认代次的差异判断改动，不比较全文。仅补充内部契约时持久化字典并保持原正文与更新时间，不记编辑操作；正文事务推进更新时间并记操作，标题变化独立投影。打开前的正文自愈保留原更新时间，不记编辑操作，仍发送正文写入通知以刷新派生数据。
+
+正文自动投影每秒检查文档脏标记，没有文档更新时不执行投影；光标与在线状态独立于正文更新。常规编辑按事务触及节点定位顶层块，只对受影响块执行本地化、字数计算与主库提交；完整正文通过统一视图读取。首次拆块、恢复对账、整篇替换、跨端和检查点边界以[正文持久化](/docs/architecture/content-storage.md)为准。
+
+主库开库会事务性删除已退役的 `_tau_device_*` 内部表、索引与捕获触发器，包括隔离副本和同步日志；应用启动逐一清理应用数据目录中的全部 `.db` 文件（包括未打开的库），然后删除旧配对与协调配置。普通正文、资源文件、云端同步配置和实时协作身份保留。
+
+## 正文与白板格式边界
+
+客户端只编辑当前格式：正文协议 2、白板协议 3。旧正文的解码、只读替代文档和 XmlText 补丁分支已删除；当前节点补丁、输入草稿、跨视图同步与撤销保留。不执行后台扫描或插件数据版本升级，也不创建、登记、导出或安装正文/白板恢复包；格式问题一律在读取与打开时自愈（见下两段）。
+
+正文自愈（`src-electron/main/modules/content-repair.ts`）：`content:get-by-id` 与打开正文会话前，若正文缺 `collabId`、缺或错 `tauContract`、身份重复、存在旧的异常对话摘录或尚无 `content_documents` 记录，经内容转换窗口的 `repair-content`（`ElementContractCatalog.repairDocument`）生成修复结果，提交事务前把原始正文与文档行写入 `content-repairs/<时间>-<库>-<id>.json`，原有有效身份与契约保留，稳定正文身份不变。当前没有声明的节点以 `host.recovered` 名下合成的契约原样保留（编辑器显示「内容已保留」占位），实体块缺有效来源引用时同样只保留不伪造引用。合格正文只做一次校验、不改写；协作中的正文以会话为准，不按主库修复。主库存储布局不是 2 或 3 的文档记录不修复，读取方照常报「正文数据格式不兼容」，避免按旧理解改写新数据；它与正文 Yjs 协议 2 独立。
+
+白板自愈（`whiteboard-documents/repair.ts`，由 `white-board-content:get-by-id` 与 `WhiteboardDocumentSessions.open` 触发，备份在 `whiteboard-documents/repairs/`）：主库检查点摘要不符或字节读不出时，按同事务写入的 JSON 快照投影经 `createWhiteboardBaseline` 重建状态。本机日志读不出或与主库分叉时，`WhiteboardJournal.quarantine` 把原始行写入 `whiteboard-documents/discarded/` 后按主库重建；日志文件版本高于当前客户端时整份移入 `discarded/` 后新建。主库是权威，日志只是可重建的缓存。来源基线或拥有者错位不改写、保持报错（身份问题，改写会掩盖它）；旧 JSON 页（无文档记录）不转换，所有用户已在 0.60.1 完成转换。
+
+正文与白板保留正常创建、保存、协作同步、输入草稿和撤销重做。共享发布、退出协作通过既有提交记录确认跨存储写入结果；这些记录保存本次待提交候选及回执，不用于备份或恢复历史正文。安装候选与回执使用共享的 `DocumentInstallFingerprint/DocumentInstallReceipt`，与服务端文档格式升级状态机无关。共享正文远端换代时，主进程在刷新共享列表时备份旧缓存后按远端确认快照重建会话（编辑视图经 `collaboration:removed` 的 replaced 事件重开），重建保持静默不提示；白板远端换代仍停止旧副本同步。结束共享先冻结视图并确认上传队列与正文同步，再断开实时收发，按远端快照与修订补存附件、提交最终主库投影和本机检查点；本地确认完成后才按修订关闭房间。关闭结果未知时保留冻结会话并幂等重试，确认回执写入本机后才解除绑定并转为本机会话。已存在的用户备份文件不由客户端删除。
+
+## 业务代码写正文
+
+`local-content` 在 `logger` 和 `database` 就绪后由 BACKGROUND 模块调度接入正文组合根。`collaboration` 等待本机正文就绪，组装自己的会话运行时，再接入共享桥。主库存在共享绑定时经桥打开共享会话。协作库不可读时仍能编辑健康的未共享正文。正文 Agent 命令由 `local-content` 提供，本机保存建议、审阅和权限，协作模块提供共享正文的远端快照和范围提交。组装、恢复与关闭规则见 [正文持久化](/docs/architecture/content-storage.md#耐久日志与检查点)。
+
+正文节点的 `collabId`（节点稳定身份，协作合并、光标与实体关系按它定位）和 `tauContract`（指向文档契约字典里该节点写入时的数据版本）属于存储与协作层，业务代码不读写、不拼装：
+
+- 新建正文：`createContent`、`createCard`、`createArticle` 等新建命令内部经 `prepareNewContent` 补齐。
+- 整篇替换已有正文：`replaceContent(contentId, { markdown } | { nodes })`，内部按契约解析、补齐身份与契约并带修订写入。不要把 `importFromMarkdown` 的结果直接交给 `updateContent`——主进程只校验不补齐，会以「正文节点身份或子树无效」拒绝。
+- 编辑器内编辑与粘贴：编辑器在插入时自动补齐。
+- 块手柄跨文档移动通过正文会话确认目标写入后才删除源块。契约与资源校验见[协作架构](/docs/architecture/collaboration.md#文档与持久化)。
+- 只读预览（`markdownToContent` 等）的结果不带身份与契约，不能写回。
+
+AI 正文写入口为 `apply_content_edit_operations`。局部提案以带库与正文身份的读取快照解析定位器，每处改动生成一条带稳定锚点、预期内容与可选理由（操作的 `reason`）的建议；预览 Markdown 不作写入候选。建议记录存于本机正文库 `local-content/content.db` 的 `content_suggestions`（`src-electron/main/modules/content-runtime/agent/`），经 `content:suggestions*` 命令列出、接受、退回、替换、撤销与作答：状态迁移为带前置状态的条件更新，不同窗口同时处理同一对话建议时先到先得；接受时每条以自身 ID 作为范围操作身份单独提交，原文变化只让该条过期，未确认的保持 applying，原对话可以按原身份确认或恢复；撤销倒序提交逆操作。主进程在正文落地后（停顿 400ms）与会话恢复时按当前正文核对待处理建议与锚定提问，正文换代、锚点解析不到或原文前提不符即转为过期（`ContentSuggestionService.validate`）。任何变化广播 `content-suggestions:changed`，渲染端 `suggestion-queries.ts` 按库失效重读，正文打开、关闭或在其他窗口打开都从同一记录投影。本机会话在原增量队列内耐久提交，已共享正文向协作服务提交范围操作。全文替换仍走整篇提案与检查点。共享端协议见[实时协作](/docs/architecture/collaboration.md)。
+
+建议型提案的工具调用等该提案每一条都有结果（`review-session.ts` 经 `suggestion-watch.ts` 订阅广播），再把逐条结果交给 Agent：接受、退回（附意见的只重做该条）、过期（重读后再提）。署名取 `services/agent-identity` 的职责名（子 Agent 为派发时的 title，主对话为「助手」），身份色按 `agent:<职责名>` 派生，对话头像、正文痕迹、光标与右栏同色（`components/AgentIdentity`）。原对话的 `SuggestionProposalCard` 按条展示前后差异，提供接受、退回、撤销和继续修改。选中改动后，`ScopedEditMarks` 按资料库、正文 ID 和建议 ID 读取单条记录，定位不受正文近期列表的时限或数量限制。已打开的对应正文按锚点显示作者色痕迹，再点同一条清除痕迹；「在正文定位」也可打开未显示的正文。回看替换时，旧文显示删除线，新文首字与同一文本节点内的其余改动共用高亮。本机基线重建后的已应用记录只在同一稳定块内唯一精确匹配时高亮，写入与撤销仍按原协议校验。正文的目录与版心沿用原布局。继续修改向原对话发送新要求，请 Agent 先重读目标块并保留后续人工编辑。过期建议给「让它按新原文重写 / 忽略」：重写先退回并附意见，发起它的工具不在等待时由退回成功的窗口派发，主窗口经 `features/chat/chatSend.ts` 在同一资料库的原对话追加一句（独立窗口经主进程定向转发）。
+
+Agent 对每篇正文的权限存于同一本机正文库的 `content_agent_permissions`（只读 / 建议 / 直接改，无记录即建议），以稳定库来源和正文身份定位，标题栏 `AgentCollaborators` 点开设置；工具执行时只读拒绝写入，直接改或全局工具权限为自动应用时按直接改落地（`applyDirectSuggestions`：本机正文逐段实时打字，人一进入该块即停手，剩余转为待处理条目，事后在发起对话里逐条看改动与撤销），其余等用户逐条处理。Agent 的读取、提案、等待与打字经 `services/agent-presence.ts` 上报主进程在场中枢，标题栏显示头像组与动作胶囊，正文显示 Agent 光标。划词工具条的「交给 Agent」（`AgentCommentExtension`，仅主窗口可写正文）把选中原文作为引用、可 @ 这篇出现过的 Agent，发进当前对话；`ask_about_content` 让 Agent 把问题锚在原句上并给出选项，等用户在右栏或对话卡片作答。
+
+桌面「大语言模型 → 功能分配 → 行内建议」选择正文与代码块的模型。协作正文需另行开启授权，本机和共享文档均只在可写编辑视图中触发。主进程 `inline-suggestions` 复核模型分配与共享授权，只把有界的光标前后文本及可选代码语言传给现有单发推理能力。每窗口保留一个当前请求，主进程全局限制四个在途推理，八秒超时，旧结果按视图、文档绑定和位置丢弃。
+
+预览仅在当前编辑视图参与排版。普通正文使用 Slate 装饰，代码块使用 Shiki 渲染层，源码自动换行时只展示未改变光标布局且能完整显示的候选。正文和源码字段在 Tab 采纳时分别复核文档快照及字段修订并提交独立撤销步。Esc 让位于宿主浮层，正文既有编辑命令优先，无有效代码建议时 Tab 处理缩进。
+
+## 字数与空文档
+
+统一算法为 `@tau/db-schema/content-metrics`，内置规则归各编辑器扩展的 metrics.ts，`@tau/editor/content-metrics` 只装配。插件以静态 editorMetrics 提供字段规则；ContentPluginRegistry 校验归属与重复，窗口安装同一快照。主进程经内容进程 inspect 取得纯数据规则，在 shared/content-metrics 装配，不执行插件代码。正文保存、导入、协作投影、状态栏与白板宿主服务使用该统计器；Markdown 块缓存随规则修订失效。
+
+空文档自动清理独立使用 isContentEmpty：只认空文本/段落，媒体、结构块、未知节点与损坏输入保守保留。编辑器 isEmpty 是交互语义，独立保留；禁止用 count 等于零判定可删除或可复用正文。作者字段协议见 [SDK 字数说明](/plugins/tau-plugin-template/docs/editor.md#字数统计)。
+
+## 协作网络与身份隔离
+
+白板共享补交与普通同步复用同一房间会话及串行队列，未知提交结果按原操作身份续做。网络分支日志写入核对上次读取的摘要，陈旧实例或写盘失败不能覆盖另一实例已保存的待确认分支；日志未提交时不推进本机观察值。
+
+协作主进程默认使用共享产品入口；每个服务器地址独立保存身份，缺失时向原地址注册。REST、WebSocket、附件和白板会话使用实际地址，不应用旧别名，不扫描或搬迁其他服务器的凭据，也不自动改写正文绑定。并发注册去重、失败重试与各地址的服务端 Date 保留。持久化与权限协议见[协作架构](/docs/architecture/collaboration.md)。
+
+正文协作 IPC 从 `commands/contracts/collaboration.ts` 的命令引用推导 channel、参数和返回类型，主进程注册适配同时检查处理器签名；来源类型使用 `SourceType`，内容与来源编号为数字，运行时校验仍在 IPC 边界执行。
+
+按本机正文编号打开统一走 `local-content:open-content`。主进程发现共享绑定后等待协作模块就绪，由模块管理器合并在途初始化并允许下次打开重试。共享运行时显式依赖本机正文运行时，协作页直接打开房间时由 `collaboration:subscribe` 建立共享会话。
+
+协作侧栏按房间目录的 `kind` 和 `protocolVersion` 分流，选中正文或打开带共享绑定的原文时才加载该篇快照，并发打开复用同一任务。已加载会话随目录刷新核对基线和权限。启动时从本机日志恢复作者会话、未确认编辑和待退出会话，仍可后台完成同步与资源补存。
+
+## 内容导入导出与资源搬运
+
+- HTML 异步导出在序列化前准备当前编辑器与插件两份契约目录：前者校验节点保存版本，后者为插件选择对应版本的 HTML 导出器；首次导出不依赖其他入口预热契约。序列化器的 `prepare` 返回仅向当前子树传递的上下文；表格据此排除合并覆盖格，不缓存跨导出的节点覆盖状态，共享子节点的新旧快照可独立并发导出。
+- 单一入口 `services/content-transfer.ts`：单篇导出 `exportContentAsMarkdown`（卡片 / 文章 / 项目文档 / 独立编辑窗口），Markdown 文件导入 `importMarkdownFiles(create)`（卡片页、文章页、项目文档树两处菜单；落库由调用方传入）。业务代码不再自行 `getMarkdown` + `downloadMarkdown` 或 `readTextFile` + `importFromMarkdown`。Markdown 窗口原地编辑本机 .md，不经此入口。
+- 资源字段只看节点的资源声明（`ElementSpec.resources`，内置声明在 `@tau/db-schema/content-resources`）；`utils/content-transfer/assets.ts` 的 `mapAssetUrls` 按声明改写，只有 file-attachment 的本机副本与 isLocal 保留专门逻辑。新增带资源的块只需在元素上声明，否则导出不打包、导入不入库。
+- 导出：本机资源与 data URI 收进包根 `assets/`（按来源去重、同名加 -2），正文改为相对路径；远程地址原样保留；读取失败保留原地址并汇总为警告。单篇与合并 Markdown 无本机资源时存 .md，有则存 .zip；项目 Markdown 包内 `content-link` 指向包内项目文档时改为相对 .md 链接，其余（含单篇、合并）降为标题文本——导出物不含数据库 id。
+- 导入：相对路径以 .md 所在目录为基准（兼容 `~`、`file://`、URL 编码），读出后经 `uploadResource` 走当前资源存储；附件入库后 `isLocal=false`（与插入附件时选「上传」一致）。
+- PDF：导出页面从 `data:` 地址加载，`buildPdfHtml` 与批量 PDF 在序列化前用 `inlineLocalImages` 把本机图片内联为 data URI。
+- 批量导入（文件夹 / .zip → 项目 / 文章 / 卡片）：`utils/content-transfer/source.ts` 把两种来源统一为相对路径读取（跳过隐藏目录与 `__MACOSX`，压缩包剥掉唯一同名根目录，上限 2 万文件）；`batch-import.ts` 先 `scanImportSource` 只读扫描成计划（资源按 .md 目录定位并去重、缺失资源与未解析的 .md 链接单列、同级 `X.md` + `X/` 合并为带子级的文档），再 `runImport` 三遍执行：① 选中文档引用的资源去重上传 ② 建文档（项目按树、文章取顶层文件夹为标签、卡片取完整文件夹路径为层级标签，可叠加 frontmatter tags）③ 回填指向本批文档的链接为 `content-link`。每次写库前校验仍是开始时的数据库；停止或出错保留已写部分。宿主接线与整批撤销在 `services/batch-import.ts`，导入记录存 `stores/useImportHistoryStore`（本机、按库区分，撤销 = 删除建出的项目 / 文章 / 卡片，资源文件保留）。
+- 批量 Markdown 扫描使用正文契约处理器，拆开无损载荷并随文档携带契约字典。资源扫描、路径改写、业务创建和正文链接回填沿用该字典。
+- 来源方言`utils/content-transfer/dialects.ts`：扫描前把私有写法改写成标准 Markdown，扫描与执行不感知方言；自动识别（`logseq/config.edn` > 根目录 `.obsidian` > 过半文件名带 Notion 32 位 id > 通用），向导可手动切换并用已读入的来源重扫。Obsidian：`[[笔记|别名]]` / `![[附件]]` 按名称定位（大小写不敏感，重名取同目录再取最短路径）后改写为相对路径链接 / 图片 / 音视频 / 附件，`[[#标题]]` 与解析不到的降为文字；callout、`==高亮==`、`%%注释%%`、行尾 `^块标识`、正文 `#标签`。Notion：去掉文件 / 目录名的 id 与首行重复标题，`Tags:` 属性行转标签，CSV 导入为「数据库」模块的表格（列均为文本，`X_all.csv` 优先）。Logseq：只导 `pages/`（摊平到根）与 `journals/`（显示为「日志」），页面名按 `___` / `%2F` 还原命名空间，`title::` / 日志日期（`Jan 15th, 2024` 等）可被引用，页面属性与块属性不导入，任务标记转勾选项（换用 `*` 列表符自成任务列表），`((块引用))` 移除并记入报告。所有方言改写只作用于代码之外。相对路径失效的资源与 .md 链接再按来源根、再按文件名定位。
+- 向导 `features/transfer/ImportWizard`：来源与去向 → 预览（勾选树用公共 `components/CheckTree`，与整体导出共用）→ 执行（三阶段进度、可停止）→ 报告（打开 / 撤销）。
+- Markdown 导出包（迁出）：`services/markdown-export.ts` 按范围（项目 / 文章 / 卡片 / 全部）组装导出树，包内目录即选择树——项目按文档树，文章与卡片按首个标签逐级分文件夹，「全部」再分三组；节点 id 是本次导出的临时编号，实体身份记在 `ref`，跨范围的 content-link 照常改写；文章正文经 `loadContent` 导出时才取。打包共用 `buildMarkdownZipBytes`（项目整体导出的 Markdown 包走同一函数，选项缺省即旧行为），选项：互链写法（相对 .md / `[[文件名]]`，重名时写包内路径 / 纯文字）、本地资源（打包进 assets/ 或保留原地址）、同时下载远程图片（`remoteResourceToLocal` 缓存后打包）、frontmatter（title / tags / created / updated）。偏好存 localStorage `markdown-export-settings`。项目的 PDF / EPUB 仍只在项目卡片 ⋯ 的「整体导出」。
+- 入口（低频，不占常驻位）：命令面板「批量导入文件夹 / 压缩包…」「导出为 Markdown 压缩包…」（项目详情页唤起时范围为项目、只勾选当前项目）、设置 › 数据 ›「导入与导出」（含导入记录与撤销）、卡片 / 文章页「导入 ▾」下拉、把文件夹或 .zip 拖到卡片 / 文章 / 项目页纸面（`useImportDrop`，经 preload 的 `getPathForFile` 取本机路径）。全部经 `app/transferStore` 打开壳层挂载的 `MarkdownExportHost` / `ImportWizardHost`；设置页只做启动台，不承载流程。

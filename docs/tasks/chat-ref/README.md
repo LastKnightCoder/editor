@@ -96,10 +96,10 @@ interface ChatQuoteElement {
 - [x] 节点声明、扩展、悬停预览、打开、粘贴识别（跟踪选区，取到标题快照后一次写入）
 - [x] 对话「引用到正文」菜单（含选区摘录）、停靠栏 entry 定位与定位铺底
 - [x] Markdown / HTML 编解码、`@tau/blog` 只读渲染（需随下次 blog 发版）
-- [x] `docs/architecture/desktop.md` 已补「聊天引用」现状
+- [x] `docs/architecture/desktop/ui-interaction.md` 已补「聊天引用」现状
 - [ ] 视觉验收（用户）
 - [ ] 二期：`[[` 面板「对话」来源、对话选区浮条
-- [ ] 收尾：方案沉淀进 `docs/architecture/desktop.md`，删除本目录，更新 `docs/README.md`
+- [ ] 收尾：方案沉淀进 `docs/architecture/desktop/ui-interaction.md`，删除本目录，更新 `docs/README.md`
 
 ## 验证
 

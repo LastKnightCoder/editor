@@ -8,23 +8,23 @@
 
 桌面可复用子 Agent 的会话、执行、权限与消息协议见 [子 Agent 架构](./architecture/subagents.md)。
 
-桌面启动依赖与就绪信号见 [桌面架构](./architecture/desktop.md#35-构建与打包)，生产入口和 ASAR 核验步骤见 [客户端构建与安装](./guides/ops-client-build-install.md#桌面生产启动检查)。
+桌面启动依赖与就绪信号见 [桌面架构](./architecture/desktop/main-process.md#构建与打包)，生产入口和 ASAR 核验步骤见 [客户端构建与安装](./guides/ops-client-build-install.md#桌面生产启动检查)。
 
-| 位置                                                          | 内容                                                                                                                                                           |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、交互规范、插件窗口、数据接线、个人助手分层记忆、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议 |
-| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                              |
-| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                                   |
-| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                                 |
-| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                                 |
-| [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                               |
-| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                                 |
-| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                             |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                             |
-| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                                         |
-| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、应用生命周期、稳定材料引用与外链、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md)           |
-| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                                     |
-| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                                                   |
+| 位置                                                          | 内容                                                                                                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [desktop/](./architecture/desktop/)                           | 桌面端权威交接文档目录：索引 README + 按域分篇（总览 / Page 协议 / UI 交互 / 数据基线 / 插件宿主 / 白板 / 主进程 / AI 会话 / 今日页数据）            |
+| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                    |
+| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                         |
+| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
+| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                       |
+| [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                     |
+| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                       |
+| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                   |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                   |
+| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                               |
+| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、应用生命周期、稳定材料引用与外链、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
+| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                           |
+| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                                         |
 
 ## decisions.md — 裁决规则
 
