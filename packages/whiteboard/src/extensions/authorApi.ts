@@ -243,7 +243,16 @@ export function defineWhiteboardExtension(
   });
   const elements = definition.elements?.map(element => {
     const spec = element.create;
-    if (!spec) return element as unknown as HostElement;
+    const hostElement: HostElement = {
+      ...element,
+      create: undefined,
+      // 历史定义用于打开已有元素，创建工具只使用当前定义。
+      previousVersions: element.previousVersions?.map(version => ({
+        ...version,
+        element: { ...version.element, create: undefined, previousVersions: undefined },
+      })),
+    };
+    if (!spec) return hostElement;
     const check = (node: unknown): import("../types/element").BoardElement | null => {
       if (node === null) return null;
       if (
@@ -319,7 +328,7 @@ export function defineWhiteboardExtension(
               },
             },
     };
-    return { ...element, create } as HostElement;
+    return { ...hostElement, create };
   });
   const extension = defineHostExtension({
     ...definition,

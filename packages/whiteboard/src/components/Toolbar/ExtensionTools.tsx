@@ -26,8 +26,7 @@ const ExtensionTools = memo(() => {
   );
   if (!tools.length) return null;
 
-  const lastUsed = tools.find(tool => tool.id === lastUsedId);
-  const Icon = lastUsed?.icon ?? Blocks;
+  const LastUsedIcon = tools.find(tool => tool.id === lastUsedId)?.icon;
   const panelTool = tools.find(tool => tool.id === panelId && tool.panel);
   const session = panelSession.current;
   const changePanel = (id: string | null) => {
@@ -54,7 +53,7 @@ const ExtensionTools = memo(() => {
         className="min-w-0"
         trigger={
           <ChromeButton label="扩展工具" sub active={!activeTool.startsWith("tau.")}>
-            <Icon strokeWidth={1.75} />
+            {LastUsedIcon ? <LastUsedIcon /> : <Blocks strokeWidth={1.75} />}
           </ChromeButton>
         }
       >
@@ -75,7 +74,7 @@ const ExtensionTools = memo(() => {
           </div>
         ) : (
           <div {...stopCanvasEvents} className="w-[236px] p-1.5">
-            <div className="text-tau-micro text-ink-3 px-2 pb-[5px] pt-[3px]">扩展工具</div>
+            <div className="text-tau-micro text-ink-3 px-2 pt-[3px] pb-[5px]">扩展工具</div>
             {tools.map(tool => {
               const ownerId = extensions.toolOwner(tool.id);
               const name = ownerId ? extensions.getExtensionName(ownerId) : undefined;

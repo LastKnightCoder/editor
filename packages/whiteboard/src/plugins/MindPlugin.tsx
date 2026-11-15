@@ -163,7 +163,7 @@ export class MindPlugin implements IBoardPlugin {
 
   private dragState: MindDragState = EMPTY_MIND_DRAG_STATE;
 
-  private dragAnimationFrame: number | null = null;
+  private cancelDragPreviewFrame: (() => void) | null = null;
 
   private pendingPointerMove: {
     clientX: number;
@@ -733,18 +733,21 @@ export class MindPlugin implements IBoardPlugin {
       altKey: e.altKey,
     };
 
-    if (this.dragAnimationFrame === null) {
-      const requestFrame =
-        globalThis.requestAnimationFrame ??
-        ((callback: FrameRequestCallback) =>
-          globalThis.setTimeout(() => callback(performance.now()), 16));
-      this.dragAnimationFrame = requestFrame(() => {
-        this.dragAnimationFrame = null;
+    if (!this.cancelDragPreviewFrame) {
+      const update = () => {
+        this.cancelDragPreviewFrame = null;
         const pending = this.pendingPointerMove;
         this.pendingPointerMove = null;
         if (!pending || pending.pointerId !== this.dragState.pointerId) return;
         this.updateDragPreview(board, pending.clientX, pending.clientY, pending.altKey);
-      });
+      };
+      if (globalThis.requestAnimationFrame && globalThis.cancelAnimationFrame) {
+        const frame = globalThis.requestAnimationFrame(update);
+        this.cancelDragPreviewFrame = () => globalThis.cancelAnimationFrame(frame);
+      } else {
+        const timer = globalThis.setTimeout(update, 16);
+        this.cancelDragPreviewFrame = () => globalThis.clearTimeout(timer);
+      }
     }
   }
 
@@ -1052,11 +1055,8 @@ export class MindPlugin implements IBoardPlugin {
   }
 
   cancelScheduledPointerMove() {
-    if (this.dragAnimationFrame !== null) {
-      const cancelFrame = globalThis.cancelAnimationFrame ?? globalThis.clearTimeout;
-      cancelFrame(this.dragAnimationFrame);
-      this.dragAnimationFrame = null;
-    }
+    this.cancelDragPreviewFrame?.();
+    this.cancelDragPreviewFrame = null;
     this.pendingPointerMove = null;
   }
 
