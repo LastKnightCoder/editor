@@ -12,7 +12,11 @@ import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/e
 import { type EditorDocument, type EditorKit, type EditorExtension } from "@tau/editor";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useContentSession from "@/hooks/useContentSession";
-import { registerContentBinding } from "@/services/contentBindings";
+import {
+  getContentBinding,
+  registerContentBinding,
+  subscribeContentBindings,
+} from "@/services/contentBindings";
 import { collaborationKit } from "./useCollaborationKit";
 import { desktopContentPlugins } from "../../shared/content-plugins";
 
@@ -43,24 +47,41 @@ export interface ContentDocument {
 export default function useContentDocument(
   contentId?: number,
   source?: Omit<ContentSessionTarget, "contentId">,
-  scenarioKit?: EditorKit,
-  extensions?: readonly EditorExtension[]
+  options: {
+    kit?: EditorKit;
+    extensions?: readonly EditorExtension[];
+    readonlyPreview?: boolean;
+    writable?: boolean;
+  } = {}
 ): ContentDocument & { sessionError?: string } {
+  const { kit, extensions, readonlyPreview = false, writable = false } = options;
   const { entry, error: sessionError, databaseName } = useContentSession(contentId, source);
   const documentId = entry?.documentId;
-  const { binding, article, error, frozen } = useCollaborationDocument(documentId, entry?.mode);
+  const existingBinding = useSyncExternalStore(subscribeContentBindings, () =>
+    readonlyPreview && documentId ? getContentBinding(contentId, documentId) : undefined
+  );
+  const { binding, article, error, frozen } = useCollaborationDocument(
+    existingBinding ? undefined : documentId,
+    entry?.mode
+  );
   const lineage = contentId ? `content:${databaseName}:${contentId}` : undefined;
-  const bound = useBoundContentDocument(binding, { frozen, kit: scenarioKit, extensions, lineage });
+  const bound = useBoundContentDocument(existingBinding ?? binding, {
+    frozen,
+    kit,
+    extensions,
+    lineage,
+    readonly: readonlyPreview,
+  });
   useEffect(() => {
-    if (!contentId || !binding) return;
-    return registerContentBinding(contentId, binding);
-  }, [contentId, binding]);
+    if (!contentId || !binding || readonlyPreview) return;
+    return registerContentBinding(contentId, binding, writable);
+  }, [contentId, binding, readonlyPreview, writable]);
   return {
     ...bound,
     article,
     error: bound.error || error,
     sessionError,
-    swapping: Boolean(documentId) && bound.swapping,
+    swapping: (readonlyPreview || Boolean(documentId)) && bound.swapping,
   };
 }
 
@@ -72,9 +93,10 @@ export function useBoundContentDocument(
     kit?: EditorKit;
     extensions?: readonly EditorExtension[];
     lineage?: string;
+    readonly?: boolean;
   } = {}
 ) {
-  const { frozen = false, kit: scenarioKit, extensions, lineage } = options;
+  const { frozen = false, kit: scenarioKit, extensions, lineage, readonly = false } = options;
   const current = useRef<{ binding: ContentCollaborationBinding; document: EditorDocument }>(null);
   const retainedDoc = binding?.doc ?? current.current?.binding.doc;
   useSyncExternalStore(
@@ -111,7 +133,7 @@ export function useBoundContentDocument(
       .then(async catalog => {
         if (cancelled || binding.doc.isDestroyed) return;
         const tree = treeFor(binding);
-        if (!frozen)
+        if (!frozen && !readonly)
           await tree.installContracts(
             catalog.additionalContracts(tree.contracts.toJSON()),
             binding.origin
@@ -121,7 +143,8 @@ export function useBoundContentDocument(
           lineage,
           collaboration: binding,
           versions: catalog,
-          readonly: frozen,
+          readonly: frozen || readonly,
+          cursors: !readonly,
           normalizeOnConnect: false,
         });
         setPrepared({ binding, kit, revision: pluginRevision, document });
@@ -133,7 +156,7 @@ export function useBoundContentDocument(
     return () => {
       cancelled = true;
     };
-  }, [binding, structured, kit, pluginRevision, lineage, frozen]);
+  }, [binding, structured, kit, pluginRevision, lineage, frozen, readonly]);
   const contractReady =
     !structured ||
     Boolean(

@@ -78,6 +78,7 @@ Agent 对每篇正文的权限存于同一本机正文库的 `content_agent_perm
 
 - HTML 异步导出在序列化前准备当前编辑器与插件两份契约目录：前者校验节点保存版本，后者为插件选择对应版本的 HTML 导出器；首次导出不依赖其他入口预热契约。序列化器的 `prepare` 返回仅向当前子树传递的上下文；表格据此排除合并覆盖格，不缓存跨导出的节点覆盖状态，共享子节点的新旧快照可独立并发导出。
 - 单一入口 `services/content-transfer.ts`：单篇导出 `exportContentAsMarkdown`（卡片 / 文章 / 项目文档 / 独立编辑窗口），Markdown 文件导入 `importMarkdownFiles(create)`（卡片页、文章页、项目文档树两处菜单；落库由调用方传入）。业务代码不再自行 `getMarkdown` + `downloadMarkdown` 或 `readTextFile` + `importFromMarkdown`。Markdown 窗口原地编辑本机 .md，不经此入口。
+- 图片导出弹窗经 `renderPreview` 提供版式的主题与明暗，接收预览就绪状态，并由保存与复制共用同一截图区域。卡片、文章和项目文档共用 `ContentDocumentImageExportModal` 提供只读预览，按正文身份优先复用本窗口编辑会话，否则从主进程打开会话。预览随正文事务更新，弹窗在预览未就绪时禁用保存与复制。
 - 资源字段只看节点的资源声明（`ElementSpec.resources`，内置声明在 `@tau/db-schema/content-resources`）；`utils/content-transfer/assets.ts` 的 `mapAssetUrls` 按声明改写，只有 file-attachment 的本机副本与 isLocal 保留专门逻辑。新增带资源的块只需在元素上声明，否则导出不打包、导入不入库。
 - 导出：本机资源与 data URI 收进包根 `assets/`（按来源去重、同名加 -2），正文改为相对路径；远程地址原样保留；读取失败保留原地址并汇总为警告。单篇与合并 Markdown 无本机资源时存 .md，有则存 .zip；项目 Markdown 包内 `content-link` 指向包内项目文档时改为相对 .md 链接，其余（含单篇、合并）降为标题文本——导出物不含数据库 id。
 - 导入：相对路径以 .md 所在目录为基准（兼容 `~`、`file://`、URL 编码），读出后经 `uploadResource` 走当前资源存储；附件入库后 `isLocal=false`（与插入附件时选「上传」一致）。

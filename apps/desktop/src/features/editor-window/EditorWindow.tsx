@@ -50,7 +50,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { closeWindow, setAlwaysOnTop } from "@/commands";
 import { platform } from "@/platform";
 import { requestOpenContentInMainWindow } from "@/services/main-window-requests";
-import ContentExportModal from "@/components/ContentExportModal";
+import { ContentDocumentImageExportModal } from "@/components/ContentExportModal/ContentDocumentImageExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, getContentLength } from "@/utils";
@@ -478,10 +478,10 @@ export function EditorWindow({
       </div>
 
       {/* 导出弹窗（PdfExportModal 的开合 prop 是 visible） */}
-      <ContentExportModal
+      <ContentDocumentImageExportModal
         open={exportKind === "image"}
         onClose={() => setExportKind(null)}
-        content={doc.content}
+        source={{ contentId: doc.contentId, ...source }}
         title={title}
       />
       <EpubExportModal

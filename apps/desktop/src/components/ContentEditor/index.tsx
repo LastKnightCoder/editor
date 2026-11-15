@@ -100,7 +100,11 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
       sessionError,
       frozen,
       swapping,
-    } = useContentDocument(contentId, source, props.kit, props.extensions);
+    } = useContentDocument(contentId, source, {
+      kit: props.kit,
+      extensions: props.extensions,
+      writable: !readonly,
+    });
     const session = sessions.find(item => item.id === binding?.doc.guid);
     const callback = useRef(props.onChange);
     const editorRef = useRef<EditorRef | null>(null);

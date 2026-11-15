@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import ContentExportModal from "@/components/ContentExportModal";
+import { SnapshotImagePreview } from "@/components/ContentExportModal/SnapshotImagePreview";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import PresentationMode from "@/components/PresentationMode";
@@ -10,6 +11,7 @@ import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 import { ConfirmDialog, toast } from "@tau/ui";
 import { createNotebookWithResources, notebookPlanImpact } from "@/services/notebook-creation";
+import { getContentKit } from "@/services/editorKit";
 import type {
   PluginActionRequest,
   PluginContentActionRequest,
@@ -47,7 +49,15 @@ export default function PluginContentActionView({ request }: { request: PluginAc
     return <PresentationMode content={request.content} onExit={request.close} />;
   if (request.action === "share") return <ShareAction request={request} />;
   if (request.format === "image")
-    return <ContentExportModal open onClose={request.close} content={request.content} />;
+    return (
+      <ContentExportModal
+        open
+        onClose={request.close}
+        renderPreview={preview => (
+          <SnapshotImagePreview {...preview} content={request.content} kit={getContentKit()} />
+        )}
+      />
+    );
   if (request.format === "epub")
     return (
       <EpubExportModal

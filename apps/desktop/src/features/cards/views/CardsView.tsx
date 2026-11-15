@@ -19,13 +19,14 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { morph, queryActivePageMorph } from "@/page/morph";
 import { FileText, FolderInput, Import, Layers, Plus, X } from "lucide-react";
 import type { Descendant } from "slate";
+import type { ContentSessionTarget } from "@tau/collaboration";
 import "../cards.css";
 import { type ICard } from "@/types";
 import { isElectron } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
 import CardDatabaseView from "../components/CardDatabaseView";
-import ContentExportModal from "@/components/ContentExportModal";
+import { ContentDocumentImageExportModal } from "@/components/ContentExportModal/ContentDocumentImageExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
@@ -85,7 +86,7 @@ export function CardsView() {
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ICard | null>(null);
   const [presenting, setPresenting] = useState<ICard | null>(null);
-  const [exportingImage, setExportingImage] = useState<ICard | null>(null);
+  const [exportingImage, setExportingImage] = useState<ContentSessionTarget | null>(null);
   const [exportingEpub, setExportingEpub] = useState<ICard | null>(null);
   const [exportingPdf, setExportingPdf] = useState<ICard | null>(null);
   /** 数据库视图删除确认桥：其 onDeleteCard 约定 Promise resolve 即删行、reject 即取消 */
@@ -201,7 +202,7 @@ export function CardsView() {
       });
     },
     onExportImage: card => {
-      void requireFullCard(card).then(full => full && setExportingImage(full));
+      setExportingImage({ contentId: card.contentId, sourceType: "card", sourceId: card.id });
     },
     onExportEpub: card => {
       void requireFullCard(card).then(full => full && setExportingEpub(full));
@@ -398,10 +399,10 @@ export function CardsView() {
           onExit={() => setPresenting(null)}
         />
       )}
-      <ContentExportModal
+      <ContentDocumentImageExportModal
         open={exportingImage !== null}
         onClose={() => setExportingImage(null)}
-        content={exportingImage?.content ?? []}
+        source={exportingImage ?? undefined}
       />
       <EpubExportModal
         open={exportingEpub !== null}

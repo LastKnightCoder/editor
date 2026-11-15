@@ -50,7 +50,7 @@ import { FadeScroll } from "@tau/ui";
 import AddTag from "@/components/AddTag";
 import PresentationMode from "@/components/PresentationMode";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
-import ContentExportModal from "@/components/ContentExportModal";
+import { ContentDocumentImageExportModal } from "@/components/ContentExportModal/ContentDocumentImageExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import ContentCollaborationControl, {
@@ -467,10 +467,10 @@ export function CardDetailView() {
       />
 
       {/* 导出弹窗×3（legacy 搬用；PdfExportModal 的开合 prop 是 visible） */}
-      <ContentExportModal
+      <ContentDocumentImageExportModal
         open={exportKind === "image"}
         onClose={() => setExportKind(null)}
-        content={card.content}
+        source={{ contentId: card.contentId, sourceType: "card", sourceId: card.id }}
       />
       <EpubExportModal
         contentId={card.contentId}

@@ -21,7 +21,7 @@ import type { ArticlePageItem, IArticle } from "@/types";
 import { isElectron } from "@/electron";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
 import useSettingStore from "@/stores/useSettingStore";
-import ContentExportModal from "@/components/ContentExportModal";
+import { ContentDocumentImageExportModal } from "@/components/ContentExportModal/ContentDocumentImageExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { IconButton, Menu, Popover, cn } from "@tau/ui";
@@ -29,7 +29,9 @@ import { IconButton, Menu, Popover, cn } from "@tau/ui";
 import { ARTICLE_PAGE_SIZE, bucketByMonths, useArticleFeed, useArticleMutations } from "../queries";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
 
-type ExportKind = "image" | "epub" | "pdf";
+type ExportState =
+  | { kind: "image"; article: Pick<IArticle, "id" | "contentId" | "title"> }
+  | { kind: "epub" | "pdf"; article: IArticle };
 
 interface ArticleSwitcherProps {
   currentId: number;
@@ -64,11 +66,7 @@ export function ArticleSwitcher({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ArticlePageItem | null>(null);
-  /* 弹窗导出需全文（条目是轻量分页契约）：先 findOneArticle 再开弹窗 */
-  const [exportState, setExportState] = useState<{
-    article: IArticle;
-    kind: ExportKind;
-  } | null>(null);
+  const [exportState, setExportState] = useState<ExportState | null>(null);
 
   const feed = useArticleFeed({
     tag: "",
@@ -99,7 +97,14 @@ export function ArticleSwitcher({
     }
   };
 
-  const openExportModal = async (item: ArticlePageItem, kind: ExportKind) => {
+  const openExportModal = async (item: ArticlePageItem, kind: ExportState["kind"]) => {
+    if (kind === "image" && item.contentId) {
+      setExportState({
+        kind,
+        article: { id: item.id, contentId: item.contentId, title: item.title },
+      });
+      return;
+    }
     const article = await findOneArticle(item.id);
     if (article) setExportState({ article, kind });
   };
@@ -280,15 +285,20 @@ export function ArticleSwitcher({
         )}
       </Popover>
 
-      {/* 弹窗导出（legacy 搬用；PdfExportModal 的开合 prop 是 visible） */}
-      {exportState && (
+      {exportState?.kind === "image" && (
+        <ContentDocumentImageExportModal
+          open
+          onClose={() => setExportState(null)}
+          source={{
+            contentId: exportState.article.contentId,
+            sourceType: "article",
+            sourceId: exportState.article.id,
+          }}
+          title={exportState.article.id === currentId ? currentTitle : exportState.article.title}
+        />
+      )}
+      {exportState && exportState.kind !== "image" && (
         <>
-          <ContentExportModal
-            open={exportState.kind === "image"}
-            onClose={() => setExportState(null)}
-            content={exportState.article.content}
-            title={exportState.article.title}
-          />
           <EpubExportModal
             open={exportState.kind === "epub"}
             onClose={() => setExportState(null)}

@@ -5,15 +5,11 @@
  */
 
 import { memo, useRef, useState, type ReactNode } from "react";
-import type { Descendant } from "slate";
 import { Copy, Download, X } from "lucide-react";
 import { useLocalStorageState, useSize } from "ahooks";
 import { Button, Dialog, IconButton, Select, Switch, cn, toast } from "@tau/ui";
 import { listThemes } from "@tau/themes";
 import { useThemeStore, type ThemeMode } from "@tau/themes/react";
-import { Editor, EditorThemeOverride } from "@tau/editor";
-
-import { getContentKit } from "@/services/editorKit";
 import { downloadBlob } from "@/utils/download";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import {
@@ -31,11 +27,17 @@ import {
 
 const PREFERENCE_KEY = "content-export-image";
 
+export interface ImageExportPreviewProps {
+  themeKey: string;
+  mode: ThemeMode;
+  onReadyChange(ready: boolean): void;
+}
+
 interface ContentExportModalProps {
   open: boolean;
   onClose: () => void;
-  content: Descendant[];
   title?: string;
+  renderPreview(props: ImageExportPreviewProps): ReactNode;
 }
 
 const exportDpr = () => Math.max(2, window.devicePixelRatio || 1);
@@ -43,13 +45,14 @@ const exportDpr = () => Math.max(2, window.devicePixelRatio || 1);
 const ContentExportModal = memo((props: ContentExportModalProps) => {
   const { open, onClose } = props;
   // 关闭时调用方常把内容清空，退场动画期间沿用上一次的内容，预览不闪成空白
-  const lastDoc = useRef({ content: props.content, title: props.title });
-  if (open) lastDoc.current = { content: props.content, title: props.title };
-  const { content, title } = lastDoc.current;
+  const lastPreview = useRef<Pick<ContentExportModalProps, "renderPreview" | "title"> | null>(null);
+  if (open) lastPreview.current = { renderPreview: props.renderPreview, title: props.title };
+  const { renderPreview, title } = lastPreview.current ?? props;
 
   const imageRef = useRef<HTMLDivElement>(null);
   const imageSize = useSize(imageRef);
   const [busy, setBusy] = useState<"copy" | "save" | null>(null);
+  const [previewReady, setPreviewReady] = useState(false);
 
   const appTheme = useThemeStore(s => s.theme);
   const appMode = useThemeStore(s => s.mode);
@@ -78,7 +81,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   };
 
   const run = async (kind: "copy" | "save") => {
-    if (busy) return;
+    if (!open || !previewReady || busy) return;
     setBusy(kind);
     try {
       const blob = await capture();
@@ -101,6 +104,9 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
     <Dialog
       open={open}
       onOpenChange={next => !next && onClose()}
+      onAfterClose={() => {
+        lastPreview.current = null;
+      }}
       title="导出图片"
       // 标题与关闭钉在右侧设置栏内，预览区占满整个左侧高度
       header={<></>}
@@ -110,7 +116,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
     >
       <div className="flex min-h-0 flex-1">
         <div className="bg-page min-w-0 flex-1 overflow-auto">
-          <div className="items-center-safe justify-center-safe flex min-h-full w-max min-w-full px-6 py-7">
+          <div className="flex min-h-full w-max min-w-full items-center-safe justify-center-safe px-6 py-7">
             <div className="shadow-card ring-line-1 shrink-0 ring-1">
               <div
                 ref={imageRef}
@@ -149,9 +155,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                     </div>
                   )}
                   <div className={cn((showTitle || showDate) && "mt-3.5")}>
-                    <EditorThemeOverride mode={mode} themeKey={themeKey}>
-                      <Editor kit={getContentKit()} initValue={content} readonly />
-                    </EditorThemeOverride>
+                    {renderPreview({ themeKey, mode, onReadyChange: setPreviewReady })}
                   </div>
                   {showSignature && (
                     <div className="text-ink-3 mt-6 flex items-center gap-[7px] text-[11.5px]">
@@ -169,14 +173,14 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
         </div>
 
         <div className="flex w-[300px] shrink-0 flex-col">
-          <div className="flex items-center gap-2.5 pb-1.5 pl-5 pr-3.5 pt-4">
+          <div className="flex items-center gap-2.5 pt-4 pr-3.5 pb-1.5 pl-5">
             <h2 className="text-ink-1 flex-1 text-[15px] font-[650]">导出图片</h2>
             <IconButton aria-label="关闭" onClick={onClose} className="size-7">
               <X className="size-4" strokeWidth={1.75} />
             </IconButton>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-3 pt-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2 pb-3">
             <section>
               <div className="flex items-center">
                 <SectionLabel>样式</SectionLabel>
@@ -275,14 +279,14 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             </section>
           </div>
 
-          <div className="flex flex-col gap-2.5 px-5 pb-[18px] pt-3">
+          <div className="flex flex-col gap-2.5 px-5 pt-3 pb-[18px]">
             <div className="grid grid-cols-[1fr_1.4fr] gap-2">
               <Button
                 icon={Copy}
                 onClick={() => void run("copy")}
                 loading={busy === "copy"}
                 loadingText="生成中…"
-                disabled={busy !== null}
+                disabled={!previewReady || busy !== null}
                 className="h-9"
               >
                 复制
@@ -293,7 +297,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                 onClick={() => void run("save")}
                 loading={busy === "save"}
                 loadingText="生成中…"
-                disabled={busy !== null}
+                disabled={!previewReady || busy !== null}
                 className="h-9"
               >
                 保存图片

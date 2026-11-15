@@ -50,7 +50,7 @@ import { ErrorBoundary } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import PresentationMode from "@/components/PresentationMode";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
-import ContentExportModal from "@/components/ContentExportModal";
+import { ContentDocumentImageExportModal } from "@/components/ContentExportModal/ContentDocumentImageExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import ContentCollaborationControl, {
@@ -584,10 +584,14 @@ export function ArticleDetailView() {
         </ComposeLayout>
 
         {/* 导出弹窗（legacy 搬用；PdfExportModal 的开合 prop 是 visible） */}
-        <ContentExportModal
+        <ContentDocumentImageExportModal
           open={exportKind === "image"}
           onClose={() => setExportKind(null)}
-          content={editingArticle.content}
+          source={{
+            contentId: editingArticle.contentId,
+            sourceType: "article",
+            sourceId: editingArticle.id,
+          }}
           title={editingArticle.title}
         />
         <EpubExportModal

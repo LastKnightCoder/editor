@@ -11,6 +11,7 @@ export interface MarkdownViewHandle extends FileViewHandle {
   toggleSource(): void;
   getMarkdown(): string;
   getContent(): Descendant[];
+  openImageExport(title: string): void;
 }
 
 /** 视图上报给页面的状态（面包屑 / 文件树未保存点、⋯ 菜单勾选态、侧栏大纲） */

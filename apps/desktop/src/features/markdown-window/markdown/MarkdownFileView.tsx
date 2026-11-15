@@ -10,6 +10,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -26,6 +27,8 @@ import { useThrottleFn } from "ahooks";
 import { Code2 } from "lucide-react";
 import { type EditorRef } from "@tau/editor";
 import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
+import ContentExportModal from "@/components/ContentExportModal";
+import { SnapshotImagePreview } from "@/components/ContentExportModal/SnapshotImagePreview";
 import {
   ContentOutline,
   extractContentHeaders,
@@ -43,6 +46,7 @@ import { createMarkdownDocument } from "./markdownDocument";
 import { createContentLengthCounter } from "./contentLength";
 import { createMarkdownContentPreparer } from "./prepareMarkdownContent";
 import { MarkdownRichSurface, type RichSurfaceState } from "./MarkdownRichSurface";
+import { isolatePreviewContent } from "./firstScreen";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -109,6 +113,17 @@ export const MarkdownFileView = forwardRef<
   );
   const snapshot = useSyncExternalStore(fileDocument.subscribe, fileDocument.getSnapshot);
   const content = snapshot.content;
+  const [imageExportTitle, setImageExportTitle] = useState<string | null>(null);
+  const imageExportOpen = imageExportTitle !== null;
+  const imagePreviewScope = `image-export-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const unprojectedMarkdown = snapshot.error ? snapshot.text : null;
+  const imagePreview = useMemo(() => {
+    if (!imageExportOpen) return [];
+    const nodes = unprojectedMarkdown === null ? content : importFromMarkdown(unprojectedMarkdown);
+    return isolatePreviewContent(nodes, imagePreviewScope, type =>
+      markdownKit.assembly.hasElement(type)
+    );
+  }, [imageExportOpen, content, unprojectedMarkdown, imagePreviewScope, markdownKit]);
   const getText = useCallback(() => fileDocument.getText(), [fileDocument]);
   const applySource = useCallback(
     (text: string) => fileDocument.applyMarkdown(text, "user"),
@@ -263,11 +278,25 @@ export const MarkdownFileView = forwardRef<
   );
 
   const getContent = useCallback(() => fileDocument.getContent(), [fileDocument]);
+  const openImageExport = useCallback(
+    (title: string) => {
+      if (!fileDocument.getSnapshot().loaded) return;
+      fileDocument.flushEditorChanges();
+      setImageExportTitle(title);
+    },
+    [fileDocument]
+  );
 
   useImperativeHandle(
     ref,
-    () => ({ flush: session.flush, toggleSource: toggle, getMarkdown: getText, getContent }),
-    [getContent, getText, session.flush, toggle]
+    () => ({
+      flush: session.flush,
+      toggleSource: toggle,
+      getMarkdown: getText,
+      getContent,
+      openImageExport,
+    }),
+    [getContent, getText, openImageExport, session.flush, toggle]
   );
 
   // ⌘S 立即保存（源码模式由 CodeMirror 自己的键位处理）；⌘/ 切换源码
@@ -375,6 +404,14 @@ export const MarkdownFileView = forwardRef<
 
   return (
     <>
+      <ContentExportModal
+        open={imageExportOpen}
+        onClose={() => setImageExportTitle(null)}
+        title={imageExportTitle ?? undefined}
+        renderPreview={preview => (
+          <SnapshotImagePreview {...preview} content={imagePreview} kit={markdownKit} />
+        )}
+      />
       {snapshot.error && (
         <FileBanner tone="warn" actions={[]}>
           暂时无法显示富文本，原文已保留，可继续编辑和保存源码：{snapshot.error}
@@ -415,12 +452,12 @@ export const MarkdownFileView = forwardRef<
               : column
           }
         >
-          <div className={outlineAsColumn ? "col-start-2 min-w-0 px-10 pb-24 pt-8" : undefined}>
+          <div className={outlineAsColumn ? "col-start-2 min-w-0 px-10 pt-8 pb-24" : undefined}>
             {sourceView}
             {richView}
           </div>
           {outlineAsColumn && (
-            <div className="col-start-3 min-w-0 pl-4 pr-3 pt-8">
+            <div className="col-start-3 min-w-0 pt-8 pr-3 pl-4">
               <div
                 ref={setOutlineScrollEl}
                 className={cn(

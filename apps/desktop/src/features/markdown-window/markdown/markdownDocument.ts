@@ -71,6 +71,7 @@ export function createMarkdownDocument(
       local.flush();
       return snapshot.text;
     },
+    flushEditorChanges: local.flush,
     getContent: () =>
       state.has("error") ? importFromMarkdown(raw.toString()) : local.getContent(),
     applyMarkdown: (value: string, source: LocalChangeSource) => {

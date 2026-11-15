@@ -10,7 +10,8 @@ const state = vi.hoisted(() => ({
   read: vi.fn(),
   write: vi.fn<(path: string, text: string) => Promise<void>>(async () => undefined),
   changed: undefined as
-    ((event: unknown, payload: { filePath: string }) => Promise<void>) | undefined,
+    | ((event: unknown, payload: { filePath: string }) => Promise<void>)
+    | undefined,
   editor: undefined as SlateEditor | undefined,
   source: undefined as
     | {
@@ -41,7 +42,9 @@ vi.stubGlobal(
     }
   }
 );
-vi.mock("@/commands/file", () => ({
+vi.mock("@/commands/file", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands/file")>()),
+  getHomeDir: vi.fn(async () => "/test"),
   readTextFile: state.read,
   writeTextFile: state.write,
   watchTextFile: vi.fn(async () => undefined),
@@ -252,6 +255,22 @@ it("打开不改写文件；外部插入保留编辑器及未修改块实例", a
   expect(view.getMarkdown()).toBe(external);
   await act(async () => view.flush());
   expect(state.write).not.toHaveBeenCalled();
+});
+
+it("保持图片导出弹窗打开时，预览随外部载入和正文编辑更新", async () => {
+  const { editor, view } = await mount("原文");
+  const preview = () => document.querySelector('[role="dialog"] [data-slate-editor]');
+  await act(async () => view.openImageExport("文档"));
+  expect(preview()?.textContent).toBe("原文");
+
+  state.read.mockResolvedValue("外部更新");
+  await act(async () => state.changed?.({}, { filePath: "/test/doc.md" }));
+  expect(preview()?.textContent).toBe("外部更新");
+  expect(state.write).not.toHaveBeenCalled();
+
+  await act(async () => Transforms.insertText(editor, "正文", { at: { path: [0, 0], offset: 4 } }));
+  expect(preview()?.textContent).toBe("外部更新正文");
+  expect(state.editor).toBe(editor);
 });
 
 it("无法投影的原文自动进入源码，修复后继续保存且不丢原文", async () => {

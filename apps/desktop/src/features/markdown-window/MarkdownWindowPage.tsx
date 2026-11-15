@@ -35,7 +35,6 @@ import { IconButton, Menu, Popover, ToastHost, cn, initScrollbarAutoHide, toast 
 import { AuxWindowTitlebar } from "@/app/AuxWindowTitlebar";
 import { ThemeToggle } from "@/app/Titlebar";
 import { useThemeRuntime } from "@/app/useThemeRuntime";
-import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { ContentOutline } from "@/components/ContentOutline";
@@ -76,7 +75,7 @@ const toastAdapter = {
   error: (msg: string) => toast.error(msg),
 };
 
-type ExportState = { kind: "image" | "epub" | "pdf"; content: Descendant[]; title: string } | null;
+type ExportState = { kind: "epub" | "pdf"; content: Descendant[]; title: string } | null;
 
 export default function MarkdownWindowPage() {
   useThemeRuntime();
@@ -359,7 +358,7 @@ export default function MarkdownWindowPage() {
             </Menu.Item>
             <Menu.Item
               icon={<ImageIcon className={MENU_ICON} strokeWidth={1.75} />}
-              onSelect={() => startExport("image")}
+              onSelect={() => viewRef.current?.openImageExport?.(fileTitle || "未命名文档")}
             >
               图片
             </Menu.Item>
@@ -557,12 +556,6 @@ export default function MarkdownWindowPage() {
         </main>
       </div>
 
-      <ContentExportModal
-        open={exporting?.kind === "image"}
-        onClose={() => setExporting(null)}
-        content={exporting?.content ?? []}
-        title={exporting?.title ?? ""}
-      />
       <EpubExportModal
         open={exporting?.kind === "epub"}
         onClose={() => setExporting(null)}

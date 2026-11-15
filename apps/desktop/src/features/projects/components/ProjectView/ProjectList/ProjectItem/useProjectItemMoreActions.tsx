@@ -3,7 +3,7 @@ import { ConfirmDialog } from "@tau/ui";
 import { usePluginMenuEntries, type MenuEntryList } from "../../shared/menuEntries";
 import { produce } from "immer";
 
-import ContentExportModal from "@/components/ContentExportModal";
+import { ContentDocumentImageExportModal } from "@/components/ContentExportModal/ContentDocumentImageExportModal";
 import EditTitleModal from "@/components/EditTitleModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import PresentationMode from "@/components/PresentationMode";
@@ -319,10 +319,16 @@ export const useProjectItemMoreActions = (
           />
         )}
 
-      <ContentExportModal
+      <ContentDocumentImageExportModal
         open={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
-        content={projectItem?.content || []}
+        source={
+          projectItem && {
+            contentId: projectItem.contentId,
+            sourceType: "project-item",
+            sourceId: projectItem.id,
+          }
+        }
         title={projectItem?.title || "项目文档"}
       />
       <EpubExportModal
