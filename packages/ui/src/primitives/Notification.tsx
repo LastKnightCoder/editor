@@ -41,6 +41,8 @@ export type NotificationTone = "neutral" | "ok" | "danger";
 
 export interface NotificationAction {
   label: string;
+  /** 打开详情的动作也可从卡片正文触发 */
+  reveal?: boolean;
   /** 主动作（accent 实心）；至多一个，放在数组末尾（主按钮在最右） */
   primary?: boolean;
   /** 返回 promise 即进入作答中：按钮 loading、整条锁定，兑现后退场，拒绝则卡内报错 */

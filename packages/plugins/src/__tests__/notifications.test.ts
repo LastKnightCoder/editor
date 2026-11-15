@@ -48,10 +48,11 @@ describe("插件通知", () => {
     const handle = context.notifications.send({
       title: "处理",
       mode: "system",
-      actions: [{ label: "打开", onClick }],
+      actions: [{ label: "打开", reveal: true, onClick }],
     });
     const action = send.mock.calls[0][2].actions?.[0];
     if (!action) throw new Error("缺少通知按钮");
+    expect(action.reveal).toBe(true);
     await action.onClick();
     expect(onClick).toHaveBeenCalledTimes(1);
     await handle.dispose();
