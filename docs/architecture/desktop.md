@@ -17,6 +17,7 @@
 - 主题唯一归属 `@tau/themes`，UI 原语唯一归属 `@tau/ui`；样式载体 Tailwind，手写 CSS 仅限 §4 的四类白名单；Less 与 antd 全仓为零且有门禁。
 - 壳层启动时序：必须等设置 store 的 `inited` 再连接活动数据库——缓存已有库名不代表设置初始化完成；初始化期间保持等待，就绪后自动连接；真实开库失败继续显示错误并支持重试，不得以绕过失败代替连接成功。
 - 渲染入口在同步安装日志、性能观测、命令桥与全局样式后，立即挂载轻量启动界面，再异步加载应用模块、编辑器扩展与内容插件；启动界面按当前阶段更新提示，阶段耗时写入性能快照。每次启动扫描插件目录和清单，从文件字节重新验证清单 SHA-256。摘要验证结果只在主进程内复用，真实路径、文件身份、大小、时间指纹和清单摘要均匹配才命中。已启用的内容插件定义由隔离窗口批量检查，检查结果随本次启动快照保存在内存中。两类缓存都随进程退出释放。扩展及插件初始化仍先于业务壳层，失败时显示启动错误，避免模块求值和异步初始化期间白屏。
+- 编辑器装配层直接消费 `editor-extensions/base.ts` 与附件叶子入口，不经扩展桶加载内容链接、聊天引用或项目列表扩展；宿主扩展由 `useDynamicExtensionsStore` 按叶子入口并行加载。引用插入操作直接读取 `content-editing/active-editor-session`，不加载审阅与方案模块。内容链接的正文预览、聊天引用的 Markdown 预览均按需加载。`pnpm check:desktop-startup` 检查这些传递静态依赖，并拒绝 EditorKit、基础扩展、内容链接及聊天引用入口的静态回环；检查不禁止正常的按需动态加载。
 - 窗口角色由 preload 的 `window.electron.windowRole` 提供，不在隔离渲染上下文读取 `process.argv`；设置完整初始化与微信读书启动校验只在主窗口执行。辅助窗口经 `setting-replica` 的 BroadcastChannel 请求主窗口运行时快照后置 `inited`（保留已校验状态、不回灌保存），各窗口仍订阅后端设置变更并可提交本地修改；无主窗口响应的独立窗口 1.5 秒后只读后端快照兜底，迟到响应不覆盖已收快照。主进程设置文件的首次并发读取共享在途任务，失败后允许重试。服务设置在读取与提交时经 `assertCurrentProviderSettings` 校验，只接受当前插件账号与选用；加载不转换旧凭据、不搬迁账本、不安装或启用插件，未支持的配置报错且原文件保留。
 - 切库按活动库名重建壳层与页面栈；`ensureDatabaseReady` 在连接成功且确认仍为当前库后、发布 ready 前清空全局查询缓存，并取消旧查询的结果接收——未带库名的查询不得跨库复用新鲜缓存或在途请求，迟到的旧连接结果不得清除当前库缓存（只作用于查询，不清 mutation 状态）。
 - 交互聊天与一次性带工具运行共用消息准备入口：图片传路径或 data URL、文件传本地定位提示；系统提示中的退役代理片段只从系统提示移除，用户正文保持原样。
@@ -574,7 +575,9 @@ export function useXxxSnapshot() {
 
 ## 3.5 构建与打包
 
-- 桌面使用 TypeScript 7 原生编译器与 Vite 8（Rolldown 打包、Oxc 压缩）。入口、外置运行依赖与资源复制在 `vite.config.mts` 声明。开发依赖预构建从生产构建声明的三个 HTML 入口扫描，避免把引用主进程模块的测试交给浏览器优化器。分包使用 `rolldownOptions.output.codeSplitting`，保留 React、React DOM、路由、Mermaid 与 KaTeX 分组。`@loadable` 独立分组，避免加载器进入业务循环依赖而在初始化前被调用；`node apps/desktop/scripts/verify-renderer-startup.mjs` 在隔离 Electron 窗口检查生产页面模块求值及 React 首次挂载，阻断网络访问，不代替真实业务或视觉验收。
+- 桌面使用 TypeScript 7 原生编译器与 Vite 8（Rolldown 打包、Oxc 压缩）。入口、外置运行依赖与资源复制在 `vite.config.mts` 声明。开发依赖预构建从生产构建声明的三个 HTML 入口扫描，避免把引用主进程模块的测试交给浏览器优化器。分包使用 `rolldownOptions.output.codeSplitting`，保留 React、React DOM、路由、Mermaid 与 KaTeX 分组。渲染产物启用 `output.strictExecutionOrder`，由打包器保留跨分包的源码模块初始化顺序，避免常量或基类在初始化前被访问；不再为 loadable 维护初始化顺序特例。此设置不消除源码循环依赖，依赖边界由 `check:desktop-startup` 独立检查并接入 `prebuild`。
+- 启动阶段经现有性能事件上报：`startup:bootstrap-ready` 表示模块与扩展装配完毕并已请求挂载应用树，`startup:renderer-ready` 由应用树的布局 effect 确认 React 提交；`startup:settings-ready`、`startup:database-ready` 分别确认设置初始化和当前库连接成功；`startup:shell-ready` 由业务壳层的 effect 确认提交。数据库失败上报 `startup:database-failed`；用户选择降级进入不会补发数据库成功信号。主窗口正常就绪必须同时满足上述成功阶段，启动提示或单一渲染信号都不代表业务就绪。
+- `node apps/desktop/scripts/verify-renderer-startup.mjs` 在隐藏的隔离 Electron 窗口验证三个生产入口：主窗口等待全部成功阶段并核对业务 DOM；内容转换实际执行文档契约准备并确认没有 Node/业务桥；插件窗口核对参数版本、React 提交与 ready 握手及专属桥。检查使用临时配置、空数据响应和受控后端通道，阻断真实网络，不读取用户工作区；启动异常、数据库失败、进程退出或超时均非零退出。`--app-root` 可指定包含 `dist` 与 `dist-electron` 的目录或 ASAR；该检查覆盖渲染入口与 preload，不代替真实主进程、数据库维护、原生运行时或视觉验收。操作见[客户端构建与安装](/docs/guides/ops-client-build-install.md)。
 - Vite 开发、样板间与构建命令统一 `--configLoader runner`（默认 bundle 加载器会把工作区 TS 配置依赖外部化导致 `ERR_UNKNOWN_FILE_EXTENSION`）；配置用 `fileURLToPath(import.meta.url)` 取目录。
 - `node apps/desktop/scripts/verify-plugin-content.mjs --production` 使用已经构建的 dist 内容页面，在隔离的临时 Electron 工作区验证真实内容插件；不带该参数时独立编译源码进行验证。
 - 桌面消费的编辑器扩展包、@tau/ui、@tau/themes 由 Vite 编入产物，统一声明在桌面 devDependencies——放 dependencies 会让 electron-builder 再收集整条生产依赖链；运行时从磁盘加载的外置模块与原生依赖保留生产声明，调整后检查实际安装包与原生运行时。

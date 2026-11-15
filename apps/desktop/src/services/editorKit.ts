@@ -8,8 +8,7 @@
  * 模块级单例而不是在 React 里创建：离屏测高、命令式面板等场景在 React 树之外也要用同一套
  * 服务与扩展，靠 Context 传递会各建一份（DOMSizeMeasurer 历史上就是如此）。
  *
- * 用函数而不是模块级常量：`@/editor-extensions` 会经扩展组件绕回本模块，
- * 模块初始化期创建 kit 会拿到未初始化的导入（详见 04 踩坑）。首次调用时才创建并缓存。
+ * 场景 kit 首次调用时创建并缓存，宿主扩展必须先完成装配。
  */
 import { createEditorKit, type EditorExtension, type EditorKit } from "@tau/editor";
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
@@ -21,7 +20,8 @@ import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor/extensions/code-block";
 import { mathExtensions } from "@tau/editor/extensions/math";
 import emojiExtension from "@tau/editor/extensions/emoji";
-import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
+import { createDesktopEditorExtensions } from "@/editor-extensions/base";
+import fileAttachmentExtension from "@/editor-extensions/file-attachment";
 import { hostElementGroups } from "@/editor-extensions/element-definitions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import docTasksExtension from "@/editor-extensions/doc-tasks";

@@ -24,7 +24,6 @@ vi.mock("../editorRegistry", () => ({
     register(IResourceService, { upload: async () => "" });
   }) satisfies ServiceRegistration,
 }));
-vi.mock("@/services/editorServiceImplementations", () => ({ desktopImportFromMarkdown: () => [] }));
 vi.mock("@/stores/useSettingStore", () => ({
   default: {
     getState: () => ({ setting: { appearance: {} } }),

@@ -12,6 +12,15 @@
 
 判据：依赖冻结安装成功，已有签名资料可用，源码提交、版本及目标架构明确。开发服务器或浏览器构建成功不能代替原生安装包成功。
 
+## 桌面生产启动检查
+
+1. 在仓库根执行 `pnpm check:desktop-startup`，再执行 `pnpm --filter desktop exec tsc --noEmit` 和 `pnpm --filter desktop exec vite build --configLoader runner`。
+2. 执行 `node apps/desktop/scripts/verify-renderer-startup.mjs`。依次看到主窗口完整就绪、内容转换与插件窗口握手通过，且退出码为 0，才算通过。检查使用隐藏窗口、临时配置和空数据响应，不连接真实工作区。
+3. 对初始化顺序故障，完整执行上一步三次，每次启动独立进程；保留日志与耗时。不要以失败后重开一次成功代替三次记录。
+4. 修改检查程序时执行 `node apps/desktop/scripts/verify-renderer-startup.mjs --fail-database`，必须报告数据库初始化失败并非零退出。正常检查不得携带此参数。
+5. 生成本地目录包后，执行 `node apps/desktop/scripts/verify-renderer-startup.mjs --app-root "<包内 app.asar 的绝对路径>"`，确认打包后的三个入口与 preload 通过。也可传入包含 `dist`、`dist-electron` 的独立产物目录。核对用于检查的工作区 Electron 版本与包内版本相同。
+6. 分别记录生产渲染检查、真实主进程与原生运行时、用户工作区及视觉验收的结果。ASAR 渲染检查不能代替后三项；目录包检查不上传更新源、不覆盖安装。
+
 ## 桌面 macOS
 
 签名、公证、构建与发布命令统一见 [macOS 手册](/docs/guides/ops-macos-code-signing.md)，产物体积排查见 [构建检查](/docs/guides/ops-build-size.md)。

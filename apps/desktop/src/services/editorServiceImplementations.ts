@@ -67,11 +67,6 @@ export const desktopFileService: FileService = {
   },
 };
 
-// ==================== Markdown 导入 ====================
-
-/** markdown 粘贴导入用的解析函数：与全应用共用 desktop 处理器（含业务元素 codec） */
-export { importFromMarkdown as desktopImportFromMarkdown } from "@/utils/markdown";
-
 // ==================== UI Slots ====================
 
 export const desktopEditorSlots: EditorSlots = {

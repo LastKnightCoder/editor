@@ -13,6 +13,7 @@ vi.mock("@/stores/useGlobalStateStore", async () => {
   return { default: create(() => ({ databaseStatus: {} })) };
 });
 vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn() }));
+vi.mock("@/utils/perf-observer", () => ({ recordPerfStage: vi.fn() }));
 vi.mock("@/page/PageProvider", () => ({
   PageProvider: () => <div>页面已就绪</div>,
   usePage: vi.fn(),
@@ -48,6 +49,7 @@ import AppShell from "../AppShell";
 import { connectDatabaseByName } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import { recordPerfStage } from "@/utils/perf-observer";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -69,6 +71,7 @@ it("缓存库名不变时等待设置就绪，再自动连接并进入页面", a
   expect(container.textContent).toContain("正在连接数据库");
   expect(container.textContent).not.toContain("数据库连接失败");
   expect(connectDatabaseByName).not.toHaveBeenCalled();
+  expect(recordPerfStage).not.toHaveBeenCalled();
 
   await act(async () => {
     useSettingStore.setState({ inited: true });
@@ -76,6 +79,7 @@ it("缓存库名不变时等待设置就绪，再自动连接并进入页面", a
   expect(connectDatabaseByName).toHaveBeenCalledExactlyOnceWith("data.db");
   expect(container.textContent).toContain("页面已就绪");
   expect(useGlobalStateStore.getState().databaseStatus["data.db"]).toBe("ready");
+  expect(recordPerfStage).toHaveBeenCalledWith("startup:database-ready", expect.any(Number));
 });
 
 it("设置已就绪时直接连接，真实连接失败仍显示错误并可重试", async () => {
@@ -84,6 +88,8 @@ it("设置已就绪时直接连接，真实连接失败仍显示错误并可重�
   await act(async () => root.render(<AppShell />));
   expect(container.textContent).toContain("开库失败");
   expect(useGlobalStateStore.getState().databaseStatus["data.db"]).toBe("error");
+  expect(recordPerfStage).toHaveBeenCalledWith("startup:database-failed", expect.any(Number));
+  expect(recordPerfStage).not.toHaveBeenCalledWith("startup:database-ready", expect.any(Number));
   await act(async () => {
     container.querySelector("button")?.click();
   });

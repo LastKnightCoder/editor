@@ -1,4 +1,5 @@
 import ReactDOM from "react-dom/client";
+import { useLayoutEffect, type ReactNode } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
@@ -66,13 +67,20 @@ async function bootstrap() {
   recordPerfStage("startup:content-plugins", pluginsStartedAt);
 
   root.render(
-    <QueryClientProvider client={queryClient}>
-      <DesktopPluginServicesProvider>
-        <App />
-      </DesktopPluginServicesProvider>
-    </QueryClientProvider>
+    <StartupCommit startedAt={startedAt}>
+      <QueryClientProvider client={queryClient}>
+        <DesktopPluginServicesProvider>
+          <App />
+        </DesktopPluginServicesProvider>
+      </QueryClientProvider>
+    </StartupCommit>
   );
-  recordPerfStage("startup:renderer-ready", startedAt);
+  recordPerfStage("startup:bootstrap-ready", startedAt);
+}
+
+function StartupCommit({ startedAt, children }: { startedAt: number; children: ReactNode }) {
+  useLayoutEffect(() => recordPerfStage("startup:renderer-ready", startedAt), [startedAt]);
+  return children;
 }
 
 function renderStartup(label: string) {

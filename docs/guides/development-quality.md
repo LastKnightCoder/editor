@@ -21,6 +21,7 @@ pnpm lint:all
 pnpm test:quality
 pnpm check:database-boundaries
 pnpm check:whiteboard-boundaries
+pnpm check:desktop-startup
 pnpm check:plugin-process-boundaries
 pnpm check:docs
 ```
@@ -78,6 +79,7 @@ pnpm code:stats --html --project apps/desktop
 
 ```sh
 pnpm --filter desktop exec vite build --configLoader runner
+node apps/desktop/scripts/verify-renderer-startup.mjs
 node apps/desktop/scripts/verify-plugin-content.mjs --production
 pnpm --filter mobile build
 pnpm --filter browser-extension build

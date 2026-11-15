@@ -7,7 +7,7 @@ import { Editor, Element, Path, Point, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { withNewUndoStep } from "@tau/editor/api";
 import { toast } from "@tau/ui";
-import { getActiveEditingTarget } from "@/services/content-editing";
+import { getActiveEditingTarget } from "@/services/content-editing/active-editor-session";
 import type { ChatQuoteElement, ChatRefElement, ChatRefPayload } from "./types";
 import { copyChatRefLink } from "./link";
 

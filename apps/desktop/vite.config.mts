@@ -216,12 +216,12 @@ export default defineConfig(() => {
           "plugin-window": path.resolve(__dirname, "plugin-window.html"),
         },
         output: {
+          // 保留跨分包的模块初始化顺序，避免并行加载时提前访问常量或基类。
+          strictExecutionOrder: true,
           codeSplitting: {
             groups: [
               { name: "react", test: /[/\\]node_modules[/\\]react[/\\]/, priority: 50 },
               { name: "react-dom", test: /[/\\]node_modules[/\\]react-dom[/\\]/, priority: 40 },
-              // 加载器须先于业务块初始化，避免落入业务循环依赖后在启动时调用到 undefined。
-              { name: "loadable", test: /[/\\]node_modules[/\\]@loadable[/\\]/, priority: 35 },
               {
                 name: "react-router-dom",
                 test: /[/\\]node_modules[/\\]react-router-dom[/\\]/,

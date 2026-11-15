@@ -15,9 +15,11 @@ const extensionOf = (type: string): EditorExtension =>
   });
 
 /** desktop 静态扩展（markdown 粘贴导入、webview、图片覆盖）在此用 webview 一个哨兵代表 */
-vi.mock("@/editor-extensions", () => ({
+vi.mock("@/editor-extensions/base", () => ({
   createDesktopEditorExtensions: () => [extensionOf("webview")],
-  fileAttachmentExtension: extensionOf("file-attachment"),
+}));
+vi.mock("@/editor-extensions/file-attachment", () => ({
+  default: extensionOf("file-attachment"),
 }));
 vi.mock("@/editor-extensions/flashcard-blank", () => ({
   default: extensionOf("flashcard-blank"),

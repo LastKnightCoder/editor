@@ -41,6 +41,7 @@ import {
   SIDEBAR_EXPAND_W,
 } from "./shellStore";
 import { ensureDatabaseReady } from "./databaseReady";
+import { recordPerfStage } from "@/utils/perf-observer";
 import { useNotificationBridge } from "@/features/notifications/useNotificationBridge";
 import { useReminderOpen } from "./useReminderOpen";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
@@ -71,19 +72,24 @@ function ShellBody() {
   const settingInited = useSettingStore(state => state.inited);
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
   const [bootError, setBootError] = useState("");
+  const startedAt = useRef(performance.now());
 
   useThemeRuntime();
 
   const connect = useCallback(() => {
     setBoot("connecting");
     setBootError("");
-    // 数据命令的前置：连接当前数据库（失败停在启动屏，可重试或降级进入，
-    // 各数据区块自行降级为空态）
-    ensureDatabaseReady(setBootError).then(ok => setBoot(ok ? "ready" : "failed"));
+    ensureDatabaseReady(setBootError).then(ok => {
+      recordPerfStage(ok ? "startup:database-ready" : "startup:database-failed", startedAt.current);
+      setBoot(ok ? "ready" : "failed");
+    });
   }, []);
 
   useEffect(() => {
-    if (settingInited) connect();
+    if (settingInited) {
+      recordPerfStage("startup:settings-ready", startedAt.current);
+      connect();
+    }
   }, [connect, settingInited]);
 
   useEffect(() => initScrollbarAutoHide(), []);
@@ -144,13 +150,14 @@ function ShellBody() {
     <PageProvider initialKey="home">
       <PageNavigationBridge />
       <DesktopPluginProvider>
-        <ShellLayout />
+        <ShellLayout startedAt={startedAt.current} />
       </DesktopPluginProvider>
     </PageProvider>
   );
 }
 
-function ShellLayout() {
+function ShellLayout({ startedAt }: { startedAt: number }) {
+  useEffect(() => recordPerfStage("startup:shell-ready", startedAt), [startedAt]);
   const { state } = usePage();
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);

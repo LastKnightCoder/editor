@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { lazy, memo, Suspense, type ReactNode } from "react";
 import {
   ArrowUpRight,
   FileText,
@@ -9,11 +9,12 @@ import {
   Unlink,
   type LucideIcon,
 } from "lucide-react";
-import { AnchoredPanel, Button, PanelHasHeaderContext, cn } from "@tau/ui";
-import Editor from "@/components/ContentEditor";
+import { AnchoredPanel, Button, PanelHasHeaderContext, Spinner, cn } from "@tau/ui";
 import { useEntityKindMeta, type KindIcon } from "@/components/EntityKind";
 import { formatAgo } from "@/utils/formatAgo";
 import { IContent } from "@/types";
+
+const Editor = lazy(() => import("@/components/ContentEditor"));
 
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
   card: { label: "卡片", icon: Layers, tone: "bg-ok-soft text-ok" },
@@ -47,12 +48,12 @@ const Header = ({
   title: string;
   meta: ReactNode;
 }) => (
-  <div className="flex items-center gap-2.5 px-4 pb-1 pt-3.5">
+  <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1">
     <span className={cn("rounded-tau-sm grid size-7 shrink-0 place-items-center", tone)}>
       <Icon className="size-[15px]" strokeWidth={1.75} />
     </span>
     <div className="min-w-0">
-      <div className="text-tau-title text-ink-1 truncate font-semibold leading-tight">{title}</div>
+      <div className="text-tau-title text-ink-1 truncate leading-tight font-semibold">{title}</div>
       <div className="text-tau-micro text-ink-3 mt-0.5 truncate">{meta}</div>
     </div>
   </div>
@@ -112,9 +113,11 @@ const Content = memo((props: IContentProps) => {
         meta={`${typeMeta.label} · ${formatAgo(content.updateTime)}编辑`}
       />
       <AnchoredPanel.Body className="max-h-[260px]">
-        <Editor key={content.id} initValue={content.content} readonly />
+        <Suspense fallback={<Spinner />}>
+          <Editor key={content.id} initValue={content.content} readonly />
+        </Suspense>
       </AnchoredPanel.Body>
-      <AnchoredPanel.Footer className="justify-between py-2 pl-4 pr-2.5">
+      <AnchoredPanel.Footer className="justify-between py-2 pr-2.5 pl-4">
         <span className="text-tau-micro text-ink-3">
           {content.count > 0 ? `约 ${content.count} 字` : ""}
         </span>

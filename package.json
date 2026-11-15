@@ -5,6 +5,7 @@
   "scripts": {
     "code:stats": "node scripts/count-code.mjs",
     "check:whiteboard-boundaries": "node scripts/check-whiteboard-boundaries.mjs",
+    "check:desktop-startup": "node scripts/check-desktop-startup-boundaries.mjs",
     "check:plugin-process-boundaries": "node scripts/check-plugin-process-boundaries.mjs",
     "check:database-boundaries": "node scripts/check-database-boundaries.mjs",
     "check:docs": "node scripts/check-docs.mjs",
