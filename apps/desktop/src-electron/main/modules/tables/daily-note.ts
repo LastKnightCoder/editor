@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { DailyNote } from "@/types/daily_note";
 import Operation from "./operation";
 import ContentTable from "./content";
+import { replaceColdContent } from "./content-replacement";
 import { getContentLength } from "@/utils/helper.ts";
 
 export default class DailyNoteTable {
@@ -56,7 +57,7 @@ export default class DailyNoteTable {
 
     if (existingNote.contentId) {
       // 更新现有content记录
-      ContentTable.updateContent(
+      replaceColdContent(
         db,
         existingNote.contentId,
         {

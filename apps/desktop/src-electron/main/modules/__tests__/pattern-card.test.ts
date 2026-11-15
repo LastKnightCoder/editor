@@ -140,6 +140,47 @@ describe("同一思路写成卡片", () => {
     expect(statusOf(nodeId)).toBe("open");
   });
 
+  it("撤回时标记写入失败会回滚卡片、正文和关系，重试后完整撤回", () => {
+    const peer = card();
+    const source = { kind: "project-item", id: 3 } as const;
+    const nodeId = savePattern([card$(peer), source]);
+    const { card: created } = createPatternCard(db, nodeId, "p1");
+    const readBody = db.prepare("SELECT * FROM contents WHERE id = ?");
+    const readOperations = db.prepare("SELECT * FROM operation ORDER BY id");
+    const snapshot = () => ({
+      card: CardTable.getCardById(db, created.id),
+      body: readBody.get(created.contentId),
+      connections: linkedContentsOf(peer),
+      lineage: EntityLineageTable.derivedOf(db, [source]),
+      status: statusOf(nodeId),
+      operations: readOperations.all(),
+    });
+    const before = snapshot();
+    expect(before.body).toMatchObject({ ref_count: 1 });
+    expect(before.connections).toEqual(new Set([created.contentId]));
+    expect(before.lineage).toHaveLength(1);
+    expect(before.status).toBe("linked");
+
+    db.exec(`CREATE TEMP TRIGGER reject_pattern_reopen BEFORE UPDATE OF result ON knowledge_ai_insights
+      WHEN NEW.id = ${nodeId} AND json_extract(NEW.result, '$.marks[0].status') = 'open'
+        AND NOT EXISTS (SELECT 1 FROM cards WHERE id = ${created.id})
+        AND NOT EXISTS (SELECT 1 FROM contents WHERE id = ${created.contentId})
+      BEGIN SELECT RAISE(ABORT, '基准注入：恢复模式卡片标记失败'); END`);
+    const discard = () => discardPatternCard(db, nodeId, "p1", created.id);
+    expect(discard).toThrow("基准注入：恢复模式卡片标记失败");
+    expect(snapshot()).toEqual(before);
+
+    db.exec("DROP TRIGGER reject_pattern_reopen");
+    expect(discard()?.card.id).toBe(created.id);
+    expect(snapshot()).toMatchObject({
+      card: null,
+      body: undefined,
+      connections: new Set(),
+      lineage: [],
+      status: "open",
+    });
+  });
+
   it("已经写了内容的卡片不撤回", () => {
     const a = card();
     const nodeId = savePattern([card$(a)]);

@@ -1,0 +1,275 @@
+{
+  "fixtureVersion": 1,
+  "identity": {
+    "version": 2,
+    "documentId": "baseline-content-v1",
+    "baselineId": "baseline-epoch-v1",
+    "epoch": 1
+  },
+  "contracts": {
+    "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281": {
+      "format": 2,
+      "owner": "baseline.paragraph",
+      "type": "paragraph",
+      "dataVersion": 1,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": false
+    },
+    "653c7a3981de55f1e569845c0aa7e8c072fe2cadf3b132957b8432ffcca58c39": {
+      "format": 2,
+      "owner": "baseline.blockquote",
+      "type": "blockquote",
+      "dataVersion": 1,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": false
+    },
+    "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615": {
+      "format": 2,
+      "owner": "baseline.baseline-source",
+      "type": "baseline-source",
+      "dataVersion": 1,
+      "textFields": ["source"],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": true
+    },
+    "3635411f40ee2e277c84337f63a5aee01d1939811367e1566c732d717a741709": {
+      "format": 2,
+      "owner": "baseline.image",
+      "type": "image",
+      "dataVersion": 1,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": [
+        {
+          "path": "url",
+          "kind": "image"
+        }
+      ],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": true
+    },
+    "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042": {
+      "format": 2,
+      "owner": "baseline.baseline-unknown",
+      "type": "baseline-unknown",
+      "dataVersion": 1,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": true
+    }
+  },
+  "initial": {
+    "title": "固定正文基准",
+    "bannerBg": "",
+    "bannerPosition": "center",
+    "content": [
+      {
+        "type": "paragraph",
+        "collabId": "empty",
+        "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "collabId": "unicode",
+        "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+        "children": [
+          {
+            "text": "甲🙂é乙",
+            "bold": true
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "collabId": "quote",
+        "tauContract": "653c7a3981de55f1e569845c0aa7e8c072fe2cadf3b132957b8432ffcca58c39",
+        "children": [
+          {
+            "type": "paragraph",
+            "collabId": "nested",
+            "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+            "children": [
+              {
+                "text": "嵌套正文"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "baseline-source",
+        "collabId": "source",
+        "tauContract": "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615",
+        "source": "const 内容 = \"保留\";\n",
+        "language": "typescript",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "image",
+        "collabId": "image",
+        "tauContract": "3635411f40ee2e277c84337f63a5aee01d1939811367e1566c732d717a741709",
+        "url": "https://example.invalid/baseline.png",
+        "alt": "图片原始替代文本",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "baseline-unknown",
+        "collabId": "unknown",
+        "tauContract": "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042",
+        "payload": {
+          "version": 7,
+          "steps": [
+            {
+              "name": "未知步骤",
+              "value": 17
+            }
+          ],
+          "flags": [true, false]
+        },
+        "extra": "不能静默丢弃",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      }
+    ]
+  },
+  "operations": [
+    {
+      "kind": "insertText",
+      "nodeId": "unicode",
+      "index": 1,
+      "text": "新"
+    },
+    {
+      "kind": "insertText",
+      "nodeId": "nested",
+      "index": 0,
+      "text": "引用："
+    },
+    {
+      "kind": "moveNode",
+      "nodeId": "unknown",
+      "index": 2
+    }
+  ],
+  "expected": {
+    "title": "固定正文基准",
+    "bannerBg": "",
+    "bannerPosition": "center",
+    "content": [
+      {
+        "type": "paragraph",
+        "collabId": "empty",
+        "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "collabId": "unicode",
+        "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+        "children": [
+          {
+            "text": "甲新🙂é乙",
+            "bold": true
+          }
+        ]
+      },
+      {
+        "type": "baseline-unknown",
+        "collabId": "unknown",
+        "tauContract": "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042",
+        "payload": {
+          "version": 7,
+          "steps": [
+            {
+              "name": "未知步骤",
+              "value": 17
+            }
+          ],
+          "flags": [true, false]
+        },
+        "extra": "不能静默丢弃",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "collabId": "quote",
+        "tauContract": "653c7a3981de55f1e569845c0aa7e8c072fe2cadf3b132957b8432ffcca58c39",
+        "children": [
+          {
+            "type": "paragraph",
+            "collabId": "nested",
+            "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+            "children": [
+              {
+                "text": "引用：嵌套正文"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "baseline-source",
+        "collabId": "source",
+        "tauContract": "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615",
+        "source": "const 内容 = \"保留\";\n",
+        "language": "typescript",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "image",
+        "collabId": "image",
+        "tauContract": "3635411f40ee2e277c84337f63a5aee01d1939811367e1566c732d717a741709",
+        "url": "https://example.invalid/baseline.png",
+        "alt": "图片原始替代文本",
+        "children": [
+          {
+            "text": ""
+          }
+        ]
+      }
+    ]
+  }
+}

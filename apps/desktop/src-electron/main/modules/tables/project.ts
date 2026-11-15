@@ -22,11 +22,15 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import { ContentIdentityTable } from "./content-identity";
 import type { ContentEntityTarget } from "@tau/db-schema/content-identities";
-import { canonicalContentTitle, setCanonicalContentTitle } from "../collaboration/content-sessions";
+import { prepareCanonicalContentTitle } from "../collaboration/content-sessions";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
 import WhiteBoardContentTable from "./white-board-content";
+import {
+  collectProjectItemSubtreeIds,
+  ProjectItemOwnership,
+} from "../content-ownership/project-item-content";
 
 import log from "electron-log";
 
@@ -96,8 +100,11 @@ export default class ProjectTable {
       "delete-project": this.deleteProject.bind(this),
       "get-project": this.getProject.bind(this),
       "get-all-projects": this.getAllProjects.bind(this),
-      "update-project-item": this.updateProjectItem.bind(this),
-      "delete-project-item": this.deleteProjectItem.bind(this),
+      "update-project-item": asynchronousDatabaseCommand(
+        async (db: Database.Database, item: UpdateProjectItem, ctx: CommandContext) =>
+          this.updateProjectItem(db, item, ctx)
+      ),
+      "delete-project-item": (db: Database.Database, id: number) => this.deleteProjectItem(db, id),
       "get-project-item": this.getProjectItem.bind(this),
       "project-item:reference": this.reference.bind(this),
       "project-item:children": this.getChildren.bind(this),
@@ -117,8 +124,19 @@ export default class ProjectTable {
       "add-child-project-item": this.addChildProjectItem.bind(this),
       "add-ref-root-project-item": this.addRefRootProjectItem.bind(this),
       "add-ref-child-project-item": this.addRefChildProjectItem.bind(this),
-      "remove-root-project-item": this.removeRootProjectItem.bind(this),
-      "remove-child-project-item": this.removeChildProjectItem.bind(this),
+      "remove-root-project-item": (
+        db: Database.Database,
+        projectId: number,
+        itemId: number,
+        notDelete?: unknown
+      ) => this.removeRootProjectItem(db, projectId, itemId, notDelete === true),
+      "remove-child-project-item": (
+        db: Database.Database,
+        projectId: number,
+        parentId: number,
+        itemId: number,
+        notDelete?: unknown
+      ) => this.removeChildProjectItem(db, projectId, parentId, itemId, notDelete === true),
       "move-project-tree-item": this.moveProjectTreeItem.bind(this),
       "get-project-items-by-dates": this.getProjectItemsByDates.bind(this),
       "get-project-items-by-date-range": this.getProjectItemsByDateRange.bind(this),
@@ -235,18 +253,39 @@ export default class ProjectTable {
   }
 
   static deleteProject(db: Database.Database, id: number): number {
-    // 项目即文档树：所有 project_item 的 projects 字段中删除该项目的 id
-    const projectItems = this.getProjectItemsByProjectId(db, id);
-    for (const item of projectItems) {
-      item.projects = item.projects.filter((p: number) => p !== id);
-      this.updateProjectItem(db, item);
-    }
-    // 尝试删除无 projects 的 project_item
-    this.deleteProjectItemsNotInAnyProject(db);
+    return db.transaction(() => {
+      if (!db.prepare("SELECT 1 FROM project WHERE id = ?").get(id)) return 0;
+      const members = this.getProjectItemsByProjectId(db, id);
+      const affected = new Map(members.map(item => [item.id, item]));
+      const deleted = new Set<number>();
+      for (const item of members) {
+        if (item.projects.some(projectId => projectId !== id)) continue;
+        if (!this.deleteProjectItem(db, item.id)) continue;
+        deleted.add(item.id);
+        for (const neighborId of [...item.parents, ...item.children]) {
+          if (affected.has(neighborId)) continue;
+          const neighbor = this.getProjectItem(db, neighborId);
+          if (neighbor) affected.set(neighbor.id, neighbor);
+        }
+      }
+      for (const item of affected.values()) {
+        if (deleted.has(item.id)) continue;
+        const projects = item.projects.filter(projectId => projectId !== id);
+        const parents = item.parents.filter(parentId => !deleted.has(parentId));
+        const children = item.children.filter(childId => !deleted.has(childId));
+        if (
+          projects.length === item.projects.length &&
+          parents.length === item.parents.length &&
+          children.length === item.children.length
+        ) {
+          continue;
+        }
+        this.updateProjectItemDirectory(db, { ...item, projects, parents, children });
+      }
 
-    const stmt = db.prepare("DELETE FROM project WHERE id = ?");
-    Operation.insertOperation(db, "project", "delete", id, Date.now());
-    return stmt.run(id).changes;
+      Operation.insertOperation(db, "project", "delete", id, Date.now());
+      return db.prepare("DELETE FROM project WHERE id = ?").run(id).changes;
+    })();
   }
 
   static getProject(db: Database.Database, id: number): Project {
@@ -267,47 +306,25 @@ export default class ProjectTable {
     return projects.map(p => this.parseProject(p));
   }
 
-  static getContentIdByProjectItem(db: Database.Database, item: CreateProjectItem): number {
-    let contentId = 0;
-    if (item.contentId) {
-      contentId = item.contentId;
-      ContentTable.incrementRefCount(db, contentId);
-    } else if (item.refType === "content" && item.refId) {
-      const content = ContentTable.getContentById(db, item.refId);
-      if (content) {
-        contentId = content.id;
-        ContentTable.incrementRefCount(db, contentId);
-      }
-    } else if (item.refType === "card" && item.refId) {
-      const card = CardTable.getCardById(db, item.refId);
-      if (card) {
-        contentId = card.contentId;
-        ContentTable.incrementRefCount(db, contentId);
-      }
-    } else if (item.refType === "article" && item.refId) {
-      const article = ArticleTable.getArticleById(db, item.refId);
-      if (article) {
-        contentId = article.contentId;
-        ContentTable.incrementRefCount(db, contentId);
-      }
-    } else if (item.projectItemType === EProjectItemType.Document && item.content) {
-      contentId = ContentTable.createContent(db, {
-        content: item.content,
-        contracts: item.contracts,
-        count: item.count ?? getContentLength(item.content),
-      });
-    }
-
-    return contentId;
-  }
-
   static updateProjectItem(
     db: Database.Database,
     item: UpdateProjectItem,
     ctx: CommandContext = fallbackCommandContext
   ): ProjectItem | null {
-    // 标题以协作会话为真源：用户显式改名时先回写协作标题，避免随后被旧标题覆盖
-    setCanonicalContentTitle(db, item.contentId, item.title ?? "");
+    const { saved, publishTitle } = db.transaction(() =>
+      this.writeProjectItemMetadata(db, item, ctx, item.title)
+    )();
+    publishTitle?.();
+    return saved;
+  }
+
+  static writeProjectItemMetadata(
+    db: Database.Database,
+    item: UpdateProjectItem,
+    ctx: CommandContext,
+    requestedTitle: string | undefined
+  ): { saved: ProjectItem | null; publishTitle?: () => void } {
+    const title = prepareCanonicalContentTitle(db, item.contentId, requestedTitle);
 
     const stmt = db.prepare(`
       UPDATE project_item SET
@@ -325,7 +342,7 @@ export default class ProjectTable {
     const now = Date.now();
     stmt.run(
       now,
-      canonicalContentTitle(db, item.contentId) ?? item.title,
+      title.title ?? item.title,
       JSON.stringify(item.children ?? []),
       JSON.stringify(item.parents ?? []),
       JSON.stringify(item.projects ?? []),
@@ -336,6 +353,32 @@ export default class ProjectTable {
       item.id
     );
 
+    Operation.insertOperation(db, "project-item", "update", item.id, now);
+    this.broadcastProjectItemUpdated(db, item, ctx);
+    return { saved: this.getProjectItem(db, item.id), publishTitle: title.publish };
+  }
+
+  static updateProjectItemDirectory(db: Database.Database, item: ProjectItem): ProjectItem | null {
+    const now = Date.now();
+    db.prepare(
+      "UPDATE project_item SET update_time = ?, children = ?, parents = ?, projects = ? WHERE id = ?"
+    ).run(
+      now,
+      JSON.stringify(item.children),
+      JSON.stringify(item.parents),
+      JSON.stringify(item.projects),
+      item.id
+    );
+    Operation.insertOperation(db, "project-item", "update", item.id, now);
+    this.broadcastProjectItemUpdated(db, item, fallbackCommandContext);
+    return this.getProjectItem(db, item.id);
+  }
+
+  private static broadcastProjectItemUpdated(
+    db: Database.Database,
+    item: UpdateProjectItem,
+    ctx: CommandContext
+  ): void {
     ctx.broadcastOthers("project-item:updated", {
       databaseName: basename(db.name),
       projectItemId: item.id,
@@ -351,10 +394,6 @@ export default class ProjectTable {
         articleId: item.refId,
       });
     }
-
-    Operation.insertOperation(db, "project-item", "update", item.id, now);
-
-    return this.getProjectItem(db, item.id);
   }
 
   /** deferContent：正文只延迟释放（插件删除，宽限期内可恢复） */
@@ -363,44 +402,25 @@ export default class ProjectTable {
     id: number,
     options: { deferContent?: boolean } = {}
   ): boolean {
-    // 获取project_item信息，以获取contentId
-    const itemInfo = this.getProjectItem(db, id);
-    if (!itemInfo) {
-      return false;
+    return this.itemOwnership(db).deleteItem(id, options.deferContent ? "deferred" : "immediate");
+  }
+
+  private static removeProjectItemRow(db: Database.Database, id: number): boolean {
+    const deleted = db.prepare("DELETE FROM project_item WHERE id = ?").run(id).changes > 0;
+    if (deleted) ContentIdentityTable.retire(db, "project-item", id);
+    return deleted;
+  }
+
+  private static cleanupDeletedItem(db: Database.Database, item: ProjectItem): void {
+    if (item.projectItemType === EProjectItemType.VideoNote) {
+      VideoNoteTable.deleteVideoNote(db, item.refId);
     }
-
-    const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
-    const changes = db.transaction(() => {
-      const deleted = stmt.run(id).changes;
-      if (deleted) ContentIdentityTable.retire(db, "project-item", id);
-      return deleted;
-    })();
-
-    log.info(`删除项目条目数: ${changes}`);
-
-    if (changes > 0) {
-      if (itemInfo.contentId) {
-        // 删除关联的content记录（减少引用计数）
-        if (options.deferContent) ContentTable.releaseDeferred(db, itemInfo.contentId);
-        else ContentTable.deleteContent(db, itemInfo.contentId);
-      }
-      if (itemInfo.projectItemType === EProjectItemType.VideoNote) {
-        VideoNoteTable.deleteVideoNote(db, itemInfo.refId);
-      }
-      log.info(`删除白板内容: ${JSON.stringify(itemInfo, null, 2)}`);
-      if (
-        itemInfo.projectItemType === EProjectItemType.WhiteBoard &&
-        itemInfo.whiteBoardContentId
-      ) {
-        WhiteBoardContentTable.deleteWhiteboard(db, itemInfo.whiteBoardContentId);
-      }
-
-      FTSTable.removeIndexByIdAndType(db, id, "project-item");
-      VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
-      Operation.insertOperation(db, "project-item", "delete", id, Date.now());
+    if (item.projectItemType === EProjectItemType.WhiteBoard && item.whiteBoardContentId) {
+      WhiteBoardContentTable.deleteWhiteboard(db, item.whiteBoardContentId);
     }
-
-    return changes > 0;
+    FTSTable.removeIndexByIdAndType(db, item.id, "project-item");
+    VecDocumentTable.removeIndexByIdAndType(db, item.id, "project-item");
+    Operation.insertOperation(db, "project-item", "delete", item.id, Date.now());
   }
 
   static reference(db: Database.Database, id: number) {
@@ -612,46 +632,7 @@ export default class ProjectTable {
     projectId: number,
     projectItem: CreateProjectItem
   ): [Project, ProjectItem | null] {
-    const contentId = this.getContentIdByProjectItem(db, projectItem);
-
-    if (
-      projectItem.refType === "white-board" &&
-      projectItem.whiteBoardContentId &&
-      projectItem.projectItemType === EProjectItemType.WhiteBoard
-    ) {
-      WhiteBoardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
-    }
-
-    const now = Date.now();
-    const stmt = db.prepare(`
-      INSERT INTO project_item
-      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const res = stmt.run(
-      now,
-      now,
-      projectItem.title,
-      contentId,
-      JSON.stringify(projectItem.children || []),
-      JSON.stringify([]),
-      JSON.stringify([projectId]),
-      projectItem.refType,
-      projectItem.refId || 0,
-      projectItem.whiteBoardContentId || 0,
-      projectItem.projectItemType || EProjectItemType.Document,
-      JSON.stringify(projectItem.tags ?? [])
-    );
-
-    const createdItemId = Number(res.lastInsertRowid);
-    Operation.insertOperation(db, "project-item", "insert", createdItemId, now);
-
-    const project = this.getProject(db, projectId);
-    project.children.push(createdItemId);
-    this.updateProject(db, project);
-
-    return [project, this.getProjectItem(db, createdItemId)];
+    return this.itemOwnership(db).addRoot(projectId, projectItem);
   }
 
   static addChildProjectItem(
@@ -659,54 +640,7 @@ export default class ProjectTable {
     parentProjectItemId: number,
     projectItem: CreateProjectItem
   ): [ProjectItem | null, ProjectItem | null] | null {
-    const parentProjectItem = this.getProjectItem(db, parentProjectItemId);
-    if (!parentProjectItem) {
-      return null;
-    }
-
-    const contentId = this.getContentIdByProjectItem(db, projectItem);
-    if (
-      projectItem.refType === "white-board" &&
-      projectItem.whiteBoardContentId &&
-      projectItem.projectItemType === EProjectItemType.WhiteBoard
-    ) {
-      WhiteBoardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
-    }
-
-    const now = Date.now();
-    const stmt = db.prepare(`
-      INSERT INTO project_item
-      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const res = stmt.run(
-      now,
-      now,
-      projectItem.title,
-      contentId,
-      JSON.stringify(projectItem.children || []),
-      JSON.stringify([parentProjectItemId]),
-      JSON.stringify(parentProjectItem.projects || []),
-      projectItem.refType,
-      projectItem.refId || 0,
-      projectItem.whiteBoardContentId || 0,
-      projectItem.projectItemType || EProjectItemType.Document,
-      JSON.stringify(projectItem.tags ?? [])
-    );
-
-    const createdItemId = Number(res.lastInsertRowid);
-    Operation.insertOperation(db, "project-item", "insert", createdItemId, now);
-
-    const currentChildren = new Set(parentProjectItem.children);
-    currentChildren.add(createdItemId);
-    parentProjectItem.children = Array.from(currentChildren);
-    const updatedParentProjectItem = this.updateProjectItem(db, parentProjectItem);
-    if (!updatedParentProjectItem) {
-      return null;
-    }
-
-    return [updatedParentProjectItem, this.getProjectItem(db, createdItemId)];
+    return this.itemOwnership(db).addChild(parentProjectItemId, projectItem);
   }
 
   static addRefRootProjectItem(
@@ -714,27 +648,7 @@ export default class ProjectTable {
     projectId: number,
     projectItemId: number
   ): [Project, ProjectItem | null] | null {
-    const project = this.getProject(db, projectId);
-    const projectItem = this.getProjectItem(db, projectItemId);
-
-    if (!projectItem) {
-      return null;
-    }
-
-    // 更新项目的子条目
-    project.children.push(projectItemId);
-    this.updateProject(db, project);
-
-    // 更新项目条目所属项目列表
-    const currentProjects = new Set(projectItem.projects);
-    currentProjects.add(projectId);
-    projectItem.projects = Array.from(currentProjects);
-    this.updateProjectItem(db, projectItem);
-    this.updateProjectSubtreeMembership(db, projectItemId, [], [projectId], []);
-
-    Operation.insertOperation(db, "project-item", "insert", projectItemId, Date.now());
-
-    return [project, projectItem];
+    return this.itemOwnership(db).mountRoot(projectId, projectItemId);
   }
 
   static addRefChildProjectItem(
@@ -742,37 +656,7 @@ export default class ProjectTable {
     parentProjectItemId: number,
     projectItemId: number
   ): [ProjectItem | null, ProjectItem | null] | null {
-    const parentProjectItem = this.getProjectItem(db, parentProjectItemId);
-    if (!parentProjectItem) {
-      return null;
-    }
-
-    const projectItem = this.getProjectItem(db, projectItemId);
-    if (!projectItem) {
-      return null;
-    }
-
-    // 更新父项目条目的子条目
-    const currentChildren = new Set(parentProjectItem.children);
-    currentChildren.add(projectItemId);
-    parentProjectItem.children = Array.from(currentChildren);
-    this.updateProjectItem(db, parentProjectItem);
-
-    // 更新项目条目的父条目和所属项目
-    const currentParents = new Set(projectItem.parents);
-    currentParents.add(parentProjectItemId);
-    projectItem.parents = Array.from(currentParents);
-
-    // 确保继承父条目的所有项目关联
-    const currentProjects = new Set([...projectItem.projects, ...parentProjectItem.projects]);
-    projectItem.projects = Array.from(currentProjects);
-
-    this.updateProjectItem(db, projectItem);
-    this.updateProjectSubtreeMembership(db, projectItemId, [], Array.from(currentProjects), []);
-
-    Operation.insertOperation(db, "project-item", "insert", projectItemId, Date.now());
-
-    return [parentProjectItem, projectItem];
+    return this.itemOwnership(db).mountChild(parentProjectItemId, projectItemId);
   }
 
   static removeRootProjectItem(
@@ -781,26 +665,7 @@ export default class ProjectTable {
     projectItemId: number,
     notDelete?: boolean
   ): [Project, ProjectItem | null] | null {
-    const project = this.getProject(db, projectId);
-    const projectItem = this.getProjectItem(db, projectItemId);
-
-    if (!projectItem) {
-      return null;
-    }
-
-    // 更新项目的子条目，移除该条目
-    project.children = project.children.filter(id => id !== projectItemId);
-    this.updateProject(db, project);
-
-    if (notDelete) {
-      return [project, projectItem];
-    }
-
-    this.updateProjectSubtreeMembership(db, projectItemId, [projectId], [], []);
-
-    this.deleteUnreferencedProjectSubtree(db, projectItemId);
-
-    return [project, projectItem];
+    return this.itemOwnership(db).removeRoot(projectId, projectItemId, notDelete);
   }
 
   static removeChildProjectItem(
@@ -810,88 +675,83 @@ export default class ProjectTable {
     projectItemId: number,
     notDelete?: boolean
   ): [ProjectItem | null, ProjectItem | null] | null {
-    const parentProjectItem = this.getProjectItem(db, parentProjectItemId);
-    if (!parentProjectItem) {
-      return null;
-    }
-
-    const projectItem = this.getProjectItem(db, projectItemId);
-    if (!projectItem) {
-      return null;
-    }
-
-    // 更新父条目的子条目列表，移除当前条目
-    parentProjectItem.children = parentProjectItem.children.filter(id => id !== projectItemId);
-    this.updateProjectItem(db, parentProjectItem);
-
-    if (notDelete) {
-      return [parentProjectItem, projectItem];
-    }
-
-    // 从项目条目的父级列表和所属项目列表中移除相应的ID
-    projectItem.parents = projectItem.parents.filter(id => id !== parentProjectItemId);
-    this.updateProjectItem(db, projectItem);
-
-    this.updateProjectSubtreeMembership(db, projectItemId, [projectId], [], []);
-
-    this.deleteUnreferencedProjectSubtree(db, projectItemId);
-
-    return [parentProjectItem, projectItem];
-  }
-
-  private static collectProjectItemSubtreeIds(
-    db: Database.Database,
-    projectItemId: number,
-    visited = new Set<number>()
-  ): number[] {
-    if (visited.has(projectItemId)) return [];
-    visited.add(projectItemId);
-
-    const projectItem = this.getProjectItem(db, projectItemId);
-    if (!projectItem) return [];
-
-    return [
+    return this.itemOwnership(db).removeChild(
+      projectId,
+      parentProjectItemId,
       projectItemId,
-      ...projectItem.children.flatMap(childId =>
-        this.collectProjectItemSubtreeIds(db, childId, visited)
-      ),
-    ];
+      notDelete
+    );
   }
 
-  private static deleteUnreferencedProjectSubtree(
+  private static itemOwnership(db: Database.Database): ProjectItemOwnership {
+    return new ProjectItemOwnership({
+      transaction: apply => db.transaction(apply)(),
+      readProject: id => this.getProject(db, id),
+      readItem: id => this.getProjectItem(db, id),
+      writeProject: project => this.updateProject(db, project),
+      writeDirectoryItem: item => this.updateProjectItemDirectory(db, item),
+      insertItem: (item, contentId, placement) =>
+        this.insertProjectItem(db, item, contentId, placement),
+      removeItemRow: id => this.removeProjectItemRow(db, id),
+      cleanupDeletedItem: item => this.cleanupDeletedItem(db, item),
+      recordMount: id => Operation.insertOperation(db, "project-item", "insert", id, Date.now()),
+      updateSubtreeMembership: (id, source, target) =>
+        this.updateProjectSubtreeMembership(db, id, source, target, []),
+      findReferencedContent: (type, id) => {
+        if (type === "content") return ContentTable.getContentById(db, id)?.id;
+        if (type === "card") return CardTable.getCardById(db, id)?.contentId;
+        return ArticleTable.getArticleById(db, id)?.contentId;
+      },
+      createContent: item =>
+        ContentTable.createContent(db, {
+          content: item.content,
+          contracts: item.contracts,
+          count: item.count ?? getContentLength(item.content),
+        }),
+      addReference: id => ContentTable.incrementRefCount(db, id),
+      releaseReference: (id, mode) => {
+        if (mode === "deferred") ContentTable.releaseDeferred(db, id);
+        else ContentTable.deleteContent(db, id);
+      },
+    });
+  }
+
+  private static insertProjectItem(
     db: Database.Database,
-    rootProjectItemId: number
-  ) {
-    const subtreeIds = this.collectProjectItemSubtreeIds(db, rootProjectItemId);
-    const deletedIds = new Set<number>();
-
-    [...subtreeIds].reverse().forEach(projectItemId => {
-      const projectItem = this.getProjectItem(db, projectItemId);
-      if (!projectItem || projectItem.projects.length > 0) return;
-      deletedIds.add(projectItemId);
-      this.deleteProjectItem(db, projectItemId);
-    });
-
-    if (deletedIds.size === 0) return;
-
-    subtreeIds.forEach(projectItemId => {
-      if (deletedIds.has(projectItemId)) return;
-      const projectItem = this.getProjectItem(db, projectItemId);
-      if (!projectItem) return;
-      const nextParents = projectItem.parents.filter(parentId => !deletedIds.has(parentId));
-      const nextChildren = projectItem.children.filter(childId => !deletedIds.has(childId));
-      if (
-        nextParents.length === projectItem.parents.length &&
-        nextChildren.length === projectItem.children.length
-      ) {
-        return;
-      }
-      this.updateProjectItem(db, {
-        ...projectItem,
-        parents: nextParents,
-        children: nextChildren,
-      });
-    });
+    projectItem: CreateProjectItem,
+    contentId: number,
+    placement: { parents: number[]; projects: number[] }
+  ): number {
+    if (
+      projectItem.refType === "white-board" &&
+      projectItem.whiteBoardContentId &&
+      projectItem.projectItemType === EProjectItemType.WhiteBoard
+    ) {
+      WhiteBoardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
+    }
+    const now = Date.now();
+    const stmt = db.prepare(`
+      INSERT INTO project_item
+      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      now,
+      now,
+      projectItem.title,
+      contentId,
+      JSON.stringify(projectItem.children || []),
+      JSON.stringify(placement.parents),
+      JSON.stringify(placement.projects),
+      projectItem.refType,
+      projectItem.refId || 0,
+      projectItem.whiteBoardContentId || 0,
+      projectItem.projectItemType || EProjectItemType.Document,
+      JSON.stringify(projectItem.tags ?? [])
+    );
+    const id = Number(result.lastInsertRowid);
+    Operation.insertOperation(db, "project-item", "insert", id, now);
+    return id;
   }
 
   private static isProjectItemDescendant(
@@ -899,7 +759,9 @@ export default class ProjectTable {
     ancestorId: number,
     maybeDescendantId: number
   ) {
-    return this.collectProjectItemSubtreeIds(db, ancestorId).slice(1).includes(maybeDescendantId);
+    return collectProjectItemSubtreeIds(ancestorId, id => this.getProjectItem(db, id))
+      .slice(1)
+      .includes(maybeDescendantId);
   }
 
   private static getProjectMoveParentChildren(
@@ -995,7 +857,9 @@ export default class ProjectTable {
     targetProjects: number[],
     retainedSourceProjects: number[]
   ) {
-    const subtreeIds = this.collectProjectItemSubtreeIds(db, rootProjectItemId);
+    const subtreeIds = collectProjectItemSubtreeIds(rootProjectItemId, id =>
+      this.getProjectItem(db, id)
+    );
     const subtreeIdSet = new Set(subtreeIds);
     const retainedSourceByItem = new Map<number, Set<number>>(
       subtreeIds.map(id => [id, new Set<number>()])
@@ -1010,13 +874,15 @@ export default class ProjectTable {
       projectItem.parents
         .filter(parentId => !subtreeIdSet.has(parentId))
         .forEach(parentId => {
-          this.getProjectItem(db, parentId)?.projects.forEach(projectId => {
+          const parent = this.getProjectItem(db, parentId);
+          if (!parent?.children.includes(projectItemId)) return;
+          parent.projects.forEach(projectId => {
             retainedSourceByItem.get(projectItemId)?.add(projectId);
           });
         });
       sourceProjects.forEach(sourceProjectId => {
-        const sourceProject = this.getProject(db, sourceProjectId);
-        if (sourceProject.children.includes(projectItemId)) {
+        const sourceProject = this.getProjectOrNull(db, sourceProjectId);
+        if (sourceProject?.children.includes(projectItemId)) {
           retainedSourceByItem.get(projectItemId)?.add(sourceProjectId);
         }
       });
@@ -1055,7 +921,7 @@ export default class ProjectTable {
       if (JSON.stringify(nextProjects) === JSON.stringify(projectItem.projects)) {
         return;
       }
-      this.updateProjectItem(db, {
+      this.updateProjectItemDirectory(db, {
         ...projectItem,
         projects: nextProjects,
       });
@@ -1117,7 +983,7 @@ export default class ProjectTable {
         const sourceParent = this.getProjectItem(db, dragParentId);
         if (!sourceParent?.children.includes(dragId)) return null;
         sourceParent.children = sourceParent.children.filter(id => id !== dragId);
-        this.updateProjectItem(db, sourceParent);
+        this.updateProjectItemDirectory(db, sourceParent);
       }
 
       const nextDragProjectItem = this.getProjectItem(db, dragId);
@@ -1158,7 +1024,7 @@ export default class ProjectTable {
             0,
             dragId
           );
-          this.updateProjectItem(db, targetParent);
+          this.updateProjectItemDirectory(db, targetParent);
           if (!nextDragProjectItem.parents.includes(insertParentId)) {
             nextDragProjectItem.parents.push(insertParentId);
           }
@@ -1184,7 +1050,7 @@ export default class ProjectTable {
         } else {
           targetItem.children.push(dragId);
         }
-        this.updateProjectItem(db, targetItem);
+        this.updateProjectItemDirectory(db, targetItem);
         if (!nextDragProjectItem.parents.includes(dropTargetId)) {
           nextDragProjectItem.parents.push(dropTargetId);
         }
@@ -1212,13 +1078,13 @@ export default class ProjectTable {
           0,
           dragId
         );
-        this.updateProjectItem(db, targetParent);
+        this.updateProjectItemDirectory(db, targetParent);
         if (!nextDragProjectItem.parents.includes(dropTargetParentId)) {
           nextDragProjectItem.parents.push(dropTargetParentId);
         }
       }
 
-      this.updateProjectItem(db, nextDragProjectItem);
+      this.updateProjectItemDirectory(db, nextDragProjectItem);
       this.updateProjectSubtreeMembership(
         db,
         dragId,

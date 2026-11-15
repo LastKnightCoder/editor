@@ -19,6 +19,7 @@ import { resolve, join, dirname } from "node:path";
 import * as Y from "yjs";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
+import { startCollaborationServer, type CollaborationTestServer } from "./collaboration/server";
 
 const localRequire = createRequire(resolve(__dirname, "../package.json"));
 const root = resolve(__dirname, "..");
@@ -27,9 +28,7 @@ let directory: string;
 let electron: ElectronApplication;
 let vite: ChildProcess;
 let page: Page;
-let server: Awaited<
-  ReturnType<typeof import("../../collaboration-server/src/server").createServer>
->;
+let server: CollaborationTestServer;
 let serverUrl: string;
 let desktopUrl: string;
 let viteUrl: string;
@@ -74,7 +73,7 @@ test.beforeAll(async () => {
     bundle: true,
     platform: "node",
     format: "cjs",
-    external: ["electron", "better-sqlite3", "@node-rs/jieba"],
+    external: ["electron", "better-sqlite3", "@node-rs/jieba", "@firecrawl/anydoc"],
     alias: {
       "@": resolve(root, "src"),
       "@tau/db-schema": resolve(root, "../../packages/db-schema"),
@@ -114,12 +113,9 @@ test.beforeAll(async () => {
                 path: resolve(dirname(args.importer), path),
                 namespace: "raw-asset",
               };
-            // 裸包导入（如 @tau/db-schema/schema/main.sql）：解析包根后拼接子路径
-            const [scope, name, ...rest] = path.split("/");
-            const pkg = scope.startsWith("@") ? `${scope}/${name}` : scope;
+            // 按实际资源子路径解析，遵守包 exports，不要求包公开 package.json。
             const require = createRequire(args.importer);
-            const pkgRoot = dirname(require.resolve(`${pkg}/package.json`));
-            return { path: resolve(pkgRoot, ...rest), namespace: "raw-asset" };
+            return { path: require.resolve(path), namespace: "raw-asset" };
           });
           build.onLoad({ filter: /.*/, namespace: "raw-asset" }, async args => ({
             contents: `export default ${JSON.stringify(await readFile(args.path, "utf8"))}`,
@@ -129,33 +125,12 @@ test.beforeAll(async () => {
       },
     ],
   });
-  const serverRequire = createRequire(resolve(root, "../collaboration-server/package.json"));
-  await build({
-    entryPoints: [resolve(root, "../collaboration-server/src/server.ts")],
-    outfile: join(output, "server.cjs"),
-    external: ["yjs", "y-protocols/*"],
-    bundle: true,
-    platform: "node",
-    format: "cjs",
-    plugins: [
-      {
-        name: "server-native-runtime",
-        setup(build) {
-          build.onResolve({ filter: /^better-sqlite3$/ }, () => ({
-            path: serverRequire.resolve("better-sqlite3"),
-            external: true,
-          }));
-        },
-      },
-    ],
-  });
-  server = await localRequire(join(output, "server.cjs")).createServer({
-    dataDir: join(directory, "server"),
-    logger: false,
-  });
-  await server.app.listen({ host: "127.0.0.1", port: 0 });
-  const serverPort = server.app.server.address().port;
-  serverUrl = `http://127.0.0.1:${serverPort}`;
+  ({ server, url: serverUrl } = await startCollaborationServer(
+    root,
+    output,
+    join(directory, "server")
+  ));
+  const serverPort = Number(new URL(serverUrl).port);
   desktopUrl = serverUrl;
   if (process.env.TAU_COEDIT_E2E === "1") {
     proxy = createTcpServer(client => {

@@ -154,6 +154,7 @@ describe("正式 Cloudflare 协作能力", () => {
   it("范围编辑复用正式 Worker 队列，同段并发、重复请求和冲突均保持正文完整", async () => {
     await initialize();
     const owner = await register("作者");
+    const outsider = await register("未加入成员");
     const id = await create(owner);
     const doc = await createTestDocument(
       {
@@ -184,10 +185,12 @@ describe("正式 Cloudflare 协作能力", () => {
       const expected = readNodeDocument(doc);
       const a = captureScopedTextEdit(tree, "a", "main", 0, 1, "丙");
       const b = captureScopedTextEdit(tree, "b", "main", 6, 7, "丁");
-      const send = (operationId: string, edits: (typeof a)[]) => {
+      const operationPath = (operationId: string) =>
+        `/v1/documents/${id}/operations/${operationId}`;
+      const send = (operationId: string, edits: (typeof a)[], actor = owner) => {
         const scope = { edits };
         return request(
-          `/v1/documents/${id}/operations/${operationId}`,
+          operationPath(operationId),
           "POST",
           {
             kind: "scoped-edit",
@@ -198,7 +201,7 @@ describe("正式 Cloudflare 协作能力", () => {
             scope,
             updateHash: createHash("sha256").update(JSON.stringify(scope)).digest("hex"),
           },
-          owner
+          actor
         );
       };
       const deadline = Date.now() + 240_000;
@@ -218,6 +221,13 @@ describe("正式 Cloudflare 协作能力", () => {
       ]);
       for (const result of [first, second, duplicate])
         expect(result.value.operation.state).toBe("COMMITTED");
+      const recovered = await request(operationPath("first"), "GET", undefined, owner);
+      expect(recovered.response.status).toBe(200);
+      expect(recovered.value.operation).toEqual(first.value.operation);
+      expect(
+        (await request(operationPath("first"), "GET", undefined, outsider)).response.status
+      ).toBe(403);
+      expect((await send("first", [a], outsider)).response.status).toBe(403);
       expect((await send("stale", [a])).value.operation).toMatchObject({
         state: "ABORTED",
         reason: "SCOPE_CONFLICT",

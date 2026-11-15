@@ -7,9 +7,34 @@ import {
   NodeTree,
 } from "@tau/collaboration";
 import type { RuntimeSession } from "./types";
-import type { CollaborationLocalStore } from "./local-store";
-import type { ContentLocalState } from "./content-local-state";
 import { reportContentSaveIssue, reportContentSaveComplete } from "./persistence-diagnostics";
+
+export interface NodeSessionJournal {
+  /** 持有、增量和可选回执按顺序在同一事务内同步提交。 */
+  commitUpdate(
+    sessionId: string,
+    update: Uint8Array,
+    retainCandidate: () => void,
+    writeReceipt?: () => void
+  ): void;
+  commitReceipt(writeReceipt: () => void): void;
+  compactIfNeeded(sessionId: string, doc: Y.Doc, force: boolean): boolean;
+}
+
+interface NodeSessionDrafts {
+  confirmDocumentDrafts(
+    documentId: string,
+    baselineId: string,
+    epoch: number,
+    includes: (state: Uint8Array) => boolean
+  ): void;
+  confirmInputDrafts(
+    documentId: string,
+    baselineId: string,
+    epoch: number,
+    read: (node: string, field: string) => string | undefined
+  ): void;
+}
 
 const equal = (left: Uint8Array, right: Uint8Array) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -17,14 +42,19 @@ const equal = (left: Uint8Array, right: Uint8Array) =>
 /** 校验期间可能收到服务器增量；必须针对最新基线重验，再同步落盘与应用。 */
 export class NodeSessionUpdates {
   private readonly queue = new DocumentWriteQueue(32 * 1024 * 1024, 16);
+  private readonly authorityOrigins = new WeakMap<RuntimeSession, unknown>();
   constructor(
-    private readonly store: CollaborationLocalStore,
-    private readonly state?: ContentLocalState
+    private readonly journal: NodeSessionJournal,
+    private readonly drafts?: NodeSessionDrafts
   ) {}
 
+  isApplyingAuthoritativeState(session: RuntimeSession, origin: unknown): boolean {
+    return this.authorityOrigins.has(session) && this.authorityOrigins.get(session) === origin;
+  }
+
   confirmDrafts(doc: Y.Doc, documentId: string): void {
-    if (!this.state || doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return;
-    this.state.confirmDocumentDrafts(
+    if (!this.drafts || doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return;
+    this.drafts.confirmDocumentDrafts(
       documentId,
       String(doc.getMap("meta").get("baselineId")),
       Number(doc.getMap("meta").get("epoch")),
@@ -48,7 +78,7 @@ export class NodeSessionUpdates {
     );
     const tree = new NodeTree(doc);
     try {
-      this.state.confirmInputDrafts(
+      this.drafts.confirmInputDrafts(
         documentId,
         String(doc.getMap("meta").get("baselineId")),
         Number(doc.getMap("meta").get("epoch")),
@@ -72,8 +102,14 @@ export class NodeSessionUpdates {
     session: RuntimeSession,
     update:
       | Uint8Array
-      | { bytes: number; build: () => Promise<Uint8Array | null>; commit: () => void },
-    assertWritable: () => void
+      | {
+          bytes: number;
+          build: () => Promise<Uint8Array | null>;
+          commit: () => void;
+          authoritative?: true;
+        },
+    assertWritable: () => void,
+    onAccepted?: () => void
   ): Promise<void> {
     const scoped = update instanceof Uint8Array ? undefined : update;
     const raw = update instanceof Uint8Array ? new Uint8Array(update) : undefined;
@@ -124,12 +160,17 @@ export class NodeSessionUpdates {
               if (equal(baseline, Y.encodeStateAsUpdate(candidate))) {
                 stage = "delta.journal";
                 session.retainNodeState?.(candidate);
-                if (session.cacheWriteFailed || this.store.shouldCompact(session.info.id)) {
-                  this.store.compact(session.info.id, session.doc);
+                if (
+                  this.journal.compactIfNeeded(
+                    session.info.id,
+                    session.doc,
+                    session.cacheWriteFailed ?? false
+                  )
+                ) {
                   session.cacheWriteFailed = false;
                   session.dirty = false;
                 }
-                if (scoped) this.store.db.transaction(scoped.commit)();
+                if (scoped) this.journal.commitReceipt(scoped.commit);
                 journalSaved = true;
                 stage = "delta.confirm";
                 this.confirmDrafts(session.doc, session.info.id);
@@ -137,14 +178,25 @@ export class NodeSessionUpdates {
               }
               const delta = Y.encodeStateAsUpdate(candidate, before);
               stage = "delta.journal";
-              this.store.db.transaction(() => {
-                session.retainNodeState?.(candidate);
-                this.store.append(session.info.id, delta);
-                scoped?.commit();
-              })();
+              this.journal.commitUpdate(
+                session.info.id,
+                delta,
+                () => session.retainNodeState?.(candidate),
+                scoped && (() => scoped.commit())
+              );
               journalSaved = true;
+              onAccepted?.();
               stage = "delta.apply";
-              Y.applyUpdate(session.doc, delta, "renderer-persisted");
+              if (scoped?.authoritative) {
+                // 协作连接已从服务接收该变更，不要把回执恢复变成普通编辑回传。
+                const origin = session.provider ?? "server-persisted";
+                this.authorityOrigins.set(session, origin);
+                try {
+                  Y.applyUpdate(session.doc, delta, origin);
+                } finally {
+                  this.authorityOrigins.delete(session);
+                }
+              } else Y.applyUpdate(session.doc, delta, "renderer-persisted");
               stage = "delta.confirm";
               this.confirmDrafts(session.doc, session.info.id);
               return;

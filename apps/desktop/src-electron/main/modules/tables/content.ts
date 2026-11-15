@@ -35,19 +35,10 @@ import { type ContentNode } from "@tau/collaboration";
 import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import { getNextTaskEntityId } from "./module-entity-id";
 import { ContentDocumentTable } from "./content-document";
+import { bindContentReplacement } from "./content-replacement";
 import { NODE_CONTRACT_PROPERTY } from "@tau/db-schema/content-contracts";
 import { isSupportedContentStorageVersion } from "@tau/db-schema";
-import type { ScopedContentSubmission } from "@tau/collaboration";
-import type { AgentPresenceUpdate } from "@/types/agent-presence";
-import type {
-  AgentPermissionLevel,
-  ContentQuestionRequest,
-  ContentSuggestionBatch,
-  ContentSuggestionAcceptOptions,
-  ContentSuggestionQuery,
-} from "@/types/content-suggestion";
-
-const contentAgent = async () => (await import("../content-runtime")).default.agent;
+import { ContentCreation } from "../content-ownership/content-creation";
 
 /** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */
 export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -71,76 +62,6 @@ export default class ContentTable {
       "content:create": this.createContent.bind(this),
       "content:create-pending": this.createPendingContent.bind(this),
       "content:get-by-id": asynchronousDatabaseCommand(this.readContent.bind(this)),
-      "content:edit-snapshot": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number) => (await contentAgent()).readEditSnapshot(db, id)
-      ),
-      "content:apply-scoped-edit": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, request: ScopedContentSubmission) =>
-          (await contentAgent()).applyScopedEdit(db, id, request)
-      ),
-      "content:suggestions": asynchronousDatabaseCommand(
-        async (db: Database.Database, query: ContentSuggestionQuery) =>
-          (await contentAgent()).suggestions.list(db, query)
-      ),
-      "content:suggestions-create": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, batch: ContentSuggestionBatch) =>
-          (await contentAgent()).suggestions.create(db, id, batch)
-      ),
-      "content:suggestions-accept": asynchronousDatabaseCommand(
-        async (
-          db: Database.Database,
-          id: number,
-          ids: string[],
-          options?: ContentSuggestionAcceptOptions
-        ) => (await contentAgent()).suggestions.accept(db, id, ids, options)
-      ),
-      "content:suggestions-reject": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, ids: string[], feedback?: string) =>
-          (await contentAgent()).suggestions.reject(db, id, ids, feedback)
-      ),
-      "content:suggestions-supersede": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, proposalId: string) =>
-          (await contentAgent()).suggestions.supersede(db, id, proposalId)
-      ),
-      "content:suggestions-undo": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, ids: string[]) =>
-          (await contentAgent()).suggestions.undo(db, id, ids)
-      ),
-      "content:suggestions-question": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, request: ContentQuestionRequest) =>
-          (await contentAgent()).suggestions.createQuestion(db, id, request)
-      ),
-      "content:suggestions-answer": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, suggestionId: string, answer: string) =>
-          (await contentAgent()).suggestions.answer(db, id, suggestionId, answer)
-      ),
-      "content:suggestions-follow-up": asynchronousDatabaseCommand(
-        async (db: Database.Database, request: Record<string, unknown>) =>
-          (await contentAgent()).suggestions.followUp(db, request)
-      ),
-      "content:agent-presence": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, update: AgentPresenceUpdate) =>
-          (await contentAgent()).presence.set(basename(db.name, ".db"), id, update)
-      ),
-      "content:agent-presence-clear": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, agent: string) =>
-          (await contentAgent()).presence.clear(basename(db.name, ".db"), id, agent)
-      ),
-      "content:agent-permissions": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number) => (await contentAgent()).permissions.list(db, id)
-      ),
-      "content:agent-permission": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, agent: string) =>
-          (await contentAgent()).permissions.level(db, id, agent)
-      ),
-      "content:agent-permission-set": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number, agent: string, level: AgentPermissionLevel) =>
-          (await contentAgent()).permissions.set(db, id, agent, level)
-      ),
-      "content:agent-presences": asynchronousDatabaseCommand(
-        async (db: Database.Database, id: number) =>
-          (await contentAgent()).presence.list(basename(db.name, ".db"), id)
-      ),
       "content:delete": this.deleteContent.bind(this),
       "content:increment-ref-count": this.incrementRefCount.bind(this),
       "content:decrement-ref-count": this.decrementRefCount.bind(this),
@@ -217,7 +138,15 @@ export default class ContentTable {
   }
 
   static createContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
-    return this.insertContent(db, contentData, 1);
+    return this.creation(db).create(contentData);
+  }
+
+  static createOwnedContent<T>(
+    db: Database.Database,
+    contentData: Partial<ICreateContent>,
+    insertOwner: (contentId: number) => T
+  ): T {
+    return this.creation(db).createOwned(contentData, insertOwner);
   }
 
   /** 正文与契约在同一次读取中取得，调用方只消费转换后的文本。 */
@@ -261,55 +190,47 @@ export default class ContentTable {
 
   /** 以待回收状态创建正文（ref_count 0 + 登记待回收），首次保存进表时由差集 retain（D-136） */
   static createPendingContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
-    const contentId = this.insertContent(db, contentData, 0);
-    db.prepare("INSERT INTO content_pending_releases (content_id, released_at) VALUES (?, ?)").run(
-      contentId,
-      Date.now()
+    return this.creation(db).createPending(contentData);
+  }
+
+  private static creation(db: Database.Database): ContentCreation {
+    return new ContentCreation(
+      {
+        transaction: apply => db.transaction(apply)(),
+        insertContent: (body, refCount) => this.insertContent(db, body, refCount),
+        registerPendingRelease: id => {
+          db.prepare(
+            "INSERT INTO content_pending_releases (content_id, released_at) VALUES (?, ?)"
+          ).run(id, Date.now());
+        },
+        notifyCreated: id => emitContentWritten(db, id, "create"),
+      },
+      randomUUID
     );
-    return contentId;
   }
 
   private static insertContent(
     db: Database.Database,
-    contentData: Partial<ICreateContent>,
-    initialRefCount: number
+    { content, contracts }: Pick<ICreateContent, "content" | "contracts">,
+    initialRefCount: 0 | 1
   ): number {
-    const createdContentId = db.transaction(() => {
-      const content = structuredClone(contentData.content ?? []);
-      if (contentData.contracts) {
-        const assign = (nodes: ContentNode[]) => {
-          for (const node of nodes)
-            if (Array.isArray(node.children)) {
-              node.collabId = randomUUID();
-              assign(node.children);
-            }
-        };
-        assign(content as ContentNode[]);
-      }
-      const count = getContentLength(content);
-      const now = Date.now();
-      const id = getNextTaskEntityId(db, "contents");
-      db.prepare(
-        "INSERT INTO contents (id,create_time,update_time,content,count,ref_count) VALUES (?,?,?,?,?,?)"
-      ).run(id, now, now, JSON.stringify(content), count, initialRefCount);
-      if (contentData.contracts) {
-        ContentIdentityTable.establishBaseline(db);
-        ContentDocumentTable.commit(
-          db,
-          id,
-          {
-            documentId: randomUUID(),
-            content: content as ContentNode[],
-            contracts: contentData.contracts,
-          },
-          { installDocument: true, count }
-        );
-      }
-      Operation.insertOperation(db, "content", "insert", id, now);
-      return id;
-    })();
-    emitContentWritten(db, createdContentId, "create");
-    return createdContentId;
+    const count = getContentLength(content);
+    const now = Date.now();
+    const id = getNextTaskEntityId(db, "contents");
+    db.prepare(
+      "INSERT INTO contents (id,create_time,update_time,content,count,ref_count) VALUES (?,?,?,?,?,?)"
+    ).run(id, now, now, JSON.stringify(content), count, initialRefCount);
+    if (contracts) {
+      ContentIdentityTable.establishBaseline(db);
+      ContentDocumentTable.commit(
+        db,
+        id,
+        { documentId: randomUUID(), content: content as ContentNode[], contracts },
+        { installDocument: true, count }
+      );
+    }
+    Operation.insertOperation(db, "content", "insert", id, now);
+    return id;
   }
 
   static async writeContent(
@@ -318,17 +239,9 @@ export default class ContentTable {
     value: Partial<IUpdateContent> & { content: Descendant[]; expectedRevision?: string },
     ctx: CommandContext = fallbackCommandContext
   ): Promise<IContent | null> {
-    const session = contentSession(db, contentId);
-    if (session?.doc.getMap("meta").get("version") === 2) {
-      if (!session.replaceContent) throw new Error("正文写入服务尚未就绪");
-      await session.replaceContent(
-        value.content as ContentNode[],
-        value.contracts,
-        value.expectedRevision
-      );
-      return this.getContentById(db, contentId);
-    }
-    return this.updateContent(db, contentId, value, ctx);
+    const activeWrite = bindContentReplacement(db, ctx).replace(contentId, value);
+    if (activeWrite) await activeWrite;
+    return this.getContentById(db, contentId);
   }
 
   static updateContent(
@@ -337,45 +250,7 @@ export default class ContentTable {
     contentData: Partial<IUpdateContent> & { content: Descendant[]; expectedRevision?: string },
     ctx: CommandContext = fallbackCommandContext
   ): IContent | null {
-    const { content, count } = contentData;
-    const session = contentSession(db, contentId);
-    if (session) {
-      throw new Error("CONTENT_VERSION_CONFLICT: 活跃正文必须通过带修订的文档写入入口修改");
-    }
-    assertContentIsLocal(db, contentId);
-
-    const stored = ContentDocumentTable.read(db, contentId);
-    if (stored) {
-      db.transaction(() => {
-        ContentDocumentTable.commit(
-          db,
-          contentId,
-          {
-            ...stored,
-            content: content as ContentNode[],
-            contracts: contentData.contracts ?? stored.contracts,
-          },
-          {
-            expectedRevision: contentData.expectedRevision,
-            count: getContentLength(content),
-          }
-        );
-        Operation.insertOperation(db, "content", "update", contentId, Date.now());
-      })();
-      ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });
-      emitContentWritten(db, contentId, "update");
-      return this.getContentById(db, contentId);
-    }
-
-    const stmt = db.prepare(
-      "UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?"
-    );
-    const now = Date.now();
-    const actualCount = content ? getContentLength(content) : (count ?? 0);
-    stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
-    Operation.insertOperation(db, "content", "update", contentId, now);
-    ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });
-    emitContentWritten(db, contentId, "update");
+    bindContentReplacement(db, ctx).replaceCold(contentId, contentData);
     return this.getContentById(db, contentId);
   }
 

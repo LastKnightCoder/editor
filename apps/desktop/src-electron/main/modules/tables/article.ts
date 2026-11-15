@@ -20,6 +20,7 @@ import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
+import { ArticleContentOwnership } from "../content-ownership/article-content";
 
 /** 分页排序白名单（拼进 ORDER BY，不接受任意字符串）；同值按更新时间兜底 */
 const ARTICLE_PAGE_ORDER: Record<ArticlePageSort, string> = {
@@ -58,7 +59,8 @@ export default class ArticleTable {
       ),
       "is-content-is-article": this.isContentIsArticle.bind(this),
       "get-article-by-content-id": this.getArticleByContentId.bind(this),
-      "build-article-from-content": this.buildArticleFromContent.bind(this),
+      "build-article-from-content": (db: Database.Database, contentId: number, title?: unknown) =>
+        this.buildArticleFromContent(db, contentId, typeof title === "string" ? title : ""),
     };
   }
 
@@ -144,16 +146,25 @@ export default class ArticleTable {
   }
 
   static createArticle(db: Database.Database, article: ICreateArticle): IArticle {
-    const { tags, title, content, bannerBg, bannerPosition, isDelete, isTop, count } = article;
+    return ContentTable.createOwnedContent(
+      db,
+      { content: article.content, contracts: article.contracts },
+      contentId => this.insertArticleRow(db, contentId, article)
+    );
+  }
 
-    // 如果没有提供contentId，则创建content记录
-    const contentId = ContentTable.createContent(db, {
-      content: content,
-      contracts: article.contracts,
-      count: count,
-    });
-
-    // 创建article记录
+  private static insertArticleRow(
+    db: Database.Database,
+    contentId: number,
+    {
+      tags,
+      title,
+      bannerBg,
+      bannerPosition,
+      isDelete,
+      isTop,
+    }: Pick<ICreateArticle, "tags" | "title" | "bannerBg" | "bannerPosition" | "isDelete" | "isTop">
+  ): IArticle {
     const stmt = db.prepare(
       "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
@@ -238,6 +249,15 @@ export default class ArticleTable {
     article: IUpdateArticle,
     ctx: CommandContext = fallbackCommandContext
   ): IArticle {
+    return this.writeArticleMetadata(db, article, ctx);
+  }
+
+  static writeArticleMetadata(
+    db: Database.Database,
+    article: IUpdateArticle,
+    ctx: CommandContext,
+    plannedTitle?: string
+  ): IArticle {
     const { tags, title, id, bannerBg, bannerPosition, isTop, isDelete, contentId } = article;
     const now = Date.now();
 
@@ -255,7 +275,10 @@ export default class ArticleTable {
     stmt.run(
       now,
       JSON.stringify(tags || currentArticle.tags),
-      canonicalContentTitle(db, currentArticle.contentId) ?? title ?? currentArticle.title,
+      plannedTitle ??
+        canonicalContentTitle(db, currentArticle.contentId) ??
+        title ??
+        currentArticle.title,
       contentId,
       bannerBg || currentArticle.bannerBg,
       bannerPosition || currentArticle.bannerPosition,
@@ -277,10 +300,13 @@ export default class ArticleTable {
     articleId: number,
     options: { deferContent?: boolean } = {}
   ): number {
-    // 获取文章信息，以获取contentId
-    const articleInfo = this.getArticleById(db, articleId);
-    if (articleInfo) assertContentIsLocal(db, articleInfo.contentId);
+    return this.contentOwnership(db).deleteOwner(
+      articleId,
+      options.deferContent ? "deferred" : "immediate"
+    );
+  }
 
+  private static removeArticleRow(db: Database.Database, articleId: number): number {
     const stmt = db.prepare("DELETE FROM articles WHERE id = ?");
     const result = stmt.run(articleId);
 
@@ -293,12 +319,6 @@ export default class ArticleTable {
         "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?"
       );
       projectItemStmt.run(articleId);
-
-      if (articleInfo && articleInfo.contentId) {
-        // 删除关联的content记录（减少引用计数）
-        if (options.deferContent) ContentTable.releaseDeferred(db, articleInfo.contentId);
-        else ContentTable.deleteContent(db, articleInfo.contentId);
-      }
     }
 
     return result.changes;
@@ -588,24 +608,38 @@ export default class ArticleTable {
     title = "",
     tags: string[] = []
   ): IArticle {
-    // 先检查是否已有文章
-    const existingStmt = db.prepare(
-      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0"
-    );
-    const existing = existingStmt.get(contentId) as { id: number } | undefined;
-    if (existing) {
-      return this.getArticleById(db, existing.id);
-    }
+    return this.contentOwnership(db).createFromExisting(contentId, title, tags);
+  }
 
-    // 创建新文章，复用已有 contentId
-    ContentTable.incrementRefCount(db, contentId);
-    const stmt = db.prepare(
-      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-    const now = Date.now();
-    const res = stmt.run(now, now, JSON.stringify(tags), title, contentId, "", "center", 0, 0);
-    const articleId = res.lastInsertRowid;
-    Operation.insertOperation(db, "article", "insert", articleId, now);
-    return this.getArticleById(db, articleId);
+  private static contentOwnership(db: Database.Database): ArticleContentOwnership {
+    return new ArticleContentOwnership({
+      transaction: apply => db.transaction(apply)(),
+      findActiveOwner: contentId => this.getArticleByContentId(db, contentId),
+      insertOwner: (contentId, title, tags) => this.insertSharedArticle(db, contentId, title, tags),
+      readOwner: articleId => this.getArticleById(db, articleId),
+      removeOwner: articleId => this.removeArticleRow(db, articleId),
+      addReference: contentId => ContentTable.incrementRefCount(db, contentId),
+      assertLocal: contentId => assertContentIsLocal(db, contentId),
+      releaseReference: (contentId, mode) => {
+        if (mode === "deferred") ContentTable.releaseDeferred(db, contentId);
+        else ContentTable.deleteContent(db, contentId);
+      },
+    });
+  }
+
+  private static insertSharedArticle(
+    db: Database.Database,
+    contentId: number,
+    title: string,
+    tags: string[]
+  ): IArticle {
+    return this.insertArticleRow(db, contentId, {
+      tags,
+      title,
+      bannerBg: "",
+      bannerPosition: "center",
+      isDelete: false,
+      isTop: false,
+    });
   }
 }

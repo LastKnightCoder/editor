@@ -1,4 +1,11 @@
-import localContent, { ContentSessionManager, type ContentDatabase } from "../content-runtime";
+import {
+  ContentSessionRuntime,
+  type ContentDatabase,
+  type ContentRuntimeStorage,
+} from "../content-runtime";
+import type { ContentOpenContext, LocalContentSharingAccess } from "../content-runtime/sharing";
+import { getLocalContentRuntime } from "../content-runtime/composition";
+import { createDesktopContentServices } from "../content-runtime/desktop-services";
 import { readDocumentIdentity } from "@tau/collaboration";
 import type { IpcMainInvokeEvent } from "electron";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
@@ -33,6 +40,7 @@ import {
   type JoinRequest,
   type SharedDocumentInfo,
   type SharedDocumentListing,
+  type SourceBinding,
   type SourceType,
 } from "@tau/collaboration";
 import PathUtil from "../../utils/PathUtil";
@@ -48,21 +56,54 @@ import { registerCollaborationIpc } from "./ipc-controller";
 import type { RuntimeSession } from "./types";
 import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "./local-store";
-import { ContentLocalState } from "./content-local-state";
 import type { ScopedWriteOptions } from "../content-runtime/agent/suggestion-service";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { localSessionId } from "./session-identity";
 import { collaborationImageStorage } from "../../services/collaboration-image-storage";
+import { SharedContentReplacement } from "./shared-content-replacement";
 import {
+  contentSession,
   registerContentSession,
   unregisterContentSession,
   contentRevision,
 } from "./content-sessions";
 
-export class CollaborationManager extends ContentSessionManager {
+type SharedContentSessions = Pick<
+  ContentSessionRuntime,
+  | "activeSession"
+  | "activeSessions"
+  | "acknowledgeFreeze"
+  | "broadcast"
+  | "changed"
+  | "databaseForEvent"
+  | "discardRemoteSession"
+  | "find"
+  | "findContent"
+  | "findLocalSource"
+  | "freeze"
+  | "initDurability"
+  | "install"
+  | "ipcViews"
+  | "isProjecting"
+  | "loadCached"
+  | "project"
+  | "removeSession"
+  | "removeView"
+  | "removeWindowViews"
+  | "requireSession"
+  | "shutdown"
+  | "startAutoFlush"
+  | "unfreeze"
+>;
+
+export class CollaborationManager {
   name = "collaboration";
   private client!: CollaborationClient;
+  private replacements!: SharedContentReplacement;
+  private content!: SharedContentSessions;
+  private store!: CollaborationLocalStore;
+  private assets!: CollaborationAssetService;
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private events = new Map<string, WebSocket>();
   private requests: JoinRequest[] = [];
@@ -77,42 +118,37 @@ export class CollaborationManager extends ContentSessionManager {
   private finishingLeaves = new Set<string>();
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly localRuntime: ContentSessionManager) {
-    super();
+  private disconnectLocalRuntime?: () => void;
+
+  constructor(private readonly getLocalRuntime: () => LocalContentSharingAccess) {}
+
+  private get localRuntime() {
+    return this.getLocalRuntime();
   }
 
-  protected override broadcastSharedState() {
-    this.broadcast("collaboration:state", this.state());
-  }
-  protected override flushSessionResources() {
-    void this.flushResources();
-  }
-  protected override agentOwner(): ContentSessionManager {
-    return this.localRuntime;
-  }
-
-  protected override async openSharedContent(
-    event: IpcMainInvokeEvent | ContentDatabase,
-    target: ContentSessionTarget
+  private async openSharedContent(
+    event: ContentOpenContext,
+    target: ContentSessionTarget,
+    check: () => void
   ): Promise<ContentSessionSnapshot> {
-    const { db, name } = this.databaseForEvent(event);
+    const { db, name } = this.content.databaseForEvent(event);
     const binding = findCollaborationBinding(db, target.contentId);
-    if (!binding) return this.openAfterUnbind(event, target);
+    if (!binding) return this.localRuntime.resumeLocalOpen(event, target, check);
     const id = binding.document_id;
-    let session = this.findSession(id);
+    let session = this.content.find(id);
     if (!session) {
       const known = this.remoteDocuments.get(binding.server_url)?.get(id);
       const room = known ?? (await this.listRooms(binding.server_url)).get(id);
-      if (this.databaseForEvent(event).db !== db) throw new Error("资料库已切换，请重新打开内容");
+      check();
       if (!room) {
         db.prepare(
           "DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=? AND server_url=?"
         ).run(target.contentId, id, binding.server_url);
-        return this.openAfterUnbind(event, target);
+        return this.localRuntime.resumeLocalOpen(event, target, check);
       }
       this.assertContentRoom(room);
       session = await this.openRemoteDocument(binding.server_url, room);
-      if (this.databaseForEvent(event).db !== db) throw new Error("资料库已切换，请重新打开内容");
+      check();
     }
     if (session.info.serverUrl !== binding.server_url) throw new Error("共享会话属于另一服务器");
     const source = restoreContentBinding(db, name, id, binding.server_url);
@@ -134,6 +170,9 @@ export class CollaborationManager extends ContentSessionManager {
     unregisterContentSession(session);
     registerContentSession(db, target.contentId, session);
     ContentTable.ensureTaskIds(db, target.contentId);
+    void this.recoverReplacement(session);
+    await this.finishOpenedPublish(db, source, session);
+    check();
     return {
       documentId: id,
       mode: session.info.mode || "shared",
@@ -143,57 +182,58 @@ export class CollaborationManager extends ContentSessionManager {
     };
   }
 
-  private openAfterUnbind(
-    event: IpcMainInvokeEvent | ContentDatabase,
-    target: ContentSessionTarget
+  private async finishOpenedPublish(
+    db: ContentDatabase["db"],
+    source: SourceBinding,
+    session: RuntimeSession
   ) {
-    // 本机 open 可能正在等待这次共享查询，直接续走当前打开请求。
-    return this.localRuntime.resumeLocalOpen(event, target);
+    if (session.info.role !== "owner") return;
+    const id = localSessionId(db.name, source.contentId, source.contentCreatedAt);
+    const local = this.localRuntime;
+    if (!local.pendingShare(id)) return;
+    await local.finishPublishedShare(id, source, {
+      ...readDocumentIdentity(session.doc),
+      serverUrl: session.info.serverUrl,
+    });
   }
 
-  protected override async confirmSharedReplacement(
-    session: RuntimeSession,
-    identity: { documentId: string; baselineId: string; epoch: number },
-    expectedRevision: string,
-    update: Uint8Array,
-    operationId: string,
-    check: () => void
-  ) {
-    if (session.info.mode !== "local") {
-      const protocol = await this.client.request<{ revision: string; sequence: number }>(
-        session.info.serverUrl,
-        `/v1/documents/${session.info.id}/protocol`
-      );
-      check();
-      if (protocol.revision !== expectedRevision)
-        throw new Error("CONTENT_VERSION_CONFLICT: 共享正文已变化，待应用结果已保留");
-      const route = `/v1/documents/${session.info.id}/operations/${operationId}`;
-      let result: { operation: import("@tau/collaboration").DocumentOperation | null };
-      try {
-        result = await this.client.request(session.info.serverUrl, route, "POST", {
-          operationId,
-          version: NODE_DOCUMENT_VERSION,
-          baselineId: identity.baselineId,
-          epoch: identity.epoch,
-          expectedRevision,
-          expectedSequence: protocol.sequence,
-          updateHash: createHash("sha256").update(update).digest("hex"),
-          expiresAt: this.client.serverTime(session.info.serverUrl) + 4 * 60_000,
-          update: Buffer.from(update).toString("base64"),
-        });
-      } catch (failure) {
-        result = await this.client.request(session.info.serverUrl, route);
-        if (!result.operation) throw failure;
-      }
-      if (result.operation?.state !== "COMMITTED")
-        throw new Error("CONTENT_VERSION_CONFLICT: 共享修改未提交，待应用结果已保留");
+  private assertReplacementSession(session: RuntimeSession) {
+    const { id, mode, serverUrl, status, frozen, leaving, source } = session.info;
+    if (
+      mode === "local" ||
+      status !== "active" ||
+      frozen ||
+      leaving ||
+      this.content.activeSession(id) !== session ||
+      !source
+    )
+      throw new Error("共享正文会话已变化，原候选已保留");
+    const db = databaseModule.getDatabase(source.databaseName);
+    if (!db?.open || contentSession(db, source.contentId) !== session)
+      throw new Error("原资料库或正文绑定已变化，原候选已保留");
+    const bound = restoreContentBinding(db, source.databaseName, id, serverUrl);
+    if (
+      !bound ||
+      bound.contentId !== source.contentId ||
+      bound.contentCreatedAt !== source.contentCreatedAt
+    )
+      throw new Error("原资料库或正文绑定已变化，原候选已保留");
+    return bound;
+  }
+
+  private async recoverReplacement(session: RuntimeSession) {
+    try {
       if (
-        result.operation.baselineId !== identity.baselineId ||
-        result.operation.epoch !== identity.epoch ||
-        session.doc.getMap("meta").get("baselineId") !== identity.baselineId
+        !session.info.source ||
+        !this.replacements.hasPending(session.info.serverUrl, session.info.id)
       )
-        throw new Error("正文代次已变化，已保留原操作结果");
-    } else check();
+        return;
+      if (await this.replacements.recover(session)) await this.content.project(session);
+    } catch (error) {
+      // 仍在等待回执的候选留在共享库，后续打开、刷新或重试继续查询。
+      if (!(error instanceof Error) || !error.message.startsWith("CONTENT_REPLACEMENT_PENDING:"))
+        console.warn("[collaboration] 共享正文整篇替换对账未完成", error);
+    }
   }
 
   private get serverUrl() {
@@ -204,7 +244,7 @@ export class CollaborationManager extends ContentSessionManager {
   }
   private state(): CollaborationState {
     const sessions = new Map(
-      [...this.sessions.values()]
+      [...this.content.activeSessions()]
         .filter(session => session.info.mode !== "local")
         .map(({ info }) => [`${info.serverUrl}/${info.id}`, info])
     );
@@ -226,7 +266,7 @@ export class CollaborationManager extends ContentSessionManager {
           connection: "idle",
           pending: false,
           leaving: false,
-          source: this.findLocalSource(room.id, serverUrl),
+          source: this.content.findLocalSource(room.id, serverUrl),
         });
       }
     }
@@ -241,7 +281,7 @@ export class CollaborationManager extends ContentSessionManager {
     };
   }
   private roomAddress(id: string): string | undefined {
-    const session = this.sessions.get(id);
+    const session = this.content.activeSession(id);
     if (session && session.info.mode !== "local") return session.info.serverUrl;
     return [...this.remoteDocuments].find(([, rooms]) => rooms.has(id))?.[0];
   }
@@ -252,14 +292,28 @@ export class CollaborationManager extends ContentSessionManager {
   }
 
   private async openRoom(id: string): Promise<RuntimeSession> {
-    const existing = this.findSession(id);
-    if (existing?.info.mode === "local") throw new Error("本机正文不属于共享房间");
-    if (existing) return existing;
-    const url = this.roomAddress(id) ?? this.serverUrl;
-    const room = this.remoteDocuments.get(url)?.get(id) ?? (await this.listRooms(url)).get(id);
-    if (!room) throw new Error("协作文档不存在或已失去访问权限");
-    this.assertContentRoom(room);
-    return this.openRemoteDocument(url, room);
+    let session = this.content.find(id);
+    if (session?.info.mode === "local") throw new Error("本机正文不属于共享房间");
+    if (!session) {
+      const url = this.roomAddress(id) ?? this.serverUrl;
+      const room = this.remoteDocuments.get(url)?.get(id) ?? (await this.listRooms(url)).get(id);
+      if (!room) throw new Error("协作文档不存在或已失去访问权限");
+      this.assertContentRoom(room);
+      session = await this.openRemoteDocument(url, room);
+    }
+    const previous = session.info.source;
+    const db = previous && databaseModule.getDatabase(previous.databaseName);
+    if (db?.open && previous && session.info.role === "owner") {
+      const source = restoreContentBinding(db, previous.databaseName, id, session.info.serverUrl);
+      if (
+        source?.contentId === previous.contentId &&
+        source.contentCreatedAt === previous.contentCreatedAt &&
+        (!previous.librarySourceId || source.librarySourceId === previous.librarySourceId) &&
+        (!previous.contentDocumentId || source.contentDocumentId === previous.contentDocumentId)
+      )
+        await this.finishOpenedPublish(db, source, session);
+    }
+    return session;
   }
 
   /** 白板发布或加入后立即刷新房间列表，避免等待定时刷新。 */
@@ -279,7 +333,7 @@ export class CollaborationManager extends ContentSessionManager {
     }
     return transport;
   }
-  protected override attach(session: RuntimeSession) {
+  private attach(session: RuntimeSession) {
     if (
       session.info.mode === "local" ||
       session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION ||
@@ -312,7 +366,7 @@ export class CollaborationManager extends ContentSessionManager {
       onStatus: ({ status }) => {
         session.info.connection =
           status === "connected" ? "connected" : status === "connecting" ? "connecting" : "offline";
-        this.changed(session);
+        this.content.changed(session);
       },
       onSynced: ({ state }) => {
         if (!state) return;
@@ -320,17 +374,17 @@ export class CollaborationManager extends ContentSessionManager {
         session.info.error = undefined;
         if (!session.provider?.hasUnsyncedChanges && !this.assets.hasPending(id))
           session.info.pending = false;
-        this.changed(session);
+        this.content.changed(session);
       },
       onUnsyncedChanges: ({ number }) => {
         if (session.info.status === "active" && !session.info.leaving)
           session.info.pending = number > 0 || this.assets.hasPending(id);
-        this.changed(session);
+        this.content.changed(session);
       },
       onAuthenticationFailed: () => {
         session.info.connection = "error";
         session.info.error = "协作身份验证失败或访问权限已变更";
-        this.changed(session);
+        this.content.changed(session);
         void this.refresh();
       },
     });
@@ -338,13 +392,13 @@ export class CollaborationManager extends ContentSessionManager {
     if (!this.assets.hasPending(id)) session.provider.attach();
     void transport.connect().catch(() => {
       session.info.connection = "offline";
-      this.changed(session);
+      this.content.changed(session);
     });
   }
   private async prepareLeave(session: RuntimeSession) {
     if (session.info.frozen) throw new Error("内容正在切换，请稍后重试");
     try {
-      await this.freeze(session);
+      await this.content.freeze(session);
       if (
         session.info.pending ||
         this.assets.hasPending(session.info.id) ||
@@ -374,7 +428,10 @@ export class CollaborationManager extends ContentSessionManager {
           throw new Error("房间基线已变化，请重新打开共享正文");
         const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity);
         candidate.destroy();
-        if (this.sessions.get(session.info.id) !== session || session.info.status !== "active")
+        if (
+          this.content.activeSession(session.info.id) !== session ||
+          session.info.status !== "active"
+        )
           throw new Error("共享会话已变化，请重新打开正文");
         Y.applyUpdate(session.doc, bytes, session.provider);
         const resources = await this.client.request<{ ids: string[] }>(
@@ -400,7 +457,7 @@ export class CollaborationManager extends ContentSessionManager {
             await this.assets.localizeReference(session.info.serverUrl, session.info.id, reference);
       }
     } catch (error) {
-      this.unfreeze(session);
+      this.content.unfreeze(session);
       if (!this.assets.hasPending(session.info.id)) session.provider?.attach();
       throw error;
     }
@@ -422,19 +479,19 @@ export class CollaborationManager extends ContentSessionManager {
         const event = JSON.parse(data.toString()) as CollaborationEvent;
         if (event.type === "refresh") void this.refresh();
         else if (event.type === "presence") {
-          const session = this.sessions.get(event.documentId);
+          const session = this.content.activeSession(event.documentId);
           const room = this.remoteDocuments.get(url)?.get(event.documentId);
           if (room) room.members = event.members;
           if (session?.info.serverUrl === url) {
             session.info.members = event.members;
-            this.changed(session);
-          } else if (room) this.changed();
+            this.content.changed(session);
+          } else if (room) this.content.changed();
         } else {
-          const session = this.sessions.get(event.documentId);
+          const session = this.content.activeSession(event.documentId);
           const removed = this.remoteDocuments.get(url)?.delete(event.documentId);
-          const cached = session ?? (removed ? this.findSession(event.documentId) : undefined);
+          const cached = session ?? (removed ? this.content.find(event.documentId) : undefined);
           if (cached?.info.serverUrl === url) void this.revoke(cached, event.type);
-          else if (removed) this.changed();
+          else if (removed) this.content.changed();
         }
       } catch {
         /* 忽略无效状态消息，下次刷新会重新获取权威状态。 */
@@ -476,7 +533,7 @@ export class CollaborationManager extends ContentSessionManager {
     const urls = new Set([
       this.serverUrl,
       ...this.remoteDocuments.keys(),
-      ...[...this.sessions.values()]
+      ...[...this.content.activeSessions()]
         .filter(session => session.info.mode !== "local")
         .map(session => session.info.serverUrl),
     ]);
@@ -488,9 +545,9 @@ export class CollaborationManager extends ContentSessionManager {
         const rooms = await this.listRooms(url);
         if (this.stopped) return;
         for (const [id, room] of previous ?? [])
-          if (room.kind === "content" && !rooms.has(id)) this.findSession(id);
+          if (room.kind === "content" && !rooms.has(id)) this.content.find(id);
         const failed: string[] = [];
-        for (const session of [...this.sessions.values()]) {
+        for (const session of [...this.content.activeSessions()]) {
           if (session.info.serverUrl !== url) continue;
           const info = rooms.get(session.info.id);
           try {
@@ -513,12 +570,12 @@ export class CollaborationManager extends ContentSessionManager {
       }
     }
     this.error = errors[0];
-    this.changed();
+    this.content.changed();
   }
 
   /** 已有会话继续核对基线，目录中的其他正文只在打开时加载。 */
   private async syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void> {
-    const existing = this.findSession(info.id);
+    const existing = this.content.find(info.id);
     if (existing) {
       if (existing.info.serverUrl !== url) return;
       Object.assign(existing.info, info);
@@ -527,17 +584,19 @@ export class CollaborationManager extends ContentSessionManager {
         epoch: number;
         baselineId: string;
       }>(url, `/v1/documents/${info.id}/protocol`);
-      if (this.sessions.get(info.id) !== existing || existing.info.status !== "active") return;
+      if (this.content.activeSession(info.id) !== existing || existing.info.status !== "active")
+        return;
       if (
         protocol.version === NODE_DOCUMENT_VERSION &&
         protocol.epoch > Number(existing.doc.getMap("meta").get("epoch") ?? 0)
       ) {
         // 远端已换代：旧缓存不能合入新基线，备份后按服务器确认快照重建，编辑视图随 replaced 事件重开
-        await this.releaseRemoteSession(existing, "协作端基线已变化");
+        this.content.discardRemoteSession(existing, "协作端基线已变化");
         await this.openRemoteDocument(url, info);
         return;
       }
       this.store.metadata(existing.info);
+      await this.recoverReplacement(existing);
       return;
     }
     await this.openRemoteDocument(url, info);
@@ -571,7 +630,7 @@ export class CollaborationManager extends ContentSessionManager {
       });
       const rooms = this.remoteDocuments.get(url);
       if (rooms && !rooms.has(info.id)) throw new Error("协作会话已失效，请重新打开");
-      const existing = this.sessions.get(info.id);
+      const existing = this.content.activeSession(info.id);
       if (existing) {
         if (existing.info.serverUrl !== url) throw new Error("共享会话属于另一服务器");
         doc.destroy();
@@ -585,14 +644,14 @@ export class CollaborationManager extends ContentSessionManager {
       ...(this.remoteDocuments.get(url)?.get(info.id) ?? info),
       serverUrl: url,
       mode: "shared",
-      source: this.findLocalSource(info.id, url),
+      source: this.content.findLocalSource(info.id, url),
       connection: "connecting",
       pending: false,
       leaving: false,
     };
-    this.store.create(session, doc);
-    const runtime = this.restore(session, doc);
-    this.changed(runtime);
+    const runtime = this.content.install(session, doc);
+    this.content.changed(runtime);
+    void this.recoverReplacement(runtime);
     return runtime;
   }
   private async createContent(
@@ -603,7 +662,7 @@ export class CollaborationManager extends ContentSessionManager {
     sourceTitle?: string
   ) {
     if (!Number.isSafeInteger(contentId) || contentId <= 0) throw new Error("内容 ID 不合法");
-    const { name } = this.databaseForEvent(event);
+    const { name } = this.content.databaseForEvent(event);
     const key = `${name}:${contentId}`;
     let operation = this.pendingCreates.get(key);
     if (!operation) {
@@ -618,7 +677,7 @@ export class CollaborationManager extends ContentSessionManager {
         let local =
           snapshot.mode === "local"
             ? body.getSession(snapshot.documentId)
-            : this.requireSession(snapshot.documentId);
+            : this.content.requireSession(snapshot.documentId);
         // 命中结束共享的残留会话：先写回本地并拆除（同「清理本地记录」），再重走创建，
         // 否则会按「恢复共享」对已删的服务器文档重新签码
         const reshare = snapshot.mode !== "local" ? planClosedReshare(local.info) : null;
@@ -634,7 +693,7 @@ export class CollaborationManager extends ContentSessionManager {
           local =
             snapshot.mode === "local"
               ? body.getSession(snapshot.documentId)
-              : this.requireSession(snapshot.documentId);
+              : this.content.requireSession(snapshot.documentId);
         }
         if (snapshot.mode !== "local") {
           const invitation = await this.issueInvitation(local.info.serverUrl, local.info.id);
@@ -677,7 +736,7 @@ export class CollaborationManager extends ContentSessionManager {
   ) {
     if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
       throw new Error("正文格式不受支持，无法发起共享");
-    const { db, name } = this.databaseForEvent(event);
+    const { db, name } = this.content.databaseForEvent(event);
     const stored = ContentDocumentTable.read(db, target.contentId);
     const source = session.info.source;
     if (!stored || !source || source.databaseName !== name || source.contentId !== target.contentId)
@@ -686,13 +745,7 @@ export class CollaborationManager extends ContentSessionManager {
     const identity = await this.client.identity(url);
     const previousId = session.info.id;
     const body = this.localRuntime;
-    let prepared = body.pendingShare<{
-      documentId: string;
-      baselineId: string;
-      state: string;
-      revision: string;
-      serverUrl: string;
-    }>(previousId);
+    let prepared = body.pendingShare(previousId);
     if (!prepared) {
       const idempotencyKey = createHash("sha256")
         .update(
@@ -748,7 +801,7 @@ export class CollaborationManager extends ContentSessionManager {
       undefined,
       NODE_DOCUMENT_VERSION
     );
-    const existing = this.sessions.get(prepared.documentId);
+    const existing = this.content.activeSession(prepared.documentId);
     const doc = existing?.doc ?? new Y.Doc({ gc: false });
     try {
       Y.applyUpdate(doc, Buffer.from(remote.state, "base64"), existing?.provider);
@@ -819,15 +872,18 @@ export class CollaborationManager extends ContentSessionManager {
         // 刚发布的房间以远端确认快照为准，同 ID 的冷缓存只可能是旧残留
         this.store.discard(info.id, "发布时发现同房间的旧缓存");
         source.projectionRevision = ContentDocumentTable.read(db, source.contentId)!.revision;
-        this.store.create(info, doc);
-        this.restore(info, doc);
+        this.content.install(info, doc);
       }
-      await body.finishShare(session);
-      body.clearPendingShare(previousId);
-      this.changed();
+      await body.finishPublishedShare(previousId, source, {
+        documentId: prepared.documentId,
+        baselineId: prepared.baselineId,
+        epoch: 0,
+        serverUrl: url,
+      });
+      this.content.changed();
       return { documentId: info.id, code: (await this.issueInvitation(url, info.id)).code };
     } catch (failure) {
-      if (!existing && this.sessions.get(prepared.documentId)?.doc !== doc) doc.destroy();
+      if (!existing && this.content.activeSession(prepared.documentId)?.doc !== doc) doc.destroy();
       throw failure;
     }
   }
@@ -843,25 +899,26 @@ export class CollaborationManager extends ContentSessionManager {
     const serverUrl = session.info.serverUrl;
     const previousId = session.info.id;
     if (session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION) {
+      const nextId = localSessionId(db.name, source.contentId, source.contentCreatedAt);
+      const body = this.localRuntime;
+      const target = { db, name: source.databaseName };
       if (!bindingMatches(db, source, previousId, serverUrl)) {
+        // 主库已提交时可接续本机安装；较新的正文或另一个绑定仍由当前主库决定。
+        body.restoreDemotion(target, nextId);
         await this.removeSession(session);
         return;
       }
       const stored = ContentDocumentTable.read(db, source.contentId);
       if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
       const expectedRevision = source.projectionRevision;
+      const librarySourceId = ContentIdentityTable.library(db)?.sourceId;
       if (
+        !librarySourceId ||
         stored.revision !== expectedRevision ||
         (source.contentDocumentId && stored.documentId !== source.contentDocumentId) ||
-        (source.librarySourceId &&
-          ContentIdentityTable.library(db)?.sourceId !== source.librarySourceId)
+        (source.librarySourceId && librarySourceId !== source.librarySourceId)
       )
         throw new Error("最终正文的来源或修订已变化，已保留共享副本");
-      const nextId = localSessionId(db.name, source.contentId, source.contentCreatedAt);
-      const body = this.localRuntime;
-      if (body.find(nextId)) throw new Error("本机正文仍在编辑，请稍后重试");
-      // 共享期间的本机冷缓存早于共享内容，备份后让位给结束共享的最终正文
-      body.discardCache(nextId, "结束共享时发现旧本机缓存");
       const contracts = session.doc
         .getMap("node-tree:contracts")
         .toJSON() as ContentContractDictionary;
@@ -883,8 +940,12 @@ export class CollaborationManager extends ContentSessionManager {
         if (!db.open || databaseModule.getDatabase(source.databaseName) !== db)
           throw new Error("资料库已切换，请在原资料库重试");
         db.transaction(() => {
-          if (!bindingMatches(db, source, previousId, serverUrl)) throw new Error("正文绑定已变化");
-          ContentDocumentTable.commit(
+          if (
+            !bindingMatches(db, source, previousId, serverUrl) ||
+            ContentIdentityTable.library(db)?.sourceId !== librarySourceId
+          )
+            throw new Error("正文绑定或资料库来源已变化");
+          const committed = ContentDocumentTable.commit(
             db,
             source.contentId,
             { documentId: stored.documentId, contracts, content: value.content },
@@ -894,37 +955,48 @@ export class CollaborationManager extends ContentSessionManager {
               count: getContentLength(value.content as import("slate").Descendant[]),
             }
           );
+          body.stageDemotion(
+            {
+              ...session.info,
+              id: nextId,
+              source: {
+                ...source,
+                librarySourceId,
+                contentDocumentId: stored.documentId,
+                projectionRevision: committed.revision,
+              },
+              mode: "local",
+              serverUrl: "",
+              ownerId: "local",
+              role: "owner",
+              status: "active",
+              members: [],
+              frozen: false,
+              leaving: false,
+              pending: false,
+              error: undefined,
+              connection: "connected",
+            },
+            doc
+          );
+          // 原房间已确认关闭。主库解绑一旦可见，下一次发布已拥有新代次。
+          this.store.db.transaction(() => {
+            const marker = `close-generation:${previousId}`;
+            if (this.store.get(marker, false)) return;
+            const generationKey = `generation:${source.databaseName}:${source.contentId}`;
+            this.store.set(generationKey, this.store.get(generationKey, 0) + 1);
+            this.store.set(marker, true);
+          })();
           db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
             source.contentId,
             previousId
           );
         })();
-        const info: CollaborationSession = {
-          ...session.info,
-          id: nextId,
-          mode: "local",
-          serverUrl: "",
-          ownerId: "local",
-          role: "owner",
-          status: "active",
-          members: [],
-          frozen: false,
-          leaving: false,
-          pending: false,
-          error: undefined,
-          connection: "connected",
-        };
-        source.projectionRevision = ContentDocumentTable.read(db, source.contentId)!.revision;
-        body.install(info, doc);
-        this.store.set(
-          `generation:${source.databaseName}:${source.contentId}`,
-          this.store.get(`generation:${source.databaseName}:${source.contentId}`, 0) + 1
-        );
+        if (!body.restoreDemotion(target, nextId)) throw new Error("本机正文尚未恢复，请重试");
         await this.removeSession(session);
         return;
-      } catch (failure) {
-        if (body.find(nextId)?.doc !== doc) doc.destroy();
-        throw failure;
+      } finally {
+        doc.destroy();
       }
     }
     throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
@@ -946,7 +1018,7 @@ export class CollaborationManager extends ContentSessionManager {
     if (this.syncingResources) return;
     this.syncingResources = true;
     try {
-      for (const session of this.sessions.values()) {
+      for (const session of this.content.activeSessions()) {
         if (
           session.info.leaving ||
           session.info.status !== "active" ||
@@ -963,7 +1035,7 @@ export class CollaborationManager extends ContentSessionManager {
             session.provider?.attach();
         } catch (error) {
           session.info.error = error instanceof Error ? error.message : "资源上传失败";
-          this.changed(session);
+          this.content.changed(session);
         }
       }
     } finally {
@@ -971,7 +1043,7 @@ export class CollaborationManager extends ContentSessionManager {
     }
   }
 
-  protected override async readSharedAgentState(session: RuntimeSession) {
+  private async readSharedAgentState(session: RuntimeSession) {
     const remote = await this.client.request<{ state: string }>(
       session.info.serverUrl,
       `/v1/documents/${session.info.id}/state`,
@@ -982,7 +1054,7 @@ export class CollaborationManager extends ContentSessionManager {
     return Buffer.from(remote.state, "base64");
   }
 
-  protected override async submitSharedAgentEdit(
+  private async submitSharedAgentEdit(
     session: RuntimeSession,
     request: ScopedContentSubmission,
     updateHash: string,
@@ -1062,10 +1134,7 @@ export class CollaborationManager extends ContentSessionManager {
     return { status: "pending" };
   }
 
-  protected override async preserveOwnerImages(
-    session: RuntimeSession,
-    references?: Iterable<string>
-  ) {
+  private async preserveOwnerImages(session: RuntimeSession, references?: Iterable<string>) {
     if (session.info.mode === "local" || session.info.role !== "owner") return;
     try {
       const preserved = await this.assets.preserveOwnerImages(
@@ -1074,7 +1143,8 @@ export class CollaborationManager extends ContentSessionManager {
         references ?? collectNodeDocumentResources(session.doc),
         async file => {
           const reference = await collaborationImageStorage.save(file);
-          if (this.sessions.get(session.info.id) !== session) throw new Error("作者正文会话已变化");
+          if (this.content.activeSession(session.info.id) !== session)
+            throw new Error("作者正文会话已变化");
           return reference;
         }
       );
@@ -1089,7 +1159,7 @@ export class CollaborationManager extends ContentSessionManager {
     }
     if (session.info.error?.startsWith("作者图片尚未保存：")) {
       session.info.error = undefined;
-      this.changed(session);
+      this.content.changed(session);
     }
   }
 
@@ -1100,13 +1170,13 @@ export class CollaborationManager extends ContentSessionManager {
     if (!source) return;
     const db = databaseModule.getDatabase(source.databaseName);
     if (!db?.open) throw new Error("请打开原内容所在数据库以完成退出");
-    if (!session.info.frozen) await this.freeze(session);
-    if (!discard && this.projecting.has(session.info.id))
+    if (!session.info.frozen) await this.content.freeze(session);
+    if (!discard && this.content.isProjecting(session))
       throw new Error("内容正在保存，请稍后再重试");
     // 原内容已不再由这份共享绑定（被删除重建 / 改绑其它共享）：没有可写回的对象，
     // 直接解除本共享的残留记录——否则写回必然失败，清理永远卡住
     const bound = bindingMatches(db, source, session.info.id, session.info.serverUrl);
-    if (!discard && bound) await this.project(session);
+    if (!discard && bound) await this.content.project(session);
     db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
       source.contentId,
       session.info.id
@@ -1122,9 +1192,9 @@ export class CollaborationManager extends ContentSessionManager {
     if (session.info.source) await this.clearBinding(session);
     await this.removeSession(session);
   }
-  protected override async removeSession(session: RuntimeSession) {
+  private async removeSession(session: RuntimeSession) {
     this.remoteDocuments.get(session.info.serverUrl)?.delete(session.info.id);
-    await super.removeSession(session);
+    await this.content.removeSession(session);
   }
   private async revoke(session: RuntimeSession, reason: "closed" | "revoked") {
     if (session.info.leaving) return;
@@ -1136,12 +1206,12 @@ export class CollaborationManager extends ContentSessionManager {
       try {
         await this.clearBinding(session);
       } catch {
-        this.changed(session);
+        this.content.changed(session);
         return;
       }
     }
     if (session.info.pending) {
-      this.changed(session);
+      this.content.changed(session);
       return;
     }
     await this.removeSession(session);
@@ -1188,7 +1258,7 @@ export class CollaborationManager extends ContentSessionManager {
         // 原正文仍存在时安装本机会话，否则只拆除共享会话。
         if (session.info.source) {
           await this.demoteSession(session);
-          this.unfreeze(session);
+          this.content.unfreeze(session);
         } else await this.removeSession(session);
       } else {
         await this.client.request(
@@ -1204,24 +1274,24 @@ export class CollaborationManager extends ContentSessionManager {
         session.info.leaving = false;
         this.store.delete(`close-revision:${closingId}`);
         this.store.delete(`close-attempted:${closingId}`);
-        this.unfreeze(session);
+        this.content.unfreeze(session);
         if (!this.assets.hasPending(closingId)) session.provider?.attach();
       }
       session.info.error = error instanceof Error ? error.message : "正在等待退出完成";
-      this.changed(session);
+      this.content.changed(session);
     } finally {
       this.finishingLeaves.delete(closingId);
     }
   }
 
   private async persistBeforeClose(session: RuntimeSession) {
-    if (this.projecting.has(session.info.id)) throw new Error("正文正在保存，请稍后重试");
+    if (this.content.isProjecting(session)) throw new Error("正文正在保存，请稍后重试");
     const source = session.info.source;
     if (!source) throw new Error("原正文关联缺失，请打开原资料库后重试结束共享");
     if (!databaseModule.getDatabase(source.databaseName)?.open)
       throw new Error("请打开原内容所在数据库以完成结束共享");
-    await this.project(session);
-    if (this.sessions.get(session.info.id) !== session || session.projectionDirty)
+    await this.content.project(session);
+    if (this.content.activeSession(session.info.id) !== session || session.projectionDirty)
       throw new Error("最终正文尚未确认保存，请重试结束共享");
     this.store.compact(session.info.id, session.doc);
     this.store.metadata(session.info);
@@ -1232,60 +1302,72 @@ export class CollaborationManager extends ContentSessionManager {
     return this.client;
   }
 
-  private async releaseRemoteSession(session: RuntimeSession, reason: string) {
-    const id = session.info.id;
-    for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
-    unregisterContentSession(session);
-    session.provider?.destroy();
-    if (session.dirty) this.store.compact(id, session.doc);
-    this.store.discard(id, reason);
-    session.awareness.destroy();
-    session.doc.destroy();
-    this.sessions.delete(id);
-    this.contentState?.db.prepare("DELETE FROM entity_holds WHERE holder=?").run(`document:${id}`);
-    this.broadcast("collaboration:removed", { documentId: id, replaced: true });
+  private initializeContentRuntime(storage: ContentRuntimeStorage) {
+    this.store = storage.store;
+    this.assets = storage.assets;
+    this.replacements = new SharedContentReplacement(
+      storage.store,
+      storage.contentState,
+      storage.nodeUpdates,
+      () => this.client,
+      session => this.assertReplacementSession(session)
+    );
+    this.content = new ContentSessionRuntime(storage, {
+      attach: session => this.attach(session),
+      broadcastState: () => this.content.broadcast("collaboration:state", this.state()),
+      flushResources: () => void this.flushResources(),
+      preserveOwnerImages: session => this.preserveOwnerImages(session),
+      retryReplacement: this.replacements.retry.bind(this.replacements),
+      submitReplacement: this.replacements.submit.bind(this.replacements),
+      scheduleSuggestionValidation: (workspaceId, contentId, document) =>
+        this.localRuntime.scheduleSuggestionValidation(workspaceId, contentId, document),
+    });
   }
 
-  override async init() {
-    this.directory = join(PathUtil.getAppDir(), "collaboration");
-    this.store = new CollaborationLocalStore(this.directory);
-    this.contentState = new ContentLocalState(this.store.db);
-    this.client = new CollaborationClient(this.store);
-    this.assets = new CollaborationAssetService(this.store, PathUtil.getAppDir(), url =>
+  async init() {
+    const appDirectory = PathUtil.getAppDir();
+    const store = new CollaborationLocalStore(join(appDirectory, "collaboration"));
+    this.client = new CollaborationClient(store);
+    const assets = new CollaborationAssetService(store, appDirectory, url =>
       this.client.identity(url)
     );
+    const storage = createDesktopContentServices(store, assets);
+    this.initializeContentRuntime(storage);
     // 打不开的缓存由 loadCached 备份后丢弃，共享会话随后按远端快照重建，本机正文按主库重建
     for (const info of this.store.list()) {
       if (
         info.mode !== "local" &&
-        (info.role === "owner" || info.pending || info.leaving || this.assets.hasPending(info.id))
+        (info.role === "owner" ||
+          info.pending ||
+          info.leaving ||
+          this.assets.hasPending(info.id) ||
+          this.replacements.hasPending(info.serverUrl, info.id))
       )
-        this.loadCached(info.id, info);
+        this.content.loadCached(info.id, info);
     }
-    this.initDurability();
+    this.content.initDurability();
     registerCollaborationIpc({
-      nodeUpdates: this.contentUpdates(),
+      nodeUpdates: storage.nodeUpdates,
       store: this.store,
-      contentState: this.contentState,
+      contentState: storage.contentState,
       client: this.client,
       assets: this.assets,
       serverUrl: () => this.serverUrl,
-      sessions: this.sessions,
-      findSession: id => this.findSession(id) ?? this.localRuntime.find(id),
-      views: this.views,
+      findSession: id => this.content.find(id) ?? this.localRuntime.find(id),
+      views: this.content.ipcViews,
       state: this.state.bind(this),
-      changed: this.changed.bind(this),
+      changed: this.content.changed.bind(this.content),
       refresh: this.refresh.bind(this),
-      databaseForEvent: this.databaseForEvent.bind(this),
-      requireSession: this.requireSession.bind(this),
+      databaseForEvent: this.content.databaseForEvent.bind(this.content),
+      requireSession: this.content.requireSession.bind(this.content),
       roomAddress: this.roomAddress.bind(this),
       openRoom: this.openRoom.bind(this),
-      acknowledgeFreeze: this.acknowledgeFreeze.bind(this),
+      acknowledgeFreeze: this.content.acknowledgeFreeze.bind(this.content),
       prepareLeave: this.prepareLeave.bind(this),
       createContent: this.createContent.bind(this),
       issueInvitation: this.issueInvitation.bind(this),
-      removeView: this.removeView.bind(this),
-      presenceSnapshot: session => this.localRuntime.agent.presenceSnapshot(session),
+      removeView: this.content.removeView.bind(this.content),
+      presenceSnapshot: session => this.localRuntime.presenceSnapshot(session),
       clearBinding: this.clearBinding.bind(this),
       discardLocal: this.discardLocal.bind(this),
       removeSession: this.removeSession.bind(this),
@@ -1293,36 +1375,37 @@ export class CollaborationManager extends ContentSessionManager {
       flushResources: this.flushResources.bind(this),
     });
     this.connectLocalRuntime();
-    this.startAutoFlush();
+    this.content.startAutoFlush();
     this.refreshInterval = setInterval(() => void this.refresh(), 15000);
     this.refreshInterval.unref();
     void this.refresh();
   }
 
   private connectLocalRuntime() {
-    this.localRuntime.connectSharing({
+    const localRuntime = this.localRuntime;
+    this.disconnectLocalRuntime = localRuntime.connectSharing({
       open: this.openSharedContent.bind(this),
-      find: this.findSession.bind(this),
-      findContent: this.findContent.bind(this),
+      find: this.content.find.bind(this.content),
+      findContent: this.content.findContent.bind(this.content),
       readAgentState: this.readSharedAgentState.bind(this),
       submitAgentEdit: this.submitSharedAgentEdit.bind(this),
       broadcastPresence: (documentId, update) =>
-        this.broadcast("collaboration:awareness", { documentId, update }),
-      windows: id => this.removeWindowViews(id),
+        this.content.broadcast("collaboration:awareness", { documentId, update }),
+      removeWindowViews: id => this.content.removeWindowViews(id),
     });
   }
 
   /** 受控退出收尾：停止后台任务并断开所有协作连接 */
-  override shutdown(): void {
-    this.localRuntime.disconnectSharing();
-    super.shutdown();
+  shutdown(): void {
+    this.disconnectLocalRuntime?.();
+    this.disconnectLocalRuntime = undefined;
+    this.content?.shutdown();
     this.stopped = true;
     this.remoteDocuments.clear();
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     for (const socket of this.events.values()) socket.close();
     for (const transport of this.transports.values()) transport.disconnect();
-    this.contentState = undefined;
   }
 }
 
-export default new CollaborationManager(localContent);
+export default new CollaborationManager(getLocalContentRuntime);

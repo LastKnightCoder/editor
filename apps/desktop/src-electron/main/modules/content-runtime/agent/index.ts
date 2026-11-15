@@ -19,7 +19,7 @@ import { CONTENT_AGENT_PRESENCE_CHANGED } from "@/types/agent-presence";
 import { broadcastDatabaseChange } from "../../database-notifications";
 import { contentRevision, contentSession } from "../../collaboration/content-sessions";
 import type { RuntimeSession } from "../../collaboration/types";
-import type { ContentSessionManager } from "..";
+import type { NodeSessionUpdates } from "../../collaboration/node-session-updates";
 import { AgentPermissionStore } from "./agent-permissions";
 import { AgentPresenceHub } from "./agent-presence";
 import type { TypingHost } from "./agent-typing";
@@ -35,6 +35,17 @@ type SubmitSharedEdit = (
   options: ScopedWriteOptions
 ) => Promise<ScopedContentResult>;
 
+export interface ContentAgentHost {
+  openForDatabase(db: Database.Database, contentId: number): Promise<unknown>;
+  acceptUpdates: NodeSessionUpdates["apply"];
+  save(session: RuntimeSession): Promise<void>;
+  reportSaveFailure(session: RuntimeSession, error: unknown): void;
+  findContent(workspaceId: string, contentId: number): RuntimeSession | undefined;
+  broadcastPresence(documentId: string, update: Uint8Array): void;
+  readSharedState: ReadSharedState;
+  submitSharedEdit: SubmitSharedEdit;
+}
+
 const receiptKey = (request: Omit<ScopedContentSubmission, "scope">) =>
   `scoped-edit:${request.documentId}:${request.baselineId}:${request.epoch}:${request.operationId}`;
 
@@ -45,14 +56,7 @@ export class ContentAgent {
 
   constructor(
     db: Database.Database,
-    private readonly host: Pick<
-      ContentSessionManager,
-      "openForDatabase" | "acceptUpdates" | "save" | "reportSaveFailure"
-    >,
-    findContent: (workspaceId: string, contentId: number) => RuntimeSession | undefined,
-    broadcastPresence: (documentId: string, update: Uint8Array) => void,
-    private readonly readSharedState: ReadSharedState,
-    private readonly submitSharedEdit: SubmitSharedEdit
+    private readonly host: ContentAgentHost
   ) {
     this.permissions = new AgentPermissionStore(db);
     this.suggestions = new ContentSuggestionService(
@@ -64,10 +68,10 @@ export class ContentAgent {
     );
     this.presence = new AgentPresenceHub({
       doc: (workspaceId, contentId) => {
-        const session = findContent(workspaceId, contentId);
+        const session = host.findContent(workspaceId, contentId);
         return session && { documentId: session.info.id, doc: session.doc };
       },
-      broadcastAwareness: broadcastPresence,
+      broadcastAwareness: host.broadcastPresence,
       changed: (workspaceId, contentId) =>
         broadcastDatabaseChange(CONTENT_AGENT_PRESENCE_CHANGED, workspaceId, { contentId }),
     });
@@ -85,7 +89,7 @@ export class ContentAgent {
     const candidate = new Y.Doc({ gc: false });
     try {
       if (session.info.mode !== "local") {
-        Y.applyUpdate(candidate, await this.readSharedState(session));
+        Y.applyUpdate(candidate, await this.host.readSharedState(session));
         const confirmed = readDocumentIdentity(candidate);
         if (
           confirmed.documentId !== identity.documentId ||
@@ -136,7 +140,7 @@ export class ContentAgent {
     const encoded = JSON.stringify(request.scope);
     const updateHash = createHash("sha256").update(encoded).digest("hex");
     if (session.info.mode !== "local")
-      return this.submitSharedEdit(session, request, updateHash, check, options);
+      return this.host.submitSharedEdit(session, request, updateHash, check, options);
     const { undo } = options;
     const store = session.store;
     if (!store) throw new Error("正文日志尚未就绪");

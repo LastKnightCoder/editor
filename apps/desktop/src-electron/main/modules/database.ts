@@ -9,6 +9,8 @@ import { readdirSync } from "node:fs";
 import log from "electron-log";
 import { recordIpcCall, recordSqlCall } from "./perf-monitor";
 import { executeDatabaseCommand } from "./database-command";
+import { createContentAgentCommands } from "./content-runtime/agent/commands";
+import { bindContentWriteConnection } from "./content-events";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
 import { Table } from "../types/table";
@@ -357,7 +359,9 @@ class DatabaseModule implements Module {
           ...events,
         };
       },
-      {} as Record<string, (args: any) => Promise<any>>
+      createContentAgentCommands(
+        async () => (await import("./content-runtime/composition")).getLocalContentRuntime().agent
+      ) as typeof this.eventAndHandlers
     );
     this.indexEventAndHandlers = {
       ...FtsTable.getListenEvents(),
@@ -602,6 +606,7 @@ class DatabaseModule implements Module {
     const task = Promise.resolve()
       .then(async () => {
         const database = this.openDatabase(name, mode, allowOwnedSync);
+        bindContentWriteConnection(database, name);
         this.databases.set(name, database);
         return database;
       })

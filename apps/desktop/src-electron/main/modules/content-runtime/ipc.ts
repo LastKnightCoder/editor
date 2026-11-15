@@ -15,7 +15,7 @@ import {
   type ContentNode,
   type ContentInputDraft,
 } from "@tau/collaboration";
-import type { CollaborationIpcContext } from "../collaboration/types";
+import type { CollaborationIpcContext, RuntimeSession } from "../collaboration/types";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { isVideoFile } from "../collaboration/asset-service";
@@ -40,6 +40,7 @@ export type ContentIpcContext = Pick<
 > & {
   user(): { id: string; nickname: string };
   openRoom?: CollaborationIpcContext["openRoom"];
+  checkLocalSubscribe?(event: IpcMainInvokeEvent, windowId: number, session?: RuntimeSession): void;
   flushResources?(): Promise<void>;
 };
 type CommandHandler<Key extends keyof Commands> = (
@@ -52,10 +53,14 @@ type OpenContentHandler = (
   ...args: Parameters<typeof localContentCommands.openContent.call>
 ) => ReturnType<typeof localContentCommands.openContent.call>;
 
-export function registerContentIpc(context: ContentIpcContext, commands: Commands) {
+export function registerContentIpc(
+  context: ContentIpcContext,
+  commands: Commands,
+  register: typeof ipcMain.handle = (channel, handler) => ipcMain.handle(channel, handler)
+) {
   const { nodeUpdates } = context;
   const handle = <Key extends keyof Commands>(key: Key, fn: NoInfer<CommandHandler<Key>>) =>
-    ipcMain.handle(commands[key].channel, fn);
+    register(commands[key].channel, fn);
   handle(
     "prepareFragment",
     async (
@@ -130,12 +135,14 @@ export function registerContentIpc(context: ContentIpcContext, commands: Command
     if (!window) throw new Error("窗口已关闭");
     if (context.openRoom) await context.openRoom(id);
     if (window.isDestroyed()) throw new Error("窗口已关闭");
+    context.checkLocalSubscribe?.(event, window.id);
     const session = context.requireSession(id);
     if (
       session.info.mode === "local" &&
       context.databaseForEvent(event).name !== session.info.source?.databaseName
     )
       throw new Error("内容不属于当前数据库");
+    if (session.info.mode === "local") context.checkLocalSubscribe?.(event, window.id, session);
     let workspaceId = session.info.source?.databaseName;
     if (!workspaceId) {
       try {
@@ -379,7 +386,21 @@ export function registerLocalContentIpc(
   context: ContentIpcContext & {
     openContent: OpenContentHandler;
   }
-) {
-  ipcMain.handle(localContentCommands.openContent.channel, context.openContent);
-  registerContentIpc(context, localContentCommands);
+): () => void {
+  const channels: string[] = [];
+  const register: typeof ipcMain.handle = (channel, handler) => {
+    ipcMain.handle(channel, handler);
+    channels.push(channel);
+  };
+  const remove = () => {
+    for (const channel of channels) ipcMain.removeHandler(channel);
+  };
+  try {
+    register(localContentCommands.openContent.channel, context.openContent);
+    registerContentIpc(context, localContentCommands, register);
+    return remove;
+  } catch (error) {
+    remove();
+    throw error;
+  }
 }

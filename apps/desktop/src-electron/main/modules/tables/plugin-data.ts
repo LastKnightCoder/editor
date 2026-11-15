@@ -8,7 +8,6 @@ import { resolvePluginContent, sharedContentId } from "./plugin-content-input";
 import { readPageQuery, toPage } from "./plugin-data-page";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
-  PluginContentEdit,
   PluginContentRecord,
   PluginContentSource,
   PluginContentOwnerEntity,
@@ -36,8 +35,15 @@ import WhiteBoardContentTable, { emptyWhiteboardPage } from "./white-board-conte
 import ContentTable from "./content";
 import Operation from "./operation";
 import { emitContentWritten } from "../content-events";
-import { setCanonicalContentTitle } from "../collaboration/content-sessions";
-import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
+import { prepareCanonicalContentTitle } from "../collaboration/content-sessions";
+import { writeAsPlugin } from "../domain-event-origin";
+import { replaceContent } from "./content-replacement";
+import {
+  CONFLICT_PREFIX,
+  pluginContentRevision,
+  writePluginContentEdit,
+  type PluginContentEditRequest,
+} from "./plugin-content-write";
 import { PLUGIN_OPERATION_RETENTION_MS, insertPluginOperation } from "./plugin-operations";
 
 /** 项目目录最多展开的节点数；IN 列表每批的条目数 */
@@ -45,7 +51,7 @@ const MAX_TREE_NODES = 5000;
 const LOCATE_BATCH = 500;
 const CARD_TITLE_LENGTH = 30;
 /** 主进程抛出、渲染端适配层转换为 PluginConflictError 的错误前缀 */
-export const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
+export { CONFLICT_PREFIX } from "./plugin-content-write";
 
 const ENTITY_TABLES: Record<PluginDataEntity, string> = {
   card: "cards",
@@ -153,7 +159,9 @@ export default class PluginDataTable {
       "plugin-data:project-tree": this.projectTree.bind(this),
       "plugin-data:create-document": asynchronousDatabaseCommand(this.createDocument.bind(this)),
       "plugin-data:move-document": this.moveDocument.bind(this),
-      "plugin-data:update": this.update.bind(this),
+      "plugin-data:update": asynchronousDatabaseCommand(
+        async (...args: Parameters<typeof PluginDataTable.update>) => this.update(...args)
+      ),
       "plugin-data:delete": asynchronousDatabaseCommand(
         async (
           db: Database.Database,
@@ -266,7 +274,7 @@ export default class PluginDataTable {
       contentId: row.id,
       createdAt: row.create_time,
       updatedAt: row.update_time,
-      revision: this.contentRevision(db, row.id),
+      revision: pluginContentRevision(snapshot),
       wordCount: row.count || 0,
       ...(request.format === "nodes"
         ? { nodes, contracts: snapshot.contracts }
@@ -298,13 +306,6 @@ export default class PluginDataTable {
   ): number {
     this.assertDatabase(db, request);
     return sharedContentId(db, request.pluginId, request.source);
-  }
-
-  /** 有协作会话时为会话文档的版本，否则为正文的修改时间 */
-  private static contentRevision(db: Database.Database, contentId: number): string {
-    const content = ContentTable.getContentById(db, contentId);
-    if (!content) throw new Error("正文不存在");
-    return content.revision ?? `u:${content.updateTime}`;
   }
 
   private static assertRevision(
@@ -645,58 +646,67 @@ export default class PluginDataTable {
     },
     ctx: CommandContext = fallbackCommandContext
   ): PluginDataRecord {
-    this.assertDatabase(db, request);
-    this.assertEntity(request.entity);
-    this.assertRevision(db, request.entity, request.id, request.expectedRevision);
-    const { patch } = request;
-    const all = this.broadcastAll(ctx);
-    writeAsPlugin(request.pluginId, () => {
-      if (request.entity === "card") {
-        const card = CardTable.getCardById(db, request.id);
-        if (!card) throw new Error("卡片不存在");
-        CardTable.updateCard(
-          db,
-          { ...card, tags: patch.tags ?? card.tags, isTop: patch.pinned ?? card.isTop },
-          all
-        );
-      } else if (request.entity === "article") {
-        const article = ArticleTable.getArticleById(db, request.id);
-        if (patch.title !== undefined) setCanonicalContentTitle(db, article.contentId, patch.title);
-        ArticleTable.updateArticle(
-          db,
-          {
-            ...article,
-            title: patch.title ?? article.title,
-            tags: patch.tags ?? article.tags,
-            isTop: patch.pinned ?? article.isTop,
-          },
-          all
-        );
-      } else if (request.entity === "whiteboard") {
-        WhiteboardsTable.updateWhiteboardMeta(db, request.id, {
-          title: patch.title,
-          description: patch.description,
-          tags: patch.tags,
-        });
-      } else if (request.entity === "project") {
-        const project = ProjectTable.getProject(db, request.id);
-        ProjectTable.updateProject(db, {
-          ...project,
-          title: patch.title ?? project.title,
-          archived: patch.archived ?? project.archived,
-          pinned: patch.pinned ?? project.pinned,
-        });
-      } else {
-        const item = ProjectTable.getProjectItem(db, request.id);
-        if (!item) throw new Error("项目文档不存在");
-        ProjectTable.updateProjectItem(
-          db,
-          { ...item, title: patch.title ?? item.title, tags: patch.tags ?? item.tags },
-          all
-        );
-      }
-    });
-    return this.get(db, request) as PluginDataRecord;
+    const { saved, publishTitle } = db.transaction(() => {
+      this.assertDatabase(db, request);
+      this.assertEntity(request.entity);
+      this.assertRevision(db, request.entity, request.id, request.expectedRevision);
+      const { patch } = request;
+      const all = this.broadcastAll(ctx);
+      let publishTitle: (() => void) | undefined;
+      writeAsPlugin(request.pluginId, () => {
+        if (request.entity === "card") {
+          const card = CardTable.getCardById(db, request.id);
+          if (!card) throw new Error("卡片不存在");
+          CardTable.updateCard(
+            db,
+            { ...card, tags: patch.tags ?? card.tags, isTop: patch.pinned ?? card.isTop },
+            all
+          );
+        } else if (request.entity === "article") {
+          const article = ArticleTable.getArticleById(db, request.id);
+          const title = prepareCanonicalContentTitle(db, article.contentId, patch.title);
+          ArticleTable.writeArticleMetadata(
+            db,
+            {
+              ...article,
+              title: patch.title ?? article.title,
+              tags: patch.tags ?? article.tags,
+              isTop: patch.pinned ?? article.isTop,
+            },
+            all,
+            title.title
+          );
+          publishTitle = title.publish;
+        } else if (request.entity === "whiteboard") {
+          WhiteboardsTable.updateWhiteboardMeta(db, request.id, {
+            title: patch.title,
+            description: patch.description,
+            tags: patch.tags,
+          });
+        } else if (request.entity === "project") {
+          const project = ProjectTable.getProject(db, request.id);
+          ProjectTable.updateProject(db, {
+            ...project,
+            title: patch.title ?? project.title,
+            archived: patch.archived ?? project.archived,
+            pinned: patch.pinned ?? project.pinned,
+          });
+        } else {
+          const item = ProjectTable.getProjectItem(db, request.id);
+          if (!item) throw new Error("项目文档不存在");
+          const update = ProjectTable.writeProjectItemMetadata(
+            db,
+            { ...item, title: patch.title ?? item.title, tags: patch.tags ?? item.tags },
+            all,
+            patch.title
+          );
+          publishTitle = update.publishTitle;
+        }
+      });
+      return { saved: this.get(db, request) as PluginDataRecord, publishTitle };
+    })();
+    publishTitle?.();
+    return saved;
   }
 
   /** 删除前保存行快照，正文延迟释放；7 天内可由用户在插件详情页恢复 */
@@ -805,7 +815,7 @@ export default class PluginDataTable {
         if (!parent || index < 0) continue;
         placements.push({ projectId: null, parentId, index });
         parent.children.splice(index, 1);
-        ProjectTable.updateProjectItem(db, parent);
+        ProjectTable.updateProjectItemDirectory(db, parent);
       }
       ProjectTable.deleteProjectItem(db, request.id, { deferContent: true });
     });
@@ -830,89 +840,16 @@ export default class PluginDataTable {
     );
   }
 
-  static async editContent(
+  static editContent(
     db: Database.Database,
-    request: PluginDataScope & {
-      pluginId: string;
-      contentId: number;
-      createdAt: number;
-      edit: PluginContentEdit;
-      expectedRevision: string;
-    },
+    request: PluginContentEditRequest,
     ctx: CommandContext = fallbackCommandContext
   ): Promise<{ revision: string }> {
-    this.assertDatabase(db, request);
-    const exists = db
-      .prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?")
-      .get(request.contentId, request.createdAt);
-    const current = exists ? ContentTable.getContentById(db, request.contentId) : null;
-    if (!current) throw new Error("正文不存在");
-    const revision = current.revision ?? `u:${current.updateTime}`;
-    if (revision !== request.expectedRevision)
-      throw new Error(`${CONFLICT_PREFIX}正文已被修改，请重新读取后再试`);
-    const content = await this.applyEdit(db, current, request.edit);
-    this.assertDatabase(db, request);
-    if (!db.open) throw new Error("数据库连接已失效");
-    if (
-      !db
-        .prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?")
-        .get(request.contentId, request.createdAt) ||
-      this.contentRevision(db, request.contentId) !== revision
-    )
-      throw new Error(`${CONFLICT_PREFIX}转换期间正文已变化，请重新读取后再试`);
-    markContentOrigin(basename(db.name), request.contentId, request.pluginId);
-    await writeAsPlugin(request.pluginId, () =>
-      ContentTable.writeContent(
-        db,
-        request.contentId,
-        { ...content, expectedRevision: current.revision },
-        ctx
-      )
-    );
-    markContentOrigin(basename(db.name), request.contentId, request.pluginId);
-    return { revision: this.contentRevision(db, request.contentId) };
-  }
-
-  private static async applyEdit(
-    db: Database.Database,
-    current: Pick<import("@/types/content").IContent, "content" | "contracts">,
-    edit: PluginContentEdit
-  ): Promise<Pick<import("@/types/content").IContent, "content" | "contracts">> {
-    switch (edit.op) {
-      case "append":
-      case "prepend": {
-        const added = await resolvePluginContent(db, edit.content, []);
-        return {
-          content:
-            edit.op === "append"
-              ? [...current.content, ...added.content]
-              : [...added.content, ...current.content],
-          contracts: { ...current.contracts, ...added.contracts },
-        };
-      }
-      case "replaceAll": {
-        const replacement = await resolvePluginContent(db, edit.content, DEFAULT_CARD_CONTENT);
-        return { ...replacement, contracts: { ...current.contracts, ...replacement.contracts } };
-      }
-      case "replaceText": {
-        const markdown = await getMarkdownText(current.content, current.contracts);
-        const first = markdown.indexOf(edit.find);
-        if (first < 0) throw new Error("没有找到要替换的文字");
-        if (markdown.indexOf(edit.find, first + 1) >= 0)
-          throw new Error("要替换的文字出现了多次，请提供更长的上下文");
-        const replacement = await resolvePluginContent(
-          db,
-          {
-            markdown:
-              markdown.slice(0, first) + edit.markdown + markdown.slice(first + edit.find.length),
-          },
-          DEFAULT_CARD_CONTENT
-        );
-        return { ...replacement, contracts: { ...current.contracts, ...replacement.contracts } };
-      }
-      default:
-        throw new Error("未知的正文修改");
-    }
+    return writePluginContentEdit(db, request, ctx, {
+      assertDatabase: (connection, scope) => this.assertDatabase(connection, scope),
+      readContent: (connection, id) => ContentTable.getContentById(connection, id),
+      replace: replaceContent,
+    });
   }
 
   /** 待办与日程的删除由助理操作执行，渲染端在成功后登记撤销凭据 */
@@ -1165,13 +1102,15 @@ export default class PluginDataTable {
       projects: JSON.stringify([...projects]),
     });
     for (const place of live) {
-      const siblings =
-        place.parentId === null
-          ? ProjectTable.getProject(db, place.projectId!)
-          : ProjectTable.getProjectItem(db, place.parentId)!;
-      siblings.children.splice(Math.min(place.index, siblings.children.length), 0, id);
-      if (place.parentId === null) ProjectTable.updateProject(db, siblings as never);
-      else ProjectTable.updateProjectItem(db, siblings as never);
+      if (place.parentId === null) {
+        const project = ProjectTable.getProject(db, place.projectId!);
+        project.children.splice(Math.min(place.index, project.children.length), 0, id);
+        ProjectTable.updateProject(db, project);
+      } else {
+        const parent = ProjectTable.getProjectItem(db, place.parentId)!;
+        parent.children.splice(Math.min(place.index, parent.children.length), 0, id);
+        ProjectTable.updateProjectItemDirectory(db, parent);
+      }
     }
     Operation.insertOperation(db, "project-item", "insert", id, Date.now());
     return id;

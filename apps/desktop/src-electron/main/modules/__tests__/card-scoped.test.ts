@@ -17,6 +17,7 @@ beforeEach(() => {
     CREATE TABLE cards (id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
       tags TEXT, content_id INTEGER, is_top INTEGER);
     CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, count INTEGER, update_time INTEGER);
+    CREATE VIEW content_snapshots AS SELECT * FROM contents;
     CREATE TABLE content_ai_meta (content_id INTEGER PRIMARY KEY, schema_ver INTEGER, text_digest TEXT,
       meta TEXT, model TEXT, create_time INTEGER, update_time INTEGER);
     CREATE TABLE content_links (content_id INTEGER, target_content_id INTEGER, create_time INTEGER);

@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "artifactSha256": "c388c8a797ec4ebc8055a5313d9080cc07c22c36c4b07a09bf78e13652979890",
+  "elapsedMs": 1928.2423750000007,
+  "referenceCounts": [
+    1,
+    2,
+    2,
+    1,
+    null
+  ],
+  "reusedArticleId": true,
+  "defaultArticleTags": [],
+  "survivingProjectBodyVerified": true,
+  "finalDocumentAndLinkRemoved": true,
+  "linkedPeerUnmodified": true
+}

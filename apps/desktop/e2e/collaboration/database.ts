@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { DatabaseConnectReason } from "../../src-electron/main/modules/database";
 
 const directory = process.env.TAU_COLLAB_E2E_DIR!;
 const databases = new Map<string, Database.Database>();
@@ -22,8 +23,30 @@ for (const name of ["primary", "secondary", "coedit"]) {
   databases.set(name, db);
 }
 
+const windowToDatabase = new Map<number, string>();
+const connected = new Set<(name: string, reason: DatabaseConnectReason) => void>();
+
 export default {
   databases,
-  windowToDatabase: new Map<number, string>(),
+  windowToDatabase,
   getDatabase: (name: string) => databases.get(name),
+  onDatabaseConnected(callback: (name: string, reason: DatabaseConnectReason) => void) {
+    connected.add(callback);
+    return () => {
+      connected.delete(callback);
+    };
+  },
+  bindWindow(windowId: number, name: string) {
+    if (!databases.has(name)) throw new Error("验收资料库不存在");
+    const previous = windowToDatabase.get(windowId);
+    windowToDatabase.set(windowId, name);
+    if (previous === name) return;
+    for (const callback of connected) {
+      try {
+        callback(name, previous === undefined ? "connect" : "switch");
+      } catch (error) {
+        console.warn("验收资料库连接通知失败", error);
+      }
+    }
+  },
 };

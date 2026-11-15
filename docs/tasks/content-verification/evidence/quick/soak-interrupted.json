@@ -1,0 +1,78 @@
+{
+  "status": "interrupted-at-user-request",
+  "lastSavedSnapshot": {
+    "candidate": "d5cdd5804bdad7dce1877f8653ab440469dcdef00794ea0bff16f06100503a88",
+    "status": "running",
+    "warmMs": 300000,
+    "measuredMs": 3600000,
+    "measuredElapsedMs": 19.706208000017796,
+    "reconnects": 0,
+    "reopenings": 0,
+    "librarySwitches": 0,
+    "tick": 15,
+    "samples": [
+      {
+        "sinceStartMs": 19.59008300001733,
+        "tick": 15,
+        "memory": {
+          "rss": 470188032,
+          "heapTotal": 54542336,
+          "heapUsed": 51662312,
+          "external": 15785134,
+          "arrayBuffers": 0
+        },
+        "children": [
+          {
+            "type": "Browser",
+            "residentKiB": 459168
+          },
+          {
+            "type": "GPU",
+            "residentKiB": 118544
+          },
+          {
+            "type": "Utility",
+            "residentKiB": 50064
+          },
+          {
+            "type": "Tab",
+            "residentKiB": 221792
+          },
+          {
+            "type": "Tab",
+            "residentKiB": 227424
+          },
+          {
+            "type": "Tab",
+            "residentKiB": 213872
+          },
+          {
+            "type": "Tab",
+            "residentKiB": 303856
+          },
+          {
+            "type": "Tab",
+            "residentKiB": 232352
+          },
+          {
+            "type": "Tab",
+            "residentKiB": 188944
+          }
+        ],
+        "localJournal": {
+          "pendingUpdates": 60,
+          "durableHolds": 1
+        }
+      }
+    ],
+    "audits": [
+      {
+        "sinceStartMs": 16.8118329999852,
+        "checkedThroughTick": 15,
+        "projections": 2,
+        "remoteConverged": true,
+        "heldPages": 2
+      }
+    ]
+  }
+}

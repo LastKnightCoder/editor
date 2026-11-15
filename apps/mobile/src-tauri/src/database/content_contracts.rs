@@ -537,6 +537,29 @@ pub(super) fn write(
 }
 
 #[cfg(test)]
+pub(super) fn open_roundtrip_database() -> rusqlite::Connection {
+    let requested = std::path::PathBuf::from(
+        std::env::var("TAU_CONTENT_STORAGE_ROUNDTRIP_DB")
+            .expect("需要桌面测试生成的临时数据库路径"),
+    );
+    let path = requested.canonicalize().unwrap();
+    let temporary = std::env::temp_dir().canonicalize().unwrap();
+    assert!(path.starts_with(temporary), "交换只允许操作系统临时目录");
+    assert_eq!(path.file_name().unwrap(), "roundtrip.db");
+    assert!(path
+        .parent()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .starts_with("tau-content-storage-roundtrip-"));
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
+    connection
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use rusqlite::Connection;
@@ -883,5 +906,200 @@ mod tests {
             .unwrap(),
             0
         );
+    }
+
+    #[test]
+    #[ignore = "由桌面交换测试提供隔离的布局3数据库文件"]
+    fn desktop_block_storage_roundtrip() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/db-schema/fixtures/content-storage-roundtrip-v1.json"
+        ))
+        .unwrap();
+        assert_eq!(fixture["fixtureVersion"], 1);
+        let mut db = super::open_roundtrip_database();
+        let content_id = fixture["contentId"].as_i64().unwrap();
+        let source = fixture["sourceId"].as_str().unwrap();
+        let document = fixture["documentId"].as_str().unwrap();
+        let (stored_document, layout, contracts, revision): (String, i64, String, String) = db
+            .query_row(
+                "SELECT document_id,format_version,contracts,revision FROM content_documents WHERE content_id=?1",
+                [content_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(stored_document, document);
+        assert_eq!(layout, 3);
+        assert_eq!(
+            serde_json::from_str::<Value>(&contracts).unwrap(),
+            fixture["contracts"]
+        );
+        let initial = super::super::query::query_content_detail(&db, content_id).unwrap();
+        assert_eq!(initial.content, fixture["desktopInitial"]);
+        assert_eq!(
+            initial.count,
+            fixture["counts"]["initial"].as_i64().unwrap()
+        );
+        assert!(db
+            .query_row(
+                "SELECT content IS NULL FROM contents WHERE id=?1",
+                [content_id],
+                |row| row.get::<_, bool>(0)
+            )
+            .unwrap());
+        assert_eq!(
+            db.query_row(
+                "SELECT source_id FROM library_identity WHERE id=1",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            source
+        );
+
+        let tx = db.transaction().unwrap();
+        super::super::write_content_snapshot(
+            &tx,
+            content_id,
+            &fixture["mobileExpected"],
+            fixture["counts"]["mobile"].as_i64().unwrap(),
+            fixture["mobileWrittenAt"].as_i64().unwrap(),
+            "ROUNDTRIP",
+            Some(&fixture["contracts"]),
+            Some(&revision),
+            Some(document),
+            Some(source),
+        )
+        .unwrap();
+        tx.commit().unwrap();
+
+        let mobile = super::super::query::query_content_detail(&db, content_id).unwrap();
+        assert_eq!(mobile.content, fixture["mobileExpected"]);
+        assert_eq!(mobile.count, fixture["counts"]["mobile"].as_i64().unwrap());
+        assert_eq!(
+            db.query_row(
+                "SELECT format_version FROM content_documents WHERE content_id=?1",
+                [content_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT ref_count FROM contents WHERE id=?1",
+                [content_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            fixture["expectedOwnerReferences"].as_i64().unwrap()
+        );
+        for table in [
+            "content_document_blocks",
+            "content_document_node_blocks",
+            "content_document_block_counts",
+        ] {
+            assert_eq!(
+                db.query_row(
+                    &format!("SELECT count(*) FROM {table} WHERE content_id=?1"),
+                    [content_id],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+                0
+            );
+        }
+        assert_eq!(
+            db.query_row(
+                "SELECT ref_count FROM white_board_contents WHERE id=21",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT ref_count FROM white_board_contents WHERE id=22",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(db.query_row("SELECT count(*) FROM content_entity_relations WHERE document_id=?1 AND node_id='roundtrip-board' AND source_id=?2 AND entity_kind='whiteboard-content' AND entity_id='roundtrip-board-22'", params![document, source], |row| row.get::<_, i64>(0)).unwrap(), 1);
+        assert_eq!(
+            db.query_row(
+                "SELECT count(*) FROM white_board_content_pending_releases WHERE content_id=21",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        let committed_revision: String = db
+            .query_row(
+                "SELECT revision FROM content_documents WHERE content_id=?1",
+                [content_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_ne!(committed_revision, revision);
+        {
+            let tx = db.transaction().unwrap();
+            let error = super::super::write_content_snapshot(
+                &tx,
+                content_id,
+                &fixture["desktopInitial"],
+                fixture["counts"]["initial"].as_i64().unwrap(),
+                fixture["mobileWrittenAt"].as_i64().unwrap() + 1,
+                "ROUNDTRIP",
+                Some(&fixture["contracts"]),
+                Some(&revision),
+                Some(document),
+                Some(source),
+            )
+            .unwrap_err();
+            assert!(error.contains("CONTENT_REVISION_CONFLICT"));
+        }
+        assert_eq!(
+            super::super::query::query_content_detail(&db, content_id)
+                .unwrap()
+                .content,
+            fixture["mobileExpected"]
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT revision FROM content_documents WHERE content_id=?1",
+                [content_id],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            committed_revision
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT ref_count FROM white_board_contents WHERE id=21",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT ref_count FROM white_board_contents WHERE id=22",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            db.query_row("PRAGMA quick_check", [], |row| row.get::<_, String>(0))
+                .unwrap(),
+            "ok"
+        );
+        db.close().unwrap();
+        println!("TAU_CONTENT_STORAGE_ROUNDTRIP_RUST_OK");
     }
 }

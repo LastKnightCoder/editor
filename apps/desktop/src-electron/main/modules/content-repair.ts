@@ -10,6 +10,7 @@ import { contentExecutor } from "../services/content-execution";
 import { ContentDocumentTable } from "./tables/content-document";
 import { ContentIdentityTable } from "./tables/content-identity";
 import { emitContentWritten } from "./content-events";
+import { findCollaborationBinding } from "./collaboration-guard";
 import { isSupportedContentStorageVersion } from "@tau/db-schema";
 
 interface RawContent {
@@ -90,13 +91,21 @@ export async function repairContentForOpen(
     contracts: ContentContractDictionary;
   }>({ operation: "repair-content", content, contracts: contracts ?? {} });
   if (!current() || !db.open) throw new Error("资料库已切换，请重新打开内容");
+  if (findCollaborationBinding(db, contentId)) return false;
   const latest = readRaw(db, contentId);
   if (
     !latest ||
     latest.content !== raw.content ||
     latest.document?.revision !== raw.document?.revision
-  )
+  ) {
+    if (
+      latest?.document &&
+      isSupportedContentStorageVersion(latest.document.format_version) &&
+      ContentDocumentTable.problem(parse(latest.content), parse(latest.document.contracts)) === null
+    )
+      return false;
     throw new Error("正文在修复期间已变化，请重试");
+  }
   const directory = join(PathUtil.getAppDir(), "content-repairs");
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   writeFileSync(

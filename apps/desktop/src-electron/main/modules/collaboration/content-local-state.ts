@@ -58,6 +58,8 @@ export const sourceDraftKey = (viewId: string, nodeId: string, field: string) =>
   createHash("sha256")
     .update(JSON.stringify([viewId, nodeId, field]))
     .digest("hex");
+export const sharedReplacementDraftId = (operationId: string) =>
+  `shared-replacement:${operationId}`;
 const committed = (record: LocalInstallationRecord) => Boolean(record.decision);
 const same = (left: unknown, right: unknown) =>
   canonicalContractJson(left) === canonicalContractJson(right);
@@ -196,7 +198,7 @@ export class ContentLocalState {
   ): void {
     const drafts = this.db
       .prepare(
-        `SELECT view_id,state,digest FROM document_drafts WHERE document_id=? AND baseline_id=? AND epoch=? AND applied=0`
+        `SELECT view_id,state,digest FROM document_drafts WHERE document_id=? AND baseline_id=? AND epoch=? AND applied=0 AND view_id NOT GLOB 'shared-replacement:*'`
       )
       .all(documentId, baselineId, epoch) as { view_id: string; state: Buffer; digest: string }[];
     for (const draft of drafts)

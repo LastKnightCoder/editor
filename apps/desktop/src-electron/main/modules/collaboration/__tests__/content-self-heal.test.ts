@@ -8,22 +8,27 @@ import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import agentSchema from "@tau/db-schema/schema/content-agent.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
-import { ContentSessionManager } from "../../content-runtime";
+import { createLocalContentRuntime } from "../../content-runtime/composition";
 import { CollaborationLocalStore } from "../local-store";
-import { ContentLocalState } from "../content-local-state";
 import { CollaborationAssetService } from "../asset-service";
-import type { RuntimeSession } from "../types";
 import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentIdentityTable } from "../../tables/content-identity";
+import { contentExecutor } from "../../../services/content-execution";
 import { unregisterContentSession } from "../content-sessions";
 
 const host = vi.hoisted(() => ({
   dir: "",
   databases: new Map<string, Database.Database>(),
-  windowToDatabase: new Map([[1, "library"]]),
+  windowToDatabase: new Map([
+    [1, "library"],
+    [2, "library"],
+  ]),
 }));
 vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [], fromWebContents: () => ({ id: 1 }) },
+  BrowserWindow: {
+    getAllWindows: () => [],
+    fromWebContents: (sender: { id?: number }) => ({ id: sender.id ?? 1 }),
+  },
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
@@ -73,19 +78,13 @@ async function setup() {
   const directory = join(root, "local-content");
   const store = new CollaborationLocalStore(directory, "content.db");
   store.db.exec(agentSchema);
-  const sessions = new Map<string, RuntimeSession>();
-  const runtime = Object.assign(new ContentSessionManager(), {
-    store,
-    contentState: new ContentLocalState(store.db),
-    directory,
-    sessions,
-    assets: new CollaborationAssetService(store, root, async () => {
-      throw new Error("本机正文无需远端身份");
-    }),
+  const assets = new CollaborationAssetService(store, root, async () => {
+    throw new Error("本机正文无需远端身份");
   });
+  const runtime = createLocalContentRuntime(store, assets);
   cleanup.push(() => {
     runtime.shutdown();
-    for (const session of sessions.values()) {
+    for (const session of runtime["sessions"].values()) {
       unregisterContentSession(session);
       session.awareness.destroy();
       session.doc.destroy();
@@ -234,5 +233,88 @@ describe("打开时自愈", () => {
     await runtime.open(event, { contentId: 7 });
     expect(ContentDocumentTable.read(db, 7)!.revision).toBe(before.revision);
     expect(existsSync(join(host.dir, "content-repairs"))).toBe(false);
+  });
+
+  it("两个窗口同时打开旧正文时复用第一次修复的身份与正文", async () => {
+    const { runtime, db, event } = await setup();
+    const original = JSON.stringify([
+      { type: "paragraph", children: [{ text: "在两个窗口保留的文字" }] },
+    ]);
+    db.prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,10,1)"
+    ).run(original);
+    const execute = contentExecutor.execute.bind(contentExecutor);
+    const lateRepair = Promise.withResolvers<void>();
+    const repairs = vi
+      .spyOn(contentExecutor, "execute")
+      .mockImplementationOnce(execute)
+      .mockImplementationOnce(async request => {
+        await lateRepair.promise;
+        return execute(request);
+      });
+    const first = runtime.open(event, { contentId: 8 }).finally(() => lateRepair.resolve());
+    const second = runtime.open(
+      { ...event, sender: { id: 2 } as typeof event.sender },
+      { contentId: 8 }
+    );
+    const [openedFirst, openedSecond] = await Promise.all([first, second]);
+    const stored = ContentDocumentTable.read(db, 8)!;
+    expect(repairs).toHaveBeenCalledTimes(2);
+    expect(openedSecond).toEqual(openedFirst);
+    expect(openedFirst.source?.contentDocumentId).toBe(stored.documentId);
+    expect(ContentDocumentTable.problem(stored.content, stored.contracts)).toBeNull();
+    expect(JSON.stringify(stored.content)).toContain("在两个窗口保留的文字");
+    const backups = readdirSync(join(host.dir, "content-repairs"));
+    expect(backups).toHaveLength(1);
+    expect(
+      JSON.parse(readFileSync(join(host.dir, "content-repairs", backups[0]), "utf8")).content
+    ).toBe(original);
+  });
+
+  it("窗口切到另一库再切回原连接时，挂起的旧打开仍保持取消", async () => {
+    const { runtime, db, event } = await setup();
+    const other = new Database(":memory:");
+    host.databases.set("other", other);
+    cleanup.push(() => {
+      host.windowToDatabase.set(1, "library");
+      other.close();
+    });
+    db.prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,3,1)"
+    ).run(JSON.stringify([{ type: "paragraph", children: [{ text: "保留原文" }] }]));
+    const entered = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    const execute = contentExecutor.execute.bind(contentExecutor);
+    vi.spyOn(contentExecutor, "execute").mockImplementationOnce(async request => {
+      entered.resolve();
+      await resume.promise;
+      return execute(request);
+    });
+    const oldOpen = runtime.open(event, { contentId: 8 });
+    try {
+      await entered.promise;
+      const leaveLibrary = await runtime["drainDatabase"]({
+        reason: "database-change",
+        databaseName: "library",
+        windowId: 1,
+      });
+      host.windowToDatabase.set(1, "other");
+      leaveLibrary.commit();
+      const leaveOther = await runtime["drainDatabase"]({
+        reason: "database-change",
+        databaseName: "other",
+        windowId: 1,
+      });
+      host.windowToDatabase.set(1, "library");
+      leaveOther.commit();
+      expect(host.databases.get("library")).toBe(db);
+    } finally {
+      resume.resolve();
+    }
+    await expect(oldOpen).rejects.toThrow("正文打开已取消");
+    expect(ContentDocumentTable.read(db, 8)).toBeNull();
+    expect(existsSync(join(host.dir, "content-repairs"))).toBe(false);
+    await expect(runtime.open(event, { contentId: 8 })).resolves.toMatchObject({ mode: "local" });
+    expect(JSON.stringify(ContentDocumentTable.read(db, 8)?.content)).toContain("保留原文");
   });
 });

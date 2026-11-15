@@ -35,14 +35,31 @@ import { openTransferSource, type TransferSource } from "@/utils/content-transfe
 
 const activeDatabase = () => useSettingStore.getState().setting.database.active;
 
-const scanDeps = { pathExists, getHomeDir, resolvePathFrom };
+const scanSource = async (
+  source: TransferSource,
+  onProgress?: (done: number, total: number) => void,
+  dialect?: DialectKey
+) => {
+  const processor = await (await import("@/services/editorKit")).prepareContentMarkdown({});
+  return scanImportSource(
+    source,
+    {
+      pathExists,
+      getHomeDir,
+      resolvePathFrom,
+      parseMarkdown: markdown => processor.importDocument(markdown, ["yaml"]),
+    },
+    onProgress,
+    dialect
+  );
+};
 
 export const scanImport = async (
   path: string,
   onProgress?: (done: number, total: number) => void
 ): Promise<ImportPlan> => {
   const source = await openTransferSource(path);
-  return scanImportSource(source, scanDeps, onProgress);
+  return scanSource(source, onProgress);
 };
 
 /** 换一种来源格式重新扫描（来源已读入，不再读目录 / 解压） */
@@ -50,7 +67,7 @@ export const rescanImport = (
   source: TransferSource,
   dialect: DialectKey,
   onProgress?: (done: number, total: number) => void
-) => scanImportSource(source, scanDeps, onProgress, dialect);
+) => scanSource(source, onProgress, dialect);
 
 const refreshLists = () => {
   for (const key of ["cards", "articles", "projects", "databases"]) {
@@ -81,10 +98,11 @@ export const executeImport = async (
         });
         return project.id;
       },
-      addProjectItem: async ({ projectId, parentItemId, title, content }) => {
+      addProjectItem: async ({ projectId, parentItemId, title, content, contracts }) => {
         const input = {
           title,
           content,
+          contracts,
           children: [],
           refType: "",
           refId: 0,
@@ -99,7 +117,7 @@ export const executeImport = async (
         if (!item) throw new Error(`创建文档失败：${title}`);
         return { id: item.id, contentId: item.contentId };
       },
-      createArticle: async ({ title, content, tags }) => {
+      createArticle: async ({ title, content, contracts, tags }) => {
         const article = await createArticle({
           title,
           bannerBg: "",
@@ -108,15 +126,17 @@ export const executeImport = async (
           isDelete: false,
           author: "",
           content,
+          contracts,
           tags,
           links: [],
           count: getContentLength(content),
         });
         return { id: article.id, contentId: article.contentId };
       },
-      createCard: async ({ content, tags }) => {
+      createCard: async ({ content, contracts, tags }) => {
         const card = await createScopedCard(database, {
           content,
+          contracts,
           tags,
           count: getContentLength(content),
           isTop: false,

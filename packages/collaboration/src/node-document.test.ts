@@ -246,6 +246,30 @@ describe("节点文档协议与增量准入", () => {
     }
   });
 
+  it("小增量使完整正文超过 8 MiB 时拒绝，原文档保持完整", async () => {
+    const { doc, fork, tree, dispose } = await setup();
+    const byteLimit = 8 * 1024 * 1024;
+    let nearLimit: Y.Doc | undefined;
+    try {
+      tree.insertText("A", 0, "a".repeat(byteLimit - 4096), null);
+      nearLimit = await applyNodeDocumentUpdate(doc, Y.encodeStateAsUpdate(fork), identity);
+      const saved = Buffer.from(Y.encodeStateAsUpdate(nearLimit));
+      expect(saved.byteLength).toBeLessThanOrEqual(byteLimit);
+      const vector = Y.encodeStateVector(nearLimit);
+      tree.insertText("B", 0, "b".repeat(8192), null);
+      const delta = Y.encodeStateAsUpdate(fork, vector);
+      expect(delta.byteLength).toBeLessThan(byteLimit);
+      expect(Y.encodeStateAsUpdate(fork).byteLength).toBeGreaterThan(byteLimit);
+      await expect(applyNodeDocumentUpdate(nearLimit, delta, identity)).rejects.toMatchObject({
+        code: "DOCUMENT_TOO_LARGE",
+      });
+      expect(saved.equals(Y.encodeStateAsUpdate(nearLimit))).toBe(true);
+    } finally {
+      nearLimit?.destroy();
+      dispose();
+    }
+  });
+
   it("节点缺少契约时不能建立新格式文档", async () => {
     await expect(
       createNodeDocument(

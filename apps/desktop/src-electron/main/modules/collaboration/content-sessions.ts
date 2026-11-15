@@ -12,7 +12,6 @@ import {
   NodeTree,
   readNodeDocument,
   type ContentNode,
-  type SourceBinding,
 } from "@tau/collaboration";
 import type { RuntimeSession } from "./types";
 import { applySegmentEdits } from "@/entity/text-edits";
@@ -20,12 +19,9 @@ import type { NodeAttributePatcher, TextPatcher, ParagraphPatcher } from "../con
 export { minimalTextEdit } from "@/entity/text-edits";
 import { minimalTextEdit } from "@/entity/text-edits";
 import { nodeText } from "../content-node-patches";
-import { ContentDocumentTable, type ContentDocumentWrite } from "../tables/content-document";
 import { ContentIdentityTable } from "../tables/content-identity";
-import { bindingMatches } from "./content-repository";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { isSupportedContentStorageVersion } from "@tau/db-schema";
-import { ContentDocumentBlocks, type ContentBlockWrite } from "../tables/content-document-blocks";
 export type { NodeAttributePatcher, TextPatcher } from "../content-node-patches";
 
 const sessions = new Map<Database.Database, Map<number, RuntimeSession>>();
@@ -86,7 +82,7 @@ export function contentSession(db: Database.Database, contentId: number) {
   return session;
 }
 
-export function contentRevision(session: RuntimeSession) {
+export function contentRevision(session: Pick<RuntimeSession, "doc">) {
   return createHash("sha256").update(Y.encodeStateAsUpdate(session.doc)).digest("hex");
 }
 
@@ -251,18 +247,32 @@ export function canonicalContentTitle(db: Database.Database, contentId: number) 
   return title || undefined;
 }
 
-/**
- * 将用户显式修改的标题写回协作会话。标题以协作会话为真源，
- * 不回写会在投影时被旧协作标题覆盖（表现为重命名静默失效）。
- */
-export function setCanonicalContentTitle(db: Database.Database, contentId: number, title: string) {
-  if (!title) return;
+/** 先为主库选择标题，提交后再传播到同一个活跃会话。 */
+export function prepareCanonicalContentTitle(
+  db: Database.Database,
+  contentId: number,
+  title?: string
+): { title?: string; publish?: () => void } {
   const session = contentSession(db, contentId);
-  if (!session || session.info.frozen || session.info.leaving) return;
-  const text = session.doc.getText("title");
-  if (text.toString() === title) return;
-  // doc 更新会置位 projectionDirty，投影时经 projectContentTitle 同步共享该内容的全部条目并广播
-  session.doc.transact(() => replaceText(text, title), "content-title-rename");
+  const text = session?.doc.getText("title");
+  const previous = text?.toString();
+  if (!title || !session || !text || session.info.frozen || session.info.leaving)
+    return { title: previous || undefined };
+  if (previous === title) return { title };
+  return {
+    title,
+    publish: () => {
+      if (
+        !db.open ||
+        contentSession(db, contentId) !== session ||
+        session.info.frozen ||
+        session.info.leaving ||
+        text.toString() !== previous
+      )
+        return;
+      session.doc.transact(() => replaceText(text, title), "content-title-rename");
+    },
+  };
 }
 
 export function findContentTitle(db: Database.Database, contentId: number) {
@@ -298,31 +308,6 @@ export function projectContentTitle(db: Database.Database, contentId: number, ti
   return changed;
 }
 
-// 节点投影会补默认文本类型并重排对象键，这些差异不属于正文编辑。
-function contentProjectionsEqual(previous: ContentNode[], next: ContentNode[]): boolean {
-  if (previous === next) return true;
-  return (
-    previous.length === next.length &&
-    previous.every((node, index) => {
-      const candidate = next[index];
-      if (node === candidate) return true;
-      const text = !node.children && !candidate.children;
-      if (text && (node.type ?? "formatted") !== (candidate.type ?? "formatted")) return false;
-      const keys = Object.keys(node).filter(key => !text || key !== "type");
-      const nextKeys = Object.keys(candidate).filter(key => !text || key !== "type");
-      return (
-        keys.length === nextKeys.length &&
-        keys.every(key => {
-          if (!Object.hasOwn(candidate, key)) return false;
-          if (key === "children" && node.children && candidate.children)
-            return contentProjectionsEqual(node.children, candidate.children);
-          return isEqual(node[key], candidate[key]);
-        })
-      );
-    })
-  );
-}
-
 // 重复设置同值也会产生 Yjs 事务，按本次触及的字段过滤空变化。
 export function contentProjectionChanges(doc: Y.Doc, transaction: Y.Transaction) {
   const changed = (key: string): boolean => {
@@ -352,93 +337,4 @@ export function contentProjectionChanges(doc: Y.Doc, transaction: Y.Transaction)
     ].some(changed),
     contracts: changed("node-tree:contracts"),
   };
-}
-
-export function readContentProjectionHead(
-  db: Database.Database,
-  source: SourceBinding,
-  session: RuntimeSession
-): { documentId: string; revision: string; formatVersion: number | null } {
-  const row = db
-    .prepare(`
-    SELECT c.create_time,d.document_id,d.format_version,d.revision
-    FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id=?
-  `)
-    .get(source.contentId) as
-    | {
-        create_time: number;
-        document_id: string | null;
-        format_version: number | null;
-        revision: string | null;
-      }
-    | undefined;
-  if (!row || row.create_time !== source.contentCreatedAt) throw new Error("原内容关联已变化");
-  const local = session.info.mode === "local";
-  if (
-    local
-      ? Boolean(findCollaborationBinding(db, source.contentId))
-      : !bindingMatches(db, source, session.info.id, session.info.serverUrl)
-  )
-    throw new Error("正文会话绑定已变化，停止回写");
-  if (row.format_version !== null && !isSupportedContentStorageVersion(row.format_version))
-    throw new Error("正文数据格式不兼容");
-  if (!row.document_id || !row.revision)
-    throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
-  if (
-    (source.librarySourceId &&
-      source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
-    (source.contentDocumentId && source.contentDocumentId !== row.document_id)
-  )
-    throw new Error("资料库或正文身份已变化，已暂停原会话写入");
-  return { documentId: row.document_id, revision: row.revision, formatVersion: row.format_version };
-}
-
-export function projectContractContent(
-  db: Database.Database,
-  source: SourceBinding,
-  session: RuntimeSession,
-  value: ContentDocumentWrite,
-  expectedRevision: string | undefined,
-  count: number,
-  changes?: { content: boolean; contracts: boolean }
-): boolean {
-  return db.transaction(() => {
-    const head = readContentProjectionHead(db, source, session);
-    if (head.documentId !== value.documentId) throw new Error("正文身份已变化，请重新打开当前正文");
-    const previous = ContentDocumentTable.read(db, source.contentId)!;
-    const contentChanged =
-      changes?.content ?? !contentProjectionsEqual(previous.content, value.content);
-    const contractsChanged = changes?.contracts ?? !isEqual(previous.contracts, value.contracts);
-    if (!contentChanged && !contractsChanged) return false;
-    if (previous.revision !== expectedRevision)
-      throw new Error("正文投影修订冲突，已保留原缓存并暂停写入");
-    ContentDocumentTable.commit(
-      db,
-      source.contentId,
-      { ...value, content: contentChanged ? value.content : previous.content },
-      { expectedRevision, count, preserveUpdateTime: !contentChanged }
-    );
-    if (contentChanged)
-      db.prepare(
-        "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
-      ).run(Date.now(), source.contentId);
-    return contentChanged;
-  })();
-}
-
-export function projectContentBlocks(
-  db: Database.Database,
-  source: SourceBinding,
-  session: RuntimeSession,
-  value: ContentBlockWrite
-) {
-  return db.transaction(() => {
-    readContentProjectionHead(db, source, session);
-    const result = ContentDocumentBlocks.commit(db, source.contentId, value);
-    if (result.changed)
-      db.prepare(
-        "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
-      ).run(Date.now(), source.contentId);
-    return result;
-  })();
 }

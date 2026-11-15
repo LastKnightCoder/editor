@@ -5,6 +5,7 @@
  */
 
 import type { Descendant } from "slate";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { parse as parseYaml } from "yaml";
 import { importFromMarkdown } from "@/utils/markdown";
 import {
@@ -39,6 +40,7 @@ export interface PlanDoc {
   /** 项目树里的结构目录（方言可改写，如 Logseq 的 pages/ 摊平） */
   folder: string[];
   content: Descendant[];
+  contracts?: ContentContractDictionary;
   /** frontmatter tags 与方言标签（#tag、tags::） */
   sourceTags: string[];
   /** 正文里的资源地址 → 计划资源 key */
@@ -85,6 +87,9 @@ export interface ScanDeps {
   pathExists: (path: string) => Promise<boolean>;
   getHomeDir: () => Promise<string>;
   resolvePathFrom: (baseDir: string, target: string) => Promise<string>;
+  parseMarkdown?: (
+    markdown: string
+  ) => Promise<{ content: Descendant[]; contracts: ContentContractDictionary }>;
 }
 
 const MARKDOWN_RE = /\.(md|markdown)$/i;
@@ -251,7 +256,9 @@ export const scanImportSource = async (
       resolveFile: name => resolvers.resolveFile(name, path),
     });
     const frontmatter = readFrontmatter(transformed.markdown);
-    const content = importFromMarkdown(transformed.markdown, ["yaml"]);
+    const parsed = await deps.parseMarkdown?.(transformed.markdown);
+    const content = parsed?.content ?? importFromMarkdown(transformed.markdown, ["yaml"]);
+    const contracts = parsed?.contracts;
     const doc: PlanDoc = {
       key: index,
       path,
@@ -263,6 +270,7 @@ export const scanImportSource = async (
       dir,
       folder: dialect.structuralFolder?.(dir) ?? dir,
       content,
+      ...(contracts && { contracts }),
       sourceTags: [...new Set([...frontmatter.tags, ...transformed.tags])],
       assets: new Map(),
       missingAssets: [],
@@ -270,7 +278,7 @@ export const scanImportSource = async (
       unresolvedLinks: [...transformed.unresolvedLinks],
       notes: transformed.notes,
     };
-    for (const { url } of collectAssetUrls(content)) {
+    for (const { url } of collectAssetUrls(content, undefined, contracts)) {
       if (!isPortableAssetSource(url) || isDataUri(url)) continue;
       const location = await locateAsset(url, path);
       if (!location) {
@@ -417,13 +425,19 @@ export interface ImportDeps {
     parentItemId?: number;
     title: string;
     content: Descendant[];
+    contracts?: ContentContractDictionary;
   }) => Promise<CreatedEntity>;
   createArticle: (input: {
     title: string;
     content: Descendant[];
+    contracts?: ContentContractDictionary;
     tags: string[];
   }) => Promise<CreatedEntity>;
-  createCard: (input: { content: Descendant[]; tags: string[] }) => Promise<CreatedEntity>;
+  createCard: (input: {
+    content: Descendant[];
+    contracts?: ContentContractDictionary;
+    tags: string[];
+  }) => Promise<CreatedEntity>;
   /** 整篇替换已有正文（回填链接）；实现须绑定契约与身份，不能裸写节点 */
   replaceContent: (contentId: number, content: Descendant[]) => Promise<unknown>;
   /** 新建数据库并写入表格（列均为文本，首列为主列），返回数据库 id */
@@ -542,7 +556,7 @@ export const runImport = async (
             const key = doc.assets.get(url);
             return key ? uploaded.get(key) : undefined;
           },
-          { uploaded: true }
+          { uploaded: true, contracts: doc.contracts }
         ),
       ])
     );
@@ -565,7 +579,13 @@ export const runImport = async (
         for (const node of nodes) {
           const content = node.doc ? (localized.get(node.doc.key) ?? []) : [];
           const item = await write(() =>
-            deps.addProjectItem({ projectId, parentItemId, title: node.title, content })
+            deps.addProjectItem({
+              projectId,
+              parentItemId,
+              title: node.title,
+              content,
+              ...(node.doc?.contracts && { contracts: node.doc.contracts }),
+            })
           );
           if (node.doc) {
             created.set(node.doc.key, { ...item, title: node.title });
@@ -579,11 +599,15 @@ export const runImport = async (
     } else {
       for (const doc of docs) {
         const content = localized.get(doc.key) ?? [];
-        const tags = tagsOf(doc);
+        const input = {
+          content,
+          ...(doc.contracts && { contracts: doc.contracts }),
+          tags: tagsOf(doc),
+        };
         const entity = await write(() =>
           options.target === "article"
-            ? deps.createArticle({ title: doc.title, content, tags })
-            : deps.createCard({ content, tags })
+            ? deps.createArticle({ title: doc.title, ...input })
+            : deps.createCard(input)
         );
         result.entityIds.push(entity.id);
         created.set(doc.key, { ...entity, title: doc.title });

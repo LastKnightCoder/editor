@@ -252,8 +252,37 @@ pub fn collab_project_content(
 
 fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Value, String> {
     let mut conn = open_active_database(&app)?;
+    let database_name = conn.database_name().to_owned();
+    let before = payload
+        .plugin
+        .as_ref()
+        .map(|_| super::plugin_data::last_operation(&conn))
+        .transpose()?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0);
+    let result = project_content_snapshot(&mut conn, &database_name, &payload, now)?;
+    if result["projected"] == true {
+        if let (Some(origin), Some(before)) = (&payload.plugin, before) {
+            super::plugin_data::remember_origin(&conn, &origin.token, &origin.plugin_id, before)?;
+        }
+        super::reconcile::trigger_reconcile(&app, &database_name);
+    }
+    Ok(result)
+}
+
+pub(super) fn project_content_snapshot(
+    conn: &mut rusqlite::Connection,
+    database_name: &str,
+    payload: &ProjectContentPayload,
+    now: i64,
+) -> Result<Value, String> {
+    let tx = conn
+        .transaction()
+        .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "begin transaction", e))?;
     if let Some(expected) = &payload.expected_source_id {
-        let source: Option<String> = conn
+        let source: Option<String> = tx
             .query_row(
                 "SELECT source_id FROM library_identity WHERE id=1",
                 [],
@@ -268,23 +297,14 @@ fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Val
     if payload
         .plugin
         .as_ref()
-        .is_some_and(|origin| origin.database != conn.database_name())
+        .is_some_and(|origin| origin.database != database_name)
     {
         return Err("插件工作区已失效".into());
     }
-    let before = super::plugin_data::last_operation(&conn)?;
-    let Some(binding) = read_binding(&conn, payload.content_id)? else {
+    let Some(binding) = read_binding(&tx, payload.content_id)? else {
         // 已解绑（结束共享/退出）后迟到的投影：幂等跳过
         return Ok(json!({ "projected": false, "reason": "unbound" }));
     };
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as i64)
-        .unwrap_or(0);
-
-    let tx = conn
-        .transaction()
-        .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "begin transaction", e))?;
     let create_time: Option<i64> = tx
         .query_row(
             "SELECT create_time FROM content_snapshots WHERE id = ?1",
@@ -304,7 +324,6 @@ fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Val
             .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "commit drift cleanup", e))?;
         return Ok(json!({ "projected": false, "reason": "drift" }));
     }
-
     if payload.document_id != binding.document_id {
         return Err("COLLAB_PROJECT_FAILED: 共享绑定已变化".into());
     }
@@ -350,10 +369,222 @@ fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Val
     tx.commit()
         .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "commit projection", e))?;
 
-    if let Some(origin) = &payload.plugin {
-        super::plugin_data::remember_origin(&conn, &origin.token, &origin.plugin_id, before)?;
-    }
-    let db_name = conn.database_name().to_owned();
-    super::reconcile::trigger_reconcile(&app, &db_name);
     Ok(json!({ "projected": true, "changed": changed > 0, "revision": revision }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::{content_contracts, query, schema, update_content_snapshot};
+    use rusqlite::Connection;
+
+    fn ints(db: &Connection, sql: &str) -> Vec<i64> {
+        let mut statement = db.prepare(sql).unwrap();
+        let values = statement.query_map([], |row| row.get::<_, i64>(0)).unwrap();
+        values.collect::<rusqlite::Result<_>>().unwrap()
+    }
+
+    fn assert_table_refs(db: &Connection, expected: &Value) {
+        assert_eq!(
+            json!(ints(db, "SELECT ref_count FROM data_tables ORDER BY id")),
+            expected["tableRefs"]
+        );
+        assert_eq!(
+            json!(ints(
+                db,
+                "SELECT ref_count FROM contents WHERE id IN (8,9) ORDER BY id"
+            )),
+            expected["rowRefs"]
+        );
+        assert_eq!(
+            json!(ints(
+                db,
+                "SELECT content_id FROM content_pending_releases ORDER BY content_id"
+            )),
+            expected["pendingRows"]
+        );
+    }
+
+    #[test]
+    #[ignore = "由桌面交换测试提供隔离的共享正文布局 3 数据库文件"]
+    fn desktop_shared_projection_roundtrip() {
+        let baseline: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/db-schema/fixtures/content-storage-roundtrip-v1.json"
+        ))
+        .unwrap();
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/db-schema/fixtures/content-storage-roundtrip-g4.json"
+        ))
+        .unwrap();
+        assert_eq!(fixture["fixtureVersion"], 2);
+        let mut db = content_contracts::open_roundtrip_database();
+        let name = fixture["databaseName"].as_str().unwrap();
+        let source = baseline["sourceId"].as_str().unwrap();
+        let content_id = baseline["contentId"].as_i64().unwrap();
+        let before = query::query_content_detail(&db, content_id).unwrap();
+        let mut desktop_nodes = baseline["desktopInitial"].as_array().unwrap().clone();
+        desktop_nodes.push(fixture["desktopNode"].clone());
+        let mut mobile_nodes = baseline["mobileExpected"].as_array().unwrap().clone();
+        mobile_nodes.push(fixture["mobileNode"].clone());
+        let mut contracts = baseline["contracts"].as_object().unwrap().clone();
+        contracts.extend(fixture["contract"].as_object().unwrap().clone());
+        assert_eq!(
+            before.document_id.as_deref(),
+            baseline["documentId"].as_str()
+        );
+        assert_eq!(before.library_source_id.as_deref(), Some(source));
+        assert_eq!(before.contracts, Some(json!(contracts)));
+        assert_eq!(before.content, json!(desktop_nodes));
+        assert_eq!(
+            ints(
+                &db,
+                "SELECT format_version FROM content_documents WHERE content_id=7"
+            ),
+            vec![3]
+        );
+        let binding = read_binding(&db, content_id).unwrap().unwrap();
+        let room = fixture["binding"]["documentId"].as_str().unwrap();
+        assert_eq!(binding.document_id, room);
+        assert_eq!(
+            binding.server_url,
+            fixture["binding"]["serverUrl"].as_str().unwrap()
+        );
+        assert_eq!(binding.source_type.as_deref(), Some("article"));
+        assert_eq!(binding.source_id, baseline["articleId"].as_i64());
+        assert_table_refs(&db, &fixture["expectedBefore"]);
+
+        let generation = schema::database_generation(&db).unwrap();
+        let direct = serde_json::from_value(json!({
+            "expectedGeneration": generation,
+            "expectedDatabaseName": name,
+            "expectedSourceId": source,
+            "expectedDocumentId": before.document_id,
+            "expectedRevision": before.revision,
+            "contentId": content_id,
+            "content": mobile_nodes,
+            "count": baseline["counts"]["mobile"],
+            "contracts": contracts
+        }))
+        .unwrap();
+        assert!(update_content_snapshot(&mut db, &direct, name)
+            .unwrap_err()
+            .starts_with("COLLABORATION_WRITE_REQUIRED"));
+
+        let now = baseline["mobileWrittenAt"].as_i64().unwrap();
+        let mut payload: ProjectContentPayload = serde_json::from_value(json!({
+            "documentId": room,
+            "contentId": content_id,
+            "expectedSourceId": source,
+            "expectedDocumentId": before.document_id,
+            "expectedRevision": before.revision,
+            "content": mobile_nodes,
+            "count": baseline["counts"]["mobile"],
+            "contracts": contracts
+        }))
+        .unwrap();
+        payload.expected_source_id = Some("other-library".into());
+        assert_eq!(
+            project_content_snapshot(&mut db, name, &payload, now).unwrap(),
+            json!({"projected": false, "reason": "library"})
+        );
+        payload.expected_source_id = Some(source.into());
+        payload.document_id = "other-room".into();
+        assert!(project_content_snapshot(&mut db, name, &payload, now)
+            .unwrap_err()
+            .contains("共享绑定已变化"));
+        payload.document_id = room.into();
+        payload.expected_revision = Some("obsolete".into());
+        assert!(project_content_snapshot(&mut db, name, &payload, now)
+            .unwrap_err()
+            .starts_with("CONTENT_REVISION_CONFLICT"));
+        payload.expected_revision = before.revision.clone();
+
+        db.execute_batch(
+            "CREATE TEMP TRIGGER fail_content_operation BEFORE INSERT ON operation
+             WHEN NEW.operation_content_type='content' AND NEW.operation_id=7
+             BEGIN SELECT RAISE(ABORT, '模拟正文流水失败'); END;",
+        )
+        .unwrap();
+        assert!(project_content_snapshot(&mut db, name, &payload, now)
+            .unwrap_err()
+            .contains("模拟正文流水失败"));
+        db.execute_batch("DROP TRIGGER fail_content_operation")
+            .unwrap();
+        let rolled_back = query::query_content_detail(&db, content_id).unwrap();
+        assert_eq!(rolled_back.content, before.content);
+        assert_eq!(rolled_back.revision, before.revision);
+        assert_eq!(rolled_back.update_time, before.update_time);
+        assert_eq!(
+            rolled_back.card.unwrap().update_time,
+            before.card.unwrap().update_time
+        );
+        assert_eq!(
+            ints(
+                &db,
+                "SELECT format_version FROM content_documents WHERE content_id=7"
+            ),
+            vec![3]
+        );
+        assert_table_refs(&db, &fixture["expectedBefore"]);
+
+        let accepted = project_content_snapshot(&mut db, name, &payload, now).unwrap();
+        assert_eq!(accepted["projected"], true);
+        assert_eq!(accepted["changed"], true);
+        let saved = query::query_content_detail(&db, content_id).unwrap();
+        assert_eq!(saved.content, json!(mobile_nodes));
+        assert_eq!(saved.document_id, before.document_id);
+        assert_eq!(saved.contracts, before.contracts);
+        assert_ne!(saved.revision, before.revision);
+        assert_eq!(accepted["revision"], json!(saved.revision));
+        assert_eq!(
+            ints(
+                &db,
+                "SELECT format_version FROM content_documents WHERE content_id=7"
+            ),
+            vec![2]
+        );
+        assert_eq!(ints(&db, "SELECT COUNT(*) FROM operation WHERE operation_content_type='content' AND operation_id=7 AND operation_action='update'"), vec![1]);
+        assert_eq!(
+            read_binding(&db, content_id).unwrap().unwrap().document_id,
+            room
+        );
+        assert_table_refs(&db, &fixture["expectedAfter"]);
+
+        let row_id = fixture["tables"][1]["rowContentId"].as_i64().unwrap();
+        let row_before = query::query_content_detail(&db, row_id).unwrap();
+        assert_eq!(row_before.content, fixture["rowBefore"]);
+        let mut row = serde_json::from_value::<crate::database::UpdateContentPayload>(json!({
+            "expectedGeneration": "obsolete",
+            "expectedDatabaseName": name,
+            "expectedSourceId": source,
+            "expectedDocumentId": row_before.document_id,
+            "expectedRevision": row_before.revision,
+            "contentId": row_id,
+            "content": fixture["rowAfter"],
+            "count": 8,
+            "contracts": row_before.contracts
+        }))
+        .unwrap();
+        assert!(update_content_snapshot(&mut db, &row, name)
+            .unwrap_err()
+            .starts_with("DATABASE_REPLACED"));
+        assert_eq!(
+            query::query_content_detail(&db, row_id).unwrap().content,
+            row_before.content
+        );
+        row.expected_generation = Some(generation);
+        update_content_snapshot(&mut db, &row, name).unwrap();
+        let row_saved = query::query_content_detail(&db, row_id).unwrap();
+        assert_eq!(row_saved.content, fixture["rowAfter"]);
+        assert_eq!(row_saved.document_id, row_before.document_id);
+        assert_eq!(row_saved.contracts, row_before.contracts);
+        assert_table_refs(&db, &fixture["expectedAfter"]);
+        assert_eq!(
+            db.query_row("PRAGMA quick_check", [], |row| row.get::<_, String>(0))
+                .unwrap(),
+            "ok"
+        );
+        db.close().unwrap();
+        println!("TAU_CONTENT_STORAGE_ROUNDTRIP_RUST_OK");
+    }
 }

@@ -6,6 +6,7 @@ import { asynchronousDatabaseCommand } from "../database-command";
 import type { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
+import { replaceColdContent } from "./content-replacement";
 import { contentSession } from "../collaboration/content-sessions";
 import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
@@ -414,7 +415,7 @@ export default class DiaryTable {
     const [firstSegment] = this.getDiarySegmentsByDiaryId(db, diaryId);
     const now = Date.now();
     if (firstSegment) {
-      ContentTable.updateContent(
+      replaceColdContent(
         db,
         firstSegment.contentId,
         {
@@ -760,7 +761,7 @@ export default class DiaryTable {
 
     // 内容挂协作会话时由会话负责写入（经投影落库），这里只维护 segment 元数据
     if (content !== undefined && !contentSession(db, seg.contentId)) {
-      ContentTable.updateContent(
+      replaceColdContent(
         db,
         seg.contentId,
         {

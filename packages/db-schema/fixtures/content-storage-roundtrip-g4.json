@@ -1,0 +1,74 @@
+{
+  "fixtureVersion": 2,
+  "databaseName": "roundtrip.db",
+  "binding": {
+    "documentId": "roundtrip-shared-room",
+    "serverUrl": "http://127.0.0.1:1"
+  },
+  "contract": {
+    "bf7d2a3ebb43af5bf50d4f0ea860811ce87cdacb5fc8f6a8bbfbcfb7a5af1655": {
+      "format": 2,
+      "domain": "editor-node",
+      "owner": "host.database",
+      "type": "database",
+      "dataVersion": 1,
+      "kind": "block",
+      "isVoid": true,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": []
+    }
+  },
+  "desktopNode": {
+    "type": "database",
+    "collabId": "roundtrip-database",
+    "tauContract": "bf7d2a3ebb43af5bf50d4f0ea860811ce87cdacb5fc8f6a8bbfbcfb7a5af1655",
+    "entityRef": {
+      "sourceId": "roundtrip-library-v1",
+      "kind": "data-table",
+      "entityId": "roundtrip-database-31"
+    },
+    "children": [{ "text": "" }]
+  },
+  "mobileNode": {
+    "type": "database",
+    "collabId": "roundtrip-database",
+    "tauContract": "bf7d2a3ebb43af5bf50d4f0ea860811ce87cdacb5fc8f6a8bbfbcfb7a5af1655",
+    "entityRef": {
+      "sourceId": "roundtrip-library-v1",
+      "kind": "data-table",
+      "entityId": "roundtrip-database-32"
+    },
+    "children": [{ "text": "" }]
+  },
+  "tables": [
+    { "tableId": 31, "rowContentId": 8, "rowDocumentId": "roundtrip-row-document-8" },
+    { "tableId": 32, "rowContentId": 9, "rowDocumentId": "roundtrip-row-document-9" }
+  ],
+  "rowBefore": [
+    {
+      "type": "paragraph",
+      "collabId": "roundtrip-row-paragraph",
+      "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+      "children": [{ "type": "formatted", "text": "行正文🙂" }]
+    }
+  ],
+  "rowAfter": [
+    {
+      "type": "paragraph",
+      "collabId": "roundtrip-row-paragraph",
+      "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+      "children": [{ "type": "formatted", "text": "移动改写行正文🙂" }]
+    }
+  ],
+  "expectedBefore": {
+    "tableRefs": [1, 0],
+    "rowRefs": [3, 0],
+    "pendingRows": [9]
+  },
+  "expectedAfter": {
+    "tableRefs": [0, 1],
+    "rowRefs": [0, 3],
+    "pendingRows": [8]
+  }
+}

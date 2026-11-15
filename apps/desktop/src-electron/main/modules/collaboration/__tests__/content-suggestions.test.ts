@@ -14,6 +14,9 @@ import {
 } from "@tau/collaboration";
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import type { ContentSuggestionBatch } from "@/types/content-suggestion";
+import { createContentAgentCommands } from "../../content-runtime/agent/commands";
+import type { ContentAgent } from "../../content-runtime/agent";
+import { executeDatabaseCommand } from "../../database-command";
 
 vi.mock("../../database-notifications", () => ({ broadcastDatabaseChange: vi.fn() }));
 const { ContentSuggestionStore } = await import("../../content-runtime/agent/content-suggestions");
@@ -93,6 +96,57 @@ it("两个视图同时处理：先退回的生效，后到的接受不再提交"
     status: "rejected",
     feedback: "保留原句",
   });
+});
+
+it("建议命令按需取得 Agent 并异步分派，省略反馈时忽略尾部命令上下文", async () => {
+  const [withoutFeedback, withFeedback, accepted] = service.create(
+    main,
+    7,
+    batch("ipc", ["a", "b", "c"])
+  );
+  const getAgent = vi.fn(async () => {
+    expect(main.inTransaction).toBe(false);
+    return { suggestions: service } as ContentAgent;
+  });
+  const commands = createContentAgentCommands(getAgent);
+  expect(getAgent).not.toHaveBeenCalled();
+  const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
+  await expect(
+    executeDatabaseCommand(
+      main,
+      commands["content:suggestions-reject"],
+      main,
+      7,
+      [withoutFeedback.id],
+      ctx
+    )
+  ).resolves.toEqual([withoutFeedback.id]);
+  await expect(
+    executeDatabaseCommand(
+      main,
+      commands["content:suggestions-reject"],
+      main,
+      7,
+      [withFeedback.id],
+      "保留原句"
+    )
+  ).resolves.toEqual([withFeedback.id]);
+  await expect(
+    executeDatabaseCommand(
+      main,
+      commands["content:suggestions-accept"],
+      main,
+      7,
+      [accepted.id],
+      ctx
+    )
+  ).resolves.toEqual([expect.objectContaining({ id: accepted.id, status: "accepted" })]);
+  expect(service.list(main, { proposalId: "ipc" })).toEqual([
+    expect.objectContaining({ id: withoutFeedback.id, status: "rejected" }),
+    expect.objectContaining({ id: withFeedback.id, status: "rejected", feedback: "保留原句" }),
+    expect.objectContaining({ id: accepted.id, status: "accepted" }),
+  ]);
+  expect(getAgent).toHaveBeenCalledTimes(3);
 });
 
 it("提交结果未确认时保持 applying，可按原身份重送", async () => {

@@ -13,7 +13,7 @@ import { emitMemorySourceChanged, setMemoryForeground } from "./assistant-memory
 import { emitAgentRunEnded } from "./agent-run-events";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
-import localContent from "./content-runtime";
+import { getLocalContentRuntime } from "./content-runtime/composition";
 import whiteboardDocumentsModule from "./whiteboard-documents";
 import PathUtil from "../utils/PathUtil";
 import {
@@ -314,7 +314,7 @@ class PiSessionHostModule {
             hasSessions ? (reusedSessionFiles ?? []) : undefined
           );
           whiteboardDocumentsModule.releaseLibrary(databaseName);
-          localContent.releaseLibrary(databaseName);
+          getLocalContentRuntime().releaseLibrary(databaseName);
           assertDatabaseSyncLockOwned(databasePath);
           installDatabaseDownload(
             databasePath,

@@ -34,12 +34,12 @@ import {
   contentSession,
   patchSessionNodes,
   projectContentTitle,
-  projectContractContent,
   readSessionContent,
   registerContentSession,
   unregisterContentSession,
 } from "../content-sessions";
 import type { RuntimeSession } from "../types";
+import { SqliteContentProjection } from "../../content-runtime/sqlite-content-projection";
 import ContentTable from "../../tables/content";
 import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
@@ -177,20 +177,22 @@ describe("本机内容会话", () => {
       )
     ).toBe(2);
     const projected = { ...initial, content: readSessionContent(session).content };
+    const projection = new SqliteContentProjection(db, session.info.source!, session.info);
+    const snapshot = { kind: "snapshot", count: 12 } as const;
     expect(
-      projectContractContent(db, session.info.source!, session, projected, initial.revision, 12)
+      projection.commit({ ...snapshot, ...projected, expectedRevision: initial.revision }).changed
     ).toBe(true);
     const stored = ContentDocumentTable.read(db, 7)!;
     expect(stored.content).toEqual(ContentTable.getContentById(db, 7)!.content);
     expect(JSON.stringify(stored.content)).toContain("#上线");
     expect(
-      projectContractContent(db, session.info.source!, session, stored, stored.revision, 12)
+      projection.commit({ ...snapshot, ...stored, expectedRevision: stored.revision }).changed
     ).toBe(false);
     const reordered = JSON.parse(canonicalContractJson(stored));
     expect(JSON.stringify(reordered.content)).not.toBe(JSON.stringify(stored.content));
     const updateTime = ContentTable.getContentById(db, 7)!.updateTime;
     expect(
-      projectContractContent(db, session.info.source!, session, reordered, stored.revision, 12)
+      projection.commit({ ...snapshot, ...reordered, expectedRevision: stored.revision }).changed
     ).toBe(false);
     expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(updateTime);
     expect(ContentDocumentTable.read(db, 7)).toEqual(stored);
@@ -198,7 +200,12 @@ describe("本机内容会话", () => {
       db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all()
     ).toHaveLength(1);
     expect(() =>
-      projectContractContent(db, session.info.source!, session, initial, initial.revision, 0)
+      projection.commit({
+        ...snapshot,
+        ...initial,
+        expectedRevision: initial.revision,
+        count: 0,
+      })
     ).toThrow("修订冲突");
   });
 
@@ -228,15 +235,16 @@ describe("本机内容会话", () => {
     };
     expect(() => patchSessionNodes(session, () => ({ custom: "丢失" }))).toThrow("磁盘满");
     expect(Y.encodeStateAsUpdate(session.doc)).toEqual(before);
+    const projection = new SqliteContentProjection(database(), session.info.source!, session.info);
     expect(() =>
-      projectContractContent(
-        database(),
-        session.info.source!,
-        session,
-        { documentId: "body", contracts: {}, content: [] },
-        "missing",
-        0
-      )
+      projection.commit({
+        kind: "snapshot",
+        documentId: "body",
+        contracts: {},
+        content: [],
+        expectedRevision: "missing",
+        count: 0,
+      })
     ).toThrow("CONTENT_FORMAT_UNSUPPORTED");
   });
   it("缺失身份的离线分叉得到相同 taskId，合并后身份不会换成另一随机值", async () => {

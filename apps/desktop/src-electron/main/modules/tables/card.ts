@@ -9,6 +9,7 @@ import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
+import { CardContentOwnership } from "../content-ownership/card-content";
 
 import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
 import { parseContentAiMeta } from "./content-ai-meta";
@@ -37,7 +38,8 @@ export default class CardTable {
       "get-card-by-id": this.getCardById.bind(this),
       "is-content-is-card": this.isContentIsCard.bind(this),
       "get-card-by-content-id": this.getCardByContentId.bind(this),
-      "build-card-from-content": this.buildCardFromContent.bind(this),
+      "build-card-from-content": (db: Database.Database, contentId: number) =>
+        this.buildCardFromContent(db, contentId),
       "get-cards-by-dates": this.getCardsByDates.bind(this),
       "get-cards-by-date-range": this.getCardsByDateRange.bind(this),
       "get-cards-content-by-ids": asynchronousDatabaseCommand(this.getCardsContentByIds.bind(this)),
@@ -210,45 +212,18 @@ export default class CardTable {
   }
 
   static createCard(db: Database.Database, card: ICreateCard): ICard {
-    const { tags, content, count, isTop } = card;
-
-    // 创建content记录
-    const contentId = ContentTable.createContent(db, {
-      content: content,
-      contracts: card.contracts,
-      count: count,
-    });
-
-    // 创建card记录
-    const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, content_id, is_top) VALUES (?, ?, ?, ?, ?)"
+    return ContentTable.createOwnedContent(
+      db,
+      { content: card.content, contracts: card.contracts },
+      contentId => {
+        const { id, createdAt } = this.insertCardRow(db, contentId, card.tags, card.isTop);
+        return this.recordCreatedCard(db, id, createdAt);
+      }
     );
-    const now = Date.now();
-    const res = stmt.run(now, now, JSON.stringify(tags), contentId, isTop ? 1 : 0);
-    const createdCardId = res.lastInsertRowid;
-    Operation.insertOperation(db, "card", "insert", createdCardId, now);
-
-    return this.getCardById(db, createdCardId) as ICard;
   }
 
   static createCardFromProjectItem(db: Database.Database, projectItemId: number): ICard | null {
-    const projectItem = ProjectTable.getProjectItem(db, projectItemId);
-    if (!projectItem) {
-      return null;
-    }
-    const contentId = projectItem.contentId;
-
-    ContentTable.incrementRefCount(db, contentId);
-
-    const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, content_id, is_top) VALUES (?, ?, '[]', ?, ?)"
-    );
-    const now = Date.now();
-    const res = stmt.run(now, now, contentId, 0);
-    const createdCardId = res.lastInsertRowid;
-
-    Operation.insertOperation(db, "card", "insert", createdCardId, now);
-    return this.getCardById(db, createdCardId) as ICard;
+    return this.contentOwnership(db).createFromProjectItem(projectItemId);
   }
 
   static updateCard(
@@ -276,10 +251,13 @@ export default class CardTable {
     cardId: number,
     options: { deferContent?: boolean } = {}
   ): number {
-    // 获取卡片信息，以获取contentId
-    const cardInfo = this.getCardById(db, cardId);
+    return this.contentOwnership(db).deleteOwner(
+      cardId,
+      options.deferContent ? "deferred" : "immediate"
+    );
+  }
 
-    // 删除card记录
+  private static removeCardRow(db: Database.Database, cardId: number): number {
     const stmt = db.prepare("DELETE FROM cards WHERE id = ?");
     const changes = stmt.run(cardId).changes;
 
@@ -293,12 +271,6 @@ export default class CardTable {
         `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`
       );
       projectItemStmt.run(cardId);
-
-      if (cardInfo && cardInfo.contentId) {
-        // 删除关联的content记录（减少引用计数）
-        if (options.deferContent) ContentTable.releaseDeferred(db, cardInfo.contentId);
-        else ContentTable.deleteContent(db, cardInfo.contentId);
-      }
     }
 
     return changes;
@@ -376,28 +348,46 @@ export default class CardTable {
   static buildCardFromContent(
     db: Database.Database,
     contentId: number,
-    fields: { tags?: string[]; isTop?: boolean } = {}
+    fields: CardMetadataPatch = {}
   ): ICard {
-    const existingStmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
-    const existing = existingStmt.get(contentId) as { id: number } | undefined;
-    if (existing) {
-      return this.getCardById(db, existing.id) as ICard;
-    }
+    return this.contentOwnership(db).buildFromExisting(contentId, fields);
+  }
+
+  private static contentOwnership(db: Database.Database): CardContentOwnership {
+    return new CardContentOwnership({
+      transaction: apply => db.transaction(apply)(),
+      findOwnerForContent: contentId => this.getCardByContentId(db, contentId),
+      readProjectItem: projectItemId => ProjectTable.getProjectItem(db, projectItemId),
+      insertOwner: (contentId, fields) =>
+        this.insertCardRow(db, contentId, fields.tags ?? [], fields.isTop),
+      recordCreation: ({ id, createdAt }) => this.recordCreatedCard(db, id, createdAt),
+      readOwner: cardId => this.getCardById(db, cardId),
+      removeOwner: cardId => this.removeCardRow(db, cardId),
+      addReference: contentId => ContentTable.incrementRefCount(db, contentId),
+      releaseReference: (contentId, mode) => {
+        if (mode === "deferred") ContentTable.releaseDeferred(db, contentId);
+        else ContentTable.deleteContent(db, contentId);
+      },
+    });
+  }
+
+  private static insertCardRow(
+    db: Database.Database,
+    contentId: number,
+    tags: string[],
+    isTop?: boolean
+  ) {
     const insertStmt = db.prepare(
       "INSERT INTO cards (create_time, update_time, tags, content_id, is_top) VALUES (?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = insertStmt.run(
-      now,
-      now,
-      JSON.stringify(fields.tags ?? []),
-      contentId,
-      fields.isTop ? 1 : 0
-    );
-    const cardId = res.lastInsertRowid;
-    ContentTable.incrementRefCount(db, contentId);
-    Operation.insertOperation(db, "card", "insert", cardId, now);
-    return this.getCardById(db, cardId) as ICard;
+    const res = insertStmt.run(now, now, JSON.stringify(tags), contentId, isTop ? 1 : 0);
+    return { id: res.lastInsertRowid, createdAt: now };
+  }
+
+  private static recordCreatedCard(db: Database.Database, id: number | bigint, createdAt: number) {
+    Operation.insertOperation(db, "card", "insert", id, createdAt);
+    return this.getCardById(db, id) as ICard;
   }
 
   // 批量日期查询

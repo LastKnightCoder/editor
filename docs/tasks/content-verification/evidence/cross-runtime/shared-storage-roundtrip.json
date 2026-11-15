@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "fixtureVersion": 2,
+  "fixtureSha256": "0efa686862e8e4456c0f015bb7ab0a98ccc532efedc9a0770b4a886f7ddeafb9",
+  "extensionSha256": "82681075c2a747e1f9217e9e4a158264b0765de88de38032857a7a9a6ae1df0e",
+  "stableSharedBinding": true,
+  "nativeWriteGuardsAndRollback": true,
+  "tableAndRowHolders": true,
+  "node": "v24.21.0",
+  "rustElapsedMs": 7145,
+  "layouts": [
+    3,
+    2,
+    3
+  ],
+  "rustSummary": [
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 367 filtered out; finished in 0.02s"
+  ]
+}

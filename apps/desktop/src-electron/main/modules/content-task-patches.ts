@@ -11,7 +11,9 @@ import {
 } from "@tau/db-schema/content-contracts";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
 import { ContentDocumentTable } from "./tables/content-document";
-import { projectContractContent, readLocalSessionContent } from "./collaboration/content-sessions";
+import { replaceColdContent } from "./tables/content-replacement";
+import { contentSession, readLocalSessionContent } from "./collaboration/content-sessions";
+import { SqliteContentProjection } from "./content-runtime/sqlite-content-projection";
 import type { RuntimeSession } from "./collaboration/types";
 import type Database from "better-sqlite3";
 import * as Y from "yjs";
@@ -20,7 +22,6 @@ import type { DocumentTaskAttributes } from "@tau/shared/task-assistant";
 import { getContentLength } from "@/utils/helper";
 import ContentTable from "./tables/content";
 import { assertContentIsLocal } from "./collaboration-guard";
-import { contentSession } from "./collaboration/content-sessions";
 import { emitContentWritten } from "./content-events";
 import { canonical, fail, revision } from "./task-assistant/common";
 
@@ -113,18 +114,14 @@ function projectTaskSession(
   const stored = ContentDocumentTable.read(db, contentId);
   if (!stored) fail("CONTENT_BUSY", "正文格式尚未转换");
   const content = readLocalSessionContent(session).content;
-  projectContractContent(
-    db,
-    source!,
-    session,
-    {
-      documentId: stored!.documentId,
-      contracts: session.doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary,
-      content,
-    },
+  new SqliteContentProjection(db, source!, session.info).commit({
+    kind: "snapshot",
+    documentId: stored!.documentId,
+    contracts: session.doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary,
+    content,
     expectedRevision,
-    getContentLength(content as Descendant[])
-  );
+    count: getContentLength(content as Descendant[]),
+  });
   source!.projectionRevision = ContentDocumentTable.read(db, contentId)!.revision;
   session.store!.metadata(session.info);
   emitContentWritten(db, contentId, "update");
@@ -198,7 +195,7 @@ export function applyTaskContentPatch(
     fail("VERSION_CONFLICT", "正文已变化，请重新读取");
   const stored = ContentDocumentTable.read(db, contentId);
   const prepared = stored ? prepareTaskNodes(next, stored.contracts) : { content: next };
-  ContentTable.updateContent(db, contentId, {
+  replaceColdContent(db, contentId, {
     ...prepared,
     content: prepared.content as Descendant[],
     expectedRevision: stored?.revision,

@@ -1,0 +1,232 @@
+{
+  "fixtureVersion": 1,
+  "sourceId": "roundtrip-library-v1",
+  "libraryBaselineId": "roundtrip-library-baseline-v1",
+  "documentId": "roundtrip-document-v1",
+  "contentId": 7,
+  "createdAt": 1000,
+  "mobileWrittenAt": 2000,
+  "cardId": 101,
+  "articleId": 102,
+  "contracts": {
+    "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281": {
+      "format": 2,
+      "owner": "baseline.paragraph",
+      "type": "paragraph",
+      "dataVersion": 1,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": false
+    },
+    "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615": {
+      "format": 2,
+      "owner": "baseline.baseline-source",
+      "type": "baseline-source",
+      "dataVersion": 1,
+      "textFields": ["source"],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": true
+    },
+    "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042": {
+      "format": 2,
+      "owner": "baseline.baseline-unknown",
+      "type": "baseline-unknown",
+      "dataVersion": 1,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": [],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": true
+    },
+    "72b42547ca0270d1c4f63a41f4d2622ea07823d4aa45300472c913363acd42bb": {
+      "format": 2,
+      "domain": "editor-node",
+      "owner": "host.whiteboard",
+      "type": "whiteboard",
+      "dataVersion": 1,
+      "kind": "block",
+      "isVoid": true,
+      "textFields": [],
+      "structuredFields": [],
+      "resources": []
+    }
+  },
+  "desktopInitial": [
+    {
+      "type": "paragraph",
+      "collabId": "roundtrip-paragraph",
+      "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+      "children": [
+        {
+          "type": "formatted",
+          "text": "桌面原文",
+          "bold": true
+        }
+      ]
+    },
+    {
+      "type": "whiteboard",
+      "collabId": "roundtrip-board",
+      "tauContract": "72b42547ca0270d1c4f63a41f4d2622ea07823d4aa45300472c913363acd42bb",
+      "entityRef": {
+        "sourceId": "roundtrip-library-v1",
+        "kind": "whiteboard-content",
+        "entityId": "roundtrip-board-21"
+      },
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "type": "baseline-source",
+      "collabId": "roundtrip-source",
+      "tauContract": "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615",
+      "source": "const 保留 = \"🙂é\";\n",
+      "language": "typescript",
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "type": "baseline-unknown",
+      "collabId": "roundtrip-unknown",
+      "tauContract": "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042",
+      "payload": {
+        "version": 7,
+        "keep": ["未知数据", true, 17]
+      },
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    }
+  ],
+  "mobileExpected": [
+    {
+      "type": "paragraph",
+      "collabId": "roundtrip-paragraph",
+      "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+      "children": [
+        {
+          "type": "formatted",
+          "text": "移动改写",
+          "bold": true
+        }
+      ]
+    },
+    {
+      "type": "whiteboard",
+      "collabId": "roundtrip-board",
+      "tauContract": "72b42547ca0270d1c4f63a41f4d2622ea07823d4aa45300472c913363acd42bb",
+      "entityRef": {
+        "sourceId": "roundtrip-library-v1",
+        "kind": "whiteboard-content",
+        "entityId": "roundtrip-board-22"
+      },
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "type": "baseline-source",
+      "collabId": "roundtrip-source",
+      "tauContract": "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615",
+      "source": "const 保留 = \"🙂é\";\n",
+      "language": "typescript",
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "type": "baseline-unknown",
+      "collabId": "roundtrip-unknown",
+      "tauContract": "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042",
+      "payload": {
+        "version": 7,
+        "keep": ["未知数据", true, 17]
+      },
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    }
+  ],
+  "desktopExpected": [
+    {
+      "type": "paragraph",
+      "collabId": "roundtrip-paragraph",
+      "tauContract": "80e9e6b766c53e073c0a50c38ff07d8c4b89f3ccaa28fff55223cc3ab5612281",
+      "children": [
+        {
+          "type": "formatted",
+          "text": "桌面接续移动改写",
+          "bold": true
+        }
+      ]
+    },
+    {
+      "type": "whiteboard",
+      "collabId": "roundtrip-board",
+      "tauContract": "72b42547ca0270d1c4f63a41f4d2622ea07823d4aa45300472c913363acd42bb",
+      "entityRef": {
+        "sourceId": "roundtrip-library-v1",
+        "kind": "whiteboard-content",
+        "entityId": "roundtrip-board-22"
+      },
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "type": "baseline-source",
+      "collabId": "roundtrip-source",
+      "tauContract": "0f5799af37ff0a643a5ec7d55edd2c5206b563c707b866a58c3a27ae499be615",
+      "source": "const 保留 = \"🙂é\";\n",
+      "language": "typescript",
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "type": "baseline-unknown",
+      "collabId": "roundtrip-unknown",
+      "tauContract": "3474567a445130f26695dd44c80a838851ddc3aa4b341ccae469499e57ce0042",
+      "payload": {
+        "version": 7,
+        "keep": ["未知数据", true, 17]
+      },
+      "children": [
+        {
+          "text": ""
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "initial": 4,
+    "mobile": 4,
+    "desktop": 8
+  },
+  "expectedOwnerReferences": 2
+}

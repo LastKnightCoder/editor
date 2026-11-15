@@ -254,6 +254,7 @@ export class CollaborationLocalStore {
       this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-revision:${id}`);
       this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-attempted:${id}`);
       this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-confirmed:${id}`);
+      this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-generation:${id}`);
     })();
   }
 }

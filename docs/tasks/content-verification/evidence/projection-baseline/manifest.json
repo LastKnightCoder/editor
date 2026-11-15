@@ -1,0 +1,59 @@
+{
+  "revision": "dee0f8bbe3ad4bebd899ad22647b87995e29b3ae",
+  "node": "v24.21.0",
+  "pnpm": "11.9.0",
+  "os": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M3 Pro",
+  "memoryBytes": 38654705664,
+  "command": "npm_config_verify_deps_before_run=false TAU_CONTENT_STRESS_REPORT=<独立绝对路径> pnpm --filter desktop test:content-projection:stress",
+  "inputs": {
+    "pnpm-lock.yaml": "ffb5184025f00d201e8a4337d6dcb9f99a126272ba76623a3b3f34f2f79e1f3a",
+    "apps/desktop/package.json": "179ac43d3af60d98097fc5bcdda1f626e7e063b29a4656f5841ef8a93bc237ec",
+    "apps/desktop/vitest.config.ts": "70401aa0097c58772812c22099351a38db14296b72aaef24ab28c1b96398f3e0",
+    "packages/db-schema/schema/main.sql": "53a5dc09b775f68d2b3c28b34679b0b0cf49a5bb3341058a7e5c843eb60ec9d8",
+    "packages/db-schema/schema/collaboration.sql": "b04564627f3ed153ffca576968e2325612ed4631841e80dffcbb73ff3e95f463",
+    "apps/desktop/src-electron/main/modules/collaboration/__tests__/manager-node-document.test.ts": "d17c4e31c3164787ef7edb3d6c7ec6808363ca9a7b7f3a5b2e4d84ed6f8918aa",
+    "apps/desktop/src-electron/main/modules/content-runtime/index.ts": "87dae80b3da1d8fabc03a8b5f19f0334a81639121c156dc2727680e117efcea8",
+    "apps/desktop/src-electron/main/modules/collaboration/node-session-updates.ts": "55e8480fdb05e4dada846bf270dcd25d555659081155ee0811567afb9c7ad5ed",
+    "apps/desktop/src-electron/main/modules/collaboration/local-store.ts": "5dcc3080a631deb2e38cff1e9e9f80afd8bc03314f27fa17bbf17c3a178e252d"
+  },
+  "reports": {
+    "stress-1.json": "cf34be55629beb10890b4289ec89cdd1f4ec090abef85ea1182c04e9c498b019",
+    "stress-2.json": "968a61bf0de425162732740d40771de35bab6de4c33318a941dd16af364d8144",
+    "stress-3.json": "ef586bc3c618cdf10bc7d6d015c168ec81a3939c893aa69adbd983eb85480cca"
+  },
+  "medianP95AndLimits": {
+    "long-32-256": {
+      "idle": {
+        "medianP95Ms": 0.099,
+        "upperP95Ms": 5.119
+      },
+      "editAndSave": {
+        "medianP95Ms": 3.287,
+        "upperP95Ms": 8.944
+      }
+    },
+    "long-256-512": {
+      "idle": {
+        "medianP95Ms": 0.093,
+        "upperP95Ms": 5.112
+      },
+      "editAndSave": {
+        "medianP95Ms": 2.414,
+        "upperP95Ms": 7.897
+      }
+    },
+    "long-1024-1024": {
+      "idle": {
+        "medianP95Ms": 0.09,
+        "upperP95Ms": 5.108
+      },
+      "editAndSave": {
+        "medianP95Ms": 7.476,
+        "upperP95Ms": 13.971
+      }
+    }
+  },
+  "samplePeakRSSMiB": 584,
+  "samplePeakHeapMiB": 236
+}

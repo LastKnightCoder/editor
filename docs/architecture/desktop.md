@@ -88,7 +88,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 业务代码写正文
 
-未共享正文经 local-content 模块和独立日志运行，主库存在共享绑定时才接入共享会话。打开、关闭、切库和退出共用正文保存屏障，协作库不可读时仍能编辑健康的未共享正文。正文 Agent 命令由 local-content 提供，本机保存建议、审阅和权限；已有记录从可读的旧协作库按原身份一次性迁入，无法读取时保留原库并允许新的本机操作。共享正文的远端快照与范围提交由协作模块处理。恢复规则见[正文持久化](/docs/architecture/content-storage.md#耐久日志与检查点)。
+`local-content` 在 `logger` 和 `database` 就绪后由 BACKGROUND 模块调度接入正文组合根。`collaboration` 等待本机正文就绪，组装自己的会话运行时，再接入共享桥。主库存在共享绑定时经桥打开共享会话。协作库不可读时仍能编辑健康的未共享正文。正文 Agent 命令由 `local-content` 提供，本机保存建议、审阅和权限，协作模块提供共享正文的远端快照和范围提交。组装、恢复与关闭规则见 [正文持久化](/docs/architecture/content-storage.md#耐久日志与检查点)。
 
 正文节点的 `collabId`（节点稳定身份，协作合并、光标与实体关系按它定位）和 `tauContract`（指向文档契约字典里该节点写入时的数据版本）属于存储与协作层，业务代码不读写、不拼装：
 
@@ -421,6 +421,7 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 - 导入：相对路径以 .md 所在目录为基准（兼容 `~`、`file://`、URL 编码），读出后经 `uploadResource` 走当前资源存储；附件入库后 `isLocal=false`（与插入附件时选「上传」一致）。
 - PDF：导出页面从 `data:` 地址加载，`buildPdfHtml` 与批量 PDF 在序列化前用 `inlineLocalImages` 把本机图片内联为 data URI。
 - 批量导入（文件夹 / .zip → 项目 / 文章 / 卡片）：`utils/content-transfer/source.ts` 把两种来源统一为相对路径读取（跳过隐藏目录与 `__MACOSX`，压缩包剥掉唯一同名根目录，上限 2 万文件）；`batch-import.ts` 先 `scanImportSource` 只读扫描成计划（资源按 .md 目录定位并去重、缺失资源与未解析的 .md 链接单列、同级 `X.md` + `X/` 合并为带子级的文档），再 `runImport` 三遍执行：① 选中文档引用的资源去重上传 ② 建文档（项目按树、文章取顶层文件夹为标签、卡片取完整文件夹路径为层级标签，可叠加 frontmatter tags）③ 回填指向本批文档的链接为 `content-link`。每次写库前校验仍是开始时的数据库；停止或出错保留已写部分。宿主接线与整批撤销在 `services/batch-import.ts`，导入记录存 `stores/useImportHistoryStore`（本机、按库区分，撤销 = 删除建出的项目 / 文章 / 卡片，资源文件保留）。
+- 批量 Markdown 扫描使用正文契约处理器，拆开无损载荷并随文档携带契约字典。资源扫描、路径改写、业务创建和正文链接回填沿用该字典。
 - 来源方言`utils/content-transfer/dialects.ts`：扫描前把私有写法改写成标准 Markdown，扫描与执行不感知方言；自动识别（`logseq/config.edn` > 根目录 `.obsidian` > 过半文件名带 Notion 32 位 id > 通用），向导可手动切换并用已读入的来源重扫。Obsidian：`[[笔记|别名]]` / `![[附件]]` 按名称定位（大小写不敏感，重名取同目录再取最短路径）后改写为相对路径链接 / 图片 / 音视频 / 附件，`[[#标题]]` 与解析不到的降为文字；callout、`==高亮==`、`%%注释%%`、行尾 `^块标识`、正文 `#标签`。Notion：去掉文件 / 目录名的 id 与首行重复标题，`Tags:` 属性行转标签，CSV 导入为「数据库」模块的表格（列均为文本，`X_all.csv` 优先）。Logseq：只导 `pages/`（摊平到根）与 `journals/`（显示为「日志」），页面名按 `___` / `%2F` 还原命名空间，`title::` / 日志日期（`Jan 15th, 2024` 等）可被引用，页面属性与块属性不导入，任务标记转勾选项（换用 `*` 列表符自成任务列表），`((块引用))` 移除并记入报告。所有方言改写只作用于代码之外。相对路径失效的资源与 .md 链接再按来源根、再按文件名定位。
 - 向导 `features/transfer/ImportWizard`：来源与去向 → 预览（勾选树用公共 `components/CheckTree`，与整体导出共用）→ 执行（三阶段进度、可停止）→ 报告（打开 / 撤销）。
 - Markdown 导出包（迁出）：`services/markdown-export.ts` 按范围（项目 / 文章 / 卡片 / 全部）组装导出树，包内目录即选择树——项目按文档树，文章与卡片按首个标签逐级分文件夹，「全部」再分三组；节点 id 是本次导出的临时编号，实体身份记在 `ref`，跨范围的 content-link 照常改写；文章正文经 `loadContent` 导出时才取。打包共用 `buildMarkdownZipBytes`（项目整体导出的 Markdown 包走同一函数，选项缺省即旧行为），选项：互链写法（相对 .md / `[[文件名]]`，重名时写包内路径 / 纯文字）、本地资源（打包进 assets/ 或保留原地址）、同时下载远程图片（`remoteResourceToLocal` 缓存后打包）、frontmatter（title / tags / created / updated）。偏好存 localStorage `markdown-export-settings`。项目的 PDF / EPUB 仍只在项目卡片 ⋯ 的「整体导出」。
@@ -475,7 +476,7 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 
 知识地图读取 `knowledge-map:get` 显式接入 IPC 计时；快照的 `renderer[*].stages` 记录加载、建图及超过 50ms 的绘制，`main.stages` 记录向量候选扫描，只有阶段、耗时与规模，不记录正文。渲染事件携带发生时间，避免主进程积压把接收时间当作起点；堆采样每次重新读取 memory。长帧的 renderMs 为 renderStart 到帧末，styleLayoutMs 为 styleAndLayoutStart 到帧末（含后续渲染），无法取得的 paintMs 为 null，不能当成零开销。
 
-主内容全文队列（`main-content-fts-index-queue`）在连库对账之外订阅正文写入总线：按库合并 1 秒（持续写入最长 5 秒），经 `EntitySearchTable.locateAll` 找到引用这些正文的卡片 / 文章 / 项目文档 / 日记逐个重建，正文清空则移除。索引未就绪（构建中或待重建）时跳过，交给对账；实体删除和标题等元数据变化仍由连库对账处理。
+主内容全文队列（`main-content-fts-index-queue`）在连库对账之外订阅正文写入总线。总线使用实际连接登记的库名，派生队列据此解析当前连接。队列按库合并 1 秒（持续写入最长 5 秒），经 `EntitySearchTable.locateAll` 找到引用这些正文的卡片 / 文章 / 项目文档 / 日记逐个重建，正文清空则移除。索引未就绪（构建中或待重建）时交给对账，实体删除和标题等元数据变化也由连库对账处理。
 
 主内容向量队列先读取实体 ID、正文 ID、实体/正文较新修订号，按已索引修订筛选后才读全文。候选收集与覆盖率合并扫描；未变的已索引正文不转换，空正文修订按数据库连接缓存。持久正文由 `ContentTable.readText` 一次联表读取正文及契约，数据库正文的原始 JSON 交转换进程解析，不在主进程解析后重编码；有效会话仍优先提供正文及契约，会话身份校验只查询身份字段。既有正文转换服务按保存版本产生文本与分节；全文队列、向量候选和全文检索回退只消费文本结果，不传递契约字典。材料的节点转换仍经 `IndexContentClient`；每轮扫描的取消信号传入正文转换服务，finally 回收作用域，共用内容进程不随每轮销毁。元数据扫描每批让出事件循环。统计入口不分节、不准备嵌入任务；未索引或变化项仍需转换确认正文非空，以保留纯媒体等可索引内容的口径。切库或代次失效后不清理候选外向量。
 

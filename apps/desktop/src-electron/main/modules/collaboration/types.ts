@@ -26,7 +26,9 @@ export interface RuntimeSession {
   replaceContent?: (
     content: ContentNode[],
     contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary | undefined,
-    expectedRevision: string | undefined
+    expectedRevision: string | undefined,
+    checkScope?: () => void,
+    onAccepted?: () => void
   ) => Promise<void>;
   provider?: HocuspocusProvider;
   dirty: boolean;
@@ -55,7 +57,6 @@ export interface CollaborationIpcContext {
   client: CollaborationClient;
   assets: CollaborationAssetService;
   serverUrl(): string;
-  sessions: Map<string, RuntimeSession>;
   /** 按 documentId 获取当前会话，未加载时读取本机缓存。 */
   findSession(id: string): RuntimeSession | undefined;
   views: Map<string, CollaborationView>;

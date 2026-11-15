@@ -24,6 +24,7 @@ import EntityLineageTable from "../../tables/entity-lineage";
 import FlashcardTable from "../../tables/flashcard";
 import TodoItemTable from "../../tables/todo-item";
 import TodoNoteLinkTable from "../../tables/todo-note-link";
+import MaterialTable from "../../tables/material";
 import VibeLearningProjectTable from "../../tables/vibe-learning-project";
 import VibeLearningResourceTable from "../../tables/vibe-learning-resource";
 import VLNoteTable from "../../tables/vl-note";
@@ -440,6 +441,7 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         FlashcardTable,
         TodoItemTable,
         TodoNoteLinkTable,
+        MaterialTable,
         VibeLearningProjectTable,
         VibeLearningResourceTable,
         VLNoteTable,

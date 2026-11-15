@@ -1,6 +1,7 @@
 // @vitest-environment node
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Descendant } from "slate";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import { canonicalContractJson, prepareContentContract } from "@tau/db-schema/content-contracts";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
@@ -9,9 +10,11 @@ import { ContentDocumentTable, type ContentDocumentWrite } from "../content-docu
 import ContentTable from "../content";
 import { createNodeDocument, readNodeDocument } from "@tau/collaboration";
 import {
+  contentRevision,
   registerContentSession,
   unregisterContentSession,
 } from "../../collaboration/content-sessions";
+import { onContentWritten } from "../../content-events";
 import type { RuntimeSession } from "../../collaboration/types";
 
 const execution = vi.hoisted(() => ({ execute: vi.fn() }));
@@ -95,6 +98,122 @@ const count = (db: Database.Database) =>
   ).ref_count;
 
 describe("正文身份、契约与关系账的持久化", () => {
+  it("冷写整篇替换的流水失败同时回滚正文、引用和待回收登记", async () => {
+    const db = database();
+    const original = ContentDocumentTable.commit(db, 1, await payload(db), {
+      installDocument: true,
+      count: 0,
+    });
+    const update = { content: [], expectedRevision: original.revision };
+    const events = vi.fn();
+    const off = onContentWritten(events);
+    const pending = () =>
+      db.prepare("SELECT content_id FROM white_board_content_pending_releases").all();
+    try {
+      db.exec(`CREATE TEMP TRIGGER deny_replacement_operation BEFORE INSERT ON operation
+        WHEN NEW.operation_content_type = 'content' AND NEW.operation_action = 'update'
+        BEGIN SELECT RAISE(ABORT, '正文替换流水故障'); END`);
+      expect(() => ContentTable.updateContent(db, 1, update)).toThrow("正文替换流水故障");
+      expect(ContentDocumentTable.read(db, 1)).toEqual(original);
+      expect(count(db)).toBe(1);
+      expect(pending()).toEqual([]);
+      expect(db.prepare("SELECT node_id FROM content_entity_relations").all()).toEqual([
+        { node_id: "node" },
+      ]);
+      expect(db.prepare("SELECT id FROM operation").all()).toEqual([]);
+      expect(events).not.toHaveBeenCalled();
+
+      db.exec("DROP TRIGGER deny_replacement_operation");
+      expect(ContentTable.updateContent(db, 1, update)?.content).toEqual([]);
+      expect(count(db)).toBe(0);
+      expect(pending()).toEqual([{ content_id: 7 }]);
+      expect(db.prepare("SELECT node_id FROM content_entity_relations").all()).toEqual([]);
+      expect(db.prepare("SELECT operation_id FROM operation").all()).toEqual([{ operation_id: 1 }]);
+      expect(events).toHaveBeenCalledTimes(1);
+    } finally {
+      off();
+    }
+  });
+
+  it("裸 JSON 正文校验传统修订，流水失败不留下部分更新", () => {
+    const db = database();
+    const content: Descendant[] = [
+      { type: "paragraph", children: [{ type: "formatted", text: "新正文" }] },
+    ];
+    const stored = () =>
+      db.prepare("SELECT update_time, content, count FROM contents WHERE id=1").get();
+    const before = stored();
+    expect(() => ContentTable.updateContent(db, 1, { content, expectedRevision: "u:0" })).toThrow(
+      "正文修订冲突"
+    );
+    db.exec(`CREATE TEMP TRIGGER deny_legacy_replacement BEFORE INSERT ON operation
+      WHEN NEW.operation_content_type = 'content' AND NEW.operation_action = 'update'
+      BEGIN SELECT RAISE(ABORT, '旧正文替换流水故障'); END`);
+    expect(() => ContentTable.updateContent(db, 1, { content, expectedRevision: "u:1" })).toThrow(
+      "旧正文替换流水故障"
+    );
+    expect(stored()).toEqual(before);
+    expect(db.prepare("SELECT id FROM operation").all()).toEqual([]);
+
+    db.exec("DROP TRIGGER deny_legacy_replacement");
+    expect(
+      ContentTable.updateContent(db, 1, { content, expectedRevision: "u:1" })?.content
+    ).toEqual(content);
+    expect(db.prepare("SELECT operation_id FROM operation").all()).toEqual([{ operation_id: 1 }]);
+  });
+
+  it("冷写结果在后续写入前读回本次正文", async () => {
+    const db = database();
+    const content: Descendant[] = [
+      { type: "paragraph", children: [{ type: "formatted", text: "第一次写入" }] },
+    ];
+    const written = ContentTable.writeContent(db, 1, { content });
+    ContentTable.updateContent(db, 1, {
+      content: [{ type: "paragraph", children: [{ type: "formatted", text: "随后写入" }] }],
+    });
+    await expect(written).resolves.toMatchObject({ content });
+  });
+
+  it("活跃整篇替换将原连接的会话检查交给异步写入", async () => {
+    const db = database();
+    const value = await payload(db);
+    const stored = ContentDocumentTable.commit(db, 1, value, {
+      installDocument: true,
+      count: 0,
+    });
+    const doc = await createNodeDocument(
+      { documentId: value.documentId, baselineId: "baseline", epoch: 0 },
+      { title: "", bannerBg: "", bannerPosition: "center", content: value.content },
+      value.contracts
+    );
+    const session = {
+      doc,
+      info: { mode: "local", source: { contentId: 1, contentCreatedAt: 1 } },
+    } as RuntimeSession;
+    session.replaceContent = vi.fn(async (_content, _contracts, revision, check) => {
+      expect(revision).toBe(contentRevision(session));
+      check?.();
+      await Promise.resolve();
+      unregisterContentSession(session);
+      check?.();
+    });
+    registerContentSession(db, 1, session);
+    try {
+      await expect(
+        ContentTable.writeContent(db, 1, {
+          content: [],
+          expectedRevision: contentRevision(session),
+        })
+      ).rejects.toThrow("正文会话已变化");
+      expect(ContentDocumentTable.read(db, 1)).toEqual(stored);
+      expect(count(db)).toBe(1);
+      expect(db.prepare("SELECT id FROM operation").all()).toEqual([]);
+    } finally {
+      unregisterContentSession(session);
+      doc.destroy();
+    }
+  });
+
   it("移动端排序后的契约经整库同步进入桌面仍可保存正文", async () => {
     const db = database();
     const value = await payload(db);

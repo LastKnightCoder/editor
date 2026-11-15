@@ -184,17 +184,19 @@ export async function saveNote(raw: unknown): Promise<{ cardId: number }> {
     typeof params.title === "string"
       ? params.title.trim().slice(0, WEB_PAGE_LIMITS.titleChars)
       : "";
-  // 记下页面；来源段用显示名（用户起过名就是起的名），都没有时用网址
-  const title = WebPageTable.touch(currentDatabase(), url, pageTitle) || url;
+  const db = currentDatabase();
+  const title = WebPageTable.previewTouchTitle(db, url, pageTitle) || url;
 
   const document = (await contentExecutor.execute({
     operation: "prepare-content",
     input: { nodes: [...structuredClone(content), sourceParagraph(title, url)] as never },
   })) as Pick<IContent, "content" | "contracts">;
-  // 转换是异步的，回来后库可能已切换或关闭
-  const db = currentDatabase();
-  // 字数由正文写入时重算，这里的 count 只是占位
-  const card = CardTable.createCard(db, { ...document, count: 0, tags: [], isTop: false });
+  if (!db.open || databaseModule.getCurrentDatabase() !== db)
+    throw new Error("准备笔记期间资料库已切换，请重新保存");
+  const card = db.transaction(() => {
+    WebPageTable.touch(db, url, pageTitle);
+    return CardTable.createCard(db, { ...document, count: 0, tags: [], isTop: false });
+  })();
   databaseModule.notifyExternalWrite("create-card");
   broadcastDatabaseChange("card:updated", basename(db.name), { cardId: card.id });
   return { cardId: card.id };

@@ -1,0 +1,212 @@
+{
+  "recordedAt": "2026-11-15T05:52:41.258Z",
+  "node": "v24.21.0",
+  "scenarios": [
+    {
+      "name": "large-single-block",
+      "status": "passed",
+      "singleBlockCharacters": 491520,
+      "inputBytes": 737301,
+      "editAndCheckpointMs": 64.292,
+      "checkpoints": 1,
+      "elapsedMs": 175,
+      "heapUsedMiB": 135,
+      "rssMiB": 451,
+      "rssChangeMiB": 112
+    },
+    {
+      "name": "auto-flush-incremental",
+      "status": "passed",
+      "autoFlushRounds": 20,
+      "inputs": 320,
+      "fullCheckpoints": 2,
+      "retainedUpdates": 64,
+      "elapsedMs": 198,
+      "heapUsedMiB": 163,
+      "rssMiB": 455,
+      "rssChangeMiB": 4
+    },
+    {
+      "name": "long-32-256",
+      "status": "passed",
+      "characters": 8192,
+      "paragraphCount": 32,
+      "idle": {
+        "samples": 500,
+        "p50Ms": 0.088,
+        "p95Ms": 0.11,
+        "maxMs": 0.36
+      },
+      "editAndSave": {
+        "samples": 36,
+        "p50Ms": 0.888,
+        "p95Ms": 3.415,
+        "maxMs": 6.99
+      },
+      "contractWrites": 5,
+      "operations": 36,
+      "elapsedMs": 134,
+      "heapUsedMiB": 143,
+      "rssMiB": 471,
+      "rssChangeMiB": 16
+    },
+    {
+      "name": "long-256-512",
+      "status": "passed",
+      "characters": 131072,
+      "paragraphCount": 256,
+      "idle": {
+        "samples": 500,
+        "p50Ms": 0.084,
+        "p95Ms": 0.1,
+        "maxMs": 0.261
+      },
+      "editAndSave": {
+        "samples": 36,
+        "p50Ms": 1.095,
+        "p95Ms": 2.421,
+        "maxMs": 17.854
+      },
+      "contractWrites": 5,
+      "operations": 36,
+      "elapsedMs": 337,
+      "heapUsedMiB": 145,
+      "rssMiB": 478,
+      "rssChangeMiB": 7
+    },
+    {
+      "name": "long-1024-1024",
+      "status": "passed",
+      "characters": 1048576,
+      "paragraphCount": 1024,
+      "idle": {
+        "samples": 500,
+        "p50Ms": 0.08,
+        "p95Ms": 0.091,
+        "maxMs": 0.218
+      },
+      "editAndSave": {
+        "samples": 36,
+        "p50Ms": 4.043,
+        "p95Ms": 7.25,
+        "maxMs": 91.958
+      },
+      "contractWrites": 5,
+      "operations": 36,
+      "elapsedMs": 2188,
+      "heapUsedMiB": 229,
+      "rssMiB": 569,
+      "rssChangeMiB": 91
+    },
+    {
+      "name": "idempotent-properties",
+      "status": "passed",
+      "sameValueTransactions": 100,
+      "elapsedMs": 48,
+      "heapUsedMiB": 133,
+      "rssMiB": 543,
+      "rssChangeMiB": 0
+    },
+    {
+      "name": "random-7",
+      "status": "passed",
+      "seed": 7,
+      "mutations": 256,
+      "saves": 32,
+      "coldRecoveries": 4,
+      "finalNodes": 5,
+      "elapsedMs": 247,
+      "heapUsedMiB": 159,
+      "rssMiB": 548,
+      "rssChangeMiB": 5
+    },
+    {
+      "name": "random-43",
+      "status": "passed",
+      "seed": 43,
+      "mutations": 256,
+      "saves": 32,
+      "coldRecoveries": 4,
+      "finalNodes": 12,
+      "elapsedMs": 212,
+      "heapUsedMiB": 191,
+      "rssMiB": 549,
+      "rssChangeMiB": 1
+    },
+    {
+      "name": "random-137",
+      "status": "passed",
+      "seed": 137,
+      "mutations": 256,
+      "saves": 32,
+      "coldRecoveries": 4,
+      "finalNodes": 6,
+      "elapsedMs": 229,
+      "heapUsedMiB": 140,
+      "rssMiB": 550,
+      "rssChangeMiB": 1
+    },
+    {
+      "name": "random-20261102",
+      "status": "passed",
+      "seed": 20261102,
+      "mutations": 256,
+      "saves": 32,
+      "coldRecoveries": 4,
+      "finalNodes": 10,
+      "elapsedMs": 208,
+      "heapUsedMiB": 196,
+      "rssMiB": 550,
+      "rssChangeMiB": 0
+    },
+    {
+      "name": "source-format-history",
+      "status": "passed",
+      "sourceEdits": 80,
+      "undos": 80,
+      "redos": 80,
+      "formatChanges": 80,
+      "saves": 320,
+      "elapsedMs": 247,
+      "heapUsedMiB": 142,
+      "rssMiB": 543,
+      "rssChangeMiB": -7
+    },
+    {
+      "name": "overlap-rollback-database-switch",
+      "status": "passed",
+      "rounds": 30,
+      "overlappingRequests": 240,
+      "lateInputs": 30,
+      "rollbacks": 30,
+      "databaseSwitches": 30,
+      "elapsedMs": 106,
+      "heapUsedMiB": 173,
+      "rssMiB": 545,
+      "rssChangeMiB": 2
+    },
+    {
+      "name": "two-view-increments",
+      "status": "passed",
+      "writers": 2,
+      "edits": 240,
+      "duplicateUpdates": 60,
+      "deliveredUpdates": 300,
+      "parallelBatch": 8,
+      "elapsedMs": 226,
+      "heapUsedMiB": 196,
+      "rssMiB": 554,
+      "rssChangeMiB": 10
+    },
+    {
+      "name": "websocket-reconnect",
+      "status": "passed",
+      "reconnects": 6,
+      "offlineEdits": 240,
+      "elapsedMs": 7899,
+      "heapUsedMiB": 202,
+      "rssMiB": 558,
+      "rssChangeMiB": 4
+    }
+  ]
+}

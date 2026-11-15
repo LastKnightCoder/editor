@@ -17,8 +17,6 @@ import {
   captureScopedTextEdit,
   createWhiteboardDocument,
   WhiteboardModel,
-  type ContentSessionSnapshot,
-  type CollaborationSession,
   type ContentNode,
   type SharedDocumentInfo,
   type DocumentStateResponse,
@@ -31,11 +29,15 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { CollaborationManager } from "../index";
-import { ContentSessionManager } from "../../content-runtime";
+import type { ContentSessionRuntime } from "../../content-runtime";
+import type { PreparedContentShare } from "../../content-runtime/sharing";
+import { createLocalContentRuntime } from "../../content-runtime/composition";
+import { createDesktopContentServices } from "../../content-runtime/desktop-services";
 import { registerAgentEditExecution } from "../../agent-run-events";
 import { CollaborationLocalStore } from "../local-store";
-import { ContentLocalState } from "../content-local-state";
+import type { ContentLocalState } from "../content-local-state";
 import { NodeSessionUpdates } from "../node-session-updates";
+import { SqliteNodeSessionJournal } from "../../content-runtime/sqlite-node-session-journal";
 import { CollaborationAssetService } from "../asset-service";
 import type { CollaborationClient } from "../client";
 import type { RuntimeSession } from "../types";
@@ -46,7 +48,7 @@ import ProjectTable from "../../tables/project";
 import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentDocumentBlocks } from "../../tables/content-document-blocks";
 import { ContentIdentityTable } from "../../tables/content-identity";
-import { unregisterContentSession } from "../content-sessions";
+import { contentSession, unregisterContentSession } from "../content-sessions";
 import { sourceDraftKey } from "../content-local-state";
 import { collaborationImageStorage } from "../../../services/collaboration-image-storage";
 import type { DocumentDrain, DocumentDrainScope } from "../../durable-document-lifecycle";
@@ -80,32 +82,23 @@ afterEach(async () => {
   host.databases.clear();
   host.serverUrl = "http://test";
 });
-type Runtime = Pick<CollaborationManager, "agent"> & {
+type Runtime = {
+  content: Pick<
+    SharedSessions,
+    "sessions" | "views" | "drainDatabase" | "project" | "startAutoFlush"
+  > &
+    Pick<ContentSessionRuntime, "broadcast" | "freeze" | "install">;
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   assets: CollaborationAssetService;
   client: CollaborationClient;
-  directory: string;
   stopped: boolean;
-  sessions: Map<string, RuntimeSession>;
-  views: Map<string, { documentId: string; windowId: number }>;
-  acknowledgeFreeze(viewId: string, requestId?: string): void;
-  freezeWaiters: Map<string, { id: string }>;
   attach(session: RuntimeSession): void;
-  openContent(
-    event: IpcMainInvokeEvent,
-    target: { contentId: number }
-  ): Promise<ContentSessionSnapshot>;
   createContent(event: IpcMainInvokeEvent, contentId: number): Promise<{ documentId: string }>;
   prepareLeave(session: RuntimeSession): Promise<void>;
   discardLocal(session: RuntimeSession): Promise<void>;
   finishLeave(session: RuntimeSession): Promise<void>;
-  drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain>;
-  releaseLibrary(name: string): void;
-  project(session: RuntimeSession): Promise<void>;
-  restore(info: CollaborationSession, doc: Y.Doc): RuntimeSession;
   transports: Map<string, HocuspocusProviderWebsocket>;
-  startAutoFlush(): void;
   shutdown(): void;
   refresh(): Promise<void>;
   openRoom(id: string): Promise<RuntimeSession>;
@@ -113,6 +106,16 @@ type Runtime = Pick<CollaborationManager, "agent"> & {
   connectLocalRuntime(): void;
   syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void>;
 };
+type SharedSessions = {
+  sessions: Map<string, RuntimeSession>;
+  views: Map<string, { documentId: string; windowId: number }>;
+  freezeWaiters: Map<string, { id: string }>;
+  acknowledgeFreeze(viewId: string, requestId?: string): void;
+  drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain>;
+  project(session: RuntimeSession): Promise<void>;
+  startAutoFlush(): void;
+};
+
 async function setup(realtime = false, paragraphs?: readonly string[]) {
   const root = mkdtempSync(join(tmpdir(), "tau-manager-flow-"));
   host.dir = root;
@@ -177,44 +180,41 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
     },
   } as unknown as CollaborationClient;
   const directory = join(root, "collaboration");
-  const store = new CollaborationLocalStore(directory),
-    state = new ContentLocalState(store.db);
+  const store = new CollaborationLocalStore(directory);
   store.db.exec(agentSchema);
   const localDirectory = join(root, "local-content");
   const localStore = new CollaborationLocalStore(localDirectory, "content.db");
   localStore.db.exec(agentSchema);
-  const localSessions = new Map<string, RuntimeSession>();
   const localAssets = new CollaborationAssetService(localStore, root, async () => {
     throw new Error("本机正文无需远端身份");
   });
-  const localState = new ContentLocalState(localStore.db);
-  const local = Object.assign(new ContentSessionManager(), {
-    directory: localDirectory,
-    store: localStore,
-    assets: localAssets,
-    contentState: localState,
-    sessions: localSessions,
-  });
+  const local = createLocalContentRuntime(localStore, localAssets);
+  const localSessions = local["sessions"];
+  const localState = local["contentState"]!;
   const localRuntime = local as unknown as Pick<
-    Runtime,
+    SharedSessions,
     "project" | "drainDatabase" | "views" | "freezeWaiters" | "acknowledgeFreeze" | "startAutoFlush"
   > &
-    Pick<ContentSessionManager, "open" | "finishShare" | "releaseLibrary">;
-  const runtime = new CollaborationManager(local) as unknown as Runtime;
+    Pick<
+      ContentSessionRuntime,
+      "open" | "removeSession" | "releaseLibrary" | "acceptUpdates" | "agent"
+    >;
+  const shared = new CollaborationManager(() => local);
+  const assets = new CollaborationAssetService(store, root, async () => owner);
+  const storage = createDesktopContentServices(store, assets);
+  shared["initializeContentRuntime"](storage);
+  const state = storage.contentState;
+  const runtime = shared as unknown as Runtime;
   Object.assign(runtime, {
-    store,
-    contentState: state,
-    directory,
     client,
     stopped: true,
-    assets: new CollaborationAssetService(store, root, async () => owner),
   });
   runtime.connectLocalRuntime();
   if (!realtime) vi.spyOn(runtime, "attach").mockImplementation(() => {});
   cleanup.push(async () => {
     runtime.shutdown();
     local.shutdown();
-    for (const session of [...runtime.sessions.values(), ...localSessions.values()]) {
+    for (const session of [...runtime.content.sessions.values(), ...localSessions.values()]) {
       session.provider?.destroy();
       unregisterContentSession(session);
       session.awareness.destroy();
@@ -266,6 +266,7 @@ async function setup(realtime = false, paragraphs?: readonly string[]) {
   const opened = await local.open(event, { contentId: 7 });
   return {
     runtime,
+    sharedDirectory: directory,
     local: localRuntime,
     localSessions,
     localStore,
@@ -516,9 +517,9 @@ describe("桌面生产会话与真实服务贯通", () => {
       const { runtime, event, db, server, owner, store } = await setup(true);
       const url = host.serverUrl;
       const shared = await runtime.createContent(event, 7);
-      let session = runtime.sessions.get(shared.documentId)!;
+      let session = runtime.content.sessions.get(shared.documentId)!;
       await vi.waitFor(() => expect(session.provider?.synced).toBe(true), { timeout: 5000 });
-      runtime.startAutoFlush();
+      runtime.content.startAutoFlush();
       await vi.waitFor(() => expect(session.projectionDirty).toBe(false), { timeout: 3000 });
       const save = vi
         .spyOn(collaborationImageStorage, "save")
@@ -531,7 +532,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         unregisterContentSession(session);
         session.awareness.destroy();
         session.doc.destroy();
-        runtime.sessions.delete(shared.documentId);
+        runtime.content.sessions.delete(shared.documentId);
         for (const transport of runtime.transports.values()) transport.destroy();
         runtime.transports.clear();
       }
@@ -622,7 +623,7 @@ describe("桌面生产会话与真实服务贯通", () => {
           url,
           documents.find(info => info.id === shared.documentId)!
         );
-        session = runtime.sessions.get(shared.documentId)!;
+        session = runtime.content.sessions.get(shared.documentId)!;
         await vi.waitFor(() => expect(session.projectionDirty).toBe(false), { timeout: 3000 });
         expect(readNodeDocument(session.doc).content).toHaveLength(1);
         attach.mockRestore();
@@ -655,7 +656,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         { timeout: 5000 }
       );
       expect(session.info.error).toBeUndefined();
-      expect(runtime.views.size).toBe(0);
+      expect(runtime.content.views.size).toBe(0);
       expect(server.store.document(shared.documentId).status).toBe("active");
     },
     20_000
@@ -664,7 +665,7 @@ describe("桌面生产会话与真实服务贯通", () => {
   it("远端图片先按作者配置保存，失败不关闭共享，成功后本机正文使用作者图床地址", async () => {
     const { runtime, local, event, db, server, owner } = await setup();
     const shared = await runtime.createContent(event, 7);
-    const session = runtime.sessions.get(shared.documentId)!;
+    const session = runtime.content.sessions.get(shared.documentId)!;
     session.provider = {
       attach: vi.fn(),
       detach: vi.fn(),
@@ -849,7 +850,8 @@ describe("桌面生产会话与真实服务贯通", () => {
     );
     tree.dispose();
     await local.project(session);
-    if (shared) session = runtime.sessions.get((await runtime.createContent(event, 7)).documentId)!;
+    if (shared)
+      session = runtime.content.sessions.get((await runtime.createContent(event, 7)).documentId)!;
 
     await expect(local.open(event, { contentId: 7 })).resolves.toMatchObject({
       documentId: session.info.id,
@@ -897,7 +899,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     const session = localSessions.get(localId)!;
     local.views.set("unsaved-view", { documentId: localId, windowId: 1 });
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const discarding = expect(local.finishShare(session)).rejects.toThrow("未完成保存");
+    const discarding = expect(local.removeSession(session)).rejects.toThrow("未完成保存");
     await vi.advanceTimersByTimeAsync(10_000);
     await discarding;
     expect(session.info.frozen).toBe(false);
@@ -910,6 +912,108 @@ describe("桌面生产会话与真实服务贯通", () => {
     vi.spyOn(local, "project").mockRejectedValueOnce(new Error("disk full"));
     await expect(local.drainDatabase({ reason: "quit" })).rejects.toThrow("disk full");
     expect(session.info.frozen).toBe(false);
+  });
+
+  it("切库排空补投视图确认前的末批输入，主库失败后保全日志并允许重试", async () => {
+    const { local, localSessions, localAssets, localStore: store, db, localId } = await setup();
+    const session = localSessions.get(localId)!;
+    await local.project(session);
+    const tree = new NodeTree(session.doc);
+    const entered = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    const localize = localAssets.localizeDocument.bind(localAssets);
+    vi.spyOn(localAssets, "localizeDocument").mockImplementationOnce(async (...args) => {
+      entered.resolve();
+      await resume.promise;
+      return localize(...args);
+    });
+    const scope = { databaseName: "library", windowId: 1, reason: "database-change" as const };
+    const viewId = "switch-draining-view";
+    const stayingViewId = "staying-view";
+    const switchingView = {
+      documentId: localId,
+      windowId: 1,
+      clientIds: [],
+      inputIdentity: {
+        workspaceId: "library",
+        documentId: localId,
+        baselineId: String(session.doc.getMap("meta").get("baselineId")),
+        epoch: Number(session.doc.getMap("meta").get("epoch")),
+      },
+    };
+    const stayingView = { ...switchingView, windowId: 2, clientIds: [] };
+    const savedText = () => {
+      const row = db.prepare("SELECT content FROM content_snapshots WHERE id=7").get() as {
+        content: string;
+      };
+      const blocks = JSON.parse(row.content) as ContentNode[];
+      return blocks[0].children?.map(leaf => leaf.text).join("");
+    };
+    db.exec(`
+      CREATE TEMP TRIGGER reject_tail_projection BEFORE UPDATE OF revision ON content_documents
+      WHEN EXISTS (
+        SELECT 1 FROM content_document_blocks
+        WHERE content_id=NEW.content_id AND instr(content, '末批输入')>0
+      ) BEGIN SELECT RAISE(ABORT, '末批投影写入失败'); END;
+    `);
+    tree.insertText("paragraph", 0, "首批输入", {});
+    const first = local.project(session);
+    try {
+      await entered.promise;
+      local.views.set(viewId, switchingView);
+      local.views.set(stayingViewId, stayingView);
+      const draining = local.drainDatabase(scope);
+      void draining.catch(() => undefined);
+      const requestId = local.freezeWaiters.get(localId)!.id;
+      {
+        const peer = new Y.Doc({ gc: false });
+        const peerTree = new NodeTree(peer);
+        try {
+          Y.applyUpdate(peer, Y.encodeStateAsUpdate(session.doc));
+          const before = Y.encodeStateVector(peer);
+          peerTree.insertText("paragraph", 0, "末批输入", {});
+          await local.acceptUpdates(session, Y.encodeStateAsUpdate(peer, before), () => {
+            if (!session.drainingViews?.has(viewId)) throw new Error("视图已完成排空");
+          });
+        } finally {
+          peerTree.dispose();
+          peer.destroy();
+        }
+      }
+      local.acknowledgeFreeze(viewId, requestId);
+      local.acknowledgeFreeze(stayingViewId, requestId);
+      resume.resolve();
+      await first;
+      await expect(draining).rejects.toThrow("末批投影写入失败");
+      expect(savedText()).toBe("首批输入正文");
+      expect(session.info.frozen).toBe(false);
+      expect(local.views.get(viewId)).toBe(switchingView);
+      expect(local.views.get(stayingViewId)).toBe(stayingView);
+      const cached = store.load(localId);
+      try {
+        expect(readNodeDocument(cached.doc).content[0].children?.[0].text).toBe(
+          "末批输入首批输入正文"
+        );
+      } finally {
+        cached.doc.destroy();
+      }
+
+      db.exec("DROP TRIGGER reject_tail_projection");
+      const retry = local.drainDatabase(scope);
+      const retryRequestId = local.freezeWaiters.get(localId)!.id;
+      local.acknowledgeFreeze(viewId, retryRequestId);
+      local.acknowledgeFreeze(stayingViewId, retryRequestId);
+      const prepared = await retry;
+      expect(savedText()).toBe("末批输入首批输入正文");
+      prepared.commit();
+      expect(local.views.has(viewId)).toBe(false);
+      expect(local.views.get(stayingViewId)).toBe(stayingView);
+      expect(session.info.frozen).toBe(false);
+    } finally {
+      resume.resolve();
+      await first.catch(() => undefined);
+      tree.dispose();
+    }
   });
 
   it("缓存缺失重建使用新协作基线，稳定正文身份不变", async () => {
@@ -958,7 +1062,8 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 
   it("共享冷缓存损坏不阻断目录刷新，打开时并发复用远端快照重建", async () => {
-    const { runtime, local, localSessions, store, localId, event, server, owner } = await setup();
+    const { runtime, sharedDirectory, local, localSessions, store, localId, event, server, owner } =
+      await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { documentId } = await runtime.createContent(event, 7);
     const boardRoom = server.store.create(owner.id, "board");
@@ -977,11 +1082,11 @@ describe("桌面生产会话与真实服务贯通", () => {
       boardDoc.destroy();
     }
     expect(localSessions.has(localId)).toBe(false);
-    const shared = runtime.sessions.get(documentId)!;
+    const shared = runtime.content.sessions.get(documentId)!;
     unregisterContentSession(shared);
     shared.awareness.destroy();
     shared.doc.destroy();
-    runtime.sessions.delete(documentId);
+    runtime.content.sessions.delete(documentId);
     store.db.prepare("UPDATE sessions SET state_hash='broken' WHERE id=?").run(documentId);
     runtime.stopped = false;
     vi.spyOn(
@@ -991,7 +1096,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     store.set("identity:http://test", "{}");
     const request = vi.spyOn(runtime.client, "request");
     await runtime.refresh();
-    expect(runtime.sessions.has(documentId)).toBe(false);
+    expect(runtime.content.sessions.has(documentId)).toBe(false);
     expect(runtime.state().sessions).toContainEqual(
       expect.objectContaining({ id: documentId, connection: "idle" })
     );
@@ -1008,13 +1113,13 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(rebuilt.info.serverUrl).toBe("http://test");
     expect(rebuilt.info.source?.contentId).toBe(7);
     expect((runtime as unknown as { error?: string }).error).toBeUndefined();
-    expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
+    expect(readdirSync(join(sharedDirectory, "discarded"))).toHaveLength(1);
   });
 
   it("共享会话遇到远端换代：备份旧缓存后按远端快照重建，不冻结", async () => {
-    const { runtime, store, event } = await setup();
+    const { runtime, sharedDirectory, store, event } = await setup();
     const { documentId } = await runtime.createContent(event, 7);
-    const shared = runtime.sessions.get(documentId)!;
+    const shared = runtime.content.sessions.get(documentId)!;
     shared.info.pending = true;
     const client = runtime.client as unknown as {
       request: (url: string, path: string, ...rest: unknown[]) => Promise<unknown>;
@@ -1032,19 +1137,16 @@ describe("桌面生产会话与真实服务贯通", () => {
     };
     // 重建后第二次对齐看到的是新会话自身的代次，恢复真实协议响应
     const protocol = vi.mocked(client.request);
-    const send = vi.spyOn(
-      runtime as unknown as { broadcast(channel: string, value: unknown): void },
-      "broadcast"
-    );
+    const send = vi.spyOn(runtime.content, "broadcast");
     await sync
       .syncRemoteDocument("http://test", { ...shared.info })
       .finally(() => protocol.mockRestore());
-    const rebuilt = runtime.sessions.get(documentId)!;
+    const rebuilt = runtime.content.sessions.get(documentId)!;
     expect(rebuilt).not.toBe(shared);
     expect(rebuilt.info.frozen).toBeFalsy();
     expect(rebuilt.info.remoteVersionAvailable).toBeFalsy();
     expect(rebuilt.info.source?.contentId).toBe(7);
-    expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
+    expect(readdirSync(join(sharedDirectory, "discarded"))).toHaveLength(1);
     expect(
       store.db.prepare("SELECT count(*) AS count FROM sessions WHERE id=?").get(documentId)
     ).toEqual({ count: 1 });
@@ -1247,7 +1349,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       tree.dispose();
       await local.project(session);
       if (shared)
-        session = runtime.sessions.get((await runtime.createContent(event, 7)).documentId)!;
+        session = runtime.content.sessions.get((await runtime.createContent(event, 7)).documentId)!;
       const before = ContentTable.getContentById(db, 7)!;
       const content = structuredClone(before.content) as ContentNode[];
       content[1].source = "修改源码";
@@ -1435,7 +1537,7 @@ describe("桌面生产会话与真实服务贯通", () => {
   it("整库同步不冻结共享视图，换库后保留离线编辑和未确认草稿", async () => {
     const { runtime, event, store, db } = await setup();
     const { documentId } = await runtime.createContent(event, 7);
-    const session = runtime.sessions.get(documentId)!;
+    const session = runtime.content.sessions.get(documentId)!;
     const identity = {
       workspaceId: "library",
       documentId,
@@ -1443,17 +1545,14 @@ describe("桌面生产会话与真实服务贯通", () => {
       epoch: 0,
     };
     const source = session.info.source!;
-    const freeze = vi.spyOn(
-      runtime as unknown as { freeze(session: RuntimeSession): Promise<void> },
-      "freeze"
-    );
+    const freeze = vi.spyOn(runtime.content, "freeze");
     const preserve = vi
       .spyOn(
         runtime as unknown as { preserveOwnerImages(session: RuntimeSession): Promise<void> },
         "preserveOwnerImages"
       )
       .mockRejectedValueOnce(new Error("共享图片服务离线"));
-    runtime.views.set("shared-view", { documentId, windowId: 1 });
+    runtime.content.views.set("shared-view", { documentId, windowId: 1 });
     const tree = new NodeTree(session.doc);
     tree.insertText("paragraph", 0, "共享未同步", {});
     tree.dispose();
@@ -1469,7 +1568,7 @@ describe("桌面生产会话与真实服务贯通", () => {
         "未确认草稿",
         1
       );
-    const drain = await runtime.drainDatabase({
+    const drain = await runtime.content.drainDatabase({
       databaseName: "library.db",
       reason: "database-sync",
       replace: true,
@@ -1477,7 +1576,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     drain.commit();
     expect(freeze).not.toHaveBeenCalled();
     expect(preserve).not.toHaveBeenCalled();
-    expect(runtime.views.has("shared-view")).toBe(true);
+    expect(runtime.content.views.has("shared-view")).toBe(true);
     expect(session.info.source).toBe(source);
     expect(session.info.pending).toBe(true);
     const cached = store.load(documentId);
@@ -1504,7 +1603,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       }
     );
     preserve.mockRestore();
-    await expect(runtime.project(session)).rejects.toThrow("投影修订已变化");
+    await expect(runtime.content.project(session)).rejects.toThrow("投影修订已变化");
     expect(ContentDocumentTable.read(db, 7)!.content[0].children).toEqual([
       { text: "同步下载候选" },
     ]);
@@ -1589,6 +1688,68 @@ describe("桌面生产会话与真实服务贯通", () => {
     await expect(local.project(localSessions.get(localId)!)).resolves.toBeUndefined();
   });
 
+  it("同名资料库换连接时在途旧打开拒绝，重试复用新连接会话", async () => {
+    const {
+      local,
+      localSessions,
+      localAssets,
+      localStore: store,
+      event,
+      db,
+      localId,
+    } = await setup();
+    const original = ContentDocumentTable.read(db, 7)!;
+    await local.removeSession(localSessions.get(localId)!);
+    const replacement = new Database(join(host.dir, "replacement.db"));
+    cleanup.push(() => {
+      replacement.close();
+    });
+    replacement.exec(schema);
+    replacement.exec(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(7,1,1,'[]',0,1)"
+    );
+    ContentIdentityTable.establishBaseline(replacement);
+    const downloaded = ContentDocumentTable.commit(
+      replacement,
+      7,
+      {
+        ...original,
+        documentId: "replaced-content",
+        content: [{ ...original.content[0], children: [{ text: "新连接正文" }] }],
+      },
+      { installDocument: true, count: 5 }
+    );
+    const entered = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    const prepare = localAssets.prepareLocalDocument.bind(localAssets);
+    vi.spyOn(localAssets, "prepareLocalDocument").mockImplementationOnce(async (...args) => {
+      entered.resolve();
+      await resume.promise;
+      return prepare(...args);
+    });
+    const opening = local.open(event, { contentId: 7 });
+    void opening.catch(() => undefined);
+    try {
+      await entered.promise;
+      host.databases.set("library", replacement);
+      const current = await local.open(event, { contentId: 7 });
+      expect(current.source?.contentDocumentId).toBe(downloaded.documentId);
+      resume.resolve();
+      await expect(opening).rejects.toThrow("资料库已切换");
+      const retried = await local.open(event, { contentId: 7 });
+      expect(retried.documentId).toBe(current.documentId);
+      expect(localSessions.has(localId)).toBe(false);
+      expect(store.list().map(info => info.id)).toEqual([current.documentId]);
+      const content = readNodeDocument(localSessions.get(current.documentId)!.doc).content;
+      expect(content[0].children?.[0].text).toBe("新连接正文");
+      expect(ContentDocumentTable.read(db, 7)).toEqual(original);
+      expect(ContentDocumentTable.read(replacement, 7)).toEqual(downloaded);
+    } finally {
+      resume.resolve();
+      await opening.catch(() => undefined);
+    }
+  });
+
   it.each(["database-change", "quit"] as const)(
     "主库回退旧格式后 %s 保留新缓存且不投影",
     async reason => {
@@ -1638,7 +1799,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     const { runtime, db, server, owner, event, localSessions } = await setup();
     const identity = ContentDocumentTable.read(db, 7)!.documentId;
     const shared = await runtime.createContent(event, 7);
-    const session = runtime.sessions.get(shared.documentId)!;
+    const session = runtime.content.sessions.get(shared.documentId)!;
     session.provider = {
       synced: true,
       hasUnsyncedChanges: false,
@@ -1688,7 +1849,9 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(server.store.document(shared.documentId).status).toBe("active");
     expect(session.info.frozen).toBe(false);
     host.databases.set("library", db);
-    const project = vi.spyOn(runtime, "project").mockRejectedValueOnce(new Error("正文落库失败"));
+    const project = vi
+      .spyOn(runtime.content, "project")
+      .mockRejectedValueOnce(new Error("正文落库失败"));
     await expect(runtime.prepareLeave(session)).rejects.toThrow("正文落库失败");
     expect(server.store.document(shared.documentId).status).toBe("active");
     project.mockRestore();
@@ -1717,7 +1880,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     await runtime.finishLeave(session);
     expect(server.store.document(shared.documentId).status).toBe("closed");
     expect(session.info.leaving).toBe(true);
-    expect(runtime.sessions.has(shared.documentId)).toBe(true);
+    expect(runtime.content.sessions.has(shared.documentId)).toBe(true);
     await runtime.finishLeave(session);
     expect(session.info.leaving).toBe(true);
     expect(session.info.error).toContain("关闭回执未确认");
@@ -1737,7 +1900,7 @@ describe("桌面生产会话与真实服务贯通", () => {
   it.each([false, true])("关闭修订冲突只在确认房间仍活动时解除冻结（已关闭=%s）", async closed => {
     const { runtime, server, owner, event, store } = await setup();
     const { documentId } = await runtime.createContent(event, 7);
-    const session = runtime.sessions.get(documentId)!;
+    const session = runtime.content.sessions.get(documentId)!;
     await runtime.prepareLeave(session);
     session.info.leaving = true;
     const revision = store.get(`close-revision:${documentId}`, "");
@@ -1777,11 +1940,372 @@ describe("桌面生产会话与真实服务贯通", () => {
     await expect(runtime.createContent(event, 7)).rejects.toThrow("响应丢失");
     expect(localSessions.get(localId)!.info.frozen).toBe(true);
     const result = await runtime.createContent(event, 7);
-    expect(runtime.sessions.has(result.documentId)).toBe(true);
+    expect(runtime.content.sessions.has(result.documentId)).toBe(true);
     expect(server.store.db.prepare("SELECT count(*) AS count FROM documents").get()).toEqual({
       count: 1,
     });
   });
+
+  it("未知发布重开本机日志后仍使用已发布的房间和基线", async () => {
+    const original = await setup();
+    const { runtime, event, db, localId, server, localStore: originalLog } = original;
+    const key = `publishing:${localId}`;
+    original.loseResponse();
+    await expect(runtime.createContent(event, 7)).rejects.toThrow("响应丢失");
+    const candidate = originalLog.get<{ documentId: string; baselineId: string }>(key, {
+      documentId: "",
+      baselineId: "",
+    });
+    expect(server.store.protocols.state(candidate.documentId).baselineId).toBe(
+      candidate.baselineId
+    );
+    expect(db.prepare("SELECT document_id FROM collaboration_bindings").all()).toEqual([]);
+
+    const { local, localLog, sharedLog, handler } = await restartHandoffRuntime(original);
+    await expect(local.open(event, { contentId: 7 })).resolves.toMatchObject({
+      documentId: localId,
+      mode: "local",
+      frozen: true,
+    });
+    await expect(handler("collaboration:create-content")(event, 7)).resolves.toMatchObject({
+      documentId: candidate.documentId,
+    });
+    expect(server.store.db.prepare("SELECT id FROM documents").all()).toEqual([
+      { id: candidate.documentId },
+    ]);
+    expect(db.prepare("SELECT document_id FROM collaboration_bindings").all()).toEqual([
+      { document_id: candidate.documentId },
+    ]);
+    expect(localLog.get(key, null)).toBeNull();
+    expect(localLog.list().map(({ id }) => id)).toEqual([]);
+    const shared = sharedLog.load(candidate.documentId);
+    try {
+      expect(shared.doc.getMap("meta").get("baselineId")).toBe(candidate.baselineId);
+    } finally {
+      shared.doc.destroy();
+    }
+  });
+
+  it.each(["原资料库", "协作中心"])(
+    "发布绑定已提交但尚未安装共享日志，从%s打开只清理匹配的本机冻结会话",
+    async entry => {
+      const original = await setup();
+      const { runtime, event, db, localId, server, store, localStore } = original;
+      const key = `publishing:${localId}`;
+      const install = vi.spyOn(runtime.content, "install");
+      install.mockImplementationOnce(() => {
+        throw new Error("主库发布事务之后中断");
+      });
+      await expect(runtime.createContent(event, 7)).rejects.toThrow("主库发布事务之后中断");
+      const candidate = localStore.get<PreparedContentShare | null>(key, null);
+      if (!candidate) throw new Error("发布候选未耐久保存");
+      const committed = ContentDocumentTable.read(db, 7)!;
+      expect(db.prepare("SELECT document_id FROM collaboration_bindings").all()).toEqual([
+        { document_id: candidate.documentId },
+      ]);
+      expect(server.store.protocols.state(candidate.documentId).baselineId).toBe(
+        candidate.baselineId
+      );
+      expect(store.list()).toEqual([]);
+      expect(localStore.list().map(({ id }) => id)).toEqual([localId]);
+
+      const {
+        local,
+        localLog,
+        sharedLog,
+        shared: manager,
+        handler,
+      } = await restartHandoffRuntime(original);
+      const reopen = async () => {
+        if (entry === "原资料库") return local.open(event, { contentId: 7 });
+        const session = await manager["openRoom"](candidate.documentId);
+        return {
+          documentId: session.info.id,
+          mode: session.info.mode,
+          frozen: session.info.frozen,
+        };
+      };
+      localLog.set(key, { ...candidate, revision: "different-local-revision" });
+      await expect(reopen()).resolves.toMatchObject({
+        documentId: candidate.documentId,
+        mode: "shared",
+      });
+      expect(localLog.list().map(({ id }) => id)).toEqual([localId]);
+      expect(localLog.get(key, null)).not.toBeNull();
+      localLog.set(key, candidate);
+
+      await expect(reopen()).resolves.toMatchObject({
+        documentId: candidate.documentId,
+        mode: "shared",
+        frozen: false,
+      });
+      expect(localLog.list()).toEqual([]);
+      expect(localLog.get(key, null)).toBeNull();
+      expect(local.activeSession(localId)).toBeUndefined();
+      const shared = sharedLog.load(candidate.documentId);
+      try {
+        expect(shared.doc.getMap("meta").get("baselineId")).toBe(candidate.baselineId);
+        expect(readNodeDocument(shared.doc).content).toEqual(committed.content);
+      } finally {
+        shared.doc.destroy();
+      }
+      await expect(handler("collaboration:create-content")(event, 7)).resolves.toMatchObject({
+        documentId: candidate.documentId,
+      });
+      expect(server.store.db.prepare("SELECT id FROM documents").all()).toEqual([
+        { id: candidate.documentId },
+      ]);
+      expect(ContentDocumentTable.read(db, 7)).toEqual(committed);
+    }
+  );
+
+  it("未知关闭重开协作日志后拒绝共享增量，取得原修订回执后接回本机", async () => {
+    const original = await setup();
+    const { runtime, event, db, server, owner, store, localId } = original;
+    const { documentId } = await runtime.createContent(event, 7);
+    const session = runtime.content.sessions.get(documentId)!;
+    const before = ContentDocumentTable.read(db, 7)!;
+    const epoch = Number(session.doc.getMap("meta").get("epoch"));
+    await runtime.prepareLeave(session);
+    session.info.leaving = true;
+    store.metadata(session.info);
+    const request = runtime.client.request.bind(runtime.client);
+    const loseClose = vi.spyOn(runtime.client, "request").mockImplementation(async (...args) => {
+      const result = await request(...args);
+      if (args[1].endsWith("/close")) throw new Error("关闭回执丢失");
+      return result;
+    });
+    await runtime.finishLeave(session);
+    loseClose.mockRestore();
+    expect(server.store.document(documentId).status).toBe("closed");
+    expect(store.get(`close-attempted:${documentId}`, false)).toBe(true);
+    expect(store.get(`close-confirmed:${documentId}`, false)).toBe(false);
+    const revision = store.get(`close-revision:${documentId}`, "");
+
+    const { shared, local, sharedLog, handler } = await restartHandoffRuntime(original);
+    const { BrowserWindow } = await import("electron");
+    vi.spyOn(BrowserWindow, "fromWebContents").mockReturnValue({
+      id: 1,
+      isDestroyed: () => false,
+    } as ReturnType<typeof BrowserWindow.fromWebContents>);
+    const viewId = "recovering-close-view";
+    await expect(handler("collaboration:subscribe")(event, documentId, viewId)).rejects.toThrow(
+      "正文会话已失效"
+    );
+    const { doc: rendered } = sharedLog.load(documentId);
+    try {
+      const vector = Y.encodeStateVector(rendered);
+      rendered.getText("title").insert(0, "关闭中不应接纳的输入");
+      const delta = Y.encodeStateAsUpdate(rendered, vector);
+      await expect(
+        handler("collaboration:update")(event, documentId, delta, viewId)
+      ).rejects.toThrow("正文会话已失效");
+    } finally {
+      rendered.destroy();
+    }
+    expect(handler("collaboration:state")(event).sessions).toEqual([
+      expect.objectContaining({ id: documentId, leaving: true, frozen: true }),
+    ]);
+    expect(db.prepare("SELECT document_id FROM collaboration_bindings").all()).toEqual([
+      { document_id: documentId },
+    ]);
+
+    sharedLog.set(`identity:${host.serverUrl}`, JSON.stringify(owner));
+    shared["stopped"] = false;
+    vi.spyOn(
+      shared as unknown as { connectEvents(url: string): Promise<void> },
+      "connectEvents"
+    ).mockResolvedValue();
+    const requests = vi.spyOn(shared.documentClient(), "request");
+    await shared.refreshShared();
+    expect(requests.mock.calls.filter(([, path]) => path.endsWith("/close"))).toEqual([
+      [host.serverUrl, `/v1/documents/${documentId}/close`, "POST", { expectedRevision: revision }],
+    ]);
+    expect(sharedLog.list().map(({ id }) => id)).toEqual([]);
+    expect(db.prepare("SELECT document_id FROM collaboration_bindings").all()).toEqual([]);
+    expect(ContentDocumentTable.read(db, 7)).toMatchObject({
+      documentId: before.documentId,
+      content: before.content,
+    });
+    await expect(local.open(event, { contentId: 7 })).resolves.toMatchObject({
+      documentId: localId,
+      mode: "local",
+      frozen: false,
+    });
+    expect(local.getSession(localId).doc.getMap("meta").get("epoch")).toBe(epoch + 1);
+    expect(local.getSession(localId).doc.getText("title").toString()).not.toContain("不应接纳");
+  });
+});
+
+async function restartHandoffRuntime(
+  original: Awaited<ReturnType<typeof setup>>,
+  beforeSharing?: (local: ContentSessionRuntime) => Promise<void>
+) {
+  original.runtime.shutdown();
+  const dispose = (sessions: Iterable<RuntimeSession>) => {
+    for (const session of sessions) {
+      unregisterContentSession(session);
+      session.provider?.destroy();
+      session.awareness.destroy();
+      session.doc.destroy();
+    }
+  };
+  dispose(original.runtime.content.sessions.values());
+  original.runtime.content.sessions.clear();
+  dispose(original.localSessions.values());
+  original.localSessions.clear();
+  const localLog = new CollaborationLocalStore(original.localDirectory, "content.db");
+  const localAssets = new CollaborationAssetService(localLog, host.dir, async () => {
+    throw new Error("本机正文无需远端身份");
+  });
+  const local = createLocalContentRuntime(localLog, localAssets);
+  await beforeSharing?.(local);
+  const shared = new CollaborationManager(() => local);
+  vi.spyOn(shared as unknown as Pick<Runtime, "attach">, "attach").mockImplementation(() => {});
+  const { ipcMain } = await import("electron");
+  const registrations = vi.mocked(ipcMain.handle).mock.calls;
+  const start = registrations.length;
+  await shared.init();
+  Object.assign(shared, { client: original.runtime.client, stopped: true });
+  const sharedLog = shared["store"];
+  cleanup.push(() => {
+    shared.shutdown();
+    local.shutdown();
+    dispose(shared["content"].activeSessions());
+    dispose(local.activeSessions());
+    sharedLog.db.close();
+    localLog.db.close();
+  });
+  const commands = new Map(registrations.slice(start));
+  const handler = (channel: string) => {
+    const registered = commands.get(channel);
+    if (!registered) throw new Error(`未注册测试需要的 IPC：${channel}`);
+    return registered;
+  };
+  return { shared, local, sharedLog, localLog, handler };
+}
+
+it.each([false, true])("主库解绑已提交而本机安装中断后恢复（有更新的冷写=%s）", async coldWrite => {
+  const original = await setup();
+  const { runtime, local, localStore, localSessions, localId, db, server, event } = original;
+  const localBefore = localSessions.get(localId)!;
+  const stale = new Y.Doc({ gc: false });
+  Y.applyUpdate(stale, Y.encodeStateAsUpdate(localBefore.doc));
+  const staleInfo = structuredClone(localBefore.info);
+  const initialIdentity = ContentDocumentTable.read(db, 7)!.documentId;
+  const { documentId } = await runtime.createContent(event, 7);
+  // 旧版本可能保留同一个本机会话 ID 的冷缓存。
+  localStore.create(staleInfo, stale);
+  stale.destroy();
+  const session = runtime.content.sessions.get(documentId)!;
+  const sharedEpoch = session.doc.getMap("meta").get("epoch") as number;
+  const room = server.store.loadDocument(documentId);
+  const remote = new Y.Doc({ gc: false });
+  Y.applyUpdate(remote, Y.encodeStateAsUpdate(room));
+  const vector = Y.encodeStateVector(remote);
+  const tree = new NodeTree(remote);
+  try {
+    tree.insertText("paragraph", 0, "共享终稿｜", null);
+    await server.store.appendUpdate(
+      documentId,
+      original.owner.id,
+      Y.encodeStateAsUpdate(remote, vector),
+      room
+    );
+  } finally {
+    tree.dispose();
+    remote.destroy();
+    room.destroy();
+  }
+  await runtime.prepareLeave(session);
+  session.info.leaving = true;
+  const cut = vi
+    .spyOn(local as unknown as Pick<ContentSessionRuntime, "restoreDemotion">, "restoreDemotion")
+    .mockImplementationOnce(() => {
+      throw new Error("模拟主库提交后中断");
+    });
+  const closeRequests = vi.spyOn(runtime.client, "request");
+  await runtime.finishLeave(session);
+  expect(cut).toHaveBeenCalledTimes(1);
+  expect(session.info.error).toContain("模拟主库提交后中断");
+  expect(server.store.document(documentId).status).toBe("closed");
+  expect(db.prepare("SELECT document_id FROM collaboration_bindings").get()).toBeUndefined();
+  expect(localStore.list()).toEqual([]);
+  const planKey = `demoting:${localId}`;
+  const staged = localStore.get<{ baselineId: string; epoch: number } | null>(planKey, null);
+  expect(staged).toMatchObject({ baselineId: expect.any(String), epoch: sharedEpoch + 1 });
+  expect(original.store.get("generation:library:7", 0)).toBe(1);
+
+  if (coldWrite) {
+    const current = ContentDocumentTable.read(db, 7)!;
+    ContentDocumentTable.commit(
+      db,
+      7,
+      {
+        ...current,
+        content: [{ ...current.content[0], children: [{ text: "更新的冷写" }] }],
+      },
+      { expectedRevision: current.revision, count: 5 }
+    );
+  }
+  const restarted = await restartHandoffRuntime(original, async localFirst => {
+    await expect(localFirst.open(event, { contentId: 7 })).resolves.toMatchObject({
+      documentId: localId,
+      mode: "local",
+      frozen: false,
+    });
+  });
+  const restored = restarted.local.getSession(localId);
+  expect(contentSession(db, 7)).toBe(restored);
+  expect(JSON.stringify(readNodeDocument(restored.doc).content)).toContain(
+    coldWrite ? "更新的冷写" : "共享终稿｜正文"
+  );
+  if (!coldWrite) {
+    expect(restored.doc.getMap("meta").get("baselineId")).toBe(staged?.baselineId);
+    expect(restored.doc.getMap("meta").get("epoch")).toBe(sharedEpoch + 1);
+  }
+  expect(restarted.localLog.get(planKey, null)).toBeNull();
+  expect(restarted.local.getSession(localId)).toBe(restored);
+  expect(ContentDocumentTable.read(db, 7)!.documentId).toBe(initialIdentity);
+  expect(db.prepare("SELECT ref_count FROM contents WHERE id=7").get()).toEqual({ ref_count: 1 });
+
+  restarted.sharedLog.set(`identity:${host.serverUrl}`, JSON.stringify(original.owner));
+  restarted.shared["stopped"] = false;
+  vi.spyOn(
+    restarted.shared as unknown as { connectEvents(url: string): Promise<void> },
+    "connectEvents"
+  ).mockResolvedValue();
+  await restarted.shared.refreshShared();
+  expect(restarted.sharedLog.list()).toEqual([]);
+  expect(restarted.sharedLog.get(`close-generation:${documentId}`, false)).toBe(false);
+  expect(restarted.sharedLog.get("generation:library:7", 0)).toBe(1);
+  expect(closeRequests.mock.calls.filter(([, path]) => path.endsWith("/close"))).toHaveLength(1);
+});
+
+it("解绑事务回滚保留绑定，重试同一关闭结果不重复推进发布代次", async () => {
+  const { runtime, localStore, localId, db, event, store } = await setup();
+  const { documentId } = await runtime.createContent(event, 7);
+  const session = runtime.content.sessions.get(documentId)!;
+  await runtime.prepareLeave(session);
+  session.info.leaving = true;
+  db.exec(`CREATE TRIGGER reject_unbind BEFORE DELETE ON collaboration_bindings
+    BEGIN SELECT RAISE(ABORT, '解绑事务故障'); END;`);
+  const closeRequests = vi.spyOn(runtime.client, "request");
+  await runtime.finishLeave(session);
+  expect(session.info.error).toContain("解绑事务故障");
+  expect(db.prepare("SELECT document_id FROM collaboration_bindings").get()).toEqual({
+    document_id: documentId,
+  });
+  expect(localStore.list()).toEqual([]);
+  expect(localStore.get(`demoting:${localId}`, null)).not.toBeNull();
+  expect(store.get("generation:library:7", 0)).toBe(1);
+  db.exec("DROP TRIGGER reject_unbind");
+  await runtime.finishLeave(session);
+  expect(db.prepare("SELECT document_id FROM collaboration_bindings").get()).toBeUndefined();
+  expect(localStore.list()).toMatchObject([{ id: localId, mode: "local" }]);
+  expect(localStore.get(`demoting:${localId}`, null)).toBeNull();
+  expect(store.get("generation:library:7", 0)).toBe(1);
+  expect(closeRequests.mock.calls.filter(([, path]) => path.endsWith("/close"))).toHaveLength(1);
 });
 
 const stressResults: Record<string, unknown>[] = [];
@@ -2322,7 +2846,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
       } = await setup();
       const session = localSessions.get(localId)!;
       await local.project(session);
-      const queue = new NodeSessionUpdates(store, state);
+      const queue = new NodeSessionUpdates(new SqliteNodeSessionJournal(store), state);
       const peers = [
         new NodeTree(new Y.Doc({ gc: false })),
         new NodeTree(new Y.Doc({ gc: false })),
@@ -2387,9 +2911,9 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
     await measureStress("websocket-reconnect", async () => {
       const { runtime, db, event, server } = await setup(true);
       const shared = await runtime.createContent(event, 7);
-      const session = runtime.sessions.get(shared.documentId)!;
+      const session = runtime.content.sessions.get(shared.documentId)!;
       await vi.waitFor(() => expect(session.provider?.synced).toBe(true), { timeout: 10000 });
-      await runtime.project(session);
+      await runtime.content.project(session);
       const tree = new NodeTree(session.doc);
       let expected = "正文";
       try {
@@ -2409,7 +2933,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
             tree.insertText("paragraph", 0, token, {});
             expected = token + expected;
           }
-          await runtime.project(session);
+          await runtime.content.project(session);
           expect(
             ContentDocumentTable.read(db, 7)!
               .content[0].children!.map(leaf => leaf.text)
@@ -2441,12 +2965,12 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
 });
 
 it.each([false, true])("正文范围提交和撤销保持其他内容完整（共享=%s）", async shared => {
-  const { runtime, localStore, localId, event, db, server } = await setup(false, [
+  const { runtime, local, localStore, localId, event, db, server } = await setup(false, [
     "第一段",
     "第二段",
   ]);
   const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
-  const original = await runtime.agent.readEditSnapshot(db, 7);
+  const original = await local.agent.readEditSnapshot(db, 7);
   const snapshot = new Y.Doc();
   Y.applyUpdate(snapshot, original.state);
   const tree = new NodeTree(snapshot);
@@ -2467,36 +2991,34 @@ it.each([false, true])("正文范围提交和撤销保持其他内容完整（�
           return result;
         }
       );
-      expect(await runtime.agent.applyScopedEdit(db, 7, request)).toEqual({ status: "pending" });
+      expect(await local.agent.applyScopedEdit(db, 7, request)).toEqual({ status: "pending" });
     } else {
       const append = vi.spyOn(localStore, "append").mockImplementationOnce(() => {
         throw new Error("模拟本机落盘失败");
       });
-      await expect(runtime.agent.applyScopedEdit(db, 7, request)).rejects.toThrow(
-        "模拟本机落盘失败"
-      );
-      expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
+      await expect(local.agent.applyScopedEdit(db, 7, request)).rejects.toThrow("模拟本机落盘失败");
+      expect((await local.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
       append.mockRestore();
     }
-    const applied = await runtime.agent.applyScopedEdit(db, 7, request);
+    const applied = await local.agent.applyScopedEdit(db, 7, request);
     expect(applied.status).toBe("committed");
     if (applied.status !== "committed" || !applied.inverse) throw new Error("缺少撤销操作");
-    expect(await runtime.agent.applyScopedEdit(db, 7, request)).toEqual(applied);
-    const updated = await runtime.agent.readEditSnapshot(db, 7);
+    expect(await local.agent.applyScopedEdit(db, 7, request)).toEqual(applied);
+    const updated = await local.agent.readEditSnapshot(db, 7);
     expect(updated.content[0].children?.[0].text).toBe("AI一段");
     expect(updated.content[1]).toEqual(original.content[1]);
-    const conflict = await runtime.agent.applyScopedEdit(db, 7, {
+    const conflict = await local.agent.applyScopedEdit(db, 7, {
       ...request,
       operationId: "stale",
     });
     expect(conflict).toMatchObject({ status: "conflict", conflicts: [{ opId: "edit", blockId }] });
-    const reverted = await runtime.agent.applyScopedEdit(db, 7, {
+    const reverted = await local.agent.applyScopedEdit(db, 7, {
       ...original.identity,
       operationId: "scope-edit-undo",
       scope: applied.inverse,
     });
     expect(reverted.status).toBe("committed");
-    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await local.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
     if (shared) expect(server.store.operations.sequence(sessionId)).toBe(2);
   } finally {
     tree.dispose();
@@ -2506,19 +3028,19 @@ it.each([false, true])("正文范围提交和撤销保持其他内容完整（�
 
 it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%s）", async shared => {
   const longOriginal = "原".repeat(40_000);
-  const { runtime, localStore, localId, event, db, server } = await setup(false, [
+  const { runtime, local, localStore, localId, event, db, server } = await setup(false, [
     "原文",
     "第二段保留",
     longOriginal,
   ]);
   const sessionId = shared ? (await runtime.createContent(event, 7)).documentId : localId;
-  const original = await runtime.agent.readEditSnapshot(db, 7);
+  const original = await local.agent.readEditSnapshot(db, 7);
   const originalSequence = shared ? server.store.operations.sequence(sessionId) : 0;
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
   const tree = new NodeTree(doc);
   const propose = (proposalId: string, block: number, before: string, text: string) =>
-    runtime.agent.suggestions.create(db, 7, {
+    local.agent.suggestions.create(db, 7, {
       proposalId,
       conversationKey: proposalId,
       baseline: original.identity,
@@ -2541,10 +3063,10 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
     `scoped-edit:${original.identity.documentId}:${original.identity.baselineId}:${original.identity.epoch}:${id}`;
   try {
     const oversized = propose("oversized", 2, longOriginal, "新句");
-    expect(await runtime.agent.suggestions.accept(db, 7, [oversized.id])).toMatchObject([
+    expect(await local.agent.suggestions.accept(db, 7, [oversized.id])).toMatchObject([
       { id: oversized.id, status: "expired", error: expect.stringContaining("可撤销容量") },
     ]);
-    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await local.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
     if (shared) {
       const ownerId = server.store.document(sessionId).owner_id;
       expect(server.store.operations.get(sessionId, oversized.id, ownerId)).toMatchObject({
@@ -2557,16 +3079,16 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
     // 正向回执在预算内，若额外记录重做，撤销回执会超限。
     const text = "新".repeat(12_000);
     const accepted = propose("large", 0, "原文", text);
-    expect(await runtime.agent.suggestions.accept(db, 7, [accepted.id])).toEqual([
+    expect(await local.agent.suggestions.accept(db, 7, [accepted.id])).toEqual([
       { id: accepted.id, status: "accepted" },
     ]);
-    const changed = (await runtime.agent.readEditSnapshot(db, 7)).content;
+    const changed = (await local.agent.readEditSnapshot(db, 7)).content;
     expect(changed[0].children?.map(leaf => leaf.text).join("")).toBe(text);
     expect(changed.slice(1)).toEqual(original.content.slice(1));
-    expect(await runtime.agent.suggestions.undo(db, 7, [accepted.id])).toEqual([
+    expect(await local.agent.suggestions.undo(db, 7, [accepted.id])).toEqual([
       { id: accepted.id, status: "undone" },
     ]);
-    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await local.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
     if (shared) {
       const ownerId = server.store.document(sessionId).owner_id;
       const forward = server.store.operations.get(sessionId, accepted.id, ownerId);
@@ -2590,8 +3112,8 @@ it.each([false, true])("大段修改可原样撤销，超限不写入（共享=%
 });
 
 it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销", async () => {
-  const { runtime, localStore, db, localId } = await setup(false, ["第一段原文", "第二段保留"]);
-  const original = await runtime.agent.readEditSnapshot(db, 7);
+  const { local, localStore, db, localId } = await setup(false, ["第一段原文", "第二段保留"]);
+  const original = await local.agent.readEditSnapshot(db, 7);
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
   const tree = new NodeTree(doc);
@@ -2599,7 +3121,7 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
   try {
     const id = String(original.content[0].collabId);
     const text = "甲乙丙丁戊己";
-    const [item] = runtime.agent.suggestions.create(db, 7, {
+    const [item] = local.agent.suggestions.create(db, 7, {
       proposalId: "manager-stop",
       conversationKey: "test-chat",
       baseline: original.identity,
@@ -2617,7 +3139,7 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
       append(...args);
       queueMicrotask(stop);
     });
-    await runtime.agent.suggestions.accept(db, 7, [item.id], {
+    await local.agent.suggestions.accept(db, 7, [item.id], {
       typing: true,
       executionId: "manager-scoped-edit",
     });
@@ -2633,10 +3155,10 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
       saved.destroy();
     }
     expect(
-      runtime.agent.suggestions.list(db, { proposalId: "manager-stop" }).map(row => row.status)
+      local.agent.suggestions.list(db, { proposalId: "manager-stop" }).map(row => row.status)
     ).toEqual(["accepted", "pending"]);
-    expect((await runtime.agent.suggestions.undo(db, 7, [item.id]))[0].status).toBe("undone");
-    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await local.agent.suggestions.undo(db, 7, [item.id]))[0].status).toBe("undone");
+    expect((await local.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
   } finally {
     stop();
     tree.dispose();
@@ -2645,9 +3167,9 @@ it("停止 Agent 后真实本机队列只保留首个已提交片段并可撤销
 });
 
 it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", async () => {
-  const { runtime, db, event, server } = await setup(false, ["第一段原文", "第二段保留"]);
+  const { runtime, local, db, event, server } = await setup(false, ["第一段原文", "第二段保留"]);
   const { documentId } = await runtime.createContent(event, 7);
-  const original = await runtime.agent.readEditSnapshot(db, 7);
+  const original = await local.agent.readEditSnapshot(db, 7);
   const doc = new Y.Doc();
   Y.applyUpdate(doc, original.state);
   const tree = new NodeTree(doc);
@@ -2666,7 +3188,7 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
   });
   try {
     const id = String(original.content[0].collabId);
-    const [item] = runtime.agent.suggestions.create(db, 7, {
+    const [item] = local.agent.suggestions.create(db, 7, {
       proposalId: "shared-stop",
       conversationKey: "test-chat",
       baseline: original.identity,
@@ -2691,7 +3213,7 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
         return result;
       }
     );
-    const pending = runtime.agent.suggestions.accept(db, 7, [item.id], {
+    const pending = local.agent.suggestions.accept(db, 7, [item.id], {
       typing: true,
       executionId: "shared-stopped",
     });
@@ -2703,7 +3225,7 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
       { id: item.id, status: "expired", error: "Agent 已停止，提交已取消" },
     ]);
     expect(server.store.operations.sequence(documentId)).toBe(0);
-    expect((await runtime.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
+    expect((await local.agent.readEditSnapshot(db, 7)).content).toEqual(original.content);
   } finally {
     release();
     stop();
@@ -2711,3 +3233,123 @@ it("停止共享 Agent 时取消在途原操作，迟到的提交不写正文", 
     doc.destroy();
   }
 });
+
+it("整篇共享替换双丢响应后重开按原操作回执安装，重试只查询", async () => {
+  const original = await setup();
+  const { runtime, event, db, store, server, owner } = original;
+  const { documentId } = await runtime.createContent(event, 7);
+  const before = ContentTable.getContentById(db, 7)!;
+  const body = replacementInput(before, "整篇已替换");
+  const request = runtime.client.request.bind(runtime.client);
+  const attempts: [string, string][] = [];
+  const disconnected = vi.spyOn(runtime.client, "request").mockImplementation(async (...args) => {
+    const answer = await request(...args);
+    if (args[1].startsWith(`/v1/documents/${documentId}/operations/`)) {
+      attempts.push([args[1], args[2] ?? "GET"]);
+      throw new Error("服务器已答复，模拟连接断开");
+    }
+    return answer;
+  });
+  await expect(ContentTable.writeContent(db, 7, body)).rejects.toThrow(
+    /CONTENT_REPLACEMENT_PENDING: [0-9a-f-]{36}/
+  );
+  disconnected.mockRestore();
+  expect(attempts.map(([, method]) => method)).toEqual(["POST", "GET"]);
+  const route = attempts[0][0];
+  expect(attempts[1][0]).toBe(route);
+  const operationId = route.split("/").at(-1)!;
+  expect(server.store.operations.get(documentId, operationId, owner.id)?.state).toBe("COMMITTED");
+  expect(server.store.operations.sequence(documentId)).toBe(1);
+  expect(JSON.stringify(ContentTable.getContentById(db, 7)?.content)).not.toContain("整篇已替换");
+  const draftId = `shared-replacement:${operationId}`;
+  expect(
+    store.db.prepare("SELECT applied FROM document_drafts WHERE view_id=?").get(draftId)
+  ).toEqual({
+    applied: 0,
+  });
+
+  const { local, shared, sharedLog } = await restartHandoffRuntime(original);
+  const recovery = vi.spyOn(shared.documentClient(), "request");
+  await local.open(event, { contentId: 7 });
+  const accepted = await ContentTable.writeContent(db, 7, body);
+  expect(JSON.stringify(accepted?.content)).toContain("整篇已替换");
+  expect(
+    sharedLog.db.prepare("SELECT applied FROM document_drafts WHERE view_id=?").get(draftId)
+  ).toEqual({
+    applied: 1,
+  });
+  expect(sharedLog.list().find(info => info.id === documentId)?.pending).toBe(false);
+  expect(recovery.mock.calls.filter(([, path]) => path.includes("/operations/"))).toEqual([
+    [host.serverUrl, route],
+  ]);
+  await expect(
+    ContentTable.writeContent(db, 7, replacementInput(before, "过期另一个候选"))
+  ).rejects.toThrow("CONTENT_VERSION_CONFLICT:");
+  expect(server.store.operations.sequence(documentId)).toBe(1);
+});
+
+it("整篇共享替换查不到账本且未过原期限时保留候选，权限失败不推断终态", async () => {
+  const { runtime, event, db, store, server } = await setup();
+  const { documentId } = await runtime.createContent(event, 7);
+  const body = replacementInput(ContentTable.getContentById(db, 7)!, "未提交的整篇候选");
+  const request = runtime.client.request.bind(runtime.client);
+  let route = "";
+  let expiresAt = 0;
+  const failures = vi.spyOn(runtime.client, "request").mockImplementation(async (...args) => {
+    if (args[1].includes("/operations/") && args[2] === "POST") {
+      route = args[1];
+      expiresAt = (args[3] as { expiresAt: number }).expiresAt;
+      throw new Error("连接在提交之前断开");
+    }
+    return request(...args);
+  });
+  await expect(ContentTable.writeContent(db, 7, body)).rejects.toThrow(
+    "CONTENT_REPLACEMENT_PENDING:"
+  );
+  const operationId = route.split("/").at(-1)!;
+  const draft = () =>
+    store.db
+      .prepare("SELECT applied FROM document_drafts WHERE view_id=?")
+      .get(`shared-replacement:${operationId}`);
+  expect(draft()).toEqual({ applied: 0 });
+  expect(server.store.operations.sequence(documentId)).toBe(0);
+
+  const outsider = server.store.register("已无权限的设备");
+  failures.mockImplementation(async (...args) => {
+    if (args[1] !== route) return request(...args);
+    const denied = await server.app.inject({
+      method: "GET",
+      url: route,
+      headers: { authorization: `Bearer ${outsider.id}:${outsider.secret}` },
+    });
+    expect(denied.statusCode).toBe(403);
+    throw Object.assign(new Error("无法查看端点回执"), { status: denied.statusCode });
+  });
+  await expect(ContentTable.writeContent(db, 7, body)).rejects.toThrow("FORBIDDEN:");
+  expect(draft()).toEqual({ applied: 0 });
+  failures.mockRestore();
+
+  vi.spyOn(runtime.client, "serverTime").mockReturnValue(expiresAt + 1);
+  const expired = vi.spyOn(runtime.client, "request");
+  await expect(ContentTable.writeContent(db, 7, body)).rejects.toThrow("deadline");
+  expect(expired.mock.calls.filter(([, path]) => path === route)).toEqual([
+    [host.serverUrl, route],
+  ]);
+  expect(draft()).toEqual({ applied: 0 });
+  expect(server.store.operations.sequence(documentId)).toBe(0);
+});
+
+function replacementInput(
+  before: NonNullable<ReturnType<typeof ContentTable.getContentById>>,
+  text: string
+) {
+  return {
+    expectedRevision: before.revision,
+    contracts: before.contracts,
+    content: before.content.map(block =>
+      "type" in block && block.type === "paragraph"
+        ? { ...block, children: [{ type: "formatted" as const, text }] }
+        : block
+    ),
+  };
+}

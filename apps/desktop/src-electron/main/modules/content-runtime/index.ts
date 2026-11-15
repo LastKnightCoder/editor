@@ -1,7 +1,7 @@
-import { app, BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, type Event, type IpcMainInvokeEvent } from "electron";
 import * as Y from "yjs";
 import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import type Database from "better-sqlite3";
@@ -25,13 +25,12 @@ import {
   isContentEntityReference,
   type ContentEntityReference,
 } from "@tau/db-schema/content-identities";
-import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
-import PathUtil from "../../utils/PathUtil";
+import {
+  canonicalContractJson,
+  type ContentContractDictionary,
+} from "@tau/db-schema/content-contracts";
 import databaseModule from "../database";
 import ContentTable from "../tables/content";
-import { ContentDocumentTable } from "../tables/content-document";
-import { ContentIdentityTable } from "../tables/content-identity";
-import { repairContentForOpen } from "../content-repair";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
 import {
@@ -44,13 +43,13 @@ import {
 import { registerDurableEntityHolds } from "../durable-entity-holds";
 import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import { getContentLength } from "@/utils/helper";
-import { CollaborationLocalStore } from "../collaboration/local-store";
-import { CollaborationAssetService } from "../collaboration/asset-service";
-import { ContentLocalState, sourceDraftKey } from "../collaboration/content-local-state";
-import { NodeSessionUpdates } from "../collaboration/node-session-updates";
-import { ContentRetention } from "../collaboration/content-retention";
+import type { CollaborationLocalStore } from "../collaboration/local-store";
+import type { CollaborationAssetService } from "../collaboration/asset-service";
+import { type ContentLocalState, sourceDraftKey } from "../collaboration/content-local-state";
+import type { NodeSessionUpdates } from "../collaboration/node-session-updates";
+import type { ContentRetention } from "../collaboration/content-retention";
 import { localSessionId } from "../collaboration/session-identity";
-import { restoreContentBinding } from "../collaboration/content-repository";
+import { bindingMatches, restoreContentBinding } from "../collaboration/content-repository";
 import {
   reportContentSaveIssue,
   reportContentSaveComplete,
@@ -61,99 +60,143 @@ import {
   contentRevision,
   contentSession,
   findContentTitle,
-  projectContentBlocks,
   projectContentTitle,
-  projectContractContent,
-  readContentProjectionHead,
   registerContentSession,
   unregisterContentSession,
 } from "../collaboration/content-sessions";
 import { registerLocalContentIpc } from "./ipc";
-import { ContentAgent } from "./agent";
+import type { ContentAgent, ContentAgentHost } from "./agent";
 import type { ScopedWriteOptions } from "./agent/suggestion-service";
-import { prepareContentAgentStore } from "./agent/store";
-import { importLegacyContent, recoverContentDrafts } from "./recovery";
+import { recoverContentDrafts } from "./recovery";
+import type { ContentProjectionStore } from "./content-projection";
+import { ContentSessionLifecycle, matchesDocumentScope } from "./content-session-lifecycle";
+import type { LocalContentSource } from "./local-content-source";
+import {
+  contentDemotionKey,
+  readContentDemotion,
+  stageContentDemotion,
+  type StagedContentDemotion,
+} from "./local-content-demotion";
+import type {
+  ContentOpenContext,
+  LocalContentSharingAccess,
+  PreparedContentShare,
+  PublishedContentShare,
+  SharedContentBridge,
+  SharedSessionEffects,
+} from "./sharing";
 
 export type ContentDatabase = { db: Database.Database; name: string };
-type ContentEvent = IpcMainInvokeEvent | ContentDatabase;
 
-/** 正文会话持有本机耐久日志。共享运行时只在已绑定正文上接管会话。 */
-export class ContentSessionManager {
-  protected store!: CollaborationLocalStore;
-  protected assets!: CollaborationAssetService;
-  protected contentState?: ContentLocalState;
-  protected directory = "";
+export interface ContentRuntimeStorage {
+  store: CollaborationLocalStore;
+  assets: CollaborationAssetService;
+  contentState: ContentLocalState;
+  nodeUpdates: NodeSessionUpdates;
+  retention: Pick<ContentRetention, "has">;
+  source(
+    db: Database.Database,
+    name: string,
+    contentId: number
+  ): Pick<LocalContentSource, "shared" | "repair" | "head" | "snapshot">;
+  projection(
+    db: Database.Database,
+    source: SourceBinding,
+    owner: Pick<CollaborationSession, "id" | "mode" | "serverUrl">
+  ): ContentProjectionStore;
+}
+
+/** 每个正文运行时独立管理会话、视图、日志和关停屏障。 */
+export class ContentSessionRuntime implements LocalContentSharingAccess {
   protected sessions = new Map<string, RuntimeSession>();
   protected views = new Map<string, CollaborationView>();
-  protected projecting = new Map<string, Promise<void>>();
-  protected nodeUpdates?: NodeSessionUpdates;
+  protected projecting = new Map<RuntimeSession, Promise<void>>();
   protected stopContentRetention?: () => void;
   protected stopDocumentDrain?: () => void;
   private stopDatabaseReconnect?: () => void;
+  private stopLocalIpc?: () => void;
+  private stopWindowRegistration?: () => void;
   private readonly frozenForDownload = new Set<RuntimeSession>();
   protected freezeWaiters = new Map<string, { id: string; resolve(): void }>();
   protected closingWindows = new Set<number>();
   protected autoFlushInterval: ReturnType<typeof setInterval> | null = null;
 
   private contentAgent?: ContentAgent;
-  private opening = new WeakMap<Database.Database, Map<number, Promise<ContentSessionSnapshot>>>();
-  private sharing?: {
-    open(event: ContentEvent, target: ContentSessionTarget): Promise<ContentSessionSnapshot>;
-    find(id: string): RuntimeSession | undefined;
-    findContent(workspaceId: string, contentId: number): RuntimeSession | undefined;
-    readAgentState: ContentSessionManager["readSharedAgentState"];
-    submitAgentEdit: ContentSessionManager["submitSharedAgentEdit"];
-    broadcastPresence(documentId: string, update: Uint8Array): void;
-    windows(id: number): void;
-  };
+  private readonly lifecycle = new ContentSessionLifecycle();
+  private readonly draining = new Set<RuntimeSession>();
+  private readonly idleClosures = new WeakMap<RuntimeSession, object>();
+  private sharing?: SharedContentBridge;
 
-  connectSharing(sharing: NonNullable<ContentSessionManager["sharing"]>) {
+  constructor(
+    private readonly storage: ContentRuntimeStorage,
+    private readonly host:
+      | { createAgent(host: ContentAgentHost): ContentAgent }
+      | SharedSessionEffects
+  ) {}
+
+  private get sharedEffects() {
+    return "createAgent" in this.host ? undefined : this.host;
+  }
+
+  protected get store() {
+    return this.storage.store;
+  }
+
+  protected get assets() {
+    return this.storage.assets;
+  }
+
+  protected get contentState() {
+    return this.storage.contentState;
+  }
+
+  connectSharing(sharing: SharedContentBridge) {
     this.sharing = sharing;
+    return () => {
+      if (this.sharing === sharing) this.sharing = undefined;
+    };
   }
 
-  disconnectSharing() {
-    this.sharing = undefined;
-  }
-
-  protected async openSharedContent(event: ContentEvent, target: ContentSessionTarget) {
+  private async openSharedContent(
+    event: ContentOpenContext,
+    target: ContentSessionTarget,
+    check: () => void
+  ) {
     if (!this.sharing) {
       const { default: modules } = await import("../../module-init/ModuleInitManager");
       const ready = await modules.initModule("collaboration");
       if (!ready.success) throw new Error("COLLABORATION_UNAVAILABLE: " + ready.error);
     }
+    check();
     if (!this.sharing) throw new Error("COLLABORATION_UNAVAILABLE: 共享服务尚未就绪");
-    return this.sharing.open(event, target);
-  }
-
-  protected agentOwner(): ContentSessionManager {
-    return this;
+    return this.sharing.open(event, target, check);
   }
 
   get agent(): ContentAgent {
-    const owner = this.agentOwner();
-    if (owner !== this) return owner.agent;
-    if (!this.store) throw new Error("本机正文尚未就绪");
-    return (this.contentAgent ??= new ContentAgent(
-      this.store.db,
-      this,
-      (workspaceId, contentId) =>
+    if (!("createAgent" in this.host)) throw new Error("正文 Agent 由本机运行时提供");
+    return (this.contentAgent ??= this.host.createAgent({
+      openForDatabase: this.openForDatabase.bind(this),
+      acceptUpdates: this.acceptUpdates.bind(this),
+      save: this.save.bind(this),
+      reportSaveFailure: this.reportSaveFailure.bind(this),
+      findContent: (workspaceId, contentId) =>
         this.findContent(workspaceId, contentId) ??
         this.sharing?.findContent(workspaceId, contentId),
-      (documentId, update) => {
+      broadcastPresence: (documentId, update) => {
         this.broadcast("collaboration:awareness", { documentId, update });
         this.sharing?.broadcastPresence(documentId, update);
       },
-      this.readSharedAgentState.bind(this),
-      this.submitSharedAgentEdit.bind(this)
-    ));
+      readSharedState: this.readSharedAgentState.bind(this),
+      submitSharedEdit: this.submitSharedAgentEdit.bind(this),
+    }));
   }
 
-  protected async readSharedAgentState(session: RuntimeSession): Promise<Uint8Array> {
+  private async readSharedAgentState(session: RuntimeSession): Promise<Uint8Array> {
     if (!this.sharing) throw new Error("COLLABORATION_UNAVAILABLE: 共享服务尚未就绪");
     return this.sharing.readAgentState(session);
   }
 
-  protected async submitSharedAgentEdit(
+  private async submitSharedAgentEdit(
     session: RuntimeSession,
     request: ScopedContentSubmission,
     updateHash: string,
@@ -164,25 +207,19 @@ export class ContentSessionManager {
     return this.sharing.submitAgentEdit(session, request, updateHash, check, options);
   }
 
-  protected attach(_session: RuntimeSession) {}
-  protected broadcastSharedState() {}
-  protected flushSessionResources() {}
-  protected async preserveOwnerImages(_session: RuntimeSession): Promise<void> {}
-  protected async confirmSharedReplacement(
-    _session: RuntimeSession,
-    _identity: { documentId: string; baselineId: string; epoch: number },
-    _revision: string,
-    _update: Uint8Array,
-    _operationId: string,
-    _check: () => void
-  ): Promise<void> {}
-  private scheduleSuggestionValidation(
+  presenceSnapshot(session: RuntimeSession): Uint8Array {
+    return this.agent.presenceSnapshot(session);
+  }
+
+  scheduleSuggestionValidation(
     workspaceId: string,
     contentId: number,
     document: () => Y.Doc | undefined
   ) {
     try {
-      this.agent.suggestions.scheduleValidation(workspaceId, contentId, document);
+      if (this.sharedEffects)
+        this.sharedEffects.scheduleSuggestionValidation(workspaceId, contentId, document);
+      else this.agent.suggestions.scheduleValidation(workspaceId, contentId, document);
     } catch (error) {
       console.warn(
         "[local-content] 正文建议校验未调度",
@@ -191,19 +228,8 @@ export class ContentSessionManager {
     }
   }
 
-  async open(event: ContentEvent, target: ContentSessionTarget) {
-    const { db } = this.databaseForEvent(event);
-    const id = target.contentId;
-    const requests = this.opening.get(db) ?? new Map<number, Promise<ContentSessionSnapshot>>();
-    this.opening.set(db, requests);
-    let request = requests.get(id);
-    if (!request) {
-      request = this.openContent(event, target).finally(() => requests.delete(id));
-      requests.set(id, request);
-    }
-    const snapshot = await request;
-    if (this.databaseForEvent(event).db !== db) throw new Error("资料库已切换，请重新打开内容");
-    return snapshot;
+  async open(event: ContentOpenContext, target: ContentSessionTarget) {
+    return this.beginOpen(event, target);
   }
 
   openForDatabase(db: Database.Database, contentId: number) {
@@ -212,8 +238,46 @@ export class ContentSessionManager {
     return this.open({ db, name }, { contentId });
   }
 
-  resumeLocalOpen(event: ContentEvent, target: ContentSessionTarget) {
-    return this.openContent(event, target);
+  resumeLocalOpen(event: ContentOpenContext, target: ContentSessionTarget, check: () => void) {
+    return this.beginOpen(event, target, check);
+  }
+
+  private beginOpen(
+    event: ContentOpenContext,
+    target: ContentSessionTarget,
+    parentCheck?: () => void
+  ) {
+    parentCheck?.();
+    if (target.sourceType && !SOURCE_TYPES.includes(target.sourceType))
+      throw new Error("不支持的内容来源，请升级客户端");
+    if (!Number.isSafeInteger(target.contentId) || target.contentId <= 0)
+      throw new Error("内容 ID 不合法");
+    const binding = this.databaseForEvent(event);
+    const { db, name } = binding;
+    const windowId =
+      "sender" in event ? BrowserWindow.fromWebContents(event.sender)?.id : undefined;
+    return this.lifecycle.open(
+      db,
+      { databaseName: name, windowId },
+      target.contentId,
+      async active => {
+        const check = () => {
+          parentCheck?.();
+          active();
+          if (
+            !db.open ||
+            databaseModule.getDatabase(name) !== db ||
+            this.databaseForEvent(event).db !== db
+          )
+            throw new Error("资料库已切换，请重新打开内容");
+        };
+        check();
+        const snapshot = await this.openContent(event, target, binding, check);
+        check();
+        return snapshot;
+      },
+      parentCheck !== undefined
+    );
   }
 
   /** 发起共享先排空本机视图，再由共享方接管。 */
@@ -221,8 +285,52 @@ export class ContentSessionManager {
     this.store.create(info, doc);
     return this.restore(info, doc);
   }
-  discardCache(id: string, reason: string) {
-    this.store.discard(id, reason);
+  stageDemotion(info: CollaborationSession, doc: Y.Doc) {
+    if (this.sessions.has(info.id)) throw new Error("本机正文仍在编辑，请稍后重试");
+    this.store.db.transaction(() => {
+      // 冷缓存保全后让位，避免旧会话 ID 在安装前重新载入旧正文。
+      this.store.discard(info.id, "结束共享时发现旧本机缓存");
+      stageContentDemotion(this.store, info, doc);
+    })();
+  }
+
+  restoreDemotion({ db, name }: ContentDatabase, id: string): RuntimeSession | undefined {
+    const key = contentDemotionKey(id);
+    const plan = this.store.get<StagedContentDemotion | null>(key, null);
+    if (!plan) return;
+    const source = plan.info?.source;
+    if (!db.open || databaseModule.getDatabase(name) !== db || source?.databaseName !== name)
+      return;
+    if (plan.info.id !== id || plan.info.mode !== "local" || this.sessions.has(id))
+      throw new Error("结束共享的本机会话身份已变化");
+    const repository = this.storage.source(db, name, source.contentId);
+    if (repository.shared()) return;
+    const head = repository.head();
+    if (
+      !head ||
+      id !== localSessionId(db.name, source.contentId, head.createdAt) ||
+      head.createdAt !== source.contentCreatedAt ||
+      !head.librarySourceId ||
+      head.librarySourceId !== source.librarySourceId ||
+      !head.documentId ||
+      head.documentId !== source.contentDocumentId ||
+      !head.revision ||
+      head.revision !== source.projectionRevision
+    ) {
+      // 较新的主库内容已经取代交接候选，继续按当前主库重建。
+      this.store.delete(key);
+      return;
+    }
+    const doc = readContentDemotion(plan, id);
+    try {
+      this.store.db.transaction(() => {
+        this.store.create(plan.info, doc);
+        this.store.delete(key);
+      })();
+      return this.restore(plan.info, doc);
+    } finally {
+      if (this.sessions.get(id)?.doc !== doc) doc.destroy();
+    }
   }
   getSession(id: string) {
     return this.requireSession(id);
@@ -230,17 +338,26 @@ export class ContentSessionManager {
   find(id: string) {
     return this.findSession(id);
   }
+  activeSession(id: string) {
+    return this.sessions.get(id);
+  }
+  activeSessions() {
+    return this.sessions.values();
+  }
+  isProjecting(session: RuntimeSession) {
+    return this.projecting.has(session);
+  }
+  get ipcViews() {
+    return this.views;
+  }
   async prepareShare(session: RuntimeSession) {
     await this.freeze(session);
   }
-  pendingShare<T>(id: string): T | null {
-    return this.store.get<T | null>(`publishing:${id}`, null);
+  pendingShare(id: string): PreparedContentShare | null {
+    return this.store.get<PreparedContentShare | null>(`publishing:${id}`, null);
   }
-  rememberShare(id: string, value: unknown): void {
+  rememberShare(id: string, value: PreparedContentShare): void {
     this.store.set(`publishing:${id}`, value);
-  }
-  clearPendingShare(id: string): void {
-    this.store.delete(`publishing:${id}`);
   }
   cancelShare(session: RuntimeSession) {
     this.unfreeze(session);
@@ -248,8 +365,56 @@ export class ContentSessionManager {
   save(session: RuntimeSession) {
     return this.project(session);
   }
-  finishShare(session: RuntimeSession) {
-    return this.removeSession(session);
+  async finishPublishedShare(id: string, source: SourceBinding, published: PublishedContentShare) {
+    const pending = this.pendingShare(id);
+    if (
+      !pending ||
+      pending.documentId !== published.documentId ||
+      pending.serverUrl !== published.serverUrl ||
+      pending.baselineId !== published.baselineId ||
+      published.epoch !== 0
+    )
+      return;
+
+    const active = this.sessions.get(id);
+    let cached: ReturnType<CollaborationLocalStore["load"]> | undefined;
+    if (!active && this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id)) {
+      try {
+        // 核对冻结候选时只读冷缓存，避免把已经交接的正文重新注册为本机会话。
+        cached = this.store.load(id);
+      } catch {
+        return;
+      }
+    }
+    try {
+      const original = active ?? cached;
+      if (original) {
+        const binding = original.info.source;
+        if (
+          original.info.mode !== "local" ||
+          (active && !active.info.frozen) ||
+          !binding ||
+          binding.databaseName.replace(/\.db$/, "") !== source.databaseName.replace(/\.db$/, "") ||
+          binding.contentId !== source.contentId ||
+          binding.contentCreatedAt !== source.contentCreatedAt ||
+          !source.librarySourceId ||
+          binding.librarySourceId !== source.librarySourceId ||
+          !source.contentDocumentId ||
+          binding.contentDocumentId !== source.contentDocumentId ||
+          contentRevision(original) !== pending.revision
+        )
+          return;
+      }
+    } finally {
+      cached?.doc.destroy();
+    }
+
+    const clearCandidate = () => this.store.delete(`publishing:${id}`);
+    if (active) await this.removeSession(active, clearCandidate);
+    else {
+      this.removeStoredSession(id, clearCandidate);
+      this.assets.removeDocumentCache(id);
+    }
   }
   findContent(workspaceId: string, contentId: number) {
     return [...this.sessions.values()].find(
@@ -267,17 +432,9 @@ export class ContentSessionManager {
     return this.contentUpdates().apply(...args);
   }
 
-  async init() {
-    const appDirectory = PathUtil.getAppDir();
-    this.directory = join(appDirectory, "local-content");
-    this.store = new CollaborationLocalStore(this.directory, "content.db");
-    this.contentState = new ContentLocalState(this.store.db);
-    importLegacyContent(appDirectory, this.store);
-    prepareContentAgentStore(appDirectory, this.store);
-    this.assets = new CollaborationAssetService(this.store, appDirectory, async () => {
-      throw new Error("本机正文资源无需远端身份");
-    });
-    this.initDurability();
+  startLocal(): void {
+    const { store, contentState, assets, nodeUpdates } = this.storage;
+    this.initDurability(true);
     this.stopDatabaseReconnect = databaseModule.onDatabaseConnected((name, reason) => {
       if (reason !== "sync_download_reconnect") return;
       for (const session of this.frozenForDownload) {
@@ -286,16 +443,25 @@ export class ContentSessionManager {
         if (this.sessions.get(session.info.id) === session) this.unfreeze(session);
       }
     });
-    registerLocalContentIpc({
-      nodeUpdates: this.contentUpdates(),
-      store: this.store,
-      contentState: this.contentState,
-      assets: this.assets,
+    this.stopLocalIpc = registerLocalContentIpc({
+      nodeUpdates,
+      store,
+      contentState,
+      assets,
       views: this.views,
       openContent: this.open.bind(this),
       findSession: id => this.findSession(id) ?? this.sharing?.find(id),
       requireSession: this.requireSession.bind(this),
       databaseForEvent: this.databaseForEvent.bind(this),
+      checkLocalSubscribe: (event, windowId, session) => {
+        const { db, name } = this.databaseForEvent(event);
+        this.lifecycle.assertOpen({ databaseName: name, windowId });
+        if (
+          session &&
+          (!session.info.source || contentSession(db, session.info.source.contentId) !== session)
+        )
+          throw new Error("内容不属于当前数据库，请重新打开内容");
+      },
       changed: this.changed.bind(this),
       removeView: this.removeView.bind(this),
       acknowledgeFreeze: this.acknowledgeFreeze.bind(this),
@@ -303,18 +469,19 @@ export class ContentSessionManager {
       user: () => ({ id: this.store.get("localDeviceId", "local"), nickname: "本机" }),
     });
     for (const window of BrowserWindow.getAllWindows()) this.registerWindow(window);
-    app.on("browser-window-created", (_event, window) => this.registerWindow(window));
+    const register = (_event: Event, window: BrowserWindow) => this.registerWindow(window);
+    app.on("browser-window-created", register);
+    this.stopWindowRegistration = () => app.off("browser-window-created", register);
     this.startAutoFlush();
   }
 
-  protected initDurability() {
-    const state = this.contentState!;
-    const retention = new ContentRetention(state);
+  initDurability(protectUntilSharingReady = false) {
+    const { retention } = this.storage;
     this.stopContentRetention = registerDurableEntityHolds((db, kind, id) => {
       const workspaceId = [...databaseModule.databases].find(([, value]) => value === db)?.[0];
       return (
         workspaceId === undefined ||
-        (this === localContent &&
+        (protectUntilSharingReady &&
           !this.sharing &&
           Boolean(
             db.prepare("SELECT 1 FROM sqlite_master WHERE name='collaboration_bindings'").get() &&
@@ -340,9 +507,10 @@ export class ContentSessionManager {
       session =>
         (scope.reason === "quit" || session.info.source) &&
         (scope.reason !== "database-sync" || session.info.mode === "local") &&
-        (!scope.databaseName ||
-          session.info.source?.databaseName.replace(/\.db$/, "") ===
-            scope.databaseName.replace(/\.db$/, "")) &&
+        matchesDocumentScope(
+          { databaseName: scope.databaseName },
+          { databaseName: session.info.source?.databaseName }
+        ) &&
         (scope.windowId === undefined ||
           [...this.views.values()].some(
             view => view.documentId === session.info.id && view.windowId === scope.windowId
@@ -351,7 +519,7 @@ export class ContentSessionManager {
   }
 
   protected hasViews(scope: DocumentDrainScope) {
-    return this.sessionsForDrain(scope).length > 0;
+    return this.lifecycle.hasOpening(scope) || this.sessionsForDrain(scope).length > 0;
   }
 
   shutdown(): void {
@@ -364,10 +532,16 @@ export class ContentSessionManager {
     this.stopDocumentDrain = undefined;
     this.stopDatabaseReconnect?.();
     this.stopDatabaseReconnect = undefined;
+    this.stopLocalIpc?.();
+    this.stopLocalIpc = undefined;
+    this.stopWindowRegistration?.();
+    this.stopWindowRegistration = undefined;
     this.frozenForDownload.clear();
+    this.lifecycle.clear();
+    this.draining.clear();
   }
 
-  protected broadcast(channel: string, value: unknown) {
+  broadcast(channel: string, value: unknown) {
     const documentId = (value as { documentId?: string })?.documentId;
     const targeted =
       documentId &&
@@ -383,7 +557,7 @@ export class ContentSessionManager {
       if (!window.isDestroyed() && (!subscribers || subscribers.has(window.id)))
         window.webContents.send(channel, value);
   }
-  protected changed(session?: RuntimeSession) {
+  changed(session?: RuntimeSession) {
     if (session) this.store.metadata(session.info);
     if (session?.info.mode === "local") {
       this.broadcast("collaboration:session-error", {
@@ -392,7 +566,7 @@ export class ContentSessionManager {
       });
       return;
     }
-    this.broadcastSharedState();
+    this.sharedEffects?.broadcastState();
   }
 
   protected restore(info: CollaborationSession, doc: Y.Doc) {
@@ -405,7 +579,7 @@ export class ContentSessionManager {
         ...info,
         // 旧版本因远端换代冻结的缓存不再冻结：联网刷新时按远端快照重建
         remoteVersionAvailable: false,
-        frozen: Boolean(this.pendingShare(info.id)),
+        frozen: Boolean(info.leaving || this.pendingShare(info.id)),
         connection: info.mode === "local" ? "connected" : "connecting",
       },
       doc,
@@ -431,8 +605,15 @@ export class ContentSessionManager {
       }
     );
     this.sessions.set(info.id, session);
-    session.replaceContent = (content, contracts, expectedRevision) =>
-      this.replaceContentSnapshot(session, content, contracts, expectedRevision);
+    session.replaceContent = (content, contracts, expectedRevision, checkScope, onAccepted) =>
+      this.replaceContentSnapshot(
+        session,
+        content,
+        contracts,
+        expectedRevision,
+        checkScope,
+        onAccepted
+      );
     session.persistNodeUpdate = update => this.store.append(session.info.id, update);
     session.retainNodeState = candidate => this.retainNodeState(session, candidate);
     this.retainNodeState(session, doc);
@@ -451,7 +632,8 @@ export class ContentSessionManager {
             session.projectionNodes?.set(id, version.content);
         }
         if (changes.contracts) version.contracts++;
-        if (origin !== "renderer-persisted") {
+        const authoritative = this.contentUpdates().isApplyingAuthoritativeState(session, origin);
+        if (origin !== "renderer-persisted" && !authoritative) {
           try {
             this.store.append(session.info.id, update);
           } catch (error) {
@@ -467,7 +649,7 @@ export class ContentSessionManager {
           session.info.error = failure instanceof Error ? failure.message : "实体持有记录尚未保存";
           this.changed(session);
         }
-        if (session.info.mode !== "local" && origin !== session.provider)
+        if (session.info.mode !== "local" && origin !== session.provider && !authoritative)
           session.info.pending = true;
         const title = doc.getText("title").toString();
         if (session.info.title !== title) {
@@ -510,18 +692,22 @@ export class ContentSessionManager {
     );
     const source = session.info.source;
     const db = source && databaseModule.getDatabase(source.databaseName);
-    if (db?.open && source) {
+    const ownsBinding =
+      db?.open &&
+      source &&
+      (session.info.mode === "local" || bindingMatches(db, source, info.id, info.serverUrl));
+    if (ownsBinding) {
       registerContentSession(db, source.contentId, session);
       if (session.info.status === "active") ContentTable.ensureTaskIds(db, source.contentId);
     }
     // 会话恢复（重开正文、重启应用）时核对一次：关着期间正文可能经别处改过
-    if (source)
+    if (source && (!db?.open || ownsBinding))
       this.scheduleSuggestionValidation(
         source.databaseName.replace(/\.db$/, ""),
         source.contentId,
         () => (this.sessions.get(session.info.id) === session ? session.doc : undefined)
       );
-    this.attach(session);
+    this.sharedEffects?.attach(session);
     return session;
   }
   protected retainNodeState(session: RuntimeSession, doc: Y.Doc) {
@@ -559,13 +745,17 @@ export class ContentSessionManager {
     return this.sessions.get(id) ?? this.loadCached(id);
   }
   /** 恢复冷缓存；打不开的缓存备份后丢弃并返回 undefined，由调用方按远端或主库重建。 */
-  protected loadCached(id: string, info?: CollaborationSession): RuntimeSession | undefined {
-    if (!this.store?.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id)) return undefined;
+  loadCached(
+    id: string,
+    info?: CollaborationSession,
+    check?: (info: CollaborationSession) => void
+  ): RuntimeSession | undefined {
+    if (!this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id)) return undefined;
     let doc: Y.Doc | undefined;
     try {
       const cached = this.store.load(id);
       doc = cached.doc;
-
+      check?.(cached.info);
       return this.restore(info ?? cached.info, doc);
     } catch (error) {
       const partial = this.sessions.get(id);
@@ -584,185 +774,180 @@ export class ContentSessionManager {
       return undefined;
     }
   }
-  protected requireSession(id: string): RuntimeSession {
+  requireSession(id: string): RuntimeSession {
     const session = this.findSession(id);
     if (!session || session.info.leaving) throw new Error("正文会话已失效，请重新打开");
     return session;
   }
 
   protected async openContent(
-    event: IpcMainInvokeEvent | { db: import("better-sqlite3").Database; name: string },
-    target: ContentSessionTarget
+    event: ContentOpenContext,
+    target: ContentSessionTarget,
+    { db, name }: ContentDatabase,
+    check: () => void
   ): Promise<ContentSessionSnapshot> {
-    const { db, name } = this.databaseForEvent(event);
-    if (target.sourceType && !SOURCE_TYPES.includes(target.sourceType))
-      throw new Error("不支持的内容来源，请升级客户端");
-    if (!Number.isSafeInteger(target.contentId) || target.contentId <= 0)
-      throw new Error("内容 ID 不合法");
-    // 协作中的正文以会话为准，不按主库修复
-    if (findCollaborationBinding(db, target.contentId))
-      return this.openSharedContent(event, target);
-    await repairContentForOpen(
-      db,
-      name,
-      target.contentId,
-      () => databaseModule.getDatabase(name) === db
-    );
-    const content = ContentTable.getContentById(db, target.contentId);
-    if (!content) throw new Error("内容不存在");
-    if (findCollaborationBinding(db, target.contentId))
-      return this.openSharedContent(event, target);
-    const id = localSessionId(db.name, content.id, content.createTime);
-    let session = this.findSession(id);
-    const recoverySource = session?.info.source;
-    const head =
-      session && recoverySource
-        ? (db
-            .prepare(
-              "SELECT document_id AS documentId,revision FROM content_documents WHERE content_id=?"
-            )
-            .get(content.id) as { documentId: string; revision: string } | undefined)
-        : undefined;
-    if (
-      session?.info.mode === "local" &&
-      this.contentState &&
-      recoverySource &&
-      head &&
-      ![...this.views.values()].some(view => view.documentId === id) &&
-      recoverySource.librarySourceId === ContentIdentityTable.library(db)?.sourceId &&
-      recoverySource.contentDocumentId === head.documentId &&
-      recoverySource.projectionRevision === head.revision
-    )
-      await recoverContentDrafts(
-        this.store,
-        this.contentState,
-        session.info,
-        session.doc,
-        () =>
-          db.open &&
-          databaseModule.getDatabase(name) === db &&
-          !findCollaborationBinding(db, content.id) &&
-          this.databaseForEvent(event).db === db &&
-          contentSession(db, content.id) === session &&
-          (
-            db
-              .prepare("SELECT revision FROM content_documents WHERE content_id=?")
-              .get(content.id) as { revision: string } | undefined
-          )?.revision === recoverySource.projectionRevision
-      );
-    if (
-      !db.open ||
-      databaseModule.getDatabase(name) !== db ||
-      ("sender" in event && this.databaseForEvent(event).db !== db)
-    )
-      throw new Error("资料库已切换，请重新打开内容");
-    if (findCollaborationBinding(db, target.contentId))
-      return this.openSharedContent(event, target);
-    // 本地缓存的资料库或正文身份与主库不一致（如同步替换后的冷缓存）：丢弃旧缓存，从当前主库重建
-    if (session?.info.mode === "local" && session.info.source) {
-      const source = session.info.source;
-      if (
-        (source.librarySourceId &&
-          source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
-        (source.contentDocumentId &&
-          source.contentDocumentId !== ContentDocumentTable.read(db, content.id)?.documentId)
-      ) {
+    const { contentId } = target;
+    const repository = this.storage.source(db, name, contentId);
+    if (repository.shared()) return this.openSharedContent(event, target, check);
+    await repository.repair(check);
+    check();
+    if (repository.shared()) return this.openSharedContent(event, target, check);
+
+    const head = repository.head();
+    if (!head) throw new Error("内容不存在");
+    const id = localSessionId(db.name, contentId, head.createdAt);
+    const hasViews = () => [...this.views.values()].some(view => view.documentId === id);
+    const matches = (source: SourceBinding, current: typeof head | undefined) =>
+      current &&
+      source.contentCreatedAt === current.createdAt &&
+      (!source.librarySourceId || source.librarySourceId === current.librarySourceId) &&
+      (!source.contentDocumentId || source.contentDocumentId === current.documentId);
+    let session =
+      this.sessions.get(id) ??
+      this.restoreDemotion({ db, name }, id) ??
+      this.loadCached(id, undefined, info => {
+        if (info.mode === "local" && info.source && !matches(info.source, head))
+          throw new Error("资料库或正文身份已变化");
+      });
+    const source = session?.info.source;
+    if (session) this.idleClosures.delete(session);
+    if (session?.info.mode === "local" && source) {
+      if (!matches(source, head)) {
         this.releaseReplacedSession(session);
-        return this.openContent(event, target);
+        return this.openContent(event, target, { db, name }, check);
       }
-      // 主库在缓存之后被其它入口改写（插件、MCP、任务改名等）：旧缓存不能盖住新内容。
-      // 先试着把缓存未投影的编辑写回；修订已冲突时备份缓存后按主库重建。
-      const stored = ContentDocumentTable.read(db, content.id);
-      if (
-        stored &&
-        source.projectionRevision !== stored.revision &&
-        ![...this.views.values()].some(view => view.documentId === id)
-      ) {
-        try {
-          await this.project(session);
-        } catch (error) {
-          if (ContentDocumentTable.read(db, content.id)?.revision === source.projectionRevision)
-            throw error;
-          console.warn(`[collaboration] 正文 ${content.id} 的缓存落后于主库，已备份后按主库重建`);
-          this.releaseReplacedSession(session, "主库在缓存之后被改写");
-          return this.openContent(event, target);
+      const recovered = session;
+      if (!hasViews() && !session.info.frozen) {
+        if (
+          this.contentState &&
+          source.librarySourceId &&
+          source.contentDocumentId &&
+          source.projectionRevision === head.revision
+        ) {
+          await recoverContentDrafts(
+            this.store,
+            this.contentState,
+            session.info,
+            session.doc,
+            () => {
+              try {
+                check();
+              } catch {
+                return false;
+              }
+              if (
+                this.sessions.get(id) !== recovered ||
+                recovered.info.source !== source ||
+                recovered.info.frozen ||
+                hasViews() ||
+                repository.shared()
+              )
+                return false;
+              const latest = repository.head();
+              return Boolean(
+                matches(source, latest) &&
+                latest?.revision === head.revision &&
+                source.projectionRevision === head.revision
+              );
+            }
+          );
+        }
+        check();
+        if (repository.shared()) return this.openSharedContent(event, target, check);
+        const latest = repository.head();
+        if (
+          this.sessions.get(id) !== session ||
+          session.info.source !== source ||
+          !matches(source, latest)
+        )
+          throw new Error("正文在打开期间已变化，请重试");
+        if (
+          latest?.revision &&
+          source.projectionRevision !== latest.revision &&
+          !hasViews() &&
+          !session.info.frozen
+        ) {
+          // 先保全未投影输入，有修订冲突时再备份缓存并从主库重建。
+          try {
+            await this.project(session);
+          } catch (error) {
+            check();
+            if (repository.shared()) return this.openSharedContent(event, target, check);
+            if (this.sessions.get(id) !== session || session.info.source !== source)
+              throw new Error("正文在打开期间已变化，请重试");
+            if (repository.head()?.revision === source.projectionRevision) throw error;
+            console.warn(`[collaboration] 正文 ${contentId} 的缓存落后于主库，已备份后按主库重建`);
+            this.releaseReplacedSession(session, "主库在缓存之后被改写");
+            return this.openContent(event, target, { db, name }, check);
+          }
         }
       }
+      check();
+      if (repository.shared()) return this.openSharedContent(event, target, check);
+      if (
+        this.sessions.get(id) !== session ||
+        session.info.source !== source ||
+        !matches(source, repository.head())
+      )
+        throw new Error("正文在打开期间已变化，请重试");
     }
     if (!session) {
+      const stored = repository.snapshot();
+      if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+      if (!head.librarySourceId) throw new Error("正文缺少资料库来源身份");
       const source: SourceBinding = {
         ...target,
         databaseName: name,
-        contentId: content.id,
-        contentCreatedAt: content.createTime,
+        contentCreatedAt: head.createdAt,
+        librarySourceId: head.librarySourceId,
+        contentDocumentId: stored.documentId,
+        projectionRevision: stored.revision,
       };
       const title =
         target.sourceType !== "card" && target.sourceTitle !== undefined
           ? target.sourceTitle
-          : findContentTitle(db, content.id);
-      const stored = ContentDocumentTable.read(db, content.id);
-      if (stored) {
-        source.librarySourceId = ContentIdentityTable.library(db)?.sourceId;
-        source.contentDocumentId = stored.documentId;
-        source.projectionRevision = stored.revision;
-        if (!source.librarySourceId) throw new Error("正文缺少资料库来源身份");
-      }
-      const value = {
-        title,
-        content: content.content as ContentNode[],
-        bannerBg: "",
-        bannerPosition: "center",
-      };
-      if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+          : findContentTitle(db, contentId);
+      const value = { title, content: stored.content, bannerBg: "", bannerPosition: "center" };
+      const prepared = await this.assets.prepareLocalDocument(id, value, stored.contracts);
+      check();
       const doc = await createNodeDocument(
         { documentId: id, baselineId: randomUUID(), epoch: 0 },
-        await this.assets.prepareLocalDocument(id, value, stored.contracts),
+        prepared,
         stored.contracts,
         { allowLocalResources: true }
       );
-      if (
-        !db.open ||
-        databaseModule.getDatabase(name) !== db ||
-        ("sender" in event && this.databaseForEvent(event).db !== db)
-      ) {
-        doc.destroy();
-        throw new Error("资料库已切换，请重新打开内容");
+      try {
+        check();
+        if (repository.shared()) return this.openSharedContent(event, target, check);
+        if (this.sessions.has(id)) return this.openContent(event, target, { db, name }, check);
+        const latest = repository.head();
+        if (!matches(source, latest) || latest?.revision !== stored.revision)
+          throw new Error("正文在打开期间已变化，请重试");
+        const info: CollaborationSession = {
+          id,
+          mode: "local",
+          source,
+          title,
+          ownerId: "local",
+          role: "owner",
+          status: "active",
+          members: [],
+          updatedAt: Date.now(),
+          serverUrl: "",
+          connection: "connected",
+          pending: false,
+          leaving: false,
+        };
+        this.store.create(info, doc);
+        session = this.restore(info, doc);
+      } finally {
+        if (this.sessions.get(id)?.doc !== doc) doc.destroy();
       }
-      if (findCollaborationBinding(db, target.contentId)) {
-        doc.destroy();
-        return this.openSharedContent(event, target);
-      }
-      const concurrent = this.findSession(id);
-      if (concurrent) {
-        doc.destroy();
-        return this.openContent(event, target);
-      }
-      if (stored && ContentDocumentTable.read(db, content.id)?.revision !== stored.revision) {
-        doc.destroy();
-        throw new Error("正文在打开期间已变化，请重试");
-      }
-      const info: CollaborationSession = {
-        id,
-        mode: "local",
-        source,
-        title,
-        ownerId: "local",
-        role: "owner",
-        status: "active",
-        members: [],
-        updatedAt: Date.now(),
-        serverUrl: "",
-        connection: "connected",
-        pending: false,
-        leaving: false,
-      };
-      this.store.create(info, doc);
-      session = this.restore(info, doc);
     }
-    if (session.info.source?.contentCreatedAt !== content.createTime)
+    if (session.info.source?.contentCreatedAt !== head.createdAt)
       throw new Error("原内容关联已变化");
-    registerContentSession(db, content.id, session);
-    ContentTable.ensureTaskIds(db, content.id);
+    registerContentSession(db, contentId, session);
+    ContentTable.ensureTaskIds(db, contentId);
     return {
       documentId: id,
       mode: session.info.mode || "shared",
@@ -772,7 +957,7 @@ export class ContentSessionManager {
     };
   }
 
-  protected acknowledgeFreeze(viewId: string, requestId?: string) {
+  acknowledgeFreeze(viewId: string, requestId?: string) {
     const view = this.views.get(viewId);
     const session = view && this.sessions.get(view.documentId);
     const waiter = session && this.freezeWaiters.get(session.info.id);
@@ -782,7 +967,7 @@ export class ContentSessionManager {
     if (!session.drainingViews.size) waiter?.resolve();
   }
 
-  protected async freeze(session: RuntimeSession) {
+  async freeze(session: RuntimeSession) {
     if (session.info.frozen) throw new Error("内容正在切换，请稍后重试");
     session.info.frozen = true;
     const requestId = randomUUID();
@@ -820,6 +1005,7 @@ export class ContentSessionManager {
   }
 
   removeWindowViews(windowId: number) {
+    this.lifecycle.cancelOpening({ windowId });
     for (const [id, view] of this.views) if (view.windowId === windowId) this.removeView(id);
   }
 
@@ -827,12 +1013,12 @@ export class ContentSessionManager {
     window.webContents.on("did-start-navigation", (_event, _url, isInPlace, isMainFrame) => {
       if (isMainFrame && !isInPlace) {
         this.removeWindowViews(window.id);
-        this.sharing?.windows(window.id);
+        this.sharing?.removeWindowViews(window.id);
       }
     });
     window.webContents.on("render-process-gone", () => {
       this.removeWindowViews(window.id);
-      this.sharing?.windows(window.id);
+      this.sharing?.removeWindowViews(window.id);
     });
     window.on("close", event => {
       const scope = { windowId: window.id, reason: "window-close" as const };
@@ -855,17 +1041,17 @@ export class ContentSessionManager {
     });
     window.once("closed", () => {
       this.removeWindowViews(window.id);
-      this.sharing?.windows(window.id);
+      this.sharing?.removeWindowViews(window.id);
     });
   }
 
-  protected unfreeze(session: RuntimeSession) {
+  unfreeze(session: RuntimeSession) {
     session.info.frozen = false;
     session.drainingViews = undefined;
     this.broadcast("collaboration:freeze", { documentId: session.info.id, frozen: false });
   }
 
-  protected databaseForEvent(
+  databaseForEvent(
     event: IpcMainInvokeEvent | { db: import("better-sqlite3").Database; name: string }
   ) {
     if (!("sender" in event)) {
@@ -879,24 +1065,36 @@ export class ContentSessionManager {
     if (!name || !db?.open) throw new Error("当前内容数据库尚未连接");
     return { db, name };
   }
-  protected findLocalSource(documentId: string, serverUrl: string) {
+  findLocalSource(documentId: string, serverUrl: string) {
     for (const [name, db] of databaseModule.databases) {
       if (!db.open) continue;
       const source = restoreContentBinding(db, name, documentId, serverUrl);
       if (source) return source;
     }
   }
-  protected contentUpdates() {
-    return (this.nodeUpdates ??= new NodeSessionUpdates(this.store, this.contentState));
+  contentUpdates() {
+    return this.storage.nodeUpdates;
   }
 
   protected async replaceContentSnapshot(
     session: RuntimeSession,
     content: ContentNode[],
     supplied: ContentContractDictionary | undefined,
-    expectedRevision: string | undefined
+    expectedRevision: string | undefined,
+    checkScope?: () => void,
+    onAccepted?: () => void
   ): Promise<void> {
-    const check = () => {
+    const source = session.info.source;
+    const database = source && databaseModule.getDatabase(source.databaseName);
+    const checkSession = () => {
+      checkScope?.();
+      if (
+        source &&
+        (session.info.source !== source ||
+          !database?.open ||
+          databaseModule.getDatabase(source.databaseName) !== database)
+      )
+        throw new Error("资料库连接已变化，请重新读取正文");
       if (
         session.info.frozen ||
         session.info.leaving ||
@@ -904,10 +1102,28 @@ export class ContentSessionManager {
         this.sessions.get(session.info.id) !== session
       )
         throw new Error("正文会话已变化，请重新读取");
-      if (!expectedRevision || contentRevision(session) !== expectedRevision)
+    };
+    if (!expectedRevision)
+      throw new Error("CONTENT_VERSION_CONFLICT: 正文缺少观察修订，请重新读取");
+    const checkRevision = () => {
+      checkSession();
+      if (contentRevision(session) !== expectedRevision)
         throw new Error("CONTENT_VERSION_CONFLICT: 正文已变化，请保留待应用结果后重试");
     };
-    check();
+    const shared = session.info.mode === "local" ? undefined : this.sharedEffects;
+    if (!shared && session.info.mode !== "local")
+      throw new Error("COLLABORATION_UNAVAILABLE: 共享服务尚未就绪");
+    const intentHash = shared
+      ? createHash("sha256")
+          .update(canonicalContractJson([expectedRevision, content, supplied ?? null]))
+          .digest("hex")
+      : "";
+    checkSession();
+    if (shared && (await shared.retryReplacement(session, intentHash, checkSession, onAccepted))) {
+      await this.project(session);
+      return;
+    }
+    checkRevision();
     const candidate = new Y.Doc({ gc: false });
     Y.applyUpdate(candidate, Y.encodeStateAsUpdate(session.doc));
     const vector = Y.encodeStateVector(candidate),
@@ -926,7 +1142,7 @@ export class ContentSessionManager {
               value,
               contracts
             );
-      check();
+      checkRevision();
       applyNodeTreeContent(tree, mapped.content, {});
       const meta = session.doc.getMap("meta"),
         identity = {
@@ -937,31 +1153,47 @@ export class ContentSessionManager {
       await validateNodeDocument(candidate, identity, session.doc, {
         allowLocalResources: session.info.mode === "local",
       });
-      check();
+      checkRevision();
       const update = Y.encodeStateAsUpdate(candidate, vector),
-        operationId = randomUUID();
-      this.contentState!.saveDocumentDraft(
+        operationId = randomUUID(),
+        candidateState = Y.encodeStateAsUpdate(candidate);
+      if (shared) {
+        await shared.submitReplacement(
+          session,
+          {
+            operationId,
+            intentHash,
+            expectedRevision,
+            update,
+            candidateState,
+            retainCandidate: () => this.retainNodeState(session, candidate),
+          },
+          checkRevision,
+          checkSession,
+          onAccepted
+        );
+        await this.project(session);
+        return;
+      }
+      this.contentState.saveDocumentDraft(
         { workspaceId: session.info.source?.databaseName ?? "application", ...identity },
         `operation:${operationId}`,
-        { state: Y.encodeStateAsUpdate(candidate), sequence: 1 }
+        { state: candidateState, sequence: 1 }
       );
       this.retainNodeState(session, candidate);
-      await this.confirmSharedReplacement(
+      await this.contentUpdates().apply(
         session,
-        identity,
-        expectedRevision!,
         update,
-        operationId,
-        check
+        () => {
+          if (
+            this.sessions.get(session.info.id) !== session ||
+            session.doc.getMap("meta").get("baselineId") !== identity.baselineId
+          )
+            throw new Error("正文会话已变化，待应用结果已保留");
+          checkRevision();
+        },
+        onAccepted
       );
-      await this.contentUpdates().apply(session, update, () => {
-        if (
-          this.sessions.get(session.info.id) !== session ||
-          session.doc.getMap("meta").get("baselineId") !== identity.baselineId
-        )
-          throw new Error("正文会话已变化，待应用结果已保留");
-        if (session.info.mode === "local") check();
-      });
       await this.project(session);
     } finally {
       tree.dispose();
@@ -969,16 +1201,15 @@ export class ContentSessionManager {
     }
   }
 
-  protected project(session: RuntimeSession): Promise<void> {
+  project(session: RuntimeSession): Promise<void> {
     if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
       return Promise.resolve();
-    const id = session.info.id;
-    const pending = this.projecting.get(id);
+    const pending = this.projecting.get(session);
     if (pending) return pending;
     const task = this.projectSession(session).finally(() => {
-      if (this.projecting.get(id) === task) this.projecting.delete(id);
+      this.projecting.delete(session);
     });
-    this.projecting.set(id, task);
+    this.projecting.set(session, task);
     return task;
   }
 
@@ -1002,7 +1233,7 @@ export class ContentSessionManager {
       const source = session.info.source;
       const database = source && databaseModule.getDatabase(source.databaseName);
       stage = "assets";
-      await this.preserveOwnerImages(session);
+      await this.sharedEffects?.preserveOwnerImages(session);
       if (
         !source ||
         !database?.open ||
@@ -1021,7 +1252,8 @@ export class ContentSessionManager {
       }
       stage = "identity";
       expectedRevision = source.projectionRevision;
-      const head = readContentProjectionHead(database, source, session);
+      const projection = this.storage.projection(database, source, session.info);
+      const head = projection.readHead();
       actualRevision = head.revision;
       storageBefore = head.formatVersion;
       if (!local && expectedRevision && expectedRevision !== head.revision)
@@ -1036,7 +1268,7 @@ export class ContentSessionManager {
               contracts: version.contracts !== confirmed.contracts,
             }
           : undefined;
-      if (changes && head.revision !== source.projectionRevision)
+      if (changes && head.revision !== expectedRevision)
         throw new Error("正文投影修订冲突，已保留原缓存并暂停写入");
       let changed = false;
       if (!changes || changes.content || changes.contracts) {
@@ -1089,39 +1321,43 @@ export class ContentSessionManager {
         if (
           databaseModule.getDatabase(source.databaseName) !== database ||
           !database.open ||
-          this.sessions.get(session.info.id) !== session
+          this.sessions.get(session.info.id) !== session ||
+          session.info.source !== source
         ) {
           session.projectionDirty = true;
           reportContentSaveIssue(session, "target-changed");
           return;
         }
         stage = "commit";
-        if (incremental) {
-          const result = projectContentBlocks(database, source, session, {
-            documentId: head.documentId,
-            expectedRevision: source.projectionRevision!,
-            contracts,
-            blocks: content,
-            order: structural ? content.map(node => String(node.collabId)) : undefined,
-            count: blocks => getContentLength(blocks as import("slate").Descendant[]),
-            countRules: JSON.stringify(desktopContentMetrics.rules),
-          });
-          changed = result.changed;
-          writtenBlocks = result.writtenBlocks;
-        } else
-          changed = projectContractContent(
-            database,
-            source,
-            session,
-            { documentId: head.documentId, contracts, content },
-            source.projectionRevision,
-            getContentLength(content as import("slate").Descendant[]),
-            changes
-          );
+        // 资源本地化期间，其他入口可能已提交并推进会话观察到的修订。
+        const result = projection.commit(
+          incremental
+            ? {
+                kind: "blocks",
+                documentId: head.documentId,
+                expectedRevision: expectedRevision!,
+                contracts,
+                blocks: content,
+                order: structural ? content.map(node => String(node.collabId)) : undefined,
+                count: blocks => getContentLength(blocks as import("slate").Descendant[]),
+                countRules: JSON.stringify(desktopContentMetrics.rules),
+              }
+            : {
+                kind: "snapshot",
+                documentId: head.documentId,
+                expectedRevision,
+                contracts,
+                content,
+                count: getContentLength(content as import("slate").Descendant[]),
+                changes,
+              }
+        );
+        changed = result.changed;
+        writtenBlocks = result.writtenBlocks;
         committed = true;
       }
       stage = "acknowledge";
-      const saved = readContentProjectionHead(database, source, session);
+      const saved = projection.readHead();
       source.projectionRevision = saved.revision;
       session.projectedVersion = version;
       for (const [id, changedAt] of session.projectionNodes ?? [])
@@ -1171,63 +1407,119 @@ export class ContentSessionManager {
     }
   }
 
-  protected async removeSession(session: RuntimeSession) {
-    if (
-      !session.info.frozen &&
-      [...this.views.values()].some(view => view.documentId === session.info.id)
-    )
-      await this.freeze(session);
-    for (const [id, view] of this.views)
-      if (view.documentId === session.info.id) this.removeView(id);
+  private removeStoredSession(id: string, onRemove?: () => void) {
+    this.store.db.transaction(() => {
+      this.store.remove(id);
+      this.contentState?.db
+        .prepare("DELETE FROM entity_holds WHERE holder=?")
+        .run(`document:${id}`);
+      onRemove?.();
+    })();
+  }
+
+  async removeSession(session: RuntimeSession, onRemove?: () => void) {
+    const id = session.info.id;
+    if (this.sessions.get(id) !== session) return;
+    const freeze =
+      !session.info.frozen && [...this.views.values()].some(view => view.documentId === id);
+    if (freeze) await this.freeze(session);
+    if (this.sessions.get(id) !== session) return;
+    try {
+      this.removeStoredSession(id, onRemove);
+    } catch (error) {
+      if (freeze) this.unfreeze(session);
+      throw error;
+    }
+    for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
     unregisterContentSession(session);
     session.provider?.destroy();
     session.awareness.destroy();
     session.doc.destroy();
-    this.sessions.delete(session.info.id);
-    this.store.remove(session.info.id);
-    this.contentState?.db
-      .prepare("DELETE FROM entity_holds WHERE holder=?")
-      .run(`document:${session.info.id}`);
-    this.assets.removeDocumentCache(session.info.id);
-    this.broadcast("collaboration:removed", { documentId: session.info.id });
+    this.sessions.delete(id);
+    this.frozenForDownload.delete(session);
+    this.assets.removeDocumentCache(id);
+    this.broadcast("collaboration:removed", { documentId: id });
     this.changed();
   }
-  protected async drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain> {
-    const affected = this.sessionsForDrain(scope);
+
+  discardRemoteSession(session: RuntimeSession, reason: string) {
+    const id = session.info.id;
+    if (this.sessions.get(id) !== session) return;
+    for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
+    unregisterContentSession(session);
+    session.provider?.destroy();
+    if (session.dirty) this.store.compact(id, session.doc);
+    this.store.discard(id, reason);
+    session.awareness.destroy();
+    session.doc.destroy();
+    this.sessions.delete(id);
+    this.contentState.db.prepare("DELETE FROM entity_holds WHERE holder=?").run(`document:${id}`);
+    this.broadcast("collaboration:removed", { documentId: id, replaced: true });
+  }
+
+  protected drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain> {
+    return this.lifecycle.drain(scope, () => this.prepareSessionDrain(scope));
+  }
+
+  private async prepareSessionDrain(scope: DocumentDrainScope): Promise<DocumentDrain> {
+    const affected = this.sessionsForDrain(scope).map(session => {
+      const source = session.info.source;
+      return {
+        session,
+        source,
+        database: source && databaseModule.getDatabase(source.databaseName),
+      };
+    });
+    if (affected.some(({ session }) => this.draining.has(session)))
+      throw new Error("正文正在保存并关闭，请稍后重试");
+    for (const { session } of affected) this.draining.add(session);
     const resumed: RuntimeSession[] = [];
     const resume = () => {
       for (const session of resumed) {
+        if (this.sessions.get(session.info.id) !== session || !session.info.frozen) continue;
         this.unfreeze(session);
         session.provider?.attach();
-        this.attach(session);
-        this.changed(session);
+        this.sharedEffects?.attach(session);
       }
     };
+    const release = () => {
+      for (const { session } of affected) this.draining.delete(session);
+    };
+    const rollback = () => {
+      release();
+      resume();
+    };
     try {
-      for (const session of affected) {
+      for (const { session, source, database } of affected) {
         if (!session.info.frozen) {
           resumed.push(session);
           await this.freeze(session);
         } else if (session.drainingViews?.size) throw new Error("正文仍有未确认输入，不能退出");
+        const check = () => {
+          if (
+            this.sessions.get(session.info.id) !== session ||
+            session.info.source !== source ||
+            (source &&
+              (databaseModule.getDatabase(source.databaseName) !== database ||
+                database?.open === false))
+          )
+            throw new Error("保存期间资料库或正文会话已变化，请重试");
+        };
+        check();
         session.provider?.detach();
-        if (session.dirty) {
+        if (session.dirty || session.cacheWriteFailed) {
           this.store.compact(session.info.id, session.doc);
           session.dirty = false;
+          session.cacheWriteFailed = false;
         }
-        const source = session.info.source;
-        const database = source && databaseModule.getDatabase(source.databaseName);
         if (source && database?.open) {
-          const row = database
-            .prepare("SELECT create_time FROM content_snapshots WHERE id=?")
-            .get(source.contentId) as { create_time: number } | undefined;
-          const stored = ContentDocumentTable.read(database, source.contentId);
+          const head = this.storage.source(database, source.databaseName, source.contentId).head();
           const matches =
-            row?.create_time === source.contentCreatedAt &&
-            (!source.librarySourceId ||
-              source.librarySourceId === ContentIdentityTable.library(database)?.sourceId) &&
-            (!source.contentDocumentId || source.contentDocumentId === stored?.documentId);
+            head?.createdAt === source.contentCreatedAt &&
+            (!source.librarySourceId || source.librarySourceId === head.librarySourceId) &&
+            (!source.contentDocumentId || source.contentDocumentId === head.documentId);
           if (!matches) {
-            // 主库来源变化不能用旧缓存补写；先确认缓存已耐久保存。
+            // 来源变化时只确认日志耐久，避免把旧正文投影到新库。
             this.store.metadata(session.info);
             const cached = this.store.load(session.info.id);
             try {
@@ -1248,20 +1540,38 @@ export class ContentSessionManager {
           }
         }
         await this.project(session);
+        check();
+        if (session.info.mode === "local" && database?.open && session.projectionDirty) {
+          // 等到的保存可能在最后一批排空输入前就捕获了候选。
+          await this.project(session);
+          check();
+          if (session.projectionDirty) throw new Error("正文仍有未保存的修改，请重试");
+        }
       }
       return {
         commit: () => {
+          release();
           if (scope.reason === "quit") return;
-          if (scope.reason === "database-sync" && scope.replace)
-            for (const session of resumed) this.frozenForDownload.add(session);
-          else resume();
-          if (scope.reason === "window-close") return;
-          for (const session of affected) unregisterContentSession(session);
+          if (scope.reason === "database-sync" && scope.replace) {
+            for (const session of resumed)
+              if (this.sessions.get(session.info.id) === session)
+                this.frozenForDownload.add(session);
+          } else {
+            if (scope.reason === "database-change" && scope.windowId !== undefined) {
+              const drainedIds = new Set(affected.map(({ session }) => session.info.id));
+              for (const [id, view] of this.views)
+                if (view.windowId === scope.windowId && drainedIds.has(view.documentId))
+                  this.removeView(id);
+            }
+            resume();
+          }
+          if (scope.reason === "window-close" || scope.windowId !== undefined) return;
+          for (const { session } of affected) unregisterContentSession(session);
         },
-        rollback: resume,
+        rollback,
       };
     } catch (failure) {
-      resume();
+      rollback();
       throw failure;
     }
   }
@@ -1297,6 +1607,12 @@ export class ContentSessionManager {
       const documents = this.store.db
         .prepare("SELECT * FROM document_drafts WHERE workspace_id IN (?,?) AND applied=0")
         .all(...names) as (Record<string, unknown> & { state: Buffer })[];
+      const demotions = this.store.db
+        .prepare(
+          `SELECT key,value FROM settings WHERE key GLOB ? AND
+           CASE WHEN json_valid(value) THEN json_extract(value, '$.info.source.databaseName') END IN (?,?)`
+        )
+        .all(contentDemotionKey("*"), ...names) as { key: string; value: string }[];
       const readBase = this.store.db.prepare("SELECT value FROM settings WHERE key=?");
       const pending = inputs
         .filter(row => !row.applied)
@@ -1305,7 +1621,7 @@ export class ContentSessionManager {
           const base = readBase.get(key) as { value: string } | undefined;
           return { ...row, base: base?.value };
         });
-      if (pending.length || documents.length) {
+      if (pending.length || documents.length || demotions.length) {
         const directory = join(dirname(this.store.db.name), "discarded");
         mkdirSync(directory, { recursive: true, mode: 0o700 });
         writeFileSync(
@@ -1317,12 +1633,14 @@ export class ContentSessionManager {
               ...row,
               state: state.toString("base64"),
             })),
+            ...(demotions.length ? { demotions } : {}),
           }),
           { mode: 0o600, flush: true }
         );
       }
       for (const row of inputs)
         this.store.delete(sourceDraftKey(row.view_id, row.node_id, row.field));
+      for (const { key } of demotions) this.store.delete(key);
       for (const table of [
         "input_drafts",
         "document_drafts",
@@ -1344,7 +1662,7 @@ export class ContentSessionManager {
     this.changed();
   }
 
-  protected startAutoFlush() {
+  startAutoFlush() {
     this.autoFlushInterval = setInterval(() => {
       for (const session of this.sessions.values()) {
         try {
@@ -1367,45 +1685,45 @@ export class ContentSessionManager {
           this.changed(session);
         }
       }
-      this.flushSessionResources();
+      this.sharedEffects?.flushResources();
     }, 1000);
     this.autoFlushInterval.unref();
   }
 
-  protected removeView(viewId: string) {
+  removeView(viewId: string) {
     const view = this.views.get(viewId);
     if (!view) return;
     this.acknowledgeFreeze(viewId, this.freezeWaiters.get(view.documentId)?.id);
+    this.views.delete(viewId);
     const awareness = this.sessions.get(view.documentId)?.awareness;
     if (awareness) removeAwarenessStates(awareness, view.clientIds, "view-closed");
-    this.views.delete(viewId);
     const session = this.sessions.get(view.documentId);
-    if (session?.info.mode === "local")
-      setTimeout(() => {
-        if (
-          !this.sessions.has(session.info.id) ||
-          session.info.frozen ||
-          [...this.views.values()].some(entry => entry.documentId === session.info.id)
-        )
-          return;
-        void this.project(session)
-          .then(() => {
-            if (
-              !session.projectionDirty &&
-              !this.contentState?.hasPendingDrafts(session.info.id) &&
-              session.info.source &&
-              databaseModule.getDatabase(session.info.source.databaseName)?.open &&
-              ![...this.views.values()].some(entry => entry.documentId === session.info.id)
-            )
-              return this.removeSession(session);
-          })
-          .catch(error => {
-            session.info.error = String(error);
-            this.changed(session);
-          });
-      }, 250).unref();
+    if (session?.info.mode !== "local") return;
+    const closure = {};
+    this.idleClosures.set(session, closure);
+    const idle = () =>
+      this.idleClosures.get(session) === closure &&
+      this.sessions.get(session.info.id) === session &&
+      !session.info.frozen &&
+      ![...this.views.values()].some(entry => entry.documentId === session.info.id);
+    setTimeout(() => {
+      if (!idle()) return;
+      void this.project(session)
+        .then(() => {
+          if (
+            idle() &&
+            !session.projectionDirty &&
+            !this.contentState?.hasPendingDrafts(session.info.id) &&
+            session.info.source &&
+            databaseModule.getDatabase(session.info.source.databaseName)?.open
+          )
+            return this.removeSession(session);
+        })
+        .catch(error => {
+          if (this.sessions.get(session.info.id) !== session) return;
+          session.info.error = String(error);
+          this.changed(session);
+        });
+    }, 250).unref();
   }
 }
-
-const localContent = new ContentSessionManager();
-export default localContent;

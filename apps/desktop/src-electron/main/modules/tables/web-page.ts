@@ -91,6 +91,15 @@ export default class WebPageTable {
     return row?.title ?? null;
   }
 
+  static previewTouchTitle(db: Database.Database, url: string, pageTitle: string): string {
+    const row = db
+      .prepare(
+        "SELECT COALESCE(custom_title, NULLIF(?, ''), page_title) AS title FROM web_page WHERE url = ?"
+      )
+      .get(pageTitle, url) as { title: string } | undefined;
+    return row?.title ?? pageTitle;
+  }
+
   /**
    * 改名；customTitle 为 null 即恢复网页标题。只有本机笔记、Tau 里还没记录的页面也能改名（新建页面行）。
    * 该页摘录的 source_title 同步为新的显示名

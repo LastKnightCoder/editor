@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "artifactSha256": "c388c8a797ec4ebc8055a5313d9080cc07c22c36c4b07a09bf78e13652979890",
+  "elapsedMs": 1928.8664579999986,
+  "coldStaleRevisionRejected": true,
+  "liveRejectedStoredRevision": true,
+  "liveReplacementPersisted": true,
+  "suggestionAcceptedAndUndone": true,
+  "documentIdentityAndOwnershipPreserved": true
+}

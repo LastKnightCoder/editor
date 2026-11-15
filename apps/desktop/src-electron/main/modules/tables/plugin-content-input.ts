@@ -16,7 +16,7 @@ function isAddressable(db: Database.Database, contentId: number): boolean {
   );
 }
 
-/** copyOf 读取来源的当前正文（有编辑会话时取会话内容）并深拷贝，不核对来源读取权限 */
+/** copyOf 核对创建时间和可寻址性后深拷贝当前快照，活跃会话优先。 */
 function copyContent(
   db: Database.Database,
   source: { contentId: number; createdAt: number }

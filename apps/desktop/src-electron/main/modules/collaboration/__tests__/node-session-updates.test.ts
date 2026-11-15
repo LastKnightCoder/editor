@@ -8,6 +8,7 @@ import { createNodeDocument, NodeTree, type CollaborationSession } from "@tau/co
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { CollaborationLocalStore } from "../local-store";
 import { NodeSessionUpdates } from "../node-session-updates";
+import { SqliteNodeSessionJournal } from "../../content-runtime/sqlite-node-session-journal";
 import { ContentLocalState } from "../content-local-state";
 import type { RuntimeSession } from "../types";
 
@@ -76,7 +77,7 @@ async function setup() {
   };
   store.create(info, doc);
   const session = { info, doc } as RuntimeSession;
-  const queue = new NodeSessionUpdates(store, state);
+  const queue = new NodeSessionUpdates(new SqliteNodeSessionJournal(store), state);
   const update = () => {
     const before = Y.encodeStateVector(peer.doc);
     peer.textField("source", "code").insert(2, "新增");

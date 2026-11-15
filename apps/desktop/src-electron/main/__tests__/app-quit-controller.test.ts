@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   order: [] as string[],
   exit: vi.fn(),
   disposeContent: vi.fn(),
+  shutdownLocalContent: vi.fn(),
   durable: vi.fn(async () => ({ commit() {}, rollback() {} })),
 }));
 vi.mock("../modules/durable-document-lifecycle", () => ({
@@ -51,10 +52,14 @@ vi.mock("../modules/plugin-backend", () => ({
 vi.mock("../modules/collaboration", () => ({
   default: { shutdown: vi.fn() },
 }));
+vi.mock("../modules/content-runtime/composition", () => ({
+  shutdownLocalContent: state.shutdownLocalContent,
+}));
 vi.mock("../modules/mcp", () => ({ default: { disconnectAll: async () => undefined } }));
 vi.mock("../windows/create-window", () => ({
   isContentRuntimeWindow: (window: { internal?: boolean }) => !!window.internal,
 }));
+vi.mock("../windows/plugin-window-ipc", () => ({ disposePluginWindows: vi.fn() }));
 vi.mock("../services/content-execution", () => ({
   contentExecutor: { dispose: state.disposeContent },
 }));
@@ -150,6 +155,7 @@ beforeEach(async () => {
   state.showError.mockReset();
   state.exit.mockReset();
   state.disposeContent.mockReset();
+  state.shutdownLocalContent.mockReset();
   state.durable.mockReset().mockResolvedValue({ commit() {}, rollback() {} });
   child = new Child();
   state.host = new PluginBackendManager({ authorized: async () => true, spawn: () => child });
@@ -421,6 +427,7 @@ it.each(["白板投影失败", "正文未确认保存"])(
     expect(win.destroy).not.toHaveBeenCalled();
     expect(win.webContents.send).not.toHaveBeenCalled();
     expect(state.host!.beginDrain).not.toHaveBeenCalled();
+    expect(state.shutdownLocalContent).not.toHaveBeenCalled();
     win.webContents.send.mockImplementation(() =>
       state.handlers.get("app:quitting-ready")!({ sender: win.webContents })
     );
@@ -428,6 +435,7 @@ it.each(["白板投影失败", "正文未确认保存"])(
     await vi.advanceTimersByTimeAsync(0);
     expect(state.exit).toHaveBeenCalledWith(0);
     expect(state.durable).toHaveBeenCalledTimes(2);
+    expect(state.shutdownLocalContent).toHaveBeenCalledOnce();
   }
 );
 

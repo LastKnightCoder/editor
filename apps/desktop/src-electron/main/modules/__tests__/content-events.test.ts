@@ -16,7 +16,11 @@ vi.mock("../video-note-index-queue", () => ({
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
-import { onContentWritten, type ContentWrittenEvent } from "../content-events";
+import {
+  bindContentWriteConnection,
+  onContentWritten,
+  type ContentWrittenEvent,
+} from "../content-events";
 
 const doc = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as never;
@@ -65,6 +69,31 @@ describe("正文写入总线", () => {
     offGood();
     spy.mockRestore();
   });
+
+  it("向索引发布登记连接名，同名文件的其他连接仍使用原回落", () => {
+    const other = new Database(":memory:");
+    try {
+      other.exec(MAIN_SCHEMA_SQL);
+      bindContentWriteConnection(db, "用户资料库");
+      const named = ContentTable.createContent(db, { content: doc("正文") });
+      const independent = ContentTable.createContent(other, { content: doc("对照正文") });
+      expect(events).toEqual([
+        { dbName: "用户资料库", contentId: named, action: "create" },
+        { dbName: ":memory:", contentId: independent, action: "create" },
+      ]);
+    } finally {
+      other.close();
+    }
+  });
+
+  it("新建业务正文的异步回调被事务拒绝且不发出创建事件", () => {
+    expect(() =>
+      ContentTable.createOwnedContent(db, { content: doc("a") }, async id => id)
+    ).toThrow("Transaction function cannot return a promise");
+    expect(db.prepare("SELECT id FROM contents").all()).toEqual([]);
+    expect(db.prepare("SELECT id FROM operation").all()).toEqual([]);
+    expect(events).toEqual([]);
+  });
 });
 
 /**
@@ -76,10 +105,13 @@ describe("正文写入点白名单", () => {
   const WRITE_SQL =
     /INSERT\s+INTO\s+contents\b|DELETE\s+FROM\s+contents\b|UPDATE\s+contents\s+SET[^"'`]*\bcontent\s*=/gi;
   const ALLOWED: Record<string, number> = {
-    // createContent / updateContent / deleteContent / patchNodes（发事件）+ patchNodes 静默分支
+    // createContent / deleteContent / patchNodes（发事件）+ patchNodes 静默分支
     //（只补勾选项 taskId，不算编辑、不改 update_time，其他派生数据不读 taskId，故不发事件）
-    "main/modules/tables/content.ts": 5,
+    "main/modules/tables/content.ts": 4,
+    "main/modules/tables/content-replacement.ts": 1,
     "main/modules/tables/content-document.ts": 1,
+    // 首次拆块只切换存储布局；正文变化由调用方完成投影后统一通知。
+    "main/modules/tables/content-document-blocks.ts": 1,
   };
 
   const walk = (dir: string): string[] =>
@@ -98,8 +130,25 @@ describe("正文写入点白名单", () => {
     expect(found).toEqual(ALLOWED);
   });
 
-  it("协作投影写库成功处发出事件", () => {
-    const source = readFileSync(join(ROOT, "main/modules/collaboration/index.ts"), "utf8");
-    expect(source).toMatch(/emitContentWritten\(database, source\.contentId, "update"\)/);
+  it("正文投影提交并确认修订后，只在正文实际变化时发出一次事件", () => {
+    const source = readFileSync(join(ROOT, "main/modules/content-runtime/index.ts"), "utf8");
+    const start = source.indexOf("protected async projectSession(");
+    const end = source.indexOf("async removeSession(", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const projection = source.slice(start, end);
+    const submitted = projection.indexOf("const result = projection.commit(");
+    const committed = projection.indexOf("committed = true;");
+    const acknowledged = projection.indexOf("source.projectionRevision = saved.revision;");
+    const notified = projection.indexOf('emitContentWritten(database, source.contentId, "update")');
+    expect(submitted).toBeGreaterThanOrEqual(0);
+    expect(committed).toBeGreaterThan(submitted);
+    expect(acknowledged).toBeGreaterThan(committed);
+    expect(notified).toBeGreaterThan(acknowledged);
+    expect(projection).toContain("changed = result.changed;");
+    expect(projection).toMatch(
+      /if \(changed\) \{\s*this\.broadcast\("content:updated", \{[^}]*\}\);\s*emitContentWritten\(database, source\.contentId, "update"\);\s*\}/
+    );
+    expect(projection.match(/emitContentWritten\(/g)).toHaveLength(1);
   });
 });

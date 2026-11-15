@@ -23,7 +23,17 @@ vi.mock("../../services/content-execution", () => ({
   },
 }));
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { createNodeDocument } from "@tau/collaboration";
+import { Awareness } from "y-protocols/awareness";
 import { ContentDocumentTable } from "../tables/content-document";
+import { ContentIdentityTable } from "../tables/content-identity";
+import {
+  contentRevision,
+  registerContentSession,
+  unregisterContentSession,
+} from "../collaboration/content-sessions";
+import type { RuntimeSession } from "../collaboration/types";
+import * as eventOrigin from "../domain-event-origin";
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -31,6 +41,7 @@ import PluginDataTable from "../tables/plugin-data";
 import ContentTable from "../tables/content";
 import WhiteBoardContentTable from "../tables/white-board-content";
 import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
+import { executeDatabaseCommand } from "../database-command";
 
 const scope = { databaseName: ":memory:", pluginId: "weekly" };
 const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
@@ -236,6 +247,174 @@ describe("PluginDataTable 写入", () => {
     expect(contentOf(card.contentId)).not.toContain("迟到修改");
   });
 
+  it("插件冷写流水失败时保留正文与引用，来源只在同步写入内生效", async () => {
+    db.prepare(
+      "INSERT INTO white_board_contents(id,create_time,update_time,data,ref_count) VALUES (7,1,1,'{}',0)"
+    ).run();
+    ContentIdentityTable.establishBaseline(db);
+    const entityRef = ContentIdentityTable.bind(db, "whiteboard-content", 7, 1);
+    const declaration = await prepareContentContract("host.whiteboard", {
+      type: "whiteboard",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+    });
+    const contentId = ContentTable.createContent(db, {
+      content: [
+        {
+          type: "whiteboard",
+          tauContract: declaration.id,
+          entityRef,
+          children: [{ text: "" }],
+        },
+      ] as never,
+      contracts: { [declaration.id]: declaration.contract },
+    });
+    const source = ContentTable.getContentById(db, contentId)!;
+    const referenceCount = () =>
+      db.prepare("SELECT ref_count FROM white_board_contents WHERE id = 7").pluck().get();
+    expect(referenceCount()).toBe(1);
+    const snapshot = () =>
+      [
+        "contents",
+        "content_documents",
+        "content_entity_relations",
+        "white_board_contents",
+        "white_board_content_pending_releases",
+        "operation",
+      ].map(table => db.prepare(`SELECT * FROM ${table}`).all());
+    const before = snapshot();
+    const origins: Array<string | undefined> = [];
+    db.function("capture_plugin_origin", () => {
+      origins.push(eventOrigin.currentPluginOrigin());
+      return null;
+    });
+    db.exec(`CREATE TEMP TRIGGER reject_plugin_content_operation BEFORE INSERT ON operation
+      WHEN NEW.operation_content_type = 'content' AND NEW.operation_action = 'update'
+      BEGIN
+        SELECT capture_plugin_origin();
+        SELECT RAISE(ABORT, '注入插件正文流水故障');
+      END`);
+    ctx.broadcastOthers.mockClear();
+    const replace = () =>
+      executeDatabaseCommand(
+        db,
+        PluginDataTable.getListenEvents()["plugin-data:edit-content"],
+        db,
+        {
+          ...scope,
+          contentId,
+          createdAt: source.createTime,
+          expectedRevision: source.revision!,
+          edit: { op: "replaceAll", content: { markdown: "新正文" } },
+        },
+        ctx
+      );
+    await expect(replace()).rejects.toThrow("注入插件正文流水故障");
+    expect(snapshot()).toEqual(before);
+    expect(origins).toEqual([scope.pluginId]);
+    expect(eventOrigin.contentOrigin(db.name, contentId)).toBeUndefined();
+    expect(ctx.broadcastOthers).not.toHaveBeenCalled();
+
+    db.exec("DROP TRIGGER reject_plugin_content_operation");
+    await expect(replace()).resolves.toMatchObject({ revision: expect.any(String) });
+    expect(referenceCount()).toBe(0);
+    expect(contentOf(contentId)).toBe("新正文");
+    expect(eventOrigin.contentOrigin(db.name, contentId)).toBeUndefined();
+  });
+
+  it("插件核对活跃会话代次并在正文接纳后标记来源", async () => {
+    const card = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "card", input: { content: { markdown: "活跃正文" } } },
+      ctx
+    );
+    const contentId = card.contentId!;
+    const saved = ContentDocumentTable.read(db, contentId)!;
+    const source = ContentTable.getContentById(db, contentId)!;
+    const doc = await createNodeDocument(
+      { documentId: saved.documentId, baselineId: "baseline", epoch: 0 },
+      { title: "", bannerBg: "", bannerPosition: "center", content: saved.content },
+      saved.contracts
+    );
+    const replaceContent = vi.fn<NonNullable<RuntimeSession["replaceContent"]>>();
+    const session: RuntimeSession = {
+      doc,
+      awareness: new Awareness(doc),
+      dirty: false,
+      replaceContent,
+      info: {
+        id: saved.documentId,
+        title: "活跃正文",
+        ownerId: "local",
+        role: "owner",
+        status: "active",
+        members: [],
+        updatedAt: source.updateTime,
+        mode: "local",
+        serverUrl: "",
+        connection: "idle",
+        pending: false,
+        leaving: false,
+        source: {
+          databaseName: scope.databaseName,
+          contentId,
+          contentCreatedAt: source.createTime,
+          contentDocumentId: saved.documentId,
+        },
+      },
+    };
+    const reopened = { ...session };
+    registerContentSession(db, contentId, session);
+    const mark = vi.spyOn(eventOrigin, "markContentOrigin").mockImplementation(() => undefined);
+    try {
+      const request = {
+        ...scope,
+        contentId,
+        createdAt: source.createTime,
+        edit: { op: "replaceAll" as const, content: { markdown: "迟到的修改" } },
+      };
+      const replace = (expectedRevision: string) =>
+        executeDatabaseCommand(
+          db,
+          PluginDataTable.getListenEvents()["plugin-data:edit-content"],
+          db,
+          { ...request, expectedRevision },
+          ctx
+        );
+      await expect(replace(saved.revision)).rejects.toThrow("PLUGIN_CONFLICT:");
+      const revision = contentRevision(session);
+      const pending = replace(revision);
+      registerContentSession(db, contentId, reopened);
+      expect(contentRevision(reopened)).toBe(revision);
+      await expect(pending).rejects.toThrow("转换期间正文已变化");
+      expect(replaceContent).not.toHaveBeenCalled();
+      expect(ContentDocumentTable.read(db, contentId)).toEqual(saved);
+
+      replaceContent.mockRejectedValueOnce(new Error("耐久写入失败"));
+      await expect(replace(revision)).rejects.toThrow("耐久写入失败");
+      expect(mark).not.toHaveBeenCalled();
+
+      replaceContent.mockImplementationOnce(
+        async (_nodes, _contracts, expected, check, accepted) => {
+          expect(expected).toBe(revision);
+          check?.();
+          expect(mark).not.toHaveBeenCalled();
+          accepted?.();
+          throw new Error("主库投影失败");
+        }
+      );
+      await expect(replace(revision)).rejects.toThrow("主库投影失败");
+      expect(mark).toHaveBeenCalledExactlyOnceWith(db.name, contentId, scope.pluginId);
+    } finally {
+      mark.mockRestore();
+      unregisterContentSession(session);
+      unregisterContentSession(reopened);
+      session.awareness.destroy();
+      doc.destroy();
+    }
+  });
+
   it("正文输入：nodes 原样写入，copyOf 复制当前正文、之后互不影响", async () => {
     const rawOf = (contentId: number | null) =>
       JSON.parse(
@@ -268,7 +447,10 @@ describe("PluginDataTable 写入", () => {
       },
       { type: "paragraph", children: [{ type: "formatted", text: "高亮", highlight: "yellow" }] },
     ];
-    const source = await PluginDataTable.create(
+    const create = PluginDataTable.getListenEvents()["plugin-data:create"];
+    const source = await executeDatabaseCommand(
+      db,
+      create,
       db,
       {
         ...scope,
@@ -280,13 +462,55 @@ describe("PluginDataTable 写入", () => {
     expect(rawOf(source.contentId)).toMatchObject(nodes);
 
     const copyOf = { contentId: source.contentId!, createdAt: createdAtOf(source.contentId) };
-    const copy = await PluginDataTable.create(
-      db,
-      { ...scope, entity: "article", input: { title: "副本", content: { copyOf } } },
-      ctx
-    );
+    const copyArticle = () =>
+      executeDatabaseCommand(
+        db,
+        create,
+        db,
+        { ...scope, entity: "article", input: { title: "副本", content: { copyOf } } },
+        ctx
+      );
+    const creationState = () =>
+      [
+        "cards",
+        "articles",
+        "contents",
+        "content_documents",
+        "content_entity_relations",
+        "content_pending_releases",
+        "entity_identities",
+        "library_identity",
+        "migration_meta",
+        "operation",
+      ].map(table => db.prepare(`SELECT * FROM ${table}`).all());
+    const beforeCopy = creationState();
+    ctx.broadcastAll.mockClear();
+    db.exec(`CREATE TEMP TRIGGER reject_copy_article_operation BEFORE INSERT ON operation
+      WHEN NEW.operation_content_type = 'article' AND NEW.operation_action = 'insert'
+      BEGIN SELECT RAISE(ABORT, '注入复制文章流水故障'); END`);
+    await expect(copyArticle()).rejects.toThrow("注入复制文章流水故障");
+    expect(creationState()).toEqual(beforeCopy);
+    expect(ctx.broadcastAll).not.toHaveBeenCalled();
+    db.exec("DROP TRIGGER reject_copy_article_operation");
+
+    const copy = await copyArticle();
     expect(copy.contentId).not.toBe(source.contentId);
     expect(rawOf(copy.contentId)).toMatchObject(nodes);
+    const sourceDocument = ContentDocumentTable.read(db, copyOf.contentId)!;
+    const copyDocument = ContentDocumentTable.read(db, copy.contentId!)!;
+    expect(copyDocument.documentId).not.toBe(sourceDocument.documentId);
+    expect(copyDocument.contracts).toEqual(sourceDocument.contracts);
+    expect(
+      new Set([...sourceDocument.content, ...copyDocument.content].map(node => node.collabId)).size
+    ).toBe(4);
+    expect(db.prepare("SELECT id,ref_count FROM contents ORDER BY id").all()).toEqual([
+      { id: source.contentId, ref_count: 1 },
+      { id: copy.contentId, ref_count: 1 },
+    ]);
+    expect(ctx.broadcastAll).toHaveBeenCalledWith("article:updated", {
+      databaseName: ":memory:",
+      articleId: copy.id,
+    });
     await PluginDataTable.editContent(
       db,
       {
@@ -708,7 +932,7 @@ describe("PluginDataTable 写入", () => {
     });
   });
 
-  it("项目文档删除：从所有挂载处摘除，正文延迟释放，恢复后挂回原位置", async () => {
+  it("项目文档删除回执失败时回滚全树挂载与正文持有，重试后可恢复", async () => {
     const project = await PluginDataTable.create(
       db,
       { ...scope, entity: "project", input: { title: "课题" } },
@@ -744,21 +968,34 @@ describe("PluginDataTable 写入", () => {
       ]);
     const revisionOf = (id: number) =>
       PluginDataTable.get(db, { ...scope, entity: "document", id })!.revision;
-    expect(() =>
-      PluginDataTable.remove(db, {
+    const commands = PluginDataTable.getListenEvents();
+    const remove = (id: number) =>
+      executeDatabaseCommand(db, commands["plugin-data:delete"], db, {
         ...scope,
         entity: "document",
-        id: a.id,
-        expectedRevision: revisionOf(a.id),
-      })
-    ).toThrow("有子文档");
+        id,
+        expectedRevision: revisionOf(id),
+      });
+    await expect(remove(a.id)).rejects.toThrow("有子文档");
 
-    PluginDataTable.remove(db, {
-      ...scope,
-      entity: "document",
-      id: target.id,
-      expectedRevision: revisionOf(target.id),
+    const snapshot = () => ({
+      roots: db.prepare("SELECT * FROM project ORDER BY id").all(),
+      items: db.prepare("SELECT * FROM project_item ORDER BY id").all(),
+      body: db.prepare("SELECT * FROM contents WHERE id = ?").get(target.contentId),
+      pending: db.prepare("SELECT * FROM content_pending_releases ORDER BY content_id").all(),
+      operations: db.prepare("SELECT * FROM operation ORDER BY id").all(),
+      receipts: db.prepare("SELECT * FROM plugin_operations ORDER BY id").all(),
     });
+    const before = snapshot();
+    expect(before.body).toMatchObject({ ref_count: 1 });
+    db.exec(`CREATE TEMP TRIGGER reject_project_delete_receipt BEFORE INSERT ON plugin_operations
+      WHEN NEW.entity = 'document'
+      BEGIN SELECT RAISE(ABORT, '注入项目文档删除回执故障'); END`);
+    await expect(remove(target.id)).rejects.toThrow("注入项目文档删除回执故障");
+    expect(snapshot()).toEqual(before);
+    db.exec("DROP TRIGGER reject_project_delete_receipt");
+
+    await remove(target.id);
     expect(titles()).toEqual([
       ["甲", ["甲-1"]],
       ["丙", []],
@@ -768,18 +1005,29 @@ describe("PluginDataTable 写入", () => {
         .prepare("SELECT COUNT(*) AS n FROM content_pending_releases WHERE content_id = ?")
         .get(target.contentId)
     ).toEqual({ n: 1 });
+    expect(snapshot().body).toMatchObject({ ref_count: 0 });
 
     const operation = PluginDataTable.operations(db, scope).find(
       item => item.entity === "document"
     )!;
     expect(operation.title).toBe("目标");
-    PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx);
+    expect(
+      executeDatabaseCommand(
+        db,
+        commands["plugin-data:restore"],
+        db,
+        { ...scope, id: operation.id },
+        ctx
+      )
+    ).toEqual({ entity: "document", id: target.id });
     expect(titles()).toEqual([
       ["甲", ["甲-1", "目标"]],
       ["目标", []],
       ["丙", []],
     ]);
     expect(contentOf(target.contentId)).toBe("目标");
+    expect(snapshot().body).toMatchObject({ ref_count: 1 });
+    expect(snapshot().pending).toEqual(before.pending);
   });
 
   it("视频笔记不能由插件删除", async () => {

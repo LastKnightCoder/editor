@@ -17,7 +17,7 @@
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                                   |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                                 |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                                 |
-| [content-storage.md](./architecture/content-storage.md)       | 正文按块增量持久化、完整读取、跨端写入、字数与关系事务、日志检查点边界                                                                                         |
+| [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                               |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                                 |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                             |
 | [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                             |
@@ -46,27 +46,31 @@
 
 客户端依赖准备、构建、覆盖安装及插件检查从 [客户端构建与安装](./guides/ops-client-build-install.md)进入；iOS 签名、归档、TestFlight 分发与设备安装见 [iOS 手册](./guides/ops-ios-signing.md)。
 
-| 指南                                                                | 内容                                     |
-| ------------------------------------------------------------------- | ---------------------------------------- |
-| [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                       |
-| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程                 |
-| [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收               |
-| [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查           |
-| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查           |
-| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight     |
-| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                             |
-| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布 |
-| [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                     |
-| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                     |
-| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射             |
-| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                 |
-| [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                       |
-| [plugin-windows.md](./guides/plugin-windows.md)                     | 桌面插件窗口、自动外观、状态和消息       |
-| [writing-reader-docs.md](./guides/writing-reader-docs.md)           | 使用文档、插件开发文档与插件 README 写法 |
+| 指南                                                                | 内容                                                 |
+| ------------------------------------------------------------------- | ---------------------------------------------------- |
+| [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                                   |
+| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程                             |
+| [dev-domain-migration.md](./guides/dev-domain-migration.md)         | 存量业务迁移步骤、端口与事务评审、行为对照及并行切片 |
+| [dev-content-verification.md](./guides/dev-content-verification.md) | 正文、白板与跨端回归入口，容量、硬杀和长稳判据       |
+| [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收                           |
+| [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查                       |
+| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查                       |
+| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight                 |
+| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                                         |
+| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布             |
+| [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                                 |
+| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                                 |
+| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射                         |
+| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                             |
+| [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                                   |
+| [plugin-windows.md](./guides/plugin-windows.md)                     | 桌面插件窗口、自动外观、状态和消息                   |
+| [writing-reader-docs.md](./guides/writing-reader-docs.md)           | 使用文档、插件开发文档与插件 README 写法             |
 
 ## tasks/ — 进行中任务
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
+
+- [正文完整验收](./tasks/content-verification/README.md)：代码迁移已交付，保留正式容量、故障循环、长稳对照及实际设备验收。
 
 - [个人记忆实时调试](./tasks/memory-debug/README.md)：开发工具只读面板、处理状态与沉淀内容的实时推送。
 - [个人助手记忆：从记得准到懂你](./tasks/assistant-memory-understanding.md)：背景送达且系统提示稳定、画像合并、用户总述、事项闭环，进行中。

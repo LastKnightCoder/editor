@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "artifactSha256": "c388c8a797ec4ebc8055a5313d9080cc07c22c36c4b07a09bf78e13652979890",
+  "timings": {
+    "launchAndConnectMs": 1776.2455,
+    "firstOpenMs": 27.255125000000135,
+    "editAndDiskPollMs": 362.80029200000035,
+    "switchAndVerifyMs": 66.35416699999996,
+    "closeDatabaseAndVerifyMs": 9.751666999999998,
+    "quitAndVerifyMs": 246.02704100000028,
+    "restartAndReadMs": 1879.2251660000002
+  },
+  "audits": [
+    {
+      "entry": "/Users/t.xiong/Desktop/projects/editor/apps/desktop/dist-electron/main/index.js",
+      "directory": "/var/folders/np/fm5y9kyj2b78fjytbyz8h5b4psthqs/T/tau-content-production-FjyX97",
+      "port": 59209,
+      "listening": true,
+      "nodeRemaps": 1,
+      "rendererRemaps": 0,
+      "externalBlocked": 1,
+      "systemBlocked": 6,
+      "stages": [
+        "startup:dynamic-imports",
+        "startup:editor-extensions",
+        "startup:content-plugins",
+        "startup:bootstrap-ready",
+        "startup:renderer-ready",
+        "startup:settings-ready",
+        "startup:database-ready",
+        "startup:shell-ready"
+      ]
+    },
+    {
+      "entry": "/Users/t.xiong/Desktop/projects/editor/apps/desktop/dist-electron/main/index.js",
+      "directory": "/var/folders/np/fm5y9kyj2b78fjytbyz8h5b4psthqs/T/tau-content-production-FjyX97",
+      "port": 59209,
+      "listening": true,
+      "nodeRemaps": 1,
+      "rendererRemaps": 0,
+      "externalBlocked": 1,
+      "systemBlocked": 6,
+      "stages": [
+        "startup:dynamic-imports",
+        "startup:editor-extensions",
+        "startup:content-plugins",
+        "startup:bootstrap-ready",
+        "startup:renderer-ready",
+        "startup:settings-ready",
+        "startup:database-ready",
+        "startup:shell-ready"
+      ]
+    }
+  ],
+  "startup": {
+    "backgroundContentIpc": true,
+    "localStorageTables": [
+      "content_agent_permissions",
+      "content_suggestions",
+      "document_drafts",
+      "entity_holds",
+      "input_drafts",
+      "migrations",
+      "node_views",
+      "resources",
+      "sessions",
+      "settings",
+      "updates"
+    ]
+  },
+  "lifecycle": {
+    "matchingContentIds": true,
+    "crossLibrarySubscribeRejected": true,
+    "oldViewUpdateRejected": true,
+    "diskVerifiedAfter": [
+      "switch",
+      "close-database",
+      "quit"
+    ],
+    "restartedSubscriptionVerified": true,
+    "restartedBaselineVerified": true
+  },
+  "scope": "真实生产主进程/模块/正文IPC/SQLite；RPC端口与网络及OS副作用由测试边界隔离；无视觉验收"
+}

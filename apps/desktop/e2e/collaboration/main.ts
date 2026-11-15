@@ -6,12 +6,15 @@ import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { ContentDocumentTable } from "../../src-electron/main/modules/tables/content-document";
 import { ContentIdentityTable } from "../../src-electron/main/modules/tables/content-identity";
 import { CollaborationLocalStore } from "../../src-electron/main/modules/collaboration/local-store";
-import { ContentSuggestionStore } from "../../src-electron/main/modules/collaboration/content-suggestions";
+import { ContentSuggestionStore } from "../../src-electron/main/modules/content-runtime/agent/content-suggestions";
 import { registerAgentEditExecution } from "../../src-electron/main/modules/agent-run-events";
 import { join } from "node:path";
 import database from "./database";
 import ContentTable from "./content-table";
-import localContent from "../../src-electron/main/modules/content-runtime";
+import {
+  getLocalContentRuntime,
+  initLocalContent,
+} from "../../src-electron/main/modules/content-runtime/composition";
 import manager from "../../src-electron/main/modules/collaboration";
 import { contentSession } from "../../src-electron/main/modules/collaboration/content-sessions";
 
@@ -86,7 +89,8 @@ ContentSuggestionStore.prototype.settle = function (...args) {
 async function boot() {
   await app.whenReady();
   await seedDocuments();
-  await localContent.init();
+  initLocalContent();
+  const localContent = getLocalContentRuntime();
   await manager.init();
   const open = async (databaseName = "primary") => {
     const window = new BrowserWindow({
@@ -99,7 +103,7 @@ async function boot() {
         sandbox: false,
       },
     });
-    database.windowToDatabase.set(window.id, databaseName);
+    database.bindWindow(window.id, databaseName);
     await window.loadURL(
       `${process.env.TAU_COLLAB_E2E_URL}/e2e/collaboration/index.html?databaseName=${databaseName}`
     );
@@ -110,7 +114,7 @@ async function boot() {
   ipcMain.handle("entity:locate", () => null);
   ipcMain.handle("notification:dismiss", () => undefined);
   ipcMain.handle("content:suggestions", (_event, query) =>
-    manager.suggestions.list(coeditDb, query)
+    localContent.agent.suggestions.list(coeditDb, query)
   );
   let competing: { id: string; ready: Promise<void>; arrived(): void } | undefined;
   ipcMain.handle("e2e:arm-competing-suggestion-actions", (_event, id: string) => {
@@ -140,21 +144,21 @@ async function boot() {
   };
   ipcMain.handle("content:suggestions-accept", async (_event, id, ids, options) => {
     await waitForCompetingAction(ids);
-    return manager.suggestions.accept(coeditDb, id, ids, options);
+    return localContent.agent.suggestions.accept(coeditDb, id, ids, options);
   });
   ipcMain.handle("content:suggestions-reject", async (_event, id, ids, feedback) => {
     await waitForCompetingAction(ids);
-    return manager.suggestions.reject(coeditDb, id, ids, feedback);
+    return localContent.agent.suggestions.reject(coeditDb, id, ids, feedback);
   });
   ipcMain.handle("content:suggestions-undo", async (_event, id, ids) => {
     await waitForCompetingAction(ids);
-    return manager.suggestions.undo(coeditDb, id, ids);
+    return localContent.agent.suggestions.undo(coeditDb, id, ids);
   });
   ipcMain.handle("content:agent-permissions", (_event, id) =>
-    manager.agentPermissions.list(coeditDb, id)
+    localContent.agent.permissions.list(coeditDb, id)
   );
   ipcMain.handle("content:agent-permission-set", (_event, id, agent, level) =>
-    manager.agentPermissions.set(coeditDb, id, agent, level)
+    localContent.agent.permissions.set(coeditDb, id, agent, level)
   );
   ipcMain.handle(
     "e2e:stage",
@@ -169,7 +173,7 @@ async function boot() {
         direct?: boolean;
       }
     ) => {
-      const snapshot = await manager.readEditSnapshot(coeditDb, 7);
+      const snapshot = await localContent.agent.readEditSnapshot(coeditDb, 7);
       const doc = new Y.Doc();
       Y.applyUpdate(doc, snapshot.state);
       const tree = new NodeTree(doc);
@@ -180,7 +184,7 @@ async function boot() {
           .join("");
         const start = text.indexOf(spec.before);
         if (start < 0 || text.lastIndexOf(spec.before) !== start) throw new Error("验收原文不唯一");
-        return manager.suggestions.create(coeditDb, 7, {
+        return localContent.agent.suggestions.create(coeditDb, 7, {
           proposalId: spec.proposalId,
           conversationKey: spec.agent,
           agentId: spec.agent,
@@ -211,7 +215,7 @@ async function boot() {
   ipcMain.handle("e2e:run-agent", async (_event, id: string, execution: string) => {
     const finish = registerAgentEditExecution(execution);
     try {
-      return await manager.suggestions.accept(coeditDb, 7, [id], {
+      return await localContent.agent.suggestions.accept(coeditDb, 7, [id], {
         typing: true,
         executionId: execution,
         requireDirectPermission: true,
@@ -222,7 +226,7 @@ async function boot() {
   });
   ipcMain.handle("e2e:share", event => manager["createContent"](event, 7, "article", 1));
   ipcMain.handle("e2e:revoke-on-append", (_event, agent: string) => {
-    revokeAfterAppend = () => manager.agentPermissions.set(coeditDb, 7, agent, "readonly");
+    revokeAfterAppend = () => localContent.agent.permissions.set(coeditDb, 7, agent, "readonly");
   });
   ipcMain.handle("e2e:arm-crash", (_event, point: CrashPoint) => {
     const session = contentSession(coeditDb, 7);

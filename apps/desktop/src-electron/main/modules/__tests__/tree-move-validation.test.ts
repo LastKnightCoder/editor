@@ -119,34 +119,25 @@ describe("tree item move validation", () => {
     )!;
     expect(movingItem).not.toBeNull();
 
-    const originalUpdateProjectItem = ProjectTable.updateProjectItem;
-    let updateProjectItemCallCount = 0;
-    ProjectTable.updateProjectItem = ((...args) => {
-      updateProjectItemCallCount += 1;
-      if (updateProjectItemCallCount === 2) {
-        throw new Error("forced project move failure");
-      }
-      return originalUpdateProjectItem.apply(ProjectTable, args);
-    }) as typeof ProjectTable.updateProjectItem;
+    db.exec(`CREATE TEMP TRIGGER reject_move_target BEFORE UPDATE OF children ON project_item
+      WHEN NEW.id = ${targetParent!.id}
+        AND (SELECT children FROM project_item WHERE id = ${sourceParent!.id}) = '[]'
+      BEGIN SELECT RAISE(ABORT, '目录移动写入故障'); END`);
 
-    try {
-      expect(() =>
-        ProjectTable.moveProjectTreeItem(db, project.id, {
-          dragItem: {
-            itemId: movingItem!.id,
-            parentId: sourceParent!.id,
-            isRoot: false,
-            parentChildren: [movingItem!.id],
-          },
-          dropTargetId: targetParent!.id,
-          dropTargetParentId: project.id,
-          dropTargetIsRoot: true,
-          dragPosition: "inside",
-        })
-      ).toThrow("forced project move failure");
-    } finally {
-      ProjectTable.updateProjectItem = originalUpdateProjectItem;
-    }
+    expect(() =>
+      ProjectTable.moveProjectTreeItem(db, project.id, {
+        dragItem: {
+          itemId: movingItem!.id,
+          parentId: sourceParent!.id,
+          isRoot: false,
+          parentChildren: [movingItem!.id],
+        },
+        dropTargetId: targetParent!.id,
+        dropTargetParentId: project.id,
+        dropTargetIsRoot: true,
+        dragPosition: "inside",
+      })
+    ).toThrow("目录移动写入故障");
 
     expect(ProjectTable.getProjectItem(db, sourceParent!.id)?.children).toEqual([movingItem!.id]);
     expect(ProjectTable.getProjectItem(db, targetParent!.id)?.children).toEqual([]);

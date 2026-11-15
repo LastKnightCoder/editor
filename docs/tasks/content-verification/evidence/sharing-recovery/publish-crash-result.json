@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "artifactSha256": "c388c8a797ec4ebc8055a5313d9080cc07c22c36c4b07a09bf78e13652979890",
+  "elapsedMs": 4235.453750000001,
+  "phase": "publish",
+  "signal": "SIGKILL",
+  "checkpointBeforeSessionInstall": true,
+  "preservedBodyNodeAndOwnership": true,
+  "restoredEpoch": 0,
+  "closeRequests": 0,
+  "resumedOriginalRoom": true,
+  "republishedNewRoom": false
+}
