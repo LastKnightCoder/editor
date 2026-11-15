@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>聊天引用 · 设计稿</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="chat-ref.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 24px 70px; }
+  h1 { font-size: 24px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 20px; max-width: 880px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 6px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 12px; max-width: 880px; }
+  .box { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .box ul, .box ol { margin: 0; padding-left: 20px; } .box li { margin: 5px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  a.plan { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; }
+  a.plan:hover { box-shadow: var(--shadow-lift); }
+  a.plan h3 { margin: 0 0 4px; font-size: 14.5px; display: flex; gap: 8px; align-items: center; }
+  a.plan p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); }
+  pre.snip { margin: 0; border: 1px solid var(--line-1); border-radius: var(--r-md); padding: 12px 14px; font: 12px/1.7 var(--mono); overflow: auto; color: var(--ink-1); white-space: pre; }
+  pre.snip .c { color: var(--ink-3); }
+  .sample { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 18px 26px; }
+  .sample p { font-size: 14.5px; line-height: 1.9; margin: 0 0 12px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-1); color: var(--accent-text); }
+  .qs2 > div { padding: 9px 0; } .qs2 > div + div { border-top: 1px solid var(--line-2); }
+  .qs2 small { display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  .mock-bar { position: sticky; top: 0; z-index: 50; display: flex; gap: 12px; padding: 8px 14px; background: rgba(20,17,13,.92); color: #e8dfcf; font-size: 12.5px; }
+  .mock-bar a { color: #e8b598; text-decoration: none; } .mock-bar a.on { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
+</style>
+</head>
+<body>
+<div class="mock-bar"><b>聊天引用 · 样板间</b><a class="on" href="index.html">设计稿</a><a href="insert.html">插入引用</a><a href="read.html">阅读与跳转</a></div>
+<div class="wrap">
+  <h1>聊天引用 · 设计稿</h1>
+  <p class="lead">场景：和 AI 聊完有收获，用自己的话写进文章 / 卡片 / 日记，同时把出处指回那段对话。读的时候悬停就能看到原话，点一下在右侧停靠栏打开对话并定位到那一轮，可以接着聊。</p>
+
+  <h2>正文里长什么样</h2>
+  <p>两种形态。行内引用只标出处，摘录块把原话也留在正文里。</p>
+  <div class="sample">
+    <p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落，见 <span class="cref"><i data-lucide="message-square-quote"></i>SM-2 与 FSRS 复习策略对比<span class="turn">· 第 2 轮</span></span>。</p>
+    <div class="cquote"><div class="qt">关键在于难度会均值回归：一次答错不会让卡片永远被判定为「难」，连续答对几次后 D 会回落，间隔增长随之恢复。</div>
+      <div class="qs"><i data-lucide="message-square-quote"></i><span class="src">SM-2 与 FSRS 复习策略对比</span><span>· 第 2 轮 · Claude Sonnet 5 · 11-12</span></div></div>
+  </div>
+
+  <h2>样板间</h2>
+  <div class="grid">
+    <a class="plan" href="insert.html"><h3><i data-lucide="text-quote"></i>插入引用</h3><p>整轮引用 · 选中一句 · [[ 搜对话 · 粘贴链接 · 插入结果</p></a>
+    <a class="plan" href="read.html"><h3><i data-lucide="message-square-quote"></i>阅读与跳转</h3><p>悬停预览 · 摘录块悬停 · 侧栏定位 · 在其他分支 · 对话已删</p></a>
+  </div>
+
+  <h2>你的两个问题</h2>
+  <div class="box qs2">
+    <div><b>要不要在对话里放一个「复制对话链接」按钮？</b>
+      <small>要有入口，但不建议做成单独的「复制链接」。消息悬停操作里加一个「引用」按钮（排在复制后面），点开是小菜单：第一项「插入到〈当前文档〉」，停靠栏和正文并排时一步到位；第二项「复制引用链接」。复制链接是兜底通道：跨窗口、先存着稍后再贴、贴到 Markdown 窗口或外部应用。只给复制链接的话，最常见的「旁边就开着文档」场景要多走一步切窗口、找光标、粘贴。</small></div>
+    <div><b>正文里怎么插入？</b>
+      <small>四个入口，最后落到同两种节点：<br/>① 对话消息「引用」→ 插到当前文档光标处（行内引用，可选摘录块）；<br/>② 选中回答里的一句 → 浮条「引用到正文」（摘录块，带原句定位）；<br/>③ 正文里打 <code>[[</code> → 现有引用面板加「对话」标签，搜标题 / 提问 / 回答，→ 展开到轮次；<br/>④ 粘贴 <code>tau://chat/…</code> 链接 → 自动认成引用，给「粘贴为 行内引用 / 摘录块 / 普通链接」。</small></div>
+  </div>
+
+  <h2>交互约定</h2>
+  <table>
+    <tr><th>场景</th><th>行为</th></tr>
+    <tr><td>悬停行内引用</td><td>450ms 出预览卡（同 [[ 内容引用），显示该轮提问 + 回答，引用段高亮；离开有宽限可移进卡片</td></tr>
+    <tr><td>点击</td><td>编辑态单击放光标、⌘ 点击打开；只读态单击打开。打开 = 停靠栏切到该会话并滚到该轮，闪一下；不进页面栈</td></tr>
+    <tr><td>预览卡按钮</td><td>在侧栏打开 · 对话页（完整页面，<code>chat</code> 页已有 <code>entry</code> 参数） · 复制引用链接 · 更多（改为摘录块 / 移除）</td></tr>
+    <tr><td>目标在其他分支</td><td>沿用 <code>useChatEntryLocation</code>：只提示「这一轮在另一个分支上」+「切到该分支」，不自动切（切换会写回会话）</td></tr>
+    <tr><td>对话被删 / 该轮被删</td><td>行内引用变灰删除线（同 [[ 失效）；摘录块保留原文，来源行标「对话已删除」</td></tr>
+    <tr><td>协作者 / 发布页</td><td>对方本机没有这段对话：行内引用显示为不可点的出处文字；摘录块原样显示原文与来源行</td></tr>
+    <tr><td>导出 Markdown</td><td>行内 → <code>[标题 · 第 2 轮](tau://chat/…)</code>；摘录块 → 引用块 <code>&gt; 原文</code> + 一行来源</td></tr>
+  </table>
+
+  <h2>模块方案</h2>
+  <p>做成内置插件 <code>core.chat-ref</code>（不可卸载、默认启用），但它需要的两个挂载点是通用的，内置与外部插件同一机制。</p>
+  <table>
+    <tr><th>模块</th><th>位置</th><th>职责</th></tr>
+    <tr><td>编辑器扩展</td><td><code>chat-ref</code> 行内 void + <code>chat-quote</code> 块</td><td>节点模型、渲染、悬停预览、粘贴识别、Markdown codec。结构照抄 <code>editor-extensions/content-link</code></td></tr>
+    <tr><td>对话消息操作（新挂载点）</td><td><code>MessageView.renderExtraActions</code> 已有，缺插件接口</td><td>注册「引用」按钮与选区浮条项；宿主告诉插件「当前有没有可插入的正文编辑器」</td></tr>
+    <tr><td>[[ 面板来源（新挂载点）</td><td><code>MentionPanel</code> 现在只搜内容</td><td>面板支持多来源标签；对话来源提供搜索与「展开到轮次」</td></tr>
+    <tr><td>主进程查询</td><td>pi 会话模块</td><td>按 <code>sessionId + entryId</code> 取一轮（问 + 答 + 所在分支）；按关键词搜会话轮次</td></tr>
+    <tr><td>打开定位</td><td><code>openChatInDock(sessionId)</code> 加 <code>entry</code></td><td>停靠栏复用对话页现有的 entry 定位逻辑</td></tr>
+  </table>
+
+  <h2>数据与链接</h2>
+  <div class="grid">
+<pre class="snip"><span class="c">// 行内：只存指针 + 显示用快照</span>
+interface ChatRefElement {
+  type: "chat-ref";
+  sessionId: string;   <span class="c">// pi 会话 id</span>
+  entryId?: string;    <span class="c">// 该轮用户消息的 entry；缺省 = 整个对话</span>
+  title: string;       <span class="c">// 插入时的会话标题，失效/协作时显示</span>
+  turn?: number;       <span class="c">// 第几轮，只用于显示</span>
+}
+
+<span class="c">// 摘录块：原文是正文的一部分</span>
+interface ChatQuoteElement {
+  type: "chat-quote";
+  sessionId: string; entryId: string;
+  text: string;                    <span class="c">// 引用原文</span>
+  prefix?: string; suffix?: string; <span class="c">// 前后各 ~32 字，跳转时找回这一句</span>
+  ask?: string;                    <span class="c">// 可选：连同提问一起摘</span>
+  title: string; model?: string; time: number;
+}</pre>
+<pre class="snip"><span class="c">// 链接：tau 协议已注册，正文内 / 外部都能打开</span>
+tau://chat/&lt;sessionId&gt;?entry=&lt;entryId&gt;
+
+<span class="c">// 复制时剪贴板同时写三份</span>
+text/plain   → 链接
+text/html    → &lt;a href="tau://…"&gt;标题 · 第 2 轮&lt;/a&gt;
+application/x-tau-chat-ref → JSON（含选区原文/前后文）
+
+<span class="c">// 打开</span>
+openChatRef(ref):
+  turn = rpc.chatTurn(ref.sessionId, ref.entryId)
+  if !turn: toast("对话已删除")；return
+  openChatInDock(ref.sessionId, { entry: ref.entryId })
+  <span class="c">// 停靠栏内：在当前分支→滚动+闪烁+高亮原句</span>
+  <span class="c">//           在其他分支→提示「切到该分支」</span></pre>
+  </div>
+
+  <h2>流程</h2>
+  <div class="box" style="font-size:12.5px;line-height:2">
+    <b>插入</b>：对话「引用」/ 选区浮条 / [[ 面板 / 粘贴链接 → 生成 ChatRef 载荷 →
+    <i>有正文编辑器在焦点链上？</i> 是 → 插到光标（行内或摘录块，一次撤销）；否 → 写剪贴板 + toast「已复制引用链接」<br/>
+    <b>阅读</b>：悬停 → 主进程取该轮 → <i>存在？</i> 是 → 预览卡；否 → 失效样式 · 点击 → 停靠栏打开会话 → <i>在当前分支？</i> 是 → 定位闪烁；否 → 提示切分支
+  </div>
+
+  <h2>待你拍板</h2>
+  <div class="box qs2">
+    <div><b>1. 插件形态</b><small>A 内置插件 <code>core.chat-ref</code> + 补两个通用挂载点（消息操作、[[ 来源）<span class="rec">推荐</span>；B 宿主内置扩展（和 content-link 一样直接写在 <code>editor-extensions/</code>），更快但不经插件机制。</small></div>
+    <div><b>2. 选中一句的默认形态</b><small>摘录块（推荐，引文就是重点）还是行内引用？</small></div>
+    <div><b>3. 反向引用「被 N 篇引用」</b><small>要在对话里显示哪篇文档引用了这一轮，需要一张引用索引表（保存时维护，同 content_links）。一期做还是先不做？</small></div>
+    <div><b>4. 范围</b><small>停靠栏现在只承载主对话。PDF / 视频笔记 / 学习项目里的对话一期是否支持被引用？支持的话这些会打开到各自页面而不是停靠栏。</small></div>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

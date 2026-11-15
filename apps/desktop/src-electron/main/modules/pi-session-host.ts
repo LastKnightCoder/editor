@@ -40,6 +40,7 @@ import {
   readTranscript,
   type SessionEdit,
 } from "./pi-session-store";
+import { readConversationTurn } from "./pi-conversation-turn-client";
 import mainContentIndexDBManager from "./main-content-index-db";
 import { installDatabaseDownload } from "./database-download";
 import {
@@ -522,6 +523,15 @@ class PiSessionHostModule {
             : readConversationTree(file, sessionDir),
         };
       })
+    );
+    // 正文引用的一轮：沿该轮所在分支读（不在当前分支也能读），已删除返回 turn: null
+    ipcMain.handle(
+      "pi-session:turn",
+      async (_event, payload: { location: PiSessionLocation; entryId: string }) =>
+        PiSessionHostModule.guard(async () => {
+          const { file } = await PiSessionHostModule.locate(payload.location);
+          return { turn: await readConversationTurn(file, payload.entryId) };
+        })
     );
     // 改会话树（M4-d）：编辑重发/重新生成 = 回退，从这里建分支 = 分叉，切版本，删除 = 省略。
     // 宿主开着这个文件时直接在它的 SessionManager 上改（两个 SessionManager 同时写一个文件会互相

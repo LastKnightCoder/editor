@@ -99,12 +99,15 @@ const ChatArea = memo(
       const chatContainerRef = useRef<ChatContainerHandle>(null);
 
       // 当前对话由页面参数驱动；列表由应用启动时加载（主聊天）
-      const { rows, currentChat, newChat, rename, remove } = useScopedChat(MAIN_CHAT_BUCKET, {
-        draftSlot,
-        selectedId: selectedChatId,
-        onSelect: onSelectChat,
-        autoLoad: false,
-      });
+      const { rows, currentChat, transcriptReady, newChat, rename, remove } = useScopedChat(
+        MAIN_CHAT_BUCKET,
+        {
+          draftSlot,
+          selectedId: selectedChatId,
+          onSelect: onSelectChat,
+          autoLoad: false,
+        }
+      );
 
       const onTitleChange = useMemoizedFn(async (title: string) => {
         try {
@@ -177,6 +180,7 @@ const ChatArea = memo(
                   ref={chatContainerRef}
                   currentChat={currentChat}
                   entry={entry}
+                  transcriptReady={transcriptReady}
                   onEntryLocated={onEntryLocated}
                   isDark={isDark}
                   markdownComponents={markdownComponents}

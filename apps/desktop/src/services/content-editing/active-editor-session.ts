@@ -1,8 +1,10 @@
-import { Descendant, Range } from "slate";
+import { Descendant, Range, type Editor } from "slate";
 import type { ActiveEditingSession, EntityType, SerializedSelection } from "./types";
 import { createContentSnapshot } from "./snapshot";
 
 const sessions = new Map<string, ActiveEditingSession>();
+/** 会话对应的编辑器实例：只给本窗口内的插入操作用（如对话「引用」插到正文），不进快照 */
+const editors = new Map<string, Editor>();
 
 const toSerializedSelection = (selection: Range | null): SerializedSelection | null => {
   if (!selection) return null;
@@ -53,6 +55,31 @@ export const upsertActiveEditingSession = (payload: {
 
 export const removeActiveEditingSession = (sessionId: string) => {
   sessions.delete(sessionId);
+  editors.delete(sessionId);
+};
+
+export const bindActiveEditingSessionEditor = (sessionId: string, editor: Editor | null) => {
+  if (editor && sessions.has(sessionId)) editors.set(sessionId, editor);
+  else editors.delete(sessionId);
+};
+
+/** 最近聚焦（其次最近改动）的可写正文：会话与编辑器实例一起返回，没有则 null */
+export const getActiveEditingTarget = (): {
+  session: ActiveEditingSession;
+  editor: Editor;
+} | null => {
+  let best: { session: ActiveEditingSession; editor: Editor } | null = null;
+  for (const session of sessions.values()) {
+    const editor = editors.get(session.id);
+    if (!editor) continue;
+    if (
+      !best ||
+      session.focusedAt > best.session.focusedAt ||
+      (session.focusedAt === best.session.focusedAt && session.updatedAt > best.session.updatedAt)
+    )
+      best = { session, editor };
+  }
+  return best;
 };
 
 export const updateActiveEditingSessionContent = (sessionId: string, content: Descendant[]) => {

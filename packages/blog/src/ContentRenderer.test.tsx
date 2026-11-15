@@ -103,6 +103,42 @@ const link = (contentType: string, refId: number, text: string): ContentNode => 
   children: [{ type: "formatted", text }],
 });
 
+it("发布正文保留对话引用与摘录，显示原文及出处", async () => {
+  setup();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const content = result(7);
+  content.data.pluginRenderers = [];
+  const source = {
+    sessionId: "local-chat",
+    entryId: "turn-3",
+    title: "对话标题",
+    turn: 3,
+    children: [{ type: "formatted", text: "" }],
+  };
+  const nodes = [
+    paragraph({ ...source, type: "chat-ref" }),
+    { ...source, type: "chat-quote", quoteText: "两行\n原文", model: "模型" },
+  ];
+  try {
+    await act(async () => root.render(<ContentRenderer content={content} nodes={nodes} />));
+    await vi.waitFor(() => {
+      expect(container.querySelector("blockquote p")?.textContent).toBe("两行\n原文");
+      expect(container.querySelector("blockquote footer")?.textContent).toContain(
+        "对话标题 · 第 3 轮 · 模型"
+      );
+    });
+    expect(container.querySelector("p:not(blockquote p)")?.textContent).toContain(
+      "对话标题 · 第 3 轮"
+    );
+    expect(container.querySelector("a")).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it("项目文档列表使用共用卡片布局，标题、摘要与卡片整体指向对应文档", async () => {
   setup();
   const container = document.createElement("div");

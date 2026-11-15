@@ -65,6 +65,7 @@ import { ConversationTreePanel } from "@/features/chat/components/ConversationTr
 import { conversationEntryTail, type ConversationTreeRow } from "@/features/chat/conversationTree";
 import { piSessionTree } from "@/commands/piSession";
 import { useChatEntryLocation } from "./useChatEntryLocation";
+import type { ChatRefPayload } from "@/editor-extensions/chat-ref/types";
 import {
   COMPOSER_ANCHOR_ATTR,
   type ChatMessageType as CoreChatMessageType,
@@ -154,6 +155,34 @@ const userEntryIdAt = (messages: ChatMessage["messages"], index: number): string
   return target?.role === Role.User ? target.piEntryIds?.[0] : undefined;
 };
 
+/**
+ * 一条消息所在那一轮的引用载荷（被正文引用时用）：定位到这一轮的用户消息，回答的模型一并带上。
+ * 还没落盘（没有 entry id）的消息不能引用。
+ */
+const chatRefPayloadAt = (
+  chat: ChatMessage,
+  messages: ChatMessage["messages"],
+  index: number
+): ChatRefPayload | null => {
+  let userIndex = index;
+  while (userIndex >= 0 && messages[userIndex]?.role !== Role.User) userIndex -= 1;
+  const entryId = userEntryIdAt(messages, userIndex);
+  if (!entryId) return null;
+  const turn = messages
+    .slice(0, userIndex + 1)
+    .filter(message => message.role === Role.User).length;
+  const answer = messages[userIndex + 1];
+  const usage =
+    answer && answer.role === Role.Assistant ? (answer as ResponseMessage).usage : undefined;
+  return {
+    sessionId: chat.id,
+    entryId,
+    title: chat.title,
+    turn,
+    ...(usage?.modelName || usage?.modelId ? { model: usage.modelName || usage.modelId } : {}),
+  };
+};
+
 /** 用户消息 → 展示 entry 载荷（文件卡片、mention、skills 原样保留，重开对话照原样显示） */
 const toPromptDisplay = (message: RequestMessage): PiPromptDisplay | undefined => {
   const content =
@@ -176,6 +205,8 @@ interface HiddenPromptContextState {
 
 interface ChatContainerProps {
   entry?: string;
+  entryRequestId?: number;
+  transcriptReady?: boolean;
   onEntryLocated?: () => void;
   /** 当前对话（统一会话 store 里已打开的对话；新对话是草稿：真 id、尚无 sessionFile） */
   currentChat: ChatMessage;
@@ -224,6 +255,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     {
       currentChat,
       entry,
+      entryRequestId,
+      transcriptReady = true,
       onEntryLocated,
       isDark,
       markdownComponents,
@@ -970,6 +1003,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       messages: visibleMessages,
     });
     const [treeOpen, setTreeOpen] = useState(false);
+    // 按 entry 定位到的那条消息短暂铺底，读者能看出落在哪一轮
+    const [locatedIndex, setLocatedIndex] = useState<number | null>(null);
+    useEffect(() => {
+      if (locatedIndex === null) return;
+      const timer = window.setTimeout(() => setLocatedIndex(null), 1400);
+      return () => window.clearTimeout(timer);
+    }, [locatedIndex]);
 
     const contextUsage = useMemo(() => {
       return latestContextUsage(
@@ -1026,6 +1066,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     // 初始加载时恢复滚动位置；没有历史位置时才滚动到底部
     useEffect(() => {
+      if (entry) {
+        hasRestoredScrollPositionRef.current = true;
+        return;
+      }
       const key = getScrollPositionKey(currentChat.id);
       const savedAnchor = key !== null ? CHAT_SCROLL_POSITION_CACHE.get(key) : undefined;
 
@@ -1072,6 +1116,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [
       currentChat.id,
+      entry,
       enableAutoScroll,
       forceScrollToBottom,
       getScrollPositionKey,
@@ -1081,19 +1126,23 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       visibleMessages.length,
     ]);
 
+    const hasEntryLocation = useMemoizedFn(() => Boolean(entry));
     // 在消息列表变化时滚动到底部（仅在自动滚动启用时）
     useEffect(() => {
-      if (visibleMessages.length > 0) {
-        setTimeout(() => {
+      if (!hasEntryLocation() && visibleMessages.length > 0) {
+        const timer = setTimeout(() => {
+          if (hasEntryLocation()) return;
           if (sendLoading || lastVisibleMessageRole === Role.User) {
             forceScrollToBottomSoon();
             return;
           }
           scrollToBottom();
         }, 0);
+        return () => clearTimeout(timer);
       }
     }, [
       forceScrollToBottomSoon,
+      hasEntryLocation,
       lastVisibleMessageRole,
       scrollToBottom,
       sendLoading,
@@ -1102,13 +1151,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     // 监听消息内容变化（仅在自动滚动启用时）
     useEffect(() => {
-      if (visibleMessages.length > 0) {
+      if (!hasEntryLocation() && visibleMessages.length > 0) {
         const lastMessage = visibleMessages[visibleMessages.length - 1];
         if (lastMessage && lastMessage.role === Role.Assistant) {
           scrollToBottom();
         }
       }
-    }, [visibleMessages, scrollToBottom]);
+    }, [hasEntryLocation, visibleMessages, scrollToBottom]);
 
     const sendMessageContent = useMemoizedFn(
       async (
@@ -1395,6 +1444,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }, 0);
     });
 
+    const getChatRefAt = useMemoizedFn((messageIndex: number) =>
+      chatRefPayloadAt(actualChatRef.current, visibleMessages, messageIndex)
+    );
+
     /**
      * 从这里建分支（M4-d）：回到这条回答之后，之后的对话留在树上成为另一个版本；
      * 接下来发送的消息就是新分支，可以在那条用户消息上 ‹ i/n › 切回去。
@@ -1486,6 +1539,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     useChatEntryLocation({
       sessionKey,
       entry,
+      requestId: entryRequestId,
+      ready: transcriptReady && actualChatRef.current === currentChat,
       visible: isVisible,
       busy: sendLoading,
       messages: visibleMessages,
@@ -1496,9 +1551,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           sessionFile: chat.sessionFile,
           databaseName: chat.databaseName,
         });
-        return result.ok ? conversationEntryTail(result.nodes ?? [], target) : null;
+        if (!result.ok) throw new Error(result.error || "读取对话分支失败");
+        return conversationEntryTail(result.nodes ?? [], target);
       },
-      scrollTo: index => coreRef.current?.scrollToIndex(index, { align: "start" }),
+      scrollTo: index => {
+        setAutoScrollEnabled(false);
+        coreRef.current?.scrollToIndex(index, { align: "start" });
+        setLocatedIndex(index);
+      },
       onElsewhere: reason =>
         reason === "other-branch"
           ? message.info("这条消息在对话的另一个分支，可在对话树里切换过去")
@@ -1847,8 +1907,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   <div
                     key={`${item.role}-${messageIndex}`}
                     className={cn(
-                      "pb-2",
-                      messageIndex === 0 ? (compact ? "pt-3" : "pt-6") : "pt-2"
+                      "rounded-tau-md ease-tau-out -mx-2 px-2 pb-2 transition-colors duration-700",
+                      messageIndex === 0 ? (compact ? "pt-3" : "pt-6") : "pt-2",
+                      (locatedIndex === messageIndex || locatedIndex === messageIndex - 1) &&
+                        "bg-accent-soft"
                     )}
                   >
                     <MessageItem
@@ -1873,6 +1935,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       onCreateBranch={handleCreateBranch}
                       {...(PLUGIN_CHAT_SCOPES.has(chatScope)
                         ? { pluginSessionId: actualChatRef.current.id }
+                        : {})}
+                      {...(chatScope === "main-chat" && actualChatRef.current.sessionFile
+                        ? { getChatRef: getChatRefAt }
                         : {})}
                       {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
                       messageMeta={{

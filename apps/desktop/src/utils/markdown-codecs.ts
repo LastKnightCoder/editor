@@ -33,6 +33,34 @@ const contentLinkSerializer: Serializer = {
   }),
 };
 
+const quoteAttr = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/\\/g, "&#92;").replace(/"/g, "&quot;");
+const escapeBrackets = (value: string) => value.replace(/([\\[\]])/g, "\\$1");
+const chatRefLabel = (element: Record<string, unknown>) =>
+  `${String(element.title || "无标题对话")}${element.turn ? ` · 第 ${element.turn} 轮` : ""}`;
+
+// 行内聊天引用：标签是出处文字，属性带定位；导入经 markdown-directives 的 chat-ref 还原
+const chatRefSerializer: Serializer = {
+  toMarkdown: element => {
+    const attributes = [`session="${quoteAttr(String(element.sessionId ?? ""))}"`];
+    if (element.entryId) attributes.push(`entry="${quoteAttr(String(element.entryId))}"`);
+    if (element.title) attributes.push(`title="${quoteAttr(String(element.title))}"`);
+    if (element.turn) attributes.push(`turn=${element.turn}`);
+    return `:chat-ref[${escapeBrackets(chatRefLabel(element))}]{${attributes.join(" ")}}`;
+  },
+};
+
+// 对话摘录：导出为引用块 + 来源行，可读优先；导入不反向识别，按普通引用块处理
+const chatQuoteSerializer: Serializer = {
+  isBlock: true,
+  toMarkdown: element => {
+    const lines = String(element.quoteText ?? "")
+      .split("\n")
+      .map(line => `> ${line}`.trimEnd());
+    return [...lines, ">", `> —— ${chatRefLabel(element)}`].join("\n");
+  },
+};
+
 const fileAttachmentSerializer: Serializer = {
   isBlock: true,
   toMarkdown: element => {
@@ -70,6 +98,18 @@ export const desktopMarkdownCodecs: MarkdownCodec[] = [
     serializer: contentLinkSerializer,
     inlineWrapperDirective: "content-link",
   },
+  {
+    type: "chat-ref",
+    directives: pickDirectives("chat-ref"),
+    serializer: chatRefSerializer,
+    isVoid: true,
+    // 指令标签供 Markdown 阅读，Slate 的 void 节点只保留空叶子。
+    normalize: element =>
+      element.children.length > 1
+        ? [{ ...element, children: [{ type: "formatted", text: "" }] }]
+        : null,
+  },
+  { type: "chat-quote", serializer: chatQuoteSerializer, isVoid: true },
   {
     type: "file-attachment",
     directives: pickDirectives("file-attachment"),

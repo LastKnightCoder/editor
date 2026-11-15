@@ -1,4 +1,5 @@
 import type { ContentLinkElement } from "./content-link/types";
+import type { ChatQuoteElement, ChatRefElement } from "./chat-ref/types";
 import type { SkillRefElement } from "./skill-ref/types";
 import type { DatabaseElement } from "./database/types";
 import type { FileAttachmentElement } from "./file-attachment/types";
@@ -13,6 +14,8 @@ import type {} from "@tau/editor/api";
 declare module "@tau/editor/api" {
   interface ExtensionElementMap {
     "content-link": ContentLinkElement;
+    "chat-ref": ChatRefElement;
+    "chat-quote": ChatQuoteElement;
     "skill-ref": SkillRefElement;
     "file-attachment": FileAttachmentElement;
     "project-card-list": ProjectCardListElement;
@@ -26,6 +29,7 @@ declare module "@tau/editor/api" {
 
   interface ExtensionInlineElementMap {
     "content-link": ContentLinkElement;
+    "chat-ref": ChatRefElement;
     "skill-ref": SkillRefElement;
     "flashcard-blank": FlashcardBlankElement;
     "video-timestamp": VideoTimestampElement;

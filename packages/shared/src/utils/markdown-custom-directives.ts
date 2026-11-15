@@ -36,6 +36,17 @@ export const markdownCustomDirectives: Record<
       children: [{ type: "formatted", text: "" }],
     } as unknown as Descendant;
   },
+  "chat-ref": attributes => {
+    const turn = parseInt(attributes.turn || "", 10);
+    return {
+      type: "chat-ref",
+      sessionId: attributes.session || "",
+      ...(attributes.entry ? { entryId: attributes.entry } : {}),
+      title: attributes.title || "",
+      ...(turn > 0 ? { turn } : {}),
+      children: [{ type: "formatted", text: "" }],
+    } as unknown as Descendant;
+  },
   time: attributes => {
     return {
       type: "summary-timestamp",

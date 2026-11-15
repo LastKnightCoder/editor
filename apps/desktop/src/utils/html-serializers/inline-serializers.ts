@@ -119,6 +119,16 @@ export const inlineSerializers: HtmlSerializer[] = [
   },
 
   {
+    type: "chat-ref",
+    isBlock: false,
+    toHtml: element => {
+      const label = `${element.title || "无标题对话"}${element.turn ? ` · 第 ${element.turn} 轮` : ""}`;
+      const escaped = label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return `<span class="chat-ref">${escaped}</span>`;
+    },
+  },
+
+  {
     type: "content-link",
     isBlock: false,
     toHtml: (_element, childrenHtml) => {

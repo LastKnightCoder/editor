@@ -108,7 +108,8 @@ export interface PiPromptRetry {
  * （目录由主进程按页面哈希算出，文件按 id 查找，外部输入不拼进路径）。
  */
 export type PiSessionLocation =
-  { sessionFile: string; databaseName?: string } | { pageUrl: string; sessionId: string };
+  | { sessionFile: string; databaseName?: string }
+  | { pageUrl: string; sessionId: string };
 
 /**
  * 树谱视图的一个节点（M4-d）：一条用户消息，回答折叠进去。父 = 上一条用户消息（根上为 null），
@@ -123,6 +124,23 @@ export interface ConversationTreeNode {
   time: number;
   onPath: boolean;
   omitted: boolean;
+}
+
+/** 对话里的一轮（被正文引用时的预览与定位）：一条用户消息及其后的回答 */
+export interface ChatConversationTurn {
+  entryId: string;
+  /** 沿这一轮所在分支数的第几轮（从 1 起） */
+  turn: number;
+  /** 这条分支共几轮 */
+  turns: number;
+  ask: string;
+  /** 回答的正文文本（Markdown）；还没回答时为空 */
+  answer: string;
+  model?: string;
+  /** 最后活动时间（毫秒） */
+  time: number;
+  /** 是否在对话当前分支上 */
+  onPath: boolean;
 }
 
 /** 浏览器扩展的一个对话（直接取自 pi 会话文件，无目录表） */

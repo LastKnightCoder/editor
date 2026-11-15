@@ -95,6 +95,8 @@ export default defineConfig(() => {
             "publish-generator-worker": "src-electron/main/workers/publish-generator.worker.ts",
             // 知识地图离线计算（向量近邻 + 主题划分 + 布局）跑在 worker_threads 里（modules/knowledge-map-builder）
             "knowledge-map-worker": "src-electron/main/workers/knowledge-map.worker.ts",
+            "pi-conversation-turn-worker":
+              "src-electron/main/workers/pi-conversation-turn.worker.ts",
             "local-inference-worker": "src-electron/main/workers/local-inference.worker.ts",
             "plugin-backend-worker": "src-electron/main/workers/plugin-backend.worker.ts",
           },

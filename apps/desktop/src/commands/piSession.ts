@@ -4,9 +4,11 @@
  * 工具桥：主进程 pi-tool-call 事件 → 渲染端执行 → pi-session:tool-* 回传。
  */
 import { invoke, on, off } from "@/electron";
+import { withModule } from "./module-init";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
 import type {
+  ChatConversationTurn,
   ConversationTreeNode,
   PiHostToolCallResult,
   PiHostToolSpec,
@@ -135,6 +137,14 @@ export function piSessionEdit(
   edit: PiSessionEdit
 ): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
   return invoke("pi-session:edit", { location, edit });
+}
+
+/** 对话里的一轮（正文引用的预览）：不在当前分支也能读到；已删除时 turn 为 null */
+export function piSessionTurn(
+  location: PiSessionLocation,
+  entryId: string
+): Promise<Outcome & { turn?: ChatConversationTurn | null }> {
+  return withModule("pi-session", () => invoke("pi-session:turn", { location, entryId }));
 }
 
 /** 树谱视图（M4-d）：对话里全部用户消息组成的树（回答折叠），切换节点用 switch */

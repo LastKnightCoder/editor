@@ -71,6 +71,7 @@
 
 - [播客插件化](./tasks/podcast-pluginization/README.md)：生成播客抽成插件 `tau.podcast`，自带播客库页面并重做生成界面，进行中。
 - [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。
+- [聊天引用](./tasks/chat-ref/README.md)：正文里引用 AI 对话的某一轮或一句，悬停预览、停靠栏定位，进行中。
 - [网页书签块](./tasks/editor-bookmark.md)：编辑器块级网页书签（三种外观、粘贴菜单、封面存储），进行中。
 - [移动端 AI 基础能力](./tasks/mobile-ai-foundation/README.md)：公共会话 v3、移动无 UI 服务、原生网络存储、MCP/Skills 与聊天同步已接入，待实际存储插件往返及设备验收。
 

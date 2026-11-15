@@ -147,6 +147,17 @@ describe("打开时自愈", () => {
         ],
       },
     ],
+    异常对话摘录: () => [
+      {
+        type: "formatted",
+        collabId: "quote",
+        sessionId: "session",
+        entryId: "entry",
+        text: "保留的摘录",
+        title: "对话",
+        children: [text("")],
+      },
+    ],
   };
   for (const [name, shape] of Object.entries(shapes))
     it(`${name}：备份原文后修复落库，正常打开且文字不丢`, async () => {
@@ -173,6 +184,16 @@ describe("打开时自愈", () => {
           .all()
       ).toHaveLength(0);
       expect(ContentDocumentTable.problem(stored.content, stored.contracts)).toBeNull();
+      if (name === "异常对话摘录") {
+        expect(stored.content[0]).toMatchObject({
+          type: "chat-quote",
+          collabId: "quote",
+          sessionId: "session",
+          entryId: "entry",
+          quoteText: "保留的摘录",
+        });
+        expect(stored.content[0]).not.toHaveProperty("text");
+      }
       if (name !== "旧格式正文") expect(stored.documentId).toBe("doc-8");
       for (const word of JSON.stringify(shape(paragraph)).match(/"text":"([^"]+)"/g) ?? [])
         expect(JSON.stringify(stored.content)).toContain(word.replace(/"text":/, ""));

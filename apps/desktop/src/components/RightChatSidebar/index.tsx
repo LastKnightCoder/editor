@@ -20,6 +20,7 @@ import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import { WorkspaceBar } from "@/features/chat/components/WorkspaceBar";
+import { clearDockEntry, useDockEntryStore } from "@/features/chat/openInDock";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -55,12 +56,23 @@ export const RightChatPanel = memo(
     const setCurrentChatId = (id: string | null) => setCurrent(MAIN_CHAT_BUCKET, id);
 
     // 停靠栏与对话页同属主聊天（同一份目录），各自有自己的新对话草稿；列表由应用启动时加载
-    const { rows, currentChat, select, newChat, rename, remove } = useScopedChat(MAIN_CHAT_BUCKET, {
-      draftSlot: "dock",
-      selectedId: currentChatId,
-      onSelect: setCurrentChatId,
-      autoLoad: false,
-    });
+    const { rows, currentChat, transcriptReady, select, newChat, rename, remove } = useScopedChat(
+      MAIN_CHAT_BUCKET,
+      {
+        draftSlot: "dock",
+        selectedId: currentChatId,
+        onSelect: setCurrentChatId,
+        autoLoad: false,
+      }
+    );
+
+    // 正文引用跳来的一轮：只在它所属的会话已是当前会话时交给 ChatContainer 定位
+    const dockEntry = useDockEntryStore(state =>
+      state.intent?.sessionId === currentChat.id &&
+      state.intent.database === currentChat.databaseName
+        ? state.intent
+        : null
+    );
 
     const [sendLoading, setSendLoading] = useState(false);
     const startedChat = useChatStartConsumer("dock", {
@@ -136,6 +148,10 @@ export const RightChatPanel = memo(
               <ChatContainer
                 ref={chatContainerRef}
                 currentChat={currentChat}
+                entry={dockEntry?.entry}
+                entryRequestId={dockEntry?.requestId}
+                transcriptReady={transcriptReady}
+                onEntryLocated={dockEntry ? () => clearDockEntry(dockEntry) : undefined}
                 isDark={isDark}
                 markdownComponents={markdownComponents}
                 isVisible={open}

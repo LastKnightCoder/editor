@@ -20,6 +20,7 @@ import useCollaborationStore from "@/stores/useCollaborationStore";
 import useContentDocument, { useTransientContentDocument } from "@/hooks/useContentDocument";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import {
+  bindActiveEditingSessionEditor,
   createActiveEditingSessionId,
   removeActiveEditingSession,
   setActiveEditingSessionFocus,
@@ -273,6 +274,10 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
             props.onFocus?.();
             if (!editingSessionRef.current) return;
             setActiveEditingSessionFocus(editingSessionRef.current, true);
+            bindActiveEditingSessionEditor(
+              editingSessionRef.current,
+              editorReadonly ? null : (editorRef.current?.getEditor() ?? null)
+            );
             updateActiveEditingSessionSelection(
               editingSessionRef.current,
               editorRef.current?.getEditor().selection ?? null

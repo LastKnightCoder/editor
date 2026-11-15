@@ -23,6 +23,7 @@ import {
   writeSessionFile,
 } from "../pi-session-files";
 import { applySessionEdit, applySessionEditToFile } from "../pi-session-store";
+import { ConversationTurnReader } from "../pi-conversation-turn";
 import type { RequestMessage } from "@/types";
 
 /** 投影里第 n 条用户消息 / 回答带回的 entry id（界面按它们调改历史操作） */
@@ -360,6 +361,48 @@ describe("会话树（M4-d）", () => {
     expect(nodes.every(item => item.answered)).toBe(true);
     // 删除按当前路径判定
     expect(nodes.map(item => item.omitted)).toEqual([true, false, false]);
+  });
+
+  it("正文引用的一轮：不在当前分支也读得到那个分支的回答；删除后读不到", () => {
+    const sessionDir = setup();
+    const file = join(sessionDir, writeTwoTurns(sessionDir));
+    const [first, second] = [0, 1].map(index => userEntryId(file, sessionDir, index));
+    rewindToBeforeEntry(SessionManager.open(file), second);
+    appendTurn(file, "第二问（改）", "第二答（改）", 10);
+    const reader = new ConversationTurnReader();
+
+    const original = reader.read(file, second);
+    expect(original).toMatchObject({ turn: 2, ask: "第二问", answer: "第二答", onPath: false });
+    const edited = reader.read(file, userEntryId(file, sessionDir, 1));
+    expect(edited).toMatchObject({
+      turn: 2,
+      ask: "第二问（改）",
+      answer: "第二答（改）",
+      onPath: true,
+    });
+
+    omitEntries(SessionManager.open(file), [first]);
+    expect(reader.read(file, first)).toBeNull();
+    expect(reader.read(file, "missing")).toBeNull();
+  });
+
+  it("正文引用旧分支时选择该分支里最后写入的后代", () => {
+    const sessionDir = setup();
+    const file = join(sessionDir, writeTwoTurns(sessionDir));
+    const second = userEntryId(file, sessionDir, 1);
+    const secondAnswer = projected(file, sessionDir).at(-1)?.piEntryIds?.[0] ?? "";
+    appendTurn(file, "原第三问", "原第三答", 10);
+    const third = userEntryId(file, sessionDir, 2);
+    forkAfterEntry(SessionManager.open(file), secondAnswer);
+    appendTurn(file, "第三问的另一个版本", "另一答", 20);
+    switchToVersion(SessionManager.open(file), third);
+    appendTurn(file, "原分支继续", "第四答", 30);
+    const reader = new ConversationTurnReader();
+    expect(reader.read(file, second)).toMatchObject({ onPath: true, turns: 4 });
+
+    rewindToBeforeEntry(SessionManager.open(file), second);
+    appendTurn(file, "新的当前分支", "新答", 40);
+    expect(reader.read(file, second)).toMatchObject({ onPath: false, turns: 4, answer: "第二答" });
   });
 
   it("活会话上改树 + refreshContext：不重建会话，模型下一轮看到的是切换后的路径", async () => {

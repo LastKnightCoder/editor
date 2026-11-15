@@ -17,6 +17,8 @@ import {
 import { ToolCallBlock } from "@/components/ChatUI";
 import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
 import { PluginActionsMenu } from "@/app/plugins/action-menu";
+import { ChatRefMenu } from "@/editor-extensions/chat-ref/components/ChatRefMenu";
+import type { ChatRefPayload } from "@/editor-extensions/chat-ref/types";
 import { SubagentToolGroup } from "@/features/chat/components/subagents/SubagentToolGroup";
 import { isSubagentDispatch } from "@/features/chat/components/subagents/dispatch";
 import { IconButton } from "@tau/ui";
@@ -34,6 +36,8 @@ interface MessageItemProps {
   onCreateBranch?: (messageIndex: number) => void;
   /** 插件可见的对话里传会话 ID：消息动作行末尾出现插件对象动作的「⋯」 */
   pluginSessionId?: string;
+  /** 主对话里传：消息动作行出现「引用到正文」；返回 null 表示这条还没保存 */
+  getChatRef?: (messageIndex: number) => ChatRefPayload | null;
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
@@ -109,6 +113,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     onEditMessage,
     onCreateBranch,
     pluginSessionId,
+    getChatRef,
     onSwitchVersion,
     messageIndex,
     messageMeta,
@@ -171,29 +176,39 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     const messageIds = message.piEntryIds;
     const renderExtraActions = useMemo(
       () =>
-        pluginSessionId && messageIds?.length
+        (pluginSessionId && messageIds?.length) || getChatRef
           ? (text: string) => (
-              <PluginActionsMenu
-                target={{
-                  kind: "chat-message",
-                  session: { kind: "chat-session", id: pluginSessionId },
-                  messageIds,
-                  role: isUser ? "user" : "assistant",
-                  text,
-                }}
-                trigger={
-                  <IconButton
-                    aria-label="更多操作"
-                    title="更多操作"
-                    className="size-[26px] [&_svg]:size-3.5"
-                  >
-                    <MoreHorizontal strokeWidth={1.75} />
-                  </IconButton>
-                }
-              />
+              <>
+                {getChatRef && (
+                  <ChatRefMenu
+                    getPayload={() => getChatRef(messageIndex)}
+                    quoteText={isUser ? "" : text}
+                  />
+                )}
+                {pluginSessionId && messageIds?.length ? (
+                  <PluginActionsMenu
+                    target={{
+                      kind: "chat-message",
+                      session: { kind: "chat-session", id: pluginSessionId },
+                      messageIds,
+                      role: isUser ? "user" : "assistant",
+                      text,
+                    }}
+                    trigger={
+                      <IconButton
+                        aria-label="更多操作"
+                        title="更多操作"
+                        className="size-[26px] [&_svg]:size-3.5"
+                      >
+                        <MoreHorizontal strokeWidth={1.75} />
+                      </IconButton>
+                    }
+                  />
+                ) : null}
+              </>
             )
           : undefined,
-      [pluginSessionId, messageIds, isUser]
+      [pluginSessionId, messageIds, isUser, getChatRef, messageIndex]
     );
 
     const renderToolCall = useCallback(

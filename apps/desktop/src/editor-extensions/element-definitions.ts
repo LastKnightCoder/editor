@@ -11,6 +11,20 @@ export const contentLinkElementDefinition = {
   kind: "inline",
 } as const satisfies ElementContractDefinition;
 
+export const chatRefElementDefinition = {
+  type: "chat-ref",
+  dataVersion: 1,
+  kind: "inline",
+  isVoid: true,
+} as const satisfies ElementContractDefinition;
+
+export const chatQuoteElementDefinition = {
+  type: "chat-quote",
+  dataVersion: 1,
+  kind: "block",
+  isVoid: true,
+} as const satisfies ElementContractDefinition;
+
 export const fileAttachmentElementDefinition = {
   type: "file-attachment",
   dataVersion: 1,
@@ -57,6 +71,7 @@ export const projectCardListElementDefinition = {
 /** 按扩展 id 分组：id 即契约 owner，须与对应 defineExtension 的 id 一致 */
 export const hostElementGroups = [
   { id: "host.content-link", elements: [contentLinkElementDefinition] },
+  { id: "host.chat-ref", elements: [chatRefElementDefinition, chatQuoteElementDefinition] },
   { id: "host.file-attachment", elements: [fileAttachmentElementDefinition] },
   { id: "host.skill-ref", elements: [skillRefElementDefinition] },
   { id: "host.summary-timestamp", elements: [summaryTimestampElementDefinition] },

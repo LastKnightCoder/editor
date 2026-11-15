@@ -38,8 +38,10 @@ export const updateChatSession = (
 export const deleteChatSession = (id: string, databaseName = getChatDatabase()): Promise<void> =>
   commands(databaseName).invoke("chat-session:delete", id);
 
-export const getChatSession = (id: string): Promise<ChatSessionRow | null> =>
-  commands(getChatDatabase()).invoke("chat-session:get", id);
+export const getChatSession = (
+  id: string,
+  databaseName = getChatDatabase()
+): Promise<ChatSessionRow | null> => commands(databaseName).invoke("chat-session:get", id);
 
 export const listChatSessions = (filter?: ChatSessionListFilter): Promise<ChatSessionRow[]> =>
   commands(getChatDatabase()).invoke("chat-session:list", filter);

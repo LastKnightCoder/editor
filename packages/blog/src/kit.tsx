@@ -14,6 +14,7 @@ import {
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { AudioPlayer, VideoPlayer } from "@tau/editor/extensions/media/players";
 import { contentLinkExtension } from "./contentLink";
+import { chatRefExtension } from "./chatRef";
 import { projectCardListExtension } from "./projectCardList";
 
 const notice: CSSProperties = {
@@ -47,6 +48,7 @@ export function publishedKit(settings?: PublishSettings): EditorKit {
         previewMenuExtension,
         webviewExtension,
         contentLinkExtension,
+        chatRefExtension,
         projectCardListExtension,
         ...createImageExtensions({ appearance }),
       ],

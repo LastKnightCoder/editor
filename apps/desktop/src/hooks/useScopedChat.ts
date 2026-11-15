@@ -122,6 +122,7 @@ export function useScopedChat(bucket: ChatBucketRef, options: UseScopedChatOptio
     status,
     loaded,
     currentChat,
+    transcriptReady: Boolean(opened),
     select,
     newChat,
     rename,

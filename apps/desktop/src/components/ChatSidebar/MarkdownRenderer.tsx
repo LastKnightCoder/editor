@@ -5,6 +5,7 @@ import { cn } from "@tau/ui";
 import { DOCUMENT_REFERENCE_CLASS, markdownTypographyComponents } from "@tau/chat-ui";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
@@ -30,6 +31,7 @@ import { locatesSection } from "@/entity/section-location";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import { MARKDOWN_BLOCK_CODE_ATTRIBUTE, MARKDOWN_BLOCK_CODE_VALUE } from "./codeBlockUtils";
+import { rehypeHighlightText } from "./rehypeHighlightText";
 
 /* 对话正文排版取自 @tau/chat-ui 的 markdownTypographyComponents，这里只覆盖代码块、文档引用与图片。 */
 
@@ -110,10 +112,11 @@ interface MarkdownRendererProps {
   markdownComponents: any;
   shouldRender: boolean;
   messageMeta?: MarkdownMessageMeta;
+  highlightText?: string;
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
-  ({ content, className, markdownComponents, shouldRender, messageMeta }) => {
+  ({ content, className, markdownComponents, shouldRender, messageMeta, highlightText }) => {
     const baseContext = useMarkdownContext();
     const { cache, isVisible } = baseContext;
 
@@ -201,7 +204,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
     // 生成缓存键
     const metaKey = `${messageMeta?.chatId ?? "none"}-${messageMeta?.messageIndex ?? "none"}-${messageMeta?.blockIndex ?? "none"}-${messageMeta?.isStreaming ?? false}`;
-    const cacheKey = `${componentsVersion}-${metaKey}-${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;
+    const highlightKey = highlightText ? `${JSON.stringify(highlightText)}-` : "";
+    const cacheKey = `${highlightKey}${componentsVersion}-${metaKey}-${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;
 
     // 使用useMemo来缓存渲染结果
     const renderedContent = useMemo(() => {
@@ -219,7 +223,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           <ReactMarkdown
             className={className}
             remarkPlugins={remarkPlugins}
-            rehypePlugins={rehypePlugins}
+            rehypePlugins={
+              highlightText
+                ? [[rehypeHighlightText, highlightText], ...rehypePlugins]
+                : rehypePlugins
+            }
             components={customComponents}
           >
             {content}
@@ -229,7 +237,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
       cache.set(cacheKey, newRenderedContent);
       return newRenderedContent;
-    }, [content, className, customComponents, cacheKey, cache, baseContext, messageMeta]);
+    }, [
+      content,
+      className,
+      customComponents,
+      cacheKey,
+      cache,
+      baseContext,
+      messageMeta,
+      highlightText,
+    ]);
 
     // 如果侧边栏关闭或不应该渲染，则直接返回null
     if (!isVisible || !shouldRender) return null;

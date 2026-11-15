@@ -81,3 +81,21 @@ it("运行中等待；隐藏页面后忽略迟到的查找", async () => {
   await act(async () => resolve("b-tail"));
   expect(options.onElsewhere).not.toHaveBeenCalled();
 });
+
+it("等待历史加载，且同一轮的新定位请求仍会滚动", async () => {
+  options.ready = false;
+  options.messages = [];
+  options.requestId = 1;
+  await render();
+  expect(options.findBranch).not.toHaveBeenCalled();
+  expect(options.onLocated).not.toHaveBeenCalled();
+
+  options.ready = true;
+  options.messages = [{ piEntryIds: ["a"] }, { piEntryIds: ["b"] }];
+  await render();
+  expect(options.scrollTo).toHaveBeenCalledWith(1);
+  options.requestId = 2;
+  await render();
+  expect(options.scrollTo).toHaveBeenCalledTimes(2);
+  expect(options.onElsewhere).not.toHaveBeenCalled();
+});

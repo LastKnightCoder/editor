@@ -1,0 +1,592 @@
+/* 聊天引用样板间 · 专属样式（视觉参考，非实现源）；基础取自 ../chat/shared.css */
+
+.mock-bar .scenes {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.mock-bar .scenes button {
+  padding: 2px 9px;
+  border-radius: 5px;
+  color: #cdbfa8;
+  background: #2f2920;
+}
+.mock-bar .scenes button.on {
+  background: #e8b598;
+  color: #241a10;
+}
+.mock-bar a {
+  color: #e8b598;
+  text-decoration: none;
+}
+.mock-bar a.on {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* 正文纸 */
+.doc {
+  flex: 1;
+  overflow: hidden auto;
+}
+.doc-inner {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 36px 44px 80px;
+}
+.doc h1 {
+  font-size: 25px;
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.doc .dm {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin-bottom: 22px;
+}
+.doc p {
+  margin: 0 0 14px;
+  font-size: 14.5px;
+  line-height: 1.9;
+}
+.doc h2 {
+  font-size: 16.5px;
+  margin: 26px 0 10px;
+  font-weight: 600;
+}
+.doc .caret-here {
+  display: inline-block;
+  width: 1.5px;
+  height: 18px;
+  background: var(--ink-1);
+  vertical-align: -4px;
+  animation: blink 1s steps(2) infinite;
+}
+.doc .typed {
+  color: var(--ink-1);
+}
+
+/* 行内聊天引用：与 content-link 同一套点线下划线，前缀对话气泡图标区分来源 */
+.cref {
+  display: inline;
+  cursor: pointer;
+  color: var(--accent-text);
+  text-decoration: underline dotted 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  transition: text-decoration-color var(--fast);
+  white-space: nowrap;
+}
+.cref:hover,
+.cref.active {
+  text-decoration-color: var(--accent);
+}
+.cref svg.lucide {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+  margin-right: 2px;
+}
+.cref .turn {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin-left: 3px;
+  text-decoration: none;
+  display: inline-block;
+}
+.cref.broken {
+  color: var(--ink-3);
+  text-decoration: line-through solid var(--ink-3);
+  cursor: default;
+}
+.cref.flash {
+  animation: cref-flash 1.4s var(--ease);
+  border-radius: 4px;
+}
+@keyframes cref-flash {
+  0%,
+  40% {
+    background: var(--accent-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* 摘录块：引文为主，来源一行在下 */
+.cquote {
+  margin: 4px 0 16px;
+  padding: 10px 14px 10px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-1);
+  position: relative;
+  cursor: default;
+  transition: border-color var(--fast);
+}
+.cquote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.cquote:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line-1));
+}
+.cquote .qt {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--ink-1);
+}
+.cquote .qt mark {
+  background: none;
+  color: inherit;
+}
+.cquote .qs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.cquote .qs svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+.cquote .qs .src {
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.cquote .qs .src:hover {
+  color: var(--accent-text);
+}
+.cquote .qs .sp {
+  flex: 1;
+}
+.cquote .qs .ib {
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  transition: opacity var(--fast);
+}
+.cquote:hover .qs .ib {
+  opacity: 1;
+}
+.cquote .qs .ib svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+.cquote.qa .q-ask {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin-bottom: 4px;
+  display: flex;
+  gap: 6px;
+}
+.cquote.qa .q-ask b {
+  font-weight: 500;
+  color: var(--ink-3);
+  flex: none;
+}
+.cquote.stale .qs .warn {
+  color: var(--warn);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 悬停预览卡 */
+.pv {
+  position: absolute;
+  z-index: 35;
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.pv-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 6px;
+}
+.pv-hd .t {
+  font-weight: 500;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-hd .m {
+  color: var(--ink-3);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.pv-bd {
+  padding: 2px 12px 10px;
+  max-height: 260px;
+  overflow: auto;
+}
+.pv-ask {
+  align-self: flex-end;
+  margin: 4px 0 8px auto;
+  max-width: 86%;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 10px 10px 3px 10px;
+  border: 1px solid var(--line-1);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.pv-ans {
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+.pv-ans .hit {
+  color: var(--ink-1);
+  background: var(--accent-soft);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.pv-ans .dim {
+  color: var(--ink-3);
+}
+.pv-ft {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--line-2);
+}
+.pv-ft .sp {
+  flex: 1;
+}
+.pv-ft .btn {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.pv-ft .kbd,
+.kbd {
+  font: 11px var(--mono);
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--line-1);
+  color: var(--ink-3);
+}
+
+/* 停靠栏 */
+.dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 420px;
+}
+.dock.closed {
+  display: none;
+}
+.dock-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 4px 12px;
+  flex: none;
+}
+.dock-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 4px 6px;
+  margin-left: -6px;
+}
+.dock-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dock .thread {
+  flex: 1;
+}
+.dock .thread-inner {
+  padding: 12px 16px 8px;
+}
+.locate-bar {
+  margin: 0 12px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-1);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.locate-bar svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-text);
+}
+.locate-bar .sp {
+  flex: 1;
+}
+.locate-bar .ib {
+  width: 22px;
+  height: 22px;
+}
+
+/* 对话消息：引用相关 */
+.msg.target .md {
+  position: relative;
+}
+.msg .md .hl {
+  background: var(--accent-soft);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+  transition: background 1.2s var(--ease);
+}
+.msg.pulse {
+  animation: msg-pulse 1.6s var(--ease);
+  border-radius: 10px;
+}
+@keyframes msg-pulse {
+  0%,
+  50% {
+    box-shadow: 0 0 0 6px var(--accent-soft);
+    background: var(--accent-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+    background: transparent;
+  }
+}
+.msg .md .sel {
+  background: color-mix(in srgb, var(--info) 28%, transparent);
+  border-radius: 2px;
+}
+.backref {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px;
+  margin-left: 4px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.backref:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.backref svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+.msg-actions .ib.on {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+/* 选中文字浮条 */
+.sel-pop {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  border: 1px solid var(--line-1);
+  z-index: 30;
+}
+.sel-pop .btn {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+/* 菜单补充 */
+.menu .mi svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-2);
+}
+.menu .mi .kbd {
+  margin-left: auto;
+}
+.menu .mi.sub {
+  color: var(--ink-2);
+}
+.menu .mi .desc {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.menu .mi.two {
+  height: auto;
+  padding: 6px 8px;
+  align-items: flex-start;
+  white-space: normal;
+}
+.menu .mi.two > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* [[ 面板 */
+.mp {
+  position: absolute;
+  z-index: 30;
+  width: 340px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-float);
+  border: 1px solid var(--line-1);
+  overflow: hidden;
+}
+.mp-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 6px 0;
+}
+.mp-tabs span {
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.mp-tabs span.on {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+.mp-list {
+  padding: 6px;
+  max-height: 300px;
+  overflow: auto;
+}
+.mp-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mp-row:hover,
+.mp-row.on {
+  background: var(--hover);
+}
+.mp-row svg.lucide {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-2);
+  margin-top: 3px;
+}
+.mp-row .rt {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.mp-row .rm {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.mp-row .chev {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+.mp-hd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.mp-hd .ib {
+  width: 22px;
+  height: 22px;
+}
+.mp-hd b {
+  font-weight: 500;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-ft {
+  display: flex;
+  gap: 12px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--line-2);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.mp-sep {
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 6px 8px 2px;
+}
+
+/* 粘贴为 小菜单 */
+.paste-as {
+  position: absolute;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 8px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-1);
+  box-shadow: var(--shadow-lift);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.paste-as .btn {
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+/* toast */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 45;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-size: 12.5px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-shadow: var(--shadow-float);
+}
+.toast svg.lucide {
+  width: 14px;
+  height: 14px;
+}
+.toast b {
+  font-weight: 500;
+  color: color-mix(in srgb, var(--ink-inv) 70%, var(--accent));
+  cursor: pointer;
+}

@@ -110,6 +110,17 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
+  // 对话摘录：引文 + 来源行
+  {
+    type: "chat-quote",
+    isBlock: true,
+    toHtml: element => {
+      const source = `${element.title || "无标题对话"}${element.turn ? ` · 第 ${element.turn} 轮` : ""}`;
+      const text = escapeHtml(String(element.quoteText ?? "")).replace(/\n/g, "<br/>");
+      return `<blockquote class="blockquote chat-quote"><p>${text}</p><footer>—— ${escapeHtml(source)}</footer></blockquote>`;
+    },
+  },
+
   // Image
   {
     type: "image",

@@ -10,6 +10,8 @@ pnpm add @tau/blog@npm:@xiongtao.xt/tau-blog@0.7.2
 
 `bookmark` 从 0.7.2 起随默认正文运行时提供，保留横向卡、封面卡、紧凑行、用户修改的标题与描述及图片回退；只读时点击整卡打开网页，不显示编辑与重试操作。渲染使用正文中的网页信息快照，不重新抓取网页，也不需要额外安装内容插件。
 
+`chat-ref` 与 `chat-quote`（正文里引用的 AI 对话）随默认正文运行时提供：对话只在作者本机，行内引用显示为「对话标题 · 第 N 轮」的出处文字，摘录块显示引用原文和来源行，都不可点击。
+
 ```tsx
 import { createRoot } from "react-dom/client";
 import { createClient, ContentRenderer } from "@tau/blog";

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>聊天引用 · 阅读与跳转</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="chat-ref.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body class="no-anno">
+<div class="stage"><div class="win" id="win"></div></div>
+<script type="module">
+import { win, thread, dockPanel, cref, cquote, TURNS, QUOTE_TEXT, SESSION, mockBar, anno } from "./data.js?v=1";
+
+const doc = ({ active = "", flash = false, stale = false, overlay = "" } = {}) => `
+  <div class="paper doc" style="position:relative"><div class="doc-inner">
+  <h1>间隔重复：我的理解</h1>
+  <div class="dm num">11-12 · 草稿 · 学习 / 记忆</div>
+  <p>以前一直以为 Anki 的卡片越复习越难，是因为自己记性不好。后来才明白是 SM-2 的易度因子只降不升，错过几次的卡就被困在低增长里。</p>
+  <h2>FSRS 为什么不会陷进去</h2>
+  <p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落，见 ${cref(SESSION.title, "第 2 轮", `${active === "inline" ? "active" : ""} ${flash ? "flash" : ""} ${stale ? "broken" : ""}`)}。</p>
+  ${cquote({ text: QUOTE_TEXT, stale })}
+  <p>所以迁移时不用担心老卡的「坏记录」会一直拖着它，重放日志后 D 自己就会回落。</p>
+  </div>${overlay}</div>`;
+
+const preview = (style, { quote = false } = {}) => `
+  <div class="pv" style="${style}">
+    <div class="pv-hd"><span class="ai-avatar"><i data-lucide="message-square-quote"></i></span><span class="t">${SESSION.title}</span><span class="m num">第 2 / 6 轮 · 11-12</span></div>
+    <div class="pv-bd">
+      <div class="pv-ask">${TURNS[1].ask}</div>
+      <div class="pv-ans">${quote
+        ? `<span class="dim">…答错只是小幅上调，并且会向均值回归。</span><span class="hit">${QUOTE_TEXT}</span><span class="dim">这就是它没有 ease hell 的原因。</span>`
+        : `FSRS 不用单一的 EF，而是把记忆拆成两个量：<b>稳定性 S</b>：记忆能保持多久…；<b>难度 D</b>：卡片本身有多难，答错只是小幅上调，并且会向均值回归。<br/><span class="hit">${QUOTE_TEXT}</span>`}</div>
+    </div>
+    <div class="pv-ft">
+      <button class="btn"><i data-lucide="panel-right-open"></i>在侧栏打开</button>
+      <button class="btn"><i data-lucide="maximize-2"></i>对话页</button>
+      <span class="sp"></span>
+      <button class="ib" title="复制引用链接"><i data-lucide="link-2"></i></button>
+      <button class="ib" title="更多：改为摘录块 / 只显示对话名 / 移除引用"><i data-lucide="more-horizontal"></i></button>
+    </div>
+  </div>`;
+
+const SCENES = {
+  hover: () => win({ main: doc({ active: "inline", overlay: preview("left:330px;top:350px") }) })
+    + anno(1, "悬停 450ms 出预览（同 [[ 内容引用的节奏）：本轮问 + 答，命中段落高亮", "left:740px;top:340px")
+    + anno(2, "⌘ 点击 = 在侧栏打开；预览卡里有「对话页」进完整页面", "left:740px;top:520px"),
+
+  quoteHover: () => win({ main: doc({ overlay: preview("left:330px;top:510px", { quote: true }) }) })
+    + anno(1, "摘录块悬停：显示原句在回答里的上下文；块本身已有原文，所以预览只给上下文", "left:740px;top:500px"),
+
+  dock: () => win({
+    main: doc({ flash: false }),
+    dock: dockPanel({
+      top: `<div class="locate-bar"><i data-lucide="locate-fixed"></i>已定位到第 2 轮 · 来自「间隔重复：我的理解」<span class="sp"></span><button class="ib" title="回到正文"><i data-lucide="undo-2"></i></button></div>`,
+      inner: thread(TURNS, { target: 1, backref: 1 }),
+    }),
+  }) + anno(1, "在停靠栏打开会话并滚到该轮：回答闪一下，引用的句子保持淡高亮", "right:60px;top:180px")
+     + anno(2, "这一轮的元信息上显示「被 1 篇引用」，点开列出引用它的文档", "right:60px;top:260px")
+     + anno(3, "停靠栏可以接着聊；正文不动，不进页面栈", "left:300px;top:130px"),
+
+  elsewhere: () => win({
+    main: doc(),
+    dock: dockPanel({
+      top: `<div class="locate-bar" style="color:var(--warn)"><i data-lucide="git-branch" style="color:var(--warn)"></i>这一轮在另一个分支上<span class="sp"></span><button class="btn" style="height:22px;padding:0 8px;font-size:12px">切到该分支</button></div>`,
+      inner: thread(TURNS.slice(0, 1).concat([{ ask: "那 FSRS 和 Anki 内置的有什么不同？", ans: "<p>Anki 23.10 起内置了 FSRS……</p>" }])),
+    }),
+  }) + anno(1, "沿用对话页已有的 entry 定位：不在当前分支只提示，由用户决定切不切（切换会写回会话）", "right:60px;top:180px"),
+
+  broken: () => win({ main: doc({ stale: true }) })
+    + anno(1, "对话被删：行内引用变删除线灰字（同 [[ 失效样式）；摘录块保留原文并标注", "left:560px;top:340px"),
+};
+
+mockBar("read.html", [["hover", "① 悬停预览"], ["quoteHover", "② 摘录块悬停"], ["dock", "③ 侧栏定位"], ["elsewhere", "④ 在其他分支"], ["broken", "⑤ 对话已删"]],
+  k => (document.getElementById("win").innerHTML = SCENES[k]()));
+</script>
+</body>
+</html>

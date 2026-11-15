@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>聊天引用 · 插入</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="chat-ref.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body class="no-anno">
+<div class="stage"><div class="win" id="win"></div></div>
+<script type="module">
+import { win, thread, dockPanel, cref, cquote, TURNS, QUOTE_TEXT, mockBar, anno } from "./data.js?v=1";
+
+const intro = `
+  <h1>间隔重复：我的理解</h1>
+  <div class="dm num">11-12 · 草稿 · 学习 / 记忆</div>
+  <p>以前一直以为 Anki 的卡片越复习越难，是因为自己记性不好。后来才明白是 SM-2 的易度因子只降不升，错过几次的卡就被困在低增长里。</p>
+  <h2>FSRS 为什么不会陷进去</h2>`;
+
+const docPaper = body => `<div class="paper doc"><div class="doc-inner">${intro}${body}</div></div>`;
+
+const SCENES = {
+  /* ① 对话里点「引用」：停靠栏与正文并排时，直接插到光标处 */
+  turn: () => win({
+    main: docPaper(`<p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落<span class="caret-here"></span></p>`),
+    dock: dockPanel({ inner: thread(TURNS.slice(0, 2), { actions: 1 }) + `
+      <div class="menu" style="left:58px;top:auto;bottom:118px;width:252px">
+        <div class="mi"><i data-lucide="corner-down-left"></i>插入到「间隔重复：我的理解」<span class="kbd">↵</span></div>
+        <div class="mi sub" style="padding-left:30px">作为摘录块</div>
+        <div class="msep"></div>
+        <div class="mi"><i data-lucide="link-2"></i>复制引用链接</div>
+      </div>` }),
+  }) + anno(1, "新增一个「引用」按钮（quote 图标），排在复制后面；不另加「复制链接」顶层按钮", "right:250px;bottom:190px")
+     + anno(2, "旁边正文有光标时，第一项直接插到光标处；没有正文就只剩「复制引用链接」", "right:60px;bottom:250px")
+     + anno(3, "整轮默认插成行内引用；需要原文时选「作为摘录块」", "left:560px;top:330px"),
+
+  /* ② 选中回答里的一句：浮条直接「引用到正文」，插成摘录块 */
+  select: () => win({
+    main: docPaper(`<p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落。<span class="caret-here"></span></p>`),
+    dock: dockPanel({ inner: thread(TURNS.slice(0, 2), { sel: true }) + `
+      <div class="sel-pop" style="left:40px;top:312px">
+        <button class="btn"><i data-lucide="text-quote"></i>引用到正文</button>
+        <button class="btn"><i data-lucide="link-2"></i>复制引用</button>
+        <button class="btn"><i data-lucide="message-circle-reply"></i>追问</button>
+      </div>` }),
+  }) + anno(1, "选区引用：存 entryId + 原文快照 + 前后文，跳转时能高亮回这一句", "right:60px;top:240px")
+     + anno(2, "选区默认插成摘录块（引文就是重点）；Shift 点击插成行内", "left:560px;top:330px"),
+
+  /* ③ 正文里 [[ 搜对话：内容 / 对话 两个标签，对话可展开到轮 */
+  mention: () => win({
+    main: `<div class="paper doc" style="position:relative"><div class="doc-inner">${intro}
+      <p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落，参考 <span class="typed">[[fsrs</span><span class="caret-here"></span></p></div>
+      <div class="mp" style="left:300px;top:330px">
+        <div class="mp-tabs"><span>全部</span><span>内容</span><span class="on">对话</span></div>
+        <div class="mp-hd"><button class="ib"><i data-lucide="chevron-left"></i></button><b>SM-2 与 FSRS 复习策略对比</b><span style="margin-left:auto" class="num">6 轮</span></div>
+        <div class="mp-list">
+          <div class="mp-row"><i data-lucide="message-square"></i><div><div class="rt">整个对话</div><div class="rm">11-12 · Sonnet 5</div></div></div>
+          <div class="mp-sep">按轮次 · 命中「fsrs」</div>
+          <div class="mp-row on"><i data-lucide="corner-down-right"></i><div><div class="rt">那 <b>FSRS</b> 是怎么避免这个问题的？</div><div class="rm">第 2 轮 · 答：FSRS 不用单一的 EF，而是把记忆拆成…</div></div></div>
+          <div class="mp-row"><i data-lucide="corner-down-right"></i><div><div class="rt">切换之后已有卡片的历史评分怎么迁移？</div><div class="rm">第 3 轮 · 答：直接用已有复习日志重放：按时间顺序把…<b>FSRS</b></div></div></div>
+        </div>
+        <div class="mp-ft"><span>↵ 插入</span><span>⇧↵ 插为摘录</span><span>→ 展开轮次</span><span>⌫ 返回</span></div>
+      </div></div>`,
+  }) + anno(1, "复用现有 [[ 面板：加「对话」标签；搜对话标题 + 用户提问 + 回答", "left:660px;top:300px")
+     + anno(2, "→ 展开到轮次；在列表第一层直接 ↵ 就引用整个对话", "left:660px;top:420px"),
+
+  /* ④ 粘贴复制来的链接：识别成引用，给「粘贴为」 */
+  paste: () => win({
+    main: `<div class="paper doc" style="position:relative"><div class="doc-inner">${intro}
+      <p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落，见 ${cref()}<span class="caret-here"></span></p></div>
+      <div class="paste-as" style="left:500px;top:398px"><span>粘贴为</span>
+        <button class="btn on" style="background:var(--selected);color:var(--accent-text)">行内引用</button><button class="btn">摘录块</button><button class="btn">普通链接</button></div>
+      <div class="toast"><i data-lucide="check"></i>已复制引用链接 · 可粘贴到任意文档</div></div>`,
+  }) + anno(1, "链接形如 tau://chat/<会话>?entry=<轮>；粘贴进正文自动认成引用，和网址成书签同一套「粘贴为」", "left:520px;top:440px")
+     + anno(2, "复制链接是跨窗口 / 跨文档 / 外部应用的通用通道（Markdown 窗口、日记、外部笔记）", "left:520px;top:520px"),
+
+  /* ⑤ 插入后的样子 */
+  result: () => win({
+    main: docPaper(`
+      <p>我的理解是：它把「难」和「记得多久」拆开了，难度还会自己慢慢回落，见 ${cref()}。</p>
+      ${cquote({ text: QUOTE_TEXT })}
+      <p>所以迁移时不用担心老卡的「坏记录」会一直拖着它，重放日志后 D 自己就会回落。</p>`),
+  }) + anno(1, "行内引用：和 [[ 内容引用同一套点线下划线，前面多一个对话图标", "left:560px;top:300px")
+     + anno(2, "摘录块：存原文快照，对话删了 / 协作者本机没有这段对话也照常显示", "left:560px;top:430px"),
+};
+
+mockBar("insert.html", [["turn", "① 整轮引用"], ["select", "② 选中一句"], ["mention", "③ [[ 搜对话"], ["paste", "④ 粘贴链接"], ["result", "⑤ 插入结果"]],
+  k => (document.getElementById("win").innerHTML = SCENES[k]()));
+</script>
+</body>
+</html>

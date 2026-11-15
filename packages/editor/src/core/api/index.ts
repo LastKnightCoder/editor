@@ -116,6 +116,7 @@ export {
   setContentFragmentTransfer,
 } from "./clipboardFragment";
 export { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "../utils/selectionSnapshot";
+export { withNewUndoStep } from "../utils/undoStep";
 
 export { createParagraph, isParagraphElement, type ParagraphElement } from "../model/paragraph";
 export { insertParagraphAndFocus } from "../utils/editor";

@@ -13,6 +13,27 @@ const md = createMarkdownProcessor({
   textCodecs: [textFormattingCodec],
 });
 
+it("聊天引用的 Markdown 属性只解码一次", () => {
+  const reference = {
+    type: "chat-ref",
+    sessionId: "session",
+    entryId: "entry",
+    title: '标题 &quot; &amp; ["例子"] C:\\目录',
+    turn: 3,
+    children: [{ type: "formatted", text: "" }],
+  };
+  const markdown = md.getMarkdown([
+    {
+      type: "paragraph",
+      children: [{ type: "formatted", text: "见 " }, reference],
+    } as never,
+  ]);
+  expect(md.importFromMarkdown(markdown)[0]).toMatchObject({
+    type: "paragraph",
+    children: [{ text: "见 " }, reference],
+  });
+});
+
 describe("内置扩展 codec 覆盖", () => {
   it("类型不重复、覆盖完整（原内置序列化器 + void 表的并集）", () => {
     const types = editorMarkdownCodecs.map(codec => codec.type);

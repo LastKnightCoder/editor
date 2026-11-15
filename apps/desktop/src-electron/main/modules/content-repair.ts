@@ -38,6 +38,30 @@ const parse = (value: string | undefined): unknown => {
   }
 };
 
+function recoverChatQuotes(content: unknown): unknown {
+  if (!Array.isArray(content)) return content;
+  let changed = false;
+  const recovered = content.map((input: unknown) => {
+    if (!input || typeof input !== "object") return input;
+    const node = input as Record<string, unknown>;
+    if (
+      (node.type !== "chat-quote" && node.type !== "formatted") ||
+      typeof node.text !== "string" ||
+      typeof node.sessionId !== "string" ||
+      typeof node.entryId !== "string" ||
+      typeof node.title !== "string" ||
+      !Array.isArray(node.children) ||
+      node.children.length !== 1 ||
+      node.children[0]?.text !== ""
+    )
+      return input;
+    const { text, ...fields } = node;
+    changed = true;
+    return { ...fields, type: "chat-quote", quoteText: text };
+  });
+  return changed ? recovered : content;
+}
+
 /**
  * 打开前自愈：正文缺身份、缺契约、契约不匹配或尚无文档记录（旧格式）时，
  * 先把原始字节备份到 `content-repairs/`，再按当前节点声明补齐并写回主库；合格正文不动。
@@ -52,9 +76,15 @@ export async function repairContentForOpen(
   const raw = readRaw(db, contentId);
   if (!raw || (raw.document && !isSupportedContentStorageVersion(raw.document.format_version)))
     return false;
-  const content = parse(raw.content);
+  const original = parse(raw.content);
+  const content = recoverChatQuotes(original);
   const contracts = parse(raw.document?.contracts) as ContentContractDictionary | undefined;
-  if (raw.document && ContentDocumentTable.problem(content, contracts) === null) return false;
+  if (
+    content === original &&
+    raw.document &&
+    ContentDocumentTable.problem(content, contracts) === null
+  )
+    return false;
   const repaired = await contentExecutor.execute<{
     content: ContentNode[];
     contracts: ContentContractDictionary;

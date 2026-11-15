@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 interface EntryLocationOptions {
   sessionKey: string;
   entry?: string;
+  requestId?: number;
+  ready?: boolean;
   visible: boolean;
   busy: boolean;
   messages: readonly { piEntryIds?: string[] }[];
@@ -20,14 +22,14 @@ export function useChatEntryLocation(options: EntryLocationOptions) {
   const callbacks = useRef(options);
   callbacks.current = options;
   const handled = useRef<string | null>(null);
-  const { sessionKey, entry, visible, busy, messages } = options;
+  const { sessionKey, entry, requestId, ready = true, visible, busy, messages } = options;
   useEffect(() => {
     if (!entry) {
       handled.current = null;
       return;
     }
-    const key = `${sessionKey}:${entry}`;
-    if (!visible || handled.current === key) return;
+    const key = `${sessionKey}:${entry}:${requestId ?? ""}`;
+    if (!ready || !visible || handled.current === key) return;
     const actions = callbacks.current;
     const index = messages.findIndex(message => message.piEntryIds?.includes(entry));
     if (index >= 0) {
@@ -49,10 +51,13 @@ export function useChatEntryLocation(options: EntryLocationOptions) {
         actions.onLocated?.();
       })
       .catch(error => {
-        if (!cancelled) actions.onError(error);
+        if (cancelled) return;
+        handled.current = key;
+        actions.onError(error);
+        actions.onLocated?.();
       });
     return () => {
       cancelled = true;
     };
-  }, [sessionKey, entry, visible, busy, messages]);
+  }, [sessionKey, entry, requestId, ready, visible, busy, messages]);
 }
