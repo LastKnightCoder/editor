@@ -5,9 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import type { Descendant } from "slate";
+import { createEditor, Editor, Transforms, type Descendant } from "slate";
 import { NodeTree, readNodeDocument, type ContentNode } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { withNodeTree } from "@tau/editor-collab";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import agentSchema from "@tau/db-schema/schema/content-agent.sql?raw";
 import type { ContentSessionRuntime } from "../../content-runtime";
@@ -47,6 +48,7 @@ afterEach(() => {
 });
 
 type ProjectingRuntime = Pick<ContentSessionRuntime, "acceptUpdates"> & {
+  drainDatabase: ContentSessionRuntime["drainDatabase"];
   project(session: RuntimeSession): Promise<void>;
 };
 
@@ -92,7 +94,10 @@ function candidateUpdate(session: RuntimeSession, prefix: string): Uint8Array {
   }
 }
 
-async function fixture(embedded = false) {
+async function fixture(
+  embedded = false,
+  children: ContentNode[] = [{ type: "formatted", text: "甲乙" }]
+) {
   const directory = mkdtempSync(join(tmpdir(), "tau-content-durability-baseline-"));
   host.directory = directory;
   cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
@@ -119,7 +124,7 @@ async function fixture(embedded = false) {
       type: "paragraph",
       collabId: "paragraph",
       tauContract: paragraph.id,
-      children: [{ type: "formatted", text: "甲乙" }],
+      children,
     },
   ];
   if (embedded) {
@@ -144,7 +149,7 @@ async function fixture(embedded = false) {
     { documentId: "durability-document", contracts, content },
     {
       installDocument: true,
-      count: 2,
+      count: children.reduce((total, child) => total + (child.text?.length ?? 0), 0),
     }
   );
 
@@ -287,6 +292,38 @@ describe("正文耐久与投影的独立基准", () => {
         .get()
     ).toEqual({ edits: 1 });
     expect(f.db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  });
+
+  it("批红取消加粗和渐变后退出重开，只保留红色高亮", async () => {
+    const highlighted = { type: "formatted", text: "批红", highlight: "red" };
+    const f = await fixture(false, [
+      { type: "formatted", text: "称为" },
+      { ...highlighted, bold: true, textGradient: "ocean" },
+      { type: "formatted", text: "，以此提高处理政务的效率。" },
+    ]);
+    const renderer = new Y.Doc({ gc: false });
+    try {
+      Y.applyUpdate(renderer, Y.encodeStateAsUpdate(f.session.doc));
+      const before = Y.encodeStateVector(renderer);
+      const editor = withNodeTree(createEditor(), new NodeTree(renderer), {});
+      editor.connectNodeTree();
+      Transforms.select(editor, Editor.range(editor, [0, 1]));
+      Editor.removeMark(editor, "bold");
+      Editor.removeMark(editor, "textGradient");
+      expect(Editor.node(editor, [0, 1])[0]).toEqual(highlighted);
+      const update = Y.encodeStateAsUpdate(renderer, before);
+      await f.runtime.acceptUpdates(f.session, update, () => undefined);
+    } finally {
+      renderer.destroy();
+    }
+
+    const drain = await f.runtime.drainDatabase({ reason: "quit" });
+    drain.commit();
+    f.close();
+
+    const reopened = await f.openRuntime();
+    expect(sqlContent(f.db)[0].children?.[1]).toEqual(highlighted);
+    expect(readNodeDocument(reopened.session.doc).content[0].children?.[1]).toEqual(highlighted);
   });
 
   it("日志增量和条件操作回执在同一事务失败，正式文档与未确认草稿保持原状", async () => {

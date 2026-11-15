@@ -513,9 +513,13 @@ export function withNodeTree<T extends Editor>(
             } else tree.setProperties(nodeIdentity(node)!, operation.newProperties, origin);
           } else {
             if (!location.parent) throw new Error("正文根不能格式化文本");
-            const marks = Object.fromEntries(
-              Object.entries(operation.newProperties).map(([key, value]) => [key, value ?? null])
-            );
+            // Slate 省略已删除的标记，Yjs 需要用 null 显式清除。
+            const marks = {
+              ...Object.fromEntries(Object.keys(operation.properties).map(key => [key, null])),
+              ...Object.fromEntries(
+                Object.entries(operation.newProperties).map(([key, value]) => [key, value ?? null])
+              ),
+            };
             tree.formatText(location.parent, location.offset, node.text.length, marks, origin);
           }
         } else if (operation.type === "split_node" && Element.isElement(node)) {
