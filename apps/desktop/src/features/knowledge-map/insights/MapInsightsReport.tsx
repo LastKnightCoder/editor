@@ -89,7 +89,11 @@ function phaseText(phase: KnowledgeInsightsPhase | null) {
     const stale = phase.stale ? `，其中 ${phase.stale} 个有变化要重新读` : "";
     return `按主题读 ${phase.notes.toLocaleString("zh-CN")} 份笔记的要点（${phase.topics} 个主题${stale}）…`;
   }
-  if (phase?.phase === "thinking") return "AI 正在判断哪些值得告诉你…";
+  if (phase?.phase === "topic") {
+    const count = phase.total > 1 ? `（${phase.index} / ${phase.total}）` : "";
+    return `正在读「${phase.label}」${count}…`;
+  }
+  if (phase?.phase === "global") return "把各个主题放在一起看，判断哪些值得告诉你…";
   return "正在读…";
 }
 

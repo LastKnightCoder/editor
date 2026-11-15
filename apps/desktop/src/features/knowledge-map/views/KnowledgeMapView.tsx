@@ -16,7 +16,7 @@ import { ChevronDown, FolderKanban } from "lucide-react";
 import { FilterPill, Menu, cn, toast } from "@tau/ui";
 import LinkGraph, { type LinkGraphPlaybackHandle } from "@/components/LinkGraph";
 import { normalizeEntityRefKind } from "@/entity/ref";
-import type { KnowledgeMapItem, KnowledgeMapTopic } from "@/knowledge-map/types";
+import type { KnowledgeMapItem, KnowledgeMapNode, KnowledgeMapTopic } from "@/knowledge-map/types";
 import type { KnowledgeEndpoint } from "@/types/knowledge-insights";
 import { usePageParams } from "@/page/PageProvider";
 import { openEntity } from "@/services/open-content";
@@ -41,6 +41,7 @@ import { MapItemDrawer, type MapPreview } from "./MapItemDrawer";
 const AUTOPLAY_DELAY = 400;
 const KINDS: MapItemKind[] = ["card", "article", "project-item"];
 const EMPTY_TOPICS: KnowledgeMapTopic[] = [];
+const EMPTY_NODES: KnowledgeMapNode[] = [];
 
 const previewOf = (items: KnowledgeMapItem[], key: string): MapPreview | null => {
   const item = items.find(entry => entry.key === key);
@@ -131,21 +132,26 @@ export function KnowledgeMapView() {
   }, [autoplay]);
 
   const captionHint = invite ? `长到 ${invite} 条了 · 看看它是怎么长出来的` : null;
-  const insights = useMapInsights(query.data?.map?.topics ?? EMPTY_TOPICS, params.insight, {
-    preview: previewEndpoint,
-    placeOf: end => {
-      const item = items.find(entry => entry.key === `${end.ref.kind}:${end.ref.id}`);
-      return item ? placeLabel(item) : null;
+  const insights = useMapInsights(
+    query.data?.map?.topics ?? EMPTY_TOPICS,
+    params.insight,
+    {
+      preview: previewEndpoint,
+      placeOf: end => {
+        const item = items.find(entry => entry.key === `${end.ref.kind}:${end.ref.id}`);
+        return item ? placeLabel(item) : null;
+      },
     },
-  });
+    query.data?.map?.nodes ?? EMPTY_NODES
+  );
   const currentProject = projects.find(project => project.id === filter.projectId) ?? null;
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] min-w-0 flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mb-2 mt-5 flex h-10 flex-none items-center gap-3 px-8">
-          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+        <div className="mt-5 mb-2 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
             知识地图
           </h1>
           <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">

@@ -51,33 +51,29 @@
   --animate-collab-pulse: collab-pulse 1.8s ease-in-out infinite;
   /* 无法计量的进度：一段色块从左到右循环扫过轨道 */
   --animate-progress-flow: progress-flow 1.4s ease-in-out infinite;
-  /* AI 洞见视图：标记依次画出、读的过程中一道光扫过正文 */
+  /* AI 洞见视图：标记依次画出、读的过程中报告卡骨架条里一道光从左走到右（背景要 200% 宽、不平铺） */
   --animate-insight-draw: insight-draw 550ms ease-out both;
   --animate-insight-line: insight-line 550ms ease-out both;
-  --animate-insight-sweep: insight-sweep 1.8s ease-in-out infinite;
+  --animate-insight-skeleton: insight-skeleton 1.6s ease-in-out infinite;
   --animate-insight-grow: insight-grow 600ms ease-out both;
   /* 漫步页：内容切换与岔路入场的轻微上浮淡入 */
   --animate-walk-in: walk-in 280ms var(--tau-ease-out) both;
   /* 子 Agent 详情在辅助栏内下钻：自右侧滑入覆盖对话 */
   --animate-subagent-drill-in: subagent-drill-in 240ms var(--tau-ease-out) both;
-  /* 知识地图的洞见视图：一道光横扫地图、线从一端画到另一端、圈依次出现、问号轻轻呼吸 */
-  --animate-insight-sweep-x: insight-sweep-x 2.2s ease-in-out infinite;
+  /* 知识地图的洞见视图：线从一端画到另一端、圈依次出现、问号轻轻呼吸 */
   --animate-insight-stroke: insight-stroke 700ms ease-out both;
   --animate-insight-ring: insight-ring 600ms ease-out both;
   --animate-insight-breathe: insight-breathe 2.4s ease-in-out infinite;
+  /* 知识地图「读」的过程：正在读的主题里节点的光圈一明一暗（周期与 MapReadingOverlay 的 GLOW_PERIOD_S 一致） */
+  --animate-insight-glow: insight-glow 2.4s ease-in-out infinite both;
 
-  @keyframes insight-sweep-x {
-    0% {
-      left: -160px;
-      opacity: 0;
-    }
-    15%,
-    85% {
-      opacity: 1;
-    }
+  @keyframes insight-glow {
+    0%,
     100% {
-      left: 100%;
-      opacity: 0;
+      opacity: 0.15;
+    }
+    50% {
+      opacity: 0.9;
     }
   }
 
@@ -140,18 +136,12 @@
     }
   }
 
-  @keyframes insight-sweep {
-    0% {
-      top: -96px;
-      opacity: 0;
+  @keyframes insight-skeleton {
+    from {
+      background-position: 200% 0;
     }
-    20%,
-    80% {
-      opacity: 1;
-    }
-    100% {
-      top: 100%;
-      opacity: 0;
+    to {
+      background-position: -100% 0;
     }
   }
 

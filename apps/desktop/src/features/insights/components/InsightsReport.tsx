@@ -1,6 +1,6 @@
 /**
  * 洞见视图正文上方的报告卡：位置两三句、各类数量（点击跳到该类第一处）、一张随连接生长的小关系图、
- * 可以继续想的问题；读的过程中只显示一行真实的阶段说明。
+ * 可以继续想的问题；读的过程中同一个位置放骨架，底部一行写真实的阶段说明。
  */
 
 import type { ReactNode } from "react";
@@ -128,6 +128,50 @@ export function MiniGraph({
   );
 }
 
+/** 骨架条：光只在条里走，不碰正文 */
+const SKELETON_LINE =
+  "h-[9px] rounded-full bg-[color:var(--tau-bg-track)] bg-[linear-gradient(90deg,transparent_25%,var(--tau-bg-surface)_50%,transparent_75%)] bg-[length:200%_100%] bg-no-repeat opacity-70 animate-insight-skeleton motion-reduce:animate-none";
+
+/**
+ * 读的过程中报告卡的占位：和报告同一个框、同样的两栏，出结果时原地换成真内容，正文不动。
+ * 只拿得到阶段事件，所以底部一行写当前阶段，不在正文上表示读到哪里。
+ */
+function ReportSkeleton({ phase }: { phase: ContentInsightsPhase | null }) {
+  return (
+    <section
+      aria-label="AI 洞见"
+      aria-busy
+      className="bg-surface-hover rounded-tau-lg mt-4 grid grid-cols-[1fr_168px] gap-5 px-[18px] pt-4 pb-3.5"
+      onMouseDown={event => event.stopPropagation()}
+    >
+      <div className="flex min-w-0 flex-col">
+        <div className="grid gap-[11px] pt-2" aria-hidden>
+          <i className={cn(SKELETON_LINE, "w-[92%]")} />
+          <i className={cn(SKELETON_LINE, "w-[78%]")} />
+          <i className={cn(SKELETON_LINE, "w-[56%]")} />
+        </div>
+        <div className="mt-4 flex gap-1.5" aria-hidden>
+          <i className={cn(SKELETON_LINE, "h-6 w-[68px]")} />
+          <i className={cn(SKELETON_LINE, "h-6 w-[56px]")} />
+        </div>
+        <p
+          className="text-ink-3 mt-auto flex items-center gap-1.5 pt-2.5 text-[12px]"
+          role="status"
+        >
+          <Loader2 className="size-3 animate-spin" strokeWidth={1.75} />
+          {phaseText(phase)}
+        </p>
+      </div>
+      <div className="self-center" aria-hidden>
+        <svg viewBox="0 0 168 150" className="block h-[150px] w-[168px]">
+          <circle cx={84} cy={70} r={8} fill="var(--tau-accent)" opacity={0.35} />
+        </svg>
+        <p className="mt-0.5 text-center text-[11.5px]">&nbsp;</p>
+      </div>
+    </section>
+  );
+}
+
 export function InsightsReport({
   insights,
   reading,
@@ -140,14 +184,7 @@ export function InsightsReport({
   onWalk,
   extra,
 }: InsightsReportProps) {
-  if (reading) {
-    return (
-      <p className="text-ink-3 text-tau-meta mt-2 flex items-center gap-1.5" role="status">
-        <Loader2 className="size-3.5 animate-spin" strokeWidth={1.75} />
-        {phaseText(phase)}
-      </p>
-    );
-  }
+  if (reading) return <ReportSkeleton phase={phase} />;
   if (!insights) return null;
   const { result } = insights;
   const open = result.marks.filter(mark => mark.status === "open");
@@ -160,7 +197,7 @@ export function InsightsReport({
   return (
     <section
       aria-label="AI 洞见"
-      className="bg-surface-hover rounded-tau-lg mt-4 grid grid-cols-[1fr_168px] gap-5 px-[18px] pb-3.5 pt-4"
+      className="bg-surface-hover rounded-tau-lg mt-4 grid grid-cols-[1fr_168px] gap-5 px-[18px] pt-4 pb-3.5"
       onMouseDown={event => event.stopPropagation()}
     >
       <div className="min-w-0">
@@ -203,7 +240,7 @@ export function InsightsReport({
                 <button
                   type="button"
                   onClick={() => onAsk(ask)}
-                  className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/ask:opacity-100"
+                  className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 transition-opacity group-hover/ask:opacity-100 focus-visible:opacity-100"
                 >
                   聊一聊
                 </button>
@@ -211,7 +248,7 @@ export function InsightsReport({
             ))}
           </div>
         )}
-        <div className="text-ink-3 mt-2.5 flex items-center gap-3 whitespace-nowrap text-[12px]">
+        <div className="text-ink-3 mt-2.5 flex items-center gap-3 text-[12px] whitespace-nowrap">
           {insights.stale ? (
             <span className="text-warn min-w-0 truncate">正文在分析后改动较大</span>
           ) : (

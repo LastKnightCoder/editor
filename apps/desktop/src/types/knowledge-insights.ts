@@ -15,7 +15,15 @@ export type KnowledgeInsightScope = "subtopic" | "topic" | "global" | "project";
  * 可能属于这里（项目）/ 还薄（项目）
  */
 export type KnowledgeMarkKind =
-  "bridge" | "asked" | "dup" | "conflict" | "chain" | "pattern" | "gap" | "belong" | "thin";
+  | "bridge"
+  | "asked"
+  | "dup"
+  | "conflict"
+  | "chain"
+  | "pattern"
+  | "gap"
+  | "belong"
+  | "thin";
 
 /** 主动作是「写成卡片」的标记：新建一张空卡片，连上涉及的笔记，由用户自己写 */
 export const WRITE_CARD_KINDS: ReadonlySet<KnowledgeMarkKind> = new Set([
@@ -123,10 +131,23 @@ export interface KnowledgeInsightNode {
   updateTime: number;
 }
 
-/** 分析过程推给渲染端的阶段（knowledge-insights:phase） */
+/**
+ * 分析过程推给渲染端的阶段（knowledge-insights:phase）：
+ * reading 开始时的总览 → topic 每个真正交给 AI 读的主题（地图上点亮它）→ global 汇总全局结论 → done。
+ * 没变化的主题直接跳过，不发 topic。
+ */
 export type KnowledgeInsightsPhase =
   | { phase: "reading"; topics: number; stale: number; notes: number }
-  | { phase: "thinking" }
+  | {
+      phase: "topic";
+      /** 地图里的主题 id */
+      topicId: number;
+      label: string;
+      /** 第几个要重新读的主题（从 1 起）/ 一共几个 */
+      index: number;
+      total: number;
+    }
+  | { phase: "global" }
   | { phase: "done" };
 
 /** knowledge-insights:get / analyze 的返回 */

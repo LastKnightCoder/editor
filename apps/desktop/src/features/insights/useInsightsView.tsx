@@ -1,5 +1,5 @@
 /**
- * 洞见视图（KL-058）：点「AI 洞见」后正文就地进入——读（扫光 + 阶段说明）→ 点亮（报告卡 + 标记依次画出）
+ * 洞见视图（KL-058）：点「AI 洞见」后正文就地进入——读（报告卡位置的骨架 + 阶段说明，正文不动）→ 点亮（报告卡 + 标记依次画出）
  * → 气泡处理 / 逐条看 → 退出（再点按钮、Esc、点正文或开始输入）。
  *
  * 详情页拿到四样东西摆到自己的位置：button（元信息行）、report（正文上方）、editorProps（传给 ContentEditor）、
@@ -446,11 +446,6 @@ export function useInsightsView({
           exit();
       }}
     >
-      {view === "reading" && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="animate-insight-sweep rounded-tau-md absolute -inset-x-6 h-24 bg-[linear-gradient(180deg,transparent,var(--tau-accent-soft)_45%,var(--tau-accent-soft)_55%,transparent)]" />
-        </div>
-      )}
       <InsightCurrentContext.Provider value={current}>{children}</InsightCurrentContext.Provider>
       {gaps.map(gap => {
         const at = gapPositions[gap.id];
@@ -489,7 +484,7 @@ export function useInsightsView({
       {on &&
         walking &&
         createPortal(
-          <div className="bg-surface shadow-float text-tau-meta text-ink-2 fixed bottom-6 left-1/2 z-[240] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pl-4 pr-2">
+          <div className="bg-surface shadow-float text-tau-meta text-ink-2 fixed bottom-6 left-1/2 z-[240] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pr-2 pl-4">
             <span className="text-ink-1 tabular-nums">
               {Math.max(1, walkOrder.findIndex(item => item.id === current) + 1)} /{" "}
               {walkOrder.length}

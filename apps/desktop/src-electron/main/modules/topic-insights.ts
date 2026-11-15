@@ -1071,11 +1071,19 @@ export async function analyzeKnowledge(
     }
   };
   const topicResults: Array<{ topic: MapTopicGroups; row: KnowledgeAiInsightsRow | null }> = [];
-  let thinkingSent = false;
-  const thinking = () => {
-    if (thinkingSent) return;
-    thinkingSent = true;
-    options.onPhase?.({ phase: "thinking" });
+  /** 真正交给 AI 读的那个主题（地图上把它点亮）；每个主题第一次调用前发一次 */
+  let announced: TopicPlan | null = null;
+  const reading = (topicPlan: TopicPlan) => {
+    if (announced === topicPlan) return;
+    announced = topicPlan;
+    const index = staleTopics.indexOf(topicPlan);
+    options.onPhase?.({
+      phase: "topic",
+      topicId: topicPlan.topic.topicId,
+      label: topicPlan.topic.label,
+      index: (index < 0 ? staleTopics.length : index) + 1,
+      total: Math.max(staleTopics.length, index + 1),
+    });
   };
   for (const topicPlan of plan.topics) {
     if (consecutive >= ABORT_AFTER_FAILURES || options.stale?.()) break;
@@ -1085,7 +1093,7 @@ export async function analyzeKnowledge(
       // 连续失败即停对内层同样生效：密钥失效等全局问题下，不再对剩余子主题逐个发出注定失败的请求
       if (consecutive >= ABORT_AFTER_FAILURES || options.stale?.()) break;
       if (sub.tier === "full" || sub.tier === "incremental") {
-        thinking();
+        reading(topicPlan);
         const row = await attempt(() => runSubtopic(deps, ctx, sub, slot, options.signal));
         if (row) {
           outcome.subtopics++;
@@ -1106,7 +1114,7 @@ export async function analyzeKnowledge(
     }
     let topicRow = topicPlan.row;
     if (topicNeedsWork(topicPlan, changed) && consecutive < ABORT_AFTER_FAILURES) {
-      thinking();
+      reading(topicPlan);
       const row = await attempt(() =>
         runTopic(deps, ctx, topicPlan, subRows, slot, options.signal)
       );
@@ -1123,7 +1131,7 @@ export async function analyzeKnowledge(
     (outcome.topics > 0 &&
       (options.force || deps.now() - globalRow.updateTime >= GLOBAL_MIN_INTERVAL_MS));
   if (due && consecutive < ABORT_AFTER_FAILURES && !options.stale?.()) {
-    thinking();
+    options.onPhase?.({ phase: "global" });
     const row = await attempt(() => runGlobal(deps, ctx, topicResults, slot, options.signal));
     outcome.global = !!row;
   }

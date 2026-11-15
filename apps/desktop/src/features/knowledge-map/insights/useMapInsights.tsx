@@ -1,5 +1,5 @@
 /**
- * 知识地图的洞见视图（KL-060）：点「✦ AI 洞见」→ 读（扫光 + 真实阶段说明）→ 点亮（报告卡 + 地图上依次画出）
+ * 知识地图的洞见视图（KL-060）：点「✦ AI 洞见」→ 读（地图上点亮后台正在读的那个主题 + 侧栏阶段说明）→ 点亮（报告卡 + 地图上依次画出）
  * → 点有发现的主题名飞进主题层 → 气泡处理 / 逐条看 → Esc 按层退出（气泡 → 逐条看 → 回到全局 → 退出）。
  *
  * 地图页拿到几样东西摆到自己的位置：button（标题行）、report（地图右侧的侧栏）、overlay（交给 LinkGraph）、
@@ -13,7 +13,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { Button, cn, toast } from "@tau/ui";
 import type { GraphOverlayApi } from "@/components/LinkGraph";
 import { linkCardsMutually, setKnowledgeInsightStatus } from "@/commands/knowledge-insights";
-import type { KnowledgeMapTopic } from "@/knowledge-map/types";
+import type { KnowledgeMapNode, KnowledgeMapTopic } from "@/knowledge-map/types";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { requestInsightFocus } from "@/services/insight-focus";
 import { openEntity } from "@/services/open-content";
@@ -29,6 +29,7 @@ import { useKnowledgeInsights, useKnowledgeInsightsPhase } from "../insightsQuer
 import { MapInsightPopover } from "./MapInsightPopover";
 import { MapInsightsOverlay } from "./MapInsightsOverlay";
 import { MapInsightsReport } from "./MapInsightsReport";
+import { MapReadingOverlay } from "./MapReadingOverlay";
 import {
   bothCards,
   connectTarget,
@@ -48,6 +49,7 @@ import {
 
 type ViewState = "off" | "reading" | "on";
 const GLOBAL: MapLevel = { kind: "global" };
+const EMPTY_NODES: KnowledgeMapNode[] = [];
 /** 镜头飞进主题后再开始画，免得标记在飞行途中被拉着走 */
 const LEVEL_SWITCH_DELAY_MS = 450;
 
@@ -62,7 +64,9 @@ export interface MapInsightsHost {
 export function useMapInsights(
   topics: KnowledgeMapTopic[],
   initial: string | undefined,
-  host: MapInsightsHost
+  host: MapInsightsHost,
+  /** 地图节点：读的过程中点亮正在读的主题里的节点 */
+  nodes: KnowledgeMapNode[] = EMPTY_NODES
 ) {
   const { enabled, data, analyze, setStatus } = useKnowledgeInsights();
   const [api, setApi] = useState<GraphOverlayApi | null>(null);
@@ -82,6 +86,10 @@ export function useMapInsights(
     );
     return (label: string) => byLabel.get(label) ?? null;
   }, [topics]);
+  const topicIds = useMemo(
+    () => topics.filter(topic => topic.parent === -1).map(topic => topic.id),
+    [topics]
+  );
 
   const node = nodeOfLevel(data, level);
   const marks = useMemo(() => visibleMarks(node), [node]);
@@ -342,10 +350,8 @@ export function useMapInsights(
   const overlay =
     view === "off" ? null : (
       <>
-        {view === "reading" && (
-          <div className="absolute inset-0 overflow-hidden" aria-hidden>
-            <div className="animate-insight-sweep-x absolute inset-y-0 w-40 bg-[linear-gradient(90deg,transparent,var(--tau-accent-soft)_45%,var(--tau-accent-soft)_55%,transparent)]" />
-          </div>
+        {view === "reading" && api && (
+          <MapReadingOverlay api={api} nodes={nodes} phase={phase} topicIds={topicIds} />
         )}
         {on && api && (
           <MapInsightsOverlay
@@ -386,7 +392,7 @@ export function useMapInsights(
       )}
       {walking &&
         createPortal(
-          <div className="bg-surface shadow-float text-tau-meta text-ink-2 fixed bottom-6 left-1/2 z-[240] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pl-4 pr-2">
+          <div className="bg-surface shadow-float text-tau-meta text-ink-2 fixed bottom-6 left-1/2 z-[240] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pr-2 pl-4">
             <span className="text-ink-1 tabular-nums">
               {Math.max(1, order.findIndex(item => item.id === current) + 1)} / {order.length}
             </span>

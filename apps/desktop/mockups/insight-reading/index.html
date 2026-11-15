@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>AI 洞见 · 读的过程动画选型（第二轮）</title>
+<!-- 视觉参考，非导出源（D-001）。替换 useInsightsView 里 view === "reading" 的扫光。
+     前提：读的过程中只拿得到 phase 事件（null → candidates{notes,candidates} → thinking → 结果），拿不到读到哪一段。
+     所以这一轮的方案都不在正文上表达位置。取值同 tokens.css sakura。 -->
+<style>
+  [data-mode="light"] {
+    --page: #f9eef1; --surface: #fffafb; --hover: #f7ecef; --track: #ead9df;
+    --ink-1: #422d35; --ink-2: #6d5560; --ink-3: #b3a2a8; --line-1: #f0e2e6;
+    --accent: #a6466a; --accent-soft: #fbebef; --accent-text: #a6466a; --info: #2f5f8f;
+  }
+  [data-mode="dark"] {
+    --page: #1c1719; --surface: #271f23; --hover: #2f262a; --track: #42363b;
+    --ink-1: #f0e2e8; --ink-2: #ae9ea6; --ink-3: #85767d; --line-1: #34292e;
+    --accent: #f2b6c6; --accent-soft: #33242c; --accent-text: #f2b6c6; --info: #9dc3ea;
+  }
+  :root { --ease: cubic-bezier(0.22, 1, 0.36, 1); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink-1); font: 14px/1.6 -apple-system, "PingFang SC", sans-serif; padding: 28px; }
+  .top { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .top h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  .top button { margin-left: auto; border: 1px solid var(--line-1); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; }
+  .intro { margin: 0 0 6px; color: var(--ink-2); font-size: 13px; }
+  .timeline { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-3); margin-bottom: 20px; }
+  .timeline span { padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-1); transition: all 200ms; }
+  .timeline span.on { color: var(--accent-text); background: var(--accent-soft); border-color: transparent; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(540px, 1fr)); gap: 18px; }
+  .card { background: var(--surface); border-radius: 14px; border: 1px solid var(--line-1); overflow: hidden; }
+  .card > header { padding: 14px 20px 12px; border-bottom: 1px solid var(--line-1); }
+  .card > header b { font-size: 14px; }
+  .card > header b em { font-style: normal; color: var(--accent-text); margin-right: 6px; }
+  .card > header p { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-2); }
+  .card.cur > header b em { color: var(--ink-3); }
+  .doc { padding: 16px 32px 22px; }
+  .slot { min-height: 34px; margin-bottom: 14px; }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12.5px; height: 22px; }
+  .spin { width: 12px; height: 12px; flex: none; border-radius: 50%; border: 1.5px solid currentColor; border-right-color: transparent; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .prose { position: relative; font-family: "LXGW WenKai", "Songti SC", serif; font-size: 15.5px; line-height: 1.9; color: var(--ink-1); transition: opacity 600ms var(--ease), color 600ms var(--ease); }
+  .prose p { margin: 0 0 14px; }
+  .prose p:last-child { margin-bottom: 0; }
+
+  /* 出结果后的报告卡（各方案共用，C 自己画） */
+  .report { background: var(--hover); border-radius: 10px; padding: 12px 16px; animation: fade 400ms var(--ease); }
+  .lead { margin: 0; font-size: 14px; line-height: 1.8; }
+  .chips { display: flex; gap: 6px; margin-top: 8px; }
+  .chips span { background: var(--surface); color: var(--ink-2); border-radius: 999px; font-size: 12px; height: 22px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; }
+  .chips i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
+  .chips i.info { background: var(--info); }
+  @keyframes fade { from { opacity: 0; transform: translateY(-3px); } }
+
+  /* 现状 */
+  .v-cur .clip { position: absolute; inset: 0 -24px; overflow: hidden; pointer-events: none; }
+  .v-cur .sweep { position: absolute; left: 0; right: 0; height: 96px; border-radius: 8px;
+    background: linear-gradient(180deg, transparent, var(--accent-soft) 45%, var(--accent-soft) 55%, transparent);
+    animation: cur-sweep 1.8s ease-in-out infinite; }
+  @keyframes cur-sweep { 0% { top: -96px; opacity: 0; } 20%, 80% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+  /* A 阶段条：和播客生成卡的「✓ 写脚本 — ✓ 合成语音 — 保存」同一种写法 */
+  .steps { display: flex; align-items: center; gap: 8px; font-size: 12.5px; height: 22px; color: var(--ink-3); }
+  .steps .s { display: inline-flex; align-items: center; gap: 5px; transition: color 300ms; }
+  .steps .s.active { color: var(--ink-1); }
+  .steps .s.done { color: var(--ink-2); }
+  .steps .s .ck { width: 12px; text-align: center; font-size: 11px; }
+  .steps .sep { color: var(--track); }
+  .v-a.busy .prose { color: var(--ink-2); }
+
+  /* B 整篇呼吸：整篇一起明暗，不分先后 */
+  .v-b.busy .prose { animation: breathe 2.8s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+  /* C 报告卡占位：光只在卡片的骨架里走，出结果时骨架换成真内容 */
+  .skel { background: var(--hover); border-radius: 10px; padding: 14px 16px; display: grid; gap: 9px; }
+  .skel .ln { height: 9px; border-radius: 5px; position: relative; overflow: hidden; background: var(--track); opacity: .7; }
+  .skel .ln::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--surface), transparent); animation: shimmer 1.6s ease-in-out infinite; }
+  .skel .row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  @keyframes shimmer { to { transform: translateX(100%); } }
+
+  /* D 关系图生长：候选数是真的，点按 candidates 长出来；判断时轻轻闪；出结果时留下的变实，其余淡掉 */
+  .graphbox { background: var(--hover); border-radius: 10px; padding: 10px 16px; display: grid; grid-template-columns: 1fr 150px; gap: 12px; align-items: center; min-height: 140px; }
+  .graphbox svg { width: 150px; height: 120px; display: block; }
+  .graphbox .txt { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+  .graphbox .txt b { font-weight: 600; color: var(--ink-1); }
+  .nd { transition: opacity 500ms var(--ease), r 400ms var(--ease), fill 400ms; }
+  .ed { transition: opacity 500ms var(--ease); }
+  .thinking .nd.cand { animation: blink 1.4s ease-in-out infinite; animation-delay: var(--d); }
+  @keyframes blink { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+  @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>AI 洞见 · 「正在读」第二轮</h1>
+  <button id="mode">切到深色</button>
+</div>
+<p class="intro">读的过程中拿得到的只有阶段事件，拿不到读到哪一段。所以这一轮都不在正文上表示位置，正文保持可读，动的东西放在报告卡那个位置。下面这条是模拟的时间线，五张卡同步播放。</p>
+<div class="timeline" id="tl"><span data-p="start">开始读</span><span data-p="candidates">找到候选</span><span data-p="thinking">AI 判断</span><span data-p="done">出结果</span></div>
+<div class="grid">
+  <section class="card cur" data-v="cur"><header><b><em>现状</em>色带下扫</b><p>色带从上往下扫，看起来像在逐段读，但实际并不是。</p></header><div class="doc"></div></section>
+  <section class="card" data-v="a"><header><b><em>A</em>阶段条</b><p>把现在那一行字换成三步进度，写法和播客生成卡「✓ 写脚本 — ✓ 合成语音 — 保存」一样。正文只退半档颜色。最诚实，几乎没有动画。</p></header><div class="doc"></div></section>
+  <section class="card" data-v="b"><header><b><em>B</em>整篇呼吸</b><p>整篇正文一起缓慢明暗，没有方向、没有先后，只表示「这篇在被看」。最简单，但字在动，等得久了会累眼。</p></header><div class="doc"></div></section>
+  <section class="card" data-v="c"><header><b><em>C</em>报告卡占位</b><p>结果将出现的地方先放一张骨架卡，光只在骨架条里走，底下一行写真实阶段。出结果时骨架原地换成报告。正文完全不动。</p></header><div class="doc"></div></section>
+  <section class="card" data-v="d"><header><b><em>D</em>关系图生长</b><p>直接用报告卡里那张小关系图：拿到 candidates 后按真实数量长出候选点，判断时这些点轻轻闪，出结果时留下的变实、其余淡掉。动画里的数字都是真的。</p></header><div class="doc"></div></section>
+</div>
+
+<template id="tpl">
+  <div class="slot"></div>
+  <div class="prose">
+    <p>为了讲清楚票拟到底是什么，我们先看下明代皇帝是如何处理政务的。</p>
+    <p>在洪武时期，本来还是有丞相这个职位的，丞相辅佐皇帝处理政务，可以替皇帝分担不少压力，但是后来因为胡惟庸案，朱元璋干脆把丞相制度也给废了，皇帝直接管理六部，权力更加集中，但工作负担也大大加重。</p>
+    <p>到了永乐时期，由于政务实在太多了，他就组建了内阁作为顾问机构，协助处理奏章，此时内阁只是秘书咨询班子，阁臣的品级也不高，多为翰林院编修、检讨一类的小官。</p>
+  </div>
+</template>
+
+<script>
+  // 模拟的阶段事件，和 ContentInsightsPhase 对应：null → candidates → thinking → 结果
+  const NOTES = 1284, CANDS = 9, KEPT = [1, 4, 7], KNOWN = 1;
+  const TIMELINE = [['start', 0], ['candidates', 1300], ['thinking', 3600], ['done', 7400], ['loop', 11000]];
+  const phaseText = p => p === 'candidates' ? `对照你的 ${NOTES.toLocaleString('zh-CN')} 份笔记，找到 ${CANDS} 处可能相关…`
+    : p === 'thinking' ? 'AI 正在判断哪些值得告诉你…' : '正在读…';
+  const status = p => `<div class="status"><i class="spin"></i>${phaseText(p)}</div>`;
+  const report = () => `<div class="report"><p class="lead">这篇讲票拟的由来，和你的《万历十五年》读书笔记、《明代内阁》两篇说的是同一件事。</p>
+    <div class="chips"><span><i class="info"></i>可连接 2</span><span><i></i>重复 1</span></div></div>`;
+
+  const tpl = document.getElementById('tpl');
+  const cards = [...document.querySelectorAll('.card')];
+  cards.forEach(c => c.querySelector('.doc').append(tpl.content.cloneNode(true)));
+
+  const V = {
+    cur(card, slot, p) {
+      const pr = card.querySelector('.prose');
+      let clip = pr.querySelector('.clip');
+      if (p === 'done') { clip?.remove(); slot.innerHTML = report(); return; }
+      if (!clip) pr.insertAdjacentHTML('beforeend', '<div class="clip"><div class="sweep"></div></div>');
+      slot.innerHTML = status(p);
+    },
+    a(card, slot, p) {
+      card.classList.toggle('busy', p !== 'done');
+      if (p === 'done') { slot.innerHTML = report(); return; }
+      const order = ['start', 'candidates', 'thinking'];
+      const labels = ['读这一篇', p === 'start' ? '对照你的笔记' : `对照 ${NOTES.toLocaleString('zh-CN')} 份笔记 · ${CANDS} 处候选`, '判断哪些值得说'];
+      const at = order.indexOf(p);
+      slot.innerHTML = '<div class="steps">' + labels.map((l, k) => {
+        const st = k < at ? 'done' : k === at ? 'active' : '';
+        const mark = k < at ? '<span class="ck">✓</span>' : k === at ? '<i class="spin"></i>' : '<span class="ck">·</span>';
+        return (k ? '<span class="sep">—</span>' : '') + `<span class="s ${st}">${mark}${l}</span>`;
+      }).join('') + '</div>';
+    },
+    b(card, slot, p) {
+      card.classList.toggle('busy', p !== 'done');
+      slot.innerHTML = p === 'done' ? report() : status(p);
+    },
+    c(card, slot, p) {
+      if (p === 'done') { slot.innerHTML = report(); return; }
+      if (!slot.querySelector('.skel')) slot.innerHTML = `<div class="skel"><div class="ln" style="width:92%"></div><div class="ln" style="width:64%"></div>
+        <div class="row"><span class="t"></span><span>取消</span></div></div>`;
+      slot.querySelector('.t').textContent = phaseText(p);
+    },
+    d(card, slot, p) {
+      if (p === 'start' || !slot.querySelector('svg')) {
+        const cx = 75, cy = 60, R = 46, total = CANDS + KNOWN;
+        const pt = (i, r) => { const a = Math.PI * 2 * i / total - Math.PI / 2; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r * .88]; };
+        let s = '';
+        for (let i = 0; i < KNOWN; i++) { const [x, y] = pt(i, 38); s += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--ink-3)" stroke-width="1.2"/><circle cx="${x}" cy="${y}" r="4" fill="var(--ink-3)"/>`; }
+        for (let i = 0; i < CANDS; i++) {
+          const [x, y] = pt(KNOWN + i, R);
+          s += `<line class="ed e${i}" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--info)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>
+                <circle class="nd cand n${i}" style="--d:${(i * 0.15).toFixed(2)}s" cx="${x}" cy="${y}" r="3" fill="var(--surface)" stroke="var(--info)" opacity="0"/>`;
+        }
+        s += `<circle cx="${cx}" cy="${cy}" r="7" fill="var(--accent)"/>`;
+        slot.innerHTML = `<div class="graphbox"><div class="txt"></div><svg viewBox="0 0 150 120">${s}</svg></div>`;
+      }
+      const box = slot.querySelector('.graphbox'), txt = box.querySelector('.txt');
+      box.classList.toggle('thinking', p === 'thinking');
+      if (p === 'candidates') for (let i = 0; i < CANDS; i++) setTimeout(() => {
+        box.querySelector('.n' + i).setAttribute('opacity', '.6'); box.querySelector('.e' + i).setAttribute('opacity', '.35');
+      }, i * 110);
+      if (p === 'done') for (let i = 0; i < CANDS; i++) {
+        const keep = KEPT.includes(i), n = box.querySelector('.n' + i), e = box.querySelector('.e' + i);
+        n.classList.remove('cand'); n.setAttribute('opacity', keep ? '1' : '0'); e.setAttribute('opacity', keep ? '.7' : '0');
+        if (keep) { n.setAttribute('r', '3.5'); }
+      }
+      txt.innerHTML = p === 'done'
+        ? `<p class="lead" style="font-size:13.5px">这篇讲票拟的由来，和你的《万历十五年》读书笔记、《明代内阁》两篇说的是同一件事。</p><div class="chips"><span><i class="info"></i>可连接 2</span><span><i></i>重复 1</span></div>`
+        : `<div class="status" style="height:auto;align-items:flex-start"><i class="spin" style="margin-top:4px"></i><span>${phaseText(p)}</span></div>`;
+    },
+  };
+
+  const tl = document.getElementById('tl');
+  const emit = p => {
+    tl.querySelectorAll('span').forEach(s => s.classList.toggle('on', s.dataset.p === p));
+    cards.forEach(c => V[c.dataset.v](c, c.querySelector('.slot'), p));
+  };
+  const run = () => TIMELINE.forEach(([p, t]) => setTimeout(() => p === 'loop' ? run() : emit(p), t));
+  run();
+
+  document.getElementById('mode').onclick = e => {
+    const h = document.documentElement, dark = h.dataset.mode === 'light';
+    h.dataset.mode = dark ? 'dark' : 'light';
+    e.target.textContent = dark ? '切到浅色' : '切到深色';
+  };
+</script>
+</body>
+</html>
