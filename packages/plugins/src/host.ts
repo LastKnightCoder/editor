@@ -1763,6 +1763,106 @@ export class PluginHost {
     return Object.freeze(context);
   }
 
+  /**
+   * 提供方登记的同构模板（publish/images/embeddings/video/asr/tts）：校验归属 → 确认
+   * 适配器 → 绑定 create 并登记为对应贡献类型；宿主每次调用 create 都复查活性与激活态。
+   * invoke 负责参数转发（各域 create 元数不同）与实例后校验（video/asr）。
+   */
+  private makeProviderRegister<
+    R extends {
+      id: string;
+      name: string;
+      create(config: JsonValue, modelId: string): unknown;
+    },
+  >(
+    deps: ContextDeps,
+    spec: {
+      kind: PluginContributionKind;
+      ownerError: string;
+      unavailableError: string;
+      notActiveError: string;
+      adapter: { register(context: PluginContext, definition: R): Disposable } | undefined;
+      validate?(definition: R): void;
+      extraFields?(definition: R): Partial<R>;
+      invoke(create: R["create"], config: JsonValue, modelId: string): ReturnType<R["create"]>;
+    }
+  ): (definition: R) => Disposable {
+    const { context, entry, activation, scope, registerAs } = deps;
+    return definition => {
+      this.assertActive(entry, activation);
+      if (
+        definition.id !== scope.pluginId ||
+        !definition.name.trim() ||
+        typeof definition.create !== "function"
+      )
+        throw new Error(spec.ownerError);
+      spec.validate?.(definition);
+      if (!spec.adapter) throw new Error(spec.unavailableError);
+      const create = definition.create.bind(definition);
+      return registerAs(
+        spec.kind,
+        spec.adapter.register(context, {
+          id: scope.pluginId,
+          name: definition.name,
+          ...spec.extraFields?.(definition),
+          create: (config: JsonValue, modelId: string) => {
+            this.assertActive(entry, activation);
+            if (entry.state !== "active") throw new Error(spec.notActiveError);
+            return spec.invoke(create, config, modelId);
+          },
+        } as R)
+      );
+    };
+  }
+
+  /**
+   * todos/calendar 写接口的同构模板：readFields → readRevision → guard → write(action
+   * 载荷) → deliver / assertActive。query 各有专属校验，不进模板。
+   */
+  private makeResourceCrud<W, E>(
+    deps: ContextDeps,
+    spec: {
+      createFields: Record<string, FieldRule>;
+      createRequired: readonly string[];
+      updateFields: Record<string, FieldRule>;
+      writePermission: PluginPermission;
+      deletePermission: PluginPermission;
+      write(write: W): Promise<unknown>;
+    }
+  ): {
+    create(input: unknown): Promise<E>;
+    update(id: string, patch: unknown, options: PluginWriteOptions): Promise<E>;
+    delete(id: string, options: PluginWriteOptions): Promise<void>;
+  } {
+    const { entry, activation, guard, deliver } = deps;
+    return {
+      create: async input => {
+        const value = readFields(input, spec.createFields, spec.createRequired);
+        await guard(spec.writePermission);
+        return deliver<E>(await spec.write({ action: "create", input: value } as W));
+      },
+      update: async (id, patch, options) => {
+        const value = readFields(patch, spec.updateFields);
+        const expectedRevision = readRevision(options);
+        await guard(spec.writePermission);
+        return deliver<E>(
+          await spec.write({
+            action: "update",
+            id: readId(id),
+            patch: value,
+            expectedRevision,
+          } as W)
+        );
+      },
+      delete: async (id, options) => {
+        const expectedRevision = readRevision(options);
+        await guard(spec.deletePermission);
+        await spec.write({ action: "delete", id: readId(id), expectedRevision } as W);
+        this.assertActive(entry, activation);
+      },
+    };
+  }
+
   private buildNavigationContext(deps: ContextDeps): PluginContext["navigation"] {
     const { context, entry, activation, pages, registerAs } = deps;
     const navigationIds = new Set<string>();
@@ -1816,164 +1916,92 @@ export class PluginHost {
   }
 
   private buildPublishContext(deps: ContextDeps): PluginContext["publish"] {
-    const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      register: (definition: PublishProviderDefinition) => {
-        this.assertActive(entry, activation);
-        if (
-          definition.id !== scope.pluginId ||
-          !definition.name.trim() ||
-          typeof definition.create !== "function"
-        )
-          throw new Error("发布提供方必须属于当前插件");
-        if (!this.options.publish) throw new Error("当前宿主不支持发布提供方");
-        const create = definition.create.bind(definition);
-        return registerAs(
-          "publish",
-          this.options.publish.register(context, {
-            id: scope.pluginId,
-            name: definition.name,
-            create: config => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("发布插件尚未激活");
-              return create(copyJson(config));
-            },
-          })
-        );
-      },
+      register: this.makeProviderRegister(deps, {
+        kind: "publish",
+        ownerError: "发布提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持发布提供方",
+        notActiveError: "发布插件尚未激活",
+        adapter: this.options.publish,
+        // create 只收 config，不接收 modelId
+        invoke: (create, config) => create(copyJson(config)),
+      }),
     });
   }
 
   private buildImagesContext(deps: ContextDeps): PluginContext["images"] {
-    const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      register: (definition: ImageProviderDefinition) => {
-        this.assertActive(entry, activation);
-        if (
-          definition.id !== scope.pluginId ||
-          !definition.name.trim() ||
-          typeof definition.create !== "function"
-        )
-          throw new Error("图片提供方必须属于当前插件");
-        if (!this.options.images) throw new Error("当前宿主不支持图片提供方");
-        const create = definition.create.bind(definition);
-        return registerAs(
-          "images",
-          this.options.images.register(context, {
-            id: scope.pluginId,
-            name: definition.name,
-            create: (config, modelId) => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("图片插件尚未激活");
-              return create(copyJson(config), modelId);
-            },
-          })
-        );
-      },
+      register: this.makeProviderRegister(deps, {
+        kind: "images",
+        ownerError: "图片提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持图片提供方",
+        notActiveError: "图片插件尚未激活",
+        adapter: this.options.images,
+        invoke: (create, config, modelId) => create(copyJson(config), modelId),
+      }),
     });
   }
 
   private buildEmbeddingsContext(deps: ContextDeps): PluginContext["embeddings"] {
-    const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      register: (definition: EmbeddingProviderDefinition) => {
-        this.assertActive(entry, activation);
-        if (
-          definition.id !== scope.pluginId ||
-          !definition.name.trim() ||
-          typeof definition.create !== "function"
-        )
-          throw new Error("嵌入提供方必须属于当前插件");
-        if (
-          definition.maxBatchSize !== undefined &&
-          (!Number.isInteger(definition.maxBatchSize) || definition.maxBatchSize < 1)
-        )
-          throw new Error("嵌入提供方单批上限必须是正整数");
-        if (!this.options.embeddings) throw new Error("当前宿主不支持嵌入提供方");
-        const create = definition.create.bind(definition);
-        return registerAs(
-          "embeddings",
-          this.options.embeddings.register(context, {
-            id: scope.pluginId,
-            name: definition.name,
-            maxBatchSize: definition.maxBatchSize,
-            create: (config, modelId) => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("嵌入插件尚未激活");
-              return create(copyJson(config), modelId);
-            },
-          })
-        );
-      },
+      register: this.makeProviderRegister(deps, {
+        kind: "embeddings",
+        ownerError: "嵌入提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持嵌入提供方",
+        notActiveError: "嵌入插件尚未激活",
+        adapter: this.options.embeddings,
+        validate: definition => {
+          if (
+            definition.maxBatchSize !== undefined &&
+            (!Number.isInteger(definition.maxBatchSize) || definition.maxBatchSize < 1)
+          )
+            throw new Error("嵌入提供方单批上限必须是正整数");
+        },
+        extraFields: definition => ({ maxBatchSize: definition.maxBatchSize }),
+        invoke: (create, config, modelId) => create(copyJson(config), modelId),
+      }),
     });
   }
 
   private buildVideoContext(deps: ContextDeps): PluginContext["video"] {
-    const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      register: (definition: VideoProviderDefinition) => {
-        this.assertActive(entry, activation);
-        if (
-          definition.id !== scope.pluginId ||
-          !definition.name.trim() ||
-          typeof definition.create !== "function"
-        )
-          throw new Error("视频提供方必须属于当前插件");
-        if (!this.options.video) throw new Error("当前宿主不支持视频提供方");
-        const create = definition.create.bind(definition);
-        return registerAs(
-          "video",
-          this.options.video.register(context, {
-            id: scope.pluginId,
-            name: definition.name,
-            create: config => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("视频插件尚未激活");
-              const instance = create(copyJson(config));
-              for (const method of ["matches", "resolve", "cacheKey", "getPlayback"] as const)
-                if (typeof instance?.[method] !== "function")
-                  throw new Error(`视频提供方缺少 ${method} 方法`);
-              if (instance.getCaptions !== undefined && typeof instance.getCaptions !== "function")
-                throw new Error("视频提供方 getCaptions 必须是方法");
-              return instance;
-            },
-          })
-        );
-      },
+      register: this.makeProviderRegister(deps, {
+        kind: "video",
+        ownerError: "视频提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持视频提供方",
+        notActiveError: "视频插件尚未激活",
+        adapter: this.options.video,
+        invoke: (create, config) => {
+          const instance = create(copyJson(config));
+          for (const method of ["matches", "resolve", "cacheKey", "getPlayback"] as const)
+            if (typeof instance?.[method] !== "function")
+              throw new Error(`视频提供方缺少 ${method} 方法`);
+          if (instance.getCaptions !== undefined && typeof instance.getCaptions !== "function")
+            throw new Error("视频提供方 getCaptions 必须是方法");
+          return instance;
+        },
+      }),
     });
   }
 
   private buildASRContext(deps: ContextDeps): PluginContext["asr"] {
-    const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      register: (definition: ASRProviderDefinition) => {
-        this.assertActive(entry, activation);
-        if (
-          definition.id !== scope.pluginId ||
-          !definition.name.trim() ||
-          typeof definition.create !== "function"
-        )
-          throw new Error("识别提供方必须属于当前插件");
-        if (!this.options.asr) throw new Error("当前宿主不支持语音识别插件");
-        return registerAs(
-          "asr",
-          this.options.asr.register(context, {
-            id: scope.pluginId,
-            name: definition.name,
-            create: (config, modelId) => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("识别插件尚未激活");
-              const instance = definition.create(copyJson(config), modelId);
-              if (
-                typeof instance?.probe !== "function" ||
-                (!instance.openStream && !instance.transcribeFile)
-              )
-                throw new Error("识别提供方实现不完整");
-              return instance;
-            },
-          })
-        );
-      },
+      register: this.makeProviderRegister(deps, {
+        kind: "asr",
+        ownerError: "识别提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持语音识别插件",
+        notActiveError: "识别插件尚未激活",
+        adapter: this.options.asr,
+        invoke: (create, config, modelId) => {
+          const instance = create(copyJson(config), modelId);
+          if (
+            typeof instance?.probe !== "function" ||
+            (!instance.openStream && !instance.transcribeFile)
+          )
+            throw new Error("识别提供方实现不完整");
+          return instance;
+        },
+      }),
     });
   }
 
@@ -1994,31 +2022,16 @@ export class PluginHost {
   }
 
   private buildTTSContext(deps: ContextDeps): PluginContext["tts"] {
-    const { context, entry, activation, scope, guard, registerAs } = deps;
+    const { context, entry, activation, scope, guard } = deps;
     return Object.freeze({
-      register: (definition: TTSProviderDefinition) => {
-        this.assertActive(entry, activation);
-        if (
-          definition.id !== scope.pluginId ||
-          !definition.name.trim() ||
-          typeof definition.create !== "function"
-        )
-          throw new Error("语音提供方必须属于当前插件");
-        if (!this.options.tts) throw new Error("当前宿主不支持语音提供方");
-        const create = definition.create.bind(definition);
-        return registerAs(
-          "tts",
-          this.options.tts.register(context, {
-            id: scope.pluginId,
-            name: definition.name,
-            create: (config, modelId) => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("语音插件尚未激活");
-              return create(copyJson(config), modelId);
-            },
-          })
-        );
-      },
+      register: this.makeProviderRegister(deps, {
+        kind: "tts",
+        ownerError: "语音提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持语音提供方",
+        notActiveError: "语音插件尚未激活",
+        adapter: this.options.tts,
+        invoke: (create, config, modelId) => create(copyJson(config), modelId),
+      }),
       unavailableReason: () => {
         this.assertActive(entry, activation);
         if (!this.options.ttsSynthesis) return "当前设备不支持插件语音合成";
@@ -2783,7 +2796,7 @@ export class PluginHost {
   }
 
   private buildTodosContext(deps: ContextDeps): PluginContext["data"]["todos"] {
-    const { context, entry, activation, guard, dataAdapter, deliver } = deps;
+    const { context, guard, dataAdapter, deliver } = deps;
     const writeTodo = (write: TodoWrite) => {
       const adapter = dataAdapter();
       if (write.action !== "create" && /@\d{4}-\d{2}-\d{2}$/.test(write.id)) {
@@ -2793,32 +2806,17 @@ export class PluginHost {
       }
       return adapter.writeTodo(context, write);
     };
+    const crud = this.makeResourceCrud<TodoWrite, PluginTodo>(deps, {
+      createFields: { title: MAX_TITLE, dueAt: "nullable-time" },
+      createRequired: ["title"],
+      updateFields: { title: MAX_TITLE, dueAt: "nullable-time" },
+      writePermission: "todos:write",
+      deletePermission: "todos:delete",
+      write: writeTodo,
+    });
     return Object.freeze({
-      create: async (input: PluginTodoInput) => {
-        const value = readFields<PluginTodoInput>(
-          input,
-          { title: MAX_TITLE, dueAt: "nullable-time" },
-          ["title"]
-        );
-        await guard("todos:write");
-        return deliver<PluginTodo>(await writeTodo({ action: "create", input: value }));
-      },
-      update: async (id: string, patch: PluginTodoPatch, options: PluginWriteOptions) => {
-        const value = readFields<PluginTodoPatch>(patch, {
-          title: MAX_TITLE,
-          dueAt: "nullable-time",
-        });
-        const expectedRevision = readRevision(options);
-        await guard("todos:write");
-        return deliver<PluginTodo>(
-          await writeTodo({
-            action: "update",
-            id: readId(id),
-            patch: value,
-            expectedRevision,
-          })
-        );
-      },
+      create: crud.create,
+      update: crud.update,
       setCompleted: async (id: string, completed: boolean, options: PluginWriteOptions) => {
         if (typeof completed !== "boolean") throw new Error("completed 无效");
         const expectedRevision = readRevision(options);
@@ -2832,16 +2830,7 @@ export class PluginHost {
           })
         );
       },
-      delete: async (id: string, options: PluginWriteOptions) => {
-        const expectedRevision = readRevision(options);
-        await guard("todos:delete");
-        await writeTodo({
-          action: "delete",
-          id: readId(id),
-          expectedRevision,
-        });
-        this.assertActive(entry, activation);
-      },
+      delete: crud.delete,
       query: async (query?: PluginTodoQuery) => {
         const picked = pickQuery<PluginTodoQuery>(query, {
           source: "string",
@@ -2868,48 +2857,19 @@ export class PluginHost {
   }
 
   private buildCalendarContext(deps: ContextDeps): PluginContext["data"]["calendar"] {
-    const { context, entry, activation, guard, dataAdapter, deliver } = deps;
+    const { context, guard, dataAdapter, deliver } = deps;
+    const crud = this.makeResourceCrud<CalendarWrite, PluginCalendarEvent>(deps, {
+      createFields: { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+      createRequired: ["title", "start", "end", "allDay"],
+      updateFields: { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+      writePermission: "calendar:write",
+      deletePermission: "calendar:delete",
+      write: write => dataAdapter().writeCalendar(context, write),
+    });
     return Object.freeze({
-      create: async (input: PluginCalendarInput) => {
-        const value = readFields<PluginCalendarInput>(
-          input,
-          { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
-          ["title", "start", "end", "allDay"]
-        );
-        await guard("calendar:write");
-        return deliver<PluginCalendarEvent>(
-          await dataAdapter().writeCalendar(context, { action: "create", input: value })
-        );
-      },
-      update: async (id: string, patch: PluginCalendarPatch, options: PluginWriteOptions) => {
-        const value = readFields<PluginCalendarPatch>(patch, {
-          title: MAX_TITLE,
-          start: 64,
-          end: 64,
-          allDay: "boolean",
-          calendarId: 32,
-        });
-        const expectedRevision = readRevision(options);
-        await guard("calendar:write");
-        return deliver<PluginCalendarEvent>(
-          await dataAdapter().writeCalendar(context, {
-            action: "update",
-            id: readId(id),
-            patch: value,
-            expectedRevision,
-          })
-        );
-      },
-      delete: async (id: string, options: PluginWriteOptions) => {
-        const expectedRevision = readRevision(options);
-        await guard("calendar:delete");
-        await dataAdapter().writeCalendar(context, {
-          action: "delete",
-          id: readId(id),
-          expectedRevision,
-        });
-        this.assertActive(entry, activation);
-      },
+      create: crud.create,
+      update: crud.update,
+      delete: crud.delete,
       query: async (query: PluginCalendarQuery) => {
         const picked = pickQuery<PluginCalendarQuery>(query, {
           start: "string",
