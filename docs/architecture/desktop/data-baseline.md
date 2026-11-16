@@ -14,6 +14,8 @@
 
 云端提供方整库同步搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
 
+- 数据升级收尾（D-091）：当前版本须为存量数据完成最后升级，失败不放行；全部数据与配置转换完成后的版本应拒绝旧格式并删除历史转换代码。
+
 正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集，已有契约按规范化 JSON 比较，不因跨端序列化的属性顺序变化拒绝保存；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。本机正文保存 JSON 投影，缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
 
 正文订阅快照以 `documentIdentity` 单独返回主进程确认的正文 ID、基线 ID 与代次；渲染端按该身份校验快照。本机订阅会话 ID 只用于 IPC 路由、视图与草稿归属，不能代替正文的稳定 ID。

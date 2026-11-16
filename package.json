@@ -9,6 +9,7 @@
     "check:plugin-process-boundaries": "node scripts/check-plugin-process-boundaries.mjs",
     "check:database-boundaries": "node scripts/check-database-boundaries.mjs",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:tests": "node scripts/check-tests.mjs",
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
     "ios:install": "pnpm --filter mobile ios:install",
