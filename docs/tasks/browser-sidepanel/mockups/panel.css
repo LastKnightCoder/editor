@@ -1,0 +1,527 @@
+/* 侧栏页面（真实实现为扩展页面 sidepanel.html，无 Shadow DOM） */
+.sp {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--page);
+  color: var(--ink-1);
+}
+.sp-page {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 10px 14px;
+  flex: none;
+}
+.sp-page .fav {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 22px;
+}
+.sp-page .t {
+  flex: 1;
+  min-width: 0;
+}
+.sp-page .t b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-page .t small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.sp-page .t small .dot {
+  width: 6px;
+  height: 6px;
+}
+.sp-switch {
+  animation: swap 0.3s var(--ease);
+}
+@keyframes swap {
+  from {
+    opacity: 0.3;
+    transform: translateY(-3px);
+  }
+}
+.sp-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line-1);
+  flex: none;
+}
+.sp-tab {
+  height: 34px;
+  padding: 0 9px;
+  color: var(--ink-2);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sp-tab:hover {
+  color: var(--ink-1);
+}
+.sp-tab.on {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+.sp-tab.on::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.sp-tab .c {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.sp-tab.lib {
+  margin-left: auto;
+}
+.sp-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.sp-foot {
+  flex: none;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line-1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sp-foot .sp-grow {
+  flex: 1;
+}
+.banner {
+  margin: 10px 12px 0;
+  padding: 9px 11px;
+  border-radius: var(--r-md);
+  background: var(--warn-soft);
+  color: var(--ink-1);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.banner .btn {
+  height: 26px;
+  margin-left: auto;
+}
+
+/* 分组标题、空态 */
+.group-t {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 14px 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.group-t .act {
+  margin-left: auto;
+}
+.empty {
+  padding: 48px 28px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.empty svg.i {
+  width: 22px;
+  height: 22px;
+  display: block;
+  margin: 0 auto 10px;
+}
+
+/* 标注列表 */
+.filters {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px 2px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filters .swatch {
+  width: 14px;
+  height: 14px;
+}
+.chip.sw {
+  padding: 0 7px;
+}
+.ann {
+  margin: 6px 10px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.ann::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--c);
+}
+.ann:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, var(--line-1));
+}
+.ann.cur {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 75%, transparent);
+}
+.ann .q {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ann .n {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  display: flex;
+  gap: 6px;
+}
+.ann .n svg.i {
+  width: 13px;
+  height: 13px;
+  margin-top: 3px;
+  color: var(--ink-3);
+}
+.ann .m {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.ann .m .tools {
+  margin-left: auto;
+  display: flex;
+  gap: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.ann:hover .m .tools,
+.ann.cur .m .tools {
+  opacity: 1;
+}
+.ann .m .icon-btn {
+  width: 24px;
+  height: 24px;
+}
+.ann .m .icon-btn svg.i {
+  width: 14px;
+  height: 14px;
+}
+.ann .edit {
+  margin-top: 8px;
+}
+.field {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  resize: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink-1);
+  background: var(--page);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.field:focus {
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    var(--focus-ring);
+}
+.row-end {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.row-end .btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.ann .lost {
+  font-size: 11px;
+  color: var(--warn);
+}
+
+/* 笔记 */
+.note-target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  position: relative;
+}
+.note-target .pick {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.note-target .pick:hover {
+  background: var(--hover);
+}
+.note-target .pick svg.i {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-3);
+}
+.note-paper {
+  margin: 8px 10px;
+  min-height: 260px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  outline: 0;
+  font-size: 13.5px;
+  line-height: 1.75;
+}
+.note-paper:empty::before {
+  content: "写下这页给你的想法… 输入 / 插入块，选中网页文字点「摘录」会接在这里";
+  color: var(--ink-3);
+}
+.note-paper h3 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+.note-paper p {
+  margin: 0 0 8px;
+}
+.note-paper blockquote {
+  margin: 8px 0;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--line-1);
+  color: var(--ink-2);
+}
+.note-paper blockquote.fresh {
+  animation: fresh 1.6s ease-out;
+}
+@keyframes fresh {
+  0%,
+  40% {
+    background: var(--accent-soft);
+  }
+}
+.note-paper blockquote .src {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.note-paper .from {
+  font-size: 11px;
+  color: var(--ink-3);
+  display: block;
+  margin: 12px 0 2px;
+}
+.saved {
+  margin: 4px 10px 12px;
+}
+.saved .it {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.saved .it:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.saved .it .meta {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+/* 资料库 */
+.searchbox {
+  margin: 10px 12px 4px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: var(--ink-3);
+}
+.searchbox input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink-1);
+}
+.subtabs {
+  display: flex;
+  gap: 14px;
+  padding: 6px 14px 0;
+  font-size: 12px;
+}
+.subtabs button {
+  color: var(--ink-3);
+  height: 24px;
+}
+.subtabs button.on {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.subtabs .sp-grow {
+  flex: 1;
+}
+.pg {
+  display: flex;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  align-items: flex-start;
+}
+.pg:hover {
+  background: var(--hover);
+}
+.pg .fav {
+  margin-top: 2px;
+}
+.pg .t {
+  flex: 1;
+  min-width: 0;
+}
+.pg .t b {
+  display: block;
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pg .t small {
+  display: flex;
+  gap: 10px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  align-items: center;
+}
+.pg .t small span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.pg .t small svg.i {
+  width: 12px;
+  height: 12px;
+}
+.pg .here {
+  font-size: 10.5px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 17px;
+  flex: none;
+  margin-top: 2px;
+}
+.pg .open {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  flex: none;
+  margin-top: 3px;
+}
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 4px;
+}
+.detail-head .t {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.detail-meta {
+  padding: 0 14px 8px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.detail-acts {
+  display: flex;
+  gap: 6px;
+  padding: 2px 12px 6px;
+}
+.detail-acts .btn {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+.feed-src {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 6px;
+}
+.feed-src .fav {
+  width: 13px;
+  height: 13px;
+  font-size: 7px;
+  line-height: 13px;
+  border-radius: 3px;
+}

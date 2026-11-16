@@ -1,0 +1,569 @@
+<!doctype html>
+<!-- 对话页签顶部重设计 mockup：现状对照 + 三个方案（可点开历史下拉 / 展开最近对话） -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>对话页签顶部 · 重设计</title>
+<style>
+  /* ---- 暖纸 token（取自 shared.css，仅浅色） ---- */
+  :root {
+    --page: #f3eee2;
+    --surface: #fffdf9;
+    --hover: rgba(67, 57, 44, 0.05);
+    --press: rgba(67, 57, 44, 0.09);
+    --ink-1: #43392c;
+    --ink-2: #6a5c49;
+    --ink-3: #a89a85;
+    --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2;
+    --accent: hsl(22 58% 42%);
+    --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --accent-text: #a05236;
+    --ok: #61795f;
+    --danger: #b0564d;
+    --shadow-float: 0 0 0 1px rgba(120, 100, 70, 0.08), 0 18px 44px -12px rgba(120, 100, 70, 0.42);
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  }
+  html, body { margin: 0; }
+  body { background: #e6e0d1; font: 13px/1.55 var(--font); color: var(--ink-1); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---- 页面骨架 ---- */
+  .wrap { max-width: 940px; margin: 0 auto; padding: 44px 32px 80px; }
+  .page-head h1 { font-size: 23px; font-weight: 650; margin: 0 0 8px; letter-spacing: -.01em; }
+  .page-head p { margin: 0; color: var(--ink-2); max-width: 640px; }
+  .page-head .gold { color: var(--accent-text); }
+  section { margin-top: 52px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-head h2 { font-size: 17px; font-weight: 650; margin: 0; }
+  .sec-head .tag { font-size: 12px; color: var(--accent-text); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; }
+  .sec-desc { color: var(--ink-2); margin: 0 0 20px; max-width: 680px; }
+  .duo { display: flex; gap: 28px; flex-wrap: wrap; }
+  .duo .cell { flex: none; }
+  .cell-label { font-size: 12px; color: var(--ink-3); margin: 0 0 10px 4px; }
+  .notes { margin: 18px 4px 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 13px; }
+  .notes li { padding-left: 18px; position: relative; margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; border-radius: 2px; background: var(--line-1); }
+  .notes li.plus::before { background: var(--ok); }
+  .notes li.minus::before { background: var(--danger); }
+  .notes b { color: var(--ink-1); font-weight: 600; }
+  .verdict { margin-top: 52px; padding: 16px 20px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--ink-1); }
+  .verdict b { color: var(--accent-text); }
+
+  /* ---- 面板复刻（400px 浮窗，对齐 Panel.tsx 现状） ---- */
+  .panel {
+    width: 400px; height: 640px;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-float); position: relative;
+  }
+  .p-head { display: flex; align-items: center; gap: 10px; padding: 12px 10px 12px 14px; cursor: default; }
+  .p-fav { width: 28px; height: 28px; flex: none; border-radius: 8px; background: #fdeed9; display: grid; place-items: center; font-size: 17px; }
+  .p-title { min-width: 0; flex: 1; }
+  .p-title b { display: block; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p-title small { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); }
+  .p-title small .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none; }
+  .icon-btn { width: 28px; height: 28px; flex: none; border-radius: var(--r-sm); display: inline-grid; place-items: center; color: var(--ink-2); transition: background .15s, color .15s; }
+  .icon-btn:hover { background: var(--hover); color: var(--ink-1); }
+  .icon-btn svg.i { width: 15px; height: 15px; }
+
+  /* 页签行：现状无 border，与内容区同纸 */
+  .p-tabs { display: flex; align-items: center; gap: 18px; padding: 0 16px; flex: none; }
+  .p-tab { position: relative; height: 34px; display: inline-flex; align-items: center; gap: 5px; font-weight: 500; color: var(--ink-3); }
+  .p-tab:hover { color: var(--ink-2); }
+  .p-tab.on { color: var(--ink-1); }
+  .p-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 2px; border-radius: 2px; background: var(--accent); }
+
+  /* 现状的独立会话条（复刻 + 红框标注） */
+  .p-sessbar { display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px; border-bottom: 1px solid var(--line-1); flex: none; }
+  .p-sessbar .mid { flex: 1; min-width: 0; text-align: center; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mark { outline: 2px solid rgba(176, 86, 77, .75); outline-offset: -2px; border-radius: 4px; }
+
+  /* 方案 A / C：页签行一体化（tabs 左、会话控制右，无分隔线） */
+  .p-tabs .grow { flex: 1; }
+  .p-tabs .sess-title { min-width: 0; max-width: 128px; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 4px 6px; border-radius: 6px; }
+  .p-tabs .sess-title:hover { background: var(--hover); color: var(--ink-2); }
+  .p-tabs .tools { display: flex; align-items: center; gap: 2px; }
+
+  /* 方案 B：单胶囊会话切换器 */
+  .p-pill { height: 26px; max-width: 190px; padding: 0 8px 0 7px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); transition: background .15s, color .15s; }
+  .p-pill:hover { background: var(--hover); }
+  .p-pill.open { background: var(--hover); color: var(--ink-1); }
+  .p-pill svg.i { width: 13px; height: 13px; }
+  .p-pill .txt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p-pill .chev { width: 12px; height: 12px; color: var(--ink-3); }
+
+  /* 内容区：空态 */
+  .p-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 12px; }
+  .hero { padding-top: 24px; }
+  .hero h3 { font-size: 19px; font-weight: 650; margin: 0 0 4px; letter-spacing: -.01em; }
+  .hero .sub { color: var(--ink-3); font-size: 12.5px; margin: 0 0 14px; }
+  .sug { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: var(--r-sm); text-align: left; color: var(--ink-1); }
+  .sug:hover { background: var(--hover); }
+  .sug svg.i { width: 16px; height: 16px; color: var(--ink-3); }
+
+  /* 方案 C：空态里的「最近聊过」 */
+  .recent { margin-top: 14px; }
+  .recent .rt { font-size: 11.5px; color: var(--ink-3); padding: 0 10px 4px; display: flex; align-items: center; }
+  .recent .rt button { margin-left: auto; color: var(--accent-text); font-size: 11.5px; padding: 2px 4px; border-radius: 5px; }
+  .recent .rt button:hover { background: var(--hover); }
+  .rc { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border-radius: var(--r-sm); text-align: left; }
+  .rc:hover { background: var(--hover); }
+  .rc svg.i { width: 13px; height: 13px; color: var(--ink-3); }
+  .rc .t { min-width: 0; flex: 1; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc .m { flex: none; font-size: 11px; color: var(--ink-3); }
+
+  /* 内容区：会话中 */
+  .msgs { padding-top: 12px; }
+  .msg-user { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .msg-user .b { max-width: 85%; background: var(--accent-soft); color: var(--ink-1); font-size: 13px; line-height: 1.6; padding: 7px 12px; border-radius: 12px 12px 4px 12px; }
+  .msg-ai { font-size: 13px; line-height: 1.7; color: var(--ink-1); margin-bottom: 12px; }
+  .msg-ai .cite { font-size: 11px; color: var(--accent-text); background: var(--accent-soft); border-radius: 4px; padding: 0 4px; }
+
+  /* 会话下拉（三方案共用，内容同现有实现） */
+  .sess-menu { position: absolute; left: 8px; right: 8px; top: 118px; z-index: 20; padding: 4px; border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-float), 0 0 0 1px rgba(120, 100, 70, 0.06); }
+  .sess-menu .it { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: var(--r-sm); text-align: left; position: relative; }
+  .sess-menu .it:hover { background: var(--hover); }
+  .sess-menu .it .ck { width: 16px; flex: none; display: grid; place-items: center; color: var(--accent-text); }
+  .sess-menu .it .ck svg.i { width: 14px; height: 14px; }
+  .sess-menu .it .body { min-width: 0; flex: 1; }
+  .sess-menu .it .body .t { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sess-menu .it .body .m { display: block; font-size: 12px; color: var(--ink-3); }
+  .sess-menu .it .del { width: 24px; height: 24px; flex: none; border-radius: 6px; display: none; place-items: center; color: var(--ink-3); }
+  .sess-menu .it .del:hover { color: var(--danger); background: var(--hover); }
+  .sess-menu .it:hover .del { display: grid; }
+
+  /* Composer 复刻 */
+  .p-composer { flex: none; padding: 8px 12px 12px; }
+  .p-chips { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .chip { height: 24px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .chip.on { background: var(--accent-soft); color: var(--accent-text); box-shadow: none; }
+  .chip svg.i { width: 13px; height: 13px; }
+  .p-chips .model { margin-left: auto; font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 6px; }
+  .p-chips .model:hover { background: var(--hover); }
+  .p-chips .model svg.i { width: 12px; height: 12px; }
+  .p-input { position: relative; }
+  .p-input .box { min-height: 72px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line-1); padding: 10px 44px 10px 12px; font-size: 13px; color: var(--ink-3); }
+  .p-input .send { position: absolute; right: 8px; bottom: 8px; width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
+  .p-input .send svg.i { width: 15px; height: 15px; stroke-width: 2.2; }
+  .p-resize { position: absolute; left: 0; bottom: 0; width: 18px; height: 18px; }
+  .p-resize::after { content: ""; position: absolute; left: 5px; bottom: 5px; width: 7px; height: 7px; border-left: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); border-radius: 0 0 0 3px; opacity: .6; }
+
+  /* 现状问题点 */
+  .flaws { margin: 18px 4px 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden>
+  <defs>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M9.9 15.5a2 2 0 0 0-1.4-1.4L2.3 12.5a.5.5 0 0 1 0-1l6.2-1.6a2 2 0 0 0 1.4-1.4l1.6-6.2a.5.5 0 0 1 1 0l1.6 6.2a2 2 0 0 0 1.4 1.4l6.2 1.6a.5.5 0 0 1 0 1l-6.2 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.2a.5.5 0 0 1-1 0z"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></symbol>
+    <symbol id="i-hl" viewBox="0 0 24 24"><path d="m9 11-5 5v4h4l5-5"/><path d="m12 8 4-4a2.12 2.12 0 1 1 3 3l-4 4z"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="page-head">
+    <h1>对话页签顶部 · 重设计</h1>
+    <p>现状：页签下面单独一条会话栏（历史 / 居中「新对话」/ 新建），<span class="gold">多占一行还压了一条分隔线</span>，而页签行右边原本是空的。下面三个方案都把这一行消掉，把会话控制收进页签行，区别只在「当前会话显示在哪、历史藏多深」。</p>
+  </header>
+
+  <!-- ============ 现状 ============ -->
+  <section>
+    <div class="sec-head"><h2>现状</h2><span class="tag">问题</span></div>
+    <p class="sec-desc">三层 chrome（头部 → 页签 → 会话条），最下面那条夹在页签和内容之间，最突兀。</p>
+    <div class="duo"><div class="cell">
+      <div class="panel">
+        <div class="p-head">
+          <span class="p-fav">🍊</span>
+          <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+          <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+          <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+          <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="p-tabs">
+          <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+        </div>
+        <div class="p-sessbar mark">
+          <button class="icon-btn"><svg class="i"><use href="#i-history"/></svg></button>
+          <span class="mid">新对话</span>
+          <button class="icon-btn"><svg class="i"><use href="#i-pen"/></svg></button>
+        </div>
+        <div class="p-body">
+          <div class="hero">
+            <h3>关于这页，想知道什么？</h3>
+            <p class="sub">回答会标出原文出处，点编号可跳回原文。</p>
+            <button class="sug"><svg class="i"><use href="#i-book"/></svg>总结本页</button>
+            <button class="sug"><svg class="i"><use href="#i-list"/></svg>列出要点</button>
+            <button class="sug"><svg class="i"><use href="#i-search"/></svg>这篇的论证有哪些可以追问的地方</button>
+            <button class="sug"><svg class="i"><use href="#i-spark"/></svg>和我的笔记有什么关联</button>
+          </div>
+        </div>
+        <div class="p-composer">
+          <div class="p-chips">
+            <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 0 字</span>
+            <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+            <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+          </div>
+          <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+        </div>
+        <span class="p-resize"></span>
+      </div>
+      <ul class="notes flaws">
+        <li class="minus"><b>多占一行 40px</b>：「新对话」居中文案和下方空态标题语义重复，几乎不传达信息。</li>
+        <li class="minus"><b>一条 border 分隔线</b>：页签和内容之间凭空多一道横切。</li>
+        <li class="minus"><b>空间失衡</b>：页签行右边大片留白，会话控制却另起一行。</li>
+      </ul>
+    </div></div>
+  </section>
+
+  <!-- ============ 方案 A ============ -->
+  <section>
+    <div class="sec-head"><h2>方案 A</h2><span class="tag">推荐</span></div>
+    <p class="sec-desc"><b>页签行一体化</b>：会话控制收进页签行右侧（历史 + 新对话两枚图标），独立会话条整行删除。恢复历史会话时，当前标题以小字出现在图标左侧、点击同样打开历史；新对话时该位置留空，不再有常驻占位文案。</p>
+    <div class="duo">
+      <div class="cell">
+        <p class="cell-label">新对话（空态）</p>
+        <div class="panel">
+          <div class="p-head">
+            <span class="p-fav">🍊</span>
+            <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+            <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="p-tabs">
+            <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+            <span class="grow"></span>
+            <span class="tools">
+              <button class="icon-btn js-menu" data-menu="menu-a-new" title="历史对话"><svg class="i"><use href="#i-history"/></svg></button>
+              <button class="icon-btn" title="新对话"><svg class="i"><use href="#i-pen"/></svg></button>
+            </span>
+          </div>
+          <div class="p-body">
+            <div class="hero">
+              <h3>关于这页，想知道什么？</h3>
+              <p class="sub">回答会标出原文出处，点编号可跳回原文。</p>
+              <button class="sug"><svg class="i"><use href="#i-book"/></svg>总结本页</button>
+              <button class="sug"><svg class="i"><use href="#i-list"/></svg>列出要点</button>
+              <button class="sug"><svg class="i"><use href="#i-search"/></svg>这篇的论证有哪些可以追问的地方</button>
+              <button class="sug"><svg class="i"><use href="#i-spark"/></svg>和我的笔记有什么关联</button>
+            </div>
+          </div>
+          <div class="p-composer">
+            <div class="p-chips">
+              <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 0 字</span>
+              <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+              <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+          </div>
+          <span class="p-resize"></span>
+          <div class="sess-menu" id="menu-a-new" hidden>
+            <button class="it"><span class="ck"><svg class="i"><use href="#i-check"/></svg></span><span class="body"><span class="t">新对话</span></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">总结本页</span><span class="m">上周 · 2 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+      <div class="cell">
+        <p class="cell-label">继续历史会话（标题入行）</p>
+        <div class="panel">
+          <div class="p-head">
+            <span class="p-fav">🍊</span>
+            <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+            <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="p-tabs">
+            <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+            <span class="grow"></span>
+            <span class="sess-title js-menu" data-menu="menu-a-resume" title="历史对话">表格行列菜单的展开方向</span>
+            <span class="tools">
+              <button class="icon-btn js-menu" data-menu="menu-a-resume" title="历史对话"><svg class="i"><use href="#i-history"/></svg></button>
+              <button class="icon-btn" title="新对话"><svg class="i"><use href="#i-pen"/></svg></button>
+            </span>
+          </div>
+          <div class="p-body">
+            <div class="msgs">
+              <div class="msg-user"><span class="b">这篇的论证有哪些可以追问的地方</span></div>
+              <div class="msg-ai">第 3 段用「查询延迟下降 40%」支撑结论，但没给对照条件，可以追问：<span class="cite">1</span> 是和哪个基线比；第 5 段的样本只有本周数据，<span class="cite">2</span> 换个时间窗是否还成立。</div>
+            </div>
+          </div>
+          <div class="p-composer">
+            <div class="p-chips">
+              <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 3.2k 字</span>
+              <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+              <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+          </div>
+          <span class="p-resize"></span>
+          <div class="sess-menu" id="menu-a-resume" hidden>
+            <button class="it"><span class="ck"><svg class="i"><use href="#i-check"/></svg></span><span class="body"><span class="t">新对话</span></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">总结本页</span><span class="m">上周 · 2 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li class="plus"><b>省一整行</b>：内容区上移 40px，页签行与会话区之间零分隔线。</li>
+      <li class="plus"><b>行为不变</b>：历史、新对话还是一步直达，只换了位置。</li>
+      <li class="minus">会话进行中时页签行右侧偏满（标题 + 两枚图标），340px 最小宽下标题会截断。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 方案 B ============ -->
+  <section>
+    <div class="sec-head"><h2>方案 B</h2></div>
+    <p class="sec-desc"><b>单胶囊会话切换器</b>：页签行右侧只留一枚胶囊（历史 + 标题 + 新建合并成一个控件），点开统一下拉，下拉顶部即「新对话」。chrome 最简，代价是开新对话要点两下。</p>
+    <div class="duo">
+      <div class="cell">
+        <p class="cell-label">新对话（空态）</p>
+        <div class="panel">
+          <div class="p-head">
+            <span class="p-fav">🍊</span>
+            <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+            <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="p-tabs">
+            <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+            <span class="grow"></span>
+            <button class="p-pill js-menu" data-menu="menu-b-new"><svg class="i"><use href="#i-history"/></svg><span class="txt">本页对话</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+          </div>
+          <div class="p-body">
+            <div class="hero">
+              <h3>关于这页，想知道什么？</h3>
+              <p class="sub">回答会标出原文出处，点编号可跳回原文。</p>
+              <button class="sug"><svg class="i"><use href="#i-book"/></svg>总结本页</button>
+              <button class="sug"><svg class="i"><use href="#i-list"/></svg>列出要点</button>
+              <button class="sug"><svg class="i"><use href="#i-search"/></svg>这篇的论证有哪些可以追问的地方</button>
+              <button class="sug"><svg class="i"><use href="#i-spark"/></svg>和我的笔记有什么关联</button>
+            </div>
+          </div>
+          <div class="p-composer">
+            <div class="p-chips">
+              <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 0 字</span>
+              <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+              <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+          </div>
+          <span class="p-resize"></span>
+          <div class="sess-menu" id="menu-b-new" hidden>
+            <button class="it"><span class="ck"><svg class="i"><use href="#i-check"/></svg></span><span class="body"><span class="t">新对话</span></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">总结本页</span><span class="m">上周 · 2 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+      <div class="cell">
+        <p class="cell-label">继续历史会话（胶囊显示标题）</p>
+        <div class="panel">
+          <div class="p-head">
+            <span class="p-fav">🍊</span>
+            <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+            <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="p-tabs">
+            <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+            <span class="grow"></span>
+            <button class="p-pill js-menu" data-menu="menu-b-resume"><svg class="i"><use href="#i-history"/></svg><span class="txt">表格行列菜单的展开方向</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+          </div>
+          <div class="p-body">
+            <div class="msgs">
+              <div class="msg-user"><span class="b">这篇的论证有哪些可以追问的地方</span></div>
+              <div class="msg-ai">第 3 段用「查询延迟下降 40%」支撑结论，但没给对照条件，可以追问：<span class="cite">1</span> 是和哪个基线比；第 5 段的样本只有本周数据，<span class="cite">2</span> 换个时间窗是否还成立。</div>
+            </div>
+          </div>
+          <div class="p-composer">
+            <div class="p-chips">
+              <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 3.2k 字</span>
+              <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+              <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+          </div>
+          <span class="p-resize"></span>
+          <div class="sess-menu" id="menu-b-resume" hidden>
+            <button class="it"><span class="ck"><svg class="i"><use href="#i-check"/></svg></span><span class="body"><span class="t">新对话</span></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">总结本页</span><span class="m">上周 · 2 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li class="plus"><b>最简 chrome</b>：一个控件管会话的看 / 切 / 新建，页签行右侧永远只有一枚胶囊。</li>
+      <li class="plus">胶囊自然承载「当前在哪段对话」：新对话显示「本页对话」，恢复历史后显示标题。</li>
+      <li class="minus"><b>代价</b>：开新对话要点两下（胶囊 → 新对话），高频动作变慢。</li>
+    </ul>
+  </section>
+
+  <!-- ============ 方案 C ============ -->
+  <section>
+    <div class="sec-head"><h2>方案 C</h2></div>
+    <p class="sec-desc"><b>历史前置到空态</b>：页签行与方案 A 相同；区别在空态——建议列表上方露出「最近聊过」两条，一步回到上次话题，「查看全部」就地展开完整列表。历史从藏起来的下拉变成看得见的内容。</p>
+    <div class="duo">
+      <div class="cell">
+        <p class="cell-label">新对话（空态，含最近聊过）</p>
+        <div class="panel">
+          <div class="p-head">
+            <span class="p-fav">🍊</span>
+            <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+            <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="p-tabs">
+            <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+            <span class="grow"></span>
+            <span class="tools">
+              <button class="icon-btn js-menu" data-menu="menu-c" title="历史对话"><svg class="i"><use href="#i-history"/></svg></button>
+              <button class="icon-btn" title="新对话"><svg class="i"><use href="#i-pen"/></svg></button>
+            </span>
+          </div>
+          <div class="p-body">
+            <div class="hero">
+              <h3>关于这页，想知道什么？</h3>
+              <p class="sub">回答会标出原文出处，点编号可跳回原文。</p>
+              <div class="recent" id="recent-c">
+                <div class="rt">最近聊过
+                  <button class="js-expand" data-scope="c">查看全部</button>
+                </div>
+                <button class="rc"><svg class="i"><use href="#i-history"/></svg><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></button>
+                <button class="rc"><svg class="i"><use href="#i-history"/></svg><span class="t">总结本页</span><span class="m">上周 · 2 问</span></button>
+                <button class="rc" data-extra hidden><svg class="i"><use href="#i-history"/></svg><span class="t">引用编号跳回原文的样式</span><span class="m">上周 · 5 问</span></button>
+                <button class="rc" data-extra hidden><svg class="i"><use href="#i-history"/></svg><span class="t">这页和我的笔记有什么关联</span><span class="m">10 月底 · 3 问</span></button>
+              </div>
+              <button class="sug"><svg class="i"><use href="#i-book"/></svg>总结本页</button>
+              <button class="sug"><svg class="i"><use href="#i-list"/></svg>列出要点</button>
+              <button class="sug"><svg class="i"><use href="#i-search"/></svg>这篇的论证有哪些可以追问的地方</button>
+              <button class="sug"><svg class="i"><use href="#i-spark"/></svg>和我的笔记有什么关联</button>
+            </div>
+          </div>
+          <div class="p-composer">
+            <div class="p-chips">
+              <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 0 字</span>
+              <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+              <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+          </div>
+          <span class="p-resize"></span>
+          <div class="sess-menu" id="menu-c" hidden>
+            <button class="it"><span class="ck"><svg class="i"><use href="#i-check"/></svg></span><span class="body"><span class="t">新对话</span></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">总结本页</span><span class="m">上周 · 2 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+      <div class="cell">
+        <p class="cell-label">继续历史会话（同方案 A）</p>
+        <div class="panel">
+          <div class="p-head">
+            <span class="p-fav">🍊</span>
+            <div class="p-title"><b>Key 查询 - Nexus</b><small><span>nexusacc.itsssx.com</span><span class="dot"></span><span>Tau 已连接</span></small></div>
+            <button class="icon-btn"><svg class="i"><use href="#i-pin"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-more"/></svg></button>
+            <button class="icon-btn"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="p-tabs">
+            <span class="p-tab on">对话</span><span class="p-tab">标注</span><span class="p-tab">笔记</span>
+            <span class="grow"></span>
+            <span class="sess-title js-menu" data-menu="menu-c-resume" title="历史对话">表格行列菜单的展开方向</span>
+            <span class="tools">
+              <button class="icon-btn js-menu" data-menu="menu-c-resume" title="历史对话"><svg class="i"><use href="#i-history"/></svg></button>
+              <button class="icon-btn" title="新对话"><svg class="i"><use href="#i-pen"/></svg></button>
+            </span>
+          </div>
+          <div class="p-body">
+            <div class="msgs">
+              <div class="msg-user"><span class="b">这篇的论证有哪些可以追问的地方</span></div>
+              <div class="msg-ai">第 3 段用「查询延迟下降 40%」支撑结论，但没给对照条件，可以追问：<span class="cite">1</span> 是和哪个基线比；第 5 段的样本只有本周数据，<span class="cite">2</span> 换个时间窗是否还成立。</div>
+            </div>
+          </div>
+          <div class="p-composer">
+            <div class="p-chips">
+              <span class="chip on"><svg class="i"><use href="#i-book"/></svg>本页 · 3.2k 字</span>
+              <span class="chip"><svg class="i"><use href="#i-hl"/></svg>我的标注</span>
+              <span class="model">GLM-5.3 <svg class="i"><use href="#i-chev"/></svg></span>
+            </div>
+            <div class="p-input"><div class="box">问问这页…&nbsp; ↵ 发送，⇧↵ 换行</div><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div>
+          </div>
+          <span class="p-resize"></span>
+          <div class="sess-menu" id="menu-c-resume" hidden>
+            <button class="it"><span class="ck"><svg class="i"><use href="#i-check"/></svg></span><span class="body"><span class="t">新对话</span></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">表格行列菜单的展开方向</span><span class="m">昨天 · 4 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+            <button class="it"><span class="ck"></span><span class="body"><span class="t">总结本页</span><span class="m">上周 · 2 问</span></span><span class="del"><svg class="i"><use href="#i-trash"/></svg></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li class="plus"><b>高频路径更短</b>：「继续上次聊的」空态一步直达，不用先开下拉。</li>
+      <li class="plus">空态更充实，历史话题带时间与轮次，一眼可辨。</li>
+      <li class="minus"><b>代价</b>：空态更高，四条建议被推到折叠线以下；最近聊过为空时需要整块隐藏。</li>
+    </ul>
+  </section>
+
+  <div class="verdict">
+    <b>推荐 A</b>：改动最小、行为不变，直接消掉突兀那行和分隔线；「最近聊过」（C 的空态部分）可以作为后续增强叠在 A 上。B 的单胶囊适合你想把 chrome 压到极限的情况，但牺牲了新对话的一步直达。
+  </div>
+</div>
+
+<script>
+  // 下拉开合：点按钮切换，点面板内其他位置或 Escape 收起
+  document.addEventListener("click", event => {
+    const btn = event.target.closest(".js-menu");
+    document.querySelectorAll(".sess-menu").forEach(menu => {
+      if (btn && menu.id === btn.dataset.menu) {
+        menu.hidden = !menu.hidden;
+        btn.classList.toggle("open", !menu.hidden);
+      } else if (!btn || menu.id !== btn.dataset.menu) {
+        menu.hidden = true;
+      }
+    });
+    if (btn) event.stopPropagation();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    document.querySelectorAll(".sess-menu").forEach(menu => (menu.hidden = true));
+  });
+
+  // 方案 C：查看全部就地展开 / 收起
+  document.querySelectorAll(".js-expand").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const scope = document.getElementById("recent-" + btn.dataset.scope);
+      const extras = scope.querySelectorAll("[data-extra]");
+      const expand = extras[0].hidden;
+      extras.forEach(item => (item.hidden = !expand));
+      btn.textContent = expand ? "收起" : "查看全部";
+    });
+  });
+</script>
+</body>
+</html>
