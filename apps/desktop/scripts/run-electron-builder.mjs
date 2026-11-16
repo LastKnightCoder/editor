@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { macArmBuild } from "./mac-arm-build.mjs";
 import pruneNativeModules from "./prune-packaged-native-modules.cjs";
 import { assertPiPackagingBoundary } from "./pi-packaging-boundary.mjs";
 
@@ -21,8 +22,9 @@ const llamaBackendGpuEnv = {
   "linux-x64-vulkan": "vulkan",
 };
 
-// mac 两种架构都要出包，打包目标与 electron-builder.yml 的 mac.target 保持一致
-const targetArchs = process.platform === "darwin" ? ["x64", "arm64"] : ["x64"];
+const isMac = process.platform === "darwin";
+// 默认目标与 electron-builder.yml 的 mac.target 保持一致。
+const targetArchs = macArmBuild ? [macArmBuild.arch] : isMac ? ["x64", "arm64"] : ["x64"];
 
 // node-llama-cpp postinstall 默认 auto 会按打包机显卡决定是否下载 GPU 后端，
 // 使产物内容依赖打包环境（无 GPU 的机器只会产出 CPU-only 包）。
@@ -54,7 +56,7 @@ const ensureLlamaCppBackends = () => {
     // mac 后端是按 cpu 区分的可选依赖，只能由 pnpm 安装，postinstall 补拉不了
     if (process.platform === "darwin") {
       throw new Error(
-        `[llama-backends] missing "${backend}": pnpm-workspace.yaml 的 supportedArchitectures 需包含 x64 与 arm64，修改后重新 pnpm install`
+        `[llama-backends] missing "${backend}": 确认 pnpm-workspace.yaml 的 supportedArchitectures 包含目标架构 ${targetArchs.join(", ")}，然后重新 pnpm install`
       );
     }
 
@@ -142,8 +144,20 @@ const restoreHostNativeModules = () => {
   }
 };
 
-const isMac = process.platform === "darwin";
 const builderArgs = process.argv.slice(2);
+if (macArmBuild) {
+  // 显式指定格式及架构，覆盖配置里的双架构目标。
+  builderArgs.push(
+    "--mac",
+    "dmg",
+    "zip",
+    "--arm64",
+    `-c.directories.output=${macArmBuild.outputDir}`,
+    "-c.mac.notarize=false",
+    "--publish",
+    "never"
+  );
+}
 const child = spawn(
   isMac ? process.execPath : builderBin,
   isMac ? [path.join(__dirname, "run-mac-builder.mjs"), ...builderArgs] : builderArgs,

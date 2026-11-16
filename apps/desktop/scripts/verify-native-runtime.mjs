@@ -2,12 +2,12 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { macArmBuild } from "./mac-arm-build.mjs";
 import pruneNativeModules from "./prune-packaged-native-modules.cjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..");
 
-// 本平台要校验的全部产物：mac 的 Apple 芯片与 Intel 各一个 .app
 const resolvePackages = () => {
   if (process.platform === "win32") {
     const unpackedDir = path.join(desktopDir, "release", "win-unpacked");
@@ -22,12 +22,11 @@ const resolvePackages = () => {
   }
 
   if (process.platform === "darwin") {
-    // electron-builder 的 mac 默认架构是 x64：x64 输出到 release/mac，arm64 输出到 release/mac-arm64
-    return [
-      { arch: "x64", outputDir: "mac" },
-      { arch: "arm64", outputDir: "mac-arm64" },
-    ].map(({ arch, outputDir }) => {
-      const unpackedDir = path.join(desktopDir, "release", outputDir, "Tau.app", "Contents");
+    const outputDir = macArmBuild?.outputDir ?? "release";
+    const archs = macArmBuild ? [macArmBuild.arch] : ["x64", "arm64"];
+    return archs.map(arch => {
+      const appDir = arch === "x64" ? "mac" : "mac-arm64";
+      const unpackedDir = path.join(desktopDir, outputDir, appDir, "Tau.app", "Contents");
       return {
         arch,
         unpackedDir,
@@ -41,7 +40,7 @@ const resolvePackages = () => {
 };
 
 const packages = resolvePackages();
-// 同一平台的两种架构共用相同的归档相对路径。
+// 同一平台的产物共用相同的归档相对路径。
 const packagePaths = packages?.[0];
 
 const checks = [

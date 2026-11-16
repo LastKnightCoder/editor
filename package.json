@@ -17,6 +17,7 @@
     "deploy:collaboration": "node apps/collaboration-cloudflare/scripts/production.mjs deploy --execute",
     "cleanup:collaboration": "bash apps/collaboration-server/scripts/cleanup.sh",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8092' pnpm --filter desktop build",
+    "build:mac:arm": "cross-env TAU_BUILD_MAC_ARM=1 pnpm build",
     "dev:website": "pnpm --filter @tau/website dev",
     "dev:analytics": "pnpm --filter @tau/analytics dev",
     "dev:analytics:web": "pnpm --filter @tau/analytics dev:web",
