@@ -1,0 +1,1252 @@
+Unused exports (1242)
+requireSameOrigin                                        function  apps/analytics/api/auth.ts:32:17                     
+parseArtifact                                            function  apps/analytics/api/downloads.ts:4:17                 
+default                                                            apps/analytics/api/index.ts:76:16                    
+isRecord                                                           apps/analytics/api/platform.ts:65:14                 
+overview                                                 function  apps/analytics/api/queries.ts:39:23                  
+timeseries                                               function  apps/analytics/api/queries.ts:51:23                  
+breakdown                                                function  apps/analytics/api/queries.ts:77:23                  
+ApiError                                                 class     apps/analytics/web/src/api.ts:4:14                   
+COMPANION_URL                                                      …browser-extension/src/background/connection.ts:38:14
+RPC_PASSTHROUGH                                                    apps/browser-extension/src/background/hub.ts:18:14   
+EXTENSION_PAGE_METHODS                                             apps/browser-extension/src/background/hub.ts:37:14   
+libraryUrl                                                         …rowser-extension/src/background/library-tab.ts:13:14
+remToPx                                                            apps/browser-extension/src/content/mount.tsx:11:14   
+CONTEXT_CHARS                                                      …ps/browser-extension/src/content/page/anchor.ts:8:14
+highlightSupported                                                 …owser-extension/src/content/page/highlights.ts:26:14
+ConnectionCard                                           function  …/browser-extension/src/content/ui/ChatTab.tsx:423:17
+MenuItem                                                 function  …ps/browser-extension/src/content/ui/Panel.tsx:260:17
+readableUrl                                              function  apps/browser-extension/src/library/helpers.ts:49:17  
+LIBRARY_PAGE_SIZE                                                  apps/browser-extension/src/library/queries.ts:33:14  
+noteMarkdown                                                       apps/browser-extension/src/note/kit.ts:32:14         
+isHttpUrl                                                          apps/browser-extension/src/shared/messages.ts:78:14  
+llamaBackendAllowlistByTarget                                      …sktop/scripts/prune-packaged-native-modules.cjs:15:9
+knownPlatformTokens                                                …sktop/scripts/prune-packaged-native-modules.cjs:54:9
+allowedPlatformTokensByTarget                                      …sktop/scripts/prune-packaged-native-modules.cjs:55:9
+allowedPlatformTokens                                              …sktop/scripts/prune-packaged-native-modules.cjs:56:9
+communicationMethods                                               apps/desktop/shared/plugin-window-protocol.ts:103:14 
+MEMORY_STATE_LIFETIME                                              …on/main/modules/assistant-memory/reflection.ts:10:14
+PAIR_DENY_WINDOW_MS                                                …/main/modules/browser-companion/pairing-gate.ts:6:14
+SYSTEM_PROMPT                                                      …n/main/modules/browser-companion/run-driver.ts:31:14
+MIN_PROMPT_CHARS                                                   …src-electron/main/modules/chat-prompt-index.ts:20:14
+chatPromptId                                                       …src-electron/main/modules/chat-prompt-index.ts:41:14
+CONTENT_SAVE_LOG                                                   …odules/collaboration/persistence-diagnostics.ts:3:14
+GATHER_MAX_ITEMS                                                   …-electron/main/modules/compose-gather-prompt.ts:8:14
+GATHER_MAX_GROUPS                                                  …-electron/main/modules/compose-gather-prompt.ts:9:14
+GATHER_CANDIDATES                                                  …op/src-electron/main/modules/compose-gather.ts:44:14
+cosine                                                   function  …op/src-electron/main/modules/compose-gather.ts:80:17
+linkedKeysOf                                             function  …p/src-electron/main/modules/compose-gather.ts:135:17
+findGatherCandidates                                     function  …p/src-electron/main/modules/compose-gather.ts:158:17
+TITLE_MAX_CHARS                                                    …src-electron/main/modules/content-ai-prompt.ts:16:14
+listCandidates                                           function  …src-electron/main/modules/content-ai-queue.ts:105:17
+needsWork                                                          …src-electron/main/modules/content-ai-queue.ts:125:14
+INSIGHT_BODY_MAX_CHARS                                             …ectron/main/modules/content-insights-prompt.ts:13:14
+INSIGHT_MAX_ASKS                                                   …ectron/main/modules/content-insights-prompt.ts:15:14
+INSIGHT_MAX_GAPS                                                   …ectron/main/modules/content-insights-prompt.ts:17:14
+CANDIDATE_LIMIT                                                    …/src-electron/main/modules/content-insights.ts:52:14
+SEED_LIMIT                                                         …/src-electron/main/modules/content-insights.ts:54:14
+SEEDED_CANDIDATE_LIMIT                                             …/src-electron/main/modules/content-insights.ts:55:14
+MIN_PROSE_CHARS                                                    …/src-electron/main/modules/content-insights.ts:60:14
+TYPE_INTERVAL_MS                                                   …/modules/content-runtime/agent/agent-typing.ts:19:14
+backfillTaskIds                                          function  …src-electron/main/modules/doc-tasks/indexer.ts:82:17
+diffDocTaskSources                                       function  …rc-electron/main/modules/doc-tasks/indexer.ts:377:17
+CONTEXT_LIMIT                                                      …n/main/modules/entity-context/context-query.ts:30:14
+REF_INDEX_VERSION                                                  …on/main/modules/entity-context/ref-indexer.ts:151:14
+WHITEBOARD_REF_VERSION                                             …/modules/entity-context/whiteboard-indexer.ts:108:14
+resolveModelFilePath                                     function  …main/modules/local-inference/model-registry.ts:54:17
+excerptIndexText                                         function  …op/src-electron/main/modules/material-index.ts:42:17
+PROGRAM_CONFIG                                                     …/src-electron/main/modules/model-downloader.ts:74:14
+MODEL_CONFIG                                                       …src-electron/main/modules/model-downloader.ts:107:14
+normalizeLibrary                                                   …-electron/main/modules/model-usage/recorder.ts:24:14
+isValidMonth                                                       …-electron/main/modules/model-usage/segments.ts:36:14
+USAGE_SCHEMA_VERSION                                               …src-electron/main/modules/model-usage/store.ts:14:14
+recordSyncIo                                                       …ktop/src-electron/main/modules/perf-monitor.ts:20:40
+catalogCostOf                                                      …/src-electron/main/modules/pi-ai-runtime-core.ts:9:3
+hasCustomCost                                                      …src-electron/main/modules/pi-ai-runtime-core.ts:10:3
+createConversationTurnClient                             function  …on/main/modules/pi-conversation-turn-client.ts:11:17
+LEAF_ENTRY_TYPE                                                    …/src-electron/main/modules/pi-session-files.ts:35:14
+sessionFileNameFor                                                 …/src-electron/main/modules/pi-session-files.ts:47:14
+isConversationMessage                                              …src-electron/main/modules/pi-session-files.ts:189:14
+INTERRUPTED_TOOL_RESULT                                            …src-electron/main/modules/pi-session-files.ts:342:14
+readSessionEntries                                       function  …src-electron/main/modules/pi-session-files.ts:426:17
+appendRawEntry                                           function  …src-electron/main/modules/pi-session-files.ts:434:17
+createRequestDumpExtension                                         …electron/main/modules/pi-session-host-core.ts:339:14
+browserSessionRoot                                                 …/src-electron/main/modules/pi-session-paths.ts:32:14
+countUserMessages                                                  …/src-electron/main/modules/pi-session-store.ts:42:14
+readWorkspaceGit                                         function  …ktop/src-electron/main/modules/pi-workspace.ts:48:23
+episodeFromPodcast                                       function  …tron/main/modules/podcast-plugin-migration.ts:101:17
+GROWTH_MIN_CHANGE                                                  …op/src-electron/main/modules/project-review.ts:46:14
+GROWTH_MIN_ADDED                                                   …op/src-electron/main/modules/project-review.ts:47:14
+GROWTH_MIN_INTERVAL_MS                                             …op/src-electron/main/modules/project-review.ts:48:14
+projectSnapshot                                          function  …p/src-electron/main/modules/project-review.ts:145:17
+buildPublishSearchItems                                  function  …-electron/main/modules/publish-search-index.ts:59:17
+isInside                                                           apps/desktop/src-electron/main/modules/skill.ts:56:14
+CONTENT_AI_INSIGHTS_SCHEMA_VER                                     …ron/main/modules/tables/content-ai-insights.ts:16:14
+mergeStatuses                                            function  …ron/main/modules/tables/content-ai-insights.ts:70:17
+blockLines                                                         …-electron/main/modules/tables/entity-search.ts:18:14
+ensureMigrationMetaTable                                 function  …ectron/main/modules/tables/module-entity-id.ts:15:17
+MAX_KIND_ICON                                                      …-electron/main/modules/tables/plugin-entity.ts:38:14
+indexExpression                                          function  …c-electron/main/modules/tables/plugin-query.ts:37:17
+splitCrossDaySession                                     function  …ectron/main/modules/tables/pomodoro-session.ts:78:17
+taskError                                                function  …lectron/main/modules/task-assistant/engine.ts:113:17
+ASKED_RECENT_LIMIT                                                 …tron/main/modules/topic-insights-candidates.ts:19:14
+ASKED_GROUP_LIMIT                                                  …tron/main/modules/topic-insights-candidates.ts:20:14
+BRIDGE_MAX_CONCEPT_OVERLAP                                         …ron/main/modules/topic-insights-candidates.ts:383:14
+BRIDGE_REPRESENTATIVES                                             …ron/main/modules/topic-insights-candidates.ts:399:14
+BRIDGE_LIMIT                                                       …ron/main/modules/topic-insights-candidates.ts:400:14
+SUBTOPIC_MAX_PAIRS                                                 …electron/main/modules/topic-insights-prompt.ts:10:14
+TOPIC_MAX_MARKS                                                    …electron/main/modules/topic-insights-prompt.ts:11:14
+TOPIC_MAX_GAPS                                                     …electron/main/modules/topic-insights-prompt.ts:12:14
+TOPIC_MAX_ASKS                                                     …electron/main/modules/topic-insights-prompt.ts:13:14
+GLOBAL_MAX_BRIDGES                                                 …electron/main/modules/topic-insights-prompt.ts:14:14
+GLOBAL_MAX_ASKED                                                   …electron/main/modules/topic-insights-prompt.ts:15:14
+PROJECT_MAX_BELONG                                                 …electron/main/modules/topic-insights-prompt.ts:16:14
+PROJECT_MAX_THIN                                                   …electron/main/modules/topic-insights-prompt.ts:17:14
+parseJsonObject                                          function  …electron/main/modules/topic-insights-prompt.ts:76:17
+IDENTITY_OVERLAP                                                   …op/src-electron/main/modules/topic-insights.ts:75:14
+TIER_KEEP_BELOW                                                    …op/src-electron/main/modules/topic-insights.ts:76:14
+TIER_FULL_FROM                                                     …op/src-electron/main/modules/topic-insights.ts:77:14
+MAX_INCREMENTS                                                     …op/src-electron/main/modules/topic-insights.ts:78:14
+GLOBAL_MIN_INTERVAL_MS                                             …op/src-electron/main/modules/topic-insights.ts:79:14
+matchRows                                                function  …p/src-electron/main/modules/topic-insights.ts:217:17
+tierOf                                                   function  …p/src-electron/main/modules/topic-insights.ts:241:17
+topicNeedsWork                                           function  …p/src-electron/main/modules/topic-insights.ts:290:17
+verifyAnchor                                             function  …p/src-electron/main/modules/topic-insights.ts:319:23
+runSubtopic                                              function  …p/src-electron/main/modules/topic-insights.ts:470:23
+runTopic                                                 function  …p/src-electron/main/modules/topic-insights.ts:706:23
+runGlobal                                                function  …p/src-electron/main/modules/topic-insights.ts:831:23
+toNode                                                             …/src-electron/main/modules/topic-insights.ts:1144:14
+AVAILABLE_MODELS                                                   …top/src-electron/main/modules/transcription.ts:23:10
+init                                                               apps/desktop/src-electron/main/modules/tray.ts:14:14 
+getIndexRootDir                                                    …electron/main/modules/utils/index-db-storage.ts:9:14
+toCharOffset                                             function  …n/modules/vibe-learning-resource-read-utils.ts:96:17
+importWhiteboardState                                    function  …in/modules/whiteboard-documents/local-state.ts:10:17
+hashToken                                                          …/src-electron/main/services/browser-clients.ts:38:14
+parseMarkdownNodes                                       function  …c-electron/main/services/content-conversion.ts:26:23
+taskFileName                                             function  …src-electron/main/services/plugin-compilers.ts:10:17
+USAGE_DAYS                                                         …c-electron/main/services/plugin-permissions.ts:22:14
+pluginWorkspaceName                                      function  …/src-electron/main/services/plugin-registry.ts:14:17
+buildRawFileUrl                                          function  …top/src-electron/main/utils/model-download.ts:252:17
+DEFAULT_SCRIPT_TIMEOUT_MS                                          …src-electron/main/utils/skill-script-runner.ts:30:14
+resolveInterpreter                                                 …src-electron/main/utils/skill-script-runner.ts:50:14
+default                                                  class     …ctron/main/utils/TranscriptionQueueManager.ts:234:16
+openEditorWindow                                                   apps/desktop/src-electron/main/windows/index.ts:9:10 
+closeEditorWindow                                                  apps/desktop/src-electron/main/windows/index.ts:9:28 
+NOTIFICATION_WINDOW_KEY                                            …c-electron/main/windows/notification-window.ts:14:14
+ASSIST_GUTTER                                                      apps/desktop/src/app/assistLayout.ts:11:14           
+MAIN_MIN_BESIDE                                                    apps/desktop/src/app/assistLayout.ts:13:14           
+MAIN_MIN_OVERLAY                                                   apps/desktop/src/app/assistLayout.ts:15:14           
+usePluginComponentScope                                            …/desktop/src/app/plugins/content-components.tsx:9:32
+BLOCK_AFTER_DENIALS                                                apps/desktop/src/app/plugins/permissions.ts:47:14    
+RendererTTSRegistry                                                apps/desktop/src/app/plugins/tts-registry.ts:2:10    
+SIDEBAR_MIN_W                                                      apps/desktop/src/app/shellStore.ts:9:14              
+SIDEBAR_MAX_W                                                      apps/desktop/src/app/shellStore.ts:10:14             
+ASSIST_DEFAULT_W                                                   apps/desktop/src/app/shellStore.ts:20:14             
+createArticleFromProjectItem                             function  apps/desktop/src/commands/article.ts:35:23           
+getArticlesByDates                                       function  apps/desktop/src/commands/article.ts:91:23           
+getArticlesContentByIds                                  function  apps/desktop/src/commands/article.ts:102:23          
+deleteCacheFile                                                    apps/desktop/src/commands/cache.ts:30:14             
+getTagsById                                              function  apps/desktop/src/commands/card.ts:73:23              
+getCardsGroupByTag                                       function  apps/desktop/src/commands/card.ts:77:23              
+getAllGlobalTags                                         function  apps/desktop/src/commands/card.ts:81:23              
+getCardsByDates                                          function  apps/desktop/src/commands/card.ts:101:23             
+getCardsContentByIds                                     function  apps/desktop/src/commands/card.ts:112:23             
+getChatGroupById                                                   apps/desktop/src/commands/chat-message.ts:24:14      
+preserveCollaborationDocumentDraft                                 apps/desktop/src/commands/collaboration.ts:15:14     
+subscribeCollaborationDocument                                     apps/desktop/src/commands/collaboration.ts:74:14     
+unsubscribeCollaborationDocument                                   apps/desktop/src/commands/collaboration.ts:79:14     
+updateCollaborationDocument                                        apps/desktop/src/commands/collaboration.ts:84:14     
+preserveCollaborationInputDraft                                    apps/desktop/src/commands/collaboration.ts:92:14     
+ackCollaborationFreeze                                             apps/desktop/src/commands/collaboration.ts:96:14     
+resolveCollaborationResource                                       apps/desktop/src/commands/collaboration.ts:101:14    
+sendCollaborationAwareness                                         apps/desktop/src/commands/collaboration.ts:106:14    
+updateDailyNote                                                    apps/desktop/src/commands/daily-note.ts:17:14        
+getDailyNoteById                                                   apps/desktop/src/commands/daily-note.ts:21:14        
+getDailyNoteByDate                                                 apps/desktop/src/commands/daily-note.ts:25:14        
+getAllDailyNotes                                                   apps/desktop/src/commands/daily-note.ts:29:14        
+deleteDailyNote                                                    apps/desktop/src/commands/daily-note.ts:33:14        
+listDataTableViews                                                 apps/desktop/src/commands/data-table.ts:94:14        
+forceCheckpoint                                                    apps/desktop/src/commands/database.ts:63:14          
+default                                                  variable  apps/desktop/src/commands/database.ts:67:16          
+updateDiaryEntry                                                   apps/desktop/src/commands/diary.ts:87:14             
+deleteDiaryEntry                                                   apps/desktop/src/commands/diary.ts:103:14            
+getDiaryEntryById                                                  apps/desktop/src/commands/diary.ts:107:14            
+getDiaryEntryByDate                                                apps/desktop/src/commands/diary.ts:112:14            
+getDiaryEntriesByType                                              apps/desktop/src/commands/diary.ts:117:14            
+getDiaryEntriesByDateRange                                         apps/desktop/src/commands/diary.ts:122:14            
+getDiaryHeatmapData                                                apps/desktop/src/commands/diary.ts:143:14            
+getDiariesByDates                                                  apps/desktop/src/commands/diary.ts:150:14            
+getDiariesWithContent                                              apps/desktop/src/commands/diary.ts:158:14            
+getDiarySegments                                                   apps/desktop/src/commands/diary.ts:182:14            
+getEmbeddingModelsDir                                    function  apps/desktop/src/commands/embedding-model.ts:67:23   
+getDownloadedEmbeddingModels                             function  apps/desktop/src/commands/embedding-model.ts:92:23   
+isEmbeddingModelDownloading                              function  apps/desktop/src/commands/embedding-model.ts:96:23   
+searchFTS                                                          apps/desktop/src/commands/fts.ts:4:14                
+getAllFTSResults                                                   apps/desktop/src/commands/fts.ts:57:14               
+transcribeAudio                                                    apps/desktop/src/commands/index.ts:63:3              
+getTranscriptionModels                                             apps/desktop/src/commands/index.ts:64:3              
+checkTranscriptionModel                                            apps/desktop/src/commands/index.ts:65:3              
+getDownloadedTranscriptionModels                                   apps/desktop/src/commands/index.ts:66:3              
+getTranscriptionModelsDir                                          apps/desktop/src/commands/index.ts:67:3              
+extractAudioFromVideo                                              apps/desktop/src/commands/index.ts:69:3              
+createTranscription                                                apps/desktop/src/commands/index.ts:70:3              
+getTranscriptionById                                               apps/desktop/src/commands/index.ts:71:3              
+getTranscriptionBySource                                           apps/desktop/src/commands/index.ts:72:3              
+updateTranscription                                                apps/desktop/src/commands/index.ts:73:3              
+deleteTranscription                                                apps/desktop/src/commands/index.ts:74:3              
+getAllTranscriptions                                               apps/desktop/src/commands/index.ts:75:3              
+incrementTranscriptionRefCount                                     apps/desktop/src/commands/index.ts:76:3              
+cancelKnowledgeInsights                                  function  apps/desktop/src/commands/knowledge-insights.ts:65:17
+findLineageDst                                                     apps/desktop/src/commands/lineage.ts:18:14           
+getMcpConnectionStatus                                   function  apps/desktop/src/commands/mcp.ts:24:23               
+cancelDownload                                           function  apps/desktop/src/commands/model-downloader.ts:59:23  
+isModelDownloaded                                        function  apps/desktop/src/commands/model-downloader.ts:68:23  
+getDownloadedModels                                      function  apps/desktop/src/commands/model-downloader.ts:75:23  
+getModelSize                                             function  apps/desktop/src/commands/model-downloader.ts:98:23  
+isDownloading                                            function  apps/desktop/src/commands/model-downloader.ts:105:23 
+getDownloadingModels                                     function  apps/desktop/src/commands/model-downloader.ts:112:23 
+isProgramDownloaded                                      function  apps/desktop/src/commands/model-downloader.ts:180:23 
+getProgramExecutablePath                                 function  apps/desktop/src/commands/model-downloader.ts:187:23 
+getInstalledProgramTypes                                 function  apps/desktop/src/commands/model-downloader.ts:194:23 
+getProgramsDir                                           function  apps/desktop/src/commands/model-downloader.ts:210:23 
+analyzeOperations                                                  apps/desktop/src/commands/operation.ts:3:14          
+getPdfList                                                         apps/desktop/src/commands/pdf.ts:32:14               
+updatePdfBookmark                                                  apps/desktop/src/commands/pdf.ts:83:14               
+getPdfIndexStatus                                                  apps/desktop/src/commands/pdf.ts:114:14              
+getPdfPageContent                                                  apps/desktop/src/commands/pdf.ts:145:14              
+getPdfDocumentMap                                                  apps/desktop/src/commands/pdf.ts:169:14              
+readPdfSection                                                     apps/desktop/src/commands/pdf.ts:177:14              
+piSessionToolUpdate                                      function  apps/desktop/src/commands/piSession.ts:266:17        
+getEventsBySessionId                                     function  …sktop/src/commands/pomodoro-calendar-mapping.ts:6:23
+getSessionByEventId                                      function  …ktop/src/commands/pomodoro-calendar-mapping.ts:15:23
+deleteBySessionId                                        function  …ktop/src/commands/pomodoro-calendar-mapping.ts:24:23
+deleteByEventId                                          function  …ktop/src/commands/pomodoro-calendar-mapping.ts:31:23
+selectPomodoroPreset                                               apps/desktop/src/commands/pomodoro.ts:45:14          
+deletePomodoroSessions                                             apps/desktop/src/commands/pomodoro.ts:126:14         
+deleteProjectItem                                                  apps/desktop/src/commands/project.ts:59:14           
+getProjectItemCountInProject                                       apps/desktop/src/commands/project.ts:84:14           
+getAllProjectItemsNotInProject                                     apps/desktop/src/commands/project.ts:88:14           
+isProjectItemNotInAnyProject                                       apps/desktop/src/commands/project.ts:92:14           
+getProjectItemsNotInAnyProject                                     apps/desktop/src/commands/project.ts:96:14           
+deleteProjectItemsNotInAnyProject                                  apps/desktop/src/commands/project.ts:100:14          
+addRefRootProjectItem                                              apps/desktop/src/commands/project.ts:176:14          
+addRefChildProjectItem                                             apps/desktop/src/commands/project.ts:183:14          
+getProjectItemsByDates                                             apps/desktop/src/commands/project.ts:234:14          
+getProjectItemsByDateRange                                         apps/desktop/src/commands/project.ts:240:14          
+getProjectItemsContentByIds                                        apps/desktop/src/commands/project.ts:247:14          
+getPublishSelectionsByType                               function  apps/desktop/src/commands/publish.ts:26:23           
+upsertPublishSelection                                   function  apps/desktop/src/commands/publish.ts:35:23           
+deletePublishSelection                                   function  apps/desktop/src/commands/publish.ts:61:23           
+clearPublishSelections                                   function  apps/desktop/src/commands/publish.ts:71:23           
+getPublishHistoryByPath                                  function  apps/desktop/src/commands/publish.ts:87:23           
+clearPublishHistory                                      function  apps/desktop/src/commands/publish.ts:94:23           
+clearRecentProjects                                                apps/desktop/src/commands/recent-projects.ts:19:14   
+listLocalResourceSyncFiles                                         apps/desktop/src/commands/resource-sync.ts:9:14      
+getSetting                                               function  apps/desktop/src/commands/setting.ts:3:23            
+saveSetting                                              function  apps/desktop/src/commands/setting.ts:7:23            
+getSkillsDir                                                       apps/desktop/src/commands/skill.ts:24:14             
+getStatisticByDate                                                 apps/desktop/src/commands/statistic.ts:14:14         
+getStatisticByType                                                 apps/desktop/src/commands/statistic.ts:18:14         
+getStatisticByDateAndType                                          apps/desktop/src/commands/statistic.ts:22:14         
+getStatisticByDateRange                                            apps/desktop/src/commands/statistic.ts:29:14         
+getStatisticByDateRangeAndType                                     apps/desktop/src/commands/statistic.ts:36:14         
+reorderTodoGroups                          todoCommands            apps/desktop/src/commands/todo.ts:56:14              
+getTodoGroupStats                          todoCommands            apps/desktop/src/commands/todo.ts:60:14              
+getSystemGroupStats                        todoCommands            apps/desktop/src/commands/todo.ts:64:14              
+createTodoItemRelative                     todoCommands            apps/desktop/src/commands/todo.ts:90:14              
+archiveTodoItem                            todoCommands            apps/desktop/src/commands/todo.ts:112:14             
+deleteTodoItem                             todoCommands            apps/desktop/src/commands/todo.ts:116:14             
+getRecurrence                              todoCommands            apps/desktop/src/commands/todo.ts:122:14             
+deleteRecurrence                           todoCommands            apps/desktop/src/commands/todo.ts:144:14             
+deleteRecurrenceByItemId                   todoCommands            apps/desktop/src/commands/todo.ts:148:14             
+getRecurrenceCompletion                    todoCommands            apps/desktop/src/commands/todo.ts:178:14             
+getCalendarMappingByEvent                  todoCommands            apps/desktop/src/commands/todo.ts:233:14             
+getCalendarEventSources                    todoCommands            apps/desktop/src/commands/todo.ts:239:14             
+getCalendarMappingById                     todoCommands            apps/desktop/src/commands/todo.ts:245:14             
+createCalendarMapping                      todoCommands            apps/desktop/src/commands/todo.ts:249:14             
+deleteCalendarMapping                      todoCommands            apps/desktop/src/commands/todo.ts:263:14             
+deleteCalendarMappingsByTodo               todoCommands            apps/desktop/src/commands/todo.ts:267:14             
+deleteCalendarMappingsByEvent              todoCommands            apps/desktop/src/commands/todo.ts:271:14             
+getTodoNoteLinkById                        todoCommands            apps/desktop/src/commands/todo.ts:280:14             
+reorderNotes                               todoCommands            apps/desktop/src/commands/todo.ts:307:14             
+getTodoCalendars                           todoCommands            apps/desktop/src/commands/todo.ts:323:14             
+syncTodoItemToCalendar                     todoCommands            apps/desktop/src/commands/todo.ts:327:14             
+removeTodoItemFromCalendar                 todoCommands            apps/desktop/src/commands/todo.ts:334:14             
+cleanupOrphanedCalendarEvents              todoCommands            apps/desktop/src/commands/todo.ts:341:14             
+getPendingReminders                        todoCommands            apps/desktop/src/commands/todo.ts:354:14             
+dismissReminder                            todoCommands            apps/desktop/src/commands/todo.ts:358:14             
+dismissAllReminders                        todoCommands            apps/desktop/src/commands/todo.ts:362:14             
+getTranscriptionModels                                   function  apps/desktop/src/commands/transcription.ts:114:23    
+checkTranscriptionModel                                  function  apps/desktop/src/commands/transcription.ts:121:23    
+getDownloadedTranscriptionModels                         function  apps/desktop/src/commands/transcription.ts:128:23    
+getTranscriptionModelsDir                                function  apps/desktop/src/commands/transcription.ts:135:23    
+getAudioDuration                                         function  apps/desktop/src/commands/transcription.ts:158:23    
+createTranscription                                      function  apps/desktop/src/commands/transcription.ts:237:23    
+getTranscriptionById                                     function  apps/desktop/src/commands/transcription.ts:244:23    
+getTranscriptionBySource                                 function  apps/desktop/src/commands/transcription.ts:251:23    
+updateTranscription                                      function  apps/desktop/src/commands/transcription.ts:258:23    
+deleteTranscription                                      function  apps/desktop/src/commands/transcription.ts:268:23    
+getAllTranscriptions                                     function  apps/desktop/src/commands/transcription.ts:275:23    
+incrementTranscriptionRefCount                           function  apps/desktop/src/commands/transcription.ts:287:23    
+searchVecDocument                                                  apps/desktop/src/commands/vec-document.ts:4:14       
+clearVecDocumentTable                                              apps/desktop/src/commands/vec-document.ts:79:14      
+initVecDocumentTable                                               apps/desktop/src/commands/vec-document.ts:88:14      
+updateVLMarkdownPath                                               apps/desktop/src/commands/vibe-learning.ts:74:14     
+getVLResourceById                                                  apps/desktop/src/commands/vibe-learning.ts:98:14     
+getAllVLResources                                                  apps/desktop/src/commands/vibe-learning.ts:119:14    
+getVLResourcesByIds                                                apps/desktop/src/commands/vibe-learning.ts:126:14    
+getVLQueueStatus                                                   apps/desktop/src/commands/vibe-learning.ts:172:14    
+vlReinitAllVecTables                                               apps/desktop/src/commands/vibe-learning.ts:212:14    
+vlReembeddingAllResources                                          apps/desktop/src/commands/vibe-learning.ts:219:14    
+vlClearEmbeddingCache                                              apps/desktop/src/commands/vibe-learning.ts:226:14    
+clearVLMediaProcessingCache                                        apps/desktop/src/commands/vibe-learning.ts:230:14    
+vlRebuildAfterEmbeddingSwitch                                      apps/desktop/src/commands/vibe-learning.ts:248:14    
+readVLResourceContentRange                                         apps/desktop/src/commands/vibe-learning.ts:305:14    
+getVLNoteById                                                      apps/desktop/src/commands/vibe-learning.ts:401:14    
+rebuildVideoNoteIndexAfterEmbeddingSwitch                          apps/desktop/src/commands/video-note-index.ts:25:14  
+getVideoNoteIndexStatuses                                          apps/desktop/src/commands/video-note-index.ts:39:14  
+getVideoNoteItemById                                               apps/desktop/src/commands/video-note-item.ts:24:14   
+getVideoNoteItemByVideoNoteId                                      apps/desktop/src/commands/video-note-item.ts:30:14   
+updateVideoNote                                                    apps/desktop/src/commands/video-notes.ts:24:14       
+deleteVideoNote                                                    apps/desktop/src/commands/video-notes.ts:37:14       
+getAllVideoNotes                                                   apps/desktop/src/commands/video-notes.ts:57:14       
+updateVideoNoteDescription                                         apps/desktop/src/commands/video-notes.ts:67:14       
+updateVideoNoteHighlights                                          apps/desktop/src/commands/video-notes.ts:103:14      
+getWebClipByContentId                                              apps/desktop/src/commands/web-clip.ts:21:14          
+getWebClipsByIds                                                   apps/desktop/src/commands/web-clip.ts:28:14          
+deleteWebClip                                                      apps/desktop/src/commands/web-clip.ts:33:14          
+getWebLinksByIds                                                   apps/desktop/src/commands/web-link.ts:21:14          
+deleteWebLink                                                      apps/desktop/src/commands/web-link.ts:26:14          
+getWebNoteById                                                     apps/desktop/src/commands/web-note.ts:20:14          
+updateWhiteboard                                                   apps/desktop/src/commands/white-board.ts:26:14       
+getWhiteboardByIds                                                 apps/desktop/src/commands/white-board.ts:44:14       
+locateWhiteboardDocument                                           …ps/desktop/src/commands/whiteboard-document.ts:55:14
+createWhiteboardDocument                                           …ps/desktop/src/commands/whiteboard-document.ts:57:14
+getWindowState                                                     apps/desktop/src/commands/window.ts:30:14            
+AgentAvatar                                                        …s/desktop/src/components/AgentIdentity/index.ts:1:10
+AgentName                                                          …s/desktop/src/components/AgentIdentity/index.ts:1:23
+usePerformanceMonitor                                    function  …nts/ChatSidebar/hooks/usePerformanceMonitor.ts:25:17
+enablePerformanceMonitoring                              function  …nts/ChatSidebar/hooks/usePerformanceMonitor.ts:37:17
+isPerformanceMonitoringEnabled                           function  …nts/ChatSidebar/hooks/usePerformanceMonitor.ts:41:17
+DefaultToolCallDisplay                                             …ts/ChatSidebar/MessageItem/ToolCallDisplay.tsx:21:25
+SectionTitle                                                       …esktop/src/components/CollaborationUI/index.ts:12:10
+MemberList                                                         …esktop/src/components/CollaborationUI/index.ts:14:10
+scrollToSuggestionMark                                   function  …sktop/src/components/ContentReview/actions.ts:114:17
+SuggestionDiff                                                     …s/desktop/src/components/ContentReview/index.ts:1:26
+useSuggestionFocus                                                 …ps/desktop/src/components/ContentReview/index.ts:4:3
+scrollToSuggestionMark                                             …ps/desktop/src/components/ContentReview/index.ts:5:3
+SuggestionDiff                                           function  …rc/components/ContentReview/SuggestionCard.tsx:27:17
+describeError                                            function  …ps/desktop/src/components/ErrorState/index.tsx:34:17
+extractBlanksFromRichContent                                       …cardEditor/components/ClozeRichEditor/utils.ts:69:14
+TYPEWRITER_LINE                                                    …p/src/components/ImmersiveEditorMode/layout.ts:37:14
+createIndexedDbBackend                                   function  …rc/components/LinkGraph/core/positionStore.ts:102:17
+formatMonth                                              function  …ktop/src/components/LinkGraph/GraphCaption.tsx:20:17
+HOVER_DELAY                                                        …top/src/components/LinkGraph/useGraphEngine.ts:50:14
+POSITION_REUSE_MIN_COVERAGE                                        …top/src/components/LinkGraph/useGraphEngine.ts:55:14
+EMPHASIS_FADE_MS                                                   …top/src/components/LinkGraph/useGraphEngine.ts:60:14
+SHRINK_LIMIT                                                       …/src/components/PresentationMode/cameraPlan.ts:25:14
+STAGE_WIDTH                                                        …esktop/src/components/PresentationMode/frame.ts:5:14
+STAGE_PAD_BOTTOM                                                   …sktop/src/components/PresentationMode/frame.ts:11:14
+DEFAULT_ASPECT                                                     …sktop/src/components/PresentationMode/frame.ts:13:14
+SearchToolbar                                                      …/components/PublishSelector/components/index.ts:2:10
+SearchInput                                                        …/components/PublishSelector/components/index.ts:2:25
+SelectionSegment                                                   …/components/PublishSelector/components/index.ts:2:38
+SelectAllButton                                                    …/components/PublishSelector/components/index.ts:2:56
+SelectionCheckbox                                                  …/components/PublishSelector/components/index.ts:3:10
+EmptyPlaceholder                                                   …/components/PublishSelector/components/index.ts:4:10
+ContentPreviewModal                                                …/components/PublishSelector/components/index.ts:5:10
+SearchInput                                                        …s/PublishSelector/components/SearchToolbar.tsx:15:14
+SelectionSegment                                                   …s/PublishSelector/components/SearchToolbar.tsx:65:14
+CONTENT_TYPE_LABEL                                                 …op/src/components/PublishSelector/constants.ts:32:14
+EMPTY_PLACEHOLDER                                                  …op/src/components/PublishSelector/constants.ts:41:14
+SEARCH_PLACEHOLDER                                                 …op/src/components/PublishSelector/constants.ts:50:14
+formatDate                                               function  …/src/components/PublishSelector/utils/index.ts:26:17
+createSummaryTimestampExtension                                    …otePanel/extensions/SummaryTimestamp/index.tsx:68:14
+hashTranscript                                                     …ponents/VideoNotePanel/useVideoNoteChapters.ts:17:14
+parseChapters                                                      …ponents/VideoNotePanel/useVideoNoteChapters.ts:30:14
+default                                                  variable  …/components/VideoNotePanel/useVideoNoteChat.ts:26:16
+VideoSourceLoader                                        function  …op/src/components/VideoSourceLoader/index.tsx:105:17
+CREATE_ARTICLE_ID                                                  apps/desktop/src/constants/article.ts:3:14           
+BACKGROUND_SOUND_NAMES                                             apps/desktop/src/constants/backgroundSounds.ts:12:14 
+isInternalSkill                                                    apps/desktop/src/constants/internal-skills.ts:9:14   
+getInternalSkill                                                   apps/desktop/src/constants/internal-skills.ts:12:14  
+getInternalSkillFolderNames                                        apps/desktop/src/constants/internal-skills.ts:18:14  
+getProjectColorLabel                                               apps/desktop/src/constants/project-colors.ts:140:14  
+CONTENT_POLISH_PROMPT                                              …desktop/src/constants/prompts/content-polish.ts:1:14
+CONTINUE_WRITE_PROMPT_TEMPLATE                                     …desktop/src/constants/prompts/continue-write.ts:1:14
+HIGHLIGHTS_GENERATION_SIMPLE_PROMPT                                …src/constants/prompts/highlights-generation.ts:98:14
+WEB_CLIP_PROMPT                                                    apps/desktop/src/constants/prompts/index.ts:1:10     
+CONTINUE_WRITE_PROMPT_TEMPLATE                                     apps/desktop/src/constants/prompts/index.ts:4:10     
+CONTENT_POLISH_PROMPT                                              apps/desktop/src/constants/prompts/index.ts:5:10     
+MIND_MAP_PROMPT                                                    apps/desktop/src/constants/prompts/index.ts:7:10     
+QUIZ_GENERATION_PROMPT                                             apps/desktop/src/constants/prompts/index.ts:12:10    
+QUIZ_GENERATION_USER_PROMPT                                        apps/desktop/src/constants/prompts/index.ts:12:34    
+OUTLINE_GENERATION_WITH_TOOLS_PROMPT                               apps/desktop/src/constants/prompts/index.ts:14:3     
+OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT                          apps/desktop/src/constants/prompts/index.ts:15:3     
+OUTLINE_GENERATION_SIMPLE_PROMPT                                   apps/desktop/src/constants/prompts/index.ts:16:3     
+ARTICLE_GENERATION_WITH_TOOLS_PROMPT                               apps/desktop/src/constants/prompts/index.ts:19:3     
+ARTICLE_GENERATION_WITH_TOOLS_USER_PROMPT                          apps/desktop/src/constants/prompts/index.ts:20:3     
+MINDMAP_GENERATION_WITH_TOOLS_PROMPT                               apps/desktop/src/constants/prompts/index.ts:23:3     
+MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT                          apps/desktop/src/constants/prompts/index.ts:24:3     
+getPPTGenerationPrompt                                             apps/desktop/src/constants/prompts/index.ts:27:3     
+getPPTGenerationUserPrompt                                         apps/desktop/src/constants/prompts/index.ts:28:3     
+cleanPPTHtmlContent                                                apps/desktop/src/constants/prompts/index.ts:29:3     
+getPPTEditPrompt                                                   apps/desktop/src/constants/prompts/index.ts:31:10    
+TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT                           apps/desktop/src/constants/prompts/index.ts:33:3     
+buildTranscriptionOptimizationUserPrompt                           apps/desktop/src/constants/prompts/index.ts:34:3     
+VIDEO_SUMMARY_SYSTEM_PROMPT                                        apps/desktop/src/constants/prompts/index.ts:36:10    
+buildVideoSummaryUserPrompt                                        apps/desktop/src/constants/prompts/index.ts:36:39    
+VIDEO_HIGHLIGHTS_SYSTEM_PROMPT                                     apps/desktop/src/constants/prompts/index.ts:37:10    
+buildVideoHighlightsUserPrompt                                     apps/desktop/src/constants/prompts/index.ts:37:42    
+TOPIC_HIGHLIGHTS_SYSTEM_PROMPT                                     apps/desktop/src/constants/prompts/index.ts:39:10    
+buildTopicHighlightsUserPrompt                                     apps/desktop/src/constants/prompts/index.ts:39:42    
+VIDEO_EBOOK_REWRITE_SYSTEM_PROMPT                                  apps/desktop/src/constants/prompts/index.ts:41:3     
+VIDEO_EBOOK_REWRITE_STYLE_OPTIONS                                  apps/desktop/src/constants/prompts/index.ts:42:3     
+VIDEO_EBOOK_REWRITE_STYLE_INSTRUCTIONS                             apps/desktop/src/constants/prompts/index.ts:43:3     
+buildVideoEbookRewriteUserPrompt                                   apps/desktop/src/constants/prompts/index.ts:44:3     
+MIND_MAP_PROMPT                                                    apps/desktop/src/constants/prompts/mind-map.ts:2:14  
+buildProvidedContentGenerationUserPrompt                           …nstants/prompts/provided-content-generation.ts:24:14
+TOPIC_HIGHLIGHTS_SYSTEM_PROMPT                                     …sktop/src/constants/prompts/topic-highlights.ts:1:14
+buildTopicHighlightsUserPrompt                                     …ktop/src/constants/prompts/topic-highlights.ts:39:14
+VIDEO_EBOOK_REWRITE_STYLE_OPTIONS                                  …op/src/constants/prompts/video-ebook-rewrite.ts:3:14
+VIDEO_HIGHLIGHTS_SYSTEM_PROMPT                                     …sktop/src/constants/prompts/video-highlights.ts:1:14
+buildVideoHighlightsUserPrompt                                     …ktop/src/constants/prompts/video-highlights.ts:24:14
+VIDEO_SUMMARY_SYSTEM_PROMPT                                        …/desktop/src/constants/prompts/video-summary.ts:1:14
+buildVideoSummaryUserPrompt                                        …desktop/src/constants/prompts/video-summary.ts:55:14
+WEB_CLIP_PROMPT                                                    apps/desktop/src/constants/prompts/web-clip.ts:1:14  
+DEFAULT_FONT_SIZE                                                  apps/desktop/src/constants/setting.ts:1:14           
+DEFAULT_CHINESE_FONT                                               apps/desktop/src/constants/setting.ts:2:14           
+DEFAULT_ENGLISH_FONT                                               apps/desktop/src/constants/setting.ts:3:14           
+DEFAULT_FONT_SETTING                                               apps/desktop/src/constants/setting.ts:4:14           
+DEFAULT_DARK_MODE                                                  apps/desktop/src/constants/setting.ts:9:14           
+TAG_COLORS                                                         apps/desktop/src/constants/tag.ts:1:14               
+registerDevAction                                                  apps/desktop/src/devtools/index.ts:11:10             
+chatRefUrl                                               function  …desktop/src/editor-extensions/chat-ref/link.ts:11:17
+chatRefLabel                                                       …desktop/src/editor-extensions/chat-ref/link.ts:33:14
+toChatQuoteElement                                                 …p/src/editor-extensions/chat-ref/operations.ts:27:14
+chatRefQueryKey                                                    …ktop/src/editor-extensions/chat-ref/queries.ts:37:14
+useMentionPanelStore                                     function  …ns/content-link/stores/useMentionPanelStore.ts:11:17
+createDatabaseExtension                                            …esktop/src/editor-extensions/database/index.tsx:9:14
+IDocTaskGroups                                                     …ktop/src/editor-extensions/doc-tasks/index.tsx:39:10
+taskParagraphAbove                                       function  …ktop/src/editor-extensions/doc-tasks/index.tsx:53:17
+docTasksExtension                                                  …top/src/editor-extensions/doc-tasks/index.tsx:186:14
+chatRefExtension                                                   apps/desktop/src/editor-extensions/index.ts:2:21     
+skillPickerCommands                                                …ktop/src/editor-extensions/skill-ref/index.tsx:73:14
+skillPickerHotkeys                                                 …ktop/src/editor-extensions/skill-ref/index.tsx:95:14
+AIImageDialog                                                      …/desktop/src/editor-providers/AIImagePanel.tsx:52:14
+excerptSourceName                                                  apps/desktop/src/entity/excerpt/display.ts:16:14     
+PROVIDER_LIMITS                                                    apps/desktop/src/entity/excerpt/provider.ts:9:14     
+hasExcerptChanges                                                  apps/desktop/src/entity/excerpt/types.ts:53:14       
+webExcerptUrl                                                      apps/desktop/src/entity/excerpt/web.ts:31:14         
+inlineCardIds                                                      apps/desktop/src/entity/inline-refs.ts:7:29          
+LINEAGE_RELATIONS                                                  apps/desktop/src/entity/lineage.ts:21:14             
+materialKey                                                        apps/desktop/src/entity/material.ts:20:14            
+ENTITY_REF_KINDS                                                   apps/desktop/src/entity/ref.ts:8:3                   
+SECTION_MAX_LENGTH                                                 apps/desktop/src/entity/sections.ts:6:14             
+SECTION_MIN_LENGTH                                                 apps/desktop/src/entity/sections.ts:7:14             
+headingPaths                                             function  apps/desktop/src/entity/sections.ts:13:17            
+DIGEST_HASHES                                                      apps/desktop/src/entity/text-digest.ts:10:14         
+articleRelativeTime                                      function  apps/desktop/src/features/articles/queries.ts:49:17  
+useArticleDetail                                         function  apps/desktop/src/features/articles/queries.ts:145:17 
+browserChatKey                                                     …sktop/src/features/browser-companion/queries.ts:4:14
+useSubagentFocusStore                                              …atures/chat/components/subagents/focusStore.ts:10:14
+SUBAGENT_DRAWER_DEFAULT_W                                          …atures/chat/components/subagents/focusStore.ts:21:14
+NAV_RECENT_LIMIT                                                   apps/desktop/src/features/chat/model.ts:8:14         
+isOtherDatabase                                          function  …sktop/src/features/collaboration/openSource.ts:14:17
+SHAREABLE_TYPES                                                    …/desktop/src/features/collaboration/queries.ts:13:14
+composeBoardKey                                                    apps/desktop/src/features/compose/queries.ts:25:14   
+contentLinksKeys                                                   apps/desktop/src/features/context/queries.ts:30:14   
+ColorRow                                                 function  …p/src/features/diary/components/TagPicker.tsx:221:17
+DAY_MS                                                             apps/desktop/src/features/diary/model.ts:14:14       
+addDays                                                  function  apps/desktop/src/features/diary/model.ts:47:17       
+diffDays                                                 function  apps/desktop/src/features/diary/model.ts:53:17       
+useFlashcardGeneration                                             …res/flashcards/hooks/useFlashcardGeneration.ts:44:14
+MINUTE_MS                                                          apps/desktop/src/features/flashcards/model.ts:25:14  
+isDue                                                    function  apps/desktop/src/features/flashcards/model.ts:106:17 
+sortDecksByDue                                           function  apps/desktop/src/features/flashcards/model.ts:208:17 
+TODAY_INSIGHT_LIMIT                                                apps/desktop/src/features/home/insightItems.ts:15:14 
+TODAY_EVIDENCE_LIMIT                                               apps/desktop/src/features/home/insightItems.ts:17:14 
+deriveHeatmapStats                                       function  apps/desktop/src/features/home/queries.ts:253:17     
+fetchHomeSnapshot                                        function  apps/desktop/src/features/home/queries.ts:297:23     
+fetchRetroSnapshot                                       function  apps/desktop/src/features/home/retroQueries.ts:108:23
+RetroSection                                             function  …sktop/src/features/home/views/RetroSection.tsx:51:17
+DRAW_STAGGER_MS                                                    …c/features/insights/components/InsightLeaf.tsx:15:14
+KIND_META                                                          …eatures/insights/components/InsightsReport.tsx:16:14
+insightsKey                                                        apps/desktop/src/features/insights/queries.ts:26:14  
+DRAW_STAGGER_MS                                                    …/knowledge-map/insights/MapInsightsOverlay.tsx:21:14
+sampleKeys                                               function  …s/knowledge-map/insights/MapReadingOverlay.tsx:50:17
+insightParam                                                       …p/src/features/knowledge-map/insights/model.ts:59:14
+topicsWithFindings                                       function  …p/src/features/knowledge-map/insights/model.ts:82:17
+wavePath                                                 function  …/src/features/knowledge-map/insights/model.ts:254:17
+knowledgeInsightsKey                                               …/src/features/knowledge-map/insightsQueries.ts:28:14
+MILESTONES                                                         …sktop/src/features/knowledge-map/milestones.ts:13:14
+isTextMarkup                                             function  …p/src/features/pdfs/reader/annotationModel.ts:157:17
+NIGHT_INVERT                                                       apps/desktop/src/features/pdfs/reader/paper.ts:23:14 
+renderThumbnail                                          function  apps/desktop/src/features/pdfs/thumbnails.ts:27:23   
+pluginSource                                             function  apps/desktop/src/features/plugins/model.ts:123:17    
+InstalledRow                                             function  …op/src/features/plugins/views/PluginsView.tsx:487:17
+MIN_RECORD_MS                                                      apps/desktop/src/features/pomodoro/model.ts:13:14    
+dayOffset                                                function  apps/desktop/src/features/pomodoro/model.ts:26:17    
+inWindow                                                           apps/desktop/src/features/pomodoro/range.ts:36:14    
+useSecondNow                                             function  …s/desktop/src/features/pomodoro/timerStore.ts:158:17
+ImmersiveWindow                                          function  …/features/pomodoro/windows/ImmersiveWindow.tsx:79:17
+MiniWindow                                               function  …p/src/features/pomodoro/windows/MiniWindow.tsx:82:17
+chatBlocksOf                                             function  …desktop/src/features/previews/useChatBlocks.ts:16:17
+useProjectItemMoreActions                                          …List/ProjectItem/useProjectItemMoreActions.tsx:53:14
+PROJECT_MINDMAP_ROOT_PREFIX                                        …ents/ProjectView/ProjectList/projectMindMap.ts:19:14
+PROJECT_MINDMAP_ITEM_PREFIX                                        …ents/ProjectView/ProjectList/projectMindMap.ts:20:14
+getProjectMindMapItemId                                            …ents/ProjectView/ProjectList/projectMindMap.ts:26:14
+createRootPdfStrategy                                              …nts/ProjectView/shared/hooks/usePdfHandlers.ts:47:14
+createRootVideoStrategy                                            …s/ProjectView/shared/hooks/useVideoHandlers.ts:59:14
+PLUGIN_ACTION_KEY_PREFIX                                           …/components/ProjectView/shared/menuEntries.tsx:51:14
+formatVttTimestamp                                                 …mponents/ProjectView/VideoNoteView/subtitle.ts:27:14
+useProjectItemCounts                                     function  apps/desktop/src/features/projects/queries.ts:32:17  
+useProjectOpenStates                                     function  apps/desktop/src/features/projects/queries.ts:49:17  
+PROVIDER_LABELS                                                    …sktop/src/features/publish/usePublishConfig.ts:37:14
+HOUR_HEIGHT                                                        …features/schedule/components/TimeGridParts.tsx:12:14
+resolveEventColor                                        function  apps/desktop/src/features/schedule/eventTone.ts:49:17
+DAY_FROM                                                           apps/desktop/src/features/schedule/ledger.ts:22:14   
+DAY_TO                                                             apps/desktop/src/features/schedule/ledger.ts:23:14   
+PLAN_GAP_MIN                                                       apps/desktop/src/features/schedule/ledger.ts:24:14   
+RECORD_GAP_MIN                                                     apps/desktop/src/features/schedule/ledger.ts:25:14   
+UNDO_MS                                                            …op/src/features/schedule/pendingDeleteStore.ts:12:14
+default                                                  function  …/src/features/schedule/views/ScheduleView.tsx:118:16
+catalogModelToSetting                                              …ures/settings/components/ModelPickerDialog.tsx:23:14
+API_KIND_OPTIONS                                                   …s/settings/components/ProviderCreateDialog.tsx:13:14
+default                                                  variable  …ings/sections/voice-clone/VoiceClonePanel.tsx:412:16
+FileUpload                                                         …se/plugins/AttachmentPlugin/components/index.ts:2:21
+ImageUpload                                                        …atabase/plugins/ImagePlugin/components/index.ts:2:21
+codeModeFor                                                        …features/skills/components/SkillCodeEditor.tsx:53:14
+LONG_DESCRIPTION_TOKENS                                            apps/desktop/src/features/skills/useSkills.ts:17:14  
+skillKey                                                           apps/desktop/src/features/skills/useSkills.ts:37:14  
+LAYOUT_TRANSITION                                                  …/src/features/todos/components/AgendaPanel.tsx:55:14
+SectionTitle                                             function  …c/features/todos/components/DetailSections.tsx:53:17
+WeekDots                                                 function  …p/src/features/todos/components/HabitRail.tsx:203:17
+daysLeftInWeek                                                     apps/desktop/src/features/todos/model.ts:32:3        
+BUCKET_RANK                                                        apps/desktop/src/features/todos/model.ts:168:14      
+DOCUMENT_TYPES                                                     …arning/views/VibeLearningView/resourceKinds.ts:36:14
+isTaskActive                                                       …earning/views/VibeLearningView/tasks/store.ts:124:14
+default                                                  variable  …/views/VibeLearningView/useVibeLearningChat.ts:25:16
+PublicationRecovery                                      function  …rds/components/WhiteboardCollaborationBar.tsx:362:17
+useAnswerJudgement                                                 apps/desktop/src/hooks/useAnswerJudgement.ts:24:14   
+docTaskKeys                                                        apps/desktop/src/hooks/useDocTasks.ts:26:14          
+DRAG_THRESHOLD                                                     apps/desktop/src/hooks/useEventDrag.ts:19:14         
+default                                                  variable  …top/src/hooks/useTranscriptionOptimization.ts:391:16
+useIndexingStatus                                                  apps/desktop/src/hooks/useVibeLearningStatus.ts:14:14
+computeResourceStatus                                              …ps/desktop/src/hooks/useVibeLearningStatus.ts:122:14
+useResourceStatus                                                  …ps/desktop/src/hooks/useVibeLearningStatus.ts:160:14
+default                                                  variable  …ps/desktop/src/hooks/useVibeLearningStatus.ts:322:16
+useVLResourceSelection                                             …ps/desktop/src/hooks/useVLResourceSelection.ts:54:14
+useWindowFocus                                                     apps/desktop/src/hooks/useWindowFocus.ts:5:14        
+CALENDAR_MUTATION_ACTIONS                                          apps/desktop/src/mcp/calendar/mutation.ts:7:14       
+createCalendarMutationPayload                                      apps/desktop/src/mcp/calendar/mutation.ts:26:14      
+emitCalendarMutation                                               apps/desktop/src/mcp/calendar/mutation.ts:39:14      
+loadContentMarkdownBase                                            …esktop/src/mcp/providers/content-read-utils.ts:67:14
+loadReferencedContentPayload                                       …sktop/src/mcp/providers/content-read-utils.ts:135:14
+articleToolsProvider                                               apps/desktop/src/mcp/providers/index.ts:2:10         
+cardToolsProvider                                                  apps/desktop/src/mcp/providers/index.ts:3:10         
+contentEditToolsProvider                                           apps/desktop/src/mcp/providers/index.ts:4:10         
+contentLinkToolsProvider                                           apps/desktop/src/mcp/providers/index.ts:5:10         
+contextToolsProvider                                               apps/desktop/src/mcp/providers/index.ts:6:10         
+dataTableToolsProvider                                             apps/desktop/src/mcp/providers/index.ts:7:10         
+fetchToolsProvider                                                 apps/desktop/src/mcp/providers/index.ts:8:10         
+filesystemToolsProvider                                            apps/desktop/src/mcp/providers/index.ts:9:10         
+openAIImageToolsProvider                                           apps/desktop/src/mcp/providers/index.ts:10:10        
+sqlQueryToolsProvider                                              apps/desktop/src/mcp/providers/index.ts:11:10        
+taskAssistantToolsProvider                                         apps/desktop/src/mcp/providers/index.ts:12:10        
+RUN_SKILL_SCRIPT_TOOL_NAME                                         apps/desktop/src/mcp/providers/skill-tools.ts:41:14  
+createTodoMutationPayload                  todoMutation            apps/desktop/src/mcp/todo/mutation.ts:49:14          
+buildDefaultTodoQuery                                              apps/desktop/src/mcp/todo/query.ts:700:14            
+listPageMetas                                            function  apps/desktop/src/page/core/pageMeta.ts:38:17         
+paramBoolean                                             function  apps/desktop/src/page/core/paramsSchema.ts:32:17     
+MAX_LIVE_PAGES                             sm                      apps/desktop/src/page/core/stackMachine.ts:28:14     
+createEntry                                sm            function  apps/desktop/src/page/core/stackMachine.ts:30:17     
+MORPH_KEY_ATTR                                                     apps/desktop/src/page/morph.ts:14:14                 
+queryMorphElement                                        function  apps/desktop/src/page/morph.ts:110:17                
+listPageDefinitions                                      function  apps/desktop/src/page/registry.ts:26:17              
+fileManagerName                                                    apps/desktop/src/platform/index.ts:23:14             
+default                                                  variable  apps/desktop/src/router.tsx:74:16                    
+clearReportedPresence                                    function  apps/desktop/src/services/agent-presence.ts:70:17    
+syncAssistantDerivedFields                                         …s/desktop/src/services/assistantMessageBlocks.ts:6:3
+ensureAssistantMessage                                             …s/desktop/src/services/assistantMessageBlocks.ts:7:3
+getAssistantToolExecutions                                         …s/desktop/src/services/assistantMessageBlocks.ts:8:3
+desktopToolCatalog                                                 …/desktop/src/services/browserBridgeRenderer.ts:23:14
+getActiveEditingSessionById                                        …ices/content-editing/active-editor-session.ts:154:14
+buildInlineEditorContext                                           …ices/content-editing/editor-inline-context.ts:253:14
+REWRITE_FEEDBACK                                                   …ktop/src/services/content-editing/follow-up.ts:17:14
+getContentEditCheckpoint                                           …rc/services/content-editing/review-session.ts:913:14
+suggestionsSettled                                                 …c/services/content-editing/review-session.ts:1099:14
+rejectContentEditProposal                                          …c/services/content-editing/review-session.ts:1410:14
+buildLineOffsets                                                   …sktop/src/services/content-editing/snapshot.ts:17:14
+suggestionKeys                                                     …services/content-editing/suggestion-queries.ts:17:14
+reportExportResult                                                 apps/desktop/src/services/content-transfer.ts:51:14  
+createEditorRegistry                                     function  apps/desktop/src/services/editorRegistry.ts:81:17    
+loadCatalogProviders                                               apps/desktop/src/services/llmCatalog.ts:21:14        
+plannedResourceCount                                               apps/desktop/src/services/notebook-creation.ts:20:14 
+MAX_IDLE_CONVERSATIONS                                             apps/desktop/src/services/piChatRuntime.ts:111:14    
+toPiImageContent                                         function  apps/desktop/src/services/piChatSession.ts:368:17    
+desktopSpeechInput                                                 apps/desktop/src/services/speechInput.ts:17:14       
+currentProviderId                                        function  apps/desktop/src/services/storage-providers.ts:67:17 
+compileRuntimeTailwind                                   function  apps/desktop/src/services/tailwindRuntime.ts:11:23   
+USAGE_ROOT                                                         apps/desktop/src/services/usageSync.ts:22:14         
+createDraftChat                                                    apps/desktop/src/stores/useChatSessionStore.ts:96:14 
+releaseDraft                                                       apps/desktop/src/stores/useChatSessionStore.ts:672:14
+initializeContentSessions                                function  …s/desktop/src/stores/useContentSessionStore.ts:21:17
+useGlobalStateStore                                                apps/desktop/src/stores/useGlobalStateStore.ts:22:14 
+toInternalSkills                                                   apps/desktop/src/stores/useSkillStore.ts:70:14       
+toolCallRendererRegistry                                           apps/desktop/src/tool-call-renderers/index.ts:2:3    
+registerToolCallRenderers                                          apps/desktop/src/tool-call-renderers/index.ts:4:3    
+getToolCallRenderer                                                apps/desktop/src/tool-call-renderers/index.ts:6:3    
+toolCallRendererRegistry                                           apps/desktop/src/tool-call-renderers/registry.ts:2:3 
+statusColorClass                                                   …/desktop/src/tool-call-renderers/todo/utils.ts:23:14
+moveArrayItem                                                      …/desktop/src/tool-call-renderers/todo/utils.ts:36:14
+ToolRendererInteractionContext                                     …ll-renderers/ToolRendererInteractionContext.tsx:8:14
+BUILTIN_SOURCE                                                     apps/desktop/src/tools/builtinTools.ts:6:14          
+connectToServer                                                    apps/desktop/src/tools/customMCP.ts:34:14            
+reconnectToServer                                                  apps/desktop/src/tools/customMCP.ts:46:14            
+isServerConnected                                                  apps/desktop/src/tools/customMCP.ts:64:14            
+OPENAI_IMAGE_TOOLS_SOURCE                                          apps/desktop/src/tools/openaiImageTools.ts:11:14     
+OPENAI_IMAGE_TOOL_NAMES                                            apps/desktop/src/tools/openaiImageTools.ts:13:14     
+resolveImageGenerationSetting                                      apps/desktop/src/tools/openaiImageTools.ts:219:14    
+createListResourcesTool                                            …ps/desktop/src/tools/vibeLearningSearchTool.ts:66:14
+createReadResourceContentTool                                      …s/desktop/src/tools/vibeLearningSearchTool.ts:118:14
+createBatchSearchProjectKnowledgeTool                              …s/desktop/src/tools/vibeLearningSearchTool.ts:445:14
+MEMORY_SOURCE_KINDS                                                apps/desktop/src/types/assistant-memory.ts:15:14     
+hasAnyAnswerProjection                                             apps/desktop/src/utils/answer-content.ts:41:14       
+timeToMinutes                                                      apps/desktop/src/utils/calendar.ts:16:14             
+minutesToTime                                                      apps/desktop/src/utils/calendar.ts:21:14             
+getMonthStart                                                      apps/desktop/src/utils/calendar.ts:53:14             
+getMonthEnd                                                        apps/desktop/src/utils/calendar.ts:58:14             
+getEventGridPosition                                               apps/desktop/src/utils/calendar.ts:101:14            
+formatDate                                                         apps/desktop/src/utils/calendar.ts:129:14            
+getDaysInMonth                                                     apps/desktop/src/utils/calendar.ts:135:14            
+getFirstDayOfMonth                                                 apps/desktop/src/utils/calendar.ts:140:14            
+isSameDay                                                          apps/desktop/src/utils/calendar.ts:152:14            
+findCardsByTags                                                    apps/desktop/src/utils/card.ts:9:14                  
+excludeCards                                                       apps/desktop/src/utils/card.ts:15:14                 
+generateCardTree                                                   apps/desktop/src/utils/card.ts:37:14                 
+DEFAULT_CHAT_MAX_RETRIES                                           apps/desktop/src/utils/chat-retry.ts:1:14            
+buildWhiteboardClipboardPayload                          function  apps/desktop/src/utils/clipboardHelpers.ts:35:17     
+writeClipboardData                                       function  apps/desktop/src/utils/clipboardHelpers.ts:55:23     
+bytesToBase64                                                      …/desktop/src/utils/content-transfer/assets.ts:139:14
+parseDataUri                                                       …/desktop/src/utils/content-transfer/assets.ts:148:14
+buildPlanTree                                                      …op/src/utils/content-transfer/batch-import.ts:353:14
+parseCsvRecords                                                    apps/desktop/src/utils/content-transfer/csv.ts:11:14 
+genericDialect                                                     …esktop/src/utils/content-transfer/dialects.ts:289:14
+obsidianDialect                                                    …esktop/src/utils/content-transfer/dialects.ts:297:14
+notionDialect                                                      …esktop/src/utils/content-transfer/dialects.ts:324:14
+logseqDialect                                                      …esktop/src/utils/content-transfer/dialects.ts:412:14
+toAbsolutePath                                                     …s/desktop/src/utils/content-transfer/import.ts:95:14
+MAX_SOURCE_FILES                                                   …s/desktop/src/utils/content-transfer/source.ts:30:14
+isIgnoredSegment                                                   …s/desktop/src/utils/content-transfer/source.ts:36:14
+getEditorTextValue                                                 apps/desktop/src/utils/editor.tsx:9:14               
+extractFirstHeadingText                                            apps/desktop/src/utils/epub-export/metadata.ts:48:14 
+extractFirstImageSrc                                               apps/desktop/src/utils/epub-export/metadata.ts:77:14 
+ArticleEditor                                            class     …sktop/src/utils/event-bus/article-event-bus.ts:22:14
+ArticleEventBus                                          class     …sktop/src/utils/event-bus/article-event-bus.ts:69:14
+CardEditor                                               class     …/desktop/src/utils/event-bus/card-event-bus.ts:20:14
+CardEventBus                                             class     …/desktop/src/utils/event-bus/card-event-bus.ts:64:14
+ContentEditor                                            class     …sktop/src/utils/event-bus/content-event-bus.ts:14:14
+ContentEventBus                                          class     …sktop/src/utils/event-bus/content-event-bus.ts:61:14
+defaultEventBus                                                    apps/desktop/src/utils/event-bus/event-bus.ts:61:20  
+ProjectItemEditor                                        class     …/src/utils/event-bus/project-item-event-bus.ts:22:14
+ProjectItemEventBus                                      class     …/src/utils/event-bus/project-item-event-bus.ts:72:14
+assignSingleDayEventsLevels                                        apps/desktop/src/utils/eventLayoutAlgorithm.ts:4:3   
+REVIEW_RATINGS                                                     apps/desktop/src/utils/flashcard/index.ts:34:14      
+formatDueTime                                                      apps/desktop/src/utils/flashcard/index.ts:134:14     
+countTextWords                                                     apps/desktop/src/utils/helper.ts:3:26                
+createHtmlPreviewUrl                                     function  apps/desktop/src/utils/html-preview.ts:11:17         
+disposeHtmlPreviewUrl                                    function  apps/desktop/src/utils/html-preview.ts:22:17         
+blockSerializers                                                   …ps/desktop/src/utils/html-serializers/index.ts:10:10
+inlineSerializers                                                  …ps/desktop/src/utils/html-serializers/index.ts:11:10
+renderMathToSvg                                          function  …src/utils/html-serializers/mathjax-renderer.ts:48:23
+getDefaultShikiTheme                                               …/src/utils/html-serializers/shiki-renderer.ts:132:14
+parseDataUrl                                                       apps/desktop/src/utils/image-generation/index.ts:1:27
+fetchRemoteImage                                                   apps/desktop/src/utils/image-generation/index.ts:1:41
+getActiveImageGenerationConfig                                     apps/desktop/src/utils/image-generation/index.ts:3:10
+isImageGenerationAvailable                                         apps/desktop/src/utils/image-generation/index.ts:3:42
+isImageGenerationAvailable                                         …desktop/src/utils/image-generation/resolver.ts:10:14
+parseDataUrl                                                       …s/desktop/src/utils/image-generation/shared.ts:43:14
+fetchRemoteImage                                                   …s/desktop/src/utils/image-generation/shared.ts:82:14
+formatTimestamp                                          function  apps/desktop/src/utils/mcp-helpers.ts:16:17          
+calculateDuration                                        function  apps/desktop/src/utils/mcp-helpers.ts:23:17          
+mergeConsecutiveOperations                               function  apps/desktop/src/utils/mcp-helpers.ts:68:17          
+parseDate                                                function  apps/desktop/src/utils/mcp-helpers.ts:139:17         
+formatDate                                               function  apps/desktop/src/utils/mcp-helpers.ts:146:17         
+getMindMapNodeElement                                              apps/desktop/src/utils/mindMapTreeUtils.ts:172:14    
+getProjectTreeNodeId                                               apps/desktop/src/utils/projectTree.ts:31:14          
+PUBLISH_FAVICON_DIR                                                apps/desktop/src/utils/publishFavicon.ts:3:14        
+PUBLISH_FAVICON_ACCEPTED_EXTENSIONS                                apps/desktop/src/utils/publishFavicon.ts:5:14        
+extractUserQuery                                         function  apps/desktop/src/utils/rag-helper.ts:8:17            
+buildKnowledgeContext                                    function  apps/desktop/src/utils/rag-helper.ts:40:17           
+createEnhancedSystemMessage                              function  apps/desktop/src/utils/rag-helper.ts:63:17           
+performRAGEnhancement                                    function  apps/desktop/src/utils/rag-helper.ts:112:23          
+getTodayNormalized                                                 apps/desktop/src/utils/recurrence.ts:69:14           
+getStartOfDayTimestamp                                             apps/desktop/src/utils/recurrence.ts:76:14           
+isTodayScheduled                                                   apps/desktop/src/utils/recurrence.ts:83:14           
+getRefTypeColor                                          function  apps/desktop/src/utils/reference-parser.ts:30:17     
+getFileExtension                                                   apps/desktop/src/utils/resouce.ts:54:14              
+isRpcHeartbeatMessage                                    function  apps/desktop/src/utils/rpc.ts:9:17                   
+indexContent                                                       apps/desktop/src/utils/search.ts:57:14               
+batchIndexContent                                                  apps/desktop/src/utils/search.ts:86:14               
+removeIndex                                                        apps/desktop/src/utils/search.ts:106:14              
+getIndexStatus                                                     apps/desktop/src/utils/search.ts:139:14              
+waitForFontsReady                                                  apps/desktop/src/utils/snapdom-export.ts:12:14       
+TREND_CONTENT_TYPES                                                apps/desktop/src/utils/statistic.ts:11:14            
+checkLLMOptimizationConfig                               function  apps/desktop/src/utils/transcription.ts:8:17         
+default                                                  class     …ps/desktop/src/utils/tts/TTSProviderFactory.ts:72:16
+convertHTMLToMarkdown                                              apps/desktop/src/utils/web-clip.ts:24:14             
+webClipFromUrl                                                     apps/desktop/src/utils/web-clip.ts:80:14             
+createClipProviders                                      function  …ps/desktop/src/utils/web-clipper/providers.ts:117:17
+wechatBaseStyles                                                   apps/desktop/src/utils/wechat/index.ts:3:3           
+convertImageToBase64                                               apps/desktop/src/utils/wechat/index.ts:8:3           
+convertImageToBase64                                     function  …top/src/utils/wechat/wechat-html-processor.ts:306:23
+wechatBaseStyles                                                   apps/desktop/src/utils/wechat/wechat-styles.ts:34:14 
+MOBILE_ENTITY_KINDS                                                apps/mobile/src/app/plugins/app-types.ts:4:14        
+MobileCenterInstallStore                                 class     apps/mobile/src/app/plugins/center-install.ts:23:14  
+usePluginComponentScope                                            apps/mobile/src/app/plugins/component-scope.tsx:43:14
+default                                                  function  …mobile/src/components/DateTimePickerSheet.tsx:305:16
+default                                                  function  …e/src/components/KeyboardViewportProvider.tsx:215:16
+default                                                  function  apps/mobile/src/components/PageHeader.tsx:126:16     
+default                                                  function  apps/mobile/src/components/PanContainer.tsx:538:16   
+default                                                  function  apps/mobile/src/components/Popover.tsx:108:16        
+default                                                  function  apps/mobile/src/components/SearchField.tsx:62:16     
+useSnapSheetState                                        function  apps/mobile/src/components/SnapSheet.tsx:235:17      
+useSnapSheetTimeline                                     function  apps/mobile/src/components/SnapSheet.tsx:239:17      
+default                                                  variable  apps/mobile/src/components/SnapSheet.tsx:249:16      
+StructureTreeSheet                                       function  …/mobile/src/components/StructureTreeSheet.tsx:107:17
+default                                                  function  apps/mobile/src/components/ToastViewport.tsx:15:16   
+MentionQuote                                             function  …ps/mobile/src/features/aiChat/ChatMessages.tsx:71:17
+createChatInteractionHost                                function  apps/mobile/src/features/aiChat/interactions.ts:68:17
+coverObjectPosition                                      function  …/mobile/src/features/articles/ArticleCover.tsx:20:17
+default                                                  function  …/mobile/src/features/articles/ArticleCover.tsx:88:16
+default                                                  function  …mobile/src/features/articles/ArticlesPage.tsx:426:16
+default                                                  function  …tures/cards/blockSelection/BlockActionBar.tsx:310:16
+DROP_LINE_GAP                                                      …/src/features/cards/blockSelection/blockDrag.ts:5:14
+default                                                  function  …atures/cards/blockSelection/BlockDragLayer.tsx:71:16
+default                                                  function  …features/cards/blockSelection/BlockHandle.tsx:148:16
+TRANSFORM_MENU_KEY                                                 …/src/features/cards/blockSelection/blockMenu.ts:7:14
+pruneMenuItems                                           function  …src/features/cards/blockSelection/blockMenu.ts:31:17
+getTransformItems                                        function  …src/features/cards/blockSelection/blockMenu.ts:41:17
+default                                                  function  …/cards/blockSelection/BlockSelectionHeader.tsx:49:16
+default                                                  function  …/cards/blockSelection/BlockSelectionLayer.tsx:110:16
+FALLBACK_LINE_HEIGHT                                               …features/cards/blockSelection/measureBlocks.ts:15:14
+default                                                  function  …ures/cards/blockSelection/useBlockSelection.ts:85:16
+CardLinksSheet                                           function  …s/mobile/src/features/cards/CardLinksSheet.tsx:34:17
+default                                                  function  …mobile/src/features/cards/CardsLibraryPage.tsx:70:16
+default                                                  function  …bile/src/features/cards/ContentDetailPage.tsx:897:16
+contentLinkDetailKey                                               …es/cards/editorExtensions/contentLinkModel.ts:101:14
+CODE_SYMBOL_SETS                                                   …features/cards/editorToolbar/codeBlockInput.ts:22:14
+isMediaElementType                                       function  …features/cards/editorToolbar/editingContext.ts:20:17
+resolveMediaCaptionContext                               function  …eatures/cards/editorToolbar/editingContext.ts:196:17
+resolveMediaContext                                      function  …eatures/cards/editorToolbar/editingContext.ts:216:17
+resolveSourceBlockContext                                function  …eatures/cards/editorToolbar/editingContext.ts:238:17
+MediaPanel                                               function  …c/features/cards/editorToolbar/MediaPanel.tsx:147:17
+default                                                  function  …/editorToolbar/MobileEditorBottomToolbar.tsx:1088:16
+TEXT_STYLE_ACTIONS                                                 …features/cards/editorToolbar/toolbarActions.ts:75:14
+MORE_ACTIONS                                                       …features/cards/editorToolbar/toolbarActions.ts:83:14
+PRIMARY_ACTIONS                                                    …features/cards/editorToolbar/toolbarActions.ts:88:14
+default                                                  function  …rToolbar/useMobileEditorToolbarController.ts:1467:16
+isIdentityOrder                                          function  …le/src/features/cards/outline/outlineModel.ts:152:17
+default                                                  function  …e/src/features/cards/outline/OutlineSheet.tsx:261:16
+default                                                  function  …bile/src/features/cards/QuickCaptureSheet.tsx:212:16
+default                                                  function  …features/cards/readingMode/ReadingModeFab.tsx:110:16
+DOUBLE_TAP_MS                                                      …c/features/cards/readingMode/useReadingMode.ts:28:14
+DOUBLE_TAP_SLOP_PX                                                 …c/features/cards/readingMode/useReadingMode.ts:29:14
+CHECK_LIST_CHECKBOX_SELECTOR                                       …c/features/cards/readingMode/useReadingMode.ts:32:14
+default                                                  function  …/features/cards/readingMode/useReadingMode.ts:277:16
+default                                                  function  …tures/cards/readingMode/useReadingSelection.ts:94:16
+RECORDING_LIMIT_MS                                                 …c/features/cards/recording/recordingSession.ts:23:14
+RECORDING_WARN_BEFORE_MS                                           …c/features/cards/recording/recordingSession.ts:25:14
+DISCARD_CONFIRM_MS                                                 …c/features/cards/recording/recordingSession.ts:31:14
+isRecordingActive                                        function  …/features/cards/recording/recordingSession.ts:342:17
+anchorInsertPath                                         function  …rc/features/cards/recording/recordingTarget.ts:66:17
+buildTranscriptBlock                                     function  …src/features/cards/recording/transcription.ts:116:17
+TagChips                                                 function  apps/mobile/src/features/cards/TagChips.tsx:22:17    
+TagInlineEditor                                          function  …/mobile/src/features/cards/TagInlineEditor.tsx:15:17
+default                                                  function  …src/features/collaboration/collabMenuItems.tsx:39:16
+default                                                  function  …eatures/collaboration/CollabTrailingStatus.tsx:33:16
+avatarInitial                                            function  …es/collaboration/components/CollaborationUI.tsx:9:17
+memberActivity                                           function  …/collaboration/components/CollaborationUI.tsx:107:17
+memberActivityClass                                      function  …/collaboration/components/CollaborationUI.tsx:115:17
+mapDocumentResources                                     function  …/src/features/collaboration/core/resources.ts:114:23
+sessionStatusLabel                                                 …ile/src/features/collaboration/session-status.ts:5:3
+rebuildEntityRefs                                        function  apps/mobile/src/features/context/refIndex.ts:36:23   
+getDiaryComparableDate                                   function  apps/mobile/src/features/diary/dateKey.ts:171:17     
+getDiaryComparableTimestamp                              function  apps/mobile/src/features/diary/dateKey.ts:181:17     
+default                                                  function  …s/mobile/src/features/diary/DiaryHomePage.tsx:626:16
+PRESET_TAG_COLORS                                                  …s/mobile/src/features/diary/DiaryTagSheets.tsx:17:14
+pickPresetColor                                          function  …s/mobile/src/features/diary/DiaryTagSheets.tsx:52:17
+computeWeekDots                                          function  apps/mobile/src/features/diary/feedUtils.ts:34:17    
+default                                                  function  …bile/src/features/editorLab/EditorLabPage.tsx:739:16
+recentDayStarts                                          function  apps/mobile/src/features/flashcard/queries.ts:16:17  
+default                                                  function  …ps/mobile/src/features/home/HomeDashboard.tsx:543:16
+homeStatsKey                                                       apps/mobile/src/features/home/queries.ts:8:14        
+actionLabel                                              function  …rc/features/plugins/components/pluginStatus.ts:55:17
+useSettingsDraftSnapshot                                 function  …atures/plugins/components/SettingsDraftBar.tsx:14:17
+mobileCenterKeys                                                   …le/src/features/plugins/data/center-queries.ts:25:14
+useMobileCenterStatuses                                  function  …e/src/features/plugins/data/center-queries.ts:122:17
+useMobileCenterUpdates                                   function  …e/src/features/plugins/data/center-queries.ts:153:17
+pluginManagerKey                                                   …/src/features/plugins/data/usePluginManager.ts:46:14
+default                                                  function  …e/src/features/projects/ProjectDetailPage.tsx:598:16
+default                                                  function  …mobile/src/features/projects/ProjectsPage.tsx:297:16
+toNotifyEntry                                            function  apps/mobile/src/features/reminders/scheduler.ts:20:17
+default                                                  function  apps/mobile/src/features/search/SearchPage.tsx:263:16
+compareVersions                                          function  …obile/src/features/settings/about/appUpdate.ts:64:17
+ReadingFontItem                                          function  …tures/settings/components/OverviewSection.tsx:313:17
+QUIET_HINT_MS                                                      …/src/features/speechInput/useVoiceDictation.ts:21:14
+DICTATION_LIMIT_MS                                                 …mobile/src/features/speechInput/VoicePanel.tsx:18:14
+default                                                  function  …src/features/todo/components/TodoItemTree.tsx:859:16
+default                                                  function  …s/mobile/src/features/todo/TodoDetailPage.tsx:785:16
+default                                                  function  apps/mobile/src/features/todo/TodoPage.tsx:720:16    
+default                                                  function  …e/src/features/todo/useRecurringTaskStatus.ts:114:16
+default                                                  function  apps/mobile/src/hooks/useEditContent.ts:424:16       
+EDITOR_OPEN_MODE_PATH                                              apps/mobile/src/hooks/useEditorOpenMode.ts:11:14     
+default                                                  function  apps/mobile/src/hooks/useEditorOpenMode.ts:38:16     
+contentLineage                                                     …ps/mobile/src/hooks/useLocalContentDocument.ts:45:14
+default                                                  function  apps/mobile/src/hooks/useReadonlyContentSync.ts:43:16
+useScrollState                                           function  apps/mobile/src/hooks/useScrollState.ts:45:17        
+listPageMetas                                            function  apps/mobile/src/router/core/pageMeta.ts:44:17        
+default                                                  function  …mobile/src/router/devtools/RouterDevTools.tsx:117:16
+isMarkedNoEdgeBack                                       function  apps/mobile/src/router/gesture.ts:27:17              
+default                                                  function  apps/mobile/src/router/gesture.ts:229:16             
+useSheetBackDismiss                                                apps/mobile/src/router/index.ts:34:10                
+PageStoreScope                                                     apps/mobile/src/router/index.ts:45:10                
+default                                                  function  apps/mobile/src/router/OverlayHost.tsx:65:16         
+default                                                  function  apps/mobile/src/router/PageHost.tsx:691:16           
+listPageDefinitions                                      function  apps/mobile/src/router/registry.ts:16:17             
+TAB_KEYS                                                           apps/mobile/src/router/tabs.ts:8:14                  
+isMarkedNoTabSwipe                                       function  apps/mobile/src/router/tabSwipeGesture.ts:32:17      
+isInsideHorizontalScroller                               function  apps/mobile/src/router/tabSwipeGesture.ts:36:17      
+default                                                  function  apps/mobile/src/router/useRootScrollLock.ts:107:16   
+createMobileAiService                                              apps/mobile/src/services/ai/index.ts:1:27            
+bindMobileAiLifecycle                                              apps/mobile/src/services/ai/index.ts:3:10            
+AiError                                                            apps/mobile/src/services/ai/index.ts:13:10           
+defaultSkillMode                                                   …e/src/services/aiChat/capabilityPreferences.ts:37:14
+CHAT_SCOPE                                                         …s/mobile/src/services/aiChat/chatController.ts:21:14
+contentDomainRef                                                   …s/mobile/src/services/aiChat/chatController.ts:24:14
+customMcpConnectionId                                              apps/mobile/src/services/aiChat/customMcp.ts:11:14   
+formatLocal                                              function  apps/mobile/src/services/aiChat/taskTools.ts:41:17   
+queryCalendarEventsTool                                            apps/mobile/src/services/aiChat/taskTools.ts:170:14  
+updateCalendarEventTool                                            apps/mobile/src/services/aiChat/taskTools.ts:436:14  
+deleteCalendarEventTool                                            apps/mobile/src/services/aiChat/taskTools.ts:492:14  
+beginDatabaseReplacement                                 function  apps/mobile/src/services/database-runtime.ts:23:17   
+createMobileEditorRegistry                               function  apps/mobile/src/services/editorRegistry.tsx:130:17   
+drainWithinBudget                                        function  apps/mobile/src/services/ipc-requests.ts:9:23        
+withTimeout                                tauri         function  apps/mobile/src/services/tauri.ts:133:17             
+verifyAliOssCredentials                    tauri         function  apps/mobile/src/services/tauri.ts:233:17             
+getCardsByIds                              tauri         function  apps/mobile/src/services/tauri.ts:390:17             
+getDatabaseSchemaStatus                    tauri         function  apps/mobile/src/services/tauri.ts:401:17             
+diaryGetEntry                              tauri         function  apps/mobile/src/services/tauri.ts:425:17             
+diaryDeleteEntry                           tauri         function  apps/mobile/src/services/tauri.ts:438:17             
+todoGetRecurrence                          tauri         function  apps/mobile/src/services/tauri.ts:599:17             
+todoUpdateRecurrence                       tauri         function  apps/mobile/src/services/tauri.ts:628:17             
+todoDeleteRecurrenceByItem                 tauri         function  apps/mobile/src/services/tauri.ts:642:17             
+todoSkipRecurrence                         tauri         function  apps/mobile/src/services/tauri.ts:692:17             
+pomodoroDeleteSessions                     tauri         function  apps/mobile/src/services/tauri.ts:773:17             
+arrayBufferToBase64                                      function  apps/mobile/src/utils/base64.ts:8:17                 
+hasTauriBridge                                           function  apps/mobile/src/utils/console-logger.ts:35:17        
+isPerfEnabled                                            function  apps/mobile/src/utils/perf.ts:7:17                   
+streamResponse                                           function  apps/mobile/validation/ai/fixtures.ts:136:17         
+sourcePageInput                                                    apps/mobile/validation/host/sourcePage.ts:16:14      
+sessionFor                                               function  apps/plugin-portal/api/auth.ts:54:23                 
+verifyActionsToken                                       function  apps/plugin-portal/api/ci.ts:72:23                   
+withLastEvents                                           function  apps/plugin-portal/api/submissions.ts:110:23         
+uploadDto                                                          apps/plugin-portal/api/uploads.ts:17:14              
+isApiErrorBody                                           function  apps/plugin-portal/web/src/api/errors.ts:28:17       
+isOutcomeUnknown                                                   apps/plugin-portal/web/src/api/errors.ts:61:14       
+isRetryable                                              function  apps/plugin-portal/web/src/app/api.tsx:19:17         
+parseInline                                              function  …in-portal/web/src/components/markdown/parse.ts:51:17
+STATUS_LABELS                                                      …lugin-portal/web/src/components/PageHeader.tsx:43:14
+CategoryTag                                              function  …ortal/web/src/features/catalog/CategoryTag.tsx:20:17
+useCenterResolution                                      function  …tal/web/src/features/catalog/center-queries.ts:51:17
+useRelease                                               function  …gin-portal/web/src/features/catalog/queries.ts:76:17
+sortByVersionDesc                                        function  …in-portal/web/src/features/catalog/queries.ts:104:17
+SORT_LABELS                                                        …in-portal/web/src/features/catalog/SortMenu.tsx:5:14
+STATS_NOTE                                                         …n-portal/web/src/features/catalog/StatsHint.tsx:4:14
+reviewKey                                                          …n-portal/web/src/features/submission/queries.ts:4:14
+outcomeFromUpload                                        function  …rtal/web/src/features/submission/uploadFlow.ts:26:17
+RPC_EVENTS_WS_PATH                                                 apps/web-server/src/events.ts:84:10                  
+renderNavLinks                                           function  apps/website/build/siteNav.ts:6:17                   
+renderGithubLink                                         function  apps/website/build/siteNav.ts:13:17                  
+PLATFORMS                                                          apps/website/src/changelog/releases.ts:13:14         
+releaseAnchor                                                      apps/website/src/changelog/releases.ts:54:14         
+MIN_VISIBLE_STARS                                                  apps/website/src/lib/githubStars.ts:7:14             
+PLUGIN_CENTER_URL                                                  apps/website/src/lib/site.ts:4:14                    
+DOCS_PATH                                                          apps/website/src/lib/site.ts:5:14                    
+CHANGELOG_PATH                                                     apps/website/src/lib/site.ts:6:14                    
+DEVELOPERS_PATH                                                    apps/website/src/lib/site.ts:7:14                    
+THEME_STORAGE_KEY                                                  apps/website/src/modules/theme.ts:8:14               
+applyTheme                                               function  apps/website/src/modules/theme.ts:10:17              
+row                                                                packages/ai/src/runtime/__tests__/fixtures.ts:14:14  
+streamResponse                                           function  packages/ai/src/runtime/__tests__/fixtures.ts:136:17 
+ChatContainerCore                                                  packages/chat-ui/src/ChatContainerCore.tsx:178:14    
+default                                                  variable  …components/ChatComponents/ToolCallDisplay.tsx:137:16
+sessionStatusLabel                                       function  packages/collaboration/src/view.ts:36:17             
+useStableStatus                                          function  packages/collaboration/src/view.ts:48:17             
+normalizeAssistExpr                                      function  …abase/src/components/FormulaBuilder/assist.ts:105:17
+msToDate                                                 function  …tabase/src/components/FormulaBuilder/model.ts:143:17
+isFoldableEmpty                                          function  …atabase/src/components/RowDetailModal/utils.ts:19:17
+FORMULA_TAG_COLORS                                                 packages/database/src/core/formula/derive.ts:181:14  
+aggregateColumn                                          function  packages/database/src/core/formula/footer.ts:21:17   
+defaultScalar                                                      packages/database/src/core/formula/index.ts:2:32     
+builtInAggregateDefinitions                                        packages/database/src/core/formula/index.ts:9:3      
+AggregateRegistry                                                  packages/database/src/core/formula/index.ts:12:10    
+aggregateColumn                                                    packages/database/src/core/formula/index.ts:14:10    
+deriveFormulaRows                                                  packages/database/src/core/formula/index.ts:17:3     
+default                                                  variable  packages/database/src/DatabaseStore.ts:769:16        
+useCellEditor                                            function  packages/database/src/hooks/useCellEditor.ts:6:17    
+useColumnResize                                          function  packages/database/src/hooks/useColumnResize.ts:4:17  
+useColumnVisibility                                      function  …kages/database/src/hooks/useColumnVisibility.ts:5:17
+useDatabaseStore                                         function  packages/database/src/hooks/useDatabaseStore.ts:6:17 
+useKeyboardNavigation                                              …ges/database/src/hooks/useKeyboardNavigation.ts:8:14
+useRowDetail                                             function  packages/database/src/hooks/useRowDetail.ts:9:17     
+useUndoRedoShortcut                                                …ages/database/src/hooks/useUndoRedoShortcut.ts:13:14
+createPluginManager                                                packages/database/src/PluginManager.ts:98:14         
+dateText                                                 function  …ckages/database/src/plugins/DatePlugin/model.ts:7:17
+directionHint                                                      packages/database/src/SortPanel.tsx:20:14            
+DEFAULT_KANBAN_TEMPLATE                                            …base/src/views/KanbanView/cardDisplayConfig.ts:11:14
+DEFAULT_SHOW_FIELD_LABELS                                          …base/src/views/KanbanView/cardDisplayConfig.ts:12:14
+rebaseTextFieldInput                                               …ges/editor-source-view/src/textFieldTextarea.ts:1:33
+isEditorExtension                                                  packages/editor/src/core/api/extension.ts:183:14     
+HoveringBarContext                                                 …src/core/components/HoveringToolbar/index.tsx:330:10
+CIRCUIT_BREAKER_WINDOW_MS                                          packages/editor/src/core/kit/extensionGuard.ts:16:14 
+matchInputRule                                           function  packages/editor/src/core/kit/inputRules.ts:45:17     
+normalizeCopiedFragment                                            …/editor/src/core/plugins/withNormalizedCopy.ts:51:14
+createServiceId                                                    packages/editor/src/core/services/index.ts:1:10      
+IThemeService                                                      packages/editor/src/core/services/index.ts:1:27      
+IEditorNotifier                                                    packages/editor/src/core/services/index.ts:1:67      
+createServiceRegistry                                              packages/editor/src/core/services/index.ts:4:10      
+createChildRegistry                                                packages/editor/src/core/services/index.ts:4:33      
+useServiceRegistry                                                 packages/editor/src/core/services/index.ts:7:10      
+useOptionalService                                                 packages/editor/src/core/services/index.ts:7:42      
+useNotifier                                                        packages/editor/src/core/services/index.ts:7:62      
+defaultEditorNotifier                                              packages/editor/src/core/services/index.ts:9:10      
+consoleErrorReporter                                               packages/editor/src/core/services/index.ts:18:10     
+getCurrentSlotIndex                                                …ckages/editor/src/core/utils/caretAffinity.ts:228:14
+splitBookmarkUrl                                         function  …s/editor/src/extensions/bookmark/src/display.ts:4:17
+createBookmark                                                     …itor/src/extensions/bookmark/src/operations.ts:19:14
+default                                                  variable  …code-block/src/extensions/code-block/index.tsx:97:16
+getSafeActiveStep                                                  …rc/extensions/code-block/utils/magicMoveOps.ts:32:14
+createNextStepId                                                   …rc/extensions/code-block/utils/magicMoveOps.ts:55:14
+HeaderArrow                                                        …eader/src/components/Header/components/index.ts:1:21
+NOTICE_DURATION                                                    …or/src/extensions/link/src/panel/controller.ts:12:14
+createTaskId                                                       …nsions/list/src/extensions/check-list/taskId.ts:5:14
+STAGE_PADDING                                                      …dia/src/components/ImageCropEditor/geometry.ts:61:14
+MIN_FRAME_SIZE                                                     …dia/src/components/ImageCropEditor/geometry.ts:62:14
+MAX_SCALE                                                          …dia/src/components/ImageCropEditor/geometry.ts:64:14
+normalizeTurns                                                     …dia/src/components/ImageCropEditor/geometry.ts:68:14
+frameCenter                                                        …dia/src/components/ImageCropEditor/geometry.ts:79:14
+fitRect                                                  function  …ia/src/components/ImageCropEditor/geometry.ts:173:17
+maxCropSize                                              function  …ia/src/components/ImageCropEditor/geometry.ts:282:17
+insertMediaPayloads                                                …/src/extensions/media/src/utils/mediaInsert.ts:75:14
+isProviderSourceUrl                                                …src/extensions/media/src/utils/mediaInsert.ts:279:14
+insertMediaByUrl                                                   …src/extensions/media/src/utils/mediaInsert.ts:284:14
+MEDIA_TYPE_LABELS                                                  …src/extensions/media/src/utils/mediaInsert.ts:288:10
+WIDTH_SNAP_TOLERANCE                                               …or/src/extensions/media/src/utils/mediaWidth.ts:5:14
+deleteCellSelection                                      function  …s/editor/src/extensions/table/src/selection.ts:93:17
+mountVoidEditor                                          function  packages/editor/test-support/void-behavior.tsx:76:23 
+headerCodec                                                        packages/markdown/src/__tests__/fixtures.ts:25:14    
+bareProcessor                                                      packages/markdown/src/__tests__/fixtures.ts:44:14    
+skillDirectory                                                     packages/plugins/src/skills.ts:14:14                 
+default                                                            packages/themes/src/themes/ink.theme.ts:13:16        
+default                                                            packages/themes/src/themes/mint.theme.ts:13:16       
+default                                                            packages/themes/src/themes/ocean.theme.ts:14:16      
+default                                                            packages/themes/src/themes/paper.theme.ts:18:16      
+default                                                            packages/themes/src/themes/sakura.theme.ts:13:16     
+default                                                            packages/themes/src/themes/wisteria.theme.ts:12:16   
+WEEKDAY_NAMES                                                      …ui/src/primitives/datepicker/calendarEngine.ts:12:14
+addDays                                                  function  …ui/src/primitives/datepicker/calendarEngine.ts:60:17
+default                                                  variable  packages/ui/src/primitives/EditText.tsx:252:16       
+LineWidthIcon                                                      packages/whiteboard/src/chrome/icons.tsx:26:14       
+CornerIcon                                                         packages/whiteboard/src/chrome/icons.tsx:33:14       
+DashIcon                                                           packages/whiteboard/src/chrome/icons.tsx:38:14       
+PaddingIcon                                                        packages/whiteboard/src/chrome/icons.tsx:43:14       
+MarkerStartIcon                                                    packages/whiteboard/src/chrome/icons.tsx:55:14       
+GeometrySetterManager                                    class     …eSetter/GeometrySetter/GeometrySetterManager.ts:9:14
+ThemeThumbnail                                           function  …tributeSetter/MindMapSetter/ThemeThumbnail.tsx:60:17
+default                                                  variable  …oard/src/components/CreationPreview/index.tsx:135:16
+DND_TYPE                                                           …rd/src/components/Sidebar/tree/useElementDnD.ts:4:14
+findNodeInfoById                                                   …hiteboard/src/components/Sidebar/tree/utils.ts:33:14
+getNodeByPathSnapshot                                              …hiteboard/src/components/Sidebar/tree/utils.ts:53:14
+findMindRootInfo                                                   …hiteboard/src/components/Sidebar/tree/utils.ts:69:14
+DEFAULT_ARROW_LINE_COLOR                                           packages/whiteboard/src/constants/arrow.ts:10:14     
+DEFAULT_ARROW_LINE_WIDTH                                           packages/whiteboard/src/constants/arrow.ts:11:14     
+AUDIO_MIN_WIDTH                                                    packages/whiteboard/src/constants/audio.ts:3:14      
+AUDIO_MAX_WIDTH                                                    packages/whiteboard/src/constants/audio.ts:4:14      
+MIND_COLORS                                                        packages/whiteboard/src/constants/mind.ts:1:14       
+MIND_LINE_COLORS                                                   packages/whiteboard/src/constants/mind.ts:18:14      
+authorAPI                                                function  packages/whiteboard/src/extensions/authorApi.ts:43:17
+buildArrowElement                                        function  …es/whiteboard/src/extensions/creators/arrow.ts:22:17
+arrowCreateGesture                                                 …es/whiteboard/src/extensions/creators/arrow.ts:61:14
+COLUMN_CREATE_MIN_WIDTH                                            …s/whiteboard/src/extensions/creators/column.ts:13:14
+collectColumnChildren                                    function  …s/whiteboard/src/extensions/creators/column.ts:20:17
+columnCreateGesture                                                …s/whiteboard/src/extensions/creators/column.ts:67:14
+FRAME_CREATE_MIN_SIZE                                              …es/whiteboard/src/extensions/creators/frame.ts:21:14
+collectFrameChildren                                     function  …es/whiteboard/src/extensions/creators/frame.ts:29:17
+getElementBounds                                         function  …es/whiteboard/src/extensions/creators/frame.ts:44:17
+frameCreateGesture                                                 …es/whiteboard/src/extensions/creators/frame.ts:80:14
+handwriteCreateGesture                                             …hiteboard/src/extensions/creators/handwrite.ts:57:14
+MIND_ROOT_WIDTH                                                    …ages/whiteboard/src/extensions/creators/mind.ts:9:14
+RICHTEXT_CREATE_DEFAULT_SIZE                                       …ges/whiteboard/src/extensions/creators/text.ts:13:14
+default                                                  class     …whiteboard/src/extensions/DOMSizeMeasurer.tsx:629:16
+isKernelEventName                                        function  packages/whiteboard/src/extensions/events.ts:66:17   
+hotkeySignature                                          function  packages/whiteboard/src/extensions/hotkeys.ts:62:17  
+formatProblems                                           function  …ckages/whiteboard/src/extensions/validation.ts:25:17
+validateElementTree                                      function  …ckages/whiteboard/src/extensions/validation.ts:37:17
+useBoardMoving                                                     packages/whiteboard/src/hooks/index.ts:19:10         
+useMindTheme                                                       packages/whiteboard/src/hooks/index.ts:26:10         
+useMindMode                                                        packages/whiteboard/src/hooks/index.ts:26:24         
+useMindThemePreviewStore                                           packages/whiteboard/src/hooks/index.ts:26:37         
+useBoardMoving                                                     packages/whiteboard/src/hooks/useBoardMoving.ts:4:14 
+default                                                  variable  packages/whiteboard/src/hooks/useContextMenu.ts:51:16
+default                                                  variable  packages/whiteboard/src/hooks/useMoveArrow.ts:40:16  
+default                                                  variable  …ges/whiteboard/src/hooks/usePointerViewport.ts:21:16
+default                                                  variable  packages/whiteboard/src/hooks/useReadonly.ts:21:16   
+default                                                  variable  packages/whiteboard/src/hooks/useResize.ts:41:16     
+default                                                  variable  packages/whiteboard/src/hooks/useSelectState.ts:84:16
+default                                                  variable  packages/whiteboard/src/hooks/useZoom.ts:38:16       
+normalizeRect                                                      …s/whiteboard/src/interactions/createGesture.ts:12:14
+default                                                  class     …s/whiteboard/src/plugins/ExportImagePlugin.tsx:84:16
+default                                                  class     …ages/whiteboard/src/plugins/GeometryPlugin.tsx:96:16
+default                                                  class     …es/whiteboard/src/plugins/HandwritePlugin.tsx:289:16
+EMPTY_MIND_DRAG_STATE                                              packages/whiteboard/src/plugins/MindPlugin.tsx:60:14 
+default                                                  class     …ckages/whiteboard/src/plugins/MindPlugin.tsx:1093:16
+default                                                  class     …/whiteboard/src/plugins/PresentationPlugin.ts:166:16
+default                                                  class     …/whiteboard/src/services/CapabilityService.ts:520:16
+getDefaultArrowStylePreset                                         packages/whiteboard/src/utils/ArrowStyleUtil.ts:92:14
+default                                                  class     packages/whiteboard/src/utils/CanvasUtil.ts:20:16    
+default                                                            packages/whiteboard/src/utils/ClipboardUtil.ts:110:16
+hexToHSL                                                 function  packages/whiteboard/src/utils/color.ts:32:17         
+hslToHex                                                 function  packages/whiteboard/src/utils/color.ts:78:17         
+adaptColorToTheme                                        function  packages/whiteboard/src/utils/color.ts:112:17        
+default                                                            …ages/whiteboard/src/utils/ConnectPointUtil.ts:185:16
+HANDWRITE_STYLE_STORAGE_KEY                                        packages/whiteboard/src/utils/HandwriteUtil.ts:4:14  
+ViewportUtil                                                       packages/whiteboard/src/utils/index.ts:27:21         
+default                                                            …ckages/whiteboard/src/utils/LayerOrderUtil.ts:246:16
+MIND_DRAG_HORIZONTAL_THRESHOLD_PX                                  packages/whiteboard/src/utils/MindUtil.ts:10:14      
+MIND_DRAG_VERTICAL_THRESHOLD_PX                                    packages/whiteboard/src/utils/MindUtil.ts:11:14      
+MIND_DRAG_TARGET_RETENTION_SCALE                                   packages/whiteboard/src/utils/MindUtil.ts:12:14      
+default                                                  class     packages/whiteboard/src/utils/PointUtil.ts:132:16    
+getPresentationElementBounds                                       …iteboard/src/utils/PresentationViewportUtil.ts:16:14
+default                                                  variable  …s/whiteboard/src/utils/SelectionActionUtil.ts:107:16
+hatchGap                                                           packages/whiteboard/src/utils/sketch/index.ts:2:23   
+markerLength                                                       packages/whiteboard/src/utils/sketch/index.ts:3:23   
+isSketchableType                                                   packages/whiteboard/src/utils/sketch/index.ts:4:25   
+createRandom                                                       packages/whiteboard/src/utils/sketch/index.ts:6:10   
+flattenPath                                                        packages/whiteboard/src/utils/sketch/index.ts:7:10   
+outlinePolylines                                         function  packages/whiteboard/src/utils/sketch/shape.ts:88:17  
+SNAP_THRESHOLD_PX                                                  …kages/whiteboard/src/utils/snap/SnapManager.ts:18:14
+SnapManager                                              class     …kages/whiteboard/src/utils/snap/SnapManager.ts:63:14
+SpatialHitIndex                                          class     …ckages/whiteboard/src/utils/SpatialHitIndex.ts:50:14
+getText                                                  function  packages/whiteboard/src/utils/text.ts:4:17           
+TextStyleStore                                           class     packages/whiteboard/src/utils/TextStyleStore.ts:6:14 
+siteUrl                                                  function  …/tau-blog-template-mochi/src/app/navigation.ts:49:17
+LoadingTown                                              function  …gins/tau-blog-template-mochi/src/app/status.tsx:5:17
+currentMode                                              function  …ugins/tau-blog-template-mochi/src/app/theme.ts:18:17
+applyMode                                                function  …ugins/tau-blog-template-mochi/src/app/theme.ts:24:17
+greeting                                                 function  …ugins/tau-blog-template-mochi/src/app/theme.ts:50:17
+routeOf                                                  function  …gins/tau-blog-template-mochi/src/data/routes.ts:4:17
+normalizeRoute                                           function  …ins/tau-blog-template-mochi/src/data/routes.ts:41:17
+SIMPLE_BELOW                                                       …gins/tau-blog-template-mochi/src/mochi/index.ts:1:17
+strokeWidthFor                                                     …gins/tau-blog-template-mochi/src/mochi/index.ts:1:31
+pupilOffset                                                        …gins/tau-blog-template-mochi/src/mochi/index.ts:3:10
+SIMPLE_BELOW                                                       …ins/tau-blog-template-mochi/src/mochi/Mochi.tsx:8:14
+strokeWidthFor                                           function  …ns/tau-blog-template-mochi/src/mochi/Mochi.tsx:12:17
+Leaf                                                     function  …s/tau-blog-template-mochi/src/mochi/parts.tsx:110:17
+headingElements                                          function  …s/tau-blog-template-mochi/src/pages/reading.ts:12:17
+CardLink                                                 function  plugins/tau-blog-template-mochi/src/ui/Card.tsx:22:17
+CardLink                                                           plugins/tau-blog-template-mochi/src/ui/index.ts:4:16 
+default                                                  variable  …g-template/src/components/Common/Dropdown.tsx:132:16
+Tag                                                                …au-blog-template/src/components/Common/index.ts:1:21
+Dropdown                                                           …au-blog-template/src/components/Common/index.ts:3:21
+default                                                  variable  …au-blog-template/src/components/Common/Tag.tsx:34:16
+Sidebar                                                            …au-blog-template/src/components/Layout/index.ts:3:14
+ArticleSidebar                                                     …tau-blog-template/src/components/Layout/index.ts:5:3
+CardSidebar                                                        …tau-blog-template/src/components/Layout/index.ts:6:3
+CardTagPanel                                                       …tau-blog-template/src/components/Layout/index.ts:7:3
+CardTagFilterPanel                                                 …tau-blog-template/src/components/Layout/index.ts:8:3
+ArticleSidebar                                                     …og-template/src/components/Layout/Sidebar.tsx:319:14
+CardSidebar                                                        …og-template/src/components/Layout/Sidebar.tsx:375:14
+CardTagPanel                                                       …og-template/src/components/Layout/Sidebar.tsx:558:14
+CardTagFilterPanel                                                 …og-template/src/components/Layout/Sidebar.tsx:723:14
+default                                                  variable  …og-template/src/components/Layout/Sidebar.tsx:793:16
+truncate                                                 function  plugins/tau-blog-template/src/utils/index.ts:53:17   
+getPlainText                                             function  plugins/tau-blog-template/src/utils/index.ts:61:17   
+getReadingTime                                           function  plugins/tau-blog-template/src/utils/index.ts:80:17   
+generateAnchorId                                         function  plugins/tau-blog-template/src/utils/index.ts:95:17   
+isDarkMode                                               function  plugins/tau-blog-template/src/utils/index.ts:120:17  
+applyThemeToDocument                                     function  plugins/tau-blog-template/src/utils/index.ts:128:17  
+SEARCH_RECENT_QUERIES_LIMIT                                        plugins/tau-blog-template/src/utils/search.ts:6:14   
+SEARCH_RESULT_LIMIT                                                plugins/tau-blog-template/src/utils/search.ts:7:14   
+BLOG_SEARCH_OPTIONS                                                plugins/tau-blog-template/src/utils/search.ts:8:14   
+sourceHtml                                               function  plugins/tau-plugin-abc/src/render/render.ts:20:17    
+FILE_MIME_TYPES                                                    plugins/tau-plugin-asr-seed/src/file.ts:33:14        
+transcribeSeedFile                                       function  plugins/tau-plugin-asr-seed/src/file.ts:228:17       
+USER_AGENT                                                         plugins/tau-plugin-bilibili/src/api.ts:31:14         
+createHeaders                                            function  plugins/tau-plugin-bilibili/src/api.ts:54:17         
+checkLogin                                               function  plugins/tau-plugin-bilibili/src/api.ts:292:23        
+QR_STATUS                                                          plugins/tau-plugin-bilibili/src/api.ts:309:14        
+getQrCode                                                function  plugins/tau-plugin-bilibili/src/api.ts:316:23        
+pollQrCode                                               function  plugins/tau-plugin-bilibili/src/api.ts:325:23        
+readConfig                                               function  plugins/tau-plugin-bilibili/src/provider.ts:22:17    
+MAX_CATEGORIES                                                     plugins/tau-plugin-expense/src/data/model.ts:58:14   
+nextColor                                                function  plugins/tau-plugin-expense/src/data/model.ts:135:17  
+dateKey                                                            plugins/tau-plugin-expense/src/data/model.ts:147:14  
+timeKey                                                            plugins/tau-plugin-expense/src/data/model.ts:149:14  
+parseDateKey                                             function  plugins/tau-plugin-expense/src/data/model.ts:151:17  
+CLASSIFY_SYSTEM                                                    plugins/tau-plugin-expense/src/data/parse.ts:59:14   
+classifyPrompt                                           function  plugins/tau-plugin-expense/src/data/parse.ts:62:17   
+isFixed                                                            plugins/tau-plugin-expense/src/data/stats.ts:77:14   
+byCategory                                               function  plugins/tau-plugin-expense/src/data/stats.ts:79:17   
+baseline                                                 function  plugins/tau-plugin-expense/src/data/stats.ts:102:17  
+topNotes                                                 function  plugins/tau-plugin-expense/src/data/stats.ts:213:17  
+TX                                                                 plugins/tau-plugin-expense/src/data/store.ts:21:14   
+ORGANIZE_SYSTEM                                                    plugins/tau-plugin-expense/src/data/voice.ts:139:14  
+organizePrompt                                           function  plugins/tau-plugin-expense/src/data/voice.ts:156:17  
+appearanceStyle                                                    …ins/tau-plugin-image-gallery/src/appearance.ts:40:14
+DEFAULT_CONFIG                                                     …age-gallery/src/components/layoutCalculator.ts:35:14
+OssSyncProvider                                          class     plugins/tau-plugin-oss/src/sync.ts:33:14             
+EPISODE_KIND                                                       plugins/tau-plugin-podcast/src/data/model.ts:8:14    
+SOURCE_ROLE                                                        plugins/tau-plugin-podcast/src/data/model.ts:9:14    
+PAGE_ID                                                            plugins/tau-plugin-podcast/src/data/model.ts:10:14   
+SOURCE_KINDS                                                       plugins/tau-plugin-podcast/src/data/model.ts:13:14   
+PICKABLE_KINDS                                                     plugins/tau-plugin-podcast/src/data/model.ts:16:14   
+EPISODE_INDEXES                                                    plugins/tau-plugin-podcast/src/data/model.ts:74:14   
+sourceKey                                                          plugins/tau-plugin-podcast/src/data/model.ts:76:14   
+readEpisode                                              function  plugins/tau-plugin-podcast/src/data/model.ts:118:17  
+episodeMeta                                              function  plugins/tau-plugin-podcast/src/data/model.ts:165:17  
+scriptMarkdown                                           function  plugins/tau-plugin-podcast/src/data/model.ts:199:17  
+isBusy                                                             plugins/tau-plugin-podcast/src/data/model.ts:203:14  
+buildScriptMessages                                      function  plugins/tau-plugin-podcast/src/gen/script.ts:44:17   
+notebookInstructions                                     function  plugins/tau-plugin-podcast/src/gen/script.ts:59:17   
+NOTEBOOK_REMINDERS                                                 plugins/tau-plugin-podcast/src/gen/script.ts:63:14   
+readConfig                                                         plugins/tau-plugin-publish-github/src/publish.ts:3:14
+repoBasePath                                             function  plugins/tau-plugin-publish-github/src/publish.ts:6:17
+readConfig                                                         plugins/tau-plugin-publish-s3/src/publish.ts:15:14   
+MCP_ID                                                             plugins/tau-plugin-questions/src/ai/tools.ts:18:14   
+RENDER_VERSION                                                     plugins/tau-plugin-questions/src/ai/tools.ts:19:14   
+ROW_TOOLS                                                          plugins/tau-plugin-questions/src/ai/tools.ts:35:14   
+readRef                                                            plugins/tau-plugin-questions/src/data/model.ts:204:14
+toQuestion                                               function  …ins/tau-plugin-questions/src/data/questions.ts:73:17
+REFS_KEY                                                           plugins/tau-plugin-questions/src/runtime.tsx:17:14   
+createRuntime                                            function  plugins/tau-plugin-questions/src/runtime.tsx:53:17   
+RuntimeProvider                                          function  plugins/tau-plugin-questions/src/runtime.tsx:69:17   
+useRuntime                                               function  plugins/tau-plugin-questions/src/runtime.tsx:85:17   
+DAY_MS                                                             plugins/tau-plugin-questions/src/ui/model.ts:20:14   
+STATUS_META                                                        plugins/tau-plugin-questions/src/ui/model.ts:25:14   
+SECTION_ORDER                                                      plugins/tau-plugin-questions/src/ui/model.ts:32:14   
+STATUS_STEPS                                                       plugins/tau-plugin-questions/src/ui/model.ts:34:14   
+COMPOSITION_ORDER                                                  plugins/tau-plugin-questions/src/ui/model.ts:50:14   
+TONE_DOT                                                           plugins/tau-plugin-questions/src/ui/model.ts:64:14   
+sectionize                                               function  plugins/tau-plugin-questions/src/ui/model.ts:80:17   
+statusCounts                                             function  plugins/tau-plugin-questions/src/ui/model.ts:93:17   
+startOfDay                                               function  plugins/tau-plugin-questions/src/ui/model.ts:99:17   
+relativeDay                                              function  plugins/tau-plugin-questions/src/ui/model.ts:106:17  
+clock                                                    function  plugins/tau-plugin-questions/src/ui/model.ts:116:17  
+daySpan                                                  function  plugins/tau-plugin-questions/src/ui/model.ts:122:17  
+formatWords                                              function  plugins/tau-plugin-questions/src/ui/model.ts:126:17  
+trajectoryStats                                          function  plugins/tau-plugin-questions/src/ui/model.ts:187:17  
+cx                                                                 plugins/tau-plugin-questions/src/ui/model.ts:200:14  
+S3SyncProvider                                           class     plugins/tau-plugin-s3/src/sync.ts:33:14              
+STICK_BODY_OPTIONS                                                 plugins/tau-plugin-stickman/src/constants.ts:17:14   
+STICK_TINT_OPTIONS                                                 plugins/tau-plugin-stickman/src/constants.ts:23:14   
+DEFAULT_STICK_POSE                                                 plugins/tau-plugin-stickman/src/constants.ts:28:14   
+toolId                                                             plugins/tau-plugin-stickman/src/constants.ts:35:14   
+STICK_POSES                                                        plugins/tau-plugin-stickman/src/model/index.ts:3:3   
+STICK_CATEGORIES                                                   plugins/tau-plugin-stickman/src/model/index.ts:4:3   
+getStickPose                                                       plugins/tau-plugin-stickman/src/model/index.ts:5:3   
+stickNaturalSize                                                   plugins/tau-plugin-stickman/src/model/index.ts:6:3   
+stickViewBox                                                       plugins/tau-plugin-stickman/src/model/index.ts:7:3   
+buildStickStrokes                                                  plugins/tau-plugin-stickman/src/model/index.ts:9:10  
+renderStickPrecise                                                 plugins/tau-plugin-stickman/src/model/index.ts:11:3  
+renderStickSketch                                                  plugins/tau-plugin-stickman/src/model/index.ts:12:3  
+STICK_CATEGORIES                                                   plugins/tau-plugin-stickman/src/model/poses.ts:65:14 
+STICK_POSES                                                        plugins/tau-plugin-stickman/src/model/poses.ts:73:14 
+stickViewBox                                                       …ugins/tau-plugin-stickman/src/model/poses.ts:1366:14
+renderStickPrecise                                       function  plugins/tau-plugin-stickman/src/model/render.ts:52:17
+renderStickSketch                                        function  plugins/tau-plugin-stickman/src/model/render.ts:83:17
+buildStickStrokes                                        function  …gins/tau-plugin-stickman/src/model/strokes.ts:212:17
+readStyle                                                function  plugins/tau-plugin-stickman/src/preferences.ts:6:23  
+parseConfig                                              function  plugins/tau-plugin-tts-minimax/src/provider.ts:10:17 
+MINIMAX_SPEECH_MODELS                                              plugins/tau-plugin-tts-minimax/src/speech.ts:3:14    
+MINIMAX_DEFAULT_SPEECH_MODEL                                       plugins/tau-plugin-tts-minimax/src/speech.ts:10:14   
+MINIMAX_EMOTION_TAGS                                               plugins/tau-plugin-tts-minimax/src/speech.ts:12:14   
+supportsMinimaxEmotionTag                                function  plugins/tau-plugin-tts-minimax/src/speech.ts:60:17   
+isOfficialMinimaxEmotionTag                              function  plugins/tau-plugin-tts-minimax/src/speech.ts:201:17  
+QWEN_TTS_MODELS                                                    plugins/tau-plugin-tts-qwen/src/catalog.ts:2:14      
+parseConfig                                              function  plugins/tau-plugin-tts-qwen/src/provider.ts:3:17     
+engineDownloadProgress                                   function  …ugins/tau-plugin-typst/src/compiler/engine.ts:125:17
+resetTypstEngineForTest                                  function  …ugins/tau-plugin-typst/src/compiler/engine.ts:153:17
+rendererResourceKey                                                …ins/tau-plugin-typst/src/compiler/resources.ts:65:14
+typstCodec                                                         plugins/tau-plugin-typst/src/editor/markdown.ts:3:14 
+renderer_build_info                                      function  …plugin-typst/src/vendor/typst_ts_renderer.mjs:319:17
+CreateSessionOptions                                     class     …plugin-typst/src/vendor/typst_ts_renderer.mjs:354:14
+IncrDomDocClient                                         class     …plugin-typst/src/vendor/typst_ts_renderer.mjs:401:14
+PageInfo                                                 class     …plugin-typst/src/vendor/typst_ts_renderer.mjs:510:14
+PagesInfo                                                class     …plugin-typst/src/vendor/typst_ts_renderer.mjs:568:14
+RenderPageImageOptions                                   class     …plugin-typst/src/vendor/typst_ts_renderer.mjs:648:14
+RenderSessionOptions                                     class     …plugin-typst/src/vendor/typst_ts_renderer.mjs:963:14
+TypstRendererBuilder                                     class     …lugin-typst/src/vendor/typst_ts_renderer.mjs:1404:14
+TypstWorker                                              class     …lugin-typst/src/vendor/typst_ts_renderer.mjs:1480:14
+WorkerBridge                                             class     …lugin-typst/src/vendor/typst_ts_renderer.mjs:1565:14
+initSync                                                           …lugin-typst/src/vendor/typst_ts_renderer.mjs:2406:10
+setImportWasmModule                                                …plugin-typst/src/vendor/typst_ts_renderer.mjs:2417:3
+get_font_info                                            function  …in-typst/src/vendor/typst_ts_web_compiler.mjs:227:17
+IncrServer                                               class     …in-typst/src/vendor/typst_ts_web_compiler.mjs:281:14
+ProxyContext                                             class     …in-typst/src/vendor/typst_ts_web_compiler.mjs:338:14
+TypstCompiler                                            class     …in-typst/src/vendor/typst_ts_web_compiler.mjs:404:14
+initSync                                                           …n-typst/src/vendor/typst_ts_web_compiler.mjs:1318:10
+setImportWasmModule                                                …in-typst/src/vendor/typst_ts_web_compiler.mjs:1329:3
+validate                                                           plugins/tau-plugin-upload-github/src/upload.ts:4:14  
+encodedPath                                                        plugins/tau-plugin-upload-oss/src/config.ts:20:14    
+validate                                                           plugins/tau-plugin-upload-oss/src/upload.ts:6:14     
+encodedPath                                                        plugins/tau-plugin-upload-s3/src/config.ts:20:14     
+validate                                                 function  plugins/tau-plugin-upload-s3/src/upload.ts:6:17      
+ANALYSIS_SYSTEM                                                    plugins/tau-plugin-weight/src/ai.ts:85:14            
+analysisPrompt                                           function  plugins/tau-plugin-weight/src/ai.ts:101:17           
+ACTIVITY_LEVELS                                                    plugins/tau-plugin-weight/src/data/model.ts:53:14    
+DEFAULT_MOVE_GOAL                                                  plugins/tau-plugin-weight/src/data/model.ts:59:14    
+parseDateKey                                             function  plugins/tau-plugin-weight/src/data/model.ts:121:17   
+DEFICIT                                                            plugins/tau-plugin-weight/src/data/stats.ts:12:14    
+dailyBurn                                                function  plugins/tau-plugin-weight/src/data/stats.ts:15:17    
+ENTRY                                                              plugins/tau-plugin-weight/src/data/store.ts:20:14    
+createRuntime                                            function  plugins/tau-plugin-weight/src/runtime.tsx:25:17      
+RuntimeProvider                                          function  plugins/tau-plugin-weight/src/runtime.tsx:53:17      
+LOSE_COLOR                                                         plugins/tau-plugin-weight/src/ui/bits.tsx:10:14      
+GAIN_COLOR                                                         plugins/tau-plugin-weight/src/ui/bits.tsx:11:14      
+kg                                                                 plugins/tau-plugin-weight/src/ui/bits.tsx:13:14      
+signed                                                   function  plugins/tau-plugin-weight/src/ui/bits.tsx:15:17      
+Delta                                                    function  plugins/tau-plugin-weight/src/ui/bits.tsx:21:17      
+Card                                                     function  plugins/tau-plugin-weight/src/ui/bits.tsx:49:17      
+CardHead                                                 function  plugins/tau-plugin-weight/src/ui/bits.tsx:57:17      
+Dot                                                      function  plugins/tau-plugin-weight/src/ui/bits.tsx:68:17      
+useWidth                                                 function  plugins/tau-plugin-weight/src/ui/bits.tsx:79:17      
+dayLabel                                                 function  plugins/tau-plugin-weight/src/ui/bits.tsx:93:17      
+shortDate                                                function  plugins/tau-plugin-weight/src/ui/bits.tsx:97:17      
+useProfile                                               function  plugins/tau-plugin-weight/src/ui/queries.ts:32:17    
+useLedger                                                function  plugins/tau-plugin-weight/src/ui/queries.ts:37:17    
+usePrefs                                                 function  plugins/tau-plugin-weight/src/ui/queries.ts:70:17    
+STATUS_FILTERS                                                     plugins/tau-plugin-weread/src/model.ts:68:14         
+SHELF_SORTS                                                        plugins/tau-plugin-weread/src/model.ts:76:14         
+STATUS_LABEL                                                       plugins/tau-plugin-weread/src/model.ts:83:14         
+matchQuery                                               function  plugins/tau-plugin-weread/src/model.ts:106:17        
+HIGHLIGHT_COLORS                                                   plugins/tau-plugin-weread/src/model.ts:141:14        
+toParagraphs                                                       plugins/tau-plugin-weread/src/model.ts:175:14        
+formatMinutes                                            function  plugins/tau-plugin-weread/src/model.ts:344:17        
+formatSyncedAt                                           function  plugins/tau-plugin-weread/src/model.ts:364:17        
+coverTone                                                function  plugins/tau-plugin-weread/src/model.ts:376:17        
+sourceOf                                                           plugins/tau-plugin-weread/src/runtime.ts:85:14       
+WeReadError                                              class     plugins/tau-plugin-weread/src/service/errors.ts:2:14 
+WeReadRateLimitError                                               plugins/tau-plugin-weread/src/service/index.ts:164:10
+parseArticleHighlightReview                                        plugins/tau-plugin-weread/src/service/parser.ts:76:14
+readConfig                                               function  plugins/tau-plugin-youtube/src/provider.ts:17:17     
+Configuration hints (8)
+src/main.ts*             Refine knip.json → apps/plugin-portal → entry pattern (no matches)       
+src/**/*.{astro,mdx,md}  Refine knip.json → apps/website → entry pattern (no matches)             
+server.{js,ts}           Refine knip.json → apps/collaboration-server → entry pattern (no matches)
+scripts/**/*.{js,mjs}    Refine knip.json → apps/collaboration-server → entry pattern (no matches)
+src/main.ts*             Refine knip.json → apps/analytics → entry pattern (no matches)           
+server/**/*.{ts,js}      Refine knip.json → apps/analytics → entry pattern (no matches)           
+vitest.config.mts        Remove redundant pattern from knip.json → (root) → entry                 
+src/main.tsx             Remove redundant pattern from knip.json → apps/desktop → entry           

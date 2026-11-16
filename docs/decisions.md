@@ -73,6 +73,13 @@
 
 - 客户端日志统一 session 粒度：每次启动一个 `session-*.log`，保留 3 天、单文件 10MB 轮转；前端 console 劫持后经宿主落盘（debug 不落盘），不为某一端另起日志框架或文件格式。
 
+## 代码风格
+
+- console 就是 logger：桌面主进程 / 渲染层与移动端都已把 console 代理落盘（electron-log / Tauri app_log），业务代码直接写 console.* 即进日志体系，不另起日志实例；清理 console 调用前先确认不是运维日志。
+- SQLite 行类型统一走 `src-electron/main/types/table.ts` 的 `SqliteRow`（Record<string, unknown>），在表模块 parse 内逐字段断言到目标类型；不写 `as any[]` 与 `parse(row: any)`。
+- 列表 / 索引类查询失败不得静默返回空集合蒙混为「没有数据」：降级可以，必须 log.warn 留痕（首次运行无文件等预期路径除外）。
+- 新建 shared / 公共实现后旧副本当批回收（消费者清零即删），不留平行实现各自漂移；公共 API 只导出有真实跨模块消费者的符号。
+
 ## 工作方式
 
 - 启动流程变化必须同步更新生产验收判据；启动提示挂载不算成功，模块初始化、渲染提交与业务前置条件应分别确认，捕获后的启动失败同样必须使验收失败。

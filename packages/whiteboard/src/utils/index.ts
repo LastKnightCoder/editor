@@ -24,4 +24,3 @@ export * from "./HandwriteUtil";
 export * from "./HandwriteGroupUtil";
 export * from "./ExportImageUtil";
 export * from "./LayerOrderUtil";
-export { default as ViewportUtil } from "./ViewportUtil";

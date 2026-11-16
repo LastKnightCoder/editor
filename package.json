@@ -51,17 +51,18 @@
     "@aws-sdk/lib-storage": "3.1149.0",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
+    "@typescript/typescript6": "6.0.2",
     "@zumer/snapdom": "^2.0.1",
     "adm-zip": "^0.5.16",
     "cross-env": "^7.0.3",
     "husky": "^9.1.7",
+    "knip": "^6.45.1",
     "lint-staged": "^15.5.0",
     "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
     "oxlint-plugin-eslint": "1.89.0",
-    "vitest": "^3.2.4",
     "typescript": "7.0.2",
-    "@typescript/typescript6": "6.0.2"
+    "vitest": "^3.2.4"
   },
   "commitlint": {
     "extends": [
