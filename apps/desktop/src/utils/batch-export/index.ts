@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { getContentById } from "@/commands/content";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { isContentEmpty } from "@tau/db-schema/content-metrics";
@@ -71,9 +72,6 @@ export interface MarkdownBundleOptions {
   /** 写入 frontmatter（标题、标签、创建 / 更新时间） */
   frontmatter?: boolean;
 }
-
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const UNTITLED_FILE_NAME = "未命名文档";
 

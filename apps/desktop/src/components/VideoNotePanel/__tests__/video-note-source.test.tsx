@@ -10,7 +10,7 @@ const { online, remote } = vi.hoisted(() => ({
   remote: vi.fn(),
 }));
 vi.mock("@/hooks/useOnlineVideo", () => ({ useOnlineVideo: online }));
-vi.mock("@/hooks/useRemoteVideo", () => ({ useRemoteVideo: remote }));
+vi.mock("@tau/shared", () => ({ useRemoteVideoWithContext: remote }));
 vi.mock("@/stores/useSettingStore", () => ({
   default: (select: (s: unknown) => unknown) =>
     select({ setting: { misc: { video: { autoCacheRemote: true } } } }),

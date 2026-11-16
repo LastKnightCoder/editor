@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
 import { renderCodeWithShiki } from "./shiki-renderer";
@@ -20,18 +21,6 @@ const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
 };
 
 type CalloutType = "tip" | "info" | "warning" | "danger" | "note";
-
-/**
- * Escape HTML special characters in code
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function getPlainTextFromChildren(children: any[] = []): string {
   const texts: string[] = [];
@@ -167,7 +156,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Check List
   {
     type: "check-list",
     isBlock: true,
@@ -176,7 +164,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Check List Item
   {
     type: "check-list-item",
     isBlock: true,
@@ -300,7 +287,6 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: element => {
       const chart = element.chart || "";
-      // Check if SVG is stored (future support)
       const svg = element.svg;
       if (svg) {
         return `<div class="diagram-svg mermaid-svg">${svg}</div>`;

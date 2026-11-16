@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { createHighlighter, type Highlighter } from "shiki";
 
 const DEFAULT_SHIKI_THEME = "github-light";
@@ -38,22 +39,19 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   sh: "bash",
   zsh: "bash",
   shell: "bash",
+  c: "c",
+  cpp: "cpp",
   "c++": "cpp",
+  csharp: "csharp",
   "c#": "csharp",
   yml: "yaml",
+  dockerfile: "docker",
+  stex: "latex",
   xml: "html",
   "html/xml": "html",
 };
 
 let highlighterPromise: Promise<Highlighter> | null = null;
-
-const escapeHtml = (input: string): string =>
-  input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 
 const normalizeLanguage = (language?: string): string => {
   const normalized = (language || DEFAULT_LANGUAGE).trim().toLowerCase();
@@ -75,7 +73,7 @@ const ensureHighlighter = async (): Promise<Highlighter> => {
 
 const ensureLanguageLoaded = async (
   highlighter: Highlighter,
-  language: string,
+  language: string
 ): Promise<boolean> => {
   if (highlighter.getLoadedLanguages().includes(language as any)) {
     return true;
@@ -96,38 +94,30 @@ const ensureCodeBlockClasses = (html: string, language: string): string => {
       const classSet = new Set(
         String(currentClasses)
           .split(/\s+/)
-          .map((item) => item.trim())
-          .filter(Boolean),
+          .map(item => item.trim())
+          .filter(Boolean)
       );
-      classes.forEach((name) => classSet.add(name));
+      classes.forEach(name => classSet.add(name));
       return `<pre${before}class="${Array.from(classSet).join(" ")}"${after}>`;
-    },
+    }
   );
 
   if (withClassAttr !== html) {
     return withClassAttr;
   }
 
-  return html.replace(
-    /<pre([^>]*)>/,
-    `<pre$1 class="code-block shiki language-${language}">`,
-  );
+  return html.replace(/<pre([^>]*)>/, `<pre$1 class="code-block shiki language-${language}">`);
 };
 
 const normalizeShikiLineNodes = (html: string): string => {
   return html.replace(
     /(<code[^>]*>)([\s\S]*?)(<\/code>)/,
-    (
-      _match,
-      codeOpenTag: string,
-      codeInnerHtml: string,
-      codeCloseTag: string,
-    ) => {
+    (_match, codeOpenTag: string, codeInnerHtml: string, codeCloseTag: string) => {
       const normalizedInnerHtml = codeInnerHtml
         .replace(/<\/span>\r?\n(?=<span class="line")/g, "</span>")
         .replace(/>\r?\n(?=<span class="line")/g, ">");
       return `${codeOpenTag}${normalizedInnerHtml}${codeCloseTag}`;
-    },
+    }
   );
 };
 
@@ -141,16 +131,13 @@ export const getDefaultShikiTheme = (): string => DEFAULT_SHIKI_THEME;
 export const renderCodeWithShiki = async (
   code: string,
   language?: string,
-  theme: string = DEFAULT_SHIKI_THEME,
+  theme: string = DEFAULT_SHIKI_THEME
 ): Promise<string> => {
   const normalizedLanguage = normalizeLanguage(language);
 
   try {
     const highlighter = await ensureHighlighter();
-    const isLoaded = await ensureLanguageLoaded(
-      highlighter,
-      normalizedLanguage,
-    );
+    const isLoaded = await ensureLanguageLoaded(highlighter, normalizedLanguage);
     if (!isLoaded) {
       return createFallbackHtml(code, normalizedLanguage);
     }
@@ -158,10 +145,7 @@ export const renderCodeWithShiki = async (
       lang: normalizedLanguage,
       theme,
     });
-    const withCodeBlockClasses = ensureCodeBlockClasses(
-      html,
-      normalizedLanguage,
-    );
+    const withCodeBlockClasses = ensureCodeBlockClasses(html, normalizedLanguage);
     return normalizeShikiLineNodes(withCodeBlockClasses);
   } catch {
     return createFallbackHtml(code, normalizedLanguage);

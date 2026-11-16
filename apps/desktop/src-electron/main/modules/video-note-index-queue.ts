@@ -389,7 +389,11 @@ class VideoNoteIndexQueue implements Module {
           typeof item.start === "number" &&
           typeof item.end === "number"
       );
-    } catch {
+    } catch (error) {
+      // 转录段落损坏时按空索引会让该条视频搜不到，留痕避免静默丢内容
+      log.warn(
+        `[VideoNoteIndexQueue] transcript segments JSON invalid, treating as empty: ${error}`
+      );
       return [];
     }
   }

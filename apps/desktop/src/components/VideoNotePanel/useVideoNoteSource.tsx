@@ -4,11 +4,11 @@
  */
 
 import { useMemo } from "react";
+import { useRemoteVideoWithContext } from "@tau/shared";
 import useSettingStore from "@/stores/useSettingStore";
 import OnlineVideoLoader from "@/components/OnlineVideoLoader";
 import RemoteVideoLoader from "@/components/RemoteVideoLoader";
 import { useOnlineVideo } from "@/hooks/useOnlineVideo";
-import { useRemoteVideo } from "@/hooks/useRemoteVideo";
 import { shouldUseLocalVideoCache } from "@/utils/video";
 import { isLocalVideoMeta, isRemoteVideoMeta, type VideoMetaInfo } from "@/types";
 
@@ -20,7 +20,7 @@ export function useVideoNoteSource(metaInfo: VideoMetaInfo | null | undefined) {
 
   // 两个 hook 每次都调用，不适用的来源传 undefined（内部不做事）
   const online = useOnlineVideo(onlineMeta);
-  const remote = useRemoteVideo(remoteMeta?.url);
+  const remote = useRemoteVideoWithContext(remoteMeta?.url);
   const active = onlineMeta ? online : remoteMeta ? remote : null;
 
   const src = useMemo(() => {
@@ -51,6 +51,7 @@ export function useVideoNoteSource(metaInfo: VideoMetaInfo | null | undefined) {
       loading={remote.loading}
       error={remote.error}
       streamProgress={remote.streamProgress}
+      onRetry={remote.retry}
     />
   ) : null;
 

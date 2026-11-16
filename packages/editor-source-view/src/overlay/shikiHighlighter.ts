@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { createHighlighter, type Highlighter } from "shiki";
 import { parseHighlightLinesToSet } from "./highlightLineRanges";
 
@@ -50,14 +51,6 @@ const LANGUAGE_ALIASES: Record<string, string> = {
 };
 
 let highlighterPromise: Promise<Highlighter> | null = null;
-
-const escapeHtml = (input: string): string =>
-  input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 
 const normalizeLanguage = (language?: string): string => {
   const normalized = (language || "text").trim().toLowerCase();
