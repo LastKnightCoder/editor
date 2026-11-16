@@ -136,7 +136,7 @@ export const createSharedProjectItemFromContent = async (params: {
     children: [],
     refType: "content",
     refId: params.sourceContentId,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
   };
 

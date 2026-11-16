@@ -5,6 +5,7 @@ import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { ContentIdentityTable } from "./content-identity";
 import { dfs, getContentLength } from "@/utils/helper.ts";
+import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
 import { Descendant } from "slate";
 import { basename } from "node:path";
@@ -437,13 +438,12 @@ export default class ContentTable {
         { ...stored, content: [] },
         { expectedRevision: stored.revision, count: 0 }
       );
-    const whiteBoardContentId: number[] = [];
+    const whiteboardContentIds: number[] = [];
     dfs(stored ? [] : content?.content || [], node => {
-      if (node.type === "whiteboard" && node.whiteBoardContentId) {
-        whiteBoardContentId.push(node.whiteBoardContentId);
-      }
+      const pageId = node.type === "whiteboard" ? whiteboardEmbedPageId(node) : undefined;
+      if (pageId) whiteboardContentIds.push(pageId as number);
     });
-    whiteBoardContentId.forEach(id => {
+    whiteboardContentIds.forEach(id => {
       WhiteboardContentTable.deleteWhiteboard(db, id);
     });
 

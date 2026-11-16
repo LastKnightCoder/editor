@@ -94,7 +94,7 @@ export const createProjectItemFromPdf = (pdf: Pdf): CreateProjectItem => ({
   refId: pdf.id,
   projectItemType: EProjectItemType.Pdf,
   count: 0,
-  whiteBoardContentId: 0,
+  whiteboardContentId: 0,
 });
 
 export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) => {

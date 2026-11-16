@@ -159,7 +159,7 @@ export class WhiteboardDocumentsModule {
       if (databaseModule.getDatabase(name) !== db) throw new Error("删除期间资料库已变化");
       this.assertOwnerDeletion(db, id);
       const removed = db.transaction(() => {
-        const visible = new Set(table.getWhiteboard(db, id).whiteBoardContentIds);
+        const visible = new Set(table.getWhiteboard(db, id).whiteboardContentIds);
         const pages = db
           .prepare("SELECT content_id FROM whiteboard_document_pages WHERE document_id=?")
           .all(row.document_id) as { content_id: number }[];

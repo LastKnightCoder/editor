@@ -31,7 +31,7 @@ export const insertWhiteboard = async (editor: Editor) => {
     imgUrl: "",
   };
   const referenced = "nodeTree" in editor ? await createPendingWhiteboardContent(initial) : null;
-  const whiteBoardContent = referenced
+  const whiteboardContent = referenced
     ? referenced.content
     : await createWhiteboardContent(initial);
 
@@ -42,7 +42,7 @@ export const insertWhiteboard = async (editor: Editor) => {
     children: [{ type: "formatted", text: "" }],
     ...(referenced
       ? { entityRef: referenced.reference }
-      : { whiteBoardContentId: whiteBoardContent.id }),
+      : { whiteboardContentId: whiteboardContent.id }),
   };
 
   // 在删除白板时，不能立即删除数据库中的白板，因为可能会被撤回
@@ -58,19 +58,19 @@ export const insertWhiteboard = async (editor: Editor) => {
 
 export const insertExistingWhiteboard = async (
   editor: Editor,
-  whiteBoardContent: WhiteboardContent
+  whiteboardContent: WhiteboardContent
 ) => {
   const whiteboardEditor = editor as WhiteboardEditor;
   const reference =
-    "nodeTree" in editor ? await getWhiteboardContentReference(whiteBoardContent.id) : undefined;
-  if (!reference) await incrementWhiteboardContentRefCount(whiteBoardContent.id);
+    "nodeTree" in editor ? await getWhiteboardContentReference(whiteboardContent.id) : undefined;
+  if (!reference) await incrementWhiteboardContentRefCount(whiteboardContent.id);
 
   const whiteboard: WhiteboardElement = {
     type: "whiteboard",
     id: getId(),
     height: 400,
     children: [{ type: "formatted", text: "" }],
-    ...(reference ? { entityRef: reference } : { whiteBoardContentId: whiteBoardContent.id }),
+    ...(reference ? { entityRef: reference } : { whiteboardContentId: whiteboardContent.id }),
   };
 
   // 标记为新建白板，insert_node 时不会再次增加引用计数

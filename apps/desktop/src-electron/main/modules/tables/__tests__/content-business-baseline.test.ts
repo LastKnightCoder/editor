@@ -92,7 +92,7 @@ describe("正文业务基准 F4：独立创建、共用、复制与释放", () =
     children: [],
     refType: "",
     refId: 0,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
     tags: ["项目标签"],
     ...input,

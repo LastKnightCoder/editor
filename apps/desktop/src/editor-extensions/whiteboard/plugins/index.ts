@@ -3,6 +3,7 @@ import {
   deleteWhiteboardContent,
   incrementWhiteboardContentRefCount,
 } from "@/commands/white-board";
+import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
 import type { WhiteboardElement } from "../types";
 
 type WhiteboardEditor = Editor & {
@@ -21,31 +22,27 @@ export const withSetting = (editor: Editor) => {
   const { apply } = editor;
 
   editor.apply = op => {
-    if (
-      op.type === "insert_node" &&
-      isWhiteboardElement(op.node) &&
-      !op.node.entityRef &&
-      op.node.whiteBoardContentId !== undefined
-    ) {
-      // 如果是新建白板或引用已有白板，则不恢复引用数
-      // 因为新建时 createWhiteboardContent 已设置 ref_count = 1
-      // 引用时 incrementWhiteboardContentRefCount 已手动增加
-      if (whiteboardEditor.isInsertNewWhiteboard) {
-        whiteboardEditor.isInsertNewWhiteboard = false;
-      } else {
-        // 撤回删除：需要恢复引用计数
-        void incrementWhiteboardContentRefCount(op.node.whiteBoardContentId);
+    if (op.type === "insert_node" && isWhiteboardElement(op.node) && !op.node.entityRef) {
+      const pageId = whiteboardEmbedPageId(op.node) as number | undefined;
+      if (pageId !== undefined) {
+        // 如果是新建白板或引用已有白板，则不恢复引用数
+        // 因为新建时 createWhiteboardContent 已设置 ref_count = 1
+        // 引用时 incrementWhiteboardContentRefCount 已手动增加
+        if (whiteboardEditor.isInsertNewWhiteboard) {
+          whiteboardEditor.isInsertNewWhiteboard = false;
+        } else {
+          // 撤回删除：需要恢复引用计数
+          void incrementWhiteboardContentRefCount(pageId);
+        }
       }
     }
 
-    if (
-      op.type === "remove_node" &&
-      isWhiteboardElement(op.node) &&
-      !op.node.entityRef &&
-      op.node.whiteBoardContentId !== undefined
-    ) {
-      // 删除白板：减少引用计数
-      void deleteWhiteboardContent(op.node.whiteBoardContentId);
+    if (op.type === "remove_node" && isWhiteboardElement(op.node) && !op.node.entityRef) {
+      const pageId = whiteboardEmbedPageId(op.node) as number | undefined;
+      if (pageId !== undefined) {
+        // 删除白板：减少引用计数
+        void deleteWhiteboardContent(pageId);
+      }
     }
 
     apply(op);

@@ -45,11 +45,11 @@ const WhiteboardSelectorModal = ({
     }
   }, [open, action]);
 
-  const insertWhiteboardElement = useMemoizedFn(async (whiteBoard: IWhiteboard) => {
+  const insertWhiteboardElement = useMemoizedFn(async (whiteboard: IWhiteboard) => {
     const canSubmit = board.captureSubmission();
     const databaseName = useSettingStore.getState().setting.database.active;
     const entity = getWhiteboardDocument(board)
-      ? await referenceWhiteboardEntity(databaseName, "whiteboard", whiteBoard.id)
+      ? await referenceWhiteboardEntity(databaseName, "whiteboard", whiteboard.id)
       : undefined;
     if (!canSubmit() || useSettingStore.getState().setting.database.active !== databaseName) return;
     const { minX, minY, width, height } = board.viewPort;
@@ -63,8 +63,8 @@ const WhiteboardSelectorModal = ({
     const element: WhiteboardElement = {
       id: getUuid(),
       type: "whiteboard",
-      ...(entity ? { entity } : { whiteBoardId: whiteBoard.id }),
-      name: whiteBoard.title,
+      ...(entity ? { entity } : { whiteboardId: whiteboard.id }),
+      name: whiteboard.title,
       x: center.x - whiteboardWidth / 2,
       y: center.y - whiteboardHeight / 2,
       width: whiteboardWidth,
@@ -122,9 +122,9 @@ const WhiteboardSelectorModal = ({
       multiple={false}
       loading={loadingWhiteboards}
       onCancel={handleCancel}
-      onOk={whiteBoards => {
-        if (!whiteBoards[0]) return;
-        void insertWhiteboardElement(whiteBoards[0]).catch(error =>
+      onOk={whiteboards => {
+        if (!whiteboards[0]) return;
+        void insertWhiteboardElement(whiteboards[0]).catch(error =>
           toast.error(error instanceof Error ? error.message : "引用建立失败")
         );
         handleCancel();

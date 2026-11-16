@@ -129,7 +129,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
         refId: item.id,
         projectItemType: EProjectItemType.VideoNote,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
 
       await strategy.addProjectItem(createProjectItem);
@@ -164,7 +164,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
         refId: item.id,
         projectItemType: EProjectItemType.VideoNote,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
 
       await strategy.addProjectItem(createProjectItem);

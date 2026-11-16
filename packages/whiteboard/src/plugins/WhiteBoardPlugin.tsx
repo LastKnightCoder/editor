@@ -23,8 +23,11 @@ import { SelectTransforms } from "../transforms";
 export interface WhiteboardElement extends CommonElement {
   type: "whiteboard";
   /** 引用的整块白板 */
-  whiteBoardId?: number;
+  whiteboardId?: number;
   /** 旧元素：只引用了某一页（新元素不再写入） */
+  whiteboardContentId?: number;
+  /** 旧画布元素的误拼 key，读取兼容 */
+  whiteBoardId?: number;
   whiteBoardContentId?: number;
   /** 插入时的白板标题（白板读取失败时兜底显示） */
   name: string;

@@ -3,8 +3,8 @@ import type { WhiteboardSnapshot } from "@tau/whiteboard";
 export interface Whiteboard {
   id: number;
   tags: string[];
-  whiteBoardContentIds: number[];
-  whiteBoardContentList: WhiteboardContent[];
+  whiteboardContentIds: number[];
+  whiteboardContentList: WhiteboardContent[];
   activeWhiteboardContentId: number | null;
   createTime: number;
   updateTime: number;
@@ -18,11 +18,11 @@ export type ICreateWhiteboard = Omit<
   | "id"
   | "createTime"
   | "updateTime"
-  | "whiteBoardContentIds"
-  | "whiteBoardContentList"
+  | "whiteboardContentIds"
+  | "whiteboardContentList"
   | "activeWhiteboardContentId"
 > & {
-  whiteBoardContentList: Pick<WhiteboardContent, "data" | "name">[];
+  whiteboardContentList: Pick<WhiteboardContent, "data" | "name">[];
 };
 
 export interface WhiteboardContent {

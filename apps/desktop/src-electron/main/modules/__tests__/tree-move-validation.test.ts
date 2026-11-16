@@ -35,7 +35,7 @@ function createProjectItem(title: string) {
     children: [],
     refType: "",
     refId: 0,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
   };
 }

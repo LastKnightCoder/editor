@@ -1707,7 +1707,7 @@ test("真实生产 IPC 冷写和活跃正文待办保留身份，重启补齐索
         {
           type: "whiteboard",
           tauContract: embed.id,
-          whiteBoardContentId: whiteboard.content.id,
+          whiteboardContentId: whiteboard.content.id,
           entityRef: whiteboard.reference,
           children: [{ type: "formatted", text: "" }],
         },

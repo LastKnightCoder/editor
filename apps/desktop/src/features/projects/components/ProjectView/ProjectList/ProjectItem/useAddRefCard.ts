@@ -53,7 +53,7 @@ const useAddRefCard = (cards: ICard[], projectId: number, projectItem?: ProjectI
       refId: selectCard.id,
       projectItemType: EProjectItemType.Document,
       count: 0,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
     };
 
     setSelectCardModalOpen(false);

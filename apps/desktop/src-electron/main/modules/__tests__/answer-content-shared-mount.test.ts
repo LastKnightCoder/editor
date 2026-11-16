@@ -57,7 +57,7 @@ describe("共享 contentId 挂载", () => {
       children: [],
       refType: "content",
       refId: contentId,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.Document,
     });
 

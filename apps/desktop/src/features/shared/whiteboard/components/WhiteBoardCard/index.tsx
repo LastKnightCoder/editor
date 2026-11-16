@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { resolveWhiteboardEntity } from "@/commands/whiteboard-document";
 import useSettingStore from "@/stores/useSettingStore";
 /**
- * 画布里嵌入的白板卡片：引用整块白板（whiteBoardId），显示缩略图 + 标题 + 页数，
- * 双击打开白板详情（上次停留的页）；在白板详情里双击时沿跳转链前进（trail 参数，见 features/whiteboards/navigation.ts），
- * 目标已在链上则截回那一级。沿链回来时这张卡片被定位并闪一下（element:flash）。
+ * 画布里嵌入的白板卡片：引用整块白板（whiteboardId，旧元素的误拼 key whiteBoardId 兼容读取），
+ * 显示缩略图 + 标题 + 页数，双击打开白板详情（上次停留的页）；在白板详情里双击时沿跳转链前进（trail 参数，
+ * 见 features/whiteboards/navigation.ts），目标已在链上则截回那一级。沿链回来时这张卡片被定位并闪一下（element:flash）。
  *
- * 旧元素只记了页 id（whiteBoardContentId）：能反查到所属白板时按该白板显示，双击打开白板详情并定位到这一页；
- * 反查不到（独立页）才打开单页画布。
+ * 旧元素只记了页 id（whiteboardContentId，误拼 key 兼容读取）：能反查到所属白板时按该白板显示，
+ * 双击打开白板详情并定位到这一页；反查不到（独立页）才打开单页画布。
  */
 
 import { memo, useContext, useEffect, useState } from "react";
@@ -78,16 +78,16 @@ const WhiteboardCard = memo((props: WhiteboardCardProps) => {
     ? (resolved.data ?? null)
     : getWhiteboardDocument(board)
       ? null
-      : (element.whiteBoardId ?? null);
+      : (element.whiteboardId ?? element.whiteBoardId ?? null);
   const legacyPageId =
     !getWhiteboardDocument(board) && !element.entity && boardId === null
-      ? (element.whiteBoardContentId ?? null)
+      ? (element.whiteboardContentId ?? element.whiteBoardContentId ?? null)
       : null;
   const detail = useWhiteboardDetail(boardId);
   const { owner, loading: ownerLoading } = useWhiteboardOwner(legacyPageId);
-  const whiteBoard = boardId !== null ? detail.board : owner;
+  const whiteboard = boardId !== null ? detail.board : owner;
   const loading = boardId !== null ? detail.loading && !detail.error : ownerLoading;
-  const item = whiteBoard ? toItem(whiteBoard) : null;
+  const item = whiteboard ? toItem(whiteboard) : null;
   // 引用的整块白板已删除；旧的独立页仍可打开
   const missing = !loading && !item && legacyPageId === null;
 

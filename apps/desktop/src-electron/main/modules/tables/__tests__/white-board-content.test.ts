@@ -103,13 +103,13 @@ describe("白板页文档版本写回保护", () => {
     const board = WhiteboardTable.createWhiteboard(db, {
       title: "板",
       description: "",
-      whiteBoardContentList: [{ name: "页", data: pageData(3) }],
+      whiteboardContentList: [{ name: "页", data: pageData(3) }],
     });
-    const contentId = board.whiteBoardContentIds[0];
+    const contentId = board.whiteboardContentIds[0];
     expect(() =>
       WhiteboardTable.updateWhiteboard(db, {
         id: board.id,
-        whiteBoardContentList: [
+        whiteboardContentList: [
           {
             id: contentId,
             name: "页",

@@ -69,13 +69,13 @@ export default class WhiteboardTable {
   }
 
   static parseWhiteboard(whiteboard: SqliteRow): Whiteboard {
-    const whiteBoardContentIds = JSON.parse((whiteboard.white_board_content_ids as string) || "[]");
+    const whiteboardContentIds = JSON.parse((whiteboard.white_board_content_ids as string) || "[]");
 
     return {
       id: whiteboard.id as number,
       tags: JSON.parse((whiteboard.tags as string) || "[]"),
-      whiteBoardContentIds,
-      whiteBoardContentList: whiteboard.white_board_content_list as WhiteboardContent[],
+      whiteboardContentIds,
+      whiteboardContentList: whiteboard.white_board_content_list as WhiteboardContent[],
       activeWhiteboardContentId:
         (whiteboard.active_white_board_content_id as number | null) ?? null,
       createTime: whiteboard.create_time as number,
@@ -103,11 +103,11 @@ export default class WhiteboardTable {
       description: string;
       tags?: string[];
       snapshot?: string;
-      whiteBoardContentList?: Pick<WhiteboardContent, "data" | "name">[];
+      whiteboardContentList?: Pick<WhiteboardContent, "data" | "name">[];
     }
   ): Whiteboard {
-    const pages = whiteboard.whiteBoardContentList?.length
-      ? whiteboard.whiteBoardContentList
+    const pages = whiteboard.whiteboardContentList?.length
+      ? whiteboard.whiteboardContentList
       : [{ name: whiteboard.title || "未命名", data: { children: [] } }];
     if (hasWhiteboardLibraryBaseline(db) && pages.every(isEmptyWhiteboardPage))
       return db.transaction(() => {
@@ -124,8 +124,8 @@ export default class WhiteboardTable {
     const contentIds: number[] = [];
 
     // 如果有内容，创建 white-board-content 记录
-    if (whiteboard.whiteBoardContentList && whiteboard.whiteBoardContentList.length > 0) {
-      for (const content of whiteboard.whiteBoardContentList) {
+    if (whiteboard.whiteboardContentList && whiteboard.whiteboardContentList.length > 0) {
+      for (const content of whiteboard.whiteboardContentList) {
         const contentId = WhiteboardContentTable.createWhiteboardContent(db, {
           data: content.data,
           name: content.name,
@@ -188,7 +188,7 @@ export default class WhiteboardTable {
     `);
     stmt.run(
       Date.now(),
-      JSON.stringify([...whiteboard.whiteBoardContentIds, whiteboardContent.id]),
+      JSON.stringify([...whiteboard.whiteboardContentIds, whiteboardContent.id]),
       whiteboardId
     );
 
@@ -207,12 +207,12 @@ export default class WhiteboardTable {
       SET update_time = ?, white_board_content_ids = ?, active_white_board_content_id = ?
       WHERE id = ?
     `);
-    const currentIndex = whiteboard.whiteBoardContentIds.findIndex(
+    const currentIndex = whiteboard.whiteboardContentIds.findIndex(
       id => id === whiteboardContentId
     );
     if (currentIndex === -1) return false;
 
-    const newContentIds = whiteboard.whiteBoardContentIds.filter(id => id !== whiteboardContentId);
+    const newContentIds = whiteboard.whiteboardContentIds.filter(id => id !== whiteboardContentId);
     let nextActiveContentId = whiteboard.activeWhiteboardContentId;
     if (whiteboard.activeWhiteboardContentId === whiteboardContentId) {
       nextActiveContentId = newContentIds[currentIndex] ?? newContentIds[currentIndex - 1] ?? null;
@@ -253,21 +253,21 @@ export default class WhiteboardTable {
       description?: string;
       tags?: string[];
       snapshot?: string;
-      whiteBoardContentList?: WhiteboardContent[];
+      whiteboardContentList?: WhiteboardContent[];
       activeWhiteboardContentId?: number | null;
     }
   ): Whiteboard {
     assertLegacyWhiteboard(db, whiteboard.id);
     // 获取当前白板数据
     const currentWhiteboard = this.getWhiteboard(db, whiteboard.id);
-    const currentContentIds = currentWhiteboard.whiteBoardContentIds || [];
+    const currentContentIds = currentWhiteboard.whiteboardContentIds || [];
     const snapshotUrl = whiteboard.snapshot || currentWhiteboard.snapshot;
 
     // 处理内容列表变更
     const newContentIds: number[] = [];
-    if (whiteboard.whiteBoardContentList && whiteboard.whiteBoardContentList.length > 0) {
-      for (let i = 0; i < whiteboard.whiteBoardContentList.length; i++) {
-        const content = whiteboard.whiteBoardContentList[i];
+    if (whiteboard.whiteboardContentList && whiteboard.whiteboardContentList.length > 0) {
+      for (let i = 0; i < whiteboard.whiteboardContentList.length; i++) {
+        const content = whiteboard.whiteboardContentList[i];
         let contentId: number;
 
         // 如果有对应的 id，更新
@@ -395,7 +395,7 @@ export default class WhiteboardTable {
   ): Whiteboard {
     assertLegacyWhiteboard(db, whiteboardId);
     const whiteboard = this.getWhiteboard(db, whiteboardId);
-    const index = whiteboard.whiteBoardContentIds.indexOf(whiteboardContentId);
+    const index = whiteboard.whiteboardContentIds.indexOf(whiteboardContentId);
     if (index === -1) {
       throw new Error(
         `Whiteboard content ${whiteboardContentId} not found in whiteboard ${whiteboardId}`
@@ -413,7 +413,7 @@ export default class WhiteboardTable {
       imgUrl: copy.imgUrl,
       data: source.data,
     });
-    const ids = whiteboard.whiteBoardContentIds.slice();
+    const ids = whiteboard.whiteboardContentIds.slice();
     ids.splice(index + 1, 0, copy.id);
     db.prepare(
       `UPDATE white_boards SET update_time = ?, white_board_content_ids = ?, active_white_board_content_id = ? WHERE id = ?`
@@ -424,15 +424,15 @@ export default class WhiteboardTable {
   static setActiveSubWhiteboard(
     db: Database.Database,
     whiteboardId: number,
-    whiteBoardContentId: number | null
+    whiteboardContentId: number | null
   ): Whiteboard {
     const whiteboard = this.getWhiteboard(db, whiteboardId);
     if (
-      whiteBoardContentId !== null &&
-      !whiteboard.whiteBoardContentIds.includes(whiteBoardContentId)
+      whiteboardContentId !== null &&
+      !whiteboard.whiteboardContentIds.includes(whiteboardContentId)
     ) {
       throw new Error(
-        `Whiteboard content ${whiteBoardContentId} not found in whiteboard ${whiteboardId}`
+        `Whiteboard content ${whiteboardContentId} not found in whiteboard ${whiteboardId}`
       );
     }
 
@@ -442,7 +442,7 @@ export default class WhiteboardTable {
       SET active_white_board_content_id = ?
       WHERE id = ?
     `);
-    stmt.run(whiteBoardContentId, whiteboardId);
+    stmt.run(whiteboardContentId, whiteboardId);
 
     return this.getWhiteboard(db, whiteboardId);
   }
@@ -454,7 +454,7 @@ export default class WhiteboardTable {
   ): Whiteboard {
     assertLegacyWhiteboard(db, whiteboardId);
     const whiteboard = this.getWhiteboard(db, whiteboardId);
-    const currentIds = whiteboard.whiteBoardContentIds;
+    const currentIds = whiteboard.whiteboardContentIds;
     if (orderedIds.length !== currentIds.length) {
       throw new Error("Invalid orderedIds length");
     }
@@ -480,7 +480,7 @@ export default class WhiteboardTable {
       assertLegacyWhiteboard(db, id);
       // 获取白板内容 ID 并删除相关内容
       const whiteboard = this.getWhiteboard(db, id);
-      const pages = whiteboard.whiteBoardContentIds;
+      const pages = whiteboard.whiteboardContentIds;
       if (pages?.length) {
         for (const contentId of pages) {
           WhiteboardContentTable.deleteWhiteboard(db, contentId);

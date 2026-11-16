@@ -74,7 +74,7 @@ describe("ProjectTable.deleteProject", () => {
       children: [],
       refType: "",
       refId: videoNote.id,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.VideoNote,
     });
     expect(projectItem).not.toBeNull();
@@ -152,7 +152,7 @@ describe("ProjectTable.deleteProject", () => {
       children: [],
       refType: "",
       refId: 0,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.Document,
       contentId,
     });

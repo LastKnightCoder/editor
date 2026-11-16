@@ -225,7 +225,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             refId: 0,
             projectItemType: EProjectItemType.Document,
             count,
-            whiteBoardContentId: 0,
+            whiteboardContentId: 0,
           };
           [, created] = selectedNodeId
             ? await addChildProjectItem(selectedNodeId, newItem)

@@ -15,6 +15,7 @@ import { WhiteboardContent } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { Loader2 } from "lucide-react";
 import { useIsLastElement } from "@tau/editor/api";
+import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
 import type { WhiteboardElement } from "../../types";
 type IWhiteboardProps = ElementRenderProps<WhiteboardElement>;
 
@@ -37,10 +38,11 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   const [loading, setLoading] = useState(false);
   const noFullscreenWidthRef = useRef(0);
   const { height } = element;
-  const whiteBoardContentId = element.entityRef ?? element.whiteBoardContentId;
+  const embeddedPageId = whiteboardEmbedPageId(element) as number | undefined;
+  const whiteboardContentId = element.entityRef ?? embeddedPageId;
 
-  const [whiteBoardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
-  const whiteboardData = whiteBoardContent?.data ?? null;
+  const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
+  const whiteboardData = whiteboardContent?.data ?? null;
 
   useEffect(() => {
     let disposed = false;
@@ -48,12 +50,12 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     const fetchWhiteboardContent = async () => {
       setLoading(true);
       try {
-        if (whiteBoardContentId === undefined) {
+        if (whiteboardContentId === undefined) {
           setWhiteboardContent(null);
           return;
         }
 
-        const content = await getWhiteboardContentById(whiteBoardContentId);
+        const content = await getWhiteboardContentById(whiteboardContentId);
         if (disposed) return;
 
         if (content) {
@@ -78,7 +80,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     return () => {
       disposed = true;
     };
-  }, [element.whiteBoardContentId, element.entityRef?.sourceId, element.entityRef?.entityId]);
+  }, [embeddedPageId, element.entityRef?.sourceId, element.entityRef?.entityId]);
 
   const calculateViewportCenter = useMemoizedFn(
     (viewPort: ViewPort): { centerX: number; centerY: number } => {
@@ -111,10 +113,10 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     }
   );
   const updateWhiteboardData = useMemoizedFn(async (data: WhiteboardData) => {
-    if (readOnly || !whiteBoardContent) return;
+    if (readOnly || !whiteboardContent) return;
     const updatedContent = await updateSubWhiteboard(
-      element.entityRef ?? whiteBoardContent.id,
-      whiteBoardContent.name,
+      element.entityRef ?? whiteboardContent.id,
+      whiteboardContent.name,
       data
     );
     setWhiteboardContent(updatedContent);
@@ -130,7 +132,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   });
 
   const handleFullscreenChange = useMemoizedFn(async (isFullscreen: boolean) => {
-    if (!whiteBoardContent || !whiteboardData) return;
+    if (!whiteboardContent || !whiteboardData) return;
     const data = whiteboardData;
     if (isFullscreen) {
       noFullscreenWidthRef.current = data.viewPort.width;
@@ -200,7 +202,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     );
   }
 
-  if (!whiteBoardContent || !whiteboardData) {
+  if (!whiteboardContent || !whiteboardData) {
     return (
       <div
         className="flex w-full items-center justify-center"

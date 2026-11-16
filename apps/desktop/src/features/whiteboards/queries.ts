@@ -135,7 +135,7 @@ export function useWhiteboardMutations() {
           description: info.description.trim(),
           tags: normalizeTags(info.tags),
           snapshot: "",
-          whiteBoardContentList: [emptyPage(title || "未命名")],
+          whiteboardContentList: [emptyPage(title || "未命名")],
         });
         void invalidateList(client);
         return board;
@@ -259,11 +259,11 @@ export function useWhiteboardPageMutations(boardId: number) {
         // 先乐观排好，页签不跳回原位
         client.setQueryData<Whiteboard>(detailKey(database, boardId), prev => {
           if (!prev) return prev;
-          const byId = new Map(prev.whiteBoardContentList.map(p => [p.id, p]));
+          const byId = new Map(prev.whiteboardContentList.map(p => [p.id, p]));
           return {
             ...prev,
-            whiteBoardContentIds: orderedIds,
-            whiteBoardContentList: orderedIds.flatMap(id => byId.get(id) ?? []),
+            whiteboardContentIds: orderedIds,
+            whiteboardContentList: orderedIds.flatMap(id => byId.get(id) ?? []),
           };
         });
         setBoard(await reorderSubWhiteboard(boardId, orderedIds));

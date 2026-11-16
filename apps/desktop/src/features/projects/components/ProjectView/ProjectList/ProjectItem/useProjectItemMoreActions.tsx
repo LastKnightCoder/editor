@@ -210,7 +210,7 @@ export const useProjectItemMoreActions = (
     } else if (key === "to-white-board") {
       if (
         projectItem.projectItemType !== EProjectItemType.Whiteboard ||
-        !projectItem.whiteBoardContentId
+        !projectItem.whiteboardContentId
       ) {
         return;
       }

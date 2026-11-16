@@ -9,7 +9,7 @@ const WhiteboardProjectView = memo((props: { projectItemId: number }) => {
   const { projectItemId } = props;
 
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
-  const [whiteBoardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
+  const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
 
   useEffect(() => {
     if (projectItemId) {
@@ -17,7 +17,7 @@ const WhiteboardProjectView = memo((props: { projectItemId: number }) => {
         .then(item => {
           if (!item) return;
           setProjectItem(item);
-          getWhiteboardContentById(item.whiteBoardContentId)
+          getWhiteboardContentById(item.whiteboardContentId)
             .then(content => {
               setWhiteboardContent(content);
             })
@@ -37,11 +37,11 @@ const WhiteboardProjectView = memo((props: { projectItemId: number }) => {
 
   const { run: onWhiteboardChange } = useThrottleFn(
     async (data: WhiteboardContent["data"]) => {
-      if (!projectItem || !whiteBoardContent) return;
+      if (!projectItem || !whiteboardContent) return;
       updateWhiteboardContent({
-        id: whiteBoardContent.id,
-        name: whiteBoardContent.name,
-        imgUrl: whiteBoardContent.imgUrl,
+        id: whiteboardContent.id,
+        name: whiteboardContent.name,
+        imgUrl: whiteboardContent.imgUrl,
         data,
       });
     },
@@ -50,9 +50,9 @@ const WhiteboardProjectView = memo((props: { projectItemId: number }) => {
     }
   );
 
-  if (!projectItem || !whiteBoardContent) return null;
+  if (!projectItem || !whiteboardContent) return null;
 
-  const { data } = whiteBoardContent;
+  const { data } = whiteboardContent;
 
   return (
     <Whiteboard

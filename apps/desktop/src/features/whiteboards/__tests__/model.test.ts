@@ -40,8 +40,8 @@ const board = (patch: Partial<Whiteboard> & { id: number }): Whiteboard =>
     snapshot: "",
     createTime: 100,
     updateTime: 100,
-    whiteBoardContentIds: [],
-    whiteBoardContentList: [],
+    whiteboardContentIds: [],
+    whiteboardContentList: [],
     activeWhiteboardContentId: null,
     ...patch,
   }) as Whiteboard;
@@ -52,7 +52,7 @@ describe("toItem", () => {
       board({
         id: 1,
         updateTime: 500,
-        whiteBoardContentList: [page(11, "总览", 3, 400, 1), page(12, "细节", 2, 900, 2)] as never,
+        whiteboardContentList: [page(11, "总览", 3, 400, 1), page(12, "细节", 2, 900, 2)] as never,
       })
     );
     expect(item.pages.map(p => [p.id, p.name, p.elementCount])).toEqual([
@@ -127,7 +127,7 @@ describe("openTarget", () => {
     board({
       id: 1,
       activeWhiteboardContentId: 12,
-      whiteBoardContentList: [page(11, "a", 0, 0), page(12, "b", 0, 0)] as never,
+      whiteboardContentList: [page(11, "a", 0, 0), page(12, "b", 0, 0)] as never,
     })
   );
   it("指定页优先，其次上次停留页，最后第一页", () => {

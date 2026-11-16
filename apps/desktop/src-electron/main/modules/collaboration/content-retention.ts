@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { collectContentRefs } from "@tau/database/model";
 import type { ContentEntityKind, ContentEntityReference } from "@tau/db-schema/content-identities";
+import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
 import { ContentIdentityTable } from "../tables/content-identity";
 import { dataFieldModels } from "../tables/field-models";
 import type { ContentLocalState } from "./content-local-state";
@@ -117,7 +118,7 @@ export class ContentRetention {
       const node = value as Record<string, unknown>;
       if (board) add("content", node.contentId);
       else if (node.type === "database") add("data-table", node.tableId);
-      else if (node.type === "whiteboard") add("whiteboard-content", node.whiteBoardContentId);
+      else if (node.type === "whiteboard") add("whiteboard-content", whiteboardEmbedPageId(node));
       else if (node.type === "project-card-list") add("project-item", node.projectItemId);
       if (Array.isArray(node.children)) legacy(node.children, board, depth + 1);
       if (

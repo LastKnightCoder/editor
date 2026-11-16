@@ -37,7 +37,7 @@ const makeItem = (id: number, children: number[] = []): ProjectItem => ({
   projectItemType: EProjectItemType.Document,
   count: 0,
   contentId: id,
-  whiteBoardContentId: 0,
+  whiteboardContentId: 0,
 });
 
 const treeData: ProjectTreeData = buildProjectTreeData(

@@ -47,7 +47,7 @@ export interface ProjectItem {
   projectItemType: EProjectItemType;
   count: number;
   contentId: number;
-  whiteBoardContentId: number;
+  whiteboardContentId: number;
   tags?: string[];
 }
 

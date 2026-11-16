@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import type { ContentNode } from "@tau/collaboration";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { getContentLength } from "@/utils/helper.ts";
+import { migrateWhiteboardEmbedKeys } from "@/entity/whiteboard-refs";
 import PathUtil from "../utils/PathUtil";
 import { contentExecutor } from "../services/content-execution";
 import { ContentDocumentTable } from "./tables/content-document";
@@ -78,7 +79,7 @@ export async function repairContentForOpen(
   if (!raw || (raw.document && !isSupportedContentStorageVersion(raw.document.format_version)))
     return false;
   const original = parse(raw.content);
-  const content = recoverChatQuotes(original);
+  const content = migrateWhiteboardEmbedKeys(recoverChatQuotes(original));
   const contracts = parse(raw.document?.contracts) as ContentContractDictionary | undefined;
   if (
     content === original &&

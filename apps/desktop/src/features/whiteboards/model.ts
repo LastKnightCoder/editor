@@ -36,14 +36,14 @@ export interface WhiteboardItem {
 }
 
 export function toItem(board: Whiteboard): WhiteboardItem {
-  const pages = (board.whiteBoardContentList ?? []).map(content => ({
+  const pages = (board.whiteboardContentList ?? []).map(content => ({
     id: content.id,
     name: content.name,
     elementCount: content.data?.children?.length ?? 0,
     elements: content.data?.children ?? [],
     updateTime: content.updateTime,
   }));
-  const sequences = (board.whiteBoardContentList ?? []).reduce(
+  const sequences = (board.whiteboardContentList ?? []).reduce(
     (sum, content) => sum + (content.data?.presentationSequences?.length ?? 0),
     0
   );

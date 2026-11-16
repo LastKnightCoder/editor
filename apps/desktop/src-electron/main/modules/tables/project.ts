@@ -190,7 +190,7 @@ export default class ProjectTable {
       projects: JSON.parse((item.projects as string) || "[]"),
       refType: (item.ref_type as string) || "",
       refId: (item.ref_id as number) || 0,
-      whiteBoardContentId: (item.white_board_content_id as number) || 0,
+      whiteboardContentId: (item.white_board_content_id as number) || 0,
       projectItemType: ((item.project_item_type as string) || "document") as EProjectItemType,
       count: count,
       contentId: contentId,
@@ -416,8 +416,8 @@ export default class ProjectTable {
     if (item.projectItemType === EProjectItemType.VideoNote) {
       VideoNoteTable.deleteVideoNote(db, item.refId);
     }
-    if (item.projectItemType === EProjectItemType.Whiteboard && item.whiteBoardContentId) {
-      WhiteboardContentTable.deleteWhiteboard(db, item.whiteBoardContentId);
+    if (item.projectItemType === EProjectItemType.Whiteboard && item.whiteboardContentId) {
+      WhiteboardContentTable.deleteWhiteboard(db, item.whiteboardContentId);
     }
     FTSTable.removeIndexByIdAndType(db, item.id, "project-item");
     VecDocumentTable.removeIndexByIdAndType(db, item.id, "project-item");
@@ -725,10 +725,10 @@ export default class ProjectTable {
   ): number {
     if (
       projectItem.refType === "white-board" &&
-      projectItem.whiteBoardContentId &&
+      projectItem.whiteboardContentId &&
       projectItem.projectItemType === EProjectItemType.Whiteboard
     ) {
-      WhiteboardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
+      WhiteboardContentTable.incrementRefCount(db, projectItem.whiteboardContentId);
     }
     const now = Date.now();
     const stmt = db.prepare(`
@@ -746,7 +746,7 @@ export default class ProjectTable {
       JSON.stringify(placement.projects),
       projectItem.refType,
       projectItem.refId || 0,
-      projectItem.whiteBoardContentId || 0,
+      projectItem.whiteboardContentId || 0,
       projectItem.projectItemType || EProjectItemType.Document,
       JSON.stringify(projectItem.tags ?? [])
     );

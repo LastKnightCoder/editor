@@ -72,7 +72,7 @@ import {
   Table,
 } from "lucide-react";
 import { getContentLength, getEditorText, defaultProjectItemEventBus } from "@/utils";
-import whiteBoardIcon from "@/assets/icons/white-board.svg";
+import whiteboardIcon from "@/assets/icons/white-board.svg";
 
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
@@ -163,7 +163,7 @@ interface IProjectItemProps {
   path: number[];
   parentChildren: number[];
   cards: ICard[];
-  whiteBoards: Whiteboard[];
+  whiteboards: Whiteboard[];
   /** 当前激活文档的祖先集合，用于高亮其所在分支的引导线 */
   activeAncestorIds?: ReadonlySet<number>;
   onOpenChange?: (open: boolean) => void;
@@ -178,7 +178,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     path,
     parentChildren,
     cards,
-    whiteBoards,
+    whiteboards,
     activeAncestorIds,
     onOpenChange,
     refreshProject,
@@ -315,10 +315,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onCancel: onWhiteboardCancel,
     onChange: onWhiteboardChange,
     multiple,
-  } = useAddRefWhiteboard(whiteBoards, projectId, projectItem);
+  } = useAddRefWhiteboard(whiteboards, projectId, projectItem);
 
-  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteBoards: Whiteboard[]) => {
-    const res = await onWhiteboardOk(whiteBoards);
+  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteboards: Whiteboard[]) => {
+    const res = await onWhiteboardOk(whiteboards);
     if (res) {
       const [parentProjectItem] = res;
       if (parentProjectItem) {
@@ -362,7 +362,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: webLink.id,
         projectItemType: EProjectItemType.WebView,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
 
       const [parentProjectItem] = await addChildProjectItem(projectItem.id, createProjectItem);
@@ -535,7 +535,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: 0,
         projectItemType: EProjectItemType.Document,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
       if (parentProjectItem) {
@@ -544,7 +544,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     } else if (key === "add-white-board-project-item") {
       if (!projectItemId) return;
-      const whiteBoardContent = await createWhiteboardContent({
+      const whiteboardContent = await createWhiteboardContent({
         name: "新白板",
         imgUrl: "",
         data: {
@@ -567,7 +567,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       const createProjectItem: CreateProjectItem = {
         title: "新白板",
         content: [],
-        whiteBoardContentId: whiteBoardContent.id,
+        whiteboardContentId: whiteboardContent.id,
         children: [],
         refType: "",
         refId: 0,
@@ -608,7 +608,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: item.id,
         projectItemType: EProjectItemType.VideoNote,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
       if (parentProjectItem) {
@@ -637,7 +637,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: dataTable.id,
         projectItemType: EProjectItemType.TableView,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
       if (parentProjectItem) {
@@ -682,7 +682,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: getContentLength(content),
-          whiteBoardContentId: 0,
+          whiteboardContentId: 0,
         });
         if (parentProjectItem) {
           setProjectItem(parentProjectItem);
@@ -753,7 +753,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     }
     switch (projectItem.projectItemType) {
       case EProjectItemType.Whiteboard:
-        return <SVG src={whiteBoardIcon} className={leafIconClass} />;
+        return <SVG src={whiteboardIcon} className={leafIconClass} />;
       case EProjectItemType.VideoNote:
         return <Video className={leafIconClass} strokeWidth={1.75} />;
       case EProjectItemType.WebView:
@@ -959,7 +959,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   path={childPaths[index]}
                   parentChildren={projectItem.children}
                   cards={cards}
-                  whiteBoards={whiteBoards}
+                  whiteboards={whiteboards}
                   activeAncestorIds={activeAncestorIds}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
@@ -986,7 +986,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         selectedWhiteboards={selectedWhiteboards}
         onChange={onWhiteboardChange}
         open={selectWhiteboardModalOpen}
-        allWhiteboards={whiteBoards}
+        allWhiteboards={whiteboards}
         onCancel={onWhiteboardCancel}
         onOk={handleOnSelectWhiteboardOk}
         excludeWhiteboardIds={excludeWhiteboardIds}

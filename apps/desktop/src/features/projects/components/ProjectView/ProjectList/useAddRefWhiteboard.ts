@@ -6,7 +6,7 @@ import { getWhiteboardById, addRootProjectItem, addChildProjectItem } from "@/co
 import { toast } from "@tau/ui";
 
 const useAddRefWhiteboard = (
-  whiteBoards: Whiteboard[],
+  whiteboards: Whiteboard[],
   projectId: number,
   projectItem?: ProjectItem
 ) => {
@@ -21,12 +21,12 @@ const useAddRefWhiteboard = (
     setSelectWhiteboardModalOpen(true);
   });
 
-  const onChange = useMemoizedFn((whiteBoards: Whiteboard[]) => {
-    setSelectedWhiteboards(whiteBoards);
+  const onChange = useMemoizedFn((whiteboards: Whiteboard[]) => {
+    setSelectedWhiteboards(whiteboards);
   });
 
-  const onOk = useMemoizedFn(async (whiteBoards: Whiteboard[]) => {
-    if (whiteBoards.length === 0) {
+  const onOk = useMemoizedFn(async (whiteboards: Whiteboard[]) => {
+    if (whiteboards.length === 0) {
       toast.error("请选择白板");
       return;
     }
@@ -37,20 +37,20 @@ const useAddRefWhiteboard = (
 
     try {
       // 目前只处理第一个白板（单选）
-      const whiteBoard = whiteBoards[0];
+      const whiteboard = whiteboards[0];
 
-      const fullWhiteboard = await getWhiteboardById(whiteBoard.id);
-      if (!fullWhiteboard || fullWhiteboard.whiteBoardContentIds.length === 0) {
-        toast.error(`获取白板 ${whiteBoard.title} 数据失败`);
+      const fullWhiteboard = await getWhiteboardById(whiteboard.id);
+      if (!fullWhiteboard || fullWhiteboard.whiteboardContentIds.length === 0) {
+        toast.error(`获取白板 ${whiteboard.title} 数据失败`);
         return;
       }
 
-      const whiteBoardContentId = fullWhiteboard.whiteBoardContentIds[0];
+      const whiteboardContentId = fullWhiteboard.whiteboardContentIds[0];
 
       const createProjectItem: CreateProjectItem = {
         title: fullWhiteboard.title,
         content: [],
-        whiteBoardContentId, // 使用原白板的数据
+        whiteboardContentId, // 使用原白板的数据
         children: [],
         refType: "white-board",
         refId: fullWhiteboard.id,
@@ -81,7 +81,7 @@ const useAddRefWhiteboard = (
     onChange,
     onOk,
     onCancel,
-    whiteBoards,
+    whiteboards,
     excludeWhiteboardIds,
     multiple: false, // 目前都是单选
   };

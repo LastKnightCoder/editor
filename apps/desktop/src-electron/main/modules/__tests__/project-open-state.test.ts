@@ -30,7 +30,7 @@ function addDocument(db: Database.Database, projectId: number, title: string) {
     children: [],
     refType: "",
     refId: 0,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
   });
   if (!item) throw new Error(`未能创建文档「${title}」`);

@@ -326,7 +326,7 @@ describe("被使用", () => {
       { id: "c", type: "document", entityRef: { kind: "card", id: cardId } },
     ]);
     const host = insertContent([
-      { type: "whiteboard", whiteBoardContentId: embedded, children: [text("")] },
+      { type: "whiteboard", whiteboardContentId: embedded, children: [text("")] },
     ]);
     const hostItem = insertProjectItem("架构说明", host);
     await reindex();

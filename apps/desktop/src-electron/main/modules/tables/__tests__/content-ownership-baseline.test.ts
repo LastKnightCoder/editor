@@ -66,7 +66,7 @@ describe("正文持有基准 F5：独立对账与插件恢复", () => {
       children: [],
       refType: "",
       refId: 0,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.Document,
     });
     const table = DataTableTable.create(db, {

@@ -6,6 +6,8 @@ export interface WhiteboardElement {
   id: string;
   height: number;
   children: Descendant[];
+  whiteboardContentId?: number;
+  /** 旧正文遗留的误拼 key，读取兼容（whiteboardEmbedPageId） */
   whiteBoardContentId?: number;
   entityRef?: ContentEntityReference;
 }

@@ -118,7 +118,7 @@ export function useProjectReview(options: {
         refType: end.ref.kind,
         refId: end.ref.id,
         projectItemType: EProjectItemType.Document,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       } as never);
       if (parent) {
         defaultProjectItemEventBus
@@ -226,10 +226,10 @@ export function useProjectReview(options: {
       >
         <div
           data-review-popover
-          className="text-tau-body text-ink-1 px-3.5 pb-2.5 pt-3 leading-[1.7]"
+          className="text-tau-body text-ink-1 px-3.5 pt-3 pb-2.5 leading-[1.7]"
           onMouseDown={event => event.stopPropagation()}
         >
-          <div className="text-ink-3 -mr-1.5 -mt-1 mb-0.5 flex items-center gap-1.5 text-[11.5px]">
+          <div className="text-ink-3 -mt-1 -mr-1.5 mb-0.5 flex items-center gap-1.5 text-[11.5px]">
             <i
               className={cn(
                 "size-[7px] rounded-full",

@@ -6,8 +6,8 @@ import type {
   ContentEntityReference,
 } from "@tau/db-schema/content-identities";
 
-export const createWhiteboard = async (whiteBoard: ICreateWhiteboard): Promise<Whiteboard> => {
-  return invoke("create-white-board", whiteBoard);
+export const createWhiteboard = async (whiteboard: ICreateWhiteboard): Promise<Whiteboard> => {
+  return invoke("create-white-board", whiteboard);
 };
 
 export const getWhiteboardById = async (id: number): Promise<Whiteboard> => {
@@ -36,62 +36,62 @@ export const deleteWhiteboard = async (id: number): Promise<void> => {
 };
 
 export const addSubWhiteboard = async (
-  whiteBoardId: number,
+  whiteboardId: number,
   name: string,
-  whiteBoardData: WhiteboardContent["data"]
+  whiteboardData: WhiteboardContent["data"]
 ): Promise<WhiteboardContent> => {
-  return invoke("add-sub-white-board", whiteBoardId, name, whiteBoardData);
+  return invoke("add-sub-white-board", whiteboardId, name, whiteboardData);
 };
 
 export const deleteSubWhiteboard = async (
-  whiteBoardId: number,
-  whiteBoardContentId: number
+  whiteboardId: number,
+  whiteboardContentId: number
 ): Promise<WhiteboardContent> => {
-  return invoke("delete-sub-white-board", whiteBoardId, whiteBoardContentId);
+  return invoke("delete-sub-white-board", whiteboardId, whiteboardContentId);
 };
 
 export const updateSubWhiteboard = async (
-  whiteBoardContentId: ContentEntityTarget,
+  whiteboardContentId: ContentEntityTarget,
   name: string,
-  whiteBoardData: WhiteboardContent["data"]
+  whiteboardData: WhiteboardContent["data"]
 ): Promise<WhiteboardContent> => {
-  return invoke("update-sub-white-board", whiteBoardContentId, name, whiteBoardData);
+  return invoke("update-sub-white-board", whiteboardContentId, name, whiteboardData);
 };
 
 export const setActiveSubWhiteboard = async (
-  whiteBoardId: number,
-  whiteBoardContentId: number | null
+  whiteboardId: number,
+  whiteboardContentId: number | null
 ): Promise<Whiteboard> => {
-  return invoke("set-active-sub-white-board", whiteBoardId, whiteBoardContentId);
+  return invoke("set-active-sub-white-board", whiteboardId, whiteboardContentId);
 };
 
 export const reorderSubWhiteboard = async (
-  whiteBoardId: number,
+  whiteboardId: number,
   orderedIds: number[]
 ): Promise<Whiteboard> => {
-  return invoke("reorder-sub-white-board", whiteBoardId, orderedIds);
+  return invoke("reorder-sub-white-board", whiteboardId, orderedIds);
 };
 
 /** 只改页名，不回写页数据 */
 export const renameSubWhiteboard = async (
-  whiteBoardContentId: number,
+  whiteboardContentId: number,
   name: string
 ): Promise<WhiteboardContent> => {
-  return invoke("rename-sub-white-board", whiteBoardContentId, name);
+  return invoke("rename-sub-white-board", whiteboardContentId, name);
 };
 
 /** 复制一页：副本插在原页之后并设为当前页，返回更新后的白板 */
 export const duplicateSubWhiteboard = async (
-  whiteBoardId: number,
-  whiteBoardContentId: number
+  whiteboardId: number,
+  whiteboardContentId: number
 ): Promise<Whiteboard> => {
-  return invoke("duplicate-sub-white-board", whiteBoardId, whiteBoardContentId);
+  return invoke("duplicate-sub-white-board", whiteboardId, whiteboardContentId);
 };
 
 export const createWhiteboardContent = async (
-  whiteBoardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
+  whiteboardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
 ): Promise<WhiteboardContent> => {
-  return invoke("white-board-content:create", whiteBoardContent);
+  return invoke("white-board-content:create", whiteboardContent);
 };
 export const createPendingWhiteboardContent = (
   value: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
@@ -107,11 +107,11 @@ export const getWhiteboardContentById = async (
 };
 
 export const updateWhiteboardContent = async (
-  whiteBoardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime"> & {
+  whiteboardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime"> & {
     id: ContentEntityTarget;
   }
 ): Promise<WhiteboardContent> => {
-  return invoke("white-board-content:update", whiteBoardContent);
+  return invoke("white-board-content:update", whiteboardContent);
 };
 
 export const deleteWhiteboardContent = async (id: number): Promise<void> => {

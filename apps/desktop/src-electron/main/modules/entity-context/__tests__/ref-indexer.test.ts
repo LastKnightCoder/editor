@@ -143,7 +143,7 @@ describe("reconcileRefs", () => {
 describe("文档里嵌入的白板块", () => {
   const board = (pageId: number) => ({
     type: "whiteboard",
-    whiteBoardContentId: pageId,
+    whiteboardContentId: pageId,
     children: [text("")],
   });
   const embedsOf = (hostId: number) =>

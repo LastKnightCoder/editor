@@ -89,7 +89,7 @@ const Project = () => {
   const { project } = useProjectDetail(Number(id));
   const { projects: allProjects } = useProjectsList();
   const { cards } = useProjectRefCards();
-  const { whiteBoards } = useProjectRefWhiteboards();
+  const { whiteboards } = useProjectRefWhiteboards();
   const createPdf = useCreatePdfRecord();
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addingParentProjectItemId, setAddingParentProjectItemId] = useState<number | undefined>(
@@ -267,7 +267,7 @@ const Project = () => {
         refId: webLink.id,
         projectItemType: EProjectItemType.WebView,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
 
       const [newProject, item] = await addProjectItemToTarget(
@@ -325,7 +325,7 @@ const Project = () => {
           refId: selectCard.id,
           projectItemType: EProjectItemType.Document,
           count: 0,
-          whiteBoardContentId: 0,
+          whiteboardContentId: 0,
         },
         addingParentProjectItemId
       );
@@ -352,21 +352,21 @@ const Project = () => {
     openSelectWhiteboardModal,
     excludeWhiteboardIds,
     multiple,
-  } = useAddRefWhiteboard(whiteBoards, Number(id));
+  } = useAddRefWhiteboard(whiteboards, Number(id));
 
-  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteBoards: Whiteboard[]) => {
-    if (addingParentProjectItemId && whiteBoards[0]) {
+  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteboards: Whiteboard[]) => {
+    if (addingParentProjectItemId && whiteboards[0]) {
       if (!project) return;
-      const fullWhiteboard = await getWhiteboardById(whiteBoards[0].id);
-      if (!fullWhiteboard || fullWhiteboard.whiteBoardContentIds.length === 0) {
-        toast.error(`获取白板 ${whiteBoards[0].title} 数据失败`);
+      const fullWhiteboard = await getWhiteboardById(whiteboards[0].id);
+      if (!fullWhiteboard || fullWhiteboard.whiteboardContentIds.length === 0) {
+        toast.error(`获取白板 ${whiteboards[0].title} 数据失败`);
         return;
       }
       const [, item] = await addProjectItemToTarget(
         {
           title: fullWhiteboard.title,
           content: [],
-          whiteBoardContentId: fullWhiteboard.whiteBoardContentIds[0],
+          whiteboardContentId: fullWhiteboard.whiteboardContentIds[0],
           children: [],
           refType: "white-board",
           refId: fullWhiteboard.id,
@@ -383,7 +383,7 @@ const Project = () => {
       return;
     }
 
-    const res = await onWhiteboardOk(whiteBoards);
+    const res = await onWhiteboardOk(whiteboards);
     if (res && res[0]) {
       applyProject(res[0] as IProject);
     }
@@ -418,7 +418,7 @@ const Project = () => {
         refId: 0,
         projectItemType: EProjectItemType.Document,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [newProject, item] = await addProjectItemToTarget(
         createProjectItem,
@@ -428,7 +428,7 @@ const Project = () => {
         navigator.push("project-detail", { id: newProject.id, itemId: item.id });
       }
     } else if (key === "add-white-board-project-item") {
-      const whiteBoardContent = await createWhiteboardContent({
+      const whiteboardContent = await createWhiteboardContent({
         name: "新白板",
         imgUrl: "",
         data: {
@@ -451,7 +451,7 @@ const Project = () => {
       const createProjectItem: CreateProjectItem = {
         title: "新白板",
         content: [],
-        whiteBoardContentId: whiteBoardContent.id,
+        whiteboardContentId: whiteboardContent.id,
         children: [],
         refType: "",
         refId: 0,
@@ -494,7 +494,7 @@ const Project = () => {
         refId: item.id,
         projectItemType: EProjectItemType.VideoNote,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [newProject, projectItem] = await addProjectItemToTarget(
         createProjectItem,
@@ -527,7 +527,7 @@ const Project = () => {
         refId: dataTable.id,
         projectItemType: EProjectItemType.TableView,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [newProject, item] = await addProjectItemToTarget(
         createProjectItem,
@@ -584,7 +584,7 @@ const Project = () => {
             refId: 0,
             projectItemType: EProjectItemType.Document,
             count: getContentLength(content),
-            whiteBoardContentId: 0,
+            whiteboardContentId: 0,
           },
           parentProjectItemId
         );
@@ -694,7 +694,7 @@ const Project = () => {
                   activeItemId={itemId}
                   databaseName={databaseName}
                   cards={cards}
-                  whiteBoards={whiteBoards}
+                  whiteboards={whiteboards}
                   addMenuItems={addMenuItems}
                   onAddMenuClick={handleAddMenuClick}
                   refreshProject={refresh}
@@ -722,7 +722,7 @@ const Project = () => {
                       parentProjectItemId={project.id}
                       parentChildren={project.children}
                       cards={cards}
-                      whiteBoards={whiteBoards}
+                      whiteboards={whiteboards}
                       activeAncestorIds={revealAncestorIds}
                       refreshProject={refresh}
                     />
@@ -746,7 +746,7 @@ const Project = () => {
             selectedWhiteboards={selectedWhiteboards}
             onChange={onWhiteboardChange}
             open={selectWhiteboardModalOpen}
-            allWhiteboards={whiteBoards}
+            allWhiteboards={whiteboards}
             onCancel={onWhiteboardCancel}
             onOk={handleOnSelectWhiteboardOk}
             excludeWhiteboardIds={excludeWhiteboardIds}

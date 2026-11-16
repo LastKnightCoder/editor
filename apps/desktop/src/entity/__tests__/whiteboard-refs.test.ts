@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { extractWhiteboardEmbeds, extractWhiteboardRefs } from "../whiteboard-refs";
+import {
+  extractWhiteboardEmbeds,
+  extractWhiteboardRefs,
+  migrateWhiteboardEmbedKeys,
+} from "../whiteboard-refs";
 
 const link = (contentType: string, refId: number, contentId?: number) => ({
   type: "content-link",
@@ -107,13 +111,34 @@ describe("extractWhiteboardEmbeds", () => {
   it("取文档里嵌入的白板块指向的页", () => {
     const content = [
       { type: "paragraph", children: [{ text: "a" }] },
-      { type: "whiteboard", whiteBoardContentId: 5, children: [{ text: "" }] },
+      { type: "whiteboard", whiteboardContentId: 5, children: [{ text: "" }] },
       {
         type: "callout",
-        children: [{ type: "whiteboard", whiteBoardContentId: "6", children: [{ text: "" }] }],
+        children: [{ type: "whiteboard", whiteboardContentId: "6", children: [{ text: "" }] }],
       },
-      { type: "whiteboard", whiteBoardContentId: 5, children: [{ text: "" }] },
+      { type: "whiteboard", whiteboardContentId: 5, children: [{ text: "" }] },
     ];
     expect(extractWhiteboardEmbeds(content)).toEqual([5, 6]);
+  });
+
+  it("旧 key 的白板块读入仍指向原页，迁移后只输出新 key", () => {
+    const legacy = [{ type: "whiteboard", whiteBoardContentId: 5, children: [{ text: "" }] }];
+    expect(extractWhiteboardEmbeds(legacy)).toEqual([5]);
+    const migrated = migrateWhiteboardEmbedKeys(legacy);
+    expect(migrated).toEqual([
+      { type: "whiteboard", whiteboardContentId: 5, children: [{ text: "" }] },
+    ]);
+    expect(extractWhiteboardEmbeds(migrated)).toEqual([5]);
+    // 两 key 并存时新 key 优先，旧 key 删除
+    expect(
+      migrateWhiteboardEmbedKeys([
+        { type: "whiteboard", whiteBoardContentId: 7, whiteboardContentId: 8, children: [] },
+      ])
+    ).toEqual([{ type: "whiteboard", whiteboardContentId: 8, children: [] }]);
+    // 自愈流程靠引用相等短路：没有旧 key 的正文原样返回
+    const fresh = [{ type: "paragraph", children: [{ text: "" }] }];
+    expect(migrateWhiteboardEmbedKeys(fresh)).toBe(fresh);
+    // 迁移不改动原对象（原始字节由正文自愈管线备份）
+    expect(legacy[0]).toHaveProperty("whiteBoardContentId", 5);
   });
 });

@@ -6,7 +6,7 @@ import { getAllWhiteboards } from "@/commands/white-board";
 interface ISelectWhiteboardContentModalProps {
   open: boolean;
   onCancel: () => void;
-  onOk: (whiteBoardContent: WhiteboardContent, whiteBoard: Whiteboard) => Promise<void>;
+  onOk: (whiteboardContent: WhiteboardContent, whiteboard: Whiteboard) => Promise<void>;
 }
 
 const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps) => {
@@ -19,8 +19,8 @@ const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps)
     if (open) {
       setLoading(true);
       getAllWhiteboards()
-        .then(whiteBoards => {
-          setAllWhiteboards(whiteBoards);
+        .then(whiteboards => {
+          setAllWhiteboards(whiteboards);
         })
         .finally(() => {
           setLoading(false);
@@ -28,17 +28,17 @@ const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps)
     }
   }, [open]);
 
-  const handleOk = async (whiteBoards: Whiteboard[]) => {
-    if (whiteBoards.length === 0) return;
-    const whiteBoard = whiteBoards[0];
+  const handleOk = async (whiteboards: Whiteboard[]) => {
+    if (whiteboards.length === 0) return;
+    const whiteboard = whiteboards[0];
     const activeContent =
-      whiteBoard.whiteBoardContentList.find(
-        item => item.id === whiteBoard.activeWhiteboardContentId
-      ) ?? whiteBoard.whiteBoardContentList[0];
+      whiteboard.whiteboardContentList.find(
+        item => item.id === whiteboard.activeWhiteboardContentId
+      ) ?? whiteboard.whiteboardContentList[0];
     if (!activeContent) {
       return;
     }
-    const whiteBoardContent: WhiteboardContent = {
+    const whiteboardContent: WhiteboardContent = {
       id: activeContent.id,
       name: activeContent.name,
       imgUrl: activeContent.imgUrl || "",
@@ -46,7 +46,7 @@ const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps)
       updateTime: activeContent.updateTime,
       data: activeContent.data,
     };
-    await onOk(whiteBoardContent, whiteBoard);
+    await onOk(whiteboardContent, whiteboard);
     setSelectedWhiteboards([]);
   };
 

@@ -56,7 +56,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const [dockWidth, setDockWidth] = useState(0);
 
   const pages = useMemo(
-    () => (board?.whiteBoardContentList ?? []).map(p => ({ id: p.id, name: p.name })),
+    () => (board?.whiteboardContentList ?? []).map(p => ({ id: p.id, name: p.name })),
     [board]
   );
   const activeId = useMemo(() => {
@@ -68,13 +68,13 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const activePage = pages.find(p => p.id === activeId);
   const databaseName = useSettingStore(state => state.setting.database.active);
   const documentId = (
-    board?.whiteBoardContentList.find(item => item.id === activeId)?.data as
+    board?.whiteboardContentList.find(item => item.id === activeId)?.data as
       | { documentId?: string }
       | undefined
   )?.documentId;
   const documentPage = (contentId: number) => {
     const pageId = (
-      board?.whiteBoardContentList.find(item => item.id === contentId)?.data as
+      board?.whiteboardContentList.find(item => item.id === contentId)?.data as
         | { pageId?: string }
         | undefined
     )?.pageId;

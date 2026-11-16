@@ -22,7 +22,12 @@ import { extractInlineRefs } from "./inline-refs";
 import { normalizeEntityRefKind } from "./ref";
 
 export type WhiteboardRefKind =
-  "card" | "article" | "project-item" | "diary-moment" | "plugin-entity" | "content";
+  | "card"
+  | "article"
+  | "project-item"
+  | "diary-moment"
+  | "plugin-entity"
+  | "content";
 
 /**
  * richtext：文本块；mind-node：思维导图节点关联的笔记；
@@ -97,9 +102,17 @@ export function extractWhiteboardRefs(data: unknown): WhiteboardRef[] {
 
 interface SlateNode {
   type?: unknown;
+  whiteboardContentId?: unknown;
+  /** 旧正文遗留的误拼 key，读取兼容 */
   whiteBoardContentId?: unknown;
   children?: unknown;
 }
+
+/** 白板块的页 id：新 key 优先，旧正文的误拼 key（whiteBoardContentId）兜底 */
+export const whiteboardEmbedPageId = (node: {
+  whiteboardContentId?: unknown;
+  whiteBoardContentId?: unknown;
+}): unknown => node.whiteboardContentId ?? node.whiteBoardContentId;
 
 /** 文档正文里嵌入的白板块指向的白板页 id，去重 */
 export function extractWhiteboardEmbeds(content: unknown): number[] {
@@ -112,13 +125,45 @@ export function extractWhiteboardEmbeds(content: unknown): number[] {
     const node = value && typeof value === "object" ? (value as SlateNode) : null;
     if (!node) return;
     if (node.type === "whiteboard") {
-      const pageId = positiveId(node.whiteBoardContentId);
+      const pageId = positiveId(whiteboardEmbedPageId(node));
       if (pageId !== null) pages.add(pageId);
     }
     if (Array.isArray(node.children)) node.children.forEach(visit);
   };
   visit(content);
   return [...pages];
+}
+
+/**
+ * 旧正文的白板块把页 id 存成误拼的 whiteBoardContentId：读入时迁到 whiteboardContentId 并删除旧 key，
+ * 之后保存自然只写新 key。没有旧 key 时原样返回（引用相等），供自愈流程短路判断。
+ */
+export function migrateWhiteboardEmbedKeys(content: unknown): unknown {
+  const hasLegacyKey = (value: unknown): boolean => {
+    if (Array.isArray(value)) return value.some(hasLegacyKey);
+    if (!value || typeof value !== "object") return false;
+    const node = value as SlateNode;
+    if (node.type === "whiteboard" && "whiteBoardContentId" in node) return true;
+    return Array.isArray(node.children) && node.children.some(hasLegacyKey);
+  };
+  if (!hasLegacyKey(content)) return content;
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const node = value as Record<string, unknown>;
+    if (node.type === "whiteboard" && "whiteBoardContentId" in node) {
+      const legacy = node.whiteBoardContentId;
+      delete node.whiteBoardContentId;
+      if (node.whiteboardContentId === undefined) node.whiteboardContentId = legacy;
+    }
+    if (Array.isArray(node.children)) node.children.forEach(visit);
+  };
+  const migrated = structuredClone(content);
+  visit(migrated);
+  return migrated;
 }
 
 function safeParse(raw: string): unknown {
