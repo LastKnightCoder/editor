@@ -29,7 +29,7 @@ import {
   prepareBuiltinWhiteboardTypes,
 } from "@tau/whiteboard/collaboration";
 import type { WhiteboardExtension } from "@tau/whiteboard";
-import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
+import Whiteboard from "@/features/shared/whiteboard/DesktopWhiteboard";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   whiteboardDocumentEntry,
@@ -267,7 +267,7 @@ function BoundDocumentCanvas({
         <WhiteboardCollaborationBar client={client} documentId={documentId} />
       </WhiteboardCollaborationBoundary>
       <div className="min-h-0 flex-1">
-        <WhiteBoard
+        <Whiteboard
           key={client.viewId}
           document={binding}
           presence={

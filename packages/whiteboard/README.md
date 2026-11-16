@@ -9,11 +9,11 @@
 普通值模式的初始化参数只作为初始值，编辑经 onChange 回传；可选 document 模式见文末。更换文档身份时由宿主更换 key。extensions 必须显式提供且在会话期间保持同一集合。Ref 提供视口适应、缩放、只读元素快照和定位。
 
 ```tsx
-import WhiteBoard from "@tau/whiteboard";
+import Whiteboard from "@tau/whiteboard";
 import { createStandardWhiteboardExtensions } from "@tau/whiteboard/extensions";
 
 const extensions = createStandardWhiteboardExtensions();
-<WhiteBoard extensions={extensions} initData={[]} onChange={save} />;
+<Whiteboard extensions={extensions} initData={[]} onChange={save} />;
 ```
 
 ## 扩展边界
@@ -42,7 +42,7 @@ useBoard/useWhiteboardAPI 返回受控接口，不返回内核 Board。快照不
 - 作者使用 `@tau/plugins/whiteboard`，声明 dataVersion、previousVersions、migrations；版本规则与编辑器共用，精确摘要而非版本号决定 read/edit/none。普通值模式的 schemaVersion 只用于版本识别与保护，不执行加载升级；新作者定义使用数据契约。
 - 普通载荷使用 updateElementData，声明文本使用 getTextBinding；submit 只接收身份命令，不公开路径 apply 或绕过历史。首次创建才把准备好的契约与节点原子写入；加载与远端投影不运行迁移或 schema 修复。
 - schema（Standard Schema v1）只验证本机候选，不采用其归一化输出去删未知字段；迁移仅返回业务载荷，受控转换由宿主决定。作者 API 与权限范围详见 [SDK 白板说明](/plugins/tau-plugin-template/docs/whiteboard.md)。
-- 冲突与错误报告：任一扩展装配失败只禁用该扩展并清理其 scope，先到先得；经 `WhiteBoard` 的 `onExtensionError` 回调与 console.error 报告（`WhiteboardExtensionError.reason` 见 api.ts），`getRejectedExtensions()` 可查被拒清单。
+- 冲突与错误报告：任一扩展装配失败只禁用该扩展并清理其 scope，先到先得；经 `Whiteboard` 的 `onExtensionError` 回调与 console.error 报告（`WhiteboardExtensionError.reason` 见 api.ts），`getRejectedExtensions()` 可查被拒清单。
 - 占位原因：未知或异常元素渲染占位并输出 `data-unknown-reason`，取值 missing（类型未注册）/ too-new（数据版本高于扩展）/ unsupported-version（低于当前声明）/ disabled（所属扩展被禁用），原始数据与子树保留。
 
 ```tsx
@@ -116,7 +116,7 @@ const stampExtension = defineWhiteboardExtension({
 
 - 声明：扩展在 `requires` / `optional` 中列出服务标识（`createServiceId` 产物）。`requires` 中的服务在注册表缺失时拒绝装配该扩展（reason `missing-service`）；`optional` 缺失不影响装配，由扩展显式降级。
 - 获取：服务访问只在扩展作用域 api 上提供——`api.getService(id)` 获取必需服务（缺失抛错），`api.tryGetService(id)` 获取可缺省服务（缺失返回 undefined）。不再重复填写依赖表；主 API 不提供服务访问。扩展 render 内的组件经 `useWhiteboardAPI()` 拿到同一作用域。
-- 注册：宿主用 `createServiceRegistry` 构建注册表，经 `<WhiteBoard services={registry}>` 传入；缺省为空注册表（声明了 requires 的扩展会被拒绝装配）。注册值可为实例或 `(registry) => impl` 惰性工厂。
+- 注册：宿主用 `createServiceRegistry` 构建注册表，经 `<Whiteboard services={registry}>` 传入；缺省为空注册表（声明了 requires 的扩展会被拒绝装配）。注册值可为实例或 `(registry) => impl` 惰性工厂。
 
 首批服务（一行一个，注明所在包）：
 
@@ -198,7 +198,7 @@ defineElement({ type: "demo.stamp", containment: { canBeContained: false }, rend
 
 ## 可选协作文档绑定
 
-`@tau/whiteboard/collaboration` 提供 `createWhiteboardBinding(model, { pageId, types, editorVersions? })`。宿主先取得已验证的 `WhiteboardModel` 与契约，再为每个画布视图创建独立绑定，传入 `<WhiteBoard document={binding} extensions={extensions} initData={[]} />`。绑定必须在该组件生命周期中稳定；换文档重建组件，同文档切页调用 `binding.switchPage(pageId)`。该入口不从 `initData` 自动生成 CRDT 基线，也不切换现有桌面保存流程。
+`@tau/whiteboard/collaboration` 提供 `createWhiteboardBinding(model, { pageId, types, editorVersions? })`。宿主先取得已验证的 `WhiteboardModel` 与契约，再为每个画布视图创建独立绑定，传入 `<Whiteboard document={binding} extensions={extensions} initData={[]} />`。绑定必须在该组件生命周期中稳定；换文档重建组件，同文档切页调用 `binding.switchPage(pageId)`。该入口不从 `initData` 自动生成 CRDT 基线，也不切换现有桌面保存流程。
 
 `types` 是可信宿主对当前画布字段的映射：每种类型包含 `contractId`，可列出 `dataProperties`（映射到普通 data）、`transientProperties`（仅本机反馈）和 `bodyProperty`（现有富文本属性到稳定 body 根）。不能与身份/几何字段重叠，映射必须匹配同类型契约。契约不匹配时拒绝内部数据编辑，仍保留外壳移动和删除能力。它不是新增插件声明语言；prepareBuiltinWhiteboardTypes 提供内置类型的精确契约与字段归属，作者 SDK 目录仍通过独立 contracts 入口准备。嵌套的 text.content 只用于宿主图形正文适配，不开放任意插件富文本槽。
 

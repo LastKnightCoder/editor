@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { transferableAbortController } from "node:util";
 import schema from "@tau/db-schema/schema/main.sql?raw";
-import WhiteBoard from "@tau/whiteboard";
+import Whiteboard from "@tau/whiteboard";
 import { createFrameExtension, createInteractionExtension } from "@tau/whiteboard/extensions";
 import {
   createWhiteboardBinding,
@@ -211,7 +211,7 @@ async function setup() {
     document.body.append(host);
     const root = createRoot(host);
     const view = (
-      <WhiteBoard
+      <Whiteboard
         document={binding}
         presence={{ pageId, channel }}
         extensions={[createFrameExtension(), createInteractionExtension()]}

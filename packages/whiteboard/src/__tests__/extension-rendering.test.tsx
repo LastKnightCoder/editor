@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { createVideoExtension } from "../extensions/builtins";
 import { EHandlerPosition } from "../types";
 import type { WhiteboardAPI } from "../extensions/api";
@@ -41,7 +41,7 @@ it("业务渲染仅收到受控 API，缩放回调在扩展内部绑定内核", 
   try {
     await act(async () =>
       root.render(
-        <WhiteBoard
+        <Whiteboard
           extensions={extensions}
           initData={[
             { id: "video", type: "video", src: "video.mp4", x: 10, y: 20, width: 100, height: 80 },

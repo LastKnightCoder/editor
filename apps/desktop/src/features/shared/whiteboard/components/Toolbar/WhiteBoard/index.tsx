@@ -1,7 +1,7 @@
 import { Presentation, Plus, Link2 } from "lucide-react";
 import { ToolMenu, type WhiteboardToolProps } from "@tau/whiteboard";
 
-export default function WhiteBoardTool({ run }: WhiteboardToolProps) {
+export default function WhiteboardTool({ run }: WhiteboardToolProps) {
   return (
     <ToolMenu
       label="白板"

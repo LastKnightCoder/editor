@@ -7,16 +7,16 @@ import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 
 import { Board as Board, SELECT_TOOL_ID } from "@tau/whiteboard";
-import { WhiteBoardElement } from "@tau/whiteboard";
-import { WhiteBoard as IWhiteBoard } from "@/types";
-import { getAllWhiteBoards } from "@/commands/white-board";
-import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import { WhiteboardElement } from "@tau/whiteboard";
+import { Whiteboard as IWhiteboard } from "@/types";
+import { getAllWhiteboards } from "@/commands/white-board";
+import SelectWhiteboardModal from "@/components/SelectWhiteboardModal";
 import { WhiteboardInfoDialog } from "@/features/whiteboards/components/WhiteboardInfoDialog";
 import { useWhiteboardMutations, useWhiteboards } from "@/features/whiteboards/queries";
 import { rankTags } from "@/features/whiteboards/model";
-import { WHITEBOARD_CARD_HEIGHT } from "../WhiteBoardCard";
+import { WHITEBOARD_CARD_HEIGHT } from "../WhiteboardCard";
 
-interface WhiteBoardSelectorModalProps {
+interface WhiteboardSelectorModalProps {
   open: boolean;
   onClose: () => void;
   board: Board;
@@ -24,28 +24,28 @@ interface WhiteBoardSelectorModalProps {
 }
 
 /** 插入白板卡片：新建一块白板，或引用已有白板（整块白板，双击打开详情） */
-const WhiteBoardSelectorModal = ({
+const WhiteboardSelectorModal = ({
   open,
   onClose,
   board,
   action = "create",
-}: WhiteBoardSelectorModalProps) => {
-  const [allWhiteBoards, setAllWhiteBoards] = useState<IWhiteBoard[]>([]);
-  const [loadingWhiteBoards, setLoadingWhiteBoards] = useState(false);
+}: WhiteboardSelectorModalProps) => {
+  const [allWhiteboards, setAllWhiteboards] = useState<IWhiteboard[]>([]);
+  const [loadingWhiteboards, setLoadingWhiteboards] = useState(false);
   const mutations = useWhiteboardMutations();
   const { items } = useWhiteboards();
   const knownTags = useMemo(() => rankTags(items ?? []).map(t => t.name), [items]);
 
   useEffect(() => {
     if (open && action === "reference") {
-      setLoadingWhiteBoards(true);
-      getAllWhiteBoards()
-        .then(setAllWhiteBoards)
-        .finally(() => setLoadingWhiteBoards(false));
+      setLoadingWhiteboards(true);
+      getAllWhiteboards()
+        .then(setAllWhiteboards)
+        .finally(() => setLoadingWhiteboards(false));
     }
   }, [open, action]);
 
-  const insertWhiteBoardElement = useMemoizedFn(async (whiteBoard: IWhiteBoard) => {
+  const insertWhiteboardElement = useMemoizedFn(async (whiteBoard: IWhiteboard) => {
     const canSubmit = board.captureSubmission();
     const databaseName = useSettingStore.getState().setting.database.active;
     const entity = getWhiteboardDocument(board)
@@ -60,7 +60,7 @@ const WhiteBoardSelectorModal = ({
     const whiteboardWidth = 300;
     const whiteboardHeight = WHITEBOARD_CARD_HEIGHT;
 
-    const element: WhiteBoardElement = {
+    const element: WhiteboardElement = {
       id: getUuid(),
       type: "whiteboard",
       ...(entity ? { entity } : { whiteBoardId: whiteBoard.id }),
@@ -109,29 +109,29 @@ const WhiteBoardSelectorModal = ({
           const canSubmit = board.captureSubmission();
           if (!canSubmit()) return;
           const created = await mutations.create(info);
-          if (canSubmit()) await insertWhiteBoardElement(created);
+          if (canSubmit()) await insertWhiteboardElement(created);
         }}
       />
     );
   }
 
   return (
-    <SelectWhiteBoardModal
+    <SelectWhiteboardModal
       open={open}
       title="引用已有白板"
       multiple={false}
-      loading={loadingWhiteBoards}
+      loading={loadingWhiteboards}
       onCancel={handleCancel}
       onOk={whiteBoards => {
         if (!whiteBoards[0]) return;
-        void insertWhiteBoardElement(whiteBoards[0]).catch(error =>
+        void insertWhiteboardElement(whiteBoards[0]).catch(error =>
           toast.error(error instanceof Error ? error.message : "引用建立失败")
         );
         handleCancel();
       }}
-      allWhiteBoards={allWhiteBoards}
+      allWhiteboards={allWhiteboards}
     />
   );
 };
 
-export default WhiteBoardSelectorModal;
+export default WhiteboardSelectorModal;

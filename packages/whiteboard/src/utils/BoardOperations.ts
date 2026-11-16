@@ -27,7 +27,7 @@ export class BoardOperations {
       return;
     throw Object.assign(
       new Error(
-        "[WhiteBoard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。"
+        "[Whiteboard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。"
       ),
       {
         detail: {

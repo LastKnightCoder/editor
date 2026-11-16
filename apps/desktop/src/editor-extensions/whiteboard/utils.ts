@@ -3,14 +3,14 @@ import { setOrInsertNode } from "@tau/editor";
 import { v4 as getId } from "uuid";
 import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import {
-  createWhiteBoardContent,
-  incrementWhiteBoardContentRefCount,
+  createWhiteboardContent,
+  incrementWhiteboardContentRefCount,
 } from "@/commands/white-board";
-import { WhiteBoardContent } from "@/types";
+import { WhiteboardContent } from "@/types";
 import type { WhiteboardElement } from "./types";
 import {
-  createPendingWhiteBoardContent,
-  getWhiteBoardContentReference,
+  createPendingWhiteboardContent,
+  getWhiteboardContentReference,
 } from "@/commands/white-board";
 
 type WhiteboardEditor = Editor & {
@@ -30,10 +30,10 @@ export const insertWhiteboard = async (editor: Editor) => {
     name: "白板",
     imgUrl: "",
   };
-  const referenced = "nodeTree" in editor ? await createPendingWhiteBoardContent(initial) : null;
+  const referenced = "nodeTree" in editor ? await createPendingWhiteboardContent(initial) : null;
   const whiteBoardContent = referenced
     ? referenced.content
-    : await createWhiteBoardContent(initial);
+    : await createWhiteboardContent(initial);
 
   const whiteboard: WhiteboardElement = {
     type: "whiteboard",
@@ -58,12 +58,12 @@ export const insertWhiteboard = async (editor: Editor) => {
 
 export const insertExistingWhiteboard = async (
   editor: Editor,
-  whiteBoardContent: WhiteBoardContent
+  whiteBoardContent: WhiteboardContent
 ) => {
   const whiteboardEditor = editor as WhiteboardEditor;
   const reference =
-    "nodeTree" in editor ? await getWhiteBoardContentReference(whiteBoardContent.id) : undefined;
-  if (!reference) await incrementWhiteBoardContentRefCount(whiteBoardContent.id);
+    "nodeTree" in editor ? await getWhiteboardContentReference(whiteBoardContent.id) : undefined;
+  if (!reference) await incrementWhiteboardContentRefCount(whiteBoardContent.id);
 
   const whiteboard: WhiteboardElement = {
     type: "whiteboard",

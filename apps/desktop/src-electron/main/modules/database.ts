@@ -33,7 +33,7 @@ import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "./tables/content";
 import ContentLinkTable from "./tables/content-link";
 import ComposeBoardTable from "./tables/compose-board";
 import EntitySearchTable from "./tables/entity-search";
-import WhiteBoardContentTable from "./tables/white-board-content";
+import WhiteboardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
 import VibeLearningProjectTable from "./tables/vibe-learning-project";
@@ -288,7 +288,7 @@ class DatabaseModule implements Module {
     this.tables = [
       PodcastMigrationTable,
       ContentTable,
-      WhiteBoardContentTable,
+      WhiteboardContentTable,
       WhiteboardTable,
       CardTable,
       ArticleTable,
@@ -437,7 +437,7 @@ class DatabaseModule implements Module {
           log.error("[database] 清理孤立日历事件失败:", error);
         }
         try {
-          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文（D-136）。
+          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文。
           const collectedTables = DataTableTable.collectPendingTables(database, {
             now: Date.now(),
             graceMs: CONTENT_RELEASE_GRACE_MS,
@@ -468,7 +468,7 @@ class DatabaseModule implements Module {
         }
         try {
           // 白板页回收会释放页内嵌入的正文，排在正文回收之前
-          const purgedPages = WhiteBoardContentTable.collectPendingReleases(database, {
+          const purgedPages = WhiteboardContentTable.collectPendingReleases(database, {
             now: Date.now(),
             graceMs: CONTENT_RELEASE_GRACE_MS,
           });

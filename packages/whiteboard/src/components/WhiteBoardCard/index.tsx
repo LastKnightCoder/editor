@@ -1,6 +1,6 @@
 import { useElementContent } from "../../extensions/elementContent";
 import type { BoardElement } from "../../types";
-export default function WhiteBoardCard({
+export default function WhiteboardCard({
   element,
   ...props
 }: {

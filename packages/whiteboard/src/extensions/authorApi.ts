@@ -40,7 +40,7 @@ export function bindWhiteboardAuthorAPI(
     handles.clear();
   };
 }
-export function authorAPI(base: HostAPI): WhiteboardAPI {
+function authorAPI(base: HostAPI): WhiteboardAPI {
   const existing = apis.get(base);
   if (existing) return existing;
   const binding = () => {

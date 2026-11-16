@@ -7,10 +7,10 @@ import { Transforms } from "slate";
 import { AddParagraph, type ElementRenderProps } from "@tau/editor/api";
 
 import { If } from "@tau/shared";
-import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
+import DesktopWhiteboard from "@/features/shared/whiteboard/DesktopWhiteboard";
 import { ViewPort, getDocumentVersion } from "@tau/whiteboard";
-import { getWhiteBoardContentById, updateSubWhiteBoard } from "@/commands";
-import { WhiteBoardContent } from "@/types";
+import { getWhiteboardContentById, updateSubWhiteboard } from "@/commands";
+import { WhiteboardContent } from "@/types";
 
 import { useMemoizedFn } from "ahooks";
 import { Loader2 } from "lucide-react";
@@ -22,7 +22,7 @@ type IWhiteboardProps = ElementRenderProps<WhiteboardElement>;
 const FLOATING_BUTTON_CLASS =
   "absolute right-[0.625em] top-[0.625em] z-10 flex cursor-pointer items-center justify-center rounded-[0.25em] bg-[rgba(38,38,38,0.6)] p-[0.25em] text-white transition-all duration-200";
 
-type WhiteboardData = WhiteBoardContent["data"];
+type WhiteboardData = WhiteboardContent["data"];
 
 const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(props => {
   const { attributes, children, element } = props;
@@ -39,7 +39,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   const { height } = element;
   const whiteBoardContentId = element.entityRef ?? element.whiteBoardContentId;
 
-  const [whiteBoardContent, setWhiteBoardContent] = useState<WhiteBoardContent | null>(null);
+  const [whiteBoardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
   const whiteboardData = whiteBoardContent?.data ?? null;
 
   useEffect(() => {
@@ -49,22 +49,22 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
       setLoading(true);
       try {
         if (whiteBoardContentId === undefined) {
-          setWhiteBoardContent(null);
+          setWhiteboardContent(null);
           return;
         }
 
-        const content = await getWhiteBoardContentById(whiteBoardContentId);
+        const content = await getWhiteboardContentById(whiteBoardContentId);
         if (disposed) return;
 
         if (content) {
-          setWhiteBoardContent(content);
+          setWhiteboardContent(content);
         } else {
-          setWhiteBoardContent(null);
+          setWhiteboardContent(null);
         }
       } catch (error) {
         console.error("获取白板内容失败:", error);
         if (!disposed) {
-          setWhiteBoardContent(null);
+          setWhiteboardContent(null);
         }
       } finally {
         if (!disposed) {
@@ -80,7 +80,6 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     };
   }, [element.whiteBoardContentId, element.entityRef?.sourceId, element.entityRef?.entityId]);
 
-  // 计算视口中心点
   const calculateViewportCenter = useMemoizedFn(
     (viewPort: ViewPort): { centerX: number; centerY: number } => {
       const { minX, minY, width, height } = viewPort;
@@ -111,18 +110,16 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
       };
     }
   );
-  // 更新白板数据
   const updateWhiteboardData = useMemoizedFn(async (data: WhiteboardData) => {
     if (readOnly || !whiteBoardContent) return;
-    const updatedContent = await updateSubWhiteBoard(
+    const updatedContent = await updateSubWhiteboard(
       element.entityRef ?? whiteBoardContent.id,
       whiteBoardContent.name,
       data
     );
-    setWhiteBoardContent(updatedContent);
+    setWhiteboardContent(updatedContent);
   });
 
-  // 处理白板数据变化
   const handleWhiteboardChange = useMemoizedFn((newWhiteboardData: WhiteboardData) => {
     if (readOnly) return;
     updateWhiteboardData(newWhiteboardData);
@@ -137,12 +134,9 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     const data = whiteboardData;
     if (isFullscreen) {
       noFullscreenWidthRef.current = data.viewPort.width;
-      // 计算当前视口中心
       const { centerX, centerY } = calculateViewportCenter(data.viewPort);
-      // 获取新的视口大小
       const containerWidth = window.innerWidth * 0.9;
       const containerHeight = window.innerHeight * 0.9;
-      // 创建新的视口
       const newViewport = createViewportFromCenter(
         centerX,
         centerY,
@@ -150,12 +144,9 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         containerHeight,
         data.viewPort.zoom
       );
-      // 更新白板数据
       await updateWhiteboardData({ ...data, viewPort: newViewport });
     } else {
-      // 获取当前的中心坐标
       const { centerX, centerY } = calculateViewportCenter(data.viewPort);
-      // 创建新的视口
       const newViewport = createViewportFromCenter(
         centerX,
         centerY,
@@ -163,7 +154,6 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         height,
         data.viewPort.zoom
       );
-      // 更新白板数据
       await updateWhiteboardData({ ...data, viewPort: newViewport });
     }
     setTimeout(() => {
@@ -171,7 +161,6 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     }, 20);
   });
 
-  // 更新白板高度
   const updateWhiteboardHeight = useMemoizedFn((height: number) => {
     if (readOnly) return;
 
@@ -183,7 +172,6 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     }
   });
 
-  // 处理拖动开始
   const handleResizeStart = useMemoizedFn((e: React.MouseEvent) => {
     e.preventDefault();
     resizeStartYRef.current = e.clientY;
@@ -193,14 +181,12 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     document.addEventListener("mouseup", handleResizeEnd);
   });
 
-  // 处理拖动移动
   const handleResizeMove = useMemoizedFn((e: MouseEvent) => {
     const deltaY = e.clientY - resizeStartYRef.current;
     const newHeight = Math.max(200, Math.min(800, startHeightRef.current + deltaY));
     updateWhiteboardHeight(newHeight);
   });
 
-  // 处理拖动结束
   const handleResizeEnd = useMemoizedFn(() => {
     document.removeEventListener("mousemove", handleResizeMove);
     document.removeEventListener("mouseup", handleResizeEnd);
@@ -237,7 +223,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
               ref={whiteboardRef}
               contentEditable={false}
             >
-              <WhiteBoard
+              <DesktopWhiteboard
                 showSidebar={false}
                 initData={whiteboardData.children || []}
                 initViewPort={whiteboardData.viewPort}
@@ -274,7 +260,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                 className="bg-page relative h-[90%] w-[90%] rounded-[0.5em]"
                 onClick={e => e.stopPropagation()}
               >
-                <WhiteBoard
+                <DesktopWhiteboard
                   showSidebar={false}
                   initData={whiteboardData.children || []}
                   initViewPort={whiteboardData.viewPort}

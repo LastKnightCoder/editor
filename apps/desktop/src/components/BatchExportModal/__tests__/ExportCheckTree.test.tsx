@@ -27,7 +27,7 @@ const TREE: BatchExportTreeNode[] = [
   node(1, "章节一", { empty: true, children: [node(2, "第一篇"), node(3, "第二篇")] }),
   nonDocument(4, "课件", EProjectItemType.Pdf),
   node(5, "草稿", { empty: true }),
-  { ...nonDocument(6, "白板分组", EProjectItemType.WhiteBoard), children: [node(7, "白板说明")] },
+  { ...nonDocument(6, "白板分组", EProjectItemType.Whiteboard), children: [node(7, "白板说明")] },
 ];
 
 let host: HTMLDivElement;

@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import Board from "../Board";
 import { defineWhiteboardExtension, type WhiteboardAPI } from "../extensions/api";
 import { useWhiteboardAPI } from "../extensions/context";
@@ -105,7 +105,7 @@ async function mountBoard(options: { version?: number; readonly?: boolean }) {
   const root = createRoot(container);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         initData={[]}
         initViewPort={viewport}
         showToolbar={false}

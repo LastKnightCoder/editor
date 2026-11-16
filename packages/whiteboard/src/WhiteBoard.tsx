@@ -95,7 +95,7 @@ import { isDocumentVersionSupported } from "./document-version";
 
 const simplifiedRenderZoomThreshold = 0.3;
 
-export interface WhiteBoardProps {
+export interface WhiteboardProps {
   presence?: WhiteboardPresenceOptions;
   document?: WhiteboardDocumentBinding;
   extensions: readonly WhiteboardExtension[];
@@ -106,7 +106,7 @@ export interface WhiteBoardProps {
   initViewPort?: ViewPort;
   initSelection?: Selection;
   initPresentationSequences?: PresentationSequence[];
-  /** 页级画风（D-107），缺省为普通 */
+  /** 页级画风，缺省为普通 */
   initSketch?: PageSketch;
   /** 加载的文档版本（getDocumentVersion(data)），缺省视为 1；高于支持范围时强制只读且不写回 */
   version?: number;
@@ -146,7 +146,7 @@ const DEFAULT_SELECTION: Selection = {
   selectedElements: [] as BoardElement[],
 };
 
-export interface WhiteBoardRef {
+export interface WhiteboardRef {
   fitAllElements: (padding?: number, animate?: boolean) => void;
   getElements: () => BoardElement[];
   zoomIn: () => void;
@@ -159,10 +159,10 @@ export interface WhiteBoardRef {
 /**
  * 画板生命周期：渲染期只构造无副作用的 Board，文档连接与扩展装配放在提交期，完成后才挂载画布。
  * 被丢弃的渲染（挂起、出错重试、StrictMode 双渲染）因此不会残留扩展实例或占用文档绑定；
- * 销毁由画布在容器真正脱离文档时执行（见 WhiteBoardCanvas 的容器 effect）。
+ * 销毁由画布在容器真正脱离文档时执行（见 WhiteboardCanvas 的容器 effect）。
  */
-const WhiteBoard = memo(
-  forwardRef<WhiteBoardRef, WhiteBoardProps>((props, ref) => {
+const Whiteboard = memo(
+  forwardRef<WhiteboardRef, WhiteboardProps>((props, ref) => {
     const {
       initData,
       initViewPort = DEFAULT_VIEW_PORT,
@@ -217,11 +217,11 @@ const WhiteBoard = memo(
     }, [board, notifyExtensionError]);
 
     if (!installed) return null;
-    return <WhiteBoardCanvas ref={ref} {...props} board={board} />;
+    return <WhiteboardCanvas ref={ref} {...props} board={board} />;
   })
 );
 
-const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Board }>(
+const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Board }>(
   (props, ref) => {
     const {
       board,
@@ -872,5 +872,5 @@ const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Bo
   }
 );
 
-export default WhiteBoard;
+export default Whiteboard;
 export * from "./types";

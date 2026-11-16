@@ -17,7 +17,7 @@ vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import WhiteboardTable from "../tables/whiteboard";
-import WhiteBoardContentTable from "../tables/white-board-content";
+import WhiteboardContentTable from "../tables/white-board-content";
 import ContentTable from "../tables/content";
 
 const pageData = (id: string) =>
@@ -58,7 +58,7 @@ describe("WhiteboardTable 元信息", () => {
         { name: "动词", data: pageData("b") },
       ],
     });
-    const orphan = WhiteBoardContentTable.createWhiteboardContent(db, {
+    const orphan = WhiteboardContentTable.createWhiteboardContent(db, {
       name: "独立页",
       imgUrl: "",
       data: pageData("c"),
@@ -162,7 +162,7 @@ describe("WhiteboardTable 页操作", () => {
       board.id,
       board.whiteBoardContentIds[1]
     );
-    expect(next.activeWhiteBoardContentId).toBe(board.whiteBoardContentIds[1]);
+    expect(next.activeWhiteboardContentId).toBe(board.whiteBoardContentIds[1]);
     expect(next.updateTime).toBe(1);
   });
 
@@ -190,7 +190,7 @@ describe("WhiteboardTable 页操作", () => {
     expect(next.whiteBoardContentIds[0]).toBe(first);
     expect(next.whiteBoardContentIds[2]).toBe(second);
     const copyId = next.whiteBoardContentIds[1];
-    expect(next.activeWhiteBoardContentId).toBe(copyId);
+    expect(next.activeWhiteboardContentId).toBe(copyId);
     const copy = next.whiteBoardContentList[1];
     expect(copy.name).toBe("总览 副本");
     expect(copy.data.children).toEqual([{ id: "r", type: "richtext", contentId }]);
@@ -198,7 +198,7 @@ describe("WhiteboardTable 页操作", () => {
 
     // 删掉副本后原页引用的正文仍在
     WhiteboardTable.deleteSubWhiteboard(db, board.id, copyId);
-    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
+    WhiteboardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
     expect(ContentTable.getContentById(db, contentId)?.refCount).toBe(1);
   });
 });

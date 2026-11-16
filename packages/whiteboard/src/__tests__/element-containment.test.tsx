@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { FRAME_TOOL_ID, COLUMN_TOOL_ID } from "../constants/tools";
 import { createStandardWhiteboardExtensions } from "../extensions/builtins";
 import {
@@ -45,7 +45,7 @@ interface RenderResult {
   unmount: () => Promise<void>;
 }
 
-const renderWhiteBoard = async (
+const renderWhiteboard = async (
   initData: BoardElement[],
   extraExtensions: readonly WhiteboardExtension[] = []
 ): Promise<RenderResult> => {
@@ -77,7 +77,7 @@ const renderWhiteBoard = async (
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={extensions}
         initData={initData}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
@@ -125,7 +125,7 @@ afterEach(() => {
 describe("内置元素收纳行为不变", () => {
   it("六个内容元素可进 column，geometry 不能进 column", async () => {
     // document 与 whiteboard 由宿主按需装配，不在标准集合里，这里显式挂上以覆盖其插件声明
-    const { board, unmount } = await renderWhiteBoard(
+    const { board, unmount } = await renderWhiteboard(
       [],
       [createDocumentExtension({}), createWhiteboardReferenceExtension({})]
     );
@@ -138,7 +138,7 @@ describe("内置元素收纳行为不变", () => {
   });
 
   it("mind-node 规则不变：可进 mind-node 与 frame、不能进 column，非 mind-node 不能进 mind-node", async () => {
-    const { board, unmount } = await renderWhiteBoard([]);
+    const { board, unmount } = await renderWhiteboard([]);
     const api = board.extensions!.api;
     const mindNode = boxSeed("mind", "mind-node");
     expect(api.canContain("mind-node", mindNode)).toBe(true);
@@ -149,7 +149,7 @@ describe("内置元素收纳行为不变", () => {
   });
 
   it("真实容器实例的拖拽判定与类型查询一致（DraggingState 走同一 CapabilityService）", async () => {
-    const { board, unmount } = await renderWhiteBoard([]);
+    const { board, unmount } = await renderWhiteboard([]);
     const frame = { id: "frame-1", type: "frame", x: 100, y: 100, width: 300, height: 200 };
     const column = { id: "column-1", type: "column", x: 100, y: 100, width: 300, height: 200 };
     const text = boxSeed("text", "richtext");
@@ -165,7 +165,7 @@ describe("内置元素收纳行为不变", () => {
 describe("第三方元素收纳声明", () => {
   it("未声明 containment：能进 frame，不能进 column（手势与能力查询一致）", async () => {
     const card = acmeCardSeed();
-    const { board, fire, unmount } = await renderWhiteBoard([card], [acmeCardExtension()]);
+    const { board, fire, unmount } = await renderWhiteboard([card], [acmeCardExtension()]);
     const api = board.extensions!.api;
     expect(api.canContain("frame", card)).toBe(true);
     expect(api.canContain("column", card)).toBe(false);
@@ -183,7 +183,7 @@ describe("第三方元素收纳声明", () => {
   it('joins:["layout"]：新建分栏收纳该元素，能力查询为 true', async () => {
     const card = acmeCardSeed();
     const shape = boxSeed("shape", "geometry", 300, 120, 60, 60);
-    const { board, fire, unmount } = await renderWhiteBoard(
+    const { board, fire, unmount } = await renderWhiteboard(
       [card, shape],
       [acmeCardExtension({ joins: ["layout"] })]
     );
@@ -203,7 +203,7 @@ describe("第三方元素收纳声明", () => {
 
   it("canBeContained:false：不进 frame 也不进 column（新建框架不收纳）", async () => {
     const card = acmeCardSeed();
-    const { board, fire, unmount } = await renderWhiteBoard(
+    const { board, fire, unmount } = await renderWhiteboard(
       [card],
       [acmeCardExtension({ canBeContained: false })]
     );
@@ -247,7 +247,7 @@ describe("第三方元素收纳声明", () => {
       type: "acme.versioned.fixed",
       schemaVersion: 3,
     };
-    const { board, unmount } = await renderWhiteBoard([tooNew, tooNewFixed], [versioned]);
+    const { board, unmount } = await renderWhiteboard([tooNew, tooNewFixed], [versioned]);
     const api = board.extensions!.api;
     expect(api.canContain("column", tooNew)).toBe(true);
     expect(api.canContain("column", tooNewFixed)).toBe(false);

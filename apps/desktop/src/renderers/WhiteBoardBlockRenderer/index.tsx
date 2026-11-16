@@ -1,5 +1,5 @@
 /**
- * 白板块（D-057）：模型输出的白板 DSL（dsl.ts）→ 只读白板画布。
+ * 白板块：模型输出的白板 DSL（dsl.ts）→ 只读白板画布。
  * 对话里直接画出来（display: inline，边写边画），右上角「放大」进统一预览框；
  * 预览里缩放浮控 + 更多菜单（复制到白板、导出 PNG）。生成中语法暂时不完整时保留上次成功结果。
  */
@@ -11,7 +11,7 @@ import { Spinner, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
-import type { BoardElement, WhiteBoardRef } from "@tau/whiteboard";
+import type { BoardElement, WhiteboardRef } from "@tau/whiteboard";
 import {
   defineBlockRenderer,
   type BlockInlineProps,
@@ -23,7 +23,7 @@ import { downloadBlob } from "@/features/previews/exportImage";
 import { sanitizeFileName } from "@/utils/file-name";
 import { convertWhiteboardToBoard, parseWhiteboardDsl, type WhiteboardDocument } from "./dsl";
 
-const WhiteBoard = lazy(() => import("@/features/shared/whiteboard/DesktopWhiteboard"));
+const Whiteboard = lazy(() => import("@/features/shared/whiteboard/DesktopWhiteboard"));
 
 const INLINE_HEIGHT = 280;
 
@@ -65,7 +65,7 @@ function BoardView({
   style,
 }: {
   compiled: Compiled;
-  boardRef: React.RefObject<WhiteBoardRef | null>;
+  boardRef: React.RefObject<WhiteboardRef | null>;
   padding: number;
   className?: string;
   style?: React.CSSProperties;
@@ -75,7 +75,7 @@ function BoardView({
   // 画布组件懒加载：挂上后才能适应视口（首帧 ref 为空），挂载时间点记进 state 触发下方 effect
   const [mounted, setMounted] = useState(false);
   const attachBoard = useCallback(
-    (board: WhiteBoardRef | null) => {
+    (board: WhiteboardRef | null) => {
       boardRef.current = board;
       setMounted(Boolean(board));
     },
@@ -108,7 +108,7 @@ function BoardView({
     <div ref={boxRef} className={className} style={{ ...style, background }}>
       {elements.length ? (
         <Suspense fallback={<BoardLoading />}>
-          <WhiteBoard
+          <Whiteboard
             ref={attachBoard}
             initData={elements as BoardElement[] & { presentationSequences?: never[] }}
             readonly
@@ -137,7 +137,7 @@ function BoardLoading({ label }: { label?: string }) {
 }
 
 function WhiteboardInline({ block, generating, onExpand }: BlockInlineProps) {
-  const boardRef = useRef<WhiteBoardRef>(null);
+  const boardRef = useRef<WhiteboardRef>(null);
   const compiled = useCompiledBoard(block.content, generating);
   return (
     <InlineBlockShell source={block.content} onExpand={onExpand}>
@@ -153,7 +153,7 @@ function WhiteboardInline({ block, generating, onExpand }: BlockInlineProps) {
 }
 
 function WhiteboardPreview({ block, generating }: BlockPreviewProps) {
-  const boardRef = useRef<WhiteBoardRef>(null);
+  const boardRef = useRef<WhiteboardRef>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const compiled = useCompiledBoard(block.content, generating);
   const [busy, setBusy] = useState(false);

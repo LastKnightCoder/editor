@@ -15,16 +15,16 @@ import {
   EProjectItemType,
   ICard,
   Project as IProject,
-  WhiteBoard,
+  Whiteboard,
   IndexType,
   SearchResult,
 } from "@/types";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import SelectWhiteboardModal from "@/components/SelectWhiteboardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
-import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
+import useAddRefWhiteboard from "./useAddRefWhiteboard.ts";
 import useAddRefPdf from "./ProjectItem/useAddRefPdf";
 import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalStates";
 import { useWebLinkHandlers } from "../shared/hooks/useWebLinkHandlers";
@@ -38,9 +38,9 @@ import {
   getFileBaseName,
   selectFile,
   getProjectById,
-  getWhiteBoardById,
+  getWhiteboardById,
   createEmptyVideoNote,
-  createWhiteBoardContent,
+  createWhiteboardContent,
   addRootProjectItem,
   addChildProjectItem,
   createDataTable,
@@ -50,7 +50,7 @@ import {
   useProjectDetail,
   useProjectsList,
   useProjectRefCards,
-  useProjectRefWhiteBoards,
+  useProjectRefWhiteboards,
 } from "@/features/projects/queries";
 import { getContentLength } from "@/utils";
 import { collectAncestorItemIds, isSameNumberSet } from "@/utils/projectTree";
@@ -89,7 +89,7 @@ const Project = () => {
   const { project } = useProjectDetail(Number(id));
   const { projects: allProjects } = useProjectsList();
   const { cards } = useProjectRefCards();
-  const { whiteBoards } = useProjectRefWhiteBoards();
+  const { whiteBoards } = useProjectRefWhiteboards();
   const createPdf = useCreatePdfRecord();
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addingParentProjectItemId, setAddingParentProjectItemId] = useState<number | undefined>(
@@ -344,33 +344,33 @@ const Project = () => {
   };
 
   const {
-    selectedWhiteBoards,
-    onChange: onWhiteBoardChange,
-    onOk: onWhiteBoardOk,
-    onCancel: onWhiteBoardCancel,
-    selectWhiteBoardModalOpen,
-    openSelectWhiteBoardModal,
-    excludeWhiteBoardIds,
+    selectedWhiteboards,
+    onChange: onWhiteboardChange,
+    onOk: onWhiteboardOk,
+    onCancel: onWhiteboardCancel,
+    selectWhiteboardModalOpen,
+    openSelectWhiteboardModal,
+    excludeWhiteboardIds,
     multiple,
-  } = useAddRefWhiteBoard(whiteBoards, Number(id));
+  } = useAddRefWhiteboard(whiteBoards, Number(id));
 
-  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteBoards: WhiteBoard[]) => {
+  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteBoards: Whiteboard[]) => {
     if (addingParentProjectItemId && whiteBoards[0]) {
       if (!project) return;
-      const fullWhiteBoard = await getWhiteBoardById(whiteBoards[0].id);
-      if (!fullWhiteBoard || fullWhiteBoard.whiteBoardContentIds.length === 0) {
+      const fullWhiteboard = await getWhiteboardById(whiteBoards[0].id);
+      if (!fullWhiteboard || fullWhiteboard.whiteBoardContentIds.length === 0) {
         toast.error(`获取白板 ${whiteBoards[0].title} 数据失败`);
         return;
       }
       const [, item] = await addProjectItemToTarget(
         {
-          title: fullWhiteBoard.title,
+          title: fullWhiteboard.title,
           content: [],
-          whiteBoardContentId: fullWhiteBoard.whiteBoardContentIds[0],
+          whiteBoardContentId: fullWhiteboard.whiteBoardContentIds[0],
           children: [],
           refType: "white-board",
-          refId: fullWhiteBoard.id,
-          projectItemType: EProjectItemType.WhiteBoard,
+          refId: fullWhiteboard.id,
+          projectItemType: EProjectItemType.Whiteboard,
           count: 0,
         },
         addingParentProjectItemId
@@ -379,11 +379,11 @@ const Project = () => {
         navigator.push("project-detail", { id: project.id, itemId: item.id });
       }
       setAddingParentProjectItemId(undefined);
-      onWhiteBoardCancel();
+      onWhiteboardCancel();
       return;
     }
 
-    const res = await onWhiteBoardOk(whiteBoards);
+    const res = await onWhiteboardOk(whiteBoards);
     if (res && res[0]) {
       applyProject(res[0] as IProject);
     }
@@ -428,7 +428,7 @@ const Project = () => {
         navigator.push("project-detail", { id: newProject.id, itemId: item.id });
       }
     } else if (key === "add-white-board-project-item") {
-      const whiteBoardContent = await createWhiteBoardContent({
+      const whiteBoardContent = await createWhiteboardContent({
         name: "新白板",
         imgUrl: "",
         data: {
@@ -455,7 +455,7 @@ const Project = () => {
         children: [],
         refType: "",
         refId: 0,
-        projectItemType: EProjectItemType.WhiteBoard,
+        projectItemType: EProjectItemType.Whiteboard,
         count: 0,
       };
       const [newProject, item] = await addProjectItemToTarget(
@@ -571,7 +571,7 @@ const Project = () => {
       openSelectCardModal();
     } else if (key === "link-white-board-project-item") {
       setAddingParentProjectItemId(parentProjectItemId);
-      openSelectWhiteBoardModal();
+      openSelectWhiteboardModal();
     } else if (key === "import-markdown") {
       await importMarkdownFiles(async ({ title, content, contracts }) => {
         const [newProject, item] = await addProjectItemToTarget(
@@ -741,15 +741,15 @@ const Project = () => {
             excludeIds={excludeCardIds}
             initialContents={initialCardContents}
           />
-          <SelectWhiteBoardModal
+          <SelectWhiteboardModal
             title={"选择关联白板"}
-            selectedWhiteBoards={selectedWhiteBoards}
-            onChange={onWhiteBoardChange}
-            open={selectWhiteBoardModalOpen}
-            allWhiteBoards={whiteBoards}
-            onCancel={onWhiteBoardCancel}
+            selectedWhiteboards={selectedWhiteboards}
+            onChange={onWhiteboardChange}
+            open={selectWhiteboardModalOpen}
+            allWhiteboards={whiteBoards}
+            onCancel={onWhiteboardCancel}
             onOk={handleOnSelectWhiteboardOk}
-            excludeWhiteBoardIds={excludeWhiteBoardIds}
+            excludeWhiteboardIds={excludeWhiteboardIds}
             multiple={multiple}
           />
           <RemoteVideoSelectModal

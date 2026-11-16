@@ -11,7 +11,7 @@ import { BoardCanvas } from "../components/BoardCanvas";
 import { OutlineToggle } from "../components/OutlineToggle";
 import { useWhiteboardOwner } from "../queries";
 
-export function WhiteBoardContentView() {
+export function WhiteboardContentView() {
   const { id } = usePageParams<{ id: number }>();
   const { navigator } = usePage();
   const { owner, loading } = useWhiteboardOwner(id);

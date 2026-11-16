@@ -25,7 +25,7 @@ export interface ProjectOpenState {
 
 export enum EProjectItemType {
   Document = "document",
-  WhiteBoard = "white-board",
+  Whiteboard = "white-board",
   VideoNote = "video-note",
   WebView = "web-view",
   TableView = "table-view",

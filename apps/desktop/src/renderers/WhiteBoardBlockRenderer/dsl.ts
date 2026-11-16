@@ -1,6 +1,6 @@
 /**
  * 白板 DSL（纯函数）：模型输出的行式白板描述 → 解析文档 → 白板元素（布局、分组画框、连线锚点）。
- * 从 WhiteBoardBlockRenderer 原样拆出，渲染层见同目录 index.tsx。
+ * 从 WhiteboardBlockRenderer 原样拆出，渲染层见同目录 index.tsx。
  */
 
 import type { Descendant } from "slate";
@@ -9,13 +9,26 @@ import { EArrowLineType, EMarkerType } from "@tau/whiteboard";
 
 export type WhiteboardLayout = "flow-right" | "flow-down" | "grid";
 type WhiteboardTone =
-  "slate" | "red" | "orange" | "amber" | "green" | "teal" | "blue" | "indigo" | "pink";
+  | "slate"
+  | "red"
+  | "orange"
+  | "amber"
+  | "green"
+  | "teal"
+  | "blue"
+  | "indigo"
+  | "pink";
 type WhiteboardShape = "square" | "rounded" | "pill";
 type WhiteboardLine = "solid" | "dashed";
 type WhiteboardRoute = "straight" | "curve" | "orthogonal";
 type WhiteboardAnchor = "top" | "right" | "bottom" | "left" | "center";
 type WhiteboardMarker =
-  "none" | "start-arrow" | "end-arrow" | "both-arrow" | "diamond-end" | "circle-end";
+  | "none"
+  | "start-arrow"
+  | "end-arrow"
+  | "both-arrow"
+  | "diamond-end"
+  | "circle-end";
 
 interface WhiteboardNode {
   id: string;

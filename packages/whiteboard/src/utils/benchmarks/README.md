@@ -1,4 +1,4 @@
-# WhiteBoard Benchmarks
+# Whiteboard Benchmarks
 
 ## 命中索引基线
 

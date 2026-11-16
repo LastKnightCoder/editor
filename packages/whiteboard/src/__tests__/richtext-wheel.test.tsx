@@ -5,7 +5,7 @@ import { IWhiteboardRichText, embeddedTextOptions } from "../extensions/text";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { useBoard } from "../hooks/useBoard";
 import type Board from "../Board";
 import type { WhiteboardTextEditorProps as WhiteboardEditorProps } from "../extensions/text";
@@ -63,7 +63,7 @@ beforeEach(async () => {
   root = createRoot(host);
   await act(async () =>
     root.render(
-      <WhiteBoard
+      <Whiteboard
         initData={[
           {
             id: "text",

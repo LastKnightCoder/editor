@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import {
   SELECT_TOOL_ID,
   GEOMETRY_TOOL_ID,
@@ -105,7 +105,7 @@ interface RenderResult {
   unmount: () => Promise<void>;
 }
 
-const renderWhiteBoard = async (
+const renderWhiteboard = async (
   initData: BoardElement[],
   extraExtensions: readonly WhiteboardExtension[] = []
 ): Promise<RenderResult> => {
@@ -137,7 +137,7 @@ const renderWhiteBoard = async (
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={extensions}
         initData={initData}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
@@ -202,7 +202,7 @@ afterEach(() => {
 
 describe("geometry 创建工具", () => {
   it("拖出矩形：字段与旧构造逻辑一致、单撤销步、创建后选中并回到选择工具，拖动中文档不变", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(GEOMETRY_TOOL_ID, shapeOptions(rectangleItem));
 
     const childrenBefore = board.children;
@@ -226,7 +226,7 @@ describe("geometry 创建工具", () => {
   });
 
   it("Shift 等比、Alt 以按下点为中心", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(GEOMETRY_TOOL_ID, shapeOptions(rectangleItem));
     await fire("pointerdown", 100, 100);
     await fire("pointermove", 200, 160, { shiftKey: true });
@@ -242,7 +242,7 @@ describe("geometry 创建工具", () => {
   });
 
   it("单击不创建且工具保持", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(GEOMETRY_TOOL_ID, shapeOptions(rectangleItem));
     await fire("pointerdown", 100, 100);
     await fire("pointerup", 102, 100);
@@ -252,7 +252,7 @@ describe("geometry 创建工具", () => {
   });
 
   it("选择圆形后再拖生成圆形（build 的纯函数输出与旧构造一致）", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(GEOMETRY_TOOL_ID, shapeOptions(circleItem));
     await fire("pointerdown", 100, 100);
     await fire("pointermove", 180, 170);
@@ -279,7 +279,7 @@ describe("frame 创建工具", () => {
 
   it("拖动中只预览并高亮将被收纳元素；松手一次性收纳、单撤销步；undo 深相等恢复、redo 再收纳", async () => {
     const seeds = frameSeeds();
-    const { board, fire, unmount } = await renderWhiteBoard(seeds);
+    const { board, fire, unmount } = await renderWhiteboard(seeds);
     board.setActiveTool(FRAME_TOOL_ID);
 
     const childrenBefore = board.children;
@@ -308,7 +308,7 @@ describe("frame 创建工具", () => {
   });
 
   it("不足 10×10 不创建", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(FRAME_TOOL_ID);
     await fire("pointerdown", 100, 100);
     await fire("pointermove", 105, 104);
@@ -326,7 +326,7 @@ describe("column 创建工具", () => {
       richtextSeed("text-b", 250, 150, 60, 50),
       geometrySeed("shape", 300, 120, 60, 60),
     ];
-    const { board, fire, unmount } = await renderWhiteBoard(seeds);
+    const { board, fire, unmount } = await renderWhiteboard(seeds);
     board.setActiveTool(COLUMN_TOOL_ID);
 
     const childrenBefore = board.children;
@@ -362,7 +362,7 @@ describe("column 创建工具", () => {
   });
 
   it("宽不足 50 不创建", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(COLUMN_TOOL_ID);
     await fire("pointerdown", 100, 100);
     await fire("pointermove", 140, 300);
@@ -395,7 +395,7 @@ describe("column 创建工具", () => {
         data: {},
       } as BoardElement,
     ];
-    const { board, fire, unmount } = await renderWhiteBoard(seeds, [cardExtension]);
+    const { board, fire, unmount } = await renderWhiteboard(seeds, [cardExtension]);
     board.setActiveTool(COLUMN_TOOL_ID);
 
     await fire("pointerdown", 100, 100);
@@ -410,7 +410,7 @@ describe("column 创建工具", () => {
 
 describe("右键菜单入口", () => {
   it("空白处右键菜单激活 geometry/frame/column 创建工具", async () => {
-    const { board, unmount } = await renderWhiteBoard([]);
+    const { board, unmount } = await renderWhiteboard([]);
 
     const geometryMenu = board.getPlugin("geometry")!.getContextMenu!(emptyMenuContext(board));
     const shapeEntry = geometryMenu

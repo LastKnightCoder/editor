@@ -70,7 +70,7 @@ import {
   HandwritePlugin,
   DocumentPlugin,
   isDocumentElement,
-  WhiteBoardPlugin,
+  WhiteboardPlugin,
   RichTextPlugin,
   ImagePlugin,
   VideoPlugin,
@@ -479,7 +479,7 @@ export function createDocumentExtension(options: ReferencedElementOptions) {
 export function createWhiteboardReferenceExtension(options: ReferencedElementOptions) {
   return builtin(
     "tau.whiteboard-reference",
-    () => [withBody(new WhiteBoardPlugin(!!options.Tool), options.Body)],
+    () => [withBody(new WhiteboardPlugin(!!options.Tool), options.Body)],
     {
       tools: options.Tool
         ? [

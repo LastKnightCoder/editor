@@ -1,26 +1,26 @@
 import { useState, useEffect } from "react";
-import { WhiteBoard, WhiteBoardContent } from "@/types";
-import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
-import { getAllWhiteBoards } from "@/commands/white-board";
+import { Whiteboard, WhiteboardContent } from "@/types";
+import SelectWhiteboardModal from "@/components/SelectWhiteboardModal";
+import { getAllWhiteboards } from "@/commands/white-board";
 
-interface ISelectWhiteBoardContentModalProps {
+interface ISelectWhiteboardContentModalProps {
   open: boolean;
   onCancel: () => void;
-  onOk: (whiteBoardContent: WhiteBoardContent, whiteBoard: WhiteBoard) => Promise<void>;
+  onOk: (whiteBoardContent: WhiteboardContent, whiteBoard: Whiteboard) => Promise<void>;
 }
 
-const SelectWhiteBoardContentModal = (props: ISelectWhiteBoardContentModalProps) => {
+const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps) => {
   const { open, onCancel, onOk } = props;
   const [loading, setLoading] = useState(false);
-  const [allWhiteBoards, setAllWhiteBoards] = useState<WhiteBoard[]>([]);
-  const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<WhiteBoard[]>([]);
+  const [allWhiteboards, setAllWhiteboards] = useState<Whiteboard[]>([]);
+  const [selectedWhiteboards, setSelectedWhiteboards] = useState<Whiteboard[]>([]);
 
   useEffect(() => {
     if (open) {
       setLoading(true);
-      getAllWhiteBoards()
+      getAllWhiteboards()
         .then(whiteBoards => {
-          setAllWhiteBoards(whiteBoards);
+          setAllWhiteboards(whiteBoards);
         })
         .finally(() => {
           setLoading(false);
@@ -28,17 +28,17 @@ const SelectWhiteBoardContentModal = (props: ISelectWhiteBoardContentModalProps)
     }
   }, [open]);
 
-  const handleOk = async (whiteBoards: WhiteBoard[]) => {
+  const handleOk = async (whiteBoards: Whiteboard[]) => {
     if (whiteBoards.length === 0) return;
     const whiteBoard = whiteBoards[0];
     const activeContent =
       whiteBoard.whiteBoardContentList.find(
-        item => item.id === whiteBoard.activeWhiteBoardContentId
+        item => item.id === whiteBoard.activeWhiteboardContentId
       ) ?? whiteBoard.whiteBoardContentList[0];
     if (!activeContent) {
       return;
     }
-    const whiteBoardContent: WhiteBoardContent = {
+    const whiteBoardContent: WhiteboardContent = {
       id: activeContent.id,
       name: activeContent.name,
       imgUrl: activeContent.imgUrl || "",
@@ -47,27 +47,27 @@ const SelectWhiteBoardContentModal = (props: ISelectWhiteBoardContentModalProps)
       data: activeContent.data,
     };
     await onOk(whiteBoardContent, whiteBoard);
-    setSelectedWhiteBoards([]);
+    setSelectedWhiteboards([]);
   };
 
   const handleCancel = () => {
-    setSelectedWhiteBoards([]);
+    setSelectedWhiteboards([]);
     onCancel();
   };
 
   return (
-    <SelectWhiteBoardModal
+    <SelectWhiteboardModal
       open={open}
       title="选择要引用的白板"
       multiple={false}
       loading={loading}
       onCancel={handleCancel}
-      onChange={setSelectedWhiteBoards}
+      onChange={setSelectedWhiteboards}
       onOk={handleOk}
-      selectedWhiteBoards={selectedWhiteBoards}
-      allWhiteBoards={allWhiteBoards}
+      selectedWhiteboards={selectedWhiteboards}
+      allWhiteboards={allWhiteboards}
     />
   );
 };
 
-export default SelectWhiteBoardContentModal;
+export default SelectWhiteboardContentModal;

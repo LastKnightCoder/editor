@@ -2,7 +2,7 @@ import { extensionsWithLayer } from "./extensions.fixture";
 import { Activity, StrictMode, Suspense, act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { defineWhiteboardExtension } from "../extensions/api";
 import { useBoard } from "../hooks/useBoard";
 import type Board from "../Board";
@@ -60,7 +60,7 @@ describe("白板挂载与事件归属", () => {
     const root = createRoot(container);
     const render = (mode: "visible" | "hidden") => (
       <Activity mode={mode}>
-        <WhiteBoard
+        <Whiteboard
           initData={[]}
           showToolbar={false}
           showAttributeSetter={false}
@@ -122,14 +122,14 @@ describe("白板挂载与事件归属", () => {
       await act(async () =>
         root.render(
           <>
-            <WhiteBoard
+            <Whiteboard
               initData={[]}
               showToolbar={false}
               showAttributeSetter={false}
               showStatusBar={false}
               extensions={extensionsWithLayer(First)}
             />
-            <WhiteBoard
+            <Whiteboard
               initData={[]}
               showToolbar={false}
               showAttributeSetter={false}
@@ -187,14 +187,14 @@ describe("白板挂载与事件归属", () => {
       await act(async () =>
         root.render(
           <>
-            <WhiteBoard
+            <Whiteboard
               initData={[]}
               showToolbar={false}
               showAttributeSetter={false}
               showStatusBar={false}
               extensions={extensionsWithLayer(First)}
             />
-            <WhiteBoard
+            <Whiteboard
               initData={[]}
               showToolbar={false}
               showAttributeSetter={false}
@@ -242,7 +242,7 @@ describe("白板挂载与事件归属", () => {
     const root = createRoot(container);
     const render = (mode: "visible" | "hidden") => (
       <Activity mode={mode}>
-        <WhiteBoard
+        <Whiteboard
           initData={[]}
           showToolbar={false}
           showAttributeSetter={false}
@@ -281,7 +281,7 @@ describe("白板挂载与事件归属", () => {
     const root = createRoot(container);
     const render = (mode: "visible" | "hidden") => (
       <Activity mode={mode}>
-        <WhiteBoard
+        <Whiteboard
           initData={[]}
           showToolbar={false}
           showAttributeSetter={false}
@@ -328,7 +328,7 @@ describe("白板挂载与事件归属", () => {
     await act(async () =>
       root.render(
         <Suspense fallback={null}>
-          <WhiteBoard
+          <Whiteboard
             initData={[]}
             showToolbar={false}
             showAttributeSetter={false}
@@ -375,7 +375,7 @@ describe("白板挂载与事件归属", () => {
     await act(async () =>
       root.render(
         <StrictMode>
-          <WhiteBoard
+          <Whiteboard
             initData={[]}
             showToolbar={false}
             showAttributeSetter={false}

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import {
   defineWhiteboardExtension,
   type WhiteboardExtension,
@@ -59,7 +59,7 @@ describe("白板扩展命名空间与冲突降级", () => {
     try {
       await act(async () =>
         root.render(
-          <WhiteBoard
+          <Whiteboard
             extensions={[good, rogue]}
             onExtensionError={error => errors.push(error)}
             initData={[node("acme.marker", "m1"), node("sticky", "s1")]}

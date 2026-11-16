@@ -32,7 +32,7 @@ function moveElementRecursive(element: BoardElement, dx: number, dy: number): vo
 /**
  * 构建白板剪贴板数据
  */
-export function buildWhiteBoardClipboardPayload(elements: BoardElement[]): string | null {
+function buildWhiteboardClipboardPayload(elements: BoardElement[]): string | null {
   if (!elements || elements.length === 0) return null;
 
   // 深拷贝元素数组
@@ -52,7 +52,7 @@ export function buildWhiteBoardClipboardPayload(elements: BoardElement[]): strin
 /**
  * 写入剪贴板数据（三重降级策略）
  */
-export async function writeClipboardData(payload: string): Promise<boolean> {
+async function writeClipboardData(payload: string): Promise<boolean> {
   if (!payload) return false;
 
   // 策略 1: 使用 Clipboard API (最现代)
@@ -134,14 +134,12 @@ export async function copyElementsToClipboard(elements: BoardElement[]): Promise
       return;
     }
 
-    // 构建剪贴板数据
-    const payload = buildWhiteBoardClipboardPayload(elements);
+    const payload = buildWhiteboardClipboardPayload(elements);
     if (!payload) {
       toast.error("无法构建剪贴板数据");
       return;
     }
 
-    // 写入剪贴板
     const success = await writeClipboardData(payload);
     if (!success) {
       toast.error("写入剪贴板失败");

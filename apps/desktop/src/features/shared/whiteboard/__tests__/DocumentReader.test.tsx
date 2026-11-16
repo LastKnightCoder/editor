@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WhiteBoard, {
+import Whiteboard, {
   DOCUMENT_OPEN_EVENT,
   useBoard,
   type Board,
@@ -152,7 +152,7 @@ beforeEach(async () => {
         <DocumentHostContext.Provider
           value={{ allowDock: true, cardAccessory: () => <span data-testid="accessory" /> }}
         >
-          <WhiteBoard
+          <Whiteboard
             initData={[
               doc("a", { kind: "card", id: 1 }),
               doc("b", { kind: "article", id: 2 }, 400),

@@ -215,7 +215,7 @@ const RenderProfileHarness = ({
 
 const runBenchmark = process.env.WHITEBOARD_RENDER_BENCH === "1";
 
-(runBenchmark ? describe : describe.skip)("WhiteBoard 渲染 Profile 基线", () => {
+(runBenchmark ? describe : describe.skip)("Whiteboard 渲染 Profile 基线", () => {
   it("使用 React Profiler 量化 selection/arrow 操作脚本开销", { timeout: 120000 }, async () => {
     const rectCount = Number(process.env.RENDER_BENCH_RECTS ?? "1600");
     const arrowCount = Number(process.env.RENDER_BENCH_ARROWS ?? "400");

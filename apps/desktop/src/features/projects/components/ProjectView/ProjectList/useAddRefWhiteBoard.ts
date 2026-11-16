@@ -1,35 +1,31 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 
-import { CreateProjectItem, EProjectItemType, ProjectItem, WhiteBoard } from "@/types";
-import { getWhiteBoardById, addRootProjectItem, addChildProjectItem } from "@/commands";
+import { CreateProjectItem, EProjectItemType, ProjectItem, Whiteboard } from "@/types";
+import { getWhiteboardById, addRootProjectItem, addChildProjectItem } from "@/commands";
 import { toast } from "@tau/ui";
 
-const useAddRefWhiteBoard = (
-  whiteBoards: WhiteBoard[],
+const useAddRefWhiteboard = (
+  whiteBoards: Whiteboard[],
   projectId: number,
   projectItem?: ProjectItem
 ) => {
-  const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] = useState(false);
-  const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<WhiteBoard[]>([]);
+  const [selectWhiteboardModalOpen, setSelectWhiteboardModalOpen] = useState(false);
+  const [selectedWhiteboards, setSelectedWhiteboards] = useState<Whiteboard[]>([]);
 
-  // 获取已经排除的白板ID（已经关联的白板）
-  const excludeWhiteBoardIds =
+  const excludeWhiteboardIds =
     projectItem?.refType === "white-board" && projectItem?.refId ? [projectItem.refId] : [];
 
-  // 打开选择白板弹窗
-  const openSelectWhiteBoardModal = useMemoizedFn(async () => {
-    setSelectedWhiteBoards([]);
-    setSelectWhiteBoardModalOpen(true);
+  const openSelectWhiteboardModal = useMemoizedFn(async () => {
+    setSelectedWhiteboards([]);
+    setSelectWhiteboardModalOpen(true);
   });
 
-  // 处理白板选择变化
-  const onChange = useMemoizedFn((whiteBoards: WhiteBoard[]) => {
-    setSelectedWhiteBoards(whiteBoards);
+  const onChange = useMemoizedFn((whiteBoards: Whiteboard[]) => {
+    setSelectedWhiteboards(whiteBoards);
   });
 
-  // 处理确认选择
-  const onOk = useMemoizedFn(async (whiteBoards: WhiteBoard[]) => {
+  const onOk = useMemoizedFn(async (whiteBoards: Whiteboard[]) => {
     if (whiteBoards.length === 0) {
       toast.error("请选择白板");
       return;
@@ -43,28 +39,26 @@ const useAddRefWhiteBoard = (
       // 目前只处理第一个白板（单选）
       const whiteBoard = whiteBoards[0];
 
-      // 获取完整的白板数据
-      const fullWhiteBoard = await getWhiteBoardById(whiteBoard.id);
-      if (!fullWhiteBoard || fullWhiteBoard.whiteBoardContentIds.length === 0) {
+      const fullWhiteboard = await getWhiteboardById(whiteBoard.id);
+      if (!fullWhiteboard || fullWhiteboard.whiteBoardContentIds.length === 0) {
         toast.error(`获取白板 ${whiteBoard.title} 数据失败`);
         return;
       }
 
-      const whiteBoardContentId = fullWhiteBoard.whiteBoardContentIds[0];
+      const whiteBoardContentId = fullWhiteboard.whiteBoardContentIds[0];
 
-      // 创建项目文档，关联白板
       const createProjectItem: CreateProjectItem = {
-        title: fullWhiteBoard.title,
+        title: fullWhiteboard.title,
         content: [],
         whiteBoardContentId, // 使用原白板的数据
         children: [],
         refType: "white-board",
-        refId: fullWhiteBoard.id,
-        projectItemType: EProjectItemType.WhiteBoard,
+        refId: fullWhiteboard.id,
+        projectItemType: EProjectItemType.Whiteboard,
         count: 0,
       };
 
-      setSelectWhiteBoardModalOpen(false);
+      setSelectWhiteboardModalOpen(false);
       if (projectItem) {
         return await addChildProjectItem(projectItem.id, createProjectItem);
       } else {
@@ -76,22 +70,21 @@ const useAddRefWhiteBoard = (
     }
   });
 
-  // 处理取消选择
   const onCancel = useMemoizedFn(() => {
-    setSelectWhiteBoardModalOpen(false);
+    setSelectWhiteboardModalOpen(false);
   });
 
   return {
-    selectWhiteBoardModalOpen,
-    openSelectWhiteBoardModal,
-    selectedWhiteBoards,
+    selectWhiteboardModalOpen,
+    openSelectWhiteboardModal,
+    selectedWhiteboards,
     onChange,
     onOk,
     onCancel,
     whiteBoards,
-    excludeWhiteBoardIds,
+    excludeWhiteboardIds,
     multiple: false, // 目前都是单选
   };
 };
 
-export default useAddRefWhiteBoard;
+export default useAddRefWhiteboard;

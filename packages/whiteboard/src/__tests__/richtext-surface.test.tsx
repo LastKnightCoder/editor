@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { extensionsWithLayer } from "./extensions.fixture";
 import { createRichTextExtension } from "../extensions/builtins";
 import { createServiceRegistry } from "../extensions";
@@ -43,7 +43,7 @@ it("非编辑底板保持元素尺寸，编辑测量后失焦恢复几何边界"
   try {
     await act(async () =>
       root.render(
-        <WhiteBoard
+        <Whiteboard
           initData={[
             {
               id: "text",

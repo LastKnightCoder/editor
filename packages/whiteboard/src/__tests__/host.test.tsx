@@ -4,7 +4,7 @@ import { ImagePlugin } from "../plugins/ImagePlugin";
 import { VideoPlugin } from "../plugins/VideoPlugin";
 import { AudioPlugin } from "../plugins/AudioPlugin";
 import { DocumentPlugin } from "../plugins/DocumentPlugin";
-import { WhiteBoardPlugin } from "../plugins/WhiteBoardPlugin";
+import { WhiteboardPlugin } from "../plugins/WhiteboardPlugin";
 import { ImageUtil } from "../utils/ImageUtil";
 import { createRichTextContentId } from "../utils/RichTextContentUtil";
 import { browserMediaInfo } from "../extensions/media";
@@ -76,7 +76,7 @@ describe("白板宿主能力与实例边界", () => {
   });
   it("无业务能力时只展示可用的图片入口，隐藏文档与白板创建", () => {
     const board = createBoard();
-    board.initPlugins([new ImagePlugin(), new DocumentPlugin(), new WhiteBoardPlugin()]);
+    board.initPlugins([new ImagePlugin(), new DocumentPlugin(), new WhiteboardPlugin()]);
     const items = board.getContextMenu({
       clientX: 0,
       clientY: 0,

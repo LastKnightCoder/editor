@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import type { BoardElement, ContextMenuContext, MindNodeElement, Operation } from "../types";
 import { SELECT_TOOL_ID, RICHTEXT_TOOL_ID, MIND_TOOL_ID } from "../constants/tools";
 import {
@@ -120,7 +120,7 @@ const renderClickBoard = async (
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={[...extensions, capture]}
         services={services}
         initData={initData}

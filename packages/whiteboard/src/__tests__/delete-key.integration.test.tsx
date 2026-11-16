@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { defineWhiteboardExtension, type WhiteboardAPI } from "../extensions/api";
 import { useWhiteboardAPI } from "../extensions/context";
 import { createInteractionExtension, createClipboardExtension } from "../extensions/builtins";
@@ -67,7 +67,7 @@ it.each([
   try {
     await act(async () =>
       root.render(
-        <WhiteBoard
+        <Whiteboard
           extensions={extensions}
           initData={[{ id: "shape", type: "test.shape", x: 10, y: 10, width: 100, height: 80 }]}
           initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
@@ -150,7 +150,7 @@ it.each(["blur", "unmount"])("富文本退出编辑（%s）后释放标记，编
   try {
     await act(async () =>
       root.render(
-        <WhiteBoard
+        <Whiteboard
           extensions={extensions}
           services={createServiceRegistry(register =>
             register(IWhiteboardRichText, { Editor: TextEditor, kit: embeddedTextOptions.kit })

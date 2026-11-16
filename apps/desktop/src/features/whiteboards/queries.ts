@@ -3,32 +3,32 @@ import { queryClient as appQueryClient } from "@/queryClient";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
-  addSubWhiteBoard,
-  createWhiteBoard,
-  deleteSubWhiteBoard,
-  deleteWhiteBoard,
-  duplicateSubWhiteBoard,
-  getAllWhiteBoards,
-  getWhiteBoardById,
-  getWhiteBoardByContentId,
-  renameSubWhiteBoard,
-  reorderSubWhiteBoard,
-  setActiveSubWhiteBoard,
+  addSubWhiteboard,
+  createWhiteboard,
+  deleteSubWhiteboard,
+  deleteWhiteboard,
+  duplicateSubWhiteboard,
+  getAllWhiteboards,
+  getWhiteboardById,
+  getWhiteboardByContentId,
+  renameSubWhiteboard,
+  reorderSubWhiteboard,
+  setActiveSubWhiteboard,
   getFileBaseName,
   getProjectById,
   getProjectItemByRef,
-  getWhiteBoardContentById,
+  getWhiteboardContentById,
   readBinaryFile,
   selectFile,
-  updateWhiteBoardContent,
-  updateWhiteBoardMeta,
+  updateWhiteboardContent,
+  updateWhiteboardMeta,
 } from "@/commands";
 import useUploadResource from "@/hooks/useUploadResource";
 import { readWhiteboardShareStatus } from "@/commands/whiteboard-document";
 import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
 import useSettingStore from "@/stores/useSettingStore";
 import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
-import type { WhiteBoard, WhiteBoardContent } from "@/types";
+import type { Whiteboard, WhiteboardContent } from "@/types";
 import { toast } from "@tau/ui";
 import { normalizeTags, toItem, type WhiteboardItem } from "./model";
 
@@ -70,7 +70,7 @@ export function useWhiteboards() {
   const database = useSettingStore(state => state.setting.database.active);
   const query = useQuery({
     queryKey: listKey(database),
-    queryFn: async () => (hasBridge ? (await getAllWhiteBoards()).map(toItem) : []),
+    queryFn: async () => (hasBridge ? (await getAllWhiteboards()).map(toItem) : []),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
@@ -112,7 +112,7 @@ export function useWhiteboardMutations() {
   const database = useSettingStore(state => state.setting.database.active);
 
   return useMemo(() => {
-    const patchItem = (board: WhiteBoard) => {
+    const patchItem = (board: Whiteboard) => {
       client.setQueryData<WhiteboardItem[]>(listKey(database), prev =>
         prev?.map(item => (item.id === board.id ? toItem(board) : item))
       );
@@ -120,17 +120,17 @@ export function useWhiteboardMutations() {
     };
     const updateMeta = async (
       id: number,
-      patch: Partial<Pick<WhiteBoard, "title" | "description" | "tags" | "snapshot">>
+      patch: Partial<Pick<Whiteboard, "title" | "description" | "tags" | "snapshot">>
     ) => {
-      const board = await updateWhiteBoardMeta(id, patch);
+      const board = await updateWhiteboardMeta(id, patch);
       patchItem(board);
       return board;
     };
 
     return {
-      async create(info: WhiteboardInfo): Promise<WhiteBoard> {
+      async create(info: WhiteboardInfo): Promise<Whiteboard> {
         const title = info.title.trim();
-        const board = await createWhiteBoard({
+        const board = await createWhiteboard({
           title,
           description: info.description.trim(),
           tags: normalizeTags(info.tags),
@@ -169,7 +169,7 @@ export function useWhiteboardMutations() {
       },
 
       async remove(item: WhiteboardItem) {
-        await deleteWhiteBoard(item.id);
+        await deleteWhiteboard(item.id);
         client.setQueryData<WhiteboardItem[]>(listKey(database), prev =>
           prev?.filter(x => x.id !== item.id)
         );
@@ -188,12 +188,12 @@ export function useWhiteboardMutations() {
 
 /* ───────── 详情（多页） ───────── */
 
-/** 一块白板及其页顺序（详情页的页签栏用；页内容各自经 useWhiteBoardContent 读取）；传 null 不查询 */
+/** 一块白板及其页顺序（详情页的页签栏用；页内容各自经 useWhiteboardContent 读取）；传 null 不查询 */
 export function useWhiteboardDetail(id: number | null) {
   const database = useSettingStore(state => state.setting.database.active);
   const query = useQuery({
     queryKey: detailKey(database, id ?? -1),
-    queryFn: () => getWhiteBoardById(id ?? -1),
+    queryFn: () => getWhiteboardById(id ?? -1),
     enabled: hasBridge && id !== null,
   });
   return { board: query.data ?? null, loading: query.isPending, error: query.isError };
@@ -208,35 +208,35 @@ export function useWhiteboardPageMutations(boardId: number) {
   const database = useSettingStore(state => state.setting.database.active);
 
   return useMemo(() => {
-    const setBoard = (board: WhiteBoard) => {
+    const setBoard = (board: Whiteboard) => {
       client.setQueryData(detailKey(database, boardId), board);
       void invalidateList(client);
     };
-    const refetch = async () => setBoard(await getWhiteBoardById(boardId));
+    const refetch = async () => setBoard(await getWhiteboardById(boardId));
 
     return {
       /** 记住停留的页（查看状态，不刷新更新时间） */
       async setActive(pageId: number) {
-        client.setQueryData<WhiteBoard>(detailKey(database, boardId), prev =>
-          prev ? { ...prev, activeWhiteBoardContentId: pageId } : prev
+        client.setQueryData<Whiteboard>(detailKey(database, boardId), prev =>
+          prev ? { ...prev, activeWhiteboardContentId: pageId } : prev
         );
         client.setQueryData<WhiteboardItem[]>(listKey(database), prev =>
           prev?.map(item => (item.id === boardId ? { ...item, activePageId: pageId } : item))
         );
-        await setActiveSubWhiteBoard(boardId, pageId);
+        await setActiveSubWhiteboard(boardId, pageId);
       },
 
       /** 新建空白页并设为当前页，返回新页 id */
       async add(name: string): Promise<number> {
-        const page = await addSubWhiteBoard(boardId, name, EMPTY_PAGE_DATA);
-        setBoard(await setActiveSubWhiteBoard(boardId, page.id));
+        const page = await addSubWhiteboard(boardId, name, EMPTY_PAGE_DATA);
+        setBoard(await setActiveSubWhiteboard(boardId, page.id));
         return page.id;
       },
 
       async rename(pageId: number, name: string) {
-        const page = await renameSubWhiteBoard(pageId, name);
+        const page = await renameSubWhiteboard(pageId, name);
         // 画布正在用的页缓存也要改名，否则下次保存会把旧名写回去
-        client.setQueryData<WhiteBoardContent>(contentKey(database, pageId), prev =>
+        client.setQueryData<WhiteboardContent>(contentKey(database, pageId), prev =>
           prev ? { ...prev, name: page.name } : prev
         );
         await refetch();
@@ -244,20 +244,20 @@ export function useWhiteboardPageMutations(boardId: number) {
 
       /** 复制一页，返回副本 id（调用前先让画布 flush，副本才拿得到最新内容） */
       async duplicate(pageId: number): Promise<number> {
-        const board = await duplicateSubWhiteBoard(boardId, pageId);
+        const board = await duplicateSubWhiteboard(boardId, pageId);
         setBoard(board);
-        return board.activeWhiteBoardContentId ?? pageId;
+        return board.activeWhiteboardContentId ?? pageId;
       },
 
       async remove(pageId: number) {
-        await deleteSubWhiteBoard(boardId, pageId);
+        await deleteSubWhiteboard(boardId, pageId);
         client.removeQueries({ queryKey: contentKey(database, pageId) });
         await refetch();
       },
 
       async reorder(orderedIds: number[]) {
         // 先乐观排好，页签不跳回原位
-        client.setQueryData<WhiteBoard>(detailKey(database, boardId), prev => {
+        client.setQueryData<Whiteboard>(detailKey(database, boardId), prev => {
           if (!prev) return prev;
           const byId = new Map(prev.whiteBoardContentList.map(p => [p.id, p]));
           return {
@@ -266,7 +266,7 @@ export function useWhiteboardPageMutations(boardId: number) {
             whiteBoardContentList: orderedIds.flatMap(id => byId.get(id) ?? []),
           };
         });
-        setBoard(await reorderSubWhiteBoard(boardId, orderedIds));
+        setBoard(await reorderSubWhiteboard(boardId, orderedIds));
       },
     };
   }, [client, database, boardId]);
@@ -297,7 +297,7 @@ export function useWhiteboardOwner(contentId: number | null) {
   const enabled = contentId !== null && hasBridge;
   const query = useQuery({
     queryKey: ["whiteboards", "owner", database, contentId],
-    queryFn: () => (contentId === null ? null : getWhiteBoardByContentId(contentId)),
+    queryFn: () => (contentId === null ? null : getWhiteboardByContentId(contentId)),
     enabled,
   });
   return { owner: query.data ?? null, loading: enabled && query.isPending };
@@ -305,18 +305,18 @@ export function useWhiteboardOwner(contentId: number | null) {
 
 /* ───────── 单页画布 ───────── */
 
-export function useWhiteBoardContent(id: number) {
+export function useWhiteboardContent(id: number) {
   const database = useSettingStore(state => state.setting.database.active);
   const queryClient = useQueryClient();
   const queryKey = contentKey(database, id);
-  const query = useQuery({ queryKey, queryFn: () => getWhiteBoardContentById(id) });
+  const query = useQuery({ queryKey, queryFn: () => getWhiteboardContentById(id) });
   const save = useMutation({
     scope: { id: `whiteboard-content-${database}-${id}` },
-    mutationFn: (content: Parameters<typeof updateWhiteBoardContent>[0]) => {
+    mutationFn: (content: Parameters<typeof updateWhiteboardContent>[0]) => {
       if (useSettingStore.getState().setting.database.active !== database) {
         throw new Error("数据库已切换，取消旧白板写入");
       }
-      return updateWhiteBoardContent(content);
+      return updateWhiteboardContent(content);
     },
     onSuccess: content => {
       queryClient.setQueryData(queryKey, content);

@@ -2,7 +2,7 @@
  * 选择白板弹窗：关键字过滤（标题 / 描述 / 标签）+ 缩略图卡片网格（同白板列表画廊的精简版）。
  *
  * - 单选（默认）：点卡片即确认；多选：点卡片勾选，底部「已选 N 个」+ 确认
- * - excludeWhiteBoardIds 中的白板不出现在列表里
+ * - excludeWhiteboardIds 中的白板不出现在列表里
  * - 列表按最近更新排序，分批渲染（滚到底再追加），缩略图用封面或第一页的结构示意图
  */
 
@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Files, Presentation, Search } from "lucide-react";
 import { Button, Dialog, Input, Loading, cn } from "@tau/ui";
 
-import { WhiteBoard } from "@/types";
+import { Whiteboard } from "@/types";
 import { FadeScroll } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
 import { DesktopPageSchematic as PageSchematic } from "@/features/shared/whiteboard/DesktopPageSchematic";
@@ -22,18 +22,18 @@ import {
   type WhiteboardItem,
 } from "@/features/whiteboards/model";
 
-interface ISelectWhiteBoardModalProps {
+interface ISelectWhiteboardModalProps {
   open: boolean;
   title?: string;
   multiple?: boolean;
   /** 白板列表仍在读取 */
   loading?: boolean;
   onCancel?: () => void;
-  onChange?: (whiteBoards: WhiteBoard[]) => void;
-  onOk?: (whiteBoards: WhiteBoard[]) => Promise<void> | void;
-  excludeWhiteBoardIds?: number[];
-  selectedWhiteBoards?: WhiteBoard[];
-  allWhiteBoards: WhiteBoard[];
+  onChange?: (whiteBoards: Whiteboard[]) => void;
+  onOk?: (whiteBoards: Whiteboard[]) => Promise<void> | void;
+  excludeWhiteboardIds?: number[];
+  selectedWhiteboards?: Whiteboard[];
+  allWhiteboards: Whiteboard[];
 }
 
 /** 每批渲染的卡片数 */
@@ -53,7 +53,7 @@ function matchKeyword(item: WhiteboardItem, keyword: string) {
   );
 }
 
-const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
+const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
   const {
     open,
     multiple = false,
@@ -62,9 +62,9 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     onCancel,
     onChange,
     onOk,
-    excludeWhiteBoardIds = [],
-    selectedWhiteBoards = [],
-    allWhiteBoards = [],
+    excludeWhiteboardIds = [],
+    selectedWhiteboards = [],
+    allWhiteboards = [],
   } = props;
 
   const [keyword, setKeyword] = useState("");
@@ -85,16 +85,16 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     scrollEl?.scrollTo({ top: 0 });
   }, [keyword, open, scrollEl]);
 
-  const excludeKey = excludeWhiteBoardIds.join(",");
+  const excludeKey = excludeWhiteboardIds.join(",");
   const candidates = useMemo(() => {
-    const excluded = new Set(excludeWhiteBoardIds);
-    return allWhiteBoards
+    const excluded = new Set(excludeWhiteboardIds);
+    return allWhiteboards
       .filter(board => !excluded.has(board.id))
       .map(board => ({ item: toItem(board), board }))
       .sort((x, y) => y.item.updateTime - x.item.updateTime);
-    // excludeWhiteBoardIds 常为调用方每次渲染新建的数组，按内容比较
+    // excludeWhiteboardIds 常为调用方每次渲染新建的数组，按内容比较
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allWhiteBoards, excludeKey]);
+  }, [allWhiteboards, excludeKey]);
   const visible = useMemo(
     () => candidates.filter(({ item }) => matchKeyword(item, keyword)),
     [candidates, keyword]
@@ -115,9 +115,9 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     return () => observer.disconnect();
   }, [hasMore, scrollEl, limit]);
 
-  const selectedIds = new Set(selectedWhiteBoards.map(board => board.id));
+  const selectedIds = new Set(selectedWhiteboards.map(board => board.id));
 
-  const confirm = async (targets: WhiteBoard[]) => {
+  const confirm = async (targets: Whiteboard[]) => {
     if (!targets.length || !onOk) return;
     setSaving(true);
     try {
@@ -130,7 +130,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     }
   };
 
-  const choose = (board: WhiteBoard) => {
+  const choose = (board: Whiteboard) => {
     if (!multiple) {
       onChange?.([board]);
       void confirm([board]);
@@ -138,8 +138,8 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     }
     onChange?.(
       selectedIds.has(board.id)
-        ? selectedWhiteBoards.filter(item => item.id !== board.id)
-        : [...selectedWhiteBoards, board]
+        ? selectedWhiteboards.filter(item => item.id !== board.id)
+        : [...selectedWhiteboards, board]
     );
   };
 
@@ -157,7 +157,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
         <>
           {multiple && (
             <span className="text-ink-2 mr-auto text-[12.5px] tabular-nums">
-              {selectedWhiteBoards.length ? `已选 ${selectedWhiteBoards.length} 个白板` : "未选择"}
+              {selectedWhiteboards.length ? `已选 ${selectedWhiteboards.length} 个白板` : "未选择"}
             </span>
           )}
           <Button variant="secondary" size="sm" disabled={saving} onClick={close}>
@@ -168,8 +168,8 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
               variant="primary"
               size="sm"
               loading={saving}
-              disabled={!selectedWhiteBoards.length}
-              onClick={() => void confirm(selectedWhiteBoards)}
+              disabled={!selectedWhiteboards.length}
+              onClick={() => void confirm(selectedWhiteboards)}
             >
               确定
             </Button>
@@ -177,7 +177,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
         </>
       }
     >
-      <div className="flex items-center gap-3 px-6 pb-3 pt-3">
+      <div className="flex items-center gap-3 px-6 pt-3 pb-3">
         <Input
           data-autofocus
           lead={Search}
@@ -205,7 +205,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
       </div>
 
       {/* 右侧 6px 透明边 + pr-[18px] = 左侧 pl-6；pt-1 给首行卡片 hover 阴影留出绘制空间 */}
-      <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 pb-5 pl-6 pr-[18px] pt-1">
+      <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 pt-1 pr-[18px] pb-5 pl-6">
         {loading ? (
           <Loading />
         ) : visible.length === 0 ? (
@@ -310,7 +310,7 @@ function BoardOption({
           </div>
         )}
         {item.pages.length > 1 && (
-          <span className="text-tau-tiny text-ink-2 bg-surface/90 absolute bottom-2 right-2 inline-flex h-5 items-center gap-1 rounded-[6px] px-[7px] tabular-nums">
+          <span className="text-tau-tiny text-ink-2 bg-surface/90 absolute right-2 bottom-2 inline-flex h-5 items-center gap-1 rounded-[6px] px-[7px] tabular-nums">
             <Files className="size-[11px]" strokeWidth={1.75} />
             {item.pages.length} 页
           </span>
@@ -328,8 +328,8 @@ function BoardOption({
           </span>
         )}
       </div>
-      <div className="flex w-full min-w-0 flex-col px-1.5 pb-1 pt-2">
-        <span className="text-ink-1 truncate text-[13px] font-semibold leading-[1.45]">
+      <div className="flex w-full min-w-0 flex-col px-1.5 pt-2 pb-1">
+        <span className="text-ink-1 truncate text-[13px] leading-[1.45] font-semibold">
           {displayTitle(item)}
         </span>
         <span
@@ -344,4 +344,4 @@ function BoardOption({
   );
 }
 
-export default SelectWhiteBoardModal;
+export default SelectWhiteboardModal;

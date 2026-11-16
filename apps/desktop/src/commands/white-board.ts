@@ -1,133 +1,123 @@
 import { invoke } from "@/electron";
 import { withModule } from "./module-init";
-import { WhiteBoard, WhiteBoardContent, ICreateWhiteBoard } from "@/types";
+import { Whiteboard, WhiteboardContent, ICreateWhiteboard } from "@/types";
 import type {
   ContentEntityTarget,
   ContentEntityReference,
 } from "@tau/db-schema/content-identities";
 
-export const createWhiteBoard = async (whiteBoard: ICreateWhiteBoard): Promise<WhiteBoard> => {
+export const createWhiteboard = async (whiteBoard: ICreateWhiteboard): Promise<Whiteboard> => {
   return invoke("create-white-board", whiteBoard);
 };
 
-export const getWhiteBoardById = async (id: number): Promise<WhiteBoard> => {
+export const getWhiteboardById = async (id: number): Promise<Whiteboard> => {
   return invoke("get-white-board-by-id", id);
 };
 
 /** 按页 id 反查所属白板；独立页返回 null */
-export const getWhiteBoardByContentId = async (contentId: number): Promise<WhiteBoard | null> => {
+export const getWhiteboardByContentId = async (contentId: number): Promise<Whiteboard | null> => {
   return invoke("get-white-board-by-content-id", contentId);
 };
 
-export const getAllWhiteBoards = async (): Promise<WhiteBoard[]> => {
+export const getAllWhiteboards = async (): Promise<Whiteboard[]> => {
   return await invoke("get-all-white-boards");
 };
 
-export const updateWhiteBoard = async (
-  whiteBoard: Omit<WhiteBoard, "updateTime">
-): Promise<WhiteBoard> => {
-  return invoke("update-white-board", whiteBoard);
-};
-
 /** 只改白板元信息（不回写子白板）；字段缺省 = 不改，空值 = 清空 */
-export const updateWhiteBoardMeta = async (
+export const updateWhiteboardMeta = async (
   id: number,
-  patch: Partial<Pick<WhiteBoard, "title" | "description" | "tags" | "snapshot">>
-): Promise<WhiteBoard> => {
+  patch: Partial<Pick<Whiteboard, "title" | "description" | "tags" | "snapshot">>
+): Promise<Whiteboard> => {
   return invoke("update-white-board-meta", id, patch);
 };
 
-export const deleteWhiteBoard = async (id: number): Promise<void> => {
+export const deleteWhiteboard = async (id: number): Promise<void> => {
   return withModule("whiteboard-documents", () => invoke("delete-white-board", id));
 };
 
-export const getWhiteboardByIds = async (ids: number[]): Promise<WhiteBoard[]> => {
-  return invoke("get-whiteboard-by-ids", ids);
-};
-
-export const addSubWhiteBoard = async (
+export const addSubWhiteboard = async (
   whiteBoardId: number,
   name: string,
-  whiteBoardData: WhiteBoardContent["data"]
-): Promise<WhiteBoardContent> => {
+  whiteBoardData: WhiteboardContent["data"]
+): Promise<WhiteboardContent> => {
   return invoke("add-sub-white-board", whiteBoardId, name, whiteBoardData);
 };
 
-export const deleteSubWhiteBoard = async (
+export const deleteSubWhiteboard = async (
   whiteBoardId: number,
   whiteBoardContentId: number
-): Promise<WhiteBoardContent> => {
+): Promise<WhiteboardContent> => {
   return invoke("delete-sub-white-board", whiteBoardId, whiteBoardContentId);
 };
 
-export const updateSubWhiteBoard = async (
+export const updateSubWhiteboard = async (
   whiteBoardContentId: ContentEntityTarget,
   name: string,
-  whiteBoardData: WhiteBoardContent["data"]
-): Promise<WhiteBoardContent> => {
+  whiteBoardData: WhiteboardContent["data"]
+): Promise<WhiteboardContent> => {
   return invoke("update-sub-white-board", whiteBoardContentId, name, whiteBoardData);
 };
 
-export const setActiveSubWhiteBoard = async (
+export const setActiveSubWhiteboard = async (
   whiteBoardId: number,
   whiteBoardContentId: number | null
-): Promise<WhiteBoard> => {
+): Promise<Whiteboard> => {
   return invoke("set-active-sub-white-board", whiteBoardId, whiteBoardContentId);
 };
 
-export const reorderSubWhiteBoard = async (
+export const reorderSubWhiteboard = async (
   whiteBoardId: number,
   orderedIds: number[]
-): Promise<WhiteBoard> => {
+): Promise<Whiteboard> => {
   return invoke("reorder-sub-white-board", whiteBoardId, orderedIds);
 };
 
 /** 只改页名，不回写页数据 */
-export const renameSubWhiteBoard = async (
+export const renameSubWhiteboard = async (
   whiteBoardContentId: number,
   name: string
-): Promise<WhiteBoardContent> => {
+): Promise<WhiteboardContent> => {
   return invoke("rename-sub-white-board", whiteBoardContentId, name);
 };
 
 /** 复制一页：副本插在原页之后并设为当前页，返回更新后的白板 */
-export const duplicateSubWhiteBoard = async (
+export const duplicateSubWhiteboard = async (
   whiteBoardId: number,
   whiteBoardContentId: number
-): Promise<WhiteBoard> => {
+): Promise<Whiteboard> => {
   return invoke("duplicate-sub-white-board", whiteBoardId, whiteBoardContentId);
 };
 
-export const createWhiteBoardContent = async (
-  whiteBoardContent: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">
-): Promise<WhiteBoardContent> => {
+export const createWhiteboardContent = async (
+  whiteBoardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
+): Promise<WhiteboardContent> => {
   return invoke("white-board-content:create", whiteBoardContent);
 };
-export const createPendingWhiteBoardContent = (
-  value: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">
-): Promise<{ content: WhiteBoardContent; reference: ContentEntityReference }> =>
+export const createPendingWhiteboardContent = (
+  value: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
+): Promise<{ content: WhiteboardContent; reference: ContentEntityReference }> =>
   invoke("white-board-content:create-pending", value);
-export const getWhiteBoardContentReference = (id: number): Promise<ContentEntityReference> =>
+export const getWhiteboardContentReference = (id: number): Promise<ContentEntityReference> =>
   invoke("white-board-content:reference", id);
 
-export const getWhiteBoardContentById = async (
+export const getWhiteboardContentById = async (
   id: ContentEntityTarget
-): Promise<WhiteBoardContent> => {
+): Promise<WhiteboardContent> => {
   return invoke("white-board-content:get-by-id", id);
 };
 
-export const updateWhiteBoardContent = async (
-  whiteBoardContent: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime"> & {
+export const updateWhiteboardContent = async (
+  whiteBoardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime"> & {
     id: ContentEntityTarget;
   }
-): Promise<WhiteBoardContent> => {
+): Promise<WhiteboardContent> => {
   return invoke("white-board-content:update", whiteBoardContent);
 };
 
-export const deleteWhiteBoardContent = async (id: number): Promise<void> => {
+export const deleteWhiteboardContent = async (id: number): Promise<void> => {
   return invoke("white-board-content:delete", id);
 };
 
-export const incrementWhiteBoardContentRefCount = async (id: number): Promise<void> => {
+export const incrementWhiteboardContentRefCount = async (id: number): Promise<void> => {
   return invoke("white-board-content:increment-ref-count", id);
 };

@@ -1,10 +1,10 @@
 /**
- * 白板列表的纯函数层：把 WhiteBoard（含全部子白板）投影成列表项，排序、筛选、标签统计。
- * 「页」= 子白板（WhiteBoardContent）；列表接口已带回全部页数据，页数 / 元素数 / 演示序列都在这里派生。
+ * 白板列表的纯函数层：把 Whiteboard（含全部子白板）投影成列表项，排序、筛选、标签统计。
+ * 「页」= 子白板（WhiteboardContent）；列表接口已带回全部页数据，页数 / 元素数 / 演示序列都在这里派生。
  */
 
 import type { BoardElement } from "@tau/whiteboard";
-import type { WhiteBoard } from "@/types";
+import type { Whiteboard } from "@/types";
 
 export interface WhiteboardPage {
   /** 子白板 id（whiteboard-content 页面参数） */
@@ -35,7 +35,7 @@ export interface WhiteboardItem {
   activePageId: number | null;
 }
 
-export function toItem(board: WhiteBoard): WhiteboardItem {
+export function toItem(board: Whiteboard): WhiteboardItem {
   const pages = (board.whiteBoardContentList ?? []).map(content => ({
     id: content.id,
     name: content.name,
@@ -58,7 +58,7 @@ export function toItem(board: WhiteBoard): WhiteboardItem {
     pages,
     elementCount: pages.reduce((sum, p) => sum + p.elementCount, 0),
     sequences,
-    activePageId: board.activeWhiteBoardContentId,
+    activePageId: board.activeWhiteboardContentId,
   };
 }
 

@@ -1,5 +1,5 @@
-export { default, default as WhiteBoard } from "./WhiteBoard";
-export type { WhiteBoardProps, WhiteBoardRef } from "./WhiteBoard";
+export { default, default as Whiteboard } from "./Whiteboard";
+export type { WhiteboardProps, WhiteboardRef } from "./Whiteboard";
 export * from "./extensions/api";
 export type {
   WhiteboardKernelEvents,
@@ -72,7 +72,7 @@ export {
   isDocumentElement,
 } from "./plugins/DocumentPlugin";
 export type { DocumentElement, DocumentKind } from "./plugins/DocumentPlugin";
-export type { WhiteBoardElement } from "./plugins/WhiteBoardPlugin";
+export type { WhiteboardElement } from "./plugins/WhiteboardPlugin";
 export * from "./chrome";
 export { PageSchematic } from "./schematic/PageSchematic";
 export { default as ResizeCircle } from "./components/ResizeCircle";

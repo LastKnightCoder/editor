@@ -17,7 +17,7 @@ interface VideoNoteIndexChunk {
   embedding?: number[];
 }
 
-class VideoNoteIndexDBManager implements Module {
+class VideoNoteIndexedDBManager implements Module {
   name: string;
   private databases: Map<string, Database.Database> = new Map();
   private currentVecDimensions = 3072;
@@ -390,6 +390,6 @@ class VideoNoteIndexDBManager implements Module {
   }
 }
 
-const videoNoteIndexDBManager = new VideoNoteIndexDBManager();
+const videoNoteIndexedDBManager = new VideoNoteIndexedDBManager();
 export type { VideoNoteIndexChunk };
-export default videoNoteIndexDBManager;
+export default videoNoteIndexedDBManager;

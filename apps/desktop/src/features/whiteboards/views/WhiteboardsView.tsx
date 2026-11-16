@@ -1,5 +1,5 @@
 /**
- * 白板列表页 · 方案 A「画廊」（mockups/whiteboards/plan-a2-gallery.html 定稿，D-047），
+ * 白板列表页 · 画廊，
  * 外壳为一整张纸（同文章 / 卡片库）：纸顶工具栏（标题 / 标签范围 + 摘要 · 标题过滤 · 排序 · 新建）
  * → 纸内缩略图卡片网格（细描边卡）。
  *
@@ -89,12 +89,12 @@ export function WhiteboardsView() {
   const filtering = query.trim().length > 0;
 
   return (
-    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
-      {/* 一整张纸：工具栏固定在纸顶，网格在纸内滚动（同文章 / 卡片库 plan-sheet 方案 B） */}
+    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
+      {/* 一整张纸：工具栏固定在纸顶，网格在纸内滚动（同文章 / 卡片库） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 工具栏：标题 / 当前标签 + 摘要 + 标题过滤 + 排序 + 新建 */}
-        <div className="mb-3 mt-5 flex h-10 flex-none items-center gap-3 px-8">
-          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+        <div className="mt-5 mb-3 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
             白板
           </h1>
           {scope.kind !== "all" && (
@@ -102,7 +102,7 @@ export function WhiteboardsView() {
               type="button"
               title="清除标签筛选"
               onClick={() => setScope({ kind: "all" })}
-              className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-1.5 text-[12px] font-medium"
+              className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pr-1.5 pl-2.5 text-[12px] font-medium"
             >
               <span className="truncate">{scope.kind === "tag" ? scope.tag : "无标签"}</span>
               <X className="size-3 shrink-0" strokeWidth={2} />
@@ -171,7 +171,7 @@ export function WhiteboardsView() {
 
         {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8），离纸底 16px；
             pt-1 给首行卡片 hover 的 lift 阴影留出绘制空间 */}
-        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-1">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pt-1 pr-[26px] pb-2 pl-8">
           {all.length === 0 ? (
             <Empty
               icon={Presentation}

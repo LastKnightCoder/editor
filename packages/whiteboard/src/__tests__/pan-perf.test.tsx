@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import type { BoardElement } from "../types";
 import type { WhiteboardSnapshot } from "../extensions/api";
 import { createStandardWhiteboardExtensions } from "../extensions/builtins";
@@ -82,7 +82,7 @@ const renderBoard = async (
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={[...createStandardWhiteboardExtensions(), countingExtension, capture]}
         initData={initData}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}

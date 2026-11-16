@@ -22,7 +22,7 @@ import MaterialTable from "../../tables/material";
 import VibeLearningProjectTable from "../../tables/vibe-learning-project";
 import VibeLearningResourceTable from "../../tables/vibe-learning-resource";
 import VLNoteTable from "../../tables/vl-note";
-import WhiteBoardContentTable from "../../tables/white-board-content";
+import WhiteboardContentTable from "../../tables/white-board-content";
 import WhiteboardTable from "../../tables/whiteboard";
 import { CONTENT_AI_META_CHANGED_EVENT } from "../../tables/content-ai-meta";
 import ExcerptTable, { WEB_EXCERPT_SYNCED_EVENT } from "../../tables/excerpt";
@@ -429,7 +429,7 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         DiaryTable,
         ProjectTable,
         WhiteboardTable,
-        WhiteBoardContentTable,
+        WhiteboardContentTable,
         ChatSessionTable,
         EntityLineageTable,
         FlashcardTable,

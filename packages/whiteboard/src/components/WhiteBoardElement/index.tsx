@@ -4,7 +4,7 @@ import { If as If } from "@tau/ui";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
-import WhiteBoardCard from "../WhiteBoardCard";
+import WhiteboardCard from "../WhiteboardCard";
 
 import { Board, EHandlerPosition, Point } from "../../types";
 import { PointUtil } from "../../utils";
@@ -16,15 +16,15 @@ import {
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
-import { WhiteBoardElement } from "../../plugins/WhiteBoardPlugin";
+import { WhiteboardElement } from "../../plugins/WhiteboardPlugin";
 
-interface WhiteBoardElementProps {
-  element: WhiteBoardElement;
+interface WhiteboardElementProps {
+  element: WhiteboardElement;
   board: Board;
-  onResizeStart?: (element: WhiteBoardElement, startPoint: Point) => void;
+  onResizeStart?: (element: WhiteboardElement, startPoint: Point) => void;
   onResize: (
     board: Board,
-    element: WhiteBoardElement,
+    element: WhiteboardElement,
     position: EHandlerPosition,
     startPoint: Point,
     endPoint: Point,
@@ -33,14 +33,14 @@ interface WhiteBoardElementProps {
   ) => void;
   onResizeEnd?: (
     board: Board,
-    element: WhiteBoardElement,
+    element: WhiteboardElement,
     position: EHandlerPosition,
     startPoint: Point,
     endPoint: Point
   ) => void;
 }
 
-const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
+const WhiteboardElementComponent = memo((props: WhiteboardElementProps) => {
   const { element, board, onResize, onResizeStart, onResizeEnd } = props;
 
   const { id, x, y, width, height, resizable = true } = element;
@@ -93,7 +93,7 @@ const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
   return (
     <>
       {/* 渲染白板卡片内容 */}
-      <WhiteBoardCard board={board} element={element} />
+      <WhiteboardCard board={board} element={element} />
 
       {/* 选中状态 */}
       <If condition={isSelected}>
@@ -149,6 +149,6 @@ const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
   );
 });
 
-WhiteBoardElementComponent.displayName = "WhiteBoardElementComponent";
+WhiteboardElementComponent.displayName = "WhiteboardElementComponent";
 
-export default WhiteBoardElementComponent;
+export default WhiteboardElementComponent;

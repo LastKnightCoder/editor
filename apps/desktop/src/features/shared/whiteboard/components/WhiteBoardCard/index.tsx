@@ -20,7 +20,7 @@ import { Board } from "@tau/whiteboard";
 import { SKETCH_MEDIA_FRAME } from "@tau/whiteboard";
 import { useSketch } from "@tau/whiteboard";
 import { SketchRect as SketchRect } from "@tau/whiteboard";
-import { WhiteBoardElement } from "@tau/whiteboard";
+import { WhiteboardElement } from "@tau/whiteboard";
 import LocalImage from "@/components/LocalImage";
 import { DesktopPageSchematic as PageSchematic } from "../../DesktopPageSchematic";
 import { openPage } from "@/services/page-navigation";
@@ -29,9 +29,9 @@ import { displayTitle, enterBoard, formatTrail, toItem } from "@/features/whiteb
 import { WhiteboardNavContext, requestReveal } from "@/features/whiteboards/navigation";
 import { handTextClass } from "@tau/whiteboard";
 
-interface WhiteBoardCardProps {
+interface WhiteboardCardProps {
   board: Board;
-  element: WhiteBoardElement;
+  element: WhiteboardElement;
 }
 
 // 固定高度常量
@@ -41,7 +41,7 @@ export const WHITEBOARD_CARD_HEIGHT = 80;
 const CANVAS_BG =
   "bg-surface-hover bg-[radial-gradient(color-mix(in_srgb,var(--tau-ink-1)_13%,transparent)_1px,transparent_1.2px)] bg-[length:10px_10px]";
 
-const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
+const WhiteboardCard = memo((props: WhiteboardCardProps) => {
   const { element, board } = props;
   const sketch = useSketch(element);
   const nav = useContext(WhiteboardNavContext);
@@ -204,4 +204,4 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   );
 });
 
-export default WhiteBoardCard;
+export default WhiteboardCard;

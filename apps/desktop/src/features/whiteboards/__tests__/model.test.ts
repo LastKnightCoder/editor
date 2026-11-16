@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WhiteBoard } from "@/types";
+import type { Whiteboard } from "@/types";
 import {
   inScope,
   matchTitle,
@@ -32,7 +32,7 @@ const page = (id: number, name: string, children: number, updateTime: number, se
   },
 });
 
-const board = (patch: Partial<WhiteBoard> & { id: number }): WhiteBoard =>
+const board = (patch: Partial<Whiteboard> & { id: number }): Whiteboard =>
   ({
     title: `白板 ${patch.id}`,
     description: "",
@@ -42,9 +42,9 @@ const board = (patch: Partial<WhiteBoard> & { id: number }): WhiteBoard =>
     updateTime: 100,
     whiteBoardContentIds: [],
     whiteBoardContentList: [],
-    activeWhiteBoardContentId: null,
+    activeWhiteboardContentId: null,
     ...patch,
-  }) as WhiteBoard;
+  }) as Whiteboard;
 
 describe("toItem", () => {
   it("派生页数、元素数、演示序列，更新时间取白板行与各页的较大者", () => {
@@ -126,7 +126,7 @@ describe("openTarget", () => {
   const item = toItem(
     board({
       id: 1,
-      activeWhiteBoardContentId: 12,
+      activeWhiteboardContentId: 12,
       whiteBoardContentList: [page(11, "a", 0, 0), page(12, "b", 0, 0)] as never,
     })
   );

@@ -134,7 +134,7 @@ export const getProjectItemMoreMenuItems = (
     ];
   }
 
-  if (projectItem?.projectItemType === EProjectItemType.WhiteBoard) {
+  if (projectItem?.projectItemType === EProjectItemType.Whiteboard) {
     return compactMenuItems([
       projectItem?.refType !== "white-board"
         ? {

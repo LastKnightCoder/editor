@@ -32,7 +32,7 @@
 
 ### 2.1 组件分层
 
-- **入口组件**：`WhiteBoard.tsx`
+- **入口组件**：`Whiteboard.tsx`
   - 创建 `Board` 实例，注册插件列表。
   - 通过 Context 提供 board、selection、viewport、boardState。
   - 绑定全局/局部事件（鼠标、键盘、指针、粘贴、拖拽、滚轮、窗口 resize）。
@@ -48,9 +48,9 @@
 - **UI 组件**：`components/`
   - `BoardContent`：SVG 根，渲染网格、箭头 marker、元素、选区、参考线。
   - `Toolbar/AttributeSetter/Sidebar/StatusBar`：工具与信息面板。
-  - 各元素组件（Arrow/Image/Video/Audio/Webview/Frame/WhiteBoard/MindNode/Column 等）。
+  - 各元素组件（Arrow/Image/Video/Audio/Webview/Frame/Whiteboard/MindNode/Column 等）。
   - `ContextMenuLayer`：聚合插件菜单项并渲染。
-  - 资源选择器：Card/Image/Video/Audio/Webview/WhiteBoard。
+  - 资源选择器：Card/Image/Video/Audio/Webview/Whiteboard。
 
 - **服务与工具**：`utils/`、`services/`
   - `BoardOperations`、`BoardUtil/PathUtil/MindUtil/FrameUtil` 等操作工具。
@@ -58,9 +58,9 @@
   - `ResourceUsageTracker` 统计外部资源引用；`CapabilityService` 元素能力开关。
   - `PresentationManager` 管理演示序列。
 
-### 2.2 初始化流程（入口 `WhiteBoard.tsx`）
+### 2.2 初始化流程（入口 `Whiteboard.tsx`）
 
-1. 渲染期通过 `useCreation` 构造 Board（纯对象，无外部副作用），注入初始数据/视口/选区/演示序列/只读标记；提交期（布局 effect，只执行一次）再连接文档绑定、装配显式 extensions 与可选的宿主服务注册表（`services`，D-134），完成后才挂载画布 `WhiteBoardCanvas`。被丢弃的渲染（挂起、出错重试、StrictMode 双渲染）因此不残留扩展实例、不占用文档绑定；扩展集合与文档绑定在实例生命周期内固定。
+1. 渲染期通过 `useCreation` 构造 Board（纯对象，无外部副作用），注入初始数据/视口/选区/演示序列/只读标记；提交期（布局 effect，只执行一次）再连接文档绑定、装配显式 extensions 与可选的宿主服务注册表（`services`，D-134），完成后才挂载画布 `WhiteboardCanvas`。被丢弃的渲染（挂起、出错重试、StrictMode 双渲染）因此不残留扩展实例、不占用文档绑定；扩展集合与文档绑定在实例生命周期内固定。
 2. 使用 `useSyncExternalStore` 订阅 `board.change`，获取 `children/viewPort/selection`，并订阅演示模式状态。
 3. 绑定事件处理器 `useEventHandlers`（包装 board 事件分发）和节流指针移动。
 4. 渲染各扩展注册的工具、属性面板和界面层；笔记与资源业务由各桌面扩展监听。
@@ -159,7 +159,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 ### 4.1 扩展声明与内部元素策略
 
-对外使用 defineWhiteboardExtension，create(api) 返回 elements、commands、tools、inspectors、menus、hotkeys、ingest、layers 及生命周期回调。api 提供只读快照、受控提交与宿主服务访问：扩展在 `requires` / `optional` 中声明服务标识（`createServiceId` 产物），装配时 requires 缺失即拒绝该扩展（reason `missing-service`），扩展作用域内经 `api.getService` / `api.tryGetService` 获取（只能取声明过的 id，未声明抛错；主 API 不提供服务访问）；宿主经 `WhiteBoard` 的 `services` prop 传入 `createServiceRegistry` 构建的注册表。组件通过 useWhiteboardAPI 获取同一接口。
+对外使用 defineWhiteboardExtension，create(api) 返回 elements、commands、tools、inspectors、menus、hotkeys、ingest、layers 及生命周期回调。api 提供只读快照、受控提交与宿主服务访问：扩展在 `requires` / `optional` 中声明服务标识（`createServiceId` 产物），装配时 requires 缺失即拒绝该扩展（reason `missing-service`），扩展作用域内经 `api.getService` / `api.tryGetService` 获取（只能取声明过的 id，未声明抛错；主 API 不提供服务访问）；宿主经 `Whiteboard` 的 `services` prop 传入 `createServiceRegistry` 构建的注册表。组件通过 useWhiteboardAPI 获取同一接口。
 
 下述 `types/board.ts` 中的 IBoardPlugin 仅供内置扩展复用既有交互实现，不从公共入口导出：
 
@@ -185,7 +185,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 | PresentationPlugin      | 演示序列管理                    | 创建帧、进入演示模式过滤元素                                                                                                                           |
 | WebviewPlugin           | 网页 iframe/预览                | 右键插入/替换                                                                                                                                          |
 | FramePlugin             | 容器元素                        | 子元素移动与参考线联动                                                                                                                                 |
-| WhiteBoardPlugin        | 引用/嵌入其他白板               | 支持 reference/create                                                                                                                                  |
+| WhiteboardPlugin        | 引用/嵌入其他白板               | 支持 reference/create                                                                                                                                  |
 | ColumnPlugin            | 列布局元素                      | 子列容器/可重排                                                                                                                                        |
 | FileDragDropPlugin      | 外部文件拖拽导入                | 处理图片/视频/音频/白板文件                                                                                                                            |
 
@@ -335,7 +335,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 ## 八、演示模式
 
 - `PresentationManager` 管理 `sequences`（帧序列）。入口订阅 `presentationModeChange` 等事件。
-- 进入演示模式后，`WhiteBoard.tsx` 中的 `filteredChildren` 仅保留当前帧包含的元素（递归过滤保留父链）。
+- 进入演示模式后，`Whiteboard.tsx` 中的 `filteredChildren` 仅保留当前帧包含的元素（递归过滤保留父链）。
 - `PresentationCreator/PresentationMode/StatusBar` 提供创建、播放、删除帧的 UI；右键菜单由 `PresentationPlugin` 提供。
 - 当前帧索引、序列 id 通过 `useSyncExternalStore` 订阅，切换时重新过滤元素。
 
@@ -343,7 +343,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ## 九、对外 API 与上下文
 
-### 9.1 WhiteBoard Props
+### 9.1 Whiteboard Props
 
 - `initData`：`BoardElement[]`，可带 `presentationSequences`。
 - `initViewPort` / `initSelection` / `initPresentationSequences`：初始视口与选区/帧。
@@ -358,7 +358,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ### 9.2 Ref 能力
 
-`WhiteBoardRef`（forwardRef 暴露）：
+`WhiteboardRef`（forwardRef 暴露）：
 
 - `fitAllElements(padding = FIT_VIEW_PADDING, animate = true)`
 - `getElements(): BoardElement[]`
@@ -377,7 +377,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 2. 在 elements 中声明元素 type、渲染组件与几何行为；一个扩展可以贡献多个类型。
 3. 工具与菜单引用 commands 中的命令 ID，属性编辑器放 inspectors，浮层放 layers；渲染器不获取 Board 内核实例。
 4. 宿主能力经扩展 `requires` / `optional` 声明的服务标识获取（`api.getService` / `api.tryGetService`，D-134）；选择器弹窗、媒体动作白名单、图片组件等纯 UI 配置仍可为工厂参数。操作经 API 提交，不改写只读快照。
-5. 在宿主 extensions 集合中显式组合扩展，不修改 WhiteBoard 入口或固定类型登记表。
+5. 在宿主 extensions 集合中显式组合扩展，不修改 Whiteboard 入口或固定类型登记表。
 6. 正文与资源宿主服务在扩展内经 tryGetService 获取并显式降级（缺失隐藏入口或回退内置实现）；异步写入前用 API.captureSubmission 固定有效期，提交前再验证。
 
 ### 10.2 新增右键菜单项
@@ -415,7 +415,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 | `packages/whiteboard/src/document-version.ts`               | 白板文档版本常量与归一/支持判断                                                                                                                                                                         |
 | `packages/whiteboard/src/extensions/*`                      | 扩展声明（api）、运行时装配与冲突降级（runtime）、服务作用域与声明过滤（scope）、事件分层与快捷键仲裁（events / hotkeys / interactionCommands）、元素版本识别（elementVersion）、写入校验（validation） |
 | `packages/whiteboard/src/types/*.ts`                        | 数据模型、Operation、能力声明、演示类型                                                                                                                                                                 |
-| `packages/whiteboard/src/plugins/*`                         | 内置插件实现（视口、移动、复制、几何/媒体/导图/Frame/Webview/WhiteBoard 等）                                                                                                                            |
+| `packages/whiteboard/src/plugins/*`                         | 内置插件实现（视口、移动、复制、几何/媒体/导图/Frame/Webview/Whiteboard 等）                                                                                                                            |
 | `packages/whiteboard/src/utils/BoardOperations.ts`          | Operation 预处理与纯函数执行，元数据收集                                                                                                                                                                |
 | `packages/whiteboard/src/utils/snap/`                       | 吸附纯几何（SnapGeometry）、等距（SnapGaps）与吸附会话（SnapManager）                                                                                                                                   |
 | `packages/whiteboard/src/utils/PresentationManager.ts`      | 演示模式序列管理                                                                                                                                                                                        |

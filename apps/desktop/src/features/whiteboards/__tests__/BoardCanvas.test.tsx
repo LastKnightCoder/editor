@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   changed: undefined as ((data: WhiteboardSnapshot) => void) | undefined,
 }));
 vi.mock("../queries", () => ({
-  useWhiteBoardContent: () => ({
+  useWhiteboardContent: () => ({
     data: {
       id: 1,
       name: "测试",

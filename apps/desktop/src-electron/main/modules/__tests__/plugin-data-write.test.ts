@@ -33,7 +33,7 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import { getMarkdown } from "@/utils/markdown.ts";
 import PluginDataTable from "../tables/plugin-data";
 import ContentTable from "../tables/content";
-import WhiteBoardContentTable from "../tables/white-board-content";
+import WhiteboardContentTable from "../tables/white-board-content";
 import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
 import { executeDatabaseCommand } from "../database-command";
 
@@ -865,7 +865,7 @@ describe("PluginDataTable 写入", () => {
       id: board.id,
       expectedRevision: board.revision,
     });
-    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now() + 1, graceMs: 0 });
+    WhiteboardContentTable.collectPendingReleases(db, { now: Date.now() + 1, graceMs: 0 });
     const [operation] = PluginDataTable.operations(db, scope);
     expect(() => PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toThrow(
       "画板页已被清理"

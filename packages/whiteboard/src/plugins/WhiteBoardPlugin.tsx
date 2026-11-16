@@ -15,12 +15,12 @@ import {
   ChildrenRenderOrder,
 } from "../types/capabilities";
 import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
-import { WHITEBOARD_CARD_HEIGHT } from "../components/WhiteBoardCard";
-import WhiteBoardElementComponent from "../components/WhiteBoardElement";
+import { WHITEBOARD_CARD_HEIGHT } from "../components/WhiteboardCard";
+import WhiteboardElementComponent from "../components/WhiteboardElement";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
 
-export interface WhiteBoardElement extends CommonElement {
+export interface WhiteboardElement extends CommonElement {
   type: "whiteboard";
   /** 引用的整块白板 */
   whiteBoardId?: number;
@@ -39,7 +39,7 @@ export interface WhiteBoardElement extends CommonElement {
   resizable?: boolean;
 }
 
-export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
+export class WhiteboardPlugin extends CommonPlugin implements IBoardPlugin {
   name = "whiteboard";
 
   constructor(private readonly canCreate = false) {
@@ -116,7 +116,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
 
   onResize(
     board: Board,
-    element: WhiteBoardElement,
+    element: WhiteboardElement,
     position: EHandlerPosition,
     startPoint: Point,
     endPoint: Point,
@@ -167,9 +167,9 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     });
   }
 
-  render(board: Board, { element }: { element: WhiteBoardElement }) {
+  render(board: Board, { element }: { element: WhiteboardElement }) {
     return (
-      <WhiteBoardElementComponent
+      <WhiteboardElementComponent
         key={element.id}
         board={board}
         element={element}

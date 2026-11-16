@@ -4,7 +4,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Button, UiProvider } from "@tau/ui";
 import { initThemeRuntime, useThemeStore } from "@tau/themes/react";
-import WhiteBoard, { type BoardElement, type WhiteboardSnapshot } from "@tau/whiteboard";
+import Whiteboard, { type BoardElement, type WhiteboardSnapshot } from "@tau/whiteboard";
 import "@tau/ui/styles.css";
 import "./style.css";
 import { createStandardWhiteboardExtensions } from "@tau/whiteboard/extensions";
@@ -76,7 +76,7 @@ function App() {
       </div>
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
-          <WhiteBoard
+          <Whiteboard
             key={scene}
             extensions={extensions}
             initData={scenes[scene]()}
@@ -87,7 +87,7 @@ function App() {
         </div>
         {dual && (
           <div className="border-line-1 min-w-0 flex-1 border-l">
-            <WhiteBoard
+            <Whiteboard
               key={scene}
               extensions={extensions}
               initData={scenes[scene]()}

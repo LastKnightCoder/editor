@@ -2,7 +2,7 @@ import type { WhiteboardAPI } from "@tau/whiteboard";
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import type { WhiteBoardProps, WhiteBoardRef } from "@tau/whiteboard";
+import type { WhiteboardProps, WhiteboardRef } from "@tau/whiteboard";
 import { IWhiteboardRichText } from "@tau/whiteboard/extensions";
 import { IResourceService } from "@tau/shared/host-services";
 import { DesktopWhiteboard } from "../DesktopWhiteboard";
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@tau/whiteboard", async importOriginal => ({
   ...(await importOriginal<typeof import("@tau/whiteboard")>()),
-  default: (props: WhiteBoardProps) => {
+  default: (props: WhiteboardProps) => {
     mocks.renders(props);
     return null;
   },
@@ -61,10 +61,10 @@ vi.mock("../components/ImageSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/VideoSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/AudioSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/WebviewSelectorModal", () => ({ default: () => null }));
-vi.mock("../components/WhiteBoardSelectorModal", () => ({ default: () => null }));
+vi.mock("../components/WhiteboardSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/Document/DocumentCard", () => ({ DocumentCard: () => null }));
 vi.mock("../components/Document/DocumentReader", () => ({ DocumentReaderLayer: () => null }));
-vi.mock("../components/WhiteBoardCard", () => ({ default: () => null }));
+vi.mock("../components/WhiteboardCard", () => ({ default: () => null }));
 vi.mock("../components/VideoElement", () => ({ default: () => null }));
 vi.mock("../components/WebviewElement", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Image", () => ({ default: () => null }));
@@ -72,7 +72,7 @@ vi.mock("../components/Toolbar/Video", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Audio", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Document", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Webview", () => ({ default: () => null }));
-vi.mock("../components/Toolbar/WhiteBoard", () => ({ default: () => null }));
+vi.mock("../components/Toolbar/Whiteboard", () => ({ default: () => null }));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -84,15 +84,15 @@ it("真实桌面适配器只挂载一次包组件，并传递 ref、初始值和
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  const initial: WhiteBoardProps["initData"] = [];
-  const ref = createRef<WhiteBoardRef>();
+  const initial: WhiteboardProps["initData"] = [];
+  const ref = createRef<WhiteboardRef>();
   const changed = vi.fn();
   try {
     await act(async () =>
       root.render(<DesktopWhiteboard ref={ref} initData={initial} onChange={changed} />)
     );
     expect(mocks.renders).toHaveBeenCalledTimes(1);
-    const props = mocks.renders.mock.calls[0][0] as WhiteBoardProps & { ref: typeof ref };
+    const props = mocks.renders.mock.calls[0][0] as WhiteboardProps & { ref: typeof ref };
     expect(props.initData).toBe(initial);
     expect(props.ref).toBe(ref);
     expect(props.onChange).toBe(changed);

@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import type Board from "../Board";
 import { useBoard } from "../hooks/useBoard";
 import { useSketch } from "../extensions/authorHooks";
@@ -146,7 +146,7 @@ it("声明生成角点手柄，复用内核缩放历史与矩形连接，手绘 
   });
   await act(async () =>
     root.render(
-      <WhiteBoard
+      <Whiteboard
         initData={[initial]}
         initSelection={{ selectedElements: [initial], selectArea: null }}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}

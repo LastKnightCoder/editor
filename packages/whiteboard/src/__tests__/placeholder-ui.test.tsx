@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { UnknownElement, type UnknownElementReason } from "../components/UnknownElement";
 import { defineWhiteboardExtension } from "../extensions/api";
 import type { BoardElement } from "../types";
@@ -147,7 +147,7 @@ const toolbarExtension = defineWhiteboardExtension({
 
 function mountBoard(options: { version?: number; readonly?: boolean; showToolbar?: boolean }) {
   return mount(
-    <WhiteBoard
+    <Whiteboard
       extensions={[toolbarExtension]}
       initData={[]}
       initViewPort={viewport}
@@ -206,7 +206,7 @@ describe("作者 render 抛错的 error 占位", () => {
       create: () => ({}),
     });
     const container = await mount(
-      <WhiteBoard
+      <Whiteboard
         extensions={[crashing]}
         initData={[element({ width: 260, height: 150 }, "acme.crashbox")]}
         initViewPort={viewport}

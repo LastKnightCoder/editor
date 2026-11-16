@@ -1,15 +1,15 @@
-import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
-import { getProjectItemById, getWhiteBoardContentById, updateWhiteBoardContent } from "@/commands";
+import Whiteboard from "@/features/shared/whiteboard/DesktopWhiteboard";
+import { getProjectItemById, getWhiteboardContentById, updateWhiteboardContent } from "@/commands";
 import { getDocumentVersion } from "@tau/whiteboard";
-import { ProjectItem, WhiteBoardContent } from "@/types";
+import { ProjectItem, WhiteboardContent } from "@/types";
 import { useThrottleFn } from "ahooks";
 import { memo, useState, useEffect } from "react";
 
-const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
+const WhiteboardProjectView = memo((props: { projectItemId: number }) => {
   const { projectItemId } = props;
 
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
-  const [whiteBoardContent, setWhiteBoardContent] = useState<WhiteBoardContent | null>(null);
+  const [whiteBoardContent, setWhiteboardContent] = useState<WhiteboardContent | null>(null);
 
   useEffect(() => {
     if (projectItemId) {
@@ -17,9 +17,9 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
         .then(item => {
           if (!item) return;
           setProjectItem(item);
-          getWhiteBoardContentById(item.whiteBoardContentId)
+          getWhiteboardContentById(item.whiteBoardContentId)
             .then(content => {
-              setWhiteBoardContent(content);
+              setWhiteboardContent(content);
             })
             .catch(e => {
               console.error(e);
@@ -35,10 +35,10 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
     };
   }, [projectItemId]);
 
-  const { run: onWhiteBoardChange } = useThrottleFn(
-    async (data: WhiteBoardContent["data"]) => {
+  const { run: onWhiteboardChange } = useThrottleFn(
+    async (data: WhiteboardContent["data"]) => {
       if (!projectItem || !whiteBoardContent) return;
-      updateWhiteBoardContent({
+      updateWhiteboardContent({
         id: whiteBoardContent.id,
         name: whiteBoardContent.name,
         imgUrl: whiteBoardContent.imgUrl,
@@ -55,7 +55,7 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
   const { data } = whiteBoardContent;
 
   return (
-    <WhiteBoard
+    <Whiteboard
       showSidebar={false}
       initData={data.children}
       initSelection={data.selection}
@@ -63,9 +63,9 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
       initPresentationSequences={data.presentationSequences}
       initSketch={data.sketch}
       version={getDocumentVersion(data)}
-      onChange={onWhiteBoardChange}
+      onChange={onWhiteboardChange}
     />
   );
 });
 
-export default WhiteBoardProjectView;
+export default WhiteboardProjectView;
