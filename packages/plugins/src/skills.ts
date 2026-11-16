@@ -11,7 +11,7 @@ export const SKILL_README = "SKILL.md";
 /** 能被 Skill 脚本工具直接执行的文件；与桌面脚本运行器的解释器映射一致。 */
 const SCRIPT_EXTENSION = /\.(?:js|mjs|cjs|ts|py|sh)$/i;
 
-export const skillDirectory = (id: string) => `${SKILL_ROOT}/${id}`;
+const skillDirectory = (id: string) => `${SKILL_ROOT}/${id}`;
 
 /** 读取 manifest.skills；缺省返回 undefined，空数组视为未声明。 */
 export function readSkillsField(value: unknown): readonly string[] | undefined {
