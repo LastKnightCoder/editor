@@ -3,16 +3,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
+vi.mock("electron");
 
 // 切断 tables → database 模块的循环依赖链
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
@@ -114,10 +108,12 @@ describe("正文写入点白名单", () => {
     "main/modules/tables/content-document-blocks.ts": 1,
   };
 
+  // eval/ 是对独立内存库构造夹具的评测脚本，不走生产写入路径，与 __tests__ 同样不算写入点。
   const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap(name => {
       const path = join(dir, name);
-      if (statSync(path).isDirectory()) return name === "__tests__" ? [] : walk(path);
+      if (statSync(path).isDirectory())
+        return name === "__tests__" || name === "eval" ? [] : walk(path);
       return /\.ts$/.test(name) ? [path] : [];
     });
 

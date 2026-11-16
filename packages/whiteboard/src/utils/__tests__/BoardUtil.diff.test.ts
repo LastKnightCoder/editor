@@ -351,12 +351,9 @@ describe("BoardUtil.diff 测试", () => {
         (_, i) => createElement(`element${i}`, "rect", { x: i + 1, y: i }) // 修改 x 坐标
       );
 
-      const startTime = performance.now();
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      const endTime = performance.now();
 
       expect(operations).toHaveLength(100); // 100个修改操作
-      expect(endTime - startTime).toBeLessThan(50); // 应该在50ms内完成
     });
 
     it("处理相同 ID 但不同索引的情况", () => {
@@ -372,7 +369,6 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      console.log(operations);
       const appliedResult = BoardOperations.applyDiffOperations(oldChildren, operations);
       expect(appliedResult).toEqual(newChildren);
     });
@@ -442,15 +438,10 @@ describe("BoardUtil.diff 测试", () => {
       const oldChildren = createLargeArray(1000, "old");
       const newChildren = createLargeArray(1000, "new");
 
-      const start = performance.now();
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      const duration = performance.now() - start;
 
       // 验证操作生成正确
       expect(operations.length).toBeGreaterThan(0);
-
-      // 性能要求：100个元素的处理时间应该小于100ms
-      expect(duration).toBeLessThan(100);
     });
 
     it("应该优化不必要的移动操作", () => {

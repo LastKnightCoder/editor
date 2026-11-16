@@ -32,9 +32,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 vi.mock("../../database", () => ({
   default: { ...host, getDatabase: (name: string) => host.databases.get(name) },
 }));

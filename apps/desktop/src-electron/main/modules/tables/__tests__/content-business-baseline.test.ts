@@ -24,14 +24,8 @@ import ProjectTable from "../project";
 import PluginDataTable from "../plugin-data";
 import ContentTable from "../content";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 interface FixtureParagraph {
   type: "paragraph";

@@ -14,14 +14,8 @@ function present<T>(value: T | null | undefined): T {
   return value;
 }
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 vi.mock("../../database", () => ({ default: {} }));
 vi.mock("../../user-setting", () => ({ default: {} }));
 

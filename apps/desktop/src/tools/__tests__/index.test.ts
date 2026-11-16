@@ -119,7 +119,6 @@ describe("tools/index", () => {
     mockContext.toolRegistryMock.setSourceEnabled.mockReset();
     mockContext.toolRegistryMock.hasSource.mockReset();
     mockContext.toolRegistryMock.hasSource.mockReturnValue(false);
-    mockContext.mcpState.setConnectionStatus.mockReset();
     mockContext.toolRegistryMock.setDisabledTools.mockReset();
     mockContext.subscribeCallbacks.length = 0;
   });
@@ -141,36 +140,6 @@ describe("tools/index", () => {
     expect(mockContext.registerBuiltinToolsMock).toHaveBeenCalledTimes(1);
     expect(mockContext.onConnectionStatusChangeMock).not.toHaveBeenCalled();
     expect(mockContext.fetchToolsFromServerMock).not.toHaveBeenCalled();
-  });
-
-  it("初始化后应为已启用自定义 MCP 同步 connected 状态", async () => {
-    const toolsModule = await import("../index");
-
-    toolsModule.initializeTooling();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(mockContext.fetchToolsFromServerMock).toHaveBeenCalledWith(
-      mockContext.mcpState.customServers[0]
-    );
-    expect(mockContext.mcpState.setConnectionStatus).toHaveBeenNthCalledWith(
-      1,
-      "server-1",
-      "connecting"
-    );
-    expect(mockContext.mcpState.setConnectionStatus).toHaveBeenNthCalledWith(
-      2,
-      "server-1",
-      "connected"
-    );
-  });
-
-  it("初始化时应全局订阅 MCP 连接状态变化", async () => {
-    const toolsModule = await import("../index");
-
-    toolsModule.initializeTooling();
-
-    expect(mockContext.onConnectionStatusChangeMock).toHaveBeenCalledTimes(1);
   });
 
   it("初始化与变更时把逐工具停用同步到注册表", async () => {

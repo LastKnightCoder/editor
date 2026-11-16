@@ -31,6 +31,7 @@ const quick = process.env.TAU_CONTENT_G4_QUICK === "1";
 const cuts = ["journal-before", "journal-after", "projection-before", "projection-after"] as const;
 
 test("真实生产正文在四个持久化切点反复强退重开", async () => {
+  // 门控：四切点 × 20 次真实 SIGKILL 循环（45 分钟），默认跳过；TAU_CONTENT_G4=recovery 启用（docs/guides/dev-content-verification.md §3）。
   test.skip(!enabled, "按需运行正文强退循环");
   test.setTimeout(45 * 60_000);
   const directory = await createSandbox("tau-g4-recovery-");

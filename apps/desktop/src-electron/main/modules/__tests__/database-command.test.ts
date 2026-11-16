@@ -17,14 +17,8 @@ vi.mock("../../services/content-execution", () => ({
     },
   },
 }));
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 
 import schema from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginDataTable from "../tables/plugin-data";

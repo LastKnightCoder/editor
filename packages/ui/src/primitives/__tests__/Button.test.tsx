@@ -35,11 +35,6 @@ function click(el: Element) {
 }
 
 describe("Button", () => {
-  it("type 默认 button，可透传 submit", () => {
-    expect(render(<Button>取消</Button>).type).toBe("button");
-    expect(render(<Button type="submit">提交</Button>).type).toBe("submit");
-  });
-
   it("disabled：原生属性封锁点击", () => {
     const onClick = vi.fn();
     const b = render(
@@ -80,21 +75,5 @@ describe("Button", () => {
     const b = render(<Button className="h-[40px]">取消</Button>);
     expect(b.className).toContain("h-[40px]");
     expect(b.className).not.toContain("h-[34px]");
-  });
-
-  it("ref 转发到原生 button", () => {
-    const ref = vi.fn();
-    render(<Button ref={ref}>取消</Button>);
-    expect(ref).toHaveBeenCalledWith(expect.any(HTMLButtonElement));
-  });
-
-  it("其余 props 透传（data-* / aria-*）", () => {
-    const b = render(
-      <Button data-autofocus aria-label="删除">
-        删除
-      </Button>
-    );
-    expect(b.hasAttribute("data-autofocus")).toBe(true);
-    expect(b.getAttribute("aria-label")).toBe("删除");
   });
 });

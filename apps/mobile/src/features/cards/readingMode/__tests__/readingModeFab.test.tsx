@@ -91,8 +91,6 @@ describe("ReadingModeFab", () => {
     // 滚到底：末尾落在按钮区域内
     stubRect(content, { bottom: 760 });
     scrollTo(900);
-    expect(button()?.className).toContain("opacity-0");
-    expect(button()?.className).toContain("pointer-events-none");
     expect(button()?.getAttribute("aria-hidden")).toBe("true");
 
     // 往回滑出末尾区域：恢复

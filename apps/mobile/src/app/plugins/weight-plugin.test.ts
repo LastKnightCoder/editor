@@ -64,6 +64,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+if (!zipPath) {
+  console.warn(
+    `[weight-plugin.test] 构建产物缺失，本组用例将跳过：期望 ${dist}/tau.weight-<manifest version>.zip。可先在 plugins/tau-plugin-weight 下执行 pnpm build 生成产物`
+  );
+}
+
 describe.skipIf(!zipPath)("减重插件在移动宿主上", () => {
   for (const platform of ["android", "ios"] as const)
     it(`${platform}：启用后有功能入口、今天页卡片与两个页面`, async () => {
@@ -87,13 +93,14 @@ describe.skipIf(!zipPath)("减重插件在移动宿主上", () => {
         expect(
           [...runtime.entries.values()].map(e => [e.definition.title, typeof e.definition.icon])
         ).toEqual([["减重", "object"]]);
-        expect(
-          [...runtime.homePanels.values()].map(p => [
-            p.definition.title,
-            p.definition.size,
-            p.definition.action,
-          ])
-        ).toEqual([["减重", "compact", null]]);
+        const [homePanel] = [...runtime.homePanels.values()];
+        expect([homePanel.definition.title, homePanel.definition.size]).toEqual([
+          "减重",
+          "compact",
+        ]);
+        // 手机卡片主体点击执行 action 入口：标题「查看」，run 打开趋势页
+        expect(homePanel.definition.action).toMatchObject({ title: "查看" });
+        expect(typeof homePanel.definition.action?.run).toBe("function");
         expect([...runtime.pages.keys()].sort()).toEqual(["tau.weight:trend", "tau.weight:weight"]);
       } finally {
         await runtime.dispose();

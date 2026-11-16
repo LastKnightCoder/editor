@@ -9,9 +9,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 vi.mock("../database", () => ({ default: {} }));
 vi.mock("../pi-ai-runtime", () => ({ default: {} }));
 vi.mock("../user-setting", () => ({ default: {} }));
@@ -224,13 +222,13 @@ describe("content-insights", () => {
       main,
       index,
       article.ref,
-      { providerId: "p", modelId: "m" },
+      { providerId: "p", modelId: "m", thinkingLevel: "high" },
       phase => phases.push(phase.phase)
     );
     expect(complete).toHaveBeenCalledTimes(1);
     expect(complete.mock.calls[0][0]).toMatchObject({
       source: { feature: "contentInsights" },
-      thinking: "off",
+      thinking: "high",
     });
     expect(phases).toEqual(["candidates", "thinking"]);
     expect(result.result.marks.map(m => [m.kind, m.anchor || m.text, m.target?.ref.id])).toEqual([

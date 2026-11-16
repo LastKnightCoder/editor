@@ -4,14 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import mainSchema from "@tau/db-schema/schema/main.sql?raw";
 import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ContentAiMetaTable from "../../tables/content-ai-meta";
 import { ensureRelatedThreshold, relatedOf, sampleRelatedThreshold } from "../context-related";

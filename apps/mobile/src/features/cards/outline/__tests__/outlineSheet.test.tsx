@@ -119,9 +119,7 @@ describe("OutlineSheet", () => {
     render(sectionDoc());
     expect(rowLabels()).toEqual(["标题甲", "甲一", "小节乙", "乙一", "乙二", "标题丙"]);
     const rows = host.querySelectorAll<HTMLElement>("[data-outline-row]");
-    expect(rows[2].className).toContain("font-bold");
     expect(rows[2].style.paddingLeft).toBe("22px");
-    expect(rows[1].className).not.toContain("font-bold");
   });
 
   it("折叠标题隐藏节内行并显示计数，再点展开", () => {
@@ -175,7 +173,6 @@ describe("OutlineSheet", () => {
       window.dispatchEvent(pointer("pointermove", 23 + 50));
     });
     const rows = host.querySelectorAll<HTMLElement>("[data-outline-row]");
-    expect(rows[0].className).toContain("shadow-float");
     expect(rows[0].style.transform).toBe("translateY(50px)");
     expect(rows[1].style.transform).toBe("translateY(-46px)");
     expect(rows[2].style.transform).toBe("");

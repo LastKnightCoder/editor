@@ -50,6 +50,7 @@ const latency = (samples: number[]) => ({
 });
 
 test("真实生产正文容量矩阵与单篇连续操作", async () => {
+  // 门控：45 分钟容量验证，默认跳过；TAU_CONTENT_G4=capacity 启用，QUICK/SMOKE 可缩短（docs/guides/dev-content-verification.md §3）。
   test.skip(phase !== "capacity", "按需运行正文容量");
   test.setTimeout(45 * 60_000);
   const directory = await createSandbox("tau-g4-capacity-");
@@ -208,6 +209,7 @@ test("真实生产正文容量矩阵与单篇连续操作", async () => {
 });
 
 test("真实生产正文预热五分钟后连续六十分钟混合长稳", async () => {
+  // 门控：60 分钟墙钟长稳，默认跳过；TAU_CONTENT_G4=soak 启用，SMOKE 可缩短（docs/guides/dev-content-verification.md §3）。
   test.skip(phase !== "soak", "按需运行实际墙钟长稳");
   test.setTimeout(80 * 60_000);
   const directory = await createSandbox("tau-g4-soak-");

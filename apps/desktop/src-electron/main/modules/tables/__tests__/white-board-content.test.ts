@@ -5,14 +5,8 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import { WHITEBOARD_DOCUMENT_VERSION as CORE_DOCUMENT_VERSION } from "@tau/whiteboard";
 import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import WhiteBoardContentTable, {
   WHITEBOARD_DOCUMENT_VERSION as MAIN_DOCUMENT_VERSION,

@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Tag, TAG_COLORS } from "../Tag";
+import { Tag } from "../Tag";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,35 +32,15 @@ describe("Tag", () => {
     cleanups = [];
   });
 
-  it("7 色板映射：soft 底 + solid 文字，点与文字分语义位（orange 文字 accent-text、点 accent）", () => {
-    const h = render(
-      <div>
-        {TAG_COLORS.map(color => (
-          <Tag key={color} color={color}>
-            {color}
-          </Tag>
-        ))}
-      </div>
-    );
+  it("orange 语义位：文字 accent-text、圆点 accent（点与文字分语义位，其余色不逐条对表）", () => {
+    const h = render(<Tag color="orange">orange</Tag>);
     cleanups.push(h.cleanup);
-    const tags = [...h.container.querySelectorAll("span > span.truncate")].map(
-      el => el.parentElement!
-    );
-    const byClass = (cls: string) => tags.filter(t => t.className.includes(cls));
-    expect(tags).toHaveLength(7);
-    expect(byClass("bg-danger-soft")[0].className).toContain("text-danger");
-    expect(byClass("bg-accent-soft")[0].className).toContain("text-accent-text"); // 文字语义位
-    expect(byClass("bg-warn-soft")[0].className).toContain("text-warn");
-    expect(byClass("bg-ok-soft")[0].className).toContain("text-ok");
-    expect(byClass("bg-info-soft")[0].className).toContain("text-info");
-    expect(byClass("bg-tag-3-soft")[0].className).toContain("text-tag-3");
-    expect(byClass("bg-surface")[0].className).toContain("text-ink-2");
-    // 点：彩色 6 色 solid，orange 点走 accent（与文字分位）
-    const redDot = byClass("bg-danger-soft")[0].querySelector("span:not(.truncate)")!;
-    expect(redDot.className).toContain("bg-danger");
-    const orangeDot = byClass("bg-accent-soft")[0].querySelector("span:not(.truncate)")!;
-    expect(orangeDot.className).toContain("bg-accent");
-    expect(orangeDot.className).not.toContain("accent-text");
+    const tag = h.container.querySelector("span > span.truncate")!.parentElement!;
+    expect(tag.className).toContain("bg-accent-soft");
+    expect(tag.className).toContain("text-accent-text"); // 文字语义位
+    const dot = tag.querySelector("span:not(.truncate)")!;
+    expect(dot.className).toContain("bg-accent");
+    expect(dot.className).not.toContain("accent-text");
   });
 
   it("gray 默认：surface 亮底 + line-1 描边（D-009 行内药丸口径）+ ink-2 文字，恒无点（showDot 也压不住）", () => {

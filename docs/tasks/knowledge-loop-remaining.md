@@ -22,4 +22,4 @@
 
 ## 评估工具
 
-知识地图质量用 `apps/desktop/src-electron/main/modules/tables/__tests__/knowledge-map.eval.test.ts`（真实库副本，用法见文件头），指标含主题纯度、撞名、越界、地图尺寸。
+知识地图质量用 `apps/desktop/src-electron/eval/knowledge-map.eval.test.ts`（真实库副本，用法见文件头），指标含主题纯度、撞名、越界、地图尺寸。

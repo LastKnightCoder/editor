@@ -299,7 +299,7 @@ describe("个人理解的准入与自动维护", () => {
     ).toEqual([]);
   });
 
-  it("编辑行为不能升格为爱好，近期状态须跨日且采用客观措辞", () => {
+  it("编辑行为不能升格为爱好，近期状态须跨日或深度编辑，归纳保留原文", () => {
     const f = fixture();
     try {
       const first = f.add("编辑了 Rust 资料", {
@@ -308,20 +308,31 @@ describe("个人理解的准入与自动维护", () => {
         at: START - DAY,
       });
       const second = f.add("再次编辑 Rust 资料", { source: "activity", kind: "event" });
-      const proposed = (layer: string) => ({
+      const deep = f.add("深度编辑 Rust 资料", {
+        source: "activity",
+        kind: "event",
+        topic: "Rust",
+      });
+      const proposed = (layer: string, episodeIds = [first.id, second.id]) => ({
         layer,
         kind: layer === "profile" ? "interest" : "event",
         topic: "Rust",
-        text: "用户喜欢 Rust 并已掌握所有权",
+        text: "近期多次接触 Rust 资料",
         confidence: "supported",
-        episodeIds: [first.id, second.id],
+        episodeIds,
       });
       expect(
         parseReflection(output([proposed("profile")]), [first, second], [], f.now).models
       ).toEqual([]);
       expect(parseReflection(output([proposed("state")]), [second], [], f.now).models).toEqual([]);
+      // 多天持续（或含深度编辑）的归纳保留 LLM 文案，措辞约束由系统提示词承担
       const reflection = parseReflection(output([proposed("state")]), [first, second], [], f.now);
-      expect(reflection.models[0]?.text).toBe("近期多次整理「Rust」相关资料。");
+      expect(reflection.models[0]?.text).toBe("近期多次接触 Rust 资料");
+      expect(
+        parseReflection(output([proposed("state", [deep.id])]), [deep], [], f.now).models[0]?.text
+      ).toBe("近期多次接触 Rust 资料");
+      // brief 只在归纳追上新经历后注入近期状态
+      f.store.setMeta("reflected-at", String(f.now));
       f.store.applyModels(
         reflection.models,
         new Map([

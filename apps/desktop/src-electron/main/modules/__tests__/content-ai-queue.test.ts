@@ -3,14 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import mainSchema from "@tau/db-schema/schema/main.sql?raw";
 import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 // 队列类经依赖注入测试，模块接线用到的单例只需能被导入
 vi.mock("../database", () => ({ default: {} }));
 vi.mock("../pi-ai-runtime", () => ({ default: {} }));
@@ -119,8 +113,24 @@ describe("content-ai-queue", () => {
     expect(complete.mock.calls[0][0]).toMatchObject({
       providerId: "p",
       modelId: "m",
-      thinking: "off",
       source: { feature: "contentMetadata" },
+    });
+    // 槽未配置思考档位时不强制 thinking，交给 runtime 按模型能力取默认；配置后透传档位
+    expect(complete.mock.calls[0][0].thinking).toBeUndefined();
+
+    addCard(mainDb, LONG, 2);
+    queue.applySetting({
+      llmProviders: [{ id: "p", models: [{ id: "m" }, { id: "n" }] }],
+      llmUsageSettings: {
+        contentMetadata: { providerId: "p", modelId: "n", thinkingLevel: "high" },
+      },
+    } as never);
+    await queue.idle();
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(complete.mock.calls[1][0]).toMatchObject({
+      providerId: "p",
+      modelId: "n",
+      thinking: "high",
     });
   });
 

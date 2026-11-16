@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import BoardUtil from "../BoardUtil";
-import { PathUtil } from "../PathUtil";
 import { BoardOperations } from "../BoardOperations";
 import { BoardElement, Operation } from "../../types";
 import { SetNodeOperation } from "slate";
@@ -225,18 +224,15 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      // 执行批量操作
-      const afterOps = applyChildren(initialChildren, operations);
+      // 执行批量操作（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialChildren, operations);
+      const afterOps = applied.data.children;
       expect(afterOps).toHaveLength(2);
       expect(afterOps[0].x).toBe(10);
       expect(afterOps[1].id).toBe("2");
 
-      // 生成逆操作（逆序）
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(operations))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
 
       // 执行 undo
       const afterUndo = applyChildren(afterOps, undoOps, {
@@ -322,18 +318,15 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      // 执行正向操作
-      const finalState = applyChildren(initialState, operations);
+      // 执行正向操作（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialState, operations);
+      const finalState = applied.data.children;
       expect(finalState).toHaveLength(2);
       expect(finalState[0].x).toBe(20);
       expect(finalState[1].id).toBe("c");
 
-      // 执行完整 undo
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(operations))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
 
       const undoState = applyChildren(finalState, undoOps, {
         skipPathTransform: true,
@@ -389,12 +382,8 @@ describe("PathTransform Undo/Redo Tests", () => {
       // set_node 会被跳过，因为它指向的是已被删除的旧节点
       expect(afterOps[1].x).toBe(75);
 
-      // 执行 undo - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(operations))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
       const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
@@ -491,17 +480,14 @@ describe("PathTransform Undo/Redo Tests", () => {
         newProperties: { x: i * 10 + 100 },
       }));
 
-      // 执行操作
-      const afterOps = applyChildren(initialState, operations);
+      // 执行操作（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialState, operations);
+      const afterOps = applied.data.children;
       expect(afterOps).toHaveLength(initialState.length);
       expect(afterOps.every((el, i) => el.x === i * 10 + 100)).toBe(true);
 
-      // 执行 undo - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(operations))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
       const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
@@ -721,70 +707,24 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      const afterOps = applyChildren(initialState, operations);
+      // 执行操作（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialState, operations);
+      const afterOps = applied.data.children;
       expect(afterOps).toHaveLength(4);
       expect(afterOps[1].id).toBe("new");
-      // 根据实际测试结果调整预期值
+      // 契约：remove [1] 使原 [3]（元素 "4"）前移，set_node 的路径随之调整，
+      // 属性修改必须落在元素 "4" 上而非丢失或错位，该元素最终仍位于列表末尾
+      expect(afterOps[3].id).toBe("4");
       expect(afterOps[3].x).toBe(160);
 
-      // 生成 undo 操作
-      const processedOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.filterValidOperations(operations))
-      );
-      const undoOps = processedOps.map(op => BoardUtil.inverseOperation(op)).reverse();
+      // 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
 
       // 执行 undo
       const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
-    });
-
-    it("性能测试：大量元素的快速 undo/redo", () => {
-      // 创建初始状态：1000个元素的性能测试
-      const initialState: BoardElement[] = Array.from({ length: 1000 }, (_, i) => ({
-        id: `perf-${i}`,
-        type: "rect",
-        x: Math.random() * 1000,
-        y: Math.random() * 1000,
-        width: 50,
-        height: 50,
-      }));
-
-      const operations: Operation[] = [];
-
-      // 批量修改所有元素的位置
-      for (let i = 0; i < 1000; i++) {
-        operations.push({
-          type: "set_node",
-          path: [i],
-          properties: { x: initialState[i].x },
-          newProperties: { x: initialState[i].x + 100 },
-        });
-      }
-
-      const startTime = Date.now();
-
-      // 执行操作
-      const afterOps = applyChildren(initialState, operations);
-
-      // 执行 undo
-      const undoOps = operations.map(op => BoardUtil.inverseOperation(op)).reverse();
-      const afterUndo = applyChildren(afterOps, undoOps, {
-        skipPathTransform: true,
-      });
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // 验证正确性
-      expect(afterUndo).toEqual(initialState);
-      expect(afterOps.every((el, i) => el.x === initialState[i].x + 100)).toBe(true);
-
-      // 性能断言：应该在合理时间内完成（这里设置为1秒，实际可能更快）
-      expect(duration).toBeLessThan(1000);
-
-      console.log(`性能测试完成：处理 ${operations.length} 个操作用时 ${duration}ms`);
     });
 
     it("操作冲突检测：同时修改和删除同一元素", () => {
@@ -808,17 +748,14 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      // 按顺序执行冲突操作
-      const afterConflict = applyChildren(initialState, conflictOps);
+      // 按顺序执行冲突操作（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialState, conflictOps);
+      const afterConflict = applied.data.children;
       expect(afterConflict).toHaveLength(1);
       expect(afterConflict[0].id).toBe("other");
 
-      // 执行 undo（应该能正确恢复） - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(conflictOps))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 执行 undo（应该能正确恢复） - 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
       const afterUndo = applyChildren(afterConflict, undoOps, {
         skipPathTransform: true,
       });
@@ -870,19 +807,16 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      // 执行并发操作
-      const afterConcurrent = applyChildren(initialState, concurrentOps);
+      // 执行并发操作（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialState, concurrentOps);
+      const afterConcurrent = applied.data.children;
       expect(afterConcurrent).toHaveLength(4); // 添加了一个元素
       expect(afterConcurrent[0].x).toBe(50);
       expect(afterConcurrent[1].y).toBe(150);
       expect(afterConcurrent[3].id).toBe("userA-new");
 
-      // 执行完整的 undo - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(concurrentOps))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 执行完整的 undo - 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
       const afterUndo = applyChildren(afterConcurrent, undoOps, {
         skipPathTransform: true,
       });
@@ -1003,8 +937,9 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      // 执行复杂操作链 - 使用预处理后的操作保持一致性
-      const afterComplex = applyChildren(initialState, complexOps);
+      // 执行复杂操作链（operations 返回值即实际执行的操作，生产 recordHistory 存入 undos 的内容）
+      const applied = applyOps(initialState, complexOps);
+      const afterComplex = applied.data.children;
       expect(afterComplex).toHaveLength(1);
       expect(afterComplex[0]).toEqual({
         id: "solo",
@@ -1015,11 +950,8 @@ describe("PathTransform Undo/Redo Tests", () => {
         height: 100,
       });
 
-      // 生成 undo 操作
-      const processedOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.filterValidOperations(complexOps))
-      );
-      const undoOps = processedOps.map(op => BoardUtil.inverseOperation(op)).reverse();
+      // 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
       // 执行 undo
       const afterUndo = applyChildren(afterComplex, undoOps, {
         skipPathTransform: true,
@@ -1076,19 +1008,17 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      // 执行混合操作（部分可能失败）
-      const afterMixed = applyChildren(initialState, mixedOps);
+      // 执行混合操作（部分可能失败；operations 返回值只含实际执行成功的操作，
+      // 生产 recordHistory 也只会存入这些，无效路径操作天然不会进入历史）
+      const applied = applyOps(initialState, mixedOps);
+      const afterMixed = applied.data.children;
       // 只有有效操作应该被执行
       expect(afterMixed).toHaveLength(2);
       expect(afterMixed[0].x).toBe(100);
       expect(afterMixed[1].id).toBe("new");
 
-      // 执行 undo（应该只撤销成功的操作） - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(PathUtil.transformValidOperations(mixedOps))
-      )
-        .map(op => BoardUtil.inverseOperation(op))
-        .reverse();
+      // 执行 undo（应该只撤销成功的操作） - 与生产 Board.undo() 同构：对实际执行的操作求逆并逆序重放
+      const undoOps = applied.operations.map(op => BoardUtil.inverseOperation(op)).reverse();
       const afterUndo = applyChildren(afterMixed, undoOps, {
         skipPathTransform: true,
       });

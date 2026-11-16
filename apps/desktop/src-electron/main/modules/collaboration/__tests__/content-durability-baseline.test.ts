@@ -25,20 +25,14 @@ const host = vi.hoisted(() => ({
   directory: "",
   databases: new Map<string, Database.Database>(),
 }));
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
+vi.mock("electron");
 vi.mock("../../database", () => ({
   default: { ...host, getDatabase: (name: string) => host.databases.get(name) },
 }));
 vi.mock("../../../utils/PathUtil", () => ({
   default: { getAppDir: () => host.directory },
 }));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {

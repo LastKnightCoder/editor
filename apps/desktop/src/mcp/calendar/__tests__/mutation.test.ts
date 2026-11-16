@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import { shouldRefreshCalendarResult } from "../mutation";
 import type { CalendarMutationEvent } from "@/types";
 
-const buildEvent = (
-  overrides: Partial<CalendarMutationEvent> = {},
-): CalendarMutationEvent => ({
+const buildEvent = (overrides: Partial<CalendarMutationEvent> = {}): CalendarMutationEvent => ({
   source: "calendar-mcp",
   entityType: "calendar-event",
   entityId: 1,
@@ -26,7 +24,7 @@ describe("calendar mutation refresh rules", () => {
         payloadKind: "calendar-detail",
         payloadEntityType: "calendar",
         payloadId: 10,
-      }),
+      })
     ).toBe(true);
   });
 
@@ -46,7 +44,19 @@ describe("calendar mutation refresh rules", () => {
         payloadKind: "calendar-group-detail",
         payloadEntityType: "calendar-group",
         payloadId: 100,
-      }),
+      })
     ).toBe(true);
+  });
+
+  it("事件未跨到目标日历时不刷新该日历详情", () => {
+    expect(
+      shouldRefreshCalendarResult({
+        event: buildEvent({ previousCalendarId: 20 }),
+        toolName: "get_calendar_detail",
+        payloadKind: "calendar-detail",
+        payloadEntityType: "calendar",
+        payloadId: 30,
+      })
+    ).toBe(false);
   });
 });

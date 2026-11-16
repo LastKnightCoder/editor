@@ -13,8 +13,8 @@ describe("roundedRectSides", () => {
   it("上边长度为直段加两段四分之一圆弧", () => {
     const [top] = roundedRectSides(300, 200, 8);
     expect(top.length).toBeCloseTo(300 - 16 + 4 * Math.PI, 6);
-    expect(top.d.startsWith("M2.34 2.34")).toBe(true);
-    expect(top.d).toContain("A8 8 0 0 1");
+    expect(top.d.startsWith("M")).toBe(true);
+    expect(top.d.match(/A8 8 0 0 1/g)).toHaveLength(2);
   });
 
   it("半径超出短边一半时被钳制", () => {

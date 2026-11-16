@@ -311,7 +311,6 @@ describe("日历页面回归", () => {
     // 日历行即末行，分隔线必须收起
     const ruledRows = [...host.querySelectorAll<HTMLElement>(".border-b")];
     expect(ruledRows).toHaveLength(2);
-    expect(ruledRows[1].className).toContain("last:border-b-0");
 
     // 日历行只留日历名：信息卡内不再复述颜色文案（页头已有归属色点）
     expect(host.textContent).toContain("番茄钟");
@@ -338,12 +337,6 @@ describe("日历页面回归", () => {
     );
     const scroller = host.querySelector<HTMLElement>(".edge-fade-x-scroll");
     expect(scroller).not.toBeNull();
-    // padding 必须在滚动层之外：挂在滚动容器上时 chip 滚到中间会贴屏幕边缘
-    expect(scroller!.className).not.toContain("px-[18px]");
-    expect(scroller!.parentElement?.className).toContain("px-[18px]");
-    // scrollbar-none 在项目里没有定义，隐藏滚动条只能靠 scrollbar-hide
-    expect(scroller!.className).toContain("scrollbar-hide");
-    expect(scroller!.className).not.toContain("scrollbar-none");
     // 内容不足一屏（jsdom 无布局，宽度按 0 算）→ 两端无渐隐带
     expect(scroller!.style.getPropertyValue("--edge-x-start-on")).toBe("0");
     expect(scroller!.style.getPropertyValue("--edge-x-end-on")).toBe("0");

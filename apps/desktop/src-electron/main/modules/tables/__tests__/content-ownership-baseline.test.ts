@@ -11,14 +11,8 @@ import ProjectTable from "../project";
 import DataTableTable from "../data-table";
 import PluginDataTable from "../plugin-data";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 const scope = { databaseName: ":memory:", pluginId: "baseline.ownership" };
 const text = "多种拥有者共同持有🙂";

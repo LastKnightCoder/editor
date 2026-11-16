@@ -27,9 +27,7 @@ vi.mock("electron", () => ({
   app: { getPath: () => "/tmp" },
 }));
 vi.mock("electron-log", () => ({ default: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 vi.mock("../database", () => ({
   default: {
     onDatabaseConnected: (callback: (dbName: string, reason: string) => void) =>

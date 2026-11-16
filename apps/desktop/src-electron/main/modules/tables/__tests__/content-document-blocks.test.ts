@@ -9,14 +9,8 @@ import { ContentDocumentBlocks, type ContentBlockWrite } from "../content-docume
 import { ContentIdentityTable } from "../content-identity";
 import type { ContentNode } from "@tau/collaboration";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 const databases: Database.Database[] = [];
 afterEach(() => {

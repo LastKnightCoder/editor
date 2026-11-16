@@ -127,7 +127,7 @@ const page = () => container.querySelector('[data-page-active=""]') ?? container
 async function settle() {
   await act(async () => {
     await vi.dynamicImportSettled();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve));
   });
 }
 async function click(text: string, scope: ParentNode = page()) {

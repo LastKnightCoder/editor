@@ -10,9 +10,7 @@ vi.mock("electron", () => ({
   app: { getPath: () => "/tmp" },
 }));
 vi.mock("electron-log", () => ({ default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 
 import type { PiSingleShotRequest } from "@/types/pi-llm";
 import { projectTree, projectsDue, reviewProject, FINAL_RECENT_MS } from "../project-review";

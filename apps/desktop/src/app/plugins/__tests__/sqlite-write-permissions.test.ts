@@ -24,14 +24,8 @@ const bridge = vi.hoisted(() => {
   return transport;
 });
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../../../src-electron/main/modules/video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../../../src-electron/main/modules/video-note-index-queue");
 vi.mock("../../../../src-electron/main/services/content-execution", () => ({
   contentExecutor: {
     execute: async (request: ContentExecutionRequest) => {

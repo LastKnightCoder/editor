@@ -3,14 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
 // 内容表间接加载到 electron 与视频笔记队列
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../content";
 import DataTableTable from "../data-table";
@@ -35,7 +29,8 @@ describe("数据表正文引用差集同步（D-136）", () => {
       .ref_count;
   const pendingAt = (id: number) =>
     db.prepare("SELECT released_at FROM content_pending_releases WHERE content_id = ?").get(id) as
-      { released_at: number } | undefined;
+      | { released_at: number }
+      | undefined;
   const contentExists = (id: number) =>
     Boolean(db.prepare("SELECT 1 FROM contents WHERE id = ?").get(id));
   /** 待回收正文基线：ref 0 + 已登记，进入数据表即由差集 retain 救回 */

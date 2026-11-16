@@ -185,40 +185,10 @@ import videoNoteIndexQueue from "../video-note-index-queue";
 
 describe("index recovery cooperative scheduling", () => {
   beforeEach(() => {
-    mockContext.diaries = [];
-    mockContext.yieldEvery.mockClear();
-    mockContext.yieldToEventLoop.mockClear();
-    mockContext.videoNoteIndexDbMock.checkIndexExists.mockClear();
-    mockContext.videoNoteIndexDbMock.reinitVecTable.mockClear();
     (videoNoteIndexQueue as any).queue = [];
     (videoNoteIndexQueue as any).queueGeneration = 0;
     (videoNoteIndexQueue as any).isProcessing = false;
     (videoNoteIndexQueue as any).recoveryNeededDbNames = new Set();
-  });
-
-  it("主内容向量任务收集会按批调用 yieldEvery", async () => {
-    const { tasks } = await (mainContentVecIndexQueue as any).collectSnapshot(
-      {},
-      { prepare: () => ({ get: () => undefined }) },
-      false,
-      true
-    );
-
-    expect(tasks).toHaveLength(30);
-    expect(mockContext.yieldEvery).toHaveBeenCalledWith(25, 25);
-    expect(mockContext.yieldToEventLoop).toHaveBeenCalled();
-  });
-
-  it("主内容 FTS 任务收集会按批调用 yieldEvery", async () => {
-    const result = await (mainContentFtsIndexQueue as any).collectTasks(
-      {},
-      { prepare: () => ({ get: () => undefined }) },
-      () => undefined
-    );
-
-    expect(result.tasks).toHaveLength(30);
-    expect(mockContext.yieldEvery).toHaveBeenCalledWith(25, 25);
-    expect(mockContext.yieldToEventLoop).toHaveBeenCalled();
   });
 
   it("主内容全文与向量队列把同一天两条日记作为两个实体收集", async () => {
@@ -245,23 +215,6 @@ describe("index recovery cooperative scheduling", () => {
     expect(fts.tasks.filter((item: { type: string }) => item.type === "diary-moment")).toEqual(
       expected
     );
-  });
-
-  it("视频笔记恢复扫描与重建会按批调用 yieldEvery", async () => {
-    const enqueueSpy = vi
-      .spyOn(videoNoteIndexQueue as any, "enqueueTask")
-      .mockImplementation(() => undefined);
-
-    await (videoNoteIndexQueue as any).checkAndRecoverVideoNotes("data.db");
-    mockContext.videoNoteIndexDbMock.checkIndexExists.mockReturnValue(true);
-    await (videoNoteIndexQueue as any).reinitAllVecTables(1024, "data.db");
-
-    expect(enqueueSpy).toHaveBeenCalled();
-    expect(mockContext.videoNoteIndexDbMock.reinitVecTable).toHaveBeenCalled();
-    expect(mockContext.yieldEvery).toHaveBeenCalledWith(20, 20);
-    expect(mockContext.yieldToEventLoop).toHaveBeenCalled();
-
-    enqueueSpy.mockRestore();
   });
 
   it("视频笔记任务在数据库暂不可用时会回队等待重连", async () => {

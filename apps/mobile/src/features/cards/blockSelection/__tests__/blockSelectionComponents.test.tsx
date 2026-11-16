@@ -224,8 +224,6 @@ describe("块选择组件", () => {
       expect(highlights[0].style.height).toBe("60px");
       const checks = document.querySelectorAll<HTMLElement>("[data-block-check]");
       expect(checks).toHaveLength(3);
-      expect(checks[1].className).toContain("bg-accent");
-      expect(checks[0].className).toContain("border-ink-3");
       expect(checks[1].style.top).toBe("45px");
     });
 

@@ -8,7 +8,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Transforms, type Descendant, type Editor as SlateEditor } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { DndProvider } from "react-dnd";
@@ -114,12 +114,17 @@ describe("源码预览迁包后的行为", () => {
       </div>
     );
   }
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
   afterEach(async () => {
     await act(async () => root?.unmount());
     host?.remove();
     outerInput.mockClear();
     outerKey.mockClear();
     outerPaste.mockClear();
+    vi.useRealTimers();
   });
   const mount = async (source: string, touch = false, inPlace = false) => {
     host = document.createElement("div");
@@ -170,7 +175,7 @@ describe("源码预览迁包后的行为", () => {
         source
       );
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      if (wait) await new Promise(resolve => setTimeout(resolve, 550));
+      if (wait) vi.advanceTimersByTime(550);
     });
   };
   const press = async (key: "ArrowUp" | "ArrowDown" | "Backspace") => {
@@ -183,7 +188,7 @@ describe("源码预览迁包后的行为", () => {
       editor.commands?.execute("tau.preview.edit", undefined, editor.children[1] as never, [1]);
     });
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 350));
+      vi.advanceTimersByTime(350);
     });
   };
   it("原位模式在触摸策略下保留实时预览并立即回写", async () => {
@@ -205,7 +210,9 @@ describe("源码预览迁包后的行为", () => {
       ReactEditor.toDOMNode(editor as ReactEditor, editor).dispatchEvent(
         new FocusEvent("focus", { bubbles: true })
       );
-      await new Promise(resolve => setTimeout(resolve, 30));
+      // slate 的 DOMEditor.focus 在 pending operations 下按 10ms 重试，且 selected 态
+      // 依赖 React 渲染 flush，异步推进让出微任务才能让两者在虚拟时间内完成
+      await vi.advanceTimersByTimeAsync(30);
     });
     await act(async () => {
       document.dispatchEvent(
@@ -233,7 +240,7 @@ describe("源码预览迁包后的行为", () => {
       expect(focusNextBlock(editor, [0], { reason: "arrow", direction: "forward" })).toBe(true);
     });
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 350));
+      vi.advanceTimersByTime(350);
     });
     expect(document.activeElement).toBe(textarea());
     expect(textarea()?.selectionStart).toBe(0);
@@ -246,7 +253,7 @@ describe("源码预览迁包后的行为", () => {
       );
     });
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 350));
+      vi.advanceTimersByTime(350);
     });
     expect(textarea()?.selectionStart).toBe(1);
     await press("ArrowDown");
@@ -303,7 +310,7 @@ describe("源码预览迁包后的行为", () => {
       Transforms.setNodes(editor, { source: "外部版本" } as never, { at: [1] });
     });
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 550));
+      vi.advanceTimersByTime(550);
     });
     expect(editor.children[1]).toMatchObject({ source: "外部版本" });
     expect(textarea()?.value).toBe("外部版本");

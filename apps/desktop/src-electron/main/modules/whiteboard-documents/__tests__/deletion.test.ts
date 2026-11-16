@@ -44,9 +44,7 @@ vi.mock("../../database", () => ({
   },
 }));
 vi.mock("../../../utils/PathUtil", () => ({ default: { getAppDir: () => host.dir } }));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 vi.mock("../local-state", () => ({
   openWhiteboardState: () => ({ store: host.cache!, assets: {} }),
 }));

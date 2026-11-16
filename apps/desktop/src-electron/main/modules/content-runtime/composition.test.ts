@@ -35,9 +35,7 @@ vi.mock("../database", () => ({
     onDatabaseConnected: () => host.stopReconnect,
   },
 }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 
 it("本机正文注册部分 IPC 失败时撤销本轮注册并允许重试", () => {
   host.directory = mkdtempSync(join(tmpdir(), "tau-content-composition-"));

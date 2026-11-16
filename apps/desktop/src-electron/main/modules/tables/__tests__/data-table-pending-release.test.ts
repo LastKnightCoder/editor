@@ -3,14 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
 // 内容表间接加载到 electron 与视频笔记队列
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../content";
 import DataTableTable from "../data-table";
@@ -35,14 +29,17 @@ describe("data_table_pending_releases 物理回收（D-136 追记）", () => {
   const tableRefCount = (id: number) =>
     (
       db.prepare("SELECT ref_count FROM data_tables WHERE id = ?").get(id) as
-        { ref_count: number } | undefined
+        | { ref_count: number }
+        | undefined
     )?.ref_count;
   const tablePendingAt = (id: number) =>
     db.prepare("SELECT released_at FROM data_table_pending_releases WHERE table_id = ?").get(id) as
-      { released_at: number } | undefined;
+      | { released_at: number }
+      | undefined;
   const contentPendingAt = (id: number) =>
     db.prepare("SELECT released_at FROM content_pending_releases WHERE content_id = ?").get(id) as
-      { released_at: number } | undefined;
+      | { released_at: number }
+      | undefined;
   const contentExists = (id: number) =>
     Boolean(db.prepare("SELECT 1 FROM contents WHERE id = ?").get(id));
   const tableExists = (id: number) =>
