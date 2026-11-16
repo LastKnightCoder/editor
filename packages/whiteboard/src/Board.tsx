@@ -357,7 +357,7 @@ class Board {
     this.eventEmitter.off(event, listener);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     for (const listener of this.eventEmitter.listeners(event)) {
       try {
         const result: unknown = listener(...args);

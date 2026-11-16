@@ -598,7 +598,7 @@ export class BoardOperations {
   }
 
   static isNormalizedOperation(operation: Operation): boolean {
-    return Boolean((operation as any)[NORMALIZED_OPERATION]);
+    return Boolean((operation as Operation & Record<symbol, unknown>)[NORMALIZED_OPERATION]);
   }
 
   private static cloneOperation(operation: Operation, preserveNormalization = false): Operation {
@@ -762,7 +762,9 @@ export class BoardOperations {
     newPathRef: OperationPathRef | null;
   } {
     const shouldTrackPath = BoardOperations.operationHasPath(operation);
-    const pathRef = shouldTrackPath ? manager.track((operation as any).path, operation.type) : null;
+    const pathRef = shouldTrackPath
+      ? manager.track((operation as Extract<Operation, { path: Path }>).path, operation.type)
+      : null;
     const newPathRef =
       operation.type === "move_node"
         ? manager.track(

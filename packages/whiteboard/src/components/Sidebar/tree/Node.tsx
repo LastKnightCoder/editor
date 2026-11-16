@@ -146,14 +146,14 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
               properties: {
                 width: dragEl.width,
                 height: dragEl.height,
-                resizable: (dragEl as any).resizable,
-                autoHeight: (dragEl as any).autoHeight,
+                resizable: dragEl.resizable,
+                autoHeight: dragEl.autoHeight,
               },
               newProperties: {
                 width: preparedElement.width,
                 height: preparedElement.height,
-                resizable: (preparedElement as any).resizable,
-                autoHeight: (preparedElement as any).autoHeight,
+                resizable: preparedElement.resizable,
+                autoHeight: preparedElement.autoHeight,
               },
             });
             // 更新 dragEl 引用以便后续使用

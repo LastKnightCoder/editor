@@ -149,9 +149,9 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           try {
             await this.media.download?.(videoElement.src);
             toast.success("视频下载成功");
-          } catch (error: any) {
+          } catch (error) {
             // 用户取消下载不显示错误
-            if (error?.message !== "用户取消了下载") {
+            if ((error as { message?: string })?.message !== "用户取消了下载") {
               console.error("下载视频失败:", error);
               toast.error("下载视频失败");
             }

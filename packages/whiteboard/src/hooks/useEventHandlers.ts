@@ -1,3 +1,4 @@
+import type { SyntheticEvent } from "react";
 import { useMemoizedFn } from "ahooks";
 import Board from "../Board";
 import { Events } from "../types";
@@ -9,10 +10,11 @@ import { ownsBoardEvent, isCanvasOverlayEvent } from "../utils/events";
 const useEventHandlers = (board: Board) => {
   // 生成各种事件处理函数
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
-    return (event: any) => {
+    return (event: SyntheticEvent | Event) => {
       // 画布容器内宿主浮层的事件经 React 冒泡到容器，不分发给画布
       if (isCanvasOverlayEvent(event)) return;
-      board[eventName](event);
+      // 事件名与真实事件类型的对应由挂载点（JSX/native listener）保证
+      (board[eventName] as unknown as (event: SyntheticEvent | Event) => void)(event);
     };
   });
 

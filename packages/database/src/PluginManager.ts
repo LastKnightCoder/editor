@@ -61,12 +61,12 @@ export class PluginManager {
     return Array.from(this.plugins.values());
   }
 
-  transformBeforeSave(type: string, value: CellValue, config: unknown): any {
+  transformBeforeSave(type: string, value: CellValue, config: unknown): CellValue {
     const plugin = this.getPlugin(type);
     return plugin?.beforeSave ? plugin.beforeSave(value, config) : value;
   }
 
-  transformAfterLoad(type: string, value: CellValue, config: unknown): any {
+  transformAfterLoad(type: string, value: CellValue, config: unknown): CellValue {
     const plugin = this.getPlugin(type);
     return plugin?.afterLoad ? plugin.afterLoad(value, config) : value;
   }

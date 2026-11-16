@@ -98,29 +98,29 @@ export interface IBoardPlugin {
   onDragOver?: EventHandler;
   onDragEnter?: EventHandler;
   onDragLeave?: EventHandler;
-  getArrowBindPoint?: (
+  getArrowBindPoint?(
     board: Board,
-    element: BoardElement & any,
+    element: BoardElement,
     connectId: string,
     customOffset?: CustomOffset
-  ) => Point | null;
-  isElementSelected?: (
+  ): Point | null;
+  isElementSelected?(
     board: Board,
-    element: BoardElement & any,
+    element: BoardElement,
     selectArea?: Selection["selectArea"]
-  ) => boolean;
-  moveElement?: (
+  ): boolean;
+  moveElement?(
     board: Board,
-    element: BoardElement & any,
+    element: BoardElement,
     offsetX: number,
     offsetY: number
-  ) => BoardElement | null;
-  isHit?(board: Board, element: BoardElement & any, x: number, y: number): boolean;
-  render?: (
+  ): BoardElement | null;
+  isHit?(board: Board, element: BoardElement, x: number, y: number): boolean;
+  render?(
     board: Board,
-    value: { element: BoardElement & any; children?: React.ReactElement[] }
-  ) => React.ReactElement;
-  getBounds?: (board: Board, element: BoardElement & any) => ElementBounds | null;
+    value: { element: BoardElement; children?: React.ReactNode }
+  ): React.ReactElement;
+  getBounds?(board: Board, element: BoardElement): ElementBounds | null;
   // 获取右键菜单项
   getContextMenu?: (context: ContextMenuContext) => PluginContextMenuItem[];
   // 声明插件能力

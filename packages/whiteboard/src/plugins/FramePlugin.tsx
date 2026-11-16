@@ -273,7 +273,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     const updatedFrame = Object.assign(
       {},
       super.onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb)
-    );
+    ) as FrameElement;
 
     if (Object.keys(updatedFrame).length === 0) return;
 
@@ -380,7 +380,10 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     super.onResizeEnd(board);
   }
 
-  render(_board: Board, { element, children }: { element: FrameElement; children?: any }) {
+  render(
+    _board: Board,
+    { element, children }: { element: FrameElement; children?: React.ReactNode }
+  ) {
     return (
       <g key={element.id}>
         <Frame

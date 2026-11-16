@@ -9,5 +9,5 @@ export interface SelectArea {
 export interface Selection {
   selectArea: SelectArea | null;
   selectedElements: BoardElement[];
-  [key: string]: any;
+  [key: string]: unknown;
 }

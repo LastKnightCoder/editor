@@ -63,9 +63,9 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
             containerRef.current.innerHTML = svg;
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         if (isMounted) {
-          setError(err.message || "Failed to render diagram");
+          setError((err as { message?: string }).message || "Failed to render diagram");
         }
       } finally {
         if (isMounted) {

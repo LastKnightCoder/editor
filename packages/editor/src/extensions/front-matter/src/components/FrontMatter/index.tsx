@@ -38,7 +38,7 @@ const FrontMatter = (props: FrontMatterProps) => {
   // 本地编辑状态，用于处理中文输入
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  const parsedValue: Record<string, any> = useMemo(() => {
+  const parsedValue: Record<string, unknown> = useMemo(() => {
     try {
       const parsed = YAML.parse(value);
       return parsed || {};
@@ -128,10 +128,10 @@ const FrontMatter = (props: FrontMatterProps) => {
   };
 
   // 渲染可编辑或只读的值
-  const renderValue = (key: string, value: any) => {
+  const renderValue = (key: string, value: unknown) => {
     // 特殊处理 tags（数组类型）
     if (key === "tags") {
-      return renderTagsValue(value);
+      return renderTagsValue(value as string | string[]);
     }
 
     // 对象类型只读显示

@@ -1,5 +1,10 @@
 import { escapeHtml } from "@tau/shared/escape-html";
-import { createHighlighter, type Highlighter } from "shiki";
+import {
+  createHighlighter,
+  type BundledLanguage,
+  type Highlighter,
+  type ShikiTransformer,
+} from "shiki";
 import { parseHighlightLinesToSet } from "./highlightLineRanges";
 
 const LIGHT_THEME = "github-light";
@@ -83,8 +88,9 @@ export const renderCodeWithShiki = async (
   const lang = normalizeLanguage(language);
   const theme = getShikiTheme(isDark);
   try {
-    if (!highlighter.getLoadedLanguages().includes(lang as any)) {
-      await highlighter.loadLanguage(lang as any);
+    if (!highlighter.getLoadedLanguages().includes(lang)) {
+      // 语言串来自用户内容，运行时按 BundledLanguage 动态解析，未知语言由外层 catch 兜底
+      await highlighter.loadLanguage(lang as BundledLanguage);
     }
     const options: Parameters<typeof highlighter.codeToHtml>[1] = {
       lang,
@@ -94,14 +100,13 @@ export const renderCodeWithShiki = async (
       const total = code.split("\n").length;
       const highlighted = parseHighlightLinesToSet(highlightLines, total);
       if (highlighted.size > 0) {
-        options.transformers = [
-          {
-            line(node: any, line: number) {
-              const cls = highlighted.has(line) ? "highlighted" : "dishonored";
-              this.addClassToHast(node, cls);
-            },
+        const highlightLinesTransformer: ShikiTransformer = {
+          line(node, line) {
+            const cls = highlighted.has(line) ? "highlighted" : "dishonored";
+            this.addClassToHast(node, cls);
           },
-        ];
+        };
+        options.transformers = [highlightLinesTransformer];
       }
     }
     return highlighter.codeToHtml(code, options);

@@ -31,7 +31,7 @@ const LINE = "var(--tau-line-2)";
 const MIN_VIEW_WIDTH = 900;
 const PADDING_RATIO = 0.08;
 
-type AnyElement = BoardElement & Record<string, any>;
+type AnyElement = BoardElement;
 
 const isColor = (value: unknown): value is string =>
   typeof value === "string" && value !== "" && value !== "none" && value !== "transparent";

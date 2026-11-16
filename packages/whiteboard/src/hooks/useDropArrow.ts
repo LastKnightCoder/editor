@@ -17,7 +17,7 @@ interface DropArrowOptions {
 
 /** 注册元素为箭头连接目标（悬停连接点与拖动落点共用一份候选），并在拖动箭头时判定自己是否为落点 */
 export const useDropArrow = (
-  element: CommonElement & any,
+  element: CommonElement,
   { container = false }: DropArrowOptions = {}
 ) => {
   const { x, y, width, height, id } = element;

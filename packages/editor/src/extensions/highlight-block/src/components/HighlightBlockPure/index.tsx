@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
+
 interface IHighBlockPureProps {
   backgroundColor: string;
   borderColor: string;
-  children: any;
+  children: ReactNode;
 }
 
 const HighBlockPure = (props: IHighBlockPureProps) => {

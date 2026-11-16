@@ -3,7 +3,7 @@ export interface GeometryItemConfig {
   geometryType: string;
   /** 单位方格（0~1，四边贴满）内的轮廓；创建时原样写进元素，改这里不影响已有元素 */
   paths: string[];
-  defaultExtraInfo?: Record<string, any>;
+  defaultExtraInfo?: { cornerRadius?: number } & Record<string, unknown>;
 }
 
 export const geometryItems: GeometryItemConfig[] = [

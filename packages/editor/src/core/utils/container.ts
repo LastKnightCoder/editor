@@ -1,4 +1,5 @@
 import { Editor, NodeEntry, Path, Transforms } from "slate";
+import { CustomElement } from "../types";
 
 export const exitContainerOnEmptyParagraph = (editor: Editor, parentType: string) => {
   const [parentMatch] = Editor.nodes(editor, {
@@ -15,8 +16,9 @@ export const exitContainerOnEmptyParagraph = (editor: Editor, parentType: string
     !parentMatch ||
     !paraMatch ||
     paraMatch[1].length !== parentMatch[1].length + 1 ||
-    paraMatch[1][paraMatch[1].length - 1] !== (parentMatch[0] as any).children.length - 1 ||
-    !Editor.isEmpty(editor, paraMatch[0] as any)
+    paraMatch[1][paraMatch[1].length - 1] !==
+      (parentMatch[0] as CustomElement).children.length - 1 ||
+    !Editor.isEmpty(editor, paraMatch[0] as CustomElement)
   ) {
     return false;
   }

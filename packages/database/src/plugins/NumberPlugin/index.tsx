@@ -1,11 +1,11 @@
 import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
-import { numberFieldModel, numberText } from "./model";
+import { numberFieldModel, numberText, type NumberColumnConfig } from "./model";
 import { parseNumber } from "./utils/numberUtils";
 import { Hash } from "lucide-react";
 
-const NumberPlugin: CellPlugin<any> = {
+const NumberPlugin: CellPlugin<NumberColumnConfig> = {
   type: numberFieldModel.type,
   model: numberFieldModel,
   name: "数字",

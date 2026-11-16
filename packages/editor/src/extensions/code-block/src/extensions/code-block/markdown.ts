@@ -2,7 +2,12 @@ import { v4 as uuid } from "uuid";
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/code-block-language";
-import type { CodeBlockV2Element, CodeStepElement } from "../../types";
+import type {
+  CodeBlockElement,
+  CodeBlockMagicMove,
+  CodeBlockV2Element,
+  CodeStepElement,
+} from "../../types";
 import { normalizeCodeBlockFilename } from "./utils/filename.ts";
 
 const MAGIC_MOVE_META_PREFIX = "smm=";
@@ -31,7 +36,7 @@ const parseDisplayMeta = (meta: unknown): DisplayMeta => {
   };
 };
 
-const createDisplayMeta = (element: any): string[] => {
+const createDisplayMeta = (element: CodeBlockElement): string[] => {
   const filename = normalizeCodeBlockFilename(element.filename);
   return [
     filename ? `title="${filename}"` : "",
@@ -150,7 +155,7 @@ const createHighlightMeta = (highlightLines: string | undefined): string => {
   return `{${normalized}}`;
 };
 
-const createMagicMoveMeta = (magicMove: any): string => {
+const createMagicMoveMeta = (magicMove: CodeBlockMagicMove | undefined): string => {
   if (
     !magicMove ||
     magicMove.v !== 1 ||
@@ -161,13 +166,13 @@ const createMagicMoveMeta = (magicMove: any): string => {
   }
 
   const steps = magicMove.steps
-    .map((step: any, index: number) => ({
+    .map((step, index) => ({
       id: typeof step?.id === "string" && step.id.trim() ? step.id.trim() : `step-${index + 1}`,
       title: typeof step?.title === "string" ? step.title : undefined,
       code: typeof step?.code === "string" ? step.code : "",
       highlightLines: normalizeHighlightLines(step?.highlightLines),
     }))
-    .filter((step: any) => typeof step.code === "string");
+    .filter(step => typeof step.code === "string");
 
   if (steps.length < 1) {
     return "";
@@ -181,7 +186,7 @@ const createMagicMoveMeta = (magicMove: any): string => {
 };
 
 /** 魔法移动时导出当前激活步的代码 */
-const resolveActiveCode = (element: any): { code: string; fence: string } => {
+const resolveActiveCode = (element: CodeBlockElement): { code: string; fence: string } => {
   const language = element.language || "";
   const magicMove = element.magicMove;
   const hasMagicMove =

@@ -519,7 +519,7 @@ function convertPropertyMappings(
 ): ElementMapping["propertyMappings"] {
   if (!propertyMappings) return {};
 
-  const result: any = {};
+  const result: NonNullable<ElementMapping["propertyMappings"]> = {};
 
   for (const [propName, mapping] of Object.entries(propertyMappings)) {
     const propValue =

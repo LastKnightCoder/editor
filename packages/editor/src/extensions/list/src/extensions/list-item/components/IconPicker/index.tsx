@@ -26,7 +26,8 @@ const IconPicker: React.FC<IconPickerProps> = ({
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<"emoji" | "upload">("emoji");
 
-  const handleEmojiSelect = (emojiData: any) => {
+  // @emoji-mart/react 未提供 onSelect 数据类型，按消费字段声明
+  const handleEmojiSelect = (emojiData: { native: string }) => {
     onEmojiSelect(emojiData.native);
   };
 

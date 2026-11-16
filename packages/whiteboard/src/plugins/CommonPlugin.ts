@@ -187,13 +187,13 @@ export abstract class CommonPlugin implements IBoardPlugin {
     return null;
   }
 
-  isHit(_board: Board, element: CommonElement & any, x: number, y: number) {
+  isHit(_board: Board, element: CommonElement, x: number, y: number) {
     const { x: left, y: top, width, height } = element;
 
     return x >= left && x <= left + width && y >= top && y <= top + height;
   }
 
-  moveElement(_board: Board, element: CommonElement & any, dx: number, dy: number) {
+  moveElement(_board: Board, element: CommonElement, dx: number, dy: number): BoardElement | null {
     return {
       ...element,
       x: element.x + dx,
@@ -201,7 +201,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     };
   }
 
-  getBounds(_board: Board, element: CommonElement & any) {
+  getBounds(_board: Board, element: CommonElement) {
     const { x = 0, y = 0, width = 0, height = 0 } = element;
     return {
       minX: x,
@@ -213,7 +213,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
 
   isElementSelected(
     board: Board,
-    element: CommonElement & any,
+    element: CommonElement,
     selectArea: Selection["selectArea"] = board.selection.selectArea
   ) {
     if (!selectArea) return false;
@@ -221,19 +221,19 @@ export abstract class CommonPlugin implements IBoardPlugin {
     return isRectIntersect(element, selectRect);
   }
 
-  protected onResizeStart(element: CommonElement & any) {
+  protected onResizeStart(element: CommonElement) {
     this.originResizeElement = element;
   }
 
   protected onResize(
     board: Board,
-    element: CommonElement & any,
+    element: CommonElement,
     position: EHandlerPosition,
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio = false,
     isAdsorb = false
-  ) {
+  ): void | CommonElement {
     if (!this.originResizeElement) return;
     const newBBox = getResizedBBox(
       this.originResizeElement,
@@ -259,7 +259,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
 
     // 注意：容器类元素（Frame/Column 等）常带有 children。
     // 这里仅通过 set_node patch 更新 bbox 字段，避免把 children 一起写入操作历史。
-    const buildBBoxPatch = (value: any) => {
+    const buildBBoxPatch = (value: { x?: number; y?: number; width?: number; height?: number }) => {
       const patch: Record<string, number> = {};
       if (typeof value?.x === "number") patch.x = value.x;
       if (typeof value?.y === "number") patch.y = value.y;

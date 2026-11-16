@@ -31,7 +31,7 @@ export class PresentationManager {
     this.eventEmitter.off(event, listener);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     this.eventEmitter.emit(event, ...args);
   }
 

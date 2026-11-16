@@ -5,7 +5,7 @@ export default function WhiteboardCard({
   ...props
 }: {
   element: BoardElement;
-  [key: string]: any;
+  [key: string]: unknown;
 }) {
   const Component = useElementContent();
   if (Component) return <Component element={element} {...props} />;

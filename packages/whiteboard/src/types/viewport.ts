@@ -4,5 +4,5 @@ export interface ViewPort {
   width: number;
   height: number;
   zoom: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
