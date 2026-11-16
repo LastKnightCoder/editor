@@ -369,6 +369,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
     const on = menu?.kind === kind || drag?.kind === kind || handleSelection?.kind === kind;
     return (
       <Menu
+        fit
         open={!!range}
         onOpenChange={open => (open ? openMenu(kind) : closeMenu())}
         trigger={
