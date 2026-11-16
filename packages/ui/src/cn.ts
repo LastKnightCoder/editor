@@ -31,7 +31,7 @@ export const SCALE_WORDS = {
   radius: ["tau-sm", "tau-md", "tau-lg"],
   shadow: ["card", "lift", "float", "paper"],
   ease: ["tau-out"],
-  animate: ["hm-pulse"],
+  animate: ["hm-pulse", "aurora-1", "aurora-2", "aurora-3"],
 } as const;
 
 const twMerge = extendTailwindMerge({
