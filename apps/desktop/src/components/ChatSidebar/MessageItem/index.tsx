@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useState, type ElementType } from "react";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared";
 import { ConfirmDialog, toast } from "@tau/ui";
 import { ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
@@ -27,7 +27,7 @@ import { MoreHorizontal } from "lucide-react";
 interface MessageItemProps {
   message: ChatSessionMessage;
   isDark: boolean;
-  markdownComponents: any;
+  markdownComponents: Record<string, ElementType>;
   isVisible: boolean;
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;

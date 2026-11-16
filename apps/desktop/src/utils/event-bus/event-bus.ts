@@ -1,7 +1,7 @@
 import EventEmitter from "eventemitter3";
 
 export interface EventMap {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 class EventBus<T extends EventMap> {
@@ -14,7 +14,7 @@ class EventBus<T extends EventMap> {
   subscribe<K extends keyof T>(
     event: K,
     callback: (data: T[K]) => void,
-    context?: any
+    context?: unknown
   ): () => void {
     this.emitter.on(event as string, callback, context);
 
@@ -26,7 +26,7 @@ class EventBus<T extends EventMap> {
   subscribeOnce<K extends keyof T>(
     event: K,
     callback: (data: T[K]) => void,
-    context?: any
+    context?: unknown
   ): () => void {
     this.emitter.once(event as string, callback, context);
 
@@ -35,7 +35,11 @@ class EventBus<T extends EventMap> {
     };
   }
 
-  unsubscribe<K extends keyof T>(event: K, callback: (data: T[K]) => void, context?: any): void {
+  unsubscribe<K extends keyof T>(
+    event: K,
+    callback: (data: T[K]) => void,
+    context?: unknown
+  ): void {
     this.emitter.off(event as string, callback, context);
   }
 

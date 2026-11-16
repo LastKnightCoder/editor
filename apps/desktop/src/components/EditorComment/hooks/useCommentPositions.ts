@@ -6,7 +6,7 @@ import { type CommentElement } from "@tau/editor/extensions/comment/types";
 import type { CommentPosition } from "../types";
 import { resolveCollisions } from "../utils/collisionDetection";
 
-const isCommentElement = (value: any): value is CommentElement => {
+const isCommentElement = (value: unknown): value is CommentElement => {
   return SlateElement.isElement(value) && value.type === "comment";
 };
 

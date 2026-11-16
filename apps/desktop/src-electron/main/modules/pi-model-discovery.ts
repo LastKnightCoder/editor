@@ -46,12 +46,18 @@ const positiveInt = (...values: unknown[]): number | undefined => {
   return undefined;
 };
 
+/** 服务商 /models 接口的条目：字段名各家不一，已知名点结构，其余按 unknown 读取 */
+type RemoteEntry = Record<string, unknown> & {
+  architecture?: { input_modalities?: unknown } | null;
+  top_provider?: { context_length?: unknown; max_completion_tokens?: unknown } | null;
+};
+
 /**
  * 接口条目 → 发现结果（未命中目录时）。各家字段名不统一，只认几个常见的：
  * OpenRouter 的 context_length/architecture/supported_parameters、LM Studio 的 max_context_length、
  * Anthropic 的 display_name/max_input_tokens。认不出的字段一律留空。
  */
-function fromRemoteEntry(entry: Record<string, any>, id: string): PiDiscoveredModel {
+function fromRemoteEntry(entry: RemoteEntry, id: string): PiDiscoveredModel {
   const name =
     typeof entry.display_name === "string"
       ? entry.display_name
@@ -86,16 +92,18 @@ function fromRemoteEntry(entry: Record<string, any>, id: string): PiDiscoveredMo
 }
 
 /** 兼容三种返回形状：OpenAI `{data:[…]}`、Ollama 原生 `{models:[…]}`、裸数组 */
-function entriesOf(body: unknown): Record<string, any>[] {
+function entriesOf(body: unknown): RemoteEntry[] {
+  const container: Record<string, unknown> =
+    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
   const list = Array.isArray(body)
     ? body
-    : Array.isArray((body as any)?.data)
-      ? (body as any).data
-      : Array.isArray((body as any)?.models)
-        ? (body as any).models
+    : Array.isArray(container.data)
+      ? container.data
+      : Array.isArray(container.models)
+        ? container.models
         : null;
   if (!list) throw new ModelDiscoveryError("服务返回的模型列表格式无法识别");
-  return list.filter((item: unknown) => item && typeof item === "object");
+  return list.filter((item: unknown): item is RemoteEntry => !!item && typeof item === "object");
 }
 
 async function requestPage(
@@ -147,15 +155,17 @@ export async function discoverProviderModels(
   const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
 
   const endpoint = modelsEndpoint(setting);
-  const entries: Record<string, any>[] = [];
+  const entries: RemoteEntry[] = [];
   if (setting.api === "anthropic-messages") {
     let afterId: string | undefined;
     for (let page = 0; page < MAX_PAGES; page += 1) {
       const url = `${endpoint}?limit=1000${afterId ? `&after_id=${encodeURIComponent(afterId)}` : ""}`;
-      const body = (await requestPage(url, setting, signal, fetchImpl)) as Record<string, any>;
+      const body = (await requestPage(url, setting, signal, fetchImpl)) as Record<string, unknown>;
       entries.push(...entriesOf(body));
-      if (!body?.has_more || typeof body.last_id !== "string") break;
-      afterId = body.last_id;
+      const hasMore = body?.has_more;
+      const lastId = body?.last_id;
+      if (!hasMore || typeof lastId !== "string") break;
+      afterId = lastId;
     }
   } else {
     entries.push(...entriesOf(await requestPage(endpoint, setting, signal, fetchImpl)));

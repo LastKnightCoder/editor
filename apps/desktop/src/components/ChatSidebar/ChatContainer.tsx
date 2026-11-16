@@ -7,6 +7,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import type { ElementType } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useDrop } from "react-dnd";
 import { CornerDownRight, GitBranch, Pencil, RotateCw, Trash2, TriangleAlert } from "lucide-react";
@@ -82,7 +83,8 @@ interface ChatContainerProps {
   /** 当前对话（统一会话 store 里已打开的对话；新对话是草稿：真 id、尚无 sessionFile） */
   currentChat: ChatMessage;
   isDark: boolean;
-  markdownComponents: any;
+  /** 标签名 → 组件的映射（含插件注入的条目），最终展开进 ReactMarkdown components */
+  markdownComponents: Record<string, ElementType>;
   isVisible: boolean; // 控制是否应该渲染内容
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;

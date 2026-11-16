@@ -11,6 +11,7 @@ import {
   upgradeEmbeddingSetting,
 } from "../utils/embedding-config";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 设置快照是异构 JSON：各消费方按键取各自的 typed 形状（speech/embedding/plugin…），unknown 化会级联到全部读取点
 type UserSetting = Record<string, any>;
 
 /** 已退役、没有消费者的模型槽：播客生成交给播客插件后删除 */
@@ -60,7 +61,7 @@ type SettingChangedListener = (payload: SettingChangedPayload) => void;
  * 从「完整 JSON + 尾部残留」的文件里取出开头那个完整对象（并发写截断的典型形态：
  * 较短的新内容覆盖较长的旧内容，旧内容尾巴留在后面）。取不到返回 null。
  */
-export const salvageLeadingJsonObject = (raw: string): Record<string, any> | null => {
+export const salvageLeadingJsonObject = (raw: string): Record<string, unknown> | null => {
   let depth = 0;
   let inString = false;
   let escaped = false;

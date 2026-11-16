@@ -15,7 +15,7 @@ function moveElementRecursive(element: BoardElement, dx: number, dy: number): vo
 
   // 移动 points（箭头元素）
   if (element.points && Array.isArray(element.points)) {
-    element.points = element.points.map((point: any) => ({
+    element.points = element.points.map((point: { x: number; y: number }) => ({
       x: point.x + dx,
       y: point.y + dy,
     }));

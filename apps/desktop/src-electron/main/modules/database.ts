@@ -13,7 +13,7 @@ import { createContentAgentCommands } from "./content-runtime/agent/commands";
 import { bindContentWriteConnection } from "./content-events";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
-import { Table } from "../types/table";
+import { Table, SqliteRow } from "../types/table";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import WhiteboardTable from "./tables/whiteboard";
@@ -138,10 +138,12 @@ class DatabaseModule implements Module {
   databases: Map<string, Database.Database>;
   windowToDatabase: Map<number, string>;
   tables: Table[];
-  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 异构事件注册表：any 参数位提供双向变体，具体 handler（含必选参数元组）才能赋入
+  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => unknown>;
   indexEventAndHandlers: Record<
     string,
-    (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同 eventAndHandlers：异构索引事件注册表
+    (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => unknown
   >;
   private currentDatabaseName = "data.db"; // 默认数据库
   /** 普通关库与上传重连保留命令上下文，明确覆盖才使旧任务失效。 */
@@ -409,7 +411,9 @@ class DatabaseModule implements Module {
       );
 
       const vecVersionStartAt = Date.now();
-      const { vec_version } = database.prepare("select vec_version() as vec_version;").get() as any;
+      const { vec_version } = database
+        .prepare("select vec_version() as vec_version;")
+        .get() as SqliteRow;
 
       log.info(
         `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`
@@ -530,11 +534,19 @@ class DatabaseModule implements Module {
         busy,
         log: frames,
         checkpointed,
-      } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
+      } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as {
+        busy: number;
+        log: number;
+        checkpointed: number;
+      };
       if (busy !== 0) throw new Error("存在未释放的数据库锁");
       if (checkpointed < frames) throw new Error("WAL 文件未完全合并");
       if (indexDb) {
-        const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
+        const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as {
+          busy: number;
+          log: number;
+          checkpointed: number;
+        };
         if (indexCheckpoint?.busy !== 0) {
           throw new Error("索引数据库存在未释放的数据库锁");
         }

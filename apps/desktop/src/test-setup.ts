@@ -35,12 +35,17 @@ if (typeof Element !== "undefined" && typeof Element.prototype.scrollIntoView !=
 // 会造成测试日志污染应用日志（曾导致误判）。需要测文件写入的用例自行 mock。
 log.transports.file.level = false;
 
+type MockURLStatics = typeof URL & {
+  createObjectURL: () => string;
+  revokeObjectURL: () => void;
+};
+
 if (typeof URL !== "undefined" && typeof URL.createObjectURL !== "function") {
-  (URL as any).createObjectURL = () => "blob:mock-url";
+  (URL as MockURLStatics).createObjectURL = () => "blob:mock-url";
 }
 
 if (typeof URL !== "undefined" && typeof URL.revokeObjectURL !== "function") {
-  (URL as any).revokeObjectURL = () => {};
+  (URL as MockURLStatics).revokeObjectURL = () => {};
 }
 
 if (typeof globalThis.Worker !== "function") {
@@ -57,9 +62,9 @@ if (typeof globalThis.Worker !== "function") {
     }
   }
 
-  (globalThis as any).Worker = MockWorker;
+  (globalThis as Omit<typeof globalThis, "Worker"> & { Worker: unknown }).Worker = MockWorker;
   if (typeof window !== "undefined") {
-    (window as any).Worker = MockWorker;
+    (window as Omit<Window, "Worker"> & { Worker: unknown }).Worker = MockWorker;
   }
 }
 

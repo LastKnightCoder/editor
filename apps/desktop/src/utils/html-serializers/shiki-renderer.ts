@@ -75,10 +75,11 @@ const ensureLanguageLoaded = async (
   highlighter: Highlighter,
   language: string
 ): Promise<boolean> => {
-  if (highlighter.getLoadedLanguages().includes(language as any)) {
+  if (highlighter.getLoadedLanguages().includes(language)) {
     return true;
   }
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiki 类型只接受 BundledLangKeys 字面量联合，这里按运行时名字动态加载
     await highlighter.loadLanguage(language as any);
     return true;
   } catch {

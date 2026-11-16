@@ -32,12 +32,9 @@ class ResourceModule implements Module {
       return this.selectFile(options);
     });
 
-    ipcMain.handle(
-      "get-file-basename",
-      async (_, filePath: string, noExtension?: boolean) => {
-        return this.getFileBaseName(filePath, noExtension);
-      },
-    );
+    ipcMain.handle("get-file-basename", async (_, filePath: string, noExtension?: boolean) => {
+      return this.getFileBaseName(filePath, noExtension);
+    });
 
     ipcMain.handle("get-file-extension", async (_, filePath: string) => {
       return extname(filePath);
@@ -52,12 +49,9 @@ class ResourceModule implements Module {
     });
 
     // PDF缓存相关方法
-    ipcMain.handle(
-      "write-cache-file",
-      async (_, filePath: string, data: any) => {
-        return this.writeCacheFile(filePath, data);
-      },
-    );
+    ipcMain.handle("write-cache-file", async (_, filePath: string, data: unknown) => {
+      return this.writeCacheFile(filePath, data);
+    });
 
     ipcMain.handle("read-cache-file", async (_, filePath: string) => {
       return this.readCacheFile(filePath);
@@ -71,12 +65,9 @@ class ResourceModule implements Module {
       return this.deleteCacheFile(filePath);
     });
 
-    ipcMain.handle(
-      "compress-image",
-      async (_, buffer: Uint8Array, mimeType: string) => {
-        return this.compressImage(Buffer.from(buffer), mimeType);
-      },
-    );
+    ipcMain.handle("compress-image", async (_, buffer: Uint8Array, mimeType: string) => {
+      return this.compressImage(Buffer.from(buffer), mimeType);
+    });
 
     ipcMain.handle("open-file-with-default-app", async (_, path: string) => {
       return shell.openPath(path);
@@ -99,14 +90,14 @@ class ResourceModule implements Module {
       dialog
         // @ts-ignore
         .showOpenDialog(options)
-        .then((result) => {
+        .then(result => {
           if (result.canceled) {
             reject(new Error("User canceled file selection"));
           } else {
             resolve(result.filePaths);
           }
         })
-        .catch((err) => {
+        .catch(err => {
           reject(err);
         });
     });
@@ -147,7 +138,7 @@ class ResourceModule implements Module {
   }
 
   // 写入缓存文件
-  async writeCacheFile(filePath: string, data: any): Promise<void> {
+  async writeCacheFile(filePath: string, data: unknown): Promise<void> {
     try {
       const cacheDir = await this.ensureCacheDir();
       const fullPath = join(cacheDir, filePath);
@@ -164,7 +155,7 @@ class ResourceModule implements Module {
   }
 
   // 读取缓存文件
-  async readCacheFile(filePath: string): Promise<any | null> {
+  async readCacheFile(filePath: string): Promise<unknown | null> {
     try {
       const cacheDir = this.getCacheDir();
       const fullPath = join(cacheDir, filePath);
@@ -204,21 +195,14 @@ class ResourceModule implements Module {
   async compressImage(buffer: Buffer, mimeType: string): Promise<Buffer> {
     try {
       // 检查是否是支持的图片格式
-      const supportedTypes = [
-        "image/png",
-        "image/jpeg",
-        "image/jpg",
-        "image/webp",
-      ];
+      const supportedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 
       if (!supportedTypes.includes(mimeType.toLowerCase())) {
         return buffer;
       }
 
       // 使用 sharp 压缩图片为 webp 格式
-      const compressedBuffer = await sharp(buffer)
-        .webp({ quality: 80 })
-        .toBuffer();
+      const compressedBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
 
       return compressedBuffer;
     } catch (error) {

@@ -142,27 +142,28 @@ const createEmptyEditorContent = (): Descendant[] => [
 const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[] => {
   const mentions: MentionRef[] = [];
 
-  const visit = (node: any) => {
+  const visit = (node: unknown) => {
     if (!node || typeof node !== "object") {
       return;
     }
+    const record = node as Record<string, unknown>;
 
-    if (node.type === "content-link") {
-      const entityType = node.contentType as MentionEntityType;
+    if (record.type === "content-link") {
+      const entityType = record.contentType as MentionEntityType;
       if (entityType === "card" || entityType === "article" || entityType === "project-item") {
         mentions.push({
           entityType,
-          entityId: Number(node.refId) || 0,
-          contentId: Number(node.contentId) || 0,
-          title: String(node.contentTitle || ""),
-          previewText: typeof node.previewText === "string" ? node.previewText : "",
+          entityId: Number(record.refId) || 0,
+          contentId: Number(record.contentId) || 0,
+          title: String(record.contentTitle || ""),
+          previewText: typeof record.previewText === "string" ? record.previewText : "",
         });
       }
       return;
     }
 
-    if (Array.isArray(node.children)) {
-      node.children.forEach(visit);
+    if (Array.isArray(record.children)) {
+      record.children.forEach(visit);
     }
   };
 
@@ -173,13 +174,14 @@ const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[
 /** `$` 点名的 Skill（folderName，去重） */
 const extractSkillRefsFromEditorContent = (content: Descendant[]): string[] => {
   const names = new Set<string>();
-  const visit = (node: any) => {
+  const visit = (node: unknown) => {
     if (!node || typeof node !== "object") return;
-    if (node.type === "skill-ref" && typeof node.folderName === "string") {
-      names.add(node.folderName);
+    const record = node as Record<string, unknown>;
+    if (record.type === "skill-ref" && typeof record.folderName === "string") {
+      names.add(record.folderName);
       return;
     }
-    if (Array.isArray(node.children)) node.children.forEach(visit);
+    if (Array.isArray(record.children)) record.children.forEach(visit);
   };
   content.forEach(visit);
   return Array.from(names);

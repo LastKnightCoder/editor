@@ -15,7 +15,15 @@ import { basename } from "node:path";
 import { broadcastScheduleChange } from "./schedule-changes";
 
 export type BackgroundSoundType =
-  null | "brook" | "birds" | "autumn" | "tide" | "summer" | "wind-chime" | "bonfire" | "rain";
+  | null
+  | "brook"
+  | "birds"
+  | "autumn"
+  | "tide"
+  | "summer"
+  | "wind-chime"
+  | "bonfire"
+  | "rain";
 
 class PomodoroModule {
   private backendServer: BackendWebSocketServer | null = null;
@@ -134,7 +142,7 @@ class PomodoroModule {
             result: this.activeSession,
             error: null,
           };
-        } catch (error: any) {
+        } catch (error) {
           console.error("Failed to start session", error);
           return {
             type: RpcMessageType.Response,
@@ -143,7 +151,9 @@ class PomodoroModule {
             result: null,
             error: {
               code: 1,
-              message: error.message || "Failed to start session",
+              message:
+                (error instanceof Error ? error.message : String(error)) ||
+                "Failed to start session",
             },
           };
         }
@@ -181,7 +191,7 @@ class PomodoroModule {
             result: this.activeSession,
             error: null,
           };
-        } catch (error: any) {
+        } catch (error) {
           return {
             type: RpcMessageType.Response,
             id,
@@ -189,7 +199,9 @@ class PomodoroModule {
             result: null,
             error: {
               code: 1,
-              message: error.message || "Failed to pause session",
+              message:
+                (error instanceof Error ? error.message : String(error)) ||
+                "Failed to pause session",
             },
           };
         }
@@ -236,7 +248,7 @@ class PomodoroModule {
             result: this.activeSession,
             error: null,
           };
-        } catch (error: any) {
+        } catch (error) {
           return {
             type: RpcMessageType.Response,
             id,
@@ -244,7 +256,9 @@ class PomodoroModule {
             result: null,
             error: {
               code: 1,
-              message: error.message || "Failed to resume session",
+              message:
+                (error instanceof Error ? error.message : String(error)) ||
+                "Failed to resume session",
             },
           };
         }
@@ -277,13 +291,18 @@ class PomodoroModule {
             result: this.activeSession,
             error: null,
           };
-        } catch (error: any) {
+        } catch (error) {
           return {
             type: RpcMessageType.Response,
             id,
             method,
             result: null,
-            error: { code: 1, message: error.message || "Failed to update binding" },
+            error: {
+              code: 1,
+              message:
+                (error instanceof Error ? error.message : String(error)) ||
+                "Failed to update binding",
+            },
           };
         }
       }
@@ -307,7 +326,7 @@ class PomodoroModule {
             result: savedSession,
             error: null,
           };
-        } catch (error: any) {
+        } catch (error) {
           return {
             type: RpcMessageType.Response,
             id,
@@ -315,7 +334,9 @@ class PomodoroModule {
             result: null,
             error: {
               code: 1,
-              message: error.message || "Failed to stop session",
+              message:
+                (error instanceof Error ? error.message : String(error)) ||
+                "Failed to stop session",
             },
           };
         }

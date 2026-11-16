@@ -69,13 +69,14 @@ export const extractBlanksFromRichContent = (
 ): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 
-  const traverse = (node: any) => {
-    if (node.type === "flashcard-blank") {
+  const traverse = (node: unknown) => {
+    const record = (node && typeof node === "object" ? node : {}) as Record<string, unknown>;
+    if (record.type === "flashcard-blank") {
       blanks.push(node as FlashcardBlankElement);
     }
 
-    if (node.children && Array.isArray(node.children)) {
-      node.children.forEach(traverse);
+    if (record.children && Array.isArray(record.children)) {
+      record.children.forEach(traverse);
     }
   };
 

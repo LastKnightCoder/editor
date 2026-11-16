@@ -6,12 +6,11 @@ import { summaryTimestampElementDefinition } from "@/editor-extensions/element-d
 
 export interface SummaryTimestampElement {
   type: "summary-timestamp";
-  start: number; // Start time in milliseconds
-  end: number; // End time in milliseconds
+  start: number; // 起始时间（毫秒）
+  end: number; // 结束时间（毫秒）
   children: { type: "formatted"; text: string }[];
 }
 
-// Utility function to format time from milliseconds
 export const formatTimestampMs = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);

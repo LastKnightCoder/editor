@@ -115,7 +115,8 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
   const paragraphs: Descendant[] = [];
 
   lines.forEach(line => {
-    const children: any[] = [];
+    // 行内节点按开放形状收集（blank 节点与声明类型的必选字段存在既有出入），入段落时统一断言
+    const children: Array<Record<string, unknown>> = [];
     let lastIndex = 0;
     const lineBlankPattern = /\{\{blank:([^}]+)\}\}/g;
     let match;
@@ -151,7 +152,7 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
     paragraphs.push({
       type: "paragraph",
       children,
-    });
+    } as Descendant);
   });
 
   return paragraphs.length > 0
@@ -163,12 +164,13 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
  * Extract plain text from Descendant[] for search/preview
  */
 export const extractPlainText = (descendants: Descendant[]): string => {
-  const extractFromNode = (node: any): string => {
+  // Slate 节点的最小递归形状：叶子读 text，容器递归 children
+  const extractFromNode = (node: { text?: unknown; children?: unknown } | string): string => {
     if (typeof node === "string") {
       return node;
     }
     if (node.text !== undefined) {
-      return node.text;
+      return node.text as string;
     }
     if (node.children && Array.isArray(node.children)) {
       return node.children.map(extractFromNode).join("");

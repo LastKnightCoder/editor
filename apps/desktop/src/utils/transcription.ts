@@ -99,7 +99,8 @@ export function prepareTranscriptionOptions(
 
   // 合并选项（device 由后端根据已安装程序自动检测）
   return {
-    modelSize: modelSize as any,
+    // 运行时模型名是开放字符串，收窄到 TranscriptionOptions 声明的枚举
+    modelSize: modelSize as TranscriptionOptions["modelSize"],
     sentenceLevel: segmentationLevel === "sentence",
     useLLMOptimization,
     ...userOptions,

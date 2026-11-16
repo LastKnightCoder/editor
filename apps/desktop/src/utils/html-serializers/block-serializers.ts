@@ -22,9 +22,12 @@ const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
 
 type CalloutType = "tip" | "info" | "warning" | "danger" | "note";
 
-function getPlainTextFromChildren(children: any[] = []): string {
+/** Slate Text/Element 联合的最小递归形状：纯文本提取只读 text/children */
+type SlateTextNode = { text?: unknown; children?: unknown };
+
+function getPlainTextFromChildren(children: SlateTextNode[] = []): string {
   const texts: string[] = [];
-  const walk = (nodes: any[]) => {
+  const walk = (nodes: SlateTextNode[]) => {
     for (const node of nodes) {
       if (!node) continue;
       if (typeof node.text === "string") {

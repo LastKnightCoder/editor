@@ -80,7 +80,7 @@ class BackendWebSocketServer {
     this.server.sendMessage(JSON.stringify(message));
   }
 
-  sendNotification(messageType: string, data: any = null) {
+  sendNotification(messageType: string, data: unknown = null) {
     const message: RpcNotificationMessage = {
       type: RpcMessageType.Notification,
       method: messageType,

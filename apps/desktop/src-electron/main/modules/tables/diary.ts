@@ -70,7 +70,7 @@ export interface DiaryEntry {
   createTime: number;
   updateTime: number;
   segments: DiarySegment[];
-  content?: Descendant[]; // Concatenation of all segments' content (for markdown export etc.)
+  content?: Descendant[]; // 各段正文的拼接（供 markdown 导出等使用）
 }
 
 // 朋友圈流用的扁平 segment 项：一个 segment + 父 entry 摘要

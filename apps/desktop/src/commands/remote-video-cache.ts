@@ -1,4 +1,5 @@
 import { invoke, on, off } from "@/electron";
+import type { IpcRendererEvent } from "electron";
 
 export interface RemoteVideoCacheEntry {
   id: string;
@@ -53,10 +54,12 @@ export const downloadRemoteVideoWithProgress = async (
   },
   onProgress?: (progress: RemoteVideoCacheProgress) => void
 ): Promise<{ localPath: string; fileSize: number; cached: boolean; requestId: number }> => {
-  let progressHandler: ((event: any, data: RemoteVideoCacheProgress) => void) | undefined;
+  let progressHandler:
+    | ((event: IpcRendererEvent, data: RemoteVideoCacheProgress) => void)
+    | undefined;
 
   if (onProgress) {
-    progressHandler = (_event: any, data: RemoteVideoCacheProgress) => {
+    progressHandler = (_event: IpcRendererEvent, data: RemoteVideoCacheProgress) => {
       onProgress(data);
     };
     on("remote-video-cache-progress", progressHandler);

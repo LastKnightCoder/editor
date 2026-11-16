@@ -1,19 +1,12 @@
 import NodeWebSocket from "ws";
 import { ClientRequestArgs } from "http";
-import {
-  RpcNotificationMessage,
-  RpcRequestMessage,
-  RpcResponseMessage,
-} from "@/types";
+import { RpcNotificationMessage, RpcRequestMessage, RpcResponseMessage } from "@/types";
 
-export interface ClientOptions<
-  M extends object,
-  T extends WebSocketType = NodeWebSocket,
-> {
+export interface ClientOptions<M extends object, T extends WebSocketType = NodeWebSocket> {
   protocols?: string | string[];
   requestArgs?: ClientRequestArgs;
-  ping?: boolean; // default is true
-  pingInterval?: number; // default is 30s
+  ping?: boolean; // 默认 true
+  pingInterval?: number; // 默认 30 秒
   onMessage?: (ws: T, message: M) => void;
   onOpen?: (ws: T) => void;
   onClose?: (ws: T, code: number, reason: string) => void;
@@ -22,10 +15,7 @@ export interface ClientOptions<
 
 export type WebSocketType = WebSocket | NodeWebSocket;
 
-class WebSocketClient<
-  M extends object,
-  W extends WebSocketType = NodeWebSocket,
-> {
+class WebSocketClient<M extends object, W extends WebSocketType = NodeWebSocket> {
   client: W | null = null;
   protected url: string;
   protected options: ClientOptions<M, W>;
@@ -75,11 +65,7 @@ class WebSocketClient<
   }
 
   protected createConnection() {
-    const ws = new NodeWebSocket(
-      this.url,
-      this.options?.protocols,
-      this.options?.requestArgs,
-    );
+    const ws = new NodeWebSocket(this.url, this.options?.protocols, this.options?.requestArgs);
     this.lastCreatedConnectionTimestamp = Date.now();
     this.heartbeat();
 
@@ -87,7 +73,7 @@ class WebSocketClient<
       this.onOpen(ws as W);
     });
 
-    ws.on("message", (message) => {
+    ws.on("message", message => {
       try {
         const msg = JSON.parse(message.toString());
 
@@ -102,10 +88,7 @@ class WebSocketClient<
         }
       } catch (err) {
         console.error("JSON parse error:", err);
-        this.onError(
-          ws as W,
-          new Error(`Message parsing error: ${(err as Error).message}`),
-        );
+        this.onError(ws as W, new Error(`Message parsing error: ${(err as Error).message}`));
       }
     });
 
@@ -118,7 +101,7 @@ class WebSocketClient<
       this.onClose(ws as W, code, reason.toString());
     });
 
-    ws.on("error", (error) => {
+    ws.on("error", error => {
       console.error(`${this.url} error:`, error);
       this.reconnect();
       this.onError(ws as W, error);
@@ -142,9 +125,7 @@ class WebSocketClient<
     }
   }
 
-  sendJsonMessage(
-    messageObj: RpcRequestMessage | RpcResponseMessage | RpcNotificationMessage,
-  ) {
+  sendJsonMessage(messageObj: RpcRequestMessage | RpcResponseMessage | RpcNotificationMessage) {
     if (!this.client) return;
     if (this.isConnected()) {
       try {
@@ -156,10 +137,7 @@ class WebSocketClient<
         return false;
       }
     } else {
-      console.error(
-        "WebSocket is not open. ReadyState:",
-        this.client.readyState,
-      );
+      console.error("WebSocket is not open. ReadyState:", this.client.readyState);
       return false;
     }
   }
@@ -170,8 +148,7 @@ class WebSocketClient<
       if (!this.isConnected()) {
         this.reconnect();
       } else {
-        this.options?.ping &&
-          this.client.send(JSON.stringify({ type: "ping" }));
+        this.options?.ping && this.client.send(JSON.stringify({ type: "ping" }));
       }
     }, this.options.pingInterval);
   }

@@ -39,7 +39,7 @@ const ProjectListSlate = (props: IProjectCardExtensionProps) => {
         onClick={onClickItem}
       />
       <div {...attributes}>{children}</div>
-      <AddParagraph element={element as any} />
+      <AddParagraph element={element} />
     </div>
   );
 };

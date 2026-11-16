@@ -13,11 +13,10 @@ import VideoTimestamp from "./components/VideoTimestamp";
 export interface VideoTimestampElement {
   type: "video-timestamp";
   time: number;
-  previewUrl?: string; // Screenshot preview at this timestamp
+  previewUrl?: string; // 该时间点的截图预览
   children: { type: "formatted"; text: string }[];
 }
 
-// Utility functions
 const formatTimestamp = (time: number): string => {
   const minutes = Math.floor(time / 60);
   const seconds = Math.floor(time % 60);

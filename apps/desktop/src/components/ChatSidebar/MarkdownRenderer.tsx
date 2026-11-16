@@ -109,7 +109,8 @@ const MarkdownImage = ({
 interface MarkdownRendererProps {
   content: string;
   className?: string;
-  markdownComponents: any;
+  /** 标签名 → 组件的映射（含插件注入的条目），最终展开进 ReactMarkdown components */
+  markdownComponents: Record<string, React.ElementType>;
   shouldRender: boolean;
   messageMeta?: MarkdownMessageMeta;
   highlightText?: string;
@@ -124,6 +125,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       const CustomSpanComponent = markdownComponents?.span;
       return {
         ...markdownComponents,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-markdown 的 pre/span/img 回调需透传 data-* 等未建模属性，Components 类型不覆盖
         pre: ({ children, className, node: _node, ...props }: any) => {
           const childrenWithBlockCodeMarker = Children.map(children, child => {
             if (!isValidElement<Record<string, unknown>>(child)) {
@@ -145,6 +147,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             </div>
           );
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同 pre：需读取 document-reference 的 data-* 属性
         span: ({ className, children, ...props }: any) => {
           if (className === "document-reference") {
             const id = parseInt(props["data-id"], 10);
@@ -187,6 +190,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           );
         },
         ...markdownTypographyComponents,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同 pre：透传其余 img 属性
         img: ({ src, alt, node: _node, className, ...props }: any) => {
           if (typeof src !== "string" || !src) {
             return null;

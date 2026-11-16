@@ -4,5 +4,9 @@ import Database from "better-sqlite3";
 export type SqliteRow = Record<string, unknown>;
 
 export interface Table {
-  getListenEvents: () => Record<string, (db: Database.Database, ...args: any) => any>;
+  getListenEvents: () => Record<
+    string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 异构事件注册表：any 参数位提供双向变体，具体 handler（含必选参数元组）才能赋入
+    (db: Database.Database, ...args: any) => unknown
+  >;
 }

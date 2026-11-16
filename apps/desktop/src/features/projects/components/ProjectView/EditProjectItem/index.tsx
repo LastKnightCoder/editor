@@ -147,7 +147,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
 
       try {
         Transforms.select(editor, selection);
-        ReactEditor.focus(editor as any);
+        ReactEditor.focus(editor);
         pendingSelectionRef.current = null;
       } catch (error) {
         console.warn("恢复沉浸模式焦点失败:", error);

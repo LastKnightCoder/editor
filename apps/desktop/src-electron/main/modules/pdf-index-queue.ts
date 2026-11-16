@@ -20,6 +20,7 @@ import { runSearchPipeline } from "./search-core/pipeline";
 import { createPdfSearchAdapter } from "./search-core/pdf-search-adapter";
 import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { shouldReusePdfIndex } from "./pdf-index-reuse";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 
 export interface EnsurePdfIndexParams {
   pdfId: number;
@@ -344,7 +345,7 @@ class PdfIndexQueue implements Module {
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       useSystemFonts: true,
-    } as any);
+    });
     const document = await loadingTask.promise;
 
     try {
@@ -408,7 +409,7 @@ class PdfIndexQueue implements Module {
   }
 
   private async resolveOutline(
-    document: any,
+    document: PDFDocumentProxy,
     items: PdfOutlineItemInput[],
     parentPath = "outline"
   ): Promise<PdfOutlineNode[]> {
@@ -428,7 +429,10 @@ class PdfIndexQueue implements Module {
     return result;
   }
 
-  private async resolveOutlineDestination(document: any, dest: unknown): Promise<number | null> {
+  private async resolveOutlineDestination(
+    document: PDFDocumentProxy,
+    dest: unknown
+  ): Promise<number | null> {
     try {
       let resolvedDest = dest;
       if (typeof dest === "string") {
