@@ -42,7 +42,7 @@ export interface InputRuleMatch {
  * 内容非空、首尾不是空白也不是定界字符，定界符外侧不是同一字符或转义符。
  * `rules` 须按定界符长度降序，`***` 优先于 `**`、`*`。
  */
-export function matchInputRule(
+function matchInputRule(
   rules: readonly RegisteredInputRule[],
   before: string,
   after: string | undefined

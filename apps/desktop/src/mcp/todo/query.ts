@@ -26,7 +26,6 @@ import type {
   TodoQuerySummary,
   TodoRecurrence,
   TodoRecurrenceCompletion,
-  TodoSystemGroupType,
 } from "@/types";
 
 interface TodoBaseContext {
@@ -695,17 +694,4 @@ export const isTodoDashboardResponse = (value: unknown): value is TodoDashboardR
     value !== null &&
     (value as TodoDashboardResponse).type === "todo-dashboard"
   );
-};
-
-export const buildDefaultTodoQuery = (systemGroupType?: TodoSystemGroupType): TodoQueryRequest => {
-  return {
-    filter:
-      systemGroupType && systemGroupType !== "all"
-        ? { systemGroupTypes: [systemGroupType] }
-        : { systemGroupTypes: ["all"] },
-    groupBy: "group",
-    sort: "manual",
-    page: DEFAULT_PAGE,
-    pageSize: DEFAULT_PAGE_SIZE,
-  };
 };

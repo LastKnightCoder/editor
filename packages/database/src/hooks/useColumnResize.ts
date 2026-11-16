@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 
-export function useColumnResize(onResize: (columnId: string, width: number) => void) {
+function useColumnResize(onResize: (columnId: string, width: number) => void) {
   const [resizing, setResizing] = useState<{
     columnId: string;
     startX: number;

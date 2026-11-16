@@ -21,27 +21,6 @@ export async function getPublishSelections(): Promise<IPublishSelection[]> {
 }
 
 /**
- * 按类型获取发布选择
- */
-export async function getPublishSelectionsByType(
-  contentType: PublishContentType
-): Promise<IPublishSelection[]> {
-  return invoke("get-publish-selections-by-type", contentType);
-}
-
-/**
- * 更新或插入发布选择
- */
-export async function upsertPublishSelection(data: {
-  contentType: PublishContentType;
-  contentId: number;
-  parentPath?: string;
-  selected?: boolean;
-}): Promise<IPublishSelection> {
-  return invoke("upsert-publish-selection", data);
-}
-
-/**
  * 批量更新发布选择
  */
 export async function batchUpsertPublishSelections(
@@ -55,23 +34,6 @@ export async function batchUpsertPublishSelections(
   return invoke("batch-upsert-publish-selections", items);
 }
 
-/**
- * 删除发布选择
- */
-export async function deletePublishSelection(
-  contentType: PublishContentType,
-  contentId: number
-): Promise<boolean> {
-  return invoke("delete-publish-selection", contentType, contentId);
-}
-
-/**
- * 清空所有发布选择
- */
-export async function clearPublishSelections(): Promise<void> {
-  return invoke("clear-publish-selections");
-}
-
 // ============ 发布历史相关 ============
 
 /**
@@ -79,20 +41,6 @@ export async function clearPublishSelections(): Promise<void> {
  */
 export async function getPublishHistory(): Promise<IPublishHistory[]> {
   return invoke("get-publish-history");
-}
-
-/**
- * 根据路径获取发布历史
- */
-export async function getPublishHistoryByPath(filePath: string): Promise<IPublishHistory | null> {
-  return invoke("get-publish-history-by-path", filePath);
-}
-
-/**
- * 清空发布历史
- */
-export async function clearPublishHistory(): Promise<void> {
-  return invoke("clear-publish-history");
 }
 
 // ============ 发布操作相关 ============

@@ -22,7 +22,7 @@ export const paragraphCodec: MarkdownCodec = {
 };
 
 /** header 夹具：import-options 等测 walker 标准语法导入时需要最小认领 */
-export const headerCodec: MarkdownCodec = {
+const headerCodec: MarkdownCodec = {
   type: "header",
   importNode: node =>
     node.type === "heading"
@@ -39,6 +39,3 @@ export const fixtureProcessor = createMarkdownProcessor({
   textCodecs: [textFormattingCodec],
   codecs: [paragraphCodec, headerCodec],
 });
-
-/** 无 codec 的处理器：只测框架 walker 与 ER-006 兜底 */
-export const bareProcessor = createMarkdownProcessor();

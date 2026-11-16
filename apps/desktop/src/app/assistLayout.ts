@@ -8,11 +8,11 @@ import { SIDEBAR_COLLAPSED_W } from "./shellStore";
 /** 侧栏拖宽热区宽度（AppShell 网格第二列） */
 const RESIZER_W = 4;
 /** 辅助栏与窗口右 / 下缘的间距（同页面底部留白 pb-[18px]） */
-export const ASSIST_GUTTER = 18;
+const ASSIST_GUTTER = 18;
 /** 并排时正文最小宽度（约一列正文阅读宽 + 页边距）：低于此值先收起侧栏 */
-export const MAIN_MIN_BESIDE = 720;
+const MAIN_MIN_BESIDE = 720;
 /** 收起侧栏后仍低于此值：改为覆盖浮层，不再挤压正文 */
-export const MAIN_MIN_OVERLAY = 560;
+const MAIN_MIN_OVERLAY = 560;
 
 export interface AssistLayoutInput {
   windowWidth: number;

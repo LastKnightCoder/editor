@@ -1,25 +1,16 @@
 import type { IPublishFaviconConfig } from "@/types/publish";
 
-export const PUBLISH_FAVICON_DIR = "publish-favicon";
+const PUBLISH_FAVICON_DIR = "publish-favicon";
 
-export const PUBLISH_FAVICON_ACCEPTED_EXTENSIONS = [
-  "svg",
-  "png",
-  "ico",
-] as const;
+const PUBLISH_FAVICON_ACCEPTED_EXTENSIONS = ["svg", "png", "ico"] as const;
 
-export type PublishFaviconExtension =
-  (typeof PUBLISH_FAVICON_ACCEPTED_EXTENSIONS)[number];
+export type PublishFaviconExtension = (typeof PUBLISH_FAVICON_ACCEPTED_EXTENSIONS)[number];
 
 export function normalizePublishFaviconExtension(
-  extension: string,
+  extension: string
 ): PublishFaviconExtension | null {
   const normalized = extension.trim().replace(/^\./, "").toLowerCase();
-  if (
-    PUBLISH_FAVICON_ACCEPTED_EXTENSIONS.includes(
-      normalized as PublishFaviconExtension,
-    )
-  ) {
+  if (PUBLISH_FAVICON_ACCEPTED_EXTENSIONS.includes(normalized as PublishFaviconExtension)) {
     return normalized as PublishFaviconExtension;
   }
   return null;
@@ -27,14 +18,14 @@ export function normalizePublishFaviconExtension(
 
 export function buildPublishFaviconCachePath(
   userDataDir: string,
-  format: PublishFaviconExtension,
+  format: PublishFaviconExtension
 ): string {
   return `${userDataDir}/${PUBLISH_FAVICON_DIR}/current.${format}`;
 }
 
 export function buildPublishFaviconCachePaths(userDataDir: string): string[] {
-  return PUBLISH_FAVICON_ACCEPTED_EXTENSIONS.map((format) =>
-    buildPublishFaviconCachePath(userDataDir, format),
+  return PUBLISH_FAVICON_ACCEPTED_EXTENSIONS.map(format =>
+    buildPublishFaviconCachePath(userDataDir, format)
   );
 }
 

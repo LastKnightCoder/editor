@@ -8,7 +8,7 @@ export const desktopRuntimeStyleCompiler: RuntimeStyleCompiler = {
 const inflight = new Map<string, Promise<string>>();
 const cache = new Map<string, string>();
 
-export async function compileRuntimeTailwind(source: string, extension = "tsx"): Promise<string> {
+async function compileRuntimeTailwind(source: string, extension = "tsx"): Promise<string> {
   const trimmed = source?.trim();
   if (!trimmed) {
     return "";

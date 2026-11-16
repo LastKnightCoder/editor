@@ -17,8 +17,6 @@ export interface MaterialRef {
 export const isMaterialKind = (value: unknown): value is MaterialKind =>
   typeof value === "string" && (MATERIAL_KINDS as readonly string[]).includes(value);
 
-export const materialKey = (ref: MaterialRef): string => `${ref.kind}:${ref.id}`;
-
 /** 打开材料到原处：由主进程按材料解析出来，渲染端 openMaterialTarget 执行 */
 export type MaterialOpenTarget =
   /** 摘录：提供方插件已启用时交给它打开，否则用 url 外部打开 */

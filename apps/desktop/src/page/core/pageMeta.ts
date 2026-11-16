@@ -34,7 +34,3 @@ export function registerPageMeta(meta: PageMeta): void {
 export function getPageMeta(key: string): PageMeta | undefined {
   return metas.get(key);
 }
-
-export function listPageMetas(): PageMeta[] {
-  return [...metas.values()];
-}

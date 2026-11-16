@@ -11,7 +11,7 @@ interface StatusChangeData {
   taskProgress?: TaskProgress;
 }
 
-export const useIndexingStatus = (resourceIds?: number[]) => {
+const useIndexingStatus = (resourceIds?: number[]) => {
   const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(new Map());
   const [progressMap, setProgressMap] = useState<Map<number, TaskProgress>>(new Map());
   const normalizedResourceIds = useMemo(
@@ -35,7 +35,6 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
         return next;
       });
 
-      // 更新进度数据
       if (data.taskProgress) {
         setProgressMap(prev => {
           const next = new Map(prev);
@@ -161,11 +160,9 @@ export const useResourceStatus = (resource: VLResource | null, mainDbName: strin
   const [status, setStatus] = useState<VLResourceStatus>("pending");
   const [loading, setLoading] = useState(true);
 
-  // 获取队列中的进行时状态
   const { statusMap: indexingStatus } = useIndexingStatus(resource ? [resource.id] : []);
   const queueStatus = resource ? indexingStatus.get(resource.id) || null : null;
 
-  // 计算状态
   const computeStatus = useMemoizedFn(async () => {
     if (!resource) {
       setStatus("pending");
@@ -206,11 +203,9 @@ export const useResourcesStatus = (
   const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(new Map());
   const [loading, setLoading] = useState(true);
 
-  // 获取队列中的进行时状态
   const resourceIds = useMemo(() => resources.map(resource => resource.id), [resources]);
   const { statusMap: indexingStatus, progressMap } = useIndexingStatus(resourceIds);
 
-  // 计算所有资源的状态
   const computeAllStatus = useMemoizedFn(async () => {
     if (resources.length === 0) {
       setStatusMap(new Map());
@@ -256,7 +251,6 @@ export const useResourcesStatus = (
       if (filterProjectId !== undefined && data.projectId !== filterProjectId) {
         return;
       }
-      // 调用回调刷新资源列表
       onResourceUpdate?.(data);
     };
 

@@ -13,23 +13,3 @@ export const createDailyNote = async (
     ).prepareNewContent(dailyNote.content, dailyNote.contracts)),
   });
 };
-
-export const updateDailyNote = async (dailyNote: Omit<DailyNote, "date">): Promise<DailyNote> => {
-  return dailyNoteCommands.update.call(dailyNote);
-};
-
-export const getDailyNoteById = async (id: number): Promise<DailyNote> => {
-  return dailyNoteCommands.getById.call(id);
-};
-
-export const getDailyNoteByDate = async (date: string): Promise<DailyNote> => {
-  return dailyNoteCommands.getByDate.call(date);
-};
-
-export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
-  return dailyNoteCommands.getAll.call();
-};
-
-export const deleteDailyNote = async (id: number): Promise<number> => {
-  return dailyNoteCommands.remove.call(id);
-};

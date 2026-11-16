@@ -71,4 +71,3 @@ const routes = [
 export const router = createHashRouter(
   routes.map(route => ({ ...route, errorElement: <RouteErrorPage /> }))
 );
-export default routes;

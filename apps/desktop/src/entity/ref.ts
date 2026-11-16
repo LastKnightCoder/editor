@@ -5,7 +5,6 @@
  */
 
 export {
-  ENTITY_REF_KINDS,
   ENTITY_REF_PRIORITY,
   entityRefKey,
   isSameEntityRef,

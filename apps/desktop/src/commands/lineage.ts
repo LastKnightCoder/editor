@@ -15,7 +15,7 @@ export const recordLineage = async (record: LineageRecord): Promise<void> => {
   }
 };
 
-export const findLineageDst = async (
+const findLineageDst = async (
   src: LineageNode,
   relation: LineageRelation,
   dstKind?: LineageNodeKind

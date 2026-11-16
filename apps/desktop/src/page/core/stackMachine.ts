@@ -25,9 +25,9 @@ export interface StackMachineState {
   forward: PageEntry[];
 }
 
-export const MAX_LIVE_PAGES = 12;
+const MAX_LIVE_PAGES = 12;
 
-export function createEntry(key: string, params: Record<string, unknown>): PageEntry {
+function createEntry(key: string, params: Record<string, unknown>): PageEntry {
   const now = Date.now();
   return {
     id: `${key}-${now}-${Math.random().toString(36).slice(2, 8)}`,

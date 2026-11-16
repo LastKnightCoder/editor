@@ -28,7 +28,7 @@ export interface ProjectTreeData {
 
 const BATCH_SIZE = 40;
 
-export const getProjectTreeNodeId = getMindMapTreeNodeId;
+const getProjectTreeNodeId = getMindMapTreeNodeId;
 
 export const loadProjectItemMap = async (rootIds: number[]): Promise<Map<number, ProjectItem>> => {
   const queue = [...new Set(rootIds)];

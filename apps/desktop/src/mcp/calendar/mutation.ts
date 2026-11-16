@@ -1,10 +1,6 @@
-import type {
-  CalendarMutationEntityType,
-  CalendarMutationEvent,
-} from "@/types";
-import { emitCalendarMutationEvent } from "./events";
+import type { CalendarMutationEvent } from "@/types";
 
-export const CALENDAR_MUTATION_ACTIONS = {
+const CALENDAR_MUTATION_ACTIONS = {
   CREATE_GROUP: "create-group",
   UPDATE_GROUP: "update-group",
   DELETE_GROUP: "delete-group",
@@ -23,34 +19,6 @@ export const CALENDAR_MUTATION_ACTIONS = {
 export type CalendarMutationAction =
   (typeof CALENDAR_MUTATION_ACTIONS)[keyof typeof CALENDAR_MUTATION_ACTIONS];
 
-export const createCalendarMutationPayload = (params: {
-  source: string;
-  entityType: CalendarMutationEntityType;
-  entityId?: number;
-  groupId?: number | null;
-  previousGroupId?: number | null;
-  calendarId?: number | null;
-  previousCalendarId?: number | null;
-  action: CalendarMutationAction;
-  changedFields?: string[];
-  clientId?: string;
-}) => params;
-
-export const emitCalendarMutation = (params: {
-  source: string;
-  entityType: CalendarMutationEntityType;
-  entityId?: number;
-  groupId?: number | null;
-  previousGroupId?: number | null;
-  calendarId?: number | null;
-  previousCalendarId?: number | null;
-  action: CalendarMutationAction;
-  changedFields?: string[];
-  clientId?: string;
-}) => {
-  return emitCalendarMutationEvent(createCalendarMutationPayload(params));
-};
-
 export const shouldRefreshCalendarResult = (params: {
   event: CalendarMutationEvent;
   toolName: string;
@@ -59,29 +27,17 @@ export const shouldRefreshCalendarResult = (params: {
   payloadEntityType?: string;
   payloadId?: number | null;
 }) => {
-  const {
-    event,
-    toolName,
-    parsedInput,
-    payloadKind,
-    payloadEntityType,
-    payloadId,
-  } = params;
+  const { event, toolName, parsedInput, payloadKind, payloadEntityType, payloadId } = params;
 
   if (toolName === "get_calendar_dashboard") {
     return true;
   }
 
-  if (
-    payloadKind === "calendar-detail" &&
-    payloadEntityType === "calendar" &&
-    payloadId != null
-  ) {
+  if (payloadKind === "calendar-detail" && payloadEntityType === "calendar" && payloadId != null) {
     return (
       (event.entityType === "calendar" && event.entityId === payloadId) ||
       (event.entityType === "calendar-event" &&
-        (event.calendarId === payloadId ||
-          event.previousCalendarId === payloadId))
+        (event.calendarId === payloadId || event.previousCalendarId === payloadId))
     );
   }
 
@@ -104,16 +60,12 @@ export const shouldRefreshCalendarResult = (params: {
   ) {
     return (
       (event.entityType === "calendar-event" && event.entityId === payloadId) ||
-      (event.calendarId != null &&
-        parsedInput?.id != null &&
-        Number(parsedInput.id) === payloadId)
+      (event.calendarId != null && parsedInput?.id != null && Number(parsedInput.id) === payloadId)
     );
   }
 
   if (toolName === "query_calendar_groups") {
-    return (
-      event.entityType === "calendar-group" || event.entityType === "calendar"
-    );
+    return event.entityType === "calendar-group" || event.entityType === "calendar";
   }
 
   if (toolName === "query_calendars") {

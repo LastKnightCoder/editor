@@ -49,6 +49,3 @@ export interface ExcerptSourceSummary {
   /** 未软删除的条目数 */
   count: number;
 }
-
-export const hasExcerptChanges = (result: ExcerptSyncResult | null | undefined): boolean =>
-  !!result && result.inserted + result.updated + result.deleted > 0;

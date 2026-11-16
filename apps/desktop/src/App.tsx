@@ -101,7 +101,8 @@ const Application = () => {
         if (!status) return null;
         return {
           cached: status.cached,
-          localPath: status.localPath,
+          // hook 把 localPath 直接当播放地址用，须转换成 webview 可加载 URL
+          localPath: status.localPath ? await convertFileSrc(status.localPath) : undefined,
           fileSize: status.fileSize,
         };
       },

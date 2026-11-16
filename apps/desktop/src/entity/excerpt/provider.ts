@@ -6,7 +6,7 @@
 
 import { WEB_EXCERPT_SOURCE, type ExcerptAnchor, type ExcerptInput } from "./types";
 
-export const PROVIDER_LIMITS = {
+const PROVIDER_LIMITS = {
   items: 20000,
   idChars: 512,
   titleChars: 500,

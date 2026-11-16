@@ -24,7 +24,7 @@ function loadPdfjs() {
   return pdfjsPromise;
 }
 
-export async function renderThumbnail(
+async function renderThumbnail(
   bytes: Uint8Array
 ): Promise<{ image: Uint8Array; pageCount: number }> {
   const pdfjs = await loadPdfjs();

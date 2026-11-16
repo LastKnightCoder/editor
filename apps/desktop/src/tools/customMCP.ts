@@ -6,7 +6,6 @@ import {
   ensureModule,
   isMcpServerConnected,
   listMcpServerTools,
-  reconnectMcpServer,
 } from "@/commands";
 import type { ToolDefinition, ToolExecutionResult, ToolJsonSchema } from "@/types";
 import type { CustomMCPServer, ConnectionStatus } from "@/stores/useMCPStore";
@@ -31,23 +30,13 @@ interface MCPToolCallResult {
 /**
  * 连接到 MCP 服务器
  */
-export const connectToServer = async (
+const connectToServer = async (
   server: CustomMCPServer,
   windowScoped = false,
   pluginId?: string
 ): Promise<void> => {
   await connectMcpServer(server, windowScoped, pluginId);
   console.debug("[MCP] Connected to server", { server: server.name });
-};
-
-/**
- * 手动重连到 MCP 服务器（重置重连计数）
- */
-export const reconnectToServer = async (server: CustomMCPServer): Promise<void> => {
-  await reconnectMcpServer(server);
-  console.debug("[MCP] Manually reconnected to server", {
-    server: server.name,
-  });
 };
 
 /**
@@ -61,7 +50,7 @@ export const disconnectFromServer = async (serverId: string): Promise<void> => {
 /**
  * 检查服务器是否已连接
  */
-export const isServerConnected = async (serverId: string): Promise<boolean> => {
+const isServerConnected = async (serverId: string): Promise<boolean> => {
   return await isMcpServerConnected(serverId);
 };
 
@@ -128,7 +117,6 @@ const parseToolResult = (result: MCPToolCallResult): ToolExecutionResult => {
     }
   }
 
-  // 处理其他内容类型（如图片）
   const nonTextContents = result.content.filter(item => item.type !== "text");
   if (nonTextContents.length > 0) {
     return {
@@ -160,14 +148,12 @@ export const fetchToolsFromServer = async (
     pluginId?: string;
   }
 ): Promise<ToolDefinition[]> => {
-  // 确保 MCP 模块已初始化
   await ensureMCPModuleInitialized();
   const assertCurrent = () => {
     if (options && !options.getServer()) throw new Error("插件 MCP 已停用或配置已变化");
   };
   assertCurrent();
 
-  // 确保已连接
   const connected = await isServerConnected(server.id);
   assertCurrent();
   if (!connected) {
@@ -208,7 +194,6 @@ export const fetchToolsFromServer = async (
         throw new Error("MCP 服务配置已变化，请重新发起回答以确认工具定义");
       context?.signal?.throwIfAborted();
 
-      // 确保服务器已连接
       const connected = await isServerConnected(currentServer.id);
       context?.signal?.throwIfAborted();
       assertCurrent();
@@ -263,7 +248,6 @@ export const onConnectionStatusChange = (listener: MCPConnectionStatusListener):
 
   on("mcp-connection-status", handler);
 
-  // 返回取消监听的函数
   return () => {
     off("mcp-connection-status", handler);
   };

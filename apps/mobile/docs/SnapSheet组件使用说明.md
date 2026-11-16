@@ -50,11 +50,6 @@
 - `SnapSheet.Scroll`: 普通滚动区（自动应用 `mobile-kb-scroll`）。
 - `SnapSheet.FixedFooterScroll`: 带底部固定栏补偿的滚动区（自动应用 `mobile-fixed-footer-scroll`）。
 
-### Hook（可选）
-
-- `useSnapSheetState()`: 获取当前状态。
-- `useSnapSheetTimeline()`: 获取实时动画 timeline。
-
 ## 选型建议
 
 - 页面内有固定底栏（如编辑器工具栏）时，使用 `SnapSheet.FixedFooterScroll`。

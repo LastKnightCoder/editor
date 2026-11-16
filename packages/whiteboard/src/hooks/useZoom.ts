@@ -34,5 +34,3 @@ export const useZoom = (): number => {
   zoomRef.current = zoom;
   return zoom;
 };
-
-export default useZoom;

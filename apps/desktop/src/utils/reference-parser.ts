@@ -23,21 +23,3 @@ export function getRefTypeLabel(type: string): string {
       return type;
   }
 }
-
-/**
- * 获取引用类型的颜色
- */
-export function getRefTypeColor(type: string): string {
-  switch (type) {
-    case "card":
-      return "#ec4899"; // pink
-    case "article":
-      return "#3b82f6"; // blue
-    case "project-item":
-      return "#10b981"; // green
-    case "diary-moment":
-      return "#8b5cf6"; // purple
-    default:
-      return "#6b7280"; // gray
-  }
-}

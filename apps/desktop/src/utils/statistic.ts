@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import type { StatisticData } from "@/types/statistic";
 
 /** 统计覆盖的内容类型中，产出趋势关心的两类（与旧版首页 TREND_TYPES 的口径对齐） */
-export const TREND_CONTENT_TYPES = ["card", "article"] as const;
+const TREND_CONTENT_TYPES = ["card", "article"] as const;
 
 /** 本地时区 YYYY-MM-DD（热力图/差分/日记共用的日期键格式） */
 export function dateStr(ts: number): string {

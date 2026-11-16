@@ -7,9 +7,6 @@ export const ARROW_CONNECT_PROXIMITY_HIDE_DELAY = 80;
 // 拖动箭头端点时，元素成为落点目标的感应半径（世界单位）
 export const ARROW_DROP_PROXIMITY_RADIUS = 10;
 
-export const DEFAULT_ARROW_LINE_COLOR = "currentColor";
-export const DEFAULT_ARROW_LINE_WIDTH = 2;
-
 // 连接点标识。前 5 个为固定连接点（上下左右中），custom 为自定义连接点，
 // 其坐标由 ArrowBound.customOffset（相对图形 bbox 的 uv 比例）确定。
 export const ARROW_CONNECT_ID = {

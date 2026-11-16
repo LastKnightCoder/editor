@@ -17,7 +17,7 @@ import type { MaterialSourceMeta, NotebookPlan } from "@/types/vibe-learning";
 export type { NotebookNotePlan, NotebookPlan } from "@/types/vibe-learning";
 
 /** 将带入的资源份数（摘录合并为一份） */
-export const plannedResourceCount = (plan: NotebookPlan) =>
+const plannedResourceCount = (plan: NotebookPlan) =>
   plan.notes.length + (plan.excerpts.length ? 1 : 0) + plan.clips.length;
 
 /** 确认框的影响行：带入几份、几项带不进去 */

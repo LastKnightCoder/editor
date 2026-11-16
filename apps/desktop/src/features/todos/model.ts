@@ -24,15 +24,7 @@ import {
 import type { BucketKey, HabitCell, HabitCellState, TodoEntry, TodoSnapshot } from "./types";
 
 /* 日期基础与文案归 utils/dayWords（编辑器日期胶囊共用），这里转出保持域内导入不变 */
-export {
-  DAY_MS,
-  WEEKDAY_CN,
-  dayDiff,
-  dayWord,
-  daysLeftInWeek,
-  monthDay,
-  startOfDay,
-} from "@/utils/dayWords";
+export { DAY_MS, WEEKDAY_CN, dayDiff, dayWord, monthDay, startOfDay } from "@/utils/dayWords";
 
 /** 本周一 0 点 */
 export function startOfWeek(now: number): number {
@@ -165,7 +157,7 @@ export function sortKey(entry: TodoEntry, now: number): number {
 }
 
 /** 议程段先后（与待办页按日期分段同序） */
-export const BUCKET_RANK: Record<BucketKey, number> = {
+const BUCKET_RANK: Record<BucketKey, number> = {
   overdue: 0,
   today: 1,
   tomorrow: 2,

@@ -4,12 +4,9 @@ import {
   DiaryEntry,
   DiarySegment,
   CreateDiaryEntry,
-  UpdateDiaryEntry,
   DiaryType,
-  DiaryHeatmapData,
   DiarySegmentItem,
   DiaryTagSetting,
-  WeatherMood,
 } from "@/types/diary";
 import { Descendant } from "slate";
 import { invoke } from "@/electron";
@@ -84,105 +81,12 @@ export const createDiaryEntry = async (entry: CreateDiaryEntry): Promise<DiaryEn
   return deserializeDiaryEntry(result);
 };
 
-export const updateDiaryEntry = async (entry: UpdateDiaryEntry): Promise<DiaryEntry> => {
-  const serializedEntry = {
-    ...entry,
-    weather:
-      entry.weather !== undefined
-        ? entry.weather
-          ? JSON.stringify(entry.weather)
-          : null
-        : undefined,
-    mood: entry.mood !== undefined ? (entry.mood ? JSON.stringify(entry.mood) : null) : undefined,
-    tags: entry.tags !== undefined ? JSON.stringify(entry.tags) : undefined,
-  };
-  const result = await invoke<RawDiaryEntry>("update-diary-entry", serializedEntry);
-  return deserializeDiaryEntry(result);
-};
-
-export const deleteDiaryEntry = async (id: number): Promise<number> => {
-  return invoke("delete-diary-entry", id);
-};
-
-export const getDiaryEntryById = async (id: number): Promise<DiaryEntry> => {
-  const result = await invoke<RawDiaryEntry>("get-diary-entry-by-id", id);
-  return deserializeDiaryEntry(result);
-};
-
-export const getDiaryEntryByDate = async (date: string): Promise<DiaryEntry | null> => {
-  const result = await invoke<RawDiaryEntry | null>("get-diary-entry-by-date", date);
-  return result ? deserializeDiaryEntry(result) : null;
-};
-
-export const getDiaryEntriesByType = async (type: DiaryType): Promise<DiaryEntry[]> => {
-  const results = await invoke<RawDiaryEntry[]>("get-diary-entries-by-type", type);
-  return results.map(deserializeDiaryEntry);
-};
-
-export const getDiaryEntriesByDateRange = async (
-  startDate: string,
-  endDate: string,
-  diaryType?: DiaryType
-): Promise<DiaryEntry[]> => {
-  // 显式透传 diaryType：后端 IPC 调用 handler 时会在末尾追加 win 对象，
-  // 若省略可选参数，win 会顶替 diaryType 的位置导致查询失效
-  const results = await invoke<RawDiaryEntry[]>(
-    "get-diary-entries-by-date-range",
-    startDate,
-    endDate,
-    diaryType
-  );
-  return results.map(deserializeDiaryEntry);
-};
-
 export const getAllDiaryEntries = async (): Promise<DiaryEntry[]> => {
   const results = await invoke<RawDiaryEntry[]>("get-all-diary-entries");
   return results.map(deserializeDiaryEntry);
 };
 
-export const getDiaryHeatmapData = async (
-  year: number,
-  month: number
-): Promise<DiaryHeatmapData[]> => {
-  return await invoke("get-diary-heatmap-data", year, month);
-};
-
-export const getDiariesByDates = async (
-  dates: string[],
-  diaryType?: DiaryType
-): Promise<DiaryEntry[]> => {
-  const results = await invoke<RawDiaryEntry[]>("get-diaries-by-dates", dates, diaryType);
-  return results.map(deserializeDiaryEntry);
-};
-
-export const getDiariesWithContent = async (params: {
-  dates?: string[];
-  startDate?: string;
-  endDate?: string;
-  diaryType?: DiaryType;
-  maxLength?: number;
-}): Promise<
-  Array<{
-    id: number;
-    type: DiaryType;
-    date: string;
-    weather: WeatherMood | null;
-    mood: WeatherMood | null;
-    wordCount: number;
-    content: string;
-    createTime: string;
-    updateTime: string;
-  }>
-> => {
-  return await invoke("get-diaries-with-content", params);
-};
-
 // ---- Segment-level commands ----
-
-export const getDiarySegments = async (diaryId: number): Promise<DiarySegment[]> => {
-  const results = await invoke<RawDiarySegment[]>("get-diary-segments", diaryId);
-  return results.map(deserializeDiarySegment);
-};
 
 export const createDiarySegment = async (params: {
   diaryId: number;
@@ -312,7 +216,7 @@ export const deleteDiaryTagSetting = async (name: string): Promise<number> => {
   return invoke("delete-diary-tag-setting", name);
 };
 
-/** 碎碎念一步发布（D-044）：主进程确保 date 当天 entry → 建段 → 写段级标签，返回扁平条目 */
+/** 碎碎念一步发布：主进程确保 date 当天 entry → 建段 → 写段级标签，返回扁平条目 */
 export const createDiaryMoment = async (params: {
   date: string;
   content: Descendant[];

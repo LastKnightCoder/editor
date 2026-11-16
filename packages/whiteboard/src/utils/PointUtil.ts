@@ -128,5 +128,3 @@ export class PointUtil {
     }
   }
 }
-
-export default PointUtil;

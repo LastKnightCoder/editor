@@ -68,7 +68,7 @@ type RowDeriver = (row: RowData) => RowData;
 /**
  * 给行补上公式列的值（按现成的求值上下文；表达式在建立时校验一次，
  * 同一源行对象复用同一派生结果，未改动的行不重算、引用稳定）。
- * model 子入口按字段 model 构造上下文后复用同一派生逻辑（D-137）。
+ * model 子入口按字段 model 构造上下文后复用同一派生逻辑。
  */
 export function createRowDeriverFromContext(
   columns: readonly ColumnDef[],
@@ -178,7 +178,7 @@ export function formulaEnumOfColumn(column: ColumnDef): string[] | null {
  * 枚举标签色板：相邻两色色相尽量拉开（单选色板顺序里红 / 橙 / 黄在部分主题下几乎同色），
  * 不用 gray（它表示「无分类」）。超过色板长度后循环。
  */
-export const FORMULA_TAG_COLORS = ["blue", "orange", "green", "purple", "red", "yellow"] as const;
+const FORMULA_TAG_COLORS = ["blue", "orange", "green", "purple", "red", "yellow"] as const;
 
 /** 枚举值的标签色：按情况顺序分配，不同的词不同色，同一个词恒定同色 */
 export function enumTagColor(values: readonly string[] | null, value: Scalar) {

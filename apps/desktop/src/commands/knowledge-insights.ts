@@ -62,10 +62,6 @@ export function markKnowledgeInsightSeen(id: number) {
   return withModule("topic-insights", () => invoke<boolean>("knowledge-insights:seen", id));
 }
 
-export function cancelKnowledgeInsights() {
-  return withModule("topic-insights", () => invoke<boolean>("knowledge-insights:cancel"));
-}
-
 export function setKnowledgeInsightStatus(id: number, itemId: string, status: InsightStatus) {
   return withModule("topic-insights", () =>
     invoke<boolean>("knowledge-insights:set-status", { id, itemId, status })

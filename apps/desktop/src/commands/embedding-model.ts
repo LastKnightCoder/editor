@@ -64,10 +64,6 @@ export async function deleteEmbeddingModel(
   return invokeEmbedding("embedding-model-delete", modelName);
 }
 
-export async function getEmbeddingModelsDir(): Promise<string> {
-  return invokeEmbedding("embedding-model-get-dir");
-}
-
 export async function embeddingModelHealth(
   modelName: string,
   devicePolicy: EmbeddingDevicePolicy = "auto"
@@ -87,14 +83,6 @@ export async function embeddingModelHealth(
 
 export async function isEmbeddingModelDownloaded(modelName: string): Promise<boolean> {
   return invokeEmbedding("embedding-model-is-downloaded", modelName);
-}
-
-export async function getDownloadedEmbeddingModels(): Promise<string[]> {
-  return invokeEmbedding("embedding-model-get-downloaded");
-}
-
-export async function isEmbeddingModelDownloading(modelName: string): Promise<boolean> {
-  return invokeEmbedding("embedding-model-is-downloading", modelName);
 }
 
 export function onEmbeddingDownloadProgress(

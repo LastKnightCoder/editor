@@ -37,6 +37,3 @@ export const getAnswerPrimaryContentType = (status?: AnswerContentStatus | null)
   }
   return "custom";
 };
-
-export const hasAnyAnswerProjection = (status?: AnswerContentStatus | null): boolean =>
-  Boolean(status && (status.isCard || status.isArticle || status.projectMountCount > 0));

@@ -20,7 +20,3 @@ export const deleteChatGroup = (id: number): Promise<number> => {
 export const getAllChatGroups = (): Promise<ChatGroup[]> => {
   return invoke("chat-group:get-all");
 };
-
-export const getChatGroupById = (id: number): Promise<ChatGroup> => {
-  return invoke("chat-group:get-by-id", id);
-};

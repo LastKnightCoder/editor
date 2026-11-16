@@ -4,11 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  clearAgentPresence,
-  listAgentPresences,
-  setAgentPresence,
-} from "@/commands/agent-presence";
+import { listAgentPresences, setAgentPresence } from "@/commands/agent-presence";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { agentIdentity } from "@/services/agent-identity";
 import { isElectron, on } from "@/electron";
@@ -65,14 +61,4 @@ export function reportAgentPresence(
   void bindDatabaseCommands({ setAgentPresence }, { databaseName: context?.databaseName })
     .setAgentPresence(contentId, { ...update, agent: presenceAgentOf(context), owner })
     .catch(error => console.warn("[agent-presence] 上报失败", error));
-}
-
-export function clearReportedPresence(
-  context: ToolExecutionContext | undefined,
-  contentId: number
-) {
-  if (!isElectron || !context?.conversationKey || !contentId) return;
-  void bindDatabaseCommands({ clearAgentPresence }, { databaseName: context.databaseName })
-    .clearAgentPresence(contentId, presenceAgentOf(context))
-    .catch(error => console.warn("[agent-presence] 清除失败", error));
 }

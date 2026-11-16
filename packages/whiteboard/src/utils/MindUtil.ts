@@ -7,9 +7,9 @@ import MindThemeUtil from "./MindThemeUtil.ts";
 
 const MARGIN_X = 36;
 
-export const MIND_DRAG_HORIZONTAL_THRESHOLD_PX = 120;
-export const MIND_DRAG_VERTICAL_THRESHOLD_PX = 80;
-export const MIND_DRAG_TARGET_RETENTION_SCALE = 1.2;
+const MIND_DRAG_HORIZONTAL_THRESHOLD_PX = 120;
+const MIND_DRAG_VERTICAL_THRESHOLD_PX = 80;
+const MIND_DRAG_TARGET_RETENTION_SCALE = 1.2;
 
 const MARGIN_Y: Record<string, number> = {
   "1": 24,

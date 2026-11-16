@@ -1,11 +1,6 @@
 import { create } from "zustand";
 
-export type DatabaseConnectionStatus =
-  | "idle"
-  | "connecting"
-  | "reconnecting"
-  | "ready"
-  | "error";
+export type DatabaseConnectionStatus = "idle" | "connecting" | "reconnecting" | "ready" | "error";
 
 interface IState {
   sidebarOpen: boolean;
@@ -19,7 +14,7 @@ interface IState {
 const sidebarWidth = Number(localStorage.getItem("sidebarWidth")) || 300;
 const listWidth = Number(localStorage.getItem("listWidth")) || 300;
 
-export const useGlobalStateStore = create<IState>(() => ({
+const useGlobalStateStore = create<IState>(() => ({
   sidebarOpen: true,
   sidebarWidth,
   listOpen: true,

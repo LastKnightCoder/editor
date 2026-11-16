@@ -71,10 +71,6 @@ export const updateVLResource = async (params: UpdateVLResource): Promise<VLReso
   return await invoke("vl-update-resource", params);
 };
 
-export const updateVLMarkdownPath = async (id: number, markdownPath: string): Promise<boolean> => {
-  return await invoke("vl-update-markdown-path", id, markdownPath);
-};
-
 export const deleteVLResource = async (id: number): Promise<boolean> => {
   const deleted = await invoke<boolean>("vl-delete-resource", id);
   if (deleted) invalidateResourceCount();
@@ -93,13 +89,6 @@ export const deleteVLResourceComplete = async (params: {
 };
 
 /**
- * 根据 ID 获取资源
- */
-export const getVLResourceById = async (id: number): Promise<VLResource | null> => {
-  return await invoke("vl-get-resource", id);
-};
-
-/**
  * 根据项目 ID 获取所有资源
  */
 export const getVLResourcesByProjectId = async (projectId: number): Promise<VLResource[]> => {
@@ -111,20 +100,6 @@ export const reorderVLResources = async (
   orderedIds: number[]
 ): Promise<number> => {
   return await invoke("vl-reorder-resources", { projectId, orderedIds });
-};
-
-/**
- * 获取所有资源
- */
-export const getAllVLResources = async (): Promise<VLResource[]> => {
-  return await invoke("vl-get-all-resources");
-};
-
-/**
- * 根据 ID 列表获取资源
- */
-export const getVLResourcesByIds = async (ids: number[]): Promise<VLResource[]> => {
-  return await invoke("vl-get-resources-by-ids", ids);
 };
 
 /**
@@ -167,16 +142,6 @@ export const getVLResourceStatuses = async (
 };
 
 /**
- * 获取队列状态
- */
-export const getVLQueueStatus = async (): Promise<{
-  pending: number;
-  processing: number;
-}> => {
-  return await invoke("vl-get-queue-status");
-};
-
-/**
  * 搜索 Vibe Learning 内容
  */
 export const searchVLContent = async (params: {
@@ -206,34 +171,6 @@ export const searchVLContent = async (params: {
   return await invoke("vl-search-content", params);
 };
 
-/**
- * 重建所有项目的向量表（维度变化时调用）
- */
-export const vlReinitAllVecTables = async (dimensions: number): Promise<boolean> => {
-  return await invoke("vl-reinit-all-vec-tables", dimensions);
-};
-
-/**
- * 重新 embedding 所有资源
- */
-export const vlReembeddingAllResources = async (): Promise<boolean> => {
-  return await invoke("vl-reembedding-all-resources");
-};
-
-/**
- * 清除 embedding 配置缓存
- */
-export const vlClearEmbeddingCache = async (): Promise<boolean> => {
-  return await invoke("vl-clear-embedding-cache");
-};
-
-export const clearVLMediaProcessingCache = async (): Promise<{
-  removedFiles: number;
-  removedBytes: number;
-}> => {
-  return await invoke("vl-clear-media-processing-cache");
-};
-
 export type VLEmbeddingSwitchReason = "config_switch" | "model_switch";
 
 export interface VLRebuildAfterEmbeddingSwitchResult {
@@ -244,18 +181,6 @@ export interface VLRebuildAfterEmbeddingSwitchResult {
   currentGeneration: number;
   reason: VLEmbeddingSwitchReason;
 }
-
-export const vlRebuildAfterEmbeddingSwitch = async (
-  dimensions: number,
-  reason: VLEmbeddingSwitchReason = "model_switch",
-  mainDbName?: string
-): Promise<VLRebuildAfterEmbeddingSwitchResult> => {
-  return await invoke("vl-rebuild-after-embedding-switch", {
-    dimensions,
-    reason,
-    mainDbName,
-  });
-};
 
 /**
  * 读取资源的完整 Markdown 内容
@@ -300,31 +225,6 @@ export const readVLResourceLines = async (params: {
   error?: string;
 }> => {
   return await invoke("vl-read-resource-lines", params);
-};
-
-export const readVLResourceContentRange = async (
-  projectId: number,
-  resourceName: string,
-  mainDbName: string,
-  startLine: number,
-  endLine: number
-): Promise<{
-  success: boolean;
-  content?: string;
-  startLine?: number;
-  endLine?: number;
-  totalLines?: number;
-  resourceName?: string;
-  truncated?: boolean;
-  error?: string;
-}> => {
-  return await readVLResourceLines({
-    projectId,
-    mainDbName,
-    resourceName,
-    startLine,
-    endLine,
-  });
 };
 
 export const readVLResourceRange = async (params: {
@@ -393,13 +293,6 @@ export const updateVLNote = async (params: UpdateVLNote): Promise<VLNote | null>
  */
 export const deleteVLNote = async (id: number): Promise<number> => {
   return await invoke("vl-note:delete", id);
-};
-
-/**
- * 根据 ID 获取 VL 笔记
- */
-export const getVLNoteById = async (id: number): Promise<VLNote | null> => {
-  return await invoke("vl-note:get", id);
 };
 
 /**

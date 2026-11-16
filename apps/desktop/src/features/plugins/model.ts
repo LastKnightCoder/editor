@@ -120,7 +120,7 @@ export interface InstalledPlugin {
   error?: string;
 }
 
-export function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginSourceKind {
+function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginSourceKind {
   return runtime.local?.source(id)?.kind === "center" ? "center" : "zip";
 }
 

@@ -59,7 +59,7 @@ export function normalizeKeyName(token: string): string | null {
  * 别名与大小写由 is-hotkey 归一（esc→escape、cmd→meta、Mod+K→k…）。
  * 无法解析返回 undefined。
  */
-export function hotkeySignature(key: string): string | undefined {
+function hotkeySignature(key: string): string | undefined {
   try {
     const parsed = parseHotkey(key, { byKey: true });
     const primary = parsed.ctrlKey !== false || parsed.metaKey !== false;

@@ -46,7 +46,7 @@ export const TODO_MUTATION_ACTIONS = {
 
 export type TodoMutationAction = (typeof TODO_MUTATION_ACTIONS)[keyof typeof TODO_MUTATION_ACTIONS];
 
-export const createTodoMutationPayload = (params: {
+const createTodoMutationPayload = (params: {
   source: string;
   entityType: TodoMutationEntityType;
   entityId?: number;

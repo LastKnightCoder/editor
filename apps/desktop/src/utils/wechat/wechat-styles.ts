@@ -31,7 +31,7 @@ const CALLOUT_ICONS = {
 
 export { CALLOUT_ICONS };
 
-export const wechatBaseStyles = `
+const wechatBaseStyles = `
 /* ========== Base Reset ========== */
 * {
   margin: 0;

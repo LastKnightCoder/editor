@@ -17,10 +17,7 @@ interface SortPanelProps {
 }
 
 /** 方向的人话提示：按字段值类型 + 方向映射，消除「升序是哪边」的歧义；公式列按结果类型推导 */
-export const directionHint = (
-  valueType: ValueType | null,
-  direction: SortRule["direction"]
-): string => {
+const directionHint = (valueType: ValueType | null, direction: SortRule["direction"]): string => {
   if (valueType === "date") return direction === "asc" ? "旧→新" : "新→旧";
   if (valueType === "number") return direction === "asc" ? "0→9" : "9→0";
   return direction === "asc" ? "A→Z" : "Z→A";
@@ -233,12 +230,12 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                     )}
                     {sort.direction === "asc" ? (
                       <ArrowDown
-                        className="absolute bottom-[4px] right-[5px] size-[7px] opacity-45"
+                        className="absolute right-[5px] bottom-[4px] size-[7px] opacity-45"
                         strokeWidth={3}
                       />
                     ) : (
                       <ArrowUp
-                        className="absolute bottom-[4px] right-[5px] size-[7px] opacity-45"
+                        className="absolute right-[5px] bottom-[4px] size-[7px] opacity-45"
                         strokeWidth={3}
                       />
                     )}

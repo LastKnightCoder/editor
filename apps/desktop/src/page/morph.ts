@@ -1,5 +1,5 @@
 /**
- * 共享元素形变转场（View Transitions API，D-106）。
+ * 共享元素形变转场（View Transitions API）。
  *
  * 元素用 `data-morph-key` 声明自己代表的对象（同一对象在列表、浮层、详情页用同一 key）。
  * 转场时只给一对元素临时挂上 MORPH_NAME：旧画面挂源元素，更新后挂目标元素，浏览器
@@ -11,7 +11,7 @@
 
 import { flushSync } from "react-dom";
 
-export const MORPH_KEY_ATTR = "data-morph-key";
+const MORPH_KEY_ATTR = "data-morph-key";
 
 const MORPH_NAME = "page-morph";
 const READY_TIMEOUT_MS = 400;
@@ -107,7 +107,7 @@ export function morph({ from, update, to }: MorphOptions) {
 }
 
 /** 在 scope 内找声明了该 key 的元素 */
-export function queryMorphElement(scope: ParentNode | null | undefined, key: string) {
+function queryMorphElement(scope: ParentNode | null | undefined, key: string) {
   return scope?.querySelector<HTMLElement>(`[${MORPH_KEY_ATTR}="${quote(key)}"]`) ?? null;
 }
 

@@ -44,7 +44,7 @@ export const usePluginPermissionUi = create<PermissionUiState>()(() => ({
 }));
 
 /** 连续拒绝达到此次数后转为已阻止，不再弹窗 */
-export const BLOCK_AFTER_DENIALS = 3;
+const BLOCK_AFTER_DENIALS = 3;
 const USAGE_FLUSH_MS = 5000;
 let nextPromptId = 0;
 

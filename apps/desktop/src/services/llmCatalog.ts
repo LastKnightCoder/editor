@@ -1,9 +1,9 @@
 /**
- * 预设服务商目录的渲染端读取层（M3-e）：目录在主进程、纯读不联网，这里只做
+ * 预设服务商目录的渲染端读取层：目录在主进程、纯读不联网，这里只做
  * 「取一次缓存住」——反复开关浮层不该每次过 IPC。
  * 目录只含本运行时支持的三种线协议能跑的服务商，因此界面可以直接把结果当可选项。
  *
- * 放在 services 而非 features/settings：聊天输入框的思考档位也读它（M3-g），
+ * 放在 services 而非 features/settings：聊天输入框的思考档位也读它，
  * 不属于设置页私有。
  */
 import { useEffect, useState } from "react";
@@ -18,7 +18,7 @@ import type {
 let providersPromise: Promise<PiCatalogProvider[]> | null = null;
 const modelsByBuiltin = new Map<string, Promise<PiCatalogModel[]>>();
 
-export const loadCatalogProviders = (): Promise<PiCatalogProvider[]> => {
+const loadCatalogProviders = (): Promise<PiCatalogProvider[]> => {
   providersPromise ??= piCatalogProviders()
     .then(result => (result.ok ? result.providers : []))
     .catch(error => {
@@ -47,7 +47,7 @@ const GENERIC_THINKING_LEVELS: PiThinkingLevel[] = ["off", "low", "medium", "hig
 
 /**
  * 旧本地存储里的档位值归一：早期存的是旧枚举（"none" 而非 "off"），
- * 类型收敛后统一为运行时档位（M3-g）。
+ * 类型收敛后统一为运行时档位。
  */
 export const normalizeStoredThinkingLevel = (stored: string | undefined): PiThinkingLevel =>
   !stored || stored === "none" ? "off" : (stored as PiThinkingLevel);

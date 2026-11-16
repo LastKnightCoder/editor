@@ -22,7 +22,3 @@ export function registerPageDefinition(definition: PageDefinition): void {
 export function getPageDefinition(key: string): PageDefinition | undefined {
   return definitions.get(key);
 }
-
-export function listPageDefinitions(): PageDefinition[] {
-  return [...definitions.values()];
-}

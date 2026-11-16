@@ -1,5 +1,5 @@
 /**
- * 文章详情视图（mockups/article-detail/plan-a4-quiet.html 定稿落地）。
+ * 文章详情视图。
  * 版心 = hero + 正文列（720）恒居中（grid 三列），目录贴正文右缘 sticky；
  * 面包屑（含速切器）经 usePageBreadcrumb 注入壳层；无底部状态栏：标题/元信息在封面之上，
  * ⋯ 菜单（含「发起协作」）贴元信息行右侧；不展示保存态与阅读进度。
@@ -9,7 +9,7 @@
  * IUpdateArticle 本身不含 content）+ article:updated 广播。
  *
  * 搬用（legacy 组件直接消费，后续按新体系重写）：
- * · 正文编辑器 ContentEditor（@tau/editor 包装，D-015 编辑器正式迁移时替换）；
+ * · 正文编辑器 ContentEditor（@tau/editor 包装，编辑器正式迁移时替换）；
  * · 演示模式 PresentationMode、沉浸模式 ImmersiveEditorMode（退出后恢复光标）；
  * · 导出弹窗 ContentExportModal / EpubExportModal / PdfExportModal；
  * · 统一制卡入口（useFlashcardCreation）；
@@ -476,7 +476,7 @@ export function ArticleDetailView() {
         >
           {/* 一整张纸（同卡片详情）：封面内衬在纸顶，版心恒居中（hero 与正文列同轴）；
           滚动区贴满纸面（不留上下外边距），封面才能与纸边等距 10px；面包屑由壳层槽位渲染 */}
-          {/* 纸面是形变目标（D-106）：文章读到才声明，切换文章的原位更新期间不认旧文章 */}
+          {/* 纸面是形变目标：文章读到才声明，切换文章的原位更新期间不认旧文章 */}
           <div
             data-morph-key={editingArticle.id === id ? articleMorphKey(id) : undefined}
             className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"

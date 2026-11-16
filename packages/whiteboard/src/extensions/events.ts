@@ -63,7 +63,7 @@ export type ExtensionEventName = `${string}.${string}`;
 const INTERNAL_EVENT_PREFIX = "internal:";
 const EXTENSION_EVENT_PATTERN = /^[a-z0-9-]+\..+/;
 
-export function isKernelEventName(event: string): event is KernelEventName {
+function isKernelEventName(event: string): event is KernelEventName {
   return (KERNEL_EVENT_NAMES as readonly string[]).includes(event);
 }
 

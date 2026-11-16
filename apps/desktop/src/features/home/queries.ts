@@ -250,7 +250,7 @@ function fetchTodayStats(index: SnapshotIndex, diaryWords: Map<string, number>) 
 }
 
 /** 热力图派生：每日操作数 + 连续活跃（今天没活动从昨天起算）+ 活跃天数 */
-export function deriveHeatmapStats(items: ICalendarHeatmapDataItem[]): HeatmapStats {
+function deriveHeatmapStats(items: ICalendarHeatmapDataItem[]): HeatmapStats {
   const days = (items ?? []).map(item => ({
     date: item.time,
     count: item.count ?? 0,
@@ -294,7 +294,7 @@ export function withSnapshotTimeout<T>(
   ]).finally(() => clearTimeout(timeoutId));
 }
 
-export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
+async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
   // statistic 表为每日全量快照，一次拉全量（getAllStatistic 会实时补算今天），todayStats 由快照差分派生；
   // 日记走 diary_entries（word_count 即当天字数），与 diaries 相关的分项共用一次全量拉取
   const [stats, diaries] = await Promise.all([

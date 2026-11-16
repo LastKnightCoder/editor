@@ -180,12 +180,6 @@ export function assertElementVersions(spec: ElementContractDefinition): void {
   );
 }
 
-export const isEditorExtension = (value: unknown): value is EditorExtension =>
-  typeof value === "object" &&
-  value !== null &&
-  (value as EditorExtension).apiVersion === EXTENSION_API_VERSION &&
-  typeof (value as EditorExtension).id === "string";
-
 /** 扩展贡献的元素类型 */
 export const elementTypesOf = (extension: EditorExtension): string[] =>
   (extension.elements ?? []).map(element => element.type);

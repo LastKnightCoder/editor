@@ -3,7 +3,7 @@ import { DEFAULT_RICHTEXT_STYLE, TEXT_TONES, TextStyle, TextTone, TextVariant } 
 const VARIANTS: TextVariant[] = ["none", "plain", "band", "tinted"];
 
 /** 记住上一次选的外观，新建同类元素时沿用；只存语义，旧版色值键不再读取 */
-export class TextStyleStore {
+class TextStyleStore {
   constructor(
     private readonly prefix: string,
     private readonly fallback: TextStyle

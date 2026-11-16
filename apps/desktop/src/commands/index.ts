@@ -3,7 +3,6 @@ export * from "./updater";
 export * from "./article";
 export * from "./daily-note";
 export * from "./diary";
-export * from "./setting";
 export * from "./fonts";
 export * from "./sync";
 export * from "./statistic";
@@ -19,7 +18,6 @@ export * from "./vec-document";
 export * from "./extra";
 export * from "./fetch";
 export * from "./window";
-export * from "./operation";
 export * from "./fts";
 export * from "./video-notes";
 export * from "./video-note-item";
@@ -59,22 +57,7 @@ export type {
   ICreateTranscription,
   IUpdateTranscription,
 } from "./transcription";
-export {
-  transcribeAudio,
-  getTranscriptionModels,
-  checkTranscriptionModel,
-  getDownloadedTranscriptionModels,
-  getTranscriptionModelsDir,
-  openTranscriptionModelsDir,
-  extractAudioFromVideo,
-  createTranscription,
-  getTranscriptionById,
-  getTranscriptionBySource,
-  updateTranscription,
-  deleteTranscription,
-  getAllTranscriptions,
-  incrementTranscriptionRefCount,
-} from "./transcription";
+export { openTranscriptionModelsDir } from "./transcription";
 export * from "./model-downloader";
 export * from "./embedding-model";
 export * from "./model-usage";

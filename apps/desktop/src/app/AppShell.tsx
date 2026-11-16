@@ -1,5 +1,5 @@
 /**
- * AppShell —— 融合骨架，样式 Tailwind 优先（D-001）。
+ * AppShell —— 融合骨架，样式 Tailwind 优先。
  *
  *   ┌──────────┬──────────────────────────┐
  *   │ sidebar-head │ titlebar（右列专属）    │ ← 46px 对齐
@@ -165,7 +165,7 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
   // 拖拽中需即时跟随鼠标：Sidebar 据此关掉宽度过渡动画（否则 220ms 缓动成橡皮筋）
   const [sidebarResizing, setSidebarResizing] = useState(false);
 
-  // 页面访问记录 → 搜索面板空态的「最近访问 + 常用」（D-003；连续停留同页只记一次）
+  // 页面访问记录 → 搜索面板空态的「最近访问 + 常用」（连续停留同页只记一次）
   const recordVisit = useSearchStore(s => s.recordVisit);
   const currentKey = state.back[state.back.length - 1]?.key;
   const lastRecorded = useRef<string | null>(null);
@@ -204,9 +204,9 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
           <AssistDock />
         </div>
       </div>
-      {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
+      {/* 全局命令面板浮层（Ctrl+K）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
-      {/* 全窗口设置页（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}
+      {/* 全窗口设置页（Ctrl+,）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}
       <SettingsScreen />
       {/* Markdown 导出与批量导入向导（命令面板 / 设置 / 页面导入菜单入口，app/transferStore） */}
       <MarkdownExportHost />
@@ -220,7 +220,7 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
       {/* 插件 context.app.run 打开的导出、演示与协作界面 */}
       <PluginContentActionHost />
       <FlashcardCreationHost />
-      {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
+      {/* 全局通知卡栈（右上角）：协作申请 / 应用更新 / 发布结果等后台事件 */}
       <NotificationHost onItemsChange={onNotificationItemsChange} />
       {/* 通知产生端只在主窗口壳层运行：其余窗口无卡栈可显示，且 App 根运行会绕过
           路由直投（如系统通知窗口自带 Host 会双显） */}

@@ -15,7 +15,3 @@ export const getRecentProjects = async (): Promise<RecentProject[]> => {
 export const addRecentProject = async (projectPath: string): Promise<void> => {
   return await invoke("add-recent-project", projectPath);
 };
-
-export const clearRecentProjects = async (): Promise<void> => {
-  return await invoke("clear-recent-projects");
-};

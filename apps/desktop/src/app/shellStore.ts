@@ -6,8 +6,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export const SIDEBAR_MIN_W = 130;
-export const SIDEBAR_MAX_W = 340;
+const SIDEBAR_MIN_W = 130;
+const SIDEBAR_MAX_W = 340;
 /** 收起图标列宽度，与 tokens.css 的 --tau-sidebar-w-collapsed 同源 */
 export const SIDEBAR_COLLAPSED_W = 58;
 /** 拖拽跨阈值切换：拉宽 ≥ 展开阈值即展开（宽度即时跟随鼠标）；拖窄 ≤ 收起阈值收起。中间 20px 迟滞防边界抖动 */
@@ -17,7 +17,7 @@ export const SIDEBAR_COLLAPSE_W = SIDEBAR_MIN_W - 20;
 /** 右侧辅助栏宽度范围与默认值 */
 export const ASSIST_MIN_W = 360;
 export const ASSIST_MAX_W = 560;
-export const ASSIST_DEFAULT_W = 400;
+const ASSIST_DEFAULT_W = 400;
 
 interface ShellState {
   sidebarCollapsed: boolean;

@@ -15,14 +15,14 @@
 
 import { defineTheme } from "../defineTheme.ts";
 
-export default defineTheme({
+defineTheme({
   key: "paper",
   name: "暖纸",
   light: {
     palette: {
       paper: "#f3eee2", // 窗口底
       surface: "#fffdf9", // 卡片/面板
-      sunken: "#e7dbc8", // 轨道/凹槽专档：进度轨道、波形未播放段、时间轴（对 page 1.181）；输入框/代码块禁用本档——走 surface 亮底 + line-1 描边（D-007/D-009/D-032）
+      sunken: "#e7dbc8", // 轨道/凹槽专档：进度轨道、波形未播放段、时间轴（对 page 1.181）；输入框/代码块禁用本档——走 surface 亮底 + line-1 描边
       track: "#e0d6c3", // 控件轨道（开关/滑杆槽）：米灰，与 thumb(surface) 拉开
       ink1: "#43392c",
       // 原值 #736552 对 page 仅 4.89、对 sunken 3.99——下沉底一深就跌破 AA。

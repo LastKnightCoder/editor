@@ -1,7 +1,7 @@
 import { getStroke, StrokeOptions } from "perfect-freehand";
 import { getDefaultThemeColorId } from "../constants/theme-colors";
 
-export const HANDWRITE_STYLE_STORAGE_KEY = "whiteboard-handwrite-style-v1";
+const HANDWRITE_STYLE_STORAGE_KEY = "whiteboard-handwrite-style-v1";
 
 export interface HandwriteStyle {
   themeColorId: string;

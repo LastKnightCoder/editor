@@ -5,7 +5,7 @@
 import type { ChatSessionRow } from "@/types/chat-session";
 
 /** 侧栏「最近」露出条数（置顶全量露出） */
-export const NAV_RECENT_LIMIT = 3;
+const NAV_RECENT_LIMIT = 3;
 
 /**
  * 页面参数 id（字符串）→ 会话 id（pi 会话 id）；缺省或非法为 null（新对话空态）。

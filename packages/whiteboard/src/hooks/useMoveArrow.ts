@@ -36,5 +36,3 @@ export const useMoveArrow = ({
     setAltMode: tracker.setAltMode.bind(tracker),
   };
 };
-
-export default useMoveArrow;

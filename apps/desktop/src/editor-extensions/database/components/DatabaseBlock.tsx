@@ -129,7 +129,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   return (
     <div className="relative">
       <div {...attributes} contentEditable={false}>
-        {/* 容器 = 透明底 + 描边（D-007） */}
+        {/* 容器 = 透明底 + 描边 */}
         <div className="border-line-1 flex min-h-[12em] flex-col gap-[1em] rounded-[0.75em] border border-solid p-[1.5em]">
           {renderContent()}
         </div>

@@ -23,7 +23,7 @@ import type { DocTaskItem, DocTaskSnapshot } from "@/types/doc-tasks";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 
-export const docTaskKeys = {
+const docTaskKeys = {
   root: (database: string) => ["doc-tasks", databaseId(database)] as const,
   snapshot: (database: string) => [...docTaskKeys.root(database), "snapshot"] as const,
   of: (database: string, contentId: number) =>

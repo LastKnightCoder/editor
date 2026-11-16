@@ -13,7 +13,7 @@ import type { ExtensionErrorEvent, ExtensionErrorReporter } from "../services/er
 
 /** 窗口内出错达到阈值即熔断 */
 export const CIRCUIT_BREAKER_THRESHOLD = 3;
-export const CIRCUIT_BREAKER_WINDOW_MS = 10_000;
+const CIRCUIT_BREAKER_WINDOW_MS = 10_000;
 
 export interface ExtensionCircuitBreaker {
   isDisabled(extension: string): boolean;

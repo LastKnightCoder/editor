@@ -45,7 +45,7 @@ const traverse = (nodes: SlateNodeLike[], visitor: (node: SlateNodeLike) => void
   }
 };
 
-export const extractFirstHeadingText = (content: Descendant[], level: number): string => {
+const extractFirstHeadingText = (content: Descendant[], level: number): string => {
   let headingText = "";
   traverse(content as SlateNodeLike[], node => {
     if (headingText) {
@@ -74,7 +74,7 @@ export const extractImageSources = (
   return [...imageSources];
 };
 
-export const extractFirstImageSrc = (content: Descendant[]): string =>
+const extractFirstImageSrc = (content: Descendant[]): string =>
   extractImageSources(content, 1)[0] ?? "";
 
 export const buildDefaultEpubMetadata = (params: {

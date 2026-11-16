@@ -28,7 +28,7 @@ export function normalizeWebPageUrl(url: string): string | null {
 }
 
 /** 网页摘录打开时带上标注 id，伴读扩展据此滚到那条标注 */
-export const webExcerptUrl = (pageUrl: string, externalId: string) =>
+const webExcerptUrl = (pageUrl: string, externalId: string) =>
   `${pageUrl}#${WEB_HIGHLIGHT_HASH}=${encodeURIComponent(externalId)}`;
 
 export interface WebPageExcerpts {

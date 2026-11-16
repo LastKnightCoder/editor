@@ -1,6 +1,6 @@
 import type { Descendant } from "slate";
 import { desktopContentMetrics } from "../../shared/content-metrics";
-export { isContentEmpty, countTextWords } from "@tau/db-schema/content-metrics";
+export { isContentEmpty } from "@tau/db-schema/content-metrics";
 
 export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
   for (const node of editor) {

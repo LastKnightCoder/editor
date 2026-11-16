@@ -6,17 +6,6 @@ import {
   RpcNotificationMessage,
 } from "@/types";
 
-export function isRpcHeartbeatMessage(
-  message: any,
-): message is RpcHeartbeatMessage {
-  return (
-    message &&
-    typeof message === "object" &&
-    "type" in message &&
-    (message.type === RpcMessageType.Ping ||
-      message.type === RpcMessageType.Pong)
-  );
-}
 export function isPingMessage(message: any): message is RpcHeartbeatMessage {
   return (
     message &&
@@ -31,9 +20,7 @@ export function isPongMessage(message: any): message is RpcHeartbeatMessage {
     message.type === RpcMessageType.Pong
   );
 }
-export function isRpcRequestMessage(
-  message: any,
-): message is RpcRequestMessage {
+export function isRpcRequestMessage(message: any): message is RpcRequestMessage {
   return (
     message &&
     typeof message === "object" &&
@@ -41,9 +28,7 @@ export function isRpcRequestMessage(
     message.type === RpcMessageType.Request
   );
 }
-export function isRpcResponseMessage(
-  message: any,
-): message is RpcResponseMessage {
+export function isRpcResponseMessage(message: any): message is RpcResponseMessage {
   return (
     message &&
     typeof message === "object" &&
@@ -52,9 +37,7 @@ export function isRpcResponseMessage(
   );
 }
 
-export function isRpcNotificationMessage(
-  message: any,
-): message is RpcNotificationMessage {
+export function isRpcNotificationMessage(message: any): message is RpcNotificationMessage {
   return (
     message &&
     typeof message === "object" &&

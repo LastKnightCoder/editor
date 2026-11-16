@@ -29,9 +29,6 @@ export function paramString(): ParamDesc<string> {
 export function paramNumber(): ParamDesc<number> {
   return { kind: "number", optional: false };
 }
-export function paramBoolean(): ParamDesc<boolean> {
-  return { kind: "boolean", optional: false };
-}
 export function paramOptional<T>(desc: ParamDesc<T>, defaultValue?: T): ParamDesc<T> {
   return { ...desc, optional: true, defaultValue };
 }

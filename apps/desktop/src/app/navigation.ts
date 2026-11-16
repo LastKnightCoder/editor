@@ -4,8 +4,8 @@
  * key 与 features/<域>/pages/*.page.tsx 的 definePage key 一一对应（占位注册已随全部
  * 模块迁入真实 page 退役）。修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
- * 项目即文档树；数据库（数据表格）与 Notebook（原 Vibe Learning）自 2026-09-28 起各为独立顶级模块。
- * 分组按「它是什么」划分（日常 / 知识 / 学习 / AI / 分享，D-071），用途差异在页面内部表达。
+ * 项目即文档树；数据库（数据表格）与 Notebook（原 Vibe Learning）各为独立顶级模块。
+ * 分组按「它是什么」划分（日常 / 知识 / 学习 / AI / 分享），用途差异在页面内部表达。
  *
  * 图标：lucide-react（线性单色）；多色图标用 react-icons（桌面已有依赖）。
  */
@@ -63,10 +63,10 @@ export interface NavItem<Icon = PluginSidebarIcon> {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数；
    *  plugin-status = 等待授权的插件数 + 可更新的插件数） */
   badge?: NavItemBadge;
-  /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；chat-sessions = 置顶与最近 AI 会话） */
+  /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页；
+   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道；whiteboard-tags = 白板标签；chat-sessions = 置顶与最近 AI 会话） */
   children?: NavItemChildren;
-  /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
+  /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗） */
   opensOverlay?: "settings";
   /** 不导航页面、打开独立窗口的入口（反馈窗口：可边操作主窗口边截图） */
   opensWindow?: "feedback";
@@ -82,14 +82,14 @@ export interface NavSection<Icon = PluginSidebarIcon> {
 
 export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
   {
-    // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴（D-071）
+    // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴
     id: SIDEBAR_GROUPS.daily,
     label: "日常",
     items: [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar },
-      { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule，D-040；项目嵌在此入口下）
-      { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
+      { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule；项目嵌在此入口下）
+      { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下）
       { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
     ],
   },
@@ -101,8 +101,8 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
       { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
       { key: "articles", label: "文章", icon: FileText, children: "article-tags" }, // features/articles（一整张纸，标签嵌在此入口下）
       { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（驾驶舱列表 + 文档树工作台）
-      { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下，D-047）
-      { key: "databases", label: "数据库", icon: Table }, // features/databases（结构化数据表，2026-09-28 自项目 data-table 型拆出）
+      { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下）
+      { key: "databases", label: "数据库", icon: Table }, // features/databases（结构化数据表，自项目 data-table 型拆出）
     ],
   },
   {
@@ -110,10 +110,10 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
     id: SIDEBAR_GROUPS.learning,
     label: "学习",
     items: [
-      { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
-      { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
+      { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
+      { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布）
       { key: "walk", label: "漫步", icon: Footprints }, // features/walk（随机抽旧内容重温，顺岔路走到相邻内容）
-      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
+      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台）
     ],
   },
   {
@@ -121,7 +121,7 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
     label: "AI",
     items: [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // 会话导航嵌在侧栏入口下
-      { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑，D-060）
+      { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑）
       { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
     ],
   },
@@ -137,14 +137,14 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
         badge: "collab-requests",
         children: "collaboration-sessions",
       }, // features/collaboration（共享内容作为子项嵌套在此入口下）
-      { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出，D-035）
+      { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出）
     ],
   },
 ];
 
 export const NAV_FOOTER: NavItem<LucideIcon>[] = [
-  // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
-  // 插件中心与已安装管理（D-164）；插件设置在详情页，设置弹窗只留跳转
+  // 设置入口打开壳层设置弹窗（legacy 全屏设置页已随第三批清理退役）
+  // 插件中心与已安装管理；插件设置在详情页，设置弹窗只留跳转
   { key: "plugins", label: "插件", icon: Blocks, badge: "plugin-status" },
   { key: "feedback", label: "反馈", icon: MessageSquareHeart, opensWindow: "feedback" },
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },

@@ -89,7 +89,7 @@ const normalizePreset = (value: Partial<ArrowStylePreset> | null | undefined): A
   };
 };
 
-export const getDefaultArrowStylePreset = (): ArrowStylePreset => {
+const getDefaultArrowStylePreset = (): ArrowStylePreset => {
   return {
     ...DEFAULT_ARROW_STYLE_PRESET,
     dashArray: [...DEFAULT_ARROW_STYLE_PRESET.dashArray],

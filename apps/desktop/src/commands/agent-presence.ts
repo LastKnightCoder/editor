@@ -5,8 +5,5 @@ import type { AgentPresence, AgentPresenceUpdate } from "@/types/agent-presence"
 export const setAgentPresence = (contentId: number, update: AgentPresenceUpdate) =>
   contentAgentCommand<void>("content:agent-presence", contentId, update);
 
-export const clearAgentPresence = (contentId: number, agent: string) =>
-  contentAgentCommand<void>("content:agent-presence-clear", contentId, agent);
-
 export const listAgentPresences = (contentId: number) =>
   contentAgentCommand<AgentPresence[]>("content:agent-presences", contentId);

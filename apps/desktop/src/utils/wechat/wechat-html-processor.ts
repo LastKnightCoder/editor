@@ -46,10 +46,7 @@ export function resolveCssVariables(css: string): string {
     let rule = utilMatch[0];
     // Replace var() references
     for (const [name, value] of variables.entries()) {
-      const varRegex = new RegExp(
-        `var\\(${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
-        "g",
-      );
+      const varRegex = new RegExp(`var\\(${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`, "g");
       rule = rule.replace(varRegex, value);
     }
     utilities.push(rule);
@@ -134,7 +131,7 @@ function generateFootnotesSection(footnotes: FootnoteLink[]): string {
 export function processHtmlForWechat(
   html: string,
   css?: string,
-  options: WechatProcessorOptions = {},
+  options: WechatProcessorOptions = {}
 ): string {
   const opts = { ...defaultOptions, ...options };
   const styles = css || getWechatStyles();
@@ -197,7 +194,6 @@ export function processHtmlForWechat(
       }
     });
 
-    // Remove SVG defs as they're no longer needed
     $("svg defs").remove();
   }
 
@@ -231,11 +227,9 @@ export function processHtmlForWechat(
         return;
       }
 
-      // Get link text
       const text = $el.text().trim() || href;
 
-      // Check if this link is already in footnotes (avoid duplicates for same URL)
-      let footnoteIndex = footnotes.findIndex((f) => f.href === href);
+      let footnoteIndex = footnotes.findIndex(f => f.href === href);
       if (footnoteIndex === -1) {
         footnotes.push({ text, href });
         footnoteIndex = footnotes.length - 1;
@@ -269,21 +263,16 @@ export function processHtmlForWechat(
     /<code[^>]*class="[^"]*(?:hljs|shiki)[^"]*"[^>]*>([\s\S]*?)<\/code>/g,
     (match, codeContent) => {
       // 将每行开头的空格转换为 &nbsp;
-      const protectedContent = codeContent.replace(
-        /^( +)/gm,
-        (spaces: string) => {
-          return spaces.replace(/ /g, "&nbsp;");
-        },
-      );
+      const protectedContent = codeContent.replace(/^( +)/gm, (spaces: string) => {
+        return spaces.replace(/ /g, "&nbsp;");
+      });
       return match.replace(codeContent, protectedContent);
-    },
+    }
   );
 
   // 8. Convert div to section (WeChat compatibility)
   if (opts.convertDivToSection) {
-    result = result
-      .replace(/<div/g, "<section")
-      .replace(/<\/div>/g, "</section>");
+    result = result.replace(/<div/g, "<section").replace(/<\/div>/g, "</section>");
   }
 
   // 9. Replace CSS variables with concrete values (WeChat doesn't support CSS variables)
@@ -297,29 +286,4 @@ export function processHtmlForWechat(
     .replace(/var\(--weui-LINK\)/g, "#576b95");
 
   return result;
-}
-
-/**
- * Convert image URL to base64 data URL
- * Useful for cross-origin images or QR codes
- */
-export async function convertImageToBase64(src: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL("image/png"));
-      } else {
-        reject(new Error("Failed to get canvas context"));
-      }
-    };
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
-  });
 }

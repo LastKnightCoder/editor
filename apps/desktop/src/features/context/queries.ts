@@ -27,7 +27,7 @@ export const entityContextKeys = {
     [...entityContextKeys.entity(database, ref), "related"] as const,
 };
 
-export const contentLinksKeys = {
+const contentLinksKeys = {
   root: (database: string) => ["content-links", databaseId(database)] as const,
 };
 

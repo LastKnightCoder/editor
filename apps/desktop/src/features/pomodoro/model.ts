@@ -10,7 +10,7 @@ export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 
 /** 主进程结束会话时，专注不足该时长直接丢弃、不落库 */
-export const MIN_RECORD_MS = 5 * MINUTE_MS;
+const MIN_RECORD_MS = 5 * MINUTE_MS;
 
 /** 账本 / 时段分布的时间轴范围（点钟） */
 export const AXIS_FROM_HOUR = 6;
@@ -23,7 +23,7 @@ export function startOfDay(ts: number): number {
 }
 
 /** ts 所在日相对 now 所在日的偏移（今天 0、昨天 -1） */
-export function dayOffset(ts: number, now: number): number {
+function dayOffset(ts: number, now: number): number {
   return Math.round((startOfDay(ts) - startOfDay(now)) / DAY_MS);
 }
 

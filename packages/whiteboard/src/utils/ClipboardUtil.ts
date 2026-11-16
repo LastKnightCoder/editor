@@ -106,8 +106,3 @@ export const writeClipboardPayload = async (payload: string): Promise<boolean> =
     }
   });
 };
-
-export default {
-  buildClipboardPayload,
-  writeClipboardPayload,
-};

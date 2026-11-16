@@ -27,13 +27,6 @@ export const toggleFullScreen = async () => {
   return platform.window.toggleFullScreen();
 };
 
-export const getWindowState = async (): Promise<{
-  isMaximized: boolean;
-  isFullScreen: boolean;
-}> => {
-  return platform.window.getState();
-};
-
 /** 在独立编辑窗口打开卡片 / 文章 / 项目文档；已打开则聚焦 */
 export const openEditorWindow = async (target: EditorWindowTarget) => {
   return platform.window.openEditorWindow(target);

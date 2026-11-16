@@ -73,7 +73,7 @@ export const voidFixtures = [
   { type: "database", children: [text()] },
 ] as unknown as Element[];
 
-export async function mountVoidEditor(kit: EditorKit, fixture: Element) {
+async function mountVoidEditor(kit: EditorKit, fixture: Element) {
   const definition = kit.extensions
     .flatMap(extension => extension.elements ?? [])
     .find(element => element.type === fixture.type);

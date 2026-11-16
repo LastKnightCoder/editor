@@ -14,7 +14,7 @@ interface UploadRow {
   error_json: string | null;
   created_at: string;
 }
-export const uploadDto = (row: UploadRow): Upload => ({
+const uploadDto = (row: UploadRow): Upload => ({
   id: row.id,
   status: row.status,
   fileName: row.file_name,

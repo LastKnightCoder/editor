@@ -8,7 +8,7 @@ import { isElectron } from "@/electron";
  */
 
 /** 按环境生成预览 URL；配套 disposeHtmlPreviewUrl 释放 */
-export function createHtmlPreviewUrl(html: string): string {
+function createHtmlPreviewUrl(html: string): string {
   if (!html) {
     return "";
   }
@@ -19,7 +19,7 @@ export function createHtmlPreviewUrl(html: string): string {
 }
 
 /** 释放预览 URL（data URL 无需清理，Blob URL 必须 revoke 防泄漏） */
-export function disposeHtmlPreviewUrl(url: string): void {
+function disposeHtmlPreviewUrl(url: string): void {
   if (!isElectron && url.startsWith("blob:")) {
     URL.revokeObjectURL(url);
   }

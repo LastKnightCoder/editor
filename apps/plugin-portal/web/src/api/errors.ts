@@ -25,7 +25,7 @@ export class PortalApiError extends Error {
   }
 }
 
-export function isApiErrorBody(value: unknown): value is ApiError {
+function isApiErrorBody(value: unknown): value is ApiError {
   const error = (value as ApiError | null)?.error;
   return !!error && typeof error.code === "string" && typeof error.message === "string";
 }
@@ -56,9 +56,6 @@ export function asPortalError(error: unknown): PortalApiError {
 export function hasCode(error: unknown, ...codes: PortalErrorCode[]): boolean {
   return error instanceof PortalApiError && codes.includes(error.code);
 }
-
-/** 写操作发出后网络中断：服务端可能已处理，需要读取核对而不是直接判失败 */
-export const isOutcomeUnknown = (error: unknown) => hasCode(error, "NETWORK_ERROR");
 
 /** 错误提示统一出口：协议规定具体文案取服务端 message */
 export function errorMessage(error: unknown): string {

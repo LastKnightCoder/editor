@@ -3,7 +3,7 @@ import { useStore } from "zustand";
 import { DatabaseContext, DatabaseStoreType } from "../DatabaseContext";
 import { useMemoizedFn } from "ahooks";
 
-export function useDatabaseStore<T = DatabaseStoreType>(
+function useDatabaseStore<T = DatabaseStoreType>(
   selector?: (state: ReturnType<DatabaseStoreType["getState"]>) => T
 ): T {
   const store = useContext(DatabaseContext);

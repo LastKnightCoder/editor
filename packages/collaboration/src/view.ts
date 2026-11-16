@@ -45,7 +45,7 @@ export function useStableSessionStatus(session?: CollaborationSession): SessionS
 }
 
 /** 任意来源的状态（如白板同步）共用同一延迟揭示规则 */
-export function useStableStatus<T extends SessionStatus>(status?: T): SessionStatus | undefined {
+function useStableStatus<T extends SessionStatus>(status?: T): SessionStatus | undefined {
   const [displayed, setDisplayed] = useState<SessionStatus | undefined>(status);
   // 依赖只放可比较的原始字段：session 与推导结果的引用每次渲染/状态广播都会重建，
   // 一旦作为依赖，本 effect 就会每渲染重跑并反复重置计时器——广播比 1s 更密时揭示被无限推迟

@@ -51,7 +51,7 @@ const saveRemoteResourceConfig = async (configPath: string, config: Record<strin
   await writeTextFile(configPath, JSON.stringify(config));
 };
 
-export const getFileExtension = async (url: string): Promise<string> => {
+const getFileExtension = async (url: string): Promise<string> => {
   let pathname = url;
   try {
     const urlObj = new URL(url);

@@ -21,7 +21,7 @@ interface UseAnswerJudgementResult {
   reset: () => void;
 }
 
-export const useAnswerJudgement = (): UseAnswerJudgementResult => {
+const useAnswerJudgement = (): UseAnswerJudgementResult => {
   const [status, setStatus] = useState<AIJudgementStatus>("idle");
   const [result, setResult] = useState<AIJudgementResult | null>(null);
   const [error, setError] = useState<Error | null>(null);

@@ -101,14 +101,14 @@ interface ConversationEntry {
   titleGenerating: boolean;
   /** 用户已请求停止，收尾轮的报错不展示（下一轮 agent_start 复位） */
   stopRequested: boolean;
-  /** 挂载中的视图数（M4-e：挂着的不回收） */
+  /** 挂载中的视图数（挂着的不回收） */
   mounts: number;
   /** 最近一次使用（LRU 回收用） */
   lastUsed: number;
 }
 
-/** 空闲条目最多保留几条（M4-e）：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
-export const MAX_IDLE_CONVERSATIONS = 20;
+/** 空闲条目最多保留几条：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
+const MAX_IDLE_CONVERSATIONS = 20;
 
 /**
  * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，

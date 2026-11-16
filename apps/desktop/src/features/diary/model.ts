@@ -1,9 +1,9 @@
 /**
- * 日记页纯函数（D-044）：条目归一、按天分组、筛选、那年今日、统计、标签色、正文构造。
+ * 日记页纯函数：条目归一、按天分组、筛选、那年今日、统计、标签色、正文构造。
  * 视图只做渲染，派生全部在这里（可单测）。
  *
  * 数据口径：一条碎碎念 = 一个 DiarySegment（富文本 + 段级标签 + createTime），归属某天的
- * DiaryEntry（date）。天气 / 心情是 entry 级旧字段，新页不展示（D-044 默认取舍）。
+ * DiaryEntry（date）。天气 / 心情是 entry 级旧字段，新页不展示。
  */
 
 import type { Descendant } from "slate";
@@ -11,7 +11,7 @@ import { TAG_COLORS, type TagColor } from "@tau/ui";
 import type { DiarySegmentItem, DiaryTagSetting } from "@/types/diary";
 import { dayKey, normalizeDiaryDay } from "@/utils/diary-day";
 
-export const DAY_MS = 86_400_000;
+const DAY_MS = 86_400_000;
 
 export interface DiaryMoment {
   id: number;
@@ -44,13 +44,13 @@ export function keyDate(key: string): Date {
 }
 
 /** 按日历日加减（避开夏令时：落在当天正午再取 key） */
-export function addDays(key: string, n: number): string {
+function addDays(key: string, n: number): string {
   const d = keyDate(key);
   d.setDate(d.getDate() + n);
   return dayKey(d.getTime());
 }
 
-export function diffDays(a: string, b: string): number {
+function diffDays(a: string, b: string): number {
   return Math.round((keyDate(a).getTime() - keyDate(b).getTime()) / DAY_MS);
 }
 
@@ -286,7 +286,7 @@ export function monthsOf(groups: DayGroup[]): string[] {
 const isTagColor = (c: string): c is TagColor => (TAG_COLORS as readonly string[]).includes(c);
 
 /**
- * 标签色 → Tag 七色板（D-021）。新写入存七色键；旧库存的是 antd 预设 hex，读时按色相就近
+ * 标签色 → Tag 七色板。新写入存七色键；旧库存的是 antd 预设 hex，读时按色相就近
  * 映射（灰度 / 低饱和归 gray），改色后即写回七色键。
  */
 export function toTagColor(color: string | undefined): TagColor {

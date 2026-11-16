@@ -12,14 +12,7 @@ export type MemoryKind = (typeof MEMORY_KINDS)[number];
 export type MemoryState = "current" | "history" | "observation";
 /** 意图与遗留事项的结局：本人自述完成、放弃，或到期未跟进。 */
 export type MemoryOutcome = "done" | "dropped" | "expired";
-export const MEMORY_SOURCE_KINDS = [
-  "todo",
-  "calendar",
-  "content",
-  "chat",
-  "activity",
-  "diary",
-] as const;
+const MEMORY_SOURCE_KINDS = ["todo", "calendar", "content", "chat", "activity", "diary"] as const;
 export type MemorySourceKind = (typeof MEMORY_SOURCE_KINDS)[number];
 export const MEMORY_INGEST_KINDS = ["todo", "calendar", "chat", "activity", "diary"] as const;
 export type MemoryLayer = "overview" | "episode" | "state" | "profile";

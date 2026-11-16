@@ -1,8 +1,8 @@
 /**
- * 文章页数据源：月刊形态（A3 定稿，mockups/articles/plan-a3-journal.html）。
+ * 文章页数据源：月刊形态。
  * - 列表：getArticlePage 分页窗口（轻量条目，不取正文全文）+ useInfiniteQuery
  *   承载无限滚动；网格按月归段的展示分组是纯前端派生（分桶不断数据流，翻页与分段解耦），
- *   列表排布平铺，排序下推到主进程（D-105）。
+ *   列表排布平铺，排序下推到主进程。
  * - 筛选：标签（侧栏子项）+ 标题关键词（页内搜索框）都下推到 getArticlePage，
  *   分页 / 总数 / 字数统计随筛选结果；标签计数 getArticleTagCounts 供侧栏子项。
  * - 变更（置顶/删除/新建/导入）后整域失效重拉。
@@ -19,17 +19,15 @@ import {
   getArticleTagCounts,
   createArticle,
   deleteArticle,
-  findOneArticle,
   updateArticleIsTop,
 } from "@/commands/article";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
-import type { ArticlePageItem, ArticlePageSort, IArticle } from "@/types";
+import type { ArticlePageItem, ArticlePageSort } from "@/types";
 import type { ArticleMonthSection } from "./types";
 
 /** 每页条数：网格卡高、列表行矮，列表一页要多取才填得满首屏 */
 export const ARTICLE_PAGE_SIZE = { grid: 12, list: 30 } as const;
-const DAY_MS = 86_400_000;
 
 /* ---------- 派生 ---------- */
 
@@ -44,21 +42,6 @@ export function articleExcerpt(raw: string): string {
     const texts = [...raw.matchAll(/"text"\s*:\s*"([^"]*)"/g)].map(m => m[1]);
     return clampText(texts.join(" "), 100);
   }
-}
-
-export function articleRelativeTime(ts: number): string {
-  const days = Math.floor((startOfDay(Date.now()) - startOfDay(ts)) / DAY_MS);
-  if (days <= 0) return "今天";
-  if (days === 1) return "昨天";
-  if (days < 7) return `${days} 天前`;
-  if (days < 30) return `${Math.floor(days / 7)} 周前`;
-  return `${Math.floor(days / 30)} 个月前`;
-}
-
-function startOfDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
 }
 
 /** 置顶之外的条目按「编辑年月」倒序归段（月刊的滚动时间锚点） */
@@ -139,20 +122,6 @@ export function useArticleTagCounts(): {
     staleTime: 5 * 60_000,
   });
   return { tags: query.data ?? [], loading: query.isPending };
-}
-
-/** 文章详情（占位页数据源）：按 id 拉全文条目，编辑器迁移后由此接编辑器 */
-export function useArticleDetail(id: number): {
-  data: IArticle | null;
-  loading: boolean;
-} {
-  const query = useQuery({
-    queryKey: ["articles", "detail", id],
-    queryFn: () => findOneArticle(id),
-    enabled: Number.isFinite(id),
-    staleTime: 60_000,
-  });
-  return { data: query.data ?? null, loading: query.isPending };
 }
 
 /* ---------- 变更 ---------- */
