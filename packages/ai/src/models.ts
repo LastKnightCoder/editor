@@ -214,10 +214,14 @@ export function toPiModel(
   const piModel: Model<Api> = {
     id: model.id,
     name: model.name ?? base?.name ?? model.id,
-    // 目录权威 → 模型自带（混合 api 服务商的兜底）→ 服务商级兜底
-    api: base?.api ?? model.api ?? provider.api,
+    api: base && supportedApis.has(base.api as PiApiKind) ? base.api : (model.api ?? provider.api),
     provider: provider.id,
-    baseUrl: provider.baseUrl,
+    baseUrl:
+      base?.provider === "kimi-coding" &&
+      base.api === "openai-completions" &&
+      /^https:\/\/api\.kimi\.com\/coding\/?$/i.test(provider.baseUrl)
+        ? base.baseUrl
+        : provider.baseUrl,
     reasoning: base?.reasoning ?? model.reasoning,
     input: base?.input ?? model.input,
     cost: resolveModelCost(model, base),
@@ -225,10 +229,12 @@ export function toPiModel(
     maxTokens,
   };
   if (base?.thinkingLevelMap) piModel.thinkingLevelMap = base.thinkingLevelMap;
-  if (base?.compat && !model.compat) piModel.compat = base.compat as never;
+  const compat = model.compat ?? base?.compat;
+  if (piModel.api === "anthropic-messages")
+    piModel.compat = { supportsMessageThreads: false, ...compat } as never;
+  else if (compat) piModel.compat = compat as never;
   if (model.samplingParams) piModel.samplingParams = model.samplingParams;
   if (model.headers) piModel.headers = model.headers;
-  if (model.compat) piModel.compat = model.compat as never;
   return piModel;
 }
 
@@ -246,6 +252,10 @@ const supportedApis = new Set<PiApiKind>([
   "anthropic-messages",
 ]);
 
+export function normalizePiBuiltinProvider(id: string): string {
+  return id === "azure-openai-responses" ? "azure" : id;
+}
+
 export function findBuiltinModel(
   provider: AiPublicProvider,
   modelId: string
@@ -260,8 +270,10 @@ export function findBuiltinModel(
           provider.baseUrl.replace(/\/+$/, "").toLowerCase()
       )
     );
-  if (!id || !names.includes(id as BuiltinProvider)) return undefined;
-  return getBuiltinModels(id as BuiltinProvider).find(model => model.id === modelId);
+  if (!id) return undefined;
+  const builtin = normalizePiBuiltinProvider(id) as BuiltinProvider;
+  if (!names.includes(builtin)) return undefined;
+  return getBuiltinModels(builtin).find(model => model.id === modelId);
 }
 
 export function resolveConfiguredModel(config: AiModelConfig, ref: AiModelRef) {

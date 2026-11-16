@@ -228,7 +228,7 @@ describe("可复用子 Agent", () => {
 
   it("settled 不等于成功，最终模型错误原样保留", () => {
     const collector = new SubagentResultCollector();
-    collector.accept({ type: "agent_settled" });
+    collector.accept({ type: "agent_settled", aborted: false });
     expect(collector.result().status).toBe("interrupted");
     collector.accept({
       type: "message_end",

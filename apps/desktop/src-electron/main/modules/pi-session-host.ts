@@ -435,13 +435,15 @@ class PiSessionHostModule {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
         return PiSessionHostModule.runWithSession(sessionId, async signal => {
+          const runId = hosted.session.activePromptRunId;
+          if (runId === undefined) return { ok: false, reason: "not-streaming" };
           const piImages = (
             await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
           ).filter(Boolean);
           signal.throwIfAborted();
           const displayData = toDisplayData(text, display);
           if (displayData) hosted.displayWriter.expect(displayData);
-          const outcome = await steerHostSession(hosted.session, text, piImages);
+          const outcome = await steerHostSession(hosted.session, text, piImages, runId);
           if (!outcome.ok && displayData) hosted.displayWriter.discard(displayData);
           return outcome;
         });
@@ -1382,6 +1384,7 @@ const createDynamicSystemPromptExtension = (
   hidden: true,
   factory: (pi: ExtensionAPI) => {
     pi.on("before_agent_start", event => {
+      if (event.messageType !== "user") return;
       const current = renderHostSystemPrompt(systemPromptRef, event.prompt);
       return current ? { systemPrompt: current } : undefined;
     });

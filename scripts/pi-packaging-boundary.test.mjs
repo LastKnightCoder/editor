@@ -9,7 +9,7 @@ test("只允许已审核且没有 CLI 消费者的 SDK 裁剪", () => {
   const root = mkdtempSync(path.join(tmpdir(), "tau-pi-boundary-"));
   const sdk = path.join(root, "sdk");
   const app = path.join(root, "app");
-  const manifest = { version: "0.87.1", exports: { ".": { import: "./dist/index.js" } } };
+  const manifest = { version: "1.5.2", exports: { ".": { import: "./dist/index.js" } } };
   mkdirSync(path.join(sdk, "dist", "bundle"), { recursive: true });
   mkdirSync(app);
   const sdkEntry = path.join(sdk, "dist", "index.js");

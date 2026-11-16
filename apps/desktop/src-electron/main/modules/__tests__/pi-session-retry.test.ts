@@ -73,7 +73,7 @@ async function setup() {
 }
 
 describe("失败重试不产生分支", () => {
-  it("首轮失败尚未落盘时仍能重试，保留原问题与附件", async () => {
+  it("首轮只有已落盘的提问时仍能重试，保留原问题与附件", async () => {
     const dir = mkdtempSync(join(tmpdir(), "pi-first-retry-"));
     dirs.push(dir);
     const faux = fauxProvider({});
@@ -114,7 +114,7 @@ describe("失败重试不产生分支", () => {
       },
     ]);
     const file = session.sessionFile!;
-    expect(existsSync(file)).toBe(false);
+    expect(existsSync(file)).toBe(true);
     expect(
       await retryHostSession(
         session,

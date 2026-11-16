@@ -1,0 +1,98 @@
+diff --git a/dist/core/agent-session.js b/dist/core/agent-session.js
+--- a/dist/core/agent-session.js
++++ b/dist/core/agent-session.js
+@@ -112,6 +112,7 @@
+     _unsubscribeAgent;
+     _eventListeners = [];
+     _isAgentRunActive = false;
++    _promptRunId = 0;
+     _promptPreflightCount = 0;
+     _agentRunAbortRequested = false;
+     _idleWaitPromise;
+@@ -1127,6 +1128,9 @@
+     get isStreaming() {
+         return this._isAgentRunActive;
+     }
++    get activePromptRunId() {
++        return this._isAgentRunActive && !this._agentRunAbortRequested ? this._promptRunId : undefined;
++    }
+     /** Whether the session has no active agent run, compaction, branch summary, retry, or queued continuation. */
+     get isIdle() {
+         return !this._isAgentRunActive && !this.isCompacting;
+@@ -1485,6 +1489,7 @@
+      * @param onStarted Called once the run's messages are prepared, before the first request.
+      */
+     async _startRun(trigger, onStarted) {
++        this._promptRunId++;
+         this._isAgentRunActive = true;
+         this._agentRunAbortRequested = false;
+         let messages;
+@@ -1693,6 +1698,10 @@
+      * @throws Error if no model selected or no API key available (when not streaming)
+      */
+     async prompt(text, options) {
++        if (options?.queueForRun !== undefined && options.queueForRun !== this.activePromptRunId) {
++            options.preflightResult?.("not-streaming");
++            return;
++        }
+         if (this._isEmittingAgentSettled) {
+             this._deferredSettledActions.push(async () => await this.prompt(text, options));
+             return;
+@@ -1701,7 +1710,7 @@
+         const preflightResult = options?.preflightResult;
+         // Handle extension commands first (execute immediately, even during streaming)
+         // Extension commands manage their own LLM interaction via pi.sendMessage()
+-        if (expandPromptTemplates && text.startsWith("/")) {
++        if (options?.queueForRun === undefined && expandPromptTemplates && text.startsWith("/")) {
+             const handled = await this._tryExecuteExtensionCommand(text);
+             if (handled) {
+                 // Extension command executed, no prompt to send
+@@ -1734,6 +1743,11 @@
+         const preflightResult = options?.preflightResult;
+         // Emit input event for extension interception (before skill/template expansion)
+         const processedInput = await this._runInputHandlers(text, options?.images, options?.source ?? "interactive", this.isStreaming ? options?.streamingBehavior : undefined);
++        // 输入钩子等待期间，原来的一轮可能已结束或被下一轮取代。
++        if (options?.queueForRun !== undefined && options.queueForRun !== this.activePromptRunId) {
++            preflightResult?.("not-streaming");
++            return undefined;
++        }
+         if (!processedInput) {
+             preflightResult?.("handled");
+             return undefined;
+diff --git a/dist/core/agent-session.d.ts b/dist/core/agent-session.d.ts
+--- a/dist/core/agent-session.d.ts
++++ b/dist/core/agent-session.d.ts
+@@ -174,7 +174,7 @@
+     onError?: ExtensionErrorListener;
+ }
+ export type QueuedInputDisposition = "handled" | "queued";
+-export type PromptDisposition = QueuedInputDisposition | "started";
++export type PromptDisposition = QueuedInputDisposition | "started" | "not-streaming";
+ /** Options for AgentSession.prompt() */
+ export interface PromptOptions {
+     /** Whether to dispatch extension commands and expand skill commands and prompt templates (default: true) */
+@@ -183,6 +183,8 @@
+     images?: ImageContent[];
+     /** When streaming, how to queue the message: "steer" (interrupt) or "followUp" (wait). Required if streaming. */
+     streamingBehavior?: "steer" | "followUp";
++    /** 只向指定的运行排队，运行结束时返回 not-streaming。 */
++    queueForRun?: number;
+     /** Source of input for extension input event handlers. Defaults to "interactive". */
+     source?: InputSource;
+     /** Internal hook used by RPC mode to observe how an accepted prompt was dispatched. Not called if the prompt is rejected. */
+@@ -227,6 +229,7 @@
+     private _unsubscribeAgent?;
+     private _eventListeners;
+     private _isAgentRunActive;
++    private _promptRunId;
+     private _promptPreflightCount;
+     private _agentRunAbortRequested;
+     private _idleWaitPromise;
+@@ -422,6 +425,7 @@
+     } | undefined;
+     /** Whether the session is currently processing an agent run or post-run continuation. */
+     get isStreaming(): boolean;
++    get activePromptRunId(): number | undefined;
+     /** Whether the session has no active agent run, compaction, branch summary, retry, or queued continuation. */
+     get isIdle(): boolean;
+     /** Current effective system prompt, including changes not yet sent to the model. */

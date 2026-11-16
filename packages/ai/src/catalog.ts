@@ -10,6 +10,7 @@ import {
   type BuiltinProvider,
 } from "@earendil-works/pi-ai/providers/all";
 import type { PiApiKind, PiCatalogModel, PiCatalogProvider, PiThinkingLevel } from "./models";
+import { normalizePiBuiltinProvider } from "./models";
 
 /** 本项目支持的线协议：目录里另有 bedrock/google/vertex 等协议本运行时跑不起来，一律不暴露 */
 const SUPPORTED_APIS = new Set<string>([
@@ -80,7 +81,7 @@ export function listCatalogProviders(): PiCatalogProvider[] {
 
 /** 某内置服务商下受支持的模型（按展示名排序，供设置页勾选） */
 export function listCatalogModels(builtinId: string): PiCatalogModel[] {
-  return supportedModelsOf(builtinId)
+  return supportedModelsOf(normalizePiBuiltinProvider(builtinId))
     .map(toCatalogModel)
     .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -3,6 +3,7 @@ import {
   type AgentOptions,
   type AgentState,
   type AgentTool,
+  type AgentToolParams,
 } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
 import { streamSimple as completions } from "@earendil-works/pi-ai/api/openai-completions";
@@ -27,8 +28,8 @@ function defineValidationTool<Schema extends TSchema>(tool: AgentTool<Schema>): 
   return {
     ...tool,
     async execute(id, args, signal, onUpdate) {
-      Assert(tool.parameters, args);
-      return tool.execute(id, args, signal, onUpdate);
+      Assert<TSchema>(tool.parameters, args);
+      return tool.execute(id, args as AgentToolParams<Schema>, signal, onUpdate);
     },
   };
 }

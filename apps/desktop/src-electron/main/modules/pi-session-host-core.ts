@@ -176,16 +176,14 @@ export interface SteerOutcome {
 }
 
 /** steerHostSession 需要的会话能力（便于单测用最小替身） */
-type SteerableSession = Pick<AgentSession, "isStreaming" | "prompt">;
+type SteerableSession = Pick<AgentSession, "activePromptRunId" | "prompt">;
 
 /**
  * 运行中插话（M3 第 5 项）：交 pi 原生 steer 队列——消息在当前轮的工具调用跑完之后、
  * 下一次请求模型之前送达，与本轮同属一次运行（中间没有 agent_settled）。
  *
  * 两处细节是硬约束：
- * - **必须先判 isStreaming**：pi 的 prompt() 在会话空闲时会开一轮新运行，而且要等整轮跑完才返回
- *   （IPC 会一直挂着），且绕过渲染端的发送编排（会话确保、systemPrompt 刷新、附件转换）。
- *   空闲一律返回 not-streaming，由渲染端按普通消息排队。
+ * - **绑定当前轮**：附件读取和输入钩子期间当前轮可能结束，插话不能进入下一轮。
  * - **expandPromptTemplates: false**：关掉 pi 的斜杠命令/模板/skill 展开，送达文本与提交文本
  *   逐字一致，渲染端才能按文本认领自己的插话（pi 的队列出队也是按文本匹配的）。
  *
@@ -195,27 +193,33 @@ type SteerableSession = Pick<AgentSession, "isStreaming" | "prompt">;
 export async function steerHostSession(
   session: SteerableSession,
   text: string,
-  images?: unknown[]
+  images?: unknown[],
+  runId = session.activePromptRunId
 ): Promise<SteerOutcome> {
-  if (!session.isStreaming) return { ok: false, reason: "not-streaming" };
-  let settlePreflight: (accepted: boolean) => void = () => undefined;
-  const preflight = new Promise<boolean>(resolve => {
-    settlePreflight = resolve;
-  });
-  const failure = session
+  if (runId === undefined || runId !== session.activePromptRunId)
+    return { ok: false, reason: "not-streaming" };
+  const { promise, resolve } = Promise.withResolvers<SteerOutcome>();
+  void session
     .prompt(text, {
       streamingBehavior: "steer",
       expandPromptTemplates: false,
-      preflightResult: settlePreflight,
+      queueForRun: runId,
+      preflightResult: disposition => {
+        if (disposition === "queued" || disposition === "handled") resolve({ ok: true });
+        else if (disposition === "not-streaming") resolve({ ok: false, reason: "not-streaming" });
+        else resolve({ ok: false, reason: "error", error: "插话未进入当前轮" });
+      },
       ...(images && images.length > 0 ? { images: images as never } : {}),
     })
-    .then(() => undefined)
+    .then(() => resolve({ ok: false, reason: "error", error: "插话未收到确认" }))
     .catch((error: unknown) => {
-      settlePreflight(false);
-      return error instanceof Error ? error.message : String(error);
+      resolve({
+        ok: false,
+        reason: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
-  if (await preflight) return { ok: true };
-  return { ok: false, reason: "error", error: (await failure) ?? "插话失败" };
+  return promise;
 }
 
 /**
@@ -425,7 +429,7 @@ export async function assembleHostSession(
       ...(options.dumpRequestDir ? { dumpRequestDir: options.dumpRequestDir } : {}),
     }));
   // resume：打开已有 JSONL（createAgentSession 内部 buildSessionContext 会把历史恢复进 Agent）。
-  // 文件不存在（首轮没等到 assistant 消息就失败了，pi 不落盘）就按新会话建，并沿用目录表的 id——
+  // 文件不存在时沿用目录表的 id，旧版本在收到首条回答前可能还没有落盘。
   // SessionManager.open 对不存在的路径会起一个随机 id 的新会话，目录表 id 与会话 id 就对不上了
   const newSessionOptions = options.sessionId ? { id: options.sessionId } : undefined;
   const sessionManager =
@@ -463,6 +467,7 @@ export async function assembleHostSession(
     // 路径语义与文件工具断裂且无发行版时全失败），改为 powershell（Windows 原生路径语义一致，
     // pi 实现已自带 [Console]::OutputEncoding=UTF8 输出前缀）。WSL 手动选项在工具管理（M3）提供。
     settingsManager: SettingsManager.inMemory({
+      cacheWarming: "streaming",
       ...(options.shellPath
         ? { shellPath: options.shellPath }
         : process.platform === "win32"

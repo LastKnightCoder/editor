@@ -45,6 +45,43 @@ it("内置目录对协议和容量权威，提供方身份仍使用应用配置"
   });
 });
 
+it("Kimi 官方旧地址使用目录中的新版请求地址，自定义网关保留原地址", () => {
+  const builtin = getBuiltinModels("kimi-coding").find(model => model.api === "openai-completions");
+  if (!builtin) throw new Error("SDK 缺少 Kimi Coding 模型");
+  const value = config();
+  const provider = value.llmProviders[0];
+  provider.builtin = "kimi-coding";
+  provider.api = "anthropic-messages";
+  provider.baseUrl = "https://api.kimi.com/coding";
+  provider.models[0].id = builtin.id;
+  const ref = { providerId: provider.id, modelId: builtin.id };
+  expect(resolveConfiguredModel(value, ref).model).toMatchObject({
+    api: "openai-completions",
+    baseUrl: "https://api.kimi.com/coding/v1",
+    provider: provider.id,
+  });
+  expect(provider.baseUrl).toBe("https://api.kimi.com/coding");
+  provider.baseUrl = "https://gateway.invalid/coding";
+  expect(resolveConfiguredModel(value, ref).model.baseUrl).toBe(provider.baseUrl);
+});
+
+it("旧 Azure 目录标识仍可解析元数据，使用宿主支持的协议", () => {
+  const builtin = getBuiltinModels("azure").find(model => model.api === "azure-openai-responses");
+  if (!builtin) throw new Error("SDK 缺少 Azure Responses 模型");
+  const value = config();
+  const provider = value.llmProviders[0];
+  provider.builtin = "azure-openai-responses";
+  provider.api = "openai-responses";
+  provider.models[0].id = builtin.id;
+  const resolved = resolveConfiguredModel(value, { providerId: provider.id, modelId: builtin.id });
+  expect(resolved.model).toMatchObject({
+    api: "openai-responses",
+    provider: provider.id,
+    contextWindow: builtin.contextWindow,
+    maxTokens: builtin.maxTokens,
+  });
+});
+
 it("不存在的模型返回不可用，不按显示名或其他提供方匹配", () => {
   expect(() => resolveConfiguredModel(config(), { providerId: "other", modelId: "model" })).toThrow(
     expect.objectContaining({ code: "AI_MODEL_UNAVAILABLE" })

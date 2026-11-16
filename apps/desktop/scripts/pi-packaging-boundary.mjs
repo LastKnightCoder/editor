@@ -4,7 +4,7 @@ import path from "node:path";
 
 export function assertPiPackagingBoundary(sdkDirectory, sourceDirectories) {
   const manifest = JSON.parse(readFileSync(path.join(sdkDirectory, "package.json"), "utf8"));
-  assert.equal(manifest.version, "0.87.1", "pi 版本变化，需重新审核独立 CLI 的裁剪边界");
+  assert.equal(manifest.version, "1.5.2", "pi 版本变化，需重新审核独立 CLI 的裁剪边界");
   assert.equal(manifest.exports["."].import, "./dist/index.js", "pi SDK 入口发生变化");
   const bundle = path.join(sdkDirectory, "dist", "bundle");
   const forbidden =
@@ -31,7 +31,14 @@ export function assertPiPackagingBoundary(sdkDirectory, sourceDirectories) {
   };
   scan(path.join(sdkDirectory, "dist"), true);
   const scopeDirectory = path.dirname(realpathSync(sdkDirectory));
-  for (const name of ["pi-agent-core", "pi-ai", "pi-tui", "pi-telemetry"]) {
+  for (const name of [
+    "pi-agent-core",
+    "pi-ai",
+    "pi-codemode",
+    "pi-mcp",
+    "pi-tui",
+    "pi-telemetry",
+  ]) {
     const directory = path.join(scopeDirectory, name, "dist");
     if (existsSync(directory)) scan(directory, true);
   }

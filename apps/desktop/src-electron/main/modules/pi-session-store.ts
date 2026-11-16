@@ -23,7 +23,7 @@ import {
 } from "./pi-session-files";
 import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
 
-/** 读会话投影；文件不存在（首轮没等到回答 pi 不落盘）= 空对话 */
+/** 读会话投影，文件不存在时按空对话处理。 */
 export function readTranscript(file: string | undefined, sessionDir: string): ChatSessionMessage[] {
   if (!file || !existsSync(file)) return [];
   return piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
