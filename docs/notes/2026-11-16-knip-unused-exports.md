@@ -24,7 +24,7 @@ npx knip --include exports --no-progress
 
 - 不做一次性全删。按区域小批量清（每批一个目录），每批先 `rg` 复核消费者清零再删（`web-clip.ts` 事件教训：整文件删除必须枚举全部导出逐个验证）。
 - 批次进度（2026-11-16 当日四批）：~~`apps/desktop/src/utils`~~（✅ 63→0）→ ~~`packages/whiteboard`~~（✅ 46→0）→ ~~`apps/mobile/src`~~（✅ 66→0）→ ~~杂项包~~（✅ 68→11，余为 ui 设计系统公共 API 待产品决策、analytics 框架路由约定、跨 mobile 死链 1 条）→ ~~`apps/desktop/src` 其余区域~~（✅ 342→10，余为 namespace-spread 消费等 knip 误报）。全仓条目 1242 → **694**（含 knip.json entry 配置修正消化的误报）。
-- 剩余 694 条大头是 `root/scripts` 区域（质量脚本、发布脚本的工具导出）与深链契约面，边际收益递减；后续按需小批清。
+- 剩余 694 条的构成修正（2026-11-17）：`root/scripts` 与两个 collaboration app 因 knip.json 将其配置为 entry，本就零命中；browser-extension 13 条已清（12 降级 + 1 删除），全仓现为 **688**。剩余主要是 desktop/mobile 深链符号与测试夹具，边际收益递减。
 - 误报区域（analytics/browser-extension）在删除批次中单独标注跳过。
 - 清完后可将 `npx knip --include exports` 挂进 CI（`quality.mjs`），误报消化前不挂。
 
