@@ -31,7 +31,7 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import { EProjectItemType } from "@/types/project";
 import WhiteboardsTable from "./whiteboard";
-import WhiteBoardContentTable, { emptyWhiteboardPage } from "./white-board-content";
+import WhiteboardContentTable, { emptyWhiteboardPage } from "./white-board-content";
 import ContentTable from "./content";
 import Operation from "./operation";
 import { emitContentWritten } from "../content-events";
@@ -1063,7 +1063,7 @@ export default class PluginDataTable {
           .all(documentId) as { content_id: number }[]
       ).map(page => page.content_id);
     }
-    for (const page of pages) WhiteBoardContentTable.incrementRefCount(db, page);
+    for (const page of pages) WhiteboardContentTable.incrementRefCount(db, page);
     Operation.insertOperation(db, "whiteboard", "insert", id, Date.now());
     return id;
   }
@@ -1083,10 +1083,10 @@ export default class PluginDataTable {
     if (!live.length) throw new Error("原来的位置都已不存在，无法恢复");
     this.retainContent(db, Number(row.content_id) || null, contentCreatedAt);
     const page = Number(row.white_board_content_id) || 0;
-    if (row.project_item_type === EProjectItemType.WhiteBoard && page) {
+    if (row.project_item_type === EProjectItemType.Whiteboard && page) {
       if (!db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?").get(page))
         throw new Error("画板页已被清理，无法恢复");
-      WhiteBoardContentTable.incrementRefCount(db, page);
+      WhiteboardContentTable.incrementRefCount(db, page);
     }
     const parents = live.flatMap(place => (place.parentId === null ? [] : [place.parentId]));
     const projects = new Set<number>();

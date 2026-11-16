@@ -21,6 +21,7 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
 import { ArticleContentOwnership } from "../content-ownership/article-content";
+import type { SqliteRow } from "../../types/table";
 
 /** 分页排序白名单（拼进 ORDER BY，不接受任意字符串）；同值按更新时间兜底 */
 const ARTICLE_PAGE_ORDER: Record<ArticlePageSort, string> = {
@@ -64,15 +65,15 @@ export default class ArticleTable {
     };
   }
 
-  static parseArticle(article: any): IArticle {
+  static parseArticle(article: SqliteRow): IArticle {
     let content = [];
     let count = 0;
 
     // 直接使用JOIN查询结果中的内容
     if (article.content) {
       try {
-        content = JSON.parse(article.content);
-        count = article.count || 0;
+        content = JSON.parse(article.content as string);
+        count = (article.count as number) || 0;
       } catch (error) {
         console.error("Error parsing content:", error);
       }
@@ -80,24 +81,24 @@ export default class ArticleTable {
 
     // 使用文章和内容表中最大的更新时间
     const updateTime = article.content_update_time
-      ? Math.max(article.update_time, article.content_update_time)
-      : article.update_time;
+      ? Math.max(article.update_time as number, article.content_update_time as number)
+      : (article.update_time as number);
 
     return {
-      id: article.id,
-      create_time: article.create_time,
+      id: article.id as number,
+      create_time: article.create_time as number,
       update_time: updateTime,
-      tags: JSON.parse(article.tags),
-      title: article.title,
+      tags: JSON.parse(article.tags as string),
+      title: article.title as string,
       content: content,
-      author: article.author || "",
-      links: JSON.parse(article.links || "[]"),
-      bannerBg: article.banner_bg || "",
-      bannerPosition: article.banner_position || "center",
-      isTop: article.is_top || false,
-      isDelete: article.is_delete || false,
+      author: (article.author as string | null) || "",
+      links: JSON.parse((article.links as string | null) || "[]"),
+      bannerBg: (article.banner_bg as string | null) || "",
+      bannerPosition: (article.banner_position as string | null) || "center",
+      isTop: Boolean(article.is_top),
+      isDelete: Boolean(article.is_delete),
       count: count,
-      contentId: article.content_id,
+      contentId: article.content_id as number,
     };
   }
 
@@ -112,7 +113,7 @@ export default class ArticleTable {
       WHERE a.is_delete = 0 
       ORDER BY a.create_time DESC
     `);
-    const articles = stmt.all();
+    const articles = stmt.all() as SqliteRow[];
     return articles.map(article => this.parseArticle(article));
   }
 
@@ -125,7 +126,7 @@ export default class ArticleTable {
       LEFT JOIN content_snapshots c ON a.content_id = c.id
       WHERE a.id = ? AND a.is_delete = 0
     `);
-    const article = stmt.get(articleId);
+    const article = stmt.get(articleId) as SqliteRow;
     return this.parseArticle(article);
   }
 
@@ -141,7 +142,7 @@ export default class ArticleTable {
       LEFT JOIN content_snapshots c ON a.content_id = c.id
       WHERE a.id IN (${placeholders}) AND a.is_delete = 0
     `);
-    const articles = stmt.all(articleIds);
+    const articles = stmt.all(articleIds) as SqliteRow[];
     return articles.map(article => this.parseArticle(article));
   }
 
@@ -382,7 +383,7 @@ export default class ArticleTable {
       ORDER BY a.update_time DESC
     `);
 
-    const articles = stmt.all(...dates).map(article => this.parseArticle(article));
+    const articles = (stmt.all(...dates) as SqliteRow[]).map(article => this.parseArticle(article));
     const result: Record<string, IArticle[]> = {};
 
     articles.forEach(article => {
@@ -416,9 +417,9 @@ export default class ArticleTable {
       ORDER BY a.update_time DESC
     `);
 
-    const articles = stmt
-      .all(startTimestamp, endTimestamp)
-      .map(article => this.parseArticle(article));
+    const articles = (stmt.all(startTimestamp, endTimestamp) as SqliteRow[]).map(article =>
+      this.parseArticle(article)
+    );
     const result: Record<string, IArticle[]> = {};
 
     articles.forEach(article => {
@@ -533,7 +534,7 @@ export default class ArticleTable {
       markdown: string;
       truncated: boolean;
       originalLength: number;
-      metadata: Record<string, any>;
+      metadata: Record<string, unknown>;
     }>
   > {
     if (ids.length === 0) return [];

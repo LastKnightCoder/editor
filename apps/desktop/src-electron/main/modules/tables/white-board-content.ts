@@ -8,11 +8,12 @@ import { hasDurableEntityHold } from "../durable-entity-holds";
 import Database from "better-sqlite3";
 import { basename } from "node:path";
 import { asynchronousDatabaseCommand } from "../database-command";
-import { WhiteBoardContent } from "@/types";
+import { WhiteboardContent } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { ContentIdentityTable } from "./content-identity";
 import type { ContentEntityTarget } from "@tau/db-schema/content-identities";
+import type { SqliteRow } from "../../types/table";
 // import log from "electron-log";
 
 /** 与 packages/whiteboard 的 WHITEBOARD_DOCUMENT_VERSION 一致，由 __tests__/white-board-content.test.ts 对账 */
@@ -44,8 +45,7 @@ export default class WhiteboardTable {
   private static collectElementContentIdCounts(children: unknown[]): Map<number, number> {
     const counts = new Map<number, number>();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dfs = (nodes: any[]) => {
+    const dfs = (nodes: Array<Record<string, unknown> | null | undefined>) => {
       if (!nodes || !Array.isArray(nodes)) return;
       for (const node of nodes) {
         if (!node) continue;
@@ -58,7 +58,7 @@ export default class WhiteboardTable {
       }
     };
 
-    dfs(children as any[]);
+    dfs(children as Array<Record<string, unknown>>);
     return counts;
   }
 
@@ -166,23 +166,22 @@ export default class WhiteboardTable {
     };
   }
 
-  static parseWhiteboard(whiteboard: unknown): WhiteBoardContent {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wb = whiteboard as any;
+  static parseWhiteboard(whiteboard: unknown): WhiteboardContent {
+    const wb = whiteboard as SqliteRow;
     return {
-      id: wb.id,
-      name: wb.name,
-      imgUrl: wb.img_url || "",
-      data: JSON.parse(wb.data),
-      createTime: wb.create_time,
-      updateTime: wb.update_time,
+      id: wb.id as number,
+      name: wb.name as string,
+      imgUrl: (wb.img_url as string | null) || "",
+      data: JSON.parse(wb.data as string),
+      createTime: wb.create_time as number,
+      updateTime: wb.update_time as number,
     };
   }
 
   static createWhiteboardContent(
     db: Database.Database,
-    whiteboard: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">
-  ): WhiteBoardContent {
+    whiteboard: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
+  ): WhiteboardContent {
     return this.insert(db, whiteboard, 1);
   }
 
@@ -192,7 +191,7 @@ export default class WhiteboardTable {
 
   static createPending(
     db: Database.Database,
-    value: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">
+    value: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
   ) {
     if (!ContentIdentityTable.library(db)) throw new Error("资料库尚未完成身份基线升级");
     return db.transaction(() => {
@@ -203,9 +202,9 @@ export default class WhiteboardTable {
 
   private static insert(
     db: Database.Database,
-    whiteboard: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">,
+    whiteboard: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">,
     initialRefCount: number
-  ): WhiteBoardContent {
+  ): WhiteboardContent {
     if (hasWhiteboardLibraryBaseline(db) && isEmptyWhiteboardPage(whiteboard))
       return db.transaction(() => {
         const created = createEmptyWhiteboardDocument(
@@ -263,10 +262,10 @@ export default class WhiteboardTable {
 
   static updateWhiteboard(
     db: Database.Database,
-    request: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount"> & {
+    request: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount"> & {
       id: ContentEntityTarget;
     }
-  ): WhiteBoardContent {
+  ): WhiteboardContent {
     return db.transaction(() => {
       const whiteboard = {
         ...request,
@@ -336,7 +335,7 @@ export default class WhiteboardTable {
   static async readWhiteboardContent(
     db: Database.Database,
     target: ContentEntityTarget
-  ): Promise<WhiteBoardContent> {
+  ): Promise<WhiteboardContent> {
     const id = ContentIdentityTable.requireTarget(db, "whiteboard-content", target);
     const { default: documents } = await import("../whiteboard-documents");
     await documents
@@ -350,20 +349,20 @@ export default class WhiteboardTable {
   static getWhiteboardContent(
     db: Database.Database,
     target: ContentEntityTarget
-  ): WhiteBoardContent {
+  ): WhiteboardContent {
     const id = ContentIdentityTable.requireTarget(db, "whiteboard-content", target);
     const stmt = db.prepare("SELECT * FROM white_board_contents WHERE id = ?");
     const whiteboard = stmt.get(id);
     return this.parseWhiteboard(whiteboard);
   }
 
-  static getAllWhiteboardContents(db: Database.Database): WhiteBoardContent[] {
+  static getAllWhiteboardContents(db: Database.Database): WhiteboardContent[] {
     const stmt = db.prepare("SELECT * FROM white_board_contents");
     const whiteboards = stmt.all();
     return whiteboards.map(wb => this.parseWhiteboard(wb));
   }
 
-  static getWhiteboardByIds(db: Database.Database, ids: number[]): WhiteBoardContent[] {
+  static getWhiteboardByIds(db: Database.Database, ids: number[]): WhiteboardContent[] {
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(`SELECT * FROM white_board_contents WHERE id IN (${placeholders})`);
     const whiteboards = stmt.all(...ids);

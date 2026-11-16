@@ -7,6 +7,7 @@ import { dayKey, normalizeDiaryDay } from "@/utils/diary-day";
 import { loadSessionTranscript } from "../pi-session-host-core";
 import { chatSessionDirOfDb, resolveSessionFile } from "../pi-session-paths";
 import ContentTable from "../tables/content";
+import type { SqliteRow } from "../../types/table";
 import EntitySearchTable from "../tables/entity-search";
 import { CHAT_SUMMARY_ANCHOR, type MemoryPart } from "./extraction";
 
@@ -265,7 +266,7 @@ export class LibraryMemorySources implements MemorySourcesPort {
       if (!contentId) return { parts: [] };
       const snapshot = this.db
         .prepare("SELECT * FROM content_snapshots WHERE id=? AND ref_count>0")
-        .get(contentId);
+        .get(contentId) as SqliteRow;
       if (!snapshot) return { parts: [] };
       const { content } = ContentTable.parseContent(snapshot);
       const title =
@@ -309,7 +310,9 @@ export class LibraryMemorySources implements MemorySourcesPort {
           ? { kind: "diary-moment", id: Number(id) }
           : EntitySearchTable.locateAll(this.db, [contentId]).get(contentId)?.[0];
       if (!target) return { parts: [] };
-      const snapshot = this.db.prepare("SELECT * FROM content_snapshots WHERE id=?").get(contentId);
+      const snapshot = this.db
+        .prepare("SELECT * FROM content_snapshots WHERE id=?")
+        .get(contentId) as SqliteRow;
       if (!snapshot) return { parts: [] };
       const { content } = ContentTable.parseContent(snapshot);
       const lines = Array.isArray(content)

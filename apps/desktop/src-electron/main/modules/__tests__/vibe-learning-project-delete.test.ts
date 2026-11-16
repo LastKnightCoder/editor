@@ -55,7 +55,7 @@ describe("VibeLearningProjectTable.remove", () => {
       content: [
         {
           type: "paragraph",
-          children: [{ text: "测试笔记" }],
+          children: [{ type: "formatted", text: "测试笔记" }],
         },
       ] as any,
       count: 1,
@@ -79,7 +79,7 @@ describe("VibeLearningProjectTable.remove", () => {
       prompt: [
         {
           type: "paragraph",
-          children: [{ text: "问题1" }],
+          children: [{ type: "formatted", text: "问题1" }],
         },
       ],
       detail: [],

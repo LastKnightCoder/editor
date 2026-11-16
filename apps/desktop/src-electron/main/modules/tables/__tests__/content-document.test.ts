@@ -452,7 +452,9 @@ describe("正文身份、契约与关系账的持久化", () => {
     const copy = ContentTable.getContentById(db, copied)!;
     expect(read.contracts).toEqual(original.contracts);
     expect(copy.contracts).toEqual(original.contracts);
-    expect((copy.content[0] as any).collabId).not.toBe((read.content[0] as any).collabId);
+    expect((copy.content[0] as { collabId?: string }).collabId).not.toBe(
+      (read.content[0] as { collabId?: string }).collabId
+    );
     expect(ContentDocumentTable.read(db, copied)!.documentId).not.toBe(
       ContentDocumentTable.read(db, first)!.documentId
     );

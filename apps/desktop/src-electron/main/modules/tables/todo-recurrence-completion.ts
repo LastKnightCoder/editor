@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import TodoRecurrenceTable from "./todo-recurrence";
 import { TodoRecurrenceCompletion } from "@/types";
+import type { SqliteRow } from "../../types/table";
 
 export default class TodoRecurrenceCompletionTable {
   private static originalDate(
@@ -64,14 +65,14 @@ export default class TodoRecurrenceCompletionTable {
     } as const;
   }
 
-  static parse(row: any): TodoRecurrenceCompletion {
+  static parse(row: SqliteRow): TodoRecurrenceCompletion {
     return {
-      id: row.id,
-      recurrenceId: row.recurrence_id,
-      scheduledDate: row.scheduled_date,
-      completedAt: row.completed_at ?? null,
+      id: row.id as number,
+      recurrenceId: row.recurrence_id as number,
+      scheduledDate: row.scheduled_date as number,
+      completedAt: (row.completed_at as number | null) ?? null,
       skipped: Boolean(row.skipped),
-      createTime: row.create_time,
+      createTime: row.create_time as number,
     };
   }
 
@@ -81,7 +82,7 @@ export default class TodoRecurrenceCompletionTable {
     params: { recurrenceId: number; startDate?: number; endDate?: number }
   ): TodoRecurrenceCompletion[] {
     let sql = `SELECT * FROM todo_recurrence_completion WHERE recurrence_id = ?`;
-    const args: any[] = [params.recurrenceId];
+    const args: Array<number> = [params.recurrenceId];
 
     if (params.startDate !== undefined) {
       sql += ` AND scheduled_date >= ?`;
@@ -95,7 +96,7 @@ export default class TodoRecurrenceCompletionTable {
 
     sql += ` ORDER BY scheduled_date ASC`;
 
-    const rows = db.prepare(sql).all(...args) as any[];
+    const rows = db.prepare(sql).all(...args) as SqliteRow[];
     return rows.map(this.parse);
   }
 
@@ -123,7 +124,7 @@ export default class TodoRecurrenceCompletionTable {
 
     sql += ` ORDER BY recurrence_id ASC, scheduled_date ASC`;
 
-    const rows = db.prepare(sql).all(...args) as any[];
+    const rows = db.prepare(sql).all(...args) as SqliteRow[];
     const grouped: Record<number, TodoRecurrenceCompletion[]> = {};
     rows.forEach(row => {
       const completion = this.parse(row);
@@ -141,7 +142,7 @@ export default class TodoRecurrenceCompletionTable {
       .prepare(
         `SELECT * FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
       )
-      .get(params.recurrenceId, params.scheduledDate);
+      .get(params.recurrenceId, params.scheduledDate) as SqliteRow | undefined;
     return row ? this.parse(row) : null;
   }
 
@@ -236,7 +237,9 @@ export default class TodoRecurrenceCompletionTable {
          FROM todo_recurrence_completion
          WHERE recurrence_id = ? AND scheduled_date >= ? AND scheduled_date <= ?`
       )
-      .get(params.recurrenceId, params.startDate, params.endDate) as any;
+      .get(params.recurrenceId, params.startDate, params.endDate) as
+      | { total: number; completed: number | null; skipped: number | null }
+      | undefined;
 
     return {
       total: row?.total || 0,
@@ -255,7 +258,8 @@ export default class TodoRecurrenceCompletionTable {
         `SELECT completed_at FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
       )
       .get(params.recurrenceId, params.scheduledDate) as
-      { completed_at: number | null } | undefined;
+      | { completed_at: number | null }
+      | undefined;
     return row?.completed_at !== null && row?.completed_at !== undefined;
   }
 

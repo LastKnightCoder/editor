@@ -2,11 +2,19 @@ import Database from "better-sqlite3";
 import { basename, dirname, join } from "node:path";
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import log from "electron-log";
-import { Pdf, PdfAnnotation, PdfBookmark, PdfLibraryItem } from "@/types";
+import {
+  Pdf,
+  PdfAnnotation,
+  PdfBookmark,
+  PdfLibraryItem,
+  EHighlightColor,
+  PdfAnnotationType,
+} from "@/types";
 import PathUtil from "../../utils/PathUtil";
 import Operation from "./operation";
 import pdfIndexDBManager from "../pdf-index-db";
 import ChatSessionTable from "./chat-session";
+import type { SqliteRow } from "../../types/table";
 
 export default class PdfTable {
   static getListenEvents() {
@@ -31,43 +39,43 @@ export default class PdfTable {
     };
   }
 
-  static parsePdf(pdf: any): Pdf {
+  static parsePdf(pdf: SqliteRow): Pdf {
     return {
       ...pdf,
-      tags: JSON.parse(pdf.tags || "[]"),
+      tags: JSON.parse((pdf.tags as string) || "[]"),
       isLocal: Boolean(pdf.is_local),
-      createTime: pdf.create_time,
-      updateTime: pdf.update_time,
-      fileName: pdf.file_name,
-      filePath: pdf.file_path,
-      remoteUrl: pdf.remote_url,
-      pageCount: pdf.page_count ?? null,
-      lastOpenTime: pdf.last_open_time ?? null,
-      lastPage: pdf.last_page ?? null,
+      createTime: pdf.create_time as number,
+      updateTime: pdf.update_time as number,
+      fileName: pdf.file_name as string,
+      filePath: pdf.file_path as string,
+      remoteUrl: pdf.remote_url as string,
+      pageCount: (pdf.page_count as number | null) ?? null,
+      lastOpenTime: (pdf.last_open_time as number | null) ?? null,
+      lastPage: (pdf.last_page as number | null) ?? null,
+    } as Pdf;
+  }
+
+  static parsePdfAnnotation(record: SqliteRow): PdfAnnotation {
+    return {
+      id: record.id as number,
+      createTime: record.create_time as number,
+      updateTime: record.update_time as number,
+      pdfId: record.pdf_id as number,
+      annotation: JSON.parse(record.annotation_payload as string),
+      color: (record.color as EHighlightColor | null) || undefined,
+      notes: record.notes ? JSON.parse(record.notes as string) : [],
+      type: (record.type as PdfAnnotationType | null) || undefined,
+      areaData: record.area_data ? JSON.parse(record.area_data as string) : undefined,
     };
   }
 
-  static parsePdfAnnotation(record: any): PdfAnnotation {
+  static parsePdfBookmark(record: SqliteRow): PdfBookmark {
     return {
-      id: record.id,
-      createTime: record.create_time,
-      updateTime: record.update_time,
-      pdfId: record.pdf_id,
-      annotation: JSON.parse(record.annotation_payload),
-      color: record.color || undefined,
-      notes: record.notes ? JSON.parse(record.notes) : [],
-      type: record.type || undefined,
-      areaData: record.area_data ? JSON.parse(record.area_data) : undefined,
-    };
-  }
-
-  static parsePdfBookmark(record: any): PdfBookmark {
-    return {
-      id: record.id,
-      createTime: record.create_time,
-      updateTime: record.update_time,
-      pdfId: record.pdf_id,
-      bookmark: JSON.parse(record.bookmark_payload),
+      id: record.id as number,
+      createTime: record.create_time as number,
+      updateTime: record.update_time as number,
+      pdfId: record.pdf_id as number,
+      bookmark: JSON.parse(record.bookmark_payload as string),
     };
   }
 
@@ -125,13 +133,13 @@ export default class PdfTable {
 
   static getPdfById(db: Database.Database, id: number): Pdf {
     const stmt = db.prepare("SELECT * FROM pdfs WHERE id = ?");
-    const pdf = stmt.get(id);
+    const pdf = stmt.get(id) as SqliteRow;
     return this.parsePdf(pdf);
   }
 
   static getPdfList(db: Database.Database): Pdf[] {
     const stmt = db.prepare("SELECT * FROM pdfs ORDER BY create_time DESC");
-    const pdfs = stmt.all();
+    const pdfs = stmt.all() as SqliteRow[];
     return pdfs.map(pdf => this.parsePdf(pdf));
   }
 
@@ -147,16 +155,17 @@ export default class PdfTable {
         `SELECT p.*, (SELECT COUNT(*) FROM pdf_annotations a WHERE a.pdf_id = p.id) AS annotation_count
          FROM pdfs p ORDER BY p.create_time DESC`
       )
-      .all() as any[];
+      .all() as SqliteRow[];
     return rows.map(row => {
-      const thumbnailPath = this.getThumbnailPath(db, row.id);
+      const thumbnailPath = this.getThumbnailPath(db, row.id as number);
       const thumbnailVersion = existsSync(thumbnailPath) ? statSync(thumbnailPath).mtimeMs : null;
       return {
         ...this.parsePdf(row),
         annotationCount: Number(row.annotation_count) || 0,
         thumbnailPath: thumbnailVersion === null ? null : thumbnailPath,
         thumbnailVersion,
-        fileMissing: Boolean(row.is_local) && (!row.file_path || !existsSync(row.file_path)),
+        fileMissing:
+          Boolean(row.is_local) && (!row.file_path || !existsSync(row.file_path as string)),
       };
     });
   }
@@ -215,7 +224,7 @@ export default class PdfTable {
 
   static getPdfAnnotationById(db: Database.Database, id: number): PdfAnnotation {
     const stmt = db.prepare("SELECT * FROM pdf_annotations WHERE id = ?");
-    const record = stmt.get(id);
+    const record = stmt.get(id) as SqliteRow;
     return this.parsePdfAnnotation(record);
   }
 
@@ -289,8 +298,8 @@ export default class PdfTable {
     const stmt = db.prepare(
       "SELECT * FROM pdf_annotations WHERE pdf_id = ? ORDER BY create_time ASC"
     );
-    const annotations = stmt.all(pdfId);
-    return annotations.map((record: any) => this.parsePdfAnnotation(record));
+    const annotations = stmt.all(pdfId) as SqliteRow[];
+    return annotations.map(record => this.parsePdfAnnotation(record));
   }
 
   static removePdfAnnotation(db: Database.Database, id: number): number {
@@ -301,7 +310,7 @@ export default class PdfTable {
 
   static getPdfBookmarkById(db: Database.Database, id: number): PdfBookmark {
     const stmt = db.prepare("SELECT * FROM pdf_bookmarks WHERE id = ?");
-    const record = stmt.get(id);
+    const record = stmt.get(id) as SqliteRow;
     return this.parsePdfBookmark(record);
   }
 
@@ -342,8 +351,8 @@ export default class PdfTable {
     const stmt = db.prepare(
       "SELECT * FROM pdf_bookmarks WHERE pdf_id = ? ORDER BY create_time ASC"
     );
-    const bookmarks = stmt.all(pdfId);
-    return bookmarks.map((record: any) => this.parsePdfBookmark(record));
+    const bookmarks = stmt.all(pdfId) as SqliteRow[];
+    return bookmarks.map(record => this.parsePdfBookmark(record));
   }
 
   static removePdfBookmark(db: Database.Database, id: number): number {

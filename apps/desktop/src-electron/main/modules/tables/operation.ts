@@ -2,6 +2,14 @@ import Database from "better-sqlite3";
 import { Operation } from "@/types";
 import dayjs from "dayjs";
 import { emitOperationRecorded } from "../operation-events";
+import type { SqliteRow } from "../../types/table";
+
+type ParsedOperation = Operation & {
+  operationTime: number;
+  operationId: number;
+  operationContentType: string;
+  operationAction: string;
+};
 
 export default class OperationTable {
   static getListenEvents() {
@@ -12,14 +20,14 @@ export default class OperationTable {
     };
   }
 
-  static parseOperation(operation: any) {
+  static parseOperation(operation: SqliteRow): ParsedOperation {
     return {
       ...operation,
-      operationTime: operation.operation_time,
-      operationId: operation.operation_id,
-      operationContentType: operation.operation_content_type,
-      operationAction: operation.operation_action,
-    };
+      operationTime: operation.operation_time as number,
+      operationId: operation.operation_id as number,
+      operationContentType: operation.operation_content_type as string,
+      operationAction: operation.operation_action as string,
+    } as ParsedOperation;
   }
 
   static createOperation(db: Database.Database, operation: Omit<Operation, "id">): Operation {
@@ -41,7 +49,7 @@ export default class OperationTable {
 
   static getOperationById(db: Database.Database, id: number): Operation {
     const stmt = db.prepare("SELECT * FROM operation WHERE id = ?");
-    const operation = stmt.get(id);
+    const operation = stmt.get(id) as SqliteRow;
     return this.parseOperation(operation);
   }
 
@@ -132,7 +140,7 @@ export default class OperationTable {
       ORDER BY operation_time ASC
     `);
 
-    const operations = stmt.all(contentType, ...dates) as any[];
+    const operations = stmt.all(contentType, ...dates) as SqliteRow[];
     const result: Record<string, Operation[]> = {};
 
     operations.forEach(op => {
@@ -165,7 +173,7 @@ export default class OperationTable {
       ORDER BY operation_time ASC
     `);
 
-    const operations = stmt.all(contentType, startTimestamp, endTimestamp) as any[];
+    const operations = stmt.all(contentType, startTimestamp, endTimestamp) as SqliteRow[];
     const result: Record<string, Operation[]> = {};
 
     operations.forEach(op => {
@@ -189,7 +197,7 @@ export default class OperationTable {
       endDate?: string;
       contentType: string;
     }
-  ): Record<string, any> {
+  ): Record<string, unknown> {
     let operationsByDate: Record<string, Operation[]>;
 
     if (params.dates && params.dates.length > 0) {
@@ -205,7 +213,7 @@ export default class OperationTable {
       return {};
     }
 
-    const result: Record<string, any> = {};
+    const result: Record<string, unknown> = {};
 
     Object.keys(operationsByDate).forEach(date => {
       const operations = operationsByDate[date];

@@ -12,6 +12,7 @@ import { contentBlockLines } from "@/entity/text-digest";
 import { contentTitles } from "./content-ai-meta";
 import ContentTable from "./content";
 import MaterialTable from "./material";
+import type { SqliteRow } from "../../types/table";
 
 /** Slate 文档按块取纯文本：第一块即卡片的开头 */
 export const blockLines = contentBlockLines;
@@ -194,17 +195,22 @@ export default class EntitySearchTable {
     const kinds: EntityKind[] = params.kind
       ? [params.kind]
       : ["card", "article", "project_item", "diary-moment", "plugin-entity"];
-    const get = (sql: string) => db.prepare(sql).get(params.contentId) as any;
+    const get = (sql: string) => db.prepare(sql).get(params.contentId) as SqliteRow | undefined;
     for (const kind of kinds) {
       switch (kind) {
         case "card": {
           const row = get(`SELECT id FROM cards WHERE content_id = ?`);
-          if (row) return { kind, id: row.id };
+          if (row) return { kind, id: row.id as number };
           break;
         }
         case "article": {
           const row = get(`SELECT id, title FROM articles WHERE content_id = ? AND is_delete = 0`);
-          if (row) return { kind, id: row.id, title: row.title || undefined };
+          if (row)
+            return {
+              kind,
+              id: row.id as number,
+              title: (row.title as string | null) || undefined,
+            };
           break;
         }
         case "project_item": {
@@ -212,9 +218,9 @@ export default class EntitySearchTable {
           if (row)
             return {
               kind,
-              id: row.id,
+              id: row.id as number,
               projectId: Number(parseJsonArray(row.projects)[0]) || null,
-              title: row.title || undefined,
+              title: (row.title as string | null) || undefined,
             };
           break;
         }
@@ -226,15 +232,15 @@ export default class EntitySearchTable {
           if (row)
             return {
               kind,
-              id: row.id,
-              diaryId: row.diary_id,
-              date: normalizeDiaryDay(row.date, row.create_time),
+              id: row.id as number,
+              diaryId: row.diary_id as number,
+              date: normalizeDiaryDay(row.date as string, row.create_time as number),
             };
           break;
         }
         case "plugin-entity": {
           const row = get(`SELECT id FROM plugin_entities WHERE content_id = ?`);
-          if (row) return { kind, id: row.id };
+          if (row) return { kind, id: row.id as number };
           break;
         }
       }
@@ -285,7 +291,7 @@ export default class EntitySearchTable {
     id: number,
     time: number
   ): EntityCandidate | null {
-    const get = (sql: string) => db.prepare(sql).get(id) as any;
+    const get = (sql: string) => db.prepare(sql).get(id) as SqliteRow | undefined;
     const content = (contentId: number | null | undefined) =>
       contentId != null ? ContentTable.getContentById(db, contentId) : null;
     const base = { kind, id, time, meta: "", excerpt: "" };
@@ -293,12 +299,13 @@ export default class EntitySearchTable {
       case "card": {
         const card = get(`SELECT content_id FROM cards WHERE id = ?`);
         if (!card) return null;
-        const lines = blockLines(content(card.content_id)?.content);
-        const aiTitle = contentTitles(db, [card.content_id], 0).get(card.content_id);
+        const cardContentId = card.content_id as number;
+        const lines = blockLines(content(cardContentId)?.content);
+        const aiTitle = contentTitles(db, [cardContentId], 0).get(cardContentId);
         // 有 AI 标题时开头那一块也是正文的一部分，留在摘要里
         return {
           ...base,
-          contentId: card.content_id,
+          contentId: cardContentId,
           title: aiTitle || lines[0]?.slice(0, 80) || "无标题卡片",
           excerpt: (aiTitle ? lines : lines.slice(1)).join(" ").slice(0, EXCERPT),
         };
@@ -308,9 +315,11 @@ export default class EntitySearchTable {
         if (!article || article.is_delete) return null;
         return {
           ...base,
-          contentId: article.content_id,
-          title: article.title || "无标题文章",
-          excerpt: blockLines(content(article.content_id)?.content).join(" ").slice(0, EXCERPT),
+          contentId: article.content_id as number,
+          title: (article.title as string | null) || "无标题文章",
+          excerpt: blockLines(content(article.content_id as number)?.content)
+            .join(" ")
+            .slice(0, EXCERPT),
         };
       }
       case "project_item": {
@@ -325,9 +334,11 @@ export default class EntitySearchTable {
             : undefined;
         return {
           ...base,
-          contentId: item.content_id,
-          title: item.title || "无标题文档",
-          excerpt: blockLines(content(item.content_id)?.content).join(" ").slice(0, EXCERPT),
+          contentId: item.content_id as number,
+          title: (item.title as string | null) || "无标题文档",
+          excerpt: blockLines(content(item.content_id as number)?.content)
+            .join(" ")
+            .slice(0, EXCERPT),
           meta: project?.title ?? "",
         };
       }
@@ -337,7 +348,7 @@ export default class EntitySearchTable {
         return {
           ...base,
           contentId: null,
-          title: project.title || "无标题项目",
+          title: (project.title as string | null) || "无标题项目",
           excerpt: blockLines(parseJsonArray(project.d)).join(" ").slice(0, EXCERPT),
           meta: `${parseJsonArray(project.children).length} 篇文档`,
         };
@@ -348,8 +359,8 @@ export default class EntitySearchTable {
         return {
           ...base,
           contentId: null,
-          title: notebook.title || "无标题 Notebook",
-          excerpt: (notebook.d || "").slice(0, EXCERPT),
+          title: (notebook.title as string | null) || "无标题 Notebook",
+          excerpt: ((notebook.d as string | null) || "").slice(0, EXCERPT),
         };
       }
       case "white_board": {
@@ -361,8 +372,8 @@ export default class EntitySearchTable {
         return {
           ...base,
           contentId: null,
-          title: board.title || "无标题白板",
-          excerpt: (board.description || "").slice(0, EXCERPT),
+          title: (board.title as string | null) || "无标题白板",
+          excerpt: ((board.description as string | null) || "").slice(0, EXCERPT),
           meta: pages > 1 ? `${pages} 页` : "",
         };
       }
@@ -375,12 +386,12 @@ export default class EntitySearchTable {
         return {
           ...base,
           contentId: null,
-          createdAt: todo.create_time,
-          title: todo.title || "无标题待办",
+          createdAt: todo.create_time as number,
+          title: (todo.title as string | null) || "无标题待办",
           meta: [
-            todo.group_title ?? "",
+            (todo.group_title as string | null) ?? "",
             todo.is_completed ? "已完成" : "",
-            todo.due_at ? `截止 ${dayjs(todo.due_at).format("M月D日")}` : "",
+            todo.due_at ? `截止 ${dayjs(todo.due_at as number).format("M月D日")}` : "",
           ]
             .filter(Boolean)
             .join(" · "),
@@ -395,9 +406,12 @@ export default class EntitySearchTable {
         return {
           ...base,
           contentId: null,
-          createdAt: event.create_time,
-          title: event.title || "无标题日程",
-          meta: [event.calendar_title ?? "", dayjs(event.start_date).format("M月D日")]
+          createdAt: event.create_time as number,
+          title: (event.title as string | null) || "无标题日程",
+          meta: [
+            (event.calendar_title as string | null) ?? "",
+            dayjs(event.start_date as number).format("M月D日"),
+          ]
             .filter(Boolean)
             .join(" · "),
         };
@@ -408,24 +422,24 @@ export default class EntitySearchTable {
            FROM diary_segments s JOIN diary_entries d ON d.id = s.diary_id WHERE s.id = ?`
         );
         if (!row) return null;
-        const lines = blockLines(content(row.content_id)?.content);
+        const lines = blockLines(content(row.content_id as number)?.content);
         return {
           ...base,
-          diaryId: row.diary_id,
-          contentId: row.content_id,
+          diaryId: row.diary_id as number,
+          contentId: row.content_id as number,
           title: lines[0]?.slice(0, 40) || "空白日记",
           excerpt: lines.slice(1).join(" ").slice(0, EXCERPT),
-          meta: `${normalizeDiaryDay(row.date, row.day_create_time)} ${dayjs(row.create_time).format("HH:mm")}`,
+          meta: `${normalizeDiaryDay(row.date as string, row.day_create_time as number)} ${dayjs(row.create_time as number).format("HH:mm")}`,
         };
       }
       case "plugin-entity": {
         const entity = get(`SELECT title, content_id FROM plugin_entities WHERE id = ?`);
         if (!entity) return null;
-        const lines = blockLines(content(entity.content_id)?.content);
+        const lines = blockLines(content(entity.content_id as number)?.content);
         return {
           ...base,
-          contentId: entity.content_id,
-          title: entity.title || lines[0]?.slice(0, 80) || "无标题",
+          contentId: entity.content_id as number,
+          title: (entity.title as string | null) || lines[0]?.slice(0, 80) || "无标题",
           excerpt: (entity.title ? lines : lines.slice(1)).join(" ").slice(0, EXCERPT),
         };
       }

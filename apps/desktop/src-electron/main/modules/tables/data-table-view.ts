@@ -6,10 +6,12 @@ import type {
   UpdateDataTableView,
   DataTableColumn,
   DataTableRow,
+  DataTableViewType,
 } from "@/types";
 import Operation from "./operation";
 import { ContentIdentityTable } from "./content-identity";
 import type { DataTableTarget } from "@tau/shared/database-types";
+import type { SqliteRow } from "../../types/table";
 
 type FooterSpec = NonNullable<DataTableViewConfig["footer"]>[string];
 
@@ -76,16 +78,16 @@ export default class DataTableViewTable {
     } as const;
   }
 
-  static parse(row: any): DataTableView {
+  static parse(row: SqliteRow): DataTableView {
     return {
-      id: row.id,
-      tableId: row.table_id,
-      name: row.name,
-      type: row.type,
-      config: JSON.parse(row.config || "{}"),
-      order: row.sort_order,
-      createTime: row.create_time,
-      updateTime: row.update_time,
+      id: row.id as number,
+      tableId: row.table_id as number,
+      name: row.name as string,
+      type: row.type as DataTableViewType,
+      config: JSON.parse((row.config as string | null) || "{}"),
+      order: row.sort_order as number,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
     };
   }
 
@@ -107,7 +109,7 @@ export default class DataTableViewTable {
     const stmt = db.prepare(
       `SELECT * FROM data_table_views WHERE table_id = ? ORDER BY sort_order ASC, id ASC`
     );
-    return stmt.all(tableId).map(row => this.parse(row));
+    return (stmt.all(tableId) as SqliteRow[]).map(row => this.parse(row));
   }
 
   static create(db: Database.Database, request: CreateDataTableView): DataTableView {
@@ -150,7 +152,7 @@ export default class DataTableViewTable {
 
   static getById(db: Database.Database, id: number): DataTableView | null {
     const stmt = db.prepare(`SELECT * FROM data_table_views WHERE id = ?`);
-    const row = stmt.get(id);
+    const row = stmt.get(id) as SqliteRow | undefined;
     if (!row) return null;
     return this.parse(row);
   }

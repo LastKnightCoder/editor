@@ -96,7 +96,7 @@ export default class ChatGroupTable {
     const childCountStmt = db.prepare(
       "SELECT COUNT(*) as count FROM chat_group WHERE parent_id = ?"
     );
-    const childCount = (childCountStmt.get(id) as any).count;
+    const childCount = (childCountStmt.get(id) as { count: number }).count;
 
     if (childCount > 0) {
       throw new Error("Cannot delete group with children");

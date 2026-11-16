@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { asynchronousDatabaseCommand } from "../database-command";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { ICreateCard, IUpdateCard, ICard } from "@/types";
+import type { Descendant } from "slate";
 import Operation from "./operation";
 import { basename } from "node:path";
 import FTSTable from "./fts";
@@ -13,6 +14,7 @@ import { CardContentOwnership } from "../content-ownership/card-content";
 
 import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
 import { parseContentAiMeta } from "./content-ai-meta";
+import type { SqliteRow } from "../../types/table";
 
 /** 列表预览块口径：渲染取前 3 块、标题/拖拽取 ≤200 字文本，块数封顶防无文本块失控 */
 const CARD_PREVIEW_BLOCK_MIN = 3;
@@ -64,7 +66,7 @@ export default class CardTable {
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
-    return (stmt.all() as any[]).map(row => {
+    return (stmt.all() as SqliteRow[]).map(row => {
       const card = this.parseCard(row);
       card.content = this.selectListContent(card.content);
       return card;
@@ -110,15 +112,15 @@ export default class CardTable {
     this.assertDatabase(db, request);
     return this.deleteCard(db, request.id);
   }
-  static parseCard(card: any): ICard {
+  static parseCard(card: SqliteRow): ICard {
     let content = [];
     let count = 0;
 
     // 直接使用JOIN查询结果中的内容
     if (card.content) {
       try {
-        content = JSON.parse(card.content);
-        count = card.count || 0;
+        content = JSON.parse(card.content as string);
+        count = (card.count as number) || 0;
       } catch (error) {
         console.error("Error parsing content:", error);
       }
@@ -126,26 +128,26 @@ export default class CardTable {
 
     // 使用卡片和内容表中最大的更新时间
     const updateTime = card.content_update_time
-      ? Math.max(card.update_time, card.content_update_time)
-      : card.update_time;
+      ? Math.max(card.update_time as number, card.content_update_time as number)
+      : (card.update_time as number);
 
     return {
-      id: card.id,
-      create_time: card.create_time,
+      id: card.id as number,
+      create_time: card.create_time as number,
       update_time: updateTime,
-      tags: JSON.parse(card.tags),
+      tags: JSON.parse(card.tags as string),
       linkCount: Number(card.link_count ?? 0),
       content: content,
       count: count,
-      contentId: card.content_id,
+      contentId: card.content_id as number,
       isTop: !!card.is_top,
-      aiTitle: parseContentAiMeta(card.ai_meta)?.title || undefined,
+      aiTitle: parseContentAiMeta(card.ai_meta as string | null)?.title || undefined,
     };
   }
 
   /** 取头部预览块：凑满最小块数后按累计文本长度截断（Slate 块递归取 text 叶子） */
-  private static selectListContent(content: any[]): any[] {
-    const preview: any[] = [];
+  private static selectListContent(content: Descendant[]): Descendant[] {
+    const preview: Descendant[] = [];
     let chars = 0;
     for (const block of content) {
       preview.push(block);
@@ -156,11 +158,12 @@ export default class CardTable {
     return preview;
   }
 
-  private static blockTextLength(node: any): number {
+  private static blockTextLength(node: unknown): number {
     if (!node || typeof node !== "object") return 0;
-    if (typeof node.text === "string") return node.text.length;
-    const children = (node.children ?? []) as any[];
-    return children.reduce((sum, child) => sum + this.blockTextLength(child), 0);
+    const record = node as Record<string, unknown>;
+    if (typeof record.text === "string") return record.text.length;
+    const children = (record.children ?? []) as unknown[];
+    return children.reduce((sum: number, child) => sum + this.blockTextLength(child), 0);
   }
 
   static getAllCards(db: Database.Database) {
@@ -173,7 +176,7 @@ export default class CardTable {
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
-    const cards = stmt.all();
+    const cards = stmt.all() as SqliteRow[];
     return cards.map(card => this.parseCard(card));
   }
 
@@ -187,7 +190,7 @@ export default class CardTable {
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.id = ?
     `);
-    const card = stmt.get(cardId);
+    const card = stmt.get(cardId) as SqliteRow | undefined;
     if (!card) {
       return null;
     }
@@ -207,7 +210,7 @@ export default class CardTable {
       LEFT JOIN content_ai_meta m ON m.content_id = c.content_id
       WHERE c.id IN (${placeholders})
     `);
-    const cards = stmt.all(cardIds);
+    const cards = stmt.all(cardIds) as SqliteRow[];
     return cards.map(card => this.parseCard(card));
   }
 
@@ -406,7 +409,7 @@ export default class CardTable {
       ORDER BY c.update_time DESC
     `);
 
-    const cards = stmt.all(...dates).map(card => this.parseCard(card));
+    const cards = (stmt.all(...dates) as SqliteRow[]).map(card => this.parseCard(card));
     const result: Record<string, ICard[]> = {};
 
     cards.forEach(card => {
@@ -440,7 +443,9 @@ export default class CardTable {
       ORDER BY c.update_time DESC
     `);
 
-    const cards = stmt.all(startTimestamp, endTimestamp).map(card => this.parseCard(card));
+    const cards = (stmt.all(startTimestamp, endTimestamp) as SqliteRow[]).map(card =>
+      this.parseCard(card)
+    );
     const result: Record<string, ICard[]> = {};
 
     cards.forEach(card => {
@@ -465,7 +470,7 @@ export default class CardTable {
       markdown: string;
       truncated: boolean;
       originalLength: number;
-      metadata: Record<string, any>;
+      metadata: Record<string, unknown>;
     }>
   > {
     if (ids.length === 0) return [];

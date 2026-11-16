@@ -6,13 +6,19 @@ import CalendarEventTable from "./calendar-event";
 import TodoCalendarMappingTable from "./todo-calendar-mapping";
 import TodoRecurrenceTable from "./todo-recurrence";
 import { CreateCalendarEvent } from "@/types/calendar";
+import { ProjectColorName } from "@/constants/project-colors";
 import holidayServiceModule from "../holiday-service";
 import { taskOccurrencesInRange } from "@tau/shared/task-assistant";
 import { dateTime, localDate } from "../task-assistant/common";
+import type { SqliteRow } from "../../types/table";
 
 // 待办清单日历配置
 const TODO_CALENDAR_GROUP_NAME = "待办清单";
-const TODO_CALENDARS = [
+const TODO_CALENDARS: Array<{
+  type: "deadline" | "recurring";
+  title: string;
+  color: ProjectColorName;
+}> = [
   { type: "deadline" as const, title: "截止任务", color: "red" },
   { type: "recurring" as const, title: "周期任务", color: "green" },
 ];
@@ -56,7 +62,7 @@ export default class TodoCalendarSyncTable {
     } else {
       // 如果已存在，确保它的parent_group_id正确
       let needsUpdate = false;
-      const updates: any = {};
+      const updates: { isSystem?: boolean; parentGroupId?: number } = {};
 
       if (group.isSystem) {
         // 如果之前错误地创建为系统分组，修正为普通分组
@@ -73,7 +79,7 @@ export default class TodoCalendarSyncTable {
       if (needsUpdate) {
         // 使用SQL直接更新（因为isSystem可能需要更新）
         const setClauses: string[] = [];
-        const params: any[] = [];
+        const params: number[] = [];
 
         if (updates.isSystem !== undefined) {
           setClauses.push("is_system = ?");
@@ -106,7 +112,7 @@ export default class TodoCalendarSyncTable {
       if (!calendar) {
         calendar = CalendarTable.createCalendar(db, {
           title: config.title,
-          color: config.color as any,
+          color: config.color,
           descriptionContentId: 0,
           archived: false,
           pinned: false,
@@ -326,26 +332,26 @@ export default class TodoCalendarSyncTable {
         LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
         WHERE ti.id = ?`
       )
-      .get(todoItemId) as any;
+      .get(todoItemId) as SqliteRow | undefined;
 
     if (!todoItem) return [];
 
     const parsedItem = {
-      id: todoItem.id,
-      groupId: todoItem.group_id,
-      parentId: todoItem.parent_id ?? null,
-      title: todoItem.title,
+      id: todoItem.id as number,
+      groupId: todoItem.group_id as number,
+      parentId: (todoItem.parent_id as number | null) ?? null,
+      title: todoItem.title as string,
       type: todoItem.type as TodoItemType,
-      descriptionContentId: todoItem.description_content_id ?? null,
+      descriptionContentId: (todoItem.description_content_id as number | null) ?? null,
       isCompleted: Boolean(todoItem.is_completed),
-      startAt: todoItem.start_at ?? null,
-      dueAt: todoItem.due_at ?? null,
-      remindBefore: todoItem.remind_before ?? null,
-      completedAt: todoItem.completed_at ?? null,
-      sortIndex: todoItem.sort_index,
+      startAt: (todoItem.start_at as number | null) ?? null,
+      dueAt: (todoItem.due_at as number | null) ?? null,
+      remindBefore: (todoItem.remind_before as number | null) ?? null,
+      completedAt: (todoItem.completed_at as number | null) ?? null,
+      sortIndex: todoItem.sort_index as number,
       isArchived: Boolean(todoItem.is_archived),
-      createTime: todoItem.create_time,
-      updateTime: todoItem.update_time,
+      createTime: todoItem.create_time as number,
+      updateTime: todoItem.update_time as number,
     };
 
     // 如果启用了节假日排除，获取节假日数据

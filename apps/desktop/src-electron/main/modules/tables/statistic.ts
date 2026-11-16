@@ -6,17 +6,18 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import log from "electron-log";
+import type { SqliteRow } from "../../types/table";
 
 // 统计覆盖的内容类型，与首页趋势图 TREND_TYPES 对应
 const STATISTIC_TYPES = ["card", "article", "project-item"] as const;
 
 export default class StatisticTable {
-  static parseStatistic(statistic: any): StatisticData {
+  static parseStatistic(statistic: SqliteRow): StatisticData {
     return {
-      id: statistic.id,
-      date: statistic.date,
-      statisticType: statistic.statistic_type,
-      content: JSON.parse(statistic.content),
+      id: statistic.id as number,
+      date: statistic.date as string,
+      statisticType: statistic.statistic_type as string,
+      content: JSON.parse(statistic.content as string),
     };
   }
 
@@ -96,25 +97,25 @@ export default class StatisticTable {
 
   static getStatisticByDate(db: Database.Database, date: string) {
     const stmt = db.prepare(`SELECT * FROM statistic WHERE date = ?`);
-    const row = stmt.get(date) as { id: number } | undefined;
+    const row = stmt.get(date) as SqliteRow | undefined;
     return row ? this.parseStatistic(row) : undefined;
   }
 
   static getStatisticByType(db: Database.Database, type: string) {
     const stmt = db.prepare(`SELECT * FROM statistic WHERE statistic_type = ?`);
-    const row = stmt.get(type) as { id: number } | undefined;
+    const row = stmt.get(type) as SqliteRow | undefined;
     return row ? this.parseStatistic(row) : undefined;
   }
 
   static getStatisticByDateAndType(db: Database.Database, date: string, type: string) {
     const stmt = db.prepare(`SELECT * FROM statistic WHERE date = ? AND statistic_type = ?`);
-    const row = stmt.get(date, type) as { id: number } | undefined;
+    const row = stmt.get(date, type) as SqliteRow | undefined;
     return row ? this.parseStatistic(row) : undefined;
   }
 
   static getStatisticByDateRange(db: Database.Database, startDate: string, endDate: string) {
     const stmt = db.prepare(`SELECT * FROM statistic WHERE date >= ? AND date <= ?`);
-    return stmt.all(startDate, endDate).map(this.parseStatistic);
+    return (stmt.all(startDate, endDate) as SqliteRow[]).map(this.parseStatistic);
   }
 
   static getStatisticByDateRangeAndType(
@@ -126,11 +127,13 @@ export default class StatisticTable {
     const stmt = db.prepare(
       `SELECT * FROM statistic WHERE date >= ? AND date <= ? AND statistic_type = ?`
     );
-    return stmt.all(startDate, endDate, type).map(this.parseStatistic);
+    return (stmt.all(startDate, endDate, type) as SqliteRow[]).map(this.parseStatistic);
   }
 
   static getAllStatistic(db: Database.Database): StatisticData[] {
-    const archived = db.prepare(`SELECT * FROM statistic`).all().map(this.parseStatistic);
+    const archived = (db.prepare(`SELECT * FROM statistic`).all() as SqliteRow[]).map(
+      this.parseStatistic
+    );
     // 归档快照仅在凌晨/App 启动时写入，白天 CRUD 不会刷新今天的记录。
     // 这里对今天实时补算 4 类快照并覆盖归档值，使首页趋势图当天可见。
     const today = dayjs().format("YYYY-MM-DD");

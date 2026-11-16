@@ -372,7 +372,7 @@ export default class DiaryTable {
 
     // weather/mood/tags 更新
     const updateFields: string[] = [];
-    const updateValues: any[] = [];
+    const updateValues: unknown[] = [];
 
     if (entry.weather !== undefined) {
       updateFields.push("weather = ?");
@@ -504,7 +504,7 @@ export default class DiaryTable {
       SELECT d.* FROM diary_entries d
       WHERE d.date >= ? AND d.date <= ?
     `;
-    const params: any[] = [startDate, endDate];
+    const params: unknown[] = [startDate, endDate];
 
     if (diaryType) {
       query += ` AND d.type = ?`;
@@ -566,7 +566,7 @@ export default class DiaryTable {
       WHERE de.date IN (${placeholders})
     `;
 
-    const params: any[] = [...dates];
+    const params: unknown[] = [...dates];
 
     if (diaryType) {
       sql += ` AND de.type = ?`;

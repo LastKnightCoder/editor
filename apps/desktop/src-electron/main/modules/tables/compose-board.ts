@@ -8,7 +8,7 @@
 
 import type Database from "better-sqlite3";
 import type { ComposeBoard, ComposeBoardSummary } from "@/types/compose";
-import WhiteBoardContentTable from "./white-board-content";
+import WhiteboardContentTable from "./white-board-content";
 
 interface RawRow {
   content_id: number;
@@ -82,7 +82,7 @@ export default class ComposeBoardTable {
     if (existing) return existing;
     if (!db.prepare(`SELECT 1 FROM content_snapshots WHERE id = ?`).get(id))
       throw new Error("正文不存在");
-    const page = WhiteBoardContentTable.createWhiteboardContent(db, {
+    const page = WhiteboardContentTable.createWhiteboardContent(db, {
       name: PAGE_NAME,
       imgUrl: "",
       data: EMPTY_PAGE as never,
@@ -150,7 +150,7 @@ export default class ComposeBoardTable {
       .get(contentId) as { page_id: number } | undefined;
     if (!row) return;
     db.prepare(`DELETE FROM compose_boards WHERE content_id = ?`).run(contentId);
-    WhiteBoardContentTable.deleteWhiteboard(db, row.page_id);
+    WhiteboardContentTable.deleteWhiteboard(db, row.page_id);
   }
 
   /** 页 id → 绑定的正文；脉络「被使用」归属素材板用 */

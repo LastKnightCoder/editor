@@ -5,7 +5,7 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import { ContentIdentityTable } from "../content-identity";
 import DataTableTable from "../data-table";
 import DataTableViewTable from "../data-table-view";
-import WhiteBoardContentTable from "../white-board-content";
+import WhiteboardContentTable from "../white-board-content";
 import ProjectTable from "../project";
 
 vi.mock("electron");
@@ -96,7 +96,7 @@ describe("领域命令直接接纳稳定引用", () => {
     expect(() => ProjectTable.getProjectItem(db, { ...project, sourceId: "different" })).toThrow(
       "引用不属于"
     );
-    expect(() => WhiteBoardContentTable.getWhiteboardContent(db, project)).toThrow("类型不匹配");
+    expect(() => WhiteboardContentTable.getWhiteboardContent(db, project)).toThrow("类型不匹配");
     ContentIdentityTable.retire(db, "project-item", 42);
     expect(() => ProjectTable.getChildren(db, project)).toThrow("引用不属于");
   });

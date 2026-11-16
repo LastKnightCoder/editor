@@ -2,6 +2,7 @@ import { basename } from "node:path";
 import Database from "better-sqlite3";
 import log from "electron-log";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
+import type { Descendant } from "slate";
 import {
   FlashcardDeck,
   FlashcardDeckStats,
@@ -130,7 +131,7 @@ class FlashcardTable {
     row: ReferenceRow,
     content?: {
       id: number;
-      content: any;
+      content: Descendant[];
       createTime: number;
       updateTime: number;
       count: number;
@@ -151,7 +152,7 @@ class FlashcardTable {
 
   private static mapCardRow(row: CardRow, references: FlashcardReference[]): Flashcard {
     // Parse prompt as Descendant[] with fallback
-    let prompt: any;
+    let prompt: Descendant[];
     try {
       prompt = JSON.parse(row.prompt);
       if (!Array.isArray(prompt)) {
@@ -174,7 +175,7 @@ class FlashcardTable {
     }
 
     // Parse detail as Descendant[] with fallback
-    let detail: any;
+    let detail: Descendant[];
     try {
       detail = JSON.parse(row.detail);
       if (!Array.isArray(detail)) {
@@ -577,7 +578,7 @@ class FlashcardTable {
     } = {}
   ): Flashcard[] {
     const conditions: string[] = ["1=1"];
-    const values: any[] = [];
+    const values: Array<string | number> = [];
 
     if (typeof params.deckId === "number") {
       conditions.push("deck_id = ?");
@@ -737,7 +738,7 @@ class FlashcardTable {
   static getReviewQueue(db: Database.Database, params: FlashcardQueueRequest = {}): Flashcard[] {
     const now = Date.now();
     const conditions = [];
-    const values: any[] = [];
+    const values: Array<string | number> = [];
 
     if (typeof params.deckId === "number") {
       conditions.push("deck_id = ?");

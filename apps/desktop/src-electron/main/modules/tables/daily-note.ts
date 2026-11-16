@@ -5,6 +5,7 @@ import Operation from "./operation";
 import ContentTable from "./content";
 import { replaceColdContent } from "./content-replacement";
 import { getContentLength } from "@/utils/helper.ts";
+import type { SqliteRow } from "../../types/table";
 
 export default class DailyNoteTable {
   static getListenEvents() {
@@ -18,12 +19,12 @@ export default class DailyNoteTable {
     };
   }
 
-  static parseDailyNote(note: any): DailyNote {
+  static parseDailyNote(note: SqliteRow): DailyNote {
     return {
-      id: note.id,
-      date: note.date,
+      id: note.id as number,
+      date: note.date as string,
       content: [],
-      contentId: note.content_id,
+      contentId: note.content_id as number,
     };
   }
 
@@ -108,7 +109,7 @@ export default class DailyNoteTable {
       LEFT JOIN content_snapshots c ON d.content_id = c.id
       WHERE d.id = ?
     `);
-    const note = stmt.get(id);
+    const note = stmt.get(id) as SqliteRow;
     return this.parseDailyNote(note);
   }
 
@@ -119,7 +120,7 @@ export default class DailyNoteTable {
       LEFT JOIN content_snapshots c ON d.content_id = c.id
       WHERE d.date = ?
     `);
-    const note = stmt.get(date);
+    const note = stmt.get(date) as SqliteRow;
     return this.parseDailyNote(note);
   }
 
@@ -130,7 +131,7 @@ export default class DailyNoteTable {
       LEFT JOIN content_snapshots c ON d.content_id = c.id
       ORDER BY d.date DESC
     `);
-    const notes = stmt.all();
+    const notes = stmt.all() as SqliteRow[];
     return notes.map(note => this.parseDailyNote(note));
   }
 }

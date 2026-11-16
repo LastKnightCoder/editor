@@ -17,6 +17,7 @@ import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { basename } from "node:path";
+import type { SqliteRow } from "../../types/table";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
@@ -26,7 +27,7 @@ import { prepareCanonicalContentTitle } from "../collaboration/content-sessions"
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
-import WhiteBoardContentTable from "./white-board-content";
+import WhiteboardContentTable from "./white-board-content";
 import {
   collectProjectItemSubtreeIds,
   ProjectItemOwnership,
@@ -146,28 +147,28 @@ export default class ProjectTable {
     };
   }
 
-  static parseProject(project: any): Project {
+  static parseProject(project: SqliteRow): Project {
     return {
-      id: project.id,
-      createTime: project.create_time,
-      updateTime: project.update_time,
-      title: project.title,
-      desc: JSON.parse(project.desc || "[]"),
-      children: JSON.parse(project.children || "[]"),
+      id: project.id as number,
+      createTime: project.create_time as number,
+      updateTime: project.update_time as number,
+      title: project.title as string,
+      desc: JSON.parse((project.desc as string) || "[]"),
+      children: JSON.parse((project.children as string) || "[]"),
       archived: Boolean(project.archived),
       pinned: Boolean(project.pinned),
     };
   }
 
-  static parseProjectItem(item: any): ProjectItem {
+  static parseProjectItem(item: SqliteRow): ProjectItem {
     let content: Descendant[] = [];
     let count = 0;
-    const contentId = item.content_id;
+    const contentId = item.content_id as number;
 
     if (item.content) {
       try {
-        content = JSON.parse(item.content);
-        count = item.count || 0;
+        content = JSON.parse(item.content as string);
+        count = (item.count as number) || 0;
       } catch (error) {
         console.error("Error parsing content:", error);
       }
@@ -175,25 +176,25 @@ export default class ProjectTable {
 
     // 使用项目条目和内容表中最大的更新时间
     const updateTime = item.content_update_time
-      ? Math.max(item.update_time, item.content_update_time)
-      : item.update_time;
+      ? Math.max(item.update_time as number, item.content_update_time as number)
+      : (item.update_time as number);
 
     return {
-      id: item.id,
-      createTime: item.create_time,
+      id: item.id as number,
+      createTime: item.create_time as number,
       updateTime: updateTime,
-      title: item.title,
+      title: item.title as string,
       content: content,
-      children: JSON.parse(item.children || "[]"),
-      parents: JSON.parse(item.parents || "[]"),
-      projects: JSON.parse(item.projects || "[]"),
-      refType: item.ref_type || "",
-      refId: item.ref_id || 0,
-      whiteBoardContentId: item.white_board_content_id || 0,
-      projectItemType: (item.project_item_type || "document") as EProjectItemType,
+      children: JSON.parse((item.children as string) || "[]"),
+      parents: JSON.parse((item.parents as string) || "[]"),
+      projects: JSON.parse((item.projects as string) || "[]"),
+      refType: (item.ref_type as string) || "",
+      refId: (item.ref_id as number) || 0,
+      whiteBoardContentId: (item.white_board_content_id as number) || 0,
+      projectItemType: ((item.project_item_type as string) || "document") as EProjectItemType,
       count: count,
       contentId: contentId,
-      tags: JSON.parse(item.tags || "[]"),
+      tags: JSON.parse((item.tags as string) || "[]"),
     };
   }
 
@@ -296,13 +297,13 @@ export default class ProjectTable {
 
   static getProjectOrNull(db: Database.Database, id: number): Project | null {
     const stmt = db.prepare("SELECT * FROM project WHERE id = ?");
-    const project = stmt.get(id);
+    const project = stmt.get(id) as SqliteRow | undefined;
     return project ? this.parseProject(project) : null;
   }
 
   static getAllProjects(db: Database.Database): Project[] {
     const stmt = db.prepare("SELECT * FROM project ORDER BY create_time DESC");
-    const projects = stmt.all();
+    const projects = stmt.all() as SqliteRow[];
     return projects.map(p => this.parseProject(p));
   }
 
@@ -415,8 +416,8 @@ export default class ProjectTable {
     if (item.projectItemType === EProjectItemType.VideoNote) {
       VideoNoteTable.deleteVideoNote(db, item.refId);
     }
-    if (item.projectItemType === EProjectItemType.WhiteBoard && item.whiteBoardContentId) {
-      WhiteBoardContentTable.deleteWhiteboard(db, item.whiteBoardContentId);
+    if (item.projectItemType === EProjectItemType.Whiteboard && item.whiteBoardContentId) {
+      WhiteboardContentTable.deleteWhiteboard(db, item.whiteBoardContentId);
     }
     FTSTable.removeIndexByIdAndType(db, item.id, "project-item");
     VecDocumentTable.removeIndexByIdAndType(db, item.id, "project-item");
@@ -446,7 +447,7 @@ export default class ProjectTable {
       LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.id = ?
     `);
-    const item = stmt.get(id);
+    const item = stmt.get(id) as SqliteRow | undefined;
     if (!item) {
       return null;
     }
@@ -463,7 +464,7 @@ export default class ProjectTable {
         WHERE value = ?
       )
     `);
-    const items = stmt.all(projectId);
+    const items = stmt.all(projectId) as SqliteRow[];
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -475,7 +476,7 @@ export default class ProjectTable {
        LEFT JOIN content_snapshots c ON pi.content_id = c.id
        WHERE pi.id IN (${placeholders})`
     );
-    const items = stmt.all(ids);
+    const items = stmt.all(ids) as SqliteRow[];
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -486,7 +487,7 @@ export default class ProjectTable {
       LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.ref_type = ? AND pi.ref_id = ?
     `);
-    const items = stmt.all(refType, refId);
+    const items = stmt.all(refType, refId) as SqliteRow[];
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -551,7 +552,7 @@ export default class ProjectTable {
         WHERE value = ?
       )
     `);
-    const items = stmt.all(projectId);
+    const items = stmt.all(projectId) as SqliteRow[];
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -562,7 +563,7 @@ export default class ProjectTable {
       LEFT JOIN content_snapshots c ON pi.content_id = c.id
       WHERE pi.projects = '[]'
     `);
-    const items = stmt.all();
+    const items = stmt.all() as SqliteRow[];
     log.info(`获取不在任何项目中的条目: count=${items.length}`);
     return items.map(item => this.parseProjectItem(item));
   }
@@ -611,7 +612,7 @@ export default class ProjectTable {
       FROM project_item pi
       LEFT JOIN content_snapshots c ON pi.content_id = c.id
     `);
-    const items = stmt.all();
+    const items = stmt.all() as SqliteRow[];
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -623,7 +624,7 @@ export default class ProjectTable {
       WHERE pi.content_id = ?
       ORDER BY pi.update_time DESC, pi.id DESC
     `);
-    const items = stmt.all(contentId);
+    const items = stmt.all(contentId) as SqliteRow[];
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -725,9 +726,9 @@ export default class ProjectTable {
     if (
       projectItem.refType === "white-board" &&
       projectItem.whiteBoardContentId &&
-      projectItem.projectItemType === EProjectItemType.WhiteBoard
+      projectItem.projectItemType === EProjectItemType.Whiteboard
     ) {
-      WhiteBoardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
+      WhiteboardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
     }
     const now = Date.now();
     const stmt = db.prepare(`
@@ -1124,7 +1125,7 @@ export default class ProjectTable {
       ORDER BY pi.update_time DESC
     `);
 
-    const items = stmt.all(...dates).map(item => this.parseProjectItem(item));
+    const items = (stmt.all(...dates) as SqliteRow[]).map(item => this.parseProjectItem(item));
     const result: Record<string, ProjectItem[]> = {};
 
     items.forEach(item => {
@@ -1155,7 +1156,9 @@ export default class ProjectTable {
       ORDER BY pi.update_time DESC
     `);
 
-    const items = stmt.all(startTimestamp, endTimestamp).map(item => this.parseProjectItem(item));
+    const items = (stmt.all(startTimestamp, endTimestamp) as SqliteRow[]).map(item =>
+      this.parseProjectItem(item)
+    );
     const result: Record<string, ProjectItem[]> = {};
 
     items.forEach(item => {
@@ -1180,7 +1183,7 @@ export default class ProjectTable {
       markdown: string;
       truncated: boolean;
       originalLength: number;
-      metadata: Record<string, any>;
+      metadata: Record<string, unknown>;
     }>
   > {
     if (ids.length === 0) return [];
