@@ -46,7 +46,7 @@ export function timeGroup(time: number): string {
 }
 
 /** 没有标题的页面用「域名 + 路径」代替完整网址 */
-export function readableUrl(url: string): string {
+function readableUrl(url: string): string {
   try {
     const { host, pathname, search } = new URL(url);
     const path = decodeURI(pathname).replace(/\/$/, "");

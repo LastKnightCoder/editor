@@ -257,7 +257,7 @@ function SiteIcon() {
   );
 }
 
-export function MenuItem({
+function MenuItem({
   icon: Icon,
   onClick,
   children,

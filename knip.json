@@ -50,7 +50,7 @@
       "entry": ["*.config.*", "api/index.ts", "client/index.ts"]
     },
     "apps/collaboration-server": {
-      "entry": ["server.{js,ts}", "*.config.*", "src/**/*.ts", "scripts/**/*.{js,mjs}"]
+      "entry": ["*.config.*", "src/**/*.ts"]
     },
     "apps/collaboration-cloudflare": {
       "entry": ["src/*.ts", "*.config.*", "scripts/*.mjs"]

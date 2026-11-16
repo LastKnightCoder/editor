@@ -29,7 +29,7 @@ import { underlineCodec } from "@tau/editor/extensions/underline/markdown";
 import { createMarkdownProcessor } from "@tau/markdown";
 import type { Descendant } from "slate";
 
-export const noteMarkdown = createMarkdownProcessor({
+const noteMarkdown = createMarkdownProcessor({
   codecs: [
     ...editorMarkdownCodecs,
     headerCodec,

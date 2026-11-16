@@ -23,7 +23,7 @@ const nameOf = (color: HighlightColor) => `tau-hl-${color}`;
 const FLASH = "tau-hl-flash";
 const STYLE_ID = "tau-companion-highlights";
 
-export const highlightSupported = () =>
+const highlightSupported = () =>
   typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight === "function";
 
 export class HighlightLayer {

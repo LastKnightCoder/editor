@@ -420,7 +420,7 @@ function ContextChip({
 }
 
 /** 没连上 Tau 时的说明卡：未找到 / 等待授权（校验码）/ 被拒绝 / 被撤销 */
-export function ConnectionCard() {
+function ConnectionCard() {
   const controller = useController();
   const status = useCompanion(state => state.status);
   const [help, setHelp] = useState(false);

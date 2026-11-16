@@ -15,7 +15,7 @@ import type { AnnotationStore } from "./annotation-store";
 import type { CompanionConnection } from "./connection";
 
 /** 内容脚本可透传给 Tau 的方法；其余（握手、配对）只由后台自己发 */
-export const RPC_PASSTHROUGH = new Set<string>([
+const RPC_PASSTHROUGH = new Set<string>([
   COMPANION_METHODS.runStart,
   COMPANION_METHODS.runAbort,
   COMPANION_METHODS.runState,
@@ -34,7 +34,7 @@ export const RPC_PASSTHROUGH = new Set<string>([
 export type ExtensionPage = "note" | "library";
 
 /** 扩展自己的页面可经 runtime.sendMessage 调用的方法：Tau 方法透传，annotations.load 走本机缓存 */
-export const EXTENSION_PAGE_METHODS: Readonly<Record<ExtensionPage, ReadonlySet<string>>> = {
+const EXTENSION_PAGE_METHODS: Readonly<Record<ExtensionPage, ReadonlySet<string>>> = {
   note: new Set([COMPANION_METHODS.noteSave, COMPANION_METHODS.noteOpen]),
   library: new Set([
     COMPANION_METHODS.libraryPages,
