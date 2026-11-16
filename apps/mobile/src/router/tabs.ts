@@ -5,7 +5,7 @@ export const TAB_ORDER = ["home", "cardsLibrary", "diaryHome", "settings"] as co
 
 export type TabKey = (typeof TAB_ORDER)[number];
 
-export const TAB_KEYS: ReadonlySet<string> = new Set<string>(TAB_ORDER);
+const TAB_KEYS: ReadonlySet<string> = new Set<string>(TAB_ORDER);
 
 /**
  * 相邻 tab：direction 为 1 表示下一个（从右向左滑），-1 表示上一个（从左向右滑）。

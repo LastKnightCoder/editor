@@ -32,7 +32,7 @@ export function formatLogValue(value: unknown): string {
   }
 }
 
-export function hasTauriBridge(): boolean {
+function hasTauriBridge(): boolean {
   return Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 }
 

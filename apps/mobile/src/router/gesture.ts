@@ -24,7 +24,7 @@ export type EdgeBackGestureConfig = {
 };
 
 /** 自带拖拽的控件（如编辑器块把手）标记 data-no-edge-back：从其上起手的触点不参与边缘返回 */
-export function isMarkedNoEdgeBack(node: EventTarget | null): boolean {
+function isMarkedNoEdgeBack(node: EventTarget | null): boolean {
   return node instanceof Element && node.closest("[data-no-edge-back]") !== null;
 }
 
@@ -225,5 +225,3 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
     };
   }, []);
 }
-
-export default useEdgeBackGesture;

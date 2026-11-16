@@ -259,5 +259,3 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
     </div>
   );
 }
-
-export default SearchPage;

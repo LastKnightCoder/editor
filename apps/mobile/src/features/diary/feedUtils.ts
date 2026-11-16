@@ -30,25 +30,6 @@ export function computeDailyStreak(dailyDates: Set<string>, now: Date): number {
   return streak;
 }
 
-/** 本周 7 天（周一至周日）的记录点阵 */
-export function computeWeekDots(
-  dailyDates: Set<string>,
-  now: Date
-): Array<{ hit: boolean; future: boolean; today: boolean }> {
-  const weekday = (now.getDay() + 6) % 7;
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  weekStart.setDate(weekStart.getDate() - weekday);
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(weekStart.getTime() + index * DAY_MS);
-    return {
-      hit: dailyDates.has(formatDailyKey(day)),
-      future: day.getTime() > now.getTime(),
-      today: index === weekday,
-    };
-  });
-}
-
 /** 片段被删光后残留的空壳 entry 不算一篇日记：展示与统计都应忽略 */
 export function hasDiaryContent(entry: DiaryEntry): boolean {
   return (entry.segments?.length ?? 0) > 0;

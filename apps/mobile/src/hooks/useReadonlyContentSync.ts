@@ -14,7 +14,7 @@ type UseReadonlyContentSyncOptions = {
 
 export function useReadonlyContentSync(
   contentId: number | undefined,
-  options: UseReadonlyContentSyncOptions,
+  options: UseReadonlyContentSyncOptions
 ): void {
   const sourceIdRef = useRef(createContentSyncSourceId());
   const notifyContentSync = useMemoizedFn((content?: Descendant[]) => {
@@ -30,14 +30,8 @@ export function useReadonlyContentSync(
     if (nextId <= 0) {
       return;
     }
-    return subscribeContentUpdate(
-      nextId,
-      sourceIdRef.current,
-      (nextContent) => {
-        notifyContentSync(nextContent);
-      },
-    );
+    return subscribeContentUpdate(nextId, sourceIdRef.current, nextContent => {
+      notifyContentSync(nextContent);
+    });
   }, [contentId, notifyContentSync]);
 }
-
-export default useReadonlyContentSync;

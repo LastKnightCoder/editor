@@ -61,5 +61,3 @@ export function OverlayHost() {
     </>
   );
 }
-
-export default OverlayHost;

@@ -232,18 +232,8 @@ function SnapSheetRoot(props: SnapSheetProps) {
   );
 }
 
-export function useSnapSheetState(): SnapSheetState {
-  return useRequiredSnapSheetContext().state;
-}
-
-export function useSnapSheetTimeline(): PanTimeline | null {
-  return useRequiredSnapSheetContext().timeline;
-}
-
 export const SnapSheet = Object.assign(SnapSheetRoot, {
   Handle: SnapSheetHandle,
   Scroll: SnapSheetScroll,
   FixedFooterScroll: SnapSheetFixedFooterScroll,
 });
-
-export default SnapSheet;

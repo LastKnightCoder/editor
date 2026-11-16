@@ -168,7 +168,7 @@ export function getBaseDateFromDiaryKey(type: DiaryType, key: string): string {
   return `${match[1]}-${match[2]}-01`;
 }
 
-export function getDiaryComparableDate(type: DiaryType, key: string): string {
+function getDiaryComparableDate(type: DiaryType, key: string): string {
   if (type === "daily") {
     return key;
   }
@@ -178,7 +178,7 @@ export function getDiaryComparableDate(type: DiaryType, key: string): string {
   return getBaseDateFromDiaryKey(type, key);
 }
 
-export function getDiaryComparableTimestamp(type: DiaryType, key: string): number {
+function getDiaryComparableTimestamp(type: DiaryType, key: string): number {
   return parseDateInput(getDiaryComparableDate(type, key)).getTime();
 }
 

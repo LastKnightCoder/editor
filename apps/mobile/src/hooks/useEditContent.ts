@@ -420,5 +420,3 @@ export function useEditContent(
     retryLastFailed,
   };
 }
-
-export default useEditContent;

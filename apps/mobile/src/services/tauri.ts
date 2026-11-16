@@ -9,7 +9,6 @@ import type {
   ArchiveTodoGroupPayload,
   BootstrapResponse,
   CardDetailResponse,
-  CardListItem,
   CreateTodoGroupPayload,
   CreateTodoItemPayload,
   CreateTodoItemRelativePayload,
@@ -19,7 +18,6 @@ import type {
   UnifiedSearchResponse,
   CollaborationBinding,
   DatabaseListResponse,
-  DatabaseSchemaStatusResponse,
   DiaryEntry,
   HomeStats,
   DiaryListPayload,
@@ -58,7 +56,6 @@ import type {
   ToggleTodoCompletePayload,
   UpdateTodoGroupPayload,
   UpdateTodoItemPayload,
-  UpdateTodoRecurrencePayload,
 } from "../types";
 import type {
   Flashcard,
@@ -130,7 +127,7 @@ function withCardTimeout<T>(promise: Promise<T>, action: string): Promise<T> {
   );
 }
 
-export function withTimeout<T>(
+function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
   timeoutMessage: string
@@ -228,15 +225,6 @@ export function readSettingJson() {
 
 export function writeSettingJson(payload: string) {
   return trackedInvoke<SettingWriteResponse>("write_setting_json", { payload });
-}
-
-export function verifyAliOssCredentials(params: {
-  accessKeyId: string;
-  accessKeySecret: string;
-  bucket: string;
-  region: string;
-}) {
-  return trackedInvoke<string>("verify_alioss_credentials", { payload: params });
 }
 
 export function listDatabases() {
@@ -387,21 +375,8 @@ export function entityRefsApply(payload: {
   return trackedInvoke<void>("entity_refs_apply", { payload });
 }
 
-export function getCardsByIds(ids: number[]) {
-  return withCardTimeout(
-    trackedInvoke<CardListItem[]>("get_cards_by_ids", { payload: { ids } }),
-    "读取关联卡片"
-  );
-}
-
 export function deleteCard(id: number) {
   return withCardTimeout(trackedInvoke<number>("delete_card", { id }), "删除卡片");
-}
-
-export function getDatabaseSchemaStatus(name?: string) {
-  return trackedInvoke<DatabaseSchemaStatusResponse>("get_database_schema_status", {
-    name,
-  });
 }
 
 export async function createContent(params: {
@@ -422,21 +397,11 @@ export function diaryListEntries(payload?: DiaryListPayload) {
   return call.then(rows => rows.map(normalizeDiaryEntry));
 }
 
-export function diaryGetEntry(payload: { type: DiaryEntry["type"]; date: string }) {
-  return trackedInvoke<RawDiaryEntry | null>("diary_get_entry", { payload }).then(row =>
-    row ? normalizeDiaryEntry(row) : null
-  );
-}
-
 export async function diaryUpsertEntry(payload: DiaryUpsertPayload) {
   const document = await prepareCreatedContent(payload.content, payload.contracts);
   return trackedInvoke<RawDiaryEntry>("diary_upsert_entry", {
     payload: { ...payload, ...document, wordCount: mobileContentMetrics.count(document.content) },
   }).then(normalizeDiaryEntry);
-}
-
-export function diaryDeleteEntry(id: number) {
-  return trackedInvoke<number>("diary_delete_entry", { payload: { id } });
 }
 
 /** 删除日记片段；返回 null 表示该日记已无片段、后端连空壳 entry 一起删掉了 */
@@ -596,7 +561,7 @@ export function todoDeleteItemCascade(id: number) {
   return trackedInvoke<number>("todo_delete_item_cascade", { payload: { id } });
 }
 
-export function todoGetRecurrence(id: number) {
+function todoGetRecurrence(id: number) {
   return trackedInvoke<TodoRecurrence | null>("todo_get_recurrence", {
     payload: { id },
   }).then(withAssistantRecurrence);
@@ -625,23 +590,9 @@ export function todoCreateRecurrence(payload: CreateTodoRecurrencePayload) {
   });
 }
 
-export function todoUpdateRecurrence(payload: UpdateTodoRecurrencePayload) {
-  return trackedInvoke<TodoRecurrence>("todo_update_recurrence", {
-    payload,
-    timeZone: localTimeZone(),
-  });
-}
-
 export function todoDeleteRecurrence(id: number) {
   return trackedInvoke<number>("todo_delete_recurrence", {
     payload: { id },
-    timeZone: localTimeZone(),
-  });
-}
-
-export function todoDeleteRecurrenceByItem(todoItemId: number) {
-  return trackedInvoke<number>("todo_delete_recurrence_by_item", {
-    payload: { todoItemId },
     timeZone: localTimeZone(),
   });
 }
@@ -684,13 +635,6 @@ export function todoCompleteRecurrence(recurrenceId: number, scheduledDate: numb
 
 export function todoUncompleteRecurrence(recurrenceId: number, scheduledDate: number) {
   return trackedInvoke<number>("todo_uncomplete_recurrence", {
-    payload: { recurrenceId, scheduledDate },
-    timeZone: localTimeZone(),
-  });
-}
-
-export function todoSkipRecurrence(recurrenceId: number, scheduledDate: number) {
-  return trackedInvoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
     payload: { recurrenceId, scheduledDate },
     timeZone: localTimeZone(),
   });
@@ -768,10 +712,6 @@ export function pomodoroUpdateSession(sessionId: number, focusMs: number) {
 
 export function pomodoroDeleteSession(sessionId: number) {
   return trackedInvoke<number>("pomodoro_delete_session", { payload: { sessionId } });
-}
-
-export function pomodoroDeleteSessions(sessionIds: number[]) {
-  return trackedInvoke<number>("pomodoro_delete_sessions", { payload: { sessionIds } });
 }
 
 /** 今日汇总；时间边界由前端算（本地时区当天零点~23:59:59.999），后端无时区依赖 */

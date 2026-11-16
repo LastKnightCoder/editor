@@ -65,7 +65,7 @@ function questionView(question: AiQuestion) {
   return view;
 }
 
-export function createChatInteractionHost(): ToolInteractionHost {
+function createChatInteractionHost(): ToolInteractionHost {
   return {
     subscribe: listener =>
       useChatStore.subscribe((state, previous) => {

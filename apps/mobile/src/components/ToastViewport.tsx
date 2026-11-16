@@ -11,5 +11,3 @@ export function ToastViewport() {
     </div>
   );
 }
-
-export default ToastViewport;

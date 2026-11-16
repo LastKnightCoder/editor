@@ -42,7 +42,7 @@ function useScrollElement(ref: RefObject<HTMLElement | null>): HTMLElement | nul
 /** 滚动边缘状态：scroll 事件 + ResizeObserver（容器尺寸随键盘/转场变化）+
     MutationObserver（列表数据异步到达撑高内容）三路监听，布尔翻转才 setState。
     测量在 useLayoutEffect 内完成，容器到位（首次渲染或数据到达后）当帧即有正确渐隐状态 */
-export function useScrollState(ref: RefObject<HTMLElement | null>): ScrollState {
+function useScrollState(ref: RefObject<HTMLElement | null>): ScrollState {
   const [state, setState] = useState<ScrollState>(INITIAL_SCROLL_STATE);
   const element = useScrollElement(ref);
 

@@ -40,7 +40,7 @@ export function PluginComponentScope({
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>;
 }
 
-export const usePluginComponentScope = () => useContext(ScopeContext);
+const usePluginComponentScope = () => useContext(ScopeContext);
 const noopSubscribe = () => () => undefined;
 const zero = () => 0;
 

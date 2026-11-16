@@ -7,12 +7,7 @@ import {
 import { mobileHostFetch } from "../app/plugins/host-fetch";
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
-import {
-  createServiceRegistry,
-  IEditorNotifier,
-  type ServiceRegistration,
-  type ServiceRegistry,
-} from "@tau/editor";
+import { IEditorNotifier, type ServiceRegistration } from "@tau/editor";
 import {
   IEditorSlots,
   IVideoContentProviders,
@@ -126,10 +121,6 @@ export const mobileEditorServices: ServiceRegistration = register => {
     subscribe: subscribeMobileSettingSnapshot,
   });
 };
-
-export function createMobileEditorRegistry(): ServiceRegistry {
-  return createServiceRegistry(mobileEditorServices);
-}
 
 /** 图片默认外观：读设置桥快照，快照更新时编辑器随之刷新 */
 export const mobileImageAppearance: ImageAppearanceSource = {

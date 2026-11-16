@@ -13,10 +13,6 @@ export function getPageDefinition(key: string): PageDefinition | undefined {
   return pageDefinitionMap.get(key);
 }
 
-export function listPageDefinitions(): PageDefinition[] {
-  return [...pageDefinitionMap.values()];
-}
-
 export function clearPageDefinitionsForTest(): void {
   pageDefinitionMap.clear();
 }

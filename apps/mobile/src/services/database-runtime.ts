@@ -20,7 +20,7 @@ export const subscribeDatabaseReplacement = (listener: () => void) => {
 export const databaseGeneration = (name = activeName) =>
   name ? invoke<string>("database_generation", { name }) : Promise.resolve("");
 
-export function beginDatabaseReplacement(name = activeName) {
+function beginDatabaseReplacement(name = activeName) {
   if (databaseReplacementState(name).active) throw new Error("当前资料库正在替换");
   const update = (active: boolean) => {
     replacements.set(name, { version: databaseReplacementState(name).version + 1, active });

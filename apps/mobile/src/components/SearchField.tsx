@@ -58,5 +58,3 @@ export function SearchField(props: SearchFieldProps) {
     </label>
   );
 }
-
-export default SearchField;

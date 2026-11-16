@@ -17,7 +17,7 @@ import { readReminderSettings } from "./settings";
 const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-export function toNotifyEntry(item: tauri.UpcomingReminder, now = Date.now()): NotifyEntry {
+function toNotifyEntry(item: tauri.UpcomingReminder, now = Date.now()): NotifyEntry {
   // 文档待办与日程在文案上同属「到点提醒」，日程以外都按待办口径书写
   const shape = {
     kind: item.kind === "event" ? ("event" as const) : ("todo" as const),

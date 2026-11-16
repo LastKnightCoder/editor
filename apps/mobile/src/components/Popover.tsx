@@ -104,5 +104,3 @@ export function Popover({ open, anchorEl, items, onClose }: PopoverProps) {
     document.body
   );
 }
-
-export default Popover;

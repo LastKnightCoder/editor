@@ -17,7 +17,7 @@ const GAP = 3;
 const WEEK_LABELS = ["一", "", "三", "", "五", "", "日"];
 const WEEKDAY_CN = ["日", "一", "二", "三", "四", "五", "六"];
 
-/** 阈值与设计稿一致：0 / 1-4 / 5-14 / 15-29 / 30+ */
+/** 阈值：0 / 1-4 / 5-14 / 15-29 / 30+ */
 function heatClass(count: number): string {
   if (count <= 0) return "var(--heat-0)";
   if (count < 5) return "var(--heat-1)";
@@ -123,7 +123,7 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
       </div>
 
       {/* 范围切换 */}
-      <div className="mb-3 mt-2.5 flex gap-1.5">
+      <div className="mt-2.5 mb-3 flex gap-1.5">
         {RANGES.map(item => (
           <button
             key={item.key}
@@ -155,7 +155,7 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
               return (
                 <div key={index} style={{ width: range.cell, flex: "none" }}>
                   {showMonth && first ? (
-                    <span className="text-ink-3 whitespace-nowrap text-[10px] font-extrabold">
+                    <span className="text-ink-3 text-[10px] font-extrabold whitespace-nowrap">
                       {new Date(first.dayStart).getMonth() + 1}月
                     </span>
                   ) : (
@@ -170,7 +170,7 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
               {WEEK_LABELS.map((label, index) => (
                 <span
                   key={index}
-                  className="text-ink-3 text-[9px] font-bold leading-none"
+                  className="text-ink-3 text-[9px] leading-none font-bold"
                   style={{ height: range.cell, lineHeight: `${range.cell}px` }}
                 >
                   {label}
@@ -228,7 +228,7 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
         <span className="text-ink-3 mx-1 text-[10.5px] font-bold">多</span>
       </div>
 
-      {/* 当日详情（设计稿画框⑥：峰值/普通/今天进行中/无记录 四形态） */}
+      {/* 当日详情（峰值/普通/今天进行中/无记录 四形态） */}
       {selected ? (
         <DayDetail
           day={selected}
@@ -272,7 +272,7 @@ function DayDetail({
       ) : (
         <>
           <div className="mt-1.5 flex items-baseline gap-2">
-            <b className="text-ink-1 text-[26px] font-extrabold leading-none">{day.count}</b>
+            <b className="text-ink-1 text-[26px] leading-none font-extrabold">{day.count}</b>
             <span className="text-ink-2 text-[12px] font-bold">
               张{isToday && dueToday > 0 ? ` · 还剩 ${dueToday} 张到期` : ""}
             </span>

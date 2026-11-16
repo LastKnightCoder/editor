@@ -29,11 +29,11 @@ export type TabSwipeGestureConfig = {
   onCancel: () => void;
 };
 
-export function isMarkedNoTabSwipe(node: EventTarget | null): boolean {
+function isMarkedNoTabSwipe(node: EventTarget | null): boolean {
   return node instanceof Element && node.closest("[data-no-tab-swipe]") !== null;
 }
 
-export function isInsideHorizontalScroller(node: EventTarget | null): boolean {
+function isInsideHorizontalScroller(node: EventTarget | null): boolean {
   let el = node instanceof Element ? node : null;
   while (el && el !== document.documentElement) {
     const style = window.getComputedStyle(el);

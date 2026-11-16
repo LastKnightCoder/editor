@@ -1,5 +1,5 @@
 // 沉浸专注页（P2·全屏 overlay）。
-// 竖屏：环内大时间纵向居中；横屏（landscape·方案 A 独白）：裸箭头 + 预设名（左上）、
+// 竖屏：环内大时间纵向居中；横屏（landscape·独白式）：裸箭头 + 预设名（左上）、
 // 居中超大细字重时间、底部发丝进度线、常驻对称双圆钮（暂停/结束）——全部常驻、无隐藏态。
 // 返回手势/收起 = 退场回主页，计时继续（会话在后端）。
 
@@ -232,7 +232,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
 
   return (
     <div className="bg-page fixed inset-0 flex flex-col" style={backdropStyle}>
-      {/* 呼吸氛围光晕（仅运行中；横屏方案 A 无光晕） */}
+      {/* 呼吸氛围光晕（仅运行中；横屏无光晕） */}
       {controller.isRunning ? (
         <div aria-hidden className="pomodoro-breath-glow landscape:hidden" />
       ) : null}
@@ -256,7 +256,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
       {/* ── 竖屏：环内大时间，纵向居中 ── */}
       <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8 pb-10 landscape:hidden">
         <FocusRing progress={progress} className="w-[min(62vw,248px)]">
-          <span className="text-ink-1 text-[clamp(38px,12vw,52px)] font-extrabold tabular-nums leading-none">
+          <span className="text-ink-1 text-[clamp(38px,12vw,52px)] leading-none font-extrabold tabular-nums">
             {formatClock(displayMs)}
           </span>
           <span className="text-ink-3 mt-2 text-[11.5px] font-bold tabular-nums">{subText()}</span>
@@ -269,10 +269,10 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
         <p className="text-ink-3 text-[11.5px] font-bold tracking-widest">放下手机 · 专注此刻</p>
       </div>
 
-      {/* ── 横屏（方案 A · 独白）：居中超大时间 + 底部发丝进度线 + 常驻对称双圆钮 ── */}
+      {/* ── 横屏（独白式）：居中超大时间 + 底部发丝进度线 + 常驻对称双圆钮 ── */}
       <div className="pointer-events-none absolute inset-0 hidden place-items-center landscape:grid">
         <span
-          className="text-accent text-[clamp(56px,40vh,160px)] font-light tabular-nums leading-none"
+          className="text-accent text-[clamp(56px,40vh,160px)] leading-none font-light tabular-nums"
           style={{ fontFamily: "var(--tau-font-mono)" }}
         >
           {formatClock(displayMs)}

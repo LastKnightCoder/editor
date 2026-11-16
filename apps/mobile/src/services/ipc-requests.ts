@@ -6,7 +6,7 @@ export function trackLibraryRequest<T>(task: Promise<T>, command: string): Promi
   return task;
 }
 
-export async function drainWithinBudget(task: Promise<unknown>) {
+async function drainWithinBudget(task: Promise<unknown>) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([

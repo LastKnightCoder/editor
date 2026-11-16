@@ -1,6 +1,5 @@
-export { MobileAiService, createMobileAiService } from "./service";
+export { MobileAiService } from "./service";
 export type { MobileAiOptions, MobileAiSessionSnapshot } from "./service";
-export { bindMobileAiLifecycle } from "./lifecycle";
 export type {
   AiRunStartRequest,
   AiSessionRef,
@@ -10,7 +9,6 @@ export type {
   AiToolExecutionContext,
   AiToolResult,
 } from "@tau/ai/contracts";
-export { AiError } from "@tau/ai/contracts";
 export type {
   AiRunHandle,
   AiRunSnapshot,
