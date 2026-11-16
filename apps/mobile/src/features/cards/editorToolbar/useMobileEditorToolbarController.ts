@@ -1,101 +1,42 @@
-import { mobileContentPlugins } from "../../../app/plugins/content";
 import type { IBlockPanelListItem } from "@tau/editor/api";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { flushSync } from "react-dom";
+import { useCallback, useMemo, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
-import { insertTabs } from "@tau/editor/extensions/tabs";
-import { insertCallout } from "@tau/editor/extensions/callout";
-import { insertDetails } from "@tau/editor/extensions/detail";
-import { insertHighlightBlock } from "@tau/editor/extensions/highlight-block";
-import { insertTable, type TableAlign } from "@tau/editor/extensions/table";
-import { insertCheckList } from "@tau/editor/extensions/list";
-import { insertAnnotation } from "@tau/editor/extensions/annotation";
-import { insertMermaid } from "@tau/editor/extensions/diagram";
-import { insertCodeBlock } from "@tau/editor/extensions/code-block";
-import { insertBlockMath } from "@tau/editor/extensions/math";
-import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/extensions/media";
+import type { TableAlign } from "@tau/editor/extensions/table";
 import {
   Editor as SlateEditor,
   Element as SlateElement,
-  Node as SlateNode,
-  Range,
-  Transforms,
   type BaseSelection,
   type Path,
 } from "slate";
-import { ReactEditor } from "slate-react";
 
 import { useKeyboardReservation } from "../../../components/KeyboardViewportProvider";
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
-import {
-  CONTENT_LINK_TYPE,
-  readContentLinkTarget,
-  type ContentLinkPickerIntent,
-  type ContentLinkTarget,
+import type {
+  ContentLinkPickerIntent,
+  ContentLinkTarget,
 } from "../editorExtensions/contentLinkModel";
-import { retargetContentLink, wrapContentLink } from "../editorExtensions/contentLinkTransforms";
 import type { ContentMentionRequest } from "../editorExtensions/useContentMention";
-import { toast } from "../../../components/toast";
 import {
-  applyColorMark as applyColorMarkToEditor,
-  applyGradientMark as applyGradientMarkToEditor,
-  applyHeaderBlock,
-  applyHighlightMark as applyHighlightMarkToEditor,
-  applyUnderlineStyle as applyUnderlineStyleToEditor,
-  getBlockKindAt,
-  getSelectionMarks,
-  insertDividerBlock,
-  isActionSelectionRequired,
-  isBlockAction,
-  isCustomMarkAction,
-  isInlineWrapAction,
-  isMarkAction,
-  isToolbarActionActive,
-  restoreSelectionAndFocus,
-  toggleComment,
-  toggleCustomMark,
-  toggleContentLinkIfActive,
-  toggleInlineWrap,
-  toggleKbd,
-  toggleListBlock,
-  toggleMark,
-  toggleQuoteBlock,
   type CurrentBlockKind,
   type ToolbarActionId,
   type TextGradientOption,
   type UnderlineStylePayload,
 } from "./toolbarActions";
-import {
-  TEXT_CONTEXT,
-  getEditingContextKey,
-  isVoidEditorContext,
-  resolveContentLinkContext,
-  resolveTableContext,
-  useEditingContext,
-  type CodeEditingContext,
-  type EditingContext,
-} from "./editingContext";
-import { promptInsertWebview } from "./mediaActions";
-import { startEditorRecording } from "../recording/recordingSession";
+import type { EditingContext, CodeEditingContext } from "./editingContext";
 import type { RecordingPersistence } from "../recording/recordingPersistence";
-import {
-  captureTtsInsertTarget,
-  selectedPlainText,
-  type TtsInsertIntent,
-  type TtsInsertTarget,
-} from "../tts/ttsInsertTarget";
-import { setCodeBlockLanguage as setCodeBlockLanguageOnEditor } from "./codeBlockInput";
-import {
-  getColumnAlign,
-  runTableAction as runTableActionOnEditor,
-  type TableActionId,
-} from "./tableActions";
-import {
-  DEFAULT_KEYBOARD_SWAP_STRATEGY,
-  clearKeyboardSwap,
-  hideKeyboard,
-  showKeyboard,
-} from "./keyboardSwap";
+import type { TtsInsertIntent, TtsInsertTarget } from "../tts/ttsInsertTarget";
+import type { TableActionId } from "./tableActions";
+import { useToolbarSelectionState } from "./useToolbarSelectionState";
+import { useToolbarPanels } from "./useToolbarPanels";
+import { useContentLinkController } from "./useContentLinkController";
+import { useToolbarActions } from "./useToolbarActions";
+import { useToolbarInsert } from "./useToolbarInsert";
+import { useTtsActions } from "./useTtsActions";
+import { useRecordingActions } from "./useRecordingActions";
+import { useTableMenuController } from "./useTableMenuController";
+import { useToolbarFocusLifecycle } from "./useToolbarFocusLifecycle";
+import { useToolbarVisibility } from "./useToolbarVisibility";
+import { useToolbarSelectionQueries } from "./useToolbarSelectionQueries";
 
 /** 插入面板条目：媒体选择/块插入/行内标记三类入口（对齐桌面 slash 菜单的移动端子集） */
 export type InsertSheetItemKind =
@@ -130,22 +71,6 @@ export type ClosePanelOptions = {
   showKeyboard: boolean;
   /** 弹回键盘时是否恢复面板保存的选区，默认 false */
   restoreSelection?: boolean;
-};
-
-type ListIndentDirection = "indent" | "outdent";
-
-const INSERT_PICKER_INTENT: ContentLinkPickerIntent = { mode: "insert", text: "" };
-
-/** 列表项缩进命令，按光标所在最内层列表项类型选择 */
-const LIST_INDENT_COMMANDS: Partial<Record<string, Record<ListIndentDirection, string>>> = {
-  "check-list-item": {
-    indent: "tau.check-list.indent",
-    outdent: "tau.check-list.outdent",
-  },
-  "list-item": {
-    indent: "tau.list-item.indent",
-    outdent: "tau.list-item.outdent",
-  },
 };
 
 /** 宿主页开启录音：录音与文档绑定（离开确认、找回都按文档），所以由能确定文档身份的页面声明 */
@@ -271,97 +196,13 @@ export type MobileEditorToolbarController = {
   closeRecordingPermission: () => void;
 };
 
-function getListIndentCommand(node: unknown, direction: ListIndentDirection): string | null {
-  const type = (node as { type?: string }).type;
-  return type ? (LIST_INDENT_COMMANDS[type]?.[direction] ?? null) : null;
-}
-
-function getEditorFromRef(editorRef: RefObject<EditorRef | null>): SlateEditor | null {
-  return (editorRef.current?.getEditor() as SlateEditor | undefined) ?? null;
-}
-
+/** 移动端编辑器工具栏控制器：组装层，按域委托给同目录子 hook（选区状态、面板、内容链接、
+ *  格式化命令、插入、TTS、录音、表格、焦点生命周期、可见性、选区查询） */
 export function useMobileEditorToolbarController(
   options: UseMobileEditorToolbarControllerOptions
 ): MobileEditorToolbarController {
   const { editorRef, recording: recordingHost } = options;
-  const recordingHostRef = useRef(recordingHost);
-  recordingHostRef.current = recordingHost;
-  const recordingEnabled = Boolean(recordingHost);
-  const [recordingPermissionDenied, setRecordingPermissionDenied] = useState(false);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
-  const [isContentLinkPickerOpen, setIsContentLinkPickerOpen] = useState(false);
-  const [contentLinkPickerIntent, setContentLinkPickerIntent] =
-    useState<ContentLinkPickerIntent>(INSERT_PICKER_INTENT);
-  const [contentLinkPreview, setContentLinkPreview] = useState<ContentLinkTarget | null>(null);
-  const [selectionVersion, setSelectionVersion] = useState(0);
-  const [activePanel, setActivePanel] = useState<EditorPanelKind | null>(null);
-  const [panelSelection, setPanelSelection] = useState<BaseSelection | null>(null);
-  const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
-  const [dismissedContextKey, setDismissedContextKey] = useState<string | null>(null);
-  const [ttsTarget, setTtsTarget] = useState<TtsInsertTarget | null>(null);
   const reservation = useKeyboardReservation();
-
-  const lastSelectionRef = useRef<BaseSelection | null>(null);
-  const pendingContentLinkSelectionRef = useRef<BaseSelection | null>(null);
-  const contentLinkRetargetPathRef = useRef<Path | null>(null);
-  const mentionRef = useRef<ContentMentionRequest | null>(null);
-  const contentLinkPreviewSelectionRef = useRef<BaseSelection | null>(null);
-  // 同步记录面板开关，回键盘触发的编辑器 focus 据此与「点正文」区分
-  const activePanelRef = useRef<EditorPanelKind | null>(null);
-  const panelSelectionRef = useRef<BaseSelection | null>(null);
-  const exitEditingListenerRef = useRef<(() => void) | null>(null);
-  const blockSelectionListenerRef = useRef<((index: number) => void) | null>(null);
-  const tableMenuOpenRef = useRef(false);
-  const tableMenuSelectionRef = useRef<BaseSelection | null>(null);
-
-  const rememberPanelSelection = useCallback((selection: BaseSelection | null) => {
-    panelSelectionRef.current = selection;
-    setPanelSelection(selection);
-  }, []);
-
-  /** 选区相关状态的统一收尾：面板打开时把编辑器选区存回面板选区 */
-  const markSelectionDirty = useCallback(() => {
-    if (activePanelRef.current) {
-      const selection = getEditorFromRef(editorRef)?.selection;
-      if (selection) {
-        rememberPanelSelection(selection);
-      }
-    }
-    setSelectionVersion(value => value + 1);
-  }, [editorRef, rememberPanelSelection]);
-
-  const syncSelection = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    lastSelectionRef.current = editor.selection ?? null;
-    markSelectionDirty();
-  }, [editorRef, markSelectionDirty]);
-
-  const restoreEditorSelection = useCallback((): SlateEditor | null => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) {
-      return null;
-    }
-    // 面板打开期间操作作用于面板选区且不聚焦，避免键盘弹出顶掉面板
-    if (activePanelRef.current) {
-      if (panelSelectionRef.current) {
-        Transforms.select(editor, panelSelectionRef.current);
-      }
-      return editor;
-    }
-    // 表格菜单打开期间同理：作用于打开时保存的选区，关闭菜单时再聚焦
-    if (tableMenuOpenRef.current) {
-      if (tableMenuSelectionRef.current) {
-        Transforms.select(editor, tableMenuSelectionRef.current);
-      }
-      return editor;
-    }
-    const nextSelection = restoreSelectionAndFocus(editor, lastSelectionRef.current);
-    if (nextSelection) {
-      lastSelectionRef.current = nextSelection;
-    }
-    return editor;
-  }, [editorRef]);
 
   /** 工具条按钮经 pointerdown 触发，底部面板须延迟一拍挂载：
    *  面板若在当前 tap 结束前 mount，全屏遮罩会接管手势结束时的 hit-test，
@@ -370,959 +211,171 @@ export function useMobileEditorToolbarController(
     window.setTimeout(open, 0);
   }, []);
 
-  const executeAction = useCallback(
-    (actionId: ToolbarActionId) => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
+  const {
+    getEditableElement,
+    getEditor,
+    lastSelectionRef,
+    selectionVersion,
+    activePanelRef,
+    panelSelectionRef,
+    panelSelection,
+    tableMenuOpenRef,
+    tableMenuSelectionRef,
+    rememberPanelSelection,
+    markSelectionDirty,
+    syncSelection,
+    restoreEditorSelection,
+    runInPanel,
+    collapseSelectionToFocus,
+  } = useToolbarSelectionState({ editorRef });
 
-      if (actionId === "content-link") {
-        mentionRef.current?.cancel();
-        if (toggleContentLinkIfActive(editor)) {
-          if (editor.selection) {
-            lastSelectionRef.current = editor.selection;
-          }
-          markSelectionDirty();
-          return;
-        }
+  const { activePanel, openPanel, togglePanel, closePanel, dismissKeyboard } = useToolbarPanels({
+    editorRef,
+    reservation,
+    getEditableElement,
+    markSelectionDirty,
+    activePanelRef,
+    panelSelectionRef,
+    rememberPanelSelection,
+    lastSelectionRef,
+  });
 
-        const selection = editor.selection ?? lastSelectionRef.current;
-        pendingContentLinkSelectionRef.current = selection;
-        contentLinkRetargetPathRef.current = null;
-        setContentLinkPickerIntent({
-          mode: "insert",
-          text:
-            selection && !Range.isCollapsed(selection) ? SlateEditor.string(editor, selection) : "",
-        });
-        openSheetNextTick(() => setIsContentLinkPickerOpen(true));
-        markSelectionDirty();
-        return;
-      }
+  const {
+    isContentLinkPickerOpen,
+    contentLinkPickerIntent,
+    contentLinkPreview,
+    mentionRef,
+    pendingContentLinkSelectionRef,
+    contentLinkRetargetPathRef,
+    setIsContentLinkPickerOpen,
+    setContentLinkPickerIntent,
+    openContentMention,
+    handleCloseContentLinkPicker,
+    handleSelectContentLink,
+    retargetContentLinkAtCursor,
+    openContentLinkPreview,
+    closeContentLinkPreview,
+  } = useContentLinkController({
+    editorRef,
+    openSheetNextTick,
+    markSelectionDirty,
+    restoreEditorSelection,
+    dismissKeyboard,
+    lastSelectionRef,
+  });
 
-      if (isMarkAction(actionId)) {
-        toggleMark(editor, actionId);
-      } else if (isInlineWrapAction(actionId)) {
-        toggleInlineWrap(editor, actionId);
-      } else if (isCustomMarkAction(actionId)) {
-        toggleCustomMark(editor, actionId);
-      } else if (actionId === "kbd") {
-        toggleKbd(editor);
-      } else if (actionId === "comment") {
-        toggleComment(editor);
-      } else if (isBlockAction(actionId)) {
-        if (actionId === "heading-one") {
-          applyHeaderBlock(editor, 1);
-        } else if (actionId === "heading-two") {
-          applyHeaderBlock(editor, 2);
-        } else if (actionId === "heading-three") {
-          applyHeaderBlock(editor, 3);
-        } else if (actionId === "bulleted-list") {
-          toggleListBlock(editor, "bulleted-list");
-        } else if (actionId === "numbered-list") {
-          toggleListBlock(editor, "numbered-list");
-        } else if (actionId === "quote") {
-          toggleQuoteBlock(editor);
-        } else if (actionId === "divider") {
-          insertDividerBlock(editor);
-        }
-      }
+  const {
+    executeAction,
+    applyHeadingLevel,
+    applyColorMark,
+    applyGradientMark,
+    applyHighlightMark,
+    applyUnderlineStyle,
+    indent,
+    outdent,
+    undo,
+    redo,
+    undoRef,
+  } = useToolbarActions({
+    editorRef,
+    openSheetNextTick,
+    markSelectionDirty,
+    restoreEditorSelection,
+    lastSelectionRef,
+    mentionRef,
+    pendingContentLinkSelectionRef,
+    contentLinkRetargetPathRef,
+    setIsContentLinkPickerOpen,
+    setContentLinkPickerIntent,
+  });
 
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, openSheetNextTick, restoreEditorSelection]
-  );
-
-  const handleCloseContentLinkPicker = useCallback(() => {
-    const mention = mentionRef.current;
-    mentionRef.current = null;
-    mention?.cancel();
-    setIsContentLinkPickerOpen(false);
-    pendingContentLinkSelectionRef.current = null;
-    contentLinkRetargetPathRef.current = null;
-    markSelectionDirty();
-  }, [markSelectionDirty]);
-
-  const openContentMention = useCallback(
-    (request: ContentMentionRequest) => {
-      mentionRef.current?.cancel();
-      mentionRef.current = request;
-      pendingContentLinkSelectionRef.current = null;
-      contentLinkRetargetPathRef.current = null;
-      setContentLinkPickerIntent(INSERT_PICKER_INTENT);
-      request.signal.addEventListener(
-        "abort",
-        () => {
-          if (mentionRef.current === request) {
-            mentionRef.current = null;
-            setIsContentLinkPickerOpen(false);
-          }
-        },
-        { once: true }
-      );
-      openSheetNextTick(() => {
-        if (!request.signal.aborted && mentionRef.current === request)
-          setIsContentLinkPickerOpen(true);
-      });
-    },
-    [openSheetNextTick]
-  );
-  useEffect(() => () => mentionRef.current?.cancel(), []);
-
-  const applyHeadingLevel = useCallback(
-    (level: 1 | 2 | 3 | "paragraph") => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-      applyHeaderBlock(editor, level);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
-
-  const ttsTargetRef = useRef<TtsInsertTarget | null>(null);
-  // 插入成功提示里的「撤销」：undo 定义在后，经 ref 取最新实现
-  const undoRef = useRef<() => void>(() => undefined);
-  /** 锁定写入位置后下一拍打开面板；位置不可写时提示，不打开 */
-  const openTts = useCallback(
-    (editor: SlateEditor, intent: TtsInsertIntent) => {
-      const target = captureTtsInsertTarget(editor, intent);
-      if (!target) {
-        toast.warning("当前位置无法插入音频，请把光标放到正文空行后重试");
-        return;
-      }
-      ttsTargetRef.current?.dispose();
-      ttsTargetRef.current = target;
-      openSheetNextTick(() => {
-        if (ttsTargetRef.current === target) setTtsTarget(target);
-      });
-    },
-    [openSheetNextTick]
-  );
-  useEffect(() => () => ttsTargetRef.current?.dispose(), []);
-
-  /** 块插入/媒体类条目：共享包 setOrInsertNode 要求 collapsed 选区 */
-  const COLLAPSE_BEFORE_INSERT_KINDS = new Set<InsertSheetItemKind>([
-    "image",
-    "camera",
-    "video",
-    "audio",
-    "table",
-    "code-block",
-    "check-list",
-    "divider",
-    "tabs",
-    "details",
-    "highlight-block",
-    "callout",
-    "math",
-    "mermaid",
-    "webview",
-    "tts",
-    "record",
-  ]);
-
-  const startRecording = useCallback(
-    (editor: SlateEditor, replace?: { element: SlateElement; path: Path }) => {
-      const host = recordingHostRef.current;
-      const document = host?.document();
-      if (!host || !document) {
-        toast.warning("这里暂不支持录音");
-        return;
-      }
-      try {
-        void startEditorRecording({
-          editor,
-          document,
-          documentTitle: host.documentTitle(),
-          persistence: host.persistence(),
-          replace,
-          onPermissionDenied: () => setRecordingPermissionDenied(true),
-        });
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "当前正文不可录音");
-      }
-    },
-    []
-  );
-
-  /** 插入面板条目分发；面板打开时作用于面板选区且不聚焦，面板开合由调用方负责 */
-  const handleSelectInsertItem = useCallback(
-    (kind: InsertSheetItemKind) => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-      // 行内标记类（批注/关联内容/样式文本/快捷键）依赖展开选区，不可收拢
-      if (
-        COLLAPSE_BEFORE_INSERT_KINDS.has(kind) &&
-        editor.selection &&
-        !Range.isCollapsed(editor.selection)
-      ) {
-        Transforms.collapse(editor, { edge: "end" });
-      }
-      switch (kind) {
-        case "image":
-        case "camera":
-        case "video":
-        case "audio": {
-          // 上传结束/取消后恢复编辑器焦点（键盘回弹）；file picker 打开期间键盘让位给系统
-          openLocalMediaPicker(
-            editor,
-            kind === "image" || kind === "camera" ? "image" : kind,
-            undefined,
-            {
-              capture: kind === "camera",
-              onComplete: () => restoreEditorSelection(),
-            }
-          );
-          break;
-        }
-        case "table":
-          insertTable(editor, 3, 3);
-          break;
-        case "code-block":
-          insertCodeBlock(editor);
-          break;
-        case "check-list":
-          insertCheckList(editor);
-          break;
-        case "divider":
-          insertDividerBlock(editor);
-          break;
-        case "image-url":
-        case "video-url":
-        case "audio-url": {
-          // 输入框经 IEditorNotifier.prompt 走 mobile 的 EditorPromptHost（BottomSheet，接返回手势），提交时按当前选区插入
-          const mediaType =
-            kind === "image-url" ? "image" : kind === "video-url" ? "video" : "audio";
-          void openMediaUrlInput(editor, mediaType);
-          break;
-        }
-        case "tabs":
-          insertTabs(editor);
-          break;
-        case "details":
-          insertDetails(editor);
-          break;
-        case "highlight-block":
-          insertHighlightBlock(editor, "red");
-          break;
-        case "callout":
-          insertCallout(editor, "info");
-          break;
-        case "math":
-          insertBlockMath(editor);
-          break;
-        case "mermaid":
-          insertMermaid(editor);
-          break;
-        case "webview":
-          // 底部输入框填地址，提交时按打开时的插入位置插入
-          void promptInsertWebview(editor);
-          break;
-        case "annotation":
-          insertAnnotation(editor);
-          break;
-        case "content-link":
-          executeAction(kind);
-          return;
-        case "tts":
-          openTts(editor, { kind: "insert" });
-          break;
-        case "record":
-          startRecording(editor);
-          break;
-      }
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    // executeAction 为稳定引用（依赖均为 useCallback），此处引用安全
-    [executeAction, markSelectionDirty, openTts, restoreEditorSelection, startRecording]
-  );
-
-  /** 工具条图片直达按钮：一步拉起系统选图（上传/占位/回填由共享包 mediaInsert 完成），
-   *  上传结束/取消后恢复编辑器焦点 */
-  const handleInsertImage = useCallback(() => {
-    const editor = restoreEditorSelection();
-    if (!editor) {
-      return;
-    }
-    if (editor.selection && !Range.isCollapsed(editor.selection)) {
-      Transforms.collapse(editor, { edge: "end" });
-    }
-    openLocalMediaPicker(editor, "image", undefined, {
-      onComplete: () => restoreEditorSelection(),
+  const { ttsTarget, openTts, openTtsForSelection, openTtsForAudio, closeTts, handleTtsInserted } =
+    useTtsActions({
+      editorRef,
+      openSheetNextTick,
+      dismissKeyboard,
+      markSelectionDirty,
+      lastSelectionRef,
+      undoRef,
     });
-  }, [restoreEditorSelection]);
 
-  const applyColorMark = useCallback(
-    (lightColor?: string, darkColor?: string) => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-      applyColorMarkToEditor(editor, lightColor, darkColor);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
+  const {
+    recordingEnabled,
+    startRecording,
+    rerecordAudio,
+    recordingPermissionDenied,
+    closeRecordingPermission,
+  } = useRecordingActions({ editorRef, recordingHost });
 
-  const applyGradientMark = useCallback(
-    (preset?: TextGradientOption["preset"]) => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-      applyGradientMarkToEditor(editor, preset);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
+  const { handleSelectInsertItem, handleInsertImage, pluginInsertItems } = useToolbarInsert({
+    editorRef,
+    activePanel,
+    restoreEditorSelection,
+    markSelectionDirty,
+    lastSelectionRef,
+    executeAction,
+    openTts,
+    startRecording,
+  });
 
-  const applyHighlightMark = useCallback(
-    (label?: string) => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-      applyHighlightMarkToEditor(editor, label);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
+  const {
+    isTableMenuOpen,
+    runTableAction,
+    setCodeBlockLanguage,
+    getTableColumnAlign,
+    openTableMenu,
+    closeTableMenu,
+  } = useTableMenuController({
+    editorRef,
+    openSheetNextTick,
+    markSelectionDirty,
+    restoreEditorSelection,
+    selectionVersion,
+    lastSelectionRef,
+    tableMenuOpenRef,
+    tableMenuSelectionRef,
+  });
 
-  const applyUnderlineStyle = useCallback(
-    (payload: UnderlineStylePayload) => {
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-      applyUnderlineStyleToEditor(editor, payload);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
+  const {
+    isEditorFocused,
+    keepEditorFocus,
+    handleEditorFocus,
+    handleEditorBlur,
+    exitEditing,
+    setExitEditingListener,
+    setBlockSelectionListener,
+    requestBlockSelection,
+  } = useToolbarFocusLifecycle({
+    editorRef,
+    closePanel,
+    dismissKeyboard,
+    markSelectionDirty,
+    restoreEditorSelection,
+    lastSelectionRef,
+    activePanelRef,
+  });
 
-  const keepEditorFocus = useCallback(() => {
-    const editor = restoreEditorSelection();
-    if (!editor) {
-      return;
-    }
-    setIsEditorFocused(true);
-    if (editor.selection) {
-      lastSelectionRef.current = editor.selection;
-    }
-    markSelectionDirty();
-  }, [markSelectionDirty, restoreEditorSelection]);
+  const { editingContext, dismissEditingContext, isToolbarVisible, focusAfterVoid, runMediaEdit } =
+    useToolbarVisibility({
+      editorRef,
+      selectionVersion,
+      isEditorFocused,
+      activePanel,
+      isTableMenuOpen,
+      getEditableElement,
+      closePanel,
+      markSelectionDirty,
+      lastSelectionRef,
+      activePanelRef,
+    });
 
-  const handleSelectContentLink = useCallback(
-    (result: ContentLinkPickerResult) => {
-      const mention = mentionRef.current;
-      if (mention) {
-        mentionRef.current = null;
-        const applied = mention.select(result);
-        setIsContentLinkPickerOpen(false);
-        if (!applied) toast({ type: "warning", text: "引用位置已变化，请重新输入 @" });
-        else {
-          const editor = getEditorFromRef(editorRef);
-          if (editor) {
-            ReactEditor.focus(editor as ReactEditor);
-            lastSelectionRef.current = editor.selection;
-          }
-        }
-        markSelectionDirty();
-        return;
-      }
-      const editor = restoreEditorSelection();
-      if (!editor) {
-        return;
-      }
-
-      const selectionToRestore = pendingContentLinkSelectionRef.current ?? lastSelectionRef.current;
-      if (selectionToRestore) {
-        Transforms.select(editor, selectionToRestore);
-      }
-
-      const retargetPath = contentLinkRetargetPathRef.current;
-      contentLinkRetargetPathRef.current = null;
-      if (retargetPath) {
-        const node = SlateNode.has(editor, retargetPath)
-          ? SlateNode.get(editor, retargetPath)
-          : null;
-        if (
-          SlateElement.isElement(node) &&
-          (node as { type?: string }).type === CONTENT_LINK_TYPE
-        ) {
-          retargetContentLink(editor, retargetPath, result);
-        }
-      } else {
-        wrapContentLink(editor, result);
-      }
-
-      ReactEditor.focus(editor as ReactEditor);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      pendingContentLinkSelectionRef.current = null;
-      setIsContentLinkPickerOpen(false);
-      markSelectionDirty();
-    },
-    [editorRef, markSelectionDirty, restoreEditorSelection]
-  );
-
-  const getEditableElement = useCallback(
-    () => editorRef.current?.getEditableElement(),
-    [editorRef]
-  );
-  const getEditor = useCallback(() => getEditorFromRef(editorRef), [editorRef]);
-
-  const openPanel = useCallback(
-    (kind: EditorPanelKind, panelHeight: number) => {
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) return;
-      if (activePanelRef.current) {
-        const editable = getEditableElement();
-        if (kind === "voice") editable?.setAttribute("inputmode", "none");
-        else if (activePanelRef.current === "voice") {
-          // 离开语音面板前先失焦，去掉 inputmode 后不会唤起键盘顶掉新面板
-          if (ReactEditor.isFocused(editor as ReactEditor)) ReactEditor.blur(editor as ReactEditor);
-          clearKeyboardSwap(editable);
-        }
-        activePanelRef.current = kind;
-        setActivePanel(kind);
-        return;
-      }
-      rememberPanelSelection(editor.selection ?? lastSelectionRef.current);
-      activePanelRef.current = kind;
-      // 预留与面板同一帧生效，键盘收起时正文可视区不跳动
-      flushSync(() => {
-        reservation.reserve(panelHeight);
-        setActivePanel(kind);
-      });
-      if (kind !== "voice") {
-        hideKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, getEditableElement());
-        return;
-      }
-      // 语音面板：失焦收键盘后以 inputmode=none 重新聚焦，保留系统光标，点正文只移动插入点不唤起键盘
-      const editable = getEditableElement();
-      editable?.setAttribute("inputmode", "none");
-      hideKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, editable);
-      const saved = panelSelectionRef.current;
-      window.requestAnimationFrame(() => {
-        if (activePanelRef.current !== "voice") return;
-        restoreSelectionAndFocus(editor, saved);
-      });
-    },
-    [editorRef, getEditableElement, rememberPanelSelection, reservation]
-  );
-
-  const closePanel = useCallback(
-    (closeOptions: ClosePanelOptions) => {
-      if (!activePanelRef.current) return;
-      const wasVoice = activePanelRef.current === "voice";
-      // 先置位，回键盘触发的编辑器 focus 不再走点正文路径
-      activePanelRef.current = null;
-      const editor = getEditorFromRef(editorRef);
-      if (wasVoice) {
-        clearKeyboardSwap(getEditableElement());
-        // 语音面板期间编辑器可能以 inputmode=none 保持焦点，先失焦才能重新唤起键盘
-        if (editor && closeOptions.showKeyboard && ReactEditor.isFocused(editor as ReactEditor))
-          ReactEditor.blur(editor as ReactEditor);
-      }
-      if (editor && closeOptions.showKeyboard) {
-        const saved = panelSelectionRef.current;
-        if (closeOptions.restoreSelection && saved) {
-          Transforms.select(editor, saved);
-        }
-        showKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, getEditableElement(), saved, {
-          restoreSelection: closeOptions.restoreSelection ?? false,
-        });
-      }
-      setActivePanel(null);
-      reservation.releaseWhenKeyboardShown();
-      markSelectionDirty();
-    },
-    [editorRef, getEditableElement, markSelectionDirty, reservation]
-  );
-
-  const togglePanel = useCallback(
-    (kind: EditorPanelKind, panelHeight: number) => {
-      if (activePanelRef.current === kind) {
-        closePanel({ showKeyboard: true, restoreSelection: true });
-        return;
-      }
-      openPanel(kind, panelHeight);
-    },
-    [closePanel, openPanel]
-  );
-
-  const dismissKeyboard = useCallback(() => {
-    activePanelRef.current = null;
-    setActivePanel(null);
-    reservation.releaseNow();
-    clearKeyboardSwap(getEditableElement());
-    const editor = getEditorFromRef(editorRef);
-    if (editor && ReactEditor.isFocused(editor as ReactEditor)) {
-      ReactEditor.blur(editor as ReactEditor);
-    }
-  }, [editorRef, getEditableElement, reservation]);
-
-  const exitEditing = useCallback(() => {
-    dismissKeyboard();
-    exitEditingListenerRef.current?.();
-  }, [dismissKeyboard]);
-
-  const setExitEditingListener = useCallback((listener: (() => void) | null) => {
-    exitEditingListenerRef.current = listener;
-  }, []);
-
-  const setBlockSelectionListener = useCallback((listener: ((index: number) => void) | null) => {
-    blockSelectionListenerRef.current = listener;
-  }, []);
-
-  const requestBlockSelection = useCallback((index: number) => {
-    const listener = blockSelectionListenerRef.current;
-    if (!listener) return false;
-    listener(index);
-    return true;
-  }, []);
-
-  // 宿主卸载时面板仍开着则释放预留，避免下一页底部留白
-  useEffect(() => {
-    return () => {
-      if (activePanelRef.current) {
-        activePanelRef.current = null;
-        reservation.releaseNow();
-      }
-    };
-  }, [reservation]);
-
-  const runInPanel = useCallback(
-    (fn: (editor: SlateEditor) => void) => {
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) return;
-      if (panelSelectionRef.current) {
-        Transforms.select(editor, panelSelectionRef.current);
-      }
-      fn(editor);
-      rememberPanelSelection(editor.selection ?? null);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [editorRef, markSelectionDirty, rememberPanelSelection]
-  );
-
-  /** 缩进命令只在段首生效（Tab 语义）：先把光标移到列表项开头执行，再经 rangeRef 回到原选区 */
-  const runListIndent = useCallback(
-    (direction: ListIndentDirection) => {
-      const editor = restoreEditorSelection();
-      if (!editor?.selection) return;
-      const [entry] = SlateEditor.nodes(editor, {
-        at: editor.selection,
-        match: node =>
-          SlateElement.isElement(node) && getListIndentCommand(node, direction) !== null,
-        mode: "lowest",
-      });
-      const commandId = entry ? getListIndentCommand(entry[0], direction) : null;
-      if (!entry || !commandId) return;
-      const originalRange = SlateEditor.rangeRef(editor, editor.selection);
-      Transforms.select(editor, SlateEditor.start(editor, entry[1]));
-      editor.commands?.execute(commandId);
-      const restored = originalRange.unref();
-      if (restored) {
-        Transforms.select(editor, restored);
-      }
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
-
-  const collapseSelectionToFocus = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor?.selection) return;
-    Transforms.collapse(editor, { edge: "focus" });
-    lastSelectionRef.current = editor.selection;
-    markSelectionDirty();
-  }, [editorRef, markSelectionDirty]);
-
-  const openTtsForSelection = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    const selection = editor.selection ?? lastSelectionRef.current;
-    if (!selection || Range.isCollapsed(selection)) return;
-    Transforms.select(editor, selection);
-    lastSelectionRef.current = selection;
-    const text = selectedPlainText(editor);
-    // 面板里要输入，先收起正文键盘；选区保留用于定位插入点
-    dismissKeyboard();
-    openTts(editor, { kind: "after-selection", text });
-  }, [dismissKeyboard, editorRef, openTts]);
-
-  const openTtsForAudio = useCallback(
-    (element: SlateElement, path: Path, text: string) => {
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) return;
-      openTts(editor, { kind: "replace", element, path, text });
-    },
-    [editorRef, openTts]
-  );
-
-  const rerecordAudio = useCallback(
-    (element: SlateElement, path: Path) => {
-      const editor = getEditorFromRef(editorRef);
-      if (editor) startRecording(editor, { element, path });
-    },
-    [editorRef, startRecording]
-  );
-  const closeRecordingPermission = useCallback(() => setRecordingPermissionDenied(false), []);
-
-  const closeTts = useCallback(() => {
-    ttsTargetRef.current?.dispose();
-    ttsTargetRef.current = null;
-    setTtsTarget(null);
-  }, []);
-
-  const handleTtsInserted = useCallback(
-    (kind: TtsInsertIntent["kind"]) => {
-      closeTts();
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) return;
-      if (editor.selection) lastSelectionRef.current = editor.selection;
-      markSelectionDirty();
-      toast({
-        type: "success",
-        text: kind === "replace" ? "已替换音频" : "已插入音频",
-        action: { label: "撤销", onClick: () => undoRef.current() },
-      });
-    },
-    [closeTts, editorRef, markSelectionDirty]
-  );
-
-  const indent = useCallback(() => runListIndent("indent"), [runListIndent]);
-  const outdent = useCallback(() => runListIndent("outdent"), [runListIndent]);
-
-  const handleEditorFocus = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    // 面板打开时编辑器重新获得焦点 = 用户点了正文：选区由点击位置决定，只关面板；
-    // 语音面板保持打开，点正文只移动语音插入点
-    if (activePanelRef.current && activePanelRef.current !== "voice") {
-      closePanel({ showKeyboard: false });
-    }
-    setIsEditorFocused(true);
-    lastSelectionRef.current = editor.selection ?? null;
-    markSelectionDirty();
-  }, [closePanel, editorRef, markSelectionDirty]);
-
-  const rawEditingContext = useEditingContext(editorRef, selectionVersion);
-  const rawContextKey = getEditingContextKey(rawEditingContext);
-
-  // 光标离开被退回的上下文即清除记录
-  useEffect(() => {
-    if (dismissedContextKey !== null && dismissedContextKey !== rawContextKey) {
-      setDismissedContextKey(null);
-    }
-  }, [dismissedContextKey, rawContextKey]);
-
-  const editingContext =
-    dismissedContextKey !== null && dismissedContextKey === rawContextKey
-      ? TEXT_CONTEXT
-      : rawEditingContext;
-
-  const dismissEditingContext = useCallback(() => {
-    setDismissedContextKey(rawContextKey);
-  }, [rawContextKey]);
-
-  const runTableAction = useCallback(
-    (actionId: TableActionId) => {
-      const editor = restoreEditorSelection();
-      if (!editor) return;
-      const tableContext = resolveTableContext(editor);
-      if (!tableContext) return;
-      runTableActionOnEditor(editor, actionId, tableContext);
-      if (editor.selection) {
-        lastSelectionRef.current = editor.selection;
-        if (tableMenuOpenRef.current) {
-          tableMenuSelectionRef.current = editor.selection;
-        }
-      }
-      markSelectionDirty();
-    },
-    [markSelectionDirty, restoreEditorSelection]
-  );
-
-  const setCodeBlockLanguage = useCallback(
-    (context: CodeEditingContext, language: string) => {
-      const editor = getEditorFromRef(editorRef);
-      if (editor) setCodeBlockLanguageOnEditor(editor, context, language);
-    },
-    [editorRef]
-  );
-
-  const getTableColumnAlign = useCallback((): TableAlign => {
-    void selectionVersion;
-    const editor = getEditorFromRef(editorRef);
-    const tableContext = editor ? resolveTableContext(editor) : null;
-    return editor && tableContext ? getColumnAlign(editor, tableContext) : null;
-  }, [editorRef, selectionVersion]);
-
-  const openTableMenu = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    tableMenuSelectionRef.current = editor.selection ?? lastSelectionRef.current;
-    tableMenuOpenRef.current = true;
-    openSheetNextTick(() => setIsTableMenuOpen(true));
-  }, [editorRef, openSheetNextTick]);
-
-  const closeTableMenu = useCallback(() => {
-    if (!tableMenuOpenRef.current) return;
-    tableMenuOpenRef.current = false;
-    setIsTableMenuOpen(false);
-    const editor = getEditorFromRef(editorRef);
-    const saved = tableMenuSelectionRef.current;
-    tableMenuSelectionRef.current = null;
-    if (!editor) return;
-    if (saved) {
-      Transforms.select(editor, saved);
-    }
-    const nextSelection = restoreSelectionAndFocus(editor, saved);
-    if (nextSelection) {
-      lastSelectionRef.current = nextSelection;
-    }
-    markSelectionDirty();
-  }, [editorRef, markSelectionDirty]);
-
-  const retargetContentLinkAtCursor = useCallback(() => {
-    mentionRef.current?.cancel();
-    const editor = getEditorFromRef(editorRef);
-    const context = editor ? resolveContentLinkContext(editor) : null;
-    if (!editor || !context) return;
-    pendingContentLinkSelectionRef.current = editor.selection ?? lastSelectionRef.current;
-    contentLinkRetargetPathRef.current = context.path;
-    setContentLinkPickerIntent({ mode: "replace", text: SlateNode.string(context.element) });
-    openSheetNextTick(() => setIsContentLinkPickerOpen(true));
-  }, [editorRef, openSheetNextTick]);
-
-  const openContentLinkPreview = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    const context = editor ? resolveContentLinkContext(editor) : null;
-    if (!editor || !context) return;
-    contentLinkPreviewSelectionRef.current = editor.selection ?? lastSelectionRef.current;
-    const target = readContentLinkTarget(context.element);
-    // 先收起键盘，面板才不会被键盘挡住
-    dismissKeyboard();
-    openSheetNextTick(() => setContentLinkPreview(target));
-  }, [dismissKeyboard, editorRef, openSheetNextTick]);
-
-  const closeContentLinkPreview = useCallback(
-    (reason?: "open") => {
-      setContentLinkPreview(null);
-      const saved = contentLinkPreviewSelectionRef.current;
-      contentLinkPreviewSelectionRef.current = null;
-      const editor = getEditorFromRef(editorRef);
-      if (reason === "open" || !editor) return;
-      if (saved) {
-        Transforms.select(editor, saved);
-      }
-      const nextSelection = restoreSelectionAndFocus(editor, saved);
-      if (nextSelection) {
-        lastSelectionRef.current = nextSelection;
-      }
-      markSelectionDirty();
-    },
-    [editorRef, markSelectionDirty]
-  );
-
-  const isToolbarVisible =
-    isEditorFocused ||
-    activePanel !== null ||
-    isTableMenuOpen ||
-    isVoidEditorContext(rawEditingContext) ||
-    rawEditingContext.kind === "media" ||
-    rawEditingContext.kind === "source-block";
-
-  // 选中媒体 / 源码块：收起键盘（编辑态保持），文字面板让位；离开媒体时关掉媒体面板
-  const mediaSelectedKey =
-    rawEditingContext.kind === "media" && !rawEditingContext.captionEditing ? rawContextKey : null;
-  const voidSelectedKey =
-    mediaSelectedKey ?? (rawEditingContext.kind === "source-block" ? rawContextKey : null);
-  useEffect(() => {
-    if (mediaSelectedKey === null && activePanelRef.current === "media") {
-      closePanel({ showKeyboard: false });
-    }
-    if (voidSelectedKey === null) return;
-    if (activePanelRef.current && activePanelRef.current !== "media") {
-      closePanel({ showKeyboard: false });
-    }
-    const editor = getEditorFromRef(editorRef);
-    if (editor && ReactEditor.isFocused(editor as ReactEditor)) {
-      clearKeyboardSwap(getEditableElement());
-      ReactEditor.blur(editor as ReactEditor);
-    }
-  }, [closePanel, editorRef, getEditableElement, mediaSelectedKey, voidSelectedKey]);
-
-  const focusAfterVoid = useCallback(
-    (place: (editor: SlateEditor) => void) => {
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) return;
-      if (activePanelRef.current) closePanel({ showKeyboard: false });
-      place(editor);
-      // 在点击内同步聚焦，iOS 才会弹出键盘
-      const nextSelection = restoreSelectionAndFocus(editor, editor.selection);
-      lastSelectionRef.current = nextSelection ?? editor.selection ?? null;
-      markSelectionDirty();
-    },
-    [closePanel, editorRef, markSelectionDirty]
-  );
-
-  const runMediaEdit = useCallback(
-    (fn: (editor: SlateEditor) => void) => {
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) return;
-      fn(editor);
-      markSelectionDirty();
-    },
-    [editorRef, markSelectionDirty]
-  );
-
-  const isActionDisabled = useCallback(
-    (actionId: ToolbarActionId): boolean => {
-      // 依赖 selectionVersion 触发重算，保证禁用态及时刷新
-      void selectionVersion;
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) {
-        return true;
-      }
-      if (!isActionSelectionRequired(actionId)) {
-        return false;
-      }
-      return !editor.selection || Range.isCollapsed(editor.selection);
-    },
-    [editorRef, selectionVersion]
-  );
-
-  const isActionActive = useCallback(
-    (actionId: ToolbarActionId): boolean => {
-      // 依赖 selectionVersion 触发重算，保证工具栏选中态及时刷新
-      void selectionVersion;
-      if (isActionDisabled(actionId)) {
-        return false;
-      }
-      const editor = getEditorFromRef(editorRef);
-      if (!editor) {
-        return false;
-      }
-      return isToolbarActionActive(editor, actionId);
-    },
-    [editorRef, isActionDisabled, selectionVersion]
-  );
-
-  const getCurrentBlockKind = useCallback((): CurrentBlockKind => {
-    // 依赖 selectionVersion 触发重算，保证「转换为」高亮及时刷新
-    void selectionVersion;
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return "other";
-    const selection = activePanel ? (panelSelection ?? editor.selection) : editor.selection;
-    return getBlockKindAt(editor, selection);
-  }, [activePanel, editorRef, panelSelection, selectionVersion]);
-
-  const getCurrentMarks = useCallback((): Record<string, unknown> | null => {
-    void selectionVersion;
-    const editor = getEditorFromRef(editorRef);
-    return editor ? getSelectionMarks(editor) : null;
-  }, [editorRef, selectionVersion]);
-
-  const handleEditorBlur = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    setIsEditorFocused(false);
-    lastSelectionRef.current = editor.selection ?? null;
-    markSelectionDirty();
-  }, [editorRef, markSelectionDirty]);
-
-  const undo = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    const withHistory = editor as SlateEditor & { undo: () => void };
-    if (typeof withHistory.undo === "function") {
-      withHistory.undo();
-    }
-    markSelectionDirty();
-  }, [editorRef, markSelectionDirty]);
-
-  undoRef.current = undo;
-
-  const redo = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    const withHistory = editor as SlateEditor & { redo: () => void };
-    if (typeof withHistory.redo === "function") {
-      withHistory.redo();
-    }
-    markSelectionDirty();
-  }, [editorRef, markSelectionDirty]);
-
-  const pluginInsertItems = useMemo(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (activePanel !== "insert" || !editor || ReactEditor.isReadOnly(editor)) return [];
-    const flatten = (
-      items: readonly IBlockPanelListItem[],
-      parent = ""
-    ): MobileEditorToolbarController["pluginInsertItems"] =>
-      items.flatMap(item => {
-        const title = parent ? `${parent} / ${item.title}` : item.title;
-        if (item.children) return flatten(item.children, title);
-        return item.onClick
-          ? [
-              {
-                title,
-                keywords: item.keywords,
-                icon: item.icon,
-                run: () => {
-                  const current = restoreEditorSelection();
-                  if (current !== editor || ReactEditor.isReadOnly(editor)) return;
-                  item.onClick?.(editor);
-                  markSelectionDirty();
-                },
-              },
-            ]
-          : [];
-      });
-    return flatten(
-      mobileContentPlugins.extensions.flatMap(extension =>
-        typeof extension.blockPanel === "function"
-          ? extension.blockPanel(editor)
-          : (extension.blockPanel ?? [])
-      )
-    );
-  }, [activePanel, editorRef, restoreEditorSelection, markSelectionDirty]);
+  const { isActionDisabled, isActionActive, getCurrentBlockKind, getCurrentMarks } =
+    useToolbarSelectionQueries({
+      editorRef,
+      selectionVersion,
+      activePanel,
+      panelSelection,
+    });
 
   return useMemo(
     () => ({
