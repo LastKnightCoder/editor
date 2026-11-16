@@ -99,7 +99,6 @@ const VideoNotePanel = ({
     model: ebookRewriteLLMModelSetting,
     thinkingLevel: ebookRewriteThinkingLevel,
   } = useLLMConfig("videoEbookRewrite");
-  // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [noteItems, setNoteItems] = useState<VideoNoteItem[]>([]);
   const [activeNoteItemId, setActiveNoteItemId] = useState<number | null>(null);
@@ -138,7 +137,6 @@ const VideoNotePanel = ({
   // 当前高亮的转录片段索引（用于视频播放时的同步高亮）
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(null);
 
-  // Refs
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   // 转录列表容器的 ref，用于判断视口
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
@@ -197,7 +195,7 @@ const VideoNotePanel = ({
     }
   }, [videoNote, onVideoNoteChange]);
 
-  // Video controller for timestamp functionality
+  // 供时间戳/截图扩展使用的视频控制器
   const videoController = useMemo(() => {
     return new VideoController(
       () => videoElementRef.current,
@@ -208,7 +206,6 @@ const VideoNotePanel = ({
     );
   }, [uploadResource]);
 
-  // Custom extensions for editor
   const customExtensions = useMemo(() => {
     return [
       createVideoTimestampExtension(videoController),
@@ -412,7 +409,6 @@ const VideoNotePanel = ({
     setEbookExportModalOpen(true);
   });
 
-  // Format time in mm:ss format
   const formatTime = useCallback((ms: number): string => {
     const seconds = Math.floor(ms / 1000);
     const mins = Math.floor(seconds / 60);

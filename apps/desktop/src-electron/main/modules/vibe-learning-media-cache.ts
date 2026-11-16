@@ -56,14 +56,12 @@ function stableStringify(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+    return `[${value.map(item => stableStringify(item)).join(",")}]`;
   }
 
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record).sort();
-  const entries = keys.map(
-    (key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`,
-  );
+  const entries = keys.map(key => `${JSON.stringify(key)}:${stableStringify(record[key])}`);
   return `{${entries.join(",")}}`;
 }
 
@@ -90,9 +88,7 @@ export class VibeLearningMediaCache {
   private readonly optimizationDir: string;
 
   constructor(options: VibeLearningMediaCacheOptions = {}) {
-    this.rootDir =
-      options.rootDir ||
-      join(PathUtil.getAppDir(), "cache", "vibe-learning-media");
+    this.rootDir = options.rootDir || join(PathUtil.getAppDir(), "cache", "vibe-learning-media");
     this.limitBytes = options.limitBytes ?? DEFAULT_LIMIT_BYTES;
     this.audioDir = join(this.rootDir, "audio");
     this.transcriptionDir = join(this.rootDir, "transcription");
@@ -106,28 +102,21 @@ export class VibeLearningMediaCache {
     });
   }
 
-  buildTranscriptionKey(
-    payload: Omit<TranscriptionCacheKeyPayload, "version">,
-  ): string {
+  buildTranscriptionKey(payload: Omit<TranscriptionCacheKeyPayload, "version">): string {
     return hashPayload({
       version: this.version,
       ...payload,
     });
   }
 
-  buildOptimizationKey(
-    payload: Omit<OptimizationCacheKeyPayload, "version">,
-  ): string {
+  buildOptimizationKey(payload: Omit<OptimizationCacheKeyPayload, "version">): string {
     return hashPayload({
       version: this.version,
       ...payload,
     });
   }
 
-  async computeMediaFingerprint(
-    localFilePath: string,
-    sourceStableId: string,
-  ): Promise<string> {
+  async computeMediaFingerprint(localFilePath: string, sourceStableId: string): Promise<string> {
     if (sourceStableId.startsWith("remote:")) {
       return "remote-url-stable";
     }
@@ -155,7 +144,7 @@ export class VibeLearningMediaCache {
     await this.ensureDir("audio");
     const prefix = `${cacheKey}.`;
     const files = await fs.readdir(this.audioDir);
-    const matched = files.find((name) => name.startsWith(prefix));
+    const matched = files.find(name => name.startsWith(prefix));
     if (!matched) return null;
 
     const fullPath = join(this.audioDir, matched);
@@ -168,10 +157,7 @@ export class VibeLearningMediaCache {
     }
   }
 
-  async cacheAudioFromFile(
-    cacheKey: string,
-    sourceAudioPath: string,
-  ): Promise<string> {
+  async cacheAudioFromFile(cacheKey: string, sourceAudioPath: string): Promise<string> {
     await this.ensureDir("audio");
     const ext = normalizeExtension(sourceAudioPath);
     const targetPath = join(this.audioDir, `${cacheKey}.${ext}`);
@@ -180,7 +166,7 @@ export class VibeLearningMediaCache {
       await this.touch(targetPath);
       return targetPath;
     } catch {
-      // miss
+      // 缓存未命中
     }
 
     await this.atomicCopyFile(sourceAudioPath, targetPath);
@@ -220,16 +206,13 @@ export class VibeLearningMediaCache {
   }
 
   private getJsonPath(category: Exclude<CacheCategory, "audio">, key: string) {
-    const dir =
-      category === "transcription"
-        ? this.transcriptionDir
-        : this.optimizationDir;
+    const dir = category === "transcription" ? this.transcriptionDir : this.optimizationDir;
     return join(dir, `${key}.json`);
   }
 
   private async readJsonCache<T>(
     category: Exclude<CacheCategory, "audio">,
-    key: string,
+    key: string
   ): Promise<T | null> {
     await this.ensureDir(category);
     const filePath = this.getJsonPath(category, key);
@@ -246,7 +229,7 @@ export class VibeLearningMediaCache {
   private async writeJsonCache(
     category: Exclude<CacheCategory, "audio">,
     key: string,
-    payload: unknown,
+    payload: unknown
   ): Promise<void> {
     await this.ensureDir(category);
     const filePath = this.getJsonPath(category, key);

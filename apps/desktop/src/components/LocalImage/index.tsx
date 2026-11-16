@@ -19,6 +19,7 @@ interface ILocalImageProps {
   onClick?: () => void;
   /** 回退地址也加载失败时回调（调用方据此换兜底展示，避免裂图） */
   onLoadError?: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 任意属性透传给 <img>；索引签名不能改成 unknown（forwardRef 的 Omit<P,"ref"> 会吞掉具名属性）
   [key: string]: any;
 }
 

@@ -5,13 +5,12 @@ import path from "node:path";
 type SpawnEnv = Record<string, string | undefined>;
 
 const SHELL_CANDIDATES = [process.env.SHELL, "/bin/zsh", "/bin/bash"].filter(
-  (value): value is string => typeof value === "string" && value.length > 0,
+  (value): value is string => typeof value === "string" && value.length > 0
 );
 
 const PATH_KEY =
   process.platform === "win32"
-    ? Object.keys(process.env).find((key) => key.toLowerCase() === "path") ||
-      "Path"
+    ? Object.keys(process.env).find(key => key.toLowerCase() === "path") || "Path"
     : "PATH";
 
 const WINDOWS_PATH_EXTENSIONS = [".exe", ".cmd", ".bat", ".com"];
@@ -42,12 +41,10 @@ const getCommandCandidates = (command: string): string[] => {
     return [command];
   }
 
-  return [command, ...WINDOWS_PATH_EXTENSIONS.map((ext) => `${command}${ext}`)];
+  return [command, ...WINDOWS_PATH_EXTENSIONS.map(ext => `${command}${ext}`)];
 };
 
-export const buildMcpSpawnEnv = (
-  userEnv?: Record<string, string>,
-): Record<string, string> => {
+export const buildMcpSpawnEnv = (userEnv?: Record<string, string>): Record<string, string> => {
   const mergedEnv: SpawnEnv = {
     ...process.env,
     ...userEnv,
@@ -68,10 +65,7 @@ export const buildMcpSpawnEnv = (
   return sanitizedEnv;
 };
 
-export const findExecutableInPath = (
-  command: string,
-  rawPath?: string,
-): string | null => {
+export const findExecutableInPath = (command: string, rawPath?: string): string | null => {
   if (!rawPath) {
     return null;
   }
@@ -88,41 +82,31 @@ export const findExecutableInPath = (
   return null;
 };
 
-const lookupWithLoginShell = (
-  command: string,
-  env: Record<string, string>,
-): string | null => {
+const lookupWithLoginShell = (command: string, env: Record<string, string>): string | null => {
   for (const shellPath of SHELL_CANDIDATES) {
     if (!existsSync(shellPath)) {
       continue;
     }
 
     try {
-      const output = execFileSync(
-        shellPath,
-        ["-ilc", `command -v ${command}`],
-        {
-          encoding: "utf8",
-          env: env as NodeJS.ProcessEnv,
-          stdio: ["ignore", "pipe", "ignore"],
-        },
-      ).trim();
+      const output = execFileSync(shellPath, ["-ilc", `command -v ${command}`], {
+        encoding: "utf8",
+        env: env as NodeJS.ProcessEnv,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
 
       if (output) {
         return output;
       }
     } catch {
-      // ignore and try next shell
+      // 当前 shell 不可用，尝试下一个
     }
   }
 
   return null;
 };
 
-export const resolveMcpCommand = (
-  command: string,
-  env: Record<string, string>,
-): string => {
+export const resolveMcpCommand = (command: string, env: Record<string, string>): string => {
   const normalized = command.trim();
   if (!normalized) {
     throw new Error("MCP 本地服务命令不能为空");
@@ -144,6 +128,6 @@ export const resolveMcpCommand = (
   }
 
   throw new Error(
-    `未找到可执行命令 "${normalized}"。请检查 PATH 配置，或在 MCP 服务配置中填写绝对路径。`,
+    `未找到可执行命令 "${normalized}"。请检查 PATH 配置，或在 MCP 服务配置中填写绝对路径。`
   );
 };

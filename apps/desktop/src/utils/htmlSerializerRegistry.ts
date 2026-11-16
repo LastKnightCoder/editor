@@ -10,8 +10,10 @@ export interface HtmlSerializer {
   /** 准备当前子树的序列化上下文，不与其它子树或导出共享 */
   prepare?: (element: CustomElement) => HtmlSerializationContext;
   toHtml: (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 异构序列化器接口：实现按自身 type 自由访问专属字段，any 参数位提供双向变体
     element: any,
     childrenHtml: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同 element：父节点同为异构分发
     parentElement?: any,
     options?: HtmlSerializerOptions
   ) => string | Promise<string>;

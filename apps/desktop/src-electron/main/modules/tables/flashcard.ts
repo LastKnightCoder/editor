@@ -151,7 +151,6 @@ class FlashcardTable {
   }
 
   private static mapCardRow(row: CardRow, references: FlashcardReference[]): Flashcard {
-    // Parse prompt as Descendant[] with fallback
     let prompt: Descendant[];
     try {
       prompt = JSON.parse(row.prompt);
@@ -174,7 +173,6 @@ class FlashcardTable {
       ];
     }
 
-    // Parse detail as Descendant[] with fallback
     let detail: Descendant[];
     try {
       detail = JSON.parse(row.detail);
@@ -302,7 +300,6 @@ class FlashcardTable {
         acc[row.card_id] = [];
       }
 
-      // Parse content if available
       let content = null;
       if (row.content_db_id && row.content_data) {
         try {
@@ -642,7 +639,6 @@ class FlashcardTable {
       )
     `);
 
-    // Serialize Descendant[] to JSON strings
     const promptJson = JSON.stringify(payload.prompt);
     const detailJson = JSON.stringify(
       payload.detail ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
@@ -684,7 +680,6 @@ class FlashcardTable {
     if (!existingRow) return null;
     const now = Date.now();
 
-    // Serialize prompt and detail if provided
     const promptJson = payload.prompt ? JSON.stringify(payload.prompt) : existingRow.prompt;
     const detailJson = payload.detail ? JSON.stringify(payload.detail) : existingRow.detail;
 

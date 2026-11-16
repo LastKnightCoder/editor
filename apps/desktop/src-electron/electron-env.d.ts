@@ -4,20 +4,20 @@ declare namespace NodeJS {
   interface ProcessEnv {
     VSCODE_DEBUG?: "true";
     /**
-     * The built directory structure
+     * 构建产物目录结构
      *
      * ```tree
      * ├─┬ dist-electron
      * │ ├─┬ main
-     * │ │ └── index.js    > Electron-Main
+     * │ │ └── index.js    > 主进程
      * │ └─┬ preload
-     * │   └── index.mjs   > Preload-Scripts
+     * │   └── index.mjs   > 预加载脚本
      * ├─┬ dist
-     * │ └── index.html    > Electron-Renderer
+     * │ └── index.html    > 渲染进程
      * ```
      */
     APP_ROOT: string;
-    /** /dist/ or /public/ */
+    /** /dist/ 或 /public/ */
     VITE_PUBLIC: string;
   }
 }
