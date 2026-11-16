@@ -11,13 +11,11 @@ const ClozeEditorToolbar = ({ editor }: ClozeEditorToolbarProps) => {
   const handleToggleBlank = () => {
     const { selection } = editor;
 
-    // 检查是否有选中内容
     if (!selection || Range.isCollapsed(selection)) {
       toast.warning("请先选中需要标记为空格的文字");
       return;
     }
 
-    // 检查当前选中的文本是否已经是空格
     const [blank] = Editor.nodes(editor, {
       match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === "flashcard-blank",
     });

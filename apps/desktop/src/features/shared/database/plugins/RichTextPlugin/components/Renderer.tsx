@@ -132,11 +132,9 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
 
     // 选择搜索到的文档
     const handleSelectDocument = useMemoizedFn(async (items: SearchResult | SearchResult[]) => {
-      // 处理单选情况
       const item = Array.isArray(items) ? items[0] : items;
       if (!item) return;
 
-      // 检查是否已经关联
       const exists = richTextList.some(doc => doc.contentId === item.contentId);
       if (exists) {
         toast.warning("该文档已经关联");
@@ -163,7 +161,6 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
 
     // 编辑保存回调
     const handleEditSave = useMemoizedFn((title: string) => {
-      // 更新列表中的标题
       const newValue = richTextList.map(item =>
         item.contentId === currentEditingContentId ? { ...item, title: title || item.title } : item
       );
@@ -250,7 +247,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
                       exit={{ scale: 0, opacity: 0 }}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="bg-danger text-ink-inverse absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full shadow-lg"
+                      className="bg-danger text-ink-inverse absolute -top-1 -right-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full shadow-lg"
                       onClick={e => handleDeleteItem(item.id, e)}
                     >
                       <X className="h-2 w-2" strokeWidth={2.5} />
@@ -281,7 +278,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         {!readonly && (
           <div
             ref={addTriggerRef}
-            className="bg-hover hover:bg-press text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
+            className="bg-hover hover:bg-press text-ink-2 hover:text-ink-1 rounded-tau-sm absolute top-1/2 right-1 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
             role="button"
             aria-label="添加富文本"
             onClick={() => setAddPopoverVisible(v => !v)}

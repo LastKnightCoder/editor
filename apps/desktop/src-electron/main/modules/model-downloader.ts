@@ -17,8 +17,6 @@ import { Module } from "../types/module";
 import sevenZip from "../utils/seven-zip";
 import { downloadRepoFiles } from "../utils/model-download";
 
-// ==================== 类型定义 ====================
-
 export type DownloadSource = "modelscope" | "huggingface";
 
 export interface ModelInfo {
@@ -69,10 +67,8 @@ export interface ProgramDownloadProgress {
   totalBytes: number;
 }
 
-// ==================== 预编译程序配置 ====================
-
 export const PROGRAM_CONFIG: Record<string, Omit<ProgramInfo, "downloaded">> = {
-  // ========== faster-whisper (Windows only) ==========
+  // faster-whisper（仅 Windows）
   "faster-whisper-xxl": {
     name: "faster-whisper-xxl",
     label: "GPU + CPU 版本",
@@ -102,8 +98,6 @@ export const PROGRAM_CONFIG: Record<string, Omit<ProgramInfo, "downloaded">> = {
   },
 };
 
-// ==================== 模型配置 ====================
-
 export const MODEL_CONFIG: Record<
   string,
   {
@@ -124,7 +118,6 @@ export const MODEL_CONFIG: Record<
     platforms?: string[];
   }
 > = {
-  // ========== faster-whisper (CTranslate2 格式，Windows 预编译程序使用) ==========
   "faster-whisper-tiny": {
     modelscope: "pengzhendong/faster-whisper-tiny",
     huggingface: "Systran/faster-whisper-tiny",
@@ -189,7 +182,6 @@ export const MODEL_CONFIG: Record<
     engine: "faster-whisper",
     platforms: ["win32"],
   },
-  // ========== whisper.cpp (ggml 格式，macOS 随包 whisper-cli 使用) ==========
   // 原 pengzhendong/whisper.cpp-* 分仓库已在 ModelScope 下架（record not found），
   // HF 的 ggerganov/whisper.<size> 分仓库也已合并进 ggerganov/whisper.cpp 单仓库，
   // 两端均改用共仓镜像 + 单文件下载（whisper.cpp-base 等镜像已实测可下载）
@@ -256,8 +248,6 @@ export const MODEL_CONFIG: Record<
   },
 };
 
-// ==================== 模型下载服务类 ====================
-
 /** 下载任务信息 */
 interface DownloadTask {
   modelName: string;
@@ -295,7 +285,6 @@ class ModelDownloaderService {
       };
     }
 
-    // 检查是否已在下载
     if (this.activeDownloads.has(modelName)) {
       return {
         success: false,
@@ -464,8 +453,6 @@ class ModelDownloaderService {
     return Array.from(this.activeDownloads.keys());
   }
 
-  // ==================== 预编译程序相关方法 ====================
-
   /**
    * 获取程序目录
    */
@@ -571,12 +558,10 @@ class ModelDownloaderService {
     destPath: string,
     onProgress?: (downloaded: number, total: number) => void
   ): Promise<void> {
-    // 创建临时下载目录
     const tempDir = path.join(app.getPath("temp"), "tau-download-cache");
     await fs.ensureDir(tempDir);
     const tempFile = path.join(tempDir, path.basename(destPath));
 
-    // 清理可能存在的旧临时文件
     if (await fs.pathExists(tempFile)) {
       try {
         await fs.unlink(tempFile);
@@ -615,10 +600,9 @@ class ModelDownloaderService {
 
       file.on("error", handleError);
 
-      // 解析 URL 获取主机名
       const urlObj = new URL(url);
 
-      // 添加必要的请求头（模拟浏览器请求，避免 403 错误）
+      // 模拟浏览器请求，避免 403
       const requestOptions = {
         hostname: urlObj.hostname,
         port: urlObj.port || (urlObj.protocol === "https:" ? 443 : 80),
@@ -636,7 +620,6 @@ class ModelDownloaderService {
       const request = (urlObj.protocol === "https:" ? https : http).request(
         requestOptions,
         response => {
-          // 处理重定向
           if (
             response.statusCode === 301 ||
             response.statusCode === 302 ||
@@ -646,7 +629,6 @@ class ModelDownloaderService {
             const redirectUrl = response.headers.location;
             if (redirectUrl) {
               cleanup();
-              // 处理相对路径重定向
               const fullRedirectUrl = redirectUrl.startsWith("http")
                 ? redirectUrl
                 : `${urlObj.protocol}//${urlObj.hostname}${redirectUrl}`;
@@ -683,7 +665,6 @@ class ModelDownloaderService {
             cleanup();
 
             try {
-              // 确保目标目录存在
               await fs.ensureDir(path.dirname(destPath));
 
               // 如果目标文件已存在，先删除
@@ -739,7 +720,6 @@ class ModelDownloaderService {
     const downloadPath = path.join(programsDir, config.fileName);
 
     try {
-      // 下载文件
       console.log(`[ModelDownloader] Downloading program: ${config.downloadUrl}`);
 
       await this.downloadFile(config.downloadUrl, downloadPath, (downloaded, total) => {
@@ -769,7 +749,6 @@ class ModelDownloaderService {
 
         await this.extract7z(downloadPath, programsDir);
 
-        // 删除压缩包
         await fs.unlink(downloadPath);
       }
 
@@ -777,7 +756,7 @@ class ModelDownloaderService {
       return { success: true };
     } catch (error) {
       console.error(`[ModelDownloader] Program download error:`, error);
-      // 清理失败的下载（忽略删除失败）
+      // 失败的下载不留半成品文件
       await fs.unlink(downloadPath).catch(() => {
         // 忽略删除失败
       });
@@ -821,8 +800,6 @@ class ModelDownloaderService {
   }
 }
 
-// ==================== 模块定义 ====================
-
 class ModelDownloaderModule implements Module {
   name: string;
   private service: ModelDownloaderService;
@@ -833,7 +810,6 @@ class ModelDownloaderModule implements Module {
   }
 
   async init() {
-    // 获取所有模型信息
     ipcMain.handle("model-downloader-get-models", async () => {
       try {
         const models = await this.service.getModels();
@@ -846,7 +822,6 @@ class ModelDownloaderModule implements Module {
       }
     });
 
-    // 下载模型
     ipcMain.handle(
       "model-downloader-download",
       async (event, modelName: string, source: DownloadSource) => {
@@ -875,23 +850,19 @@ class ModelDownloaderModule implements Module {
       }
     );
 
-    // 取消下载
     ipcMain.handle("model-downloader-cancel", async (_event, modelName: string) => {
       const cancelled = this.service.cancelDownload(modelName);
       return { success: cancelled };
     });
 
-    // 检查模型是否已下载
     ipcMain.handle("model-downloader-is-downloaded", async (_event, modelName: string) => {
       return this.service.isModelDownloaded(modelName);
     });
 
-    // 获取已下载的模型
     ipcMain.handle("model-downloader-get-downloaded", async () => {
       return this.service.getDownloadedModels();
     });
 
-    // 删除模型
     ipcMain.handle("model-downloader-delete", async (_event, modelName: string) => {
       try {
         const deleted = await this.service.deleteModel(modelName);
@@ -904,29 +875,22 @@ class ModelDownloaderModule implements Module {
       }
     });
 
-    // 获取模型目录
     ipcMain.handle("model-downloader-get-dir", () => {
       return this.service.getModelsDir();
     });
 
-    // 获取模型大小
     ipcMain.handle("model-downloader-get-size", async (_event, modelName: string) => {
       return this.service.getModelSize(modelName);
     });
 
-    // 检查是否正在下载
     ipcMain.handle("model-downloader-is-downloading", (_event, modelName: string) => {
       return this.service.isDownloading(modelName);
     });
 
-    // 获取正在下载的模型列表
     ipcMain.handle("model-downloader-get-downloading", () => {
       return this.service.getDownloadingModels();
     });
 
-    // ==================== 预编译程序相关 IPC ====================
-
-    // 获取所有程序信息
     ipcMain.handle("program-downloader-get-programs", async () => {
       try {
         const programs = await this.service.getPrograms();
@@ -939,7 +903,6 @@ class ModelDownloaderModule implements Module {
       }
     });
 
-    // 下载程序
     ipcMain.handle("program-downloader-download", async (event, programName: string) => {
       try {
         console.log(`[ModelDownloader] Starting program download: ${programName}`);
@@ -958,12 +921,10 @@ class ModelDownloaderModule implements Module {
       }
     });
 
-    // 检查程序是否已下载
     ipcMain.handle("program-downloader-is-downloaded", async (_event, programName: string) => {
       return this.service.isProgramDownloaded(programName);
     });
 
-    // 获取程序可执行文件路径
     ipcMain.handle(
       "program-downloader-get-executable-path",
       async (_event, programName: string) => {
@@ -971,12 +932,10 @@ class ModelDownloaderModule implements Module {
       }
     );
 
-    // 获取已安装的程序类型
     ipcMain.handle("program-downloader-get-installed-types", async () => {
       return this.service.getInstalledProgramTypes();
     });
 
-    // 删除程序
     ipcMain.handle("program-downloader-delete", async (_event, programName: string) => {
       try {
         const deleted = await this.service.deleteProgram(programName);
@@ -989,7 +948,6 @@ class ModelDownloaderModule implements Module {
       }
     });
 
-    // 获取程序目录
     ipcMain.handle("program-downloader-get-dir", () => {
       return this.service.getProgramsDir();
     });

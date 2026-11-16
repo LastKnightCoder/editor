@@ -1,4 +1,4 @@
-// 成员管理（设计稿 04 方案 B）：overlay 层浮层，协作码卡置顶。
+// 成员管理：overlay 层浮层，协作码卡置顶。
 import { lazy, Suspense } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { createPageSchema, definePage, paramString, useNavigator, usePage } from "../../../router";

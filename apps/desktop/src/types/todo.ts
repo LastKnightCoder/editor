@@ -2,7 +2,7 @@ import { Descendant } from "slate";
 import type { CalendarEvent } from "./calendar";
 import type { TaskRecurrenceSegment, TaskOccurrenceState } from "@tau/shared/task-assistant";
 
-// 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达，见 D-114）
+// 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达）
 export type TodoItemType = "normal" | "deadline" | "recurring";
 
 // 系统组类型
@@ -159,7 +159,6 @@ export interface UpdateTodoItem {
   remindBefore?: number | null;
 }
 
-// 创建周期规则
 export interface CreateTodoRecurrence {
   todoItemId: number;
   type: RecurrenceType;
@@ -174,7 +173,6 @@ export interface CreateTodoRecurrence {
   maxOccurrences?: number | null;
 }
 
-// 更新周期规则
 export interface UpdateTodoRecurrence {
   id: number;
   type?: RecurrenceType;
@@ -197,7 +195,6 @@ export interface MoveAndReorderPayload {
   afterId?: number;
 }
 
-// 创建相对位置的待办项
 export type CreateRelativePosition = "child" | "above" | "below";
 
 export interface CreateTodoItemRelative {

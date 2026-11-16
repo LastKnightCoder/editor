@@ -142,7 +142,6 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     useEdgeFade(entityListEl);
     useEdgeFade(treeEl);
 
-    // 加载项目列表
     useEffect(() => {
       if (!open) return;
       setLoading(true);
@@ -156,7 +155,6 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         .finally(() => setLoading(false));
     }, [open, mode]);
 
-    // 关闭时重置状态
     useEffect(() => {
       if (!open) {
         setSelectedEntityId(null);

@@ -120,7 +120,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     const newOptions = options.filter(o => o.id !== option.id);
     setOptions(newOptions);
 
-    // 更新列配置
     const newColumn = produce(column, draft => {
       if (draft.config) {
         draft.config.options = newOptions;
@@ -136,11 +135,9 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
 
   const changeOptionColor = useMemoizedFn(
     (option: SelectOption, newColor: (typeof SELECT_COLORS)[number]) => {
-      // 更新选项颜色
       const newOptions = options.map(o => (o.id === option.id ? { ...o, color: newColor } : o));
       setOptions(newOptions);
 
-      // 更新列配置
       const newColumn = produce(column, draft => {
         if (draft.config) {
           draft.config.options = newOptions;
@@ -148,7 +145,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       }) as ColumnDef<{ options: SelectOption[] }>;
       onColumnChange?.(newColumn);
 
-      // 更新已选中的选项（如果该选项被选中）
       const newSelectedOptions = selectedOptions.map(selected =>
         selected.id === option.id ? { ...selected, color: newColor } : selected
       );
@@ -160,18 +156,15 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   );
 
   const editOptionName = useMemoizedFn((option: SelectOption, newName: string) => {
-    // 检查新名称是否已存在（排除当前选项）
     const nameExists = options.some(o => o.id !== option.id && o.name === newName);
 
     if (nameExists || !newName.trim()) {
       return;
     }
 
-    // 更新选项名称
     const newOptions = options.map(o => (o.id === option.id ? { ...o, name: newName } : o));
     setOptions(newOptions);
 
-    // 更新列配置
     const newColumn = produce(column, draft => {
       if (draft.config) {
         draft.config.options = newOptions;
@@ -179,7 +172,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     }) as ColumnDef<{ options: SelectOption[] }>;
     onColumnChange?.(newColumn);
 
-    // 更新已选中的选项（如果该选项被选中）
     const newSelectedOptions = selectedOptions.map(selected =>
       selected.id === option.id ? { ...selected, name: newName } : selected
     );
@@ -286,7 +278,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
             placeholder={selectedOptions.length > 0 ? "" : "选择或输入..."}
             autoFocus
           />
-          <div className="text-tau-sm text-ink-3 mb-1 mt-2 px-3">选择或创建一个选项</div>
+          <div className="text-tau-sm text-ink-3 mt-2 mb-1 px-3">选择或创建一个选项</div>
           <VerticalSelectList
             options={filteredOptions}
             onSelect={handleSelect}

@@ -1,4 +1,4 @@
-// 日历管理页（定稿 A 分区列表管理式）：系统分区只读（仅可见性开关）、我的日历、
+// 日历管理页（分区列表管理式）：系统分区只读（仅可见性开关）、我的日历、
 // 已归档；⋯ 菜单经 ActionSheet，删除二次确认并展示连带事件数；新建/编辑日历用 Sheet。
 
 import { useRef, useState } from "react";
@@ -84,7 +84,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
         }`}
       >
         <span
-          className="bg-surface absolute left-[3px] top-[3px] h-6 w-6 rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform"
+          className="bg-surface absolute top-[3px] left-[3px] h-6 w-6 rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform"
           style={{
             transform: calendar.visible ? "translateX(20px)" : "translateX(0)",
             transition: "transform 0.25s cubic-bezier(0.34, 1.56, 0.5, 1)",
@@ -248,7 +248,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
 
 function GroupLabel({ label, hint }: { label: string; hint?: string }) {
   return (
-    <div className="text-ink-3 flex items-baseline gap-2 px-[22px] pb-2 pt-4">
+    <div className="text-ink-3 flex items-baseline gap-2 px-[22px] pt-4 pb-2">
       <span className="text-[12px] font-extrabold tracking-[1px]">{label}</span>
       {hint ? <span className="text-[11px] font-semibold opacity-80">{hint}</span> : null}
     </div>
@@ -313,7 +313,7 @@ function CalendarFormSheet({
         placeholder="日历名称，如：工作、生活…"
         className="input-base mt-1 w-full px-3.5 py-3 font-bold"
       />
-      <div className="text-ink-3 pb-2 pt-4 text-[11.5px] font-extrabold">
+      <div className="text-ink-3 pt-4 pb-2 text-[11.5px] font-extrabold">
         颜色 · 与桌面端同一套 17 色
       </div>
       <div className="grid grid-cols-6 gap-3.5 px-0.5">

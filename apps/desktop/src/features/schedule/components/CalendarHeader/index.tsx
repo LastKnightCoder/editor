@@ -8,7 +8,7 @@ import { getDateStart, getWeekStart } from "@/utils/calendar";
 import type { CalendarEvent, CalendarViewType } from "@/types";
 import { useDayEvents } from "../DayColumn";
 
-// 方案 C：「日」由右栏当日时间线承担
+// 「日」由右栏当日时间线承担
 const VIEWS: { value: CalendarViewType; label: string }[] = [
   { value: "week", label: "周" },
   { value: "month", label: "月" },

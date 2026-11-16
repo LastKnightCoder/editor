@@ -588,7 +588,6 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       return;
     }
 
-    // 验证至少选择一种格式
     if (selectedFormats.size === 0) {
       toast.error("请至少选择一种导出格式");
       return;

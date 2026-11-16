@@ -209,7 +209,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       chatRef.current?.focusInput();
     };
 
-    // 代码 / 链接渲染与对话页共用（D-048）；pdfref 引用渲染成页码角标
+    // 代码 / 链接渲染与对话页共用；pdfref 引用渲染成页码角标
     const baseMarkdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "pdf-block" });
     const markdownComponents = useMemo(
       () => ({
@@ -252,7 +252,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
             >
               <button
                 type="button"
-                className="rounded-tau-sm bg-accent-soft text-accent-text ease-tau-out text-tau-tiny hover:bg-selected mx-px inline-flex translate-y-[-0.2em] cursor-pointer items-center px-1.5 py-px font-medium tabular-nums leading-none transition-colors duration-[160ms]"
+                className="rounded-tau-sm bg-accent-soft text-accent-text ease-tau-out text-tau-tiny hover:bg-selected mx-px inline-flex translate-y-[-0.2em] cursor-pointer items-center px-1.5 py-px leading-none font-medium tabular-nums transition-colors duration-[160ms]"
                 aria-label={`跳转到第 ${pageNumber} 页引用`}
                 onMouseDown={event => {
                   event.preventDefault();
@@ -291,7 +291,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
             title="移除引用"
             aria-label="移除引用"
             onClick={() => setQuote(null)}
-            className="-mr-1 -mt-0.5 size-6"
+            className="-mt-0.5 -mr-1 size-6"
           >
             <X size={13} strokeWidth={1.75} />
           </IconButton>
@@ -314,7 +314,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     return (
       <MarkdownProvider isDark={isDark} isVisible>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="flex h-[46px] shrink-0 items-center gap-1 pl-3 pr-2">
+          <div className="flex h-[46px] shrink-0 items-center gap-1 pr-2 pl-3">
             <div className="min-w-0 flex-1">
               {loaded && (
                 <ChatDropdownSelector

@@ -1,5 +1,5 @@
 /**
- * useListNavigation 单测（Select / Menu 共用的导航交集，D-007）：
+ * useListNavigation 单测（Select / Menu 共用的导航交集）：
  * 环游移动（跳过 disabled / 无高亮起步 / 全 disabled 防御）· 边缘直达（目标
  * disabled 不落）· type-ahead 400ms 窗口（窗口内累积、过期清空）。
  * 项目无 testing-library：Probe 组件把 hook 句柄每渲染上报，行为与真实消费一致。

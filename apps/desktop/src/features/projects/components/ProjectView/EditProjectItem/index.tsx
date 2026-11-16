@@ -182,7 +182,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const onPressEnter = useMemoizedFn(async () => {
     titleRef.current?.blur();
     editorRef.current?.focus();
-    // 保存项目
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);

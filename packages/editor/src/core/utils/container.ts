@@ -28,7 +28,6 @@ export const exitContainerOnEmptyParagraph = (editor: Editor, parentType: string
     return true;
   }
 
-  // 删除当前段落
   Transforms.delete(editor, {
     at: paraMatch[1],
   });

@@ -1,8 +1,8 @@
 /**
- * 那年今日（D-044 三轮定稿）：不进流，只在输入条正上方露一行预告；点开从纸右侧滑出抽屉瞥一眼。
+ * 那年今日：不进流，只在输入条正上方露一行预告；点开从纸右侧滑出抽屉瞥一眼。
  *  - OnThisDayTease：「↺ 一年前的今天 · 首句 · 还有 N 条 ×」，× = 今天不再提示；
  *  - OnThisDayDrawer：按年份列出当天全部条目，点一条 = 关抽屉并跳到流里那一条。
- * 抽屉盖在纸上不挤压（同闪卡 ReferenceDrawer 形制），Esc 走 D-003 浮层注册表。
+ * 抽屉盖在纸上不挤压（同闪卡 ReferenceDrawer 形制），Esc 走浮层注册表。
  */
 
 import { useEffect, useState } from "react";
@@ -41,7 +41,7 @@ export function OnThisDayTease({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onOpen())}
-      className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 group/tease flex h-[30px] cursor-pointer items-center gap-2 rounded-[9px] pl-3 pr-1.5"
+      className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 group/tease flex h-[30px] cursor-pointer items-center gap-2 rounded-[9px] pr-1.5 pl-3"
     >
       <History className="text-accent-text size-[13px] shrink-0" strokeWidth={1.75} />
       <b className="text-accent-text shrink-0 font-medium">{agoText(first.ago)}</b>
@@ -104,7 +104,7 @@ export function OnThisDayDrawer({
         open ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-3 opacity-0"
       )}
     >
-      <div className="flex h-[52px] flex-none items-center gap-2 pl-[18px] pr-2.5">
+      <div className="flex h-[52px] flex-none items-center gap-2 pr-2.5 pl-[18px]">
         <History className="text-accent-text size-[15px]" strokeWidth={1.75} />
         <b className="text-tau-body-lg font-semibold">那年今日</b>
         <span className="text-tau-meta text-ink-3">
@@ -153,7 +153,7 @@ function EchoItem({
       title="在流里看这一条"
       onClick={onClick}
       onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onClick())}
-      className="hover:bg-hover -mx-2.5 grid cursor-pointer grid-cols-[42px_minmax(0,1fr)] gap-2 rounded-[10px] py-2 pl-1 pr-2.5"
+      className="hover:bg-hover -mx-2.5 grid cursor-pointer grid-cols-[42px_minmax(0,1fr)] gap-2 rounded-[10px] py-2 pr-2.5 pl-1"
     >
       <span className="text-tau-meta text-ink-3 font-tau-mono pt-1 tabular-nums">
         {formatTime(moment.createTime)}

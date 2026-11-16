@@ -1,5 +1,5 @@
 /**
- * 首页面板容器（D-182）：按布局渲染面板，一个可换行的流式容器——wide 占整行，compact 约 340px
+ * 首页面板容器：按布局渲染面板，一个可换行的流式容器——wide 占整行，compact 约 340px
  * 起并可伸展，排不满的行伸展填满，同行等高。没有内容的面板（组件返回 null，插件面板正文为空）不占位。
  *
  * 编辑模式：面板内容保持原样但不可点，右上角出现把手与隐藏按钮；按住面板任意位置拖起——面板浮起
@@ -525,7 +525,7 @@ export function HomePanels({
                   ) : (
                     <div
                       data-home-panel-chrome
-                      className="bg-surface shadow-lift ease-tau-out starting:scale-90 starting:opacity-0 absolute right-2 top-2 flex items-center gap-0.5 rounded-[9px] p-0.5 transition-[opacity,scale] duration-200"
+                      className="bg-surface shadow-lift ease-tau-out absolute top-2 right-2 flex items-center gap-0.5 rounded-[9px] p-0.5 transition-[opacity,scale] duration-200 starting:scale-90 starting:opacity-0"
                     >
                       <button
                         type="button"
@@ -585,7 +585,7 @@ export function HomePanels({
           {pendingHide ? (
             <span
               data-home-hidden-pending
-              className="border-accent text-tau-meta text-accent-text bg-surface ease-tau-out starting:scale-95 starting:opacity-0 inline-flex items-center rounded-[8px] border-[1.5px] border-dashed px-2.5 py-1 transition-[opacity,scale] duration-150"
+              className="border-accent text-tau-meta text-accent-text bg-surface ease-tau-out inline-flex items-center rounded-[8px] border-[1.5px] border-dashed px-2.5 py-1 transition-[opacity,scale] duration-150 starting:scale-95 starting:opacity-0"
             >
               松手隐藏「{pendingHide.title}」
             </span>

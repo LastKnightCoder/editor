@@ -32,7 +32,6 @@ const FormattedText: React.FC<MarkRenderProps> = memo(props => {
     return resolveTextGradientStyle(textGradient, isDark ? "dark" : "light");
   }, [isDark, textGradient]);
 
-  // 计算类名
   const className = useMemo(() => {
     return cn(
       bold && "font-bold",

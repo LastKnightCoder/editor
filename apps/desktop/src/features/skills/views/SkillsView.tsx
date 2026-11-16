@@ -1,5 +1,5 @@
 /**
- * Skill 页（D-060 方案 B）：卡片库（我的 / 内置 / 关联目录）+ 右侧抽屉 + 添加弹窗；
+ * Skill 页：卡片库（我的 / 内置 / 关联目录）+ 右侧抽屉 + 添加弹窗；
  * 「编辑」推入整页编辑器（skill-edit）。卡片开关即时生效（停用 ⇄ 恢复原调用方式）。
  */
 
@@ -142,12 +142,12 @@ export function SkillsView() {
   const nothing = loaded && shown.length === 0;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：页头与筛选行固定在纸顶，卡片在纸内滚动（同微信读书页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="flex h-10 flex-none items-center gap-3">
-            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
               Skill
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
@@ -230,7 +230,7 @@ export function SkillsView() {
           </div>
         </div>
 
-        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-3">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pt-3 pr-[26px] pb-2 pl-8">
           {(mine.length > 0 || (!q && filter === "all")) && (
             <Section title={SOURCE_LABEL.mine} hint={mine.length ? String(mine.length) : undefined}>
               {mine.map(item => (

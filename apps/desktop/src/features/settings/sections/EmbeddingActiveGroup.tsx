@@ -110,7 +110,6 @@ export function EmbeddingActiveGroup({
         progress.phase === "done" || progress.phase === "failed" || progress.phase === "aborted";
       if (finished) {
         setRunning(null);
-        // 结束后重新统计覆盖率
         void refresh();
       } else {
         setRunning(progress);

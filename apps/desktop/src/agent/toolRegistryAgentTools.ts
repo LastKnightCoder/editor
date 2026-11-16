@@ -21,7 +21,7 @@ export const getToolRegistryAgentTools = (options?: {
   toolScope?: string;
   /**
    * 连当前停用的工具一起返回（带 enabled 标记）。pi 会话的工具注册表装配后不可追加，
-   * 交全集注册、只切活跃子集，用户开关工具时就不必重建会话（见 D-060/M3-c）。
+   * 交全集注册、只切活跃子集，用户开关工具时就不必重建会话。
    */
   includeDisabled?: boolean;
 }): RegistryAgentTool[] => {

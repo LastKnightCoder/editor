@@ -16,7 +16,7 @@ function getMindNodeSelfBounds({ x, y, width, height }: MindNodeElement) {
 }
 
 /**
- * 属性浮动条（D-049）：浮在选中元素上方 12px、水平居中；上方放不下时翻到元素下方，
+ * 属性浮动条：浮在选中元素上方 12px、水平居中；上方放不下时翻到元素下方，
  * 此时条目弹层改为向下展开（AttrBarContext.side）。拖动 / 缩放元素时隐去，松手回来。
  * 选区完全移出视口时不显示。
  */

@@ -255,7 +255,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         const { views, viewConfig } = store.getState();
         const nextOrder = Math.max(0, ...views.map(view => view.order ?? 0)) + 1;
 
-        // 构建视图配置：视图定义声明 createOptions 时写入 viewOptions[type]，
+        // 视图定义声明 createOptions 时写入 viewOptions[type]，
         // 其余子键保持不动，避免整体覆盖当前视图已有的其它类型配置
         const createdOptions = viewRegistry.get(type)?.createOptions?.(columnId);
         const config =
@@ -319,7 +319,6 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       ) => {
         if (!onUpdateView) return;
 
-        // 调用后端 API 保存视图更新
         const updated = await onUpdateView(viewId, updates);
         if (!updated) return;
 

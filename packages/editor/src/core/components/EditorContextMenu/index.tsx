@@ -54,7 +54,6 @@ const EditorContextMenu = memo(
         y = viewportHeight - menuRect.height - gap;
       }
 
-      // 确保不超出左上边界
       x = Math.max(gap, x);
       y = Math.max(gap, y);
 
@@ -96,7 +95,6 @@ const EditorContextMenu = memo(
             triggerElement?.getBoundingClientRect() ?? parentWrapper.getBoundingClientRect();
           const subMenuRect = subMenuElement.getBoundingClientRect();
 
-          // 获取之前计算的位置
           const prevPosition = subMenuPositionsRef.current.get(subMenuKey);
 
           // 基于默认（向右、top 为 0）的布局来判断是否会溢出，从而避免因为位置被调整后反复抖动

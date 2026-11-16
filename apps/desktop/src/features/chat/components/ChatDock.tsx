@@ -1,7 +1,7 @@
 /**
  * AI 对话停靠栏内容：主体复用聊天共享组件，
  * RightChatPanel（会话下拉 + ChatContainer），会话与对话页同源 useChatMessageStore。
- * 可预览块推入块预览页（D-057：预览占正文，停靠栏里的对话继续可问）。
+ * 可预览块推入块预览页（预览占正文，停靠栏里的对话继续可问）。
  */
 
 import { lazy, Suspense } from "react";

@@ -24,13 +24,15 @@ const indent: EditorCommand = {
     });
 
     // 在段落的开头、是第一个段落、前面必须还有 check-list-item
-    if (!(
-      para &&
-      match &&
-      isAtParagraphStart(editor) &&
-      para[1][para[1].length - 1] === 0 &&
-      match[1][match[1].length - 1] !== 0
-    )) {
+    if (
+      !(
+        para &&
+        match &&
+        isAtParagraphStart(editor) &&
+        para[1][para[1].length - 1] === 0 &&
+        match[1][match[1].length - 1] !== 0
+      )
+    ) {
       return;
     }
 
@@ -41,7 +43,6 @@ const indent: EditorCommand = {
       return;
     }
 
-    // 获取上一个兄弟节点
     const previousSibling = getPreviousSiblingNode(editor, match[0]);
     if (!previousSibling || !isCheckListItemElement(previousSibling[0])) {
       // 如果没有上一个兄弟节点或者上一个兄弟节点不是 check-list-item，则不做任何操作
@@ -51,7 +52,6 @@ const indent: EditorCommand = {
     Editor.withoutNormalizing(editor, () => {
       const prevSiblingNode = previousSibling[0] as CheckListItemElement;
 
-      // 检查上一个兄弟节点是否已经有 check-list
       if (
         prevSiblingNode.children.length === 2 &&
         prevSiblingNode.children[1].type === "check-list"
@@ -118,24 +118,19 @@ const outdent: EditorCommand = {
 
     const parent = getParentNodeByNode(editor, match[0]);
 
-    // 确保父节点是 check-list
     if (parent[0].type !== "check-list") {
       return;
     }
 
-    // 获取 check-list 的父节点（应该是另一个 check-list-item）
     const grandParent = getParentNodeByNode(editor, parent[0]);
     if (!grandParent || !isCheckListItemElement(grandParent[0])) {
       return;
     }
 
-    // 获取当前 check-list-item 的路径
     const path = match[1];
 
-    // 获取当前 check-list-item 在父 check-list 中的索引
     const index = path[path.length - 1];
 
-    // 获取父 check-list 中当前节点之后的所有兄弟节点
     const siblings = parent[0].children.slice(index + 1);
 
     Editor.withoutNormalizing(editor, () => {
@@ -150,7 +145,6 @@ const outdent: EditorCommand = {
         // 先创建一个新的 check-list 作为当前节点的子节点
         const newPath = Path.next(grandParent[1]);
 
-        // 检查当前节点是否已经有 check-list
         const currentNode = Editor.node(editor, newPath)[0] as CheckListItemElement;
         let checkListPath: Path;
 

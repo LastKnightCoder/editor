@@ -1,7 +1,7 @@
 /**
  * PiSessionHost 端到端（faux 驱动，无需真实网关）：
  * 装配链 createHostModelRuntime + assembleHostSession → prompt → 工具真实执行 → 事件流断言。
- * 与 M0 冒烟（scripts/pi-smoke.mjs）同模式，但走 host core 的产品装配路径（零资源发现 + inMemory 会话）。
+ * 与冒烟脚本（scripts/pi-smoke.mjs）同模式，但走 host core 的产品装配路径（零资源发现 + inMemory 会话）。
  */
 import { mkdtempSync, rmSync, existsSync, readFileSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -15,14 +15,12 @@ export async function mergeAudioBuffers(
     return buffers[0];
   }
 
-  // 计算总时长
   const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
 
   // 使用第一个 buffer 的采样率和声道数
   const sampleRate = buffers[0].sampleRate;
   const numberOfChannels = buffers[0].numberOfChannels;
 
-  // 创建合并后的 buffer
   const mergedBuffer = audioContext.createBuffer(numberOfChannels, totalLength, sampleRate);
 
   // 合并所有音频数据
@@ -61,7 +59,6 @@ export async function audioBufferToBlob(
   const view = new DataView(buffer);
   const sampleRate = audioBuffer.sampleRate;
 
-  // 写入 WAV 头
   writeString(view, 0, "RIFF");
   view.setUint32(4, 36 + length, true);
   writeString(view, 8, "WAVE");
@@ -76,7 +73,6 @@ export async function audioBufferToBlob(
   writeString(view, 36, "data");
   view.setUint32(40, length, true);
 
-  // 写入音频数据
   const offset = 44;
   for (let i = 0; i < audioBuffer.length; i++) {
     for (let channel = 0; channel < numberOfChannels; channel++) {
@@ -139,7 +135,6 @@ export async function mixAudioBuffers(
   const numberOfChannels = mainBuffer.numberOfChannels;
   const length = mainBuffer.length;
 
-  // 创建混合后的 buffer
   const mixedBuffer = audioContext.createBuffer(numberOfChannels, length, sampleRate);
 
   for (let channel = 0; channel < numberOfChannels; channel++) {

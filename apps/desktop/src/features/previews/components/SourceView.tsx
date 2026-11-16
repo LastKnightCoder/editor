@@ -1,5 +1,5 @@
 /**
- * 源码视图（D-057）：Prism 高亮 + 行号，代码底色。生成中自动跟随到末尾
+ * 源码视图：Prism 高亮 + 行号，代码底色。生成中自动跟随到末尾
  * （用户向上滚动后停止跟随，回到底部再恢复）。
  */
 
@@ -51,7 +51,7 @@ export function SourceView({
           {code}
         </Prism>
       ) : (
-        <pre className="font-tau-mono text-ink-1 m-0 whitespace-pre px-4">{code}</pre>
+        <pre className="font-tau-mono text-ink-1 m-0 px-4 whitespace-pre">{code}</pre>
       )}
     </div>
   );

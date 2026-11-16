@@ -111,7 +111,6 @@ const createSpanComponent = (
     "data-type"?: string;
     "data-text"?: string;
   }) {
-    // 检查是否是文档引用
     if (className === "document-reference") {
       const id = parseInt(props["data-id"] || "0", 10);
       const type = props["data-type"] || "";
@@ -214,13 +213,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(function M
     [rehypePlugins]
   );
 
-  // 创建链接组件
   const LinkComponent = useMemo(() => createLinkComponent(onLinkClick), [onLinkClick]);
 
-  // 创建 span 组件（用于文档引用）
   const SpanComponent = useMemo(() => createSpanComponent(onReferenceClick), [onReferenceClick]);
 
-  // 创建代码组件
   const CodeComponent = useMemo(
     () =>
       createCodeComponent({

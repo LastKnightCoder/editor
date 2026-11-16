@@ -67,7 +67,6 @@ const ConversationFlashcardModal = () => {
   // 当 store 被触发打开时，显示卡组选择器
   useEffect(() => {
     if (isModalOpen && conversationContent) {
-      // 检查 LLM 配置
       if (!provider || !model) {
         toast.error("请先在设置中配置闪卡模型");
         reset();
@@ -77,7 +76,6 @@ const ConversationFlashcardModal = () => {
     }
   }, [isModalOpen, conversationContent, provider, model, reset]);
 
-  // 处理卡组选择
   const handleDeckSelect = useMemoizedFn((deck: FlashcardDeck) => {
     setSelectedDeck(deck);
     setDeckSelectorOpen(false);
@@ -90,7 +88,6 @@ const ConversationFlashcardModal = () => {
     }
   });
 
-  // 取消卡组选择
   const handleDeckSelectorCancel = useMemoizedFn(() => {
     setDeckSelectorOpen(false);
     reset();
@@ -107,7 +104,6 @@ const ConversationFlashcardModal = () => {
     }
 
     try {
-      // 创建参考来源（关联到对话内容）
       const reference: FlashcardReferenceInput = {
         refType: "custom",
         title: `对话: ${chatTitle || "未命名对话"}`,
@@ -144,13 +140,11 @@ const ConversationFlashcardModal = () => {
     }
   });
 
-  // 取消生成
   const handleCancelGeneration = useMemoizedFn(() => {
     stopGeneration();
     handleCloseAll();
   });
 
-  // 关闭所有弹窗并重置状态
   const handleCloseAll = useMemoizedFn(() => {
     setGenerationModalOpen(false);
     setDeckSelectorOpen(false);
@@ -174,7 +168,6 @@ const ConversationFlashcardModal = () => {
     setEditModalOpen(true);
   });
 
-  // 保存编辑后的闪卡
   const handleSaveCard = useMemoizedFn(
     (updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>) => {
       if (!editingCard) return;
@@ -185,7 +178,6 @@ const ConversationFlashcardModal = () => {
     }
   );
 
-  // 关闭编辑弹窗
   const handleCancelEdit = useMemoizedFn(() => {
     setEditModalOpen(false);
     setEditingCard(null);

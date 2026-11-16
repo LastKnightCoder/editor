@@ -1,5 +1,5 @@
 /**
- * Mermaid 块（D-057）：对话里直接画出来（display: inline），右上角「放大」进统一预览框；
+ * Mermaid 块：对话里直接画出来（display: inline），右上角「放大」进统一预览框；
  * 预览里可缩放平移，更多菜单导出 SVG / PNG。
  */
 

@@ -1,8 +1,7 @@
 /**
  * ValueDisplay —— 值展示件（占位迁移合集）：ColorSwatch / ProgressBar / Rating。
- * Tag 已按设计稿定稿拆出 primitives/Tag.tsx（2026-09-19）；本文件剩余三件
- * 仍是未经设计稿评审的占位实现（ValueDisplay 族逐件定稿时迁出），勿在
- * 此基础上加能力。
+ * Tag 已拆出 primitives/Tag.tsx；本文件剩余三件仍是未经设计稿评审的占位
+ * 实现（后续逐件迁出），勿在此基础上加能力。
  */
 
 import { Star } from "lucide-react";

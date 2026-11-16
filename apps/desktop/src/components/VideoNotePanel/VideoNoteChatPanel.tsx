@@ -139,7 +139,7 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
       select(chatId);
     });
 
-    // 代码 / 链接渲染与对话页共用（D-048）
+    // 代码 / 链接渲染与对话页共用
     const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "video-note-block" });
 
     const [quote, setQuote] = useState<TranscriptQuote | null>(null);

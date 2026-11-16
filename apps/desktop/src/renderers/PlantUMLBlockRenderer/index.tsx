@@ -1,5 +1,5 @@
 /**
- * PlantUML 块（D-057）：图源经 plantuml.com 渲染（本地渲染需 Java / 自建服务，不做），
+ * PlantUML 块：图源经 plantuml.com 渲染（本地渲染需 Java / 自建服务，不做），
  * 头部注明外发；离线或服务不可达时给明确错误态。预览可缩放平移。
  */
 

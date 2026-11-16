@@ -1,5 +1,5 @@
 /**
- * Menu 档案 —— 动作触发的浮层命令面板（方案 B「现代产品」定稿，D-010）。
+ * Menu 档案 —— 动作触发的浮层命令面板。
  * 全部标本可交互（点击/键盘/右键实测行为）；命令项触发即关、开关项不关是
  * 与 Select 的语义分界，标本里专门放一块让两态都可体验。
  */
@@ -19,7 +19,7 @@ import { ContextMenu, Menu, cn } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 /**
- * 触发按钮：表单家族口径（surface 亮底 + line-1 描边，D-007/D-009）。
+ * 触发按钮：表单家族口径（surface 亮底 + line-1 描边）。
  * 必须 rest 透传——Menu 克隆注入 onClick、aria 属性与 ref，不透传则点击无反应
  * （同 Tooltip 的克隆协议；React 19 里 ref 随 props 展开直达 DOM）。
  */

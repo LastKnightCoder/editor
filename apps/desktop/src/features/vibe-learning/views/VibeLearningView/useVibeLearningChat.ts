@@ -14,7 +14,6 @@ export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
     toolRegistry.registerScopedTools(sourceId, "学习项目资料", tools);
 
     return () => {
-      // 清理工具
       toolRegistry.unregisterSource(sourceId);
     };
   }, [sourceId, projectId, mainDbName]);

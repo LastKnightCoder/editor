@@ -262,7 +262,7 @@ export async function desktopMessagesToPi(
 }
 
 /** 工具桥：渲染端 IPC 挂起执行的桥接线（每会话一个实例） */
-/** 工具调用的派发目标：渲染窗口（经 pi-tool-call IPC）或别的执行方（M5：扩展页面工具经 WS） */
+/** 工具调用的派发目标：渲染窗口（经 pi-tool-call IPC）或别的执行方（扩展页面工具经 WS） */
 export interface PiToolCallTarget {
   isDestroyed(): boolean;
   send(channel: "pi-tool-call" | "pi-tool-cancel", payload: PiToolCallPayload): void;

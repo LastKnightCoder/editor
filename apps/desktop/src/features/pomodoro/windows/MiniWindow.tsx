@@ -1,6 +1,6 @@
 /**
- * 番茄小窗（360×84 无边框置顶窗，路由 /pomodoro/mini）：方案 C 控制条的缩影
- * （原型 A 款 288×68 等比放大 1.25 倍，字号 / 控件一律用字面像素，不随全局字号缩放）。
+ * 番茄小窗（360×84 无边框置顶窗，路由 /pomodoro/mini）：控制条的缩影
+ * （原型 288×68 等比放大 1.25 倍，字号 / 控件一律用字面像素，不随全局字号缩放）。
  * 平时只显示预设名 · 状态、剩余时间、结束时刻与底边进度线；悬停（或暂停时常显）右侧换成
  * 暂停继续 / 结束 / 回到番茄页。不足 5 分钟结束在窗内原位确认；结束后原位显示结果，可再来一个。
  * 整个窗体可拖动（app-region-drag），交互件一律 no-drag。
@@ -132,7 +132,7 @@ export function MiniWindow() {
     body = (
       <>
         <div className="min-w-0 flex-1">
-          <div className="text-ink-2 flex items-center gap-2 whitespace-nowrap text-[15px]">
+          <div className="text-ink-2 flex items-center gap-2 text-[15px] whitespace-nowrap">
             <PresetDot presetId={session.presetId} className="size-2" />
             <span className="truncate">{session.boundTitle ?? nameOf(session.presetId)}</span>
             <span className={cn(timing.paused ? "text-warn font-medium" : "text-ink-3")}>
@@ -198,7 +198,7 @@ export function MiniWindow() {
     body = (
       <>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 whitespace-nowrap text-[15px]">
+          <div className="flex items-center gap-2 text-[15px] whitespace-nowrap">
             {result.saved ? (
               <Check className="text-ok size-4 flex-none" strokeWidth={2.4} />
             ) : (
@@ -242,9 +242,9 @@ export function MiniWindow() {
   }
 
   return (
-    <div className="app-region-drag bg-surface text-ink-1 font-tau group fixed inset-0 select-none overflow-hidden text-base antialiased">
+    <div className="app-region-drag bg-surface text-ink-1 font-tau group fixed inset-0 overflow-hidden text-base antialiased select-none">
       <div
-        className="relative flex h-full w-full items-center gap-3 pb-0.5 pl-5 pr-[15px]"
+        className="relative flex h-full w-full items-center gap-3 pr-[15px] pb-0.5 pl-5"
         style={{ zoom }}
       >
         {body}

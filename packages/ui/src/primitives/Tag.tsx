@@ -1,8 +1,7 @@
 /**
- * Tag —— 值展示标签（A+B 结合 II「点 + 软底」，mockups/tag/plan-ab-dot-soft.html，
- * 2026-09-19 定稿）。
+ * Tag —— 值展示标签（「点 + 软底」形制）。
  *
- * soft 底 + 同系 solid 文字（B 的色块扫读）+ 可选 solid 色点（A 的色相焦点）：
+ * soft 底 + 同系 solid 文字（色块扫读）+ 可选 solid 色点（色相焦点）：
  * 三层同色阶，Notion select 选项标签语感。无色 = 无分类——默认 gray 走
  * group 底 + ink-2 文字且恒无点。纯展示 span：非交互、无命中要求；
  * onRemove 数据驱动显 ×（button + aria-label，伪元素把热区扩到 24、
@@ -24,7 +23,7 @@ const TAG_STYLES: Record<TagColor, { shell: string; dot: string }> = {
   orange: { shell: "bg-accent-soft text-accent-text", dot: "bg-accent" },
   yellow: { shell: "bg-warn-soft text-warn", dot: "bg-warn" },
   green: { shell: "bg-ok-soft text-ok", dot: "bg-ok" },
-  // gray = 无分类：surface 亮底 + line-1 描边（D-009 行内药丸口径——白卡上同底靠描边显形）
+  // gray = 无分类：surface 亮底 + line-1 描边（行内药丸口径——白卡上同底靠描边显形）
   gray: { shell: "border-line-1 bg-surface text-ink-2 border", dot: "" },
   blue: { shell: "bg-info-soft text-info", dot: "bg-info" },
   purple: { shell: "bg-tag-3-soft text-tag-3", dot: "bg-tag-3" },

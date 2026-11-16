@@ -1,5 +1,5 @@
 /**
- * SearchPalette —— 全局命令面板（D-003）。
+ * SearchPalette —— 全局命令面板。
  *
  * 一个入口承载两种搜索：内容（FTS+向量混合，防抖 250ms）与命令/页面（navigation.ts
  * 同源）。结果区为相关性平铺：命令组置顶，内容不分组、不收起，按检索管线返回的
@@ -7,7 +7,7 @@
  * 空态「最近访问 + 常用」只收无参可重放的 single 页（isReplayableVisit）：二级页
  * （card-detail/article-detail）缺 id 不可回跳，既不记录也不展示。
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
- * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
+ * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为。
  *
  * 输入即记录：任何查询都附带「添加待办：…」一行（识别出日期 / 时刻时再加「添加日程：…」），
  * 放在末尾（↑ 从首项回绕即达），不抢搜索的回车；回车落库。日期时刻词表与日程 / 待办快速添加同源
@@ -778,7 +778,7 @@ export function SearchPalette() {
           )}
         >
           {/* 输入行：scope 徽章 + 输入框 + 清空 */}
-          <div className="flex items-center gap-2.5 px-4 pb-2.5 pt-3.5">
+          <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2.5">
             <Search size={17} strokeWidth={1.75} className="text-ink-3 flex-none" />
             {capture && (
               <button
@@ -891,7 +891,7 @@ export function SearchPalette() {
               groups.map((g, gi) => (
                 <div key={gi}>
                   {g.label && (
-                    <div className="text-ink-3 text-tau-tiny flex select-none items-center gap-2 px-2.5 pb-1 pt-2.5 tracking-wide">
+                    <div className="text-ink-3 text-tau-tiny flex items-center gap-2 px-2.5 pt-2.5 pb-1 tracking-wide select-none">
                       {g.label}
                       {g.count !== undefined && (
                         <span className="ml-auto tabular-nums">{g.count}</span>
@@ -975,7 +975,7 @@ export function SearchPalette() {
           </div>
 
           {/* 底栏快捷键提示 */}
-          <div className="text-ink-2 text-tau-tiny flex flex-none select-none flex-wrap items-center gap-3.5 px-3.5 py-2">
+          <div className="text-ink-2 text-tau-tiny flex flex-none flex-wrap items-center gap-3.5 px-3.5 py-2 select-none">
             <span>
               <Kbd>↑↓</Kbd> 选择
             </span>

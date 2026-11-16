@@ -33,7 +33,7 @@ export function AssistDock() {
   const sidebarWidth = useShellStore(s => s.sidebarWidth);
   const sidebarCollapsed = useShellStore(s => s.sidebarCollapsed);
   const setOpen = useShellStore(s => s.setAssistOpen);
-  // 页面自带对话栏（D-070）时停靠栏让位，开合状态保留，离开该页即恢复
+  // 页面自带对话栏时停靠栏让位，开合状态保留，离开该页即恢复
   const owned = useAssistOwned(currentKey);
   const visible = open && !HIDDEN_ON.has(currentKey ?? "") && !owned;
 
@@ -133,7 +133,7 @@ function AssistResizer() {
       onChange={setWidth}
       side="right"
       label="AI 对话栏宽度"
-      className="absolute -left-2 bottom-4 top-4 z-10"
+      className="absolute top-4 bottom-4 -left-2 z-10"
     />
   );
 }

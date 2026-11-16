@@ -1,5 +1,5 @@
 /**
- * 侧栏「白板」入口的子项（日记 D-044 同款侧栏嵌套）：各标签（按使用次数排）+ 无标签。
+ * 侧栏「白板」入口的子项（日记同款侧栏嵌套）：各标签（按使用次数排）+ 无标签。
  * 白板页在栈顶时于入口下方展开，点击经页面参数 id 收窄到该标签（`tag:<名>` / `untagged`），
  * 再点当前项回到全部。右键标签可清理（从所有白板上摘掉）。页内因此不放标签栏。
  */
@@ -29,7 +29,7 @@ export function WhiteboardNavTags({
     onSelect(scopeId(scope) === scopeId(current) ? "" : scopeId(scope));
 
   return (
-    <div className="mb-1 mt-0.5 space-y-px" role="group" aria-label="白板标签">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="白板标签">
       {tags.map(tag => (
         <ContextMenu
           key={tag.name}

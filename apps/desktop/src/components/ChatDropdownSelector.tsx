@@ -34,10 +34,10 @@ interface ChatDropdownSelectorProps {
 }
 
 /**
- * 对话标题行（D-048 tau 化，停靠栏 / 项目 / PDF / 视频笔记对话共用）：
+ * 对话标题行（停靠栏 / 项目 / PDF / 视频笔记对话共用）：
  * 标题 ▾ = 会话切换 Popover（搜索 + 置顶在前的会话列表；新建对话走输入框 ＋）；
  * ⋯ = 重命名 / 删除（删除走 ConfirmDialog）。
- * 分支在对话内部的会话树上（M4-d），在用户消息的 ‹ i/n › 切换，不在这里。
+ * 分支在对话内部的会话树上，在用户消息的 ‹ i/n › 切换，不在这里。
  */
 const ChatDropdownSelector = memo(
   ({
@@ -122,14 +122,14 @@ const ChatDropdownSelector = memo(
                 type="button"
                 disabled={disabled}
                 title="切换对话"
-                className="hover:bg-hover aria-expanded:bg-hover text-tau-body text-ink-1 ease-tau-out -ml-1 flex min-w-0 max-w-full items-center gap-1 rounded-[8px] px-1.5 py-1 font-semibold transition-colors duration-[160ms]"
+                className="hover:bg-hover aria-expanded:bg-hover text-tau-body text-ink-1 ease-tau-out -ml-1 flex max-w-full min-w-0 items-center gap-1 rounded-[8px] px-1.5 py-1 font-semibold transition-colors duration-[160ms]"
               >
                 <span className="min-w-0 truncate">{title}</span>
                 <ChevronDown size={14} strokeWidth={1.75} className="text-ink-3 shrink-0" />
               </button>
             }
           >
-            <div className="border-line-1 bg-surface mb-1 mr-2.5 flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
+            <div className="border-line-1 bg-surface mr-2.5 mb-1 flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
               <Search size={13} strokeWidth={1.75} className="text-ink-3 shrink-0" />
               <input
                 autoFocus

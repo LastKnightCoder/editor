@@ -1,12 +1,12 @@
 /**
- * 对话正文排版（D-048）：段距 0.5em，列表用原生 marker（ink-3），引用 = 2px 引线 + 淡墨，
+ * 对话正文排版：段距 0.5em，列表用原生 marker（ink-3），引用 = 2px 引线 + 淡墨，
  * 表格 = line-1 描边圆角内框。颜色全部走 --tau-*，深浅主题无需 isDark 分支。
  * 桌面与浏览器扩展的对话 markdown 共用；代码、链接、文档引用由各端按自身能力覆盖。
  */
 
 import { cn } from "@tau/ui";
 
-/** 行内代码：surface 亮底 + line-1 描边 chip（D-009） */
+/** 行内代码：surface 亮底 + line-1 描边 chip */
 export const INLINE_CODE_CLASS =
   "border-line-1 bg-page font-tau-mono text-ink-1 mx-px rounded-[5px] border px-[5px] py-px text-[0.88em]";
 

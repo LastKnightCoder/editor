@@ -120,7 +120,6 @@ const Cell: React.FC<CellProps> = memo(
   }) => {
     const restoreFocus = useContext(DatabaseFocusContext);
     const finishing = useRef(false);
-    // 检查列级别和全局 readonly
     const isColumnReadonly = Boolean(readonly || column.readonly);
 
     const handleDoubleClick = useMemoizedFn(() => {
@@ -134,7 +133,6 @@ const Cell: React.FC<CellProps> = memo(
       onValueChange(rowId, columnId, value);
     });
 
-    // 设置单元格编辑器状态
     const { draftValue, startEditing, handleChange, finishEdit } = useCellEditor(
       value,
       handleValueChange,
@@ -151,7 +149,6 @@ const Cell: React.FC<CellProps> = memo(
       }
     }
 
-    // 处理失焦事件（保存单元格）
     const handleFinishEdit = useMemoizedFn((restore = false) => {
       if (isColumnReadonly) return;
       if (!finishing.current) {
@@ -162,7 +159,6 @@ const Cell: React.FC<CellProps> = memo(
       if (restore) queueMicrotask(() => restoreFocus?.());
     });
 
-    // 处理单击选择或编辑
     const handleClick = useMemoizedFn(() => {
       const editable = plugin?.editable;
       if (isColumnReadonly) return;
@@ -217,9 +213,9 @@ const Cell: React.FC<CellProps> = memo(
         onDoubleClick={handleDoubleClick}
       >
         {isSelected ? (
-          <div className="border-accent pointer-events-none absolute left-0 top-0 box-border h-full w-full border-2" />
+          <div className="border-accent pointer-events-none absolute top-0 left-0 box-border h-full w-full border-2" />
         ) : (
-          <div className="border-line-2 absolute right-0 top-0 h-full border-r" />
+          <div className="border-line-2 absolute top-0 right-0 h-full border-r" />
         )}
         {column.isPrimary && row && plugin?.type !== "unsupported" ? (
           <PrimaryColumnRenderer

@@ -1,5 +1,5 @@
 /**
- * 树谱面板（M4-d）：逐行渲染、树形语义（role=tree / aria-level）、当前分支标记、点击回调、运行中禁用。
+ * 树谱面板：逐行渲染、树形语义（role=tree / aria-level）、当前分支标记、点击回调、运行中禁用。
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";

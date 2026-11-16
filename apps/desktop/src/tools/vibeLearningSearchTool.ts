@@ -86,7 +86,6 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
         });
       }
 
-      // 格式化资源列表
       const formattedResources = resources.map(r => ({
         resourceId: r.id,
         name: r.name,
@@ -342,7 +341,6 @@ export const createVibeLearningSearchTool = (
     const { query, limit = 5 } = args as { query: string; limit?: number };
 
     try {
-      // 调用后端搜索
       const results = (await searchVLContent({
         projectId,
         mainDbName,

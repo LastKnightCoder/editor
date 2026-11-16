@@ -1,4 +1,4 @@
-// 月历网格（定稿 D 交互 + A 视觉）：周一起始、固定 6 行、今天品牌实底圆、选中品牌浅底圆环、
+// 月历网格：周一起始、固定 6 行、今天品牌实底圆、选中品牌浅底圆环、
 // 事件彩点 ≤3 超出「·N」；折叠态仅保留选中周行（week-only，把手动画由外层承载）。
 // 两个高亮圆都画在数字盒（26px）之外一圈 36px：数字盒固定尺寸才能保证各周行高一致。
 // 格高 62、彩点 mt-8 都跟着 36px 圆走，改圆径必须同步这三个值（外层折叠 max-height 亦然）。
@@ -46,7 +46,7 @@ function MonthGridImpl({
     : cells.filter((_, index) => Math.floor(index / 7) === selectedWeekIndex);
 
   return (
-    <div id="calendar-month-grid" className="select-none px-3">
+    <div id="calendar-month-grid" className="px-3 select-none">
       <div className="grid grid-cols-7">
         {WEEKDAY_HEADERS.map((label, index) => (
           <span
@@ -80,7 +80,7 @@ function MonthGridImpl({
                   26px 的圆紧贴两位数，选中/今天看起来像"字把圆撑满了"。
                   圆底 = 6 + 26 + 5 = 37，故彩点行下移到 40 才留得下 3px 间隙，
                   格高 62 才容得下「彩点 + ·N」（48~60） */}
-              <span className="relative grid h-[26px] w-[26px] place-items-center text-[14.5px] font-bold leading-[1.2]">
+              <span className="relative grid h-[26px] w-[26px] place-items-center text-[14.5px] leading-[1.2] font-bold">
                 {isToday || isSelected ? (
                   <span
                     aria-hidden

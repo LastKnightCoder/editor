@@ -1,5 +1,5 @@
 /**
- * `$` 点名 Skill（D-060）：输入框里打 `$` 弹出 Skill 列表，选中后插入行内芯片；
+ * `$` 点名 Skill：输入框里打 `$` 弹出 Skill 列表，选中后插入行内芯片；
  * 发送时 ChatInputArea 从芯片取出 folderName，随消息交给 agent 注入 SKILL.md 全文。
  * `/` 仍归编辑器的块命令面板，两者互不干扰。
  */

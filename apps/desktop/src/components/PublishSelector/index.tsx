@@ -16,7 +16,6 @@ interface PublishSelectorProps {
 const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
   const [activeTab, setActiveTab] = useState<PublishContentType>("card");
 
-  // 加载选择状态
   const {
     isItemSelected,
     batchToggle: rawBatchToggle,
@@ -58,13 +57,11 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     [rawUpdateEntityScope]
   );
 
-  // 加载内容
   const { cards, articles, projects, isLoading, loadContent } = useContentLoader();
 
   // 项目树缓存
   const [projectTrees, setProjectTrees] = useState<Map<number, DocTreeNode[]>>(new Map());
 
-  // 初始化加载
   useEffect(() => {
     loadSelections();
     loadContent();
@@ -87,7 +84,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     [cards, articles, projects]
   );
 
-  // 构建卡片标签树
   const cardTree = useMemo(() => buildCardTagTree(cards), [cards]);
 
   // 切换卡片选择
@@ -126,7 +122,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     [batchToggle]
   );
 
-  // 加载项目树
   const handleLoadProjectTree = useCallback(async (entity: Project): Promise<DocTreeNode[]> => {
     const project = entity as Project;
     const nodes = await buildProjectTree(project);

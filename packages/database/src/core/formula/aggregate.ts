@@ -24,7 +24,8 @@ export function aggregatesFor(valueType: ValueType | null): AggregateOp[] {
 
 /** 汇总结果：counts 恒为整数计数；numeric 需按列格式化 */
 export type AggregateValue =
-  { kind: "count"; value: number } | { kind: "numeric"; value: number | null };
+  | { kind: "count"; value: number }
+  | { kind: "numeric"; value: number | null };
 
 const isEmpty = (value: Scalar) => value === null || value === "";
 
@@ -100,7 +101,7 @@ function computeOf(op: AggregateOp): DatabaseAggregateDefinition["compute"] {
 }
 
 /**
- * 内置 9 个算子以扩展同构声明（D-137）：表尾经登记表求值，公式仍走上面的 aggregate()。
+ * 内置 9 个算子以扩展同构声明：表尾经登记表求值，公式仍走上面的 aggregate()。
  * 取值口径与 aggregate() 逐值一致；唯一差异是 numeric 算子遇到非全数字值时
  * aggregate() 报错、compute 返回 null（两者在表尾都显示「—」）。
  */

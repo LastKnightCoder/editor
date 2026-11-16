@@ -1,8 +1,8 @@
 /**
- * Select 基础件 —— 数据驱动单选（API 形态与排除记录见 D-007）。
+ * Select 基础件 —— 数据驱动单选。
  *
  * 单组件无复合子组件：选项集合就是 options 数据——搜索是一行 filter、分组是 group
- * 字段、异步是换数组；M1 的多选（value: V[]）与虚拟化（列表区换 VirtualList）都
+ * 字段、异步是换数组；多选（value: V[]）与虚拟化（列表区换 VirtualList）都
  * 不需要动 API 形状。字段名与 antd 对齐（value/label/disabled），存量用法直映。
  *
  * 行为内建（不做成 props）：
@@ -10,19 +10,19 @@
  *    Home·End 首末 / type-ahead 400ms 窗口（非 searchable）/ Tab 关闭并自然移出
  *  - aria：触发器 combobox + 弹层 listbox + aria-activedescendant 指向高亮项；
  *    选中（bg-selected + Check，当前值）与高亮（bg-hover，键盘停留行）两态并存
- *  - 定位复用 D-004 引擎（computeAnchoredPosition("bottom") + gap 4）：下方放不下
+ *  - 定位复用锚定引擎（computeAnchoredPosition("bottom") + gap 4）：下方放不下
  *    翻上方（动画方向跟随）；弹层 min-width = 触发器宽（matchTriggerWidth，默认开）
  *  - 外点关闭（pointerdown capture）· 选中即关 · 焦点归还触发器 ·
  *    scroll(capture)/resize/内容尺寸 → rAF 合并重定位（照 Tooltip 的跟随模式）
  *  - Esc：仅 open 态在组件 DOM 上消费（preventDefault + stopPropagation）——焦点链
  *    即 LIFO（Esc 归焦点所在的浮层，嵌套浮层逐层退场），closed 态零参与；不进
- *    D-003 全局注册表（那是命令面板等壳层浮层的仲裁，ui 基础件不反向依赖 page/）
+ *    全局注册表（那是命令面板等壳层浮层的仲裁，ui 基础件不反向依赖 page/）
  *
  * 表单控件家族口径：触发器与弹层内搜索框 = surface 亮底 + line-1 描边 + radius-sm——「浮起物」语感，白卡上同底靠描边显形。
  * 层级 z-[250]（命令面板 101 < Select/Menu 250 < Tooltip 300 < Dialog 340 < Toast 360）。
  *
- * 明确不做（M0）：多选/标签模式（M1 value: V[]）· 异步 loading prop（换数组即异步，
- * 过渡态用 emptyText）· 虚拟化（M1）· renderOption 逃生舱（label: ReactNode 已覆盖
+ * 明确不做：多选/标签模式（value: V[]）· 异步 loading prop（换数组即异步，
+ * 过渡态用 emptyText）· 虚拟化 · renderOption 逃生舱（label: ReactNode 已覆盖
  * 富行；触发器回填 label 本体，富 label 请保持单行紧凑）。
  */
 
@@ -161,7 +161,7 @@ export function Select<V = string>({
     createValue.length > 0 &&
     !options.some(o => String(o.value) === createValue);
 
-  /** 高亮在可见序列上环游 / 边缘直达 / type-ahead（与 Menu 共用的交集，D-007） */
+  /** 高亮在可见序列上环游 / 边缘直达 / type-ahead（与 Menu 共用的交集） */
   const nav = useListNavigation<number>({
     items: () => visible.map((_, i) => i),
     isDisabled: i => visible[i]?.disabled === true,
@@ -219,7 +219,7 @@ export function Select<V = string>({
     triggerRef.current?.focus();
   };
 
-  /** 定位生命周期收口 useAnchoredPosition（D-014）；min-width 在 onPlace 设置，
+  /** 定位生命周期收口 useAnchoredPosition；min-width 在 onPlace 设置，
    *  第二遍精调时同步布局已带上新宽度 */
   useAnchoredPosition({
     open,

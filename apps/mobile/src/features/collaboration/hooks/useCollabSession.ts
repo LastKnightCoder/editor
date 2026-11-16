@@ -1,4 +1,4 @@
-// 协作编辑视图的标准组合（设计稿 03）：文档绑定（含失败重试）+ presence 上报 +
+// 协作编辑视图的标准组合：文档绑定（含失败重试）+ presence 上报 +
 // owner 侧投影 + 稳定状态徽标。详情页原地编辑与独立协作编辑页共用，
 // 避免两页各自拼装四个 hook 与派生逻辑。
 import type { ContentCollaborationBinding } from "@tau/editor-collab";

@@ -63,11 +63,9 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       };
     }, []);
 
-    // 获取看板配置
     const kanban = getViewOptions<KanbanViewConfig>(viewConfig, "kanban");
     const groupColumnId = kanban?.groupColumnId;
 
-    // 获取分组列
     const groupColumn = useMemo(() => {
       return columns.find(col => col.id === groupColumnId);
     }, [columns, groupColumnId]);
@@ -128,13 +126,11 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
 
     const handleMoveColumn = useMemoizedFn(
       (dragGroupValue: CellValue, hoverGroupValue: CellValue) => {
-        // 更新列顺序配置
         if (!groupColumn || !pluginManager.hasCapability(groupColumn.type, "singleOption")) return;
 
         const selectConfig = groupColumn.config as { options?: SelectOption[] };
         const options = selectConfig?.options || [];
 
-        // 获取当前的 columnOrder
         const currentOrder = kanban?.columnOrder || options.map(opt => opt.id);
 
         // 找到拖拽和悬停的索引
@@ -217,7 +213,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
           )}
           ref={scrollParentRef}
         >
-          <div className="flex h-full w-max gap-2 px-2 pb-2 pt-3">
+          <div className="flex h-full w-max gap-2 px-2 pt-3 pb-2">
             {groupedData.map((group, index) => (
               <KanbanColumn
                 key={group.value == null ? "__uncategorized__" : String(group.value)}

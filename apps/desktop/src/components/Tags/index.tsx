@@ -108,7 +108,7 @@ interface TagsProps {
   style?: React.CSSProperties;
   noWrap?: boolean;
   onClick?: (tag: string, event: React.MouseEvent) => void;
-  /** 兼容保留：D-021 裁决标签不迁图标，传值不生效 */
+  /** 兼容保留：标签不迁图标，传值不生效 */
   showIcon?: boolean;
   hoverAble?: boolean;
   lastChild?: ReactNode;

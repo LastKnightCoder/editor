@@ -1,5 +1,5 @@
 /**
- * Notification 基础件 —— 右上角通知卡栈（mockups/notification/，承载方案 A + 卡片 V4）。
+ * Notification 基础件 —— 右上角通知卡栈。
  *
  * 与 Toast 分工：Toast 是「你刚做了什么」的一句话回执；Notification 承载不是当下操作
  * 引发的事件（协作者、应用更新、后台任务），有来源 / 标题 / 说明，常需作答。

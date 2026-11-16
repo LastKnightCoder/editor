@@ -1,4 +1,4 @@
-// 协作编辑页（设计稿 03 方案 A）：screen 层，按 documentId 去重，同一文档只保留一份编辑实例。
+// 协作编辑页：screen 层，按 documentId 去重，同一文档只保留一份编辑实例。
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";

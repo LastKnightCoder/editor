@@ -4,7 +4,7 @@
  * React 19.2 `<Activity mode="visible|hidden">`：非激活实例 state+DOM 保留、
  * effect 自动停驻——切页零丢失的核心。LRU 超限条目卸载（上限 MAX_LIVE_PAGES）。
  * 页面切换默认无转场（桌面即时感，蓝图 §3.7 取舍清单）；同一对象两页都在时由
- * PageProvider 走共享元素形变（morph.ts，D-106），按 data-page-id / data-page-active 定位页面。
+ * PageProvider 走共享元素形变（morph.ts），按 data-page-id / data-page-active 定位页面。
  * 每页一个错误边界：单页渲染崩溃只替换该页内容区，侧栏 / 标题栏 / 其它保活页不受影响。
  */
 

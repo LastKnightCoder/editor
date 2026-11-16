@@ -118,7 +118,7 @@ describe("logger 模块", () => {
     expect(fs.existsSync(freshSession)).toBe(true);
     // 非 session 前缀的文件不清理
     expect(fs.existsSync(unrelated)).toBe(true);
-    // 清洁版（D-091）收尾后旧版单文件日志的清理兼容已删除，logs 目录外的遗留文件不再动
+    // 旧版单文件日志的清理兼容已删除，logs 目录外的遗留文件不再动
     expect(fs.existsSync(legacyNotes)).toBe(true);
   });
 });

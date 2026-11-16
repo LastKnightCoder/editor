@@ -1,5 +1,5 @@
 /**
- * Skill 整页编辑器（D-060）：左侧该 Skill 的文件树（透明底，沿用纸面），右侧编辑区。
+ * Skill 整页编辑器：左侧该 Skill 的文件树（透明底，沿用纸面），右侧编辑区。
  * SKILL.md 双视图——「编辑」= front-matter 表单（名称 / 描述 / 仅手动）+ 富文本正文，「源码」= 整份 md；
  * 其它 .md 用富文本，其余文件用等宽文本框。⌘S 保存；切文件 / 离开页面时有未保存改动先确认。
  * 内置 / 关联目录的 Skill 只读打开。
@@ -74,7 +74,8 @@ const README = "SKILL.md";
 
 type ViewMode = "visual" | "source";
 type EntryPrompt =
-  { kind: "new-file" | "new-folder"; dir: string } | { kind: "rename"; file: SkillFile };
+  | { kind: "new-file" | "new-folder"; dir: string }
+  | { kind: "rename"; file: SkillFile };
 
 /* ── 文件树 ── */
 
@@ -130,7 +131,7 @@ function FileTree({
     });
 
   return (
-    <nav aria-label="Skill 文件" className="flex w-[232px] shrink-0 flex-col py-5 pl-3.5 pr-2.5">
+    <nav aria-label="Skill 文件" className="flex w-[232px] shrink-0 flex-col py-5 pr-2.5 pl-3.5">
       <div className="text-tau-sm text-ink-3 flex h-7 items-center gap-1 px-2">
         <span className="flex-1">文件</span>
         {!readonly && (
@@ -208,7 +209,7 @@ function FileTree({
               {!readonly && !isReadme && (
                 <span
                   onClick={e => e.stopPropagation()}
-                  className="opacity-0 focus-within:opacity-100 group-hover/row:opacity-100"
+                  className="opacity-0 group-hover/row:opacity-100 focus-within:opacity-100"
                 >
                   <Menu
                     align="start"
@@ -291,7 +292,7 @@ function ReadmeHeader({
         onChange={e => set("title", e.target.value)}
         placeholder={folderName}
         aria-label="名称"
-        className="placeholder:text-ink-3 w-full bg-transparent text-[28px] font-semibold leading-[1.3] tracking-[-0.01em] outline-none"
+        className="placeholder:text-ink-3 w-full bg-transparent text-[28px] leading-[1.3] font-semibold tracking-[-0.01em] outline-none"
       />
       {/* 调用方式：与卡片开关、抽屉「设置」同一份本机状态，三处永远一致 */}
       <div className="text-tau-sm text-ink-3 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -319,7 +320,7 @@ function ReadmeHeader({
         )}
       </div>
 
-      <div className="border-line-1 bg-surface focus-within:border-accent mt-5 rounded-[12px] border px-4 pb-2.5 pt-3 transition-[border-color,box-shadow] duration-150 focus-within:shadow-[var(--tau-focus-ring)]">
+      <div className="border-line-1 bg-surface focus-within:border-accent mt-5 rounded-[12px] border px-4 pt-3 pb-2.5 transition-[border-color,box-shadow] duration-150 focus-within:shadow-[var(--tau-focus-ring)]">
         <div className="text-tau-sm text-ink-3 mb-1 flex items-center gap-1.5">
           <Radar className="size-3.5" strokeWidth={1.75} />
           AI 看到的描述 · 据此决定何时加载
@@ -332,7 +333,7 @@ function ReadmeHeader({
           placeholder="例如：把一周的日记、已完成待办和日程整理成周报。用户提到「周报」「本周总结」时使用。"
           aria-label="描述"
           rows={2}
-          className="text-tau-body text-ink-1 placeholder:text-ink-3 block w-full resize-none bg-transparent leading-[1.7] outline-none [field-sizing:content]"
+          className="text-tau-body text-ink-1 placeholder:text-ink-3 block [field-sizing:content] w-full resize-none bg-transparent leading-[1.7] outline-none"
         />
         <div className={cn("text-tau-sm mt-1", hint.tone)}>{hint.text}</div>
       </div>
@@ -538,7 +539,7 @@ export function SkillEditView() {
     );
   } else if (isMarkdown && mode === "visual") {
     editorArea = (
-      <div className="mx-auto w-full max-w-[760px] px-9 pb-12 pt-6">
+      <div className="mx-auto w-full max-w-[760px] px-9 pt-6 pb-12">
         {isReadme && doc && (
           <ReadmeHeader
             meta={doc.meta}
@@ -565,7 +566,7 @@ export function SkillEditView() {
   } else {
     codeView = true;
     editorArea = (
-      <div className="border-line-1 mx-9 mb-6 mt-2 flex min-h-0 min-w-0 flex-1 flex-col rounded-[12px] border py-1.5 pr-1">
+      <div className="border-line-1 mx-9 mt-2 mb-6 flex min-h-0 min-w-0 flex-1 flex-col rounded-[12px] border py-1.5 pr-1">
         <FadeScroll className="min-h-0 flex-1 py-1">
           <SkillCodeEditor
             key={`${selected}:${editorVersion}`}
@@ -582,7 +583,7 @@ export function SkillEditView() {
   const relPath = selected.startsWith(skillPath) ? selected.slice(skillPath.length + 1) : selected;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸（同微信读书笔记页）：文件树是纸内左栏，开关在面包屑 */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {detail && showTree && (
@@ -601,7 +602,7 @@ export function SkillEditView() {
           />
         )}
         <section className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 shrink-0 items-center gap-2.5 pl-9 pr-5 pt-2">
+          <header className="flex h-14 shrink-0 items-center gap-2.5 pt-2 pr-5 pl-9">
             <span className="font-tau-mono text-ink-2 min-w-0 truncate text-[12px]">{relPath}</span>
             {readonly ? (
               <span className="text-tau-sm text-ink-3 inline-flex items-center gap-1">

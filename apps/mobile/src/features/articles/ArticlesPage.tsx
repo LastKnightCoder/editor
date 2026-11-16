@@ -1,4 +1,4 @@
-// 文章列表（v1.1 设计稿）：置顶特写卡 + 杂志式卡片流；
+// 文章列表：置顶特写卡 + 杂志式卡片流；
 // 打开即编辑（无阅读/预览切换），入口收敛在「我的 · 功能」Hub。
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -154,13 +154,13 @@ export function ArticlesPage(props: ArticlesPageProps) {
       onClick={() => props.onOpenArticle(article.id)}
     >
       <ArticleCover article={article} variant="feature">
-        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-[rgba(255,253,249,.88)] px-2.5 py-1 text-[11px] font-bold text-[#4a3a2c] backdrop-blur">
+        <span className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-[rgba(255,253,249,.88)] px-2.5 py-1 text-[11px] font-bold text-[#4a3a2c] backdrop-blur">
           <Star size={11} fill="currentColor" />
           置顶
         </span>
       </ArticleCover>
       <div className="p-4">
-        <p className="text-ink-1 mobile-reading-font text-[18.5px] font-extrabold leading-snug tracking-tight">
+        <p className="text-ink-1 mobile-reading-font text-[18.5px] leading-snug font-extrabold tracking-tight">
           {article.title}
         </p>
         <p className="text-ink-2 mobile-reading-font mt-1.5 line-clamp-2 text-[13px] leading-relaxed">
@@ -203,7 +203,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
       onClick={() => props.onOpenArticle(article.id)}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="text-ink-1 mobile-reading-font line-clamp-2 text-[15.5px] font-bold leading-normal">
+        <p className="text-ink-1 mobile-reading-font line-clamp-2 text-[15.5px] leading-normal font-bold">
           {article.title}
         </p>
         <p className="text-ink-2 mobile-reading-font mt-1 line-clamp-2 text-[12.5px] leading-relaxed">
@@ -270,7 +270,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
           </div>
         ) : (
           <>
-            <div className="text-ink-3 mb-3.5 mt-1 flex items-center gap-2 px-0.5 text-xs tabular-nums">
+            <div className="text-ink-3 mt-1 mb-3.5 flex items-center gap-2 px-0.5 text-xs tabular-nums">
               <b className="text-ink-2 font-bold">{articles.length}</b> 篇 · 共{" "}
               <b className="text-ink-2 font-bold">{totalWords.toLocaleString()}</b> 字
             </div>
@@ -282,7 +282,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
                       key={virtualRow.key}
                       ref={virtualizer.measureElement}
                       data-index={virtualRow.index}
-                      className="text-ink-3 absolute left-0 right-0 py-4 text-center text-xs"
+                      className="text-ink-3 absolute right-0 left-0 py-4 text-center text-xs"
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
                       {isFetchingNextPage ? "正在加载更多…" : "继续滚动加载"}
@@ -295,7 +295,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
                     key={virtualRow.key}
                     ref={virtualizer.measureElement}
                     data-index={virtualRow.index}
-                    className="absolute left-0 right-0 pb-2.5"
+                    className="absolute right-0 left-0 pb-2.5"
                     style={{ transform: `translateY(${virtualRow.start}px)` }}
                   >
                     {article.isTop

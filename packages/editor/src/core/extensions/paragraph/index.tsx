@@ -6,7 +6,6 @@ import Paragraph from "./components/Paragraph";
 
 import { defineElement, defineExtension } from "../../api";
 
-// 创建一个 memo 化的渲染器组件
 const MemoizedParagraphRenderer = React.memo(
   ({ element, attributes, children }: RenderElementProps) => {
     return (

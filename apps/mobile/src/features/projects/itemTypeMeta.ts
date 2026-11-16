@@ -1,4 +1,4 @@
-// 项目节点的八种类型：图标 + 语义色（与设计稿的类型图标体系一致）
+// 项目节点的八种类型：图标 + 语义色
 import { FileText, Globe, FileDown, Clapperboard, Presentation, Table2 } from "lucide-react";
 import type { ProjectItem } from "../../types";
 

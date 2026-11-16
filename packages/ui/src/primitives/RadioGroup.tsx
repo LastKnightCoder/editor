@@ -1,5 +1,5 @@
 /**
- * RadioGroup —— 单选组（Input 方案 A 语言，mockups/radio/，2026-09-19 定稿）。
+ * RadioGroup —— 单选组。
  *
  * fieldset/legend 承载组语义，原生 radio 组行为白送：Tab 一次进组（选中项/
  * 首个可用项）、方向键移动即选择、组内互斥。组合式 children（描述行只有

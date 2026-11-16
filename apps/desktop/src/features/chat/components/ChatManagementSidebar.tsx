@@ -70,8 +70,8 @@ type GroupDialogState = {
 } | null;
 
 /**
- * 「全部会话」管理面板（D-048 tau 化）：分组 / 子分组树、未分组、已归档折叠、置顶、
- * 拖入分组、归档、移动、分组重命名 / 删除。分支在对话内部（M4-d），不在列表里。放在 ChatLibraryDialog 里，也作 legacy
+ * 「全部会话」管理面板：分组 / 子分组树、未分组、已归档折叠、置顶、
+ * 拖入分组、归档、移动、分组重命名 / 删除。分支在对话内部，不在列表里。放在 ChatLibraryDialog 里，也作 legacy
  * 对话管理页左栏（撑满高度、内部滚动）。
  */
 const ChatManagementSidebar = memo(

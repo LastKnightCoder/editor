@@ -1,8 +1,8 @@
 /**
- * Tooltip 基础件 —— Portal + 自研 JS mini 定位引擎（选型与排除记录见 D-004）。
+ * Tooltip 基础件 —— Portal + 自研 JS mini 定位引擎。
  *
- * Portal（body 追加 fixed 元素）+ 自研 mini 定位引擎（D-004；定位生命周期收口
- * useAnchoredPosition，箭头复用 FloatingArrow——D-014 四家共用底盘），中间件链：
+ * Portal（body 追加 fixed 元素）+ 自研 mini 定位引擎（定位生命周期收口
+ * useAnchoredPosition，箭头复用 FloatingArrow 四家共用底盘），中间件链：
  * offset（间距 8）→ flip（主轴放不下翻对侧）→ shift（交叉轴夹回视口，边距 8）→
  * arrow（锚点中心在边缘上的投影，两端各留 10px）。
  *
@@ -11,7 +11,7 @@
  * disabled 子元素自动包 wrapper（pointer 事件被吞）；锚点位置变化时 rAF 跟随（动态锚，
  * 如趋势图 hover 热区随鼠标移动）；scroll(capture)/resize 重算。
  * 反相配色复用 bg-ink-1 / text-ink-inverse（深浅主题各自反相，对比度由 token 保障）。
- * 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-003 口径）；
+ * 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的口径）；
  * 不承载可交互内容——可点的说明浮层是 Popover/Menu 的职责。
  */
 
@@ -40,7 +40,7 @@ import { FloatingArrow } from "./FloatingArrow";
 import { mergeRefs } from "./mergeRefs";
 import { useAnchoredPosition } from "./useAnchoredPosition";
 
-/** 引擎类型的历史名（D-004 起对外暴露；D-014 引擎更名后保留别名，存量引用不动） */
+/** 引擎类型的历史名（引擎更名后保留别名，存量引用不动） */
 export type TooltipPlacement = AnchoredPlacement;
 export type TooltipSide = AnchoredSide;
 export type TooltipAlign = AnchoredAlign;
@@ -105,7 +105,7 @@ export function Tooltip({
   }, [disabled]);
 
   // open 期间的定位生命周期（双遍进场 / scroll(capture)/resize/内容尺寸跟随 /
-  // rAF 轮询动态锚）收口在 useAnchoredPosition（D-014 四家共用）；
+  // rAF 轮询动态锚）收口在 useAnchoredPosition（四家共用）；
   // 此处只声明 Tooltip 特有的衍生写入
   useAnchoredPosition({
     open,

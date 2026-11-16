@@ -1,5 +1,5 @@
 /**
- * 协作页（mockups/collaboration/plan-a-desk.html · A3 侧栏嵌套定稿）。
+ * 协作页（侧栏嵌套）。
  *
  * 会话目录不在页内：共享内容挂在全局侧栏「协作」之下（CollaborationNavSessions），
  * 页面是一整张纸：纸顶工具栏，纸内即协作副本（CollaborationRoom 不再自带卡片外壳）。

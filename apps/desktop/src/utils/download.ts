@@ -27,7 +27,6 @@ export const downloadFile = async (url: string, fileName?: string) => {
   const defaultFileName = url.split("/").pop()?.split("?")[0] || "download";
   const finalFileName = fileName || defaultFileName;
 
-  // 调用 Electron 主进程，弹出保存对话框并下载
   const savedPath = await downloadFileWithDialog(url, finalFileName);
 
   if (!savedPath) {

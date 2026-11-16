@@ -1,5 +1,5 @@
 /**
- * 白板卡片（方案 A 画廊，mockups/whiteboards/plan-a2-gallery.html）：
+ * 白板卡片（画廊）：
  * 缩略图 + 标题 + 一行描述 + 「N 页 · N 个元素 · 更新时间」；标签作徽标压在缩略图左下角。
  * 缩略图：自定义封面优先，否则第一页的结构示意图（schematic.ts，由页数据直接生成）；多页白板在缩略图上横向移动即翻页，
  * 点下去打开的就是看到的那页。悬停件（页名、页码刻度、更多）都占固定槽位原位淡入，不顶开布局。
@@ -125,7 +125,7 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
       className={cn(
         "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer flex-col rounded-[var(--tau-radius-lg)] border p-1.5",
         // 落在白板页那张纸上：细描边分隔（同文章 / 卡片卡），纸上再叠阴影卡会糊成一片。
-        // hover 无位移（D-013「反馈是光的」），反馈 = lift 轻抬阴影 + 描边隐去
+        // hover 无位移（「反馈是光的」），反馈 = lift 轻抬阴影 + 描边隐去
         "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent",
         "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none"
       )}
@@ -181,13 +181,13 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
               <Files className="size-[11px]" strokeWidth={1.75} />
               {item.pages.length} 页
             </span>
-            <span className="text-tau-tiny text-ink-2 bg-surface/90 shadow-lift ease-tau-out pointer-events-none absolute left-2 top-2 inline-flex h-[22px] max-w-[calc(100%-60px)] items-center gap-1.5 rounded-[7px] px-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+            <span className="text-tau-tiny text-ink-2 bg-surface/90 shadow-lift ease-tau-out pointer-events-none absolute top-2 left-2 inline-flex h-[22px] max-w-[calc(100%-60px)] items-center gap-1.5 rounded-[7px] px-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
               <b className="font-tau-mono text-ink-3 text-[11px] font-medium">
                 {shownIndex + 1}/{item.pages.length}
               </b>
               <span className="truncate">{shownPage?.name || "未命名"}</span>
             </span>
-            <div className="ease-tau-out pointer-events-none absolute bottom-2 left-2.5 right-2.5 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+            <div className="ease-tau-out pointer-events-none absolute right-2.5 bottom-2 left-2.5 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
               {item.pages.map((p, i) => (
                 <i
                   key={p.id}
@@ -204,7 +204,7 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
 
       {/* 更多：固定槽位淡入；菜单开着时保持可见 */}
       <div
-        className="ease-tau-out absolute right-3.5 top-3.5 z-[1] opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100"
+        className="ease-tau-out absolute top-3.5 right-3.5 z-[1] opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100"
         onClick={e => e.stopPropagation()}
       >
         <Menu
@@ -223,12 +223,12 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
       </div>
 
       {/* 主体 */}
-      <div className="flex min-w-0 flex-1 flex-col px-2 pb-1.5 pt-2.5">
-        <h3 className="text-ink-1 truncate text-[14px] font-semibold leading-[1.45]">
+      <div className="flex min-w-0 flex-1 flex-col px-2 pt-2.5 pb-1.5">
+        <h3 className="text-ink-1 truncate text-[14px] leading-[1.45] font-semibold">
           <Highlight text={displayTitle(item)} query={query} />
         </h3>
         <p className="text-tau-meta text-ink-2 mt-px h-5 truncate">{item.description}</p>
-        <p className="text-ink-3 mt-1.5 flex items-center gap-1.5 whitespace-nowrap text-[12px] tabular-nums">
+        <p className="text-ink-3 mt-1.5 flex items-center gap-1.5 text-[12px] whitespace-nowrap tabular-nums">
           <span>{item.pages.length} 页</span>
           <Dot />
           <span>{item.elementCount} 个元素</span>

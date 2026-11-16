@@ -187,7 +187,7 @@ const extractSkillRefsFromEditorContent = (content: Descendant[]): string[] => {
 
 /** 工具行右侧 chip（模型 / 思考强度）：无底，hover 淡墨；Menu 触发器（透传 props / ref） */
 /**
- * 对话输入区（D-048 tau 化 · 二轮 mockups/chat/composer.html）：附件预览 → 编辑器
+ * 对话输入区：附件预览 → 编辑器
  * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / 文件 / 引用 / 新对话 / MCP 收进
  * 一个向上展开的面板）｜ 右 上下文用量环 · 模型 · 思考强度 · 停止 / 发送，任何宽度都只占一行。
  * 外框（surface + line-1，聚焦 accent 线 + 焦点环）由容器负责，本组件只排内容。
@@ -643,7 +643,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       </Menu>
     ) : null;
 
-    // 工具权限模式（D-060）：只在完整对话输入框出现（行内 AI 等不跑需要确认的工具）
+    // 工具权限模式：只在完整对话输入框出现（行内 AI 等不跑需要确认的工具）
     const currentPermission = TOOL_PERMISSION_MODES.find(m => m.value === permissionMode);
     const permissionMenu = showMcpManager ? (
       <Menu

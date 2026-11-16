@@ -3,7 +3,7 @@
  *
  * 命令源消费 app/navigation.ts 的真实模块清单（分组/图标与侧边栏同源，单一事实源），
  * 外加真实可执行的动作（切换深浅主题）；未接线的动作不进面板。
- * 内容详情页（card-detail 等）迁移前，内容命中跳对应模块列表页（D-003 注记）。
+ * 内容详情页（card-detail 等）迁移前，内容命中跳对应模块列表页。
  */
 
 import {
@@ -200,7 +200,7 @@ export function paletteCommands(): PaletteCommand[] {
         ]
       : []),
     {
-      // 知识地图入口在标题栏，不在侧边栏（D-095）
+      // 知识地图入口在标题栏，不在侧边栏
       id: "page:knowledge-map",
       label: "知识地图",
       section: "知识",

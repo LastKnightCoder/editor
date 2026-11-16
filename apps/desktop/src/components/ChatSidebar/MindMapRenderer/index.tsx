@@ -21,7 +21,6 @@ const DEFAULT_HEIGHT = 400;
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 800;
 
-// 生成简单的哈希值作为唯一标识
 const hashCode = (str: string): string => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -75,7 +74,6 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
       [height, setHeight]
     );
 
-    // 解析 Markdown 列表为 MindMapNodeData
     const { data, error } = useMemo(() => {
       if (!debouncedCode.trim()) {
         return { data: null, error: null };

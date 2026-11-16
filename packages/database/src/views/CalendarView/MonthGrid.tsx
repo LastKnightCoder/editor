@@ -96,7 +96,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       return () => resizeObserver.disconnect();
     }, []);
 
-    // 计算月视图的日期网格
     const dateGrid = useMemo(() => {
       const daysInMonth = getDaysInMonth(year, month);
       const firstDay = getFirstDayOfMonth(year, month);
@@ -122,10 +121,8 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       return grid;
     }, [year, month]);
 
-    // 计算实际的行数
     const totalRows = useMemo(() => Math.ceil(dateGrid.length / 7), [dateGrid]);
 
-    // 获取某一天的事件
     const getEventsForDay = (day: number): CalendarRowEvent[] => {
       const dayDate = dayjs()
         .year(year)
@@ -140,7 +137,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       });
     };
 
-    // 计算事件的渲染信息
     const getEventRenderInfo = (event: CalendarRowEvent) => {
       const eventStart = dayjs(event.startDate).startOf("day");
       const eventEnd = event.endDate ? dayjs(event.endDate).startOf("day") : eventStart;
@@ -155,8 +151,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         .month(month - 1)
         .endOf("month");
 
-      // 检查事件是否与当月有交集
-      // 如果事件结束时间早于月初，或者事件开始时间晚于月末，则不显示
       if (eventEnd.isBefore(monthStart) || eventStart.isAfter(monthEnd)) {
         return { spans: [] };
       }
@@ -165,7 +159,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       const displayStart = eventStart.isBefore(monthStart) ? monthStart : eventStart;
       const displayEnd = eventEnd.isAfter(monthEnd) ? monthEnd : eventEnd;
 
-      // 获取显示范围内的日期数字
       const startDay = displayStart.date();
       const endDay = displayEnd.date();
 
@@ -185,7 +178,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
       const spans: EventSpan[] = [];
 
-      // 计算跨越的行
       const startRow = Math.floor(startIndex / 7);
       const endRow = Math.floor(endIndex / 7);
 
@@ -238,7 +230,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       return { spans };
     };
 
-    // 获取应该在顶部布局区域渲染的所有事件信息
     const topLayoutEvents = useMemo(() => {
       if (!events || events.length === 0) return [];
 
@@ -256,7 +247,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [events, year, month, dateGrid]);
 
-    // 计算每行的事件布局 - 使用新算法
     const rowEventLayout = useMemo(() => {
       // 动态计算每行可显示的最大事件层级数
       const rowHeight = containerHeight / totalRows;
@@ -268,7 +258,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       const availableHeight = rowHeight - dateAreaHeight - moreButtonHeight;
       const maxEventLevels = Math.max(1, Math.floor(availableHeight / eventHeight));
 
-      // 转换为算法需要的格式（模拟 CalendarEvent 类型）
+      // 模拟 CalendarEvent 类型以适配布局算法
       const eventsForAlgorithm = topLayoutEvents.map(({ event, renderInfo }) => ({
         event: {
           id: event.id,
@@ -285,13 +275,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         "durationFirst"
       );
 
-      // 转换为需要的格式
       const layout: Map<
         number,
         Array<{ event: CalendarRowEvent; span: EventSpan; level: number }>
       > = new Map();
 
-      // 初始化所有行
       for (let i = 0; i < totalRows; i++) {
         layout.set(i, []);
       }
@@ -322,7 +310,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       return layout;
     }, [topLayoutEvents, containerHeight, totalRows]);
 
-    // 处理日期范围拖拽
     const handleMouseDown = useMemoizedFn((index: number, e: React.MouseEvent) => {
       if (readonly) return;
       e.preventDefault();
@@ -382,7 +369,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       }
     }, [isDragging, handleMouseUp]);
 
-    // 处理事件右键菜单
     const handleEventContextMenu = useMemoizedFn((e: React.MouseEvent, event: CalendarRowEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -411,7 +397,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       }
     }, [contextMenuPosition, handleCloseContextMenu]);
 
-    // 判断日期是否在拖拽选择范围内
     const isInDragRange = (index: number): boolean => {
       if (!isDragging || dragStartIndex === null || dragEndIndex === null) {
         return false;
@@ -474,7 +459,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             const dayEvents = getEventsForDay(day);
             const isTodayDate = isToday(dayDate);
 
-            // 计算当前单元格所在行需要的事件区域高度
             const rowSpans = rowEventLayout.get(row) || [];
             const maxLevel =
               rowSpans.length > 0 ? Math.max(...rowSpans.map(item => item.level)) : -1;
@@ -497,7 +481,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             const totalEvents = dayEvents.length;
             const moreCount = totalEvents - displayedTopCount;
 
-            // 计算实际的日期索引（排除空白格）
             const validDayIndex = dateGrid.slice(0, index).filter(d => d !== null).length;
 
             const inDragRange = isInDragRange(validDayIndex);
@@ -620,7 +603,6 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                   const startDate = dayjs(event.startDate);
                   const endDate = event.endDate ? dayjs(event.endDate) : startDate;
 
-                  // 判断是否是跨天事件（日期不同）
                   const isMultiDay = !startDate.isSame(endDate, "day");
 
                   // 根据配置决定显示时间还是"全天"

@@ -163,7 +163,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const [sendLoading, setSendLoading] = useState(false);
 
-  // 更新对话标题
   const onTitleChange = useMemoizedFn(async (title: string) => {
     try {
       await rename(currentChat.id, title);
@@ -173,13 +172,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   });
 
-  // 处理对话选择
   const handleChatSelect = useMemoizedFn((chatId: string) => {
     chatContainerRef.current?.scrollToTop();
     select(chatId);
   });
 
-  // 处理对话删除
   const handleChatDelete = useMemoizedFn(async (chatId: string) => {
     try {
       await remove(chatId);
@@ -190,10 +187,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   });
 
-  // 代码 / 链接渲染与对话页共用（D-048）；可预览块走 BlockPreview 上下文
+  // 代码 / 链接渲染与对话页共用；可预览块走 BlockPreview 上下文
   const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "vl-block" });
 
-  // 加载中状态
   if (!loaded) {
     return <Loading minHeight={0} />;
   }

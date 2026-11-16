@@ -1,5 +1,5 @@
 // 卡组详情页：概要条 + 搜索 + 状态筛选 + 卡片列表。
-// 批量操作（风格①长按 + ②菜单叠加，设计稿 flashcard-batch-design.html）：
+// 批量操作（长按 + 菜单叠加）：
 // 长按任一卡 0.6s 或 ⋯ 菜单「批量管理」进入多选；底部纸面浮条见 CardBatchBar。
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";

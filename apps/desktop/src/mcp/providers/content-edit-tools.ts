@@ -179,7 +179,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
     toolName: context?.toolName,
   });
 
-  // 工具权限模式（D-060）为自动允许编辑 / 跳过确认时按直接改落地；反馈续改（forceReview）始终走审阅
+  // 工具权限模式为自动允许编辑 / 跳过确认时按直接改落地；反馈续改（forceReview）始终走审阅
   const forceReview = context?.toolContext?.flags?.forceReview === true;
   const autoApply = !forceReview && !requiresApproval("write", getToolPermissionMode());
   const agent = presenceAgentOf(context);

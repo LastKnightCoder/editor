@@ -28,7 +28,7 @@ export interface TextContent {
   type: "text";
   text: string;
   mentions?: MentionRef[];
-  /** 本条消息用 `$` 点名的 Skill（folderName），发送时注入全文（D-060） */
+  /** 本条消息用 `$` 点名的 Skill（folderName），发送时注入全文 */
   skills?: string[];
 }
 
@@ -158,12 +158,12 @@ export interface MessageVersions {
 export interface RequestMessage {
   clientId?: string;
   /**
-   * 对应的 pi 会话 entry id（M4：从 JSONL 投影出来的消息才有）。改历史操作（删除/编辑重发/
+   * 对应的 pi 会话 entry id（从 JSONL 投影出来的消息才有）。改历史操作（删除/编辑重发/
    * 重新生成）按它定位，不能靠 clientId——迁移数据的 clientId 是旧值。
    */
   piEntryIds?: string[];
   /**
-   * 会话树上同一位置的全部版本（M4-d：编辑重发/重新生成/从这里建分支产生的兄弟）。
+   * 会话树上同一位置的全部版本（编辑重发/重新生成/从这里建分支产生的兄弟）。
    * ids 为各版本用户消息的 entry id（写入顺序），index 是本条是第几个；只有一个版本时不带。
    */
   piVersions?: MessageVersions;
@@ -192,7 +192,7 @@ export interface ResponseMessage {
 export type ChatSessionMessage = RequestMessage | ResponseMessage;
 
 /**
- * 一个已打开的对话（M4：会话目录行 + pi JSONL 投影出的消息）。注意与 ChatComponents 的
+ * 一个已打开的对话（会话目录行 + pi JSONL 投影出的消息）。注意与 ChatComponents 的
  * ChatMessage（单条消息）区分，桌面历史代码以 `ChatMessage` 名字消费本类型。
  *
  * id 即 pi 会话 id（字符串）：新对话在渲染端生成 id，目录表里查不到就是草稿，

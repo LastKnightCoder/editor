@@ -88,15 +88,12 @@ const getResourceType = (fileName: string): VLResourceType => {
 const extractNameFromUrl = (url: string): string => {
   try {
     const urlObj = new URL(url);
-    // 移除 www. 前缀
     const hostname = urlObj.hostname.replace(/^www\./, "");
-    // 获取路径的最后一部分作为标题的一部分
     const pathParts = urlObj.pathname.split("/").filter(Boolean);
     if (pathParts.length > 0) {
       const lastPart = pathParts[pathParts.length - 1];
       // 解码 URL 编码的字符
       const decoded = decodeURIComponent(lastPart);
-      // 移除文件扩展名
       const withoutExt = decoded.replace(/\.[^.]+$/, "");
       if (withoutExt && withoutExt.length > 0 && withoutExt.length < 100) {
         return `${withoutExt} - ${hostname}`;
@@ -108,7 +105,6 @@ const extractNameFromUrl = (url: string): string => {
   }
 };
 
-// 验证 URL 格式
 const isValidUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
@@ -122,7 +118,6 @@ const isValidUrl = (url: string): boolean => {
 const extractTitleFromHtml = (html: string): string | null => {
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   if (titleMatch && titleMatch[1]) {
-    // 清理标题：去除多余空白、HTML 实体等
     return titleMatch[1]
       .trim()
       .replace(/&nbsp;/g, " ")
@@ -194,7 +189,6 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     webviewLoadReject.current = null;
   });
 
-  // 打开弹窗时重置状态
   useEffect(() => {
     if (open) {
       resetState();
@@ -498,7 +492,6 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     }
   });
 
-  // 返回视频输入步骤
   const handleVideoBack = videoResolver.reset;
 
   // 笔记：EntityPicker 的类型 → 资料里记录的笔记类型

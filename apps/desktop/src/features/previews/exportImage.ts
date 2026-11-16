@@ -1,5 +1,5 @@
 /**
- * 块预览的导出小工具（D-057）：下载 Blob、SVG → PNG。
+ * 块预览的导出小工具：下载 Blob、SVG → PNG。
  * 画布类（导图 / 白板）截图仍走 utils/snapdom-export。
  */
 

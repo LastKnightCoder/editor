@@ -69,11 +69,9 @@ const IconPicker: React.FC<IconPickerProps> = ({
       const items = e.clipboardData?.items;
       if (!items) return;
 
-      // 遍历剪贴板项，查找图片
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
 
-        // 检查是否为图片类型
         if (item.type.indexOf("image") !== -1) {
           e.preventDefault();
           const file = item.getAsFile();
@@ -86,10 +84,8 @@ const IconPicker: React.FC<IconPickerProps> = ({
       }
     };
 
-    // 添加事件监听
     document.addEventListener("paste", handlePaste);
 
-    // 清理函数
     return () => {
       document.removeEventListener("paste", handlePaste);
     };
@@ -117,7 +113,7 @@ const IconPicker: React.FC<IconPickerProps> = ({
       key: "upload",
       label: "上传图片",
       children: (
-        <div className="min-w-[360px] px-5 pb-5 pt-3">
+        <div className="min-w-[360px] px-5 pt-3 pb-5">
           <FileDropZone
             accept="image/*"
             onFile={handleDroppedFile}
@@ -144,7 +140,7 @@ const IconPicker: React.FC<IconPickerProps> = ({
         centered
       />
       {hasIcon && onRemoveIcon && (
-        <div className="border-line-2 border-t px-4 pb-4 pt-3">
+        <div className="border-line-2 border-t px-4 pt-3 pb-4">
           <Button variant="danger-soft" icon={Trash2} block onClick={onRemoveIcon}>
             移除图标
           </Button>

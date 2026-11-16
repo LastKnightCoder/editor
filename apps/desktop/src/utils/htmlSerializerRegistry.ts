@@ -69,7 +69,6 @@ export class HtmlSerializerRegistry {
   serializeLeaf(leaf: FormattedText, _options?: HtmlSerializerOptions): string {
     let html = this.escapeHtml(leaf.text);
 
-    // Handle empty text
     if (!html) {
       return "";
     }
@@ -157,7 +156,6 @@ export class HtmlSerializerRegistry {
       return pluginSerializer.toHtml(element as unknown as Record<string, unknown>);
     }
 
-    // Get the serializer for this element type
     const serializer = this.getSerializer(type);
     if (serializer) {
       const result = serializer.toHtml(element, childrenHtml, parentElement, options);

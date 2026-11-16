@@ -202,7 +202,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       return componentsVersionRef.current;
     }, [markdownComponents]);
 
-    // 生成缓存键
     const metaKey = `${messageMeta?.chatId ?? "none"}-${messageMeta?.messageIndex ?? "none"}-${messageMeta?.blockIndex ?? "none"}-${messageMeta?.isStreaming ?? false}`;
     const highlightKey = highlightText ? `${JSON.stringify(highlightText)}-` : "";
     const cacheKey = `${highlightKey}${componentsVersion}-${metaKey}-${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;

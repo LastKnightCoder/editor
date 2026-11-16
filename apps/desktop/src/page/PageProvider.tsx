@@ -3,13 +3,13 @@
  *
  * 职责：持有栈机状态、暴露 navigator 命令对象（push/replace/back/forward/popToTop）、
  * Esc 关闭浮层（LIFO，无浮层时不操作）、match 去重（single/params 命中即激活不新建）、
- * 后退/前进的共享元素形变（源页与保活中的目标页声明了同一 morph key 才转场，D-106）。
+ * 后退/前进的共享元素形变（源页与保活中的目标页声明了同一 morph key 才转场）。
  *
  * 栈操作以 action 走 reducer、由 React 串行归约：同一 tick 内连续导航不会互相覆盖
  * （去重判定也在 reducer 内基于 prev 做，不依赖渲染期的 stateRef 桥）。
  *
  * 刻意未做（接线点见 03 指南）：window.history 同步（桌面不需要，栈机即唯一真相源）、
- * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-002）、
+ * 浮层导航（dialog/drawer 不经 definePage）、
  * 结果通道 pushForResult、实例级 store。
  */
 
@@ -41,7 +41,7 @@ export interface Navigator {
   current(): sm.PageEntry | undefined;
 }
 
-/** 注册浮层退场回调，返回注销函数（LIFO：Esc 先关最上层浮层，见 D-003）。 */
+/** 注册浮层退场回调，返回注销函数（LIFO：Esc 先关最上层浮层）。 */
 export type RegisterOverlayDismiss = (dismiss: () => void) => () => void;
 
 /** 页面级槽位注入（面包屑）：按 page key 注册，仅栈顶页的内容被显示 */
@@ -137,7 +137,7 @@ export function PageProvider({
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // 浮层退场注册表（D-003）：Map 保插入序，Esc 取最后注册者（LIFO 最上层）
+  // 浮层退场注册表：Map 保插入序，Esc 取最后注册者（LIFO 最上层）
   const overlayDismissers = useRef(new Map<number, () => void>());
   const nextOverlayId = useRef(1);
   const registerOverlayDismiss = useMemo<RegisterOverlayDismiss>(() => {
@@ -201,8 +201,8 @@ export function PageProvider({
   }, []);
 
   // Esc 仲裁（03 指南 §5）：只承担浮层退场（注册表 LIFO，浮层输入框里的 Esc
-  // 同义）；无浮层时无操作——后退由 Alt+←/→ 与标题栏按钮承担（2026-09-20
-  // 用户裁决移除 Esc=后退：详情页误触即丢编辑上下文）。
+  // 同义）；无浮层时无操作——后退由 Alt+←/→ 与标题栏按钮承担（已移除
+  // Esc=后退：详情页误触即丢编辑上下文）。
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.isComposing) return;

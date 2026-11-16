@@ -1,11 +1,11 @@
 /**
- * 日记页 · 方案 D「一整张纸」（mockups/diary/plan-d-sheet.html 定稿，D-044）：
+ * 日记页 · 一整张纸：
  * 一整张 surface 纸：纸顶工具栏（标题 / 频道 + 摘要 + 那年今日 · 按日期 · 搜索）→ 纸身：
- * 按天倒序的 Feed（A 的排版）+ 右缘月份刻度 + 纸底停靠输入条（C 的输入）+ 那年今日抽屉。
+ * 按天倒序的 Feed + 右缘月份刻度 + 纸底停靠输入条 + 那年今日抽屉。
  *
  * 页面参数：id = 标签频道（侧栏子项，`tag:<名>` / `untagged`，空 = 全部）；
  * date = 外部定位到某天（搜索面板 / 首页等入口），定位后清掉筛选并闪一下那天的条目。
- * 删除不二次确认：立即消失 + Toast 撤销，5 秒后才落库；离开页面立即落库（D-040 同口径）。
+ * 删除不二次确认：立即消失 + Toast 撤销，5 秒后才落库；离开页面立即落库。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -337,12 +337,12 @@ export function DiaryView() {
         : `${shortDate(range[0], today)} – ${shortDate(range[1], today)}`));
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：工具栏固定在纸顶，纸身放 Feed / 月份刻度 / 输入条 / 抽屉（同 Skill 页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 工具栏 */}
         <div className="mt-5 flex h-10 flex-none items-center gap-3 px-8">
-          <h1 className="text-tau-title-lg flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-[-0.01em]">
+          <h1 className="text-tau-title-lg flex shrink-0 items-center gap-2 font-semibold tracking-[-0.01em] whitespace-nowrap">
             日记
             {scope.kind !== "all" && (
               <>
@@ -384,7 +384,7 @@ export function DiaryView() {
                 </>
               ))}
             {range && (
-              <span className="bg-surface border-line-1 text-ink-1 inline-flex h-6 items-center gap-1.5 rounded-[8px] border pl-2.5 pr-1">
+              <span className="bg-surface border-line-1 text-ink-1 inline-flex h-6 items-center gap-1.5 rounded-[8px] border pr-1 pl-2.5">
                 {rangeLabel}
                 <IconButton
                   title="清除时间筛选"
@@ -408,7 +408,7 @@ export function DiaryView() {
             </IconButton>
           )}
           <CalendarPopover today={today} stats={stats} range={range} onRange={setRange} />
-          <label className="bg-surface border-line-1 focus-within:border-accent flex h-[30px] w-[220px] items-center gap-2 rounded-[10px] border pl-2.5 pr-2 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
+          <label className="bg-surface border-line-1 focus-within:border-accent flex h-[30px] w-[220px] items-center gap-2 rounded-[10px] border pr-2 pl-2.5 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
             {searching ? (
               <Loader2 className="text-ink-3 size-[14px] animate-spin" strokeWidth={1.75} />
             ) : (
@@ -532,7 +532,7 @@ export function DiaryView() {
           />
 
           {/* 输入条：停靠在纸底，同底色不加横线；上沿渐隐让流自然没入 */}
-          <div className="relative z-[4] flex-none pb-3.5 pt-1 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-7 before:bg-gradient-to-t before:from-[var(--tau-bg-surface)] before:to-transparent">
+          <div className="relative z-[4] flex-none pt-1 pb-3.5 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-7 before:bg-gradient-to-t before:from-[var(--tau-bg-surface)] before:to-transparent">
             <div className="mx-auto max-w-[860px] px-14">
               <Composer
                 ref={composerRef}

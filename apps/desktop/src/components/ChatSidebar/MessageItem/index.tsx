@@ -99,7 +99,7 @@ const getFileContent = (message: RequestMessage): MessageViewFile[] => {
 
 /**
  * 消息适配层：把会话消息拆成 MessageView 需要的文本 / 附件 / 内容块，并接上
- * markdown、本地图片、工具调用渲染与删除确认（D-048 起全部走 @tau/ui，不再依赖 antd）。
+ * markdown、本地图片、工具调用渲染与删除确认（全部走 @tau/ui，不再依赖 antd）。
  */
 const MessageItem: React.FC<MessageItemProps> = memo(
   ({

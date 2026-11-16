@@ -1,5 +1,5 @@
 /**
- * 统一预览框（D-057）：所有对话块共用的 chrome。
+ * 统一预览框：所有对话块共用的 chrome。
  *
  *   图标 · 标题 / 类型·大小 · ‹ vN / M › · 预览⇄源码 · 专属工具 · 复制 · 全屏 · 更多 · 关闭
  *
@@ -153,7 +153,7 @@ export function BlockPreviewFrame({
 
   return (
     <div ref={rootRef} className={cn("bg-surface flex h-full min-h-0 flex-col", className)}>
-      <div className="flex h-12 flex-none items-center gap-2 pl-4 pr-2.5">
+      <div className="flex h-12 flex-none items-center gap-2 pr-2.5 pl-4">
         <span className="bg-tag-3-soft text-tag-3 grid size-[26px] shrink-0 place-items-center rounded-[8px]">
           <Icon size={15} strokeWidth={1.75} />
         </span>
@@ -280,7 +280,7 @@ export function BlockPreviewFrame({
         )}
 
         {zoom && (
-          <div className="bg-surface border-line-1 shadow-lift text-tau-tiny text-ink-2 absolute bottom-2.5 right-2.5 flex items-center gap-0.5 rounded-[10px] border p-[3px]">
+          <div className="bg-surface border-line-1 shadow-lift text-tau-tiny text-ink-2 absolute right-2.5 bottom-2.5 flex items-center gap-0.5 rounded-[10px] border p-[3px]">
             <Tool label="缩小" onClick={() => latestSpec().zoom?.zoomOut()}>
               <Minus />
             </Tool>

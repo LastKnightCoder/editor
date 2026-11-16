@@ -75,13 +75,13 @@ export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
     selected: params => Boolean(params.id),
     parentResets: true,
   },
-  // 日记：标签频道是收窄视图，参数 id 为空 = 全部（D-044）
+  // 日记：标签频道是收窄视图，参数 id 为空 = 全部
   "diary-tags": {
     Component: DiaryNavTags,
     selected: params => Boolean(params.id),
     parentResets: true,
   },
-  // 白板：标签是收窄视图，参数 id 为空 = 全部（D-047）
+  // 白板：标签是收窄视图，参数 id 为空 = 全部
   "whiteboard-tags": {
     Component: WhiteboardNavTags,
     selected: params => Boolean(params.id),

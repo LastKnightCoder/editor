@@ -216,7 +216,6 @@ const VideoNotePanel = ({
     ];
   }, [videoController]);
 
-  // Load video note data
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -250,7 +249,6 @@ const VideoNotePanel = ({
     loadData();
   }, [videoNoteId]);
 
-  // Handle editor content change
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
     if (!activeNoteItem) {
       return;
@@ -261,12 +259,10 @@ const VideoNotePanel = ({
     }));
   });
 
-  // Handle editor init
   const handleEditorInit = useMemoizedFn((editor: CustomEditor) => {
     slateEditorRef.current = editor;
   });
 
-  // Handle add note button click
   const createNewNoteItem = useMemoizedFn(async () => {
     try {
       const emptyContent = createEmptyEditorContent();
@@ -366,19 +362,16 @@ const VideoNotePanel = ({
     });
   };
 
-  // 开始编辑转录片段（打开弹窗）
   const handleStartEditSegment = useMemoizedFn((index: number) => {
     setEditingSegmentIndex(index);
     setEditModalOpen(true);
   });
 
-  // 取消编辑（关闭弹窗）
   const handleCancelEditSegment = useMemoizedFn(() => {
     setEditModalOpen(false);
     setEditingSegmentIndex(null);
   });
 
-  // 保存编辑
   const handleSaveEditSegment = useMemoizedFn(async (result: { title: string }) => {
     if (editingSegmentIndex === null || !videoNote?.transcriptSegments) return;
 
@@ -388,7 +381,6 @@ const VideoNotePanel = ({
       text: result.title.trim(),
     };
 
-    // 更新本地状态
     setVideoNote(prev =>
       prev
         ? {
@@ -399,7 +391,6 @@ const VideoNotePanel = ({
         : null
     );
 
-    // 保存到数据库
     try {
       await updateVideoNoteTranscript(
         videoNoteId,
@@ -466,9 +457,8 @@ const VideoNotePanel = ({
     []
   );
 
-  // 检查是否需要自动滚动（仅当前一个高亮句子在视口中时才滚动）
+  // 仅当前一个高亮句子还在视口中时才自动滚动，避免用户手动滚动后被拉回
   const checkShouldAutoScroll = useCallback((prevIndex: number | null): boolean => {
-    // 如果没有前一个高亮句子，不滚动
     if (prevIndex === null) return false;
 
     const container = transcriptContainerRef.current;
@@ -476,7 +466,6 @@ const VideoNotePanel = ({
 
     if (!container || !prevElement) return false;
 
-    // 检查前一个元素是否在容器的可视区域内
     const containerRect = container.getBoundingClientRect();
     const elementRect = prevElement.getBoundingClientRect();
 
@@ -525,15 +514,12 @@ const VideoNotePanel = ({
   useEffect(() => {
     const video = videoElementRef.current;
 
-    // 移除旧的监听器
     if (video && timeUpdateHandlerRef.current) {
       video.removeEventListener("timeupdate", timeUpdateHandlerRef.current);
     }
 
-    // 更新 ref
     timeUpdateHandlerRef.current = handleVideoTimeUpdate;
 
-    // 添加新的监听器
     if (video) {
       video.addEventListener("timeupdate", handleVideoTimeUpdate);
     }

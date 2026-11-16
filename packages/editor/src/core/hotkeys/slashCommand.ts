@@ -7,14 +7,12 @@ export const slashCommandCommands: EditorCommand[] = [
     id: "tau.panel.backspace",
     title: "块面板删除字符",
     run: editor => {
-      // 关闭 blockPanel
       const { blockPanelVisible, ownerEditor, inputValue, reset } = useBlockPanelStore.getState();
       if (blockPanelVisible && ownerEditor === editor) {
         if (inputValue.length <= 1) {
           reset();
           return;
         }
-        // 获取当前鼠标的位置
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);

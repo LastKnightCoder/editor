@@ -1,16 +1,16 @@
 /**
- * Popover 基础件 —— 锚定式可交互内容浮层（D-014）。
+ * Popover 基础件 —— 锚定式可交互内容浮层。
  *
  * 家族分工：Tooltip 瞬态说明（hover/focus、不可交互）、Menu 命令面板、Select 表单值
  * 选择、Dialog 模态决策、Toast 回执；Popover 收「点击触发、内容可继续操作」的
  * 非模态浮层——说明卡 / 过滤器组 / 色板 / 成员卡 / 卡片预览。antd 存量 Popover 的
- * trigger="hover" 用法迁 Tooltip、placement 12 向同名直映（D-014 迁移口径）。
+ * trigger="hover" 用法迁 Tooltip、placement 12 向同名直映。
  *
  * 定位与卡片视觉组合自 AnchoredPanel（基座只有一份）；本件叠加交互层：
  *  - click toggle（hover 说明归 Tooltip，不设 trigger props；右键归 ContextMenu）
  *  - 外点关闭 + 嵌套链共存 + 顶层互斥（useLayerDismiss：浮层内开的 Menu/Select/
  *    二级 Popover 不算外点）
- *  - Esc 仅 open 态消费（焦点链 LIFO，同 Select/Menu/Dialog 口径，不进 D-003
+ *  - Esc 仅 open 态消费（焦点链 LIFO，同 Select/Menu/Dialog 口径，不进全局
  *    注册表——ui 不反向依赖 page/）；Esc/Tab 关闭还焦触发器
  *  - 打开落初始焦点：卡片内 [data-autofocus] 优先（表单放首输入框），否则卡片自身
  *  - Tab 移出即关（非模态不圈闭）
@@ -243,7 +243,7 @@ export interface PopoverHeaderProps {
 function PopoverHeader({ icon, children }: PopoverHeaderProps) {
   const root = usePopoverRoot();
   return (
-    <div className="flex items-center gap-2.5 px-4 pb-1 pt-3.5">
+    <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1">
       {icon && (
         <span className="bg-accent-soft text-accent-text flex size-[26px] shrink-0 items-center justify-center rounded-[8px] [&>svg]:size-3.5">
           {icon}

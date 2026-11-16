@@ -1,5 +1,5 @@
 /**
- * 卡片详情 page 定义（mockups/card-detail/plan-a-plain.html v2 定稿落地）。
+ * 卡片详情 page 定义。
  * params 按 id 去重——同一张卡重复进入激活同一实例；连接 chip 跳转经栈机
  * 异参原位更新（不弹栈）。
  */

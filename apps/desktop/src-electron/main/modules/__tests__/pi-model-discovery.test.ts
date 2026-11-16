@@ -1,5 +1,5 @@
 /**
- * 服务商模型实时发现（M3-f）：本地 mock 服务覆盖 OpenAI 兼容 / Ollama 原生 / Anthropic 分页三种形状，
+ * 服务商模型实时发现：本地 mock 服务覆盖 OpenAI 兼容 / Ollama 原生 / Anthropic 分页三种形状，
  * 以及目录命中时元数据以目录为准、未命中时只取服务自报字段（不瞎猜默认值）。
  */
 import http from "node:http";

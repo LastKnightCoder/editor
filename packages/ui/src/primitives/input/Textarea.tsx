@@ -1,5 +1,5 @@
 /**
- * Textarea —— 多行文本输入（与 Input 同形，mockups/input/ 方案 A）。
+ * Textarea —— 多行文本输入（与 Input 同形）。
  *
  * 与 Input 共用形制语言（surface + line-1 + focus ring）；差异只有三点：
  * 多行布局、纵向起始对齐、maxLength 传值时右下角自动出计数器

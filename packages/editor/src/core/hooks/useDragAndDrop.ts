@@ -126,7 +126,6 @@ const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: bool
   if (Path.isAncestor(dragPath, dropPath)) {
     return;
   }
-  // 判断是否是同一级别的移动
   const dragParentPath = Path.parent(dragPath);
   const dropParentPath = Path.parent(dropPath);
   if (Path.equals(dragParentPath, dropParentPath)) {

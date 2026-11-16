@@ -1,5 +1,5 @@
 /**
- * 日程页视图（方案 C · 月刊：mockups/calendar/index.html）。
+ * 日程页视图（月刊式）。
  *
  * 一整张纸：页头工具条 + 日历 chips（显隐 + 「管理日历」弹窗）+ 主视图（月 / 周 / 议程）占满宽度；
  * 当日时间线（快速添加）是纸内右侧的非模态抽屉（整张纸高度），由工具条末尾「今天 · N 项」按钮开关
@@ -72,7 +72,7 @@ export function ScheduleView() {
   }, [params.eventId, detail.data, detail.error, detail.isSuccess, detail.isError, navigator]);
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：页头 + chips 固定在纸顶，主视图占满；当日抽屉盖在纸内右侧、与纸同高 */}
       <div className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -81,7 +81,7 @@ export function ScheduleView() {
             <CalendarChips />
           </div>
           {/* 左 26px + 各视图 6px = 页头的 px-8；内容右侧留白由各视图自己补 */}
-          <div className="flex min-h-0 flex-1 flex-col pl-[26px] pr-2">
+          <div className="flex min-h-0 flex-1 flex-col pr-2 pl-[26px]">
             {error ? (
               <ErrorState
                 title="日程加载失败"

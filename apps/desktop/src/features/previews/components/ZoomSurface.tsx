@@ -1,5 +1,5 @@
 /**
- * 缩放平移画布（D-057）：给静态出图的渲染器（Mermaid / PlantUML / TikZ / Typst）统一的
+ * 缩放平移画布：给静态出图的渲染器（Mermaid / PlantUML / TikZ / Typst）统一的
  * 查看手感——拖拽平移、⌘/Ctrl + 滚轮以指针为中心缩放，缩放浮控经 usePreviewActions 交给预览框。
  * 「适应」= 回到居中 100%（内容本身按容器宽度排版）。
  */

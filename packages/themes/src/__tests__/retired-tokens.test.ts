@@ -3,14 +3,17 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * 已退役的 token 不许回流（D-034）：bg-group 夹在 page 与 surface 之间读不出层级，
+ * 已退役的 token 不许回流：bg-group 夹在 page 与 surface 之间读不出层级，
  * 替代口径——hover 填充用 bg-hover，静态容器用 surface + line-1 描边，轨道用 bg-track。
  * 扫 themes / ui / desktop / editor 四处源码。
  */
 const RETIRED = /\bbg-group\b|--tau-bg-group|--color-group\b/;
-const ROOTS = ["..", "../../../ui/src", "../../../../apps/desktop/src", "../../../editor/src/core"].map(
-  p => resolve(import.meta.dirname, p)
-);
+const ROOTS = [
+  "..",
+  "../../../ui/src",
+  "../../../../apps/desktop/src",
+  "../../../editor/src/core",
+].map(p => resolve(import.meta.dirname, p));
 const EXT = /\.(tsx?|css)$/;
 
 function walk(dir: string, out: string[] = []): string[] {

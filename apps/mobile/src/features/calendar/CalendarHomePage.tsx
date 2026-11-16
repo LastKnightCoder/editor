@@ -1,4 +1,4 @@
-// 日历主页（定稿：D 交互 + A 视觉）——月份标题/把手均可逆切换月历与选中周条，
+// 日历主页——月份标题/把手均可逆切换月历与选中周条，
 // 切换保留选中日与列表位置；月历 6 周范围一次拉取，彩点与列表同源派生。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -286,7 +286,7 @@ export function CalendarHomePage({
     setExpanded(previous => !previous);
   }, []);
 
-  // 折叠动画：max-height + opacity 过渡（对齐定稿 elastic-month 弹性曲线）；
+  // 折叠动画：max-height + opacity 过渡（elastic-month 弹性曲线）；
   // 折叠时月历网格只渲染选中周行（week-only）。整页单滚动后此处只用 max-height 裁剪，
   // 不再自带滚动条（否则又变成「网格内滚动 + 列表内滚动」的两段式）
   const expandLabel = expanded ? "收起月历" : "展开月历";
@@ -326,7 +326,7 @@ export function CalendarHomePage({
         ref={scrollRef}
         className="edge-fade-scroll mobile-page-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
       >
-        <div className="flex flex-none items-center justify-between px-[18px] pb-0.5 pt-1">
+        <div className="flex flex-none items-center justify-between px-[18px] pt-1 pb-0.5">
           <button
             type="button"
             className="text-ink-1 min-h-[44px] cursor-pointer text-left text-[20px] font-extrabold tracking-[0.3px]"
@@ -420,7 +420,7 @@ export function CalendarHomePage({
           }
         />
 
-        <div className="text-ink-1 flex flex-none items-baseline gap-2 px-5 pb-1.5 pt-3.5">
+        <div className="text-ink-1 flex flex-none items-baseline gap-2 px-5 pt-3.5 pb-1.5">
           <span className="text-[16px] font-extrabold">{dayHead.day}</span>
           <span className="text-accent text-[12px] font-bold">{dayHead.weekday}</span>
           <span className="text-ink-3 ml-auto text-[11.5px] font-bold">

@@ -12,7 +12,6 @@ interface ProgressRendererProps {
 }
 
 const ProgressRenderer: React.FC<ProgressRendererProps> = memo(({ value }) => {
-  // 确保 value 是正确的格式
   const progressValue =
     value && typeof value === "object" && "current" in value && "target" in value
       ? (value as ProgressValue)

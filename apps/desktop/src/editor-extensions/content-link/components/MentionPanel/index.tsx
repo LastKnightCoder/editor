@@ -1,5 +1,5 @@
 /**
- * @ 引用面板（D-048 二轮换皮，外观与输入框 ＋ 面板同一套 ComposerPanel）：
+ * @ 引用面板（外观与输入框 ＋ 面板同一套 ComposerPanel）：
  *  - 编辑器在对话输入框里（祖先带 COMPOSER_ANCHOR_ATTR）→ 从输入框上沿向上展开、与外框同宽；
  *  - 其它编辑器（文档正文等）→ 仍跟随光标，320px 宽，优先右下、空间不够翻转。
  * 搜索 / 键盘（↑↓ Enter Esc Backspace 在 hotkeys/mentionCommand）/ 选中逻辑不变。
@@ -181,7 +181,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       className="fixed z-[250] max-w-[calc(100vw-16px)]"
       style={panelStyle}
     >
-      <div className="text-tau-body text-ink-1 flex items-center gap-2 px-3.5 pb-1 pt-3">
+      <div className="text-tau-body text-ink-1 flex items-center gap-2 px-3.5 pt-3 pb-1">
         <Search size={15} strokeWidth={1.75} className="text-ink-3 shrink-0" />
         <span className="min-w-0 truncate">
           {query ? (
@@ -196,7 +196,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
         {loading && <Spinner className="ml-auto size-3.5 border-[1.5px]" />}
       </div>
       {!loading && searchResults.length === 0 ? (
-        <div className="text-tau-sm text-ink-3 px-3.5 pb-4 pt-3">没有找到相关内容</div>
+        <div className="text-tau-sm text-ink-3 px-3.5 pt-3 pb-4">没有找到相关内容</div>
       ) : (
         <List query={query} />
       )}

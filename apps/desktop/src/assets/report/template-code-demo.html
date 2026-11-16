@@ -2067,7 +2067,6 @@ function threeWayPartition(arr, lo, hi) {
             if (this.currentStep === step) return;
             this.currentStep = step;
 
-            // Remove all active states
             this.steps.forEach(s => s.classList.remove('active'));
             this.codeLines.forEach(l => l.classList.remove('highlighted'));
 

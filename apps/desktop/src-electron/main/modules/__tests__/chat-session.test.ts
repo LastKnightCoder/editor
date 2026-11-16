@@ -1,5 +1,5 @@
 /**
- * pi 会话目录表（M4）：按场景过滤、置顶排序、分支子树级联删除、部分更新。
+ * pi 会话目录表：按场景过滤、置顶排序、分支子树级联删除、部分更新。
  */
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

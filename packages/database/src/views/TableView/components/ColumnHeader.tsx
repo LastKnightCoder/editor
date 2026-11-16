@@ -50,7 +50,6 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     const ref = useRef<HTMLDivElement>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
-    // 处理调整大小开始
     const handleResizeStart = useMemoizedFn((e: React.MouseEvent) => {
       if (readonly) return;
       e.preventDefault();
@@ -98,7 +97,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
             return;
           }
 
-          // 执行移动，只要拖到其他列上就立即移动，不需要判断鼠标位置
+          // 只要拖到其他列上就立即移动，无需判断鼠标位置
           moveColumn(item.id, column.id);
         },
       }),
@@ -138,7 +137,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       >
         <div className="box-border flex h-full cursor-grab items-center px-2 py-2">
           <div
-            className="flex h-full flex-1 cursor-pointer items-center overflow-hidden whitespace-nowrap font-medium"
+            className="flex h-full flex-1 cursor-pointer items-center overflow-hidden font-medium whitespace-nowrap"
             title={column.title}
           >
             <ColumnIcon type={column.type} pluginManager={pluginManager} />
@@ -193,7 +192,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
             </Menu>
           )}
           <div
-            className="hover:bg-hover absolute right-[-2px] top-0 h-full w-1 cursor-col-resize bg-transparent"
+            className="hover:bg-hover absolute top-0 right-[-2px] h-full w-1 cursor-col-resize bg-transparent"
             onMouseDown={handleResizeStart}
           />
           <ConfirmDialog

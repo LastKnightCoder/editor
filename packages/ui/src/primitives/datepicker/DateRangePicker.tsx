@@ -1,5 +1,5 @@
 /**
- * DateRangePicker 基础件 —— 范围形态（B 形态并入，mockups/datepicker/ 方案 B）。
+ * DateRangePicker 基础件 —— 范围形态。
  *
  * 值形状拆分的范围侧：value: readonly [string, string] | null（两端均
  * "YYYY-MM-DD"，precision="minute" 时为 "YYYY-MM-DD HH:mm"；升序，逆序输入按升序读取）。与 DatePicker 同一引擎（CalendarPanel/弹层契约/触发器皮），
@@ -263,7 +263,7 @@ export function DateRangePickerPanel({
       <div className="flex gap-2.5">
         {presets && presets.length > 0 && (
           <div className="border-line-2 w-[128px] flex-none pr-2.5">
-            <div className="text-ink-3 px-2 pb-1.5 pt-1 text-[11px] font-[600]">常用范围</div>
+            <div className="text-ink-3 px-2 pt-1 pb-1.5 text-[11px] font-[600]">常用范围</div>
             <div className="flex flex-col gap-0.5">
               {presets.map((preset, i) => (
                 <button

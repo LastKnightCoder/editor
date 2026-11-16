@@ -1,5 +1,5 @@
 /**
- * 对话块（D-057）：模型在对话里产出的 HTML / 思维导图 / 白板 / 图表等可预览内容。
+ * 对话块：模型在对话里产出的 HTML / 思维导图 / 白板 / 图表等可预览内容。
  *
  * 渲染器声明式注册：`renderers/<Name>/index.tsx` 默认导出 defineBlockRenderer(...)，
  * 由 blockRegistry 以 glob 收集（文件即注册，无中心登记表）。渲染器只画内容本体与

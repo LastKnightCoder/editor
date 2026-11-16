@@ -1,8 +1,8 @@
 import type { Scalar, ValueType } from "./types";
 
 /**
- * 表尾聚合算子定义（D-137）：内置 9 个与扩展贡献的算子走同一结构。
- * 只服务表尾汇总；公式（FooterSpec 的 expr 形态与公式列）仍只认内置 AggregateOp（D-121）。
+ * 表尾聚合算子定义：内置 9 个与扩展贡献的算子走同一结构。
+ * 只服务表尾汇总；公式（FooterSpec 的 expr 形态与公式列）仍只认内置 AggregateOp。
  */
 export interface DatabaseAggregateDefinition {
   /** 必须带命名空间（含 "."），不得与内置 9 个或其它扩展重名 */

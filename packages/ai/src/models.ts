@@ -49,7 +49,7 @@ export interface PiCatalogModel {
 }
 
 /**
- * 从服务商 `/models` 接口实时拉到的模型（M3-f）：覆盖目录外的自建服务（Ollama/LM Studio/私有网关）
+ * 从服务商 `/models` 接口实时拉到的模型：覆盖目录外的自建服务（Ollama/LM Studio/私有网关）
  * 与目录落后于服务商新模型的情况。目录命中时元数据取目录（fromCatalog=true，与勾选目录同等可信）；
  * 否则只有接口自报的字段，缺的保持为空，不瞎猜默认值。
  */

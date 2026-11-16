@@ -1,10 +1,10 @@
 /**
- * pi 会话目录的唯一取法（M4）。开库迁移、会话宿主、改历史操作、同步打包都从这里取，
+ * pi 会话目录的唯一取法。开库迁移、会话宿主、改历史操作、同步打包都从这里取，
  * 避免两处拼法不一致导致迁移写出的文件宿主找不到。electron-free。
  *
  * - 应用对话：`~/.editor/sessions/<库名>/`，随库走（同步时整目录打包）；
- * - 浏览器扩展对话：`~/.editor/browser-sessions/<页面键>/`，与库无关、不参与同步（用户裁决：
- *   扩展对话与应用对话拆开，跟着页面走）。
+ * - 浏览器扩展对话：`~/.editor/browser-sessions/<页面键>/`，与库无关、不参与同步
+ *   （扩展对话与应用对话拆开，跟着页面走）。
  */
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, openSync, readFileSync, readdirSync, readSync } from "node:fs";

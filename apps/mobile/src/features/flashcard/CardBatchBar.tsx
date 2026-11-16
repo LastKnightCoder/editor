@@ -1,4 +1,4 @@
-// 卡片批量操作条（纸面浮条样式，设计稿 flashcard-batch-design.html 画框⑥·方案 A）：
+// 卡片批量操作条（纸面浮条样式）：
 // 移动卡组 / 改难度 / 删除（删除二次确认）。执行为逐张调用既有单卡接口，
 // 完成后统一 invalidate + toast 并退出多选（onFinished）。
 

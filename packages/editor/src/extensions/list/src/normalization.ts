@@ -22,7 +22,6 @@ export const mergeConsecutiveLists = (
   const siblings = parent.children;
   const nodeIndex = path[path.length - 1];
 
-  // 检查前一个节点是否是相同类型的列表
   if (nodeIndex > 0) {
     const prevSibling = siblings[nodeIndex - 1];
     if (SlateElement.isElement(prevSibling) && prevSibling.type === node.type) {
@@ -41,7 +40,6 @@ export const mergeConsecutiveLists = (
           });
         });
 
-        // 删除当前空列表
         Transforms.removeNodes(editor, {
           at: path,
         });

@@ -1,5 +1,5 @@
 /**
- * 对话里的代码块（D-048）：surface-hover 底 + line-1 描边，与编辑器代码块（--ed-code-bg）同色，
+ * 对话里的代码块：surface-hover 底 + line-1 描边，与编辑器代码块（--ed-code-bg）同色，
  * 头行 = 语言 + 复制；高亮器按需懒加载，加载前以纯文本等高占位（不闪「Loading」字样）。
  */
 
@@ -94,7 +94,7 @@ export function CodeBlock({
         className
       )}
     >
-      <div className="flex h-8 items-center justify-between pl-3.5 pr-1">
+      <div className="flex h-8 items-center justify-between pr-1 pl-3.5">
         <span className="text-tau-tiny text-ink-3 font-tau-mono">
           {lang === "text" ? "文本" : lang}
         </span>
@@ -123,7 +123,7 @@ export function CodeBlock({
             {code}
           </Prism>
         ) : (
-          <pre className="font-tau-mono text-ink-1 m-0 whitespace-pre text-[12.5px] leading-[1.7]">
+          <pre className="font-tau-mono text-ink-1 m-0 text-[12.5px] leading-[1.7] whitespace-pre">
             {code}
           </pre>
         )}

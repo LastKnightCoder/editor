@@ -113,7 +113,7 @@ type ContentDetailPageProps = {
     toneClass?: string;
     onOpen: () => void;
   };
-  /** 通用模式下的类型徽章（soft 底胶囊类名 + 可选图标，方案 A 定稿徽章行），卡片分类用 */
+  /** 通用模式下的类型徽章（soft 底胶囊类名 + 可选图标），卡片分类用 */
   contentTypeBadge?: { icon?: LucideIcon; className: string };
   /** 顶部全宽封面插槽（文章编辑页：真实 banner 沉浸展示，更换封面入口在列表 ⋯ 菜单） */
   coverSlot?: ReactNode;
@@ -540,7 +540,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     />
   ) : null;
 
-  // 类型徽章（方案 A 定稿）：卡片 / 文章 / 知识库 / 项目文档共用同一胶囊语言
+  // 类型徽章：卡片 / 文章 / 知识库 / 项目文档共用同一胶囊语言
   const typeBadge = props.contentType ? (
     props.contentTypeBadge ? (
       <span

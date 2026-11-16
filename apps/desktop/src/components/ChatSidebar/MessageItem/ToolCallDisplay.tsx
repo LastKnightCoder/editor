@@ -9,7 +9,7 @@ interface ToolCallDisplayProps {
   markdownComponents?: any;
 }
 
-/** 兼容入口：子代理等渲染器嵌套展示工具调用时沿用本组件，实现已收口到 ChatUI（D-048） */
+/** 兼容入口：子代理等渲染器嵌套展示工具调用时沿用本组件，实现已收口到 ChatUI */
 const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   execution,
   isDark,

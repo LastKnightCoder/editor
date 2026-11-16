@@ -36,7 +36,6 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
     wait: 500,
   });
 
-  // 生成唯一的 mermaid ID
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).substring(2, 11)}`;
   }, []);
@@ -116,12 +115,10 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       // 克隆 SVG 元素以避免修改原始元素
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
 
-      // 获取 SVG 的实际尺寸
       const bbox = svgElement.getBBox();
       const width = bbox.width || svgElement.clientWidth || 800;
       const height = bbox.height || svgElement.clientHeight || 600;
 
-      // 设置明确的尺寸属性
       clonedSvg.setAttribute("width", String(width));
       clonedSvg.setAttribute("height", String(height));
       clonedSvg.setAttribute("viewBox", `${bbox.x || 0} ${bbox.y || 0} ${width} ${height}`);

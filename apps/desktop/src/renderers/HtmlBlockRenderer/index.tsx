@@ -1,5 +1,5 @@
 /**
- * HTML 块（D-057）：模型生成的完整网页。
+ * HTML 块：模型生成的完整网页。
  *
  * 沙箱：iframe srcdoc + sandbox="allow-scripts allow-forms allow-modals"——不给 same-origin，
  * 页面是不透明源，碰不到应用本身与其它预览的存储；不给 popups / top-navigation。

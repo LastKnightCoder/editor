@@ -31,7 +31,6 @@ const handleNestedInListItemUnindent = (
   const [parentListNode, parentListPath] = parentList;
   const remainingItems = parentListNode.children.slice(currentIndex + 1);
 
-  // 计算在great-grand-parent列表中的插入位置（在grandParent之后）
   const grandParentIndex = grandParentPath[grandParentPath.length - 1];
   const insertPath = [...greatGrandParentPath, grandParentIndex + 1];
 
@@ -49,7 +48,6 @@ const handleNestedInListItemUnindent = (
     if (remainingItems.length > 0) {
       const newListType = parentListNode.type;
 
-      // 创建新列表节点
       const newList = {
         type: newListType,
         children: remainingItems,
@@ -143,7 +141,6 @@ export const unindent: EditorCommand = {
     const listItem = listItemMatch[0];
     const listItemPath = listItemMatch[1];
 
-    // 获取父级列表（ul/ol）
     const parentList = getParentNodeByNode(editor, listItem) as NodeEntry<
       BulletedListElement | NumberedListElement
     >;

@@ -67,7 +67,6 @@ const useHeaderCollapse = ({
     return (node as HeaderElement).level <= level;
   });
 
-  // Get all nodes in the header section
   const getHeaderSectionNodes = useMemoizedFn(() => {
     try {
       const nodes: { node: SlateNode; path: Path }[] = [];
@@ -102,7 +101,6 @@ const useHeaderCollapse = ({
     }
   });
 
-  // Get DOM nodes to toggle
   const getDomNodesToToggle = useMemoizedFn(() => {
     const domNodes: HTMLElement[] = [];
 
@@ -118,10 +116,8 @@ const useHeaderCollapse = ({
           return;
         }
 
-        // Get DOM node
         const domNode = ReactEditor.toDOMNode(editor, node);
 
-        // Ensure it's an HTMLElement and not the current header
         if (domNode && domNode instanceof HTMLElement) {
           domNodes.push(domNode);
         }
@@ -133,7 +129,6 @@ const useHeaderCollapse = ({
     return { domNodes };
   });
 
-  // Handle cleanup of hidden nodes' temporary styles
   useEffect(() => {
     return () => {
       // Reset all node styles on component unmount
@@ -187,7 +182,6 @@ const useHeaderCollapse = ({
         // 4. Set display:none after transition completes
         timers.push(
           setTimeout(() => {
-            // Check if collapse state is still consistent
             domNode.style.display = "none";
           }, 250)
         );
@@ -214,7 +208,6 @@ const useHeaderCollapse = ({
         // 4. Clean up styles after transition completes
         timers.push(
           setTimeout(() => {
-            // Check if collapse state is still consistent
             domNode.style.overflow = "";
             domNode.style.transition = "";
             domNode.style.height = "";

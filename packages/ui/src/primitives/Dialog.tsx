@@ -1,16 +1,16 @@
 /**
- * Dialog 基础件 —— 模态决策容器 + ConfirmDialog 语义预设（形制与行为裁决见 D-011）。
+ * Dialog 基础件 —— 模态决策容器 + ConfirmDialog 语义预设。
  *
  * 形制：体内大标题 + 上下文徽标（context）+ hairline 应答区（主按钮最右，按钮序列
  * 由 footer 提供）+ blur 遮罩；长内容滚动区接 edge fade（对齐壳层 useEdgeFade
- * 协议）。阻断通知不带 icon，文字头部与其它对话同构（D-011）。
+ * 协议）。阻断通知不带 icon，文字头部与其它对话同构。
  *
  * 行为内建（不做成 props）：
  *  - 开合动效：遮罩淡入 + 卡片 scale(0.97)+translateY(8px)，退场等长后卸载；根上带
  *    data-morph（视图转场进行中）时一步到位到终态——转场更新期间 rAF 不触发，入场
  *    动效跑不起来，浏览器要截的是终态。卡片 data-state=open|closed 供形变定位就绪
  *  - Esc：仅 open 态在卡片 DOM 消费（stopPropagation）——焦点圈闭保证 Esc 必落
- *    卡片，焦点链即 LIFO，不进 D-003 注册表（同 D-007/D-010 口径，ui 不反向依赖
+ *    卡片，焦点链即 LIFO，不进全局注册表（ui 不反向依赖
  *    page/）；critical 抖动拒绝
  *  - 关闭矩阵：dismissible = × + Esc + 遮罩点击；critical = 无 ×、遮罩点击抖动；
  *    locked（异步 loading）= 全失效
@@ -28,7 +28,7 @@
  * 自定义头部：`header` 整体替换内建标题行与 ×（工作台型弹窗自带导航头时用），
  * 关闭入口由 header 自行提供；`title` 仍是对话框的无障碍名称。
  *
- * 尺寸档是预设不是牢笼（D-011）：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖；
+ * 尺寸档是预设不是牢笼：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖；
  * 高度默认随内容（上限 78vh），height 定高（仍不超 82vh）。
  * 层级：遮罩容器 z-[340]（Select/Menu 250 < Tooltip 300 之上，Toast 360 之下——弹窗里的操作反馈须可见）。
  */
@@ -94,12 +94,12 @@ export interface DialogProps {
   ref?: Ref<HTMLDivElement>;
 }
 
-/** 上下文徽标：surface 亮底 + line-1 描边（D-009 行内小药丸口径） */
+/** 上下文徽标：surface 亮底 + line-1 描边（行内小药丸口径） */
 const CHIP_CLASS =
   "border-line-1 bg-surface text-ink-2 inline-flex h-[22px] max-w-[176px] shrink-0 items-center " +
   "gap-[5px] truncate rounded-full border px-2.5 text-[11px]";
 
-/** 视图转场进行中（根上 data-morph，D-106）关掉开合过渡 */
+/** 视图转场进行中（根上 data-morph）关掉开合过渡 */
 const MORPH_INSTANT = "[[data-morph]_&]:transition-none";
 
 /** critical 的拒绝反馈：300ms 横向抖动（jsdom 无 WAAPI，可选链防御） */
@@ -295,12 +295,12 @@ export function Dialog({
                     aria-label="关闭"
                     disabled={locked}
                     onClick={requestClose}
-                    className="absolute right-3 top-3 size-[28px] rounded-[8px]"
+                    className="absolute top-3 right-3 size-[28px] rounded-[8px]"
                   >
                     <X className="size-[14px]" />
                   </IconButton>
                 )}
-                <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
+                <div className="flex items-center gap-2 pt-[22px] pr-12 pl-6">
                   {icon && (
                     <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&>svg]:size-4">
                       {icon}
@@ -309,7 +309,7 @@ export function Dialog({
                   <h2
                     id={titleId}
                     title={title}
-                    className="text-ink-1 min-w-0 truncate text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
+                    className="text-ink-1 min-w-0 truncate text-[16px] leading-[1.45] font-[650] tracking-[-0.01em]"
                   >
                     {title}
                   </h2>
@@ -321,7 +321,7 @@ export function Dialog({
                   )}
                 </div>
                 {subtitle && (
-                  <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>
+                  <p className="text-ink-3 text-tau-meta mt-[3px] pr-12 pl-6">{subtitle}</p>
                 )}
               </>
             )}

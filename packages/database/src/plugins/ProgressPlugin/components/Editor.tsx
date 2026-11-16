@@ -18,7 +18,6 @@ const inputClass =
 
 const ProgressEditor: React.FC<ProgressEditorProps> = memo(
   ({ value, onCellValueChange, onFinishEdit, readonly }) => {
-    // 确保 value 是正确的格式
     const progressValue =
       value && typeof value === "object" && "current" in value && "target" in value
         ? (value as ProgressValue)
@@ -43,7 +42,6 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
       }
     }, [readonly]);
 
-    // 处理键盘事件
     const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -77,12 +75,10 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
       }
     });
 
-    // 更新值
     const updateValue = useMemoizedFn(() => {
       const current = parseFloat(currentValue) || 0;
       const target = parseFloat(targetValue) || 100;
 
-      // 验证规则
       const validCurrent = Math.max(0, current); // 当前进度不能为负数
       const validTarget = Math.max(0.01, target); // 目标值必须为正数，可以是任意大小
 

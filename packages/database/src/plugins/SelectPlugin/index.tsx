@@ -32,7 +32,6 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   Editor,
   Icon: ({ className }) => <CircleChevronDown className={className} />,
 
-  // 保存前确保值为字符串
   beforeSave: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
     const options = Array.isArray(config?.options) ? config.options : [];

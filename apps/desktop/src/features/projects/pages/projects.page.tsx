@@ -1,6 +1,6 @@
 /**
  * 项目 page 定义：key "projects" 与 navigation.ts 一致，真实注册自动接管侧边栏入口。
- * 2026-09-28 拆分后项目即文档树，列表无类型筛选，故无页面参数。
+ * 拆分后项目即文档树，列表无类型筛选，故无页面参数。
  */
 
 import { createPageSchema } from "@/page/core/paramsSchema";

@@ -20,7 +20,6 @@ const BackgroundAudio: React.FC = () => {
   } = usePomodoroTimer();
   const { isSocketOpen, isServerReady } = useBackendWebsocketStore();
 
-  // 初始化
   useEffect(() => {
     if (!isConnected || !isSocketOpen || !isServerReady) {
       return;
@@ -31,7 +30,6 @@ const BackgroundAudio: React.FC = () => {
     });
   }, [isConnected, isServerReady, isSocketOpen]);
 
-  // 初始化音频元素
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.loop = true;
@@ -46,7 +44,6 @@ const BackgroundAudio: React.FC = () => {
     };
   }, []);
 
-  // 更新音量
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = backgroundVolume / 100;
@@ -92,7 +89,6 @@ const BackgroundAudio: React.FC = () => {
           console.warn("Background sound play failed:", err);
         });
       } else if (activeSession.status === "paused") {
-        // 暂停时暂停
         audioRef.current.pause();
       }
     } else {

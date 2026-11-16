@@ -50,7 +50,6 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const allowDeleteColumn = config?.allowDeleteColumn ?? true;
 
     const handleAddRow = useMemoizedFn((groupColumn?: ColumnDef | null, groupValue?: CellValue) => {
-      // 创建新行对象
       const newRowData: Partial<RowData> = {};
 
       // 如果有分组信息，设置分组字段的值
@@ -65,7 +64,6 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
         const newId = uuidv4();
         newRowData.id = newId;
 
-        // 添加到 store（包含分组字段值）
         addRow(newRowData);
         showRowDetail(newId);
       }
@@ -110,7 +108,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
           group.rows.length > 0 ? group.rows[0][group.column.id] : null;
 
         return (
-          <div className="-ml-1 mb-4 flex items-center gap-2">
+          <div className="mb-4 -ml-1 flex items-center gap-2">
             <div className="flex items-center">
               <Renderer
                 value={columnValue}
@@ -165,7 +163,6 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const virtualRows: VirtualRow[] = useMemo(() => {
       const rows: VirtualRow[] = [];
       groupedRows.forEach(group => {
-        // 添加分组标题行
         if (isGrouped && group.key !== "__all__") {
           rows.push({ type: "header", group });
         }

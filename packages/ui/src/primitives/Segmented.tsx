@@ -1,10 +1,10 @@
 /**
- * Segmented —— 分段单选器（Input 家族「连体描边」语言，mockups/segmented/，2026-09-23 定稿）。
+ * Segmented —— 分段单选器（「连体描边」语言）。
  *
- * 02 规范 §5.2 裁决的 Tabs 官定替代：内容形态切换（字段不同构）用分段，值切换
+ * 02 规范 §5.2 的 Tabs 官定替代：内容形态切换（字段不同构）用分段，值切换
  * （字段同构）用 Select。容器是一枚 hairline 控件（surface + line-1，与 Input /
  * Select 触发器同皮），段间 hairline 分割；激活段 accent-soft 轻染 + accent-text
- * ——零轨道、零滑块、零投影（凹槽深底形态已否决，见 mockups/segmented/ 头注）。
+ * ——零轨道、零滑块、零投影（凹槽深底形态已否决）。
  *
  * 原生 input[type=radio] 承载语义（隐藏自绘皮）：组内互斥、方向键移动即选择、
  * Tab 一次进组白送。状态纪律同 Input 家族：hover 淡墨只落未选段（不冲淡激活染）、

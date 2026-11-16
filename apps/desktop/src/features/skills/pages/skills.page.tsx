@@ -1,5 +1,5 @@
 /**
- * Skill 页 page 定义（D-060）。
+ * Skill 页 page 定义。
  */
 
 import { definePage } from "@/page/definePage";

@@ -76,7 +76,7 @@
   document.getElementById("new").onclick = () => X.editDialog();
   const scroll = document.getElementById("scroll");
 
-  // 上次停留页（activeWhiteBoardContentId，真实字段）——mock 里给多页白板随便指一页
+  // 上次停留页（activeWhiteboardContentId，真实字段）——mock 里给多页白板随便指一页
   const lastPage = b => (b.pages.length > 1 ? (b.id % b.pages.length) : -1);
 
   function bandHTML(b) {

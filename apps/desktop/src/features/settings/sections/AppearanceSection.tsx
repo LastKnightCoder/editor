@@ -1,12 +1,12 @@
 /**
- * 外观设置 —— 方案 A 行流式定稿（2026-09-21，mockups/settings/appearance/plan-a-rows）。
+ * 外观设置 —— 行流式。
  *
  * 功能对齐 legacy AppearanceSetting 全量：明暗（升级三档：跟随系统 / 浅色 / 深色）与
  * 主题族（每套主题自带深浅两套配色）两个正交维度，接 themeStore；中文字体 / 英文字体 / 字号 / 代码字体、图片默认圆角 /
- * 阴影。主题色 6 色板不迁移（新主题体系 accent 随主题内置，D-028）。
- * 字体与字号是应用级默认（2026-09-21 用户裁决全局生效）：useSyncFont 在 root
+ * 阴影。主题色 6 色板不迁移（新主题体系 accent 随主题内置）。
+ * 字体与字号是应用级默认（全局生效）：useSyncFont 在 root
  * 覆盖 --tau-font / --tau-font-mono 并按 13px 基准阻尼缩放字号档位（壳层 UI 半速率
- * 跟随，2026-09-23 裁决；编辑器内容经 --font-size 1:1 跟随）；图片外观仍只作用于内容区图片。
+ * 跟随；编辑器内容经 --font-size 1:1 跟随）；图片外观仍只作用于内容区图片。
  */
 
 import { useQuery } from "@tanstack/react-query";

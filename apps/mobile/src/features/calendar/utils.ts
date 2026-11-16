@@ -38,7 +38,7 @@ export interface MonthGridCell {
   inAnchorMonth: boolean;
 }
 
-/** 固定 6 行 × 7 列网格（周一起始），溢出日期标 dim（设计稿 D 定稿形态） */
+/** 固定 6 行 × 7 列网格（周一起始），溢出日期标 dim */
 export function getMonthGrid(anchorDate: number): MonthGridCell[] {
   const anchor = new Date(anchorDate);
   const year = anchor.getFullYear();
@@ -153,7 +153,7 @@ export function sortEventsForDay(events: CalendarEvent[]): CalendarEvent[] {
   });
 }
 
-/** 月历格彩点：每个非全天事件一个点（不判重，对齐定稿稿），上限 3 个，超出由「·N」兜底 */
+/** 月历格彩点：每个非全天事件一个点（不判重），上限 3 个，超出由「·N」兜底 */
 export function eventDotsForDay(
   events: CalendarEvent[],
   date: number,

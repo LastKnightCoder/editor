@@ -29,7 +29,7 @@ export function readTranscript(file: string | undefined, sessionDir: string): Ch
   return piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
 }
 
-/** 树谱视图（M4-d）：只含用户消息的精简树；文件不存在 = 空 */
+/** 树谱视图：只含用户消息的精简树；文件不存在 = 空 */
 export function readConversationTree(
   file: string | undefined,
   sessionDir: string
@@ -43,7 +43,7 @@ export const countUserMessages = (messages: ChatSessionMessage[]) =>
   messages.filter(message => message.role === "user").length;
 
 /**
- * 改会话树的操作（M4-d：分支都在同一文件里）：
+ * 改会话树的操作（分支都在同一文件里）：
  * - rewind：编辑重发/重新生成，回到这条用户消息之前；
  * - fork：从这里建分支，回到这条回答之后（下一条消息成为新版本）；
  * - switch：切到一条用户消息所在的版本；

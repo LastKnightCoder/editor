@@ -1,4 +1,4 @@
-// 日程详情页（定稿 A 全屏页面式）：日历归属行 + 大标题 + 信息卡（时间/日历/数值）
+// 日程详情页（全屏页面式）：日历归属行 + 大标题 + 信息卡（时间/日历/数值）
 // + 富文本详情卡（真实 Editor 只读）+ 底部操作条；系统日程只读并提供来源模块入口。
 
 import { useMemo, useRef, useState } from "react";
@@ -140,7 +140,7 @@ export function CalendarEventDetailPage({
                 </span>
               ) : null}
             </div>
-            <h2 className="text-ink-1 mt-2.5 text-[23px] font-extrabold leading-[1.35]">
+            <h2 className="text-ink-1 mt-2.5 text-[23px] leading-[1.35] font-extrabold">
               {event.title}
             </h2>
           </div>
@@ -195,7 +195,7 @@ export function CalendarEventDetailPage({
 
           {hasDetail || !event.isInSystemEvent ? (
             <>
-              <div className="text-ink-3 px-[22px] pb-2 pt-4 text-[12px] font-extrabold tracking-[1px]">
+              <div className="text-ink-3 px-[22px] pt-4 pb-2 text-[12px] font-extrabold tracking-[1px]">
                 详情
               </div>
               <div className="px-[18px] pb-8">
@@ -205,7 +205,7 @@ export function CalendarEventDetailPage({
                       kit={contentKit}
                       document={document}
                       readonly={true}
-                      className="text-ink-1 w-full text-[13.5px] font-medium leading-[1.85] outline-none"
+                      className="text-ink-1 w-full text-[13.5px] leading-[1.85] font-medium outline-none"
                     />
                   ) : (
                     <p className="text-ink-3 text-[13.5px] leading-[1.85]">暂无描述</p>

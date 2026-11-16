@@ -1,4 +1,4 @@
-// 协作编辑页（设计稿 03 方案 A）：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
+// 协作编辑页：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

@@ -27,7 +27,7 @@ import { useChatSendConsumer } from "../chatSend";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
-/** 阅读列宽：消息、提示条与输入框同一列（D-048，同文章正文 ~72ch 口径） */
+/** 阅读列宽：消息、提示条与输入框同一列（同文章正文 ~72ch 口径） */
 const READING_WIDTH = 760;
 
 export type ChatAreaHandle = {
@@ -74,7 +74,7 @@ function EmptyHint() {
 }
 
 /**
- * 对话页纸面（D-048）：标题行（会话切换 / 分支 / 更多）+ ChatContainer（760 阅读列居中）。
+ * 对话页纸面：标题行（会话切换 / 分支 / 更多）+ ChatContainer（760 阅读列居中）。
  * 会话选择由页面参数驱动，本组件只回调 onSelectChat。
  */
 const ChatArea = memo(

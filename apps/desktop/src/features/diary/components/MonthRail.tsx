@@ -1,5 +1,5 @@
 /**
- * 时间刻度（D-044）：贴在纸的右缘，列出流中出现的月份（跨年插年份），滚动时高亮当前月，
+ * 时间刻度：贴在纸的右缘，列出流中出现的月份（跨年插年份），滚动时高亮当前月，
  * 点击跳过去。平时淡、悬停纸面时显形——不和正文抢注意力。
  * 纵贯整张纸：层级高于底部输入条层（那层是整宽透明容器，输入框只居中占一段，
  * 右缘视觉上是空的，刻度压在其上才点得到）。月份多于一屏时刻度自身可滚（隐藏滚动条、边缘渐隐），当前月始终滚进可见区。
@@ -39,7 +39,7 @@ export function MonthRail({
     <nav
       ref={setRailEl}
       aria-label="按月跳转"
-      className="edge-fade-scroll scrollbar-hide absolute bottom-3.5 right-2.5 top-3.5 z-[5] flex w-14 flex-col items-end gap-0.5 overflow-y-auto overscroll-contain pb-2"
+      className="edge-fade-scroll scrollbar-hide absolute top-3.5 right-2.5 bottom-3.5 z-[5] flex w-14 flex-col items-end gap-0.5 overflow-y-auto overscroll-contain pb-2"
     >
       {months.map(month => {
         const year = month.slice(0, 4);
@@ -49,7 +49,7 @@ export function MonthRail({
         return (
           <div key={month} className="contents">
             {showYear && (
-              <span className="text-tau-tiny text-ink-3 font-tau-mono px-2 pb-0.5 pt-2 opacity-70">
+              <span className="text-tau-tiny text-ink-3 font-tau-mono px-2 pt-2 pb-0.5 opacity-70">
                 {year}
               </span>
             )}
