@@ -169,7 +169,11 @@ export function createMarkdownViewport() {
     prepare(editor: Editor, indexes: number[]) {
       const keys = indexes.flatMap(index => {
         const key = keyForIndex(editor, index);
-        return key === undefined || isMounted(key, false) ? [] : [key];
+        const mounted =
+          key !== undefined &&
+          isMounted(key, false) &&
+          blocks.get(key)?.element.dataset.markdownViewportBlock === "mounted";
+        return key === undefined || mounted ? [] : [key];
       });
       if (!keys.length) return;
       flushSync(() => {

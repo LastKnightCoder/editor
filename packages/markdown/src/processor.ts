@@ -80,7 +80,10 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   const inlineHtmlWrappers = new Map<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>();
   const fenceByLanguage = new Map<string, { type: string; property: string }>();
   const importNodes: NonNullable<MarkdownCodec["importNode"]>[] = [];
-  const fenceSourceProperties = new Map<string, string>();
+  const fenceSourceProperties = new Map<
+    string,
+    NonNullable<MarkdownCodec["fenceSourceProperty"]>
+  >();
   for (const codec of codecs) {
     Object.assign(directives, codec.directives);
     if (codec.isVoid) voidTypes.add(codec.type);

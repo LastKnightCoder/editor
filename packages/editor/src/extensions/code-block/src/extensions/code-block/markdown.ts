@@ -295,6 +295,7 @@ export const codeBlockV2Codec: MarkdownCodec = {
   type: "code-block",
   dataVersion: 2,
   isVoid: true,
+  fenceSourceProperty: { property: "code", path: [0] },
   importNode: node => {
     if (node.type !== "code") return null;
     const display = parseDisplayMeta(node.meta);

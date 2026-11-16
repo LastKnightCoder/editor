@@ -529,22 +529,22 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
       getCursor: () => {
         const textarea = textareaRef.current;
         if (!textarea) return { line: 0, ch: 0 };
-        return offsetToCursor(valueRef.current, textarea.selectionStart || 0);
+        return offsetToCursor(textarea.value, textarea.selectionStart || 0);
       },
       setCursor: (cursor: OverlayCursorPosition) => {
         const textarea = textareaRef.current;
         if (!textarea) return;
-        const offset = cursorToOffset(valueRef.current, cursor);
+        const offset = cursorToOffset(textarea.value, cursor);
         textarea.focus();
         textarea.setSelectionRange(offset, offset);
         saveSelectionSnapshot(textarea);
       },
       getLine: (line: number) => {
-        const lines = getLines(valueRef.current);
+        const lines = getLines(textareaRef.current?.value ?? valueRef.current);
         return lines[line] || "";
       },
       lastLine: () => {
-        const lines = getLines(valueRef.current);
+        const lines = getLines(textareaRef.current?.value ?? valueRef.current);
         return Math.max(lines.length - 1, 0);
       },
     };

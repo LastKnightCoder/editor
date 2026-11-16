@@ -90,9 +90,9 @@ export interface MarkdownCodec {
   inlineForm?: (element: any) => Descendant;
   /**
    * 导入：从 code 节点（围栏或缩进代码块）认领的 void 元素，把源码区间记为
-   * 该属性的属性级位置映射（如 code-block 的 "code"）；缺省只有元素级映射
+   * 该属性的位置映射；正文位于子节点时声明相对路径。缺省只有元素级映射。
    */
-  fenceSourceProperty?: string;
+  fenceSourceProperty?: string | { property: string; path: readonly number[] };
   /** 导出：子块级元素之间的接续符，默认 "\n\n"；列表与表格声明 "\n" */
   childSeparator?: "\n" | "\n\n";
 }

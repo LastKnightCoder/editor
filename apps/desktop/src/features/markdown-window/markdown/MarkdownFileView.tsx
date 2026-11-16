@@ -164,6 +164,8 @@ export const MarkdownFileView = forwardRef<
       stopCapturing: fileDocument.stopCapturing,
       richReady,
       prepareRichTarget: useViewport ? prepareRichTarget : undefined,
+      scrollEl,
+      sourceWindowed,
     });
   const sourceModeRef = useRef(sourceMode);
   sourceModeRef.current = sourceMode;
@@ -565,6 +567,9 @@ export const MarkdownFileView = forwardRef<
         <button
           type="button"
           onClick={toggle}
+          onMouseDown={event => {
+            if (event.button === 0) event.preventDefault();
+          }}
           title={sourceMode ? "退出源码模式 (⌘/)" : "源码模式 (⌘/)"}
           aria-pressed={sourceMode}
           className={cn(

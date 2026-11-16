@@ -1990,6 +1990,10 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > import mapp
   },
   {
     "mdCh": 2,
+    "mdEnd": {
+      "ch": 6,
+      "line": 25,
+    },
     "mdLength": 11,
     "mdLine": 24,
     "prefixLength": 0,
@@ -1999,6 +2003,20 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > import mapp
       9,
       0,
       0,
+    ],
+    "sourceLines": [
+      {
+        "ch": 2,
+        "length": 4,
+        "line": 24,
+        "offset": 0,
+      },
+      {
+        "ch": 2,
+        "length": 4,
+        "line": 25,
+        "offset": 5,
+      },
     ],
     "suffixLength": 0,
     "type": "text",
@@ -2012,6 +2030,27 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > import mapp
     "mdStartLine": 27,
     "slateElementPath": [
       10,
+    ],
+    "type": "element",
+  },
+  {
+    "elementType": "code-step",
+    "isVoid": false,
+    "mdEndCh": 12,
+    "mdEndLine": 28,
+    "mdStartCh": 0,
+    "mdStartLine": 28,
+    "propertyMappings": {
+      "code": {
+        "mdEndCh": 12,
+        "mdEndLine": 28,
+        "mdStartCh": 0,
+        "mdStartLine": 28,
+      },
+    },
+    "slateElementPath": [
+      10,
+      0,
     ],
     "type": "element",
   },

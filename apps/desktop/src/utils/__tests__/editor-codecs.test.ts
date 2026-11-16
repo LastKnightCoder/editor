@@ -486,9 +486,17 @@ describe("源码 ↔ 富文本光标映射", () => {
     expect(slateAt(2, 5)!.offset).toBe(1);
   });
 
-  it("代码块：源码光标不伪造根节点 code 属性映射", () => {
+  it("代码块：源码光标映射到实际保存 code 的首个步骤", () => {
     const hint = positionMap.getElementPropertyByMarkdown({ line: 5, ch: 6 });
-    expect(hint?.propertyName).not.toBe("code");
+    expect(hint).toMatchObject({
+      mapping: { elementType: "code-step" },
+      propertyName: "code",
+      relativePos: { line: 0, ch: 6 },
+    });
+    const blockPath = hint?.mapping.slateElementPath.slice(0, -1);
+    expect(
+      blockPath && positionMap.getElementMappingBySlatePath(blockPath)?.propertyMappings
+    ).toBeUndefined();
   });
 
   it("表格：光标落到单元格内的文本节点", () => {

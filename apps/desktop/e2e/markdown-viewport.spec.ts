@@ -12,7 +12,8 @@ import {
 } from "./content-production/harness";
 
 const fixture = process.env.TAU_MARKDOWN_VIEWPORT_FIXTURE;
-const richSelector = '[data-markdown-full-editor="ready"] [data-slate-editor="true"]';
+const richSelector =
+  '[data-markdown-full-editor="ready"] [data-slate-editor="true"][data-slate-node="value"]';
 const input = "TauFirstInput20261115";
 const mod = process.platform === "darwin" ? "Meta" : "Control";
 
@@ -732,6 +733,359 @@ test("查找跨格式文字与代码，重复命中可循环且滚动不会改�
     await expect.poll(() => richFindVisible(page, codeText)).toBe(true);
     await bar.input.press("Escape");
     expect(await readFile(path, "utf8")).toBe(raw);
+    await closeWindow(app, page);
+  });
+});
+
+test("长文两种模式往返保留光标字符位置并滚入视口", async () => {
+  test.setTimeout(120_000);
+  const quote = '[data-slate-node="element"][class*="--ed-quote-text"]';
+  const highlight = '[class~="p-[1.25em]"][style*="background-color"]';
+  const nestedCode = Array.from(
+    { length: 115 },
+    (_, i) => "const embeddedRow" + i + " = " + i + ";"
+  );
+  const cases = [
+    { label: "普通标题末尾", line: "## 远处普通标题", offset: 6, selector: "h2" },
+    { label: "闭合标题标记", line: "## 远处闭合标题 ##", offset: 6, selector: "h2", reverse: 9 },
+    {
+      label: "标题末尾的行内链接",
+      line: "### 远处**加粗**[链接文字](https://example.com/position)",
+      ch: 15,
+      offset: 6,
+      selector: "h3",
+      reverse: 15,
+    },
+    { label: "表格单元格", line: "| 左侧字段 | 右侧目标文本 |", ch: 13, offset: 4, selector: "td" },
+    {
+      label: "多行普通段落",
+      line: "软换行后的定位文字",
+      ch: 5,
+      offset: 17,
+      selector: "p",
+    },
+    {
+      label: "代码块第二行",
+      line: "const caretValue = 2;",
+      ch: 10,
+      offset: 28,
+      selector: "textarea.code-block-shiki-input",
+    },
+    {
+      label: "链接开头的标题尾",
+      line: "### [开头链接](https://example.com/heading) 后续文字",
+      offset: 9,
+      selector: "h3",
+    },
+    {
+      label: "引用中的多级列表与链接",
+      line: ">    - **内层** [**嵌套**链接](https://example.com/nested)",
+      ch: ">    - **内层** [**嵌套**链".length,
+      offset: 6,
+      selector: "p",
+    },
+    {
+      label: "引用中的表格",
+      line: "> | 左项 | 嵌套单元格 |",
+      ch: "> | 左项 | 嵌套单".length,
+      offset: 3,
+      selector: "td",
+    },
+    {
+      label: "列表中的代码块",
+      line: "  const nestedPosition = 2;",
+      ch: 12,
+      offset: "const nestedStart = 1;\n".length + 10,
+      selector: "textarea.code-block-shiki-input",
+    },
+    {
+      label: "引用和列表中的代码块",
+      line: ">   const embeddedTarget = 2;",
+      ch: 14,
+      offset: nestedCode.join("\n").length + 11,
+      selector: "textarea.code-block-shiki-input",
+    },
+    {
+      label: "视口外的自动换行长段末尾",
+      line: "自动换行定位文字 ".repeat(390).trimEnd(),
+      offset: "自动换行定位文字 ".repeat(390).trimEnd().length,
+      selector: "p",
+    },
+    {
+      label: "引用内嵌提示块再嵌高亮块",
+      line: "> 引用提示高亮三层正文",
+      ch: "> 引用提示高亮".length,
+      offset: 6,
+      selector: quote + " .callout " + highlight + " p",
+    },
+    {
+      label: "提示块内嵌高亮块再嵌引用",
+      line: "> 提示高亮引用三层正文",
+      ch: "> 提示高亮引用".length,
+      offset: 6,
+      selector: ".callout " + highlight + " " + quote + " p",
+    },
+    {
+      label: "高亮块内嵌提示块再嵌引用",
+      line: "> 高亮提示引用三层正文",
+      ch: "> 高亮提示引用".length,
+      offset: 6,
+      selector: highlight + " .callout " + quote + " p",
+    },
+    {
+      label: "引用内嵌高亮块再嵌提示块",
+      line: "> 引用高亮提示三层正文",
+      ch: "> 引用高亮提示".length,
+      offset: 6,
+      selector: quote + " " + highlight + " .callout p",
+    },
+    {
+      label: "提示块内嵌引用再嵌高亮块",
+      line: "> 提示引用高亮三层正文",
+      ch: "> 提示引用高亮".length,
+      offset: 6,
+      selector: ".callout " + quote + " " + highlight + " p",
+    },
+    {
+      label: "高亮块内嵌引用再嵌提示块",
+      line: "> 高亮引用提示三层正文",
+      ch: "> 高亮引用提示".length,
+      offset: 6,
+      selector: highlight + " " + quote + " .callout p",
+    },
+  ];
+  const fillers = Array.from(
+    { length: 1250 },
+    (_, i) => "长文占位段落 " + i + " 用于窗外光标定位。"
+  );
+  const raw =
+    [
+      "正文开头",
+      ...fillers,
+      cases[0].line,
+      cases[1].line,
+      cases[2].line,
+      "| 左栏 | 右栏 |\n| --- | --- |\n" + cases[3].line,
+      "有软换行的第一部分文字\n" + cases[4].line,
+      "\x60\x60\x60js\nconst sample = 1;\n" + cases[5].line + "\n\x60\x60\x60",
+      cases[6].line,
+      "> 1. 外层列表项\n" + cases[7].line,
+      "> | 栏一 | 栏二 |\n> | --- | --- |\n" + cases[8].line,
+      "- 代码所在列表项\n\n  \x60\x60\x60js\n  const nestedStart = 1;\n" +
+        cases[9].line +
+        "\n  \x60\x60\x60",
+      "> - 引用中的代码列表项\n>\n>   \x60\x60\x60js\n>   " +
+        nestedCode.join("\n>   ") +
+        "\n" +
+        cases[10].line +
+        "\n>   \x60\x60\x60",
+      cases[11].line,
+      '> ::::tip{title="引用提示"}\n> :::highlight-block{color=blue}\n' +
+        cases[12].line +
+        "\n> :::\n> ::::",
+      '::::note{title="外层提示"}\n:::highlight-block{color=yellow}\n' +
+        cases[13].line +
+        "\n:::\n::::",
+      '::::highlight-block{color=yellow}\n:::warning{title="内层提示"}\n' +
+        cases[14].line +
+        "\n:::\n::::",
+      '> ::::highlight-block{color=blue}\n> :::tip{title="内层提示"}\n' +
+        cases[15].line +
+        "\n> :::\n> ::::",
+      '::::info{title="外层提示"}\n> :::highlight-block{color=yellow}\n' +
+        cases[16].line +
+        "\n> :::\n::::",
+      '::::highlight-block{color=yellow}\n> :::note{title="内层提示"}\n' +
+        cases[17].line +
+        "\n> :::\n::::",
+      ...fillers.slice(0, 50),
+    ].join("\n\n") + "\n";
+  await sandbox(async (app, launcher, directory) => {
+    const path = join(directory, "caret-roundtrip.md");
+    await writeFile(path, raw);
+    const page = await open(app, launcher, path);
+    const rich = page.locator(richSelector);
+    const source = page.locator(".CodeMirror").filter({ visible: true });
+    await expect(rich).toBeVisible();
+    for (const sample of cases) {
+      await scroll(page, 0);
+      const clickMode = sample.label.includes("引用");
+      const switchToSource = () =>
+        clickMode
+          ? page.locator('button[title^="源码模式"]').click()
+          : page.keyboard.press(mod + "+/");
+      const switchToRich = () =>
+        clickMode
+          ? page.locator('button[title^="退出源码模式"]').click()
+          : page.keyboard.press(mod + "+/");
+      await switchToSource();
+      await expect(source.locator("textarea")).toBeFocused();
+      const line = raw.split("\n").indexOf(sample.line);
+      const ch = sample.ch ?? sample.line.length;
+      await source.evaluate(
+        (element, { line, ch }) => {
+          const { CodeMirror } = element as unknown as {
+            CodeMirror: { setCursor(line: number, ch: number): void };
+          };
+          CodeMirror.setCursor(line, ch);
+        },
+        { line, ch }
+      );
+      await switchToRich();
+      await expect(source).toBeHidden();
+      const actual = () =>
+        page.evaluate(selector => {
+          const active = document.activeElement;
+          const visible = (rect: DOMRect) =>
+            rect.height > 0 && rect.top >= 45 && rect.bottom <= innerHeight;
+          if (active instanceof HTMLTextAreaElement && active.matches(selector)) {
+            const leaf = active
+              .closest(".ed-code-overlay")
+              ?.querySelector("pre.code-block-shiki-measure")?.firstChild;
+            const range = document.createRange();
+            if (leaf instanceof globalThis.Text && leaf.length >= active.selectionStart) {
+              range.setStart(leaf, active.selectionStart);
+              range.collapse(true);
+            }
+            const rect = range.getBoundingClientRect();
+            return {
+              offset: active.selectionStart,
+              visible: visible(rect.height ? rect : active.getBoundingClientRect()),
+              kind: selector,
+            };
+          }
+          const selected = window.getSelection();
+          const node = selected?.anchorNode;
+          const parent = (node instanceof HTMLElement ? node : node?.parentElement)?.closest(
+            selector
+          );
+          if (!selected || !node || !parent?.closest('[data-slate-editor="true"]')) return null;
+          const prefix = document.createRange();
+          prefix.selectNodeContents(parent);
+          prefix.setEnd(node, selected.anchorOffset);
+          const caret = selected.getRangeAt(0).getBoundingClientRect();
+          const editablePrefix = prefix
+            .cloneContents()
+            .querySelectorAll('[data-slate-string="true"]');
+          return {
+            offset: [...editablePrefix].reduce(
+              (length, leaf) => length + (leaf.textContent?.length ?? 0),
+              0
+            ),
+            visible: visible(caret),
+            kind: selector,
+          };
+        }, sample.selector);
+      await expect.soft.poll(actual, { timeout: 2500, message: sample.label }).toEqual({
+        offset: sample.offset,
+        visible: true,
+        kind: sample.selector,
+      });
+      if (!(await actual())?.visible) {
+        const geometry = await page.evaluate(() => {
+          const selected = window.getSelection();
+          const node = selected?.anchorNode;
+          const scroll = node?.parentElement?.closest(".min-h-0.flex-1");
+          return {
+            text: node?.textContent?.slice(0, 32),
+            caret: selected?.rangeCount
+              ? selected.getRangeAt(0).getBoundingClientRect().toJSON()
+              : null,
+            scrollTop: scroll?.scrollTop,
+            scrollRect: scroll?.getBoundingClientRect().toJSON(),
+          };
+        });
+        await test.info().attach(sample.label + "光标几何", {
+          contentType: "application/json",
+          body: JSON.stringify(geometry),
+        });
+        console.log("TAU_CARET_GEOMETRY", JSON.stringify({ label: sample.label, geometry }));
+      }
+      await switchToSource();
+      await expect(source.locator("textarea")).toBeFocused();
+      {
+        const pos = await source.evaluate(element => {
+          const { CodeMirror } = element as unknown as {
+            CodeMirror: { getCursor(): { line: number; ch: number } };
+          };
+          const { line, ch } = CodeMirror.getCursor();
+          return { line, ch };
+        });
+        expect.soft(pos, sample.label + "返回源码").toEqual({ line, ch: sample.reverse ?? ch });
+        const cursorVisible = await source.evaluate(element => {
+          const caret = element.querySelector(".CodeMirror-cursor")?.getBoundingClientRect();
+          const scroller = element.querySelector(".CodeMirror-scroll")?.getBoundingClientRect();
+          return Boolean(
+            caret &&
+            scroller &&
+            caret.height > 0 &&
+            caret.top >= Math.max(scroller.top, 45) &&
+            caret.bottom <= Math.min(scroller.bottom, innerHeight)
+          );
+        });
+        expect.soft(cursorVisible, sample.label + "源码光标可见").toBe(true);
+      }
+      await switchToRich();
+      await expect(source).toBeHidden();
+    }
+    expect(await readFile(path, "utf8")).toBe(raw);
+    await closeWindow(app, page);
+  });
+});
+
+test("非窗口化源码改写标题后切换，光标跟随最新文字和外层滚动", async () => {
+  const rawTitle = "## 初始标题";
+  const changedTitle = rawTitle + "新增";
+  const raw =
+    [...Array.from({ length: 75 }, (_, i) => "短文前置片段 " + i), rawTitle].join("\n\n") + "\n";
+  await sandbox(async (app, launcher, directory) => {
+    const path = join(directory, "caret-after-source-edit.md");
+    await writeFile(path, raw);
+    const page = await open(app, launcher, path);
+    await expect(page.locator(richSelector)).toBeVisible();
+    await expect(page.locator("[data-markdown-viewport]")).toHaveCount(0);
+    await page.keyboard.press(mod + "+/");
+    const source = page.locator(".CodeMirror").filter({ visible: true });
+    await expect(source.locator("textarea")).toBeFocused();
+    const line = raw.split("\n").indexOf(rawTitle);
+    await source.evaluate(
+      (element, { line, length }) => {
+        const { CodeMirror } = element as unknown as {
+          CodeMirror: { setCursor(line: number, ch: number): void };
+        };
+        CodeMirror.setCursor(line, length);
+      },
+      { line, length: rawTitle.length }
+    );
+    await page.keyboard.insertText("新增");
+    await expect(source.getByText("初始标题新增", { exact: false })).toBeInViewport();
+    await page.locator('button[title^="退出源码模式"]').click();
+    await expect(
+      page.locator(richSelector).getByRole("heading", { name: "初始标题新增" })
+    ).toBeInViewport();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const selection = window.getSelection();
+          return { text: selection?.anchorNode?.textContent, offset: selection?.anchorOffset };
+        })
+      )
+      .toEqual({ text: "初始标题新增", offset: 6 });
+    await page.keyboard.press(mod + "+/");
+    await expect(source.locator("textarea")).toBeFocused();
+    const result = await source.evaluate(element => {
+      const { CodeMirror } = element as unknown as {
+        CodeMirror: { getCursor(): { line: number; ch: number } };
+      };
+      const { line, ch } = CodeMirror.getCursor();
+      return { line, ch };
+    });
+    expect(result).toEqual({ line, ch: changedTitle.length });
+    await expect(source.locator(".CodeMirror-cursor")).toBeInViewport();
+    await page.keyboard.press(mod + "+s");
+    await expect
+      .poll(async () => (await readFile(path, "utf8")) === raw.replace(rawTitle, changedTitle))
+      .toBe(true);
     await closeWindow(app, page);
   });
 });

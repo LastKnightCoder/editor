@@ -319,7 +319,7 @@ interface MarkdownParseContext {
   /** 通用 mdast 认领（按声明顺序，首个认领生效） */
   importNodes: readonly NonNullable<MarkdownCodec["importNode"]>[];
   /** code 节点认领方的源码属性（导入侧属性级映射用） */
-  fenceSourceProperties: ReadonlyMap<string, string>;
+  fenceSourceProperties: ReadonlyMap<string, NonNullable<MarkdownCodec["fenceSourceProperty"]>>;
   /** 导入后规范化钩子（按元素类型） */
   normalizeHooks: ReadonlyMap<string, NonNullable<MarkdownCodec["normalize"]>>;
   /** 块级元素的段落内行内形态 */
@@ -335,7 +335,7 @@ export interface ImportConfig {
   inlineHtmlWrappers?: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>;
   fenceByLanguage: ReadonlyMap<string, { type: string; property: string }>;
   importNodes?: readonly NonNullable<MarkdownCodec["importNode"]>[];
-  fenceSourceProperties?: ReadonlyMap<string, string>;
+  fenceSourceProperties?: ReadonlyMap<string, NonNullable<MarkdownCodec["fenceSourceProperty"]>>;
   normalizeHooks?: ReadonlyMap<string, NonNullable<MarkdownCodec["normalize"]>>;
   inlineForms?: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineForm"]>>;
 }
@@ -438,20 +438,23 @@ const isPathInNodes = (nodes: Descendant[], path: number[]): boolean => {
   return true;
 };
 
-const buildTextMapping = (params: {
-  slateTextPath: number[];
-  text: string;
-  textPosition?: {
-    start?: { line?: number; column?: number; offset?: number };
-    end?: { line?: number; column?: number; offset?: number };
-  };
-  wrapperPosition?: {
-    start?: { line?: number; column?: number; offset?: number };
-    end?: { line?: number; column?: number; offset?: number };
-  };
-  prefixLengthOverride?: number;
-  suffixLengthOverride?: number;
-}): TextMapping | null => {
+const buildTextMapping = (
+  params: {
+    slateTextPath: number[];
+    text: string;
+    textPosition?: {
+      start?: { line?: number; column?: number; offset?: number };
+      end?: { line?: number; column?: number; offset?: number };
+    };
+    wrapperPosition?: {
+      start?: { line?: number; column?: number; offset?: number };
+      end?: { line?: number; column?: number; offset?: number };
+    };
+    prefixLengthOverride?: number;
+    suffixLengthOverride?: number;
+  },
+  markdown: string
+): TextMapping | null => {
   const { slateTextPath, text, textPosition, wrapperPosition } = params;
   if (!textPosition?.start || !textPosition?.end) return null;
 
@@ -487,6 +490,30 @@ const buildTextMapping = (params: {
     wrapper.end,
     prefixLength + text.length + suffixLength
   );
+  const start = toMarkdownPosition(textPosition.start);
+  const end = toMarkdownPosition(wrapper.end);
+  let sourceLines: TextMapping["sourceLines"];
+  if (
+    start.line !== toMarkdownPosition(textPosition.end).line &&
+    textStartOffset !== null &&
+    textEndOffset !== null
+  ) {
+    const rawLines = markdown.slice(textStartOffset, textEndOffset).split(/\r\n|\r|\n/);
+    const textLines = text.split(/\r\n|\r|\n/);
+    const breaks = text.match(/\r\n|\r|\n/g) ?? [];
+    if (
+      rawLines.length === textLines.length &&
+      rawLines.every((line, index) => line.endsWith(textLines[index]))
+    ) {
+      let offset = 0;
+      sourceLines = textLines.map((line, index) => {
+        const ch = (index === 0 ? start.ch : 0) + rawLines[index].length - line.length;
+        const span = { line: start.line + index, ch, offset, length: line.length };
+        offset += line.length + (breaks[index]?.length ?? 0);
+        return span;
+      });
+    }
+  }
 
   return {
     type: "text",
@@ -498,8 +525,33 @@ const buildTextMapping = (params: {
     mdLength: Math.max(mdLength, prefixLength + text.length + suffixLength),
     prefixLength,
     suffixLength,
+    ...(end.line !== toMarkdownPosition(wrapper.start).line && { mdEnd: end }),
+    ...(sourceLines && { sourceLines }),
   };
 };
+
+function buildCodeSourceRange(node: MarkdownAstNode, markdown: string, start: MarkdownPosition) {
+  const content = (node.value ?? "").split(/\r\n|\r|\n/);
+  const from = getOffset(node.position?.start);
+  const to = getOffset(node.position?.end);
+  const raw = from !== null && to !== null ? markdown.slice(from, to).split(/\r\n|\r|\n/) : [];
+  const fenced = raw.length > content.length && /^[ \t]*(?:[`]{3,}|~{3,})/.test(raw[0]);
+  const first = fenced ? 1 : 0;
+  const columns = content.map((line, index) => {
+    const sourceLine = raw[first + index];
+    const initialColumn = first + index === 0 ? start.ch : 0;
+    return sourceLine?.endsWith(line) ? initialColumn + sourceLine.length - line.length : start.ch;
+  });
+  const mdStartLine = start.line + first;
+  const mdStartCh = columns[0];
+  return {
+    mdStartLine,
+    mdStartCh,
+    mdEndLine: mdStartLine + content.length - 1,
+    mdEndCh: columns[columns.length - 1] + content[content.length - 1].length,
+    ...(columns.some(column => column !== mdStartCh) && { mdLineColumns: columns }),
+  };
+}
 
 const isVoidSlateElementType = (type: string): boolean =>
   getCurrentParseContext().voidTypes.has(type);
@@ -710,12 +762,15 @@ const importWithPositionsInContext = (
         const slatePath = [...parentPath, insertIndex];
 
         const mapping = trackPositions
-          ? buildTextMapping({
-              slateTextPath: slatePath,
-              text: astChildNode.value || "",
-              textPosition: astChildNode.position,
-              wrapperPosition,
-            })
+          ? buildTextMapping(
+              {
+                slateTextPath: slatePath,
+                text: astChildNode.value || "",
+                textPosition: astChildNode.position,
+                wrapperPosition,
+              },
+              markdown
+            )
           : null;
         if (mapping) {
           positionMap.addTextMapping(mapping);
@@ -746,14 +801,17 @@ const importWithPositionsInContext = (
         const suffixLength = extra - prefixLength;
 
         const mapping = trackPositions
-          ? buildTextMapping({
-              slateTextPath: slatePath,
-              text: astChildNode.value || "",
-              textPosition: astChildNode.position,
-              wrapperPosition: astChildNode.position,
-              prefixLengthOverride: prefixLength,
-              suffixLengthOverride: suffixLength,
-            })
+          ? buildTextMapping(
+              {
+                slateTextPath: slatePath,
+                text: astChildNode.value || "",
+                textPosition: astChildNode.position,
+                wrapperPosition: astChildNode.position,
+                prefixLengthOverride: prefixLength,
+                suffixLengthOverride: suffixLength,
+              },
+              markdown
+            )
           : null;
         if (mapping) {
           positionMap.addTextMapping(mapping);
@@ -780,12 +838,15 @@ const importWithPositionsInContext = (
 
         if (isFormattedNode(node)) {
           const mapping = trackPositions
-            ? buildTextMapping({
-                slateTextPath: slatePath,
-                text: getFormattedText(node),
-                textPosition: astChildNode.position,
-                wrapperPosition,
-              })
+            ? buildTextMapping(
+                {
+                  slateTextPath: slatePath,
+                  text: getFormattedText(node),
+                  textPosition: astChildNode.position,
+                  wrapperPosition,
+                },
+                markdown
+              )
             : null;
           if (mapping) {
             positionMap.addTextMapping(mapping);
@@ -808,30 +869,33 @@ const importWithPositionsInContext = (
             mdEndCh: mdEnd.ch,
           };
 
-          // codec 声明了源码属性（fenceSourceProperty）的 code 认领方，补属性级映射
+          positionMap.addElementMapping(elementMapping);
           const sourceProperty =
             astChildNode.type === "code"
               ? getCurrentParseContext().fenceSourceProperties.get(getNodeType(node))
               : undefined;
           if (sourceProperty) {
-            const code = astChildNode.value || "";
-            const lines = code.split("\n");
-            const codeStartLine = mdStart.line + 1;
-            const codeEndLine = codeStartLine + Math.max(0, lines.length - 1);
-            const codeStartCh = mdStart.ch;
-            const codeEndCh =
-              lines.length > 0 ? codeStartCh + lines[lines.length - 1].length : codeStartCh;
-            elementMapping.propertyMappings = {
-              [sourceProperty]: {
-                mdStartLine: codeStartLine,
-                mdStartCh: codeStartCh,
-                mdEndLine: codeEndLine,
-                mdEndCh: codeEndCh,
-              },
-            };
+            const range = buildCodeSourceRange(astChildNode, markdown, mdStart);
+            if (typeof sourceProperty === "string") {
+              elementMapping.propertyMappings = { [sourceProperty]: range };
+            } else {
+              let owner: Descendant | undefined = node;
+              for (const index of sourceProperty.path)
+                owner =
+                  owner && !isFormattedNode(owner)
+                    ? getDescendantChildren(owner)[index]
+                    : undefined;
+              if (owner && !isFormattedNode(owner))
+                positionMap.addElementMapping({
+                  type: "element",
+                  elementType: getNodeType(owner),
+                  isVoid: isVoidSlateElementType(getNodeType(owner)),
+                  slateElementPath: [...slatePath, ...sourceProperty.path],
+                  ...range,
+                  propertyMappings: { [sourceProperty.property]: range },
+                });
+            }
           }
-
-          positionMap.addElementMapping(elementMapping);
         }
 
         if (astChildNode.children && !isFormattedNode(node) && !isRestoredNode(node)) {

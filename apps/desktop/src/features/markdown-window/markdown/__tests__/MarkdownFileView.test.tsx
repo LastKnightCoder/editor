@@ -164,6 +164,8 @@ vi.mock("react-codemirror2", async () => {
           },
           lastLine: () => value.split("\n").length - 1,
           getLine: (line: number) => value.split("\n")[line] ?? "",
+          cursorCoords: vi.fn(() => ({ top: 0, bottom: 0, left: 0, right: 0 })),
+          scrollIntoView: vi.fn(),
           on: vi.fn(),
           off: vi.fn(),
           clearHistory: vi.fn(),

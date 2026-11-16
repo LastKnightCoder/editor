@@ -1,16 +1,9 @@
-/**
- * 富文本 ⇄ 源码切换与光标双向映射（逻辑沿用旧 Markdown 窗口）：
- * - 富文本 → 源码：读取文档原文并解析位置表；光标在代码块内时取代码块
- *   内部控制器的光标换算，否则按 Slate 点映射；
- * - 源码 → 富文本：importFromMarkdownWithPositions 解析；落在代码块内时等代码块编辑器挂载后
- *   把光标放回代码块（最多等 2s），否则按映射点 / 进入源码前的位置聚焦（路径越界时就近夹取）。
- * 源码首次进入时挂载，此后两个视图常驻；源码回写经同一文档会话进入 Y.Doc。
- */
-
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   Editor as SlateEditor,
   Element as SlateElement,
+  Node,
+  Point,
   Text,
   Transforms,
   type Descendant,
@@ -19,24 +12,32 @@ import { ReactEditor } from "slate-react";
 import type { Editor as CodeMirrorEditor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
 import type { EditorRef } from "@tau/editor";
-import { getCodeBlockController } from "@tau/editor/extensions/code-block/runtime";
+import { getCodeBlockController, revealCodeStep } from "@tau/editor/extensions/code-block/runtime";
 import { importFromMarkdownWithPositions } from "@/utils/markdown";
+import { getCodeCaretRange, scrollRichCaretIntoView, translateCaret } from "./markdownCaret";
+import { scrollSourceCursorIntoView } from "./scrollSourceCursorIntoView";
 
 type SlatePoint = { path: number[]; offset: number };
 type SlateInstance = ReturnType<EditorRef["getEditor"]>;
 
-const CODE_BLOCK_FOCUS_RETRY_INTERVAL = 80;
-const CODE_BLOCK_FOCUS_MAX_WAIT = 2000;
-const FOCUS_DELAY = 100;
+const FOCUS_WAIT_MS = 2000;
 
-function nodeAt(nodes: Descendant[], path: number[]): Descendant | null {
-  let current: unknown = { children: nodes };
-  for (const index of path) {
-    const children = (current as { children?: unknown[] })?.children;
-    if (!Array.isArray(children) || !children[index]) return null;
-    current = children[index];
-  }
-  return current as Descendant;
+interface ReturnTarget {
+  content: Descendant[];
+  point: SlatePoint | null;
+  code?: { path: number[]; cursor: { line: number; ch: number } };
+  owner: Element | null;
+}
+
+function ownsFocus(owner: Element | null, source?: HTMLElement) {
+  const active = document.activeElement;
+  return (
+    !active ||
+    active === owner ||
+    active === document.body ||
+    active === document.documentElement ||
+    (source?.classList.contains("CodeMirror") && source.contains(active))
+  );
 }
 
 /** 把可能越界的点夹到最近的合法位置 */
@@ -84,6 +85,8 @@ export function useSourceMode({
   stopCapturing,
   richReady = true,
   prepareRichTarget,
+  scrollEl,
+  sourceWindowed,
 }: {
   editorRef: RefObject<EditorRef | null>;
   getText: () => string;
@@ -91,139 +94,158 @@ export function useSourceMode({
   stopCapturing: () => void;
   richReady?: boolean;
   prepareRichTarget?: (index: number) => void;
+  scrollEl: HTMLElement | null;
+  sourceWindowed: boolean;
 }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceCreated, setSourceCreated] = useState(false);
-  const [focusRequest, setFocusRequest] = useState(0);
+  const [focusRequest, requestFocus] = useState(0);
   const sourceEditorRef = useRef<CodeMirrorEditor | null>(null);
   const sourceTextRef = useRef("");
-  const pendingSelection = useRef<SlatePoint | null>(null);
-  const pendingCodeBlock = useRef<{
-    path: number[];
-    cursor: { line: number; ch: number };
-    uuid?: string;
-  } | null>(null);
-  const pendingFocus = useRef(false);
+  const returnTarget = useRef<ReturnTarget | null>(null);
   const lastEditorFocus = useRef<SlatePoint | null>(null);
-  const sourceFocusPoint = useRef<{ line: number; ch: number } | null>(null);
-  const returnFocusOwner = useRef<Element | null>(null);
-
-  const clearPending = () => {
-    pendingCodeBlock.current = null;
-    pendingSelection.current = null;
-    pendingFocus.current = false;
-  };
-
-  const focusFallback = (editor: SlateInstance) => {
-    const target = resolveSlatePoint(editor, pendingSelection.current);
-    if (target) {
-      Transforms.select(editor, { anchor: target, focus: target });
-      ReactEditor.focus(editor);
-    }
-    clearPending();
-  };
+  const sourceTarget = useRef<{
+    point: { line: number; ch: number } | null;
+    owner: Element | null;
+  } | null>(null);
 
   const enterSource = () => {
+    returnTarget.current = null;
     const editor = editorRef.current?.getEditor();
-    const selection = editor?.selection;
-    lastEditorFocus.current = selection?.focus
-      ? { path: [...selection.focus.path], offset: selection.focus.offset }
-      : null;
-
+    const active = document.activeElement;
+    const activeElement = active instanceof HTMLElement ? active : null;
+    let point = editor?.selection?.focus;
+    let codePath: number[] | undefined;
+    let codeCursor: { line: number; ch: number } | undefined;
+    if (editor && activeElement?.closest('[data-slate-editor="true"]')) {
+      try {
+        if (activeElement.matches("textarea.code-block-shiki-input")) {
+          const block = activeElement.closest('[data-slate-node="element"]');
+          const node = block && ReactEditor.toSlateNode(editor, block);
+          if (SlateElement.isElement(node) && node.type === "code-block") {
+            codePath = ReactEditor.findPath(editor, node);
+            codeCursor = getCodeBlockController(node.uuid)?.getCursor();
+          }
+        } else {
+          const selection = window.getSelection();
+          if (selection)
+            point =
+              ReactEditor.toSlateRange(editor, selection, {
+                exactMatch: false,
+                suppressThrow: true,
+              })?.focus ?? point;
+        }
+      } catch {
+        // 切换前的 DOM 已被外部更新，沿用编辑器选区。
+      }
+    }
+    if (editor && point && !codeCursor) {
+      const entry = SlateEditor.above(editor, {
+        at: point,
+        match: node => SlateElement.isElement(node) && node.type === "code-block",
+      });
+      const block = entry?.[0];
+      if (entry && SlateElement.isElement(block) && block.type === "code-block") {
+        codePath = entry[1];
+        codeCursor = getCodeBlockController(block.uuid)?.getCursor();
+      }
+    }
+    lastEditorFocus.current = point ?? null;
     stopCapturing();
     const markdown = getText();
-    let positionMap: ReturnType<typeof importFromMarkdownWithPositions>["positionMap"] | undefined;
-    if (selection?.focus) {
+    let target: { line: number; ch: number } | null = null;
+    if (editor && (point || codeCursor)) {
       try {
-        positionMap = importFromMarkdownWithPositions(markdown).positionMap;
+        const { content, positionMap } = importFromMarkdownWithPositions(markdown);
+        if (codePath && codeCursor) {
+          const parsed = translateCaret(editor.children, content, { path: codePath, offset: 0 });
+          const path = parsed?.path ?? codePath;
+          const range =
+            positionMap.getElementMappingBySlatePath(path)?.propertyMappings?.code ??
+            positionMap.getElementMappingBySlatePath([...path, 0])?.propertyMappings?.code;
+          if (range)
+            target = {
+              line: range.mdStartLine + codeCursor.line,
+              ch: (range.mdLineColumns?.[codeCursor.line] ?? range.mdStartCh) + codeCursor.ch,
+            };
+        }
+        if (!target && point) {
+          const parsed = translateCaret(editor.children, content, point);
+          if (parsed) target = positionMap.slateToMarkdown(parsed);
+        }
       } catch {
-        // 原文解析失败时仍可进入源码修复，仅放弃本次光标映射。
+        // 原文解析失败时仍可进入源码修复。
       }
     }
     sourceTextRef.current = markdown;
-    const source = sourceEditorRef.current;
-    if (source && source.getValue() !== markdown) source.setValue(markdown);
-    let target: { line: number; ch: number } | null = null;
-
-    if (selection?.focus && editor && positionMap) {
-      const codeBlock = SlateEditor.above(editor, {
-        at: selection.focus,
-        match: node => SlateElement.isElement(node) && node.type === "code-block",
-      });
-      if (codeBlock) {
-        const [node, path] = codeBlock as [{ uuid?: string }, number[]];
-        const codeEditor = node.uuid ? getCodeBlockController(node.uuid) : null;
-        const codeMapping = positionMap.getElementMappingBySlatePath(path)?.propertyMappings?.code;
-        if (codeEditor && codeMapping) {
-          const cursor = codeEditor.getCursor();
-          target = {
-            line: codeMapping.mdStartLine + cursor.line,
-            ch: codeMapping.mdStartCh + cursor.ch,
-          };
-        }
-      }
-      target ??= positionMap.slateToMarkdown(selection.focus);
-    }
-    sourceFocusPoint.current = target;
-    const active = document.activeElement;
-    if (editor && active instanceof HTMLElement && active.closest('[data-slate-editor="true"]')) {
-      // Activity 隐藏正文前，让 Slate 仍能通过已连接的 DOM 处理失焦。
-      if (ReactEditor.hasDOMNode(editor, active)) active.blur();
-    }
+    const code = sourceEditorRef.current;
+    if (code && code.getValue() !== markdown) code.setValue(markdown);
+    sourceTarget.current = { point: target, owner: active };
+    if (
+      editor &&
+      activeElement?.closest('[data-slate-editor="true"]') &&
+      ReactEditor.hasDOMNode(editor, activeElement)
+    )
+      activeElement.blur();
     setSourceCreated(true);
     setSourceMode(true);
   };
 
   useEffect(() => {
-    if (!sourceMode) return;
-    const focus = setTimeout(() => {
-      const source = sourceEditorRef.current;
-      if (sourceFocusPoint.current) source?.setCursor(sourceFocusPoint.current);
-      source?.focus();
-    }, FOCUS_DELAY);
-    const refresh = setTimeout(() => sourceEditorRef.current?.refresh(), FOCUS_DELAY + 50);
-    return () => {
-      clearTimeout(focus);
-      clearTimeout(refresh);
+    const target = sourceTarget.current;
+    if (!sourceMode || !target) return;
+    let frame = 0;
+    const started = performance.now();
+    const restore = () => {
+      const code = sourceEditorRef.current;
+      if (sourceTarget.current !== target || !ownsFocus(target.owner, code?.getWrapperElement()))
+        return;
+      if (!code) {
+        if (performance.now() - started < FOCUS_WAIT_MS) frame = requestAnimationFrame(restore);
+        return;
+      }
+      code.refresh();
+      if (target.point) code.setCursor(target.point);
+      code.focus();
+      if (sourceWindowed) code.scrollIntoView(code.getCursor(), 24);
+      else if (scrollEl) scrollSourceCursorIntoView(code, scrollEl);
+      sourceTarget.current = null;
     };
-  }, [sourceMode]);
+    frame = requestAnimationFrame(restore);
+    return () => cancelAnimationFrame(frame);
+  }, [sourceMode, scrollEl, sourceWindowed]);
 
   const leaveSource = () => {
-    const cursor = sourceEditorRef.current?.getCursor();
-    const { content, positionMap } = importFromMarkdownWithPositions(sourceTextRef.current);
-    if (!applySource(sourceTextRef.current, content)) return;
+    sourceTarget.current = null;
+    const editor = sourceEditorRef.current;
+    const cursor = editor?.getCursor();
+    const markdown = editor?.getValue() ?? sourceTextRef.current;
+    const { content, positionMap } = importFromMarkdownWithPositions(markdown);
+    if (!applySource(markdown, content)) return;
     stopCapturing();
-
+    const mapped = cursor ? positionMap.markdownToSlate(cursor) : null;
     const hint = cursor ? positionMap.getElementPropertyByMarkdown(cursor) : null;
-    if (hint?.mapping.elementType === "code-block") {
-      const path = [...hint.mapping.slateElementPath];
-      const node = nodeAt(content, path) as { uuid?: unknown } | null;
-      let codeCursor = hint.propertyName === "code" && hint.relativePos ? hint.relativePos : null;
-      const range = hint.mapping.propertyMappings?.code;
-      if (!codeCursor && cursor && range) {
-        const line = Math.min(Math.max(cursor.line, range.mdStartLine), range.mdEndLine);
-        const lineBase = line === range.mdStartLine ? range.mdStartCh : 0;
-        const lineEnd = line === range.mdEndLine ? range.mdEndCh : cursor.ch;
-        const ch = Math.min(Math.max(cursor.ch, lineBase), Math.max(lineBase, lineEnd));
-        codeCursor = {
-          line: Math.max(0, line - range.mdStartLine),
-          ch: Math.max(0, ch - lineBase),
-        };
-      }
-      pendingCodeBlock.current = {
-        path,
-        cursor: codeCursor ?? { line: 0, ch: 0 },
-        uuid: typeof node?.uuid === "string" ? node.uuid : undefined,
-      };
-      pendingSelection.current = { path, offset: 0 };
-    } else {
-      pendingCodeBlock.current = null;
-      pendingSelection.current =
-        (cursor ? positionMap.markdownToSlate(cursor) : null) ?? lastEditorFocus.current;
-    }
-    pendingFocus.current = true;
-    returnFocusOwner.current = document.activeElement;
-    setFocusRequest(request => request + 1);
+    const codePath =
+      hint?.mapping.elementType === "code-step"
+        ? hint.mapping.slateElementPath.slice(0, -1)
+        : hint?.mapping.elementType === "code-block"
+          ? hint.mapping.slateElementPath
+          : null;
+    returnTarget.current = {
+      content,
+      point: mapped,
+      ...(codePath && {
+        code: {
+          path: codePath,
+          cursor:
+            hint?.propertyName === "code" && hint.relativePos
+              ? { line: hint.relativePos.line, ch: hint.relativePos.ch }
+              : { line: 0, ch: 0 },
+        },
+      }),
+      owner: document.activeElement,
+    };
+    requestFocus(value => value + 1);
     setSourceMode(false);
   };
 
@@ -239,75 +261,140 @@ export function useSourceMode({
     }
   });
 
-  // 切回富文本后等待视图显示，再恢复光标。
   useEffect(() => {
-    if (sourceMode || !richReady || !pendingFocus.current || focusRequest === 0) return;
-    const timer = setTimeout(() => {
+    const request = returnTarget.current;
+    if (sourceMode || !richReady || !request) return;
+    const started = performance.now();
+    let frame = 0;
+    let revealedCode = false;
+    let selected: { editor: SlateInstance; point: SlatePoint } | undefined;
+    let settling: AbortController | undefined;
+    const retry = () => {
+      if (performance.now() - started < FOCUS_WAIT_MS) frame = requestAnimationFrame(restore);
+      else returnTarget.current = null;
+    };
+    const finish = (
+      target: HTMLElement,
+      focus: Element,
+      caret?: () => globalThis.Range | undefined
+    ) => {
+      returnTarget.current = null;
+      const startedAt = performance.now();
+      settling = new AbortController();
+      const { signal } = settling;
+      const stop = () => settling?.abort();
+      for (const event of ["wheel", "pointerdown", "keydown"]) {
+        window.addEventListener(event, stop, { capture: true, passive: true, signal });
+      }
+      const settle = () => {
+        if (signal.aborted || !target.isConnected || document.activeElement !== focus)
+          return stop();
+        try {
+          const range = caret?.();
+          if (!caret || range) scrollRichCaretIntoView(target, scrollEl, range);
+          else return stop();
+        } catch {
+          return stop();
+        }
+        if (performance.now() - startedAt < 250) frame = requestAnimationFrame(settle);
+        else stop();
+      };
+      settle();
+    };
+    const restore = () => {
+      if (request !== returnTarget.current) return;
+      if (!ownsFocus(request.owner, sourceEditorRef.current?.getWrapperElement())) {
+        returnTarget.current = null;
+        return;
+      }
       const editor = editorRef.current?.getEditor();
-      const active = document.activeElement;
-      const sourceWrapper = sourceEditorRef.current?.getWrapperElement();
-      const inSource =
-        sourceWrapper?.classList.contains("CodeMirror") && sourceWrapper.contains(active);
-      if (
-        active &&
-        active !== document.body &&
-        active !== document.documentElement &&
-        active !== returnFocusOwner.current &&
-        !inSource
-      ) {
-        clearPending();
+      if (!editor) return retry();
+      const translated =
+        request.point && translateCaret(request.content, editor.children, request.point);
+      const point = resolveSlatePoint(
+        editor,
+        translated ?? request.point ?? lastEditorFocus.current
+      );
+      if (!point) {
+        returnTarget.current = null;
         return;
       }
-      if (!editor || !pendingFocus.current) {
-        clearPending();
-        return;
-      }
+
       try {
-        if (prepareRichTarget) {
-          const target = resolveSlatePoint(editor, pendingSelection.current);
-          if (target) prepareRichTarget(target.path[0]);
-        }
-        if (!pendingCodeBlock.current) {
-          focusFallback(editor);
-          return;
-        }
-        const startedAt = Date.now();
-        const attempt = () => {
-          const focus = pendingCodeBlock.current;
-          if (!pendingFocus.current) return;
-          if (!focus || !SlateEditor.hasPath(editor, focus.path)) {
-            focusFallback(editor);
-            return;
-          }
-          let codeEditor = focus.uuid ? getCodeBlockController(focus.uuid) : null;
-          if (!codeEditor) {
-            const [node] = SlateEditor.node(editor, focus.path);
-            const uuid = (node as { uuid?: unknown }).uuid;
-            if (typeof uuid === "string") {
-              pendingCodeBlock.current = { ...focus, uuid };
-              codeEditor = getCodeBlockController(uuid);
+        prepareRichTarget?.(point.path[0]);
+        if (request.code) {
+          const parsed = { path: request.code.path, offset: 0 };
+          const live =
+            translateCaret(request.content, editor.children, parsed)?.path ?? parsed.path;
+          const node = Node.getIf(editor, live);
+          if (SlateElement.isElement(node) && node.type === "code-block") {
+            const host = ReactEditor.toDOMNode(editor, node);
+            if (!revealedCode) {
+              revealCodeStep(editor, node, 0);
+              scrollRichCaretIntoView(host, scrollEl);
+              revealedCode = true;
+            }
+            const code = getCodeBlockController(node.uuid);
+            if (!code && performance.now() - started < FOCUS_WAIT_MS) return retry();
+            if (code) {
+              const line = Math.min(request.code.cursor.line, code.lastLine());
+              const ch = Math.min(request.code.cursor.ch, code.getLine(line).length);
+              Transforms.select(editor, point);
+              code.setCursor({ line, ch });
+              const active = document.activeElement;
+              if (active instanceof HTMLElement && host.contains(active)) {
+                const input = active instanceof HTMLTextAreaElement ? active : undefined;
+                const offset = input?.selectionStart;
+                const caret =
+                  input && getCodeCaretRange(input)
+                    ? () => (input.selectionStart === offset ? getCodeCaretRange(input) : undefined)
+                    : undefined;
+                finish(active, active, caret);
+                return;
+              }
+              return retry();
             }
           }
-          if (!codeEditor) {
-            if (Date.now() - startedAt >= CODE_BLOCK_FOCUS_MAX_WAIT) focusFallback(editor);
-            else setTimeout(attempt, CODE_BLOCK_FOCUS_RETRY_INTERVAL);
-            return;
-          }
-          const line = Math.min(focus.cursor.line, codeEditor.lastLine());
-          const ch = Math.min(focus.cursor.ch, (codeEditor.getLine(line) || "").length);
-          codeEditor.focus();
-          codeEditor.setCursor({ line, ch });
-          clearPending();
-        };
-        attempt();
-      } catch (error) {
-        console.error("恢复光标失败:", error);
-        clearPending();
+        }
+        ReactEditor.toDOMRange(editor, { anchor: point, focus: point });
+        if (selected?.editor !== editor || !Point.equals(selected.point, point)) {
+          Transforms.select(editor, point);
+          selected = { editor, point };
+        }
+        if (editor.operations.length) return retry();
+        ReactEditor.focus(editor);
+        const root = ReactEditor.toDOMNode(editor, editor);
+        if (document.activeElement !== root) root.focus({ preventScroll: true });
+        const selection = editor.selection ?? { anchor: point, focus: point };
+        const range = ReactEditor.toDOMRange(editor, selection);
+        window
+          .getSelection()
+          ?.setBaseAndExtent(
+            range.startContainer,
+            range.startOffset,
+            range.endContainer,
+            range.endOffset
+          );
+        const leaf = range.startContainer.parentElement;
+        if (leaf)
+          finish(leaf, root, () => {
+            const current = editor.selection;
+            return current && Point.equals(current.focus, selection.focus)
+              ? ReactEditor.toDOMRange(editor, current)
+              : undefined;
+          });
+        else returnTarget.current = null;
+      } catch {
+        // 视口块与代码输入器可能在下一帧才提交。
+        retry();
       }
-    }, FOCUS_DELAY);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusRequest, sourceMode, richReady, prepareRichTarget]);
+    };
+    frame = requestAnimationFrame(restore);
+    return () => {
+      cancelAnimationFrame(frame);
+      settling?.abort();
+    };
+  }, [focusRequest, sourceMode, richReady, prepareRichTarget, editorRef, scrollEl]);
 
   return {
     sourceMode,

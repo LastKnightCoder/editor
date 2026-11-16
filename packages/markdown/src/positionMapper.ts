@@ -37,6 +37,8 @@ export interface TextMapping {
   prefixLength: number; // 前缀长度，如 "**" 为 2
   suffixLength: number; // 后缀长度，如 "**" 为 2
   sourceOffsets?: readonly number[];
+  /** 多行导入时，正文各行在源码中的起点与文本偏移。 */
+  sourceLines?: readonly (MarkdownPosition & { offset: number; length: number })[];
   /** 手工改写的载体无法证明字符对应时，只提供首尾边界。 */
   opaque?: boolean;
   mdEnd?: MarkdownPosition;
@@ -52,7 +54,7 @@ export interface ElementMapping {
   // Slate 元素信息
   slateElementPath: number[]; // 元素路径，如 [1]
   elementType: string; // 元素类型，如 "code-block"
-  isVoid: true;
+  isVoid: boolean;
 
   // Markdown 位置信息
   mdStartLine: number;
@@ -67,6 +69,7 @@ export interface ElementMapping {
       mdStartCh: number;
       mdEndLine: number;
       mdEndCh: number;
+      mdLineColumns?: readonly number[];
     };
   };
 }
@@ -139,6 +142,14 @@ export class PositionMapper {
 
     // 3.2 限制在有效范围内
     const clampedOffset = Math.max(0, Math.min(relativeOffset, textMapping.slateLength));
+    if (textMapping.sourceLines) {
+      const line = textMapping.sourceLines.findLast(line => line.offset <= clampedOffset);
+      if (line)
+        return {
+          line: line.line,
+          ch: line.ch + Math.min(line.length, clampedOffset - line.offset),
+        };
+    }
     if (textMapping.opaque) {
       return clampedOffset > 0 && clampedOffset === textMapping.slateLength && textMapping.mdEnd
         ? { ...textMapping.mdEnd }
@@ -192,6 +203,17 @@ export class PositionMapper {
 
     // 3. 文本映射：计算精确位置
     const textMapping = mapping as TextMapping;
+
+    if (textMapping.sourceLines) {
+      const lines = textMapping.sourceLines;
+      const line = lines.find(line => line.line === pos.line);
+      const offset = line
+        ? line.offset + Math.max(0, Math.min(line.length, pos.ch - line.ch))
+        : pos.line < lines[0].line
+          ? 0
+          : textMapping.slateLength;
+      return { path: [...textMapping.slateTextPath], offset: textMapping.slateOffset + offset };
+    }
 
     if (textMapping.opaque) {
       const end = textMapping.mdEnd ?? {
@@ -290,6 +312,7 @@ export class PositionMapper {
     propertyName?: string;
     relativePos?: MarkdownPosition;
   } | null {
+    let containing: ElementMapping | undefined;
     for (const mapping of this.mappings) {
       if (mapping.type !== "element") {
         continue;
@@ -300,7 +323,7 @@ export class PositionMapper {
             continue;
           }
           const relativeLine = pos.line - range.mdStartLine;
-          const prefixCh = range.mdStartCh || 0;
+          const prefixCh = range.mdLineColumns?.[relativeLine] ?? range.mdStartCh;
           const relativeCh = pos.ch - prefixCh;
           return {
             mapping,
@@ -313,10 +336,10 @@ export class PositionMapper {
         }
       }
       if (this.isWithinElementRange(pos, mapping)) {
-        return { mapping };
+        containing ??= mapping;
       }
     }
-    return null;
+    return containing ? { mapping: containing } : null;
   }
 
   /**
@@ -566,6 +589,7 @@ export class PositionMapper {
     // TODO: 优化为二分查找（需要先按行号排序）
     let nearestBefore: TextMapping | null = null;
     let nearestAfter: TextMapping | null = null;
+    let wrapperMatch: TextMapping | null = null;
     let nearestBeforeEndLine = -1;
     let nearestBeforeEndCh = -1;
     let nearestAfterStartLine = Number.POSITIVE_INFINITY;
@@ -588,8 +612,22 @@ export class PositionMapper {
         if (
           !isBefore(pos.line, pos.ch, startLine, startCh) &&
           !isBefore(endLine, endCh, pos.line, pos.ch)
-        )
-          return mapping;
+        ) {
+          const line = mapping.sourceLines?.find(line => line.line === pos.line);
+          const first = mapping.mdCh + (mapping.sourceOffsets?.[0] ?? mapping.prefixLength);
+          const last =
+            mapping.mdCh +
+            (mapping.sourceOffsets?.[mapping.slateLength] ??
+              mapping.prefixLength + mapping.slateLength);
+          if (
+            line
+              ? pos.ch >= line.ch && pos.ch <= line.ch + line.length
+              : pos.line === mapping.mdLine && pos.ch >= first && pos.ch <= last
+          )
+            return mapping;
+          wrapperMatch ??= mapping;
+          continue;
+        }
 
         const isBeforePos = isBefore(endLine, endCh, pos.line, pos.ch);
         if (isBeforePos || (endLine === pos.line && endCh === pos.ch)) {
@@ -621,7 +659,10 @@ export class PositionMapper {
         }
       }
     }
-    return nearestBefore ?? nearestAfter ?? null;
+    if (wrapperMatch) return wrapperMatch;
+    if (nearestAfterStartLine === pos.line && nearestBeforeEndLine !== pos.line)
+      return nearestAfter;
+    return nearestBefore ?? nearestAfter;
   }
 
   /**
