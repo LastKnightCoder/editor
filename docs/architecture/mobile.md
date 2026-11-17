@@ -517,7 +517,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
   块经 `@tau/editor-source-view/menu` 登记 `{ title, icon, edit, copySource, readOnly }`，`resolveSourceBlockContext` 据
   `getPreviewEditorActions` 给出 `source-block` 上下文（与媒体同级），不认具体块类型；controller 与媒体一样收起键盘、保持编辑态。
   配件栏源码块模式由 `sourceBlockAccessory.tsx` 渲染：左端块名标签，中段「编辑」（可编辑时）/「复制」，右端「⋯」（块操作、删除，
-  不可编辑时无删除）与「键盘」（`focusAfterVoid` + `placeCaretAfterBlock`，与媒体共用）。不提供符号行。
+  不可编辑时无删除）与「键盘」（`focusAfterVoid` + `placeCaretAfterBlock`，与媒体共用）。不提供符号行。已知限制：源码页浮层
+  z 序高于 Toast，「复制源码」的提示会被页面盖住；非用户手势（插入新块定时器）打开的源码页 iOS 不自动弹键盘，需再点一下输入框。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 
@@ -576,7 +577,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 正常 AppShell 按数据库作用域挂载插件宿主，“我的”功能宫格与今天页插件卡片消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
-插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
+插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。网页书签的跨域抓取 `IFetchService` 在插件宿主网络连接期间由 `app/plugins/host-fetch.ts` 提供，未连接时书签记为读取失败、可重试。
 
 插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。外壳在滚动区外固定预留 `--mobile-screen-safe-bottom`，键盘弹出时该预留归零；内容容器不使用 `.mobile-page-scroll`，不追加末尾占位。所有插件页面、设置与管理页默认使用这一边界，不需要额外声明。宿主不探测插件 DOM；插件在已避开系统区域的容器内布局，底栏可正常 `sticky bottom: 0`，只保留自身呼吸间距。作者规范见[页面布局](/plugins/tau-plugin-template/docs/ui.md#手机页面的布局边界)。
 
