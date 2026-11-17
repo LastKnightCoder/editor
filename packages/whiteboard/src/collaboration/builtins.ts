@@ -225,7 +225,7 @@ export function canvasFields(
       current[key] = { ...((current[key] as Record<string, unknown>) ?? {}) };
       current = current[key] as Record<string, unknown>;
     }
-    current[path.at(-1)!] = node.body;
+    current[path[path.length - 1]] = node.body;
   }
   return result;
 }

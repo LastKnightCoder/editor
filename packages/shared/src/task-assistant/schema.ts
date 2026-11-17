@@ -272,7 +272,8 @@ export function validateTaskValue(schema: TaskSchema, value: unknown, path = "�
     const values = value as unknown[];
     if (values.length < (schema.minItems ?? 0) || values.length > (schema.maxItems ?? Infinity))
       fail("的数量超出范围");
-    values.forEach((entry, index) => validateTaskValue(schema.items!, entry, `${path}[${index}]`));
+    const items = schema.items ?? fail("缺少 items 定义");
+    values.forEach((entry, index) => validateTaskValue(items, entry, `${path}[${index}]`));
     return;
   }
   if (schema.type === "integer" || schema.type === "number") {

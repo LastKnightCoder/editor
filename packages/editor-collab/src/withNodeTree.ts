@@ -39,6 +39,13 @@ import type { EditorTextField, TextFieldSnapshot } from "@tau/editor/source-cont
 import { createTextFieldBinding } from "./textFieldBinding";
 import { findNodePath, nodeIdentity, projectNodeTree } from "./nodeTreeProjection";
 
+/** 协作树内已落盘的节点必带稳定身份；缺失说明上游插入未走身份分配，直接失败 */
+const requireIdentity = (node: Descendant): string => {
+  const id = nodeIdentity(node);
+  if (!id) throw new Error("协作树节点缺少稳定身份");
+  return id;
+};
+
 export interface NodeTreeEditorConfiguration {
   clipboardDocumentId?: string;
   prepareFragment?: import("./types").ContentCollaborationBinding["prepareFragment"];
@@ -403,8 +410,8 @@ export function withNodeTree<T extends Editor>(
       const previous = Node.get(editor, previousPath);
       if (Element.isElement(node) && Element.isElement(previous)) {
         if (!editablePath(previousPath)) return;
-        const sourceContract = tree.contract(nodeIdentity(node)!);
-        const targetContract = tree.contract(nodeIdentity(previous)!);
+        const sourceContract = tree.contract(requireIdentity(node));
+        const targetContract = tree.contract(requireIdentity(previous));
         const sourceId = (node as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
         const targetId = (previous as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
         if (sourceId !== targetId) {
@@ -500,17 +507,17 @@ export function withNodeTree<T extends Editor>(
         } else if (operation.type === "set_node") {
           if (Element.isElement(node)) {
             const nextType = (operation.newProperties as { type?: string }).type;
-            if (nextType && nextType !== node.type && tree.contract(nodeIdentity(node)!)) {
+            if (nextType && nextType !== node.type && tree.contract(requireIdentity(node))) {
               const target = configuration.currentContract?.(nextType);
               if (!target) throw new Error("目标节点版本不可用");
               const previous = (node as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
-              tree.convertNode(nodeIdentity(node)!, target, operation.newProperties, origin);
+              tree.convertNode(requireIdentity(node), target, operation.newProperties, origin);
               operation = {
                 ...operation,
                 properties: { ...operation.properties, [NODE_CONTRACT_PROPERTY]: previous },
                 newProperties: { ...operation.newProperties, [NODE_CONTRACT_PROPERTY]: target },
               } as unknown as Operation;
-            } else tree.setProperties(nodeIdentity(node)!, operation.newProperties, origin);
+            } else tree.setProperties(requireIdentity(node), operation.newProperties, origin);
           } else {
             if (!location.parent) throw new Error("正文根不能格式化文本");
             // Slate 省略已删除的标记，Yjs 需要用 null 显式清除。
@@ -528,7 +535,7 @@ export function withNodeTree<T extends Editor>(
           const offset = node.children
             .slice(0, operation.position)
             .reduce((sum, child) => sum + width(child), 0);
-          tree.splitNode(nodeIdentity(node)!, offset, next, origin);
+          tree.splitNode(requireIdentity(node), offset, next, origin);
           operation = {
             ...operation,
             properties: { ...operation.properties, collabId: id },
@@ -539,12 +546,12 @@ export function withNodeTree<T extends Editor>(
             tree.doc.transact(() => {
               if (mergeContract)
                 tree.convertNode(
-                  nodeIdentity(node)!,
+                  requireIdentity(node),
                   mergeContract,
                   { type: previous.type },
                   origin
                 );
-              tree.mergeNodes(nodeIdentity(node)!, nodeIdentity(previous)!, origin);
+              tree.mergeNodes(requireIdentity(node), requireIdentity(previous), origin);
             }, origin);
           } else if (Text.isText(node) && Text.isText(previous) && location.parent) {
             const marks = {

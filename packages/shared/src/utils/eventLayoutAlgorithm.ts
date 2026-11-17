@@ -212,10 +212,11 @@ export function assignMonthViewLevels<Id extends string | number>(
     // 如果找到了可用的层级，分配并更新占用情况
     if (assignedLevel !== -1) {
       spans.forEach(span => {
-        const occupancy = rowLevelOccupancy.get(span.row)!;
+        const occupancy = rowLevelOccupancy.get(span.row);
+        const layout = rowLayouts.get(span.row);
+        if (!occupancy || !layout) return;
         occupancy[assignedLevel] = span.endCol; // 更新该层级的占用
 
-        const layout = rowLayouts.get(span.row)!;
         layout.push({
           eventId: event.id,
           span,

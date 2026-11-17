@@ -8,9 +8,10 @@ export type Path = number[];
 export class PathUtil {
   static getPathByElement(board: Board, element: BoardElement): Path | null {
     const path: Path = [];
-    const dfs = (node: Board | BoardElement, index?: number) => {
+    // 根节点入参用 -1 占位：isBoard 分支不会读取 index
+    const dfs = (node: Board | BoardElement, index: number) => {
       if (!BoardUtil.isBoard(node)) {
-        path.push(index!);
+        path.push(index);
         if (node.id === element.id) {
           return true;
         }
@@ -26,7 +27,7 @@ export class PathUtil {
         }
       }
     };
-    return dfs(board) && path.length > 0 ? path : null;
+    return dfs(board, -1) && path.length > 0 ? path : null;
   }
 
   static getElementByPath(board: Board, path: number[]): BoardElement {
@@ -442,11 +443,8 @@ export class PathUtil {
 
         // 使用缓存键避免重复计算
         const cacheKey = `${JSON.stringify(originalPath)}-${currentOp.type}-${i}`;
-        let transformedPath: Path | null;
-
-        if (transformCache.has(cacheKey)) {
-          transformedPath = transformCache.get(cacheKey)!;
-        } else {
+        let transformedPath = transformCache.get(cacheKey);
+        if (transformedPath === undefined) {
           transformedPath = this.calculateCumulativePathTransform(
             originalPath,
             operations.slice(0, i), // 使用原始操作，不是已转换的操作
@@ -469,11 +467,8 @@ export class PathUtil {
 
         // 使用缓存键避免重复计算
         const newPathCacheKey = `${JSON.stringify(originalNewPath)}-move_target-${i}`;
-        let transformedNewPath: Path | null;
-
-        if (transformCache.has(newPathCacheKey)) {
-          transformedNewPath = transformCache.get(newPathCacheKey)!;
-        } else {
+        let transformedNewPath = transformCache.get(newPathCacheKey);
+        if (transformedNewPath === undefined) {
           transformedNewPath = this.calculateCumulativePathTransform(
             originalNewPath,
             operations.slice(0, i),

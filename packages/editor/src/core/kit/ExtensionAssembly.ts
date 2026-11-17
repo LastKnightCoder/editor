@@ -273,10 +273,8 @@ export class ExtensionAssembly {
     this.ingestSources = ingestSources;
     const behaviors = new Map<string, ElementBehaviorEntry[]>();
     for (const type of new Set([...own.keys(), ...attached.keys()])) {
-      behaviors.set(type, [
-        ...(own.has(type) ? [own.get(type)!] : []),
-        ...(attached.get(type) ?? []),
-      ]);
+      const ownBehavior = own.get(type);
+      behaviors.set(type, [...(ownBehavior ? [ownBehavior] : []), ...(attached.get(type) ?? [])]);
     }
     this.behaviors = behaviors;
     this.copyPolicies = copyPolicies;

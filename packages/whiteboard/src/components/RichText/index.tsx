@@ -221,13 +221,10 @@ const Richtext = (props: RichTextProps) => {
     if (pendingContentIdPromiseRef.current) {
       return pendingContentIdPromiseRef.current;
     }
+    const api = board.extensions?.api;
+    if (!api) return undefined;
 
-    const pendingPromise = bindTextContent(
-      board.extensions!.api,
-      element.id,
-      text,
-      () => latestContentRef.current
-    );
+    const pendingPromise = bindTextContent(api, element.id, text, () => latestContentRef.current);
 
     pendingContentIdPromiseRef.current = pendingPromise;
     try {

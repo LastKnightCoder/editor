@@ -45,9 +45,11 @@ export class WhiteboardContractCatalog {
           { element, access: "edit" as const, current: true },
           ...(element.previousVersions ?? []).map(value => ({ ...value, current: false })),
         ]) {
+          const dataVersion = item.element.dataVersion;
+          if (dataVersion === undefined) throw new Error("无版本白板定义不能进入协作目录");
           const prepared = await prepareWhiteboardContract(source.owner, {
             type: item.element.type,
-            dataVersion: item.element.dataVersion!,
+            dataVersion,
             collaboration: item.element.collaboration,
             resources: item.element.resources,
             structure: {

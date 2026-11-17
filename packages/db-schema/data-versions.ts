@@ -27,7 +27,9 @@ export function assertDataVersions<
     )
       throw new Error("历史节点声明无效");
     validate(previous.element);
-    if (versions.has(previous.element.dataVersion!)) throw new Error("节点数据版本重复");
-    versions.add(previous.element.dataVersion!);
+    const previousVersion = previous.element.dataVersion;
+    if (previousVersion === undefined) throw new Error("历史节点缺少 dataVersion");
+    if (versions.has(previousVersion)) throw new Error("节点数据版本重复");
+    versions.add(previousVersion);
   }
 }

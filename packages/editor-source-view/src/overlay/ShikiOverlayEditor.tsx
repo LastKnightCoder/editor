@@ -267,7 +267,8 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
 
   valueRef.current = value;
   const lines = useMemo(() => getLines(value), [value]);
-  const hasChangedLines = Boolean(changedLines && changedLines.size > 0);
+  const activeChangedLines = changedLines && changedLines.size > 0 ? changedLines : null;
+  const hasChangedLines = activeChangedLines !== null;
   const needsLineLayout = lineNumbers || hasChangedLines || Boolean(onLineTopsChange);
   const highlightedLineSet = useMemo(
     () => parseHighlightLinesToSet(highlightLines, lines.length),
@@ -652,7 +653,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           aria-hidden={true}
         >
           <div ref={decoInnerRef}>
-            {[...changedLines!].map(index => {
+            {[...activeChangedLines].map(index => {
               const box = lineLayout[index];
               return box ? (
                 <div

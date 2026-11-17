@@ -36,6 +36,8 @@ export function authorElement(binding: CanvasBinding, id: string) {
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
   const type = mapped?.contractId === node.contractId ? mapped : undefined;
+  const localEntity = binding.localEntities.get(node.id);
+  const measurement = binding.measurements.get(node.id);
   const children = node.children.map(child => project(binding, child));
   const next: BoardElement = {
     id: node.id,
@@ -44,22 +46,20 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
     dataVersion: binding.model.contracts.get(node.contractId)?.dataVersion,
     ...(node.body === undefined ? {} : { body: node.body }),
     ...(node.entity ? { entity: node.entity } : {}),
-    ...(type &&
-    binding.localEntities.get(node.id)?.key === JSON.stringify(node.entity) &&
-    binding.localEntities.get(node.id)?.id != null
+    ...(type && localEntity?.key === JSON.stringify(node.entity) && localEntity?.id != null
       ? node.entity?.kind === "content"
-        ? { contentId: binding.localEntities.get(node.id)!.id }
+        ? { contentId: localEntity.id }
         : node.entity?.kind === "video-note"
-          ? { videoNoteId: binding.localEntities.get(node.id)!.id }
+          ? { videoNoteId: localEntity.id }
           : {}
       : {}),
     ...node.geometry,
     ...(type &&
-    binding.measurements.get(node.id)?.baseWidth === node.geometry.width &&
-    binding.measurements.get(node.id)?.baseHeight === node.geometry.height
+    measurement?.baseWidth === node.geometry.width &&
+    measurement?.baseHeight === node.geometry.height
       ? {
-          width: binding.measurements.get(node.id)!.width,
-          height: binding.measurements.get(node.id)!.height,
+          width: measurement.width,
+          height: measurement.height,
         }
       : {}),
     data: node.data,
@@ -160,6 +160,7 @@ export function resolveArrowBindings(
   children: BoardElement[]
 ): BoardElement[] {
   const elements = new Map(flatten(children).map(node => [node.id, node]));
+  const board = binding.board;
   const connect = (node: BoardElement): BoardElement => {
     if (node.type === "arrow" && binding.options.types.arrow?.contractId === node.contractId) {
       const points = [...(node.points ?? [])];
@@ -169,8 +170,7 @@ export function resolveArrowBindings(
       ] as const) {
         const end = node[key],
           target = end?.bindId && elements.get(end.bindId);
-        const point =
-          target && binding.board!.getArrowBindPoint(target, end.connectId, end.customOffset);
+        const point = target && board?.getArrowBindPoint(target, end.connectId, end.customOffset);
         if (point && at >= 0) points[at] = point;
       }
       return equal(points, node.points) ? node : { ...node, points };
@@ -194,16 +194,18 @@ export function measureElement(
     size.height < 0
   )
     return;
+  const element = authorElement(binding, id);
+  if (!element) return;
   const previous = binding.measurements.get(id);
   if (
     previous &&
     Math.abs(previous.width - size.width) < 0.01 &&
     Math.abs(previous.height - size.height) < 0.01 &&
-    previous.baseWidth === authorElement(binding, id)?.geometry.width &&
-    previous.baseHeight === authorElement(binding, id)?.geometry.height
+    previous.baseWidth === element.geometry.width &&
+    previous.baseHeight === element.geometry.height
   )
     return;
-  const geometry = authorElement(binding, id)!.geometry;
+  const geometry = element.geometry;
   binding.measurements.set(id, { ...size, baseWidth: geometry.width, baseHeight: geometry.height });
   refresh(binding);
 }

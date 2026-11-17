@@ -40,7 +40,8 @@ export interface InputProps extends Omit<ComponentProps<"input">, "size"> {
 
 /** 受控清空：走原生 setter + input 事件，受控 onChange 自然触发（焦点留在输入框） */
 function clearInputElement(el: HTMLInputElement) {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setter) throw new Error("HTMLInputElement.prototype.value 缺少原生 setter");
   setter.call(el, "");
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.focus();

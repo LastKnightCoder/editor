@@ -39,8 +39,10 @@ export function createWhiteboardSession(
   );
   board.installExtensions(extensions);
   board.setActive(true);
+  const api = board.extensions?.api;
+  if (!api) throw new Error("白板扩展装配失败：api 不可用");
   return {
-    api: board.extensions!.api,
+    api,
     setReadonly(value: boolean) {
       board.readonly = value;
     },

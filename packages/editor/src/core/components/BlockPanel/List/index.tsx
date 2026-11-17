@@ -217,6 +217,7 @@ const List = memo(() => {
             const currentPath = [...path, index];
             const pathKey = buildPathKey(currentPath);
             const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+            const children = hasChildren ? item.children : null;
             const isActive = isSamePath(currentPath, activePath);
             const pointerOpen = openPathKeys.includes(pathKey);
             const shouldShowChildren = hasChildren && (pointerOpen || isActiveBranch(currentPath));
@@ -239,7 +240,7 @@ const List = memo(() => {
                   onClick={() => handleItemSelect(currentPath, item)}
                 />
 
-                {hasChildren && (
+                {children && (
                   <SubMenuPortal
                     pathKey={pathKey}
                     anchorElement={anchorRefs.current.get(pathKey)}
@@ -248,7 +249,7 @@ const List = memo(() => {
                     onMouseEnter={() => handleSubMenuEnter(currentPath)}
                     onMouseLeave={event => handleSubMenuLeave(currentPath, event)}
                   >
-                    {renderMenu(item.children!, currentPath, level + 1)}
+                    {renderMenu(children, currentPath, level + 1)}
                   </SubMenuPortal>
                 )}
               </div>

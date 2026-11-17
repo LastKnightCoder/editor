@@ -95,7 +95,7 @@ export class DocumentSyncSession {
       await validateStructuredDocument(doc, {
         documentId: this.documentId,
         epoch: value.protocol.epoch,
-        baselineId: value.protocol.baselineId!,
+        baselineId: value.protocol.baselineId,
       });
     } finally {
       doc.destroy();
@@ -152,7 +152,7 @@ export class DocumentSyncSession {
       const request: DocumentOperationRequest = {
         operationId,
         epoch: protocol.epoch,
-        baselineId: protocol.baselineId!,
+        baselineId: protocol.baselineId,
         version: protocol.version,
         updateHash,
         expiresAt: (this.transport.now?.() ?? Date.now()) + 5 * 60_000,

@@ -50,8 +50,9 @@ interface VisibleElementTree {
 }
 
 const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
-  if (plugin[eventName]) {
-    return plugin[eventName]!.bind(plugin);
+  const handler = plugin[eventName];
+  if (handler) {
+    return handler.bind(plugin);
   }
 });
 
@@ -554,15 +555,16 @@ class Board {
       }
     }
 
-    for (const { value } of this.extensions?.entries ?? []) {
+    const extensions = this.extensions;
+    for (const { value } of extensions?.entries ?? []) {
       for (const menu of value.menus ?? []) {
-        if (menu.when && !menu.when(this.extensions!.api)) continue;
+        if (!extensions || (menu.when && !menu.when(extensions.api))) continue;
         allItems.push({
           key: menu.id,
           label: menu.label,
           priority: menu.order,
           onSelect: () => {
-            void this.extensions!.execute(menu.command, context).catch(() => {});
+            void extensions.execute(menu.command, context).catch(() => {});
           },
         });
       }
@@ -935,7 +937,8 @@ class Board {
       if (metadata.removedElements.length > 0) {
         const removed = [...metadata.removedElements];
         while (removed.length) {
-          const element = removed.pop()!;
+          const element = removed.pop();
+          if (!element) break;
           this.removedElementVersions.set(
             element.id,
             (this.removedElementVersions.get(element.id) ?? 0) + 1

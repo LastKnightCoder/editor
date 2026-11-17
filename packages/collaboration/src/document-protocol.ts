@@ -92,7 +92,7 @@ export class DocumentProtocolStore {
       const previous = this.publication(document.id);
       const publication = {
         candidateHash: document.revision,
-        baselineId: document.baselineId!,
+        baselineId: document.baselineId,
         version: document.version,
       };
       if (previous) {

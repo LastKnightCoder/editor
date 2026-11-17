@@ -31,7 +31,7 @@ export function submit(
     binding.board?.interactions.cancel();
     binding.endGesture(false);
   }
-  const origin = binding.streamingGesture ? binding.gestureHistory! : binding.origin;
+  const origin = (binding.streamingGesture && binding.gestureHistory) || binding.origin;
   const bodyContracts = new Set<string>();
   const collect = (nodes: readonly import("@tau/collaboration").ContentNode[]) => {
     for (const node of nodes) {
@@ -68,20 +68,22 @@ export function submit(
         ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
       ]);
       const snapshot = candidate.read();
+      const catalog = binding.options.catalog;
       for (const node of flattenModel([
         ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
         ...snapshot.recovery,
       ])) {
-        const entry = binding.options.catalog?.get(node.contractId);
+        const entry = catalog?.get(node.contractId);
         if (touched.has(node.id)) {
-          const contract = candidate.contracts.get(node.contractId)!;
+          const contract = candidate.contracts.get(node.contractId);
+          if (!contract) throw new Error("白板快照缺少节点契约");
           for (const slot of contentResourceSlots(node.data, contract.resources))
             for (const reference of contentResourceValues(slot))
               if (!isSafeResource(reference))
                 throw new Error("资源须先交由宿主管理，不能写入本机路径或凭据");
         }
-        if (touched.has(node.id) && entry?.access === "edit")
-          binding.options.catalog!.validate(entry, node.data);
+        if (touched.has(node.id) && entry?.access === "edit" && catalog)
+          catalog.validate(entry, node.data);
       }
     });
   } finally {

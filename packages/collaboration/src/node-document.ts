@@ -233,7 +233,7 @@ export async function validateNodeTree(
       const contractId = properties.get(NODE_CONTRACT_PROPERTY);
       if (typeof contractId !== "string" || !dictionary[contractId])
         fail("MISSING_CONTRACT", "节点缺少契约");
-      const contract = tree.contract(id)!;
+      const contract = tree.contract(id) ?? fail("MISSING_CONTRACT", "节点缺少契约");
       json(properties.toJSON());
       if (["children", "text", "collabId", ...contract.textFields].some(key => properties.has(key)))
         fail("INVALID_DOCUMENT", "共享字段或宿主结构不能作为普通属性覆盖");
@@ -277,7 +277,7 @@ export async function validateNodeTree(
             fail("CONTENT_IDENTITY_CHANGED", "普通增量不能重建节点存储身份");
         if (!sameType(before, record) || before.get("creation") !== record.get("creation"))
           fail("CONTENT_IDENTITY_CHANGED", "普通增量不能重建节点身份");
-        const prior = old.contract(id)!;
+        const prior = old.contract(id) ?? fail("MISSING_CONTRACT", "节点缺少契约");
         if (
           old.properties(id).get(NODE_CONTRACT_PROPERTY) !== contractId &&
           (prior.type === contract.type ||
@@ -302,7 +302,7 @@ export async function validateNodeTree(
       if (!tree.segments.ranges(tree.segments.source(id)).has(id))
         fail("INVALID_DOCUMENT", "正文片段缺少分界");
       if (old?.segments.records.has(id)) {
-        const before = old.segments.records.get(id)!;
+        const before = old.segments.records.get(id) ?? fail("INVALID_DOCUMENT", "正文片段记录无效");
         if (
           !sameType(before, record) ||
           before.get("source") !== record.get("source") ||

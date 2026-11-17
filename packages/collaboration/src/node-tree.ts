@@ -378,7 +378,7 @@ export class NodeTree {
         }
         positions.set(current, path.length);
         path.push(current);
-        current = parents.get(current)!;
+        current = parents.get(current) ?? null;
       }
       for (const entry of path) visited.add(entry);
     }
@@ -480,19 +480,21 @@ export class NodeTree {
     const orders = new Map<string, string[]>();
     for (const entries of groups.values())
       entries.sort((left, right) => {
-        const leftPlacement = this.placement(left.reference!.node),
-          rightPlacement = this.placement(right.reference!.node);
-        if (leftPlacement.order?.before === right.reference!.token) return -1;
-        if (rightPlacement.order?.before === left.reference!.token) return 1;
+        const leftReference = left.reference;
+        const rightReference = right.reference;
+        if (!leftReference || !rightReference) return raw.indexOf(left) - raw.indexOf(right);
+        const leftPlacement = this.placement(leftReference.node),
+          rightPlacement = this.placement(rightReference.node);
+        if (leftPlacement.order?.before === rightReference.token) return -1;
+        if (rightPlacement.order?.before === leftReference.token) return 1;
         const a = leftPlacement.split,
           b = rightPlacement.split;
         if (!a || !b) return raw.indexOf(left) - raw.indexOf(right);
-        if (!orders.has(a.node))
-          orders.set(
-            a.node,
-            this.segments.list(a.node, true).map(piece => piece.id)
-          );
-        const order = orders.get(a.node)!;
+        let order = orders.get(a.node);
+        if (!order) {
+          order = this.segments.list(a.node, true).map(piece => piece.id);
+          orders.set(a.node, order);
+        }
         return order.indexOf(a.segment) - order.indexOf(b.segment);
       });
     const emitted = new Set<string>();
@@ -807,7 +809,8 @@ export class NodeTree {
       at: number,
       source = target
     ): string => {
-      const id = ids.get(value)!;
+      const id = ids.get(value);
+      if (id === undefined) throw new Error("导入节点缺少预分配身份");
       const record = new Y.Map<unknown>();
       const properties = new Y.Map<unknown>();
       const content = new Y.XmlText();
@@ -826,11 +829,12 @@ export class NodeTree {
       }
       for (const field of contract?.textFields ?? [])
         setSharedValue(fields, field, value[field] ?? "");
-      for (const child of value.children!) {
+      const children = value.children ?? [];
+      for (const child of children) {
         if (typeof child.text === "string" && !own(child, "children")) {
           const { text, ...marks } = child;
           if (text) content.insert(content.length, text, marks);
-          else if (value.children!.length === 1) record.set("emptyMarks", structuredClone(marks));
+          else if (children.length === 1) record.set("emptyMarks", structuredClone(marks));
         } else insert(child, id, content.length);
       }
       const token = crypto.randomUUID();
@@ -892,8 +896,9 @@ export class NodeTree {
     while (ancestor !== null) {
       if (ancestor === id || ancestors.has(ancestor)) throw new Error("不能把节点移入自己的后代");
       ancestors.add(ancestor);
-      if (!routing.parents.has(ancestor)) throw new Error("目标父节点不可用");
-      ancestor = routing.parents.get(ancestor)!;
+      const next = routing.parents.get(ancestor);
+      if (next === undefined) throw new Error("目标父节点不可用");
+      ancestor = next;
     }
     const spans = this.spans(parent);
     let previous = 0;

@@ -140,7 +140,8 @@ export function createLocalTextFields(
           ReactEditor.isReadOnly(editor)
         )
           throw new Error("当前源码字段不可写");
-        const at = reference.current!;
+        const at = reference.current;
+        if (!at) throw new Error("当前源码字段不可写");
         for (let length = 1; length <= at.length; length++) {
           const node = Node.get(editor, at.slice(0, length));
           if (Element.isElement(node) && !canEditElement(editor, node))
@@ -174,11 +175,14 @@ export function createLocalTextFields(
         }
         writing = true;
         try {
-          const write = () =>
-            Transforms.setNodes(editor, { [field]: next } as never, {
-              at: reference.current!,
+          const write = () => {
+            const at = reference.current;
+            if (!at) throw new Error("当前源码字段不可写");
+            return Transforms.setNodes(editor, { [field]: next } as never, {
+              at,
               voids: true,
             });
+          };
           if (isolateUndo) withNewUndoStep(editor, write, { isolate: true });
           else write();
         } finally {

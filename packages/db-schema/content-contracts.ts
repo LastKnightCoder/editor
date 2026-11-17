@@ -257,9 +257,10 @@ function rememberHash(id: string, canonical: string): void {
   }
   verifiedHashes.set(id, canonical);
   verifiedHashBytes += canonical.length * 2;
-  while (verifiedHashBytes > CONTENT_CONTRACT_LIMITS.totalBytes) {
-    const oldest = verifiedHashes.keys().next().value!;
-    verifiedHashBytes -= verifiedHashes.get(oldest)!.length * 2;
+  // Map 按插入序迭代，首个即最旧条目；逐条淘汰直至回到预算内
+  for (const [oldest, canonical] of verifiedHashes) {
+    if (verifiedHashBytes <= CONTENT_CONTRACT_LIMITS.totalBytes) break;
+    verifiedHashBytes -= canonical.length * 2;
     verifiedHashes.delete(oldest);
   }
 }

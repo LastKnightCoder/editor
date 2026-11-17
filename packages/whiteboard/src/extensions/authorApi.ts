@@ -130,11 +130,11 @@ function authorAPI(base: HostAPI): WhiteboardAPI {
     },
     getSnapshot: () => {
       const source = base.getSnapshot();
-      if (source !== snapshotSource) {
+      if (source !== snapshotSource || snapshot === undefined) {
         snapshotSource = source;
         snapshot = Object.freeze(read().getSnapshot());
       }
-      return snapshot!;
+      return snapshot;
     },
     getElement: (id: string) => read().getElement(id),
     captureSubmission: (target?: string | { id: string }) => {
@@ -227,15 +227,18 @@ export function defineWhiteboardExtension(
 ): WhiteboardExtension {
   const adapt = (value: WhiteboardContributions): HostContributions => ({
     ...value,
-    commands: value.commands?.map(command => ({
-      ...command,
-      enabled: command.enabled && (api => command.enabled!(authorAPI(api))),
-      execute: (api, payload) => command.execute(authorAPI(api), payload),
-    })),
-    menus: value.menus?.map(menu => ({
-      ...menu,
-      when: menu.when && (api => menu.when!(authorAPI(api))),
-    })),
+    commands: value.commands?.map(command => {
+      const enabled = command.enabled;
+      return {
+        ...command,
+        enabled: enabled && (api => enabled(authorAPI(api))),
+        execute: (api, payload) => command.execute(authorAPI(api), payload),
+      };
+    }),
+    menus: value.menus?.map(menu => {
+      const when = menu.when;
+      return { ...menu, when: when && (api => when(authorAPI(api))) };
+    }),
     ingest: value.ingest?.map(item => ({
       ...item,
       run: (api, event) => item.run(authorAPI(api), event),
@@ -293,15 +296,16 @@ export function defineWhiteboardExtension(
       return valid() ? check(result) : null;
     };
     const gesture = spec.gesture;
+    const build = spec.build;
     const create: NonNullable<HostElement["create"]> = {
       ...spec,
       build:
-        spec.build &&
+        build &&
         (context => {
           const api = authorAPI(context.api),
             valid = api.captureSubmission();
           if (!valid()) return null;
-          return complete(spec.build!({ ...context, api }), valid);
+          return complete(build({ ...context, api }), valid);
         }),
       gesture:
         typeof gesture === "string"

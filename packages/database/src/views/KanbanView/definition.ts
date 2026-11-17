@@ -27,7 +27,7 @@ const groupKanbanRows = ({
   for (const id of new Set([...(options?.columnOrder ?? []), ...optionMap.keys()])) {
     const option = optionMap.get(id);
     if (option)
-      groups.push({ key: id, label: option.name, rows: buckets.get(id)!, column, value: id });
+      groups.push({ key: id, label: option.name, rows: buckets.get(id) ?? [], column, value: id });
   }
   return groups;
 };

@@ -287,7 +287,11 @@ export async function prepareWhiteboardTransfer(
   const scalarText = (type: "edit_title" | "edit_page_title", value: string, id?: string) => {
     for (const { offset, text } of textChunks(value)) {
       const edit = { offset, remove: 0, text };
-      commands.push(type === "edit_title" ? { type, edit } : { type, id: id!, edit });
+      if (type === "edit_title") commands.push({ type, edit });
+      else {
+        if (id === undefined) throw new Error("edit_page_title 需要页面 id");
+        commands.push({ type, id, edit });
+      }
     }
   };
   if (!options.pageId && !model.read().title && typeof bundle.title === "string")
@@ -318,8 +322,12 @@ export async function prepareWhiteboardTransfer(
     ) {
       data = { ...data };
       if (typeof data.groupId === "string") {
-        if (!groups.has(data.groupId)) groups.set(data.groupId, crypto.randomUUID());
-        data.groupId = groups.get(data.groupId)!;
+        let mapped = groups.get(data.groupId);
+        if (mapped === undefined) {
+          mapped = crypto.randomUUID();
+          groups.set(data.groupId, mapped);
+        }
+        data.groupId = mapped;
       }
       if (node.type === "arrow")
         for (const key of ["source", "target"]) {
@@ -336,7 +344,8 @@ export async function prepareWhiteboardTransfer(
           }
         }
     }
-    const id = ids.get(node.id)!;
+    const id = ids.get(node.id);
+    if (id === undefined) throw new Error("白板包元素未登记身份");
     commands.push({
       type: "create",
       id,

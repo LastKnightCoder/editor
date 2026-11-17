@@ -77,7 +77,7 @@ export function parseFill(value: string): SchematicFill {
   parts.push(body.slice(start).trim());
 
   let angle = 180;
-  if (/^-?[\d.]+deg$/.test(parts[0])) angle = parseFloat(parts.shift()!);
+  if (/^-?[\d.]+deg$/.test(parts[0])) angle = parseFloat(parts.shift() ?? "180");
   const stops = parts
     .map((part, i, all) => {
       const m = /^(.*?)\s+(-?[\d.]+)%$/.exec(part);

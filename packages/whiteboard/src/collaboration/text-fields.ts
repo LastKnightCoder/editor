@@ -68,7 +68,8 @@ export function textField(
         binding.board?.interactions.cancel();
         binding.endGesture(false);
       }
-      const entry = binding.options.catalog?.get(authorElement(binding, id)?.contractId ?? "");
+      const catalog = binding.options.catalog;
+      const entry = catalog?.get(authorElement(binding, id)?.contractId ?? "");
       if (entry) {
         binding.validating = true;
         try {
@@ -82,7 +83,7 @@ export function textField(
               ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
               ...snapshot.recovery,
             ]).find(node => node.id === id);
-            if (node) binding.options.catalog!.validate(entry, node.data);
+            if (node && catalog) catalog.validate(entry, node.data);
           });
         } finally {
           binding.validating = false;
@@ -152,8 +153,10 @@ export function textDocument(binding: CanvasBinding, id: string): EditorDocument
         }
       },
     });
-    const install = document.binding!.install;
-    document.binding!.install = editor => {
+    const documentBinding = document.binding;
+    if (!documentBinding) throw new Error("文档绑定尚未初始化");
+    const install = documentBinding.install;
+    documentBinding.install = editor => {
       const bound = install(editor) as NodeTreeEditor;
       binding.editors.add(bound);
       return bound;

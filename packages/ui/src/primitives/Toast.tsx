@@ -282,6 +282,7 @@ export function ToastPill({
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const Icon = TYPE_ICON[item.type];
+  const action = item.action;
   const closedRef = useRef(false);
   const onCloseRef = useRef(item.onClose);
   onCloseRef.current = item.onClose;
@@ -386,7 +387,7 @@ export function ToastPill({
       />
       {/* 竖直 padding 只在这一层（模板同款 7px），胶囊本身不叠 py——否则高度胀到 ~40px */}
       <span className="min-w-0 truncate py-[7px]">{item.message}</span>
-      {item.action && (
+      {action && (
         <button
           type="button"
           className={clsx(
@@ -397,11 +398,11 @@ export function ToastPill({
           )}
           onClick={e => {
             e.stopPropagation();
-            item.action!.onClick();
+            action.onClick();
             close();
           }}
         >
-          {item.action.label}
+          {action.label}
         </button>
       )}
     </div>

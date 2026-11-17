@@ -59,7 +59,7 @@ const remarkDocumentReference = () => {
 
         matches.forEach(match => {
           const [fullMatch, directiveName, displayText, rawAttributes] = match;
-          const matchStart = match.index!;
+          const matchStart = match.index;
           const matchEnd = matchStart + fullMatch.length;
           const attributes = parseContentLinkAttributes(rawAttributes);
           const id =

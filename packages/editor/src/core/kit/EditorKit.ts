@@ -137,9 +137,10 @@ const createKit = (
         ...(options.services ?? []),
         ...(options.theme ? [themeRegistration(options.theme)] : []),
       ];
-      const onlyExtensions = registrations.length === 0 && !!options.extensions;
+      const extendExtensions = options.extensions;
+      const onlyExtensions = registrations.length === 0 && !!extendExtensions;
       const cacheKey = onlyExtensions
-        ? `${options.override ? "o" : "s"}|${instanceKey(options.extensions!)}`
+        ? `${options.override ? "o" : "s"}|${instanceKey(extendExtensions)}`
         : null;
       if (cacheKey) {
         const cached = derivedByExtensions.get(cacheKey);

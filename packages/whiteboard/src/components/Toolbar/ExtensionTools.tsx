@@ -12,8 +12,8 @@ import { useActiveTool, useBoard } from "../../hooks";
 const ExtensionTools = memo(() => {
   const board = useBoard();
   const activeTool = useActiveTool();
-  const extensions = board.extensions!;
-  const tools = extensions.tools.filter(tool => !tool.id.startsWith("tau."));
+  const extensions = board.extensions;
+  const tools = extensions?.tools.filter(tool => !tool.id.startsWith("tau.")) ?? [];
   const [open, setOpen] = useState(false);
   const [lastUsedId, setLastUsedId] = useState<string | null>(null);
   const [panelId, setPanelId] = useState<string | null>(null);
@@ -39,7 +39,7 @@ const ExtensionTools = memo(() => {
   };
   const run = (tool: (typeof tools)[number], payload?: unknown) => {
     setLastUsedId(tool.id);
-    extensions.runTool(tool, payload);
+    extensions?.runTool(tool, payload);
     changeOpen(false);
   };
 
@@ -68,7 +68,7 @@ const ExtensionTools = memo(() => {
               <ArrowLeft size={14} />
               {panelTool.label}
             </button>
-            {extensions.renderToolPanel(panelTool.id, payload => {
+            {extensions?.renderToolPanel(panelTool.id, payload => {
               if (panelSession.current === session) run(panelTool, payload);
             })}
           </div>
@@ -76,8 +76,8 @@ const ExtensionTools = memo(() => {
           <div {...stopCanvasEvents} className="w-[236px] p-1.5">
             <div className="text-tau-micro text-ink-3 px-2 pt-[3px] pb-[5px]">扩展工具</div>
             {tools.map(tool => {
-              const ownerId = extensions.toolOwner(tool.id);
-              const name = ownerId ? extensions.getExtensionName(ownerId) : undefined;
+              const ownerId = extensions?.toolOwner(tool.id);
+              const name = ownerId ? extensions?.getExtensionName(ownerId) : undefined;
               const ToolIcon = tool.icon;
               return (
                 <button

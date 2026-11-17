@@ -149,8 +149,12 @@ export class TextSegments {
     const ranges = new Map<string, ReturnType<TextSegments["ranges"]>>();
     const range = (id: string) => {
       const source = this.source(id);
-      if (!ranges.has(source)) ranges.set(source, this.ranges(source));
-      const value = ranges.get(source)!.get(id);
+      let segmentRanges = ranges.get(source);
+      if (!segmentRanges) {
+        segmentRanges = this.ranges(source);
+        ranges.set(source, segmentRanges);
+      }
+      const value = segmentRanges.get(id);
       if (!value) throw new Error("正文片段缺少分界");
       return { source, ...value };
     };
@@ -165,7 +169,7 @@ export class TextSegments {
         return;
       result.push({ id: ref.segment, reference: ref, ...range(ref.segment) });
       const next = (children.get(ref.segment) ?? []).filter(
-        child => includeInactive || !this.records.get(child.segment)!.has("placement")
+        child => includeInactive || !this.records.get(child.segment)?.has("placement")
       );
       next.sort((a, b) => range(a.segment).start - range(b.segment).start);
       next.forEach(visit);
@@ -207,8 +211,11 @@ export class TextSegments {
   move(ids: readonly string[], parent: string): void {
     const refs = ids.map(id => ({ segment: id, token: crypto.randomUUID() }));
     this.flow(parent).push(refs);
-    for (const ref of refs)
-      this.records.get(ref.segment)!.set("placement", { parent, token: ref.token });
+    for (const ref of refs) {
+      const record = this.records.get(ref.segment);
+      if (!record) throw new Error("正文片段记录不存在");
+      record.set("placement", { parent, token: ref.token });
+    }
   }
 
   merge(source: string, target: string): void {

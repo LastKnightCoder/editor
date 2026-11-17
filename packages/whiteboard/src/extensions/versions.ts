@@ -6,9 +6,11 @@ export function assertWhiteboardElementVersions(element: WhiteboardElementDefini
     throw new Error("新契约不能混用 schemaVersion");
   assertDataVersions(element, value => {
     if (value.schemaVersion !== undefined) throw new Error("历史定义不能混用旧版本字段");
+    const { dataVersion } = value;
+    if (dataVersion === undefined) throw new Error(`白板契约 ${value.type} 缺少 dataVersion`);
     return normalizeWhiteboardContract("validation", {
       type: value.type,
-      dataVersion: value.dataVersion!,
+      dataVersion,
       collaboration: value.collaboration,
       resources: value.resources,
       structure: {

@@ -57,7 +57,9 @@ const isEditableText = (node: globalThis.Node): node is Text =>
 /** 把落在元素上的选区位置换成相邻的可编辑文本位置（优先其后的文本） */
 const resolveTextPosition = (node: globalThis.Node, offset: number): [Text | null, number] => {
   if (node.nodeType === globalThis.Node.TEXT_NODE) return [node as Text, offset];
-  const walker = node.ownerDocument!.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+  const doc = node.ownerDocument;
+  if (!doc) return [null, 0];
+  const walker = doc.createTreeWalker(node, NodeFilter.SHOW_TEXT);
   const texts: Text[] = [];
   for (let current = walker.nextNode(); current; current = walker.nextNode()) {
     if (isEditableText(current)) texts.push(current);

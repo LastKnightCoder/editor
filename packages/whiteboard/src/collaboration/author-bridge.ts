@@ -51,7 +51,8 @@ export function authorEntry(
   read = false
 ): WhiteboardContractEntry {
   const node = authorElement(binding, id),
-    entry = node && binding.options.catalog?.get(node.contractId);
+    catalog = binding.options.catalog,
+    entry = node && catalog?.get(node.contractId);
   if (
     !node ||
     !entry ||
@@ -59,7 +60,7 @@ export function authorEntry(
     (read
       ? entry.access === "none"
       : entry.access !== "edit" || binding.options.canEditContract?.(entry) === false) ||
-    !binding.options.catalog!.owns(owner, entry)
+    !catalog?.owns(owner, entry)
   )
     throw new Error("插件不拥有此版本的内部编辑权限");
   return entry;
@@ -92,12 +93,13 @@ export function submitAuthor(
       keys(command.element, ["type", "data", "geometry"]);
       if (command.beforeId !== undefined && command.afterId !== undefined)
         throw new Error("锚点不能同时声明");
-      const entry = binding.options.catalog?.current(command.element.type);
+      const catalog = binding.options.catalog,
+        entry = catalog?.current(command.element.type);
       if (
         !entry ||
         !entryInstalled(binding, entry) ||
         binding.options.canEditContract?.(entry) === false ||
-        !binding.options.catalog!.owns(owner, entry)
+        !catalog?.owns(owner, entry)
       )
         throw new Error("插件只能创建自己声明的当前版本");
       prepared.push(entry.prepared);
@@ -123,12 +125,13 @@ export function submitAuthor(
       const node = authorElement(binding, command.id);
       if (!node) throw new Error("目标已删除");
       const contract = binding.model.contracts.get(node.contractId);
+      const patchGeometry = command.patch.geometry;
       if (
-        command.patch.geometry &&
+        patchGeometry &&
         contract?.domain === "whiteboard-element" &&
         contract.structure.geometry === "opaque" &&
         ["width", "height", "rotation"].some(
-          key => command.patch.geometry![key as "width"] !== node.geometry[key as "width"]
+          key => patchGeometry[key as "width"] !== node.geometry[key as "width"]
         )
       )
         throw new Error("未知几何仅允许平移");
@@ -157,14 +160,16 @@ export function submitAuthor(
         ...candidate.read().pages.flatMap(page => [...page.children, ...page.recovery]),
         ...candidate.read().recovery,
       ]);
+      const catalog = binding.options.catalog;
       for (const id of [...checked, ...result.createdIds]) {
         const node = nodes.find(node => node.id === id),
-          entry = node && binding.options.catalog?.get(node.contractId);
+          entry = node && catalog?.get(node.contractId);
         if (node && entry) {
           for (const slot of contentResourceSlots(node.data, entry.contract.resources))
             for (const reference of contentResourceValues(slot))
               if (!isSafeResource(reference)) throw new Error("资源须先交由宿主管理");
-          binding.options.catalog!.validate(entry, node.data);
+          if (!catalog) throw new Error("插件契约目录不可用");
+          catalog.validate(entry, node.data);
         }
       }
     });

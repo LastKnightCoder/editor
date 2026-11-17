@@ -1,6 +1,6 @@
 import type { ASREvent, ASRStreamSession, ASRTranscript } from "./types";
 import { ASRTranscriptReducer } from "./reducer";
-import { prepareMicrophone, type MicrophoneCapture } from "./capture";
+import { prepareMicrophone } from "./capture";
 
 export interface SpeechInputSession {
   result: Promise<ASRTranscript>;
@@ -43,7 +43,6 @@ export function createSpeechInputService(
       const taskId = crypto.randomUUID();
       const reducer = new ASRTranscriptReducer(taskId);
       let fatal: unknown;
-      let capture: MicrophoneCapture | undefined;
       let opened: Awaited<ReturnType<typeof open>> | undefined;
       let timer: ReturnType<typeof setTimeout> | undefined;
       let finishing: Promise<void> | undefined;
@@ -63,19 +62,20 @@ export function createSpeechInputService(
                 .join("")
             );
         });
-        void opened.session.result.catch(error => {
+        const session = opened.session;
+        void session.result.catch(error => {
           fatal ??= error;
           controller.abort();
         });
         signal.throwIfAborted();
-        capture = await microphone.start(opened.format, frame => opened!.session.write(frame));
+        const capture = await microphone.start(opened.format, frame => session.write(frame));
         const abort = () => {
-          void opened!.session.cancel().catch(() => undefined);
-          void microphone!.cancel();
+          void session.cancel().catch(() => undefined);
+          void microphone?.cancel();
         };
         signal.addEventListener("abort", abort, { once: true });
         if (signal.aborted) abort();
-        const result = opened.session.result
+        const result = session.result
           .catch(error => {
             throw fatal ?? error;
           })
@@ -94,8 +94,8 @@ export function createSpeechInputService(
           if (!finishing)
             finishing = (async () => {
               try {
-                await capture!.stop();
-                await opened!.session.endInput();
+                await capture.stop();
+                await session.endInput();
               } catch (error) {
                 fatal = error;
                 controller.abort();
@@ -112,7 +112,7 @@ export function createSpeechInputService(
           stop,
           async cancel() {
             controller.abort();
-            await opened!.session.cancel();
+            await session.cancel();
             await result.catch(() => undefined);
           },
         };

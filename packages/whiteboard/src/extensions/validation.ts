@@ -42,7 +42,11 @@ export function validateElementTree(
   const visit = (element: BoardElement) => {
     const definition = definitions.get(element.type);
     const schema = definition?.schema;
-    if (schema && readElementSchemaVersion(element) === readDefinitionSchemaVersion(definition!)) {
+    if (
+      definition &&
+      schema &&
+      readElementSchemaVersion(element) === readDefinitionSchemaVersion(definition)
+    ) {
       const problem = validateElementData(element, schema);
       if (problem) problems.push(problem);
     }

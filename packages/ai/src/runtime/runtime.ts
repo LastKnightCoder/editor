@@ -30,13 +30,14 @@ import {
   appendSessionEntries,
   buildSessionContext,
   convertSessionMessagesToLlm,
+  agentMessageFromTranscript,
+  transcriptFromAgentMessage,
   DISPLAY_ENTRY_TYPE,
   projectSessionMessages,
   projectTranscriptMessages,
   getSessionTranscript,
   isRecord,
   type SessionEntryInput,
-  type PiTranscriptMessage,
 } from "../session/index";
 import {
   assertImageSupport,
@@ -330,6 +331,7 @@ export class AiRuntime {
       context.signal.aborted
     )
       throw new AiError("AI_INTERACTION_UNAVAILABLE", "当前调用方不能承载提问");
+    const askQuestion = this.options.question;
     const normalized = normalizeAskQuestionPayload(input);
     if (!normalized.payload)
       throw new AiError("AI_TOOL_ARGUMENT_INVALID", normalized.error ?? "提问内容无效");
@@ -360,9 +362,7 @@ export class AiRuntime {
       record.snapshot.status = "waiting-answer";
       context.signal.addEventListener("abort", cancel, { once: true });
       this.publish(record);
-      void this.options.question!(structuredClone(request), context.signal)
-        .then(answer, cancel)
-        .catch(cancel);
+      void askQuestion(structuredClone(request), context.signal).then(answer, cancel).catch(cancel);
     });
     const value = buildAskQuestionToolResult(request.payload, result);
     return {
@@ -423,6 +423,7 @@ export class AiRuntime {
         const ref = { databaseName: request.databaseName, sessionId: request.requestId };
         release = await this.options.store.beginRun(ref, request.requestId);
         model = await this.options.resolveModel(request.model, ref, request.expectedModelRevision);
+        const resolvedModel = model;
         controller.signal.throwIfAborted();
         if (
           request.messages.some(
@@ -448,9 +449,9 @@ export class AiRuntime {
             : {
                 role: "assistant",
                 content: [{ type: "text", text: message.content }],
-                api: model!.model.api,
-                provider: model!.model.provider,
-                model: model!.model.id,
+                api: resolvedModel.model.api,
+                provider: resolvedModel.model.provider,
+                model: resolvedModel.model.id,
                 timestamp: Date.now(),
                 stopReason: "stop",
                 usage: {
@@ -496,7 +497,8 @@ export class AiRuntime {
       } catch (error) {
         if (!controller.signal.aborted) failure = errorOf(error);
       } finally {
-        for (const cleanup of [model ? () => model!.dispose() : undefined, release]) {
+        const modelCleanup = model;
+        for (const cleanup of [modelCleanup ? () => modelCleanup.dispose() : undefined, release]) {
           try {
             await cleanup?.();
           } catch (error) {
@@ -526,7 +528,7 @@ export class AiRuntime {
   ): ResponseMessage | null {
     if (!message) return null;
     const projected = projectTranscriptMessages([
-      { id, message: message as unknown as PiTranscriptMessage },
+      { id, message: transcriptFromAgentMessage(message) },
     ]);
     const response =
       (projected.find(value => value.role === "assistant") as ResponseMessage | undefined) ?? null;
@@ -708,12 +710,14 @@ export class AiRuntime {
       const agent = new Agent({
         initialState: {
           model: record.model.model,
-          messages: context.messages as unknown as AgentMessage[],
+          // 进入 Agent 的历史经必填字段校验；convertToLlm 再转回视图——
+          // 不变量是"放进去什么角色，拿出来还是什么角色"，两侧只做视角切换不改值。
+          messages: context.messages.map(agentMessageFromTranscript),
           tools: sdkTools,
           thinkingLevel,
         },
         convertToLlm: messages =>
-          convertSessionMessagesToLlm(messages as unknown as PiTranscriptMessage[]),
+          convertSessionMessagesToLlm(messages.map(transcriptFromAgentMessage)),
         streamFn: createModelStream(record.model.fetch, record.model.stripThinkTags, {
           maxTokens: request.maxOutputTokens,
           temperature: request.temperature,
@@ -748,7 +752,9 @@ export class AiRuntime {
     let failure: AiError | undefined;
     try {
       record.controller.signal.throwIfAborted();
-      await record.agent!.continue();
+      const agent = record.agent;
+      if (!agent) throw new Error("运行尚未装配 Agent 就开始执行");
+      await agent.continue();
     } catch (error) {
       failure = record.storageError ?? record.executionError ?? errorOf(error);
     }
@@ -841,8 +847,9 @@ export class AiRuntime {
     inputs: SessionEntryInput[],
     operationId: string
   ): Promise<void> {
-    const stored = record.stored!;
     try {
+      const stored = record.stored;
+      if (!stored) throw new Error("会话尚未读取，不能追加记录");
       const next = appendSessionEntries(stored.document, inputs);
       record.stored = await this.options.store.append(
         record.request.session,
@@ -859,7 +866,9 @@ export class AiRuntime {
   }
 
   private async closeInterruptedTools(record: Run): Promise<void> {
-    const context = buildSessionContext(record.stored!.document).messages;
+    const stored = record.stored;
+    if (!stored) return;
+    const context = buildSessionContext(stored.document).messages;
     let assistant = -1;
     for (let index = context.length - 1; index >= 0; index--) {
       if (context[index].role === "user") return;
@@ -984,6 +993,8 @@ export class AiRuntime {
     record: Run,
     approval: AiToolApprovalRequest
   ): Promise<AiToolApprovalChoice> {
+    const requestApproval = this.options.approve;
+    if (!requestApproval) throw new Error("未配置审批回调却收到审批请求");
     record.snapshot.interactionRevision++;
     const request: AiApproval = {
       requestId: approval.requestId,
@@ -1010,7 +1021,7 @@ export class AiRuntime {
       record.pendingApprovals.set(request.requestId, { request, finish });
       approval.context.signal.addEventListener("abort", abort, { once: true });
       this.publish(record);
-      void this.options.approve!(approval).then(finish, () => finish("deny"));
+      void requestApproval(approval).then(finish, () => finish("deny"));
     });
   }
 
@@ -1043,9 +1054,10 @@ export class AiRuntime {
         failure = errorOf(storageError, true);
       }
     }
+    const model = record.model;
     for (const release of [
       record.disposeTools,
-      record.model ? () => record.model!.dispose() : undefined,
+      model ? () => model.dispose() : undefined,
       record.release,
     ]) {
       try {

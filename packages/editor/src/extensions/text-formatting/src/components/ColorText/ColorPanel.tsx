@@ -66,7 +66,8 @@ const ColorPanel = memo((props: ColorPanelProps) => {
           <Ban size={16} className="text-[var(--ed-text-tertiary)]" />
         </Swatch>
         {INLINE_PALETTE.map(entry => {
-          const colors = inlineHighlight(entry.id)!;
+          const colors = inlineHighlight(entry.id);
+          if (!colors) return null;
           return (
             <Swatch
               key={entry.id}
@@ -75,7 +76,7 @@ const ColorPanel = memo((props: ColorPanelProps) => {
               onPick={() => onHighlight(entry.id)}
             >
               <span
-                className="flex h-5 w-5 items-center justify-center rounded-[6px] border-b-2 border-solid text-[12px] font-semibold leading-none"
+                className="flex h-5 w-5 items-center justify-center rounded-[6px] border-b-2 border-solid text-[12px] leading-none font-semibold"
                 style={{ backgroundColor: colors.background, borderBottomColor: colors.line }}
               >
                 A

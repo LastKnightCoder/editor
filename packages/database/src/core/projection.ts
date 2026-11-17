@@ -107,16 +107,20 @@ export function projectDatabase(
       const key =
         plugins.getPlugin(groupColumn.type)?.getGroupKey?.(row, groupColumn, granularity) ||
         "未分组";
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(row);
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(row);
+      else buckets.set(key, [row]);
     }
-    groups = [...buckets.keys()]
-      .sort((a, b) => (a === "未分组" ? 1 : b === "未分组" ? -1 : a.localeCompare(b, "zh-CN")))
-      .map(key => ({ key, label: key, rows: buckets.get(key)!, column: groupColumn }));
+    groups = [...buckets]
+      .sort(([a], [b]) => (a === "未分组" ? 1 : b === "未分组" ? -1 : a.localeCompare(b, "zh-CN")))
+      .map(([key, rows]) => ({ key, label: key, rows, column: groupColumn }));
   }
   const projectedRows = groups.flatMap(group => group.rows);
   const columnIds = [...new Set([...view.columnOrder, ...columns.map(column => column.id)])].filter(
-    id => columnMap.has(id) && !columnMap.get(id)!.hidden
+    id => {
+      const column = columnMap.get(id);
+      return column !== undefined && !column.hidden;
+    }
   );
   return {
     rows: projectedRows,

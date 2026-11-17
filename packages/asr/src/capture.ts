@@ -172,7 +172,7 @@ export function prepareMicrophone(signal: AbortSignal, onError: (error: unknown)
             if (!stopping)
               stopping = (async () => {
                 const timeout = AbortSignal.timeout(2000);
-                node!.port.postMessage("stop");
+                node?.port.postMessage("stop");
                 try {
                   await waitForASR(flushed, AbortSignal.any([signal, timeout]));
                   await waitForASR(queued, signal);

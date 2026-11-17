@@ -147,7 +147,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       stepsModel
         ? {
             v: 1 as const,
-            activeStep: selectedStep!.index,
+            activeStep: selectedStep?.index ?? -1,
             steps: stepsModel.children
               .filter(step => step.type === "code-step")
               .map(step => ({ ...step, id: codeStepId(slateEditor, step) })),
@@ -157,7 +157,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   );
   const hasMagicMove = Boolean(magicMove && magicMove.steps.length > 1);
   const currentStepIndex = stepsModel
-    ? selectedStep!.index
+    ? (selectedStep?.index ?? -1)
     : readOnly
       ? readOnlyStepIndex
       : (magicMove?.activeStep ?? 0);

@@ -56,7 +56,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
   const definitions = (type: string) => board.extensions?.getElementDefinition(type);
   const meta = elementTypeMeta(element.type, definitions);
   const displayName = elementLabel(element, id => BoardUtil.getElementById(board, id), definitions);
-  const childCount = hasChildren ? element.children!.length : 0;
+  const childCount = element.children?.length ?? 0;
   const capService = board.capabilityService;
 
   const elementPath = useMemo(
@@ -97,6 +97,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
           if (!isContainer) return;
           let dragEl = BoardUtil.getElementById(board, dragItem.elementId);
           if (!dragEl) return;
+          const dragged = dragEl;
           // 使用能力查询检查容器是否可以包含拖拽元素
           if (!capService.canContain(element, dragEl)) return;
 
@@ -104,7 +105,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
           let sourceContainer: BoardElement | null = null;
           BoardUtil.dfs(board, (el: BoardElement) => {
             if (capService.isContainer(el) && el.id !== element.id) {
-              if (capService.isChildInContainer(el, dragEl!)) {
+              if (capService.isChildInContainer(el, dragged)) {
                 sourceContainer = el;
               }
             }

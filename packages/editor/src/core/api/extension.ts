@@ -168,16 +168,18 @@ export interface ElementContractDefinition {
 }
 
 export function assertElementVersions(spec: ElementContractDefinition): void {
-  assertDataVersions(spec, element =>
-    normalizeContentContract("validation", {
+  assertDataVersions(spec, element => {
+    const { dataVersion } = element;
+    if (dataVersion === undefined) throw new Error(`元素契约 ${element.type} 缺少 dataVersion`);
+    return normalizeContentContract("validation", {
       type: element.type,
-      dataVersion: element.dataVersion!,
+      dataVersion,
       kind: element.kind,
       isVoid: element.isVoid,
       collaboration: element.collaboration,
       resources: element.resources,
-    })
-  );
+    });
+  });
 }
 
 /** 扩展贡献的元素类型 */

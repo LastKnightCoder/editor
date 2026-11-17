@@ -29,8 +29,9 @@ const partitionByClaim = (
   const buckets: { source: IngestSource; files: File[] }[] = [];
   let remaining = [...files];
   for (const source of sources) {
-    if (!source.files || !remaining.length) continue;
-    const claimed = remaining.filter(file => ingestAccepts(source.files!.accept, file.type));
+    const declaration = source.files;
+    if (!declaration || !remaining.length) continue;
+    const claimed = remaining.filter(file => ingestAccepts(declaration.accept, file.type));
     if (claimed.length) {
       buckets.push({ source, files: claimed });
       const claimedSet = new Set(claimed);

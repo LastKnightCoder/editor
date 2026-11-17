@@ -22,12 +22,12 @@ const requiredColumnCandidates = (
   definition: DatabaseViewDefinition,
   columns: ViewTypeSelectModalProps["columns"],
   pluginManager: PluginManager
-) =>
-  definition.requiredColumn
-    ? columns.filter(col =>
-        pluginManager.hasCapability(col.type, definition.requiredColumn!.capability)
-      )
+) => {
+  const requiredColumn = definition.requiredColumn;
+  return requiredColumn
+    ? columns.filter(col => pluginManager.hasCapability(col.type, requiredColumn.capability))
     : null;
+};
 
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
   ({ open, onCancel, onConfirm, columns, pluginManager, viewRegistry = builtInViewRegistry }) => {

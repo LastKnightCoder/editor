@@ -114,8 +114,10 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
     [pan, zoom]
   );
 
-  const anchorOf = (event: { clientX: number; clientY: number }) =>
-    pointFromCenter(stageRef.current!, event);
+  const anchorOf = (event: { clientX: number; clientY: number }) => {
+    const stage = stageRef.current;
+    return stage ? pointFromCenter(stage, event) : { x: 0, y: 0 };
+  };
 
   // React 的 wheel 是 passive 的，拦截页面滚动需要原生监听
   const zoomAtRef = useRef(zoomAt);
@@ -203,10 +205,10 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
       onKeyDown={handleKeyDown}
     >
       {/* 顶栏：文件名 · 张数 / 缩放 / 操作 / 关闭 */}
-      <div className="text-tau-meta flex shrink-0 items-center gap-1 py-2.5 pl-5 pr-3">
+      <div className="text-tau-meta flex shrink-0 items-center gap-1 py-2.5 pr-3 pl-5">
         <span className="truncate text-white/90">{item.alt}</span>
         {hasMany && (
-          <span className="font-tau-mono ml-2.5 shrink-0 tabular-nums text-white/50">
+          <span className="font-tau-mono ml-2.5 shrink-0 text-white/50 tabular-nums">
             {index + 1} / {items.length}
           </span>
         )}
@@ -219,7 +221,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
         >
           <ZoomOut size={16} />
         </button>
-        <span className="font-tau-mono text-tau-sm w-12 text-center tabular-nums text-white/75">
+        <span className="font-tau-mono text-tau-sm w-12 text-center text-white/75 tabular-nums">
           {Math.round(zoom * 100)}%
         </span>
         <button
@@ -311,7 +313,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
             <button
               type="button"
               title="上一张 (←)"
-              className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              className="absolute top-1/2 left-4 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
               onClick={() => go(-1)}
             >
               <ChevronLeft size={20} />
@@ -319,7 +321,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
             <button
               type="button"
               title="下一张 (→)"
-              className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              className="absolute top-1/2 right-4 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
               onClick={() => go(1)}
             >
               <ChevronRight size={20} />
@@ -329,13 +331,13 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
       </div>
 
       {/* 说明 + 缩略条 */}
-      <div className="text-tau-meta min-h-[1.5em] shrink-0 px-6 pb-2 pt-1 text-center text-white/60">
+      <div className="text-tau-meta min-h-[1.5em] shrink-0 px-6 pt-1 pb-2 text-center text-white/60">
         {item.caption}
       </div>
       {hasMany && (
         <div
           ref={filmRef}
-          className="flex shrink-0 justify-center gap-2 overflow-x-auto px-6 pb-4 pt-1"
+          className="flex shrink-0 justify-center gap-2 overflow-x-auto px-6 pt-1 pb-4"
         >
           {items.map((thumb, thumbIndex) => (
             <button

@@ -54,11 +54,13 @@ export function apply(
   );
   if (!content) return false;
   assertWritable(binding);
+  const board = binding.board;
+  if (!board) throw new Error("画布尚未挂载");
   // 派生尺寸/布局只能改变本机投影，不能把 updateHistory=false 当作无历史的共享写入口。
   if (!binding.gesture && !updateHistory) {
     for (const operation of operations)
       if (operation.type === "set_node") {
-        const node = PathUtil.getElement(binding.board!.children, operation.path);
+        const node = PathUtil.getElement(board.children, operation.path);
         if (node) applyFeedback(binding, captureFeedback(binding, node, operation.newProperties));
       }
     return false;
@@ -67,7 +69,7 @@ export function apply(
   if (binding.gesture) {
     binding.pending = compact([...binding.pending, ...commands]);
     binding.pendingFeedback.push(...feedback);
-    binding.board!.publishDocument(resolveArrowBindings(binding, children));
+    board.publishDocument(resolveArrowBindings(binding, children));
     scheduleGesture(binding);
   } else {
     if (commands.length) binding.submit(commands, historyGroup);
@@ -79,7 +81,7 @@ export function apply(
   const local = operations.filter(op =>
     ["set_selection", "set_viewport", "set_moving"].includes(op.type)
   );
-  if (local.length) binding.board!.apply(local, false);
+  if (local.length) board.apply(local, false);
   return true;
 }
 
@@ -125,14 +127,17 @@ export function compile(
   children: BoardElement[];
   feedback: { id: string; patch: Record<string, unknown> }[];
 } {
-  const board = binding.board!;
+  const board = binding.board;
+  if (!board) throw new Error("画布尚未挂载");
   let children = board.children;
   const commands: WhiteboardModelCommand[] = [];
   const feedback: { id: string; patch: Record<string, unknown> }[] = [];
-  const parentAt = (path: number[]): WhiteboardParent =>
-    path.length === 1
-      ? { kind: "page", id: binding.page }
-      : { kind: "element", id: PathUtil.getElement(children, path.slice(0, -1))!.id };
+  const parentAt = (path: number[]): WhiteboardParent => {
+    if (path.length === 1) return { kind: "page", id: binding.page };
+    const parent = PathUtil.getElement(children, path.slice(0, -1));
+    if (!parent) throw new Error("路径父级已失效");
+    return { kind: "element", id: parent.id };
+  };
   const prepared = BoardOperations.applyOperations(
     { children, selection: board.selection, viewPort: board.viewPort, sketch: board.sketch },
     operations
@@ -153,17 +158,19 @@ export function compile(
       feedback.push(...captureFeedback(binding, old, operation.newProperties));
     } else if (operation.type === "remove_node") {
       if (!old || old.id !== operation.node.id) throw new Error("删除观察目标已失效");
+      const target = authorElement(binding, old.id);
+      if (!target) throw new Error("删除目标不在协作模型中");
       commands.push({
         type: "remove_nodes",
-        ids: flattenModel([authorElement(binding, old.id)!]).map(node => node.id),
+        ids: flattenModel([target]).map(node => node.id),
       });
     } else if (operation.type === "insert_node") {
       const parent = parentAt(operation.path);
       const peers =
         operation.path.length === 1
           ? children
-          : (PathUtil.getElement(children, operation.path.slice(0, -1))!.children ?? []);
-      const anchor = peers[operation.path.at(-1)!];
+          : (PathUtil.getElement(children, operation.path.slice(0, -1))?.children ?? []);
+      const anchor = peers[operation.path[operation.path.length - 1]];
       creation(binding, operation.node, parent, anchor?.id, commands);
       for (const node of flatten([operation.node]))
         feedback.push(...captureFeedback(binding, node, node));
@@ -209,10 +216,11 @@ export function compile(
 }
 
 export function bodyContent(binding: CanvasBinding, value: unknown): unknown {
-  if (!Array.isArray(value) || !binding.options.editorVersions) return value;
+  const editorVersions = binding.options.editorVersions;
+  if (!Array.isArray(value) || !editorVersions) return value;
   return value.map(node => {
     if (!node || typeof node !== "object" || !Array.isArray(node.children)) return node;
-    const contractId = node.tauContract ?? binding.options.editorVersions!.current(node.type)?.id;
+    const contractId = node.tauContract ?? editorVersions.current(node.type)?.id;
     if (!contractId) throw new Error("正文节点尚未声明协作版本");
     return { ...node, tauContract: contractId, children: bodyContent(binding, node.children) };
   });

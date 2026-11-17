@@ -63,7 +63,7 @@ const Toolbar = memo(() => {
   if (isPresentationMode) return null;
   return (
     <ToolbarContext value={true}>
-      <ChromeBar ref={barRef} className="left-1/2 top-3 -translate-x-1/2">
+      <ChromeBar ref={barRef} className="top-3 left-1/2 -translate-x-1/2">
         <span
           aria-hidden
           className={cn(
@@ -78,7 +78,7 @@ const Toolbar = memo(() => {
             {index > 0 && barTools[index - 1].group !== tool.group && <ChromeGap />}
             <span data-tool-id={tool.id} className="relative z-[1] inline-flex">
               {tool.component ? (
-                <tool.component run={payload => board.extensions!.runTool(tool, payload)} />
+                <tool.component run={payload => board.extensions?.runTool(tool, payload)} />
               ) : null}
             </span>
           </Fragment>
