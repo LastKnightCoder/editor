@@ -172,7 +172,8 @@ const collectDescendantIds = (parentChildrenMap: Map<number, number[]>, parentId
   const queue = [parentId];
 
   while (queue.length > 0) {
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (current === undefined) break;
     const children = parentChildrenMap.get(current) ?? [];
     children.forEach(childId => {
       if (!result.has(childId)) {
@@ -500,7 +501,7 @@ const buildSummary = (items: TodoItem[], groupMap: Map<number, TodoGroup>): Todo
         title: item.title,
         groupId: item.groupId,
         groupTitle: groupMap.get(item.groupId)?.title,
-        completedAt: item.completedAt!,
+        completedAt: item.completedAt ?? 0,
       })),
   };
 };

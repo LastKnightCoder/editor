@@ -59,12 +59,13 @@ const REF_ICONS: Record<string, LucideIcon> = {
 async function openReference(id: number, type: string, block?: number) {
   try {
     const kind = normalizeEntityRefKind(type);
+    const blockIndex = Number.isSafeInteger(block) ? block : undefined;
     if (isMaterialKind(type)) {
-      if (locatesSection(type) && Number.isSafeInteger(block) && block! >= 0)
-        await openMaterial({ kind: type, id }, { block: block! });
+      if (locatesSection(type) && blockIndex !== undefined && blockIndex >= 0)
+        await openMaterial({ kind: type, id }, { block: blockIndex });
       else await openMaterial({ kind: type, id });
-    } else if (kind && locatesSection(type) && Number.isSafeInteger(block) && block! >= 0)
-      await openEntity({ kind, id }, { at: { block: block! } });
+    } else if (kind && locatesSection(type) && blockIndex !== undefined && blockIndex >= 0)
+      await openEntity({ kind, id }, { at: { block: blockIndex } });
     else await openContent(type, id);
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "无法打开引用内容");

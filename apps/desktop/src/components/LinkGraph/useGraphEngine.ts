@@ -769,8 +769,9 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
         return;
       }
       // 未位移 = 点击
-      if (drag.node) {
-        const item = itemsRef.current.find(entry => entry.id === drag.node!.id);
+      const dragNode = drag.node;
+      if (dragNode) {
+        const item = itemsRef.current.find(entry => entry.id === dragNode.id);
         if (item) onClickNode?.(item);
       } else {
         clearHover();

@@ -48,7 +48,8 @@ function connectedComponents(nodes: GraphNode[], adjacency: Map<number, Set<numb
     const component: number[] = [];
     visited.add(node.id);
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift();
+      if (current === undefined) break;
       component.push(current);
       for (const neighbor of adjacency.get(current) ?? []) {
         if (visited.has(neighbor)) continue;
@@ -138,13 +139,13 @@ export function buildTopology(items: GraphItem[]): GraphScene {
       if (seen.has(key)) continue;
       seen.add(key);
       edges.push({ source: a, target: b });
-      adjacency.get(a)!.add(b);
-      adjacency.get(b)!.add(a);
+      adjacency.get(a)?.add(b);
+      adjacency.get(b)?.add(a);
     }
   }
 
   const nodes: GraphNode[] = items.map(item => {
-    const degree = adjacency.get(item.id)!.size;
+    const degree = adjacency.get(item.id)?.size ?? 0;
     return {
       id: item.id,
       degree,

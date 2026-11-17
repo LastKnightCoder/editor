@@ -577,13 +577,12 @@ export const buildMarkdownZipBytes = async (
   const bundleFiles: BundleFile[] = [];
   for (const [index, { node, dir, path }] of files.entries()) {
     const content = contents.get(node.id);
+    const contract = contracts.get(node.id);
     const body = content
       ? toPortableMarkdown(content, {
-          contracts: contracts.get(node.id),
-          markdown: contracts.has(node.id)
-            ? await (
-                await import("@/services/editorKit")
-              ).prepareContentMarkdown(contracts.get(node.id)!)
+          contracts: contract,
+          markdown: contract
+            ? await (await import("@/services/editorKit")).prepareContentMarkdown(contract)
             : undefined,
           assets: assets.paths,
           dir,

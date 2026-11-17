@@ -693,7 +693,8 @@ function seedByAffinity(
         nextScore = score;
       }
     }
-    const disc = next!;
+    if (next === null) break;
+    const disc = next;
     const own = weightOf.get(disc.key) ?? new Map<number, number>();
     const partners = placed
       .map(other => ({ other, weight: own.get(other.key) ?? 0 }))
@@ -974,7 +975,7 @@ export function computeKnowledgeMap(
     topics.push({
       id: newId,
       parent: -1,
-      label: labelOf.get(oldGroup)!,
+      label: labelOf.get(oldGroup) ?? "",
       colorSlot: 0,
       size: members.length,
     });
@@ -1310,7 +1311,8 @@ export function placeIncrementally(
   const topicVotes = new Map<number, number>();
   const subtopicVotes = new Map<number, number>();
   for (const neighbor of placed) {
-    const node = byKey.get(neighbor.key)!;
+    const node = byKey.get(neighbor.key);
+    if (!node) continue;
     const weight = Math.max(1e-3, neighbor.similarity);
     totalWeight += weight;
     x += node.x * weight;

@@ -81,12 +81,14 @@ Object.assign(globalThis, {
       }
       case "publish-search":
         return buildPublishSearchIndexPayload(request.input);
-      case "markdown":
-        if (request.contracts)
+      case "markdown": {
+        const contracts = request.contracts;
+        if (contracts)
           return import("@/services/editorKit").then(async ({ prepareContentMarkdown }) =>
-            (await prepareContentMarkdown(request.contracts!)).getMarkdown(request.nodes)
+            (await prepareContentMarkdown(contracts)).getMarkdown(request.nodes)
           );
         return getMarkdown(request.nodes);
+      }
       case "prepare-content":
         return import("@/services/editorKit").then(
           async ({ prepareContentMarkdown, prepareContentContracts }) => {
@@ -113,9 +115,10 @@ Object.assign(globalThis, {
       case "index": {
         const parsed = JSON.parse(request.input.raw);
         const nodes = Array.isArray(parsed) ? parsed : [];
-        if (request.contracts)
+        const contracts = request.contracts;
+        if (contracts)
           return import("@/services/editorKit").then(async ({ prepareContentMarkdown }) => {
-            const processor = await prepareContentMarkdown(request.contracts!);
+            const processor = await prepareContentMarkdown(contracts);
             const serialize = (value: typeof nodes) => processor.getMarkdown(value);
             const content = serialize(nodes).trim();
             return {

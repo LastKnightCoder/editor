@@ -24,7 +24,8 @@ const ProjectList = (props: IProps) => {
     retry: false,
     queryFn: async (): Promise<{ item: ProjectItem; reference?: ContentEntityReference }[]> => {
       if (reference) return getProjectItemChildren(reference);
-      const parent = await getProjectItemById(projectItemId!);
+      if (projectItemId == null) return [];
+      const parent = await getProjectItemById(projectItemId);
       if (!parent) return [];
       const items = await getProjectItemsByIds(parent.children);
       return items

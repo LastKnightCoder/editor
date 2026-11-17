@@ -93,7 +93,11 @@ export interface FindingTopic {
 /** 切换主题的菜单：有发现的主题按还剩几处从多到少，同数保持原顺序 */
 export function findingTopicList(data: KnowledgeInsightsPayload | null): FindingTopic[] {
   return topicsWithFindings(data)
-    .map(topic => ({ topicId: topic.topicId!, label: topic.label, open: openMarks(topic).length }))
+    .flatMap(topic =>
+      topic.topicId !== null
+        ? [{ topicId: topic.topicId, label: topic.label, open: openMarks(topic).length }]
+        : []
+    )
     .sort((a, b) => b.open - a.open);
 }
 

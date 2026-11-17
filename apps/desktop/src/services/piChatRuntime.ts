@@ -249,18 +249,19 @@ class PiChatRuntime {
     entry.reducer?.reset();
     entry.sessionId = sessionId;
     entry.reducer = this.createReducer(key, entry);
+    const reducer = entry.reducer;
     const lastMessage = entry.chat.current.messages.at(-1);
     if (lastMessage?.role === Role.Assistant) {
-      entry.reducer.restoreToolExecutions(lastMessage as ResponseMessage);
+      reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     }
     const unsubscribeEvents = onPiSessionEvent(sessionId, event => {
       entry.eventRevision += 1;
-      entry.reducer!.handle(event);
+      reducer.handle(event);
     });
     const applyInteractions = () => {
       const snapshot = usePiInteractionStore.getState().sessions[sessionId];
       if (!snapshot) return;
-      entry.reducer!.applyInteractions(snapshot);
+      reducer.applyInteractions(snapshot);
       const waiting = snapshot.approvals.length > 0 || snapshot.questions.length > 0;
       if (waiting && !entry.streaming) {
         entry.streaming = true;
@@ -454,13 +455,15 @@ class PiChatRuntime {
     }
     entry.deps.publish(entry.chat.current);
     this.bindSession(key, snapshot.sessionId);
+    const reducer = entry.reducer;
+    if (!reducer) throw new Error("会话恢复失败：reducer 未初始化");
     const lastMessage = entry.chat.current.messages.at(-1);
     if (lastMessage?.role === Role.Assistant)
-      entry.reducer!.restoreToolExecutions(lastMessage as ResponseMessage);
+      reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     if (snapshot.busy !== undefined) entry.streaming = snapshot.busy;
     if (snapshot.streamingMessage?.role === Role.Assistant) {
-      entry.reducer!.handle({ type: "message_start", message: snapshot.streamingMessage });
-      entry.reducer!.handle({
+      reducer.handle({ type: "message_start", message: snapshot.streamingMessage });
+      reducer.handle({
         type: "message_update",
         message: snapshot.streamingMessage,
         assistantMessageEvent: { type: "start", partial: snapshot.streamingMessage },

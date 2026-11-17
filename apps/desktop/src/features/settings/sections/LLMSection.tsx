@@ -637,6 +637,8 @@ export function LLMSection() {
       toast.warning("单价需同时填写输入和输出，且为非负数");
       return;
     }
+    // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
+    const catalogCost = !hasCostInput && !cost ? catalogCostOf(id) : undefined;
     const next: LLMModelSetting = {
       id,
       ...(displayName && displayName !== id ? { name: displayName } : {}),
@@ -658,12 +660,7 @@ export function LLMSection() {
       ...(modelForm.userAgent.trim()
         ? { headers: { "User-Agent": modelForm.userAgent.trim() } }
         : {}),
-      // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
-      ...(cost
-        ? { cost }
-        : !hasCostInput && catalogCostOf(id)
-          ? { cost: { ...catalogCostOf(id)! } }
-          : {}),
+      ...(cost ? { cost } : catalogCost ? { cost: { ...catalogCost } } : {}),
     };
     const providerId = editing.id;
     const initialId = modelForm.initialId;

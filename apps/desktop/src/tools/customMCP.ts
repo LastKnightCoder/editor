@@ -92,8 +92,7 @@ const callServerTool = async (
 const parseToolResult = (result: MCPToolCallResult): ToolExecutionResult => {
   // 提取所有文本内容
   const textContents = result.content
-    .filter(item => item.type === "text" && item.text)
-    .map(item => item.text!)
+    .flatMap(item => (item.type === "text" && item.text ? [item.text] : []))
     .join("\n");
 
   // 如果是错误，返回错误格式

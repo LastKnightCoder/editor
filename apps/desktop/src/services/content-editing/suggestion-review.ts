@@ -140,8 +140,7 @@ export const awaitSuggestionDecisions = (params: {
         const summary = summarizeSuggestionProposal(proposal, items);
         useContentEditReviewSessionStore.getState().completeSession(sessionId);
         const feedback = items
-          .filter(item => item.status === "rejected" && item.feedback)
-          .map(item => item.feedback!)
+          .flatMap(item => (item.status === "rejected" && item.feedback ? [item.feedback] : []))
           .join("；");
         resolve(
           createReviewToolResult({

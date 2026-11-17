@@ -36,9 +36,10 @@ const useIndexingStatus = (resourceIds?: number[]) => {
       });
 
       if (data.taskProgress) {
+        const taskProgress = data.taskProgress;
         setProgressMap(prev => {
           const next = new Map(prev);
-          next.set(data.resourceId, data.taskProgress!);
+          next.set(data.resourceId, taskProgress);
           return next;
         });
       } else {

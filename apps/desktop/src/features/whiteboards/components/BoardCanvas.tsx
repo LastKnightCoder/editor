@@ -85,19 +85,22 @@ export function BoardCanvas({
 
   if (isPending) return <Loading />;
   if (isError || !content) return <div className="text-ink-2 p-6">白板不存在或读取失败</div>;
-  if (managed)
-    return (
-      <DocumentBoardCanvas
-        ref={documentRef}
-        contentId={id}
-        documentId={documentData!.documentId!}
-        pageId={documentData!.pageId!}
-        extensions={extensions}
-        collaboration={collaboration}
-        onPresentationModeChange={onPresentationModeChange}
-        onDockWidthChange={onDockWidthChange}
-      />
-    );
+  if (managed && documentData) {
+    const { documentId, pageId } = documentData;
+    if (typeof documentId === "string" && typeof pageId === "string")
+      return (
+        <DocumentBoardCanvas
+          ref={documentRef}
+          contentId={id}
+          documentId={documentId}
+          pageId={pageId}
+          extensions={extensions}
+          collaboration={collaboration}
+          onPresentationModeChange={onPresentationModeChange}
+          onDockWidthChange={onDockWidthChange}
+        />
+      );
+  }
   return (
     <div role="alert" className="text-ink-2 p-6">
       白板格式不受支持

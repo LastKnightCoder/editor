@@ -577,8 +577,8 @@ function QuickAdd({ day }: { day: number }) {
         const d = new Date(parsed.date);
         const dayText =
           parsed.date === day && !parsed.hints.date ? "" : `${d.getMonth() + 1}/${d.getDate()} `;
-        return parsed.startTime !== null
-          ? `${dayText}${formatTime(parsed.startTime)}–${formatTime(parsed.endTime!)}`
+        return parsed.startTime !== null && parsed.endTime !== null
+          ? `${dayText}${formatTime(parsed.startTime)}–${formatTime(parsed.endTime)}`
           : `${dayText}全天`.trim();
       })()
     : "";

@@ -129,10 +129,10 @@ export function MapInsightPopover({
     <AnchoredPanel anchor={anchor} placement="bottom-start" className="w-[360px] max-w-[360px]">
       <div
         data-map-insight-popover
-        className="text-tau-body text-ink-1 px-3.5 pb-2.5 pt-3 leading-[1.7]"
+        className="text-tau-body text-ink-1 px-3.5 pt-3 pb-2.5 leading-[1.7]"
         onMouseDown={event => event.stopPropagation()}
       >
-        <div className="text-ink-3 -mr-1.5 -mt-1 mb-0.5 flex items-center gap-1.5 text-[11.5px]">
+        <div className="text-ink-3 -mt-1 -mr-1.5 mb-0.5 flex items-center gap-1.5 text-[11.5px]">
           <i className={cn("size-[7px] rounded-full", meta.dot)} />
           {meta.label}
           <IconButton
@@ -164,24 +164,27 @@ export function MapInsightPopover({
 
         {chain && (
           <div className="text-tau-meta text-ink-2 mt-2 flex flex-wrap items-center gap-1">
-            {chain.map((step, index) => (
-              <span key={index} className="flex items-center gap-1">
-                {index > 0 && <ArrowRight className="text-ink-3 size-3" strokeWidth={1.75} />}
-                {step.end ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpen(step.end!)}
-                    className="bg-surface-hover rounded-tau-sm hover:bg-hover max-w-[140px] truncate px-2 py-0.5"
-                  >
-                    {step.end.title}
-                  </button>
-                ) : (
-                  <span className="border-accent text-accent-text rounded-tau-sm border border-dashed px-2 py-0.5">
-                    {step.missing}？
-                  </span>
-                )}
-              </span>
-            ))}
+            {chain.map((step, index) => {
+              const end = step.end;
+              return (
+                <span key={index} className="flex items-center gap-1">
+                  {index > 0 && <ArrowRight className="text-ink-3 size-3" strokeWidth={1.75} />}
+                  {end ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpen(end)}
+                      className="bg-surface-hover rounded-tau-sm hover:bg-hover max-w-[140px] truncate px-2 py-0.5"
+                    >
+                      {end.title}
+                    </button>
+                  ) : (
+                    <span className="border-accent text-accent-text rounded-tau-sm border border-dashed px-2 py-0.5">
+                      {step.missing}？
+                    </span>
+                  )}
+                </span>
+              );
+            })}
           </div>
         )}
 

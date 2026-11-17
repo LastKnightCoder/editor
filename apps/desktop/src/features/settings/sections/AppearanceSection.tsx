@@ -71,7 +71,9 @@ export function AppearanceSection() {
   const mode = useThemeStore(s => s.mode);
   const setTheme = useThemeStore(s => s.setTheme);
   const setAppearance = useThemeStore(s => s.setAppearance);
-  const currentTheme = getTheme(themeKey) ?? getTheme(DEFAULT_THEME_KEY)!;
+  const fallbackTheme = getTheme(DEFAULT_THEME_KEY);
+  if (!fallbackTheme) throw new Error("默认主题未注册");
+  const currentTheme = getTheme(themeKey) ?? fallbackTheme;
   const themes = listThemes();
 
   /* 系统字体清单：一次性查询（staleTime Infinity，不随窗口聚焦重拉） */

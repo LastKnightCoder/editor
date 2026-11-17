@@ -143,7 +143,8 @@ export const imagePreviewCache = {
     previewCache.delete(key);
     previewCache.set(key, value);
     if (previewCache.size > PREVIEW_CACHE_LIMIT) {
-      previewCache.delete(previewCache.keys().next().value!);
+      const oldest = previewCache.keys().next().value;
+      if (oldest !== undefined) previewCache.delete(oldest);
     }
   },
   delete: (key: string) => previewCache.delete(key),

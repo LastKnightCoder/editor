@@ -41,15 +41,19 @@ const KIND_TO_INDEX: Partial<Record<EntityKind, ContentIndexType>> = {
   "diary-moment": "diary-moment",
 };
 
-const toSearchResult = (candidate: EntityCandidate): SearchResult => ({
-  id: candidate.id,
-  contentId: candidate.contentId ?? 0,
-  type: KIND_TO_INDEX[candidate.kind]!,
-  title: candidate.title,
-  source: "fts",
-  updateTime: candidate.time,
-  content: [],
-});
+const toSearchResult = (candidate: EntityCandidate): SearchResult => {
+  const type = KIND_TO_INDEX[candidate.kind];
+  if (!type) throw new Error(`不支持的内容类型：${candidate.kind}`);
+  return {
+    id: candidate.id,
+    contentId: candidate.contentId ?? 0,
+    type,
+    title: candidate.title,
+    source: "fts",
+    updateTime: candidate.time,
+    content: [],
+  };
+};
 
 const EMPTY_IDS: number[] = [];
 

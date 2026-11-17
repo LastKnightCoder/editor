@@ -50,7 +50,8 @@ export function conversationEntryTail(nodes: ConversationTreeNode[], entry: stri
   const pending = [root],
     seen = new Set<string>();
   while (pending.length) {
-    const current = pending.pop()!;
+    const current = pending.pop();
+    if (current === undefined) continue;
     if (seen.has(current.id)) continue;
     seen.add(current.id);
     if (!current.omitted && current.time >= tail.time) tail = current;
@@ -74,7 +75,8 @@ export function layoutConversationTree(nodes: ConversationTreeNode[]): Conversat
   const order: ConversationTreeNode[] = [];
   const stack = [...(children.get(null) ?? [])];
   while (stack.length > 0) {
-    const node = stack.pop()!;
+    const node = stack.pop();
+    if (node === undefined) continue;
     order.push(node);
     stack.push(...(children.get(node.id) ?? []));
   }
@@ -123,7 +125,9 @@ export function layoutConversationTree(nodes: ConversationTreeNode[]): Conversat
     }))
     .reverse();
   while (pending.length > 0) {
-    const { node: head, depth, isBranch } = pending.pop()!;
+    const frame = pending.pop();
+    if (frame === undefined) continue;
+    const { node: head, depth, isBranch } = frame;
     let tail = head;
     let length = 1;
     let kids = children.get(tail.id) ?? [];

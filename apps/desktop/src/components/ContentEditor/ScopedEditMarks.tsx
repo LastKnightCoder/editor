@@ -275,7 +275,7 @@ export function useScopedEditMarks(
     const [parent] = Editor.parent(editor, path);
     if (Element.isElement(parent) && "collabId" in parent) {
       const offset = parent.children
-        .slice(0, path.at(-1)!)
+        .slice(0, path.at(-1) ?? 0)
         .reduce((length, child) => length + (Text.isText(child) ? child.text.length : 1), 0);
       for (const target of targets.texts.get(parent.collabId as string) ?? []) {
         const start = Math.max(0, target.start - offset);

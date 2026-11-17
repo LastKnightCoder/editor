@@ -46,7 +46,9 @@ export function splitSections(
     if (!Text.isText(node) && node.type === "header")
       counts.set(node.level, (counts.get(node.level) ?? 0) + 1);
   }
-  const level = [...counts.keys()].sort((a, b) => a - b).find(value => counts.get(value)! >= 2);
+  const level = [...counts.keys()]
+    .sort((a, b) => a - b)
+    .find(value => (counts.get(value) ?? 0) >= 2);
   const ranges: { start: number; end: number }[] = [];
   let start = 0;
   content.forEach((node, index) => {

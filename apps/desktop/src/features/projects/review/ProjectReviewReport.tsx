@@ -55,7 +55,7 @@ export function ProjectReviewReport({
 
   return (
     <div className="bg-surface-hover rounded-tau-lg animate-fadeIn mx-10 mt-4 flex-none overflow-hidden">
-      <div className="grid grid-cols-[1fr_168px] gap-[18px] px-[18px] pb-3 pt-3.5">
+      <div className="grid grid-cols-[1fr_168px] gap-[18px] px-[18px] pt-3.5 pb-3">
         <div className="min-w-0">
           <div className="text-ink-3 mb-1 text-[12px]">
             {final ? "结项回顾" : "生长回顾"} · {day(node.updateTime)}
@@ -97,7 +97,10 @@ export function ProjectReviewReport({
               <span className="text-ink-3 text-[12px]">可以归入</span>
               <button
                 type="button"
-                onClick={() => onOpenProject(node.result.home!.projectId)}
+                onClick={() => {
+                  const home = node.result.home;
+                  if (home) onOpenProject(home.projectId);
+                }}
                 className="text-accent-text hover:underline"
               >
                 「{node.result.home.title}」

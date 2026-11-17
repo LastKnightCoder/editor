@@ -45,6 +45,13 @@ import type {
   EditOperation,
 } from "./types";
 
+/** 更新提案后立即回读；updateProposal 不删条目，读不到说明 store 被外部清空 */
+const requireProposal = (proposalId: string): ContentEditProposalRecord => {
+  const proposal = getContentEditProposal(proposalId);
+  if (!proposal) throw new Error(`提案 ${proposalId} 更新后丢失`);
+  return proposal;
+};
+
 interface CreateProposalParams {
   databaseName?: string;
   signal?: AbortSignal;
@@ -290,7 +297,7 @@ export const applyContentEditProposal = async (params: ApplyProposalParams) => {
   if (proposal.suggestions) {
     const decided = await acceptSuggestions(proposal, params);
     if (!decided.success) return decided;
-    const applied = getContentEditProposal(proposal.proposalId)!;
+    const applied = requireProposal(proposal.proposalId);
     return {
       success: true as const,
       proposal: applied,
@@ -317,7 +324,7 @@ export const applyContentEditProposal = async (params: ApplyProposalParams) => {
       lastError: "内容在提案生成后已发生变化，无法直接应用",
       updatedAt: now(),
     }));
-    const conflicted = getContentEditProposal(proposal.proposalId)!;
+    const conflicted = requireProposal(proposal.proposalId);
     return {
       success: false as const,
       errorCode: "CONTENT_CONFLICT",
@@ -363,7 +370,7 @@ export const applyContentEditProposal = async (params: ApplyProposalParams) => {
     lastError: undefined,
   }));
 
-  const applied = getContentEditProposal(proposal.proposalId)!;
+  const applied = requireProposal(proposal.proposalId);
   return {
     success: true as const,
     proposal: applied,
@@ -412,7 +419,7 @@ export const rejectContentEditProposal = async (params: RejectProposalParams) =>
     lastError: undefined,
   }));
 
-  const updated = getContentEditProposal(proposal.proposalId)!;
+  const updated = requireProposal(proposal.proposalId);
   return {
     success: true as const,
     proposal: updated,

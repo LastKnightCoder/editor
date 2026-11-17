@@ -52,7 +52,7 @@ export function useEntityContext(ref: EntityRef | null) {
     queryKey: ref
       ? entityContextKeys.entity(database, ref)
       : [...entityContextKeys.root(database), "none"],
-    queryFn: () => getEntityContext(ref!),
+    queryFn: ref ? () => getEntityContext(ref) : undefined,
     enabled: connected && ref !== null && ref.id > 0,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -67,7 +67,7 @@ export function useEntityRelated(ref: EntityRef | null, enabled: boolean) {
     queryKey: ref
       ? entityContextKeys.related(database, ref)
       : [...entityContextKeys.root(database), "none", "related"],
-    queryFn: () => getEntityRelated(ref!),
+    queryFn: ref ? () => getEntityRelated(ref) : undefined,
     enabled: enabled && connected && ref !== null && ref.id > 0,
     staleTime: 60_000,
   });

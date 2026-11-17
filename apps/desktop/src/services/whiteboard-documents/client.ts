@@ -182,14 +182,12 @@ export class WhiteboardDocumentClient {
   }
   private async initialize(): Promise<void> {
     try {
-      this.opened = await this.backend.open(this.target, this.viewId);
-      if ((await this.model.receive(this.opened.state)).status !== "applied")
+      const opened = await this.backend.open(this.target, this.viewId);
+      this.opened = opened;
+      if ((await this.model.receive(opened.state)).status !== "applied")
         throw new Error("白板基线不完整");
-      const stored = await this.outbox.list(
-        this.target.databaseName,
-        this.opened.identity.documentId
-      );
-      if (stored.some(update => update.scope !== scopeOf(this.opened!)))
+      const stored = await this.outbox.list(this.target.databaseName, opened.identity.documentId);
+      if (stored.some(update => update.scope !== scopeOf(opened)))
         throw new Error("发现另一基线的白板草稿，材料已保留，请先处理旧草稿");
       if (stored.length) {
         if (
@@ -201,10 +199,10 @@ export class WhiteboardDocumentClient {
       }
       this.doc.on("update", this.local);
       this.set({
-        revision: this.opened.revision,
-        projectedRevision: this.opened.projectedRevision,
-        error: this.opened.error,
-        phase: this.pending.length ? "saving" : this.opened.error ? "error" : "saved",
+        revision: opened.revision,
+        projectedRevision: opened.projectedRevision,
+        error: opened.error,
+        phase: this.pending.length ? "saving" : opened.error ? "error" : "saved",
       });
       this.initialized = true;
       for (const event of this.incoming.splice(0)) this.event(event);
@@ -246,7 +244,8 @@ export class WhiteboardDocumentClient {
       this.incoming.push(event);
       return;
     }
-    const identity = this.opened.identity;
+    const opened = this.opened;
+    const identity = opened.identity;
     if (
       event.documentId !== identity.documentId ||
       event.sourceId !== identity.sourceId ||
@@ -262,7 +261,7 @@ export class WhiteboardDocumentClient {
         if (event.update) {
           const result = await this.model.receive(event.update);
           if (result.status === "pending") {
-            const snapshot = await this.backend.snapshot(this.opened!.leaseId);
+            const snapshot = await this.backend.snapshot(opened.leaseId);
             await this.model.receive(snapshot.state);
           }
           console.info("[whiteboard-sync] 渲染端应用增量", {
@@ -284,6 +283,8 @@ export class WhiteboardDocumentClient {
   async flush(): Promise<void> {
     await this.ready;
     if (this.closed) throw new Error("白板会话已关闭");
+    const opened = this.opened;
+    if (!opened) throw new Error("白板会话未打开");
     if (!this.state.frozen) this.flushInputs();
     if (this.flushing) return this.flushing;
     const run = async () => {
@@ -317,9 +318,9 @@ export class WhiteboardDocumentClient {
                     .map(value => value.toString(16).padStart(2, "0"))
                     .join("");
             const started = performance.now();
-            const receipt = await this.backend.append(this.opened!.leaseId, batchId, update);
+            const receipt = await this.backend.append(opened.leaseId, batchId, update);
             console.info("[whiteboard-sync] 本机耐久保存完成", {
-              documentId: this.opened!.identity.documentId,
+              documentId: opened.identity.documentId,
               batchId,
               bytes: update.byteLength,
               revision: receipt.revision,
@@ -334,7 +335,7 @@ export class WhiteboardDocumentClient {
             if (receipt.error) throw new Error(receipt.error);
           }
           await this.receiveTail;
-          const receipt = await this.backend.flush(this.opened!.leaseId);
+          const receipt = await this.backend.flush(opened.leaseId);
           if (receipt.error || receipt.projectedRevision < receipt.revision)
             throw new Error(receipt.error || "白板投影尚未完成");
           this.set({
@@ -385,7 +386,11 @@ export class WhiteboardDocumentClient {
     if (this.closed) return;
     try {
       if (!this.stale) await this.flush();
-      if (!this.stale) await this.backend.release(this.opened!.leaseId);
+      if (!this.stale) {
+        const opened = this.opened;
+        if (!opened) throw new Error("白板会话未打开");
+        await this.backend.release(opened.leaseId);
+      }
     } catch (error) {
       if (!this.stale) throw error;
     }

@@ -92,7 +92,8 @@ function reducer(prev: sm.StackMachineState, action: StackAction): sm.StackMachi
     case "replace": {
       const clean = sanitizeFor(action.key, action.params);
       if (clean === null) return prev;
-      const meta = getPageMeta(action.key)!;
+      const meta = getPageMeta(action.key);
+      if (!meta) return prev;
       // match 去重：single 命中同 key；params 命中同 getId —— 激活已有实例而非新建
       if (action.type === "push" && meta.match !== "multi") {
         const hit = sm.activateExisting(

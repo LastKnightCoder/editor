@@ -218,13 +218,14 @@ export function useTransientContentDocument(
         if (!tree) {
           const value = await catalog.createDocument(source, contracts);
           tree = new NodeTree(new Y.Doc({ gc: false }));
+          const documentTree = tree;
           try {
             await tree.installContracts(
               { ...value.contracts, ...catalog.additionalContracts(value.contracts) },
               null
             );
             value.content.forEach((node, index) =>
-              tree!.insertNode(
+              documentTree.insertNode(
                 node as import("@tau/collaboration").ContentNode,
                 null,
                 index,

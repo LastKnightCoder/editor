@@ -98,7 +98,7 @@ export function extractChatBlocks(
   return blocks.map(b => {
     const version = (seen.get(b.groupKey) ?? 0) + 1;
     seen.set(b.groupKey, version);
-    return { ...b, version, versionCount: counts.get(b.groupKey)! };
+    return { ...b, version, versionCount: counts.get(b.groupKey) ?? 0 };
   });
 }
 

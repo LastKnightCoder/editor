@@ -168,8 +168,9 @@ export function createPluginBackend(context: PluginContext): PluginBackendClient
     },
     subscribe(event, listener) {
       context.signal.throwIfAborted();
-      let set = listeners.get(event);
-      if (!set) listeners.set(event, (set = new Set()));
+      let created = listeners.get(event);
+      if (!created) listeners.set(event, (created = new Set()));
+      const set = created;
       set.add(listener);
       let active = true;
       void restoreSubscriptions(connect()).catch(reportSubscriptionFailure);
@@ -177,8 +178,8 @@ export function createPluginBackend(context: PluginContext): PluginBackendClient
         dispose() {
           if (!active) return;
           active = false;
-          set!.delete(listener);
-          if (!set!.size) {
+          set.delete(listener);
+          if (!set.size) {
             listeners.delete(event);
             const current = connection;
             if (current) return synchronizeSubscription(current, event).catch(() => undefined);

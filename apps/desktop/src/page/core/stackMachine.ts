@@ -121,7 +121,8 @@ function sameParams(a: Record<string, unknown>, b: Record<string, unknown>): boo
 export function back(state: StackMachineState): StackMachineState | null {
   if (state.back.length <= 1) return null;
   const backStack = [...state.back];
-  const popped = backStack.pop()!;
+  const popped = backStack.pop();
+  if (popped === undefined) return null;
   return {
     back: touchAll(backStack),
     forward: [...state.forward, popped],

@@ -512,7 +512,8 @@ export class Canvas2DRenderer {
     if (!showSubtopics) return;
     const subtopics = new Map(scene.subtopics.map(sub => [sub.id, sub]));
     for (const [id, shape] of mapSubtopicGeometry(scene)) {
-      const sub = subtopics.get(id)!;
+      const sub = subtopics.get(id);
+      if (!sub) continue;
       if (shape.count < 3) continue;
       const alpha = presence(sub.members);
       if (alpha <= 0) continue;

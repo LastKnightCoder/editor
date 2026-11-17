@@ -14,11 +14,13 @@ async function compileRuntimeTailwind(source: string, extension = "tsx"): Promis
     return "";
   }
   const key = `${extension}::${trimmed}`;
-  if (cache.has(key)) {
-    return cache.get(key)!;
+  const cached = cache.get(key);
+  if (cached !== undefined) {
+    return cached;
   }
-  if (!inflight.has(key)) {
-    const request = compileTailwind({
+  let request = inflight.get(key);
+  if (request === undefined) {
+    request = compileTailwind({
       content: trimmed,
       extension,
     })
@@ -31,5 +33,5 @@ async function compileRuntimeTailwind(source: string, extension = "tsx"): Promis
       });
     inflight.set(key, request);
   }
-  return inflight.get(key)!;
+  return request;
 }

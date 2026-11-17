@@ -20,7 +20,7 @@ const resolveEmbeddingModelInfoFromActive = (
   }
   return {
     provider: active.provider,
-    pluginId: active.provider === "plugin" ? active.pluginId!.trim() : undefined,
+    pluginId: active.provider === "plugin" ? active.pluginId?.trim() : undefined,
     model: active.model,
     distance:
       active.provider === "plugin"

@@ -68,9 +68,10 @@ export const downloadRemoteVideoWithProgress = async (
   try {
     return await invoke("remote-video-cache:download-with-progress", payload);
   } finally {
-    if (progressHandler) {
+    const handler = progressHandler;
+    if (handler) {
       setTimeout(() => {
-        off("remote-video-cache-progress", progressHandler!);
+        off("remote-video-cache-progress", handler);
       }, 100);
     }
   }

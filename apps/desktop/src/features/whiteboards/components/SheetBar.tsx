@@ -36,7 +36,7 @@ export interface SheetBarProps {
 }
 
 export function SheetBar(props: SheetBarProps) {
-  const { pages, activeId } = props;
+  const { pages, activeId, textBinding } = props;
   const [order, setOrder] = useState(pages);
   const [editing, setEditing] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -131,7 +131,7 @@ export function SheetBar(props: SheetBarProps) {
             index={index}
             active={p.id === activeId}
             editing={editing === p.id}
-            textBinding={props.textBinding ? () => props.textBinding!(p.id) : undefined}
+            textBinding={textBinding ? () => textBinding(p.id) : undefined}
             canDelete={pages.length > 1}
             onSelect={() => props.onSelect(p.id)}
             onStartRename={() => setEditing(p.id)}

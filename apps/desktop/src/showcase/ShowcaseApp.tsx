@@ -42,7 +42,8 @@ export function ShowcaseApp() {
   const mode = useThemeStore(s => s.mode);
   const setAppearance = useThemeStore(s => s.setAppearance);
 
-  const active = SECTIONS.find(s => s.key === activeKey)!;
+  const active = SECTIONS.find(s => s.key === activeKey);
+  if (!active) throw new Error(`未注册的展示区：${activeKey}`);
   const ActiveView = active.component;
   const [navScrollEl, setNavScrollEl] = useState<HTMLDivElement | null>(null);
   const [contentScrollEl, setContentScrollEl] = useState<HTMLDivElement | null>(null);
@@ -60,7 +61,7 @@ export function ShowcaseApp() {
             src={logo}
             alt="Tau"
             draggable={false}
-            className="size-6 shrink-0 select-none mix-blend-multiply dark:mix-blend-normal dark:brightness-[0.85]"
+            className="size-6 shrink-0 mix-blend-multiply select-none dark:mix-blend-normal dark:brightness-[0.85]"
           />
           <span className="text-tau-body-lg font-semibold">
             Tau <span className="text-ink-2 font-normal">样板间</span>
@@ -141,7 +142,7 @@ export function ShowcaseApp() {
         <main className="min-h-0 flex-1 px-10">
           <div
             ref={setContentScrollEl}
-            className="edge-fade-scroll -mr-6 h-full overflow-y-auto pb-8 pr-6 pt-8"
+            className="edge-fade-scroll -mr-6 h-full overflow-y-auto pt-8 pr-6 pb-8"
           >
             <div className={clsx("mx-auto", PAGE_COL)}>
               <ActiveView key={activeKey} />

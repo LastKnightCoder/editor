@@ -235,6 +235,7 @@ export function runGenerationTask(
     },
     onSettled: () => {},
   });
+  const executeToolCall = options.executeToolCall;
   const handle = runPiAgent(
     {
       databaseName: options.databaseName,
@@ -243,10 +244,10 @@ export function runGenerationTask(
       messages: buildResult.messages,
       source,
       additionalTools: options.additionalTools,
-      ...(options.executeToolCall
+      ...(executeToolCall
         ? {
             executeAdditionalTool: async ({ toolName, args, signal }) => {
-              const outcome = await options.executeToolCall!(
+              const outcome = await executeToolCall(
                 {
                   id: "",
                   function: {

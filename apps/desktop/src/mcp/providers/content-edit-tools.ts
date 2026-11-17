@@ -238,8 +238,11 @@ const executeOperationsWithReviewPolicy = async (payload: {
       action: `等你处理 ${count} 条建议`,
       caret,
     });
+    if (!context) {
+      return toToolError("CONTEXT_MISSING", "缺少工具执行上下文，无法发起正文修改审阅");
+    }
     const result = await createPendingContentEditReview({
-      context: context!,
+      context,
       proposal: proposalResult.proposal,
       matched,
     });

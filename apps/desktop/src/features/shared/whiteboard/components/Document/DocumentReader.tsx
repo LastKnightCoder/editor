@@ -200,7 +200,8 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
   boxRef.current = box;
 
   useLayoutEffect(() => {
-    const el = layerRef.current!;
+    const el = layerRef.current;
+    if (!el) return;
     const measure = () => setLayer({ width: el.clientWidth, height: el.clientHeight });
     measure();
     const observer = new ResizeObserver(measure);
@@ -215,7 +216,9 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
    * 替身始终不透明、只淡正文层：两层对淡时中段合成不透明度只有约 75%，会透出底下的画布。
    */
   const morph = (cardEl: HTMLElement, from: Box, to: Box, reverse: boolean) => {
-    const layerEl = layerRef.current!;
+    const layerEl = layerRef.current;
+    const paperElement = paperRef.current;
+    if (!layerEl || !paperElement) throw new Error("文档阅读器纸面未挂载");
     const size = { width: layerEl.clientWidth, height: layerEl.clientHeight };
     const duration = reverse ? SPRING.duration * 0.85 : SPRING.duration;
     const options: KeyframeAnimationOptions = { duration, easing: SPRING.easing, fill: "forwards" };
@@ -223,7 +226,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     // 卡片在 SVG foreignObject 里、由 viewBox 缩放；屏幕尺寸 / 画布尺寸即画布缩放
     const zoom = from.width / element.width;
 
-    const paper = paperRef.current!.animate(
+    const paper = paperElement.animate(
       frames(
         { clipPath: clipOf(from, size, DOCUMENT_CARD_RADIUS * zoom) },
         { clipPath: clipOf(to, size, radius) }
@@ -306,8 +309,9 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
   const ready = box !== null;
   useLayoutEffect(() => {
     if (!ready || phase.current !== "opening") return;
-    const layerEl = layerRef.current!;
-    const to = boxRef.current!;
+    const layerEl = layerRef.current;
+    const to = boxRef.current;
+    if (!layerEl || !to) return;
     const cardEl = findCard(layerEl, element.id);
     const from = cardEl ? relativeBox(cardEl, layerEl) : null;
     const settle = () => {

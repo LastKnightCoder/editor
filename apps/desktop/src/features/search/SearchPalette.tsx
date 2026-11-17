@@ -333,8 +333,8 @@ export function SearchPalette() {
       : calendars[0];
     const when = parsed
       ? `${dayWord(parsed.date, now)} ${
-          parsed.startTime !== null
-            ? `${formatTime(parsed.startTime)}–${formatTime(parsed.endTime!)}`
+          parsed.startTime !== null && parsed.endTime !== null
+            ? `${formatTime(parsed.startTime)}–${formatTime(parsed.endTime)}`
             : "全天"
         }`
       : "";

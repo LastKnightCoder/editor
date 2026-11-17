@@ -55,8 +55,14 @@ title 同步时序
 \\end{tikzpicture}`,
 };
 
+const requireRenderer = (type: string) => {
+  const renderer = blockRegistry.get(type);
+  if (!renderer) throw new Error(`块注册表缺少 ${type} 渲染器`);
+  return renderer;
+};
+
 const block = (type: string, content = SAMPLES[type]): BlockData => {
-  const renderer = blockRegistry.get(type)!;
+  const renderer = requireRenderer(type);
   return {
     id: `showcase-${type}`,
     type,
@@ -68,7 +74,7 @@ const block = (type: string, content = SAMPLES[type]): BlockData => {
 function FrameDemo() {
   const [type, setType] = useState("html");
   const [generating, setGenerating] = useState(false);
-  const renderer = blockRegistry.get(type)!;
+  const renderer = requireRenderer(type);
   const content = generating
     ? SAMPLES[type].slice(0, Math.floor(SAMPLES[type].length * 0.6))
     : SAMPLES[type];
@@ -77,7 +83,7 @@ function FrameDemo() {
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Segmented label="块类型" size="sm" value={type} onValueChange={setType}>
           {Object.keys(SAMPLES).map(t => (
-            <Segmented.Item key={t} value={t} label={blockRegistry.get(t)!.label} />
+            <Segmented.Item key={t} value={t} label={requireRenderer(t).label} />
           ))}
         </Segmented>
         <Segmented
@@ -109,8 +115,9 @@ function FrameDemo() {
 }
 
 export default function BlockPreviewSection() {
-  const mermaid = blockRegistry.get("mermaid")!;
-  const Inline = mermaid.Inline!;
+  const mermaid = requireRenderer("mermaid");
+  const Inline = mermaid.Inline;
+  if (!Inline) throw new Error("mermaid 渲染器缺少 Inline 组件");
   return (
     <>
       <DocHead
@@ -129,13 +136,13 @@ export default function BlockPreviewSection() {
         <div className="w-full max-w-[520px]">
           <BlockCard
             block={block("html")}
-            renderer={blockRegistry.get("html")!}
+            renderer={requireRenderer("html")}
             generating={false}
             onOpen={() => {}}
           />
           <BlockCard
             block={block("mind-map", SAMPLES["mind-map"].slice(0, 60))}
-            renderer={blockRegistry.get("mind-map")!}
+            renderer={requireRenderer("mind-map")}
             generating
             onOpen={() => {}}
           />

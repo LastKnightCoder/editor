@@ -12,7 +12,9 @@ import { recordPerfStage } from "./utils/perf-observer";
 
 dayjs.locale("zh-cn");
 
-const root = ReactDOM.createRoot(document.getElementById("root")!);
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("找不到 #root 挂载节点");
+const root = ReactDOM.createRoot(rootElement);
 
 // 先挂载轻量启动界面，避免后台模块和编辑器扩展加载期间出现白屏。
 root.render(<StartupSplash label="正在启动…" />);

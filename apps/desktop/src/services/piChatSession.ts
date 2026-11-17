@@ -89,7 +89,7 @@ interface ChatSessionDescriptor {
 }
 
 const sameNames = (a: string[] | undefined, b: string[]): boolean =>
-  Boolean(a) && a!.length === b.length && a!.every((name, index) => name === b[index]);
+  a?.length === b.length && a.every((name, index) => name === b[index]);
 
 /** chatScope 带 `"pdf-chat:12"` 形态的参数前缀，会话键取冒号前缀（与 conversationKey 约定一致） */
 export const chatSessionKey = (

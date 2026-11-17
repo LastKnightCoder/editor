@@ -187,18 +187,18 @@ const KnowledgeSearchRenderer = ({
                   isDark={isDark}
                   onClick={() => {
                     const kind = normalizeEntityRefKind(item.type);
-                    const located = item.section && locatesSection(item.type);
+                    const section = locatesSection(item.type) ? item.section : null;
                     if (isMaterialKind(item.type)) {
                       void openMaterial(
                         { kind: item.type, id: item.id },
-                        located ? { block: item.section!.blockStart } : undefined
+                        section ? { block: section.blockStart } : undefined
                       ).catch(error => toast.error(String(error)));
                       return;
                     }
-                    if (kind && located)
+                    if (kind && section)
                       void openEntity(
                         { kind, id: item.id },
-                        { at: { block: item.section!.blockStart } }
+                        { at: { block: section.blockStart } }
                       ).catch(error => toast.error(String(error)));
                     else setSelectedItem(item);
                   }}

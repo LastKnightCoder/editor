@@ -153,7 +153,7 @@ export function useCardDetail(id: number | null) {
   const databaseName = useSettingStore(state => state.setting.database.active);
   return useQuery({
     queryKey: cardDetailKey(databaseName, id),
-    queryFn: () => getScopedCard(databaseName, id!),
+    queryFn: () => getScopedCard(databaseName, id ?? 0),
     enabled: id != null && Boolean(databaseName),
   });
 }
