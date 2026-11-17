@@ -430,7 +430,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
         fitAllElements: (padding = FIT_VIEW_PADDING, animate = true) => {
           ViewPortTransforms.fitAllElements(board, padding, animate);
         },
-        getElements: () => board.extensions!.api.children,
+        getElements: () => board.extensions?.api.children ?? [],
         zoomIn: () => handleZoomIn(),
         zoomOut: () => handleZoomOut(),
         zoomTo: (zoomValue: number) => handleZoomTo(zoomValue),
@@ -555,7 +555,8 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       let gestureDirty = false;
       const emitChange = () => {
         // 文档版本过高：视口/选区等查看性变化也不写回，避免旧版本数据覆盖新版本文档
-        if (!documentTooNew && !board.document) onChange?.(board.extensions!.api.getSnapshot());
+        const api = board.extensions?.api;
+        if (api && !documentTooNew && !board.document) onChange?.(api.getSnapshot());
       };
       const handleChange = (payload?: { selectionOnly?: boolean }) => {
         if (inMoveGesture) {
@@ -754,8 +755,12 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       board.presentationManager.deleteSequence(sequenceId);
     });
 
+    // WhiteboardCanvas 仅在扩展装配完成后渲染；此处兜底只做类型收窄
+    const extensionsRuntime = board.extensions;
+    if (!extensionsRuntime) return null;
+
     return (
-      <WhiteboardAPIProvider value={board.extensions!.api}>
+      <WhiteboardAPIProvider value={extensionsRuntime.api}>
         <BoardContext.Provider value={board}>
           <SelectionContext.Provider value={selection}>
             <ViewPortContext.Provider value={viewPort}>
@@ -855,10 +860,10 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                             readonly={readonly}
                             buildMenuItems={buildContextMenuItems}
                           />
-                          {board.extensions!.renderLayers("canvas")}
+                          {extensionsRuntime.renderLayers("canvas")}
                         </div>
 
-                        {board.extensions!.renderLayers("outside")}
+                        {extensionsRuntime.renderLayers("outside")}
                       </div>
                     </PointerViewportStoreContext.Provider>
                   </ArrowConnectPointOverlayContext.Provider>

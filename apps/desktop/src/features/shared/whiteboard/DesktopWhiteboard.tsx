@@ -258,7 +258,9 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
       }),
       createAudioExtension({
         resolveUrl: async url => {
-          const path = await services.get(IResourceService).remoteResourceToLocal!(url);
+          const resolve = services.get(IResourceService).remoteResourceToLocal;
+          if (!resolve) throw new Error("资源服务缺少本地化能力");
+          const path = await resolve(url);
           return (await toLocalMediaPreviewUrl(path)).url;
         },
         actions: desktopMediaActions,

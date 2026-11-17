@@ -29,8 +29,8 @@ interface ISelectWhiteboardModalProps {
   /** 白板列表仍在读取 */
   loading?: boolean;
   onCancel?: () => void;
-  onChange?: (whiteBoards: Whiteboard[]) => void;
-  onOk?: (whiteBoards: Whiteboard[]) => Promise<void> | void;
+  onChange?: (whiteboards: Whiteboard[]) => void;
+  onOk?: (whiteboards: Whiteboard[]) => Promise<void> | void;
   excludeWhiteboardIds?: number[];
   selectedWhiteboards?: Whiteboard[];
   allWhiteboards: Whiteboard[];

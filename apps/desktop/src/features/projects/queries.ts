@@ -158,7 +158,7 @@ export function useProjectRefCards(): {
 }
 
 export function useProjectRefWhiteboards(): {
-  whiteBoards: Whiteboard[];
+  whiteboards: Whiteboard[];
 } {
   const query = useQuery({
     queryKey: ["projects", "ref-white-boards"],
@@ -166,7 +166,7 @@ export function useProjectRefWhiteboards(): {
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   });
-  return { whiteBoards: query.data ?? EMPTY_WHITEBOARDS };
+  return { whiteboards: query.data ?? EMPTY_WHITEBOARDS };
 }
 
 /* ---------- 变更 ---------- */

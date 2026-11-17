@@ -153,10 +153,11 @@ export function NoteLayers() {
                 meta.type === "local" &&
                 typeof meta.filePath === "string" &&
                 meta.filePath.startsWith("tau-collab-")
-              )
-                meta.filePath = await board.getService(IResourceService).remoteResourceToLocal!(
-                  meta.filePath
-                );
+              ) {
+                const resolve = board.getService(IResourceService).remoteResourceToLocal;
+                if (!resolve) throw new Error("白板资源服务缺少本地化能力");
+                meta.filePath = await resolve(meta.filePath);
+              }
               if (!canSubmit()) return null;
               const created = await createEmptyVideoNote(meta);
               if (!created) {
@@ -177,15 +178,10 @@ export function NoteLayers() {
 
               if (!canSubmit()) return null;
               const path = currentElement && PathUtil.getPathByElement(board, currentElement);
-              if (getWhiteboardDocument(board)?.linkEntity) {
-                if (
-                  !(await getWhiteboardDocument(board)!.linkEntity!(
-                    element.id,
-                    "video-note",
-                    created.id
-                  ))
-                )
-                  return null;
+              const whiteboardDoc = getWhiteboardDocument(board);
+              const linkEntity = whiteboardDoc?.linkEntity?.bind(whiteboardDoc);
+              if (linkEntity) {
+                if (!(await linkEntity(element.id, "video-note", created.id))) return null;
               } else if (path) {
                 board.apply({
                   type: "set_node",

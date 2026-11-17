@@ -112,14 +112,16 @@ export default class WhiteboardTable {
     if (hasWhiteboardLibraryBaseline(db) && pages.every(isEmptyWhiteboardPage))
       return db.transaction(() => {
         const created = createEmptyWhiteboardDocument(db, whiteboard.title, pages, "board");
+        if (created.boardId === null)
+          throw new Error(`以 board 身份创建白板文档却缺 boardId：${created.documentId}`);
         db.prepare("UPDATE white_boards SET description=?,tags=?,snapshot=? WHERE id=?").run(
           whiteboard.description,
           JSON.stringify(whiteboard.tags ?? []),
           whiteboard.snapshot ?? "",
           created.boardId
         );
-        Operation.insertOperation(db, "whiteboard", "insert", created.boardId!, Date.now());
-        return this.getWhiteboard(db, created.boardId!);
+        Operation.insertOperation(db, "whiteboard", "insert", created.boardId, Date.now());
+        return this.getWhiteboard(db, created.boardId);
       })();
     const contentIds: number[] = [];
 

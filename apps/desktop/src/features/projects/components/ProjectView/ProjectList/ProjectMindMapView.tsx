@@ -36,7 +36,7 @@ interface ProjectMindMapViewProps {
   activeItemId?: number;
   databaseName: string;
   cards: ICard[];
-  whiteBoards: Whiteboard[];
+  whiteboards: Whiteboard[];
   addMenuItems: MenuEntryList;
   onAddMenuClick: (key: string, parentProjectItemId?: number) => void;
   refreshProject: () => void;
@@ -380,7 +380,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
     activeItemId,
     databaseName,
     cards,
-    whiteBoards,
+    whiteboards,
     addMenuItems,
     onAddMenuClick,
     refreshProject,
@@ -390,7 +390,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
     onViewportChange,
   } = props;
   void cards;
-  void whiteBoards;
+  void whiteboards;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const { navigator } = usePage();

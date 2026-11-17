@@ -11,8 +11,8 @@ const showSelectWhiteboardModal = (editor: Editor) => {
   document.body.appendChild(container);
   const root = createRoot(container);
 
-  const handleOk = async (whiteBoardContent: WhiteboardContent, _whiteBoard: Whiteboard) => {
-    await insertExistingWhiteboard(editor, whiteBoardContent);
+  const handleOk = async (whiteboardContent: WhiteboardContent, _whiteboard: Whiteboard) => {
+    await insertExistingWhiteboard(editor, whiteboardContent);
     root.unmount();
     container.remove();
   };

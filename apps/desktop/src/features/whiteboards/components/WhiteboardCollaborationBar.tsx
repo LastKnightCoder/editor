@@ -243,8 +243,9 @@ function ConfirmAction({
       confirmText={copy.confirmText}
       loadingText="正在处理…"
       onConfirm={async () => {
+        if (!kind) return;
         try {
-          await run(kind!);
+          await run(kind);
         } catch (error) {
           toast.error(remoteFailureText(error));
           throw error;
@@ -544,6 +545,7 @@ function ShareDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const snapshot = useSyncExternalStore(client.subscribe, client.getSummary, client.getSummary);
+  const identity = client.identity;
   const points = [
     { icon: KeyRound, text: "生成一个 12 位协作码，对方输入后需要你同意" },
     { icon: Layers, text: `共享整块白板的全部 ${snapshot.pageCount} 页` },
@@ -573,10 +575,10 @@ function ShareDialog({
       title="共享白板"
       context={snapshot.title || "未命名白板"}
       footer={
-        publication ? (
+        publication && identity ? (
           <PublicationRecovery
             databaseName={client.target.databaseName}
-            documentId={client.identity!.documentId}
+            documentId={identity.documentId}
             operationId={publication.operationId}
             onSettled={() => onOpenChange(false)}
           />

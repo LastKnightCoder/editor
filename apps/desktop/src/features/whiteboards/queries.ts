@@ -351,7 +351,11 @@ export function useWhiteboardShareStatus(documentId: string | undefined) {
   const database = useSettingStore(state => state.setting.database.active);
   return useQuery({
     queryKey: whiteboardShareStatusKey(database, documentId ?? ""),
-    queryFn: () => readWhiteboardShareStatus(database, documentId!),
+    // enabled 已保证 queryFn 执行时 documentId 就绪，此守卫仅为类型收窄
+    queryFn: () => {
+      if (!documentId) throw new Error("共享状态查询缺少 documentId");
+      return readWhiteboardShareStatus(database, documentId);
+    },
     enabled: hasBridge && Boolean(documentId),
     staleTime: 0,
     refetchOnWindowFocus: true,
