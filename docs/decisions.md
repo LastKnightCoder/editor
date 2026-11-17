@@ -79,6 +79,11 @@
 - SQLite 行类型统一走 `src-electron/main/types/table.ts` 的 `SqliteRow`（Record<string, unknown>），在表模块 parse 内逐字段断言到目标类型；不写 `as any[]` 与 `parse(row: any)`。
 - 列表 / 索引类查询失败不得静默返回空集合蒙混为「没有数据」：降级可以，必须 log.warn 留痕（首次运行无文件等预期路径除外）。
 - 新建 shared / 公共实现后旧副本当批回收（消费者清零即删），不留平行实现各自漂移；公共 API 只导出有真实跨模块消费者的符号。
+- 非空收窄优先于 `!` 断言；理论不可达路径写显式 throw（中文错误信息），不写裸 `!`。
+- 跨层类型转换走命名映射函数（样板 `packages/ai/src/session/convert.ts`），不写 `as unknown as` 焊接；确需 any 的第三方/结构边界必须行内标注理由。
+- 巨类拆分用门面 + 域文件模式，委托存根同步透传（禁 async 存根）；跨方法调用经实例派发保住测试 spy 语义。拆分先于抽象，真同构才工厂化。
+- 持久化 JSON key 改名必须读兼容旧 key 并挂靠自愈管线回写；文件名大小写改动走两步改名并在提交后 `git ls-files` 终检。
+- 判据与正反例详见 [代码风格规范](/docs/guides/dev-code-style.md)。
 
 ## 工作方式
 

@@ -38,7 +38,7 @@
 
 未发布个人记忆的卡片知识摘要清理、预览和备份恢复见 [个人记忆清理](./guides/ops-personal-memory-cleanup.md)。
 
-日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
+日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)；好代码的判据与正反例（类型纪律、拆分配方、注释与命名、错误处理、死代码、重构验证）见 [代码风格规范](./guides/dev-code-style.md)。
 
 子 Agent 的批量、故障与本地 HTTP 测试步骤及判据见 [子 Agent 压测](./guides/dev-subagent-stress.md)。
 
