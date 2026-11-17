@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./codec";
 export * from "./tree";
 export * from "./context";
+export * from "./convert";
 export { projectTranscriptMessages } from "./projection";
 import type { SessionDocument } from "./types";
 import { getSessionTranscript } from "./tree";

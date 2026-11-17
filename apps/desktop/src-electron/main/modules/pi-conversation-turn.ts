@@ -1,6 +1,6 @@
 import { readFileSync, statSync, type BigIntStats } from "node:fs";
 import { parseSessionEntries, SessionManager } from "@earendil-works/pi-coding-agent";
-import { getSessionTranscript, type SessionEntry } from "@tau/ai/session";
+import { documentEntriesFromSdk, getSessionTranscript, type SessionEntry } from "@tau/ai/session";
 import type { ChatSessionMessage } from "@/types";
 import type { ChatConversationTurn } from "@/types/pi-session";
 import { piEntriesToDesktopMessages } from "./pi-session-transcript";
@@ -39,7 +39,7 @@ class ConversationTurnIndex {
 
   constructor(private readonly manager: SessionManager) {
     this.activePath = new Set(manager.getBranch().map(entry => entry.id));
-    const entries = manager.getEntries() as unknown as SessionEntry[];
+    const entries = documentEntriesFromSdk(manager.getEntries());
     this.entries = new Map(entries.map(entry => [entry.id, entry]));
     // 文件顺序与切版本一致，倒序把最近写入的后代传给祖先。
     for (let index = entries.length - 1; index >= 0; index--) {
@@ -75,7 +75,7 @@ class ConversationTurnIndex {
   }
 
   private project(leaf?: string): TurnProjection {
-    const branch = this.manager.getBranch(leaf) as unknown as SessionEntry[];
+    const branch = documentEntriesFromSdk(this.manager.getBranch(leaf));
     const messages = piEntriesToDesktopMessages(getSessionTranscript({ entries: branch }));
     const byId = new Map<string, ProjectedTurn>();
     let turns = 0;

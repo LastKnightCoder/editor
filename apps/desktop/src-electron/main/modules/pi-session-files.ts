@@ -15,14 +15,14 @@
  * - **叶子标记**（customType = desktop-leaf）：pi 加载文件时取**最后一条 entry** 为叶子，
  *   挪完叶子要追加一条不进上下文的 entry 把位置落盘，否则重开就回到了旧分支的末尾。
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { recordSyncIo } from "./perf-record";
 import {
   CURRENT_SESSION_VERSION,
   SessionManager,
-  parseSessionEntries,
+  type FileEntry,
   type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
@@ -49,8 +49,6 @@ export const sessionFileNameFor = (sessionId: string, at = new Date()) =>
 
 const shortId = () => randomUUID().replace(/-/g, "").slice(0, 8);
 
-type RawEntry = { type: string; id?: string; parentId?: string | null; [key: string]: unknown };
-
 /**
  * 直接写一个完整的会话文件（迁移器用）：消息按顺序成链，每条用户消息后跟一条展示 entry。
  * 不走 SessionManager.appendMessage——它要等第一条 assistant 消息才落盘，只有用户消息的
@@ -65,7 +63,7 @@ export function writeSessionFile(options: {
 }): string {
   mkdirSync(options.sessionDir, { recursive: true });
   const fileName = sessionFileNameFor(options.sessionId, new Date(options.createdAt));
-  const lines: RawEntry[] = [
+  const lines: FileEntry[] = [
     {
       type: "session",
       version: CURRENT_SESSION_VERSION,
@@ -378,7 +376,8 @@ export function closeDanglingToolCalls(manager: SessionManager): number {
       .filter(entry => entry.type === "message")
       .map(entry => (entry as { message: { role?: string; toolCallId?: string } }).message)
       .filter(message => message.role === "toolResult" && message.toolCallId)
-      .map(message => message.toolCallId!)
+      .map(message => message.toolCallId)
+      .filter((id): id is string => id !== undefined)
   );
   const dangling = calls.filter(call => !answered.has(call.id));
   for (const call of dangling) {
@@ -389,7 +388,7 @@ export function closeDanglingToolCalls(manager: SessionManager): number {
       content: [{ type: "text", text: INTERRUPTED_TOOL_RESULT }],
       isError: true,
       timestamp: Date.now(),
-    } as never);
+    });
   }
   if (dangling.length > 0) ensureFlushed(manager);
   return dangling.length;
@@ -420,17 +419,4 @@ function ensureFlushed(manager: SessionManager): void {
   writeFileSync(file, content, { flag: "wx" });
   recordSyncIo(`write:${file}`, content.length, Date.now() - syncIoStart);
   manager.setSessionFile(file);
-}
-
-/** 解析会话文件（纯读，供测试与诊断） */
-export function readSessionEntries(sessionFile: string): RawEntry[] {
-  const syncIoStart = Date.now();
-  const raw = readFileSync(sessionFile, "utf8");
-  recordSyncIo(`read:${sessionFile}`, raw.length, Date.now() - syncIoStart);
-  return parseSessionEntries(raw) as unknown as RawEntry[];
-}
-
-/** 追加一行原始 entry（测试辅助：模拟外部写入） */
-export function appendRawEntry(sessionFile: string, entry: RawEntry): void {
-  appendFileSync(sessionFile, `${JSON.stringify(entry)}\n`);
 }

@@ -143,7 +143,10 @@ function responseMessageToPi(
   for (const turnId of turnIds) {
     const turnBlocks = blocks.filter(block => block.turnId === turnId);
     const content: AssistantMessage["content"] = [];
-    const toolCalls: AssistantBlockLike[] = [];
+    const toolCalls: Array<{
+      block: AssistantBlockLike;
+      toolCall: NonNullable<AssistantBlockLike["toolCall"]>;
+    }> = [];
     // 块内顺序保持：text→TextContent，tool_call→ToolCall；thinking 不回放（无签名，Anthropic 重放会 400）
     for (const block of turnBlocks) {
       if (block.type === "text" && block.content) {
@@ -151,7 +154,7 @@ function responseMessageToPi(
       } else if (block.type === "tool_call") {
         const toolCall = block.toolCall;
         if (!toolCall) continue;
-        toolCalls.push(block);
+        toolCalls.push({ block, toolCall });
         content.push({
           type: "toolCall",
           id: block.execution?.toolCallId ?? toolCall.id,
@@ -164,8 +167,7 @@ function responseMessageToPi(
     out.push(
       buildAssistantMessage(content, provider, modelId, toolCalls.length > 0 ? "toolUse" : "stop")
     );
-    for (const block of toolCalls) {
-      const toolCall = block.toolCall!;
+    for (const { block, toolCall } of toolCalls) {
       const result: ToolResultMessage = {
         role: "toolResult",
         toolCallId: block.execution?.toolCallId ?? toolCall.id,
@@ -259,6 +261,14 @@ export async function desktopMessagesToPi(
     }
   }
   return out;
+}
+
+/**
+ * 渲染端回传的 details → SDK AgentToolResult 的 JsonValue 约束。
+ * 载荷经 IPC 结构化克隆传输（JSON 兼容），此处只做类型收窄不重建值。
+ */
+function ipcDetails(details: Record<string, unknown> | undefined): AgentToolResult["details"] {
+  return details as AgentToolResult["details"];
 }
 
 /** 工具桥：渲染端 IPC 挂起执行的桥接线（每会话一个实例） */
@@ -394,7 +404,7 @@ export class PiToolCallBridge {
     if (!pending || (executionId !== undefined && pending.executionId !== executionId)) return;
     pending.onUpdate?.({
       content: [],
-      details: partial as never,
+      details: ipcDetails(partial),
     });
   }
 
@@ -413,7 +423,7 @@ export class PiToolCallBridge {
     }
     pending.resolve({
       content: [{ type: "text", text: result.modelContent ?? result.content ?? "" }],
-      details: result.metadata as never,
+      details: ipcDetails(result.metadata),
     });
   }
 

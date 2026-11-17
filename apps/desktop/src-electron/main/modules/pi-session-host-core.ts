@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { recordSyncIo } from "./perf-record";
 import { fauxProvider } from "@earendil-works/pi-ai";
-import type { Provider } from "@earendil-works/pi-ai";
+import type { ImageContent, Provider } from "@earendil-works/pi-ai";
 import {
   DefaultResourceLoader,
   ModelRuntime,
@@ -25,7 +25,7 @@ import type {
   ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
-import { getSessionTranscript, type SessionEntry as SharedSessionEntry } from "@tau/ai/session";
+import { documentEntriesFromSdk, getSessionTranscript } from "@tau/ai/session";
 import type { PiTranscriptEntry } from "./pi-session-transcript";
 import {
   DISPLAY_ENTRY_TYPE,
@@ -110,7 +110,7 @@ export function transcriptOf(
 ): PiTranscriptEntry[] {
   const branch = manager.getBranch();
   return getSessionTranscript(
-    { entries: manager.getEntries() as unknown as SharedSessionEntry[] },
+    { entries: documentEntriesFromSdk(manager.getEntries()) },
     branch.at(-1)?.id ?? null
   );
 }
@@ -193,7 +193,7 @@ type SteerableSession = Pick<AgentSession, "activePromptRunId" | "prompt">;
 export async function steerHostSession(
   session: SteerableSession,
   text: string,
-  images?: unknown[],
+  images?: ImageContent[],
   runId = session.activePromptRunId
 ): Promise<SteerOutcome> {
   if (runId === undefined || runId !== session.activePromptRunId)
@@ -209,7 +209,7 @@ export async function steerHostSession(
         else if (disposition === "not-streaming") resolve({ ok: false, reason: "not-streaming" });
         else resolve({ ok: false, reason: "error", error: "插话未进入当前轮" });
       },
-      ...(images && images.length > 0 ? { images: images as never } : {}),
+      ...(images && images.length > 0 ? { images } : {}),
     })
     .then(() => resolve({ ok: false, reason: "error", error: "插话未收到确认" }))
     .catch((error: unknown) => {

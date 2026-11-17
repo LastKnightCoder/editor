@@ -68,6 +68,7 @@ import {
   resolveWorkspaceCwd,
 } from "./pi-workspace";
 import type {
+  PiHostToolCallResult,
   PiHostToolSpec,
   PiPromptDisplay,
   PiPromptRetry,
@@ -88,6 +89,7 @@ import type { UsageSource } from "@/types/model-usage";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import { basename, dirname, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
@@ -439,7 +441,7 @@ class PiSessionHostModule {
           if (runId === undefined) return { ok: false, reason: "not-streaming" };
           const piImages = (
             await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
-          ).filter(Boolean);
+          ).filter((image): image is ImageContent => image !== null);
           signal.throwIfAborted();
           const displayData = toDisplayData(text, display);
           if (displayData) hosted.displayWriter.expect(displayData);
@@ -562,9 +564,11 @@ class PiSessionHostModule {
             ) {
               throw new Error("回答进行中，请先停止再修改历史");
             }
-            await PiSessionHostModule.subagentRuntime?.stop(
-              [...PiSessionHostModule.sessions].find(([, item]) => item === hosted)![0]
-            );
+            const hostedKey = [...PiSessionHostModule.sessions].find(
+              ([, item]) => item === hosted
+            )?.[0];
+            if (hostedKey === undefined) throw new Error("会话已释放，无法应用修改");
+            await PiSessionHostModule.subagentRuntime?.stop(hostedKey);
             applySessionEdit(session.sessionManager, edit);
             notifyMemorySessionEdit(file, location);
             session.refreshContext();
@@ -652,9 +656,10 @@ class PiSessionHostModule {
         }
       ) => {
         if (!executionId) return { ok: false, error: "缺少工具执行身份" };
+        // IPC 入参只在类型上收窄：载荷形状由渲染端工具桥契约保证
         PiSessionHostModule.sessions
           .get(sessionId)
-          ?.bridge.handleResult(toolCallId, result as never, executionId);
+          ?.bridge.handleResult(toolCallId, result as PiHostToolCallResult, executionId);
         return { ok: true };
       }
     );
@@ -812,7 +817,7 @@ class PiSessionHostModule {
         ? []
         : PiSessionHostModule.subagents().tools(request.sessionId, child?.agent);
       const toolSpecs = (request.customTools ?? []).filter(
-        tool => !SUBAGENT_TOOL_NAMES.includes(tool.name as never)
+        tool => !(SUBAGENT_TOOL_NAMES as readonly string[]).includes(tool.name)
       );
       interactions = new PiSessionInteractions({
         sessionId: request.sessionId,
@@ -1074,7 +1079,8 @@ class PiSessionHostModule {
     retry?: PiPromptRetry
   ): Promise<{ ok: boolean; error?: string }> {
     return PiSessionHostModule.runExclusiveSession(sessionId, async signal => {
-      const hosted = PiSessionHostModule.sessions.get(sessionId)!;
+      const hosted = PiSessionHostModule.sessions.get(sessionId);
+      if (!hosted) return { ok: false, error: "会话已关闭" };
       if (hosted.operations.size > 1) return { ok: false, error: "Agent is already processing" };
       // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
       const displayData = toDisplayData(text, display);
@@ -1094,7 +1100,7 @@ class PiSessionHostModule {
         // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
         const piImages = (
           await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
-        ).filter(Boolean);
+        ).filter((image): image is ImageContent => image !== null);
         signal.throwIfAborted();
         if (displayData) hosted.displayWriter.expect(displayData);
         hosted.lastActive = Date.now();
@@ -1104,7 +1110,7 @@ class PiSessionHostModule {
           preflightResult: () => {
             if (signal.aborted) void hosted.session.abort();
           },
-          ...(piImages.length > 0 ? { images: piImages as never } : {}),
+          ...(piImages.length > 0 ? { images: piImages } : {}),
         });
         return { ok: true };
       } catch (error) {
@@ -1407,7 +1413,7 @@ async function readPromptImage(
     dataUrl?: string;
   },
   signal?: AbortSignal
-): Promise<unknown | null> {
+): Promise<ImageContent | null> {
   try {
     if (image.dataUrl) {
       const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
@@ -1425,8 +1431,9 @@ async function readPromptImage(
         mimeType: MIME_BY_EXTENSION[extension] ?? "image/png",
       };
     }
-    if (/^https?:\/\//i.test(image.path ?? "")) {
-      const response = await fetch(image.path!, { signal });
+    const url = image.path;
+    if (url && /^https?:\/\//i.test(url)) {
+      const response = await fetch(url, { signal });
       if (!response.ok) return null;
       const buffer = Buffer.from(await response.arrayBuffer());
       return {
