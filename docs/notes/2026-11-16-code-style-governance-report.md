@@ -65,12 +65,12 @@ tsc desktop + mobile 双端 0 错误；whiteboard 3211 / editor 861 / plugins 35
 
 ## 剩余项（按价值）
 
-1. `whiteBoardContentId` 持久化 key 迁移——**待用户定策略**（读兼容渐进迁移 vs 保持现状）
-2. lint 存量 `no-non-null-assertion` 3516 处——升 error 前置，量大需专项
-3. pi 会话三套类型对齐（SessionEntry/PiTranscriptMessage/AgentMessage 的 as unknown as 焊接）——设计级
-4. ChatInputArea 双轨（desktop 859 vs shared 858，diff 961 行）——迁移级
-5. 双声部英文注释残留（src-electron 老模块 + whiteboard 约 40-60 文件）
-6. packages/editor 与 blog 的 strict:false 盲区
+~~1. `whiteBoardContentId` 持久化 key 迁移~~ ✅ 第七批完成（读兼容自愈）
+~~2. lint 存量 `no-non-null-assertion` 3516 处~~ ✅ 第七批生产源码清零（1022+139+216+12）；**维持 warn 不升 error（用户裁决 2026-11-17）**，剩余为测试文件与三处惯用法
+~~3. pi 会话三套类型对齐~~ ✅ 第七批完成（convert.ts 映射 + SDK 视图重构） 4. ChatInputArea 双轨（desktop 859 vs shared 858，diff 961 行）——迁移级，未立项
+~~5. 双声部英文注释残留~~ ✅ 第七批完成（44 处 + tables 补扫） 6. packages/editor 与 blog 的 strict:false 盲区——未立项 7. knip 剩余 694（深链符号与测试夹具，收益递减）
+
+专项收官（2026-11-17）：判据沉淀至 [代码风格规范](/docs/guides/dev-code-style.md) 与 decisions.md。
 
 ## 验证口径
 

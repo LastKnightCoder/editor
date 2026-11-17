@@ -83,6 +83,7 @@
 - 跨层类型转换走命名映射函数（样板 `packages/ai/src/session/convert.ts`），不写 `as unknown as` 焊接；确需 any 的第三方/结构边界必须行内标注理由。
 - 巨类拆分用门面 + 域文件模式，委托存根同步透传（禁 async 存根）；跨方法调用经实例派发保住测试 spy 语义。拆分先于抽象，真同构才工厂化。
 - 持久化 JSON key 改名必须读兼容旧 key 并挂靠自愈管线回写；文件名大小写改动走两步改名并在提交后 `git ls-files` 终检。
+- oxlint 的 `no-explicit-any` 与 `no-non-null-assertion` 维持 warn 不升 error：生产源码已清零，剩余在测试文件与已标注边界，清理性价比不足；新代码靠评审与规范文档把关。若日后要升 error，前置是清掉测试文件存量。
 - 判据与正反例详见 [代码风格规范](/docs/guides/dev-code-style.md)。
 
 ## 工作方式
