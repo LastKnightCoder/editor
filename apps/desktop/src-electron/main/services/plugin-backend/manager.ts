@@ -176,7 +176,7 @@ export class PluginBackendManager {
       return previous.ready;
     if (previous?.child) {
       const stopping = this.stop(descriptor.key);
-      revision = this.revisions.get(descriptor.key)!;
+      revision = this.revisions.get(descriptor.key) ?? 0;
       await stopping;
       if (revision !== this.revisions.get(descriptor.key)) throw new Error("后台启动已撤销");
     }
@@ -184,12 +184,11 @@ export class PluginBackendManager {
     const next = this.instances.get(descriptor.key);
     if (next !== previous && next?.child) return this.start(descriptor);
     if (this.closed) throw new Error("后台管理器正在退出");
-    let resolveReady!: () => void;
-    let rejectReady!: (error: Error) => void;
-    const ready = new Promise<void>((resolve, reject) => {
-      resolveReady = resolve;
-      rejectReady = reject;
-    });
+    const {
+      promise: ready,
+      resolve: resolveReady,
+      reject: rejectReady,
+    } = Promise.withResolvers<void>();
     const generation = randomUUID();
     const previousDiagnostics = this.diagnostics.get(descriptor.key);
     this.diagnostics.set(descriptor.key, {
@@ -270,8 +269,9 @@ export class PluginBackendManager {
     signal?.throwIfAborted();
     await this.start(descriptor);
     signal?.throwIfAborted();
-    const instance = this.instances.get(descriptor.key)!;
+    const instance = this.instances.get(descriptor.key);
     if (
+      !instance ||
       instance.status.state !== "running" ||
       instance.descriptor.digest !== descriptor.digest ||
       this.closed
@@ -317,7 +317,8 @@ export class PluginBackendManager {
       instance.calls.size < BACKEND_LIMITS.concurrent &&
       instance.queue.length
     ) {
-      const call = instance.queue.shift()!;
+      const call = instance.queue.shift();
+      if (!call) break;
       instance.calls.set(call.id, call);
       try {
         instance.child.postMessage({

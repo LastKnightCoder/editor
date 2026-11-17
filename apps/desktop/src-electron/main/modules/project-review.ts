@@ -296,8 +296,8 @@ export async function reviewProject(
   const prompt = buildProjectPrompt({
     title: tree.title,
     lastReview: row ? day(row.updateTime) : "",
-    docs: docs.map(item => ({
-      no: docNo.get(item.id)!,
+    docs: docs.map((item, index) => ({
+      no: index + 1,
       depth: item.depth,
       title: item.title,
       summary: summaryOf(item),
@@ -323,7 +323,7 @@ export async function reviewProject(
     const entity = ctx.byKey.get(itemKey(item));
     return entity ? endpoint(ctx, entity, topic) : null;
   };
-  const byDocNo = new Map(docs.map(item => [docNo.get(item.id)!, item]));
+  const byDocNo = new Map(docs.map((item, index) => [index + 1, item]));
   // D# → 文档，C# → 候选笔记，P# → 进行中的项目
   const resolveRef = (prefix: string, no: number): string | null => {
     if (prefix === "D") return byDocNo.get(no)?.title ?? null;
@@ -353,13 +353,18 @@ export async function reviewProject(
         ),
       signal
     ).then(value => fixRefsDeep(value, resolveRef, "CDP"));
+    const branchDocOf = (branch: number) => {
+      const doc = byDocNo.get(branch);
+      if (!doc) throw new Error(`模型输出引用了不存在的文档编号：D${branch}`);
+      return doc;
+    };
     const marks: KnowledgeMark[] = [
       ...parsed.belong.map(item => ({
         id: "",
         kind: "belong" as const,
         why: item.why,
         ends: [endpoint(ctx, candidates[item.candidate - 1].entity, topic)],
-        under: byDocNo.get(item.branch)!.id,
+        under: branchDocOf(item.branch).id,
         status: "open" as const,
       })),
       ...parsed.thin.map(item => ({
@@ -368,7 +373,7 @@ export async function reviewProject(
         why: item.why,
         ends: [],
         text: item.text,
-        under: byDocNo.get(item.branch)!.id,
+        under: branchDocOf(item.branch).id,
         status: "open" as const,
       })),
     ].map((mark, index) => ({ ...mark, id: `p${index + 1}` }));

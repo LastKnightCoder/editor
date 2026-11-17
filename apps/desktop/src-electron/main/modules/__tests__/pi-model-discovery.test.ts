@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { discoverProviderModels, modelsEndpoint } from "../pi-model-discovery";
 import { listCatalogModels, lookupBuiltinModel } from "../pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
+import { must } from "../../test-support";
 
 // jsdom 环境的 AbortSignal 缺 any()/timeout()（Node 24 / Electron 主进程原生可用）
 if (typeof AbortSignal.any !== "function") {
@@ -178,7 +179,10 @@ describe("服务商模型发现", () => {
   it("内置服务商：目录命中的模型取目录元数据，目录外的新模型只带自报字段", async () => {
     const [catalogModel] = await listCatalogModels("deepseek");
     expect(catalogModel).toBeDefined();
-    const known = (await lookupBuiltinModel("deepseek", catalogModel.id))!;
+    const known = must(
+      await lookupBuiltinModel("deepseek", catalogModel.id),
+      "(await lookupBuiltinModel('deepseek', catalog..."
+    );
     const { baseUrl } = await startServer((_url, res) =>
       json(res, 200, { data: [{ id: catalogModel.id }, { id: "deepseek-brand-new" }] })
     );

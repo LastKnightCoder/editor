@@ -154,7 +154,7 @@ class DocTasksModule implements Module {
   private async senderDatabases(sender: Electron.WebContents, reason: string, scope: unknown) {
     const win = BrowserWindow.fromWebContents(sender);
     const dbName = win ? databaseModule.windowToDatabase.get(win.id) : undefined;
-    if (!dbName) throw new Error("No database name found");
+    if (!win || !dbName) throw new Error("No database name found");
     const expected =
       scope && typeof scope === "object"
         ? (scope as { databaseName?: unknown }).databaseName
@@ -167,7 +167,7 @@ class DocTasksModule implements Module {
     const dbs = await this.databases(dbName, reason);
     if (!dbs) throw new Error("数据库未就绪");
     if (
-      databaseModule.windowToDatabase.get(win!.id) !== dbName ||
+      databaseModule.windowToDatabase.get(win.id) !== dbName ||
       !dbs.mainDb.open ||
       databaseModule.getDatabase(dbName) !== dbs.mainDb
     )

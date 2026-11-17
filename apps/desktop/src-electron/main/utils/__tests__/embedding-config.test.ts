@@ -6,6 +6,7 @@ import {
   resolveEmbeddingConfig,
   upgradeEmbeddingSetting,
 } from "../embedding-config";
+import { must } from "../../test-support";
 
 /** 快照由旧版 resolveEmbeddingConfig 生成（改动本地指纹前必须先确认兼容） */
 const LEGACY_LOCAL_FINGERPRINT_AUTO =
@@ -108,17 +109,22 @@ describe("本地指纹与旧版逐字节兼容", () => {
     upgradeEmbeddingSetting(setting);
     const config = resolveEmbeddingConfig(setting);
     expect(config).not.toBeNull();
-    expect(config!.fingerprint).toBe(expected);
+    expect(must(config, "config").fingerprint).toBe(expected);
     expect(isLocalEmbeddingConfig(config)).toBe(true);
-    expect(JSON.parse(config!.fingerprint).pipeline).toBe(LOCAL_EMBEDDING_PIPELINE);
+    expect(JSON.parse(must(config, "config").fingerprint).pipeline).toBe(LOCAL_EMBEDDING_PIPELINE);
   });
 
   it("升级后的 devicePolicy 变化仍会改变指纹（触发重建）", () => {
     const setting = legacyLocalSetting("auto");
     upgradeEmbeddingSetting(setting);
-    const before = resolveEmbeddingConfig(setting)!.fingerprint;
+    const before = must(
+      resolveEmbeddingConfig(setting),
+      "resolveEmbeddingConfig(setting)"
+    ).fingerprint;
     setting.embedding.local.devicePolicy = "cuda";
-    expect(resolveEmbeddingConfig(setting)!.fingerprint).not.toBe(before);
+    expect(
+      must(resolveEmbeddingConfig(setting), "resolveEmbeddingConfig(setting)").fingerprint
+    ).not.toBe(before);
   });
 });
 
@@ -177,10 +183,10 @@ describe("resolveEmbeddingConfig", () => {
     };
     const config = resolveEmbeddingConfig(setting);
     expect(config).not.toBeNull();
-    expect(config!.fingerprint).toBe(
+    expect(must(config, "config").fingerprint).toBe(
       JSON.stringify({ provider: "plugin", pluginId: "test.embedding", model: "m", dimensions: 3 })
     );
-    expect(config!.fingerprint).not.toContain("secret");
+    expect(must(config, "config").fingerprint).not.toContain("secret");
   });
 
   it("本地解析结果带默认 distance 与 local 运行参数", () => {

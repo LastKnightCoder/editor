@@ -146,7 +146,9 @@ export default class DataTableViewTable {
 
       const id = Number(result.lastInsertRowid);
       Operation.insertOperation(db, "data-table-view", "insert", id, now);
-      return this.getById(db, id)!;
+      const created = this.getById(db, id);
+      if (!created) throw new Error(`视图写入后读取失败：${id}`);
+      return created;
     })();
   }
 

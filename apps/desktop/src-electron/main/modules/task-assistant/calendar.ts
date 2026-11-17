@@ -36,7 +36,8 @@ export function readCalendarEvent(db: Database.Database, id: number): AssistantC
     )?.todo_item_id;
   const todo = todoId
     ? (db.prepare("SELECT create_time FROM todo_item WHERE id=?").get(todoId) as
-        { create_time: number } | undefined)
+        | { create_time: number }
+        | undefined)
     : undefined;
   const ref: TaskRef | undefined = link
     ? {
@@ -71,14 +72,17 @@ export function readCalendarEvent(db: Database.Database, id: number): AssistantC
     end: row.all_day ? localDate(end) : end.toISOString(),
     allDay: !!row.all_day,
     ...(ref ? { taskRef: ref } : {}),
-    ...((link ?? occurrence)?.series_id && (link ?? occurrence)?.occurrence_date
-      ? {
-          occurrence: {
-            seriesId: String((link ?? occurrence)!.series_id),
-            occurrenceDate: String((link ?? occurrence)!.occurrence_date),
-          },
-        }
-      : {}),
+    ...((): { occurrence?: { seriesId: string; occurrenceDate: string } } => {
+      const series = link ?? occurrence;
+      return series?.series_id && series?.occurrence_date
+        ? {
+            occurrence: {
+              seriesId: String(series.series_id),
+              occurrenceDate: String(series.occurrence_date),
+            },
+          }
+        : {};
+    })(),
     writable,
   };
 }
@@ -142,8 +146,8 @@ export function mutateEvent(
     db.prepare("DELETE FROM doc_task_calendar_link WHERE calendar_event_id=?").run(input.eventId);
     return { deleted: previous };
   }
-  const patch = input.patch!;
-  if (!patch || !Object.keys(patch).length) fail("INVALID_ARGUMENT", "修改字段不能为空");
+  const patch = input.patch;
+  if (!patch || !Object.keys(patch).length) return fail("INVALID_ARGUMENT", "修改字段不能为空");
   if (patch.title !== undefined && previous.taskRef)
     fail("INVALID_ARGUMENT", "关联安排的标题跟随待办，请修改待办标题");
   const next = { ...previous, ...patch } as AssistantCalendarEvent;

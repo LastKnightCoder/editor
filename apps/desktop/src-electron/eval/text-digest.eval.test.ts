@@ -16,6 +16,7 @@ import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { contentPlainText, digestSimilarity, textDigest } from "@/entity/text-digest";
+import { must } from "../main/test-support";
 
 const DIR = process.env.KL_DIGEST_EVAL_DIR;
 const OUT = process.env.KL_DIGEST_EVAL_OUT ?? "/tmp/kl7-digest-report.md";
@@ -162,11 +163,14 @@ function syntheticEdits(text: string, donor: string, random: () => number) {
 
 describe.skipIf(!DIR)("重算阈值校准（真实库副本）", () => {
   it("输出报告", () => {
-    const files = readdirSync(DIR!)
+    const files = readdirSync(must(DIR, "DIR"))
       .filter(name => /^version-\d+-.*data.*\.db$/.test(name))
       .sort((a, b) => Number(a.split("-")[1]) - Number(b.split("-")[1]) || a.localeCompare(b));
     expect(files.length).toBeGreaterThan(1);
-    const snapshots = files.map(name => ({ name, contents: readContents(join(DIR!, name)) }));
+    const snapshots = files.map(name => ({
+      name,
+      contents: readContents(join(must(DIR, "DIR"), name)),
+    }));
     const latest = snapshots[snapshots.length - 1].contents;
 
     // 人工改写：按长度分层各取 60 份

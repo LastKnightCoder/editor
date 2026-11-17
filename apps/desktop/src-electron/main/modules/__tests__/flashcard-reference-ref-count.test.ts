@@ -22,6 +22,7 @@ import ContentTable from "../tables/content";
 import FlashcardTable from "../tables/flashcard";
 import type { FlashcardReferenceInput } from "@/types";
 import { toPluginFlashcard } from "@/services/flashcard-results";
+import { must } from "../../test-support";
 
 const paragraph = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as any;
@@ -100,9 +101,13 @@ describe("FlashcardTable 参考资料引用计数", () => {
     customContent: paragraph(text),
   });
 
-  const customContentIdOf = (cardId: number) =>
-    FlashcardTable.getFlashcard(db, cardId)!.references.find(ref => ref.refType === "custom")!
-      .contentId;
+  const customContentIdOf = (cardId: number) => {
+    const card = must(FlashcardTable.getFlashcard(db, cardId), `card ${cardId}`);
+    return must(
+      card.references.find(ref => ref.refType === "custom"),
+      "custom ref"
+    ).contentId;
+  };
 
   beforeEach(() => {
     db = createTestDatabase();

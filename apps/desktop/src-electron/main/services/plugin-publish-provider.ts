@@ -64,17 +64,19 @@ export class PluginPublishSessions {
         config: session.config,
       })) as { mode?: string; concurrency?: number };
       session.controller.signal.throwIfAborted();
+      const concurrency = info.concurrency;
       if (
         !["files", "snapshot"].includes(info?.mode ?? "") ||
-        !Number.isInteger(info.concurrency) ||
-        info.concurrency! < 1 ||
-        info.concurrency! > 32
+        typeof concurrency !== "number" ||
+        !Number.isInteger(concurrency) ||
+        concurrency < 1 ||
+        concurrency > 32
       )
         throw new Error("发布提供方信息无效");
       return {
         id,
         mode: info.mode as "files" | "snapshot",
-        concurrency: info.concurrency!,
+        concurrency,
         signal: session.controller.signal,
       };
     } catch (error) {

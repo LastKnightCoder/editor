@@ -59,10 +59,11 @@ function locate(db: Database.Database, kind: string, id: string): Located | null
   const numeric = NUMERIC_KINDS[kind];
   if (numeric) {
     const entityId = numericId(id);
-    const time = entityId === null ? undefined : createdAt(numeric.sql, entityId);
+    if (entityId === null) return null;
+    const time = createdAt(numeric.sql, entityId);
     return time === undefined
       ? null
-      : { createdAt: time, title: resolved(numeric.search, entityId!) };
+      : { createdAt: time, title: resolved(numeric.search, entityId) };
   }
   switch (kind) {
     case "todo": {
@@ -162,7 +163,8 @@ export function accessPluginRef(
   const allowed = readable || own;
   if (!allowed && !grant) return { status: "denied" };
   const located = locate(db, ref.kind, ref.id);
-  if (!located || (!allowed && grant!.target_created_at !== located.createdAt))
+  if (!located) return { status: "missing" };
+  if (!allowed && grant && grant.target_created_at !== located.createdAt)
     return { status: "missing" };
   return { status: "ok", located };
 }

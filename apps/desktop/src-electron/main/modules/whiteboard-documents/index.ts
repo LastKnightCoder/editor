@@ -618,7 +618,8 @@ export class WhiteboardDocumentsModule {
   ): Promise<{ missing: number }> {
     const original = new WhiteboardDocumentRepository(context.db, context.name).read(
       context.documentId
-    )!;
+    );
+    if (!original) throw new Error(`白板文档读取失败：${context.documentId}`);
     await this.installation.prepare(context.db, context.name, {
       operationId: job.operationId,
       documentId: context.documentId,

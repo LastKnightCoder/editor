@@ -15,6 +15,7 @@ import { NodeSessionUpdates } from "../node-session-updates";
 import { SqliteNodeSessionJournal } from "../../content-runtime/sqlite-node-session-journal";
 import { unregisterContentSession } from "../content-sessions";
 import { restartHandoffRuntime, setup } from "./manager-node-document.helpers";
+import { must } from "../../../test-support";
 
 afterEach(resetAfterEach);
 
@@ -292,7 +293,7 @@ it("整篇共享替换双丢响应后重开按原操作回执安装，重试只�
   const original = await setup();
   const { runtime, event, db, store, server, owner } = original;
   const { documentId } = await runtime.createContent(event, 7);
-  const before = ContentTable.getContentById(db, 7)!;
+  const before = must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)");
   const body = replacementInput(before, "整篇已替换");
   const request = runtime.client.request.bind(runtime.client);
   const attempts: [string, string][] = [];
@@ -311,7 +312,7 @@ it("整篇共享替换双丢响应后重开按原操作回执安装，重试只�
   expect(attempts.map(([, method]) => method)).toEqual(["POST", "GET"]);
   const route = attempts[0][0];
   expect(attempts[1][0]).toBe(route);
-  const operationId = route.split("/").at(-1)!;
+  const operationId = must(route.split("/").at(-1), "route.split('/').at(-1)");
   expect(server.store.operations.get(documentId, operationId, owner.id)?.state).toBe("COMMITTED");
   expect(server.store.operations.sequence(documentId)).toBe(1);
   expect(JSON.stringify(ContentTable.getContentById(db, 7)?.content)).not.toContain("整篇已替换");
@@ -345,7 +346,10 @@ it("整篇共享替换双丢响应后重开按原操作回执安装，重试只�
 it("整篇共享替换查不到账本且未过原期限时保留候选，权限失败不推断终态", async () => {
   const { runtime, event, db, store, server } = await setup();
   const { documentId } = await runtime.createContent(event, 7);
-  const body = replacementInput(ContentTable.getContentById(db, 7)!, "未提交的整篇候选");
+  const body = replacementInput(
+    must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)"),
+    "未提交的整篇候选"
+  );
   const request = runtime.client.request.bind(runtime.client);
   let route = "";
   let expiresAt = 0;
@@ -360,7 +364,7 @@ it("整篇共享替换查不到账本且未过原期限时保留候选，权限�
   await expect(ContentTable.writeContent(db, 7, body)).rejects.toThrow(
     "CONTENT_REPLACEMENT_PENDING:"
   );
-  const operationId = route.split("/").at(-1)!;
+  const operationId = must(route.split("/").at(-1), "route.split('/').at(-1)");
   const draft = () =>
     store.db
       .prepare("SELECT applied FROM document_drafts WHERE view_id=?")
@@ -467,7 +471,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
         localId,
         localStore: store,
       } = await setup(false, [original]);
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       await local.project(session);
       const tree = new NodeTree(session.doc);
       const compact = vi.spyOn(store, "compact");
@@ -485,14 +489,21 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
         expect(pending.bytes).toBeGreaterThan(512 * 1024);
         await vi.advanceTimersByTimeAsync(1000);
         expect(compact).toHaveBeenCalledOnce();
-        expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].text).toBe(
-          addition + original
-        );
+        expect(
+          must(
+            must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[0]
+              .children,
+            "ContentDocumentTable.read(db, 7)!.content[0]...."
+          )[0].text
+        ).toBe(addition + original);
         const restored = store.load(localId);
         try {
-          expect(readNodeDocument(restored.doc).content[0].children![0].text).toBe(
-            addition + original
-          );
+          expect(
+            must(
+              readNodeDocument(restored.doc).content[0].children,
+              "readNodeDocument(restored.doc).content[0].chi..."
+            )[0].text
+          ).toBe(addition + original);
         } finally {
           restored.doc.destroy();
         }
@@ -521,7 +532,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
         false,
         Array.from({ length: 128 }, () => "正文压力".repeat(64))
       );
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       await local.project(session);
       const tree = new NodeTree(session.doc);
       const compact = vi.spyOn(store, "compact");
@@ -538,8 +549,8 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           await vi.advanceTimersByTimeAsync(1000);
           expect(session.projectedVersion).toEqual(session.projectionVersion);
           expect(
-            ContentDocumentTable.read(db, 7)!
-              .content[0].children!.map(leaf => leaf.text)
+            must(must(ContentDocumentTable.read(db, 7), "doc 7").content[0].children, "children")
+              .map(leaf => leaf.text)
               .join("")
           ).toBe(expected);
         }
@@ -582,7 +593,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           .slice(0, paragraphLength);
         const expected = Array.from({ length: paragraphCount }, () => text);
         const { local, localSessions, localAssets, db, localId } = await setup(false, expected);
-        const session = localSessions.get(localId)!;
+        const session = must(localSessions.get(localId), "localSessions.get(localId)");
         await local.project(session);
         db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
         const tree = new NodeTree(session.doc);
@@ -609,7 +620,10 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
             await local.project(session);
           }
           expect(localize).not.toHaveBeenCalled();
-          expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(100);
+          expect(
+            must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)")
+              .updateTime
+          ).toBe(100);
           for (let iteration = 0; iteration < 36; iteration++) {
             const index = iteration % 2 ? paragraphCount - 1 : 0;
             const id = index ? `paragraph-${index}` : "paragraph";
@@ -620,8 +634,13 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
             await local.project(session);
             saves.push(performance.now() - started);
             expect(
-              ContentDocumentTable.read(db, 7)!.content.map(node =>
-                node.children!.map(leaf => leaf.text).join("")
+              must(
+                ContentDocumentTable.read(db, 7),
+                "ContentDocumentTable.read(db, 7)"
+              ).content.map(node =>
+                must(node.children, "node.children")
+                  .map(leaf => leaf.text)
+                  .join("")
               )
             ).toEqual(expected);
             expect(session.projectedVersion).toEqual(session.projectionVersion);
@@ -632,7 +651,10 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
             )
             .get() as { count: number };
           expect(operations.count).toBe(36);
-          expect(ContentTable.getContentById(db, 7)!.updateTime).toBeGreaterThan(100);
+          expect(
+            must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)")
+              .updateTime
+          ).toBeGreaterThan(100);
           return {
             characters: paragraphCount * paragraphLength,
             paragraphCount,
@@ -652,17 +674,19 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
   it("同值属性与重复确认：不能产生编辑时间或编辑记录", async () => {
     await measureStress("idempotent-properties", async () => {
       const { local, localSessions, db, localId } = await setup();
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       await local.project(session);
       db.prepare("UPDATE contents SET update_time=100 WHERE id=7").run();
       const tree = new NodeTree(session.doc);
-      const before = ContentDocumentTable.read(db, 7)!;
+      const before = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
       try {
         for (let iteration = 0; iteration < 100; iteration++) {
           tree.setProperties("paragraph", { isFold: true, svg: "用户业务内容" }, {});
           await local.project(session);
         }
-        expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(100);
+        expect(
+          must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)").updateTime
+        ).toBe(100);
         expect(ContentDocumentTable.read(db, 7)).toEqual(before);
         expect(
           db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all()
@@ -686,7 +710,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           event,
           localStore: store,
         } = await setup(false, ["起点甲", "起点乙", "起点丙", "起点丁"]);
-        let session = localSessions.get(localId)!;
+        let session = must(localSessions.get(localId), "localSessions.get(localId)");
         let tree = new NodeTree(session.doc);
         const contract = String(tree.nodeSnapshot("paragraph").tauContract);
         const expected = ["起点甲", "起点乙", "起点丙", "起点丁"].map((text, index) => ({
@@ -696,11 +720,16 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
         }));
         const random = stressRandom(seed);
         const verify = () => {
-          const actual = ContentDocumentTable.read(db, 7)!.content;
+          const actual = must(
+            ContentDocumentTable.read(db, 7),
+            "ContentDocumentTable.read(db, 7)"
+          ).content;
           expect(
             actual.map(node => ({
               id: node.collabId,
-              text: node.children!.map(leaf => leaf.text).join(""),
+              text: must(node.children, "node.children")
+                .map(leaf => leaf.text)
+                .join(""),
               level: node.level,
             }))
           ).toEqual(expected);
@@ -767,7 +796,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
               session.doc.destroy();
               localSessions.delete(localId);
               await local.open(event, { contentId: 7 });
-              session = localSessions.get(localId)!;
+              session = must(localSessions.get(localId), "localSessions.get(localId)");
               tree = new NodeTree(session.doc);
               recoveries++;
             }
@@ -795,7 +824,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
   it("源码、格式、撤销重做：各类正文事务都正常推进保存", async () => {
     await measureStress("source-format-history", async () => {
       const { local, localSessions, db, localId } = await setup();
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       const tree = new NodeTree(session.doc);
       const source = await prepareContentContract("stress.source", {
         type: "stress.source",
@@ -836,18 +865,31 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           history.stopCapturing();
           expected += addition;
           await local.project(session);
-          expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(expected);
+          expect(
+            must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[1]
+              .code
+          ).toBe(expected);
           history.undo();
           await local.project(session);
-          expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(before);
+          expect(
+            must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[1]
+              .code
+          ).toBe(before);
           history.redo();
           await local.project(session);
-          expect(ContentDocumentTable.read(db, 7)!.content[1].code).toBe(expected);
+          expect(
+            must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[1]
+              .code
+          ).toBe(expected);
           tree.formatText("paragraph", 0, 2, { bold: step % 2 === 0 ? true : null }, {});
           await local.project(session);
-          expect(ContentDocumentTable.read(db, 7)!.content[0].children![0].bold).toBe(
-            step % 2 === 0 ? true : undefined
-          );
+          expect(
+            must(
+              must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[0]
+                .children,
+              "ContentDocumentTable.read(db, 7)!.content[0]...."
+            )[0].bold
+          ).toBe(step % 2 === 0 ? true : undefined);
         }
         expect(session.projectedVersion).toEqual(session.projectionVersion);
         return { sourceEdits: 80, undos: 80, redos: 80, formatChanges: 80, saves: 320 };
@@ -861,7 +903,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
   it("投影重叠、写入后回滚与切库竞态：新输入始终可重试", async () => {
     await measureStress("overlap-rollback-database-switch", async () => {
       const { local, localSessions, localAssets, db, localId } = await setup();
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       await local.project(session);
       const tree = new NodeTree(session.doc);
       const originalLocalize = localAssets.localizeDocument.bind(localAssets);
@@ -880,7 +922,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           });
           await Promise.all(Array.from({ length: 8 }, () => local.project(session)));
           expect(session.projectedVersion).not.toEqual(session.projectionVersion);
-          const before = ContentDocumentTable.read(db, 7)!;
+          const before = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
           vi.spyOn(ContentDocumentBlocks, "commit").mockImplementationOnce((...args) => {
             originalCommit(...args);
             throw new Error("写入后模拟故障，事务必须回滚");
@@ -899,8 +941,8 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           host.databases.set("library", db);
           await local.project(session);
           expect(
-            ContentDocumentTable.read(db, 7)!
-              .content[0].children!.map(leaf => leaf.text)
+            must(must(ContentDocumentTable.read(db, 7), "doc 7").content[0].children, "children")
+              .map(leaf => leaf.text)
               .join("")
           ).toBe(expected);
           expect(session.projectedVersion).toEqual(session.projectionVersion);
@@ -929,7 +971,7 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
         localStore: store,
         localState: state,
       } = await setup();
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       await local.project(session);
       const queue = new NodeSessionUpdates(new SqliteNodeSessionJournal(store), state);
       const peers = [
@@ -957,8 +999,11 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           );
           await local.project(session);
         }
-        const actual = ContentDocumentTable.read(db, 7)!
-          .content[0].children!.map(leaf => leaf.text)
+        const actual = must(
+          must(ContentDocumentTable.read(db, 7), "doc 7").content[0].children,
+          "children"
+        )
+          .map(leaf => leaf.text)
           .join("");
         for (let step = 0; step < 120; step++)
           for (let peer = 0; peer < 2; peer++)
@@ -996,7 +1041,10 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
     await measureStress("websocket-reconnect", async () => {
       const { runtime, db, event, server } = await setup(true);
       const shared = await runtime.createContent(event, 7);
-      const session = runtime.content.sessions.get(shared.documentId)!;
+      const session = must(
+        runtime.content.sessions.get(shared.documentId),
+        "runtime.content.sessions.get(shared.documentId)"
+      );
       await vi.waitFor(() => expect(session.provider?.synced).toBe(true), { timeout: 10000 });
       await runtime.content.project(session);
       const tree = new NodeTree(session.doc);
@@ -1020,8 +1068,8 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
           }
           await runtime.content.project(session);
           expect(
-            ContentDocumentTable.read(db, 7)!
-              .content[0].children!.map(leaf => leaf.text)
+            must(must(ContentDocumentTable.read(db, 7), "doc 7").content[0].children, "children")
+              .map(leaf => leaf.text)
               .join("")
           ).toBe(expected);
           await Promise.all([...runtime.transports.values()].map(transport => transport.connect()));
@@ -1030,8 +1078,8 @@ describe.runIf(process.env.TAU_CONTENT_STRESS === "1")("正文投影压力", () 
               const remote = server.store.loadDocument(shared.documentId);
               try {
                 expect(
-                  readNodeDocument(remote)
-                    .content[0].children!.map(leaf => leaf.text)
+                  must(readNodeDocument(remote).content[0].children, "children")
+                    .map(leaf => leaf.text)
                     .join("")
                 ).toBe(expected);
               } finally {

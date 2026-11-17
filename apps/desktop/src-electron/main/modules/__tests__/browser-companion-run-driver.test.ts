@@ -38,6 +38,7 @@ vi.mock("../pi-session-host", () => ({
 
 import { createCompanionRunDriver, resolveRunModel } from "../browser-companion/run-driver";
 import { PiUserQuestions } from "../pi-user-questions";
+import { must } from "../../test-support";
 
 const fakePeer = (reply: unknown) => ({ request: vi.fn(async () => reply) }) as any;
 
@@ -85,7 +86,10 @@ describe("伴读对话 driver", () => {
     ]);
     expect(state.created.hostToolsOnly).toBe(true);
     state.handled = [];
-    state.toolCall!({ sessionId: "x", toolCallId: "t1", toolName: "read_page", args: { a: 1 } });
+    must(
+      state.toolCall,
+      "state.toolCall"
+    )({ sessionId: "x", toolCallId: "t1", toolName: "read_page", args: { a: 1 } });
     await vi.waitFor(() => expect(state.handled).toHaveLength(1));
     expect(peer.request).toHaveBeenCalledWith(
       "page.tool",
@@ -93,7 +97,10 @@ describe("伴读对话 driver", () => {
       expect.any(Number)
     );
     expect(state.handled[0]).toEqual({ id: "t1", result: { content: "正文" } });
-    state.toolCall!({ sessionId: "x", toolCallId: "t2", toolName: "search_knowledge", args: {} });
+    must(
+      state.toolCall,
+      "state.toolCall"
+    )({ sessionId: "x", toolCallId: "t2", toolName: "search_knowledge", args: {} });
     await vi.waitFor(() => expect(state.handled).toHaveLength(2));
     expect(state.handled[1]).toMatchObject({ id: "t2", error: expect.any(String) });
     state.finish({ ok: false });

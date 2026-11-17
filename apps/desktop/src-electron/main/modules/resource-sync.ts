@@ -675,8 +675,9 @@ class ResourceSyncModule {
   }
 
   private async executeTasks(tasks: SyncTask[]) {
-    if (!this.executor || !this.adapter) return;
-    const promises = tasks.map(task => this.executor!.execute(() => this.runTask(task)));
+    const executor = this.executor;
+    if (!executor || !this.adapter) return;
+    const promises = tasks.map(task => executor.execute(() => this.runTask(task)));
     await Promise.allSettled(promises);
   }
 

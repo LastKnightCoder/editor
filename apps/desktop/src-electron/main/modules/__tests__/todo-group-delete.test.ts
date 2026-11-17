@@ -13,6 +13,7 @@ import TodoNoteLinkTable from "../tables/todo-note-link";
 import TodoRecurrenceTable from "../tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "../tables/todo-recurrence-completion";
 import TodoCalendarSyncTable from "../tables/todo-calendar-sync";
+import { must } from "../../test-support";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -33,8 +34,14 @@ describe("删除项目", () => {
 
   beforeEach(() => {
     db = createTestDatabase();
-    groupId = TodoGroupTable.createGroup(db, { title: "垃圾项目", color: "red" })!.id;
-    otherId = TodoGroupTable.createGroup(db, { title: "保留项目", color: "blue" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "垃圾项目", color: "red" }),
+      "TodoGroupTable.createGroup(db, { title: '垃圾项目..."
+    ).id;
+    otherId = must(
+      TodoGroupTable.createGroup(db, { title: "保留项目", color: "blue" }),
+      "TodoGroupTable.createGroup(db, { title: '保留项目..."
+    ).id;
   });
 
   afterEach(() => {

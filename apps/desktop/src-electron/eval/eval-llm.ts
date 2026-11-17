@@ -14,6 +14,7 @@ import {
   createProviderRegistry,
   resolveV2Providers,
 } from "../main/modules/pi-ai-runtime-core";
+import { must } from "../main/test-support";
 
 export interface EvalCompleter {
   slot: LlmRef;
@@ -33,7 +34,7 @@ export async function createEvalCompleter(
   const setting = JSON.parse(readFileSync(settingPath, "utf8"));
   const slotName = slots.find(name => resolveUsageSlot(setting, name));
   if (!slotName) return null;
-  const slot = resolveUsageSlot(setting, slotName)!;
+  const slot = must(resolveUsageSlot(setting, slotName), "resolveUsageSlot(setting, slotName)");
   const registry = createProviderRegistry();
   await registry.syncProviders(resolveV2Providers(setting));
   const model = registry.resolveModel(slot.providerId, slot.modelId);

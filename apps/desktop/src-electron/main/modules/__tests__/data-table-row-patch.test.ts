@@ -9,6 +9,7 @@ vi.mock("../tables/content", () => ({
   default: { deleteContent: cleanup, retain, releaseDeferred },
 }));
 import DataTableTable from "../tables/data-table";
+import { must } from "../../test-support";
 
 let db: Database.Database;
 beforeEach(() => {
@@ -44,7 +45,7 @@ it("晚到正文只合并字段补丁，保留新实例的标题、其他行、�
   expect(attach()).toBe(true);
   expect(retain).toHaveBeenCalledExactlyOnceWith(db, 71);
   db.exec("COMMIT");
-  const table = DataTableTable.getById(db, 1)!;
+  const table = must(DataTableTable.getById(db, 1), "DataTableTable.getById(db, 1)");
   expect(table.rows).toEqual([
     { id: "r", title: "新实例保存的标题", detailContentId: 71 },
     { id: "s", title: "其他行" },
@@ -58,7 +59,9 @@ it("新实例已删除行时拒绝补丁，不恢复行", () => {
     JSON.stringify([{ id: "s", title: "其他行" }])
   );
   expect(attach()).toBe(false);
-  expect(DataTableTable.getById(db, 1)!.rows).toEqual([{ id: "s", title: "其他行" }]);
+  expect(must(DataTableTable.getById(db, 1), "DataTableTable.getById(db, 1)").rows).toEqual([
+    { id: "s", title: "其他行" },
+  ]);
 });
 
 it("目标字段已被新实例修改时拒绝旧草稿，已有正文不被替换", () => {
@@ -79,7 +82,9 @@ it("目标字段已被新实例修改时拒绝旧草稿，已有正文不被替�
       expected: { detailContentId: 0 },
     })
   ).toBe(false);
-  expect(DataTableTable.getById(db, 1)!.rows[0]).toMatchObject({
+  expect(
+    must(DataTableTable.getById(db, 1), "DataTableTable.getById(db, 1)").rows[0]
+  ).toMatchObject({
     title: "新实例保存的标题",
     detailContentId: 71,
   });
@@ -103,10 +108,13 @@ it("表已删除、字段已删除或缺少预期值时拒绝写入", () => {
 
 it("晚到补丁先落库，新实例随后编辑的差量仍保留正文引用和活动视图", () => {
   expect(attach()).toBe(true);
-  const table = DataTableTable.applyChanges(db, {
-    id: 1,
-    rows: { upsert: [{ id: "r", title: "随后编辑的标题" }], remove: [] },
-  })!;
+  const table = must(
+    DataTableTable.applyChanges(db, {
+      id: 1,
+      rows: { upsert: [{ id: "r", title: "随后编辑的标题" }], remove: [] },
+    }),
+    "DataTableTable.applyChanges"
+  );
   expect(table.rows[0]).toMatchObject({ title: "随后编辑的标题", detailContentId: 71 });
   expect(table.activeViewId).toBe(8);
   expect(table.columns[0].width).toBe(600);
@@ -117,20 +125,26 @@ it("常规删除把行正文交给延迟回收，旧实例的后续编辑不恢�
   DataTableTable.applyChanges(db, { id: 1, rows: { upsert: [], remove: ["r"] } });
   expect(releaseDeferred).toHaveBeenCalledExactlyOnceWith(db, 71);
   expect(cleanup).not.toHaveBeenCalled();
-  const table = DataTableTable.applyChanges(db, {
-    id: 1,
-    rows: { upsert: [{ id: "r", title: "旧编辑" }], remove: [] },
-  })!;
+  const table = must(
+    DataTableTable.applyChanges(db, {
+      id: 1,
+      rows: { upsert: [{ id: "r", title: "旧编辑" }], remove: [] },
+    }),
+    "DataTableTable.applyChanges"
+  );
   expect(table.rows.map(row => row.id)).toEqual(["s"]);
 });
 
 it("只允许显式新增行，列修改与行差量不改写其他最新字段", () => {
   expect(attach()).toBe(true);
-  const table = DataTableTable.applyChanges(db, {
-    id: 1,
-    columns: [{ id: "title", title: "名称", type: "text", width: 720 }],
-    rows: { upsert: [{ id: "new", title: "新增" }], remove: [], inserted: ["new"] },
-  })!;
+  const table = must(
+    DataTableTable.applyChanges(db, {
+      id: 1,
+      columns: [{ id: "title", title: "名称", type: "text", width: 720 }],
+      rows: { upsert: [{ id: "new", title: "新增" }], remove: [], inserted: ["new"] },
+    }),
+    "DataTableTable.applyChanges"
+  );
   expect(table.rows[0].detailContentId).toBe(71);
   expect(table.rows[2]).toEqual({ id: "new", title: "新增" });
   expect(table.columns[0].width).toBe(720);

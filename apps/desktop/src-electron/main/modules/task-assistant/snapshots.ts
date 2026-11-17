@@ -154,10 +154,10 @@ export function pinSnapshot(db: Database.Database, operationId: string, snapshot
     const row = db.prepare("SELECT create_time FROM content_snapshots WHERE id=?").get(id) as
       | { create_time: number }
       | undefined;
-    if (!row) fail("NOT_FOUND", "关联正文不存在");
+    if (!row) return fail("NOT_FOUND", "关联正文不存在");
     const inserted = db
       .prepare("INSERT OR IGNORE INTO task_assistant_content_pin VALUES (?,?,?)")
-      .run(operationId, id, row!.create_time).changes;
+      .run(operationId, id, row.create_time).changes;
     if (inserted) ContentTable.incrementRefCount(db, id);
   }
 }
@@ -201,7 +201,8 @@ export function restoreSnapshot(
       const previous = oldRows.get(key),
         expected = newRows.get(key);
       if (canonical(previous) === canonical(expected)) continue;
-      const identity = expected ?? previous!;
+      const identity = expected ?? previous;
+      if (!identity) continue;
       const current = db
         .prepare(
           `SELECT * FROM ${table} WHERE ${KEYS[table].map(field => `${field}=?`).join(" AND ")}`
@@ -248,7 +249,8 @@ export function restoreSnapshot(
   if (validateOnly) return;
   for (const { table, before: previous, after: next } of changes) {
     if (!previous) {
-      const identity = next!;
+      if (!next) continue;
+      const identity = next;
       db.prepare(
         `DELETE FROM ${table} WHERE ${KEYS[table].map(key => `${key}=?`).join(" AND ")}`
       ).run(...KEYS[table].map(key => identity[key]));

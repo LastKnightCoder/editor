@@ -259,10 +259,9 @@ export default class OperationTable {
     // 按 operation_id 分组
     const grouped = new Map<number, Operation[]>();
     operations.forEach(op => {
-      if (!grouped.has(op.operation_id)) {
-        grouped.set(op.operation_id, []);
-      }
-      grouped.get(op.operation_id)!.push(op);
+      const list = grouped.get(op.operation_id);
+      if (list) list.push(op);
+      else grouped.set(op.operation_id, [op]);
     });
 
     const result: Array<{

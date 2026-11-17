@@ -9,6 +9,7 @@ import TodoCalendarSyncTable from "../../tables/todo-calendar-sync";
 import { reindexDocTasks } from "../../doc-tasks/indexer";
 import { TaskAssistantEngine } from "../engine";
 import { queryTasks, queryEvents } from "../query";
+import { must } from "../../../test-support";
 describe("统一只读查询", () => {
   let db: Database.Database, index: Database.Database, engine: TaskAssistantEngine, groupId: number;
   beforeEach(() => {
@@ -18,7 +19,10 @@ describe("统一只读查询", () => {
     index.exec(INDEX_SCHEMA_SQL);
     TodoGroupTable.ensureSystemGroups(db);
     TodoCalendarSyncTable.ensureTodoCalendars(db);
-    groupId = TodoGroupTable.createGroup(db, { title: "工作" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "工作" }),
+      "TodoGroupTable.createGroup(db, { title: '工作' })"
+    ).id;
     engine = new TaskAssistantEngine(db);
   });
   afterEach(() => {

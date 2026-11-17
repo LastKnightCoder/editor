@@ -301,18 +301,30 @@ class FlashcardTable {
       }
 
       let content = null;
-      if (row.content_db_id && row.content_data) {
+      const {
+        content_create_time: createTime,
+        content_update_time: updateTime,
+        content_count: count,
+        content_ref_count: refCount,
+        content_contracts: contracts,
+        content_revision: revision,
+      } = row;
+      const contentRowComplete =
+        createTime !== null &&
+        updateTime !== null &&
+        count !== null &&
+        refCount !== null &&
+        (!contracts || revision !== null);
+      if (row.content_db_id && row.content_data && contentRowComplete) {
         try {
           content = {
             id: row.content_db_id,
             content: JSON.parse(row.content_data),
-            createTime: row.content_create_time!,
-            updateTime: row.content_update_time!,
-            count: row.content_count!,
-            refCount: row.content_ref_count!,
-            ...(row.content_contracts
-              ? { contracts: JSON.parse(row.content_contracts), revision: row.content_revision! }
-              : {}),
+            createTime,
+            updateTime,
+            count,
+            refCount,
+            ...(contracts ? { contracts: JSON.parse(contracts), revision } : {}),
           };
         } catch (e) {
           log.error("[FlashcardTable] Failed to parse content data", e);
@@ -845,7 +857,8 @@ class FlashcardTable {
         payload.notes ?? null
       );
 
-      const updated = this.getFlashcard(db, payload.cardId)!;
+      const updated = this.getFlashcard(db, payload.cardId);
+      if (!updated) throw new Error(`复习后卡片读取失败：${payload.cardId}`);
       return {
         ...updated,
         undo: {

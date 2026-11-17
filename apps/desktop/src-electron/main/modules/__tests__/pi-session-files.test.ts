@@ -30,9 +30,12 @@ import type { RequestMessage } from "@/types";
 const projected = (sessionFile: string, sessionDir: string) =>
   piEntriesToDesktopMessages(loadSessionTranscript(sessionFile, sessionDir));
 const userEntryId = (sessionFile: string, sessionDir: string, index: number) =>
-  projected(sessionFile, sessionDir).filter(message => message.role === "user")[index]
-    .piEntryIds![0];
+  must(
+    projected(sessionFile, sessionDir).filter(message => message.role === "user")[index].piEntryIds,
+    "piEntryIds"
+  )[0];
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
+import { must } from "../../test-support";
 
 if (typeof AbortSignal.any !== "function") {
   Object.assign(AbortSignal, {
@@ -182,9 +185,12 @@ describe("会话文件操作", () => {
   it("删除一条回答：按投影带回的全部 entry id 省略，回答整条消失", () => {
     const sessionDir = setup();
     const file = join(sessionDir, writeTwoTurns(sessionDir));
-    const firstAnswer = projected(file, sessionDir).find(message => message.role === "assistant")!;
+    const firstAnswer = must(
+      projected(file, sessionDir).find(message => message.role === "assistant"),
+      "projected(file, sessionDir).find(message => m..."
+    );
     expect(firstAnswer.piEntryIds?.length).toBeGreaterThan(0);
-    omitEntries(SessionManager.open(file), firstAnswer.piEntryIds!);
+    omitEntries(SessionManager.open(file), must(firstAnswer.piEntryIds, "firstAnswer.piEntryIds"));
     expect(projected(file, sessionDir).map(message => message.role)).toEqual([
       "user",
       "user",
@@ -213,7 +219,7 @@ describe("会话文件操作", () => {
           entry.type === "message" &&
           (entry as { message: { content: unknown } }).message.content === "第一问"
       );
-    omitEntries(SessionManager.open(file), [target!.id]);
+    omitEntries(SessionManager.open(file), [must(target, "target").id]);
 
     expect(userTexts(file, sessionDir)).toEqual(["第二问"]);
     const context = SessionManager.open(file).buildSessionContext();
@@ -251,7 +257,10 @@ describe("会话树（M4-d）", () => {
 
     expect(userTexts(file, sessionDir)).toEqual(["第一问", "第二问（改）"]);
     expect(userAt(file, sessionDir, 0).piVersions).toBeUndefined();
-    const versions = userAt(file, sessionDir, 1).piVersions!;
+    const versions = must(
+      userAt(file, sessionDir, 1).piVersions,
+      "userAt(file, sessionDir, 1).piVersions"
+    );
     expect(versions.ids).toHaveLength(2);
     // 按写入顺序：原版本在前，新版本是第二个，当前在新版本上
     expect(versions.index).toBe(1);
@@ -262,13 +271,18 @@ describe("会话树（M4-d）", () => {
     const file = join(sessionDir, writeTwoTurns(sessionDir));
     rewindToBeforeEntry(SessionManager.open(file), userEntryId(file, sessionDir, 1));
     appendTurn(file, "第二问（改）", "第二答（改）", 10);
-    const [original] = userAt(file, sessionDir, 1).piVersions!.ids;
+    const [original] = must(
+      userAt(file, sessionDir, 1).piVersions,
+      "userAt(file, sessionDir, 1).piVersions"
+    ).ids;
 
     switchToVersion(SessionManager.open(file), original);
 
     expect(userTexts(file, sessionDir)).toEqual(["第一问", "第二问"]);
     expect(answerTexts(file, sessionDir)).toEqual(["第一答", "第二答"]);
-    expect(userAt(file, sessionDir, 1).piVersions!.index).toBe(0);
+    expect(
+      must(userAt(file, sessionDir, 1).piVersions, "userAt(file, sessionDir, 1).piVersions").index
+    ).toBe(0);
   });
 
   it("切到一个版本落在它子树里最近写入的位置（那个版本后来又聊了几轮）", () => {
@@ -277,7 +291,10 @@ describe("会话树（M4-d）", () => {
     rewindToBeforeEntry(SessionManager.open(file), userEntryId(file, sessionDir, 1));
     appendTurn(file, "第二问（改）", "第二答（改）", 10);
     appendTurn(file, "第三问", "第三答", 20);
-    const [original, edited] = userAt(file, sessionDir, 1).piVersions!.ids;
+    const [original, edited] = must(
+      userAt(file, sessionDir, 1).piVersions,
+      "userAt(file, sessionDir, 1).piVersions"
+    ).ids;
 
     switchToVersion(SessionManager.open(file), original);
     switchToVersion(SessionManager.open(file), edited);
@@ -291,7 +308,10 @@ describe("会话树（M4-d）", () => {
     rewindToBeforeEntry(SessionManager.open(file), userEntryId(file, sessionDir, 0));
     appendTurn(file, "第一问", "第一答（重新生成）", 10);
 
-    const versions = userAt(file, sessionDir, 0).piVersions!;
+    const versions = must(
+      userAt(file, sessionDir, 0).piVersions,
+      "userAt(file, sessionDir, 0).piVersions"
+    );
     expect(versions.ids).toHaveLength(2);
     switchToVersion(SessionManager.open(file), versions.ids[0]);
     expect(answerTexts(file, sessionDir)).toEqual(["第一答", "第二答"]);
@@ -300,12 +320,24 @@ describe("会话树（M4-d）", () => {
   it("从这里建分支：回到第一答之后，下一条消息成为第二问的另一个版本", () => {
     const sessionDir = setup();
     const file = join(sessionDir, writeTwoTurns(sessionDir));
-    const firstAnswer = projected(file, sessionDir).find(message => message.role === "assistant")!;
-    forkAfterEntry(SessionManager.open(file), firstAnswer.piEntryIds!.at(-1)!);
+    const firstAnswer = must(
+      projected(file, sessionDir).find(message => message.role === "assistant"),
+      "projected(file, sessionDir).find(message => m..."
+    );
+    forkAfterEntry(
+      SessionManager.open(file),
+      must(
+        must(firstAnswer.piEntryIds, "firstAnswer.piEntryIds").at(-1),
+        "firstAnswer.piEntryIds!.at(-1)"
+      )
+    );
 
     expect(userTexts(file, sessionDir)).toEqual(["第一问"]);
     appendTurn(file, "另一个方向", "另一个回答", 10);
-    const versions = userAt(file, sessionDir, 1).piVersions!;
+    const versions = must(
+      userAt(file, sessionDir, 1).piVersions,
+      "userAt(file, sessionDir, 1).piVersions"
+    );
     expect(versions.ids).toHaveLength(2);
     expect(userTexts(file, sessionDir)).toEqual(["第一问", "另一个方向"]);
   });
@@ -313,11 +345,17 @@ describe("会话树（M4-d）", () => {
   it("删过的消息在切版本后仍保持删除（省略只作用于它所在的路径，切换时重挂）", () => {
     const sessionDir = setup();
     const file = join(sessionDir, writeTwoTurns(sessionDir));
-    const firstAnswer = projected(file, sessionDir).find(message => message.role === "assistant")!;
-    omitEntries(SessionManager.open(file), firstAnswer.piEntryIds!);
+    const firstAnswer = must(
+      projected(file, sessionDir).find(message => message.role === "assistant"),
+      "projected(file, sessionDir).find(message => m..."
+    );
+    omitEntries(SessionManager.open(file), must(firstAnswer.piEntryIds, "firstAnswer.piEntryIds"));
     rewindToBeforeEntry(SessionManager.open(file), userEntryId(file, sessionDir, 1));
     appendTurn(file, "第二问（改）", "第二答（改）", 10);
-    const [original, edited] = userAt(file, sessionDir, 1).piVersions!.ids;
+    const [original, edited] = must(
+      userAt(file, sessionDir, 1).piVersions,
+      "userAt(file, sessionDir, 1).piVersions"
+    ).ids;
 
     switchToVersion(SessionManager.open(file), original);
     expect(answerTexts(file, sessionDir)).toEqual(["第二答"]);
@@ -445,11 +483,14 @@ describe("会话树（M4-d）", () => {
     expect(seen).toEqual(["第一问", "第二问（改）"]);
 
     // 同一个会话里切回原版本，继续聊：模型看到的是原路径
-    const [original] = (
-      piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir)).filter(
-        message => message.role === "user"
-      )[1] as RequestMessage
-    ).piVersions!.ids;
+    const [original] = must(
+      (
+        piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir)).filter(
+          message => message.role === "user"
+        )[1] as RequestMessage
+      ).piVersions,
+      "piVersions"
+    ).ids;
     applySessionEdit(session.sessionManager, { kind: "switch", entryId: original });
     session.refreshContext();
     await session.prompt("接着原来的问");

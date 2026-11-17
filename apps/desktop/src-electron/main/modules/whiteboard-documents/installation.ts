@@ -240,7 +240,8 @@ export class WhiteboardInstallation {
         record = this.state.decideLocal(operationId, "commit");
         checkpoint?.("decision");
       }
-      const receipt = record.decision!;
+      const receipt = record.decision;
+      if (!receipt) throw new Error("共享安装决策缺失");
       this.state.installed(operationId, "main", receipt);
       const existing = this.journal.load(journalKey(installed));
       if (existing) {

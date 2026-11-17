@@ -17,6 +17,7 @@ import type {
   PiSessionCreateRequest,
   SubagentSessionOptions,
 } from "../pi-session-host";
+import { must } from "../../test-support";
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -35,7 +36,7 @@ async function setup() {
     removeListener: vi.fn(),
   };
   const operation = async (id: string, run: (signal: AbortSignal) => Promise<{ ok: boolean }>) => {
-    const hosted = sessions.get(id)!;
+    const hosted = must(sessions.get(id), "sessions.get(id)");
     const controller = new AbortController();
     const task = Promise.resolve().then(() => run(controller.signal));
     hosted.operations.set(controller, task);
@@ -124,7 +125,7 @@ async function setup() {
     create,
     prompt: (id, text) =>
       operation(id, async () => {
-        await sessions.get(id)!.session.prompt(text);
+        await must(sessions.get(id), "sessions.get(id)").session.prompt(text);
         return { ok: true };
       }),
     abort: async id => {
@@ -228,9 +229,12 @@ describe("子 Agent 真实 pi 会话接线", () => {
         [...sessions.values()].some(host => host.interactions.snapshot().approvals.length > 0)
       ).toBe(true)
     );
-    const child = [...sessions.values()].find(host => host.childAgent)!;
+    const child = must(
+      [...sessions.values()].find(host => host.childAgent),
+      "[...sessions.values()].find(host => host.chil..."
+    );
     const request = child.interactions.snapshot().approvals[0];
-    const parent = sessions.get("root")!.session;
+    const parent = must(sessions.get("root"), "sessions.get('root')").session;
     parent.setActiveToolsByName(parent.getActiveToolNames().filter(name => name !== "write"));
     child.interactions.permissions.decide(request.requestId, "allow");
     await waiting;
@@ -286,7 +290,10 @@ describe("子 Agent 真实 pi 会话接线", () => {
           })
         ).toBe(true)
       );
-      const child = [...sessions.values()].find(host => host.childAgent)!;
+      const child = must(
+        [...sessions.values()].find(host => host.childAgent),
+        "[...sessions.values()].find(host => host.chil..."
+      );
       const snapshot = child.interactions.snapshot();
       const request = snapshot.questions[0] ?? snapshot.approvals[0];
       expect(runtime.service.repository.read(run.origin.parentKey).messages).toHaveLength(0);
@@ -304,8 +311,7 @@ describe("子 Agent 真实 pi 会话接线", () => {
       );
       expect(existsSync(join(dir, "cancelled.md"))).toBe(false);
       expect(
-        sessions
-          .get("root")!
+        must(sessions.get("root"), "sessions")
           .session.sessionManager.getEntries()
           .some(entry => entry.type === "custom_message")
       ).toBe(false);
@@ -322,7 +328,10 @@ describe("子 Agent 真实 pi 会话接线", () => {
     });
     await runtime.service.wait(first, "persist-first");
     runtime.service.toolResult(first.origin.parentKey, "persist-first", true);
-    const oldHostId = runtime.snapshot(client).agents[0].hostId!;
+    const oldHostId = must(
+      runtime.snapshot(client).agents[0].hostId,
+      "runtime.snapshot(client).agents[0].hostId"
+    );
     await dispose(oldHostId);
     faux.setResponses([fauxAssistantMessage([fauxText("仍然记得松柏")])]);
     const next = runtime.service.submit("root", "persist-next", {
@@ -334,18 +343,23 @@ describe("子 Agent 真实 pi 会话接线", () => {
       outcome: { status: "completed" },
     });
     runtime.service.toolResult(next.origin.parentKey, "persist-next", true);
-    const newHostId = runtime.snapshot(client).agents[0].hostId!;
-    expect(newHostId).not.toBe(oldHostId);
-    expect(JSON.stringify(sessions.get(newHostId)!.session.sessionManager.getBranch())).toContain(
-      "记住松柏"
+    const newHostId = must(
+      runtime.snapshot(client).agents[0].hostId,
+      "runtime.snapshot(client).agents[0].hostId"
     );
+    expect(newHostId).not.toBe(oldHostId);
+    expect(
+      JSON.stringify(
+        must(sessions.get(newHostId), "sessions.get(newHostId)").session.sessionManager.getBranch()
+      )
+    ).toContain("记住松柏");
     expect(runtime.snapshot(client).agents[0].runs).toHaveLength(2);
   });
 
   it("父分支已离开原任务时不把异步结果注入新分支", async () => {
     const { runtime, faux, sessions } = await setup();
     faux.setResponses([fauxAssistantMessage([fauxText("原分支回答")])]);
-    const parent = sessions.get("root")!.session;
+    const parent = must(sessions.get("root"), "sessions.get('root')").session;
     await parent.prompt("原分支");
     faux.setResponses([fauxAssistantMessage([fauxText("子结果")])]);
     const run = runtime.service.submit("root", "old-branch", {
@@ -398,7 +412,7 @@ describe("子 Agent 真实 pi 会话接线", () => {
       fauxAssistantMessage([fauxText("第一项完成")]),
     ]);
     await operation("root", async () => {
-      await sessions.get("root")!.session.prompt("派发任务");
+      await must(sessions.get("root"), "sessions.get('root')").session.prompt("派发任务");
       return { ok: true };
     });
     const parent = runtime.parent("root");
@@ -416,13 +430,21 @@ describe("子 Agent 真实 pi 会话接线", () => {
     });
     const result = await runtime.service.wait(run, "followup");
     expect(result).toMatchObject({ reason: "terminal", outcome: { result: "暗号是杉树" } });
-    const child = [...sessions.values()].find(host => host.childAgent?.agentId === agent.agentId)!;
+    const child = must(
+      [...sessions.values()].find(host => host.childAgent?.agentId === agent.agentId),
+      "[...sessions.values()].find(host => host.chil..."
+    );
     const history = JSON.stringify(child.session.sessionManager.getBranch());
     expect(history).toContain("记住暗号：杉树");
     expect(history).toContain("之前的暗号是什么");
-    expect(() => runtime.parent([...sessions].find(([, host]) => host === child)![0])).toThrow(
-      "只能由有效的父会话"
-    );
+    expect(() =>
+      runtime.parent(
+        must(
+          [...sessions].find(([, host]) => host === child),
+          "[...sessions].find(([, host]) => host === child)"
+        )[0]
+      )
+    ).toThrow("只能由有效的父会话");
     runtime.service.toolResult(parent.key, "followup", true);
   });
 
@@ -460,7 +482,10 @@ describe("子 Agent 真实 pi 会话接线", () => {
       "pi-session-interactions",
       expect.objectContaining({ questions: expect.any(Array) })
     );
-    const child = [...sessions.values()].find(host => host.childAgent)!;
+    const child = must(
+      [...sessions.values()].find(host => host.childAgent),
+      "[...sessions.values()].find(host => host.chil..."
+    );
     const request = child.interactions.snapshot().questions[0];
     child.interactions.questions.answer(request.requestId, [
       { questionId: "q1", selectedValues: ["甲"], otherText: "" },
@@ -476,7 +501,7 @@ describe("子 Agent 真实 pi 会话接线", () => {
   it("异步完成后以自定义消息唤醒空闲父会话，重复检查不会再唤醒", async () => {
     const { runtime, faux, sessions } = await setup();
     faux.setResponses([fauxAssistantMessage([fauxText("父先结束")])]);
-    await sessions.get("root")!.session.prompt("先做自己的任务");
+    await must(sessions.get("root"), "sessions.get('root')").session.prompt("先做自己的任务");
     faux.setResponses([
       fauxAssistantMessage([fauxText("子任务完成")]),
       fauxAssistantMessage([fauxText("父收到并处理")]),
@@ -494,7 +519,7 @@ describe("子 Agent 真实 pi 会话接线", () => {
           runtime.service.repository.read(run.origin.parentKey).messages.length > 0
       ).toBe(true)
     );
-    const parent = sessions.get("root")!.session;
+    const parent = must(sessions.get("root"), "sessions.get('root')").session;
     expect(JSON.stringify(parent.sessionManager.getBranch())).toContain("父收到并处理");
     const before = parent.sessionManager.getEntries().length;
     runtime.idle("root");

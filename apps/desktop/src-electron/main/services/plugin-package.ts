@@ -203,11 +203,17 @@ export async function readPluginPackage(
     ],
     cache
   );
-  const code = files.get(manifest.main)!.toString("utf8");
-  const css = manifest.styles ? files.get(manifest.styles)!.toString("utf8") : undefined;
+  const codeFile = files.get(manifest.main);
+  if (!codeFile) throw new Error(`插件入口文件缺失：${manifest.main}`);
+  const stylesFile = manifest.styles ? files.get(manifest.styles) : undefined;
+  const code = codeFile.toString("utf8");
+  const css = stylesFile?.toString("utf8");
   if (!code.trim()) throw new Error("插件入口为空");
-  if (manifest.backend && !files.get(manifest.backend.entry)!.toString("utf8").trim())
-    throw new Error("插件后台入口为空");
+  if (manifest.backend) {
+    const backendFile = files.get(manifest.backend.entry);
+    if (!backendFile) throw new Error(`插件后台入口文件缺失：${manifest.backend.entry}`);
+    if (!backendFile.toString("utf8").trim()) throw new Error("插件后台入口为空");
+  }
   if ((await read("manifest.json")).toString("utf8") !== manifestText)
     throw new Error("插件构建仍在变化，请构建完成后重试");
   return { manifest, code, css };

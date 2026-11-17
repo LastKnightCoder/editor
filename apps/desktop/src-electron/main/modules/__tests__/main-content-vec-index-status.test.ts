@@ -108,6 +108,7 @@ vi.mock("@/entity/sections", () => ({ splitSections: () => [] }));
 
 import mainContentVecIndexQueue from "../main-content-vec-index-queue";
 import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
+import { must } from "../../test-support";
 
 const embeddingConfig = {
   provider: "local",
@@ -182,7 +183,10 @@ describe("MainContentVecIndexQueue 索引状态", () => {
       "",
     ]);
     // 对账清理：候选集合（含材料）之外的向量被删
-    const [, keep, types] = mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1)!;
+    const [, keep, types] = must(
+      mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1),
+      "mockContext.vecTableMock.removeIndexesNotIn.m..."
+    );
     expect([...keep].sort()).toEqual(["article:1", "card:1", "card:2", "card:3", "excerpt:9"]);
     expect(types).toContain("web-clip");
     expect(phases[0]).toBe("collecting");
@@ -253,7 +257,10 @@ describe("MainContentVecIndexQueue 索引状态", () => {
       autoIndex: true,
       reason: "manual",
     });
-    const [, keep] = mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1)!;
+    const [, keep] = must(
+      mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1),
+      "mockContext.vecTableMock.removeIndexesNotIn.m..."
+    );
     expect(keep.has("card:1")).toBe(false);
     mockContext.prepareContent.mockClear();
     await mainContentVecIndexQueue.getIndexStats("data.db");

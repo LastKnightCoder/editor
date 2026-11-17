@@ -8,6 +8,7 @@ vi.mock("../../video-note-index-queue");
 
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../content";
 import DataTableTable from "../data-table";
+import { must } from "../../../test-support";
 
 const RICH_TEXT_COLUMN = { id: "rt", title: "富文本", type: "rich-text" };
 const TEXT_COLUMN = { id: "text", title: "名称", type: "text" };
@@ -69,22 +70,28 @@ describe("数据表正文引用差集同步（D-136）", () => {
     });
     expect(refCount(contentId)).toBe(1);
 
-    const removed = DataTableTable.applyChanges(db, {
-      id: table.id,
-      columns: [TEXT_COLUMN],
-      rows: { upsert: [], remove: [] },
-    })!;
+    const removed = must(
+      DataTableTable.applyChanges(db, {
+        id: table.id,
+        columns: [TEXT_COLUMN],
+        rows: { upsert: [], remove: [] },
+      }),
+      "DataTableTable.applyChanges"
+    );
     expect(removed.rows[0].rt).toBeUndefined();
     expect(refCount(contentId)).toBe(0);
     expect(pendingAt(contentId)).toBeTruthy();
     expect(contentExists(contentId)).toBe(true);
 
     // 模拟撤销：同列同值加回
-    const restored = DataTableTable.applyChanges(db, {
-      id: table.id,
-      columns: [RICH_TEXT_COLUMN],
-      rows: { upsert: [{ id: "r1", rt: cell(contentId) }], remove: [] },
-    })!;
+    const restored = must(
+      DataTableTable.applyChanges(db, {
+        id: table.id,
+        columns: [RICH_TEXT_COLUMN],
+        rows: { upsert: [{ id: "r1", rt: cell(contentId) }], remove: [] },
+      }),
+      "DataTableTable.applyChanges"
+    );
     expect(restored.rows[0].rt).toEqual(cell(contentId));
     expect(refCount(contentId)).toBe(1);
     expect(pendingAt(contentId)).toBeUndefined();

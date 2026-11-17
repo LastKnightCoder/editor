@@ -30,6 +30,7 @@ import EntitySearchTable from "../main/modules/tables/entity-search";
 import { relatedExclusions } from "../main/modules/entity-context/context-related";
 import { proseOf } from "../main/modules/content-insights";
 import { rebuildIndex, rng } from "./eval-index-rebuild";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_MARKS_EVAL_MAIN;
 const INDEX = process.env.KL_MARKS_EVAL_INDEX;
@@ -78,11 +79,11 @@ const cosine = (a: Float32Array, b: Float32Array) => {
 it.skipIf(!MAIN || !INDEX)(
   "阅读时标记候选统计（真实库副本）",
   async () => {
-    const main = new Database(MAIN!);
+    const main = new Database(must(MAIN, "MAIN"));
     main.exec(mainSchema);
-    const rebuilt = REBUILD ? await rebuildIndex(main, INDEX!, REBUILD) : null;
+    const rebuilt = REBUILD ? await rebuildIndex(main, must(INDEX, "INDEX"), REBUILD) : null;
     if (rebuilt) console.log("[marks-eval] 重建完成", rebuilt);
-    const index = new Database(INDEX!);
+    const index = new Database(must(INDEX, "INDEX"));
     sqliteVec.load(index);
 
     // 随机块对的分位数（5000 对）
@@ -113,7 +114,7 @@ it.skipIf(!MAIN || !INDEX)(
         const row = sectionInfo.get(key, chunk) as { text: string } | undefined;
         proseLength.set(id, proseOf(row?.text ?? "").length);
       }
-      return proseLength.get(id)!;
+      return must(proseLength.get(id), "proseLength.get(id)");
     };
     const sectionInfo = index.prepare(
       `SELECT heading_path, text FROM content_sections WHERE prefixed_id = ? AND chunk_index = ?
@@ -162,7 +163,7 @@ it.skipIf(!MAIN || !INDEX)(
       })
     );
     const candidatesOf = (key: string): Mark[] => {
-      const ref = parseKey(key)!;
+      const ref = must(parseKey(key), "parseKey(key)");
       const ownProject = projectOf.get(key) ?? 0;
       const selfContent = contentIdOf(ref);
       if (selfContent == null) return [];
@@ -252,10 +253,13 @@ it.skipIf(!MAIN || !INDEX)(
     const pct = (n: number, d: number) => `${((n / Math.max(1, d)) * 100).toFixed(0)}%`;
     for (const { q, value } of thresholds) {
       const counts = longDocs
-        .map(key => docMarks.get(key)!.filter(m => m.similarity > value).length)
+        .map(
+          key =>
+            must(docMarks.get(key), "docMarks.get(key)").filter(m => m.similarity > value).length
+        )
         .sort((a, b) => a - b);
       const cardHit = cardSample.filter(key =>
-        cardMarks.get(key)!.some(m => m.similarity > value)
+        must(cardMarks.get(key), "cardMarks.get(key)").some(m => m.similarity > value)
       ).length;
       lines.push(
         `| p${(q * 100).toFixed(1)}（${value.toFixed(3)}） | ${pct(counts.filter(n => n > 0).length, counts.length)} | ${counts[Math.floor(counts.length / 2)] ?? 0} / ${counts[Math.floor(counts.length * 0.9)] ?? 0} | ${pct(cardHit, cardSample.length)} |`
@@ -272,7 +276,11 @@ it.skipIf(!MAIN || !INDEX)(
       const cells = CAPS.map(cap => {
         const total = longDocs.reduce(
           (a, key) =>
-            a + Math.min(cap, docMarks.get(key)!.filter(m => m.similarity > value).length),
+            a +
+            Math.min(
+              cap,
+              must(docMarks.get(key), "docMarks.get(key)").filter(m => m.similarity > value).length
+            ),
           0
         );
         return (total / Math.max(1, longDocs.length)).toFixed(2);
@@ -281,7 +289,10 @@ it.skipIf(!MAIN || !INDEX)(
     }
 
     // 抽查：p99、每篇最多 3 处；长文 12 篇、卡片 10 张
-    const sampleThreshold = thresholds.find(t => t.q === 0.99)!.value;
+    const sampleThreshold = must(
+      thresholds.find(t => t.q === 0.99),
+      "thresholds.find(t => t.q === 0.99)"
+    ).value;
     const pickSample = (keys: string[], n: number) =>
       keys
         .map(key => ({ key, order: random() }))
@@ -313,9 +324,11 @@ it.skipIf(!MAIN || !INDEX)(
       `### 长文`,
       ""
     );
-    for (const key of pickSample(longDocs, SAMPLE_DOCS)) renderSample(key, docMarks.get(key)!);
+    for (const key of pickSample(longDocs, SAMPLE_DOCS))
+      renderSample(key, must(docMarks.get(key), "docMarks.get(key)"));
     lines.push(`### 卡片（整张一节）`, "");
-    for (const key of pickSample(cardSample, SAMPLE_CARDS)) renderSample(key, cardMarks.get(key)!);
+    for (const key of pickSample(cardSample, SAMPLE_CARDS))
+      renderSample(key, must(cardMarks.get(key), "cardMarks.get(key)"));
 
     writeFileSync(OUT, lines.join("\n") + "\n");
     console.log(`[marks-eval] 报告已写入 ${OUT}`);

@@ -15,6 +15,7 @@ import { it } from "vitest";
 import { computeKnowledgeMap } from "@/knowledge-map/compute";
 import { meanPool } from "@/knowledge-map/vectors";
 import KnowledgeMapTable from "../main/modules/tables/knowledge-map";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_MAP_EVAL_MAIN;
 const INDEX = process.env.KL_MAP_EVAL_INDEX;
@@ -23,8 +24,8 @@ const headOf = (tags: string[]) => (tags[0] ?? "").split(/[/／]/)[0].trim();
 it.skipIf(!MAIN || !INDEX)(
   "知识地图主题质量评估（真实库）",
   () => {
-    const main = new Database(MAIN!, { readonly: true });
-    const index = new Database(INDEX!);
+    const main = new Database(must(MAIN, "MAIN"), { readonly: true });
+    const index = new Database(must(INDEX, "INDEX"));
     index.loadExtension(sqliteVec.getLoadablePath());
     const inputs = KnowledgeMapTable.readInputs(main, index);
     const items = KnowledgeMapTable.listItems(main, index);
@@ -112,7 +113,7 @@ it.skipIf(!MAIN || !INDEX)(
     const escapedBySub = new Map<string, number>();
     for (const node of map.nodes) {
       if (node.topic < 0) continue;
-      const own = centroid.get(node.topic)!;
+      const own = must(centroid.get(node.topic), "centroid.get(node.topic)");
       const dOwn = Math.hypot(node.x - own.x, node.y - own.y);
       let dOther = Infinity;
       for (const [id, c] of centroid)

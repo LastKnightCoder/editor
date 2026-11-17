@@ -8,6 +8,7 @@ import { ContentDocumentTable } from "../content-document";
 import { ContentDocumentBlocks, type ContentBlockWrite } from "../content-document-blocks";
 import { ContentIdentityTable } from "../content-identity";
 import type { ContentNode } from "@tau/collaboration";
+import { must } from "../../../test-support";
 
 vi.mock("electron");
 vi.mock("../../video-note-index-queue");
@@ -47,7 +48,8 @@ async function fixture() {
   const write = (blocks: ContentNode[], options: Partial<ContentBlockWrite> = {}) =>
     ContentDocumentBlocks.commit(db, 1, {
       documentId: saved.documentId,
-      expectedRevision: ContentDocumentTable.read(db, 1)!.revision,
+      expectedRevision: must(ContentDocumentTable.read(db, 1), "ContentDocumentTable.read(db, 1)")
+        .revision,
       contracts: saved.contracts,
       blocks,
       count,
@@ -78,7 +80,9 @@ it("拆块保留正文，修改一个块只写一行正文载荷且不读取完�
   expect(read).not.toHaveBeenCalled();
   expect(result).toMatchObject({ changed: true, writtenBlocks: 1 });
   expect(db.prepare("SELECT id FROM block_writes").all()).toEqual([{ id: "block-1" }]);
-  expect(ContentDocumentTable.read(db, 1)!.content).toEqual([content[0], modified]);
+  expect(
+    must(ContentDocumentTable.read(db, 1), "ContentDocumentTable.read(db, 1)").content
+  ).toEqual([content[0], modified]);
   expect(db.prepare("SELECT count FROM contents WHERE id=1").get()).toEqual({ count: 4 });
 });
 
@@ -110,7 +114,8 @@ it("整篇替换清除旧分块，下一次局部编辑能重新拆块", async (
     content: [{ ...content[0], children: [{ type: "formatted", text: "外部替换" }] }],
   };
   const updated = ContentDocumentTable.commit(db, 1, replacement, {
-    expectedRevision: ContentDocumentTable.read(db, 1)!.revision,
+    expectedRevision: must(ContentDocumentTable.read(db, 1), "ContentDocumentTable.read(db, 1)")
+      .revision,
     count: 4,
   });
   expect(db.prepare("SELECT * FROM content_document_blocks").all()).toHaveLength(0);
@@ -122,7 +127,9 @@ it("整篇替换清除旧分块，下一次局部编辑能重新拆块", async (
     children: [{ type: "formatted", text: "再次编辑" }],
   };
   write([modified]);
-  expect(ContentDocumentTable.read(db, 1)!.content).toEqual([modified]);
+  expect(
+    must(ContentDocumentTable.read(db, 1), "ContentDocumentTable.read(db, 1)").content
+  ).toEqual([modified]);
   expect(db.prepare("PRAGMA foreign_key_check").all()).toHaveLength(0);
 });
 
@@ -152,7 +159,7 @@ it("单块编辑仍维护整篇结构预算，不能逐块累计绕过全局限�
   expect(() => write([{ ...large[0], extra: Array.from({ length: 250010 }, () => 0) }])).toThrow(
     "正文数据超过预算"
   );
-  const current = ContentDocumentTable.read(db, 1)!;
+  const current = must(ContentDocumentTable.read(db, 1), "ContentDocumentTable.read(db, 1)");
   expect(current.revision).toBe(full.revision);
   expect((current.content[0].extra as unknown[]).length).toBe(249980);
   expect(ContentDocumentTable.problem(current.content, current.contracts)).toBeNull();

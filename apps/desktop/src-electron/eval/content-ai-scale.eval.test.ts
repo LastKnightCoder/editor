@@ -37,6 +37,7 @@ import {
 } from "../main/modules/topic-insights-candidates";
 import CardTable from "../main/modules/tables/card";
 import ContentAiMetaTable, { contentTitles } from "../main/modules/tables/content-ai-meta";
+import { must } from "../main/test-support";
 
 const CARDS = 20_000;
 const DOCS = 3_000;
@@ -391,7 +392,7 @@ describe.skipIf(!process.env.KL_CONTENT_AI_SCALE)("迭代 7a 规模", () => {
       rows
     );
     expect(secondPlan.orphans).toHaveLength(0);
-    const threshold = ensureRelatedThreshold(index)!.value;
+    const threshold = must(ensureRelatedThreshold(index), "ensureRelatedThreshold(index)").value;
     const linked = () => false;
     await timed(
       `7c：组内相近对（全部 ${TOPICS} 个子主题，每组约 ${Math.round((CARDS + DOCS) / TOPICS)} 份）`,

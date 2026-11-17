@@ -12,6 +12,7 @@ import TodoGroupTable from "../tables/todo-group";
 import TodoItemTable from "../tables/todo-item";
 import TodoCalendarSyncTable from "../tables/todo-calendar-sync";
 import TodoCalendarMappingTable from "../tables/todo-calendar-mapping";
+import { must } from "../../test-support";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -31,7 +32,10 @@ describe("待办增改删的日历一致性", () => {
 
   beforeEach(() => {
     db = createTestDatabase();
-    groupId = TodoGroupTable.createGroup(db, { title: "工作", color: "blue" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "工作", color: "blue" }),
+      "TodoGroupTable.createGroup(db, { title: '工作',..."
+    ).id;
   });
 
   afterEach(() => {
@@ -123,7 +127,10 @@ describe("待办增改删的日历一致性", () => {
   });
 
   it("跨项目移动时子任务随父迁移", () => {
-    const other = TodoGroupTable.createGroup(db, { title: "生活", color: "green" })!.id;
+    const other = must(
+      TodoGroupTable.createGroup(db, { title: "生活", color: "green" }),
+      "TodoGroupTable.createGroup(db, { title: '生活',..."
+    ).id;
     const parent = TodoItemTable.createItem(db, { groupId, title: "搬家" });
     const child = TodoItemTable.createItem(db, { groupId, parentId: parent.id, title: "打包" });
     const grandchild = TodoItemTable.createItem(db, {
@@ -155,7 +162,10 @@ describe("moveAndReorder 排序", () => {
 
   beforeEach(() => {
     db = createTestDatabase();
-    groupId = TodoGroupTable.createGroup(db, { title: "工作", color: "blue" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "工作", color: "blue" }),
+      "TodoGroupTable.createGroup(db, { title: '工作',..."
+    ).id;
   });
 
   afterEach(() => {

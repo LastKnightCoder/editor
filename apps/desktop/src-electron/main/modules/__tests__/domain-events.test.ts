@@ -46,6 +46,7 @@ import domainEvents from "../domain-events";
 import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
 import PluginEntityTable from "../tables/plugin-entity";
 import PluginRecordTable from "../tables/plugin-records";
+import { must } from "../../test-support";
 
 const doc = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as never;
@@ -120,7 +121,10 @@ describe("业务数据变更事件", () => {
     const id = card(contentId);
     await vi.advanceTimersByTimeAsync(600);
     hoisted.send.mockClear();
-    const saved = ContentDocumentTable.read(db, contentId)!;
+    const saved = must(
+      ContentDocumentTable.read(db, contentId),
+      "ContentDocumentTable.read(db, contentId)"
+    );
     const firstTime = Date.now();
     const block = { ...saved.content[0], children: [{ type: "formatted", text: "甲乙" }] };
     const first = ContentDocumentBlocks.commit(db, contentId, {

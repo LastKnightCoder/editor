@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { must } from "../../../test-support";
 const state = vi.hoisted(() => ({
   handlers: new Map<string, (...args: any[]) => any>(),
   connected: undefined as ((name: string) => void) | undefined,
@@ -123,7 +124,10 @@ describe("文档待办模块生命周期", () => {
     expect(state.reindex).toHaveBeenCalledTimes(3);
   });
   it("主进程拒绝错误库身份，转出成功按原库通知日程", async () => {
-    const handler = state.handlers.get("doc-tasks:promote")!;
+    const handler = must(
+      state.handlers.get("doc-tasks:promote"),
+      "state.handlers.get('doc-tasks:promote')"
+    );
     await expect(
       handler({ sender: { id: 1 } }, 7, "task", 1, { databaseName: "b" })
     ).rejects.toThrow("数据库已切换");

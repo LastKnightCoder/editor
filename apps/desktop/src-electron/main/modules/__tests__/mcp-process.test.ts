@@ -7,6 +7,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, expect, it, vi } from "vitest";
+import { must } from "../../test-support";
 
 const ipc = vi.hoisted(
   () => new Map<string, (event: unknown, payload: Record<string, unknown>) => Promise<unknown>>()
@@ -60,7 +61,7 @@ it("真实 stdio 服务完成握手、列举与调用，插件窗口关闭后进
   await mcp.init();
   const sender = new EventEmitter();
   const id = "plugin:process-test";
-  await ipc.get("mcp-connect")!(
+  await must(ipc.get("mcp-connect"), "mcp-connect")(
     { sender },
     {
       windowScoped: true,
@@ -77,10 +78,10 @@ it("真实 stdio 服务完成握手、列举与调用，插件窗口关闭后进
       },
     }
   );
-  expect(await ipc.get("mcp-list-tools")!({ sender }, { serverId: id })).toMatchObject([
-    { name: "echo" },
-  ]);
-  const result = (await ipc.get("mcp-call-tool")!(
+  expect(
+    await must(ipc.get("mcp-list-tools"), "mcp-list-tools")({ sender }, { serverId: id })
+  ).toMatchObject([{ name: "echo" }]);
+  const result = (await must(ipc.get("mcp-call-tool"), "mcp-call-tool")(
     { sender: Object.assign(sender, { id: 1 }) },
     {
       serverId: id,
@@ -93,7 +94,9 @@ it("真实 stdio 服务完成握手、列举与调用，插件窗口关闭后进
   expect(data.pid).not.toBe(process.pid);
   sender.emit("destroyed");
   await vi.waitFor(async () => {
-    expect(await ipc.get("mcp-is-connected")!({}, { serverId: id })).toBe(false);
+    expect(await must(ipc.get("mcp-is-connected"), "mcp-is-connected")({}, { serverId: id })).toBe(
+      false
+    );
     expect(() => process.kill(data.pid, 0)).toThrow();
   });
 }, 15_000);
@@ -130,7 +133,7 @@ it("真实 HTTP MCP 可列举和调用，窗口退出断开客户端会话", asy
   const sender = Object.assign(new EventEmitter(), { id: 2 });
   try {
     await mcp.init();
-    await ipc.get("mcp-connect")!(
+    await must(ipc.get("mcp-connect"), "mcp-connect")(
       { sender },
       {
         windowScoped: true,
@@ -143,11 +146,11 @@ it("真实 HTTP MCP 可列举和调用，窗口退出断开客户端会话", asy
         },
       }
     );
-    expect(await ipc.get("mcp-list-tools")!({ sender }, { serverId: id })).toMatchObject([
-      { name: "echo" },
-    ]);
     expect(
-      await ipc.get("mcp-call-tool")!(
+      await must(ipc.get("mcp-list-tools"), "mcp-list-tools")({ sender }, { serverId: id })
+    ).toMatchObject([{ name: "echo" }]);
+    expect(
+      await must(ipc.get("mcp-call-tool"), "mcp-call-tool")(
         { sender },
         { serverId: id, toolName: "echo", args: { text: "HTTP 成功" } }
       )
@@ -156,7 +159,9 @@ it("真实 HTTP MCP 可列举和调用，窗口退出断开客户端会话", asy
     });
     sender.emit("did-navigate");
     await vi.waitFor(async () =>
-      expect(await ipc.get("mcp-is-connected")!({}, { serverId: id })).toBe(false)
+      expect(
+        await must(ipc.get("mcp-is-connected"), "mcp-is-connected")({}, { serverId: id })
+      ).toBe(false)
     );
   } finally {
     await mcp.disconnectAll();

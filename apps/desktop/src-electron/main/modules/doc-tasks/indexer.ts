@@ -173,14 +173,18 @@ export function reindexDocTasks(
           const anchor = node.taskDateAnchor as
             | { hint?: string; at?: number; date?: string }
             | undefined;
-          const anchored =
-            anchor?.hint === hint && typeof anchor.at === "number" && Number.isFinite(anchor.at);
-          if (!(anchored && anchor.date && resolveDocTaskDue(anchor.date, now) != null)) {
-            const at = anchored
-              ? anchor.at!
-              : prev?.date_hint === hint && prev.date_anchor != null
-                ? prev.date_anchor
-                : now;
+          const anchoredAt =
+            anchor?.hint === hint && typeof anchor.at === "number" && Number.isFinite(anchor.at)
+              ? anchor.at
+              : undefined;
+          const anchored = anchoredAt !== undefined;
+          if (!(anchored && anchor?.date && resolveDocTaskDue(anchor.date, now) != null)) {
+            const at =
+              anchoredAt !== undefined
+                ? anchoredAt
+                : prev?.date_hint === hint && prev.date_anchor != null
+                  ? prev.date_anchor
+                  : now;
             const due = resolveDocTaskDue(hint, at);
             if (due != null) patch.taskDateAnchor = { hint, at, date: formatDocTaskDate(due) };
           }

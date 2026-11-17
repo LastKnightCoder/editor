@@ -5,6 +5,7 @@ import os from "os";
 import path from "path";
 
 import { convertDocumentToMarkdown } from "../markitdown-node";
+import { must } from "../../test-support";
 
 let tempDir: string;
 
@@ -136,7 +137,7 @@ describe("convertDocumentToMarkdown：TSV", () => {
     const result = await convertDocumentToMarkdown(filePath);
 
     expect(result.success).toBe(true);
-    const lines = result.textContent!.split("\n");
+    const lines = must(result.textContent, "result.textContent").split("\n");
     expect(lines[0]).toBe("| 名称 | 数量 |");
     expect(lines[1]).toBe("| --- | --- |");
     expect(lines[2]).toBe("| 苹果 | 3 |");

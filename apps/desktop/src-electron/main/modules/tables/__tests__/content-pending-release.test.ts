@@ -8,6 +8,7 @@ vi.mock("../../video-note-index-queue");
 
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../content";
 import ContentAiMetaTable from "../content-ai-meta";
+import { must } from "../../../test-support";
 
 const META = {
   title: "标题",
@@ -65,10 +66,10 @@ describe("content_pending_releases 延迟回收", () => {
     ContentTable.releaseDeferred(db, id);
     expect(refCount(id)).toBe(0);
 
-    const first = pendingAt(id)!.released_at;
+    const first = must(pendingAt(id), "pendingAt(id)").released_at;
     ContentTable.releaseDeferred(db, id);
     expect(refCount(id)).toBe(0);
-    expect(pendingAt(id)!.released_at).toBe(first);
+    expect(must(pendingAt(id), "pendingAt(id)").released_at).toBe(first);
   });
 
   it("collectPendingReleases 删除超宽限期且为 0 的正文，级联同 deleteContent", () => {

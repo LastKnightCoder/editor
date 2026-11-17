@@ -140,7 +140,10 @@ export class WhiteboardTransitions {
     )
       throw new Error("首次发布操作不能更换目标或范围");
     if (job?.cancelled) throw new Error("已取消的发布不能复活");
-    if (job?.completed) return { documentId: job.roomId!, serverUrl: url };
+    if (job?.completed) {
+      if (!job.roomId) throw new Error("已完成的发布缺少房间号");
+      return { documentId: job.roomId, serverUrl: url };
+    }
     const client = await this.remoteClient();
     if (!job) {
       if (this.store.get(`whiteboard-binding:${name}:${documentId}`, null))

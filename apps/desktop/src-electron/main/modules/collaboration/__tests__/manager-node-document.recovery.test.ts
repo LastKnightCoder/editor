@@ -21,17 +21,21 @@ import type { RuntimeSession } from "../types";
 import { unregisterContentSession } from "../content-sessions";
 import { sourceDraftKey } from "../content-local-state";
 import { setup } from "./manager-node-document.helpers";
+import { must } from "../../../test-support";
 
 afterEach(resetAfterEach);
 
 describe("冷缓存恢复与资料库切换", () => {
   it("正文退出屏障必须收到保存确认，超时恢复编辑，重试成功才保持冻结", async () => {
     const { local, localSessions, localId } = await setup();
-    const session = localSessions.get(localId)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
     local.views.set("unsaved-view", { documentId: localId, windowId: 1 });
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const waiting = local.drainDatabase({ reason: "quit" });
-    const oldRequest = local.freezeWaiters.get(localId)!.id;
+    const oldRequest = must(
+      local.freezeWaiters.get(localId),
+      "local.freezeWaiters.get(localId)"
+    ).id;
     const rejected = expect(waiting).rejects.toThrow("未完成保存");
     await vi.advanceTimersByTimeAsync(10_000);
     await rejected;
@@ -39,7 +43,10 @@ describe("冷缓存恢复与资料库切换", () => {
     const next = local.drainDatabase({ reason: "quit" });
     local.acknowledgeFreeze("unsaved-view", oldRequest);
     expect(session.drainingViews?.has("unsaved-view")).toBe(true);
-    local.acknowledgeFreeze("unsaved-view", local.freezeWaiters.get(localId)!.id);
+    local.acknowledgeFreeze(
+      "unsaved-view",
+      must(local.freezeWaiters.get(localId), "local.freezeWaiters.get(localId)").id
+    );
     const drain = await next;
     drain.commit();
     expect(session.info.frozen).toBe(true);
@@ -47,7 +54,7 @@ describe("冷缓存恢复与资料库切换", () => {
 
   it("丢弃本机会话等待保存确认超时后恢复编辑，视图与缓存保留", async () => {
     const { local, localSessions, localStore: store, localId } = await setup();
-    const session = localSessions.get(localId)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
     local.views.set("unsaved-view", { documentId: localId, windowId: 1 });
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const discarding = expect(local.removeSession(session)).rejects.toThrow("未完成保存");
@@ -60,7 +67,7 @@ describe("冷缓存恢复与资料库切换", () => {
 
   it("正文投影失败不放行退出，已冻结会话回滚后仍可编辑", async () => {
     const { local, localSessions, localId } = await setup();
-    const session = localSessions.get(localId)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
     vi.spyOn(local, "project").mockRejectedValueOnce(new Error("disk full"));
     await expect(local.drainDatabase({ reason: "quit" })).rejects.toThrow("disk full");
     expect(session.info.frozen).toBe(false);
@@ -68,7 +75,7 @@ describe("冷缓存恢复与资料库切换", () => {
 
   it("切库排空补投视图确认前的末批输入，主库失败后保全日志并允许重试", async () => {
     const { local, localSessions, localAssets, localStore: store, db, localId } = await setup();
-    const session = localSessions.get(localId)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
     await local.project(session);
     const tree = new NodeTree(session.doc);
     const entered = Promise.withResolvers<void>();
@@ -116,7 +123,10 @@ describe("冷缓存恢复与资料库切换", () => {
       local.views.set(stayingViewId, stayingView);
       const draining = local.drainDatabase(scope);
       void draining.catch(() => undefined);
-      const requestId = local.freezeWaiters.get(localId)!.id;
+      const requestId = must(
+        local.freezeWaiters.get(localId),
+        "local.freezeWaiters.get(localId)"
+      ).id;
       {
         const peer = new Y.Doc({ gc: false });
         const peerTree = new NodeTree(peer);
@@ -152,7 +162,10 @@ describe("冷缓存恢复与资料库切换", () => {
 
       db.exec("DROP TRIGGER reject_tail_projection");
       const retry = local.drainDatabase(scope);
-      const retryRequestId = local.freezeWaiters.get(localId)!.id;
+      const retryRequestId = must(
+        local.freezeWaiters.get(localId),
+        "local.freezeWaiters.get(localId)"
+      ).id;
       local.acknowledgeFreeze(viewId, retryRequestId);
       local.acknowledgeFreeze(stayingViewId, retryRequestId);
       const prepared = await retry;
@@ -170,8 +183,11 @@ describe("冷缓存恢复与资料库切换", () => {
 
   it("缓存缺失重建使用新协作基线，稳定正文身份不变", async () => {
     const { local, localSessions, db, localStore: store, localId, event } = await setup();
-    const previous = localSessions.get(localId)!;
-    const identity = ContentDocumentTable.read(db, 7)!.documentId;
+    const previous = must(localSessions.get(localId), "localSessions.get(localId)");
+    const identity = must(
+      ContentDocumentTable.read(db, 7),
+      "ContentDocumentTable.read(db, 7)"
+    ).documentId;
     const baseline = previous.doc.getMap("meta").get("baselineId");
     unregisterContentSession(previous);
     previous.awareness.destroy();
@@ -179,11 +195,16 @@ describe("冷缓存恢复与资料库切换", () => {
     localSessions.delete(localId);
     store.remove(localId);
     const opened = await local.open(event, { contentId: 7 });
-    const current = localSessions.get(opened.documentId)!;
+    const current = must(
+      localSessions.get(opened.documentId),
+      "localSessions.get(opened.documentId)"
+    );
     expect(current.doc.getMap("meta").get("baselineId")).not.toBe(baseline);
-    expect(ContentDocumentTable.read(db, 7)!.documentId).toBe(identity);
+    expect(
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").documentId
+    ).toBe(identity);
     expect(current.info.source?.projectionRevision).toBe(
-      ContentDocumentTable.read(db, 7)!.revision
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").revision
     );
     await local.project(current);
   });
@@ -199,7 +220,7 @@ describe("冷缓存恢复与资料库切换", () => {
       event,
     } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const previous = localSessions.get(localId)!;
+    const previous = must(localSessions.get(localId), "localSessions.get(localId)");
     unregisterContentSession(previous);
     previous.awareness.destroy();
     previous.doc.destroy();
@@ -207,7 +228,9 @@ describe("冷缓存恢复与资料库切换", () => {
     store.db.prepare("UPDATE sessions SET state_hash='broken' WHERE id=?").run(localId);
     const opened = await local.open(event, { contentId: 7 });
     expect(opened.documentId).toBe(localId);
-    expect(localSessions.get(localId)!.doc.getText("title")).toBeDefined();
+    expect(
+      must(localSessions.get(localId), "localSessions.get(localId)").doc.getText("title")
+    ).toBeDefined();
     expect(() => store.load(localId)).not.toThrow();
     expect(readdirSync(join(localDirectory, "discarded"))).toHaveLength(1);
     expect(ContentDocumentTable.read(db, 7)).not.toBeNull();
@@ -234,7 +257,10 @@ describe("冷缓存恢复与资料库切换", () => {
       boardDoc.destroy();
     }
     expect(localSessions.has(localId)).toBe(false);
-    const shared = runtime.content.sessions.get(documentId)!;
+    const shared = must(
+      runtime.content.sessions.get(documentId),
+      "runtime.content.sessions.get(documentId)"
+    );
     unregisterContentSession(shared);
     shared.awareness.destroy();
     shared.doc.destroy();
@@ -271,7 +297,10 @@ describe("冷缓存恢复与资料库切换", () => {
   it("共享会话遇到远端换代：备份旧缓存后按远端快照重建，不冻结", async () => {
     const { runtime, sharedDirectory, store, event } = await setup();
     const { documentId } = await runtime.createContent(event, 7);
-    const shared = runtime.content.sessions.get(documentId)!;
+    const shared = must(
+      runtime.content.sessions.get(documentId),
+      "runtime.content.sessions.get(documentId)"
+    );
     shared.info.pending = true;
     const client = runtime.client as unknown as {
       request: (url: string, path: string, ...rest: unknown[]) => Promise<unknown>;
@@ -293,7 +322,10 @@ describe("冷缓存恢复与资料库切换", () => {
     await sync
       .syncRemoteDocument("http://test", { ...shared.info })
       .finally(() => protocol.mockRestore());
-    const rebuilt = runtime.content.sessions.get(documentId)!;
+    const rebuilt = must(
+      runtime.content.sessions.get(documentId),
+      "runtime.content.sessions.get(documentId)"
+    );
     expect(rebuilt).not.toBe(shared);
     expect(rebuilt.info.frozen).toBeFalsy();
     expect(rebuilt.info.remoteVersionAvailable).toBeFalsy();
@@ -318,7 +350,7 @@ describe("冷缓存恢复与资料库切换", () => {
       event,
     } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const previous = localSessions.get(localId)!;
+    const previous = must(localSessions.get(localId), "localSessions.get(localId)");
     const tree = new NodeTree(previous.doc);
     try {
       const [node] = readNodeDocument(previous.doc).content;
@@ -333,7 +365,7 @@ describe("冷缓存恢复与资料库切换", () => {
     previous.doc.destroy();
     localSessions.delete(localId);
     // 打开前插件/MCP 改写了主库
-    const before = ContentDocumentTable.read(db, 7)!;
+    const before = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     const replacement = structuredClone(before);
     replacement.content[0].children = [{ text: "外部新正文" }];
     ContentDocumentTable.commit(db, 7, replacement, {
@@ -342,10 +374,10 @@ describe("冷缓存恢复与资料库切换", () => {
     });
 
     await local.open(event, { contentId: 7 });
-    const reopened = localSessions.get(localId)!;
+    const reopened = must(localSessions.get(localId), "localSessions.get(localId)");
     expect(JSON.stringify(readNodeDocument(reopened.doc).content)).toContain("外部新正文");
     expect(reopened.info.source?.projectionRevision).toBe(
-      ContentDocumentTable.read(db, 7)!.revision
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").revision
     );
     const [backup] = readdirSync(join(localDirectory, "discarded"));
     expect(backup).toBeDefined();
@@ -371,7 +403,7 @@ describe("冷缓存恢复与资料库切换", () => {
 
   it("冷缓存修订落后但主库只是投影相同内容时直接写回，不重建", async () => {
     const { local, localSessions, localStore: store, localId, event } = await setup();
-    const previous = localSessions.get(localId)!;
+    const previous = must(localSessions.get(localId), "localSessions.get(localId)");
     previous.doc.getText("title").insert(0, "未投影标题");
     store.compact(localId, previous.doc);
     const baseline = previous.doc.getMap("meta").get("baselineId");
@@ -380,15 +412,15 @@ describe("冷缓存恢复与资料库切换", () => {
     previous.doc.destroy();
     localSessions.delete(localId);
     await local.open(event, { contentId: 7 });
-    const reopened = localSessions.get(localId)!;
+    const reopened = must(localSessions.get(localId), "localSessions.get(localId)");
     expect(reopened.doc.getMap("meta").get("baselineId")).toBe(baseline);
     expect(reopened.doc.getText("title").toString()).toContain("未投影标题");
   });
 
   it("外部正文已更新时旧缓存不能借最新修订覆盖，原输入仍留在缓存", async () => {
     const { local, localSessions, db, localStore: store, localId } = await setup();
-    const session = localSessions.get(localId)!;
-    const before = ContentDocumentTable.read(db, 7)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
+    const before = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     const replacement = structuredClone(before);
     replacement.content[0].children = [{ text: "外部新正文" }];
     ContentDocumentTable.commit(db, 7, replacement, {
@@ -396,7 +428,9 @@ describe("冷缓存恢复与资料库切换", () => {
       count: 5,
     });
     await expect(local.project(session)).rejects.toThrow("修订冲突");
-    expect(ContentDocumentTable.read(db, 7)!.content[0].children).toEqual([{ text: "外部新正文" }]);
+    expect(
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[0].children
+    ).toEqual([{ text: "外部新正文" }]);
     const retained = store.load(localId);
     try {
       expect(JSON.stringify(readNodeDocument(retained.doc))).toContain("正文");
@@ -472,14 +506,17 @@ describe("冷缓存恢复与资料库切换", () => {
   it("整库同步不冻结共享视图，换库后保留离线编辑和未确认草稿", async () => {
     const { runtime, event, store, db } = await setup();
     const { documentId } = await runtime.createContent(event, 7);
-    const session = runtime.content.sessions.get(documentId)!;
+    const session = must(
+      runtime.content.sessions.get(documentId),
+      "runtime.content.sessions.get(documentId)"
+    );
     const identity = {
       workspaceId: "library",
       documentId,
       baselineId: String(session.doc.getMap("meta").get("baselineId")),
       epoch: 0,
     };
-    const source = session.info.source!;
+    const source = must(session.info.source, "session.info.source");
     const freeze = vi.spyOn(runtime.content, "freeze");
     const preserve = vi
       .spyOn(
@@ -524,7 +561,7 @@ describe("冷缓存恢复与资料库切换", () => {
       store.db.prepare("SELECT state FROM document_drafts WHERE view_id=?").get("shared-view")
     ).toEqual({ state: Buffer.from([1, 2, 3]) });
 
-    const downloaded = ContentDocumentTable.read(db, 7)!;
+    const downloaded = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     const content = structuredClone(downloaded.content);
     content[0].children = [{ text: "同步下载候选" }];
     ContentDocumentTable.commit(
@@ -539,9 +576,9 @@ describe("冷缓存恢复与资料库切换", () => {
     );
     preserve.mockRestore();
     await expect(runtime.content.project(session)).rejects.toThrow("投影修订已变化");
-    expect(ContentDocumentTable.read(db, 7)!.content[0].children).toEqual([
-      { text: "同步下载候选" },
-    ]);
+    expect(
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content[0].children
+    ).toEqual([{ text: "同步下载候选" }]);
     expect(JSON.stringify(readNodeDocument(session.doc))).toContain("共享未同步");
   });
 
@@ -555,7 +592,7 @@ describe("冷缓存恢复与资料库切换", () => {
       localStore: store,
       localId,
     } = await setup();
-    const session = localSessions.get(localId)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
     const image = await prepareContentContract("tau.image", {
       type: "image",
       kind: "block",
@@ -568,7 +605,10 @@ describe("冷缓存恢复与资料库切换", () => {
       mime: "image/png",
       bytes: new TextEncoder().encode("待保全的图片"),
     });
-    const path = localAssets.resolveLocalFile(reference, localId)!;
+    const path = must(
+      localAssets.resolveLocalFile(reference, localId),
+      "localAssets.resolveLocalFile(reference, localId)"
+    );
     const tree = new NodeTree(session.doc);
     await tree.installContracts({ [image.id]: image.contract }, null);
     tree.insertNode(
@@ -606,13 +646,13 @@ describe("冷缓存恢复与资料库切换", () => {
 
   it("旧来源冷缓存按当前主库重建，并发打开得到同一会话", async () => {
     const { local, localSessions, event, db, localId } = await setup();
-    const session = localSessions.get(localId)!;
+    const session = must(localSessions.get(localId), "localSessions.get(localId)");
     unregisterContentSession(session);
     session.awareness.destroy();
     session.doc.destroy();
     localSessions.delete(localId);
     db.prepare("UPDATE library_identity SET source_id='downloaded-library'").run();
-    const original = ContentDocumentTable.read(db, 7)!;
+    const original = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     const opened = await Promise.all([
       local.open(event, { contentId: 7 }),
       local.open(event, { contentId: 7 }),
@@ -620,7 +660,9 @@ describe("冷缓存恢复与资料库切换", () => {
     expect(opened[0].source?.librarySourceId).toBe("downloaded-library");
     expect(opened[1].documentId).toBe(opened[0].documentId);
     expect(ContentDocumentTable.read(db, 7)).toEqual(original);
-    await expect(local.project(localSessions.get(localId)!)).resolves.toBeUndefined();
+    await expect(
+      local.project(must(localSessions.get(localId), "localSessions.get(localId)"))
+    ).resolves.toBeUndefined();
   });
 
   it("同名资料库换连接时在途旧打开拒绝，重试复用新连接会话", async () => {
@@ -633,8 +675,8 @@ describe("冷缓存恢复与资料库切换", () => {
       db,
       localId,
     } = await setup();
-    const original = ContentDocumentTable.read(db, 7)!;
-    await local.removeSession(localSessions.get(localId)!);
+    const original = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
+    await local.removeSession(must(localSessions.get(localId), "localSessions.get(localId)"));
     const replacement = new Database(join(host.dir, "replacement.db"));
     cleanup.push(() => {
       replacement.close();
@@ -675,7 +717,9 @@ describe("冷缓存恢复与资料库切换", () => {
       expect(retried.documentId).toBe(current.documentId);
       expect(localSessions.has(localId)).toBe(false);
       expect(store.list().map(info => info.id)).toEqual([current.documentId]);
-      const content = readNodeDocument(localSessions.get(current.documentId)!.doc).content;
+      const content = readNodeDocument(
+        must(localSessions.get(current.documentId), "localSessions.get(current.documentId)").doc
+      ).content;
       expect(content[0].children?.[0].text).toBe("新连接正文");
       expect(ContentDocumentTable.read(db, 7)).toEqual(original);
       expect(ContentDocumentTable.read(replacement, 7)).toEqual(downloaded);
@@ -690,7 +734,7 @@ describe("冷缓存恢复与资料库切换", () => {
     async reason => {
       const { local, localSessions, db, localStore: store, localId } = await setup();
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
-      const session = localSessions.get(localId)!;
+      const session = must(localSessions.get(localId), "localSessions.get(localId)");
       const before = Y.encodeStateAsUpdate(session.doc);
       db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
       const original = db.prepare("SELECT content FROM contents WHERE id=7").get();
@@ -709,14 +753,14 @@ describe("冷缓存恢复与资料库切换", () => {
   it("不同来源缓存未能保存时仍拒绝关库并恢复编辑", async () => {
     const { local, localSessions, db, localStore: store, localId } = await setup();
     db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
-    localSessions.get(localId)!.dirty = true;
+    must(localSessions.get(localId), "localSessions.get(localId)").dirty = true;
     vi.spyOn(store, "compact").mockImplementation(() => {
       throw new Error("缓存磁盘写入失败");
     });
     await expect(local.drainDatabase({ databaseName: "library", reason: "quit" })).rejects.toThrow(
       "缓存磁盘写入失败"
     );
-    expect(localSessions.get(localId)!.info.frozen).toBe(false);
+    expect(must(localSessions.get(localId), "localSessions.get(localId)").info.frozen).toBe(false);
   });
 
   it("资料库连接重开但身份与正文未变时恢复原会话", async () => {

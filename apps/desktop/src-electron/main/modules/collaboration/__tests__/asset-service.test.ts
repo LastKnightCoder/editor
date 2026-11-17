@@ -15,6 +15,7 @@ import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { localSessionId } from "../session-identity";
+import { must } from "../../../test-support";
 
 const SERVER = "https://collab.example";
 const DOCUMENT = "doc-1";
@@ -138,9 +139,18 @@ describe("发起共享时的资源处理", () => {
       mime: "image/png",
       bytes,
     });
-    const imagePath = assets.resolveLocalFile(image, documentId)!;
-    const videoPath = assets.resolveLocalFile(video, documentId)!;
-    const otherPath = assets.resolveLocalFile(other, otherId)!;
+    const imagePath = must(
+      assets.resolveLocalFile(image, documentId),
+      "assets.resolveLocalFile(image, documentId)"
+    );
+    const videoPath = must(
+      assets.resolveLocalFile(video, documentId),
+      "assets.resolveLocalFile(video, documentId)"
+    );
+    const otherPath = must(
+      assets.resolveLocalFile(other, otherId),
+      "assets.resolveLocalFile(other, otherId)"
+    );
     expect(relative(join(root, ".editor", "collaboration", "assets"), imagePath)).not.toMatch(
       /[<>:"|?*]/
     );
@@ -307,7 +317,10 @@ describe("发起共享时的资源处理", () => {
     expect(readFileSync(path, "utf8")).toBe("IMAGE");
     expect(prepared.content[1].url).toBe(foreign);
     expect(await assets.prepareLocalDocument(DOCUMENT, prepared, contracts)).toEqual(prepared);
-    const cached = assets.resolveLocalFile(reference, DOCUMENT)!;
+    const cached = must(
+      assets.resolveLocalFile(reference, DOCUMENT),
+      "assets.resolveLocalFile(reference, DOCUMENT)"
+    );
     const fromPath = await assets.prepareLocalDocument(
       DOCUMENT,
       {
@@ -345,7 +358,8 @@ describe("发起共享时的资源处理", () => {
     await assets.flush(SERVER, DOCUMENT);
     expect(assets.hasPending(DOCUMENT)).toBe(false);
     expect(uploads).toEqual([reference.slice(ASSET_PREFIX.length)]);
-    const body = vi.mocked(fetch).mock.calls[0][1]!.body as FormData;
+    const body = must(vi.mocked(fetch).mock.calls[0][1], "vi.mocked(fetch).mock.calls[0][1]")
+      .body as FormData;
     const uploaded = body.get("file") as File;
     expect(uploaded.type).toBe("image/webp");
     expect(

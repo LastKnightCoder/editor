@@ -54,6 +54,7 @@ import {
   askedCandidates,
 } from "../main/modules/topic-insights-candidates";
 import { createEvalCompleter } from "./eval-llm";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_TOPIC_EVAL_MAIN;
 const INDEX = process.env.KL_TOPIC_EVAL_INDEX;
@@ -119,12 +120,12 @@ it.skipIf(!MAIN || !INDEX)(
   async () => {
     const llm = await createEvalCompleter(["contentInsights", "contentMetadata"]);
     expect(llm, "设置里「AI 洞见」与「笔记元信息」都还没配模型").not.toBeNull();
-    const main = new Database(MAIN!);
+    const main = new Database(must(MAIN, "MAIN"));
     main.exec(mainSchema);
     const rebuilt = REBUILD
-      ? await rebuildIndex(main, INDEX!, REBUILD, { withChatPrompts: true })
+      ? await rebuildIndex(main, must(INDEX, "INDEX"), REBUILD, { withChatPrompts: true })
       : null;
-    const index = new Database(INDEX!);
+    const index = new Database(must(INDEX, "INDEX"));
     sqliteVec.load(index);
     // 重建的索引库只有向量：引用索引从真实索引库的副本搬过来，地图与「已连接」才完整
     if (REFS) {
@@ -159,7 +160,7 @@ it.skipIf(!MAIN || !INDEX)(
         onMap.has(entity.key) && entity.contentId && !ContentAiMetaTable.get(main, entity.contentId)
     );
     const metaStarted = performance.now();
-    const metaBefore = { ...llm!.usage };
+    const metaBefore = { ...must(llm, "llm").usage };
     await pool(needMeta, async entity => {
       const content = ContentTable.getContentById(main, entity.contentId);
       if (!content) return;
@@ -169,7 +170,7 @@ it.skipIf(!MAIN || !INDEX)(
         content: content.content as Descendant[],
       });
       if (!prompt) return;
-      const result = await llm!.complete({
+      const result = await must(llm, "llm").complete({
         providerId: "",
         modelId: "",
         system: CONTENT_AI_SYSTEM_PROMPT,
@@ -182,18 +183,18 @@ it.skipIf(!MAIN || !INDEX)(
           contentId: entity.contentId,
           textDigest: textDigest(contentPlainText(content.content as Descendant[])),
           meta,
-          model: `${llm!.slot.providerId}/${llm!.slot.modelId}`,
+          model: `${must(llm, "llm").slot.providerId}/${must(llm, "llm").slot.modelId}`,
         });
       }
     });
     const metaUsage = {
       notes: needMeta.length,
-      input: llm!.usage.input - metaBefore.input,
-      output: llm!.usage.output - metaBefore.output,
+      input: must(llm, "llm").usage.input - metaBefore.input,
+      output: must(llm, "llm").usage.output - metaBefore.output,
       seconds: (performance.now() - metaStarted) / 1000,
     };
 
-    const deps = { complete: llm!.complete, now: () => Date.now() };
+    const deps = { complete: must(llm, "llm").complete, now: () => Date.now() };
     let ctx = buildContext(main, index, map);
 
     // 问了没写的校准：提问离最近笔记的相似度分布
@@ -216,17 +217,17 @@ it.skipIf(!MAIN || !INDEX)(
     const groups = await askedCandidates(index, threshold);
 
     // 分层阅读
-    const usageBefore = { ...llm!.usage };
+    const usageBefore = { ...must(llm, "llm").usage };
     const started = performance.now();
     const phases: string[] = [];
-    const outcome = await analyzeKnowledge(deps, ctx, llm!.slot, {
+    const outcome = await analyzeKnowledge(deps, ctx, must(llm, "llm").slot, {
       force: true,
       onPhase: phase => phases.push(JSON.stringify(phase)),
     });
     const analysis = {
-      calls: llm!.usage.calls - usageBefore.calls,
-      input: llm!.usage.input - usageBefore.input,
-      output: llm!.usage.output - usageBefore.output,
+      calls: must(llm, "llm").usage.calls - usageBefore.calls,
+      input: must(llm, "llm").usage.input - usageBefore.input,
+      output: must(llm, "llm").usage.output - usageBefore.output,
       seconds: (performance.now() - started) / 1000,
     };
 
@@ -248,11 +249,12 @@ it.skipIf(!MAIN || !INDEX)(
       ...projects.filter(project => !project.archived).slice(0, GROWING),
       ...projects.filter(project => project.archived).slice(0, ARCHIVED),
     ];
-    const reviewBefore = { ...llm!.usage };
-    for (const project of reviewed) await reviewProject(deps, ctx, project.id, llm!.slot);
+    const reviewBefore = { ...must(llm, "llm").usage };
+    for (const project of reviewed)
+      await reviewProject(deps, ctx, project.id, must(llm, "llm").slot);
     const reviewUsage = {
-      input: llm!.usage.input - reviewBefore.input,
-      output: llm!.usage.output - reviewBefore.output,
+      input: must(llm, "llm").usage.input - reviewBefore.input,
+      output: must(llm, "llm").usage.output - reviewBefore.output,
     };
 
     // 报告
@@ -260,7 +262,7 @@ it.skipIf(!MAIN || !INDEX)(
     const lines: string[] = [
       "# 7c 主题与全局层洞见评估",
       "",
-      `模型：${llm!.slot.providerId}/${llm!.slot.modelId}（槽 ${llm!.slotName}）`,
+      `模型：${must(llm, "llm").slot.providerId}/${must(llm, "llm").slot.modelId}（槽 ${must(llm, "llm").slotName}）`,
       rebuilt
         ? `向量重建：${rebuilt.indexed} 条（其中提问 ${rebuilt.prompts}），失败 ${rebuilt.failed}，${rebuilt.seconds.toFixed(0)} 秒`
         : "向量：未重建",

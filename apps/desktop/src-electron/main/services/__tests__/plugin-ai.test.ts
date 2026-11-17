@@ -4,6 +4,7 @@ import type { PluginAICapability } from "@tau/plugins";
 import type { ISetting } from "@/stores/useSettingStore";
 import { PluginAIService, type PluginAIDeps } from "../plugin-ai";
 import type { UsageRecordInput } from "../../modules/model-usage/recorder";
+import { must } from "../../test-support";
 
 const request = {
   feature: "summary",
@@ -230,7 +231,10 @@ describe("插件 AI 主进程边界", () => {
       status: "ok",
     });
     expect(JSON.stringify(audits)).not.toContain("不能保存这段正文");
-    const quota = [...disk.entries()].find(([key]) => key.includes(":quota:"))!;
+    const quota = must(
+      [...disk.entries()].find(([key]) => key.includes(":quota:")),
+      "[...disk.entries()].find(([key]) => key.inclu..."
+    );
     expect(JSON.parse(quota[1])).toMatchObject({ requests: 1, tokens: 15 });
   });
   it("多窗口并发预占相同额度，重启服务不能重置已消费额度", async () => {

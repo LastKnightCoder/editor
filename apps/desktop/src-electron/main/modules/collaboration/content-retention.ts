@@ -130,7 +130,9 @@ export class ContentRetention {
         legacy(node.allContent.slice(1), false, depth + 1);
     };
     while (pending.length) {
-      const { kind, id } = pending.pop()!;
+      const entry = pending.pop();
+      if (!entry) break;
+      const { kind, id } = entry;
       if (kind === "data-table") {
         const row = db.prepare("SELECT columns,rows FROM data_tables WHERE id=?").get(id) as
           | { columns: string; rows: string }

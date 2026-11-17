@@ -25,7 +25,7 @@ const processTools: BackendContext["process"] = {
     return new Promise((resolve, reject) => {
       const id = randomUUID();
       const cancel = () => {
-        port!.postMessage({ type: "tool-cancel", generation, id });
+        port.postMessage({ type: "tool-cancel", generation, id });
         finish(new Error("外部工具已取消"));
       };
       const timer = setTimeout(() => finish(new Error("外部工具响应超时")), 35_000);
@@ -41,7 +41,7 @@ const processTools: BackendContext["process"] = {
       tools.set(id, { resolve, reject, cleanup });
       options?.signal?.addEventListener("abort", cancel, { once: true });
       try {
-        port!.postMessage({
+        port.postMessage({
           type: "tool-call",
           generation,
           id,
@@ -95,7 +95,7 @@ async function receive(data: unknown) {
     runtime = new BackendRuntime(
       input,
       reply => {
-        port!.postMessage(reply);
+        port.postMessage(reply);
         if (reply.type === "stopped") setTimeout(() => process.exit(0), 0);
       },
       processTools
@@ -110,7 +110,9 @@ async function receive(data: unknown) {
       module,
       module.exports
     );
-    await runtime.activate(module.exports.default!);
+    const definition = module.exports.default;
+    if (!definition) throw new Error("后台代码未导出 default 定义");
+    await runtime.activate(definition);
   } else {
     const message = backendJson(data) as BackendRequest;
     if (!message || message.generation !== generation) return;

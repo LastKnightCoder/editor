@@ -20,6 +20,7 @@ import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
 import { contentRevision, unregisterContentSession } from "../content-sessions";
 import type { RuntimeSession } from "../types";
+import { must } from "../../../test-support";
 
 const host = vi.hoisted(() => ({
   directory: "",
@@ -156,7 +157,7 @@ async function fixture(
     });
     const runtime = createLocalContentRuntime(store, assets);
     const sessions = runtime["sessions"];
-    const state = runtime["contentState"]!;
+    const state = must(runtime["contentState"], "runtime['contentState']");
     let closed = false;
     const close = () => {
       if (closed) return;

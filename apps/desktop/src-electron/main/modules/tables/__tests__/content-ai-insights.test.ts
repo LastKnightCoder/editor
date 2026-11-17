@@ -8,6 +8,7 @@ vi.mock("../../video-note-index-queue");
 import type { ContentInsightsResult, InsightMark } from "@/types/content-insights";
 import ContentAiInsightsTable from "../content-ai-insights";
 import ContentTable from "../content";
+import { must } from "../../../test-support";
 
 const target = (contentId: number) => ({
   ref: { kind: "card" as const, id: contentId },
@@ -60,7 +61,10 @@ describe("content_ai_insights", () => {
     expect(ContentAiInsightsTable.setStatus(db, contentId, "m1", "dismissed")).toBe(true);
     expect(ContentAiInsightsTable.setStatus(db, contentId, "q1", "linked")).toBe(true);
     expect(ContentAiInsightsTable.setStatus(db, contentId, "nope", "linked")).toBe(false);
-    expect(ContentAiInsightsTable.get(db, contentId)!.updateTime).toBe(100);
+    expect(
+      must(ContentAiInsightsTable.get(db, contentId), "ContentAiInsightsTable.get(db, contentId)")
+        .updateTime
+    ).toBe(100);
 
     const row = ContentAiInsightsTable.save(
       db,

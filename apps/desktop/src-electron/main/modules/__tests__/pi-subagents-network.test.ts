@@ -9,6 +9,7 @@ import { assembleHostSession, createHostModelRuntime } from "../pi-session-host-
 import { SubagentRepository } from "../pi-subagents/repository";
 import { SubagentService, type SubagentHost } from "../pi-subagents/service";
 import { SubagentResultCollector } from "../pi-subagents/state";
+import { must } from "../../test-support";
 
 type Fault = "429" | "503" | "disconnect" | "truncated" | "malformed" | "hang";
 const cleanups: Array<() => Promise<void>> = [];
@@ -174,9 +175,14 @@ describe("子 Agent 本地 HTTP 故障", () => {
       expect(h.requests()).toBe(2);
       expect(h.bodies[1]).toContain("原任务标记");
       expect(h.bodies[1]).toContain("继续原任务");
-      expect(JSON.stringify(h.sessions.get(run.agentId)!.sessionManager.getBranch())).toContain(
-        "原任务标记"
-      );
+      expect(
+        JSON.stringify(
+          must(
+            h.sessions.get(run.agentId),
+            "h.sessions.get(run.agentId)"
+          ).sessionManager.getBranch()
+        )
+      ).toContain("原任务标记");
       console.log(
         "SUBAGENT_NETWORK",
         JSON.stringify({

@@ -106,7 +106,8 @@ export class SqliteContentProjection implements ContentProjectionStore {
   ): boolean {
     const { db, source } = this;
     if (documentId !== write.documentId) throw new Error("正文身份已变化，请重新打开当前正文");
-    const previous = ContentDocumentTable.read(db, source.contentId)!;
+    const previous = ContentDocumentTable.read(db, source.contentId);
+    if (!previous) throw new Error("正文记录不存在，无法投影");
     const contentChanged =
       write.changes?.content ?? !contentProjectionsEqual(previous.content, write.content);
     const contractsChanged =

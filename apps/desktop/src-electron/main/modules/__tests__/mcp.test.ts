@@ -81,13 +81,14 @@ vi.mock("../plugin-backend", () => ({
 }));
 
 import mcpModule from "../mcp";
+import { must } from "../../test-support";
 
 describe("mcp module", () => {
   const handler = (channel: string) =>
-    mockContext.ipcMainHandleMock.mock.calls.find(([name]) => name === channel)![1] as (
-      event: unknown,
-      payload: Record<string, unknown>
-    ) => Promise<unknown>;
+    must(
+      mockContext.ipcMainHandleMock.mock.calls.find(([name]) => name === channel),
+      "mockContext.ipcMainHandleMock.mock.calls.find..."
+    )[1] as (event: unknown, payload: Record<string, unknown>) => Promise<unknown>;
   const server = (id: string) => ({
     id,
     name: "插件服务器",
@@ -125,7 +126,7 @@ describe("mcp module", () => {
 
     expect(connectHandler).toBeTypeOf("function");
 
-    await connectHandler!(new EventEmitter(), {
+    await must(connectHandler, "connectHandler")(new EventEmitter(), {
       server: {
         id: "server-1",
         name: "chart",
@@ -164,7 +165,7 @@ describe("mcp module", () => {
       | undefined;
 
     await expect(
-      connectHandler!(new EventEmitter(), {
+      must(connectHandler, "connectHandler")(new EventEmitter(), {
         server: {
           id: "server-2",
           name: "chart",
@@ -294,11 +295,11 @@ describe("mcp module", () => {
       { sender },
       { server: server("plugin:retry"), windowScoped: true, pluginId: "test.mcp" }
     );
-    const transport = mockContext.transports.at(-1)!;
+    const transport = must(mockContext.transports.at(-1), "mockContext.transports.at(-1)");
     const sdk = await import("@modelcontextprotocol/sdk/client/index.js");
     const count = vi.mocked(sdk.Client).mock.calls.length;
     vi.useFakeTimers();
-    const retry = transport.onclose!();
+    const retry = must(transport.onclose, "transport.onclose")();
     await handler("mcp-disconnect")({ sender }, { serverId: "plugin:retry" });
     await vi.advanceTimersByTimeAsync(1000);
     await retry;

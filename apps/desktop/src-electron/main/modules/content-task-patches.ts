@@ -79,11 +79,12 @@ export function prepareTaskNodes(
     let id = typeof node.tauContract === "string" ? node.tauContract : undefined;
     if (!id) {
       const definition = taskElements.find(item => item.element.type === node.type);
-      if (!definition) fail("INVALID_CONTENT", "任务转换不能猜测未知节点的版本");
-      const { type, dataVersion, kind, isVoid, collaboration, resources } = definition!.element;
-      const contract = normalizeContentContract(definition!.owner, {
+      if (!definition) return fail("INVALID_CONTENT", "任务转换不能猜测未知节点的版本");
+      const { type, dataVersion, kind, isVoid, collaboration, resources } = definition.element;
+      if (dataVersion === undefined) return fail("INVALID_CONTENT", "任务元素缺少数据版本");
+      const contract = normalizeContentContract(definition.owner, {
         type,
-        dataVersion: dataVersion!,
+        dataVersion,
         kind,
         ...(isVoid === undefined ? {} : { isVoid }),
         ...(collaboration ? { collaboration } : {}),
@@ -110,20 +111,24 @@ function projectTaskSession(
   expectedRevision: string | undefined
 ) {
   const source = session.info.source;
-  if (!source) fail("CONTENT_BUSY", "正文会话没有本地来源");
+  if (!source) return fail("CONTENT_BUSY", "正文会话没有本地来源");
   const stored = ContentDocumentTable.read(db, contentId);
-  if (!stored) fail("CONTENT_BUSY", "正文格式尚未转换");
+  if (!stored) return fail("CONTENT_BUSY", "正文格式尚未转换");
+  const store = session.store;
+  if (!store) return fail("CONTENT_BUSY", "正文持久化能力未就绪");
   const content = readLocalSessionContent(session).content;
-  new SqliteContentProjection(db, source!, session.info).commit({
+  new SqliteContentProjection(db, source, session.info).commit({
     kind: "snapshot",
-    documentId: stored!.documentId,
+    documentId: stored.documentId,
     contracts: session.doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary,
     content,
     expectedRevision,
     count: getContentLength(content as Descendant[]),
   });
-  source!.projectionRevision = ContentDocumentTable.read(db, contentId)!.revision;
-  session.store!.metadata(session.info);
+  const committed = ContentDocumentTable.read(db, contentId);
+  if (!committed) return fail("CONTENT_BUSY", "正文提交后读取失败");
+  source.projectionRevision = committed.revision;
+  store.metadata(session.info);
   emitContentWritten(db, contentId, "update");
 }
 
@@ -138,9 +143,10 @@ export function applyTaskContentPatch(
   assertTaskContentWritable(db, contentId);
   const session = contentSession(db, contentId);
   if (session?.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION) {
-    if (!session.store) fail("CONTENT_BUSY", "正文持久化能力未就绪");
+    const store = session.store;
+    if (!store) return fail("CONTENT_BUSY", "正文持久化能力未就绪");
     const receiptKey = `task-receipt:${session.info.id}:${operationId}`;
-    const receipt = session.store!.get<{ expectedRevision?: string } | null>(receiptKey, null);
+    const receipt = store.get<{ expectedRevision?: string } | null>(receiptKey, null);
     if (receipt) {
       projectTaskSession(db, contentId, session, receipt.expectedRevision);
       return;
@@ -178,10 +184,10 @@ export function applyTaskContentPatch(
         fail("CAPACITY", "正文超过容量限制");
       const update = Y.encodeStateAsUpdate(candidate, vector),
         expectedRevision = session.info.source?.projectionRevision;
-      session.store!.db.transaction(() => {
+      store.db.transaction(() => {
         session.retainNodeState?.(candidate);
-        session.store!.append(session.info.id, update);
-        session.store!.set(receiptKey, { expectedRevision, digest: revision(next) });
+        store.append(session.info.id, update);
+        store.set(receiptKey, { expectedRevision, digest: revision(next) });
       })();
       Y.applyUpdate(session.doc, update, "renderer-persisted");
       projectTaskSession(db, contentId, session, expectedRevision);

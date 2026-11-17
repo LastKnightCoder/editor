@@ -85,7 +85,8 @@ export function restore(runtime: ContentSessionRuntime, info: CollaborationSessi
     (update: Uint8Array, origin: unknown, _doc: Y.Doc, transaction: Y.Transaction) => {
       session.dirty = true;
       session.projectionDirty = true;
-      const version = session.projectionVersion!;
+      const version = session.projectionVersion;
+      if (!version) throw new Error("正文投影代次未初始化");
       const changes = contentProjectionChanges(doc, transaction);
       const treeChanges = session.projectionTree?.transactionChanges(transaction);
       if (changes.content) {
@@ -128,7 +129,8 @@ export function restore(runtime: ContentSessionRuntime, info: CollaborationSessi
       });
       const source = session.info.source;
       const db = source && databaseModule.getDatabase(source.databaseName);
-      const nodeEvents = transaction.changedParentTypes.get(doc.share.get("node-tree:nodes")!);
+      const nodeTree = doc.share.get("node-tree:nodes");
+      const nodeEvents = nodeTree && transaction.changedParentTypes.get(nodeTree);
       // 文字输入沿用已有任务身份，结构或 taskId 变化才需要重新核对。
       const needsTaskIds =
         treeChanges?.structural ||
@@ -137,13 +139,10 @@ export function restore(runtime: ContentSessionRuntime, info: CollaborationSessi
             event instanceof Y.YMapEvent &&
             (event.keysChanged.has("type") || event.keysChanged.has("taskId"))
         );
-      if (
-        changes.content &&
-        needsTaskIds &&
-        db?.open &&
-        contentSession(db, source!.contentId) === session
-      )
-        ContentTable.ensureTaskIds(db, source!.contentId);
+      if (changes.content && needsTaskIds && source && db?.open) {
+        if (contentSession(db, source.contentId) === session)
+          ContentTable.ensureTaskIds(db, source.contentId);
+      }
       // 用户或别处的改动可能让待处理建议的锚点或原文前提失效，停顿后按当前正文核对
       if (changes.content && source)
         runtime.scheduleSuggestionValidation(

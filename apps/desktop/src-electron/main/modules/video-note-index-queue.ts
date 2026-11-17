@@ -140,7 +140,8 @@ class VideoNoteIndexQueue implements Module {
 
   private dequeueForCurrentGeneration(): IndexTask | null {
     while (this.queue.length > 0) {
-      const task = this.queue.shift()!;
+      const task = this.queue.shift();
+      if (!task) break;
       if (task.generation !== this.queueGeneration) {
         continue;
       }

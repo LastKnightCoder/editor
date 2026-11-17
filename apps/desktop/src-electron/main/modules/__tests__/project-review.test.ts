@@ -18,6 +18,7 @@ import ContentAiMetaTable from "../tables/content-ai-meta";
 import KnowledgeAiInsightsTable from "../tables/knowledge-ai-insights";
 import { buildContext, type TopicInsightsDeps } from "../topic-insights";
 import { FINAL_REVIEW_SYSTEM_PROMPT, GROWTH_REVIEW_SYSTEM_PROMPT } from "../topic-insights-prompt";
+import { must } from "../../test-support";
 
 const DIM = 8;
 const DAY = 24 * 3600_000;
@@ -193,7 +194,7 @@ describe("项目回顾", () => {
   });
 
   it("文档树按项目顺序深度优先，记下顶层分支与引用型条目", () => {
-    const tree = projectTree(main, ids["浏览器渲染"])!;
+    const tree = must(projectTree(main, ids["浏览器渲染"]), "projectTree(main, ids['浏览器渲染'])");
     expect(
       tree.items.map(item => [item.title, item.depth, item.root === ids["渲染流水线"]])
     ).toEqual([
@@ -206,7 +207,10 @@ describe("项目回顾", () => {
   });
 
   it("生长回顾：可能属于这里只提项目外散落的卡片（已引用、无关的不提），还薄落在那一支", async () => {
-    const row = (await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT))!;
+    const row = must(
+      await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT),
+      "(await reviewProject(deps, ctx(), ids['浏览器渲染'..."
+    );
     const prompt = prompts[0].prompt;
     expect(prompts[0].system).toBe(GROWTH_REVIEW_SYSTEM_PROMPT);
     expect(prompt).toContain("上次回顾：无（这是第一次回顾）");
@@ -226,11 +230,17 @@ describe("项目回顾", () => {
   });
 
   it("结项回顾：核心观点链到文档，归入最接近的进行中项目，覆盖原来的生长回顾并继承状态", async () => {
-    const growth = (await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT))!;
+    const growth = must(
+      await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT),
+      "(await reviewProject(deps, ctx(), ids['浏览器渲染'..."
+    );
     KnowledgeAiInsightsTable.setStatus(main, growth.id, "q1", "linked");
     main.prepare(`UPDATE project SET archived = 1 WHERE id = ?`).run(ids["浏览器渲染"]);
     prompts = [];
-    const final = (await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT))!;
+    const final = must(
+      await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT),
+      "(await reviewProject(deps, ctx(), ids['浏览器渲染'..."
+    );
     expect(prompts[0].system).toBe(FINAL_REVIEW_SYSTEM_PROMPT);
     expect(prompts[0].prompt).toContain("P1 前端体系（相近度");
     expect(final.id).toBe(growth.id);

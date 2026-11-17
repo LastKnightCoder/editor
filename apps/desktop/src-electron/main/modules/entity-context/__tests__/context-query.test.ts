@@ -34,6 +34,7 @@ import PluginTransactionTable from "../../tables/plugin-transaction";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { CONTEXT_WRITE_EVENTS, WHITEBOARD_CANVAS_EVENTS } from "../write-events";
+import { must } from "../../../test-support";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -115,7 +116,10 @@ describe("getEntityContext", () => {
     const otherCard = insertCard(noteContent);
     await reconcileRefs(mainDb, indexDb);
 
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    );
     expect(ctx.self).toMatchObject({ ref: { kind: "card", id: cardId }, title: "重排与重绘" });
     expect(ctx.projections.map(e => e.ref)).toEqual([{ kind: "project-item", id: itemId }]);
     expect(ctx.backlinkTotal).toBe(2);
@@ -130,14 +134,20 @@ describe("getEntityContext", () => {
     ]);
 
     // 文章引用了卡片（连接分区内联条目）；卡片自己没有出链
-    const fromArticle = getEntityContext(mainDb, indexDb, { kind: "article", id: articleId })!;
+    const fromArticle = must(
+      getEntityContext(mainDb, indexDb, { kind: "article", id: articleId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ar..."
+    );
     expect(fromArticle.links.map(l => [l.entity.ref, l.inlineOnly])).toEqual([
       [{ kind: "card", id: cardId }, true],
     ]);
     expect(ctx.links).toEqual([]);
 
     // 从项目文档看，同样能看到卡片身份与被引用
-    const fromItem = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
+    const fromItem = must(
+      getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'pr..."
+    );
     expect(fromItem.projections.map(e => e.ref)).toEqual([{ kind: "card", id: cardId }]);
     expect(fromItem.backlinkTotal).toBe(2);
   });
@@ -154,7 +164,10 @@ describe("getEntityContext", () => {
     const legacyArticle = insertArticle("老文章", legacy);
     await reconcileRefs(mainDb, indexDb);
 
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    );
     expect(ctx.backlinks.map(b => b.source.ref)).toEqual([{ kind: "article", id: legacyArticle }]);
   });
 
@@ -188,11 +201,17 @@ describe("getEntityContext", () => {
     const src = insertContent([p(link("diary-moment", first, "9 月 18 日", seg1))]);
     insertCard(src);
     await reconcileRefs(mainDb, indexDb);
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "diary-moment", id: first })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "diary-moment", id: first }),
+      "getEntityContext(mainDb, indexDb, { kind: 'di..."
+    );
     expect(ctx.backlinkTotal).toBe(1);
     expect(ctx.projections).toEqual([]);
     expect(
-      getEntityContext(mainDb, indexDb, { kind: "diary-moment", id: second })!.backlinkTotal
+      must(
+        getEntityContext(mainDb, indexDb, { kind: "diary-moment", id: second }),
+        "getEntityContext(mainDb, indexDb, { kind: 'di..."
+      ).backlinkTotal
     ).toBe(0);
   });
 
@@ -229,7 +248,10 @@ describe("getEntityContext", () => {
       );
     await reconcileRefs(mainDb, indexDb);
 
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    );
     const target = { page: "diary", date: "2025-11-13", momentId: second };
     expect(ctx.backlinks[0].source.open).toEqual({ ...target, at: { block: 1 } });
     expect(ctx.links[0].entity.open).toEqual(target);
@@ -258,7 +280,10 @@ describe("getEntityContext", () => {
       .run(JSON.stringify([p(text("本周小结"), link("card", cardId, "期货", cardContent))]), seg);
     await reconcileRefs(mainDb, indexDb);
 
-    const [backlink] = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!.backlinks;
+    const [backlink] = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    ).backlinks;
     expect(backlink.source).toMatchObject({
       ref: { kind: "diary-moment", id: momentId },
       title: expect.stringContaining("本周小结"),
@@ -282,14 +307,23 @@ describe("getEntityContext", () => {
     // 项目文档复用卡片正文（refType='card' 的创建路径）
     const itemId = insertProjectItem("渲染篇", cardContent);
 
-    const fromCard = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const fromCard = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    );
     expect(fromCard.links.map(l => [l.entity.ref, l.inlineOnly])).toEqual([
       [{ kind: "article", id: articleId }, false],
     ]);
-    const fromItem = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
+    const fromItem = must(
+      getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'pr..."
+    );
     expect(fromItem.links.map(l => l.entity.ref)).toEqual([{ kind: "article", id: articleId }]);
     // 反向：文章也看到卡片（代表身份）
-    const fromArticle = getEntityContext(mainDb, indexDb, { kind: "article", id: articleId })!;
+    const fromArticle = must(
+      getEntityContext(mainDb, indexDb, { kind: "article", id: articleId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ar..."
+    );
     expect(fromArticle.links.map(l => l.entity.ref)).toEqual([{ kind: "card", id: cardId }]);
   });
 
@@ -304,7 +338,10 @@ describe("getEntityContext", () => {
       )
       .run(low, high, clock++);
 
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    );
     expect(ctx.links).toEqual([]);
   });
 
@@ -324,7 +361,10 @@ describe("getEntityContext", () => {
         ]),
         selfContent
       );
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'pr..."
+    );
     expect(ctx.links.map(l => [l.entity.ref, l.entity.title])).toEqual([
       [{ kind: "article", id: targetId }, "目标文章"],
     ]);
@@ -346,7 +386,10 @@ describe("getEntityContext", () => {
     const articleId = insertArticle("读书计划", articleContent);
     await reconcileRefs(mainDb, indexDb);
 
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "plugin-entity", id: noteId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "plugin-entity", id: noteId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'pl..."
+    );
     expect(ctx.self).toMatchObject({
       ref: { kind: "plugin-entity", id: noteId },
       title: "第 43 周周记",
@@ -403,14 +446,20 @@ describe("getEntityContext", () => {
       }
     ).create_time;
     linkTo(newer, "tau.questions", "document", itemId, itemCreated);
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    const ctx = must(
+      getEntityContext(mainDb, indexDb, { kind: "card", id: cardId }),
+      "getEntityContext(mainDb, indexDb, { kind: 'ca..."
+    );
     expect(ctx.pluginLinks.map(item => [item.ref, item.title])).toEqual([
       [{ kind: "plugin-entity", id: newer }, "另一个问题"],
       [{ kind: "plugin-entity", id: older }, "为什么会这样"],
     ]);
     // 插件内容之间互相关联时，不把自己列进自己的脉络
     linkTo(older, "tau.questions", "plugin-entity", older, clock - 100);
-    const self = getEntityContext(mainDb, indexDb, { kind: "plugin-entity", id: older })!;
+    const self = must(
+      getEntityContext(mainDb, indexDb, { kind: "plugin-entity", id: older }),
+      "getEntityContext(mainDb, indexDb, { kind: 'pl..."
+    );
     expect(self.pluginLinks).toEqual([]);
   });
 

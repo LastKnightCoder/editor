@@ -43,6 +43,7 @@ import { rebuildIndex, rng } from "./eval-index-rebuild";
 import ContentAiMetaTable from "../main/modules/tables/content-ai-meta";
 import ContentTable from "../main/modules/tables/content";
 import { createEvalCompleter } from "./eval-llm";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_INSIGHTS_EVAL_MAIN;
 const INDEX = process.env.KL_INSIGHTS_EVAL_INDEX;
@@ -78,10 +79,10 @@ it.skipIf(!MAIN || !INDEX)(
   async () => {
     const llm = await createEvalCompleter(["contentInsights", "contentMetadata"]);
     expect(llm, "设置里「AI 洞见」与「笔记元信息」都还没配模型").not.toBeNull();
-    const main = new Database(MAIN!);
+    const main = new Database(must(MAIN, "MAIN"));
     main.exec(mainSchema);
-    const rebuilt = REBUILD ? await rebuildIndex(main, INDEX!, REBUILD) : null;
-    const index = new Database(INDEX!);
+    const rebuilt = REBUILD ? await rebuildIndex(main, must(INDEX, "INDEX"), REBUILD) : null;
+    const index = new Database(must(INDEX, "INDEX"));
     sqliteVec.load(index);
 
     // 样本：≥ 3 节的长文（文章、非引用型项目文档）与 ≥ 150 字的卡片，都要有向量
@@ -145,7 +146,10 @@ it.skipIf(!MAIN || !INDEX)(
           )
           .get(ref.id) as { id: number }
       ).id;
-      const content = ContentTable.getContentById(main, contentId)!;
+      const content = must(
+        ContentTable.getContentById(main, contentId),
+        "ContentTable.getContentById(main, contentId)"
+      );
       const { candidates } = findCandidates(main, index, {
         ref,
         key: `${ref.kind}:${ref.id}`,
@@ -159,7 +163,7 @@ it.skipIf(!MAIN || !INDEX)(
       }
     }
     const metaStarted = performance.now();
-    const metaUsageBefore = { ...llm!.usage };
+    const metaUsageBefore = { ...must(llm, "llm").usage };
     await pool([...needMeta], async contentId => {
       const content = ContentTable.getContentById(main, contentId);
       if (!content) return;
@@ -170,7 +174,7 @@ it.skipIf(!MAIN || !INDEX)(
         content: content.content as Descendant[],
       });
       if (!prompt) return;
-      const result = await llm!.complete({
+      const result = await must(llm, "llm").complete({
         providerId: "",
         modelId: "",
         system: CONTENT_AI_SYSTEM_PROMPT,
@@ -182,19 +186,19 @@ it.skipIf(!MAIN || !INDEX)(
           contentId,
           textDigest: textDigest(contentPlainText(content.content as Descendant[])),
           meta,
-          model: `${llm!.slot.providerId}/${llm!.slot.modelId}`,
+          model: `${must(llm, "llm").slot.providerId}/${must(llm, "llm").slot.modelId}`,
         });
       }
     });
     const metaUsage = {
-      calls: llm!.usage.calls - metaUsageBefore.calls,
-      input: llm!.usage.input - metaUsageBefore.input,
-      output: llm!.usage.output - metaUsageBefore.output,
+      calls: must(llm, "llm").usage.calls - metaUsageBefore.calls,
+      input: must(llm, "llm").usage.input - metaUsageBefore.input,
+      output: must(llm, "llm").usage.output - metaUsageBefore.output,
       seconds: (performance.now() - metaStarted) / 1000,
     };
 
     // 分析
-    const usageBefore = { ...llm!.usage };
+    const usageBefore = { ...must(llm, "llm").usage };
     const results: Array<{
       ref: EntityRef;
       title: string;
@@ -217,11 +221,11 @@ it.skipIf(!MAIN || !INDEX)(
         )?.title ?? "";
       try {
         const insights = await analyzeContent(
-          { complete: request => llm!.complete(request), now: Date.now },
+          { complete: request => must(llm, "llm").complete(request), now: Date.now },
           main,
           index,
           ref,
-          llm!.slot
+          must(llm, "llm").slot
         );
         results.push({ ref, title, ms: performance.now() - started, insights });
       } catch (error) {
@@ -230,24 +234,30 @@ it.skipIf(!MAIN || !INDEX)(
       console.log(`[insights-eval] ${results.length}/${samples.length}`);
     });
     const analysisUsage = {
-      calls: llm!.usage.calls - usageBefore.calls,
-      input: llm!.usage.input - usageBefore.input,
-      output: llm!.usage.output - usageBefore.output,
+      calls: must(llm, "llm").usage.calls - usageBefore.calls,
+      input: must(llm, "llm").usage.input - usageBefore.input,
+      output: must(llm, "llm").usage.output - usageBefore.output,
     };
 
     const order = new Map(samples.map((ref, i) => [`${ref.kind}:${ref.id}`, i]));
     results.sort(
-      (a, b) => order.get(`${a.ref.kind}:${a.ref.id}`)! - order.get(`${b.ref.kind}:${b.ref.id}`)!
+      (a, b) =>
+        must(order.get(`${a.ref.kind}:${a.ref.id}`), "order.get(`${a.ref.kind}:${a.ref.id}`)") -
+        must(order.get(`${b.ref.kind}:${b.ref.id}`), "order.get(`${b.ref.kind}:${b.ref.id}`)")
     );
     const ok = results.filter(r => r.insights);
-    const markCount = ok.reduce((n, r) => n + r.insights!.result.marks.length, 0);
+    const markCount = ok.reduce(
+      (n, r) => n + must(r.insights, "r.insights").result.marks.length,
+      0
+    );
     const byKind: Record<string, number> = {};
     for (const r of ok)
-      for (const m of r.insights!.result.marks) byKind[m.kind] = (byKind[m.kind] ?? 0) + 1;
+      for (const m of must(r.insights, "r.insights").result.marks)
+        byKind[m.kind] = (byKind[m.kind] ?? 0) + 1;
     const lines: string[] = [
       `# AI 洞见评估`,
       "",
-      `- 模型：${llm!.slot.providerId} / ${llm!.slot.modelId}（槽 ${llm!.slotName}${llm!.slotName === "contentInsights" ? "" : "，「AI 洞见」未配置，回退"}）`,
+      `- 模型：${must(llm, "llm").slot.providerId} / ${must(llm, "llm").slot.modelId}（槽 ${must(llm, "llm").slotName}${must(llm, "llm").slotName === "contentInsights" ? "" : "，「AI 洞见」未配置，回退"}）`,
       `- 向量：${rebuilt ? `重建（${REBUILD}），${rebuilt.indexed} 个实体` : "现有索引库副本"}`,
       `- 样本：长文 ${docs.length} 篇、卡片 ${cards.length} 张；成功 ${ok.length} / ${results.length}`,
       `- 标记共 ${markCount} 处（每篇平均 ${(markCount / Math.max(1, ok.length)).toFixed(1)}）：${Object.entries(

@@ -17,6 +17,7 @@ import {
   type ContentAiDeps,
 } from "../content-ai-queue";
 import ContentAiMetaTable from "../tables/content-ai-meta";
+import { must } from "../../test-support";
 
 const SETTING = {
   llmProviders: [{ id: "p", models: [{ id: "m" }] }],
@@ -107,7 +108,7 @@ describe("content-ai-queue", () => {
     queue.applySetting(SETTING);
     await queue.idle();
     expect(complete).toHaveBeenCalledTimes(1);
-    const row = ContentAiMetaTable.get(mainDb, card)!;
+    const row = must(ContentAiMetaTable.get(mainDb, card), "ContentAiMetaTable.get(mainDb, card)");
     expect(row.meta.title).toBe("AI 标题");
     expect(row.model).toBe("p/m");
     expect(complete.mock.calls[0][0]).toMatchObject({
@@ -201,13 +202,17 @@ describe("content-ai-queue", () => {
     now += IDLE_MS - 1;
     queue.sweep();
     await queue.idle();
-    expect(ContentAiMetaTable.get(mainDb, card)!.updateTime).toBeLessThan(now);
+    expect(
+      must(ContentAiMetaTable.get(mainDb, card), "ContentAiMetaTable.get(mainDb, card)").updateTime
+    ).toBeLessThan(now);
 
     now += 1;
     queue.sweep();
     await queue.idle();
     expect(complete).toHaveBeenCalledTimes(1);
-    expect(ContentAiMetaTable.get(mainDb, card)!.updateTime).toBe(now);
+    expect(
+      must(ContentAiMetaTable.get(mainDb, card), "ContentAiMetaTable.get(mainDb, card)").updateTime
+    ).toBe(now);
 
     complete.mockResolvedValue({ ok: true, text: okOutput("新标题") });
     now += 1000;
@@ -217,7 +222,9 @@ describe("content-ai-queue", () => {
     queue.sweep();
     await queue.idle();
     expect(complete).toHaveBeenCalledTimes(2);
-    expect(ContentAiMetaTable.get(mainDb, card)!.meta.title).toBe("新标题");
+    expect(
+      must(ContentAiMetaTable.get(mainDb, card), "ContentAiMetaTable.get(mainDb, card)").meta.title
+    ).toBe("新标题");
   });
 
   it("连库对账时小改累积到阈值以下也会重算（指纹保留生成时的版本）", async () => {
@@ -225,12 +232,17 @@ describe("content-ai-queue", () => {
     queue.applySetting(SETTING);
     queue.onDatabaseConnected("a.db");
     await queue.idle();
-    const digest = ContentAiMetaTable.get(mainDb, card)!.textDigest;
+    const digest = must(
+      ContentAiMetaTable.get(mainDb, card),
+      "ContentAiMetaTable.get(mainDb, card)"
+    ).textDigest;
     now += 1000;
     editContent(mainDb, card, LONG.replace("枢纽", "中心"), now);
     queue.onDatabaseConnected("a.db");
     await queue.idle();
-    expect(ContentAiMetaTable.get(mainDb, card)!.textDigest).toBe(digest);
+    expect(
+      must(ContentAiMetaTable.get(mainDb, card), "ContentAiMetaTable.get(mainDb, card)").textDigest
+    ).toBe(digest);
     expect(complete).toHaveBeenCalledTimes(1);
   });
 
@@ -323,6 +335,8 @@ describe("content-ai-queue", () => {
     } as never);
     await queue.idle();
     expect(complete).toHaveBeenCalledTimes(1);
-    expect(ContentAiMetaTable.get(mainDb, card)!.model).toBe("p/m");
+    expect(
+      must(ContentAiMetaTable.get(mainDb, card), "ContentAiMetaTable.get(mainDb, card)").model
+    ).toBe("p/m");
   });
 });

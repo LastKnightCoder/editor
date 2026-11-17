@@ -31,8 +31,9 @@ export function registerContentSession(
   contentId: number,
   session: RuntimeSession
 ) {
-  if (!sessions.has(db)) sessions.set(db, new Map());
-  sessions.get(db)!.set(contentId, session);
+  const entries = sessions.get(db) ?? new Map<number, RuntimeSession>();
+  entries.set(contentId, session);
+  sessions.set(db, entries);
 }
 
 export function unregisterContentSession(session: RuntimeSession) {

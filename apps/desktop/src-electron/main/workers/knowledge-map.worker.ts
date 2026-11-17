@@ -10,9 +10,13 @@ import type { KnowledgeMap } from "@/knowledge-map/types";
 import type { KnowledgeMapInputs } from "../modules/tables/knowledge-map";
 
 export type KnowledgeMapWorkerResult =
-  { ok: true; map: KnowledgeMap } | { ok: false; message: string };
+  | { ok: true; map: KnowledgeMap }
+  | { ok: false; message: string };
 
-parentPort!.once("message", (inputs: KnowledgeMapInputs) => {
+const port = parentPort;
+if (!port) throw new Error("知识地图 worker 必须由宿主线程启动");
+
+port.once("message", (inputs: KnowledgeMapInputs) => {
   try {
     const vectors = meanPool(
       new Map(
@@ -20,9 +24,9 @@ parentPort!.once("message", (inputs: KnowledgeMapInputs) => {
       )
     );
     const map = computeKnowledgeMap(inputs.nodes, vectors);
-    parentPort!.postMessage({ ok: true, map } satisfies KnowledgeMapWorkerResult);
+    port.postMessage({ ok: true, map } satisfies KnowledgeMapWorkerResult);
   } catch (error) {
-    parentPort!.postMessage({
+    port.postMessage({
       ok: false,
       message: error instanceof Error ? error.message : String(error),
     } satisfies KnowledgeMapWorkerResult);

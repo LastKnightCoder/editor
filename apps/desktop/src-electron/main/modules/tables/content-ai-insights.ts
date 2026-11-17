@@ -111,7 +111,9 @@ export default class ContentAiInsightsTable {
       now,
       now
     );
-    return this.get(db, input.contentId)!;
+    const saved = this.get(db, input.contentId);
+    if (!saved) throw new Error(`洞察结果写入后读取失败：${input.contentId}`);
+    return saved;
   }
 
   /** 改一条标记或问题的处理状态；找不到返回 false（结果已被重新分析替换） */

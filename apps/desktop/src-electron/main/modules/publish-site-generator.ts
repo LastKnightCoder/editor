@@ -188,7 +188,9 @@ export class PublishSiteGenerator {
       fields: resolveSiteFields(this.template.manifest.template.siteFields, site.fieldValues),
     };
     if (!site.favicon) return meta;
-    const faviconOutput = this.favicon!.output;
+    const favicon = this.favicon;
+    if (!favicon) throw new Error("favicon 未生成，无法构建站点元信息");
+    const faviconOutput = favicon.output;
     return {
       ...meta,
       favicon: {
@@ -680,12 +682,15 @@ export class PublishSiteGenerator {
     const collections = kinds
       .map(kind => {
         const items = meta
-          .filter(item => item.type === kind && item.target)
+          .filter(
+            (item): item is IDocCollectionMetaItem & { target: ContentRef } =>
+              item.type === kind && Boolean(item.target)
+          )
           .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"))
           .map(item => ({
             id: item.entityId,
             title: item.title,
-            target: item.target!,
+            target: item.target,
             kind,
           }));
 

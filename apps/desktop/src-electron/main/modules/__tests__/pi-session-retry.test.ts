@@ -14,6 +14,7 @@ import {
 } from "../pi-session-files";
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
 import { retryHostSession } from "../pi-session-retry";
+import { must } from "../../test-support";
 
 const sessions: AgentSession[] = [];
 const dirs: string[] = [];
@@ -113,7 +114,7 @@ describe("失败重试不产生分支", () => {
         return fauxAssistantMessage([fauxText("重试成功")]);
       },
     ]);
-    const file = session.sessionFile!;
+    const file = must(session.sessionFile, "session.sessionFile");
     expect(existsSync(file)).toBe(true);
     expect(
       await retryHostSession(

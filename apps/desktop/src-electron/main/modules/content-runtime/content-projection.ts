@@ -120,27 +120,34 @@ export async function projectSession(runtime: ContentSessionRuntime, session: Ru
         .getMap("node-tree:contracts")
         .toJSON() as ContentContractDictionary;
       const tree = session.projectionTree;
-      const incremental = Boolean(changes && tree);
+      const incrementalScope =
+        changes && confirmed && version && tree ? { changes, confirmed, version, tree } : undefined;
       const structural = Boolean(
-        incremental && changes!.content && (session.projectionStructure ?? 0) > confirmed!.content
+        incrementalScope &&
+        incrementalScope.changes.content &&
+        (session.projectionStructure ?? 0) > incrementalScope.confirmed.content
       );
-      path = !incremental
+      path = !incrementalScope
         ? "reconcile"
         : structural
           ? "structure"
-          : changes!.content
+          : incrementalScope.changes.content
             ? "blocks"
             : "contracts";
       let content: ContentNode[];
       if (changes && !changes.content) content = [];
-      else if (incremental && !structural) {
+      else if (incrementalScope && !structural) {
         const roots = new Set<string>();
         for (const [id, changedAt] of session.projectionNodes ?? []) {
-          if (changedAt <= confirmed!.content || changedAt > version!.content) continue;
-          const root = tree!.rootBlockId(id);
+          if (
+            changedAt <= incrementalScope.confirmed.content ||
+            changedAt > incrementalScope.version.content
+          )
+            continue;
+          const root = incrementalScope.tree.rootBlockId(id);
           if (root) roots.add(root);
         }
-        content = [...roots].map(id => tree!.nodeSnapshot(id));
+        content = [...roots].map(id => incrementalScope.tree.nodeSnapshot(id));
       } else
         content = tree ? (tree.snapshot() as ContentNode[]) : readNodeDocument(session.doc).content;
       if (content.length) {
@@ -172,28 +179,30 @@ export async function projectSession(runtime: ContentSessionRuntime, session: Ru
       }
       stage = "commit";
       // 资源本地化期间，其他入口可能已提交并推进会话观察到的修订。
-      const result = projection.commit(
-        incremental
-          ? {
-              kind: "blocks",
-              documentId: head.documentId,
-              expectedRevision: expectedRevision!,
-              contracts,
-              blocks: content,
-              order: structural ? content.map(node => String(node.collabId)) : undefined,
-              count: blocks => getContentLength(blocks as import("slate").Descendant[]),
-              countRules: JSON.stringify(desktopContentMetrics.rules),
-            }
-          : {
-              kind: "snapshot",
-              documentId: head.documentId,
-              expectedRevision,
-              contracts,
-              content,
-              count: getContentLength(content as import("slate").Descendant[]),
-              changes,
-            }
-      );
+      let result: { changed: boolean; writtenBlocks: number };
+      if (incrementalScope) {
+        if (!expectedRevision) throw new Error("增量投影缺少基准修订");
+        result = projection.commit({
+          kind: "blocks",
+          documentId: head.documentId,
+          expectedRevision,
+          contracts,
+          blocks: content,
+          order: structural ? content.map(node => String(node.collabId)) : undefined,
+          count: blocks => getContentLength(blocks as import("slate").Descendant[]),
+          countRules: JSON.stringify(desktopContentMetrics.rules),
+        });
+      } else {
+        result = projection.commit({
+          kind: "snapshot",
+          documentId: head.documentId,
+          expectedRevision,
+          contracts,
+          content,
+          count: getContentLength(content as import("slate").Descendant[]),
+          changes,
+        });
+      }
       changed = result.changed;
       writtenBlocks = result.writtenBlocks;
       committed = true;
@@ -202,8 +211,10 @@ export async function projectSession(runtime: ContentSessionRuntime, session: Ru
     const saved = projection.readHead();
     source.projectionRevision = saved.revision;
     session.projectedVersion = version;
-    for (const [id, changedAt] of session.projectionNodes ?? [])
-      if (version && changedAt <= version.content) session.projectionNodes!.delete(id);
+    const pendingNodes = session.projectionNodes;
+    if (pendingNodes)
+      for (const [id, changedAt] of pendingNodes)
+        if (version && changedAt <= version.content) pendingNodes.delete(id);
     runtime.store.metadata(session.info);
     stage = "notify";
     const title = session.doc.getText("title").toString();

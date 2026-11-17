@@ -38,6 +38,7 @@ import {
   resolveV2Providers,
 } from "../main/modules/pi-ai-runtime-core";
 import ContentAiMetaTable from "../main/modules/tables/content-ai-meta";
+import { must } from "../main/test-support";
 
 vi.mock("../main/modules/database", () => ({ default: {} }));
 vi.mock("../main/modules/pi-ai-runtime", () => ({ default: {} }));
@@ -153,18 +154,19 @@ it.skipIf(!MAIN)(
   async () => {
     const setting = JSON.parse(readFileSync(SETTING_PATH, "utf8"));
     const slot = resolveUsageSlot(setting, CONTENT_AI_SLOT);
+    const activeSlot = must(slot, "slot");
     expect(slot, `设置里还没给「笔记元信息」（${CONTENT_AI_SLOT}）配模型`).not.toBeNull();
     const registry = createProviderRegistry();
     await registry.syncProviders(resolveV2Providers(setting));
-    const model = registry.resolveModel(slot!.providerId, slot!.modelId);
+    const model = registry.resolveModel(activeSlot.providerId, activeSlot.modelId);
     expect(model, "模型未注册").toBeTruthy();
 
-    const db = new Database(MAIN!);
+    const db = new Database(must(MAIN, "MAIN"));
     db.exec(mainSchema);
     const { cards, docs } = loadSamples(db);
 
     const run = async (sample: Sample): Promise<Result> => {
-      const prompt = buildContentAiUserPrompt(sample)!;
+      const prompt = must(buildContentAiUserPrompt(sample), "buildContentAiUserPrompt(sample)");
       const started = performance.now();
       const base = {
         ...sample,
@@ -179,13 +181,13 @@ it.skipIf(!MAIN)(
         const context = buildSingleShotContext(
           {
             requestId: "",
-            providerId: slot!.providerId,
-            modelId: slot!.modelId,
+            providerId: activeSlot.providerId,
+            modelId: activeSlot.modelId,
             system: CONTENT_AI_SYSTEM_PROMPT,
             messages: [{ role: "user", content: prompt }],
           },
-          slot!.providerId,
-          slot!.modelId
+          activeSlot.providerId,
+          activeSlot.modelId
         );
         let message = null as null | {
           content: Array<{ type: string; text?: string }>;
@@ -193,7 +195,7 @@ it.skipIf(!MAIN)(
         };
         let error = "";
         for await (const event of registry.models.streamSimple(
-          model!,
+          must(model, "model"),
           normalizeContext(context),
           {}
         )) {
@@ -219,7 +221,7 @@ it.skipIf(!MAIN)(
           contentId: sample.contentId,
           textDigest: textDigest(sample.text),
           meta,
-          model: `${slot!.providerId}/${slot!.modelId}`,
+          model: `${activeSlot.providerId}/${activeSlot.modelId}`,
         });
         return {
           ...base,
@@ -260,7 +262,7 @@ it.skipIf(!MAIN)(
     const titleLengths = cardResults.filter(r => r.ok).map(r => titleDisplayLength(r.aiTitle));
     const lines: string[] = [];
     lines.push(`# 笔记元信息评估`, "");
-    lines.push(`- 模型：${slot!.providerId} / ${slot!.modelId}`);
+    lines.push(`- 模型：${activeSlot.providerId} / ${activeSlot.modelId}`);
     lines.push(
       `- 样本：卡片 ${cardResults.length} 张，长文（≥ ${LONG_DOC_MIN_CHARS} 字的文章与项目文档）${docResults.length} 篇；成功 ${results.filter(r => r.ok).length} / ${results.length}`
     );

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { PluginPermissionStore } from "../../services/plugin-permissions";
+import { must } from "../../test-support";
 
 const state = vi.hoisted(() => ({
   root: "",
@@ -41,7 +42,9 @@ vi.mock("../database", () => ({
 vi.mock("../../services/plugin-workspaces", () => ({
   getPluginRegistry: () => ({ open: async () => ({ id: "workspace" }) }),
 }));
-vi.mock("../plugin-permissions", () => ({ getPluginPermissionStore: () => state.store! }));
+vi.mock("../plugin-permissions", () => ({
+  getPluginPermissionStore: () => must(state.store, "state.store"),
+}));
 vi.mock("../../services/plugin-backend/terminate", () => ({
   terminateBackendChild: (child: { kill(): void }) => child.kill(),
 }));
@@ -64,7 +67,10 @@ class Child extends EventEmitter {
 let backend: typeof import("../plugin-backend");
 let event: any;
 const request = (method: string, ...args: unknown[]) =>
-  state.handlers.get("plugin-backend:" + method)!(event, ...args);
+  must(
+    state.handlers.get("plugin-backend:" + method),
+    "state.handlers.get('plugin-backend:' + method)"
+  )(event, ...args);
 beforeEach(async () => {
   vi.resetModules();
   state.handlers.clear();
@@ -155,9 +161,13 @@ it("旧版本摘要和后台窗口不能提交授权，临时授权在停用后�
   state.focused = true;
   await request("grant", "example.backend", snapshot.digest, "once");
   await backend.stopPluginBackend("example.backend");
-  expect(await state.store!.backendGranted("example.backend", "application", snapshot.digest)).toBe(
-    false
-  );
+  expect(
+    await must(state.store, "state.store").backendGranted(
+      "example.backend",
+      "application",
+      snapshot.digest
+    )
+  ).toBe(false);
 });
 
 it("连接绑定工作区和窗口，断开后拒绝旧令牌", async () => {

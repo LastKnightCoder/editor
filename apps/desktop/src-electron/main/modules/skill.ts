@@ -474,7 +474,11 @@ class SkillModule implements Module {
       "utf-8"
     );
     log.info(`Created skill: ${folderName}`);
-    return (await this.scanRoot(this.skillsDir, "mine")).find(s => s.folderName === folderName)!;
+    const created = (await this.scanRoot(this.skillsDir, "mine")).find(
+      s => s.folderName === folderName
+    );
+    if (!created) throw new Error(`Skill 创建后未找到：${folderName}`);
+    return created;
   }
 
   async deleteSkill(skillPath: string): Promise<void> {

@@ -24,6 +24,7 @@ import {
   isCustomPriced,
 } from "../pi-ai-runtime-core";
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import { must } from "../../test-support";
 
 const baseModel = (cost: Model<Api>["cost"]) => ({ cost }) as Model<Api>;
 const setting = (overrides: Partial<LLMModelSetting> = {}): LLMModelSetting => ({
@@ -86,7 +87,10 @@ describe("目录价自动填入", () => {
     ];
     const fills = await collectCatalogCostFills(providers, lookup);
     expect([...fills.keys()]).toEqual(["p\u0000in-catalog"]);
-    const next = applyCatalogCostFills(providers, fills)!;
+    const next = must(
+      applyCatalogCostFills(providers, fills),
+      "applyCatalogCostFills(providers, fills)"
+    );
     expect(next[0].models.map(m => m.cost)).toEqual([catalog, { input: 1, output: 1 }, undefined]);
   });
 
@@ -265,7 +269,7 @@ describe("mock 网关：pi 按自定义单价计费", () => {
       models: [setting({ id: "m", cost: { input: 2, output: 8 } })],
     };
     await registry.syncProviders([provider]);
-    const model = registry.resolveModel("gw", "m")!;
+    const model = must(registry.resolveModel("gw", "m"), "registry.resolveModel('gw', 'm')");
     let done: AssistantMessage | null = null;
     for await (const event of registry.models.streamSimple(
       model,
@@ -285,9 +289,9 @@ describe("mock 网关：pi 按自定义单价计费", () => {
       if (event.type === "done") done = event.message;
     }
     expect(done).not.toBeNull();
-    expect(done!.usage.input).toBe(1_000_000);
-    expect(done!.usage.output).toBe(500_000);
+    expect(must(done, "done").usage.input).toBe(1_000_000);
+    expect(must(done, "done").usage.output).toBe(500_000);
     // 1M × $2 + 0.5M × $8 = $6
-    expect(done!.usage.cost.total).toBeCloseTo(6, 6);
+    expect(must(done, "done").usage.cost.total).toBeCloseTo(6, 6);
   });
 });

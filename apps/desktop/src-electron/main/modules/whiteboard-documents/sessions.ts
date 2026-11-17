@@ -412,18 +412,19 @@ export class WhiteboardDocumentSessions {
   holders(
     filter: { owner?: number; databaseName?: string } = {}
   ): { leaseId: string; owner: number; databaseName: string }[] {
-    return [...this.leases.values()]
-      .filter(
-        lease =>
-          (filter.owner === undefined || lease.owner === filter.owner) &&
-          (!filter.databaseName ||
-            this.sessions.get(lease.key)?.value.databaseName === filter.databaseName)
-      )
-      .map(lease => ({
-        leaseId: lease.id,
-        owner: lease.owner,
-        databaseName: this.sessions.get(lease.key)!.value.databaseName,
-      }));
+    return [...this.leases.values()].flatMap(lease => {
+      const session = this.sessions.get(lease.key);
+      if (!session) return [];
+      if (filter.owner !== undefined && lease.owner !== filter.owner) return [];
+      if (filter.databaseName && session.value.databaseName !== filter.databaseName) return [];
+      return [
+        {
+          leaseId: lease.id,
+          owner: lease.owner,
+          databaseName: session.value.databaseName,
+        },
+      ];
+    });
   }
   seal(leaseId: string, owner: number, requestId: string, sealed: boolean): void {
     const { lease } = this.require(leaseId, owner);

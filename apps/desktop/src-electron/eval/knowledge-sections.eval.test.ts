@@ -9,6 +9,7 @@ vi.mock("electron");
 vi.mock("../main/modules/video-note-index-queue");
 import VecDocumentTable from "../main/modules/tables/vec-document";
 import KnowledgeMapTable from "../main/modules/tables/knowledge-map";
+import { must } from "../main/test-support";
 
 const paragraph = (text: string): Descendant => ({
   type: "paragraph",
@@ -108,7 +109,7 @@ it.skipIf(!process.env.KL_SECTIONS_SCALE)(
 it.skipIf(!process.env.KL_SECTIONS_MAIN)(
   "真实库副本的节分布",
   async () => {
-    const db = new Database(process.env.KL_SECTIONS_MAIN!);
+    const db = new Database(must(process.env.KL_SECTIONS_MAIN, "process.env.KL_SECTIONS_MAIN"));
     try {
       const rows = db
         .prepare(

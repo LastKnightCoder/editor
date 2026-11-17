@@ -68,12 +68,8 @@ function locate(
     const node = nodes[index];
     if (node.type === "check-list-item" && node.taskId === id)
       return { siblings: nodes, index, parentTaskId, containerPath: path };
-    const child = locate(
-      node.children ?? [],
-      id,
-      node.type === "check-list-item" ? node.taskId! : parentTaskId,
-      [...path, index]
-    );
+    const childParentTaskId = node.type === "check-list-item" ? node.taskId : parentTaskId;
+    const child = locate(node.children ?? [], id, childParentTaskId ?? null, [...path, index]);
     if (child) return child;
   }
 }
@@ -104,6 +100,7 @@ export function documentSnapshot(
   ref: Extract<TaskRef, { kind: "document" }>
 ): DocumentSnapshot {
   const location = locate(nodes, ref.taskId);
+  const container = location ? containerAt(nodes, location.containerPath) : undefined;
   return {
     ref,
     node: location ? structuredClone(location.siblings[location.index]) : null,
@@ -111,8 +108,8 @@ export function documentSnapshot(
     previousTaskId: location?.siblings[location.index - 1]?.taskId ?? null,
     nextTaskId: location?.siblings[location.index + 1]?.taskId ?? null,
     containerPath: location?.containerPath ?? [],
-    containerAnchor: location ? containerAt(nodes, location.containerPath)!.anchor : "",
-    containerContext: location ? containerAt(nodes, location.containerPath)!.context : undefined,
+    containerAnchor: container ? container.anchor : "",
+    containerContext: container?.context,
   };
 }
 function removeEmptyTaskContainer(tree: TaskContentNode[], path: number[]) {
@@ -273,9 +270,9 @@ function patchDocumentFields(
       if (field === "groupId") {
         requireGroup(db, Number(patch.groupId));
         const group = groups.find(entry => entry.id === patch.groupId);
-        if (!group) fail("NOT_FOUND", "正文待办的项目不存在");
-        replacement = `#${group!.title}`;
-        node.taskGroup = { id: group!.id, token: replacement, createdAt: group!.createdAt };
+        if (!group) return fail("NOT_FOUND", "正文待办的项目不存在");
+        replacement = `#${group.title}`;
+        node.taskGroup = { id: group.id, token: replacement, createdAt: group.createdAt };
       } else {
         replacement = patch.dueAt == null ? "" : String(patch.dueAt);
         node.taskDateAnchor = null;
@@ -327,14 +324,15 @@ export function prepareDocumentEdit(
       : revision(before);
   checkRevision(expectedRevision, expected);
   const next = structuredClone(previous);
-  const location = locate(next, ref.taskId)!;
+  const location = locate(next, ref.taskId);
+  if (!location) return fail("NOT_FOUND", "原文中已没有这个待办");
   const node = location.siblings[location.index] as TaskNode;
   if (action === "update_todo") {
-    if (!input.patch || !Object.keys(input.patch).length)
-      fail("INVALID_ARGUMENT", "修改字段不能为空");
-    patchDocumentFields(db, node, input.patch!);
-    if ("parentRef" in input.patch!) {
-      const parent = input.patch!.parentRef as TaskRef | null;
+    const patch = input.patch;
+    if (!patch || !Object.keys(patch).length) return fail("INVALID_ARGUMENT", "修改字段不能为空");
+    patchDocumentFields(db, node, patch);
+    if ("parentRef" in patch) {
+      const parent = patch.parentRef as TaskRef | null;
       if (
         parent &&
         (parent.kind !== "document" ||
@@ -357,20 +355,23 @@ export function prepareDocumentEdit(
     location.siblings.splice(location.index, 1, ...(input.children === "preserve" ? children : []));
     removeEmptyTaskContainer(next, location.containerPath);
   } else if (action === "set_todo_recurrence") {
+    const effectiveDate = input.effectiveDate;
+    if (!effectiveDate) return fail("INVALID_ARGUMENT", "设置周期必须指定生效日期");
     node.taskRecurrence = {
       version: 1,
       segments: amendSegments(
         node.taskRecurrence?.segments ?? [],
-        input.effectiveDate!,
+        effectiveDate,
         input.rule ?? null
       ),
     };
   } else {
     const segments = node.taskRecurrence?.segments ?? [];
     if (input.occurrence || segments.length) {
-      if (!input.occurrence) fail("INVALID_ARGUMENT", "周期待办须指定单次实例");
-      assertOccurrence(segments, input.occurrence!);
-      const key = occurrenceKey(input.occurrence!);
+      const occurrence = input.occurrence;
+      if (!occurrence) return fail("INVALID_ARGUMENT", "周期待办须指定单次实例");
+      assertOccurrence(segments, occurrence);
+      const key = occurrenceKey(occurrence);
       const state: TaskOccurrenceState = { ...node.taskOccurrenceState?.[key] };
       if (action === "set_todo_completed") {
         state.completedAt = input.completed ? Date.now() : null;
@@ -437,7 +438,7 @@ export function prepareDocumentUndo(
         container.siblings.push(before.node);
       else {
         const parent = containerAt(next, before.containerPath.slice(0, -1));
-        const index = before.containerPath.at(-1)!;
+        const index = before.containerPath.at(-1) ?? 0;
         const context = before.containerContext;
         const placeholder = parent?.siblings[index];
         if (
@@ -459,8 +460,8 @@ export function prepareDocumentUndo(
           context.previous !== revision(parent.siblings[index - 1] ?? null) ||
           context.next !== revision(parent.siblings[index] ?? null)
         )
-          fail("UNDO_CONFLICT", "原文恢复位置已变化，不能猜测插入位置");
-        parent!.siblings.splice(index, 0, { ...context!.attributes, children: [before.node] });
+          return fail("UNDO_CONFLICT", "原文恢复位置已变化，不能猜测插入位置");
+        parent.siblings.splice(index, 0, { ...context.attributes, children: [before.node] });
       }
     }
   }

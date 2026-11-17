@@ -201,10 +201,11 @@ export async function publishSession(
       connection: "connecting",
       error: undefined,
     };
+    const published = prepared;
     db.transaction(() => {
       const current = ContentDocumentTable.read(db, source.contentId);
       const binding = findCollaborationBinding(db, source.contentId);
-      if (binding && binding.document_id !== prepared!.documentId)
+      if (binding && binding.document_id !== published.documentId)
         throw new Error("正文已关联另一份共享");
       if (!current || current.documentId !== stored.documentId) throw new Error("原正文身份已变化");
       ContentDocumentTable.commit(
@@ -225,13 +226,15 @@ export async function publishSession(
         source.contentId,
         source.contentCreatedAt,
         url,
-        prepared!.documentId,
+        published.documentId,
         source.sourceType ?? null,
         source.sourceId ?? null,
         source.sourceTitle ?? null
       );
     })();
-    source.projectionRevision = ContentDocumentTable.read(db, source.contentId)!.revision;
+    const revisionAfterPublish = ContentDocumentTable.read(db, source.contentId)?.revision;
+    if (revisionAfterPublish === undefined) throw new Error("共享提交后正文读取失败");
+    source.projectionRevision = revisionAfterPublish;
     if (existing) {
       Object.assign(existing.info, info);
       manager.store.metadata(existing.info);
@@ -239,7 +242,7 @@ export async function publishSession(
     } else {
       // 刚发布的房间以远端确认快照为准，同 ID 的冷缓存只可能是旧残留
       manager.store.discard(info.id, "发布时发现同房间的旧缓存");
-      source.projectionRevision = ContentDocumentTable.read(db, source.contentId)!.revision;
+      source.projectionRevision = revisionAfterPublish;
       manager.content.install(info, doc);
     }
     await body.finishPublishedShare(previousId, source, {

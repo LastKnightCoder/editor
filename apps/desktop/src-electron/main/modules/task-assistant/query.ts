@@ -87,9 +87,11 @@ export function queryTasks(
   const warnings: string[] = [];
   const documents = new Map<number, ReturnType<typeof readTaskContent>>();
   const documentTree = (ref: Extract<TaskRef, { kind: "document" }>) => {
-    if (!documents.has(ref.contentId))
-      documents.set(ref.contentId, readTaskContent(db, ref.contentId, ref.createdAt));
-    return documents.get(ref.contentId)!;
+    const cached = documents.get(ref.contentId);
+    if (cached) return cached;
+    const tree = readTaskContent(db, ref.contentId, ref.createdAt);
+    documents.set(ref.contentId, tree);
+    return tree;
   };
   const read = (ref: TaskRef) =>
     ref.kind === "document" ? readDocumentTask(db, ref, documentTree(ref)) : readTask(db, ref);
@@ -101,8 +103,9 @@ export function queryTasks(
   if (query.view === "occurrences" && (!query.start || !query.end))
     fail("INVALID_ARGUMENT", "周期实例查询必须给 start/end");
   if (query.start || query.end) {
-    if (!query.start || !query.end) fail("INVALID_ARGUMENT", "时间窗口必须同时提供 start/end");
-    checkedWindow(query.start!, query.end!);
+    const { start, end } = query;
+    if (!start || !end) return fail("INVALID_ARGUMENT", "时间窗口必须同时提供 start/end");
+    checkedWindow(start, end);
   }
   const expand = (task: AssistantTask): AssistantTask[] => {
     const ref = task.taskRef;
@@ -111,19 +114,22 @@ export function queryTasks(
         ? independentStates(db, ref)
         : ((taskNode(documentTree(ref), ref.taskId) as DocumentTaskAttributes)
             ?.taskOccurrenceState ?? {});
+    const windowStart = query.start;
+    const windowEnd = query.end;
+    if (!windowStart || !windowEnd) throw new Error("周期实例查询缺少时间窗口");
     let holidays: Set<number> | undefined;
     if (task.recurrence?.some(segment => segment.rule?.excludeHolidays)) {
       try {
         holidays = holidayService.cachedHolidayWindow(
-          dateTime(query.start!) - 366 * 86_400_000,
-          dateTime(query.end!)
+          dateTime(windowStart) - 366 * 86_400_000,
+          dateTime(windowEnd)
         );
       } catch {
         warnings.push("部分周期任务缺少节假日数据，结果不完整");
         return [];
       }
     }
-    return occurrences(task.recurrence ?? [], states, query.start!, query.end!, holidays)
+    return occurrences(task.recurrence ?? [], states, windowStart, windowEnd, holidays)
       .filter(
         entry =>
           !entry.state.skipped &&
@@ -255,6 +261,8 @@ export function queryTasks(
           const contentId = Number(row.content_id),
             taskId = String(row.task_id);
           if (!sources?.has(contentId)) continue;
+          const source = sources?.get(contentId);
+          if (!source) continue;
           if (
             db
               .prepare(
@@ -268,14 +276,14 @@ export function queryTasks(
             .get(contentId) as { create_time: number } | undefined;
           if (!content) continue;
           ref = { kind: "document", contentId, taskId, createdAt: content.create_time };
-          row.source_title = sources.get(contentId)!.title;
+          row.source_title = source.title;
         } else ref = refOfTodo(row);
         sourceCandidates.push({
           kind,
           row,
           ref,
           offset: positions[kind],
-          sortValue: row.order_value!,
+          sortValue: row.order_value ?? 0,
         });
       }
     }
@@ -299,7 +307,7 @@ export function queryTasks(
       (a, b) =>
         String(a.dueAt).localeCompare(String(b.dueAt)) ||
         taskKey(a.taskRef).localeCompare(taskKey(b.taskRef)) ||
-        a.occurrence!.occurrenceDate.localeCompare(b.occurrence!.occurrenceDate)
+        (a.occurrence?.occurrenceDate ?? "").localeCompare(b.occurrence?.occurrenceDate ?? "")
     );
     const items = expanded.slice(cursor.occurrence, cursor.occurrence + pageSize);
     const hasMore = cursor.occurrence + items.length < expanded.length;

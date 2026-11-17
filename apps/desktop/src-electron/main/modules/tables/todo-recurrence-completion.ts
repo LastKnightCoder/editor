@@ -162,7 +162,7 @@ export default class TodoRecurrenceCompletionTable {
       db.prepare(
         `UPDATE todo_recurrence_completion SET completed_at = ?, skipped = 0 WHERE id = ?`
       ).run(now, existing.id);
-      return this.getCompletion(db, params)!;
+      return this.savedCompletion(db, params);
     }
 
     db.prepare(
@@ -170,7 +170,17 @@ export default class TodoRecurrenceCompletionTable {
        VALUES (?, ?, ?, 0, ?)`
     ).run(params.recurrenceId, params.scheduledDate, now, now);
 
-    return this.getCompletion(db, params)!;
+    return this.savedCompletion(db, params);
+  }
+
+  /** upsert 后回读；写读不一致按数据异常抛出 */
+  private static savedCompletion(
+    db: Database.Database,
+    params: { recurrenceId: number; scheduledDate: number }
+  ): TodoRecurrenceCompletion {
+    const saved = this.getCompletion(db, params);
+    if (!saved) throw new Error(`完成记录写入后读取失败：${params.recurrenceId}`);
+    return saved;
   }
 
   // 取消周期任务的完成状态
@@ -204,7 +214,7 @@ export default class TodoRecurrenceCompletionTable {
       db.prepare(
         `UPDATE todo_recurrence_completion SET skipped = 1, completed_at = NULL WHERE id = ?`
       ).run(existing.id);
-      return this.getCompletion(db, params)!;
+      return this.savedCompletion(db, params);
     }
 
     db.prepare(
@@ -212,7 +222,7 @@ export default class TodoRecurrenceCompletionTable {
        VALUES (?, ?, NULL, 1, ?)`
     ).run(params.recurrenceId, params.scheduledDate, now);
 
-    return this.getCompletion(db, params)!;
+    return this.savedCompletion(db, params);
   }
 
   // 删除周期任务的所有完成记录

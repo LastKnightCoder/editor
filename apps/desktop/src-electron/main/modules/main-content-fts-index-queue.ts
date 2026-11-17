@@ -100,7 +100,7 @@ class MainContentFtsIndexQueue implements Module {
   private static readonly WRITE_MAX_WAIT_MS = 5000;
   private readonly pendingWrites = new Map<
     string,
-    { contentIds: Set<number>; timer: NodeJS.Timeout; since: number }
+    { contentIds: Set<number>; timer: NodeJS.Timeout | undefined; since: number }
   >();
 
   async init() {
@@ -121,7 +121,7 @@ class MainContentFtsIndexQueue implements Module {
     const now = Date.now();
     const pending = this.pendingWrites.get(dbName);
     if (pending) clearTimeout(pending.timer);
-    const entry = pending ?? { contentIds: new Set<number>(), since: now, timer: undefined! };
+    const entry = pending ?? { contentIds: new Set<number>(), since: now, timer: undefined };
     entry.contentIds.add(contentId);
     const delay = Math.max(
       0,

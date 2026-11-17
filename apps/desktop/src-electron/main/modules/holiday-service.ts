@@ -226,12 +226,9 @@ class HolidayServiceModule implements Module {
     dates.forEach((date, index) => {
       const d = new Date(date);
       const year = d.getFullYear();
-
-      if (!datesByYear.has(year)) {
-        datesByYear.set(year, []);
-      }
-
-      datesByYear.get(year)!.push({ date: d, index });
+      const bucket = datesByYear.get(year) ?? [];
+      bucket.push({ date: d, index });
+      datesByYear.set(year, bucket);
     });
 
     // 预加载所有需要的年份数据

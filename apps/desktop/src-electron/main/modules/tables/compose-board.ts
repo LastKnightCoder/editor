@@ -92,7 +92,9 @@ export default class ComposeBoardTable {
       `INSERT INTO compose_boards (content_id, page_id, intent, dismissed, create_time, update_time)
        VALUES (?, ?, ?, '[]', ?, ?)`
     ).run(id, page.id, String(intent ?? "").trim(), now, now);
-    return this.get(db, id)!;
+    const created = this.get(db, id);
+    if (!created) throw new Error("创作板写入后读取失败");
+    return created;
   }
 
   static setIntent(db: Database.Database, contentId: number, intent: string): ComposeBoard | null {

@@ -7,6 +7,7 @@ import DataTableTable from "../data-table";
 import DataTableViewTable from "../data-table-view";
 import WhiteboardContentTable from "../white-board-content";
 import ProjectTable from "../project";
+import { must } from "../../../test-support";
 
 vi.mock("electron");
 vi.mock("../../video-note-index-queue");
@@ -62,13 +63,16 @@ describe("领域命令直接接纳稳定引用", () => {
     ContentIdentityTable.establishBaseline(db);
     const a = DataTableTable.createPending(db),
       b = DataTableTable.createPending(db);
-    const foreignView = b.table.activeViewId!;
+    const foreignView = must(b.table.activeViewId, "b.table.activeViewId");
     expect(() => DataTableViewTable.remove(db, { id: foreignView, tableId: a.reference })).toThrow(
       "视图不属于"
     );
     expect(() =>
       DataTableViewTable.update(db, {
-        ...DataTableViewTable.getById(db, foreignView)!,
+        ...must(
+          DataTableViewTable.getById(db, foreignView),
+          "DataTableViewTable.getById(db, foreignView)"
+        ),
         tableId: a.reference,
       })
     ).toThrow("视图不属于");

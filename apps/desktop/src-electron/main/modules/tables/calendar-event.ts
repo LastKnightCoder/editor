@@ -150,7 +150,8 @@ export default class CalendarEventTable {
         )
         .all(...part) as SqliteRow[];
       for (const event of rows.map(row => this.parseCalendarEvent(row))) {
-        const entry = (result[event.todoItemId!] ??= { count: 0 });
+        if (event.todoItemId == null) continue;
+        const entry = (result[event.todoItemId] ??= { count: 0 });
         entry.count += 1;
         if (endOf(event) > params.now) {
           if (!entry.next || startOf(event) < startOf(entry.next)) entry.next = event;

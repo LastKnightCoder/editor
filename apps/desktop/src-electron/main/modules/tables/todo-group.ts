@@ -11,7 +11,7 @@ import type { SqliteRow } from "../../types/table";
 
 // 系统组配置
 const SYSTEM_GROUPS: Array<{
-  systemType: TodoSystemGroupType;
+  systemType: Exclude<TodoSystemGroupType, null>;
   title: string;
 }> = [
   { systemType: "all", title: "全部任务" },
@@ -31,7 +31,7 @@ export default class TodoGroupTable {
 
     for (let i = 0; i < SYSTEM_GROUPS.length; i++) {
       const { systemType, title } = SYSTEM_GROUPS[i];
-      if (!existingSet.has(systemType!)) {
+      if (!existingSet.has(systemType)) {
         db.prepare(
           `INSERT INTO todo_group (title, is_system, system_type, sort_index, is_archived, create_time, update_time)
            VALUES (?, 1, ?, ?, 0, ?, ?)`

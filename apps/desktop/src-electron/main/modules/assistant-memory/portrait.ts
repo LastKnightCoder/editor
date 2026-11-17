@@ -62,7 +62,10 @@ export function parsePortrait(
   });
   if (!lines.length || lines.length * 2 < raw.length) return null;
   const basis: Record<string, string> = {};
-  for (const id of lines.flatMap(line => line.modelIds)) basis[id] = byId.get(id)!.text;
+  for (const id of lines.flatMap(line => line.modelIds)) {
+    const model = byId.get(id);
+    if (model) basis[id] = model.text;
+  }
   return { lines, generatedAt: now, basis };
 }
 

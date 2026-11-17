@@ -11,6 +11,7 @@ import {
   parseTopicOutput,
   replaceRefs,
 } from "../topic-insights-prompt";
+import { must } from "../../test-support";
 
 const note = (no: number) => ({
   no,
@@ -46,28 +47,31 @@ describe("topic-insights 提示词", () => {
   });
 
   it("子主题输出：只认给出的编号，矛盾带双方主张，片段按编号收", () => {
-    const parsed = parseSubtopicOutput(
-      JSON.stringify({
-        overview: "讲事件循环",
-        shift: "",
-        pattern: { text: "画时序表", notes: [1, 2, 99], why: "都画表" },
-        chain: { notes: [1, 2, 3], missing: { before: 2, text: "渲染时机" }, why: "跳着" },
-        pairs: [
-          {
-            pair: "P1",
-            type: "conflict",
-            why: "相反",
-            claims: ["甲", "乙"],
-            anchors: { "2": "原文片段" },
-          },
-          { pair: "P1", type: "dup", why: "重复项" },
-          { pair: "P9", type: "dup", why: "不存在" },
-          { pair: "P2", type: "related", why: "类型不对" },
-        ],
-      }),
-      new Set([1, 2, 3]),
-      new Set([1, 2])
-    )!;
+    const parsed = must(
+      parseSubtopicOutput(
+        JSON.stringify({
+          overview: "讲事件循环",
+          shift: "",
+          pattern: { text: "画时序表", notes: [1, 2, 99], why: "都画表" },
+          chain: { notes: [1, 2, 3], missing: { before: 2, text: "渲染时机" }, why: "跳着" },
+          pairs: [
+            {
+              pair: "P1",
+              type: "conflict",
+              why: "相反",
+              claims: ["甲", "乙"],
+              anchors: { "2": "原文片段" },
+            },
+            { pair: "P1", type: "dup", why: "重复项" },
+            { pair: "P9", type: "dup", why: "不存在" },
+            { pair: "P2", type: "related", why: "类型不对" },
+          ],
+        }),
+        new Set([1, 2, 3]),
+        new Set([1, 2])
+      ),
+      "parseSubtopicOutput"
+    );
     expect(parsed.pattern).toEqual({ text: "画时序表", notes: [1, 2], why: "都画表" });
     expect(parsed.chain).toMatchObject({
       notes: [1, 2, 3],
@@ -80,29 +84,35 @@ describe("topic-insights 提示词", () => {
     expect(parseSubtopicOutput("不是 JSON", new Set(), new Set())).toBeNull();
     // 缺口不在链上、链太短都不要
     expect(
-      parseSubtopicOutput(
-        JSON.stringify({ chain: { notes: [1, 2], missing: { before: 3, text: "x" } } }),
-        new Set([1, 2, 3]),
-        new Set()
-      )!.chain
+      must(
+        parseSubtopicOutput(
+          JSON.stringify({ chain: { notes: [1, 2], missing: { before: 3, text: "x" } } }),
+          new Set([1, 2, 3]),
+          new Set()
+        ),
+        "parseSubtopicOutput"
+      ).chain
     ).toBeNull();
   });
 
   it("主题输出：挑选与还缺合计不超过 6，挑选只认候选编号", () => {
-    const parsed = parseTopicOutput(
-      JSON.stringify({
-        overview: "o",
-        lead: "l",
-        gaps: [
-          { text: "还缺：模块加载", why: "w" },
-          { text: "还缺：内存", why: "w" },
-          { text: "多的" },
-        ],
-        asks: ["a", "b", "c"],
-        pick: ["M1", "M2", "M3", "M4", "M5", "M9", "M2"],
-      }),
-      new Set([1, 2, 3, 4, 5])
-    )!;
+    const parsed = must(
+      parseTopicOutput(
+        JSON.stringify({
+          overview: "o",
+          lead: "l",
+          gaps: [
+            { text: "还缺：模块加载", why: "w" },
+            { text: "还缺：内存", why: "w" },
+            { text: "多的" },
+          ],
+          asks: ["a", "b", "c"],
+          pick: ["M1", "M2", "M3", "M4", "M5", "M9", "M2"],
+        }),
+        new Set([1, 2, 3, 4, 5])
+      ),
+      "parseTopicOutput"
+    );
     expect(parsed.gaps).toHaveLength(2);
     expect(parsed.pick).toEqual([1, 2, 3, 4]);
     expect(parsed.asks).toEqual(["a", "b"]);
@@ -130,25 +140,28 @@ describe("topic-insights 提示词", () => {
     expect(prompt).toContain(
       "A1（问过 3 次，最近 9 月 28 日，最接近的主题：JavaScript）：「rAF 在微任务前后？」"
     );
-    const parsed = parseGlobalOutput(
-      JSON.stringify({
-        lead: "版图",
-        bridges: [
-          { candidate: "B1", principle: "主动回想比重读记得牢", why: "都是提取练习" },
-          { candidate: "B1", why: "没有共同道理的被丢掉" },
-          { candidate: "B1", why: "重复" },
-          { candidate: "B2", why: "不存在" },
-          { candidate: "B1x", why: "" },
-        ],
-        asked: [
-          { group: "A1", question: "事件循环和渲染时机", why: "问了 3 次" },
-          { group: "A7", question: "x" },
-        ],
-        asks: ["q1", "q2"],
-      }),
-      new Set([1]),
-      new Set([1])
-    )!;
+    const parsed = must(
+      parseGlobalOutput(
+        JSON.stringify({
+          lead: "版图",
+          bridges: [
+            { candidate: "B1", principle: "主动回想比重读记得牢", why: "都是提取练习" },
+            { candidate: "B1", why: "没有共同道理的被丢掉" },
+            { candidate: "B1", why: "重复" },
+            { candidate: "B2", why: "不存在" },
+            { candidate: "B1x", why: "" },
+          ],
+          asked: [
+            { group: "A1", question: "事件循环和渲染时机", why: "问了 3 次" },
+            { group: "A7", question: "x" },
+          ],
+          asks: ["q1", "q2"],
+        }),
+        new Set([1]),
+        new Set([1])
+      ),
+      "parseGlobalOutput"
+    );
     expect(parsed.bridges).toEqual([
       { candidate: 1, principle: "主动回想比重读记得牢", why: "都是提取练习", anchors: {} },
     ]);
@@ -157,31 +170,37 @@ describe("topic-insights 提示词", () => {
   });
 
   it("项目回顾：可能属于这里与还薄只认编号、限量；结项回顾的归入项目可为空", () => {
-    const growth = parseGrowthReviewOutput(
-      JSON.stringify({
-        lead: "长了 8 篇",
-        belong: [
-          { candidate: "C1", branch: "D1", why: "补上合成" },
-          { candidate: "C1", branch: "D2", why: "重复" },
-          { candidate: "C2", branch: "D9", why: "分支不存在" },
-        ],
-        thin: [{ branch: "D2", text: "这里还薄：只讲了工具", why: "w" }],
-      }),
-      new Set([1, 2]),
-      new Set([1, 2])
-    )!;
+    const growth = must(
+      parseGrowthReviewOutput(
+        JSON.stringify({
+          lead: "长了 8 篇",
+          belong: [
+            { candidate: "C1", branch: "D1", why: "补上合成" },
+            { candidate: "C1", branch: "D2", why: "重复" },
+            { candidate: "C2", branch: "D9", why: "分支不存在" },
+          ],
+          thin: [{ branch: "D2", text: "这里还薄：只讲了工具", why: "w" }],
+        }),
+        new Set([1, 2]),
+        new Set([1, 2])
+      ),
+      "parseGrowthReviewOutput"
+    );
     expect(growth.belong).toEqual([{ candidate: 1, branch: 1, why: "补上合成" }]);
     expect(growth.thin[0]).toMatchObject({ branch: 2 });
-    const final = parseFinalReviewOutput(
-      JSON.stringify({
-        lead: "留下 3 个观点",
-        core: ["D1", "D3", "D9"],
-        asks: ["为什么"],
-        home: null,
-      }),
-      new Set([1, 2, 3]),
-      new Set([1])
-    )!;
+    const final = must(
+      parseFinalReviewOutput(
+        JSON.stringify({
+          lead: "留下 3 个观点",
+          core: ["D1", "D3", "D9"],
+          asks: ["为什么"],
+          home: null,
+        }),
+        new Set([1, 2, 3]),
+        new Set([1])
+      ),
+      "parseFinalReviewOutput"
+    );
     expect(final).toEqual({ lead: "留下 3 个观点", core: [1, 3], asks: ["为什么"], home: null });
   });
 

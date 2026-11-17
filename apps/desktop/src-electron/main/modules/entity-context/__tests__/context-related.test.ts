@@ -9,6 +9,7 @@ vi.mock("../../video-note-index-queue");
 
 import ContentAiMetaTable from "../../tables/content-ai-meta";
 import { ensureRelatedThreshold, relatedOf, sampleRelatedThreshold } from "../context-related";
+import { must } from "../../../test-support";
 
 const DIM = 8;
 
@@ -85,7 +86,7 @@ describe("脉络「相关」", () => {
   });
 
   it("阈值取随机对 p95，存 index_meta；指纹变化后重新抽样", () => {
-    const first = ensureRelatedThreshold(index)!;
+    const first = must(ensureRelatedThreshold(index), "ensureRelatedThreshold(index)");
     expect(first.pairs).toBeGreaterThanOrEqual(100);
     expect(first.value).toBeGreaterThan(0.3);
     expect(first.value).toBeLessThan(0.9);

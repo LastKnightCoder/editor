@@ -22,6 +22,7 @@ import { listMaterialIndexDocs } from "../main/modules/material-index";
 import { getEntityContext } from "../main/modules/entity-context/context-query";
 import { reconcileRefs } from "../main/modules/entity-context/ref-indexer";
 import { reconcileWhiteboardRefs } from "../main/modules/entity-context/whiteboard-indexer";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_CONTEXT_EVAL_MAIN;
 const SCHEMA_DIR = resolve(__dirname, "../../../../packages/db-schema/schema");
@@ -32,7 +33,7 @@ const percentile = (sorted: number[], p: number) =>
 it.skipIf(!MAIN)(
   "脉络实测（真实库副本）",
   async () => {
-    const main = new Database(MAIN!);
+    const main = new Database(must(MAIN, "MAIN"));
     const index = new Database(":memory:");
     index.exec(readFileSync(resolve(SCHEMA_DIR, "index.sql"), "utf8"));
     const timed = async <T>(label: string, run: () => T | Promise<T>) => {

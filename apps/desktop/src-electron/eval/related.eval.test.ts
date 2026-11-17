@@ -43,6 +43,7 @@ import {
   relatedExclusions,
   relatedOf,
 } from "../main/modules/entity-context/context-related";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_RELATED_EVAL_MAIN;
 const INDEX = process.env.KL_RELATED_EVAL_INDEX;
@@ -57,13 +58,13 @@ const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s+/g, " ").t
 it.skipIf(!MAIN || !INDEX)(
   "「相关」召回与抽查（真实库副本）",
   async () => {
-    const main = new Database(MAIN!);
+    const main = new Database(must(MAIN, "MAIN"));
     // 副本可能早于本分支，补齐新表（含 content_ai_meta）
     main.exec(mainSchema);
-    const rebuilt = REBUILD ? await rebuildIndex(main, INDEX!, REBUILD) : null;
+    const rebuilt = REBUILD ? await rebuildIndex(main, must(INDEX, "INDEX"), REBUILD) : null;
     if (rebuilt) console.log("[related-eval] 重建完成", rebuilt);
     // 阈值会写进索引库副本的 index_meta
-    const memory = new Database(INDEX!);
+    const memory = new Database(must(INDEX, "INDEX"));
     sqliteVec.load(memory);
 
     const thresholdStarted = performance.now();
@@ -111,11 +112,15 @@ it.skipIf(!MAIN || !INDEX)(
       const neighbors = KnowledgeMapTable.neighborsOf(memory, entityRefKey(ref), NEIGHBOR_K);
       const found = neighbors.find(neighbor => targets.has(neighbor.key));
       if (found) inNeighbors++;
-      if (found && found.similarity > threshold!.value) aboveThreshold++;
+      if (found && found.similarity > must(threshold, "threshold").value) aboveThreshold++;
       // 与 relatedOf 同口径：过阈值、按身份与正文排除、同一正文只取一次
       const top: number[] = [];
       for (const neighbor of neighbors) {
-        if (top.length >= RELATED_LIMIT || neighbor.similarity <= threshold!.value) break;
+        if (
+          top.length >= RELATED_LIMIT ||
+          neighbor.similarity <= must(threshold, "threshold").value
+        )
+          break;
         if (exclusions.keys.has(neighbor.key)) continue;
         const [kind, id] = neighbor.key.split(":");
         const located = ContentLinkTable.canonicalContentIdOf(main, {
@@ -173,13 +178,14 @@ it.skipIf(!MAIN || !INDEX)(
     }
     allTimes.sort((x, y) => x - y);
 
+    const activeThreshold = must(threshold, "threshold");
     const report = [
       `# 脉络「相关」评估`,
       "",
       rebuilt
         ? `- 向量：重建（${REBUILD}），${rebuilt.indexed} 个实体成功、${rebuilt.failed} 个失败，${rebuilt.dimensions} 维，用时 ${Math.round(rebuilt.seconds)} 秒`
         : `- 向量：现有索引库副本`,
-      `- 有向量的实体 ${hasVectors.size} 个；阈值（随机对 p${Math.round(0.95 * 100)}）${threshold!.value.toFixed(3)}，样本 ${threshold!.pairs} 对，抽样 ${Math.round(thresholdMs)} ms`,
+      `- 有向量的实体 ${hasVectors.size} 个；阈值（随机对 p${Math.round(0.95 * 100)}）${activeThreshold.value.toFixed(3)}，样本 ${activeThreshold.pairs} 对，抽样 ${Math.round(thresholdMs)} ms`,
       `- 召回：两端都有向量的显式连接 ${pairs.length} 对（共 ${edges.length} 条），藏起 ${hidden.length} 对；在前 ${NEIGHBOR_K} 近邻 ${inNeighbors}（${((inNeighbors / Math.max(1, hidden.length)) * 100).toFixed(1)}%），近邻里高于阈值 ${aboveThreshold}（${((aboveThreshold / Math.max(1, hidden.length)) * 100).toFixed(1)}%），**进入「相关」前 ${RELATED_LIMIT} 条 ${inTop5}（${((inTop5 / Math.max(1, hidden.length)) * 100).toFixed(1)}%）**`,
       `- 抽查 ${SPOT_CHECKS} 个实体：「相关」条数分布 ${counts.join(" / ")}`,
       `- 查询耗时（${allTimes.length} 张卡）：平均 ${(allTimes.reduce((a, b) => a + b, 0) / Math.max(1, allTimes.length)).toFixed(1)} ms，p95 ${percentile(allTimes, 0.95).toFixed(1)} ms，最大 ${(allTimes[allTimes.length - 1] ?? 0).toFixed(1)} ms`,

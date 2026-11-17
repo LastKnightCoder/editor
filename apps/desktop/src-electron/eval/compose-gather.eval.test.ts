@@ -36,6 +36,7 @@ import { rng } from "./eval-index-rebuild";
 import ContentTable from "../main/modules/tables/content";
 import VecDocumentTable from "../main/modules/tables/vec-document";
 import { createEvalCompleter } from "./eval-llm";
+import { must } from "../main/test-support";
 
 const MAIN = process.env.KL_COMPOSE_EVAL_MAIN;
 const INDEX = process.env.KL_COMPOSE_EVAL_INDEX;
@@ -56,9 +57,9 @@ it.skipIf(!MAIN || !INDEX)(
   async () => {
     const llm = await createEvalCompleter(["contentInsights", "contentMetadata"]);
     expect(llm, "设置里「AI 洞见」与「笔记元信息」都还没配模型").not.toBeNull();
-    const main = new Database(MAIN!);
+    const main = new Database(must(MAIN, "MAIN"));
     main.exec(mainSchema);
-    const index = new Database(INDEX!);
+    const index = new Database(must(INDEX, "INDEX"));
     sqliteVec.load(index);
 
     const modelInfo = {
@@ -143,11 +144,11 @@ it.skipIf(!MAIN || !INDEX)(
       const started = performance.now();
       try {
         const result = await gather(
-          { embed, complete: request => llm!.complete(request) },
+          { embed, complete: request => must(llm, "llm").complete(request) },
           main,
           index,
           { contentId: sample.contentId, intent: sample.intent, exclude: [] },
-          llm!.slot
+          must(llm, "llm").slot
         );
         results.push({ sample, result, error: "", seconds: (performance.now() - started) / 1000 });
       } catch (error) {
@@ -163,14 +164,17 @@ it.skipIf(!MAIN || !INDEX)(
 
     const ok = results.filter(item => item.result);
     const picked = ok.reduce(
-      (sum, item) => sum + item.result!.groups.reduce((n, group) => n + group.items.length, 0),
+      (sum, item) =>
+        sum +
+        must(item.result, "item.result").groups.reduce((n, group) => n + group.items.length, 0),
       0
     );
+    const activeLlm = must(llm, "llm");
     const lines = [
       "# 创作模式召集评估",
       "",
-      `模型：${llm!.slot.providerId}/${llm!.slot.modelId}（槽 ${llm!.slotName}）；样本 ${samples.length}，成功 ${ok.length}。`,
-      `用量：${llm!.usage.calls} 次调用，输入 ${llm!.usage.input.toLocaleString()} / 输出 ${llm!.usage.output.toLocaleString()} token；平均每次 ${(
+      `模型：${activeLlm.slot.providerId}/${activeLlm.slot.modelId}（槽 ${activeLlm.slotName}）；样本 ${samples.length}，成功 ${ok.length}。`,
+      `用量：${activeLlm.usage.calls} 次调用，输入 ${activeLlm.usage.input.toLocaleString()} / 输出 ${activeLlm.usage.output.toLocaleString()} token；平均每次 ${(
         results.reduce((sum, item) => sum + item.seconds, 0) / results.length
       ).toFixed(1)} 秒，平均摆上 ${(picked / Math.max(1, ok.length)).toFixed(1)} 份。`,
       "",

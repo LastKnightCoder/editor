@@ -9,15 +9,22 @@ import type { RuntimeSession } from "../types";
 import { ContentDocumentTable } from "../../tables/content-document";
 import { contentSession } from "../content-sessions";
 import { restartHandoffRuntime, setup } from "./manager-node-document.helpers";
+import { must } from "../../../test-support";
 
 afterEach(resetAfterEach);
 
 describe("共享发布、结束与解绑恢复", () => {
   it("转换后发布原类型及业务字段，结束共享接回最终正文且保持主库身份", async () => {
     const { runtime, db, server, owner, event, localSessions } = await setup();
-    const identity = ContentDocumentTable.read(db, 7)!.documentId;
+    const identity = must(
+      ContentDocumentTable.read(db, 7),
+      "ContentDocumentTable.read(db, 7)"
+    ).documentId;
     const shared = await runtime.createContent(event, 7);
-    const session = runtime.content.sessions.get(shared.documentId)!;
+    const session = must(
+      runtime.content.sessions.get(shared.documentId),
+      "runtime.content.sessions.get(shared.documentId)"
+    );
     session.provider = {
       synced: true,
       hasUnsyncedChanges: false,
@@ -80,7 +87,11 @@ describe("共享发布、结束与解绑恢复", () => {
       `/v1/documents/${shared.documentId}/assets`,
     ]);
     snapshotRequests.mockRestore();
-    expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("远端输入正文");
+    expect(
+      JSON.stringify(
+        must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").content
+      )
+    ).toContain("远端输入正文");
     session.info.leaving = true;
     const request = runtime.client.request.bind(runtime.client);
     let attempt = 0;
@@ -108,17 +119,22 @@ describe("共享发布、结束与解绑恢复", () => {
       closeRequests.mock.calls.filter(args => String(args[1]).endsWith("/close"))
     ).toHaveLength(3);
     expect(server.store.document(shared.documentId).status).toBe("closed");
-    const local = [...localSessions.values()][0]!;
+    const local = must([...localSessions.values()][0], "[...localSessions.values()][0]");
     expect(local).toBeDefined();
     expect(JSON.stringify(readNodeDocument(local.doc).content)).toContain("远端输入正文");
-    expect(ContentDocumentTable.read(db, 7)!.documentId).toBe(identity);
+    expect(
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").documentId
+    ).toBe(identity);
     expect(db.prepare("SELECT * FROM collaboration_bindings").all()).toEqual([]);
   });
 
   it.each([false, true])("关闭修订冲突只在确认房间仍活动时解除冻结（已关闭=%s）", async closed => {
     const { runtime, server, owner, event, store } = await setup();
     const { documentId } = await runtime.createContent(event, 7);
-    const session = runtime.content.sessions.get(documentId)!;
+    const session = must(
+      runtime.content.sessions.get(documentId),
+      "runtime.content.sessions.get(documentId)"
+    );
     await runtime.prepareLeave(session);
     session.info.leaving = true;
     const revision = store.get(`close-revision:${documentId}`, "");
@@ -156,7 +172,7 @@ describe("共享发布、结束与解绑恢复", () => {
     const { runtime, localSessions, event, localId, server, loseResponse } = await setup();
     loseResponse();
     await expect(runtime.createContent(event, 7)).rejects.toThrow("响应丢失");
-    expect(localSessions.get(localId)!.info.frozen).toBe(true);
+    expect(must(localSessions.get(localId), "localSessions.get(localId)").info.frozen).toBe(true);
     const result = await runtime.createContent(event, 7);
     expect(runtime.content.sessions.has(result.documentId)).toBe(true);
     expect(server.store.db.prepare("SELECT count(*) AS count FROM documents").get()).toEqual({
@@ -217,7 +233,7 @@ describe("共享发布、结束与解绑恢复", () => {
       await expect(runtime.createContent(event, 7)).rejects.toThrow("主库发布事务之后中断");
       const candidate = localStore.get<PreparedContentShare | null>(key, null);
       if (!candidate) throw new Error("发布候选未耐久保存");
-      const committed = ContentDocumentTable.read(db, 7)!;
+      const committed = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
       expect(db.prepare("SELECT document_id FROM collaboration_bindings").all()).toEqual([
         { document_id: candidate.documentId },
       ]);
@@ -281,8 +297,11 @@ describe("共享发布、结束与解绑恢复", () => {
     const original = await setup();
     const { runtime, event, db, server, owner, store, localId } = original;
     const { documentId } = await runtime.createContent(event, 7);
-    const session = runtime.content.sessions.get(documentId)!;
-    const before = ContentDocumentTable.read(db, 7)!;
+    const session = must(
+      runtime.content.sessions.get(documentId),
+      "runtime.content.sessions.get(documentId)"
+    );
+    const before = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     const epoch = Number(session.doc.getMap("meta").get("epoch"));
     await runtime.prepareLeave(session);
     session.info.leaving = true;
@@ -358,16 +377,22 @@ describe("共享发布、结束与解绑恢复", () => {
 it.each([false, true])("主库解绑已提交而本机安装中断后恢复（有更新的冷写=%s）", async coldWrite => {
   const original = await setup();
   const { runtime, local, localStore, localSessions, localId, db, server, event } = original;
-  const localBefore = localSessions.get(localId)!;
+  const localBefore = must(localSessions.get(localId), "localSessions.get(localId)");
   const stale = new Y.Doc({ gc: false });
   Y.applyUpdate(stale, Y.encodeStateAsUpdate(localBefore.doc));
   const staleInfo = structuredClone(localBefore.info);
-  const initialIdentity = ContentDocumentTable.read(db, 7)!.documentId;
+  const initialIdentity = must(
+    ContentDocumentTable.read(db, 7),
+    "ContentDocumentTable.read(db, 7)"
+  ).documentId;
   const { documentId } = await runtime.createContent(event, 7);
   // 旧版本可能保留同一个本机会话 ID 的冷缓存。
   localStore.create(staleInfo, stale);
   stale.destroy();
-  const session = runtime.content.sessions.get(documentId)!;
+  const session = must(
+    runtime.content.sessions.get(documentId),
+    "runtime.content.sessions.get(documentId)"
+  );
   const sharedEpoch = session.doc.getMap("meta").get("epoch") as number;
   const room = server.store.loadDocument(documentId);
   const remote = new Y.Doc({ gc: false });
@@ -407,7 +432,7 @@ it.each([false, true])("主库解绑已提交而本机安装中断后恢复（�
   expect(original.store.get("generation:library:7", 0)).toBe(1);
 
   if (coldWrite) {
-    const current = ContentDocumentTable.read(db, 7)!;
+    const current = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     ContentDocumentTable.commit(
       db,
       7,
@@ -436,7 +461,9 @@ it.each([false, true])("主库解绑已提交而本机安装中断后恢复（�
   }
   expect(restarted.localLog.get(planKey, null)).toBeNull();
   expect(restarted.local.getSession(localId)).toBe(restored);
-  expect(ContentDocumentTable.read(db, 7)!.documentId).toBe(initialIdentity);
+  expect(
+    must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").documentId
+  ).toBe(initialIdentity);
   expect(db.prepare("SELECT ref_count FROM contents WHERE id=7").get()).toEqual({ ref_count: 1 });
 
   restarted.sharedLog.set(`identity:${host.serverUrl}`, JSON.stringify(original.owner));
@@ -455,7 +482,10 @@ it.each([false, true])("主库解绑已提交而本机安装中断后恢复（�
 it("解绑事务回滚保留绑定，重试同一关闭结果不重复推进发布代次", async () => {
   const { runtime, localStore, localId, db, event, store } = await setup();
   const { documentId } = await runtime.createContent(event, 7);
-  const session = runtime.content.sessions.get(documentId)!;
+  const session = must(
+    runtime.content.sessions.get(documentId),
+    "runtime.content.sessions.get(documentId)"
+  );
   await runtime.prepareLeave(session);
   session.info.leaving = true;
   db.exec(`CREATE TRIGGER reject_unbind BEFORE DELETE ON collaboration_bindings

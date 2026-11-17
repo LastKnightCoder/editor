@@ -24,6 +24,7 @@ import { ContentIdentityTable } from "../../tables/content-identity";
 import { unregisterContentSession } from "../content-sessions";
 import type { DocumentDrain, DocumentDrainScope } from "../../durable-document-lifecycle";
 import { cleanup, host } from "./manager-node-document.mocks";
+import { must } from "../../../test-support";
 
 export type Runtime = {
   content: Pick<
@@ -133,7 +134,7 @@ export async function setup(realtime = false, paragraphs?: readonly string[]) {
   });
   const local = createLocalContentRuntime(localStore, localAssets);
   const localSessions = local["sessions"];
-  const localState = local["contentState"]!;
+  const localState = must(local["contentState"], "local['contentState']");
   const localRuntime = local as unknown as Pick<
     SharedSessions,
     "project" | "drainDatabase" | "views" | "freezeWaiters" | "acknowledgeFreeze" | "startAutoFlush"

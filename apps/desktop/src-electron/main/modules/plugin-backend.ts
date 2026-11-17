@@ -121,8 +121,10 @@ export const pluginBackends = new PluginBackendManager({
       "TMPDIR",
       "LANG",
       "LC_ALL",
-    ])
-      if (process.env[key]) env[key] = process.env[key]!;
+    ]) {
+      const value = process.env[key];
+      if (value !== undefined) env[key] = value;
+    }
     return utilityProcess.fork(path.join(__dirname, "plugin-backend-worker.js"), [], {
       cwd: descriptor.cwd,
       env,
@@ -486,13 +488,15 @@ export default {
             cpuPercent: metrics.cpu.percentCPUUsage,
             memoryKiB: metrics.memory.workingSetSize,
           };
+        const backend = descriptor.manifest.backend;
+        if (!backend) throw new Error("插件未声明后台");
         return {
           systemReviewed: descriptor.source?.systemReviewed === true,
           executionAvailable,
           pluginId: id,
           version: descriptor.manifest.version,
           digest: descriptor.digest,
-          backend: descriptor.manifest.backend!,
+          backend,
           enabled: (await readLocalPluginState(root())).enabled[id] === true,
           authorized,
           status,

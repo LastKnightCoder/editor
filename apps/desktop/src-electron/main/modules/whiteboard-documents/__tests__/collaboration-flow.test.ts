@@ -17,6 +17,7 @@ import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { replaceStoredBaseline } from "../../../../../../collaboration-server/src/testing/replace-baseline";
+import { must } from "../../../test-support";
 
 /** 两台设备各自一套主进程白板模块与本机库，经真实服务端路由协作。 */
 const state = vi.hoisted(() => ({
@@ -63,7 +64,10 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../local-state", () => ({
-  openWhiteboardState: () => ({ store: state.store!, assets: state.assets! }),
+  openWhiteboardState: () => ({
+    store: must(state.store, "state.store"),
+    assets: must(state.assets, "state.assets"),
+  }),
 }));
 vi.mock("../../../module-init/ModuleInitManager", () => ({
   default: { initModule: async () => ({ success: true }) },
@@ -186,10 +190,10 @@ async function side(nickname: string, window: number, database: string): Promise
 }
 const call = (side: Side, name: string, ...args: unknown[]) => {
   acting = side.device;
-  return side.handlers.get(`whiteboard-document:${name}`)!(
-    { sender: state.windows.find(w => w.id === side.window).webContents },
-    ...args
-  );
+  return must(
+    side.handlers.get(`whiteboard-document:${name}`),
+    "side.handlers.get(`whiteboard-document:${name}`)"
+  )({ sender: state.windows.find(w => w.id === side.window).webContents }, ...args);
 };
 /** 渲染端排空回执：模拟窗口冲刷 outbox 后确认。 */
 async function acknowledgeDrains(target: Side) {
@@ -404,7 +408,7 @@ it("服务端推送立即耐久投影，重复状态不推进修订，释放后�
   const { created, room } = await sharedBoard(owner);
   const lease = await call(owner, "open", "A", created.contentIds[0], "push-view");
   await call(owner, "remote-open", lease.leaseId, URL);
-  const receive = state.pushReceivers.at(-1)!;
+  const receive = must(state.pushReceivers.at(-1), "state.pushReceivers.at(-1)");
   const doc = server.store.loadDocument(room.documentId);
   const model = new WhiteboardModel(doc);
   try {
@@ -414,7 +418,10 @@ it("服务端推送立即耐久投影，重复状态不推进修订，释放后�
     const gate = new Promise<void>(resolve => {
       unblock = resolve;
     });
-    const key = owner.module.remoteViews.get(lease.leaseId)!.key;
+    const key = must(
+      owner.module.remoteViews.get(lease.leaseId),
+      "owner.module.remoteViews.get(lease.leaseId)"
+    ).key;
     const waiting = owner.module.serialRemote(key, () => gate);
     try {
       let applied = false;
@@ -449,7 +456,8 @@ it("耐久保存后立即发送实时增量，不等待在途 HTTP；无效输�
     unblock = resolve;
   });
   const waiting = owner.module.serialRemote(
-    owner.module.remoteViews.get(lease.leaseId)!.key,
+    must(owner.module.remoteViews.get(lease.leaseId), "owner.module.remoteViews.get(lease.leaseId)")
+      .key,
     () => gate
   );
   try {

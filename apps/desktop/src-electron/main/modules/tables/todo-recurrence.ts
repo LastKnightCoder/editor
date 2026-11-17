@@ -135,7 +135,9 @@ export default class TodoRecurrenceTable {
         .get(payload.todoItemId)
     )
       return this.updateRecurrence(db, { id });
-    return this.getRecurrence(db, { id })!;
+    const created = this.getRecurrence(db, { id });
+    if (!created) throw new Error(`周期规则写入后读取失败：${id}`);
+    return created;
   }
 
   static updateRecurrence(
@@ -226,7 +228,8 @@ export default class TodoRecurrenceTable {
           excludeHolidays: !!excludeHolidays,
           maxOccurrences,
         });
-        const segment = segments.at(-1)!;
+        const segment = segments.at(-1);
+        if (!segment) throw new Error("周期分段为空，无法写入历史");
         db.prepare(
           `INSERT INTO todo_recurrence_history VALUES (?,?,?,?,?,?) ON CONFLICT(todo_item_id,todo_created_at,effective_date)
           DO UPDATE SET rule_json=excluded.rule_json`
@@ -241,7 +244,9 @@ export default class TodoRecurrenceTable {
       }
     }
 
-    return this.getRecurrence(db, { id: payload.id })!;
+    const updated = this.getRecurrence(db, { id: payload.id });
+    if (!updated) throw new Error(`周期规则更新后读取失败：${payload.id}`);
+    return updated;
   }
 
   static deleteRecurrence(db: Database.Database, params: { id: number }): number {
@@ -271,9 +276,8 @@ export default class TodoRecurrenceTable {
     )
       return;
     const ref = { kind: "todo" as const, todoId, createdAt: row.create_time };
-    const segment = amendSegments(independentSegments(db, ref), localDate(Date.now()), null).at(
-      -1
-    )!;
+    const segment = amendSegments(independentSegments(db, ref), localDate(Date.now()), null).at(-1);
+    if (!segment) throw new Error("周期分段为空，无法终止历史");
     db.prepare(
       `INSERT INTO todo_recurrence_history VALUES (?,?,?,?,NULL,?) ON CONFLICT(todo_item_id,todo_created_at,effective_date)
       DO UPDATE SET rule_json=NULL`

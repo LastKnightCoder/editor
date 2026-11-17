@@ -23,6 +23,7 @@ vi.mock("../database", () => ({
 }));
 vi.mock("../user-setting", () => ({ default: {} }));
 import speechInput from "../speech-input";
+import { must } from "../../test-support";
 
 const servers: WebSocketServer[] = [];
 let ownerId = 0;
@@ -48,7 +49,7 @@ it.each(["destroyed", "render-process-gone", "did-start-navigation", "database-c
       send: vi.fn(),
     });
     const invoke = (name: string, ...args: unknown[]) =>
-      state.handlers.get(name)!({ sender }, ...args);
+      must(state.handlers.get(name), name)({ sender }, ...args);
     invoke("speech-input:claim", "lease");
     await invoke("plugin-socket:open", "socket", {
       url: `ws://127.0.0.1:${address.port}`,

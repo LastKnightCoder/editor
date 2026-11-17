@@ -109,7 +109,8 @@ export function registerWhiteboardDocumentIpc(
       }
     }
     const current = module.sessions.snapshot(leaseId, owner);
-    const db = databaseModule.getDatabase(current.identity.databaseName)!;
+    const db = databaseModule.getDatabase(current.identity.databaseName);
+    if (!db) throw new Error("白板视图数据库未连接");
     return {
       source: current,
       db,
@@ -279,7 +280,9 @@ export function registerWhiteboardDocumentIpc(
       });
       store.delete(installKey);
       projected(databaseName, install.documentId);
-      return pages(install.documentId)!;
+      const installedPages = pages(install.documentId);
+      if (!installedPages) throw new Error(`白板页读取失败：${install.documentId}`);
+      return installedPages;
     }
   );
   handle(
@@ -729,15 +732,15 @@ export function registerWhiteboardDocumentIpc(
     const owner = module.leaseOwner(event, leaseId),
       binding = module.remoteViews.get(leaseId),
       pending = binding && module.remote.get(binding.key);
-    if (!pending) throw new Error("白板远端会话未打开");
-    return module.serialRemote(binding!.key, async () => {
+    if (!binding || !pending) throw new Error("白板远端会话未打开");
+    return module.serialRemote(binding.key, async () => {
       const session = await pending;
       const failure = (error: unknown): never => {
-        if (session.snapshot().blocked) module.stopRealtime(binding!.key);
+        if (session.snapshot().blocked) module.stopRealtime(binding.key);
         return remoteFailure(error);
       };
       const rebind = (snapshot: RemoteSnapshot, meta: { get(key: string): unknown }) => {
-        module.stopRealtime(binding!.key);
+        module.stopRealtime(binding.key);
         return remoteStatus(snapshot, {
           requiresRebind: true,
           reason:
@@ -767,7 +770,7 @@ export function registerWhiteboardDocumentIpc(
           protocol = snapshot.confirmed.protocol;
         if (
           snapshot.blocked ||
-          snapshot.rejected.length !== binding!.rejectedCount ||
+          snapshot.rejected.length !== binding.rejectedCount ||
           meta.get("documentId") !== protocol.id ||
           meta.get("baselineId") !== protocol.baselineId ||
           meta.get("epoch") !== protocol.epoch

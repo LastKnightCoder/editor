@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { installDatabaseDownload } from "../database-download";
+import { must } from "../../test-support";
 const paths = vi.hoisted(() => ({
   root: "",
   handlers: new Map<string, (...args: any[]) => any>(),
@@ -53,7 +54,10 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
   let reader: Database.Database | undefined;
   try {
     await database.init();
-    const create = paths.handlers.get("content:create")!;
+    const create = must(
+      paths.handlers.get("content:create"),
+      "paths.handlers.get('content:create')"
+    );
     const scope = {
       toolDatabaseName: "a",
       toolDatabaseConnection: database.commandConnection("a").connectionId,
@@ -67,7 +71,9 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
     reader.prepare("SELECT * FROM contents").all();
     await create({ sender: {} }, { content: [], count: 1 }, scope);
     expect(database.forceCheckpoint("a")).toBe(false);
-    await expect(paths.handlers.get("close-database")!({}, "a")).rejects.toThrow("不能安全关闭");
+    await expect(
+      must(paths.handlers.get("close-database"), "paths.handlers.get('close-database')")({}, "a")
+    ).rejects.toThrow("不能安全关闭");
     expect(a.open).toBe(true);
     reader.exec("ROLLBACK");
     reader.close();
@@ -89,8 +95,14 @@ it("覆盖拒绝其他窗口及重载后迟到的旧请求，重连不切换活�
   const { default: database } = await import("../database");
   const { default: indexManager } = await import("../main-content-index-db");
   await database.init();
-  const connect = paths.handlers.get("create-or-connect-database")!;
-  const save = paths.handlers.get("home-layout:save")!;
+  const connect = must(
+    paths.handlers.get("create-or-connect-database"),
+    "paths.handlers.get('create-or-connect-database')"
+  );
+  const save = must(
+    paths.handlers.get("home-layout:save"),
+    "paths.handlers.get('home-layout:save')"
+  );
   const a = { sender: { id: 1 } },
     b = { sender: { id: 2 } };
   try {
@@ -99,7 +111,7 @@ it("覆盖拒绝其他窗口及重载后迟到的旧请求，重连不切换活�
     const uploaded = await connect(a, "A.db", false, "normal", "sync_upload_reconnect");
     expect(uploaded.connectionId).toBe(original.connectionId);
     await connect(b, "B.db", false, "normal");
-    const old = database.getDatabase("A.db")!;
+    const old = must(database.getDatabase("A.db"), "database.getDatabase('A.db')");
     const queued = {
       toolDatabaseName: "A.db",
       toolDatabaseConnection: original.connectionId,
@@ -119,7 +131,9 @@ it("覆盖拒绝其他窗口及重载后迟到的旧请求，重连不切换活�
     );
     await expect(save(b, [], { toolDatabaseName: "A.db" })).rejects.toThrow("CONNECTION_CHANGED");
     expect(
-      database.getDatabase("A.db")!.prepare("SELECT panel_id FROM home_panel_layout").all()
+      must(database.getDatabase("A.db"), "database.getDatabase('A.db')")
+        .prepare("SELECT panel_id FROM home_panel_layout")
+        .all()
     ).toEqual([{ panel_id: "协调端" }]);
     const current = await connect(a, "A.db", false, "normal");
     expect(database.getCurrentDatabaseName()).toBe("B.db");
@@ -129,7 +143,9 @@ it("覆盖拒绝其他窗口及重载后迟到的旧请求，重连不切换活�
       toolDatabaseConnection: current.connectionId,
     });
     expect(
-      database.getDatabase("A.db")!.prepare("SELECT panel_id FROM home_panel_layout").all()
+      must(database.getDatabase("A.db"), "database.getDatabase('A.db')")
+        .prepare("SELECT panel_id FROM home_panel_layout")
+        .all()
     ).toEqual([{ panel_id: "新编辑" }]);
   } finally {
     for (const [name, db] of database.databases) {
@@ -158,7 +174,10 @@ it.each(["connect", "download"])("%s：版本标记缺失不阻止开库且保�
   const connect = () =>
     source === "download"
       ? database.reconnectForSync("data", "sync_download_reconnect")
-      : paths.handlers.get("create-or-connect-database")!({ sender: {} }, "data");
+      : must(
+          paths.handlers.get("create-or-connect-database"),
+          "paths.handlers.get('create-or-connect-database')"
+        )({ sender: {} }, "data");
   try {
     await Promise.all([connect(), connect()]);
     expect(open).toHaveBeenCalledTimes(1);

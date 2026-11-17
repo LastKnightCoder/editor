@@ -11,6 +11,7 @@ vi.mock("../MediaUtil", () => ({
   },
 }));
 import { TranscriptionQueueManager, type TranscriptionResult } from "../TranscriptionQueueManager";
+import { must } from "../../test-support";
 
 const result = (text: string): TranscriptionResult => ({
   text,
@@ -35,7 +36,7 @@ describe("长音频任务队列", () => {
       {},
       async file => {
         expect(await readFile(file, "utf8")).toBe("audio");
-        const index = Number(/segment-(\d+)/.exec(file)![1]);
+        const index = Number(must(/segment-(\d+)/.exec(file), "exec file")[1]);
         await new Promise(resolve => setTimeout(resolve, index === 0 ? 20 : 1));
         return result(String(index));
       },

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { must } from "../../test-support";
 const mock = vi.hoisted(() => ({
   root: "",
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
@@ -22,7 +23,7 @@ vi.mock("../../utils/PathUtil", () => ({
 }));
 
 const hash = (char: string) => char.repeat(64);
-const call = (name: string, ...args: unknown[]) => mock.handlers.get(name)!({}, ...args);
+const call = (name: string, ...args: unknown[]) => must(mock.handlers.get(name), name)({}, ...args);
 
 async function writePackage(id: string, manifest: Record<string, unknown>, skills: string[]) {
   const directory = path.join(mock.root, ".editor/plugins", id);

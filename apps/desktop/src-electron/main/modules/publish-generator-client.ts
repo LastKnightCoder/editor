@@ -54,7 +54,8 @@ function runWorker(
       port1.close();
       void worker.terminate();
       if (error) reject(error);
-      else resolve(result!);
+      else if (result) resolve(result);
+      else reject(new Error("发布生成 worker 未返回结果"));
     };
 
     port1.on("message", ({ method, args }: DataCall) => {

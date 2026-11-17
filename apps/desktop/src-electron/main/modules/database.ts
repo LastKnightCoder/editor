@@ -632,8 +632,9 @@ class DatabaseModule implements Module {
   async reconnectForSync(name: string, source: DatabaseReconnectSource) {
     return withDurableDocuments({ databaseName: name, reason: "database-sync" }, async () => {
       log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
-      if (this.databases.has(name)) {
-        this.databases.get(name)!.close();
+      const existingSync = this.databases.get(name);
+      if (existingSync) {
+        existingSync.close();
         this.databases.delete(name);
         mainContentIndexDBManager.closeDatabase(name);
       }
@@ -714,7 +715,8 @@ class DatabaseModule implements Module {
             `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`
           );
           if (this.databases.has(name)) {
-            this.databases.get(name)!.close();
+            const existing = this.databases.get(name);
+            if (existing) existing.close();
             this.databases.delete(name);
             mainContentIndexDBManager.closeDatabase(name);
           }
@@ -822,10 +824,10 @@ class DatabaseModule implements Module {
       async (event, input: SqlQueryInput, scope?: { toolDatabaseName?: string }) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         if (!win) throw new Error("No window found");
-        const dbName = scope?.toolDatabaseName
+        const toolDatabaseName = scope?.toolDatabaseName;
+        const dbName = toolDatabaseName
           ? [...this.databases.keys()].find(
-              name =>
-                this.formatDatabaseName(name) === this.formatDatabaseName(scope.toolDatabaseName!)
+              name => this.formatDatabaseName(name) === this.formatDatabaseName(toolDatabaseName)
             )
           : this.windowToDatabase.get(win.id);
         if (!dbName || !this.getDatabase(dbName)) {

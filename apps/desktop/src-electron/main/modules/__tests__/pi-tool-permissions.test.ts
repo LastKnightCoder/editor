@@ -3,6 +3,7 @@ import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { PiHostToolSpec } from "@/types/pi-session";
 import type { ToolPermissionMode } from "@/services/tool-permission/mode";
 import { PiToolPermissions } from "../pi-tool-permissions";
+import { must } from "../../test-support";
 
 const context = (name: string, id = "call-1") =>
   ({
@@ -179,11 +180,13 @@ describe("pi 宿主工具权限", () => {
       });
     const session = { agent: { beforeToolCall: previous } } as unknown as AgentSession;
     permissions.install(session);
-    await expect(session.agent.beforeToolCall!(context("bash"))).resolves.toMatchObject({
+    await expect(
+      must(session.agent.beforeToolCall, "beforeToolCall")(context("bash"))
+    ).resolves.toMatchObject({
       block: true,
     });
     expect(permissions.pendingRequests()).toEqual([]);
-    const waiting = session.agent.beforeToolCall!(context("bash"));
+    const waiting = must(session.agent.beforeToolCall, "beforeToolCall")(context("bash"));
     await vi.waitFor(() => expect(permissions.pendingRequests()).toHaveLength(1));
     expect(permissions.pendingRequests()[0].input).toContain("扩展后的命令");
     permissions.dispose();

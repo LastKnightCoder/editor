@@ -16,6 +16,7 @@ import {
   loadSessionTranscript,
 } from "../pi-session-host-core";
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
+import { must } from "../../test-support";
 
 // jsdom 环境的 AbortSignal 缺 any()（见 pi-session-host-core.test.ts）
 if (typeof AbortSignal.any !== "function") {
@@ -201,7 +202,7 @@ describe("重启后悬挂的工具调用（M4-e：标为已中断）", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     await new Promise(resolve => setTimeout(resolve, 50));
-    const file = first.sessionFile!;
+    const file = must(first.sessionFile, "first.sessionFile");
     // 「崩溃」：不 abort、不收尾，直接丢掉这个会话（文件里只有 toolCall 没有 toolResult）
     sessions.splice(sessions.indexOf(first), 1);
     first.dispose();
@@ -222,14 +223,17 @@ describe("重启后悬挂的工具调用（M4-e：标为已中断）", () => {
     await assemble(file);
 
     const after = piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
-    const block = (
-      after.at(-1) as {
-        assistant_blocks: Array<{
-          type: string;
-          execution?: { status: string; output?: string };
-        }>;
-      }
-    ).assistant_blocks.find(item => item.type === "tool_call")!;
+    const block = must(
+      (
+        after.at(-1) as {
+          assistant_blocks: Array<{
+            type: string;
+            execution?: { status: string; output?: string };
+          }>;
+        }
+      ).assistant_blocks.find(item => item.type === "tool_call"),
+      "tool_call block"
+    );
     expect(block.execution?.status).toBe("failed");
     expect(block.execution?.output).toContain("已中断");
   });

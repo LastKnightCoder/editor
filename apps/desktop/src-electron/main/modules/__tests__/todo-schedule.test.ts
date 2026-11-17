@@ -17,6 +17,7 @@ import TodoCalendarSyncTable from "../tables/todo-calendar-sync";
 import TodoCalendarMappingTable from "../tables/todo-calendar-mapping";
 import TodoNoteLinkTable from "../tables/todo-note-link";
 import ContentTable from "../tables/content";
+import { must } from "../../test-support";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -37,7 +38,10 @@ describe("安排（calendar_event.todo_item_id）", () => {
 
   beforeEach(() => {
     db = createTestDatabase();
-    groupId = TodoGroupTable.createGroup(db, { title: "工作", color: "blue" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "工作", color: "blue" }),
+      "TodoGroupTable.createGroup(db, { title: '工作',..."
+    ).id;
     calendarId = CalendarTable.createCalendar(db, {
       title: "工作",
       color: "blue" as never,
@@ -73,8 +77,14 @@ describe("安排（calendar_event.todo_item_id）", () => {
   it("任务描述和新建笔记从实际段落声明保存契约", () => {
     const item = TodoItemTable.createItem(db, { groupId, title: "写报告", description: "大纲" });
     const note = TodoNoteLinkTable.createAndAttach(db, { todoId: item.id });
-    for (const id of [item.descriptionContentId!, note.contentId]) {
-      const document = ContentTable.getContentById(db, id)!;
+    for (const id of [
+      must(item.descriptionContentId, "item.descriptionContentId"),
+      note.contentId,
+    ]) {
+      const document = must(
+        ContentTable.getContentById(db, id),
+        "ContentTable.getContentById(db, id)"
+      );
       const node = document.content[0] as unknown as { tauContract: string };
       expect(document.contracts?.[node.tauContract]).toMatchObject({
         owner: "tau.paragraph",

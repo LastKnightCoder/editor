@@ -13,6 +13,7 @@ import ExcerptTable from "../../tables/excerpt";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { reconcileWhiteboardRefs } from "../whiteboard-indexer";
+import { must } from "../../../test-support";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -90,7 +91,10 @@ const reindex = async () => {
   await reconcileWhiteboardRefs(mainDb, indexDb);
 };
 const contextOf = (kind: "card" | "project-item", id: number) =>
-  getEntityContext(mainDb, indexDb, { kind, id })!;
+  must(
+    getEntityContext(mainDb, indexDb, { kind, id }),
+    "getEntityContext(mainDb, indexDb, { kind, id })"
+  );
 
 beforeEach(() => {
   mainDb = new Database(":memory:");

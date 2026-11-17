@@ -12,6 +12,7 @@ import {
   toPiModel,
 } from "../pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
+import { must } from "../../test-support";
 
 // jsdom 环境的 AbortSignal 缺 any()（Node 24 / Electron 主进程原生可用）；ModelRuntime.create 依赖它
 if (typeof AbortSignal.any !== "function") {
@@ -64,10 +65,10 @@ describe("pi 内置服务商目录", () => {
     }
     const opus = models.find(model => model.id.startsWith("claude-opus"));
     expect(opus).toMatchObject({ api: "anthropic-messages", reasoning: true });
-    expect(opus!.contextWindow).toBeGreaterThanOrEqual(200_000);
+    expect(must(opus, "opus").contextWindow).toBeGreaterThanOrEqual(200_000);
     // 推理模型带真实档位（Anthropic 可关思考，故含 off）
-    expect(opus!.thinkingLevels).toContain("off");
-    expect(opus!.thinkingLevels).toContain("high");
+    expect(must(opus, "opus").thinkingLevels).toContain("off");
+    expect(must(opus, "opus").thinkingLevels).toContain("high");
   });
 
   it("混合 api 的服务商里每个模型各自带 api", async () => {
@@ -115,15 +116,21 @@ describe("pi 内置服务商目录", () => {
 
   it("端到端：目录勾选的服务商+模型在主进程命中目录，元数据以目录为准", async () => {
     const providers = await listCatalogProviders();
-    const anthropic = providers.find(item => item.id === "anthropic")!;
+    const anthropic = must(
+      providers.find(item => item.id === "anthropic"),
+      "providers.find(item => item.id === 'anthropic')"
+    );
     const models = await listCatalogModels("anthropic");
-    const picked = models.find(model => model.id.startsWith("claude-opus"))!;
+    const picked = must(
+      models.find(model => model.id.startsWith("claude-opus")),
+      "models.find(model => model.id.startsWith('cla..."
+    );
 
     // 设置页勾选后写入的形状：builtin + 目录带出的元数据
     const setting: LLMProviderSetting = {
       id: "p-generated",
       name: anthropic.name,
-      baseUrl: anthropic.baseUrl!,
+      baseUrl: must(anthropic.baseUrl, "anthropic.baseUrl"),
       apiKey: "sk-test",
       api: anthropic.api,
       builtin: anthropic.id,
@@ -140,7 +147,7 @@ describe("pi 内置服务商目录", () => {
       ],
     };
 
-    const base = await lookupBuiltinModel(setting.builtin!, picked.id);
+    const base = await lookupBuiltinModel(must(setting.builtin, "setting.builtin"), picked.id);
     expect(base).toBeDefined();
     const resolved = toPiModel(setting.models[0], setting, base);
     expect(resolved).toMatchObject({
@@ -150,8 +157,8 @@ describe("pi 内置服务商目录", () => {
       reasoning: true,
     });
     // 目录值权威：上下文窗口/最大输出不再是瞎猜的 128k/8192
-    expect(resolved.contextWindow).toBe(base!.contextWindow);
-    expect(resolved.maxTokens).toBe(base!.maxTokens);
+    expect(resolved.contextWindow).toBe(must(base, "base").contextWindow);
+    expect(resolved.maxTokens).toBe(must(base, "base").maxTokens);
     expect(resolved.contextWindow).not.toBe(128_000);
     expect((await resolveThinkingLevels(setting, picked.id)).fromCatalog).toBe(true);
   });

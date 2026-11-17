@@ -207,17 +207,13 @@ export class GitPublicationService {
         await git(["checkout", "--orphan", input.branch]);
         await git(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
       }
-      const targets = new Map(
-        [...plan.toDelete, ...plan.toUpload.map(file => file.path)].map(file => [
-          file,
-          publicationDestination(working, file),
-        ])
-      );
-      for (const file of plan.toDelete) await rm(targets.get(file)!, { force: true });
+      for (const file of plan.toDelete)
+        await rm(publicationDestination(working, file), { force: true });
       for (const file of plan.toUpload) {
         signal.throwIfAborted();
-        await mkdir(path.dirname(targets.get(file.path)!), { recursive: true });
-        await writeFile(targets.get(file.path)!, file.content);
+        const target = publicationDestination(working, file.path);
+        await mkdir(path.dirname(target), { recursive: true });
+        await writeFile(target, file.content);
       }
       await stagePublication(
         { raw: args => git(args) },

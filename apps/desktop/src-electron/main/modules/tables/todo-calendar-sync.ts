@@ -95,8 +95,9 @@ export default class TodoCalendarSyncTable {
           db.prepare(`UPDATE calendar_group SET ${setClauses.join(", ")} WHERE id = ?`).run(
             ...params
           );
-          // 重新获取更新后的分组
-          group = CalendarGroupTable.getGroupById(db, group.id);
+          // 重新获取更新后的分组；取不到时沿用内存中的旧值继续
+          const refreshed = CalendarGroupTable.getGroupById(db, group.id);
+          if (refreshed) group = refreshed;
           console.log("Updated todo calendar group to be a child of system group");
         }
       }
@@ -105,9 +106,10 @@ export default class TodoCalendarSyncTable {
     // 查找或创建三个日历
     const calendars: Partial<TodoCalendars> = { groupId: group.id };
     const allCalendars = CalendarTable.getAllCalendars(db);
+    const groupId = group.id;
 
     for (const config of TODO_CALENDARS) {
-      let calendar = allCalendars.find(c => c.groupId === group!.id && c.title === config.title);
+      let calendar = allCalendars.find(c => c.groupId === groupId && c.title === config.title);
 
       if (!calendar) {
         calendar = CalendarTable.createCalendar(db, {
@@ -375,12 +377,13 @@ export default class TodoCalendarSyncTable {
         const holidayResults = await holidayServiceModule.areHolidays(dates);
 
         // 构建节假日 Set
-        holidays = new Set();
+        const fetched = new Set<number>();
         dates.forEach((date, index) => {
           if (holidayResults[index]) {
-            holidays!.add(date);
+            fetched.add(date);
           }
         });
+        holidays = fetched;
       } catch (error) {
         // 如果获取节假日失败，继续执行但不排除节假日
         console.error("Failed to fetch holidays:", error);

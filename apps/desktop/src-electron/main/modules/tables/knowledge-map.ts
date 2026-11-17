@@ -95,9 +95,11 @@ function projectPaths(mainDb: Database.Database): Map<number, string> {
   for (const [id, item] of items) {
     let top = item;
     const seen = new Set([id]);
-    while (top.parent && items.has(top.parent) && !seen.has(top.parent)) {
+    while (top.parent && !seen.has(top.parent)) {
+      const parent = items.get(top.parent);
+      if (!parent) break;
       seen.add(top.parent);
-      top = items.get(top.parent)!;
+      top = parent;
     }
     const project = projects.get(item.project);
     if (!project) continue;
@@ -220,9 +222,8 @@ export default class KnowledgeMapTable {
         }>
       ).map(row => [row.id, Number(parseJson<unknown[]>(row.parents, [])[0]) || 0])
     );
-    for (const entity of entities) {
+    for (const [from, entity] of entities.entries()) {
       if (entity.kind !== "project-item") continue;
-      const from = indexOfKey.get(entity.key)!;
       const seen = new Set([entity.id]);
       let ancestor = parentOf.get(entity.id) ?? 0;
       while (ancestor && !seen.has(ancestor)) {
