@@ -49,7 +49,7 @@
 | 指南                                                                | 内容                                                 |
 | ------------------------------------------------------------------- | ---------------------------------------------------- |
 | [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                                   |
-| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程                             |
+| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema、建库与保留编号的结构升级              |
 | [dev-domain-migration.md](./guides/dev-domain-migration.md)         | 存量业务迁移步骤、端口与事务评审、行为对照及并行切片 |
 | [dev-content-verification.md](./guides/dev-content-verification.md) | 正文、白板与跨端回归入口，容量、硬杀和长稳判据       |
 | [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收                           |

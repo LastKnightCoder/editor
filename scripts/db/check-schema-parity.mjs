@@ -100,6 +100,12 @@ function main() {
   assert(mainSql.includes("CREATE VIEW IF NOT EXISTS content_snapshots"), "缺少完整正文读取视图");
   const cardsSql = mainSql.match(/CREATE TABLE IF NOT EXISTS cards\s*\(([\s\S]*?)\);/i)?.[1] ?? "";
   assert(!/\blinks\s+TEXT\b/i.test(cardsSql), "cards.links 已退役，显式连接只存 content_links");
+  for (const match of mainSql.matchAll(
+    /CREATE TABLE IF NOT EXISTS (\w+)\s*\(\s*id INTEGER PRIMARY KEY\b([^,]*)/gi
+  )) {
+    if (match[1] === "library_identity") continue;
+    assert(/\bAUTOINCREMENT\b/i.test(match[2]), `${match[1]} 的独立整数编号必须使用 AUTOINCREMENT`);
+  }
   const contentDocumentSql =
     mainSql.match(/CREATE TABLE IF NOT EXISTS content_documents\s*\(([\s\S]*?)\);/i)?.[1] ?? "";
   for (const column of ["migration_operation_id", "migration_receipt"])

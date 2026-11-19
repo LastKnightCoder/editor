@@ -4,8 +4,10 @@ import { existsSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import MAIN_SCHEMA_VERSION from "@tau/db-schema/schema/main-version.json";
+import { migrateRowIds, rowIdTables, seedRowIdSequences } from "./main-row-ids";
 
 const schemaHash = createHash("sha1").update(MAIN_SCHEMA_SQL).digest("hex");
+const independentRowIdTables = rowIdTables(MAIN_SCHEMA_SQL);
 
 export function removeRetiredDatabaseState(directory: string): void {
   if (!existsSync(directory)) return;
@@ -42,15 +44,26 @@ export function ensureMainSchema(db: Database.Database): void {
     removeRetiredTables(db);
     return;
   }
-  db.transaction(() => {
-    db.exec(MAIN_SCHEMA_SQL);
-    const write = db.prepare(
-      "INSERT INTO schema_meta (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
-    );
-    const now = Date.now();
-    write.run("main_schema_version", String(MAIN_SCHEMA_VERSION), now);
-    write.run("main_schema_hash", schemaHash, now);
-  })();
+  const foreignKeyErrors = () => db.pragma("foreign_key_check") as Record<string, unknown>[];
+  db.pragma("foreign_keys = OFF");
+  try {
+    db.transaction(() => {
+      const foreignKeys = new Set(foreignKeyErrors().map(row => JSON.stringify(row)));
+      migrateRowIds(db, independentRowIdTables);
+      db.exec(MAIN_SCHEMA_SQL);
+      seedRowIdSequences(db, independentRowIdTables);
+      if (foreignKeyErrors().some(row => !foreignKeys.has(JSON.stringify(row))))
+        throw new Error("主库编号升级引入了外键不一致");
+      const write = db.prepare(
+        "INSERT INTO schema_meta (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
+      );
+      const now = Date.now();
+      write.run("main_schema_version", String(MAIN_SCHEMA_VERSION), now);
+      write.run("main_schema_hash", schemaHash, now);
+    }).immediate();
+  } finally {
+    db.pragma("foreign_keys = ON");
+  }
   removeRetiredTables(db);
 }
 

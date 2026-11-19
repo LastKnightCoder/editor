@@ -12,6 +12,14 @@
 - 默认系统分组、日记标签、日历与待释放数据回收仍按原维护流程执行。网页摘录的 `web` 提供方由共享 SQL 初始化，已保存名称不覆盖。
 - `migration_meta` 保存项目域共用实体序列与任务、日程、正文的非复用编号高水位，不属于历史转换代码。卡片显式连接只存 `content_links`，`cards` 不含 `links` 列。
 
+### 整数实体编号
+
+主库独立整数 `id` 主键统一为 `INTEGER PRIMARY KEY AUTOINCREMENT`，正常自动分配不复用已提交后删除的编号；固定编号 `library_identity.id`、外部身份、复合主键及依附实体的主键不改。项目、数据库与 Notebook 继续共用 `migration_meta` 的项目序列，所有手工分配入口同时读取 `sqlite_sequence`；闪卡复习记录直接使用数据库自增编号。
+
+桌面 `main-row-ids.ts` 与移动 `main_row_ids.rs` 由两端开库事务调用。升级按实际旧表定义复制，保留现有 ID、额外字段、约束、索引、视图和触发器；复制期间暂停触发器，避免触发删除副作用。外键在事务外暂时关闭，提交前检查不引入新的外键错误，失败整体回滚并恢复外键开关，成功后再写当前版本和指纹。重复打开当前结构不改写数据。
+
+序列下限由现存记录及共享 `schema/row-id-high-water.sql` 中的操作日志、退役身份、谱系、插件关联和既有序列共同决定，只抬高不降低。无法从现存数据推断的已删历史不伪造；这项升级不自动纠正过去已经串错的关系，也不改变实体删除后的来源保留规则。
+
 云端提供方整库同步搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
 
 正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集，已有契约按规范化 JSON 比较，不因跨端序列化的属性顺序变化拒绝保存；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。本机正文保存 JSON 投影，缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。

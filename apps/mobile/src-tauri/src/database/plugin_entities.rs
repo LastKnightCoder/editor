@@ -224,7 +224,7 @@ pub(super) fn adopt(tx: &Transaction<'_>, plugin: &str) -> Result<(), String> {
 
 pub(super) fn next_id(conn: &Connection) -> Result<i64, String> {
     let key = "task:id-seq:plugin_entities";
-    let id:i64=conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM plugin_entities),0),COALESCE((SELECT MAX(CAST(entity_id AS INTEGER)) FROM plugin_operations WHERE entity='plugin-entity'),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?1),0))+1",[key],|row|row.get(0)).map_err(sql_error)?;
+    let id:i64=conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM plugin_entities),0),COALESCE((SELECT seq FROM sqlite_sequence WHERE name='plugin_entities'),0),COALESCE((SELECT MAX(CAST(entity_id AS INTEGER)) FROM plugin_operations WHERE entity='plugin-entity'),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?1),0))+1",[key],|row|row.get(0)).map_err(sql_error)?;
     identifier(&json!(id))?;
     conn.execute("INSERT INTO migration_meta(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,id.to_string()]).map_err(sql_error)?;
     Ok(id)

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 
 -- 核心内容域表
 CREATE TABLE IF NOT EXISTS contents (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         content TEXT,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS knowledge_ai_insights (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS white_board_contents (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         name TEXT,
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS white_board_content_pending_releases (
   released_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS white_boards (
-            id INTEGER PRIMARY KEY NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
@@ -96,13 +96,13 @@ CREATE TABLE IF NOT EXISTS white_boards (
             snapshot TEXT
         , white_board_content_ids TEXT DEFAULT '[]', active_white_board_content_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS cards (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
             content_id INTEGER, is_top INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS articles (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             author TEXT,
             create_time INTEGER NOT NULL,
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS collaboration_bindings (
             source_title TEXT,
             FOREIGN KEY(content_id) REFERENCES contents(id));
 CREATE TABLE IF NOT EXISTS pdfs (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS pdfs (
             last_page INTEGER
         );
 CREATE TABLE IF NOT EXISTS pdf_annotations (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
@@ -146,18 +146,18 @@ CREATE TABLE IF NOT EXISTS pdf_annotations (
         area_data TEXT
       );
 CREATE TABLE IF NOT EXISTS pdf_bookmarks (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
         bookmark_payload TEXT NOT NULL
       );
 CREATE TABLE IF NOT EXISTS daily_notes (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             date TEXT NOT NULL,
             content_id INTEGER);
 CREATE TABLE IF NOT EXISTS diary_entries (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         type TEXT NOT NULL CHECK(type IN ('daily', 'weekly', 'monthly')),
         date TEXT NOT NULL UNIQUE,
         content_id INTEGER,
@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS diary_entries (
         FOREIGN KEY(content_id) REFERENCES contents(id)
       );
 CREATE TABLE IF NOT EXISTS diary_segments (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         diary_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         tags TEXT DEFAULT '[]',
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS home_panel_layout (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS operation (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             operation_time INTEGER NOT NULL,
             operation_id INTEGER,
             operation_content_type TEXT,
@@ -205,13 +205,13 @@ CREATE TABLE IF NOT EXISTS operation_daily_counts (
             count INTEGER NOT NULL
         );
 CREATE TABLE IF NOT EXISTS statistic (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         statistic_type TEXT NOT NULL,
         content TEXT NOT NULL
       );
 CREATE TABLE IF NOT EXISTS video_note_item (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         video_note_id INTEGER NOT NULL,
@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS video_note_item (
         title TEXT NOT NULL DEFAULT ''
       );
 CREATE TABLE IF NOT EXISTS video_notes (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         meta_info TEXT NOT NULL,
@@ -352,7 +352,7 @@ CREATE INDEX IF NOT EXISTS idx_whiteboard_entity_relations_target ON whiteboard_
 
 -- 内容组织域表
 CREATE TABLE IF NOT EXISTS chat_group (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         parent_id INTEGER,
         order_index INTEGER DEFAULT 0,
@@ -389,7 +389,7 @@ CREATE TABLE IF NOT EXISTS content_links (
         create_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS data_tables (
-          id INTEGER PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           create_time INTEGER NOT NULL,
           update_time INTEGER NOT NULL,
           columns TEXT NOT NULL,
@@ -397,7 +397,7 @@ CREATE TABLE IF NOT EXISTS data_tables (
           active_view_id INTEGER
         , ref_count INTEGER DEFAULT 1);
 CREATE TABLE IF NOT EXISTS data_table_views (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         table_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         type TEXT NOT NULL,
@@ -414,7 +414,7 @@ CREATE TABLE IF NOT EXISTS data_table_pending_releases (
 
 -- 项目域表
 CREATE TABLE IF NOT EXISTS project (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             title TEXT NOT NULL,
@@ -422,7 +422,7 @@ CREATE TABLE IF NOT EXISTS project (
             children TEXT
         , archived INTEGER DEFAULT 0, pinned INTEGER DEFAULT 0, project_type TEXT DEFAULT 'document-tree', data_table_id INTEGER DEFAULT 0, last_open_time INTEGER, last_open_item_id INTEGER);
 CREATE TABLE IF NOT EXISTS project_item (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             title TEXT NOT NULL,
@@ -442,7 +442,7 @@ CREATE TABLE IF NOT EXISTS migration_meta (
 -- 拆分后各自拥有列表实体表。id 与 project 共用 migration_meta:'project:id-seq' 序列，
 -- 因为 VL 的磁盘索引库、markdown 目录、chat_session.domain_id 均以该 id 命名。
 CREATE TABLE IF NOT EXISTS database_item (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         title TEXT NOT NULL,
@@ -453,7 +453,7 @@ CREATE TABLE IF NOT EXISTS database_item (
         last_open_time INTEGER
       );
 CREATE TABLE IF NOT EXISTS vibe_learning_project (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         title TEXT NOT NULL,
@@ -467,7 +467,7 @@ CREATE TABLE IF NOT EXISTS vibe_learning_project (
 
 -- 资源域表
 CREATE TABLE IF NOT EXISTS web_link (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         title TEXT NOT NULL,
@@ -475,7 +475,7 @@ CREATE TABLE IF NOT EXISTS web_link (
         source_type TEXT NOT NULL CHECK(source_type IN ('remote', 'local'))
       );
 CREATE TABLE IF NOT EXISTS web_clip (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
@@ -483,7 +483,7 @@ CREATE TABLE IF NOT EXISTS web_clip (
         title TEXT NOT NULL
       );
 CREATE TABLE IF NOT EXISTS web_note (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         project_item_id INTEGER NOT NULL,
@@ -511,7 +511,7 @@ CREATE TABLE IF NOT EXISTS resource_sync_blacklist (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS publish_selections (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         content_type TEXT NOT NULL,
         content_id INTEGER NOT NULL,
         parent_path TEXT DEFAULT '',
@@ -520,7 +520,7 @@ CREATE TABLE IF NOT EXISTS publish_selections (
         UNIQUE(content_type, content_id)
       );
 CREATE TABLE IF NOT EXISTS publish_history (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         file_path TEXT NOT NULL UNIQUE,
         content_hash TEXT NOT NULL,
         source_type TEXT,
@@ -528,7 +528,7 @@ CREATE TABLE IF NOT EXISTS publish_history (
         publish_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS transcriptions (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         source_type TEXT NOT NULL,
         source_id INTEGER,
         source_path TEXT NOT NULL,
@@ -547,7 +547,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
 
 -- 学习与任务域表
 CREATE TABLE IF NOT EXISTS todo_group (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         color TEXT,
         sort_index INTEGER NOT NULL DEFAULT 0,
@@ -556,7 +556,7 @@ CREATE TABLE IF NOT EXISTS todo_group (
         update_time INTEGER NOT NULL
       , is_system INTEGER NOT NULL DEFAULT 0, system_type TEXT);
 CREATE TABLE IF NOT EXISTS todo_item (
-          id INTEGER PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           group_id INTEGER NOT NULL,
           parent_id INTEGER,
           title TEXT NOT NULL,
@@ -570,7 +570,7 @@ CREATE TABLE IF NOT EXISTS todo_item (
           update_time INTEGER NOT NULL
         , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER);
 CREATE TABLE IF NOT EXISTS todo_note_link (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         title TEXT,
@@ -580,7 +580,7 @@ CREATE TABLE IF NOT EXISTS todo_note_link (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS todo_recurrence (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_item_id INTEGER NOT NULL UNIQUE,
         type TEXT NOT NULL,
         interval INTEGER NOT NULL DEFAULT 1,
@@ -595,7 +595,7 @@ CREATE TABLE IF NOT EXISTS todo_recurrence (
         update_time INTEGER NOT NULL
       , max_occurrences INTEGER);
 CREATE TABLE IF NOT EXISTS todo_recurrence_completion (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         recurrence_id INTEGER NOT NULL,
         scheduled_date INTEGER NOT NULL,
         completed_at INTEGER,
@@ -604,7 +604,7 @@ CREATE TABLE IF NOT EXISTS todo_recurrence_completion (
         UNIQUE(recurrence_id, scheduled_date)
       );
 CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_item_id INTEGER NOT NULL,
         calendar_event_id INTEGER NOT NULL,
         sync_type TEXT NOT NULL,
@@ -615,7 +615,7 @@ CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
 -- 文档待办的用户设置（镜像本身在索引库 doc_tasks，可重建；这里是不能丢的用户选择）：
 -- excluded = 整篇「本文不收集」（task_id 为空）；promoted = 某一项已转为独立待办 todo_item_id
 CREATE TABLE IF NOT EXISTS doc_task_settings (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         content_id INTEGER NOT NULL,
         task_id TEXT NOT NULL DEFAULT '',
         kind TEXT NOT NULL CHECK(kind IN ('excluded','promoted')),
@@ -631,7 +631,7 @@ CREATE TABLE IF NOT EXISTS doc_task_group_names (
         PRIMARY KEY(group_id, group_created_at, title)
       );
 CREATE TABLE IF NOT EXISTS pomodoro_presets (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         mode TEXT NOT NULL,
         duration_min INTEGER NOT NULL DEFAULT 25,
@@ -641,7 +641,7 @@ CREATE TABLE IF NOT EXISTS pomodoro_presets (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         preset_id INTEGER NOT NULL,
         start_time INTEGER NOT NULL,
         end_time INTEGER,
@@ -658,14 +658,14 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
         bound_title TEXT
       );
 CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         pomodoro_session_id INTEGER NOT NULL,
         calendar_event_id INTEGER NOT NULL,
         create_time INTEGER NOT NULL,
         UNIQUE(pomodoro_session_id, calendar_event_id)
       );
 CREATE TABLE IF NOT EXISTS calendar_group (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         is_system INTEGER DEFAULT 0,
         order_index INTEGER DEFAULT 0,
@@ -673,7 +673,7 @@ CREATE TABLE IF NOT EXISTS calendar_group (
         update_time INTEGER NOT NULL
       , parent_group_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS calendar (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         title TEXT NOT NULL,
@@ -685,7 +685,7 @@ CREATE TABLE IF NOT EXISTS calendar (
         order_index INTEGER DEFAULT 0
       , group_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS calendar_event (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         calendar_id INTEGER NOT NULL,
@@ -781,7 +781,7 @@ CREATE TABLE IF NOT EXISTS web_page (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS flashcard_decks (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
         cover_color TEXT DEFAULT '#2563eb',
@@ -792,7 +792,7 @@ CREATE TABLE IF NOT EXISTS flashcard_decks (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS flashcards (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         deck_id INTEGER NOT NULL,
         type TEXT NOT NULL,
         prompt TEXT NOT NULL,
@@ -812,7 +812,7 @@ CREATE TABLE IF NOT EXISTS flashcards (
         FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
       );
 CREATE TABLE IF NOT EXISTS flashcard_reviews (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         card_id INTEGER NOT NULL,
         deck_id INTEGER NOT NULL,
         rating TEXT NOT NULL,
@@ -825,7 +825,7 @@ CREATE TABLE IF NOT EXISTS flashcard_reviews (
         FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
       );
 CREATE TABLE IF NOT EXISTS flashcard_references (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             card_id INTEGER NOT NULL,
             content_id INTEGER NOT NULL,
             ref_type TEXT NOT NULL,
@@ -834,7 +834,7 @@ CREATE TABLE IF NOT EXISTS flashcard_references (
             update_time INTEGER NOT NULL
           );
 CREATE TABLE IF NOT EXISTS vibe_learning_resources (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
         sort_index INTEGER NOT NULL DEFAULT 0,
         create_time INTEGER NOT NULL,
@@ -848,7 +848,7 @@ CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         FOREIGN KEY(project_id) REFERENCES vibe_learning_project(id)
       );
 CREATE TABLE IF NOT EXISTS vl_note (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         project_id INTEGER NOT NULL,
@@ -856,7 +856,7 @@ CREATE TABLE IF NOT EXISTS vl_note (
         title TEXT NOT NULL
       , type TEXT NOT NULL DEFAULT 'note');
 CREATE TABLE IF NOT EXISTS vl_quiz_set (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
@@ -867,7 +867,7 @@ CREATE TABLE IF NOT EXISTS vl_quiz_set (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS vl_quiz_item (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         quiz_set_id INTEGER NOT NULL,
         type TEXT NOT NULL,
         prompt TEXT NOT NULL,
@@ -881,7 +881,7 @@ CREATE TABLE IF NOT EXISTS vl_quiz_item (
         FOREIGN KEY(quiz_set_id) REFERENCES vl_quiz_set(id)
       );
 CREATE TABLE IF NOT EXISTS vl_quiz_record (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         quiz_set_id INTEGER NOT NULL,
         project_id INTEGER NOT NULL,
         score REAL NOT NULL,
@@ -1009,7 +1009,7 @@ END;
 
 -- 插件对业务数据的可恢复操作：删除前的快照或待办撤销凭据，宽限期内可由用户在插件详情页恢复
 CREATE TABLE IF NOT EXISTS plugin_operations (
-  id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   plugin_id TEXT NOT NULL,
   action TEXT NOT NULL,
   entity TEXT NOT NULL,
@@ -1024,7 +1024,7 @@ CREATE INDEX IF NOT EXISTS idx_plugin_operations_plugin ON plugin_operations(plu
 -- 插件自建的业务对象：持有一份正文引用，作为搜索、@ 与反链的实体单位；
 -- 插件目录不在时记 orphaned_time，超过宽限期才删除，期间重新安装即恢复
 CREATE TABLE IF NOT EXISTS plugin_entities (
-  id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   plugin_id TEXT NOT NULL,
   kind TEXT NOT NULL,
   key TEXT NOT NULL,

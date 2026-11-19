@@ -159,7 +159,7 @@ fn description_json(text: String) -> String {
 
 pub(super) fn next_project_id(conn: &Connection) -> Result<i64, String> {
     // 序列与桌面共用：id 在项目 / 数据库 / Vibe Learning 三张表间全局唯一且不复用
-    let id: i64 = conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project),0),COALESCE((SELECT MAX(id) FROM database_item),0),COALESCE((SELECT MAX(id) FROM vibe_learning_project),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='project:id-seq'),0))+1", [], |r| r.get(0)).map_err(|e| e.to_string())?;
+    let id: i64 = conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project),0),COALESCE((SELECT MAX(id) FROM database_item),0),COALESCE((SELECT MAX(id) FROM vibe_learning_project),0),COALESCE((SELECT MAX(seq) FROM sqlite_sequence WHERE name IN ('project','database_item','vibe_learning_project')),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='project:id-seq'),0))+1", [], |r| r.get(0)).map_err(|e| e.to_string())?;
     if id > 9_007_199_254_740_991 {
         return Err("PROJECT_ID_EXHAUSTED: 项目 ID 超出安全范围".into());
     }

@@ -1,6 +1,6 @@
 -- 学习与任务域表
 CREATE TABLE IF NOT EXISTS todo_group (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         color TEXT,
         sort_index INTEGER NOT NULL DEFAULT 0,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS todo_group (
         update_time INTEGER NOT NULL
       , is_system INTEGER NOT NULL DEFAULT 0, system_type TEXT);
 CREATE TABLE IF NOT EXISTS todo_item (
-          id INTEGER PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           group_id INTEGER NOT NULL,
           parent_id INTEGER,
           title TEXT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS todo_item (
           update_time INTEGER NOT NULL
         , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER);
 CREATE TABLE IF NOT EXISTS todo_note_link (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         title TEXT,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS todo_note_link (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS todo_recurrence (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_item_id INTEGER NOT NULL UNIQUE,
         type TEXT NOT NULL,
         interval INTEGER NOT NULL DEFAULT 1,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS todo_recurrence (
         update_time INTEGER NOT NULL
       , max_occurrences INTEGER);
 CREATE TABLE IF NOT EXISTS todo_recurrence_completion (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         recurrence_id INTEGER NOT NULL,
         scheduled_date INTEGER NOT NULL,
         completed_at INTEGER,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS todo_recurrence_completion (
         UNIQUE(recurrence_id, scheduled_date)
       );
 CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_item_id INTEGER NOT NULL,
         calendar_event_id INTEGER NOT NULL,
         sync_type TEXT NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
 -- 文档待办的用户设置（镜像本身在索引库 doc_tasks，可重建；这里是不能丢的用户选择）：
 -- excluded = 整篇「本文不收集」（task_id 为空）；promoted = 某一项已转为独立待办 todo_item_id
 CREATE TABLE IF NOT EXISTS doc_task_settings (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         content_id INTEGER NOT NULL,
         task_id TEXT NOT NULL DEFAULT '',
         kind TEXT NOT NULL CHECK(kind IN ('excluded','promoted')),
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS doc_task_group_names (
         PRIMARY KEY(group_id, group_created_at, title)
       );
 CREATE TABLE IF NOT EXISTS pomodoro_presets (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         mode TEXT NOT NULL,
         duration_min INTEGER NOT NULL DEFAULT 25,
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS pomodoro_presets (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         preset_id INTEGER NOT NULL,
         start_time INTEGER NOT NULL,
         end_time INTEGER,
@@ -111,14 +111,14 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
         bound_title TEXT
       );
 CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         pomodoro_session_id INTEGER NOT NULL,
         calendar_event_id INTEGER NOT NULL,
         create_time INTEGER NOT NULL,
         UNIQUE(pomodoro_session_id, calendar_event_id)
       );
 CREATE TABLE IF NOT EXISTS calendar_group (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         is_system INTEGER DEFAULT 0,
         order_index INTEGER DEFAULT 0,
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS calendar_group (
         update_time INTEGER NOT NULL
       , parent_group_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS calendar (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         title TEXT NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS calendar (
         order_index INTEGER DEFAULT 0
       , group_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS calendar_event (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         calendar_id INTEGER NOT NULL,
@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS web_page (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS flashcard_decks (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
         cover_color TEXT DEFAULT '#2563eb',
@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS flashcard_decks (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS flashcards (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         deck_id INTEGER NOT NULL,
         type TEXT NOT NULL,
         prompt TEXT NOT NULL,
@@ -265,7 +265,7 @@ CREATE TABLE IF NOT EXISTS flashcards (
         FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
       );
 CREATE TABLE IF NOT EXISTS flashcard_reviews (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         card_id INTEGER NOT NULL,
         deck_id INTEGER NOT NULL,
         rating TEXT NOT NULL,
@@ -278,7 +278,7 @@ CREATE TABLE IF NOT EXISTS flashcard_reviews (
         FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
       );
 CREATE TABLE IF NOT EXISTS flashcard_references (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             card_id INTEGER NOT NULL,
             content_id INTEGER NOT NULL,
             ref_type TEXT NOT NULL,
@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS flashcard_references (
             update_time INTEGER NOT NULL
           );
 CREATE TABLE IF NOT EXISTS vibe_learning_resources (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
         sort_index INTEGER NOT NULL DEFAULT 0,
         create_time INTEGER NOT NULL,
@@ -301,7 +301,7 @@ CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         FOREIGN KEY(project_id) REFERENCES vibe_learning_project(id)
       );
 CREATE TABLE IF NOT EXISTS vl_note (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         project_id INTEGER NOT NULL,
@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS vl_note (
         title TEXT NOT NULL
       , type TEXT NOT NULL DEFAULT 'note');
 CREATE TABLE IF NOT EXISTS vl_quiz_set (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
@@ -320,7 +320,7 @@ CREATE TABLE IF NOT EXISTS vl_quiz_set (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS vl_quiz_item (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         quiz_set_id INTEGER NOT NULL,
         type TEXT NOT NULL,
         prompt TEXT NOT NULL,
@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS vl_quiz_item (
         FOREIGN KEY(quiz_set_id) REFERENCES vl_quiz_set(id)
       );
 CREATE TABLE IF NOT EXISTS vl_quiz_record (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         quiz_set_id INTEGER NOT NULL,
         project_id INTEGER NOT NULL,
         score REAL NOT NULL,

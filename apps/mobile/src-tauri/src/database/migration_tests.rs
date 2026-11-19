@@ -1,6 +1,136 @@
 use super::*;
 
 #[test]
+fn row_id_upgrade_preserves_data_and_deleted_high_water() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(&MAIN_SCHEMA_SQL.replace(" AUTOINCREMENT", ""))
+        .unwrap();
+    conn.execute_batch("ALTER TABLE cards ADD COLUMN extra TEXT;
+      INSERT INTO contents(id,create_time,update_time,content) VALUES(10,1,1,'原正文');
+      INSERT INTO cards(id,create_time,update_time,content_id,extra) VALUES(7,1,1,10,'额外字段');
+      CREATE TABLE migration_child(id INTEGER PRIMARY KEY,content_id INTEGER REFERENCES contents(id) ON DELETE CASCADE);
+      INSERT INTO migration_child VALUES(1,10);
+      CREATE INDEX idx_cards_extra ON cards(extra);
+      CREATE VIEW migration_view AS SELECT content FROM contents;
+      CREATE TRIGGER migration_update AFTER UPDATE ON contents BEGIN UPDATE cards SET extra='已触发' WHERE id=7; END;
+      INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES(1,800,'card','delete');
+      INSERT INTO entity_lineage(src_kind,src_id,dst_kind,dst_id,relation,create_time) VALUES('card','810','article','7','derived',1);
+      INSERT INTO migration_meta VALUES('task:id-seq:contents','900');
+      INSERT INTO schema_meta VALUES('main_schema_version','13',1);").unwrap();
+    ensure_main_schema(&conn).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT content FROM migration_view", [], |row| row
+            .get::<_, String>(0))
+            .unwrap(),
+        "原正文"
+    );
+    assert_eq!(
+        conn.query_row("SELECT extra FROM cards WHERE id=7", [], |row| row
+            .get::<_, String>(0))
+            .unwrap(),
+        "额外字段"
+    );
+    assert_eq!(
+        conn.query_row("SELECT content_id FROM migration_child", [], |row| row
+            .get::<_, i64>(0))
+            .unwrap(),
+        10
+    );
+    conn.execute("INSERT INTO cards(create_time,update_time) VALUES(2,2)", [])
+        .unwrap();
+    assert_eq!(conn.last_insert_rowid(), 811);
+    conn.execute(
+        "INSERT INTO contents(create_time,update_time) VALUES(2,2)",
+        [],
+    )
+    .unwrap();
+    assert_eq!(conn.last_insert_rowid(), 901);
+    conn.execute("UPDATE contents SET count=1 WHERE id=10", [])
+        .unwrap();
+    assert_eq!(
+        conn.query_row("SELECT extra FROM cards WHERE id=7", [], |row| row
+            .get::<_, String>(0))
+            .unwrap(),
+        "已触发"
+    );
+    assert!(row_ids::foreign_key_errors(&conn).unwrap().is_empty());
+    let changes = total_changes(&conn);
+    ensure_main_schema(&conn).unwrap();
+    assert_eq!(total_changes(&conn), changes);
+}
+
+#[test]
+fn deleted_row_ids_are_not_reused_after_reopen_and_manual_allocation() {
+    let directory = std::env::temp_dir().join(format!("tau-row-id-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let filename = directory.join("test.db");
+    let mut conn = Connection::open(&filename).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    for (table, columns, values) in [
+        ("cards", "create_time,update_time", "1,1"),
+        ("articles", "title,create_time,update_time", "'文章',1,1"),
+        (
+            "project_item",
+            "title,create_time,update_time",
+            "'文档',1,1",
+        ),
+        ("contents", "create_time,update_time", "1,1"),
+    ] {
+        let insert = format!("INSERT INTO {table}({columns}) VALUES({values})");
+        conn.execute(&insert, []).unwrap();
+        let first = conn.last_insert_rowid();
+        conn.execute(&format!("DELETE FROM {table} WHERE id=?1"), [first])
+            .unwrap();
+        conn.close().unwrap();
+        conn = Connection::open(&filename).unwrap();
+        ensure_main_schema(&conn).unwrap();
+        conn.execute(&insert, []).unwrap();
+        assert!(conn.last_insert_rowid() > first);
+    }
+    conn.execute_batch("INSERT INTO contents(id,create_time,update_time) VALUES(30,1,1); DELETE FROM contents WHERE id=30;").unwrap();
+    assert_eq!(
+        super::super::assistant_tasks::next_id(&conn, "contents").unwrap(),
+        31
+    );
+    drop(conn);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn failed_row_id_upgrade_rolls_back_and_restores_foreign_keys() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(&MAIN_SCHEMA_SQL.replace(" AUTOINCREMENT", ""))
+        .unwrap();
+    conn.execute_batch("INSERT INTO contents(id,create_time,update_time,content) VALUES(10,1,1,'保留正文');
+        INSERT INTO schema_meta VALUES('main_schema_version','13',1);
+        CREATE TRIGGER migration_reject BEFORE INSERT ON schema_meta BEGIN SELECT RAISE(ABORT,'拒绝提交'); END;").unwrap();
+    assert!(ensure_main_schema(&conn).unwrap_err().contains("拒绝提交"));
+    let sql: String = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE name='contents'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(!sql.contains("AUTOINCREMENT"));
+    assert_eq!(
+        get_meta(&conn, "main_schema_version").unwrap().as_deref(),
+        Some("13")
+    );
+    assert_eq!(
+        conn.query_row("SELECT content FROM contents WHERE id=10", [], |row| row
+            .get::<_, String>(
+            0
+        ))
+        .unwrap(),
+        "保留正文"
+    );
+    assert!(conn
+        .pragma_query_value(None, "foreign_keys", |row| row.get::<_, bool>(0))
+        .unwrap());
+}
+
+#[test]
 fn startup_cleans_all_local_databases_and_pairing_files() {
     let directory =
         std::env::temp_dir().join(format!("tau-retired-state-{}", uuid::Uuid::new_v4()));

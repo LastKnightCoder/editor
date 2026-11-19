@@ -28,7 +28,7 @@ function tableExists(db: Database.Database, table: string) {
 }
 
 /**
- * 取下一个实体 id：序列值与三张表的实际 MAX(id) 取最大后 +1，然后写回序列。
+ * 共享序列、各表的持久自增序列与现存编号共同决定下一个编号。
  */
 export function getNextModuleEntityId(db: Database.Database): number {
   ensureMigrationMetaTable(db);
@@ -41,8 +41,13 @@ export function getNextModuleEntityId(db: Database.Database): number {
   for (const table of SEQ_TABLES) {
     if (!tableExists(db, table)) continue;
     const maxIdRow = db.prepare(`SELECT COALESCE(MAX(id), 0) as max_id FROM ${table}`).get() as
-      { max_id: number } | undefined;
+      | { max_id: number }
+      | undefined;
     nextId = Math.max(nextId, Number(maxIdRow?.max_id || 0));
+    const sequence = db.prepare("SELECT seq FROM sqlite_sequence WHERE name=?").get(table) as
+      | { seq: number }
+      | undefined;
+    nextId = Math.max(nextId, sequence?.seq ?? 0);
   }
 
   nextId += 1;
@@ -68,9 +73,10 @@ export function getNextTaskEntityId(
   const row = db
     .prepare(
       `SELECT MAX(COALESCE((SELECT MAX(id) FROM ${table}),0),
+    COALESCE((SELECT seq FROM sqlite_sequence WHERE name=?),0),
     COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?),0))+1 AS id`
     )
-    .get(key) as { id: number };
+    .get(table, key) as { id: number };
   db.prepare(
     "INSERT INTO migration_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
   ).run(key, String(row.id));

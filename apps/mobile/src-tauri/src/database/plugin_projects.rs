@@ -267,7 +267,7 @@ fn grant(
 }
 fn next_document_id(conn: &Connection) -> Result<i64, String> {
     let key = "plugin:project-item-id-seq";
-    let id:i64=conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project_item),0),COALESCE((SELECT MAX(CAST(entity_id AS INTEGER)) FROM plugin_operations WHERE entity='document'),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?1),0))+1",[key],|row|row.get(0)).map_err(sql_error)?;
+    let id:i64=conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project_item),0),COALESCE((SELECT seq FROM sqlite_sequence WHERE name='project_item'),0),COALESCE((SELECT MAX(CAST(entity_id AS INTEGER)) FROM plugin_operations WHERE entity='document'),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?1),0))+1",[key],|row|row.get(0)).map_err(sql_error)?;
     if id > 9_007_199_254_740_991 {
         return Err("项目文档 ID 超出安全范围".into());
     }

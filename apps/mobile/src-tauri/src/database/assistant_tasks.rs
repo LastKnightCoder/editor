@@ -67,7 +67,7 @@ pub(crate) fn next_id(conn: &Connection, table: &str) -> Result<i64, String> {
     )
     .map_err(|e| e.to_string())?;
     let key = format!("task:id-seq:{table}");
-    let id=conn.query_row(&format!("SELECT MAX(COALESCE((SELECT MAX(id) FROM {table}),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?1),0))+1"),[&key],|row|row.get::<_,i64>(0)).map_err(|e|e.to_string())?;
+    let id=conn.query_row(&format!("SELECT MAX(COALESCE((SELECT MAX(id) FROM {table}),0),COALESCE((SELECT seq FROM sqlite_sequence WHERE name='{table}'),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?1),0))+1"),[&key],|row|row.get::<_,i64>(0)).map_err(|e|e.to_string())?;
     conn.execute("INSERT INTO migration_meta(key,value) VALUES(?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,id.to_string()]).map_err(|e|e.to_string())?;
     Ok(id)
 }

@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import version from "@tau/db-schema/schema/main-version.json";
 import { ensureMainSchema, removeRetiredDatabaseState } from "../main-schema";
+import currentSchema from "@tau/db-schema/schema/main.sql?raw";
+import { getNextModuleEntityId, getNextTaskEntityId } from "../tables/module-entity-id";
 
 let db: Database.Database;
 const directories: string[] = [];
@@ -20,6 +22,107 @@ afterEach(() => {
 const schema = () => db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all();
 
 describe("主库当前基线", () => {
+  it("旧库升级保留正文、额外列、外键、索引、视图与触发器，并恢复历史编号上限", () => {
+    db.exec(currentSchema.replaceAll(" AUTOINCREMENT", ""));
+    db.exec(`
+      ALTER TABLE cards ADD COLUMN extra TEXT;
+      INSERT INTO contents(id,create_time,update_time,content) VALUES(10,1,1,'原正文');
+      INSERT INTO cards(id,create_time,update_time,content_id,extra) VALUES(7,1,1,10,'额外字段');
+      INSERT INTO entity_identities(entity_kind,entity_id,local_id,created_at) VALUES('card','original',7,1);
+      CREATE TABLE migration_child(id INTEGER PRIMARY KEY,content_id INTEGER REFERENCES contents(id) ON DELETE CASCADE);
+      INSERT INTO migration_child VALUES(1,10);
+      CREATE INDEX idx_cards_extra ON cards(extra);
+      CREATE VIEW migration_view AS SELECT content FROM contents;
+      CREATE TRIGGER migration_update AFTER UPDATE ON contents BEGIN UPDATE cards SET extra='已触发' WHERE id=7; END;
+      INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES(1,800,'card','delete');
+      INSERT INTO entity_lineage(src_kind,src_id,dst_kind,dst_id,relation,create_time) VALUES('card','810','article','7','derived',1);
+      INSERT INTO migration_meta VALUES('task:id-seq:contents','900');
+      INSERT INTO schema_meta VALUES('main_schema_version','13',1);
+    `);
+    ensureMainSchema(db);
+    expect(db.prepare("SELECT content FROM migration_view").get()).toEqual({ content: "原正文" });
+    expect(db.prepare("SELECT extra,content_id FROM cards WHERE id=7").get()).toEqual({
+      extra: "额外字段",
+      content_id: 10,
+    });
+    expect(db.prepare("SELECT * FROM migration_child").all()).toEqual([{ id: 1, content_id: 10 }]);
+    expect(
+      db.prepare("SELECT retired_at FROM entity_identities WHERE entity_id='original'").get()
+    ).toEqual({ retired_at: null });
+    expect(
+      db.prepare("SELECT name FROM sqlite_master WHERE name='idx_cards_extra'").get()
+    ).toBeTruthy();
+    expect(
+      db.prepare("INSERT INTO cards(create_time,update_time) VALUES(2,2)").run().lastInsertRowid
+    ).toBe(811);
+    expect(
+      db.prepare("INSERT INTO contents(create_time,update_time) VALUES(2,2)").run().lastInsertRowid
+    ).toBe(901);
+    db.exec("UPDATE contents SET count=1 WHERE id=10");
+    expect(db.prepare("SELECT extra FROM cards WHERE id=7").get()).toEqual({ extra: "已触发" });
+    expect(db.pragma("foreign_key_check")).toEqual([]);
+    const changes = db.prepare("SELECT total_changes() AS count").get();
+    ensureMainSchema(db);
+    expect(db.prepare("SELECT total_changes() AS count").get()).toEqual(changes);
+  });
+
+  it.each([
+    ["cards", "create_time,update_time", "1,1"],
+    ["articles", "title,create_time,update_time", "'文章',1,1"],
+    ["project_item", "title,create_time,update_time", "'文档',1,1"],
+    ["contents", "create_time,update_time", "1,1"],
+  ])("%s 删除最大编号并重开后不复用，回滚不消耗编号", (table, columns, values) => {
+    const directory = mkdtempSync(join(tmpdir(), "tau-row-id-"));
+    directories.push(directory);
+    const filename = join(directory, "test.db");
+    db.close();
+    db = new Database(filename);
+    ensureMainSchema(db);
+    const insert = db.prepare(`INSERT INTO ${table}(${columns}) VALUES(${values})`);
+    const first = Number(insert.run().lastInsertRowid);
+    db.prepare(`DELETE FROM ${table} WHERE id=?`).run(first);
+    db.exec("BEGIN");
+    const rolledBack = Number(insert.run().lastInsertRowid);
+    db.exec("ROLLBACK");
+    db.close();
+    db = new Database(filename);
+    ensureMainSchema(db);
+    const next = Number(
+      db.prepare(`INSERT INTO ${table}(${columns}) VALUES(${values})`).run().lastInsertRowid
+    );
+    expect(next).toBeGreaterThan(first);
+    expect(next).toBe(rolledBack);
+  });
+
+  it("手工分配入口遵守数据库序列，保留跨模块共享编号规则", () => {
+    ensureMainSchema(db);
+    db.exec(`
+      INSERT INTO contents(id,create_time,update_time) VALUES(30,1,1); DELETE FROM contents WHERE id=30;
+      INSERT INTO database_item(id,create_time,update_time,title) VALUES(50,1,1,'数据库'); DELETE FROM database_item WHERE id=50;
+    `);
+    expect(getNextTaskEntityId(db, "contents")).toBe(31);
+    expect(getNextModuleEntityId(db)).toBe(51);
+  });
+
+  it("编号升级失败时旧表、数据及版本回滚，并恢复外键开关", () => {
+    db.exec(currentSchema.replaceAll(" AUTOINCREMENT", ""));
+    db.exec(`
+      INSERT INTO contents(id,create_time,update_time,content) VALUES(10,1,1,'保留正文');
+      INSERT INTO schema_meta VALUES('main_schema_version','13',1);
+      CREATE TRIGGER migration_reject BEFORE INSERT ON schema_meta BEGIN SELECT RAISE(ABORT,'拒绝提交'); END;
+    `);
+    const before = schema();
+    expect(() => ensureMainSchema(db)).toThrow("拒绝提交");
+    expect(schema()).toEqual(before);
+    expect(db.prepare("SELECT content FROM contents WHERE id=10").get()).toEqual({
+      content: "保留正文",
+    });
+    expect(db.pragma("foreign_keys", { simple: true })).toBe(1);
+    expect(
+      db.prepare("SELECT value FROM schema_meta WHERE key='main_schema_version'").get()
+    ).toEqual({ value: "13" });
+  });
+
   it("启动清理所有本机资料库与旧配对目录，保留普通数据和云端设置", () => {
     const directory = mkdtempSync(join(tmpdir(), "tau-retired-state-"));
     directories.push(directory);

@@ -1,6 +1,9 @@
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha1::{Digest, Sha1};
 
+#[path = "main_row_ids.rs"]
+mod row_ids;
+
 const MAIN_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/main.sql");
 const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/index.sql");
 const INDEX_VEC_TEMPLATE_SQL: &str =
@@ -211,25 +214,43 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         return remove_retired_tables(conn);
     }
 
-    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+    let tables = row_ids::tables(MAIN_SCHEMA_SQL);
+    conn.pragma_update(None, "foreign_keys", false)
         .map_err(|e| e.to_string())?;
-    tx.execute_batch(MAIN_SCHEMA_SQL)
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
-    tx.execute(
-        "INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time)
+    let result = (|| {
+        let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+            .map_err(|e| e.to_string())?;
+        let foreign_keys = row_ids::foreign_key_errors(&tx)?;
+        row_ids::migrate(&tx, &tables)?;
+        tx.execute_batch(MAIN_SCHEMA_SQL)
+            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
+        row_ids::seed_sequences(&tx, &tables)?;
+        if !row_ids::foreign_key_errors(&tx)?.is_subset(&foreign_keys) {
+            return Err("主库编号升级引入了外键不一致".into());
+        }
+        tx.execute(
+            "INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time)
          VALUES(?1,'#52c41a',0,?2,?2),('月记','#fa8c16',1,?2,?2)
          ON CONFLICT(name) DO NOTHING",
-        params!["周记", now_millis()],
-    )
-    .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to seed diary tag settings: {e}"))?;
-    set_meta(
-        &tx,
-        "main_schema_version",
-        &main_schema_version().to_string(),
-    )?;
-    set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
-    tx.commit()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to commit schema update: {e}"))?;
+            params!["周记", now_millis()],
+        )
+        .map_err(|e| {
+            format!("DB_SCHEMA_MIGRATION_FAILED: Failed to seed diary tag settings: {e}")
+        })?;
+        set_meta(
+            &tx,
+            "main_schema_version",
+            &main_schema_version().to_string(),
+        )?;
+        set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
+        tx.commit().map_err(|e| {
+            format!("DB_SCHEMA_MIGRATION_FAILED: Failed to commit schema update: {e}")
+        })?;
+        Ok::<(), String>(())
+    })();
+    conn.pragma_update(None, "foreign_keys", true)
+        .map_err(|e| e.to_string())?;
+    result?;
     remove_retired_tables(conn)
 }
 

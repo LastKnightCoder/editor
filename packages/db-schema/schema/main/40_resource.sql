@@ -1,6 +1,6 @@
 -- 资源域表
 CREATE TABLE IF NOT EXISTS web_link (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         title TEXT NOT NULL,
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS web_link (
         source_type TEXT NOT NULL CHECK(source_type IN ('remote', 'local'))
       );
 CREATE TABLE IF NOT EXISTS web_clip (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS web_clip (
         title TEXT NOT NULL
       );
 CREATE TABLE IF NOT EXISTS web_note (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         project_item_id INTEGER NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS resource_sync_blacklist (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS publish_selections (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         content_type TEXT NOT NULL,
         content_id INTEGER NOT NULL,
         parent_path TEXT DEFAULT '',
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS publish_selections (
         UNIQUE(content_type, content_id)
       );
 CREATE TABLE IF NOT EXISTS publish_history (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         file_path TEXT NOT NULL UNIQUE,
         content_hash TEXT NOT NULL,
         source_type TEXT,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS publish_history (
         publish_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS transcriptions (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         source_type TEXT NOT NULL,
         source_id INTEGER,
         source_path TEXT NOT NULL,

@@ -1,6 +1,6 @@
 -- 内容组织域表
 CREATE TABLE IF NOT EXISTS chat_group (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         parent_id INTEGER,
         order_index INTEGER DEFAULT 0,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS content_links (
         create_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS data_tables (
-          id INTEGER PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           create_time INTEGER NOT NULL,
           update_time INTEGER NOT NULL,
           columns TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS data_tables (
           active_view_id INTEGER
         , ref_count INTEGER DEFAULT 1);
 CREATE TABLE IF NOT EXISTS data_table_views (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         table_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         type TEXT NOT NULL,

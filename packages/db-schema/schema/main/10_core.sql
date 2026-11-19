@@ -1,6 +1,6 @@
 -- 核心内容域表
 CREATE TABLE IF NOT EXISTS contents (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         content TEXT,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS knowledge_ai_insights (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS white_board_contents (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         name TEXT,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS white_board_content_pending_releases (
   released_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS white_boards (
-            id INTEGER PRIMARY KEY NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
@@ -82,13 +82,13 @@ CREATE TABLE IF NOT EXISTS white_boards (
             snapshot TEXT
         , white_board_content_ids TEXT DEFAULT '[]', active_white_board_content_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS cards (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
             content_id INTEGER, is_top INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS articles (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             author TEXT,
             create_time INTEGER NOT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS collaboration_bindings (
             source_title TEXT,
             FOREIGN KEY(content_id) REFERENCES contents(id));
 CREATE TABLE IF NOT EXISTS pdfs (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS pdfs (
             last_page INTEGER
         );
 CREATE TABLE IF NOT EXISTS pdf_annotations (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
@@ -132,18 +132,18 @@ CREATE TABLE IF NOT EXISTS pdf_annotations (
         area_data TEXT
       );
 CREATE TABLE IF NOT EXISTS pdf_bookmarks (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
         bookmark_payload TEXT NOT NULL
       );
 CREATE TABLE IF NOT EXISTS daily_notes (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             date TEXT NOT NULL,
             content_id INTEGER);
 CREATE TABLE IF NOT EXISTS diary_entries (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         type TEXT NOT NULL CHECK(type IN ('daily', 'weekly', 'monthly')),
         date TEXT NOT NULL UNIQUE,
         content_id INTEGER,
@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS diary_entries (
         FOREIGN KEY(content_id) REFERENCES contents(id)
       );
 CREATE TABLE IF NOT EXISTS diary_segments (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
         diary_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
         tags TEXT DEFAULT '[]',
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS home_panel_layout (
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS operation (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             operation_time INTEGER NOT NULL,
             operation_id INTEGER,
             operation_content_type TEXT,
@@ -191,13 +191,13 @@ CREATE TABLE IF NOT EXISTS operation_daily_counts (
             count INTEGER NOT NULL
         );
 CREATE TABLE IF NOT EXISTS statistic (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         statistic_type TEXT NOT NULL,
         content TEXT NOT NULL
       );
 CREATE TABLE IF NOT EXISTS video_note_item (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         video_note_id INTEGER NOT NULL,
@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS video_note_item (
         title TEXT NOT NULL DEFAULT ''
       );
 CREATE TABLE IF NOT EXISTS video_notes (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         meta_info TEXT NOT NULL,

@@ -75,8 +75,6 @@ const DEFAULT_COLOR = "#2563eb";
 const DEFAULT_EMOJI = "🧠";
 
 class FlashcardTable {
-  private static readonly reviewIdHighWater = new WeakMap<Database.Database, number>();
-
   /** 写命令成功后通知其它窗口（渲染端据此失效 ["flashcards"] 查询，见 features/flashcards/queries.ts） */
   private static changed(db: Database.Database, ctx: CommandContext) {
     ctx.broadcastOthers("flashcards:changed", { databaseName: basename(db.name) });
@@ -828,26 +826,22 @@ class FlashcardTable {
        WHERE id = ?`
       ).run(dueTime, now, stability, difficulty, status, now, payload.cardId);
 
-      // INTEGER PRIMARY KEY 会复用刚撤销的最大 ID；会话内保留高水位，避免旧凭据命中新记录。
-      const maxReviewId =
-        (db.prepare("SELECT MAX(id) AS id FROM flashcard_reviews").get() as { id: number | null })
-          .id ?? 0;
-      const reviewId = Math.max(maxReviewId, this.reviewIdHighWater.get(db) ?? 0) + 1;
-      this.reviewIdHighWater.set(db, reviewId);
-      db.prepare(
-        `INSERT INTO flashcard_reviews (id, card_id, deck_id, rating, review_time, interval, stability, difficulty, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
-        reviewId,
-        payload.cardId,
-        row.deck_id,
-        payload.rating,
-        now,
-        interval,
-        stability,
-        difficulty,
-        payload.notes ?? null
-      );
+      const review = db
+        .prepare(
+          `INSERT INTO flashcard_reviews (card_id, deck_id, rating, review_time, interval, stability, difficulty, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          payload.cardId,
+          row.deck_id,
+          payload.rating,
+          now,
+          interval,
+          stability,
+          difficulty,
+          payload.notes ?? null
+        );
+      const reviewId = Number(review.lastInsertRowid);
 
       const updated = this.getFlashcard(db, payload.cardId)!;
       return {
