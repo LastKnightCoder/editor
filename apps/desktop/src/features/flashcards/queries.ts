@@ -86,6 +86,7 @@ export function useFlashcardSnapshot() {
     refetchOnWindowFocus: true,
   });
   return {
+    database,
     snapshot: query.data,
     loading: query.isPending,
     error: query.error,
@@ -125,7 +126,7 @@ export function useReviewStats() {
   return query.data ?? null;
 }
 
-/** 侧栏徽标的待复习总数（口径同首页 fetchReview：卡组 dueCount 求和，due_time 已到且未暂停） */
+/** 复习页打开时由页面队列回写角标；其余场景汇总卡组 dueCount（due_time 已到且未暂停）。 */
 export function useNavDueCount() {
   const { database, commands } = useFlashcardCommands();
   const connected = useDatabaseConnected();

@@ -37,6 +37,7 @@ import { useSidebarCollapsedWhile } from "@/app/useSidebarCollapsedWhile";
 import { deckStats, reviewQueue, type DeckStats } from "../model";
 import { overlayOpen } from "../overlay";
 import {
+  flashcardKeys,
   invalidateFlashcardViews,
   useFlashcardMutations,
   useFlashcardSnapshot,
@@ -51,7 +52,7 @@ const PAGE_KEY = "review";
 export function FlashcardsView() {
   const { navigator } = usePage();
   const queryClient = useQueryClient();
-  const { snapshot, loading, error, retry } = useFlashcardSnapshot();
+  const { database, snapshot, loading, error, retry } = useFlashcardSnapshot();
   const reviewStats = useReviewStats();
   const mutations = useFlashcardMutations();
   const now = useNow(snapshot);
@@ -95,6 +96,12 @@ export function FlashcardsView() {
       dueByDeck: new Map([...stats].map(([id, s]) => [id, s.due])),
     };
   }, [snapshot, pendingDelete, now]);
+
+  const navDueCount = derived?.queue.length;
+  useEffect(() => {
+    if (navDueCount === undefined) return;
+    queryClient.setQueryData(flashcardKeys.due(database), navDueCount);
+  }, [database, navDueCount, queryClient]);
 
   const deck = deckId != null ? (derived?.decksById.get(deckId) ?? null) : null;
 
@@ -195,7 +202,7 @@ export function FlashcardsView() {
         <p className="text-danger">闪卡加载失败</p>
         <p
           role="alert"
-          className="text-ink-2 text-tau-body max-w-xl select-text break-words px-6 text-center"
+          className="text-ink-2 text-tau-body max-w-xl px-6 text-center break-words select-text"
         >
           {error.message || "无法读取闪卡数据，请重试"}
         </p>
@@ -277,12 +284,12 @@ export function FlashcardsView() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
         {/* 一整张纸：工具栏与卡组 pills 固定在纸顶，左右两栏在纸内各自滚动（同待办页） */}
         <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex flex-none flex-col px-8 pt-5">
             <div className="mb-1 flex h-10 flex-none items-center gap-3">
-              <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+              <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
                 闪卡复习
               </h1>
               <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
