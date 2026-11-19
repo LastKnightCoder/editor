@@ -21,8 +21,10 @@
     -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
     sans-serif;
   --tau-font-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
-  /* 白板手绘模式（D-107）：一期系统手写体回退，二期内置 Excalifont + 小赖 SC */
-  --tau-font-hand: "Hannotate SC", "HanziPen SC", "Kaiti SC", "STKaiti", "KaiTi", var(--tau-font);
+  /* 宿主提供内置手写字体栈时优先使用，否则回退到系统手写体。 */
+  --tau-font-hand:
+    var(--tau-font-hand-faces, "Hannotate SC", "HanziPen SC", "Kaiti SC", "STKaiti", "KaiTi"),
+    var(--tau-font);
 
   /* 字号档位（桌面 useSyncFont 按用户全局字号等比缩放） */
   --tau-text-hero: 25px;

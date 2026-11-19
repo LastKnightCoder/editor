@@ -71,6 +71,8 @@ export function useXxxSnapshot() {
 
 外观设置的中文字体提供内置「小赖 SC」，英文字体提供内置「Shantell Sans」，与系统字体合并去重；系统字体清单未返回时也可选择内置字体。`utils/bundled-fonts.ts` 统一保存选项名称与实际字体栈的映射，预览与 `useSyncFont` 共用；小赖按 `assets/fonts/hand/hand-font.json` 展开全部独立 family 分片，沿用现有按需加载与导出内嵌机制。
 
+白板手绘字体栈 `--tau-font-hand` 统一由 `@tau/themes/scale.css` 定义，优先使用宿主提供的 `--tau-font-hand-faces`，未提供时回退到系统手写体，最后回退到应用字体。桌面端的 `assets/fonts/hand/hand-font.css` 提供内置字体声明与分片栈，`app/base.css` 不重复覆盖手绘字体栈，避免生产 CSS 分包顺序影响字体选择。
+
 **颜色与尺度消费**：组件样式一律 Tailwind 工具类；颜色写语义类（`bg-page / bg-surface / text-ink-1/2/3 / hover:bg-hover / bg-accent-soft / text-accent / bg-ok-soft / text-warn`…），尺度写 tau 命名空间词（`text-tau-body / rounded-tau-sm|md|lg / shadow-card / ease-tau-out / font-tau / font-tau-mono / font-tau-hand`，`font-tau-hand` 只用于白板手绘文字），词表见 [design-system.md](/docs/architecture/design-system.md)。禁止裸色值、antd token、内联十六进制、白名单外手写 CSS。数据驱动的动态值（进度宽度等）允许 inline style 但色值仍走语义类；热力图色阶这类主题 accent 的 alpha 派生以 arbitrary 注明出处。跨域视觉模式收口 `packages/ui/src/primitives/`。**不存在 bg-group**：小面积填充用 `bg-hover`；容器 = 透明底 + `border-line-1` 描边、输入控件 = `bg-surface` + 描边，嵌套底色叠层是常见腐化点。
 
 **编辑器集成要点**（扩展与包的完整约定见 `packages/editor/README.md` 与 [架构手册](/packages/editor/docs/architecture.md)）：
