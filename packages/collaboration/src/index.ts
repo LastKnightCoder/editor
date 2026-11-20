@@ -24,6 +24,8 @@ export * from "./document-adapter";
 export * from "./document-operations";
 export * from "./scoped-content-edit";
 export * from "./document-sync";
+export * from "./document-history";
+export * from "./document-history-edit";
 
 export {
   exportWhiteboardTransfer,

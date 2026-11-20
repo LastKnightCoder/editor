@@ -18,6 +18,25 @@ CREATE TABLE IF NOT EXISTS content_document_block_counts (
   content_id INTEGER PRIMARY KEY REFERENCES contents(id) ON DELETE CASCADE,
   rules TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS document_history_entries (
+  document_id TEXT NOT NULL REFERENCES content_documents(document_id) ON DELETE CASCADE,
+  sequence INTEGER NOT NULL,
+  operation_id TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  checkpoint INTEGER NOT NULL,
+  byte_count INTEGER NOT NULL,
+  metadata TEXT NOT NULL,
+  PRIMARY KEY (document_id, sequence),
+  UNIQUE (document_id, operation_id)
+);
+CREATE TABLE IF NOT EXISTS document_history_payloads (
+  document_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL,
+  part INTEGER NOT NULL,
+  state BLOB NOT NULL,
+  PRIMARY KEY (document_id, sequence, part),
+  FOREIGN KEY (document_id, sequence) REFERENCES document_history_entries(document_id, sequence) ON DELETE CASCADE
+);
 CREATE INDEX IF NOT EXISTS idx_content_document_blocks_position
   ON content_document_blocks(content_id, position);
 CREATE INDEX IF NOT EXISTS idx_content_document_node_blocks_block

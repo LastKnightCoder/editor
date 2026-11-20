@@ -73,6 +73,31 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `content_id` | `INTEGER PRIMARY KEY REFERENCES contents(id) ON DELETE CASCADE` |
 | `rules`      | `TEXT NOT NULL`                                                 |
 
+### `document_history_entries`
+
+资料库里关着正文时产生的历史版本及回放检查点索引。通过编辑历史入口读取正文历史。
+
+| 字段           | SQLite 定义                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `document_id`  | `TEXT NOT NULL REFERENCES content_documents(document_id) ON DELETE CASCADE` |
+| `sequence`     | `INTEGER NOT NULL`                                                          |
+| `operation_id` | `TEXT NOT NULL`                                                             |
+| `revision`     | `TEXT NOT NULL`                                                             |
+| `checkpoint`   | `INTEGER NOT NULL`                                                          |
+| `byte_count`   | `INTEGER NOT NULL`                                                          |
+| `metadata`     | `TEXT NOT NULL`                                                             |
+
+### `document_history_payloads`
+
+历史检查点和 Yjs 增量的二进制分片。通过正文历史入口回放。
+
+| 字段          | SQLite 定义        |
+| ------------- | ------------------ |
+| `document_id` | `TEXT NOT NULL`    |
+| `sequence`    | `INTEGER NOT NULL` |
+| `part`        | `INTEGER NOT NULL` |
+| `state`       | `BLOB NOT NULL`    |
+
 ### `content_documents`
 
 正文的稳定身份、存储格式与不可变契约目录，与 `contents` 同归属；存储格式 2 为整篇快照、3 为分块，正文协作协议仍为 2。不要整列返回 `contracts`。
