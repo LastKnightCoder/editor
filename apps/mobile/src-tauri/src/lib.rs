@@ -6,6 +6,7 @@ mod audio_transcode;
 mod chunked_sync;
 mod collaboration;
 mod collaboration_assets;
+mod content_history;
 mod database;
 mod image_settings;
 mod incoming_file;
@@ -348,6 +349,7 @@ pub fn run() {
             collaboration::collab_cache_discard,
             collaboration::collab_cache_snapshot,
             collaboration::collab_cache_append,
+            content_history::collab_local_history,
             collaboration::collab_cache_list,
             collaboration::collab_recovery,
             collaboration::collab_node_views,

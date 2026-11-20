@@ -6,6 +6,7 @@ import {
   base64ToBytes,
   readNodeDocument,
   validateNodeDocument,
+  type DocumentHistoryAction,
 } from "@tau/collaboration";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Descendant } from "slate";
@@ -25,6 +26,7 @@ import { mobileContentPlugins } from "../app/plugins/content";
 import { getMobileContentKit } from "../services/editorKit";
 import type { ContentDetailResponse } from "../types";
 import { toast } from "../components/toast";
+import { localHistoryApi, type HistoryApi } from "../features/collaboration/core/document-history";
 import {
   localizeFragmentResources,
   registerContentResourceSource,
@@ -40,6 +42,7 @@ import {
 export type LocalContentDocument = EditorDocument & {
   flush(): Promise<void>;
   prepareResource(path: string): string;
+  editHistory?: HistoryApi;
 };
 
 export const contentLineage = (contentId?: number) => `content:${contentId ?? 0}`;
@@ -104,6 +107,7 @@ export default function useLocalContentDocument(options: {
       import("@tau/editor-collab").ContentCollaborationBinding["preserveInputDraft"]
     >;
     flush: () => Promise<void>;
+    history: HistoryApi;
     map: (
       nodes: ContentNode[],
       transform: (url: string) => string,
@@ -252,6 +256,8 @@ export default function useLocalContentDocument(options: {
       metadata.source!.generation = generation;
       let tail = Promise.resolve();
       const pendingUpdates: Uint8Array[] = [];
+      let historyAction: DocumentHistoryAction | undefined;
+      let historyWrites = 0;
       const inputDrafts = new Map(
         (cached?.inputDrafts ?? []).map(draft => [
           JSON.stringify([draft.viewId, draft.nodeId, draft.field]),
@@ -285,6 +291,11 @@ export default function useLocalContentDocument(options: {
             .then(async () => {
               assertActive();
               const updates = pendingUpdates.slice();
+              const action = historyAction;
+              const checkpoint =
+                updates.length > 0 && (historyWrites + 1) % 128 === 0
+                  ? bytesToBase64(Y.encodeStateAsUpdate(doc))
+                  : undefined;
               const drafts = [...inputDrafts.values()];
               const confirmedDrafts = matchingInputDrafts(doc, drafts);
               const state = bytesToBase64(
@@ -317,9 +328,19 @@ export default function useLocalContentDocument(options: {
                 metadata,
                 state,
                 confirmedDrafts,
+                history: updates.length
+                  ? {
+                      operationId: action?.operationId ?? crypto.randomUUID(),
+                      checkpoint,
+                      kind: action?.kind,
+                      target: action?.sequence,
+                    }
+                  : undefined,
               });
               assertActive();
               pendingUpdates.splice(0, updates.length);
+              if (updates.length) historyWrites++;
+              if (historyAction === action) historyAction = undefined;
               for (const draft of confirmedDrafts) {
                 const key = JSON.stringify([draft.viewId, draft.nodeId, draft.field]);
                 if (inputDrafts.get(key)?.sequence === draft.sequence) inputDrafts.delete(key);
@@ -382,6 +403,22 @@ export default function useLocalContentDocument(options: {
               })
             ),
         });
+        const flush = () => tail.catch(() => persist());
+        const history = localHistoryApi(
+          cacheId,
+          doc,
+          () => {
+            if (!canWrite()) throw new Error("当前正文不可编辑");
+          },
+          flush,
+          async (bytes, action) => {
+            const length = pendingUpdates.length;
+            historyAction = action;
+            Y.applyUpdate(doc, bytes, "content-history");
+            if (pendingUpdates.length === length) historyAction = undefined;
+            await flush();
+          }
+        );
         setLoaded({
           key,
           tree,
@@ -392,7 +429,8 @@ export default function useLocalContentDocument(options: {
           views,
           persist,
           preserveDraft,
-          flush: () => tail.catch(() => persist()),
+          flush,
+          history,
         });
         const restored = map(
           readNodeDocument(doc).content,
@@ -473,6 +511,7 @@ export default function useLocalContentDocument(options: {
         const document: LocalContentDocument = {
           ...source,
           flush: loaded.flush,
+          editHistory: loaded.history,
           prepareResource: path => {
             assertActive();
             if (cancelled || !canWrite()) throw new Error("当前正文不可编辑");

@@ -574,6 +574,7 @@ fn open_session_store(directory: &std::path::Path) -> Result<rusqlite::Connectio
     ))
     .map_err(|e| e.to_string())?;
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    crate::content_history::prepare(&tx).map_err(|error| error.to_string())?;
     for (key, value) in settings {
         tx.execute(
             "INSERT OR IGNORE INTO settings(key,value) VALUES (?1,?2)",
@@ -834,6 +835,7 @@ pub struct SessionCacheWrite {
     metadata: Value,
     state: String,
     expected_revision: Option<String>,
+    history: Option<crate::content_history::ContentHistoryWrite>,
 }
 fn cache_bytes(input: &SessionCacheWrite) -> Result<Vec<u8>, String> {
     use base64::Engine;
@@ -1013,6 +1015,7 @@ fn write_cache_snapshot(
     )
     .map_err(|e| e.to_string())?;
     confirm_input_drafts(&tx, &payload)?;
+    crate::content_history::record(&tx, &payload.metadata, &bytes, true, None)?;
     let revision = cache_revision(&tx, &payload.document_id)?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(revision)
@@ -1035,15 +1038,25 @@ fn write_cache_update(
         return Err("COLLAB_CACHE_MISSING: 本机快照尚未建立".into());
     }
     if !bytes.is_empty() {
-        tx.execute(
-            "INSERT OR IGNORE INTO updates(document_id,state,hash) VALUES (?1,?2,?3)",
-            rusqlite::params![
-                payload.document_id,
-                bytes,
-                format!("{:x}", Sha256::digest(&bytes))
-            ],
-        )
-        .map_err(|e| e.to_string())?;
+        let appended = tx
+            .execute(
+                "INSERT OR IGNORE INTO updates(document_id,state,hash) VALUES (?1,?2,?3)",
+                rusqlite::params![
+                    payload.document_id,
+                    bytes,
+                    format!("{:x}", Sha256::digest(&bytes))
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        if appended != 0 {
+            crate::content_history::record(
+                &tx,
+                &payload.metadata,
+                &bytes,
+                false,
+                payload.history.as_ref(),
+            )?;
+        }
     }
     let metadata = cache_metadata(&tx, &payload)?;
     tx.execute(
@@ -1131,6 +1144,7 @@ mod cache_tests {
             "../../../../packages/db-schema/schema/collaboration.sql"
         ))
         .unwrap();
+        crate::content_history::prepare(&db).unwrap();
         db
     }
     fn payload(bytes: &[u8], expected: Option<String>) -> SessionCacheWrite {
@@ -1142,7 +1156,33 @@ mod cache_tests {
             metadata: json!({"id":"doc","baselineId":"base","epoch":0}),
             state: base64::engine::general_purpose::STANDARD.encode(bytes),
             expected_revision: expected,
+            history: None,
         }
+    }
+    #[test]
+    fn local_history_keeps_previous_edits_after_cache_snapshot_compaction() {
+        let mut db = database();
+        let local = |bytes: &[u8], expected| {
+            let mut payload = payload(bytes, expected);
+            payload.metadata["mode"] = json!("local");
+            payload.metadata["source"] = json!({
+                "librarySourceId": "library",
+                "contentDocumentId": "body",
+            });
+            payload
+        };
+        write_cache_snapshot(&mut db, local(&[1], None)).unwrap();
+        let revision = write_cache_update(&mut db, local(&[2], None)).unwrap();
+        write_cache_update(&mut db, local(&[2], None)).unwrap();
+        write_cache_snapshot(&mut db, local(&[1, 2], Some(revision))).unwrap();
+        let archive = db
+            .prepare("SELECT state FROM local_content_history ORDER BY sequence")
+            .unwrap()
+            .query_map([], |row| row.get::<_, Vec<u8>>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(archive, vec![vec![1], vec![2]]);
     }
     #[test]
     fn recovery_preserves_source_close_and_retry_after_cache_corruption() {
