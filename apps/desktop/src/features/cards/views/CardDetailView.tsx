@@ -45,6 +45,8 @@ import type { EditorRef } from "@tau/editor";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
+import { HistoryPanel, composeEditorMarks, useContentHistory } from "@/components/ContentHistory";
+import { History as HistoryIcon } from "lucide-react";
 import { ErrorBoundary } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import AddTag from "@/components/AddTag";
@@ -61,7 +63,7 @@ import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreati
 import useSettingStore from "@/stores/useSettingStore";
 import { openCardInNewWindow } from "@/commands/card";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, formatDate } from "@/utils";
-import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
+import { Button, ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
 import { useCardDetail, useCardsMutations } from "../queries";
 import { AddContentLinkDialog } from "@/features/context/components/ContextLinks";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
@@ -100,6 +102,12 @@ export function CardDetailView() {
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(card?.contentId);
+  /* 编辑历史页边注：与正文同纸的右栏，选中条目联动正文块标注（连接线画在纸面行容器内） */
+  const paperRowRef = useRef<HTMLDivElement>(null);
+  const history = useContentHistory({
+    contentId: card?.contentId,
+    getEditor: () => editorRef.current?.getEditor(),
+  });
 
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
   const [immersive, setImmersive] = useState(false);
@@ -205,234 +213,268 @@ export function CardDetailView() {
         data-morph-key={cardMorphKey(card.id)}
         className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        <FadeScroll className="my-4 min-h-0 flex-1">
-          <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pt-6 pb-8">
-            <article className="col-start-2 min-w-0">
-              {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
+        <div ref={paperRowRef} className="relative flex min-h-0 flex-1">
+          <FadeScroll className="my-4 min-h-0 min-w-0 flex-1">
+            <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pt-6 pb-8">
+              <article className="col-start-2 min-w-0">
+                {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
                 （详情页不做） */}
-              <div className="mb-5 flex items-center gap-2.5">
-                <span
-                  className="text-tau-meta text-ink-3 min-w-0 truncate tabular-nums"
-                  title={cardMetaText}
-                >
-                  {cardMetaText}
-                </span>
-                {/* 脉络入口：浮层内建「连接」分区（显式连接 ∪ 内联引用） */}
-                <ContextBadge entity={{ kind: "card", id: card.id }} />
-                {insights.button}
+                <div className="mb-5 flex items-center gap-2.5">
+                  <span
+                    className="text-tau-meta text-ink-3 min-w-0 truncate tabular-nums"
+                    title={cardMetaText}
+                  >
+                    {cardMetaText}
+                  </span>
+                  {/* 脉络入口：浮层内建「连接」分区（显式连接 ∪ 内联引用） */}
+                  <ContextBadge entity={{ kind: "card", id: card.id }} />
+                  {insights.button}
 
-                {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
+                  {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。
                   图标全局同动作同 icon 且菜单内互不重复（02 规范 §6） */}
-                <span className="ml-auto flex min-w-0 items-center gap-1">
-                  {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
-                  <ContentCollaborationControl
-                    ref={collaborationRef}
-                    hideTrigger
-                    presence
-                    contentId={card.contentId}
-                    source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
-                  />
-                  <Menu
-                    align="end"
-                    fit
-                    trigger={
-                      <button
-                        type="button"
-                        title="更多操作"
-                        className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] place-items-center transition-colors"
-                      >
-                        <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                      </button>
-                    }
-                  >
-                    <Menu.Submenu
-                      label="场景"
-                      icon={<Presentation className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                  <span className="ml-auto flex min-w-0 items-center gap-1">
+                    {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
+                    <ContentCollaborationControl
+                      ref={collaborationRef}
+                      hideTrigger
+                      presence
+                      contentId={card.contentId}
+                      source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
+                    />
+                    <IconButton
+                      title="编辑历史"
+                      aria-label="编辑历史"
+                      aria-pressed={history.isOpen}
+                      className={cn(
+                        "size-[30px]",
+                        history.isOpen && "bg-accent-soft text-accent-text"
+                      )}
+                      onClick={history.toggle}
                     >
-                      <Menu.Item
-                        onSelect={() => setPresenting(card.content)}
-                        icon={<Play className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        演示模式
-                      </Menu.Item>
-                      <Menu.Item
-                        onSelect={() => {
-                          immersiveEntrySelectionRef.current = cloneRange(
-                            editorRef.current?.getEditor().selection ?? null
-                          );
-                          setImmersive(true);
-                        }}
-                        icon={<Maximize2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        沉浸模式
-                      </Menu.Item>
-                      {isElectron && databaseName && (
-                        <Menu.Item
-                          onSelect={() => void openCardInNewWindow(databaseName, card.id)}
-                          icon={
-                            <ExternalLink className="size-[15px] shrink-0" strokeWidth={1.75} />
-                          }
+                      <HistoryIcon className="size-4" />
+                    </IconButton>
+                    <Menu
+                      align="end"
+                      fit
+                      trigger={
+                        <button
+                          type="button"
+                          title="更多操作"
+                          className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] place-items-center transition-colors"
                         >
-                          在新窗口打开
+                          <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                        </button>
+                      }
+                    >
+                      <Menu.Submenu
+                        label="场景"
+                        icon={<Presentation className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                      >
+                        <Menu.Item
+                          onSelect={() => setPresenting(card.content)}
+                          icon={<Play className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          演示模式
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => {
+                            immersiveEntrySelectionRef.current = cloneRange(
+                              editorRef.current?.getEditor().selection ?? null
+                            );
+                            setImmersive(true);
+                          }}
+                          icon={<Maximize2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          沉浸模式
+                        </Menu.Item>
+                        {isElectron && databaseName && (
+                          <Menu.Item
+                            onSelect={() => void openCardInNewWindow(databaseName, card.id)}
+                            icon={
+                              <ExternalLink className="size-[15px] shrink-0" strokeWidth={1.75} />
+                            }
+                          >
+                            在新窗口打开
+                          </Menu.Item>
+                        )}
+                      </Menu.Submenu>
+                      <Menu.Item
+                        icon={<Link2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        onSelect={() => setAddLinkOpen(true)}
+                      >
+                        添加连接
+                      </Menu.Item>
+                      <Menu.Item
+                        icon={
+                          shared ? (
+                            <Users className="size-[15px] shrink-0" strokeWidth={1.75} />
+                          ) : (
+                            <Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />
+                          )
+                        }
+                        onSelect={() => collaborationRef.current?.open()}
+                      >
+                        {shared ? "协作成员" : "发起协作"}
+                      </Menu.Item>
+                      {window.electron && (
+                        <Menu.Item
+                          icon={<HistoryIcon className="size-[15px]" />}
+                          onSelect={() => history.open()}
+                        >
+                          编辑历史
                         </Menu.Item>
                       )}
-                    </Menu.Submenu>
-                    <Menu.Item
-                      icon={<Link2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      onSelect={() => setAddLinkOpen(true)}
-                    >
-                      添加连接
-                    </Menu.Item>
-                    <Menu.Item
-                      icon={
-                        shared ? (
-                          <Users className="size-[15px] shrink-0" strokeWidth={1.75} />
-                        ) : (
-                          <Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />
-                        )
-                      }
-                      onSelect={() => collaborationRef.current?.open()}
-                    >
-                      {shared ? "协作成员" : "发起协作"}
-                    </Menu.Item>
-                    <Menu.Submenu
-                      label="复制"
-                      icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                    >
-                      <Menu.Item
-                        onSelect={() =>
-                          void copyMarkdownToClipboard(card.content, toastAdapter, card.contentId)
-                        }
-                        icon={<ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                      <Menu.Submenu
+                        label="复制"
+                        icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
-                        复制 Markdown
-                      </Menu.Item>
-                      <Menu.Item
-                        onSelect={() =>
-                          void copyWechatHtmlToClipboard(card.content, toastAdapter, card.contentId)
-                        }
-                        icon={<MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        <Menu.Item
+                          onSelect={() =>
+                            void copyMarkdownToClipboard(card.content, toastAdapter, card.contentId)
+                          }
+                          icon={
+                            <ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />
+                          }
+                        >
+                          复制 Markdown
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() =>
+                            void copyWechatHtmlToClipboard(
+                              card.content,
+                              toastAdapter,
+                              card.contentId
+                            )
+                          }
+                          icon={
+                            <MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />
+                          }
+                        >
+                          复制公众号格式
+                        </Menu.Item>
+                      </Menu.Submenu>
+                      <Menu.Submenu
+                        label="导出"
+                        icon={<Download className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
-                        复制公众号格式
-                      </Menu.Item>
-                    </Menu.Submenu>
-                    <Menu.Submenu
-                      label="导出"
-                      icon={<Download className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                    >
-                      <Menu.Item
-                        onSelect={() => {
-                          void exportContentAsMarkdown({
-                            title: cardTitle,
-                            content: card.content,
-                            contentId: card.contentId,
-                          });
-                        }}
-                        icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        <Menu.Item
+                          onSelect={() => {
+                            void exportContentAsMarkdown({
+                              title: cardTitle,
+                              content: card.content,
+                              contentId: card.contentId,
+                            });
+                          }}
+                          icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          Markdown 文件
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => setExportKind("image")}
+                          icon={<ImageIcon className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          图片
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => setExportKind("epub")}
+                          icon={<BookOpen className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          EPUB
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => setExportKind("pdf")}
+                          icon={<FileType className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          PDF
+                        </Menu.Item>
+                      </Menu.Submenu>
+                      <Menu.Submenu
+                        label="生成"
+                        icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
-                        Markdown 文件
-                      </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => flashcard.openAiFlashcard()}
+                          icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          AI 制卡（闪卡）
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => flashcard.openManualFlashcard()}
+                          icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          手动制卡（闪卡）
+                        </Menu.Item>
+                      </Menu.Submenu>
+                      <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
+                      <Menu.Separator />
                       <Menu.Item
-                        onSelect={() => setExportKind("image")}
-                        icon={<ImageIcon className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        danger
+                        onSelect={() => setPendingDelete(true)}
+                        icon={<Trash2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
-                        图片
+                        删除卡片
                       </Menu.Item>
-                      <Menu.Item
-                        onSelect={() => setExportKind("epub")}
-                        icon={<BookOpen className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        EPUB
-                      </Menu.Item>
-                      <Menu.Item
-                        onSelect={() => setExportKind("pdf")}
-                        icon={<FileType className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        PDF
-                      </Menu.Item>
-                    </Menu.Submenu>
-                    <Menu.Submenu
-                      label="生成"
-                      icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                    >
-                      <Menu.Item
-                        onSelect={() => flashcard.openAiFlashcard()}
-                        icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        AI 制卡（闪卡）
-                      </Menu.Item>
-                      <Menu.Item
-                        onSelect={() => flashcard.openManualFlashcard()}
-                        icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                      >
-                        手动制卡（闪卡）
-                      </Menu.Item>
-                    </Menu.Submenu>
-                    <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
-                    <Menu.Separator />
-                    <Menu.Item
-                      danger
-                      onSelect={() => setPendingDelete(true)}
-                      icon={<Trash2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                    >
-                      删除卡片
-                    </Menu.Item>
-                  </Menu>
-                </span>
-              </div>
+                    </Menu>
+                  </span>
+                </div>
 
-              {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
-              <PluginEntityPanels target={{ kind: "card", id: String(card.id) }} className="mb-5" />
+                {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
+                <PluginEntityPanels
+                  target={{ kind: "card", id: String(card.id) }}
+                  className="mb-5"
+                />
 
-              {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
-              {insights.frame(
-                <ErrorBoundary>
-                  <ContentEditor
-                    at={at}
-                    ref={editorRef}
-                    contentId={card.contentId}
-                    key={`${card.id}-${editorRemountKey}`}
-                    initValue={card.content}
-                    readonly={false}
-                    source={{ sourceType: "card", sourceId: card.id }}
-                    editingContext={{ entityType: "card", entityId: card.id }}
-                    className="min-h-[80px]"
-                    onInit={draft.onInit}
-                    {...(draft.placeholder ? { placeHolder: draft.placeholder } : {})}
-                    {...insights.editorProps}
-                  />
-                </ErrorBoundary>
-              )}
+                {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
+                {insights.frame(
+                  <ErrorBoundary>
+                    <ContentEditor
+                      at={at}
+                      ref={editorRef}
+                      contentId={card.contentId}
+                      key={`${card.id}-${editorRemountKey}`}
+                      initValue={card.content}
+                      readonly={false}
+                      source={{ sourceType: "card", sourceId: card.id }}
+                      editingContext={{ entityType: "card", entityId: card.id }}
+                      className="min-h-[80px]"
+                      onInit={draft.onInit}
+                      {...(draft.placeholder ? { placeHolder: draft.placeholder } : {})}
+                      {...composeEditorMarks(insights.editorProps, history.editorProps)}
+                    />
+                  </ErrorBoundary>
+                )}
 
-              {/* 标签行（正文末）：每次操作即时 patch */}
-              <AddTag
-                divided
-                tags={card.tags}
-                addTag={tag => {
-                  if (card.tags.includes(tag)) return;
-                  mutations.patch.mutate({
-                    id: card.id,
-                    patch: { tags: [...card.tags, tag] },
-                  });
-                }}
-                removeTag={tag =>
-                  mutations.patch.mutate({
-                    id: card.id,
-                    patch: { tags: card.tags.filter(item => item !== tag) },
-                  })
-                }
-                editTag={(oldTag, newTag) => {
-                  if (!newTag || newTag === oldTag || card.tags.includes(newTag)) return;
-                  mutations.patch.mutate({
-                    id: card.id,
-                    patch: { tags: card.tags.map(item => (item === oldTag ? newTag : item)) },
-                  });
-                }}
-              />
-            </article>
-          </div>
-        </FadeScroll>
+                {/* 标签行（正文末）：每次操作即时 patch */}
+                <AddTag
+                  divided
+                  tags={card.tags}
+                  addTag={tag => {
+                    if (card.tags.includes(tag)) return;
+                    mutations.patch.mutate({
+                      id: card.id,
+                      patch: { tags: [...card.tags, tag] },
+                    });
+                  }}
+                  removeTag={tag =>
+                    mutations.patch.mutate({
+                      id: card.id,
+                      patch: { tags: card.tags.filter(item => item !== tag) },
+                    })
+                  }
+                  editTag={(oldTag, newTag) => {
+                    if (!newTag || newTag === oldTag || card.tags.includes(newTag)) return;
+                    mutations.patch.mutate({
+                      id: card.id,
+                      patch: { tags: card.tags.map(item => (item === oldTag ? newTag : item)) },
+                    });
+                  }}
+                />
+              </article>
+            </div>
+          </FadeScroll>
+          {history.isOpen && <HistoryPanel history={history} containerRef={paperRowRef} />}
+        </div>
       </div>
 
       {/* 添加连接：入口在 ⋯ 菜单与脉络浮层的「连接」分区 */}

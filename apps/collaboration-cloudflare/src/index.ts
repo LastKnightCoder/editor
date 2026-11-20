@@ -11,6 +11,7 @@ import {
   type DocumentProtocol,
   type DocumentOperationRequest,
   type ScopedContentEdits,
+  type TransferredDocumentHistoryVersion,
 } from "@tau/collaboration";
 import { MAX_DOCUMENT_BYTES, CollaborationStore, fail } from "./store";
 import { assetRequest, AssetOperations } from "./assets";
@@ -201,7 +202,8 @@ export class CollaborationService extends DurableObject<Env> {
             payload,
             document,
             memoryBudget,
-            context.protocol
+            context.protocol,
+            type === 1 ? "同步补传" : undefined
           );
         }
       },
@@ -452,6 +454,62 @@ export class CollaborationService extends DurableObject<Env> {
         }
       );
     }
+    const history = path.match(/^\/v1\/documents\/([^/]+)\/history(?:\/([0-9]+|apply))?$/);
+    if (history) {
+      const [, id, action] = history;
+      const protocol = this.store.historyProtocol(id, device.id);
+      if (method === "GET" && !action) {
+        const before = new URL(request.url).searchParams.get("before");
+        return Response.json(
+          this.store.history.list(id, before === null ? undefined : Number(before)),
+          {
+            headers: { "Cache-Control": "no-store" },
+          }
+        );
+      }
+      if (method === "GET" && action && action !== "apply") {
+        const compare = new URL(request.url).searchParams.get("compare") === "current";
+        const current = compare ? this.store.load(id) : undefined;
+        try {
+          return Response.json(
+            this.store.history.preview(
+              id,
+              Number(action),
+              protocol.revision,
+              device.id,
+              protocol.ownerId === device.id,
+              current
+            ),
+            { headers: { "Cache-Control": "no-store" } }
+          );
+        } finally {
+          current?.destroy();
+        }
+      }
+      if (method === "POST" && action === "apply") {
+        await this.store.applyHistory(
+          id,
+          device.id,
+          {
+            operationId: field(body, "operationId", 128),
+            kind: body.kind as "undo" | "restore",
+            sequence: body.sequence as number,
+            expectedRevision: body.expectedRevision as string | undefined,
+          },
+          () =>
+            Math.min(
+              MAX_DOCUMENT_BYTES,
+              12 * 1024 * 1024 -
+                [...(this.hocuspocus?.documents.keys() ?? [])]
+                  .filter(key => key !== id)
+                  .reduce((size, key) => size + this.store.documentBytes(key), 0)
+            )
+        );
+        this.broadcastCommittedState(id);
+        return Response.json({ ok: true });
+      }
+      return fail("NOT_FOUND", "历史操作不存在", 404);
+    }
     const editOperation = path.match(
       /^\/v1\/documents\/([^/]+)\/operations\/([^/]+)(?:\/(cancel))?$/
     );
@@ -486,22 +544,7 @@ export class CollaborationService extends DurableObject<Env> {
           action === "cancel",
           budget
         );
-        if (operation?.state === "COMMITTED") {
-          const current = this.hocuspocus?.documents.get(id);
-          if (current) {
-            const loaded = this.store.load(id);
-            try {
-              if (
-                current.getMap("meta").get("baselineId") ===
-                  loaded.getMap("meta").get("baselineId") &&
-                current.getMap("meta").get("epoch") === loaded.getMap("meta").get("epoch")
-              )
-                Y.applyUpdate(current, Y.encodeStateAsUpdate(loaded));
-            } finally {
-              loaded.destroy();
-            }
-          }
-        }
+        if (operation?.state === "COMMITTED") this.broadcastCommittedState(id);
         return Response.json({ operation });
       }
     }
@@ -566,6 +609,21 @@ export class CollaborationService extends DurableObject<Env> {
     return fail("NOT_FOUND", "原型不支持此接口", 404);
   }
 
+  private broadcastCommittedState(id: string) {
+    const current = this.hocuspocus?.documents.get(id);
+    if (!current) return;
+    const loaded = this.store.load(id);
+    try {
+      if (
+        current.getMap("meta").get("baselineId") === loaded.getMap("meta").get("baselineId") &&
+        current.getMap("meta").get("epoch") === loaded.getMap("meta").get("epoch")
+      )
+        Y.applyUpdate(current, Y.encodeStateAsUpdate(loaded));
+    } finally {
+      loaded.destroy();
+    }
+  }
+
   private async adminRoute(request: Request, path: string): Promise<Response> {
     if (path === "/_admin/status") return Response.json(this.store.status());
     if (path === "/_admin/export" && request.method === "GET")
@@ -574,6 +632,14 @@ export class CollaborationService extends DurableObject<Env> {
       });
     if (path === "/_admin/import" && request.method === "POST")
       return Response.json(this.store.beginImport(await bodyOf(request)));
+    const history = path.match(/^\/_admin\/history\/([^/]+)$/);
+    if (history && request.method === "POST") {
+      this.store.importHistory(
+        history[1],
+        (await bodyOf(request)) as unknown as TransferredDocumentHistoryVersion
+      );
+      return Response.json({ ok: true });
+    }
     const document = path.match(/^\/_admin\/state\/([^/]+)$/);
     if (document) {
       if (request.method === "GET") return Response.json(this.store.snapshot(document[1]));
@@ -630,6 +696,29 @@ export class CollaborationService extends DurableObject<Env> {
           doc.destroy();
         }
       }
+      const historyParts: { id: string; parts: number }[] = [];
+      for (const { id, head } of metadata.documentHistory) {
+        const encoder = new TextEncoder();
+        let chunks: ArrayBuffer[] = [];
+        let length = 0;
+        let part = 0;
+        const flush = async () => {
+          if (!chunks.length) return;
+          await this.env.BACKUPS?.put(`${prefix}/history/${id}/${part++}`, new Blob(chunks));
+          chunks = [];
+          length = 0;
+        };
+        for (let sequence = 0; sequence <= head; sequence++) {
+          const bytes = encoder.encode(
+            JSON.stringify(this.store.history.exportVersion(id, sequence)) + "\n"
+          );
+          if (length + bytes.byteLength > 8 * 1024 * 1024) await flush();
+          chunks.push(Uint8Array.from(bytes).buffer);
+          length += bytes.byteLength;
+        }
+        await flush();
+        historyParts.push({ id, parts: part });
+      }
       for (const { hash } of this.store.all<{ hash: string }>("SELECT DISTINCT hash FROM assets")) {
         const asset = await this.env.ASSETS?.get("assets/" + hash);
         if (!asset) return fail("BACKUP_FAILED", "备份资源缺失", 500);
@@ -639,6 +728,7 @@ export class CollaborationService extends DurableObject<Env> {
         prefix,
         createdAt: Date.now(),
         documents: ids.map(row => row.id),
+        historyParts,
         counts: this.store.status().counts,
       };
       await this.env.BACKUPS.put(prefix + "/manifest.json", JSON.stringify(result));

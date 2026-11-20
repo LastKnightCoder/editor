@@ -1,7 +1,8 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import { applyContentEntityRelations } from "./content-entity-relations";
-import type { ContentNode } from "@tau/collaboration";
+import type { ContentNode, DocumentHistoryActor } from "@tau/collaboration";
+import { recordClosedContent } from "../content-runtime/closed-content-history";
 import {
   NODE_CONTRACT_PROPERTY,
   canonicalContractJson,
@@ -149,6 +150,7 @@ export class ContentDocumentTable {
       expectedRevision?: string;
       installDocument?: boolean;
       preserveUpdateTime?: boolean;
+      history?: DocumentHistoryActor;
       count: number;
       applyRelations?: (
         removed: readonly ContentEntityRelation[],
@@ -240,7 +242,10 @@ export class ContentDocumentTable {
       db.prepare(
         "UPDATE contents SET content=?,count=?,update_time=CASE WHEN ? THEN update_time ELSE ? END WHERE id=?"
       ).run(contentJson, options.count, options.preserveUpdateTime ? 1 : 0, Date.now(), contentId);
-      return { ...value, contracts, content: structuredClone(value.content), revision };
+      const saved = { ...value, contracts, content: structuredClone(value.content), revision };
+      if (previous && options.history)
+        recordClosedContent(db, contentId, previous, saved, options.history);
+      return saved;
     })();
   }
 }

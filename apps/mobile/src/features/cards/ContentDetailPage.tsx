@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import { EditorKitPending } from "../../components/EditorKitPending";
-import { CornerUpRight, Mic, Sparkles } from "lucide-react";
+import { CornerUpRight, History, Mic, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -68,6 +68,11 @@ import { richTextPlainText } from "../../utils/richTextText";
 const CollaborativeEditor = lazy(() =>
   import("../collaboration/CollaborativeEditor").then(module => ({
     default: module.CollaborativeEditor,
+  }))
+);
+const ContentHistorySheet = lazy(() =>
+  import("../collaboration/ContentHistorySheet").then(module => ({
+    default: module.ContentHistorySheet,
   }))
 );
 
@@ -484,19 +489,26 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     };
     getNavigator().push("aiContentChat", { ...target });
   };
-  const headerActions =
-    aiContext && detail ? (
-      <>
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const headerActions = (
+    <>
+      {aiContext && detail && (
         <PageHeaderButton
           icon={<Sparkles size={19} className="text-accent" />}
           aria-label="问 AI"
           onClick={() => openAsk()}
         />
-        {props.headerRight}
-      </>
-    ) : (
-      props.headerRight
-    );
+      )}
+      {localDocument?.editHistory && !props.collaboration && (
+        <PageHeaderButton
+          icon={<History size={19} />}
+          aria-label="编辑历史"
+          onClick={() => setHistoryOpen(true)}
+        />
+      )}
+      {props.headerRight}
+    </>
+  );
   const fabVisibleBase =
     Boolean(detail && kit) &&
     readingMode.canEdit &&
@@ -782,6 +794,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       ref={setPageRootEl}
       className="mobile-kb-screen mobile-paper-page bg-surface fixed inset-0 z-50 flex flex-col"
     >
+      {historyOpen && localDocument?.editHistory && !props.collaboration && (
+        <Suspense fallback={null}>
+          <ContentHistorySheet
+            api={localDocument.editHistory}
+            onClose={() => setHistoryOpen(false)}
+          />
+        </Suspense>
+      )}
       {hasCover ? (
         <div ref={coverShellRef} className="relative flex-1 overflow-hidden">
           <div

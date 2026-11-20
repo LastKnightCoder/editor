@@ -6,6 +6,13 @@ import {
   readDocumentProtocol,
   DocumentWriteQueue,
   DocumentOperationLedger,
+  DocumentHistoryStore,
+  documentHistorySchema,
+  buildDocumentHistoryUpdate,
+  validateDocumentHistoryAction,
+  NODE_DOCUMENT_VERSION,
+  type DocumentHistoryAction,
+  type TransferredDocumentHistoryVersion,
   type DocumentOperation,
   type DocumentOperationRequest,
   applyStructuredDocumentUpdate,
@@ -85,6 +92,7 @@ export class CollaborationStore {
   private signingKey: string;
   readonly protocols: DocumentProtocolStore;
   readonly operations: DocumentOperationLedger;
+  readonly history: DocumentHistoryStore;
   private readonly writes: DocumentWriteQueue;
 
   constructor(
@@ -149,6 +157,26 @@ export class CollaborationStore {
     };
     this.operations = new DocumentOperationLedger(ledgerSql);
     this.protocols = new DocumentProtocolStore(ledgerSql, id => this.currentProtocol(id));
+    this.sql.exec(documentHistorySchema);
+    this.history = new DocumentHistoryStore({
+      exec: (sql, ...values) => {
+        this.sql.exec(
+          sql,
+          ...values.map(value =>
+            value instanceof Uint8Array ? Uint8Array.from(value).buffer : value
+          )
+        );
+      },
+      all: <Row>(sql: string, ...values: (string | number | Uint8Array)[]) =>
+        this.sql
+          .exec(
+            sql,
+            ...values.map(value =>
+              value instanceof Uint8Array ? Uint8Array.from(value).buffer : value
+            )
+          )
+          .toArray() as Row[],
+    });
   }
 
   private currentProtocol(id: string): DocumentProtocol {
@@ -263,7 +291,9 @@ export class CollaborationStore {
     current: Y.Doc | undefined,
     protocol: DocumentProtocol,
     memoryBudget: number | (() => number),
-    operation?: DocumentOperation
+    operation?: DocumentOperation,
+    historyAction?: DocumentHistoryAction,
+    syncSource?: string
   ): Promise<void | DocumentOperation> {
     const payload = update instanceof Uint8Array ? update.slice() : structuredClone(update);
     const bytes =
@@ -281,13 +311,35 @@ export class CollaborationStore {
       const before = this.load(id);
       let candidate: Y.Doc | undefined;
       try {
+        const beforeState = Y.encodeStateAsUpdate(before);
+        const previousRevision = createHash("sha256").update(beforeState).digest("hex");
+        const recorded = historyAction && this.history.operation(id, historyAction.operationId);
+        if (recorded) {
+          if (
+            recorded.actorId !== deviceId ||
+            recorded.kind !== historyAction.kind ||
+            recorded.target !== historyAction.sequence
+          )
+            return fail("HISTORY_IDENTITY_CONFLICT", "同一历史操作不能更改", 409);
+          return;
+        }
         const scoped =
           payload instanceof Uint8Array
             ? undefined
             : await buildScopedContentUpdate(before, payload, {
                 undo: operation && this.operations.isScopedUndo(operation, payload),
               });
-        const raw = scoped?.update ?? (payload as Uint8Array);
+        const raw = historyAction
+          ? await buildDocumentHistoryUpdate(
+              this.history,
+              id,
+              before,
+              historyAction,
+              previousRevision,
+              deviceId,
+              protocol.ownerId === deviceId
+            )
+          : (scoped?.update ?? (payload as Uint8Array));
         candidate = await applyStructuredDocumentUpdate(before, raw, {
           documentId: id,
           epoch: protocol.epoch,
@@ -300,12 +352,14 @@ export class CollaborationStore {
           return fail("CAPACITY", "活动文档内存预算已满，请稍后重试", 429);
         const content = readDocumentProjection(candidate),
           delta = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(before));
-        const previousRevision = createHash("sha256")
-          .update(Y.encodeStateAsUpdate(before))
-          .digest("hex");
         // 与落盘重载使用相同的 GC 编码，删除文字后的摘要也必须一致。
+        let accepted: Uint8Array | undefined;
+        before.once("update", (update: Uint8Array) => {
+          accepted = update;
+        });
         Y.applyUpdate(before, delta);
-        const revision = createHash("sha256").update(Y.encodeStateAsUpdate(before)).digest("hex");
+        const afterState = Y.encodeStateAsUpdate(before);
+        const revision = createHash("sha256").update(afterState).digest("hex");
         const install = () => {
           this.writable();
           this.authorize(id, deviceId);
@@ -333,6 +387,27 @@ export class CollaborationStore {
             id
           );
           this.retainAssets(id, protocol.epoch, candidate!);
+          if (protocol.version === NODE_DOCUMENT_VERSION) {
+            const source = payload instanceof Uint8Array ? syncSource : payload.source?.agentId;
+            const actor = this.required<{ nickname: string }>(
+              "SELECT nickname FROM devices WHERE id=?",
+              deviceId
+            );
+            this.history.append(id, {
+              operationId:
+                historyAction?.operationId ?? operation?.operationId ?? crypto.randomUUID(),
+              actor: { actorId: deviceId, actorName: actor.nickname, source },
+              kind:
+                historyAction?.kind ?? (operation?.operationId.endsWith("-undo") ? "undo" : "edit"),
+              target: historyAction?.sequence,
+              previousRevision,
+              revision,
+              update: accepted ?? delta,
+              before: () => beforeState,
+              after: () => afterState,
+              checkBytes: size => this.ensureCapacity(size),
+            });
+          }
           this.operations.advance(id);
           this.protocols.updateRevision(id, revision);
         };
@@ -360,6 +435,34 @@ export class CollaborationStore {
         candidate?.destroy();
       }
     });
+  }
+
+  historyProtocol(id: string, deviceId: string) {
+    this.authorize(id, deviceId);
+    const protocol = this.protocols.state(id);
+    if (protocol.version !== NODE_DOCUMENT_VERSION)
+      return fail("UNSUPPORTED_DOCUMENT", "只有正文支持编辑历史", 400);
+    return protocol;
+  }
+
+  async applyHistory(
+    id: string,
+    deviceId: string,
+    action: DocumentHistoryAction,
+    budget: () => number
+  ) {
+    const protocol = this.historyProtocol(id, deviceId);
+    validateDocumentHistoryAction(action);
+    await this.appendNodeUpdate(
+      id,
+      deviceId,
+      new Uint8Array(),
+      undefined,
+      protocol,
+      budget,
+      undefined,
+      { ...action }
+    );
   }
 
   one<T>(sql: string, ...values: (string | number | ArrayBuffer)[]): T | undefined {
@@ -640,7 +743,8 @@ export class CollaborationStore {
     update: Uint8Array,
     current: Y.Doc,
     memoryBudget: number | (() => number) = MAX_DOCUMENT_BYTES,
-    expected?: DocumentProtocol
+    expected?: DocumentProtocol,
+    syncSource?: string
   ) {
     this.writable();
     this.authorize(id, deviceId);
@@ -652,7 +756,17 @@ export class CollaborationStore {
       identity.baselineId !== protocol.baselineId
     )
       return fail("EPOCH_CONFLICT", "活动会话属于旧文档基线", 409);
-    return this.appendNodeUpdate(id, deviceId, update, current, protocol, memoryBudget);
+    return this.appendNodeUpdate(
+      id,
+      deviceId,
+      update,
+      current,
+      protocol,
+      memoryBudget,
+      undefined,
+      undefined,
+      syncSource
+    );
   }
 
   compact(id: string) {
@@ -839,6 +953,7 @@ export class CollaborationStore {
       this.sql.exec("DELETE FROM invitations WHERE document_id=?", id);
       this.sql.exec("DELETE FROM join_requests WHERE document_id=?", id);
       this.sql.exec("DELETE FROM assets WHERE document_id=?", id);
+      this.history.remove(id);
       this.audit(deviceId, id, "closed");
     });
     this.protocols.invalidate(id);
@@ -930,7 +1045,7 @@ export class CollaborationStore {
 
   storageBytes() {
     return this.required<{ bytes: number }>(
-      "SELECT (SELECT coalesce(sum(size),0) FROM assets)+(SELECT coalesce(sum(length(state)),0) FROM chunks)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_operations)+(SELECT count(*)*256 FROM collaboration_asset_history)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_migrations)+(SELECT coalesce(sum(length(source_id)+length(target_id)+8),0) FROM identity_merges) AS bytes"
+      "SELECT (SELECT coalesce(sum(size),0) FROM assets)+(SELECT coalesce(sum(length(state)),0) FROM chunks)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_operations)+(SELECT count(*)*256 FROM collaboration_asset_history)+(SELECT coalesce(sum(length(value)),0) FROM collaboration_migrations)+(SELECT coalesce(sum(length(source_id)+length(target_id)+8),0) FROM identity_merges)+(SELECT coalesce(sum(length(state)),0) FROM document_history_payloads)+(SELECT coalesce(sum(length(metadata)+length(revision)),0) FROM document_history_entries) AS bytes"
     ).bytes;
   }
 
@@ -1021,6 +1136,9 @@ export class CollaborationStore {
     return {
       format: 6,
       signingKey: this.signingKey,
+      documentHistory: this.all<{ id: string; head: number }>(
+        "SELECT document_id AS id,max(sequence) AS head FROM document_history_entries GROUP BY document_id"
+      ),
       tables: Object.fromEntries(
         BACKUP_TABLES.map(table => [
           table,
@@ -1057,6 +1175,20 @@ export class CollaborationStore {
     }
     if (!Array.isArray(input.tables.collaboration_protocol))
       fail("INVALID_IMPORT", "备份清单缺少 collaboration_protocol");
+    const documentHistory = input.documentHistory ?? [];
+    if (
+      !Array.isArray(documentHistory) ||
+      documentHistory.some(
+        row =>
+          !row ||
+          typeof row.id !== "string" ||
+          !/^[a-f0-9-]{36}$/.test(row.id) ||
+          !Number.isSafeInteger(row.head) ||
+          row.head < 0
+      ) ||
+      new Set(documentHistory.map(row => row.id)).size !== documentHistory.length
+    )
+      fail("INVALID_IMPORT", "历史备份清单无效");
     for (const row of input.tables.collaboration_protocol) {
       try {
         if (typeof row?.value !== "string") throw new Error("协议记录无效");
@@ -1100,7 +1232,12 @@ export class CollaborationStore {
     };
     this.protocols.invalidate();
     this.storage.transactionSync(() => {
-      for (const table of [...Object.keys(columns), "chunks"])
+      for (const table of [
+        ...Object.keys(columns),
+        "chunks",
+        "document_history_payloads",
+        "document_history_entries",
+      ])
         this.sql.exec("DELETE FROM " + table);
       for (const [table, fields] of Object.entries(columns)) {
         const rows =
@@ -1134,6 +1271,10 @@ export class CollaborationStore {
       }
       this.setSetting("signing_key", input.signingKey);
       this.setSetting("import_format", String(input.format));
+      for (const { id } of documentHistory)
+        if (this.document(id).status !== "active")
+          fail("INVALID_IMPORT", "历史版本必须属于活动正文");
+      this.setSetting("import_document_history", JSON.stringify(documentHistory));
       this.setSetting(
         "import_counts",
         JSON.stringify(
@@ -1146,6 +1287,18 @@ export class CollaborationStore {
     });
     this.signingKey = input.signingKey;
     return this.status();
+  }
+
+  importHistory(id: string, value: TransferredDocumentHistoryVersion) {
+    if (this.setting("ready") === "1") fail("ALREADY_READY", "正式库已开放，不能覆盖导入", 409);
+    const entries = JSON.parse(this.setting("import_document_history") ?? "[]") as {
+      id: string;
+      head: number;
+    }[];
+    const expected = entries.find(entry => entry.id === id);
+    if (!expected || !value.entry || value.entry.sequence > expected.head)
+      return fail("INVALID_IMPORT", "历史不属于当前备份清单");
+    this.storage.transactionSync(() => this.history.importVersion(id, value));
   }
 
   async importState(id: string, state: Uint8Array) {
@@ -1173,6 +1326,22 @@ export class CollaborationStore {
     if (!Object.keys(expected).length) fail("INVALID_IMPORT", "尚未导入元数据");
     for (const [table, count] of Object.entries(this.status().counts))
       if (expected[table] !== count) fail("INVALID_IMPORT", "迁移数量不一致：" + table);
+    const versions = JSON.parse(this.setting("import_document_history") ?? "[]") as {
+      id: string;
+      head: number;
+    }[];
+    for (const { id, head } of versions) {
+      if (this.history.head(id)?.sequence !== head)
+        fail("INVALID_IMPORT", "历史版本导入尚未完成", 409);
+      const doc = this.history.replay(id, head);
+      try {
+        const identity = readDocumentIdentity(doc);
+        if (identity.version !== NODE_DOCUMENT_VERSION || identity.documentId !== id)
+          fail("INVALID_IMPORT", "历史版本身份无效");
+      } finally {
+        doc.destroy();
+      }
+    }
     for (const row of this.all<{ id: string }>("SELECT id FROM documents WHERE status='active'")) {
       const doc = this.load(row.id);
       try {

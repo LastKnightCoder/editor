@@ -156,7 +156,8 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
           context.deviceId,
           payload,
           document,
-          context.protocol
+          context.protocol,
+          type === 1 ? "同步补传" : undefined
         );
     },
     async beforeHandleAwareness({ context, documentName, states, connection, socketId }) {

@@ -1,4 +1,5 @@
 import type * as Y from "yjs";
+import type { DocumentHistoryWrite } from "@tau/collaboration";
 import type { CollaborationLocalStore } from "../collaboration/local-store";
 import type { NodeSessionJournal } from "../collaboration/node-session-updates";
 
@@ -9,11 +10,13 @@ export class SqliteNodeSessionJournal implements NodeSessionJournal {
     sessionId: string,
     update: Uint8Array,
     retainCandidate: () => void,
-    writeReceipt?: () => void
+    writeReceipt?: () => void,
+    history?: { documentId: string; write: DocumentHistoryWrite }
   ): void {
     this.store.db.transaction(() => {
       retainCandidate();
       this.store.append(sessionId, update);
+      if (history) this.store.history.append(history.documentId, history.write);
       writeReceipt?.();
     })();
   }

@@ -6,6 +6,7 @@ import { useMobileContentKit } from "../../services/editorKit";
 import { EditorKitPending } from "../../components/EditorKitPending";
 import {
   ChevronRight,
+  History,
   Loader2,
   LogOut,
   MoreHorizontal,
@@ -48,6 +49,9 @@ import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { useCollabSession } from "./hooks/useCollabSession";
 import { useContentMention } from "../cards/editorExtensions/useContentMention";
 import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
+import { ContentHistorySheet } from "./ContentHistorySheet";
+import { sharedHistoryApi } from "./core/document-history";
+import { collaborationManager } from "./core/manager";
 
 export function CollabEditorPage(props: {
   documentId: string;
@@ -56,6 +60,7 @@ export function CollabEditorPage(props: {
 }) {
   const navigator = useNavigator();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const {
     binding,
     document: sourceDocument,
@@ -69,6 +74,22 @@ export function CollabEditorPage(props: {
     offline,
     retry,
   } = useCollabSession(props.documentId);
+  const serverUrl = session?.serverUrl;
+  const history = useMemo(
+    () =>
+      serverUrl
+        ? sharedHistoryApi(serverUrl, props.documentId, async () => {
+            binding?.flushLocal?.();
+            const current = collaborationManager.sessions.get(props.documentId);
+            if (!current || current.info.frozen || current.info.status !== "active")
+              throw new Error("协作文档已失效");
+            await collaborationManager.flush(current);
+            if (current.info.pending || current.provider?.hasUnsyncedChanges)
+              throw new Error("请等待当前编辑同步后重试");
+          })
+        : undefined,
+    [binding, props.documentId, serverUrl]
+  );
   const editorRef = useRef<EditorRef | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -316,6 +337,9 @@ export function CollabEditorPage(props: {
       )}
 
       <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
+      {historyOpen && history && (
+        <ContentHistorySheet api={history} onClose={() => setHistoryOpen(false)} />
+      )}
 
       <ActionSheet
         open={moreOpen}
@@ -329,6 +353,18 @@ export function CollabEditorPage(props: {
             ? [
                 blockSelectionMenuItem(() => blockSelection.enter()),
                 outlineMenuItem(outline.openOutline),
+              ]
+            : []),
+          ...(history && session?.status === "active"
+            ? [
+                {
+                  label: "编辑历史",
+                  icon: <History size={18} />,
+                  onClick: () => {
+                    setMoreOpen(false);
+                    setHistoryOpen(true);
+                  },
+                },
               ]
             : []),
           {

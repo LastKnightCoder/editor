@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>编辑历史 · 三份设计稿对比</title>
+<style>
+  :root {
+    --tau-bg-page: #f3eee2; --tau-bg-surface: #fffdf9; --tau-bg-surface-hover: #f6f3ef;
+    --tau-bg-sunken: #e7dbc8; --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67,57,44,0.05); --tau-bg-selected: rgba(217,119,87,0.12);
+    --tau-ink-1: #43392c; --tau-ink-2: #6a5c49; --tau-ink-3: #a89a85; --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2; --tau-line-2: rgba(233,225,210,0.55);
+    --tau-accent: hsl(22 58% 42%); --tau-accent-soft: hsla(22,58%,42%,0.12); --tau-accent-text: #a05236;
+    --tau-ok: #61795f; --tau-ok-soft: #e5ede2; --tau-warn: #a38c4d; --tau-warn-soft: #f6efd6;
+    --tau-danger: #b0564d; --tau-danger-soft: #f6e3e0; --tau-info: #5c7d99; --tau-info-soft: #e2ebf3;
+    --tau-shadow-card: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120,100,70,0.4);
+    --tau-glow-1: #f6d3b6; --tau-glow-3: #f4e3ae;
+    --tau-radius-sm: 8px; --tau-radius-md: 12px; --tau-radius-lg: 16px;
+    --tau-ease-out: cubic-bezier(0.22,1,0.36,1); --tau-dur-fast: 160ms;
+    --tau-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--tau-font); color: var(--tau-ink-1); background: var(--tau-bg-page);
+    font-size: 13px; line-height: 1.65; padding: 48px 24px 72px; position: relative; min-height: 100vh;
+  }
+  body::before { content: ""; position: fixed; width: 620px; height: 620px; border-radius: 50%; background: var(--tau-glow-1); filter: blur(110px); opacity: .4; top: -220px; right: -140px; pointer-events: none; }
+  .wrap { max-width: 1060px; margin: 0 auto; position: relative; }
+  header.page h1 { font-size: 25px; font-weight: 600; letter-spacing: .3px; }
+  header.page p { margin-top: 8px; color: var(--tau-ink-2); font-size: 13.5px; max-width: 720px; }
+  header.page .stamp { margin-top: 6px; font-size: 12px; color: var(--tau-ink-3); }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+  @media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--tau-bg-surface); border-radius: var(--tau-radius-lg); box-shadow: var(--tau-shadow-card);
+    padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 12px;
+    border: 1px solid transparent; transition: border-color var(--tau-dur-fast) var(--tau-ease-out), transform var(--tau-dur-fast) var(--tau-ease-out);
+  }
+  .card:hover { border-color: var(--tau-accent-soft); transform: translateY(-2px); }
+  .card .k { font-size: 11.5px; color: var(--tau-accent-text); font-weight: 600; letter-spacing: 1px; }
+  .card h2 { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .card .claim { font-size: 12.5px; color: var(--tau-ink-2); min-height: 58px; }
+
+  /* 迷你线框示意（纯 CSS） */
+  .wire { height: 128px; border-radius: var(--tau-radius-sm); background: var(--tau-bg-page); border: 1px solid var(--tau-line-1); position: relative; overflow: hidden; padding: 8px; display: flex; gap: 6px; }
+  .wire .col { flex: 1; background: var(--tau-bg-surface); border-radius: 5px; display: flex; flex-direction: column; gap: 5px; padding: 8px; }
+  .wire .ln { height: 5px; border-radius: 3px; background: var(--tau-bg-sunken); }
+  .wire .ln.s { width: 55%; } .wire .ln.hl { background: var(--tau-ok-soft); } .wire .ln.rd { background: var(--tau-danger-soft); }
+  .wire.rail .side { width: 30%; flex: none; background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 5px; padding: 7px; display: flex; flex-direction: column; gap: 6px; }
+  .wire.rail .side .it { display: flex; gap: 5px; align-items: center; }
+  .wire.rail .side .dt { width: 7px; height: 7px; border-radius: 50%; background: var(--tau-accent); flex: none; }
+  .wire.rail .side .dt.c2 { background: var(--tau-info); } .wire.rail .side .dt.c3 { background: var(--tau-warn); }
+  .wire.rail .side .ln { flex: 1; }
+  .wire.modal { display: block; }
+  .wire.modal .frame { position: absolute; inset: 14px 26px; background: var(--tau-bg-surface); border-radius: 6px; box-shadow: 0 6px 16px -6px rgba(120,100,70,.4); display: grid; grid-template-columns: 34% 1fr; overflow: hidden; }
+  .wire.modal .frame .l { border-right: 1px solid var(--tau-line-1); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .wire.modal .frame .l .it { display: flex; gap: 5px; align-items: center; }
+  .wire.modal .frame .l .dt { width: 6px; height: 6px; border-radius: 50%; background: var(--tau-accent); flex: none; }
+  .wire.modal .frame .l .ln { flex: 1; }
+  .wire.modal .frame .r { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .wire.modal .frame .r .dcard { border: 1px solid var(--tau-line-2); border-left: 3px solid var(--tau-ok); border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; gap: 4px; }
+  .wire.travel { display: block; }
+  .wire.travel .doc { position: absolute; inset: 34px 40px 8px; background: var(--tau-bg-surface); border-radius: 5px; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+  .wire.travel .cap { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); width: 62%; height: 16px; background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 999px; box-shadow: 0 4px 10px -4px rgba(120,100,70,.4); display: flex; align-items: center; gap: 4px; padding: 0 8px; }
+  .wire.travel .cap .st { width: 5px; height: 5px; border-radius: 50%; background: var(--tau-accent); }
+  .wire.travel .cap .st.c2 { background: var(--tau-info); } .wire.travel .cap .st.c3 { background: var(--tau-warn); }
+  .wire.travel .cap .bar { flex: 1; height: 2px; border-radius: 1px; background: var(--tau-bg-sunken); }
+  .wire.travel .cap .go { width: 26px; height: 8px; border-radius: 4px; background: var(--tau-accent); }
+
+  .dims { font-size: 12px; color: var(--tau-ink-2); }
+  .dims div { display: grid; grid-template-columns: 58px 1fr; gap: 4px 8px; }
+  .dims dt { color: var(--tau-ink-3); }
+  .dims dd { margin: 0; }
+  .open {
+    margin-top: auto; height: 32px; border-radius: 8px; border: none; background: var(--tau-accent); color: var(--tau-ink-inverse);
+    font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
+    transition: background var(--tau-dur-fast) var(--tau-ease-out);
+  }
+  .open:hover { background: hsl(22 58% 35%); }
+  .open a { color: inherit; text-decoration: none; display: block; line-height: 32px; }
+
+  section.about { margin-top: 40px; background: var(--tau-bg-surface); border-radius: var(--tau-radius-md); box-shadow: var(--tau-shadow-card); padding: 22px 24px; }
+  section.about h2 { font-size: 14.5px; font-weight: 600; margin-bottom: 10px; }
+  section.about ul { padding-left: 18px; color: var(--tau-ink-2); font-size: 12.5px; display: grid; gap: 5px; }
+  section.about code { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; font-size: 11.5px; background: var(--tau-bg-sunken); border-radius: 4px; padding: 1px 5px; }
+  table.cmp { width: 100%; border-collapse: collapse; margin-top: 34px; background: var(--tau-bg-surface); border-radius: var(--tau-radius-md); box-shadow: var(--tau-shadow-card); overflow: hidden; font-size: 12.5px; }
+  table.cmp th, table.cmp td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--tau-line-2); vertical-align: top; }
+  table.cmp th { background: var(--tau-bg-surface-hover); font-size: 12px; color: var(--tau-ink-2); font-weight: 600; }
+  table.cmp tr:last-child td { border-bottom: none; }
+  table.cmp td:first-child { color: var(--tau-ink-3); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <h1>编辑历史 · 三份设计稿</h1>
+    <p>现有实现是一个 920×620 的模态弹窗（左列表 + 右详情）。三份设计稿沿用同一套 paper 主题 token、同一份演示数据（16 个版本 / 本机 + 协作者 + AI / 含撤销、恢复、已撤销状态），只在「历史出现的位置」与「交互方式」上给出三种不同主张，可单独打开体验，也可混合取用。</p>
+    <p class="stamp">2026-11-19 · 一次性方案对比产物 · 基于当前工作区实现（HistoryDialog / DocumentHistoryEntry）重设计</p>
+  </header>
+
+  <div class="cards">
+    <div class="card" style="border-color: var(--tau-accent-soft)">
+      <div class="k">设计稿 A2 · 当前推荐</div>
+      <h2>页边注 · 一张纸</h2>
+      <div class="wire rail" aria-hidden="true">
+        <div class="side" style="width:38%">
+          <div class="it"><span class="dt"></span><span class="ln"></span></div>
+          <div class="it"><span class="dt c2"></span><span class="ln"></span></div>
+          <div class="it"><span class="dt c3"></span><span class="ln s"></span></div>
+          <div class="it"><span class="dt"></span><span class="ln"></span></div>
+        </div>
+        <div class="col" style="border:none;background:transparent">
+          <div class="ln s"></div><div class="ln"></div><div class="ln hl"></div><div class="ln"></div><div class="ln rd s"></div><div class="ln s"></div>
+        </div>
+      </div>
+      <p class="claim">针对 A 的反馈迭代：不再是「正文 + 侧栏」拼接，历史是同一张纸右缘的页边注——选中条目后虚线连接线从节点弯到正文标注块、两端序号一一对应；明细与操作收进条目自身展开区；↑/↓ 键在版本间移动；工具栏图标可收起页边注，纸张回宽只剩纯正文。</p>
+      <dl class="dims">
+        <div><dt>一体感</dt><dd>同底色同阴影同留白，边注与正文一体</dd></div>
+        <div><dt>操作</dt><dd>撤销/恢复/全文/确认都在条目展开区</dd></div>
+        <div><dt>联动</dt><dd>连接线 + 序号圆点，正文标注零翻译</dd></div>
+        <div><dt>代价</dt><dd>纸张加宽占空间；实现多一层连线层</dd></div>
+      </dl>
+      <button class="open"><a href="./variant-a2-margin.html">打开体验 →</a></button>
+    </div>
+
+    <div class="card">
+      <div class="k">设计稿 A</div>
+      <h2>侧栏时间轴 · 正文联动</h2>
+      <div class="wire rail" aria-hidden="true">
+        <div class="side">
+          <div class="it"><span class="dt"></span><span class="ln"></span></div>
+          <div class="it"><span class="dt c2"></span><span class="ln"></span></div>
+          <div class="it"><span class="dt c3"></span><span class="ln s"></span></div>
+          <div class="it"><span class="dt"></span><span class="ln"></span></div>
+        </div>
+        <div class="col">
+          <div class="ln s"></div><div class="ln"></div><div class="ln hl"></div><div class="ln"></div><div class="ln rd s"></div><div class="ln s"></div>
+        </div>
+      </div>
+      <p class="claim">历史是正文的一部分，不是弹窗：右侧常驻面板 + 按天分组时间轴，选中条目后该次改动直接标注在左侧正文原位（绿增 / 红删 / 蓝移），边写边查互不打断。</p>
+      <dl class="dims">
+        <div><dt>位置</dt><dd>右侧 dock 面板（可开关）</dd></div>
+        <div><dt>入口</dt><dd>工具栏时钟图标常驻</dd></div>
+        <div><dt>适合</dt><dd>高频回看、写作中随手查</dd></div>
+        <div><dt>代价</dt><dd>占横向空间，小屏需降级</dd></div>
+      </dl>
+      <button class="open"><a href="./variant-a-rail.html">打开体验 →</a></button>
+    </div>
+
+    <div class="card">
+      <div class="k">设计稿 B</div>
+      <h2>版本工作台</h2>
+      <div class="wire modal" aria-hidden="true">
+        <div class="frame">
+          <div class="l">
+            <div class="it"><span class="dt"></span><span class="ln"></span></div>
+            <div class="it"><span class="dt"></span><span class="ln s"></span></div>
+            <div class="it"><span class="dt"></span><span class="ln"></span></div>
+            <div class="it"><span class="dt"></span><span class="ln s"></span></div>
+          </div>
+          <div class="r">
+            <div class="ln s"></div>
+            <div class="dcard"><span class="ln rd s"></span><span class="ln"></span></div>
+            <div class="dcard"><span class="ln s"></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="claim">保留模态的专注，重做信息架构：作者筛选、按天分组、改动量摘要、已撤销置灰、恢复前与当前正文逐块对照，底部常驻「历史只增不删」的教育文案——档案室式回溯。</p>
+      <dl class="dims">
+        <div><dt>位置</dt><dd>居中模态（沿用现有形态）</dd></div>
+        <div><dt>入口</dt><dd>不变（更多菜单 / 按钮）</dd></div>
+        <div><dt>适合</dt><dd>长历史、多成员协作场景</dd></div>
+        <div><dt>代价</dt><dd>打断写作；迁移成本最低</dd></div>
+      </dl>
+      <button class="open"><a href="./variant-b-workbench.html">打开体验 →</a></button>
+    </div>
+
+    <div class="card">
+      <div class="k">设计稿 C</div>
+      <h2>沉浸式时间旅行</h2>
+      <div class="wire travel" aria-hidden="true">
+        <div class="cap"><span class="st"></span><span class="bar"></span><span class="st c2"></span><span class="bar"></span><span class="st c3"></span><span class="bar"></span><span class="go"></span></div>
+        <div class="doc">
+          <div class="ln s"></div><div class="ln"></div><div class="ln hl"></div><div class="ln"></div><div class="ln rd s"></div><div class="ln"></div>
+        </div>
+      </div>
+      <p class="claim">不再有独立面板：正文区接管为只读历史视图，顶部悬浮时间胶囊（节点颜色=作者，←/→ 键穿梭），diff inline 落在正文上——绿=恢复后会回来，红删除线=恢复后会失去。</p>
+      <dl class="dims">
+        <div><dt>位置</dt><dd>正文区本身（无面板）</dd></div>
+        <div><dt>入口</dt><dd>正文右上时钟 → 进入只读模式</dd></div>
+        <div><dt>适合</dt><dd>“看看文档当时长什么样”</dd></div>
+        <div><dt>代价</dt><dd>与写作互斥；筛选能力弱</dd></div>
+      </dl>
+      <button class="open"><a href="./variant-c-timetravel.html">打开体验 →</a></button>
+    </div>
+  </div>
+
+  <table class="cmp">
+    <tr><th>维度</th><th>现状（HistoryDialog）</th><th>A 侧栏联动</th><th>B 版本工作台</th><th>C 时间旅行</th></tr>
+    <tr><td>呈现形态</td><td>模态双栏列表+详情</td><td>常驻侧栏 + 正文 inline 标注</td><td>模态双栏（信息架构重排）</td><td>正文接管 + 悬浮时间胶囊</td></tr>
+    <tr><td>diff 位置</td><td>右侧卡片（del 红）</td><td>正文原位（绿/红/蓝）</td><td>卡片流 + 类型色条 + 恢复对照</td><td>正文原位（绿/红）</td></tr>
+    <tr><td>版本导航</td><td>平铺列表 + 加载更早</td><td>按天分组时间轴 + 作者筛选</td><td>按天分组 + 作者筛选 + 摘要</td><td>滑轨节点 + 键盘步进</td></tr>
+    <tr><td>撤销/恢复</td><td>footer 两段式确认</td><td>详情卡确认 + 行内快速撤销</td><td>footer 两段式 + 恢复前对照</td><td>胶囊旁小浮层确认</td></tr>
+    <tr><td>与写作关系</td><td>互斥（模态）</td><td>并存</td><td>互斥（模态）</td><td>互斥（只读）</td></tr>
+  </table>
+
+  <section class="about">
+    <h2>三稿共通的约束（来自现状代码）</h2>
+    <ul>
+      <li>数据模型不变：<code>DocumentHistoryEntry{ sequence, actorId, actorName, time, kind: baseline|edit|undo|restore, target, source }</code>，三稿的徽章、摘要、撤銷/恢复文案均由这些字段推导。</li>
+      <li>动作语义不变：<b>撤销</b>=回退单次编辑（生成逆操作），<b>恢复</b>=整篇回到该版本；两者都会追加新历史记录，历史只增不删——A/B/C 都在确认文案里向用户传达这一点。</li>
+      <li>权限模型不变：拥有者可恢复+撤销任意；成员只能撤销自己的编辑；已撤销与 baseline 条目不可再撤销。</li>
+      <li>分页不变：每页 50 条、sequence 游标；三稿均保留「加载更早记录」。</li>
+      <li>视觉全部取自 paper 主题 token（<code>packages/themes/src/tokens.css</code>），未引入新颜色；diff 删除沿用 <code>danger</code>，新增/恢复方向引入 <code>ok</code>、移动沿用 <code>info</code>。</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>

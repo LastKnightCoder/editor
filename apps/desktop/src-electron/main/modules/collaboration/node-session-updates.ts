@@ -1,12 +1,15 @@
 import * as Y from "yjs";
+import { createHash, randomUUID } from "node:crypto";
 import {
   applyNodeDocumentUpdate,
   ScopedContentConflictError,
   DocumentWriteQueue,
   NODE_DOCUMENT_VERSION,
   NodeTree,
+  type DocumentHistoryWrite,
 } from "@tau/collaboration";
 import type { RuntimeSession } from "./types";
+import { localContentHistoryId } from "./session-identity";
 import { reportContentSaveIssue, reportContentSaveComplete } from "./persistence-diagnostics";
 
 export interface NodeSessionJournal {
@@ -15,7 +18,8 @@ export interface NodeSessionJournal {
     sessionId: string,
     update: Uint8Array,
     retainCandidate: () => void,
-    writeReceipt?: () => void
+    writeReceipt?: () => void,
+    history?: { documentId: string; write: DocumentHistoryWrite }
   ): void;
   commitReceipt(writeReceipt: () => void): void;
   compactIfNeeded(sessionId: string, doc: Y.Doc, force: boolean): boolean;
@@ -35,6 +39,9 @@ interface NodeSessionDrafts {
     read: (node: string, field: string) => string | undefined
   ): void;
 }
+
+type HistoryMetadata = Pick<DocumentHistoryWrite, "operationId" | "actor" | "kind" | "target">;
+const revisionOf = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 const equal = (left: Uint8Array, right: Uint8Array) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -105,11 +112,13 @@ export class NodeSessionUpdates {
       | {
           bytes: number;
           build: () => Promise<Uint8Array | null>;
-          commit: () => void;
+          commit?: () => void;
           authoritative?: true;
+          history?: HistoryMetadata;
         },
     assertWritable: () => void,
-    onAccepted?: () => void
+    onAccepted?: () => void,
+    historyMetadata?: HistoryMetadata
   ): Promise<void> {
     const scoped = update instanceof Uint8Array ? undefined : update;
     const raw = update instanceof Uint8Array ? new Uint8Array(update) : undefined;
@@ -151,13 +160,23 @@ export class NodeSessionUpdates {
               assertWritable();
               if (!equal(baseline, Y.encodeStateAsUpdate(session.doc))) continue;
             }
-            const candidate = await applyNodeDocumentUpdate(session.doc, bytes, identity, {
-              allowLocalResources: session.info.mode === "local",
-            });
+            let accepted: Uint8Array | undefined;
+            const candidate = await applyNodeDocumentUpdate(
+              session.doc,
+              bytes,
+              identity,
+              {
+                allowLocalResources: session.info.mode === "local",
+              },
+              update => {
+                accepted = update;
+              }
+            );
             try {
               assertWritable();
               if (!equal(baseline, Y.encodeStateAsUpdate(session.doc))) continue;
-              if (equal(baseline, Y.encodeStateAsUpdate(candidate))) {
+              const candidateState = Y.encodeStateAsUpdate(candidate);
+              if (equal(baseline, candidateState)) {
                 stage = "delta.journal";
                 session.retainNodeState?.(candidate);
                 if (
@@ -170,19 +189,42 @@ export class NodeSessionUpdates {
                   session.cacheWriteFailed = false;
                   session.dirty = false;
                 }
-                if (scoped) this.journal.commitReceipt(scoped.commit);
+                if (scoped?.commit) this.journal.commitReceipt(scoped.commit);
                 journalSaved = true;
                 stage = "delta.confirm";
                 this.confirmDrafts(session.doc, session.info.id);
                 return;
               }
               const delta = Y.encodeStateAsUpdate(candidate, before);
+              const metadata = scoped?.history ??
+                historyMetadata ?? {
+                  operationId: randomUUID(),
+                  actor: { actorId: "local", actorName: "本机" },
+                };
+              const documentId =
+                session.info.mode === "local"
+                  ? localContentHistoryId(session.info.source)
+                  : undefined;
+              const history = documentId
+                ? {
+                    documentId,
+                    write: {
+                      ...metadata,
+                      previousRevision: revisionOf(baseline),
+                      revision: revisionOf(candidateState),
+                      update: accepted ?? delta,
+                      before: () => baseline,
+                      after: () => candidateState,
+                    },
+                  }
+                : undefined;
               stage = "delta.journal";
               this.journal.commitUpdate(
                 session.info.id,
                 delta,
                 () => session.retainNodeState?.(candidate),
-                scoped && (() => scoped.commit())
+                scoped?.commit,
+                history
               );
               journalSaved = true;
               onAccepted?.();

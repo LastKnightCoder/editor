@@ -1,4 +1,5 @@
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { createReadStream, readFileSync, existsSync, readdirSync } from "node:fs";
+import { createInterface } from "node:readline";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -156,6 +157,25 @@ if (action === "deploy") {
     await service("/_admin/state/" + id, "POST", {
       state: readFileSync(join(directory, "documents", id)).toString("base64"),
     });
+  }
+  for (const { id, head } of metadata.documentHistory ?? []) {
+    if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error("历史文档标识无效");
+    const folder = join(directory, "history", id);
+    const parts = readdirSync(folder).sort((a, b) => Number(a) - Number(b));
+    let sequence = 0;
+    for (const part of parts) {
+      if (!/^\d+$/.test(part)) throw new Error("历史备份分片名无效");
+      const lines = createInterface({
+        input: createReadStream(join(folder, part)),
+        crlfDelay: Infinity,
+      });
+      for await (const line of lines) {
+        const version = JSON.parse(line);
+        if (version.entry?.sequence !== sequence++) throw new Error("历史备份序号不连续");
+        await service("/_admin/history/" + id, "POST", version);
+      }
+    }
+    if (sequence !== head + 1) throw new Error("历史备份缺少版本");
   }
   for (const digest of readdirSync(join(directory, "assets"))) {
     const bytes = readFileSync(join(directory, "assets", digest));

@@ -1089,12 +1089,31 @@ export function collabWriteCache(
     state: string;
     expectedRevision?: string;
     confirmedDrafts?: CachedInputDraft[];
+    history?: {
+      operationId: string;
+      checkpoint?: string;
+      kind?: "edit" | "undo" | "restore";
+      target?: number;
+    };
   },
   snapshot = false
 ) {
   return trackedInvoke<string>(snapshot ? "collab_cache_snapshot" : "collab_cache_append", {
     payload,
   });
+}
+export function collabLocalHistoryList(documentId: string, before?: number) {
+  return trackedInvoke<import("@tau/collaboration").DocumentHistoryEntry[]>(
+    "collab_local_history",
+    { documentId, before }
+  );
+}
+export function collabLocalHistoryVersion(documentId: string, sequence: number) {
+  return trackedInvoke<{
+    entry: import("@tau/collaboration").DocumentHistoryEntry;
+    updates: string[];
+    undone: boolean;
+  }>("collab_local_history", { documentId, sequence });
 }
 export function collabNodeViews(documentId: string) {
   return trackedInvoke<Record<string, Record<string, unknown>>>("collab_node_views", {

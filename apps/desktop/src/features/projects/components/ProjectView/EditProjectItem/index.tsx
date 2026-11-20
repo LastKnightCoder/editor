@@ -2,12 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useMemo, useState } fr
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { cn, useEdgeFade } from "@tau/ui";
+import { cn, IconButton, useEdgeFade } from "@tau/ui";
 import { useProjectContext } from "../ProjectContext";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
+import { HistoryPanel, composeEditorMarks, useContentHistory } from "@/components/ContentHistory";
+import { History as HistoryIcon } from "lucide-react";
 import AddTag from "@/components/AddTag";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
@@ -102,6 +104,12 @@ const EditProjectItem = (props: { projectItemId: number }) => {
 
   const extensions = editorExtensions;
   const getEditor = useCallback(() => editorRef.current?.getEditor(), []);
+  /* 编辑历史页边注：与正文同纸的右栏（项目页纸面在 ProjectView，容器用本视图根） */
+  const rootViewRef = useRef<HTMLDivElement>(null);
+  const history = useContentHistory({
+    contentId: projectItem?.contentId,
+    getEditor,
+  });
   /* 创作模式（KL-070）：白板与正文两栏共享的会话 */
   const [composeSession] = useState(() => createComposeSession(getEditor));
   /* AI 洞见：元信息行入口 + 正文上方报告 + 就地标记（KL-058）；创作模式下白板资料进候选 */
@@ -222,185 +230,202 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   return (
     // py-4：滚动视口与纸面上下缘留出圆角半径的间距，正文滚动时在视口边缘渐隐，不贴卡片边缘裁切
     <ComposeSessionContext.Provider value={composeSession}>
-      <div className="relative flex h-full flex-col py-4 pr-4">
-        {/* 创作模式：左白板右正文；正文栏子树在开关两态间保持不变，编辑器不重挂 */}
-        <ComposeLayout
-          active={composing}
-          board={
-            <ComposeBoard
-              contentId={projectItem.contentId}
-              hostRef={{ kind: "project-item", id: projectItem.id }}
-              initialIntent={initialIntent}
-            />
-          }
-        >
-          <div
-            ref={setScrollEl}
-            className="edge-fade-scroll tau-sheet-scroll @container/editor min-h-0 flex-1 overflow-y-auto [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
+      <div ref={rootViewRef} className="relative flex h-full py-4 pr-4">
+        <div className="flex min-h-0 min-w-0 flex-1">
+          {/* 创作模式：左白板右正文；正文栏子树在开关两态间保持不变，编辑器不重挂 */}
+          <ComposeLayout
+            active={composing}
+            board={
+              <ComposeBoard
+                contentId={projectItem.contentId}
+                hostRef={{ kind: "project-item", id: projectItem.id }}
+                initialIntent={initialIntent}
+              />
+            }
           >
             <div
-              className={cn(
-                DOCUMENT_COLUMNS,
-                "pt-5",
-                !composing &&
-                  headers.length > 0 &&
-                  "@[960px]/editor:grid-cols-[minmax(0,720px)_208px]"
-              )}
+              ref={setScrollEl}
+              className="edge-fade-scroll tau-sheet-scroll @container/editor min-h-0 flex-1 overflow-y-auto [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
             >
-              <article className="min-w-0">
-                <header className="min-w-0">
-                  <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
-                    <EditText
-                      contentId={projectItem.contentId}
-                      source={{
-                        sourceType: "project-item",
-                        sourceId: projectItem.id,
-                        sourceTitle: projectItem.title,
-                      }}
-                      key={projectItem.id}
-                      ref={titleRef}
-                      defaultValue={projectItem.title}
-                      onChange={onTitleChange}
-                      contentEditable={true}
-                      onPressEnter={onPressEnter}
-                    />
-                  </div>
-                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
-                    <div className="flex min-w-0 flex-1 flex-wrap gap-2.5 text-[0.9em] opacity-80">
-                      <div className="whitespace-nowrap">
-                        创建于 {formatDate(projectItem.createTime, true)}
-                      </div>
-                      <div className="whitespace-nowrap">
-                        最后修改于 {formatDate(projectItem.updateTime, true)}
-                      </div>
-                      {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
-                      <div className="whitespace-nowrap tabular-nums">
-                        {projectItem.count.toLocaleString("zh-CN")} 字
-                      </div>
-                    </div>
-                    <ContextBadge
-                      entity={{ kind: "project-item", id: projectItem.id }}
-                      extra={
-                        composing
-                          ? undefined
-                          : close => (
-                              <ComposeBoardEntry
-                                contentId={projectItem.contentId}
-                                onOpen={() => {
-                                  close();
-                                  setComposing(true);
-                                }}
-                              />
-                            )
-                      }
-                    />
-                    {insights.button}
-                    <ComposeModeToggle active={composing} onChange={setComposing} />
-                    {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
-                    <span className="ml-auto">
-                      <ContentCollaborationControl
-                        ref={collaborationRef}
-                        hideTrigger
-                        presence
+              <div
+                className={cn(
+                  DOCUMENT_COLUMNS,
+                  "pt-5",
+                  !composing &&
+                    headers.length > 0 &&
+                    "@[960px]/editor:grid-cols-[minmax(0,720px)_208px]"
+                )}
+              >
+                <article className="min-w-0">
+                  <header className="min-w-0">
+                    <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
+                      <EditText
                         contentId={projectItem.contentId}
                         source={{
                           sourceType: "project-item",
                           sourceId: projectItem.id,
                           sourceTitle: projectItem.title,
                         }}
+                        key={projectItem.id}
+                        ref={titleRef}
+                        defaultValue={projectItem.title}
+                        onChange={onTitleChange}
+                        contentEditable={true}
+                        onPressEnter={onPressEnter}
                       />
-                    </span>
+                    </div>
+                    <div className="mb-6 flex flex-wrap items-center gap-2.5">
+                      <div className="flex min-w-0 flex-1 flex-wrap gap-2.5 text-[0.9em] opacity-80">
+                        <div className="whitespace-nowrap">
+                          创建于 {formatDate(projectItem.createTime, true)}
+                        </div>
+                        <div className="whitespace-nowrap">
+                          最后修改于 {formatDate(projectItem.updateTime, true)}
+                        </div>
+                        {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
+                        <div className="whitespace-nowrap tabular-nums">
+                          {projectItem.count.toLocaleString("zh-CN")} 字
+                        </div>
+                      </div>
+                      <ContextBadge
+                        entity={{ kind: "project-item", id: projectItem.id }}
+                        extra={
+                          composing
+                            ? undefined
+                            : close => (
+                                <ComposeBoardEntry
+                                  contentId={projectItem.contentId}
+                                  onOpen={() => {
+                                    close();
+                                    setComposing(true);
+                                  }}
+                                />
+                              )
+                        }
+                      />
+                      {insights.button}
+                      <ComposeModeToggle active={composing} onChange={setComposing} />
+                      {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
+                      <span className="ml-auto flex items-center gap-1">
+                        <IconButton
+                          title="编辑历史"
+                          aria-label="编辑历史"
+                          aria-pressed={history.isOpen}
+                          className={cn(
+                            "size-[30px]",
+                            history.isOpen && "bg-accent-soft text-accent-text"
+                          )}
+                          onClick={history.toggle}
+                        >
+                          <HistoryIcon className="size-4" />
+                        </IconButton>
+                        <ContentCollaborationControl
+                          ref={collaborationRef}
+                          hideTrigger
+                          presence
+                          contentId={projectItem.contentId}
+                          source={{
+                            sourceType: "project-item",
+                            sourceId: projectItem.id,
+                            sourceTitle: projectItem.title,
+                          }}
+                        />
+                      </span>
+                    </div>
+                    {insights.report && <div className="-mt-2 mb-6">{insights.report}</div>}
+                    <PluginEntityPanels
+                      target={projectItemActionTarget(projectItem)}
+                      className="mb-6"
+                    />
+                  </header>
+                  <EditCardContext.Provider
+                    value={{
+                      cardId: -1,
+                    }}
+                  >
+                    {insights.frame(
+                      <ErrorBoundary>
+                        <Editor
+                          contentId={projectItem?.contentId}
+                          key={`${projectItem.id}-${editorRemountKey}`}
+                          ref={editorRef}
+                          at={
+                            locationParams.itemId === projectItemId ? locationParams.at : undefined
+                          }
+                          initValue={projectItem.content}
+                          onInit={onInit}
+                          onChange={onContentChange}
+                          readonly={false}
+                          editingContext={{ entityType: "project-item", entityId: projectItem.id }}
+                          extensions={extensions}
+                          {...composeEditorMarks(insights.editorProps, history.editorProps)}
+                        />
+                      </ErrorBoundary>
+                    )}
+                  </EditCardContext.Provider>
+                  <AddTag
+                    divided
+                    tags={projectItem.tags ?? []}
+                    addTag={tag =>
+                      setProjectItem(current =>
+                        current
+                          ? {
+                              ...current,
+                              tags: [...new Set([...(current.tags ?? []), tag])],
+                            }
+                          : current
+                      )
+                    }
+                    removeTag={tag =>
+                      setProjectItem(current =>
+                        current
+                          ? {
+                              ...current,
+                              tags: (current.tags ?? []).filter(value => value !== tag),
+                            }
+                          : current
+                      )
+                    }
+                    editTag={(before, after) =>
+                      setProjectItem(current =>
+                        current
+                          ? {
+                              ...current,
+                              tags: [
+                                ...new Set(
+                                  (current.tags ?? []).map(value =>
+                                    value === before ? after : value
+                                  )
+                                ),
+                              ],
+                            }
+                          : current
+                      )
+                    }
+                    onReorder={tags =>
+                      setProjectItem(current => (current ? { ...current, tags } : current))
+                    }
+                  />
+                </article>
+                {!composing && headers.length > 0 && (
+                  <div
+                    ref={setOutlineScrollEl}
+                    className="edge-fade-scroll sticky top-5 hidden overflow-y-auto overscroll-y-contain @[960px]/editor:block"
+                    style={{ maxHeight: outlineMaxHeight }}
+                  >
+                    <ContentOutline
+                      headers={headers}
+                      scrollEl={scrollEl}
+                      resolveAnchor={resolveAnchor}
+                      className="w-full"
+                    />
                   </div>
-                  {insights.report && <div className="-mt-2 mb-6">{insights.report}</div>}
-                  <PluginEntityPanels
-                    target={projectItemActionTarget(projectItem)}
-                    className="mb-6"
-                  />
-                </header>
-                <EditCardContext.Provider
-                  value={{
-                    cardId: -1,
-                  }}
-                >
-                  {insights.frame(
-                    <ErrorBoundary>
-                      <Editor
-                        contentId={projectItem?.contentId}
-                        key={`${projectItem.id}-${editorRemountKey}`}
-                        ref={editorRef}
-                        at={locationParams.itemId === projectItemId ? locationParams.at : undefined}
-                        initValue={projectItem.content}
-                        onInit={onInit}
-                        onChange={onContentChange}
-                        readonly={false}
-                        editingContext={{ entityType: "project-item", entityId: projectItem.id }}
-                        extensions={extensions}
-                        {...insights.editorProps}
-                      />
-                    </ErrorBoundary>
-                  )}
-                </EditCardContext.Provider>
-                <AddTag
-                  divided
-                  tags={projectItem.tags ?? []}
-                  addTag={tag =>
-                    setProjectItem(current =>
-                      current
-                        ? {
-                            ...current,
-                            tags: [...new Set([...(current.tags ?? []), tag])],
-                          }
-                        : current
-                    )
-                  }
-                  removeTag={tag =>
-                    setProjectItem(current =>
-                      current
-                        ? {
-                            ...current,
-                            tags: (current.tags ?? []).filter(value => value !== tag),
-                          }
-                        : current
-                    )
-                  }
-                  editTag={(before, after) =>
-                    setProjectItem(current =>
-                      current
-                        ? {
-                            ...current,
-                            tags: [
-                              ...new Set(
-                                (current.tags ?? []).map(value =>
-                                  value === before ? after : value
-                                )
-                              ),
-                            ],
-                          }
-                        : current
-                    )
-                  }
-                  onReorder={tags =>
-                    setProjectItem(current => (current ? { ...current, tags } : current))
-                  }
-                />
-              </article>
-              {!composing && headers.length > 0 && (
-                <div
-                  ref={setOutlineScrollEl}
-                  className="edge-fade-scroll sticky top-5 hidden overflow-y-auto overscroll-y-contain @[960px]/editor:block"
-                  style={{ maxHeight: outlineMaxHeight }}
-                >
-                  <ContentOutline
-                    headers={headers}
-                    scrollEl={scrollEl}
-                    resolveAnchor={resolveAnchor}
-                    className="w-full"
-                  />
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        </ComposeLayout>
+          </ComposeLayout>
+        </div>
+        {history.isOpen && <HistoryPanel history={history} containerRef={rootViewRef} />}
 
         {/* 沉浸模式 */}
         {immersiveMode && (

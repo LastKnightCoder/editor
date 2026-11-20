@@ -354,13 +354,15 @@ export async function applyNodeDocumentUpdate(
   current: Y.Doc,
   update: Uint8Array,
   identity: NodeDocumentIdentity,
-  options: NodeDocumentOptions = {}
+  options: NodeDocumentOptions = {},
+  onUpdate?: (update: Uint8Array) => void
 ): Promise<Y.Doc> {
   if (!update.byteLength || update.byteLength > NODE_DOCUMENT_MAX_BYTES)
     fail("INVALID_UPDATE", "更新容量无效");
   const candidate = new Y.Doc({ gc: false });
   try {
     Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
+    if (onUpdate) candidate.once("update", onUpdate);
     Y.applyUpdate(candidate, update);
     await validateNodeDocument(candidate, identity, current, options);
     return candidate;

@@ -12,8 +12,9 @@ import {
 import databaseModule from "../database";
 import ContentTable from "../tables/content";
 import { findContentTitle, registerContentSession } from "../collaboration/content-sessions";
-import { localSessionId } from "../collaboration/session-identity";
+import { localContentHistoryId, localSessionId } from "../collaboration/session-identity";
 import { recoverContentDrafts } from "./recovery";
+import { importClosedContentHistory } from "./closed-content-history";
 import type { ContentOpenContext } from "./sharing";
 import type { ContentDatabase, ContentSessionRuntime } from "./index";
 
@@ -99,6 +100,18 @@ export async function openContent(
   const head = repository.head();
   if (!head) throw new Error("内容不存在");
   const id = localSessionId(db.name, contentId, head.createdAt);
+  const historyId = localContentHistoryId({
+    librarySourceId: head.librarySourceId,
+    contentDocumentId: head.documentId ?? undefined,
+  });
+  if (head.documentId && historyId)
+    importClosedContentHistory(
+      db,
+      runtime.store.db,
+      runtime.store.history,
+      head.documentId,
+      historyId
+    );
   const hasViews = () => [...runtime.views.values()].some(view => view.documentId === id);
   const matches = (source: SourceBinding, current: typeof head | undefined) =>
     current &&

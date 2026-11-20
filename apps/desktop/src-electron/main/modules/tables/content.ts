@@ -363,7 +363,14 @@ export default class ContentTable {
           db,
           contentId,
           { ...stored, content: content as ContentNode[] },
-          { expectedRevision: stored.revision, count: getContentLength(content) }
+          {
+            expectedRevision: stored.revision,
+            count: getContentLength(content),
+            history:
+              options.silent || (options.canonical && !textChanged)
+                ? undefined
+                : { actorId: "local", actorName: "本机", source: "正文写入" },
+          }
         );
         if (options.silent || (options.canonical && !textChanged))
           db.prepare("UPDATE contents SET update_time=? WHERE id=?").run(
