@@ -210,30 +210,30 @@ mod tests {
             .execute_batch(
                 "
             CREATE TABLE calendar_group (
-                id INTEGER PRIMARY KEY, name TEXT NOT NULL, is_system INTEGER,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, is_system INTEGER,
                 order_index INTEGER, create_time INTEGER, update_time INTEGER,
                 parent_group_id INTEGER
             );
             CREATE TABLE calendar (
-                id INTEGER PRIMARY KEY, title TEXT, color TEXT,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, color TEXT,
                 description_content_id INTEGER, archived INTEGER, pinned INTEGER,
                 visible INTEGER, order_index INTEGER, group_id INTEGER,
                 create_time INTEGER, update_time INTEGER
             );
             CREATE TABLE calendar_event (
-                id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, create_time INTEGER, update_time INTEGER,
                 calendar_id INTEGER NOT NULL, title TEXT NOT NULL,
                 detail_content_id INTEGER DEFAULT 0, start_date INTEGER NOT NULL,
                 end_date INTEGER, start_time INTEGER, end_time INTEGER,
                 color TEXT, all_day INTEGER DEFAULT 0
             );
             CREATE TABLE pomodoro_calendar_mapping (
-                id INTEGER PRIMARY KEY, pomodoro_session_id INTEGER NOT NULL,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, pomodoro_session_id INTEGER NOT NULL,
                 calendar_event_id INTEGER NOT NULL, create_time INTEGER NOT NULL,
                 UNIQUE(pomodoro_session_id, calendar_event_id)
             );
             CREATE TABLE operation (
-                id INTEGER PRIMARY KEY, operation_time INTEGER, operation_id INTEGER,
+                id INTEGER PRIMARY KEY AUTOINCREMENT, operation_time INTEGER, operation_id INTEGER,
                 operation_content_type TEXT, operation_action TEXT
             );
             ",
