@@ -182,6 +182,49 @@ export function registerContentRoutes(
       .header("Cache-Control", "no-store")
       .send({ operation: store.operations.get(id, operationId, actor) });
   });
+  app.get("/v1/documents/:id/history", async (request, reply) => {
+    const { id } = params(request);
+    store.historyProtocol(id, device(request).id);
+    const before = (request.query as { before?: string }).before;
+    return reply
+      .header("Cache-Control", "no-store")
+      .send(store.history.list(id, before === undefined ? undefined : Number(before)));
+  });
+  app.get("/v1/documents/:id/history/:sequence", async (request, reply) => {
+    const { id, sequence } = params(request),
+      actor = device(request).id;
+    const protocol = store.historyProtocol(id, actor);
+    const compare = (request.query as { compare?: string }).compare === "current";
+    const current = compare ? store.loadDocument(id) : undefined;
+    try {
+      return reply
+        .header("Cache-Control", "no-store")
+        .send(
+          store.history.preview(
+            id,
+            Number(sequence),
+            protocol.revision,
+            actor,
+            protocol.ownerId === actor,
+            current
+          )
+        );
+    } finally {
+      current?.destroy();
+    }
+  });
+  app.post("/v1/documents/:id/history/apply", async request => {
+    const { id } = params(request),
+      body = objectBody(request);
+    await store.applyHistory(id, device(request).id, {
+      operationId: textField(body, "operationId", 128),
+      kind: body.kind as "undo" | "restore",
+      sequence: body.sequence as number,
+      expectedRevision: body.expectedRevision as string | undefined,
+    });
+    accepted(id);
+    return { ok: true };
+  });
   app.post("/v1/documents/:id/operations/:operationId", async request => {
     const { id, operationId } = params(request),
       body = objectBody(request);

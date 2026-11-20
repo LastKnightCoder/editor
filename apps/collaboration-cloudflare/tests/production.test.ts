@@ -102,6 +102,113 @@ async function create(owner: DeviceIdentity) {
 }
 
 describe("正式 Cloudflare 协作能力", () => {
+  it("编辑历史经实际 HTTP 权限、条件恢复、单次撤销和 R2 备份恢复贯通", async () => {
+    await initialize();
+    const owner = await register("记录者");
+    const outsider = await register("未加入");
+    const id = await create(owner);
+    const route = `/v1/documents/${id}`;
+    const doc = await createTestDocument(
+      {
+        title: "历史正文",
+        bannerBg: "",
+        bannerPosition: "center",
+        content: [{ type: "paragraph", collabId: "line", children: [{ text: "甲乙" }] }],
+      },
+      { documentId: id, baselineId: "history-base", epoch: 0 }
+    );
+    const tree = new NodeTree(doc);
+    try {
+      const publication = await request(
+        `${route}/publish`,
+        "POST",
+        {
+          state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+        },
+        owner
+      );
+      expect(publication.response.status).toBe(200);
+      const change = async (name: string, at: number, text: string) => {
+        const vector = Y.encodeStateVector(doc);
+        tree.insertText("line", at, text, null);
+        const update = Buffer.from(Y.encodeStateAsUpdate(doc, vector));
+        const result = await request(
+          `${route}/operations/${name}`,
+          "POST",
+          {
+            version: 2,
+            baselineId: "history-base",
+            epoch: 0,
+            expiresAt: Date.now() + 60_000,
+            updateHash: createHash("sha256").update(update).digest("hex"),
+            update: update.toString("base64"),
+          },
+          owner
+        );
+        expect(result.value.operation?.state).toBe("COMMITTED");
+      };
+      await change("prepend", 0, "前");
+      await change("append", 3, "后");
+      expect((await request(`${route}/history`, "GET", undefined, outsider)).response.status).toBe(
+        403
+      );
+      const edit = (await request(`${route}/history/1`, "GET", undefined, owner)).value;
+      expect(edit.entry).toMatchObject({ operationId: "prepend", actorName: "记录者" });
+      expect(edit.value.content[0].children[0].text).toBe("前甲乙");
+      const operation = { operationId: "undo-prepend", kind: "undo", sequence: 1 };
+      for (let attempt = 0; attempt < 2; attempt++)
+        expect(
+          (await request(`${route}/history/apply`, "POST", operation, owner)).response.status
+        ).toBe(200);
+      const undone = (await request(`${route}/history/3`, "GET", undefined, owner)).value;
+      expect(undone.value.content[0].children[0].text).toBe("甲乙后");
+      const restore = {
+        operationId: "restore-base",
+        kind: "restore",
+        sequence: 0,
+        expectedRevision: edit.headRevision,
+      };
+      expect((await request(`${route}/history/apply`, "POST", restore, owner)).value.code).toBe(
+        "CONTENT_VERSION_CONFLICT"
+      );
+      expect(
+        (
+          await request(
+            `${route}/history/apply`,
+            "POST",
+            { ...restore, expectedRevision: undone.headRevision },
+            owner
+          )
+        ).response.status
+      ).toBe(200);
+      const backed = await admin("backup");
+      expect(backed.response.status).toBe(200);
+      const bucket = await worker.getR2Bucket("BACKUPS");
+      const prefix = backed.value.prefix;
+      const metadata = await (await bucket.get(prefix + "/metadata.json"))?.json();
+      const state = await (await bucket.get(prefix + "/documents/" + id))?.arrayBuffer();
+      const archive = await (await bucket.get(prefix + "/history/" + id + "/0"))?.text();
+      if (!metadata || !state || !archive) throw new Error("历史备份不完整");
+      await worker.dispose();
+      await startWorker();
+      expect((await admin("import", metadata)).response.status).toBe(200);
+      expect(
+        (await admin("state/" + id, { state: Buffer.from(state).toString("base64") })).response
+          .status
+      ).toBe(200);
+      expect((await admin("finish-import")).value.code).toBe("INVALID_IMPORT");
+      for (const line of archive.trim().split("\n"))
+        expect((await admin("history/" + id, JSON.parse(line))).response.status).toBe(200);
+      expect((await admin("finish-import")).response.status).toBe(200);
+      const restored = (await request(`${route}/history/4`, "GET", undefined, owner)).value;
+      expect(restored.entry).toMatchObject({ kind: "restore", target: 0 });
+      expect(restored.value.content[0].children[0].text).toBe("甲乙");
+    } finally {
+      tree.dispose();
+      doc.destroy();
+    }
+  });
+
   it("成员退出结果可重试，作者和不存在的房间仍拒绝退出", async () => {
     await initialize();
     const owner = await register("作者");

@@ -9,6 +9,12 @@ import {
   DocumentProtocolStore,
   DocumentWriteQueue,
   DocumentOperationLedger,
+  DocumentHistoryStore,
+  documentHistorySchema,
+  buildDocumentHistoryUpdate,
+  validateDocumentHistoryAction,
+  NODE_DOCUMENT_VERSION,
+  type DocumentHistoryAction,
   type DocumentOperation,
   type DocumentOperationRequest,
   applyStructuredDocumentUpdate,
@@ -74,6 +80,7 @@ export class CollaborationStore {
   private assetIds = new Map<string, Set<string>>();
   readonly protocols: DocumentProtocolStore;
   readonly operations: DocumentOperationLedger;
+  readonly history: DocumentHistoryStore;
   private readonly writes: DocumentWriteQueue;
 
   constructor(readonly config: ServerConfig) {
@@ -136,6 +143,14 @@ export class CollaborationStore {
     };
     this.operations = new DocumentOperationLedger(ledgerSql);
     this.protocols = new DocumentProtocolStore(ledgerSql, id => this.currentProtocol(id));
+    this.db.exec(documentHistorySchema);
+    this.history = new DocumentHistoryStore({
+      exec: (sql, ...values) => {
+        this.db.prepare(sql).run(...values);
+      },
+      all: <Row>(sql: string, ...values: (string | number | Uint8Array)[]) =>
+        this.db.prepare(sql).all(...values) as Row[],
+    });
   }
 
   private currentProtocol(id: string): DocumentProtocol {
@@ -237,7 +252,9 @@ export class CollaborationStore {
     update: Uint8Array | ScopedContentEdits,
     current: Y.Doc | undefined,
     protocol: DocumentProtocol,
-    operation?: DocumentOperation
+    operation?: DocumentOperation,
+    historyAction?: DocumentHistoryAction,
+    syncSource?: string
   ): Promise<void | DocumentOperation> {
     const payload = update instanceof Uint8Array ? update.slice() : structuredClone(update);
     const bytes =
@@ -254,13 +271,35 @@ export class CollaborationStore {
       const before = this.loadDocument(id);
       let candidate: Y.Doc | undefined;
       try {
+        const beforeState = Y.encodeStateAsUpdate(before);
+        const previousRevision = digest(beforeState);
+        const recorded = historyAction && this.history.operation(id, historyAction.operationId);
+        if (recorded) {
+          if (
+            recorded.actorId !== deviceId ||
+            recorded.kind !== historyAction.kind ||
+            recorded.target !== historyAction.sequence
+          )
+            return fail("HISTORY_IDENTITY_CONFLICT", "同一历史操作不能更改", 409);
+          return;
+        }
         const scoped =
           payload instanceof Uint8Array
             ? undefined
             : await buildScopedContentUpdate(before, payload, {
                 undo: operation && this.operations.isScopedUndo(operation, payload),
               });
-        const raw = scoped?.update ?? (payload as Uint8Array);
+        const raw = historyAction
+          ? await buildDocumentHistoryUpdate(
+              this.history,
+              id,
+              before,
+              historyAction,
+              previousRevision,
+              deviceId,
+              protocol.ownerId === deviceId
+            )
+          : (scoped?.update ?? (payload as Uint8Array));
         candidate = await applyStructuredDocumentUpdate(before, raw, {
           documentId: id,
           epoch: protocol.epoch,
@@ -268,10 +307,14 @@ export class CollaborationStore {
         });
         const content = readDocumentProjection(candidate),
           delta = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(before));
-        const previousRevision = digest(Y.encodeStateAsUpdate(before));
         // 与落盘重载使用相同的 GC 编码，删除文字后的摘要也必须一致。
+        let accepted: Uint8Array | undefined;
+        before.once("update", (update: Uint8Array) => {
+          accepted = update;
+        });
         Y.applyUpdate(before, delta);
-        const revision = digest(Y.encodeStateAsUpdate(before));
+        const afterState = Y.encodeStateAsUpdate(before);
+        const revision = digest(afterState);
         const install = () => {
           this.authorize(id, deviceId);
           this.protocols.assertWritable(id, protocol);
@@ -288,6 +331,26 @@ export class CollaborationStore {
             .prepare("UPDATE documents SET title=?,updated_at=? WHERE id=?")
             .run(content.title, Date.now(), id);
           this.retainAssets(id, protocol.epoch, candidate!);
+          if (protocol.version === NODE_DOCUMENT_VERSION) {
+            const actor = this.db
+              .prepare("SELECT nickname FROM devices WHERE id=?")
+              .get(deviceId) as { nickname: string };
+            const source = payload instanceof Uint8Array ? syncSource : payload.source?.agentId;
+            this.history.append(id, {
+              operationId:
+                historyAction?.operationId ?? operation?.operationId ?? crypto.randomUUID(),
+              actor: { actorId: deviceId, actorName: actor.nickname, source },
+              kind:
+                historyAction?.kind ?? (operation?.operationId.endsWith("-undo") ? "undo" : "edit"),
+              target: historyAction?.sequence,
+              previousRevision,
+              revision,
+              update: accepted ?? delta,
+              before: () => beforeState,
+              after: () => afterState,
+              checkBytes: size => this.ensureCapacity(size + delta.byteLength),
+            });
+          }
           this.operations.advance(id);
           this.protocols.updateRevision(id, revision);
         };
@@ -315,6 +378,22 @@ export class CollaborationStore {
         before.destroy();
         candidate?.destroy();
       }
+    });
+  }
+
+  historyProtocol(id: string, deviceId: string) {
+    this.authorize(id, deviceId);
+    const protocol = this.protocols.state(id);
+    if (protocol.version !== NODE_DOCUMENT_VERSION)
+      return fail("UNSUPPORTED_DOCUMENT", "只有正文支持编辑历史", 400);
+    return protocol;
+  }
+
+  async applyHistory(id: string, deviceId: string, action: DocumentHistoryAction) {
+    const protocol = this.historyProtocol(id, deviceId);
+    validateDocumentHistoryAction(action);
+    await this.appendNodeUpdate(id, deviceId, new Uint8Array(), undefined, protocol, undefined, {
+      ...action,
     });
   }
 
@@ -754,6 +833,7 @@ export class CollaborationStore {
       this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM snapshots WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM assets WHERE document_id=?").run(id);
+      this.history.remove(id);
     })();
     for (const { hash } of hashes) this.unlinkIfOrphan(hash);
     this.protocols.invalidate(id);
@@ -789,7 +869,8 @@ export class CollaborationStore {
     deviceId: string,
     update: Uint8Array,
     current: Y.Doc,
-    expected?: DocumentProtocol
+    expected?: DocumentProtocol,
+    syncSource?: string
   ) {
     this.authorize(id, deviceId);
     const protocol = this.protocols.assertWritable(id, expected);
@@ -800,7 +881,16 @@ export class CollaborationStore {
       identity.baselineId !== protocol.baselineId
     )
       return fail("EPOCH_CONFLICT", "活动会话属于旧文档基线", 409);
-    return this.appendNodeUpdate(id, deviceId, update, current, protocol);
+    return this.appendNodeUpdate(
+      id,
+      deviceId,
+      update,
+      current,
+      protocol,
+      undefined,
+      undefined,
+      syncSource
+    );
   }
 
   compact(id: string) {
@@ -892,7 +982,7 @@ export class CollaborationStore {
       return this.cachedStorageBytes;
     const row = this.db
       .prepare(
-        "SELECT (SELECT coalesce(sum(size),0) FROM assets) + (SELECT coalesce(sum(length(state)),0) FROM snapshots) + (SELECT coalesce(sum(length(state)),0) FROM updates) + (SELECT coalesce(sum(length(value)),0) FROM collaboration_operations) + (SELECT count(*)*256 FROM collaboration_asset_history) AS bytes"
+        "SELECT (SELECT coalesce(sum(size),0) FROM assets) + (SELECT coalesce(sum(length(state)),0) FROM snapshots) + (SELECT coalesce(sum(length(state)),0) FROM updates) + (SELECT coalesce(sum(length(value)),0) FROM collaboration_operations) + (SELECT count(*)*256 FROM collaboration_asset_history) + (SELECT coalesce(sum(length(state)),0) FROM document_history_payloads) + (SELECT coalesce(sum(length(metadata)+length(revision)),0) FROM document_history_entries) AS bytes"
       )
       .get() as { bytes: number };
     this.cachedStorageBytes = row.bytes;

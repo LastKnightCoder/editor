@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import * as Y from "yjs";
 
@@ -64,9 +64,47 @@ try {
     if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("来源资源摘要无效");
     copyFileSync(join(source, "assets", digest), join(target, "assets", digest));
   }
-  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 6, signingKey, tables }), {
-    mode: 0o600,
-  });
+  const documentHistory = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE name='document_history_entries'")
+    .get()
+    ? db
+        .prepare(
+          "SELECT document_id AS id,max(sequence) AS head FROM document_history_entries GROUP BY document_id"
+        )
+        .all()
+    : [];
+  for (const { id } of documentHistory) {
+    if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error("历史文档标识无效");
+    const folder = join(target, "history", id);
+    mkdirSync(folder, { recursive: true, mode: 0o700 });
+    const file = join(folder, "0");
+    writeFileSync(file, "", { mode: 0o600 });
+    const payloads = db.prepare(
+      "SELECT state FROM document_history_payloads WHERE document_id=? AND sequence=? ORDER BY part"
+    );
+    for (const row of db
+      .prepare("SELECT * FROM document_history_entries WHERE document_id=? ORDER BY sequence")
+      .iterate(id)) {
+      const storage = payloads.all(id, row.sequence).map(part => part.state.toString("base64"));
+      if (!storage.length) throw new Error("历史版本缺少数据");
+      appendFileSync(
+        file,
+        JSON.stringify({
+          entry: JSON.parse(row.metadata),
+          revision: row.revision,
+          checkpoint: row.checkpoint,
+          storage,
+        }) + "\n"
+      );
+    }
+  }
+  writeFileSync(
+    join(target, "metadata.json"),
+    JSON.stringify({ format: 6, signingKey, tables, documentHistory }),
+    {
+      mode: 0o600,
+    }
+  );
   console.log(
     JSON.stringify({
       documents: tables.documents.filter(row => row.status === "active").length,
