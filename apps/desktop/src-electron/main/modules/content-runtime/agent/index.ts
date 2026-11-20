@@ -151,6 +151,15 @@ export class ContentAgent {
         session,
         {
           bytes: Buffer.byteLength(encoded),
+          history: {
+            operationId: request.operationId,
+            actor: {
+              actorId: "local",
+              actorName: "本机",
+              source: request.scope.source?.agentId ?? "AI",
+            },
+            kind: undo ? "undo" : "edit",
+          },
           build: async () => {
             const previous = store.get<{
               hash: string;

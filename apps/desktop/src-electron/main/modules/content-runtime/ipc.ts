@@ -12,6 +12,10 @@ import {
   isSafeResource,
   ASSET_PREFIX,
   LOCAL_ASSET_PREFIX,
+  buildDocumentHistoryUpdate,
+  validateDocumentHistoryAction,
+  type DocumentHistoryEntry,
+  type DocumentHistoryPreview,
   type ContentNode,
   type ContentInputDraft,
 } from "@tau/collaboration";
@@ -20,6 +24,8 @@ import { validateContentContractsSync } from "@tau/db-schema/content-contracts-n
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { isVideoFile } from "../collaboration/asset-service";
 import { saveSourceInput } from "./recovery";
+import { contentRevision } from "../collaboration/content-sessions";
+import { localContentHistoryId } from "../collaboration/session-identity";
 import type { CollaborationImageFile } from "../../../../shared/collaboration-image-storage";
 
 type Commands = Omit<typeof localContentCommands, "openContent">;
@@ -39,6 +45,7 @@ export type ContentIpcContext = Pick<
   | "presenceSnapshot"
 > & {
   user(): { id: string; nickname: string };
+  client?: CollaborationIpcContext["client"];
   openRoom?: CollaborationIpcContext["openRoom"];
   checkLocalSubscribe?(event: IpcMainInvokeEvent, windowId: number, session?: RuntimeSession): void;
   flushResources?(): Promise<void>;
@@ -61,6 +68,119 @@ export function registerContentIpc(
   const { nodeUpdates } = context;
   const handle = <Key extends keyof Commands>(key: Key, fn: NoInfer<CommandHandler<Key>>) =>
     register(commands[key].channel, fn);
+  const historySession = (event: IpcMainInvokeEvent, id: string) => {
+    const session = context.requireSession(id);
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window || session.info.status !== "active") throw new Error("正文会话已失效");
+    context.checkLocalSubscribe?.(event, window.id, session);
+    return session;
+  };
+  const sharedHistory = (session: RuntimeSession) => {
+    if (!context.client) throw new Error("共享服务尚未就绪");
+    return {
+      client: context.client,
+      url: session.info.serverUrl,
+      path: `/v1/documents/${encodeURIComponent(session.info.id)}/history`,
+    };
+  };
+  const localHistoryId = (session: RuntimeSession) => {
+    const id = localContentHistoryId(session.info.source);
+    if (!id) throw new Error("正文历史来源失效");
+    return id;
+  };
+  handle("historyList", (event, id, before) => {
+    const session = historySession(event, id);
+    if (session.info.mode === "local")
+      return context.store.history.list(localHistoryId(session), before);
+    const { client, url, path } = sharedHistory(session);
+    return client.request<DocumentHistoryEntry[]>(
+      url,
+      before === undefined ? path : `${path}?before=${before}`
+    );
+  });
+  handle("historyPreview", async (event, id, sequence, compare) => {
+    const session = historySession(event, id);
+    if (session.info.mode !== "local") {
+      const { client, url, path } = sharedHistory(session);
+      const preview = await client.request<DocumentHistoryPreview>(
+        url,
+        `${path}/${sequence}${compare ? "?compare=current" : ""}`
+      );
+      preview.value = await (session.assets ?? context.assets).localizeDocument(
+        url,
+        id,
+        preview.value,
+        preview.contracts
+      );
+      if (historySession(event, id) !== session) throw new Error("正文会话已变化");
+      return preview;
+    }
+    const preview = context.store.history.preview(
+      localHistoryId(session),
+      sequence,
+      contentRevision(session),
+      "local",
+      true,
+      compare ? session.doc : undefined
+    );
+    preview.value = await context.assets.localizeDocument(
+      session.info.serverUrl,
+      id,
+      preview.value,
+      preview.contracts
+    );
+    if (historySession(event, id) !== session) throw new Error("正文会话已变化");
+    return preview;
+  });
+  handle("historyApply", async (event, id, action) => {
+    validateDocumentHistoryAction(action);
+    const session = historySession(event, id);
+    if (session.info.frozen || session.info.leaving) throw new Error("正文正在切换");
+    if (session.info.mode !== "local") {
+      const { client, url, path } = sharedHistory(session);
+      if (session.info.pending || session.provider?.hasUnsyncedChanges)
+        throw new Error("请等待当前编辑同步后重试");
+      await client.request(url, `${path}/apply`, "POST", action);
+      return;
+    }
+    const archive = context.store.history;
+    const historyId = localHistoryId(session);
+    await nodeUpdates.apply(
+      session,
+      {
+        bytes: 0,
+        history: {
+          operationId: action.operationId,
+          actor: { actorId: "local", actorName: "本机" },
+          kind: action.kind,
+          target: action.sequence,
+        },
+        build: async () => {
+          const saved = archive.operation(historyId, action.operationId);
+          if (saved) {
+            if (saved.kind !== action.kind || saved.target !== action.sequence)
+              throw new Error("同一历史操作不能更改");
+            return null;
+          }
+          return buildDocumentHistoryUpdate(
+            archive,
+            historyId,
+            session.doc,
+            action,
+            contentRevision(session),
+            "local",
+            true,
+            { allowLocalResources: true }
+          );
+        },
+      },
+      () => {
+        if (historySession(event, id) !== session || session.info.frozen || session.info.leaving)
+          throw new Error("正文会话已变化");
+      }
+    );
+    context.changed(session);
+  });
   handle(
     "prepareFragment",
     async (

@@ -211,7 +211,7 @@ function patchNodeSession(
       if (!session.persistNodeUpdate) throw new Error("正文持久化服务尚未就绪");
       const update = Y.encodeStateAsUpdate(candidate, before);
       session.retainNodeState?.(candidate);
-      session.persistNodeUpdate(update);
+      session.persistNodeUpdate(update, candidate);
       Y.applyUpdate(session.doc, update, "renderer-persisted");
     }
     return patched;

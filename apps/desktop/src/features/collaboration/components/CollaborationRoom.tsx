@@ -8,13 +8,14 @@
  * 正文与标题共用同一个会话绑定；共享已结束或冻结时只读。
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import {
   AlertTriangle,
   Copy,
   ExternalLink,
   FileText,
   FolderKanban,
+  History,
   KeyRound,
   Layers,
   LogOut,
@@ -30,12 +31,17 @@ import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
 import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { FadeScroll } from "@tau/ui";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
-import { Editor } from "@tau/editor";
+import { Editor, type EditorRef } from "@tau/editor";
 import { useBoundContentDocument } from "@/hooks/useContentDocument";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import { useInlineSuggestionProvider } from "@/hooks/useInlineSuggestionProvider";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
+import {
+  HistoryPanel,
+  useContentHistory,
+  type HistoryEditorProps,
+} from "@/components/ContentHistory";
 import {
   AvatarStack,
   JoinRequestItem,
@@ -59,9 +65,14 @@ import { canOpenSource, openSource } from "../openSource";
 function RoomEditor({
   binding,
   readonly,
+  editorMarks,
+  editorRef,
 }: {
   binding: ContentCollaborationBinding;
   readonly: boolean;
+  /** 编辑历史的块级标注（装饰通道，Editor 原生 props） */
+  editorMarks?: HistoryEditorProps;
+  editorRef?: RefObject<EditorRef | null>;
 }) {
   const presence = useCollaborationPresence(binding, readonly);
   const kit = useCollaborationKit(binding);
@@ -82,6 +93,9 @@ function RoomEditor({
       readonly={bound.frozen}
       onFocus={presence.onFocus}
       onBlur={presence.onBlur}
+      ref={editorRef}
+      decorate={editorMarks?.decorate}
+      leafWrapper={editorMarks?.leafWrapper}
     />
   );
 }
@@ -105,6 +119,13 @@ export function CollaborationRoom({
 }) {
   const { binding, article, error, frozen, retry } = useCollaborationDocument(session.id);
   const [leaving, setLeaving] = useState(false);
+  /* 编辑历史页边注：与正文同纸的右栏，选中条目联动正文块标注（连接线画在房间行容器内） */
+  const roomRowRef = useRef<HTMLDivElement>(null);
+  const roomEditorRef = useRef<EditorRef>(null);
+  const history = useContentHistory({
+    sharedDocumentId: session.id,
+    getEditor: () => roomEditorRef.current?.getEditor(),
+  });
 
   const ownerActive = session.role === "owner" && session.status === "active";
   const readonly =
@@ -213,6 +234,17 @@ export function CollaborationRoom({
           </button>
         )}
 
+        {session.status === "active" && (
+          <IconButton
+            title="编辑历史"
+            aria-label="编辑历史"
+            aria-pressed={history.isOpen}
+            className={cn("size-[30px]", history.isOpen && "bg-accent-soft text-accent-text")}
+            onClick={history.toggle}
+          >
+            <History className="size-4" />
+          </IconButton>
+        )}
         <Menu
           align="end"
           trigger={
@@ -239,6 +271,11 @@ export function CollaborationRoom({
               </Menu.Item>
               <Menu.Separator />
             </>
+          )}
+          {session.status === "active" && (
+            <Menu.Item icon={<History className="size-[15px]" />} onSelect={() => history.open()}>
+              编辑历史
+            </Menu.Item>
           )}
           <Menu.Item
             danger
@@ -291,35 +328,43 @@ export function CollaborationRoom({
         </div>
       )}
 
-      {/* FadeScroll 右侧 6px 透明边 + pr-[34px] = 左侧 pl-10，正文居中不偏 */}
-      <FadeScroll className="mb-4 min-h-0 flex-1 pt-7 pr-[34px] pb-[104px] pl-10">
-        {binding && article ? (
-          <div className="mx-auto w-full max-w-[720px]">
-            <CollaborativeTitleField
-              key={session.id}
-              binding={binding}
-              article={article}
-              frozen={frozen}
-              error={error}
-              contentEditable={!readonly}
-              placeholder="未命名内容"
-              className="text-ink-1 text-[26px] leading-[1.35] font-[600] tracking-[-0.01em]"
-            />
-            <div className="mt-6">
-              <RoomEditor binding={binding} readonly={readonly} />
+      <div ref={roomRowRef} className="relative flex min-h-0 flex-1">
+        {/* FadeScroll 右侧 6px 透明边 + pr-[34px] = 左侧 pl-10，正文居中不偏 */}
+        <FadeScroll className="mb-4 min-h-0 min-w-0 flex-1 pt-7 pr-[34px] pb-[104px] pl-10">
+          {binding && article ? (
+            <div className="mx-auto w-full max-w-[720px]">
+              <CollaborativeTitleField
+                key={session.id}
+                binding={binding}
+                article={article}
+                frozen={frozen}
+                error={error}
+                contentEditable={!readonly}
+                placeholder="未命名内容"
+                className="text-ink-1 text-[26px] leading-[1.35] font-[600] tracking-[-0.01em]"
+              />
+              <div className="mt-6">
+                <RoomEditor
+                  binding={binding}
+                  readonly={readonly}
+                  editorMarks={history.editorProps}
+                  editorRef={roomEditorRef}
+                />
+              </div>
             </div>
-          </div>
-        ) : error ? (
-          <div className="text-danger text-tau-meta flex flex-col items-center gap-2 pt-20">
-            <p role="alert">{error}</p>
-            <button type="button" className="text-accent-text cursor-pointer" onClick={retry}>
-              重试
-            </button>
-          </div>
-        ) : (
-          <Loading />
-        )}
-      </FadeScroll>
+          ) : error ? (
+            <div className="text-danger text-tau-meta flex flex-col items-center gap-2 pt-20">
+              <p role="alert">{error}</p>
+              <button type="button" className="text-accent-text cursor-pointer" onClick={retry}>
+                重试
+              </button>
+            </div>
+          ) : (
+            <Loading />
+          )}
+        </FadeScroll>
+        {history.isOpen && <HistoryPanel history={history} containerRef={roomRowRef} />}
+      </div>
 
       <footer className="text-ink-3 text-tau-sm flex h-[38px] flex-none items-center gap-3.5 px-8 pb-1">
         <SessionStatus session={session} />

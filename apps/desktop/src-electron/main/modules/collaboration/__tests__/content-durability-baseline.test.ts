@@ -15,10 +15,11 @@ import type { ContentSessionRuntime } from "../../content-runtime";
 import { createLocalContentRuntime } from "../../content-runtime/composition";
 import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentIdentityTable } from "../../tables/content-identity";
-import { replaceContent } from "../../tables/content-replacement";
+import { replaceColdContent, replaceContent } from "../../tables/content-replacement";
 import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
 import { contentRevision, unregisterContentSession } from "../content-sessions";
+import { localContentHistoryId } from "../session-identity";
 import type { RuntimeSession } from "../types";
 import { must } from "../../../test-support";
 
@@ -190,6 +191,33 @@ async function fixture(
 }
 
 describe("正文耐久与投影的独立基准", () => {
+  it("关着文档的连续写入在重开后落入同一条可回放的编辑历史", async () => {
+    const f = await fixture();
+    const id = must(localContentHistoryId(f.session.info.source), "正文历史身份");
+    f.close();
+    for (const text of ["第一次闭合写入", "第二次闭合写入"]) {
+      const current = must(ContentDocumentTable.read(f.db, 7), "正文快照");
+      current.content[0].children = [{ type: "formatted", text }];
+      replaceColdContent(f.db, 7, {
+        content: current.content as Descendant[],
+        expectedRevision: current.revision,
+      });
+    }
+    const reopened = await f.openRuntime();
+    const rows = reopened.store.history.list(id);
+    expect(rows.filter(row => row.kind === "edit")).toHaveLength(2);
+    const first = must(
+      rows.find(row => row.kind === "edit" && row.sequence === 1),
+      "第一次编辑"
+    );
+    const archived = reopened.store.history.replay(id, first.sequence);
+    try {
+      expect(paragraphText(readNodeDocument(archived).content)).toBe("第一次闭合写入");
+    } finally {
+      archived.destroy();
+    }
+    expect(paragraphText(readNodeDocument(reopened.session.doc).content)).toBe("第二次闭合写入");
+  });
   it("资源准备中同名连接变更时，整篇替换在写草稿和日志前拒绝", async () => {
     const f = await fixture();
     const previous = mainSnapshot(f.db);

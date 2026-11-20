@@ -30,7 +30,11 @@ function writeColdContent(
       db,
       contentId,
       { ...stored, content: content as ContentNode[], contracts: contracts ?? stored.contracts },
-      { expectedRevision, count: getContentLength(content) }
+      {
+        expectedRevision,
+        count: getContentLength(content),
+        history: { actorId: "local", actorName: "本机", source: "正文写入" },
+      }
     );
     Operation.insertOperation(db, "content", "update", contentId, Date.now());
     return;

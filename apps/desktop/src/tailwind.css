@@ -192,6 +192,30 @@
 }
 
 @layer utilities {
+  /* 编辑历史页边注：被选中条目标注的正文块，右上角序号圆点与面板明细序号对应 */
+  [data-history-mark] {
+    position: relative;
+  }
+  [data-history-mark]::after {
+    content: attr(data-history-mark);
+    position: absolute;
+    top: -9px;
+    right: 2px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--tau-bg-surface);
+    color: var(--tau-accent-text);
+    border: 1px solid var(--tau-line-1);
+    font-size: 10px;
+    line-height: 13px;
+    text-align: center;
+    font-weight: 600;
+    box-shadow: var(--tau-shadow-card);
+    pointer-events: none;
+  }
+
   /* Electron 窗口拖拽区域 */
   .app-region-drag {
     -webkit-app-region: drag;

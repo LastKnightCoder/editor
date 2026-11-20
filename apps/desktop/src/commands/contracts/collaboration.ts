@@ -11,6 +11,9 @@ import type {
   ContentSessionTarget,
   ContentInputDraft,
   ContentNode,
+  DocumentHistoryAction,
+  DocumentHistoryEntry,
+  DocumentHistoryPreview,
   NodeDocumentIdentity,
   JoinRequestResult,
   SourceType,
@@ -38,8 +41,17 @@ export interface CollaborationSubscribeSnapshot {
   user: { id: string; name: string; color: string };
 }
 
+const historyCommands = (prefix: "local-content" | "collaboration") => ({
+  historyList: command<[string, number?], DocumentHistoryEntry[]>(`${prefix}:history-list`),
+  historyPreview: command<[string, number, boolean?], DocumentHistoryPreview>(
+    `${prefix}:history-preview`
+  ),
+  historyApply: command<[string, DocumentHistoryAction], void>(`${prefix}:history-apply`),
+});
+
 /** 协作域命令契约（主进程注册于 collaboration/ipc-controller，模式 A 直连注册） */
 export const collaborationCommands = {
+  ...historyCommands("collaboration"),
   prepareFragment: command<
     [string, string, ContentNode[], ContentContractDictionary],
     ContentNode[]
@@ -81,6 +93,7 @@ export const collaborationCommands = {
 };
 
 export const localContentCommands = {
+  ...historyCommands("local-content"),
   prepareFragment: command<
     [string, string, ContentNode[], ContentContractDictionary],
     ContentNode[]

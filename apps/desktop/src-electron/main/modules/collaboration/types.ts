@@ -41,7 +41,7 @@ export interface RuntimeSession {
   projectionStructure?: number;
   drainingViews?: Set<string>;
   /** 宿主补丁在应用和广播前先写入协作缓存。 */
-  persistNodeUpdate?: (update: Uint8Array) => void;
+  persistNodeUpdate?: (update: Uint8Array, candidate: Y.Doc) => void;
   retainNodeState?: (candidate: Y.Doc) => void;
 }
 

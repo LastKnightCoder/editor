@@ -46,6 +46,8 @@ import type { EditorRef } from "@tau/editor";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
+import { HistoryPanel, composeEditorMarks, useContentHistory } from "@/components/ContentHistory";
+import { History as HistoryIcon } from "lucide-react";
 import { ErrorBoundary } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import PresentationMode from "@/components/PresentationMode";
@@ -69,7 +71,7 @@ import {
   defaultArticleEventBus,
 } from "@/utils";
 import AddTag from "@/components/AddTag";
-import { ConfirmDialog, Loading, Menu, cn, toast } from "@tau/ui";
+import { ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
 
 import { useArticleMutations } from "../queries";
 import { ArticleHero } from "../components/ArticleHero";
@@ -132,6 +134,12 @@ export function ArticleDetailView() {
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(editingArticle?.contentId);
   const getEditor = useCallback(() => editorRef.current?.getEditor(), []);
+  /* 编辑历史页边注：与正文同纸的右栏，选中条目联动正文块标注（连接线画在纸面行容器内） */
+  const paperRowRef = useRef<HTMLDivElement>(null);
+  const history = useContentHistory({
+    contentId: editingArticle?.contentId,
+    getEditor,
+  });
   /* 创作模式（KL-070）：白板与正文两栏共享的会话 */
   const [composeSession] = useState(() => createComposeSession(getEditor));
   /* AI 洞见：标题栏下元信息行入口 + 正文上方报告 + 就地标记（KL-058）；创作模式下白板资料进候选 */
@@ -350,6 +358,11 @@ export function ArticleDetailView() {
         >
           {shared ? "协作成员" : "发起协作"}
         </Menu.Item>
+        {isElectron && (
+          <Menu.Item icon={<HistoryIcon className="size-[15px]" />} onSelect={() => history.open()}>
+            编辑历史
+          </Menu.Item>
+        )}
         <Menu.Submenu
           label="复制"
           icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -481,105 +494,122 @@ export function ArticleDetailView() {
             data-morph-key={editingArticle.id === id ? articleMorphKey(id) : undefined}
             className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 border-r-[3px]">
-              <ArticleHero
-                article={editingArticle}
-                onTitleChange={title => {
-                  onTitleChange(title);
-                }}
-                onChangeCover={() => void handleChangeCover()}
-                changingCover={changingCover}
-                extraMeta={
-                  <>
-                    <ContextBadge
-                      entity={{ kind: "article", id: editingArticle.id }}
-                      extra={
-                        composing
-                          ? undefined
-                          : close => (
-                              <ComposeBoardEntry
-                                contentId={editingArticle.contentId}
-                                onOpen={() => {
-                                  close();
-                                  setComposing(true);
-                                }}
-                              />
-                            )
+            <div ref={paperRowRef} className="relative flex min-h-0 flex-1">
+              <FadeScroll scrollRef={setScrollEl} className="min-h-0 min-w-0 flex-1 border-r-[3px]">
+                <ArticleHero
+                  article={editingArticle}
+                  onTitleChange={title => {
+                    onTitleChange(title);
+                  }}
+                  onChangeCover={() => void handleChangeCover()}
+                  changingCover={changingCover}
+                  extraMeta={
+                    <>
+                      <ContextBadge
+                        entity={{ kind: "article", id: editingArticle.id }}
+                        extra={
+                          composing
+                            ? undefined
+                            : close => (
+                                <ComposeBoardEntry
+                                  contentId={editingArticle.contentId}
+                                  onOpen={() => {
+                                    close();
+                                    setComposing(true);
+                                  }}
+                                />
+                              )
+                        }
+                      />
+                      {insights.button}
+                      <ComposeModeToggle active={composing} onChange={setComposing} />
+                    </>
+                  }
+                  actions={
+                    <span className="flex items-center gap-1">
+                      {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
+                      <ContentCollaborationControl
+                        ref={collaborationRef}
+                        hideTrigger
+                        presence
+                        contentId={editingArticle.contentId}
+                        source={{
+                          sourceType: "article",
+                          sourceId: editingArticle.id,
+                          sourceTitle: editingArticle.title,
+                        }}
+                      />
+                      <IconButton
+                        title="编辑历史"
+                        aria-label="编辑历史"
+                        aria-pressed={history.isOpen}
+                        className={cn(
+                          "size-[30px]",
+                          history.isOpen && "bg-accent-soft text-accent-text"
+                        )}
+                        onClick={history.toggle}
+                      >
+                        <HistoryIcon className="size-4" />
+                      </IconButton>
+                      {moreMenuNode}
+                    </span>
+                  }
+                />
+
+                <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pt-8 pb-10">
+                  <article className="col-start-2 min-w-0">
+                    {insights.report && <div className="mb-6">{insights.report}</div>}
+                    <PluginEntityPanels
+                      target={{ kind: "article", id: String(editingArticle.id) }}
+                      className="mb-6"
+                    />
+                    <div>
+                      {insights.frame(
+                        <ErrorBoundary>
+                          <ContentEditor
+                            at={at}
+                            ref={editorRef}
+                            contentId={editingArticle.contentId}
+                            key={`${editingArticle.id}-${editorRemountKey}`}
+                            initValue={editingArticle.content}
+                            onInit={onInit}
+                            onChange={content => {
+                              onContentChange(content);
+                            }}
+                            readonly={false}
+                            editingContext={{ entityType: "article", entityId: editingArticle.id }}
+                            {...composeEditorMarks(insights.editorProps, history.editorProps)}
+                          />
+                        </ErrorBoundary>
+                      )}
+                    </div>
+
+                    <AddTag
+                      divided
+                      tags={editingArticle.tags}
+                      addTag={onAddTag}
+                      removeTag={onDeleteTag}
+                      editTag={(oldTag, newTag) =>
+                        onTagsChange(
+                          editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag))
+                        )
                       }
                     />
-                    {insights.button}
-                    <ComposeModeToggle active={composing} onChange={setComposing} />
-                  </>
-                }
-                actions={
-                  <span className="flex items-center gap-1">
-                    {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
-                    <ContentCollaborationControl
-                      ref={collaborationRef}
-                      hideTrigger
-                      presence
-                      contentId={editingArticle.contentId}
-                      source={{
-                        sourceType: "article",
-                        sourceId: editingArticle.id,
-                        sourceTitle: editingArticle.title,
-                      }}
-                    />
-                    {moreMenuNode}
-                  </span>
-                }
-              />
+                  </article>
 
-              <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pt-8 pb-10">
-                <article className="col-start-2 min-w-0">
-                  {insights.report && <div className="mb-6">{insights.report}</div>}
-                  <PluginEntityPanels
-                    target={{ kind: "article", id: String(editingArticle.id) }}
-                    className="mb-6"
-                  />
-                  <div>
-                    {insights.frame(
-                      <ErrorBoundary>
-                        <ContentEditor
-                          at={at}
-                          ref={editorRef}
-                          contentId={editingArticle.contentId}
-                          key={`${editingArticle.id}-${editorRemountKey}`}
-                          initValue={editingArticle.content}
-                          onInit={onInit}
-                          onChange={content => {
-                            onContentChange(content);
-                          }}
-                          readonly={false}
-                          editingContext={{ entityType: "article", entityId: editingArticle.id }}
-                          {...insights.editorProps}
-                        />
-                      </ErrorBoundary>
-                    )}
-                  </div>
-
-                  <AddTag
-                    divided
-                    tags={editingArticle.tags}
-                    addTag={onAddTag}
-                    removeTag={onDeleteTag}
-                    editTag={(oldTag, newTag) =>
-                      onTagsChange(editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag)))
-                    }
-                  />
-                </article>
-
-                {!composing && (
-                  <div className="sticky top-4 col-start-3 ml-7">
-                    <ContentOutline
-                      headers={headers}
-                      scrollEl={scrollEl}
-                      resolveAnchor={resolveAnchor}
-                    />
-                  </div>
-                )}
-              </div>
-            </FadeScroll>
+                  {!composing && (
+                    <div className="sticky top-4 col-start-3 ml-7">
+                      <ContentOutline
+                        headers={headers}
+                        scrollEl={scrollEl}
+                        resolveAnchor={resolveAnchor}
+                      />
+                    </div>
+                  )}
+                </div>
+              </FadeScroll>
+              {history.isOpen && <HistoryPanel history={history} containerRef={paperRowRef} />}
+            </div>
           </div>
         </ComposeLayout>
 

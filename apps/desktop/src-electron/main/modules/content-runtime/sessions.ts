@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { createHash, randomUUID } from "node:crypto";
 import { Awareness, encodeAwarenessUpdate } from "y-protocols/awareness";
 import { NODE_DOCUMENT_VERSION, NodeTree, type CollaborationSession } from "@tau/collaboration";
 import {
@@ -17,6 +18,7 @@ import {
 } from "../collaboration/content-sessions";
 import { reportContentSaveIssue } from "../collaboration/persistence-diagnostics";
 import type { RuntimeSession } from "../collaboration/types";
+import { localContentHistoryId } from "../collaboration/session-identity";
 import type { ContentSessionRuntime } from "./index";
 
 export function findContent(
@@ -77,7 +79,26 @@ export function restore(runtime: ContentSessionRuntime, info: CollaborationSessi
       checkScope,
       onAccepted
     );
-  session.persistNodeUpdate = update => runtime.store.append(session.info.id, update);
+  session.persistNodeUpdate = (update, candidate) => {
+    const store = runtime.store;
+    store.db.transaction(() => {
+      store.append(session.info.id, update);
+      const historyId =
+        session.info.mode === "local" ? localContentHistoryId(session.info.source) : undefined;
+      if (!historyId) return;
+      const before = Y.encodeStateAsUpdate(session.doc),
+        after = Y.encodeStateAsUpdate(candidate);
+      store.history.append(historyId, {
+        operationId: randomUUID(),
+        actor: { actorId: "local", actorName: "本机", source: "正文写入" },
+        previousRevision: createHash("sha256").update(before).digest("hex"),
+        revision: createHash("sha256").update(after).digest("hex"),
+        update,
+        before: () => before,
+        after: () => after,
+      });
+    })();
+  };
   session.retainNodeState = candidate => runtime.retainNodeState(session, candidate);
   runtime.retainNodeState(session, doc);
   doc.on(

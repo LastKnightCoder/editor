@@ -4,12 +4,18 @@ import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
-import type { CollaborationSession } from "@tau/collaboration";
+import {
+  documentHistorySchema,
+  type CollaborationSession,
+  type DocumentHistoryStore,
+} from "@tau/collaboration";
+import { sqliteDocumentHistory } from "../content-runtime/closed-content-history";
 import type { ResourceRow } from "./asset-service";
 import { writeContentSaveLog, contentSaveError } from "./persistence-diagnostics";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
+  readonly history: DocumentHistoryStore;
   constructor(
     private readonly directory: string,
     private readonly filename = "collaboration.db"
@@ -27,12 +33,14 @@ export class CollaborationLocalStore {
       this.db.pragma("synchronous = FULL");
       this.db.transaction(() => {
         this.db.exec(cacheSchema);
+        this.db.exec(documentHistorySchema);
         this.db.pragma("user_version=3");
       })();
     } catch (failure) {
       if (this.db.open) this.db.close();
       throw failure;
     }
+    this.history = sqliteDocumentHistory(this.db);
   }
   /**
    * 缓存文件不是当前格式（含较新版本写入）：整份移入 discarded/ 后新建，不阻断协作。
