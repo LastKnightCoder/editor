@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方案 C · 沉浸式时间旅行 — 编辑历史设计稿</title>
+<style>
+  :root {
+    --tau-bg-page: #f3eee2; --tau-bg-surface: #fffdf9; --tau-bg-surface-hover: #f6f3ef;
+    --tau-bg-sunken: #e7dbc8; --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67,57,44,0.05); --tau-bg-press: rgba(67,57,44,0.09);
+    --tau-bg-selected: rgba(217,119,87,0.12);
+    --tau-ink-1: #43392c; --tau-ink-2: #6a5c49; --tau-ink-3: #a89a85; --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2; --tau-line-2: rgba(233,225,210,0.55);
+    --tau-accent: hsl(22 58% 42%); --tau-accent-hover: hsl(22 58% 35%);
+    --tau-accent-soft: hsla(22,58%,42%,0.12); --tau-accent-text: #a05236;
+    --tau-focus-ring: 0 0 0 3px rgba(217,119,87,0.28);
+    --tau-ok: #61795f; --tau-ok-soft: #e5ede2; --tau-warn: #a38c4d; --tau-warn-soft: #f6efd6;
+    --tau-danger: #b0564d; --tau-danger-soft: #f6e3e0; --tau-info: #5c7d99; --tau-info-soft: #e2ebf3;
+    --tau-tag-1: #61795f; --tau-tag-2: #5c7d99; --tau-tag-3: #8a7aa6; --tau-tag-4: #a38c4d; --tau-tag-5: #b06a5e;
+    --tau-overlay: rgba(67,57,44,0.35);
+    --tau-shadow-card: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+    --tau-shadow-lift: 0 1px 2px rgba(120,100,70,0.06), 0 6px 16px -10px rgba(120,100,70,0.22);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120,100,70,0.4);
+    --tau-glow-1: #f6d3b6; --tau-glow-2: #f1d4ca; --tau-glow-3: #f4e3ae;
+    --tau-radius-sm: 8px; --tau-radius-md: 12px; --tau-radius-lg: 16px;
+    --tau-ease-out: cubic-bezier(0.22,1,0.36,1); --tau-dur-fast: 160ms; --tau-dur-normal: 240ms;
+    --tau-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--tau-font); color: var(--tau-ink-1); background: var(--tau-bg-page);
+    font-size: 13px; line-height: 1.65; display: flex; align-items: center; justify-content: center;
+    padding: 28px 16px; position: relative; overflow: hidden;
+  }
+  body::before, body::after { content: ""; position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; pointer-events: none; }
+  body::before { width: 520px; height: 520px; background: var(--tau-glow-1); top: -200px; left: -120px; }
+  body::after  { width: 460px; height: 460px; background: var(--tau-glow-3); bottom: -180px; right: -100px; }
+
+  .draft-badge {
+    position: fixed; top: 14px; left: 16px; z-index: 90;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 999px;
+    box-shadow: var(--tau-shadow-lift); padding: 5px 12px; font-size: 12px; color: var(--tau-ink-2);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .draft-badge b { color: var(--tau-accent-text); font-weight: 600; }
+  .note-btn {
+    position: fixed; top: 14px; right: 16px; z-index: 90; height: 30px; padding: 0 12px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 999px;
+    box-shadow: var(--tau-shadow-lift); color: var(--tau-ink-2); font-size: 12px; cursor: pointer; font-family: inherit;
+    transition: background var(--tau-dur-fast) var(--tau-ease-out);
+  }
+  .note-btn:hover { background: var(--tau-bg-hover); }
+  .note-pop {
+    position: fixed; top: 52px; right: 16px; z-index: 95; width: 316px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: var(--tau-radius-md);
+    box-shadow: var(--tau-shadow-float); padding: 16px; font-size: 12.5px; color: var(--tau-ink-2);
+  }
+  .note-pop h2 { font-size: 13px; color: var(--tau-ink-1); margin-bottom: 8px; font-weight: 600; }
+  .note-pop dl { display: grid; grid-template-columns: 64px 1fr; gap: 5px 10px; }
+  .note-pop dt { color: var(--tau-ink-3); }
+
+  /* ===== 应用窗口（时间旅行模式） ===== */
+  .window {
+    position: relative; z-index: 1; width: min(1280px, 96vw); height: min(820px, 92vh);
+    background: var(--tau-bg-page); border-radius: var(--tau-radius-lg);
+    box-shadow: 0 0 0 1px rgba(120,100,70,.1), 0 30px 70px -24px rgba(120,100,70,.5);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .titlebar {
+    height: 46px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 18px;
+    background: var(--tau-bg-surface); border-bottom: 1px solid var(--tau-line-1); z-index: 5;
+  }
+  .crumb { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--tau-ink-3); min-width: 0; }
+  .crumb .doc { color: var(--tau-ink-1); font-weight: 500; }
+  .titlebar .spacer { flex: 1; }
+  .mode-tag {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 11px; border-radius: 999px;
+    background: var(--tau-accent-soft); color: var(--tau-accent-text); font-size: 11.5px; font-weight: 500;
+  }
+  .mode-tag svg { width: 12px; height: 12px; }
+  .btn {
+    height: 28px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--tau-line-1);
+    background: var(--tau-bg-surface); color: var(--tau-ink-1); font-size: 12.5px; font-family: inherit;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;
+    transition: background var(--tau-dur-fast) var(--tau-ease-out);
+  }
+  .btn:hover { background: var(--tau-bg-hover); }
+  .iconbtn {
+    width: 30px; height: 30px; border-radius: var(--tau-radius-sm); border: none; background: transparent;
+    color: var(--tau-ink-2); cursor: pointer; display: grid; place-items: center;
+    transition: background var(--tau-dur-fast) var(--tau-ease-out), color var(--tau-dur-fast);
+  }
+  .iconbtn:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .iconbtn svg { width: 16px; height: 16px; }
+
+  .stage { flex: 1; position: relative; min-height: 0; overflow: hidden; }
+
+  /* ===== 时间胶囊 ===== */
+  .capsule-anchor { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 20; width: min(660px, 86%); }
+  .capsule {
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 999px;
+    box-shadow: var(--tau-shadow-float); padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+    animation: drop var(--tau-dur-normal) var(--tau-ease-out);
+  }
+  @keyframes drop { from { opacity: 0; transform: translateY(-10px); } }
+  .step {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface);
+    color: var(--tau-ink-2); cursor: pointer; display: grid; place-items: center; flex: none;
+    transition: background var(--tau-dur-fast), color var(--tau-dur-fast);
+  }
+  .step:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .step:disabled { opacity: .35; cursor: not-allowed; }
+  .step svg { width: 14px; height: 14px; }
+  .track-wrap { flex: 1; min-width: 0; padding: 0 2px; }
+  .track { position: relative; height: 26px; }
+  .track .rail { position: absolute; left: 0; right: 0; top: 12px; height: 3px; border-radius: 2px; background: var(--tau-bg-sunken); }
+  .track .fill { position: absolute; left: 0; top: 12px; height: 3px; border-radius: 2px; background: var(--tau-accent); transition: width var(--tau-dur-fast) var(--tau-ease-out); }
+  .track input[type="range"] {
+    position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; margin: 0; -webkit-appearance: none;
+  }
+  .nodes { position: absolute; inset: 0; pointer-events: none; }
+  .nodes .n {
+    position: absolute; top: 9.5px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c); transform: translateX(-50%); transition: transform var(--tau-dur-fast) var(--tau-ease-out), box-shadow var(--tau-dur-fast);
+  }
+  .nodes .n.now { transform: translateX(-50%) scale(1.55); box-shadow: 0 0 0 2.5px var(--tau-bg-surface), 0 0 0 4.5px var(--tau-accent-soft); }
+  .capsule .info { flex: none; text-align: right; max-width: 190px; }
+  .capsule .info .l1 { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .capsule .info .l2 { font-size: 11px; color: var(--tau-ink-3); }
+  .capsule .go {
+    flex: none; height: 30px; border-radius: 999px; border: none; background: var(--tau-accent); color: var(--tau-ink-inverse);
+    font-size: 12.5px; font-weight: 500; padding: 0 15px; cursor: pointer; font-family: inherit;
+    transition: background var(--tau-dur-fast) var(--tau-ease-out);
+  }
+  .capsule .go:hover { background: var(--tau-accent-hover); }
+  .capsule .go:disabled { opacity: .45; cursor: not-allowed; }
+  .capsule .exit {
+    flex: none; width: 28px; height: 28px; border-radius: 50%; border: none; background: transparent; color: var(--tau-ink-3);
+    cursor: pointer; display: grid; place-items: center; transition: background var(--tau-dur-fast);
+  }
+  .capsule .exit:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+
+  .restore-pop {
+    position: absolute; z-index: 30; right: 0; top: 52px; width: 248px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: var(--tau-radius-md);
+    box-shadow: var(--tau-shadow-float); padding: 13px 14px;
+    animation: drop var(--tau-dur-normal) var(--tau-ease-out);
+  }
+  .restore-pop .t { font-size: 12.5px; font-weight: 600; margin-bottom: 4px; }
+  .restore-pop .d { font-size: 11.5px; color: var(--tau-ink-2); margin-bottom: 10px; }
+  .restore-pop .acts { display: flex; gap: 7px; justify-content: flex-end; }
+  .restore-pop .btn.primary { background: var(--tau-accent); border-color: transparent; color: var(--tau-ink-inverse); }
+  .restore-pop .btn.primary:hover { background: var(--tau-accent-hover); }
+
+  /* ===== 正文（历史版渲染 + inline diff） ===== */
+  .paper-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 84px 32px 90px; }
+  .paper {
+    max-width: 680px; margin: 0 auto; background: var(--tau-bg-surface); border-radius: var(--tau-radius-md);
+    box-shadow: var(--tau-shadow-card); padding: 52px 56px 60px; font-size: 15px; line-height: 1.9;
+    transition: opacity var(--tau-dur-fast) var(--tau-ease-out);
+  }
+  .paper.switching { opacity: .55; }
+  .paper h1 { font-size: 24px; line-height: 1.4; font-weight: 600; margin-bottom: 18px; letter-spacing: .2px; }
+  .paper p { margin-bottom: 14px; }
+  .paper ul { margin: 4px 0 18px 4px; list-style: none; }
+  .paper li { padding-left: 20px; position: relative; margin-bottom: 7px; }
+  .paper li::before { content: ""; position: absolute; left: 4px; top: .78em; width: 6px; height: 6px; border-radius: 50%; background: var(--tau-bg-track); }
+  .paper blockquote {
+    margin: 20px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--tau-bg-track);
+    color: var(--tau-ink-2); font-family: "Hannotate SC", "Kaiti SC", var(--tau-font);
+  }
+  /* inline diff：绿 = 恢复后会回到正文；红删除线 = 恢复后会从正文消失 */
+  .paper .blk { border-radius: 6px; padding: 1px 6px; margin: 0 -6px; transition: background var(--tau-dur-normal) var(--tau-ease-out), box-shadow var(--tau-dur-normal); }
+  .paper .blk.back { background: var(--tau-ok-soft); box-shadow: inset 3px 0 0 var(--tau-ok); }
+  .paper .blk.lost { background: var(--tau-danger-soft); box-shadow: inset 3px 0 0 var(--tau-danger); }
+  .paper .blk ins { text-decoration: none; background: var(--tau-ok-soft); border-radius: 3px; padding: 0 2px; }
+  .paper .blk del { color: var(--tau-danger); background: var(--tau-danger-soft); border-radius: 3px; padding: 0 2px; text-decoration: line-through; }
+
+  /* 图例 + 摘要浮签 */
+  .legend {
+    position: absolute; left: 30px; bottom: 24px; z-index: 20; display: flex; flex-direction: column; gap: 6px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: var(--tau-radius-md);
+    box-shadow: var(--tau-shadow-lift); padding: 10px 13px; font-size: 11.5px; color: var(--tau-ink-2);
+  }
+  .legend .row { display: flex; align-items: center; gap: 7px; }
+  .legend .sw { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+  .legend .sw.g { background: var(--tau-ok-soft); box-shadow: inset 2px 0 0 var(--tau-ok); }
+  .legend .sw.r { background: var(--tau-danger-soft); box-shadow: inset 2px 0 0 var(--tau-danger); }
+  .summary-chip {
+    position: absolute; right: 30px; bottom: 24px; z-index: 20;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 999px;
+    box-shadow: var(--tau-shadow-lift); padding: 7px 14px; font-size: 12px; color: var(--tau-ink-2);
+  }
+  .summary-chip b { color: var(--tau-accent-text); font-weight: 600; }
+
+  .kbd-hint {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: 24px; z-index: 20;
+    font-size: 11.5px; color: var(--tau-ink-3); display: flex; gap: 6px; align-items: center;
+  }
+  .kbd-hint kbd {
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 5px;
+    padding: 1px 6px; font-family: var(--tau-font); font-size: 11px; color: var(--tau-ink-2);
+  }
+
+  .toast {
+    position: absolute; left: 50%; top: 60px; transform: translateX(-50%); z-index: 60;
+    background: var(--tau-ink-1); color: var(--tau-ink-inverse); border-radius: 999px; padding: 8px 18px;
+    font-size: 12.5px; box-shadow: var(--tau-shadow-float); opacity: 0; pointer-events: none;
+    transition: opacity var(--tau-dur-normal) var(--tau-ease-out), transform var(--tau-dur-normal) var(--tau-ease-out);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  /* 退出后的常态（演示切换） */
+  .normal-bar { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 20; display: none; }
+  .normal-bar.show { display: block; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--tau-bg-track); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="draft-badge"><b>设计稿 C</b> 沉浸式时间旅行 · 正文接管</div>
+<button class="note-btn" id="noteBtn">设计说明</button>
+<div class="note-pop" id="notePop" hidden>
+  <h2>方案 C · 沉浸式时间旅行</h2>
+  <dl>
+    <dt>出现位置</dt><dd>不再有独立面板：整个正文区接管为只读历史视图，正文本身就是预览</dd>
+    <dt>入口</dt><dd>正文右上「时钟」图标 / 菜单「回到过去」，进入后顶部出现时间胶囊，Esc 退出</dd>
+    <dt>交互</dt><dd>时间胶囊：节点滑轨（颜色=作者）+ 前后步进 + 键盘 ←/→ 穿梭版本</dd>
+    <dt>diff 呈现</dt><dd>inline 落在正文原位：绿=恢复后会回来的内容，红删除线=恢复后会失去的内容（相对当前）</dd>
+    <dt>优势</dt><dd>零翻译成本——看到的就是文档当时的样子；对照最直觉</dd>
+    <dt>代价</dt><dd>进入即只读，与写作互斥；长列表筛选/检索能力弱于 B</dd>
+  </dl>
+</div>
+
+<div class="window">
+  <header class="titlebar">
+    <nav class="crumb" aria-label="位置">
+      <span>卡片</span><span>/</span><span>旅行</span><span>/</span>
+      <span class="doc">武功山徒步 · 十一月复盘</span>
+    </nav>
+    <div class="spacer"></div>
+    <span class="mode-tag" id="modeTag">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v5l3 2"/></svg>
+      时间旅行
+    </span>
+    <div class="avatars" style="display:flex" aria-label="协作成员">
+      <span style="width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;color:#fff;background:var(--tau-tag-2);border:2px solid var(--tau-bg-surface);margin-left:-7px">我</span>
+      <span style="width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;color:#fff;background:var(--tau-tag-4);border:2px solid var(--tau-bg-surface)">林</span>
+    </div>
+    <button class="iconbtn" id="ttToggle" title="退出时间旅行（Esc）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
+    <button class="iconbtn" title="更多"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+  </header>
+
+  <div class="stage">
+    <!-- 常态入口（退出时间旅行后可见，演示重新进入） -->
+    <div class="normal-bar" id="normalBar">
+      <button class="btn" id="reenter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        进入时间旅行
+      </button>
+    </div>
+
+    <!-- 时间胶囊 -->
+    <div class="capsule-anchor" id="capsuleAnchor">
+      <div class="capsule" id="capsule" role="group" aria-label="版本时间轨">
+        <button class="step" id="stepPrev" title="上一个版本（←）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <div class="track-wrap">
+          <div class="track">
+            <span class="rail"></span><span class="fill" id="fill"></span>
+            <input type="range" id="range" min="0" max="9" step="1" aria-label="选择版本" />
+            <div class="nodes" id="nodes"></div>
+          </div>
+        </div>
+        <button class="step" id="stepNext" title="下一个版本（→）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="info">
+          <div class="l1"><span id="infoActor"></span><span style="color:var(--tau-ink-3);font-weight:400" id="infoSeq"></span></div>
+          <div class="l2" id="infoTime"></div>
+        </div>
+        <button class="go" id="goRestore">恢复到此版本</button>
+        <button class="exit" id="exitBtn" title="退出（Esc）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="restore-pop" id="restorePop" hidden>
+        <div class="t">恢复到 <span id="rpSeq"></span>？</div>
+        <div class="d" id="rpDesc"></div>
+        <div class="acts">
+          <button class="btn" id="rpCancel">取消</button>
+          <button class="btn primary" id="rpOk">确认恢复</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 正文 -->
+    <div class="paper-scroll" id="paperScroll">
+      <article class="paper" id="paper" aria-live="polite"></article>
+    </div>
+
+    <div class="legend" id="legend">
+      <div class="row"><span class="sw g"></span>这个版本里有 · 恢复后会回到正文</div>
+      <div class="row"><span class="sw r"></span>当前正文里有 · 恢复后会失去</div>
+    </div>
+    <div class="summary-chip" id="summaryChip"></div>
+    <div class="kbd-hint" id="kbdHint"><kbd>←</kbd><kbd>→</kbd> 切换版本 <kbd>Esc</kbd> 退出</div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+/* ============ 演示数据（与 A/B 两份设计稿共用同一套） ============ */
+const AUTHORS = {
+  local: { name: "本机", color: "var(--tau-tag-2)" },
+  lin:   { name: "林知远", color: "var(--tau-tag-4)" },
+  ai:    { name: "AI", color: "var(--tau-tag-3)", source: "润色助手" },
+};
+const BASE = [
+  { id: "b1", type: "h1", text: "武功山徒步 · 十一月复盘" },
+  { id: "b5", type: "p", text: "复盘下来最值得保留的决策是轻量化。" },
+  { id: "b6", type: "quote", text: "山上的风把话都吹散了，只剩头灯的光一盏一盏往上爬。" },
+];
+const CURRENT = [
+  { id: "b1", type: "h1", text: "武功山徒步 · 十一月复盘" },
+  { id: "b2", type: "p", text: "十一月第一个周末，两天一夜走完沈子村—金顶—发云界。队伍四人，人均负重约八公斤，整体节奏比预想轻松，唯一没算到的是山顶夜里的风。" },
+  { id: "b3", type: "p", text: "出发前一周开始盯天气窗口，周四确认周六凌晨放晴，临时把出发时间从七点提前到五点半，避开了上山的人流。" },
+  { id: "b4", type: "list", text: "头灯与备用电池（夜爬必需）\n硬壳外套：山顶阵风七级，体感接近零度\n两升水 + 电解质片，沿途客栈可补水\n登山杖一对，碎石段省力明显" },
+  { id: "b5", type: "p", text: "复盘下来最值得保留的决策是轻量化：这次把厨具全砍掉，改吃客栈热食，晚上到点就能休息，第二天状态好了很多。" },
+  { id: "b6", type: "quote", text: "山上的风把话都吹散了，只剩头灯的光一盏一盏往上爬。" },
+  { id: "b7", type: "p", text: "住宿选了金顶西侧的客栈，床位紧张，提前十天订刚好；想要看日出就别心疼闹钟，五点十分出门占了机位。" },
+  { id: "b8", type: "list", text: "周六下午金顶排队拍照的人非常多，想拍空景要么赶早要么等到五点后\n发云界之后的路段无信号，离线地图务必提前下载" },
+  { id: "b9", type: "p", text: "下次想把第一天拆成两段，在龙山村住一晚，把发云界的日出留给第二天清晨，而不是赶在天黑前通过。" },
+];
+const EDITS = {
+  143: { actor: "local", mins: 6, kind: "edit", changes: [
+    { kind: "modify", blockId: "b5", before: "复盘下来最值得保留的决策是轻量化：这次把厨具全砍了，改吃客栈热食。", after: CURRENT[4].text },
+    { kind: "insert", blockId: "b9", at: 8, after: CURRENT[8].text } ] },
+  142: { actor: "lin", mins: 74, kind: "edit", changes: [
+    { kind: "insert", blockId: "b8", at: 7, after: CURRENT[7].text },
+    { kind: "modify", blockId: "b3", before: "出发前一周开始盯天气，周四确认周六凌晨放晴。", after: CURRENT[2].text } ] },
+  141: { actor: "local", mins: 187, kind: "edit", source: "正文写入", changes: [
+    { kind: "modify", blockId: "b2", before: "十一月第一个周末，两天一夜走完沈子村到金顶再到发云界。队伍四人，人均负重八公斤。", after: CURRENT[1].text } ] },
+  140: { actor: "ai", mins: 1558, kind: "edit", changes: [
+    { kind: "modify", blockId: "b4", before: "头灯与备用电池（夜爬必需）\n硬壳外套：山顶阵风七级，体感接近零度\n两升水 + 电解质片\n登山杖一对", after: CURRENT[3].text },
+    { kind: "modify", blockId: "b7", before: "住宿选了金顶西侧的客栈，床位紧张，提前十天订刚好。", after: CURRENT[6].text } ] },
+  139: { actor: "local", mins: 1610, kind: "undo", target: 137, changes: [
+    { kind: "insert", blockId: "b6", at: 5, after: "山上的风把话都吹散了，只剩头灯的光一盏一盏往上爬。" } ] },
+  138: { actor: "lin", mins: 1648, kind: "edit", changes: [
+    { kind: "move", blockId: "b7", from: 4, to: 5 } ] },
+  137: { actor: "local", mins: 1702, kind: "edit", undone: true, changes: [
+    { kind: "delete", blockId: "b6", at: 6 } ] },
+  136: { actor: "lin", mins: 4130, kind: "restore", target: 134 },
+  135: { actor: "local", mins: 4160, kind: "edit", changes: [
+    { kind: "modify", blockId: "b5", before: "复盘下来最值得保留的决策是轻量化：这次把厨具全砍了，改吃客栈热食。", after: "复盘下来最值得保留的决策是轻量化：这次把厨具全砍了，改吃客栈热食，晚上能早点休息。" } ] },
+  134: { actor: "lin", mins: 5690, kind: "edit", changes: [
+    { kind: "insert", blockId: "b7", at: 4, after: "住宿选了金顶西侧的客栈，床位紧张，提前十天订刚好。" } ] },
+  133: { actor: "local", mins: 5720, kind: "edit", changes: [
+    { kind: "modify", blockId: "b2", before: "十一月第一个周末，两天一夜走完沈子村到金顶再到发云界。", after: "十一月第一个周末，两天一夜走完沈子村到金顶再到发云界。队伍四人，人均负重八公斤。" } ] },
+  132: { actor: "local", mins: 7250, kind: "edit", changes: [
+    { kind: "insert", blockId: "b4", at: 3, after: "头灯与备用电池（夜爬必需）\n硬壳外套：山顶阵风七级，体感接近零度\n两升水 + 电解质片\n登山杖一对" } ] },
+  131: { actor: "local", mins: 7280, kind: "edit", changes: [
+    { kind: "modify", blockId: "b5", before: "复盘下来最值得保留的决策是轻量化。", after: "复盘下来最值得保留的决策是轻量化：这次把厨具全砍了，改吃客栈热食。" } ] },
+  130: { actor: "lin", mins: 7300, kind: "edit", changes: [
+    { kind: "insert", blockId: "b3", at: 2, after: "出发前一周开始盯天气，周四确认周六凌晨放晴。" } ] },
+  129: { actor: "local", mins: 8800, kind: "edit", changes: [
+    { kind: "modify", blockId: "b2", before: "十一月第一周末，两天一夜走完沈子村到金顶再到发云界。", after: "十一月第一个周末，两天一夜走完沈子村到金顶再到发云界。" } ] },
+  128: { actor: "local", mins: 8830, kind: "edit", changes: [
+    { kind: "insert", blockId: "b2", at: 1, after: "十一月第一周末，两天一夜走完沈子村到金顶再到发云界。" } ] },
+};
+const SEQS = Object.keys(EDITS).map(Number).sort((a, b) => b - a);
+const TOP = SEQS[0];
+const NODES = SEQS.slice(0, 10);            /* 时间轨节点：最新 10 个版本 */
+const NODE_SET = new Set(NODES);
+
+function snapFrom(blocks) { return { order: blocks.map(b => ({ ...b })) }; }
+function blockType(id) { return BASE.concat(CURRENT).find(b => b.id === id)?.type || "p"; }
+function blockTextOf(id) { return BASE.concat(CURRENT).find(b => b.id === id)?.text || ""; }
+function fwd(order, changes) {
+  for (const c of changes) {
+    const i = order.findIndex(b => b.id === c.blockId);
+    if (c.kind === "modify" && i >= 0) order[i].text = c.after;
+    else if (c.kind === "insert") order.splice(c.at, 0, { id: c.blockId, type: blockType(c.blockId), text: c.after || "" });
+    else if (c.kind === "delete" && i >= 0) order.splice(i, 1);
+    else if (c.kind === "move" && i >= 0) { const [b] = order.splice(i, 1); order.splice(c.to, 0, b); }
+  }
+  return order;
+}
+function stateAt(seq) {
+  if (seq >= TOP) return snapFrom(CURRENT);
+  /* 被某次 restore 覆盖的时刻（R > seq 且 R.target ≤ seq）无法从现在逆推，锚定到 R 时刻（= target 时刻）再正放 */
+  let R = null;
+  for (let s = seq + 1; s <= TOP && EDITS[s]; s++) {
+    if (EDITS[s].kind === "restore" && EDITS[s].target <= seq) { R = s; break; }
+  }
+  if (R !== null) {
+    let order = stateAt(R).order.map(b => ({ ...b }));
+    const target = EDITS[R].target;
+    for (let s = target + 1; s <= seq; s++) order = fwd(order, EDITS[s].changes || []);
+    return { order };
+  }
+  const next = EDITS[seq + 1];
+  if (!next) return snapFrom(BASE);
+  const order = stateAt(seq + 1).order.map(b => ({ ...b }));
+  for (const c of next.changes) {
+    const i = order.findIndex(b => b.id === c.blockId);
+    if (c.kind === "modify" && i >= 0) order[i].text = c.before;
+    else if (c.kind === "insert" && i >= 0) order.splice(i, 1);
+    else if (c.kind === "delete") order.splice(c.at, 0, { id: c.blockId, type: blockType(c.blockId), text: blockTextOf(c.blockId) });
+    else if (c.kind === "move" && i >= 0) { const [b] = order.splice(i, 1); order.splice(c.from, 0, b); }
+  }
+  return { order };
+}
+function diffState(a, b) {
+  const out = [];
+  const am = new Map(a.order.map(b => [b.id, b])), bm = new Map(b.order.map(b => [b.id, b]));
+  for (const blk of b.order) {
+    const prev = am.get(blk.id);
+    if (!prev) out.push({ kind: "insert", blockId: blk.id, after: blk.text });
+    else if (prev.text !== blk.text) out.push({ kind: "modify", blockId: blk.id, before: prev.text, after: blk.text });
+  }
+  for (const blk of a.order) if (!bm.has(blk.id)) out.push({ kind: "delete", blockId: blk.id, before: blk.text });
+  return out;
+}
+function relTime(mins) {
+  if (mins < 1) return "刚刚";
+  if (mins < 60) return `${Math.round(mins)} 分钟前`;
+  if (mins < 720) return `${Math.round(mins / 60)} 小时前`;
+  const d = new Date(Date.now() - mins * 60000), now = new Date();
+  if (d.toDateString() === now.toDateString()) return "今天";
+  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+}
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+/* ============ 时间旅行状态与渲染 ============ */
+let idx = 3;                                /* 初始停在 #140（AI 润色那条） */
+let traveling = true;
+const paper = document.getElementById("paper");
+
+function blockHtml(b, mark, extra) {
+  const cls = mark === "back" ? "blk back" : mark === "lost" ? "blk lost" : "blk";
+  const idAttr = ` data-id="${b.id}"`;
+  const inner = extra !== undefined ? extra : esc(b.text);
+  if (b.type === "h1") return `<h1 class="${cls}"${idAttr}>${inner}</h1>`;
+  if (b.type === "quote") return `<blockquote class="${cls}"${idAttr}>${inner}</blockquote>`;
+  if (b.type === "list") {
+    const items = extra !== undefined ? extra : b.text.split("\n").map(x => `<li>${esc(x)}</li>`).join("");
+    return `<ul class="${cls}"${idAttr}>${items}</ul>`;
+  }
+  return `<p class="${cls}"${idAttr}>${inner}</p>`;
+}
+function renderVersion() {
+  const seq = NODES[idx], e = EDITS[seq];
+  const st = stateAt(e.kind === "restore" ? e.target : seq);
+  paper.classList.add("switching");
+  setTimeout(() => {
+    if (seq === TOP) {
+      paper.innerHTML = `<h1 style="text-align:center;font-size:15px;color:var(--tau-ink-3);padding:90px 0 30px">这是当前版本 · 拖动时间轨或按 ← 回到过去</h1>` + st.order.map(b => blockHtml(b)).join("");
+    } else {
+      const cm = new Map(CURRENT.map(b => [b.id, b]));
+      const diff = diffState(stateAt(TOP), st);
+      const dm = new Map(diff.map(c => [c.blockId, c]));
+      paper.innerHTML = st.order.map(b => {
+        const c = dm.get(b.id), cur = cm.get(b.id);
+        if (!cur) return blockHtml(b, "back");
+        if (c && c.kind === "modify") return blockHtml(b, "back", `<del>${esc(cur.text)}</del><ins>${esc(b.text)}</ins>`);
+        return blockHtml(b);
+      }).join("");
+      /* 当前正文里多出来的块：插在其前驱之后，红删除线 */
+      const marks = [];
+      const stIds = new Set(st.order.map(b => b.id));
+      let lastCommon = null;
+      for (const b of CURRENT) {
+        if (stIds.has(b.id)) lastCommon = b.id;
+        else marks.push({ afterId: lastCommon, block: b });
+      }
+      for (const m of marks) {
+        const html = blockHtml(m.block, "lost", `<del>${esc(m.block.text)}</del>`);
+        const anchor = m.afterId ? paper.querySelector(`[data-id="${m.afterId}"]`) : paper.firstElementChild;
+        if (anchor) anchor.insertAdjacentHTML("afterend", html);
+        else paper.insertAdjacentHTML("afterbegin", html);
+      }
+    }
+    paper.classList.remove("switching");
+  }, 90);
+
+  /* 胶囊信息 */
+  const a = AUTHORS[e.actor];
+  document.getElementById("infoActor").textContent = `${a.name}${e.actor === "ai" ? " · 润色" : ""} ${e.kind === "undo" ? "撤销" : e.kind === "restore" ? "恢复" : "编辑"}`;
+  document.getElementById("infoSeq").textContent = `#${seq}`;
+  document.getElementById("infoTime").textContent = relTime(e.mins);
+  document.getElementById("stepPrev").disabled = idx >= NODES.length - 1;
+  document.getElementById("stepNext").disabled = idx <= 0;
+  document.getElementById("goRestore").disabled = seq === TOP;
+  document.getElementById("goRestore").textContent = seq === TOP ? "当前版本" : "恢复到此版本";
+  document.getElementById("range").value = String(idx);
+  document.getElementById("fill").style.width = `${(idx / (NODES.length - 1)) * 100}%`;
+  document.querySelectorAll("#nodes .n").forEach((n, i) => n.classList.toggle("now", i === idx));
+
+  /* 摘要浮签 */
+  const chip = document.getElementById("summaryChip");
+  if (seq === TOP) chip.innerHTML = `正文共 ${CURRENT.length} 个内容块 · 最新编辑 ${relTime(EDITS[TOP].mins)}`;
+  else {
+    const diff = diffState(stateAt(TOP), st);
+    const n = { insert: 0, delete: 0, modify: 0 };
+    diff.forEach(c => n[c.kind] !== undefined && n[c.kind]++);
+    chip.innerHTML = `与当前相差 <b>${diff.length}</b> 处 · 改 ${n.modify} · 回来 ${n.insert} · 失去 ${n.delete}`;
+  }
+}
+function buildNodes() {
+  const box = document.getElementById("nodes");
+  box.innerHTML = "";
+  NODES.forEach((seq, i) => {
+    const n = document.createElement("span");
+    n.className = "n";
+    n.style.left = `${(i / (NODES.length - 1)) * 100}%`;
+    n.style.setProperty("--c", AUTHORS[EDITS[seq].actor].color);
+    n.title = `#${seq} ${AUTHORS[EDITS[seq].actor].name} · ${relTime(EDITS[seq].mins)}`;
+    box.appendChild(n);
+  });
+}
+
+/* ============ 交互 ============ */
+document.getElementById("range").addEventListener("input", ev => { idx = Number(ev.target.value); renderVersion(); });
+document.getElementById("stepPrev").onclick = () => { if (idx < NODES.length - 1) { idx++; renderVersion(); } };
+document.getElementById("stepNext").onclick = () => { if (idx > 0) { idx--; renderVersion(); } };
+document.addEventListener("keydown", ev => {
+  if (!traveling) return;
+  if (ev.key === "ArrowLeft" && idx < NODES.length - 1) { idx++; renderVersion(); }
+  if (ev.key === "ArrowRight" && idx > 0) { idx--; renderVersion(); }
+  if (ev.key === "Escape") { if (!document.getElementById("restorePop").hidden) closePop(); else exitTravel(); }
+});
+const restorePop = document.getElementById("restorePop");
+document.getElementById("goRestore").onclick = () => {
+  const seq = NODES[idx];
+  if (seq === TOP) return;
+  document.getElementById("rpSeq").textContent = `#${seq}`;
+  document.getElementById("rpDesc").textContent = `正文将回到该版本的样子（${AUTHORS[EDITS[seq].actor].name} · ${relTime(EDITS[seq].mins)}）；之后的 ${TOP - seq} 次编辑不会从历史中丢失。`;
+  restorePop.hidden = false;
+};
+function closePop() { restorePop.hidden = true; }
+document.getElementById("rpCancel").onclick = closePop;
+document.getElementById("rpOk").onclick = () => {
+  closePop(); exitTravel();
+  showToast("已恢复（演示）· 历史新增一条恢复记录，可再次进入时间旅行找到回来的路");
+};
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
+}
+function setTravelUI(on) {
+  document.getElementById("capsuleAnchor").style.display = on ? "" : "none";
+  document.getElementById("legend").style.display = on ? "" : "none";
+  document.getElementById("summaryChip").style.display = on ? "" : "none";
+  document.getElementById("kbdHint").style.display = on ? "" : "none";
+  document.getElementById("modeTag").style.display = on ? "" : "none";
+  document.getElementById("normalBar").classList.toggle("show", !on);
+  document.getElementById("ttToggle").classList.toggle("on", on);
+}
+function exitTravel() {
+  traveling = false; idx = 0;
+  setTravelUI(false);
+  paper.classList.add("switching");
+  setTimeout(() => {
+    paper.innerHTML = CURRENT.map(b => blockHtml(b)).join("");
+    paper.classList.remove("switching");
+  }, 90);
+  showToast("已回到现在 · 随时点右上时钟再次进入");
+}
+document.getElementById("exitBtn").onclick = exitTravel;
+document.getElementById("ttToggle").onclick = () => traveling ? exitTravel() : enterTravel();
+function enterTravel() {
+  traveling = true; idx = 3;
+  setTravelUI(true); renderVersion();
+  showToast("进入时间旅行 · ←/→ 在版本间穿梭");
+}
+document.getElementById("reenter").onclick = enterTravel;
+const noteBtn = document.getElementById("noteBtn");
+noteBtn.onclick = () => { document.getElementById("notePop").hidden = !document.getElementById("notePop").hidden; };
+
+buildNodes(); renderVersion();
+</script>
+</body>
+</html>
