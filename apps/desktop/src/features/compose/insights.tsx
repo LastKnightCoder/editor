@@ -36,7 +36,7 @@ function Headline({ session }: { session: ComposeSession }) {
     unused.forEach(doc => board?.flashElement(doc.elementId));
   };
   return (
-    <p className="text-tau-body-lg text-ink-1 mb-1.5 font-medium leading-[1.8]">
+    <p className="text-tau-body-lg text-ink-1 mb-1.5 leading-[1.8] font-medium">
       {citable
         ? `正文里有 ${citable} 处可以引用白板上的资料`
         : "正文里暂时没有找到可以引用白板资料的地方"}
@@ -138,7 +138,9 @@ export function useComposeInsightSync(
     onBoard
       .sort((a, b) => a.block - b.block)
       .forEach(mark => {
-        const key = entityRefKey(mark.target!.ref);
+        const target = mark.target;
+        if (!target) return;
+        const key = entityRefKey(target.ref);
         if (!numbers.has(key)) numbers.set(key, numbers.size + 1);
       });
     const focused = openMarks.find(mark => mark.id === current)?.target;

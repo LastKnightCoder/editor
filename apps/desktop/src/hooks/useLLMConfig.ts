@@ -34,7 +34,7 @@ export const useLLMConfig = (
   const builtin = provider?.builtin;
   const { data: catalog } = useQuery({
     queryKey: ["llm", "catalog", builtin],
-    queryFn: () => loadCatalogModels(builtin!),
+    queryFn: () => loadCatalogModels(builtin ?? ""),
     enabled: Boolean(builtin),
     staleTime: Infinity,
   });

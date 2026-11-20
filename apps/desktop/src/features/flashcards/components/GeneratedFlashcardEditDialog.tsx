@@ -80,7 +80,7 @@ const GeneratedFlashcardEditModal = ({
     value: string | boolean
   ) => {
     const options = cardData.options ?? [];
-    const updated = options.map((opt: any) => {
+    const updated = options.map(opt => {
       if (opt.id !== optionId) {
         if (type === "single-choice" && field === "isCorrect" && value === true) {
           return { ...opt, isCorrect: false };
@@ -102,7 +102,7 @@ const GeneratedFlashcardEditModal = ({
   const removeOption = (optionId: string) => {
     setCardData({
       ...cardData,
-      options: (cardData.options ?? []).filter((opt: any) => opt.id !== optionId),
+      options: (cardData.options ?? []).filter(opt => opt.id !== optionId),
     });
   };
 
@@ -116,7 +116,7 @@ const GeneratedFlashcardEditModal = ({
       const isSingle = type === "single-choice";
       return (
         <div className="space-y-3">
-          {options.map((option: any, index: number) => (
+          {options.map((option, index: number) => (
             <div key={option.id} className="flex items-center gap-2.5">
               {isSingle ? (
                 <Radio

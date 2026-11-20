@@ -1,5 +1,5 @@
 /**
- * 卡片详情视图（mockups/card-detail/plan-a-plain.html v2 定稿落地）：
+ * 卡片详情视图：
  * 单栏正文列（640）在整张纸（bg-surface 卡面）内恒居中，卡头一行 meta（时间 · ⋯ 菜单），
  * 标签行在正文末，连接区仅在有连接时渲染（空卡不堆区块）。
  * 面包屑静态（无速切器）经槽位注入壳层；无底部状态栏——字数并入卡头 meta，
@@ -200,7 +200,7 @@ export function CardDetailView() {
       className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4"
     >
       {/* 一整张纸（同卡片库/微信读书笔记页）：正文列在纸内居中滚动 */}
-      {/* 纸面是形变目标（D-106）：正文会话就绪前由只读全文占位，卡片数据到位即可截图 */}
+      {/* 纸面是形变目标：正文会话就绪前由只读全文占位，卡片数据到位即可截图 */}
       <div
         data-morph-key={cardMorphKey(card.id)}
         className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -209,7 +209,7 @@ export function CardDetailView() {
           <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pt-6 pb-8">
             <article className="col-start-2 min-w-0">
               {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
-                （2026-09-21 裁决，详情页不做） */}
+                （详情页不做） */}
               <div className="mb-5 flex items-center gap-2.5">
                 <span
                   className="text-tau-meta text-ink-3 min-w-0 truncate tabular-nums"

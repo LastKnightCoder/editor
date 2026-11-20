@@ -90,7 +90,3 @@ export const reorderDataTableViews = async (
 ): Promise<void> => {
   await invoke("data-table-view:reorder", { tableId, orderedIds });
 };
-
-export const listDataTableViews = async (tableId: DataTableTarget): Promise<DataTableView[]> => {
-  return invoke("data-table-view:list-by-table", tableId);
-};

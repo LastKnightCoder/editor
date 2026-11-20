@@ -33,7 +33,7 @@ export function readIndependentTask(
   const due = row.due_at == null ? null : Number(row.due_at);
   const segments = independentSegments(db, ref);
   const reminderBase = segments.length
-    ? dateTime(segments.at(-1)!.rule?.startDate ?? localDate(Date.now()))
+    ? dateTime(segments.at(-1)?.rule?.startDate ?? localDate(Date.now()))
     : due;
   return {
     taskRef: ref,
@@ -127,8 +127,8 @@ export function mutateIndependent(
 ) {
   const row = todoRow(db, ref);
   if (action === "update_todo") {
-    const patch = input.patch!;
-    if (!patch || !Object.keys(patch).length) fail("INVALID_ARGUMENT", "修改字段不能为空");
+    const patch = input.patch;
+    if (!patch || !Object.keys(patch).length) return fail("INVALID_ARGUMENT", "修改字段不能为空");
     const dueAt =
       "dueAt" in patch ? deadline(patch.dueAt as string | null) : (row.due_at as number | null);
     const recurring = independentSegments(db, ref).length > 0;
@@ -188,18 +188,17 @@ export function mutateIndependent(
       db.prepare("DELETE FROM todo_occurrence_override WHERE todo_item_id=?").run(id);
     }
   } else if (action === "set_todo_recurrence") {
-    const segments = amendSegments(
-      independentSegments(db, ref),
-      input.effectiveDate!,
-      input.rule ?? null
-    );
+    const effectiveDate = input.effectiveDate;
+    if (!effectiveDate) return fail("INVALID_ARGUMENT", "设置周期必须指定生效日期");
+    const segments = amendSegments(independentSegments(db, ref), effectiveDate, input.rule ?? null);
     storeSegments(db, ref, segments);
   } else {
     const segments = independentSegments(db, ref);
     if (segments.length || input.occurrence) {
-      if (!input.occurrence) fail("INVALID_ARGUMENT", "周期待办须指定实例");
-      assertOccurrence(segments, input.occurrence!);
-      const state = { ...independentStates(db, ref)[occurrenceKey(input.occurrence!)] };
+      const occurrence = input.occurrence;
+      if (!occurrence) return fail("INVALID_ARGUMENT", "周期待办须指定实例");
+      assertOccurrence(segments, occurrence);
+      const state = { ...independentStates(db, ref)[occurrenceKey(occurrence)] };
       if (action === "set_todo_completed") {
         state.completedAt = input.completed ? Date.now() : null;
         state.skipped = false;
@@ -217,8 +216,8 @@ export function mutateIndependent(
       ).run(
         ref.todoId,
         ref.createdAt,
-        input.occurrence!.seriesId,
-        input.occurrence!.occurrenceDate,
+        occurrence.seriesId,
+        occurrence.occurrenceDate,
         JSON.stringify(state),
         Date.now()
       );
@@ -226,7 +225,7 @@ export function mutateIndependent(
       if (current && input.action !== "reschedule") {
         const params = {
           recurrenceId: current.id,
-          scheduledDate: dateTime(input.occurrence!.occurrenceDate),
+          scheduledDate: dateTime(occurrence.occurrenceDate),
           originalOccurrence: true,
         };
         if (state.skipped) TodoRecurrenceCompletionTable.skipRecurrence(db, params);

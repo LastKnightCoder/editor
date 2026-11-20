@@ -26,14 +26,14 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
   const { url, time, caption } = element;
 
   const handleCaptionChange = (value: string) => {
-    const path = ReactEditor.findPath(editor, element as any);
+    const path = ReactEditor.findPath(editor, element);
     if (!path) return;
 
-    Transforms.setNodes(editor, { caption: value } as any, { at: path });
+    Transforms.setNodes<VideoScreenshotElement>(editor, { caption: value }, { at: path });
   };
 
   const focusNextElement = () => {
-    const path = ReactEditor.findPath(editor, element as any);
+    const path = ReactEditor.findPath(editor, element);
     if (!path) return;
 
     const nextPath = Path.next(path);
@@ -66,7 +66,7 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
           </div>
         </div>
         <div>{children}</div>
-        <AddParagraph element={element as any} />
+        <AddParagraph element={element} />
       </div>
     </div>
   );

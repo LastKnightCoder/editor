@@ -7,7 +7,7 @@
 
 import type { Descendant } from "slate";
 
-export const DIGEST_HASHES = 128;
+const DIGEST_HASHES = 128;
 /** 低于此相似度视为大改、需要重算元信息（真实编辑样本校准） */
 export const DIGEST_RECOMPUTE_THRESHOLD = 0.7;
 const DIGEST_PREFIX = "mh1:";

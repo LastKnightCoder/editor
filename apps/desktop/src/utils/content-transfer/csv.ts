@@ -8,7 +8,7 @@ export interface CsvTable {
   rows: string[][];
 }
 
-export const parseCsvRecords = (text: string): string[][] => {
+const parseCsvRecords = (text: string): string[][] => {
   const records: string[][] = [];
   let record: string[] = [];
   let field = "";

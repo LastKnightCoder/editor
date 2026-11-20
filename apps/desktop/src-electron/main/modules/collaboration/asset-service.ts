@@ -3,6 +3,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync, realpathSync, rmSync } from "node:fs";
 import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import log from "electron-log";
 import { normalizeLocalResourcePath } from "@tau/shared/resource-path";
 import {
   ASSET_PREFIX,
@@ -304,7 +305,9 @@ export class CollaborationAssetService {
     let path: string | null;
     try {
       path = this.localPath(reference);
-    } catch {
+    } catch (error) {
+      // 协作端会无感知地少一份同步资源，必须留痕
+      log.warn(`[AssetService] reference 路径被拒绝，退回本地引用（${reference}）: ${error}`);
       return this.keepLocalReference(documentId, reference);
     }
     if (!path)

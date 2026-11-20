@@ -209,20 +209,20 @@ export const useProjectItemMoreActions = (
       toast.success("成功建立卡片");
     } else if (key === "to-white-board") {
       if (
-        projectItem.projectItemType !== EProjectItemType.WhiteBoard ||
-        !projectItem.whiteBoardContentId
+        projectItem.projectItemType !== EProjectItemType.Whiteboard ||
+        !projectItem.whiteboardContentId
       ) {
         return;
       }
       if (projectItem.refType === "white-board") return;
       try {
-        const createdWhiteBoard = await whiteboardMutations.create({
+        const createdWhiteboard = await whiteboardMutations.create({
           title: projectItem.title,
           description: projectItem.title,
           tags: [],
         });
         const nextProjectItem = produce(projectItem, draft => {
-          draft.refId = createdWhiteBoard.id;
+          draft.refId = createdWhiteboard.id;
           draft.refType = "white-board";
         });
         const updatedProjectItem = await updateProjectItem(nextProjectItem);

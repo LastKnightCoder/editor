@@ -33,7 +33,6 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
     const [previewArticle, setPreviewArticle] = useState<ArticleListItem | null>(null);
     const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
 
-    // 转换文章为列表项
     const articleItems = useMemo<ArticleListItem[]>(
       () =>
         articles.map(article => ({
@@ -61,7 +60,6 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
       );
     }, [filteredItems, selectionFilter, isItemSelected]);
 
-    // 检查是否全选
     const allSelected = useMemo(() => {
       return (
         displayArticles.length > 0 &&
@@ -75,7 +73,6 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
       onBatchToggle(ids, !allSelected);
     }, [displayArticles, allSelected, onBatchToggle]);
 
-    // 关闭预览弹窗
     const handleClosePreview = useCallback(() => {
       setPreviewArticle(null);
     }, []);

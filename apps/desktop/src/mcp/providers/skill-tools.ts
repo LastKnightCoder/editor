@@ -38,7 +38,7 @@ const FOLDER_PARAM: ToolParameterSchema = {
 
 const normalizeRelative = (p: string) => p.replace(/\\/g, "/").replace(/^\.?\//, "");
 
-export const RUN_SKILL_SCRIPT_TOOL_NAME = "run_skill_script";
+const RUN_SKILL_SCRIPT_TOOL_NAME = "run_skill_script";
 
 const runSkillScriptTool: ToolDefinition = {
   name: RUN_SKILL_SCRIPT_TOOL_NAME,

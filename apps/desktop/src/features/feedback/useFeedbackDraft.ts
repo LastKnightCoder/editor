@@ -144,7 +144,7 @@ export function useFeedbackDraft() {
     screenshots.every(shot => shot.webp);
 
   const toInput = (theme: string | null): AppFeedbackSubmitInput => {
-    const images = screenshots.map(shot => shot.webp!);
+    const images = screenshots.flatMap(shot => (shot.webp ? [shot.webp] : []));
     const signature = JSON.stringify([fields, screenshots.map(shot => shot.annotations), theme]);
     if (request.current?.signature !== signature)
       request.current = { signature, id: crypto.randomUUID() };

@@ -1,5 +1,5 @@
 /**
- * Tooltip 档案 —— 本体即 ui/primitives/Tooltip（自研 mini 定位引擎，D-004）。
+ * Tooltip 档案 —— 本体即 ui/primitives/Tooltip（自研 mini 定位引擎）。
  * 常显标本走组件的受控模式（open 常开），位置/flip/箭头全部由真引擎实时计算
  * ——滚动本页即可看到 12 个 tip 同步跟随。
  * 锚点一律用**真实控件**（IconButton / DemoButton），不用示意圆点：tooltip 的真实

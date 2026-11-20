@@ -1,7 +1,7 @@
 /**
  * 网页型项目条目视图。
  *
- * 版式（2026-09-26 重构，取代原「7 枚图标按钮 + 分屏」顶栏）：
+ * 版式（取代原「7 枚图标按钮 + 分屏」顶栏）：
  * - 顶栏只留 标题 · [网页 | 文档] 分段 · 侧栏开关 · ⋯。
  * - 主区在「网页」与「文档」（解析文档）之间切换；两层常驻挂载、按透明度切换，
  *   保证 webview 不重载、解析时仍能取到网页 HTML。
@@ -478,7 +478,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
-  // 执行 LLM 转录
   const doStartClip = useMemoizedFn(async () => {
     if (!currentUrl) {
       toast.error("无法获取网页 URL");
@@ -500,7 +499,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
       const contentHTML = getContentHTML(html);
 
-      // 开始流式解析
       setDraftRevision(previous => previous + 1);
       setClipInput(DEFAULT_CONTENT);
       setParsedContent(DEFAULT_CONTENT);
@@ -684,7 +682,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     toast.success("标题已更新");
   });
 
-  // 解析文档内容变化
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
     if (savedWebClip && !isAnyClipping) {
       setParsedContent(content);
@@ -842,7 +839,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     </div>
   );
 
-  // 解析文档阅读区
   const renderDocumentView = () => {
     if (!hasClipResult && !isAnyClipping) return renderParseEmptyState();
     // py-4：视口与纸面上下缘留出间距（同文档型条目正文），正文在视口边缘渐隐而非贴卡片边硬切

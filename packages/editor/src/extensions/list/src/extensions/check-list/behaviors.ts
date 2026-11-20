@@ -37,7 +37,6 @@ const insertBreak: ElementBehaviors<CheckListItemElement>["insertBreak"] = edito
       const checkList = parent[0];
       const itemIndex = checkListItemPath[checkListItemPath.length - 1];
 
-      // 判断是否是最后一个 check-list-item
       const isLastItem = itemIndex === checkList.children.length - 1;
 
       if (isLastItem) {
@@ -193,7 +192,6 @@ function runDeleteBackward(editor: Editor): boolean {
     return true;
   }
 
-  // 获取前一个兄弟节点
   const prevSibling = getPreviousSiblingNode(editor, curList[0]);
 
   if (prevSibling) {
@@ -261,7 +259,6 @@ const normalizeContainer: ElementBehaviors<CheckListElement>["normalize"] = (
   editor,
   [node, path]
 ) => {
-  // 确保check-list的子节点都是check-list-item
   const children = node.children;
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
@@ -308,7 +305,6 @@ const normalizeItem: ElementBehaviors<CheckListItemElement>["normalize"] = (
 
   const children = node.children;
 
-  // 确保第一个子节点是paragraph
   // @ts-ignore
   if (children.length === 0 || (children.length >= 1 && children[0].type !== "paragraph")) {
     Transforms.removeNodes(editor, { at: path });
@@ -319,7 +315,6 @@ const normalizeItem: ElementBehaviors<CheckListItemElement>["normalize"] = (
     if (normalizeTaskIds(editor)) return true;
   }
 
-  // 确保只有一个paragraph和可选的一个check-list
   if (children.length >= 2) {
     // 收集所有 paragraph 节点和 check-list 节点：找到第一个 check-list 前的所有 paragraph，后面的忽略
     const paragraphNodes: ParagraphElement[] = [];

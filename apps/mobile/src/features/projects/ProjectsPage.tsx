@@ -1,4 +1,4 @@
-// 项目列表（v1.1 设计稿）：活跃（置顶优先）/ 已归档两组；
+// 项目列表：活跃（置顶优先）/ 已归档两组；
 // 项目是容器：文档、PDF、网页、音视频等八种节点（移动端一期文档可编辑，其余只读展示）。
 
 import { useMemo, useState } from "react";
@@ -185,7 +185,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
           </div>
         ) : (
           <>
-            <div className="text-ink-3 mb-3.5 mt-1 px-0.5 text-xs">
+            <div className="text-ink-3 mt-1 mb-3.5 px-0.5 text-xs">
               <b className="text-ink-2 font-bold">{active.length}</b> 个活跃项目
             </div>
             <VirtualContainerList

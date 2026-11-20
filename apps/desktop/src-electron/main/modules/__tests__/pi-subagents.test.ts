@@ -8,6 +8,7 @@ import { SubagentService, type SubagentHost, type SubagentParent } from "../pi-s
 import { createSubagentTools } from "../pi-subagents/tools";
 import { SubagentResultCollector } from "../pi-subagents/state";
 import { fauxAssistantMessage, fauxText } from "@earendil-works/pi-ai";
+import { must } from "../../test-support";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -43,7 +44,7 @@ function setup(concurrency = 2) {
   const spawn = (key: string, mode: "sync" | "async" = "async") =>
     service.submit("parent", key, { title: key, message: key, mode });
   const finish = (id: string, outcome: SubagentOutcome = { status: "completed", result: "结果" }) =>
-    resolvers.get(id)!(outcome);
+    must(resolvers.get(id), id)(outcome);
   return { dir, host, parent, repository, service, spawn, finish };
 }
 
@@ -228,7 +229,7 @@ describe("可复用子 Agent", () => {
 
   it("settled 不等于成功，最终模型错误原样保留", () => {
     const collector = new SubagentResultCollector();
-    collector.accept({ type: "agent_settled" });
+    collector.accept({ type: "agent_settled", aborted: false });
     expect(collector.result().status).toBe("interrupted");
     collector.accept({
       type: "message_end",

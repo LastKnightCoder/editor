@@ -23,7 +23,7 @@ import type { DocTaskItem, DocTaskSnapshot } from "@/types/doc-tasks";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 
-export const docTaskKeys = {
+const docTaskKeys = {
   root: (database: string) => ["doc-tasks", databaseId(database)] as const,
   snapshot: (database: string) => [...docTaskKeys.root(database), "snapshot"] as const,
   of: (database: string, contentId: number) =>
@@ -57,7 +57,7 @@ export function useDocTasksOf(contentId: number | null) {
   const connected = useDatabaseConnected();
   return useQuery({
     queryKey: docTaskKeys.of(database, contentId ?? 0),
-    queryFn: () => getDocTasksOf(contentId!, database),
+    queryFn: () => getDocTasksOf(contentId ?? 0, database),
     enabled: connected && contentId != null,
     staleTime: 30_000,
   });
@@ -132,7 +132,7 @@ export function useDocTaskContentStatus(contentId: number | undefined) {
   const connected = useDatabaseConnected();
   return useQuery({
     queryKey: docTaskKeys.status(database, contentId ?? 0),
-    queryFn: () => getDocTaskContentStatus(contentId!, database),
+    queryFn: () => getDocTaskContentStatus(contentId ?? 0, database),
     enabled: connected && contentId != null && contentId > 0,
     staleTime: 10_000,
   });

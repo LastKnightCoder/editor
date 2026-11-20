@@ -1,13 +1,7 @@
 import Database from "better-sqlite3";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 import TodoGroupTable from "../../tables/todo-group";
 import CalendarTable from "../../tables/calendar";
@@ -20,6 +14,7 @@ import { revision } from "../common";
 import type { AssistantTask, TaskRef } from "@tau/shared/task-assistant";
 import { queryTasks } from "../query";
 import TodoItemTable from "../../tables/todo-item";
+import { must } from "../../../test-support";
 
 describe("助理任务业务命令", () => {
   let db: Database.Database;
@@ -31,7 +26,10 @@ describe("助理任务业务命令", () => {
     db.exec(MAIN_SCHEMA_SQL);
     TodoGroupTable.ensureSystemGroups(db);
     TodoCalendarSyncTable.ensureTodoCalendars(db);
-    groupId = TodoGroupTable.createGroup(db, { title: "工作" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "工作" }),
+      "TodoGroupTable.createGroup(db, { title: '工作' })"
+    ).id;
     calendarId = CalendarTable.createCalendar(db, {
       title: "工作",
       color: "blue",
@@ -206,7 +204,7 @@ describe("助理任务业务命令", () => {
     );
     expect(created.status).toBe("succeeded");
     const task = created.result as AssistantTask;
-    const seriesId = task.recurrence![0].seriesId;
+    const seriesId = must(task.recurrence, "task.recurrence")[0].seriesId;
     let current = readTask(db, task.taskRef);
     expect(
       engine.execute(
@@ -257,7 +255,11 @@ describe("助理任务业务命令", () => {
       end: "2026-10-14",
     }).items;
     expect(
-      instances.map(item => [item.occurrence!.occurrenceDate, item.dueAt, item.completed])
+      instances.map(item => [
+        must(item.occurrence, "item.occurrence").occurrenceDate,
+        item.dueAt,
+        item.completed,
+      ])
     ).toEqual([
       ["2026-10-10", "2026-10-10", true],
       ["2026-10-11", "2026-10-13", false],
@@ -272,7 +274,10 @@ describe("助理任务业务命令", () => {
       db.prepare(
         "INSERT INTO articles(title,content_id,create_time,update_time) VALUES('正文',?,1,1)"
       ).run(contentId);
-      const content = ContentTable.getContentById(db, contentId)!;
+      const content = must(
+        ContentTable.getContentById(db, contentId),
+        "ContentTable.getContentById(db, contentId)"
+      );
       document = { contentId, createdAt: content.createTime, revision: revision(content.content) };
     }
     const created = engine.execute(
@@ -342,7 +347,10 @@ describe("助理任务业务命令", () => {
     db.prepare(
       "INSERT INTO articles(title,content_id,create_time,update_time) VALUES('原文',?,1,1)"
     ).run(contentId);
-    const content = ContentTable.getContentById(db, contentId)!;
+    const content = must(
+      ContentTable.getContentById(db, contentId),
+      "ContentTable.getContentById(db, contentId)"
+    );
     const document = {
       contentId,
       createdAt: content.createTime,
@@ -364,7 +372,10 @@ describe("助理任务业务命令", () => {
         "b"
       ).status
     ).toBe("failed");
-    expect(ContentTable.getContentById(db, contentId)!.content).toEqual(content.content);
+    expect(
+      must(ContentTable.getContentById(db, contentId), "ContentTable.getContentById(db, contentId)")
+        .content
+    ).toEqual(content.content);
     const failure = vi.spyOn(CalendarEventTable, "createEvent").mockImplementationOnce(() => {
       throw new Error("模拟日历写入失败");
     });
@@ -379,7 +390,10 @@ describe("助理任务业务命令", () => {
         "b"
       ).status
     ).toBe("succeeded");
-    expect(ContentTable.getContentById(db, contentId)!.content).toEqual(content.content);
+    expect(
+      must(ContentTable.getContentById(db, contentId), "ContentTable.getContentById(db, contentId)")
+        .content
+    ).toEqual(content.content);
   });
   it("原项目编号被复用后，不把删除的待办恢复到新项目", () => {
     const { task } = create();
@@ -411,7 +425,10 @@ describe("助理任务业务命令", () => {
         { type: "paragraph", children: [{ type: "formatted", text: "保留段落" }] },
       ] as never,
     });
-    const content = ContentTable.getContentById(db, contentId)!;
+    const content = must(
+      ContentTable.getContentById(db, contentId),
+      "ContentTable.getContentById(db, contentId)"
+    );
     db.prepare(
       "INSERT INTO articles(title,content_id,create_time,update_time) VALUES('正文',?,100,100)"
     ).run(contentId);
@@ -453,6 +470,9 @@ describe("助理任务业务命令", () => {
       ).status
     ).toBe("succeeded");
     expect(readTask(db, task.taskRef).title).toBe("新任务");
-    expect(ContentTable.getContentById(db, contentId)!.content[0]).toEqual(content.content[0]);
+    expect(
+      must(ContentTable.getContentById(db, contentId), "ContentTable.getContentById(db, contentId)")
+        .content[0]
+    ).toEqual(content.content[0]);
   });
 });

@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { Editor, Node, Path, Point, Range, Text, Transforms } from "slate";
 import type { Plugin } from "@tau/editor/api";
 
@@ -150,8 +151,8 @@ export const toTsv = (table: TableElement) =>
     )
     .join("\n");
 
-const escapeHtml = (text: string) =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+/** 单元格文本换行转 <br>；其余转义交给共享 escapeHtml */
+const cellText = (text: string) => escapeHtml(text).replace(/\n/g, "<br>");
 
 /** HTML 表格：合并格写 rowspan / colspan，被覆盖格不输出 */
 export const toHtmlTable = (table: TableElement, withHeader: boolean) => {
@@ -163,7 +164,7 @@ export const toHtmlTable = (table: TableElement, withHeader: boolean) => {
         .map((cell, c) => {
           if (!isOriginCell(map, r, c)) return "";
           const [rowSpan, colSpan] = cellSpan(cell);
-          return `<${tag}${spanAttrs(rowSpan, colSpan)}>${escapeHtml(Node.string(cell))}</${tag}>`;
+          return `<${tag}${spanAttrs(rowSpan, colSpan)}>${cellText(Node.string(cell))}</${tag}>`;
         })
         .join("");
       return `<tr>${cells}</tr>`;

@@ -10,7 +10,7 @@
 
 import { defineTheme } from "../defineTheme.ts";
 
-export default defineTheme({
+defineTheme({
   key: "ink",
   name: "水墨",
   // 素色主题收尾：设置页始终排在所有彩色主题之后（新增主题无需关心顺序）

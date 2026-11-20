@@ -14,6 +14,7 @@
 6. **数字** tabular-nums；字号体系以模板为准（25/14/13.5/12.5/11.5）。
 7. **滚动条**：不出现系统滚动条——4px 细墨条仅在「活跃」时显形（hover 滚动容器或滚动中；停止 700ms 且鼠标不在时隐藏，移出窗口立即隐藏）。实现 = `base.css` 的 `.app` 作用域样式（`scrollbar-live` 类控制 thumb）+ `@tau/ui` 的 initScrollbarAutoHide 事件委托（AppShell 初始化一次，全部内部滚动区自动生效）。**位置**：细条画在滚动容器 border-box 的右缘，容器满宽时它就贴死窗口右缘——用 `-mr/pr` 借位把 border-box 撑进容器自身的右留白（内容盒右缘因此不动、与相邻列仍对齐），细条落进留白里；home-scroll 与样板间内容列同为 `-mr-6 pr-6`，离窗口右缘 16px。两个坑别踩：① 禁止改回 `:hover` 伪类驱动——Chromium 滚动条伪元素不随 `:hover` 重算，显形后会冻结不消失；② 旧 main.less 已删除，滚动条唯一规则归公共 UI；避免重复定义不同名的阴影属性留下常显残影。
 8. **className 覆盖必须走 ****`cn()`******：组件默认样式要让调用方覆盖（`IconButton` 的 `size-[27px]`、样板间 `MatrixRow` 的 `trayClassName="items-center"`）时，合并一律用 `@tau/ui` 的 `cn()` 而非裸 clsx——Tailwind 同属性工具类的胜负由生成顺序决定，clsx 的先后顺序无效，覆盖会静默失效。项目自有尺度词（`text-tau-*`/`rounded-tau-*`/`shadow-card`/`ease-tau-out` 等）已在 cn 内登记；新增尺度 token 必须同步登记（`packages/ui/src/__tests__/cn.test.ts` 守护与 `tokens.css` 一致）。
+9. **主题注册与归属**：新主题用 `defineTheme` 声明（tokens 全键强制，协议见 [design-system](/docs/architecture/design-system.md) §2），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致（含 AA 对比度断言），codegen 落地后改为生成。主题唯一归属 `@tau/themes`（契约与主题定义走根入口，React 运行时走 `@tau/themes/react`，CSS 走 `@tau/themes/tokens.css` + `tailwind.css`）；`@tau/ui/theme*` 已删除且 Oxlint 禁止；业务代码禁止自行操作 data-theme；首帧脚本由共享解析器生成，不维护 HTML 白名单。新增颜色语义 token 词汇必须先进 `packages/themes/src/tokenContract.ts`（单一事实源）。
 
 ## 交互规范（已定案）
 

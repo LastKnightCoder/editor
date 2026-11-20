@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type Board from "../../Board";
-import WhiteBoard from "../../WhiteBoard";
+import Whiteboard from "../../Whiteboard";
 import { SELECT_TOOL_ID, GEOMETRY_TOOL_ID, HANDWRITE_TOOL_ID } from "../../constants/tools";
 import {
   createGeometryExtension,
@@ -91,7 +91,7 @@ async function mountHintBoard(
   roots.push(root);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={[
           ...extensions,
           defineWhiteboardExtension({

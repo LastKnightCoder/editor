@@ -75,7 +75,6 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
-  // 初始化
   useEffect(() => {
     if (open && quizSet) {
       setQuizName(quizSet.name);
@@ -85,7 +84,6 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     }
   }, [open, quizSet]);
 
-  // 保存测验集名称
   const handleSaveName = useMemoizedFn(async () => {
     if (!quizSet || !quizName.trim()) return;
     if (quizName.trim() === quizSet.name) {
@@ -105,7 +103,6 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     }
   });
 
-  // 取消编辑名称
   const handleCancelEditName = useMemoizedFn(() => {
     if (quizSet) {
       setQuizName(quizSet.name);
@@ -113,7 +110,6 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     setIsEditingName(false);
   });
 
-  // 删除题目
   const [deleteItemConfirm, setDeleteItemConfirm] = useState<VLQuizItem | null>(null);
   const handleDeleteItem = useMemoizedFn((item: VLQuizItem) => {
     setDeleteItemConfirm(item);
@@ -128,18 +124,15 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     }
   });
 
-  // 开始编辑题目
   const handleStartEdit = useMemoizedFn((itemId: number) => {
     setEditingItemId(itemId);
     setExpandedItemId(itemId);
   });
 
-  // 关闭编辑
   const handleCloseEdit = useMemoizedFn(() => {
     setEditingItemId(null);
   });
 
-  // 关闭弹窗
   const handleClose = useMemoizedFn(() => {
     setEditingItemId(null);
     setExpandedItemId(null);
@@ -313,7 +306,6 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
     updateItem,
   } = props;
 
-  // 获取题干预览文本
   const promptPreview = useMemo(() => {
     return extractPlainText(item.prompt).slice(0, 80);
   }, [item.prompt]);
@@ -387,7 +379,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
 
       {/* 展开内容 */}
       {isExpanded && (
-        <div className="px-3 pb-3 pt-1">
+        <div className="px-3 pt-1 pb-3">
           {isEditing ? (
             <QuizItemEditForm item={item} onSave={updateItem} onCancel={onCloseEdit} />
           ) : (
@@ -448,7 +440,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         return (
           <div>
             <FieldLabel>参考答案</FieldLabel>
-            <p className="border-line-1 rounded-tau-sm text-ink-2 text-tau-body m-0 whitespace-pre-wrap border px-3 py-2">
+            <p className="border-line-1 rounded-tau-sm text-ink-2 text-tau-body m-0 border px-3 py-2 whitespace-pre-wrap">
               {item.data.answer || "暂无答案"}
             </p>
           </div>
@@ -495,14 +487,12 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
     explanation: item.data.explanation ?? "",
   }));
 
-  // 保存
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
       const newData = { ...item.data };
 
       if (item.type === "single-choice" || item.type === "multiple-choice") {
-        // 验证选项
         if (formData.options.some(opt => !opt.label.trim())) {
           toast.error("请填写所有选项内容");
           setSaving(false);
@@ -532,7 +522,6 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
     }
   }, [item, formData, onSave, onCancel]);
 
-  // 更新选项
   const updateOption = useCallback((index: number, updates: Partial<FlashcardOption>) => {
     setFormData(prev => ({
       ...prev,
@@ -540,7 +529,6 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
     }));
   }, []);
 
-  // 设置正确答案（单选）
   const setCorrectOption = useCallback(
     (index: number) => {
       if (item.type === "single-choice") {
@@ -571,7 +559,6 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
     [item.type]
   );
 
-  // 添加选项
   const addOption = useCallback(() => {
     setFormData(prev => ({
       ...prev,
@@ -579,7 +566,6 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
     }));
   }, []);
 
-  // 删除选项
   const removeOption = useCallback((index: number) => {
     setFormData(prev => ({
       ...prev,

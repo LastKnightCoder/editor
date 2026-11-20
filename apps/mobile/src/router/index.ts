@@ -31,7 +31,6 @@ export {
   usePageInstanceContext,
 } from "./pageLifecycle";
 export type { PageLifecycleHandlers, PagePhase, PageTransitionEventType } from "./pageLifecycle";
-export { useSheetBackDismiss } from "./useSheetBackDismiss";
 export type { SheetBackDismissOptions } from "./useSheetBackDismiss";
 export type { BackSource, Navigator, RouterState } from "./navigatorTypes";
 export type { RouteEntry, StackSnapshot } from "./core/stackMachine";
@@ -42,5 +41,5 @@ export { useTabSwipeOrigin } from "./tabSwipeOrigin";
 export { getPageDefinition, registerPageDefinition } from "./registry";
 
 export { PageQueryProvider, getQueryClient, usePageQuery } from "./query/PageQueryProvider";
-export { PageStoreScope, usePageStore, usePageStoreSetter } from "./store/PageStoreScope";
+export { usePageStore, usePageStoreSetter } from "./store/PageStoreScope";
 export { RouterDevTools } from "./devtools/RouterDevTools";

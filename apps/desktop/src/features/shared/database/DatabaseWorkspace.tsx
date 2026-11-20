@@ -63,7 +63,8 @@ const DatabaseWorkspace = memo(
     });
 
     const handleViewConfigChange = useMemoizedFn((config: TableViewConfig) => {
-      onViewConfigChange?.(config as any);
+      // 两处 TableViewConfig 同名异源（database 表格插件与共享协议），按回调参数类型断言桥接
+      onViewConfigChange?.(config as Parameters<NonNullable<typeof onViewConfigChange>>[0]);
     });
 
     const handleCreateView = useMemoizedFn((view: CreateDatabaseView) => {
@@ -86,10 +87,10 @@ const DatabaseWorkspace = memo(
     if (!table || !activeView || !views) return null;
 
     return (
-      <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] min-w-0 flex-col px-4 pt-1 pb-4">
         {/* 一整张纸：标题行在纸顶，Database 去掉自身卡片外壳，页签条与视图直接铺在纸上 */}
         <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="mt-5 flex h-10 flex-none items-center gap-2 pl-8 pr-7">
+          <div className="mt-5 flex h-10 flex-none items-center gap-2 pr-7 pl-8">
             <EditText
               key={titleKey}
               ref={titleRef}

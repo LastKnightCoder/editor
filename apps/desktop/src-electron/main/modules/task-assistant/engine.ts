@@ -261,11 +261,14 @@ export class TaskAssistantEngine {
           .run(previous.id);
       }
       operationId = randomUUID();
+      const pendingId = operationId;
       let edit: DocumentEdit | undefined;
       if (name === "create_todo" && input.document)
         edit = prepareDocumentCreate(this.db, input as Parameters<typeof prepareDocumentCreate>[1]);
-      else if (input.taskRef?.kind === "document" && name !== "create_calendar_event")
-        edit = prepareDocumentEdit(this.db, input.taskRef, input.revision!, name, input);
+      else if (input.taskRef?.kind === "document" && name !== "create_calendar_event") {
+        if (!input.revision) return fail("INVALID_ARGUMENT", "正文待办操作必须携带修订号");
+        edit = prepareDocumentEdit(this.db, input.taskRef, input.revision, name, input);
+      }
       if (edit) {
         if (input.schedule) {
           requireCalendar(this.db, input.schedule.calendarId);
@@ -276,7 +279,7 @@ export class TaskAssistantEngine {
         this.executeUndo(operationId, batchId, input, hash, conversationKey);
       } else {
         this.db.transaction(() => {
-          this.insert(operationId!, batchId, name, input, hash, conversationKey);
+          this.insert(pendingId, batchId, name, input, hash, conversationKey);
           if (input.taskRef) {
             const target = readTask(this.db, input.taskRef);
             let expected = target.revision;
@@ -300,8 +303,9 @@ export class TaskAssistantEngine {
               name === "create_calendar_event" &&
               (target.recurrence?.length || input.occurrence)
             ) {
-              if (!input.occurrence) fail("INVALID_ARGUMENT", "安排周期任务时必须指定具体实例");
-              assertOccurrence(target.recurrence ?? [], input.occurrence!);
+              const occurrence = input.occurrence;
+              if (!occurrence) return fail("INVALID_ARGUMENT", "安排周期任务时必须指定具体实例");
+              assertOccurrence(target.recurrence ?? [], occurrence);
             }
           }
           const todoIds = this.taskIds(input);
@@ -312,7 +316,7 @@ export class TaskAssistantEngine {
             ),
             taskRef: input.taskRef,
           };
-          pinSnapshot(this.db, operationId!, before.rows);
+          pinSnapshot(this.db, pendingId, before.rows);
           let result: unknown;
           let eventId = input.eventId;
           let ref = input.taskRef;
@@ -340,9 +344,9 @@ export class TaskAssistantEngine {
               name === "delete_calendar_event"
             );
           } else {
-            if (ref?.kind !== "todo") fail("INVALID_ARGUMENT", "缺少待办身份");
+            if (ref?.kind !== "todo") return fail("INVALID_ARGUMENT", "缺少待办身份");
             mutateIndependent(this.db, ref as Extract<TaskRef, { kind: "todo" }>, name, input);
-            result = name === "delete_todo" ? { deleted: ref } : readTask(this.db, ref!);
+            result = name === "delete_todo" ? { deleted: ref } : readTask(this.db, ref);
           }
           const after: SavedState = {
             rows: mergeSnapshots(
@@ -352,8 +356,8 @@ export class TaskAssistantEngine {
             ),
             taskRef: ref,
           };
-          pinSnapshot(this.db, operationId!, after.rows);
-          this.save(operationId!, before, after, result);
+          pinSnapshot(this.db, pendingId, after.rows);
+          this.save(pendingId, before, after, result);
         })();
       }
       return this.savedResult(this.byId(operationId));
@@ -397,20 +401,14 @@ export class TaskAssistantEngine {
           .prepare("SELECT 1 FROM task_assistant_operation WHERE request_id=?")
           .get(input.requestId)
       ) {
+        const failedId = operationId;
         this.db.transaction(() => {
-          this.insert(
-            operationId!,
-            batchId,
-            name,
-            input,
-            revision({ name, input }),
-            conversationKey
-          );
+          this.insert(failedId, batchId, name, input, revision({ name, input }), conversationKey);
           this.db
             .prepare("UPDATE task_assistant_operation SET status='failed',error_json=? WHERE id=?")
-            .run(JSON.stringify(detail), operationId!);
+            .run(JSON.stringify(detail), failedId);
         })();
-        return this.savedResult(this.byId(operationId));
+        return this.savedResult(this.byId(failedId));
       }
       return { requestId: input?.requestId ?? "", status: "failed", error: detail };
     }
@@ -457,7 +455,9 @@ export class TaskAssistantEngine {
   private finishDocument(row: OperationRow) {
     const before = parseState(row.before_json),
       intended = parseState(row.after_json);
-    const ref = intended.document!.ref;
+    const intendedDocument = intended.document;
+    if (!intendedDocument) throw new Error("操作记录缺少正文意图，无法收尾");
+    const ref = intendedDocument.ref;
     this.db.transaction(() => {
       const tree = readTaskContent(this.db, ref.contentId, ref.createdAt);
       const walk = (node: NonNullable<DocumentSnapshot["node"]>) => {
@@ -473,10 +473,10 @@ export class TaskAssistantEngine {
         node.children?.forEach(walk);
       };
       if (before.document?.node) walk(before.document.node);
-      if (intended.document?.node) walk(intended.document.node);
+      if (intendedDocument.node) walk(intendedDocument.node);
       const input: TaskInput = JSON.parse(row.request_json);
       let eventId: number | undefined;
-      if (input.schedule && intended.document?.node)
+      if (input.schedule && intendedDocument.node)
         eventId = createEvent(
           this.db,
           { ...input.schedule, taskRef: ref },
@@ -487,11 +487,11 @@ export class TaskAssistantEngine {
           captureKnown(this.db, before.rows),
           captureEvents(this.db, [...documentEventIds(this.db, ref), ...(eventId ? [eventId] : [])])
         ),
-        document: intended.document,
+        document: intendedDocument,
         taskRef: ref,
       };
       pinSnapshot(this.db, row.id, after.rows);
-      const result = intended.document!.node ? readTask(this.db, ref) : { deleted: ref };
+      const result = intendedDocument.node ? readTask(this.db, ref) : { deleted: ref };
       this.save(row.id, before, after, result);
     })();
   }
@@ -531,7 +531,9 @@ export class TaskAssistantEngine {
     hash: string,
     conversation?: string
   ) {
-    const original = this.byId(input.operationId!);
+    const targetId = input.operationId;
+    if (!targetId) return fail("INVALID_ARGUMENT", "撤销必须指定 operationId");
+    const original = this.byId(targetId);
     if (
       !original ||
       !(
@@ -589,7 +591,9 @@ export class TaskAssistantEngine {
 
   private finishUndo(row: OperationRow) {
     const input: TaskInput = JSON.parse(row.request_json);
-    const original = this.byId(input.operationId!);
+    const targetId = input.operationId;
+    if (!targetId) return fail("NOT_UNDOABLE", "撤销记录缺少目标操作");
+    const original = this.byId(targetId);
     if (
       !original ||
       !(

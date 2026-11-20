@@ -135,10 +135,12 @@ const buildLocalEmbeddingFingerprint = (
     pipeline: LOCAL_EMBEDDING_PIPELINE,
   });
 
-export const resolveEmbeddingConfig = (
-  setting: (SettingWithEmbedding & SettingWithLegacyEmbeddingProvider) | null | undefined
-): ResolvedEmbeddingConfig | null => {
-  const active = setting?.embedding?.active;
+export const resolveEmbeddingConfig = (setting: unknown): ResolvedEmbeddingConfig | null => {
+  // 入参多为无类型设置快照（Record<string, unknown>）；按期望形状断言，字段合法性由下方逐项判定
+  const snapshot = (setting && typeof setting === "object" ? setting : null) as
+    | (SettingWithEmbedding & SettingWithLegacyEmbeddingProvider)
+    | null;
+  const active = snapshot?.embedding?.active;
   if (!active?.model || !(active.dimensions > 0)) {
     return null;
   }
@@ -148,7 +150,7 @@ export const resolveEmbeddingConfig = (
     return null;
   }
 
-  const local = setting?.embedding?.local;
+  const local = snapshot?.embedding?.local;
   const devicePolicy = normalizeDevicePolicy(local?.devicePolicy);
   const batchSize =
     local?.batchSize && local.batchSize > 0

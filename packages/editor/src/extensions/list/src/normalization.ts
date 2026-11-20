@@ -22,7 +22,6 @@ export const mergeConsecutiveLists = (
   const siblings = parent.children;
   const nodeIndex = path[path.length - 1];
 
-  // 检查前一个节点是否是相同类型的列表
   if (nodeIndex > 0) {
     const prevSibling = siblings[nodeIndex - 1];
     if (SlateElement.isElement(prevSibling) && prevSibling.type === node.type) {
@@ -41,7 +40,6 @@ export const mergeConsecutiveLists = (
           });
         });
 
-        // 删除当前空列表
         Transforms.removeNodes(editor, {
           at: path,
         });
@@ -93,7 +91,9 @@ export const insertListSyntax = (
   const match = isAtFirst(editor, text);
   if (!match) return false;
   const [node, path] = match as NodeEntry<FormattedText>;
-  const offset = editor.selection!.anchor.offset;
+  const selection = editor.selection;
+  if (!selection) return false;
+  const offset = selection.anchor.offset;
   const prefix = (node as FormattedText).text.slice(0, offset);
   if (!hit(prefix)) return false;
 

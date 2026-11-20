@@ -244,7 +244,7 @@ export class CopyPastePlugin implements IBoardPlugin {
           label: page.title || "未命名页",
           priority: 0,
           onSelect: () =>
-            board.document!.moveToPage!(
+            board.document?.moveToPage?.(
               this.filterContainerChildren(board, targetElements).map(element => element.id),
               page.id
             ),

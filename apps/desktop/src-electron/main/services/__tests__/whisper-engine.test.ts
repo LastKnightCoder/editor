@@ -17,6 +17,7 @@ vi.mock("../../utils/FfmpegService", () => ({
 }));
 import { TranscriptionService } from "../whisper-engine";
 import { ASRProcessExitError } from "../asr-process";
+import { must } from "../../test-support";
 
 const workingDirectories = new Set<string>();
 beforeEach(async () => {
@@ -37,14 +38,14 @@ beforeEach(async () => {
       expect(args).toEqual(
         expect.arrayContaining(["-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"])
       );
-      const output = args.at(-1)!;
+      const output = must(args.at(-1), "args.at(-1)");
       workingDirectories.add(path.dirname(output));
       await writeFile(output, "normalized");
     } else {
       const output =
         process.platform === "darwin"
           ? args[args.indexOf("-of") + 1]
-          : args.at(-1)!.replace(/\.wav$/, "");
+          : must(args.at(-1), "args.at(-1)").replace(/\.wav$/, "");
       await writeFile(
         `${output}.srt`,
         "1\n00:00:00,000 --> 00:00:01,000\n1234\n\n2\n00:00:01,000 --> 00:00:02,000\n尾句\n"
@@ -75,7 +76,7 @@ describe.skipIf(!["darwin", "win32"].includes(process.platform))("Whisper 文件
     if (mode === "wrong-program") await rm(directory, { recursive: true });
     const source = path.join(state.root, "中文 输入.wav");
     await writeFile(source, "original");
-    const original = state.run.getMockImplementation()!;
+    const original = must(state.run.getMockImplementation(), "state.run.getMockImplementation()");
     const controller = new AbortController();
     state.run.mockImplementation(async (...args: Parameters<typeof original>) => {
       const result = await original(...args);
@@ -110,7 +111,7 @@ describe.skipIf(!["darwin", "win32"].includes(process.platform))("Whisper 文件
     await new TranscriptionService().transcribe(source, { device: "cpu" });
     const call = state.run.mock.calls.find(([binary]) => binary.endsWith("faster-whisper-xxl.exe"));
     expect(call).toBeDefined();
-    expect(call![1][call![1].indexOf("-d") + 1]).toBe("cpu");
+    expect(must(call, "call")[1][must(call, "call")[1].indexOf("-d") + 1]).toBe("cpu");
   });
   it("同一来源的并发任务使用独立目录，保留数字字幕与尾句", async () => {
     const source = path.join(state.root, "source.mp3");
@@ -127,7 +128,7 @@ describe.skipIf(!["darwin", "win32"].includes(process.platform))("Whisper 文件
   it("识别进程失败即拒绝，不接受任务目录内已写出的字幕，并清理目录", async () => {
     const source = path.join(state.root, "source.wav");
     await writeFile(source, "original");
-    const original = state.run.getMockImplementation()!;
+    const original = must(state.run.getMockImplementation(), "state.run.getMockImplementation()");
     state.run.mockImplementation(async (...args: Parameters<typeof original>) => {
       const result = await original(...args);
       if (args[0] !== "ffmpeg-fixture") throw new Error("转录进程失败");

@@ -8,7 +8,7 @@ const HOST_TAG = "tau-companion";
 const DOCUMENT_STYLE_ID = "tau-companion-document";
 
 /** 网页可能改了根字号，rem 一律按 16px 换算成 px */
-export const remToPx = (css: string) =>
+const remToPx = (css: string) =>
   css.replace(
     /(-?\d*\.?\d+)rem\b/g,
     (_, value: string) => `${Number((Number(value) * 16).toFixed(4))}px`

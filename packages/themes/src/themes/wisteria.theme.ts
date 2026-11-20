@@ -9,7 +9,7 @@
 
 import { defineTheme } from "../defineTheme.ts";
 
-export default defineTheme({
+defineTheme({
   key: "wisteria",
   name: "紫藤",
   light: {

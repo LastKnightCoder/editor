@@ -24,14 +24,8 @@ import ProjectTable from "../project";
 import PluginDataTable from "../plugin-data";
 import ContentTable from "../content";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 interface FixtureParagraph {
   type: "paragraph";
@@ -98,7 +92,7 @@ describe("正文业务基准 F4：独立创建、共用、复制与释放", () =
     children: [],
     refType: "",
     refId: 0,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
     tags: ["项目标签"],
     ...input,

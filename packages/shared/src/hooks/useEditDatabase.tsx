@@ -114,12 +114,13 @@ export function useEditDatabase(
   };
 
   const onViewConfigChange = async (config: TableViewConfig) => {
-    if (!table || activeViewId == null || loadedTarget !== targetKey || !current()) return;
+    if (!tableId || !table || activeViewId == null || loadedTarget !== targetKey || !current())
+      return;
     const currentView = views.find(view => view.id === activeViewId);
     if (!currentView) return;
     const updated = await deps.updateDataTableView({
       ...currentView,
-      tableId: tableId!,
+      tableId: tableId,
       config: {
         ...currentView.config,
         ...config,
@@ -131,8 +132,8 @@ export function useEditDatabase(
   };
 
   const onCreateView = async (view: CreateDataTableView) => {
-    if (loadedTarget !== targetKey || !current()) return null;
-    const newView = await deps.createDataTableView({ ...view, tableId: tableId! }).catch(e => {
+    if (!tableId || loadedTarget !== targetKey || !current()) return null;
+    const newView = await deps.createDataTableView({ ...view, tableId: tableId }).catch(e => {
       console.error("创建视图失败:", e);
       return null;
     });
@@ -143,8 +144,8 @@ export function useEditDatabase(
   };
 
   const onDeleteView = async (viewId: number) => {
-    if (views.length === 1 || loadedTarget !== targetKey || !current()) return null;
-    const result = await deps.deleteDataTableView({ id: viewId, tableId: tableId! }).catch(e => {
+    if (views.length === 1 || !tableId || loadedTarget !== targetKey || !current()) return null;
+    const result = await deps.deleteDataTableView({ id: viewId, tableId: tableId }).catch(e => {
       console.error("删除视图失败:", e);
       return null;
     });
@@ -172,13 +173,13 @@ export function useEditDatabase(
   };
 
   const onRenameView = async (viewId: number, name: string) => {
-    if (loadedTarget !== targetKey || !current()) return null;
+    if (!tableId || loadedTarget !== targetKey || !current()) return null;
     const target = views.find(view => view.id === viewId);
     if (!target) return null;
     const updated = await deps
       .updateDataTableView({
         ...target,
-        tableId: tableId!,
+        tableId: tableId,
         name,
       })
       .catch(error => {
@@ -204,7 +205,7 @@ export function useEditDatabase(
       return prev
         .map(view => ({
           ...view,
-          order: orderMap.has(view.id) ? orderMap.get(view.id)! : view.order,
+          order: orderMap.get(view.id) ?? view.order,
         }))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     });
@@ -217,7 +218,7 @@ export function useEditDatabase(
     viewId: number,
     updates: Parameters<NonNullable<DatabaseHookResult["onUpdateView"]>>[1]
   ) => {
-    if (loadedTarget !== targetKey || !current()) return null;
+    if (!tableId || loadedTarget !== targetKey || !current()) return null;
     const target = views.find(view => view.id === viewId);
     if (!target) return null;
 
@@ -234,7 +235,7 @@ export function useEditDatabase(
     const updated = await deps
       .updateDataTableView({
         ...target,
-        tableId: tableId!,
+        tableId: tableId,
         name: updates.name ?? target.name,
         type: finalType,
         config: finalConfig,

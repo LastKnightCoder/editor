@@ -10,6 +10,7 @@ import { WhiteboardModel } from "@tau/collaboration";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
+import { must } from "../../../test-support";
 
 const host = vi.hoisted(() => ({
   dir: "",
@@ -44,11 +45,9 @@ vi.mock("../../database", () => ({
   },
 }));
 vi.mock("../../../utils/PathUtil", () => ({ default: { getAppDir: () => host.dir } }));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 vi.mock("../local-state", () => ({
-  openWhiteboardState: () => ({ store: host.cache!, assets: {} }),
+  openWhiteboardState: () => ({ store: must(host.cache, "host.cache"), assets: {} }),
 }));
 vi.mock("../../../module-init/ModuleInitManager", () => ({
   default: { initModule: async () => ({ success: true }) },
@@ -88,10 +87,10 @@ async function fixture() {
         send: (channel: string, payload: any) => {
           if (channel === "whiteboard-document:drain")
             queueMicrotask(() =>
-              host.handlers.get("whiteboard-document:drained")!(
-                { sender: host.windows[0].webContents },
-                payload.requestId
-              )
+              must(
+                host.handlers.get("whiteboard-document:drained"),
+                "host.handlers.get('whiteboard-document:drained')"
+              )({ sender: host.windows[0].webContents }, payload.requestId)
             );
         },
       },
@@ -219,7 +218,10 @@ it("插件原删除入口在同一事务保存操作记录，恢复时重新认�
   const f = await fixture();
   const plugin = (await import("../../tables/plugin-data")).default;
   const scope = { databaseName: ":memory:", pluginId: "test.delete" };
-  const current = plugin.get(f.db, { ...scope, entity: "whiteboard", id: f.boardId })!;
+  const current = must(
+    plugin.get(f.db, { ...scope, entity: "whiteboard", id: f.boardId }),
+    "plugin.get(f.db, { ...scope, entity: 'whitebo..."
+  );
   await plugin.getListenEvents()["plugin-data:delete"](f.db, {
     ...scope,
     entity: "whiteboard",

@@ -26,7 +26,6 @@ import type {
   TodoQuerySummary,
   TodoRecurrence,
   TodoRecurrenceCompletion,
-  TodoSystemGroupType,
 } from "@/types";
 
 interface TodoBaseContext {
@@ -173,7 +172,8 @@ const collectDescendantIds = (parentChildrenMap: Map<number, number[]>, parentId
   const queue = [parentId];
 
   while (queue.length > 0) {
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (current === undefined) break;
     const children = parentChildrenMap.get(current) ?? [];
     children.forEach(childId => {
       if (!result.has(childId)) {
@@ -501,7 +501,7 @@ const buildSummary = (items: TodoItem[], groupMap: Map<number, TodoGroup>): Todo
         title: item.title,
         groupId: item.groupId,
         groupTitle: groupMap.get(item.groupId)?.title,
-        completedAt: item.completedAt!,
+        completedAt: item.completedAt ?? 0,
       })),
   };
 };
@@ -695,17 +695,4 @@ export const isTodoDashboardResponse = (value: unknown): value is TodoDashboardR
     value !== null &&
     (value as TodoDashboardResponse).type === "todo-dashboard"
   );
-};
-
-export const buildDefaultTodoQuery = (systemGroupType?: TodoSystemGroupType): TodoQueryRequest => {
-  return {
-    filter:
-      systemGroupType && systemGroupType !== "all"
-        ? { systemGroupTypes: [systemGroupType] }
-        : { systemGroupTypes: ["all"] },
-    groupBy: "group",
-    sort: "manual",
-    page: DEFAULT_PAGE,
-    pageSize: DEFAULT_PAGE_SIZE,
-  };
 };

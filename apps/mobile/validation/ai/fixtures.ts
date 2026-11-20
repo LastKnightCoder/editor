@@ -133,7 +133,7 @@ export function encodeTurn(api: ValidationApi, turn: Turn, index: number): strin
 }
 
 /** 用 UTF-8 字节分片，覆盖汉字与 JSON 参数被网络分块切开的情况。 */
-export function streamResponse(text: string) {
+function streamResponse(text: string) {
   const bytes = encoder.encode(text);
   let offset = 0;
   return new Response(

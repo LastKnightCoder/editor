@@ -30,7 +30,7 @@ import {
   type StorageSnapshot,
 } from "./local";
 
-export const LIBRARY_PAGE_SIZE = 50;
+const LIBRARY_PAGE_SIZE = 50;
 
 const libraryKeys = {
   all: ["library"] as const,

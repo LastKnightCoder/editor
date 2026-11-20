@@ -19,6 +19,7 @@ import {
   assertLegacyWhiteboard,
   assertLegacyWhiteboardPage,
 } from "../../whiteboard-document-guard";
+import { must } from "../../../test-support";
 
 const cleanups: (() => void)[] = [];
 afterEach(() =>
@@ -320,10 +321,15 @@ describe("W4 主进程白板会话与耐久投影", () => {
   it("库连接替换和来源基线改变拒绝旧会话写入，不覆盖新库", async () => {
     const f = await fixture(),
       a = await f.sessions.open("A", f.created.contentIds[0], 1, "a"),
-      before = f.journal.load(journalKey(a.identity))!.state;
+      before = must(
+        f.journal.load(journalKey(a.identity)),
+        "f.journal.load(journalKey(a.identity))"
+      ).state;
     f.swap(database());
     await expect(f.sessions.flush(a.leaseId, 1)).rejects.toThrow("代次");
-    expect(f.journal.load(journalKey(a.identity))!.state).toEqual(before);
+    expect(
+      must(f.journal.load(journalKey(a.identity)), "f.journal.load(journalKey(a.identity))").state
+    ).toEqual(before);
     f.swap(f.db);
     f.db.prepare("UPDATE library_identity SET baseline_id='new'").run();
     await expect(f.sessions.flush(a.leaseId, 1)).rejects.toThrow("基线");
@@ -347,7 +353,12 @@ describe("W4 主进程白板会话与耐久投影", () => {
     const reopened = await f.sessions.open("A", f.created.contentIds[0], 1, "again");
     expect(document(reopened.state).title.toString()).not.toContain("新");
     expect(discarded(f).some(entry => entry.reason.includes("分叉"))).toBe(true);
-    expect(discarded(f).find(entry => entry.reason.includes("分叉"))!.document.revision).toBe(1);
+    expect(
+      must(
+        discarded(f).find(entry => entry.reason.includes("分叉")),
+        "discarded(f).find(entry => entry.reason.inclu..."
+      ).document.revision
+    ).toBe(1);
   });
   it("整库被另一台设备的较新版本替换：释放旧日志后按新库打开", async () => {
     const f = await fixture(),
@@ -361,7 +372,10 @@ describe("W4 主进程白板会话与耐久投影", () => {
     await f.sessions.append(a.leaseId, 1, "a1", edit(a.state, "甲"));
     await f.sessions.release(a.leaseId, 1);
     // 另一台设备在同一份白板上又编辑了两次，并把整库上传；本机下载后主库领先于本机日志
-    const local = f.journal.load(journalKey(a.identity))!;
+    const local = must(
+      f.journal.load(journalKey(a.identity)),
+      "f.journal.load(journalKey(a.identity))"
+    );
     const remote = document(local.state);
     remote.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: "乙" } }], {});
     const remoteState = Y.encodeStateAsUpdate(remote.doc);
@@ -372,7 +386,10 @@ describe("W4 主进程白板会话与耐久投影", () => {
     // 不再需要先释放日志：打开时备份分叉的旧日志，直接按新库打开
     const reopened = await f.sessions.open("A", f.created.contentIds[0], 1, "fresh");
     expect(document(reopened.state).title.toString()).toBe("乙甲");
-    expect(f.journal.load(journalKey(a.identity))!.revision).toBe(3);
+    expect(
+      must(f.journal.load(journalKey(a.identity)), "f.journal.load(journalKey(a.identity))")
+        .revision
+    ).toBe(3);
     expect(discarded(f)).toHaveLength(1);
   });
   it("资料库替换前仍有未投影或在编的白板时拒绝释放日志", async () => {
@@ -476,7 +493,9 @@ describe("W4 主进程白板会话与耐久投影", () => {
     expect(() => assertLegacyWhiteboardPage(f.db, f.created.contentIds[0])).toThrow(
       "WRITE_REQUIRED"
     );
-    expect(() => assertLegacyWhiteboard(f.db, f.created.boardId!)).toThrow("WRITE_REQUIRED");
+    expect(() =>
+      assertLegacyWhiteboard(f.db, must(f.created.boardId, "f.created.boardId"))
+    ).toThrow("WRITE_REQUIRED");
     const update = delta(client, () =>
       client.submit([{ type: "remove_page", id: f.p1, observedElementIds: [f.id] }], origin)
     );
@@ -485,7 +504,8 @@ describe("W4 主进程白板会话与耐久投影", () => {
     await f.sessions.append(a.leaseId, 1, "undo", undo);
     history.destroy();
     expect(
-      new WhiteboardDocumentRepository(f.db, "A").byPage(f.created.contentIds[0])!.pageId
+      must(new WhiteboardDocumentRepository(f.db, "A").byPage(f.created.contentIds[0]), "byPage")
+        .pageId
     ).toBe(f.p1);
   });
   it("创建回执丢失后重试不会覆盖后来编辑，也不会再分配页面", async () => {

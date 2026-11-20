@@ -1,5 +1,5 @@
 import React, { Children, cloneElement, isValidElement, useMemo, memo, useCallback } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
@@ -42,11 +42,11 @@ export interface MarkdownRendererProps {
   /** 透传给宿主的代码语言渲染器（图表等）；排版本身不区分明暗 */
   isDark?: boolean;
   /** 自定义组件覆盖（如自定义代码块、链接等） */
-  components?: Record<string, React.ComponentType<any>>;
+  components?: Components;
   /** 额外的 remark 插件 */
-  remarkPlugins?: any[];
+  remarkPlugins?: NonNullable<Options["remarkPlugins"]>;
   /** 额外的 rehype 插件 */
-  rehypePlugins?: any[];
+  rehypePlugins?: NonNullable<Options["rehypePlugins"]>;
   /** 是否启用文档引用解析 */
   enableDocumentReference?: boolean;
   /** 文档引用点击回调 */
@@ -111,7 +111,6 @@ const createSpanComponent = (
     "data-type"?: string;
     "data-text"?: string;
   }) {
-    // 检查是否是文档引用
     if (className === "document-reference") {
       const id = parseInt(props["data-id"] || "0", 10);
       const type = props["data-type"] || "";
@@ -147,8 +146,16 @@ const createSpanComponent = (
 /** 围栏代码由 pre 打标记，与行内代码区分（无语言的围栏也走代码块） */
 const BLOCK_CODE_ATTR = "data-markdown-block-code";
 
-const PreComponent = ({ children, node: _node, ...props }: any) => (
-  <div {...props} className="my-3 first:mt-0 last:mb-0 [&>*]:m-0">
+const PreComponent = ({
+  children,
+  node: _node,
+  ...props
+}: React.ComponentPropsWithoutRef<"pre"> & ExtraProps) => (
+  // react-markdown 传入 pre 的 DOM 属性，pre/div 属性集在实践中一致，此处按目标元素收窄
+  <div
+    {...(props as React.ComponentPropsWithoutRef<"div">)}
+    className="my-3 first:mt-0 last:mb-0 [&>*]:m-0"
+  >
     {Children.map(children, child =>
       isValidElement<Record<string, unknown>>(child)
         ? cloneElement(child, { [BLOCK_CODE_ATTR]: "true" } as Record<string, string>)
@@ -165,7 +172,9 @@ const createCodeComponent = (options: {
   isDark: boolean;
   codeLanguageRenderers?: Record<string, React.ComponentType<{ code: string; isDark?: boolean }>>;
 }) => {
-  return memo(function CodeComponent(props: Record<string, unknown>) {
+  return memo(function CodeComponent(
+    props: React.ComponentPropsWithoutRef<"code"> & ExtraProps & { [BLOCK_CODE_ATTR]?: unknown }
+  ) {
     const { children, className, node: _node, [BLOCK_CODE_ATTR]: blockCode, ...rest } = props;
     const match = /language-([\w-]+)/.exec(typeof className === "string" ? className : "");
     const language = match ? match[1] : undefined;
@@ -173,7 +182,7 @@ const createCodeComponent = (options: {
     if (!blockCode && !language) {
       return (
         <code {...rest} className={INLINE_CODE_CLASS}>
-          {children as React.ReactNode}
+          {children}
         </code>
       );
     }
@@ -214,13 +223,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(function M
     [rehypePlugins]
   );
 
-  // 创建链接组件
   const LinkComponent = useMemo(() => createLinkComponent(onLinkClick), [onLinkClick]);
 
-  // 创建 span 组件（用于文档引用）
   const SpanComponent = useMemo(() => createSpanComponent(onReferenceClick), [onReferenceClick]);
 
-  // 创建代码组件
   const CodeComponent = useMemo(
     () =>
       createCodeComponent({
@@ -232,7 +238,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(function M
 
   // 合并组件
   const mergedComponents = useMemo(() => {
-    const defaultComponents: Record<string, React.ComponentType<any>> = {
+    const defaultComponents: Components = {
       ...markdownTypographyComponents,
       pre: PreComponent,
       code: CodeComponent,

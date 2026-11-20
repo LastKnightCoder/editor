@@ -37,7 +37,7 @@ export async function retryHostSession(
   if (emptyAnswerIds.length) omitEntries(session.sessionManager, emptyAnswerIds);
   session.refreshContext();
 
-  // 自定义消息续跑不触发 before_agent_start，仍需沿用本轮系统提示与工具声明。
+  // 重试沿用原轮的系统提示与工具声明，避免用自定义消息重新生成提示。
   const transformContext = session.agent.transformContext;
   session.agent.transformContext = async (context, abortSignal) => {
     const transformed = transformContext ? await transformContext(context, abortSignal) : context;

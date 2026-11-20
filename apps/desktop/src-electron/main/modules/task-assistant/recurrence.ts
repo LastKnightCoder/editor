@@ -11,6 +11,7 @@ import {
 } from "@tau/shared/task-assistant";
 export { taskOccurrencesInRange as occurrences } from "@tau/shared/task-assistant";
 import TodoRecurrenceTable from "../tables/todo-recurrence";
+import type { SqliteRow } from "../../types/table";
 import { dateTime, fail, localDate } from "./common";
 
 export function independentSegments(
@@ -32,7 +33,9 @@ export function independentSegments(
       effectiveDate: row.effective_date,
       rule: row.rule_json ? JSON.parse(row.rule_json) : null,
     }));
-  const oldRow = db.prepare("SELECT * FROM todo_recurrence WHERE todo_item_id=?").get(ref.todoId);
+  const oldRow = db
+    .prepare("SELECT * FROM todo_recurrence WHERE todo_item_id=?")
+    .get(ref.todoId) as SqliteRow | undefined;
   const old = oldRow ? TodoRecurrenceTable.parse(oldRow) : null;
   if (!old) return [];
   return [
@@ -125,7 +128,9 @@ export function independentStates(
   ref: Extract<TaskRef, { kind: "todo" }>
 ): Record<string, TaskOccurrenceState> {
   const result: Record<string, TaskOccurrenceState> = {};
-  const oldRow = db.prepare("SELECT * FROM todo_recurrence WHERE todo_item_id=?").get(ref.todoId);
+  const oldRow = db
+    .prepare("SELECT * FROM todo_recurrence WHERE todo_item_id=?")
+    .get(ref.todoId) as SqliteRow | undefined;
   const old = oldRow ? TodoRecurrenceTable.parse(oldRow) : null;
   if (old) {
     const rows = db

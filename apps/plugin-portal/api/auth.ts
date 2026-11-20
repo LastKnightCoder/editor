@@ -51,7 +51,7 @@ export async function githubToken(env: Env, session: SessionRow): Promise<string
     await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await encryptionKey(env), encrypted)
   );
 }
-export async function sessionFor(request: Request, env: Env): Promise<SessionRow | null> {
+async function sessionFor(request: Request, env: Env): Promise<SessionRow | null> {
   const token = cookie(request, "tau_session");
   if (!token) return null;
   return env.DB.prepare(

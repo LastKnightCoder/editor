@@ -16,12 +16,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: {
-    enqueueTask: vi.fn(),
-    cleanupVideoNoteArtifacts: vi.fn(),
-  },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
@@ -31,6 +26,7 @@ import {
   unregisterContentSession,
 } from "../collaboration/content-sessions";
 import type { RuntimeSession } from "../collaboration/types";
+import { must } from "../../test-support";
 
 const paragraph = (text: string): Descendant[] => [
   { type: "paragraph", children: [{ text }] } as Descendant,
@@ -88,7 +84,10 @@ describe("DiaryTable", () => {
       contentId: 0,
     });
     const documents = [...entry.segments, segment, moment, daily].map(value =>
-      ContentTable.getContentById(db, value.contentId)!
+      must(
+        ContentTable.getContentById(db, value.contentId),
+        "ContentTable.getContentById(db, value.contentId)"
+      )
     );
     for (const document of documents) {
       expect(document.contracts).toEqual(contracts);
@@ -267,7 +266,7 @@ describe("DiaryTable", () => {
       segmentId: first.id,
       tags: ["日常"],
     });
-    expect(JSON.parse(updatedFirst!.tags)).toEqual(["日常"]);
+    expect(JSON.parse(must(updatedFirst, "updatedFirst").tags)).toEqual(["日常"]);
 
     const reloaded = DiaryTable.getDiarySegments(db, entry.id);
     expect(reloaded.map(segment => JSON.parse(segment.tags))).toEqual([["日常"], []]);

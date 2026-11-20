@@ -1,5 +1,5 @@
 /**
- * 当日时间线（方案 C，承载在日程页右侧非模态抽屉里）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
+ * 当日时间线（承载在日程页右侧非模态抽屉里）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
  *
  * 大号日期 → 标记区（全天日程、截止、周期打卡）→ 定时日程时间线 → 底部自然语言快速添加（quickAdd.ts 解析，回车直接创建）。
  * 时间线按账本呈现（ledger.ts）：已结束 = 记录（实心），未开始 = 计划（空心），跨过现在在现在处切开；
@@ -176,7 +176,7 @@ export function DayColumn() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* pr-12：给抽屉右上角浮着的 × 让位 */}
-      <div className="flex items-end gap-3 pb-2 pl-6 pr-12 pt-5">
+      <div className="flex items-end gap-3 pt-5 pr-12 pb-2 pl-6">
         <span
           className={cn(
             "font-tau-mono text-[44px] font-medium tabular-nums leading-[0.95] tracking-[-0.02em]",
@@ -217,7 +217,7 @@ export function DayColumn() {
       </p>
 
       {/* FadeScroll 右侧 6px 透明边 + pr-[18px] = 24px，与标题行的 px-6 对齐 */}
-      <FadeScroll className="mb-4 min-h-0 flex-1 pb-1 pl-6 pr-[18px]">
+      <FadeScroll className="mb-4 min-h-0 flex-1 pr-[18px] pb-1 pl-6">
         {markers.length > 0 && (
           <div className="flex flex-col gap-1 pb-2.5 pl-[70px]">
             {markers.map(event => (
@@ -324,7 +324,6 @@ function TimelineRow({
         <i
           className={cn(
             "relative mt-[11px] size-2.5 rounded-full",
-            // 记录实心圆点，计划 / 进行中空心环
             recorded
               ? "bg-[var(--cal)] shadow-[0_0_0_3px_var(--tau-bg-surface)]"
               : "bg-surface shadow-[inset_0_0_0_1.5px_var(--cal),0_0_0_3px_var(--tau-bg-surface)]"
@@ -578,8 +577,8 @@ function QuickAdd({ day }: { day: number }) {
         const d = new Date(parsed.date);
         const dayText =
           parsed.date === day && !parsed.hints.date ? "" : `${d.getMonth() + 1}/${d.getDate()} `;
-        return parsed.startTime !== null
-          ? `${dayText}${formatTime(parsed.startTime)}–${formatTime(parsed.endTime!)}`
+        return parsed.startTime !== null && parsed.endTime !== null
+          ? `${dayText}${formatTime(parsed.startTime)}–${formatTime(parsed.endTime)}`
           : `${dayText}全天`.trim();
       })()
     : "";

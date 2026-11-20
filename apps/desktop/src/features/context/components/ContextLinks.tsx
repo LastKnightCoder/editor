@@ -97,9 +97,7 @@ export function ContextLinksSection({
 
   const linkedContentIds = [
     ...selfContentIds,
-    ...links
-      .filter(link => !link.inlineOnly && link.contentId != null)
-      .map(link => link.contentId!),
+    ...links.flatMap(link => (!link.inlineOnly && link.contentId != null ? [link.contentId] : [])),
   ];
 
   return (

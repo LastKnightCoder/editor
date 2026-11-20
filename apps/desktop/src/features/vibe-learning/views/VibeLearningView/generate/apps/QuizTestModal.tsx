@@ -142,7 +142,6 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     }
   }, [currentItem, testSession]);
 
-  // 打开时重置状态
   useEffect(() => {
     if (open) {
       cancelTest();
@@ -174,7 +173,6 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     startTest,
   ]);
 
-  // 检查答案是否正确
   const checkAnswer = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (item: VLQuizItem, answer: any): { isCorrect: boolean; score: number } => {
@@ -281,7 +279,6 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     cancelTest();
   });
 
-  // 判断是否可以提交答案
   const canSubmitAnswer = useMemo(() => {
     if (showAnswer) return false;
     if (currentAnswer === null || currentAnswer === undefined) return false;
@@ -295,10 +292,8 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     return true;
   }, [showAnswer, currentAnswer, currentItem]);
 
-  // 判断是否是最后一题
   const isLastQuestion = progress ? progress.current === progress.total : false;
 
-  // 获取当前答案是否正确
   const currentAnswerCorrect = useMemo(() => {
     if (!showAnswer || !currentItem) return null;
     const existing = testSession?.answers[currentItem.id];
@@ -421,7 +416,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               <CheckCircle2 className="size-3.5" strokeWidth={1.75} />
               参考答案
             </p>
-            <p className="text-ink-2 text-tau-body m-0 whitespace-pre-wrap leading-relaxed">
+            <p className="text-ink-2 text-tau-body m-0 leading-relaxed whitespace-pre-wrap">
               {data.answer}
             </p>
           </div>
@@ -676,7 +671,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                 <RichTextRenderer
                   key={`prompt-${currentItem.id}`}
                   content={currentItem.prompt}
-                  className="text-ink-1 text-[17px] font-medium leading-normal"
+                  className="text-ink-1 text-[17px] leading-normal font-medium"
                 />
               )}
 

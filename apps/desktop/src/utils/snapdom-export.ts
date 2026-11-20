@@ -9,9 +9,7 @@ interface CaptureBlobWithSnapdomOptions extends SnapdomBlobOptions {
 
 const DEFAULT_FONT_READY_TIMEOUT_MS = 2000;
 
-export const waitForFontsReady = async (
-  timeoutMs = DEFAULT_FONT_READY_TIMEOUT_MS
-): Promise<void> => {
+const waitForFontsReady = async (timeoutMs = DEFAULT_FONT_READY_TIMEOUT_MS): Promise<void> => {
   if (typeof document === "undefined") {
     return;
   }

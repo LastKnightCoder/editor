@@ -195,7 +195,9 @@ const ImageCropEditor = ({
   }, []);
 
   const localPoint = (event: { clientX: number; clientY: number }): Vec => {
-    const rect = stageRef.current!.getBoundingClientRect();
+    const stage = stageRef.current;
+    if (!stage) return { x: 0, y: 0 };
+    const rect = stage.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
@@ -281,7 +283,9 @@ const ImageCropEditor = ({
   const dialRef = useRef<HTMLDivElement>(null);
   const dialBaseRef = useRef<CropViewState | null>(null);
   const straightenFromPointer = (event: { clientX: number }) => {
-    const rect = dialRef.current!.getBoundingClientRect();
+    const dial = dialRef.current;
+    if (!dial) return 0;
+    const rect = dial.getBoundingClientRect();
     const ratio = (event.clientX - rect.left) / rect.width - 0.5;
     const value = Math.max(-MAX_STRAIGHTEN, Math.min(MAX_STRAIGHTEN, ratio * 2 * MAX_STRAIGHTEN));
     return Math.round(value * 2) / 2;
@@ -302,7 +306,7 @@ const ImageCropEditor = ({
         ? null
         : key === "original"
           ? naturalAspect(image, view.quarterTurns)
-          : preset!.value!;
+          : (preset?.value ?? null);
     animateTo(applyAspect(view, aspect, image, stage));
   };
 
@@ -371,7 +375,7 @@ const ImageCropEditor = ({
       role="dialog"
       aria-modal="true"
       aria-label="裁剪与旋转"
-      className="fixed inset-0 z-[1100] flex select-none flex-col bg-[#111113] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-white outline-none"
+      className="fixed inset-0 z-[1100] flex flex-col bg-[#111113] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white outline-none select-none"
       onKeyDown={handleKeyDown}
     >
       {/* 顶栏 */}
@@ -463,7 +467,7 @@ const ImageCropEditor = ({
                 />
               ))}
               {outputSize && (
-                <span className="font-tau-mono text-tau-micro pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-[6px] bg-black/65 px-2 py-0.5 tabular-nums">
+                <span className="font-tau-mono text-tau-micro pointer-events-none absolute top-full left-1/2 mt-2 -translate-x-1/2 rounded-[6px] bg-black/65 px-2 py-0.5 whitespace-nowrap tabular-nums">
                   {Math.round(outputSize.cropWidth)} × {Math.round(outputSize.cropHeight)}
                 </span>
               )}
@@ -473,7 +477,7 @@ const ImageCropEditor = ({
       </div>
 
       {/* 底部：角度拨盘 + 比例 / 旋转 / 翻转 / 还原 */}
-      <div className="flex shrink-0 flex-col items-center gap-3 px-4 pb-5 pt-3">
+      <div className="flex shrink-0 flex-col items-center gap-3 px-4 pt-3 pb-5">
         <div
           ref={dialRef}
           role="slider"
@@ -499,7 +503,7 @@ const ImageCropEditor = ({
             {(view?.straighten ?? 0) > 0 ? "+" : ""}
             {(view?.straighten ?? 0).toFixed(1)}°
           </span>
-          <span className="absolute inset-x-0 bottom-1 top-5 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.35)_0_1px,transparent_1px_10px)] [mask-image:linear-gradient(90deg,transparent,#000_20%,#000_80%,transparent)]" />
+          <span className="absolute inset-x-0 top-5 bottom-1 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.35)_0_1px,transparent_1px_10px)] [mask-image:linear-gradient(90deg,transparent,#000_20%,#000_80%,transparent)]" />
           <span className="absolute bottom-1 left-1/2 h-4 w-0.5 -translate-x-1/2 bg-white/70" />
           <span
             className="bg-accent absolute bottom-0 h-6 w-0.5 -translate-x-1/2 rounded-full"

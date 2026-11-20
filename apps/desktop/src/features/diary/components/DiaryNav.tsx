@@ -1,5 +1,5 @@
 /**
- * 侧栏「日记」入口的子项（D-044，协作页 A3 同款侧栏嵌套）：标签即频道。
+ * 侧栏「日记」入口的子项（协作页同款侧栏嵌套）：标签即频道。
  * 日记页在栈顶时于入口下方展开：各标签（按使用次数排）+ 无标签；点击经页面参数 id
  * 切到该频道（`tag:<名>` / `untagged`），再点当前项回到全部。右键标签改色 / 清理。
  * 页内因此不再放标签栏——全局只剩一条侧栏（PREFERENCES「页内不再放第二条侧栏」）。
@@ -32,7 +32,7 @@ export function DiaryNavTags({
     onSelect(scopeId(scope) === scopeId(current) ? "" : scopeId(scope));
 
   return (
-    <div className="mb-1 mt-0.5 space-y-px" role="group" aria-label="日记标签">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="日记标签">
       {tags.map(tag => (
         <ContextMenu
           key={tag.name}

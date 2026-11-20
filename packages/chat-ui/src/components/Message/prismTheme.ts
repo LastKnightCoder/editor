@@ -1,6 +1,6 @@
 /**
  * 代码高亮配色：只引用 --tau-* 语义色，深浅主题随 data-theme 自动切换，
- * 不再按 isDark 加载 oneLight / oneDark 两套（D-048）。
+ * 不再按 isDark 加载 oneLight / oneDark 两套。
  * 色彩只表意：关键字 accent、字符串 ok、数字 / 常量 warn、函数 info、类型 tag-3、注释 ink-3。
  */
 

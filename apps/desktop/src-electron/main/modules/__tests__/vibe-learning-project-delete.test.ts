@@ -11,9 +11,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
@@ -57,7 +55,7 @@ describe("VibeLearningProjectTable.remove", () => {
       content: [
         {
           type: "paragraph",
-          children: [{ text: "测试笔记" }],
+          children: [{ type: "formatted", text: "测试笔记" }],
         },
       ] as any,
       count: 1,
@@ -81,7 +79,7 @@ describe("VibeLearningProjectTable.remove", () => {
       prompt: [
         {
           type: "paragraph",
-          children: [{ text: "问题1" }],
+          children: [{ type: "formatted", text: "问题1" }],
         },
       ],
       detail: [],

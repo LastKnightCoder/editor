@@ -1,10 +1,12 @@
 import Database from "better-sqlite3";
 import { Calendar, CreateCalendar, UpdateCalendar } from "@/types/calendar";
+import { ProjectColorName } from "@/constants/project-colors";
 import { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
 import CalendarGroupTable from "./calendar-group";
 import CalendarEventTable from "./calendar-event";
+import type { SqliteRow } from "../../types/table";
 
 export default class CalendarTable {
   static getListenEvents() {
@@ -18,16 +20,16 @@ export default class CalendarTable {
       "calendar:merge": this.mergeCalendars.bind(this),
     };
   }
-  static parseCalendar(row: any, db: Database.Database): Calendar {
+  static parseCalendar(row: SqliteRow, db: Database.Database): Calendar {
     let description: Descendant[] = [];
-    const descriptionContentId = row.description_content_id || 0;
+    const descriptionContentId = (row.description_content_id as number) || 0;
 
     if (descriptionContentId) {
       const content = ContentTable.getContentById(db, descriptionContentId);
       description = content?.content || [];
     }
 
-    const groupId = row.group_id || undefined;
+    const groupId = (row.group_id as number | null) || undefined;
     let isInSystemGroup = false;
 
     // 判断是否在系统分组或系统分组的子分组中
@@ -51,17 +53,17 @@ export default class CalendarTable {
     }
 
     return {
-      id: row.id,
-      createTime: row.create_time,
-      updateTime: row.update_time,
-      title: row.title,
-      color: row.color,
+      id: row.id as number,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
+      title: row.title as string,
+      color: row.color as ProjectColorName,
       description,
       descriptionContentId,
       archived: Boolean(row.archived),
       pinned: Boolean(row.pinned),
       visible: Boolean(row.visible),
-      orderIndex: row.order_index,
+      orderIndex: row.order_index as number,
       groupId,
       isInSystemGroup,
     };
@@ -165,7 +167,7 @@ export default class CalendarTable {
 
   static getCalendarById(db: Database.Database, id: number): Calendar {
     const stmt = db.prepare("SELECT * FROM calendar WHERE id = ?");
-    const row = stmt.get(id);
+    const row = stmt.get(id) as SqliteRow | undefined;
     if (!row) {
       throw new Error(`Calendar with id ${id} not found`);
     }
@@ -174,7 +176,7 @@ export default class CalendarTable {
 
   static getAllCalendars(db: Database.Database): Calendar[] {
     const stmt = db.prepare("SELECT * FROM calendar ORDER BY order_index ASC, create_time DESC");
-    const rows = stmt.all();
+    const rows = stmt.all() as SqliteRow[];
     return rows.map(row => this.parseCalendar(row, db));
   }
 
@@ -182,7 +184,7 @@ export default class CalendarTable {
     const stmt = db.prepare(
       "SELECT * FROM calendar WHERE visible = 1 ORDER BY order_index ASC, create_time DESC"
     );
-    const rows = stmt.all();
+    const rows = stmt.all() as SqliteRow[];
     return rows.map(row => this.parseCalendar(row, db));
   }
 

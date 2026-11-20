@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { SyntaxHighlighterProps } from "react-syntax-highlighter";
 import { measurePerformance } from "../../utils/performance";
 import { BiCopy } from "react-icons/bi";
 import "../animations.css";
@@ -58,8 +59,9 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   isDark = false,
   ...rest
 }) => {
-  const [SyntaxHighlighter, setSyntaxHighlighter] = useState<any>(null);
-  const [theme, setTheme] = useState<any>(null);
+  const [SyntaxHighlighter, setSyntaxHighlighter] =
+    useState<React.ComponentType<SyntaxHighlighterProps> | null>(null);
+  const [theme, setTheme] = useState<{ [key: string]: React.CSSProperties } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -141,7 +143,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
       </button>
       <SyntaxHighlighter
         language={normalizedLanguage}
-        style={theme}
+        style={theme ?? undefined}
         customStyle={{
           margin: 0,
           borderRadius: "4px",

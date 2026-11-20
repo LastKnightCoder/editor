@@ -6,10 +6,6 @@ interface SyncResponse {
   message?: string;
 }
 
-export const listLocalResourceSyncFiles = async (): Promise<
-  Array<{ name: string; path: string; size: number }>
-> => invoke("resource-sync:list-local-files");
-
 export const startResourceSync = async (options: ResourceSyncOptions): Promise<SyncResponse> => {
   return invoke("resource-sync:start", options);
 };

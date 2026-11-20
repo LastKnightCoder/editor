@@ -9,6 +9,7 @@ import type { TemplatePackage } from "../../services/template-package";
 import type { IPublishFile, IPublishHistory } from "@/types/publish";
 import { createHash } from "node:crypto";
 import type { PublishPluginSnapshot } from "../../services/plugin-publish";
+import { must } from "../../test-support";
 
 const code = "throw Error('发布器不得执行插件入口')";
 const plugins: PublishPluginSnapshot = {
@@ -96,12 +97,15 @@ const history = (files: IPublishFile[]) =>
   })) as IPublishHistory[];
 it("生成的清单能被公开数据客户端读取", async () => {
   const { files } = await generate();
-  const site = files.find(file => /^data\/site\./.test(file.path))!;
+  const site = must(
+    files.find(file => /^data\/site\./.test(file.path)),
+    "files.find(file => /^data\/site\./.test(file...."
+  );
   const byUrl = new Map(files.map(file => ["https://example.com/notes/" + file.path, file]));
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      const content = byUrl.get(url)!.content;
+      const content = must(byUrl.get(url), "byUrl.get(url)").content;
       return new Response(typeof content === "string" ? content : new Uint8Array(content));
     })
   );
@@ -109,7 +113,10 @@ it("生成的清单能被公开数据客户端读取", async () => {
     const client = createClient({ manifestUrl: "https://example.com/notes/" + site.path });
     const manifest = await client.readManifest();
     expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
-    const home = manifest.items.find(item => item.type === "home")!;
+    const home = must(
+      manifest.items.find(item => item.type === "home"),
+      "manifest.items.find(item => item.type === 'ho..."
+    );
     const result = await client.readData({ key: home.key });
     expect(result.data).toMatchObject({ key: home.key, meta: { type: "home" } });
     expect(result.data.content).not.toHaveProperty("hero");
@@ -140,7 +147,10 @@ it("未知节点仅回传警告，继续生成完整发布产物并原样保留�
   expect(result.warnings).toHaveLength(1);
   expect(result.warnings[0]).toContain("ai");
   const article = JSON.parse(
-    result.files.find(file => /^data\/articles\/1\./.test(file.path))!.content.toString()
+    must(
+      result.files.find(file => /^data\/articles\/1\./.test(file.path)),
+      "result.files.find(file => /^data\/articles\/1..."
+    ).content.toString()
   );
   expect(article.content.content).toContainEqual(unknown);
   expect(result.files.some(file => file.publicationEntry)).toBe(true);
@@ -151,7 +161,10 @@ it("五类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
     "index.html",
   ]);
   const manifest = JSON.parse(
-    files.find(file => /^data\/site\./.test(file.path))!.content.toString()
+    must(
+      files.find(file => /^data\/site\./.test(file.path)),
+      "files.find(file => /^data\/site\./.test(file...."
+    ).content.toString()
   );
   expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
   expect(new Set(manifest.items.map((item: any) => item.type))).toEqual(
@@ -163,7 +176,10 @@ it("五类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
     )
   ).toBe(true);
   const article = JSON.parse(
-    files.find(file => /^data\/articles\/1\./.test(file.path))!.content.toString()
+    must(
+      files.find(file => /^data\/articles\/1\./.test(file.path)),
+      "files.find(file => /^data\/articles\/1\./.tes..."
+    ).content.toString()
   );
   // 站内链接目标随所在正文输出，只含本文用到且已发布的目标。
   expect(article.links).toEqual({
@@ -183,7 +199,10 @@ it("五类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   expect(article.contentStyles[0].href).toMatch(/^\.\.\/styles\/[a-f0-9]{64}\.css$/);
   expect(article).not.toHaveProperty("navigation");
   expect(article).not.toHaveProperty("site");
-  const entry = files.find(file => file.publicationEntry)!.content.toString();
+  const entry = must(
+    files.find(file => file.publicationEntry),
+    "files.find(file => file.publicationEntry)"
+  ).content.toString();
   expect(entry).toContain("/notes/data/site.");
   expect(entry).toContain('src="/notes/assets/app.js"');
   expect(files.some(file => file.path.startsWith("_tau/client/"))).toBe(false);
@@ -269,7 +288,12 @@ it("项目卡片列表解析 entityRef，保留卡片快照且撤下目标后移
   const site = { title: "站点", description: "", basePath: "/notes/" };
   const first = await generator.generate(fixture.data, fixture.selections, site);
   const read = (files: IPublishFile[], stem: string) =>
-    JSON.parse(files.find(file => file.path.startsWith(`data/${stem}.`))!.content.toString());
+    JSON.parse(
+      must(
+        files.find(file => file.path.startsWith(`data/${stem}.`)),
+        "files.find(file => file.path.startsWith(`data..."
+      ).content.toString()
+    );
   for (const stem of ["articles/1", "cards/7", "projects/12/33"]) {
     const value = read(first.files, stem);
     const body = value.content.content;

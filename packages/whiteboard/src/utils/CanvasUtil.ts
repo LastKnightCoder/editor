@@ -16,5 +16,3 @@ export class CanvasUtil {
     return result;
   }
 }
-
-export default CanvasUtil;

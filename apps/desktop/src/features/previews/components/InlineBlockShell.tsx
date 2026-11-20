@@ -1,5 +1,5 @@
 /**
- * 对话内直出块的外壳（D-057：Mermaid / 白板）：line-1 描边圆角框，右上角悬停淡入
+ * 对话内直出块的外壳（Mermaid / 白板）：line-1 描边圆角框，右上角悬停淡入
  * 「放大」（进统一预览框）与「复制源码」，占固定槽位不顶开布局。
  */
 
@@ -31,7 +31,7 @@ export function InlineBlockShell({
       )}
     >
       {children}
-      <div className="bg-surface/90 ease-tau-out absolute right-1.5 top-1.5 flex gap-0.5 rounded-[9px] p-0.5 opacity-0 transition-opacity duration-[160ms] focus-within:opacity-100 group-hover/inline:opacity-100">
+      <div className="bg-surface/90 ease-tau-out absolute top-1.5 right-1.5 flex gap-0.5 rounded-[9px] p-0.5 opacity-0 transition-opacity duration-[160ms] group-hover/inline:opacity-100 focus-within:opacity-100">
         <IconButton aria-label="复制源码" title="复制源码" className="size-7" onClick={copy}>
           <Copy size={14} strokeWidth={1.75} />
         </IconButton>

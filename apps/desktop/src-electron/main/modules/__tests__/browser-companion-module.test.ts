@@ -68,6 +68,7 @@ vi.mock("../browser-companion/library", () => ({
 import companion from "../browser-companion";
 import { writeSessionFile } from "../pi-session-files";
 import { browserSessionDirOf } from "../pi-session-paths";
+import { must } from "../../test-support";
 
 const ORIGIN = `chrome-extension://${"a".repeat(32)}`;
 const CLIENT = "client00000000000001";
@@ -78,7 +79,9 @@ beforeAll(async () => {
   env.dir = mkdtempSync(path.join(tmpdir(), "companion-"));
   companion.init();
   server = http.createServer();
-  server.on("upgrade", (request, socket, head) => env.route!(request, socket, head));
+  server.on("upgrade", (request, socket, head) =>
+    must(env.route, "env.route")(request, socket, head)
+  );
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/browser`;
 });
@@ -180,15 +183,17 @@ describe("browser-companion 模块", () => {
       status: "pending",
       nonce: expect.stringMatching(/^[0-9a-f]{32}$/),
     });
-    const prompt = env.sent.find(
-      ([channel]) => channel === "browser-companion:pair-prompt"
-    )![1] as any;
+    const prompt = must(
+      env.sent.find(([channel]) => channel === "browser-companion:pair-prompt"),
+      "env.sent.find"
+    )[1] as any;
     const { deriveSas } = await import("@tau/shared/browser-companion");
     expect(prompt.code).toBe(await deriveSas("e".repeat(32), pending.nonce));
 
-    await env.handlers.get("browser-companion:pair-decide")!(event, prompt.requestId, true, [
-      "tools",
-    ]);
+    await must(
+      env.handlers.get("browser-companion:pair-decide"),
+      "env.handlers.get('browser-companion:pair-deci..."
+    )(event, prompt.requestId, true, ["tools"]);
     await vi.waitFor(() =>
       expect(client.notes.map(note => note.method)).toEqual(["pair.granted", "ready"])
     );
@@ -224,11 +229,20 @@ describe("browser-companion 模块", () => {
     ).rejects.toThrow("bad-token");
 
     // 收回可选权限后立即生效；撤销即断开
-    await env.handlers.get("browser-companion:set-scopes")!(event, CLIENT, []);
-    const snapshot = await env.handlers.get("browser-companion:snapshot")!(event);
+    await must(
+      env.handlers.get("browser-companion:set-scopes"),
+      "env.handlers.get('browser-companion:set-scopes')"
+    )(event, CLIENT, []);
+    const snapshot = await must(
+      env.handlers.get("browser-companion:snapshot"),
+      "env.handlers.get('browser-companion:snapshot')"
+    )(event);
     expect(snapshot.clients[0]).not.toHaveProperty("tokenHash");
     expect(snapshot.online).toContain(CLIENT);
-    await env.handlers.get("browser-companion:revoke")!(event, CLIENT);
+    await must(
+      env.handlers.get("browser-companion:revoke"),
+      "env.handlers.get('browser-companion:revoke')"
+    )(event, CLIENT);
     expect(await again.closed).toBe(4006);
     expect(again.notes.some(note => note.method === "revoked")).toBe(true);
 
@@ -244,10 +258,14 @@ describe("browser-companion 模块", () => {
       env.sent.length = 0;
       const client = await connect();
       await client.call("pair.request", { clientId: id, info: INFO, nonce: "f".repeat(32) });
-      const prompt = env.sent.find(
-        ([channel]) => channel === "browser-companion:pair-prompt"
-      )![1] as any;
-      await env.handlers.get("browser-companion:pair-decide")!(event, prompt.requestId, false, []);
+      const prompt = must(
+        env.sent.find(([channel]) => channel === "browser-companion:pair-prompt"),
+        "env.sent.find"
+      )[1] as any;
+      await must(
+        env.handlers.get("browser-companion:pair-decide"),
+        "env.handlers.get('browser-companion:pair-deci..."
+      )(event, prompt.requestId, false, []);
       await client.closed;
     }
     env.sent.length = 0;

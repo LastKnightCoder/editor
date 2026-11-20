@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { RequestMessage } from "@/types";
 import { agentEditSignal } from "../agent-run-events";
 import { desktopMessagesToPi, PiToolCallBridge } from "../pi-session-bridge";
+import { must } from "../../test-support";
 
 const user = (content: RequestMessage["content"]) => ({ role: "user", content }) as RequestMessage;
 
@@ -76,7 +77,7 @@ it("同一 toolCallId 重用时，旧执行的迟到错误与结果不会污染�
   firstController.abort();
   await expect(first).rejects.toThrow("中止");
   const second = tool.execute("reused", {}, new AbortController().signal, undefined, {} as never);
-  const nextId = send.mock.calls.at(-1)![1].executionId;
+  const nextId = must(send.mock.calls.at(-1), "send.mock.calls.at(-1)")[1].executionId;
   bridge.handleError("reused", "旧错误", oldId);
   bridge.handleResult("reused", { content: "旧结果" }, oldId);
   bridge.handleResult("reused", { content: "新结果" }, nextId);

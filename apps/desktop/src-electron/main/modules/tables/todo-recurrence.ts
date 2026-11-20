@@ -16,9 +16,10 @@ import {
   UpdateTodoRecurrence,
   RecurrenceType,
 } from "@/types";
+import type { SqliteRow } from "../../types/table";
 
 export default class TodoRecurrenceTable {
-  static withHistory(db: Database.Database, row: any): TodoRecurrence {
+  static withHistory(db: Database.Database, row: SqliteRow): TodoRecurrence {
     const value = this.parse(row);
     const owner = db
       .prepare("SELECT create_time FROM todo_item WHERE id=?")
@@ -43,27 +44,29 @@ export default class TodoRecurrenceTable {
     } as const;
   }
 
-  static parse(row: any): TodoRecurrence {
+  static parse(row: SqliteRow): TodoRecurrence {
     return {
-      id: row.id,
-      todoItemId: row.todo_item_id,
+      id: row.id as number,
+      todoItemId: row.todo_item_id as number,
       type: row.type as RecurrenceType,
-      interval: row.interval,
-      weekdays: row.weekdays ? JSON.parse(row.weekdays) : null,
-      monthDay: row.month_day ?? null,
-      yearMonth: row.year_month ?? null,
-      yearDay: row.year_day ?? null,
+      interval: row.interval as number,
+      weekdays: row.weekdays ? JSON.parse(row.weekdays as string) : null,
+      monthDay: (row.month_day as number | null) ?? null,
+      yearMonth: (row.year_month as number | null) ?? null,
+      yearDay: (row.year_day as number | null) ?? null,
       excludeHolidays: Boolean(row.exclude_holidays),
-      startDate: row.start_date,
-      endDate: row.end_date ?? null,
-      maxOccurrences: row.max_occurrences ?? null,
-      createTime: row.create_time,
-      updateTime: row.update_time,
+      startDate: row.start_date as number,
+      endDate: (row.end_date as number | null) ?? null,
+      maxOccurrences: (row.max_occurrences as number | null) ?? null,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
     };
   }
 
   static getRecurrence(db: Database.Database, params: { id: number }): TodoRecurrence | null {
-    const row = db.prepare(`SELECT * FROM todo_recurrence WHERE id = ?`).get(params.id);
+    const row = db.prepare(`SELECT * FROM todo_recurrence WHERE id = ?`).get(params.id) as
+      | SqliteRow
+      | undefined;
     return row ? this.withHistory(db, row) : null;
   }
 
@@ -73,7 +76,7 @@ export default class TodoRecurrenceTable {
   ): TodoRecurrence | null {
     const row = db
       .prepare(`SELECT * FROM todo_recurrence WHERE todo_item_id = ?`)
-      .get(params.todoItemId);
+      .get(params.todoItemId) as SqliteRow | undefined;
     return row ? this.withHistory(db, row) : null;
   }
 
@@ -88,7 +91,7 @@ export default class TodoRecurrenceTable {
     const placeholders = params.todoItemIds.map(() => "?").join(",");
     const rows = db
       .prepare(`SELECT * FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`)
-      .all(...params.todoItemIds) as any[];
+      .all(...params.todoItemIds) as SqliteRow[];
 
     return rows.reduce<Record<number, TodoRecurrence>>((acc, row) => {
       const recurrence = this.withHistory(db, row);
@@ -132,7 +135,9 @@ export default class TodoRecurrenceTable {
         .get(payload.todoItemId)
     )
       return this.updateRecurrence(db, { id });
-    return this.getRecurrence(db, { id })!;
+    const created = this.getRecurrence(db, { id });
+    if (!created) throw new Error(`周期规则写入后读取失败：${id}`);
+    return created;
   }
 
   static updateRecurrence(
@@ -141,7 +146,21 @@ export default class TodoRecurrenceTable {
     options: { preserveHistory?: boolean } = {}
   ): TodoRecurrence {
     const now = Date.now();
-    const cur = db.prepare(`SELECT * FROM todo_recurrence WHERE id = ?`).get(payload.id) as any;
+    const cur = db.prepare(`SELECT * FROM todo_recurrence WHERE id = ?`).get(payload.id) as
+      | {
+          todo_item_id: number;
+          type: RecurrenceType;
+          interval: number;
+          weekdays: string | null;
+          month_day: number | null;
+          year_month: number | null;
+          year_day: number | null;
+          exclude_holidays: number;
+          start_date: number;
+          end_date: number | null;
+          max_occurrences: number | null;
+        }
+      | undefined;
 
     if (!cur) throw new Error("todo_recurrence not found");
 
@@ -209,7 +228,8 @@ export default class TodoRecurrenceTable {
           excludeHolidays: !!excludeHolidays,
           maxOccurrences,
         });
-        const segment = segments.at(-1)!;
+        const segment = segments.at(-1);
+        if (!segment) throw new Error("周期分段为空，无法写入历史");
         db.prepare(
           `INSERT INTO todo_recurrence_history VALUES (?,?,?,?,?,?) ON CONFLICT(todo_item_id,todo_created_at,effective_date)
           DO UPDATE SET rule_json=excluded.rule_json`
@@ -224,12 +244,15 @@ export default class TodoRecurrenceTable {
       }
     }
 
-    return this.getRecurrence(db, { id: payload.id })!;
+    const updated = this.getRecurrence(db, { id: payload.id });
+    if (!updated) throw new Error(`周期规则更新后读取失败：${payload.id}`);
+    return updated;
   }
 
   static deleteRecurrence(db: Database.Database, params: { id: number }): number {
     const row = db.prepare("SELECT todo_item_id FROM todo_recurrence WHERE id=?").get(params.id) as
-      { todo_item_id: number } | undefined;
+      | { todo_item_id: number }
+      | undefined;
     if (row) this.stopHistory(db, row.todo_item_id);
     const res = db.prepare(`DELETE FROM todo_recurrence WHERE id = ?`).run(params.id);
     return res.changes;
@@ -245,16 +268,16 @@ export default class TodoRecurrenceTable {
 
   private static stopHistory(db: Database.Database, todoId: number) {
     const row = db.prepare("SELECT create_time FROM todo_item WHERE id=?").get(todoId) as
-      { create_time: number } | undefined;
+      | { create_time: number }
+      | undefined;
     if (
       !row ||
       !db.prepare("SELECT 1 FROM todo_recurrence_history WHERE todo_item_id=?").get(todoId)
     )
       return;
     const ref = { kind: "todo" as const, todoId, createdAt: row.create_time };
-    const segment = amendSegments(independentSegments(db, ref), localDate(Date.now()), null).at(
-      -1
-    )!;
+    const segment = amendSegments(independentSegments(db, ref), localDate(Date.now()), null).at(-1);
+    if (!segment) throw new Error("周期分段为空，无法终止历史");
     db.prepare(
       `INSERT INTO todo_recurrence_history VALUES (?,?,?,?,NULL,?) ON CONFLICT(todo_item_id,todo_created_at,effective_date)
       DO UPDATE SET rule_json=NULL`

@@ -153,8 +153,9 @@ export function buildContext(
   const items = KnowledgeMapTable.listItems(mainDb, indexDb);
   const links = new Map<string, Set<string>>();
   const link = (a: string, b: string) => {
-    if (!links.has(a)) links.set(a, new Set());
-    links.get(a)!.add(b);
+    const targets = links.get(a) ?? new Set<string>();
+    targets.add(b);
+    links.set(a, targets);
   };
   for (const item of items) {
     for (const target of item.links) {
@@ -250,15 +251,13 @@ export function planInsights(ctx: InsightsContext): InsightsPlan {
   const rows = KnowledgeAiInsightsTable.list(ctx.mainDb);
   const topicRows = rows.filter(row => row.scope === "topic");
   const subtopicRows = rows.filter(row => row.scope === "subtopic");
-  const topicSnapshots = new Map(
-    ctx.topics.map(topic => [topic, memberSnapshot(topic.members, ctx.metas)])
-  );
   const groups = ctx.topics.flatMap(topic => topic.groups);
-  const groupSnapshots = new Map(
-    groups.map(group => [group, memberSnapshot(group.members, ctx.metas)])
+  const topicMatch = matchRows(topicRows, ctx.topics, topic =>
+    memberSnapshot(topic.members, ctx.metas)
   );
-  const topicMatch = matchRows(topicRows, ctx.topics, topic => topicSnapshots.get(topic)!);
-  const groupMatch = matchRows(subtopicRows, groups, group => groupSnapshots.get(group)!);
+  const groupMatch = matchRows(subtopicRows, groups, group =>
+    memberSnapshot(group.members, ctx.metas)
+  );
   const matched = new Set([
     ...[...topicMatch.values()].map(row => row.id),
     ...[...groupMatch.values()].map(row => row.id),
@@ -266,10 +265,10 @@ export function planInsights(ctx: InsightsContext): InsightsPlan {
   return {
     topics: ctx.topics.map(topic => ({
       topic,
-      snapshot: topicSnapshots.get(topic)!,
+      snapshot: memberSnapshot(topic.members, ctx.metas),
       row: topicMatch.get(topic) ?? null,
       subtopics: topic.groups.map(group => {
-        const snapshot = groupSnapshots.get(group)!;
+        const snapshot = memberSnapshot(group.members, ctx.metas);
         const row = groupMatch.get(group) ?? null;
         const withMeta = group.members.filter(member => ctx.metas.has(member.contentId)).length;
         return {
@@ -351,7 +350,9 @@ export function endpoint(
   section?: SectionHit | null
 ): KnowledgeEndpoint {
   const meta = ctx.metas.get(entity.contentId)?.meta;
-  const ref = { kind: normalizeEntityRefKind(entity.kind)!, id: entity.id } as EntityRef;
+  const kind = normalizeEntityRefKind(entity.kind);
+  if (!kind) throw new Error(`地图实体类型无法寻址：${String(entity.kind)}`);
+  const ref = { kind, id: entity.id } as EntityRef;
   const block = section?.blockStart ?? 0;
   return {
     ref,
@@ -536,13 +537,16 @@ export async function runSubtopic(
     { left: MapEntity; right: MapEntity; sections: Map<string, SectionHit> }
   >();
   pairs.forEach((pair, index) => {
-    const left = ctx.byKey.get(pair.left)!;
-    const right = ctx.byKey.get(pair.right)!;
+    const left = ctx.byKey.get(pair.left);
+    const right = ctx.byKey.get(pair.right);
+    const leftNo = left ? noOf.get(left.key) : undefined;
+    const rightNo = right ? noOf.get(right.key) : undefined;
+    if (!left || !right || leftNo === undefined || rightNo === undefined) return;
     const built = buildPair(
       ctx,
       index + 1,
-      { entity: left, no: noOf.get(left.key)! },
-      { entity: right, no: noOf.get(right.key)! },
+      { entity: left, no: leftNo },
+      { entity: right, no: rightNo },
       vectors
     );
     pairPrompts.push(built.prompt);
@@ -553,7 +557,7 @@ export async function runSubtopic(
     topic: topicLabel.split(" › ")[0],
     subtopic: group.label,
     total: group.members.length,
-    notes: chosen.map(entity => promptNote(ctx, entity, noOf.get(entity.key)!)),
+    notes: chosen.map((entity, index) => promptNote(ctx, entity, index + 1)),
     pairs: pairPrompts,
     ...(incremental
       ? {
@@ -599,21 +603,23 @@ export async function runSubtopic(
       return entity ? [endpoint(ctx, entity, topicLabel)] : [];
     });
   for (const pair of parsed.pairs) {
-    const info = pairInfo.get(pair.pair)!;
+    const info = pairInfo.get(pair.pair);
+    if (!info) continue;
     marks.push({
       id: "",
       kind: pair.type,
       why: pair.why,
       ends: await Promise.all(
-        [info.left, info.right].map(entity =>
-          verifiedEndpoint(
+        [info.left, info.right].map(entity => {
+          const no = noOf.get(entity.key);
+          return verifiedEndpoint(
             ctx,
             entity,
             topicLabel,
             info.sections.get(entity.key),
-            pair.anchors[noOf.get(entity.key)!]
-          )
-        )
+            no === undefined ? undefined : pair.anchors[no]
+          );
+        })
       ),
       ...(pair.claims ? { claims: pair.claims } : {}),
       status: "open",
@@ -856,11 +862,12 @@ export async function runGlobal(
   const notes: MapEntity[] = [];
   const noOf = new Map<string, number>();
   const addNote = (entity: MapEntity) => {
-    if (!noOf.has(entity.key)) {
-      notes.push(entity);
-      noOf.set(entity.key, notes.length);
-    }
-    return noOf.get(entity.key)!;
+    const existing = noOf.get(entity.key);
+    if (existing !== undefined) return existing;
+    notes.push(entity);
+    const no = notes.length;
+    noOf.set(entity.key, no);
+    return no;
   };
   const vectors = loadNoteVectors(ctx.indexDb, [
     ...new Set(bridges.flatMap(pair => [pair.left, pair.right])),
@@ -886,7 +893,9 @@ export async function runGlobal(
     bridgeInfo.set(no, { left, right, sections: built.sections });
   }
   const noteTopics: Record<number, string> = {};
-  for (const entity of notes) noteTopics[noOf.get(entity.key)!] = topicLabelOfKey(ctx, entity.key);
+  notes.forEach((entity, index) => {
+    noteTopics[index + 1] = topicLabelOfKey(ctx, entity.key);
+  });
   const day = (time: number) => {
     const date = new Date(time);
     return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
@@ -909,7 +918,7 @@ export async function runGlobal(
       overview: row?.overview.overview ?? "",
       shift: row?.overview.shift ?? "",
     })),
-    notes: notes.map(entity => promptNote(ctx, entity, noOf.get(entity.key)!)),
+    notes: notes.map((entity, index) => promptNote(ctx, entity, index + 1)),
     bridges: bridgePrompts,
     noteTopics,
     asked: asked.map((group, index) => ({
@@ -953,22 +962,24 @@ export async function runGlobal(
   );
   const marks: KnowledgeMark[] = [];
   for (const bridge of parsed.bridges) {
-    const info = bridgeInfo.get(bridge.candidate)!;
+    const info = bridgeInfo.get(bridge.candidate);
+    if (!info) continue;
     marks.push({
       id: "",
       kind: "bridge",
       why: bridge.why,
       text: bridge.principle,
       ends: await Promise.all(
-        [info.left, info.right].map(entity =>
-          verifiedEndpoint(
+        [info.left, info.right].map(entity => {
+          const no = noOf.get(entity.key);
+          return verifiedEndpoint(
             ctx,
             entity,
             topicLabelOfKey(ctx, entity.key),
             info.sections.get(entity.key),
-            bridge.anchors[noOf.get(entity.key)!]
-          )
-        )
+            no === undefined ? undefined : bridge.anchors[no]
+          );
+        })
       ),
       status: "open",
     });

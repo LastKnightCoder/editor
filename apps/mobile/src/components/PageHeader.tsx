@@ -122,5 +122,3 @@ export function PageHeader(props: PageHeaderProps) {
     </CoverHeaderContext.Provider>
   );
 }
-
-export default PageHeader;

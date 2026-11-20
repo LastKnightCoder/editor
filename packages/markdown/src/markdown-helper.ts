@@ -321,7 +321,8 @@ function serializeTrackedElement(
 
   // 2. void 元素直接序列化并记录元素级映射
   if (isVoidElement(element)) {
-    const serializer = registry().getSerializer(type, element)!;
+    const serializer = registry().getSerializer(type, element);
+    if (!serializer) throw new Error(`[markdown] 元素 ${type} 缺少序列化器`);
 
     let output: string;
     let serializerOutput: SerializerOutput | null = null;
@@ -441,8 +442,9 @@ function serializeTrackedElement(
 
   const childrenStr = childrenParts.join("");
 
-  // 4. 调用序列化器（未知元素已在第 1 步处理，这里必有）
-  const serializer = registry().getSerializer(type, element)!;
+  // 4. 调用序列化器（未知元素已在第 1 步处理；此处未命中说明注册表漂移，交由外层兜底）
+  const serializer = registry().getSerializer(type, element);
+  if (!serializer) throw new Error(`[markdown] 元素 ${type} 缺少序列化器`);
 
   let output: string;
   let serializerOutput: SerializerOutput | null = null;
@@ -519,7 +521,7 @@ function convertPropertyMappings(
 ): ElementMapping["propertyMappings"] {
   if (!propertyMappings) return {};
 
-  const result: any = {};
+  const result: NonNullable<ElementMapping["propertyMappings"]> = {};
 
   for (const [propName, mapping] of Object.entries(propertyMappings)) {
     const propValue =

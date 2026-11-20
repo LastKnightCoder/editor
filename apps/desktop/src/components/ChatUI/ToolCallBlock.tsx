@@ -1,4 +1,4 @@
-/** 桌面的工具调用块：通用实现来自 @tau/chat-ui，等待确认时在工具行下方接确认条（D-060） */
+/** 桌面的工具调用块：通用实现来自 @tau/chat-ui，等待确认时在工具行下方接确认条 */
 
 import { memo, type ComponentProps } from "react";
 import type { ToolCallExecutionState } from "@tau/shared";

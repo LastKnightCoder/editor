@@ -6,11 +6,12 @@ import BoardUtil from "./BoardUtil.ts";
 export type Path = number[];
 
 export class PathUtil {
-  static getPathByElement(board: Board, element: BoardElement & any): Path | null {
+  static getPathByElement(board: Board, element: BoardElement): Path | null {
     const path: Path = [];
-    const dfs = (node: Board | BoardElement, index?: number) => {
+    // 根节点入参用 -1 占位：isBoard 分支不会读取 index
+    const dfs = (node: Board | BoardElement, index: number) => {
       if (!BoardUtil.isBoard(node)) {
-        path.push(index!);
+        path.push(index);
         if (node.id === element.id) {
           return true;
         }
@@ -26,7 +27,7 @@ export class PathUtil {
         }
       }
     };
-    return dfs(board) && path.length > 0 ? path : null;
+    return dfs(board, -1) && path.length > 0 ? path : null;
   }
 
   static getElementByPath(board: Board, path: number[]): BoardElement {
@@ -438,15 +439,12 @@ export class PathUtil {
 
       if (this.operationHasPath(currentOp)) {
         // 计算前序操作（使用原始路径）对当前操作的累积影响
-        const originalPath = (currentOp as any).path;
+        const originalPath = (currentOp as Extract<Operation, { path: Path }>).path;
 
         // 使用缓存键避免重复计算
         const cacheKey = `${JSON.stringify(originalPath)}-${currentOp.type}-${i}`;
-        let transformedPath: Path | null;
-
-        if (transformCache.has(cacheKey)) {
-          transformedPath = transformCache.get(cacheKey)!;
-        } else {
+        let transformedPath = transformCache.get(cacheKey);
+        if (transformedPath === undefined) {
           transformedPath = this.calculateCumulativePathTransform(
             originalPath,
             operations.slice(0, i), // 使用原始操作，不是已转换的操作
@@ -460,20 +458,17 @@ export class PathUtil {
           continue;
         }
 
-        (currentOp as any).path = transformedPath;
+        (currentOp as Extract<Operation, { path: Path }>).path = transformedPath;
       }
 
       // 处理move操作的目标路径
-      if (currentOp.type === "move_node" && (currentOp as any).newPath) {
-        const originalNewPath = (currentOp as any).newPath;
+      if (currentOp.type === "move_node" && currentOp.newPath) {
+        const originalNewPath = currentOp.newPath;
 
         // 使用缓存键避免重复计算
         const newPathCacheKey = `${JSON.stringify(originalNewPath)}-move_target-${i}`;
-        let transformedNewPath: Path | null;
-
-        if (transformCache.has(newPathCacheKey)) {
-          transformedNewPath = transformCache.get(newPathCacheKey)!;
-        } else {
+        let transformedNewPath = transformCache.get(newPathCacheKey);
+        if (transformedNewPath === undefined) {
           transformedNewPath = this.calculateCumulativePathTransform(
             originalNewPath,
             operations.slice(0, i),
@@ -486,7 +481,7 @@ export class PathUtil {
           continue;
         }
 
-        (currentOp as any).newPath = transformedNewPath;
+        (currentOp as Extract<Operation, { type: "move_node" }>).newPath = transformedNewPath;
       }
 
       result.push(currentOp);
@@ -515,7 +510,7 @@ export class PathUtil {
         continue;
       }
 
-      const opPath = (op as any).path;
+      const opPath = (op as Extract<Operation, { path: Path }>).path;
 
       // 检查这个操作是否会影响当前路径
       if (this.pathWouldBeAffected(currentPath, op.type, opPath)) {

@@ -1,7 +1,7 @@
 /**
- * Esc 浮层仲裁单测（useOverlayDismiss，D-003）：
+ * Esc 浮层仲裁单测（useOverlayDismiss）：
  * 浮层激活时 Esc 先关最上层（LIFO）、优先于编辑上下文；无浮层时 Esc 无操作
- * （Esc=后退已于 2026-09-20 用户裁决移除，后退归 Alt+←/→ 与标题栏按钮）。
+ * （Esc=后退已移除，后退归 Alt+←/→ 与标题栏按钮）。
  * 浮层注销后恢复「无浮层 → 后退」语义。
  * 契约注记：注册表只仲裁优先级，dismiss 后的注销由浮层自身状态驱动
  * （dismiss → open=false → effect cleanup），探针以 selfClose 忠实模拟。

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- 自写 d.ts：turndown 等库无官方类型，filter/options 等动态形参按 any 存根 */
 declare module "defuddle" {
   export interface DefuddleResult {
     content: string;

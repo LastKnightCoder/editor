@@ -32,7 +32,8 @@ export function GroupDialog({
     if (!open) return;
     setTitle(group?.title ?? "");
     const tone = group ? groupTone(group.color) : "blue";
-    setColor(TONE_OPTIONS.find(o => o.tone === tone)!.color);
+    const option = TONE_OPTIONS.find(o => o.tone === tone);
+    setColor(option ? option.color : TONE_OPTIONS[4].color);
   }, [open, group]);
 
   const save = () => {

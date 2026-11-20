@@ -80,5 +80,3 @@ export const useSelectState = (elementId: string) => {
     isSelecting,
   };
 };
-
-export default useSelectState;

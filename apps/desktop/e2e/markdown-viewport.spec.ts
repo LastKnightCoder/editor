@@ -153,10 +153,10 @@ async function visibleBlocks(page: Page) {
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 test("历史样本源码模式的打开与输入压力", async () => {
-  if (!fixture) {
-    test.skip(true, "设置 TAU_MARKDOWN_VIEWPORT_FIXTURE 指向历史参考文件");
-    return;
-  }
+  // 门控：依赖仓外历史参考文件（sha256 固定，不入库）；TAU_MARKDOWN_VIEWPORT_FIXTURE 指向该文件后执行
+  //（docs/notes/2026-11-15-markdown-viewport-validation.md「复测命令」）。
+  test.skip(!fixture, "设置 TAU_MARKDOWN_VIEWPORT_FIXTURE 指向历史参考文件");
+  if (!fixture) return;
   test.setTimeout(120_000);
   const original = await readFile(fixture, "utf8");
   await sandbox(async (app, launcher, directory) => {
@@ -315,6 +315,7 @@ async function exchangeWithNativeClipboard(html: string): Promise<{
 }
 
 test("跨占位复制到 macOS 富文本客户端，再粘贴客户端生成的富文本", async () => {
+  // 门控：AppKit 原生富文本剪贴板为 macOS 专属；非 darwin 平台跳过，macOS 上正常执行。
   test.skip(process.platform !== "darwin", "使用 macOS AppKit 原生富文本和独立剪贴板");
   test.setTimeout(120_000);
   await sandbox(async (app, launcher, directory) => {
@@ -466,6 +467,7 @@ test("按住鼠标跨屏拖选，正向和反向选区包含已经回收的正�
 });
 
 test("辅助技术启用时向 Chromium 无障碍树提供全文，保留当前编辑会话", async () => {
+  // 门控：Electron setAccessibilitySupportEnabled 限 macOS/Windows；Linux 跳过，macOS/Windows 上正常执行。
   test.skip(
     !["darwin", "win32"].includes(process.platform),
     "Electron 的辅助技术状态 API 限于 macOS 和 Windows"
@@ -537,10 +539,10 @@ test("辅助技术启用时向 Chromium 无障碍树提供全文，保留当前�
 });
 
 test("历史表格长文默认首屏可写，首次输入后立即保存全文", async () => {
-  if (!fixture) {
-    test.skip(true, "设置 TAU_MARKDOWN_VIEWPORT_FIXTURE 指向历史参考文件");
-    return;
-  }
+  // 门控：依赖仓外历史参考文件（sha256 固定，不入库）；TAU_MARKDOWN_VIEWPORT_FIXTURE 指向该文件后执行
+  //（docs/notes/2026-11-15-markdown-viewport-validation.md「复测命令」）。
+  test.skip(!fixture, "设置 TAU_MARKDOWN_VIEWPORT_FIXTURE 指向历史参考文件");
+  if (!fixture) return;
   test.setTimeout(240_000);
   const original = await readFile(fixture);
   const filename = basename(fixture);
@@ -618,10 +620,10 @@ function richFindVisible(page: Page, text: string) {
 }
 
 test("历史表格长文从首屏查找真实文末词，正文与源码均跳转高亮", async () => {
-  if (!fixture) {
-    test.skip(true, "设置 TAU_MARKDOWN_VIEWPORT_FIXTURE 指向历史参考文件");
-    return;
-  }
+  // 门控：依赖仓外历史参考文件（sha256 固定，不入库）；TAU_MARKDOWN_VIEWPORT_FIXTURE 指向该文件后执行
+  //（docs/notes/2026-11-15-markdown-viewport-validation.md「复测命令」）。
+  test.skip(!fixture, "设置 TAU_MARKDOWN_VIEWPORT_FIXTURE 指向历史参考文件");
+  if (!fixture) return;
   test.setTimeout(120_000);
   const original = await readFile(fixture, "utf8");
   const candidates = original

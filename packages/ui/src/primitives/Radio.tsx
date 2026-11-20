@@ -1,13 +1,12 @@
 /**
- * Radio —— 单选基础件（Input 方案 A「经典描边」语言，mockups/radio/，2026-09-19 定稿）。
+ * Radio —— 单选基础件（Input 的「经典描边」语言）。
  *
  * 原生 input[type=radio] 承载语义（appearance-none 自绘皮）：组内互斥、
  * 方向键移动即选择、读屏语义白送。形制是 Checkbox 的圆形同构：16×16 视觉圆
  * surface + line-1，选中 = 描边转 accent + 中心 accent 实点（110ms 缩放进场）。
  *
  * 结构铁律（同 Checkbox）：input / 圆环 / 中心点在同一层互为兄弟——peer-*
- * 变体只匹配 peer 的后续兄弟，深层后代会静默失效。状态语义（与 Input 裁决
- * 同源）：
+ * 变体只匹配 peer 的后续兄弟，深层后代会静默失效。状态语义（与 Input 同源）：
  *  - 命中 24×24；focus-visible 才显 ring；hover 描边加深半档，聚焦时让位
  *  - 错误态正源 aria-invalid（未选中 danger），选中压过错误（选中优先）
  *  - 禁用：label 整项降透明 55%（fieldSet 组禁用时经 :disabled 传播同样生效）

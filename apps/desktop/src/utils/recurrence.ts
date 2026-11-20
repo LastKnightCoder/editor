@@ -62,25 +62,3 @@ export const isDateScheduledForRecurrence = (
     }
   }
 };
-
-/**
- * Get today's date normalized to start of day
- */
-export const getTodayNormalized = (): dayjs.Dayjs => {
-  return dayjs().startOf("day");
-};
-
-/**
- * Get timestamp for start of day
- */
-export const getStartOfDayTimestamp = (date: dayjs.Dayjs | number): number => {
-  return dayjs(date).startOf("day").valueOf();
-};
-
-/**
- * Check if today is a scheduled day for the recurrence
- */
-export const isTodayScheduled = (recurrence: TodoRecurrence): boolean => {
-  const today = getTodayNormalized();
-  return isDateScheduledForRecurrence(recurrence, today);
-};

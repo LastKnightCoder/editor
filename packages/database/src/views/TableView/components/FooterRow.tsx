@@ -29,7 +29,7 @@ interface FooterRowProps {
   rows: RowData[];
   footer: Record<string, FooterSpec> | undefined;
   pluginManager: PluginManager;
-  /** 表尾聚合登记表：内置 9 个与扩展算子（D-137） */
+  /** 表尾聚合登记表：内置 9 个与扩展算子 */
   aggregateRegistry: AggregateRegistry;
   readonly: boolean;
   onChange: (columnId: string, spec: FooterSpec | null) => void;
@@ -70,7 +70,7 @@ const FooterFormulaDialog: React.FC<{
   onClose: () => void;
   onSave: (spec: FooterSpec) => void;
 }> = ({ open, column, spec, columns, rows, pluginManager, onClose, onSave }) => {
-  // 没有组合公式时从本列的汇总开始，用户再往后加项；公式只认内置算子（D-121）
+  // 没有组合公式时从本列的汇总开始，用户再往后加项；公式只认内置算子
   const initial = (): FormulaForm => {
     if (spec?.kind === "expr")
       return exprToForm(spec.expr, undefined, createFormContext(columns, pluginManager, "footer"));
@@ -169,7 +169,7 @@ const FooterCell: React.FC<{
       () => (spec ? formatResult(column, spec, rows, ctx, pluginManager, aggregateRegistry) : null),
       [column, spec, rows, ctx, pluginManager, aggregateRegistry]
     );
-    // 菜单按值类型过滤：内置保持「数值类 → 计数类」分组，扩展算子放最后一组（D-137）
+    // 菜单按值类型过滤：内置保持「数值类 → 计数类」分组，扩展算子放最后一组
     const available = useMemo(
       () => aggregateRegistry.listFor(ctx.resolveColumn(column.id)?.valueType ?? null),
       [aggregateRegistry, ctx, column.id]

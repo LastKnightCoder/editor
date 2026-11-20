@@ -22,7 +22,6 @@ function extractTextFromListItem(listItem: ListItemNode): Descendant[] {
   // 找到第一个 paragraph 子节点
   const paragraph = listItem.children.find(child => child.type === "paragraph");
   if (paragraph && paragraph.type === "paragraph") {
-    // 返回完整的 paragraph 结构
     return [paragraph] as ParagraphElement[];
   }
   // 如果没有 paragraph，返回默认空 paragraph
@@ -88,7 +87,8 @@ export function parseMindMapList(markdownList: string): MindMapNodeData | null {
 
     // 查找第一个 bulleted-list 节点
     const bulletedList = descendants.find(node => node.type === "bulleted-list") as
-      BulletedListNode | undefined;
+      | BulletedListNode
+      | undefined;
 
     if (!bulletedList) {
       throw new Error("未找到无序列表，请确保使用 Markdown 无序列表语法（- 或 *）");

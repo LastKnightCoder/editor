@@ -41,15 +41,14 @@ export function projectWhiteboardRouting(
   const recovered = new Map<string, WhiteboardRecoveryReason>();
   const ids = [...nodes.keys()].sort();
   for (const id of ids) {
-    const node = nodes.get(id)!;
+    const node = nodes.get(id);
+    if (!node) continue;
     const parent = node.placement.parent;
-    if (parent.kind === "page" ? !livePages.has(parent.id) : !nodes.has(parent.id)) {
+    const parentNode = parent.kind === "element" ? nodes.get(parent.id) : undefined;
+    if (parent.kind === "page" ? !livePages.has(parent.id) : parentNode === undefined) {
       parents.set(id, null);
       recovered.set(id, "parent-unavailable");
-    } else if (
-      parent.kind === "element" &&
-      !canContainWhiteboardElement(nodes.get(parent.id)!.contract, node.contract)
-    ) {
+    } else if (parentNode && !canContainWhiteboardElement(parentNode.contract, node.contract)) {
       parents.set(id, null);
       recovered.set(id, "containment");
     } else parents.set(id, parent);
@@ -83,7 +82,7 @@ export function projectWhiteboardRouting(
       const parent: WhiteboardParent | null = parents.get(current) ?? null;
       current = parent?.kind === "element" ? parent.id : null;
     }
-    let depth = current === null ? 0 : depths.get(current)!;
+    let depth = current === null ? 0 : (depths.get(current) ?? 0);
     for (const node of path.reverse()) {
       if (++depth > WHITEBOARD_LIMITS.payloadDepth) {
         parents.set(node, null);
@@ -102,8 +101,8 @@ export function projectWhiteboardRouting(
       path.push(current);
       const parent = parents.get(current);
       if (!parent) {
-        const fallback = nodes.get(current)!.placement.fallbackPageId;
-        page = livePages.has(fallback) ? fallback : null;
+        const fallbackPage = nodes.get(current)?.placement.fallbackPageId ?? null;
+        page = fallbackPage !== null && livePages.has(fallbackPage) ? fallbackPage : null;
         break;
       }
       if (parent.kind === "page") {
@@ -112,7 +111,7 @@ export function projectWhiteboardRouting(
       }
       current = parent.id;
     }
-    if (pages.has(current)) page = pages.get(current)!;
+    if (pages.has(current)) page = pages.get(current) ?? null;
     path.forEach(node => pages.set(node, page));
   }
   return { parents, recovered, pages, depths };

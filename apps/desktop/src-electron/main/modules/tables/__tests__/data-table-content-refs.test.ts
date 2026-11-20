@@ -3,17 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
 // 内容表间接加载到 electron 与视频笔记队列
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../content";
 import DataTableTable from "../data-table";
+import { must } from "../../../test-support";
 
 const RICH_TEXT_COLUMN = { id: "rt", title: "富文本", type: "rich-text" };
 const TEXT_COLUMN = { id: "text", title: "名称", type: "text" };
@@ -35,7 +30,8 @@ describe("数据表正文引用差集同步（D-136）", () => {
       .ref_count;
   const pendingAt = (id: number) =>
     db.prepare("SELECT released_at FROM content_pending_releases WHERE content_id = ?").get(id) as
-      { released_at: number } | undefined;
+      | { released_at: number }
+      | undefined;
   const contentExists = (id: number) =>
     Boolean(db.prepare("SELECT 1 FROM contents WHERE id = ?").get(id));
   /** 待回收正文基线：ref 0 + 已登记，进入数据表即由差集 retain 救回 */
@@ -74,22 +70,28 @@ describe("数据表正文引用差集同步（D-136）", () => {
     });
     expect(refCount(contentId)).toBe(1);
 
-    const removed = DataTableTable.applyChanges(db, {
-      id: table.id,
-      columns: [TEXT_COLUMN],
-      rows: { upsert: [], remove: [] },
-    })!;
+    const removed = must(
+      DataTableTable.applyChanges(db, {
+        id: table.id,
+        columns: [TEXT_COLUMN],
+        rows: { upsert: [], remove: [] },
+      }),
+      "DataTableTable.applyChanges"
+    );
     expect(removed.rows[0].rt).toBeUndefined();
     expect(refCount(contentId)).toBe(0);
     expect(pendingAt(contentId)).toBeTruthy();
     expect(contentExists(contentId)).toBe(true);
 
     // 模拟撤销：同列同值加回
-    const restored = DataTableTable.applyChanges(db, {
-      id: table.id,
-      columns: [RICH_TEXT_COLUMN],
-      rows: { upsert: [{ id: "r1", rt: cell(contentId) }], remove: [] },
-    })!;
+    const restored = must(
+      DataTableTable.applyChanges(db, {
+        id: table.id,
+        columns: [RICH_TEXT_COLUMN],
+        rows: { upsert: [{ id: "r1", rt: cell(contentId) }], remove: [] },
+      }),
+      "DataTableTable.applyChanges"
+    );
     expect(restored.rows[0].rt).toEqual(cell(contentId));
     expect(refCount(contentId)).toBe(1);
     expect(pendingAt(contentId)).toBeUndefined();

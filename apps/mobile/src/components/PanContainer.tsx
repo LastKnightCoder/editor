@@ -534,5 +534,3 @@ export function PanContainer(props: PanContainerProps) {
     </div>
   );
 }
-
-export default PanContainer;

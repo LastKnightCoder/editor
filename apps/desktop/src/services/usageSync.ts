@@ -19,7 +19,7 @@ import type {
   UsageSegmentInfo,
 } from "@/types/model-usage";
 
-export const USAGE_ROOT = "usage";
+const USAGE_ROOT = "usage";
 export const DEVICES_OBJECT = `${USAGE_ROOT}/devices.json`;
 export const manifestObject = (deviceId: string) => `${USAGE_ROOT}/${deviceId}/manifest.json`;
 export const segmentObject = (deviceId: string, month: string) =>

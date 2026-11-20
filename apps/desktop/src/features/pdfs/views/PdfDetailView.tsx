@@ -1,5 +1,5 @@
 /**
- * PDF 阅读页（D-070 方案 B）：一整张纸——左面板（目录 / 页面 / 标注 / 书签）+ 阅读区 + 纸内右栏
+ * PDF 阅读页：一整张纸——左面板（目录 / 页面 / 标注 / 书签）+ 阅读区 + 纸内右栏
  * 的 AI 对话（这份 PDF 专属，Ctrl/⌘+J 在本页开合它，壳层停靠栏让位）。
  * 面包屑「[左面板开关] PDF / 文件名」；进入收起全局侧栏、离开还原。
  * 打开即记录打开时间并还原到上次的阅读位置（页码进库、页内位置记在本机）；阅读位置防抖写回，
@@ -80,7 +80,7 @@ export function PdfDetailView() {
   if (loading) return <Loading />;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col px-4 pb-4 pt-1">
+    <div className="flex h-full min-h-0 w-full flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 overflow-hidden">
         {pdf ? (
           <PdfReaderPage pdf={pdf} annotationId={annotation ?? null} />
@@ -239,7 +239,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
             onActiveChange={setResizing}
             side="right"
             label="AI 对话栏宽度"
-            className="absolute bottom-4 left-0 top-4 z-10"
+            className="absolute top-4 bottom-4 left-0 z-10"
           />
           <div className="h-full py-1.5 pl-2" style={{ width: chatWidth }}>
             <PdfChatPanel

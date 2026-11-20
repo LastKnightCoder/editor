@@ -1,8 +1,8 @@
 /**
- * 对话 markdown 的代码与链接渲染（D-048 / D-057）：停靠栏、对话页及各域内对话共用。
+ * 对话 markdown 的代码与链接渲染：停靠栏、对话页及各域内对话共用。
  *  - 注册的可预览块（blockRegistry 按围栏语言解析）→ 块卡片，或渲染器的对话内直出形态
  *    （Mermaid / 白板，右上角「放大」）；
- *  - 其余围栏代码 → CodeBlock；行内代码 → surface 亮底 + line-1 描边 chip（D-009）；
+ *  - 其余围栏代码 → CodeBlock；行内代码 → surface 亮底 + line-1 描边 chip；
  *  - 链接 → 系统浏览器打开。
  *
  * 块身份：liveChat 的对话面（对话页 / 停靠栏，会话在统一会话 store 里）用

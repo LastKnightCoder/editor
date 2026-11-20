@@ -2,17 +2,12 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ComposeBoardTable from "../compose-board";
 import ContentTable from "../content";
+import { must } from "../../../test-support";
 
 const refCount = (db: Database.Database, pageId: number) =>
   (
@@ -42,7 +37,12 @@ describe("compose_boards", () => {
     const again = ComposeBoardTable.ensure(db, contentId, "别的");
     expect(again.pageId).toBe(board.pageId);
     expect(again.intent).toBe("写间隔重复");
-    expect(ComposeBoardTable.setIntent(db, contentId, "新意图")!.intent).toBe("新意图");
+    expect(
+      must(
+        ComposeBoardTable.setIntent(db, contentId, "新意图"),
+        "ComposeBoardTable.setIntent(db, contentId, '新..."
+      ).intent
+    ).toBe("新意图");
   });
 
   it("正文不存在时拒绝建板", () => {
@@ -53,7 +53,7 @@ describe("compose_boards", () => {
     ComposeBoardTable.ensure(db, contentId);
     ComposeBoardTable.dismiss(db, contentId, ["card:1", "article:2"]);
     const board = ComposeBoardTable.dismiss(db, contentId, ["card:1", "card:3"]);
-    expect(board!.dismissed).toEqual(["card:1", "article:2", "card:3"]);
+    expect(must(board, "board").dismissed).toEqual(["card:1", "article:2", "card:3"]);
   });
 
   it("摘要按实体去重数文档卡，含 frame 里的", () => {

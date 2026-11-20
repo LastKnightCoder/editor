@@ -15,6 +15,7 @@ import ItemReminderTable from "./item-reminder";
 import { Descendant } from "slate";
 import { prepareTaskNodes } from "../content-task-patches";
 import { getNextTaskEntityId } from "./module-entity-id";
+import type { SqliteRow } from "../../types/table";
 
 export default class TodoItemTable {
   static getListenEvents() {
@@ -34,7 +35,7 @@ export default class TodoItemTable {
     } as const;
   }
 
-  /** 「计划任务」已退役（D-114）：计划时段改由关联待办的日历事件表达，拒绝再写入 planned */
+  /** 「计划任务」已退役：计划时段改由关联待办的日历事件表达，拒绝再写入 planned */
   static assertType(type: string | undefined) {
     if (type !== undefined && !["normal", "deadline", "recurring"].includes(type)) {
       throw new Error(`Unsupported todo type: ${type}`);
@@ -95,28 +96,28 @@ export default class TodoItemTable {
     }
   }
 
-  static parse(row: any): TodoItem {
+  static parse(row: SqliteRow): TodoItem {
     const item: TodoItem = {
-      id: row.id,
-      groupId: row.group_id,
-      parentId: row.parent_id ?? null,
-      title: row.title,
+      id: row.id as number,
+      groupId: row.group_id as number,
+      parentId: (row.parent_id as number | null) ?? null,
+      title: row.title as string,
       type: (row.type as TodoItemType) || "normal",
-      descriptionContentId: row.description_content_id ?? null,
+      descriptionContentId: (row.description_content_id as number | null) ?? null,
       isCompleted: Boolean(row.is_completed),
-      startAt: row.start_at ?? null,
-      dueAt: row.due_at ?? null,
-      remindBefore: row.remind_before ?? null,
-      completedAt: row.completed_at ?? null,
-      sortIndex: row.sort_index,
+      startAt: (row.start_at as number | null) ?? null,
+      dueAt: (row.due_at as number | null) ?? null,
+      remindBefore: (row.remind_before as number | null) ?? null,
+      completedAt: (row.completed_at as number | null) ?? null,
+      sortIndex: row.sort_index as number,
       isArchived: Boolean(row.is_archived),
-      createTime: row.create_time,
-      updateTime: row.update_time,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
     };
 
     // 如果 JOIN 了 content 表，添加 descriptionContent
     if (row.content_content) {
-      item.descriptionContent = JSON.parse(row.content_content);
+      item.descriptionContent = JSON.parse(row.content_content as string);
     }
 
     return item;
@@ -132,7 +133,7 @@ export default class TodoItemTable {
       WHERE ti.group_id = ? AND ti.is_archived = 0
       ORDER BY ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index`
     );
-    return (stmt.all(params.groupId) as any[]).map(this.parse);
+    return (stmt.all(params.groupId) as SqliteRow[]).map(this.parse);
   }
 
   // 按任务类型列出所有任务（用于系统组）
@@ -158,7 +159,7 @@ export default class TodoItemTable {
     const stmt = db.prepare(sql);
     const rows = params.type === "all" ? stmt.all() : stmt.all(params.type);
     const extras = ItemReminderTable.extrasByOwner(db, "todo");
-    return (rows as any[]).map(row => {
+    return (rows as SqliteRow[]).map(row => {
       const item = this.parse(row);
       const extra = extras.get(item.id);
       if (extra && item.remindBefore != null) item.extraReminders = extra;
@@ -178,7 +179,9 @@ export default class TodoItemTable {
       : db.prepare(
           `SELECT MAX(sort_index) AS max_idx FROM todo_item WHERE parent_id IS NULL AND group_id = ?`
         );
-    const row = parentId ? (stmt.get(parentId, groupId) as any) : (stmt.get(groupId) as any);
+    const row = parentId
+      ? (stmt.get(parentId, groupId) as { max_idx: number | null } | undefined)
+      : (stmt.get(groupId) as { max_idx: number | null } | undefined);
     return row?.max_idx ?? 0;
   }
 
@@ -239,7 +242,7 @@ export default class TodoItemTable {
         LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
         WHERE ti.id = ?`
       )
-      .get(id);
+      .get(id) as SqliteRow;
     const created = this.parse(row);
     if (options.syncCalendar !== false) this.syncCalendar(db, created);
     return created;
@@ -292,7 +295,7 @@ export default class TodoItemTable {
         LEFT JOIN content_snapshots c ON ti.description_content_id = c.id
         WHERE ti.id = ?`
       )
-      .get(payload.id);
+      .get(payload.id) as SqliteRow;
     const updated = this.parse(row);
     this.syncCalendar(db, updated, cur.type as TodoItemType);
     return updated;
@@ -398,7 +401,7 @@ export default class TodoItemTable {
       WHERE id IN (SELECT id FROM descendants) AND group_id != ?`
     ).run(payload.id, payload.toGroupId, now, payload.toGroupId);
 
-    const row = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.id);
+    const row = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.id) as SqliteRow;
     return this.parse(row);
   }
 
@@ -412,7 +415,9 @@ export default class TodoItemTable {
             `SELECT * FROM todo_item WHERE group_id = ? AND parent_id IS NULL ORDER BY sort_index`
           );
     const rows =
-      parentId !== null ? (stmt.all(groupId, parentId) as any[]) : (stmt.all(groupId) as any[]);
+      parentId !== null
+        ? (stmt.all(groupId, parentId) as SqliteRow[])
+        : (stmt.all(groupId) as SqliteRow[]);
     return rows.map(this.parse);
   }
 
@@ -430,7 +435,9 @@ export default class TodoItemTable {
       remindBefore?: number | null;
     }
   ): TodoItem {
-    const ref = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.refId) as any;
+    const ref = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.refId) as
+      | SqliteRow
+      | undefined;
     if (!ref) throw new Error("ref todo_item not found");
 
     const refItem = this.parse(ref);
@@ -484,7 +491,7 @@ export default class TodoItemTable {
 
   // 递归删除：删除指定节点及其所有子节点
   static deleteItemCascade(db: Database.Database, params: { id: number }): number {
-    const id = typeof params === "object" ? (params as any).id : (params as unknown as number);
+    const id = typeof params === "object" ? params.id : (params as unknown as number);
     // UNION（非 UNION ALL）去重：parent_id 成环的脏数据下递归也能终止
     const rows = db
       .prepare(

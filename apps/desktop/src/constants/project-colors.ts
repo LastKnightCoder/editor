@@ -131,13 +131,8 @@ export const PROJECT_COLORS: ProjectColor[] = [
 
 export const getProjectColorValue = (
   colorName: ProjectColorName,
-  theme: "light" | "dark" = "light",
+  theme: "light" | "dark" = "light"
 ): string => {
-  const color = PROJECT_COLORS.find((c) => c.name === colorName);
+  const color = PROJECT_COLORS.find(c => c.name === colorName);
   return color ? color[theme] : PROJECT_COLORS[0][theme];
-};
-
-export const getProjectColorLabel = (colorName: ProjectColorName): string => {
-  const color = PROJECT_COLORS.find((c) => c.name === colorName);
-  return color ? color.label : PROJECT_COLORS[0].label;
 };

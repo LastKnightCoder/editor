@@ -98,7 +98,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     return editorEl?.clientWidth ?? 0;
   });
 
-  // 计算编辑器可用最大宽度
   useEffect(() => {
     const editorWidth = getEditorWidth();
     if (editorWidth) {

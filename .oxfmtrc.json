@@ -25,7 +25,6 @@
     "**/data",
     "pnpm-lock.yaml",
     "package-lock.json",
-    "docs/tasks/content-verification/evidence/**/*.json",
     "**/__fixtures__/*.md"
   ],
   "overrides": [

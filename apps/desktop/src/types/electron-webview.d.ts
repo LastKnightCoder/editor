@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- 自写 d.ts：手写 <webview> 标签与事件形状，动态 API（executeJavaScript 结果、new-window options）无官方类型可依 */
 declare namespace Electron {
   interface WebviewEvent extends Event {
     url?: string;
@@ -30,14 +31,8 @@ declare namespace Electron {
     executeJavaScript(code: string): Promise<any>;
 
     // Events
-    addEventListener(
-      event: "dom-ready",
-      listener: (event: Event) => void,
-    ): void;
-    addEventListener(
-      event: "did-finish-load",
-      listener: (event: Event) => void,
-    ): void;
+    addEventListener(event: "dom-ready", listener: (event: Event) => void): void;
+    addEventListener(event: "did-finish-load", listener: (event: Event) => void): void;
     addEventListener(
       event: "did-fail-load",
       listener: (event: {
@@ -45,40 +40,26 @@ declare namespace Electron {
         errorDescription: string;
         validatedURL: string;
         isMainFrame: boolean;
-      }) => void,
+      }) => void
     ): void;
     addEventListener(
       event: "did-frame-finish-load",
-      listener: (event: { isMainFrame: boolean }) => void,
+      listener: (event: { isMainFrame: boolean }) => void
     ): void;
-    addEventListener(
-      event: "did-start-loading",
-      listener: (event: Event) => void,
-    ): void;
-    addEventListener(
-      event: "did-stop-loading",
-      listener: (event: Event) => void,
-    ): void;
-    addEventListener(
-      event: "did-navigate",
-      listener: (event: { url: string }) => void,
-    ): void;
+    addEventListener(event: "did-start-loading", listener: (event: Event) => void): void;
+    addEventListener(event: "did-stop-loading", listener: (event: Event) => void): void;
+    addEventListener(event: "did-navigate", listener: (event: { url: string }) => void): void;
     addEventListener(
       event: "did-navigate-in-page",
-      listener: (event: { url: string; isMainFrame: boolean }) => void,
+      listener: (event: { url: string; isMainFrame: boolean }) => void
     ): void;
     addEventListener(
       event: "console-message",
-      listener: (event: {
-        level: number;
-        message: string;
-        line: number;
-        sourceId: string;
-      }) => void,
+      listener: (event: { level: number; message: string; line: number; sourceId: string }) => void
     ): void;
     addEventListener(
       event: "page-title-updated",
-      listener: (event: { title: string; explicitSet: boolean }) => void,
+      listener: (event: { title: string; explicitSet: boolean }) => void
     ): void;
     addEventListener(
       event: "new-window",
@@ -87,7 +68,7 @@ declare namespace Electron {
         frameName: string;
         disposition: string;
         options: any;
-      }) => void,
+      }) => void
     ): void;
     addEventListener(event: string, listener: (event: any) => void): void;
 

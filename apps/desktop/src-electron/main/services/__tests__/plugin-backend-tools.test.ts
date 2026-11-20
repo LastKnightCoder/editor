@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { must } from "../../test-support";
 
 it.each(["batch", "stdio"])(
   "宿主突然退出后，%s 工具与孙进程均被监督器回收",
@@ -57,7 +58,9 @@ it.each(["batch", "stdio"])(
         },
         { timeout: 15_000, interval: 50 }
       );
-      const exited = new Promise<void>(resolve => parent!.once("exit", () => resolve()));
+      const exited = new Promise<void>(resolve =>
+        must(parent, "parent").once("exit", () => resolve())
+      );
       parent.kill("SIGKILL");
       await exited;
       await vi.waitFor(

@@ -85,11 +85,7 @@ function ellipse(width: number, height: number): Vec[] {
   return points;
 }
 
-export function outlinePolylines(
-  outline: SketchOutline,
-  width: number,
-  height: number
-): Polyline[] {
+function outlinePolylines(outline: SketchOutline, width: number, height: number): Polyline[] {
   if (outline.kind === "rect") {
     return [{ points: roundedRect(width, height, outline.cornerRadius ?? 0), closed: true }];
   }

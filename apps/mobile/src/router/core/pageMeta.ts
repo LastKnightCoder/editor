@@ -41,10 +41,6 @@ export function getPageMeta(key: string): PageMeta | undefined {
   return pageMetaMap.get(key);
 }
 
-export function listPageMetas(): PageMeta[] {
-  return [...pageMetaMap.values()];
-}
-
 export function clearPageMetasForTest(): void {
   pageMetaMap.clear();
 }

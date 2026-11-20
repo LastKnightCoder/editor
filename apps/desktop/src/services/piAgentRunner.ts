@@ -138,9 +138,11 @@ export function runPiAgent(
         ...(options.additionalTools && options.executeAdditionalTool
           ? {
               executeToolCall: async (payload, signal) => {
-                const names = new Set(options.additionalTools!.map(tool => tool.function.name));
+                const names = new Set(
+                  (options.additionalTools ?? []).map(tool => tool.function.name)
+                );
                 if (!names.has(payload.toolName)) return null;
-                const executed = await options.executeAdditionalTool!({
+                const executed = await options.executeAdditionalTool?.({
                   toolName: payload.toolName,
                   args: payload.args,
                   signal,

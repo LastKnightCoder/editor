@@ -64,6 +64,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+if (!zipPath) {
+  console.warn(
+    `[expense-plugin.test] 构建产物缺失，本组用例将跳过：期望 ${dist}/tau.expense-<manifest version>.zip。可先在 plugins/tau-plugin-expense 下执行 pnpm build 生成产物`
+  );
+}
+
 describe.skipIf(!zipPath)("记账插件在移动宿主上", () => {
   for (const platform of ["android", "ios"] as const)
     it(`${platform}：启用后有功能入口、今天页卡片、主页与二级页`, async () => {
@@ -87,13 +93,14 @@ describe.skipIf(!zipPath)("记账插件在移动宿主上", () => {
         expect(
           [...runtime.entries.values()].map(e => [e.definition.title, typeof e.definition.icon])
         ).toEqual([["记账本", "object"]]);
-        expect(
-          [...runtime.homePanels.values()].map(p => [
-            p.definition.title,
-            p.definition.size,
-            p.definition.action,
-          ])
-        ).toEqual([["记账", "compact", null]]);
+        const [homePanel] = [...runtime.homePanels.values()];
+        expect([homePanel.definition.title, homePanel.definition.size]).toEqual([
+          "记账",
+          "compact",
+        ]);
+        // 手机卡片主体点击执行 action 入口：标题「查看」，run 打开记账主页
+        expect(homePanel.definition.action).toMatchObject({ title: "查看" });
+        expect(typeof homePanel.definition.action?.run).toBe("function");
         expect([...runtime.pages.keys()].sort()).toEqual(
           ["calendar", "categories", "category", "expense", "review", "search", "settings"].map(
             id => `tau.expense:${id}`

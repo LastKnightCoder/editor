@@ -2,6 +2,7 @@ import { basename } from "node:path";
 import Database from "better-sqlite3";
 import log from "electron-log";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
+import type { Descendant } from "slate";
 import {
   FlashcardDeck,
   FlashcardDeckStats,
@@ -128,7 +129,7 @@ class FlashcardTable {
     row: ReferenceRow,
     content?: {
       id: number;
-      content: any;
+      content: Descendant[];
       createTime: number;
       updateTime: number;
       count: number;
@@ -148,8 +149,7 @@ class FlashcardTable {
   }
 
   private static mapCardRow(row: CardRow, references: FlashcardReference[]): Flashcard {
-    // Parse prompt as Descendant[] with fallback
-    let prompt: any;
+    let prompt: Descendant[];
     try {
       prompt = JSON.parse(row.prompt);
       if (!Array.isArray(prompt)) {
@@ -171,8 +171,7 @@ class FlashcardTable {
       ];
     }
 
-    // Parse detail as Descendant[] with fallback
-    let detail: any;
+    let detail: Descendant[];
     try {
       detail = JSON.parse(row.detail);
       if (!Array.isArray(detail)) {
@@ -299,20 +298,31 @@ class FlashcardTable {
         acc[row.card_id] = [];
       }
 
-      // Parse content if available
       let content = null;
-      if (row.content_db_id && row.content_data) {
+      const {
+        content_create_time: createTime,
+        content_update_time: updateTime,
+        content_count: count,
+        content_ref_count: refCount,
+        content_contracts: contracts,
+        content_revision: revision,
+      } = row;
+      const contentRowComplete =
+        createTime !== null &&
+        updateTime !== null &&
+        count !== null &&
+        refCount !== null &&
+        (!contracts || revision !== null);
+      if (row.content_db_id && row.content_data && contentRowComplete) {
         try {
           content = {
             id: row.content_db_id,
             content: JSON.parse(row.content_data),
-            createTime: row.content_create_time!,
-            updateTime: row.content_update_time!,
-            count: row.content_count!,
-            refCount: row.content_ref_count!,
-            ...(row.content_contracts
-              ? { contracts: JSON.parse(row.content_contracts), revision: row.content_revision! }
-              : {}),
+            createTime,
+            updateTime,
+            count,
+            refCount,
+            ...(contracts ? { contracts: JSON.parse(contracts), revision } : {}),
           };
         } catch (e) {
           log.error("[FlashcardTable] Failed to parse content data", e);
@@ -575,7 +585,7 @@ class FlashcardTable {
     } = {}
   ): Flashcard[] {
     const conditions: string[] = ["1=1"];
-    const values: any[] = [];
+    const values: Array<string | number> = [];
 
     if (typeof params.deckId === "number") {
       conditions.push("deck_id = ?");
@@ -639,7 +649,6 @@ class FlashcardTable {
       )
     `);
 
-    // Serialize Descendant[] to JSON strings
     const promptJson = JSON.stringify(payload.prompt);
     const detailJson = JSON.stringify(
       payload.detail ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
@@ -681,7 +690,6 @@ class FlashcardTable {
     if (!existingRow) return null;
     const now = Date.now();
 
-    // Serialize prompt and detail if provided
     const promptJson = payload.prompt ? JSON.stringify(payload.prompt) : existingRow.prompt;
     const detailJson = payload.detail ? JSON.stringify(payload.detail) : existingRow.detail;
 
@@ -735,7 +743,7 @@ class FlashcardTable {
   static getReviewQueue(db: Database.Database, params: FlashcardQueueRequest = {}): Flashcard[] {
     const now = Date.now();
     const conditions = [];
-    const values: any[] = [];
+    const values: Array<string | number> = [];
 
     if (typeof params.deckId === "number") {
       conditions.push("deck_id = ?");
@@ -843,7 +851,8 @@ class FlashcardTable {
         );
       const reviewId = Number(review.lastInsertRowid);
 
-      const updated = this.getFlashcard(db, payload.cardId)!;
+      const updated = this.getFlashcard(db, payload.cardId);
+      if (!updated) throw new Error(`复习后卡片读取失败：${payload.cardId}`);
       return {
         ...updated,
         undo: {

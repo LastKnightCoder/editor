@@ -50,7 +50,7 @@ function useFrame(api: GraphOverlayApi) {
 export function sampleKeys(keys: string[], limit: number): string[] {
   if (keys.length <= limit) return keys;
   const step = keys.length / limit;
-  return Array.from({ length: limit }, (_, index) => keys[Math.floor(index * step)]!);
+  return Array.from({ length: limit }, (_, index) => keys[Math.floor(index * step)]);
 }
 
 /** 错开的起点：黄金分割取小数部分，相邻节点不会同时亮 */

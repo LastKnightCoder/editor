@@ -3,17 +3,14 @@ import { invoke } from "@/electron";
 /**
  * 写入缓存文件
  */
-export const writeCacheFile = async (
-  filePath: string,
-  data: any,
-): Promise<void> => {
+export const writeCacheFile = async (filePath: string, data: unknown): Promise<void> => {
   return invoke("write-cache-file", filePath, data);
 };
 
 /**
  * 读取缓存文件
  */
-export const readCacheFile = async (filePath: string): Promise<any | null> => {
+export const readCacheFile = async (filePath: string): Promise<unknown | null> => {
   return invoke("read-cache-file", filePath);
 };
 
@@ -22,11 +19,4 @@ export const readCacheFile = async (filePath: string): Promise<any | null> => {
  */
 export const cacheFileExists = async (filePath: string): Promise<boolean> => {
   return invoke("cache-file-exists", filePath);
-};
-
-/**
- * 删除缓存文件
- */
-export const deleteCacheFile = async (filePath: string): Promise<void> => {
-  return invoke("delete-cache-file", filePath);
 };

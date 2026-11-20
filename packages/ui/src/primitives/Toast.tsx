@@ -7,7 +7,7 @@
  * 位置四选一：top-center（默认）/ top-right / bottom-right / bottom-center，
  * 全局默认可经 toast.config 调整、单条可覆写；层级 z-[360]，高于命令面板
  * （z-[101]）与 Dialog / Drawer（z-[340]），面板或弹窗打开时操作反馈仍可见。不接 Esc（浮层退场注册表
- * 只登记阻断后退的浮层，见 D-003）。
+ * 只登记阻断后退的浮层）。
  *
  * 用法：app 壳层挂载 <ToastHost /> 一次；任意处调用 toast.success("已保存")、
  * toast.error("失败")、toast.loading → toast.resolve(id) 或 toast.promise(p, {...})。
@@ -282,6 +282,7 @@ export function ToastPill({
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const Icon = TYPE_ICON[item.type];
+  const action = item.action;
   const closedRef = useRef(false);
   const onCloseRef = useRef(item.onClose);
   onCloseRef.current = item.onClose;
@@ -386,7 +387,7 @@ export function ToastPill({
       />
       {/* 竖直 padding 只在这一层（模板同款 7px），胶囊本身不叠 py——否则高度胀到 ~40px */}
       <span className="min-w-0 truncate py-[7px]">{item.message}</span>
-      {item.action && (
+      {action && (
         <button
           type="button"
           className={clsx(
@@ -397,11 +398,11 @@ export function ToastPill({
           )}
           onClick={e => {
             e.stopPropagation();
-            item.action!.onClick();
+            action.onClick();
             close();
           }}
         >
-          {item.action.label}
+          {action.label}
         </button>
       )}
     </div>

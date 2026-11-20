@@ -11,14 +11,8 @@ import ProjectTable from "../project";
 import DataTableTable from "../data-table";
 import PluginDataTable from "../plugin-data";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 const scope = { databaseName: ":memory:", pluginId: "baseline.ownership" };
 const text = "多种拥有者共同持有🙂";
@@ -72,7 +66,7 @@ describe("正文持有基准 F5：独立对账与插件恢复", () => {
       children: [],
       refType: "",
       refId: 0,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.Document,
     });
     const table = DataTableTable.create(db, {

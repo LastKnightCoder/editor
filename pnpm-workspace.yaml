@@ -24,6 +24,7 @@ supportedArchitectures:
     - arm64
 
 patchedDependencies:
+  "@earendil-works/pi-coding-agent@1.5.2": patches/pi-coding-agent@1.5.2.patch
   better-sqlite3@12.10.0: patches/better-sqlite3@12.10.0.patch
   slate-react@0.126.4: patches/slate-react@0.126.4.patch
 

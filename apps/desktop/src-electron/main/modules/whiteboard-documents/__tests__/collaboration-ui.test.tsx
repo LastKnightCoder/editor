@@ -12,6 +12,7 @@ import { CollaborationAssetService } from "../../collaboration/asset-service";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { createServer } from "../../../../../../collaboration-server/src/server";
+import { must } from "../../../test-support";
 
 vi.hoisted(() => {
   Object.defineProperty(window, "electron", { configurable: true, value: {} });
@@ -49,7 +50,10 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../local-state", () => ({
-  openWhiteboardState: () => ({ store: state.store!, assets: state.assets! }),
+  openWhiteboardState: () => ({
+    store: must(state.store, "state.store"),
+    assets: must(state.assets, "state.assets"),
+  }),
 }));
 vi.mock("../../../module-init/ModuleInitManager", () => ({
   default: { initModule: async () => ({ success: true }) },
@@ -167,10 +171,10 @@ async function side(nickname: string, window: number, database: string): Promise
 }
 const call = (side: Side, name: string, ...args: unknown[]) => {
   acting = side.device;
-  return side.handlers.get(`whiteboard-document:${name}`)!(
-    { sender: state.windows.find(w => w.id === side.window).webContents },
-    ...args
-  );
+  return must(
+    side.handlers.get(`whiteboard-document:${name}`),
+    "side.handlers.get(`whiteboard-document:${name}`)"
+  )({ sender: state.windows.find(w => w.id === side.window).webContents }, ...args);
 };
 beforeEach(async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "whiteboard-flow-server-"));
@@ -229,7 +233,7 @@ vi.mock("@/electron", () => ({
   },
   on: (channel: string, listener: (event: unknown, payload: unknown) => void) => {
     if (!state.listeners.has(channel)) state.listeners.set(channel, new Set());
-    state.listeners.get(channel)!.add(listener);
+    must(state.listeners.get(channel), "state.listeners.get(channel)").add(listener);
   },
   off: (channel: string, listener: (event: unknown, payload: unknown) => void) => {
     state.listeners.get(channel)?.delete(listener);
@@ -308,7 +312,7 @@ beforeEach(() => {
 const disposeUI = async () => {
   if (root)
     await act(async () => {
-      root!.unmount();
+      must(root, "root").unmount();
     });
   root = undefined;
   await act(async () => {
@@ -326,13 +330,13 @@ async function mountBoard(resource?: "video" | "missing") {
   const model = new WhiteboardModel(source);
   const [pageId] = model.submit([{ type: "create_page", title: "页" }], null).createdIds;
   if (resource) {
-    const reference = await state.assets!.keepLocalFile(documentId, {
+    const reference = await must(state.assets, "state.assets").keepLocalFile(documentId, {
       name: "clip.mp4",
       mime: "video/mp4",
       bytes: new Uint8Array([1, 2]),
     });
     if (resource === "missing")
-      rmSync(await state.assets!.resolveReference("", documentId, reference));
+      rmSync(await must(state.assets, "state.assets").resolveReference("", documentId, reference));
     const contract = await prepareWhiteboardContract("example", {
       type: "example.video",
       dataVersion: 1,
@@ -367,7 +371,7 @@ async function mountBoard(resource?: "video" | "missing") {
   root = createRoot(container);
   cleanup.push(disposeUI);
   await act(async () =>
-    root!.render(
+    must(root, "root").render(
       <QueryClientProvider client={queryClient}>
         <DndProvider backend={HTML5Backend}>
           <DocumentBoardCanvas
@@ -391,12 +395,12 @@ async function mountBoard(resource?: "video" | "missing") {
 const button = (label: string) =>
   [...document.querySelectorAll("button")].find(node => node.textContent === label);
 async function publishFromUI() {
-  await act(async () => button("共享")!.click());
-  await act(async () => button("发起共享")!.click());
+  await act(async () => must(button("共享"), "button('共享')").click());
+  await act(async () => must(button("发起共享"), "button('发起共享')").click());
 }
 it("完整链路：弹窗发布、真实客户端回复保存屏障、服务端落库、会话交接与继续编辑", async () => {
   const { owner, entry, container } = await mountBoard();
-  const previous = entry.getSnapshot().client!;
+  const previous = must(entry.getSnapshot().client, "entry.getSnapshot().client");
   await publishFromUI();
   await vi.waitFor(() => expect(entry.getSnapshot().client).not.toBe(previous));
   expect(entry.getSnapshot().phase).toBe("ready");
@@ -404,7 +408,7 @@ it("完整链路：弹窗发布、真实客户端回复保存屏障、服务端�
   expect(state.sent.some(event => event.channel === "whiteboard-document:detached")).toBe(true);
   expect(server.store.db.prepare("SELECT count(*) AS n FROM documents").get()).toEqual({ n: 1 });
   expect(container.querySelector("svg[data-whiteboard-canvas]")).toBeTruthy();
-  const current = entry.getSnapshot().client!;
+  const current = must(entry.getSnapshot().client, "entry.getSnapshot().client");
   await act(async () => {
     current.model.submit(
       [{ type: "edit_title", edit: { offset: 0, remove: 0, text: "共享后继续编辑" } }],
@@ -416,7 +420,7 @@ it("完整链路：弹窗发布、真实客户端回复保存屏障、服务端�
 });
 it("完整链路：发布响应丢失后按原任务继续，不创建第二个房间", async () => {
   const { entry, container } = await mountBoard();
-  const previous = entry.getSnapshot().client!;
+  const previous = must(entry.getSnapshot().client, "entry.getSnapshot().client");
   dropNextPublish = true;
   await publishFromUI();
   await vi.waitFor(() => expect(button("继续共享")).toBeTruthy());
@@ -427,19 +431,22 @@ it("完整链路：发布响应丢失后按原任务继续，不创建第二个�
       "继续共享"
     )
   );
-  const dialog = document.querySelector('[role="dialog"][data-state="open"]')!;
+  const dialog = must(
+    document.querySelector('[role="dialog"][data-state="open"]'),
+    "document.querySelector('[role='dialog'][data-..."
+  );
   const resume = [...dialog.querySelectorAll("button")].find(
     node => node.textContent === "继续共享"
   );
   expect(resume).toBeTruthy();
   expect(dialog.textContent).not.toContain("发起共享");
-  await act(async () => resume!.click());
+  await act(async () => must(resume, "resume").click());
   await vi.waitFor(() => expect(entry.getSnapshot().client).not.toBe(previous));
   expect(server.store.db.prepare("SELECT count(*) AS n FROM documents").get()).toEqual({ n: 1 });
 });
 it("完整链路：发布已成功但重开失败，保留只读画布并单独重试会话", async () => {
   const { entry, container } = await mountBoard();
-  const previous = entry.getSnapshot().client!;
+  const previous = must(entry.getSnapshot().client, "entry.getSnapshot().client");
   const canvas = container.querySelector("svg[data-whiteboard-canvas]");
   state.failOpen = true;
   await publishFromUI();
@@ -448,7 +455,7 @@ it("完整链路：发布已成功但重开失败，保留只读画布并单独�
   expect(container.textContent).toContain("当前画布只读");
   expect(previous.getSnapshot().frozen).toBe(true);
   state.failOpen = false;
-  await act(async () => button("重试")!.click());
+  await act(async () => must(button("重试"), "button('重试')").click());
   await vi.waitFor(() => expect(entry.getSnapshot().phase).toBe("ready"));
   expect(entry.getSnapshot().client).not.toBe(previous);
   expect(server.store.db.prepare("SELECT count(*) AS n FROM documents").get()).toEqual({ n: 1 });
@@ -458,7 +465,7 @@ it.each(["video", "missing"] as const)(
   "完整链路：%s 资源预检失败不冻结白板、不建房，可继续保存",
   async resource => {
     const { entry, container } = await mountBoard(resource);
-    const previous = entry.getSnapshot().client!;
+    const previous = must(entry.getSnapshot().client, "entry.getSnapshot().client");
     await publishFromUI();
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain(
@@ -482,8 +489,8 @@ it.each(["video", "missing"] as const)(
 
 it("完整链路：保存屏障补入的视频在建房前被拒绝，原会话解冻", async () => {
   const { entry, created } = await mountBoard();
-  const previous = entry.getSnapshot().client!;
-  const reference = await state.assets!.keepLocalFile(created.documentId, {
+  const previous = must(entry.getSnapshot().client, "entry.getSnapshot().client");
+  const reference = await must(state.assets, "state.assets").keepLocalFile(created.documentId, {
     name: "late.mp4",
     mime: "video/mp4",
     bytes: new Uint8Array([1]),
@@ -523,7 +530,7 @@ it("完整链路：保存屏障补入的视频在建房前被拒绝，原会话�
 });
 it("完整链路：协作面板渲染失败不卸载画布，文档仍可保存", async () => {
   const { entry, container } = await mountBoard();
-  const client = entry.getSnapshot().client!;
+  const client = must(entry.getSnapshot().client, "entry.getSnapshot().client");
   const canvas = container.querySelector("svg[data-whiteboard-canvas]");
   const errors = vi.spyOn(console, "error").mockImplementation(() => {});
   const summary = vi.spyOn(client, "getSummary").mockImplementation(() => {
@@ -554,9 +561,9 @@ it("完整链路：协作面板渲染失败不卸载画布，文档仍可保存"
 
 it("完整链路：发布前网络失败可在原弹窗取消任务，恢复编辑且不重开会话", async () => {
   const { entry } = await mountBoard();
-  const previous = entry.getSnapshot().client!;
+  const previous = must(entry.getSnapshot().client, "entry.getSnapshot().client");
   const failure = vi
-    .spyOn(state.assets!, "flush")
+    .spyOn(must(state.assets, "state.assets"), "flush")
     .mockRejectedValueOnce(new TypeError("fetch failed"));
   try {
     await publishFromUI();
@@ -566,13 +573,16 @@ it("完整链路：发布前网络失败可在原弹窗取消任务，恢复编�
         "继续共享"
       )
     );
-    const dialog = document.querySelector('[role="dialog"][data-state="open"]')!;
+    const dialog = must(
+      document.querySelector('[role="dialog"][data-state="open"]'),
+      "document.querySelector('[role='dialog'][data-..."
+    );
     const cancel = [...dialog.querySelectorAll("button")].find(
       node => node.textContent === "取消共享"
     );
     expect(cancel).toBeTruthy();
     expect(previous.getSnapshot().frozen).toBe(true);
-    await act(async () => cancel!.click());
+    await act(async () => must(cancel, "cancel").click());
     await vi.waitFor(() => expect(previous.getSnapshot().frozen).toBe(false));
     expect(entry.getSnapshot().client).toBe(previous);
     expect(server.store.db.prepare("SELECT status FROM documents").get()).toEqual({

@@ -23,7 +23,7 @@ export function GalleryCover({ row, coverType, coverImageColumnId }: GalleryCove
   );
   const { data } = useQuery({
     queryKey,
-    queryFn: () => commands.getContentById(contentId!),
+    queryFn: () => commands.getContentById(contentId ?? 0),
     enabled: coverType === "detail" && Boolean(contentId),
     staleTime: 0,
     refetchOnWindowFocus: true,

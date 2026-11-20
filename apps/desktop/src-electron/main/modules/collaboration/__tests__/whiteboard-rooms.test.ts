@@ -2,6 +2,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { registerCollaborationIpc } from "../ipc-controller";
 import type { CollaborationIpcContext } from "../types";
+import { must } from "../../../test-support";
 
 const handlers = vi.hoisted(() => new Map<string, (...args: any[]) => any>());
 vi.mock("electron", () => ({
@@ -39,16 +40,20 @@ it("白板房间复用协作码与成员入口，未加入的房间不签发", a
     },
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
-  await handlers.get("collaboration:invitation")!({}, room.id);
+  await must(handlers.get("collaboration:invitation"), "collaboration:invitation")({}, room.id);
   expect(issueInvitation).toHaveBeenCalledWith("https://collab.test", "board-room");
-  await handlers.get("collaboration:remove-member")!({}, room.id, "guest");
+  await must(handlers.get("collaboration:remove-member"), "collaboration:remove-member")(
+    {},
+    room.id,
+    "guest"
+  );
   expect(request).toHaveBeenCalledWith(
     "https://collab.test",
     "/v1/documents/board-room/members/guest",
     "DELETE"
   );
   expect(context.openRoom).not.toHaveBeenCalled();
-  await expect(handlers.get("collaboration:invitation")!({}, "unknown")).rejects.toThrow(
-    "已退出协作"
-  );
+  await expect(
+    must(handlers.get("collaboration:invitation"), "collaboration:invitation")({}, "unknown")
+  ).rejects.toThrow("已退出协作");
 });

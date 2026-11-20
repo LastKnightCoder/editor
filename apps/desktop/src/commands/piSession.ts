@@ -118,7 +118,7 @@ export function piSessionTranscript(
 }
 
 /**
- * 改会话树（M4-d，分支都在同一文件里）：回退到用户消息之前（编辑重发/重新生成）、
+ * 改会话树（分支都在同一文件里）：回退到用户消息之前（编辑重发/重新生成）、
  * 分叉到回答之后（从这里建分支）、切到某个版本、省略 entry（删除）。entryId 取投影的 piEntryIds /
  * piVersions。
  */
@@ -147,7 +147,7 @@ export function piSessionTurn(
   return withModule("pi-session", () => invoke("pi-session:turn", { location, entryId }));
 }
 
-/** 树谱视图（M4-d）：对话里全部用户消息组成的树（回答折叠），切换节点用 switch */
+/** 树谱视图：对话里全部用户消息组成的树（回答折叠），切换节点用 switch */
 export function piSessionTree(
   location: PiSessionLocation
 ): Promise<Outcome & { nodes?: ConversationTreeNode[] }> {
@@ -261,15 +261,6 @@ export function piSessionToolError(
   executionId?: string
 ): Promise<Outcome> {
   return invoke<Outcome>("pi-session:tool-error", { sessionId, toolCallId, error, executionId });
-}
-
-export function piSessionToolUpdate(
-  sessionId: string,
-  toolCallId: string,
-  partial: Record<string, unknown>,
-  executionId?: string
-): Promise<Outcome> {
-  return invoke<Outcome>("pi-session:tool-update", { sessionId, toolCallId, partial, executionId });
 }
 
 type PiSessionEventEnvelope = { sessionId: string; event: AgentSessionEvent };

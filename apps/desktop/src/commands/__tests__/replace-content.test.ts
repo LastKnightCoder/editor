@@ -29,11 +29,7 @@ const bridge = vi.hoisted(() => {
   } as unknown as ElectronAPI;
   return state;
 });
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
+vi.mock("electron");
 vi.mock("../../../src-electron/main/services/content-execution", () => ({
   contentExecutor: {
     execute: async (request: unknown) => {
@@ -47,9 +43,7 @@ vi.mock("../../../src-electron/main/services/content-execution", () => ({
 vi.mock("../../../src-electron/main/utils/PathUtil", () => ({
   default: { getAppDir: () => bridge.dir },
 }));
-vi.mock("../../../src-electron/main/modules/video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../../src-electron/main/modules/video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../packages/db-schema/schema/main.sql?raw";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";

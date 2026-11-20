@@ -5,7 +5,7 @@ import { getProjectItemById } from "@/commands";
 import { EProjectItemType, ProjectItem } from "@/types";
 import { useProjectContext } from "../ProjectContext";
 import VideoNoteView from "../VideoNoteView";
-import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
+import WhiteboardProjectView from "../WhiteboardProjectItemView";
 import WebViewProjectItemView from "../WebViewProjectItemView";
 import TableProjectItemView from "../TableProjectItemView";
 import PdfProjectItemView from "../PdfProjectItemView";
@@ -54,10 +54,10 @@ const EditProjectView = () => {
     );
   }
 
-  if (projectItem.projectItemType === EProjectItemType.WhiteBoard) {
+  if (projectItem.projectItemType === EProjectItemType.Whiteboard) {
     return (
       <div className="h-full w-full">
-        <WhiteBoardProjectView key={projectItem.id} projectItemId={projectItem.id} />
+        <WhiteboardProjectView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
   }

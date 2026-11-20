@@ -18,9 +18,11 @@
 
 纯聊天模型、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用，ThinkingLevel 与 MentionRef 也归该层，不反向引用输入组件目录。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
 
-跨端 AI 契约、模型配置与转换归 `@tau/ai/contracts` / `models`，桌面原类型入口只转导出。目录命中时模型 api、容量、输入模态和推理能力取目录值；自定义价格保留优先级，模型采样、headers、compat 与 stripThinkTags 沿用原语义。think 标签流转换从 `@tau/ai/think-stream` 消费，服务商协议仍交 pi-ai。
+跨端 AI 契约、模型配置与转换归 `@tau/ai/contracts` / `models`，桌面原类型入口只转导出。目录命中时容量、输入模态和推理能力取目录值，协议优先使用目录中宿主支持的 API，再取模型配置或服务商的兜底协议。桌面和移动按解析后的模型协议发送请求。自定义价格保留优先级，模型采样、headers、compat 与 stripThinkTags 沿用原语义。think 标签流转换从 `@tau/ai/think-stream` 消费，服务商协议仍交 pi-ai。
 
-`pi-session-transcript.ts` 转导出 `@tau/ai/session` 的公共投影，移动端也消费它。JSONL 原始消息保留签名与模型字段；展示仍是 ChatSessionMessage / assistant_blocks，完整展示路径与压缩后的模型上下文分开。会话交换继续使用当前 pi v3，不能替换成 pi-agent-core 新 JsonlSessionRepo 的另一种格式；公共层的格式约束由官方 SessionManager 双向读写与上下文差分测试守护。source 的解析保留 mobile，手机写入的同格式记录可以经相同历史投影展示；设备缺失的工具不会因查看历史而被执行。具体公共接口见 [AI 公共核心](/packages/ai/README.md)。
+旧 Azure 服务商标识只在内置目录查询时映射到 `azure`，会话与功能分配仍用用户配置的 provider ID。Kimi Coding 目录命中时，旧官方 `/coding` 地址按新版协议发往 `/coding/v1`。OpenAI Chat Completions 在有工具历史且本轮无工具时默认省略 `tools`，要求空数组的模型可设置 `compat.requiresToolsWithToolHistory`。Anthropic 默认发送完整历史，桌面会话只在运行期间预热缓存。
+
+`pi-session-transcript.ts` 转导出 `@tau/ai/session` 的公共投影，移动端也消费它。JSONL 原始消息保留签名与模型字段，展示仍是 ChatSessionMessage / assistant_blocks，完整展示路径与压缩后的模型上下文分开。会话交换使用 pi v3，公共层的格式约束由官方 SessionManager 双向读写与上下文差分测试守护。桌面首条消息即可落盘，旧会话没有文件时按空对话处理。source 的解析保留 mobile，手机写入的同格式记录可以经相同历史投影展示；设备缺失的工具不会因查看历史而被执行。具体公共接口见 [AI 公共核心](/packages/ai/README.md)。
 
 会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
 
@@ -53,7 +55,7 @@ MCP 连接配置的摘要进入工具定义身份，渲染层重载后也不能�
 
 桌面带工具调用统一使用主进程 pi 会话。`piChatRuntime` 按 conversationKey 常驻持有聊天容器、
 事件归约器、待发送队列与插话，组件只负责输入与展示；切页/卸载不能停止归约。一轮结束（settled）后
-重读会话文件的投影回写容器。单发生成走 `services/piLLM.ts`（`pi-ai:single-shot`），一次性带工具的
+重读会话文件的投影回写容器。插话绑定读取附件前的运行，Pi 补丁在异步预检后复核运行身份；原轮已结束时返回待发送队列。单发生成走 `services/piLLM.ts`（`pi-ai:single-shot`），一次性带工具的
 任务走 `services/piAgentRunner.ts`。新增 AI 入口不得再引入自研协议适配或直连服务商 SDK；集成设置的
 Key 连接测试用 `pi-ai:verify-key`。
 

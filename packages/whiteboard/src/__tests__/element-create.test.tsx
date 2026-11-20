@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { SELECT_TOOL_ID } from "../constants/tools";
 import {
   defineElement,
@@ -211,7 +211,7 @@ interface RenderResult {
   unmount: () => Promise<void>;
 }
 
-const renderWhiteBoard = async (
+const renderWhiteboard = async (
   extension: WhiteboardExtension,
   options: { initData?: BoardElement[]; onChange?: (snapshot: unknown) => void } = {}
 ): Promise<RenderResult> => {
@@ -242,7 +242,7 @@ const renderWhiteBoard = async (
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={extensions}
         initData={options.initData ?? []}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
@@ -461,7 +461,7 @@ describe("创建型工具装配校验", () => {
 describe("创建型工具激活", () => {
   it("runTool 激活工具，再次点击切回选择，readonly 下不能激活", async () => {
     const { extension } = createAcmeExtension();
-    const { board, unmount } = await renderWhiteBoard(extension);
+    const { board, unmount } = await renderWhiteboard(extension);
     const tool = board.extensions!.tools.find(item => item.id === "acme.card.create")!;
 
     board.extensions!.runTool(tool);
@@ -485,7 +485,7 @@ describe("click 手势", () => {
   it("点击即插入以点击点为中心的 defaultSize 元素，一次 onChange、一步撤销、工具复位并选中", async () => {
     const onChange = vi.fn();
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension, { onChange });
+    const { board, fire, unmount } = await renderWhiteboard(extension, { onChange });
     board.setActiveTool("acme.sticky.create");
 
     await fire("pointerdown", 300, 200);
@@ -513,7 +513,7 @@ describe("click 手势", () => {
 
   it("stay:true 创建后保持工具", async () => {
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.stay.create");
 
     await fire("pointerdown", 100, 100);
@@ -525,7 +525,7 @@ describe("click 手势", () => {
 
   it("缺 id 时补 uuid，定义 schemaVersion>1 时补版本号", async () => {
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.versioned.create");
 
     await fire("pointerdown", 50, 50);
@@ -541,7 +541,7 @@ describe("drag 手势", () => {
   it("拖动过程中文档与快照不变，松手一次插入且只有一个撤销步", async () => {
     const onChange = vi.fn();
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension, { onChange });
+    const { board, fire, unmount } = await renderWhiteboard(extension, { onChange });
     board.setActiveTool("acme.card.create");
 
     const snapshotBefore = board.getSnapshot();
@@ -572,7 +572,7 @@ describe("drag 手势", () => {
 
   it("Shift 等比、Alt 以按下点为中心", async () => {
     const { extension, buildContexts } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
 
     board.setActiveTool("acme.card.create");
     await fire("pointerdown", 100, 100);
@@ -591,7 +591,7 @@ describe("drag 手势", () => {
 
   it("未超过 4 屏幕像素视为单击，按 defaultSize 居中创建", async () => {
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.card.create");
 
     await fire("pointerdown", 100, 100);
@@ -604,7 +604,7 @@ describe("drag 手势", () => {
 
   it("无 defaultSize 的 drag 单击不创建且工具保持；小于 minSize 不创建", async () => {
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
 
     board.setActiveTool("acme.plain.create");
     await fire("pointerdown", 100, 100);
@@ -623,7 +623,7 @@ describe("drag 手势", () => {
 
   it("line 约束：Shift 时 end 吸附到 45° 方向且长度不变", async () => {
     const { extension, buildContexts } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.line.create");
 
     await fire("pointerdown", 100, 100);
@@ -642,7 +642,7 @@ describe("drag 手势", () => {
 
   it("拖动中按 Shift（keydown）立即以最后指针位置重算预览", async () => {
     const { extension } = createAcmeExtension();
-    const { board, fire, press, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, press, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.card.create");
 
     await fire("pointerdown", 100, 100);
@@ -659,7 +659,7 @@ describe("取消与中断", () => {
   it("拖动中 Esc 取消：无插入、工具保持、预览 120ms 后移除，再按 Esc 退出工具", async () => {
     vi.useFakeTimers();
     const { extension } = createAcmeExtension();
-    const { board, host, fire, press, unmount } = await renderWhiteBoard(extension);
+    const { board, host, fire, press, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.card.create");
 
     await fire("pointerdown", 100, 100);
@@ -685,7 +685,7 @@ describe("取消与中断", () => {
 
   it("创建模式接管后 SelectingState/DraggingState 不启动，插件 onPointerDown 不广播", async () => {
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
     const spy = vi.fn();
     board.initPlugins([{ name: "test.spy", onPointerDown: spy }]);
 
@@ -716,7 +716,7 @@ describe("自定义手势与附加操作", () => {
       data: {},
     };
     const { extension } = createAcmeExtension();
-    const { board, host, fire, unmount } = await renderWhiteBoard(extension, {
+    const { board, host, fire, unmount } = await renderWhiteboard(extension, {
       initData: [seed],
       onChange,
     });
@@ -750,7 +750,7 @@ describe("校验失败", () => {
   it("build 产出不合规 data：不插入、console.error 中文信息、工具保持", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { extension } = createAcmeExtension();
-    const { board, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, fire, unmount } = await renderWhiteboard(extension);
     board.setActiveTool("acme.bad.create");
 
     await fire("pointerdown", 100, 100);
@@ -767,7 +767,7 @@ describe("校验失败", () => {
 describe("预览渲染", () => {
   it("拖动时出现描边 rect 与尺寸徽标，激活创建工具时容器带 crosshair 光标", async () => {
     const { extension } = createAcmeExtension();
-    const { board, host, fire, unmount } = await renderWhiteBoard(extension);
+    const { board, host, fire, unmount } = await renderWhiteboard(extension);
 
     const container = host.querySelector("[data-whiteboard-root]")!;
     expect(container.classList.contains("cursor-crosshair")).toBe(false);

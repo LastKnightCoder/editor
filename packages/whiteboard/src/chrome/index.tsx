@@ -1,5 +1,5 @@
 /**
- * 画布 chrome 公共件（D-049）：
+ * 画布 chrome 公共件：
  * 工具条 / 属性浮动条 / 状态栏 / 元素树等浮动件共用一套主题语言——
  * 实底 surface + shadow-lift + 1px 细描边，不用毛玻璃与蓝调；激活 = accent-soft，悬停 = bg-hover；
  * 组内分隔靠留白（ChromeGap），不画竖线。
@@ -144,7 +144,7 @@ export function ChromeButton({
         {sub && (
           <span
             aria-hidden
-            className="absolute bottom-[4px] right-[4px] size-0 rounded-[1px] border-[2.5px] border-transparent border-b-current border-r-current opacity-45"
+            className="absolute right-[4px] bottom-[4px] size-0 rounded-[1px] border-[2.5px] border-transparent border-r-current border-b-current opacity-45"
           />
         )}
       </button>
@@ -190,7 +190,7 @@ export function AttrPopover({
         </ChromeButton>
       }
     >
-      <div {...stopCanvasEvents} className="px-3.5 pb-3.5 pt-3" style={{ width }}>
+      <div {...stopCanvasEvents} className="px-3.5 pt-3 pb-3.5" style={{ width }}>
         <SectionHead label={label} toggle={toggle} />
         {children}
       </div>
@@ -625,7 +625,7 @@ export function CornerGlyph({ radius }: { radius: number }) {
   return (
     <span
       aria-hidden
-      className="block size-3.5 border-l-2 border-t-2 border-current"
+      className="block size-3.5 border-t-2 border-l-2 border-current"
       style={{ borderTopLeftRadius: Math.min(radius / 2, 10) }}
     />
   );
@@ -636,7 +636,7 @@ export function OpacityGlyph({ opacity }: { opacity: number }) {
   return (
     <span
       aria-hidden
-      className="ring-current/40 block size-3.5 rounded-[4px] ring-1 ring-inset"
+      className="block size-3.5 rounded-[4px] ring-1 ring-current/40 ring-inset"
       style={{ background: `color-mix(in srgb, currentColor ${opacity * 100}%, transparent)` }}
     />
   );

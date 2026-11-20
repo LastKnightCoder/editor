@@ -42,12 +42,6 @@ export const deletePomodoroPreset = async (id: number): Promise<number> => {
   return invoke("pomodoro:delete-preset", id);
 };
 
-export const selectPomodoroPreset = async (preset: PomodoroPreset): Promise<void> => {
-  const client = useBackendWebsocketStore.getState().client;
-  if (!client) throw new Error("Client not initialized");
-  return (await client.sendRequest("pomodoro:set-selected-preset", preset)) as unknown as void;
-};
-
 export const getActivePomodoroSession = async (): Promise<PomodoroSession | null> => {
   const client = useBackendWebsocketStore.getState().client;
   if (!client) throw new Error("Client not initialized");
@@ -121,10 +115,6 @@ export const summaryPomodoroTotal = async (): Promise<{
 
 export const deletePomodoroSession = async (sessionId: number): Promise<number> => {
   return invoke("pomodoro:delete-session", sessionId);
-};
-
-export const deletePomodoroSessions = async (sessionIds: number[]): Promise<number> => {
-  return invoke("pomodoro:delete-sessions", sessionIds);
 };
 
 export const updatePomodoroSession = async (

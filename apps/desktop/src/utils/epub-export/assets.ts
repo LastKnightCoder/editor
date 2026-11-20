@@ -56,8 +56,7 @@ const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
 const getUrlExtension = (value: string) => {
   const cleanValue = value.split("#")[0].split("?")[0];
   const slashIndex = cleanValue.lastIndexOf("/");
-  const fileName =
-    slashIndex >= 0 ? cleanValue.slice(slashIndex + 1) : cleanValue;
+  const fileName = slashIndex >= 0 ? cleanValue.slice(slashIndex + 1) : cleanValue;
   const dotIndex = fileName.lastIndexOf(".");
   if (dotIndex < 0 || dotIndex === fileName.length - 1) {
     return "";
@@ -75,17 +74,14 @@ const decodeBase64ToBytes = (base64: string) => {
     return bytes;
   }
 
-  const globalBuffer = (globalThis as unknown as { Buffer?: typeof Buffer })
-    .Buffer;
+  const globalBuffer = (globalThis as unknown as { Buffer?: typeof Buffer }).Buffer;
   if (globalBuffer) {
     return new Uint8Array(globalBuffer.from(base64, "base64"));
   }
   throw new Error("当前环境不支持 base64 解码");
 };
 
-const parseDataUri = (
-  dataUri: string,
-): { mimeType: string; bytes: Uint8Array } => {
+const parseDataUri = (dataUri: string): { mimeType: string; bytes: Uint8Array } => {
   const commaIndex = dataUri.indexOf(",");
   if (commaIndex < 0) {
     throw new Error("无效的 data URI");
@@ -93,8 +89,7 @@ const parseDataUri = (
 
   const header = dataUri.slice(5, commaIndex);
   const payload = dataUri.slice(commaIndex + 1);
-  const mimeType =
-    normalize(header.split(";")[0]) || "application/octet-stream";
+  const mimeType = normalize(header.split(";")[0]) || "application/octet-stream";
   const isBase64 = /;base64/i.test(header);
 
   if (isBase64) {
@@ -194,7 +189,7 @@ const extractMediaSource = (element: Element) => {
 
 export const processEpubAssets = async (
   input: ProcessEpubAssetsInput,
-  dependencies: EpubAssetDependencies = DEFAULT_DEPENDENCIES,
+  dependencies: EpubAssetDependencies = DEFAULT_DEPENDENCIES
 ): Promise<ProcessEpubAssetsResult> => {
   const warnings: string[] = [];
   const assets: EpubAsset[] = [];
@@ -208,8 +203,9 @@ export const processEpubAssets = async (
       return null;
     }
 
-    if (assetBySource.has(rawSrc)) {
-      return assetBySource.get(rawSrc)!;
+    const existing = assetBySource.get(rawSrc);
+    if (existing) {
+      return existing;
     }
 
     try {
@@ -219,9 +215,7 @@ export const processEpubAssets = async (
       if (isDataUri(rawSrc)) {
         const parsed = parseDataUri(rawSrc);
         if (!parsed.mimeType.startsWith("image/")) {
-          warnings.push(
-            `${contextLabel}：仅支持图片 data URI，已跳过 ${rawSrc}`,
-          );
+          warnings.push(`${contextLabel}：仅支持图片 data URI，已跳过 ${rawSrc}`);
           return null;
         }
         bytes = parsed.bytes;
@@ -265,7 +259,7 @@ export const processEpubAssets = async (
   for (const [chapterIndex, chapter] of input.chapters.entries()) {
     const doc = new DOMParser().parseFromString(
       `<div id="epub-chapter-root">${chapter.xhtml || ""}</div>`,
-      "text/html",
+      "text/html"
     );
     const root = doc.getElementById("epub-chapter-root");
     if (!root) {
@@ -278,7 +272,7 @@ export const processEpubAssets = async (
       const src = image.getAttribute("src");
       const asset = await ensureImageAsset(
         src || "",
-        `章节 ${chapterIndex + 1}（${chapter.title}）`,
+        `章节 ${chapterIndex + 1}（${chapter.title}）`
       );
       if (!asset) {
         const placeholder = createImagePlaceholder(doc, normalize(src || ""));
@@ -290,9 +284,7 @@ export const processEpubAssets = async (
       image.removeAttribute("srcset");
     }
 
-    const mediaElements = Array.from(
-      root.querySelectorAll("audio,video,iframe"),
-    );
+    const mediaElements = Array.from(root.querySelectorAll("audio,video,iframe"));
     for (const mediaElement of mediaElements) {
       const mediaSrc = extractMediaSource(mediaElement);
       const placeholder = createMediaPlaceholder(doc, mediaSrc);
@@ -307,13 +299,8 @@ export const processEpubAssets = async (
 
   let processedCoverImageSrc: string | undefined;
   if (normalize(input.coverImageSrc)) {
-    const coverAsset = await ensureImageAsset(
-      input.coverImageSrc as string,
-      "封面图",
-    );
-    processedCoverImageSrc = coverAsset
-      ? `assets/${coverAsset.fileName}`
-      : undefined;
+    const coverAsset = await ensureImageAsset(input.coverImageSrc as string, "封面图");
+    processedCoverImageSrc = coverAsset ? `assets/${coverAsset.fileName}` : undefined;
     if (!coverAsset && input.coverImageSrc) {
       warnings.push("封面图处理失败，已自动忽略封面");
     }

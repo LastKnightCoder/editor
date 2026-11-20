@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@tau/ui";
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { createServiceId, createServiceRegistry } from "../extensions";
 import {
   defineWhiteboardExtension,
@@ -227,7 +227,7 @@ describe("白板扩展的宿主服务访问", () => {
     try {
       await act(async () =>
         root.render(
-          <WhiteBoard
+          <Whiteboard
             extensions={[needy, calm]}
             onExtensionError={error => errors.push(error)}
             initData={[]}
@@ -273,7 +273,7 @@ describe("白板扩展的宿主服务访问", () => {
     try {
       await act(async () =>
         root.render(
-          <WhiteBoard
+          <Whiteboard
             extensions={[uploader]}
             onExtensionError={error => errors.push(error)}
             services={createServiceRegistry(register => register(IResourceService, resource))}
@@ -335,7 +335,7 @@ describe("内置与第三方扩展的媒体、富文本服务消费", () => {
       try {
         await act(async () =>
           root.render(
-            <WhiteBoard
+            <Whiteboard
               extensions={[rich]}
               services={services}
               initData={[{ id: "rich", type: "acme.rich", x: 0, y: 0, width: 10, height: 10 }]}

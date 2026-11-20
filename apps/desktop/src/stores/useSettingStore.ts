@@ -143,12 +143,12 @@ export interface ISetting {
     default: TTSUsageConfig | null;
   };
   imageGeneration: ImageGenerationStoreShape;
-  /** 通用工具权限模式（D-060）：manual 手动确认 / acceptEdits 自动允许编辑 / bypass 跳过确认 */
+  /** 通用工具权限模式：manual 手动确认 / acceptEdits 自动允许编辑 / bypass 跳过确认 */
   agentPermission: {
     mode: ToolPermissionMode;
   };
   /**
-   * AI 执行命令用的 shell（M3-g）。空 = 自动检测（Windows 找 Git Bash，失败退 PowerShell）。
+   * AI 执行命令用的 shell。空 = 自动检测（Windows 找 Git Bash，失败退 PowerShell）。
    * 只存用户覆盖：检测结果是本机事实，不入设置，免得换机器/重装后留个错路径。
    */
   agentShell: {

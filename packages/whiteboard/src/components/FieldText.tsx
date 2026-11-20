@@ -27,8 +27,11 @@ const BoundFieldText = forwardRef<EditTextHandle, Props>(function BoundFieldText
   const [value, setValue] = useState(props.defaultValue ?? ""),
     [error, setError] = useState("");
   useLayoutEffect(() => {
-    const handle = board.document!.textField!(elementId, field);
-    const current = bindTextFieldTextarea(input.current!, handle, setValue, setError);
+    const textField = board.document?.textField;
+    const inputElement = input.current;
+    if (!textField || !inputElement) return;
+    const handle = textField(elementId, field);
+    const current = bindTextFieldTextarea(inputElement, handle, setValue, setError);
     binding.current = current;
     return () => {
       current.dispose();

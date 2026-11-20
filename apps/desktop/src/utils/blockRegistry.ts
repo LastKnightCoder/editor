@@ -1,5 +1,5 @@
 /**
- * 对话块渲染器注册表（D-057）：`renderers/<Name>/index.tsx` 默认导出 defineBlockRenderer(...)，
+ * 对话块渲染器注册表：`renderers/<Name>/index.tsx` 默认导出 defineBlockRenderer(...)，
  * 这里以 glob 收集（文件即注册）。按围栏语言（含别名）+ accept 解析渲染器。
  */
 

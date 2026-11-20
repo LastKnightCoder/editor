@@ -10,6 +10,7 @@ import { SubagentService, type SubagentHost, type SubagentParent } from "../pi-s
 import { errorMessage } from "../pi-subagents/state";
 import { PiSessionInteractions } from "../pi-session-interactions";
 import { PiPermissionScope } from "../pi-permission-scope";
+import { must } from "../../test-support";
 
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 const cleanups: Array<() => Promise<void>> = [];
@@ -149,7 +150,10 @@ describe("子 Agent 故障与竞争", () => {
     });
     await tick();
     await new Promise(resolve => setTimeout(resolve, 5));
-    h.pending.get(run.runId)!.finish({ status: "completed", result: "完成" });
+    must(h.pending.get(run.runId), "h.pending.get(run.runId)").finish({
+      status: "completed",
+      result: "完成",
+    });
     const results = await Promise.all(waiting);
     expect(results.filter(result => result === "timeout")).toHaveLength(80);
     expect(results.filter(result => result === "aborted")).toHaveLength(80);
@@ -258,7 +262,10 @@ describe("子 Agent 故障与竞争", () => {
     const second = h.service.wait(run, "second-wait", undefined, 0);
     await tick();
     expect((await second).reason).toBe("timeout");
-    h.pending.get(run.runId)!.finish({ status: "completed", result: "完成" });
+    must(h.pending.get(run.runId), "h.pending.get(run.runId)").finish({
+      status: "completed",
+      result: "完成",
+    });
     await first;
     await tick();
     expect(h.delivered.size).toBe(0);
@@ -280,7 +287,7 @@ describe("子 Agent 故障与竞争", () => {
     const run = h.submit("running", "1");
     h.submit("queued", "2", run.agentId);
     await tick();
-    const signal = h.pending.get(run.runId)!.signal;
+    const signal = must(h.pending.get(run.runId), "h.pending.get(run.runId)").signal;
     vi.spyOn(h.repository, "update").mockImplementationOnce(() => {
       throw new Error("disk full");
     });
@@ -303,7 +310,10 @@ describe("子 Agent 故障与竞争", () => {
     expect(
       h.repository.read(h.parent.key).runs.find(run => run.runId === queued.runId)?.status
     ).not.toBe("queued");
-    h.pending.get(first.runId)!.finish({ status: "completed", result: "完成" });
+    must(h.pending.get(first.runId), "h.pending.get(first.runId)").finish({
+      status: "completed",
+      result: "完成",
+    });
     await tick();
     expect(h.started.some(run => run.runId === queued.runId)).toBe(false);
   });
@@ -315,7 +325,10 @@ describe("子 Agent 故障与竞争", () => {
     vi.mocked(h.host.changed).mockImplementationOnce(() => {
       throw new Error("观察端已断开");
     });
-    h.pending.get(run.runId)!.finish({ status: "completed", result: "已完成" });
+    must(h.pending.get(run.runId), "h.pending.get(run.runId)").finish({
+      status: "completed",
+      result: "已完成",
+    });
     await tick();
     expect(h.repository.read(h.parent.key).runs[0].outcome).toEqual({
       status: "completed",
@@ -396,7 +409,7 @@ describe.runIf(process.env.TAU_SUBAGENT_STRESS === "1")("子 Agent 有界压力"
       };
       for (let step = 0; step < 200; step += 1) {
         const ownerId = ownerIds[choose(ownerIds.length)];
-        const parent = h.parents.get(ownerId)!;
+        const parent = must(h.parents.get(ownerId), "h.parents.get(ownerId)");
         const kind = choose(10);
         if (kind < 4) {
           const owned = agents.get(ownerId) ?? [];

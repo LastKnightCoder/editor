@@ -452,7 +452,7 @@ class EmbeddingIndexOrchestrator implements Module {
 
   private async reconcileForCurrentDb(
     mainDbName: string,
-    setting: Record<string, any>,
+    setting: Record<string, unknown>,
     reason: MainContentReconcileReason
   ) {
     const ensureResult = await databaseModule.ensureIndexDatabaseReady(

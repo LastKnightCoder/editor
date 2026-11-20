@@ -1,5 +1,5 @@
 /**
- * 演示模式（全屏舞台 + 镜头推进，DECISIONS D-072）。
+ * 演示模式（全屏舞台 + 镜头推进）。
  * 进入即窗口全屏（退出还原）；文档按结构分节（sections.ts），每节铺满舞台（SlideFrame），
  * 按窗口整体缩放——编辑器按常规尺寸排版，演示层不对编辑器的字号单位做任何假设。
  * 一节放不下时内容逐屏上移（cameraPlan.ts）；Esc 经 useOverlayDismiss 逐层退场。
@@ -364,14 +364,14 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
           <EditorThemeOverride mode={stageMode}>
             {paged && (
               <div
-                className="bg-accent ease-tau-out absolute left-0 top-0 z-10 h-[3px] transition-[width] duration-300"
+                className="bg-accent ease-tau-out absolute top-0 left-0 z-10 h-[3px] transition-[width] duration-300"
                 style={{ width: `${((page + 1) / total) * 100}%` }}
               />
             )}
 
             <div ref={frameRef} className="absolute inset-0" onClick={onStageClick}>
               <div
-                className="absolute left-0 top-0 origin-top-left select-text"
+                className="absolute top-0 left-0 origin-top-left select-text"
                 style={{ transform: `scale(${stage.scale})` }}
               >
                 <SlideFrame

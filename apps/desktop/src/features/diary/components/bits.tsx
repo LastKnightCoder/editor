@@ -1,4 +1,4 @@
-/** 日记页小件：标签色点（与 Tag 七色板同源，D-021） */
+/** 日记页小件：标签色点（与 Tag 七色板同源） */
 
 import { cn, type TagColor } from "@tau/ui";
 

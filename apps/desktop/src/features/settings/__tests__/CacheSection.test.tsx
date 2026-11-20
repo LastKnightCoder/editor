@@ -79,13 +79,12 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-it("默认展示全部来源的视频缓存与总占用，并渲染开关分组", async () => {
+it("默认展示全部来源的视频缓存，并渲染开关分组", async () => {
   await render();
   expect(text()).toContain("v.mp4");
   expect(text()).toContain("YT 演讲");
   expect(text()).toContain("B站课程");
-  expect(text()).toContain("共 3 项");
-  expect(text()).toContain("10.0 MB");
+  expect(container.querySelectorAll('input[aria-label^="选择「"]')).toHaveLength(3);
   expect(text()).toContain("自动缓存");
   expect(text()).toContain("解析时翻译为中文");
 });
@@ -96,7 +95,7 @@ it("切换来源与媒体类型筛选列表，图片隐藏来源筛选", async (
   expect(text()).toContain("YT 演讲");
   expect(text()).toContain("Bilibili");
   expect(text()).not.toContain("v.mp4");
-  expect(text()).toContain("共 2 项");
+  expect(container.querySelectorAll('input[aria-label^="选择「"]')).toHaveLength(2);
 
   act(() => radio("媒体类型", "音频").click());
   expect(text()).not.toContain("YT 演讲");
@@ -113,7 +112,8 @@ it("多选后批量删除逐条调用对应删除命令", async () => {
   await render();
   act(() => checkbox("选择「YT 演讲」").click());
   act(() => checkbox("选择「B站课程」").click());
-  expect(text()).toContain("已选 2 项");
+  expect(checkbox("选择「YT 演讲」").checked).toBe(true);
+  expect(checkbox("选择「B站课程」").checked).toBe(true);
   await act(async () => button("批量删除").click());
   await flush();
   expect(cmd.deleteOnlineVideoCache).toHaveBeenCalledWith("o1");

@@ -165,11 +165,11 @@ export function MaterialColumn({
     <div className="flex h-full min-h-0 flex-col pb-4">
       {/* 视频：就绪前用主题化底色的 16:9 框承载下载 / 错误态，就绪后换成播放器卡片 */}
       <div className="shrink-0 pr-3 pb-2 pl-4">
-        {source.ready ? (
+        {source.ready && source.src != null ? (
           source.useLocalVideo ? (
             <LocalVideo
               ref={setVideoRef}
-              src={source.src!}
+              src={source.src}
               crossOrigin="anonymous"
               className="w-full"
               chapters={playerChapters}
@@ -180,7 +180,7 @@ export function MaterialColumn({
           ) : (
             <VideoPlayer
               ref={setVideoRef}
-              src={source.src!}
+              src={source.src}
               crossOrigin="anonymous"
               className="w-full"
               chapters={playerChapters}
@@ -200,7 +200,7 @@ export function MaterialColumn({
         <span className="text-tau-body text-ink-1 font-semibold">转录</span>
         {hasSegments && !isTranscribing && (
           <span>
-            · {segments!.length} 段
+            · {segments?.length ?? 0} 段
             {chaptersGenerating
               ? " · 正在分章节…"
               : chapters.length

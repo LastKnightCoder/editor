@@ -1,8 +1,8 @@
 /**
- * Input —— 文本输入基础件（方案 A「经典描边」，mockups/input/，2026-09-19 定稿）。
+ * Input —— 文本输入基础件（「经典描边」形制）。
  *
- * 形制：surface 亮底 + line-1 描边 + radius-sm——「浮起物」语感（2026-09-17 表单
- * 控件口径），与 Select / DatePicker 触发器同族同皮；focus = accent 描边 + 3px ring。
+ * 形制：surface 亮底 + line-1 描边 + radius-sm——「浮起物」语感（表单控件
+ * 口径），与 Select / DatePicker 触发器同族同皮；focus = accent 描边 + 3px ring。
  * 原生 input 零样式透传（IME / autofill / 无障碍白送），形制挂容器上。
  *
  * 状态语义：
@@ -15,7 +15,7 @@
  * 槽位：lead 前缀 icon（16px lucide，focus 转 accent-text）+ clearable 清空 ×
  * （容器 hover/focus 且有值时显现——visibility:hidden 不响应自身 hover，挂容器；
  * tabIndex=-1 不抢 Tab 流，清空后焦点留在输入框）。
- * 文本后缀 / addon 组合等装备位归后续裁决（mockups 方案 D），不预置。
+ * 文本后缀 / addon 组合等装备位不预置。
  */
 
 import { useRef, useState, type ComponentProps } from "react";
@@ -40,7 +40,8 @@ export interface InputProps extends Omit<ComponentProps<"input">, "size"> {
 
 /** 受控清空：走原生 setter + input 事件，受控 onChange 自然触发（焦点留在输入框） */
 function clearInputElement(el: HTMLInputElement) {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setter) throw new Error("HTMLInputElement.prototype.value 缺少原生 setter");
   setter.call(el, "");
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.focus();

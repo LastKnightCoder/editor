@@ -65,8 +65,10 @@ export function pluginMcpParameters(descriptor: BackendDescriptor, transport: Pl
     "TMPDIR",
     "LANG",
     "LC_ALL",
-  ])
-    if (process.env[key]) env[key] = process.env[key]!;
+  ]) {
+    const value = process.env[key];
+    if (value !== undefined) env[key] = value;
+  }
   env.TAU_PLUGIN_TOOL_CONFIG = config;
   const windows = process.platform === "win32";
   if (!windows) env.ELECTRON_RUN_AS_NODE = "1";

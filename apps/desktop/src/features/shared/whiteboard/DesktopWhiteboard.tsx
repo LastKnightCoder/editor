@@ -39,10 +39,10 @@ import { downloadFile } from "@/utils/download";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { createWhiteboardPluginServices } from "@/app/plugins/whiteboard-services";
-import WhiteBoard from "@tau/whiteboard";
+import Whiteboard from "@tau/whiteboard";
 import {
-  type WhiteBoardProps,
-  type WhiteBoardRef,
+  type WhiteboardProps,
+  type WhiteboardRef,
   type WhiteboardExtension,
   defineWhiteboardExtension,
 } from "@tau/whiteboard";
@@ -66,11 +66,11 @@ import ImageSelectorModal from "./components/ImageSelectorModal";
 import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
 import WebviewSelectorModal from "./components/WebviewSelectorModal";
-import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
+import WhiteboardSelectorModal from "./components/WhiteboardSelectorModal";
 import { useWhiteboardOutlineStore } from "./outlineStore";
 import { DocumentCard } from "./components/Document/DocumentCard";
 import { DocumentReaderLayer } from "./components/Document/DocumentReader";
-import WhiteboardCard from "./components/WhiteBoardCard";
+import WhiteboardCard from "./components/WhiteboardCard";
 import VideoElement from "./components/VideoElement";
 import WebviewElement from "./components/WebviewElement";
 import ImageTool from "./components/Toolbar/Image";
@@ -78,7 +78,7 @@ import VideoTool from "./components/Toolbar/Video";
 import AudioTool from "./components/Toolbar/Audio";
 import DocumentTool from "./components/Toolbar/Document";
 import WebviewTool from "./components/Toolbar/Webview";
-import WhiteboardTool from "./components/Toolbar/WhiteBoard";
+import WhiteboardTool from "./components/Toolbar/Whiteboard";
 
 const resourceKits = new WeakMap<ResourceService, Map<EditorKit, EditorKit>>();
 function withBoardResources(resource: ResourceService, base: EditorKit): EditorKit {
@@ -138,12 +138,12 @@ function ContentSnapshotObserver({
 }
 
 const NO_EXTENSIONS: readonly WhiteboardExtension[] = [];
-export type DesktopWhiteboardProps = Omit<WhiteBoardProps, "extensions" | "services"> & {
+export type DesktopWhiteboardProps = Omit<WhiteboardProps, "extensions" | "services"> & {
   extensions?: readonly WhiteboardExtension[];
   onDockWidthChange?(width: number): void;
   documentResources?: import("@tau/shared/host-services").ResourceService;
 };
-export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProps>((props, ref) => {
+export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProps>((props, ref) => {
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
   const pluginRuntime = useDesktopPlugins();
   const pluginRuntimeRef = useRef(pluginRuntime);
@@ -235,7 +235,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       createWhiteboardReferenceExtension({
         Body: WhiteboardCard,
         Tool: WhiteboardTool,
-        layers: [selectorLayer("whiteboard", WhiteBoardSelectorModal)],
+        layers: [selectorLayer("whiteboard", WhiteboardSelectorModal)],
       }),
       createRichTextExtension({
         Selector: ContentSelector,
@@ -258,7 +258,9 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       }),
       createAudioExtension({
         resolveUrl: async url => {
-          const path = await services.get(IResourceService).remoteResourceToLocal!(url);
+          const resolve = services.get(IResourceService).remoteResourceToLocal;
+          if (!resolve) throw new Error("资源服务缺少本地化能力");
+          const path = await resolve(url);
           return (await toLocalMediaPreviewUrl(path)).url;
         },
         actions: desktopMediaActions,
@@ -290,7 +292,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
     ];
   }, [additionalExtensions]);
   return (
-    <WhiteBoard
+    <Whiteboard
       {...props}
       ref={ref}
       extensions={extensions}

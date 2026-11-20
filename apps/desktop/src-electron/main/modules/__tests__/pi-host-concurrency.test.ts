@@ -22,6 +22,7 @@ vi.mock("../pi-session-host-core", () => ({
   createDisplayEntryWriter: () => ({ expect: vi.fn(), discard: vi.fn(), dispose: vi.fn() }),
 }));
 import Host from "../pi-session-host";
+import { must } from "../../test-support";
 const client = { isDestroyed: () => false, send: vi.fn(), once: vi.fn(), removeListener: vi.fn() };
 const request = (sessionId: string) => ({
   sessionId,
@@ -78,7 +79,11 @@ it("图片下载期间释放会话，会取消准备且不再提交 prompt", asy
   const fetcher = vi.fn(
     (_url: string, init: RequestInit) =>
       new Promise((_resolve, reject) => {
-        init.signal!.addEventListener("abort", () => reject(new Error("已中止")), { once: true });
+        must(init.signal, "init.signal").addEventListener(
+          "abort",
+          () => reject(new Error("已中止")),
+          { once: true }
+        );
       })
   );
   vi.stubGlobal("fetch", fetcher);

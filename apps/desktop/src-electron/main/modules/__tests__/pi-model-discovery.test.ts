@@ -1,5 +1,5 @@
 /**
- * 服务商模型实时发现（M3-f）：本地 mock 服务覆盖 OpenAI 兼容 / Ollama 原生 / Anthropic 分页三种形状，
+ * 服务商模型实时发现：本地 mock 服务覆盖 OpenAI 兼容 / Ollama 原生 / Anthropic 分页三种形状，
  * 以及目录命中时元数据以目录为准、未命中时只取服务自报字段（不瞎猜默认值）。
  */
 import http from "node:http";
@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { discoverProviderModels, modelsEndpoint } from "../pi-model-discovery";
 import { listCatalogModels, lookupBuiltinModel } from "../pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
+import { must } from "../../test-support";
 
 // jsdom 环境的 AbortSignal 缺 any()/timeout()（Node 24 / Electron 主进程原生可用）
 if (typeof AbortSignal.any !== "function") {
@@ -178,7 +179,10 @@ describe("服务商模型发现", () => {
   it("内置服务商：目录命中的模型取目录元数据，目录外的新模型只带自报字段", async () => {
     const [catalogModel] = await listCatalogModels("deepseek");
     expect(catalogModel).toBeDefined();
-    const known = (await lookupBuiltinModel("deepseek", catalogModel.id))!;
+    const known = must(
+      await lookupBuiltinModel("deepseek", catalogModel.id),
+      "(await lookupBuiltinModel('deepseek', catalog..."
+    );
     const { baseUrl } = await startServer((_url, res) =>
       json(res, 200, { data: [{ id: catalogModel.id }, { id: "deepseek-brand-new" }] })
     );

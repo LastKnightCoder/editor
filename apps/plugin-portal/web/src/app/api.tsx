@@ -16,7 +16,7 @@ export function useApi(): PortalApi {
 }
 
 /** 只重试网络中断与服务暂不可用；4xx 是确定结果，重试无意义 */
-export function isRetryable(error: unknown): boolean {
+function isRetryable(error: unknown): boolean {
   if (!(error instanceof PortalApiError)) return false;
   return error.code === "NETWORK_ERROR" || error.status === 503;
 }

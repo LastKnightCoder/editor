@@ -167,7 +167,6 @@ export function useImageResize({
       // 释放指针捕获
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
 
-      // 调用调整结束回调
       if (moved && onResizeEnd && sizeRef.current.width && sizeRef.current.height) {
         onResizeEnd(sizeRef.current);
       }

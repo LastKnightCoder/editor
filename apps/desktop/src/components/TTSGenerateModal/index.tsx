@@ -32,10 +32,8 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Check if TTS is configured via TTSProviderFactory
   const isTTSConfigured = TTSProviderFactory.getSpeechSynthesizer() !== null;
 
-  // Load voice list
   const loadVoices = useCallback(async () => {
     if (!isTTSConfigured) return;
     setVoicesLoading(true);
@@ -72,7 +70,6 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
     setIsPlaying(false);
   }, [open]);
 
-  // 打开且尚未加载过音色时拉取列表
   useEffect(() => {
     if (open && isTTSConfigured && voices.length === 0) {
       loadVoices();

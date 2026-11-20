@@ -1,13 +1,7 @@
 import Database from "better-sqlite3";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 import INDEX_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/index.sql?raw";
 import TodoGroupTable from "../../tables/todo-group";
@@ -15,6 +9,7 @@ import TodoCalendarSyncTable from "../../tables/todo-calendar-sync";
 import { reindexDocTasks } from "../../doc-tasks/indexer";
 import { TaskAssistantEngine } from "../engine";
 import { queryTasks, queryEvents } from "../query";
+import { must } from "../../../test-support";
 describe("统一只读查询", () => {
   let db: Database.Database, index: Database.Database, engine: TaskAssistantEngine, groupId: number;
   beforeEach(() => {
@@ -24,7 +19,10 @@ describe("统一只读查询", () => {
     index.exec(INDEX_SCHEMA_SQL);
     TodoGroupTable.ensureSystemGroups(db);
     TodoCalendarSyncTable.ensureTodoCalendars(db);
-    groupId = TodoGroupTable.createGroup(db, { title: "工作" })!.id;
+    groupId = must(
+      TodoGroupTable.createGroup(db, { title: "工作" }),
+      "TodoGroupTable.createGroup(db, { title: '工作' })"
+    ).id;
     engine = new TaskAssistantEngine(db);
   });
   afterEach(() => {

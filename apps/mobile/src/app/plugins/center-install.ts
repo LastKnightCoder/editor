@@ -20,7 +20,7 @@ export interface CenterInstallTask {
 export type CenterInstallSnapshot = ReadonlyMap<string, CenterInstallTask>;
 
 /** 任务随应用 QueryClient 存活；页面只订阅，不拥有取消权。不同插件可并行安装。 */
-export class MobileCenterInstallStore {
+class MobileCenterInstallStore {
   private snapshot: CenterInstallSnapshot = new Map();
   private listeners = new Set<() => void>();
   private controllers = new Map<string, AbortController>();

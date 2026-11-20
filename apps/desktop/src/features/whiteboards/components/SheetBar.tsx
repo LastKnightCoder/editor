@@ -2,7 +2,7 @@ import { useLayoutEffect } from "react";
 import { bindTextFieldTextarea } from "@tau/editor/api";
 import type { EditorTextField } from "@tau/editor/text-field-contract";
 /**
- * 白板详情页签条：浮在画布纸面左下角，与右下状态栏同一套画布 chrome 语言（D-049：实底 surface +
+ * 白板详情页签条：浮在画布纸面左下角，与右下状态栏同一套画布 chrome 语言（实底 surface +
  * shadow-lift + 1px 细描边，激活 = accent-soft，组间靠留白不画竖线），一左一右融在同一张纸里。
  * 「所有页」→ 各页签 → 「＋ 新建页」（同浏览器，新页落在末尾）；只有一页时只留「＋ 新建页」。
  * 点击切页，双击改名，右键重命名 / 复制 / 删除，拖动排序；页多时页签横向滚动，当前页自动滚进可视范围。
@@ -36,7 +36,7 @@ export interface SheetBarProps {
 }
 
 export function SheetBar(props: SheetBarProps) {
-  const { pages, activeId } = props;
+  const { pages, activeId, textBinding } = props;
   const [order, setOrder] = useState(pages);
   const [editing, setEditing] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -131,7 +131,7 @@ export function SheetBar(props: SheetBarProps) {
             index={index}
             active={p.id === activeId}
             editing={editing === p.id}
-            textBinding={props.textBinding ? () => props.textBinding!(p.id) : undefined}
+            textBinding={textBinding ? () => textBinding(p.id) : undefined}
             canDelete={pages.length > 1}
             onSelect={() => props.onSelect(p.id)}
             onStartRename={() => setEditing(p.id)}

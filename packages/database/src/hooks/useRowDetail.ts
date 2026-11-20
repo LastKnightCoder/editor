@@ -6,7 +6,7 @@ import type { RowData } from "../types";
  * 视图内的行详情开合状态。宿主传了 onRowDetailOpen 时由宿主接管打开（如卡片库），
  * showRowDetail 只打开内置详情（新建行后直接进入编辑用）。
  */
-export function useRowDetail(onRowDetailOpen?: (row: RowData) => void) {
+function useRowDetail(onRowDetailOpen?: (row: RowData) => void) {
   const [detailRowId, setDetailRowId] = useState<string | null>(null);
 
   const openRowDetail = useMemoizedFn((row: RowData) => {

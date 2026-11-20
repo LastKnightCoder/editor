@@ -52,6 +52,8 @@ export function createNodeTreeDocument(
     throw new Error("协作上下文属于另一份文档");
   if (options.history) tree.attachUndoManager(options.history);
   if (!bindingIdentities.has(tree)) bindingIdentities.set(tree, ++bindingSequence);
+  const versions = options.versions;
+  const collaboration = options.collaboration;
   const configuration = {
     clipboardDocumentId: options.clipboardDocumentId,
     prepareFragment: options.prepareFragment ?? options.collaboration?.prepareFragment,
@@ -62,13 +64,11 @@ export function createNodeTreeDocument(
     canWrite: options.canWrite,
     normalizeOnConnect: options.normalizeOnConnect,
     readonly: options.readonly,
-    resolveVersion: options.versions
+    resolveVersion: versions
       ? (node: import("slate").Element) =>
-          options.versions!.resolve(node as unknown as Record<string, unknown>)
+          versions.resolve(node as unknown as Record<string, unknown>)
       : undefined,
-    currentContract: options.versions
-      ? (type: string) => options.versions!.current(type)?.id
-      : undefined,
+    currentContract: versions ? (type: string) => versions.current(type)?.id : undefined,
   };
   const renderers = new WeakMap<ElementSpec, ReturnType<typeof renderElementSpec>>();
   const editors = options.collaboration
@@ -105,14 +105,13 @@ export function createNodeTreeDocument(
       });
     },
     binding: {
-      wrap: options.collaboration
+      wrap: collaboration
         ? children =>
-            createElement(CollaborationContext.Provider, { value: options.collaboration }, children)
+            createElement(CollaborationContext.Provider, { value: collaboration }, children)
         : undefined,
       renderOverlay:
-        options.collaboration && options.cursors !== false
-          ? containerRef =>
-              createElement(NodeTreeCursors, { binding: options.collaboration!, containerRef })
+        collaboration && options.cursors !== false
+          ? containerRef => createElement(NodeTreeCursors, { binding: collaboration, containerRef })
           : undefined,
       install: editor => withNodeTree(editor, tree, {}, configuration),
       connect: editor => {

@@ -46,7 +46,7 @@ export function toneStyle(color: ProjectColorName): CSSProperties {
   } as CSSProperties;
 }
 
-export function resolveEventColor(event: CalendarEvent, calendars: Calendar[]): ProjectColorName {
+function resolveEventColor(event: CalendarEvent, calendars: Calendar[]): ProjectColorName {
   return event.color || calendars.find(c => c.id === event.calendarId)?.color || "blue";
 }
 

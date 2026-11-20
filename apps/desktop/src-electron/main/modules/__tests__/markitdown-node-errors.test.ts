@@ -11,6 +11,7 @@ vi.mock("@firecrawl/anydoc", () => ({
 
 import { toMarkdown } from "@firecrawl/anydoc";
 import { convertDocumentToMarkdown } from "../markitdown-node";
+import { must } from "../../test-support";
 
 const mockedToMarkdown = vi.mocked(toMarkdown);
 
@@ -38,7 +39,7 @@ describe("convertDocumentToMarkdown：anydoc 错误码映射", () => {
     const result = await convertDocumentToMarkdown(filePath);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain(summary!);
+    expect(result.error).toContain(must(summary, "summary"));
     expect(result.error).toContain("some part");
   });
 

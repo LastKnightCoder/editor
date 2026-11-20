@@ -1,4 +1,4 @@
-import { FlashcardType, FlashcardData, FlashcardReviewRating } from "@/types";
+import { FlashcardType, FlashcardData } from "@/types";
 import type { Descendant } from "slate";
 
 const genId = () => {
@@ -30,53 +30,6 @@ export const FLASHCARD_TYPE_META: Record<FlashcardType, { label: string; descrip
     description: "适合快速判断概念正误",
   },
 };
-
-export const REVIEW_RATINGS: Array<{
-  value: FlashcardReviewRating;
-  label: string;
-  description: string;
-  bgColor: string;
-  textColor: string;
-  hoverBgColor: string;
-  borderColor: string;
-}> = [
-  {
-    value: "easy",
-    label: "轻松",
-    description: "记忆牢固，下次间隔更久",
-    bgColor: "bg-ok-soft",
-    textColor: "text-ok",
-    hoverBgColor: "hover:bg-ok/25",
-    borderColor: "border-ok/40",
-  },
-  {
-    value: "normal",
-    label: "一般",
-    description: "基本掌握，保持当前节奏",
-    bgColor: "bg-info-soft",
-    textColor: "text-info",
-    hoverBgColor: "hover:bg-info/25",
-    borderColor: "border-info/40",
-  },
-  {
-    value: "struggle",
-    label: "较难",
-    description: "略显吃力，稍微缩短间隔",
-    bgColor: "bg-warn-soft",
-    textColor: "text-warn",
-    hoverBgColor: "hover:bg-warn/25",
-    borderColor: "border-warn/40",
-  },
-  {
-    value: "hard",
-    label: "困难",
-    description: "几乎遗忘，需尽快复习",
-    bgColor: "bg-danger-soft",
-    textColor: "text-danger",
-    hoverBgColor: "hover:bg-danger/25",
-    borderColor: "border-danger/40",
-  },
-];
 
 export const flashcardDeckColors = [
   "#2563eb",
@@ -131,23 +84,6 @@ export const createEmptyFlashcardData = (type: FlashcardType): FlashcardData => 
   }
 };
 
-export const formatDueTime = (dueTime: number): string => {
-  const diff = dueTime - Date.now();
-  if (diff <= 0) {
-    return "立即复习";
-  }
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) {
-    return `${minutes} 分钟后`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours} 小时后`;
-  }
-  const days = Math.floor(hours / 24);
-  return `${days} 天后`;
-};
-
 /**
  * Convert plain text to Descendant[] structure
  */
@@ -168,7 +104,6 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
     return [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
   }
 
-  // Check if text contains blank markers
   const blankPattern = /\{\{blank:([^}]+)\}\}/g;
   if (!blankPattern.test(text)) {
     // No blanks, return as normal text
@@ -180,19 +115,18 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
   const paragraphs: Descendant[] = [];
 
   lines.forEach(line => {
-    const children: any[] = [];
+    // 行内节点按开放形状收集（blank 节点与声明类型的必选字段存在既有出入），入段落时统一断言
+    const children: Array<Record<string, unknown>> = [];
     let lastIndex = 0;
     const lineBlankPattern = /\{\{blank:([^}]+)\}\}/g;
     let match;
 
     while ((match = lineBlankPattern.exec(line)) !== null) {
-      // Add text before the blank
       if (match.index > lastIndex) {
         const textBefore = line.slice(lastIndex, match.index);
         children.push({ type: "formatted", text: textBefore });
       }
 
-      // Add the blank node
       const answer = match[1].trim();
       children.push({
         type: "flashcard-blank",
@@ -206,7 +140,6 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
       lastIndex = match.index + match[0].length;
     }
 
-    // Add remaining text after last blank
     if (lastIndex < line.length) {
       children.push({ type: "formatted", text: line.slice(lastIndex) });
     }
@@ -219,7 +152,7 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
     paragraphs.push({
       type: "paragraph",
       children,
-    });
+    } as Descendant);
   });
 
   return paragraphs.length > 0
@@ -231,12 +164,13 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
  * Extract plain text from Descendant[] for search/preview
  */
 export const extractPlainText = (descendants: Descendant[]): string => {
-  const extractFromNode = (node: any): string => {
+  // Slate 节点的最小递归形状：叶子读 text，容器递归 children
+  const extractFromNode = (node: { text?: unknown; children?: unknown } | string): string => {
     if (typeof node === "string") {
       return node;
     }
     if (node.text !== undefined) {
-      return node.text;
+      return node.text as string;
     }
     if (node.children && Array.isArray(node.children)) {
       return node.children.map(extractFromNode).join("");

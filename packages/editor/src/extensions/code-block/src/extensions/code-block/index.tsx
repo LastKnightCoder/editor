@@ -68,6 +68,10 @@ export const codeStepElement = defineElement<CodeStepElement>({
   ),
 });
 
+const legacyCodeBlockElements = codeBlockExtension.elements;
+if (!legacyCodeBlockElements?.length)
+  throw new Error("codeBlockExtension 必须声明 code-block 元素");
+
 export const codeBlockV2Extension = defineExtension({
   ...codeBlockExtension,
   elements: [
@@ -76,7 +80,7 @@ export const codeBlockV2Extension = defineExtension({
       dataVersion: 2,
       kind: "block",
       isVoid: true,
-      previousVersions: [{ element: codeBlockExtension.elements![0], access: "read" }],
+      previousVersions: [{ element: legacyCodeBlockElements[0], access: "read" }],
       isEmpty: element => element.children.every(step => step.code === ""),
       render: ({ attributes, element, children }) => (
         <CodeBlock

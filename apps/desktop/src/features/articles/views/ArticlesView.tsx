@@ -1,15 +1,15 @@
 /**
- * 文章页视图 · 一整张纸（mockups/articles/plan-sheet.html 方案 B 定稿）：
+ * 文章页视图 · 一整张纸：
  * 纸顶工具栏（标题 / 当前标签 + 摘要 + 标题搜索 + 视图 + 导入 / 新建）→ 纸内两种排布，
  * 都走无限滚动（触底预加载）：
  * - 网格 = 月刊形态：按月分段（sticky 月头纸色实底）+ 描边竖卡，按更新时间排，不设排序；
- * - 列表 = 平铺行 + 列头排序（D-105，mockups/articles/list-view.html），排序下推主进程。
+ * - 列表 = 平铺行 + 列头排序，排序下推主进程。
  *
  * 筛选：标签在侧栏「文章」入口的子项里（ArticlesNav，页面参数 id），页内不放标签 pills；
  * 右上角搜索框按标题关键词筛选（停顿后下推到 getArticlePage，与标签叠加）。
- * 点击卡片/新建走页内导航到 article-detail 占位页（编辑器迁移后接正文编辑，
- * 见 DECISIONS.md D-015）；「窗口打开」菜单项保留 Electron 独立窗口能力。
- * 网格卡 / 列表行 ⇄ 详情页的纸走共享元素形变（D-106）。
+ * 点击卡片/新建走页内导航到 article-detail 占位页（编辑器迁移后接正文编辑）；
+ * 「窗口打开」菜单项保留 Electron 独立窗口能力。
+ * 网格卡 / 列表行 ⇄ 详情页的纸走共享元素形变。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";

@@ -17,10 +17,11 @@ export interface GeometryElement extends CommonElement {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
-  /** 手绘模式下的填充样式（D-107）；普通模式一律按实色渲染，缺省 solid */
+  /** 手绘模式下的填充样式；普通模式一律按实色渲染，缺省 solid */
   fillStyle?: SketchFillStyle;
   paths: string[];
-  extraInfo?: Record<string, any>;
+  /** 渲染器按图形类型读取附加参数（如矩形圆角）；未知键原样保留 */
+  extraInfo?: { cornerRadius?: number } & Record<string, unknown>;
   text: {
     align: "left" | "center" | "right";
     content: Descendant[];

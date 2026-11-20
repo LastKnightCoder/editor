@@ -55,9 +55,8 @@ export class CapabilityService {
    */
   getCapabilities(elementType: string): IElementCapabilities {
     // 优先从缓存获取
-    if (this.registry.has(elementType)) {
-      return this.registry.get(elementType)!;
-    }
+    const cached = this.registry.get(elementType);
+    if (cached) return cached;
 
     // 尝试从插件动态获取
     const plugin = this.board.getPlugin<IBoardPlugin>(elementType);

@@ -25,9 +25,9 @@ export interface StackMachineState {
   forward: PageEntry[];
 }
 
-export const MAX_LIVE_PAGES = 12;
+const MAX_LIVE_PAGES = 12;
 
-export function createEntry(key: string, params: Record<string, unknown>): PageEntry {
+function createEntry(key: string, params: Record<string, unknown>): PageEntry {
   const now = Date.now();
   return {
     id: `${key}-${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -121,7 +121,8 @@ function sameParams(a: Record<string, unknown>, b: Record<string, unknown>): boo
 export function back(state: StackMachineState): StackMachineState | null {
   if (state.back.length <= 1) return null;
   const backStack = [...state.back];
-  const popped = backStack.pop()!;
+  const popped = backStack.pop();
+  if (popped === undefined) return null;
   return {
     back: touchAll(backStack),
     forward: [...state.forward, popped],

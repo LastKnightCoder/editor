@@ -50,8 +50,9 @@ interface VisibleElementTree {
 }
 
 const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
-  if (plugin[eventName]) {
-    return plugin[eventName]!.bind(plugin);
+  const handler = plugin[eventName];
+  if (handler) {
+    return handler.bind(plugin);
   }
 });
 
@@ -199,7 +200,7 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
-  /** 页级画风（D-107）；变化时 emit("sketch:change") */
+  /** 页级画风；变化时 emit("sketch:change") */
   public sketch: PageSketch;
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
@@ -212,7 +213,7 @@ class Board {
    * 容器视口矩形（缓存）：指针热路径（每次 pointermove 的坐标转换）高频读取，
    * getBoundingClientRect 在上一帧 DOM 写入后会把整文档强制重排（大页面百 ms 级）。
    * 平移/手势期间容器几何不变，缓存恒命中；布局变化经 invalidateContainerRect 失效
-   * （容器 ResizeObserver 与窗口滚动捕获，见 WhiteBoard 接线）。
+   * （容器 ResizeObserver 与窗口滚动捕获，见 Whiteboard 接线）。
    */
   getContainerRect(): { x: number; y: number } | null {
     const container = BOARD_TO_CONTAINER.get(this);
@@ -330,7 +331,7 @@ class Board {
 
   // 只读属性
   private _readonly = false;
-  /** 文档版本过高导致的强制只读原因；普通只读为 null。宿主（WhiteBoard 组件）负责设置。 */
+  /** 文档版本过高导致的强制只读原因；普通只读为 null。宿主（Whiteboard 组件）负责设置。 */
   public readonlyReason: "document-too-new" | null = null;
 
   get readonly(): boolean {
@@ -357,7 +358,7 @@ class Board {
     this.eventEmitter.off(event, listener);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     for (const listener of this.eventEmitter.listeners(event)) {
       try {
         const result: unknown = listener(...args);
@@ -554,15 +555,16 @@ class Board {
       }
     }
 
-    for (const { value } of this.extensions?.entries ?? []) {
+    const extensions = this.extensions;
+    for (const { value } of extensions?.entries ?? []) {
       for (const menu of value.menus ?? []) {
-        if (menu.when && !menu.when(this.extensions!.api)) continue;
+        if (!extensions || (menu.when && !menu.when(extensions.api))) continue;
         allItems.push({
           key: menu.id,
           label: menu.label,
           priority: menu.order,
           onSelect: () => {
-            void this.extensions!.execute(menu.command, context).catch(() => {});
+            void extensions.execute(menu.command, context).catch(() => {});
           },
         });
       }
@@ -935,7 +937,8 @@ class Board {
       if (metadata.removedElements.length > 0) {
         const removed = [...metadata.removedElements];
         while (removed.length) {
-          const element = removed.pop()!;
+          const element = removed.pop();
+          if (!element) break;
           this.removedElementVersions.set(
             element.id,
             (this.removedElementVersions.get(element.id) ?? 0) + 1

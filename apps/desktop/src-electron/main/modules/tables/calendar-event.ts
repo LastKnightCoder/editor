@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { asynchronousDatabaseCommand } from "../database-command";
 import { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types/calendar";
 import type { CreateTodoSchedule } from "@/types/calendar";
+import { ProjectColorName } from "@/constants/project-colors";
 import Operation from "./operation";
 import ContentTable from "./content";
 import CalendarTable from "./calendar";
@@ -10,6 +11,7 @@ import TodoItemTable from "./todo-item";
 import log from "electron-log";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { getNextTaskEntityId } from "./module-entity-id";
+import type { SqliteRow } from "../../types/table";
 
 export default class CalendarEventTable {
   static getListenEvents() {
@@ -36,27 +38,27 @@ export default class CalendarEventTable {
       ),
     };
   }
-  static parseCalendarEvent(row: any): CalendarEvent {
+  static parseCalendarEvent(row: SqliteRow): CalendarEvent {
     const event: CalendarEvent = {
-      id: row.id,
-      createTime: row.create_time,
-      updateTime: row.update_time,
-      calendarId: row.calendar_id,
-      title: row.title,
-      detailContentId: row.detail_content_id || 0,
-      startDate: row.start_date,
-      endDate: row.end_date || null,
-      startTime: row.start_time !== null ? row.start_time : null,
-      endTime: row.end_time !== null ? row.end_time : null,
-      color: row.color || null,
+      id: row.id as number,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
+      calendarId: row.calendar_id as number,
+      title: row.title as string,
+      detailContentId: (row.detail_content_id as number) || 0,
+      startDate: row.start_date as number,
+      endDate: (row.end_date as number | null) || null,
+      startTime: (row.start_time as number | null) ?? null,
+      endTime: (row.end_time as number | null) ?? null,
+      color: (row.color as ProjectColorName) || null,
       allDay: Boolean(row.all_day),
-      todoItemId: row.todo_item_id ?? null,
+      todoItemId: (row.todo_item_id as number | null) ?? null,
     };
 
     // 解析预加载的描述内容
     if (row.detail_content) {
       try {
-        event.detailContent = JSON.parse(row.detail_content);
+        event.detailContent = JSON.parse(row.detail_content as string);
       } catch (error) {
         log.error("Failed to parse detail_content:", error);
       }
@@ -146,9 +148,10 @@ export default class CalendarEventTable {
         .prepare(
           `SELECT * FROM calendar_event WHERE todo_item_id IN (${part.map(() => "?").join(",")})`
         )
-        .all(...part);
+        .all(...part) as SqliteRow[];
       for (const event of rows.map(row => this.parseCalendarEvent(row))) {
-        const entry = (result[event.todoItemId!] ??= { count: 0 });
+        if (event.todoItemId == null) continue;
+        const entry = (result[event.todoItemId] ??= { count: 0 });
         entry.count += 1;
         if (endOf(event) > params.now) {
           if (!entry.next || startOf(event) < startOf(entry.next)) entry.next = event;
@@ -212,7 +215,7 @@ export default class CalendarEventTable {
 
   static getEventById(db: Database.Database, id: number): CalendarEvent {
     const stmt = db.prepare("SELECT * FROM calendar_event WHERE id = ?");
-    const row = stmt.get(id);
+    const row = stmt.get(id) as SqliteRow | undefined;
     if (!row) {
       throw new Error(`CalendarEvent with id ${id} not found`);
     }
@@ -223,7 +226,7 @@ export default class CalendarEventTable {
     const stmt = db.prepare(
       "SELECT * FROM calendar_event WHERE calendar_id = ? ORDER BY start_date ASC, start_time ASC"
     );
-    const rows = stmt.all(calendarId);
+    const rows = stmt.all(calendarId) as SqliteRow[];
     return rows.map(row => this.parseCalendarEvent(row));
   }
 
@@ -265,7 +268,7 @@ export default class CalendarEventTable {
         (e.end_date IS NOT NULL AND e.start_date <= ? AND e.end_date >= ?)
       )
     `;
-    const params: any[] = [startDate, endDate, startDate, endDate, startDate, startDate];
+    const params: number[] = [startDate, endDate, startDate, endDate, startDate, startDate];
 
     // 如果指定了日历过滤
     if (calendarIds && calendarIds.length > 0) {
@@ -288,7 +291,7 @@ export default class CalendarEventTable {
     query += " ORDER BY e.start_date ASC, e.start_time ASC";
 
     const stmt = db.prepare(query);
-    const rows = stmt.all(...params);
+    const rows = stmt.all(...params) as SqliteRow[];
     const events = rows.map(row => this.parseCalendarEvent(row));
 
     // 动态生成周期任务的日历事件
@@ -418,7 +421,7 @@ export default class CalendarEventTable {
       WHERE (${dateConditions})
     `;
 
-    const queryParams: any[] = [];
+    const queryParams: number[] = [];
     dateRanges.forEach(range => {
       queryParams.push(range.start, range.end);
     });
@@ -433,7 +436,7 @@ export default class CalendarEventTable {
     query += " ORDER BY e.start_date ASC, e.start_time ASC";
 
     const stmt = db.prepare(query);
-    const rows = stmt.all(...queryParams);
+    const rows = stmt.all(...queryParams) as SqliteRow[];
     return rows.map(row => this.parseCalendarEvent(row));
   }
 

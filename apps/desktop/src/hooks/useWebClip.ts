@@ -76,7 +76,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     { wait: 100 }
   );
 
-  // 处理进度通知
   const handleProgress = useMemoizedFn((data: WebClipProgressData) => {
     if (data.projectItemId !== projectItemId || !accepting.current) return;
 
@@ -84,7 +83,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     throttledParse(data.markdown);
   });
 
-  // 处理完成通知
   const handleComplete = useMemoizedFn((data: WebClipCompleteData) => {
     if (data.projectItemId !== projectItemId || !accepting.current) return;
     cancelParse();
@@ -106,7 +104,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     }
   });
 
-  // 处理错误通知
   const handleError = useMemoizedFn((data: WebClipErrorData) => {
     if (data.projectItemId !== projectItemId || !accepting.current) return;
     cancelParse();
@@ -125,7 +122,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     const unregisterComplete = registerWebClipCompleteHandler(handleComplete);
     const unregisterError = registerWebClipErrorHandler(handleError);
 
-    // 检查是否有正在进行的任务
     getWebClipStatus(projectItemId).then(status => {
       if (request !== requestVersion.current || !accepting.current) return;
       if (status && status.status === "processing") {
@@ -147,7 +143,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     };
   }, [projectItemId, handleProgress, handleComplete, handleError, throttledParse, cancelParse]);
 
-  // 开始解析
   const startClip = useMemoizedFn(
     async (html: string, url: string, title: string, translateToChinese = false) => {
       const request = ++requestVersion.current;
@@ -176,7 +171,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
     }
   );
 
-  // 取消解析
   const cancelClip = useCallback(async () => {
     requestVersion.current++;
     accepting.current = false;

@@ -13,7 +13,7 @@ import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/
 import { useProjectsSnapshot, useProjectMutations } from "../queries";
 import { useImportDrop } from "@/features/transfer/useImportDrop";
 
-/* 模块色沿用原 projectTypeMeta 的文档树青蓝（设计定稿的数据色，不进主题词表） */
+/* 模块色沿用原 projectTypeMeta 的文档树青蓝（数据色，不进主题词表） */
 const VISUAL: CockpitVisual = {
   icon: FolderTree,
   softClass: "bg-[rgba(63,133,124,0.13)]",

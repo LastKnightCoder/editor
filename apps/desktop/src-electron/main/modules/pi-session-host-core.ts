@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { recordSyncIo } from "./perf-record";
 import { fauxProvider } from "@earendil-works/pi-ai";
-import type { Provider } from "@earendil-works/pi-ai";
+import type { ImageContent, Provider } from "@earendil-works/pi-ai";
 import {
   DefaultResourceLoader,
   ModelRuntime,
@@ -25,7 +25,7 @@ import type {
   ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
-import { getSessionTranscript, type SessionEntry as SharedSessionEntry } from "@tau/ai/session";
+import { documentEntriesFromSdk, getSessionTranscript } from "@tau/ai/session";
 import type { PiTranscriptEntry } from "./pi-session-transcript";
 import {
   DISPLAY_ENTRY_TYPE,
@@ -37,7 +37,7 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
 
 /**
- * pi 只认 Program Files 与 Windows PATH 上的 bash；非标准安装位置需 settings shellPath 兜底（D-060 后产品首启检测写入，此处为探测默认值）。
+ * pi 只认 Program Files 与 Windows PATH 上的 bash；非标准安装位置需 settings shellPath 兜底（产品首启检测写入，此处为探测默认值）。
  * 探测失败不设 shellPath 时 pi 走自己的 PATH 搜索——它不排除 System32\bash.exe（WSL 入口），
  * 中文 Windows 上必命中 WSL 并因「无已安装分发版」全部失败，故这里必须穷尽到 git.exe 反推。
  * 探测结果打印到主进程日志，便于联调定位落到哪一级。
@@ -91,7 +91,7 @@ export function applyActiveTools(
 }
 
 /**
- * 读取会话文件里当前叶子路径上的消息（M4：打开对话用）。
+ * 读取会话文件里当前叶子路径上的消息（打开对话用）。
  * 只解析不落笔：SessionManager.open 在没有 append 之前不会写文件。
  * 用 getBranch 而不是 buildContextEntries——后者是给模型用的、会把压缩掉的历史省略，
  * 而界面要展示完整对话。
@@ -110,13 +110,13 @@ export function transcriptOf(
 ): PiTranscriptEntry[] {
   const branch = manager.getBranch();
   return getSessionTranscript(
-    { entries: manager.getEntries() as unknown as SharedSessionEntry[] },
+    { entries: documentEntriesFromSdk(manager.getEntries()) },
     branch.at(-1)?.id ?? null
   );
 }
 
 /**
- * 展示 entry 写入器（M4）：发送/插话前登记桌面展示形态，pi 把对应的用户消息落盘后紧跟着写一条
+ * 展示 entry 写入器：发送/插话前登记桌面展示形态，pi 把对应的用户消息落盘后紧跟着写一条
  * desktop-display entry。按文本认领（插话送达时机由 pi 决定，不能按调用顺序配对）。
  *
  * 时序：pi 的 _handleAgentEvent 先通知监听者、**再**同步 appendMessage，所以监听到 user
@@ -176,16 +176,14 @@ export interface SteerOutcome {
 }
 
 /** steerHostSession 需要的会话能力（便于单测用最小替身） */
-type SteerableSession = Pick<AgentSession, "isStreaming" | "prompt">;
+type SteerableSession = Pick<AgentSession, "activePromptRunId" | "prompt">;
 
 /**
- * 运行中插话（M3 第 5 项）：交 pi 原生 steer 队列——消息在当前轮的工具调用跑完之后、
+ * 运行中插话：交 pi 原生 steer 队列——消息在当前轮的工具调用跑完之后、
  * 下一次请求模型之前送达，与本轮同属一次运行（中间没有 agent_settled）。
  *
  * 两处细节是硬约束：
- * - **必须先判 isStreaming**：pi 的 prompt() 在会话空闲时会开一轮新运行，而且要等整轮跑完才返回
- *   （IPC 会一直挂着），且绕过渲染端的发送编排（会话确保、systemPrompt 刷新、附件转换）。
- *   空闲一律返回 not-streaming，由渲染端按普通消息排队。
+ * - **绑定当前轮**：附件读取和输入钩子期间当前轮可能结束，插话不能进入下一轮。
  * - **expandPromptTemplates: false**：关掉 pi 的斜杠命令/模板/skill 展开，送达文本与提交文本
  *   逐字一致，渲染端才能按文本认领自己的插话（pi 的队列出队也是按文本匹配的）。
  *
@@ -195,31 +193,37 @@ type SteerableSession = Pick<AgentSession, "isStreaming" | "prompt">;
 export async function steerHostSession(
   session: SteerableSession,
   text: string,
-  images?: unknown[]
+  images?: ImageContent[],
+  runId = session.activePromptRunId
 ): Promise<SteerOutcome> {
-  if (!session.isStreaming) return { ok: false, reason: "not-streaming" };
-  let settlePreflight: (accepted: boolean) => void = () => undefined;
-  const preflight = new Promise<boolean>(resolve => {
-    settlePreflight = resolve;
-  });
-  const failure = session
+  if (runId === undefined || runId !== session.activePromptRunId)
+    return { ok: false, reason: "not-streaming" };
+  const { promise, resolve } = Promise.withResolvers<SteerOutcome>();
+  void session
     .prompt(text, {
       streamingBehavior: "steer",
       expandPromptTemplates: false,
-      preflightResult: settlePreflight,
-      ...(images && images.length > 0 ? { images: images as never } : {}),
+      queueForRun: runId,
+      preflightResult: disposition => {
+        if (disposition === "queued" || disposition === "handled") resolve({ ok: true });
+        else if (disposition === "not-streaming") resolve({ ok: false, reason: "not-streaming" });
+        else resolve({ ok: false, reason: "error", error: "插话未进入当前轮" });
+      },
+      ...(images && images.length > 0 ? { images } : {}),
     })
-    .then(() => undefined)
+    .then(() => resolve({ ok: false, reason: "error", error: "插话未收到确认" }))
     .catch((error: unknown) => {
-      settlePreflight(false);
-      return error instanceof Error ? error.message : String(error);
+      resolve({
+        ok: false,
+        reason: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
-  if (await preflight) return { ok: true };
-  return { ok: false, reason: "error", error: (await failure) ?? "插话失败" };
+  return promise;
 }
 
 /**
- * 选定 AI 执行命令用的 shell（M3-g）：用户在设置里填的优先，但路径不存在就忽略——
+ * 选定 AI 执行命令用的 shell：用户在设置里填的优先，但路径不存在就忽略——
  * 让 pi 拿着坏路径去起 bash 只会得到一个没头没尾的失败。两者皆空时返回 undefined，
  * 由 pi 走 PowerShell 兜底（见本文件顶部说明）。
  */
@@ -313,7 +317,7 @@ export interface HostResourceLoaderOptions {
   cwd: string;
   agentDir: string;
   systemPrompt?: string;
-  /** 内联扩展（M3 的工具审批拦截、UA 注入等经此注入） */
+  /** 内联扩展（工具审批拦截、UA 注入等经此注入） */
   extensionFactories?: ConstructorParameters<typeof DefaultResourceLoader>[0]["extensionFactories"];
   /** 出站请求 dump 目录（联调取证：每次 provider 请求的 payload 写 JSON，image_url 截断防膨胀） */
   dumpRequestDir?: string;
@@ -383,11 +387,11 @@ export interface AssembleHostSessionOptions {
   /** 持久会话目录（~/.editor/sessions/<库名>/）；省略 = inMemory（测试/单轮场景） */
   sessionDir?: string;
   /**
-   * 打开已有会话文件（M4 resume）：pi 自己从 JSONL 恢复上下文，
+   * 打开已有会话文件（resume）：pi 自己从 JSONL 恢复上下文，
    * 所以走这条路时**不要**再传 initialMessages（历史已经在文件里）。
    */
   sessionFile?: string;
-  /** 新建会话时指定 pi 会话 id（M4：与目录表主键一致） */
+  /** 新建会话时指定 pi 会话 id（与目录表主键一致） */
   sessionId?: string;
   resourceLoader?: ResourceLoader;
   systemPrompt?: string;
@@ -425,7 +429,7 @@ export async function assembleHostSession(
       ...(options.dumpRequestDir ? { dumpRequestDir: options.dumpRequestDir } : {}),
     }));
   // resume：打开已有 JSONL（createAgentSession 内部 buildSessionContext 会把历史恢复进 Agent）。
-  // 文件不存在（首轮没等到 assistant 消息就失败了，pi 不落盘）就按新会话建，并沿用目录表的 id——
+  // 文件不存在时沿用目录表的 id，旧版本在收到首条回答前可能还没有落盘。
   // SessionManager.open 对不存在的路径会起一个随机 id 的新会话，目录表 id 与会话 id 就对不上了
   const newSessionOptions = options.sessionId ? { id: options.sessionId } : undefined;
   const sessionManager =
@@ -441,7 +445,7 @@ export async function assembleHostSession(
     });
     sessionManager.setSessionFile(options.sessionFile);
   }
-  // resume 时收尾悬挂的工具调用（M4-e）：新建的宿主会话不可能持有上一次的等待，文件里没结果的调用
+  // resume 时收尾悬挂的工具调用：新建的宿主会话不可能持有上一次的等待，文件里没结果的调用
   // 只能是上次中断留下的（应用重启、宿主被回收）。必须在 createAgentSession 之前——它按文件恢复上下文
   closeDanglingToolCalls(sessionManager);
   // 历史灌入：sessionManager 落 entry，createAgentSession 内部 buildSessionContext 恢复进 Agent
@@ -461,8 +465,9 @@ export async function assembleHostSession(
     resourceLoader,
     // 无 Git Bash 时不能留默认 bash 工具——pi 的 PATH 搜索会命中 System32\bash.exe（WSL 入口，
     // 路径语义与文件工具断裂且无发行版时全失败），改为 powershell（Windows 原生路径语义一致，
-    // pi 实现已自带 [Console]::OutputEncoding=UTF8 输出前缀）。WSL 手动选项在工具管理（M3）提供。
+    // pi 实现已自带 [Console]::OutputEncoding=UTF8 输出前缀）。WSL 手动选项在工具管理提供。
     settingsManager: SettingsManager.inMemory({
+      cacheWarming: "streaming",
       ...(options.shellPath
         ? { shellPath: options.shellPath }
         : process.platform === "win32"

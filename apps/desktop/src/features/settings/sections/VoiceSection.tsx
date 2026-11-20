@@ -1,5 +1,5 @@
 /**
- * 语音 —— 定稿初版（2026-09-24，mockups/settings/index.html 第三版「语音」）。
+ * 语音 —— 初版。
  *
  * 合并 legacy TranscriptionSetting 与 TextToSpeechSetting（PodcastTTSSetting），页内分
  * 「语音转录 / 语音合成 / 语音输入」三个 Tab：

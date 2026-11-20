@@ -4,7 +4,7 @@ import { GITHUB_REPO } from "./site.ts";
 const CACHE_KEY = "tau-site-gh-stars";
 const CACHE_TTL = 60 * 60 * 1000;
 /** 星标少于这个数时不展示数字，只留 GitHub 入口 */
-export const MIN_VISIBLE_STARS = 100;
+const MIN_VISIBLE_STARS = 100;
 
 interface CachedStars {
   count: number;

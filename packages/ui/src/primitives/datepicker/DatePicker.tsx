@@ -1,5 +1,5 @@
 /**
- * DatePicker 基础件 —— 经典月历单日期（A+ 形态，mockups/datepicker/）。
+ * DatePicker 基础件 —— 经典月历单日期。
  *
  * 值形状拆分的单日期侧：value: string | null（"YYYY-MM-DD"，precision="minute"
  * 时 "YYYY-MM-DD HH:mm"）；范围归 DateRangePicker（同一引擎，别在此加 range）。
@@ -15,7 +15,7 @@
  *  - 钻取导航：点标题 days → months → 年代（12 格），‹ › 步长随视图换
  *  - 键盘全表：触发器 ↑↓·Enter 开面板；面板内方向键 / PgUp·PgDn 翻月 / T 今天 /
  *    Enter 提交；Esc 逐层退场（时刻网格先收，再关面板），焦点归还触发器
- *  - 定位复用 D-004 引擎（bottom + gap 4，flip 跟随）；外点关闭（useLayerDismiss）；
+ *  - 定位复用锚定引擎（bottom + gap 4，flip 跟随）；外点关闭（useLayerDismiss）；
  *    层级 z-[250] 与 Select/Menu 同层
  *  - 预设行显示在日历下方：presets 数据驱动（label + 取值函数），内容与措辞
  *    归使用方，组件不内置业务词表；当前值命中时该 chip 高亮回显

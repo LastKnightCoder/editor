@@ -1,11 +1,11 @@
 import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
-export interface WhiteBoard {
+export interface Whiteboard {
   id: number;
   tags: string[];
-  whiteBoardContentIds: number[];
-  whiteBoardContentList: WhiteBoardContent[];
-  activeWhiteBoardContentId: number | null;
+  whiteboardContentIds: number[];
+  whiteboardContentList: WhiteboardContent[];
+  activeWhiteboardContentId: number | null;
   createTime: number;
   updateTime: number;
   title: string;
@@ -13,19 +13,19 @@ export interface WhiteBoard {
   snapshot: string;
 }
 
-export type ICreateWhiteBoard = Omit<
-  WhiteBoard,
+export type ICreateWhiteboard = Omit<
+  Whiteboard,
   | "id"
   | "createTime"
   | "updateTime"
-  | "whiteBoardContentIds"
-  | "whiteBoardContentList"
-  | "activeWhiteBoardContentId"
+  | "whiteboardContentIds"
+  | "whiteboardContentList"
+  | "activeWhiteboardContentId"
 > & {
-  whiteBoardContentList: Pick<WhiteBoardContent, "data" | "name">[];
+  whiteboardContentList: Pick<WhiteboardContent, "data" | "name">[];
 };
 
-export interface WhiteBoardContent {
+export interface WhiteboardContent {
   id: number;
   name: string;
   imgUrl: string; // 白板背景图片

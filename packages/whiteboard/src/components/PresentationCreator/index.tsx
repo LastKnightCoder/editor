@@ -1,5 +1,5 @@
 /**
- * 演示序列创建面板（D-049 画布 chrome 换皮）：
+ * 演示序列创建面板（画布 chrome 换皮）：
  * 画布右上浮层——头部即序列名称输入框 + 关闭；工具行 添加帧 / 调整视口 / 预览；
  * 行式帧列表；底部 取消 / 保存。只换外壳，帧增删、视口调整、预览逻辑保持原样。
  */
@@ -360,10 +360,10 @@ const PresentationCreator: React.FC = () => {
   return (
     <div
       {...stopCanvasEvents}
-      className="bg-surface shadow-float ring-line-1 absolute right-3 top-3 z-[1000] flex max-h-[calc(100%-78px)] w-[300px] select-none flex-col rounded-[14px] ring-1"
+      className="bg-surface shadow-float ring-line-1 absolute top-3 right-3 z-[1000] flex max-h-[calc(100%-78px)] w-[300px] flex-col rounded-[14px] ring-1 select-none"
     >
       {/* 头部：序列名称就地编辑 + 关闭 */}
-      <div className="flex flex-none items-center gap-1.5 pb-1 pl-2.5 pr-2 pt-2.5">
+      <div className="flex flex-none items-center gap-1.5 pt-2.5 pr-2 pb-1 pl-2.5">
         <input
           ref={nameInputRef}
           value={sequenceName}
@@ -392,7 +392,7 @@ const PresentationCreator: React.FC = () => {
       </div>
 
       {/* 工具行 */}
-      <div className="flex flex-none gap-1.5 px-3.5 pb-2.5 pt-1">
+      <div className="flex flex-none gap-1.5 px-3.5 pt-1 pb-2.5">
         <Tooltip content="把画布上选中的元素加为一帧" placement="bottom" arrow={false}>
           <Button
             variant="soft"
@@ -454,7 +454,7 @@ const PresentationCreator: React.FC = () => {
         className="edge-fade-scroll flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2"
       >
         {frames.length === 0 ? (
-          <div className="text-ink-3 px-3 pb-[26px] pt-[22px] text-center text-[12.5px]">
+          <div className="text-ink-3 px-3 pt-[22px] pb-[26px] text-center text-[12.5px]">
             <Film size={22} strokeWidth={1.5} className="mx-auto mb-2" />
             选中画布上的元素，点「添加帧」
           </div>
@@ -529,7 +529,7 @@ const PresentationCreator: React.FC = () => {
       </div>
 
       {/* 应答区 */}
-      <div className="flex flex-none justify-end gap-2 px-3.5 pb-3.5 pt-2.5">
+      <div className="flex flex-none justify-end gap-2 px-3.5 pt-2.5 pb-3.5">
         <Button variant="secondary" onClick={onCancel} disabled={isAdjustingViewport}>
           取消
         </Button>

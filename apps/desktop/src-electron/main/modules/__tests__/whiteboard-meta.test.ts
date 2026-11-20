@@ -13,16 +13,11 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: {
-    enqueueTask: vi.fn(),
-    cleanupVideoNoteArtifacts: vi.fn(),
-  },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import WhiteboardTable from "../tables/whiteboard";
-import WhiteBoardContentTable from "../tables/white-board-content";
+import WhiteboardContentTable from "../tables/white-board-content";
 import ContentTable from "../tables/content";
 
 const pageData = (id: string) =>
@@ -53,23 +48,23 @@ describe("WhiteboardTable 元信息", () => {
     WhiteboardTable.createWhiteboard(db, {
       title: "其他",
       description: "",
-      whiteBoardContentList: [{ name: "p", data: pageData("x") }],
+      whiteboardContentList: [{ name: "p", data: pageData("x") }],
     });
     const board = WhiteboardTable.createWhiteboard(db, {
       title: "语法地图",
       description: "",
-      whiteBoardContentList: [
+      whiteboardContentList: [
         { name: "助词", data: pageData("a") },
         { name: "动词", data: pageData("b") },
       ],
     });
-    const orphan = WhiteBoardContentTable.createWhiteboardContent(db, {
+    const orphan = WhiteboardContentTable.createWhiteboardContent(db, {
       name: "独立页",
       imgUrl: "",
       data: pageData("c"),
     });
 
-    expect(WhiteboardTable.getWhiteboardByContentId(db, board.whiteBoardContentIds[1])?.id).toBe(
+    expect(WhiteboardTable.getWhiteboardByContentId(db, board.whiteboardContentIds[1])?.id).toBe(
       board.id
     );
     expect(WhiteboardTable.getWhiteboardByContentId(db, orphan.id)).toBeNull();
@@ -80,7 +75,7 @@ describe("WhiteboardTable 元信息", () => {
       title: "语法地图",
       description: "",
       tags: ["学习"],
-      whiteBoardContentList: [{ name: "助词", data: pageData("a") }],
+      whiteboardContentList: [{ name: "助词", data: pageData("a") }],
     });
     expect(WhiteboardTable.getWhiteboard(db, board.id).tags).toEqual(["学习"]);
   });
@@ -91,20 +86,20 @@ describe("WhiteboardTable 元信息", () => {
       description: "季度目标",
       tags: ["工作"],
       snapshot: "/cover.png",
-      whiteBoardContentList: [
+      whiteboardContentList: [
         { name: "第一页", data: pageData("a") },
         { name: "第二页", data: pageData("b") },
       ],
     });
-    const before = WhiteboardTable.getWhiteboard(db, board.id).whiteBoardContentList;
+    const before = WhiteboardTable.getWhiteboard(db, board.id).whiteboardContentList;
 
     const updated = WhiteboardTable.updateWhiteboardMeta(db, board.id, { title: "Q4 规划" });
 
     expect(updated.title).toBe("Q4 规划");
     expect(updated.description).toBe("季度目标");
     expect(updated.tags).toEqual(["工作"]);
-    expect(updated.whiteBoardContentIds).toEqual(board.whiteBoardContentIds);
-    expect(updated.whiteBoardContentList).toEqual(before);
+    expect(updated.whiteboardContentIds).toEqual(board.whiteboardContentIds);
+    expect(updated.whiteboardContentList).toEqual(before);
   });
 
   it("空值表示清空：描述、封面、标签都可以清掉", () => {
@@ -113,7 +108,7 @@ describe("WhiteboardTable 元信息", () => {
       description: "京都",
       tags: ["生活", "旅行"],
       snapshot: "/cover.png",
-      whiteBoardContentList: [{ name: "灵感板", data: pageData("a") }],
+      whiteboardContentList: [{ name: "灵感板", data: pageData("a") }],
     });
 
     const updated = WhiteboardTable.updateWhiteboardMeta(db, board.id, {
@@ -126,7 +121,7 @@ describe("WhiteboardTable 元信息", () => {
     expect(updated.description).toBe("");
     expect(updated.snapshot).toBe("");
     expect(updated.tags).toEqual([]);
-    expect(updated.whiteBoardContentList).toHaveLength(1);
+    expect(updated.whiteboardContentList).toHaveLength(1);
   });
 });
 
@@ -145,7 +140,7 @@ describe("WhiteboardTable 页操作", () => {
     WhiteboardTable.createWhiteboard(db, {
       title: "拆解",
       description: "",
-      whiteBoardContentList: [
+      whiteboardContentList: [
         { name: "总览", data: pageData("a") },
         { name: "细节", data: pageData("b") },
       ],
@@ -153,7 +148,7 @@ describe("WhiteboardTable 页操作", () => {
 
   it("改名只改名字，不动页数据", () => {
     const board = twoPages();
-    const [first] = board.whiteBoardContentIds;
+    const [first] = board.whiteboardContentIds;
     const renamed = WhiteboardTable.renameSubWhiteboard(db, first, "全局");
     expect(renamed.name).toBe("全局");
     expect(renamed.data.children).toEqual([{ id: "a", type: "geometry" }]);
@@ -165,9 +160,9 @@ describe("WhiteboardTable 页操作", () => {
     const next = WhiteboardTable.setActiveSubWhiteboard(
       db,
       board.id,
-      board.whiteBoardContentIds[1]
+      board.whiteboardContentIds[1]
     );
-    expect(next.activeWhiteBoardContentId).toBe(board.whiteBoardContentIds[1]);
+    expect(next.activeWhiteboardContentId).toBe(board.whiteboardContentIds[1]);
     expect(next.updateTime).toBe(1);
   });
 
@@ -179,7 +174,7 @@ describe("WhiteboardTable 页操作", () => {
     const board = WhiteboardTable.createWhiteboard(db, {
       title: "拆解",
       description: "",
-      whiteBoardContentList: [
+      whiteboardContentList: [
         {
           name: "总览",
           data: { ...pageData("a"), children: [{ id: "r", type: "richtext", contentId }] },
@@ -187,23 +182,23 @@ describe("WhiteboardTable 页操作", () => {
         { name: "细节", data: pageData("b") },
       ],
     });
-    const [first, second] = board.whiteBoardContentIds;
+    const [first, second] = board.whiteboardContentIds;
 
     const next = WhiteboardTable.duplicateSubWhiteboard(db, board.id, first);
 
-    expect(next.whiteBoardContentIds).toHaveLength(3);
-    expect(next.whiteBoardContentIds[0]).toBe(first);
-    expect(next.whiteBoardContentIds[2]).toBe(second);
-    const copyId = next.whiteBoardContentIds[1];
-    expect(next.activeWhiteBoardContentId).toBe(copyId);
-    const copy = next.whiteBoardContentList[1];
+    expect(next.whiteboardContentIds).toHaveLength(3);
+    expect(next.whiteboardContentIds[0]).toBe(first);
+    expect(next.whiteboardContentIds[2]).toBe(second);
+    const copyId = next.whiteboardContentIds[1];
+    expect(next.activeWhiteboardContentId).toBe(copyId);
+    const copy = next.whiteboardContentList[1];
     expect(copy.name).toBe("总览 副本");
     expect(copy.data.children).toEqual([{ id: "r", type: "richtext", contentId }]);
     expect(ContentTable.getContentById(db, contentId)?.refCount).toBe(2);
 
     // 删掉副本后原页引用的正文仍在
     WhiteboardTable.deleteSubWhiteboard(db, board.id, copyId);
-    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
+    WhiteboardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
     expect(ContentTable.getContentById(db, contentId)?.refCount).toBe(1);
   });
 });

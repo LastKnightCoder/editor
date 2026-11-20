@@ -1,5 +1,5 @@
 /**
- * 树谱视图的布局（M4-d）：主进程给的用户消息树 → 面板逐行渲染的行。纯函数，可单测。
+ * 树谱视图的布局：主进程给的用户消息树 → 面板逐行渲染的行。纯函数，可单测。
  *
  * - 没有分叉的直链压成一段：只画段首，段内条数写在旁边（长对话不至于画出几百行）；
  * - 分叉点下的子分支按「当前路径所在的在前，其余按最后活动时间倒序」排；
@@ -50,7 +50,8 @@ export function conversationEntryTail(nodes: ConversationTreeNode[], entry: stri
   const pending = [root],
     seen = new Set<string>();
   while (pending.length) {
-    const current = pending.pop()!;
+    const current = pending.pop();
+    if (current === undefined) continue;
     if (seen.has(current.id)) continue;
     seen.add(current.id);
     if (!current.omitted && current.time >= tail.time) tail = current;
@@ -74,7 +75,8 @@ export function layoutConversationTree(nodes: ConversationTreeNode[]): Conversat
   const order: ConversationTreeNode[] = [];
   const stack = [...(children.get(null) ?? [])];
   while (stack.length > 0) {
-    const node = stack.pop()!;
+    const node = stack.pop();
+    if (node === undefined) continue;
     order.push(node);
     stack.push(...(children.get(node.id) ?? []));
   }
@@ -123,7 +125,9 @@ export function layoutConversationTree(nodes: ConversationTreeNode[]): Conversat
     }))
     .reverse();
   while (pending.length > 0) {
-    const { node: head, depth, isBranch } = pending.pop()!;
+    const frame = pending.pop();
+    if (frame === undefined) continue;
+    const { node: head, depth, isBranch } = frame;
     let tail = head;
     let length = 1;
     let kids = children.get(tail.id) ?? [];

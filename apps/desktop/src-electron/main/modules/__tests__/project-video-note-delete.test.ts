@@ -10,12 +10,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: {
-    enqueueTask: vi.fn(),
-    cleanupVideoNoteArtifacts: vi.fn(),
-  },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { EProjectItemType, type CreateProjectItem } from "@/types/project";
@@ -79,7 +74,7 @@ describe("ProjectTable.deleteProject", () => {
       children: [],
       refType: "",
       refId: videoNote.id,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.VideoNote,
     });
     expect(projectItem).not.toBeNull();
@@ -157,7 +152,7 @@ describe("ProjectTable.deleteProject", () => {
       children: [],
       refType: "",
       refId: 0,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.Document,
       contentId,
     });

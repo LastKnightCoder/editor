@@ -30,7 +30,6 @@ interface RemoteVideoProgressEvent {
   total?: number;
 }
 
-// Progress management
 let requestCounter = 0;
 const activeSenders = new Map<number, WebContents>();
 
@@ -39,8 +38,7 @@ const REMOTE_RESOURCE_MAP = "remote_local_map.json";
 const REMOTE_VIDEO_CACHE_DIR = "remote-video-cache";
 
 const getCacheFilePath = () => path.join(PathUtil.getAppDir(), CACHE_FILE);
-const getResourceMapPath = () =>
-  path.join(PathUtil.getAppDir(), REMOTE_RESOURCE_MAP);
+const getResourceMapPath = () => path.join(PathUtil.getAppDir(), REMOTE_RESOURCE_MAP);
 
 async function readCacheConfig(): Promise<RemoteVideoCacheConfig> {
   const filePath = getCacheFilePath();
@@ -69,8 +67,7 @@ const resolveLocalPath = (targetPath: string) => {
   return targetPath;
 };
 
-const keyOf = (url: string) =>
-  crypto.createHash("md5").update(url).digest("hex");
+const keyOf = (url: string) => crypto.createHash("md5").update(url).digest("hex");
 
 async function removeRemoteResourceMapping(url: string) {
   try {
@@ -87,14 +84,12 @@ async function removeRemoteResourceMapping(url: string) {
     }
     log.warn(
       "[RemoteVideoCache] removeRemoteResourceMapping failed",
-      error instanceof Error ? error.message : error,
+      error instanceof Error ? error.message : error
     );
   }
 }
 
-async function ensureEntry(
-  entry: RemoteVideoCacheEntry,
-): Promise<RemoteVideoCacheEntry | null> {
+async function ensureEntry(entry: RemoteVideoCacheEntry): Promise<RemoteVideoCacheEntry | null> {
   try {
     await fs.access(entry.localPath);
     return entry;
@@ -103,9 +98,6 @@ async function ensureEntry(
   }
 }
 
-/**
- * Send progress event to renderer
- */
 function sendProgressEvent(event: RemoteVideoProgressEvent): void {
   const sender = activeSenders.get(event.requestId);
   if (sender && !sender.isDestroyed()) {
@@ -113,16 +105,10 @@ function sendProgressEvent(event: RemoteVideoProgressEvent): void {
   }
 }
 
-/**
- * Get next request ID
- */
 function getNextRequestId(): number {
   return ++requestCounter;
 }
 
-/**
- * Get cache directory path
- */
 async function getCacheDir(): Promise<string> {
   const editorDir = PathUtil.getAppDir();
   const cacheDir = path.join(editorDir, REMOTE_VIDEO_CACHE_DIR);
@@ -136,16 +122,13 @@ async function getCacheDir(): Promise<string> {
   return cacheDir;
 }
 
-/**
- * Get file extension from URL
- */
 function getFileExtension(url: string): string {
   let pathname = url;
   try {
     const urlObj = new URL(url);
     pathname = urlObj.pathname;
   } catch {
-    // ignore parse error, treat as plain path
+    // 不是合法 URL 时按普通路径处理
   }
 
   const normalized = pathname.replace(/\\/g, "/");
@@ -157,13 +140,10 @@ function getFileExtension(url: string): string {
   return lastSegment.slice(dotIndex + 1);
 }
 
-/**
- * Download file with progress
- */
 async function downloadFileWithProgress(
   url: string,
   outputPath: string,
-  requestId?: number,
+  requestId?: number
 ): Promise<number> {
   const response = await fetch(url, {
     headers: {
@@ -187,7 +167,6 @@ async function downloadFileWithProgress(
       downloadedSize += chunk.length;
       writer.write(chunk);
 
-      // Send progress event
       if (requestId) {
         const percent = totalSize > 0 ? (downloadedSize / totalSize) * 100 : 0;
         sendProgressEvent({
@@ -207,7 +186,7 @@ async function downloadFileWithProgress(
       resolve(downloadedSize);
     });
 
-    response.body?.on("error", async (error) => {
+    response.body?.on("error", async error => {
       await writer.end();
       await fileHandle.close();
       reject(error);
@@ -215,23 +194,18 @@ async function downloadFileWithProgress(
   });
 }
 
-/**
- * Cache remote video with progress
- */
 async function cacheRemoteVideo(
   url: string,
   fileName?: string,
-  requestId?: number,
+  requestId?: number
 ): Promise<{ localPath: string; fileSize: number; cached: boolean }> {
   const id = keyOf(url);
   const config = await readCacheConfig();
 
-  // Check if already cached
   const existing = config.entries[id];
   if (existing) {
     const ensured = await ensureEntry(existing);
     if (ensured) {
-      // Update last accessed time
       ensured.lastAccessed = new Date().toISOString();
       await writeCacheConfig(config);
 
@@ -241,13 +215,12 @@ async function cacheRemoteVideo(
         cached: true,
       };
     } else {
-      // File doesn't exist, remove from config
+      // 本地文件已丢失，清掉失效条目
       delete config.entries[id];
       await writeCacheConfig(config);
     }
   }
 
-  // Download the video
   const cacheDir = await getCacheDir();
   const ext = getFileExtension(url) || "mp4";
   const outputFileName = `${id}.${ext}`;
@@ -256,7 +229,6 @@ async function cacheRemoteVideo(
   try {
     log.info(`[RemoteVideoCache] Starting download: ${url}`);
 
-    // Send start event
     if (requestId) {
       sendProgressEvent({
         requestId,
@@ -270,7 +242,6 @@ async function cacheRemoteVideo(
 
     const fileSize = await downloadFileWithProgress(url, outputPath, requestId);
 
-    // Update config
     const now = new Date().toISOString();
     const newEntry: RemoteVideoCacheEntry = {
       id,
@@ -288,7 +259,6 @@ async function cacheRemoteVideo(
 
     log.info(`[RemoteVideoCache] Download completed: ${outputPath}`);
 
-    // Send completion event
     if (requestId) {
       sendProgressEvent({
         requestId,
@@ -306,7 +276,6 @@ async function cacheRemoteVideo(
       cached: false,
     };
   } catch (error) {
-    // Send error event
     if (requestId) {
       sendProgressEvent({
         requestId,
@@ -316,11 +285,11 @@ async function cacheRemoteVideo(
       });
     }
 
-    // Cleanup on error
+    // 清掉半成品文件
     try {
       await fs.unlink(outputPath);
     } catch {
-      // Ignore cleanup errors
+      // 清理失败无需处理
     }
 
     throw error;
@@ -332,11 +301,7 @@ const init = async () => {
     "remote-video-cache:add",
     async (
       _event,
-      {
-        url,
-        localPath,
-        title,
-      }: { url: string; localPath: string; title?: string },
+      { url, localPath, title }: { url: string; localPath: string; title?: string }
     ) => {
       if (!url || !localPath) {
         throw new Error("url and localPath are required");
@@ -360,7 +325,7 @@ const init = async () => {
       config.entries[id] = nextEntry;
       await writeCacheConfig(config);
       return nextEntry;
-    },
+    }
   );
 
   ipcMain.handle("remote-video-cache:list", async () => {
@@ -382,33 +347,29 @@ const init = async () => {
       await writeCacheConfig(config);
     }
     return validEntries.sort(
-      (a, b) =>
-        new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime(),
+      (a, b) => new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime()
     );
   });
 
-  ipcMain.handle(
-    "remote-video-cache:delete",
-    async (_event, { id }: { id: string }) => {
-      const config = await readCacheConfig();
-      const entry = config.entries[id];
-      if (!entry) {
-        return false;
-      }
-      try {
-        await fs.unlink(entry.localPath);
-      } catch (error) {
-        log.warn(
-          "[RemoteVideoCache] delete file failed",
-          error instanceof Error ? error.message : error,
-        );
-      }
-      delete config.entries[id];
-      await writeCacheConfig(config);
-      await removeRemoteResourceMapping(entry.url);
-      return true;
-    },
-  );
+  ipcMain.handle("remote-video-cache:delete", async (_event, { id }: { id: string }) => {
+    const config = await readCacheConfig();
+    const entry = config.entries[id];
+    if (!entry) {
+      return false;
+    }
+    try {
+      await fs.unlink(entry.localPath);
+    } catch (error) {
+      log.warn(
+        "[RemoteVideoCache] delete file failed",
+        error instanceof Error ? error.message : error
+      );
+    }
+    delete config.entries[id];
+    await writeCacheConfig(config);
+    await removeRemoteResourceMapping(entry.url);
+    return true;
+  });
 
   ipcMain.handle("remote-video-cache:clear", async () => {
     const config = await readCacheConfig();
@@ -419,7 +380,7 @@ const init = async () => {
       } catch (error) {
         log.warn(
           "[RemoteVideoCache] clear unlink failed",
-          error instanceof Error ? error.message : error,
+          error instanceof Error ? error.message : error
         );
       }
       await removeRemoteResourceMapping(entry.url);
@@ -427,7 +388,6 @@ const init = async () => {
     await writeCacheConfig({ entries: {} });
   });
 
-  // New handler for downloading with progress
   ipcMain.handle(
     "remote-video-cache:download-with-progress",
     async (event, { url, fileName }: { url: string; fileName?: string }) => {
@@ -442,35 +402,31 @@ const init = async () => {
         activeSenders.delete(requestId);
         throw error;
       }
-    },
+    }
   );
 
-  // Handler to check cache status
-  ipcMain.handle(
-    "remote-video-cache:get-status",
-    async (_event, { url }: { url: string }) => {
-      const id = keyOf(url);
-      const config = await readCacheConfig();
-      const entry = config.entries[id];
+  ipcMain.handle("remote-video-cache:get-status", async (_event, { url }: { url: string }) => {
+    const id = keyOf(url);
+    const config = await readCacheConfig();
+    const entry = config.entries[id];
 
-      if (!entry) {
-        return null;
-      }
+    if (!entry) {
+      return null;
+    }
 
-      const ensured = await ensureEntry(entry);
-      if (!ensured) {
-        delete config.entries[id];
-        await writeCacheConfig(config);
-        return null;
-      }
+    const ensured = await ensureEntry(entry);
+    if (!ensured) {
+      delete config.entries[id];
+      await writeCacheConfig(config);
+      return null;
+    }
 
-      return {
-        cached: true,
-        localPath: ensured.localPath,
-        fileSize: ensured.fileSize,
-      };
-    },
-  );
+    return {
+      cached: true,
+      localPath: ensured.localPath,
+      fileSize: ensured.fileSize,
+    };
+  });
 };
 
 export default { init };

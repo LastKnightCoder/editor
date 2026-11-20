@@ -3,17 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
 // 内容表间接加载到 electron 与视频笔记队列
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../content";
 import ContentAiMetaTable from "../content-ai-meta";
+import { must } from "../../../test-support";
 
 const META = {
   title: "标题",
@@ -36,7 +31,8 @@ describe("content_pending_releases 延迟回收", () => {
       .ref_count;
   const pendingAt = (id: number) =>
     db.prepare("SELECT released_at FROM content_pending_releases WHERE content_id = ?").get(id) as
-      { released_at: number } | undefined;
+      | { released_at: number }
+      | undefined;
 
   it("createPendingContent 以 ref_count 0 创建正文并登记待回收", () => {
     const id = ContentTable.createPendingContent(db, { content: [] });
@@ -70,10 +66,10 @@ describe("content_pending_releases 延迟回收", () => {
     ContentTable.releaseDeferred(db, id);
     expect(refCount(id)).toBe(0);
 
-    const first = pendingAt(id)!.released_at;
+    const first = must(pendingAt(id), "pendingAt(id)").released_at;
     ContentTable.releaseDeferred(db, id);
     expect(refCount(id)).toBe(0);
-    expect(pendingAt(id)!.released_at).toBe(first);
+    expect(must(pendingAt(id), "pendingAt(id)").released_at).toBe(first);
   });
 
   it("collectPendingReleases 删除超宽限期且为 0 的正文，级联同 deleteContent", () => {

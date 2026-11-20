@@ -146,7 +146,7 @@ export function previewPeerElements(
     peers
       .filter(peer => peer.moving || (peer.version && !hasVersion(peer.version)))
       .flatMap(peer =>
-        peer.selection.filter(rect => rect.geometry).map(rect => [rect.id, rect.geometry!] as const)
+        peer.selection.flatMap(rect => (rect.geometry ? ([[rect.id, rect.geometry]] as const) : []))
       )
   );
   if (!geometry.size) return elements;

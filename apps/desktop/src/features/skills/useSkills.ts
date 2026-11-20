@@ -14,7 +14,7 @@ import type { Skill, SkillInvocation, SkillSource } from "@/types";
 import { estimateTokens } from "@/utils/skill-frontmatter";
 
 /** 描述超过这个 tokens 数标黄：每次对话都要带上它 */
-export const LONG_DESCRIPTION_TOKENS = 150;
+const LONG_DESCRIPTION_TOKENS = 150;
 
 export type SkillMode = SkillInvocation | "off";
 
@@ -34,7 +34,7 @@ export interface SkillItem {
   readonly: boolean;
 }
 
-export const skillKey = (skill: Skill) => `${skill.source ?? "mine"}:${skill.path}`;
+const skillKey = (skill: Skill) => `${skill.source ?? "mine"}:${skill.path}`;
 
 export function toSkillItems(
   skills: Skill[],

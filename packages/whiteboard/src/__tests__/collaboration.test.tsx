@@ -15,7 +15,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import Board from "../Board";
 import BoardOperations from "../utils/BoardOperations";
 import type { Operation } from "../types/operation";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import useEventHandlers from "../hooks/useEventHandlers";
 import { createWhiteboardBinding } from "../collaboration/binding";
 import type { WhiteboardCanvasType } from "../collaboration/binding";
@@ -465,7 +465,7 @@ describe("W3 画布与编辑器统一写入", () => {
     await act(async () => instance!.undo());
     expect(Node.string(instance!.children[0])).toBe("甲");
   });
-  it("实际 WhiteBoard 文档模式不调用旧 onChange 保存入口或加载迁移", async () => {
+  it("实际 Whiteboard 文档模式不调用旧 onChange 保存入口或加载迁移", async () => {
     const f = await fixture(),
       binding = createWhiteboardBinding(f.model, { pageId: f.page, types: f.types });
     const host = document.createElement("div");
@@ -478,7 +478,7 @@ describe("W3 画布与编辑器统一写入", () => {
     await act(async () =>
       root.render(
         <DndProvider backend={HTML5Backend}>
-          <WhiteBoard
+          <Whiteboard
             extensions={[]}
             initData={[]}
             document={binding}
@@ -513,7 +513,7 @@ describe("W3 画布与编辑器统一写入", () => {
       root.render(
         <DndProvider backend={HTML5Backend}>
           <React.Suspense fallback={null}>
-            <WhiteBoard
+            <Whiteboard
               extensions={[]}
               initData={[]}
               document={binding}
@@ -548,7 +548,7 @@ describe("W3 画布与编辑器统一写入", () => {
       root.render(
         <React.StrictMode>
           <DndProvider backend={HTML5Backend}>
-            <WhiteBoard
+            <Whiteboard
               extensions={[]}
               initData={[]}
               document={binding}

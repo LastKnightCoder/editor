@@ -1,5 +1,5 @@
 /**
- * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先（D-001）。
+ * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先。
  */
 
 import { useEffect, useRef } from "react";
@@ -53,7 +53,7 @@ export function Titlebar() {
   // 对话已在眼前（对话页或辅助栏）时不再重复提示进行中的子任务
   const chatVisible = useShellStore(s => s.assistOpen) || currentKey === "chat";
 
-  // Ctrl/⌘+J 开合停靠栏；栈顶页面接管时交给页面（D-070）。
+  // Ctrl/⌘+J 开合停靠栏；栈顶页面接管时交给页面。
   // 输入框里同样生效——对话输入框本身就在栏内，收起不应要求先移走焦点。输入法组合期间不抢键
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
@@ -101,7 +101,7 @@ export function Titlebar() {
       )}
 
       <div className="flex-1" />
-      {/* 全局搜索/命令面板（Ctrl+K，D-003） */}
+      {/* 全局搜索/命令面板（Ctrl+K） */}
       <button
         type="button"
         onClick={togglePalette}
@@ -114,7 +114,7 @@ export function Titlebar() {
           Ctrl K
         </kbd>
       </button>
-      {/* 知识地图：全局视角的入口（D-095），在内容详情里点会以当前内容为中心打开 */}
+      {/* 知识地图：全局视角的入口，在内容详情里点会以当前内容为中心打开 */}
       <KnowledgeMapToggle />
       {/* AI 对话停靠栏开关（对话页本身在栈顶、或页面自带对话栏时不显示） */}
       {currentKey !== "chat" && !assistOwned && <AssistToggle />}

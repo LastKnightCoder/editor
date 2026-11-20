@@ -111,7 +111,9 @@ export function matchGroupToken(
     ])
     .sort((a, b) => b.title.length - a.title.length);
   for (const match of text.matchAll(/[#＃]/g)) {
-    const after = text.slice(match.index! + 1);
+    const index = match.index;
+    if (index === undefined) continue;
+    const after = text.slice(index + 1);
     const group = sorted.find(
       g =>
         g.title &&

@@ -1,4 +1,4 @@
-// 加入协作（设计稿 02 方案 A + B 融合）：分格码输入 + 剪贴板一键填入 + 等待批准态。
+// 加入协作：分格码输入 + 剪贴板一键填入 + 等待批准态。
 import { useEffect, useState } from "react";
 import { ClipboardPaste, Loader2 } from "lucide-react";
 import type { JoinRequestResult } from "@tau/collaboration";

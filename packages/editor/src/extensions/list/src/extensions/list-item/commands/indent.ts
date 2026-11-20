@@ -17,13 +17,15 @@ export const indent: EditorCommand = {
       match: n => n.type === "paragraph",
     });
     // 在段落的开头、是第一个段落、前面必须还有 list-item
-    if (!(
-      para &&
-      match &&
-      isAtParagraphStart(editor) &&
-      para[1][para[1].length - 1] === 0 &&
-      match[1][match[1].length - 1] !== 0
-    )) {
+    if (
+      !(
+        para &&
+        match &&
+        isAtParagraphStart(editor) &&
+        para[1][para[1].length - 1] === 0 &&
+        match[1][match[1].length - 1] !== 0
+      )
+    ) {
       return;
     }
     const parent = getParentNodeByNode(editor, match[0]);
@@ -33,7 +35,8 @@ export const indent: EditorCommand = {
       return;
     }
     // 上面保证过上一个 list 一定存在
-    const previousSibling = getPreviousSiblingNode(editor, match[0])!;
+    const previousSibling = getPreviousSiblingNode(editor, match[0]);
+    if (!previousSibling) return;
     Editor.withoutNormalizing(editor, () => {
       // 包裹为 bulleted-list 或 numbered-list，并包裹在上一个 list-item 中
       Transforms.wrapNodes(

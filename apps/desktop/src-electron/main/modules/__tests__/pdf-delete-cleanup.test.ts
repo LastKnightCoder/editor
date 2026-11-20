@@ -47,7 +47,7 @@ describe("PdfTable.removePdf", () => {
           }
           return { changes: 0 };
         },
-        // 本 PDF 名下的会话目录行（M4 起 PDF 对话在 chat_session）：这里没有
+        // 本 PDF 名下的会话目录行（PDF 对话在 chat_session）：这里没有
         all: () => [],
       })),
       transaction: vi.fn((fn: () => number) => fn),

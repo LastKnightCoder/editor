@@ -65,11 +65,11 @@ export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
       >
         {/* 原文文字必须原样可见：Slate 靠它映射光标与选区，不能隐藏或替换 */}
         {children}
-        {relative && relative !== monthDay(due!) && (
+        {relative && due !== null && relative !== monthDay(due) && (
           <span
             aria-hidden
             contentEditable={false}
-            className="ml-1 select-none text-[0.85em] opacity-75"
+            className="ml-1 text-[0.85em] opacity-75 select-none"
           >
             {relative}
           </span>

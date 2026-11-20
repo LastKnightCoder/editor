@@ -37,6 +37,7 @@ function readContents(mainDb: Database.Database, ids: number[]): Map<number, Con
     .prepare(
       `SELECT id, update_time,
          CASE WHEN instr(content, '"content-link"') > 0
+                OR instr(content, '"whiteboardContentId"') > 0
                 OR instr(content, '"whiteBoardContentId"') > 0 THEN content END AS content
        FROM content_snapshots WHERE id IN (${marks})`
     )

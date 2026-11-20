@@ -8,6 +8,7 @@ import CardTable from "../tables/card";
 import EntityLineageTable from "../tables/entity-lineage";
 import { emptyResult } from "../tables/knowledge-ai-insights";
 import KnowledgeAiInsightsTable from "../tables/knowledge-ai-insights";
+import { must } from "../../test-support";
 
 vi.mock("@/utils/markdown.ts", () => ({ getMarkdown: vi.fn(() => "") }));
 vi.mock("../tables/fts", () => ({ default: { removeIndexByIdAndType: vi.fn() } }));
@@ -80,7 +81,8 @@ const linkedContentsOf = (id: number) => {
   );
 };
 const statusOf = (nodeId: number) =>
-  KnowledgeAiInsightsTable.get(db, nodeId)!.result.marks[0].status;
+  must(KnowledgeAiInsightsTable.get(db, nodeId), "KnowledgeAiInsightsTable.get(db, nodeId)").result
+    .marks[0].status;
 const card$ = (id: number) => ({ kind: "card", id }) as const;
 
 describe("同一思路写成卡片", () => {

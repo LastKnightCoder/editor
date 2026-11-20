@@ -90,10 +90,11 @@ export function detectClusters(
   scene.nodes.forEach((node, index) => indexOf.set(node.id, index));
   const graph = buildCompactGraph(
     scene.nodes.length,
-    scene.edges.map(edge => ({
-      source: indexOf.get(edge.source)!,
-      target: indexOf.get(edge.target)!,
-    }))
+    scene.edges.flatMap(edge => {
+      const source = indexOf.get(edge.source);
+      const target = indexOf.get(edge.target);
+      return source !== undefined && target !== undefined ? [{ source, target }] : [];
+    })
   );
   const { membership, modularity } = louvain(graph, resolution);
 
@@ -136,8 +137,9 @@ export function detectClusters(
 
   const clusters: ClusterInfo[] = kept.map((members, id) => {
     const byDegree = [...members].sort((a, b) => {
-      const left = scene.nodeById.get(a)!;
-      const right = scene.nodeById.get(b)!;
+      const left = scene.nodeById.get(a);
+      const right = scene.nodeById.get(b);
+      if (!left || !right) return a - b;
       return right.degree - left.degree || left.id - right.id;
     });
 
@@ -155,7 +157,7 @@ export function detectClusters(
       .sort((a, b) => b.reach - a.reach || a.cardId - b.cardId)
       .map(item => item.cardId);
 
-    const representative = scene.nodeById.get(byDegree[0])!;
+    const representative = scene.nodeById.get(byDegree[0]);
     return {
       id,
       members: byDegree,
@@ -165,7 +167,7 @@ export function detectClusters(
         tagsOf,
         documentFrequency,
         kept.length,
-        representative.label || `${members.length} 张卡片`
+        representative?.label || `${members.length} 张卡片`
       ),
       bridges,
     };

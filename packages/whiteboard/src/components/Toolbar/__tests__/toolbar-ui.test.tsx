@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Board from "../../../Board";
-import WhiteBoard from "../../../WhiteBoard";
+import Whiteboard from "../../../Whiteboard";
 import { GEOMETRY_TOOL_ID } from "../../../constants/tools";
 import { createGeometryExtension, createInteractionExtension } from "../../../extensions/builtins";
 import {
@@ -86,7 +86,7 @@ async function mountBoard(extensions: readonly WhiteboardExtension[]) {
   roots.push(root);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={[
           ...extensions,
           defineWhiteboardExtension({

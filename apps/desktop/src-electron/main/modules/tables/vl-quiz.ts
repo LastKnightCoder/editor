@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import log from "electron-log";
+import type { Descendant } from "slate";
 
 // 类型定义
 interface VLQuizSet {
@@ -37,8 +38,8 @@ interface VLQuizItem {
   id: number;
   quizSetId: number;
   type: string;
-  prompt: any[];
-  detail: any[];
+  prompt: Descendant[];
+  detail: Descendant[];
   data: Record<string, unknown>;
   tags: string[];
   difficulty: string;
@@ -50,8 +51,8 @@ interface VLQuizItem {
 interface CreateVLQuizItemInput {
   quizSetId: number;
   type: string;
-  prompt: any[];
-  detail?: any[];
+  prompt: Descendant[];
+  detail?: Descendant[];
   data: Record<string, unknown>;
   tags?: string[];
   difficulty?: string;
@@ -61,8 +62,8 @@ interface CreateVLQuizItemInput {
 interface UpdateVLQuizItemInput {
   id: number;
   type?: string;
-  prompt?: any[];
-  detail?: any[];
+  prompt?: Descendant[];
+  detail?: Descendant[];
   data?: Record<string, unknown>;
   tags?: string[];
   difficulty?: string;
@@ -195,7 +196,7 @@ class VLQuizTable {
 
   private static mapQuizItemRow(row: QuizItemRow): VLQuizItem {
     // 解析 prompt 为 Descendant[]
-    let prompt: any[];
+    let prompt: Descendant[];
     try {
       prompt = JSON.parse(row.prompt);
       if (!Array.isArray(prompt)) {
@@ -216,7 +217,7 @@ class VLQuizTable {
     }
 
     // 解析 detail 为 Descendant[]
-    let detail: any[];
+    let detail: Descendant[];
     try {
       detail = JSON.parse(row.detail);
       if (!Array.isArray(detail)) {
@@ -280,7 +281,8 @@ class VLQuizTable {
 
   static getQuizSet(db: Database.Database, id: number): VLQuizSet | null {
     const row = db.prepare(`SELECT * FROM vl_quiz_set WHERE id = ?`).get(id) as
-      QuizSetRow | undefined;
+      | QuizSetRow
+      | undefined;
     if (!row) return null;
     const itemCount = this.getItemCount(db, id);
     return this.mapQuizSetRow(row, itemCount);
@@ -368,7 +370,8 @@ class VLQuizTable {
 
   static getQuizItem(db: Database.Database, id: number): VLQuizItem | null {
     const row = db.prepare(`SELECT * FROM vl_quiz_item WHERE id = ?`).get(id) as
-      QuizItemRow | undefined;
+      | QuizItemRow
+      | undefined;
     if (!row) return null;
     return this.mapQuizItemRow(row);
   }
@@ -444,7 +447,8 @@ class VLQuizTable {
 
   static updateQuizItem(db: Database.Database, payload: UpdateVLQuizItemInput): VLQuizItem | null {
     const existingRow = db.prepare(`SELECT * FROM vl_quiz_item WHERE id = ?`).get(payload.id) as
-      QuizItemRow | undefined;
+      | QuizItemRow
+      | undefined;
     if (!existingRow) return null;
 
     const now = Date.now();
@@ -503,7 +507,7 @@ class VLQuizTable {
     params: { quizSetId?: number; projectId?: number }
   ): VLQuizRecord[] {
     const conditions: string[] = ["1=1"];
-    const values: any[] = [];
+    const values: Array<number> = [];
 
     if (params.quizSetId !== undefined) {
       conditions.push("quiz_set_id = ?");
@@ -526,7 +530,8 @@ class VLQuizTable {
 
   static getQuizRecord(db: Database.Database, id: number): VLQuizRecord | null {
     const row = db.prepare(`SELECT * FROM vl_quiz_record WHERE id = ?`).get(id) as
-      QuizRecordRow | undefined;
+      | QuizRecordRow
+      | undefined;
     if (!row) return null;
     return this.mapQuizRecordRow(row);
   }

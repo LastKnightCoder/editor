@@ -8,17 +8,19 @@ export const desktopRuntimeStyleCompiler: RuntimeStyleCompiler = {
 const inflight = new Map<string, Promise<string>>();
 const cache = new Map<string, string>();
 
-export async function compileRuntimeTailwind(source: string, extension = "tsx"): Promise<string> {
+async function compileRuntimeTailwind(source: string, extension = "tsx"): Promise<string> {
   const trimmed = source?.trim();
   if (!trimmed) {
     return "";
   }
   const key = `${extension}::${trimmed}`;
-  if (cache.has(key)) {
-    return cache.get(key)!;
+  const cached = cache.get(key);
+  if (cached !== undefined) {
+    return cached;
   }
-  if (!inflight.has(key)) {
-    const request = compileTailwind({
+  let request = inflight.get(key);
+  if (request === undefined) {
+    request = compileTailwind({
       content: trimmed,
       extension,
     })
@@ -31,5 +33,5 @@ export async function compileRuntimeTailwind(source: string, extension = "tsx"):
       });
     inflight.set(key, request);
   }
-  return inflight.get(key)!;
+  return request;
 }

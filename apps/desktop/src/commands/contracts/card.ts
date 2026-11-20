@@ -13,7 +13,7 @@ export interface CardContentResult {
   markdown: string;
   truncated: boolean;
   originalLength: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 /**

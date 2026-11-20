@@ -9,15 +9,14 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 vi.mock("../database", () => ({ default: {} }));
 vi.mock("../pi-ai-runtime", () => ({ default: {} }));
 vi.mock("../user-setting", () => ({ default: {} }));
 
 import { analyzeContent, findCandidates, proseOf, readInsights } from "../content-insights";
 import ContentAiMetaTable from "../tables/content-ai-meta";
+import { must } from "../../test-support";
 
 const DIM = 8;
 const PROSE =
@@ -159,7 +158,12 @@ describe("content-insights", () => {
     expect(ids).not.toContain(linked.id);
     expect(ids).not.toContain(short.id);
     expect(linkedKeys).toContain(`card:${linked.id}`);
-    expect(candidates.find(c => c.target.ref.id === good.id)!.prompt).toMatchObject({
+    expect(
+      must(
+        candidates.find(c => c.target.ref.id === good.id),
+        "candidates.find(c => c.target.ref.id === good..."
+      ).prompt
+    ).toMatchObject({
       summary: "批量读写",
       claims: ["读布局会强制同步"],
     });
@@ -198,7 +202,12 @@ describe("content-insights", () => {
     const good = addCard("掉帧排查", near(0));
     const complete = vi.fn(async (request: { messages: Array<{ content: string }> }) => {
       const prompt = request.messages[0].content;
-      const no = Number(prompt.match(/\[候选 (\d+)\] 卡片《掉帧排查》/)![1]);
+      const no = Number(
+        must(
+          prompt.match(/\[候选 (\d+)\] 卡片《掉帧排查》/),
+          "prompt.match(/\[候选 (\d+)\] 卡片《掉帧排查》/)"
+        )[1]
+      );
       return {
         ok: true,
         text: JSON.stringify({
@@ -224,13 +233,13 @@ describe("content-insights", () => {
       main,
       index,
       article.ref,
-      { providerId: "p", modelId: "m" },
+      { providerId: "p", modelId: "m", thinkingLevel: "high" },
       phase => phases.push(phase.phase)
     );
     expect(complete).toHaveBeenCalledTimes(1);
     expect(complete.mock.calls[0][0]).toMatchObject({
       source: { feature: "contentInsights" },
-      thinking: "off",
+      thinking: "high",
     });
     expect(phases).toEqual(["candidates", "thinking"]);
     expect(result.result.marks.map(m => [m.kind, m.anchor || m.text, m.target?.ref.id])).toEqual([
@@ -238,7 +247,9 @@ describe("content-insights", () => {
       ["gap", "合成层怎么划分", undefined],
     ]);
     expect(result).toMatchObject({ analyzedAt: 500, stale: false, model: "p/m" });
-    expect(readInsights(main, article.ref)!.stale).toBe(false);
+    expect(must(readInsights(main, article.ref), "readInsights(main, article.ref)").stale).toBe(
+      false
+    );
 
     main
       .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
@@ -246,7 +257,9 @@ describe("content-insights", () => {
         JSON.stringify([para("今天整理书架，下午去公园散步，晚上做了番茄炒蛋。")]),
         article.contentId
       );
-    expect(readInsights(main, article.ref)!.stale).toBe(true);
+    expect(must(readInsights(main, article.ref), "readInsights(main, article.ref)").stale).toBe(
+      true
+    );
   });
 
   it("模型失败时报错；输出无法解析时再试一次仍不行才报错，不写入", async () => {

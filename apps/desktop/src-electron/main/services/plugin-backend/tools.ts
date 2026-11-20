@@ -35,8 +35,10 @@ export function runBackendTool(
       "TEMP",
       "TMP",
       "USERPROFILE",
-    ])
-      if (process.env[key]) env[key] = process.env[key]!;
+    ] as const) {
+      const value = process.env[key];
+      if (value !== undefined) env[key] = value;
+    }
     const windows = process.platform === "win32";
     const command = windows
       ? path.join(
@@ -61,8 +63,13 @@ export function runBackendTool(
       windowsHide: true,
       stdio: windows ? ["pipe", "pipe", "pipe"] : ["pipe", "pipe", "pipe", "ipc"],
     });
-    child.stdin!.on("error", () => undefined);
-    child.stdin!.end(
+    const { stdin: childStdin, stdout: childStdout, stderr: childStderr } = child;
+    if (!childStdin || !childStdout || !childStderr) {
+      reject(new Error("子进程标准流未开启"));
+      return;
+    }
+    childStdin.on("error", () => undefined);
+    childStdin.end(
       JSON.stringify({
         command: tool.command,
         args: [...(tool.args ?? []), ...args],
@@ -108,8 +115,8 @@ export function runBackendTool(
         terminate();
       } else target.push(chunk);
     };
-    child.stdout!.on("data", collect(stdout));
-    child.stderr!.on("data", collect(stderr));
+    childStdout.on("data", collect(stdout));
+    childStderr.on("data", collect(stderr));
     signal.addEventListener("abort", cancel, { once: true });
     if (signal.aborted) cancel();
     child.once("error", error => {

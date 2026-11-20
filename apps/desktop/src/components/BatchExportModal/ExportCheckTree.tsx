@@ -5,7 +5,7 @@ import type { BatchExportTreeNode } from "@/utils/batch-export";
 
 const ITEM_TYPE_LABEL: Record<EProjectItemType, string> = {
   [EProjectItemType.Document]: "文档",
-  [EProjectItemType.WhiteBoard]: "白板",
+  [EProjectItemType.Whiteboard]: "白板",
   [EProjectItemType.VideoNote]: "视频笔记",
   [EProjectItemType.WebView]: "网页",
   [EProjectItemType.TableView]: "数据表",

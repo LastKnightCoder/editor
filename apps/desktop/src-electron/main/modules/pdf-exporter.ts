@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { BrowserWindow, dialog } from "electron";
 import { writeFile } from "node:fs/promises";
 import type { PdfExportPayload, PdfExportResult } from "@/types/pdf-export";
@@ -130,18 +131,6 @@ const buildPdfHtml = (payload: PdfExportPayload): string => {
   ${html}
 </body>
 </html>`;
-};
-
-/**
- * HTML 转义
- */
-const escapeHtml = (text: string): string => {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 };
 
 /**

@@ -45,7 +45,6 @@ export const EntitySelector = memo<EntitySelectorProps>(
 
     const typeLabel = "项目";
 
-    // 转换为统一格式
     const entityItems = useMemo<EntityItem[]>(
       () =>
         entities.map(entity => ({
@@ -71,7 +70,6 @@ export const EntitySelector = memo<EntitySelectorProps>(
       );
     }, [filteredItems, selectionFilter, isItemSelected, type]);
 
-    // 检查是否全选
     const allSelected = useMemo(() => {
       return (
         displayEntities.length > 0 && displayEntities.every(item => isItemSelected(type, item.id))
@@ -85,7 +83,6 @@ export const EntitySelector = memo<EntitySelectorProps>(
       }
     }, [displayEntities, allSelected, onToggleEntity]);
 
-    // 打开文档树弹窗
     const handleOpenModal = useCallback(
       async (entity: Project) => {
         setModalEntity(entity);
@@ -101,12 +98,10 @@ export const EntitySelector = memo<EntitySelectorProps>(
       [treeCache, onLoadTree]
     );
 
-    // 关闭弹窗
     const handleCloseModal = useCallback(() => {
       setModalEntity(null);
     }, []);
 
-    // 保存弹窗选择
     const handleSaveModal = useCallback(
       async (selectedIds: Set<number>) => {
         if (!modalEntity) return;
@@ -120,7 +115,6 @@ export const EntitySelector = memo<EntitySelectorProps>(
           // 没有选择任何文档，取消选择该实体
           await onToggleEntity(modalEntity.id, false);
         } else {
-          // 判断是全选还是部分选择
           const isAllSelected = selectedIds.size === totalIds.length;
           const scope: EntityScope = isAllSelected
             ? { mode: "all" }

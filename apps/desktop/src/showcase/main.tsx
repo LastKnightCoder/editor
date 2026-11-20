@@ -46,7 +46,9 @@ void useDynamicExtensionsStore
   .getState()
   .initExtensions()
   .then(() => {
-    ReactDOM.createRoot(document.getElementById("root")!).render(
+    const rootElement = document.getElementById("root");
+    if (!rootElement) throw new Error("找不到 #root 挂载节点");
+    ReactDOM.createRoot(rootElement).render(
       <StrictMode>
         <ShowcaseRoot />
       </StrictMode>

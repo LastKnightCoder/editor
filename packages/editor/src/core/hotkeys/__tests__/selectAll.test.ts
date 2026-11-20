@@ -39,33 +39,19 @@ const createKeyboardEvent = () => {
 };
 
 describe("select all hotkey", () => {
-  it("文档末尾是 void block 时应建立整篇 Slate 选区", () => {
+  it.each([
+    {
+      position: "末尾",
+      children: [createParagraph("intro"), createCodeBlock("const answer = 42;")],
+    },
+    {
+      position: "开头",
+      children: [createCodeBlock("const answer = 42;"), createParagraph("outro")],
+    },
+  ])("文档$position是 void block 时应建立整篇 Slate 选区", ({ children }) => {
     let editor = createEditor();
     editor = createVoidElementPlugin("code-block")(editor);
-    editor.children = [
-      createParagraph("intro"),
-      createCodeBlock("const answer = 42;"),
-    ] as Descendant[];
-
-    const event = createKeyboardEvent();
-
-    selectAllCommands[0].run(editor, { event });
-
-    expect(event.preventDefault).toHaveBeenCalledTimes(1);
-    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
-    expect(editor.selection).toEqual({
-      anchor: Editor.start(editor, []),
-      focus: Editor.end(editor, []),
-    });
-  });
-
-  it("文档开头是 void block 时应建立整篇 Slate 选区", () => {
-    let editor = createEditor();
-    editor = createVoidElementPlugin("code-block")(editor);
-    editor.children = [
-      createCodeBlock("const answer = 42;"),
-      createParagraph("outro"),
-    ] as Descendant[];
+    editor.children = children as Descendant[];
 
     const event = createKeyboardEvent();
 

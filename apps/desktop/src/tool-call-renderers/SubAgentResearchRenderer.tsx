@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type ElementType } from "react";
 import { Ban, Check, CircleAlert, Clock, X } from "lucide-react";
 import { Button, Dialog, Spinner, cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@/types";
@@ -121,7 +121,7 @@ const ToolExecutionList = ({
 }: {
   executions: ToolCallExecutionState[];
   isDark: boolean;
-  markdownComponents: any;
+  markdownComponents: Record<string, ElementType>;
 }) => {
   if (executions.length === 0) {
     return <ToolMutedText isDark={isDark}>未调用工具。</ToolMutedText>;
@@ -187,7 +187,7 @@ const TaskOutputBlocks = ({
 }: {
   task: SubAgentTaskView;
   isDark: boolean;
-  markdownComponents: any;
+  markdownComponents: Record<string, ElementType>;
   now: number;
 }) => {
   const reasoning = task.reasoning || task.reasoningPreview || "";
@@ -271,7 +271,8 @@ const SubAgentResearchRenderer = ({
   const [now, setNow] = useState(Date.now());
   const tasks = payload?.tasks || [];
   const activeTask = tasks.find(task => task.id === activeTaskId) || tasks[0];
-  const markdownComponents = rendererContext?.markdownComponents || {};
+  const markdownComponents =
+    (rendererContext?.markdownComponents as Record<string, ElementType> | undefined) || {};
 
   useEffect(() => {
     if (!activeTaskId && tasks[0]) {

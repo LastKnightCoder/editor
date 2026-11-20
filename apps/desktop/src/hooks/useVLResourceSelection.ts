@@ -70,7 +70,6 @@ export const useVLResourceSelection = (
   // 选中的资源数量
   const selectedCount = selectedResourceIds.length;
 
-  // 加载资源列表
   const loadResources = useMemoizedFn(async () => {
     if (!projectId) return;
 
@@ -115,12 +114,10 @@ export const useVLResourceSelection = (
     }
   });
 
-  // 获取选中资源的名称列表
   const getSelectedResourceNames = useMemoizedFn((): string[] => {
     return resources.filter(r => selectedResourceIds.includes(r.id)).map(r => r.name);
   });
 
-  // 获取选中的资源列表
   const getSelectedResources = useMemoizedFn((): VLResource[] => {
     return resources.filter(r => selectedResourceIds.includes(r.id));
   });

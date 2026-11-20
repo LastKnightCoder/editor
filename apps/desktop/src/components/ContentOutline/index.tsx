@@ -4,7 +4,7 @@
  * （按序索引编辑器实时 children，见 props 注释）。
  */
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import type { HeaderElement } from "@tau/editor/extensions/header";
@@ -144,6 +144,10 @@ export function ContentOutline({
   });
 
   if (headers.length === 0) return null;
+  const baseLevel = headers.reduce(
+    (level, header) => Math.min(level, header.level),
+    headers[0].level
+  );
 
   return (
     <nav aria-label="大纲" className={cn("w-[208px]", className)}>
@@ -157,6 +161,7 @@ export function ContentOutline({
           key={header.id}
           header={header}
           index={index}
+          depth={header.level - baseLevel}
           active={activeId === header.id}
           onSelect={scrollToHeader}
         />
@@ -169,11 +174,13 @@ export function ContentOutline({
 const OutlineItem = memo(function OutlineItem({
   header,
   index,
+  depth,
   active,
   onSelect,
 }: {
   header: OutlineHeader;
   index: number;
+  depth: number;
   active: boolean;
   onSelect(header: OutlineHeader, index: number): void;
 }) {
@@ -195,11 +202,11 @@ const OutlineItem = memo(function OutlineItem({
       <button
         type="button"
         onClick={() => onSelect(header, index)}
+        style={{ "--outline-indent": `${depth}rem` } as CSSProperties}
         className={cn(
-          "rounded-tau-sm text-ink-3 ease-tau-out mt-1 block border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
-          // 缩进用 margin 而非 padding：背景贴住缩进后的条目，左端不留空白块；
-          // 宽度显式扣除缩进量，避免 w-full + margin 向右溢出
-          header.level >= 2 ? "text-tau-micro ml-4 w-[calc(100%-1rem)]" : "w-full",
+          // 高亮从缩进后开始，宽度扣除缩进量以保持右缘对齐。
+          "rounded-tau-sm text-ink-3 ease-tau-out ms-(--outline-indent) mt-1 block w-[calc(100%-var(--outline-indent))] border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
+          header.level >= 2 && "text-tau-micro",
           // 选中项不再叠 hover 样式，避免高亮被 hover 底色盖掉
           active
             ? "border-accent bg-selected text-accent-text font-medium"

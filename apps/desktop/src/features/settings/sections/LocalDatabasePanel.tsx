@@ -1,6 +1,6 @@
 import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
 /**
- * 本地数据库 —— 同步页第三个 Tab（2026-09-24，从 legacy AppAbout「数据库管理」迁入：
+ * 本地数据库 —— 同步页第三个 Tab（从 legacy AppAbout「数据库管理」迁入：
  * 数据库是同步的对象，切库 / 建库与同步放在一起）。
  *
  * 逻辑对齐 legacy components/SelectDatabase：切换即写 database.active（legacy 无确认，保持）；

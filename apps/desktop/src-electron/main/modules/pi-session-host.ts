@@ -68,6 +68,7 @@ import {
   resolveWorkspaceCwd,
 } from "./pi-workspace";
 import type {
+  PiHostToolCallResult,
   PiHostToolSpec,
   PiPromptDisplay,
   PiPromptRetry,
@@ -88,6 +89,7 @@ import type { UsageSource } from "@/types/model-usage";
 import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import { basename, dirname, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
@@ -103,7 +105,7 @@ import {
 } from "@tau/db-schema/sync";
 
 /**
- * 宿主会话的客户端：渲染窗口（WebContents），或 M5 起不经渲染端直接驱动会话的主进程客户端
+ * 宿主会话的客户端：渲染窗口（WebContents），或不经渲染端直接驱动会话的主进程客户端
  * （浏览器扩展桥 browser-bridge）。只需要这几个能力：发事件、判断是否已断开、断开时通知。
  */
 export interface PiSessionClient {
@@ -141,7 +143,7 @@ export interface HostedSession {
   requestedCwd: string;
   /** 展示 entry 写入器：prompt/steer 登记，用户消息落盘后紧跟着写 */
   displayWriter: ReturnType<typeof createDisplayEntryWriter>;
-  /** 最近活动时间（空闲回收用，M4-e） */
+  /** 最近活动时间（空闲回收用） */
   lastActive: number;
 }
 
@@ -158,7 +160,7 @@ export interface PiSessionCreateRequest {
   /** 持久会话目录相对库名（默认当前活跃库）；传 null 强制 inMemory（测试/单轮） */
   persist?: boolean;
   /**
-   * 打开已有会话（M4 resume）：相对当前库会话目录的文件名。
+   * 打开已有会话（resume）：相对当前库会话目录的文件名。
    * pi 从 JSONL 自己恢复上下文，所以这条路不需要 initialMessages。
    */
   sessionFile?: string;
@@ -169,7 +171,7 @@ export interface PiSessionCreateRequest {
   piSessionId?: string;
   /** 浏览器扩展对话：会话落在 browser-sessions/<页面键>/，按 piSessionId 找文件（与 sessionFile 互斥） */
   browserPageUrl?: string;
-  /** 手动指定 bash.exe（pi-dev 面板联调用；产品化的设置项在 M3 工具管理落地） */
+  /** 手动指定 bash.exe（pi-dev 面板联调用；产品化的设置项在工具管理落地） */
   shellPath?: string;
   /** 渲染端 ToolRegistry 工具清单（桥接为 pi customTools），含当前停用项 */
   customTools?: PiHostToolSpec[];
@@ -435,13 +437,15 @@ class PiSessionHostModule {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
         return PiSessionHostModule.runWithSession(sessionId, async signal => {
+          const runId = hosted.session.activePromptRunId;
+          if (runId === undefined) return { ok: false, reason: "not-streaming" };
           const piImages = (
             await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
-          ).filter(Boolean);
+          ).filter((image): image is ImageContent => image !== null);
           signal.throwIfAborted();
           const displayData = toDisplayData(text, display);
           if (displayData) hosted.displayWriter.expect(displayData);
-          const outcome = await steerHostSession(hosted.session, text, piImages);
+          const outcome = await steerHostSession(hosted.session, text, piImages, runId);
           if (!outcome.ok && displayData) hosted.displayWriter.discard(displayData);
           return outcome;
         });
@@ -466,7 +470,7 @@ class PiSessionHostModule {
       await PiSessionHostModule.disposeSession(sessionId);
       return { ok: true };
     });
-    // 命令执行环境（M3-g）：设置页据此显示自动检测到什么、实际会用哪个，并校验用户填的路径
+    // 命令执行环境：设置页据此显示自动检测到什么、实际会用哪个，并校验用户填的路径
     ipcMain.handle("pi-session:shell-info", async (_event, payload?: { probe?: string }) => {
       const probe = payload?.probe?.trim();
       const setting = await userSettingModule.getSettingSnapshot();
@@ -505,14 +509,14 @@ class PiSessionHostModule {
           return {};
         })
     );
-    // 打开对话（M4）：读会话文件当前叶子路径，投影成桌面展示消息。纯读，不起 pi 会话
+    // 打开对话：读会话文件当前叶子路径，投影成桌面展示消息。纯读，不起 pi 会话
     ipcMain.handle("pi-session:transcript", async (_event, location: PiSessionLocation) =>
       PiSessionHostModule.guard(async () => {
         const { file, sessionDir } = await PiSessionHostModule.locate(location);
         return { messages: readTranscript(file, sessionDir) };
       })
     );
-    // 树谱视图（M4-d）：只含用户消息的精简树。宿主开着就读它的 SessionManager（内存里最新），否则读文件
+    // 树谱视图：只含用户消息的精简树。宿主开着就读它的 SessionManager（内存里最新），否则读文件
     ipcMain.handle("pi-session:tree", async (_event, location: PiSessionLocation) =>
       PiSessionHostModule.guard(async () => {
         const { file, sessionDir } = await PiSessionHostModule.locate(location);
@@ -533,7 +537,7 @@ class PiSessionHostModule {
           return { turn: await readConversationTurn(file, payload.entryId) };
         })
     );
-    // 改会话树（M4-d）：编辑重发/重新生成 = 回退，从这里建分支 = 分叉，切版本，删除 = 省略。
+    // 改会话树：编辑重发/重新生成 = 回退，从这里建分支 = 分叉，切版本，删除 = 省略。
     // 宿主开着这个文件时直接在它的 SessionManager 上改（两个 SessionManager 同时写一个文件会互相
     // 覆盖），改完 refreshContext——会话不重建，本会话的工具授权不丢；运行中不允许改。
     // 没开着就直接打开文件改
@@ -560,9 +564,11 @@ class PiSessionHostModule {
             ) {
               throw new Error("回答进行中，请先停止再修改历史");
             }
-            await PiSessionHostModule.subagentRuntime?.stop(
-              [...PiSessionHostModule.sessions].find(([, item]) => item === hosted)![0]
-            );
+            const hostedKey = [...PiSessionHostModule.sessions].find(
+              ([, item]) => item === hosted
+            )?.[0];
+            if (hostedKey === undefined) throw new Error("会话已释放，无法应用修改");
+            await PiSessionHostModule.subagentRuntime?.stop(hostedKey);
             applySessionEdit(session.sessionManager, edit);
             notifyMemorySessionEdit(file, location);
             session.refreshContext();
@@ -650,9 +656,10 @@ class PiSessionHostModule {
         }
       ) => {
         if (!executionId) return { ok: false, error: "缺少工具执行身份" };
+        // IPC 入参只在类型上收窄：载荷形状由渲染端工具桥契约保证
         PiSessionHostModule.sessions
           .get(sessionId)
-          ?.bridge.handleResult(toolCallId, result as never, executionId);
+          ?.bridge.handleResult(toolCallId, result as PiHostToolCallResult, executionId);
         return { ok: true };
       }
     );
@@ -810,7 +817,7 @@ class PiSessionHostModule {
         ? []
         : PiSessionHostModule.subagents().tools(request.sessionId, child?.agent);
       const toolSpecs = (request.customTools ?? []).filter(
-        tool => !SUBAGENT_TOOL_NAMES.includes(tool.name as never)
+        tool => !(SUBAGENT_TOOL_NAMES as readonly string[]).includes(tool.name)
       );
       interactions = new PiSessionInteractions({
         sessionId: request.sessionId,
@@ -1039,7 +1046,7 @@ class PiSessionHostModule {
   }
 
   /**
-   * 实际使用的 shell（M3-g）：用户在设置里填的优先（路径不存在则忽略，避免 pi 拿着坏路径
+   * 实际使用的 shell：用户在设置里填的优先（路径不存在则忽略，避免 pi 拿着坏路径
    * 起不来 bash 又不说明原因），否则用启动时的自动检测；两者皆空由 pi 走 powershell 兜底。
    */
   private static resolveShellPath(setting: { agentShell?: { path?: string } }): string | undefined {
@@ -1053,7 +1060,7 @@ class PiSessionHostModule {
     return path;
   }
 
-  // ── 主进程客户端（M5：浏览器扩展桥不经渲染端直接驱动会话）───────────────────────
+  // ── 主进程客户端（浏览器扩展桥不经渲染端直接驱动会话）───────────────────────
 
   /** 以主进程客户端建会话（sender 由调用方实现 PiSessionClient） */
   public static create(client: PiSessionClient, request: PiSessionCreateRequest) {
@@ -1072,7 +1079,8 @@ class PiSessionHostModule {
     retry?: PiPromptRetry
   ): Promise<{ ok: boolean; error?: string }> {
     return PiSessionHostModule.runExclusiveSession(sessionId, async signal => {
-      const hosted = PiSessionHostModule.sessions.get(sessionId)!;
+      const hosted = PiSessionHostModule.sessions.get(sessionId);
+      if (!hosted) return { ok: false, error: "会话已关闭" };
       if (hosted.operations.size > 1) return { ok: false, error: "Agent is already processing" };
       // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
       const displayData = toDisplayData(text, display);
@@ -1092,7 +1100,7 @@ class PiSessionHostModule {
         // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
         const piImages = (
           await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
-        ).filter(Boolean);
+        ).filter((image): image is ImageContent => image !== null);
         signal.throwIfAborted();
         if (displayData) hosted.displayWriter.expect(displayData);
         hosted.lastActive = Date.now();
@@ -1102,7 +1110,7 @@ class PiSessionHostModule {
           preflightResult: () => {
             if (signal.aborted) void hosted.session.abort();
           },
-          ...(piImages.length > 0 ? { images: piImages as never } : {}),
+          ...(piImages.length > 0 ? { images: piImages } : {}),
         });
         return { ok: true };
       } catch (error) {
@@ -1232,7 +1240,7 @@ class PiSessionHostModule {
     });
   }
 
-  /** 空闲回收（M4-e）：空闲超过 IDLE_DISPOSE_MS 的宿主释放，下次发送从会话文件恢复 */
+  /** 空闲回收：空闲超过 IDLE_DISPOSE_MS 的宿主释放，下次发送从会话文件恢复 */
   private static sweepIdleSessions(): void {
     for (const id of idleSessionsToDispose(PiSessionHostModule.states(), Date.now())) {
       console.log(`[PiSessionHost] 空闲回收会话: ${id}`);
@@ -1382,6 +1390,7 @@ const createDynamicSystemPromptExtension = (
   hidden: true,
   factory: (pi: ExtensionAPI) => {
     pi.on("before_agent_start", event => {
+      if (event.messageType !== "user") return;
       const current = renderHostSystemPrompt(systemPromptRef, event.prompt);
       return current ? { systemPrompt: current } : undefined;
     });
@@ -1404,7 +1413,7 @@ async function readPromptImage(
     dataUrl?: string;
   },
   signal?: AbortSignal
-): Promise<unknown | null> {
+): Promise<ImageContent | null> {
   try {
     if (image.dataUrl) {
       const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
@@ -1422,8 +1431,9 @@ async function readPromptImage(
         mimeType: MIME_BY_EXTENSION[extension] ?? "image/png",
       };
     }
-    if (/^https?:\/\//i.test(image.path ?? "")) {
-      const response = await fetch(image.path!, { signal });
+    const url = image.path;
+    if (url && /^https?:\/\//i.test(url)) {
+      const response = await fetch(url, { signal });
       if (!response.ok) return null;
       const buffer = Buffer.from(await response.arrayBuffer());
       return {

@@ -11,7 +11,7 @@ import {
 import type { AiResolvedModel, AiSessionStore, AiStoredSession } from "../types";
 
 export const session = { databaseName: "validation.db", sessionId: "session-1" };
-export const row: AiSessionRow = {
+const row: AiSessionRow = {
   id: session.sessionId,
   scope: "main-chat",
   domainRef: null,
@@ -133,7 +133,7 @@ export function encodeTurn(turn: Turn) {
   );
 }
 
-export function streamResponse(text: string) {
+function streamResponse(text: string) {
   const bytes = new TextEncoder().encode(text);
   let offset = 0;
   return new Response(

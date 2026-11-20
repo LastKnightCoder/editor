@@ -5,7 +5,7 @@ import type {
 } from "@tau/db-schema/content-identities";
 import { ContentIdentityTable } from "./content-identity";
 import DataTableTable from "./data-table";
-import WhiteBoardContentTable from "./white-board-content";
+import WhiteboardContentTable from "./white-board-content";
 
 /** 同一实体的关系先合并净变化，避免移动节点时短暂归零和重复释放依赖正文。 */
 export function applyContentEntityRelations(
@@ -46,14 +46,14 @@ export function applyContentEntityRelations(
         throw new Error("主库实体引用数不一致，须先核对关系账");
       if (delta > 0) {
         if (reference.kind === "data-table") DataTableTable.incrementRefCount(db, id);
-        else WhiteBoardContentTable.incrementRefCount(db, id);
+        else WhiteboardContentTable.incrementRefCount(db, id);
         if (delta > 1)
           db.prepare(`UPDATE ${table} SET ref_count=ref_count+? WHERE id=?`).run(delta - 1, id);
       } else {
         if (delta < -1)
           db.prepare(`UPDATE ${table} SET ref_count=ref_count+? WHERE id=?`).run(delta + 1, id);
         if (reference.kind === "data-table") DataTableTable.remove(db, id);
-        else WhiteBoardContentTable.deleteWhiteboard(db, id);
+        else WhiteboardContentTable.deleteWhiteboard(db, id);
       }
     }
   })();

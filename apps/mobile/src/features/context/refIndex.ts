@@ -33,7 +33,7 @@ function parseRefs(contentJson: string | null) {
   }
 }
 
-export async function rebuildEntityRefs(): Promise<void> {
+async function rebuildEntityRefs(): Promise<void> {
   if (running) {
     rerun = true;
     return;

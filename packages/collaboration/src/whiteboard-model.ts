@@ -616,7 +616,7 @@ export class WhiteboardModel {
         while (ancestor?.kind === "element" && ancestor.id !== moving)
           ancestor = routing.parents.get(ancestor.id) ?? null;
         if (ancestor?.id === moving)
-          height = Math.max(height, depth - routing.depths.get(moving)! + 1);
+          height = Math.max(height, depth - (routing.depths.get(moving) ?? 0) + 1);
       }
     }
     if ((routing.depths.get(parent.id) ?? 0) + height > WHITEBOARD_LIMITS.payloadDepth)
@@ -1072,7 +1072,7 @@ export class WhiteboardModel {
         bindings = this.bindings(record);
       const data = (record.get("data") as Y.Map<unknown>).toJSON();
       for (const field of contract.textFields)
-        data[field] = this.strings.get(bindings.data[field])!.toString();
+        data[field] = (this.strings.get(bindings.data[field]) ?? "").toString();
       const body = bindings.body;
       return {
         id: elementId,
@@ -1094,7 +1094,7 @@ export class WhiteboardModel {
           ? {
               body:
                 body.mode === "plain"
-                  ? this.strings.get(body.rootId)!.toString()
+                  ? (this.strings.get(body.rootId) ?? "").toString()
                   : structuredClone(this.root(body.rootId).read()),
             }
           : {}),

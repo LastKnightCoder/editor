@@ -78,7 +78,9 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
       target.id,
       revision,
     ],
-    queryFn: () => describeBatched(context!, { kind: target.kind, id: target.id }),
+    queryFn: context
+      ? () => describeBatched(context, { kind: target.kind, id: target.id })
+      : undefined,
     enabled: Boolean(context),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -141,7 +143,10 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
             type="button"
             className="text-accent hover:bg-hover rounded-tau-sm text-tau-meta shrink-0 px-1"
             disabled={requesting}
-            onClick={() => void request(result.permission!)}
+            onClick={() => {
+              const permission = result.permission;
+              if (permission) void request(permission);
+            }}
           >
             允许访问
           </button>

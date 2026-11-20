@@ -1,6 +1,5 @@
 /**
- * 服务商页共用件 —— 大语言模型 / 语音（2026-09-24 用户裁决 mockups/settings/provider-layout.html
- * 方案 A：去掉左右主从，改「顶部切换栏 + 整宽分组」，与其它设置页同一节奏）。
+ * 服务商页共用件 —— 大语言模型 / 语音（去掉左右主从，改「顶部切换栏 + 整宽分组」，与其它设置页同一节奏）。
  *
  * 整页收进一个面板（用户校准「分成三块看着散」），面板内三层（再校准「内部层次不分明」）：
  * ProviderSwitcher = 卡片头（横排切换 + bg-selected 轻染，末尾「添加」，下缘 line-1 贯穿线，
@@ -98,7 +97,7 @@ export function ProviderSection({
   children: ReactNode;
 }) {
   return (
-    <section className="px-1.5 pb-1.5 pt-2.5">
+    <section className="px-1.5 pt-2.5 pb-1.5">
       <div className="flex min-h-8 items-center gap-3 pb-1.5 pl-1.5">
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <h4 className="text-tau-body-lg text-ink-1 flex-none font-semibold">{title}</h4>

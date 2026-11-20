@@ -70,7 +70,7 @@ it("有可用更新：状态签、立即更新、手动下载与新版本内容�
   expect(text()).toContain("v3.8.2");
   expect(text()).toContain("v3.9.0 可更新");
   expect(text()).toContain("自动检查更新");
-  expect(text()).toContain("登录系统后启动 Tau");
+  expect(text()).toContain("电脑开机后自动启动 Tau");
   expect(text()).toContain("新版本更新内容");
   await act(async () => button("立即更新").click());
   expect(download).toHaveBeenCalled();

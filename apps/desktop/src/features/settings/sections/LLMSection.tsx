@@ -1,10 +1,10 @@
 /**
- * 大语言模型 —— AI 服务商接入与各功能的主力模型分配（llm-designs.html 案 1 定稿）。
+ * 大语言模型 —— AI 服务商接入与各功能的主力模型分配。
  *
- * 页内两个 Tab（2026-09-24 第三版重排）：
+ * 页内两个 Tab：
  * - 服务商与模型：顶部 ProviderSwitcher 切换「正在编辑哪家」（服务商没有「当前/生效」语义，
  *   不同于同步/图床的 active），下方整宽分组「连接」（凭据设置行）+「模型」（分隔行：名称与
- *   能力/参数签同行、在用计数与编辑删除常驻右侧，增删改走浮层表单）——provider-layout.html 方案 A；
+ *   能力/参数签同行、在用计数与编辑删除常驻右侧，增删改走浮层表单）；
  * - 功能分配：按分类分组面板，每行一个组合选择器（searchable Select 按服务商分组，
  *   选项行 = 模型名 + 能力角标，取代 legacy 两级下拉）；Tab 角标 = 未分配功能数。删除服务商/模型时一并清空引用它们的分配槽位，
  * 模型改名时分配引用跟随——legacy 均会留悬空引用。
@@ -637,6 +637,8 @@ export function LLMSection() {
       toast.warning("单价需同时填写输入和输出，且为非负数");
       return;
     }
+    // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
+    const catalogCost = !hasCostInput && !cost ? catalogCostOf(id) : undefined;
     const next: LLMModelSetting = {
       id,
       ...(displayName && displayName !== id ? { name: displayName } : {}),
@@ -658,12 +660,7 @@ export function LLMSection() {
       ...(modelForm.userAgent.trim()
         ? { headers: { "User-Agent": modelForm.userAgent.trim() } }
         : {}),
-      // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
-      ...(cost
-        ? { cost }
-        : !hasCostInput && catalogCostOf(id)
-          ? { cost: { ...catalogCostOf(id)! } }
-          : {}),
+      ...(cost ? { cost } : catalogCost ? { cost: { ...catalogCost } } : {}),
     };
     const providerId = editing.id;
     const initialId = modelForm.initialId;

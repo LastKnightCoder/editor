@@ -43,12 +43,12 @@ function validateResolved(value: ResolvedVideo): ResolvedVideo {
     };
   });
   const cover = optionalText(value.cover);
-  const index = value.defaultVariant;
+  const index = Number.isInteger(value.defaultVariant) ? value.defaultVariant : undefined;
   return {
     title: value.title,
     ...(cover ? { cover } : {}),
     variants,
-    ...(Number.isInteger(index) && index! >= 0 && index! < variants.length
+    ...(index !== undefined && index >= 0 && index < variants.length
       ? { defaultVariant: index }
       : {}),
   };

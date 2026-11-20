@@ -10,7 +10,8 @@ import {
 
 /** 高亮 / 下划线色取编辑器统一行内色板（导出为浅色版） */
 const inlinePaletteHighlightStyles = INLINE_PALETTE.map(({ id }) => {
-  const colors = exportHighlightColors(id)!;
+  const colors = exportHighlightColors(id);
+  if (!colors) throw new Error(`高亮色板缺少 ${id} 的浅色配置`);
   return `.highlight-${id} { background: ${colors.background}; border-bottom: 2px solid ${colors.line}; }`;
 }).join("\n");
 
@@ -31,7 +32,7 @@ const CALLOUT_ICONS = {
 
 export { CALLOUT_ICONS };
 
-export const wechatBaseStyles = `
+const wechatBaseStyles = `
 /* ========== Base Reset ========== */
 * {
   margin: 0;

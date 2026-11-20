@@ -174,7 +174,7 @@ const updateUsage = (message: ResponseMessage, source: PiTranscriptMessage): voi
 /**
  * 叶子路径上的 message entry → 桌面展示消息序列。
  * 跳过 system（桌面的 system 由会话装配承载）与 pi 自有的 custom/bashExecution/
- * compactionSummary/branchSummary 消息（桌面暂无对应渲染，M4-d 会话树时再看要不要展示）。
+ * compactionSummary/branchSummary 消息（桌面暂无对应渲染）。
  */
 export function projectTranscriptMessages(entries: PiTranscriptEntry[]): ChatSessionMessage[] {
   const out: ChatSessionMessage[] = [];

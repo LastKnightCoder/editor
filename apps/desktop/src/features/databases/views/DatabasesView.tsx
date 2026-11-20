@@ -1,6 +1,6 @@
 /**
  * 数据库列表视图：共享驾驶舱（features/shared/cockpit）的数据库模块装配。
- * 2026-09-28 从「项目」的 data-table 类型拆出为独立顶级模块。
+ * 从「项目」的 data-table 类型拆出为独立顶级模块。
  */
 
 import { useMemo } from "react";
@@ -10,8 +10,7 @@ import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
 import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
 import { useDatabasesSnapshot, useDatabaseMutations } from "../queries";
 
-/* 模块色沿用原 projectTypeMeta 的数据表格紫罗兰（设计定稿的数据色，出处
-   mockups/projects/plan-c-cockpit.html，不进主题词表） */
+/* 模块色沿用原 projectTypeMeta 的数据表格紫罗兰（数据色，不进主题词表） */
 const VISUAL: CockpitVisual = {
   icon: Table,
   softClass: "bg-[rgba(111,83,150,0.13)]",

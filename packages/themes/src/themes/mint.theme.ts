@@ -10,7 +10,7 @@
 
 import { defineTheme } from "../defineTheme.ts";
 
-export default defineTheme({
+defineTheme({
   key: "mint",
   name: "薄荷",
   light: {

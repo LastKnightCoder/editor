@@ -12,7 +12,7 @@ import type {
 } from "@/types/model-usage";
 import type { UsageSyncBackend } from "@/services/usageSync";
 
-const invokeModelUsage = <T = any>(channel: string, ...args: any[]): Promise<T> =>
+const invokeModelUsage = <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>
   withModule("model-usage", () => invoke<T>(channel, ...args));
 
 export const getModelUsagePlugins = () =>

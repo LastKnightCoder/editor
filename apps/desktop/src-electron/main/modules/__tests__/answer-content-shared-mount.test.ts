@@ -13,12 +13,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: {
-    enqueueTask: vi.fn(),
-    cleanupVideoNoteArtifacts: vi.fn(),
-  },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
@@ -62,7 +57,7 @@ describe("共享 contentId 挂载", () => {
       children: [],
       refType: "content",
       refId: contentId,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
       projectItemType: EProjectItemType.Document,
     });
 

@@ -38,7 +38,7 @@ const FrontMatter = (props: FrontMatterProps) => {
   // 本地编辑状态，用于处理中文输入
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  const parsedValue: Record<string, any> = useMemo(() => {
+  const parsedValue: Record<string, unknown> = useMemo(() => {
     try {
       const parsed = YAML.parse(value);
       return parsed || {};
@@ -48,7 +48,6 @@ const FrontMatter = (props: FrontMatterProps) => {
     return {};
   }, [value]);
 
-  // 更新 front-matter 值到 Slate
   const commitValue = useCallback(
     (key: string, newValue: string) => {
       const newParsed = { ...parsedValue, [key]: newValue };
@@ -66,12 +65,10 @@ const FrontMatter = (props: FrontMatterProps) => {
     [editor, element, parsedValue]
   );
 
-  // 处理本地输入变化
   const handleLocalChange = useCallback((key: string, newValue: string) => {
     setLocalValues(prev => ({ ...prev, [key]: newValue }));
   }, []);
 
-  // 获取显示值（优先使用本地编辑值）
   const getDisplayValue = useCallback(
     (key: string) => {
       if (key in localValues) {
@@ -82,7 +79,6 @@ const FrontMatter = (props: FrontMatterProps) => {
     [localValues, parsedValue]
   );
 
-  // 处理失焦时提交
   const handleBlur = useCallback(
     (key: string) => {
       if (key in localValues) {
@@ -132,10 +128,10 @@ const FrontMatter = (props: FrontMatterProps) => {
   };
 
   // 渲染可编辑或只读的值
-  const renderValue = (key: string, value: any) => {
+  const renderValue = (key: string, value: unknown) => {
     // 特殊处理 tags（数组类型）
     if (key === "tags") {
-      return renderTagsValue(value);
+      return renderTagsValue(value as string | string[]);
     }
 
     // 对象类型只读显示

@@ -10,8 +10,6 @@ import {
   PdfDocumentInfo,
   PdfPageContent,
   PdfOutlineNode,
-  PdfDocumentMap,
-  PdfSectionDetail,
   PdfLibraryItem,
 } from "@/types";
 
@@ -27,10 +25,6 @@ export const updatePdf = async (pdf: Pdf): Promise<Pdf> => {
 
 export const getPdfById = async (id: number): Promise<Pdf> => {
   return await invoke("get-pdf-by-id", id);
-};
-
-export const getPdfList = async (): Promise<Pdf[]> => {
-  return await invoke("get-pdf-list");
 };
 
 export const removePdf = async (id: number): Promise<number> => {
@@ -80,10 +74,6 @@ export const addPdfBookmark = async (bookmark: CreatePdfBookmark): Promise<PdfBo
   return await invoke("add-pdf-bookmark", bookmark);
 };
 
-export const updatePdfBookmark = async (bookmark: PdfBookmark): Promise<PdfBookmark> => {
-  return await invoke("update-pdf-bookmark", bookmark);
-};
-
 export const getPdfBookmarks = async (pdfId: number): Promise<PdfBookmark[]> => {
   return await invoke("get-pdf-bookmarks", pdfId);
 };
@@ -111,13 +101,6 @@ export const rebuildPdfIndex = async (params: {
   return await invoke("pdf-index:rebuild", params);
 };
 
-export const getPdfIndexStatus = async (params: {
-  pdfId: number;
-  mainDbName: string;
-}): Promise<PdfIndexStatus> => {
-  return await invoke("pdf-index:status", params);
-};
-
 /** 批量查询索引状态；没有索引库的 PDF 不在结果里 */
 export const getPdfIndexStatuses = async (params: {
   pdfIds: number[];
@@ -142,14 +125,6 @@ export const getPdfDocumentInfo = async (params: {
   return await invoke("pdf-index:document-info", params);
 };
 
-export const getPdfPageContent = async (params: {
-  pdfId: number;
-  mainDbName: string;
-  pageNumber: number;
-}): Promise<PdfPageContent | null> => {
-  return await invoke("pdf-index:page-content", params);
-};
-
 export const getPdfPageRangeContent = async (params: {
   pdfId: number;
   mainDbName: string;
@@ -164,20 +139,4 @@ export const getPdfOutline = async (params: {
   mainDbName: string;
 }): Promise<PdfOutlineNode[]> => {
   return await invoke("pdf-index:outline", params);
-};
-
-export const getPdfDocumentMap = async (params: {
-  pdfId: number;
-  mainDbName: string;
-  depth?: number;
-}): Promise<PdfDocumentMap> => {
-  return await invoke("pdf-index:document-map", params);
-};
-
-export const readPdfSection = async (params: {
-  pdfId: number;
-  mainDbName: string;
-  sectionId: string;
-}): Promise<PdfSectionDetail | null> => {
-  return await invoke("pdf-index:section-detail", params);
 };

@@ -36,7 +36,7 @@ const makeItem = (id: number, children: number[] = [], title = `条目 ${id}`): 
   projectItemType: EProjectItemType.Document,
   count: 0,
   contentId: id,
-  whiteBoardContentId: 0,
+  whiteboardContentId: 0,
 });
 
 type TreeDataHook = ReturnType<typeof useProjectTreeData>;

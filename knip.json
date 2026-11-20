@@ -1,0 +1,62 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignore": [
+    "**/mockups/**",
+    "**/e2e/**",
+    "**/store/**",
+    "**/docs/**",
+    "**/release/**",
+    "**/output/**",
+    "**/examples/**",
+    "**/软著申请材料/**",
+    "**/website-mockups/**",
+    "**/*.eval.test.ts",
+    "apps/promo-video/**"
+  ],
+  "ignoreDependencies": ["electron", "electron-updater", "electron-devtools-installer"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.{mjs,js}", "vitest.config.mts"]
+    },
+    "apps/desktop": {
+      "entry": [
+        "index.html",
+        "src/main.tsx",
+        "src/init.ts",
+        "content-runtime.html",
+        "src-electron/main/index.ts",
+        "src-electron/preload/**/*.ts",
+        "vite.config*.mts",
+        "scripts/*.{mjs,ts}"
+      ]
+    },
+    "apps/browser-extension": {
+      "entry": ["src/entrypoints/**/*.ts*", "*.config.*"]
+    },
+    "apps/mobile": {
+      "entry": ["src/main.ts*", "*.config.*", "src-tauri/**/*.{rs,toml}"]
+    },
+    "apps/website": {
+      "entry": [
+        "*.config.*",
+        "index.html",
+        "docs/index.html",
+        "developers/index.html",
+        "changelog/index.html",
+        "src/main.ts"
+      ]
+    },
+    "apps/analytics": {
+      "entry": ["*.config.*", "api/index.ts", "client/index.ts"]
+    },
+    "apps/collaboration-server": {
+      "entry": ["*.config.*", "src/**/*.ts"]
+    },
+    "apps/collaboration-cloudflare": {
+      "entry": ["src/*.ts", "*.config.*", "scripts/*.mjs"]
+    },
+    "apps/plugin-portal": {
+      "entry": ["*.config.*", "api/index.ts"]
+    }
+  }
+}

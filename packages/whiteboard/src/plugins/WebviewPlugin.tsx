@@ -38,7 +38,7 @@ export class WebviewPlugin extends CommonPlugin implements IBoardPlugin {
     return items;
   }
 
-  isHit(_board: Board, element: CommonElement & any, x: number, y: number): boolean {
+  isHit(_board: Board, element: CommonElement, x: number, y: number): boolean {
     const { x: elementX, y: elementY, width, height } = element;
     return (
       x >= elementX - DRAG_PADDING &&

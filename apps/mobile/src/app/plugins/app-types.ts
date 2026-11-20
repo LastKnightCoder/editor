@@ -1,7 +1,7 @@
 import type { PluginEntityRef, PluginPickOptions, PluginPickedEntity } from "@tau/plugins";
 import type { AppAdapter, PluginOwner } from "@tau/plugins/host";
 
-export const MOBILE_ENTITY_KINDS = [
+const MOBILE_ENTITY_KINDS = [
   "card",
   "article",
   "project",

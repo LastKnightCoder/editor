@@ -8,7 +8,7 @@ import { enqueueProviderConfigWrite } from "../provider-config";
 import type { CustomMcpServer, CustomMcpServersMutation } from "../../types";
 
 export const CUSTOM_MCP_PREFIX = "custom:";
-export const customMcpConnectionId = (serverId: string) => `${CUSTOM_MCP_PREFIX}${serverId}`;
+const customMcpConnectionId = (serverId: string) => `${CUSTOM_MCP_PREFIX}${serverId}`;
 
 export function mutateCustomMcpServers(mutation: CustomMcpServersMutation) {
   return enqueueProviderConfigWrite(() =>

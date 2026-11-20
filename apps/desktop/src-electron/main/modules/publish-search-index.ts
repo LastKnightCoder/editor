@@ -25,16 +25,20 @@ export interface BuildPublishSearchIndexInput {
   docs: IPublishSearchDocEntry[];
 }
 const parser = unified().use(remarkParse);
+/** mdast 节点的最小递归形状：只取 walk 用到的 value/type/children */
+type PlainTextNode = { type: string; value?: string; children?: PlainTextNode[] };
 function plain(value: unknown): string {
   if (!Array.isArray(value) || !value.length) return "";
   const tree = parser.parse(getMarkdown(value as Descendant[]));
-  const walk = (node: any): string =>
+  const walk = (node: PlainTextNode): string =>
     typeof node.value === "string"
       ? node.type === "html"
         ? node.value.replace(/<[^>]*>/g, " ")
         : node.value
       : (node.children ?? []).map(walk).join(" ");
-  return walk(tree).replace(/\s+/g, " ").trim();
+  return walk(tree as PlainTextNode)
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const compact = (text: string) => text.replace(/\s+/g, " ").trim();

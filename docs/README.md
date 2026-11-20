@@ -38,7 +38,7 @@
 
 未发布个人记忆的卡片知识摘要清理、预览和备份恢复见 [个人记忆清理](./guides/ops-personal-memory-cleanup.md)。
 
-日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
+日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)；好代码的判据与正反例（类型纪律、拆分配方、注释与命名、错误处理、死代码、重构验证）见 [代码风格规范](./guides/dev-code-style.md)。
 
 子 Agent 的批量、故障与本地 HTTP 测试步骤及判据见 [子 Agent 压测](./guides/dev-subagent-stress.md)。
 
@@ -70,46 +70,7 @@
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
-- [正文完整验收](./tasks/content-verification/README.md)：代码迁移已交付，保留正式容量、故障循环、长稳对照及实际设备验收。
-
-- [个人记忆实时调试](./tasks/memory-debug/README.md)：开发工具只读面板、处理状态与沉淀内容的实时推送。
-- [个人助手记忆：从记得准到懂你](./tasks/assistant-memory-understanding.md)：背景送达且系统提示稳定、画像合并、用户总述、事项闭环，进行中。
-
-- [播客插件化](./tasks/podcast-pluginization/README.md)：生成播客抽成插件 `tau.podcast`，自带播客库页面并重做生成界面，进行中。
-- [视频笔记重设计](./tasks/video-note-redesign.md)：项目视频笔记改为「左看右记」剧场版面，进度条章节与笔记刻度、转录划词摘录、AI 章节，进行中。
-- [聊天引用](./tasks/chat-ref/README.md)：正文里引用 AI 对话的某一轮或一句，悬停预览、停靠栏定位，进行中。
-- [网页书签块](./tasks/editor-bookmark.md)：编辑器块级网页书签（三种外观、粘贴菜单、封面存储），进行中。
-- [移动端 AI 基础能力](./tasks/mobile-ai-foundation/README.md)：公共会话 v3、移动无 UI 服务、原生网络存储、MCP/Skills 与聊天同步已接入，待实际存储插件往返及设备验收。
-
-- [移动插件业务授权与数据访问](./tasks/mobile-plugin-data/README.md)：六批授权、业务读写恢复、引用交互、自有数据事务、实体检索/@/打开与公共正文组件已实现并通过自动检查；待设备及真实共享服务验收，暂不发布。
-
-- [浏览器扩展重写：页内伴读](./tasks/browser-companion/README.md)：悬浮球 + 就地标注 / 笔记 / 提问，扩展经一次性授权连 Tau；已实现，待真实浏览器联调与视觉验收。
-- [提供方表单两端渲染补全](./tasks/provider-form-hosts/README.md)：TTS / ASR / 图片 / 视频 / 发布的声明式表单由宿主渲染，入口统一在插件详情 › 设置，发布抽屉内嵌、语音输入设置接回；SDK 0.48.0 与九个插件已发布，待包含本任务的客户端发布与视觉验收。
-- [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
-- [移动端语音输入](./tasks/mobile-voice-input.md)：语音与键盘平级：配件栏左端切换语音面板、阅读态语音抽屉、首页长按 ＋ 存速记；原生识别与按模型分配的 AI 润色已接入，真机与视觉验收待用户完成。
-- [移动端 AI 模型设置与语音整理](./tasks/mobile-ai-settings.md)：服务商配置、按功能分配模型、语音输入整理已实现并通过自动检查；对话入口分期在后，待真机与视觉验收。
-- [移动端 AI 对话](./tasks/mobile-ai-chat.md)：首页问答条、全屏对话页、对话记录，迁移桌面只读与待办日程工具，写入每次确认；已通过自动检查，待真机与视觉验收。
-- [减重移动端](./tasks/mobile-weight/README.md)：减重插件的手机界面（今天主页 + 趋势页、后台估算、语音整理、刻度尺称重、首次引导），移动宿主补今天页插件卡片、宫格入口与插件语音输入，toast 统一为 @tau/ui 一套；已通过自动检查，待真机与视觉验收，未发布。
-- [记账移动端](./tasks/mobile-expense/README.md)：记账插件的手机界面（主页 + 月历 / 分类 / 回顾与 AI / 搜索二级页、一句话与语音记账、左滑改删、底部面板设置），沿用减重移动端的入口与交互；插件 0.2.0 已发布，待真机与视觉验收，手机安装需客户端 0.2.16。
-- [移动端 AI 就近提问](./tasks/mobile-ai-context.md)：卡片 / 文章 / 日记 / 项目文档选中「问 AI」与顶栏 ✦ 打开半屏对话，@ 引用笔记、拍照提问；已通过自动检查，待真机与视觉验收。
-- [移动端源码块交互](./tasks/mobile-source-block.md)：TikZ / Typst / HTML 等源码块改为点选 + 配件栏 + 分屏源码页；方案已确认，未开工。
-- [移动端正文字体](./tasks/mobile-reading-font.md)：可选霞鹜文楷 / 思源宋体，按需下载、全量字库；字体已上线，待真机验收。
-- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
-- [白板 Yjs 协作与插件数据契约](./tasks/whiteboard-collaboration/README.md)：W9 容量与三端长会话验证通过，联合行为回归 4868 项通过；[正式版本核对](./tasks/whiteboard-collaboration/validation/w9-release-compatibility.md)仍未放行发行。[火柴人候选适配](./tasks/whiteboard-collaboration/validation/w9-stickman-compatibility.md)已完成本地 SDK、实际插件与服务构建联验，新增 15 项测试和 3665 项相关回归通过。UI 接线由独立会话负责。
-
-- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
-
-进行中的跨端接入见 [B–D 任务](./tasks/plugin-portability-bcd/README.md)；SDK、清单、移动与网页中心分发及旧插件兼容的后续设计见同任务的 [正式接入方案](./tasks/plugin-portability-bcd/distribution-plan.md)。D 的待验收项继续保留。
-
-协议逻辑与网站/移动 UI 的并行协作见 [工作分工](./tasks/plugin-portability-bcd/work-split.md)，可转发任务见 [UI 专家 prompt](./tasks/plugin-portability-bcd/ui-expert-prompt.md)。
-
-已交付的共享类型、数据入口与 PluginManager 控制器见 [逻辑实现与交接](./tasks/plugin-portability-bcd/logic-handoff.md)。
-
-当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。
-
-设备验证与待验收范围见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
-
-SDK 0.37.0 的正式 npm 发布、24 仓构建及 CI 结果见 [SDK 发行](./tasks/plugin-portability-bcd/sdk-037-release.md)。24 个官方包、Worker 与网页已上线，macOS / Android 正式包已交付，用户已确认两端功能测试通过；发行证据与专项边界见 [正式安装闭环](./tasks/plugin-portability-bcd/production-closeout.md)。[iOS 正式 IPA](./tasks/plugin-portability-bcd/ios-release.md) 已进入 [TestFlight 内部测试](./tasks/plugin-portability-bcd/testflight.md)，图标修复后的 0.2.3（2）可供本人测试，iOS 插件分发已开放；未提交 App Store 正式上架，真机与 D 专项继续保留。
+当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
 
 ## notes/ — 一次性产物
 

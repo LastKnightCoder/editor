@@ -15,8 +15,9 @@ export async function unlinkMindNote(
   const node = BoardUtil.getElementById(board, elementId);
   if (node?.type !== "mind-node" || !node.contentId) return null;
   const contentId = node.contentId as number;
-  if (getWhiteboardDocument(board)?.unlinkEntity) {
-    getWhiteboardDocument(board)!.unlinkEntity!(elementId);
+  const whiteboardDoc = getWhiteboardDocument(board);
+  if (whiteboardDoc?.unlinkEntity) {
+    whiteboardDoc.unlinkEntity(elementId);
     return contentId;
   }
   const canSubmit = board.captureSubmission(node);

@@ -1,5 +1,3 @@
-export const DEFAULT_CHAT_MAX_RETRIES = 5;
-
 const CONTEXT_LENGTH_ERROR_PATTERNS = [
   /context[_ ]length/i,
   /maximum context/i,
@@ -23,5 +21,5 @@ export const getErrorMessage = (error: unknown): string => {
 
 export const isContextLengthError = (error: unknown): boolean => {
   const message = getErrorMessage(error);
-  return CONTEXT_LENGTH_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+  return CONTEXT_LENGTH_ERROR_PATTERNS.some(pattern => pattern.test(message));
 };

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useState, type ElementType } from "react";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared";
 import { ConfirmDialog, toast } from "@tau/ui";
 import { ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
@@ -27,7 +27,7 @@ import { MoreHorizontal } from "lucide-react";
 interface MessageItemProps {
   message: ChatSessionMessage;
   isDark: boolean;
-  markdownComponents: any;
+  markdownComponents: Record<string, ElementType>;
   isVisible: boolean;
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;
@@ -99,7 +99,7 @@ const getFileContent = (message: RequestMessage): MessageViewFile[] => {
 
 /**
  * 消息适配层：把会话消息拆成 MessageView 需要的文本 / 附件 / 内容块，并接上
- * markdown、本地图片、工具调用渲染与删除确认（D-048 起全部走 @tau/ui，不再依赖 antd）。
+ * markdown、本地图片、工具调用渲染与删除确认（全部走 @tau/ui，不再依赖 antd）。
  */
 const MessageItem: React.FC<MessageItemProps> = memo(
   ({

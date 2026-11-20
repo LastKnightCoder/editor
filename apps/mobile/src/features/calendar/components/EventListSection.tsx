@@ -1,4 +1,4 @@
-// 日程列表区（定稿 A 视觉）：全天 chip 置顶 + 定时事件行（时间列/色条/标题/meta），
+// 日程列表区：全天 chip 置顶 + 定时事件行（时间列/色条/标题/meta），
 // 今日插入「现在」分隔线，空态引导新建。底部留白由主页整页滚动容器承载，这里只留呼吸间距。
 
 import { memo } from "react";
@@ -44,7 +44,7 @@ function EventListSectionImpl({
   let dividerPlaced = false;
 
   return (
-    <div className="px-[18px] pb-2 pt-2">
+    <div className="px-[18px] pt-2 pb-2">
       {allDayEvents.length > 0 ? (
         <div className="mb-2 flex flex-wrap gap-2">
           {allDayEvents.map(event => {
@@ -55,7 +55,7 @@ function EventListSectionImpl({
                 key={event.id}
                 type="button"
                 onClick={() => onSelectEvent(event)}
-                className="text-ink-1 flex min-h-[34px] max-w-full flex-wrap items-center gap-[7px] break-words rounded-xl border px-[13px] py-1.5 text-left text-[12.5px] font-bold"
+                className="text-ink-1 flex min-h-[34px] max-w-full flex-wrap items-center gap-[7px] rounded-xl border px-[13px] py-1.5 text-left text-[12.5px] font-bold break-words"
                 style={{ background: `${color}21`, borderColor: color }}
               >
                 <i className="h-[7px] w-[7px] rounded-full" style={{ background: color }} />

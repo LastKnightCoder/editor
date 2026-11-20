@@ -3,7 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import { CellValue, ValidationRule } from "../types";
 import { validateCellValue } from "./useValidation";
 
-export function useCellEditor(
+function useCellEditor(
   initialValue: CellValue,
   onSave: (value: CellValue) => void,
   validation?: ValidationRule

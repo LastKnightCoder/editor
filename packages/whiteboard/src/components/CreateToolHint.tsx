@@ -82,9 +82,11 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
 
   if (!visible || readonly || isPresentationMode || !createTool) return null;
 
-  const label = extensions!.tools.find(item => item.id === tool.id)?.label ?? "";
+  const label = extensions?.tools.find(item => item.id === tool.id)?.label ?? "";
   // getCreateTool 仅在 create 规格存在时返回非空，此处 create 必有
-  const parts = resolveHint(createTool.definition.create!, tool.options, label);
+  const create = createTool.definition.create;
+  if (!create) return null;
+  const parts = resolveHint(create, tool.options, label);
 
   return (
     <div

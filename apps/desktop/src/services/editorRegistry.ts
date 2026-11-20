@@ -9,7 +9,7 @@ import {
   IResourceService,
 } from "@tau/shared/host-services";
 
-import { createServiceRegistry, type ServiceRegistration, type ServiceRegistry } from "@tau/editor";
+import { type ServiceRegistration } from "@tau/editor";
 import {
   IEditorSlots,
   IMediaActions,
@@ -77,7 +77,3 @@ export const desktopEditorServices: ServiceRegistration = register => {
     subscribe: listener => useSettingStore.subscribe(listener),
   });
 };
-
-export function createEditorRegistry(): ServiceRegistry {
-  return createServiceRegistry(desktopEditorServices);
-}

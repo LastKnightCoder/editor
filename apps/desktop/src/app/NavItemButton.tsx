@@ -42,7 +42,7 @@ export function NavItemButton({
               // 超出按钮盒的距离随 nav 左内边距：展开 10px / 收起 20px）。
               // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
               // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
-              // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-006）。
+              // 02 §1 视觉宪法本就允许 accent 用于"选中"。
               clsx(
                 "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:bottom-2",
                 collapsed ? "before:-left-5" : "before:-left-2.5",

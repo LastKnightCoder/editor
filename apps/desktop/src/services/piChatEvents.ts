@@ -420,7 +420,10 @@ export class PiChatEventReducer {
 
   private turnExecutions(turnId: string): ToolCallExecutionState[] {
     const ids = this.executionsByTurn.get(turnId) ?? [];
-    return ids.map(id => this.executions.get(id)!).filter(Boolean);
+    return ids.flatMap(id => {
+      const execution = this.executions.get(id);
+      return execution ? [execution] : [];
+    });
   }
 
   private publishTurnExecutions(toolCallId: string): void {

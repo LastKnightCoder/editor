@@ -1,10 +1,10 @@
 /**
- * Switch —— 开关基础件（Input 方案 A 语言，mockups/switch/，2026-09-19 定稿）。
+ * Switch —— 开关基础件（Input 的「经典描边」语言）。
  *
  * 语义载体 button[role=switch][aria-checked]：值语义是开/关（对读屏比 checkbox
  * 准确），Space/Enter 原生切换，focus-visible 才显 ring。
  *
- * 形制（「轨道是槽、thumb 是浮起物」，mockups 定稿）：
+ * 形制（「轨道是槽、thumb 是浮起物」）：
  *  - 未选中轨道消费 bg-track（控件轨道语义 token，非表面阶梯——深色主题取
  *    中调暖棕，亮于 surface 使 thumb 可辨且不显黑；新增主题零组件改动）
  *  - thumb 恒为 surface 亮底 + ink-3 描边环（在其上清晰分辨），选中后描边

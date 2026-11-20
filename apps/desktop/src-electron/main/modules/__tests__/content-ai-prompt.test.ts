@@ -6,6 +6,7 @@ import {
   parseContentAiOutput,
   titleDisplayLength,
 } from "../content-ai-prompt";
+import { must } from "../../test-support";
 
 const block = (type: string, text: string, extra: Record<string, unknown> = {}) =>
   ({ type, ...extra, children: [{ type: "formatted", text }] }) as unknown as Descendant;
@@ -26,7 +27,10 @@ describe("content-ai-prompt", () => {
       block("paragraph", "字".repeat(INPUT_MAX_CHARS + 100)),
       block("header", "细节", { level: 2 }),
     ];
-    const prompt = buildContentAiUserPrompt({ kind: "article", title: "我的文章", content })!;
+    const prompt = must(
+      buildContentAiUserPrompt({ kind: "article", title: "我的文章", content }),
+      "buildContentAiUserPrompt({ kind: 'article', t..."
+    );
     expect(prompt).toContain("笔记类型：文章");
     expect(prompt).toContain("标题：我的文章");
     expect(prompt).toContain("大纲：\n- 一、背景\n  - 细节");

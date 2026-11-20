@@ -1,5 +1,5 @@
 /**
- * Checkbox —— 勾选基础件（Input 方案 A「经典描边」语言，mockups/checkbox/，2026-09-19 定稿）。
+ * Checkbox —— 勾选基础件（Input 的「经典描边」语言）。
  *
  * 原生 input[type=checkbox] 承载语义（appearance-none 自绘皮）：label 点击切换、
  * Space 原生支持、读屏语义白送。「浮起物」：16×16 视觉格 surface + line-1，
@@ -7,7 +7,7 @@
  *
  * 结构铁律：input / 格子 / 勾图标必须在同一层互为兄弟——Tailwind 的 peer-* 变体
  * 只匹配 peer 的后续兄弟（`~ *`），挂在深层后代上会静默失效（勾选后无任何视觉）。
- * 状态语义（与 Input 裁决同源）：
+ * 状态语义（与 Input 同源）：
  *  - 命中 24×24（input 绝对定位撑满锚格，宪法下限）；focus-visible 才显 ring
  *    （锚格经 has- 变体响应，因锚是 input 的父级而非兄弟）
  *  - hover 描边加深半档（未选中 ink-3/50 / 选中 accent-hover），聚焦时让位
@@ -42,7 +42,7 @@ export function Checkbox({
   }, [indeterminate, props.checked, props.defaultChecked]);
 
   return (
-    <label className="group/cb inline-flex cursor-pointer select-none items-center gap-2 has-[:disabled]:cursor-default">
+    <label className="group/cb inline-flex cursor-pointer items-center gap-2 select-none has-[:disabled]:cursor-default">
       <span
         className={cn(
           "relative inline-grid size-6 shrink-0 place-items-center",

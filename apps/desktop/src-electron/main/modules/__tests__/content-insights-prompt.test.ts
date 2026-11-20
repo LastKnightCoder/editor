@@ -9,6 +9,7 @@ import {
   promptSectionsOf,
   type PromptSection,
 } from "../content-insights-prompt";
+import { must } from "../../test-support";
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const para = (...children: unknown[]) => ({ type: "paragraph", children }) as unknown as Descendant;
@@ -56,31 +57,34 @@ describe("content-insights-prompt", () => {
   });
 
   it("校验：片段要逐字在该节的某一块里，不能落在已有链接与代码上，不能跨块；候选编号要存在", () => {
-    const parsed = parseInsightsOutput(
-      out([
-        { type: "link", section: 1, anchor: "强制同步布局", candidate: 2, why: "理由" },
-        { type: "link", section: 1, anchor: "重排与重绘", candidate: 2, why: "已有链接" },
-        { type: "link", section: 2, anchor: "强制同步布局", candidate: 2, why: "节不对" },
-        { type: "link", section: 1, anchor: "强制同步布局", candidate: 9, why: "候选不存在" },
-        { type: "dup", section: 2, anchor: "第一项\n\n第二项", candidate: 1, why: "跨块" },
-        { type: "link", section: 2, anchor: "transform = ", candidate: 1, why: "代码" },
-        {
-          type: "conflict",
-          section: 2,
-          anchor: "只改 transform 和 opacity",
-          candidate: 1,
-          why: "条件不同",
-          mine: "只走合成",
-          theirs: "会重绘",
-        },
-        { type: "gap", section: 2, text: "合成层怎么划分", why: "没写" },
-        { type: "link", section: 1, anchor: "强制同步布局", candidate: 2, why: "重复的一条" },
-        { type: "weird", section: 1, anchor: "布局", candidate: 1 },
-      ]),
-      CONTENT,
-      SECTIONS,
-      new Set([1, 2])
-    )!;
+    const parsed = must(
+      parseInsightsOutput(
+        out([
+          { type: "link", section: 1, anchor: "强制同步布局", candidate: 2, why: "理由" },
+          { type: "link", section: 1, anchor: "重排与重绘", candidate: 2, why: "已有链接" },
+          { type: "link", section: 2, anchor: "强制同步布局", candidate: 2, why: "节不对" },
+          { type: "link", section: 1, anchor: "强制同步布局", candidate: 9, why: "候选不存在" },
+          { type: "dup", section: 2, anchor: "第一项\n\n第二项", candidate: 1, why: "跨块" },
+          { type: "link", section: 2, anchor: "transform = ", candidate: 1, why: "代码" },
+          {
+            type: "conflict",
+            section: 2,
+            anchor: "只改 transform 和 opacity",
+            candidate: 1,
+            why: "条件不同",
+            mine: "只走合成",
+            theirs: "会重绘",
+          },
+          { type: "gap", section: 2, text: "合成层怎么划分", why: "没写" },
+          { type: "link", section: 1, anchor: "强制同步布局", candidate: 2, why: "重复的一条" },
+          { type: "weird", section: 1, anchor: "布局", candidate: 1 },
+        ]),
+        CONTENT,
+        SECTIONS,
+        new Set([1, 2])
+      ),
+      "parseInsightsOutput"
+    );
     expect(parsed.marks.map(m => [m.kind, m.block, m.anchor || m.text])).toEqual([
       ["link", 1, "强制同步布局"],
       ["conflict", 3, "只改 transform 和 opacity"],
@@ -96,15 +100,18 @@ describe("content-insights-prompt", () => {
       section: 1,
       text: `展开 ${i}`,
     }));
-    const parsed = parseInsightsOutput(
-      out([
-        ...gaps,
-        { type: "link", section: 1, anchor: "强制同步布局", candidate: 1, why: "理由" },
-      ]),
-      CONTENT,
-      SECTIONS,
-      new Set([1])
-    )!;
+    const parsed = must(
+      parseInsightsOutput(
+        out([
+          ...gaps,
+          { type: "link", section: 1, anchor: "强制同步布局", candidate: 1, why: "理由" },
+        ]),
+        CONTENT,
+        SECTIONS,
+        new Set([1])
+      ),
+      "parseInsightsOutput"
+    );
     expect(parsed.marks.map(m => m.kind)).toEqual(["gap", "gap", "link"]);
   });
 
@@ -116,12 +123,15 @@ describe("content-insights-prompt", () => {
       candidate: i + 1,
       why: "理由",
     }));
-    const parsed = parseInsightsOutput(
-      "```json\n" + out(many) + "\n```",
-      CONTENT,
-      SECTIONS,
-      new Set(many.map(m => m.candidate))
-    )!;
+    const parsed = must(
+      parseInsightsOutput(
+        "```json\n" + out(many) + "\n```",
+        CONTENT,
+        SECTIONS,
+        new Set(many.map(m => m.candidate))
+      ),
+      "parseInsightsOutput"
+    );
     expect(parsed.marks).toHaveLength(INSIGHT_MAX_MARKS);
     expect(parseInsightsOutput("不是 JSON", CONTENT, SECTIONS, new Set())).toBeNull();
   });

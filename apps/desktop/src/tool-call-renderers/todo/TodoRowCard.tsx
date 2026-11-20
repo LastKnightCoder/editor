@@ -12,7 +12,7 @@ const SECONDARY_ICONS: Record<SecondaryInfoKind, LucideIcon> = {
 };
 
 /**
- * 对话内的待办行（D-048）：沿用待办页口径——圆形勾选（TodoCheck）、类型小图标（截止 warn 旗 /
+ * 对话内的待办行：沿用待办页口径——圆形勾选（TodoCheck）、类型小图标（截止 warn 旗 /
  * 计划 info 钟 / 周期 ok 循环）、meta 行 ink-3；逾期只染 danger 字，不上彩色徽章。
  * isDark 保留仅为接口兼容，不参与取色。
  */

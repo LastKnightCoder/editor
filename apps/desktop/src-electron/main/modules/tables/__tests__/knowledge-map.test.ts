@@ -14,6 +14,7 @@ import KnowledgeMapTable, {
   KNOWLEDGE_MAP_COMPUTED_AT_KEY,
   KNOWLEDGE_MAP_FINGERPRINT_KEY,
 } from "../knowledge-map";
+import { must } from "../../../test-support";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -135,7 +136,7 @@ describe("KnowledgeMapTable：读写", () => {
 
   it("save 后 load 原样读回，并记下指纹；save 是整体替换", () => {
     KnowledgeMapTable.save(indexDb, sample, "fp-1");
-    const loaded = KnowledgeMapTable.load(indexDb)!;
+    const loaded = must(KnowledgeMapTable.load(indexDb), "KnowledgeMapTable.load(indexDb)");
     expect(loaded.computedAt).toBe(1234);
     expect(sortedNodes(loaded)).toEqual(sample.nodes);
     expect(loaded.topics).toEqual(sample.topics);
@@ -150,7 +151,9 @@ describe("KnowledgeMapTable：读写", () => {
       },
       "fp-2"
     );
-    expect(KnowledgeMapTable.load(indexDb)!.nodes.map(n => n.key)).toEqual(["card:7"]);
+    expect(
+      must(KnowledgeMapTable.load(indexDb), "KnowledgeMapTable.load(indexDb)").nodes.map(n => n.key)
+    ).toEqual(["card:7"]);
   });
 
   it("upsertNode 新增与覆盖，removeNode 删除", () => {
@@ -164,7 +167,12 @@ describe("KnowledgeMapTable：读写", () => {
     });
     KnowledgeMapTable.upsertNode(indexDb, { key: "card:1", x: 9, y: 9, topic: 1, subtopic: -1 });
     KnowledgeMapTable.removeNode(indexDb, "article:2");
-    const byKey = new Map(KnowledgeMapTable.load(indexDb)!.nodes.map(n => [n.key, n]));
+    const byKey = new Map(
+      must(KnowledgeMapTable.load(indexDb), "KnowledgeMapTable.load(indexDb)").nodes.map(n => [
+        n.key,
+        n,
+      ])
+    );
     expect([...byKey.keys()].sort()).toEqual(["card:1", "project-item:3"]);
     expect(byKey.get("card:1")).toMatchObject({ x: 9, topic: 1 });
   });
@@ -247,12 +255,18 @@ describe("KnowledgeMapTable.readInputs", () => {
 
     const { nodes, chunks } = KnowledgeMapTable.readInputs(mainDb, indexDb);
     const byKey = new Map(nodes.map(n => [n.key, n]));
-    const index = (key: string) => byKey.get(key)!.id;
+    const index = (key: string) => must(byKey.get(key), "byKey.get(key)").id;
     expect(nodes.map(n => n.id)).toEqual(nodes.map((_, i) => i));
-    expect(byKey.get(`card:${linking}`)!.links).toEqual([index(`card:${target}`)]);
-    expect(byKey.get(`article:${articleId}`)!.links).toEqual([index(`card:${target}`)]);
-    expect(byKey.get(`project-item:${docId}`)!.links).toEqual([index(`article:${articleId}`)]);
-    expect(byKey.get(`card:${other}`)!.tags).toEqual([]);
+    expect(must(byKey.get(`card:${linking}`), "byKey.get(`card:${linking}`)").links).toEqual([
+      index(`card:${target}`),
+    ]);
+    expect(
+      must(byKey.get(`article:${articleId}`), "byKey.get(`article:${articleId}`)").links
+    ).toEqual([index(`card:${target}`)]);
+    expect(
+      must(byKey.get(`project-item:${docId}`), "byKey.get(`project-item:${docId}`)").links
+    ).toEqual([index(`article:${articleId}`)]);
+    expect(must(byKey.get(`card:${other}`), "byKey.get(`card:${other}`)").tags).toEqual([]);
     // 没有 vec_documents 表（未配置 embedding）时不抛错、没有向量
     expect(chunks).toEqual([]);
   });
@@ -265,11 +279,20 @@ describe("KnowledgeMapTable.readInputs", () => {
     const child = item(content(), { projectId: pid, title: "容器", parent: root });
     const { nodes } = KnowledgeMapTable.readInputs(mainDb, indexDb);
     const byKey = new Map(nodes.map(n => [n.key, n]));
-    const rootIndex = byKey.get(`project-item:${root}`)!.id;
+    const rootIndex = must(
+      byKey.get(`project-item:${root}`),
+      "byKey.get(`project-item:${root}`)"
+    ).id;
     expect(byKey.has(`project-item:${empty}`)).toBe(false);
-    expect(byKey.get(`project-item:${leaf}`)!.links).toEqual([rootIndex]);
-    expect(byKey.get(`project-item:${child}`)!.links).toEqual([rootIndex]);
-    expect(byKey.get(`project-item:${root}`)!.links).toEqual([]);
+    expect(
+      must(byKey.get(`project-item:${leaf}`), "byKey.get(`project-item:${leaf}`)").links
+    ).toEqual([rootIndex]);
+    expect(
+      must(byKey.get(`project-item:${child}`), "byKey.get(`project-item:${child}`)").links
+    ).toEqual([rootIndex]);
+    expect(
+      must(byKey.get(`project-item:${root}`), "byKey.get(`project-item:${root}`)").links
+    ).toEqual([]);
   });
 });
 
@@ -326,13 +349,17 @@ describe("initSchema：旧版知识地图表丢弃重建", () => {
         .get(KNOWLEDGE_MAP_FINGERPRINT_KEY, KNOWLEDGE_MAP_COMPUTED_AT_KEY)
     ).toEqual({ n: 0 });
     KnowledgeMapTable.save(indexDb, sample, "fp-new");
-    expect(sortedNodes(KnowledgeMapTable.load(indexDb)!)).toEqual(sample.nodes);
+    expect(
+      sortedNodes(must(KnowledgeMapTable.load(indexDb), "KnowledgeMapTable.load(indexDb)"))
+    ).toEqual(sample.nodes);
   });
 
   it("已是 node_key 结构的表与指纹不受影响", () => {
     KnowledgeMapTable.save(indexDb, sample, "fp-keep");
     manager.initSchema(indexDb);
-    expect(sortedNodes(KnowledgeMapTable.load(indexDb)!)).toEqual(sample.nodes);
+    expect(
+      sortedNodes(must(KnowledgeMapTable.load(indexDb), "KnowledgeMapTable.load(indexDb)"))
+    ).toEqual(sample.nodes);
     expect(KnowledgeMapTable.storedFingerprint(indexDb)).toBe("fp-keep");
   });
 });

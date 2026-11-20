@@ -1,4 +1,4 @@
-// 发起共享（设计稿 05 方案 A 入口 + B 结果卡）：详情页点「发起协作」后弹出，
+// 发起共享：详情页点「发起协作」后弹出，
 // 生成完成原位切换为结果卡——协作码 + 复制 + 进入协作编辑。
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, RefreshCw } from "lucide-react";

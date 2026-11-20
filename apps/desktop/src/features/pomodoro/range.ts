@@ -33,11 +33,6 @@ export const addDays = (dayStart: number, n: number) =>
 
 export const windowDays = (w: DayWindow) => Math.round((w.to - w.from) / DAY_MS) + 1;
 
-export const inWindow = (ts: number, w: DayWindow) => {
-  const day = startOfDay(ts);
-  return day >= w.from && day <= w.to;
-};
-
 /** 窗口内每一天，新的在前 */
 export function listDays(w: DayWindow): number[] {
   const out: number[] = [];

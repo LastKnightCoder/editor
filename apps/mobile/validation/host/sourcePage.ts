@@ -13,7 +13,7 @@ async function waitFor<T>(read: () => T | null | undefined | false, label: strin
   throw new Error(`${label}超时：${document.body.innerText.slice(-1200)}`);
 }
 
-export const sourcePageInput = () =>
+const sourcePageInput = () =>
   document.querySelector<HTMLTextAreaElement>("[data-source-editor-page] textarea");
 
 const sourcePageButton = (label: string) =>

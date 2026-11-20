@@ -14,7 +14,7 @@ const CardLinksPlugin: CellPlugin<CardLinksPluginConfig> = {
   name: "连接",
   editable: false, // 无编辑器模式，通过渲染器直接操作
   model: cardLinksFieldModel,
-  Renderer: Renderer as any,
+  Renderer: Renderer as CellPlugin<CardLinksPluginConfig>["Renderer"],
   Icon: ({ className }) => <Link2 className={className} strokeWidth={1.75} />,
 
   getGroupKey: (row, column) => {

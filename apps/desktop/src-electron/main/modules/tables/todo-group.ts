@@ -1,10 +1,17 @@
 import Database from "better-sqlite3";
-import { TodoGroup, CreateTodoGroup, UpdateTodoGroup, TodoSystemGroupType } from "@/types";
+import {
+  TodoGroup,
+  CreateTodoGroup,
+  UpdateTodoGroup,
+  TodoSystemGroupType,
+  TodoItemType,
+} from "@/types";
 import TodoItemTable from "./todo-item";
+import type { SqliteRow } from "../../types/table";
 
 // 系统组配置
 const SYSTEM_GROUPS: Array<{
-  systemType: TodoSystemGroupType;
+  systemType: Exclude<TodoSystemGroupType, null>;
   title: string;
 }> = [
   { systemType: "all", title: "全部任务" },
@@ -24,7 +31,7 @@ export default class TodoGroupTable {
 
     for (let i = 0; i < SYSTEM_GROUPS.length; i++) {
       const { systemType, title } = SYSTEM_GROUPS[i];
-      if (!existingSet.has(systemType!)) {
+      if (!existingSet.has(systemType)) {
         db.prepare(
           `INSERT INTO todo_group (title, is_system, system_type, sort_index, is_archived, create_time, update_time)
            VALUES (?, 1, ?, ?, 0, ?, ?)`
@@ -48,31 +55,31 @@ export default class TodoGroupTable {
     } as const;
   }
 
-  static parse(row: any): TodoGroup {
+  static parse(row: SqliteRow): TodoGroup {
     return {
-      id: row.id,
-      title: row.title,
-      color: row.color ?? undefined,
-      sortIndex: row.sort_index,
+      id: row.id as number,
+      title: row.title as string,
+      color: (row.color as string | null) ?? undefined,
+      sortIndex: row.sort_index as number,
       isArchived: Boolean(row.is_archived),
       isSystem: Boolean(row.is_system),
       systemType: (row.system_type as TodoSystemGroupType) ?? null,
-      createTime: row.create_time,
-      updateTime: row.update_time,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
     };
   }
 
   // 获取系统组列表
   static getSystemGroups(db: Database.Database): TodoGroup[] {
     const stmt = db.prepare(`SELECT * FROM todo_group WHERE is_system = 1 ORDER BY sort_index ASC`);
-    return (stmt.all() as any[]).map(this.parse);
+    return (stmt.all() as SqliteRow[]).map(this.parse);
   }
 
   static listGroups(db: Database.Database): TodoGroup[] {
     const stmt = db.prepare(
       `SELECT * FROM todo_group WHERE is_archived = 0 AND is_system = 0 ORDER BY sort_index ASC, create_time ASC`
     );
-    return (stmt.all() as any[]).map(this.parse);
+    return (stmt.all() as SqliteRow[]).map(this.parse);
   }
 
   // 已归档的用户分组（新版待办页的「已归档」恢复入口；系统组不参与归档）
@@ -80,7 +87,7 @@ export default class TodoGroupTable {
     const stmt = db.prepare(
       `SELECT * FROM todo_group WHERE is_archived = 1 AND is_system = 0 ORDER BY update_time DESC`
     );
-    return (stmt.all() as any[]).map(this.parse);
+    return (stmt.all() as SqliteRow[]).map(this.parse);
   }
 
   static getMaxSortIndex(db: Database.Database): number {
@@ -91,7 +98,9 @@ export default class TodoGroupTable {
   }
 
   static getGroupById(db: Database.Database, id: number): TodoGroup | null {
-    const row = db.prepare(`SELECT * FROM todo_group WHERE id = ?`).get(id);
+    const row = db.prepare(`SELECT * FROM todo_group WHERE id = ?`).get(id) as
+      | SqliteRow
+      | undefined;
     return row ? this.parse(row) : null;
   }
 
@@ -153,7 +162,7 @@ export default class TodoGroupTable {
       ).run(title, color, sortIndex, isArchived ? 1 : 0, now, payload.id);
     }
 
-    const row = db.prepare(`SELECT * FROM todo_group WHERE id = ?`).get(payload.id);
+    const row = db.prepare(`SELECT * FROM todo_group WHERE id = ?`).get(payload.id) as SqliteRow;
     return this.parse(row);
   }
 
@@ -228,7 +237,12 @@ export default class TodoGroupTable {
        WHERE is_archived = 0
        GROUP BY group_id`
     );
-    const rows = stmt.all(now) as any[];
+    const rows = stmt.all(now) as Array<{
+      groupId: number;
+      total: number;
+      uncompleted: number;
+      overdue: number;
+    }>;
     return rows.map(r => ({
       groupId: Number(r.groupId),
       total: Number(r.total || 0),
@@ -260,7 +274,9 @@ export default class TodoGroupTable {
          FROM todo_item
          WHERE is_archived = 0`
       )
-      .get(now) as any;
+      .get(now) as
+      | { total: number; uncompleted: number | null; overdue: number | null }
+      | undefined;
 
     // 按类型统计
     const typeStats = db
@@ -274,7 +290,12 @@ export default class TodoGroupTable {
          WHERE is_archived = 0
          GROUP BY type`
       )
-      .all(now) as any[];
+      .all(now) as Array<{
+      type: string;
+      total: number;
+      uncompleted: number | null;
+      overdue: number | null;
+    }>;
 
     const typeMap = new Map(
       typeStats.map(r => [
@@ -306,7 +327,7 @@ export default class TodoGroupTable {
     }
 
     // 各类型任务
-    const types: TodoSystemGroupType[] = ["normal", "deadline", "recurring"];
+    const types: TodoItemType[] = ["normal", "deadline", "recurring"];
     for (const type of types) {
       const groupId = typeToGroupId.get(type);
       if (groupId) {

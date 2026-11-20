@@ -3,7 +3,6 @@ import type { Descendant } from "slate";
 import { toast } from "@tau/ui";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 
-// 生成唯一ID
 const genId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -21,7 +20,6 @@ export const wrapAsBlank = (editor: Editor) => {
     return;
   }
 
-  // 检查选区是否包含已有空格
   const [existingBlank] = Editor.nodes(editor, {
     at: selection,
     match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === "flashcard-blank",
@@ -71,13 +69,14 @@ export const extractBlanksFromRichContent = (
 ): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 
-  const traverse = (node: any) => {
-    if (node.type === "flashcard-blank") {
+  const traverse = (node: unknown) => {
+    const record = (node && typeof node === "object" ? node : {}) as Record<string, unknown>;
+    if (record.type === "flashcard-blank") {
       blanks.push(node as FlashcardBlankElement);
     }
 
-    if (node.children && Array.isArray(node.children)) {
-      node.children.forEach(traverse);
+    if (record.children && Array.isArray(record.children)) {
+      record.children.forEach(traverse);
     }
   };
 

@@ -2,6 +2,7 @@ import { AiError } from "../contracts";
 import {
   SESSION_FORMAT_VERSION,
   isRecord,
+  type SessionDiagnostic,
   type SessionDocument,
   type SessionEntry,
   type SessionHeader,
@@ -86,16 +87,16 @@ function readEntry(value: unknown, line: number, ids: Set<string>): SessionEntry
   if (value.type === "thinking_level_change" && typeof value.thinkingLevel !== "string")
     return invalid("思考档位记录无效", line);
   ids.add(value.id);
-  return value as unknown as SessionEntry;
+  // 上方逐字段校验后的受控断言：JSON 解析出的开放记录在此获得 entry 身份，
+  // 未经此路径的 unknown 不允许直接当 SessionEntry 使用。
+  return value as SessionEntry;
 }
 
 export function parseSessionFile(text: string): SessionDocument {
   const lines = text.split("\n");
-  const document: SessionDocument = {
-    header: undefined as unknown as SessionHeader,
-    entries: [],
-    diagnostics: [],
-  };
+  const entries: SessionEntry[] = [];
+  const diagnostics: SessionDiagnostic[] = [];
+  let header: SessionHeader | undefined;
   const ids = new Set<string>();
   let byteOffset = 0;
   for (let index = 0; index < lines.length; index++) {
@@ -106,9 +107,8 @@ export function parseSessionFile(text: string): SessionDocument {
       try {
         value = JSON.parse(line);
       } catch {
-        if (!document.header || !isTail)
-          return invalid("会话文件存在无法解析的完整记录", index + 1);
-        document.diagnostics.push({
+        if (!header || !isTail) return invalid("会话文件存在无法解析的完整记录", index + 1);
+        diagnostics.push({
           code: "incomplete-tail",
           line: index + 1,
           byteOffset,
@@ -116,15 +116,15 @@ export function parseSessionFile(text: string): SessionDocument {
         });
         break;
       }
-      if (!document.header) document.header = readHeader(value);
-      else document.entries.push(readEntry(value, index + 1, ids));
+      if (!header) header = readHeader(value);
+      else entries.push(readEntry(value, index + 1, ids));
     }
     byteOffset += new TextEncoder().encode(
       line + (index < lines.length - 1 ? "\n" : "")
     ).byteLength;
   }
-  if (!document.header) return invalid("会话文件为空");
-  return document;
+  if (!header) return invalid("会话文件为空");
+  return { header, entries, diagnostics };
 }
 
 export function serializeSessionFile(document: SessionDocument): string {

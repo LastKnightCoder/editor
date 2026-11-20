@@ -128,9 +128,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // 是否是报告类型笔记
   const isReport = currentNote?.type === "report";
 
-  // 检查是否是 Electron 环境
-
-  // 检查笔记是否已是卡片
   useEffect(() => {
     if (currentNote?.contentId) {
       isContentIsCard(currentNote.contentId).then(setIsCard);
@@ -179,7 +176,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
 
-  // 加载笔记内容
   useEffect(() => {
     const loadContent = async () => {
       setLoading(true);
@@ -210,7 +206,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     loadContent();
   }, [note]);
 
-  // 保存笔记（仅处理 VLNote 的 title 更新和新建笔记）
+  // 仅处理 VLNote 的 title 更新和新建笔记
   const saveNote = useMemoizedFn(async () => {
     if (!titleChangedRef.current && currentNote) return currentNote;
 
@@ -220,7 +216,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       const autoTitle = title || getEditorText(content, 20) || "无标题笔记";
 
       if (currentNote && contentId) {
-        // 更新现有笔记标题
         let latestNote = currentNote;
         if (title !== currentNote.title) {
           const updated = await updateVLNote({
@@ -236,7 +231,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         titleChangedRef.current = false;
         return latestNote;
       } else {
-        // 创建新笔记
         const newContentId = await createContent(content, count);
         if (!newContentId) {
           throw new Error("Failed to create content");
@@ -270,12 +264,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     }
   });
 
-  // 处理内容变化
   const handleContentChange = useMemoizedFn((newContent: Descendant[]) => {
     setContent(newContent);
   });
 
-  // 处理标题变化
   const handleTitleChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
     setTitle(e.target.value);
     titleChangedRef.current = true;
@@ -302,7 +294,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       const card = await buildCardFromContent(savedNote.contentId);
       setIsCard(true);
       toast.success("已创建卡片");
-      // 打开卡片详情
       navigator.push("card-detail", { id: card.id });
     } catch (error) {
       console.error("Failed to create card:", error);
@@ -367,7 +358,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     }
   });
 
-  // 删除笔记
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const handleDelete = useMemoizedFn(() => {
     if (!currentNote) {
@@ -383,7 +373,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     else void canvasRef.current?.requestFullscreen();
   });
 
-  // 下载 PPT 为 HTML
   const handleDownloadPPT = useMemoizedFn(() => {
     if (!pptHtmlContent.trim()) {
       toast.error("没有可下载的 PPT 内容");
@@ -404,7 +393,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     toast.success("报告已下载");
   });
 
-  // 下载当前笔记为 Markdown（思维导图/大纲/重点提炼/普通笔记/播客等）
   const handleDownloadMarkdown = useMemoizedFn(() => {
     const markdown = getMarkdown(content);
     if (!markdown.trim()) {
@@ -735,7 +723,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           },
         ];
 
-  // 返回并保存
   const handleBack = useMemoizedFn(async () => {
     if (titleChangedRef.current) {
       await saveNote();

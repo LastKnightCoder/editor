@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, memo } from "react";
-import { Editor, Transforms } from "slate";
+import { Editor, Transforms, type Element as SlateElement } from "slate";
 import { ReactEditor, RenderElementProps, useSlateSelector, useSlateStatic } from "slate-react";
 import { cn } from "@tau/ui";
 
@@ -37,7 +37,8 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props
   );
 
   const handleFocus = useMemoizedFn((start = true) => {
-    return (e: any) => {
+    // editor-source-view 经 document 派发的 CustomEvent（element-focus-start/end）
+    return (e: Event & { detail?: { focusElement?: SlateElement } }) => {
       const { detail } = e;
       if (!detail) return;
       const { focusElement } = detail;

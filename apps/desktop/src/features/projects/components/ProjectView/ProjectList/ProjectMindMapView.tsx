@@ -8,7 +8,7 @@ import { EditText, EditTextHandle } from "@tau/ui";
 import MindMap from "@/components/MindMap";
 import type { MindMapNodeActionContext } from "@/components/MindMap";
 import { MindMapNodeData } from "@/components/MindMap/types";
-import { EProjectItemType, ICard, Project, WhiteBoard } from "@/types";
+import { EProjectItemType, ICard, Project, Whiteboard } from "@/types";
 import { EDragPosition, IDragItem, type as sidebarDragType } from "@/hooks/useDragAndDrop";
 import { usePage } from "@/page/PageProvider";
 import { updateProjectItem } from "@/commands";
@@ -36,7 +36,7 @@ interface ProjectMindMapViewProps {
   activeItemId?: number;
   databaseName: string;
   cards: ICard[];
-  whiteBoards: WhiteBoard[];
+  whiteboards: Whiteboard[];
   addMenuItems: MenuEntryList;
   onAddMenuClick: (key: string, parentProjectItemId?: number) => void;
   refreshProject: () => void;
@@ -49,7 +49,7 @@ interface ProjectMindMapViewProps {
 const getItemIcon = (type?: EProjectItemType, hasChildren = false) => {
   if (hasChildren) return <FolderOpen className="size-4" strokeWidth={1.75} />;
   if (!type) return <FolderOpen className="size-4" strokeWidth={1.75} />;
-  if (type === EProjectItemType.WhiteBoard)
+  if (type === EProjectItemType.Whiteboard)
     return <FolderOpen className="size-4" strokeWidth={1.75} />;
   if (type === EProjectItemType.VideoNote) return <Video className="size-4" strokeWidth={1.75} />;
   if (type === EProjectItemType.WebView) return <Globe className="size-4" strokeWidth={1.75} />;
@@ -257,7 +257,7 @@ const MindMapNodeContent = memo(
           )}
         </span>
         {isProject ? (
-          <div className="whitespace-nowrap text-sm font-semibold leading-6">{meta.title}</div>
+          <div className="text-sm leading-6 font-semibold whitespace-nowrap">{meta.title}</div>
         ) : (
           <div
             onDoubleClick={event => {
@@ -270,7 +270,7 @@ const MindMapNodeContent = memo(
               ref={titleRef}
               defaultValue={meta.title}
               contentEditable={editing}
-              className="whitespace-nowrap text-sm font-medium leading-6 outline-none"
+              className="text-sm leading-6 font-medium whitespace-nowrap outline-none"
               onPressEnter={() => {
                 const nextTitle = titleRef.current?.getValue().trim();
                 setEditing(false);
@@ -380,7 +380,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
     activeItemId,
     databaseName,
     cards,
-    whiteBoards,
+    whiteboards,
     addMenuItems,
     onAddMenuClick,
     refreshProject,
@@ -390,7 +390,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
     onViewportChange,
   } = props;
   void cards;
-  void whiteBoards;
+  void whiteboards;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const { navigator } = usePage();
@@ -553,7 +553,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
       />
       {dropGuide && (
         <svg
-          className="pointer-events-none absolute left-0 top-0 z-20"
+          className="pointer-events-none absolute top-0 left-0 z-20"
           width={dropGuide.width}
           height={dropGuide.height}
         >

@@ -1,11 +1,11 @@
 /**
  * 列表驾驶舱（原 features/projects/views/ProjectsView.tsx，拆模块后由项目 / 数据库 / Vibe Learning 共用）：
  * 工具栏（标题 + 摘要 + 排序 + 视图 + 新建）→ 网格时「最近打开」续读行 → 「全部」（网格卡或行式列表，
- * 置顶始终在前）→ 底部归档折叠段（沿用当前排布）。排布与排序按模块存本机偏好（D-092）。
+ * 置顶始终在前）→ 底部归档折叠段（沿用当前排布）。排布与排序按模块存本机偏好。
  *
  * 一整张纸（同 Skill 页）：纸顶固定工具栏，纸内 FadeScroll 只装段落
- * （sticky 段头纸色实底 + 底缘渐透）。新建只有一个入口。无页内搜索（D-024 口径：
- * 语义检索走全局 Ctrl+K，空态引导同一入口）。
+ * （sticky 段头纸色实底 + 底缘渐透）。新建只有一个入口。无页内搜索（语义检索走全局
+ * Ctrl+K，空态引导同一入口）。
  */
 
 import { useMemo, useState, type HTMLAttributes, type ReactNode } from "react";

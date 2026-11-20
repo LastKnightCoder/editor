@@ -18,7 +18,8 @@ import type { FormContext } from "./model";
 export type Draft = Expr | { kind: "hole" };
 
 export type FormulaCheck =
-  { ok: true; output: ValueType; footerText: string } | { ok: false; message: string };
+  | { ok: true; output: ValueType; footerText: string }
+  | { ok: false; message: string };
 
 /** 把候选公式放进列定义里（替换或追加），用于成环检测与预览 */
 export function formulaColumnsWith(
@@ -49,7 +50,7 @@ export function checkFormula(
   if (draft.kind === "hole") return { ok: false, message: "先选择要计算的内容" };
   const ctx = createFormulaContext(columns, plugins);
   if (scope === "footer") {
-    // 公式只认内置算子（D-121），预览经内置登记表求值
+    // 公式只认内置算子，预览经内置登记表求值
     const result = evaluateFooter(
       "",
       { kind: "expr", expr: draft },

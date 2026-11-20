@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { TodoCalendarEventSource, TodoCalendarMapping, TodoCalendarSyncType } from "@/types";
+import type { SqliteRow } from "../../types/table";
 
 export default class TodoCalendarMappingTable {
   static getListenEvents() {
@@ -16,14 +17,14 @@ export default class TodoCalendarMappingTable {
     } as const;
   }
 
-  static parse(row: any): TodoCalendarMapping {
+  static parse(row: SqliteRow): TodoCalendarMapping {
     return {
-      id: row.id,
-      todoItemId: row.todo_item_id,
-      calendarEventId: row.calendar_event_id,
+      id: row.id as number,
+      todoItemId: row.todo_item_id as number,
+      calendarEventId: row.calendar_event_id as number,
       syncType: row.sync_type as TodoCalendarSyncType,
-      recurrenceDate: row.recurrence_date ?? null,
-      createTime: row.create_time,
+      recurrenceDate: (row.recurrence_date as number | null) ?? null,
+      createTime: row.create_time as number,
     };
   }
 
@@ -34,7 +35,7 @@ export default class TodoCalendarMappingTable {
   ): TodoCalendarMapping[] {
     const rows = db
       .prepare(`SELECT * FROM todo_calendar_mapping WHERE todo_item_id = ?`)
-      .all(params.todoItemId) as any[];
+      .all(params.todoItemId) as SqliteRow[];
     return rows.map(this.parse);
   }
 
@@ -51,7 +52,7 @@ export default class TodoCalendarMappingTable {
       .prepare(
         `SELECT * FROM todo_calendar_mapping WHERE todo_item_id IN (${placeholders}) ORDER BY todo_item_id ASC, create_time ASC`
       )
-      .all(...params.todoItemIds) as any[];
+      .all(...params.todoItemIds) as SqliteRow[];
 
     const grouped: Record<number, TodoCalendarMapping[]> = {};
     rows.forEach(row => {
@@ -69,7 +70,7 @@ export default class TodoCalendarMappingTable {
   ): TodoCalendarMapping | null {
     const row = db
       .prepare(`SELECT * FROM todo_calendar_mapping WHERE calendar_event_id = ?`)
-      .get(params.calendarEventId);
+      .get(params.calendarEventId) as SqliteRow | undefined;
     return row ? this.parse(row) : null;
   }
 
@@ -101,7 +102,16 @@ export default class TodoCalendarMappingTable {
           ON rc.recurrence_id = r.id AND rc.scheduled_date = m.recurrence_date
         WHERE m.calendar_event_id IN (${placeholders})`
       )
-      .all(...ids) as any[];
+      .all(...ids) as Array<{
+      calendar_event_id: number;
+      todo_item_id: number;
+      sync_type: string;
+      recurrence_date: number | null;
+      is_completed: number;
+      recurrence_id: number | null;
+      occurrence_completed_at: number | null;
+      occurrence_skipped: number;
+    }>;
 
     const result: Record<number, TodoCalendarEventSource> = {};
     for (const row of rows) {
@@ -151,7 +161,8 @@ export default class TodoCalendarMappingTable {
                 "SELECT completed_at,skipped FROM todo_recurrence_completion WHERE recurrence_id=? AND scheduled_date=?"
               )
               .get(row.recurrence_id, date) as
-              { completed_at: number | null; skipped: number } | undefined)
+              | { completed_at: number | null; skipped: number }
+              | undefined)
           : undefined;
       const state = row.state_json
         ? (JSON.parse(row.state_json) as { completedAt?: number | null; skipped?: boolean })
@@ -174,7 +185,9 @@ export default class TodoCalendarMappingTable {
   }
 
   static getMappingById(db: Database.Database, params: { id: number }): TodoCalendarMapping | null {
-    const row = db.prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`).get(params.id);
+    const row = db.prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`).get(params.id) as
+      | SqliteRow
+      | undefined;
     return row ? this.parse(row) : null;
   }
 
@@ -188,10 +201,11 @@ export default class TodoCalendarMappingTable {
         ? `SELECT * FROM todo_calendar_mapping WHERE todo_item_id = ? AND recurrence_date = ?`
         : `SELECT * FROM todo_calendar_mapping WHERE todo_item_id = ? AND recurrence_date IS NULL`;
 
-    const row =
+    const row = (
       params.recurrenceDate !== undefined && params.recurrenceDate !== null
         ? db.prepare(sql).get(params.todoItemId, params.recurrenceDate)
-        : db.prepare(sql).get(params.todoItemId);
+        : db.prepare(sql).get(params.todoItemId)
+    ) as SqliteRow | undefined;
 
     return row ? this.parse(row) : null;
   }
@@ -222,7 +236,7 @@ export default class TodoCalendarMappingTable {
     );
 
     const id = Number(res.lastInsertRowid);
-    const row = db.prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`).get(id);
+    const row = db.prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`).get(id) as SqliteRow;
     return this.parse(row);
   }
 
@@ -288,7 +302,9 @@ export default class TodoCalendarMappingTable {
         `UPDATE todo_calendar_mapping SET calendar_event_id = ?, sync_type = ? WHERE id = ?`
       ).run(params.calendarEventId, params.syncType, existing.id);
 
-      const row = db.prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`).get(existing.id);
+      const row = db
+        .prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`)
+        .get(existing.id) as SqliteRow;
       return this.parse(row);
     }
 

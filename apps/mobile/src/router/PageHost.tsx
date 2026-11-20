@@ -687,5 +687,3 @@ export function PageHost({ rootContent }: { rootContent?: ReactNode }) {
     </AnimatePresence>
   );
 }
-
-export default PageHost;

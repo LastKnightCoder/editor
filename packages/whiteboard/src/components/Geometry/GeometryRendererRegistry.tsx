@@ -41,14 +41,14 @@ class GeometryRendererRegistry {
     const { geometryType, renderer, priority = 0 } = info;
 
     // 获取当前类型的渲染器列表，如果不存在则创建新列表
-    if (!this.renderers.has(geometryType)) {
-      this.renderers.set(geometryType, []);
-      this.priorities.set(geometryType, []);
+    let renderers = this.renderers.get(geometryType);
+    let priorities = this.priorities.get(geometryType);
+    if (!renderers || !priorities) {
+      renderers = [];
+      priorities = [];
+      this.renderers.set(geometryType, renderers);
+      this.priorities.set(geometryType, priorities);
     }
-
-    // 添加渲染器和优先级
-    const renderers = this.renderers.get(geometryType)!;
-    const priorities = this.priorities.get(geometryType)!;
 
     if (renderers.includes(renderer)) {
       return;

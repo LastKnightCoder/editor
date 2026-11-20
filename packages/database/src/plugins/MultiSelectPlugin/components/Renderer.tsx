@@ -14,11 +14,12 @@ const Renderer: React.FC<RendererProps> = memo(({ value, column }) => {
   const config = column.config as { options: SelectOption[] };
   const values = Array.isArray(value) ? value : [value];
 
-  if (config?.options && Array.isArray(config.options)) {
+  const options = config?.options;
+  if (options && Array.isArray(options)) {
     const coloredOptions: SelectOption[] = [];
 
     values.forEach(val => {
-      const option = config.options!.find(opt => opt.id === val);
+      const option = options.find(opt => opt.id === val);
       if (option) {
         if ((option as SelectOption).color) {
           coloredOptions.push(option);

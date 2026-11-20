@@ -1,5 +1,6 @@
 import type { Message } from "@earendil-works/pi-ai";
 import { AiError } from "../contracts";
+import { agentMessageFromTranscript } from "./convert";
 import { getSessionBranch } from "./tree";
 import {
   isRecord,
@@ -150,7 +151,8 @@ export function convertSessionMessagesToLlm(messages: readonly PiTranscriptMessa
   return messages.flatMap(message => {
     const timestamp = message.timestamp ?? 0;
     if (["system", "user", "assistant", "toolResult"].includes(message.role ?? ""))
-      return [message as unknown as Message];
+      // 角色门已保证四类 LLM 消息；转换内做必填字段校验，缺字段的旧档在此显式报错
+      return [agentMessageFromTranscript(message) as Message];
     let content: unknown;
     if (message.role === "custom")
       content =

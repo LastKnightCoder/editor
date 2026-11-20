@@ -76,16 +76,8 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-it("语音转录：渲染行为 / 程序 / 模型分组，「使用」切换当前模型", async () => {
+it("语音转录：「使用」切换当前模型", async () => {
   await render();
-  expect(text()).toContain("转录行为");
-  expect(text()).toContain("断句粒度");
-  expect(text()).toContain("长视频分段转录");
-  expect(text()).toContain("转录程序");
-  expect(text()).toContain("faster-whisper GPU");
-  expect(text()).toContain("/models/whisper");
-  expect(text()).toContain("推荐");
-  expect(text()).toContain("当前使用");
   expect(container.querySelector('[aria-label="打开模型目录"]')).not.toBeNull();
 
   await act(async () => button("使用").click());

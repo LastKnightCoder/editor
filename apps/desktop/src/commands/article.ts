@@ -32,12 +32,6 @@ export async function createArticle(article: ICreateArticle): Promise<IArticle> 
   });
 }
 
-export async function createArticleFromProjectItem(
-  projectItemId: number
-): Promise<IArticle | null> {
-  return articleCommands.createFromProjectItem.call(projectItemId);
-}
-
 export async function updateArticle(article: IUpdateArticle): Promise<IArticle> {
   return articleCommands.update.call(article);
 }
@@ -88,22 +82,11 @@ export async function closeArticleWindow(databaseName: string, articleId: number
   return closeEditorWindow({ kind: "article", databaseName, id: articleId });
 }
 
-export async function getArticlesByDates(dates: string[]): Promise<Record<string, IArticle[]>> {
-  return articleCommands.getArticlesByDates.call(dates);
-}
-
 export async function getArticlesByDateRange(
   startDate: string,
   endDate: string
 ): Promise<Record<string, IArticle[]>> {
   return articleCommands.getArticlesByDateRange.call(startDate, endDate);
-}
-
-export async function getArticlesContentByIds(
-  ids: number[],
-  maxLength?: number
-): Promise<ArticleContentResult[]> {
-  return articleCommands.getContentByIds.call(ids, maxLength);
 }
 
 export async function isContentIsArticle(contentId: number): Promise<boolean> {

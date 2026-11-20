@@ -10,7 +10,7 @@ import {
   getProjectItemsByIds,
   updateProjectItem,
   createEmptyVideoNote,
-  createWhiteBoardContent,
+  createWhiteboardContent,
   addChildProjectItem,
   createDataTable,
   updateWebLink,
@@ -18,7 +18,7 @@ import {
 } from "@/commands";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
-import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import SelectWhiteboardModal from "@/components/SelectWhiteboardModal";
 import { SelectPdfDialog } from "@/features/pdfs/components/SelectPdfDialog";
 import { useCreatePdfRecord } from "@/features/pdfs/queries";
 import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
@@ -32,7 +32,7 @@ import {
 } from "@/features/projects/projectTreeExpandedStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
-import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
+import useAddRefWhiteboard from "../useAddRefWhiteboard";
 import useAddRefPdf from "./useAddRefPdf";
 import { useProjectItemModalStates } from "../../shared/hooks/useProjectItemModalStates";
 import { useWebLinkHandlers } from "../../shared/hooks/useWebLinkHandlers";
@@ -53,7 +53,7 @@ import {
   CreateProjectItem,
   EProjectItemType,
   ICard,
-  WhiteBoard,
+  Whiteboard,
   type ProjectItem,
   IndexType,
   SearchResult,
@@ -72,7 +72,7 @@ import {
   Table,
 } from "lucide-react";
 import { getContentLength, getEditorText, defaultProjectItemEventBus } from "@/utils";
-import whiteBoardIcon from "@/assets/icons/white-board.svg";
+import whiteboardIcon from "@/assets/icons/white-board.svg";
 
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
@@ -163,7 +163,7 @@ interface IProjectItemProps {
   path: number[];
   parentChildren: number[];
   cards: ICard[];
-  whiteBoards: WhiteBoard[];
+  whiteboards: Whiteboard[];
   /** 当前激活文档的祖先集合，用于高亮其所在分支的引导线 */
   activeAncestorIds?: ReadonlySet<number>;
   onOpenChange?: (open: boolean) => void;
@@ -178,7 +178,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     path,
     parentChildren,
     cards,
-    whiteBoards,
+    whiteboards,
     activeAncestorIds,
     onOpenChange,
     refreshProject,
@@ -307,18 +307,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onCancel: onCardCancel,
   } = useAddRefCard(cards, projectId, projectItem);
   const {
-    selectWhiteBoardModalOpen,
-    openSelectWhiteBoardModal,
-    selectedWhiteBoards,
-    excludeWhiteBoardIds,
-    onOk: onWhiteBoardOk,
-    onCancel: onWhiteBoardCancel,
-    onChange: onWhiteBoardChange,
+    selectWhiteboardModalOpen,
+    openSelectWhiteboardModal,
+    selectedWhiteboards,
+    excludeWhiteboardIds,
+    onOk: onWhiteboardOk,
+    onCancel: onWhiteboardCancel,
+    onChange: onWhiteboardChange,
     multiple,
-  } = useAddRefWhiteBoard(whiteBoards, projectId, projectItem);
+  } = useAddRefWhiteboard(whiteboards, projectId, projectItem);
 
-  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteBoards: WhiteBoard[]) => {
-    const res = await onWhiteBoardOk(whiteBoards);
+  const handleOnSelectWhiteboardOk = useMemoizedFn(async (whiteboards: Whiteboard[]) => {
+    const res = await onWhiteboardOk(whiteboards);
     if (res) {
       const [parentProjectItem] = res;
       if (parentProjectItem) {
@@ -362,7 +362,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: webLink.id,
         projectItemType: EProjectItemType.WebView,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
 
       const [parentProjectItem] = await addChildProjectItem(projectItem.id, createProjectItem);
@@ -535,7 +535,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: 0,
         projectItemType: EProjectItemType.Document,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
       if (parentProjectItem) {
@@ -544,7 +544,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     } else if (key === "add-white-board-project-item") {
       if (!projectItemId) return;
-      const whiteBoardContent = await createWhiteBoardContent({
+      const whiteboardContent = await createWhiteboardContent({
         name: "新白板",
         imgUrl: "",
         data: {
@@ -567,11 +567,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       const createProjectItem: CreateProjectItem = {
         title: "新白板",
         content: [],
-        whiteBoardContentId: whiteBoardContent.id,
+        whiteboardContentId: whiteboardContent.id,
         children: [],
         refType: "",
         refId: 0,
-        projectItemType: EProjectItemType.WhiteBoard,
+        projectItemType: EProjectItemType.Whiteboard,
         count: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
@@ -608,7 +608,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: item.id,
         projectItemType: EProjectItemType.VideoNote,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
       if (parentProjectItem) {
@@ -637,7 +637,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refId: dataTable.id,
         projectItemType: EProjectItemType.TableView,
         count: 0,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       };
       const [parentProjectItem] = await addChildProjectItem(projectItemId, createProjectItem);
       if (parentProjectItem) {
@@ -669,7 +669,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     } else if (key === "link-card-project-item") {
       openSelectCardModal();
     } else if (key === "link-white-board-project-item") {
-      openSelectWhiteBoardModal();
+      openSelectWhiteboardModal();
     } else if (key === "import-markdown") {
       if (!projectItem) return;
       await importMarkdownFiles(async ({ title, content, contracts }) => {
@@ -682,7 +682,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: getContentLength(content),
-          whiteBoardContentId: 0,
+          whiteboardContentId: 0,
         });
         if (parentProjectItem) {
           setProjectItem(parentProjectItem);
@@ -752,8 +752,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       );
     }
     switch (projectItem.projectItemType) {
-      case EProjectItemType.WhiteBoard:
-        return <SVG src={whiteBoardIcon} className={leafIconClass} />;
+      case EProjectItemType.Whiteboard:
+        return <SVG src={whiteboardIcon} className={leafIconClass} />;
       case EProjectItemType.VideoNote:
         return <Video className={leafIconClass} strokeWidth={1.75} />;
       case EProjectItemType.WebView:
@@ -959,7 +959,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   path={childPaths[index]}
                   parentChildren={projectItem.children}
                   cards={cards}
-                  whiteBoards={whiteBoards}
+                  whiteboards={whiteboards}
                   activeAncestorIds={activeAncestorIds}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
@@ -981,15 +981,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         initialContents={initialCardContents}
         extensions={extensions}
       />
-      <SelectWhiteBoardModal
+      <SelectWhiteboardModal
         title={"选择关联白板"}
-        selectedWhiteBoards={selectedWhiteBoards}
-        onChange={onWhiteBoardChange}
-        open={selectWhiteBoardModalOpen}
-        allWhiteBoards={whiteBoards}
-        onCancel={onWhiteBoardCancel}
+        selectedWhiteboards={selectedWhiteboards}
+        onChange={onWhiteboardChange}
+        open={selectWhiteboardModalOpen}
+        allWhiteboards={whiteboards}
+        onCancel={onWhiteboardCancel}
         onOk={handleOnSelectWhiteboardOk}
-        excludeWhiteBoardIds={excludeWhiteBoardIds}
+        excludeWhiteboardIds={excludeWhiteboardIds}
         multiple={multiple}
       />
       <SelectPdfDialog

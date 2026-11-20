@@ -1,5 +1,4 @@
 export {
-  toolCallRendererRegistry,
   registerToolCallRenderer,
   registerToolCallRenderers,
   unregisterToolCallRenderer,

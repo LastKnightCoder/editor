@@ -3,6 +3,7 @@
  * 链接只带定位，不带标题；粘贴后由节点渲染时按会话实时标题显示。
  */
 
+import { escapeHtml } from "@tau/shared/escape-html";
 import type { ChatRefPayload } from "./types";
 
 const PREFIX = "tau://chat/";
@@ -31,9 +32,6 @@ export function parseChatRefUrl(
 
 export const chatRefLabel = (ref: Pick<ChatRefPayload, "title" | "turn">) =>
   `${ref.title || "无标题对话"}${ref.turn ? ` · 第 ${ref.turn} 轮` : ""}`;
-
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** 复制引用链接：纯文本是链接（粘回正文即成引用），富文本是带标题的链接（贴到外部应用可读） */
 export async function copyChatRefLink(ref: ChatRefPayload): Promise<void> {

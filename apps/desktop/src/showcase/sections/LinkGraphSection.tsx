@@ -137,7 +137,8 @@ function fixtureMap(): { cards: ShowcaseCard[]; map: KnowledgeMap } | null {
 
 export default function LinkGraphSection() {
   const [shape, setShape] = useState<Shape>(mapFixture ? "map" : "cluster");
-  const meta = SHAPES.find(item => item.value === shape)!;
+  const meta = SHAPES.find(item => item.value === shape);
+  if (!meta) throw new Error(`未知的图形态：${shape}`);
   const fixture = useMemo(() => (shape === "map" ? fixtureMap() : null), [shape]);
   const cards = useMemo(
     () => fixture?.cards ?? makeCards(shape, meta.count),

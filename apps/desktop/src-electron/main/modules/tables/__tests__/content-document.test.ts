@@ -16,18 +16,13 @@ import {
 } from "../../collaboration/content-sessions";
 import { onContentWritten } from "../../content-events";
 import type { RuntimeSession } from "../../collaboration/types";
+import { must } from "../../../test-support";
 
 const execution = vi.hoisted(() => ({ execute: vi.fn() }));
 vi.mock("../../../services/content-execution", () => ({ contentExecutor: execution }));
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 const databases: Database.Database[] = [];
 afterEach(() => {
@@ -224,7 +219,7 @@ describe("正文身份、契约与关系账的持久化", () => {
     db.prepare("UPDATE content_documents SET contracts=? WHERE content_id=1").run(
       canonicalContractJson(saved.contracts)
     );
-    const incoming = ContentDocumentTable.read(db, 1)!;
+    const incoming = must(ContentDocumentTable.read(db, 1), "ContentDocumentTable.read(db, 1)");
     expect(JSON.stringify(incoming.contracts)).not.toBe(JSON.stringify(saved.contracts));
     incoming.content[0].custom = { preserve: true, edited: true };
     const updated = ContentDocumentTable.commit(db, 1, incoming, {
@@ -381,7 +376,10 @@ describe("正文身份、契约与关系账的持久化", () => {
         source: {
           contentId: 1,
           contentCreatedAt: 1,
-          librarySourceId: ContentIdentityTable.library(db)!.sourceId,
+          librarySourceId: must(
+            ContentIdentityTable.library(db),
+            "ContentIdentityTable.library(db)"
+          ).sourceId,
           contentDocumentId: saved.documentId,
         },
       },
@@ -400,7 +398,7 @@ describe("正文身份、契约与关系账的持久化", () => {
       expect(JSON.parse(execution.execute.mock.calls[0][0].input.raw)).toMatchObject(content);
       expect(readDocument).not.toHaveBeenCalled();
       expect(queries.mock.calls.filter(([sql]) => sql.includes("c.content"))).toHaveLength(1);
-      session.info.source!.contentDocumentId = "另一份正文";
+      must(session.info.source, "session.info.source").contentDocumentId = "另一份正文";
       await ContentTable.readText(db, 1);
       expect(execution.execute).toHaveBeenLastCalledWith(
         expect.objectContaining({ contracts: saved.contracts }),
@@ -453,14 +451,25 @@ describe("正文身份、契约与关系账的持久化", () => {
       content: original.content as never,
       contracts: original.contracts,
     });
-    const read = ContentTable.getContentById(db, first)!;
+    const read = must(
+      ContentTable.getContentById(db, first),
+      "ContentTable.getContentById(db, first)"
+    );
     const copied = ContentTable.createContent(db, read);
-    const copy = ContentTable.getContentById(db, copied)!;
+    const copy = must(
+      ContentTable.getContentById(db, copied),
+      "ContentTable.getContentById(db, copied)"
+    );
     expect(read.contracts).toEqual(original.contracts);
     expect(copy.contracts).toEqual(original.contracts);
-    expect((copy.content[0] as any).collabId).not.toBe((read.content[0] as any).collabId);
-    expect(ContentDocumentTable.read(db, copied)!.documentId).not.toBe(
-      ContentDocumentTable.read(db, first)!.documentId
+    expect((copy.content[0] as { collabId?: string }).collabId).not.toBe(
+      (read.content[0] as { collabId?: string }).collabId
+    );
+    expect(
+      must(ContentDocumentTable.read(db, copied), "ContentDocumentTable.read(db, copied)")
+        .documentId
+    ).not.toBe(
+      must(ContentDocumentTable.read(db, first), "ContentDocumentTable.read(db, first)").documentId
     );
     expect(count(db)).toBe(2);
     expect(ContentTable.getContentByIds(db, [first, copied]).every(value => value.contracts)).toBe(

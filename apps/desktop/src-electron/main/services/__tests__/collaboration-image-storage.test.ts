@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import type { WebContents } from "electron";
 import { expect, it, vi } from "vitest";
 import { CollaborationImageStorage } from "../collaboration-image-storage";
+import { must } from "../../test-support";
 
 const window = (id: number) =>
   Object.assign(new EventEmitter(), {
@@ -42,7 +43,10 @@ it("主窗口关闭使存储失败，迟到回执不覆盖重连后的结果", a
   storage.connect(host, "second");
   storage.release(1, "first");
   const next = storage.save(file);
-  const latest = vi.mocked(host.send).mock.calls.at(-1)![1];
+  const latest = must(
+    vi.mocked(host.send).mock.calls.at(-1),
+    "vi.mocked(host.send).mock.calls.at(-1)"
+  )[1];
   storage.reply(1, { ...latest, error: "作者图床连接失败" });
   await expect(next).rejects.toThrow("图床连接失败");
 });

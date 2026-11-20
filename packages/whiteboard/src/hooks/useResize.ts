@@ -37,5 +37,3 @@ export const useResize = ({ ref, onResizeStart, onResize, onResizeEnd }: IUseRes
     };
   }, [board, ref, start, move, end]);
 };
-
-export default useResize;

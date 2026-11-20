@@ -17,5 +17,3 @@ export const useReadonly = () => {
   });
   return useSyncExternalStore(subscribe, getSnapshot);
 };
-
-export default useReadonly;

@@ -69,7 +69,7 @@ export const resetActionsKeyCache = () => {
 const decodePart = (part: string) =>
   Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
 
-export async function verifyActionsToken(token: string, audience: string): Promise<ActionsClaims> {
+async function verifyActionsToken(token: string, audience: string): Promise<ActionsClaims> {
   const parts = token.split(".");
   if (parts.length !== 3) fail(401, "UNAUTHENTICATED", "CI 身份令牌无效");
   let header: { alg?: string; kid?: string };

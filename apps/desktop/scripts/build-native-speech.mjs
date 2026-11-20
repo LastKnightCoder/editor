@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { macArmBuild } from "./mac-arm-build.mjs";
 
 if (process.platform === "darwin") {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -11,9 +12,10 @@ if (process.platform === "darwin") {
   mkdirSync(path.dirname(executable), { recursive: true });
   const temporary = mkdtempSync(path.join(tmpdir(), "tau-speech-build-"));
   try {
-    const arches = process.argv.includes("--universal")
-      ? ["arm64", "x86_64"]
-      : [process.arch === "arm64" ? "arm64" : "x86_64"];
+    const arches =
+      !macArmBuild && process.argv.includes("--universal")
+        ? ["arm64", "x86_64"]
+        : [process.arch === "arm64" ? "arm64" : "x86_64"];
     const binaries = arches.map(arch => {
       const output = path.join(temporary, arch);
       execFileSync(

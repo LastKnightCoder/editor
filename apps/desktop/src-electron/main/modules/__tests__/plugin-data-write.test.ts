@@ -1,14 +1,8 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 
 vi.mock("../../services/content-execution", () => ({
   contentExecutor: {
@@ -39,9 +33,10 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import { getMarkdown } from "@/utils/markdown.ts";
 import PluginDataTable from "../tables/plugin-data";
 import ContentTable from "../tables/content";
-import WhiteBoardContentTable from "../tables/white-board-content";
+import WhiteboardContentTable from "../tables/white-board-content";
 import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
 import { executeDatabaseCommand } from "../database-command";
+import { must } from "../../test-support";
 
 const scope = { databaseName: ":memory:", pluginId: "weekly" };
 const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
@@ -100,7 +95,10 @@ describe("PluginDataTable 写入", () => {
         ctx
       )
     ).toThrow("PLUGIN_CONFLICT:");
-    const fresh = PluginDataTable.get(db, { ...scope, entity: "card", id: card.id })!;
+    const fresh = must(
+      PluginDataTable.get(db, { ...scope, entity: "card", id: card.id }),
+      "PluginDataTable.get(db, { ...scope, entity: '..."
+    );
     const updated = PluginDataTable.update(
       db,
       {
@@ -136,7 +134,10 @@ describe("PluginDataTable 写入", () => {
 
     const restored = PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx);
     expect(restored).toEqual({ entity: "card", id: card.id });
-    const back = PluginDataTable.get(db, { ...scope, entity: "card", id: card.id })!;
+    const back = must(
+      PluginDataTable.get(db, { ...scope, entity: "card", id: card.id }),
+      "PluginDataTable.get(db, { ...scope, entity: '..."
+    );
     expect(back.tags).toEqual(["甲"]);
     expect(contentOf(back.contentId)).toBe("要删的卡");
     expect(
@@ -181,23 +182,26 @@ describe("PluginDataTable 写入", () => {
       }
     ).create_time;
     const read = () =>
-      PluginDataTable.content(db, {
-        ...scope,
-        contentId: card.contentId!,
-        createdAt,
-        format: "markdown",
-      })!;
-    const target = { ...scope, contentId: card.contentId!, createdAt };
+      must(
+        PluginDataTable.content(db, {
+          ...scope,
+          contentId: must(card.contentId, "card.contentId"),
+          createdAt,
+          format: "markdown",
+        }),
+        "PluginDataTable.content"
+      );
+    const target = { ...scope, contentId: must(card.contentId, "card.contentId"), createdAt };
     const first = await PluginDataTable.editContent(
       db,
       {
         ...target,
         edit: { op: "append", content: { markdown: "第二段" } },
-        expectedRevision: (await read())!.revision,
+        expectedRevision: must(await read(), "(await read())").revision,
       },
       ctx
     );
-    expect((await read())!.markdown).toMatch(/第一段[\s\S]*第二段/);
+    expect(must(await read(), "(await read())").markdown).toMatch(/第一段[\s\S]*第二段/);
     await expect(
       PluginDataTable.editContent(
         db,
@@ -221,12 +225,12 @@ describe("PluginDataTable 写入", () => {
       {
         ...target,
         edit: { op: "replaceText", find: "第二段", markdown: "补充" },
-        expectedRevision: (await read())!.revision,
+        expectedRevision: must(await read(), "(await read())").revision,
       },
       ctx
     );
-    expect((await read())!.markdown).toMatch(/第一段[\s\S]*补充/);
-    const revision = (await read())!.revision;
+    expect(must(await read(), "(await read())").markdown).toMatch(/第一段[\s\S]*补充/);
+    const revision = must(await read(), "(await read())").revision;
     const pending = PluginDataTable.editContent(
       db,
       {
@@ -236,10 +240,13 @@ describe("PluginDataTable 写入", () => {
       },
       ctx
     );
-    const saved = ContentDocumentTable.read(db, card.contentId!)!;
+    const saved = must(
+      ContentDocumentTable.read(db, must(card.contentId, "card.contentId")),
+      "ContentDocumentTable.read(db, card.contentId!)"
+    );
     const changed = structuredClone(saved);
     changed.content[0].children = [{ type: "formatted", text: "同时修改" }];
-    ContentDocumentTable.commit(db, card.contentId!, changed, {
+    ContentDocumentTable.commit(db, must(card.contentId, "card.contentId"), changed, {
       expectedRevision: saved.revision,
       count: 4,
     });
@@ -270,7 +277,10 @@ describe("PluginDataTable 写入", () => {
       ] as never,
       contracts: { [declaration.id]: declaration.contract },
     });
-    const source = ContentTable.getContentById(db, contentId)!;
+    const source = must(
+      ContentTable.getContentById(db, contentId),
+      "ContentTable.getContentById(db, contentId)"
+    );
     const referenceCount = () =>
       db.prepare("SELECT ref_count FROM white_board_contents WHERE id = 7").pluck().get();
     expect(referenceCount()).toBe(1);
@@ -305,7 +315,7 @@ describe("PluginDataTable 写入", () => {
           ...scope,
           contentId,
           createdAt: source.createTime,
-          expectedRevision: source.revision!,
+          expectedRevision: must(source.revision, "source.revision"),
           edit: { op: "replaceAll", content: { markdown: "新正文" } },
         },
         ctx
@@ -329,9 +339,15 @@ describe("PluginDataTable 写入", () => {
       { ...scope, entity: "card", input: { content: { markdown: "活跃正文" } } },
       ctx
     );
-    const contentId = card.contentId!;
-    const saved = ContentDocumentTable.read(db, contentId)!;
-    const source = ContentTable.getContentById(db, contentId)!;
+    const contentId = must(card.contentId, "card.contentId");
+    const saved = must(
+      ContentDocumentTable.read(db, contentId),
+      "ContentDocumentTable.read(db, contentId)"
+    );
+    const source = must(
+      ContentTable.getContentById(db, contentId),
+      "ContentTable.getContentById(db, contentId)"
+    );
     const doc = await createNodeDocument(
       { documentId: saved.documentId, baselineId: "baseline", epoch: 0 },
       { title: "", bannerBg: "", bannerPosition: "center", content: saved.content },
@@ -461,7 +477,10 @@ describe("PluginDataTable 写入", () => {
     );
     expect(rawOf(source.contentId)).toMatchObject(nodes);
 
-    const copyOf = { contentId: source.contentId!, createdAt: createdAtOf(source.contentId) };
+    const copyOf = {
+      contentId: must(source.contentId, "source.contentId"),
+      createdAt: createdAtOf(source.contentId),
+    };
     const copyArticle = () =>
       executeDatabaseCommand(
         db,
@@ -496,8 +515,14 @@ describe("PluginDataTable 写入", () => {
     const copy = await copyArticle();
     expect(copy.contentId).not.toBe(source.contentId);
     expect(rawOf(copy.contentId)).toMatchObject(nodes);
-    const sourceDocument = ContentDocumentTable.read(db, copyOf.contentId)!;
-    const copyDocument = ContentDocumentTable.read(db, copy.contentId!)!;
+    const sourceDocument = must(
+      ContentDocumentTable.read(db, copyOf.contentId),
+      "ContentDocumentTable.read(db, copyOf.contentId)"
+    );
+    const copyDocument = must(
+      ContentDocumentTable.read(db, must(copy.contentId, "copy.contentId")),
+      "ContentDocumentTable.read(db, copy.contentId!)"
+    );
     expect(copyDocument.documentId).not.toBe(sourceDocument.documentId);
     expect(copyDocument.contracts).toEqual(sourceDocument.contracts);
     expect(
@@ -517,20 +542,28 @@ describe("PluginDataTable 写入", () => {
         ...scope,
         ...copyOf,
         edit: { op: "replaceAll", content: { nodes: [] } },
-        expectedRevision: (await PluginDataTable.content(db, {
-          ...scope,
-          ...copyOf,
-          format: "nodes",
-        }))!.revision,
+        expectedRevision: must(
+          await PluginDataTable.content(db, {
+            ...scope,
+            ...copyOf,
+            format: "nodes",
+          }),
+          "plugin content"
+        ).revision,
       },
       ctx
     );
     expect(getMarkdown(rawOf(source.contentId)).trim()).toBe("");
     expect(rawOf(copy.contentId)).toMatchObject(nodes);
 
-    const target = { contentId: copy.contentId!, createdAt: createdAtOf(copy.contentId) };
-    const revision = (await PluginDataTable.content(db, { ...scope, ...target, format: "nodes" }))!
-      .revision;
+    const target = {
+      contentId: must(copy.contentId, "copy.contentId"),
+      createdAt: createdAtOf(copy.contentId),
+    };
+    const revision = must(
+      await PluginDataTable.content(db, { ...scope, ...target, format: "nodes" }),
+      "(await PluginDataTable.content(db, { ...scope..."
+    ).revision;
     await PluginDataTable.editContent(
       db,
       {
@@ -571,13 +604,18 @@ describe("PluginDataTable 写入", () => {
     expect(
       await PluginDataTable.resolveContent(db, {
         ...scope,
-        content: { copyOf: { contentId: source.contentId!, createdAt } },
+        content: { copyOf: { contentId: must(source.contentId, "source.contentId"), createdAt } },
       })
     ).toMatchObject({ content: nodes });
     await expect(
       PluginDataTable.resolveContent(db, {
         ...scope,
-        content: { copyOf: { contentId: source.contentId!, createdAt: createdAt + 1 } },
+        content: {
+          copyOf: {
+            contentId: must(source.contentId, "source.contentId"),
+            createdAt: createdAt + 1,
+          },
+        },
       })
     ).rejects.toThrow("要复制的正文不存在");
     await expect(
@@ -730,10 +768,10 @@ describe("PluginDataTable 写入", () => {
     const c = await doc("丙");
     const child = await doc("甲-1", a.id);
     const titles = () =>
-      PluginDataTable.projectTree(db, { ...scope, projectId: project.id })!.map(node => [
-        node.title,
-        node.children.map(item => item.title),
-      ]);
+      must(
+        PluginDataTable.projectTree(db, { ...scope, projectId: project.id }),
+        "PluginDataTable.projectTree(db, { ...scope, p..."
+      ).map(node => [node.title, node.children.map(item => item.title)]);
     expect(titles()).toEqual([
       ["甲", ["甲-1"]],
       ["乙", []],
@@ -815,7 +853,10 @@ describe("PluginDataTable 写入", () => {
       JSON.stringify([shared.id]),
       parent.id
     );
-    const tree = PluginDataTable.projectTree(db, { ...scope, projectId: project.id })!;
+    const tree = must(
+      PluginDataTable.projectTree(db, { ...scope, projectId: project.id }),
+      "PluginDataTable.projectTree(db, { ...scope, p..."
+    );
     expect(tree.map(node => node.id)).toEqual([shared.id, parent.id, Number(ref)]);
     expect(tree[1].children.map(node => node.id)).toEqual([shared.id]);
     expect(tree[2].ref).toEqual({ kind: "card", id: card.id });
@@ -871,7 +912,7 @@ describe("PluginDataTable 写入", () => {
       id: board.id,
       expectedRevision: board.revision,
     });
-    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now() + 1, graceMs: 0 });
+    WhiteboardContentTable.collectPendingReleases(db, { now: Date.now() + 1, graceMs: 0 });
     const [operation] = PluginDataTable.operations(db, scope);
     expect(() => PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toThrow(
       "画板页已被清理"
@@ -904,11 +945,14 @@ describe("PluginDataTable 写入", () => {
         expectedRevision: revision(),
       })
     ).toThrow("项目里还有文档");
-    const docRevision = PluginDataTable.get(db, {
-      ...scope,
-      entity: "document",
-      id: doc.id,
-    })!.revision;
+    const docRevision = must(
+      PluginDataTable.get(db, {
+        ...scope,
+        entity: "document",
+        id: doc.id,
+      }),
+      "PluginDataTable.get"
+    ).revision;
     PluginDataTable.remove(db, {
       ...scope,
       entity: "document",
@@ -922,9 +966,10 @@ describe("PluginDataTable 写入", () => {
       expectedRevision: revision(),
     });
     expect(PluginDataTable.get(db, { ...scope, entity: "project", id: project.id })).toBeNull();
-    const operation = PluginDataTable.operations(db, scope).find(
-      item => item.entity === "project"
-    )!;
+    const operation = must(
+      PluginDataTable.operations(db, scope).find(item => item.entity === "project"),
+      "project operation"
+    );
     PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx);
     expect(PluginDataTable.get(db, { ...scope, entity: "project", id: project.id })).toMatchObject({
       title: "课题",
@@ -962,12 +1007,15 @@ describe("PluginDataTable 写入", () => {
       target.id
     );
     const titles = () =>
-      PluginDataTable.projectTree(db, { ...scope, projectId: project.id })!.map(node => [
-        node.title,
-        node.children.map(item => item.title),
-      ]);
+      must(
+        PluginDataTable.projectTree(db, { ...scope, projectId: project.id }),
+        "PluginDataTable.projectTree(db, { ...scope, p..."
+      ).map(node => [node.title, node.children.map(item => item.title)]);
     const revisionOf = (id: number) =>
-      PluginDataTable.get(db, { ...scope, entity: "document", id })!.revision;
+      must(
+        PluginDataTable.get(db, { ...scope, entity: "document", id }),
+        "PluginDataTable.get(db, { ...scope, entity: '..."
+      ).revision;
     const commands = PluginDataTable.getListenEvents();
     const remove = (id: number) =>
       executeDatabaseCommand(db, commands["plugin-data:delete"], db, {
@@ -1007,9 +1055,10 @@ describe("PluginDataTable 写入", () => {
     ).toEqual({ n: 1 });
     expect(snapshot().body).toMatchObject({ ref_count: 0 });
 
-    const operation = PluginDataTable.operations(db, scope).find(
-      item => item.entity === "document"
-    )!;
+    const operation = must(
+      PluginDataTable.operations(db, scope).find(item => item.entity === "document"),
+      "document operation"
+    );
     expect(operation.title).toBe("目标");
     expect(
       executeDatabaseCommand(
@@ -1046,8 +1095,10 @@ describe("PluginDataTable 写入", () => {
         ...scope,
         entity: "document",
         id: doc.id,
-        expectedRevision: PluginDataTable.get(db, { ...scope, entity: "document", id: doc.id })!
-          .revision,
+        expectedRevision: must(
+          PluginDataTable.get(db, { ...scope, entity: "document", id: doc.id }),
+          "PluginDataTable.get(db, { ...scope, entity: '..."
+        ).revision,
       })
     ).toThrow("视频笔记");
   });

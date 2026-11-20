@@ -212,6 +212,8 @@ test.afterEach(async ({}, info) => {
 });
 
 test("本机多视图、跨窗口正文、标题和原地共享", async () => {
+  // 门控：TAU_COEDIT_E2E=1 时 beforeAll 启动 coedit 工作区，本用例的 primary 夹具不成立；
+  // 不带该环境变量的默认模式执行本用例（docs/guides/dev-content-verification.md §2）。
   test.skip(process.env.TAU_COEDIT_E2E === "1", "使用独立的共编夹具");
   const first = page.getByTestId("first-view").locator('[data-slate-editor="true"]');
   const second = page.getByTestId("second-view").locator('[data-slate-editor="true"]');
@@ -370,6 +372,8 @@ test("本机多视图、跨窗口正文、标题和原地共享", async () => {
 });
 
 test("活跃协作在已确认输入后允许退出", async () => {
+  // 门控：TAU_COEDIT_E2E=1 时 beforeAll 启动 coedit 工作区，本用例的 primary 夹具不成立；
+  // 不带该环境变量的默认模式执行本用例（docs/guides/dev-content-verification.md §2）。
   test.skip(process.env.TAU_COEDIT_E2E === "1", "使用独立的共编夹具");
   await page.getByRole("button", { name: "发起协作", exact: true }).click();
   // 先说明再确认：打开对话框不会静默共享
@@ -439,6 +443,7 @@ const openPeer = async () => {
 };
 
 test.describe("Agent 共编", () => {
+  // 门控：真实进程 SIGKILL 崩溃测试，默认跳过；TAU_COEDIT_E2E=1 显式启用（docs/guides/dev-content-verification.md §2）。
   test.skip(process.env.TAU_COEDIT_E2E !== "1", "显式启用真实 Electron 崩溃测试");
 
   test("真实双窗口同时接受，正文、建议状态和撤销回执一致", async () => {
@@ -606,6 +611,7 @@ const runAgent = (id: string, execution: string) =>
   );
 
 test.describe("Agent 共编混合故障", () => {
+  // 门控：真实进程 SIGKILL 崩溃测试，默认跳过；TAU_COEDIT_E2E=1 显式启用（docs/guides/dev-content-verification.md §2）。
   test.skip(process.env.TAU_COEDIT_E2E !== "1", "显式启用真实 Electron 崩溃测试");
 
   test("真实进程在首段提交后强退，接续和撤销复用原回执", async () => {

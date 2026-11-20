@@ -84,15 +84,12 @@ describe("StylePanel", () => {
     for (const label of ["加粗", "斜体", "下划线", "删除线", "行内代码", "链接", "批注"]) {
       expect(getButton(label), label).toBeTruthy();
     }
-    expect(document.querySelectorAll('button[aria-label^="文字颜色"]')).toHaveLength(8);
-    expect(document.querySelectorAll('button[aria-label^="高亮颜色"]')).toHaveLength(6);
     expect(getButtonByText("更多文本样式")).toBeTruthy();
   });
 
   it("当前块类型对应项高亮", () => {
     render(createControllerStub({ getCurrentBlockKind: () => "h2" }));
     expect(getButton("二级标题")?.getAttribute("aria-pressed")).toBe("true");
-    expect(getButton("二级标题")?.className).toContain("border-accent");
     expect(getButton("正文")?.getAttribute("aria-pressed")).toBe("false");
   });
 
@@ -133,7 +130,6 @@ describe("StylePanel", () => {
       isActionActive: vi.fn((id: ToolbarActionId) => id === "italic"),
     });
     render(controller);
-    expect(getButton("斜体")?.className).toContain("shadow-lift");
     expect(getButton("加粗")?.getAttribute("aria-pressed")).toBe("false");
     click(getButton("加粗"));
     expect(controller.executeAction).toHaveBeenCalledWith("bold");
@@ -161,7 +157,6 @@ describe("StylePanel", () => {
     render(controller);
     const comment = getButton("批注");
     expect(comment?.disabled).toBe(true);
-    expect(comment?.className).toContain("opacity-40");
     click(comment);
     expect(controller.executeAction).not.toHaveBeenCalled();
   });

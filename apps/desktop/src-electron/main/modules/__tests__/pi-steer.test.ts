@@ -1,5 +1,5 @@
 /**
- * 运行中插话（M3 第 5 项）：交 pi 原生 steer 队列的行为验证，真实 pi 会话 + faux provider。
+ * 运行中插话：交 pi 原生 steer 队列的行为验证，真实 pi 会话 + faux provider。
  * 关注三件事：送达时机（当前步骤跑完、下一次请求模型之前，同一轮内）、
  * 会话空闲时不许偷偷起新一轮、中止后没送达的插话不能漏进下一轮。
  */
@@ -11,11 +11,13 @@ import { fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall } from "@ear
 import type {
   AgentSession,
   AgentSessionEvent,
+  InlineExtension,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import {
   assembleHostSession,
   createFauxModelRuntime,
+  createHostResourceLoader,
   steerHostSession,
 } from "../pi-session-host-core";
 
@@ -53,7 +55,7 @@ const blockingTool = (gate: Promise<void>): ToolDefinition =>
     parameters: { type: "object", properties: {} },
     execute: async () => {
       await gate;
-      return { content: [{ type: "text", text: "放行" }] };
+      return { content: [{ type: "text", text: "放行" }], details: undefined };
     },
   }) as unknown as ToolDefinition;
 
@@ -74,7 +76,10 @@ afterEach(async () => {
   }
 });
 
-const setupSession = async (options?: { customTools?: ToolDefinition[] }) => {
+const setupSession = async (options?: {
+  customTools?: ToolDefinition[];
+  extensionFactories?: InlineExtension[];
+}) => {
   const workDir = mkdtempSync(join(tmpdir(), "pi-插话-"));
   const agentDir = join(workDir, ".pi-agent");
   const faux = fauxProvider({});
@@ -84,6 +89,15 @@ const setupSession = async (options?: { customTools?: ToolDefinition[] }) => {
     agentDir,
     modelRuntime,
     modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+    ...(options?.extensionFactories
+      ? {
+          resourceLoader: await createHostResourceLoader({
+            cwd: workDir,
+            agentDir,
+            extensionFactories: options.extensionFactories,
+          }),
+        }
+      : {}),
     ...(options?.customTools ? { customTools: options.customTools } : {}),
   });
   disposables.push({ session, workDir });
@@ -137,6 +151,69 @@ describe("运行中插话（pi 原生 steer）", () => {
     });
     expect(events).toHaveLength(0);
     expect(session.getSteeringMessages()).toEqual([]);
+  });
+
+  it.each([false, true])("输入预检期间原轮结束，下一轮已开始=%s 时均退回插话", async hasNextRun => {
+    const firstTool = deferred<void>();
+    const nextTool = deferred<void>();
+    const firstToolEntered = deferred<void>();
+    const nextToolEntered = deferred<void>();
+    const inputEntered = deferred<void>();
+    const input = deferred<void>();
+    const inputText = "预检期间迟到的插话";
+    let executions = 0;
+    const blocker = blockingTool(firstTool.promise);
+    blocker.execute = async () => {
+      if (executions++ === 0) {
+        firstToolEntered.resolve();
+        await firstTool.promise;
+      } else {
+        nextToolEntered.resolve();
+        await nextTool.promise;
+      }
+      return { content: [{ type: "text", text: "放行" }], details: undefined };
+    };
+    const { session, faux, events } = await setupSession({
+      customTools: [blocker],
+      extensionFactories: [
+        pi => {
+          pi.on("input", async event => {
+            if (event.text !== inputText) return;
+            inputEntered.resolve();
+            await input.promise;
+          });
+        },
+      ],
+    });
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("blocker", {})], { stopReason: "toolUse" }),
+      fauxAssistantMessage([fauxText("原轮结束")]),
+      fauxAssistantMessage([fauxToolCall("blocker", {})], { stopReason: "toolUse" }),
+      fauxAssistantMessage([fauxText("下一轮结束")]),
+    ]);
+    const first = session.prompt("第一轮");
+    let next: Promise<void> | undefined;
+    try {
+      await firstToolEntered.promise;
+      const steer = steerHostSession(session, inputText);
+      await inputEntered.promise;
+      firstTool.resolve();
+      await first;
+      if (hasNextRun) {
+        next = session.prompt("第二轮");
+        await nextToolEntered.promise;
+      }
+      input.resolve();
+      expect(await steer).toEqual({ ok: false, reason: "not-streaming" });
+      expect(session.getSteeringMessages()).toEqual([]);
+      expect(events.filter(event => event.type === "agent_start")).toHaveLength(hasNextRun ? 2 : 1);
+      expect(events.map(userTextOf)).not.toContain(inputText);
+    } finally {
+      firstTool.resolve();
+      nextTool.resolve();
+      input.resolve();
+      await Promise.all([first, next]);
+    }
   });
 
   it("中止会清空未送达的插话，不会漏进下一轮", async () => {

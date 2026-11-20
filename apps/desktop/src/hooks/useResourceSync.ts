@@ -9,7 +9,12 @@ import {
   resumeResourceSync,
   startResourceSync,
 } from "@/commands";
-import { IResourceSyncProgress, ISyncStatusFile, ResourceSyncOptions } from "@/types";
+import {
+  IResourceSyncProgress,
+  ISyncStatusFile,
+  IFileSyncStatus,
+  ResourceSyncOptions,
+} from "@/types";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 
@@ -88,14 +93,26 @@ const useResourceSync = () => {
   useEffect(() => {
     if (!client) return;
 
-    const handleProgress = (data: any) => {
-      if (data?.progress) {
-        setProgress(data.progress as IResourceSyncProgress);
+    const progressOf = (data: unknown) =>
+      typeof data === "object" && data !== null
+        ? (data as Record<string, unknown>).progress
+        : undefined;
+
+    const handleProgress = (data: unknown) => {
+      const progress = progressOf(data);
+      if (progress) {
+        setProgress(progress as IResourceSyncProgress);
       }
     };
 
-    const handleFileStatus = (data: any) => {
-      if (!data?.name || !data?.status) return;
+    const handleFileStatus = (data: unknown) => {
+      const record = (typeof data === "object" && data !== null ? data : {}) as Record<
+        string,
+        unknown
+      >;
+      const name = record.name as string | undefined;
+      const status = record.status;
+      if (!name || !status) return;
       setStatusFile(prev => {
         const base: ISyncStatusFile = prev || {
           provider: buildOptions()?.provider || "plugin",
@@ -107,22 +124,24 @@ const useResourceSync = () => {
           ...base,
           files: {
             ...base.files,
-            [data.name]: data.status,
+            [name]: status as IFileSyncStatus,
           },
         };
       });
     };
 
-    const handleCompleted = (data: any) => {
-      if (data?.progress) {
-        setProgress(data.progress as IResourceSyncProgress);
+    const handleCompleted = (data: unknown) => {
+      const progress = progressOf(data);
+      if (progress) {
+        setProgress(progress as IResourceSyncProgress);
       }
       refreshStatuses();
     };
 
-    const handleError = (data: any) => {
-      if (data?.progress) {
-        setProgress(data.progress as IResourceSyncProgress);
+    const handleError = (data: unknown) => {
+      const progress = progressOf(data);
+      if (progress) {
+        setProgress(progress as IResourceSyncProgress);
       }
     };
 

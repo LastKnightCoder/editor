@@ -51,7 +51,6 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
   ConfigPanel: DateConfigPanel,
   Icon: ({ className }) => <CalendarDays className={className} />,
 
-  // 保存前转换为统一格式 { start, end }
   beforeSave: (value, config) => {
     if (value === null || value === undefined) {
       return { start: null, end: null };
@@ -154,7 +153,6 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     const dateValue = cellValue as DateValue;
     const searchLower = searchValue.toLowerCase();
 
-    // 格式化日期为可读字符串进行搜索
     const formatDate = (ts: number | null) => {
       if (ts === null) return "";
       const date = new Date(ts);

@@ -13,16 +13,12 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: {
-    enqueueTask: vi.fn(),
-    cleanupVideoNoteArtifacts: vi.fn(),
-  },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { EProjectItemType } from "@/types/project";
 import ProjectTable from "../tables/project";
+import { must } from "../../test-support";
 
 const emptyContent = [{ type: "paragraph", children: [{ text: "" }] }] as any;
 
@@ -40,7 +36,7 @@ function createProjectItem(title: string) {
     children: [],
     refType: "",
     refId: 0,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
   };
 }
@@ -66,30 +62,31 @@ describe("tree item move validation", () => {
     });
     const [, parent] = ProjectTable.addRootProjectItem(db, project.id, createProjectItem("父节点"));
     expect(parent).not.toBeNull();
-    const [, child] = ProjectTable.addChildProjectItem(
-      db,
-      parent!.id,
-      createProjectItem("子节点")
-    )!;
+    const [, child] = must(
+      ProjectTable.addChildProjectItem(db, must(parent, "parent").id, createProjectItem("子节点")),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(child).not.toBeNull();
 
     const result = ProjectTable.moveProjectTreeItem(db, project.id, {
       dragItem: {
-        itemId: parent!.id,
+        itemId: must(parent, "parent").id,
         parentId: project.id,
         isRoot: true,
-        parentChildren: [parent!.id],
+        parentChildren: [must(parent, "parent").id],
       },
-      dropTargetId: child!.id,
-      dropTargetParentId: parent!.id,
+      dropTargetId: must(child, "child").id,
+      dropTargetParentId: must(parent, "parent").id,
       dropTargetIsRoot: false,
       dragPosition: "inside",
     });
 
     expect(result).toBeNull();
-    expect(ProjectTable.getProject(db, project.id).children).toEqual([parent!.id]);
-    expect(ProjectTable.getProjectItem(db, parent!.id)?.children).toEqual([child!.id]);
-    expect(ProjectTable.getProjectItem(db, parent!.id)?.parents).toEqual([]);
+    expect(ProjectTable.getProject(db, project.id).children).toEqual([must(parent, "parent").id]);
+    expect(ProjectTable.getProjectItem(db, must(parent, "parent").id)?.children).toEqual([
+      must(child, "child").id,
+    ]);
+    expect(ProjectTable.getProjectItem(db, must(parent, "parent").id)?.parents).toEqual([]);
   });
 
   it("ProjectTable.moveProjectTreeItem 中途写入失败时回滚源父级 children", () => {
@@ -112,36 +109,45 @@ describe("tree item move validation", () => {
     );
     expect(sourceParent).not.toBeNull();
     expect(targetParent).not.toBeNull();
-    const [, movingItem] = ProjectTable.addChildProjectItem(
-      db,
-      sourceParent!.id,
-      createProjectItem("移动节点")
-    )!;
+    const [, movingItem] = must(
+      ProjectTable.addChildProjectItem(
+        db,
+        must(sourceParent, "sourceParent").id,
+        createProjectItem("移动节点")
+      ),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(movingItem).not.toBeNull();
 
     db.exec(`CREATE TEMP TRIGGER reject_move_target BEFORE UPDATE OF children ON project_item
-      WHEN NEW.id = ${targetParent!.id}
-        AND (SELECT children FROM project_item WHERE id = ${sourceParent!.id}) = '[]'
+      WHEN NEW.id = ${must(targetParent, "targetParent").id}
+        AND (SELECT children FROM project_item WHERE id = ${must(sourceParent, "sourceParent").id}) = '[]'
       BEGIN SELECT RAISE(ABORT, '目录移动写入故障'); END`);
 
     expect(() =>
       ProjectTable.moveProjectTreeItem(db, project.id, {
         dragItem: {
-          itemId: movingItem!.id,
-          parentId: sourceParent!.id,
+          itemId: must(movingItem, "movingItem").id,
+          parentId: must(sourceParent, "sourceParent").id,
           isRoot: false,
-          parentChildren: [movingItem!.id],
+          parentChildren: [must(movingItem, "movingItem").id],
         },
-        dropTargetId: targetParent!.id,
+        dropTargetId: must(targetParent, "targetParent").id,
         dropTargetParentId: project.id,
         dropTargetIsRoot: true,
         dragPosition: "inside",
       })
     ).toThrow("目录移动写入故障");
 
-    expect(ProjectTable.getProjectItem(db, sourceParent!.id)?.children).toEqual([movingItem!.id]);
-    expect(ProjectTable.getProjectItem(db, targetParent!.id)?.children).toEqual([]);
-    expect(ProjectTable.getProjectItem(db, movingItem!.id)?.parents).toEqual([sourceParent!.id]);
+    expect(
+      ProjectTable.getProjectItem(db, must(sourceParent, "sourceParent").id)?.children
+    ).toEqual([must(movingItem, "movingItem").id]);
+    expect(
+      ProjectTable.getProjectItem(db, must(targetParent, "targetParent").id)?.children
+    ).toEqual([]);
+    expect(ProjectTable.getProjectItem(db, must(movingItem, "movingItem").id)?.parents).toEqual([
+      must(sourceParent, "sourceParent").id,
+    ]);
   });
 
   it("addRefChildProjectItem 会把父级项目归属传播到已有子树", () => {
@@ -171,23 +177,30 @@ describe("tree item move validation", () => {
     );
     expect(sourceParent).not.toBeNull();
     expect(existingRoot).not.toBeNull();
-    const [, existingChild] = ProjectTable.addChildProjectItem(
-      db,
-      existingRoot!.id,
-      createProjectItem("已有子节点")
-    )!;
+    const [, existingChild] = must(
+      ProjectTable.addChildProjectItem(
+        db,
+        must(existingRoot, "existingRoot").id,
+        createProjectItem("已有子节点")
+      ),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(existingChild).not.toBeNull();
 
-    ProjectTable.addRefRootProjectItem(db, targetProject.id, sourceParent!.id);
-    const result = ProjectTable.addRefChildProjectItem(db, sourceParent!.id, existingRoot!.id);
+    ProjectTable.addRefRootProjectItem(db, targetProject.id, must(sourceParent, "sourceParent").id);
+    const result = ProjectTable.addRefChildProjectItem(
+      db,
+      must(sourceParent, "sourceParent").id,
+      must(existingRoot, "existingRoot").id
+    );
 
     expect(result).not.toBeNull();
-    expect(ProjectTable.getProjectItem(db, existingRoot!.id)?.projects).toEqual(
-      expect.arrayContaining([sourceProject.id, targetProject.id])
-    );
-    expect(ProjectTable.getProjectItem(db, existingChild!.id)?.projects).toEqual(
-      expect.arrayContaining([sourceProject.id, targetProject.id])
-    );
+    expect(
+      ProjectTable.getProjectItem(db, must(existingRoot, "existingRoot").id)?.projects
+    ).toEqual(expect.arrayContaining([sourceProject.id, targetProject.id]));
+    expect(
+      ProjectTable.getProjectItem(db, must(existingChild, "existingChild").id)?.projects
+    ).toEqual(expect.arrayContaining([sourceProject.id, targetProject.id]));
   });
 
   it("removeChildProjectItem 保留仍可通过同项目其他父级访问的共享子树归属", () => {
@@ -210,33 +223,45 @@ describe("tree item move validation", () => {
     );
     expect(firstParent).not.toBeNull();
     expect(secondParent).not.toBeNull();
-    const [, sharedRoot] = ProjectTable.addChildProjectItem(
-      db,
-      firstParent!.id,
-      createProjectItem("共享节点")
-    )!;
+    const [, sharedRoot] = must(
+      ProjectTable.addChildProjectItem(
+        db,
+        must(firstParent, "firstParent").id,
+        createProjectItem("共享节点")
+      ),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(sharedRoot).not.toBeNull();
-    const [, sharedChild] = ProjectTable.addChildProjectItem(
-      db,
-      sharedRoot!.id,
-      createProjectItem("共享子节点")
-    )!;
+    const [, sharedChild] = must(
+      ProjectTable.addChildProjectItem(
+        db,
+        must(sharedRoot, "sharedRoot").id,
+        createProjectItem("共享子节点")
+      ),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(sharedChild).not.toBeNull();
-    ProjectTable.addRefChildProjectItem(db, secondParent!.id, sharedRoot!.id);
+    ProjectTable.addRefChildProjectItem(
+      db,
+      must(secondParent, "secondParent").id,
+      must(sharedRoot, "sharedRoot").id
+    );
 
     const result = ProjectTable.removeChildProjectItem(
       db,
       project.id,
-      firstParent!.id,
-      sharedRoot!.id
+      must(firstParent, "firstParent").id,
+      must(sharedRoot, "sharedRoot").id
     );
 
     expect(result).not.toBeNull();
-    expect(ProjectTable.getProjectItem(db, sharedRoot!.id)?.parents).toEqual([secondParent!.id]);
-    expect(ProjectTable.getProjectItem(db, sharedRoot!.id)?.projects).toEqual(
+    expect(ProjectTable.getProjectItem(db, must(sharedRoot, "sharedRoot").id)?.parents).toEqual([
+      must(secondParent, "secondParent").id,
+    ]);
+    expect(ProjectTable.getProjectItem(db, must(sharedRoot, "sharedRoot").id)?.projects).toEqual(
       expect.arrayContaining([project.id])
     );
-    expect(ProjectTable.getProjectItem(db, sharedChild!.id)?.projects).toEqual(
+    expect(ProjectTable.getProjectItem(db, must(sharedChild, "sharedChild").id)?.projects).toEqual(
       expect.arrayContaining([project.id])
     );
   });
@@ -251,22 +276,25 @@ describe("tree item move validation", () => {
     });
     const [, parent] = ProjectTable.addRootProjectItem(db, project.id, createProjectItem("父节点"));
     expect(parent).not.toBeNull();
-    const [, child] = ProjectTable.addChildProjectItem(
-      db,
-      parent!.id,
-      createProjectItem("子节点")
-    )!;
+    const [, child] = must(
+      ProjectTable.addChildProjectItem(db, must(parent, "parent").id, createProjectItem("子节点")),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(child).not.toBeNull();
-    const [, grandChild] = ProjectTable.addChildProjectItem(
-      db,
-      child!.id,
-      createProjectItem("孙节点")
-    )!;
+    const [, grandChild] = must(
+      ProjectTable.addChildProjectItem(db, must(child, "child").id, createProjectItem("孙节点")),
+      "ProjectTable.addChildProjectItem"
+    );
     expect(grandChild).not.toBeNull();
 
-    ProjectTable.removeChildProjectItem(db, project.id, parent!.id, child!.id);
+    ProjectTable.removeChildProjectItem(
+      db,
+      project.id,
+      must(parent, "parent").id,
+      must(child, "child").id
+    );
 
-    expect(ProjectTable.getProjectItem(db, child!.id)).toBeNull();
-    expect(ProjectTable.getProjectItem(db, grandChild!.id)).toBeNull();
+    expect(ProjectTable.getProjectItem(db, must(child, "child").id)).toBeNull();
+    expect(ProjectTable.getProjectItem(db, must(grandChild, "grandChild").id)).toBeNull();
   });
 });

@@ -5,7 +5,7 @@
 import type { WebAnchor } from "@tau/shared/browser-companion";
 import { offsetsToRange, rangeToOffsets, type TextIndex } from "./text-index";
 
-export const CONTEXT_CHARS = 32;
+const CONTEXT_CHARS = 32;
 
 export function createAnchor(index: TextIndex, range: Range): WebAnchor | null {
   const offsets = rangeToOffsets(index, range);

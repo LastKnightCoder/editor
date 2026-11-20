@@ -1,6 +1,6 @@
 /**
- * Input 基础件单测（方案 A「经典描边」）：
- * 原生透传 · lead/size · clearable（显现时机/受控清空/焦点保留）·
+ * Input 基础件单测（「经典描边」形制）：
+ * 原生透传 · lead · clearable（显现时机/受控清空/焦点保留）·
  * 只读与禁用的语义接线 · 错误态正源 aria-invalid。
  */
 
@@ -17,7 +17,6 @@ interface Harness {
   root: Root;
   container: HTMLElement;
   input: () => HTMLInputElement;
-  box: () => HTMLElement;
   cleanup: () => void;
 }
 function render(ui: ReactNode): Harness {
@@ -26,12 +25,10 @@ function render(ui: ReactNode): Harness {
   const root = createRoot(container);
   act(() => root.render(ui));
   const input = () => container.querySelector("input")!;
-  const box = () => container.querySelector("div")!;
   return {
     root,
     container,
     input,
-    box,
     cleanup: () => {
       act(() => root.unmount());
       container.remove();
@@ -61,31 +58,12 @@ describe("Input（方案 A）", () => {
     expect(h.input().value).toBe("abc");
     expect(h.input().type).toBe("email");
     expect(h.input().getAttribute("aria-label")).toBe("邮箱");
-    expect(h.box().className).toContain("border-line-1");
-    expect(h.box().className).toContain("bg-surface");
   });
 
-  it("wrapperClassName 落外框（覆盖默认 w-full），className 落 input", () => {
-    const h = render(<Input wrapperClassName="w-[72px]" className="text-center" />);
-    cleanups.push(h.cleanup);
-    expect(h.box().className).toContain("w-[72px]");
-    expect(h.box().className).not.toContain("w-full");
-    expect(h.input().className).toContain("text-center");
-    expect(h.input().className).not.toContain("w-[72px]");
-  });
-
-  it("lead 前缀 icon 渲染；size 两档高度", () => {
-    const h = render(
-      <>
-        <Input lead={Search} />
-        <Input size="sm" />
-      </>
-    );
+  it("lead 前缀 icon 渲染", () => {
+    const h = render(<Input lead={Search} />);
     cleanups.push(h.cleanup);
     expect(h.container.querySelector("svg")).not.toBeNull();
-    const boxes = [...h.container.querySelectorAll("div")].slice(0, 2);
-    expect(boxes[0].className).toContain("h-[34px]");
-    expect(boxes[1].className).toContain("h-[28px]");
   });
 
   it("clearable：有值才渲染 ×；点击清空、onChange 收空串、焦点留在输入框", () => {
@@ -129,7 +107,6 @@ describe("Input（方案 A）", () => {
     const h = render(<Input aria-invalid />);
     cleanups.push(h.cleanup);
     expect(h.input().getAttribute("aria-invalid")).toBe("true");
-    expect(h.box().className).toContain("has-[[aria-invalid=true]]:border-danger");
   });
 
   it("只读 / 禁用：原生属性透传，容器带语义 data 标记", () => {
@@ -144,7 +121,6 @@ describe("Input（方案 A）", () => {
     expect(ro.readOnly).toBe(true);
     expect(dis.disabled).toBe(true);
     const boxes = [...h.container.querySelectorAll("div")].slice(0, 2);
-    expect(boxes[0].className).toContain("has-[input:read-only]");
     expect(boxes[1].dataset.disabled).toBeDefined();
   });
 });

@@ -3,7 +3,7 @@
  * 渲染端设置经 userSettingModule 快照/变更通知流入，syncProviders 维护 pi Models 注册表；
  * 单发请求走 streamSimple，事件（含 pi 原生 partial 全量快照）原样经 IPC 推回渲染进程，
  * 渲染端直接消费 pi 的快照/delta 语义，不做桥接层语义转换。
- * M2 的会话 harness（PiSessionHost）复用本模块的注册表。
+ * 会话 harness（PiSessionHost）复用本模块的注册表。
  */
 import { ipcMain } from "electron";
 import {

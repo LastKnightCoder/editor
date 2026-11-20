@@ -8,9 +8,7 @@ import { generateImageResources } from "@/services/image-generation";
 import { useImageCapabilities } from "@/services/image-capabilities";
 import { getActiveImageGenerationConfig } from "@/utils/image-generation/resolver";
 
-export const OPENAI_IMAGE_TOOLS_SOURCE = "openai-image-tools";
 export const OPENAI_IMAGE_RENDERER_KEY = "openai-image-result";
-export const OPENAI_IMAGE_TOOL_NAMES = new Set(["generate_image", "edit_image"]);
 
 type ImageToolMode = "generate" | "edit";
 
@@ -216,7 +214,7 @@ export const createImageToolDefinitions = (
   ];
 };
 
-export const resolveImageGenerationSetting = (setting: {
+const resolveImageGenerationSetting = (setting: {
   imageGeneration: ImageGenerationStoreShape;
 }): ImageProviderConfig | null => {
   const { currentProviderId, providers } = setting.imageGeneration;

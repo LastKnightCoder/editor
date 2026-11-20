@@ -1,4 +1,4 @@
-// 协作中心（设计稿 01 方案 A）：screen 层常规页面。
+// 协作中心：screen 层常规页面。
 // 组件经懒加载引入，把 yjs/hocuspocus 隔离在协作动态 chunk 内。
 import { lazy, Suspense } from "react";
 import { useAppContext } from "../../../app/AppContext";

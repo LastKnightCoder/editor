@@ -30,7 +30,9 @@ const insertMarkdownSyntax: ElementBehaviors<ParagraphElement>["insertText"] = (
   const match = getParagraphShortcutEntry(editor, text);
   if (!match) return false;
   const [node, path] = match as NodeEntry<FormattedText>;
-  const offset = editor.selection!.anchor.offset;
+  const selection = editor.selection;
+  if (!selection) return false;
+  const offset = selection.anchor.offset;
   if ((node as FormattedText).text.slice(0, offset) !== ">") return false;
   Editor.withoutNormalizing(editor, () => {
     Transforms.delete(editor, {

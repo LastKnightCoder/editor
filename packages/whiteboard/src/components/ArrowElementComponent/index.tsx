@@ -289,7 +289,11 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
     if (sourceBindElement) {
       const { connectId, customOffset } = source;
-      const sourceBindPoint = board.getArrowBindPoint(sourceBindElement, connectId!, customOffset);
+      const sourceBindPoint = board.getArrowBindPoint(
+        sourceBindElement,
+        connectId ?? "",
+        customOffset
+      );
       if (sourceBindPoint) {
         sourcePoint = sourceBindPoint;
       }
@@ -297,7 +301,11 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
     if (targetBindElement) {
       const { connectId, customOffset } = target;
-      const targetBindPoint = board.getArrowBindPoint(targetBindElement, connectId!, customOffset);
+      const targetBindPoint = board.getArrowBindPoint(
+        targetBindElement,
+        connectId ?? "",
+        customOffset
+      );
       if (targetBindPoint) {
         targetPoint = targetBindPoint;
       }

@@ -48,7 +48,6 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     const projection = useDatabaseStore(state => state.projection);
     const groupedRows = projection.groups;
 
-    // 获取日历视图配置的日期列
     const calendar = getViewOptions<CalendarViewConfig>(viewConfig, "calendar");
     const dateColumnId = calendar?.dateColumnId;
 
@@ -61,14 +60,11 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       return columns.find(col => pluginManager.hasCapability(col.type, "date"));
     }, [columns, dateColumnId, pluginManager]);
 
-    // 获取主列
     const primaryColumn = columns.find(col => col.isPrimary);
 
-    // 转换 rows 为日历事件格式
     const calendarEvents = useMemo(() => {
       if (!dateColumn) return [];
 
-      // 获取日期列的配置
       const dateConfig = dateColumn.config as DatePluginConfig | undefined;
       const isRange = dateConfig?.isRange || false;
 
@@ -121,7 +117,6 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     const handleDateClick = useMemoizedFn((date: number) => {
       if (readonly || !dateColumn) return;
 
-      // 创建新行数据，设置日期列的值
       const newRowData: Partial<RowData> = {};
       newRowData[dateColumn.id] = {
         start: date,
@@ -143,11 +138,9 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     const handleDateRangeSelect = useMemoizedFn((startDate: number, endDate: number) => {
       if (readonly || !dateColumn) return;
 
-      // 获取日期列的配置
       const dateConfig = dateColumn.config as DatePluginConfig | undefined;
       const isRange = dateConfig?.isRange || false;
 
-      // 创建新行数据，设置日期列的值
       const newRowData: Partial<RowData> = {};
       newRowData[dateColumn.id] = {
         start: startDate,

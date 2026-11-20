@@ -1,11 +1,11 @@
 /**
- * 待办页视图 · 议程流 B3「两块板」（mockups/todos/plan-b-agenda.html?v=panels 定稿）：
+ * 待办页视图 · 议程流「两块板」：
  * 一整张纸：纸顶固定工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）与自然语言快速添加，
  * 纸内议程（时间分段）占满宽度；「今日」概览（今日打卡 / 本周负荷 / 最近完成）与任务详情都是右侧非模态抽屉，
  * 今日由工具栏按钮开关，打开任务时详情接替、关掉详情回到今日。
  * 项目筛选在侧栏「待办」入口的子项里（TodosNav，页面参数 id），页内不放项目 pills。
  *
- * 裁决（DECISIONS D-040）：不并入日程页、不放页面状态栏 PageStatusBar（计数在工具栏摘要与 pills）、删除不二次
+ * 页面口径：不并入日程页、不放页面状态栏 PageStatusBar（计数在工具栏摘要与 pills）、删除不二次
  * 确认（立即从列表消失 + Toast 撤销，5 秒后才真正落库）、不保留独立 /todo 小窗口。
  *
  * 带日期的子任务按自己的日期进议程（行尾标父任务），不再只藏在父任务抽屉里。
@@ -449,13 +449,13 @@ export function TodosView() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
         {/* 一整张纸：工具栏与快速添加固定在纸顶，议程与右栏在纸内各自滚动（同 Skill 页） */}
         <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex flex-none flex-col px-8 pt-5">
             {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
             <div className="mb-3 flex h-10 flex-none items-center gap-3">
-              <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+              <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
                 {docView ? "文档中" : currentGroup ? currentGroup.title : "待办"}
               </h1>
               <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">

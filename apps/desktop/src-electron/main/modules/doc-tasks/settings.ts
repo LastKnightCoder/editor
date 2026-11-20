@@ -206,7 +206,8 @@ export function promoteDocTask(
       for (const child of children.get(row.task_id) ?? []) build(child, item.id);
     };
     build(root, null);
-    const todoId = created.get(taskId)!;
+    const todoId = created.get(taskId);
+    if (todoId === undefined) throw new Error(`任务转出失败：${taskId} 未创建`);
     TodoNoteLinkTable.attachExisting(mainDb, {
       todoId,
       contentId,

@@ -83,7 +83,7 @@ export default defineTheme({
 1. **泛型只在边界**（definePage 同款手法）：`tokens(p)` 返回值被约束为全键 `SemanticTokens`，漏键 = 编译错误——从机制上杜绝"狂野补丁"（token 想加就加、漏了没人知道）的复发；
 2. **派生显式化**：accent 的 hover/soft/active 派生从 CSS `calc` 里的隐式公式，变成映射函数里可读、可单测的代码；
 3. **文件即注册单元**：`ui/themes/*.theme.ts` 经 Vite glob 收集，新增主题零登记表；
-4. **编译期 codegen，运行时零成本**：构建脚本（`pnpm ui:themes`）把全部主题生成为 `themes.generated.css`（每主题族 × 明暗一个 `[data-theme="key"][data-mode="light|dark"]` 块）+ `themeRegistry.generated.ts`（key/name 清单，供设置页与 themeStore 枚举）。切换仍走 `html[data-theme][data-mode]` CSS variables，**零 JS 重渲染**；
+4. **编译期 codegen，运行时零成本**（规划中；现状为 `tokens.css` 手写 `[data-theme]` 数据块，`theme-parity.test.ts` 守护一致性）：构建脚本（`pnpm ui:themes`）把全部主题生成为 `themes.generated.css`（每主题族 × 明暗一个 `[data-theme="key"][data-mode="light|dark"]` 块）+ `themeRegistry.generated.ts`（key/name 清单，供设置页与 themeStore 枚举）。切换仍走 `html[data-theme][data-mode]` CSS variables，**零 JS 重渲染**；
 5. **对比度门禁**：codegen 顺带跑 WCAG 断言（§2.5 指标），不过 AA 构建直接失败——主题质量不再靠人眼把关。
 
 主题运行时只有很薄一层：`themeStore`（zustand + persist + 系统跟随 + index.html 首帧防闪）与 `useTheme()`。未来若要支持用户自定义主题，把 codegen 输出换成运行时注入即可，协议不变。

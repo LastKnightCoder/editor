@@ -1,7 +1,7 @@
 /*
   白板列表三方案共用：mock 数据 + 画布缩略图渲染 + 壳层 / 浮层 / 动作（模拟 IPC）。
-  数据形状对齐 types/white-board.ts：WhiteBoard { id, title, description, snapshot, createTime, updateTime,
-  whiteBoardContentList: WhiteBoardContent[{ id, name, data.children: BoardElement[], data.presentationSequences }] }。
+  数据形状对齐 types/white-board.ts：Whiteboard { id, title, description, snapshot, createTime, updateTime,
+  whiteBoardContentList: WhiteboardContent[{ id, name, data.children: BoardElement[], data.presentationSequences }] }。
   列表接口本来就带回全部子白板与元素，所以缩略图直接由真实元素几何画出，不用占位图。
   视觉参考，非导出源（D-001）。
 */
@@ -402,7 +402,7 @@
     ],
     ["播客选题池", "想到就贴一张。", 260, 92 * D, [["选题", "stickies", "stickies"]], 0],
   ];
-  /** 标签（WhiteBoard.tags 真实字段，string[]）+ 标签色（与日记 DiaryTagSetting 同形：name → Tag 七色） */
+  /** 标签（Whiteboard.tags 真实字段，string[]）+ 标签色（与日记 DiaryTagSetting 同形：name → Tag 七色） */
   const TAGS0 = [
     ["学习", "blue"],
     ["工作", "orange"],

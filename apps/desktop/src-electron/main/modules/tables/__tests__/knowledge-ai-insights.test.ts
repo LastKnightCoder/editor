@@ -11,6 +11,7 @@ import KnowledgeAiInsightsTable, {
   mergeResults,
   type KnowledgeAiInsightsInput,
 } from "../knowledge-ai-insights";
+import { must } from "../../../test-support";
 
 const end = (contentId: number) => ({
   ref: { kind: "card" as const, id: contentId },
@@ -117,7 +118,10 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "q1", "linked")).toBe(true);
     expect(() => KnowledgeAiInsightsTable.setStatus(db, row.id, "m1", "bogus" as never)).toThrow();
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "nope", "linked")).toBe(false);
-    expect(KnowledgeAiInsightsTable.get(db, row.id)!.updateTime).toBe(1000);
+    expect(
+      must(KnowledgeAiInsightsTable.get(db, row.id), "KnowledgeAiInsightsTable.get(db, row.id)")
+        .updateTime
+    ).toBe(1000);
 
     const next = KnowledgeAiInsightsTable.save(
       db,
@@ -139,7 +143,10 @@ describe("KnowledgeAiInsightsTable", () => {
       JSON.stringify(result([mark("m1", [1, 2], { status: "seen" as never })])),
       row.id
     );
-    expect(KnowledgeAiInsightsTable.get(db, row.id)!.result.marks[0].status).toBe("open");
+    expect(
+      must(KnowledgeAiInsightsTable.get(db, row.id), "KnowledgeAiInsightsTable.get(db, row.id)")
+        .result.marks[0].status
+    ).toBe("open");
   });
 
   it("按范围列出、取项目回顾、只换成员", () => {

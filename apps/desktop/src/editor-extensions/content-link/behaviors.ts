@@ -45,7 +45,6 @@ const insertMention: ElementBehaviors<ParagraphElement>["insertText"] = (editor,
     const state = store.getState();
 
     if (!state.mentionPanelVisible) {
-      // 获取当前光标的位置
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);

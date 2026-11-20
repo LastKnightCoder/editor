@@ -12,9 +12,9 @@ import type {
   KnowledgeMarkKind,
 } from "@/types/knowledge-insights";
 
-export const TODAY_INSIGHT_LIMIT = 5;
+const TODAY_INSIGHT_LIMIT = 5;
 /** 每条最多列几处证据 */
-export const TODAY_EVIDENCE_LIMIT = 3;
+const TODAY_EVIDENCE_LIMIT = 3;
 
 export type TodayInsightKind = "bridge" | "asked" | "topic" | "review";
 
@@ -122,8 +122,10 @@ export function todayInsights(data: KnowledgeInsightsPayload | null): TodayInsig
   }
   const bridges: TodayInsight[] = [];
   const asked: TodayInsight[] = [];
-  for (const mark of openMarks(data.global)) {
-    const { id: nodeId, updateTime: time } = data.global!;
+  const global = data.global;
+  for (const mark of openMarks(global)) {
+    if (global === null) break;
+    const { id: nodeId, updateTime: time } = global;
     if (mark.kind === "bridge" && mark.ends.length === 2) {
       const [a, b] = mark.ends;
       bridges.push({

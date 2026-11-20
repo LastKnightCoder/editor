@@ -101,9 +101,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => bridge.directory },
 }));
-vi.mock("../../../src-electron/main/modules/video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../../src-electron/main/modules/video-note-index-queue");
 vi.mock("../../../src-electron/main/services/content-execution", () => ({
   contentExecutor: {
     execute: async (request: unknown) => {

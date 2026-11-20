@@ -13,16 +13,10 @@ import {
   type FsrsMemoryState,
 } from "@tau/shared/fsrs-schedule";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
-import type {
-  Flashcard,
-  FlashcardDeck,
-  FlashcardReviewRating,
-  FlashcardStatus,
-  FlashcardType,
-} from "@/types";
+import type { Flashcard, FlashcardReviewRating, FlashcardStatus, FlashcardType } from "@/types";
 import type { Descendant } from "slate";
 
-export const MINUTE_MS = 60_000;
+const MINUTE_MS = 60_000;
 export const HOUR_MS = 3_600_000;
 export const DAY_MS = 86_400_000;
 
@@ -103,7 +97,7 @@ export function formatSpan(ms: number): string {
 /* ---------- 到期与队列 ---------- */
 
 /** 暂停的卡永不到期；新卡创建即到期（主进程 createFlashcard 的 due_time = 创建时刻） */
-export function isDue(card: Flashcard, now: number): boolean {
+function isDue(card: Flashcard, now: number): boolean {
   return card.status !== "suspended" && card.dueTime <= now;
 }
 
@@ -203,10 +197,6 @@ export function deckStats(cards: Flashcard[], now: number): DeckStats {
 export function estimateMinutes(cards: Flashcard[]): number {
   const seconds = cards.reduce((sum, card) => sum + (card.status === "new" ? 40 : 20), 0);
   return Math.max(1, Math.round(seconds / 60));
-}
-
-export function sortDecksByDue(decks: FlashcardDeck[], due: Map<number, number>): FlashcardDeck[] {
-  return [...decks].sort((a, b) => (due.get(b.id) ?? 0) - (due.get(a.id) ?? 0));
 }
 
 /** 暂停后恢复的状态：新卡为 new，已学卡按稳定性（≥1 天间隔为巩固，同主进程评分规则） */

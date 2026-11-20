@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InferenceClient } from "../local-inference/client";
 import type { InferenceInput, InferenceRequest } from "../local-inference/protocol";
+import { must } from "../../test-support";
 
 const electron = vi.hoisted(() => ({ fork: vi.fn(), once: vi.fn() }));
 vi.mock("electron", () => ({
@@ -17,7 +18,10 @@ class FakeProcess extends EventEmitter {
     this.emit("message", { kind: "ready" });
   }
   complete() {
-    const request = this.postMessage.mock.lastCall![0] as InferenceRequest;
+    const request = must(
+      this.postMessage.mock.lastCall,
+      "this.postMessage.mock.lastCall"
+    )[0] as InferenceRequest;
     this.emit("message", {
       kind: "result",
       id: request.id,
@@ -59,13 +63,17 @@ describe("本地推理子进程调度", () => {
     child.complete();
     await first;
     await vi.advanceTimersByTimeAsync(0);
-    expect(child.postMessage.mock.lastCall![0].text).toBe("搜索");
+    expect(must(child.postMessage.mock.lastCall, "child.postMessage.mock.lastCall")[0].text).toBe(
+      "搜索"
+    );
     child.complete();
     await query;
     await vi.advanceTimersByTimeAsync(9);
     expect(child.postMessage).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(1);
-    expect(child.postMessage.mock.lastCall![0].text).toBe("重建二");
+    expect(must(child.postMessage.mock.lastCall, "child.postMessage.mock.lastCall")[0].text).toBe(
+      "重建二"
+    );
     child.complete();
     await second;
     expect(electron.fork).toHaveBeenCalledTimes(1);
@@ -128,7 +136,7 @@ describe("本地推理子进程调度", () => {
     const second = client.request(input("二"), "interactive");
     child.emit("message", {
       kind: "error",
-      id: child.postMessage.mock.lastCall![0].id,
+      id: must(child.postMessage.mock.lastCall, "child.postMessage.mock.lastCall")[0].id,
       message: "推理失败",
     });
     await rejected;
@@ -147,8 +155,8 @@ describe("本地推理子进程调度", () => {
     child.ready();
     await vi.advanceTimersByTimeAsync(0);
     await rejected;
-    expect(electron.once.mock.lastCall![0]).toBe("quit");
-    electron.once.mock.lastCall![1]();
+    expect(must(electron.once.mock.lastCall, "electron.once.mock.lastCall")[0]).toBe("quit");
+    must(electron.once.mock.lastCall, "electron.once.mock.lastCall")[1]();
     await expect(client.request(input("二"), "background")).rejects.toThrow("已关闭");
   });
 });

@@ -5,7 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import WhiteBoard from "../../../../WhiteBoard";
+import Whiteboard from "../../../../Whiteboard";
 import type Board from "../../../../Board";
 import { SELECT_TOOL_ID, MIND_TOOL_ID } from "../../../../constants/tools";
 import { createStandardWhiteboardExtensions } from "../../../../extensions/builtins";
@@ -20,7 +20,7 @@ interface RenderResult {
   unmount: () => Promise<void>;
 }
 
-const renderWhiteBoard = async (): Promise<RenderResult> => {
+const renderWhiteboard = async (): Promise<RenderResult> => {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -46,7 +46,7 @@ const renderWhiteBoard = async (): Promise<RenderResult> => {
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={[...createStandardWhiteboardExtensions(), capture]}
         initData={[]}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
@@ -91,7 +91,7 @@ afterEach(() => {
 
 describe("思维导图工具创建", () => {
   it("点击工具栏按钮时只切换创建模式，不在白板上创建节点", async () => {
-    const { board, host, unmount } = await renderWhiteBoard();
+    const { board, host, unmount } = await renderWhiteboard();
     const button = host.querySelector('button[aria-label="思维导图"]');
     expect(button).toBeTruthy();
     if (!button) return;
@@ -113,7 +113,7 @@ describe("思维导图工具创建", () => {
   });
 
   it("点击白板画布时应在点击处创建思维导图根节点并复位工具", async () => {
-    const { board, host, fire, unmount } = await renderWhiteBoard();
+    const { board, host, fire, unmount } = await renderWhiteboard();
     const button = host.querySelector('button[aria-label="思维导图"]');
     expect(button).toBeTruthy();
     if (!button) return;

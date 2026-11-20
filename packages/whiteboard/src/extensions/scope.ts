@@ -56,6 +56,7 @@ export function createExtensionScope(
     assertSubscribableEventName(event);
     let group = events.get(event);
     if (!group) events.set(event, (group = new Map()));
+    const listeners = group;
     if (group.has(listener)) return;
     const wrapped = guarded(listener);
     // assertSubscribableEventName 已校验过事件名；两条重载签名互斥，统一按内核事件名收窄
@@ -64,7 +65,7 @@ export function createExtensionScope(
       listener,
       track(() => {
         base.off(event, wrapped);
-        group!.delete(listener);
+        listeners.delete(listener);
       })
     );
   };

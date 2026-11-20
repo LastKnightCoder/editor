@@ -61,7 +61,7 @@ describe("getProjectItemMoreMenuItems", () => {
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
-          projectItemType: EProjectItemType.WhiteBoard,
+          projectItemType: EProjectItemType.Whiteboard,
           refType: "",
         })
       )
@@ -70,7 +70,7 @@ describe("getProjectItemMoreMenuItems", () => {
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
-          projectItemType: EProjectItemType.WhiteBoard,
+          projectItemType: EProjectItemType.Whiteboard,
           refType: "white-board",
         })
       )
@@ -126,7 +126,7 @@ describe("插件对象动作", () => {
     });
     expect(projectItemActionTarget({ ...doc, refType: "white-board", refId: 3 })).toBeNull();
     expect(
-      projectItemActionTarget({ ...doc, projectItemType: EProjectItemType.WhiteBoard })
+      projectItemActionTarget({ ...doc, projectItemType: EProjectItemType.Whiteboard })
     ).toBeNull();
     expect(projectItemActionTarget(null)).toBeNull();
   });

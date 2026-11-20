@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import { SELECT_TOOL_ID, ARROW_TOOL_ID, HANDWRITE_TOOL_ID } from "../constants/tools";
 import { createStandardWhiteboardExtensions } from "../extensions/builtins";
 import { defineWhiteboardExtension, type WhiteboardExtension } from "../extensions/api";
@@ -134,7 +134,7 @@ interface RenderResult {
 /** 容器对 pointermove 有 25ms 节流：连续移动之间留出真实间隔保证每次都送达 */
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
-const renderWhiteBoard = async (
+const renderWhiteboard = async (
   initData: BoardElement[],
   extraExtensions: readonly WhiteboardExtension[] = []
 ): Promise<RenderResult> => {
@@ -166,7 +166,7 @@ const renderWhiteBoard = async (
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <WhiteBoard
+      <Whiteboard
         extensions={extensions}
         initData={initData}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
@@ -233,7 +233,7 @@ afterEach(() => {
 
 describe("arrow 创建工具", () => {
   it("拖动创建：字段与旧构造逻辑一致、单撤销步、创建后选中并回到选择工具，拖动中文档不变且预览不画描边", async () => {
-    const { board, host, fire, unmount } = await renderWhiteBoard([]);
+    const { board, host, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(ARROW_TOOL_ID);
 
     const childrenBefore = board.children;
@@ -258,7 +258,7 @@ describe("arrow 创建工具", () => {
   });
 
   it("Shift 将终点吸附到 45° 方向（保持长度）", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(ARROW_TOOL_ID);
     await fire("pointerdown", 100, 100);
     await sleep(30);
@@ -272,7 +272,7 @@ describe("arrow 创建工具", () => {
   });
 
   it("按住 Alt 按下：起点吸附自定义连接点并写入 source 绑定（与旧逻辑字段一致）", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([richtextSeed("text-a", 200, 100)]);
+    const { board, fire, unmount } = await renderWhiteboard([richtextSeed("text-a", 200, 100)]);
     board.setActiveTool(ARROW_TOOL_ID);
 
     await fire("pointerdown", 308, 150, { altKey: true });
@@ -292,7 +292,7 @@ describe("arrow 创建工具", () => {
   });
 
   it("终点靠近元素固定连接点时吸附并写入 target 绑定", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([richtextSeed("text-a", 200, 100)]);
+    const { board, fire, unmount } = await renderWhiteboard([richtextSeed("text-a", 200, 100)]);
     board.setActiveTool(ARROW_TOOL_ID);
 
     await fire("pointerdown", 100, 150);
@@ -318,7 +318,7 @@ describe("arrow 创建工具", () => {
   });
 
   it("拖动中按住 Alt：终点吸附自定义连接点（射线-边缘交点）并发出 custom-snap 事件", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([richtextSeed("text-a", 200, 100)]);
+    const { board, fire, unmount } = await renderWhiteboard([richtextSeed("text-a", 200, 100)]);
     const customSnapSpy = vi.fn();
     board.on("tau.arrow.custom-snap", customSnapSpy);
     board.setActiveTool(ARROW_TOOL_ID);
@@ -344,7 +344,7 @@ describe("arrow 创建工具", () => {
   });
 
   it("单击不创建且工具保持", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(ARROW_TOOL_ID);
     await fire("pointerdown", 100, 100);
     await fire("pointerup", 103, 100);
@@ -355,7 +355,7 @@ describe("arrow 创建工具", () => {
   });
 
   it("拖动中发出与旧实现一致的事件（tau.arrow.update / tau.arrow.drop / tau.arrow.move-end）", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([richtextSeed("text-a", 200, 100)]);
+    const { board, fire, unmount } = await renderWhiteboard([richtextSeed("text-a", 200, 100)]);
     const updateSpy = vi.fn();
     const dropSpy = vi.fn();
     const moveEndSpy = vi.fn();
@@ -385,7 +385,7 @@ describe("arrow 创建工具", () => {
 
 describe("handwrite 创建工具", () => {
   it("多点拖动：一次插入、字段与旧逻辑一致、压力入点、工具保持、选区清空、单撤销步、预览不画描边", async () => {
-    const { board, host, fire, unmount } = await renderWhiteBoard([geometrySeed("seed", 0, 0)]);
+    const { board, host, fire, unmount } = await renderWhiteboard([geometrySeed("seed", 0, 0)]);
     board.apply(
       {
         type: "set_selection",
@@ -437,7 +437,7 @@ describe("handwrite 创建工具", () => {
   });
 
   it("少于 2 个采样点不创建且工具保持", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(HANDWRITE_TOOL_ID);
     await fire("pointerdown", 100, 100);
     await sleep(30);
@@ -507,7 +507,7 @@ describe("handwrite 创建工具", () => {
 
 describe("右键菜单入口（arrow / handwrite）", () => {
   it("空白处右键菜单激活对应创建工具", async () => {
-    const { board, unmount } = await renderWhiteBoard([]);
+    const { board, unmount } = await renderWhiteboard([]);
 
     board.getPlugin("arrow")!.getContextMenu!(emptyMenuContext(board))
       .find(item => item.key === "create-arrow")!
@@ -525,7 +525,7 @@ describe("右键菜单入口（arrow / handwrite）", () => {
 
 describe("创建手势的指针高频路径", () => {
   it("一次 pointermove 携带 5 个 coalesced 事件：逐点采样入 5 个点，预览批末只应用一次", async () => {
-    const { board, canvas, fire, unmount } = await renderWhiteBoard([]);
+    const { board, canvas, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(HANDWRITE_TOOL_ID);
 
     const setPreviewSpy = vi.spyOn(board, "setCreationPreview");
@@ -570,7 +570,7 @@ describe("创建手势的指针高频路径", () => {
   });
 
   it("创建手势中连续两次间隔 <25ms 的 pointermove 都被处理（绕过容器节流）", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     expect(board.interactions.isCreateGestureActive()).toBe(false);
     board.setActiveTool(HANDWRITE_TOOL_ID);
 
@@ -590,7 +590,7 @@ describe("创建手势的指针高频路径", () => {
   });
 
   it("非创建状态下高频移动不进入绕过路径（节流行为保持）", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+    const { board, fire, unmount } = await renderWhiteboard([]);
     await fire("pointermove", 100, 100);
     await fire("pointermove", 110, 100);
     await fire("pointermove", 120, 100);

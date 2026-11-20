@@ -152,8 +152,9 @@ export class ContentDocumentBlocks {
       const inspected = inspectStoredContent(value.blocks, contracts);
       const relations = inspected.relations;
       const previousCost = this.initialize(db, contentId, value.count, value.countRules, contracts);
-      const ordered = value.order && new Map(value.order.map((id, index) => [id, index]));
-      if (ordered && ordered.size !== value.order!.length)
+      const order = value.order;
+      const ordered = order ? new Map(order.map((id, index) => [id, index])) : undefined;
+      if (ordered && order && ordered.size !== order.length)
         throw new Error("正文块顺序包含重复身份");
       if (
         ordered &&
@@ -169,7 +170,9 @@ export class ContentDocumentBlocks {
             .all(contentId) as { block_id: string }[])
         : undefined;
       const removed =
-        previousOrder?.filter(row => !ordered!.has(row.block_id)).map(row => row.block_id) ?? [];
+        previousOrder && ordered
+          ? previousOrder.filter(row => !ordered.has(row.block_id)).map(row => row.block_id)
+          : [];
       const readBlock = db.prepare(
         "SELECT block_id,position,content,count FROM content_document_blocks WHERE content_id=? AND block_id=?"
       );
@@ -183,6 +186,8 @@ export class ContentDocumentBlocks {
         if (!Number.isSafeInteger(count) || count < 0) throw new Error("正文块字数无效");
         if (old?.content === content && old.position === position && old.count === count) return [];
         const oldCost = old ? inspectStoredContent([JSON.parse(old.content)], contracts).cost : 0;
+        const nodeCost = inspected.costs.get(id);
+        if (nodeCost === undefined) throw new Error(`正文块成本缺失：${id}`);
         return [
           {
             id,
@@ -193,7 +198,7 @@ export class ContentDocumentBlocks {
             position,
             old,
             oldCost,
-            cost: inspected.costs.get(id)!,
+            cost: nodeCost,
           },
         ];
       });

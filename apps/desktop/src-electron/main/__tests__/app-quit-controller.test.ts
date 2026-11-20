@@ -2,6 +2,7 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PluginBackendManager, type BackendDescriptor } from "../services/plugin-backend/manager";
+import { must } from "../test-support";
 
 const state = vi.hoisted(() => ({
   updater: null as any,
@@ -43,7 +44,7 @@ vi.mock("electron", () => ({
 vi.mock("electron-log", () => ({ default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("../modules/plugin-backend", () => ({
   get pluginBackends() {
-    return state.host!;
+    return must(state.host, "state.host");
   },
   setPluginBackendsPaused: async () => {
     state.order.push("pause");
@@ -167,7 +168,7 @@ beforeEach(async () => {
   setup = (await import("../app-quit-controller")).setupQuitController;
 });
 afterEach(async () => {
-  await state.host!.dispose();
+  await must(state.host, "state.host").dispose();
   vi.useRealTimers();
 });
 
@@ -182,17 +183,24 @@ function updateReady() {
 }
 
 it.each(["darwin", "win32", "linux"])("%s 只在平台更新器确认就绪后显示安装入口", async platform => {
-  const descriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
+  const descriptor = must(
+    Object.getOwnPropertyDescriptor(process, "platform"),
+    "process.platform descriptor"
+  );
   Object.defineProperty(process, "platform", { value: platform });
   try {
     const win = window();
     state.windows = [win];
     await initUpdater();
-    await expect(state.handlers.get("updater:install")!()).rejects.toThrow("尚未准备完成");
+    await expect(must(state.handlers.get("updater:install"), "updater:install")()).rejects.toThrow(
+      "尚未准备完成"
+    );
     state.updater.emit("update-downloaded", { version: "0.61.0" });
     if (platform === "darwin") {
       expect(win.webContents.send).not.toHaveBeenCalled();
-      await expect(state.handlers.get("updater:install")!()).rejects.toThrow("尚未准备完成");
+      await expect(
+        must(state.handlers.get("updater:install"), "updater:install")()
+      ).rejects.toThrow("尚未准备完成");
       state.nativeUpdater.emit("update-downloaded");
       state.nativeUpdater.emit("update-downloaded");
     }
@@ -200,8 +208,10 @@ it.each(["darwin", "win32", "linux"])("%s 只在平台更新器确认就绪后�
       version: "0.61.0",
     });
     expect(state.durable).not.toHaveBeenCalled();
-    await state.handlers.get("updater:download")!();
-    await expect(state.handlers.get("updater:install")!()).rejects.toThrow("尚未准备完成");
+    await must(state.handlers.get("updater:download"), "updater:download")();
+    await expect(must(state.handlers.get("updater:install"), "updater:install")()).rejects.toThrow(
+      "尚未准备完成"
+    );
   } finally {
     Object.defineProperty(process, "platform", descriptor);
   }
@@ -216,15 +226,21 @@ it("原生验包失败后，迟到的就绪事件不能重新开放安装", asyn
   win.webContents.send.mockClear();
   state.nativeUpdater.emit("update-downloaded");
   expect(win.webContents.send).not.toHaveBeenCalled();
-  await expect(state.handlers.get("updater:install")!()).rejects.toThrow("尚未准备完成");
+  await expect(must(state.handlers.get("updater:install"), "updater:install")()).rejects.toThrow(
+    "尚未准备完成"
+  );
   expect(state.durable).not.toHaveBeenCalled();
 });
 
 it("下载 Promise 拒绝但没有 error 事件时仍释放下载状态，允许重试", async () => {
   await initUpdater();
   state.updater.downloadUpdate.mockRejectedValueOnce(new Error("下载断开"));
-  await expect(state.handlers.get("updater:download")!()).rejects.toThrow("下载断开");
-  await expect(state.handlers.get("updater:download")!()).resolves.toEqual({ started: true });
+  await expect(must(state.handlers.get("updater:download"), "updater:download")()).rejects.toThrow(
+    "下载断开"
+  );
+  await expect(must(state.handlers.get("updater:download"), "updater:download")()).resolves.toEqual(
+    { started: true }
+  );
   expect(state.updater.downloadUpdate).toHaveBeenCalledTimes(2);
 });
 
@@ -241,9 +257,12 @@ it("窗口销毁回调抛错也继续销毁其他窗口并交接更新", async (
   updateReady();
   for (const win of state.windows)
     win.webContents.send.mockImplementation(() =>
-      state.handlers.get("app:quitting-ready")!({ sender: win.webContents })
+      must(
+        state.handlers.get("app:quitting-ready"),
+        "app:quitting-ready"
+      )({ sender: win.webContents })
     );
-  await state.handlers.get("updater:install")!();
+  await must(state.handlers.get("updater:install"), "updater:install")();
   expect(live.destroy).toHaveBeenCalledOnce();
   expect(state.updater.quitAndInstall).toHaveBeenCalledOnce();
 });
@@ -260,7 +279,10 @@ it("立即更新先保存并收尾隐藏窗口，安装器的 before-quit 不会
       })
   );
   win.webContents.send.mockImplementation(() =>
-    state.handlers.get("app:quitting-ready")!({ sender: win.webContents })
+    must(
+      state.handlers.get("app:quitting-ready"),
+      "app:quitting-ready"
+    )({ sender: win.webContents })
   );
   await initUpdater();
   updateReady();
@@ -268,12 +290,12 @@ it("立即更新先保存并收尾隐藏窗口，安装器的 before-quit 不会
   const nativePrevent = vi.fn();
   state.updater.quitAndInstall.mockImplementation(() => {
     expect(win.isDestroyed()).toBe(true);
-    expect(state.host!.beginDrain).toHaveBeenCalledOnce();
-    state.events.get("before-quit")!({ preventDefault: nativePrevent });
-    state.events.get("quit")!();
+    expect(must(state.host, "state.host").beginDrain).toHaveBeenCalledOnce();
+    must(state.events.get("before-quit"), "before-quit")({ preventDefault: nativePrevent });
+    must(state.events.get("quit"), "quit")();
   });
-  const installing = state.handlers.get("updater:install")!();
-  await state.handlers.get("updater:install")!();
+  const installing = must(state.handlers.get("updater:install"), "updater:install")();
+  await must(state.handlers.get("updater:install"), "updater:install")();
   await vi.advanceTimersByTimeAsync(20000);
   expect(win.destroy).not.toHaveBeenCalled();
   expect(state.exit).not.toHaveBeenCalled();
@@ -294,15 +316,20 @@ it("保存失败不启动安装或销毁窗口，重试可继续安装", async (
   await initUpdater();
   updateReady();
   state.durable.mockRejectedValueOnce(new Error("正文未确认保存"));
-  await expect(state.handlers.get("updater:install")!()).rejects.toThrow("正文未确认保存");
+  await expect(must(state.handlers.get("updater:install"), "updater:install")()).rejects.toThrow(
+    "正文未确认保存"
+  );
   await vi.advanceTimersByTimeAsync(30000);
   expect(win.destroy).not.toHaveBeenCalled();
   expect(state.exit).not.toHaveBeenCalled();
   expect(state.updater.quitAndInstall).not.toHaveBeenCalled();
   win.webContents.send.mockImplementation(() =>
-    state.handlers.get("app:quitting-ready")!({ sender: win.webContents })
+    must(
+      state.handlers.get("app:quitting-ready"),
+      "app:quitting-ready"
+    )({ sender: win.webContents })
   );
-  await state.handlers.get("updater:install")!();
+  await must(state.handlers.get("updater:install"), "updater:install")();
   expect(state.updater.quitAndInstall).toHaveBeenCalledOnce();
 });
 
@@ -318,14 +345,17 @@ it("窗口已销毁或发送时被销毁，不影响其余窗口收尾与安装"
     throw new Error("Object has been destroyed");
   });
   live.webContents.send.mockImplementation(() =>
-    state.handlers.get("app:quitting-ready")!({ sender: live.webContents })
+    must(
+      state.handlers.get("app:quitting-ready"),
+      "app:quitting-ready"
+    )({ sender: live.webContents })
   );
   state.windows = [dead, racing, live];
   await initUpdater();
   updateReady();
   live.webContents.send.mockClear();
-  state.updater.quitAndInstall.mockImplementation(() => state.events.get("quit")!());
-  await state.handlers.get("updater:install")!();
+  state.updater.quitAndInstall.mockImplementation(() => must(state.events.get("quit"), "quit")());
+  await must(state.handlers.get("updater:install"), "updater:install")();
   expect(dead.webContents.send).not.toHaveBeenCalled();
   expect(live.webContents.send).toHaveBeenCalledWith("app:quitting");
   expect(state.updater.quitAndInstall).toHaveBeenCalledOnce();
@@ -333,20 +363,20 @@ it("窗口已销毁或发送时被销毁，不影响其余窗口收尾与安装"
 
 it("收尾超时仍交接一次更新，迟到完成不会再次安装；安装器不退出时有最终兜底", async () => {
   vi.useFakeTimers();
-  let complete!: () => void;
-  vi.spyOn(state.host!, "dispose").mockImplementationOnce(
+  let complete: (() => void) | undefined;
+  vi.spyOn(must(state.host, "state.host"), "dispose").mockImplementationOnce(
     () =>
       new Promise(resolve => {
-        complete = resolve;
+        complete = resolve as () => void;
       })
   );
   await initUpdater();
   updateReady();
-  const installing = state.handlers.get("updater:install")!();
+  const installing = must(state.handlers.get("updater:install"), "updater:install")();
   await vi.advanceTimersByTimeAsync(15000);
   expect(state.updater.quitAndInstall).toHaveBeenCalledOnce();
   expect(state.exit).not.toHaveBeenCalled();
-  complete();
+  complete?.();
   await installing;
   expect(state.updater.quitAndInstall).toHaveBeenCalledOnce();
   await vi.advanceTimersByTimeAsync(15000);
@@ -361,7 +391,7 @@ it.each(["throw", "event"])("安装器以 %s 报错时显示原生错误并结�
     if (mode === "event") state.updater.emit("error", new Error("安装器拒绝"));
     else throw new Error("安装器拒绝");
   });
-  await state.handlers.get("updater:install")!();
+  await must(state.handlers.get("updater:install"), "updater:install")();
   expect(state.showError).toHaveBeenCalledWith(
     "更新安装失败",
     expect.stringContaining("安装器拒绝")
@@ -374,31 +404,36 @@ it.each(["throw", "event"])("安装器以 %s 报错时显示原生错误并结�
 it.each([false, true])(
   "退出同步仍能调用真实后台管理器（预先运行=%s），回执后才关闭入口",
   async started => {
-    if (started) await state.host!.start(descriptor);
+    if (started) await must(state.host, "state.host").start(descriptor);
     const win = window();
     const internal = { ...window(), id: 2, internal: true };
     state.windows = [win, internal];
     let result: unknown, failure: unknown;
     win.webContents.send.mockImplementation(() => {
-      void state
-        .host!.call(descriptor, "sync.upload", null)
+      const host = must(state.host, "state.host");
+      void host["call"](descriptor, "sync.upload", null)
         .then(value => {
           result = value;
-          state.handlers.get("app:quitting-ready")!({ sender: win.webContents });
+          must(
+            state.handlers.get("app:quitting-ready"),
+            "app:quitting-ready"
+          )({ sender: win.webContents });
         })
         .catch(error => {
           failure = error;
         });
     });
     setup({ getTrayManager: () => undefined });
-    state.events.get("before-quit")!({ preventDefault: vi.fn() });
+    must(state.events.get("before-quit"), "before-quit")({ preventDefault: vi.fn() });
     await vi.waitFor(() => expect(state.exit).toHaveBeenCalledWith(0));
     expect(failure).toBeUndefined();
     expect(result).toBe("退出同步完成");
     expect(state.order).toEqual(["rpc", "drain", "pause"]);
     expect(internal.webContents.send).not.toHaveBeenCalled();
     expect(child.kill).toHaveBeenCalled();
-    await expect(state.host!.call(descriptor, "sync.upload", null)).rejects.toThrow("正在退出");
+    await expect(
+      must(state.host, "state.host").call(descriptor, "sync.upload", null)
+    ).rejects.toThrow("正在退出");
   }
 );
 
@@ -406,10 +441,13 @@ it("同步回执在广播回调内到达时也立即继续退出，不等待窗�
   const win = window();
   state.windows = [win];
   win.webContents.send.mockImplementation(() =>
-    state.handlers.get("app:quitting-ready")!({ sender: win.webContents })
+    must(
+      state.handlers.get("app:quitting-ready"),
+      "app:quitting-ready"
+    )({ sender: win.webContents })
   );
   setup({ getTrayManager: () => undefined });
-  state.events.get("before-quit")!({ preventDefault: vi.fn() });
+  must(state.events.get("before-quit"), "before-quit")({ preventDefault: vi.fn() });
   await vi.waitFor(() => expect(state.exit).toHaveBeenCalledWith(0));
 });
 
@@ -421,17 +459,20 @@ it.each(["白板投影失败", "正文未确认保存"])(
     state.windows = [win];
     state.durable.mockRejectedValueOnce(new Error(message));
     setup({ getTrayManager: () => undefined });
-    state.events.get("before-quit")!({ preventDefault: vi.fn() });
+    must(state.events.get("before-quit"), "before-quit")({ preventDefault: vi.fn() });
     await vi.advanceTimersByTimeAsync(20000);
     expect(state.exit).not.toHaveBeenCalled();
     expect(win.destroy).not.toHaveBeenCalled();
     expect(win.webContents.send).not.toHaveBeenCalled();
-    expect(state.host!.beginDrain).not.toHaveBeenCalled();
+    expect(must(state.host, "state.host").beginDrain).not.toHaveBeenCalled();
     expect(state.shutdownLocalContent).not.toHaveBeenCalled();
     win.webContents.send.mockImplementation(() =>
-      state.handlers.get("app:quitting-ready")!({ sender: win.webContents })
+      must(
+        state.handlers.get("app:quitting-ready"),
+        "app:quitting-ready"
+      )({ sender: win.webContents })
     );
-    state.events.get("before-quit")!({ preventDefault: vi.fn() });
+    must(state.events.get("before-quit"), "before-quit")({ preventDefault: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);
     expect(state.exit).toHaveBeenCalledWith(0);
     expect(state.durable).toHaveBeenCalledTimes(2);
@@ -451,8 +492,8 @@ it("保存屏障未完成时再次退出仍阻止 Electron 默认关窗", async 
   setup({ getTrayManager: () => undefined });
   const first = vi.fn(),
     second = vi.fn();
-  state.events.get("before-quit")!({ preventDefault: first });
-  state.events.get("before-quit")!({ preventDefault: second });
+  must(state.events.get("before-quit"), "before-quit")({ preventDefault: first });
+  must(state.events.get("before-quit"), "before-quit")({ preventDefault: second });
   expect(first).toHaveBeenCalledOnce();
   expect(second).toHaveBeenCalledOnce();
   expect(state.durable).toHaveBeenCalledOnce();
@@ -464,17 +505,21 @@ it("保存屏障未完成时再次退出仍阻止 Electron 默认关窗", async 
 
 it("窗口收尾没有回执时保留有限等待，后续收尾挂起仍在全程期限强制清理", async () => {
   vi.useFakeTimers();
-  await state.host!.start(descriptor);
+  await must(state.host, "state.host").start(descriptor);
   const win = window();
   state.windows = [win];
-  vi.spyOn(state.host!, "dispose").mockImplementationOnce(() => new Promise(() => undefined));
+  vi.spyOn(must(state.host, "state.host"), "dispose").mockImplementationOnce(
+    () => new Promise(() => undefined)
+  );
   setup({ getTrayManager: () => undefined });
-  state.events.get("before-quit")!({ preventDefault: vi.fn() });
+  must(state.events.get("before-quit"), "before-quit")({ preventDefault: vi.fn() });
   await vi.advanceTimersByTimeAsync(7999);
-  expect(state.host!.beginDrain).not.toHaveBeenCalled();
-  await expect(state.host!.call(descriptor, "sync.upload", null)).resolves.toBe("退出同步完成");
+  expect(must(state.host, "state.host").beginDrain).not.toHaveBeenCalled();
+  await expect(must(state.host, "state.host").call(descriptor, "sync.upload", null)).resolves.toBe(
+    "退出同步完成"
+  );
   await vi.advanceTimersByTimeAsync(1);
-  expect(state.host!.beginDrain).toHaveBeenCalledOnce();
+  expect(must(state.host, "state.host").beginDrain).toHaveBeenCalledOnce();
   await vi.advanceTimersByTimeAsync(7000);
   expect(state.exit).toHaveBeenCalledWith(0);
   expect(state.disposeContent).toHaveBeenCalled();

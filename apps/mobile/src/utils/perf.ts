@@ -4,7 +4,7 @@ const PERF_SWITCH_KEY = "tau-perf";
 
 let enabled: boolean | null = null;
 
-export function isPerfEnabled(): boolean {
+function isPerfEnabled(): boolean {
   if (enabled === null) {
     enabled = import.meta.env.DEV || globalThis.localStorage?.getItem(PERF_SWITCH_KEY) === "1";
   }

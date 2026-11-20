@@ -52,7 +52,7 @@ export const TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT = `## 角色设定
 
 export const buildTranscriptionOptimizationUserPrompt = (
   wordSegments: Array<{ text: string; start: number; end: number }>,
-  language: string,
+  language: string
 ): string => {
   const languageHint = language === "zh" ? "中文" : language === "en" ? "英文" : language;
 
@@ -65,14 +65,10 @@ export const buildTranscriptionOptimizationUserPrompt = (
     return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
   };
 
-  // 格式化为简单的文本列表
-  const segmentsList = wordSegments
-    .map((seg) => `${formatTime(seg.start)}:${seg.text}`)
-    .join("\n");
+  const segmentsList = wordSegments.map(seg => `${formatTime(seg.start)}:${seg.text}`).join("\n");
 
-  const traditionalToSimplifiedHint = language === "zh"
-    ? "\n\n**特别注意**：如果原文包含繁体中文，请全部转换为简体中文输出。"
-    : "";
+  const traditionalToSimplifiedHint =
+    language === "zh" ? "\n\n**特别注意**：如果原文包含繁体中文，请全部转换为简体中文输出。" : "";
 
   return `请将以下${languageHint}词级转录文本优化为句子级断句：
 

@@ -199,8 +199,10 @@ export function mapNodeResources<T>(
   if (!specs?.length || !node || typeof node !== "object") return node;
   let result = node as unknown as Record<string, unknown>;
   for (const spec of specs) {
-    const fields = [parsePath(spec.path).at(-1)!.key, ...(spec.preview ? [spec.preview] : [])];
-    result = mapAt(result, parsePath(spec.path), 0, owner => {
+    // parsePath 基于 split(".")，产物恒非空，末段直接下标取
+    const path = parsePath(spec.path);
+    const fields = [path[path.length - 1].key, ...(spec.preview ? [spec.preview] : [])];
+    result = mapAt(result, path, 0, owner => {
       let next = owner;
       for (const field of fields) {
         const value = owner[field];

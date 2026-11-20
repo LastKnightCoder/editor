@@ -53,20 +53,22 @@ export function HabitRail({
     const deadline = roots.filter(
       e => e.type === "deadline" && e.dueAt != null && dayDiff(e.dueAt, day) === 0
     ).length;
-    const recurring = habits.filter(e => isScheduledOn(e.recurrence!, day)).length;
+    const recurring = habits.filter(
+      e => e.recurrence != null && isScheduledOn(e.recurrence, day)
+    ).length;
     return { day, offset, deadline, recurring };
   });
   const max = Math.max(1, ...week.map(d => d.deadline + d.recurring));
   const recent = [...completed]
-    .filter(e => e.completedAt != null)
-    .sort((a, b) => b.completedAt! - a.completedAt!)
+    .flatMap(e => (e.completedAt != null ? [{ entry: e, completedAt: e.completedAt }] : []))
+    .sort((a, b) => b.completedAt - a.completedAt)
     .slice(0, 5);
 
   const C = 2 * Math.PI * 9;
   const frac = today.length ? doneCount / today.length : 0;
 
   return (
-    <div className="flex min-w-0 flex-col pl-[18px] pr-3 pt-2">
+    <div className="flex min-w-0 flex-col pt-2 pr-3 pl-[18px]">
       <Block
         title={
           <>
@@ -126,7 +128,7 @@ export function HabitRail({
           </div>
         ))}
         {resting.length > 0 && (
-          <p className="text-ink-3 min-w-0 break-words pt-1.5 text-[11.5px]">
+          <p className="text-ink-3 min-w-0 pt-1.5 text-[11.5px] break-words">
             今日休息：{resting.map(e => e.title).join("、")}
           </p>
         )}
@@ -180,7 +182,7 @@ export function HabitRail({
 
       <Block title="最近完成">
         {recent.length === 0 && <p className="text-ink-3 py-1 text-[12px]">还没有完成的任务</p>}
-        {recent.map(entry => (
+        {recent.map(({ entry, completedAt }) => (
           <button
             key={entry.id}
             type="button"
@@ -189,8 +191,8 @@ export function HabitRail({
           >
             <CircleCheck className="text-ok size-[13px] shrink-0" strokeWidth={1.75} />
             <span className="text-ink-2 text-tau-meta min-w-0 flex-1 truncate">{entry.title}</span>
-            <span className="text-ink-3 whitespace-nowrap text-[11px] tabular-nums">
-              {dayWord(entry.completedAt!, now)} {hm(entry.completedAt!)}
+            <span className="text-ink-3 text-[11px] whitespace-nowrap tabular-nums">
+              {dayWord(completedAt, now)} {hm(completedAt)}
             </span>
           </button>
         ))}

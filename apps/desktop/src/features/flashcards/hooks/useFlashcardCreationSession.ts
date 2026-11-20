@@ -78,12 +78,10 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     setGeneratedCardEditModalOpen(false);
   }, [database, resetGeneration]);
 
-  // 打开手动制卡
   const openManualFlashcard = useMemoizedFn(() => {
     setDeckSelectorOpen(true);
   });
 
-  // 打开 AI 制卡
   const openAiFlashcard = useMemoizedFn(() => {
     if (!options.generate && (!flashcardLLMProviderSetting || !flashcardLLMModelSetting)) {
       toast.error("请先在设置中配置闪卡模型");
@@ -93,7 +91,6 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     setDeckSelectorOpen(true);
   });
 
-  // 处理卡组选择
   const handleDeckSelect = useMemoizedFn((deck: FlashcardDeck) => {
     setSelectedDeck(deck);
     setDeckSelectorOpen(false);
@@ -164,7 +161,6 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     }
   });
 
-  // 取消 AI 生成
   const handleCancelAiGeneration = useMemoizedFn(() => {
     if (saving.current) return;
     stopGeneration();
@@ -180,7 +176,6 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     setGeneratedCardEditModalOpen(true);
   });
 
-  // 保存编辑后的 AI 生成闪卡
   const handleSaveGeneratedCard = useMemoizedFn(
     (updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>) => {
       if (!editingGeneratedCard) return;
@@ -191,19 +186,16 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
     }
   );
 
-  // 关闭手动制卡编辑器
   const closeFlashcardEditor = useMemoizedFn(() => {
     setFlashcardEditorOpen(false);
     setSelectedDeck(null);
     onFinish(true);
   });
 
-  // 关闭卡组选择器
   const closeDeckSelector = useMemoizedFn(() => {
     setDeckSelectorOpen(false);
   });
 
-  // 关闭编辑弹窗
   const closeGeneratedCardEditModal = useMemoizedFn(() => {
     setGeneratedCardEditModalOpen(false);
     setEditingGeneratedCard(null);

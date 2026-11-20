@@ -482,7 +482,7 @@ class ResourceSyncModule {
           files: parsed.files || {},
         };
       } catch {
-        // ignore broken cache
+        // 状态文件损坏时按空状态处理
       }
     }
 
@@ -517,8 +517,7 @@ class ResourceSyncModule {
     }
   }
 
-  // 使用 any 规避复杂配置类型映射带来的 TS 推断问题
-  private ensureConfigStrings(config: any): Record<string, string> {
+  private ensureConfigStrings(config: Record<string, unknown>): Record<string, string> {
     const result: Record<string, string> = {};
     Object.entries(config || {}).forEach(([k, v]) => {
       result[k] = typeof v === "undefined" ? "" : String(v);
@@ -676,8 +675,9 @@ class ResourceSyncModule {
   }
 
   private async executeTasks(tasks: SyncTask[]) {
-    if (!this.executor || !this.adapter) return;
-    const promises = tasks.map(task => this.executor!.execute(() => this.runTask(task)));
+    const executor = this.executor;
+    if (!executor || !this.adapter) return;
+    const promises = tasks.map(task => executor.execute(() => this.runTask(task)));
     await Promise.allSettled(promises);
   }
 

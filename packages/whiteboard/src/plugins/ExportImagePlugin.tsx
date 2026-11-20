@@ -45,7 +45,8 @@ export class ExportImagePlugin implements IBoardPlugin {
         icon: <Download size={14} />,
         priority: 322,
         onSelect: ctx => {
-          void ctx.board.document!.exportFile!()
+          void ctx.board.document
+            ?.exportFile?.()
             .then(blob => downloadBlobAsFile(blob, "whiteboard.tau-board.json"))
             .catch(error => toast.error(error instanceof Error ? error.message : "白板导出失败"));
         },
@@ -68,7 +69,7 @@ export class ExportImagePlugin implements IBoardPlugin {
               if (file.size > 32 * 1024 * 1024) throw new Error("白板包超过导入预算");
               const bundle = JSON.parse(await file.text());
               if (!valid()) throw new Error("导入目标已变化");
-              await ctx.board.document!.importTransfer!(bundle, true);
+              await ctx.board.document?.importTransfer?.(bundle, true);
             })().catch(error =>
               toast.error(error instanceof Error ? error.message : "白板导入失败")
             );

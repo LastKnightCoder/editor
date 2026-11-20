@@ -19,10 +19,10 @@ const MINUTE = 60_000;
 const DAY_MINUTES = 24 * 60;
 
 /** 未来空档只在白天提示 */
-export const DAY_FROM = 8 * 60;
-export const DAY_TO = 22 * 60;
-export const PLAN_GAP_MIN = 60;
-export const RECORD_GAP_MIN = 15;
+const DAY_FROM = 8 * 60;
+const DAY_TO = 22 * 60;
+const PLAN_GAP_MIN = 60;
+const RECORD_GAP_MIN = 15;
 
 /** 定时日程的结束分钟：无结束时间按 1 小时 */
 export const eventEndMinutes = (event: CalendarEvent) =>

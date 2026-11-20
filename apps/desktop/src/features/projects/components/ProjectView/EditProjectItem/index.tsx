@@ -147,7 +147,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
 
       try {
         Transforms.select(editor, selection);
-        ReactEditor.focus(editor as any);
+        ReactEditor.focus(editor);
         pendingSelectionRef.current = null;
       } catch (error) {
         console.warn("恢复沉浸模式焦点失败:", error);
@@ -182,7 +182,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const onPressEnter = useMemoizedFn(async () => {
     titleRef.current?.blur();
     editorRef.current?.focus();
-    // 保存项目
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);

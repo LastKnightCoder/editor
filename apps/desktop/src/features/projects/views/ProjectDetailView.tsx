@@ -2,8 +2,7 @@
  * 项目详情视图（薄壳）：文档树工作台的宿主——判存在 + 面包屑注入后渲染
  * components/ProjectView。
  *
- * ProjectView 系为 legacy 搬迁件（原 src/pages/ProjectView，2026-09-23 迁入，
- * 见 DECISIONS.md D-033）：antd 皮 / module.less 等违反随迁保留，
+ * ProjectView 系为 legacy 搬迁件（原 src/pages/ProjectView 迁入）：antd 皮 / module.less 等违反随迁保留，
  * 换皮阶段统一处理；此处不做任何样式适配。
  */
 

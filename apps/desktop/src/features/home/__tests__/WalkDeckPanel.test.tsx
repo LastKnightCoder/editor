@@ -137,8 +137,11 @@ describe("WalkDeckPanel", () => {
   it("池为空时整块（含小节标题）不渲染", async () => {
     mocks.dailyDeck.mockResolvedValue({ date: "today", items: [], cursor: 0 });
     render();
-    await settle();
-    await settle();
+    // 否定断言前先等空态请求完成，避免把加载中误判为空态
+    await vi.waitFor(() => expect(mocks.dailyDeck).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve));
+    });
     expect(document.body.textContent ?? "").not.toContain("今日漫步");
     expect(document.body.textContent ?? "").not.toContain("重温");
   });

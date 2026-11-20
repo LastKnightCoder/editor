@@ -179,7 +179,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
     toolName: context?.toolName,
   });
 
-  // 工具权限模式（D-060）为自动允许编辑 / 跳过确认时按直接改落地；反馈续改（forceReview）始终走审阅
+  // 工具权限模式为自动允许编辑 / 跳过确认时按直接改落地；反馈续改（forceReview）始终走审阅
   const forceReview = context?.toolContext?.flags?.forceReview === true;
   const autoApply = !forceReview && !requiresApproval("write", getToolPermissionMode());
   const agent = presenceAgentOf(context);
@@ -238,8 +238,11 @@ const executeOperationsWithReviewPolicy = async (payload: {
       action: `等你处理 ${count} 条建议`,
       caret,
     });
+    if (!context) {
+      return toToolError("CONTEXT_MISSING", "缺少工具执行上下文，无法发起正文修改审阅");
+    }
     const result = await createPendingContentEditReview({
-      context: context!,
+      context,
       proposal: proposalResult.proposal,
       matched,
     });

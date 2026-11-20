@@ -143,9 +143,9 @@ export function ensureContrast(color: string, against: string, minRatio: number)
  * 而拟合需要从既有 token 色出发，所以这里补上反向变换。
  */
 function toOklch(tone: Tone): { l: number; c: number; h: number } {
-  const srgb = tone.hex
-    .replace("#", "")
-    .match(/../g)!
+  const hexParts = tone.hex.replace("#", "").match(/../g);
+  if (!hexParts) throw new Error(`非法 hex 颜色：${tone.hex}`);
+  const srgb = hexParts
     .map(part => parseInt(part, 16) / 255)
     .map(v => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   const [r, g, b] = srgb;

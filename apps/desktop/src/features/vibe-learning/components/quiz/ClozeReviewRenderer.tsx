@@ -29,16 +29,20 @@ const checkAnswer = (
   return false;
 };
 
+/** Slate 节点的最小递归形状：渲染只读 type/text/children 三类字段 */
+type ClozeNode = { type?: unknown; text?: unknown; children?: ClozeNode[] };
+
 // 辅助函数：从 richContent 提取所有空格
 const extractBlanksFromContent = (richContent: Descendant[]): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 
-  const traverse = (node: any) => {
-    if (node.type === "flashcard-blank") {
-      blanks.push(node);
+  const traverse = (node: unknown) => {
+    const record = (node && typeof node === "object" ? node : {}) as Record<string, unknown>;
+    if (record.type === "flashcard-blank") {
+      blanks.push(node as FlashcardBlankElement);
     }
-    if (node.children && Array.isArray(node.children)) {
-      node.children.forEach(traverse);
+    if (record.children && Array.isArray(record.children)) {
+      record.children.forEach(traverse);
     }
   };
 
@@ -55,7 +59,9 @@ const ClozeReviewRenderer = ({
 }: ClozeReviewRendererProps) => {
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
 
-  const renderNode = (node: any, index: number): React.ReactNode => {
+  // Slate 节点的最小递归形状：渲染只读 type/text/children 三类字段
+  // Slate 节点的最小递归形状：渲染只读 type/text/children 三类字段
+  const renderNode = (node: ClozeNode, index: number): React.ReactNode => {
     // 渲染空格节点
     if (node.type === "flashcard-blank") {
       const element = node as FlashcardBlankElement;
@@ -113,7 +119,7 @@ const ClozeReviewRenderer = ({
               transition: "all 0.2s ease",
               fontFamily: "inherit",
               fontWeight: revealed && !isCorrect ? "500" : "inherit",
-              fieldSizing: "content" as any,
+              fieldSizing: "content",
             }}
             onFocus={e => {
               if (!revealed && interactive) {
@@ -167,21 +173,21 @@ const ClozeReviewRenderer = ({
             fontSize: "15px",
           }}
         >
-          {node.children?.map((child: any, i: number) => renderNode(child, i))}
+          {node.children?.map((child, i: number) => renderNode(child, i))}
         </p>
       );
     }
 
     // 渲染普通文本
     if (node.text !== undefined) {
-      return <span key={`text-${index}`}>{node.text}</span>;
+      return <span key={`text-${index}`}>{node.text as React.ReactNode}</span>;
     }
 
     // 递归渲染其他节点
     if (node.children && Array.isArray(node.children)) {
       return (
         <span key={`node-${index}`}>
-          {node.children.map((child: any, i: number) => renderNode(child, i))}
+          {node.children.map((child, i: number) => renderNode(child, i))}
         </span>
       );
     }

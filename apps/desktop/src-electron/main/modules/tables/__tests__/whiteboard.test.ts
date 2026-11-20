@@ -3,16 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import WhiteboardTable from "../whiteboard";
+import { must } from "../../../test-support";
 
 const pageData = (children: WhiteboardSnapshot["children"]): WhiteboardSnapshot => ({
   children,
@@ -38,7 +33,7 @@ describe("白板列表数据投影", () => {
     const board = WhiteboardTable.createWhiteboard(db, {
       title: "投影",
       description: "",
-      whiteBoardContentList: [
+      whiteboardContentList: [
         {
           name: "页一",
           data: pageData([
@@ -76,22 +71,34 @@ describe("白板列表数据投影", () => {
     });
 
     const [listed] = WhiteboardTable.getAllWhiteboards(db);
-    const listedChildren = listed.whiteBoardContentList[0]!.data.children!;
-    const listedFrame = listedChildren[1]!;
+    const listedChildren = must(
+      must(listed.whiteboardContentList[0], "listed.whiteboardContentList[0]").data.children,
+      "listed.whiteboardContentList[0]!.data.children"
+    );
+    const listedFrame = must(listedChildren[1], "listedChildren[1]");
     expect(listedChildren[0]).not.toHaveProperty("src");
     // 嵌套容器内的媒体地址同样剔除，几何与结构保留
-    expect(listedFrame.children![0]).not.toHaveProperty("url");
-    expect(listedFrame.children![0]).toMatchObject({ x: 5, width: 50, type: "webview" });
+    expect(must(listedFrame.children, "listedFrame.children")[0]).not.toHaveProperty("url");
+    expect(must(listedFrame.children, "listedFrame.children")[0]).toMatchObject({
+      x: 5,
+      width: 50,
+      type: "webview",
+    });
     // 选区置空；演示序列计数保留
-    expect(listed.whiteBoardContentList[0]!.data.selection).toEqual({
+    expect(
+      must(listed.whiteboardContentList[0], "listed.whiteboardContentList[0]").data.selection
+    ).toEqual({
       selectArea: null,
       selectedElements: [],
     });
-    expect(listed.whiteBoardContentList[0]!.data.presentationSequences).toHaveLength(1);
+    expect(
+      must(listed.whiteboardContentList[0], "listed.whiteboardContentList[0]").data
+        .presentationSequences
+    ).toHaveLength(1);
 
     // 打开画布的单块/单页通道不走投影，数据原样
     const full = WhiteboardTable.getWhiteboard(db, board.id);
-    expect(full.whiteBoardContentList[0].data.children[0]).toHaveProperty("src");
-    expect(full.whiteBoardContentList[0].data.selection.selectedElements).toHaveLength(1);
+    expect(full.whiteboardContentList[0].data.children[0]).toHaveProperty("src");
+    expect(full.whiteboardContentList[0].data.selection.selectedElements).toHaveLength(1);
   });
 });

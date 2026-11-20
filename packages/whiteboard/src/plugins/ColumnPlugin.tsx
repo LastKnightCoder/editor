@@ -264,7 +264,8 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     const columnElement = targetElements.find(el => el.type === "column") as
-      ColumnElement | undefined;
+      | ColumnElement
+      | undefined;
     if (columnElement) {
       items.push({
         key: "dissolve-column",
@@ -489,7 +490,10 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     board.snap.end();
   }
 
-  render(board: Board, { element, children }: { element: ColumnElement; children?: any }) {
+  render(
+    board: Board,
+    { element, children }: { element: ColumnElement; children?: React.ReactNode }
+  ) {
     return (
       <Column
         key={element.id}

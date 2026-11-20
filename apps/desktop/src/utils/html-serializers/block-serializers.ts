@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
 import { renderCodeWithShiki } from "./shiki-renderer";
@@ -21,21 +22,12 @@ const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
 
 type CalloutType = "tip" | "info" | "warning" | "danger" | "note";
 
-/**
- * Escape HTML special characters in code
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+/** Slate Text/Element 联合的最小递归形状：纯文本提取只读 text/children */
+type SlateTextNode = { text?: unknown; children?: unknown };
 
-function getPlainTextFromChildren(children: any[] = []): string {
+function getPlainTextFromChildren(children: SlateTextNode[] = []): string {
   const texts: string[] = [];
-  const walk = (nodes: any[]) => {
+  const walk = (nodes: SlateTextNode[]) => {
     for (const node of nodes) {
       if (!node) continue;
       if (typeof node.text === "string") {
@@ -167,7 +159,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Check List
   {
     type: "check-list",
     isBlock: true,
@@ -176,7 +167,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Check List Item
   {
     type: "check-list-item",
     isBlock: true,
@@ -300,7 +290,6 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: element => {
       const chart = element.chart || "";
-      // Check if SVG is stored (future support)
       const svg = element.svg;
       if (svg) {
         return `<div class="diagram-svg mermaid-svg">${svg}</div>`;

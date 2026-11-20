@@ -110,7 +110,7 @@ export function makePublishFixture(title = "第一篇文章") {
         updateTime: 2,
         count: 6,
         contentId: item.id === 34 ? 134 : 133,
-        whiteBoardContentId: 0,
+        whiteboardContentId: 0,
       }) as ProjectItem
   );
   const data: PublishDataSource = {

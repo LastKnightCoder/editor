@@ -142,27 +142,28 @@ const createEmptyEditorContent = (): Descendant[] => [
 const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[] => {
   const mentions: MentionRef[] = [];
 
-  const visit = (node: any) => {
+  const visit = (node: unknown) => {
     if (!node || typeof node !== "object") {
       return;
     }
+    const record = node as Record<string, unknown>;
 
-    if (node.type === "content-link") {
-      const entityType = node.contentType as MentionEntityType;
+    if (record.type === "content-link") {
+      const entityType = record.contentType as MentionEntityType;
       if (entityType === "card" || entityType === "article" || entityType === "project-item") {
         mentions.push({
           entityType,
-          entityId: Number(node.refId) || 0,
-          contentId: Number(node.contentId) || 0,
-          title: String(node.contentTitle || ""),
-          previewText: typeof node.previewText === "string" ? node.previewText : "",
+          entityId: Number(record.refId) || 0,
+          contentId: Number(record.contentId) || 0,
+          title: String(record.contentTitle || ""),
+          previewText: typeof record.previewText === "string" ? record.previewText : "",
         });
       }
       return;
     }
 
-    if (Array.isArray(node.children)) {
-      node.children.forEach(visit);
+    if (Array.isArray(record.children)) {
+      record.children.forEach(visit);
     }
   };
 
@@ -173,13 +174,14 @@ const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[
 /** `$` 点名的 Skill（folderName，去重） */
 const extractSkillRefsFromEditorContent = (content: Descendant[]): string[] => {
   const names = new Set<string>();
-  const visit = (node: any) => {
+  const visit = (node: unknown) => {
     if (!node || typeof node !== "object") return;
-    if (node.type === "skill-ref" && typeof node.folderName === "string") {
-      names.add(node.folderName);
+    const record = node as Record<string, unknown>;
+    if (record.type === "skill-ref" && typeof record.folderName === "string") {
+      names.add(record.folderName);
       return;
     }
-    if (Array.isArray(node.children)) node.children.forEach(visit);
+    if (Array.isArray(record.children)) record.children.forEach(visit);
   };
   content.forEach(visit);
   return Array.from(names);
@@ -187,7 +189,7 @@ const extractSkillRefsFromEditorContent = (content: Descendant[]): string[] => {
 
 /** 工具行右侧 chip（模型 / 思考强度）：无底，hover 淡墨；Menu 触发器（透传 props / ref） */
 /**
- * 对话输入区（D-048 tau 化 · 二轮 mockups/chat/composer.html）：附件预览 → 编辑器
+ * 对话输入区：附件预览 → 编辑器
  * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / 文件 / 引用 / 新对话 / MCP 收进
  * 一个向上展开的面板）｜ 右 上下文用量环 · 模型 · 思考强度 · 停止 / 发送，任何宽度都只占一行。
  * 外框（surface + line-1，聚焦 accent 线 + 焦点环）由容器负责，本组件只排内容。
@@ -643,7 +645,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       </Menu>
     ) : null;
 
-    // 工具权限模式（D-060）：只在完整对话输入框出现（行内 AI 等不跑需要确认的工具）
+    // 工具权限模式：只在完整对话输入框出现（行内 AI 等不跑需要确认的工具）
     const currentPermission = TOOL_PERMISSION_MODES.find(m => m.value === permissionMode);
     const permissionMenu = showMcpManager ? (
       <Menu

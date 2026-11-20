@@ -133,6 +133,16 @@ type SessionEventLike =
   | { type: string };
 
 /**
+ * message_end 的载荷收窄为 assistant 用量来源：role 加 usage 双重判定。
+ * 真实 AgentSessionEvent 的 assistant 消息必带 usage，缺失说明不是 SDK 消息流，不产记录。
+ */
+function isAssistantUsageMessage(message: unknown): message is AssistantMessage {
+  if (message === null || typeof message !== "object") return false;
+  const { role, usage } = message as { role?: unknown; usage?: unknown };
+  return role === "assistant" && usage !== undefined;
+}
+
+/**
  * 会话：每条 assistant 消息（一轮模型请求）记一条。
  * 计时从 turn_start 起算（含请求发出到首字节），没有 turn_start 时退回 message_start。
  */
@@ -170,8 +180,8 @@ export function createSessionUsageTracker(
           break;
         }
         case "message_end": {
-          const { message } = event as unknown as { message: AssistantMessage & { role?: string } };
-          if (message?.role !== "assistant") break;
+          const message = (event as { message?: unknown }).message;
+          if (!isAssistantUsageMessage(message)) break;
           const endedAt = now();
           const startedAt = turnStartedAt ?? messageStartedAt ?? endedAt;
           record(buildLlmUsage(message, getContext(), { startedAt, firstTokenAt, endedAt }));

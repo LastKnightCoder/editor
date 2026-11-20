@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
+import { listThemes } from "../index.ts";
 
 /**
  * 根入口必须能被 Node 以包名原生加载（type stripping，无构建步骤）：
@@ -17,6 +18,7 @@ describe("Node 原生加载 @tau/themes", () => {
       ],
       { cwd: import.meta.dirname, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
     );
-    expect(output.trim()).toBe("6 true");
+    // 主题数以包内注册表为准对账，不写死数字（新增/删除主题不需要改这里）
+    expect(output.trim()).toBe(`${listThemes().length} true`);
   });
 });

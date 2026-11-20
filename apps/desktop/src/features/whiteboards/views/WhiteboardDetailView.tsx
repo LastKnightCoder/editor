@@ -56,25 +56,25 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const [dockWidth, setDockWidth] = useState(0);
 
   const pages = useMemo(
-    () => (board?.whiteBoardContentList ?? []).map(p => ({ id: p.id, name: p.name })),
+    () => (board?.whiteboardContentList ?? []).map(p => ({ id: p.id, name: p.name })),
     [board]
   );
   const activeId = useMemo(() => {
     if (page !== undefined && pages.some(p => p.id === page)) return page;
-    const stored = board?.activeWhiteBoardContentId;
+    const stored = board?.activeWhiteboardContentId;
     if (stored != null && pages.some(p => p.id === stored)) return stored;
     return pages[0]?.id ?? null;
-  }, [page, pages, board?.activeWhiteBoardContentId]);
+  }, [page, pages, board?.activeWhiteboardContentId]);
   const activePage = pages.find(p => p.id === activeId);
   const databaseName = useSettingStore(state => state.setting.database.active);
   const documentId = (
-    board?.whiteBoardContentList.find(item => item.id === activeId)?.data as
+    board?.whiteboardContentList.find(item => item.id === activeId)?.data as
       | { documentId?: string }
       | undefined
   )?.documentId;
   const documentPage = (contentId: number) => {
     const pageId = (
-      board?.whiteBoardContentList.find(item => item.id === contentId)?.data as
+      board?.whiteboardContentList.find(item => item.id === contentId)?.data as
         | { pageId?: string }
         | undefined
     )?.pageId;
@@ -129,7 +129,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
 
   // 记住停留页（从列表点某一页进来、或切页后）
   useEffect(() => {
-    if (!board || activeId === null || board.activeWhiteBoardContentId === activeId) return;
+    if (!board || activeId === null || board.activeWhiteboardContentId === activeId) return;
     void pageMutations.setActive(activeId).catch(() => undefined);
   }, [board, activeId, pageMutations]);
 

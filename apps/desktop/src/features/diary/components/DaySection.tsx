@@ -1,5 +1,5 @@
 /**
- * 一天（方案 A 的排版，D-044）：左侧粘性日期列（相对日 / 大号日 / 月·周 / N 条·M 字）+
+ * 一天：左侧粘性日期列（相对日 / 大号日 / 月·周 / N 条·M 字）+
  * 右侧当天条目。同一张纸内分组只靠留白与日期列，不画分隔线、不拆日卡（PREFERENCES）。
  */
 
@@ -20,7 +20,7 @@ export const DaySection = memo(function DaySection({
   return (
     <section
       data-day={group.day}
-      className="grid grid-cols-[92px_minmax(0,1fr)] gap-x-[22px] pb-1 pt-[26px]"
+      className="grid grid-cols-[92px_minmax(0,1fr)] gap-x-[22px] pt-[26px] pb-1"
     >
       <div className="sticky top-[18px] self-start pt-2">
         {otherYear && (
@@ -29,7 +29,7 @@ export const DaySection = memo(function DaySection({
           </div>
         )}
         {rel && <div className="text-tau-meta text-accent-text mb-1.5 font-medium">{rel}</div>}
-        <div className="text-[32px] font-semibold tabular-nums leading-none tracking-[-0.02em]">
+        <div className="text-[32px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
           {d.getDate()}
         </div>
         <div className="text-tau-meta text-ink-2 mt-1.5">

@@ -19,7 +19,7 @@ const FLAT_CHIP_CLASS =
 const SOFT_CHIP_CLASS =
   "inline-flex items-center gap-[3px] rounded-[8px] bg-accent-soft px-2.5 py-[3.5px] text-tau-micro font-semibold text-accent-text";
 
-export function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProps) {
+function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProps) {
   if (tags.length === 0 && !trailing) {
     return null;
   }

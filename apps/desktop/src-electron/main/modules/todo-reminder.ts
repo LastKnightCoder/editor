@@ -10,7 +10,7 @@ import { assistantReminders, assistantReminderKey } from "./task-assistant/remin
 import { taskKey, type TaskRef, type TaskOccurrenceRef } from "@tau/shared/task-assistant";
 
 interface PendingReminder {
-  todoItem: any; // TodoItem 对象
+  todoItem: unknown; // todo_item 表行，主进程不解引用，经 IPC 交给渲染层
   recurrenceDate?: number; // 对于周期任务，这是具体的计划日期
   remindAt: number;
   taskRef?: TaskRef;

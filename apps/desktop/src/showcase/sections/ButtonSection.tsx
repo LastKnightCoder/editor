@@ -1,5 +1,5 @@
 /**
- * Button 档案 —— 本体即 ui/primitives/Button 真实现（方案 B 形制，mockups/button/）。
+ * Button 档案 —— 本体即 ui/primitives/Button 真实现。
  * 瞬态锁定说明：hover 标本直接施加 hover 视觉类常驻（primary 换 accent-hover、
  * secondary 边框加深），结构与过渡仍来自组件本体。
  */

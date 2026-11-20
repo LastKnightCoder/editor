@@ -8,7 +8,7 @@ import {
 
 export type EditorOpenMode = NonNullable<NonNullable<SettingCompat["editor"]>["openMode"]>;
 
-export const EDITOR_OPEN_MODE_PATH = "editor.openMode";
+const EDITOR_OPEN_MODE_PATH = "editor.openMode";
 
 /** 只有显式的 edit 才直接编辑，缺省与非法值一律为 read */
 export function normalizeEditorOpenMode(value: unknown): EditorOpenMode {
@@ -34,5 +34,3 @@ export function useEditorOpenMode(): EditorOpenMode {
     readEditorOpenMode
   );
 }
-
-export default useEditorOpenMode;

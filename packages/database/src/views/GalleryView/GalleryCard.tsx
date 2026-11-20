@@ -17,7 +17,6 @@ interface GalleryCardProps {
 const GalleryCard: React.FC<GalleryCardProps> = memo(
   ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly }) => {
     const { GalleryCover, Image = BrowserImage, coverGradient } = useDatabaseSlots();
-    // 获取主列的值
     const primaryColumn = columns.find(col => col.isPrimary);
     const primaryValue = primaryColumn ? (row[primaryColumn.id] as string) : "";
 
@@ -35,7 +34,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           <button
             type="button"
             title="删除卡片"
-            className="bg-surface/85 text-ink-2 ease-tau-out hover:text-danger absolute right-2 top-2 z-10 grid size-[26px] cursor-pointer place-items-center rounded-full opacity-0 shadow-sm backdrop-blur-sm transition-[opacity,color] duration-[160ms] group-hover:opacity-100"
+            className="bg-surface/85 text-ink-2 ease-tau-out hover:text-danger absolute top-2 right-2 z-10 grid size-[26px] cursor-pointer place-items-center rounded-full opacity-0 shadow-sm backdrop-blur-sm transition-[opacity,color] duration-[160ms] group-hover:opacity-100"
             onClick={e => {
               e.stopPropagation();
               onDelete();
@@ -66,7 +65,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           )}
         </div>
         <div className="border-line-2 bg-surface flex h-[60px] items-center border-t px-4 py-3">
-          <span className="text-ink-1 text-tau-body-lg w-full overflow-hidden text-ellipsis whitespace-nowrap font-medium">
+          <span className="text-ink-1 text-tau-body-lg w-full overflow-hidden font-medium text-ellipsis whitespace-nowrap">
             {primaryValue || "未命名"}
           </span>
         </div>

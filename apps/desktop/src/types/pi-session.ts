@@ -112,7 +112,7 @@ export type PiSessionLocation =
   | { pageUrl: string; sessionId: string };
 
 /**
- * 树谱视图的一个节点（M4-d）：一条用户消息，回答折叠进去。父 = 上一条用户消息（根上为 null），
+ * 树谱视图的一个节点：一条用户消息，回答折叠进去。父 = 上一条用户消息（根上为 null），
  * 同一父下的多个节点就是分叉。主进程 conversationTreeOf 产出。
  */
 export interface ConversationTreeNode {

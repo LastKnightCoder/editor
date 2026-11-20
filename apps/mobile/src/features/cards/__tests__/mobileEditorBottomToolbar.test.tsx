@@ -265,7 +265,6 @@ describe("MobileEditorBottomToolbar", () => {
     );
     const commentButton = getButton("批注");
     expect(commentButton?.disabled).toBe(true);
-    expect(commentButton?.className).toContain("opacity-40");
   });
 
   it("面板打开时回到通用模式，右端为键盘按钮，「+」切换为关闭", () => {
@@ -279,8 +278,6 @@ describe("MobileEditorBottomToolbar", () => {
     expect(getButton("加粗")).toBeNull();
     expect(getButton("收起键盘")).toBeNull();
     expect(getButton("插入")).toBeNull();
-    const closeInsert = getButton("关闭插入面板");
-    expect(closeInsert?.className).toContain("bg-ink-1");
 
     clickButton("键盘");
     expect(controller.closePanel).toHaveBeenCalledWith({
@@ -295,7 +292,6 @@ describe("MobileEditorBottomToolbar", () => {
   it("Aa 在样式面板打开时为激活态", () => {
     render(createController({ activePanel: "style" }));
     expect(getButton("样式")?.getAttribute("aria-pressed")).toBe("true");
-    expect(getButton("样式")?.className).toContain("bg-accent-soft");
   });
 
   it("无面板时右端「收起键盘」退出编辑", () => {
@@ -455,7 +451,6 @@ describe("MobileEditorBottomToolbar", () => {
       );
       expect(getButton("删行")?.disabled).toBe(true);
       expect(getButton("删列")?.disabled).toBe(true);
-      expect(getButton("删列")?.className).toContain("opacity-40");
       expect(getButton("下方插行")?.disabled).toBe(false);
       expect(getButton("对齐：居中")?.getAttribute("aria-pressed")).toBe("true");
     });

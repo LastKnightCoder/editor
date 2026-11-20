@@ -53,7 +53,7 @@
 
 <header>
   <h1>白板列表页设计探索 · 三方案</h1>
-  <p class="sub">现状：legacy <code>pages/WhiteBoardView</code> 是 antd 卡片网格加右下角悬浮「＋」。每张卡片上半是封面，没设封面时显示一张 CDN 占位图（离线会破图，所有白板都一样），五种随机主题色描边；下半是标题、「发表于」创建日期和两行描述。更多菜单要悬停才弹出（编辑 / 删除 / 换背景图），删除用 <code>modal.confirm</code>。卡片上看不到白板有几页、画了什么、最近什么时候改过。</p>
+  <p class="sub">现状：legacy <code>pages/WhiteboardView</code> 是 antd 卡片网格加右下角悬浮「＋」。每张卡片上半是封面，没设封面时显示一张 CDN 占位图（离线会破图，所有白板都一样），五种随机主题色描边；下半是标题、「发表于」创建日期和两行描述。更多菜单要悬停才弹出（编辑 / 删除 / 换背景图），删除用 <code>modal.confirm</code>。卡片上看不到白板有几页、画了什么、最近什么时候改过。</p>
   <p class="sub">三个方案共用同一份 mock：12 个白板，共 29 页，数据形状与 <code>types/white-board.ts</code> 一致。缩略图<b>不是占位图</b>，而是用每页的真实元素几何（图形、连线、卡片、文本、图片、思维导图、画框、手绘、视频）按「适应全部」的视角画出来的。列表接口 <code>get-all-white-boards</code> 本来就返回全部子白板和元素，所以实现时不需要额外取数。都能操作：新建、编辑信息、更换 / 移除封面、删除确认、排序、打开到指定页（mock 里用 Toast 表示跳转）。标题栏虚线框是演示开关（正常 / 空态），右上角切换 cream / cocoa。</p>
   <p class="meta">2026-09-25 · mockup 只作视觉参考，不作为导出源（D-001）</p>
 </header>
@@ -89,7 +89,7 @@
   <a class="card" href="plan-b-film.html">
     <div class="no">方案 B</div>
     <h3>胶片 <span class="who">· 一整张纸，每个白板一条页带</span></h3>
-    <p>把「一块白板有很多页」直接摆出来。整块内容区是一张纸，每个白板占一条：左边标题、描述和统计，右边是<b>全部页的横向胶片</b>（页码 + 页名 + 元素数），点哪页就直接进哪页；上次停留的页（<code>activeWhiteBoardContentId</code>）会标出来。页多时带子左右渐隐，悬停出现翻页按钮；悬停时末尾出现「＋ 新页」，不用进白板就能加页。条与条之间只用留白分隔，不画线。</p>
+    <p>把「一块白板有很多页」直接摆出来。整块内容区是一张纸，每个白板占一条：左边标题、描述和统计，右边是<b>全部页的横向胶片</b>（页码 + 页名 + 元素数），点哪页就直接进哪页；上次停留的页（<code>activeWhiteboardContentId</code>）会标出来。页多时带子左右渐隐，悬停出现翻页按钮；悬停时末尾出现「＋ 新页」，不用进白板就能加页。条与条之间只用留白分隔，不画线。</p>
     <div class="wire" style="grid-template-rows: repeat(3, 1fr);">
       <script>document.write([4,2,3].map(n=>`<div class="sheet" style="display:grid;grid-template-columns:1fr 3fr;gap:6px;padding:4px"><div><span class="bar" style="left:4px;right:20%;top:6px;background:var(--line-1)"></span><span class="bar" style="left:4px;right:40%;top:15px;height:3px"></span></div><div style="display:flex;gap:4px">${Array.from({length:n},()=>'<div class="t" style="width:22%"></div>').join('')}</div></div>`).join(''))</script>
     </div>
@@ -152,7 +152,7 @@
 <h2>待你拍板的几件事</h2>
 <ul class="tight">
   <li><b>封面</b>：有了真实画布缩略图后，「自定义封面」还要保留吗？（B 已经不展示封面了。）保留的话，是否改为「选某一页作封面」，而不是上传图片？</li>
-  <li><b>tags</b>：<code>WhiteBoard.tags</code> 字段存在，但 legacy 没有任何 UI。三个方案都没做标签筛选，是直接退役，还是像日记那样挂到侧栏？</li>
+  <li><b>tags</b>：<code>Whiteboard.tags</code> 字段存在，但 legacy 没有任何 UI。三个方案都没做标签筛选，是直接退役，还是像日记那样挂到侧栏？</li>
   <li><b>页内搜索</b>：参照项目页 D-024 的口径，三个方案都没放搜索框（语义检索走全局 <kbd>⌘K</kbd>）。白板多了之后要不要加标题过滤？</li>
   <li><b>被引用</b>：项目条目可以引用白板（<code>white_board_content_id</code>）。删除确认要不要额外提示「被 N 个项目引用」？这需要主进程补一个查询。</li>
   <li><b>缩略图生成</b>：mock 在渲染层实时画。真实数据里元素多了（图片、网页、视频），更稳的做法是保存时由主进程生成一个轻量摘要，还是直接复用画布的「导出图片」离屏渲染再缓存？</li>

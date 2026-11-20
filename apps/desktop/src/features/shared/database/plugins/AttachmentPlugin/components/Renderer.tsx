@@ -21,7 +21,6 @@ interface AttachmentRendererProps {
 
 const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
   ({ value, readonly, onCellValueChange }) => {
-    // 确保 value 始终是数组
     const attachmentList = Array.isArray(value) ? value : [];
     const [uploadPopoverVisible, setUploadPopoverVisible] = useState(false);
     const [hoveredAttachmentId, setHoveredAttachmentId] = useState<string | null>(null);
@@ -36,7 +35,6 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
         if (attachment.isLocal) {
           await showInFolder(attachment.filePath);
         } else {
-          // 下载远程文件并打开
           const loadingId = toast.loading(`正在下载 ${attachment.fileName}...`);
           try {
             const localPath = await remoteResourceToLocal(attachment.filePath, attachment.fileName);
@@ -54,7 +52,6 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
       }
     });
 
-    // 删除文件
     const handleDeleteFile = useMemoizedFn((attachmentId: string, e: React.MouseEvent) => {
       e.stopPropagation();
       setConfirmDeleteId(attachmentId);
@@ -166,7 +163,7 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
                       exit={{ scale: 0, opacity: 0 }}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="bg-danger text-ink-inverse absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full shadow-lg"
+                      className="bg-danger text-ink-inverse absolute -top-1 -right-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full shadow-lg"
                       onClick={e => handleDeleteFile(attachment.id, e)}
                     >
                       <X className="h-2 w-2" strokeWidth={2.5} />
@@ -192,7 +189,7 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
         {!readonly && (
           <div
             ref={addTriggerRef}
-            className="bg-hover hover:bg-press text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
+            className="bg-hover hover:bg-press text-ink-2 hover:text-ink-1 rounded-tau-sm absolute top-1/2 right-1 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
             role="button"
             aria-label="添加附件"
             onClick={() => setUploadPopoverVisible(v => !v)}

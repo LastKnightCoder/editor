@@ -1,7 +1,7 @@
 /**
- * SettingsScreen —— 全窗口设置页（D-028，2026-09-30 由居中弹窗改为铺满窗口）。
+ * SettingsScreen —— 全窗口设置页（由居中弹窗改为铺满窗口）。
  *
- * 壳层浮层（D-003 命令面板同族挂载，不进页面栈）：fixed 铺满整个窗口，连同应用侧栏一起覆盖。
+ * 壳层浮层（命令面板同族挂载，不进页面栈）：fixed 铺满整个窗口，连同应用侧栏一起覆盖。
  * 左栏 = 设置侧栏（固定 220px，不跟随应用侧栏拖宽；条目与应用侧栏同语言：窗口控制 / 返回 / 分组导航）；右栏 = 标题栏拖拽区 +
  * 居中内容列（页头取 sections.tsx 的 label + description，随正文一起滚动）。
  * 开闭态在 app/settingsStore（Sidebar / 命令面板 / Ctrl+, 多入口共享）。
@@ -150,7 +150,7 @@ export function SettingsScreen() {
           scrollRef={setScrollEl}
           className="mr-1.5 min-h-0 overscroll-y-contain [scrollbar-gutter:stable]"
         >
-          <div className="mx-auto w-full max-w-[880px] px-10 pb-16 pt-6">
+          <div className="mx-auto w-full max-w-[880px] px-10 pt-6 pb-16">
             <header className="mb-7">
               <h1 className="text-tau-title-lg text-ink-1 font-semibold">{activeDef.label}</h1>
               <p className="text-tau-meta text-ink-2 mt-1">{activeDef.description}</p>

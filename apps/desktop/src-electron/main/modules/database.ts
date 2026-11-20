@@ -13,7 +13,7 @@ import { createContentAgentCommands } from "./content-runtime/agent/commands";
 import { bindContentWriteConnection } from "./content-events";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
-import { Table } from "../types/table";
+import { Table, SqliteRow } from "../types/table";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import WhiteboardTable from "./tables/whiteboard";
@@ -33,7 +33,7 @@ import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "./tables/content";
 import ContentLinkTable from "./tables/content-link";
 import ComposeBoardTable from "./tables/compose-board";
 import EntitySearchTable from "./tables/entity-search";
-import WhiteBoardContentTable from "./tables/white-board-content";
+import WhiteboardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
 import VibeLearningProjectTable from "./tables/vibe-learning-project";
@@ -138,10 +138,12 @@ class DatabaseModule implements Module {
   databases: Map<string, Database.Database>;
   windowToDatabase: Map<number, string>;
   tables: Table[];
-  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 异构事件注册表：any 参数位提供双向变体，具体 handler（含必选参数元组）才能赋入
+  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => unknown>;
   indexEventAndHandlers: Record<
     string,
-    (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同 eventAndHandlers：异构索引事件注册表
+    (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => unknown
   >;
   private currentDatabaseName = "data.db"; // 默认数据库
   /** 普通关库与上传重连保留命令上下文，明确覆盖才使旧任务失效。 */
@@ -288,7 +290,7 @@ class DatabaseModule implements Module {
     this.tables = [
       PodcastMigrationTable,
       ContentTable,
-      WhiteBoardContentTable,
+      WhiteboardContentTable,
       WhiteboardTable,
       CardTable,
       ArticleTable,
@@ -409,7 +411,9 @@ class DatabaseModule implements Module {
       );
 
       const vecVersionStartAt = Date.now();
-      const { vec_version } = database.prepare("select vec_version() as vec_version;").get() as any;
+      const { vec_version } = database
+        .prepare("select vec_version() as vec_version;")
+        .get() as SqliteRow;
 
       log.info(
         `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`
@@ -437,7 +441,7 @@ class DatabaseModule implements Module {
           log.error("[database] 清理孤立日历事件失败:", error);
         }
         try {
-          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文（D-136）。
+          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文。
           const collectedTables = DataTableTable.collectPendingTables(database, {
             now: Date.now(),
             graceMs: CONTENT_RELEASE_GRACE_MS,
@@ -468,7 +472,7 @@ class DatabaseModule implements Module {
         }
         try {
           // 白板页回收会释放页内嵌入的正文，排在正文回收之前
-          const purgedPages = WhiteBoardContentTable.collectPendingReleases(database, {
+          const purgedPages = WhiteboardContentTable.collectPendingReleases(database, {
             now: Date.now(),
             graceMs: CONTENT_RELEASE_GRACE_MS,
           });
@@ -530,11 +534,19 @@ class DatabaseModule implements Module {
         busy,
         log: frames,
         checkpointed,
-      } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
+      } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as {
+        busy: number;
+        log: number;
+        checkpointed: number;
+      };
       if (busy !== 0) throw new Error("存在未释放的数据库锁");
       if (checkpointed < frames) throw new Error("WAL 文件未完全合并");
       if (indexDb) {
-        const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
+        const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as {
+          busy: number;
+          log: number;
+          checkpointed: number;
+        };
         if (indexCheckpoint?.busy !== 0) {
           throw new Error("索引数据库存在未释放的数据库锁");
         }
@@ -620,8 +632,9 @@ class DatabaseModule implements Module {
   async reconnectForSync(name: string, source: DatabaseReconnectSource) {
     return withDurableDocuments({ databaseName: name, reason: "database-sync" }, async () => {
       log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
-      if (this.databases.has(name)) {
-        this.databases.get(name)!.close();
+      const existingSync = this.databases.get(name);
+      if (existingSync) {
+        existingSync.close();
         this.databases.delete(name);
         mainContentIndexDBManager.closeDatabase(name);
       }
@@ -702,7 +715,8 @@ class DatabaseModule implements Module {
             `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`
           );
           if (this.databases.has(name)) {
-            this.databases.get(name)!.close();
+            const existing = this.databases.get(name);
+            if (existing) existing.close();
             this.databases.delete(name);
             mainContentIndexDBManager.closeDatabase(name);
           }
@@ -810,10 +824,10 @@ class DatabaseModule implements Module {
       async (event, input: SqlQueryInput, scope?: { toolDatabaseName?: string }) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         if (!win) throw new Error("No window found");
-        const dbName = scope?.toolDatabaseName
+        const toolDatabaseName = scope?.toolDatabaseName;
+        const dbName = toolDatabaseName
           ? [...this.databases.keys()].find(
-              name =>
-                this.formatDatabaseName(name) === this.formatDatabaseName(scope.toolDatabaseName!)
+              name => this.formatDatabaseName(name) === this.formatDatabaseName(toolDatabaseName)
             )
           : this.windowToDatabase.get(win.id);
         if (!dbName || !this.getDatabase(dbName)) {

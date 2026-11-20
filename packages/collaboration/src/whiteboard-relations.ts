@@ -73,8 +73,11 @@ export function collectWhiteboardRelations(
       for (const node of nodes) {
         if (node.entity)
           relations.push({ rootId: "board", nodeId: node.id, slot: "entity", target: node.entity });
-        if (node.fieldBindings.body?.mode === "richtext" && Array.isArray(node.body))
-          node.body.forEach(value => bodyNode(node.fieldBindings.body!.rootId, value));
+        const bodyBinding = node.fieldBindings.body;
+        if (bodyBinding?.mode === "richtext" && Array.isArray(node.body)) {
+          const rootId = bodyBinding.rootId;
+          node.body.forEach(value => bodyNode(rootId, value));
+        }
         visit([...node.children]);
       }
     };

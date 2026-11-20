@@ -1,6 +1,6 @@
 import { missingExportElements } from "../../utils/visualExport";
 /**
- * 导出为图片：预览 + 背景 / 放大倍数 / 边距（D-049）。
+ * 导出为图片：预览 + 背景 / 放大倍数 / 边距。
  * 预览是按元素数据生成的结构示意（与白板列表缩略图同源），不做真实截图；
  * 真正的导出仍走 useBoardCapture 离屏截图。
  */

@@ -13,7 +13,7 @@ function localDayStart(offsetDays = 0): number {
 }
 
 /** 最近 N 天（含今天）的 dayStarts，旧→新 */
-export function recentDayStarts(days: number): number[] {
+function recentDayStarts(days: number): number[] {
   return Array.from({ length: days }, (_, i) => localDayStart(days - 1 - i));
 }
 

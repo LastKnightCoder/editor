@@ -208,7 +208,6 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     }
   }, [proposal?.patches, proposal?.proposedMarkdown, proposal?.snapshotId]);
 
-  // 生成改动预览
   const changePreviews = useMemo(() => {
     if (!proposal?.patches) return [];
     return generateChangePreviews(proposal.patches);

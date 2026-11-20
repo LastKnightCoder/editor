@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
    项目没有 tailwind-merge，className 覆盖同类 utility 的胜负由产物顺序决定、不可靠，
    所以缩进走 inset 变体而不是 className 覆盖；className 只用来传不冲突的排版差异（字重等）。
 
-   纵向基准：上 16px / 下 7px，与设计稿 group-label + group-card 的 16/7 一致。
+   纵向基准：上 16px / 下 7px。
    上间距写在自身的 mt-4 上而不是靠外层——外层用 .space-y-1 时，Tailwind v4 生成的是
    :where(.space-y-1 > :not(:last-child)) { margin-block-end }，那 4px 落在每个块的下方，
    靠外层补上间距会让标签贴住上一张卡片；mt-4 与外层的 4px 相邻折叠后取 16px，卡片自带

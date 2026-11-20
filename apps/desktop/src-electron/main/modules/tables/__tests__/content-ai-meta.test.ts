@@ -3,17 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
 // 内容表间接加载到 electron 与视频笔记队列
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 import ContentAiMetaTable, { parseContentAiMeta } from "../content-ai-meta";
 import ContentTable from "../content";
+import { must } from "../../../test-support";
 
 const META = {
   title: "卡片是连接的枢纽",
@@ -45,7 +40,7 @@ describe("content_ai_meta", () => {
       { contentId: id, textDigest: "d2", meta: { ...META, title: "新标题" }, model: "p/n" },
       200
     );
-    const row = ContentAiMetaTable.get(db, id)!;
+    const row = must(ContentAiMetaTable.get(db, id), "ContentAiMetaTable.get(db, id)");
     expect(row).toMatchObject({ createTime: 100, updateTime: 200, textDigest: "d2", model: "p/n" });
     expect(row.meta.title).toBe("新标题");
     ContentAiMetaTable.touch(db, id, 300);

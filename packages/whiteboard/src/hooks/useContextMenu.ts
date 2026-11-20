@@ -47,5 +47,3 @@ export const useContextMenu = (board: Board) => {
     hide,
   };
 };
-
-export default useContextMenu;

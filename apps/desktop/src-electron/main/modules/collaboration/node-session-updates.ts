@@ -113,7 +113,7 @@ export class NodeSessionUpdates {
   ): Promise<void> {
     const scoped = update instanceof Uint8Array ? undefined : update;
     const raw = update instanceof Uint8Array ? new Uint8Array(update) : undefined;
-    const size = raw?.byteLength ?? scoped!.bytes;
+    const size = raw?.byteLength ?? (scoped ? scoped.bytes : 0);
     const started = performance.now();
     let stage = "delta.queue",
       attempts = 0,

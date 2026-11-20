@@ -93,7 +93,7 @@ export const rowToChat = (
 });
 
 /** 新对话草稿：真 id，目录表里还没有它（首轮发送后才登记） */
-export const createDraftChat = (bucket: ChatBucketRef): ChatMessage => {
+const createDraftChat = (bucket: ChatBucketRef): ChatMessage => {
   const now = Date.now();
   return {
     databaseName: getChatDatabase(),
@@ -133,7 +133,7 @@ interface ChatSessionActions {
   /** 重载全部已加载的列表（切库） */
   reloadAll(): Promise<void>;
   /**
-   * 所属对象要被删（PDF 等，M4-e）：释放这个列表下全部对话的宿主会话与运行态，并从 store 里拿掉。
+   * 所属对象要被删（PDF 等）：释放这个列表下全部对话的宿主会话与运行态，并从 store 里拿掉。
    * 目录行与会话文件由主进程删对象时级联删除。
    */
   releaseBucket(bucket: ChatBucketRef): Promise<void>;
@@ -160,7 +160,7 @@ interface ChatSessionActions {
   unpinChat(id: string): Promise<void>;
   deleteChat(id: string, databaseName?: string): Promise<void>;
   /**
-   * 改会话树（回退/分叉/切版本/删除，M4-d）：返回改后的投影，由调用方（聊天容器）回写。
+   * 改会话树（回退/分叉/切版本/删除）：返回改后的投影，由调用方（聊天容器）回写。
    * 运行中主进程会拒绝（抛错）。
    */
   editChat(id: string, edit: PiSessionEdit): Promise<ChatSessionMessage[]>;
@@ -303,7 +303,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
             if (JSON.parse(identity)[0] === databaseName) deletedChats.delete(identity);
           }
           // 切库：已打开的对话属于旧库，整体作废（运行中的后台轮次由 runtime 自己收尾）。
-          // runtime 的空闲条目一起清（M4-e）；宿主会话由主进程在切库时释放
+          // runtime 的空闲条目一起清；宿主会话由主进程在切库时释放
           const keys = Object.keys(get().buckets);
           bucketSequences.clear();
           draftSlots.clear();
@@ -669,7 +669,7 @@ export const isDraftReleased = (slot: string, draft: ChatMessage): boolean =>
   draftSlots.get(slot) !== draft;
 
 /** 草稿已登记为正式对话：从所有槽里摘掉 */
-export const releaseDraft = (id: string): void => {
+const releaseDraft = (id: string): void => {
   for (const [slot, draft] of draftSlots) if (draft.id === id) draftSlots.delete(slot);
 };
 

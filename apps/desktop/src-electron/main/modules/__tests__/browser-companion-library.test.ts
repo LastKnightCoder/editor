@@ -10,14 +10,8 @@ const env = vi.hoisted(() => ({
   preparation: undefined as Promise<void> | undefined,
 }));
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 vi.mock("../database", () => ({
   default: {
     getCurrentDatabase: () => env.db,

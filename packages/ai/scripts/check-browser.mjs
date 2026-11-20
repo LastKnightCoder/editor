@@ -32,6 +32,7 @@ assert(externalImports.every(value => value.path === "node:fs" && value.kind ===
 const code = built.outputFiles[0].text;
 const context = createContext({
   console,
+  performance,
   crypto: webcrypto,
   fetch,
   Request,

@@ -23,6 +23,7 @@ import {
   MainContentAdapterContext,
 } from "../search-core/main-content-adapter";
 import { runSearchPipeline } from "../search-core/pipeline";
+import type { SqliteRow } from "../../types/table";
 
 const jieba = Jieba.withDict(dict);
 
@@ -228,7 +229,7 @@ class FTSTable {
       SELECT MAX(update_time) as update_time FROM content_fts WHERE prefixed_id = ?
     `);
 
-    const result: any = stmt.get(prefixedId);
+    const result = stmt.get(prefixedId) as { update_time: number | null | undefined } | undefined;
     if (!result || result.update_time === null || result.update_time === undefined) {
       return null;
     }
@@ -257,13 +258,13 @@ class FTSTable {
 
     const stmt = indexDb.prepare(sql);
     const results = type ? stmt.all(type) : stmt.all();
-    const partialResults: PartialSearchResult[] = results.map((result: any) => {
-      const { id, type } = extractIdFromPrefixed(result.prefixed_id);
+    const partialResults: PartialSearchResult[] = (results as SqliteRow[]).map(result => {
+      const { id, type } = extractIdFromPrefixed(result.prefixed_id as string);
       return {
         id: Number(id),
         type: type as IndexType,
         source: "fts",
-        updateTime: result.update_time,
+        updateTime: result.update_time as number,
       };
     });
 
@@ -417,15 +418,15 @@ class FTSTable {
       params.push(String(limit));
 
       const results = stmt.all(...params);
-      const partialResults: PartialSearchResult[] = results.map((result: any) => {
-        const { id, type } = extractIdFromPrefixed(result.prefixed_id);
+      const partialResults: PartialSearchResult[] = (results as SqliteRow[]).map(result => {
+        const { id, type } = extractIdFromPrefixed(result.prefixed_id as string);
         return {
           id: Number(id),
           type: type as IndexType,
           source: "fts",
-          updateTime: result.update_time,
-          rank: result.rank,
-          chunkIndex: result.chunk_index,
+          updateTime: result.update_time as number,
+          rank: result.rank as number,
+          chunkIndex: result.chunk_index as number,
         };
       });
 

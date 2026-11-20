@@ -1,14 +1,15 @@
 import Database from "better-sqlite3";
 import { CreateWebLinkPayload, UpdateWebLinkPayload, WebLink, WebLinkSourceType } from "@/types";
+import type { SqliteRow } from "../../types/table";
 
 export default class WebLinkTable {
-  static parse(row: any): WebLink {
+  static parse(row: SqliteRow): WebLink {
     return {
-      id: row.id,
-      createTime: row.create_time,
-      updateTime: row.update_time,
-      title: row.title,
-      url: row.url,
+      id: row.id as number,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
+      title: row.title as string,
+      url: row.url as string,
       sourceType: row.source_type as WebLinkSourceType,
     };
   }
@@ -68,14 +69,16 @@ export default class WebLinkTable {
   }
 
   static getById(db: Database.Database, id: number): WebLink | null {
-    const row = db.prepare(`SELECT * FROM web_link WHERE id = ?`).get(id);
+    const row = db.prepare(`SELECT * FROM web_link WHERE id = ?`).get(id) as SqliteRow | undefined;
     return row ? this.parse(row) : null;
   }
 
   static listByIds(db: Database.Database, ids: number[]): WebLink[] {
     if (!ids.length) return [];
     const placeholders = ids.map(() => "?").join(",");
-    const rows = db.prepare(`SELECT * FROM web_link WHERE id IN (${placeholders})`).all(...ids);
+    const rows = db
+      .prepare(`SELECT * FROM web_link WHERE id IN (${placeholders})`)
+      .all(...ids) as SqliteRow[];
     return rows.map(row => this.parse(row));
   }
 

@@ -1,5 +1,5 @@
 /**
- * runtime 条目回收（M4-e）：空闲条目按最近使用保留上限；挂着的、在跑的、等待交互的、有队列/插话的
+ * runtime 条目回收：空闲条目按最近使用保留上限；挂着的、在跑的、等待交互的、有队列/插话的
  * 一律不回收；切库清掉全部空闲条目。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

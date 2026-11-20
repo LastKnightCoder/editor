@@ -117,21 +117,24 @@ export function describeQuickAdd(parsed: QuickAddResult, now: number): string {
     return `安排 · ${dateTimeWord(startDate + startTime * 60_000, now)}–${hm(startDate + endTime * 60_000)}`;
   }
   switch (parsed.type) {
-    case "recurring":
+    case "recurring": {
+      const recurrence = parsed.recurrence;
+      if (recurrence === null) return "普通任务";
       return `周期 · ${recurrenceText({
         id: 0,
         todoItemId: 0,
-        type: parsed.recurrence!.type,
+        type: recurrence.type,
         interval: 1,
-        weekdays: parsed.recurrence!.weekdays ?? null,
-        monthDay: parsed.recurrence!.monthDay ?? null,
+        weekdays: recurrence.weekdays ?? null,
+        monthDay: recurrence.monthDay ?? null,
         excludeHolidays: false,
         startDate: now,
         createTime: now,
         updateTime: now,
       })}`;
+    }
     case "deadline":
-      return `截止 · ${dateTimeWord(parsed.dueAt!, now)}`;
+      return parsed.dueAt === null ? "普通任务" : `截止 · ${dateTimeWord(parsed.dueAt, now)}`;
     default:
       return "普通任务";
   }

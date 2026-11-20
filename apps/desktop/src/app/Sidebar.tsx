@@ -1,5 +1,5 @@
 /**
- * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先（D-001）。
+ * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先。
  * 收起态由 shellStore 驱动条件类；拖宽时由 AppShell 传 resizing 关宽度过渡；Mac 信号灯由 isMac 条件渲染。
  */
 

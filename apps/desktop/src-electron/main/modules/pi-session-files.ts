@@ -1,8 +1,8 @@
 /**
- * pi 会话文件的直接读写（M4）：迁移器、改历史操作（编辑重发/重新生成/删消息/建分支/切版本）共用。
+ * pi 会话文件的直接读写：迁移器、改历史操作（编辑重发/重新生成/删消息/建分支/切版本）共用。
  * electron-free，可单测。
  *
- * 分支 = 会话树（M4-d）：一个对话一个文件，编辑重发、重新生成、从这里建分支都是在同一文件的
+ * 分支 = 会话树：一个对话一个文件，编辑重发、重新生成、从这里建分支都是在同一文件的
  * 树上分叉；同一位置的多条用户消息互为「版本」（messageVersionsOf），界面上 ‹ i/n › 切换。
  * 改树的操作都接收一个 SessionManager：宿主会话空闲时直接用它的（改完 refreshContext，
  * 会话授权不丢），没开着时由调用方 SessionManager.open。
@@ -15,14 +15,14 @@
  * - **叶子标记**（customType = desktop-leaf）：pi 加载文件时取**最后一条 entry** 为叶子，
  *   挪完叶子要追加一条不进上下文的 entry 把位置落盘，否则重开就回到了旧分支的末尾。
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { recordSyncIo } from "./perf-record";
 import {
   CURRENT_SESSION_VERSION,
   SessionManager,
-  parseSessionEntries,
+  type FileEntry,
   type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
@@ -49,8 +49,6 @@ export const sessionFileNameFor = (sessionId: string, at = new Date()) =>
 
 const shortId = () => randomUUID().replace(/-/g, "").slice(0, 8);
 
-type RawEntry = { type: string; id?: string; parentId?: string | null; [key: string]: unknown };
-
 /**
  * 直接写一个完整的会话文件（迁移器用）：消息按顺序成链，每条用户消息后跟一条展示 entry。
  * 不走 SessionManager.appendMessage——它要等第一条 assistant 消息才落盘，只有用户消息的
@@ -65,7 +63,7 @@ export function writeSessionFile(options: {
 }): string {
   mkdirSync(options.sessionDir, { recursive: true });
   const fileName = sessionFileNameFor(options.sessionId, new Date(options.createdAt));
-  const lines: RawEntry[] = [
+  const lines: FileEntry[] = [
     {
       type: "session",
       version: CURRENT_SESSION_VERSION,
@@ -245,7 +243,7 @@ export function messageVersionsOf(
 const TREE_TEXT_LIMIT = 80;
 
 /**
- * 会话树 → 只含用户消息的精简树（M4-d 树谱视图）。结构性 entry、回答、工具结果都折叠：
+ * 会话树 → 只含用户消息的精简树（树谱视图）。结构性 entry、回答、工具结果都折叠：
  * 节点的父 = 最近的**用户消息**祖先；回答计到它前面那条用户消息上。
  * 删除判定按**当前路径**上的省略（省略只作用于它所在的分支，别的分支上的节点不淡化）。
  */
@@ -343,7 +341,7 @@ export const INTERRUPTED_TOOL_RESULT =
   "应用重启，这次工具调用已中断，没有执行结果。需要的话请重新发起。";
 
 /**
- * 重开会话时收尾悬挂的工具调用（M4-e，用户裁决：审批与提问都标为已中断）：主进程重启前停在「等待审批 /
+ * 重开会话时收尾悬挂的工具调用（审批与提问都标为已中断）：主进程重启前停在「等待审批 /
  * 等待作答 / 执行中」的调用，文件里只有带 toolCall 的 assistant message、没有 toolResult。
  * pi-ai 发请求时会临时补一个 "No result provided" 错误结果让对话能继续，但它**不落盘**——
  * 工具卡永远停在等待中。这里在当前路径末尾给每个缺结果的调用写一条 isError 的 toolResult 并落盘，
@@ -378,7 +376,8 @@ export function closeDanglingToolCalls(manager: SessionManager): number {
       .filter(entry => entry.type === "message")
       .map(entry => (entry as { message: { role?: string; toolCallId?: string } }).message)
       .filter(message => message.role === "toolResult" && message.toolCallId)
-      .map(message => message.toolCallId!)
+      .map(message => message.toolCallId)
+      .filter((id): id is string => id !== undefined)
   );
   const dangling = calls.filter(call => !answered.has(call.id));
   for (const call of dangling) {
@@ -389,7 +388,7 @@ export function closeDanglingToolCalls(manager: SessionManager): number {
       content: [{ type: "text", text: INTERRUPTED_TOOL_RESULT }],
       isError: true,
       timestamp: Date.now(),
-    } as never);
+    });
   }
   if (dangling.length > 0) ensureFlushed(manager);
   return dangling.length;
@@ -420,17 +419,4 @@ function ensureFlushed(manager: SessionManager): void {
   writeFileSync(file, content, { flag: "wx" });
   recordSyncIo(`write:${file}`, content.length, Date.now() - syncIoStart);
   manager.setSessionFile(file);
-}
-
-/** 解析会话文件（纯读，供测试与诊断） */
-export function readSessionEntries(sessionFile: string): RawEntry[] {
-  const syncIoStart = Date.now();
-  const raw = readFileSync(sessionFile, "utf8");
-  recordSyncIo(`read:${sessionFile}`, raw.length, Date.now() - syncIoStart);
-  return parseSessionEntries(raw) as unknown as RawEntry[];
-}
-
-/** 追加一行原始 entry（测试辅助：模拟外部写入） */
-export function appendRawEntry(sessionFile: string, entry: RawEntry): void {
-  appendFileSync(sessionFile, `${JSON.stringify(entry)}\n`);
 }

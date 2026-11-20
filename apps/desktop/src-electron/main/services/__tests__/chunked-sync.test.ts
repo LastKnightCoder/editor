@@ -32,6 +32,7 @@ import {
   encodeSessionList,
   uploadChunkedFile,
 } from "@tau/db-schema/sync-protocol";
+import { must } from "../../test-support";
 let root: string;
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), "tau-chunked-"));
@@ -299,7 +300,7 @@ it.skipIf(process.platform === "win32")("目录、符号链接与缺失文件不
 it.runIf(Boolean(process.env.TAU_CHUNK_INTEROP_DIR))(
   "跨语言导出 TypeScript 分块并读取 Rust 分块",
   async () => {
-    const directory = process.env.TAU_CHUNK_INTEROP_DIR!;
+    const directory = must(process.env.TAU_CHUNK_INTEROP_DIR, "process.env.TAU_CHUNK_INTEROP_DIR");
     await mkdir(directory, { recursive: true });
     const store = {
       uploadFile: async (name: string, bytes: Uint8Array) => {
@@ -334,7 +335,7 @@ it("重传复用已有块，损坏内容由下载校验拒绝", async () => {
   };
   const store = {
     fileExists: async (name: string) => files.has(name),
-    downloadFile: async (name: string) => files.get(name)!,
+    downloadFile: async (name: string) => must(files.get(name), "files.get(name)"),
     uploadFile: async (name: string, bytes: Uint8Array) => {
       if (!failed && bytes.length === 1) {
         failed = true;

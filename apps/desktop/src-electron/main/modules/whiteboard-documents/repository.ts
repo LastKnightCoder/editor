@@ -83,7 +83,9 @@ export class WhiteboardDocumentRepository {
       | undefined;
     if (!row) return null;
     if (row.content_created_at !== row.create_time) throw new Error("白板页面身份已变化");
-    return { document: this.read(row.document_id)!, pageId: row.page_id };
+    const document = this.read(row.document_id);
+    if (!document) throw new Error(`白板文档读取失败：${row.document_id}`);
+    return { document, pageId: row.page_id };
   }
   /** 按标题检索整块白板（关键词为空时按最近更新），跳过 excluded 中的文档。 */
   shareCandidates(keyword: string, excluded: string[], limit: number) {
@@ -166,7 +168,9 @@ export class WhiteboardDocumentRepository {
         epoch: 0,
       };
       this.writeProjection(identity, model, 0, hash);
-      return this.read(documentId)!;
+      const created = this.read(documentId);
+      if (!created) throw new Error(`白板文档写入后读取失败：${documentId}`);
+      return created;
     })();
   }
   project(value: JournalDocument, model: WhiteboardModel): void {
@@ -312,7 +316,9 @@ export class WhiteboardDocumentRepository {
             )
             .run(target.documentId, row.page_id);
       }
-      return this.read(target.documentId)!;
+      const installed = this.read(target.documentId);
+      if (!installed) throw new Error(`白板文档写入后读取失败：${target.documentId}`);
+      return installed;
     })();
   }
   private writeProjection(
@@ -325,7 +331,8 @@ export class WhiteboardDocumentRepository {
       snapshot = model.read(),
       state = Y.encodeStateAsUpdate(model.doc);
     if (stateHash(state) !== hash) throw new Error("白板候选修订不匹配");
-    const document = this.read(identity.documentId)!;
+    const document = this.read(identity.documentId);
+    if (!document) throw new Error(`白板文档读取失败：${identity.documentId}`);
     const prior = db
       .prepare("SELECT * FROM whiteboard_entity_relations WHERE document_id=?")
       .all(identity.documentId) as {

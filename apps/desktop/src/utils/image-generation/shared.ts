@@ -40,7 +40,7 @@ const mimeTypeFromExtension = (extension: string) =>
 
 // ====================== Public utilities ======================
 
-export const parseDataUrl = (value: string) => {
+const parseDataUrl = (value: string) => {
   const match = value.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i);
   if (!match) {
     throw new Error("仅支持 png、jpeg、webp 格式的 data URL 图片");
@@ -79,7 +79,7 @@ export const createImageFile = (
   return file;
 };
 
-export const fetchRemoteImage = async (url: string, signal?: AbortSignal) => {
+const fetchRemoteImage = async (url: string, signal?: AbortSignal) => {
   const response = await desktopFetch(url, { signal });
   if (!response.ok) {
     await response.body?.cancel();

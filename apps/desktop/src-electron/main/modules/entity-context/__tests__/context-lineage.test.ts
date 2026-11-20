@@ -3,22 +3,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
+vi.mock("electron");
 
 // 切断 tables → database 模块的循环依赖链
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 
 import EntityLineageTable from "../../tables/entity-lineage";
 import ExcerptTable from "../../tables/excerpt";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { reconcileWhiteboardRefs } from "../whiteboard-indexer";
+import { must } from "../../../test-support";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -96,7 +91,10 @@ const reindex = async () => {
   await reconcileWhiteboardRefs(mainDb, indexDb);
 };
 const contextOf = (kind: "card" | "project-item", id: number) =>
-  getEntityContext(mainDb, indexDb, { kind, id })!;
+  must(
+    getEntityContext(mainDb, indexDb, { kind, id }),
+    "getEntityContext(mainDb, indexDb, { kind, id })"
+  );
 
 beforeEach(() => {
   mainDb = new Database(":memory:");
@@ -332,7 +330,7 @@ describe("被使用", () => {
       { id: "c", type: "document", entityRef: { kind: "card", id: cardId } },
     ]);
     const host = insertContent([
-      { type: "whiteboard", whiteBoardContentId: embedded, children: [text("")] },
+      { type: "whiteboard", whiteboardContentId: embedded, children: [text("")] },
     ]);
     const hostItem = insertProjectItem("架构说明", host);
     await reindex();

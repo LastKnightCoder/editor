@@ -11,6 +11,7 @@ import { CollaborationLocalStore } from "../local-store";
 import { ContentLocalState } from "../content-local-state";
 import { registerCollaborationIpc } from "../ipc-controller";
 import type { CollaborationIpcContext, RuntimeSession } from "../types";
+import { must } from "../../../test-support";
 
 const handlers = vi.hoisted(() => new Map<string, (...args: any[]) => any>());
 vi.mock("electron", () => ({
@@ -80,7 +81,10 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
   const event = { sender: { id: 1 } };
-  const snapshot = await handlers.get("collaboration:subscribe")!(event, "room", "view");
+  const snapshot = await must(
+    handlers.get("collaboration:subscribe"),
+    "handlers.get('collaboration:subscribe')"
+  )(event, "room", "view");
   expect(snapshot.documentIdentity).toEqual({
     documentId: "stable",
     baselineId: "base",
@@ -91,12 +95,22 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
   expect(handlers.has("collaboration:private-node")).toBe(false);
   expect(handlers.has("collaboration:set-tab-active")).toBe(false);
   expect(
-    handlers.get("collaboration:node-view")!(event, "view", "tabs", { activeKey: "second" })
+    must(handlers.get("collaboration:node-view"), "handlers.get('collaboration:node-view')")(
+      event,
+      "view",
+      "tabs",
+      { activeKey: "second" }
+    )
   ).toEqual({ activeKey: "second" });
   expect(() =>
-    handlers.get("collaboration:node-view")!({ sender: { id: 2 } }, "view", "tabs", {
-      activeKey: "other",
-    })
+    must(handlers.get("collaboration:node-view"), "handlers.get('collaboration:node-view')")(
+      { sender: { id: 2 } },
+      "view",
+      "tabs",
+      {
+        activeKey: "other",
+      }
+    )
   ).toThrow("视图");
   expect(Y.encodeStateAsUpdate(doc)).toEqual(before);
   cache.db.close();
@@ -105,11 +119,16 @@ it("本机视图经真实 IPC 和协作库保存，重开保留且不产生文�
   context.store = cache;
   context.contentState = state;
   registerCollaborationIpc(context);
-  expect((await handlers.get("collaboration:subscribe")!(event, "room", "next")).nodeViews).toEqual(
-    {
-      tabs: { activeKey: "second" },
-    }
-  );
+  expect(
+    (
+      await must(
+        handlers.get("collaboration:subscribe"),
+        "handlers.get('collaboration:subscribe')"
+      )(event, "room", "next")
+    ).nodeViews
+  ).toEqual({
+    tabs: { activeKey: "second" },
+  });
 });
 
 it("共享资源转换绑定视图，公网地址不触发上传，本地资产排队且迟到结果不放行", async () => {
@@ -142,37 +161,49 @@ it("共享资源转换绑定视图，公网地址不触发上传，本地资产�
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
   expect(handlers.has("collaboration:upload-resource")).toBe(false);
-  const prepare = handlers.get("collaboration:prepare-resource")!;
+  const prepare = must(
+    handlers.get("collaboration:prepare-resource"),
+    "handlers.get('collaboration:prepare-resource')"
+  );
   const event = { sender: { id: 1 } };
   const remote = "https://images.test/compressed.webp";
   await expect(prepare({ sender: { id: 2 } }, "view", remote)).rejects.toThrow("视图");
   expect(shareReference).not.toHaveBeenCalled();
   await expect(prepare(event, "view", remote)).resolves.toBe(remote);
   expect(flushResources).not.toHaveBeenCalled();
-  expect(session.provider!.detach).not.toHaveBeenCalled();
+  expect(must(session.provider, "session.provider").detach).not.toHaveBeenCalled();
 
   const local = "~/.editor/resources/compressed.webp";
   shareReference.mockResolvedValueOnce("tau-collab-asset:queued");
   hasPending.mockReturnValueOnce(true);
   await expect(prepare(event, "view", local)).resolves.toBe("tau-collab-asset:queued");
   expect(shareReference).toHaveBeenLastCalledWith("https://collab.test", "room", local, "", true);
-  expect(session.provider!.detach).toHaveBeenCalledTimes(1);
+  expect(must(session.provider, "session.provider").detach).toHaveBeenCalledTimes(1);
   expect(flushResources).toHaveBeenCalledTimes(1);
 
   session.info.role = "editor";
   await expect(prepare(event, "view", remote)).rejects.toThrow("成员图片");
   const file = { name: "member.png", mime: "image/png", bytes: new Uint8Array([1, 2, 3]) };
   await expect(
-    handlers.get("collaboration:upload-shared-resource")!(event, "view", file)
+    must(
+      handlers.get("collaboration:upload-shared-resource"),
+      "handlers.get('collaboration:upload-shared-res..."
+    )(event, "view", file)
   ).resolves.toBe("tau-collab-asset:member");
   expect(enqueue).toHaveBeenCalledWith("room", file);
   session.info.role = "owner";
   await expect(
-    handlers.get("collaboration:upload-shared-resource")!(event, "view", file)
+    must(
+      handlers.get("collaboration:upload-shared-resource"),
+      "handlers.get('collaboration:upload-shared-res..."
+    )(event, "view", file)
   ).rejects.toThrow("作者图片");
   const video = { ...file, name: "clip.mp4", mime: "video/mp4" };
   await expect(
-    handlers.get("collaboration:upload-shared-resource")!(event, "view", video)
+    must(
+      handlers.get("collaboration:upload-shared-resource"),
+      "handlers.get('collaboration:upload-shared-res..."
+    )(event, "view", video)
   ).resolves.toBe("tau-collab-local:video");
   expect(keepLocalFile).toHaveBeenCalledWith("room", video);
   expect(enqueue).toHaveBeenCalledTimes(1);
@@ -204,7 +235,10 @@ it("粘贴中的本地文件必须属于真实来源正文，不能借图片契�
   } as unknown as CollaborationIpcContext;
   registerCollaborationIpc(context);
   await expect(
-    handlers.get("collaboration:prepare-fragment")!(
+    must(
+      handlers.get("collaboration:prepare-fragment"),
+      "handlers.get('collaboration:prepare-fragment')"
+    )(
       { sender: { id: 1 } },
       "view",
       "forged-source",

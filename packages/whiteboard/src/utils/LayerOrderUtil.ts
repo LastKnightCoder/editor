@@ -207,12 +207,14 @@ export const getLayerOrderActionState = (
   ACTIONS.forEach(action => {
     plans.set(action, buildPlan(board, targets, action));
   });
+  // plans 由 ACTIONS 预填；取不到时按禁用处理，避免越权操作
+  const disabled = (action: LayerOrderAction) => plans.get(action)?.disabled ?? true;
 
   return {
-    moveUpDisabled: plans.get("move-up")!.disabled,
-    moveDownDisabled: plans.get("move-down")!.disabled,
-    moveTopDisabled: plans.get("move-top")!.disabled,
-    moveBottomDisabled: plans.get("move-bottom")!.disabled,
+    moveUpDisabled: disabled("move-up"),
+    moveDownDisabled: disabled("move-down"),
+    moveTopDisabled: disabled("move-top"),
+    moveBottomDisabled: disabled("move-bottom"),
   };
 };
 

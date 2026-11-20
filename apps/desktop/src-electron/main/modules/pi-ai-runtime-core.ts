@@ -1,4 +1,9 @@
-import { catalogCostOf, isCustomPriced, toPiModel } from "@tau/ai/models";
+import {
+  catalogCostOf,
+  isCustomPriced,
+  normalizePiBuiltinProvider,
+  toPiModel,
+} from "@tau/ai/models";
 import { isSupportedModel, toCatalogModel } from "@tau/ai/catalog";
 export {
   catalogCostOf,
@@ -79,7 +84,7 @@ async function getCatalogRuntime(): Promise<ModelRuntimeLike | null> {
 
 /** 解析 provider 的 builtin 标识：显式设置优先，否则按 baseUrl 匹配内置目录（官方域名确定性映射） */
 export async function resolveBuiltinId(setting: LLMProviderSetting): Promise<string | undefined> {
-  if (setting.builtin) return setting.builtin;
+  if (setting.builtin) return normalizePiBuiltinProvider(setting.builtin);
   const runtime = await getCatalogRuntime();
   if (!runtime) return undefined;
   const normalized = setting.baseUrl.replace(/\/+$/, "").toLowerCase();
@@ -119,7 +124,7 @@ export async function listCatalogModels(builtinId: string): Promise<PiCatalogMod
   const runtime = await getCatalogRuntime();
   if (!runtime) return [];
   return runtime
-    .getModels(builtinId)
+    .getModels(normalizePiBuiltinProvider(builtinId))
     .filter(isSupportedModel)
     .map(toCatalogModel)
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -159,7 +164,7 @@ export async function lookupBuiltinModel(
   modelId: string
 ): Promise<Model<Api> | undefined> {
   const runtime = await getCatalogRuntime();
-  return runtime?.getModel(builtin, modelId);
+  return runtime?.getModel(normalizePiBuiltinProvider(builtin), modelId);
 }
 
 /** 某已配置模型的目录单价（目录外服务商 / 模型、或目录无价格时为 undefined） */
@@ -236,7 +241,7 @@ export async function buildPiProvider(setting: LLMProviderSetting): Promise<Prov
       },
     },
     models,
-    api: API_STREAMS[setting.api],
+    api: API_STREAMS,
   });
 }
 

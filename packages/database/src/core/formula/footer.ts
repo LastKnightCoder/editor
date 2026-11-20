@@ -18,7 +18,7 @@ const isEmptyRaw = (raw: unknown) =>
   raw === undefined || raw === null || raw === "" || (Array.isArray(raw) && raw.length === 0);
 
 /** 一列的汇总；输入行应为投影后（筛选后）的行；算子经登记表求值（内置与扩展同路径） */
-export function aggregateColumn(
+function aggregateColumn(
   columnId: string,
   op: string,
   rows: readonly Record<string, unknown>[],

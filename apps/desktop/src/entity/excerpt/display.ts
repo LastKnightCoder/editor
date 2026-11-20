@@ -13,7 +13,7 @@ const hostOf = (url: string) => {
 };
 
 /** 来源名：标题，缺省时用外链或来源键的域名 */
-export const excerptSourceName = (excerpt: Pick<Excerpt, "sourceTitle" | "sourceKey" | "url">) =>
+const excerptSourceName = (excerpt: Pick<Excerpt, "sourceTitle" | "sourceKey" | "url">) =>
   excerpt.sourceTitle.trim() ||
   hostOf(excerpt.url ?? "") ||
   hostOf(excerpt.sourceKey) ||

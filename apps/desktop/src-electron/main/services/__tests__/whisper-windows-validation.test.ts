@@ -8,11 +8,17 @@ const state = vi.hoisted(() => ({
   cancel: undefined as (() => void) | undefined,
 }));
 vi.mock("electron", () => ({
-  app: { getPath: () => process.env.TAU_ASR_USER_DATA!, getAppPath: () => process.cwd() },
+  app: {
+    getPath: () => must(process.env.TAU_ASR_USER_DATA, "process.env.TAU_ASR_USER_DATA"),
+    getAppPath: () => process.cwd(),
+  },
   shell: { openPath: vi.fn() },
 }));
 vi.mock("../../utils/FfmpegService", () => ({
-  default: { ensureFluentFfmpegPath: async () => process.env.TAU_ASR_FFMPEG! },
+  default: {
+    ensureFluentFfmpegPath: async () =>
+      must(process.env.TAU_ASR_FFMPEG, "process.env.TAU_ASR_FFMPEG"),
+  },
 }));
 vi.mock("../asr-process", async importOriginal => {
   const original = await importOriginal<typeof import("../asr-process")>();
@@ -20,7 +26,7 @@ vi.mock("../asr-process", async importOriginal => {
     ...original,
     runASRProcess: async (...args: Parameters<typeof original.runASRProcess>) => {
       const normalizing = args[0] === process.env.TAU_ASR_FFMPEG;
-      const input = args[1].at(-1)!;
+      const input = must(args[1].at(-1), "args[1].at(-1)");
       state.directories.add(path.dirname(input));
       if (!normalizing) {
         const wav = await readFile(input);
@@ -40,6 +46,7 @@ vi.mock("../asr-process", async importOriginal => {
   };
 });
 import { TranscriptionService } from "../whisper-engine";
+import { must } from "../../test-support";
 
 describe.skipIf(process.platform !== "win32" || !process.env.TAU_ASR_FIXTURE)(
   "Windows Whisper 真实程序验证",
@@ -54,10 +61,13 @@ describe.skipIf(process.platform !== "win32" || !process.env.TAU_ASR_FIXTURE)(
         state.directories.clear();
         const engine = new TranscriptionService();
         const started = performance.now();
-        const result = await engine.transcribe(process.env.TAU_ASR_FIXTURE!, {
-          language: "zh",
-          ...options,
-        });
+        const result = await engine.transcribe(
+          must(process.env.TAU_ASR_FIXTURE, "process.env.TAU_ASR_FIXTURE"),
+          {
+            language: "zh",
+            ...options,
+          }
+        );
         const normalizedText = result.text.replace(/[\s，。！？、,.!?]/g, "");
         const tailComplete = normalizedText.endsWith("春夏秋冬雨");
         console.log(
@@ -77,7 +87,7 @@ describe.skipIf(process.platform !== "win32" || !process.env.TAU_ASR_FIXTURE)(
         const cancelStarted = performance.now();
         await expect(
           engine.transcribe(
-            process.env.TAU_ASR_FIXTURE!,
+            must(process.env.TAU_ASR_FIXTURE, "process.env.TAU_ASR_FIXTURE"),
             { language: "zh", ...options },
             undefined,
             controller.signal

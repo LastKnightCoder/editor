@@ -10,9 +10,7 @@ vi.mock("electron", () => ({
   app: { getPath: () => "/tmp" },
 }));
 vi.mock("electron-log", () => ({ default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 vi.mock("../database", () => ({ default: {} }));
 vi.mock("../pi-ai-runtime", () => ({ default: {} }));
 vi.mock("../user-setting", () => ({ default: {} }));
@@ -44,6 +42,7 @@ import {
   mapGroups,
   pairCandidates,
 } from "../topic-insights-candidates";
+import { must } from "../../test-support";
 
 const DIM = 8;
 const SLOT = { providerId: "deepseek", modelId: "flash" };
@@ -205,7 +204,7 @@ describe("topic-insights 分层阅读", () => {
   const count = (system: string) => calls.filter(call => call.system === system).length;
   const run = (force = false) => {
     calls = [];
-    const map = KnowledgeMapTable.load(index)!;
+    const map = must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)");
     return analyzeKnowledge(deps, buildContext(main, index, map), SLOT, { force });
   };
 
@@ -248,7 +247,7 @@ describe("topic-insights 分层阅读", () => {
   });
 
   it("候选：分组、生长、相近对排除已连接并限制每份出现次数", () => {
-    const map = KnowledgeMapTable.load(index)!;
+    const map = must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)");
     const groups = mapGroups(map, KnowledgeMapTable.listEntities(main));
     expect(groups.map(topic => [topic.label, topic.groups.map(group => group.label)])).toEqual([
       ["JavaScript", ["事件循环", "闭包"]],
@@ -280,7 +279,10 @@ describe("topic-insights 分层阅读", () => {
     ]).toEqual([3, 2, 1]);
     const topics = KnowledgeAiInsightsTable.list(main, "topic");
     const subtopics = KnowledgeAiInsightsTable.list(main, "subtopic");
-    const js = topics.find(row => row.label === "JavaScript")!;
+    const js = must(
+      topics.find(row => row.label === "JavaScript"),
+      "topics.find(row => row.label === 'JavaScript')"
+    );
     expect(
       subtopics
         .filter(row => row.parentId === js.id)
@@ -291,8 +293,14 @@ describe("topic-insights 分层阅读", () => {
     expect(js.result.marks.map(mark => mark.kind)).toEqual(["dup", "gap"]);
     expect(js.result.growth).toHaveLength(12);
 
-    const closure = subtopics.find(row => row.label === "闭包")!;
-    const article = closure.result.marks[0].ends.find(end => end.ref.kind === "article")!;
+    const closure = must(
+      subtopics.find(row => row.label === "闭包"),
+      "subtopics.find(row => row.label === '闭包')"
+    );
+    const article = must(
+      closure.result.marks[0].ends.find(end => end.ref.kind === "article"),
+      "closure.result.marks[0].ends.find(end => end...."
+    );
     expect(article).toMatchObject({ anchor: "词法环境", block: 1 });
 
     const global = KnowledgeAiInsightsTable.list(main, "global")[0];
@@ -301,16 +309,25 @@ describe("topic-insights 分层阅读", () => {
     expect(bridge.kind).toBe("bridge");
     expect(bridge.text).toBe("共同的道理");
     expect(new Set(bridge.ends.map(end => end.topic))).toEqual(new Set(["JavaScript", "学习方法"]));
-    expect(calls.find(call => call.system === GLOBAL_SYSTEM_PROMPT)!.prompt).toContain("候选呼应");
+    expect(
+      must(
+        calls.find(call => call.system === GLOBAL_SYSTEM_PROMPT),
+        "calls.find(call => call.system === GLOBAL_SYS..."
+      ).prompt
+    ).toContain("候选呼应");
   });
 
   it("长文片段对不上原文就丢掉，标记照留", async () => {
     anchorReply = "原文里没有这句";
     await run();
-    const closure = KnowledgeAiInsightsTable.list(main, "subtopic").find(
-      row => row.label === "闭包"
-    )!;
-    const article = closure.result.marks[0].ends.find(end => end.ref.kind === "article")!;
+    const closure = must(
+      KnowledgeAiInsightsTable.list(main, "subtopic").find(row => row.label === "闭包"),
+      "闭包 subtopic"
+    );
+    const article = must(
+      closure.result.marks[0].ends.find(end => end.ref.kind === "article"),
+      "closure.result.marks[0].ends.find(end => end...."
+    );
     expect(article.anchor).toBeUndefined();
   });
 
@@ -324,9 +341,10 @@ describe("topic-insights 分层阅读", () => {
     const outcome = await run();
     expect(outcome).toMatchObject({ subtopics: 1, topics: 1, global: false });
     expect(calls[0].prompt).toContain("上一次的概述：子主题概述");
-    const loop = KnowledgeAiInsightsTable.list(main, "subtopic").find(
-      row => row.label === "事件循环"
-    )!;
+    const loop = must(
+      KnowledgeAiInsightsTable.list(main, "subtopic").find(row => row.label === "事件循环"),
+      "事件循环 subtopic"
+    );
     expect(loop.increments).toBe(1);
 
     now += HOUR;
@@ -342,7 +360,10 @@ describe("topic-insights 分层阅读", () => {
       await run();
     }
     const loop = () =>
-      KnowledgeAiInsightsTable.list(main, "subtopic").find(row => row.label === "事件循环")!;
+      must(
+        KnowledgeAiInsightsTable.list(main, "subtopic").find(row => row.label === "事件循环"),
+        "KnowledgeAiInsightsTable.list(main, 'subtopic..."
+      );
     expect(loop().increments).toBe(3);
     now += 4 * HOUR;
     setMeta("c1", "第 4 次");
@@ -355,8 +376,14 @@ describe("topic-insights 分层阅读", () => {
   it("不相关的标记重新生成后不再出现", async () => {
     await run();
     const js = () =>
-      KnowledgeAiInsightsTable.list(main, "topic").find(row => row.label === "JavaScript")!;
-    const dup = js().result.marks.find(mark => mark.kind === "dup")!;
+      must(
+        KnowledgeAiInsightsTable.list(main, "topic").find(row => row.label === "JavaScript"),
+        "KnowledgeAiInsightsTable.list(main, 'topic')...."
+      );
+    const dup = must(
+      js().result.marks.find(mark => mark.kind === "dup"),
+      "js().result.marks.find(mark => mark.kind === ..."
+    );
     KnowledgeAiInsightsTable.setStatus(main, js().id, dup.id, "dismissed");
     now += HOUR;
     setMeta("c1", "改过的要点");
@@ -378,7 +405,11 @@ describe("topic-insights 分层阅读", () => {
         .map(row => row.id)
         .sort()
     ).toEqual(before);
-    const ctx = buildContext(main, index, KnowledgeMapTable.load(index)!);
+    const ctx = buildContext(
+      main,
+      index,
+      must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)")
+    );
     const payload = readKnowledgeInsights(ctx, main, { configured: true, running: false });
     expect(payload.topics.map(topic => [topic.label, topic.topicId]).sort()).toEqual([
       ["JavaScript", 5],
@@ -390,7 +421,7 @@ describe("topic-insights 分层阅读", () => {
 
   it("主题消失：对不上的旧行删掉；元信息覆盖率", async () => {
     await run();
-    const map = KnowledgeMapTable.load(index)!;
+    const map = must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)");
     KnowledgeMapTable.save(
       index,
       {
@@ -402,7 +433,11 @@ describe("topic-insights 分层阅读", () => {
       },
       "model-a"
     );
-    const ctx = buildContext(main, index, KnowledgeMapTable.load(index)!);
+    const ctx = buildContext(
+      main,
+      index,
+      must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)")
+    );
     expect(planInsights(ctx).orphans).toHaveLength(2);
     await run();
     expect(KnowledgeAiInsightsTable.list(main, "topic").map(row => row.label)).toEqual([
@@ -411,9 +446,15 @@ describe("topic-insights 分层阅读", () => {
     main
       .prepare(`DELETE FROM content_ai_meta WHERE content_id IN (?, ?)`)
       .run(contentIds.c1, contentIds.c2);
-    expect(metaCoverage(buildContext(main, index, KnowledgeMapTable.load(index)!))).toBeCloseTo(
-      6 / 8
-    );
+    expect(
+      metaCoverage(
+        buildContext(
+          main,
+          index,
+          must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)")
+        )
+      )
+    ).toBeCloseTo(6 / 8);
   });
 
   it("后台调用失败只跳过那一处；点按钮时直接报错", async () => {
@@ -421,7 +462,11 @@ describe("topic-insights 分层阅读", () => {
       now: () => now,
       complete: async () => ({ ok: false, text: "", error: "额度用尽" }),
     };
-    const ctx = buildContext(main, index, KnowledgeMapTable.load(index)!);
+    const ctx = buildContext(
+      main,
+      index,
+      must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)")
+    );
     const outcome = await analyzeKnowledge(failing, ctx, SLOT, { force: false });
     expect(outcome.failures).toBe(3);
     expect(KnowledgeAiInsightsTable.list(main)).toHaveLength(0);
@@ -483,7 +528,11 @@ describe("topic-insights 分层阅读", () => {
         return { ok: false, text: "", error: "额度用尽" };
       },
     };
-    const ctx = buildContext(main, index, KnowledgeMapTable.load(index)!);
+    const ctx = buildContext(
+      main,
+      index,
+      must(KnowledgeMapTable.load(index), "KnowledgeMapTable.load(index)")
+    );
     const outcome = await analyzeKnowledge(failing, ctx, SLOT, { force: false });
     expect(outcome.failures).toBe(3);
     expect(invoked).toBe(3);
@@ -531,9 +580,12 @@ describe("topic-insights 分层阅读", () => {
       setMeta(name, `${name} 的要点`, ["事件循环", "微任务", "宏任务"]);
     }
     await run();
-    expect(calls.find(call => call.system === GLOBAL_SYSTEM_PROMPT)!.prompt).toContain(
-      "候选呼应：无"
-    );
+    expect(
+      must(
+        calls.find(call => call.system === GLOBAL_SYSTEM_PROMPT),
+        "calls.find(call => call.system === GLOBAL_SYS..."
+      ).prompt
+    ).toContain("候选呼应：无");
     expect(
       conceptOverlap(["warnings 模块", "warn 函数"], ["warnings模块", "UserWarning"])
     ).toBeCloseTo(1 / 3);

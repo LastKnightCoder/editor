@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { must } from "../../test-support";
 
 const state = vi.hoisted(() => ({ dir: "", call: vi.fn() }));
 vi.mock("electron", () => ({ ipcMain: { handle: vi.fn() } }));
@@ -91,9 +92,13 @@ it("唯一的调用方取消时中止下载，不留下缓存文件与索引", a
     vi.fn(
       (_url: string, init?: RequestInit) =>
         new Promise<Response>((_resolve, reject) =>
-          init?.signal?.addEventListener("abort", () => reject(init.signal!.reason), {
-            once: true,
-          })
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(must(init.signal, "init.signal").reason),
+            {
+              once: true,
+            }
+          )
         )
     )
   );

@@ -6,6 +6,7 @@ import { useController, useEscLayer } from "./context";
 import { ChatTab } from "./ChatTab";
 import { AnnotationsTab } from "./AnnotationsTab";
 import { NoteTab } from "./NoteTab";
+import { SessionNav } from "./SessionNav";
 
 const DEFAULT_WIDTH = 400;
 const MIN_WIDTH = 340;
@@ -200,7 +201,7 @@ export function Panel() {
           <X size={16} strokeWidth={1.8} />
         </IconButton>
       </header>
-      <nav className="flex gap-[18px] px-4" aria-label="面板页签">
+      <nav className="relative flex gap-[18px] px-4" aria-label="面板页签">
         {TABS.map(item => (
           <button
             key={item.key}
@@ -221,6 +222,7 @@ export function Panel() {
             )}
           </button>
         ))}
+        {tab === "chat" && status === "ready" && <SessionNav />}
       </nav>
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === "chat" && <ChatTab />}
@@ -255,7 +257,7 @@ function SiteIcon() {
   );
 }
 
-export function MenuItem({
+function MenuItem({
   icon: Icon,
   onClick,
   children,

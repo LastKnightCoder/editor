@@ -1,5 +1,5 @@
 /**
- * 输入框左下的 ＋ 与它的添加面板（D-048 二轮）：面板从输入框外框（COMPOSER_ANCHOR_ATTR，
+ * 输入框左下的 ＋ 与它的添加面板：面板从输入框外框（COMPOSER_ANCHOR_ATTR，
  * 缺省为本组件所在输入区）上沿向上展开、与外框同宽；Portal 到 body + fixed 定位，
  * 不受对话列 overflow 裁剪。键盘 ↑↓ / Enter / Esc，外点关闭，关闭还焦 ＋。
  * 带 panel 的项选中后不关闭，而是在同一块面板里展开二级内容（顶部返回，Esc 回到列表）。
@@ -211,7 +211,7 @@ export function ComposerAddMenu({
                     setSubKey(null);
                     panelRef.current?.focus();
                   }}
-                  className="text-tau-sm text-ink-2 hover:text-ink-1 flex items-center gap-1 px-3 pb-0.5 pt-2.5 font-semibold"
+                  className="text-tau-sm text-ink-2 hover:text-ink-1 flex items-center gap-1 px-3 pt-2.5 pb-0.5 font-semibold"
                 >
                   <ChevronLeft className="size-3.5" strokeWidth={2} />
                   {subItem.label}

@@ -63,6 +63,7 @@ function renderEntry(
     .sort((a, b) => (childOrders.get(a) ?? 0) - (childOrders.get(b) ?? 0));
   if (!entry.command && children.length === 0) return null;
 
+  const command = entry.command;
   const item: ContextMenuItem = {
     key: entry.id,
     label: resolveMenuValue(entry.title, ctx) ?? entry.id,
@@ -70,8 +71,8 @@ function renderEntry(
     danger: entry.danger,
     disabled: entry.disabled ? safePredicate(entry.disabled, ctx, owner, true) : false,
     children: children.length ? children : undefined,
-    onSelect: entry.command
-      ? () => ctx.editor.commands?.execute(entry.command!, entry.payload, ctx.element, ctx.path)
+    onSelect: command
+      ? () => ctx.editor.commands?.execute(command, entry.payload, ctx.element, ctx.path)
       : undefined,
     owner,
   };

@@ -1,15 +1,15 @@
 /**
- * ConfirmDialog —— Dialog 的最薄语义预设：确认类对话一句话接线（D-011）。
+ * ConfirmDialog —— Dialog 的最薄语义预设：确认类对话一句话接线。
  *
  * 信息一处一责：标题讲动作、context 徽标记对象、description 讲事实、impact 念
- * 后果、按钮文案不带数量。danger 两档（D-011 用户裁决）：
+ * 后果、按钮文案不带数量。danger 两档：
  *  - 轻 danger：实心红主按钮 + 初始焦点落取消（回车不误触），一步确认
  *  - 真·不可逆：typeToConfirm 传对象名，输入匹配才解锁确认按钮（每次打开重置）
  *
  * 异步确认两种接法：
  *  - 推荐：onConfirm 返回 Promise（async 函数天然满足）——自动进入 loading，
  *    resolve 后自动关闭、reject 保持打开（错误留在原地处理）；loading 态封锁
- *    一切关闭路径，回执交 Toast（D-003 家族分工）
+ *    一切关闭路径，回执交 Toast
  *  - 受控：loading prop 由调用方管理（多步进度等），完成后自行把 open 置 false。
  *    注意不能在 onConfirm 里才 set loading——props 是渲染快照，同步路径会先按
  *    false 立即关闭（样板间首版即踩此竞态，故内建 Promise 感知）

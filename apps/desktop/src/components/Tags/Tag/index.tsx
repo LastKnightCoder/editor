@@ -4,7 +4,7 @@ import { Tag as TauTag, cn } from "@tau/ui";
 
 interface ITagProps {
   tag: ReactNode;
-  /** 兼容保留：D-021 裁决标签不迁图标，传值不生效 */
+  /** 兼容保留：标签不迁图标，传值不生效 */
   showIcon?: boolean;
   closable?: boolean;
   hoverAble?: boolean;

@@ -15,14 +15,8 @@ import {
   type ContentContractDictionary,
 } from "@tau/db-schema/content-contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 import {
   registerContentSession,
@@ -34,6 +28,7 @@ import { ContentIdentityTable } from "../../tables/content-identity";
 import type { RuntimeSession } from "../../collaboration/types";
 import { TaskAssistantEngine, readTask } from "../engine";
 import { readTaskContent, taskNode } from "../../content-task-patches";
+import { must } from "../../../test-support";
 
 const dispose: Array<() => void> = [];
 afterEach(() => {
@@ -120,7 +115,8 @@ async function fixture() {
         databaseName: "test",
         contentId: 1,
         contentCreatedAt: 100,
-        librarySourceId: ContentIdentityTable.library(db)!.sourceId,
+        librarySourceId: must(ContentIdentityTable.library(db), "ContentIdentityTable.library(db)")
+          .sourceId,
         contentDocumentId: saved.documentId,
         projectionRevision: saved.revision,
       },
@@ -164,7 +160,18 @@ describe("正文助理持久化", () => {
     expect(result.status).toBe("succeeded");
     expect(tree.record("untouched")).toBe(untouched);
     expect(readTask(db, ref).title).toBe("写方案草稿");
-    expect(taskNode(readTaskContent(db, 1, 100), "task")!.children![0].children![0]).toMatchObject({
+    expect(
+      must(
+        must(
+          must(
+            taskNode(readTaskContent(db, 1, 100), "task"),
+            "taskNode(readTaskContent(db, 1, 100), 'task')"
+          ).children,
+          "taskNode(readTaskContent(db, 1, 100), 'task')..."
+        )[0].children,
+        "taskNode(readTaskContent(db, 1, 100), 'task')..."
+      )[0]
+    ).toMatchObject({
       text: "写",
       bold: true,
     });

@@ -70,12 +70,12 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 const preload = path.join(__dirname, "../preload/index.js");
 
-// Disable GPU Acceleration for Windows 7
+// Windows 7（内核版本 6.1）下禁用 GPU 加速
 if (os.release().startsWith("6.1")) {
   app.disableHardwareAcceleration();
 }
 
-// Set application name for Windows 10+ notifications
+// Windows 10+ 的通知需要设置 AppUserModelID
 if (process.platform === "win32") {
   app.setAppUserModelId(app.getName());
 }

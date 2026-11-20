@@ -105,7 +105,7 @@ function aggregateRhythm(sessions: PomodoroSession[]): FocusRhythm {
   };
 }
 
-export async function fetchRetroSnapshot(range: RetroRange): Promise<RetroSnapshot> {
+async function fetchRetroSnapshot(range: RetroRange): Promise<RetroSnapshot> {
   const year = new Date().getFullYear();
   const now = Date.now();
 

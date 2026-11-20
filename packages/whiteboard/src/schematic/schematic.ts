@@ -31,7 +31,7 @@ const LINE = "var(--tau-line-2)";
 const MIN_VIEW_WIDTH = 900;
 const PADDING_RATIO = 0.08;
 
-type AnyElement = BoardElement & Record<string, any>;
+type AnyElement = BoardElement;
 
 const isColor = (value: unknown): value is string =>
   typeof value === "string" && value !== "" && value !== "none" && value !== "transparent";
@@ -77,7 +77,7 @@ export function parseFill(value: string): SchematicFill {
   parts.push(body.slice(start).trim());
 
   let angle = 180;
-  if (/^-?[\d.]+deg$/.test(parts[0])) angle = parseFloat(parts.shift()!);
+  if (/^-?[\d.]+deg$/.test(parts[0])) angle = parseFloat(parts.shift() ?? "180");
   const stops = parts
     .map((part, i, all) => {
       const m = /^(.*?)\s+(-?[\d.]+)%$/.exec(part);

@@ -21,8 +21,6 @@ export const getSkillReadme = async (skillPath: string): Promise<string | null> 
 export const getSkillTree = async (skillPath: string): Promise<string> =>
   invoke("skill:tree", skillPath);
 
-export const getSkillsDir = async (): Promise<string> => invoke("skill:get-skills-dir");
-
 export const readSkillFile = async (filePath: string): Promise<string> =>
   invoke("skill:read-file", filePath);
 

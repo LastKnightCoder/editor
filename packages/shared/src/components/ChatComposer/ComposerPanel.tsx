@@ -1,5 +1,5 @@
 /**
- * 输入框上沿面板的外观件（D-048 二轮，mockups/chat/composer.html「浮起卡片」）：
+ * 输入框上沿面板的外观件（「浮起卡片」）：
  * ＋ 添加面板与 @ 引用面板共用——从输入框上沿向上展开、与输入框同宽，
  * surface + line-1 + shadow-float，分组小标题 + 「图标方块 · 名称 · 淡墨说明」行，
  * 底部一行键位提示（淡纸色托底，不用分隔线）。只管长相，定位 / 键盘由使用方负责。
@@ -30,7 +30,7 @@ export const ComposerPanel = forwardRef<HTMLDivElement, ComponentProps<"div">>(
 
 export function ComposerPanelGroup({ children }: { children: ReactNode }) {
   return (
-    <div className="text-tau-sm text-ink-3 px-2.5 pb-1 pt-2 font-semibold first:pt-1.5">
+    <div className="text-tau-sm text-ink-3 px-2.5 pt-2 pb-1 font-semibold first:pt-1.5">
       {children}
     </div>
   );
@@ -73,7 +73,7 @@ export const ComposerPanelItem = forwardRef<
       <span className="border-line-1 bg-surface text-ink-2 grid size-[26px] shrink-0 place-items-center rounded-[8px] border [&_svg]:size-3.5">
         {icon}
       </span>
-      <span className="min-w-0 max-w-[65%] shrink-0 truncate">{label}</span>
+      <span className="max-w-[65%] min-w-0 shrink-0 truncate">{label}</span>
       {description && (
         <span className="text-tau-sm text-ink-3 min-w-0 flex-1 truncate">{description}</span>
       )}

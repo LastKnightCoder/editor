@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { CardWallList } from "../components/CardWallList";
-import { ContentPreivew } from "@/components/ContentPreivew";
+import { ContentPreview } from "@/components/ContentPreview";
 import { type ICard } from "@/types/card";
 import type { CardItemActions } from "../types";
 
@@ -65,7 +65,7 @@ it("静态摘要保留文字格式与引用标题，不加载媒体，并限制�
   const host = document.createElement("div");
   const root = createRoot(host);
   const render = async (content: unknown[]) => {
-    await act(async () => root.render(<ContentPreivew content={content as ICard["content"]} />));
+    await act(async () => root.render(<ContentPreview content={content as ICard["content"]} />));
   };
   try {
     await render([

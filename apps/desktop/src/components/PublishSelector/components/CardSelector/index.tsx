@@ -24,7 +24,6 @@ export const CardSelector = memo<CardSelectorProps>(
     const [previewCard, setPreviewCard] = useState<CardListItem | null>(null);
     const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
 
-    // 获取当前选中标签节点
     const activeNode = useMemo(() => {
       if (!activeTagId) return tree[0] || null;
       const findNode = (nodes: CardTagNode[]): CardTagNode | null => {
@@ -38,7 +37,6 @@ export const CardSelector = memo<CardSelectorProps>(
       return findNode(tree);
     }, [tree, activeTagId]);
 
-    // 获取当前标签下所有卡片
     const currentCards = useMemo(() => {
       if (!activeNode) return [];
       const cards = collectCardsFromTagNode(activeNode);
@@ -63,7 +61,6 @@ export const CardSelector = memo<CardSelectorProps>(
       );
     }, [filteredItems, selectionFilter, isItemSelected]);
 
-    // 检查是否全选
     const allSelected = useMemo(() => {
       return displayCards.length > 0 && displayCards.every(card => isItemSelected("card", card.id));
     }, [displayCards, isItemSelected]);
@@ -74,7 +71,6 @@ export const CardSelector = memo<CardSelectorProps>(
       onToggleTagCards(activeNode, !allSelected);
     }, [activeNode, allSelected, onToggleTagCards]);
 
-    // 关闭预览弹窗
     const handleClosePreview = useCallback(() => {
       setPreviewCard(null);
     }, []);
@@ -83,7 +79,7 @@ export const CardSelector = memo<CardSelectorProps>(
       <>
         <div className="flex h-full min-h-0">
           {/* 左侧：标签树（窄） */}
-          <div className="flex w-48 shrink-0 flex-col pl-1 pt-3.5">
+          <div className="flex w-48 shrink-0 flex-col pt-3.5 pl-1">
             <div className="text-ink-3 shrink-0 px-3 pb-1.5 text-[11.5px] font-medium">标签</div>
             <FadeScroll className="mb-3 min-h-0 flex-1 pb-1">
               {tree.length === 0 ? (

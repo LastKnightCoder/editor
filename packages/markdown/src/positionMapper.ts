@@ -143,12 +143,17 @@ export class PositionMapper {
     // 3.2 限制在有效范围内
     const clampedOffset = Math.max(0, Math.min(relativeOffset, textMapping.slateLength));
     if (textMapping.sourceLines) {
-      const line = textMapping.sourceLines.findLast(line => line.offset <= clampedOffset);
-      if (line)
-        return {
-          line: line.line,
-          ch: line.ch + Math.min(line.length, clampedOffset - line.offset),
-        };
+      // lib 上限 ES2022 无 findLast（ES2023），改为从尾向头的等价遍历
+      const sourceLines = textMapping.sourceLines;
+      for (let i = sourceLines.length - 1; i >= 0; i--) {
+        const sourceLine = sourceLines[i];
+        if (sourceLine.offset <= clampedOffset) {
+          return {
+            line: sourceLine.line,
+            ch: sourceLine.ch + Math.min(sourceLine.length, clampedOffset - sourceLine.offset),
+          };
+        }
+      }
     }
     if (textMapping.opaque) {
       return clampedOffset > 0 && clampedOffset === textMapping.slateLength && textMapping.mdEnd

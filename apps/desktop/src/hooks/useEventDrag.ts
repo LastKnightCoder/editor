@@ -16,7 +16,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-export const DRAG_THRESHOLD = 4;
+const DRAG_THRESHOLD = 4;
 const DAY_END = 24 * 60 - 1;
 const MIN_MINUTES = 15;
 

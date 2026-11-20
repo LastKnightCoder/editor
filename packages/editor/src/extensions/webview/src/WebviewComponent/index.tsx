@@ -192,7 +192,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
       progress = notifier.loading("正在上传 HTML 文件…");
       const fileName = getFileBaseName?.(filePath) || "";
       const fileContent = await readTextFile?.(filePath);
-      const htmlFile = new File([fileContent as any], fileName, {
+      const htmlFile = new File([fileContent as string], fileName, {
         type: "text/html",
       });
       const uploadedUrl = await uploadResource(htmlFile);
@@ -257,7 +257,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           {isFullscreen && (
             // 压在网页内容上的固定深色按钮，不随主题
             <button
-              className="absolute right-[16px] top-[16px] z-10 flex h-[40px] w-[40px] cursor-pointer items-center justify-center rounded-[8px] border-none bg-[rgba(0,0,0,0.6)] text-white transition-[background] duration-200 hover:bg-[rgba(0,0,0,0.8)]"
+              className="absolute top-[16px] right-[16px] z-10 flex h-[40px] w-[40px] cursor-pointer items-center justify-center rounded-[8px] border-none bg-[rgba(0,0,0,0.6)] text-white transition-[background] duration-200 hover:bg-[rgba(0,0,0,0.8)]"
               onClick={handleExitFullscreen}
             >
               <X size={24} />
@@ -281,13 +281,13 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           )}
           {touch && !interactive && !isFullscreen && (
             <div
-              className="bg-linear-to-b absolute inset-0 z-[1] flex items-end justify-center from-transparent from-50% to-[var(--ed-bg-surface)] pb-3"
+              className="absolute inset-0 z-[1] flex items-end justify-center bg-linear-to-b from-transparent from-50% to-[var(--ed-bg-surface)] pb-3"
               onClick={selectInEditor}
             >
               <button
                 type="button"
                 aria-label="全屏查看"
-                className="absolute right-2 top-2 grid size-9 place-items-center rounded-full border-none bg-[var(--ed-bg-surface)] text-[var(--ed-text-secondary)] shadow-[var(--ed-shadow-float)]"
+                className="absolute top-2 right-2 grid size-9 place-items-center rounded-full border-none bg-[var(--ed-bg-surface)] text-[var(--ed-text-secondary)] shadow-[var(--ed-shadow-float)]"
                 onClick={event => {
                   event.stopPropagation();
                   handleFullscreen();

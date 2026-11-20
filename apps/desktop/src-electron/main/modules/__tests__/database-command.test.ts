@@ -17,19 +17,14 @@ vi.mock("../../services/content-execution", () => ({
     },
   },
 }));
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 
 import schema from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginDataTable from "../tables/plugin-data";
 import ContentTable from "../tables/content";
 import { executeDatabaseCommand } from "../database-command";
+import { must } from "../../test-support";
 
 let db: Database.Database;
 const scope = { databaseName: ":memory:", pluginId: "test.backend" };
@@ -110,7 +105,11 @@ it("转换期间另一个命令修改正文时拒绝旧修订，不覆盖已经�
   const row = db.prepare("SELECT create_time FROM contents WHERE id=?").get(card.contentId) as {
     create_time: number;
   };
-  const target = { ...scope, contentId: card.contentId!, createdAt: row.create_time };
+  const target = {
+    ...scope,
+    contentId: must(card.contentId, "card.contentId"),
+    createdAt: row.create_time,
+  };
   const snapshot = await executeDatabaseCommand(db, handlers["plugin-data:content"], db, {
     ...target,
     format: "nodes",
@@ -129,21 +128,24 @@ it("转换期间另一个命令修改正文时拒绝旧修订，不覆盖已经�
     {
       ...target,
       edit: { op: "append", content: { markdown: "迟到转换" } },
-      expectedRevision: snapshot!.revision,
+      expectedRevision: must(snapshot, "snapshot").revision,
     },
     context
   );
   const rejected = expect(pending).rejects.toThrow("转换期间正文已变化");
   expect(db.inTransaction).toBe(false);
   executeDatabaseCommand(db, () => {
-    const current = ContentTable.getContentById(db, card.contentId!)!;
+    const current = must(
+      ContentTable.getContentById(db, must(card.contentId, "card.contentId")),
+      "ContentTable.getContentById(db, card.contentId!)"
+    );
     const content = structuredClone(current.content);
     const paragraph = content[0];
     if (paragraph.type !== "paragraph") throw new Error("测试正文首节点应为段落");
     content[0] = { ...paragraph, children: [{ type: "formatted", text: "另一个请求" }] };
     ContentTable.updateContent(
       db,
-      card.contentId!,
+      must(card.contentId, "card.contentId"),
       { content, expectedRevision: current.revision, contracts: current.contracts },
       context
     );

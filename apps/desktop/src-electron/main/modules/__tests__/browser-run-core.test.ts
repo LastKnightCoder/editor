@@ -1,5 +1,5 @@
 /**
- * 扩展运行编排（M5，协议 v2）：事件带递增 seq、最后一条一定是 settled；停止（含会话还没建好时就停）；
+ * 扩展运行编排（协议 v2）：事件带递增 seq、最后一条一定是 settled；停止（含会话还没建好时就停）；
  * 同一扩展对话同时只跑一轮（两个标签页并发）；报错与重试转发；交互快照转成 v2 形状并能作答。
  */
 import { describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import {
   type BrowserRunDriver,
   type BrowserRunHandle,
 } from "../browser-run-core";
+import { must } from "../../test-support";
 
 vi.mock("@/constants", () => ({ Role: { Assistant: "assistant", User: "user" } }));
 
@@ -109,7 +110,7 @@ describe("BrowserRunRegistry", () => {
 
     expect(published.every(item => item.runId === "r1")).toBe(true);
     expect(published.map(item => item.seq)).toEqual(published.map((_, index) => index));
-    const last = published.at(-1)!.event;
+    const last = must(published.at(-1), "published.at(-1)").event;
     expect(last).toMatchObject({ type: "settled", ok: true, aborted: false, lastText: "回答完了" });
     expect(published.some(item => item.event.type === "text")).toBe(true);
     // 结束后同一对话可以再跑
@@ -173,11 +174,14 @@ describe("BrowserRunRegistry", () => {
     });
     await new Promise(resolve => setTimeout(resolve, 80)); // 归约器 50ms 节流
 
-    const snapshot = registry.snapshotFor(session, () => {
-      throw new Error("有句柄时不读文件");
-    })!;
+    const snapshot = must(
+      registry.snapshotFor(session, () => {
+        throw new Error("有句柄时不读文件");
+      }),
+      "registry.snapshotFor"
+    );
     expect(snapshot.baseMessages).toEqual(fake.baseMessages);
-    expect(snapshot.lastSeq).toBe(published.at(-1)!.seq);
+    expect(snapshot.lastSeq).toBe(must(published.at(-1), "published.at(-1)").seq);
     expect(snapshot.response.content).toBe("写到一半");
     expect(snapshot.retry).toMatchObject({ attempt: 2, maxAttempts: 5 });
     expect(snapshot.interactions.approvals.map(item => item.requestId)).toEqual(["a1"]);
@@ -201,8 +205,12 @@ describe("BrowserRunRegistry", () => {
     await fake.started;
     await flush();
     expect(fake.abort).toHaveBeenCalled();
-    expect(published.at(-1)!.event).toMatchObject({ type: "settled", ok: false, aborted: true });
-    expect(published.at(-1)!.event).not.toHaveProperty("error");
+    expect(must(published.at(-1), "published.at(-1)").event).toMatchObject({
+      type: "settled",
+      ok: false,
+      aborted: true,
+    });
+    expect(must(published.at(-1), "published.at(-1)").event).not.toHaveProperty("error");
   });
 
   it("模型报错转发为 error 事件，settled 按失败收尾；重试开始后再成功则不算失败", async () => {
@@ -263,7 +271,7 @@ describe("BrowserRunRegistry", () => {
         },
       ],
     });
-    expect(published.at(-1)!.event).toEqual({
+    expect(must(published.at(-1), "published.at(-1)").event).toEqual({
       type: "interactions",
       approvals: [],
       questions: [

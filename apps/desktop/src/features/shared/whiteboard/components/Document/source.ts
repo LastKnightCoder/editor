@@ -145,7 +145,7 @@ export function useDocumentSource(target: DocumentTarget | null) {
       target?.entityRef?.kind,
       target?.entityRef?.id,
     ],
-    queryFn: () => loadDocument(target!, database).catch(() => null),
+    queryFn: target ? () => loadDocument(target, database).catch(() => null) : undefined,
     enabled: target !== null,
     refetchOnWindowFocus: true,
   });

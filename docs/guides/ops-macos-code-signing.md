@@ -38,6 +38,10 @@ xcrun stapler validate "apps/desktop/release/mac-arm64/Tau.app"
 
 判据：正式 Developer ID 签名与团队匹配、Gatekeeper accepted、票据验证成功、原生运行时检查通过。对 Intel 产物重复检查，不以一种架构代替另一种；记录 DMG/ZIP 的版本、架构、大小与 SHA-256。签名与公证成功不能代替安装和自动更新行为验收。
 
+### Apple 芯片本机打包
+
+在 Apple 芯片 Mac 上，用原生 arm64 版 Node.js 在仓库根执行 `pnpm build:mac:arm`。只生成 arm64 的 DMG 和 ZIP，产物位于 `apps/desktop/release/local-mac-arm/`。本机打包默认跳过 Apple 公证，签名沿用本机 electron-builder 配置，构建完成后验证 arm64 原生运行时。
+
 ## 发布到客户端更新服务器
 
 仅构建或交付测试安装包时到此为止。需要正式更新发行时：

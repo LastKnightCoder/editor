@@ -133,7 +133,6 @@ const insertBreak: ElementBehaviors<TabPaneElement>["insertBreak"] = editor => {
       Transforms.removeNodes(editor, { at: panePath });
       Transforms.insertNodes(editor, createParagraph(), { at: tabsPath, select: true });
     } else {
-      // 删除空段落并在 tabs 块后插入空段落，光标跳出
       Transforms.delete(editor, { at: paraPath });
       Transforms.insertNodes(editor, createParagraph(), {
         at: Path.next(tabsPath),

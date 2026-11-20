@@ -269,7 +269,6 @@ export const useTranscriptionOptimization = (
     setRawOutput("");
     setFinalSegments(null);
 
-    // 保存原始 segments
     originalSegmentsRef.current = wordSegments;
 
     // 单次流式 LLM 调用

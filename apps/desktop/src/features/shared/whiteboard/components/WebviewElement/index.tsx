@@ -251,11 +251,12 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
             }}
             convertFileSrc={convertFileSrc}
             getHomeDir={getHomeDir}
-            remoteResourceToLocal={value =>
-              value.startsWith("tau-collab-")
-                ? board.getService(IResourceService).remoteResourceToLocal!(value)
-                : remoteResourceToLocal(value)
-            }
+            remoteResourceToLocal={async value => {
+              if (!value.startsWith("tau-collab-")) return remoteResourceToLocal(value);
+              const resolve = board.getService(IResourceService).remoteResourceToLocal;
+              if (!resolve) throw new Error("资源服务缺少本地化能力");
+              return resolve(value);
+            }}
           />
         </div>
 

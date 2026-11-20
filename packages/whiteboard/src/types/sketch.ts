@@ -1,4 +1,4 @@
-/** 页面画风：手绘 / 普通（D-107） */
+/** 页面画风：手绘 / 普通 */
 export type SketchMode = "sketch" | "normal";
 
 /** 笔触档位：工整 / 自然 / 潦草 */
@@ -7,7 +7,7 @@ export type SketchLevel = "neat" | "natural" | "loose";
 /** 形状填充样式；普通模式下一律按实色渲染 */
 export type SketchFillStyle = "solid" | "hatch" | "cross" | "scribble";
 
-/** 页级画风，存在 WhiteBoardContent.data.sketch，缺省为 DEFAULT_PAGE_SKETCH */
+/** 页级画风，存在 WhiteboardContent.data.sketch，缺省为 DEFAULT_PAGE_SKETCH */
 export interface PageSketch {
   mode: SketchMode;
   level: SketchLevel;

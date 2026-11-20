@@ -107,7 +107,7 @@ async function latestEvents(
   );
 }
 /** 批量附加最新动态：审核记录与站内反馈合并后按 created_at/id 取每个提交的最新一条。 */
-export async function withLastEvents(
+async function withLastEvents(
   env: Env,
   rows: SubmissionRow[],
   owner: string

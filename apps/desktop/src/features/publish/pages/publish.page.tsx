@@ -1,5 +1,5 @@
 /**
- * 发布页 page 定义（从设置弹窗抽出的独立页面，D-035）。
+ * 发布页 page 定义（从设置弹窗抽出的独立页面）。
  */
 
 import { definePage } from "@/page/definePage";

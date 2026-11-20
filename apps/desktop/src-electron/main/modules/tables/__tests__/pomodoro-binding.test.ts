@@ -11,9 +11,7 @@ vi.mock("electron", () => ({
   },
 }));
 // 与 todo-calendar-consistency 同款：切断 tables → database 模块的循环依赖链
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 
 import PomodoroSessionTable, { pomodoroEventTitle } from "../pomodoro-session";
 

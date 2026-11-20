@@ -1,7 +1,7 @@
 /**
  * 列表页通用控件：工具栏「按钮 + Menu」命令菜单、网格 / 列表视图菜单、列表列头排序按钮与标签单元格。
  * 项目 / 数据库 / Notebook 驾驶舱、文章、卡片库共用。浮层是命令项，当前项用 accent 图标 + 文字高亮
- * （不用 Segmented / Radio，D-024 追记）。
+ * （不用 Segmented / Radio）。
  */
 
 import type { LucideIcon } from "lucide-react";
@@ -129,7 +129,7 @@ export function ListTags({ tags }: { tags: string[] }) {
   return (
     <span className="flex min-w-0 items-center gap-1 overflow-hidden" title={tags.join("、")}>
       {tags.slice(0, 2).map(tag => (
-        <Tag key={tag} className="min-w-0 max-w-[120px] shrink-0">
+        <Tag key={tag} className="max-w-[120px] min-w-0 shrink-0">
           <span className="truncate">{tag}</span>
         </Tag>
       ))}

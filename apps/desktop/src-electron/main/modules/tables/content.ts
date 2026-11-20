@@ -5,12 +5,13 @@ import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { ContentIdentityTable } from "./content-identity";
 import { dfs, getContentLength } from "@/utils/helper.ts";
+import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
 import { Descendant } from "slate";
 import { basename } from "node:path";
 
 import Operation from "./operation";
-import WhiteBoardContentTable from "./white-board-content";
+import WhiteboardContentTable from "./white-board-content";
 import ContentAiMetaTable from "./content-ai-meta";
 import ContentAiInsightsTable from "./content-ai-insights";
 import ContentLinkTable from "./content-link";
@@ -39,6 +40,7 @@ import { bindContentReplacement } from "./content-replacement";
 import { NODE_CONTRACT_PROPERTY } from "@tau/db-schema/content-contracts";
 import { isSupportedContentStorageVersion } from "@tau/db-schema";
 import { ContentCreation } from "../content-ownership/content-creation";
+import type { SqliteRow } from "../../types/table";
 
 /** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */
 export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -67,16 +69,19 @@ export default class ContentTable {
       "content:decrement-ref-count": this.decrementRefCount.bind(this),
     };
   }
-  static parseContent(content: any): IContent {
+  static parseContent(content: SqliteRow): IContent {
     return {
-      id: content.id,
-      createTime: content.create_time,
-      updateTime: content.update_time,
-      content: JSON.parse(content.content),
-      count: content.count,
-      refCount: content.ref_count,
+      id: content.id as number,
+      createTime: content.create_time as number,
+      updateTime: content.update_time as number,
+      content: JSON.parse(content.content as string),
+      count: content.count as number,
+      refCount: content.ref_count as number,
       ...(content.contracts
-        ? { contracts: JSON.parse(content.contracts), revision: content.revision }
+        ? {
+            contracts: JSON.parse(content.contracts as string),
+            revision: content.revision as string,
+          }
         : {}),
     };
   }
@@ -92,7 +97,7 @@ export default class ContentTable {
 
   static getContentById(db: Database.Database, contentId: number | bigint): IContent | null {
     const stmt = db.prepare("SELECT * FROM content_snapshots WHERE id = ?");
-    const content = stmt.get(contentId);
+    const content = stmt.get(contentId) as SqliteRow | undefined;
     if (!content) {
       return null;
     }
@@ -122,7 +127,7 @@ export default class ContentTable {
     const stmt = db.prepare(
       "SELECT c.*,d.contracts,d.revision FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id ORDER BY c.create_time DESC"
     );
-    const contents = stmt.all();
+    const contents = stmt.all() as SqliteRow[];
     return contents.map(content => this.parseContent(content));
   }
 
@@ -133,7 +138,7 @@ export default class ContentTable {
     const stmt = db.prepare(
       `SELECT c.*,d.contracts,d.revision FROM content_snapshots c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id IN (${placeholders})`
     );
-    const contents = stmt.all(contentIds);
+    const contents = stmt.all(contentIds) as SqliteRow[];
     return contents.map(content => this.parseContent(content));
   }
 
@@ -433,14 +438,13 @@ export default class ContentTable {
         { ...stored, content: [] },
         { expectedRevision: stored.revision, count: 0 }
       );
-    const whiteBoardContentId: number[] = [];
+    const whiteboardContentIds: number[] = [];
     dfs(stored ? [] : content?.content || [], node => {
-      if (node.type === "whiteboard" && node.whiteBoardContentId) {
-        whiteBoardContentId.push(node.whiteBoardContentId);
-      }
+      const pageId = node.type === "whiteboard" ? whiteboardEmbedPageId(node) : undefined;
+      if (pageId) whiteboardContentIds.push(pageId as number);
     });
-    whiteBoardContentId.forEach(id => {
-      WhiteBoardContentTable.deleteWhiteboard(db, id);
+    whiteboardContentIds.forEach(id => {
+      WhiteboardContentTable.deleteWhiteboard(db, id);
     });
 
     ContentAiMetaTable.delete(db, contentId);
@@ -518,7 +522,7 @@ export default class ContentTable {
     const stmt = db.prepare(
       `SELECT * FROM content_snapshots WHERE content LIKE ? ORDER BY update_time DESC LIMIT ?`
     );
-    const contents = stmt.all(`%${text}%`, limit);
+    const contents = stmt.all(`%${text}%`, limit) as SqliteRow[];
     return contents.map(content => this.parseContent(content));
   }
 

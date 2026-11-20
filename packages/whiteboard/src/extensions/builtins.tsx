@@ -16,7 +16,7 @@ import {
   Presentation,
 } from "lucide-react";
 import type Board from "../Board";
-import type { IBoardPlugin, ContextMenuModalPayload } from "../types";
+import type { BoardElement, IBoardPlugin, ContextMenuModalPayload } from "../types";
 import {
   defineWhiteboardExtension,
   type WhiteboardAPI,
@@ -70,7 +70,7 @@ import {
   HandwritePlugin,
   DocumentPlugin,
   isDocumentElement,
-  WhiteBoardPlugin,
+  WhiteboardPlugin,
   RichTextPlugin,
   ImagePlugin,
   VideoPlugin,
@@ -197,7 +197,19 @@ function textInspector(Component: ComponentType<any>, text: TextExtensionOptions
 function withBody(plugin: IBoardPlugin, Body?: ComponentType<any>) {
   const read = createSnapshotReader();
   const Content = Body
-    ? function ElementContent({ board: _board, element, onResize, onResizeEnd, ...props }: any) {
+    ? function ElementContent({
+        board: _board,
+        element,
+        onResize,
+        onResizeEnd,
+        ...props
+      }: {
+        board?: Board;
+        element: BoardElement;
+        onResize?: (...args: unknown[]) => void;
+        onResizeEnd?: (...args: unknown[]) => void;
+        [key: string]: unknown;
+      }) {
         const board = useBoard();
         // Body 收到当前扩展的作用域 API（插件 render 外层的 APIContext），发事件受命名空间校验
         const api = useWhiteboardAPI();
@@ -479,7 +491,7 @@ export function createDocumentExtension(options: ReferencedElementOptions) {
 export function createWhiteboardReferenceExtension(options: ReferencedElementOptions) {
   return builtin(
     "tau.whiteboard-reference",
-    () => [withBody(new WhiteBoardPlugin(!!options.Tool), options.Body)],
+    () => [withBody(new WhiteboardPlugin(!!options.Tool), options.Body)],
     {
       tools: options.Tool
         ? [

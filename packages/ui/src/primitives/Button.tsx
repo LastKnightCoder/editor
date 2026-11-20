@@ -1,12 +1,12 @@
 /**
- * Button —— 文字按钮基础件（方案 B「现代产品」形制，mockups/button/，D-013）。
+ * Button —— 文字按钮基础件（「现代产品」形制）。
  *
- * 变体六档是一个动作的全部音量，层级纪律靠评审不进 API：
+ * 变体六档是一个动作的全部音量，层级纪律不进 API：
  *  - primary：accent 实心 + 微投影，每屏至多一枚；Dialog 应答区主按钮位
- *  - secondary：surface 亮底 + line-1 描边（D-007/D-009「浮起物」口径），应答与取消的默认档
+ *  - secondary：surface 亮底 + line-1 描边（「浮起物」口径），应答与取消的默认档
  *  - soft：accent-soft 平底，工具栏高频次级强调（比 secondary 轻、比 ghost 重）
  *  - ghost：无底 hover 淡墨，与 IconButton 同反馈语言
- *  - danger / danger-soft：对齐 D-011 危险分级——实心红只给确认位，列表/工具栏一律 soft
+ *  - danger / danger-soft：危险分级——实心红只给确认位，列表/工具栏一律 soft
  *
  * 行为契约：loading = aria-busy + spinner + 文案切换 + 一并 disabled（指针封锁与
  * Tab 队列退出由原生 disabled 承担）；disabled 同理走原生属性；focus-visible 才显
@@ -88,7 +88,7 @@ export function Button({
       }}
       {...props}
     >
-      {loading && <Spinner className="border-current/30 size-[13px] border-t-current" />}
+      {loading && <Spinner className="size-[13px] border-current/30 border-t-current" />}
       {!loading && Icon && <Icon size={16} strokeWidth={1.75} className="shrink-0" />}
       {loading && loadingText !== undefined ? loadingText : children}
     </button>

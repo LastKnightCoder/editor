@@ -16,7 +16,7 @@ export interface ArticleContentResult {
   markdown: string;
   truncated: boolean;
   originalLength: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 /**

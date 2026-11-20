@@ -2,7 +2,7 @@
  * 加载态 —— Spinner 圆环 + 页面级居中版式（02 §5.1 词表的 Spinner 归位）。
  * Spinner 可单独行内使用；Loading 铺满父容器居中。
  *
- * 兜底高度走 prop（inline style）而非 Tailwind 类（2026-09-17 修正）：原实现把
+ * 兜底高度走 prop（inline style）而非 Tailwind 类：原实现把
  * `min-h-[45vh]` 写死在基础类里，调用方传 `className="min-h-0"` 会被它压掉——
  * 同名 utility 的胜负由 Tailwind 生成顺序决定，**不由 class 书写顺序决定**，所以
  * 那个覆盖一直是静默失效的（样板间把 Loading 放进 168px 演示框时内容被裁空，

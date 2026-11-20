@@ -1,15 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
+vi.mock("electron");
 
 // 切断 tables → database 模块的循环依赖链
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 
 import { markIndexed, type MainContentIndexStats } from "../main-content-vec-index-queue";
 

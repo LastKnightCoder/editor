@@ -20,7 +20,7 @@ export interface PaperPalette {
 }
 
 /** 与 PageFrame 夜间页面的 [filter:invert(0.88)_hue-rotate(180deg)] 一致 */
-export const NIGHT_INVERT = 0.88;
+const NIGHT_INVERT = 0.88;
 
 const SAMPLE_WIDTH = 48;
 /** 边缘像素里最多的那一档颜色至少占这么多，才认为是纸色 */

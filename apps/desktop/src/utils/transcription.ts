@@ -5,7 +5,7 @@ import type { TranscriptionOptions } from "@/commands/transcription";
  * 检查 LLM 优化配置是否完整
  * @returns 配置是否完整
  */
-export function checkLLMOptimizationConfig(): {
+function checkLLMOptimizationConfig(): {
   isConfigured: boolean;
   message?: string;
 } {
@@ -91,7 +91,6 @@ export function prepareTranscriptionOptions(
 ): TranscriptionOptions {
   const { transcription, misc } = useSettingStore.getState().setting;
 
-  // 获取转录行为设置
   const { segmentationLevel = "sentence", useLLMOptimization = false } = misc.transcription || {};
 
   // 模型名带引擎前缀：Windows "faster-whisper-base"、macOS "whisper-cpp-base" -> "base"
@@ -100,7 +99,8 @@ export function prepareTranscriptionOptions(
 
   // 合并选项（device 由后端根据已安装程序自动检测）
   return {
-    modelSize: modelSize as any,
+    // 运行时模型名是开放字符串，收窄到 TranscriptionOptions 声明的枚举
+    modelSize: modelSize as TranscriptionOptions["modelSize"],
     sentenceLevel: segmentationLevel === "sentence",
     useLLMOptimization,
     ...userOptions,

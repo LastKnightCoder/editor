@@ -1,9 +1,9 @@
 /**
- * NumberInput —— 数值输入（Input 同形 + beforeinput 事前拦截，mockups/input/ 方案 A）。
+ * NumberInput —— 数值输入（Input 同形 + beforeinput 事前拦截）。
  *
  * 值契约：value: number | null（string 草稿只在内部，blur/Enter 归一化提交）。
  *
- * 事前拦截（2026-09-19 用户裁决，取代「事后标红」）：
+ * 事前拦截（取代「事后标红」）：
  *  - 原生 beforeinput 监听用「当前值 + 选区 + 待插入文本」预判结果，不合数字格式直接
  *    preventDefault——键盘输入 / 粘贴 / 拖放的非数字内容根本进不来
  *  - 粘贴含杂质不生硬拒绝：先清洗（"¥1,200" → "1200"）再以 setRangeText 插入，

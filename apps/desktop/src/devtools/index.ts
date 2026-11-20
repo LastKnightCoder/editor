@@ -8,4 +8,4 @@ import { registerBuiltinDevActions } from "./actions";
 registerBuiltinDevActions();
 
 export { DevFloatingBall } from "./DevFloatingBall";
-export { registerDevAction, type DevAction } from "./registry";
+export { type DevAction } from "./registry";

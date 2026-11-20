@@ -1,8 +1,8 @@
 /**
- * 输入条（方案 C 的聊天式输入，D-044）：停靠在纸底，左侧与日期列对齐「此刻 HH:mm」。
+ * 输入条（聊天式输入）：停靠在纸底，左侧与日期列对齐「此刻 HH:mm」。
  * ↵ 发送、⇧↵ 换行（输入法组合中不发送）；`#` 触发标签联想（↑↓ / ↵ / Tab / Esc），
  * 正文里残留的 `#词` 发送时也提取为标签；在标签频道里预置该标签。
- * 纯文本快写——富文本在发出后点正文用完整编辑器补（D-044 默认取舍）。
+ * 纯文本快写——富文本在发出后点正文用完整编辑器补。
  */
 
 import {
@@ -144,7 +144,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               aria-label="标签联想"
               className="bg-surface border-line-1 shadow-float rounded-tau-md absolute bottom-full left-0 z-10 mb-2 min-w-[200px] p-1.5"
             >
-              <div className="text-tau-sm text-ink-3 px-2 pb-1 pt-0.5">标签</div>
+              <div className="text-tau-sm text-ink-3 px-2 pt-0.5 pb-1">标签</div>
               {suggestions.map((s, i) => (
                 <div
                   key={s.name + s.create}

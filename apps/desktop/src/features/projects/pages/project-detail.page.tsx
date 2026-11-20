@@ -1,7 +1,7 @@
 /**
  * 项目详情 page：文档树工作台的承载入口（数据表格与 Vibe Learning 已独立为各自模块）。
  * params 按 id 去重——同一项目重复进入激活同一实例。
- * 工作台本体为 D-033 整体搬迁件（features/projects/components/，换皮与数据收编另立锚点）。
+ * 工作台本体为整体搬迁件（features/projects/components/，换皮与数据收编另立锚点）。
  */
 
 import {

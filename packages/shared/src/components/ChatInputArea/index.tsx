@@ -150,10 +150,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       }
 
       const requestSeq = ++mentionRequestSeqRef.current;
+      const searchMentionRefs = services.searchMentionRefs;
+      const queryState = mentionQueryState;
       const timer = window.setTimeout(async () => {
         setMentionPanelLoading(true);
         try {
-          const results = await services.searchMentionRefs!(mentionQueryState.query);
+          const results = await searchMentionRefs(queryState.query);
           if (mentionRequestSeqRef.current !== requestSeq) {
             return;
           }
@@ -486,7 +488,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
         if (e.key === "Enter" && !e.nativeEvent.isComposing && mentionCandidates.length > 0) {
           e.preventDefault();
-          insertMentionAtCursor(mentionCandidates[mentionActiveIndex]!);
+          insertMentionAtCursor(mentionCandidates[mentionActiveIndex]);
           return;
         }
       }

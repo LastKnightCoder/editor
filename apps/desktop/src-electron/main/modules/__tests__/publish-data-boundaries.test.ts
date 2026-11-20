@@ -9,6 +9,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { describeRelease, planPublication } from "../publish-release-state";
 import PathUtil from "../../utils/PathUtil";
+import { must } from "../../test-support";
 const template = {
   manifest: {
     formatVersion: 1 as const,
@@ -38,7 +39,7 @@ function deepFreeze<T>(value: T): T {
 }
 it("同一项目的共享文档出现在多个分支时保留目录入口，只生成一份正文和搜索记录", async () => {
   const fixture = makePublishFixture();
-  const project = fixture.data.getProject(12)!;
+  const project = must(fixture.data.getProject(12), "fixture.data.getProject(12)");
   const parent = fixture.data.getProjectItemsByIds([33])[0];
   const child = fixture.data.getProjectItemsByIds([34])[0];
   project.children = [33, 35, 34];
@@ -63,13 +64,19 @@ it("同一项目的共享文档出现在多个分支时保留目录入口，只�
   expect(docs[1].content.prevPage.target.key).toBe("doc:project:12:33");
   expect(docs[1].content.nextPage.target.key).toBe("doc:project:12:35");
   const search = JSON.parse(
-    files.find(file => /^data\/search\./.test(file.path))!.content.toString()
+    must(
+      files.find(file => /^data\/search\./.test(file.path)),
+      "files.find(file => /^data\/search\./.test(fil..."
+    ).content.toString()
   );
   expect(
     search.documents.filter((doc: { key: string }) => doc.key === "doc:project:12:34")
   ).toHaveLength(1);
   const manifest = JSON.parse(
-    files.find(file => /^data\/site\./.test(file.path))!.content.toString()
+    must(
+      files.find(file => /^data\/site\./.test(file.path)),
+      "files.find(file => /^data\/site\./.test(file...."
+    ).content.toString()
   );
   expect(manifest.projectTrees[12][0].children[0].children[0].target.key).toBe("doc:project:12:34");
   expect(manifest.projectTrees[12][0].children[1].children[0].target.key).toBe("doc:project:12:34");
@@ -86,7 +93,10 @@ it("关联卡片按正文身份匹配，仅输出已发布目标的摘要与引�
   fixture.data.getContentLinkTargetContentIds = () => [108, 999];
   const { files } = await generator().generate(fixture.data, fixture.selections, site);
   const card = JSON.parse(
-    files.find(file => file.path.startsWith("data/cards/7."))!.content.toString()
+    must(
+      files.find(file => file.path.startsWith("data/cards/7.")),
+      "files.find(file => file.path.startsWith('data..."
+    ).content.toString()
   );
   expect(card.content.linkedCards).toEqual([
     {
@@ -126,7 +136,10 @@ it("宿主图标使用协议资源目录，与作者同名资产共存", async (
     );
     expect(files.some(file => file.path === `_tau/site/${hash}.svg`)).toBe(true);
     const manifest = JSON.parse(
-      files.find(file => file.path.startsWith("data/site."))!.content.toString()
+      must(
+        files.find(file => file.path.startsWith("data/site.")),
+        "files.find(file => file.path.startsWith('data..."
+      ).content.toString()
     );
     expect(manifest.site.favicon.href).toBe(`/notes/_tau/site/${hash}.svg`);
   } finally {
@@ -188,7 +201,10 @@ it("本地图片按内容去重并改写发布副本，覆盖内置、行内与�
     expect(media).toHaveLength(1);
     expect(media[0].content).toEqual(bytes);
     const article = JSON.parse(
-      result.files.find(file => file.path.startsWith("data/articles/1."))!.content.toString()
+      must(
+        result.files.find(file => file.path.startsWith("data/articles/1.")),
+        "result.files.find(file => file.path.startsWit..."
+      ).content.toString()
     );
     const url = site.basePath + media[0].path;
     expect(article.content.content.slice(0, 5).map((node: { url: string }) => node.url)).toEqual(
@@ -238,7 +254,10 @@ it("缺失和临时图片按所属内容汇总，不阻止生成，也不删除�
       expect.objectContaining({ title: "卡片 #7", url: missing })
     );
     const article = JSON.parse(
-      result.files.find(file => file.path.startsWith("data/articles/1."))!.content.toString()
+      must(
+        result.files.find(file => file.path.startsWith("data/articles/1.")),
+        "result.files.find(file => file.path.startsWit..."
+      ).content.toString()
     );
     expect(article.content.content).toEqual(nodes);
   } finally {
@@ -259,7 +278,10 @@ it("换图保留上一轮正文依赖，继续发布后清理过期图片，撤�
     await writeFile(file, "第一张图");
     const first = await generator().generate(fixture.data, fixture.selections, site);
     const firstPlan = planPublication(first.files, []);
-    const oldImage = first.files.find(item => item.path.startsWith("_tau/media/"))!.path;
+    const oldImage = must(
+      first.files.find(item => item.path.startsWith("_tau/media/")),
+      "first.files.find(item => item.path.startsWith..."
+    ).path;
     const unchanged = await generator().generate(fixture.data, fixture.selections, site);
     expect(
       planPublication(unchanged.files, history(first.files), firstPlan.releaseState).toUpload

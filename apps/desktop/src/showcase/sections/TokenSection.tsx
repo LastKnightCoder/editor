@@ -4,7 +4,7 @@
  *    渐变插值，sRGB 下会插出黑色，整块呈现为脏绿棋盘——已修）；
  *  - text：直接用该墨色渲染一行字，比色块更能回答「够不够黑」；
  *  - line：放大成 3px 条，1px 发丝线在本页尺度下不可见。
- * 色值一律走 CSS 变量内联（D-001 允许，取值随 data-theme 级联，无需重算）。
+ * 色值一律走 CSS 变量内联（取值随 data-theme 级联，无需重算）。
  */
 
 import { useThemeStore } from "@tau/themes/react";
@@ -144,7 +144,7 @@ export default function TokenSection() {
               <div key={name}>
                 <Swatch name={name} kind={kind} />
                 <div className="mt-1.5 min-w-0">
-                  <div className="font-tau-mono text-tau-micro text-ink-1 break-all font-[550]">
+                  <div className="font-tau-mono text-tau-micro text-ink-1 font-[550] break-all">
                     {name}
                   </div>
                   <div className="font-tau-mono text-tau-tiny text-ink-3 mt-0.5 break-all">

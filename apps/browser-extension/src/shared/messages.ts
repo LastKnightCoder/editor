@@ -74,5 +74,3 @@ export type ExtensionPageReply = { ok: true; result: unknown } | { ok: false; er
 
 /** 页面键：只去掉 #hash（与 Tau 的 normalizeWebPageUrl 一致） */
 export const pageKeyOf = (url: string): string => url.split("#", 1)[0] ?? url;
-
-export const isHttpUrl = (url: string) => /^https?:\/\//i.test(url);

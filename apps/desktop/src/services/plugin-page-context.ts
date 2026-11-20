@@ -5,7 +5,7 @@ interface PageContextBinding {
   params: Readonly<Record<string, unknown>>;
   signal: AbortSignal;
   isAvailable: () => boolean;
-  /** 宿主的 Esc 仲裁（D-003）：登记浮层退场回调，返回注销函数 */
+  /** 宿主的 Esc 仲裁：登记浮层退场回调，返回注销函数 */
   registerLeaveGuard?: (guard: () => boolean | Promise<boolean>) => () => void;
   registerOverlayDismiss?: (dismiss: () => void) => () => void;
 }

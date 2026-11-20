@@ -13,16 +13,11 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../video-note-index-queue", () => ({
-  default: {
-    enqueueTask: vi.fn(),
-    cleanupVideoNoteArtifacts: vi.fn(),
-  },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
-import WhiteBoardContentTable from "../tables/white-board-content";
+import WhiteboardContentTable from "../tables/white-board-content";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -30,7 +25,7 @@ function createTestDatabase() {
   return db;
 }
 
-describe("WhiteBoardContentTable content ref counting", () => {
+describe("WhiteboardContentTable content ref counting", () => {
   let db: Database.Database;
 
   beforeEach(() => {
@@ -50,15 +45,15 @@ describe("WhiteBoardContentTable content ref counting", () => {
       count: 0,
     });
     expect(ContentTable.deleteContent(db, contentId)).toBe(1);
-    const board = WhiteBoardContentTable.createWhiteboardContent(db, {
+    const board = WhiteboardContentTable.createWhiteboardContent(db, {
       name: "媒体白板",
       imgUrl: "",
       data: {
         children: [{ id: "image", type: "image", src: "/saved.png" }],
       } as any,
     });
-    WhiteBoardContentTable.deleteWhiteboard(db, board.id);
-    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
+    WhiteboardContentTable.deleteWhiteboard(db, board.id);
+    WhiteboardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
     expect(
       db.prepare("SELECT id FROM white_board_contents WHERE id=?").get(board.id)
     ).toBeUndefined();
@@ -70,7 +65,7 @@ describe("WhiteBoardContentTable content ref counting", () => {
       count: 1,
     });
 
-    const whiteboardContent = WhiteBoardContentTable.createWhiteboardContent(db, {
+    const whiteboardContent = WhiteboardContentTable.createWhiteboardContent(db, {
       name: "测试白板",
       imgUrl: "",
       data: {
@@ -85,7 +80,7 @@ describe("WhiteBoardContentTable content ref counting", () => {
       } as any,
     });
 
-    WhiteBoardContentTable.updateWhiteboard(db, {
+    WhiteboardContentTable.updateWhiteboard(db, {
       id: whiteboardContent.id,
       name: whiteboardContent.name,
       imgUrl: whiteboardContent.imgUrl,
@@ -109,7 +104,7 @@ describe("WhiteBoardContentTable content ref counting", () => {
 
     expect(ContentTable.getContentById(db, contentId)?.refCount).toBe(2);
 
-    WhiteBoardContentTable.updateWhiteboard(db, {
+    WhiteboardContentTable.updateWhiteboard(db, {
       id: whiteboardContent.id,
       name: whiteboardContent.name,
       imgUrl: whiteboardContent.imgUrl,
@@ -138,7 +133,7 @@ describe("白板页延迟回收", () => {
   afterEach(() => db.close());
 
   const page = () =>
-    WhiteBoardContentTable.createWhiteboardContent(db, {
+    WhiteboardContentTable.createWhiteboardContent(db, {
       name: "页",
       data: { children: [] },
       imgUrl: "",
@@ -150,15 +145,15 @@ describe("白板页延迟回收", () => {
   it("引用归零只登记，超过宽限期才删除；期间重新引用即撤销登记", () => {
     const released = page();
     const revived = page();
-    WhiteBoardContentTable.deleteWhiteboard(db, released);
-    WhiteBoardContentTable.deleteWhiteboard(db, revived);
-    WhiteBoardContentTable.incrementRefCount(db, revived);
+    WhiteboardContentTable.deleteWhiteboard(db, released);
+    WhiteboardContentTable.deleteWhiteboard(db, revived);
+    WhiteboardContentTable.incrementRefCount(db, revived);
     expect(
-      WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: DAY })
+      WhiteboardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: DAY })
     ).toBe(0);
     expect(exists(released)).toBe(true);
     expect(
-      WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now() + 2 * DAY, graceMs: DAY })
+      WhiteboardContentTable.collectPendingReleases(db, { now: Date.now() + 2 * DAY, graceMs: DAY })
     ).toBe(1);
     expect(exists(released)).toBe(false);
     expect(exists(revived)).toBe(true);
@@ -168,10 +163,10 @@ describe("白板页延迟回收", () => {
     const legacy = page();
     db.prepare("UPDATE white_board_contents SET ref_count = 0 WHERE id = ?").run(legacy);
     const now = Date.now();
-    expect(WhiteBoardContentTable.collectPendingReleases(db, { now, graceMs: DAY })).toBe(0);
+    expect(WhiteboardContentTable.collectPendingReleases(db, { now, graceMs: DAY })).toBe(0);
     expect(exists(legacy)).toBe(true);
     expect(
-      WhiteBoardContentTable.collectPendingReleases(db, { now: now + DAY, graceMs: DAY })
+      WhiteboardContentTable.collectPendingReleases(db, { now: now + DAY, graceMs: DAY })
     ).toBe(1);
     expect(exists(legacy)).toBe(false);
   });

@@ -11,7 +11,7 @@
 
 import { defineTheme } from "../defineTheme.ts";
 
-export default defineTheme({
+defineTheme({
   key: "ocean",
   name: "海盐",
   light: {
@@ -20,7 +20,7 @@ export default defineTheme({
       surface: "#fcfdff", // 卡片/面板（移动端 --bg-surface）
       // 实底控件 hover 档：bg-hover 5% 石板墨叠 surface 的不透明合成（同暖纸口径）
       surfaceHover: "#f2f3f6",
-      sunken: "#d6e0ec", // 轨道/凹槽专档：page 之下一档；输入框/代码块禁用本档（D-007/D-009/D-032）
+      sunken: "#d6e0ec", // 轨道/凹槽专档：page 之下一档；输入框/代码块禁用本档
       track: "#d3dce8", // 控件轨道：灰蓝，与 thumb(surface) 拉开
       ink1: "#2d3644", // 石板墨（移动端 --ink-1）
       // 移动端 #728096 对 page 仅 ~3.7，压深到 sunken 上仍过 AA

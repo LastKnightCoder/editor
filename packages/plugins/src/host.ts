@@ -1103,6 +1103,48 @@ interface RegisteredCommand {
   run: PluginCommand["run"];
 }
 
+type MutablePluginContext = { -readonly [K in keyof PluginContext]: PluginContext[K] };
+
+/** context() 的共享运行时：同一激活实例的登记、权限与数据访问闭包，供各域构建方法使用 */
+interface ContextDeps {
+  context: PluginContext;
+  entry: Entry;
+  activation: Activation;
+  scope: StorageScope;
+  pages: WeakMap<
+    PluginPageHandle,
+    { id: string; active: () => boolean; navigation: Set<Disposable> }
+  >;
+  mcps: Map<string, PluginMCPDefinition>;
+  owner: PluginOwner;
+  declared: Set<PluginPermission>;
+  register(resource: Disposable): Disposable;
+  registerAs(kind: PluginContributionKind, resource: Disposable): Disposable;
+  permissionsAdapter(): PermissionsAdapter;
+  assertDeclared(permissions: readonly PluginPermission[]): void;
+  guard(permission: PluginPermission): Promise<void>;
+  dataAdapter(): DataAdapter;
+  deliver<T>(value: unknown): T;
+  entityKindDefinitions: Map<string, PluginOwnEntityKind>;
+  recordCollections: Map<string, Required<PluginRecordCollection>>;
+  collectionOf(name: unknown): Required<PluginRecordCollection>;
+  kindIndexes(kind: string): PluginIndexes;
+  allKindIndexes(): Record<string, PluginIndexes>;
+  readEntityCreate(input: unknown): { input: EntityCreateInput; indexes: PluginIndexes };
+  readEntityPatch(patch: unknown): PluginOwnEntityPatch;
+  readLinkAdd(
+    from: unknown,
+    to: unknown,
+    options: unknown
+  ): Promise<{
+    from: string;
+    to: PluginEntityRef;
+    role: string;
+    data: PluginLinkData;
+    readable: boolean;
+  }>;
+}
+
 export interface NotificationsAdapter {
   send(context: PluginContext, plugin: PluginOwner, options: PluginNotificationOptions): Disposable;
 }
@@ -1499,14 +1541,12 @@ export class PluginHost {
   }
 
   private context(entry: Entry, activation: Activation): PluginContext {
-    const navigationIds = new Set<string>();
     const environmentSource = this.environmentSource;
     const pages = new WeakMap<
       PluginPageHandle,
       { id: string; active: () => boolean; navigation: Set<Disposable> }
     >();
     const mcps = new Map<string, PluginMCPDefinition>();
-    const toolRenderers = new Set<string>();
     const scope: StorageScope = Object.freeze({
       pluginId: entry.metadata.id,
       workspaceId: this.options.workspaceId,
@@ -1547,23 +1587,6 @@ export class PluginHost {
         },
       };
     };
-    const prepareStorage = (key: string) => {
-      this.assertActive(entry, activation);
-      assertLocalId(key);
-    };
-    let excerptProvider: Disposable | undefined;
-    const excerptsAdapter = () => {
-      this.assertActive(entry, activation);
-      if (!this.options.excerpts) throw new Error("当前宿主不支持摘录");
-      return this.options.excerpts;
-    };
-    const excerptWrite = async <T>(write: (adapter: ExcerptsAdapter) => Promise<T>) => {
-      const adapter = excerptsAdapter();
-      if (!excerptProvider) throw new Error("写入摘录前须先注册摘录提供方");
-      const result = await write(adapter);
-      this.assertActive(entry, activation);
-      return copyJson(result) as T;
-    };
     const owner: PluginOwner = { id: entry.metadata.id, name: entry.metadata.name };
     const declared = new Set<PluginPermission>(entry.metadata.permissions ?? []);
     const permissionsAdapter = () => {
@@ -1580,6 +1603,607 @@ export class PluginHost {
       await permissionsAdapter().ensure(context, owner, [permission]);
       this.assertActive(entry, activation);
     };
+    const dataAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.data) throw new Error("当前宿主不支持业务数据");
+      return this.options.data;
+    };
+    const entityKindDefinitions = new Map<string, PluginOwnEntityKind>();
+    const recordCollections = new Map<string, Required<PluginRecordCollection>>();
+    const collectionOf = (name: unknown) => {
+      if (typeof name !== "string") throw new Error("集合名无效");
+      const collection = recordCollections.get(name);
+      if (!collection) throw new Error(`集合 ${name} 未声明，请先 registerCollection`);
+      return collection;
+    };
+    const kindIndexes = (kind: string): PluginIndexes =>
+      entityKindDefinitions.get(kind)?.indexes ?? {};
+    const allKindIndexes = (): Record<string, PluginIndexes> =>
+      Object.fromEntries(
+        [...entityKindDefinitions].map(([kind, definition]) => [kind, definition.indexes ?? {}])
+      );
+    const readEntityCreate = (input: unknown) => {
+      const value = readFields<PluginOwnEntityInput>(
+        input,
+        { kind: 128, key: 200, title: MAX_TITLE, meta: "meta" },
+        ["kind", "key"]
+      );
+      if (!entityKindDefinitions.has(value.kind))
+        throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
+      const content = (input as PluginOwnEntityInput).content;
+      return {
+        input: {
+          kind: value.kind,
+          key: value.key,
+          title: value.title ?? "",
+          meta: value.meta ?? {},
+          ...(content !== undefined
+            ? { content: readContentInput(content, { allowEmpty: true }) }
+            : {}),
+        } as EntityCreateInput,
+        indexes: kindIndexes(value.kind),
+      };
+    };
+    const readEntityPatch = (patch: unknown): PluginOwnEntityPatch =>
+      readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE, meta: "meta" });
+    const readLinkAdd = async (from: unknown, to: unknown, options: unknown) => {
+      const target = readEntityRef(to);
+      const { role, data } = readLinkOptions(options);
+      const permission = PLUGIN_ENTITY_READ_PERMISSIONS[target.kind];
+      // 只查询已有授权，不弹窗
+      const readable = Boolean(
+        permission &&
+        declared.has(permission) &&
+        (await permissionsAdapter().query(context, permission)) === "granted"
+      );
+      return { from: readId(from), to: target, role, data, readable };
+    };
+    const deliver = <T>(value: unknown): T => {
+      this.assertActive(entry, activation);
+      return copyJson(value) as unknown as T;
+    };
+    // 先建壳再按原属性顺序填域：域构建方法的闭包经 deps 持有同一个 context 引用
+    const context = {
+      get windows() {
+        return activation.windows;
+      },
+      get environment() {
+        if (!environmentSource) throw new Error("当前宿主未提供插件环境");
+        return environmentSource.getSnapshot();
+      },
+    } as MutablePluginContext;
+    const deps: ContextDeps = {
+      context,
+      entry,
+      activation,
+      scope,
+      pages,
+      mcps,
+      register,
+      registerAs,
+      owner,
+      declared,
+      permissionsAdapter,
+      assertDeclared,
+      guard,
+      dataAdapter,
+      deliver,
+      entityKindDefinitions,
+      recordCollections,
+      collectionOf,
+      kindIndexes,
+      allKindIndexes,
+      readEntityCreate,
+      readEntityPatch,
+      readLinkAdd,
+    };
+    context.navigation = this.buildNavigationContext(deps);
+    context.backend = this.buildBackendContext(deps);
+    context.pluginId = scope.pluginId;
+    context.publish = this.buildPublishContext(deps);
+    context.images = this.buildImagesContext(deps);
+    context.embeddings = this.buildEmbeddingsContext(deps);
+    context.video = this.buildVideoContext(deps);
+    context.asr = this.buildASRContext(deps);
+    context.websocket = this.buildWebSocketContext(deps);
+    context.tts = this.buildTTSContext(deps);
+    context.upload = this.buildUploadContext(deps);
+    context.sync = this.buildSyncContext(deps);
+    context.workspaceId = scope.workspaceId;
+    context.signal = scope.signal;
+    context.register = register;
+    context.ai = this.buildAIContext(deps);
+    context.chat = this.buildChatContext(deps);
+    context.mcp = this.buildMCPContext(deps);
+    context.services = bindPluginServices(this.options.services, scope.signal, () =>
+      this.assertActive(entry, activation)
+    );
+    context.fetch = async (input, init) => {
+      this.assertActive(entry, activation);
+      const execute = this.options.fetch;
+      if (!execute) throw new Error("当前宿主不支持 fetch");
+      const source =
+        init?.signal === undefined && input instanceof Request ? input.signal : init?.signal;
+      const signal = AbortSignal.any([scope.signal, ...(source ? [source] : [])]);
+      const response = await execute(input, { ...init, signal }, { pluginId: entry.metadata.id });
+      if (signal.aborted) {
+        void response.body?.cancel().catch(() => undefined);
+        signal.throwIfAborted();
+      }
+      this.assertActive(entry, activation);
+      return response;
+    };
+    context.settings = this.buildSettingsContext(deps);
+    context.commands = this.buildCommandsContext(deps);
+    context.storage = this.buildStorageContext(deps);
+    context.excerpts = this.buildExcerptsContext(deps);
+    context.flashcards = this.buildFlashcardsContext(deps);
+    context.materials = this.buildMaterialsContext(deps);
+    context.permissions = this.buildPermissionsContext(deps);
+    context.data = Object.freeze({
+      ...this.buildDataContext(deps),
+      todos: this.buildTodosContext(deps),
+      calendar: this.buildCalendarContext(deps),
+    });
+    context.notifications = this.buildNotificationsContext(deps);
+    context.speech = this.buildSpeechContext(deps);
+    context.app = this.buildAppContext(deps);
+    context.entities = this.buildOwnEntityContext(deps);
+    context.links = this.buildLinksContext(deps);
+    context.records = this.buildRecordsContext(deps);
+    context.transaction = this.buildTransactionContext(deps);
+    context.events = this.buildEventsContext(deps);
+    context.content = this.buildContentContext(deps);
+    context.sidebar = this.buildSidebarContext(deps);
+    context.views = this.buildViewsContext(deps);
+    context.notebooks = this.buildNotebooksContext(deps);
+    context.actions = this.buildActionsContext(deps);
+    context.home = this.buildHomeContext(deps);
+    context.pages = this.buildPagesContext(deps);
+    return Object.freeze(context);
+  }
+
+  /**
+   * 提供方登记的同构模板（publish/images/embeddings/video/asr/tts）：校验归属 → 确认
+   * 适配器 → 绑定 create 并登记为对应贡献类型；宿主每次调用 create 都复查活性与激活态。
+   * invoke 负责参数转发（各域 create 元数不同）与实例后校验（video/asr）。
+   */
+  private makeProviderRegister<
+    R extends {
+      id: string;
+      name: string;
+      create(config: JsonValue, modelId: string): unknown;
+    },
+  >(
+    deps: ContextDeps,
+    spec: {
+      kind: PluginContributionKind;
+      ownerError: string;
+      unavailableError: string;
+      notActiveError: string;
+      adapter: { register(context: PluginContext, definition: R): Disposable } | undefined;
+      validate?(definition: R): void;
+      extraFields?(definition: R): Partial<R>;
+      invoke(create: R["create"], config: JsonValue, modelId: string): ReturnType<R["create"]>;
+    }
+  ): (definition: R) => Disposable {
+    const { context, entry, activation, scope, registerAs } = deps;
+    return definition => {
+      this.assertActive(entry, activation);
+      if (
+        definition.id !== scope.pluginId ||
+        !definition.name.trim() ||
+        typeof definition.create !== "function"
+      )
+        throw new Error(spec.ownerError);
+      spec.validate?.(definition);
+      if (!spec.adapter) throw new Error(spec.unavailableError);
+      const create = definition.create.bind(definition);
+      return registerAs(
+        spec.kind,
+        spec.adapter.register(context, {
+          id: scope.pluginId,
+          name: definition.name,
+          ...spec.extraFields?.(definition),
+          create: (config: JsonValue, modelId: string) => {
+            this.assertActive(entry, activation);
+            if (entry.state !== "active") throw new Error(spec.notActiveError);
+            return spec.invoke(create, config, modelId);
+          },
+        } as R)
+      );
+    };
+  }
+
+  /**
+   * todos/calendar 写接口的同构模板：readFields → readRevision → guard → write(action
+   * 载荷) → deliver / assertActive。query 各有专属校验，不进模板。
+   */
+  private makeResourceCrud<W, E>(
+    deps: ContextDeps,
+    spec: {
+      createFields: Record<string, FieldRule>;
+      createRequired: readonly string[];
+      updateFields: Record<string, FieldRule>;
+      writePermission: PluginPermission;
+      deletePermission: PluginPermission;
+      write(write: W): Promise<unknown>;
+    }
+  ): {
+    create(input: unknown): Promise<E>;
+    update(id: string, patch: unknown, options: PluginWriteOptions): Promise<E>;
+    delete(id: string, options: PluginWriteOptions): Promise<void>;
+  } {
+    const { entry, activation, guard, deliver } = deps;
+    return {
+      create: async input => {
+        const value = readFields(input, spec.createFields, spec.createRequired);
+        await guard(spec.writePermission);
+        return deliver<E>(await spec.write({ action: "create", input: value } as W));
+      },
+      update: async (id, patch, options) => {
+        const value = readFields(patch, spec.updateFields);
+        const expectedRevision = readRevision(options);
+        await guard(spec.writePermission);
+        return deliver<E>(
+          await spec.write({
+            action: "update",
+            id: readId(id),
+            patch: value,
+            expectedRevision,
+          } as W)
+        );
+      },
+      delete: async (id, options) => {
+        const expectedRevision = readRevision(options);
+        await guard(spec.deletePermission);
+        await spec.write({ action: "delete", id: readId(id), expectedRevision } as W);
+        this.assertActive(entry, activation);
+      },
+    };
+  }
+
+  private buildNavigationContext(deps: ContextDeps): PluginContext["navigation"] {
+    const { context, entry, activation, pages, registerAs } = deps;
+    const navigationIds = new Set<string>();
+    return Object.freeze({
+      registerEntry: (definition: PluginNavigationEntry) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (!definition.title.trim()) throw new Error("功能入口标题不能为空");
+        if (navigationIds.has(definition.id)) throw new Error("功能入口重复注册");
+        const page = pages.get(definition.page);
+        if (!page?.active()) throw new Error("功能入口必须关联本插件有效页面");
+        if (!this.options.navigation) throw new Error("当前宿主不支持功能入口");
+        const handle = this.options.navigation.registerEntry(
+          context,
+          Object.freeze({
+            ...definition,
+            params: Object.freeze(normalizePageParams(definition.params ?? {})),
+          })
+        );
+        navigationIds.add(definition.id);
+        const owned = registerAs("navigation", {
+          dispose: () => {
+            navigationIds.delete(definition.id);
+            page.navigation.delete(owned);
+            return handle.dispose();
+          },
+        });
+        page.navigation.add(owned);
+        return owned;
+      },
+    });
+  }
+
+  private buildBackendContext(deps: ContextDeps): PluginContext["backend"] {
+    const { context, entry, activation, register } = deps;
+    let backendClient: import("./backend").PluginBackendClient | undefined;
+    const backend = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.backend) throw new Error("当前宿主不支持插件后台");
+      return (backendClient ??= this.options.backend(context));
+    };
+    return Object.freeze<import("./backend").PluginBackendClient>({
+      call: async (method, input, options) => {
+        const result = await backend().call(method, copyJson(input), options);
+        this.assertActive(entry, activation);
+        return copyJson(result);
+      },
+      subscribe: (event, listener) => register(backend().subscribe(event, listener)),
+      getState: async () => backend().getState(),
+    });
+  }
+
+  private buildPublishContext(deps: ContextDeps): PluginContext["publish"] {
+    return Object.freeze({
+      register: this.makeProviderRegister(deps, {
+        kind: "publish",
+        ownerError: "发布提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持发布提供方",
+        notActiveError: "发布插件尚未激活",
+        adapter: this.options.publish,
+        // create 只收 config，不接收 modelId
+        invoke: (create, config) => create(copyJson(config)),
+      }),
+    });
+  }
+
+  private buildImagesContext(deps: ContextDeps): PluginContext["images"] {
+    return Object.freeze({
+      register: this.makeProviderRegister(deps, {
+        kind: "images",
+        ownerError: "图片提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持图片提供方",
+        notActiveError: "图片插件尚未激活",
+        adapter: this.options.images,
+        invoke: (create, config, modelId) => create(copyJson(config), modelId),
+      }),
+    });
+  }
+
+  private buildEmbeddingsContext(deps: ContextDeps): PluginContext["embeddings"] {
+    return Object.freeze({
+      register: this.makeProviderRegister(deps, {
+        kind: "embeddings",
+        ownerError: "嵌入提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持嵌入提供方",
+        notActiveError: "嵌入插件尚未激活",
+        adapter: this.options.embeddings,
+        validate: definition => {
+          if (
+            definition.maxBatchSize !== undefined &&
+            (!Number.isInteger(definition.maxBatchSize) || definition.maxBatchSize < 1)
+          )
+            throw new Error("嵌入提供方单批上限必须是正整数");
+        },
+        extraFields: definition => ({ maxBatchSize: definition.maxBatchSize }),
+        invoke: (create, config, modelId) => create(copyJson(config), modelId),
+      }),
+    });
+  }
+
+  private buildVideoContext(deps: ContextDeps): PluginContext["video"] {
+    return Object.freeze({
+      register: this.makeProviderRegister(deps, {
+        kind: "video",
+        ownerError: "视频提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持视频提供方",
+        notActiveError: "视频插件尚未激活",
+        adapter: this.options.video,
+        invoke: (create, config) => {
+          const instance = create(copyJson(config));
+          for (const method of ["matches", "resolve", "cacheKey", "getPlayback"] as const)
+            if (typeof instance?.[method] !== "function")
+              throw new Error(`视频提供方缺少 ${method} 方法`);
+          if (instance.getCaptions !== undefined && typeof instance.getCaptions !== "function")
+            throw new Error("视频提供方 getCaptions 必须是方法");
+          return instance;
+        },
+      }),
+    });
+  }
+
+  private buildASRContext(deps: ContextDeps): PluginContext["asr"] {
+    return Object.freeze({
+      register: this.makeProviderRegister(deps, {
+        kind: "asr",
+        ownerError: "识别提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持语音识别插件",
+        notActiveError: "识别插件尚未激活",
+        adapter: this.options.asr,
+        invoke: (create, config, modelId) => {
+          const instance = create(copyJson(config), modelId);
+          if (
+            typeof instance?.probe !== "function" ||
+            (!instance.openStream && !instance.transcribeFile)
+          )
+            throw new Error("识别提供方实现不完整");
+          return instance;
+        },
+      }),
+    });
+  }
+
+  private buildWebSocketContext(deps: ContextDeps): PluginContext["websocket"] {
+    const { entry, activation, scope } = deps;
+    return Object.freeze({
+      connect: (
+        url: string,
+        protocols: string | string[] = [],
+        options: PluginSocketOptions = {}
+      ) => {
+        this.assertActive(entry, activation);
+        if (!this.options.websocket) throw new Error("当前宿主不支持 WebSocket");
+        const signal = AbortSignal.any([scope.signal, ...(options.signal ? [options.signal] : [])]);
+        return this.options.websocket.connect(url, protocols, { ...options, signal });
+      },
+    });
+  }
+
+  private buildTTSContext(deps: ContextDeps): PluginContext["tts"] {
+    const { context, entry, activation, scope, guard } = deps;
+    return Object.freeze({
+      register: this.makeProviderRegister(deps, {
+        kind: "tts",
+        ownerError: "语音提供方必须属于当前插件",
+        unavailableError: "当前宿主不支持语音提供方",
+        notActiveError: "语音插件尚未激活",
+        adapter: this.options.tts,
+        invoke: (create, config, modelId) => create(copyJson(config), modelId),
+      }),
+      unavailableReason: () => {
+        this.assertActive(entry, activation);
+        if (!this.options.ttsSynthesis) return "当前设备不支持插件语音合成";
+        return this.options.ttsSynthesis.unavailableReason();
+      },
+      open: async (options?: { signal?: AbortSignal }): Promise<TTSSynthesisSession> => {
+        this.assertActive(entry, activation);
+        const adapter = this.options.ttsSynthesis;
+        if (!adapter) throw new Error("TTS_UNAVAILABLE：当前宿主不支持插件语音合成");
+        await guard("tts:synthesize");
+        const signal = options?.signal
+          ? AbortSignal.any([options.signal, scope.signal])
+          : scope.signal;
+        signal.throwIfAborted();
+        const session = await adapter.open(context, signal);
+        let closed = false;
+        const close = async () => {
+          if (closed) return;
+          closed = true;
+          scope.signal.removeEventListener("abort", onAbort);
+          await session.close();
+        };
+        const onAbort = () => void close().catch(error => console.error("关闭语音会话失败", error));
+        scope.signal.addEventListener("abort", onAbort, { once: true });
+        const callSignal = (callOptions?: { signal?: AbortSignal }) => {
+          this.assertActive(entry, activation);
+          if (closed) throw new DOMException("语音会话已关闭", "AbortError");
+          const merged = callOptions?.signal
+            ? AbortSignal.any([callOptions.signal, scope.signal])
+            : scope.signal;
+          merged.throwIfAborted();
+          return merged;
+        };
+        return Object.freeze({
+          providerName: String(session.providerName),
+          ...(typeof session.textInstructions === "string"
+            ? { textInstructions: session.textInstructions }
+            : {}),
+          getVoices: async (callOptions?: { signal?: AbortSignal }) => {
+            const voices = await session.getVoices(callSignal(callOptions));
+            this.assertActive(entry, activation);
+            return voices.map((voice): TTSVoice => ({
+              id: String(voice.id),
+              name: String(voice.name),
+              type: voice.type,
+              ...(voice.description ? { description: String(voice.description) } : {}),
+            }));
+          },
+          synthesize: async (
+            request: TTSSynthesizeRequest,
+            callOptions?: { signal?: AbortSignal }
+          ) => {
+            if (typeof request?.text !== "string" || !request.text.trim())
+              throw new Error("朗读文字不能为空");
+            if (typeof request.voiceId !== "string" || !request.voiceId)
+              throw new Error("请指定音色");
+            const signal = callSignal(callOptions);
+            const audio = await session.synthesize(
+              {
+                text: request.text,
+                voiceId: request.voiceId,
+                ...(request.options ? { options: { ...request.options } } : {}),
+              },
+              signal
+            );
+            signal.throwIfAborted();
+            this.assertActive(entry, activation);
+            return { audio: new Uint8Array(audio.audio), mime: String(audio.mime) };
+          },
+          close,
+        });
+      },
+    });
+  }
+
+  private buildUploadContext(deps: ContextDeps): PluginContext["upload"] {
+    const { context, entry, activation, scope, registerAs } = deps;
+    return Object.freeze({
+      save: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
+        this.assertActive(entry, activation);
+        const save = this.options.upload?.save;
+        if (!save) throw new Error("UPLOAD_UNAVAILABLE：当前宿主不支持保存资源文件");
+        if (
+          typeof file?.name !== "string" ||
+          !file.name.trim() ||
+          typeof file.mimeType !== "string" ||
+          !(file.content instanceof Uint8Array)
+        )
+          throw new Error("文件无效");
+        const signal = AbortSignal.any([
+          scope.signal,
+          ...(options?.signal ? [options.signal] : []),
+        ]);
+        signal.throwIfAborted();
+        const url = await save({ ...file, content: new Uint8Array(file.content) }, signal);
+        signal.throwIfAborted();
+        this.assertActive(entry, activation);
+        return url;
+      },
+      uploadRemote: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
+        this.assertActive(entry, activation);
+        const uploadRemote = this.options.upload?.uploadRemote;
+        if (!uploadRemote) throw new Error("当前宿主不支持远端上传");
+        const signal = AbortSignal.any([
+          scope.signal,
+          ...(options?.signal ? [options.signal] : []),
+        ]);
+        signal.throwIfAborted();
+        const url = await uploadRemote({ ...file, content: new Uint8Array(file.content) }, signal);
+        signal.throwIfAborted();
+        this.assertActive(entry, activation);
+        return url;
+      },
+      register: (definition: UploadProviderDefinition) => {
+        this.assertActive(entry, activation);
+        if (
+          definition.id !== scope.pluginId ||
+          !definition.name.trim() ||
+          typeof definition.upload !== "function"
+        )
+          throw new Error("上传提供方必须属于当前插件");
+        if (!this.options.upload) throw new Error("当前宿主不支持资源上传提供方");
+        const upload = definition.upload.bind(definition);
+        return registerAs(
+          "upload",
+          this.options.upload.register(
+            context,
+            Object.freeze({
+              id: scope.pluginId,
+              name: definition.name,
+              upload: async (file: UploadFile, config: JsonValue, signal: AbortSignal) => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("上传插件尚未激活");
+                const executionSignal = AbortSignal.any([scope.signal, signal]);
+                executionSignal.throwIfAborted();
+                const result = await upload(file, config, executionSignal);
+                executionSignal.throwIfAborted();
+                this.assertActive(entry, activation);
+                const url = new URL(result);
+                if (!["http:", "https:"].includes(url.protocol))
+                  throw new Error("上传插件必须返回HTTP(S)资源地址");
+                return result;
+              },
+            })
+          )
+        );
+      },
+    });
+  }
+
+  private buildSyncContext(deps: ContextDeps): PluginContext["sync"] {
+    const { context, entry, activation, scope, registerAs } = deps;
+    return Object.freeze({
+      register: (definition: SyncProviderDefinition) => {
+        this.assertActive(entry, activation);
+        if (
+          definition.id !== scope.pluginId ||
+          !definition.name.trim() ||
+          typeof definition.create !== "function"
+        )
+          throw new Error("同步提供方必须属于当前插件");
+        if (!this.options.sync) throw new Error("当前宿主不支持同步提供方");
+        return registerAs(
+          "sync",
+          this.options.sync.register(context, Object.freeze({ ...definition }))
+        );
+      },
+    });
+  }
+
+  private buildAIContext(deps: ContextDeps): PluginContext["ai"] {
+    const { context, entry, activation, owner, guard, permissionsAdapter } = deps;
     const capabilityClients = new Map<PluginAICapability, Promise<PluginAICapabilityClient>>();
     const requestCapability = async (
       capability: PluginAICapability
@@ -1643,102 +2267,382 @@ export class PluginHost {
         },
       });
     };
-    const dataAdapter = () => {
+    return Object.freeze({ ...(activation.ai ?? unavailableAI), requestCapability });
+  }
+
+  private buildChatContext(deps: ContextDeps): PluginContext["chat"] {
+    const { context, entry, activation, scope, mcps, registerAs } = deps;
+    const toolRenderers = new Set<string>();
+    return Object.freeze({
+      registerToolRenderer: async (definition: PluginToolRendererDefinition) => {
+        this.assertActive(entry, activation);
+        const declared = snapshotToolRendererDefinition(definition);
+        const adapter = this.options.chat;
+        if (!adapter) throw new Error("当前宿主不支持聊天工具渲染");
+        const key = JSON.stringify([declared.mcpId, declared.toolName]);
+        if (toolRenderers.has(key)) throw new Error("工具渲染器已注册");
+        toolRenderers.add(key);
+        const local = new AbortController();
+        const signal = AbortSignal.any([scope.signal, local.signal]);
+        let resource: Disposable | undefined;
+        const owned = registerAs("chat", {
+          dispose: () => {
+            local.abort();
+            toolRenderers.delete(key);
+            return resource?.dispose();
+          },
+        });
+        const validate = () => {
+          if (signal.aborted) return;
+          const mcp = mcps.get(declared.mcpId);
+          if (!mcp || (mcp.tools && !mcp.tools.some(tool => tool.name === declared.toolName)))
+            throw new Error("工具渲染器只能绑定本插件已注册的 MCP 工具");
+        };
+        try {
+          const commit = await adapter.prepare({ ...context, signal }, declared);
+          this.assertActive(entry, activation);
+          signal.throwIfAborted();
+          if (entry.state === "active") {
+            validate();
+            resource = commit();
+          } else {
+            activation.beforeActivated.push(validate);
+            activation.onActivated.push(() => {
+              if (!signal.aborted) resource = commit();
+            });
+          }
+          return owned;
+        } catch (error) {
+          await owned.dispose();
+          throw error;
+        }
+      },
+    });
+  }
+
+  private buildMCPContext(deps: ContextDeps): PluginContext["mcp"] {
+    const { context, entry, activation, scope, mcps, registerAs } = deps;
+    return Object.freeze({
+      register: (definition: PluginMCPDefinition) => {
+        this.assertActive(entry, activation);
+        const declared = snapshotMCPDefinition(definition);
+        if (declared.transport?.type === "stdio") {
+          const transport = declared.transport;
+          const backend = entry.metadata.backend;
+          if (
+            !backend?.systemAccess.includes("process") ||
+            !backend.tools?.some(
+              tool =>
+                tool.command === transport.command &&
+                (tool.args ?? []).every((arg, index) => transport.args?.[index] === arg)
+            )
+          )
+            throw new Error("插件 stdio MCP 必须在 backend.tools 声明外部程序并获得后台授权");
+        }
+        const adapter = this.options.mcp;
+        if (!adapter) throw new Error("当前宿主不支持 MCP");
+        if (mcps.has(definition.id)) throw new Error("MCP 已注册");
+        const local = new AbortController();
+        const signal = AbortSignal.any([scope.signal, local.signal]);
+        const snapshot: PluginMCPDefinition = declared.transport
+          ? declared
+          : {
+              ...declared,
+              tools: declared.tools.map(tool => ({
+                ...tool,
+                execute: async (args, call) => {
+                  this.assertActive(entry, activation);
+                  signal.throwIfAborted();
+                  if (entry.state !== "active") throw new Error("插件尚未激活");
+                  const executionSignal = AbortSignal.any([signal, call.signal]);
+                  executionSignal.throwIfAborted();
+                  const result = await tool.execute(copyJson(args) as typeof args, {
+                    signal: executionSignal,
+                  });
+                  executionSignal.throwIfAborted();
+                  this.assertActive(entry, activation);
+                  return snapshotMCPToolResult(result);
+                },
+              })),
+            };
+        mcps.set(definition.id, declared);
+        let resource: Disposable | undefined;
+        const commit = () => {
+          if (signal.aborted) return;
+          resource = adapter.register({ ...context, signal }, snapshot, {
+            id: scope.pluginId,
+            name: entry.metadata.name,
+            executionIdentity: crypto.randomUUID(),
+          });
+        };
+        const owned = registerAs("mcp", {
+          dispose: () => {
+            local.abort();
+            mcps.delete(definition.id);
+            return resource?.dispose();
+          },
+        });
+        if (entry.state === "active") {
+          try {
+            commit();
+          } catch (error) {
+            void owned.dispose();
+            throw error;
+          }
+        } else activation.onActivated.push(commit);
+        return owned;
+      },
+    });
+  }
+
+  private buildSettingsContext(deps: ContextDeps): PluginContext["settings"] {
+    const { context, entry, activation, registerAs } = deps;
+    return Object.freeze({
+      register: (definition: PluginSettingsDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
+        if (definition.form) {
+          if (!definition.target) throw new Error("form 需要声明提供方目标");
+          if (definition.component) throw new Error("设置分区不能同时声明 form 与组件");
+          assertProviderForm(definition.form);
+        } else if (typeof definition.component !== "function") throw new Error("设置分区缺少组件");
+        if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
+        const handle = this.options.settings.register(context, Object.freeze({ ...definition }));
+        let disposed = false;
+        const resource = registerAs("settings", {
+          dispose: () => {
+            disposed = true;
+            return handle.dispose();
+          },
+        });
+        return Object.freeze({
+          id: handle.id,
+          open: async () => {
+            this.assertActive(entry, activation);
+            if (disposed) throw new Error("设置分区已注销");
+            await handle.open();
+          },
+          dispose: resource.dispose,
+        });
+      },
+    });
+  }
+
+  private buildCommandsContext(deps: ContextDeps): PluginContext["commands"] {
+    const { entry, activation, scope, registerAs } = deps;
+    return Object.freeze({
+      register: (command: PluginCommand) => {
+        this.assertActive(entry, activation);
+        assertLocalId(command.id);
+        if (!command.title.trim()) throw new Error("命令标题不能为空");
+        const id = `${scope.pluginId}:${command.id}`;
+        if (this.commands.has(id)) throw new Error(`命令已注册：${id}`);
+        const value = {
+          info: {
+            id,
+            pluginId: scope.pluginId,
+            pluginName: entry.metadata.name,
+            title: command.title,
+          },
+          entry,
+          activation,
+          run: command.run,
+        };
+        this.commands.set(id, value);
+        this.changed();
+        return registerAs("command", {
+          dispose: () => {
+            if (this.commands.get(id) === value) this.commands.delete(id);
+            this.changed();
+          },
+        });
+      },
+    });
+  }
+
+  private buildStorageContext(deps: ContextDeps): PluginContext["storage"] {
+    const { entry, activation, scope } = deps;
+    const prepareStorage = (key: string) => {
       this.assertActive(entry, activation);
-      if (!this.options.data) throw new Error("当前宿主不支持业务数据");
-      return this.options.data;
+      assertLocalId(key);
     };
-    const writeTodo = (write: TodoWrite) => {
-      const adapter = dataAdapter();
-      if (write.action !== "create" && /@\d{4}-\d{2}-\d{2}$/.test(write.id)) {
-        if (!adapter.writeTodoOccurrence)
-          throw new Error("当前宿主尚未开放周期实例写入，未修改整系列");
-        return adapter.writeTodoOccurrence(context, write);
-      }
-      return adapter.writeTodo(context, write);
-    };
-    const entityKindDefinitions = new Map<string, PluginOwnEntityKind>();
-    const recordCollections = new Map<string, Required<PluginRecordCollection>>();
-    const linksAdapter = () => {
+    return Object.freeze({
+      get: async (key: string) => {
+        prepareStorage(key);
+        const value = await this.options.storage.get(scope, key);
+        this.assertActive(entry, activation);
+        return value === undefined ? undefined : copyJson(value);
+      },
+      set: async (key: string, value: JsonValue) => {
+        prepareStorage(key);
+        await this.options.storage.set(scope, key, copyJson(value));
+      },
+      delete: async (key: string) => {
+        prepareStorage(key);
+        await this.options.storage.delete(scope, key);
+      },
+    });
+  }
+
+  private buildExcerptsContext(deps: ContextDeps): PluginContext["excerpts"] {
+    const { context, entry, activation, registerAs } = deps;
+    let excerptProvider: Disposable | undefined;
+    const excerptsAdapter = () => {
       this.assertActive(entry, activation);
-      if (!this.options.links) throw new Error("当前宿主不支持插件关联");
-      return this.options.links;
+      if (!this.options.excerpts) throw new Error("当前宿主不支持摘录");
+      return this.options.excerpts;
     };
-    const recordsAdapter = () => {
+    const excerptWrite = async <T>(write: (adapter: ExcerptsAdapter) => Promise<T>) => {
+      const adapter = excerptsAdapter();
+      if (!excerptProvider) throw new Error("写入摘录前须先注册摘录提供方");
+      const result = await write(adapter);
       this.assertActive(entry, activation);
-      if (!this.options.records) throw new Error("当前宿主不支持插件记录");
-      return this.options.records;
+      return copyJson(result) as T;
     };
-    const collectionOf = (name: unknown) => {
-      if (typeof name !== "string") throw new Error("集合名无效");
-      const collection = recordCollections.get(name);
-      if (!collection) throw new Error(`集合 ${name} 未声明，请先 registerCollection`);
-      return collection;
-    };
-    const entitiesAdapter = () => {
-      this.assertActive(entry, activation);
-      if (!this.options.entities) throw new Error("当前宿主不支持插件内容");
-      return this.options.entities;
-    };
-    const kindIndexes = (kind: string): PluginIndexes =>
-      entityKindDefinitions.get(kind)?.indexes ?? {};
-    const allKindIndexes = (): Record<string, PluginIndexes> =>
+    return Object.freeze({
+      register: (definition: PluginExcerptProviderDefinition) => {
+        const adapter = excerptsAdapter();
+        if (excerptProvider) throw new Error("摘录提供方已注册");
+        if (typeof definition.label !== "string" || !definition.label.trim())
+          throw new Error("摘录提供方名称不能为空");
+        if (definition.open !== undefined && typeof definition.open !== "function")
+          throw new Error("摘录提供方 open 必须是函数");
+        const handle = adapter.register(context, Object.freeze({ ...definition }));
+        const owned = registerAs("excerpts", {
+          dispose: () => {
+            if (excerptProvider === owned) excerptProvider = undefined;
+            return handle.dispose();
+          },
+        });
+        excerptProvider = owned;
+        return owned;
+      },
+      replace: (source: PluginExcerptSource, items: PluginExcerptItem[]) =>
+        excerptWrite(adapter =>
+          adapter.replace(
+            context,
+            copyJson(source) as unknown as PluginExcerptSource,
+            copyJson(items) as unknown as PluginExcerptItem[]
+          )
+        ),
+      patch: (source: PluginExcerptSource, change: PluginExcerptChange) =>
+        excerptWrite(adapter =>
+          adapter.patch(
+            context,
+            copyJson(source) as unknown as PluginExcerptSource,
+            copyJson(change) as unknown as PluginExcerptChange
+          )
+        ),
+      sources: async () => {
+        const result = await excerptsAdapter().sources(context);
+        this.assertActive(entry, activation);
+        return copyJson(result) as unknown as PluginExcerptSourceSummary[];
+      },
+      items: async (sourceKey: string) => {
+        if (typeof sourceKey !== "string" || !sourceKey) throw new Error("摘录来源无效");
+        const result = await excerptsAdapter().items(context, sourceKey);
+        this.assertActive(entry, activation);
+        return copyJson(result) as unknown as PluginExcerptEntry[];
+      },
+    });
+  }
+
+  private buildFlashcardsContext(deps: ContextDeps): PluginContext["flashcards"] {
+    const { context, entry, activation, guard } = deps;
+    return Object.freeze(
       Object.fromEntries(
-        [...entityKindDefinitions].map(([kind, definition]) => [kind, definition.indexes ?? {}])
-      );
-    const readEntityCreate = (input: unknown) => {
-      const value = readFields<PluginOwnEntityInput>(
-        input,
-        { kind: 128, key: 200, title: MAX_TITLE, meta: "meta" },
-        ["kind", "key"]
-      );
-      if (!entityKindDefinitions.has(value.kind))
-        throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
-      const content = (input as PluginOwnEntityInput).content;
-      return {
-        input: {
-          kind: value.kind,
-          key: value.key,
-          title: value.title ?? "",
-          meta: value.meta ?? {},
-          ...(content !== undefined
-            ? { content: readContentInput(content, { allowEmpty: true }) }
-            : {}),
-        } as EntityCreateInput,
-        indexes: kindIndexes(value.kind),
-      };
-    };
-    const readEntityPatch = (patch: unknown): PluginOwnEntityPatch =>
-      readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE, meta: "meta" });
-    const readLinkAdd = async (from: unknown, to: unknown, options: unknown) => {
-      const target = readEntityRef(to);
-      const { role, data } = readLinkOptions(options);
-      const permission = PLUGIN_ENTITY_READ_PERMISSIONS[target.kind];
-      // 只查询已有授权，不弹窗
-      const readable = Boolean(
-        permission &&
-        declared.has(permission) &&
-        (await permissionsAdapter().query(context, permission)) === "granted"
-      );
-      return { from: readId(from), to: target, role, data, readable };
-    };
-    const readEntityFilter = (filter: PluginOwnEntityFilter | undefined): EntityQueryFilter => {
-      if (filter !== undefined && (!filter || typeof filter !== "object"))
-        throw new Error("参数无效");
-      const { kind, where, titleContains } = filter ?? {};
-      if (kind !== undefined) readText(kind, "kind", 128);
-      if (titleContains !== undefined) readText(titleContains, "titleContains", 200, true);
-      if (where !== undefined && kind === undefined) throw new Error("按字段筛选需要同时给出 kind");
-      return {
-        ...(kind === undefined ? {} : { kind }),
-        where: kind === undefined ? [] : readWhere(where, kindIndexes(kind)),
-        ...(titleContains ? { titleContains } : {}),
-      };
-    };
-    const deliver = <T>(value: unknown): T => {
-      this.assertActive(entry, activation);
-      return copyJson(value) as unknown as T;
-    };
+        (
+          [
+            "listDecks",
+            "createDeck",
+            "createCard",
+            "openCreate",
+            "generate",
+            "generateAndSave",
+          ] as const
+        ).map(method => [
+          method,
+          async (...args: unknown[]) => {
+            this.assertActive(entry, activation);
+            const snapshot = structuredClone(args);
+            if (method === "listDecks") await guard("flashcards:read");
+            if (method === "createDeck" || method === "createCard" || method === "generateAndSave")
+              await guard("flashcards:write");
+            const adapter = this.options.flashcards;
+            if (!adapter) throw new Error("当前宿主不支持闪卡");
+            const call = adapter[method] as (
+              context: PluginContext,
+              ...args: unknown[]
+            ) => Promise<unknown>;
+            const result = await call(context, ...snapshot);
+            this.assertActive(entry, activation);
+            return structuredClone(result);
+          },
+        ])
+      )
+    ) as unknown as PluginFlashcards;
+  }
+
+  private buildMaterialsContext(deps: ContextDeps): PluginContext["materials"] {
+    const { context, entry, activation } = deps;
+    return Object.freeze({
+      actions: async (ref: PluginMaterialRef) => {
+        this.assertActive(entry, activation);
+        if (!this.options.materials) throw new Error("当前宿主不支持材料动作");
+        const actions = await this.options.materials.actions(
+          context,
+          copyJson(ref) as unknown as PluginMaterialRef
+        );
+        this.assertActive(entry, activation);
+        return actions.map(action =>
+          Object.freeze({
+            id: action.id,
+            label: action.label,
+            run: async () => {
+              this.assertActive(entry, activation);
+              const feedback = this.options.materialActionFeedback;
+              try {
+                await action.run();
+                this.assertActive(entry, activation);
+                feedback?.success(action.label);
+              } catch (error) {
+                if (!feedback || context.signal.aborted) throw error;
+                feedback.error(
+                  error instanceof Error ? error.message : String(error) || "材料操作失败"
+                );
+              }
+            },
+          })
+        );
+      },
+    });
+  }
+
+  private buildPermissionsContext(deps: ContextDeps): PluginContext["permissions"] {
+    const { context, entry, activation, owner, declared, permissionsAdapter, assertDeclared } =
+      deps;
+    return Object.freeze({
+      query: async (permission: PluginPermission) => {
+        if (!declared.has(permission)) return "denied" as const;
+        const state = await permissionsAdapter().query(context, permission);
+        this.assertActive(entry, activation);
+        return state;
+      },
+      request: async (permissions: readonly PluginPermission[]) => {
+        if (!Array.isArray(permissions) || !permissions.length) throw new Error("请指定权限");
+        assertDeclared(permissions);
+        const granted = await permissionsAdapter().request(context, owner, [
+          ...new Set(permissions),
+        ]);
+        this.assertActive(entry, activation);
+        return granted;
+      },
+    });
+  }
+
+  private buildDataContext(deps: ContextDeps): Omit<PluginContext["data"], "todos" | "calendar"> {
+    const { context, entry, activation, guard, dataAdapter, deliver } = deps;
     const updater = (entity: DataEntity) => ({
       update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
         const value = readFields<PluginCardPatch>(patch, PATCH_FIELDS[entity]);
@@ -1812,1801 +2716,1128 @@ export class PluginHost {
         this.assertActive(entry, activation);
       },
     });
-    let backendClient: import("./backend").PluginBackendClient | undefined;
-    const backend = () => {
-      this.assertActive(entry, activation);
-      if (!this.options.backend) throw new Error("当前宿主不支持插件后台");
-      return (backendClient ??= this.options.backend(context));
-    };
-    const context: PluginContext = {
-      get windows() {
-        return activation.windows;
-      },
-      get environment() {
-        if (!environmentSource) throw new Error("当前宿主未提供插件环境");
-        return environmentSource.getSnapshot();
-      },
-      navigation: Object.freeze({
-        registerEntry: (definition: PluginNavigationEntry) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (!definition.title.trim()) throw new Error("功能入口标题不能为空");
-          if (navigationIds.has(definition.id)) throw new Error("功能入口重复注册");
-          const page = pages.get(definition.page);
-          if (!page?.active()) throw new Error("功能入口必须关联本插件有效页面");
-          if (!this.options.navigation) throw new Error("当前宿主不支持功能入口");
-          const handle = this.options.navigation.registerEntry(
-            context,
-            Object.freeze({
-              ...definition,
-              params: Object.freeze(normalizePageParams(definition.params ?? {})),
-            })
-          );
-          navigationIds.add(definition.id);
-          const owned = registerAs("navigation", {
-            dispose: () => {
-              navigationIds.delete(definition.id);
-              page.navigation.delete(owned);
-              return handle.dispose();
-            },
-          });
-          page.navigation.add(owned);
-          return owned;
-        },
+    return Object.freeze({
+      cards: Object.freeze({
+        ...reader("card"),
+        ...updater("card"),
+        ...creator("card"),
+        ...remover("card"),
       }),
-      backend: Object.freeze<import("./backend").PluginBackendClient>({
-        call: async (method, input, options) => {
-          const result = await backend().call(method, copyJson(input), options);
-          this.assertActive(entry, activation);
-          return copyJson(result);
-        },
-        subscribe: (event, listener) => register(backend().subscribe(event, listener)),
-        getState: async () => backend().getState(),
+      articles: Object.freeze({
+        ...reader("article"),
+        ...updater("article"),
+        ...creator("article"),
+        ...remover("article"),
       }),
-      pluginId: scope.pluginId,
-      publish: Object.freeze({
-        register: (definition: PublishProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("发布提供方必须属于当前插件");
-          if (!this.options.publish) throw new Error("当前宿主不支持发布提供方");
-          const create = definition.create.bind(definition);
-          return registerAs(
-            "publish",
-            this.options.publish.register(context, {
-              id: scope.pluginId,
-              name: definition.name,
-              create: config => {
-                this.assertActive(entry, activation);
-                if (entry.state !== "active") throw new Error("发布插件尚未激活");
-                return create(copyJson(config));
-              },
-            })
-          );
-        },
+      whiteboards: Object.freeze({
+        ...reader("whiteboard"),
+        ...updater("whiteboard"),
+        ...creator("whiteboard"),
+        ...remover("whiteboard"),
       }),
-      images: Object.freeze({
-        register: (definition: ImageProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("图片提供方必须属于当前插件");
-          if (!this.options.images) throw new Error("当前宿主不支持图片提供方");
-          const create = definition.create.bind(definition);
-          return registerAs(
-            "images",
-            this.options.images.register(context, {
-              id: scope.pluginId,
-              name: definition.name,
-              create: (config, modelId) => {
-                this.assertActive(entry, activation);
-                if (entry.state !== "active") throw new Error("图片插件尚未激活");
-                return create(copyJson(config), modelId);
-              },
-            })
-          );
-        },
-      }),
-      embeddings: Object.freeze({
-        register: (definition: EmbeddingProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("嵌入提供方必须属于当前插件");
-          if (
-            definition.maxBatchSize !== undefined &&
-            (!Number.isInteger(definition.maxBatchSize) || definition.maxBatchSize < 1)
-          )
-            throw new Error("嵌入提供方单批上限必须是正整数");
-          if (!this.options.embeddings) throw new Error("当前宿主不支持嵌入提供方");
-          const create = definition.create.bind(definition);
-          return registerAs(
-            "embeddings",
-            this.options.embeddings.register(context, {
-              id: scope.pluginId,
-              name: definition.name,
-              maxBatchSize: definition.maxBatchSize,
-              create: (config, modelId) => {
-                this.assertActive(entry, activation);
-                if (entry.state !== "active") throw new Error("嵌入插件尚未激活");
-                return create(copyJson(config), modelId);
-              },
-            })
-          );
-        },
-      }),
-      video: Object.freeze({
-        register: (definition: VideoProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("视频提供方必须属于当前插件");
-          if (!this.options.video) throw new Error("当前宿主不支持视频提供方");
-          const create = definition.create.bind(definition);
-          return registerAs(
-            "video",
-            this.options.video.register(context, {
-              id: scope.pluginId,
-              name: definition.name,
-              create: config => {
-                this.assertActive(entry, activation);
-                if (entry.state !== "active") throw new Error("视频插件尚未激活");
-                const instance = create(copyJson(config));
-                for (const method of ["matches", "resolve", "cacheKey", "getPlayback"] as const)
-                  if (typeof instance?.[method] !== "function")
-                    throw new Error(`视频提供方缺少 ${method} 方法`);
-                if (
-                  instance.getCaptions !== undefined &&
-                  typeof instance.getCaptions !== "function"
-                )
-                  throw new Error("视频提供方 getCaptions 必须是方法");
-                return instance;
-              },
-            })
-          );
-        },
-      }),
-      asr: Object.freeze({
-        register: (definition: ASRProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("识别提供方必须属于当前插件");
-          if (!this.options.asr) throw new Error("当前宿主不支持语音识别插件");
-          return registerAs(
-            "asr",
-            this.options.asr.register(context, {
-              id: scope.pluginId,
-              name: definition.name,
-              create: (config, modelId) => {
-                this.assertActive(entry, activation);
-                if (entry.state !== "active") throw new Error("识别插件尚未激活");
-                const instance = definition.create(copyJson(config), modelId);
-                if (
-                  typeof instance?.probe !== "function" ||
-                  (!instance.openStream && !instance.transcribeFile)
-                )
-                  throw new Error("识别提供方实现不完整");
-                return instance;
-              },
-            })
-          );
-        },
-      }),
-      websocket: Object.freeze({
-        connect: (
-          url: string,
-          protocols: string | string[] = [],
-          options: PluginSocketOptions = {}
-        ) => {
-          this.assertActive(entry, activation);
-          if (!this.options.websocket) throw new Error("当前宿主不支持 WebSocket");
-          const signal = AbortSignal.any([
-            scope.signal,
-            ...(options.signal ? [options.signal] : []),
-          ]);
-          return this.options.websocket.connect(url, protocols, { ...options, signal });
-        },
-      }),
-      tts: Object.freeze({
-        register: (definition: TTSProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("语音提供方必须属于当前插件");
-          if (!this.options.tts) throw new Error("当前宿主不支持语音提供方");
-          const create = definition.create.bind(definition);
-          return registerAs(
-            "tts",
-            this.options.tts.register(context, {
-              id: scope.pluginId,
-              name: definition.name,
-              create: (config, modelId) => {
-                this.assertActive(entry, activation);
-                if (entry.state !== "active") throw new Error("语音插件尚未激活");
-                return create(copyJson(config), modelId);
-              },
-            })
-          );
-        },
-        unavailableReason: () => {
-          this.assertActive(entry, activation);
-          if (!this.options.ttsSynthesis) return "当前设备不支持插件语音合成";
-          return this.options.ttsSynthesis.unavailableReason();
-        },
-        open: async (options?: { signal?: AbortSignal }): Promise<TTSSynthesisSession> => {
-          this.assertActive(entry, activation);
-          const adapter = this.options.ttsSynthesis;
-          if (!adapter) throw new Error("TTS_UNAVAILABLE：当前宿主不支持插件语音合成");
-          await guard("tts:synthesize");
-          const signal = options?.signal
-            ? AbortSignal.any([options.signal, scope.signal])
-            : scope.signal;
-          signal.throwIfAborted();
-          const session = await adapter.open(context, signal);
-          let closed = false;
-          const close = async () => {
-            if (closed) return;
-            closed = true;
-            scope.signal.removeEventListener("abort", onAbort);
-            await session.close();
-          };
-          const onAbort = () =>
-            void close().catch(error => console.error("关闭语音会话失败", error));
-          scope.signal.addEventListener("abort", onAbort, { once: true });
-          const callSignal = (callOptions?: { signal?: AbortSignal }) => {
-            this.assertActive(entry, activation);
-            if (closed) throw new DOMException("语音会话已关闭", "AbortError");
-            const merged = callOptions?.signal
-              ? AbortSignal.any([callOptions.signal, scope.signal])
-              : scope.signal;
-            merged.throwIfAborted();
-            return merged;
-          };
-          return Object.freeze({
-            providerName: String(session.providerName),
-            ...(typeof session.textInstructions === "string"
-              ? { textInstructions: session.textInstructions }
-              : {}),
-            getVoices: async (callOptions?: { signal?: AbortSignal }) => {
-              const voices = await session.getVoices(callSignal(callOptions));
-              this.assertActive(entry, activation);
-              return voices.map((voice): TTSVoice => ({
-                id: String(voice.id),
-                name: String(voice.name),
-                type: voice.type,
-                ...(voice.description ? { description: String(voice.description) } : {}),
-              }));
-            },
-            synthesize: async (
-              request: TTSSynthesizeRequest,
-              callOptions?: { signal?: AbortSignal }
-            ) => {
-              if (typeof request?.text !== "string" || !request.text.trim())
-                throw new Error("朗读文字不能为空");
-              if (typeof request.voiceId !== "string" || !request.voiceId)
-                throw new Error("请指定音色");
-              const signal = callSignal(callOptions);
-              const audio = await session.synthesize(
-                {
-                  text: request.text,
-                  voiceId: request.voiceId,
-                  ...(request.options ? { options: { ...request.options } } : {}),
-                },
-                signal
-              );
-              signal.throwIfAborted();
-              this.assertActive(entry, activation);
-              return { audio: new Uint8Array(audio.audio), mime: String(audio.mime) };
-            },
-            close,
-          });
-        },
-      }),
-      upload: Object.freeze({
-        save: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
-          this.assertActive(entry, activation);
-          const save = this.options.upload?.save;
-          if (!save) throw new Error("UPLOAD_UNAVAILABLE：当前宿主不支持保存资源文件");
-          if (
-            typeof file?.name !== "string" ||
-            !file.name.trim() ||
-            typeof file.mimeType !== "string" ||
-            !(file.content instanceof Uint8Array)
-          )
-            throw new Error("文件无效");
-          const signal = AbortSignal.any([
-            scope.signal,
-            ...(options?.signal ? [options.signal] : []),
-          ]);
-          signal.throwIfAborted();
-          const url = await save({ ...file, content: new Uint8Array(file.content) }, signal);
-          signal.throwIfAborted();
-          this.assertActive(entry, activation);
-          return url;
-        },
-        uploadRemote: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
-          this.assertActive(entry, activation);
-          const uploadRemote = this.options.upload?.uploadRemote;
-          if (!uploadRemote) throw new Error("当前宿主不支持远端上传");
-          const signal = AbortSignal.any([
-            scope.signal,
-            ...(options?.signal ? [options.signal] : []),
-          ]);
-          signal.throwIfAborted();
-          const url = await uploadRemote(
-            { ...file, content: new Uint8Array(file.content) },
-            signal
-          );
-          signal.throwIfAborted();
-          this.assertActive(entry, activation);
-          return url;
-        },
-        register: (definition: UploadProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.upload !== "function"
-          )
-            throw new Error("上传提供方必须属于当前插件");
-          if (!this.options.upload) throw new Error("当前宿主不支持资源上传提供方");
-          const upload = definition.upload.bind(definition);
-          return registerAs(
-            "upload",
-            this.options.upload.register(
-              context,
-              Object.freeze({
-                id: scope.pluginId,
-                name: definition.name,
-                upload: async (file: UploadFile, config: JsonValue, signal: AbortSignal) => {
-                  this.assertActive(entry, activation);
-                  if (entry.state !== "active") throw new Error("上传插件尚未激活");
-                  const executionSignal = AbortSignal.any([scope.signal, signal]);
-                  executionSignal.throwIfAborted();
-                  const result = await upload(file, config, executionSignal);
-                  executionSignal.throwIfAborted();
-                  this.assertActive(entry, activation);
-                  const url = new URL(result);
-                  if (!["http:", "https:"].includes(url.protocol))
-                    throw new Error("上传插件必须返回HTTP(S)资源地址");
-                  return result;
-                },
-              })
-            )
-          );
-        },
-      }),
-      sync: Object.freeze({
-        register: (definition: SyncProviderDefinition) => {
-          this.assertActive(entry, activation);
-          if (
-            definition.id !== scope.pluginId ||
-            !definition.name.trim() ||
-            typeof definition.create !== "function"
-          )
-            throw new Error("同步提供方必须属于当前插件");
-          if (!this.options.sync) throw new Error("当前宿主不支持同步提供方");
-          return registerAs(
-            "sync",
-            this.options.sync.register(context, Object.freeze({ ...definition }))
-          );
-        },
-      }),
-      workspaceId: scope.workspaceId,
-      signal: scope.signal,
-      register,
-      ai: Object.freeze({ ...(activation.ai ?? unavailableAI), requestCapability }),
-      chat: Object.freeze({
-        registerToolRenderer: async (definition: PluginToolRendererDefinition) => {
-          this.assertActive(entry, activation);
-          const declared = snapshotToolRendererDefinition(definition);
-          const adapter = this.options.chat;
-          if (!adapter) throw new Error("当前宿主不支持聊天工具渲染");
-          const key = JSON.stringify([declared.mcpId, declared.toolName]);
-          if (toolRenderers.has(key)) throw new Error("工具渲染器已注册");
-          toolRenderers.add(key);
-          const local = new AbortController();
-          const signal = AbortSignal.any([scope.signal, local.signal]);
-          let resource: Disposable | undefined;
-          const owned = registerAs("chat", {
-            dispose: () => {
-              local.abort();
-              toolRenderers.delete(key);
-              return resource?.dispose();
-            },
-          });
-          const validate = () => {
-            if (signal.aborted) return;
-            const mcp = mcps.get(declared.mcpId);
-            if (!mcp || (mcp.tools && !mcp.tools.some(tool => tool.name === declared.toolName)))
-              throw new Error("工具渲染器只能绑定本插件已注册的 MCP 工具");
-          };
-          try {
-            const commit = await adapter.prepare({ ...context, signal }, declared);
-            this.assertActive(entry, activation);
-            signal.throwIfAborted();
-            if (entry.state === "active") {
-              validate();
-              resource = commit();
-            } else {
-              activation.beforeActivated.push(validate);
-              activation.onActivated.push(() => {
-                if (!signal.aborted) resource = commit();
-              });
-            }
-            return owned;
-          } catch (error) {
-            await owned.dispose();
-            throw error;
-          }
-        },
-      }),
-      mcp: Object.freeze({
-        register: (definition: PluginMCPDefinition) => {
-          this.assertActive(entry, activation);
-          const declared = snapshotMCPDefinition(definition);
-          if (declared.transport?.type === "stdio") {
-            const transport = declared.transport;
-            const backend = entry.metadata.backend;
-            if (
-              !backend?.systemAccess.includes("process") ||
-              !backend.tools?.some(
-                tool =>
-                  tool.command === transport.command &&
-                  (tool.args ?? []).every((arg, index) => transport.args?.[index] === arg)
-              )
-            )
-              throw new Error("插件 stdio MCP 必须在 backend.tools 声明外部程序并获得后台授权");
-          }
-          const adapter = this.options.mcp;
-          if (!adapter) throw new Error("当前宿主不支持 MCP");
-          if (mcps.has(definition.id)) throw new Error("MCP 已注册");
-          const local = new AbortController();
-          const signal = AbortSignal.any([scope.signal, local.signal]);
-          const snapshot: PluginMCPDefinition = declared.transport
-            ? declared
-            : {
-                ...declared,
-                tools: declared.tools.map(tool => ({
-                  ...tool,
-                  execute: async (args, call) => {
-                    this.assertActive(entry, activation);
-                    signal.throwIfAborted();
-                    if (entry.state !== "active") throw new Error("插件尚未激活");
-                    const executionSignal = AbortSignal.any([signal, call.signal]);
-                    executionSignal.throwIfAborted();
-                    const result = await tool.execute(copyJson(args) as typeof args, {
-                      signal: executionSignal,
-                    });
-                    executionSignal.throwIfAborted();
-                    this.assertActive(entry, activation);
-                    return snapshotMCPToolResult(result);
-                  },
-                })),
-              };
-          mcps.set(definition.id, declared);
-          let resource: Disposable | undefined;
-          const commit = () => {
-            if (signal.aborted) return;
-            resource = adapter.register({ ...context, signal }, snapshot, {
-              id: scope.pluginId,
-              name: entry.metadata.name,
-              executionIdentity: crypto.randomUUID(),
-            });
-          };
-          const owned = registerAs("mcp", {
-            dispose: () => {
-              local.abort();
-              mcps.delete(definition.id);
-              return resource?.dispose();
-            },
-          });
-          if (entry.state === "active") {
-            try {
-              commit();
-            } catch (error) {
-              void owned.dispose();
-              throw error;
-            }
-          } else activation.onActivated.push(commit);
-          return owned;
-        },
-      }),
-      services: bindPluginServices(this.options.services, scope.signal, () =>
-        this.assertActive(entry, activation)
-      ),
-      fetch: async (input, init) => {
-        this.assertActive(entry, activation);
-        const execute = this.options.fetch;
-        if (!execute) throw new Error("当前宿主不支持 fetch");
-        const source =
-          init?.signal === undefined && input instanceof Request ? input.signal : init?.signal;
-        const signal = AbortSignal.any([scope.signal, ...(source ? [source] : [])]);
-        const response = await execute(input, { ...init, signal }, { pluginId: entry.metadata.id });
-        if (signal.aborted) {
-          void response.body?.cancel().catch(() => undefined);
-          signal.throwIfAborted();
-        }
-        this.assertActive(entry, activation);
-        return response;
-      },
-      settings: Object.freeze({
-        register: (definition: PluginSettingsDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
-          if (definition.form) {
-            if (!definition.target) throw new Error("form 需要声明提供方目标");
-            if (definition.component) throw new Error("设置分区不能同时声明 form 与组件");
-            assertProviderForm(definition.form);
-          } else if (typeof definition.component !== "function")
-            throw new Error("设置分区缺少组件");
-          if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
-          const handle = this.options.settings.register(context, Object.freeze({ ...definition }));
-          let disposed = false;
-          const resource = registerAs("settings", {
-            dispose: () => {
-              disposed = true;
-              return handle.dispose();
-            },
-          });
-          return Object.freeze({
-            id: handle.id,
-            open: async () => {
-              this.assertActive(entry, activation);
-              if (disposed) throw new Error("设置分区已注销");
-              await handle.open();
-            },
-            dispose: resource.dispose,
-          });
-        },
-      }),
-      commands: Object.freeze({
-        register: (command: PluginCommand) => {
-          this.assertActive(entry, activation);
-          assertLocalId(command.id);
-          if (!command.title.trim()) throw new Error("命令标题不能为空");
-          const id = `${scope.pluginId}:${command.id}`;
-          if (this.commands.has(id)) throw new Error(`命令已注册：${id}`);
-          const value = {
-            info: {
-              id,
-              pluginId: scope.pluginId,
-              pluginName: entry.metadata.name,
-              title: command.title,
-            },
-            entry,
-            activation,
-            run: command.run,
-          };
-          this.commands.set(id, value);
-          this.changed();
-          return registerAs("command", {
-            dispose: () => {
-              if (this.commands.get(id) === value) this.commands.delete(id);
-              this.changed();
-            },
-          });
-        },
-      }),
-      storage: Object.freeze({
-        get: async (key: string) => {
-          prepareStorage(key);
-          const value = await this.options.storage.get(scope, key);
-          this.assertActive(entry, activation);
-          return value === undefined ? undefined : copyJson(value);
-        },
-        set: async (key: string, value: JsonValue) => {
-          prepareStorage(key);
-          await this.options.storage.set(scope, key, copyJson(value));
-        },
-        delete: async (key: string) => {
-          prepareStorage(key);
-          await this.options.storage.delete(scope, key);
-        },
-      }),
-      excerpts: Object.freeze({
-        register: (definition: PluginExcerptProviderDefinition) => {
-          const adapter = excerptsAdapter();
-          if (excerptProvider) throw new Error("摘录提供方已注册");
-          if (typeof definition.label !== "string" || !definition.label.trim())
-            throw new Error("摘录提供方名称不能为空");
-          if (definition.open !== undefined && typeof definition.open !== "function")
-            throw new Error("摘录提供方 open 必须是函数");
-          const handle = adapter.register(context, Object.freeze({ ...definition }));
-          const owned = registerAs("excerpts", {
-            dispose: () => {
-              if (excerptProvider === owned) excerptProvider = undefined;
-              return handle.dispose();
-            },
-          });
-          excerptProvider = owned;
-          return owned;
-        },
-        replace: (source: PluginExcerptSource, items: PluginExcerptItem[]) =>
-          excerptWrite(adapter =>
-            adapter.replace(
-              context,
-              copyJson(source) as unknown as PluginExcerptSource,
-              copyJson(items) as unknown as PluginExcerptItem[]
-            )
-          ),
-        patch: (source: PluginExcerptSource, change: PluginExcerptChange) =>
-          excerptWrite(adapter =>
-            adapter.patch(
-              context,
-              copyJson(source) as unknown as PluginExcerptSource,
-              copyJson(change) as unknown as PluginExcerptChange
-            )
-          ),
-        sources: async () => {
-          const result = await excerptsAdapter().sources(context);
-          this.assertActive(entry, activation);
-          return copyJson(result) as unknown as PluginExcerptSourceSummary[];
-        },
-        items: async (sourceKey: string) => {
-          if (typeof sourceKey !== "string" || !sourceKey) throw new Error("摘录来源无效");
-          const result = await excerptsAdapter().items(context, sourceKey);
-          this.assertActive(entry, activation);
-          return copyJson(result) as unknown as PluginExcerptEntry[];
-        },
-      }),
-      flashcards: Object.freeze(
-        Object.fromEntries(
-          (
-            [
-              "listDecks",
-              "createDeck",
-              "createCard",
-              "openCreate",
-              "generate",
-              "generateAndSave",
-            ] as const
-          ).map(method => [
-            method,
-            async (...args: unknown[]) => {
-              this.assertActive(entry, activation);
-              const snapshot = structuredClone(args);
-              if (method === "listDecks") await guard("flashcards:read");
-              if (
-                method === "createDeck" ||
-                method === "createCard" ||
-                method === "generateAndSave"
-              )
-                await guard("flashcards:write");
-              const adapter = this.options.flashcards;
-              if (!adapter) throw new Error("当前宿主不支持闪卡");
-              const call = adapter[method] as (
-                context: PluginContext,
-                ...args: unknown[]
-              ) => Promise<unknown>;
-              const result = await call(context, ...snapshot);
-              this.assertActive(entry, activation);
-              return structuredClone(result);
-            },
-          ])
-        )
-      ) as unknown as PluginFlashcards,
-      materials: Object.freeze({
-        actions: async (ref: PluginMaterialRef) => {
-          this.assertActive(entry, activation);
-          if (!this.options.materials) throw new Error("当前宿主不支持材料动作");
-          const actions = await this.options.materials.actions(
-            context,
-            copyJson(ref) as unknown as PluginMaterialRef
-          );
-          this.assertActive(entry, activation);
-          return actions.map(action =>
-            Object.freeze({
-              id: action.id,
-              label: action.label,
-              run: async () => {
-                this.assertActive(entry, activation);
-                const feedback = this.options.materialActionFeedback;
-                try {
-                  await action.run();
-                  this.assertActive(entry, activation);
-                  feedback?.success(action.label);
-                } catch (error) {
-                  if (!feedback || context.signal.aborted) throw error;
-                  feedback.error(
-                    error instanceof Error ? error.message : String(error) || "材料操作失败"
-                  );
-                }
-              },
-            })
-          );
-        },
-      }),
-      permissions: Object.freeze({
-        query: async (permission: PluginPermission) => {
-          if (!declared.has(permission)) return "denied" as const;
-          const state = await permissionsAdapter().query(context, permission);
-          this.assertActive(entry, activation);
-          return state;
-        },
-        request: async (permissions: readonly PluginPermission[]) => {
-          if (!Array.isArray(permissions) || !permissions.length) throw new Error("请指定权限");
-          assertDeclared(permissions);
-          const granted = await permissionsAdapter().request(context, owner, [
-            ...new Set(permissions),
-          ]);
-          this.assertActive(entry, activation);
-          return granted;
-        },
-      }),
-      data: Object.freeze({
-        cards: Object.freeze({
-          ...reader("card"),
-          ...updater("card"),
-          ...creator("card"),
-          ...remover("card"),
-        }),
-        articles: Object.freeze({
-          ...reader("article"),
-          ...updater("article"),
-          ...creator("article"),
-          ...remover("article"),
-        }),
-        whiteboards: Object.freeze({
-          ...reader("whiteboard"),
-          ...updater("whiteboard"),
-          ...creator("whiteboard"),
-          ...remover("whiteboard"),
-        }),
-        projects: Object.freeze({
-          ...reader("project"),
-          ...updater("project"),
-          ...creator("project"),
-          ...remover("project"),
-          tree: async (id: string) => {
-            const projectId = readId(id);
-            await guard(ENTITY_PERMISSIONS.project);
-            return deliver<PluginProjectNode[] | null>(
-              await dataAdapter().projectTree(context, projectId)
-            );
-          },
-        }),
-        notebooks: Object.freeze({
-          ...reader("notebook"),
-          resources: async (id: string) => {
-            const notebookId = readId(id);
-            await guard(ENTITY_PERMISSIONS.notebook);
-            return deliver<PluginNotebookResource[] | null>(
-              await dataAdapter().notebookResources(context, notebookId)
-            );
-          },
-        }),
-        materials: reader("material"),
-        chats: reader("chat-session"),
-        documents: Object.freeze({
-          ...reader("document"),
-          ...updater("document"),
-          ...remover("document"),
-          create: async (input: unknown) => {
-            const raw = (input ?? {}) as Record<string, unknown>;
-            if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
-            const { content, projectId, parentId, ...fields } = raw;
-            const value: PluginDocumentInput = {
-              ...readFields<Pick<PluginDocumentInput, "title" | "tags">>(
-                fields,
-                { title: MAX_TITLE, tags: "tags" },
-                ["title"]
-              ),
-              projectId: readId(projectId),
-              ...(parentId !== undefined ? { parentId: readId(parentId) } : {}),
-              ...(content !== undefined
-                ? { content: readContentInput(content, { allowEmpty: true, share: true }) }
-                : {}),
-            };
-            await guard(WRITE_PERMISSIONS.document);
-            return deliver<never>(await dataAdapter().createDocument(context, value));
-          },
-          move: async (id: string, move: unknown, options: PluginWriteOptions) => {
-            const value = readDocumentMove(move);
-            const revision = readRevision(options);
-            await guard(WRITE_PERMISSIONS.document);
-            return deliver<{ revision: string }>(
-              await dataAdapter().moveDocument(context, readId(id), value, revision)
-            );
-          },
-        }),
-        todos: Object.freeze({
-          create: async (input: PluginTodoInput) => {
-            const value = readFields<PluginTodoInput>(
-              input,
-              { title: MAX_TITLE, dueAt: "nullable-time" },
-              ["title"]
-            );
-            await guard("todos:write");
-            return deliver<PluginTodo>(await writeTodo({ action: "create", input: value }));
-          },
-          update: async (id: string, patch: PluginTodoPatch, options: PluginWriteOptions) => {
-            const value = readFields<PluginTodoPatch>(patch, {
-              title: MAX_TITLE,
-              dueAt: "nullable-time",
-            });
-            const expectedRevision = readRevision(options);
-            await guard("todos:write");
-            return deliver<PluginTodo>(
-              await writeTodo({
-                action: "update",
-                id: readId(id),
-                patch: value,
-                expectedRevision,
-              })
-            );
-          },
-          setCompleted: async (id: string, completed: boolean, options: PluginWriteOptions) => {
-            if (typeof completed !== "boolean") throw new Error("completed 无效");
-            const expectedRevision = readRevision(options);
-            await guard("todos:write");
-            return deliver<PluginTodo>(
-              await writeTodo({
-                action: "complete",
-                id: readId(id),
-                completed,
-                expectedRevision,
-              })
-            );
-          },
-          delete: async (id: string, options: PluginWriteOptions) => {
-            const expectedRevision = readRevision(options);
-            await guard("todos:delete");
-            await writeTodo({
-              action: "delete",
-              id: readId(id),
-              expectedRevision,
-            });
-            this.assertActive(entry, activation);
-          },
-          query: async (query?: PluginTodoQuery) => {
-            const picked = pickQuery<PluginTodoQuery>(query, {
-              source: "string",
-              view: "string",
-              completed: "boolean",
-              keyword: "string",
-              start: "string",
-              end: "string",
-              cursor: "string",
-            });
-            if (picked.source !== undefined && !["all", "todo", "document"].includes(picked.source))
-              throw new Error("查询参数 source 无效");
-            if (picked.view !== undefined && !["tasks", "occurrences"].includes(picked.view))
-              throw new Error("查询参数 view 无效");
-            if (picked.view === "occurrences" && (!picked.start || !picked.end))
-              throw new Error("周期实例查询须同时提供 start/end");
-            const limit = readLimit(query?.limit, 100);
-            await guard("todos:read");
-            return deliver<PluginPage<PluginTodo>>(
-              await dataAdapter().todos(context, { ...picked, limit })
-            );
-          },
-        }),
-        calendar: Object.freeze({
-          create: async (input: PluginCalendarInput) => {
-            const value = readFields<PluginCalendarInput>(
-              input,
-              { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
-              ["title", "start", "end", "allDay"]
-            );
-            await guard("calendar:write");
-            return deliver<PluginCalendarEvent>(
-              await dataAdapter().writeCalendar(context, { action: "create", input: value })
-            );
-          },
-          update: async (id: string, patch: PluginCalendarPatch, options: PluginWriteOptions) => {
-            const value = readFields<PluginCalendarPatch>(patch, {
-              title: MAX_TITLE,
-              start: 64,
-              end: 64,
-              allDay: "boolean",
-              calendarId: 32,
-            });
-            const expectedRevision = readRevision(options);
-            await guard("calendar:write");
-            return deliver<PluginCalendarEvent>(
-              await dataAdapter().writeCalendar(context, {
-                action: "update",
-                id: readId(id),
-                patch: value,
-                expectedRevision,
-              })
-            );
-          },
-          delete: async (id: string, options: PluginWriteOptions) => {
-            const expectedRevision = readRevision(options);
-            await guard("calendar:delete");
-            await dataAdapter().writeCalendar(context, {
-              action: "delete",
-              id: readId(id),
-              expectedRevision,
-            });
-            this.assertActive(entry, activation);
-          },
-          query: async (query: PluginCalendarQuery) => {
-            const picked = pickQuery<PluginCalendarQuery>(query, {
-              start: "string",
-              end: "string",
-              cursor: "string",
-            });
-            if (!picked.start || !picked.end) throw new Error("日程查询需要 start 与 end");
-            const limit = readLimit(query?.limit, 100);
-            await guard("calendar:read");
-            return deliver<PluginPage<PluginCalendarEvent>>(
-              await dataAdapter().calendar(context, {
-                start: picked.start,
-                end: picked.end,
-                ...(picked.cursor === undefined ? {} : { cursor: picked.cursor }),
-                limit,
-              })
-            );
-          },
-        }),
-      }),
-      notifications: Object.freeze({
-        send: (options: PluginNotificationOptions) => {
-          this.assertActive(entry, activation);
-          const value = readNotificationOptions(options);
-          if (!this.options.notifications) throw new Error("当前宿主不支持通知");
-          let disposed = false;
-          const resource = this.options.notifications.send(context, owner, {
-            ...value,
-            actions: value.actions?.map(action => ({
-              ...action,
-              onClick: async () => {
-                this.assertActive(entry, activation);
-                if (disposed) throw new Error("通知已失效");
-                await action.onClick();
-                this.assertActive(entry, activation);
-              },
-            })),
-          });
-          return register({
-            dispose: () => {
-              disposed = true;
-              return resource.dispose();
-            },
-          });
-        },
-      }),
-      speech: Object.freeze({
-        unavailableReason: () => {
-          this.assertActive(entry, activation);
-          if (!this.options.speech) return "当前设备不支持插件语音输入";
-          return this.options.speech.unavailableReason();
-        },
-        start: async (options: PluginSpeechStartOptions = {}): Promise<PluginSpeechSession> => {
-          this.assertActive(entry, activation);
-          if (options.onPreview !== undefined && typeof options.onPreview !== "function")
-            throw new Error("onPreview 必须是函数");
-          const adapter = this.options.speech;
-          if (!adapter) throw new Error("SPEECH_UNAVAILABLE：当前宿主不支持插件语音输入");
-          await guard("speech:input");
-          const onPreview = options.onPreview;
-          const signal = options.signal
-            ? AbortSignal.any([options.signal, activation.controller.signal])
-            : activation.controller.signal;
-          signal.throwIfAborted();
-          const session = await adapter.start(context, {
-            signal,
-            onPreview: text => {
-              if (!signal.aborted) onPreview?.(String(text));
-            },
-          });
-          this.assertActive(entry, activation);
-          return Object.freeze({
-            result: session.result.then(text => {
-              this.assertActive(entry, activation);
-              return String(text);
-            }),
-            stop: () => session.stop(),
-            cancel: () => session.cancel(),
-          });
-        },
-      }),
-      app: Object.freeze({
-        pick: async (options: PluginPickOptions) => {
-          const kinds = options?.kinds;
-          if (!Array.isArray(kinds) || !kinds.length || kinds.some(kind => !entityKinds.has(kind)))
-            throw new Error("请指定可选的内容类型");
-          if (options.multiple !== undefined && typeof options.multiple !== "boolean")
-            throw new Error("multiple 无效");
-          const value: Required<PluginPickOptions> = {
-            kinds: [...new Set<PluginEntityKind>(kinds)],
-            multiple: options.multiple ?? false,
-            title:
-              options.title === undefined
-                ? "选择要关联的内容"
-                : readText(options.title, "标题", 100),
-          };
-          this.assertActive(entry, activation);
-          if (!this.options.app) throw new Error("当前宿主不支持选择内容");
-          return deliver<PluginPickedEntity[]>(await this.options.app.pick(context, owner, value));
-        },
-        open: async (ref: PluginEntityRef, options?: PluginOpenOptions) => {
-          const value = readEntityRef(ref);
-          const opening = readOpenOptions(value, options);
-          this.assertActive(entry, activation);
-          if (!this.options.app) throw new Error("当前宿主不支持打开内容");
-          await this.options.app.open(context, value, opening);
-          this.assertActive(entry, activation);
-        },
-        describe: async (refs: readonly PluginEntityRef[]) => {
-          if (!Array.isArray(refs) || refs.length > MAX_DESCRIBE)
-            throw new Error(`refs 必须是最多 ${MAX_DESCRIBE} 项的数组`);
-          const values = refs.map(readEntityRef);
-          this.assertActive(entry, activation);
-          if (!this.options.app) throw new Error("当前宿主不支持读取内容信息");
-          // 只查询已有授权，不弹窗：由插件引导用户点击后再 permissions.request
-          const readable: PluginEntityKind[] = [];
-          for (const kind of new Set(values.map(ref => ref.kind))) {
-            const permission = PLUGIN_ENTITY_READ_PERMISSIONS[kind];
-            if (
-              permission &&
-              declared.has(permission) &&
-              (await permissionsAdapter().query(context, permission)) === "granted"
-            )
-              readable.push(kind);
-          }
-          const results = await this.options.app.describe(context, values, readable);
-          this.assertActive(entry, activation);
-          if (results.length !== values.length) throw new Error("宿主返回的描述数量不一致");
-          return values.map((ref, index): PluginEntityDescription => {
-            const result = results[index];
-            if (result.status === "ok") return { ref, status: "ok", title: result.title };
-            if (result.status === "missing") return { ref, status: "missing" };
-            return { ref, status: "denied", permission: PLUGIN_ENTITY_READ_PERMISSIONS[ref.kind] };
-          });
-        },
-        run: async (action: PluginAppAction, options: unknown) => {
-          const request = readRunRequest(action, options);
-          this.assertActive(entry, activation);
-          if (!this.options.app) throw new Error("当前宿主不支持该动作");
-          const result = await this.options.app.run(context, owner, request);
-          this.assertActive(entry, activation);
-          if (!CREATING_ACTIONS.has(request.action)) return undefined as never;
-          return (result ? readEntityRef(result) : null) as never;
-        },
-      }),
-      entities: Object.freeze({
-        registerKind: (definition: PluginOwnEntityKind) => {
-          this.assertActive(entry, activation);
-          const value = readEntityKind(definition);
-          if (entityKindDefinitions.has(value.kind)) throw new Error(`类型 ${value.kind} 已声明`);
-          const hosted = this.options.entities?.registerKind?.(context, value);
-          entityKindDefinitions.set(value.kind, value);
-          return register({
-            dispose: () => {
-              if (entityKindDefinitions.get(value.kind) === value)
-                entityKindDefinitions.delete(value.kind);
-              return hosted?.dispose();
-            },
-          });
-        },
-        create: async (input: PluginOwnEntityInput) => {
-          const value = readEntityCreate(input);
-          return deliver<PluginOwnEntity>(
-            await entitiesAdapter().create(context, value.input, value.indexes)
-          );
-        },
-        get: async (id: string) =>
-          deliver<PluginOwnEntity | null>(await entitiesAdapter().get(context, readId(id))),
-        find: async (kind: string, key: string) =>
-          deliver<PluginOwnEntity | null>(
-            await entitiesAdapter().find(
-              context,
-              readText(kind, "类型", 128),
-              readText(key, "key", 200)
-            )
-          ),
-        query: async (query?: PluginOwnEntityQuery) => {
-          const filter = readEntityFilter(query);
-          const cursor = query?.cursor;
-          if (cursor !== undefined) readText(cursor, "cursor", MAX_QUERY_CURSOR);
-          const limit = query?.limit ?? 50;
-          if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
-            throw new Error("limit 必须是 1–200 的整数");
-          const orderBy = readOrderBy(
-            query?.orderBy,
-            filter.kind === undefined ? {} : kindIndexes(filter.kind),
-            ENTITY_SORT_FIELDS
-          );
-          return deliver<PluginPage<PluginOwnEntity>>(
-            await entitiesAdapter().query(context, {
-              ...filter,
-              orderBy: orderBy.length ? orderBy : DEFAULT_ENTITY_ORDER,
-              ...(cursor === undefined ? {} : { cursor }),
-              limit,
-            })
-          );
-        },
-        count: async (filter?: PluginOwnEntityFilter) =>
-          deliver<number>(await entitiesAdapter().count(context, readEntityFilter(filter))),
-        backlinks: async (id: string) => {
-          const sources = await entitiesAdapter().backlinks(context, readId(id));
-          this.assertActive(entry, activation);
-          // 只给已获准读取的类型，不弹窗；其余只计数
-          const states = new Map<ContentOwnerEntity, boolean>();
-          for (const entity of new Set(sources.flatMap(source => source.entity ?? []))) {
-            const permission = ENTITY_PERMISSIONS[entity];
-            states.set(
-              entity,
-              declared.has(permission) &&
-                (await permissionsAdapter().query(context, permission)) === "granted"
-            );
-          }
-          const items: PluginOwnEntityBacklink[] = [];
-          for (const source of sources)
-            if (source.entity && states.get(source.entity))
-              items.push({
-                ref: { kind: source.entity, id: source.id },
-                title: source.title,
-                snippets: source.snippets,
-              });
-          return deliver<{ items: PluginOwnEntityBacklink[]; omitted: number }>({
-            items,
-            omitted: sources.length - items.length,
-          });
-        },
-        delete: async (id: string, options: PluginWriteOptions) => {
-          await entitiesAdapter().delete(context, readId(id), readRevision(options));
-          this.assertActive(entry, activation);
-        },
-        update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) =>
-          deliver<PluginOwnEntity>(
-            await entitiesAdapter().update(
-              context,
-              readId(id),
-              readEntityPatch(patch),
-              readRevision(options),
-              allKindIndexes()
-            )
-          ),
-      }),
-      links: Object.freeze({
-        add: async (from: string, to: PluginEntityRef, options?: PluginLinkOptions) => {
-          const { readable, ...link } = await readLinkAdd(from, to, options);
-          return deliver<PluginLink>(
-            await linksAdapter().add(context, { id: crypto.randomUUID(), ...link }, readable)
-          );
-        },
-        list: async (from: string, options?: { role?: string }) => {
-          const role = options?.role;
-          if (role !== undefined && role !== "") assertLocalId(role);
-          return deliver<PluginLink[]>(await linksAdapter().list(context, readId(from), role));
-        },
-        remove: async (id: string) => {
-          await linksAdapter().remove(context, readId(id));
-          this.assertActive(entry, activation);
-        },
-        reorder: async (from: string, ids: readonly string[]) => {
-          await linksAdapter().reorder(context, readId(from), readReorderIds(ids));
-          this.assertActive(entry, activation);
-        },
-      }),
-      records: Object.freeze({
-        registerCollection: (definition: PluginRecordCollection) => {
-          this.assertActive(entry, activation);
-          const value = readRecordCollection(definition);
-          if (recordCollections.has(value.name)) throw new Error(`集合 ${value.name} 已声明`);
-          recordCollections.set(value.name, value);
-          return register({
-            dispose: () => {
-              if (recordCollections.get(value.name) === value) recordCollections.delete(value.name);
-            },
-          });
-        },
-        insert: async (name: string, data: PluginRecordData) => {
-          const collection = collectionOf(name);
-          return deliver<PluginRecord>(
-            await recordsAdapter().insert(
-              context,
-              collection.name,
-              { id: crypto.randomUUID(), data: readRecordData(data) },
-              collection.indexes
-            )
-          );
-        },
-        get: async (name: string, id: string) =>
-          deliver<PluginRecord | null>(
-            await recordsAdapter().get(context, collectionOf(name).name, readId(id))
-          ),
-        query: async (name: string, query?: PluginRecordQuery) => {
-          const collection = collectionOf(name);
-          if (query !== undefined && (!query || typeof query !== "object"))
-            throw new Error("参数无效");
-          const cursor = query?.cursor;
-          if (cursor !== undefined) readText(cursor, "cursor", MAX_QUERY_CURSOR);
-          const limit = query?.limit ?? 50;
-          if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
-            throw new Error("limit 必须是 1–200 的整数");
-          const orderBy = readOrderBy(query?.orderBy, collection.indexes, RECORD_SORT_FIELDS);
-          return deliver<PluginPage<PluginRecord>>(
-            await recordsAdapter().query(context, collection.name, {
-              where: readWhere(query?.where, collection.indexes),
-              orderBy: orderBy.length ? orderBy : DEFAULT_RECORD_ORDER,
-              ...(cursor === undefined ? {} : { cursor }),
-              limit,
-            })
-          );
-        },
-        count: async (name: string, filter?: PluginRecordFilter) => {
-          const collection = collectionOf(name);
-          if (filter !== undefined && (!filter || typeof filter !== "object"))
-            throw new Error("参数无效");
-          return deliver<number>(
-            await recordsAdapter().count(
-              context,
-              collection.name,
-              readWhere(filter?.where, collection.indexes)
-            )
-          );
-        },
-        update: async (
-          name: string,
-          id: string,
-          data: PluginRecordData,
-          options: PluginWriteOptions
-        ) => {
-          const collection = collectionOf(name);
-          return deliver<PluginRecord>(
-            await recordsAdapter().update(
-              context,
-              collection.name,
-              readId(id),
-              readRecordData(data),
-              readRevision(options),
-              collection.indexes
-            )
-          );
-        },
-        delete: async (name: string, id: string, options: PluginWriteOptions) => {
-          await recordsAdapter().delete(
-            context,
-            collectionOf(name).name,
-            readId(id),
-            readRevision(options)
-          );
-          this.assertActive(entry, activation);
-        },
-      }),
-      transaction: async <T>(run: (tx: PluginTransaction) => T | Promise<T>): Promise<T> => {
-        this.assertActive(entry, activation);
-        if (typeof run !== "function") throw new Error("事务回调必须是函数");
-        if (!this.options.transaction) throw new Error("当前宿主不支持原子提交");
-        const adapter = this.options.transaction;
-        const ops: PluginTransactionOp[] = [];
-        const pending = new Set<Promise<unknown>>();
-        const failures: unknown[] = [];
-        let open = true;
-        const push = (op: PluginTransactionOp) => {
-          if (!open) throw new Error("事务已结束，不能再写入");
-          if (ops.length >= MAX_TRANSACTION_OPS)
-            throw new Error(`一个事务最多 ${MAX_TRANSACTION_OPS} 条写入`);
-          ops.push(op);
-        };
-        // 每条写入都登记；没有 await 的写入失败同样让整个事务不提交
-        const write = <R>(task: () => R | Promise<R>): Promise<R> => {
-          const promise = (async () => {
-            if (!open) throw new Error("事务已结束，不能再写入");
-            this.assertActive(entry, activation);
-            return task();
-          })();
-          pending.add(promise.catch(error => void failures.push(error)));
-          return promise;
-        };
-        const settle = async () => {
-          for (let size = -1; size !== pending.size;) {
-            size = pending.size;
-            await Promise.all(pending);
-          }
-          open = false;
-        };
-        const tx: PluginTransaction = Object.freeze({
-          entities: Object.freeze({
-            create: (input: PluginOwnEntityInput) =>
-              write(async () => {
-                const value = readEntityCreate(input);
-                const id = await adapter.reserveEntityId(context);
-                push({ op: "entity.create", id, ...value });
-                return { id };
-              }),
-            update: (id: string, patch: PluginOwnEntityPatch, options?: unknown) =>
-              write(() => {
-                const revision = readOptionalRevision(options);
-                push({
-                  op: "entity.update",
-                  id: readId(id),
-                  patch: readEntityPatch(patch),
-                  ...(revision === undefined ? {} : { expectedRevision: revision }),
-                  indexes: allKindIndexes(),
-                });
-              }),
-            delete: (id: string, options?: unknown) =>
-              write(() => {
-                const revision = readOptionalRevision(options);
-                push({
-                  op: "entity.delete",
-                  id: readId(id),
-                  ...(revision === undefined ? {} : { expectedRevision: revision }),
-                });
-              }),
-          }),
-          records: Object.freeze({
-            insert: (name: string, data: PluginRecordData) =>
-              write(() => {
-                const collection = collectionOf(name);
-                const id = crypto.randomUUID();
-                push({
-                  op: "record.insert",
-                  collection: collection.name,
-                  id,
-                  data: readRecordData(data),
-                  indexes: collection.indexes,
-                });
-                return { id };
-              }),
-            update: (name: string, id: string, data: PluginRecordData, options?: unknown) =>
-              write(() => {
-                const collection = collectionOf(name);
-                const revision = readOptionalRevision(options);
-                push({
-                  op: "record.update",
-                  collection: collection.name,
-                  id: readId(id),
-                  data: readRecordData(data),
-                  ...(revision === undefined ? {} : { expectedRevision: revision }),
-                  indexes: collection.indexes,
-                });
-              }),
-            delete: (name: string, id: string, options?: unknown) =>
-              write(() => {
-                const revision = readOptionalRevision(options);
-                push({
-                  op: "record.delete",
-                  collection: collectionOf(name).name,
-                  id: readId(id),
-                  ...(revision === undefined ? {} : { expectedRevision: revision }),
-                });
-              }),
-          }),
-          links: Object.freeze({
-            add: (from: string, to: PluginEntityRef, options?: PluginLinkOptions) =>
-              write(async () => {
-                const link = await readLinkAdd(from, to, options);
-                push({ op: "link.add", id: crypto.randomUUID(), ...link });
-              }),
-            remove: (id: string) => write(() => push({ op: "link.remove", id: readId(id) })),
-            reorder: (from: string, ids: readonly string[]) =>
-              write(() =>
-                push({ op: "link.reorder", from: readId(from), ids: readReorderIds(ids) })
-              ),
-          }),
-        });
-        let result: T;
-        try {
-          result = await run(tx);
-        } finally {
-          await settle();
-        }
-        if (failures.length) throw failures[0];
-        if (ops.length) await adapter.commit(context, ops);
-        this.assertActive(entry, activation);
-        return result;
-      },
-      events: Object.freeze({
-        on: (
-          types: PluginEventType | readonly PluginEventType[],
-          listener: (event: PluginDomainEvent) => void
-        ) => {
-          this.assertActive(entry, activation);
-          const wanted = new Set(typeof types === "string" ? [types] : types);
-          if (!wanted.size || [...wanted].some(type => !isPluginEventType(type)))
-            throw new Error("未知的事件类型");
-          if (typeof listener !== "function") throw new Error("事件监听必须是函数");
-          assertDeclared(
-            [...wanted].flatMap(type => {
-              const permission = PLUGIN_EVENT_PERMISSIONS[type];
-              return permission ? [permission] : [];
-            })
-          );
-          if (!this.options.events) throw new Error("当前宿主不支持业务事件");
-          // 权限查询是异步的，串行投递保持事件顺序
-          let delivery = Promise.resolve();
-          const subscription = this.options.events.subscribe(context, event => {
-            if (!wanted.has(event.type) || activation.controller.signal.aborted) return;
-            const permission = PLUGIN_EVENT_PERMISSIONS[event.type];
-            const snapshot = copyJson(event) as unknown as PluginDomainEvent;
-            delivery = delivery
-              .then(async () => {
-                if (
-                  permission &&
-                  (await permissionsAdapter().query(context, permission)) !== "granted"
-                )
-                  return;
-                this.assertActive(entry, activation);
-                listener(snapshot);
-              })
-              .catch(error => {
-                if (!activation.controller.signal.aborted) console.error("插件事件处理失败", error);
-              });
-          });
-          return register(subscription);
-        },
-      }),
-      content: Object.freeze({
-        read: async (ref: PluginContentRef, options?: { format?: "markdown" | "nodes" }) => {
-          if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
-          const format = options?.format ?? "markdown";
-          if (format !== "markdown" && format !== "nodes") throw new Error("正文格式无效");
-          const result = await dataAdapter().readContent(context, ref, format);
-          this.assertActive(entry, activation);
-          if (result && format === "nodes")
-            result.snapshot = { ...result.snapshot, schemaVersion: EDITOR_NODE_SCHEMA_VERSION };
-          // 本插件实体的正文直接放行
-          if (result?.own) return deliver<PluginContentSnapshot>(result.snapshot);
-          if (!result?.owners.length) return null;
-          const candidates = contentPermissions(result.owners, "read");
-          const usable = candidates.filter(permission => declared.has(permission));
-          if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
-          const adapter = permissionsAdapter();
-          const states = await Promise.all(usable.map(item => adapter.query(context, item)));
-          const granted = usable.find((_, index) => states[index] === "granted");
-          await guard(granted ?? usable[0]);
-          return deliver<PluginContentSnapshot>(result.snapshot);
-        },
-        edit: async (
-          ref: PluginContentRef,
-          edit: PluginContentEdit,
-          options: PluginWriteOptions
-        ) => {
-          if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
-          const value = readContentEdit(edit);
-          const revision = readRevision(options);
-          const { owners, own } = await dataAdapter().contentOwners(context, ref);
-          this.assertActive(entry, activation);
-          if (own)
-            return deliver<{ revision: string }>(
-              await dataAdapter().editContent(context, ref, value, revision)
-            );
-          if (!owners.length) throw new Error("正文不存在");
-          const candidates = contentPermissions(owners, "write");
-          const usable = candidates.filter(permission => declared.has(permission));
-          if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
-          const adapter = permissionsAdapter();
-          const states = await Promise.all(usable.map(item => adapter.query(context, item)));
-          await guard(usable.find((_, index) => states[index] === "granted") ?? usable[0]);
-          return deliver<{ revision: string }>(
-            await dataAdapter().editContent(context, ref, value, revision)
-          );
-        },
-      }),
-      sidebar: Object.freeze({
-        registerGroup: (definition: PluginSidebarGroupDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (!definition.title.trim()) throw new Error("侧边栏分组标题不能为空");
-          if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
-          const handle = this.options.sidebar.registerGroup(
-            context,
-            Object.freeze({ ...definition })
-          );
-          return Object.freeze({ id: handle.id, dispose: register(handle).dispose });
-        },
-        registerItem: (definition: PluginSidebarItemDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (!definition.title.trim()) throw new Error("侧边栏条目标题不能为空");
-          const page = pages.get(definition.page);
-          if (!page?.active()) throw new Error("侧边栏条目必须关联本次启用注册的有效页面");
-          if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
-          const resource = this.options.sidebar.registerItem(
-            context,
-            Object.freeze({
-              ...definition,
-              params: Object.freeze(normalizePageParams(definition.params ?? {})),
-            }),
-            page.id
-          );
-          const owned = registerAs("sidebar", resource);
-          let state: PluginSidebarItemState = Object.freeze({
-            badge: 0,
-            children: Object.freeze([]),
-            action: null,
-          });
-          let removed = false;
-          // 插件停用或条目移除后，宿主不再调用插件的回调
-          const wrap =
-            <A extends unknown[]>(run: (...args: A) => unknown) =>
-            (...args: A) => {
-              this.assertActive(entry, activation);
-              if (removed) throw new Error("侧边栏条目已移除");
-              return run(...args);
-            };
-          const handle: PluginSidebarItemHandle = {
-            update: (patch: PluginSidebarItemUpdate) => {
-              this.assertActive(entry, activation);
-              if (removed) throw new Error("侧边栏条目已移除");
-              state = snapshotSidebarUpdate(state, patch, {
-                wrap,
-                dragType: type => sidebarDragType(scope.pluginId, type),
-              });
-              resource.update(state);
-            },
-            dispose: () => {
-              removed = true;
-              return owned.dispose();
-            },
-          };
-          return Object.freeze(handle);
-        },
-        dragType: (type: string) => sidebarDragType(scope.pluginId, type),
-      }),
-      views: Object.freeze({
-        registerEntityPanel: (definition: PluginEntityPanelDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (typeof definition.component !== "function")
-            throw new Error("详情区块组件必须是 React 组件");
-          const kinds = definition.kinds;
-          if (!Array.isArray(kinds) || !kinds.length) throw new Error("详情区块至少要有一类对象");
-          for (const kind of kinds)
-            if (!PLUGIN_ENTITY_PANEL_KINDS.includes(kind))
-              throw new Error(`不支持的详情区块对象：${String(kind)}`);
-          if (!this.options.views) throw new Error("当前宿主不支持详情区块");
-          return registerAs(
-            "entity-panel",
-            this.options.views.registerEntityPanel(
-              context,
-              Object.freeze({
-                id: definition.id,
-                kinds: Object.freeze([...new Set(kinds)]),
-                component: definition.component,
-              })
-            )
+      projects: Object.freeze({
+        ...reader("project"),
+        ...updater("project"),
+        ...creator("project"),
+        ...remover("project"),
+        tree: async (id: string) => {
+          const projectId = readId(id);
+          await guard(ENTITY_PERMISSIONS.project);
+          return deliver<PluginProjectNode[] | null>(
+            await dataAdapter().projectTree(context, projectId)
           );
         },
       }),
       notebooks: Object.freeze({
-        registerOutput: (definition: PluginNotebookOutputDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          assertLocalId(definition.kind);
-          if (typeof definition.title !== "string" || !definition.title.trim())
-            throw new Error("Notebook 输出的名称不能为空");
-          if (definition.icon !== undefined && !isComponentType(definition.icon))
-            throw new Error("Notebook 输出的图标必须是 React 组件");
-          if (definition.options !== undefined && !isComponentType(definition.options))
-            throw new Error("options 必须是 React 组件");
-          if (!isComponentType(definition.view)) throw new Error("view 必须是 React 组件");
-          if (typeof definition.prepare !== "function" || typeof definition.complete !== "function")
-            throw new Error("Notebook 输出必须提供 prepare 与 complete");
-          if (definition.fail !== undefined && typeof definition.fail !== "function")
-            throw new Error("fail 必须是函数");
-          if (!this.options.notebooks) throw new Error("当前宿主不支持 Notebook 输出");
-          const { prepare, complete, fail } = definition;
-          let removed = false;
-          const guardCall = () => {
-            this.assertActive(entry, activation);
-            if (removed) throw new Error("Notebook 输出已注销");
+        ...reader("notebook"),
+        resources: async (id: string) => {
+          const notebookId = readId(id);
+          await guard(ENTITY_PERMISSIONS.notebook);
+          return deliver<PluginNotebookResource[] | null>(
+            await dataAdapter().notebookResources(context, notebookId)
+          );
+        },
+      }),
+      materials: reader("material"),
+      chats: reader("chat-session"),
+      documents: Object.freeze({
+        ...reader("document"),
+        ...updater("document"),
+        ...remover("document"),
+        create: async (input: unknown) => {
+          const raw = (input ?? {}) as Record<string, unknown>;
+          if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+          const { content, projectId, parentId, ...fields } = raw;
+          const value: PluginDocumentInput = {
+            ...readFields<Pick<PluginDocumentInput, "title" | "tags">>(
+              fields,
+              { title: MAX_TITLE, tags: "tags" },
+              ["title"]
+            ),
+            projectId: readId(projectId),
+            ...(parentId !== undefined ? { parentId: readId(parentId) } : {}),
+            ...(content !== undefined
+              ? { content: readContentInput(content, { allowEmpty: true, share: true }) }
+              : {}),
           };
-          const owned = registerAs(
-            "notebook-output",
-            this.options.notebooks.registerOutput(
-              context,
-              Object.freeze({
-                id: definition.id,
-                title: definition.title.trim(),
-                ...(definition.icon ? { icon: definition.icon } : {}),
-                ...(typeof definition.description === "string" && definition.description.trim()
-                  ? { description: definition.description.trim() }
-                  : {}),
-                kind: definition.kind,
-                ...(definition.options ? { options: definition.options } : {}),
-                view: definition.view,
-                prepare: async (
-                  input: Parameters<PluginNotebookOutputDefinition["prepare"]>[0]
-                ) => {
-                  guardCall();
-                  const plan = readNotebookOutputPlan(
-                    await prepare({
-                      notebook: { ...input.notebook },
-                      resources: input.resources.map(item => ({
-                        id: String(item.id),
-                        name: String(item.name),
-                      })),
-                      userPrompt: input.userPrompt,
-                      options: input.options === undefined ? undefined : copyJson(input.options),
-                      signal: AbortSignal.any([input.signal, scope.signal]),
-                    })
-                  );
-                  guardCall();
-                  return plan;
-                },
-                complete: async (
-                  input: Parameters<PluginNotebookOutputDefinition["complete"]>[0]
-                ) => {
-                  guardCall();
-                  await complete({
-                    entity: input.entity,
-                    text: String(input.text),
-                    task: input.task,
-                    signal: AbortSignal.any([input.signal, scope.signal]),
-                  });
-                },
-                ...(fail
-                  ? {
-                      fail: async (
-                        input: Parameters<NonNullable<PluginNotebookOutputDefinition["fail"]>>[0]
-                      ) => {
-                        guardCall();
-                        await fail({
-                          entity: input.entity,
-                          reason: input.reason,
-                          message: String(input.message),
-                        });
-                      },
-                    }
-                  : {}),
-              })
-            )
-          );
-          return Object.freeze({
-            dispose: () => {
-              removed = true;
-              return owned.dispose();
-            },
-          });
+          await guard(WRITE_PERMISSIONS.document);
+          return deliver<never>(await dataAdapter().createDocument(context, value));
         },
-      }),
-      actions: Object.freeze({
-        register: <K extends PluginActionTargetKind>(input: PluginActionDefinition<K>) => {
-          this.assertActive(entry, activation);
-          const definition = input as unknown as PluginActionDefinition;
-          assertLocalId(definition.id);
-          if (typeof definition.title !== "string" || !definition.title.trim())
-            throw new Error("对象动作标题不能为空");
-          if (definition.icon !== undefined && !isComponentType(definition.icon))
-            throw new Error("对象动作图标必须是 React 组件");
-          if (typeof definition.run !== "function") throw new Error("对象动作必须提供 run");
-          const targets = definition.targets;
-          if (!Array.isArray(targets) || !targets.length)
-            throw new Error("对象动作至少要有一类目标");
-          for (const target of targets)
-            if (!PLUGIN_ACTION_TARGET_KINDS.includes(target))
-              throw new Error(`不支持的对象动作目标：${String(target)}`);
-          if (!this.options.actions) throw new Error("当前宿主不支持对象动作");
-          const run = definition.run;
-          let removed = false;
-          const owned = registerAs(
-            "action",
-            this.options.actions.register(
-              context,
-              Object.freeze({
-                id: definition.id,
-                title: definition.title,
-                ...(definition.icon ? { icon: definition.icon } : {}),
-                targets: Object.freeze([...new Set(targets)]),
-                run: (target: Parameters<PluginActionDefinition["run"]>[0]) => {
-                  this.assertActive(entry, activation);
-                  if (removed) throw new Error("对象动作已注销");
-                  return run(snapshotActionTarget(target));
-                },
-              })
-            )
-          );
-          return {
-            dispose: () => {
-              removed = true;
-              return owned.dispose();
-            },
-          };
-        },
-      }),
-      home: Object.freeze({
-        registerPanel: (definition: PluginHomePanelDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (typeof definition.title !== "string" || !definition.title.trim())
-            throw new Error("首页面板标题不能为空");
-          if (typeof definition.component !== "function")
-            throw new Error("首页面板组件必须是 React 组件");
-          const size = definition.size ?? "wide";
-          if (size !== "compact" && size !== "wide") throw new Error("首页面板宽度无效");
-          const action = definition.action ?? null;
-          if (
-            action !== null &&
-            (typeof action !== "object" ||
-              typeof action.title !== "string" ||
-              !action.title.trim() ||
-              typeof action.run !== "function")
-          )
-            throw new Error("首页面板入口需要标题和 run 函数");
-          if (!this.options.home) throw new Error("当前宿主不支持首页面板");
-          return registerAs(
-            "home",
-            this.options.home.registerPanel(
-              context,
-              Object.freeze({
-                id: definition.id,
-                title: definition.title,
-                component: definition.component,
-                size,
-                action: action && Object.freeze({ title: action.title, run: action.run }),
-              })
-            )
+        move: async (id: string, move: unknown, options: PluginWriteOptions) => {
+          const value = readDocumentMove(move);
+          const revision = readRevision(options);
+          await guard(WRITE_PERMISSIONS.document);
+          return deliver<{ revision: string }>(
+            await dataAdapter().moveDocument(context, readId(id), value, revision)
           );
         },
       }),
-      pages: Object.freeze({
-        register: (definition: PluginPageDefinition) => {
-          this.assertActive(entry, activation);
-          assertLocalId(definition.id);
-          if (!definition.title.trim()) throw new Error("页面标题不能为空");
-          if (
-            definition.match !== undefined &&
-            definition.match !== "single" &&
-            definition.match !== "params"
-          ) {
-            throw new Error("不支持的页面匹配方式");
-          }
-          if (!this.options.pages) throw new Error("当前宿主不支持页面");
-          const handle = this.options.pages.register(context, Object.freeze({ ...definition }));
-          let disposed = false;
-          const navigation = new Set<Disposable>();
-          const resource = registerAs("page", {
-            dispose: async () => {
-              disposed = true;
-              const results = await Promise.allSettled([
-                ...[...navigation].map(entry => Promise.resolve().then(() => entry.dispose())),
-                Promise.resolve().then(() => handle.dispose()),
-              ]);
-              const errors = results.filter(
-                (result): result is PromiseRejectedResult => result.status === "rejected"
-              );
-              if (errors.length)
-                throw new AggregateError(
-                  errors.map(result => result.reason),
-                  "页面及入口回收失败"
-                );
-            },
-          });
-          const exposed: PluginPageHandle = Object.freeze({
-            id: handle.id,
-            open: async (params = {}) => {
-              this.assertActive(entry, activation);
-              if (disposed) throw new Error("页面已注销");
-              await handle.open(normalizePageParams(params));
-            },
-            dispose: resource.dispose,
-          });
-          pages.set(exposed, { id: definition.id, active: () => !disposed, navigation });
-          return exposed;
-        },
-      }),
+    });
+  }
+
+  private buildTodosContext(deps: ContextDeps): PluginContext["data"]["todos"] {
+    const { context, guard, dataAdapter, deliver } = deps;
+    const writeTodo = (write: TodoWrite) => {
+      const adapter = dataAdapter();
+      if (write.action !== "create" && /@\d{4}-\d{2}-\d{2}$/.test(write.id)) {
+        if (!adapter.writeTodoOccurrence)
+          throw new Error("当前宿主尚未开放周期实例写入，未修改整系列");
+        return adapter.writeTodoOccurrence(context, write);
+      }
+      return adapter.writeTodo(context, write);
     };
-    return Object.freeze(context);
+    const crud = this.makeResourceCrud<TodoWrite, PluginTodo>(deps, {
+      createFields: { title: MAX_TITLE, dueAt: "nullable-time" },
+      createRequired: ["title"],
+      updateFields: { title: MAX_TITLE, dueAt: "nullable-time" },
+      writePermission: "todos:write",
+      deletePermission: "todos:delete",
+      write: writeTodo,
+    });
+    return Object.freeze({
+      create: crud.create,
+      update: crud.update,
+      setCompleted: async (id: string, completed: boolean, options: PluginWriteOptions) => {
+        if (typeof completed !== "boolean") throw new Error("completed 无效");
+        const expectedRevision = readRevision(options);
+        await guard("todos:write");
+        return deliver<PluginTodo>(
+          await writeTodo({
+            action: "complete",
+            id: readId(id),
+            completed,
+            expectedRevision,
+          })
+        );
+      },
+      delete: crud.delete,
+      query: async (query?: PluginTodoQuery) => {
+        const picked = pickQuery<PluginTodoQuery>(query, {
+          source: "string",
+          view: "string",
+          completed: "boolean",
+          keyword: "string",
+          start: "string",
+          end: "string",
+          cursor: "string",
+        });
+        if (picked.source !== undefined && !["all", "todo", "document"].includes(picked.source))
+          throw new Error("查询参数 source 无效");
+        if (picked.view !== undefined && !["tasks", "occurrences"].includes(picked.view))
+          throw new Error("查询参数 view 无效");
+        if (picked.view === "occurrences" && (!picked.start || !picked.end))
+          throw new Error("周期实例查询须同时提供 start/end");
+        const limit = readLimit(query?.limit, 100);
+        await guard("todos:read");
+        return deliver<PluginPage<PluginTodo>>(
+          await dataAdapter().todos(context, { ...picked, limit })
+        );
+      },
+    });
+  }
+
+  private buildCalendarContext(deps: ContextDeps): PluginContext["data"]["calendar"] {
+    const { context, guard, dataAdapter, deliver } = deps;
+    const crud = this.makeResourceCrud<CalendarWrite, PluginCalendarEvent>(deps, {
+      createFields: { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+      createRequired: ["title", "start", "end", "allDay"],
+      updateFields: { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+      writePermission: "calendar:write",
+      deletePermission: "calendar:delete",
+      write: write => dataAdapter().writeCalendar(context, write),
+    });
+    return Object.freeze({
+      create: crud.create,
+      update: crud.update,
+      delete: crud.delete,
+      query: async (query: PluginCalendarQuery) => {
+        const picked = pickQuery<PluginCalendarQuery>(query, {
+          start: "string",
+          end: "string",
+          cursor: "string",
+        });
+        if (!picked.start || !picked.end) throw new Error("日程查询需要 start 与 end");
+        const limit = readLimit(query?.limit, 100);
+        await guard("calendar:read");
+        return deliver<PluginPage<PluginCalendarEvent>>(
+          await dataAdapter().calendar(context, {
+            start: picked.start,
+            end: picked.end,
+            ...(picked.cursor === undefined ? {} : { cursor: picked.cursor }),
+            limit,
+          })
+        );
+      },
+    });
+  }
+
+  private buildNotificationsContext(deps: ContextDeps): PluginContext["notifications"] {
+    const { context, entry, activation, owner, register } = deps;
+    return Object.freeze({
+      send: (options: PluginNotificationOptions) => {
+        this.assertActive(entry, activation);
+        const value = readNotificationOptions(options);
+        if (!this.options.notifications) throw new Error("当前宿主不支持通知");
+        let disposed = false;
+        const resource = this.options.notifications.send(context, owner, {
+          ...value,
+          actions: value.actions?.map(action => ({
+            ...action,
+            onClick: async () => {
+              this.assertActive(entry, activation);
+              if (disposed) throw new Error("通知已失效");
+              await action.onClick();
+              this.assertActive(entry, activation);
+            },
+          })),
+        });
+        return register({
+          dispose: () => {
+            disposed = true;
+            return resource.dispose();
+          },
+        });
+      },
+    });
+  }
+
+  private buildSpeechContext(deps: ContextDeps): PluginContext["speech"] {
+    const { context, entry, activation, guard } = deps;
+    return Object.freeze({
+      unavailableReason: () => {
+        this.assertActive(entry, activation);
+        if (!this.options.speech) return "当前设备不支持插件语音输入";
+        return this.options.speech.unavailableReason();
+      },
+      start: async (options: PluginSpeechStartOptions = {}): Promise<PluginSpeechSession> => {
+        this.assertActive(entry, activation);
+        if (options.onPreview !== undefined && typeof options.onPreview !== "function")
+          throw new Error("onPreview 必须是函数");
+        const adapter = this.options.speech;
+        if (!adapter) throw new Error("SPEECH_UNAVAILABLE：当前宿主不支持插件语音输入");
+        await guard("speech:input");
+        const onPreview = options.onPreview;
+        const signal = options.signal
+          ? AbortSignal.any([options.signal, activation.controller.signal])
+          : activation.controller.signal;
+        signal.throwIfAborted();
+        const session = await adapter.start(context, {
+          signal,
+          onPreview: text => {
+            if (!signal.aborted) onPreview?.(String(text));
+          },
+        });
+        this.assertActive(entry, activation);
+        return Object.freeze({
+          result: session.result.then(text => {
+            this.assertActive(entry, activation);
+            return String(text);
+          }),
+          stop: () => session.stop(),
+          cancel: () => session.cancel(),
+        });
+      },
+    });
+  }
+
+  private buildAppContext(deps: ContextDeps): PluginContext["app"] {
+    const { context, entry, activation, owner, declared, permissionsAdapter, deliver } = deps;
+    return Object.freeze({
+      pick: async (options: PluginPickOptions) => {
+        const kinds = options?.kinds;
+        if (!Array.isArray(kinds) || !kinds.length || kinds.some(kind => !entityKinds.has(kind)))
+          throw new Error("请指定可选的内容类型");
+        if (options.multiple !== undefined && typeof options.multiple !== "boolean")
+          throw new Error("multiple 无效");
+        const value: Required<PluginPickOptions> = {
+          kinds: [...new Set<PluginEntityKind>(kinds)],
+          multiple: options.multiple ?? false,
+          title:
+            options.title === undefined ? "选择要关联的内容" : readText(options.title, "标题", 100),
+        };
+        this.assertActive(entry, activation);
+        if (!this.options.app) throw new Error("当前宿主不支持选择内容");
+        return deliver<PluginPickedEntity[]>(await this.options.app.pick(context, owner, value));
+      },
+      open: async (ref: PluginEntityRef, options?: PluginOpenOptions) => {
+        const value = readEntityRef(ref);
+        const opening = readOpenOptions(value, options);
+        this.assertActive(entry, activation);
+        if (!this.options.app) throw new Error("当前宿主不支持打开内容");
+        await this.options.app.open(context, value, opening);
+        this.assertActive(entry, activation);
+      },
+      describe: async (refs: readonly PluginEntityRef[]) => {
+        if (!Array.isArray(refs) || refs.length > MAX_DESCRIBE)
+          throw new Error(`refs 必须是最多 ${MAX_DESCRIBE} 项的数组`);
+        const values = refs.map(readEntityRef);
+        this.assertActive(entry, activation);
+        if (!this.options.app) throw new Error("当前宿主不支持读取内容信息");
+        // 只查询已有授权，不弹窗：由插件引导用户点击后再 permissions.request
+        const readable: PluginEntityKind[] = [];
+        for (const kind of new Set(values.map(ref => ref.kind))) {
+          const permission = PLUGIN_ENTITY_READ_PERMISSIONS[kind];
+          if (
+            permission &&
+            declared.has(permission) &&
+            (await permissionsAdapter().query(context, permission)) === "granted"
+          )
+            readable.push(kind);
+        }
+        const results = await this.options.app.describe(context, values, readable);
+        this.assertActive(entry, activation);
+        if (results.length !== values.length) throw new Error("宿主返回的描述数量不一致");
+        return values.map((ref, index): PluginEntityDescription => {
+          const result = results[index];
+          if (result.status === "ok") return { ref, status: "ok", title: result.title };
+          if (result.status === "missing") return { ref, status: "missing" };
+          return { ref, status: "denied", permission: PLUGIN_ENTITY_READ_PERMISSIONS[ref.kind] };
+        });
+      },
+      run: async (action: PluginAppAction, options: unknown) => {
+        const request = readRunRequest(action, options);
+        this.assertActive(entry, activation);
+        if (!this.options.app) throw new Error("当前宿主不支持该动作");
+        const result = await this.options.app.run(context, owner, request);
+        this.assertActive(entry, activation);
+        if (!CREATING_ACTIONS.has(request.action)) return undefined as never;
+        return (result ? readEntityRef(result) : null) as never;
+      },
+    });
+  }
+
+  private buildOwnEntityContext(deps: ContextDeps): PluginContext["entities"] {
+    const {
+      context,
+      entry,
+      activation,
+      register,
+      deliver,
+      declared,
+      permissionsAdapter,
+      entityKindDefinitions,
+      kindIndexes,
+      allKindIndexes,
+      readEntityCreate,
+      readEntityPatch,
+    } = deps;
+    const entitiesAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.entities) throw new Error("当前宿主不支持插件内容");
+      return this.options.entities;
+    };
+    const readEntityFilter = (filter: PluginOwnEntityFilter | undefined): EntityQueryFilter => {
+      if (filter !== undefined && (!filter || typeof filter !== "object"))
+        throw new Error("参数无效");
+      const { kind, where, titleContains } = filter ?? {};
+      if (kind !== undefined) readText(kind, "kind", 128);
+      if (titleContains !== undefined) readText(titleContains, "titleContains", 200, true);
+      if (where !== undefined && kind === undefined) throw new Error("按字段筛选需要同时给出 kind");
+      return {
+        ...(kind === undefined ? {} : { kind }),
+        where: kind === undefined ? [] : readWhere(where, kindIndexes(kind)),
+        ...(titleContains ? { titleContains } : {}),
+      };
+    };
+    return Object.freeze({
+      registerKind: (definition: PluginOwnEntityKind) => {
+        this.assertActive(entry, activation);
+        const value = readEntityKind(definition);
+        if (entityKindDefinitions.has(value.kind)) throw new Error(`类型 ${value.kind} 已声明`);
+        const hosted = this.options.entities?.registerKind?.(context, value);
+        entityKindDefinitions.set(value.kind, value);
+        return register({
+          dispose: () => {
+            if (entityKindDefinitions.get(value.kind) === value)
+              entityKindDefinitions.delete(value.kind);
+            return hosted?.dispose();
+          },
+        });
+      },
+      create: async (input: PluginOwnEntityInput) => {
+        const value = readEntityCreate(input);
+        return deliver<PluginOwnEntity>(
+          await entitiesAdapter().create(context, value.input, value.indexes)
+        );
+      },
+      get: async (id: string) =>
+        deliver<PluginOwnEntity | null>(await entitiesAdapter().get(context, readId(id))),
+      find: async (kind: string, key: string) =>
+        deliver<PluginOwnEntity | null>(
+          await entitiesAdapter().find(
+            context,
+            readText(kind, "类型", 128),
+            readText(key, "key", 200)
+          )
+        ),
+      query: async (query?: PluginOwnEntityQuery) => {
+        const filter = readEntityFilter(query);
+        const cursor = query?.cursor;
+        if (cursor !== undefined) readText(cursor, "cursor", MAX_QUERY_CURSOR);
+        const limit = query?.limit ?? 50;
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
+          throw new Error("limit 必须是 1–200 的整数");
+        const orderBy = readOrderBy(
+          query?.orderBy,
+          filter.kind === undefined ? {} : kindIndexes(filter.kind),
+          ENTITY_SORT_FIELDS
+        );
+        return deliver<PluginPage<PluginOwnEntity>>(
+          await entitiesAdapter().query(context, {
+            ...filter,
+            orderBy: orderBy.length ? orderBy : DEFAULT_ENTITY_ORDER,
+            ...(cursor === undefined ? {} : { cursor }),
+            limit,
+          })
+        );
+      },
+      count: async (filter?: PluginOwnEntityFilter) =>
+        deliver<number>(await entitiesAdapter().count(context, readEntityFilter(filter))),
+      backlinks: async (id: string) => {
+        const sources = await entitiesAdapter().backlinks(context, readId(id));
+        this.assertActive(entry, activation);
+        // 只给已获准读取的类型，不弹窗；其余只计数
+        const states = new Map<ContentOwnerEntity, boolean>();
+        for (const entity of new Set(sources.flatMap(source => source.entity ?? []))) {
+          const permission = ENTITY_PERMISSIONS[entity];
+          states.set(
+            entity,
+            declared.has(permission) &&
+              (await permissionsAdapter().query(context, permission)) === "granted"
+          );
+        }
+        const items: PluginOwnEntityBacklink[] = [];
+        for (const source of sources)
+          if (source.entity && states.get(source.entity))
+            items.push({
+              ref: { kind: source.entity, id: source.id },
+              title: source.title,
+              snippets: source.snippets,
+            });
+        return deliver<{ items: PluginOwnEntityBacklink[]; omitted: number }>({
+          items,
+          omitted: sources.length - items.length,
+        });
+      },
+      delete: async (id: string, options: PluginWriteOptions) => {
+        await entitiesAdapter().delete(context, readId(id), readRevision(options));
+        this.assertActive(entry, activation);
+      },
+      update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) =>
+        deliver<PluginOwnEntity>(
+          await entitiesAdapter().update(
+            context,
+            readId(id),
+            readEntityPatch(patch),
+            readRevision(options),
+            allKindIndexes()
+          )
+        ),
+    });
+  }
+
+  private buildLinksContext(deps: ContextDeps): PluginContext["links"] {
+    const { context, entry, activation, deliver, readLinkAdd } = deps;
+    const linksAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.links) throw new Error("当前宿主不支持插件关联");
+      return this.options.links;
+    };
+    return Object.freeze({
+      add: async (from: string, to: PluginEntityRef, options?: PluginLinkOptions) => {
+        const { readable, ...link } = await readLinkAdd(from, to, options);
+        return deliver<PluginLink>(
+          await linksAdapter().add(context, { id: crypto.randomUUID(), ...link }, readable)
+        );
+      },
+      list: async (from: string, options?: { role?: string }) => {
+        const role = options?.role;
+        if (role !== undefined && role !== "") assertLocalId(role);
+        return deliver<PluginLink[]>(await linksAdapter().list(context, readId(from), role));
+      },
+      remove: async (id: string) => {
+        await linksAdapter().remove(context, readId(id));
+        this.assertActive(entry, activation);
+      },
+      reorder: async (from: string, ids: readonly string[]) => {
+        await linksAdapter().reorder(context, readId(from), readReorderIds(ids));
+        this.assertActive(entry, activation);
+      },
+    });
+  }
+
+  private buildRecordsContext(deps: ContextDeps): PluginContext["records"] {
+    const { context, entry, activation, register, deliver, recordCollections, collectionOf } = deps;
+    const recordsAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.records) throw new Error("当前宿主不支持插件记录");
+      return this.options.records;
+    };
+    return Object.freeze({
+      registerCollection: (definition: PluginRecordCollection) => {
+        this.assertActive(entry, activation);
+        const value = readRecordCollection(definition);
+        if (recordCollections.has(value.name)) throw new Error(`集合 ${value.name} 已声明`);
+        recordCollections.set(value.name, value);
+        return register({
+          dispose: () => {
+            if (recordCollections.get(value.name) === value) recordCollections.delete(value.name);
+          },
+        });
+      },
+      insert: async (name: string, data: PluginRecordData) => {
+        const collection = collectionOf(name);
+        return deliver<PluginRecord>(
+          await recordsAdapter().insert(
+            context,
+            collection.name,
+            { id: crypto.randomUUID(), data: readRecordData(data) },
+            collection.indexes
+          )
+        );
+      },
+      get: async (name: string, id: string) =>
+        deliver<PluginRecord | null>(
+          await recordsAdapter().get(context, collectionOf(name).name, readId(id))
+        ),
+      query: async (name: string, query?: PluginRecordQuery) => {
+        const collection = collectionOf(name);
+        if (query !== undefined && (!query || typeof query !== "object"))
+          throw new Error("参数无效");
+        const cursor = query?.cursor;
+        if (cursor !== undefined) readText(cursor, "cursor", MAX_QUERY_CURSOR);
+        const limit = query?.limit ?? 50;
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
+          throw new Error("limit 必须是 1–200 的整数");
+        const orderBy = readOrderBy(query?.orderBy, collection.indexes, RECORD_SORT_FIELDS);
+        return deliver<PluginPage<PluginRecord>>(
+          await recordsAdapter().query(context, collection.name, {
+            where: readWhere(query?.where, collection.indexes),
+            orderBy: orderBy.length ? orderBy : DEFAULT_RECORD_ORDER,
+            ...(cursor === undefined ? {} : { cursor }),
+            limit,
+          })
+        );
+      },
+      count: async (name: string, filter?: PluginRecordFilter) => {
+        const collection = collectionOf(name);
+        if (filter !== undefined && (!filter || typeof filter !== "object"))
+          throw new Error("参数无效");
+        return deliver<number>(
+          await recordsAdapter().count(
+            context,
+            collection.name,
+            readWhere(filter?.where, collection.indexes)
+          )
+        );
+      },
+      update: async (
+        name: string,
+        id: string,
+        data: PluginRecordData,
+        options: PluginWriteOptions
+      ) => {
+        const collection = collectionOf(name);
+        return deliver<PluginRecord>(
+          await recordsAdapter().update(
+            context,
+            collection.name,
+            readId(id),
+            readRecordData(data),
+            readRevision(options),
+            collection.indexes
+          )
+        );
+      },
+      delete: async (name: string, id: string, options: PluginWriteOptions) => {
+        await recordsAdapter().delete(
+          context,
+          collectionOf(name).name,
+          readId(id),
+          readRevision(options)
+        );
+        this.assertActive(entry, activation);
+      },
+    });
+  }
+
+  private buildTransactionContext(deps: ContextDeps): PluginContext["transaction"] {
+    const {
+      context,
+      entry,
+      activation,
+      readEntityCreate,
+      readEntityPatch,
+      allKindIndexes,
+      collectionOf,
+      readLinkAdd,
+    } = deps;
+    return async <T>(run: (tx: PluginTransaction) => T | Promise<T>): Promise<T> => {
+      this.assertActive(entry, activation);
+      if (typeof run !== "function") throw new Error("事务回调必须是函数");
+      if (!this.options.transaction) throw new Error("当前宿主不支持原子提交");
+      const adapter = this.options.transaction;
+      const ops: PluginTransactionOp[] = [];
+      const pending = new Set<Promise<unknown>>();
+      const failures: unknown[] = [];
+      let open = true;
+      const push = (op: PluginTransactionOp) => {
+        if (!open) throw new Error("事务已结束，不能再写入");
+        if (ops.length >= MAX_TRANSACTION_OPS)
+          throw new Error(`一个事务最多 ${MAX_TRANSACTION_OPS} 条写入`);
+        ops.push(op);
+      };
+      // 每条写入都登记；没有 await 的写入失败同样让整个事务不提交
+      const write = <R>(task: () => R | Promise<R>): Promise<R> => {
+        const promise = (async () => {
+          if (!open) throw new Error("事务已结束，不能再写入");
+          this.assertActive(entry, activation);
+          return task();
+        })();
+        pending.add(promise.catch(error => void failures.push(error)));
+        return promise;
+      };
+      const settle = async () => {
+        for (let size = -1; size !== pending.size;) {
+          size = pending.size;
+          await Promise.all(pending);
+        }
+        open = false;
+      };
+      const tx: PluginTransaction = Object.freeze({
+        entities: Object.freeze({
+          create: (input: PluginOwnEntityInput) =>
+            write(async () => {
+              const value = readEntityCreate(input);
+              const id = await adapter.reserveEntityId(context);
+              push({ op: "entity.create", id, ...value });
+              return { id };
+            }),
+          update: (id: string, patch: PluginOwnEntityPatch, options?: unknown) =>
+            write(() => {
+              const revision = readOptionalRevision(options);
+              push({
+                op: "entity.update",
+                id: readId(id),
+                patch: readEntityPatch(patch),
+                ...(revision === undefined ? {} : { expectedRevision: revision }),
+                indexes: allKindIndexes(),
+              });
+            }),
+          delete: (id: string, options?: unknown) =>
+            write(() => {
+              const revision = readOptionalRevision(options);
+              push({
+                op: "entity.delete",
+                id: readId(id),
+                ...(revision === undefined ? {} : { expectedRevision: revision }),
+              });
+            }),
+        }),
+        records: Object.freeze({
+          insert: (name: string, data: PluginRecordData) =>
+            write(() => {
+              const collection = collectionOf(name);
+              const id = crypto.randomUUID();
+              push({
+                op: "record.insert",
+                collection: collection.name,
+                id,
+                data: readRecordData(data),
+                indexes: collection.indexes,
+              });
+              return { id };
+            }),
+          update: (name: string, id: string, data: PluginRecordData, options?: unknown) =>
+            write(() => {
+              const collection = collectionOf(name);
+              const revision = readOptionalRevision(options);
+              push({
+                op: "record.update",
+                collection: collection.name,
+                id: readId(id),
+                data: readRecordData(data),
+                ...(revision === undefined ? {} : { expectedRevision: revision }),
+                indexes: collection.indexes,
+              });
+            }),
+          delete: (name: string, id: string, options?: unknown) =>
+            write(() => {
+              const revision = readOptionalRevision(options);
+              push({
+                op: "record.delete",
+                collection: collectionOf(name).name,
+                id: readId(id),
+                ...(revision === undefined ? {} : { expectedRevision: revision }),
+              });
+            }),
+        }),
+        links: Object.freeze({
+          add: (from: string, to: PluginEntityRef, options?: PluginLinkOptions) =>
+            write(async () => {
+              const link = await readLinkAdd(from, to, options);
+              push({ op: "link.add", id: crypto.randomUUID(), ...link });
+            }),
+          remove: (id: string) => write(() => push({ op: "link.remove", id: readId(id) })),
+          reorder: (from: string, ids: readonly string[]) =>
+            write(() => push({ op: "link.reorder", from: readId(from), ids: readReorderIds(ids) })),
+        }),
+      });
+      let result: T;
+      try {
+        result = await run(tx);
+      } finally {
+        await settle();
+      }
+      if (failures.length) throw failures[0];
+      if (ops.length) await adapter.commit(context, ops);
+      this.assertActive(entry, activation);
+      return result;
+    };
+  }
+
+  private buildEventsContext(deps: ContextDeps): PluginContext["events"] {
+    const { context, entry, activation, register, assertDeclared, permissionsAdapter } = deps;
+    return Object.freeze({
+      on: (
+        types: PluginEventType | readonly PluginEventType[],
+        listener: (event: PluginDomainEvent) => void
+      ) => {
+        this.assertActive(entry, activation);
+        const wanted = new Set(typeof types === "string" ? [types] : types);
+        if (!wanted.size || [...wanted].some(type => !isPluginEventType(type)))
+          throw new Error("未知的事件类型");
+        if (typeof listener !== "function") throw new Error("事件监听必须是函数");
+        assertDeclared(
+          [...wanted].flatMap(type => {
+            const permission = PLUGIN_EVENT_PERMISSIONS[type];
+            return permission ? [permission] : [];
+          })
+        );
+        if (!this.options.events) throw new Error("当前宿主不支持业务事件");
+        // 权限查询是异步的，串行投递保持事件顺序
+        let delivery = Promise.resolve();
+        const subscription = this.options.events.subscribe(context, event => {
+          if (!wanted.has(event.type) || activation.controller.signal.aborted) return;
+          const permission = PLUGIN_EVENT_PERMISSIONS[event.type];
+          const snapshot = copyJson(event) as unknown as PluginDomainEvent;
+          delivery = delivery
+            .then(async () => {
+              if (
+                permission &&
+                (await permissionsAdapter().query(context, permission)) !== "granted"
+              )
+                return;
+              this.assertActive(entry, activation);
+              listener(snapshot);
+            })
+            .catch(error => {
+              if (!activation.controller.signal.aborted) console.error("插件事件处理失败", error);
+            });
+        });
+        return register(subscription);
+      },
+    });
+  }
+
+  private buildContentContext(deps: ContextDeps): PluginContext["content"] {
+    const {
+      context,
+      entry,
+      activation,
+      guard,
+      dataAdapter,
+      deliver,
+      declared,
+      permissionsAdapter,
+    } = deps;
+    return Object.freeze({
+      read: async (ref: PluginContentRef, options?: { format?: "markdown" | "nodes" }) => {
+        if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
+        const format = options?.format ?? "markdown";
+        if (format !== "markdown" && format !== "nodes") throw new Error("正文格式无效");
+        const result = await dataAdapter().readContent(context, ref, format);
+        this.assertActive(entry, activation);
+        if (result && format === "nodes")
+          result.snapshot = { ...result.snapshot, schemaVersion: EDITOR_NODE_SCHEMA_VERSION };
+        // 本插件实体的正文直接放行
+        if (result?.own) return deliver<PluginContentSnapshot>(result.snapshot);
+        if (!result?.owners.length) return null;
+        const candidates = contentPermissions(result.owners, "read");
+        const usable = candidates.filter(permission => declared.has(permission));
+        if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
+        const adapter = permissionsAdapter();
+        const states = await Promise.all(usable.map(item => adapter.query(context, item)));
+        const granted = usable.find((_, index) => states[index] === "granted");
+        await guard(granted ?? usable[0]);
+        return deliver<PluginContentSnapshot>(result.snapshot);
+      },
+      edit: async (ref: PluginContentRef, edit: PluginContentEdit, options: PluginWriteOptions) => {
+        if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
+        const value = readContentEdit(edit);
+        const revision = readRevision(options);
+        const { owners, own } = await dataAdapter().contentOwners(context, ref);
+        this.assertActive(entry, activation);
+        if (own)
+          return deliver<{ revision: string }>(
+            await dataAdapter().editContent(context, ref, value, revision)
+          );
+        if (!owners.length) throw new Error("正文不存在");
+        const candidates = contentPermissions(owners, "write");
+        const usable = candidates.filter(permission => declared.has(permission));
+        if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
+        const adapter = permissionsAdapter();
+        const states = await Promise.all(usable.map(item => adapter.query(context, item)));
+        await guard(usable.find((_, index) => states[index] === "granted") ?? usable[0]);
+        return deliver<{ revision: string }>(
+          await dataAdapter().editContent(context, ref, value, revision)
+        );
+      },
+    });
+  }
+
+  private buildSidebarContext(deps: ContextDeps): PluginContext["sidebar"] {
+    const { context, entry, activation, scope, pages, register, registerAs } = deps;
+    return Object.freeze({
+      registerGroup: (definition: PluginSidebarGroupDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (!definition.title.trim()) throw new Error("侧边栏分组标题不能为空");
+        if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
+        const handle = this.options.sidebar.registerGroup(
+          context,
+          Object.freeze({ ...definition })
+        );
+        return Object.freeze({ id: handle.id, dispose: register(handle).dispose });
+      },
+      registerItem: (definition: PluginSidebarItemDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (!definition.title.trim()) throw new Error("侧边栏条目标题不能为空");
+        const page = pages.get(definition.page);
+        if (!page?.active()) throw new Error("侧边栏条目必须关联本次启用注册的有效页面");
+        if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
+        const resource = this.options.sidebar.registerItem(
+          context,
+          Object.freeze({
+            ...definition,
+            params: Object.freeze(normalizePageParams(definition.params ?? {})),
+          }),
+          page.id
+        );
+        const owned = registerAs("sidebar", resource);
+        let state: PluginSidebarItemState = Object.freeze({
+          badge: 0,
+          children: Object.freeze([]),
+          action: null,
+        });
+        let removed = false;
+        // 插件停用或条目移除后，宿主不再调用插件的回调
+        const wrap =
+          <A extends unknown[]>(run: (...args: A) => unknown) =>
+          (...args: A) => {
+            this.assertActive(entry, activation);
+            if (removed) throw new Error("侧边栏条目已移除");
+            return run(...args);
+          };
+        const handle: PluginSidebarItemHandle = {
+          update: (patch: PluginSidebarItemUpdate) => {
+            this.assertActive(entry, activation);
+            if (removed) throw new Error("侧边栏条目已移除");
+            state = snapshotSidebarUpdate(state, patch, {
+              wrap,
+              dragType: type => sidebarDragType(scope.pluginId, type),
+            });
+            resource.update(state);
+          },
+          dispose: () => {
+            removed = true;
+            return owned.dispose();
+          },
+        };
+        return Object.freeze(handle);
+      },
+      dragType: (type: string) => sidebarDragType(scope.pluginId, type),
+    });
+  }
+
+  private buildViewsContext(deps: ContextDeps): PluginContext["views"] {
+    const { context, entry, activation, registerAs } = deps;
+    return Object.freeze({
+      registerEntityPanel: (definition: PluginEntityPanelDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (typeof definition.component !== "function")
+          throw new Error("详情区块组件必须是 React 组件");
+        const kinds = definition.kinds;
+        if (!Array.isArray(kinds) || !kinds.length) throw new Error("详情区块至少要有一类对象");
+        for (const kind of kinds)
+          if (!PLUGIN_ENTITY_PANEL_KINDS.includes(kind))
+            throw new Error(`不支持的详情区块对象：${String(kind)}`);
+        if (!this.options.views) throw new Error("当前宿主不支持详情区块");
+        return registerAs(
+          "entity-panel",
+          this.options.views.registerEntityPanel(
+            context,
+            Object.freeze({
+              id: definition.id,
+              kinds: Object.freeze([...new Set(kinds)]),
+              component: definition.component,
+            })
+          )
+        );
+      },
+    });
+  }
+
+  private buildNotebooksContext(deps: ContextDeps): PluginContext["notebooks"] {
+    const { context, entry, activation, scope, registerAs } = deps;
+    return Object.freeze({
+      registerOutput: (definition: PluginNotebookOutputDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        assertLocalId(definition.kind);
+        if (typeof definition.title !== "string" || !definition.title.trim())
+          throw new Error("Notebook 输出的名称不能为空");
+        if (definition.icon !== undefined && !isComponentType(definition.icon))
+          throw new Error("Notebook 输出的图标必须是 React 组件");
+        if (definition.options !== undefined && !isComponentType(definition.options))
+          throw new Error("options 必须是 React 组件");
+        if (!isComponentType(definition.view)) throw new Error("view 必须是 React 组件");
+        if (typeof definition.prepare !== "function" || typeof definition.complete !== "function")
+          throw new Error("Notebook 输出必须提供 prepare 与 complete");
+        if (definition.fail !== undefined && typeof definition.fail !== "function")
+          throw new Error("fail 必须是函数");
+        if (!this.options.notebooks) throw new Error("当前宿主不支持 Notebook 输出");
+        const { prepare, complete, fail } = definition;
+        let removed = false;
+        const guardCall = () => {
+          this.assertActive(entry, activation);
+          if (removed) throw new Error("Notebook 输出已注销");
+        };
+        const owned = registerAs(
+          "notebook-output",
+          this.options.notebooks.registerOutput(
+            context,
+            Object.freeze({
+              id: definition.id,
+              title: definition.title.trim(),
+              ...(definition.icon ? { icon: definition.icon } : {}),
+              ...(typeof definition.description === "string" && definition.description.trim()
+                ? { description: definition.description.trim() }
+                : {}),
+              kind: definition.kind,
+              ...(definition.options ? { options: definition.options } : {}),
+              view: definition.view,
+              prepare: async (input: Parameters<PluginNotebookOutputDefinition["prepare"]>[0]) => {
+                guardCall();
+                const plan = readNotebookOutputPlan(
+                  await prepare({
+                    notebook: { ...input.notebook },
+                    resources: input.resources.map(item => ({
+                      id: String(item.id),
+                      name: String(item.name),
+                    })),
+                    userPrompt: input.userPrompt,
+                    options: input.options === undefined ? undefined : copyJson(input.options),
+                    signal: AbortSignal.any([input.signal, scope.signal]),
+                  })
+                );
+                guardCall();
+                return plan;
+              },
+              complete: async (
+                input: Parameters<PluginNotebookOutputDefinition["complete"]>[0]
+              ) => {
+                guardCall();
+                await complete({
+                  entity: input.entity,
+                  text: String(input.text),
+                  task: input.task,
+                  signal: AbortSignal.any([input.signal, scope.signal]),
+                });
+              },
+              ...(fail
+                ? {
+                    fail: async (
+                      input: Parameters<NonNullable<PluginNotebookOutputDefinition["fail"]>>[0]
+                    ) => {
+                      guardCall();
+                      await fail({
+                        entity: input.entity,
+                        reason: input.reason,
+                        message: String(input.message),
+                      });
+                    },
+                  }
+                : {}),
+            })
+          )
+        );
+        return Object.freeze({
+          dispose: () => {
+            removed = true;
+            return owned.dispose();
+          },
+        });
+      },
+    });
+  }
+
+  private buildActionsContext(deps: ContextDeps): PluginContext["actions"] {
+    const { context, entry, activation, registerAs } = deps;
+    return Object.freeze({
+      register: <K extends PluginActionTargetKind>(input: PluginActionDefinition<K>) => {
+        this.assertActive(entry, activation);
+        const definition = input as unknown as PluginActionDefinition;
+        assertLocalId(definition.id);
+        if (typeof definition.title !== "string" || !definition.title.trim())
+          throw new Error("对象动作标题不能为空");
+        if (definition.icon !== undefined && !isComponentType(definition.icon))
+          throw new Error("对象动作图标必须是 React 组件");
+        if (typeof definition.run !== "function") throw new Error("对象动作必须提供 run");
+        const targets = definition.targets;
+        if (!Array.isArray(targets) || !targets.length) throw new Error("对象动作至少要有一类目标");
+        for (const target of targets)
+          if (!PLUGIN_ACTION_TARGET_KINDS.includes(target))
+            throw new Error(`不支持的对象动作目标：${String(target)}`);
+        if (!this.options.actions) throw new Error("当前宿主不支持对象动作");
+        const run = definition.run;
+        let removed = false;
+        const owned = registerAs(
+          "action",
+          this.options.actions.register(
+            context,
+            Object.freeze({
+              id: definition.id,
+              title: definition.title,
+              ...(definition.icon ? { icon: definition.icon } : {}),
+              targets: Object.freeze([...new Set(targets)]),
+              run: (target: Parameters<PluginActionDefinition["run"]>[0]) => {
+                this.assertActive(entry, activation);
+                if (removed) throw new Error("对象动作已注销");
+                return run(snapshotActionTarget(target));
+              },
+            })
+          )
+        );
+        return {
+          dispose: () => {
+            removed = true;
+            return owned.dispose();
+          },
+        };
+      },
+    });
+  }
+
+  private buildHomeContext(deps: ContextDeps): PluginContext["home"] {
+    const { context, entry, activation, registerAs } = deps;
+    return Object.freeze({
+      registerPanel: (definition: PluginHomePanelDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (typeof definition.title !== "string" || !definition.title.trim())
+          throw new Error("首页面板标题不能为空");
+        if (typeof definition.component !== "function")
+          throw new Error("首页面板组件必须是 React 组件");
+        const size = definition.size ?? "wide";
+        if (size !== "compact" && size !== "wide") throw new Error("首页面板宽度无效");
+        const action = definition.action ?? null;
+        if (
+          action !== null &&
+          (typeof action !== "object" ||
+            typeof action.title !== "string" ||
+            !action.title.trim() ||
+            typeof action.run !== "function")
+        )
+          throw new Error("首页面板入口需要标题和 run 函数");
+        if (!this.options.home) throw new Error("当前宿主不支持首页面板");
+        return registerAs(
+          "home",
+          this.options.home.registerPanel(
+            context,
+            Object.freeze({
+              id: definition.id,
+              title: definition.title,
+              component: definition.component,
+              size,
+              action: action && Object.freeze({ title: action.title, run: action.run }),
+            })
+          )
+        );
+      },
+    });
+  }
+
+  private buildPagesContext(deps: ContextDeps): PluginContext["pages"] {
+    const { context, entry, activation, pages, registerAs } = deps;
+    return Object.freeze({
+      register: (definition: PluginPageDefinition) => {
+        this.assertActive(entry, activation);
+        assertLocalId(definition.id);
+        if (!definition.title.trim()) throw new Error("页面标题不能为空");
+        if (
+          definition.match !== undefined &&
+          definition.match !== "single" &&
+          definition.match !== "params"
+        ) {
+          throw new Error("不支持的页面匹配方式");
+        }
+        if (!this.options.pages) throw new Error("当前宿主不支持页面");
+        const handle = this.options.pages.register(context, Object.freeze({ ...definition }));
+        let disposed = false;
+        const navigation = new Set<Disposable>();
+        const resource = registerAs("page", {
+          dispose: async () => {
+            disposed = true;
+            const results = await Promise.allSettled([
+              ...[...navigation].map(entry => Promise.resolve().then(() => entry.dispose())),
+              Promise.resolve().then(() => handle.dispose()),
+            ]);
+            const errors = results.filter(
+              (result): result is PromiseRejectedResult => result.status === "rejected"
+            );
+            if (errors.length)
+              throw new AggregateError(
+                errors.map(result => result.reason),
+                "页面及入口回收失败"
+              );
+          },
+        });
+        const exposed: PluginPageHandle = Object.freeze({
+          id: handle.id,
+          open: async (params = {}) => {
+            this.assertActive(entry, activation);
+            if (disposed) throw new Error("页面已注销");
+            await handle.open(normalizePageParams(params));
+          },
+          dispose: resource.dispose,
+        });
+        pages.set(exposed, { id: definition.id, active: () => !disposed, navigation });
+        return exposed;
+      },
+    });
   }
 
   private changed() {

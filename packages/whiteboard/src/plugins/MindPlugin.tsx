@@ -57,7 +57,7 @@ const DEFAULT_CONTENT: Descendant[] = [
   },
 ];
 
-export const EMPTY_MIND_DRAG_STATE: MindDragState = {
+const EMPTY_MIND_DRAG_STATE: MindDragState = {
   mode: null,
   isDragging: false,
   draggedNode: null,

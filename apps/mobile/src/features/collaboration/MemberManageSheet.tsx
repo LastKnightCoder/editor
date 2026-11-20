@@ -1,4 +1,4 @@
-// 成员管理（设计稿 04 方案 B）：协作码卡置顶，向下依次为待审批、成员、危险操作。
+// 成员管理：协作码卡置顶，向下依次为待审批、成员、危险操作。
 // 单列滚动一屏管完一个房间，复制码零跳步。
 import { useState } from "react";
 import { LogOut, Trash2 } from "lucide-react";

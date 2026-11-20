@@ -2,11 +2,10 @@
  * pi 会话生命周期管理（渲染端）：桌面 chat（scope + chatId）↔ pi 会话的绑定与重建。
  * - ensureChatSession：无会话则创建（工具桥清单 + systemPrompt）；模型变化自动重建；
  *   systemPrompt 每轮经 set-system-prompt 热替换（不重建）
- * 会话事实源是 pi JSONL（M4）：创建时传会话文件，pi 自己从文件恢复上下文，不再灌历史。
+ * 会话事实源是 pi JSONL：创建时传会话文件，pi 自己从文件恢复上下文，不再灌历史。
  * 改会话树（编辑重发/重新生成/删除/建分支/切版本）不经这里：pi-session:edit 在主进程直接改
- * 宿主会话（空闲时）或文件，宿主不重建（M4-d）。
+ * 宿主会话（空闲时）或文件，宿主不重建。
  */
-import type { ImageContent } from "@earendil-works/pi-ai";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { PiHostToolSpec } from "@/types/pi-session";
 import { piToolDefinitionKey } from "@/types/pi-session";
@@ -90,7 +89,7 @@ interface ChatSessionDescriptor {
 }
 
 const sameNames = (a: string[] | undefined, b: string[]): boolean =>
-  Boolean(a) && a!.length === b.length && a!.every((name, index) => name === b[index]);
+  a?.length === b.length && a.every((name, index) => name === b[index]);
 
 /** chatScope 带 `"pdf-chat:12"` 形态的参数前缀，会话键取冒号前缀（与 conversationKey 约定一致） */
 export const chatSessionKey = (
@@ -183,7 +182,7 @@ class PiChatSessionManager {
         else console.error("同步活跃工具集失败:", outcome.error);
       }
       const refreshed = await piSessionSetSystemPrompt(existing.sessionId, options.systemPrompt);
-      // 宿主已被主进程回收（空闲超时、切库，M4-e）：本地描述失效，从会话文件重建
+      // 宿主已被主进程回收（空闲超时、切库）：本地描述失效，从会话文件重建
       if (!refreshed.ok) {
         this.forgetByKey(key);
         return this.createSession(key, options, loadout);
@@ -362,15 +361,6 @@ function buildToolLoadout(options: EnsureChatSessionOptions): ChatToolLoadout {
     // 描述与参数也进指纹：schema 变了（MCP 服务器升级）同样得重建
     universe: specs.map(piToolDefinitionKey).join("\u0000"),
   };
-}
-
-/** 桌面图片块 → pi ImageContent（dataURL 解析；http/base64 原样交主进程处理） */
-export function toPiImageContent(image: string, mimeType = "image/png"): ImageContent {
-  const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/s);
-  if (dataUrlMatch) {
-    return { type: "image", data: dataUrlMatch[2], mimeType: dataUrlMatch[1] };
-  }
-  return { type: "image", data: image, mimeType };
 }
 
 const formatSkillsList = (skills: Skill[]) =>

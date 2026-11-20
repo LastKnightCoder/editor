@@ -101,14 +101,14 @@ interface ConversationEntry {
   titleGenerating: boolean;
   /** 用户已请求停止，收尾轮的报错不展示（下一轮 agent_start 复位） */
   stopRequested: boolean;
-  /** 挂载中的视图数（M4-e：挂着的不回收） */
+  /** 挂载中的视图数（挂着的不回收） */
   mounts: number;
   /** 最近一次使用（LRU 回收用） */
   lastUsed: number;
 }
 
-/** 空闲条目最多保留几条（M4-e）：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
-export const MAX_IDLE_CONVERSATIONS = 20;
+/** 空闲条目最多保留几条：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
+const MAX_IDLE_CONVERSATIONS = 20;
 
 /**
  * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，
@@ -249,18 +249,19 @@ class PiChatRuntime {
     entry.reducer?.reset();
     entry.sessionId = sessionId;
     entry.reducer = this.createReducer(key, entry);
+    const reducer = entry.reducer;
     const lastMessage = entry.chat.current.messages.at(-1);
     if (lastMessage?.role === Role.Assistant) {
-      entry.reducer.restoreToolExecutions(lastMessage as ResponseMessage);
+      reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     }
     const unsubscribeEvents = onPiSessionEvent(sessionId, event => {
       entry.eventRevision += 1;
-      entry.reducer!.handle(event);
+      reducer.handle(event);
     });
     const applyInteractions = () => {
       const snapshot = usePiInteractionStore.getState().sessions[sessionId];
       if (!snapshot) return;
-      entry.reducer!.applyInteractions(snapshot);
+      reducer.applyInteractions(snapshot);
       const waiting = snapshot.approvals.length > 0 || snapshot.questions.length > 0;
       if (waiting && !entry.streaming) {
         entry.streaming = true;
@@ -454,13 +455,15 @@ class PiChatRuntime {
     }
     entry.deps.publish(entry.chat.current);
     this.bindSession(key, snapshot.sessionId);
+    const reducer = entry.reducer;
+    if (!reducer) throw new Error("会话恢复失败：reducer 未初始化");
     const lastMessage = entry.chat.current.messages.at(-1);
     if (lastMessage?.role === Role.Assistant)
-      entry.reducer!.restoreToolExecutions(lastMessage as ResponseMessage);
+      reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     if (snapshot.busy !== undefined) entry.streaming = snapshot.busy;
     if (snapshot.streamingMessage?.role === Role.Assistant) {
-      entry.reducer!.handle({ type: "message_start", message: snapshot.streamingMessage });
-      entry.reducer!.handle({
+      reducer.handle({ type: "message_start", message: snapshot.streamingMessage });
+      reducer.handle({
         type: "message_update",
         message: snapshot.streamingMessage,
         assistantMessageEvent: { type: "start", partial: snapshot.streamingMessage },

@@ -9,9 +9,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 vi.mock("../database", () => ({ default: {} }));
 vi.mock("../pi-ai-runtime", () => ({ default: {} }));
 vi.mock("../user-setting", () => ({ default: {} }));
@@ -20,6 +18,7 @@ import { gather, paragraphSimilarity } from "../compose-gather";
 import { parseGatherOutput } from "../compose-gather-prompt";
 import ComposeBoardTable from "../tables/compose-board";
 import ContentAiMetaTable from "../tables/content-ai-meta";
+import { must } from "../../test-support";
 
 const DIM = 8;
 const axis = (index: number, noise = 0) =>
@@ -130,7 +129,12 @@ describe("compose-gather", () => {
     const complete = vi.fn(async (request: { messages: Array<{ content: string }> }) => {
       prompt = request.messages[0].content;
       const no = (title: string) =>
-        Number(prompt.match(new RegExp(`\\[(\\d+)\\] 卡片 › ${title}`))![1]);
+        Number(
+          must(
+            prompt.match(new RegExp(`\\[(\\d+)\\] 卡片 › ${title}`)),
+            "prompt.match(new RegExp(`\\[(\\d+)\\] 卡片 › ${..."
+          )[1]
+        );
       return {
         ok: true,
         text: JSON.stringify({
@@ -213,9 +217,9 @@ describe("compose-gather", () => {
       `好的 {"groups":[{"name":"一个非常非常非常非常非常长的组名","items":[{"candidate":1,"why":"${"很".repeat(60)}"},{"candidate":1,"why":"重复"}]}]}`,
       new Set([1, 2])
     );
-    expect(parsed!.groups[0].name).toHaveLength(16);
-    expect(parsed!.groups[0].items).toHaveLength(1);
-    expect(parsed!.groups[0].items[0].why).toHaveLength(40);
+    expect(must(parsed, "parsed").groups[0].name).toHaveLength(16);
+    expect(must(parsed, "parsed").groups[0].items).toHaveLength(1);
+    expect(must(parsed, "parsed").groups[0].items[0].why).toHaveLength(40);
     expect(parseGatherOutput("不是 JSON", new Set([1]))).toBeNull();
   });
 

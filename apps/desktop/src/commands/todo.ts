@@ -10,8 +10,6 @@ import {
   MoveAndReorderPayload,
   TodoNoteLink,
   AttachExistingNotePayload,
-  TodoGroupStats,
-  CreateTodoItemRelative,
   TodoItemType,
   TodoRecurrence,
   CreateTodoRecurrence,
@@ -19,7 +17,6 @@ import {
   TodoRecurrenceCompletion,
   TodoCalendarMapping,
   TodoCalendarEventSource,
-  TodoCalendarSyncType,
 } from "@/types";
 
 // ==================== Groups ====================
@@ -53,18 +50,6 @@ export const deleteTodoGroup = async (id: number): Promise<number> => {
   return invoke("todo:delete-group", { id });
 };
 
-export const reorderTodoGroups = async (orderedIds: number[]): Promise<number> => {
-  return invoke("todo:reorder-groups", { orderedIds });
-};
-
-export const getTodoGroupStats = async (): Promise<TodoGroupStats[]> => {
-  return invoke("todo:get-group-stats");
-};
-
-export const getSystemGroupStats = async (): Promise<TodoGroupStats[]> => {
-  return invoke("todo:get-system-group-stats");
-};
-
 // ==================== Items ====================
 
 export const listTodoItems = async (groupId: number): Promise<TodoItem[]> => {
@@ -87,12 +72,6 @@ export const createTodoWithSchedule = async (
   return invoke("todo:create-with-schedule", payload);
 };
 
-export const createTodoItemRelative = async (
-  payload: CreateTodoItemRelative
-): Promise<TodoItem> => {
-  return invoke("todo:create-item-relative", payload);
-};
-
 export const deleteTodoItemCascade = async (id: number): Promise<number> => {
   return invoke("todo:delete-item-cascade", { id });
 };
@@ -109,19 +88,7 @@ export const moveAndReorderTodoItem = async (payload: MoveAndReorderPayload): Pr
   return invoke("todo:move-and-reorder", payload);
 };
 
-export const archiveTodoItem = async (id: number, isArchived: boolean): Promise<number> => {
-  return invoke("todo:archive-item", { id, isArchived });
-};
-
-export const deleteTodoItem = async (id: number): Promise<number> => {
-  return invoke("todo:delete-item", id);
-};
-
 // ==================== Recurrence ====================
-
-export const getRecurrence = async (id: number): Promise<TodoRecurrence | null> => {
-  return invoke("todo:get-recurrence", { id });
-};
 
 export const getRecurrenceByItemId = async (todoItemId: number): Promise<TodoRecurrence | null> => {
   return invoke("todo:get-recurrence-by-item", { todoItemId });
@@ -139,14 +106,6 @@ export const createRecurrence = async (payload: CreateTodoRecurrence): Promise<T
 
 export const updateRecurrence = async (payload: UpdateTodoRecurrence): Promise<TodoRecurrence> => {
   return invoke("todo:update-recurrence", payload);
-};
-
-export const deleteRecurrence = async (id: number): Promise<number> => {
-  return invoke("todo:delete-recurrence", { id });
-};
-
-export const deleteRecurrenceByItemId = async (todoItemId: number): Promise<number> => {
-  return invoke("todo:delete-recurrence-by-item", { todoItemId });
 };
 
 // ==================== Recurrence Completion ====================
@@ -172,16 +131,6 @@ export const getRecurrenceCompletionsByRecurrenceIds = async (
     recurrenceIds,
     startDate,
     endDate,
-  });
-};
-
-export const getRecurrenceCompletion = async (
-  recurrenceId: number,
-  scheduledDate: number
-): Promise<TodoRecurrenceCompletion | null> => {
-  return invoke("todo:get-recurrence-completion", {
-    recurrenceId,
-    scheduledDate,
   });
 };
 
@@ -218,6 +167,12 @@ export const skipRecurrence = async (
 
 // ==================== Calendar Mapping ====================
 
+export const getCalendarEventSources = async (
+  calendarEventIds: number[]
+): Promise<Record<number, TodoCalendarEventSource>> => {
+  return invoke("todo:get-calendar-event-sources", { calendarEventIds });
+};
+
 export const getCalendarMappingsByTodo = async (
   todoItemId: number
 ): Promise<TodoCalendarMapping[]> => {
@@ -230,55 +185,9 @@ export const getCalendarMappingsByTodoIds = async (
   return invoke("todo:get-calendar-mappings-by-todo-ids", { todoItemIds });
 };
 
-export const getCalendarMappingByEvent = async (
-  calendarEventId: number
-): Promise<TodoCalendarMapping | null> => {
-  return invoke("todo:get-calendar-mapping-by-event", { calendarEventId });
-};
-
-export const getCalendarEventSources = async (
-  calendarEventIds: number[]
-): Promise<Record<number, TodoCalendarEventSource>> => {
-  return invoke("todo:get-calendar-event-sources", { calendarEventIds });
-};
-
-export const getCalendarMappingById = async (id: number): Promise<TodoCalendarMapping | null> => {
-  return invoke("todo:get-calendar-mapping-by-id", { id });
-};
-
-export const createCalendarMapping = async (
-  todoItemId: number,
-  calendarEventId: number,
-  syncType: TodoCalendarSyncType,
-  recurrenceDate?: number | null
-): Promise<TodoCalendarMapping> => {
-  return invoke("todo:create-calendar-mapping", {
-    todoItemId,
-    calendarEventId,
-    syncType,
-    recurrenceDate,
-  });
-};
-
-export const deleteCalendarMapping = async (id: number): Promise<number> => {
-  return invoke("todo:delete-calendar-mapping", { id });
-};
-
-export const deleteCalendarMappingsByTodo = async (todoItemId: number): Promise<number> => {
-  return invoke("todo:delete-calendar-mappings-by-todo", { todoItemId });
-};
-
-export const deleteCalendarMappingsByEvent = async (calendarEventId: number): Promise<number> => {
-  return invoke("todo:delete-calendar-mappings-by-event", { calendarEventId });
-};
-
 // ==================== Notes ====================
 export const listTodoNotes = async (todoId: number): Promise<TodoNoteLink[]> => {
   return invoke("todoNote:list", { todoId });
-};
-
-export const getTodoNoteLinkById = async (linkId: number): Promise<TodoNoteLink | null> => {
-  return invoke("todoNote:getById", { linkId });
 };
 
 export const listTodoNotesByTodoIds = async (
@@ -304,63 +213,8 @@ export const detachNote = async (linkId: number): Promise<number> => {
   return invoke("todoNote:detach", { linkId });
 };
 
-export const reorderNotes = async (todoId: number, orderedLinkIds: number[]): Promise<number> => {
-  return invoke("todoNote:reorder", { todoId, orderedLinkIds });
-};
-
 export const updateNoteTitleSnapshot = async (linkId: number, title: string): Promise<number> => {
   return invoke("todoNote:updateTitleSnapshot", { linkId, title });
-};
-
-// ==================== Calendar Sync ====================
-
-interface TodoCalendars {
-  groupId: number;
-  deadline: number;
-  recurring: number;
-}
-
-export const getTodoCalendars = async (): Promise<TodoCalendars> => {
-  return invoke("todo-calendar:get-calendars");
-};
-
-export const syncTodoItemToCalendar = async (
-  todoItem: TodoItem,
-  recurrenceDate?: number
-): Promise<number | null> => {
-  return invoke("todo-calendar:sync-item", { todoItem, recurrenceDate });
-};
-
-export const removeTodoItemFromCalendar = async (
-  todoItemId: number,
-  recurrenceDate?: number
-): Promise<number> => {
-  return invoke("todo-calendar:remove-item", { todoItemId, recurrenceDate });
-};
-
-export const cleanupOrphanedCalendarEvents = async (): Promise<number> => {
-  return invoke("todo-calendar:cleanup-orphaned");
-};
-
-// ==================== Reminders ====================
-
-export interface PendingReminder {
-  todoItem: TodoItem | null;
-  taskRef?: import("@tau/shared/task-assistant").TaskRef;
-  recurrenceDate?: number;
-  remindAt: number;
-}
-
-export const getPendingReminders = async (): Promise<PendingReminder[]> => {
-  return invoke("todo-reminder:get-pending");
-};
-
-export const dismissReminder = async (todoId: number, recurrenceDate?: number): Promise<void> => {
-  return invoke("todo-reminder:dismiss", { todoId, recurrenceDate });
-};
-
-export const dismissAllReminders = async (): Promise<void> => {
-  return invoke("todo-reminder:dismiss-all");
 };
 
 // ==================== Reminders ====================

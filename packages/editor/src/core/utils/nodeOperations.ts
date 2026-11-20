@@ -145,7 +145,6 @@ function isClipboardFormatSupported(type: string): boolean {
  * 如果是最后一个节点，则清空内容而不删除节点本身
  */
 export function deleteNode(editor: Editor, path: Path): void {
-  // 检查是否为最后一个节点
   if (editor.children.length === 1) {
     // 清空内容
     Transforms.delete(editor, {
@@ -155,7 +154,6 @@ export function deleteNode(editor: Editor, path: Path): void {
       },
     });
   } else {
-    // 删除节点
     Transforms.removeNodes(editor, { at: path });
   }
 }

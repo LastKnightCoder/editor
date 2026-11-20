@@ -139,8 +139,9 @@ export class DocumentOperationLedger {
           request.expectedSequence !== undefined)) ||
       (request.expectedRevision !== undefined &&
         (!/^[a-f0-9]{64}$/.test(request.expectedRevision) ||
+          request.expectedSequence === undefined ||
           !Number.isSafeInteger(request.expectedSequence) ||
-          request.expectedSequence! < 0)) ||
+          request.expectedSequence < 0)) ||
       (request.expectedRevision === undefined && request.expectedSequence !== undefined)
     )
       fail("INVALID_OPERATION", "编辑操作指纹无效");

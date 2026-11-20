@@ -56,10 +56,6 @@ export const updateProjectItem = async (item: UpdateProjectItem): Promise<Projec
   return await invoke("update-project-item", item);
 };
 
-export const deleteProjectItem = async (id: number): Promise<number> => {
-  return await invoke("delete-project-item", id);
-};
-
 export const getProjectItemById = async (id: ContentEntityTarget): Promise<ProjectItem | null> => {
   return await invoke("get-project-item", id);
 };
@@ -79,26 +75,6 @@ export const getProjectItemByRef = async (
   refId: number
 ): Promise<ProjectItem[]> => {
   return await invoke("get-project-item-by-ref", refType, refId);
-};
-
-export const getProjectItemCountInProject = async (projectId: number): Promise<number> => {
-  return await invoke("get-project-item-count-in-project", projectId);
-};
-
-export const getAllProjectItemsNotInProject = async (projectId: number): Promise<ProjectItem[]> => {
-  return await invoke("get-all-project-items-not-in-project", projectId);
-};
-
-export const isProjectItemNotInAnyProject = async (id: number): Promise<boolean> => {
-  return await invoke("is-project-item-not-in-any-project", id);
-};
-
-export const getProjectItemsNotInAnyProject = async (): Promise<ProjectItem[]> => {
-  return await invoke("get-project-items-not-in-any-project");
-};
-
-export const deleteProjectItemsNotInAnyProject = async (): Promise<number> => {
-  return await invoke("delete-project-items-not-in-any-project");
 };
 
 export const getAllProjectItems = async (): Promise<ProjectItem[]> => {
@@ -160,7 +136,7 @@ export const createSharedProjectItemFromContent = async (params: {
     children: [],
     refType: "content",
     refId: params.sourceContentId,
-    whiteBoardContentId: 0,
+    whiteboardContentId: 0,
     projectItemType: EProjectItemType.Document,
   };
 
@@ -171,20 +147,6 @@ export const createSharedProjectItemFromContent = async (params: {
 
   const [, item] = await addRootProjectItem(params.projectId, payload);
   return item;
-};
-
-export const addRefRootProjectItem = async (
-  projectId: number,
-  projectItemId: number
-): Promise<[Project, ProjectItem | null]> => {
-  return await invoke("add-ref-root-project-item", projectId, projectItemId);
-};
-
-export const addRefChildProjectItem = async (
-  parentProjectItemId: number,
-  projectItemId: number
-): Promise<[ProjectItem | null, ProjectItem | null]> => {
-  return await invoke("add-ref-child-project-item", parentProjectItemId, projectItemId);
 };
 
 export const removeRootProjectItem = async (
@@ -229,32 +191,4 @@ export const moveProjectTreeItem = async (
 
 export const openProjectItemInNewWindow = (databaseName: string, projectItemId: number) => {
   return openEditorWindow({ kind: "project-item", databaseName, id: projectItemId });
-};
-
-export const getProjectItemsByDates = async (
-  dates: string[]
-): Promise<Record<string, ProjectItem[]>> => {
-  return await invoke("get-project-items-by-dates", dates);
-};
-
-export const getProjectItemsByDateRange = async (
-  startDate: string,
-  endDate: string
-): Promise<Record<string, ProjectItem[]>> => {
-  return await invoke("get-project-items-by-date-range", startDate, endDate);
-};
-
-export const getProjectItemsContentByIds = async (
-  ids: number[],
-  maxLength?: number
-): Promise<
-  Array<{
-    id: number;
-    markdown: string;
-    truncated: boolean;
-    originalLength: number;
-    metadata: Record<string, any>;
-  }>
-> => {
-  return await invoke("get-project-items-content-by-ids", ids, maxLength);
 };

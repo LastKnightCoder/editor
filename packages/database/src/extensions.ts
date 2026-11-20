@@ -130,13 +130,14 @@ export function installDatabaseExtensions(
   const overrideOwners = new Map<string, string>();
   for (const { id, value } of contributions) {
     for (const { type, patch } of value.fieldOverrides ?? []) {
-      if (!pluginManager.hasPlugin(type))
+      // getPlugin 对未注册类型返回 missingPlugin 兜底，存在性须以 hasPlugin 为准
+      const existing = pluginManager.getPlugin(type);
+      if (!existing || !pluginManager.hasPlugin(type))
         throw new Error(`Database 扩展 ${id} 覆盖了不存在的字段类型：${type}`);
       const owner = overrideOwners.get(type);
       if (owner !== undefined)
         throw new Error(`字段类型 ${type} 被多个扩展覆盖：${owner} 与 ${id}`);
       overrideOwners.set(type, id);
-      const existing = pluginManager.getPlugin(type)!;
       pluginManager.replacePlugin({ ...existing, ...patch, type });
     }
   }

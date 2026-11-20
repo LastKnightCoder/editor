@@ -10,7 +10,7 @@ export interface TabsLike {
   focusWindow(windowId: number): Promise<unknown>;
 }
 
-export const libraryUrl = (base: string, page?: string) =>
+const libraryUrl = (base: string, page?: string) =>
   page ? `${base}?${new URLSearchParams({ page })}` : base;
 
 export class LibraryTab implements LibraryOpener {

@@ -188,7 +188,9 @@ export class PublishSiteGenerator {
       fields: resolveSiteFields(this.template.manifest.template.siteFields, site.fieldValues),
     };
     if (!site.favicon) return meta;
-    const faviconOutput = this.favicon!.output;
+    const favicon = this.favicon;
+    if (!favicon) throw new Error("favicon 未生成，无法构建站点元信息");
+    const faviconOutput = favicon.output;
     return {
       ...meta,
       favicon: {
@@ -680,12 +682,15 @@ export class PublishSiteGenerator {
     const collections = kinds
       .map(kind => {
         const items = meta
-          .filter(item => item.type === kind && item.target)
+          .filter(
+            (item): item is IDocCollectionMetaItem & { target: ContentRef } =>
+              item.type === kind && Boolean(item.target)
+          )
           .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"))
           .map(item => ({
             id: item.entityId,
             title: item.title,
-            target: item.target!,
+            target: item.target,
             kind,
           }));
 
@@ -986,14 +991,15 @@ export class PublishSiteGenerator {
       sources.push({ code: trimmed, extension });
     };
 
-    const traverse = (node: any) => {
+    const traverse = (node: unknown) => {
       if (!node || typeof node !== "object") {
         return;
       }
-      for (const source of this.pluginCatalog.styleSources(node))
+      const record = node as Record<string, unknown>;
+      for (const source of this.pluginCatalog.styleSources(record))
         addSource(source.code, source.extension);
-      if (Array.isArray(node.children)) {
-        node.children.forEach((child: Descendant) => traverse(child));
+      if (Array.isArray(record.children)) {
+        record.children.forEach((child: Descendant) => traverse(child));
       }
     };
 
@@ -1031,7 +1037,8 @@ export class PublishSiteGenerator {
   private getPlainTextFromDescendants(nodes: Descendant[]): string {
     if (!Array.isArray(nodes)) return "";
     const parts: string[] = [];
-    for (const node of nodes as any[]) {
+    // Slate 的 Text/Element 联合无法直接交叉取 text/children，按最小递归形状断言遍历
+    for (const node of nodes as Array<{ text?: unknown; children?: unknown }>) {
       if (!node) continue;
       if (typeof node.text === "string") {
         parts.push(node.text);
@@ -1122,7 +1129,8 @@ export class PublishSiteGenerator {
 
   private extractPlainText(nodes: Descendant[]): string {
     const parts: string[] = [];
-    const traverse = (node: any) => {
+    // Slate 的 Text/Element 联合无法直接交叉取 text/code/children，按最小递归形状遍历
+    const traverse = (node: { text?: unknown; code?: unknown; children?: unknown }) => {
       if (!node) return;
       if (typeof node.text === "string") {
         parts.push(node.text);

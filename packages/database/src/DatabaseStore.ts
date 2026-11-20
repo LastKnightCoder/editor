@@ -650,7 +650,7 @@ export const createDatabaseStore = (
                 const nextWidth = Math.max(50, updates.width);
                 state.columnWidths[columnId] = nextWidth;
                 state.columns[columnIndex].width = nextWidth;
-                // 列宽已持久化进视图配置（D-137 白名单），三处必须同步写，避免加载时旧值覆盖列定义
+                // 列宽已持久化进视图配置，三处必须同步写，避免加载时旧值覆盖列定义
                 state.viewConfig.columnWidths = {
                   ...state.viewConfig.columnWidths,
                   [columnId]: nextWidth,
@@ -765,5 +765,3 @@ export const createDatabaseStore = (
     };
   });
 };
-
-export default createDatabaseStore;

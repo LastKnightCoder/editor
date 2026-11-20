@@ -80,8 +80,9 @@ export function createSharedTextField(
   text.observe(observe);
   const releaseOrigin = undo.retainOrigin(origin);
   const assertWritable = () => {
-    undo.assertActive(text.doc!);
-    if (disposed || !canWrite()) throw new Error("源码编辑已失效或当前只读");
+    const doc = text.doc;
+    if (!doc || disposed || !canWrite()) throw new Error("源码编辑已失效或当前只读");
+    undo.assertActive(doc);
   };
   const editBatch = (
     changes: readonly { offset: number; remove: number; text: string }[],

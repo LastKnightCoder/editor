@@ -31,7 +31,7 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import { EProjectItemType } from "@/types/project";
 import WhiteboardsTable from "./whiteboard";
-import WhiteBoardContentTable, { emptyWhiteboardPage } from "./white-board-content";
+import WhiteboardContentTable, { emptyWhiteboardPage } from "./white-board-content";
 import ContentTable from "./content";
 import Operation from "./operation";
 import { emitContentWritten } from "../content-events";
@@ -263,7 +263,8 @@ export default class PluginDataTable {
       | { id: number; create_time: number; update_time: number; content: string; count: number }
       | undefined;
     if (!row) return null;
-    const snapshot = ContentTable.getContentById(db, row.id)!;
+    const snapshot = ContentTable.getContentById(db, row.id);
+    if (!snapshot) return null;
     const nodes = snapshot.content;
     const owners = new Set<PluginContentOwnerEntity>();
     for (const ref of EntitySearchTable.locateAll(db, [row.id]).get(row.id) ?? []) {
@@ -454,7 +455,7 @@ export default class PluginDataTable {
               description: request.input.description ?? "",
               tags: request.input.tags ?? [],
               snapshot: "",
-              whiteBoardContentList: [emptyWhiteboardPage(title || "未命名")],
+              whiteboardContentList: [emptyWhiteboardPage(title || "未命名")],
             }).id
           : ProjectTable.createProject(db, {
               title,
@@ -558,7 +559,7 @@ export default class PluginDataTable {
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: 0,
-          whiteBoardContentId: 0,
+          whiteboardContentId: 0,
           tags: input.tags ?? [],
         };
         if (input.parentId === undefined)
@@ -1063,7 +1064,7 @@ export default class PluginDataTable {
           .all(documentId) as { content_id: number }[]
       ).map(page => page.content_id);
     }
-    for (const page of pages) WhiteBoardContentTable.incrementRefCount(db, page);
+    for (const page of pages) WhiteboardContentTable.incrementRefCount(db, page);
     Operation.insertOperation(db, "whiteboard", "insert", id, Date.now());
     return id;
   }
@@ -1077,23 +1078,27 @@ export default class PluginDataTable {
   ) {
     const live = placements.filter(place =>
       place.parentId === null
-        ? ProjectTable.getProjectOrNull(db, place.projectId!) !== null
+        ? place.projectId !== null && ProjectTable.getProjectOrNull(db, place.projectId) !== null
         : ProjectTable.getProjectItem(db, place.parentId) !== null
     );
     if (!live.length) throw new Error("原来的位置都已不存在，无法恢复");
     this.retainContent(db, Number(row.content_id) || null, contentCreatedAt);
     const page = Number(row.white_board_content_id) || 0;
-    if (row.project_item_type === EProjectItemType.WhiteBoard && page) {
+    if (row.project_item_type === EProjectItemType.Whiteboard && page) {
       if (!db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?").get(page))
         throw new Error("画板页已被清理，无法恢复");
-      WhiteBoardContentTable.incrementRefCount(db, page);
+      WhiteboardContentTable.incrementRefCount(db, page);
     }
     const parents = live.flatMap(place => (place.parentId === null ? [] : [place.parentId]));
     const projects = new Set<number>();
     for (const place of live) {
-      if (place.parentId === null) projects.add(place.projectId!);
-      else
-        ProjectTable.getProjectItem(db, place.parentId)!.projects.forEach(id => projects.add(id));
+      if (place.parentId === null) {
+        if (place.projectId === null) continue;
+        projects.add(place.projectId);
+      } else {
+        const parent = ProjectTable.getProjectItem(db, place.parentId);
+        if (parent) parent.projects.forEach(id => projects.add(id));
+      }
     }
     const id = this.reinsertRow(db, "project_item", {
       ...row,
@@ -1103,11 +1108,13 @@ export default class PluginDataTable {
     });
     for (const place of live) {
       if (place.parentId === null) {
-        const project = ProjectTable.getProject(db, place.projectId!);
+        if (place.projectId === null) continue;
+        const project = ProjectTable.getProject(db, place.projectId);
         project.children.splice(Math.min(place.index, project.children.length), 0, id);
         ProjectTable.updateProject(db, project);
       } else {
-        const parent = ProjectTable.getProjectItem(db, place.parentId)!;
+        const parent = ProjectTable.getProjectItem(db, place.parentId);
+        if (!parent) continue;
         parent.children.splice(Math.min(place.index, parent.children.length), 0, id);
         ProjectTable.updateProjectItemDirectory(db, parent);
       }

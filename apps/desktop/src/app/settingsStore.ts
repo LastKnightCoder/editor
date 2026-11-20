@@ -1,5 +1,5 @@
 /**
- * 设置弹窗开闭态（壳层浮层，D-028）。
+ * 设置弹窗开闭态（壳层浮层）。
  *
  * open 属壳层 UI 状态（Sidebar 底部入口 / 命令面板 / Ctrl+, 多入口触发），
  * 故归 app 层——features 域之间禁止互引 store，features/settings 只消费本 store。

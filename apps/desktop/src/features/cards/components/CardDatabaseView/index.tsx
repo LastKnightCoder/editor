@@ -78,7 +78,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     initializeDefaultView,
   } = useCardDatabasePreferences(databaseName);
 
-  // 初始化默认视图
   useEffect(() => {
     initializeDefaultView();
   }, [initializeDefaultView]);
@@ -94,7 +93,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     return Array.from(tagsSet).sort();
   }, [cards]);
 
-  // 构建列定义
   const columns = useMemo((): ColumnDef[] => {
     const tagOptions = allTags.map(tag => ({
       id: tag,
@@ -276,14 +274,12 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       return fallbackConfig;
     }
 
-    // 确保 columnOrder 和 rowOrder 与当前数据同步
     const config = { ...currentView.config };
 
     // 如果 columnOrder 为空或与当前列不匹配，使用当前列顺序
     if (!config.columnOrder || config.columnOrder.length === 0) {
       config.columnOrder = currentColumnIds;
     } else {
-      // 移除不存在的列，添加新列
       const validColumnOrder = config.columnOrder.filter(id => currentColumnIds.includes(id));
       currentColumnIds.forEach(id => {
         if (!validColumnOrder.includes(id)) {
@@ -297,7 +293,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     if (!config.rowOrder || config.rowOrder.length === 0) {
       config.rowOrder = currentRowIds;
     } else {
-      // 移除不存在的行，添加新行
       const validRowOrder = config.rowOrder.filter(id => currentRowIds.includes(id));
       currentRowIds.forEach(id => {
         if (!validRowOrder.includes(id)) {
@@ -353,13 +348,13 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
   );
 
   const handleRowAdd = useMemoizedFn(() => {
-    // 打开 CreateCard
     onOpenCreateCard();
   });
 
   const handleDataChange = useMemoizedFn(async (data: DatabaseData, change: DatabaseChange) => {
     const tagConfig = data.columns.find(column => column.id === "tags")?.config as
-      { options: SelectOption[] } | undefined;
+      | { options: SelectOption[] }
+      | undefined;
     const tagNames = new Map((tagConfig?.options ?? []).map(option => [option.id, option.name]));
     for (const column of data.columns) {
       if (column.width !== undefined && columnWidths[column.id] !== column.width)
@@ -502,7 +497,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       });
   });
 
-  // 确保有有效的 activeViewId
   const validActiveViewId = useMemo(() => {
     const id = activeViewId || views[0]?.id || 0;
     return id;

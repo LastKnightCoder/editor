@@ -1,4 +1,4 @@
-// 加入协作（设计稿 02 方案 A）：overlay 层浮层，主体 BottomSheet 自带返回拦截。
+// 加入协作：overlay 层浮层，主体 BottomSheet 自带返回拦截。
 import { lazy, Suspense } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { definePage, useNavigator } from "../../../router";

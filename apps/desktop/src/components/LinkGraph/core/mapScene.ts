@@ -66,9 +66,10 @@ export function buildMapScene(items: GraphItem[], map: KnowledgeMap): MapScene {
 
   // 地图之后新建的卡片：挨着已在地图上的显式链接邻居，否则按黄金角散在外圈
   pending.forEach((node, index) => {
-    const anchors = [...(base.adjacency.get(node.id) ?? [])]
-      .map(id => base.nodeById.get(id)!)
-      .filter(other => byCard.has(other.id));
+    const anchors = [...(base.adjacency.get(node.id) ?? [])].flatMap(id => {
+      const other = base.nodeById.get(id);
+      return other && byCard.has(other.id) ? [other] : [];
+    });
     if (anchors.length > 0) {
       const angle = node.id * GOLDEN_ANGLE;
       node.x = anchors.reduce((sum, n) => sum + n.x, 0) / anchors.length + Math.cos(angle) * 10;
@@ -92,9 +93,9 @@ export function buildMapScene(items: GraphItem[], map: KnowledgeMap): MapScene {
 
   const clusters: ClusterInfo[] = topics.map((topic, index) => {
     const members = (membersOf.get(index) ?? []).sort((a, b) => {
-      const left = base.nodeById.get(a)!;
-      const right = base.nodeById.get(b)!;
-      return right.degree - left.degree || a - b;
+      const left = base.nodeById.get(a);
+      const right = base.nodeById.get(b);
+      return (right?.degree ?? 0) - (left?.degree ?? 0) || a - b;
     });
     return {
       id: index,

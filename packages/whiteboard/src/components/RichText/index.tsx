@@ -22,7 +22,7 @@ import {
 } from "../../constants";
 import { Board, EHandlerPosition, Point } from "../../types";
 import { SELECT_TOOL_ID } from "../../constants/tools";
-import { RichTextElement, CommonElement } from "../../plugins";
+import { RichTextElement } from "../../plugins";
 import { PointUtil, deleteEmptyRichText, isRichTextContentEmpty } from "../../utils";
 import {
   TEXT_BOX,
@@ -60,7 +60,7 @@ import SketchRect from "../SketchPaths/SketchRect";
 import { handTextClass } from "../../utils/sketch";
 import { registerWheelScrollArea } from "../../utils/wheelGesture";
 
-type RichTextNodeType = Omit<RichTextElement, "type"> & any;
+type RichTextNodeType = RichTextElement;
 
 interface RichTextProps {
   element: RichTextNodeType;
@@ -77,17 +77,17 @@ interface RichTextProps {
     patch: Partial<RichTextNodeType>
   ) => void;
   removeAutoFocus?: (board: Board, element: RichTextNodeType) => void;
-  onResizeStart?: (element: CommonElement & any, startPoint: Point) => void;
+  onResizeStart?: (element: RichTextNodeType, startPoint: Point) => void;
   onResizeEnd?: (
     board: Board,
-    element: CommonElement & any,
+    element: RichTextNodeType,
     position: EHandlerPosition,
     startPoint: Point,
     endPoint: Point
   ) => void;
   onResize: (
     board: Board,
-    element: CommonElement & any,
+    element: RichTextNodeType,
     position: EHandlerPosition,
     startPoint: Point,
     endPoint: Point,
@@ -221,13 +221,10 @@ const Richtext = (props: RichTextProps) => {
     if (pendingContentIdPromiseRef.current) {
       return pendingContentIdPromiseRef.current;
     }
+    const api = board.extensions?.api;
+    if (!api) return undefined;
 
-    const pendingPromise = bindTextContent(
-      board.extensions!.api,
-      element.id,
-      text,
-      () => latestContentRef.current
-    );
+    const pendingPromise = bindTextContent(api, element.id, text, () => latestContentRef.current);
 
     pendingContentIdPromiseRef.current = pendingPromise;
     try {

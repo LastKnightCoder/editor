@@ -125,7 +125,7 @@ export class ContentExecutor {
     });
     signal?.throwIfAborted();
     if (this.closed || !this.window) throw new Error("内容执行服务已关闭");
-    const window = this.window!;
+    const window = this.window;
     const portableArtifacts = await portableDevelopmentArtifacts();
     const hash = createHash("sha256")
       .update(

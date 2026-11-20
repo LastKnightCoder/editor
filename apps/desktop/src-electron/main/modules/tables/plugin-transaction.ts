@@ -62,9 +62,12 @@ export default class PluginTransactionTable {
     contents: Map<number, Awaited<ReturnType<typeof PluginEntityTable.resolveContent>>>
   ) {
     switch (op.op) {
-      case "entity.create":
-        PluginEntityTable.insertResolved(db, scope.pluginId, op.input, contents.get(op.id)!, op.id);
+      case "entity.create": {
+        const content = contents.get(op.id);
+        if (!content) throw new Error(`事务缺少预解析正文：${op.id}`);
+        PluginEntityTable.insertResolved(db, scope.pluginId, op.input, content, op.id);
         return;
+      }
       case "entity.update":
         PluginEntityTable.update(db, {
           ...scope,

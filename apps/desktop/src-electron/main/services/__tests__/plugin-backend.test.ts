@@ -2,6 +2,7 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PluginBackendManager, type BackendDescriptor } from "../plugin-backend/manager";
+import { must } from "../../test-support";
 
 class Child extends EventEmitter {
   pid = 123;
@@ -92,7 +93,10 @@ describe("插件后台管理器", () => {
       () => expect(children[0].messages.some(item => item.type === "call")).toBe(true),
       { interval: 1 }
     );
-    const request = children[0].messages.find(item => item.type === "call")!;
+    const request = must(
+      children[0].messages.find(item => item.type === "call"),
+      "children[0].messages.find(item => item.type =..."
+    );
     children[0].emit("message", {
       type: "result",
       id: request.id,

@@ -16,7 +16,8 @@ import type {
 } from "../modules/publish-generator-protocol";
 
 const { request, dataPort, signal } = workerData as PublishGeneratorWorkerData;
-const port = parentPort!;
+const port = parentPort;
+if (!port) throw new Error("发布生成 worker 必须由宿主线程启动");
 const post = (message: WorkerToMain) => port.postMessage(message);
 
 function callMain(method: DataMethod, args: unknown[]): unknown {

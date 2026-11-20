@@ -14,7 +14,7 @@ export * from "./MindPlugin";
 export * from "./PresentationPlugin";
 export * from "./WebviewPlugin";
 export * from "./FramePlugin";
-export * from "./WhiteBoardPlugin";
+export * from "./WhiteboardPlugin";
 export * from "./ColumnPlugin";
 export * from "./FileDragDropPlugin";
 export * from "./ExportImagePlugin";

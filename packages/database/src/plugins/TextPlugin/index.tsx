@@ -1,10 +1,10 @@
-import { CellPlugin } from "../../types";
+import { CellPlugin, type CellValue } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
 import { Type } from "lucide-react";
 import { textFieldModel } from "./model";
 
-const TextPlugin: CellPlugin<any> = {
+const TextPlugin: CellPlugin<unknown> = {
   type: textFieldModel.type,
   model: textFieldModel,
   name: "文本",
@@ -14,8 +14,8 @@ const TextPlugin: CellPlugin<any> = {
   Editor,
   Icon: ({ className }: { className?: string }) => <Type className={className} />,
 
-  beforeSave: (value: string) => value,
-  afterLoad: (value: string) => value,
+  beforeSave: (value: CellValue) => value,
+  afterLoad: (value: CellValue) => value,
   getGroupKey: (row, column) => {
     return String(row[column.id]);
   },

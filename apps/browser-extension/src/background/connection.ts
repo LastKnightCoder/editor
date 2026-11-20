@@ -35,7 +35,7 @@ export interface ConnectionDeps {
   onReady(): void;
 }
 
-export const COMPANION_URL = `ws://127.0.0.1:${BROWSER_COMPANION_PORT}${BROWSER_COMPANION_PATH}`;
+const COMPANION_URL = `ws://127.0.0.1:${BROWSER_COMPANION_PORT}${BROWSER_COMPANION_PATH}`;
 const KEEPALIVE_MS = 20_000;
 const RETRY_DELAYS_MS = [1000, 2000, 5000, 10_000, 30_000];
 const LAUNCH_WAIT_MS = 30_000;

@@ -224,7 +224,8 @@ export class WhiteboardJournal {
         )
         .all(databaseName) as { document_id: string }[];
       for (const row of rows) {
-        const saved = this.load(row.document_id)!;
+        const saved = this.load(row.document_id);
+        if (!saved) throw new Error(`白板日志读取失败：${row.document_id}`);
         if (saved.projectedRevision !== saved.revision || saved.projectedHash !== saved.hash)
           throw new Error("白板仍有未保存进资料库的改动，不能替换资料库");
       }
@@ -244,7 +245,8 @@ export class WhiteboardJournal {
         document_id: string;
       }[];
       for (const row of rows) {
-        const saved = this.load(row.document_id)!;
+        const saved = this.load(row.document_id);
+        if (!saved) throw new Error(`白板日志读取失败：${row.document_id}`);
         if (saved.projectedRevision !== saved.revision || saved.projectedHash !== saved.hash)
           throw new Error("白板仍有未投影日志，不能回收");
       }

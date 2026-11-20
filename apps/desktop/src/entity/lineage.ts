@@ -18,7 +18,7 @@ export type LineageNode =
 
 export type LineageNodeKind = LineageNode["kind"];
 
-export const LINEAGE_RELATIONS = [
+const LINEAGE_RELATIONS = [
   "derived",
   "saved_from",
   "clipped_from",

@@ -72,6 +72,7 @@ export interface MarkdownProcessorOptions {
  */
 export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}): MarkdownProcessor {
   const codecs = options.codecs ?? [];
+  const resolveCodec = options.resolveCodec;
   const textRegistry = new MarkdownTextRegistry(options.textCodecs ?? []);
 
   const directives: Record<string, CustomDirectiveHandler> = {};
@@ -116,7 +117,7 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   }
 
   const normalizeHooks = new Map(
-    codecs.filter(codec => codec.normalize).map(codec => [codec.type, codec.normalize!] as const)
+    codecs.flatMap(codec => (codec.normalize ? ([[codec.type, codec.normalize]] as const) : []))
   );
   const contributedNormalizers = new Map<string, NonNullable<MarkdownCodec["normalize"]>[]>();
   for (const codec of codecs) {
@@ -137,7 +138,7 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
     });
   }
   const inlineForms = new Map(
-    codecs.filter(codec => codec.inlineForm).map(codec => [codec.type, codec.inlineForm!] as const)
+    codecs.flatMap(codec => (codec.inlineForm ? ([[codec.type, codec.inlineForm]] as const) : []))
   );
 
   const importConfig: ImportConfig = {
@@ -158,20 +159,22 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
       codecs.flatMap(codec =>
         codec.serializer ? [{ ...codec.serializer, type: codec.type }] : []
       ),
-      options.resolveCodec
+      resolveCodec
         ? element => {
-            const codec = options.resolveCodec!(element);
+            const codec = resolveCodec(element);
             return codec?.serializer ? { ...codec.serializer, type: element.type } : undefined;
           }
         : undefined
     ),
-    resolveCodec: options.resolveCodec,
+    resolveCodec,
     serializeUnknown: options.serializeUnknown,
     voidTypes,
     childSeparators: new Map(
-      codecs
-        .filter(codec => codec.childSeparator && codec.childSeparator !== "\n\n")
-        .map(codec => [codec.type, codec.childSeparator!] as const)
+      codecs.flatMap(codec =>
+        codec.childSeparator && codec.childSeparator !== "\n\n"
+          ? ([[codec.type, codec.childSeparator]] as const)
+          : []
+      )
     ),
   };
 
@@ -193,6 +196,12 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
         !value ||
         typeof value !== "object" ||
         (Object.isFrozen(value) && Object.values(value).every(immutable));
+      // 接管解析的类型按 policy.codecs 判定；未接管的沿用序列化注册表
+      const elementReusable = (element: CustomElement): boolean => {
+        const codec = resolveCodec?.(element);
+        if (resolveCodec) return !codec?.serializer || policy.codecs.includes(codec);
+        return !exportConfig.registry.getSerializer(element.type) || types.has(element.type);
+      };
       const reusable = (node: Descendant): boolean => {
         const previous = classified.get(node);
         if (previous !== undefined) return previous;
@@ -202,10 +211,7 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
           Object.entries(node).every(([key, value]) => key === "children" || immutable(value)) &&
           (isFormattedText(element)
             ? pureText
-            : (options.resolveCodec
-                ? !options.resolveCodec(element)?.serializer ||
-                  policy.codecs.includes(options.resolveCodec(element)!)
-                : !exportConfig.registry.getSerializer(element.type) || types.has(element.type)) &&
+            : elementReusable(element) &&
               Object.isFrozen(element.children) &&
               element.children.every(child => reusable(child as Descendant)));
         classified.set(node, result);

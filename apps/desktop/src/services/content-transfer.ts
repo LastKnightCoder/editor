@@ -48,7 +48,7 @@ export const saveMarkdownOutput = async (input: {
   return { ...result, format: "zip" };
 };
 
-export const reportExportResult = async (
+const reportExportResult = async (
   result: Pick<MarkdownOutputResult, "canceled" | "filePath">,
   warnings: string[]
 ) => {

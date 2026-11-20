@@ -15,22 +15,18 @@ export const editorPanels = new WeakMap<
   }
 >();
 
-// 创建面板
 export function createPanel(editor: Editor) {
   const existing = editorPanels.get(editor);
   if (existing) {
     return existing;
   }
 
-  // 创建容器
   const container = document.createElement("div");
   container.id = `mention-panel-${Math.random().toString(36).substr(2, 9)}`;
   document.body.appendChild(container);
 
-  // 创建 store
   const store = createMentionPanelStore(editor);
 
-  // 创建 root 并渲染
   const root = createRoot(container);
 
   // 包装组件以提供 context

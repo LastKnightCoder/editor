@@ -47,7 +47,7 @@ Windows Whisper 文件适配尊重调用方显式的 `device`；未指定时沿�
 
 `speech-input` 为 BACKGROUND 模块；跨窗口麦克风租约由主进程维护，窗口销毁、重载、切库、心跳过期及退出会终止会话。渲染层通过 `ensureModule` 获取就绪保障；共用 `@tau/asr` 的 AudioWorklet 采集、重采样、PCM Int16 编码、尾帧排空与取消编排。麦克风仅在用户点击后申请，不自动切换云端提供方。
 
-Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采用 SpeechAnalyzer、SpeechTranscriber、medium SpeechDetector，持续消费识别与 VAD 流；管道按实际到达字节读取，输出逐段修订，end 等 finalize 与结果流完成。构建脚本生成当前架构或通用二进制；旧系统及 Windows 探测返回不支持原生路径。
+Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采用 SpeechAnalyzer、SpeechTranscriber、medium SpeechDetector，持续消费识别与 VAD 流；管道按实际到达字节读取，输出逐段修订，end 等 finalize 与结果流完成。构建脚本生成当前架构或通用二进制；旧系统及 Windows 探测返回不支持原生路径。Windows 平台评估已完成：保留 NSIS 安装、不开放原生识别（Windows AI Speech 依赖更高系统版本与 MSIX 包身份，与无包身份的 NSIS 安装冲突）；重启该路线需先重新确认最低系统版本与打包取舍，不加 SAPI 等旧引擎兜底。
 
 插件通过公共 `context.asr` 注册，账号经插件设置的专用命令保存，普通全量设置提交保留主进程已保存的 speechInput，渲染缓存不持久化账号。`context.websocket` 提供标准事件、状态和同步 send/close，鉴权头、取消与有界背压由通用宿主桥接；不包含厂商协议。
 

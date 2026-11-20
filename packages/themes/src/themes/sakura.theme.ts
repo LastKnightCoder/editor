@@ -10,7 +10,7 @@
 
 import { defineTheme } from "../defineTheme.ts";
 
-export default defineTheme({
+defineTheme({
   key: "sakura",
   name: "樱花",
   light: {

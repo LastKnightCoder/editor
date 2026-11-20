@@ -151,12 +151,12 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
               max={500}
               value={width}
               onChange={e => setWidth(Number(e.target.value))}
-              className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 focus:border-accent rounded-tau-sm text-tau-body w-full border px-3 py-2 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 focus:border-accent rounded-tau-sm text-tau-body w-full [appearance:textfield] border px-3 py-2 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               placeholder="200"
             />
           </div>
 
-          {/* 字段配置：由字段插件声明（D-137），未声明的类型不显示也不改动 config */}
+          {/* 字段配置：由字段插件声明，未声明的类型不显示也不改动 config */}
           {ConfigPanel && (
             <ConfigPanel
               config={draftConfig as never}

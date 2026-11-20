@@ -15,6 +15,7 @@ import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { contentExecutor } from "../../../services/content-execution";
 import { unregisterContentSession } from "../content-sessions";
+import { must } from "../../../test-support";
 
 const host = vi.hoisted(() => ({
   dir: "",
@@ -32,9 +33,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
 }));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../../video-note-index-queue");
 vi.mock("../../database", () => ({
   default: { ...host, getDatabase: (name: string) => host.databases.get(name) },
 }));
@@ -161,7 +160,9 @@ describe("打开时自愈", () => {
   for (const [name, shape] of Object.entries(shapes))
     it(`${name}：备份原文后修复落库，正常打开且文字不丢`, async () => {
       const { runtime, db, event } = await setup();
-      const paragraph = Object.keys(ContentDocumentTable.read(db, 7)!.contracts)[0];
+      const paragraph = Object.keys(
+        must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").contracts
+      )[0];
       const original = JSON.stringify(shape(paragraph));
       db.prepare(
         "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,3,1)"
@@ -169,9 +170,13 @@ describe("打开时自愈", () => {
       if (name !== "旧格式正文")
         db.prepare(
           "INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (8,'doc-8',2,?,'r1')"
-        ).run(JSON.stringify(ContentDocumentTable.read(db, 7)!.contracts));
+        ).run(
+          JSON.stringify(
+            must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").contracts
+          )
+        );
       await expect(runtime.open(event, { contentId: 8 })).resolves.toBeTruthy();
-      const stored = ContentDocumentTable.read(db, 8)!;
+      const stored = must(ContentDocumentTable.read(db, 8), "ContentDocumentTable.read(db, 8)");
       expect(db.prepare("SELECT update_time FROM contents WHERE id=8").get()).toEqual({
         update_time: 2,
       });
@@ -205,7 +210,9 @@ describe("打开时自愈", () => {
 
   it("文档记录格式版本较新（新版客户端写入）：拒绝打开，原数据不动、不备份", async () => {
     const { runtime, db, event } = await setup();
-    const paragraph = Object.keys(ContentDocumentTable.read(db, 7)!.contracts)[0];
+    const paragraph = Object.keys(
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").contracts
+    )[0];
     db.prepare(
       "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,3,1)"
     ).run(
@@ -229,9 +236,11 @@ describe("打开时自愈", () => {
 
   it("合格正文打开不改写、不备份", async () => {
     const { runtime, db, event } = await setup();
-    const before = ContentDocumentTable.read(db, 7)!;
+    const before = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
     await runtime.open(event, { contentId: 7 });
-    expect(ContentDocumentTable.read(db, 7)!.revision).toBe(before.revision);
+    expect(
+      must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)").revision
+    ).toBe(before.revision);
     expect(existsSync(join(host.dir, "content-repairs"))).toBe(false);
   });
 
@@ -258,7 +267,7 @@ describe("打开时自愈", () => {
       { contentId: 8 }
     );
     const [openedFirst, openedSecond] = await Promise.all([first, second]);
-    const stored = ContentDocumentTable.read(db, 8)!;
+    const stored = must(ContentDocumentTable.read(db, 8), "ContentDocumentTable.read(db, 8)");
     expect(repairs).toHaveBeenCalledTimes(2);
     expect(openedSecond).toEqual(openedFirst);
     expect(openedFirst.source?.contentDocumentId).toBe(stored.documentId);

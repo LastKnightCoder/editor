@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { getContentById } from "@/commands/content";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { isContentEmpty } from "@tau/db-schema/content-metrics";
@@ -71,9 +72,6 @@ export interface MarkdownBundleOptions {
   /** 写入 frontmatter（标题、标签、创建 / 更新时间） */
   frontmatter?: boolean;
 }
-
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const UNTITLED_FILE_NAME = "未命名文档";
 
@@ -579,13 +577,12 @@ export const buildMarkdownZipBytes = async (
   const bundleFiles: BundleFile[] = [];
   for (const [index, { node, dir, path }] of files.entries()) {
     const content = contents.get(node.id);
+    const contract = contracts.get(node.id);
     const body = content
       ? toPortableMarkdown(content, {
-          contracts: contracts.get(node.id),
-          markdown: contracts.has(node.id)
-            ? await (
-                await import("@/services/editorKit")
-              ).prepareContentMarkdown(contracts.get(node.id)!)
+          contracts: contract,
+          markdown: contract
+            ? await (await import("@/services/editorKit")).prepareContentMarkdown(contract)
             : undefined,
           assets: assets.paths,
           dir,

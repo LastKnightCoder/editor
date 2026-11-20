@@ -8,7 +8,7 @@ import {
 import { BlockPreviewView } from "../views/BlockPreviewView";
 
 /**
- * 块预览页（D-057）：两种参数形态——
+ * 块预览页：两种参数形态——
  *  - 会话块：chat + key，内容从对话仓库实时派生；
  *  - 快照：block（整块 JSON），来自不在对话仓库里的对话 / MCP。
  */

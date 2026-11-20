@@ -23,7 +23,7 @@ import type {
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 
-export const insightsKey = (database: string, ref: EntityRef) =>
+const insightsKey = (database: string, ref: EntityRef) =>
   ["content-insights", databaseId(database), ref.kind, ref.id] as const;
 
 /** 「AI 洞见」槽配了模型 */

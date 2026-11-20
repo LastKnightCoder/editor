@@ -1,6 +1,6 @@
 /**
  * 今日视图（原统计页并入）—— 一整张纸：纸顶固定问候与今天的数字（hero，不是面板），
- * 下方按首页布局渲染面板（D-182）：内置面板见 ../panels.ts，用户经纸顶「调整首页」进入编辑模式
+ * 下方按首页布局渲染面板：内置面板见 ../panels.ts，用户经纸顶「调整首页」进入编辑模式
  * （hero 右侧的数字换成提示与「恢复默认 / 完成」），拖动调整顺序与隐藏，布局随笔记库保存。同一份数据全页只出现一次；每一行点击都落到具体项，目标页经页面参数定位。
  *
  * 模块分工：专注 = 番茄钟（pomodoro 页 / pomodoro 命令）；
@@ -33,7 +33,7 @@ export function HomeView() {
     ...BUILTIN_HOME_PANELS,
     ...(plugins?.listHomePanels() ?? []).map(pluginHomePanel),
   ];
-  // 编辑模式：拖动调整面板，Esc 经浮层仲裁退出（D-003）
+  // 编辑模式：拖动调整面板，Esc 经浮层仲裁退出
   const [editing, setEditing] = useState(false);
   useOverlayDismiss(() => setEditing(false), editing);
   // 纸内滚动容器：回顾段懒加载以它为可见性根（state 而非 ref，挂载后触发回顾段重新接线）
@@ -47,11 +47,11 @@ export function HomeView() {
   return (
     // @container：容器查询锚点；编辑模式的让位动画跟随系统「减少动态效果」
     <MotionConfig reducedMotion="user">
-      <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
         <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* hero：只放今天的数字，每项全页仅此一处 */}
-          <header className="mb-2 mt-6 flex flex-none items-baseline gap-4 px-8">
-            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+          <header className="mt-6 mb-2 flex flex-none items-baseline gap-4 px-8">
+            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
               {greeting()}
             </h1>
             <span className="text-tau-sm text-ink-2 shrink-0 whitespace-nowrap">
@@ -61,7 +61,7 @@ export function HomeView() {
             <div className="ml-auto flex min-w-0 items-center gap-3">
               {editing ? (
                 <>
-                  <span className="text-tau-meta text-ink-3 ease-tau-out starting:opacity-0 min-w-0 truncate transition-opacity duration-200">
+                  <span className="text-tau-meta text-ink-3 ease-tau-out min-w-0 truncate transition-opacity duration-200 starting:opacity-0">
                     拖动面板调整顺序，拖到底部「已隐藏」即隐藏 · Esc 取消
                   </span>
                   <Button
@@ -83,7 +83,7 @@ export function HomeView() {
                 </>
               ) : (
                 <>
-                  <span className="text-tau-sm text-ink-2 ease-tau-out starting:opacity-0 min-w-0 truncate whitespace-nowrap tabular-nums transition-opacity duration-200">
+                  <span className="text-tau-sm text-ink-2 ease-tau-out min-w-0 truncate whitespace-nowrap tabular-nums transition-opacity duration-200 starting:opacity-0">
                     <button
                       type="button"
                       title="前往番茄专注"
@@ -122,7 +122,7 @@ export function HomeView() {
           <FadeScroll
             layoutScroll
             scrollRef={setScrollEl}
-            className="mb-4 flex min-h-0 flex-1 flex-col gap-3 pb-2 pl-8 pr-[26px] pt-1"
+            className="mb-4 flex min-h-0 flex-1 flex-col gap-3 pt-1 pr-[26px] pb-2 pl-8"
           >
             <HomeScrollRootContext.Provider value={scrollEl}>
               <HomePanels panels={panels} layout={layout} editing={editing} onChange={save} />

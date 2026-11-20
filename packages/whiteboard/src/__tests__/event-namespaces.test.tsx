@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import Board from "../Board";
-import WhiteBoard from "../WhiteBoard";
+import Whiteboard from "../Whiteboard";
 import {
   defineWhiteboardExtension,
   type WhiteboardAPI,
@@ -195,7 +195,7 @@ describe("事件命名空间", () => {
     try {
       await act(async () =>
         root.render(
-          <WhiteBoard
+          <Whiteboard
             extensions={extensions}
             initData={[
               {

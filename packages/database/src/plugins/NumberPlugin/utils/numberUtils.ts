@@ -16,7 +16,6 @@ export const formatNumber = (
 ): string => {
   if (value === null || value === undefined || value === "") return "";
 
-  // 确保值是数字
   let numValue: number;
   try {
     numValue = typeof value === "string" ? parseFloat(value) : value;
@@ -38,7 +37,6 @@ export const formatNumber = (
     formatted = parts.join(".");
   }
 
-  // 添加前缀和后缀
   const prefix = config?.prefix || "";
   const suffix = config?.suffix || "";
 
@@ -56,7 +54,6 @@ export const parseNumber = (value: string | number | null): number | null => {
 
   if (typeof value === "number") return value;
 
-  // 移除非数字字符（保留小数点和负号）
   const cleanValue = String(value)
     .replace(/[^\d.-]/g, "")
     .replace(/^(-)?0+(?=\d)/, "$1"); // 删除前导零，保留负号

@@ -6,6 +6,7 @@ vi.mock("electron", () => ({ app: { getPath: () => "/tmp" }, ipcMain: { handle: 
 vi.mock("../../video-note-index-queue", () => ({ default: {} }));
 
 import KnowledgeMapTable, { meanVector } from "../knowledge-map";
+import { must } from "../../../test-support";
 
 const opened: Database.Database[] = [];
 afterEach(() => opened.splice(0).forEach(db => db.close()));
@@ -13,7 +14,10 @@ afterEach(() => opened.splice(0).forEach(db => db.close()));
 const blob = (values: number[]) => Buffer.from(new Float32Array(values).buffer);
 
 it("均值向量做 L2 归一化，维度不一致的丢弃", () => {
-  const mean = meanVector([blob([1, 0]), blob([0, 1]), blob([1, 0, 0])])!;
+  const mean = must(
+    meanVector([blob([1, 0]), blob([0, 1]), blob([1, 0, 0])]),
+    "meanVector([blob([1, 0]), blob([0, 1]), blob(..."
+  );
   const values = [...new Float32Array(mean.buffer, mean.byteOffset, 2)];
   expect(values[0]).toBeCloseTo(Math.SQRT1_2);
   expect(values[1]).toBeCloseTo(Math.SQRT1_2);

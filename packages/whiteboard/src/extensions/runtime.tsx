@@ -33,6 +33,7 @@ import {
   isReservedHotkey,
   type HotkeyEntry,
   type HotkeyCodeSpec,
+  type HotkeyMatcher,
 } from "./hotkeys";
 import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 import { readDefinitionSchemaVersion, readElementSchemaVersion } from "./elementVersion";
@@ -722,14 +723,14 @@ export class ExtensionRuntime {
         let definition = element;
         if (authorOwner && element.create) {
           const spec = element.create,
-            gesture = spec.gesture;
+            gesture = spec.gesture,
+            build = spec.build;
           definition = {
             ...element,
             create: {
               ...spec,
               build:
-                spec.build &&
-                ((context: CreateBuildContext) => spec.build!({ ...context, api: scope.api })),
+                build && ((context: CreateBuildContext) => build({ ...context, api: scope.api })),
               gesture:
                 typeof gesture === "string"
                   ? gesture
@@ -795,26 +796,26 @@ export class ExtensionRuntime {
         // 版本不兼容（数据比扩展新，或版本不匹配停在旧版本）时按占位渲染，不调用作者实现
         plugins.push({
           name: element.type,
-          render: (_board, props) =>
-            isVersionCompatible(props.element)
+          render: (_board, props) => {
+            const entry = resolved(props.element);
+            return isVersionCompatible(props.element) && entry
               ? createElement(
                   Fragment,
                   null,
                   createElement(
                     APIContext,
                     {
-                      value:
-                        resolved(props.element)!.access === "read" ? scope.readonlyAPI : scope.api,
+                      value: entry.access === "read" ? scope.readonlyAPI : scope.api,
                     },
-                    createElement(resolved(props.element)!.element.render, {
+                    createElement(entry.element.render, {
                       ...props,
                       element: readSnapshot(props.element),
                     })
                   ),
-                  resolved(props.element)?.element.interaction && canInteract(props.element)
+                  entry.element.interaction && canInteract(props.element)
                     ? createElement(ElementControls, {
                         element: props.element as CommonElement,
-                        options: resolved(props.element)!.element.interaction!,
+                        options: entry.element.interaction,
                         adapter: interaction,
                       })
                     : null
@@ -830,7 +831,8 @@ export class ExtensionRuntime {
                         : ("unsupported-version" as const),
                   },
                   props.children
-                ),
+                );
+          },
           getCapabilities: declaredCapabilities ? () => declaredCapabilities : undefined,
           getArrowBindPoint: element.interaction?.connect
             ? (board, node, point, offset) =>
@@ -841,13 +843,13 @@ export class ExtensionRuntime {
           getBounds: element.getBounds
             ? (_board, node) =>
                 isVersionCompatible(node)
-                  ? (resolved(node)!.element.getBounds?.(clone(node)) ?? defaultBounds(node))
+                  ? (resolved(node)?.element.getBounds?.(clone(node)) ?? defaultBounds(node))
                   : defaultBounds(node)
             : undefined,
           isHit: (_board, node, x, y) => {
             if (isVersionCompatible(node)) {
-              if (resolved(node)!.element.isHit)
-                return resolved(node)!.element.isHit!(clone(node), x, y);
+              const isHit = resolved(node)?.element.isHit;
+              if (isHit) return isHit(clone(node), x, y);
               const box = board.getBounds(node);
               return !!box && x >= box.minX && x <= box.maxX && y >= box.minY && y <= box.maxY;
             }
@@ -856,8 +858,8 @@ export class ExtensionRuntime {
           },
           moveElement: (_board, node, dx, dy) => {
             if (!canInteract(node)) return genericMove(board, node, dx, dy);
-            if (resolved(node)!.element.move)
-              return resolved(node)!.element.move!(clone(node), dx, dy);
+            const move = resolved(node)?.element.move;
+            if (move) return move(clone(node), dx, dy);
             return { ...node, x: node.x + dx, y: node.y + dy };
           },
         });
@@ -891,7 +893,9 @@ export class ExtensionRuntime {
       if (!offender) break;
       const missing = commandRefs(offender.value)
         .map(ref => ref.command)
-        .find(command => command !== undefined && !commandOwners.has(command))!;
+        .find(command => command !== undefined && !commandOwners.has(command));
+      // offender 之所以命中，是其引用了未注册命令，missing 必存在；此判断仅收窄类型
+      if (missing === undefined) break;
       assembled.splice(assembled.indexOf(offender), 1);
       offender.types.forEach(type => {
         elementTypeOwners.delete(type);
@@ -921,6 +925,12 @@ export class ExtensionRuntime {
       ...assembled.filter(item => item.id.startsWith("tau.")),
       ...assembled.filter(item => !item.id.startsWith("tau.")),
     ];
+    // 装配期即校验键定义：无法解析的快捷键直接失败，避免留到首次按键才崩溃
+    const matcherOf = (key: string | HotkeyCodeSpec): HotkeyMatcher => {
+      const match = createHotkeyMatcher(key);
+      if (!match) throw new Error(`无法解析的快捷键声明：${JSON.stringify(key)}`);
+      return match;
+    };
     this.hotkeyEntries.push(
       ...arbitrationOrder.flatMap((entry, order) => [
         ...(entry.value.hotkeys ?? []).map(hotkey => ({
@@ -928,14 +938,14 @@ export class ExtensionRuntime {
           command: hotkey.command,
           extensionId: entry.id,
           order,
-          match: createHotkeyMatcher(hotkey.key)!,
+          match: matcherOf(hotkey.key),
         })),
         ...readHotkeyCodes(entry.value).map(hotkey => ({
           key: `${hotkey.code}${hotkey.shift ? "+shift" : ""}`,
           command: hotkey.command,
           extensionId: entry.id,
           order,
-          match: createHotkeyMatcher(hotkey)!,
+          match: matcherOf(hotkey),
         })),
       ])
     );

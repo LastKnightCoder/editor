@@ -31,7 +31,7 @@ export class PresentationManager {
     this.eventEmitter.off(event, listener);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     this.eventEmitter.emit(event, ...args);
   }
 
@@ -77,8 +77,8 @@ export class PresentationManager {
     if (JSON.stringify(this._sequences) === JSON.stringify(value)) return;
     this._sequences = value;
     if (this._currentSequence) {
-      this._currentSequence =
-        value.find(sequence => sequence.id === this._currentSequence!.id) ?? null;
+      const currentId = this._currentSequence.id;
+      this._currentSequence = value.find(sequence => sequence.id === currentId) ?? null;
       this._currentFrameIndex = Math.min(
         this._currentFrameIndex,
         Math.max(0, (this._currentSequence?.frames.length ?? 1) - 1)

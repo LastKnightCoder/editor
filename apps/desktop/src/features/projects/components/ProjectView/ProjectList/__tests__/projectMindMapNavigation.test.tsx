@@ -76,7 +76,7 @@ describe("思维导图文档树导航", () => {
       projectItemType: EProjectItemType.Document,
       count: 0,
       contentId: id,
-      whiteBoardContentId: 0,
+      whiteboardContentId: 0,
     }));
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -88,7 +88,7 @@ describe("思维导图文档树导航", () => {
           treeData={buildProjectTreeData(project, new Map(items.map(item => [item.id, item])))}
           databaseName="test"
           cards={[]}
-          whiteBoards={[]}
+          whiteboards={[]}
           addMenuItems={[]}
           onAddMenuClick={vi.fn()}
           refreshProject={vi.fn()}

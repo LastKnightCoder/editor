@@ -1,5 +1,5 @@
 /**
- * 样板间档案页布局原语 —— v6（2026-09-17 排版/配色重排）。
+ * 样板间档案页布局原语 —— v6。
  *
  * 层级不变：page（环境）→ surface（画布卡 / API 卡）→ 展品；改的是「怎么用色」
  * 与「怎么排字」：
@@ -17,8 +17,8 @@
  *    是「展品本身即白卡」时唯一能自证的环境（Panel 档案）。
  *  - 版心：**全页唯一内容宽度** `PAGE_COL`，由壳层（ShowcaseApp）居中承载——展品区、
  *    状态矩阵、职责说明、正文注记、API 表共用同一条左右边界。历史演变：74ch≈629 太窄、
- *    860 偏宽，且"卡片满宽 + 文本列 740"的两种宽度让页面像被切成两截（2026-09-17 用户
- *    要求"同意[统一]设置版心，然后水平居中"）。740px 在 13px 下约 57 个中文字/行。
+ *    860 偏宽，且"卡片满宽 + 文本列 740"的两种宽度让页面像被切成两截（用户要求
+ *    "同意[统一]设置版心，然后水平居中"）。740px 在 13px 下约 57 个中文字/行。
  */
 
 import type { ComponentProps, ReactNode } from "react";
@@ -98,7 +98,7 @@ export function CanvasCard({
 
 export function BlockTitle({ children, en }: { children: ReactNode; en?: string }) {
   return (
-    <h2 className="text-tau-title-lg text-ink-1 mb-3 mt-12 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 font-semibold">
+    <h2 className="text-tau-title-lg text-ink-1 mt-12 mb-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 font-semibold">
       {children}
       {en && <span className="font-tau-mono text-tau-meta text-ink-3 font-normal">{en}</span>}
     </h2>
@@ -107,7 +107,7 @@ export function BlockTitle({ children, en }: { children: ReactNode; en?: string 
 
 /* ── 矩阵行 ──
    上下堆叠：状态名 mono 主 + 说明次墨在上，标本区在下。
-   排布口径（2026-09-17 用户裁决，推翻此前左右两列）：左右两列的对齐参差（说明折行
+   排布口径：左右两列的对齐参差（说明折行
    行数不一、标本高低不一）读起来杂乱——说明与示例改为纵向从属关系，一行一块。
    块间分隔只用留白（PREFERENCES「讨厌横线切割」，不给行加分隔线）；标本区不设
    min-h，节奏交给行距。 */
@@ -128,7 +128,7 @@ export function MatrixRow({
       <div>
         <div className="font-tau-mono text-tau-title text-ink-1 font-[600]">{name}</div>
         {desc && (
-          <div className="text-tau-meta text-ink-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono mt-1.5 leading-[1.7] [&_code]:whitespace-nowrap [&_code]:rounded-[5px] [&_code]:border [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px]">
+          <div className="text-tau-meta text-ink-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono mt-1.5 leading-[1.7] [&_code]:rounded-[5px] [&_code]:border [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_code]:whitespace-nowrap">
             {desc}
           </div>
         )}
@@ -149,7 +149,7 @@ export function ApiCard({ title, children }: { title: string; children: ReactNod
         <span className="bg-accent size-1.5 shrink-0 rounded-full" />
         <span className="text-tau-title text-ink-1 font-semibold">{title}</span>
       </div>
-      <div className="text-tau-meta text-ink-2 [&_th]:text-tau-tiny [&_th]:text-ink-3 [&_td]:border-line-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono px-6 pt-3 [&_code]:rounded-[5px] [&_code]:border [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:py-2.5 [&_td]:pl-0 [&_td]:pr-6 [&_td]:text-left [&_td]:align-top [&_td]:leading-[1.7] [&_th]:whitespace-nowrap [&_th]:py-2.5 [&_th]:pl-0 [&_th]:pr-6 [&_th]:text-left [&_th]:font-semibold">
+      <div className="text-tau-meta text-ink-2 [&_th]:text-tau-tiny [&_th]:text-ink-3 [&_td]:border-line-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono px-6 pt-3 [&_code]:rounded-[5px] [&_code]:border [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:py-2.5 [&_td]:pr-6 [&_td]:pl-0 [&_td]:text-left [&_td]:align-top [&_td]:leading-[1.7] [&_th]:py-2.5 [&_th]:pr-6 [&_th]:pl-0 [&_th]:text-left [&_th]:font-semibold [&_th]:whitespace-nowrap">
         {children}
       </div>
     </section>
@@ -178,7 +178,7 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   // 轨道用 group（分组底）、选中胶囊用 surface 浮起：sunken 是「进度轨道 / 凹陷画布」
-  // 专档（D-009），落在分段控件上是一片比 page 深一档的重色块；group 同属暖纸系的分组底，
+  // 专档，落在分段控件上是一片比 page 深一档的重色块；group 同属暖纸系的分组底，
   // 既在 page 与 surface 上都显形，又不抢展品的注意力
   return (
     <div className="bg-hover inline-flex items-center gap-0.5 rounded-[10px] p-0.5">

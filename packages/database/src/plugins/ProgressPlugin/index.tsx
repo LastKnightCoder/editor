@@ -17,7 +17,6 @@ const ProgressPlugin: CellPlugin<null> = {
   Icon: ({ className }) => <TrendingUp className={className} />,
 
   beforeSave: (value: ProgressValue | string | number) => {
-    // 处理不同格式的输入
     if (typeof value === "string") {
       const num = parseFloat(value);
       return isNaN(num) ? { current: 0, target: 100 } : { current: num, target: 100 };
@@ -35,7 +34,6 @@ const ProgressPlugin: CellPlugin<null> = {
   },
 
   afterLoad: (value: ProgressValue | string | number) => {
-    // 处理不同格式的加载值
     if (typeof value === "string") {
       const num = parseFloat(value);
       return isNaN(num) ? { current: 0, target: 100 } : { current: num, target: 100 };

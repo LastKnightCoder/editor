@@ -5,9 +5,9 @@
 import { listThemes } from "@tau/themes";
 import { mustQuery } from "../lib/dom.ts";
 
-export const THEME_STORAGE_KEY = "tau-site-theme";
+const THEME_STORAGE_KEY = "tau-site-theme";
 
-export function applyTheme(key: string) {
+function applyTheme(key: string) {
   document.querySelectorAll<HTMLElement>("[data-follow]").forEach(el => (el.dataset.theme = key));
   document
     .querySelectorAll<HTMLElement>("[data-theme-pick]")

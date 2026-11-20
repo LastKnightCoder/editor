@@ -22,7 +22,12 @@ const Emoji = React.memo((props: ElementRenderProps<EmojiElement>) => {
 
   const [pickerOpen, setPickerOpen] = useState(defaultOpen || false);
 
-  const onEmojiSelect = (emojiData: any) => {
+  // @emoji-mart/react 未提供 onSelect 数据类型，按消费字段声明
+  const onEmojiSelect = (emojiData: {
+    id: string;
+    native: string;
+    shortcodes: string | string[];
+  }) => {
     if (readonly) return;
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(
@@ -68,7 +73,7 @@ const Emoji = React.memo((props: ElementRenderProps<EmojiElement>) => {
         // emoji-mart 自带面板外观，浮层只做定位
         className="max-w-none border-0 bg-transparent shadow-none"
         trigger={
-          <span className='inline-block cursor-pointer select-none rounded-[3px] px-0.5 font-["Apple_Color_Emoji","Segoe_UI_Emoji","Noto_Color_Emoji",sans-serif] text-[1.2em] leading-none transition-colors duration-200 hover:bg-[var(--ed-bg-hover)]'>
+          <span className='inline-block cursor-pointer rounded-[3px] px-0.5 font-["Apple_Color_Emoji","Segoe_UI_Emoji","Noto_Color_Emoji",sans-serif] text-[1.2em] leading-none transition-colors duration-200 select-none hover:bg-[var(--ed-bg-hover)]'>
             {nativeEmoji || emoji}
           </span>
         }

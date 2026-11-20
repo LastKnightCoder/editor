@@ -1,7 +1,6 @@
 /**
  * 对话工具渲染档案 —— 展品即真实聊天里的 ToolCallBlock：自定义渲染器注册表
- * （tool-call-renderers/builtin.ts）命中的工具走富卡片，其余落 ToolCallRow 折叠行
- * （D-048）。舞台用 stage="page"：工具卡自带 surface 底与描边，直接坐在对话纸面
+ * （tool-call-renderers/builtin.ts）命中的工具走富卡片，其余落 ToolCallRow 折叠行。舞台用 stage="page"：工具卡自带 surface 底与描边，直接坐在对话纸面
  * 环境上，与 ChatArea 一致；isDark 随主题切换，所见即聊天所得。
  * 渲染器均为 execution 进、UI 出的纯展示；交互类按钮（刷新 / 审阅决策）在纯浏览器
  * 样板间没有后端，点击要么报错被吞、要么弹 toast，仅作视觉走查；图像展品为外链

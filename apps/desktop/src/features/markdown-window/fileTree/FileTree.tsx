@@ -36,7 +36,8 @@ const ICON = "size-[15px] shrink-0";
 const MENU_ICON = "size-[15px] shrink-0";
 
 type Editing =
-  { mode: "create-file" | "create-folder"; dir: string } | { mode: "rename"; path: string };
+  | { mode: "create-file" | "create-folder"; dir: string }
+  | { mode: "rename"; path: string };
 
 export interface FileTreeHandlers {
   onOpen(path: string): void;
@@ -174,11 +175,12 @@ export function FileTree({
     }
   };
 
-  const canDrop = (target: string) =>
-    Boolean(dragging) &&
-    dragging !== target &&
-    !isWithin(target, dragging!) &&
-    dirName(dragging!) !== target;
+  const canDrop = (target: string) => {
+    const dragged = dragging;
+    return (
+      !!dragged && dragged !== target && !isWithin(target, dragged) && dirName(dragged) !== target
+    );
+  };
 
   const dropHandlers = (target: string) => ({
     onDragOver: (event: DragEvent) => {
@@ -292,7 +294,7 @@ export function FileTree({
 
   return (
     <div
-      className="text-tau-body min-h-full pb-6 pt-1"
+      className="text-tau-body min-h-full pt-1 pb-6"
       {...dropHandlers(rootPath)}
       onDragEnd={() => {
         setDragging(null);

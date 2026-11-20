@@ -29,7 +29,7 @@ import {
   prepareBuiltinWhiteboardTypes,
 } from "@tau/whiteboard/collaboration";
 import type { WhiteboardExtension } from "@tau/whiteboard";
-import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
+import Whiteboard from "@/features/shared/whiteboard/DesktopWhiteboard";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   whiteboardDocumentEntry,
@@ -171,10 +171,12 @@ function BoundDocumentCanvas({
   const { registerLeaveGuard } = usePage();
   const initialPage = useRef(pageId);
   const binding = useMemo(() => {
+    const identity = client.identity;
+    if (!identity) throw new Error("白板文档会话尚未打开");
     const activations = new Map<string, unknown>();
     return createWhiteboardBinding(client.model, {
       pageId: initialPage.current,
-      documentId: client.identity!.documentId,
+      documentId: identity.documentId,
       createContentCopy: async id => {
         await client.flush();
         if (!client.leaseId) throw new Error("白板会话已关闭");
@@ -192,9 +194,8 @@ function BoundDocumentCanvas({
         if (!client.leaseId) throw new Error("白板会话已关闭");
         return importWhiteboardDocumentResource(client.leaseId, source, reference);
       },
-      referenceEntity: (kind, id) =>
-        referenceWhiteboardEntity(client.identity!.databaseName, kind, id),
-      resolveEntity: reference => resolveWhiteboardEntity(client.identity!.databaseName, reference),
+      referenceEntity: (kind, id) => referenceWhiteboardEntity(identity.databaseName, kind, id),
+      resolveEntity: reference => resolveWhiteboardEntity(identity.databaseName, reference),
       types: builtins.types,
       preparedContracts: [...builtins.prepared, ...editorPrepared],
       editorVersions: editor,
@@ -261,20 +262,17 @@ function BoundDocumentCanvas({
       }),
     [registerLeaveGuard, client]
   );
+  const remoteSync = whiteboardRemoteSync(client);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <WhiteboardCollaborationBoundary resetKey={client.viewId}>
         <WhiteboardCollaborationBar client={client} documentId={documentId} />
       </WhiteboardCollaborationBoundary>
       <div className="min-h-0 flex-1">
-        <WhiteBoard
+        <Whiteboard
           key={client.viewId}
           document={binding}
-          presence={
-            whiteboardRemoteSync(client)
-              ? { pageId, channel: whiteboardRemoteSync(client)! }
-              : undefined
-          }
+          presence={remoteSync ? { pageId, channel: remoteSync } : undefined}
           documentResources={{
             upload: async file => {
               if (!client.leaseId || client.getSnapshot().frozen)

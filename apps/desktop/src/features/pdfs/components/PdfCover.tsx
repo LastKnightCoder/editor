@@ -30,7 +30,8 @@ export function PdfCover({
   children?: ReactNode;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const showImage = Boolean(entry.thumbnailUrl) && failedUrl !== entry.thumbnailUrl;
+  const thumbnailUrl = entry.thumbnailUrl;
+  const showImage = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
   const mark = bare ? null : entry.fileMissing ? (
     <SourceMark icon={FileX} label="文件丢失" className="text-danger" />
   ) : entry.isLocal ? null : (
@@ -45,25 +46,25 @@ export function PdfCover({
         className
       )}
     >
-      {showImage ? (
+      {showImage && thumbnailUrl ? (
         <>
           <img
-            src={entry.thumbnailUrl!}
+            src={thumbnailUrl}
             alt=""
             loading="lazy"
             draggable={false}
-            onError={() => setFailedUrl(entry.thumbnailUrl)}
+            onError={() => setFailedUrl(thumbnailUrl)}
             className="size-full object-cover object-top"
           />
           {mark && (
-            <span className="bg-surface/85 text-ink-2 absolute bottom-1.5 right-1.5 grid size-5 place-items-center rounded-full">
+            <span className="bg-surface/85 text-ink-2 absolute right-1.5 bottom-1.5 grid size-5 place-items-center rounded-full">
               {mark}
             </span>
           )}
         </>
       ) : bare ? null : (
-        <div className="flex size-full flex-col px-[12%] pb-[10%] pt-[14%]">
-          <span className="line-clamp-5 text-[13px] font-semibold leading-[1.35] [overflow-wrap:anywhere]">
+        <div className="flex size-full flex-col px-[12%] pt-[14%] pb-[10%]">
+          <span className="line-clamp-5 text-[13px] leading-[1.35] font-semibold [overflow-wrap:anywhere]">
             {entry.title}
           </span>
           <span className="mt-auto flex items-center gap-2 text-[10px] font-medium tracking-[0.08em] opacity-70">

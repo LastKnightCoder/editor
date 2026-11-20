@@ -28,9 +28,18 @@ const toOptionalNumber = (value?: string) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+/** mdast 最小结构形状：插件只读 text 节点 value、改写 parent.children */
+type MdNode = {
+  type: string;
+  value?: string;
+  data?: Record<string, unknown>;
+  children?: MdNode[];
+};
+type MdParentNode = MdNode & { children: MdNode[] };
+
 const remarkPdfCitation = () => {
-  return (tree: any) => {
-    visit(tree, "text", (node: any, index: number | undefined, parent: any) => {
+  return (tree: MdNode) => {
+    visit(tree, "text", (node: MdNode, index: number | null | undefined, parent?: MdParentNode) => {
       if (!parent || typeof index !== "number") {
         return;
       }
@@ -41,7 +50,7 @@ const remarkPdfCitation = () => {
         return;
       }
 
-      const newNodes: any[] = [];
+      const newNodes: MdNode[] = [];
       let lastIndex = 0;
 
       matches.forEach(match => {

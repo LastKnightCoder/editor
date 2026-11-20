@@ -169,7 +169,7 @@ export const getAdjustedTreeInsertIndex = ({
   return Math.max(0, Math.min(adjustedIndex, children.length));
 };
 
-export const getMindMapNodeElement = (
+const getMindMapNodeElement = (
   container: HTMLElement,
   nodeId: string | undefined,
   nodeSelector: string

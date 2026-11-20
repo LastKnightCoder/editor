@@ -1,4 +1,4 @@
-// 日历选择 BottomSheet（定稿 D-①）：系统日历展示但禁选（徽章标注），
+// 日历选择 BottomSheet：系统日历展示但禁选（徽章标注），
 // 用户日历带事件归属分组排序；选中项打勾。
 
 import { BottomSheet } from "../../../components/BottomSheet";

@@ -16,6 +16,7 @@ import { WhiteboardRemoteJournal } from "../remote";
 import { WhiteboardJournal } from "../journal";
 import { CollaborationStore } from "../../../../../../collaboration-server/src/store";
 import { loadConfig } from "../../../../../../collaboration-server/src/config";
+import { must } from "../../../test-support";
 const cleanup: (() => void)[] = [];
 afterEach(() =>
   cleanup
@@ -56,13 +57,17 @@ async function fixture() {
       }
     },
     async submit(request, update) {
-      return (await store.submitOperation(room.id, owner.id, request, update))!;
+      const operation = await store.submitOperation(room.id, owner.id, request, update);
+      if (!operation) throw new Error("submitOperation 应返回操作");
+      return operation;
     },
     async receipt(id) {
       return store.operations.get(room.id, id, owner.id);
     },
     async cancel(request) {
-      return (await store.submitOperation(room.id, owner.id, request, undefined, true))!;
+      const cancelled = await store.submitOperation(room.id, owner.id, request, undefined, true);
+      if (!cancelled) throw new Error("submitOperation 应返回取消操作");
+      return cancelled;
     },
   };
   const model = new WhiteboardModel(published);
@@ -200,7 +205,7 @@ it("被拒祖先与后续分支整体耐久隔离，不将后继发送到确认�
   const send = vi.spyOn(f.transport, "submit");
   await expect(f.session.flush()).rejects.toMatchObject({ code: "BRANCH_RETAINED" });
   expect(send).toHaveBeenCalledTimes(1);
-  const saved = (await f.remote.load())!;
+  const saved = must(await f.remote.load(), "(await f.remote.load())");
   expect(saved.rejected).toHaveLength(1);
   expect(saved.rejected[0].operations).toHaveLength(2);
   expect(saved.pending).toHaveLength(0);
@@ -247,7 +252,7 @@ it.each([false, true])("换代先保全旧分支（待发送=%s），随后才�
   };
   f.transport.read = async () => confirmed;
   await f.session.synchronize();
-  const saved = (await f.remote.load())!;
+  const saved = must(await f.remote.load(), "(await f.remote.load())");
   expect(saved.confirmed.protocol.epoch).toBe(1);
   expect(saved.rejected[0].reason).toBe("EPOCH_CONFLICT");
   expect(saved.rejected[0].operations).toHaveLength(pending ? 1 : 0);
@@ -314,7 +319,7 @@ it("成功回执只保存幂等信息，重开清除旧全文副本但保留未�
     await f.session.stage(update, undefined, `edit-${i}`);
     await f.session.flush();
   }
-  const saved = (await f.remote.load())!;
+  const saved = must(await f.remote.load(), "(await f.remote.load())");
   expect(saved).not.toHaveProperty("receipts");
   expect(f.journal.db.prepare("SELECT count(*) AS n FROM remote_receipts").get()).toEqual({
     n: 50,

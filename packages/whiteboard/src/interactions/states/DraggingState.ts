@@ -115,8 +115,10 @@ export class DraggingState implements InteractionState {
   // 这里需要处理吸附后元素位置问题
   private getUpdatedInfo(e: PointerEvent, board: Board): { movedElements: BoardElement[] } {
     let movedElements: BoardElement[] = [];
+    const moveElements = this.moveElements,
+      startPoint = this.startPoint;
 
-    if (!this.moveElements || !this.startPoint) {
+    if (!moveElements || !startPoint) {
       board.snap.end();
       return {
         movedElements,
@@ -131,10 +133,10 @@ export class DraggingState implements InteractionState {
       };
     }
 
-    const rawOffsetX = endPoint.x - this.startPoint.x;
-    const rawOffsetY = endPoint.y - this.startPoint.y;
+    const rawOffsetX = endPoint.x - startPoint.x;
+    const rawOffsetY = endPoint.y - startPoint.y;
     const moveAll = (dx: number, dy: number) =>
-      this.moveElements!.map(element => board.moveElement(element, dx, dy)).filter(isValid);
+      moveElements.map(element => board.moveElement(element, dx, dy)).filter(isValid);
 
     movedElements = moveAll(rawOffsetX, rawOffsetY);
 
@@ -154,7 +156,7 @@ export class DraggingState implements InteractionState {
 
     // 按下 altKey 表示不吸附
     const { dx, dy } = board.snap.move({
-      elements: this.moveElements,
+      elements: moveElements,
       bounds: snapBounds,
       enabled: !e.altKey,
     });

@@ -10,7 +10,7 @@
   "scripts": {
     "test:collaboration:e2e": "playwright test e2e/collaboration.spec.ts",
     "test:assistant-memory:stress": "vitest run src-electron/main/modules/assistant-memory/__tests__ --maxWorkers 1 --no-file-parallelism",
-    "test:content-projection:stress": "cross-env TAU_CONTENT_STRESS=1 vitest run src-electron/main/modules/collaboration/__tests__/manager-node-document.test.ts -t 正文投影压力 --testTimeout 120000 --maxWorkers 1 --no-file-parallelism",
+    "test:content-projection:stress": "cross-env TAU_CONTENT_STRESS=1 vitest run src-electron/main/modules/collaboration/__tests__/manager-node-document.agent-operations.test.ts -t 正文投影压力 --testTimeout 120000 --maxWorkers 1 --no-file-parallelism",
     "predev": "pnpm -w db:schema:prepare && node scripts/build-native-speech.mjs",
     "dev": "vite --configLoader runner",
     "showcase": "vite --configLoader runner --config vite.config.showcase.mts",
@@ -25,8 +25,8 @@
   },
   "dependencies": {
     "7zip-min": "^2.1.0",
-    "@earendil-works/pi-ai": "0.87.1",
-    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-coding-agent": "1.5.2",
     "@firecrawl/anydoc": "^0.2.4",
     "@node-rs/jieba": "^2.0.1",
     "@silvia-odwyer/photon-node": "^0.3.4",

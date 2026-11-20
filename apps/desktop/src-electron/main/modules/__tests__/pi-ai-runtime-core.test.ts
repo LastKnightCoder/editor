@@ -218,6 +218,22 @@ describe("pi-ai-runtime-core", () => {
       expect(body.messages.at(-1)).toMatchObject({ role: "user", content: "打个招呼" });
     });
 
+    it("按模型协议发送请求，即使服务商的兜底协议不同", async () => {
+      const setting = settingOf({
+        baseUrl: `http://127.0.0.1:${gateway.port}/v1`,
+        api: "anthropic-messages",
+      });
+      setting.models[0].api = "openai-completions";
+      const events = await runSingleShot(createProviderRegistry(), setting, {
+        messages: [{ role: "user", content: "验证模型协议" }],
+      });
+      expect(textOf(events)).toBe("你好，世界");
+      expect(events.at(-1)).toMatchObject({
+        type: "done",
+        message: { api: "openai-completions" },
+      });
+    });
+
     it("行内建议通过真实 HTTP SSE 发送限量上下文并解析返回", async () => {
       const inlineGateway = await startMockGateway(() => [
         chunk({ role: "assistant" }),

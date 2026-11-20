@@ -264,7 +264,9 @@ export default class KnowledgeAiInsightsTable {
            members = ?, overview = ?, result = ?, increments = ?, model = ?, update_time = ?
          WHERE id = ?`
       ).run(...values, now, previous.id);
-      return this.get(db, previous.id)!;
+      const saved = this.get(db, previous.id);
+      if (!saved) throw new Error(`知识洞察更新后读取失败：${previous.id}`);
+      return saved;
     }
     const info = db
       .prepare(
@@ -273,7 +275,10 @@ export default class KnowledgeAiInsightsTable {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(...values, now, now);
-    return this.get(db, Number(info.lastInsertRowid))!;
+    const createdId = Number(info.lastInsertRowid);
+    const created = this.get(db, createdId);
+    if (!created) throw new Error(`知识洞察写入后读取失败：${createdId}`);
+    return created;
   }
 
   /** 只换成员快照与主题名（变化很小时保留原结果，只记下现在的成员） */

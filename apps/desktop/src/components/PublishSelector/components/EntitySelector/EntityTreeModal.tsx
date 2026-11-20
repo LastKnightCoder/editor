@@ -26,7 +26,6 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
   ({ open, loading, entity, nodes, currentScope, onCancel, onConfirm }) => {
     const typeLabel = "项目";
 
-    // 初始化选中的 ID
     const totalIds = useMemo(() => collectDocNodeIds(nodes), [nodes]);
 
     const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
@@ -134,7 +133,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
           <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
             {/* 左侧：文档树——列表自身滚动，头部钉住 */}
             <div className="border-line-2 flex min-h-0 flex-col border-r">
-              <div className="flex shrink-0 items-center gap-2 pb-1.5 pl-[18px] pr-2.5 pt-3">
+              <div className="flex shrink-0 items-center gap-2 pt-3 pr-2.5 pb-1.5 pl-[18px]">
                 <span className="text-ink-3 text-[11.5px] font-medium">文档结构</span>
                 <span className="font-tau-mono text-ink-3 text-[11px] tabular-nums">
                   {selectedCount}/{totalIds.length}
@@ -192,7 +191,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                     </span>
                   </div>
                   {previewNode.hasContent ? (
-                    <FadeScroll className="mb-4 min-h-0 flex-1 px-7 pb-2 pt-4">
+                    <FadeScroll className="mb-4 min-h-0 flex-1 px-7 pt-4 pb-2">
                       <Editor
                         kit={getContentKit()}
                         key={previewNode.id}

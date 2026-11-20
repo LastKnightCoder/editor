@@ -104,7 +104,7 @@ const runIndex = (board: Board, points: Array<{ x: number; y: number }>) => {
 
 const runBenchmark = process.env.WHITEBOARD_HIT_BENCH === "1";
 
-(runBenchmark ? describe : describe.skip)("WhiteBoard 命中性能基准", () => {
+(runBenchmark ? describe : describe.skip)("Whiteboard 命中性能基准", () => {
   it("对比 DFS 与空间索引耗时", { timeout: 120000 }, () => {
     const elementCount = Number(process.env.HIT_BENCH_ELEMENTS ?? "12000");
     const queryCount = Number(process.env.HIT_BENCH_QUERIES ?? "500");

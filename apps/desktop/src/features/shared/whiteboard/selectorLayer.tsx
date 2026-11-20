@@ -8,6 +8,7 @@ import {
 /** 选择器随所属扩展装配，工具栏和右键菜单共用同一入口。 */
 export function selectorLayer(
   type: ContextMenuModalPayload["type"],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 各扩展的选择器组件 props 形状互不相同，any 参数位承载异构组件
   Selector: ComponentType<any>
 ): WhiteboardLayerContribution {
   function SelectorLayer() {

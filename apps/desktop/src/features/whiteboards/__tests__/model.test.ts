@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WhiteBoard } from "@/types";
+import type { Whiteboard } from "@/types";
 import {
   inScope,
   matchTitle,
@@ -32,7 +32,7 @@ const page = (id: number, name: string, children: number, updateTime: number, se
   },
 });
 
-const board = (patch: Partial<WhiteBoard> & { id: number }): WhiteBoard =>
+const board = (patch: Partial<Whiteboard> & { id: number }): Whiteboard =>
   ({
     title: `白板 ${patch.id}`,
     description: "",
@@ -40,11 +40,11 @@ const board = (patch: Partial<WhiteBoard> & { id: number }): WhiteBoard =>
     snapshot: "",
     createTime: 100,
     updateTime: 100,
-    whiteBoardContentIds: [],
-    whiteBoardContentList: [],
-    activeWhiteBoardContentId: null,
+    whiteboardContentIds: [],
+    whiteboardContentList: [],
+    activeWhiteboardContentId: null,
     ...patch,
-  }) as WhiteBoard;
+  }) as Whiteboard;
 
 describe("toItem", () => {
   it("派生页数、元素数、演示序列，更新时间取白板行与各页的较大者", () => {
@@ -52,7 +52,7 @@ describe("toItem", () => {
       board({
         id: 1,
         updateTime: 500,
-        whiteBoardContentList: [page(11, "总览", 3, 400, 1), page(12, "细节", 2, 900, 2)] as never,
+        whiteboardContentList: [page(11, "总览", 3, 400, 1), page(12, "细节", 2, 900, 2)] as never,
       })
     );
     expect(item.pages.map(p => [p.id, p.name, p.elementCount])).toEqual([
@@ -126,8 +126,8 @@ describe("openTarget", () => {
   const item = toItem(
     board({
       id: 1,
-      activeWhiteBoardContentId: 12,
-      whiteBoardContentList: [page(11, "a", 0, 0), page(12, "b", 0, 0)] as never,
+      activeWhiteboardContentId: 12,
+      whiteboardContentList: [page(11, "a", 0, 0), page(12, "b", 0, 0)] as never,
     })
   );
   it("指定页优先，其次上次停留页，最后第一页", () => {

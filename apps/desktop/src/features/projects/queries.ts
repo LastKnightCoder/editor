@@ -18,8 +18,8 @@ import {
   deleteProject,
   recordProjectOpen,
 } from "@/commands/project";
-import { getAllCards, getAllWhiteBoards } from "@/commands";
-import type { ICard, WhiteBoard } from "@/types";
+import { getAllCards, getAllWhiteboards } from "@/commands";
+import type { ICard, Whiteboard } from "@/types";
 import type { Project, ProjectOpenState, UpdateProject } from "@/types/project";
 import type { ProjectPageItem } from "./types";
 
@@ -29,7 +29,7 @@ import type { ProjectPageItem } from "./types";
  *  独立 queryKey 供列表与详情页共用；["projects"] 前缀失效随域变更一并重拉 */
 const EMPTY_COUNTS: Record<number, number> = {};
 
-export function useProjectItemCounts(): {
+function useProjectItemCounts(): {
   counts: Record<number, number>;
 } {
   const query = useQuery({
@@ -46,7 +46,7 @@ export function useProjectItemCounts(): {
 const projectOpenStatesKey = ["projects", "open-states"] as const;
 const EMPTY_OPEN_STATES: Record<number, ProjectOpenState> = {};
 
-export function useProjectOpenStates(): {
+function useProjectOpenStates(): {
   openStates: Record<number, ProjectOpenState>;
 } {
   const query = useQuery({
@@ -143,7 +143,7 @@ export function useProjectDetail(id: number): {
 /* 详情侧关联数据源：文档树「关联卡片/白板」弹窗的全量轻表。
  * 空值兜底用模块级常量：?? [] 每次渲染新建引用会击穿下游 useMemo deps 链 */
 const EMPTY_CARDS: ICard[] = [];
-const EMPTY_WHITE_BOARDS: WhiteBoard[] = [];
+const EMPTY_WHITEBOARDS: Whiteboard[] = [];
 
 export function useProjectRefCards(): {
   cards: ICard[];
@@ -157,16 +157,16 @@ export function useProjectRefCards(): {
   return { cards: query.data ?? EMPTY_CARDS };
 }
 
-export function useProjectRefWhiteBoards(): {
-  whiteBoards: WhiteBoard[];
+export function useProjectRefWhiteboards(): {
+  whiteboards: Whiteboard[];
 } {
   const query = useQuery({
     queryKey: ["projects", "ref-white-boards"],
-    queryFn: getAllWhiteBoards,
+    queryFn: getAllWhiteboards,
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   });
-  return { whiteBoards: query.data ?? EMPTY_WHITE_BOARDS };
+  return { whiteboards: query.data ?? EMPTY_WHITEBOARDS };
 }
 
 /* ---------- 变更 ---------- */

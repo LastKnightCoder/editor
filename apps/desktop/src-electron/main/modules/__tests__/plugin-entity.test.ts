@@ -14,14 +14,8 @@ vi.mock("../../services/content-execution", () => ({
   },
 }));
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginEntityTable from "../tables/plugin-entity";
@@ -30,6 +24,7 @@ import EntitySearchTable from "../tables/entity-search";
 import ContentTable from "../tables/content";
 import { searchResultDetails } from "../search-details";
 import { listContentIndexCandidates } from "../index-candidates";
+import { must } from "../../test-support";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.weekly-review" };
 const DAY = 24 * 60 * 60 * 1000;
@@ -328,7 +323,10 @@ describe("PluginEntityTable", () => {
       })
     ).toThrow("游标");
 
-    const target = PluginEntityTable.find(db, { ...scope, kind: "question", key: "a" })!;
+    const target = must(
+      PluginEntityTable.find(db, { ...scope, kind: "question", key: "a" }),
+      "PluginEntityTable.find(db, { ...scope, kind: ..."
+    );
     expect(() =>
       PluginEntityTable.update(db, {
         ...scope,
@@ -469,10 +467,13 @@ describe("PluginEntityTable", () => {
     });
     ContentTable.updateContent(db, created.contentId, {
       ...prepared,
-      expectedRevision: (await import("../tables/content-document")).ContentDocumentTable.read(
-        db,
-        created.contentId
-      )!.revision,
+      expectedRevision: must(
+        (await import("../tables/content-document")).ContentDocumentTable.read(
+          db,
+          created.contentId
+        ),
+        `content document ${created.contentId}`
+      ).revision,
     });
     const card = Number(
       db

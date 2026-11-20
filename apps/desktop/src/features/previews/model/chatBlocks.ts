@@ -1,5 +1,5 @@
 /**
- * 对话块模型（D-057，纯函数）：从会话原文派生出全部可预览块、稳定身份与版本分组。
+ * 对话块模型（纯函数）：从会话原文派生出全部可预览块、稳定身份与版本分组。
  *
  * 身份 key = 「第几条可见消息 . 第几个内容段 . 段内第几个围栏」——与 MessageView 的分段
  * 口径一致（可见消息 = 非 system；内容段 = 过滤空文本 / 空思考后的 assistant_blocks），
@@ -98,7 +98,7 @@ export function extractChatBlocks(
   return blocks.map(b => {
     const version = (seen.get(b.groupKey) ?? 0) + 1;
     seen.set(b.groupKey, version);
-    return { ...b, version, versionCount: counts.get(b.groupKey)! };
+    return { ...b, version, versionCount: counts.get(b.groupKey) ?? 0 };
   });
 }
 

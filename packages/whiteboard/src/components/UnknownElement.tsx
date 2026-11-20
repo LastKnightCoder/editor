@@ -24,7 +24,7 @@ interface PlaceholderLook {
   description: string;
 }
 
-/** 五态占位文案与图标（视觉定稿，图标随原因区分，扩展 ID 不上屏） */
+/** 五态占位文案与图标（图标随原因区分，扩展 ID 不上屏） */
 const REASON_LOOK: Record<UnknownElementReason, PlaceholderLook> = {
   missing: {
     icon: Puzzle,

@@ -1,11 +1,11 @@
 import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
-import { numberFieldModel, numberText } from "./model";
+import { numberFieldModel, numberText, type NumberColumnConfig } from "./model";
 import { parseNumber } from "./utils/numberUtils";
 import { Hash } from "lucide-react";
 
-const NumberPlugin: CellPlugin<any> = {
+const NumberPlugin: CellPlugin<NumberColumnConfig> = {
   type: numberFieldModel.type,
   model: numberFieldModel,
   name: "数字",
@@ -16,13 +16,11 @@ const NumberPlugin: CellPlugin<any> = {
   Editor,
   Icon: ({ className }) => <Hash className={className} />,
 
-  // 保存前确保值为数字
   beforeSave: value => {
     if (value === null || value === undefined) return null;
     return parseNumber(value);
   },
 
-  // 加载后确保值为数字
   afterLoad: value => {
     if (value === null || value === undefined) return null;
     return parseNumber(value);

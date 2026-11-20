@@ -243,7 +243,8 @@ export function findGatherCandidates(
   );
   const candidates: Candidate[] = [];
   for (const [contentId, hit] of picked) {
-    const ref = parseKey(hit.key)!;
+    const ref = parseKey(hit.key);
+    if (!ref) continue;
     const resolved = EntitySearchTable.resolve(mainDb, PICKER[ref.kind], ref.id, 0);
     if (!resolved) continue;
     const section = hit.updateTime
@@ -408,7 +409,8 @@ export async function gather(
   const groups: GatherGroup[] = parsed.groups.map(group => ({
     name: group.name,
     items: group.items.map(item => {
-      const candidate = byNo.get(item.candidate)!;
+      const candidate = byNo.get(item.candidate);
+      if (!candidate) throw new Error(`模型输出引用了不存在的候选编号：${item.candidate}`);
       return {
         ref: candidate.ref,
         contentId: candidate.contentId,

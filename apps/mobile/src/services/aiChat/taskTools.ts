@@ -38,7 +38,7 @@ const toEpoch = (value: string) => {
 };
 
 const pad = (value: number) => String(value).padStart(2, "0");
-export function formatLocal(epoch: number | null | undefined, withTime = true) {
+function formatLocal(epoch: number | null | undefined, withTime = true) {
   if (!epoch) return null;
   const d = new Date(epoch);
   const day = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -167,7 +167,7 @@ export const queryTodosTool: HostTool = {
   },
 };
 
-export const queryCalendarEventsTool: HostTool = {
+const queryCalendarEventsTool: HostTool = {
   name: "query_calendar_events",
   risk: "read",
   description: "查询日期窗口内的日程，返回 eventId 与版本；系统日程（由待办同步）只读。",
@@ -433,7 +433,7 @@ export const createCalendarEventTool: HostTool = {
   },
 };
 
-export const updateCalendarEventTool: HostTool = {
+const updateCalendarEventTool: HostTool = {
   name: "update_calendar_event",
   risk: "write",
   description: "修改用户日程的标题或起止；不能修改系统日程。改起止时 start、end、allDay 一起给。",
@@ -489,7 +489,7 @@ export const updateCalendarEventTool: HostTool = {
   },
 };
 
-export const deleteCalendarEventTool: HostTool = {
+const deleteCalendarEventTool: HostTool = {
   name: "delete_calendar_event",
   risk: "write",
   description: "删除用户日程；系统日程改用待办工具。",

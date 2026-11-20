@@ -477,7 +477,7 @@ export function TodoPage({
 
       {/* A2 工具行：分组入口 + 筛选入口 + 当前范围待办数。
           统计大卡/分组 Tabs/双行筛选卡全部收纳进两个 Sheet，列表高度最大化 */}
-      <div className="flex items-center gap-2 px-4 pb-2.5 pt-1">
+      <div className="flex items-center gap-2 px-4 pt-1 pb-2.5">
         <button
           type="button"
           onClick={() => setGroupPickerOpen(true)}
@@ -487,7 +487,7 @@ export function TodoPage({
             {activeGroup?.title ?? "任务"}
           </span>
           {activeGroupStats && activeGroupStats.uncompleted > 0 ? (
-            <span className="bg-page text-ink-3 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none">
+            <span className="bg-page text-ink-3 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold tabular-nums">
               {activeGroupStats.uncompleted}
             </span>
           ) : null}
@@ -501,7 +501,7 @@ export function TodoPage({
           <ListFilter size={14} />
           筛选
           {stateFilterActive ? (
-            <span className="border-page bg-accent absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2" />
+            <span className="border-page bg-accent absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2" />
           ) : null}
         </button>
         <span className="text-ink-3 ml-auto min-w-0 shrink-0 text-[11.5px] font-bold tabular-nums">
@@ -569,7 +569,7 @@ export function TodoPage({
       >
         <div className="text-ink-3 mb-1 text-[11.5px] font-extrabold">系统分组</div>
         {orderedSystemGroups.map(renderGroupRow)}
-        <div className="text-ink-3 mb-1 mt-4 text-[11.5px] font-extrabold">自定义分组</div>
+        <div className="text-ink-3 mt-4 mb-1 text-[11.5px] font-extrabold">自定义分组</div>
         {customGroups.length > 0 ? (
           customGroups.map(renderGroupRow)
         ) : (
@@ -716,5 +716,3 @@ export function TodoPage({
     </div>
   );
 }
-
-export default TodoPage;

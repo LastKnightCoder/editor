@@ -17,14 +17,8 @@ import { SqliteContentProjection } from "../../content-runtime/sqlite-content-pr
 import { ContentDocumentTable } from "../content-document";
 import { ContentDocumentBlocks } from "../content-document-blocks";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 
 interface StorageFixture {
   fixtureVersion: number;

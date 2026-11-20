@@ -34,10 +34,14 @@ export function usePerformanceMonitor(componentName: string) {
   };
 }
 
+type PerformanceMonitoringWindow = Window & { __CHAT_PERFORMANCE_MONITORING__?: boolean };
+
 export function enablePerformanceMonitoring(enable: boolean) {
-  (window as any).__CHAT_PERFORMANCE_MONITORING__ = enable;
+  (window as PerformanceMonitoringWindow).__CHAT_PERFORMANCE_MONITORING__ = enable;
 }
 
 export function isPerformanceMonitoringEnabled(): boolean {
-  return !!(window as any).__CHAT_PERFORMANCE_MONITORING__ || DEBUG_PERFORMANCE;
+  return (
+    !!(window as PerformanceMonitoringWindow).__CHAT_PERFORMANCE_MONITORING__ || DEBUG_PERFORMANCE
+  );
 }

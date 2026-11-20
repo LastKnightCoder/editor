@@ -206,14 +206,13 @@ export function findCandidates(
   const proseCache = new Map<string, number>();
   const proseLength = (key: string, updateTime: number, chunk: number) => {
     const id = `${key}#${updateTime}#${chunk}`;
-    if (!proseCache.has(id)) {
-      const row = sectionText.get(key, Math.round(updateTime), chunk) as
-        | { text: string }
-        | undefined;
-      // 没有节信息（卡片等整篇一节的旧索引）时不按文字量过滤
-      proseCache.set(id, row ? proseOf(row.text).length : MIN_PROSE_CHARS);
-    }
-    return proseCache.get(id)!;
+    const cached = proseCache.get(id);
+    if (cached !== undefined) return cached;
+    const row = sectionText.get(key, Math.round(updateTime), chunk) as { text: string } | undefined;
+    // 没有节信息（卡片等整篇一节的旧索引）时不按文字量过滤
+    const length = row ? proseOf(row.text).length : MIN_PROSE_CHARS;
+    proseCache.set(id, length);
+    return length;
   };
 
   type Hit = { key: string; chunk: number; updateTime: number; similarity: number };
@@ -294,7 +293,8 @@ export function findCandidates(
   );
   const candidates: CandidateInfo[] = [];
   for (const [contentId, hit] of picked) {
-    const ref = parseKey(hit.key)!;
+    const ref = parseKey(hit.key);
+    if (!ref) continue;
     const resolved = EntitySearchTable.resolve(
       mainDb,
       PICKER[ref.kind as keyof typeof PICKER],

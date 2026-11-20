@@ -3,7 +3,7 @@ import { skillToolsProvider } from "@/mcp/providers/skill-tools";
 import type { ToolRegistry } from "./toolRegistry";
 import { createKnowledgeSearchTool } from "./knowledgeSearchTool";
 
-export const BUILTIN_SOURCE = "builtin";
+const BUILTIN_SOURCE = "builtin";
 
 export const registerBuiltinTools = (registry: ToolRegistry) => {
   registry.registerTools(

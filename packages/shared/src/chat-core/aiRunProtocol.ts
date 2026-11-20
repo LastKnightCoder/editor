@@ -1,5 +1,5 @@
 /**
- * 浏览器扩展 ↔ 桌面的 AI 运行协议 v2（M5）。取代 v1 的 `ai.chat` 请求 + `ai.stream.*` 快照通知。
+ * 浏览器扩展 ↔ 桌面的 AI 运行协议 v2。取代 v1 的 `ai.chat` 请求 + `ai.stream.*` 快照通知。
  *
  * 一次运行 = 一个 runId：
  * - `ai.run.start`（请求）立即返回 `{ runId }`，不等回答结束；

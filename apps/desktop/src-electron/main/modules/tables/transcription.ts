@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import Operation from "./operation";
+import type { SqliteRow } from "../../types/table";
 
 export interface ITranscriptionSegment {
   text: string;
@@ -57,25 +58,23 @@ export default class TranscriptionTable {
       "transcription:increment-ref-count": this.incrementRefCount.bind(this),
     };
   }
-  static parseTranscription(row: unknown): ITranscription {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const r = row as any;
+  static parseTranscription(row: SqliteRow): ITranscription {
     return {
-      id: r.id,
-      sourceType: r.source_type,
-      sourceId: r.source_id || undefined,
-      sourcePath: r.source_path,
-      createTime: r.create_time,
-      updateTime: r.update_time,
-      text: r.text,
-      language: r.language,
-      languageProbability: r.language_probability,
-      duration: r.duration,
-      processingTime: r.processing_time,
-      modelSize: r.model_size,
-      segments: JSON.parse(r.segments),
-      wordSegments: r.word_segments ? JSON.parse(r.word_segments) : undefined,
-      refCount: r.ref_count || 1,
+      id: row.id as number,
+      sourceType: row.source_type as "audio" | "video",
+      sourceId: (row.source_id as number | null) || undefined,
+      sourcePath: row.source_path as string,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
+      text: row.text as string,
+      language: row.language as string,
+      languageProbability: row.language_probability as number,
+      duration: row.duration as number,
+      processingTime: row.processing_time as number,
+      modelSize: row.model_size as string,
+      segments: JSON.parse(row.segments as string),
+      wordSegments: row.word_segments ? JSON.parse(row.word_segments as string) : undefined,
+      refCount: (row.ref_count as number) || 1,
     };
   }
 
@@ -117,7 +116,7 @@ export default class TranscriptionTable {
 
   static getTranscriptionById(db: Database.Database, id: number): ITranscription | null {
     const stmt = db.prepare("SELECT * FROM transcriptions WHERE id = ?");
-    const row = stmt.get(id);
+    const row = stmt.get(id) as SqliteRow | undefined;
     if (!row) {
       return null;
     }
@@ -131,7 +130,7 @@ export default class TranscriptionTable {
     const stmt = db.prepare(
       "SELECT * FROM transcriptions WHERE source_path = ? ORDER BY create_time DESC LIMIT 1"
     );
-    const row = stmt.get(sourcePath);
+    const row = stmt.get(sourcePath) as SqliteRow | undefined;
     if (!row) {
       return null;
     }
@@ -146,7 +145,7 @@ export default class TranscriptionTable {
     const stmt = db.prepare(
       "SELECT * FROM transcriptions WHERE source_type = ? AND source_id = ? ORDER BY create_time DESC"
     );
-    const rows = stmt.all(sourceType, sourceId);
+    const rows = stmt.all(sourceType, sourceId) as SqliteRow[];
     return rows.map(row => this.parseTranscription(row));
   }
 
@@ -185,7 +184,7 @@ export default class TranscriptionTable {
     }
 
     const stmt = db.prepare(sql);
-    const rows = stmt.all(...params);
+    const rows = stmt.all(...params) as SqliteRow[];
     return rows.map(row => this.parseTranscription(row));
   }
 
@@ -272,7 +271,7 @@ export default class TranscriptionTable {
     }
 
     const stmt = db.prepare(sql);
-    const rows = stmt.all(...params);
+    const rows = stmt.all(...params) as SqliteRow[];
     return rows.map(row => this.parseTranscription(row));
   }
 }

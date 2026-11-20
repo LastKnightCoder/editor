@@ -103,5 +103,3 @@ export function useRootScrollLock(locked: boolean): void {
     };
   }, [locked]);
 }
-
-export default useRootScrollLock;

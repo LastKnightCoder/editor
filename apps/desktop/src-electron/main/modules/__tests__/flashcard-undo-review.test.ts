@@ -1,19 +1,14 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
+vi.mock("electron");
 
 // 与 todo-calendar-consistency 同款：切断 tables → database 模块的循环依赖链
-vi.mock("../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import FlashcardTable from "../tables/flashcard";
+import { must } from "../../test-support";
 
 const paragraph = (text: string) => [
   { type: "paragraph", children: [{ type: "formatted", text }] },
@@ -47,7 +42,10 @@ describe("闪卡撤销评分", () => {
       prompt: paragraph("死锁的四个必要条件？") as never,
       data: { answer: "互斥、占有并等待、不可抢占、循环等待" },
     });
-    const first = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" })!;
+    const first = must(
+      FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" }),
+      "FlashcardTable.submitReview(db, { cardId: car..."
+    );
     const beforeSecond = {
       memoryStability: first.memoryStability,
       memoryDifficulty: first.memoryDifficulty,
@@ -56,11 +54,17 @@ describe("闪卡撤销评分", () => {
       reviewCount: first.reviewCount,
       status: first.status,
     };
-    const second = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "easy" })!;
+    const second = must(
+      FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "easy" }),
+      "FlashcardTable.submitReview(db, { cardId: car..."
+    );
     expect(reviewCount(card.id)).toBe(2);
 
     expect(second.undo.previous).toEqual(beforeSecond);
-    const restored = FlashcardTable.undoReview(db, second.undo)!;
+    const restored = must(
+      FlashcardTable.undoReview(db, second.undo),
+      "FlashcardTable.undoReview(db, second.undo)"
+    );
     expect(reviewCount(card.id)).toBe(1);
     expect(restored).toMatchObject(beforeSecond);
     const kept = db
@@ -100,8 +104,14 @@ describe("闪卡撤销评分", () => {
       prompt: paragraph("问题") as never,
       data: { answer: "答案" },
     });
-    const first = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" })!;
-    const second = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "easy" })!;
+    const first = must(
+      FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" }),
+      "FlashcardTable.submitReview(db, { cardId: car..."
+    );
+    const second = must(
+      FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "easy" }),
+      "FlashcardTable.submitReview(db, { cardId: car..."
+    );
     expect(() => FlashcardTable.undoReview(db, first.undo)).toThrow("评分记录已变化");
     expect(reviewCount(card.id)).toBe(2);
     expect(FlashcardTable.getFlashcard(db, card.id)?.reviewCount).toBe(2);
@@ -117,9 +127,15 @@ describe("闪卡撤销评分", () => {
       prompt: paragraph("问题") as never,
       data: { answer: "答案" },
     });
-    const first = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" })!;
+    const first = must(
+      FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" }),
+      "FlashcardTable.submitReview(db, { cardId: car..."
+    );
     FlashcardTable.undoReview(db, first.undo);
-    const second = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" })!;
+    const second = must(
+      FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" }),
+      "FlashcardTable.submitReview(db, { cardId: car..."
+    );
     expect(second.undo.reviewId).not.toBe(first.undo.reviewId);
     expect(() => FlashcardTable.undoReview(db, first.undo)).toThrow("评分记录已变化");
     expect(reviewCount(card.id)).toBe(1);

@@ -228,9 +228,7 @@ export const EditText = memo(
           ...style,
           ...(placeholder && !style?.position ? { position: "relative" } : {}),
           ...(placeholderStyle?.color
-            ? ({
-                ["--placeholder-color" as any]: placeholderStyle.color,
-              } as any)
+            ? ({ "--placeholder-color": placeholderStyle.color } as React.CSSProperties)
             : {}),
         }}
         data-placeholder={placeholder}

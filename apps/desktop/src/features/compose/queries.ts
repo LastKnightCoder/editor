@@ -22,7 +22,7 @@ import { useInsightsEnabled } from "@/features/insights/queries";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 
-export const composeBoardKey = (database: string, contentId: number) =>
+const composeBoardKey = (database: string, contentId: number) =>
   ["compose-board", databaseId(database), contentId] as const;
 
 /** 自动找资料可用：配了「AI 洞见」模型 */

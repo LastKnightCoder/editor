@@ -15,6 +15,7 @@ import { WhiteboardModel, createWhiteboardDocument } from "@tau/collaboration";
 import { CollaborationAssetService } from "../../collaboration/asset-service";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentIdentityTable } from "../../tables/content-identity";
+import { must } from "../../../test-support";
 const state = vi.hoisted(() => ({
   dir: "",
   assets: null as CollaborationAssetService | null,
@@ -43,7 +44,10 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("../local-state", () => ({
-  openWhiteboardState: () => ({ store: state.assetStore!, assets: state.assets! }),
+  openWhiteboardState: () => ({
+    store: must(state.assetStore, "state.assetStore"),
+    assets: must(state.assets, "state.assets"),
+  }),
 }));
 vi.mock("../../../module-init/ModuleInitManager", () => ({
   default: { initModule: async () => ({ success: true }) },
@@ -115,7 +119,10 @@ afterEach(() => {
 });
 const event = (owner: number) => ({ sender: state.windows.find(w => w.id === owner).webContents });
 const call = (name: string, owner: number, ...args: unknown[]) =>
-  state.handlers.get(`whiteboard-document:${name}`)!(event(owner), ...args);
+  must(
+    state.handlers.get(`whiteboard-document:${name}`),
+    "state.handlers.get(`whiteboard-document:${nam..."
+  )(event(owner), ...args);
 async function opened() {
   const created = await call("create", 1, "A", "doc", Y.encodeStateAsUpdate(source), "board");
   return Promise.all([
@@ -128,7 +135,7 @@ const requests = () => state.sent.filter(event => event.channel === "whiteboard-
 it("未打开文档的历史持有尚未建立时保守阻止实体回收", async () => {
   const created = await call("create", 1, "A", "doc", Y.encodeStateAsUpdate(source), "board");
   const { hasDurableEntityHold } = await import("../../durable-entity-holds");
-  const db = state.databases.get("A")!;
+  const db = must(state.databases.get("A"), "state.databases.get('A')");
   expect(hasDurableEntityHold(db, "whiteboard-content", 900)).toBe(true);
   await call("open", 1, "A", created.contentIds[0], "a");
   expect(hasDurableEntityHold(db, "whiteboard-content", 900)).toBe(false);
@@ -136,8 +143,7 @@ it("未打开文档的历史持有尚未建立时保守阻止实体回收", asyn
 
 it("共享候选按标题检索整块白板，已共享的不再列出", async () => {
   const created = await call("create", 1, "A", "doc", Y.encodeStateAsUpdate(source), "board");
-  state.databases
-    .get("A")!
+  must(state.databases.get("A"), "state.databases")
     .prepare("UPDATE white_boards SET title=? WHERE id=?")
     .run("产品路线图", created.boardId);
   expect(call("share-candidates", 1, "A", "路线")).toEqual([
@@ -152,7 +158,7 @@ it("共享候选按标题检索整块白板，已共享的不再列出", async (
   expect(call("share-candidates", 1, "A", "")).toHaveLength(1);
   // LIKE 通配符按字面匹配
   expect(call("share-candidates", 1, "A", "%")).toEqual([]);
-  state.assetStore!.set("whiteboard-binding:A:doc", {
+  must(state.assetStore, "state.assetStore").set("whiteboard-binding:A:doc", {
     serverUrl: "https://collab.test",
     documentId: "room",
   });
@@ -256,8 +262,7 @@ it("远端接口复用窗口持有，旧本机代次不能以新代次发送", a
 });
 
 it("稳定外部引用只解析当前来源，不能误读本机同号实体或跨窗口切库", () => {
-  state.databases
-    .get("A")!
+  must(state.databases.get("A"), "state.databases")
     .prepare("INSERT INTO articles(id,create_time,update_time,title) VALUES(9,1,1,'文章')")
     .run();
   const reference = call("reference-entity", 1, "A", "article", 9);
@@ -357,8 +362,11 @@ it("显式复制板内正文创建独立身份和契约，不改写原正文或�
   const created = await call("create", 1, "A", "body-copy", Y.encodeStateAsUpdate(source), "board");
   const view = await call("open", 1, "A", created.contentIds[0], "body-view");
   const contentId = await call("copy-content", 1, view.leaseId, id);
-  const db = state.databases.get("A")!,
-    copy = ContentDocumentTable.read(db, contentId)!;
+  const db = must(state.databases.get("A"), "state.databases.get('A')"),
+    copy = must(
+      ContentDocumentTable.read(db, contentId),
+      "ContentDocumentTable.read(db, contentId)"
+    );
   expect(copy.content[0].children?.[0].text).toBe("板内正文");
   expect(copy.content[0].collabId).not.toBe(
     (before.pages[0].children[0].body as { collabId: string }[])[0].collabId

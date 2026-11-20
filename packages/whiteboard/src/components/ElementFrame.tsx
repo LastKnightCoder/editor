@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import type { BoardElement, EHandlerPosition, Point } from "../types";
+import type { Board, BoardElement, EHandlerPosition, Point } from "../types";
 import { useBoard, useSelectState, useDropArrow } from "../hooks";
+import type { CommonElement } from "../plugins/CommonPlugin";
 import { PointUtil } from "../utils/PointUtil";
 import {
   SELECT_RECT_STROKE,
@@ -15,10 +16,10 @@ import ArrowDropConnectPoint from "./ArrowDropConnectPoint";
 export interface ElementFrameProps {
   element: BoardElement;
   children?: ReactNode;
-  onResizeStart?(element: any, point: Point): void;
+  onResizeStart?(element: BoardElement, point: Point): void;
   onResize?(
-    board: any,
-    element: any,
+    board: Board,
+    element: BoardElement,
     position: EHandlerPosition,
     start: Point,
     end: Point,
@@ -26,13 +27,13 @@ export interface ElementFrameProps {
     adsorb?: boolean
   ): void;
   onResizeEnd?(
-    board: any,
-    element: any,
+    board: Board,
+    element: BoardElement,
     position: EHandlerPosition,
     start: Point,
     end: Point
   ): void;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export default function ElementFrame({
@@ -45,7 +46,7 @@ export default function ElementFrame({
   const board = useBoard();
   const { isSelected } = useSelectState(element.id);
   const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
-    useDropArrow(element);
+    useDropArrow(element as CommonElement);
   const { x, y, width, height = 80 } = element;
   const points = PointUtil.getResizePointFromRect({ x, y, width, height });
   return (

@@ -1,11 +1,6 @@
 import markdownSkillReadme from "@tau/ai/skills/internal/markdown.md?raw";
 
-export const VIDEO_EBOOK_REWRITE_STYLE_OPTIONS = [
-  "magazine",
-  "academic",
-  "casual",
-  "technical",
-] as const;
+const VIDEO_EBOOK_REWRITE_STYLE_OPTIONS = ["magazine", "academic", "casual", "technical"] as const;
 
 export type VideoEbookRewriteStyle = (typeof VIDEO_EBOOK_REWRITE_STYLE_OPTIONS)[number];
 

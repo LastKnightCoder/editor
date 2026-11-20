@@ -1,6 +1,7 @@
 import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
 import { bindTextContent } from "@tau/whiteboard/extensions";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
 import { useBoard, BoardUtil, PathUtil, type BoardElement } from "@tau/whiteboard";
@@ -298,7 +299,7 @@ export function RichTextActionsLayer() {
                   board,
                   pendingRichTextCreateTarget.elementId
                 ) as BoardElement & {
-                  content?: any[];
+                  content?: Descendant[];
                 }
               )?.content || []
             : []

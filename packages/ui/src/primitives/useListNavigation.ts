@@ -1,5 +1,5 @@
 /**
- * 列表导航 hook（Select / Menu 共用，D-007 预告的两例交集抽取）。
+ * 列表导航 hook（Select / Menu 共用的交集抽取）。
  *
  * 只管「高亮在序列上怎么走」：环游移动（跳过 disabled）、边缘直达（目标
  * disabled 不落高亮）、type-ahead 400ms 打字窗口。序列经 items() 在每次

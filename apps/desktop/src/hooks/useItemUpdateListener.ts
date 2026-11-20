@@ -9,6 +9,7 @@ import {
 } from "@/utils";
 import { on, off } from "@/electron";
 import { useCreation } from "ahooks";
+import type { IpcRendererEvent } from "electron";
 
 export const useItemUpdateListener = () => {
   const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
@@ -17,7 +18,10 @@ export const useItemUpdateListener = () => {
   const contentEventBus = useCreation(() => defaultContentEventBus.createEditor(), []);
 
   useEffect(() => {
-    const handleCardUpdated = async (_e: any, data: { cardId: number; databaseName: string }) => {
+    const handleCardUpdated = async (
+      _e: IpcRendererEvent,
+      data: { cardId: number; databaseName: string }
+    ) => {
       const currentDatabaseName = useSettingStore.getState().setting.database.active;
       if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
       const card = await getCardById(data.cardId);
@@ -25,7 +29,7 @@ export const useItemUpdateListener = () => {
     };
 
     const handleArticleUpdated = async (
-      _e: any,
+      _e: IpcRendererEvent,
       data: { articleId: number; databaseName: string }
     ) => {
       const currentDatabaseName = useSettingStore.getState().setting.database.active;
@@ -36,7 +40,7 @@ export const useItemUpdateListener = () => {
     };
 
     const handleProjectItemUpdated = async (
-      _e: any,
+      _e: IpcRendererEvent,
       data: { projectItemId: number; databaseName: string }
     ) => {
       const currentDatabaseName = useSettingStore.getState().setting.database.active;
@@ -47,7 +51,7 @@ export const useItemUpdateListener = () => {
     };
 
     const handleContentUpdated = async (
-      _e: any,
+      _e: IpcRendererEvent,
       data: { contentId: number; databaseName: string }
     ) => {
       const currentDatabaseName = useSettingStore.getState().setting.database.active;

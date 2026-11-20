@@ -38,7 +38,24 @@ export interface WebviewProps {
   remoteResourceToLocal?: (url: string) => Promise<string>;
 }
 
-const isElectron = typeof window !== "undefined" && !!(window as any).electron;
+/** Electron webview 元素：React 只提供空壳 HTMLWebViewElement，这里声明用到的 Electron API 子集 */
+interface ElectronWebviewElement extends HTMLWebViewElement {
+  getTitle(): string;
+  getURL(): string;
+  executeJavaScript(script: string): Promise<string>;
+  reload(): void;
+  stop(): void;
+  goBack(): void;
+  goForward(): void;
+  canGoBack(): boolean;
+  canGoForward(): boolean;
+}
+
+/** Electron webview 事件载荷：仅标注本组件消费的字段（全部可选，可与 Event 交叉） */
+type WebviewEvent = Event & { errorDescription?: string; title?: string; url?: string };
+
+const isElectron =
+  typeof window !== "undefined" && !!(window as Window & { electron?: unknown }).electron;
 
 const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
   const {
@@ -58,7 +75,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     remoteResourceToLocal,
   } = props;
 
-  const webviewRef = useRef<any>(null);
+  const webviewRef = useRef<ElectronWebviewElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(undefined);
 
@@ -187,7 +204,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       if (isElectron && webviewRef.current) {
         webviewRef.current.stop?.();
       } else if (iframeRef.current) {
-        (iframeRef.current.contentWindow as any)?.stop?.();
+        iframeRef.current.contentWindow?.stop?.();
       }
     },
     goBack: () => {
@@ -233,15 +250,15 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
 
       webview.addEventListener?.("dom-ready", handleWebviewReady);
 
-      webview.addEventListener?.("did-fail-load", (event: any) => {
+      webview.addEventListener?.("did-fail-load", (event: WebviewEvent) => {
         onError?.(new Error(`Failed to load: ${event.errorDescription ?? "unknown error"}`));
       });
 
-      webview.addEventListener?.("page-title-updated", (event: any) => {
+      webview.addEventListener?.("page-title-updated", (event: WebviewEvent) => {
         onTitleChange?.(event.title ?? "");
       });
 
-      webview.addEventListener?.("did-navigate", (event: any) => {
+      webview.addEventListener?.("did-navigate", (event: WebviewEvent) => {
         onURLChange?.(event.url ?? "");
       });
 
@@ -274,7 +291,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       <div className={className} style={style}>
         <webview
           key={resolvedSrc}
-          ref={webviewRef as any}
+          ref={webviewRef}
           src={resolvedSrc}
           style={{ width: "100%", height: "100%" }}
           preload={preload}

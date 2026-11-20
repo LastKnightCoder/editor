@@ -296,7 +296,10 @@ export class ContentSuggestionService {
   reject(db: Database.Database, contentId: number, ids: string[], feedback?: string) {
     const workspaceId = workspaceOf(db);
     const rejected = this.store.reject(workspaceId, ids, feedback);
-    const proposals = rejected.map(id => this.store.row(id)!.proposal_id);
+    const proposals = rejected.flatMap(id => {
+      const row = this.store.row(id);
+      return row ? [row.proposal_id] : [];
+    });
     if (proposals.length) this.changed(workspaceId, contentId, proposals);
     return rejected;
   }
@@ -334,7 +337,8 @@ export class ContentSuggestionService {
     try {
       // 倒序撤销，后改的先回退，避免同块的前一处逆操作失去前提
       for (const row of this.store.undoable(workspaceId, ids).reverse()) {
-        const inverse = JSON.parse(row.inverse!) as { edits: ScopedContentEdit[] };
+        if (!row.inverse) throw new Error(`建议 ${row.id} 缺少逆操作，无法撤销`);
+        const inverse = JSON.parse(row.inverse) as { edits: ScopedContentEdit[] };
         const result = await this.applyScoped(
           db,
           contentId,

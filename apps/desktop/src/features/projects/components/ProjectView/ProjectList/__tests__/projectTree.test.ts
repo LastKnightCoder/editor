@@ -34,7 +34,7 @@ const createItem = (id: number, children: number[] = []): ProjectItem => ({
   projectItemType: EProjectItemType.Document,
   count: 0,
   contentId: id,
-  whiteBoardContentId: 0,
+  whiteboardContentId: 0,
 });
 
 const createMap = (items: ProjectItem[]) => new Map(items.map(item => [item.id, item]));

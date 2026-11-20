@@ -263,12 +263,14 @@ export default class ContentLinkTable {
         [row.content_id, row.target_content_id],
         [row.target_content_id, row.content_id],
       ] as const) {
-        if (!neighbors.has(owner) || owner === target) continue;
-        if (seen.get(owner)!.has(target)) continue;
+        const ownerSeen = seen.get(owner);
+        const ownerTargets = neighbors.get(owner);
+        if (!ownerSeen || !ownerTargets || owner === target) continue;
+        if (ownerSeen.has(target)) continue;
         const entity = resolveTarget(target);
         if (!entity) continue;
-        seen.get(owner)!.add(target);
-        neighbors.get(owner)!.push(entity);
+        ownerSeen.add(target);
+        ownerTargets.push(entity);
       }
     }
     return ids.map(contentId => ({ contentId, targets: neighbors.get(contentId) ?? [] }));

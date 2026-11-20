@@ -64,12 +64,6 @@ export function selectUploadTarget(pluginId: string) {
   }));
 }
 
-export function currentProviderId(target: StorageTarget): string {
-  const { sync, imageBed } = useSettingStore.getState().setting;
-  if (target === "sync") return sync.active === ESync.Plugin ? (sync.plugin?.id ?? "") : "";
-  return imageBed.active === EImageBed.Plugin ? (imageBed.plugin?.id ?? "") : LOCAL_UPLOAD_TARGET;
-}
-
 /** 用给定插件与配置读取当前数据库的云端版本，不改变选用。 */
 export async function probeRemoteDatabaseVersion(pluginId: string, config: JsonValue) {
   const provider = new PluginSyncProvider(pluginId, copyJson(config));

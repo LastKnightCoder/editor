@@ -67,7 +67,7 @@ const SOURCE_RANK = { builtin: 0, plugin: 1, package: 2, mine: 3, linked: 4 } as
 let external: Skill[] = [];
 const composeSkills = () => [...toInternalSkills(), ...external.filter(isPackageSkillAvailable)];
 
-export const toInternalSkills = (): Skill[] =>
+const toInternalSkills = (): Skill[] =>
   getAllInternalSkills().map(skill => ({
     folderName: skill.folderName,
     name: skill.name,

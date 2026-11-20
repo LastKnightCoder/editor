@@ -255,7 +255,7 @@ const mount = async (collaboration = true) => {
   );
   await vi.waitFor(() => expect(ref.current?.document).toBeTruthy());
   await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve));
   });
   return { container, ref };
 };

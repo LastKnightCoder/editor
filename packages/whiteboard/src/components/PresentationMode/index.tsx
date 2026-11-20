@@ -1,5 +1,5 @@
 /**
- * 放映模式外壳（D-049 画布 chrome 换皮）：
+ * 放映模式外壳（画布 chrome 换皮）：
  * 底部居中一条 ChromeBar（上一帧 · 页码 · 下一帧 · 激光笔 · 退出），顶部墨底小提示；
  * 激光笔轨迹用 accent。只换外壳，翻页、激光笔轨迹计算、全屏保持原样。
  */
@@ -354,7 +354,7 @@ const PresentationMode: React.FC = () => {
   return (
     <div className="pointer-events-none absolute inset-0 z-[1000] overflow-hidden">
       {/* 放映控件：底部居中浮动条 */}
-      <ChromeBar className="pointer-events-auto bottom-[22px] left-1/2 z-[1001] -translate-x-1/2 select-none gap-0.5 text-[12.5px]">
+      <ChromeBar className="pointer-events-auto bottom-[22px] left-1/2 z-[1001] -translate-x-1/2 gap-0.5 text-[12.5px] select-none">
         <ChromeButton
           label="上一帧"
           tooltipPlacement="top"

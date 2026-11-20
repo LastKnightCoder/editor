@@ -48,39 +48,16 @@ export async function getModels(): Promise<ModelsResponse> {
  */
 export async function downloadModel(
   modelName: string,
-  source: DownloadSource,
+  source: DownloadSource
 ): Promise<DownloadResult> {
   return invoke("model-downloader-download", modelName, source);
-}
-
-/**
- * 取消下载
- */
-export async function cancelDownload(
-  modelName: string,
-): Promise<{ success: boolean }> {
-  return invoke("model-downloader-cancel", modelName);
-}
-
-/**
- * 检查模型是否已下载
- */
-export async function isModelDownloaded(modelName: string): Promise<boolean> {
-  return invoke("model-downloader-is-downloaded", modelName);
-}
-
-/**
- * 获取已下载的模型列表
- */
-export async function getDownloadedModels(): Promise<string[]> {
-  return invoke("model-downloader-get-downloaded");
 }
 
 /**
  * 删除模型
  */
 export async function deleteModel(
-  modelName: string,
+  modelName: string
 ): Promise<{ success: boolean; error?: string }> {
   return invoke("model-downloader-delete", modelName);
 }
@@ -93,32 +70,9 @@ export async function getModelsDir(): Promise<string> {
 }
 
 /**
- * 获取模型大小（已下载的）
- */
-export async function getModelSize(modelName: string): Promise<number> {
-  return invoke("model-downloader-get-size", modelName);
-}
-
-/**
- * 检查是否正在下载
- */
-export async function isDownloading(modelName: string): Promise<boolean> {
-  return invoke("model-downloader-is-downloading", modelName);
-}
-
-/**
- * 获取正在下载的模型列表
- */
-export async function getDownloadingModels(): Promise<string[]> {
-  return invoke("model-downloader-get-downloading");
-}
-
-/**
  * 监听下载进度
  */
-export function onDownloadProgress(
-  callback: (progress: DownloadProgress) => void,
-): () => void {
+export function onDownloadProgress(callback: (progress: DownloadProgress) => void): () => void {
   const handler = (_event: unknown, progress: DownloadProgress) => callback(progress);
   on("model-download-progress", handler);
   return () => off("model-download-progress", handler);
@@ -168,54 +122,24 @@ export async function getPrograms(): Promise<ProgramsResponse> {
 /**
  * 下载程序
  */
-export async function downloadProgram(
-  programName: string,
-): Promise<DownloadResult> {
+export async function downloadProgram(programName: string): Promise<DownloadResult> {
   return invoke("program-downloader-download", programName);
-}
-
-/**
- * 检查程序是否已下载
- */
-export async function isProgramDownloaded(programName: string): Promise<boolean> {
-  return invoke("program-downloader-is-downloaded", programName);
-}
-
-/**
- * 获取程序可执行文件路径
- */
-export async function getProgramExecutablePath(programName: string): Promise<string | null> {
-  return invoke("program-downloader-get-executable-path", programName);
-}
-
-/**
- * 获取已安装的程序类型列表
- */
-export async function getInstalledProgramTypes(): Promise<Array<"GPU" | "CPU">> {
-  return invoke("program-downloader-get-installed-types");
 }
 
 /**
  * 删除程序
  */
 export async function deleteProgram(
-  programName: string,
+  programName: string
 ): Promise<{ success: boolean; error?: string }> {
   return invoke("program-downloader-delete", programName);
-}
-
-/**
- * 获取程序目录
- */
-export async function getProgramsDir(): Promise<string> {
-  return invoke("program-downloader-get-dir");
 }
 
 /**
  * 监听程序下载进度
  */
 export function onProgramDownloadProgress(
-  callback: (progress: ProgramDownloadProgress) => void,
+  callback: (progress: ProgramDownloadProgress) => void
 ): () => void {
   const handler = (_event: unknown, progress: ProgramDownloadProgress) => callback(progress);
   on("program-download-progress", handler);

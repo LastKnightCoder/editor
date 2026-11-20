@@ -1,10 +1,10 @@
 /** 首页与文档页共用的站点入口：顶部导航、页脚与 GitHub 链接都从这里取 */
 export const GITHUB_REPO = "LastKnightCoder/editor";
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
-export const PLUGIN_CENTER_URL = "https://plugins.taunote.app";
-export const DOCS_PATH = "/docs/";
-export const CHANGELOG_PATH = "/changelog/";
-export const DEVELOPERS_PATH = "/developers/";
+const PLUGIN_CENTER_URL = "https://plugins.taunote.app";
+const DOCS_PATH = "/docs/";
+const CHANGELOG_PATH = "/changelog/";
+const DEVELOPERS_PATH = "/developers/";
 /** 各自是一个单页应用的文档集前缀：同一前缀内切换不整页刷新 */
 export const DOC_BASE_PATHS = [DOCS_PATH, DEVELOPERS_PATH] as const;
 

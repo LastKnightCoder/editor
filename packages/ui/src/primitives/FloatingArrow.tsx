@@ -1,6 +1,6 @@
 /**
  * 浮层菱形箭头 —— 8px 旋转方块（对应引擎 ARROW_SIZE 常量）、尖端单角 2.5px 圆角，
- * 几何与 D-004 Tooltip 箭头同源。配色按浮层底色分两档：tooltip = 反相（ink-1 底 +
+ * 几何与 Tooltip 箭头同源。配色按浮层底色分两档：tooltip = 反相（ink-1 底 +
  * ink-inverse 描边）；surface = 亮底（Popover 用）。贴哪条边与 left/top 投影值由
  * 定位引擎写入 inline style（anchoredPosition 的 applyArrowPosition）；本组件只
  * 负责随宿主 data-side 的旋转与描边形态——宿主容器需带 `group/float` 类并写 data-side。

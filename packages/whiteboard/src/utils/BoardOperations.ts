@@ -27,7 +27,7 @@ export class BoardOperations {
       return;
     throw Object.assign(
       new Error(
-        "[WhiteBoard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。"
+        "[Whiteboard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。"
       ),
       {
         detail: {
@@ -598,7 +598,7 @@ export class BoardOperations {
   }
 
   static isNormalizedOperation(operation: Operation): boolean {
-    return Boolean((operation as any)[NORMALIZED_OPERATION]);
+    return Boolean((operation as Operation & Record<symbol, unknown>)[NORMALIZED_OPERATION]);
   }
 
   private static cloneOperation(operation: Operation, preserveNormalization = false): Operation {
@@ -762,7 +762,9 @@ export class BoardOperations {
     newPathRef: OperationPathRef | null;
   } {
     const shouldTrackPath = BoardOperations.operationHasPath(operation);
-    const pathRef = shouldTrackPath ? manager.track((operation as any).path, operation.type) : null;
+    const pathRef = shouldTrackPath
+      ? manager.track((operation as Extract<Operation, { path: Path }>).path, operation.type)
+      : null;
     const newPathRef =
       operation.type === "move_node"
         ? manager.track(

@@ -1,5 +1,5 @@
 /**
- * 月视图（方案 C：整块大面板 + 格内细线，含邻月日期）。
+ * 月视图（整块大面板 + 格内细线，含邻月日期）。
  *
  * 交互：单击格子 = 选中这一天（右栏当日时间线跟随）；双击 = 新建全天日程；
  * 拖过多天 = 新建跨天日程；待办拖入日期 = 新建全天安排；点日程 = 速览浮层。
@@ -228,8 +228,8 @@ const MonthView = () => {
       : [];
 
   return (
-    <div className="flex h-full flex-col pb-4 pl-1.5 pr-[18px] pt-1">
-      <div className="grid flex-none grid-cols-7 pb-1.5 pt-2">
+    <div className="flex h-full flex-col pt-1 pr-[18px] pb-4 pl-1.5">
+      <div className="grid flex-none grid-cols-7 pt-2 pb-1.5">
         {WEEKDAYS.map(day => (
           <span key={day} className="text-ink-3 pl-2.5 text-[12px]">
             周{day}

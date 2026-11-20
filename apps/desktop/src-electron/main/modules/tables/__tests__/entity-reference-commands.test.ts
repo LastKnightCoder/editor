@@ -5,17 +5,12 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import { ContentIdentityTable } from "../content-identity";
 import DataTableTable from "../data-table";
 import DataTableViewTable from "../data-table-view";
-import WhiteBoardContentTable from "../white-board-content";
+import WhiteboardContentTable from "../white-board-content";
 import ProjectTable from "../project";
+import { must } from "../../../test-support";
 
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 const databases: Database.Database[] = [];
 afterEach(() => databases.splice(0).forEach(db => db.close()));
 function database() {
@@ -68,13 +63,16 @@ describe("领域命令直接接纳稳定引用", () => {
     ContentIdentityTable.establishBaseline(db);
     const a = DataTableTable.createPending(db),
       b = DataTableTable.createPending(db);
-    const foreignView = b.table.activeViewId!;
+    const foreignView = must(b.table.activeViewId, "b.table.activeViewId");
     expect(() => DataTableViewTable.remove(db, { id: foreignView, tableId: a.reference })).toThrow(
       "视图不属于"
     );
     expect(() =>
       DataTableViewTable.update(db, {
-        ...DataTableViewTable.getById(db, foreignView)!,
+        ...must(
+          DataTableViewTable.getById(db, foreignView),
+          "DataTableViewTable.getById(db, foreignView)"
+        ),
         tableId: a.reference,
       })
     ).toThrow("视图不属于");
@@ -102,7 +100,7 @@ describe("领域命令直接接纳稳定引用", () => {
     expect(() => ProjectTable.getProjectItem(db, { ...project, sourceId: "different" })).toThrow(
       "引用不属于"
     );
-    expect(() => WhiteBoardContentTable.getWhiteboardContent(db, project)).toThrow("类型不匹配");
+    expect(() => WhiteboardContentTable.getWhiteboardContent(db, project)).toThrow("类型不匹配");
     ContentIdentityTable.retire(db, "project-item", 42);
     expect(() => ProjectTable.getChildren(db, project)).toThrow("引用不属于");
   });

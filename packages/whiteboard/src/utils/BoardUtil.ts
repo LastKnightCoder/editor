@@ -424,7 +424,7 @@ export class BoardUtil {
     const properties: SetNodePatch = {};
     for (const key in changes) {
       if (key === "children") continue;
-      (properties as any)[key] = (element as any)[key];
+      (properties as Record<string, unknown>)[key] = (element as Record<string, unknown>)[key];
     }
     return properties;
   }

@@ -13,7 +13,7 @@
 
 export const tokenContract = {
   surface: ["bg-page", "bg-surface", "bg-surface-hover", "bg-sunken"],
-  // 控件部件色（不在表面阶梯里——不受 D-006「沉到 page 之下」约束）：开关/滑杆轨道
+  // 控件部件色（不在表面阶梯里——不受「沉到 page 之下」约束）：开关/滑杆轨道
   control: ["bg-track"],
   interaction: ["bg-hover", "bg-press", "bg-selected"],
   ink: ["ink-1", "ink-2", "ink-3", "ink-inverse"],

@@ -1,13 +1,7 @@
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { afterEach, describe, expect, it, vi } from "vitest";
-vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
-  app: { getPath: () => "/tmp" },
-}));
-vi.mock("../../video-note-index-queue", () => ({
-  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
-}));
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 import Database from "better-sqlite3";
 import * as Y from "yjs";
 import {
@@ -43,6 +37,7 @@ import { SqliteContentProjection } from "../../content-runtime/sqlite-content-pr
 import ContentTable from "../../tables/content";
 import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
+import { must } from "../../../test-support";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -128,7 +123,13 @@ async function nodeRuntime() {
     collabId: string,
     children: ContentNode[],
     extra = {}
-  ): ContentNode => ({ type, collabId, tauContract: ids.get(type)!, children, ...extra });
+  ): ContentNode => ({
+    type,
+    collabId,
+    tauContract: must(ids.get(type), "ids.get(type)"),
+    children,
+    ...extra,
+  });
   const content = [
     node("check-list", "list", [
       node("check-list-item", "item", [
@@ -161,7 +162,7 @@ describe("本机内容会话", () => {
       { count: 0, installDocument: true }
     );
     expect(ContentTable.ensureTaskIds(db, 7)).toBe(1);
-    const first = ContentTable.getContentById(db, 7)!;
+    const first = must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)");
     expect(first.content[0]).toMatchObject({ children: [{ taskId: expect.any(String) }] });
     expect(
       patchSessionNodes(
@@ -170,31 +171,42 @@ describe("本机内容会话", () => {
         undefined,
         text =>
           [...text.matchAll(/#发布/g)].map(match => ({
-            index: match.index! + 1,
+            index: must(match.index, "match.index") + 1,
             remove: 2,
             insert: "上线",
           }))
       )
     ).toBe(2);
     const projected = { ...initial, content: readSessionContent(session).content };
-    const projection = new SqliteContentProjection(db, session.info.source!, session.info);
+    const projection = new SqliteContentProjection(
+      db,
+      must(session.info.source, "session.info.source"),
+      session.info
+    );
     const snapshot = { kind: "snapshot", count: 12 } as const;
     expect(
       projection.commit({ ...snapshot, ...projected, expectedRevision: initial.revision }).changed
     ).toBe(true);
-    const stored = ContentDocumentTable.read(db, 7)!;
-    expect(stored.content).toEqual(ContentTable.getContentById(db, 7)!.content);
+    const stored = must(ContentDocumentTable.read(db, 7), "ContentDocumentTable.read(db, 7)");
+    expect(stored.content).toEqual(
+      must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)").content
+    );
     expect(JSON.stringify(stored.content)).toContain("#上线");
     expect(
       projection.commit({ ...snapshot, ...stored, expectedRevision: stored.revision }).changed
     ).toBe(false);
     const reordered = JSON.parse(canonicalContractJson(stored));
     expect(JSON.stringify(reordered.content)).not.toBe(JSON.stringify(stored.content));
-    const updateTime = ContentTable.getContentById(db, 7)!.updateTime;
+    const updateTime = must(
+      ContentTable.getContentById(db, 7),
+      "ContentTable.getContentById(db, 7)"
+    ).updateTime;
     expect(
       projection.commit({ ...snapshot, ...reordered, expectedRevision: stored.revision }).changed
     ).toBe(false);
-    expect(ContentTable.getContentById(db, 7)!.updateTime).toBe(updateTime);
+    expect(
+      must(ContentTable.getContentById(db, 7), "ContentTable.getContentById(db, 7)").updateTime
+    ).toBe(updateTime);
     expect(ContentDocumentTable.read(db, 7)).toEqual(stored);
     expect(
       db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all()
@@ -235,7 +247,11 @@ describe("本机内容会话", () => {
     };
     expect(() => patchSessionNodes(session, () => ({ custom: "丢失" }))).toThrow("磁盘满");
     expect(Y.encodeStateAsUpdate(session.doc)).toEqual(before);
-    const projection = new SqliteContentProjection(database(), session.info.source!, session.info);
+    const projection = new SqliteContentProjection(
+      database(),
+      must(session.info.source, "session.info.source"),
+      session.info
+    );
     expect(() =>
       projection.commit({
         kind: "snapshot",
@@ -265,16 +281,30 @@ describe("本机内容会话", () => {
     const other = { ...main, doc: view } as RuntimeSession;
     patchSessionNodes(main, createTaskIdPatcher());
     patchSessionNodes(other, createTaskIdPatcher());
-    const taskId = (readNodeDocument(main.doc).content[0].children![0] as { taskId: string })
-      .taskId;
-    expect((readNodeDocument(view).content[0].children![0] as { taskId: string }).taskId).toBe(
-      taskId
-    );
+    const taskId = (
+      must(
+        readNodeDocument(main.doc).content[0].children,
+        "readNodeDocument(main.doc).content[0].children"
+      )[0] as { taskId: string }
+    ).taskId;
+    expect(
+      (
+        must(
+          readNodeDocument(view).content[0].children,
+          "readNodeDocument(view).content[0].children"
+        )[0] as { taskId: string }
+      ).taskId
+    ).toBe(taskId);
     Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(view));
     Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
-    expect((readNodeDocument(main.doc).content[0].children![0] as { taskId: string }).taskId).toBe(
-      taskId
-    );
+    expect(
+      (
+        must(
+          readNodeDocument(main.doc).content[0].children,
+          "readNodeDocument(main.doc).content[0].children"
+        )[0] as { taskId: string }
+      ).taskId
+    ).toBe(taskId);
     view.destroy();
   });
 
@@ -295,7 +325,7 @@ describe("本机内容会话", () => {
       undefined,
       text =>
         [...text.matchAll(/#发布/g)].map(match => ({
-          index: match.index! + 1,
+          index: must(match.index, "match.index") + 1,
           remove: 2,
           insert: "上线",
         }))
@@ -429,7 +459,11 @@ describe("本机内容会话", () => {
     Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
     const viewTree = new NodeTree(view);
     const mainTree = new NodeTree(main.doc);
-    const firstParagraphId = String(mainTree.read()[0].children![0].children![0].collabId);
+    const firstBlock = must(
+      must(mainTree.read()[0].children, "children")[0].children,
+      "children"
+    )[0];
+    const firstParagraphId = String(firstBlock.collabId);
     viewTree.insertText(firstParagraphId, 1, "改", "view");
     const listId = String(mainTree.read()[0].collabId);
     const listBefore = mainTree.nodes.get(listId);

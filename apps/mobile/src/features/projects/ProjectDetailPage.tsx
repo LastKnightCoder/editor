@@ -1,4 +1,4 @@
-// 项目详情（v1.1 设计稿）：信息卡 + 面包屑逐层下钻（替代桌面常驻侧栏树），
+// 项目详情：信息卡 + 面包屑逐层下钻（替代桌面常驻侧栏树），
 // 完整结构收进树抽屉；文档节点点击进入编辑器（打开即编辑）。
 // 每一层是一个页面实例（itemId 为空即根层），返回 / 右滑由路由逐层退回。
 
@@ -267,7 +267,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                 <Star size={14} fill="currentColor" className="text-accent-text ml-auto shrink-0" />
               ) : null}
             </div>
-            <h1 className="text-ink-1 mobile-reading-font mt-3 text-[24px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 mobile-reading-font mt-3 text-[24px] leading-tight font-extrabold tracking-[-0.02em]">
               {project.title}
             </h1>
             {project.descText ? (
@@ -286,10 +286,10 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         ) : null}
 
         {/* 路径栏：面包屑 + 完整结构入口合而为一 */}
-        <div className="card mb-2.5 mt-4 flex items-center gap-2 px-4 py-[9px]">
+        <div className="card mt-4 mb-2.5 flex items-center gap-2 px-4 py-[9px]">
           <div
             ref={pathRef}
-            className="edge-fade-x-scroll scrollbar-hide text-ink-2 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[13px]"
+            className="edge-fade-x-scroll scrollbar-hide text-ink-2 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto text-[13px] whitespace-nowrap"
           >
             {path.map((segment, index) => (
               <span key={segment.id ?? "root"} className="flex shrink-0 items-center gap-1.5">
@@ -399,7 +399,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         type="button"
         aria-label="添加节点"
         onClick={() => setAddOpen(true)}
-        className="shadow-lift text-ink-inverse absolute bottom-[calc(20px+var(--mobile-screen-safe-bottom))] right-[18px] grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform active:rotate-90 active:scale-90"
+        className="shadow-lift text-ink-inverse absolute right-[18px] bottom-[calc(20px+var(--mobile-screen-safe-bottom))] grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform active:scale-90 active:rotate-90"
         style={{ background: "var(--tau-accent)" }}
       >
         <Plus size={23} strokeWidth={2.6} />
@@ -465,7 +465,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                 onClick={() => toast({ type: "info", text: `${entry.meta.label}节点将在二期提供` })}
               >
                 {entry.soon ? (
-                  <span className="bg-tag-4-soft text-tag-4 absolute right-1 top-0 rounded-full px-1.5 py-px text-[8.5px] font-bold tracking-wider">
+                  <span className="bg-tag-4-soft text-tag-4 absolute top-0 right-1 rounded-full px-1.5 py-px text-[8.5px] font-bold tracking-wider">
                     二期
                   </span>
                 ) : null}

@@ -12,6 +12,7 @@ import {
   sectionsForIndex,
   writeContentSections,
 } from "../content-sections";
+import type { SqliteRow } from "../../types/table";
 
 /** 一个实体可能有多个节命中：按块召回时多取几倍再按实体去重，避免长文占满名额 */
 const CHUNKS_PER_RESULT = 4;
@@ -155,15 +156,15 @@ export default class VecDocumentTable {
     };
   }
 
-  static parseVecDocument(document: any): VecDocument {
-    const { id, type } = extractIdFromPrefixed(document.prefixed_id);
+  static parseVecDocument(document: SqliteRow): VecDocument {
+    const { id, type } = extractIdFromPrefixed(document.prefixed_id as string);
 
     return {
-      updateTime: document.update_time,
+      updateTime: document.update_time as number,
       id: parseInt(id),
       type,
-      content: document.content,
-      chunkIndex: document.chunk_index,
+      content: document.content as string,
+      chunkIndex: document.chunk_index as number,
     };
   }
 
@@ -209,9 +210,9 @@ export default class VecDocumentTable {
     const searchRes = searchStmt.all(...params);
 
     const res: Array<[document: VecDocument, distance: number]> = [];
-    for (const row of searchRes as any[]) {
+    for (const row of searchRes as SqliteRow[]) {
       const doc = this.parseVecDocument(row);
-      const docDistance = row.distance;
+      const docDistance = row.distance as number;
       res.push([doc, docDistance]);
     }
     return res;
@@ -452,7 +453,7 @@ export default class VecDocumentTable {
     const stmt = db.prepare(`
       SELECT update_time FROM vec_documents WHERE prefixed_id = ?
     `);
-    const result: any = stmt.get(prefixedId);
+    const result = stmt.get(prefixedId) as { update_time: number | null } | undefined;
     if (!result || result.update_time === null || result.update_time === undefined) {
       return null;
     }
@@ -480,7 +481,7 @@ export default class VecDocumentTable {
     query += ` GROUP BY prefixed_id`;
 
     const stmt = indexDb.prepare(query);
-    const documents = type ? stmt.all(type) : stmt.all();
+    const documents = (type ? stmt.all(type) : stmt.all()) as SqliteRow[];
     const vecDocuments = documents.map(doc => this.parseVecDocument(doc));
     const results: SearchResult[] = [];
 

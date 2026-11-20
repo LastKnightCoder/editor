@@ -39,7 +39,7 @@ export class VideoController implements VideoController {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Check if canvas is tainted (CORS issue)
+    // 跨域视频会污染 canvas，先取一个像素探测，污染后导不出图
     try {
       ctx.getImageData(0, 0, 1, 1);
     } catch {

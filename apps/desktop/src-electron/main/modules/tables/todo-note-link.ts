@@ -3,6 +3,7 @@ import { TodoNoteLink, AttachExistingNotePayload } from "@/types";
 import ContentTable from "./content";
 import { Descendant } from "slate";
 import { prepareTaskNodes } from "../content-task-patches";
+import type { SqliteRow } from "../../types/table";
 
 export default class TodoNoteLinkTable {
   static getListenEvents() {
@@ -18,16 +19,16 @@ export default class TodoNoteLinkTable {
     } as const;
   }
 
-  static parse(row: any): TodoNoteLink {
+  static parse(row: SqliteRow): TodoNoteLink {
     return {
-      id: row.id,
-      todoId: row.todo_id,
-      contentId: row.content_id,
-      title: row.title ?? undefined,
-      type: row.type ?? undefined,
-      sortIndex: row.sort_index,
-      createTime: row.create_time,
-      updateTime: row.update_time,
+      id: row.id as number,
+      todoId: row.todo_id as number,
+      contentId: row.content_id as number,
+      title: (row.title as string | null) ?? undefined,
+      type: (row.type as string | null) ?? undefined,
+      sortIndex: row.sort_index as number,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
     };
   }
 
@@ -35,7 +36,7 @@ export default class TodoNoteLinkTable {
     const stmt = db.prepare(
       `SELECT * FROM todo_note_link WHERE todo_id = ? ORDER BY sort_index ASC, create_time ASC`
     );
-    return (stmt.all(params.todoId) as any[]).map(this.parse);
+    return (stmt.all(params.todoId) as SqliteRow[]).map(this.parse);
   }
 
   static listByTodoIds(
@@ -51,7 +52,7 @@ export default class TodoNoteLinkTable {
       .prepare(
         `SELECT * FROM todo_note_link WHERE todo_id IN (${placeholders}) ORDER BY todo_id ASC, sort_index ASC, create_time ASC`
       )
-      .all(...params.todoIds) as any[];
+      .all(...params.todoIds) as SqliteRow[];
 
     const grouped: Record<number, TodoNoteLink[]> = {};
     rows.forEach(row => {
@@ -62,7 +63,9 @@ export default class TodoNoteLinkTable {
   }
 
   static getById(db: Database.Database, params: { linkId: number }): TodoNoteLink | null {
-    const row = db.prepare(`SELECT * FROM todo_note_link WHERE id = ?`).get(params.linkId);
+    const row = db.prepare(`SELECT * FROM todo_note_link WHERE id = ?`).get(params.linkId) as
+      | SqliteRow
+      | undefined;
     return row ? this.parse(row) : null;
   }
 
@@ -98,7 +101,7 @@ export default class TodoNoteLinkTable {
     if (increaseRef) {
       ContentTable.incrementRefCount(db, payload.contentId);
     }
-    const row = db.prepare(`SELECT * FROM todo_note_link WHERE id = ?`).get(id);
+    const row = db.prepare(`SELECT * FROM todo_note_link WHERE id = ?`).get(id) as SqliteRow;
     return this.parse(row);
   }
 
