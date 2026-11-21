@@ -68,7 +68,15 @@ export interface ProjectDocumentPosition {
   parentId: number;
 }
 
+export type ProjectLinkSourceType = "card" | "article" | "document";
+
 export type ProjectDocumentMutation =
+  | {
+      action: "link";
+      position: ProjectDocumentPosition;
+      sourceType: ProjectLinkSourceType;
+      sourceId: number;
+    }
   | {
       action: "create";
       position: ProjectDocumentPosition;
@@ -88,4 +96,6 @@ export interface ProjectDocumentMutationResult extends ProjectDocumentPosition {
   contentId: number;
   index: number;
   stillMounted: boolean;
+  /** 关联到项目时，区分新增挂载与已在该目录。 */
+  changed?: boolean;
 }

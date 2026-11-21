@@ -7,7 +7,7 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import { fallbackCommandContext } from "@tau/rpc";
 import "@/commands/contracts/install";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { EProjectItemType } from "@/types/project";
+import { EProjectItemType, type ProjectLinkSourceType } from "@/types/project";
 import { must } from "../../../../src-electron/main/test-support";
 import { ToolRegistry } from "@/tools/toolRegistry";
 import { rememberDatabaseConnection } from "@/services/command-context";
@@ -100,6 +100,13 @@ const move = (
 const remove = (documentId: number, projectId: number, parentId: number) =>
   run("delete_project_document", { documentId, projectId, parentId });
 
+const link = (
+  sourceType: ProjectLinkSourceType,
+  sourceId: number,
+  projectId: number,
+  parentId = 0
+) => run("link_to_project", { sourceType, sourceId, projectId, parentId });
+
 function storedState() {
   return ["project", "project_item", "content_documents", "contents", "operation"].map(table =>
     db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()
@@ -126,6 +133,15 @@ it("经工具新建的 Markdown 正文可读，删除实体只释放自己的正
       whiteboardContentId: 0,
     });
     expect(ref?.contentId).toBe(entity.contentId);
+    const before = storedState();
+    expect(
+      await run("link_to_project", { sourceType: kind, sourceId: entity[key], projectId })
+    ).toMatchObject({
+      changed: false,
+      documentId: must(ref).id,
+      contentId: entity.contentId,
+    });
+    expect(storedState()).toEqual(before);
     await run("delete_" + kind, { [key]: entity[key] });
     expect(
       db.prepare("SELECT content,ref_count FROM content_snapshots WHERE id=?").get(entity.contentId)
@@ -204,6 +220,48 @@ it("从两个项目访问同一父目录可重排，独立根挂载在移除父�
     parents: [],
     contentId: child.contentId,
   });
+});
+
+it("同一正文的卡片和文章分别关联，同目录重试保留各自的位置", async () => {
+  const target = project("共享正文");
+  const card = await run("create_card", { markdown: "共同正文" });
+  const article = ArticleTable.buildArticleFromContent(db, card.contentId, "访谈结论");
+  const cardLink = await link("card", card.cardId, target);
+  const articleLink = await link("article", article.id, target);
+  expect(cardLink.documentId).not.toBe(articleLink.documentId);
+  expect(articleLink.contentId).toBe(cardLink.contentId);
+  const before = storedState();
+  expect(await link("article", article.id, target)).toMatchObject({
+    changed: false,
+    documentId: articleLink.documentId,
+    index: 1,
+  });
+  expect(await link("card", card.cardId, target)).toMatchObject({
+    changed: false,
+    documentId: cardLink.documentId,
+    index: 0,
+  });
+  expect(storedState()).toEqual(before);
+  await remove(cardLink.documentId, target, 0);
+  expect(ProjectTable.getProject(db, target).children).toEqual([articleLink.documentId]);
+  expect(db.prepare("SELECT ref_count FROM contents WHERE id=?").pluck().get(card.contentId)).toBe(
+    3
+  );
+});
+
+it("关联前校验目标目录和来源，拒绝形成环并保留原挂载", async () => {
+  const a = project("来源"),
+    b = project("目标");
+  const root = await create(a);
+  const child = await create(a, root.documentId);
+  await link("document", child.documentId, b);
+  const before = storedState();
+  await expect(link("document", root.documentId, b, child.documentId)).rejects.toThrow("子文档");
+  await expect(link("document", child.documentId, a, child.documentId)).rejects.toThrow("自身");
+  await expect(link("document", child.documentId, b, root.documentId)).rejects.toThrow("父文档");
+  for (const kind of ["card", "article", "document"] as const)
+    await expect(link(kind, 999999, b)).rejects.toThrow("不存在");
+  expect(storedState()).toEqual(before);
 });
 
 interface ItemRow {
@@ -371,9 +429,29 @@ it.runIf(process.env.TAU_DOCUMENT_TOOL_STRESS === "1")(
     WHEN NEW.id=${tail} BEGIN SELECT RAISE(ABORT,'末端归属写入中断'); END`);
     const before = storedState();
     await expect(move(root.documentId, a, 0, b, 0)).rejects.toThrow("末端归属写入中断");
+    await expect(link("document", root.documentId, b)).rejects.toThrow("末端归属写入中断");
     db.close();
     db = new Database(join(directory, databaseName));
     expect(storedState()).toEqual(before);
+    const mounted = await link("document", root.documentId, b);
+    expect(mounted).toMatchObject({
+      changed: true,
+      documentId: root.documentId,
+      contentId: root.contentId,
+    });
+    expect(
+      db
+        .prepare("SELECT count(*) FROM project_item WHERE projects=?")
+        .pluck()
+        .get(JSON.stringify([a, b]))
+    ).toBe(depth);
+    expect(await remove(root.documentId, b, 0)).toMatchObject({ stillMounted: true });
+    expect(
+      db
+        .prepare("SELECT count(*) FROM project_item WHERE projects=?")
+        .pluck()
+        .get(JSON.stringify([a]))
+    ).toBe(depth);
     await move(root.documentId, a, 0, b, 0);
     expect(ProjectTable.getProject(db, a).children).toEqual([]);
     expect(ProjectTable.getProject(db, b).children).toEqual([root.documentId]);
@@ -394,6 +472,115 @@ it.runIf(process.env.TAU_DOCUMENT_TOOL_STRESS === "1")(
     expect(db.prepare("SELECT count(*) FROM content_snapshots").pluck().get()).toBe(0);
     expect(db.prepare("SELECT count(*) FROM project_item").pluck().get()).toBe(0);
     console.info(JSON.stringify({ depth, calls }));
+  },
+  180000
+);
+
+it.runIf(process.env.TAU_DOCUMENT_TOOL_STRESS === "1")(
+  "不同来源反复关联到共享父目录与项目根，解除后原来源独立可用",
+  async () => {
+    const home = project("原库中的来源项目"),
+      a = project("项目甲"),
+      b = project("项目乙"),
+      c = project("项目丙");
+    const shared = (await create(a)).documentId;
+    await link("document", shared, b);
+    const kinds = ["card", "article", "document"] as const;
+    const refs = db.prepare("SELECT ref_count FROM contents WHERE id=?").pluck();
+    const rootEntries = () => ProjectTable.getProject(db, c).children;
+    const childEntries = () => must(ProjectTable.getProjectItem(db, shared)).children;
+    const sources = [];
+    let injected = 0;
+    for (let i = 0; i < 96; i++) {
+      const kind = kinds[i % kinds.length];
+      const source =
+        kind === "document"
+          ? await create(home)
+          : await run("create_" + kind, { markdown: "共享原文 " + i });
+      const id = Number(source[kind + "Id"]);
+      const contentId = Number(source.contentId);
+      if (i % 12 < 3) {
+        const before = storedState();
+        db.exec(`CREATE TEMP TRIGGER fail_link BEFORE UPDATE OF children ON project WHEN NEW.id=${c}
+        BEGIN SELECT RAISE(ABORT, '目录写入中断'); END`);
+        await expect(link(kind, id, c)).rejects.toThrow("目录写入中断");
+        db.exec("DROP TRIGGER fail_link");
+        expect(storedState()).toEqual(before);
+        injected++;
+      }
+      const atRoot = await link(kind, id, c);
+      expect(atRoot).toMatchObject({ changed: true, index: i, contentId });
+      const batch = await Promise.all(
+        Array.from({ length: 8 }, (_, j) => link(kind, id, j % 2 ? b : a, shared))
+      );
+      const created = batch.filter(result => result.changed);
+      expect(created).toHaveLength(1);
+      const atParent = created[0];
+      for (const result of batch)
+        expect(result).toMatchObject({ documentId: atParent.documentId, index: i, contentId });
+      if (kind === "document") {
+        expect(atRoot.documentId).toBe(id);
+        expect(atParent.documentId).toBe(id);
+      } else {
+        expect(atRoot.documentId).not.toBe(atParent.documentId);
+        expect(ProjectTable.getProjectItem(db, atParent.documentId)).toMatchObject({
+          refType: kind,
+          refId: id,
+          contentId,
+        });
+      }
+      expect(refs.get(contentId)).toBe(kind === "document" ? 1 : 3);
+      sources.push({
+        kind,
+        id,
+        contentId,
+        root: Number(atRoot.documentId),
+        child: Number(atParent.documentId),
+      });
+    }
+    expect(rootEntries()).toEqual(sources.map(source => source.root));
+    expect(childEntries()).toEqual(sources.map(source => source.child));
+    for (const [i, source] of sources.entries()) {
+      const { kind, id, contentId, root, child } = source;
+      if (i % 12 < 3) {
+        const before = storedState();
+        const failure =
+          kind === "document"
+            ? `UPDATE OF projects ON project_item WHEN NEW.id=${id}`
+            : `UPDATE OF ref_count ON contents WHEN NEW.id=${contentId}`;
+        db.exec(
+          `CREATE TEMP TRIGGER fail_unlink BEFORE ${failure} BEGIN SELECT RAISE(ABORT, '解除中断'); END`
+        );
+        await expect(remove(child, b, shared)).rejects.toThrow("解除中断");
+        db.exec("DROP TRIGGER fail_unlink");
+        expect(storedState()).toEqual(before);
+        injected++;
+      }
+      await remove(child, b, shared);
+      expect(rootEntries()).toContain(root);
+      expect(childEntries()).not.toContain(child);
+      expect(refs.get(contentId)).toBe(kind === "document" ? 1 : 2);
+      await remove(root, c, 0);
+      expect(refs.get(contentId)).toBe(1);
+      if (kind === "document")
+        expect(ProjectTable.getProjectItem(db, id)).toMatchObject({
+          contentId,
+          projects: [home],
+          parents: [],
+        });
+      else {
+        const original =
+          kind === "card" ? CardTable.getCardById(db, id) : ArticleTable.getArticleById(db, id);
+        expect(original).toMatchObject({ id, contentId });
+      }
+    }
+    expect(rootEntries()).toEqual([]);
+    expect(childEntries()).toEqual([]);
+    expect(ProjectTable.getProject(db, home).children).toEqual(
+      sources.filter(s => s.kind === "document").map(s => s.id)
+    );
+    expect(db.pragma("integrity_check", { simple: true })).toBe("ok");
+    console.info(JSON.stringify({ calls, distinctSources: sources.length, injected }));
   },
   180000
 );

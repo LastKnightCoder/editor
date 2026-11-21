@@ -24,6 +24,7 @@ import type { SqliteRow } from "../../types/table";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
+import { contentTitle } from "./content-ai-meta";
 import { ContentIdentityTable } from "./content-identity";
 import type { ContentEntityTarget } from "@tau/db-schema/content-identities";
 import { prepareCanonicalContentTitle } from "../collaboration/content-sessions";
@@ -770,6 +771,117 @@ export default class ProjectTable {
     return parent.children;
   }
 
+  private static appendDocumentAt(
+    db: Database.Database,
+    position: ProjectDocumentPosition,
+    item: Extract<ProjectDocumentMutation, { action: "create" }>["item"],
+    reference?: { type: "card" | "article"; id: number; contentId: number }
+  ): ProjectItem {
+    const { title, tags, content, contracts, count } = item;
+    const input: CreateProjectItem = {
+      title,
+      tags,
+      content,
+      contracts,
+      count,
+      children: [],
+      refType: reference?.type ?? "",
+      refId: reference?.id ?? 0,
+      contentId: reference?.contentId,
+      projectItemType: EProjectItemType.Document,
+      whiteboardContentId: 0,
+    };
+    const result =
+      position.parentId === 0
+        ? this.addRootProjectItem(db, position.projectId, input)
+        : this.addChildProjectItem(db, position.parentId, input);
+    const created = result?.[1];
+    if (!created) throw new Error("新建项目文档失败");
+    return created;
+  }
+
+  private static linkToProject(
+    db: Database.Database,
+    { sourceType, sourceId, position }: Extract<ProjectDocumentMutation, { action: "link" }>,
+    children: number[]
+  ): ProjectDocumentMutationResult {
+    const { projectId, parentId } = position;
+    if (sourceType === "document") {
+      const item = this.getProjectItem(db, sourceId);
+      if (!item || item.projectItemType !== EProjectItemType.Document)
+        throw new Error("来源项目文档不存在");
+      const index = children.indexOf(sourceId);
+      const result = {
+        ...position,
+        documentId: sourceId,
+        contentId: item.contentId,
+        stillMounted: true,
+      };
+      if (index >= 0) return { ...result, index, changed: false };
+      if (
+        parentId === sourceId ||
+        (parentId !== 0 && this.isProjectItemDescendant(db, sourceId, parentId))
+      )
+        throw new Error("不能将文档关联到自身或子文档下");
+      const mounted =
+        parentId === 0
+          ? this.addRefRootProjectItem(db, projectId, sourceId)
+          : this.addRefChildProjectItem(db, parentId, sourceId);
+      if (!mounted) throw new Error("关联项目文档失败");
+      return { ...result, index: children.length, changed: true };
+    }
+
+    if (sourceType !== "card" && sourceType !== "article") throw new Error("无效的关联来源");
+    const source = db
+      .prepare(
+        sourceType === "card"
+          ? "SELECT c.id AS contentId, '' AS title FROM cards e JOIN contents c ON c.id=e.content_id WHERE e.id=?"
+          : "SELECT c.id AS contentId, e.title FROM articles e JOIN contents c ON c.id=e.content_id WHERE e.id=? AND e.is_delete=0"
+      )
+      .get(sourceId) as { contentId: number; title: string } | undefined;
+    if (!source)
+      throw new Error(sourceType === "card" ? "来源卡片或正文不存在" : "来源文章或正文不存在");
+    const { contentId } = source;
+    const existing = db
+      .prepare(`
+      SELECT i.id AS documentId, edge.key AS position FROM json_each(?) edge
+      JOIN project_item i ON i.id=edge.value
+      WHERE i.ref_type=? AND i.ref_id=? AND i.content_id=?
+      ORDER BY edge.key LIMIT 1
+    `)
+      .get(JSON.stringify(children), sourceType, sourceId, contentId) as
+      | { documentId: number; position: number }
+      | undefined;
+    if (existing)
+      return {
+        ...position,
+        documentId: existing.documentId,
+        index: existing.position,
+        contentId,
+        stillMounted: true,
+        changed: false,
+      };
+
+    const title =
+      source.title ||
+      contentTitle(db, contentId, 30) ||
+      (sourceType === "card" ? "未命名卡片" : "未命名文章");
+    const item = this.appendDocumentAt(
+      db,
+      position,
+      { title, content: [], count: 0 },
+      { type: sourceType, id: sourceId, contentId }
+    );
+    return {
+      ...position,
+      documentId: item.id,
+      index: children.length,
+      contentId,
+      stillMounted: true,
+      changed: true,
+    };
+  }
+
   static mutateDocument(
     db: Database.Database,
     request: ProjectDocumentMutation
@@ -777,26 +889,9 @@ export default class ProjectTable {
     return db.transaction(() => {
       const position = request.position;
       const source = this.childrenAt(db, position);
+      if (request.action === "link") return this.linkToProject(db, request, source);
       if (request.action === "create") {
-        const { title, tags, content, contracts, count } = request.item;
-        const input: CreateProjectItem = {
-          title,
-          tags,
-          content,
-          contracts,
-          count,
-          children: [],
-          refType: "",
-          refId: 0,
-          projectItemType: EProjectItemType.Document,
-          whiteboardContentId: 0,
-        };
-        const created =
-          position.parentId === 0
-            ? this.addRootProjectItem(db, position.projectId, input)
-            : this.addChildProjectItem(db, position.parentId, input);
-        const item = created?.[1];
-        if (!item) throw new Error("新建项目文档失败");
+        const item = this.appendDocumentAt(db, position, request.item);
         return {
           ...position,
           documentId: item.id,

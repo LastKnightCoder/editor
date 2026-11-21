@@ -154,7 +154,7 @@ function readPosition(args: Args) {
 export const projectDocumentToolsProvider: MCPProviderDefinition = {
   id: "project-document-tools",
   name: "项目文档工具",
-  description: "新建、移除和移动项目目录中的文档。",
+  description: "新建、关联、移除和移动项目目录中的文档。",
   defaultEnabled: true,
   tools: () => [
     writeTool(
@@ -174,6 +174,33 @@ export const projectDocumentToolsProvider: MCPProviderDefinition = {
             ...(await readBody(args)),
           },
         })
+    ),
+    writeTool(
+      "link_to_project",
+      "关联到项目",
+      "把已有卡片、文章或项目文档添加到指定目录末尾，保留原位置。卡片和文章共用原正文，项目文档连同子目录共享。同一目录重复关联返回已有 documentId 和 changed=false。解除关联可按该位置调用 delete_project_document。",
+      {
+        ...positionFields,
+        sourceType: { type: "string", enum: ["card", "article", "document"] },
+        sourceId: {
+          ...positiveId,
+          description:
+            "来源实体 ID。document 使用项目文档 ID，卡片和文章分别使用 cardId、articleId。",
+        },
+      },
+      ["projectId", "sourceType", "sourceId"],
+      ["projects"],
+      async (args, commands) => {
+        const { sourceType } = args;
+        if (sourceType !== "card" && sourceType !== "article" && sourceType !== "document")
+          throw new Error("sourceType 必须是 card、article 或 document");
+        return commands.mutateProjectDocument({
+          action: "link",
+          position: readPosition({ parentId: 0, ...args }),
+          sourceType,
+          sourceId: integer(args, "sourceId"),
+        });
+      }
     ),
     writeTool(
       "delete_project_document",
