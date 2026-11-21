@@ -1,9 +1,9 @@
 // 今天页的插件卡片：宿主画外框、标题与标题行右侧的入口，插件组件只渲染正文。
 // compact 两个一行，wide 占整行；正文返回 null 时整块不显示，渲染出错只影响这一块。
 
-import { useCallback } from "react";
+import { Activity, useCallback } from "react";
 import { ChevronRight } from "lucide-react";
-import { ErrorBoundary, PortalScope, UiHostProvider, UiProvider, cn } from "@tau/ui";
+import { ErrorBoundary, UiHostProvider, UiProvider, cn } from "@tau/ui";
 import { useMobilePlugins } from "../../app/plugins/context";
 import { PluginPageComponentScope } from "../../app/plugins/component-page-scope";
 import type { MobilePluginHomePanel } from "../../app/plugins/runtime";
@@ -76,7 +76,7 @@ function PanelCard({
   );
 }
 
-/** 插件浮层（底部面板等）挂在今天页里，系统返回先关浮层 */
+/** 首页插件浮层的系统返回先关闭浮层。 */
 function useHomeDismiss() {
   const { navigator, entryId } = usePage();
   const { phase } = usePageInstanceContext();
@@ -98,6 +98,7 @@ function useHomeDismiss() {
 
 export function PluginHomePanels() {
   const runtime = useMobilePlugins();
+  const { phase } = usePageInstanceContext();
   const registerBack = useHomeDismiss();
   const registerDismiss = useCallback(
     (dismiss: () => void) => ({ dispose: registerBack(dismiss) }),
@@ -117,7 +118,8 @@ export function PluginHomePanels() {
     return { panel, fullRow: wide || alone };
   });
   return (
-    <PortalScope>
+    // 浮层挂到全局容器以覆盖底部导航；首页退到后台时连同卡片一起隐藏并保留状态。
+    <Activity mode={phase === "active" ? "visible" : "hidden"}>
       <UiHostProvider registerDismiss={registerBack}>
         <div className="mt-3 grid grid-cols-2 gap-2.5 px-4">
           {layout.map(({ panel, fullRow }) => (
@@ -130,6 +132,6 @@ export function PluginHomePanels() {
           ))}
         </div>
       </UiHostProvider>
-    </PortalScope>
+    </Activity>
   );
 }

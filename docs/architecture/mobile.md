@@ -577,6 +577,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 正常 AppShell 按数据库作用域挂载插件宿主，“我的”功能宫格与今天页插件卡片消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
+今天页插件卡片的 `UiProvider` 使用全局 Portal 容器，使称重等浮层覆盖底部主导航；卡片及其浮层由随首页激活状态切换的 `Activity` 保活，首页退到后台时隐藏并释放浮层副作用，返回后恢复原状态。系统返回仍由首页登记的 dismiss 处理器仲裁。
+
 插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。网页书签的跨域抓取 `IFetchService` 在插件宿主网络连接期间由 `app/plugins/host-fetch.ts` 提供，未连接时书签记为读取失败、可重试。
 
 插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。外壳在滚动区外固定预留 `--mobile-screen-safe-bottom`，键盘弹出时该预留归零；内容容器不使用 `.mobile-page-scroll`，不追加末尾占位。所有插件页面、设置与管理页默认使用这一边界，不需要额外声明。宿主不探测插件 DOM；插件在已避开系统区域的容器内布局，底栏可正常 `sticky bottom: 0`，只保留自身呼吸间距。作者规范见[页面布局](/plugins/tau-plugin-template/docs/ui.md#手机页面的布局边界)。
