@@ -130,7 +130,7 @@ export interface ISetting {
       version: number;
     }>;
   };
-  transcription: {
+  transcription: Partial<import("../../shared/local-transcription").LocalTranscriptionSelection> & {
     currentModel: string;
     downloadSource: "modelscope" | "huggingface";
     device: "cuda" | "cpu";
@@ -252,8 +252,6 @@ interface IActions {
   setAutoCacheRemoteAudio: (enabled: boolean) => void;
   setAutoSyncEnabled: (enabled: boolean) => void;
   setAutoCheckUpdate: (enabled: boolean) => void;
-  setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
-  setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
   setLongVideoSegmentationEnabled: (enabled: boolean) => void;
 }
 
@@ -614,40 +612,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.misc.update.autoCheck = enabled;
-      }),
-    });
-  },
-  setTranscriptionUseLLMOptimization: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.misc.transcription) {
-          draft.misc.transcription = {
-            segmentationLevel: "sentence",
-            useLLMOptimization: false,
-            enableLongVideoSegmentation: true,
-          };
-        }
-        draft.misc.transcription.useLLMOptimization = enabled;
-      }),
-    });
-  },
-  setTranscriptionSegmentationLevel: level => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.misc.transcription) {
-          draft.misc.transcription = {
-            segmentationLevel: "sentence",
-            useLLMOptimization: false,
-            enableLongVideoSegmentation: true,
-          };
-        }
-        draft.misc.transcription.segmentationLevel = level;
-        // 如果切换到句子级别，禁用LLM优化（因为句子级别不支持）
-        if (level === "sentence") {
-          draft.misc.transcription.useLLMOptimization = false;
-        }
       }),
     });
   },

@@ -95,6 +95,20 @@
 
 判据：清单与本地 `apps/mobile/release/fonts/manifest.json` 一致，手机能下载并切换。
 
+## Qwen 运行包发布到 R2
+
+**macOS arm64**
+
+1. 在 Apple Silicon Mac 上使用 Python 3.12 或更高版本运行 `pnpm build:qwen-runtime`。构建脚本校验上游独立 CPython、许可文件和固定依赖的摘要，选用兼容 macOS 14 arm64 的 wheel，将压缩包与清单写入 `apps/desktop/release/qwen-runtime/`。变更依赖时，同时更新 [依赖版本与 wheel 摘要](/apps/desktop/src-electron/main/services/qwen/requirements.txt)。
+2. 将压缩包解压到新目录。用其中的 `python/bin/python3.12 -I -B` 执行 [转录入口](/apps/desktop/src-electron/main/services/qwen/transcribe.py)，传入 16 kHz 单声道 WAV、本地识别模型、语言、对齐模型目录与结果 JSON 路径。对齐模型目录传空字符串可检验纯文字转录。断网后分别检查正文和字幕时间轴。
+3. 使用字体发布所用的 R2 凭据运行 `pnpm publish:qwen-runtime`。对象路径包含压缩包的 SHA-256。脚本从公开地址回下载校验，成功后更新 [客户端固定清单](/apps/desktop/src-electron/main/services/qwen/bundle.json)。随客户端提交清单，旧客户端可继续下载自己固定的版本。
+
+**Windows x64**
+
+1. 核对 audio.cpp 发布页中 Windows x64 CPU portable 和 Vulkan portable ZIP 的版本、大小与 SHA-256，更新 [发布脚本](/scripts/publish-qwen-runtime.mjs) 内对应记录。
+2. CPU 包运行 `pnpm publish:qwen-runtime --windows-x64`，GPU 包运行 `pnpm publish:qwen-runtime --windows-x64-gpu`。脚本校验上游原包，发布到 R2 的 `runtimes/qwen-audio-cpp/win32-x64/`，从公开地址下载验证后分别更新 [CPU 固定清单](/apps/desktop/src-electron/main/services/qwen/bundle-win32-x64.json) 和 [GPU 固定清单](/apps/desktop/src-electron/main/services/qwen/bundle-win32-x64-gpu.json)。
+3. 在 Windows x64 的「设置 › AI 服务 › 语音 › 语音转录」中选 Qwen，先转纯文字，再下载时间对齐模型转字幕。检查点击字幕能定位到对应语音，在 AMD、Intel 或 NVIDIA 显卡机器上检查安装前的系统显卡名称与运行包建议；下载 GPU 包后确认界面自动更新为实际可用的 Vulkan 显卡。单次改用 GPU，核对进度显示的设备名称、字幕时间和模型文件复用，再手动切回 CPU。未检测到 Vulkan 硬件时应提示切回 CPU。
+
 ## iOS 构建与安装
 
 连接 iPhone 后，在仓库根执行 `pnpm ios:install` 可构建 Release 并覆盖安装；多设备选择、签名准备与故障恢复按 [iOS 签名、构建和 TestFlight 手册](/docs/guides/ops-ios-signing.md)执行。App Store Connect 分发 IPA 不能像 APK 一样直接点开安装；该分发方式通过 TestFlight 安装，不要求先注册测试设备。

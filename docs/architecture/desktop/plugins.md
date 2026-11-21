@@ -37,7 +37,11 @@
 
 ## 文件转录与 ASR
 
-文件语音识别的公共契约与运行时在 [@tau/asr](/packages/asr/README.md)。`transcription` 仍是 BACKGROUND 模块：窗口文件与分段命令通过内置 `createWhisperASR`，结果交回现有媒体流程；`whisper-engine.ts` 复用既有程序与模型目录，先由 ffmpeg 转为 16 kHz 单声道 PCM Int16 WAV，每次识别独占临时目录，进程正常退出且本次 SRT 可读才交付结果；Windows XXL 的特定退出阶段故障按下述完成证明恢复。词级结果保留原始对齐；旧媒体字段仅在宿主结果扩展 `sourceResult` 中保留，不把推断置信度或字幕末尾时刻当作公共 ASR 的测量值。
+文件语音识别的公共契约与运行时在 [@tau/asr](/packages/asr/README.md)。`transcription` 仍是 BACKGROUND 模块：窗口文件与分段命令通过内置 `createLocalFileASR`，结果交回现有媒体流程；`whisper-engine.ts` 复用既有程序与模型目录，先由 ffmpeg 转为 16 kHz 单声道 PCM Int16 WAV，每次识别独占临时目录，进程正常退出且本次 SRT 可读才交付结果；Windows XXL 的特定退出阶段故障按下述完成证明恢复。词级结果保留原始对齐；旧媒体字段仅在宿主结果扩展 `sourceResult` 中保留，不把推断置信度或字幕末尾时刻当作公共 ASR 的测量值。
+
+本地文件转录设置按引擎保存 Whisper 型号与 Qwen3-ASR 型号。旧设置沿用 Whisper 和原有的词级、AI 断句偏好。视频笔记按任务快照执行「本次转录设置」，学习资料与文件导入在任务开始时读取默认设置。纯文字跳过对齐与 AI，字幕可组合自动或 AI 断句和逐词时间保留；AI 用到的词级时间仅在用户选择保留时随视频笔记保存。
+
+Qwen3-ASR 0.6B / 1.7B 按平台分发。Windows x64 可选 audio.cpp CPU 或 Vulkan GPU（默认 CPU），共用 Q8 GGUF 识别、对齐权重；macOS 14 及以上的 Apple Silicon 使用 MLX。首次使用时主进程从 Tau 发布域名下载完整运行包，经客户端内置的大小与 SHA-256 校验后解压，Windows 解压后执行程序版本检查，Mac 验证解释器与 Metal 可用再启用。同一版本由识别模型和对齐模型共用；Windows 的 CPU 和 GPU 包按各自摘要独立安装；设置和单次任务都可选择运行设备。选择 Qwen 时，设置与单次转录异步检测本机显卡。GPU 包安装前通过 Win32_VideoController 的名称、PCI 厂商、驱动状态与系统 Vulkan 加载器给出候选建议；安装后使用运行包的 Vulkan 枚举核实，并在每次 GPU 转录前重新枚举。界面和转录按相同顺序挑选硬件，优先独显、同类优先 NVIDIA。软件设备不参与转录。枚举失败或没有可用设备时建议 CPU，检测不会改写用户的设备选项或触发下载。Windows 运行包内含 x64 程序和 DLL，Mac 运行包内含 Python 与 MLX。两端均可离线推理。[运行包发布](/docs/guides/ops-client-build-install.md#qwen-运行包发布到-r2)。识别权重与共享 ForcedAligner 可从 ModelScope 或 Hugging Face 下载，两源使用同一权重 SHA-256，校验后发布。推理使用本地模型与临时 WAV；Qwen 字幕由对齐词聚合，纯文字任务只需识别模型。Windows 适配器将 16 kHz 采样点转换为毫秒，并结合原文标点聚合字幕；自动识别时原生 CLI 只导出正文，结果语言记作 und。语言检测未报告置信度时省略该值。
 
 文件命令第三参数可传 signal/onProgress。渲染端在模块就绪后登记 taskId 并订阅，进度只交给对应任务；取消使用不继承已取消命令作用域的 IPC。主进程按窗口与 taskId 隔离任务，窗口销毁、重载、切库或应用退出会取消；子进程退出后再清理目录，取消后的成功结果不交付。长音频队列每次调用拥有独立工作集，任一分段失败会取消同任务的其他分段并等待退出。媒体导入仍有直接消费共享引擎的入口，其业务编排不归公共 ASR 包。实时会话的格式、尾帧、超时和取消由公共运行时约束；原生和插件语音输入由下述独立编排装配。
 

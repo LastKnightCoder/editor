@@ -1,15 +1,15 @@
 import useSettingStore from "@/stores/useSettingStore";
-import type { TranscriptionOptions } from "@/commands/transcription";
+import { transcriptionDefaults } from "../../shared/local-transcription";
 
 /**
  * 检查 LLM 优化配置是否完整
  * @returns 配置是否完整
  */
-function checkLLMOptimizationConfig(): {
+export function checkLLMOptimizationConfig(setting = useSettingStore.getState().setting): {
   isConfigured: boolean;
   message?: string;
 } {
-  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = setting;
 
   const transcriptionOptimization = llmUsageSettings.transcriptionOptimization;
 
@@ -44,65 +44,11 @@ function checkLLMOptimizationConfig(): {
 /** 打开新设置对话框并直达 LLM 分区（旧弹窗的 llm tab 已随 legacy 页退役） */
 export function openLLMSettingsSection(): void {
   void import("@/app/settingsStore").then(({ useSettingsStore }) => {
-    useSettingsStore.getState().openSettings("llm");
+    useSettingsStore.setState({ open: true, section: "llm", llmTab: "assignment" });
   });
 }
 
-/**
- * 检查转录配置是否需要 LLM 优化
- * @returns 是否需要 LLM 优化以及配置状态
- */
-export function checkTranscriptionLLMRequirement(): {
-  needsLLM: boolean;
-  isConfigured: boolean;
-  errorMessage?: string;
-} {
-  const { segmentationLevel, useLLMOptimization } = useSettingStore.getState().setting.misc
-    .transcription || {
-    segmentationLevel: "sentence",
-    useLLMOptimization: false,
-  };
-
-  // 如果没有启用 LLM 优化或使用句子级别，不需要 LLM
-  if (!useLLMOptimization || segmentationLevel === "sentence") {
-    return {
-      needsLLM: false,
-      isConfigured: true,
-    };
-  }
-
-  // 需要 LLM，检查配置
-  const { isConfigured, message } = checkLLMOptimizationConfig();
-
-  return {
-    needsLLM: true,
-    isConfigured,
-    errorMessage: message,
-  };
-}
-
-/**
- * 从设置中准备转录选项
- * @param userOptions 用户提供的选项
- * @returns 合并了设置的完整选项
- */
-export function prepareTranscriptionOptions(
-  userOptions: Partial<TranscriptionOptions> = {}
-): TranscriptionOptions {
+export function defaultTranscriptionSelection() {
   const { transcription, misc } = useSettingStore.getState().setting;
-
-  const { segmentationLevel = "sentence", useLLMOptimization = false } = misc.transcription || {};
-
-  // 模型名带引擎前缀：Windows "faster-whisper-base"、macOS "whisper-cpp-base" -> "base"
-  const modelSize =
-    transcription.currentModel?.replace(/^(faster-whisper|whisper-cpp)-/, "") || "base";
-
-  // 合并选项（device 由后端根据已安装程序自动检测）
-  return {
-    // 运行时模型名是开放字符串，收窄到 TranscriptionOptions 声明的枚举
-    modelSize: modelSize as TranscriptionOptions["modelSize"],
-    sentenceLevel: segmentationLevel === "sentence",
-    useLLMOptimization,
-    ...userOptions,
-  };
+  return transcriptionDefaults(transcription, misc.transcription);
 }

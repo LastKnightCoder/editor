@@ -208,7 +208,7 @@ export class TranscriptionQueueManager extends EventEmitter {
     return {
       text: fullText,
       language: results[0]?.result.language || "zh",
-      languageProbability: results[0]?.result.languageProbability || 1,
+      languageProbability: results[0]?.result.languageProbability,
       duration: segments.at(-1)?.endTime ?? 0,
       processingTime: results.reduce((sum, r) => sum + r.result.processingTime, 0),
       segments: mergedSegments,

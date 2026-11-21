@@ -1,14 +1,13 @@
-/**
- * 语音 —— 初版。
- *
- * 合并 legacy TranscriptionSetting 与 TextToSpeechSetting（PodcastTTSSetting），页内分
- * 「语音转录 / 语音合成 / 语音输入」三个 Tab：
- * - 语音转录：转录行为（断句粒度 / AI 优化断句 / 长视频分段）、转录程序（faster-whisper
- *   预编译程序，沿用 legacy 的 !isMac 判定）、转录模型（当前模型 / 下载源 / 模型目录 / 模型列表）
- * - 语音合成：多服务商配置（ttsProviders，对齐大语言模型的 llmProviders 模式）+ 当前服务
- *   （提供商 / 模型 / 音色），实现见 VoiceTtsPanel
- * - 语音输入：识别服务（系统识别 / 识别插件）、插件账号与 AI 整理，实现见 VoiceInputPanel
- */
+import {
+  transcriptionDefaults,
+  qwenAlignerId,
+  selectedModelId,
+  qwenRuntimeDevice,
+  recommendedQwenDevice,
+  qwenRuntimeId,
+} from "../../../../shared/local-transcription";
+import { useQwenHardware } from "@/components/VideoNotePanel/useQwenHardware";
+import { TranscriptionFields } from "@/components/VideoNotePanel/TranscriptionFields";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AudioLines, Cpu, Download, FolderOpen, RefreshCw } from "lucide-react";
@@ -47,11 +46,6 @@ import { StatusChip } from "../components/StatusChip";
 import { VoiceInputPanel } from "./VoiceInputPanel";
 import { VoiceTtsPanel } from "./VoiceTtsPanel";
 import { useSettingsStore } from "@/app/settingsStore";
-
-const SEGMENTATION_OPTIONS = [
-  { value: "sentence", label: "句子级（速度更快）" },
-  { value: "word", label: "词级（支持 AI 优化）" },
-];
 
 const SOURCE_OPTIONS: Array<{ value: DownloadSource; label: string }> = [
   { value: "modelscope", label: "ModelScope（国内推荐）" },
@@ -116,21 +110,16 @@ function useDownloadTracker() {
 
 function TranscriptionPanel() {
   const transcription = useSettingStore(s => s.setting.transcription);
-  const segmentationLevel = useSettingStore(
-    s => s.setting.misc.transcription?.segmentationLevel ?? "sentence"
-  );
-  const useLLMOptimization = useSettingStore(
-    s => s.setting.misc.transcription?.useLLMOptimization ?? false
-  );
+  const legacy = useSettingStore(s => s.setting.misc.transcription);
+  const selection = transcriptionDefaults(transcription, legacy);
   const enableLongVideoSegmentation = useSettingStore(
     s => s.setting.misc.transcription?.enableLongVideoSegmentation ?? true
   );
-  const setSegmentationLevel = useSettingStore(s => s.setTranscriptionSegmentationLevel);
-  const setUseLLMOptimization = useSettingStore(s => s.setTranscriptionUseLLMOptimization);
   const setLongVideoSegmentation = useSettingStore(s => s.setLongVideoSegmentationEnabled);
-  const { currentModel, downloadSource } = transcription;
+  const { downloadSource } = transcription;
 
   const [models, setModels] = useState<ModelInfo[]>([]);
+  const hardware = useQwenHardware(selection.engine, models);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsDir, setModelsDir] = useState("");
   const [programs, setPrograms] = useState<ProgramInfo[]>([]);
@@ -248,36 +237,29 @@ function TranscriptionPanel() {
     }
   };
 
-  const downloadedModels = models.filter(m => m.downloaded);
+  const currentModel = selectedModelId(selection, models);
+  const aligner =
+    selection.engine === "qwen" && selection.output === "subtitles" ? qwenAlignerId : undefined;
+  const runtimes = models.filter(m => qwenRuntimeDevice(m.name));
+
+  const visibleModels = models.filter(m =>
+    selection.engine === "qwen"
+      ? !qwenRuntimeDevice(m.name) &&
+        m.name.startsWith("qwen3-") &&
+        (m.name !== qwenAlignerId || !!aligner || m.downloaded)
+      : !m.name.startsWith("qwen3-")
+  );
   const hasProgram = programs.some(p => p.downloaded);
 
   return (
     <>
-      <SettingsGroup title="转录行为">
-        <SettingRow title="断句粒度" description="词级断句可配合 AI 优化，句子级由模型直接生成">
-          <Select
-            aria-label="断句粒度"
-            className="w-[200px]"
-            value={segmentationLevel}
-            options={SEGMENTATION_OPTIONS}
-            onValueChange={v => setSegmentationLevel(v as "word" | "sentence")}
-          />
-        </SettingRow>
-        <SettingRow
-          title="AI 优化断句"
-          description={
-            segmentationLevel === "sentence"
-              ? "句子级断句不支持 AI 优化，切换到词级后可开启"
-              : "使用「大语言模型 · 功能分配 · 转录断句优化」指定的模型优化断句"
-          }
-        >
-          <Switch
-            aria-label="AI 优化断句"
-            checked={useLLMOptimization}
-            disabled={segmentationLevel === "sentence"}
-            onCheckedChange={setUseLLMOptimization}
-          />
-        </SettingRow>
+      <SettingsGroup title="默认转录设置">
+        <TranscriptionFields
+          value={selection}
+          models={models}
+          hardware={hardware}
+          onChange={updateTranscription}
+        />
         <SettingRow title="长视频分段转录" description="超过 30 分钟的视频拆分为多段并行转录">
           <Switch
             aria-label="长视频分段转录"
@@ -287,7 +269,62 @@ function TranscriptionPanel() {
         </SettingRow>
       </SettingsGroup>
 
-      {!isMac && (
+      {selection.engine === "qwen" && runtimes.length > 0 && (
+        <SettingsGroup title="转录程序">
+          {runtimes.map(runtime => (
+            <DownloadRow
+              key={runtime.name}
+              title={runtime.label}
+              icon={<Cpu size={15} />}
+              chips={
+                <>
+                  {hardware.report &&
+                    runtime.name === qwenRuntimeId(recommendedQwenDevice(hardware.report)) && (
+                      <StatusChip>推荐</StatusChip>
+                    )}
+                  {runtime.downloaded && (
+                    <StatusChip
+                      tone={runtime.name === qwenRuntimeId(selection.qwenDevice) ? "accent" : "ok"}
+                    >
+                      {runtime.name === qwenRuntimeId(selection.qwenDevice) ? "当前使用" : "已下载"}
+                    </StatusChip>
+                  )}
+                </>
+              }
+              meta={runtime.description + " · " + runtime.size}
+              progress={
+                modelDownload.name === runtime.name
+                  ? { percent: modelDownload.percent, message: modelDownload.message }
+                  : undefined
+              }
+            >
+              {!runtime.downloaded ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={modelDownload.name !== null}
+                  onClick={() => void handleDownloadModel(runtime)}
+                >
+                  下载
+                </Button>
+              ) : (
+                runtime.name !== qwenRuntimeId(selection.qwenDevice) && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      updateTranscription({ qwenDevice: qwenRuntimeDevice(runtime.name) })
+                    }
+                  >
+                    使用
+                  </Button>
+                )
+              )}
+            </DownloadRow>
+          ))}
+        </SettingsGroup>
+      )}
+      {!isMac && selection.engine === "whisper" && (
         <SettingsGroup
           title="转录程序"
           description={
@@ -352,21 +389,14 @@ function TranscriptionPanel() {
         </SettingsGroup>
       )}
 
-      <SettingsGroup title="转录模型" description="在本地运行 faster-whisper">
-        <SettingRow title="当前模型" description="只能选择已下载的模型">
-          <Select
-            aria-label="当前转录模型"
-            className="w-[240px]"
-            placeholder="请选择模型"
-            emptyText="暂无已下载的模型，请先下载"
-            value={downloadedModels.some(m => m.name === currentModel) ? currentModel : null}
-            options={downloadedModels.map(m => ({
-              value: m.name,
-              label: `${m.label}（${m.size}）`,
-            }))}
-            onValueChange={v => updateTranscription({ currentModel: v })}
-          />
-        </SettingRow>
+      <SettingsGroup
+        title="模型下载"
+        description={
+          selection.engine === "qwen"
+            ? "首次使用会下载适用于本机的 Tau 运行包，无需手动安装 Python"
+            : undefined
+        }
+      >
         <SettingRow title="下载源">
           <Select
             aria-label="模型下载源"
@@ -395,13 +425,13 @@ function TranscriptionPanel() {
             />
           </IconButton>
         </SettingRow>
-        {models.length === 0 ? (
+        {visibleModels.length === 0 ? (
           <div className={clsx("text-tau-meta text-ink-2 px-3 py-6 text-center", ROW_DIVIDER)}>
             {modelsLoading ? "正在加载模型列表…" : "暂无可用模型"}
           </div>
         ) : (
-          models.map(model => {
-            const isCurrent = model.name === currentModel;
+          visibleModels.map(model => {
+            const isCurrent = model.name === currentModel || model.name === aligner;
             const isDownloading = modelDownload.name === model.name;
             return (
               <DownloadRow
@@ -426,11 +456,17 @@ function TranscriptionPanel() {
               >
                 {model.downloaded ? (
                   <>
-                    {!isCurrent && (
+                    {!isCurrent && model.name !== qwenAlignerId && (
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => updateTranscription({ currentModel: model.name })}
+                        onClick={() =>
+                          updateTranscription(
+                            selection.engine === "qwen"
+                              ? { qwenModel: model.name.endsWith("0.6b") ? "0.6B" : "1.7B" }
+                              : { currentModel: model.name }
+                          )
+                        }
                       >
                         使用
                       </Button>

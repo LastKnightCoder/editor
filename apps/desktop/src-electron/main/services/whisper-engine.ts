@@ -1,3 +1,4 @@
+import type { EngineOptions } from "../../../shared/local-transcription";
 import { app, shell } from "electron";
 import { ASRError, throwIfASRAborted, waitForASR } from "@tau/asr";
 import { ASRProcessExitError, runASRProcess } from "./asr-process";
@@ -14,7 +15,7 @@ import { normalizeModelSize, whisperDtwPreset } from "../utils/transcription-mod
 
 // ==================== 类型定义 ====================
 
-export interface TranscriptionOptions {
+export interface TranscriptionOptions extends EngineOptions {
   modelSize?: "tiny" | "base" | "small" | "medium" | "large-v1" | "large-v2" | "large-v3";
   language?: "auto" | string;
   device?: "cpu" | "cuda";
@@ -39,7 +40,7 @@ export interface TranscriptionSegment {
 export interface TranscriptionResult {
   text: string;
   language: string;
-  languageProbability: number;
+  languageProbability?: number;
   duration: number;
   processingTime: number;
   segments: TranscriptionSegment[];

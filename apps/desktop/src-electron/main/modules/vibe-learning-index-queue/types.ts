@@ -1,4 +1,4 @@
-import type { LlmRef, SettingForLlmSlots } from "../llm-usage-slot";
+import type { LlmRef } from "../llm-usage-slot";
 import type { ResolvedEmbeddingConfig } from "../../utils/embedding-config";
 import type { EmbeddingTarget } from "../embedding-service";
 import type { EmbeddingProviderKind } from "@/types/embedding";
@@ -18,22 +18,6 @@ export const toEmbeddingTarget = (config: EmbeddingConfig): EmbeddingTarget => (
 
   devicePolicy: config.devicePolicy,
 });
-
-export interface TranscriptionConfig {
-  model: string;
-
-  modelDir: string;
-
-  /** 断句优化模型；未分配时为 null（走句级转录、不做 LLM 优化） */
-
-  llm: LlmRef | null;
-}
-
-export interface SettingForTranscription extends SettingForLlmSlots {
-  transcription?: {
-    currentModel?: string;
-  };
-}
 
 export type ImageDescriptionConfig = LlmRef;
 

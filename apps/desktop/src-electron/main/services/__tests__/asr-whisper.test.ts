@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createWhisperASR, localASRAudioFile } from "../asr-whisper";
+import { createLocalFileASR, localASRAudioFile } from "../asr-whisper";
 import type { TranscriptionService } from "../whisper-engine";
 
 const roots: string[] = [];
@@ -31,7 +31,7 @@ describe("Whisper 文件提供方", () => {
   it("只声明文件最终结果，模型缺失明确报告，配置在任务前固定", async () => {
     const { mock, instance } = engine();
     const config = { modelSize: "base" as const, useLLMOptimization: true };
-    const provider = createWhisperASR(instance, config);
+    const provider = createLocalFileASR(instance, config);
     const signal = new AbortController().signal;
     await expect(
       provider.probe({ input: "stream", language: "zh-CN" }, signal)
@@ -65,7 +65,7 @@ describe("Whisper 文件提供方", () => {
       expect(await readFile(file, "utf8")).toBe("sample");
       throw new Error("识别失败");
     });
-    const provider = createWhisperASR(instance, {});
+    const provider = createLocalFileASR(instance, {});
     const task = await provider.transcribeFile(
       {
         language: "auto",

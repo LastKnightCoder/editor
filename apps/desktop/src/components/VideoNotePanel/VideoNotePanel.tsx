@@ -14,7 +14,7 @@ import {
   Zap,
   BookText,
 } from "lucide-react";
-import { ConfirmDialog, Tooltip, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Tooltip, toast } from "@tau/ui";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { FadeScroll } from "@tau/ui";
 import classNames from "classnames";
@@ -46,6 +46,7 @@ import { VideoController } from "./VideoController";
 import VideoNoteChatPanel from "./VideoNoteChatPanel";
 import LanguageSelect from "./LanguageSelect";
 import { TRANSCRIPTION_LANGUAGES, VIDEO_NOTE_AUTO_LANGUAGE } from "./transcription-language";
+import { TranscriptionOptionsDialog } from "./TranscriptionOptionsDialog";
 import { useVideoNoteTranscription } from "./useVideoNoteTranscription";
 import VideoNoteEpubExportModal from "./VideoNoteEpubExportModal";
 
@@ -123,6 +124,9 @@ const VideoNotePanel = ({
     progress: transcriptionProgress,
     isOptimizing,
     streamingSegments,
+    optionsRequest,
+    openOptions,
+    closeOptions,
     transcribe: handleTranscribe,
     optimize: handleAIOptimize,
     cancelOptimization: handleCancelOptimization,
@@ -591,7 +595,7 @@ const VideoNotePanel = ({
             转录
           </button>
           <button
-            disabled={!hasTranscriptSegments}
+            disabled={!transcriptForChat}
             onClick={() => setActiveTab("chat")}
             className={classNames(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40",
@@ -734,7 +738,7 @@ const VideoNotePanel = ({
 
         {activeTab === "chat" && (
           <div className="h-full">
-            {hasTranscriptSegments ? (
+            {transcriptForChat ? (
               <VideoNoteChatPanel
                 videoNoteId={videoNoteId}
                 mainDbName={activeDatabase}
@@ -1041,6 +1045,9 @@ const VideoNotePanel = ({
           placeholder="转录语言"
         />
         <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="secondary" disabled={isTranscribing} onClick={openOptions}>
+            本次转录设置
+          </Button>
           <Tooltip content={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
               className={classNames(
@@ -1106,7 +1113,7 @@ const VideoNotePanel = ({
                     ? ["bg-accent-soft text-accent-text", "text-accent-text"]
                     : ["bg-surface", "border-line-1", "hover:bg-hover", "text-ink-1"]
                 )}
-                disabled={!hasTranscriptSegments}
+                disabled={!transcriptForChat}
                 onClick={() => onSubtitleMountedChange(!subtitleMounted)}
               >
                 <Subtitles size={15} />
@@ -1126,6 +1133,13 @@ const VideoNotePanel = ({
         confirmText="删除"
         onConfirm={confirmDeleteNote}
       />
+      {optionsRequest && (
+        <TranscriptionOptionsDialog
+          {...optionsRequest}
+          onClose={closeOptions}
+          onStart={handleTranscribe}
+        />
+      )}
       <ConfirmDialog
         open={transcriptionLlmConfirm != null}
         onOpenChange={v => !v && dismissLlmConfirm()}

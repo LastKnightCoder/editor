@@ -9,6 +9,7 @@ import { toUnpackedAsarPath } from "./asarPath";
 const sevenZipRequire = createRequire(require.resolve("7zip-min"));
 const { path7za } = sevenZipRequire("7zip-bin") as { path7za: string };
 
-sevenZip.config({ binaryPath: toUnpackedAsarPath(path7za) });
+export const sevenZipBinaryPath = toUnpackedAsarPath(path7za);
+sevenZip.config({ binaryPath: sevenZipBinaryPath });
 
 export default sevenZip;

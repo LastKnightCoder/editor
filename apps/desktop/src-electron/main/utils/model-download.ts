@@ -6,6 +6,7 @@
  * - 流式下载（跟随重定向、进度、取消、失败清理）
  */
 
+import { pipeline } from "node:stream/promises";
 import http from "http";
 import https from "https";
 import fs from "fs-extra";
@@ -120,7 +121,7 @@ function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
 }
 
 /** 兼容 requestOnce 返回 ClientRequest 以挂 error 处理 */
-function streamToFile(
+export function streamToFile(
   url: string,
   destPath: string,
   options: {
@@ -158,28 +159,17 @@ function streamToFile(
           let downloaded = 0;
           const tempPath = `${destPath}.tmp`;
 
-          const fail = (error: Error) => {
-            response.destroy();
-            void fs
-              .remove(tempPath)
-              .catch(() => undefined)
-              .finally(() => reject(error));
-          };
-
-          const writeStream = fs.createWriteStream(tempPath);
           response.on("data", (chunk: Buffer) => {
             downloaded += chunk.length;
             options.onBytes?.(downloaded, total);
           });
-          response.on("error", fail);
-          writeStream.on("error", fail);
-          writeStream.on("close", () => {
-            void fs
-              .move(tempPath, destPath, { overwrite: true })
-              .then(() => resolve())
-              .catch(fail);
-          });
-          response.pipe(writeStream);
+          void pipeline(response, fs.createWriteStream(tempPath), { signal: options.signal })
+            .then(() => fs.move(tempPath, destPath, { overwrite: true }))
+            .then(resolve)
+            .catch(async error => {
+              await fs.remove(tempPath).catch(() => undefined);
+              reject(error);
+            });
         },
         options.signal
       );

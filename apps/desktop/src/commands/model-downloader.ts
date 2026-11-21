@@ -1,3 +1,5 @@
+import type { QwenHardwareReport } from "../../shared/local-transcription";
+import { ensureModule } from "./module-init";
 import { invoke, on, off } from "@/electron";
 
 // ==================== 类型定义 ====================
@@ -40,7 +42,13 @@ export interface DownloadResult {
  * 获取所有模型信息（包含下载状态）
  */
 export async function getModels(): Promise<ModelsResponse> {
+  await ensureModule("model-downloader");
   return invoke("model-downloader-get-models");
+}
+
+export async function getQwenHardware(): Promise<QwenHardwareReport> {
+  await ensureModule("model-downloader");
+  return invoke("model-downloader-qwen-hardware");
 }
 
 /**

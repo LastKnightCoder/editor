@@ -2,18 +2,11 @@ import { promises as fs } from "fs";
 import { join } from "node:path";
 import log from "electron-log";
 import PathUtil from "../../utils/PathUtil";
-import transcriptionModule from "../transcription";
-import { normalizeModelSize } from "../../utils/transcription-model";
 import { resolveUsageSlot } from "../llm-usage-slot";
 import { resolveEmbeddingConfig } from "../../utils/embedding-config";
 import vibeLearningDBManager from "../vibe-learning-db";
 import type { VibeLearningIndexQueue } from "./index";
-import type {
-  EmbeddingConfig,
-  TranscriptionConfig,
-  ImageDescriptionConfig,
-  SettingForTranscription,
-} from "./types";
+import type { EmbeddingConfig, ImageDescriptionConfig } from "./types";
 import type { SettingForLlmSlots } from "../llm-usage-slot";
 
 /**
@@ -58,53 +51,6 @@ export async function getEmbeddingConfig(
 export function clearEmbeddingConfigCache(manager: VibeLearningIndexQueue): void {
   manager.cachedEmbeddingConfig = undefined;
   log.info("[VibeLearningIndexQueue] Cleared embedding config cache");
-}
-
-/**
- * 从 setting.json 读取转译配置
- */
-export async function getTranscriptionConfig(
-  manager: VibeLearningIndexQueue
-): Promise<TranscriptionConfig | null> {
-  // 使用缓存避免频繁读取文件
-  if (manager.cachedTranscriptionConfig !== undefined) {
-    return manager.cachedTranscriptionConfig;
-  }
-
-  try {
-    const settingPath = join(PathUtil.getAppDir(), "setting.json");
-    const settingContent = await fs.readFile(settingPath, "utf-8");
-    const setting: SettingForTranscription = JSON.parse(settingContent);
-
-    // 提取模型尺寸（"faster-whisper-base" / "whisper-cpp-base" -> "base"）
-    const model = normalizeModelSize(setting.transcription?.currentModel);
-
-    // 获取模型目录
-    const modelDir = transcriptionModule.getModelsDir();
-
-    // 断句优化模型：分配了「转录断句优化」槽且模型仍在设置里才启用
-    const llm = resolveUsageSlot(setting, "transcriptionOptimization");
-
-    manager.cachedTranscriptionConfig = { model, modelDir, llm };
-
-    log.info(
-      `[VibeLearningIndexQueue] Loaded transcription config: model=${model}, modelDir=${modelDir}, llm=${llm ? `${llm.providerId}/${llm.modelId}` : "none"}`
-    );
-
-    return manager.cachedTranscriptionConfig;
-  } catch (error) {
-    log.error(`[VibeLearningIndexQueue] Error loading transcription config: ${error}`);
-    manager.cachedTranscriptionConfig = null;
-    return null;
-  }
-}
-
-/**
- * 清除转译配置缓存（配置变更时调用）
- */
-export function clearTranscriptionConfigCache(manager: VibeLearningIndexQueue): void {
-  manager.cachedTranscriptionConfig = undefined;
-  log.info("[VibeLearningIndexQueue] Cleared transcription config cache");
 }
 
 /**

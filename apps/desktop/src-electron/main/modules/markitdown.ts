@@ -15,6 +15,7 @@ import path from "path";
 import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
+import { readTranscriptionSettings } from "../services/transcription-settings";
 import MediaUtil from "../utils/MediaUtil";
 import { transcriptionService, type TranscriptionOptions } from "./transcription";
 import {
@@ -375,10 +376,10 @@ class MarkItDownModule implements Module {
       fileName,
       filePath,
       transcriptionLanguage = "zh",
-      transcriptionModel = "base",
+      transcriptionModel,
       transcriptionModelDir,
-      transcriptionWordTimestamps = false,
-      transcriptionLlm,
+      transcriptionWordTimestamps,
+      transcriptionLlm: requestedLlm,
     } = params;
 
     let mediaFilePath: string | null = null;
@@ -438,12 +439,22 @@ class MarkItDownModule implements Module {
       // 3. 调用转录服务（Node 进程内，预编译程序优先）
       this.sendProgress("transcribing", 30, "正在转录音频...");
 
+      const saved = await readTranscriptionSettings();
+      const transcriptionLlm = requestedLlm === undefined ? saved.llm : requestedLlm;
+      if (saved.options.useLLMOptimization && !transcriptionLlm)
+        throw new Error("请先配置转录断句模型");
       const transcribeResult = await transcriptionService.transcribe(
         audioFilePath,
         {
-          modelSize: (transcriptionModel as TranscriptionOptions["modelSize"]) || "base",
+          ...saved.options,
+          ...(transcriptionModel
+            ? {
+                engine: "whisper" as const,
+                modelSize: transcriptionModel as TranscriptionOptions["modelSize"],
+              }
+            : {}),
           language: transcriptionLanguage as TranscriptionOptions["language"],
-          wordTimestamps: transcriptionWordTimestamps,
+          wordTimestamps: transcriptionWordTimestamps ?? saved.options.wordTimestamps,
           modelDir: transcriptionModelDir,
         },
         message => {
@@ -469,12 +480,16 @@ class MarkItDownModule implements Module {
       const segments: TranscriptionSegment[] = transcribeResult.segments || [];
       let markdown: string;
 
-      if (transcriptionLlm && segments.length > 0) {
+      if (!segments.length) {
+        markdown = transcribeResult.text;
+      } else if (transcriptionLlm) {
         this.sendProgress("optimizing", 60, "正在使用 AI 整理文档...");
 
         try {
           markdown = await optimizeTranscriptionWithLLM({
-            segments,
+            segments: transcribeResult.wordSegments?.length
+              ? transcribeResult.wordSegments
+              : segments,
             language: transcribeResult.language || transcriptionLanguage,
             llm: transcriptionLlm,
             feature: "transcriptionOptimization",

@@ -30,6 +30,7 @@ export interface TranscriptionCacheKeyPayload {
   sourceStableId: string;
   mediaFingerprint: string;
   modelSize: string;
+  output?: "text" | "subtitles";
   language: string;
   sentenceLevel: boolean;
   useLLMOptimization: boolean;

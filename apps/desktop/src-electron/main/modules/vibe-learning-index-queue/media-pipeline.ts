@@ -4,11 +4,8 @@ import databaseModule from "../database";
 import transcriptionModule, { type TranscriptionResult } from "../transcription";
 import VibeLearningResourceTable from "../tables/vibe-learning-resource";
 import vibeLearningMediaCache, { hashPayload, hashString } from "../vibe-learning-media-cache";
-import {
-  buildVLTranscriptionOptions,
-  resolveVLOptimizationLanguage,
-  type VLTranscriptionModelSize,
-} from "../vibe-learning-transcription";
+import { readTranscriptionSettings } from "../../services/transcription-settings";
+import { resolveVLOptimizationLanguage } from "../vibe-learning-transcription";
 import { TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT } from "@/constants/prompts/transcription-optimization";
 import type { VibeLearningIndexQueue } from "./index";
 import { optimizeTranscriptionWithLLM } from "./transcription-optimization";
@@ -107,23 +104,18 @@ export async function processMediaResource(
     manager.processingStatus.set(resourceId, "transcribing");
     manager.emit("status-change", resourceId, "transcribing");
 
-    const transcriptionConfig = await manager.getTranscriptionConfig();
-    const optimizationLlm = transcriptionConfig?.llm ?? null;
-    const hasLLMConfig = optimizationLlm !== null;
-
-    const modelSize: VLTranscriptionModelSize =
-      (transcriptionConfig?.model as VLTranscriptionModelSize) || "base";
-    const transcriptionOptions = buildVLTranscriptionOptions(modelSize, hasLLMConfig);
+    const { options: transcriptionOptions, llm: optimizationLlm } =
+      await readTranscriptionSettings();
     const { language, sentenceLevel, useLLMOptimization } = transcriptionOptions;
-
-    log.info(
-      `[VibeLearningIndexQueue] Transcribing media: model=${modelSize}, hasLLM=${hasLLMConfig}`
-    );
-
+    if (useLLMOptimization && !optimizationLlm) throw new Error("请先配置转录断句模型");
     const transcriptionKey = vibeLearningMediaCache.buildTranscriptionKey({
       sourceStableId,
       mediaFingerprint,
-      modelSize,
+      modelSize:
+        transcriptionOptions.engine === "qwen"
+          ? "qwen3-asr-" + transcriptionOptions.qwenModel
+          : transcriptionOptions.modelSize,
+      output: transcriptionOptions.output,
       language,
       sentenceLevel,
       useLLMOptimization,
@@ -169,10 +161,6 @@ export async function processMediaResource(
     const optimizationLanguage = resolveVLOptimizationLanguage(transcriptionData.language);
 
     const db = databaseModule.getDatabase(mainDbName);
-    if (db && rawSegments.length > 0) {
-      VibeLearningResourceTable.updateTranscriptSegments(db, resourceId, rawSegments);
-    }
-
     let finalSegments: Array<{
       text: string;
       start: number;
@@ -227,7 +215,7 @@ export async function processMediaResource(
     }
 
     // 4. 保存 segments 到 DB
-    if (db && finalSegments.length > 0) {
+    if (db) {
       VibeLearningResourceTable.updateTranscriptSegments(db, resourceId, finalSegments);
     }
 

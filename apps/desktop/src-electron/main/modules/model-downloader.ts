@@ -15,6 +15,14 @@ import https from "https";
 import http from "http";
 import { Module } from "../types/module";
 import sevenZip from "../utils/seven-zip";
+import { qwenAssets, qwenAssetReady, downloadQwenAsset } from "../services/qwen/assets";
+import {
+  ensureQwenRuntime,
+  qwenRuntimeBytes,
+  qwenRuntimeReady,
+  qwenSupported,
+} from "../services/qwen/runtime";
+import { qwenRuntimeDevice, qwenRuntimeId } from "../../../shared/local-transcription";
 import { downloadRepoFiles } from "../utils/model-download";
 
 export type DownloadSource = "modelscope" | "huggingface";
@@ -273,17 +281,14 @@ class ModelDownloaderService {
     onProgress?: (progress: DownloadProgress) => void
   ): Promise<DownloadResult> {
     const config = MODEL_CONFIG[modelName];
-    if (!config) {
+    const qwen = qwenAssets.find(asset => asset.name === modelName);
+    const device =
+      process.platform === "win32" && qwenSupported() ? qwenRuntimeDevice(modelName) : undefined;
+    if (!qwen && !device && !Object.hasOwn(MODEL_CONFIG, modelName))
       return { success: false, error: `Unknown model: ${modelName}` };
-    }
-
-    const modelId = config[source];
-    if (!modelId) {
-      return {
-        success: false,
-        error: `Model ${modelName} not available on ${source}`,
-      };
-    }
+    const modelId = qwen?.huggingface || config?.[source];
+    if (!device && !modelId)
+      return { success: false, error: `Model ${modelName} not available on ${source}` };
 
     if (this.activeDownloads.has(modelName)) {
       return {
@@ -298,6 +303,29 @@ class ModelDownloaderService {
     this.activeDownloads.set(modelName, task);
 
     try {
+      if (device) {
+        await ensureQwenRuntime(
+          task.controller.signal,
+          (received, message) =>
+            onProgress?.({
+              type: "progress",
+              percentage: Math.min(99, Math.floor((100 * received) / qwenRuntimeBytes(device))),
+              message,
+            }),
+          device
+        );
+        return { success: true };
+      }
+      if (qwen) {
+        const model_dir = await downloadQwenAsset(
+          this.modelsDir,
+          qwen,
+          source,
+          task.controller.signal,
+          (percentage, message) => onProgress?.({ type: "progress", percentage, message })
+        );
+        return { success: true, model_dir };
+      }
       const fileFilter = source === "modelscope" ? config.modelscopeFiles : config.huggingfaceFiles;
       const modelDir = await downloadRepoFiles({
         source,
@@ -335,7 +363,6 @@ class ModelDownloaderService {
       return false;
     }
 
-    this.activeDownloads.delete(modelName);
     task.controller.abort();
     console.log(`[ModelDownloader] Download aborted: ${modelName}`);
 
@@ -346,7 +373,13 @@ class ModelDownloaderService {
    * 检查模型是否已下载
    */
   async isModelDownloaded(modelName: string): Promise<boolean> {
+    const device = qwenRuntimeDevice(modelName);
+    if (device)
+      return process.platform === "win32" && qwenSupported() && (await qwenRuntimeReady(device));
     const config = MODEL_CONFIG[modelName];
+    const qwen = qwenAssets.find(asset => asset.name === modelName);
+    if (qwen) return qwenAssetReady(this.modelsDir, qwen);
+    if (!Object.hasOwn(MODEL_CONFIG, modelName)) return false;
     const marker =
       config?.engine === "whisper-cpp" ? config.markerFile || "ggml-model.bin" : "model.bin";
     const modelPath = path.join(this.modelsDir, modelName, marker);
@@ -376,6 +409,31 @@ class ModelDownloaderService {
       });
     }
 
+    if (qwenSupported())
+      for (const asset of qwenAssets) {
+        models.push({
+          name: asset.name,
+          label: asset.label,
+          description: asset.description,
+          size: asset.size,
+          modelscope: asset.huggingface,
+          huggingface: asset.huggingface,
+          downloaded: await qwenAssetReady(this.modelsDir, asset),
+        });
+      }
+    if (process.platform === "win32" && qwenSupported()) {
+      for (const device of ["cpu", "gpu"] as const) {
+        models.push({
+          name: qwenRuntimeId(device),
+          label: device === "gpu" ? "GPU 运行包" : "CPU 运行包",
+          size: Math.round(qwenRuntimeBytes(device) / 1e6) + " MB",
+          description: device === "gpu" ? "Vulkan 加速，使用兼容的显卡驱动" : "使用处理器转录",
+          downloaded: await qwenRuntimeReady(device),
+          modelscope: "",
+          huggingface: "",
+        });
+      }
+    }
     return models;
   }
 
@@ -385,7 +443,10 @@ class ModelDownloaderService {
   async getDownloadedModels(): Promise<string[]> {
     const downloaded: string[] = [];
 
-    for (const modelName of Object.keys(MODEL_CONFIG)) {
+    for (const modelName of [
+      ...Object.keys(MODEL_CONFIG),
+      ...qwenAssets.map(asset => asset.name),
+    ]) {
       if (await this.isModelDownloaded(modelName)) {
         downloaded.push(modelName);
       }
@@ -398,6 +459,12 @@ class ModelDownloaderService {
    * 删除模型
    */
   async deleteModel(modelName: string): Promise<boolean> {
+    if (
+      this.activeDownloads.has(modelName) ||
+      (!Object.hasOwn(MODEL_CONFIG, modelName) &&
+        !qwenAssets.some(asset => asset.name === modelName))
+    )
+      return false;
     const modelPath = path.join(this.modelsDir, modelName);
 
     if (await fs.pathExists(modelPath)) {
@@ -810,6 +877,10 @@ class ModelDownloaderModule implements Module {
   }
 
   async init() {
+    ipcMain.handle("model-downloader-qwen-hardware", async () => {
+      const { detectQwenHardware } = await import("../services/qwen/hardware");
+      return detectQwenHardware();
+    });
     ipcMain.handle("model-downloader-get-models", async () => {
       try {
         const models = await this.service.getModels();

@@ -2,7 +2,8 @@ import { ipcMain, app } from "electron";
 import path from "path";
 import { randomUUID } from "node:crypto";
 import { ASRError, throwIfASRAborted } from "@tau/asr";
-import { createWhisperASR, localASRAudioFile } from "../services/asr-whisper";
+import { LocalTranscriptionService } from "../services/local-transcription";
+import { createLocalFileASR, localASRAudioFile } from "../services/asr-whisper";
 import { ASRTaskRegistry } from "../services/asr-tasks";
 import database from "./database";
 import fs from "fs-extra";
@@ -25,7 +26,7 @@ export { AVAILABLE_MODELS } from "../services/whisper-engine";
 // ==================== 模块定义 ====================
 
 /** 共享转录服务实例（markitdown 等模块复用） */
-export const transcriptionService = new TranscriptionService();
+export const transcriptionService = new LocalTranscriptionService();
 
 class TranscriptionModule implements Module {
   name: string;
@@ -205,7 +206,7 @@ class TranscriptionModule implements Module {
     onProgress?: (message: string) => void,
     taskId: string = randomUUID()
   ): Promise<TranscriptionResult> {
-    const provider = createWhisperASR(this.service, options);
+    const provider = createLocalFileASR(this.service, options);
     const audio = await localASRAudioFile(audioPath);
     throwIfASRAborted(signal);
     const task = await provider.transcribeFile(
@@ -219,10 +220,6 @@ class TranscriptionModule implements Module {
       }
     );
     return (await task.result).sourceResult;
-  }
-
-  getModelsDir(): string {
-    return this.service.getModelsDir();
   }
 
   /**

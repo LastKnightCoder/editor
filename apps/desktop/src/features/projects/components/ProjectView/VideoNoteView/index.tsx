@@ -40,6 +40,7 @@ import VideoNoteChatPanel, {
 import VideoNoteEpubExportModal from "@/components/VideoNotePanel/VideoNoteEpubExportModal";
 import { VideoController } from "@/components/VideoNotePanel/VideoController";
 import { useVideoNoteSource } from "@/components/VideoNotePanel/useVideoNoteSource";
+import { TranscriptionOptionsDialog } from "@/components/VideoNotePanel/TranscriptionOptionsDialog";
 import { useVideoNoteTranscription } from "@/components/VideoNotePanel/useVideoNoteTranscription";
 import { useVideoNoteChapters } from "@/components/VideoNotePanel/useVideoNoteChapters";
 import {
@@ -283,7 +284,9 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const hasSegments = !!videoNote.transcriptSegments?.length;
   const displayTitle = title || videoNote.description || "未命名视频";
 
-  const moreMenuItems: MenuEntryList = [];
+  const moreMenuItems: MenuEntryList = [
+    { key: "options", label: "本次转录设置…", disabled: transcription.isTranscribing },
+  ];
   moreMenuItems.push({
     key: "retranscribe",
     label: hasSegments ? "重新转录" : "指定语言转录",
@@ -329,7 +332,8 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   });
 
   const handleMoreMenu = (key: string) => {
-    if (key.startsWith("retranscribe:")) {
+    if (key === "options") transcription.openOptions();
+    else if (key.startsWith("retranscribe:")) {
       // 语言状态下次渲染才生效：本次转录直接用所选语言
       const next = key.slice("retranscribe:".length);
       setLanguage(next);
@@ -458,6 +462,13 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         )}
       </div>
 
+      {transcription.optionsRequest && (
+        <TranscriptionOptionsDialog
+          {...transcription.optionsRequest}
+          onClose={transcription.closeOptions}
+          onStart={transcription.transcribe}
+        />
+      )}
       <ConfirmDialog
         open={transcription.llmConfirm != null}
         onOpenChange={open => !open && transcription.dismissLlmConfirm()}

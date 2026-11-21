@@ -42,10 +42,10 @@ export async function localASRAudioFile(filePath: string): Promise<ASRAudioFile>
 }
 
 /** 存量媒体调用仍消费原始字段，统一结果只提供识别事实，不把推断置信度当作模型报告。 */
-export interface WhisperTranscript extends ASRTranscript {
+export interface LocalFileTranscript extends ASRTranscript {
   sourceResult: TranscriptionResult;
 }
-export function createWhisperASR(engine: TranscriptionService, config: TranscriptionOptions) {
+export function createLocalFileASR(engine: TranscriptionService, config: TranscriptionOptions) {
   const settings = Object.freeze({ ...config });
   return {
     async probe(request: ASRProbeRequest, signal: AbortSignal): Promise<ASRAvailability> {
@@ -54,21 +54,42 @@ export function createWhisperASR(engine: TranscriptionService, config: Transcrip
         execution: "device" as const,
         textUpdates: "final-only" as const,
         timestamps:
-          settings.useLLMOptimization || settings.wordTimestamps || settings.sentenceLevel === false
-            ? ("word" as const)
-            : ("segment" as const),
+          settings.output === "text"
+            ? ("none" as const)
+            : settings.useLLMOptimization ||
+                settings.wordTimestamps ||
+                settings.sentenceLevel === false
+              ? ("word" as const)
+              : ("segment" as const),
         speakerLabels: false,
       };
       if (request.input !== "file")
-        return { ...capabilities, state: "unsupported", reason: "Whisper 当前只支持文件转录" };
-      const available =
-        (await engine.hasPrecompiledProgram()) &&
-        (await engine.isModelDownloaded(settings.modelSize ?? "base"));
+        return { ...capabilities, state: "unsupported", reason: "本地引擎只支持文件转录" };
+      let available: boolean;
+      if (settings.engine === "qwen") {
+        const { qwenSupported, qwenPlatformRequirement } = await import("./qwen/runtime");
+        if (!qwenSupported())
+          return {
+            ...capabilities,
+            state: "unsupported",
+            reason: qwenPlatformRequirement,
+          };
+        const { missingQwenAsset } = await import("./qwen/assets");
+        available = !(await missingQwenAsset(
+          engine.getModelsDir(),
+          settings.qwenModel ?? "1.7B",
+          settings.output !== "text",
+          settings.qwenDevice
+        ));
+      } else
+        available =
+          (await engine.hasPrecompiledProgram()) &&
+          (await engine.isModelDownloaded(settings.modelSize ?? "base"));
       throwIfASRAborted(signal);
       return { ...capabilities, state: available ? "ready" : "needs-assets" };
     },
     async transcribeFile(request: ASRFileRequest, options: ASRRunOptions) {
-      return createASRTask<WhisperTranscript>(options, async (signal, emit) => {
+      return createASRTask<LocalFileTranscript>(options, async (signal, emit) => {
         let temporary: string | undefined;
         try {
           let filePath = localFiles.get(request.audio);

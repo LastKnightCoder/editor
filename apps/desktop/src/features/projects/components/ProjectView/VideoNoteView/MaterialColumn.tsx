@@ -325,6 +325,10 @@ export function MaterialColumn({
             </button>
           )}
         </div>
+      ) : videoNote.transcript ? (
+        <FadeScroll className="tau-sheet-scroll min-h-0 flex-1 px-6">
+          <p className="text-tau-body text-ink-1 whitespace-pre-wrap">{videoNote.transcript}</p>
+        </FadeScroll>
       ) : isTranscribing ? (
         <div className="text-tau-meta text-ink-3 flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
           <span>转录完成后，字幕会出现在这里</span>

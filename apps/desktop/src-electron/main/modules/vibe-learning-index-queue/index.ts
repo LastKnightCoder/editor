@@ -7,8 +7,6 @@ import type { TaskProgress, VLSearchResult } from "@/types/vibe-learning";
 import {
   getEmbeddingConfig,
   clearEmbeddingConfigCache,
-  getTranscriptionConfig,
-  clearTranscriptionConfigCache,
   getImageDescriptionConfig,
   clearImageDescriptionConfigCache,
 } from "./llm-configs";
@@ -53,7 +51,6 @@ import {
 } from "./reading";
 import type {
   EmbeddingConfig,
-  TranscriptionConfig,
   ImageDescriptionConfig,
   IndexTask,
   AddTaskResult,
@@ -81,9 +78,6 @@ export class VibeLearningIndexQueue extends EventEmitter implements Module {
   // 缓存 embedding 配置
   cachedEmbeddingConfig: EmbeddingConfig | null | undefined = undefined;
 
-  // 缓存转译配置
-  cachedTranscriptionConfig: TranscriptionConfig | null | undefined = undefined;
-
   // 缓存图片描述配置
   cachedImageDescriptionConfig: ImageDescriptionConfig | null | undefined = undefined;
 
@@ -104,20 +98,6 @@ export class VibeLearningIndexQueue extends EventEmitter implements Module {
    */
   clearEmbeddingConfigCache(): void {
     return clearEmbeddingConfigCache(this);
-  }
-
-  /**
-   * 从 setting.json 读取转译配置
-   */
-  getTranscriptionConfig(): Promise<TranscriptionConfig | null> {
-    return getTranscriptionConfig(this);
-  }
-
-  /**
-   * 清除转译配置缓存（配置变更时调用）
-   */
-  clearTranscriptionConfigCache(): void {
-    return clearTranscriptionConfigCache(this);
   }
 
   /**
