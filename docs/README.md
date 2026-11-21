@@ -13,6 +13,7 @@
 | 位置                                                          | 内容                                                                                                                                                 |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [desktop/](./architecture/desktop/)                           | 桌面端权威交接文档目录：索引 README + 按域分篇（总览 / Page 协议 / UI 交互 / 数据基线 / 插件宿主 / 白板 / 主进程 / AI 会话 / 今日页数据）            |
+| [AI 入口与能力](./architecture/ai-capabilities.md)            | 按产品场景查桌面、手机、浏览器伴读、插件和后台任务的提示词、模型分配、Skill、工具与审批范围                                                          |
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                    |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                         |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
