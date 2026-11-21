@@ -11,10 +11,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import {
+  applyChatCompactionThreshold,
   assembleHostSession,
   createFauxModelRuntime,
   loadSessionTranscript,
 } from "../pi-session-host-core";
+import { chatTranscriptOf } from "../pi-session-store";
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
 import { must } from "../../test-support";
 
@@ -79,6 +81,53 @@ const setup = async () => {
 };
 
 describe("pi JSONL 事实源", () => {
+  it("按模型窗口修改阈值后可恢复 SDK 默认，手动摘要在重开时保留原文供回看", async () => {
+    const { faux, assemble } = await setup();
+    const session = await assemble({ sessionId: "compact-history" });
+    const model = must(session.model);
+    const initial = session.settingsManager.getCompactionSettings(model);
+    applyChatCompactionThreshold(session, 80);
+    expect(model.contextWindow - session.settingsManager.getCompactionReserveTokens(model)).toBe(
+      Math.floor(model.contextWindow * 0.8)
+    );
+    applyChatCompactionThreshold(session, null);
+    expect(session.settingsManager.getCompactionSettings(model)).toEqual(initial);
+
+    session.settingsManager.applyOverrides({ compaction: { keepRecentTokens: 8 } });
+    faux.setResponses([
+      fauxAssistantMessage([fauxText("第一次回答")]),
+      fauxAssistantMessage([fauxText("近期回答")]),
+      fauxAssistantMessage([fauxText("前文摘要")]),
+    ]);
+    await session.prompt("早先的问题");
+    await session.prompt("最近一次提问".repeat(10));
+    const file = must(session.sessionFile);
+    const original = piEntriesToDesktopMessages(loadSessionTranscript(file));
+    const result = await session.compact();
+    const resumed = await assemble({ sessionFile: file });
+    expect(resumed.messages).toContainEqual(
+      expect.objectContaining({ role: "compactionSummary", summary: result.summary })
+    );
+    const after = chatTranscriptOf(resumed.sessionManager);
+    expect(after.messages).toEqual(original);
+    expect(after.compaction).toMatchObject({
+      tokensBefore: result.tokensBefore,
+      estimatedTokensAfter: result.estimatedTokensAfter,
+      isCurrent: true,
+      providerId: model.provider,
+      modelId: model.id,
+    });
+
+    faux.setResponses([fauxAssistantMessage([fauxText("继续回答")])]);
+    await resumed.prompt("继续");
+    expect(chatTranscriptOf(resumed.sessionManager).compaction).toEqual({
+      ...after.compaction,
+      isCurrent: false,
+    });
+    resumed.sessionManager.branch(must(original[0].piEntryIds?.[0]));
+    expect(chatTranscriptOf(resumed.sessionManager).compaction).toBeUndefined();
+  });
+
   it("落盘的会话投影成桌面消息：工具循环合并成一条回答，工具结果回填到工具卡", async () => {
     const { faux, assemble } = await setup();
     faux.setResponses([

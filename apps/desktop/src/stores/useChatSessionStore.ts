@@ -163,7 +163,7 @@ interface ChatSessionActions {
    * 改会话树（回退/分叉/切版本/删除）：返回改后的投影，由调用方（聊天容器）回写。
    * 运行中主进程会拒绝（抛错）。
    */
-  editChat(id: string, edit: PiSessionEdit): Promise<ChatSessionMessage[]>;
+  editChat(id: string, edit: PiSessionEdit): Promise<Pick<ChatMessage, "messages" | "compaction">>;
   createGroup(name: string, parentId?: number | null): Promise<ChatGroup>;
   renameGroup(id: number, name: string): Promise<ChatGroup>;
   deleteGroup(id: number): Promise<void>;
@@ -209,6 +209,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
             ? {
                 ...state.opened,
                 [row.id]: {
+                  ...state.opened[row.id],
                   ...rowToChat(row, state.opened[row.id].messages),
                 },
               }
@@ -387,7 +388,10 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           // 读投影期间运行时可能已经发布过（后台轮次）：以已发布的为准
           const current = get().opened[id];
           if (current) return current;
-          const chat = rowToChat(findRow(id) ?? row, outcome.messages ?? []);
+          const chat = {
+            ...rowToChat(findRow(id) ?? row, outcome.messages ?? []),
+            compaction: outcome.compaction,
+          };
           set(state => ({ opened: { ...state.opened, [id]: chat } }));
           return chat;
         },
@@ -570,7 +574,7 @@ const useChatSessionStore = create<ChatSessionState & ChatSessionActions>()(
           if (messageCount !== row.messageCount) {
             await patchRow(id, { messageCount, updateTime: row.updateTime }, databaseName);
           }
-          return messages;
+          return { messages, compaction: outcome.compaction };
         },
 
         createGroup: async (name, parentId) => {

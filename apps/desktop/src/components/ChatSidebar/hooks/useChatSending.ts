@@ -18,6 +18,7 @@ import { piChatRuntime } from "@/services/piChatRuntime";
 import {
   onPiSessionEvent,
   piSessionAbort,
+  piSessionCompact,
   piSessionPrompt,
   type PiSessionEdit,
 } from "@/commands/piSession";
@@ -30,6 +31,7 @@ import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { shouldRestoreInputAfterSendError } from "../editingUtils";
 import { getErrorMessage } from "@/utils/chat-retry";
 import {
+  isCompactCommand,
   visibleMessagesOf,
   userEntryIdAt,
   type EditingDraftState,
@@ -69,6 +71,9 @@ const toPromptDisplay = (message: RequestMessage): PiPromptDisplay | undefined =
     ? { content, ...(message.clientId ? { clientId: message.clientId } : {}) }
     : undefined;
 };
+
+// 同一对话可以在页面和停靠栏之间切换，停止操作必须找到最初发起的压缩。
+const manualCompactions = new Map<string, AbortController>();
 
 interface ChatSendingOptions {
   chatProviderConfig: LLMProviderSetting | null;
@@ -139,6 +144,36 @@ export function useChatSending({
   setHiddenPromptContext,
 }: ChatSendingOptions) {
   const message = toast;
+
+  const ensureSession = async (
+    chat: ChatMessage,
+    forcedSkills: string[],
+    toolContext?: Record<string, unknown>
+  ) => {
+    if (!chatProviderConfig || !chatModelConfig)
+      throw new Error("请先在设置中配置对话功能的大模型");
+    const baseSystem = sessionSystemPromptOf(chat.id, customSystemPrompt || DEFAULT_SYSTEM_PROMPT);
+    const systemPrompt = buildPiChatSystemPrompt(
+      baseSystem,
+      await withForcedSkillReadmes(skills, forcedSkills),
+      forcedSkills
+    );
+    // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
+    return piChatSessionManager.ensureChatSession({
+      databaseName: chat.databaseName,
+      chatScope,
+      chatId: chat.id,
+      ...(chat.sessionFile ? { sessionFile: chat.sessionFile } : {}),
+      provider: chatProviderConfig,
+      model: chatModelConfig,
+      systemPrompt,
+      // 只有主对话可选工作目录；学习项目由主进程按场景固定，PDF / 视频笔记在应用数据目录
+      cwd: chatScope === "main-chat" ? resolveChatCwd(chat.id) : "",
+      ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
+      ...(toolScope ? { toolScope } : {}),
+      ...(toolContext ? { toolContext } : {}),
+    });
+  };
 
   // 抽离的公共方法：处理消息发送逻辑（pi 会话驱动）
   const processMessageSending = useMemoizedFn(
@@ -211,33 +246,11 @@ export function useChatSending({
       }
 
       try {
-        const baseSystem = sessionSystemPromptOf(
-          actualCurrentChat.id,
-          customSystemPrompt || DEFAULT_SYSTEM_PROMPT
+        const ensured = await ensureSession(
+          actualCurrentChat,
+          extractForcedSkills(requestMessage),
+          options?.toolContext
         );
-        const forcedSkills = extractForcedSkills(requestMessage);
-        const systemPrompt = buildPiChatSystemPrompt(
-          baseSystem,
-          await withForcedSkillReadmes(skills, forcedSkills),
-          forcedSkills
-        );
-        // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
-        const ensured = await piChatSessionManager.ensureChatSession({
-          databaseName: actualCurrentChat.databaseName,
-          chatScope,
-          chatId: actualCurrentChat.id,
-          ...(actualCurrentChat.sessionFile ? { sessionFile: actualCurrentChat.sessionFile } : {}),
-          provider: chatProviderConfig,
-          model: chatModelConfig,
-          systemPrompt,
-          // 只有主对话可选工作目录；学习项目由主进程按场景固定，PDF / 视频笔记在应用数据目录
-          cwd: chatScope === "main-chat" ? resolveChatCwd(actualCurrentChat.id) : "",
-          ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
-          ...(toolScope ? { toolScope } : {}),
-          ...(options?.toolContext
-            ? { toolContext: options.toolContext as Record<string, unknown> }
-            : {}),
-        });
         const sessionId = ensured.sessionId;
 
         // 草稿首轮：宿主回传了会话文件名，登记目录行（id 不变，只是从草稿变成正式对话）。
@@ -339,6 +352,11 @@ export function useChatSending({
   const stopStreaming = useMemoizedFn(() => {
     const activeChat = actualChatRef.current;
     const conversationKey = getConversationKey(activeChat.id);
+    const compaction = manualCompactions.get(conversationKey);
+    if (compaction) {
+      compaction.abort();
+      return;
+    }
     // 立即反馈：清 pending + runtime streaming 位；后台 pi 自行收尾（settled 落库幂等）
     setSessionPending(conversationKey, false);
     piChatRuntime.forceStopStreaming(conversationKey);
@@ -438,10 +456,77 @@ export function useChatSending({
     }
   );
 
+  const compactCurrentChat = async (key: string): Promise<boolean> => {
+    const chat = actualChatRef.current;
+    if (!chat.sessionFile || !chat.messages.length) {
+      message.info("当前对话还没有可压缩的消息");
+      return false;
+    }
+    const controller = new AbortController();
+    manualCompactions.set(key, controller);
+    setSessionPending(key, true);
+    const progress = message.loading("正在压缩对话上下文…");
+    try {
+      let sessionId = piChatSessionManager.resolveSessionId(chatScope, chat.id, chat.databaseName);
+      const run = async (id: string) => {
+        controller.signal.throwIfAborted();
+        const abort = () => void piSessionAbort(id, { compactionOnly: true });
+        controller.signal.addEventListener("abort", abort, { once: true });
+        try {
+          piChatRuntime.bindSession(key, id);
+          return await piSessionCompact(id);
+        } finally {
+          controller.signal.removeEventListener("abort", abort);
+        }
+      };
+      let result = sessionId ? await run(sessionId) : undefined;
+      // 宿主可能已被空闲回收，按当前对话自己的文件恢复。
+      if (!result || result.missing) {
+        controller.signal.throwIfAborted();
+        sessionId = (await ensureSession(chat, [])).sessionId;
+        result = await run(sessionId);
+      }
+      if (!result.ok) throw new Error(result.error ?? "压缩失败");
+      if (result.unchanged) {
+        message.info("当前对话没有需要压缩的内容");
+        return true;
+      }
+      message.success(
+        result.estimatedTokensAfter === undefined
+          ? "对话上下文已压缩"
+          : `对话上下文已压缩，约 ${result.estimatedTokensAfter.toLocaleString()} tokens`
+      );
+      return true;
+    } catch (error) {
+      const reason = getErrorMessage(error);
+      if (controller.signal.aborted) message.info("已停止压缩");
+      else if (reason.includes("already processing")) message.info("请等当前回答结束后再压缩");
+      else message.error(reason);
+      return false;
+    } finally {
+      message.dismiss(progress);
+      manualCompactions.delete(key);
+      setSessionPending(key, false);
+    }
+  };
+
   const submitMessageContent = useMemoizedFn(
     async (rawContent: MessageContentItem[]): Promise<boolean> => {
-      const content = prepareUserContent ? prepareUserContent(rawContent) : rawContent;
       const conversationKey = conversationKeyRef.current;
+      if (!editingDraft && !hiddenPromptContext && isCompactCommand(rawContent)) {
+        if (conversationKey !== getConversationKey(actualChatRef.current.id)) return false;
+        if (
+          sendLoading ||
+          piChatRuntime.isPending(conversationKey) ||
+          piChatRuntime.isStreaming(conversationKey) ||
+          manualCompactions.has(conversationKey)
+        ) {
+          message.info("请等当前操作结束后再压缩");
+          return false;
+        }
+        return compactCurrentChat(conversationKey);
+      }
+      const content = prepareUserContent ? prepareUserContent(rawContent) : rawContent;
       if (
         sendLoading ||
         piChatRuntime.isPending(conversationKey) ||

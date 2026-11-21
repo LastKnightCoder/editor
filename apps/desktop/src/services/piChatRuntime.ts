@@ -254,8 +254,31 @@ class PiChatRuntime {
     if (lastMessage?.role === Role.Assistant) {
       reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     }
-    const unsubscribeEvents = onPiSessionEvent(sessionId, event => {
+    const unsubscribeEvents = onPiSessionEvent(sessionId, (event, modelRef) => {
       entry.eventRevision += 1;
+      if (
+        event.type === "compaction_end" &&
+        !event.aborted &&
+        !event.errorMessage &&
+        event.result?.estimatedTokensAfter !== undefined
+      ) {
+        entry.chat.current = {
+          ...entry.chat.current,
+          compaction: {
+            tokensBefore: event.result.tokensBefore,
+            estimatedTokensAfter: event.result.estimatedTokensAfter,
+            isCurrent: true,
+            ...modelRef,
+          },
+        };
+        entry.deps.publish(entry.chat.current);
+        this.notify(key);
+      }
+      if (event.type === "compaction_end" && event.reason === "manual" && entry.streaming) {
+        // 重载时恢复的手动压缩没有回答，也不会有 agent_settled。
+        entry.streaming = false;
+        this.notify(key);
+      }
       reducer.handle(event);
     });
     const applyInteractions = () => {
@@ -446,8 +469,15 @@ class PiChatRuntime {
     if (!snapshot.sessionId) return;
     entry.reducer?.reset();
     if (snapshot.messages)
-      entry.chat.current = adoptTranscript(entry.chat.current, snapshot.messages);
-    if (snapshot.busy && entry.chat.current.messages.at(-1)?.role !== Role.Assistant) {
+      entry.chat.current = {
+        ...adoptTranscript(entry.chat.current, snapshot.messages),
+        compaction: snapshot.compaction,
+      };
+    if (
+      snapshot.busy &&
+      !snapshot.manualCompaction &&
+      entry.chat.current.messages.at(-1)?.role !== Role.Assistant
+    ) {
       entry.chat.current = {
         ...entry.chat.current,
         messages: [...entry.chat.current.messages, createAssistantMessage()],
@@ -523,6 +553,12 @@ class PiChatRuntime {
           this.mutateLastAssistant(key, message => finalizeAssistantTurn(message, turnId));
         },
         applyUsage: usage => {
+          const compaction = entry.chat.current.compaction;
+          if (compaction?.isCurrent && usage.inputTokens + usage.outputTokens > 0)
+            entry.chat.current = {
+              ...entry.chat.current,
+              compaction: { ...compaction, isCurrent: false },
+            };
           const model = entry.deps.usageModel;
           this.mutateLastAssistant(key, message => {
             message.usage = {

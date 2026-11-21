@@ -23,7 +23,7 @@ import type {
   PiWorkspaceInfo,
 } from "@/types/pi-session";
 import type { AskQuestionAnswerItem } from "@tau/shared/chat-core";
-import type { ChatSessionMessage } from "@/types";
+import type { ChatMessage, ChatSessionMessage } from "@/types";
 
 export type PiSessionCreateOptions = Omit<PiSessionCreateRequestV2, "sessionId">;
 
@@ -98,9 +98,18 @@ export function piSessionSteer(
   return invoke("pi-session:steer", { sessionId, text, images, display });
 }
 
+export function piSessionCompact(
+  sessionId: string
+): Promise<Outcome & { estimatedTokensAfter?: number; missing?: boolean; unchanged?: boolean }> {
+  return invoke("pi-session:compact", { sessionId });
+}
+
 /** 中止会话；stranded = 中止时还没送达、已被清出 pi 队列的插话文本 */
-export function piSessionAbort(sessionId: string): Promise<Outcome & { stranded?: string[] }> {
-  return invoke("pi-session:abort", { sessionId });
+export function piSessionAbort(
+  sessionId: string,
+  options?: { compactionOnly: boolean }
+): Promise<Outcome & { stranded?: string[] }> {
+  return invoke("pi-session:abort", { sessionId, ...options });
 }
 
 export function piSessionDispose(sessionId: string): Promise<Outcome> {
@@ -113,7 +122,7 @@ export function piSessionDispose(sessionId: string): Promise<Outcome> {
  */
 export function piSessionTranscript(
   location: PiSessionLocation
-): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
+): Promise<Outcome & Partial<Pick<ChatMessage, "messages" | "compaction">>> {
   return invoke("pi-session:transcript", location);
 }
 
@@ -135,7 +144,7 @@ export type PiSessionEdit =
 export function piSessionEdit(
   location: PiSessionLocation,
   edit: PiSessionEdit
-): Promise<Outcome & { messages?: ChatSessionMessage[] }> {
+): Promise<Outcome & Partial<Pick<ChatMessage, "messages" | "compaction">>> {
   return invoke("pi-session:edit", { location, edit });
 }
 
@@ -187,6 +196,8 @@ export type PiSessionRecovery = Outcome & {
   toolSpecs?: PiHostToolSpec[];
   toolScope?: string;
   busy?: boolean;
+  manualCompaction?: boolean;
+  compaction?: ChatMessage["compaction"];
   messages?: ChatSessionMessage[];
   streamingMessage?: Extract<AgentSessionEvent, { type: "message_start" }>["message"];
 };
@@ -263,15 +274,19 @@ export function piSessionToolError(
   return invoke<Outcome>("pi-session:tool-error", { sessionId, toolCallId, error, executionId });
 }
 
-type PiSessionEventEnvelope = { sessionId: string; event: AgentSessionEvent };
+type PiSessionEventEnvelope = {
+  sessionId: string;
+  event: AgentSessionEvent;
+  modelRef?: PiSessionRecovery["modelRef"];
+};
 
 export function onPiSessionEvent(
   sessionId: string,
-  listener: (event: AgentSessionEvent) => void
+  listener: (event: AgentSessionEvent, modelRef?: PiSessionRecovery["modelRef"]) => void
 ): () => void {
   // preload 的 on 透传 ipcRenderer.on：第一个参数是 IPC event，载荷在第二位（项目既有约定）
   const handler = (_ipcEvent: unknown, payload: PiSessionEventEnvelope) => {
-    if (payload?.sessionId === sessionId) listener(payload.event);
+    if (payload?.sessionId === sessionId) listener(payload.event, payload.modelRef);
   };
   on("pi-session-event", handler);
   return () => off("pi-session-event", handler);

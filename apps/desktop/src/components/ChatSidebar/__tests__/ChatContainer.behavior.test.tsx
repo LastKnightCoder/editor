@@ -423,6 +423,43 @@ afterEach(() => {
 });
 
 describe("发送流水线", () => {
+  it("在重开的对话里压缩当前文件，命令不进入消息历史或下一轮队列", async () => {
+    const chat = savedChat("chat-compact", [userMessage("早先的问题"), assistantMessage("回答")]);
+    const { handle } = await renderChat({ chat });
+    ipc.overrides.set("pi-session:compact", ({ sessionId }) => {
+      ipc.emit("pi-session-event", {
+        sessionId,
+        modelRef: { providerId: CHAT_PROVIDER.id, modelId: CHAT_MODEL.id },
+        event: {
+          type: "compaction_end",
+          reason: "manual",
+          aborted: false,
+          result: { tokensBefore: 8200, estimatedTokensAfter: 300 },
+        },
+      });
+      return { ok: true, estimatedTokensAfter: 300 };
+    });
+    expect(await send(handle, "/compact")).toBe(true);
+    expect(callsOf("pi-session:create").at(-1)?.args[0]).toMatchObject({
+      sessionFile: chat.sessionFile,
+    });
+    expect(callsOf("pi-session:compact").at(-1)?.args[0]).toEqual({
+      sessionId: createdSessionId(),
+    });
+    expect(promptPayloads()).toEqual([]);
+    expect(useChatSessionStore.getState().opened[chat.id]?.compaction).toMatchObject({
+      tokensBefore: 8200,
+      estimatedTokensAfter: 300,
+      isCurrent: true,
+    });
+
+    await send(handle, "解释一下 /compact");
+    expect(promptPayloads().map(payload => payload.text)).toEqual(["解释一下 /compact"]);
+    expect(await send(handle, "/compact")).toBe(false);
+    expect(piChatRuntime.listQueue(chatSessionKey("main-chat", chat.id))).toEqual([]);
+    expect(callsOf("pi-session:compact")).toHaveLength(1);
+  });
+
   it("首轮发送乐观写入用户消息与助手占位，并把展示形态随 prompt 交给宿主", async () => {
     const chat = draftChat("draft-1");
     const { handle, sendLoadingValues } = await renderChat({ chat });

@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { v4 as uuid } from "uuid";
+import type { ChatCompactionUsage } from "@tau/shared/chat-core";
 import type { Descendant } from "slate";
 
 import { Editor, type EditorRef, type IHotKeyConfig } from "@tau/editor";
@@ -98,6 +99,7 @@ interface ChatInputAreaProps {
   currentModelName?: string;
   contextWindowK?: number;
   contextUsage?: ChatContextUsage | null;
+  compaction?: ChatCompactionUsage;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
   thinkingLevel?: ThinkingLevel;
@@ -214,6 +216,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       currentModelName,
       contextWindowK,
       contextUsage,
+      compaction,
       isSupportImage = false,
       isSupportFile = false,
       thinkingLevel,
@@ -758,7 +761,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           />
           {permissionMenu}
           <span className="min-w-1 flex-1" />
-          <ContextUsageRing contextWindowK={contextWindowK} usage={contextUsage} />
+          <ContextUsageRing
+            contextWindowK={contextWindowK}
+            usage={contextUsage}
+            compaction={compaction}
+          />
           {modelMenu}
           {thinkingMenu}
           {sendLoading && (

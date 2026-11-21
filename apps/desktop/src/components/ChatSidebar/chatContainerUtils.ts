@@ -1,3 +1,4 @@
+import type { MessageContentItem } from "@tau/shared";
 import { Role } from "@/constants";
 import type { ChatMessage } from "@/types";
 
@@ -12,6 +13,17 @@ export const userEntryIdAt = (
 ): string | undefined => {
   const target = messages[index];
   return target?.role === Role.User ? target.piEntryIds?.[0] : undefined;
+};
+
+export const isCompactCommand = (content: MessageContentItem[]): boolean => {
+  const [item] = content;
+  return (
+    content.length === 1 &&
+    item.type === "text" &&
+    item.text.trim() === "/compact" &&
+    !item.mentions?.length &&
+    !item.skills?.length
+  );
 };
 
 export interface EditingDraftState {

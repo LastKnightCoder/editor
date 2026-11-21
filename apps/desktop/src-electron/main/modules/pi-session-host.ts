@@ -18,6 +18,7 @@ import whiteboardDocumentsModule from "./whiteboard-documents";
 import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
+  applyChatCompactionThreshold,
   assembleHostSession,
   restrictToHostTools,
   createDisplayEntryWriter,
@@ -37,7 +38,8 @@ import {
   browserSessionFile,
   listSessionFiles,
   readConversationTree,
-  readTranscript,
+  chatTranscriptOf,
+  readChatTranscript,
   type SessionEdit,
 } from "./pi-session-store";
 import { readConversationTurn } from "./pi-conversation-turn-client";
@@ -116,6 +118,8 @@ export interface PiSessionClient {
 }
 
 export interface HostedSession {
+  chatScope?: string;
+  manualCompaction?: boolean;
   databaseName: string;
   interactive: boolean;
   hostToolsOnly: boolean;
@@ -418,6 +422,27 @@ class PiSessionHostModule {
         return PiSessionHostModule.prompt(sessionId, text, images, display, retry);
       }
     );
+    ipcMain.handle("pi-session:compact", (event, { sessionId }: { sessionId: string }) => {
+      const hosted = PiSessionHostModule.sessions.get(sessionId);
+      if (!hosted || hosted.sender !== event.sender) return { ok: false, missing: true };
+      return PiSessionHostModule.runExclusiveSession(sessionId, async () => {
+        if (!hosted.session.isIdle) return { ok: false, error: "请等当前回答结束后再压缩" };
+        hosted.manualCompaction = true;
+        try {
+          const result = await hosted.session.compact();
+          return { ok: true, estimatedTokensAfter: result.estimatedTokensAfter };
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            ["Already compacted", "Nothing to compact (session too small)"].includes(error.message)
+          )
+            return { ok: true, unchanged: true };
+          throw error;
+        } finally {
+          hosted.manualCompaction = false;
+        }
+      });
+    });
     ipcMain.handle(
       "pi-session:steer",
       async (
@@ -451,19 +476,29 @@ class PiSessionHostModule {
         });
       }
     );
-    ipcMain.handle("pi-session:abort", async (event, { sessionId }: { sessionId: string }) => {
-      const hosted = PiSessionHostModule.sessions.get(sessionId);
-      if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
-      await PiSessionHostModule.subagentRuntime?.stop(sessionId);
-      await PiSessionHostModule.abort(sessionId);
-      // 中止不清 pi 的插话队列：没送达的插话会滞留，等下一次 prompt 开跑时被一起吞进去。
-      // 停止的语义是「这些都别发了」，所以这里清空，未送达的文本交渲染端退回待发送队列。
-      const cleared = hosted.session.clearQueue();
-      return {
-        ok: true,
-        stranded: [...cleared.steering, ...cleared.followUp],
-      };
-    });
+    ipcMain.handle(
+      "pi-session:abort",
+      async (
+        event,
+        { sessionId, compactionOnly }: { sessionId: string; compactionOnly?: boolean }
+      ) => {
+        const hosted = PiSessionHostModule.sessions.get(sessionId);
+        if (!hosted || hosted.sender !== event.sender) return { ok: false, error: "会话不存在" };
+        if (compactionOnly) {
+          if (hosted.manualCompaction) hosted.session.abortCompaction();
+          return { ok: true };
+        }
+        await PiSessionHostModule.subagentRuntime?.stop(sessionId);
+        await PiSessionHostModule.abort(sessionId);
+        // 中止不清 pi 的插话队列：没送达的插话会滞留，等下一次 prompt 开跑时被一起吞进去。
+        // 停止的语义是「这些都别发了」，所以这里清空，未送达的文本交渲染端退回待发送队列。
+        const cleared = hosted.session.clearQueue();
+        return {
+          ok: true,
+          stranded: [...cleared.steering, ...cleared.followUp],
+        };
+      }
+    );
     ipcMain.handle("pi-session:dispose", async (event, { sessionId }: { sessionId: string }) => {
       if (PiSessionHostModule.sessions.get(sessionId)?.sender !== event.sender)
         return { ok: false, error: "会话不存在" };
@@ -513,7 +548,7 @@ class PiSessionHostModule {
     ipcMain.handle("pi-session:transcript", async (_event, location: PiSessionLocation) =>
       PiSessionHostModule.guard(async () => {
         const { file, sessionDir } = await PiSessionHostModule.locate(location);
-        return { messages: readTranscript(file, sessionDir) };
+        return readChatTranscript(file, sessionDir);
       })
     );
     // 树谱视图：只含用户消息的精简树。宿主开着就读它的 SessionManager（内存里最新），否则读文件
@@ -553,7 +588,7 @@ class PiSessionHostModule {
             if (!hosted) {
               applySessionEditToFile(file, edit);
               notifyMemorySessionEdit(file, location);
-              return { messages: readTranscript(file, sessionDir) };
+              return readChatTranscript(file, sessionDir);
             }
             const { session } = hosted;
             if (
@@ -573,9 +608,7 @@ class PiSessionHostModule {
             notifyMemorySessionEdit(file, location);
             session.refreshContext();
             hosted.lastActive = Date.now();
-            return {
-              messages: piEntriesToDesktopMessages(transcriptOf(session.sessionManager)),
-            };
+            return chatTranscriptOf(session.sessionManager);
           } finally {
             release();
           }
@@ -612,9 +645,8 @@ class PiSessionHostModule {
         toolSpecs: hosted?.toolSpecs,
         toolScope: hosted?.toolScope,
         busy: found ? PiSessionHostModule.states().find(state => state.id === found)?.busy : false,
-        messages: hosted
-          ? piEntriesToDesktopMessages(transcriptOf(hosted.session.sessionManager))
-          : undefined,
+        ...(hosted ? chatTranscriptOf(hosted.session.sessionManager) : {}),
+        manualCompaction: hosted?.manualCompaction,
         streamingMessage: hosted?.session.state.streamingMessage,
       };
     });
@@ -989,12 +1021,14 @@ class PiSessionHostModule {
           sender.send("pi-session-event", {
             sessionId: request.sessionId,
             event: sessionEvent,
+            ...(sessionEvent.type === "compaction_end" ? { modelRef: request.modelRef } : {}),
           });
         } catch (error) {
           console.error("[PiSessionHost] 事件序列化失败:", error);
         }
       });
       PiSessionHostModule.sessions.set(request.sessionId, {
+        chatScope: request.chatScope,
         databaseName:
           request.databaseName ??
           request.source?.library ??
@@ -1085,6 +1119,11 @@ class PiSessionHostModule {
       // 展示 entry 的模型文本取实际送给 pi 的 text（逐字相同，投影才认领得上）
       const displayData = toDisplayData(text, display);
       try {
+        if (hosted.chatScope) {
+          const setting = await userSettingModule.getSettingSnapshot();
+          signal.throwIfAborted();
+          applyChatCompactionThreshold(hosted.session, setting.chatCompactionPercent);
+        }
         if (
           retry &&
           (await retryHostSession(

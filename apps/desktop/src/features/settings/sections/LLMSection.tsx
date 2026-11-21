@@ -448,6 +448,7 @@ export function LLMSection() {
   const llmConfigs = useSettingStore(s => s.setting.llmProviders);
   const llmUsageSettings = useSettingStore(s => s.setting.llmUsageSettings);
   const updateUsage = useSettingStore(s => s.updateLLMUsageSetting);
+  const compactionPercent = useSettingStore(s => s.setting.chatCompactionPercent ?? null);
   const inlineSuggestionShared = useSettingStore(s => s.setting.inlineSuggestionShared);
 
   /* ── 切换条：editingId 失效时回落第一家 ── */
@@ -885,6 +886,43 @@ export function LLMSection() {
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>
             {cat.features.map(renderAssignmentRow)}
+            {cat.features.some(feature => feature.key === "chat") && (
+              <SettingRow
+                title="自动压缩阈值"
+                description="对话上下文超过模型窗口的这个百分比时，自动整理较早的消息。留空使用默认规则。"
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    wrapperClassName="w-24"
+                    key={compactionPercent ?? "default"}
+                    aria-label="自动压缩阈值（%）"
+                    type="number"
+                    min={1}
+                    max={99}
+                    step={1}
+                    defaultValue={compactionPercent ?? ""}
+                    placeholder="默认"
+                    onKeyDown={event => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                    }}
+                    onBlur={event => {
+                      const field = event.currentTarget;
+                      if (!field.validity.valid) {
+                        toast.warning("请输入 1 到 99 的整数");
+                        field.value = String(compactionPercent ?? "");
+                        return;
+                      }
+                      const value = field.value === "" ? null : field.valueAsNumber;
+                      if (value !== compactionPercent)
+                        useSettingStore.setState(state => ({
+                          setting: { ...state.setting, chatCompactionPercent: value },
+                        }));
+                    }}
+                  />
+                  <span aria-hidden="true">%</span>
+                </div>
+              </SettingRow>
+            )}
             {cat.features.some(feature => feature.key === INLINE_SUGGESTION_SLOT) && (
               <SettingRow
                 title="协作正文的行内建议"

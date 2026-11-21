@@ -393,6 +393,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return () => window.clearTimeout(timer);
     }, [locatedIndex]);
 
+    const compaction = actualChatRef.current.compaction;
+    const modelCompaction =
+      compaction &&
+      (!compaction.providerId || compaction.providerId === chatProviderConfig?.id) &&
+      (!compaction.modelId || compaction.modelId === chatModelConfig?.id)
+        ? compaction
+        : undefined;
     const contextUsage = useMemo(() => {
       return latestContextUsage(
         actualChatRef.current.messages,
@@ -761,6 +768,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   <ChatInputArea
                     ref={chatInputRef}
                     {...desktopInputProps}
+                    compaction={modelCompaction}
                     compact={compact}
                     toolScope={toolScope}
                     modelGroups={modelGroups}

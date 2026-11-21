@@ -12,6 +12,7 @@ import { recordSyncIo } from "./perf-record";
 import { fauxProvider } from "@earendil-works/pi-ai";
 import type { ImageContent, Provider } from "@earendil-works/pi-ai";
 import {
+  DEFAULT_COMPACTION_SETTINGS,
   DefaultResourceLoader,
   ModelRuntime,
   SessionManager,
@@ -479,6 +480,18 @@ export async function assembleHostSession(
     }),
   });
   return session;
+}
+
+/** 每轮按实际选中的模型窗口换算，清空偏好后恢复 SDK 的预留量。 */
+export function applyChatCompactionThreshold(session: AgentSession, percent: unknown): void {
+  const model = session.model;
+  if (!model) return;
+  const reserveTokens =
+    typeof percent === "number" && Number.isInteger(percent) && percent >= 1 && percent <= 99
+      ? model.contextWindow - Math.floor((model.contextWindow * percent) / 100)
+      : DEFAULT_COMPACTION_SETTINGS.reserveTokens;
+  if (session.settingsManager.getCompactionReserveTokens(model) !== reserveTokens)
+    session.settingsManager.applyOverrides({ compaction: { reserveTokens } });
 }
 
 /** 测试辅助：faux provider 包装成可注册进 ModelRuntime 的形状（无需真实网关） */

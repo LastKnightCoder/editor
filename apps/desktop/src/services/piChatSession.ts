@@ -110,8 +110,12 @@ class PiChatSessionManager {
   private readonly sessions = new Map<string, ChatSessionDescriptor>();
   private readonly creating = new Map<string, Promise<EnsuredChatSession>>();
 
-  public resolveSessionId(chatScope: string, chatId: string): string | undefined {
-    return this.sessions.get(chatSessionKey(chatScope, chatId))?.sessionId;
+  public resolveSessionId(
+    chatScope: string,
+    chatId: string,
+    databaseName = getChatDatabase()
+  ): string | undefined {
+    return this.sessions.get(chatSessionKey(chatScope, chatId, databaseName))?.sessionId;
   }
 
   /**

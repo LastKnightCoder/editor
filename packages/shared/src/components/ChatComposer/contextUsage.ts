@@ -1,3 +1,4 @@
+import type { ChatCompactionUsage } from "../../chat-core/messages";
 import type { ChatContextUsage } from "../ChatInputArea/types";
 
 const toValidCount = (value: number | undefined) =>
@@ -12,13 +13,19 @@ export const formatTokenCount = (tokens: number): string => {
   return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)}k`;
 };
 
-export const getContextUsageSummary = (contextWindowK: number, usage?: ChatContextUsage | null) => {
+export const getContextUsageSummary = (
+  contextWindowK: number,
+  usage?: ChatContextUsage | null,
+  compaction?: ChatCompactionUsage
+) => {
   const totalTokens = Math.max(0, contextWindowK * 1000);
   const inputTokens = toValidCount(usage?.inputTokens);
   const outputTokens = toValidCount(usage?.outputTokens);
   const cacheReadTokens = Math.min(inputTokens, toValidCount(usage?.cacheReadTokens));
   const cacheWriteTokens = Math.min(inputTokens, toValidCount(usage?.cacheWriteTokens));
-  const usedTokens = inputTokens + outputTokens;
+  const usedTokens = compaction?.isCurrent
+    ? compaction.estimatedTokensAfter
+    : inputTokens + outputTokens;
   const usedPercent = totalTokens > 0 ? Math.min(100, (usedTokens / totalTokens) * 100) : 0;
 
   return {

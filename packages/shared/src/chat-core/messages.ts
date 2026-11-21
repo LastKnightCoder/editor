@@ -140,6 +140,15 @@ export type ResponseContentBlock =
 /** ContentBlock 为 ResponseContentBlock 的兼容别名（历史导出名） */
 export type ContentBlock = ResponseContentBlock;
 
+export interface ChatCompactionUsage {
+  tokensBefore: number;
+  estimatedTokensAfter: number;
+  /** 直到模型回报新的实际用量，圆环使用压缩后的估算。 */
+  isCurrent: boolean;
+  providerId?: string;
+  modelId?: string;
+}
+
 export interface ModelUsage {
   inputTokens: number;
   outputTokens: number;
@@ -205,6 +214,7 @@ export interface ChatSessionRecord {
   createTime: number;
   updateTime: number;
   messages: ChatSessionMessage[];
+  compaction?: ChatCompactionUsage;
   title: string;
   titleDirty?: boolean;
   groupId?: number | null;

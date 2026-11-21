@@ -178,6 +178,7 @@ export interface ISetting {
     contentInsights: LLMUsageConfigV2 | null;
     inlineSuggestion: LLMUsageConfigV2 | null;
   };
+  chatCompactionPercent?: number | null;
   inlineSuggestionShared: boolean;
   /** 嵌入模型（提供方模型）：active 为当前生效模型，未启用时为 null */
   embedding: EmbeddingSetting;

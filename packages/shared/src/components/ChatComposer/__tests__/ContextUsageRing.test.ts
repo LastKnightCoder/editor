@@ -24,6 +24,27 @@ describe("上下文用量计算", () => {
     });
   });
 
+  it("压缩后的估算接替旧读数，下一次实际用量接替估算", () => {
+    const before = {
+      inputTokens: 75_000,
+      outputTokens: 5_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    const compaction = { tokensBefore: 80_000, estimatedTokensAfter: 12_000, isCurrent: true };
+    expect(getContextUsageSummary(100, before, compaction)).toMatchObject({
+      usedTokens: 12_000,
+      usedPercent: 12,
+    });
+    expect(
+      getContextUsageSummary(
+        100,
+        { ...before, inputTokens: 15_000 },
+        { ...compaction, isCurrent: false }
+      )
+    ).toMatchObject({ usedTokens: 20_000, usedPercent: 20 });
+  });
+
   it("用量环的无障碍标签给出已用和总上下文", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);

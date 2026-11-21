@@ -4,6 +4,7 @@
  */
 
 import { Popover } from "@tau/ui";
+import type { ChatCompactionUsage } from "../../chat-core/messages";
 import type { ChatContextUsage } from "../ChatInputArea/types";
 import { formatTokenCount, getContextUsageSummary } from "./contextUsage";
 
@@ -25,19 +26,23 @@ function Row({ label, value }: { label: string; value: string }) {
 export function ContextUsageRing({
   contextWindowK,
   usage,
+  compaction,
 }: {
   contextWindowK?: number;
   usage?: ChatContextUsage | null;
+  compaction?: ChatCompactionUsage;
 }) {
   if (typeof contextWindowK !== "number" || !Number.isFinite(contextWindowK) || contextWindowK <= 0)
     return null;
 
-  const summary = getContextUsageSummary(contextWindowK, usage);
-  const hasUsage = Boolean(usage);
+  const summary = getContextUsageSummary(contextWindowK, usage, compaction);
+  const hasUsage = Boolean(usage || compaction?.isCurrent);
   const percent = hasUsage ? summary.usedPercent : 0;
   const tone =
     percent >= 90 ? "var(--tau-danger)" : percent >= 75 ? "var(--tau-warn)" : "var(--tau-ok)";
-  const used = hasUsage ? formatTokenCount(summary.usedTokens) : "--";
+  const used = hasUsage
+    ? `${compaction?.isCurrent ? "约 " : ""}${formatTokenCount(summary.usedTokens)}`
+    : "--";
   const capacity =
     contextWindowK >= 1000
       ? `${Number((contextWindowK / 1000).toFixed(2))}M`
@@ -98,7 +103,19 @@ export function ContextUsageRing({
               }}
             />
           </div>
-          {hasUsage ? (
+          {compaction && (
+            <div className="space-y-1.5 pt-1">
+              <Row
+                label="最近一次压缩前"
+                value={`${compaction.tokensBefore.toLocaleString()} tokens`}
+              />
+              <Row
+                label="压缩后（估算）"
+                value={`${compaction.estimatedTokensAfter.toLocaleString()} tokens`}
+              />
+            </div>
+          )}
+          {usage && !compaction?.isCurrent ? (
             <div className="space-y-1.5 pt-1">
               <Row label="输入" value={summary.inputTokens.toLocaleString()} />
               <Row label="输出" value={summary.outputTokens.toLocaleString()} />
@@ -113,7 +130,7 @@ export function ContextUsageRing({
               <p className="text-tau-tiny text-ink-3 pt-1">缓存读写已包含在输入 token 中</p>
             </div>
           ) : (
-            <p className="text-ink-3">完成一次模型响应后显示实际用量</p>
+            !hasUsage && <p className="text-ink-3">完成一次模型响应后显示实际用量</p>
           )}
         </div>
       </Popover.Body>

@@ -8,7 +8,11 @@ import type { buildPiPromptPayload } from "@/services/piPromptPayload";
 import { piChatRuntime } from "@/services/piChatRuntime";
 import { piSessionSteer } from "@/commands/piSession";
 import type { MessageContentItem } from "@tau/shared";
-import type { EditingDraftState, HiddenPromptContextState } from "../chatContainerUtils";
+import {
+  isCompactCommand,
+  type EditingDraftState,
+  type HiddenPromptContextState,
+} from "../chatContainerUtils";
 
 interface ChatSteeringOptions {
   chatScope: string;
@@ -45,6 +49,10 @@ export function useChatSteering({
       // 编辑重发/图片编辑上下文都要重建会话，插进当前这轮语义就错了
       if (editingDraft || hiddenPromptContext) {
         message.warning("正在编辑消息，插话请先取消编辑");
+        return "rejected";
+      }
+      if (isCompactCommand(content)) {
+        message.info("请等当前回答结束后再压缩");
         return "rejected";
       }
       if (!piChatRuntime.canSteer(conversationKey)) return "rejected";

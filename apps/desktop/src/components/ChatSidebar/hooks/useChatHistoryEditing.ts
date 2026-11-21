@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
-import type { ChatMessage, ChatSessionMessage } from "@/types";
+import type { ChatMessage } from "@/types";
 import type { PiSessionEdit } from "@/commands/piSession";
 import { adoptTranscript } from "@/services/piChatRuntime";
 import useChatSessionStore from "@/stores/useChatSessionStore";
@@ -30,14 +30,17 @@ export function useChatHistoryEditing({
         message.warning("对话还没有保存下来，暂时不能修改历史");
         return null;
       }
-      let messages: ChatSessionMessage[];
+      let projection: Pick<ChatMessage, "messages" | "compaction">;
       try {
-        messages = await useChatSessionStore.getState().editChat(chat.id, edit);
+        projection = await useChatSessionStore.getState().editChat(chat.id, edit);
       } catch (error) {
         message.error(getErrorMessage(error) || "修改对话历史失败");
         return null;
       }
-      const next = adoptTranscript(chat, messages);
+      const next = {
+        ...adoptTranscript(chat, projection.messages),
+        compaction: projection.compaction,
+      };
       if (
         actualChatRef.current.id === chat.id &&
         actualChatRef.current.databaseName === chat.databaseName

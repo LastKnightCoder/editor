@@ -205,7 +205,7 @@ describe("改会话树（M4-d：分支都在同一个对话文件里）", () => 
     ];
     vi.mocked(piSessionEdit).mockResolvedValue({ ok: true, messages: projectedMessages as never });
 
-    const messages = await useChatSessionStore
+    const { messages } = await useChatSessionStore
       .getState()
       .editChat("p1", { kind: "switch", entryId: "e1" });
 

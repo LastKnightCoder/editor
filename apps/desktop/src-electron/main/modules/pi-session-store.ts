@@ -8,10 +8,15 @@
  *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
 import { existsSync, readdirSync, rmSync } from "node:fs";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
-import type { ChatSessionMessage } from "@/types";
+import {
+  buildSessionProjection,
+  estimateTokens,
+  getLatestCompactionEntry,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
+import type { ChatMessage, ChatSessionMessage } from "@/types";
 import type { PiBrowserSessionInfo } from "@/types/pi-session";
-import { loadSessionTranscript } from "./pi-session-host-core";
+import { loadSessionTranscript, transcriptOf } from "./pi-session-host-core";
 import { piEntriesToDesktopMessages } from "./pi-session-transcript";
 import {
   conversationTreeOf,
@@ -27,6 +32,53 @@ import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
 export function readTranscript(file: string | undefined, sessionDir: string): ChatSessionMessage[] {
   if (!file || !existsSync(file)) return [];
   return piEntriesToDesktopMessages(loadSessionTranscript(file, sessionDir));
+}
+
+/** 压缩后的估算只取压缩当时的分支投影，与 pi 的 compaction_end 口径一致。 */
+export function chatTranscriptOf(
+  manager: SessionManager
+): Pick<ChatMessage, "messages" | "compaction"> {
+  const messages = piEntriesToDesktopMessages(transcriptOf(manager));
+  const branch = manager.getBranch();
+  const boundary = getLatestCompactionEntry(branch);
+  if (!boundary) return { messages };
+  const projection = buildSessionProjection(branch, boundary.id);
+  const laterUsage = new Set(
+    branch.slice(branch.indexOf(boundary) + 1).flatMap(entry => {
+      if (
+        entry.type !== "message" ||
+        entry.message.role !== "assistant" ||
+        !entry.message.content.length
+      )
+        return [];
+      const usage = entry.message.usage;
+      return usage && usage.input + usage.output + usage.cacheRead + usage.cacheWrite > 0
+        ? [entry.id]
+        : [];
+    })
+  );
+  const measuredSince = messages.some(message =>
+    message.piEntryIds?.some(id => laterUsage.has(id))
+  );
+  return {
+    messages,
+    compaction: {
+      tokensBefore: boundary.tokensBefore,
+      estimatedTokensAfter: projection.messages.reduce(
+        (sum, message) => sum + estimateTokens(message),
+        0
+      ),
+      isCurrent: !measuredSince,
+      providerId: projection.model?.provider,
+      modelId: projection.model?.modelId,
+    },
+  };
+}
+
+export function readChatTranscript(file: string | undefined, sessionDir: string) {
+  return file && existsSync(file)
+    ? chatTranscriptOf(SessionManager.open(file, sessionDir))
+    : { messages: [] };
 }
 
 /** 树谱视图：只含用户消息的精简树；文件不存在 = 空 */
