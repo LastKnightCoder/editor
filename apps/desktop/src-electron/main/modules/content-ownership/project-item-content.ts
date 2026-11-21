@@ -27,19 +27,19 @@ interface ProjectItemStore {
   releaseReference(contentId: number, mode: ReleaseMode): void;
 }
 
-export function collectProjectItemSubtreeIds(
-  rootId: number,
-  readItem: ReadItem,
-  visited = new Set<number>()
-): number[] {
-  if (visited.has(rootId)) return [];
-  visited.add(rootId);
-  const item = readItem(rootId);
-  if (!item) return [];
-  return [
-    rootId,
-    ...item.children.flatMap(id => collectProjectItemSubtreeIds(id, readItem, visited)),
-  ];
+export function collectProjectItemSubtreeIds(rootId: number, readItem: ReadItem): number[] {
+  const ids: number[] = [];
+  const visited = new Set<number>();
+  const pending = [rootId];
+  for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
+    if (visited.has(id)) continue;
+    visited.add(id);
+    const item = readItem(id);
+    if (!item) continue;
+    ids.push(id);
+    for (let i = item.children.length - 1; i >= 0; i--) pending.push(item.children[i]);
+  }
+  return ids;
 }
 
 export class ProjectItemOwnership {

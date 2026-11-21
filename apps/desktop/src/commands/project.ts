@@ -10,6 +10,8 @@ import {
   Project,
   ProjectItem,
   ProjectOpenState,
+  ProjectDocumentMutation,
+  ProjectDocumentMutationResult,
   CreateProject,
   UpdateProject,
   CreateProjectItem,
@@ -192,3 +194,15 @@ export const moveProjectTreeItem = async (
 export const openProjectItemInNewWindow = (databaseName: string, projectItemId: number) => {
   return openEditorWindow({ kind: "project-item", databaseName, id: projectItemId });
 };
+
+export async function mutateProjectDocument(
+  request: ProjectDocumentMutation
+): Promise<ProjectDocumentMutationResult> {
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  if (request.action === "create") {
+    const { prepareNewContent } = await import("@/services/editorKit");
+    const document = await prepareNewContent(request.item.content, request.item.contracts);
+    request = { ...request, item: { ...request.item, ...document } };
+  }
+  return command.invoke("project:mutate-document", request);
+}

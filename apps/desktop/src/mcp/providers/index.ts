@@ -7,6 +7,7 @@ import { contentEditToolsProvider } from "./content-edit-tools";
 import { contentLinkToolsProvider } from "./content-link-tools";
 import { contextToolsProvider } from "./context-tools";
 import { dataTableToolsProvider } from "./data-table-tools";
+import { projectDocumentToolsProvider } from "./document-write-tools";
 import { fetchToolsProvider } from "./fetch-tools";
 import { filesystemToolsProvider } from "./filesystem-tools";
 import { openAIImageToolsProvider } from "./openai-image-tools";
@@ -17,6 +18,7 @@ import type { MCPProviderDefinition } from "./types";
 export const MCP_PROVIDERS: MCPProviderDefinition[] = [
   articleToolsProvider,
   cardToolsProvider,
+  projectDocumentToolsProvider,
   contentEditToolsProvider,
   contentLinkToolsProvider,
   contextToolsProvider,

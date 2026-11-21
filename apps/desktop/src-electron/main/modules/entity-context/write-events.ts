@@ -24,6 +24,7 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "delete-article",
   "build-article-from-content",
   // 项目文档（含改标题、增删）
+  "project:mutate-document",
   "update-project-item",
   "delete-project-item",
   "delete-project",

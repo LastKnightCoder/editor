@@ -61,3 +61,31 @@ export type UpdateProjectItem = Omit<
   ProjectItem,
   "createTime" | "updateTime" | "content" | "count"
 >;
+
+export interface ProjectDocumentPosition {
+  projectId: number;
+  /** 0 表示项目根目录。 */
+  parentId: number;
+}
+
+export type ProjectDocumentMutation =
+  | {
+      action: "create";
+      position: ProjectDocumentPosition;
+      item: Pick<CreateProjectItem, "title" | "tags" | "content" | "contracts" | "count">;
+    }
+  | { action: "remove"; position: ProjectDocumentPosition; documentId: number }
+  | {
+      action: "move";
+      position: ProjectDocumentPosition;
+      documentId: number;
+      target: ProjectDocumentPosition;
+      index?: number;
+    };
+
+export interface ProjectDocumentMutationResult extends ProjectDocumentPosition {
+  documentId: number;
+  contentId: number;
+  index: number;
+  stillMounted: boolean;
+}

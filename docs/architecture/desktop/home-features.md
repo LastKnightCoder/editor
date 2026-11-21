@@ -78,6 +78,12 @@
 
 插件 SDK 的 `context.flashcards` 经 `app/plugins/flashcards.ts` 注入：查卡组走 `flashcards:read`，直接创建与自动保存走 `flashcards:write`（异步准备后与每张卡写入前复核授权），`openCreate` 要求用户操作、窗口内保存由用户确认。AI 制卡只走通用 `context.ai.requestCapability("flashcardGeneration")`，无闪卡专用授权、缓存或模型分配分支；`generate` 只返回草稿，自动保存逐项返回 cards/failed，取消或拒绝授权停止后续写入。插件写入后必须经 `invalidateFlashcardViews` 刷新来源窗口原库查询（主进程通知排除来源窗口），批量部分提交后即使取消/失败也刷新。创建结果经 `services/flashcard-results.ts` 转 SDK 草稿结构：自定义引用用 `customContent`、已有正文用不透明 `contentRef`；插件输入经 `context.content.read` 核对正文身份与读取授权（本插件自有正文免业务权限）后映射内部 `contentId`，公共引用编码只在 `utils/plugin-content-ref.ts`。填空题的节点标识与唯一性由 `editorModel.validate` 统一校验。作者用法见 `plugins/tau-plugin-template/docs/flashcards.md`。
 
+### AI 新建、删除与移动文档
+
+桌面 AI 默认在卡片、文章和项目文档三个工具组提供 `create_card`、`delete_card`、`create_article`、`delete_article`、`create_project_document`、`delete_project_document` 与 `move_project_document`。七个工具都声明 `write`，在异步解析 Markdown 前绑定会话资料库及取消信号。新建返回实体 ID 和正文 ID。卡片和文章使用已有创建、删除命令，项目文档经 `project:mutate-document` 在同一事务内校验目录并写入，成功后刷新活动原库的相关视图。
+
+项目位置由项目 ID 和父文档 ID 指定，父文档 ID 为 0 表示项目根。移动以目标列表最终的零基序号定位，缺省追加。删除返回原位置和 `stillMounted`，移动返回最终位置。陈旧源位置、重复目标、环和越界序号会使操作失败。目录与正文持有的细则见 [正文存储](/docs/architecture/content-storage.md)。
+
 ### 卡片库
 
 AI 的「卡片工具」由 `mcp/providers/card-tools.ts` 默认注册：`set_card_pinned(cardId, pinned)` 显式设置或取消置顶，`update_card_tags(cardId, tags)` 整体替换标签（空数组清空，名称去首尾空白与重复项）；两者均声明 `write`，按现有工具权限审批。工具只接受卡片实体 ID，数据库与取消信号取执行上下文，经 `bindDatabaseCommands` 调用原库 `patchScopedCard`；只写对应元数据字段。成功后复用 `features/cards/cache.ts` 单卡并入原库缓存，仅原库仍为活动库时发布本窗口卡片更新事件，其他窗口沿用主进程广播。

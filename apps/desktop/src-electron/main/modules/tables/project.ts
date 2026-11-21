@@ -6,6 +6,9 @@ import {
   Project,
   ProjectItem,
   ProjectOpenState,
+  ProjectDocumentPosition,
+  ProjectDocumentMutation,
+  ProjectDocumentMutationResult,
   CreateProject,
   UpdateProject,
   CreateProjectItem,
@@ -138,6 +141,7 @@ export default class ProjectTable {
         itemId: number,
         notDelete?: unknown
       ) => this.removeChildProjectItem(db, projectId, parentId, itemId, notDelete === true),
+      "project:mutate-document": this.mutateDocument.bind(this),
       "move-project-tree-item": this.moveProjectTreeItem.bind(this),
       "get-project-items-by-dates": this.getProjectItemsByDates.bind(this),
       "get-project-items-by-date-range": this.getProjectItemsByDateRange.bind(this),
@@ -697,7 +701,7 @@ export default class ProjectTable {
       cleanupDeletedItem: item => this.cleanupDeletedItem(db, item),
       recordMount: id => Operation.insertOperation(db, "project-item", "insert", id, Date.now()),
       updateSubtreeMembership: (id, source, target) =>
-        this.updateProjectSubtreeMembership(db, id, source, target, []),
+        this.updateProjectSubtreeMembership(db, id, source, target),
       findReferencedContent: (type, id) => {
         if (type === "content") return ContentTable.getContentById(db, id)?.id;
         if (type === "card") return CardTable.getCardById(db, id)?.contentId;
@@ -755,6 +759,105 @@ export default class ProjectTable {
     return id;
   }
 
+  private static childrenAt(
+    db: Database.Database,
+    { projectId, parentId }: ProjectDocumentPosition
+  ) {
+    const project = this.getProject(db, projectId);
+    if (parentId === 0) return project.children;
+    const parent = this.getProjectItem(db, parentId);
+    if (!parent?.projects.includes(projectId)) throw new Error("父文档不在指定项目中");
+    return parent.children;
+  }
+
+  static mutateDocument(
+    db: Database.Database,
+    request: ProjectDocumentMutation
+  ): ProjectDocumentMutationResult {
+    return db.transaction(() => {
+      const position = request.position;
+      const source = this.childrenAt(db, position);
+      if (request.action === "create") {
+        const { title, tags, content, contracts, count } = request.item;
+        const input: CreateProjectItem = {
+          title,
+          tags,
+          content,
+          contracts,
+          count,
+          children: [],
+          refType: "",
+          refId: 0,
+          projectItemType: EProjectItemType.Document,
+          whiteboardContentId: 0,
+        };
+        const created =
+          position.parentId === 0
+            ? this.addRootProjectItem(db, position.projectId, input)
+            : this.addChildProjectItem(db, position.parentId, input);
+        const item = created?.[1];
+        if (!item) throw new Error("新建项目文档失败");
+        return {
+          ...position,
+          documentId: item.id,
+          contentId: item.contentId,
+          index: source.length,
+          stillMounted: true,
+        };
+      }
+
+      const { documentId } = request;
+      const sourceIndex = source.indexOf(documentId);
+      const item = this.getProjectItem(db, documentId);
+      if (sourceIndex < 0 || !item) throw new Error("文档已不在指定位置，请重新读取目录");
+      if (item.projectItemType !== EProjectItemType.Document)
+        throw new Error("指定条目不是项目文档");
+      const { contentId } = item;
+      if (request.action === "remove") {
+        if (position.parentId === 0) this.removeRootProjectItem(db, position.projectId, documentId);
+        else this.removeChildProjectItem(db, position.projectId, position.parentId, documentId);
+        return {
+          ...position,
+          documentId,
+          contentId,
+          index: sourceIndex,
+          stillMounted: !!this.getProjectItem(db, documentId),
+        };
+      }
+
+      const { target } = request;
+      const children = this.childrenAt(db, target);
+      // 共享父文档在不同项目下展示的是同一份子列表。
+      const same =
+        position.parentId === target.parentId &&
+        (target.parentId !== 0 || position.projectId === target.projectId);
+      if (!same && children.includes(documentId)) throw new Error("目标位置已挂载此文档");
+      const last = children.length - (same ? 1 : 0);
+      const index = request.index ?? last;
+      if (!Number.isSafeInteger(index) || index < 0 || index > last)
+        throw new Error("目标序号超出目录范围");
+      if (!same || index !== sourceIndex) {
+        const moved = this.moveBetweenProjects(db, position.projectId, target.projectId, {
+          dragItem: {
+            itemId: documentId,
+            parentId: position.parentId,
+            isRoot: position.parentId === 0,
+            parentChildren: source,
+          },
+          dropTargetId: 0,
+          dropTargetParentId: 0,
+          dropTargetIsRoot: target.parentId === 0,
+          dragPosition: "inside",
+          insertParentId: target.parentId,
+          insertParentIsRoot: target.parentId === 0,
+          insertIndex: same && sourceIndex < index ? index + 1 : index,
+        });
+        if (!moved) throw new Error("不能移动到该位置，请核对目标是否为自己或后代");
+      }
+      return { ...target, documentId, contentId, index, stillMounted: true };
+    })();
+  }
+
   private static isProjectItemDescendant(
     db: Database.Database,
     ancestorId: number,
@@ -779,6 +882,7 @@ export default class ProjectTable {
   private static canMoveProjectTreeItem(
     db: Database.Database,
     projectId: number,
+    targetProjectId: number,
     params: MoveProjectTreeItemParams
   ) {
     const { dragItem, dropTargetId, dragPosition } = params;
@@ -812,10 +916,13 @@ export default class ProjectTable {
       return false;
     }
 
-    const targetChildren = this.getProjectMoveParentChildren(db, projectId, targetParentId);
+    const targetChildren = this.getProjectMoveParentChildren(db, targetProjectId, targetParentId);
     if (!targetChildren) return false;
 
-    if (targetParentId !== (dragIsRoot ? null : dragParentId) && targetChildren.includes(dragId)) {
+    const sameDirectory =
+      targetParentId === (dragIsRoot ? null : dragParentId) &&
+      (targetParentId !== null || projectId === targetProjectId);
+    if (!sameDirectory && targetChildren.includes(dragId)) {
       return false;
     }
 
@@ -855,8 +962,7 @@ export default class ProjectTable {
     db: Database.Database,
     rootProjectItemId: number,
     sourceProjects: number[],
-    targetProjects: number[],
-    retainedSourceProjects: number[]
+    targetProjects: number[]
   ) {
     const subtreeIds = collectProjectItemSubtreeIds(rootProjectItemId, id =>
       this.getProjectItem(db, id)
@@ -865,9 +971,6 @@ export default class ProjectTable {
     const retainedSourceByItem = new Map<number, Set<number>>(
       subtreeIds.map(id => [id, new Set<number>()])
     );
-    retainedSourceProjects.forEach(projectId => {
-      retainedSourceByItem.get(rootProjectItemId)?.add(projectId);
-    });
 
     subtreeIds.forEach(projectItemId => {
       const projectItem = this.getProjectItem(db, projectItemId);
@@ -934,6 +1037,15 @@ export default class ProjectTable {
     projectId: number,
     params: MoveProjectTreeItemParams
   ) {
+    return this.moveBetweenProjects(db, projectId, projectId, params);
+  }
+
+  private static moveBetweenProjects(
+    db: Database.Database,
+    projectId: number,
+    targetProjectId: number,
+    params: MoveProjectTreeItemParams
+  ) {
     const {
       dragItem,
       dropTargetId,
@@ -948,7 +1060,7 @@ export default class ProjectTable {
     const { itemId: dragId, parentId: dragParentId, isRoot: dragIsRoot } = dragItem;
     const dragProjectItem = this.getProjectItem(db, dragId);
     if (!dragProjectItem) return null;
-    if (!this.canMoveProjectTreeItem(db, projectId, params)) return null;
+    if (!this.canMoveProjectTreeItem(db, projectId, targetProjectId, params)) return null;
 
     const tx = db.transaction(() => {
       const sourceProjectIds = dragIsRoot
@@ -957,23 +1069,14 @@ export default class ProjectTable {
       const targetProjectIds =
         typeof insertParentId === "number"
           ? insertParentIsRoot
-            ? [projectId]
+            ? [targetProjectId]
             : this.getProjectItem(db, insertParentId)?.projects || []
           : dragPosition === "inside"
             ? this.getProjectItem(db, dropTargetId)?.projects || []
             : dropTargetIsRoot
-              ? [projectId]
+              ? [targetProjectId]
               : this.getProjectItem(db, dropTargetParentId)?.projects || [];
       if (targetProjectIds.length === 0) return null;
-
-      const retainedSourceProjectIds = new Set<number>();
-      dragProjectItem.parents
-        .filter(parentId => parentId !== dragParentId)
-        .forEach(parentId => {
-          this.getProjectItem(db, parentId)?.projects.forEach(parentProjectId =>
-            retainedSourceProjectIds.add(parentProjectId)
-          );
-        });
 
       if (dragIsRoot) {
         const project = this.getProject(db, projectId);
@@ -990,13 +1093,16 @@ export default class ProjectTable {
       const nextDragProjectItem = this.getProjectItem(db, dragId);
       if (!nextDragProjectItem) return null;
       nextDragProjectItem.parents = nextDragProjectItem.parents.filter(
-        parentId => parentId !== dragParentId
+        parentId => dragIsRoot || parentId !== dragParentId
       );
 
       if (typeof insertParentId === "number" && typeof insertIndex === "number") {
         if (insertParentIsRoot) {
-          const project = this.getProject(db, projectId);
-          const sourceChildren = dragIsRoot ? dragItem.parentChildren : project.children;
+          const project = this.getProject(db, targetProjectId);
+          const sourceChildren =
+            dragIsRoot && projectId === targetProjectId
+              ? dragItem.parentChildren
+              : project.children;
           project.children = project.children.filter(id => id !== dragId);
           project.children.splice(
             getAdjustedInsertIndex({
@@ -1056,7 +1162,7 @@ export default class ProjectTable {
           nextDragProjectItem.parents.push(dropTargetId);
         }
       } else if (dropTargetIsRoot) {
-        const project = this.getProject(db, projectId);
+        const project = this.getProject(db, targetProjectId);
         project.children = project.children.filter(id => id !== dragId);
         const targetIndex = project.children.findIndex(id => id === dropTargetId);
         if (targetIndex === -1) {
@@ -1086,13 +1192,7 @@ export default class ProjectTable {
       }
 
       this.updateProjectItemDirectory(db, nextDragProjectItem);
-      this.updateProjectSubtreeMembership(
-        db,
-        dragId,
-        sourceProjectIds,
-        targetProjectIds,
-        Array.from(retainedSourceProjectIds)
-      );
+      this.updateProjectSubtreeMembership(db, dragId, sourceProjectIds, targetProjectIds);
 
       return {
         movedItemId: dragId,

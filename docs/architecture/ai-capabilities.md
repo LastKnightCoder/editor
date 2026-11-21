@@ -15,7 +15,7 @@
 | 手机「今天」问答条、建议问题、对话历史       | 新建或续聊。手机专用提示带时间和操作说明，可引用笔记、附图片、按住说话                                                       | 自动发现；「＋ → 选择 Skill」支持本轮多选，能读说明和资源文件，不执行脚本        | 全文搜索、读正文、只读 SQL、独立待办与日程、图片生成与编辑、提问、插件工具及远程 HTTP MCP。写入和执行走手机审批。[移动 AI 对话](./mobile.md#ai-对话)                                                      |
 | 手机卡片、文章、项目文档、日记「问 AI」      | 续上该正文最近的会话，首次发送时可带整篇引用或选区。快捷问法包括总结、解释、翻译和出题                                       | 同手机主对话                                                                     | 同手机主对话。正文身份决定引用与历史归属。[内容对话入口](/apps/mobile/src/features/aiChat/pages/aiContentChat.page.tsx)                                                                                   |
 
-桌面通用应用工具包括笔记检索、正文改写与审阅、关系与元数据、数据表与只读 SQL、待办日程、网页与图片等。各来源的启用状态决定本轮可用清单，执行时还要核验会话、资料和审批条件。例如，个人记忆查询与更正工具会核验当前库和主对话身份。[工具装配](/apps/desktop/src/agent/toolRegistryAgentTools.ts) · [应用工具](/apps/desktop/src/mcp/providers/index.ts) · [记忆工具](/apps/desktop/src/mcp/providers/assistant-memory-tools.ts)
+桌面通用应用工具包括笔记检索、卡片及文章增删、项目文档按位置增删与跨项目移动、正文改写与审阅、关系与元数据、数据表与只读 SQL、待办日程、网页与图片等。各来源的启用状态决定本轮可用清单，执行时还要核验会话、资料和审批条件。例如，个人记忆查询与更正工具会核验当前库和主对话身份。[工具装配](/apps/desktop/src/agent/toolRegistryAgentTools.ts) · [应用工具](/apps/desktop/src/mcp/providers/index.ts) · [记忆工具](/apps/desktop/src/mcp/providers/assistant-memory-tools.ts)
 
 桌面还有三类通往既有聊天能力的入口，操作结果不同。
 

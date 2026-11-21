@@ -4,16 +4,18 @@ import { queryClient } from "@/queryClient";
 import { bindDatabaseCommands } from "@/services/command-context";
 import useSettingStore from "@/stores/useSettingStore";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
+import { entityWriteTools } from "./document-write-tools";
 import { createEntityMetadataTools } from "./entity-metadata-tools";
 import type { MCPProviderDefinition } from "./types";
 
 export const cardToolsProvider: MCPProviderDefinition = {
   id: "card-tools",
   name: "卡片工具",
-  description: "设置或取消卡片置顶，修改卡片标签。",
+  description: "新建或删除卡片，设置置顶状态和标签。",
   defaultEnabled: true,
-  tools: () =>
-    createEntityMetadataTools("card", async (cardId, patch, context) => {
+  tools: () => [
+    ...entityWriteTools("card"),
+    ...createEntityMetadataTools("card", async (cardId, patch, context) => {
       const { databaseName } = context;
       const commands = bindDatabaseCommands({ patchScopedCard }, context);
       const originalActiveDatabase = useSettingStore.getState().setting.database.active;
@@ -30,4 +32,5 @@ export const cardToolsProvider: MCPProviderDefinition = {
       }
       return card;
     }),
+  ],
 };
