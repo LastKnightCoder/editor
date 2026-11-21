@@ -15,6 +15,7 @@ import {
   ResourceSyncStatus,
   ResourceSyncOptions,
   ResourceSyncProvider,
+  ResourceSyncSnapshot,
 } from "@/types/resource-sync";
 import { IRemoteFileInfo } from "@/types/sync";
 import databaseModule from "./database";
@@ -172,6 +173,8 @@ class ResourceSyncModule {
   private adapter: ProviderAdapter | null = null;
   private statuses: Record<string, IFileSyncStatus> = {};
   private statusMeta: StatusFileMeta | null = null;
+  private currentStatusName: string | null = null;
+  private planReady = false;
   private running = false;
   private cancelRequested = false;
   private progress: IResourceSyncProgress = this.createEmptyProgress();
@@ -208,10 +211,10 @@ class ResourceSyncModule {
       return await this.startSync(payload, event.sender.id);
     });
 
-    ipcMain.handle("resource-sync:retry-failed", async (event, options) => {
+    ipcMain.handle("resource-sync:retry-failed", async (event, options, fileName?: string) => {
       const payload = (options as ResourceSyncOptions) || this.lastOptions;
       if (!payload) return { ok: false, message: "缺少同步配置" };
-      return await this.startSync(payload, event.sender.id, { retryFailedOnly: true });
+      return await this.startSync(payload, event.sender.id, { retryFailedOnly: true, fileName });
     });
 
     ipcMain.handle("resource-sync:cancel", async () => {
@@ -219,13 +222,23 @@ class ResourceSyncModule {
       return { ok: true };
     });
 
-    ipcMain.handle("resource-sync:get-progress", async () => {
-      return this.progress;
-    });
-
-    ipcMain.handle("resource-sync:get-statuses", async () => {
-      return this.statusMeta?.file || null;
-    });
+    ipcMain.handle(
+      "resource-sync:get-snapshot",
+      async (_event, options: ResourceSyncOptions): Promise<ResourceSyncSnapshot> => {
+        const fileName = this.getStatusFileName(options).fileName;
+        if (fileName === this.currentStatusName) {
+          return {
+            progress: this.progress,
+            statusFile:
+              this.planReady && this.statusMeta
+                ? { ...this.statusMeta.file, files: this.statuses }
+                : null,
+          };
+        }
+        const { file } = await this.prepareStatusFile(options);
+        return { progress: this.createEmptyProgress(), statusFile: file };
+      }
+    );
 
     ipcMain.handle("resource-sync:list-local-files", async () => {
       const directory = path.join(PathUtil.getAppDir(), RESOURCE_PREFIX);
@@ -279,7 +292,7 @@ class ResourceSyncModule {
   private async startSync(
     options: ResourceSyncOptions,
     owner: number,
-    flags?: { retryFailedOnly?: boolean }
+    flags?: { retryFailedOnly?: boolean; fileName?: string }
   ) {
     if (this.running) {
       return { ok: false, message: "资源同步正在进行中" };
@@ -290,6 +303,9 @@ class ResourceSyncModule {
     this.progress.status = "scanning";
     this.progress.startTime = Date.now();
     this.lastOptions = options;
+    this.currentStatusName = this.getStatusFileName(options).fileName;
+    this.planReady = false;
+    this.notifyProgress();
 
     try {
       log.info("[resource-sync] start", {
@@ -303,7 +319,7 @@ class ResourceSyncModule {
       const blacklist = this.getResourceBlacklist();
       let retryTargets: Set<string> | null = null;
       if (flags?.retryFailedOnly) {
-        retryTargets = this.markErrorsPending();
+        retryTargets = this.markErrorsPending(flags.fileName);
         if (blacklist.size && retryTargets?.size) {
           blacklist.forEach(name => retryTargets?.delete(name));
         }
@@ -313,64 +329,51 @@ class ResourceSyncModule {
       if (this.cancelRequested) {
         this.progress.status = "cancelled";
         this.notifyProgress();
-        return { ok: false, message: "同步已取消" };
+        return { ok: false, cancelled: true, message: "同步已取消" };
       }
       log.info("[resource-sync] plan built", {
         total: plan.tasks.length,
         uploads: plan.tasks.filter(t => t.direction === "upload").length,
         downloads: plan.tasks.filter(t => t.direction === "download").length,
       });
-      await this.saveStatusFile();
-
-      if (plan.tasks.length === 0) {
-        this.progress.status = this.progress.errorCount > 0 ? "error" : "completed";
+      this.planReady = true;
+      if (plan.tasks.length) {
+        this.progress.status = "syncing";
         this.notifyProgress();
-        if (this.progress.status === "completed") {
-          this.sendCompletion();
-        } else {
-          this.sendErrorNotification("部分资源同步失败");
-        }
-        return {
-          ok: this.progress.status === "completed",
-          message: flags?.retryFailedOnly ? "没有需要重试的文件" : "没有需要同步的文件",
-        };
+        await this.saveStatusFile();
+        this.executor = new RateLimitedExecutor(
+          this.getRateLimitConfig(options.provider, options.rateLimit)
+        );
+        await this.executeTasks(plan.tasks);
       }
-
-      this.progress.status = "syncing";
-      this.notifyProgress();
-
-      this.executor = new RateLimitedExecutor(
-        this.getRateLimitConfig(options.provider, options.rateLimit)
-      );
-
-      await this.executeTasks(plan.tasks);
 
       if (this.cancelRequested) {
         this.progress.status = "cancelled";
       } else if (this.progress.errorCount > 0) {
         this.progress.status = "error";
+        this.progress.message = "部分资源同步失败";
       } else {
         this.progress.status = "completed";
-        if (this.statusMeta) {
-          this.statusMeta.file.lastSyncTime = Date.now();
+        if (
+          Object.values(this.statuses).every(file => file.syncStatus === ResourceSyncStatus.Synced)
+        ) {
+          statusMeta.file.lastSyncTime = Date.now();
         }
       }
-
       await this.saveStatusFile();
       this.notifyProgress();
-
-      if (this.progress.status === "completed") {
-        this.sendCompletion();
-      } else if (this.progress.status === "error") {
-        this.sendErrorNotification("部分资源同步失败");
+      if (this.progress.status === "error") {
+        return { ok: false, message: this.progress.message };
       }
-
+      if (this.progress.status === "cancelled")
+        return { ok: false, cancelled: true, message: "同步已取消" };
       return { ok: true };
     } catch (error) {
       log.error("[resource-sync] failed", error);
       this.progress.status = "error";
       const message = (error as Error).message || "资源同步失败";
-      this.sendErrorNotification(message);
+      this.progress.message = message;
+      this.notifyProgress();
       return { ok: false, message };
     } finally {
       try {
@@ -386,20 +389,21 @@ class ResourceSyncModule {
   private async refreshStatus(options: ResourceSyncOptions, owner: number) {
     if (this.running) throw new Error("资源同步或刷新正在进行中");
     this.running = true;
+    this.currentStatusName = this.getStatusFileName(options).fileName;
+    this.planReady = false;
+    this.progress = this.createEmptyProgress();
+    this.progress.status = "checking";
+    this.notifyProgress();
     let adapter: ProviderAdapter | null = null;
     try {
-      try {
-        adapter = await this.createAdapter(options, owner);
-      } catch (error) {
-        log.warn("[resource-sync] refresh create adapter failed, use local only", error);
-        adapter = null;
-      }
+      adapter = await this.createAdapter(options, owner);
       const statusMeta = await this.prepareStatusFile(options);
       this.statusMeta = statusMeta;
       this.statuses = { ...statusMeta.file.files };
       const blacklist = this.getResourceBlacklist();
       const plan = await this.buildPlan(adapter, null, blacklist);
 
+      this.planReady = true;
       this.progress.status = "idle";
       this.progress.currentFile = null;
       this.progress.startTime = null;
@@ -413,6 +417,11 @@ class ResourceSyncModule {
         adapterReady: !!adapter,
       });
       return this.statusMeta?.file || null;
+    } catch (error) {
+      this.progress.status = "error";
+      this.progress.message = error instanceof Error ? error.message : "资源文件比对失败";
+      this.notifyProgress();
+      throw error;
     } finally {
       try {
         await adapter?.dispose?.();
@@ -422,9 +431,10 @@ class ResourceSyncModule {
     }
   }
 
-  private markErrorsPending() {
+  private markErrorsPending(fileName?: string) {
     const retryTargets = new Set<string>();
     Object.keys(this.statuses).forEach(name => {
+      if (fileName !== undefined && name !== fileName) return;
       const status = this.statuses[name];
       if (status.syncStatus === ResourceSyncStatus.Error) {
         this.statuses[name] = {
@@ -526,23 +536,15 @@ class ResourceSyncModule {
   }
 
   private async buildPlan(
-    adapter: ProviderAdapter | null,
+    adapter: ProviderAdapter,
     retryTargets?: Set<string> | null,
     blacklist?: Set<string> | null
   ) {
-    if (!adapter) {
-      log.warn(
-        "[resource-sync] buildPlan without remote adapter, only local files will be considered"
-      );
-    }
     const resourcesDir = path.join(PathUtil.getAppDir(), RESOURCE_PREFIX);
     await ensureDir(resourcesDir);
 
     const localFiles = await this.scanLocalFiles(resourcesDir);
-    let remoteFiles: IRemoteFileInfo[] = [];
-    if (adapter) {
-      remoteFiles = await adapter.list(RESOURCE_OBJECT_PREFIX);
-    }
+    const remoteFiles = await adapter.list(RESOURCE_OBJECT_PREFIX);
     const remoteMap = new Map<string, IRemoteFileInfo>(remoteFiles.map(item => [item.name, item]));
 
     const newStatuses: Record<string, IFileSyncStatus> = {};
@@ -610,7 +612,14 @@ class ResourceSyncModule {
     });
 
     this.statuses = newStatuses;
-    this.recalculateProgress(skippedCount);
+    this.progress.totalFiles = tasks.length;
+    this.progress.uploadCount = tasks.filter(task => task.direction === "upload").length;
+    this.progress.downloadCount = tasks.length - this.progress.uploadCount;
+    this.progress.skippedCount = skippedCount;
+    this.progress.errorCount = retryTargets
+      ? 0
+      : Object.values(newStatuses).filter(file => file.syncStatus === ResourceSyncStatus.Error)
+          .length;
     return { tasks };
   }
 
@@ -657,23 +666,6 @@ class ResourceSyncModule {
     return files;
   }
 
-  private recalculateProgress(skippedCount?: number) {
-    const statuses = Object.values(this.statuses);
-    this.progress.totalFiles = statuses.length;
-    this.progress.uploadCount = statuses.filter(s => s.syncDirection === "upload").length;
-    this.progress.downloadCount = statuses.filter(s => s.syncDirection === "download").length;
-    this.progress.skippedCount =
-      skippedCount !== undefined
-        ? skippedCount
-        : statuses.filter(s => s.syncDirection === null).length;
-    this.progress.errorCount = statuses.filter(
-      s => s.syncStatus === ResourceSyncStatus.Error
-    ).length;
-    this.progress.processedFiles = statuses.filter(
-      s => s.syncStatus === ResourceSyncStatus.Synced || s.syncStatus === ResourceSyncStatus.Error
-    ).length;
-  }
-
   private async executeTasks(tasks: SyncTask[]) {
     const executor = this.executor;
     if (!executor || !this.adapter) return;
@@ -691,8 +683,6 @@ class ResourceSyncModule {
       errorMessage: null,
     };
     this.progress.currentFile = task.name;
-    this.notifyFileStatus(task.name);
-    this.notifyProgress();
 
     try {
       const check = () => {
@@ -733,11 +723,14 @@ class ResourceSyncModule {
           };
         }
       }
-      this.progress.currentFile = null;
-      this.recalculateProgress();
+      const fileStatus = this.statuses[task.name].syncStatus;
+      if (fileStatus === ResourceSyncStatus.Error) this.progress.errorCount++;
+      if (fileStatus !== ResourceSyncStatus.Pending) this.progress.processedFiles++;
+      this.progress.currentFile =
+        Object.keys(this.statuses).find(
+          name => this.statuses[name].syncStatus === ResourceSyncStatus.Syncing
+        ) ?? null;
       await this.saveStatusFile();
-      this.notifyFileStatus(task.name);
-      this.notifyProgress();
     }
   }
 
@@ -754,29 +747,6 @@ class ResourceSyncModule {
   private notifyProgress() {
     if (!this.backendServer) return;
     this.backendServer.sendNotification("resource-sync:progress-update", {
-      progress: this.progress,
-    });
-  }
-
-  private notifyFileStatus(name: string) {
-    if (!this.backendServer) return;
-    this.backendServer.sendNotification("resource-sync:file-status-changed", {
-      name,
-      status: this.statuses[name],
-    });
-  }
-
-  private sendCompletion() {
-    if (!this.backendServer) return;
-    this.backendServer.sendNotification("resource-sync:completed", {
-      progress: this.progress,
-    });
-  }
-
-  private sendErrorNotification(message: string) {
-    if (!this.backendServer) return;
-    this.backendServer.sendNotification("resource-sync:error", {
-      message,
       progress: this.progress,
     });
   }

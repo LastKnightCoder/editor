@@ -1,18 +1,10 @@
-/**
- * 资源文件同步 —— 本地 resources 目录与云端双向镜像（本地多→上传、云端多→下载、同名跳过）。
- *
- * 归属「同步」子页（原在资源存储页下半，与上传目标无关而与数据库同步
- * 共用远端，故迁入同步页）：概览 Tab 放状态卡（ResourceSyncCard），资源文件 Tab 放文件
- * 列表 + 黑名单（ResourceSyncFiles）。两处共享一个 useResourceSyncModel 实例，由
- * SyncSection 持有并下传，避免重复订阅进度。
- * 远端与凭据跟随同步存储配置；状态按提供商 + 配置哈希独立存档，换配置不串台。
- */
+/** 文件传输、逐项结果与排除名单共享同一份资源账本。 */
 
 import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import clsx from "clsx";
 import {
-  AlertTriangle,
+  LoaderCircle,
   ArrowDown,
   ArrowUp,
   File as FileIcon,
@@ -20,7 +12,6 @@ import {
   Image as ImageIcon,
   Plus,
   RefreshCw,
-  RotateCw,
   Square,
   X,
 } from "lucide-react";
@@ -31,6 +22,7 @@ import {
   Dialog,
   DialogBody,
   Panel,
+  ProgressStatus,
   Segmented,
   toast,
   useEdgeFade,
@@ -40,7 +32,7 @@ import type { IFileSyncStatus } from "@/types";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { SyncActions, SyncStats } from "../components/SyncCard";
-import { pendingOf, type FileFilter, type ResourceSyncModel } from "./useResourceSyncModel";
+import type { FileFilter, ResourceSyncModel } from "./useResourceSyncModel";
 
 const FILE_STATUS_TEXTS: Record<ResourceSyncStatus, string> = {
   [ResourceSyncStatus.Pending]: "待同步",
@@ -58,8 +50,8 @@ const FILE_STATUS_TONES = {
 
 const FILE_FILTER_LABELS: Record<FileFilter, string> = {
   all: "全部",
-  upload: "待上传",
-  download: "待下载",
+  upload: "上传",
+  download: "下载",
   error: "需重传",
 };
 
@@ -79,7 +71,7 @@ function matchFilter(status: IFileSyncStatus, filter: FileFilter): boolean {
   switch (filter) {
     case "upload":
     case "download":
-      return pendingOf(status, filter);
+      return status.syncDirection === filter;
     case "error":
       return status.syncStatus === ResourceSyncStatus.Error;
     default:
@@ -87,27 +79,33 @@ function matchFilter(status: IFileSyncStatus, filter: FileFilter): boolean {
   }
 }
 
-/** 概览状态卡：进度 / 计数 / 动作（与数据库卡并排） */
 export function ResourceSyncCard({
   model,
-  onShowIssues,
+  ready,
+  onSync,
 }: {
   model: ResourceSyncModel;
-  onShowIssues: () => void;
+  ready: boolean;
+  onSync: () => void;
 }) {
   const { progress, statusFile, isSyncing, counts } = model;
-  const percent =
-    progress.totalFiles > 0 ? Math.round((progress.processedFiles / progress.totalFiles) * 100) : 0;
-
-  const chip = isSyncing ? (
-    <StatusChip tone="accent">{progress.status === "scanning" ? "扫描中" : "同步中"}</StatusChip>
-  ) : counts.error > 0 ? (
-    <StatusChip tone="danger">{counts.error} 个失败</StatusChip>
-  ) : statusFile?.lastSyncTime ? (
-    <StatusChip tone="ok">已同步</StatusChip>
-  ) : (
-    <StatusChip>未同步</StatusChip>
-  );
+  const scanning = isSyncing && progress.status !== "syncing";
+  const chip =
+    isSyncing || model.refreshing ? (
+      <StatusChip tone="accent">
+        {model.stopping ? "正在停止" : model.refreshing ? "检查中" : scanning ? "比对中" : "传输中"}
+      </StatusChip>
+    ) : progress.status === "cancelled" ? (
+      <StatusChip>已停止</StatusChip>
+    ) : counts.error || progress.status === "error" || model.readError ? (
+      <StatusChip tone="danger">{counts.error ? `${counts.error} 个失败` : "同步异常"}</StatusChip>
+    ) : counts.pending ? (
+      <StatusChip>{counts.pending} 个待同步</StatusChip>
+    ) : progress.status === "completed" || statusFile?.lastSyncTime ? (
+      <StatusChip tone="ok">已同步</StatusChip>
+    ) : (
+      <StatusChip>未同步</StatusChip>
+    );
 
   return (
     <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pt-4 pb-3.5">
@@ -116,65 +114,81 @@ export function ResourceSyncCard({
         资源文件
         <span className="ml-auto font-normal">{chip}</span>
       </div>
-      <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
-        {isSyncing && progress.currentFile
-          ? `当前 ${progress.currentFile}`
-          : `resources/ · ${
-              statusFile?.lastSyncTime
-                ? `最近同步 ${dayjs(statusFile.lastSyncTime).format("MM-DD HH:mm")}`
-                : "暂无同步记录"
-            }`}
+      <div
+        role="status"
+        className="text-tau-meta text-ink-2 mt-1 flex min-w-0 items-center gap-1.5"
+      >
+        {scanning || model.refreshing ? (
+          <>
+            <LoaderCircle size={13} className="shrink-0 animate-spin" />
+            正在比对本地与云端文件
+          </>
+        ) : (
+          <span className="truncate" title={progress.currentFile ?? undefined}>
+            {model.readError ||
+              progress.message ||
+              progress.currentFile ||
+              (statusFile?.lastSyncTime
+                ? `最近同步 ${formatSyncTime(statusFile.lastSyncTime)}`
+                : "resources/")}
+          </span>
+        )}
       </div>
-
-      {isSyncing ? (
-        <>
-          <div className="text-tau-sm text-ink-2 mt-3.5 mb-1.5 flex justify-between tabular-nums">
-            <span>
-              已处理 {progress.processedFiles} / {progress.totalFiles}
-            </span>
-            <span>{percent}%</span>
-          </div>
-          <div className="bg-sunken h-1.5 overflow-hidden rounded-full">
-            <div
-              className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-200"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-        </>
-      ) : null}
-
-      <SyncStats
-        items={[
-          { label: "文件", value: counts.all },
-          { label: "待上传", value: counts.upload },
-          { label: "待下载", value: counts.download },
-          { label: "失败", value: counts.error, valueClassName: counts.error > 0 && "text-danger" },
-        ]}
-      />
-
+      {progress.status === "syncing" && progress.totalFiles > 0 ? (
+        <ProgressStatus
+          className="mt-3"
+          value={(100 * progress.processedFiles) / progress.totalFiles}
+          label={`已处理 ${progress.processedFiles} / ${progress.totalFiles} 个文件`}
+        />
+      ) : (
+        !scanning &&
+        !model.refreshing && (
+          <SyncStats
+            items={[
+              { label: "已上传", value: counts.uploaded },
+              { label: "已下载", value: counts.downloaded },
+              { label: "跳过", value: counts.skipped },
+              {
+                label: "失败",
+                value: counts.error,
+                valueClassName: counts.error > 0 && "text-danger",
+              },
+            ]}
+          />
+        )
+      )}
       <SyncActions>
-        {isSyncing ? (
+        <Button
+          variant="primary"
+          size="sm"
+          icon={RefreshCw}
+          loading={isSyncing}
+          loadingText={scanning ? "比对中…" : "同步中…"}
+          disabled={!ready || isSyncing || model.refreshing}
+          onClick={onSync}
+        >
+          {counts.error > 0 ? "重试失败" : "同步"}
+        </Button>
+        {isSyncing && (
           <Button
             variant="secondary"
             size="sm"
             icon={Square}
+            disabled={model.stopping}
             onClick={() => void model.handleCancel()}
           >
-            停止
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            size="sm"
-            icon={RefreshCw}
-            onClick={() => void model.handleSync()}
-          >
-            {counts.error > 0 ? "重试失败" : "同步"}
+            {model.stopping ? "正在停止…" : "停止"}
           </Button>
         )}
-        {counts.error > 0 && !isSyncing && (
-          <Button variant="secondary" size="sm" icon={AlertTriangle} onClick={onShowIssues}>
-            查看失败项
+        {!isSyncing && (
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={RefreshCw}
+            disabled={!ready || model.refreshing}
+            onClick={() => void model.handleRefresh()}
+          >
+            {model.refreshing ? "检查中…" : "重新比对"}
           </Button>
         )}
       </SyncActions>
@@ -182,22 +196,29 @@ export function ResourceSyncCard({
   );
 }
 
-/** 资源文件 Tab：筛选 + 文件列表 + 黑名单 */
 export function ResourceSyncFiles({
   model,
   filter,
+  ready,
   onFilterChange,
 }: {
   model: ResourceSyncModel;
   filter: FileFilter;
+  ready: boolean;
   onFilterChange: (filter: FileFilter) => void;
 }) {
   const { entries, counts, blacklist, isSyncing } = model;
   const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(listEl);
 
+  const [showSkipped, setShowSkipped] = useState(false);
   const filtered = useMemo(
-    () => entries.filter(([, status]) => matchFilter(status, filter)),
+    () =>
+      entries.filter(
+        ([, status]) =>
+          (status.syncDirection !== null || status.syncStatus !== ResourceSyncStatus.Synced) &&
+          matchFilter(status, filter)
+      ),
     [entries, filter]
   );
 
@@ -227,14 +248,16 @@ export function ResourceSyncFiles({
 
   return (
     <>
-      <SettingsGroup title="资源文件" description="本地 resources 文件夹与远端逐个比对">
-        {entries.length === 0 ? (
-          <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-            暂无同步记录，在「概览」点击同步即可开始镜像 resources 目录
+      <SettingsGroup title="文件明细">
+        {isSyncing && model.progress.status !== "syncing" ? (
+          <div className="text-tau-meta text-ink-2 px-3 py-4">比对完成后将在这里列出文件</div>
+        ) : entries.length === 0 ? (
+          <div className="text-tau-meta text-ink-2 px-3 py-4">
+            {model.progress.status === "completed" ? "本次没有需要传输的文件" : "暂无文件明细"}
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 p-2">
+            <div className="flex flex-wrap items-center gap-2 p-2">
               <Segmented
                 label="文件筛选"
                 size="sm"
@@ -249,40 +272,42 @@ export function ResourceSyncFiles({
                   />
                 ))}
               </Segmented>
-              <span className="flex-1" />
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={RefreshCw}
-                onClick={() => void model.handleRefresh()}
-              >
-                刷新
-              </Button>
-              {counts.error > 0 && !isSyncing && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={RotateCw}
-                  onClick={() => void model.handleSync()}
-                >
-                  重试全部
-                </Button>
+            </div>
+            <div
+              ref={setListEl}
+              className="edge-fade-scroll max-h-[360px] overflow-x-hidden overflow-y-auto"
+            >
+              {filtered.map(([name, status]) => (
+                <FileRow
+                  key={name}
+                  name={name}
+                  status={status}
+                  onRetry={
+                    ready && !isSyncing && !model.refreshing
+                      ? () => {
+                          onFilterChange("all");
+                          void model.handleSync(name);
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+              {filter === "all" && counts.skipped > 0 ? (
+                <details open={showSkipped} onToggle={e => setShowSkipped(e.currentTarget.open)}>
+                  <summary className="text-tau-sm text-ink-2 cursor-pointer px-3 py-2">
+                    跳过 {counts.skipped} 个两端已有的文件
+                  </summary>
+                  {showSkipped &&
+                    entries
+                      .filter(([, file]) => file.syncDirection === null)
+                      .map(([name, status]) => <FileRow key={name} name={name} status={status} />)}
+                </details>
+              ) : (
+                filtered.length === 0 && (
+                  <div className="text-tau-meta text-ink-2 px-3 py-4">当前筛选条件下没有文件</div>
+                )
               )}
             </div>
-            {filtered.length === 0 ? (
-              <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-                当前筛选条件下没有文件
-              </div>
-            ) : (
-              <div
-                ref={setListEl}
-                className="edge-fade-scroll max-h-[360px] overflow-x-hidden overflow-y-auto"
-              >
-                {filtered.map(([name, status]) => (
-                  <FileRow key={name} name={name} status={status} />
-                ))}
-              </div>
-            )}
           </>
         )}
       </SettingsGroup>
@@ -375,7 +400,15 @@ export function ResourceSyncFiles({
   );
 }
 
-function FileRow({ name, status }: { name: string; status: IFileSyncStatus }) {
+function FileRow({
+  name,
+  status,
+  onRetry,
+}: {
+  name: string;
+  status: IFileSyncStatus;
+  onRetry?: () => void;
+}) {
   const isError = status.syncStatus === ResourceSyncStatus.Error;
   const Icon = IMAGE_EXT_RE.test(name) ? ImageIcon : FileIcon;
   return (
@@ -399,7 +432,7 @@ function FileRow({ name, status }: { name: string; status: IFileSyncStatus }) {
             : ` · ${formatSyncTime(status.lastSyncTime)}`}
         </div>
       </div>
-      {status.syncDirection && status.syncStatus !== ResourceSyncStatus.Synced && (
+      {status.syncDirection && (
         <span
           className="text-ink-3 grid place-items-center"
           title={status.syncDirection === "upload" ? "上传" : "下载"}
@@ -412,8 +445,19 @@ function FileRow({ name, status }: { name: string; status: IFileSyncStatus }) {
         </span>
       )}
       <StatusChip tone={FILE_STATUS_TONES[status.syncStatus]}>
-        {FILE_STATUS_TEXTS[status.syncStatus]}
+        {status.syncStatus === ResourceSyncStatus.Synced
+          ? status.syncDirection === "upload"
+            ? "已上传"
+            : status.syncDirection === "download"
+              ? "已下载"
+              : "已跳过"
+          : FILE_STATUS_TEXTS[status.syncStatus]}
       </StatusChip>
+      {isError && onRetry && (
+        <Button size="sm" variant="secondary" aria-label={`重试 ${name}`} onClick={onRetry}>
+          重试
+        </Button>
+      )}
     </div>
   );
 }

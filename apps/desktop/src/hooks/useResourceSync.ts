@@ -1,20 +1,13 @@
-import { useEffect, useState } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   cancelResourceSync,
-  getResourceSyncProgress,
-  getResourceSyncStatuses,
+  getResourceSyncSnapshot,
   refreshResourceSyncStatuses,
   retryFailedResourceSync,
-  resumeResourceSync,
   startResourceSync,
 } from "@/commands";
-import {
-  IResourceSyncProgress,
-  ISyncStatusFile,
-  IFileSyncStatus,
-  ResourceSyncOptions,
-} from "@/types";
+import type { IResourceSyncProgress, ResourceSyncOptions } from "@/types";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 
@@ -30,183 +23,101 @@ const emptyProgress: IResourceSyncProgress = {
   startTime: null,
 };
 
-const useResourceSync = () => {
+type Action = "sync" | "retry" | "refresh";
+
+export default function useResourceSync() {
   const client = useBackendWebsocketStore(state => state.client);
-  const syncConfig = useSettingStore(state => state.setting.sync);
-  const [progress, setProgress] = useState<IResourceSyncProgress>(emptyProgress);
-  const [statusFile, setStatusFile] = useState<ISyncStatusFile | null>(null);
-
-  const buildOptions = useMemoizedFn((): ResourceSyncOptions | null => {
-    switch (syncConfig.active) {
-      case ESync.Plugin:
-        return syncConfig.plugin?.id &&
-          Object.hasOwn(syncConfig.plugin.configurations, syncConfig.plugin.id)
-          ? {
-              provider: "plugin",
-              pluginId: syncConfig.plugin.id,
-              config: syncConfig.plugin.configurations[syncConfig.plugin.id],
-            }
-          : null;
-      default:
-        return null;
-    }
+  const sync = useSettingStore(state => state.setting.sync);
+  const id = sync.active === ESync.Plugin ? sync.plugin?.id : undefined;
+  const config = id ? sync.plugin?.configurations[id] : undefined;
+  // 查询按配置实例隔离，避免把服务密钥写入查询键。
+  const { options, queryId } = useMemo(
+    () => ({
+      options:
+        id && config !== undefined
+          ? ({ provider: "plugin", pluginId: id, config } satisfies ResourceSyncOptions)
+          : null,
+      queryId: crypto.randomUUID(),
+    }),
+    [id, config]
+  );
+  const lock = useRef(false);
+  const [action, setAction] = useState<Action | null>(null);
+  const [stopping, setStopping] = useState(false);
+  const { data, refetch, error } = useQuery({
+    queryKey: ["settings", "resource-sync", queryId],
+    gcTime: 0,
+    enabled: !!options,
+    queryFn: () => {
+      if (!options) throw new Error("同步配置不完整");
+      return getResourceSyncSnapshot(options);
+    },
+    refetchInterval: query => {
+      const phase = query.state.data?.progress.status;
+      return action || phase === "checking" || phase === "scanning" || phase === "syncing"
+        ? 500
+        : false;
+    },
+    retry: false,
   });
 
-  const refreshProgress = useMemoizedFn(async () => {
+  // 其他窗口启动或结束时唤醒此页；传输中按固定频率合并读取进度和文件状态。
+  useEffect(() => {
+    if (!client || !options) return;
+    const onProgress = () => {
+      void refetch();
+    };
+    client.registerNotificationHandler("resource-sync:progress-update", onProgress);
+    return () => client.unregisterNotificationHandler("resource-sync:progress-update", onProgress);
+  }, [client, options, refetch]);
+
+  const run = async (next: Action, fileName?: string) => {
+    if (!options || lock.current) return;
+    lock.current = true;
+    setAction(next);
+    setStopping(false);
     try {
-      const current = await getResourceSyncProgress();
-      if (current) {
-        setProgress(current);
+      if (next === "refresh") {
+        await refreshResourceSyncStatuses(options);
+      } else {
+        const result = await (next === "retry"
+          ? retryFailedResourceSync(options, fileName)
+          : startResourceSync(options));
+        if (!result.ok && !result.cancelled) throw new Error(result.message || "资源同步失败");
       }
-    } catch (e) {
-      console.error("获取资源同步进度失败", e);
-    }
-  });
-
-  const refreshStatuses = useMemoizedFn(async (optionsArg?: ResourceSyncOptions | null) => {
-    const options = optionsArg ?? buildOptions();
-    try {
-      const data = await refreshResourceSyncStatuses(options || undefined);
-      setStatusFile(data);
-    } catch (e) {
-      console.error("获取资源同步状态失败", e);
+    } finally {
       try {
-        const data = await getResourceSyncStatuses();
-        setStatusFile(data);
-      } catch (err) {
-        console.error("兜底获取资源同步状态失败", err);
+        await refetch({ throwOnError: true });
+      } finally {
+        lock.current = false;
+        setAction(null);
+        setStopping(false);
       }
     }
-  });
+  };
 
-  useEffect(() => {
-    const options = buildOptions();
-    if (!options) {
-      setStatusFile(null);
-      setProgress(emptyProgress);
-      return;
+  const cancel = async () => {
+    setStopping(true);
+    try {
+      const result = await cancelResourceSync();
+      if (!result.ok) throw new Error(result.message || "停止同步失败");
+    } catch (error) {
+      setStopping(false);
+      throw error;
     }
-    refreshProgress();
-    refreshStatuses(options);
-  }, [syncConfig, refreshProgress, refreshStatuses, buildOptions]);
+  };
 
-  useEffect(() => {
-    if (!client) return;
-
-    const progressOf = (data: unknown) =>
-      typeof data === "object" && data !== null
-        ? (data as Record<string, unknown>).progress
-        : undefined;
-
-    const handleProgress = (data: unknown) => {
-      const progress = progressOf(data);
-      if (progress) {
-        setProgress(progress as IResourceSyncProgress);
-      }
-    };
-
-    const handleFileStatus = (data: unknown) => {
-      const record = (typeof data === "object" && data !== null ? data : {}) as Record<
-        string,
-        unknown
-      >;
-      const name = record.name as string | undefined;
-      const status = record.status;
-      if (!name || !status) return;
-      setStatusFile(prev => {
-        const base: ISyncStatusFile = prev || {
-          provider: buildOptions()?.provider || "plugin",
-          config: {},
-          lastSyncTime: null,
-          files: {},
-        };
-        return {
-          ...base,
-          files: {
-            ...base.files,
-            [name]: status as IFileSyncStatus,
-          },
-        };
-      });
-    };
-
-    const handleCompleted = (data: unknown) => {
-      const progress = progressOf(data);
-      if (progress) {
-        setProgress(progress as IResourceSyncProgress);
-      }
-      refreshStatuses();
-    };
-
-    const handleError = (data: unknown) => {
-      const progress = progressOf(data);
-      if (progress) {
-        setProgress(progress as IResourceSyncProgress);
-      }
-    };
-
-    client.registerNotificationHandler("resource-sync:progress-update", handleProgress);
-    client.registerNotificationHandler("resource-sync:file-status-changed", handleFileStatus);
-    client.registerNotificationHandler("resource-sync:completed", handleCompleted);
-    client.registerNotificationHandler("resource-sync:error", handleError);
-
-    return () => {
-      client.unregisterNotificationHandler("resource-sync:progress-update", handleProgress);
-      client.unregisterNotificationHandler("resource-sync:file-status-changed", handleFileStatus);
-      client.unregisterNotificationHandler("resource-sync:completed", handleCompleted);
-      client.unregisterNotificationHandler("resource-sync:error", handleError);
-    };
-  }, [client, refreshStatuses, buildOptions]);
-
-  const start = useMemoizedFn(async () => {
-    const options = buildOptions();
-    if (!options) {
-      return { ok: false, message: "同步配置不完整" };
-    }
-    const res = await startResourceSync(options);
-    if (res?.ok) {
-      refreshStatuses();
-      refreshProgress();
-    }
-    return res;
-  });
-
-  const resume = useMemoizedFn(async () => {
-    const options = buildOptions();
-    const res = await resumeResourceSync(options || undefined);
-    if (res?.ok) {
-      refreshStatuses();
-      refreshProgress();
-    }
-    return res;
-  });
-
-  const retryFailed = useMemoizedFn(async () => {
-    const options = buildOptions();
-    const res = await retryFailedResourceSync(options || undefined);
-    if (res?.ok) {
-      refreshStatuses();
-      refreshProgress();
-    }
-    return res;
-  });
-
-  const cancel = useMemoizedFn(async () => {
-    const res = await cancelResourceSync();
-    refreshProgress();
-    return res;
-  });
-
+  const progress = data?.progress ?? emptyProgress;
+  const submitting = action === "sync" || action === "retry";
   return {
     progress,
-    statusFile,
-    refreshStatuses,
-    refreshProgress,
-    startSync: start,
-    resumeSync: resume,
-    retryFailedSync: retryFailed,
-    cancelSync: cancel,
+    statusFile: data?.statusFile,
+    error,
+    submitting,
+    refreshing: action === "refresh" || progress.status === "checking",
+    stopping:
+      stopping && (submitting || progress.status === "scanning" || progress.status === "syncing"),
+    run,
+    cancel,
   };
-};
-
-export default useResourceSync;
+}

@@ -1,8 +1,9 @@
 import { invoke } from "@/electron";
-import type { IResourceSyncProgress, ISyncStatusFile, ResourceSyncOptions } from "@/types";
+import type { ResourceSyncSnapshot, ISyncStatusFile, ResourceSyncOptions } from "@/types";
 
 interface SyncResponse {
   ok: boolean;
+  cancelled?: boolean;
   message?: string;
 }
 
@@ -15,22 +16,19 @@ export const resumeResourceSync = async (options?: ResourceSyncOptions): Promise
 };
 
 export const retryFailedResourceSync = async (
-  options?: ResourceSyncOptions
+  options?: ResourceSyncOptions,
+  fileName?: string
 ): Promise<SyncResponse> => {
-  return invoke("resource-sync:retry-failed", options);
+  return invoke("resource-sync:retry-failed", options, fileName);
 };
 
 export const cancelResourceSync = async (): Promise<SyncResponse> => {
   return invoke("resource-sync:cancel");
 };
 
-export const getResourceSyncProgress = async (): Promise<IResourceSyncProgress> => {
-  return invoke("resource-sync:get-progress");
-};
-
-export const getResourceSyncStatuses = async (): Promise<ISyncStatusFile | null> => {
-  return invoke("resource-sync:get-statuses");
-};
+export const getResourceSyncSnapshot = (
+  options: ResourceSyncOptions
+): Promise<ResourceSyncSnapshot> => invoke("resource-sync:get-snapshot", options);
 
 export const refreshResourceSyncStatuses = async (
   options?: ResourceSyncOptions

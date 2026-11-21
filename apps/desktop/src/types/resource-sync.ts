@@ -27,12 +27,18 @@ export interface IResourceSyncProgress {
   totalFiles: number;
   processedFiles: number;
   currentFile: string | null;
-  status: "idle" | "scanning" | "syncing" | "completed" | "error" | "cancelled";
+  status: "idle" | "checking" | "scanning" | "syncing" | "completed" | "error" | "cancelled";
   uploadCount: number;
   downloadCount: number;
   skippedCount: number;
   errorCount: number;
   startTime: number | null;
+  message?: string;
+}
+
+export interface ResourceSyncSnapshot {
+  progress: IResourceSyncProgress;
+  statusFile: ISyncStatusFile | null;
 }
 
 export interface IRateLimitConfig {

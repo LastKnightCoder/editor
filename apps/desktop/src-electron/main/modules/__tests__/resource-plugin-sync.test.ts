@@ -7,6 +7,7 @@ import {
   RESOURCE_OBJECT_PREFIX,
   resourceManifestObject,
 } from "@tau/db-schema/sync-protocol";
+import type { ResourceSyncSnapshot } from "@/types/resource-sync";
 import { chunkDigest } from "../../services/chunked-sync";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
@@ -81,7 +82,27 @@ it("资源计划复用插件的列表/上传/下载，任务结束释放，状�
     if (method === "downloadFile") return store.downloadFile(args[0] as string);
     if (method === "uploadFile") return store.uploadFile(args[0] as string, args[1] as Uint8Array);
   });
-  expect(await invoke("resource-sync:start", options)).toMatchObject({ ok: true });
+  const running = invoke("resource-sync:start", options);
+  expect(await invoke("resource-sync:get-snapshot", options)).toMatchObject({
+    progress: { status: "scanning" },
+    statusFile: null,
+  });
+  expect(await running).toMatchObject({ ok: true });
+  expect(await invoke("resource-sync:get-snapshot", options)).toMatchObject({
+    progress: { status: "completed", processedFiles: 2, totalFiles: 2 },
+    statusFile: {
+      files: {
+        "local.png": { syncStatus: "synced", syncDirection: "upload" },
+        "remote.png": { syncStatus: "synced", syncDirection: "download" },
+      },
+    },
+  });
+  const other = (await invoke("resource-sync:get-snapshot", {
+    ...options,
+    config: {},
+  })) as ResourceSyncSnapshot;
+  expect(other.progress.status).toBe("idle");
+  expect(other.statusFile?.files).toEqual({});
   expect(await readFile(path.join(mock.root, "resources/remote.png"))).toEqual(Buffer.from([2]));
   expect(remote.has(await resourceManifestObject("local.png", chunkDigest))).toBe(true);
   expect(mock.call).toHaveBeenCalledWith(42, "session", "listFiles", [RESOURCE_OBJECT_PREFIX]);
@@ -121,10 +142,41 @@ it("渲染进程断开后取消资源任务，不把失效的插件操作反复�
     throw new DOMException("同步渲染进程已断开", "AbortError");
   });
   await invoke("resource-sync:start", options);
-  expect(await invoke("resource-sync:get-progress")).toMatchObject({ status: "cancelled" });
+  expect(await invoke("resource-sync:get-snapshot", options)).toMatchObject({
+    progress: { status: "cancelled" },
+  });
   expect(mock.call.mock.calls.filter(call => call[2] !== "listFiles")).toHaveLength(1);
   expect(mock.call.mock.calls.filter(call => call[2] === "uploadFile")).toHaveLength(0);
   expect(mock.end).toHaveBeenCalledWith(42, "session");
+});
+
+it("单独重试只处理选中的失败文件，并保留其余文件的失败原因", async () => {
+  for (const name of ["first.txt", "second.txt"]) {
+    await writeFile(path.join(mock.root, "resources", name), name);
+  }
+  let fail = true;
+  mock.call.mockImplementation(async (_owner, _session, method) => {
+    if (method === "listFiles") return [];
+    if (method === "fileExists") return false;
+    if (fail) throw new Error("传输中断");
+    return true;
+  });
+  const config = { ...options, rateLimit: { requestsPerSecond: 0 } };
+  expect(await invoke("resource-sync:start", config)).toMatchObject({ ok: false });
+  fail = false;
+  expect(await invoke("resource-sync:retry-failed", config, "second.txt")).toMatchObject({
+    ok: true,
+  });
+  expect(await invoke("resource-sync:get-snapshot", config)).toMatchObject({
+    progress: { totalFiles: 1, processedFiles: 1 },
+    statusFile: {
+      lastSyncTime: null,
+      files: {
+        "first.txt": { syncStatus: "error", errorMessage: "传输中断" },
+        "second.txt": { syncStatus: "synced", syncDirection: "upload" },
+      },
+    },
+  });
 });
 
 it("同时有多个资源时实际在途文件不超过宿主并发预算", async () => {

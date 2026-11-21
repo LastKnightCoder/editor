@@ -65,7 +65,7 @@ export function ResourceSection() {
       </SettingsGroup>
       <SettingsNote icon={<Info size={14} />}>
         独立 Markdown 文件保留文档旁的本地保存规则；本地 resources 目录与云端的镜像在「同步 ·
-        资源文件」中管理。
+        云端存储」中管理。
       </SettingsNote>
     </>
   );

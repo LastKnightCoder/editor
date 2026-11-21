@@ -2,13 +2,20 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { download, getRemoteDatabaseVersion, upload } from "@/commands";
-import { ResourceSyncStatus } from "@/types";
+import {
+  download,
+  getRemoteDatabaseVersion,
+  upload,
+  getResourceSyncSnapshot,
+  retryFailedResourceSync,
+  startResourceSync,
+  refreshResourceSyncStatuses,
+} from "@/commands";
+import { ResourceSyncStatus, type IFileSyncStatus, type ResourceSyncSnapshot } from "@/types";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { SyncSection } from "../sections/SyncSection";
 
 const mocks = vi.hoisted(() => ({
-  model: {} as Record<string, unknown>,
   pluginState: "active",
   pluginEnabled: true,
   sections: [] as unknown[],
@@ -16,6 +23,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/commands", () => ({
+  getResourceSyncSnapshot: vi.fn(),
+  retryFailedResourceSync: vi.fn(),
+  startResourceSync: vi.fn(),
+  refreshResourceSyncStatuses: vi.fn(),
+  listResourceSyncBlacklist: vi.fn(async () => [{ id: 1, fileName: "big.mov" }]),
   download: vi.fn(),
   upload: vi.fn(),
   getRemoteDatabaseVersion: vi.fn(async () => ({ version: 0 })),
@@ -40,11 +52,12 @@ vi.mock("@/services/usageSyncRunner", () => ({ runUsageSync: vi.fn(async () => n
 vi.mock("@/app/settingsStore", () => ({
   useSettingsStore: { getState: () => ({ openSettings: vi.fn(), closeSettings: vi.fn() }) },
 }));
-vi.mock("../sections/useResourceSyncModel", () => ({
-  useResourceSyncModel: () => mocks.model,
-}));
-
-const file = (syncStatus: ResourceSyncStatus, extra: Record<string, unknown> = {}) => ({
+const file = (
+  syncStatus: ResourceSyncStatus,
+  extra: Partial<IFileSyncStatus> = {}
+): IFileSyncStatus => ({
+  retryCount: 0,
+  errorMessage: null,
   syncStatus,
   syncDirection: "upload",
   fileSize: 2048,
@@ -110,25 +123,35 @@ beforeEach(() => {
       database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
     },
   }));
-  mocks.model = {
-    progress: { status: "completed", totalFiles: 3, processedFiles: 3, currentFile: null },
-    statusFile: { lastSyncTime: Date.now() },
-    isSyncing: false,
-    entries: [
-      ["broken.png", file(ResourceSyncStatus.Error, { errorMessage: "上传超时" })],
-      ["ok.png", file(ResourceSyncStatus.Synced)],
-      ["new.pdf", file(ResourceSyncStatus.Pending)],
-    ],
-    counts: { all: 3, upload: 2, download: 0, error: 1 },
-    blacklist: {
-      items: [{ id: "1", fileName: "big.mov" }],
-      addItems: vi.fn(),
-      removeItems: vi.fn(),
-    },
-    handleSync: vi.fn(),
-    handleCancel: vi.fn(),
-    handleRefresh: vi.fn(),
-  };
+  vi.mocked(retryFailedResourceSync).mockReset().mockResolvedValue({ ok: true });
+  vi.mocked(startResourceSync).mockReset();
+  vi.mocked(refreshResourceSyncStatuses).mockClear();
+  vi.mocked(getResourceSyncSnapshot)
+    .mockReset()
+    .mockResolvedValue({
+      progress: {
+        status: "error",
+        totalFiles: 3,
+        processedFiles: 3,
+        currentFile: null,
+        startTime: 1,
+        uploadCount: 2,
+        downloadCount: 1,
+        skippedCount: 1,
+        errorCount: 1,
+      },
+      statusFile: {
+        provider: "plugin",
+        config: {},
+        lastSyncTime: 1,
+        files: {
+          "broken.png": file(ResourceSyncStatus.Error, { errorMessage: "上传超时" }),
+          "ok.png": file(ResourceSyncStatus.Synced),
+          "new.pdf": file(ResourceSyncStatus.Synced, { syncDirection: "download" }),
+          "both.txt": file(ResourceSyncStatus.Synced, { syncDirection: null }),
+        },
+      },
+    });
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -181,16 +204,17 @@ it("真实检查失败保留错误，手动检查成功后清除", async () => {
   expect(text()).not.toContain("检查失败");
 });
 
-it("概览并排数据库卡与资源文件卡，Tab 角标为失败数", () => {
+it("云端存储直接显示上传下载明细，两端已有的文件展开后可查", async () => {
   render();
-  expect(text()).toContain("数据库");
-  expect(text()).toContain("资源文件");
-  expect(text()).toContain("1 个失败");
-  expect(text()).toContain("同步服务");
-  expect(container.querySelector('input[aria-label="Bucket"]')).toBeNull();
-  const filesTab = container.querySelector('[role="tab"][data-tab="files"]')!;
-  expect(filesTab.textContent).toBe("资源文件1");
-  expect(filesTab.getAttribute("aria-selected")).toBe("false");
+  await vi.waitFor(() => expect(text()).toContain("ok.png"));
+  expect(text()).toContain("new.pdf");
+  expect(text()).not.toContain("both.txt");
+  const details = container.querySelector("details")!;
+  await act(async () => {
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+  });
+  expect(text()).toContain("both.txt");
 });
 
 it("同步服务列表只显示摘要，未配置不可选，切换前先探测云端", async () => {
@@ -214,7 +238,9 @@ it("同步服务列表只显示摘要，未配置不可选，切换前先探测�
   render();
   expect(text()).toContain("notes");
   expect(text()).not.toContain("x");
-  const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+  const radios = [
+    ...container.querySelectorAll<HTMLInputElement>('input[type="radio"][value$=".sync"]'),
+  ];
   expect(radios.map(radio => radio.checked)).toEqual([true, false]);
   await act(async () => radios[1].click());
   await vi.waitFor(() =>
@@ -242,7 +268,9 @@ it("目标云端已有数据时确认后才切换", async () => {
     },
   }));
   render();
-  const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+  const radios = [
+    ...container.querySelectorAll<HTMLInputElement>('input[type="radio"][value$=".sync"]'),
+  ];
   await act(async () => radios[1].click());
   await vi.waitFor(() => expect(document.body.textContent).toContain("改为同步到 WebDAV"));
   expect(useSettingStore.getState().setting.sync.plugin?.id).toBe("test.sync");
@@ -253,22 +281,74 @@ it("目标云端已有数据时确认后才切换", async () => {
   expect(useSettingStore.getState().setting.sync.plugin?.id).toBe("other.sync");
 });
 
-it("失败项存在时同步按钮改为重试失败，并调用模型动作", () => {
+it("同步请求返回前立即锁定按钮，结束后原地读取结果", async () => {
+  const previous = await vi.mocked(getResourceSyncSnapshot)({
+    provider: "plugin",
+    pluginId: "test.sync",
+    config: {},
+  });
+  const idle: ResourceSyncSnapshot = {
+    progress: { ...previous.progress, status: "idle" },
+    statusFile: null,
+  };
+  vi.mocked(getResourceSyncSnapshot).mockResolvedValue(idle);
+  let finish!: () => void;
+  vi.mocked(startResourceSync).mockImplementation(
+    () =>
+      new Promise(resolve => {
+        finish = () => resolve({ ok: true });
+      })
+  );
   render();
-  act(() => button("重试失败").click());
-  expect(mocks.model.handleSync).toHaveBeenCalled();
+  await vi.waitFor(() => expect(text()).toContain("已是最新"));
+  const syncButton = [...container.querySelectorAll("button")].find(
+    item => item.textContent === "同步"
+  )!;
+  act(() => {
+    syncButton.click();
+    syncButton.click();
+  });
+  expect(startResourceSync).toHaveBeenCalledOnce();
+  expect(syncButton.disabled).toBe(true);
+  expect(button("停止").disabled).toBe(false);
+  expect(container.querySelector('[role="progressbar"]')).toBeNull();
+  vi.mocked(getResourceSyncSnapshot).mockResolvedValue({
+    ...previous,
+    progress: {
+      ...previous.progress,
+      status: "syncing",
+      currentFile: "new.pdf",
+      totalFiles: 2,
+      processedFiles: 1,
+    },
+  });
+  await vi.waitFor(
+    () =>
+      expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe(
+        "50"
+      ),
+    { timeout: 2000 }
+  );
+  vi.mocked(getResourceSyncSnapshot).mockResolvedValue(previous);
+  await act(async () => finish());
+  await vi.waitFor(() => expect(text()).toContain("上传超时"));
+  expect(text()).toContain("new.pdf");
+  expect(refreshResourceSyncStatuses).not.toHaveBeenCalled();
 });
 
-it("查看失败项切到资源文件 Tab 并按需重传筛选", () => {
+it("在云端存储筛出失败原因，可单独重试该文件", async () => {
   render();
-  act(() => button("查看失败项").click());
-  expect(
-    container.querySelector('[role="tab"][data-tab="files"]')!.getAttribute("aria-selected")
-  ).toBe("true");
-  expect(text()).toContain("broken.png");
+  await vi.waitFor(() => expect(text()).toContain("broken.png"));
+  act(() => container.querySelector<HTMLInputElement>('input[value="error"]')!.click());
   expect(text()).toContain("上传超时");
   expect(text()).not.toContain("ok.png");
-  expect(text()).toContain("big.mov");
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[aria-label="重试 broken.png"]')!.click()
+  );
+  expect(retryFailedResourceSync).toHaveBeenCalledWith(
+    expect.objectContaining({ pluginId: "test.sync" }),
+    "broken.png"
+  );
 });
 
 it("本地数据库 Tab：展示当前库与路径，其他库可删除，新建入口与备份注记", async () => {

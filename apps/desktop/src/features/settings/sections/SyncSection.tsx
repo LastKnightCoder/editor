@@ -20,7 +20,7 @@ import { isProviderSection, ProviderChoiceList } from "../components/ProviderCho
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 
-type SyncTab = "overview" | "files" | "database";
+type SyncTab = "overview" | "database";
 
 export function SyncSection() {
   const queryClient = useQueryClient();
@@ -198,7 +198,6 @@ export function SyncSection() {
         onChange={setTab}
         items={[
           { key: "overview", label: "云端存储" },
-          { key: "files", label: "资源文件", badge: resourceSync.counts.error || undefined },
           { key: "database", label: "本地数据库" },
         ]}
       />
@@ -291,9 +290,10 @@ export function SyncSection() {
               {isConfigured ? (
                 <ResourceSyncCard
                   model={resourceSync}
-                  onShowIssues={() => {
-                    setFileFilter("error");
-                    setTab("files");
+                  ready={isReady}
+                  onSync={() => {
+                    setFileFilter("all");
+                    void resourceSync.handleSync();
                   }}
                 />
               ) : (
@@ -307,6 +307,15 @@ export function SyncSection() {
             </div>
           </SettingsGroup>
 
+          {isConfigured && (
+            <ResourceSyncFiles
+              ready={isReady}
+              model={resourceSync}
+              filter={fileFilter}
+              onFilterChange={setFileFilter}
+            />
+          )}
+
           <SettingsGroup
             title="同步服务"
             description="同一时间只同步到一个服务，数据库与资源文件共用"
@@ -316,7 +325,7 @@ export function SyncSection() {
               configurations={sync.plugin?.configurations}
               current={sync.plugin?.id ?? ""}
               from="sync"
-              disabled={isSyncing}
+              disabled={isSyncing || resourceSync.isSyncing || resourceSync.refreshing}
               probing={switcher.probing}
               addLabel="添加同步服务"
               onSelect={(pluginId, title) => void switcher.request(pluginId, title)}
@@ -324,12 +333,6 @@ export function SyncSection() {
           </SettingsGroup>
           {switcher.dialog}
         </>
-      ) : tab === "files" ? (
-        <ResourceSyncFiles
-          model={resourceSync}
-          filter={fileFilter}
-          onFilterChange={setFileFilter}
-        />
       ) : (
         <LocalDatabasePanel />
       )}
