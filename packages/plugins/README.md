@@ -4,7 +4,7 @@
 
 生产边界：官方应用插件新发行统一使用格式 3，按目标平台、最低客户端版本与实际宿主实现选版；桌面、Android、iOS 通过固定插件中心安装。作者只使用现有插件 API 与平台声明，构建器自动生成白板装配信息；内部宿主入口不随作者 tarball 发布。当前边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
-同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55，整合与发布记录见docs/plugin-system/60。
+同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。同步插件的渲染进程边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)与[桌面插件运行时](/docs/architecture/desktop/plugins.md)。
 
 本包提供应用插件 API 和生命周期。渲染插件与应用在同一环境运行，业务数据接口通过 manifest 声明与运行时授权约束，但不提供安全隔离。格式 2 的本机后台在独立进程执行，需用户另行授权，本机系统权限不受沙箱限制。registerTrusted 是保留的宿主方法名。正式插件从插件中心安装。
 
@@ -12,13 +12,13 @@
 
 ## 入口
 
-核心与协议全部由 TypeScript 维护：`src/contract.ts` 是作者生命周期、命令和私有存储契约，`src/index.ts` 保留原公开导出；`src/host.ts` 是桌面和示例共用的正式宿主，`src/lifecycle.ts`、`src/storage.ts`、`src/file-storage.ts` 承担清理和存储。`scripts/` 只做构建/启动/验收编排，不维护第二套宿主。QuickJS/WASM 选型与权限隔离暂停，历史实验见专题 24/25，当前流程不依赖它们。
+核心与协议全部由 TypeScript 维护：`src/contract.ts` 是作者生命周期、命令和私有存储契约，`src/index.ts` 保留原公开导出；`src/host.ts` 是桌面和示例共用的正式宿主，`src/lifecycle.ts`、`src/storage.ts`、`src/file-storage.ts` 承担清理和存储。`scripts/` 只做构建/启动/验收编排，不维护第二套宿主。QuickJS/WASM 选型与权限隔离未采用，当前流程不依赖它们。
 
 面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和静态编辑器扩展契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../plugins/tau-plugin-template/docs/mcp.md)。
-- `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知能力](/docs/architecture/plugin-system/通知能力.md)。
+- `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知与语音](/plugins/tau-plugin-template/docs/notifications-and-voice.md)。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
 - `@tau/plugins/node`：Node 私有文件存储适配器，由宿主选择目录；不进入插件公开上下文。
 
@@ -32,7 +32,7 @@
 
 页面组件还可通过 `PluginPageProps.pageContext.register(() => value)` 提供当前页面上下文。value 的 JSON 形状完全由作者决定；在组件 effect 中注册并注销，现有 `get_current_context` 将当前实例返回值原样放入 `page.pluginContext`。页面操作继续独立使用 `context.mcp.register`。需要包含此能力的 SDK 和客户端构建。
 
-核心仅使用 React 的类型，根入口没有 React/DOM 运行时依赖。桌面适配及双入口示例见 [C03 文档](/docs/architecture/plugin-system/12-C03桌面页面与UI接入.md)。内部 host 入口还提供 createBrowserStorage，要求宿主显式注入 Storage，不在模块加载时访问 window。
+核心仅使用 React 的类型，根入口没有 React/DOM 运行时依赖。桌面页面承载见 [桌面插件运行时](/docs/architecture/desktop/plugins.md)。内部 host 入口还提供 createBrowserStorage，要求宿主显式注入 Storage，不在模块加载时访问 window。
 
 宿主可通过 subscribe/getRevision 响应状态与命令变化，listPlugins/listCommands 供开发台和命令面板使用；这些不是作者的公共业务 API。
 

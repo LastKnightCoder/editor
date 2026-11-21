@@ -369,7 +369,7 @@
 
 ### 10.3 待办（发布前）
 
-- [ ] Mac 真机验证：按 [mac-verification-runbook.md](/docs/guides/ops-mac-verification.md) 执行（含 whisper-cli 构建/冒烟、node-llama-cpp 推理断言、应用检查点、打包验证与 OSS 清理，全部命令化，可供 AI Agent 直接执行）
+- [ ] Mac 真机验证：按 [客户端构建与安装](/docs/guides/ops-client-build-install.md#macos-原生运行时验证) 的原生运行时验证执行（whisper-cli 构建/冒烟、node-llama-cpp 推理断言、应用检查点）
 - [ ] Mac/Linux 打包回归（本机仅验证了 win32；linux 理论可用但未承诺）
 - [ ] 首发版本说明：「首次启动将重建本地索引」「本地向量模型需重新下载（体积更小）」
 - [ ] 旧 `userData/runtime/python-server/` 目录（404MB+）与旧 torch 模型目录的清理提示（可选：检测到即提示可释放空间）

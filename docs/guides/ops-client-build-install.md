@@ -30,6 +30,49 @@
 3. 核对版本、原工作区和数据，再验证插件。遇到 Gatekeeper 拦截先检查签名、公证和下载来源，不通过清除安全属性掩盖发行问题。
 4. macOS 交付不代表 Windows/Linux 已出包或已验收；各平台独立构建和记录结果。
 
+## macOS 原生运行时验证
+
+whisper-cli（转录）与 node-llama-cpp（本地嵌入/重排/扩展）是随包分发的原生依赖，相关构建改动后按此验证。
+
+**构建 whisper-cli 并放置**（dev 与打包共用此路径；文件需提交进仓库，electron-builder 的 `mac.extraResources` 从这里打进安装包）：
+
+```bash
+cd /tmp && rm -rf whisper.cpp && git clone --depth 1 https://github.com/ggml-org/whisper.cpp && cd whisper.cpp
+cmake -B build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DWHISPER_METAL=ON -DBUILD_SHARED_LIBS=OFF
+cmake --build build --config Release --target whisper-cli -j
+mkdir -p "$REPO/apps/desktop/build/bin/darwin"
+cp build/bin/whisper-cli "$REPO/apps/desktop/build/bin/darwin/whisper-cli"
+chmod +x "$REPO/apps/desktop/build/bin/darwin/whisper-cli"
+```
+
+判据：`--help` 退出码 0；`file` 显示 universal 或对应架构且 executable；`git check-ignore apps/desktop/build/bin/darwin/whisper-cli` 无输出（未被 .gitignore 排除）。
+
+**whisper-cli 冒烟**（用系统 `say` + `afconvert` 生成测试音频，无需素材）：
+
+```bash
+cd /tmp && mkdir -p tau-verify && cd tau-verify
+say -o test.aiff "你好，这是一段用于验证转录功能的测试音频，今天天气很好。"
+afconvert -f WAVE -d LEI16@16000 -c 1 test.aiff test.wav
+curl -L --retry 3 -o ggml-base.bin \
+  "https://modelscope.cn/api/v1/models/pengzhendong/whisper.cpp-base/repo?Revision=master&FilePath=ggml-base.bin" \
+  || curl -L --retry 3 -o ggml-base.bin \
+  "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+"$REPO/apps/desktop/build/bin/darwin/whisper-cli" -m ggml-base.bin -f test.wav -l zh -osrt -of out-sentence -pp --max-len 50
+"$REPO/apps/desktop/build/bin/darwin/whisper-cli" -m ggml-base.bin -f test.wav -l zh -osrt -of out-word -pp --max-len 1 --dtw base
+```
+
+判据：`out-sentence.srt` 含 `00:` 时间戳且文本含「转录/测试」；`wc -l out-word.srt` 明显大于 `out-sentence.srt`（词级切分更细）。新版 whisper.cpp 的 `--dtw` 必须显式带模型名（`--dtw base`）；识别为空先确认 `-l zh`，ModelScope 镜像为空文件时换 HF 源。
+
+**node-llama-cpp 推理冒烟**（embed / rerank / expand）：`npm i node-llama-cpp@3.20.0`，从 ModelScope 下载 bge-m3、bge-reranker-v2-m3、Qwen3-0.6B 的 Q8_0 GGUF（约 1.9GB），运行与 Windows 基线相同断言的冒烟脚本：embedding 维度 1024 且中文近义对余弦高于中英对、rerank 打分、JSON grammar 约束的扩展输出。`[smoke] ALL PASS` 通过（Intel Mac `gpu backend: cpu` 也算过）；`NoBinaryFoundError` 用 `npx node-llama-cpp inspect gpu` 排查。
+
+**应用级检查**（dev 模式启动后手动核对）：
+
+- 设置中下载 bge-m3（ModelScope 源）进度走完，`~/Library/Application Support/tau/embedding-models/` 下模型文件存在；
+- 全局搜索中文关键词返回语义相关结果，无「本地模型不可用」降级；
+- 用上面的 `test.wav` 在音视频笔记转录，日志可见 `Using bundled whisper-cli`，字幕/文本正确；
+- 导入 .docx / .pdf / .epub 转换成功且内容可搜索。
+
 ## Android 构建与覆盖安装
 
 1. 设置 `JAVA_HOME`、`ANDROID_HOME`、`NDK_HOME`，再设置 `ANDROID_NDK_HOME` 为与 `NDK_HOME` 相同的路径，供原生音频依赖选择 NDK CMake 工具链；将 JDK bin、SDK platform-tools 加入 PATH，使用符合生成工程要求的版本。`adb devices -l` 应识别指定设备，手机信任授权由用户完成。

@@ -22,10 +22,8 @@
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                       |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                   |
 | [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                   |
-| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                               |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、应用生命周期、稳定材料引用与外链、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
-| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                           |
-| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                                         |
+| [plugin-windows.html](./architecture/plugin-windows.html)     | 桌面插件窗口模块与时序图                                                                                                                             |
 
 ## decisions.md — 裁决规则
 
@@ -59,7 +57,6 @@
 | [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight                 |
 | [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                                         |
 | [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布             |
-| [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                                 |
 | [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                                 |
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射                         |
 | [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                             |
@@ -70,6 +67,8 @@
 ## tasks/ — 进行中任务
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
+
+[Notebook 演示文稿按页生成与续改](./tasks/ppt-workspace/README.md) 记录 Agent 工作目录、页级正文、模型自检、旧稿处理及实物试跑结果。
 
 当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
 

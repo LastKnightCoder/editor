@@ -44,6 +44,11 @@
 
 术语以界面为准：界面改名时同步改这张表和正文。
 
+## 插件作者文档的维护
+
+- 作者文档唯一维护于模板子仓库 `plugins/tau-plugin-template/docs/`：SDK 打包（`scripts/plugins/package-sdk.mjs`）整目录复制进契约包的 `docs/`，官网 `/developers/` 构建读取同一目录；不在 `packages/plugins` 或官网另存副本。
+- 修改 SDK 公开契约或宿主行为影响作者用法时，同一提交更新模板 `docs/` 对应篇目并更新子模块指针；增删篇目或改一级标题时同步 `apps/website/src/docs/developers/manifest.ts`（有对账测试）。
+
 ## 样板
 
 - 使用文档：`diary.md`（一句话讲清何时用、用真实句子示范）、`notebook.md`（一个例子贯穿全篇）、`database.md`。

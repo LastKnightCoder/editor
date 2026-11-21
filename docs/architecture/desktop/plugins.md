@@ -1,6 +1,6 @@
 # 插件宿主
 
-> 桌面插件运行时全量：页面/窗口/渲染/MCP/AI/后台/静态内容/提供方/数据授权/中心/贡献位；作者侧见 [plugin-system/](/docs/architecture/plugin-system/) 与 [plugin-portability](/docs/architecture/plugin-portability.md)。
+> 桌面插件运行时全量：页面/窗口/渲染/MCP/AI/后台/静态内容/提供方/数据授权/中心/贡献位；作者侧见 [作者文档](/plugins/tau-plugin-template/docs/) 与 [plugin-portability](/docs/architecture/plugin-portability.md)。
 
 ## 插件页面与作者 API
 
@@ -143,7 +143,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **读取**：`context.data`（cards / articles / documents 的 `get`/`query`，todos / calendar 的 `query`）与 `context.content.read` 由 `app/plugins/data.ts` 适配，命令经 `bindDatabaseCommands` 固定到 Provider 创建宿主时的库并带实例 signal。卡片、文章、项目文档走主进程只读表 `tables/plugin-data.ts`（统一投影、「排序时间:ID」游标分页、上限 200 条，引用型项目条目不计）；待办与日程复用 `task-assistant:read`。ID 与 ContentRef（正文 ID + 创建时间）对插件不透明，IPC 契约在 `types/plugin-data.ts`。Notebook、材料与对话只读，走 `tables/plugin-data-readonly.ts` 直接返回 SDK 形状：Notebook 只给信息与资料清单（不含说明、本机路径、转换文字、笔记与测验）；材料三表合并分页、标题与出处复用 `MaterialTable.resolve`（软删除划线与已删 PDF 的标注不可见）；对话只给 `chat_session` 四场景信息，不读 pi 会话文件。
 
-**权限**：manifest `permissions` 是申请上限（客户端丢弃未知值、门户严格）；PluginHost 先拒绝未声明调用，再经 `PermissionsAdapter.ensure` 询问；正文读取需任一所属实体的读取权限，无所属实体按不存在处理。`DesktopPermissionBroker` 按工作区创建：「始终允许 / 已阻止」由 BACKGROUND 模块存 `userData/plugin-permissions.json`（按插件 × 工作区，卸载清除），「仅这次」属于当前激活实例，连续拒绝 3 次转已阻止；窗口不在前台不弹窗，请求排队进 `usePluginPermissionUi.pending`（侧栏 `plugin-status` 徽标，详情页「权限」页签处理）。调用计数 5 秒批量写入。弹窗一次显示队首、同插件排队合并，关闭即拒绝；插件与应用同环境执行，文案如实说明可联网，不得描述为安全隔离。
+**权限**：manifest `permissions` 是申请上限（客户端丢弃未知值、门户严格）；PluginHost 先拒绝未声明调用，再经 `PermissionsAdapter.ensure` 询问；正文读取需任一所属实体的读取权限，无所属实体按不存在处理。`DesktopPermissionBroker` 按工作区创建：「始终允许 / 已阻止」由 BACKGROUND 模块存 `userData/plugin-permissions.json`（按插件 × 工作区，卸载清除），「仅这次」属于当前激活实例，连续拒绝 3 次转已阻止；窗口不在前台不弹窗，请求排队进 `usePluginPermissionUi.pending`（侧栏 `plugin-status` 徽标，详情页「权限」页签处理）。调用计数 5 秒批量写入。弹窗一次显示队首、同插件排队合并，关闭即拒绝；插件与应用同环境执行，文案如实说明可联网，不得描述为安全隔离。私有存储的授权范围由宿主绑定，不由 SQL 表名前缀自行约定；公共实体写入同时检查插件来源、用户授予的资源范围与领域约束——参数合法不代表业务授权合法，事务也不能扩大授权范围。
 
 **写入**：卡片/文章的 create、update、delete，项目文档的 update，正文 `content.edit` 走 `plugin-data:create / update / delete / edit-content`；白板与项目走 `plugin-data:query / get / create / update`（新建白板带一张 emptyWhiteboardPage，修改只走 `updateWhiteboardMeta` 不碰画板页；项目新建为空项目、修改经 `updateProject` 保留目录），两者无写入广播，渲染端写入后按 `["whiteboards"]`/`["projects"]` 失效本窗口。项目目录 `plugin-data:project-tree`（逐层批量读、去重防环、最多 5000 节点、多处挂载多处列出）；`documents.create` 走异步命令（正文经 `resolvePluginContent`，`shareOf` 核对来源后以 contentId 共用正文——一份正文已有卡片或未删除文章时拒绝）；`documents.move` 换算为 `moveProjectTreeItem` 参数并复用其校验。主进程复用 `CardTable`/`ArticleTable`/`ProjectTable` 与 `ContentTable.updateContent`（正文带 revision 乐观锁），过期抛 `PLUGIN_CONFLICT:`，渲染端转 `PluginConflictError`。卡片/文章写入 `broadcastAll` 广播并失效 `["articles"]`；待办与日程映射到 `task-assistant:preflight → write`（conversationKey `plugin:<id>`）。删除可恢复：卡片/文章/白板/项目/插件实体删除前写 `plugin_operations` 快照、正文 `releaseDeferred`（7 天宽限），`plugin-data:restore` 原 ID 未占用时沿用；项目文档删除记 `placements` 从所有挂载处摘除、恢复只挂回仍存在的位置。插件对正文的修改是会话外写入，不进编辑器 UndoManager。
 
