@@ -120,8 +120,11 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
       left: Math.max(MARGIN, Math.min(anchor.x, layer.width - PANEL_WIDTH - MARGIN)),
       top: Math.max(MARGIN, Math.min(anchor.y, layer.height - PANEL_HEIGHT - MARGIN)),
     });
-    inputRef.current?.focus();
   }, [request.screen]);
+
+  useLayoutEffect(() => {
+    if (position) inputRef.current?.focus();
+  }, [position]);
 
   // 点到面板外关闭（画布接着处理这次按下）
   useEffect(() => {

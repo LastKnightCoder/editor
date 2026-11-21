@@ -106,7 +106,9 @@ export function placedKeys(board: Pick<Board, "children">): Set<string> {
 export async function insertDocuments(
   board: Board,
   targets: readonly InsertTarget[],
-  request: Pick<DocumentInsertRequest, "at" | "align" | "linkFrom"> & { keepSelection?: boolean }
+  request: Pick<DocumentInsertRequest, "at" | "align" | "linkFrom" | "release"> & {
+    keepSelection?: boolean;
+  }
 ): Promise<DocumentElement[]> {
   if (targets.length === 0) return [];
   if (targets.length === 1 && !request.linkFrom) {
@@ -142,5 +144,7 @@ export async function insertDocuments(
     if (useSettingStore.getState().setting.database.active !== databaseName) return [];
   }
   if (!canSubmit()) return [];
+  // 普通白板按路径撤销，正式插入前先移除占据下标的临时箭头。
+  request.release?.();
   return placeDocuments(board, documents, request);
 }

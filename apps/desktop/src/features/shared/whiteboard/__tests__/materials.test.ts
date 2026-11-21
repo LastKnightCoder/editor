@@ -15,6 +15,20 @@ import { getDocumentReaderStore } from "../components/Document/readerStore";
 import type { ExcerptElement } from "@tau/whiteboard";
 import type { PdfAnnotation } from "@/types";
 
+const { resolvePdf, annotations, localPdf } = vi.hoisted(() => ({
+  resolvePdf: vi.fn(),
+  annotations: vi.fn(),
+  localPdf: vi.fn(),
+}));
+vi.mock("@/commands/whiteboard-document", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands/whiteboard-document")>()),
+  resolveWhiteboardEntity: resolvePdf,
+}));
+vi.mock("@/commands/pdf", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands/pdf")>()),
+  getPdfAnnotations: annotations,
+  getPdfById: localPdf,
+}));
 const openPage = vi.hoisted(() => vi.fn());
 vi.mock("@/services/page-navigation", () => ({ openPage }));
 
@@ -81,7 +95,7 @@ describe("阅读纸的相连", () => {
       ({ id, type: "arrow", source: { bindId: from }, target: { bindId: to } }) as BoardElement;
     const children = [
       a,
-      b,
+      { id: "frame", type: "frame", children: [b] },
       arrow("x", "c1", "c2"),
       arrow("y", "c2", "c1"),
       arrow("z", "c1", "gone"),
@@ -150,7 +164,7 @@ const highlight = {
   updateTime: 0,
   type: "text-markup",
   color: "green",
-  annotation: { pageIndex: 3, custom: { text: "  注意力是 稀缺资源 " } },
+  annotation: { id: "highlight-uuid", pageIndex: 3, custom: { text: "  注意力是 稀缺资源 " } },
   notes: [],
 } as unknown as PdfAnnotation;
 
@@ -181,7 +195,8 @@ describe("摘录", () => {
     expect(api.children.map(element => element.id)).toEqual(["p"]);
   });
 
-  it("回到原文：来源卡在板上时展开它并定位到标注；不在板上时打开 PDF 阅读页", () => {
+  it("回到原文：来源卡在板上时展开它并定位到标注；不在板上时打开 PDF 阅读页", async () => {
+    localPdf.mockResolvedValue({ id: 5 });
     const excerpt = {
       id: "e",
       type: "excerpt",
@@ -194,12 +209,40 @@ describe("摘录", () => {
     const api = boardWith([pdfCard("p", 5), excerpt]);
     const open = vi.fn();
     api.on("tau.document.open", open);
-    openExcerptSource(api, excerpt);
+    await openExcerptSource(api, excerpt);
     expect(open).toHaveBeenCalledWith("p");
     expect(getDocumentReaderStore(api).getState().focus?.annotationId).toBe(31);
 
     const elsewhere = boardWith([excerpt]);
-    openExcerptSource(elsewhere, excerpt);
+    await openExcerptSource(elsewhere, excerpt);
     expect(openPage).toHaveBeenCalledWith("pdf-detail", { pdfId: 5, annotation: 31 });
+  });
+  it("协作摘录按来源和标注身份跳转到接收端的行号，来源无法解析时保留快照", async () => {
+    const reference = { kind: "pdf" as const, sourceId: "library", entityId: "stable-pdf" };
+    const draft = excerptFromAnnotation({ id: 5 }, highlight, "来源", reference);
+    expect(draft.source).toEqual({
+      kind: "pdf",
+      entity: reference,
+      annotationObjectId: "highlight-uuid",
+      page: 4,
+    });
+    const excerpt: ExcerptElement = {
+      id: "excerpt",
+      type: "excerpt",
+      x: 0,
+      y: 0,
+      width: 280,
+      height: 150,
+      ...draft,
+    };
+    const api = boardWith([excerpt]);
+    resolvePdf.mockResolvedValueOnce(72).mockResolvedValueOnce(null);
+    annotations.mockResolvedValue([{ ...highlight, id: 91, pdfId: 72 }]);
+    openPage.mockClear();
+    await openExcerptSource(api, excerpt);
+    expect(openPage).toHaveBeenCalledWith("pdf-detail", { pdfId: 72, annotation: 91 });
+    await openExcerptSource(api, excerpt);
+    expect(openPage).toHaveBeenCalledTimes(1);
+    expect(api.getElement(excerpt.id)?.quote).toBe("注意力是 稀缺资源");
   });
 });

@@ -12,6 +12,7 @@ import Whiteboard, {
   type Board,
   type DocumentElement,
 } from "@tau/whiteboard";
+import { syncLastPage } from "@/features/pdfs/lastPage";
 import { DocumentCard } from "../components/Document/DocumentCard";
 import { DocumentReaderLayer } from "../components/Document/DocumentReader";
 import { DocumentHostContext } from "../components/Document/DocumentHostContext";
@@ -54,6 +55,25 @@ vi.mock("@/commands/article", () => ({
     isDelete: false,
     update_time: 0,
   }),
+}));
+vi.mock("@/commands/pdf", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands/pdf")>()),
+  getPdfById: async (id: number) => ({
+    id,
+    pageCount: 20,
+    lastPage: 2,
+    fileName: "test.pdf",
+    tags: [],
+  }),
+}));
+vi.mock("@/features/pdfs/reader/PdfReader", () => ({
+  PdfReader: ({
+    initialPosition,
+    jumpAnnotationId,
+  }: {
+    initialPosition?: { page: number } | null;
+    jumpAnnotationId?: number | null;
+  }) => <output data-pdf-page={initialPosition?.page} data-jump={jumpAnnotationId} />,
 }));
 vi.mock("@/commands/project", () => ({
   getProjectItemById: async () => null,
@@ -235,6 +255,27 @@ describe("文档阅读纸", () => {
     expect(getDocumentReaderStore(board).getState().openId).toBe("b");
     expect(host.querySelector('[data-testid="editor"]')?.textContent).toBe("202");
     expect(reader()?.textContent).toContain("文章 2");
+  });
+
+  it("从摘录换到另一份 PDF 时，阅读纸按新卡刚翻到的页恢复", async () => {
+    useDocumentReaderPreference.setState({ mode: "dock" });
+    const first = doc("pdf-a", { kind: "pdf", id: 41 });
+    const next = doc("pdf-b", { kind: "pdf", id: 42 }, 400);
+    await act(async () => {
+      for (const node of [first, next])
+        board.apply({ type: "insert_node", path: [board.children.length], node });
+      syncLastPage(client, "db", 42, 8);
+      getDocumentReaderStore(board).setState({ focus: { annotationId: 77, nonce: 1 } });
+      board.select([first.id]);
+      board.emit(DOCUMENT_OPEN_EVENT, first.id);
+    });
+    await vi.waitFor(() => expect(host.querySelector('output[data-jump="77"]')).not.toBeNull());
+    await act(async () => board.select([next.id]));
+    await vi.waitFor(() => {
+      const output = host.querySelector("output");
+      expect(output?.getAttribute("data-pdf-page")).toBe("8");
+      expect(output?.hasAttribute("data-jump")).toBe(false);
+    });
   });
 
   it("在详情页打开：先收起再跳转", async () => {

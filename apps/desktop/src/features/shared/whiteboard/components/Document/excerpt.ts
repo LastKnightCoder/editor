@@ -11,9 +11,14 @@ import {
   ViewPortTransforms,
   type Board,
   type BoardElement,
+  type DocumentElement,
   type ExcerptElement,
   type WhiteboardAPI,
 } from "@tau/whiteboard";
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { toast } from "@tau/ui";
+import { referenceWhiteboardEntity } from "@/commands/whiteboard-document";
+import useSettingStore from "@/stores/useSettingStore";
 import type { Pdf, PdfAnnotation } from "@/types";
 import {
   annotationColor,
@@ -30,11 +35,20 @@ export type ExcerptDraft = Pick<
 export function excerptFromAnnotation(
   pdf: Pick<Pdf, "id">,
   record: PdfAnnotation,
-  sourceTitle: string
+  sourceTitle: string,
+  entity?: DocumentElement["entity"]
 ): ExcerptDraft {
   const note = noteText(record);
   return {
-    source: { kind: "pdf", pdfId: pdf.id, annotationId: record.id, page: annotationPage(record) },
+    source:
+      entity?.kind === "pdf"
+        ? {
+            kind: "pdf",
+            entity: { ...entity, kind: "pdf" },
+            annotationObjectId: record.annotation.id,
+            page: annotationPage(record),
+          }
+        : { kind: "pdf", pdfId: pdf.id, annotationId: record.id, page: annotationPage(record) },
     quote:
       record.type === "area"
         ? `区域截图 · 第 ${annotationPage(record)} 页`
@@ -83,6 +97,7 @@ export const EXCERPT_MIME = "application/x-tau-whiteboard-excerpt";
 interface ExcerptPayload {
   excerpt: ExcerptDraft;
   linkFrom?: string;
+  localSource?: { database: string; annotationObjectId: string };
 }
 
 export function setExcerptDrag(event: DragEvent | React.DragEvent, payload: ExcerptPayload) {
@@ -109,7 +124,7 @@ export const excerptIngest = {
   source: "drop" as const,
   accepts: (event: ClipboardEvent | DragEvent) =>
     "dataTransfer" in event && !!event.dataTransfer?.types.includes(EXCERPT_MIME),
-  run: (api: WhiteboardAPI, event: ClipboardEvent | DragEvent) => {
+  run: async (api: WhiteboardAPI, event: ClipboardEvent | DragEvent) => {
     const drag = event as DragEvent;
     const payload = readPayload(drag);
     if (!payload) return;
@@ -119,7 +134,38 @@ export const excerptIngest = {
     } catch {
       return;
     }
-    const element = placeExcerpt(api, payload.excerpt, {
+    let excerpt = payload.excerpt;
+    const source = excerpt.source;
+    if (source?.kind === "pdf" && "pdfId" in source) {
+      const database = useSettingStore.getState().setting.database.active;
+      const local = payload.localSource;
+      if (!local || local.database !== database) {
+        toast.info("请在原资料库里放入摘录");
+        return;
+      }
+      if (getWhiteboardDocument(api)) {
+        // 普通白板拖入共享白板时，在落点将本机行号转换为稳定身份。
+        const canSubmit = api.captureSubmission();
+        const entity = await referenceWhiteboardEntity(database, "pdf", source.pdfId).catch(
+          () => null
+        );
+        if (!canSubmit() || database !== useSettingStore.getState().setting.database.active) return;
+        if (entity?.kind !== "pdf") {
+          toast.error("无法建立 PDF 来源引用");
+          return;
+        }
+        excerpt = {
+          ...excerpt,
+          source: {
+            kind: "pdf",
+            entity: { ...entity, kind: "pdf" },
+            annotationObjectId: local.annotationObjectId,
+            page: source.page,
+          },
+        };
+      }
+    }
+    const element = placeExcerpt(api, excerpt, {
       at: point,
       align: "center",
       linkFrom: payload.linkFrom,

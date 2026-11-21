@@ -143,7 +143,12 @@ export function placeDocuments(
 ): DocumentElement[] {
   if (documents.length === 0) return [];
   const board = resolveBoardAccess(api);
-  const sizes = documents.map(item => DOCUMENT_DEFAULT_SIZE[item.entityRef?.kind ?? "article"]);
+  const sizes = documents.map(item => {
+    const kind = item.entity?.kind ?? item.entityRef?.kind;
+    return kind && Object.hasOwn(DOCUMENT_DEFAULT_SIZE, kind)
+      ? DOCUMENT_DEFAULT_SIZE[kind as keyof typeof DOCUMENT_DEFAULT_SIZE]
+      : DOCUMENT_DEFAULT_SIZE.article;
+  });
   const boxes = layoutRow(options.at, sizes, options.align);
   const elements = documents.map((item, index): DocumentElement => ({
     id: uuid(),

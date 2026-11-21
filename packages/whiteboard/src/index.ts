@@ -56,6 +56,7 @@ export { default as MindThemeUtil } from "./utils/MindThemeUtil";
 export type { MindMode, MindNodeVisual } from "./utils/MindThemeUtil";
 export { useWhiteboardAPI as useBoard } from "./extensions/context";
 export { useSelection, useViewPort } from "./extensions/publicHooks";
+export { useReadonly } from "./hooks/useReadonly";
 export { useBoardState } from "./hooks/useBoardState";
 export { useDropArrow } from "./hooks/useDropArrow";
 export { useSelectState } from "./hooks/useSelectState";

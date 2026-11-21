@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { recordPdfPage } from "@/commands";
 import type { Pdf, PdfAnnotation } from "@/types";
-import { syncLastPage } from "../lastPage";
+import { syncLastPage, usePdfLastPage } from "../lastPage";
 import { useDatabaseReady } from "../queries";
 import { PdfReader } from "./PdfReader";
 import {
@@ -21,22 +21,23 @@ const PAGE_SAVE_DELAY = 300;
 export function WhiteboardPdfReader({
   pdf,
   annotationId,
-  onSendToBoard,
+  prepareSendToBoard,
   onDragToBoard,
 }: {
   pdf: Pdf;
   /** 打开后定位到某条标注（摘录回到原文） */
   annotationId?: number | null;
-  onSendToBoard?: (record: PdfAnnotation) => void;
+  prepareSendToBoard?: () => ((record: PdfAnnotation) => void) | null;
   onDragToBoard?: (record: PdfAnnotation, event: React.DragEvent) => void;
 }) {
   const client = useQueryClient();
   const { database } = useDatabaseReady();
+  const { page } = usePdfLastPage(pdf);
   const [initialPosition] = useState(() =>
-    annotationId ? null : initialReadingPosition(pdf.id, pdf.lastPage)
+    annotationId ? null : initialReadingPosition(pdf.id, page)
   );
   const pending = useRef<ReadingPosition | null>(null);
-  const saved = useRef(pdf.lastPage ?? null);
+  const saved = useRef(page);
   const timer = useRef<number | null>(null);
 
   const flush = useCallback(() => {
@@ -68,7 +69,7 @@ export function WhiteboardPdfReader({
       initialPosition={initialPosition}
       jumpAnnotationId={annotationId ?? null}
       onPositionChange={onPositionChange}
-      onSendToBoard={onSendToBoard}
+      prepareSendToBoard={prepareSendToBoard}
       onDragToBoard={onDragToBoard}
     />
   );

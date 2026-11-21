@@ -1,7 +1,7 @@
 /**
  * 摘录卡面：左侧高亮色条、原文快照、笔记，底部来源条（来源标题 · 第 n 页）。
  * 点来源条回到原文：来源卡在板上时展开它并定位到这条标注（原高亮闪两下），不在板上时打开 PDF 阅读页；
- * 来源 PDF 已删除时来源条显示「原文已删除」，不能跳转。
+ * 来源 PDF 已删除时来源条显示「原文不可用」，不能跳转。
  */
 
 import { memo, useEffect } from "react";
@@ -19,7 +19,11 @@ import {
   type DocumentElement,
   type ExcerptElement,
 } from "@tau/whiteboard";
-import { getPdfById } from "@/commands";
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { getPdfAnnotations, getPdfById } from "@/commands/pdf";
+import { resolveWhiteboardEntity } from "@/commands/whiteboard-document";
+import { bindDatabaseCommands } from "@/services/command-context";
+import useSettingStore from "@/stores/useSettingStore";
 import { openPage } from "@/services/page-navigation";
 import { COLOR_SPECS } from "@/features/pdfs/reader/annotationModel";
 import { EHighlightColor } from "@/types";
@@ -30,14 +34,16 @@ const swatchOf = (color?: string) =>
   COLOR_SPECS[EHighlightColor.Yellow].swatch;
 
 /** 板上指向这份 PDF 的文档卡（优先有箭头连到摘录的那张） */
-function findSourceCard(board: Board, excerpt: ExcerptElement): DocumentElement | null {
-  const source = excerpt.source;
-  if (source?.kind !== "pdf") return null;
+function findSourceCard(
+  board: Board,
+  excerpt: ExcerptElement,
+  pdfId: number
+): DocumentElement | null {
   const cards: DocumentElement[] = [];
   const visit = (nodes: readonly { type: string; children?: unknown[] }[]) => {
     for (const node of nodes) {
       const ref = (node as DocumentElement).entityRef;
-      if (node.type === "document" && ref?.kind === "pdf" && ref.id === source.pdfId)
+      if (node.type === "document" && ref?.kind === "pdf" && ref.id === pdfId)
         cards.push(node as DocumentElement);
       if (node.children) visit(node.children as typeof nodes);
     }
@@ -54,23 +60,45 @@ function findSourceCard(board: Board, excerpt: ExcerptElement): DocumentElement 
   return linked ?? cards[0] ?? null;
 }
 
-export function openExcerptSource(board: Board, excerpt: ExcerptElement) {
+type PdfSource = Extract<ExcerptElement["source"], { kind: "pdf" }>;
+
+async function resolveSourcePdf(board: Board, source: PdfSource, database: string) {
+  if ("entity" in source) {
+    return source.entity?.kind === "pdf" ? resolveWhiteboardEntity(database, source.entity) : null;
+  }
+  // 旧共享摘录只有创建者的行号，无法证明它和本机同号文件同源。
+  if (getWhiteboardDocument(board)) return null;
+  const commands = bindDatabaseCommands({ getPdfById }, { databaseName: database });
+  return (await commands.getPdfById(source.pdfId).catch(() => null))?.id ?? null;
+}
+
+export async function openExcerptSource(board: Board, excerpt: ExcerptElement) {
   const source = excerpt.source;
   if (source?.kind !== "pdf") return;
-  const card = findSourceCard(board, excerpt);
+  const database = useSettingStore.getState().setting.database.active;
+  const commands = bindDatabaseCommands({ getPdfAnnotations }, { databaseName: database });
+  const pdfId = await resolveSourcePdf(board, source, database);
+  if (board.isDestroyed || database !== useSettingStore.getState().setting.database.active) return;
+  if (pdfId === null) return toast.info("原文不可用");
+  const annotationId =
+    "entity" in source
+      ? (await commands.getPdfAnnotations(pdfId)).find(
+          record => record.annotation.id === source.annotationObjectId
+        )?.id
+      : source.annotationId;
+  if (board.isDestroyed || database !== useSettingStore.getState().setting.database.active) return;
+  const card = findSourceCard(board, excerpt, pdfId);
   if (!card) {
     openPage("pdf-detail", {
-      pdfId: source.pdfId,
-      ...(source.annotationId ? { annotation: source.annotationId } : {}),
+      pdfId,
+      ...(annotationId ? { annotation: annotationId } : {}),
     });
     return;
   }
   const store = getDocumentReaderStore(board);
   ViewPortTransforms.centerElementsIfNotInViewPort(board, [card]);
   board.select([card.id]);
-  const focus = source.annotationId
-    ? { annotationId: source.annotationId, nonce: Date.now() }
-    : null;
+  const focus = annotationId ? { annotationId, nonce: Date.now() } : null;
   // 已经开着同一张卡：只换定位；开着别的或没开：交给阅读层打开
   if (store.getState().openId === card.id) store.setState({ focus });
   else if (store.getState().openId) store.setState({ openId: card.id, focus });
@@ -80,24 +108,27 @@ export function openExcerptSource(board: Board, excerpt: ExcerptElement) {
   }
 }
 
-function useSourceAlive(excerpt: ExcerptElement) {
+function useSourceAlive(board: Board, excerpt: ExcerptElement) {
   const source = excerpt.source;
-  const pdfId = source?.kind === "pdf" ? source.pdfId : 0;
+  const database = useSettingStore(state => state.setting.database.active);
+  const reference =
+    source?.kind === "pdf" ? ("entity" in source ? source.entity : source.pdfId) : null;
   return useQuery({
-    queryKey: ["whiteboard-excerpt-source", pdfId],
-    queryFn: async () => (await getPdfById(pdfId).catch(() => null)) !== null,
-    enabled: pdfId > 0,
+    queryKey: ["whiteboard-excerpt-source", database, !!getWhiteboardDocument(board), reference],
+    queryFn: async () =>
+      source?.kind === "pdf" && (await resolveSourcePdf(board, source, database)) !== null,
+    enabled: source?.kind === "pdf",
     staleTime: 60_000,
   }).data;
 }
 
 export const ExcerptCard = memo(({ element }: { element: ExcerptElement; sketch: boolean }) => {
   const board = useBoard();
-  const alive = useSourceAlive(element);
+  const alive = useSourceAlive(board, element);
   const source = element.source;
   const open = useMemoizedFn(() => {
-    if (alive === false) return toast.info("原文已删除");
-    openExcerptSource(board, element);
+    if (alive === false) return toast.info("原文不可用");
+    void openExcerptSource(board, element).catch(() => toast.error("打开原文失败"));
   });
 
   return (
@@ -126,7 +157,7 @@ export const ExcerptCard = memo(({ element }: { element: ExcerptElement; sketch:
             <CornerDownRight className="size-3 shrink-0" strokeWidth={1.75} />
             <span className="truncate">
               {alive === false
-                ? "原文已删除"
+                ? "原文不可用"
                 : [element.sourceTitle, source.kind === "pdf" ? `第 ${source.page} 页` : ""]
                     .filter(Boolean)
                     .join(" · ")}
@@ -145,7 +176,10 @@ export function ExcerptSourceLayer() {
   useEffect(() => {
     const onOpen = (id: string) => {
       const element = board.getElement(id);
-      if (element?.type === "excerpt") openExcerptSource(board, element as ExcerptElement);
+      if (element?.type === "excerpt")
+        void openExcerptSource(board, element as ExcerptElement).catch(() =>
+          toast.error("打开原文失败")
+        );
     };
     board.on(EXCERPT_OPEN_SOURCE_EVENT, onOpen);
     return () => board.off(EXCERPT_OPEN_SOURCE_EVENT, onOpen);

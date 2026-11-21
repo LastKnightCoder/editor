@@ -109,7 +109,7 @@ export interface ReaderLayoutProps {
   /** 对话关着时 HUD 末尾给出开关 */
   onOpenChat?: () => void;
   /** 宿主是白板时给出：划线工具条与标注工具条多一个「放到白板」，交出落库后的标注 */
-  onSendToBoard?: (record: PdfAnnotation) => void;
+  prepareSendToBoard?: () => ((record: PdfAnnotation) => void) | null;
   /** 已有标注拖出纸面时写入拖放数据 */
   onDragToBoard?: (record: PdfAnnotation, event: React.DragEvent) => void;
 }
@@ -157,7 +157,7 @@ export function ReaderLayout({
   initialPosition,
   onPositionChange,
   onAskAI,
-  onSendToBoard,
+  prepareSendToBoard,
   onDragToBoard,
   leftToggleInHud,
   onOpenChat,
@@ -608,19 +608,21 @@ export function ReaderLayout({
       selection?.clear();
       setOverlay(null);
     },
-    canSendToBoard: Boolean(onSendToBoard),
+    canSendToBoard: Boolean(prepareSendToBoard),
     // 先按上次的颜色划线落库，再把这条标注交给白板：摘录与标注共用一个 annotationId
     sendSelectionToBoard: () => {
+      const send = prepareSendToBoard?.();
+      if (!send) return;
       const created = createMarkupObjects(prefs.lastColor);
       if (!created) return;
       void annotations
         .upsertObject(created.object, prefs.lastColor)
-        .then(record => onSendToBoard?.(record))
+        .then(send)
         .catch(() => toast.error("划线保存失败"));
     },
     sendToBoard: target => {
       const record = isRecord(target) ? target : recordOf(target);
-      if (record) onSendToBoard?.(record);
+      if (record) prepareSendToBoard?.()?.(record);
     },
     dragToBoard: onDragToBoard
       ? (target, event) => {

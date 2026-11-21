@@ -45,7 +45,7 @@ type LayoutPassThrough = Pick<
   | "onAskAI"
   | "leftToggleInHud"
   | "onOpenChat"
-  | "onSendToBoard"
+  | "prepareSendToBoard"
   | "onDragToBoard"
 >;
 

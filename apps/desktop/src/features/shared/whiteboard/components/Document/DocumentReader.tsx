@@ -33,12 +33,14 @@ import {
   isDocumentElement,
   useBoard,
   useSelection,
+  useReadonly,
   type Board,
   type BoardElement,
   type DocumentElement,
   type DocumentKind,
 } from "@tau/whiteboard";
 import ContentEditor from "@/components/ContentEditor";
+import useSettingStore from "@/stores/useSettingStore";
 import { updateDiarySegment } from "@/commands/diary";
 import { getContentKit } from "@/services/editorKit";
 import { openEntity } from "@/services/open-content";
@@ -57,8 +59,7 @@ import { SPRING, boxStyle, prefersReducedMotion, relativeBox, type Box } from ".
 import { useDocumentHost } from "./DocumentHostContext";
 import { ReaderLinkBar, locateElement, useReferenceDragOut } from "./ReaderLinks";
 import { textEntityRef } from "./entityRef";
-import { EXCERPT_MIME, excerptFromAnnotation, placeExcerptBeside, setExcerptDrag } from "./excerpt";
-import { MATERIAL_MIME } from "./materialDrag";
+import { excerptFromAnnotation, placeExcerptBeside, setExcerptDrag } from "./excerpt";
 import type { PdfAnnotation } from "@/types";
 import { WhiteboardPdfReader } from "@/features/pdfs/reader/WhiteboardPdfReader";
 
@@ -196,6 +197,7 @@ interface ReaderProps {
 }
 
 function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed }: ReaderProps) {
+  const readonly = useReadonly();
   const layerRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -431,25 +433,20 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
 
   // 拖引用出纸面：居中时纸面和遮罩让开画布，拖完恢复
   const [dragging, setDragging] = useState(false);
-  useReferenceDragOut(scrollRef, element, opened && !board.readonly);
+  const startDragOut = useMemoizedFn(() => setDragging(mode === "center"));
+  useReferenceDragOut(scrollRef, element, opened && !readonly && !source.pdf, startDragOut);
   useEffect(() => {
-    const root = frameRef.current;
-    if (!root || mode !== "center") return;
-    // dragstart 时数据刚写入：引用拖出与摘录拖出都让纸面让开画布
-    const start = (event: DragEvent) => {
-      const types = event.dataTransfer?.types ?? [];
-      if (types.includes(MATERIAL_MIME) || types.includes(EXCERPT_MIME)) setDragging(true);
-    };
+    if (!dragging) return;
     const end = () => setDragging(false);
-    root.addEventListener("dragstart", start);
     document.addEventListener("dragend", end, true);
     document.addEventListener("drop", end, true);
+    window.addEventListener("blur", end);
     return () => {
-      root.removeEventListener("dragstart", start);
       document.removeEventListener("dragend", end, true);
       document.removeEventListener("drop", end, true);
+      window.removeEventListener("blur", end);
     };
-  }, [mode, opened]);
+  }, [dragging]);
 
   // 相连的文档卡：纸面不动，原地换篇；其他元素：收起后镜头带过去
   const switchTo = useMemoizedFn((target: BoardElement) => {
@@ -460,18 +457,33 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
 
   const focus = useDocumentReaderState(board, state => state.focus ?? null);
   // PDF 标注 → 摘录：放在纸面左侧的画布上（停靠时）或卡片旁（居中时先收起）
-  const sendAnnotation = useMemoizedFn((record: PdfAnnotation) => {
-    if (!source.pdf) return;
-    const excerpt = excerptFromAnnotation(source.pdf, record, source.title);
-    if (mode === "center") close();
-    void placeExcerptBeside(board, element, excerpt);
-  });
+  const prepareSendToBoard = () => {
+    const pdf = source.pdf;
+    const canSubmit = board.captureSubmission(element.id);
+    if (!pdf || !canSubmit()) return null;
+    return (record: PdfAnnotation) => {
+      if (!canSubmit() || record.pdfId !== pdf.id) return;
+      const excerpt = excerptFromAnnotation(pdf, record, source.title, element.entity);
+      if (mode === "center" && store.getState().openId === element.id) close();
+      void placeExcerptBeside(board, element, excerpt);
+    };
+  };
   const dragAnnotation = useMemoizedFn((record: PdfAnnotation, event: React.DragEvent) => {
-    if (!source.pdf) return;
+    if (!source.pdf || !board.captureSubmission(element.id)()) return event.preventDefault();
+    const excerpt = excerptFromAnnotation(source.pdf, record, source.title, element.entity);
     setExcerptDrag(event, {
-      excerpt: excerptFromAnnotation(source.pdf, record, source.title),
+      excerpt,
+      ...(excerpt.source?.kind === "pdf" && "pdfId" in excerpt.source
+        ? {
+            localSource: {
+              database: useSettingStore.getState().setting.database.active,
+              annotationObjectId: record.annotation.id,
+            },
+          }
+        : {}),
       linkFrom: element.id,
     });
+    startDragOut();
   });
 
   const Icon = KIND_ICON[source.kind];
@@ -565,8 +577,8 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
                       key={`${source.pdf.id}:${focus?.nonce ?? 0}`}
                       pdf={source.pdf}
                       annotationId={focus?.annotationId ?? null}
-                      onSendToBoard={record => sendAnnotation(record)}
-                      onDragToBoard={(record, event) => dragAnnotation(record, event)}
+                      prepareSendToBoard={readonly ? undefined : prepareSendToBoard}
+                      onDragToBoard={readonly ? undefined : dragAnnotation}
                     />
                   ) : (
                     <Loading minHeight={160} className="flex-1" />
@@ -576,11 +588,7 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
                 <FadeScroll scrollRef={scrollRef} className="min-h-0 flex-1 overscroll-contain">
                   <DocumentPaper source={source} fill>
                     {opened ? (
-                      <DocumentEditor
-                        key={source.contentId}
-                        source={source}
-                        readonly={board.readonly}
-                      />
+                      <DocumentEditor key={source.contentId} source={source} readonly={readonly} />
                     ) : (
                       <Loading minHeight={160} />
                     )}
@@ -626,7 +634,8 @@ export function DocumentReaderLayer() {
     if (!openId || mode !== "dock" || store.getState().closing) return;
     const selected = selection?.selectedElements ?? [];
     const next = selected.length === 1 ? selected[0] : null;
-    if (next && next.id !== openId && isDocumentElement(next)) store.setState({ openId: next.id });
+    if (next && next.id !== openId && isDocumentElement(next))
+      store.setState({ openId: next.id, focus: null });
   }, [selection, openId, mode, store]);
 
   const closed = useMemoizedFn(() => store.setState({ openId: null, closing: false, focus: null }));
@@ -645,7 +654,7 @@ export function DocumentReaderLayer() {
       mode={mode}
       onSwitch={id => {
         board.select([id]);
-        store.setState({ openId: id });
+        store.setState({ openId: id, focus: null });
       }}
       onModeChange={allowDock ? setMode : undefined}
       onClosed={closed}

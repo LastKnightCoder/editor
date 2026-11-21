@@ -79,7 +79,16 @@ describe("放入文档", () => {
       height: 240,
     };
     const api = boardWith([source]);
+    const preview = {
+      id: "preview",
+      type: "arrow",
+      source: { bindId: source.id },
+      target: {},
+      points: [],
+    };
+    api.apply({ type: "insert_node", path: [1], node: preview }, false);
     const [placed] = await insertDocuments(api, [moment(12)], {
+      release: () => api.apply({ type: "remove_node", path: [1], node: preview }, false),
       at: { x: 600, y: 120 },
       linkFrom: "src",
     });

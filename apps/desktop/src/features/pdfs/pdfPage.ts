@@ -1,13 +1,13 @@
 /**
- * PDF 单页位图：白板文档卡的卡面与速览用。pdfjs 按需加载，同一份文件的文档对象按 id + updateTime 复用，
- * 渲染结果是 object URL，按「文件 + 页 + 宽度」缓存；最近用过的保留 MAX_PAGES 张，超出的释放。
+ * PDF 单页位图：白板文档卡的卡面与速览用。pdfjs 按需加载，文档对象按资料库和文件身份复用，
+ * 渲染结果是 Blob，按「文件 + 页 + 宽度」缓存；最近用过的保留 MAX_PAGES 张，超出的释放。
  * 卡面只在画面里时才请求（调用方负责），离开画面的页随缓存淘汰释放。
  */
 
 import { useEffect, useState } from "react";
 import { readBinaryFile } from "@/commands";
 import type { Pdf } from "@/types";
-import { resolvePdfPath } from "./queries";
+import { resolvePdfPath, useDatabaseReady } from "./queries";
 
 type PdfjsDocument = import("pdfjs-dist").PDFDocumentProxy;
 
@@ -23,56 +23,72 @@ function loadPdfjs() {
   return pdfjsPromise;
 }
 
-/** 打开着的文档：同时最多留几份（每份占着整份字节） */
+/** 正在渲染的文档保留到最后一个使用者结束，再按最近访问顺序回收。 */
 const MAX_DOCUMENTS = 4;
-/** 缓存的页图张数 */
 const MAX_PAGES = 48;
 
-const documents = new Map<string, Promise<PdfjsDocument>>();
-const pages = new Map<string, Promise<string>>();
+interface OpenDocument {
+  loading: Promise<PdfjsDocument>;
+  users: number;
+}
 
-const documentKey = (pdf: Pick<Pdf, "id" | "updateTime">) => `${pdf.id}:${pdf.updateTime}`;
+interface RenderedPage {
+  blob: Blob;
+  page: number;
+  pageCount: number;
+}
 
-function touch<T>(
-  map: Map<string, T>,
-  key: string,
-  value: T,
-  max: number,
-  drop: (value: T) => void
-) {
-  map.delete(key);
-  map.set(key, value);
-  while (map.size > max) {
-    const [oldest, stale] = map.entries().next().value as [string, T];
-    map.delete(oldest);
-    drop(stale);
+const documents = new Map<string, OpenDocument>();
+const pages = new Map<string, Promise<RenderedPage>>();
+const documentKey = (database: string, pdf: Pdf) =>
+  JSON.stringify([database, pdf.id, pdf.updateTime, pdf.isLocal ? pdf.filePath : pdf.remoteUrl]);
+
+async function openDocument(pdf: Pdf): Promise<PdfjsDocument> {
+  const [pdfjs, bytes] = await Promise.all([loadPdfjs(), resolvePdfPath(pdf).then(readBinaryFile)]);
+  return pdfjs.getDocument({ data: bytes.slice() }).promise;
+}
+
+async function withDocument<T>(
+  database: string,
+  pdf: Pdf,
+  read: (doc: PdfjsDocument) => T | Promise<T>
+): Promise<T> {
+  const key = documentKey(database, pdf);
+  let entry = documents.get(key);
+  if (entry) documents.delete(key);
+  else {
+    const loading = openDocument(pdf);
+    entry = { loading, users: 0 };
+    void loading.catch(() => {
+      if (documents.get(key)?.loading === loading) documents.delete(key);
+    });
+  }
+  documents.set(key, entry);
+  entry.users++;
+  try {
+    return await read(await entry.loading);
+  } finally {
+    entry.users--;
+    for (const [oldKey, old] of documents) {
+      if (documents.size <= MAX_DOCUMENTS) break;
+      if (old.users) continue;
+      documents.delete(oldKey);
+      void old.loading.then(doc => doc.destroy()).catch(() => undefined);
+    }
   }
 }
 
-function openDocument(pdf: Pdf): Promise<PdfjsDocument> {
-  const key = documentKey(pdf);
-  const existing = documents.get(key);
-  if (existing) {
-    touch(documents, key, existing, MAX_DOCUMENTS, () => {});
-    return existing;
-  }
-  const loading = (async () => {
-    const [pdfjs, bytes] = await Promise.all([
-      loadPdfjs(),
-      resolvePdfPath(pdf).then(readBinaryFile),
-    ]);
-    return pdfjs.getDocument({ data: bytes.slice() }).promise;
-  })();
-  loading.catch(() => documents.delete(key));
-  touch(documents, key, loading, MAX_DOCUMENTS, stale => {
-    void stale.then(doc => doc.destroy()).catch(() => {});
-  });
-  return loading;
+export function getPdfPageCount(database: string, pdf: Pdf) {
+  return withDocument(database, pdf, doc => doc.numPages);
 }
 
-async function renderPage(pdf: Pdf, pageNumber: number, width: number): Promise<string> {
-  const doc = await openDocument(pdf);
-  const page = await doc.getPage(Math.min(Math.max(1, pageNumber), doc.numPages));
+async function renderPage(
+  doc: PdfjsDocument,
+  pageNumber: number,
+  width: number
+): Promise<RenderedPage> {
+  const actualPage = Math.min(Math.max(1, pageNumber), doc.numPages);
+  const page = await doc.getPage(actualPage);
   const base = page.getViewport({ scale: 1 });
   const viewport = page.getViewport({ scale: width / base.width });
   const canvas = document.createElement("canvas");
@@ -84,50 +100,60 @@ async function renderPage(pdf: Pdf, pageNumber: number, width: number): Promise<
   page.cleanup();
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/webp", 0.9));
   if (!blob) throw new Error("页面编码失败");
-  return URL.createObjectURL(blob);
+  return { blob, page: actualPage, pageCount: doc.numPages };
 }
 
-/** 渲染宽度按 160px 一档取整：缩放时不必每帧重画 */
 const bucket = (width: number) => Math.max(160, Math.ceil(width / 160) * 160);
 
-export function loadPdfPage(pdf: Pdf, pageNumber: number, width: number): Promise<string> {
-  const key = `${documentKey(pdf)}:${pageNumber}:${bucket(width)}`;
-  const existing = pages.get(key);
-  if (existing) {
-    touch(pages, key, existing, MAX_PAGES, () => {});
-    return existing;
+export function loadPdfPage(database: string, pdf: Pdf, pageNumber: number, width: number) {
+  const key = `${documentKey(database, pdf)}:${pageNumber}:${bucket(width)}`;
+  const cached = pages.get(key);
+  if (cached) {
+    pages.delete(key);
+    pages.set(key, cached);
+    return cached;
   }
-  const rendering = renderPage(pdf, pageNumber, bucket(width));
-  rendering.catch(() => pages.delete(key));
-  touch(pages, key, rendering, MAX_PAGES, stale => {
-    void stale.then(url => URL.revokeObjectURL(url)).catch(() => {});
+  const rendering = withDocument(database, pdf, doc => renderPage(doc, pageNumber, bucket(width)));
+  pages.set(key, rendering);
+  if (pages.size > MAX_PAGES) {
+    const oldest = pages.keys().next();
+    if (!oldest.done) pages.delete(oldest.value);
+  }
+  void rendering.catch(() => {
+    if (pages.get(key) === rendering) pages.delete(key);
   });
   return rendering;
 }
 
-/** 某一页的位图地址；enabled 为 false（卡片不在画面里）时不渲染，保留上一次的图 */
-export function usePdfPage(
-  pdf: Pdf | null,
-  pageNumber: number,
-  width: number,
-  enabled = true
-): { url: string | null; error: boolean } {
-  const [state, setState] = useState<{ url: string | null; error: boolean }>({
-    url: null,
-    error: false,
-  });
-  const key = pdf ? `${documentKey(pdf)}:${pageNumber}:${bucket(width)}` : null;
+type PageImage = {
+  key: string;
+  url: string | null;
+  error: boolean;
+  page?: number;
+  pageCount?: number;
+};
+
+export function usePdfPage(pdf: Pdf, page: number, width: number, enabled: boolean) {
+  const { database } = useDatabaseReady();
+  const key = `${documentKey(database, pdf)}:${page}:${bucket(width)}`;
+  const [image, setImage] = useState<PageImage | null>(null);
   useEffect(() => {
-    if (!pdf || !enabled) return;
+    if (!enabled) return;
     let alive = true;
-    loadPdfPage(pdf, pageNumber, width).then(
-      url => alive && setState({ url, error: false }),
-      () => alive && setState(previous => ({ url: previous.url, error: true }))
+    let url: string | undefined;
+    loadPdfPage(database, pdf, page, width).then(
+      result => {
+        if (!alive) return;
+        url = URL.createObjectURL(result.blob);
+        setImage({ key, url, error: false, page: result.page, pageCount: result.pageCount });
+      },
+      () => alive && setImage({ key, url: null, error: true })
     );
     return () => {
       alive = false;
+      if (url) URL.revokeObjectURL(url);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- key 已含 pdf、页与宽度档
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key 包含库、文件、页码与宽度档
   }, [key, enabled]);
-  return state;
+  return enabled && image?.key === key ? image : null;
 }

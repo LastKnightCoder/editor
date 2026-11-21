@@ -14,6 +14,12 @@ import { SelectTransforms } from "../transforms";
 
 /** 摘录的来源：PDF 里的一处标注，或一篇正文 */
 export type ExcerptSource =
+  | {
+      kind: "pdf";
+      entity: import("@tau/db-schema/content-identities").ContentEntityReference & { kind: "pdf" };
+      annotationObjectId: string;
+      page: number;
+    }
   | { kind: "pdf"; pdfId: number; annotationId: number | null; page: number }
   | { kind: "card" | "article" | "project-item"; id: number };
 

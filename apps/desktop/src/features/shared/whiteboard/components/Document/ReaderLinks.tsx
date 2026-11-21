@@ -32,10 +32,17 @@ const nameOf = (element: BoardElement) => {
 
 /** 箭头两端都绑定、一端是这张卡的另一端元素；去重，按出现顺序 */
 export function neighborsOf(children: readonly BoardElement[], id: string): Neighbor[] {
-  const byId = new Map(children.map(element => [element.id, element]));
+  const byId = new Map<string, BoardElement>();
+  const index = (elements: readonly BoardElement[]) => {
+    for (const element of elements) {
+      byId.set(element.id, element);
+      if (element.children) index(element.children);
+    }
+  };
+  index(children);
   const seen = new Set<string>();
   const result: Neighbor[] = [];
-  for (const element of children) {
+  for (const element of byId.values()) {
     if (element.type !== "arrow") continue;
     const source = element.source?.bindId as string | undefined;
     const target = element.target?.bindId as string | undefined;
@@ -99,7 +106,8 @@ export function locateElement(board: ReturnType<typeof useBoard>, target: BoardE
 export function useReferenceDragOut(
   scrollRef: RefObject<HTMLElement | null>,
   element: DocumentElement,
-  enabled: boolean
+  enabled: boolean,
+  onDragOut: () => void
 ) {
   const onDragStart = useMemoizedFn((event: DragEvent) => {
     const link = (event.target as Element | null)?.closest?.("[data-content-link]");
@@ -114,6 +122,7 @@ export function useReferenceDragOut(
     if (!target) return;
     event.stopPropagation();
     setMaterialDrag(event, { targets: [target], linkFrom: element.id });
+    onDragOut();
   });
 
   useEffect(() => {

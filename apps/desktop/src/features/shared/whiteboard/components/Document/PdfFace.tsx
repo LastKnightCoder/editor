@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileWarning } from "lucide-react";
 import { cn, toast } from "@tau/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { bindDatabaseCommands } from "@/services/command-context";
 import { getPdfById, recordPdfPage } from "@/commands";
 import { useDatabaseReady } from "@/features/pdfs/queries";
 import {
@@ -18,8 +19,8 @@ import {
   type DocumentElement,
 } from "@tau/whiteboard";
 import type { Pdf } from "@/types";
-import { usePdfPage } from "@/features/pdfs/pdfPage";
-import { syncLastPage, usePdfLastPage } from "@/features/pdfs/lastPage";
+import { getPdfPageCount, usePdfPage } from "@/features/pdfs/pdfPage";
+import { lastPageKey, syncLastPage, usePdfLastPage } from "@/features/pdfs/lastPage";
 import { usePdfAnnotationList } from "@/features/pdfs/reader/data";
 import {
   COLOR_SPECS,
@@ -89,8 +90,10 @@ export function PdfFace({
   lowZoom: boolean;
 }) {
   const [ref, inView] = useInView<HTMLDivElement>();
-  const { page, pageCount } = usePdfLastPage(pdf);
-  const image = usePdfPage(pdf, page, pixelWidth(element, zoom), inView && !lowZoom);
+  const { page: lastPage } = usePdfLastPage(pdf);
+  const image = usePdfPage(pdf, lastPage, pixelWidth(element, zoom), inView && !lowZoom);
+  const page = image?.page ?? lastPage;
+  const pageCount = image?.pageCount ?? pdf.pageCount;
   const radius = Math.max(3, DOCUMENT_CARD_RADIUS / 4);
 
   return (
@@ -110,14 +113,14 @@ export function PdfFace({
         className="bg-surface shadow-paper absolute inset-0 overflow-hidden bg-white"
         style={{ borderRadius: radius }}
       >
-        {image.url && !lowZoom ? (
+        {image?.url && !lowZoom ? (
           <img
             src={image.url}
             alt=""
             draggable={false}
             className="pointer-events-none size-full object-cover object-top select-none"
           />
-        ) : image.error ? (
+        ) : image?.error ? (
           <div className="text-ink-3 flex size-full flex-col items-center justify-center gap-2 text-[13px]">
             <FileWarning className="size-5" strokeWidth={1.5} />
             文件读取失败
@@ -154,21 +157,32 @@ export function PdfPageTurnLayer() {
   const client = useQueryClient();
   const { database } = useDatabaseReady();
   useEffect(() => {
+    let active = true;
+    const commands = bindDatabaseCommands(
+      { getPdfById, recordPdfPage },
+      { databaseName: database }
+    );
     const onTurn = async ({ id, delta }: { id: string; delta: number }) => {
       const element = board.getElement(id) as DocumentElement | undefined;
       const ref = element?.entityRef;
       if (ref?.kind !== "pdf") return;
-      const pdf = await getPdfById(ref.id).catch(() => null);
-      if (!pdf) return;
+      const pdf = await commands.getPdfById(ref.id).catch(() => null);
+      if (!pdf || !active) return;
+      const pageCount = pdf.pageCount || (await getPdfPageCount(database, pdf).catch(() => null));
+      if (!active) return;
+      if (!pageCount) return toast.error("无法读取 PDF 页数");
       const current =
-        client.getQueryData<number>(["pdfs", "last-page", database, pdf.id]) ?? pdf.lastPage ?? 1;
-      const next = Math.max(1, Math.min(pdf.pageCount ?? Number.MAX_SAFE_INTEGER, current + delta));
+        client.getQueryData<number>(lastPageKey(database, pdf.id)) ?? pdf.lastPage ?? 1;
+      const next = Math.max(1, Math.min(pageCount, Math.min(current, pageCount) + delta));
       if (next === current) return;
       syncLastPage(client, database, pdf.id, next);
-      await recordPdfPage(pdf.id, next).catch(() => toast.error("页码保存失败"));
+      await commands.recordPdfPage(pdf.id, next).catch(() => toast.error("页码保存失败"));
     };
     board.on(DOCUMENT_TURN_PAGE_EVENT, onTurn);
-    return () => board.off(DOCUMENT_TURN_PAGE_EVENT, onTurn);
+    return () => {
+      active = false;
+      board.off(DOCUMENT_TURN_PAGE_EVENT, onTurn);
+    };
   }, [board, client, database]);
   return null;
 }
