@@ -11,7 +11,7 @@ import {
   DOCUMENT_CARD_RADIUS,
   useBoard,
   useBoardState,
-  useViewPort,
+  useZoom,
   type DocumentElement,
 } from "@tau/whiteboard";
 import ContentEditor from "@/components/ContentEditor";
@@ -42,7 +42,7 @@ function Skeleton({ title }: { title?: string }) {
 export const DocumentCard = memo(({ element }: { element: DocumentElement; sketch: boolean }) => {
   const board = useBoard();
   const { source, missing } = useDocumentSource(element);
-  const { zoom } = useViewPort();
+  const zoom = useZoom();
   const { simplifiedRenderZoomThreshold } = useBoardState();
   const open = useDocumentReaderState(board, state => state.openId === element.id);
   // 收起动画一开始就去掉「编辑中」

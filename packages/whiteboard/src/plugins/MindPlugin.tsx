@@ -102,6 +102,7 @@ const MindNodeTree = ({
 
 export class MindPlugin implements IBoardPlugin {
   name = "mind-node";
+  readonly claimPointerButton = 0;
 
   constructor(private readonly text: TextExtensionOptions = embeddedTextOptions) {}
 

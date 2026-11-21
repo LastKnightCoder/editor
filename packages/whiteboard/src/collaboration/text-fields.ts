@@ -6,7 +6,7 @@ import {
 } from "@tau/editor-collab";
 import type { EditorTextField } from "@tau/editor/source-contracts";
 import type { EditorDocument } from "@tau/editor";
-import { flatten, flattenModel, authorElement, refresh } from "./projection";
+import { canvasElement, flattenModel, authorElement, refresh } from "./projection";
 import { assertWritable, canEditElement } from "./element-access";
 import { enterGroup } from "./commands";
 import type { CanvasBinding } from "./binding";
@@ -115,7 +115,7 @@ export function textField(
 
 export function textDocument(binding: CanvasBinding, id: string): EditorDocument | undefined {
   if (binding.closed || !binding.board) return;
-  const element = flatten(binding.board.children).find(node => node.id === id);
+  const element = canvasElement(binding.board.children, id);
   if (!element || !binding.options.types[element.type]?.bodyProperty) return;
   if (element.type === "richtext" && element.entity?.kind === "content") return;
   const body = binding.model.elements.get(id)?.get("fieldBindings") as

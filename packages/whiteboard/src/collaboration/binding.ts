@@ -66,6 +66,7 @@ export interface WhiteboardBindingOptions {
     reference: import("@tau/db-schema/content-identities").ContentEntityReference
   ) => Promise<number | null>;
   canWrite?: () => boolean;
+  coalesceLocalGesture?: () => boolean;
   catalog?: WhiteboardContractCatalog;
   canEditContract?: (entry: WhiteboardContractEntry) => boolean;
   types: Readonly<Record<string, WhiteboardCanvasType>>;
@@ -112,7 +113,9 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
   gesture = false;
   gestureHistory?: NodeTreeHistory;
   streamingGesture = false;
+  coalescingGesture = false;
   gestureTimer?: ReturnType<typeof setTimeout>;
+  gestureWindowStart?: number;
   gestureCaptureTimeout?: number;
   pending: WhiteboardModelCommand[] = [];
   pendingFeedback: { id: string; patch: Record<string, unknown> }[] = [];
@@ -192,9 +195,11 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
   connect(board: Board): () => void {
     if (this.board || this.closed) throw new Error("白板绑定不能复用到另一视图");
     this.board = board;
+    this.model.doc.on("beforeTransaction", this.invalidateSnapshot);
     this.model.doc.on("afterTransaction", this.changed);
     this.model.doc.on("destroy", this.disconnect);
     try {
+      if (this.options.coalesceLocalGesture) this.model.prepareLocalTranslations();
       refresh(this);
     } catch (error) {
       this.disconnect();
@@ -207,6 +212,8 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     this.closed = true;
     this.board?.interactions.cancel();
     this.endGesture(false);
+    this.invalidateSnapshot();
+    this.model.doc.off("beforeTransaction", this.invalidateSnapshot);
     this.model.doc.off("afterTransaction", this.changed);
     this.model.doc.off("destroy", this.disconnect);
     for (const editor of this.editors) editor.disposeNodeTree();
@@ -219,7 +226,18 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     this.history.destroy();
     this.board = undefined;
   };
+  private snapshot?: ReturnType<WhiteboardModel["read"]>;
+  private readonly invalidateSnapshot = () => {
+    this.snapshot = undefined;
+  };
+
+  readSnapshot(): ReturnType<WhiteboardModel["read"]> {
+    if (!this.board || this.closed || this.model.doc._transaction) return this.model.read();
+    return (this.snapshot ??= this.model.read());
+  }
+
   private readonly changed = (transaction: Y.Transaction) => {
+    this.invalidateSnapshot();
     if (this.closed || this.writing || transaction.changed.size === 0) return;
     const local =
       transaction.origin === this.history || this.history.trackedOrigins.has(transaction.origin);

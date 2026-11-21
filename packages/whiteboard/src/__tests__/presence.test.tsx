@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import EventEmitter from "eventemitter3";
 import Board from "../Board";
 import BoardContent from "../components/BoardContent";
-import { BoardContext, SelectionContext, ViewPortContext } from "../context";
+import { BoardContext, SelectionContext } from "../context";
 import type { WhiteboardDocumentBinding } from "../document";
 import { memberColor, readWhiteboardPresence, type WhiteboardPeer } from "@tau/collaboration";
 import {
@@ -119,17 +119,15 @@ it("真实元素层与远端选框同帧移动，本机已选中与松手后的�
       root.render(
         <BoardContext value={board}>
           <SelectionContext value={selection}>
-            <ViewPortContext value={viewport}>
-              <BoardContent
-                board={board}
-                viewPort={viewport}
-                noneCenterConnectArrows={board.children}
-                centerConnectArrows={[]}
-                centerConnectAndSelectedArrows={[]}
-                peers={[value]}
-                gridVisible={false}
-              />
-            </ViewPortContext>
+            <BoardContent
+              board={board}
+              viewPort={viewport}
+              noneCenterConnectArrows={board.children}
+              centerConnectArrows={[]}
+              centerConnectAndSelectedArrows={[]}
+              peers={[value]}
+              gridVisible={false}
+            />
           </SelectionContext>
         </BoardContext>
       )

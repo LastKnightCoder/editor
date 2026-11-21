@@ -16,11 +16,11 @@ import { cn } from "@tau/ui";
 import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
 
 import Board from "./Board";
+import { viewportCellStart } from "./utils/ViewportUtil";
 
 import {
   BoardContext,
   SelectionContext,
-  ViewPortContext,
   BoardStateContext,
   ArrowConnectPointOverlayContext,
   PointerViewportStoreContext,
@@ -221,6 +221,33 @@ const Whiteboard = memo(
   })
 );
 
+function useCanvasSnapshot(board: Board) {
+  const read = useMemo(() => {
+    let previous = board.getSnapshot();
+    return () => {
+      const next = board.getSnapshot();
+      if (next === previous) return previous;
+      const a = previous.viewPort,
+        b = next.viewPort;
+      if (
+        next.viewPort === previous.viewPort ||
+        previous.children !== next.children ||
+        previous.selection !== next.selection ||
+        previous.sketch !== next.sketch ||
+        previous.presentationSequences !== next.presentationSequences ||
+        a.width !== b.width ||
+        a.height !== b.height ||
+        a.zoom !== b.zoom ||
+        viewportCellStart(a.minX, a.zoom) !== viewportCellStart(b.minX, b.zoom) ||
+        viewportCellStart(a.minY, a.zoom) !== viewportCellStart(b.minY, b.zoom)
+      )
+        previous = next;
+      return previous;
+    };
+  }, [board]);
+  return useSyncExternalStore(board.subscribe, read);
+}
+
 const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Board }>(
   (props, ref) => {
     const {
@@ -247,7 +274,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
 
     // 引用
     const containerRef = useRef<HTMLDivElement>(null);
-    const svgRef = useRef<SVGSVGElement>(null);
+    const cameraRef = useRef<HTMLDivElement>(null);
     const connectPointOverlayRef = useRef<SVGGElement>(null);
     const statusBarRef = useRef<HTMLDivElement>(null);
     const pointerViewportStore = useCreation<PointerViewportStore>(() => {
@@ -300,6 +327,16 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
     }, [board, readonly, documentTooNew]);
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
+    const arrowMoveState = useMemo(() => ({ isMoving: isArrowMoving }), [isArrowMoving]);
+    const boardState = useMemo(
+      () => ({
+        isMoving: isElementsMoving,
+        movingStore,
+        simplifiedRenderZoomThreshold,
+        connectPointOwnerStore,
+      }),
+      [isElementsMoving, movingStore, connectPointOwnerStore]
+    );
     const { markInteracting } = usePreventTextSelection(containerRef);
     const createToolCursor = useCreateToolCursor(board);
 
@@ -331,11 +368,22 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
     );
 
     // 获取画板数据
-    const { children, viewPort, selection } = useSyncExternalStore(
-      board.subscribe,
-      board.getSnapshot
-    );
+    const { children, viewPort, selection } = useCanvasSnapshot(board);
     const { zoom } = viewPort;
+    useLayoutEffect(() => {
+      const surface = cameraRef.current;
+      if (!surface) return;
+      const left = viewportCellStart(viewPort.minX, zoom);
+      const top = viewportCellStart(viewPort.minY, zoom);
+      const translate = (live: ViewPort) => {
+        surface.style.transform = `translate3d(${(left - live.minX) * zoom}px, ${(top - live.minY) * zoom}px, 0)`;
+      };
+      translate(board.viewPort);
+      board.on("viewport:change", translate);
+      return () => {
+        board.off("viewport:change", translate);
+      };
+    }, [board, viewPort, zoom]);
 
     // 获取演示模式状态（直接从 board.presentationManager 订阅）
     const isPresentationMode = useSyncExternalStore(
@@ -518,8 +566,11 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       (event: React.PointerEvent<HTMLDivElement>) => {
         if (!ownsBoardPointerEvent(board, event.nativeEvent)) return;
         setPointerViewport(event);
-        // 创建手势高频驱动（手写采样等）：绕过 25ms 节流，并取消挂起的节流调用避免旧位置晚到
-        if (board.interactions.isCreateGestureActive()) {
+        // 平移跟随浏览器指针帧，手写保留采样点；旧的悬停事件不能晚于手势执行。
+        if (
+          board.interactions.isCreateGestureActive() ||
+          board.interactions.activePointerState?.name === "panning"
+        ) {
           cancelPointerMove();
           nonThrottledHandleOnPointerMove(event);
           return;
@@ -765,59 +816,52 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       <WhiteboardAPIProvider value={extensionsRuntime.api}>
         <BoardContext.Provider value={board}>
           <SelectionContext.Provider value={selection}>
-            <ViewPortContext.Provider value={viewPort}>
-              <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
-                <BoardStateContext.Provider
-                  value={{
-                    isMoving: isElementsMoving,
-                    movingStore,
-                    simplifiedRenderZoomThreshold,
-                    connectPointOwnerStore,
-                  }}
-                >
-                  <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>
-                    <PointerViewportStoreContext.Provider value={pointerViewportStore}>
-                      <div className="relative flex h-full">
-                        {/* 元素树停靠栏：纸面内左栏，开关在宿主页面的面包屑 */}
-                        {showSidebar && !isPresentationMode && <Sidebar outline={outline} />}
-                        <div
-                          ref={containerRef}
-                          data-whiteboard-root
-                          tabIndex={0}
-                          className={cn(
-                            "[:fullscreen]:w-screen [:fullscreen]:h-screen [:fullscreen]:bg-surface relative h-full min-w-0 flex-1",
-                            createToolCursor,
-                            className
-                          )}
-                          style={style}
-                          onMouseDown={handleMouseDown}
-                          onMouseMove={handleMouseMove}
-                          onMouseUp={handleMouseUp}
-                          onMouseEnter={handleMouseEnter}
-                          onMouseLeave={handleMouseLeave}
-                          onContextMenu={handleContextMenu}
-                          onClick={handleClick}
-                          onDoubleClick={handleDblClick}
-                          onPointerDown={handleContainerPointerDown}
-                          onPointerMove={handleContainerPointerMove}
-                          onPointerUp={handleContainerPointerUp}
-                          onPointerLeave={handleContainerPointerLeave}
-                          onPointerCancel={handleContainerPointerCancel}
-                          onDrop={handleOnDrop}
-                          onDragOver={handleOnDragOver}
-                          onDragEnter={handleOnDragEnter}
-                          onDragLeave={handleOnDragLeave}
-                        >
-                          <div className="relative h-full w-full">
-                            {toolbarVisible ? (
-                              <Toolbar />
-                            ) : documentTooNew ? (
-                              <ReadonlyNotice />
-                            ) : null}
-                            {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
+            <ArrowMoveContext.Provider value={arrowMoveState}>
+              <BoardStateContext.Provider value={boardState}>
+                <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>
+                  <PointerViewportStoreContext.Provider value={pointerViewportStore}>
+                    <div className="relative flex h-full">
+                      {/* 元素树停靠栏：纸面内左栏，开关在宿主页面的面包屑 */}
+                      {showSidebar && !isPresentationMode && <Sidebar outline={outline} />}
+                      <div
+                        ref={containerRef}
+                        data-whiteboard-root
+                        tabIndex={0}
+                        className={cn(
+                          "[:fullscreen]:w-screen [:fullscreen]:h-screen [:fullscreen]:bg-surface relative h-full min-w-0 flex-1",
+                          createToolCursor,
+                          className
+                        )}
+                        style={style}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                        onContextMenu={handleContextMenu}
+                        onClick={handleClick}
+                        onDoubleClick={handleDblClick}
+                        onPointerDown={handleContainerPointerDown}
+                        onPointerMove={handleContainerPointerMove}
+                        onPointerUp={handleContainerPointerUp}
+                        onPointerLeave={handleContainerPointerLeave}
+                        onPointerCancel={handleContainerPointerCancel}
+                        onDrop={handleOnDrop}
+                        onDragOver={handleOnDragOver}
+                        onDragEnter={handleOnDragEnter}
+                        onDragLeave={handleOnDragLeave}
+                      >
+                        <div className="relative h-full w-full">
+                          {toolbarVisible ? (
+                            <Toolbar />
+                          ) : documentTooNew ? (
+                            <ReadonlyNotice />
+                          ) : null}
+                          {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
 
+                          <div data-whiteboard-stage className="absolute inset-0 overflow-hidden">
                             <BoardContent
-                              ref={svgRef}
+                              cameraRef={cameraRef}
                               board={board}
                               viewPort={viewPort}
                               centerConnectArrows={centerConnectArrows}
@@ -828,50 +872,50 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                               connectPointOverlayRef={connectPointOverlayRef}
                               peers={peers}
                             />
-
-                            <CreationPreviewBadge board={board} />
-
-                            {attributeSetterVisible && <AttributeSetter />}
                           </div>
 
-                          <PresentationCreator />
-                          <PresentationMode />
+                          <CreationPreviewBadge board={board} />
 
-                          {showStatusBar && (
-                            <StatusBar
-                              ref={statusBarRef}
-                              gridVisible={gridVisible}
-                              zoom={zoom}
-                              sequences={board.presentationManager.sequences}
-                              onGridVisibleChange={handleGridVisibleChange}
-                              onZoomIn={handleZoomIn}
-                              onZoomOut={handleZoomOut}
-                              onZoomTo={handleZoomTo}
-                              onFitAll={handleFitAll}
-                              onFitSelection={handleFitSelection}
-                              onStartPresentation={handleStartPresentation}
-                              onEditSequence={handleEditSequence}
-                              onDeleteSequence={handleDeleteSequence}
-                              end={statusBarEnd}
-                            />
-                          )}
-
-                          <ContextMenuLayer
-                            board={board}
-                            containerRef={containerRef}
-                            readonly={readonly}
-                            buildMenuItems={buildContextMenuItems}
-                          />
-                          {extensionsRuntime.renderLayers("canvas")}
+                          {attributeSetterVisible && <AttributeSetter />}
                         </div>
 
-                        {extensionsRuntime.renderLayers("outside")}
+                        <PresentationCreator />
+                        <PresentationMode />
+
+                        {showStatusBar && (
+                          <StatusBar
+                            ref={statusBarRef}
+                            gridVisible={gridVisible}
+                            zoom={zoom}
+                            sequences={board.presentationManager.sequences}
+                            onGridVisibleChange={handleGridVisibleChange}
+                            onZoomIn={handleZoomIn}
+                            onZoomOut={handleZoomOut}
+                            onZoomTo={handleZoomTo}
+                            onFitAll={handleFitAll}
+                            onFitSelection={handleFitSelection}
+                            onStartPresentation={handleStartPresentation}
+                            onEditSequence={handleEditSequence}
+                            onDeleteSequence={handleDeleteSequence}
+                            end={statusBarEnd}
+                          />
+                        )}
+
+                        <ContextMenuLayer
+                          board={board}
+                          containerRef={containerRef}
+                          readonly={readonly}
+                          buildMenuItems={buildContextMenuItems}
+                        />
+                        {extensionsRuntime.renderLayers("canvas")}
                       </div>
-                    </PointerViewportStoreContext.Provider>
-                  </ArrowConnectPointOverlayContext.Provider>
-                </BoardStateContext.Provider>
-              </ArrowMoveContext.Provider>
-            </ViewPortContext.Provider>
+
+                      {extensionsRuntime.renderLayers("outside")}
+                    </div>
+                  </PointerViewportStoreContext.Provider>
+                </ArrowConnectPointOverlayContext.Provider>
+              </BoardStateContext.Provider>
+            </ArrowMoveContext.Provider>
           </SelectionContext.Provider>
         </BoardContext.Provider>
       </WhiteboardAPIProvider>

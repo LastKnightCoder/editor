@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 import Board from "../../Board";
 import BoardContent from "../../components/BoardContent";
-import { BoardContext, SelectionContext, ViewPortContext } from "../../context";
+import { BoardContext, SelectionContext } from "../../context";
 import { useSelectState } from "../../hooks/useSelectState";
 import useElementsSorting from "../../hooks/useElementsSorting";
 import { BoardElement, IBoardPlugin, Point, Selection, ViewPort } from "../../types";
@@ -194,20 +194,18 @@ const RenderProfileHarness = ({
   return (
     <BoardContext.Provider value={board}>
       <SelectionContext.Provider value={selection}>
-        <ViewPortContext.Provider value={viewPort}>
-          <Profiler id="whiteboard-render-profile" onRender={onProfilerRender}>
-            <BoardContent
-              board={board}
-              viewPort={viewPort}
-              centerConnectArrows={centerConnectArrows}
-              noneCenterConnectArrows={noneCenterConnectArrows}
-              centerConnectAndSelectedArrows={centerConnectAndSelectedArrows}
-              isolateStaticSelection={isolateStaticSelection}
-              gridVisible={false}
-              showAssistLayers={false}
-            />
-          </Profiler>
-        </ViewPortContext.Provider>
+        <Profiler id="whiteboard-render-profile" onRender={onProfilerRender}>
+          <BoardContent
+            board={board}
+            viewPort={viewPort}
+            centerConnectArrows={centerConnectArrows}
+            noneCenterConnectArrows={noneCenterConnectArrows}
+            centerConnectAndSelectedArrows={centerConnectAndSelectedArrows}
+            isolateStaticSelection={isolateStaticSelection}
+            gridVisible={false}
+            showAssistLayers={false}
+          />
+        </Profiler>
       </SelectionContext.Provider>
     </BoardContext.Provider>
   );
@@ -216,6 +214,26 @@ const RenderProfileHarness = ({
 const runBenchmark = process.env.WHITEBOARD_RENDER_BENCH === "1";
 
 (runBenchmark ? describe : describe.skip)("Whiteboard 渲染 Profile 基线", () => {
+  it("量化大容器一次展开全部子元素的成本", () => {
+    const children = createBenchmarkElements(5000, 0);
+    const parent = { ...children[0], id: "group", children };
+    const board = new Board([parent], DEFAULT_VIEW_PORT, EMPTY_SELECTION, [new BenchRectPlugin()]);
+    try {
+      const visible = board.filterElementsInViewport([parent], 0);
+      expect(visible[0].children).toHaveLength(children.length);
+      board.renderVisibleElements(visible);
+      const samples = Array.from({ length: 12 }, () => {
+        const start = performance.now();
+        board.renderVisibleElements(visible);
+        return performance.now() - start;
+      });
+      const { p50, p95 } = summarizeDurations(samples);
+      console.info(`[group-render] 5000 children p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms`);
+    } finally {
+      board.destroy();
+    }
+  });
+
   it("使用 React Profiler 量化 selection/arrow 操作脚本开销", { timeout: 120000 }, async () => {
     const rectCount = Number(process.env.RENDER_BENCH_RECTS ?? "1600");
     const arrowCount = Number(process.env.RENDER_BENCH_ARROWS ?? "400");

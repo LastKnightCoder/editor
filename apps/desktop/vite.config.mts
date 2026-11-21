@@ -53,10 +53,13 @@ const rendererLibGuard = (distDir: string) => ({
   },
 });
 
-export default defineConfig(() => {
-  rmSync("dist-electron", { recursive: true, force: true });
+export default defineConfig(({ mode }) => {
+  const rendererOnly = mode === "whiteboard-benchmark";
+  const desktopRuntime = rendererOnly ? () => false as const : electron;
+  if (!rendererOnly) rmSync("dist-electron", { recursive: true, force: true });
 
   return {
+    base: rendererOnly ? "./" : undefined,
     resolve: {
       dedupe: [
         "react",
@@ -87,7 +90,7 @@ export default defineConfig(() => {
       },
       react(),
       tailwindcss(),
-      electron({
+      desktopRuntime({
         main: {
           entry: {
             index: "src-electron/main/index.ts",
@@ -202,6 +205,7 @@ export default defineConfig(() => {
       exclude: ["blog"],
     },
     build: {
+      outDir: rendererOnly ? "output/whiteboard-acceptance/renderer" : "dist",
       minify: "oxc" as const,
       sourcemap: false,
       reportCompressedSize: false,

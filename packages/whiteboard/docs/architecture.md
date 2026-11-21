@@ -215,8 +215,8 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ## 五、渲染与视口
 
-- **渲染入口**：`BoardContent/index.tsx`，SVG 视图盒子 = `viewBox(minX,minY,width,height)`。
-- **可见性过滤**：`board.filterElementsInViewport(elements, expandPixels)` 生成可见树，`renderVisibleElements` 递归调用插件 render。
+- `BoardContent` 按 100 屏幕像素对齐 SVG 原点，并向右、向下各多铺一格。格内平移由视口事件直接移动独立的 HTML 合成层，精确视口订阅留在需要定位的浮层。跨格、缩放或容器尺寸变化时更新 SVG 视图盒。指针换算始终使用画布容器和逻辑视口。导出使用目标视口的精确尺寸。
+- 三个元素层分别保留上次提交的可见 ID。元素进入预加载范围时挂载，移出更宽的退出范围时卸载；格内平移复用已渲染的树。仅依赖缩放的组件使用 `useZoom`。
 - **层级拆分**：箭头按是否中心连接拆分（`useElementsSorting`），避免遮挡。
 - **网格/参考线**：`Grid` 按 `gridVisible` 渲染点阵（点距固定 `DEFAULT_GRID_SIZE` = 20，同为吸附步长）（两层 `<pattern>` 平铺、节点数恒定，缩小时按 `dotGridLevel` 翻倍点距，D-111）；`ReferenceLines` 显示吸附线，线条直接订阅 `board.snap`，只包含吸附后真正对齐的线；网格可见时吸附改为取整，不画参考线。
 - **选区与标记**：`SelectArea` 绘制框选，箭头 Marker 由 `ArrowMarkers` 统一定义。

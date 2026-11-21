@@ -1,5 +1,11 @@
 import type { ViewPort } from "../types";
 
+export const CULL_CELL_PX = 100;
+export function viewportCellStart(position: number, zoom: number): number {
+  const cell = CULL_CELL_PX / zoom;
+  return Math.floor(position / cell) * cell;
+}
+
 class ViewportUtil {
   static isRectInViewport(
     rect: { x: number; y: number; width: number; height: number },

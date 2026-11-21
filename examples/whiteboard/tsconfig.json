@@ -1,4 +1,4 @@
 {
   "extends": "../../packages/ui/tsconfig.json",
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "bench", "vite.config.ts"]
 }

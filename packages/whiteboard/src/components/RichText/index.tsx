@@ -45,13 +45,13 @@ import {
 } from "../../hooks";
 import { useBoardState } from "../../hooks/useBoardState";
 import { useZoom } from "../../hooks/useZoom";
-import { cn, toast, useEdgeFade } from "@tau/ui";
+import { cn, toast, useScrollState } from "@tau/ui";
 
 const styles = {
   richTextContainer: "relative size-full [--block-distance:10px]",
   surface: "absolute left-0 top-0 -z-10 overflow-hidden shadow-[inset_0_0_0_1px_var(--text-edge)]",
   band: "w-full",
-  editor: "tau-board-text-mask overscroll-contain [&::-webkit-scrollbar]:hidden",
+  editor: "overscroll-contain [&::-webkit-scrollbar]:hidden",
   simplifiedSkeleton: "flex size-full flex-col justify-start overflow-hidden",
   skeletonLine: "rounded-full bg-current opacity-[0.18]",
 };
@@ -338,7 +338,7 @@ const Richtext = (props: RichTextProps) => {
     observer?.observe(container, { childList: true, subtree: true });
     return () => observer?.disconnect();
   }, []);
-  useEdgeFade(editorEl);
+  const { scrolled, canScrollDown } = useScrollState(editorEl);
 
   // 底板实时跟住编辑器盒子：写回元素尺寸带防抖，打字时底板会慢半拍。
   // 这里直接改 DOM，不走 state，避免每帧重渲染；编辑器卸载时还原成元素上存的尺寸
@@ -401,8 +401,10 @@ const Richtext = (props: RichTextProps) => {
         "--gap-top": `${padding.top}px`,
         "--gap-bottom": `${padding.bottom}px`,
         "--fade-size": `${EDGE_FADE_SIZE}px`,
+        "--edge-top-on": Number(scrolled),
+        "--edge-bottom-on": Number(canScrollDown),
       }) as React.CSSProperties,
-    [editorStyle, padding]
+    [editorStyle, padding, scrolled, canScrollDown]
   );
 
   useEffect(() => {
@@ -498,7 +500,7 @@ const Richtext = (props: RichTextProps) => {
                 contentId={contentId}
                 ref={editorRef}
                 style={fadeStyle}
-                className={styles.editor}
+                className={cn(styles.editor, (scrolled || canScrollDown) && "tau-board-text-mask")}
                 initValue={initValue}
                 onChange={handleOnContentChange}
                 readonly={readonly}

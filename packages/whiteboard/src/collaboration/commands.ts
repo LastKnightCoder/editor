@@ -59,35 +59,46 @@ export function submit(
         : []
     ),
   ];
-  binding.validating = true;
-  try {
-    binding.model.preflight(candidate => {
-      const created = candidate.submit(commands, origin, prepared).createdIds;
-      const touched = new Set([
-        ...created,
-        ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
-      ]);
-      const snapshot = candidate.read();
-      const catalog = binding.options.catalog;
-      for (const node of flattenModel([
-        ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
-        ...snapshot.recovery,
-      ])) {
-        const entry = catalog?.get(node.contractId);
-        if (touched.has(node.id)) {
-          const contract = candidate.contracts.get(node.contractId);
-          if (!contract) throw new Error("白板快照缺少节点契约");
-          for (const slot of contentResourceSlots(node.data, contract.resources))
-            for (const reference of contentResourceValues(slot))
-              if (!isSafeResource(reference))
-                throw new Error("资源须先交由宿主管理，不能写入本机路径或凭据");
+  // 仅移动几何位置时，模型提交已校验几何和完整候选；扩展数据与资源没有写入。
+  const geometryOnly =
+    commands.length > 0 &&
+    commands.every(
+      command =>
+        command.type === "set_node" &&
+        Object.keys(command.patch).length === 1 &&
+        command.patch.geometry !== undefined
+    );
+  if (!geometryOnly) {
+    binding.validating = true;
+    try {
+      binding.model.preflight(candidate => {
+        const created = candidate.submit(commands, origin, prepared).createdIds;
+        const touched = new Set([
+          ...created,
+          ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
+        ]);
+        const snapshot = candidate.read();
+        const catalog = binding.options.catalog;
+        for (const node of flattenModel([
+          ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
+          ...snapshot.recovery,
+        ])) {
+          const entry = catalog?.get(node.contractId);
+          if (touched.has(node.id)) {
+            const contract = candidate.contracts.get(node.contractId);
+            if (!contract) throw new Error("白板快照缺少节点契约");
+            for (const slot of contentResourceSlots(node.data, contract.resources))
+              for (const reference of contentResourceValues(slot))
+                if (!isSafeResource(reference))
+                  throw new Error("资源须先交由宿主管理，不能写入本机路径或凭据");
+          }
+          if (touched.has(node.id) && entry?.access === "edit" && catalog)
+            catalog.validate(entry, node.data);
         }
-        if (touched.has(node.id) && entry?.access === "edit" && catalog)
-          catalog.validate(entry, node.data);
-      }
-    });
-  } finally {
-    binding.validating = false;
+      });
+    } finally {
+      binding.validating = false;
+    }
   }
   if (!binding.streamingGesture) enterGroup(binding, historyGroup);
   binding.writing = true;

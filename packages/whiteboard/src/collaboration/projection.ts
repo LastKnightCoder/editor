@@ -25,8 +25,18 @@ export const flattenModel = (
 export const flatten = (nodes: readonly BoardElement[]): BoardElement[] =>
   nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 
+const canvasIndexes = new WeakMap<BoardElement[], Map<string, BoardElement>>();
+export function canvasElement(children: BoardElement[], id: string) {
+  let index = canvasIndexes.get(children);
+  if (!index) {
+    index = new Map(flatten(children).map(node => [node.id, node]));
+    canvasIndexes.set(children, index);
+  }
+  return index.get(id);
+}
+
 export function authorElement(binding: CanvasBinding, id: string) {
-  const snapshot = binding.model.read();
+  const snapshot = binding.readSnapshot();
   return flattenModel([
     ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
     ...snapshot.recovery,
@@ -110,7 +120,7 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
 
 export function refresh(binding: CanvasBinding): void {
   if (!binding.board || binding.closed) return;
-  const snapshot = binding.model.read();
+  const snapshot = binding.readSnapshot();
   const page = snapshot.pages.find(page => page.id === binding.page);
   const layout = (node: BoardElement, parent?: string): BoardElement => {
     const children = (node.children ?? []).map(child => layout(child, node.type));

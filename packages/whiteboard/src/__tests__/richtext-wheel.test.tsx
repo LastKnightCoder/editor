@@ -222,17 +222,12 @@ describe("白板文本滚轮仲裁", () => {
 
   it("多轮滑动与重渲染后仍持续更新画布视口", async () => {
     const canvas = host.querySelector<HTMLElement>("[data-whiteboard-root]")!;
-    const svg = host.querySelector("[data-whiteboard-canvas]")!;
     for (let round = 1; round <= 5; round++) {
       await act(async () => {
         wheel(canvas, 4, false, 3);
       });
       expect(board.viewPort.minX).toBe(round * 3);
       expect(board.viewPort.minY).toBe(round * 4);
-      expect(svg.getAttribute("viewBox")?.split(" ").slice(0, 2)).toEqual([
-        String(round * 3),
-        String(round * 4),
-      ]);
     }
   });
 

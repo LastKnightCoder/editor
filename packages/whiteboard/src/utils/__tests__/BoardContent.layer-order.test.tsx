@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import Board from "../../Board";
 import BoardContent from "../../components/BoardContent";
-import { BoardContext, SelectionContext, ViewPortContext } from "../../context";
+import { BoardContext, SelectionContext } from "../../context";
 import { BoardElement, Selection, ViewPort } from "../../types";
 
 const EMPTY_SELECTION: Selection = {
@@ -54,17 +54,15 @@ describe("BoardContent 图层顺序", () => {
       root.render(
         <BoardContext.Provider value={board}>
           <SelectionContext.Provider value={EMPTY_SELECTION}>
-            <ViewPortContext.Provider value={DEFAULT_VIEW_PORT}>
-              <BoardContent
-                board={board}
-                viewPort={DEFAULT_VIEW_PORT}
-                centerConnectArrows={[createElement("center-arrow")]}
-                noneCenterConnectArrows={[createElement("normal-node")]}
-                centerConnectAndSelectedArrows={[createElement("selected-arrow")]}
-                disableViewportFilter={true}
-                showAssistLayers={false}
-              />
-            </ViewPortContext.Provider>
+            <BoardContent
+              board={board}
+              viewPort={DEFAULT_VIEW_PORT}
+              centerConnectArrows={[createElement("center-arrow")]}
+              noneCenterConnectArrows={[createElement("normal-node")]}
+              centerConnectAndSelectedArrows={[createElement("selected-arrow")]}
+              disableViewportFilter={true}
+              showAssistLayers={false}
+            />
           </SelectionContext.Provider>
         </BoardContext.Provider>
       );
@@ -92,4 +90,49 @@ describe("BoardContent 图层顺序", () => {
       root.unmount();
     });
   });
+});
+
+it("嵌套容器不动时，跨过可见边界的孙节点仍会挂载", async () => {
+  const leaf = { ...createElement("leaf"), x: 4000 };
+  const inner = { ...createElement("inner"), width: 5000, children: [leaf] };
+  const outer = { ...createElement("outer"), width: 5000, children: [inner] };
+  const board = new Board([outer], DEFAULT_VIEW_PORT, EMPTY_SELECTION, [
+    {
+      name: "geometry",
+      render: (_board, { element, children }) => <g data-node={element.id}>{children}</g>,
+      getBounds: (_board, node) => ({
+        minX: node.x,
+        minY: node.y,
+        maxX: node.x + node.width,
+        maxY: node.y + node.height,
+      }),
+    },
+  ]);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const render = (minX: number) =>
+    act(async () => {
+      root.render(
+        <BoardContext.Provider value={board}>
+          <BoardContent
+            board={board}
+            viewPort={{ ...DEFAULT_VIEW_PORT, minX }}
+            noneCenterConnectArrows={board.children}
+            centerConnectArrows={[]}
+            centerConnectAndSelectedArrows={[]}
+            showAssistLayers={false}
+          />
+        </BoardContext.Provider>
+      );
+    });
+  try {
+    await render(0);
+    expect(host.querySelector('[data-node="inner"]')).not.toBeNull();
+    expect(host.querySelector('[data-node="leaf"]')).toBeNull();
+    await render(3600);
+    expect(host.querySelector('[data-node="leaf"]')).not.toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    board.destroy();
+  }
 });

@@ -218,6 +218,7 @@ function BoundDocumentCanvas({
           return false;
         }
       },
+      coalesceLocalGesture: () => whiteboardRemoteSync(client)?.getSnapshot().phase === "local",
       canWrite: () => !client.getSnapshot().frozen && client.getSnapshot().phase !== "error",
     });
   }, [client, catalog, builtins, editor, editorPrepared]);

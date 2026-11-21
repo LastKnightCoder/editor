@@ -231,8 +231,6 @@ class Board {
   invalidateContainerRect(): void {
     this.containerRectCache = null;
   }
-  /** 剔除滞回的上一轮保留集合（见 filterElementsInViewport 的宽退出盒说明） */
-  private cullRetainedIds = new Set<string>();
   private snapshot: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -620,6 +618,14 @@ class Board {
     if (this.interactions.routeKeyUp(event)) return;
     const fns = this.plugins.map(bindHandler("onKeyUp")).filter(isValid);
     executeSequence(fns, event, this);
+  }
+
+  canClaimPointer(button: number) {
+    return this.plugins.some(
+      plugin =>
+        plugin.claimPointerGesture &&
+        (plugin.claimPointerButton === undefined || plugin.claimPointerButton === button)
+    );
   }
 
   onPointerDown(event: PointerEvent) {
@@ -1167,15 +1173,15 @@ class Board {
 
   public filterElementsInViewport(
     elements: BoardElement[],
-    expandPixels = 100
+    expandPixels = 100,
+    vp = this.viewPort,
+    retention?: { previous: ReadonlySet<string>; current: Set<string> }
   ): VisibleElementTree[] {
-    const vp = this.viewPort;
     // 剔除滞回：进入用紧盒（调用方缓冲），退出用宽盒（约半屏）。
     // 文档等重元素滑过剔除边界时若进出同盒，来回平移会反复卸载/重挂（首渲百 ms 级）；
     // 上一轮保留的元素直到离开宽盒才真正卸载，边界附近的小幅平移零重挂。
-    const exitMargin = expandPixels > 0 ? Math.max(expandPixels * 3, vp.width * 0.5) : expandPixels;
-    const previous = this.cullRetainedIds;
-    const current = new Set<string>();
+    const exitMargin =
+      expandPixels > 0 ? Math.max(expandPixels * 3, vp.width * vp.zoom * 0.5) : expandPixels;
 
     const keepElement = (element: BoardElement): boolean => {
       const bounds = this.getBounds(element);
@@ -1187,7 +1193,9 @@ class Board {
         height: bounds.maxY - bounds.minY,
       };
       if (ViewportUtil.isRectInViewport(rect, vp, expandPixels)) return true;
-      return previous.has(element.id) && ViewportUtil.isRectInViewport(rect, vp, exitMargin);
+      return (
+        !!retention?.previous.has(element.id) && ViewportUtil.isRectInViewport(rect, vp, exitMargin)
+      );
     };
 
     const visit = (nodes: BoardElement[]): VisibleElementTree[] => {
@@ -1197,16 +1205,14 @@ class Board {
           element.children && element.children.length > 0 ? visit(element.children) : [];
 
         if (keepElement(element) || visibleChildren.length > 0) {
-          current.add(element.id);
+          retention?.current.add(element.id);
           visited.push({ element, children: visibleChildren });
         }
       }
       return visited;
     };
 
-    const trees = visit(elements);
-    this.cullRetainedIds = current;
-    return trees;
+    return visit(elements);
   }
 
   public renderVisibleElements(
@@ -1233,19 +1239,18 @@ class Board {
         }
 
         // 折叠等渲染期过滤由元素的 render 能力决定
-        const processedChildren =
-          children && children.length > 0
-            ? this.capabilityService
-                .getVisibleChildren(
-                  element,
-                  children.map(({ element: childElement }) => childElement)
-                )
-                .map(childElement => ({
-                  element: childElement,
-                  children:
-                    children.find(child => child.element.id === childElement.id)?.children ?? [],
-                }))
-            : children;
+        let processedChildren = children;
+        if (children.length) {
+          const byId = new Map(children.map(child => [child.element.id, child.children]));
+          const visible = this.capabilityService.getVisibleChildren(
+            element,
+            children.map(child => child.element)
+          );
+          processedChildren = visible.map(child => ({
+            element: child,
+            children: byId.get(child.id) ?? [],
+          }));
+        }
 
         const renderedChildren = this.renderVisibleElements(processedChildren).filter(isValid);
 
@@ -1295,10 +1300,14 @@ function sameRenderedChildren(a: React.ReactNode, b: React.ReactNode): boolean {
   return a.every((item, index) => {
     const other = b[index];
     if (item === other) return true;
-    if (!React.isValidElement(item) || !React.isValidElement(other)) return false;
+    type ChildProps = { element?: BoardElement; children?: React.ReactNode };
+    if (!React.isValidElement<ChildProps>(item) || !React.isValidElement<ChildProps>(other))
+      return false;
     return (
-      (item.props as { element?: BoardElement }).element ===
-      (other.props as { element?: BoardElement }).element
+      item.type === other.type &&
+      item.key === other.key &&
+      item.props.element === other.props.element &&
+      sameRenderedChildren(item.props.children, other.props.children)
     );
   });
 }

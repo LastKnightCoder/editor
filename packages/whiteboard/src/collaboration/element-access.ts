@@ -1,6 +1,6 @@
 import type { WhiteboardContractEntry } from "./catalog";
 import type Board from "../Board";
-import { flatten, authorElement } from "./projection";
+import { canvasElement } from "./projection";
 import type { CanvasBinding } from "./binding";
 
 export function isBlocked(binding: CanvasBinding): boolean {
@@ -15,7 +15,7 @@ export function assertWritable(binding: CanvasBinding, requirePage = true): Boar
     binding.options.canWrite?.() === false ||
     !binding.board ||
     !binding.board.captureSubmission()() ||
-    (requirePage && !binding.model.read().pages.some(page => page.id === binding.page))
+    (requirePage && !binding.readSnapshot().pages.some(page => page.id === binding.page))
   )
     throw new Error("白板文档只读、已关闭或页面失效");
   return binding.board;
@@ -30,7 +30,7 @@ export function canEditElement(binding: CanvasBinding, id: string): boolean {
     !binding.board?.captureSubmission()()
   )
     return false;
-  const node = flatten(binding.board.children).find(node => node.id === id);
+  const node = canvasElement(binding.board.children, id);
   const identity = binding.model.elements.get(id)?.get("identity") as
     | { contractId: string }
     | undefined;
@@ -56,7 +56,7 @@ export function entryInstalled(binding: CanvasBinding, entry: WhiteboardContract
 }
 
 export function supportsElement(binding: CanvasBinding, id: string): boolean {
-  const node = authorElement(binding, id);
+  const node = binding.model.readElementIdentity(id);
   if (!node) return false;
   const entry = binding.options.catalog?.get(node.contractId);
   return entry

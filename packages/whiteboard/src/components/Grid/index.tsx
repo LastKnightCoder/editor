@@ -1,5 +1,5 @@
 import React, { useId } from "react";
-import { useViewPort } from "../../hooks";
+import type { ViewPort } from "../../types";
 import {
   DEFAULT_GRID_SIZE,
   DEFAULT_GRID_COLOR,
@@ -9,6 +9,7 @@ import {
 import { getDotGridLevel } from "./dotGridLevel";
 
 interface GridProps {
+  viewPort: ViewPort;
   gridSize?: number;
   color?: string;
   opacity?: number;
@@ -20,6 +21,7 @@ interface GridProps {
  * 点半径固定屏幕 1px；缩小时按 getDotGridLevel 翻倍点距，次级点随屏幕点距渐显，层级切换无跳变。
  */
 const Grid: React.FC<GridProps> = ({
+  viewPort,
   gridSize = DEFAULT_GRID_SIZE,
   color = DEFAULT_GRID_COLOR,
   opacity = DEFAULT_GRID_OPACITY,
@@ -28,7 +30,6 @@ const Grid: React.FC<GridProps> = ({
   // 同屏可能有多块白板（保活页、导出截图），pattern id 必须实例唯一
   // useId 含 `:` / `«»`，不能直接放进 url(#…) 引用
   const id = `wb-grid-${useId().replace(/[^\w-]/g, "")}`;
-  const viewPort = useViewPort();
   const { minX, minY, width, height, zoom } = viewPort;
 
   if (!visible || !(gridSize > 0) || !(zoom > 0)) {

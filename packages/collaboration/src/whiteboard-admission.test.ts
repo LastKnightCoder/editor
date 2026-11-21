@@ -103,6 +103,56 @@ describe("白板候选接纳与稳定结构", () => {
     await receiving;
     expect(flat(peer.read())[0].data).toMatchObject({ remote: "远端", local: "本机" });
   });
+  it("接纳回调创建的本机元素参与下一份增量的校验", async () => {
+    const { board, page, shape } = await fixture();
+    const target = create(board, shape, pageParent(page));
+    const peer = model(Y.encodeStateAsUpdate(board.doc));
+    const first = changes(board, [{ type: "set_data", id: target, patch: { remote: 1 } }], {});
+    const second = changes(board, [{ type: "set_data", id: target, patch: { remote: 2 } }], {});
+    let localId: string | undefined;
+    const addLocal = () => {
+      peer.doc.off("update", addLocal);
+      localId = create(peer, shape, pageParent(page));
+    };
+    peer.doc.on("update", addLocal);
+    await peer.receive(first);
+    await peer.receive(second);
+    const elements = flat(peer.read());
+    expect(elements.some(element => element.id === localId)).toBe(true);
+    expect(elements.find(element => element.id === target)?.data.remote).toBe(2);
+  });
+  it("时钟没有增长的删除增量仍生效，再次投递保留删除结果", async () => {
+    const { board, page, shape } = await fixture();
+    const target = create(board, shape, pageParent(page));
+    board.submit(
+      [
+        {
+          type: "edit_text",
+          id: target,
+          field: "source",
+          edit: { offset: 0, remove: 0, text: "甲乙" },
+        },
+      ],
+      {}
+    );
+    const peer = model(Y.encodeStateAsUpdate(board.doc));
+    const deletion = changes(
+      board,
+      [
+        {
+          type: "edit_text",
+          id: target,
+          field: "source",
+          edit: { offset: 0, remove: 1, text: "" },
+        },
+      ],
+      {}
+    );
+    await peer.receive(deletion);
+    expect(peer.text(target, "source").toString()).toBe("乙");
+    await peer.receive(deletion);
+    expect(peer.text(target, "source").toString()).toBe("乙");
+  });
   it("接收时复制 Buffer 的字节，调用方改写输入不影响已排队候选", async () => {
     const { board } = await fixture();
     const peer = model(),

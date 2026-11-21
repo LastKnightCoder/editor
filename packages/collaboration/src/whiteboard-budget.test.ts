@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
+import { WhiteboardModel } from "./whiteboard-model";
 import { WHITEBOARD_LIMITS } from "./model-limits";
 import {
   fixture,
@@ -18,6 +19,76 @@ afterEach(() => documents.splice(0).forEach(doc => doc.destroy()));
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 
 describe("白板模型预算与写入边界", () => {
+  async function translationFixture() {
+    const f = await fixture();
+    const target = create(f.board, f.shape, pageParent(f.page));
+    const doc = new Y.Doc({ gc: false });
+    documents.push(doc);
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(f.board.doc));
+    const board = new WhiteboardModel(doc);
+    board.prepareLocalTranslations();
+    return { board, doc, target };
+  }
+
+  it("单节点平移保留撤销和同步，观察者附加写入后重新核对投影", async () => {
+    const { board, doc, target } = await translationFixture();
+    const origin = {};
+    const history = board.createUndoManager({ trackedOrigins: new Set([origin]) });
+    const next = { ...shapeGeometry, x: -Math.PI, y: Number.MAX_VALUE };
+    expect(board.tryLocalTranslation(target, next, origin)?.isolated).toBe(true);
+    expect(flat(board.read())[0].geometry).toEqual(next);
+    expect(flat(model(Y.encodeStateAsUpdate(doc)).read())[0].geometry).toEqual(next);
+    history.undo();
+    expect(flat(board.read())[0].geometry).toEqual(shapeGeometry);
+    const edit = () => {
+      doc.off("update", edit);
+      board.title.insert(0, "另一笔写入");
+    };
+    doc.on("update", edit);
+    expect(board.tryLocalTranslation(target, next, origin)?.isolated).toBe(false);
+    expect(board.readSummary().title).toContain("另一笔写入");
+    history.destroy();
+  });
+
+  it("编码接近上限时平移交回精确预检，超过上限时保留最后确认位置", async () => {
+    const { board, doc, target } = await translationFixture();
+    const limit = WHITEBOARD_LIMITS.documentBytes;
+    board.title.insert(0, "a".repeat(limit - Y.encodeStateAsUpdate(doc).length - 300));
+    const length = () => Y.encodeStateAsUpdate(doc).length;
+    expect(limit - length()).toBeGreaterThan(0);
+    expect(limit - length()).toBeLessThan(1024);
+    const move = (x: number) =>
+      board.submit(
+        [{ type: "set_node", id: target, patch: { geometry: { ...shapeGeometry, x } } }],
+        null
+      );
+    expect(board.tryLocalTranslation(target, { ...shapeGeometry, x: 1 }, null)).toBeUndefined();
+    move(1);
+    expect(flat(board.read())[0].geometry.x).toBe(1);
+    let last = 1;
+    for (let x = 2; x <= 32; x++) {
+      try {
+        move(x);
+        last = x;
+      } catch (error) {
+        expect(String(error)).toMatch(/预算/);
+        break;
+      }
+    }
+    expect(last).toBeLessThan(32);
+    expect(length()).toBeLessThanOrEqual(limit);
+    expect(flat(board.read())[0].geometry.x).toBe(last);
+  });
+
+  it("新增未编码根或无效几何不能借用上一轮平移的预算", async () => {
+    const { board, doc, target } = await translationFixture();
+    expect(() => board.tryLocalTranslation(target, { ...shapeGeometry, x: NaN }, null)).toThrow();
+    for (let i = 0; i <= WHITEBOARD_LIMITS.richTextRoots; i++)
+      doc.getMap(`node-tree:roots:empty-${i}:nodes`);
+    expect(board.tryLocalTranslation(target, { ...shapeGeometry, x: 20 }, null)).toBeUndefined();
+    expect(flat(board.read())[0].geometry.x).toBe(shapeGeometry.x);
+  });
+
   it("页预算包含删除和撤销创建后保留的页，边界外零写入", async () => {
     const { board, page } = await fixture();
     board.submit(

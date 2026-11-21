@@ -113,8 +113,13 @@ async function fixture() {
   };
   return { model, page, otherPage, shapeId, richId, types, code };
 }
-function view(model: WhiteboardModel, pageId: string, types: Record<string, WhiteboardCanvasType>) {
-  const binding = createWhiteboardBinding(model, { pageId, types });
+function view(
+  model: WhiteboardModel,
+  pageId: string,
+  types: Record<string, WhiteboardCanvasType>,
+  coalesceLocalGesture?: () => boolean
+) {
+  const binding = createWhiteboardBinding(model, { pageId, types, coalesceLocalGesture });
   const board = new Board([], viewport, { selectedElements: [], selectArea: null });
   boards.push(board);
   board.attachDocument(binding);
@@ -207,6 +212,29 @@ describe("W3 画布与编辑器统一写入", () => {
     expect(left.board.undos).toHaveLength(0);
     expect(left.binding.history.undoStack).toHaveLength(1);
     expect(right.binding.history.undoStack).toHaveLength(0);
+  });
+  it("本机连续拖动合并中间保存，长拖可见，松手保存最终位置且可一次撤销", async () => {
+    const f = await fixture();
+    const { board, binding } = view(f.model, f.page, f.types, () => true);
+    const origin = board.children[0].x;
+    const storedX = () => f.model.read().pages[0].children[0].geometry.x;
+    vi.useFakeTimers();
+    try {
+      binding.beginGesture({ realtime: true });
+      for (let x = 1; x <= 6; x++) {
+        move(board, x);
+        vi.advanceTimersByTime(90);
+        if (x < 6) expect(storedX()).toBe(origin);
+      }
+      expect(storedX()).toBe(6);
+      move(board, 60);
+      binding.endGesture(true);
+      expect(storedX()).toBe(60);
+      board.undo();
+      expect(storedX()).toBe(origin);
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it("预览、取消和派生布局不写模型；一次手势只有一条公共历史", async () => {
     const f = await fixture(),

@@ -62,6 +62,7 @@ export class WhiteboardDocumentClient {
     revision: 0,
     projectedRevision: 0,
   };
+  private appending?: Uint8Array;
   private summary = { title: "", pageCount: 0 };
   getSummary = () => this.summary;
   private inputFlushers = new Set<() => void>();
@@ -171,9 +172,9 @@ export class WhiteboardDocumentClient {
       !this.closed &&
       (this.initialized || patch.phase === "saved" || patch.phase === "saving")
     ) {
-      const snapshot = this.model.read();
-      if (this.summary.title !== snapshot.title || this.summary.pageCount !== snapshot.pages.length)
-        this.summary = { title: snapshot.title, pageCount: snapshot.pages.length };
+      const summary = this.model.readSummary();
+      if (this.summary.title !== summary.title || this.summary.pageCount !== summary.pageCount)
+        this.summary = summary;
     }
     this.state = { ...this.state, ...patch, pending: this.pending.length };
     for (const listener of this.listeners) listener();
@@ -255,14 +256,19 @@ export class WhiteboardDocumentClient {
       event.epoch !== identity.epoch
     )
       return;
+    const sent = this.appending;
+    const ownEcho =
+      sent !== undefined &&
+      event.update?.length === sent.length &&
+      event.update.every((byte, index) => byte === sent[index]);
     const receivedAt = performance.now();
     this.receiveTail = this.receiveTail
       .catch(() => undefined)
       .then(async () => {
         if (this.closed || this.stale) return;
         if (event.update) {
-          const result = await this.model.receive(event.update);
-          if (result.status === "pending") {
+          // 主进程回播的本次原字节已在本机集成，仍按原次序处理修订回执。
+          if (!ownEcho && (await this.model.receive(event.update)).status === "pending") {
             const snapshot = await this.backend.snapshot(opened.leaseId);
             if ((await this.model.receive(snapshot.state)).status !== "applied")
               throw new Error("白板增量缺少依赖，快照未能补齐");
@@ -344,7 +350,13 @@ export class WhiteboardDocumentClient {
                     .map(value => value.toString(16).padStart(2, "0"))
                     .join("");
             const started = performance.now();
-            const receipt = await this.backend.append(opened.leaseId, batchId, update);
+            this.appending = update;
+            let receipt: WhiteboardDocumentReceipt;
+            try {
+              receipt = await this.backend.append(opened.leaseId, batchId, update);
+            } finally {
+              this.appending = undefined;
+            }
             console.info("[whiteboard-sync] 本机耐久保存完成", {
               documentId: opened.identity.documentId,
               batchId,

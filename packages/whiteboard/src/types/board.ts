@@ -61,6 +61,8 @@ export type Events =
 export interface IBoardPlugin {
   dispose?(): void;
   name: string;
+  /** 限定命中查询的按键；未声明时保留全部按键。 */
+  claimPointerButton?: number;
   /**
    * 元素类型自定义指针手势声明：pointerdown 命中该类型元素时由交互内核
    * 在广播前调用，返回手势状态则由内核接管路由（取代通用选择/拖拽并消费

@@ -284,6 +284,10 @@ describe("白板纯模型：多页与稳定文字", () => {
       history = peer.createUndoManager({ trackedOrigins: new Set([origin]) });
     expect(await peer.receive(second)).toEqual({ status: "pending" });
     expect(Y.encodeStateAsUpdate(peer.doc)).toEqual(before);
+    // 补依赖前本机仍可编辑，接纳必须使用包含新元素的基线。
+    const vector = Y.encodeStateVector(peer.doc);
+    create(peer, shape, pageParent(page), "local-during-gap");
+    await board.receive(Y.encodeStateAsUpdate(peer.doc, vector));
     expect(await peer.receive(first)).toEqual({ status: "applied" });
     expect(peer.read()).toEqual(board.read());
     await peer.receive(first);

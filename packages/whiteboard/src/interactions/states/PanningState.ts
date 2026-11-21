@@ -14,53 +14,55 @@ export class PanningState implements InteractionState {
   readonly name = "panning";
   isFinished = false;
 
-  private boardOriginViewPort: ViewPort | null = null;
-  private boardOriginOffset: { x: number; y: number } | null = null;
   private hasRightClickMoved = false;
-  private lastMoveTime = 0;
+  private capturedPointer?: number;
 
-  private constructor() {}
+  private constructor(
+    private origin: ViewPort,
+    private originX: number,
+    private originY: number
+  ) {}
 
   /** pointerdown 仲裁（原 ViewPortPlugin.onPointerDown 的右键分支） */
   static tryStart(board: Board, e: PointerEvent): PanningState | null {
     if (board.presentationManager.isPresentationMode) return null;
     if (e.button !== 2) return null;
 
-    const state = new PanningState();
-    state.boardOriginOffset = { x: e.clientX, y: e.clientY };
-    state.boardOriginViewPort = { ...board.viewPort };
-    state.hasRightClickMoved = false;
-    return state;
+    return new PanningState(board.viewPort, e.clientX, e.clientY);
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
-    if (!this.boardOriginOffset || !this.boardOriginViewPort) return;
     if (board.presentationManager.isPresentationMode) return;
-
-    const now = Date.now();
-    if (now - this.lastMoveTime < 30) return;
-
-    const diffX = e.clientX - this.boardOriginOffset.x;
-    const diffY = e.clientY - this.boardOriginOffset.y;
-    if (!this.hasRightClickMoved && Math.hypot(diffX, diffY) > 3) {
-      this.hasRightClickMoved = true;
-    }
+    const dx = e.clientX - this.originX;
+    const dy = e.clientY - this.originY;
+    if (!this.hasRightClickMoved && Math.hypot(dx, dy) <= 3) return;
     if (!this.hasRightClickMoved) {
-      return;
+      this.hasRightClickMoved = true;
+      const container = BOARD_TO_CONTAINER.get(board);
+      container?.setAttribute("data-panning", "");
+      if (container && e.isTrusted && e.buttons === 2 && container.setPointerCapture) {
+        container.setPointerCapture(e.pointerId);
+        this.capturedPointer = e.pointerId;
+      }
     }
 
-    this.lastMoveTime = now;
+    const minX = this.origin.minX - dx / this.origin.zoom;
+    const minY = this.origin.minY - dy / this.origin.zoom;
+    if (minX !== board.viewPort.minX || minY !== board.viewPort.minY) {
+      ViewPortTransforms.moveViewPort(board, minX, minY);
+    }
+  }
 
-    const { x, y } = { x: e.clientX, y: e.clientY };
-    const { x: originX, y: originY } = this.boardOriginOffset;
-    const { zoom, minX, minY } = this.boardOriginViewPort;
-    const deltaX = originX - x;
-    const deltaY = originY - y;
-    ViewPortTransforms.moveViewPort(board, minX + deltaX / zoom, minY + deltaY / zoom);
+  onExit(board: Board) {
+    const container = BOARD_TO_CONTAINER.get(board);
+    container?.removeAttribute("data-panning");
+    if (this.capturedPointer !== undefined && container?.hasPointerCapture(this.capturedPointer))
+      container.releasePointerCapture(this.capturedPointer);
   }
 
   /** document pointerup：结束平移；右键未移动且在画布内时触发右键菜单 */
   onGlobalPointerUp(e: PointerEvent, board: Board) {
+    if (e.button === 2) this.onPointerMove(e, board);
     const shouldEmitContextMenu =
       e.button === 2 && !this.hasRightClickMoved && !board.presentationManager.isPresentationMode;
 

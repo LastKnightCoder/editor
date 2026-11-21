@@ -1,6 +1,7 @@
-import { memo, SVGProps, forwardRef, useMemo, useContext, useDeferredValue } from "react";
+import { memo, SVGProps, forwardRef, useMemo, useContext, useRef, useLayoutEffect } from "react";
 import type { RefObject } from "react";
 import { BoardElement, Selection, ViewPort } from "../../types";
+import { CULL_CELL_PX, viewportCellStart } from "../../utils/ViewportUtil";
 import Grid from "../Grid";
 import SelectArea from "../SelectArea";
 import GroupSelectionBounds from "../GroupSelectionBounds";
@@ -19,6 +20,7 @@ import {
 import type { WhiteboardPeer } from "@tau/collaboration";
 
 interface BoardContentProps extends SVGProps<SVGSVGElement> {
+  cameraRef?: RefObject<HTMLDivElement | null>;
   peers?: readonly WhiteboardPeer[];
   board: Board;
   viewPort: ViewPort;
@@ -38,7 +40,29 @@ const STATIC_LAYER_SELECTION: Selection = {
   selectArea: null,
   selectedElements: [],
 };
+
 const EMPTY_PEERS: readonly WhiteboardPeer[] = [];
+
+/** 每个渲染层只保留自己上次提交的可见集合，避免空箭头层清除文档层的退出缓冲。 */
+function useVisibleLayer(board: Board, elements: BoardElement[], viewport: ViewPort | null) {
+  const retained = useRef(new Set<string>());
+  const layer = useMemo(() => {
+    const current = new Set<string>();
+    const nodes = viewport
+      ? board.renderVisibleElements(
+          board.filterElementsInViewport(elements, CULL_CELL_PX, viewport, {
+            previous: retained.current,
+            current,
+          })
+        )
+      : board.renderElements(elements);
+    return { current, nodes };
+  }, [board, elements, viewport]);
+  useLayoutEffect(() => {
+    retained.current = layer.current;
+  }, [layer]);
+  return layer.nodes;
+}
 
 /**
  * 静态元素层（底两层）。独立 memo：BoardContent 因顶层选区 context 穿透重渲时，
@@ -83,6 +107,7 @@ const BoardContent = memo(
       renderElementsOverride,
       connectPointOverlayRef,
       peers = EMPTY_PEERS,
+      cameraRef,
       ...svgProps
     } = props;
 
@@ -91,86 +116,60 @@ const BoardContent = memo(
     const staticLayerSelection = isolateStaticSelection ? STATIC_LAYER_SELECTION : selection;
 
     const preview = (items: BoardElement[]) =>
-      showAssistLayers
+      showAssistLayers && peers.length
         ? previewPeerElements(
             items,
             peers,
             version => board.document?.hasPresenceVersion?.(version) ?? true
           )
         : items;
-    const elementsToRender = preview(renderElementsOverride ?? noneCenterConnectArrows);
-    const alignedPeers = alignPeerSelections(
-      board,
-      [
-        ...elementsToRender,
-        ...preview(centerConnectArrows),
-        ...preview(centerConnectAndSelectedArrows),
-      ],
-      peers
+    const mainElements = preview(renderElementsOverride ?? noneCenterConnectArrows);
+    const behind = preview(centerConnectArrows);
+    const inFront = preview(centerConnectAndSelectedArrows);
+    const alignedPeers =
+      showAssistLayers && peers.some(peer => peer.selection.length)
+        ? alignPeerSelections(board, [...mainElements, ...behind, ...inFront], peers)
+        : peers;
+
+    // SVG 多铺一格覆盖平移余量，格内只平移合成层，跨格或缩放时重设 viewBox。
+    const cell = CULL_CELL_PX / zoom;
+    const left = viewportCellStart(minX, zoom);
+    const top = viewportCellStart(minY, zoom);
+    const cullViewport = useMemo(
+      () =>
+        disableViewportFilter
+          ? null
+          : { minX: left, minY: top, width: width + cell, height: height + cell, zoom },
+      [disableViewportFilter, left, top, width, height, cell, zoom]
     );
+    const visibleCenterConnectArrows = useVisibleLayer(board, behind, cullViewport);
+    const visibleNoneCenterConnectArrows = useVisibleLayer(board, mainElements, cullViewport);
+    const visibleCenterConnectAndSelectedArrows = useVisibleLayer(board, inFront, cullViewport);
 
-    // 剔除用滞后视口：平移/缩放帧只紧急更新 svg viewBox（一个属性）保证跟手，
-    // 全树剔除与 JSX 重建以低优先级并发追赶；剔除盒带 100px 缓冲，滞后不可感知
-    const cullViewPort = useDeferredValue(viewPort);
-
-    // 过滤视口内的元素（性能优化）
-    const visibleCenterConnectArrows = useMemo(() => {
-      if (disableViewportFilter) {
-        return board.renderElements(preview(centerConnectArrows));
-      }
-      const visibleElements = board.filterElementsInViewport(preview(centerConnectArrows), 100);
-      return board.renderVisibleElements(visibleElements);
-    }, [
-      board,
-      centerConnectArrows,
-      disableViewportFilter,
-      cullViewPort,
-      peers,
-      selection,
-      showAssistLayers,
-    ]);
-
-    const visibleNoneCenterConnectArrows = useMemo(() => {
-      if (disableViewportFilter) {
-        return board.renderElements(elementsToRender);
-      }
-      const visibleElements = board.filterElementsInViewport(elementsToRender, 100);
-      return board.renderVisibleElements(visibleElements);
-    }, [board, disableViewportFilter, elementsToRender, cullViewPort]);
-
-    const visibleCenterConnectAndSelectedArrows = useMemo(() => {
-      if (disableViewportFilter) {
-        return board.renderElements(preview(centerConnectAndSelectedArrows));
-      }
-      const visibleElements = board.filterElementsInViewport(
-        preview(centerConnectAndSelectedArrows),
-        100
-      );
-      return board.renderVisibleElements(visibleElements);
-    }, [
-      board,
-      centerConnectAndSelectedArrows,
-      disableViewportFilter,
-      cullViewPort,
-      peers,
-      selection,
-      showAssistLayers,
-    ]);
-
-    return (
+    const svgViewport = cullViewport ?? viewPort;
+    const svgSize = cullViewport ? `calc(100% + ${CULL_CELL_PX}px)` : "100%";
+    const svg = (
       <svg
         {...svgProps}
         ref={ref}
-        width={"100%"}
-        height={"100%"}
+        width={cameraRef ? "100%" : svgSize}
+        height={cameraRef ? "100%" : svgSize}
+        style={
+          cullViewport && !cameraRef
+            ? {
+                ...svgProps.style,
+                transform: `translate3d(${(left - minX) * zoom}px, ${(top - minY) * zoom}px, 0)`,
+              }
+            : svgProps.style
+        }
         data-whiteboard-canvas="true"
-        viewBox={`${minX} ${minY} ${width} ${height}`}
+        viewBox={`${svgViewport.minX} ${svgViewport.minY} ${svgViewport.width} ${svgViewport.height}`}
       >
         {backgroundColor && (
           <rect x={minX} y={minY} width={width} height={height} fill={backgroundColor} />
         )}
         <ArrowMarkers />
-        <Grid visible={gridVisible} />
+        <Grid visible={gridVisible} viewPort={svgViewport} />
         <StaticLayers
           staticLayerSelection={staticLayerSelection}
           visibleCenterConnectArrows={visibleCenterConnectArrows}
@@ -200,6 +199,22 @@ const BoardContent = memo(
           </>
         )}
       </svg>
+    );
+    return cameraRef ? (
+      <div
+        data-whiteboard-camera
+        ref={cameraRef}
+        style={{
+          width: svgSize,
+          height: svgSize,
+          contain: "layout paint",
+          willChange: "transform",
+        }}
+      >
+        {svg}
+      </div>
+    ) : (
+      svg
     );
   })
 );

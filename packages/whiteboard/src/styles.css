@@ -1,1 +1,8 @@
 @import "./components/RichText/mask.css";
+
+/* 平移期间指针只需要画布坐标，覆盖层让命中检测停在画布表面。 */
+[data-whiteboard-root][data-panning] > div > [data-whiteboard-stage]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}

@@ -107,11 +107,15 @@ export class WhiteboardModel {
   private readonly histories = new Set<NodeTreeHistory>();
   private disposed = false;
   private revision = 0;
+  private translationBudget?: { revision: number; rootCount: number; upperBytes: number };
   private pending?: Uint8Array;
+  /** 缺依赖期间复用已提交状态的编码，每份输入仍在独立候选上校验。 */
+  private pendingBase?: Uint8Array;
   private queuedBytes = 0;
   private incoming: Promise<unknown> = Promise.resolve();
   private readonly changed = () => {
     this.revision++;
+    this.pendingBase = undefined;
   };
 
   constructor(readonly doc: Y.Doc) {
@@ -144,6 +148,7 @@ export class WhiteboardModel {
     this.trees.clear();
     this.histories.clear();
     this.pending = undefined;
+    this.pendingBase = undefined;
   };
   private record(pool: Y.Map<Y.Map<unknown>>, target: string): Y.Map<unknown> {
     this.active();
@@ -292,9 +297,10 @@ export class WhiteboardModel {
     throw new Error("契约目录已变化，请重试");
   }
 
-  private clone(useLocalClient = true): WhiteboardModel {
+  private clone(useLocalClient = true, state = Y.encodeStateAsUpdateV2(this.doc)): WhiteboardModel {
     const doc = new Y.Doc({ gc: false });
-    Y.applyUpdate(doc, Y.encodeStateAsUpdate(this.doc));
+    // V2 只用于进程内复制；持久化、传输和容量核算继续使用 V1。
+    Y.applyUpdateV2(doc, state);
     // 空共享根不进入 Yjs 编码，但已保留的根仍占用本机准入额度。
     for (const name of [...this.doc.share.keys()].filter(nodePool)) doc.getMap(name);
     if (useLocalClient) doc.clientID = this.doc.clientID;
@@ -470,6 +476,113 @@ export class WhiteboardModel {
       candidate.doc.destroy();
     }
   }
+  /** 为已打开的画布准备位置提交。无法证明基线有效时，调用方仍使用完整的隔离候选。 */
+  prepareLocalTranslations(): void {
+    if (
+      this.translationBudget?.revision === this.revision &&
+      this.translationBudget.rootCount === this.doc.share.size
+    )
+      return;
+    this.translationBudget = undefined;
+    if (
+      this.disposed ||
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs
+    )
+      return;
+    const revision = this.revision;
+    const upperBytes = Y.encodeStateAsUpdate(this.doc).byteLength;
+    try {
+      this.validateState(upperBytes);
+    } catch {
+      return;
+    }
+    if (revision === this.revision)
+      this.translationBudget = { revision, rootCount: this.doc.share.size, upperBytes };
+  }
+
+  /** 仅平移一个现有标量几何。返回 undefined 时没有写入，由调用方执行原有预检。 */
+  tryLocalTranslation(
+    target: string,
+    value: WhiteboardGeometry,
+    origin: unknown
+  ): { isolated: boolean } | undefined {
+    this.active();
+    if (
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs
+    )
+      return;
+    if (!this.translationBudget || this.doc._transactionCleanups.length) return;
+    if (
+      this.translationBudget.revision !== this.revision ||
+      this.translationBudget.rootCount !== this.doc.share.size
+    )
+      this.prepareLocalTranslations();
+    const proof = this.translationBudget;
+    if (!proof) return;
+    const record = this.live(this.elements, target);
+    const before = record.get("geometry") as WhiteboardGeometry;
+    assertWhiteboardJson(value);
+    geometry(value);
+    const next = structuredClone(value);
+    if (
+      before.width !== next.width ||
+      before.height !== next.height ||
+      before.rotation !== next.rotation
+    )
+      return;
+
+    // V1 只增加一个 ContentAny（5 个固定键、最多 5×9 字节数字），旧标量增加一个删除区间。
+    // 两端 ID、长度和计数均为安全整数；1 KiB 保守覆盖这次增长。临界点交给完整的精确编码。
+    const upperBytes = proof.upperBytes + 1024;
+    if (upperBytes > WHITEBOARD_LIMITS.documentBytes) return;
+    const oldItem = record._map.get("geometry");
+    if (!oldItem || oldItem.length !== 1 || oldItem.deleted) return;
+    const client = this.doc.clientID,
+      clock = Y.getState(this.doc.store, client);
+    let isolated = false;
+    const verify = (tx: Y.Transaction) => {
+      const deletes = tx.deleteSet.clients.get(oldItem.id.client);
+      const changed = tx.changed.entries().next().value;
+      isolated =
+        tx.local &&
+        tx.changed.size === 1 &&
+        changed !== undefined &&
+        Object.is(changed[0], record) &&
+        changed[1].size === 1 &&
+        changed[1].has("geometry") &&
+        tx.deleteSet.clients.size === 1 &&
+        deletes?.length === 1 &&
+        deletes[0].clock === oldItem.id.clock &&
+        deletes[0].len === 1 &&
+        Y.getState(this.doc.store, client) === clock + 1;
+    };
+    this.doc.on("afterTransaction", verify);
+    try {
+      this.doc.transact(tx => {
+        if (
+          tx.changed.size ||
+          tx.deleteSet.clients.size ||
+          this.live(this.elements, target) !== record ||
+          record._map.get("geometry") !== oldItem ||
+          this.doc.share.size !== proof.rootCount
+        )
+          throw new Error("平移期间白板状态已变化，请重试");
+        record.set("geometry", next);
+      }, origin);
+    } finally {
+      this.doc.off("afterTransaction", verify);
+    }
+    isolated &&= this.revision === proof.revision + 1 && this.doc.share.size === proof.rootCount;
+    if (isolated) this.translationBudget = { ...proof, revision: this.revision, upperBytes };
+    return { isolated };
+  }
+
   /** 在隔离副本中验证整批及编码大小，失败不改变真实文档或撤销栈。 */
   submit(
     commands: readonly WhiteboardModelCommand[],
@@ -898,7 +1011,7 @@ export class WhiteboardModel {
     }
   }
 
-  private assertBudget(): void {
+  private assertBudget(knownEncodedBytes?: number): void {
     const pools = [...this.doc.share.keys()].filter(nodePool);
     const boundRoots = new Set<string>();
     for (const record of this.elements.values()) {
@@ -911,6 +1024,7 @@ export class WhiteboardModel {
           ? "content"
           : pool.slice("node-tree:roots:".length, -":nodes".length)
       );
+    const encodedBytes = knownEncodedBytes ?? Y.encodeStateAsUpdate(this.doc).byteLength;
     assertWhiteboardBudget({
       pages: this.pages.size,
       elements:
@@ -920,23 +1034,24 @@ export class WhiteboardModel {
           (sum, record) => sum + ((record.get("frames") as Y.Map<unknown>)?.size ?? 0),
           0
         ),
-      documentBytes: Y.encodeStateAsUpdate(this.doc).byteLength,
+      documentBytes: encodedBytes,
       richTextRoots: boundRoots.size,
       richTextNodes: pools.reduce((sum, key) => sum + this.doc.getMap(key).size, 0),
     });
   }
-  private validateState(): void {
+  private validateState(encodedBytes?: number): void {
     if (
       (this.pages.size || this.elements.size || this.meta.has("profile")) &&
       this.meta.get("profile") !== PROFILE
     )
       throw new Error("白板模型格式不支持");
     keys(this.meta.toJSON(), ["profile"]);
-    this.assertBudget();
+    this.assertBudget(encodedBytes);
     this.presentations.validate();
     const roots = new Set<string>();
     const stringRoots = new Set<string>();
     const orderKeys = new Set<string>();
+    const placements = new Map<string, WhiteboardPlacement>();
     for (const [creation, value] of this.creations) {
       id(creation);
       if (value !== true) throw new Error("白板创建标记无效");
@@ -977,7 +1092,7 @@ export class WhiteboardModel {
       if (record.has("name") && typeof record.get("name") !== "string")
         throw new Error("白板名称无效");
       this.visible(record);
-      this.placement(record);
+      placements.set(elementId, this.placement(record));
       geometry(record.get("geometry") as WhiteboardGeometry);
       const contract = this.contract(record),
         bindings = this.bindings(record);
@@ -1035,10 +1150,9 @@ export class WhiteboardModel {
         id(reference.id);
         id(reference.token);
         const unique = `${reference.id}:${reference.token}`;
-        if (seen.has(unique) || !this.elements.has(reference.id))
-          throw new Error("白板位置引用重复或无目标");
+        const placement = placements.get(reference.id);
+        if (seen.has(unique) || !placement) throw new Error("白板位置引用重复或无目标");
         seen.add(unique);
-        const placement = this.placement(this.record(this.elements, reference.id));
         if (
           reference.token === placement.token &&
           parentKey !== whiteboardParentKey(placement.parent)
@@ -1046,9 +1160,8 @@ export class WhiteboardModel {
           throw new Error("白板位置引用父级不符");
       }
     }
-    for (const [elementId, record] of this.elements)
-      if (!seen.has(`${elementId}:${this.placement(record).token}`))
-        throw new Error("白板选定位置缺失");
+    for (const [elementId, placement] of placements)
+      if (!seen.has(`${elementId}:${placement.token}`)) throw new Error("白板选定位置缺失");
     const pageSeen = new Set<string>();
     for (const reference of this.pageOrder.toArray()) {
       keys(reference, ["id", "token"]);
@@ -1061,6 +1174,27 @@ export class WhiteboardModel {
     for (const [pageId, record] of this.pages)
       if (!pageSeen.has(`${pageId}:${record.get("placement")}`))
         throw new Error("白板页选定位置缺失");
+  }
+
+  private visiblePageReferences() {
+    return this.pageOrder.toArray().filter(reference => {
+      const page = this.pages.get(reference.id);
+      return page && this.visible(page) && page.get("placement") === reference.token;
+    });
+  }
+
+  readElementIdentity(target: string): { type: string; contractId: string } | undefined {
+    this.active();
+    const record = this.elements.get(target);
+    if (!record || !this.visible(record)) return;
+    const contract = this.contract(record);
+    const { contractId } = record.get("identity") as { contractId: string };
+    return { type: contract.type, contractId };
+  }
+
+  readSummary(): { title: string; pageCount: number } {
+    this.active();
+    return { title: this.title.toString(), pageCount: this.visiblePageReferences().length };
   }
 
   read(): WhiteboardSnapshot {
@@ -1123,25 +1257,19 @@ export class WhiteboardModel {
         .sort()
         .filter(target => routing.pages.get(target) === pageId)
         .map(element);
-    const pages = this.pageOrder
-      .toArray()
-      .filter(reference => {
-        const page = this.pages.get(reference.id);
-        return page && this.visible(page) && page.get("placement") === reference.token;
-      })
-      .map(reference => ({
-        id: reference.id,
-        title: (this.record(this.pages, reference.id).get("title") as Y.Text).toString(),
-        ...(this.record(this.pages, reference.id).has("sketch")
-          ? {
-              sketch: structuredClone(
-                this.record(this.pages, reference.id).get("sketch")
-              ) as import("./whiteboard-types").WhiteboardPageSnapshot["sketch"],
-            }
-          : {}),
-        children: children({ kind: "page", id: reference.id }),
-        recovery: recovered(reference.id),
-      }));
+    const pages = this.visiblePageReferences().map(reference => ({
+      id: reference.id,
+      title: (this.record(this.pages, reference.id).get("title") as Y.Text).toString(),
+      ...(this.record(this.pages, reference.id).has("sketch")
+        ? {
+            sketch: structuredClone(
+              this.record(this.pages, reference.id).get("sketch")
+            ) as import("./whiteboard-types").WhiteboardPageSnapshot["sketch"],
+          }
+        : {}),
+      children: children({ kind: "page", id: reference.id }),
+      recovery: recovered(reference.id),
+    }));
     return frozen({
       title: this.title.toString(),
       pages,
@@ -1189,32 +1317,67 @@ export class WhiteboardModel {
     if (this.queuedBytes) throw new Error("请等待白板接收完成");
     const update = this.pending?.slice();
     this.pending = undefined;
+    this.pendingBase = undefined;
     return update;
   }
+  /** 已有结构和删除均被覆盖时，增量不会改变文档。需要打开富文本根的校验仍使用隔离候选。 */
+  private isReadOnlyReplay(update: Uint8Array): boolean {
+    if (
+      this.pending ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs ||
+      !this.elements.size
+    )
+      return false;
+    // 新增结构直接走正常接纳，避免给每个新包都构造整份删除快照。
+    for (const [client, end] of Y.parseUpdateMeta(update).to) {
+      if (Y.getState(this.doc.store, client) < end) return false;
+    }
+    if (!Y.snapshotContainsUpdate(Y.snapshot(this.doc), update)) return false;
+    if ([...this.doc.share.keys()].some(nodePool)) return false;
+    for (const record of this.elements.values()) {
+      if (this.bindings(record).body?.mode === "richtext") return false;
+    }
+    return true;
+  }
+
   private async receiveNow(update: Uint8Array): Promise<{ status: "applied" | "pending" }> {
     this.active();
     const merged = this.pending ? Y.mergeUpdates([this.pending, update]) : update;
     assertWhiteboardBudget({ documentBytes: merged.byteLength });
     for (let attempt = 0; attempt < 3; attempt++) {
-      const revision = this.revision,
-        trial = this.clone(false);
+      const revision = this.revision;
+      if (this.isReadOnlyReplay(merged)) {
+        await validateContentContracts(this.contracts.toJSON());
+        this.active();
+        if (revision !== this.revision) continue;
+        this.validateState();
+        Y.applyUpdate(this.doc, merged, remoteOrigin);
+        return { status: "applied" };
+      }
+      const base = this.pendingBase ?? Y.encodeStateAsUpdateV2(this.doc);
+      const trial = this.clone(false, base);
       try {
         Y.applyUpdate(trial.doc, merged, remoteOrigin);
-        trial.assertBudget();
+        const state = Y.encodeStateAsUpdate(trial.doc);
+        trial.assertBudget(state.byteLength);
         if (trial.doc.store.pendingStructs || trial.doc.store.pendingDs) {
           this.pending = merged;
+          this.pendingBase = base;
           return { status: "pending" };
         }
         await validateContentContracts(trial.contracts.toJSON());
         this.active();
         if (revision !== this.revision) continue;
-        trial.validateState();
+        // 候选在契约校验期间保持私有，复用刚核算的精确编码长度。
+        trial.validateState(state.byteLength);
         for (const [key, value] of this.contracts)
           if (!sharedValueEquals(value, trial.contracts.get(key)))
             throw new Error("远端不能改写已有契约");
         this.assertStableRecords(trial);
         Y.applyUpdate(this.doc, merged, remoteOrigin);
         this.pending = undefined;
+        this.pendingBase = undefined;
         this.attachRoots();
         return { status: "applied" };
       } finally {

@@ -1,8 +1,7 @@
-import { useContext } from "react";
-import { ViewPortContext } from "../context";
+import { useSyncExternalStore } from "react";
+import { useBoard } from "./useBoard";
 
 export const useViewPort = () => {
-  const viewPort = useContext(ViewPortContext);
-
-  return viewPort;
+  const board = useBoard();
+  return useSyncExternalStore(board.subscribe, () => board.viewPort);
 };

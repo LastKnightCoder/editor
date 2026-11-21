@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import Board from "../../Board";
 import BoardContent from "../../components/BoardContent";
-import { BoardContext, SelectionContext, ViewPortContext } from "../../context";
+import { BoardContext, SelectionContext } from "../../context";
 import useElementsSorting from "../../hooks/useElementsSorting";
 import { BoardElement, IBoardPlugin, Point, Selection, ViewPort } from "../../types";
 
@@ -159,18 +159,16 @@ const RenderHarness = ({
   return (
     <BoardContext.Provider value={board}>
       <SelectionContext.Provider value={selection}>
-        <ViewPortContext.Provider value={viewPort}>
-          <BoardContent
-            board={board}
-            viewPort={viewPort}
-            centerConnectArrows={centerConnectArrows}
-            noneCenterConnectArrows={noneCenterConnectArrows}
-            centerConnectAndSelectedArrows={centerConnectAndSelectedArrows}
-            isolateStaticSelection={isolateStaticSelection}
-            gridVisible={false}
-            showAssistLayers={false}
-          />
-        </ViewPortContext.Provider>
+        <BoardContent
+          board={board}
+          viewPort={viewPort}
+          centerConnectArrows={centerConnectArrows}
+          noneCenterConnectArrows={noneCenterConnectArrows}
+          centerConnectAndSelectedArrows={centerConnectAndSelectedArrows}
+          isolateStaticSelection={isolateStaticSelection}
+          gridVisible={false}
+          showAssistLayers={false}
+        />
       </SelectionContext.Provider>
     </BoardContext.Provider>
   );

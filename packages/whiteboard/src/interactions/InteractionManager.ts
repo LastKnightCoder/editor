@@ -115,13 +115,15 @@ export class InteractionManager {
    * 返回 true 表示已接管并消费本次 pointerdown。
    */
   tryStartClaimedGesture(event: PointerEvent): boolean {
-    if (this.pointerState) return false;
+    if (this.pointerState || !this.board.canClaimPointer(event.button)) return false;
     const point = PointUtil.screenToViewPort(this.board, event.clientX, event.clientY);
     if (!point) return false;
     const hitElements = BoardUtil.getHitElements(this.board, point.x, point.y);
     const hitElement = hitElements.length > 0 ? hitElements[hitElements.length - 1] : null;
     if (!hitElement) return false;
     const plugin = this.board.getPlugin<IBoardPlugin>(hitElement.type);
+    if (plugin?.claimPointerButton !== undefined && plugin.claimPointerButton !== event.button)
+      return false;
     const state = plugin?.claimPointerGesture?.(this.board, event, hitElement) ?? null;
     if (state) {
       this.pointerState = state;
