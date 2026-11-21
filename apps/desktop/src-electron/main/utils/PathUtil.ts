@@ -14,8 +14,13 @@ class PathUtil {
   }
 
   static getFilePath(filePath: string) {
-    const decodedFilePath = decodeURI(filePath);
-    return existsSync(filePath) ? filePath : decodedFilePath;
+    try {
+      const decoded = decodeURIComponent(filePath);
+      if (existsSync(decoded)) return decoded;
+    } catch {
+      // 已保存的旧预览地址可能直接含有文件名中的百分号。
+    }
+    return filePath;
   }
 }
 

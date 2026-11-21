@@ -8,15 +8,16 @@ import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
 import { ChatInputArea as SharedChatInputArea } from "@tau/shared";
 
 const uploadFileMock = vi.hoisted(() => vi.fn(async (file: File) => `/saved/${file.name}`));
-const copyFileToLocalMock = vi.hoisted(() => vi.fn(async (file: File) => `/local/${file.name}`));
+const copyFileToLocalMock = vi.hoisted(() =>
+  vi.fn(async (_file: File, name: string) => `~/resources/${name}`)
+);
 
-vi.mock("@/utils", () => ({ copyFileToLocal: copyFileToLocalMock }));
-
-vi.mock("@/hooks/useUploadResource", () => ({ default: () => uploadFileMock }));
+vi.mock("@/utils/resouce", () => ({ copyFileToLocal: copyFileToLocalMock }));
 
 vi.mock("@/commands", () => ({
   convertFileSrc: vi.fn(async (path: string) => `file://${path}`),
   getHomeDir: vi.fn(async () => "/home/test"),
+  isDirectory: async () => false,
 }));
 
 vi.mock("@/features/mcp/components/McpQuickPanel", () => ({
@@ -194,7 +195,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
   });
 
   it.each(["desktop", "shared"])(
-    "%s 上传图片和 PDF 不依赖资源登记，清空只移除输入附件",
+    "%s 选择图片和 PDF 后保留附件引用，清空草稿移除附件",
     async variant => {
       vi.stubGlobal(
         "ResizeObserver",
@@ -226,48 +227,81 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
           )
         );
       });
-      for (const [accept, name, type] of [
-        ["image/png, image/jpeg, image/webp", "image.png", "image/png"],
-        [variant === "desktop" ? "*/*" : "application/pdf", "document.pdf", "application/pdf"],
+      const directory = variant === "desktop" ? "/original" : "/saved";
+      vi.stubGlobal("electron", { getPathForFile: (file: File) => `/original/${file.name}` });
+      for (const [selector, name, type] of [
+        ['input[accept*="image/png"]', "image.png", "image/png"],
+        [
+          variant === "desktop" ? 'input[accept="*/*"]' : 'input[accept="application/pdf"]',
+          "document.pdf",
+          "application/pdf",
+        ],
       ]) {
-        const input = container.querySelector<HTMLInputElement>(
-          `input[type="file"][accept="${accept}"]`
-        );
-        expect(input).toBeTruthy();
+        const input = container.querySelector<HTMLInputElement>(selector);
+        if (!input) throw new Error("缺少文件选择入口");
         Object.defineProperty(input, "files", {
           configurable: true,
           value: [new File(["附件"], name, { type })],
         });
         await act(async () => {
-          input?.dispatchEvent(new Event("change", { bubbles: true }));
-        });
-        await vi.waitFor(async () => {
-          await act(async () => {});
-          expect(ref.current?.getValue()).toEqual(
-            expect.arrayContaining([
-              expect.objectContaining(
-                type === "image/png"
-                  ? { path: `/saved/${name}` }
-                  : { file: `/${variant === "desktop" ? "local" : "saved"}/${name}` }
-              ),
-            ])
-          );
+          input.dispatchEvent(new Event("change", { bubbles: true }));
         });
       }
       expect(ref.current?.getValue()).toEqual([
-        { type: "image", image: "file:///saved/image.png", path: "/saved/image.png" },
-        {
-          type: "file",
-          file: `/${variant === "desktop" ? "local" : "saved"}/document.pdf`,
-          fileName: "document.pdf",
-        },
+        { type: "image", image: `file://${directory}/image.png`, path: `${directory}/image.png` },
+        { type: "file", file: `${directory}/document.pdf`, fileName: "document.pdf" },
       ]);
-      expect(uploadFileMock).toHaveBeenCalledTimes(variant === "desktop" ? 1 : 2);
-      expect(copyFileToLocalMock).toHaveBeenCalledTimes(variant === "desktop" ? 1 : 0);
+      expect(copyFileToLocalMock).not.toHaveBeenCalled();
       await act(async () => ref.current?.clear());
       expect(ref.current?.getValue()).toEqual([]);
     }
   );
+
+  it("外部拖入的文件保留原路径，剪贴板截图每张只添加一次并独立保存", async () => {
+    const ref = { current: null } as React.RefObject<ChatInputAreaHandle | null>;
+    await renderChatInputArea(ref);
+    await act(async () => root?.render(<ChatInputArea ref={ref} isSupportFile isSupportImage />));
+    const editor = container?.querySelector('[data-testid="chat-editor"]');
+    if (!editor) throw new Error("缺少输入框");
+    const pdf = new File(["文件"], "笔记.pdf", { type: "application/pdf" });
+    const photo = new File(["图片"], "原图.png", { type: "image/png" });
+    const screenshot = new File(["截图"], "image.png", { type: "image/png" });
+    vi.stubGlobal("electron", {
+      getPathForFile: (file: File) => (file === screenshot ? "" : `/original/${file.name}`),
+    });
+    const dispatchFiles = async (kind: "drop" | "paste", files: File[]) => {
+      const event = new Event(kind, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, kind === "drop" ? "dataTransfer" : "clipboardData", {
+        value: {
+          types: ["Files"],
+          files,
+          items: files.map(file => ({ kind: "file", getAsFile: () => file })),
+        },
+      });
+      await act(async () => {
+        editor.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(true);
+    };
+    await dispatchFiles("drop", [pdf, photo]);
+    await dispatchFiles("paste", [photo, screenshot, screenshot]);
+    const items = ref.current?.getValue() ?? [];
+    expect(items.slice(0, 3)).toEqual([
+      { type: "file", file: "/original/笔记.pdf", fileName: "笔记.pdf" },
+      ...Array(2).fill({
+        type: "image",
+        path: "/original/原图.png",
+        image: "file:///original/原图.png",
+      }),
+    ]);
+    const savedPaths = items.slice(3).map(item => (item.type === "image" ? item.path : undefined));
+    expect(savedPaths).toEqual([
+      expect.stringMatching(/^\/home\/test\/resources\//),
+      expect.stringMatching(/^\/home\/test\/resources\//),
+    ]);
+    expect(savedPaths[0]).not.toBe(savedPaths[1]);
+    expect(copyFileToLocalMock.mock.calls.map(([file]) => file)).toEqual([screenshot, screenshot]);
+  });
 
   it("应使用 Editor 承载正文输入，并避免向用户展示 raw content-link markup", async () => {
     const ref = {

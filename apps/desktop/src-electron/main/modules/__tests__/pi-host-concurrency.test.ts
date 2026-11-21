@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 const mocks = vi.hoisted(() => ({
   assemble: vi.fn(),
@@ -71,6 +71,27 @@ it("装配挂起期间第二个同文件创建被拒绝", async () => {
   expect((await Host.create(client, request("second"))).ok).toBe(false);
   release(session());
   expect((await first).ok).toBe(true);
+});
+it("发送时读取原图，文件移走后整轮返回错误", async () => {
+  const hosted = session();
+  mocks.assemble.mockResolvedValue(hosted);
+  expect((await Host.create(client, request("first"))).ok).toBe(true);
+  const path = join(mocks.root, "设计稿 #1.webp");
+  const bytes = Buffer.from([0, 255, 65]);
+  writeFileSync(path, bytes);
+  expect((await Host.prompt("first", "看图", [{ path }])).ok).toBe(true);
+  expect(hosted.prompt).toHaveBeenCalledWith(
+    "看图",
+    expect.objectContaining({
+      images: [{ type: "image", mimeType: "image/webp", data: "AP9B" }],
+    })
+  );
+  rmSync(path);
+  expect(await Host.prompt("first", "再看图", [{ path }])).toMatchObject({
+    ok: false,
+    error: expect.stringContaining("设计稿 #1.webp"),
+  });
+  expect(hosted.prompt).toHaveBeenCalledTimes(1);
 });
 it("图片下载期间释放会话，会取消准备且不再提交 prompt", async () => {
   const hosted = session();

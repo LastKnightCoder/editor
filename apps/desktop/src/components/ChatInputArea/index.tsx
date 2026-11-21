@@ -23,7 +23,6 @@ import {
   SquarePen,
   X,
 } from "lucide-react";
-import { v4 as uuid } from "uuid";
 import type { ChatCompactionUsage } from "@tau/shared/chat-core";
 import type { Descendant } from "slate";
 
@@ -32,7 +31,6 @@ import {
   DEFAULT_CHAT_INPUT_PLACEHOLDER,
   resolveChatInputPlaceholder,
   type ChatInputAreaHandle,
-  type ChatInputAreaServices,
   type MentionEntityType,
   type MentionRef,
   type MessageContentItem,
@@ -47,9 +45,7 @@ import {
 import { DEFAULT_THINKING_LEVEL_OPTIONS, THINKING_LEVEL_OPTIONS } from "@tau/shared/chat-core";
 import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 
-import useUploadResource from "@/hooks/useUploadResource";
-import { convertFileSrc, getHomeDir } from "@/commands";
-import { copyFileToLocal } from "@/utils";
+import { CHAT_IMAGE_ACCEPT, prepareChatAttachment, type ChatAttachment } from "./attachments";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
 import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
@@ -113,21 +109,6 @@ interface ChatInputAreaProps {
   /** 紧凑档（停靠栏 400px）：模型名限宽、思考强度取两字短名，工具行不折行 */
   compact?: boolean;
 }
-
-interface ChatImageItem {
-  id: string;
-  previewUrl: string;
-  path: string;
-}
-
-interface ChatFileItem {
-  id: string;
-  name: string;
-  path: string;
-}
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const IMAGE_ACCEPT = "image/png, image/jpeg, image/webp";
 
 const createEmptyEditorContent = (): Descendant[] => [
   {
@@ -229,22 +210,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     },
     ref
   ) => {
-    const uploadResourceFn = useUploadResource();
-
-    const services: ChatInputAreaServices = useMemo(
-      () => ({
-        uploadFile: uploadResourceFn,
-        convertFileSrc,
-        getHomeDir,
-      }),
-      [uploadResourceFn]
-    );
     const resolvedPlaceholder = useMemo(
       () => resolveChatInputPlaceholder(placeholder),
       [placeholder]
     );
-
-    const { uploadFile, getHomeDir: getChatHomeDir } = services;
 
     const editorRef = useRef<EditorRef>(null);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -253,142 +222,68 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     );
     const setPermissionMode = useSettingStore(s => s.setToolPermissionMode);
     const imageInputRef = useRef<HTMLInputElement>(null);
-    const pdfInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [editorContent, setEditorContent] = useState<Descendant[]>(createEmptyEditorContent);
     const [editorRevision, setEditorRevision] = useState(0);
     const restoreEditorFocus = useRef(false);
-    const [images, setImages] = useState<ChatImageItem[]>([]);
-    const [files, setFiles] = useState<ChatFileItem[]>([]);
+    const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+    const images = attachments.filter(item => item.type === "image");
+    const files = attachments.filter(item => item.type === "file");
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-    const [uploadingImage, setUploadingImage] = useState(false);
-    const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [pendingBatches, setPendingBatches] = useState(0);
+    const draftRevision = useRef(0);
+    const attachDisabled = !contentEditable || sendLoading;
 
-    const resolveAbsolutePath = useMemoizedFn(async (path: string) => {
-      if (path.startsWith("~")) {
-        const homeDir = await getChatHomeDir();
-        return `${homeDir}${path.slice(1)}`;
-      }
-      return path;
-    });
-
-    const getPreviewUrlFromPath = useMemoizedFn(async (path: string) => {
-      if (/^(https?|data):/i.test(path)) {
-        return path;
-      }
-      const absolutePath = await resolveAbsolutePath(path);
-      return await convertFileSrc(absolutePath);
-    });
-
-    const appendImageAttachment = useMemoizedFn(
-      async (attachment: { name: string; path: string }) => {
-        let previewUrl = attachment.path;
-        try {
-          previewUrl = await getPreviewUrlFromPath(attachment.path);
-        } catch (error) {
-          console.error("生成图片预览失败:", error);
-        }
-        setImages(prev => [...prev, { id: uuid(), previewUrl, path: attachment.path }]);
-      }
-    );
-
-    const appendFileAttachment = useMemoizedFn((attachment: { name: string; path: string }) => {
-      setFiles(prev => [...prev, { id: uuid(), name: attachment.name, path: attachment.path }]);
-    });
-
-    const handleImageUpload = async (file: File) => {
+    const addFiles = async (picked: File[], source: "pick" | "paste" | "drop") => {
+      if (attachDisabled || !picked.length) return;
+      const revision = draftRevision.current;
+      setPendingBatches(count => count + 1);
       try {
-        setUploadingImage(true);
-        const uploadedPath = await uploadFile(file);
-        if (!uploadedPath) {
-          toast.error("图片上传失败");
-          return;
+        for (const file of picked) {
+          if (revision !== draftRevision.current) break;
+          try {
+            const item = await prepareChatAttachment(file, source, isSupportImage, isSupportFile);
+            if (revision === draftRevision.current) setAttachments(prev => [...prev, item]);
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "添加附件失败");
+          }
         }
-        await appendImageAttachment({ name: file.name, path: uploadedPath });
-      } catch (error) {
-        console.error("图片上传失败:", error);
-        toast.error("图片上传失败");
       } finally {
-        setUploadingImage(false);
+        setPendingBatches(count => count - 1);
       }
     };
 
-    const handleFileUpload = async (file: File) => {
-      if (
-        file.type.toLowerCase().startsWith("audio/") ||
-        file.type.toLowerCase().startsWith("video/")
-      ) {
-        toast.error("暂不支持音视频文件");
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error("文件需小于 50MB");
-        return;
-      }
-
-      try {
-        setUploadingPdf(true);
-        const localPath = await copyFileToLocal(file);
-        appendFileAttachment({ name: file.name, path: localPath });
-      } catch (error) {
-        console.error("文件上传失败:", error);
-        toast.error("文件上传失败");
-      } finally {
-        setUploadingPdf(false);
-      }
-    };
-
-    const onPickFiles = (kind: "image" | "file") => (event: ChangeEvent<HTMLInputElement>) => {
+    const onPickFiles = (event: ChangeEvent<HTMLInputElement>) => {
       const picked = Array.from(event.target.files ?? []);
       event.target.value = "";
-      void (async () => {
-        for (const file of picked) {
-          await (kind === "image" ? handleImageUpload(file) : handleFileUpload(file));
-        }
-      })();
+      void addFiles(picked, "pick");
     };
 
-    const handlePasteCapture = useMemoizedFn((event: React.ClipboardEvent<HTMLDivElement>) => {
-      if (sendLoading) return;
-      const clipboardData = event.clipboardData;
-      if (!clipboardData) return;
-
-      const imageItems = isSupportImage
-        ? Array.from(clipboardData.items).filter(
-            item => item.kind === "file" && item.type.startsWith("image/")
-          )
-        : [];
-      const fileItems = isSupportFile
-        ? Array.from(clipboardData.items).filter(
-            item =>
-              item.kind === "file" &&
-              !item.type.toLowerCase().startsWith("audio/") &&
-              !item.type.toLowerCase().startsWith("video/")
-          )
-        : [];
-
-      if (imageItems.length === 0 && fileItems.length === 0) return;
-
+    const handlePasteCapture = (event: React.ClipboardEvent<HTMLDivElement>) => {
+      const picked = Array.from(event.clipboardData.files);
+      if (!picked.length) {
+        for (const item of event.clipboardData.items) {
+          const file = item.kind === "file" ? item.getAsFile() : null;
+          if (file) picked.push(file);
+        }
+      }
+      if (!picked.length) return;
       event.preventDefault();
-      void (async () => {
-        for (const item of imageItems) {
-          const file = item.getAsFile();
-          if (file) await handleImageUpload(file);
-        }
-        for (const item of fileItems) {
-          const file = item.getAsFile();
-          if (file) await handleFileUpload(file);
-        }
-      })();
-    });
+      event.stopPropagation();
+      void addFiles(picked, "paste");
+    };
 
-    const removeImage = useMemoizedFn((imageId: string) => {
-      setImages(prev => prev.filter(image => image.id !== imageId));
-    });
+    const handleDropCapture = (event: React.DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes("Files")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void addFiles(Array.from(event.dataTransfer.files), "drop");
+    };
 
-    const removeFile = useMemoizedFn((fileId: string) => {
-      setFiles(prev => prev.filter(file => file.id !== fileId));
-    });
+    const removeAttachment = (id: string) => {
+      setAttachments(prev => prev.filter(item => item.id !== id));
+    };
 
     const applyEditorContent = useMemoizedFn((nextContent: Descendant[]) => {
       restoreEditorFocus.current = editorRef.current?.isFocus() ?? false;
@@ -403,39 +298,31 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           hotKey: "mod+shift+enter",
           action: (_editor, event) => {
             event.preventDefault();
-            onSteer?.();
+            if (!pendingBatches) onSteer?.();
           },
         },
         {
           hotKey: "mod+enter",
           action: (_editor, event) => {
             event.preventDefault();
-            onPressEnter?.();
+            if (!pendingBatches) onPressEnter?.();
           },
         },
       ],
-      [onPressEnter, onSteer]
+      [onPressEnter, onSteer, pendingBatches]
     );
 
     useImperativeHandle(ref, () => ({
       getValue: (): MessageContentItem[] => {
         const content: MessageContentItem[] = [];
 
-        images.forEach(image => {
-          content.push({
-            type: "image",
-            image: image.previewUrl,
-            path: image.path,
-          });
-        });
-
-        files.forEach(file => {
-          content.push({
-            type: "file",
-            file: file.path,
-            fileName: file.name,
-          });
-        });
+        for (const item of attachments) {
+          if (item.type === "image" && isSupportImage) {
+            content.push({ type: "image", image: item.previewUrl, path: item.path });
+          } else {
+            content.push({ type: "file", file: item.path, fileName: item.name });
+          }
+        }
 
         const text = getMarkdown(editorContent).trim();
         if (text) {
@@ -452,8 +339,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       },
       clear: () => {
         applyEditorContent(createEmptyEditorContent());
-        setImages([]);
-        setFiles([]);
+        draftRevision.current++;
+        setAttachments([]);
+        setPreviewIndex(null);
       },
       setValue: (content: string) => {
         const nextContent = content.trim()
@@ -492,7 +380,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       option => option.value === thinkingLevel
     );
     const thinkingControlDisabled = thinkingLevelDisabled || sendLoading || !contentEditable;
-    const attachDisabled = !contentEditable || sendLoading;
     // 序列化成本随草稿增长，避免每次按键/任意状态变化都全量执行
     const hasText = useMemo(() => getMarkdown(editorContent).trim().length > 0, [editorContent]);
 
@@ -520,7 +407,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               label: "文件",
               description: "AI 会自行读取文件内容",
               disabled: attachDisabled,
-              onSelect: () => pdfInputRef.current?.click(),
+              onSelect: () => fileInputRef.current?.click(),
             },
           ]
         : []),
@@ -570,7 +457,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     ];
 
     const canSend =
-      (hasText || images.length > 0 || files.length > 0) && (!sendLoading || allowSendWhileLoading);
+      !pendingBatches &&
+      (hasText || attachments.length > 0) &&
+      (!sendLoading || allowSendWhileLoading);
 
     const modelMenu =
       modelGroups.length > 0 && onModelSelect ? (
@@ -684,7 +573,18 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     ) : null;
 
     return (
-      <div ref={rootRef} className={cn("flex flex-col", className)}>
+      <div
+        ref={rootRef}
+        className={cn("flex flex-col", className)}
+        onPasteCapture={handlePasteCapture}
+        onDragOverCapture={event => {
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = attachDisabled ? "none" : "copy";
+        }}
+        onDropCapture={handleDropCapture}
+      >
         <SkillPickerPanel composerRef={rootRef} />
         {(images.length > 0 || files.length > 0) && (
           <div className="mb-2 flex flex-wrap gap-2">
@@ -699,7 +599,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <button
                   type="button"
                   aria-label="移除图片"
-                  onClick={() => removeImage(image.id)}
+                  onClick={() => removeAttachment(image.id)}
                   className="bg-ink-1/70 text-ink-inverse absolute -top-1.5 -right-1.5 grid size-[18px] place-items-center rounded-full opacity-0 transition-opacity group-hover/att:opacity-100"
                 >
                   <X size={11} strokeWidth={2.25} />
@@ -716,7 +616,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <IconButton
                   aria-label="移除文件"
                   className="size-5 [&_svg]:size-3"
-                  onClick={() => removeFile(file.id)}
+                  onClick={() => removeAttachment(file.id)}
                 >
                   <X strokeWidth={2} />
                 </IconButton>
@@ -725,10 +625,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           </div>
         )}
 
-        <div
-          className={cn("px-0.5", !contentEditable && "opacity-60")}
-          onPasteCapture={handlePasteCapture}
-        >
+        <div className={cn("px-0.5", !contentEditable && "opacity-60")}>
           <div className="max-h-[min(240px,34vh)] overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
             <Editor
               key={editorRevision}
@@ -754,11 +651,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         </div>
 
         <div className="mt-2.5 flex items-center gap-1">
-          <ComposerAddMenu
-            items={addItems}
-            busy={uploadingImage || uploadingPdf}
-            disabled={!contentEditable}
-          />
+          <ComposerAddMenu items={addItems} busy={pendingBatches > 0} disabled={!contentEditable} />
           {permissionMenu}
           <span className="min-w-1 flex-1" />
           <ContextUsageRing
@@ -790,7 +683,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 type="button"
                 aria-label="插话"
                 onClick={onSteer}
-                disabled={!hasText && images.length === 0 && files.length === 0}
+                disabled={!!pendingBatches || (!hasText && !attachments.length)}
                 className={cn(
                   "ease-tau-out border-line-1 text-ink-2 ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] border transition-[background,color] duration-[160ms]",
                   "enabled:hover:bg-hover enabled:hover:text-ink-1 disabled:text-ink-3 disabled:cursor-default"
@@ -832,19 +725,20 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <input
             ref={imageInputRef}
             type="file"
-            accept={IMAGE_ACCEPT}
+            accept={CHAT_IMAGE_ACCEPT}
             multiple
             className="hidden"
-            onChange={onPickFiles("image")}
+            onChange={onPickFiles}
           />
         )}
         {isSupportFile && (
           <input
-            ref={pdfInputRef}
+            ref={fileInputRef}
             type="file"
             accept="*/*"
+            multiple
             className="hidden"
-            onChange={onPickFiles("file")}
+            onChange={onPickFiles}
           />
         )}
 

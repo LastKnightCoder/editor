@@ -61,7 +61,6 @@ import {
   type HostedSessionState,
 } from "./pi-session-lifecycle";
 import { conversationTreeOf, type DesktopDisplayData } from "./pi-session-files";
-import { recordSyncIo } from "./perf-record";
 import {
   checkoutWorkspaceBranch,
   listWorkspaceBranches,
@@ -93,8 +92,9 @@ import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
 import type { ImageContent } from "@earendil-works/pi-ai";
-import { basename, dirname, join } from "node:path";
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { existsSync, mkdirSync, statSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
 import { PiSubagentHost } from "./pi-subagents/host";
 import type { PiPermissionScope } from "./pi-permission-scope";
@@ -465,9 +465,9 @@ class PiSessionHostModule {
         return PiSessionHostModule.runWithSession(sessionId, async signal => {
           const runId = hosted.session.activePromptRunId;
           if (runId === undefined) return { ok: false, reason: "not-streaming" };
-          const piImages = (
-            await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
-          ).filter((image): image is ImageContent => image !== null);
+          const piImages = await Promise.all(
+            (images ?? []).map(image => readPromptImage(image, signal))
+          );
           signal.throwIfAborted();
           const displayData = toDisplayData(text, display);
           if (displayData) hosted.displayWriter.expect(displayData);
@@ -1140,9 +1140,9 @@ class PiSessionHostModule {
           return { ok: true };
         }
         // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
-        const piImages = (
-          await Promise.all((images ?? []).map(image => readPromptImage(image, signal)))
-        ).filter((image): image is ImageContent => image !== null);
+        const piImages = await Promise.all(
+          (images ?? []).map(image => readPromptImage(image, signal))
+        );
         signal.throwIfAborted();
         if (displayData) hosted.displayWriter.expect(displayData);
         hosted.lastActive = Date.now();
@@ -1448,46 +1448,39 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   ".bmp": "image/bmp",
 };
 
-/** prompt 附带图片 → pi ImageContent（path 读文件 / dataURL 解析；失败返回 null 跳过） */
 async function readPromptImage(
-  image: {
-    path?: string;
-    dataUrl?: string;
-  },
-  signal?: AbortSignal
-): Promise<ImageContent | null> {
+  image: { path?: string; dataUrl?: string },
+  signal: AbortSignal
+): Promise<ImageContent> {
+  if (image.dataUrl) {
+    const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) throw new Error("图片数据无效，请重新添加图片");
+    return { type: "image", data: match[2], mimeType: match[1] };
+  }
+  if (!image.path) throw new Error("缺少图片路径，请重新添加图片");
+  if (/^https?:\/\//i.test(image.path)) {
+    const response = await fetch(image.path, { signal });
+    if (!response.ok) throw new Error(`无法读取图片（HTTP ${response.status}）`);
+    return {
+      type: "image",
+      data: Buffer.from(await response.arrayBuffer()).toString("base64"),
+      mimeType: response.headers.get("content-type")?.split(";", 1)[0] || "image/png",
+    };
+  }
+
+  const path = image.path.startsWith("~/")
+    ? join(PathUtil.getHomeDir(), image.path.slice(2))
+    : image.path;
   try {
-    if (image.dataUrl) {
-      const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
-      if (match) return { type: "image", data: match[2], mimeType: match[1] };
-      return null;
-    }
-    if (image.path && existsSync(image.path)) {
-      const syncIoStart = Date.now();
-      const buffer = readFileSync(image.path);
-      recordSyncIo(`read:${image.path}`, buffer.byteLength, Date.now() - syncIoStart);
-      const extension = image.path.slice(image.path.lastIndexOf(".")).toLowerCase();
-      return {
-        type: "image",
-        data: buffer.toString("base64"),
-        mimeType: MIME_BY_EXTENSION[extension] ?? "image/png",
-      };
-    }
-    const url = image.path;
-    if (url && /^https?:\/\//i.test(url)) {
-      const response = await fetch(url, { signal });
-      if (!response.ok) return null;
-      const buffer = Buffer.from(await response.arrayBuffer());
-      return {
-        type: "image",
-        data: buffer.toString("base64"),
-        mimeType: response.headers.get("content-type")?.split(";", 1)[0] || "image/png",
-      };
-    }
-    return null;
+    const buffer = await readFile(path, { signal });
+    return {
+      type: "image",
+      data: buffer.toString("base64"),
+      mimeType: MIME_BY_EXTENSION[extname(path).toLowerCase()] ?? "image/png",
+    };
   } catch (error) {
-    console.error("[PiSessionHost] 读取 prompt 图片失败:", error);
-    return null;
+    signal.throwIfAborted();
+    throw new Error(`无法读取图片「${basename(path)}」，请确认原文件仍可访问`, { cause: error });
   }
 }
 

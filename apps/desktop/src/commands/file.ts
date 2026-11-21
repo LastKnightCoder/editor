@@ -130,7 +130,7 @@ export const convertFileSrc = async (filePath: string): Promise<string> => {
   const normalizedAppDir = appDir.replace(/\\/g, "/");
   const normalizedFilePath = filePath.replace(/\\/g, "/");
 
-  if (normalizedFilePath.startsWith(normalizedAppDir)) {
+  if (normalizedFilePath.startsWith(normalizedAppDir + "/")) {
     const relativePath = normalizedFilePath.replace(normalizedAppDir, "");
     const withLeadingSlash = relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
     // 逐段编码后再拼 URL：静态服务收到请求会解码一层，编码保证解码结果与
@@ -140,7 +140,7 @@ export const convertFileSrc = async (filePath: string): Promise<string> => {
     return `http://localhost:24678${encodedPath}`;
   }
 
-  return `ltoh:///${normalizedFilePath}`;
+  return `ltoh:///${normalizedFilePath.split("/").map(encodeURIComponent).join("/")}`;
 };
 
 /** 打开 Markdown 窗口：文件或文件夹路径；不传打开欢迎页 */

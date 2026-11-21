@@ -22,6 +22,8 @@
 
 旧 Azure 服务商标识只在内置目录查询时映射到 `azure`，会话与功能分配仍用用户配置的 provider ID。Kimi Coding 目录命中时，旧官方 `/coding` 地址按新版协议发往 `/coding/v1`。OpenAI Chat Completions 在有工具历史且本轮无工具时默认省略 `tools`，要求空数组的模型可设置 `compat.requiresToolsWithToolHistory`。Anthropic 默认发送完整历史，桌面会话只在运行期间预热缓存。
 
+桌面对话输入框统一接收选择、外部拖入和剪贴板文件。磁盘文件引用原路径，只有无路径的剪贴板图片写入本地资源目录。普通附件随提示传文件名与路径；视觉模型的图片由主进程在发送或插话时读取为图片块，读取失败返回发送错误。会话 JSONL 保留 pi 收到的图片数据与展示记录。
+
 `pi-session-transcript.ts` 转导出 `@tau/ai/session` 的公共投影，移动端也消费它。JSONL 原始消息保留签名与模型字段，展示仍是 ChatSessionMessage / assistant_blocks，完整展示路径与压缩后的模型上下文分开。会话交换使用 pi v3，公共层的格式约束由官方 SessionManager 双向读写与上下文差分测试守护。桌面首条消息即可落盘，旧会话没有文件时按空对话处理。source 的解析保留 mobile，手机写入的同格式记录可以经相同历史投影展示；设备缺失的工具不会因查看历史而被执行。具体公共接口见 [AI 公共核心](/packages/ai/README.md)。
 
 桌面对话在发送入口识别独立纯文本 `/compact`，在排队和页面上下文注入前执行。历史对话沿当前文件恢复，主进程经 `pi-session:compact` 校验窗口归属、独占操作和 pi 空闲态，调用 `AgentSession.compact()`。摘要写入当前分支的 JSONL，聊天列表继续使用完整展示投影。带 `chatScope` 的宿主每轮读取 `chatCompactionPercent`，按所选模型的窗口换算 pi 的 `reserveTokens`；留空或无效时使用 SDK 默认值，近期原文保留量由 pi 管理。
