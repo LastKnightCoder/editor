@@ -8,6 +8,7 @@ const PLANS = [
   ["a-reader.html", "方案 A 沉浸阅读"],
   ["b-margin.html", "方案 B 边注"],
   ["c-desk.html", "方案 C 学习台"],
+  ["fusion.html", "左右融合"],
 ];
 
 /* 进入阅读页收起全局侧栏（同 Notebook / 项目详情），给页面让宽 */

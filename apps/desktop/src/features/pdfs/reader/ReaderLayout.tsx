@@ -41,7 +41,7 @@ import { MarqueeCapture, useCaptureCapability } from "@embedpdf/plugin-capture/r
 import { Rotate, useRotate } from "@embedpdf/plugin-rotate/react";
 import { useSpread } from "@embedpdf/plugin-spread/react";
 import { SpreadMode } from "@embedpdf/plugin-spread";
-import { FADE_SCROLL_CLASS, Loading, cn, toast, useEdgeFade } from "@tau/ui";
+import { Loading, cn, toast } from "@tau/ui";
 import { searchPdfContent, showInFolder } from "@/commands";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -812,17 +812,6 @@ export function ReaderLayout({
 
   /* ───────── 键位 ───────── */
 
-  // 视口是引擎组件（ref 被它自己占用），挂载后按标记属性取元素，接边缘渐隐
-  const [viewportEl, setViewportEl] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setViewportEl(
-      pluginsReady
-        ? (viewerRef.current?.querySelector<HTMLElement>("[data-pdf-viewport]") ?? null)
-        : null
-    );
-  }, [pluginsReady]);
-  useEdgeFade(viewportEl);
-
   // 抓手：HUD 按钮 / H 常开；按住空格临时打开，松开回到当前工具
   const [handTool, setHandTool] = useState(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -952,8 +941,9 @@ export function ReaderLayout({
         <div
           ref={viewerRef}
           onPointerDownCapture={onViewerPointerDownCapture}
+          // 阅读井：阅读区比两侧栏下沉一档，左右栏成为对称的两翼；上下内边距让滚动内容不贴着井的边缘裁切
           className={cn(
-            "relative flex min-h-0 min-w-0 flex-1 flex-col",
+            "rounded-tau-lg inset-ring-line-2 bg-surface-hover relative m-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden py-2.5 inset-ring",
             panning && "cursor-grab active:cursor-grabbing"
           )}
         >
@@ -961,10 +951,8 @@ export function ReaderLayout({
             <Loading minHeight={0} className="flex-1" />
           ) : (
             <GlobalPointerProvider className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <Viewport
-                data-pdf-viewport=""
-                className={cn(FADE_SCROLL_CLASS, "min-h-0 min-w-0 flex-1 bg-transparent")}
-              >
+              {/* 滚动条内缩（同 FADE_SCROLL_CLASS 的右侧透明边 + 轨道上下留白），但不接边缘渐隐 */}
+              <Viewport className="min-h-0 min-w-0 flex-1 border-r-[6px] border-r-transparent bg-transparent [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-track]:my-2.5">
                 {/* 页边展开时右侧留出页边宽度（页边本身画在每页叠加层里，溢出页面右缘） */}
                 <div className="mx-auto w-fit" style={{ paddingRight: marginWidth }}>
                   <Scroller

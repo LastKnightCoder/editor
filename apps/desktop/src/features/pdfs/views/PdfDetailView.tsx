@@ -240,7 +240,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
             label="AI 对话栏宽度"
             className="absolute top-4 bottom-4 left-0 z-10"
           />
-          <div className="h-full py-1.5 pl-2" style={{ width: chatWidth }}>
+          <div className="h-full" style={{ width: chatWidth }}>
             <PdfChatPanel
               ref={onChatRef}
               pdf={pdf}

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+  <head>
+    <meta charset="utf-8" />
+    <title>PDF 阅读页 · 左右融合</title>
+    <link rel="stylesheet" href="../chat/shared.css?v=3" />
+    <link rel="stylesheet" href="pdf-detail.css?v=4" />
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <style>
+      /* ── 共同骨架：A / B / C 都用，现状不用 ── */
+      /* 两侧栏头同高（44px）、同内边距、同字号，正文从同一条水平线开始 */
+      .fx .lp {
+        width: 264px;
+        padding: 0;
+      }
+      .fx .lp.off {
+        width: 0;
+      }
+      .fx .rp {
+        width: 372px;
+      }
+      .fx .lp .seg,
+      .fx .rp-head {
+        height: 44px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin: 0;
+        padding: 0 8px 0 10px;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      /* 左栏页签改成文字按钮（与右栏头的图标按钮同高 28px），去掉分段控件的框 */
+      .fx .lp .seg button {
+        flex: none;
+        height: 28px;
+        padding: 0 9px;
+        border-radius: var(--r-sm);
+        font-size: 13px;
+        color: var(--ink-3);
+        background: none;
+        box-shadow: none;
+        font-weight: 400;
+      }
+      .fx .lp .seg button:hover {
+        background: var(--hover);
+        color: var(--ink-1);
+      }
+      .fx .lp .seg button.on {
+        color: var(--ink-1);
+        font-weight: 600;
+        background: none;
+      }
+      .fx .rp-head .t {
+        font-size: 13px;
+        padding-left: 9px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .fx .rp-head .t svg {
+        width: 13px;
+        height: 13px;
+        color: var(--ink-3);
+      }
+      .fx .rp-head .s {
+        display: none;
+      }
+      .fx .lp .body {
+        padding: 4px 10px 12px 12px;
+        margin: 0;
+      }
+      .fx .rp-body {
+        padding: 4px 16px 0;
+      }
+      .fx .rd {
+        margin: 0;
+        border-radius: 0;
+      }
+      .fx .lp.off + .rd {
+        margin-left: 0;
+      }
+
+      /* ── A 对称细线：三栏同一张纸，栏间整高细线，栏头下各一条细线 ── */
+      .v-a .lp {
+        box-shadow: inset -1px 0 0 var(--line-1);
+      }
+      .v-a .rp {
+        box-shadow: inset 1px 0 0 var(--line-1);
+      }
+      .v-a .lp .seg,
+      .v-a .rp-head {
+        box-shadow: inset 0 -1px 0 var(--line-2);
+      }
+      .v-a .rd-scroll {
+        padding-top: 28px;
+      }
+
+      /* ── B 阅读井：两侧栏是纸，中间阅读区下沉一档（page 与 surface 的中间色），
+         左右两侧因此成为对称的「书页两翼」，栏头不画线 ── */
+      .v-b .rd {
+        margin: 0 0 8px;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--page) 55%, var(--surface));
+        box-shadow: inset 0 0 0 1px var(--line-2);
+        margin-top: 8px;
+      }
+      .v-b .rd-scroll {
+        padding-top: 22px;
+      }
+      .v-b .lp .seg {
+        padding-left: 10px;
+      }
+
+      /* ── C 两张侧卡：纸退成透明，阅读区直接铺在 page 上；左右是同半径、同投影、同栏头的两张卡 ── */
+      .v-c.paper {
+        background: transparent;
+        box-shadow: none;
+        gap: 10px;
+      }
+      .v-c .lp,
+      .v-c .rp {
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+      }
+      .v-c .lp.off,
+      .v-c .rp.off {
+        box-shadow: none;
+      }
+      .v-c .rd-scroll {
+        padding-top: 18px;
+      }
+      .v-c .hud {
+        background: var(--surface);
+      }
+
+      .cmp-tag {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        z-index: 40;
+        font-size: 11.5px;
+        color: var(--ink-3);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mock-note">
+      <h3>PDF 阅读页 · 左右融合</h3>
+      现状不融合的原因：左栏顶部是一枚带框的分段控件（14px 起），右栏顶部是 46px
+      的对话标题行，两侧起始高度、内边距、头部样式都不一样；左右又没有任何对称的边界，读起来像两块不相干的东西贴在纸边。三个方向都先统一「栏头」：两侧同高
+      44px、同样 28px 的按钮、正文从同一条线开始；左栏页签改成文字按钮（不再用分段控件）。差别在怎么划分三栏：
+      <ul>
+        <li><b>A 对称细线</b>：仍是一整张纸，栏间各一条整高细线，栏头下一条淡线。改动最小，最像编辑器详情页。</li>
+        <li><b>B 阅读井（推荐）</b>：左右两栏都是纸面，中间阅读区下沉一档成圆角「井」，PDF 页落在井里。两侧天然对称，页面边缘也更清楚。</li>
+        <li><b>C 两张侧卡</b>：纸退掉，阅读区直接铺在窗口底色上，左右是两张同款卡片。最轻，但和其他详情页「一整张纸」的做法不一样。</li>
+      </ul>
+    </div>
+
+    <div class="stage"><div class="win sb-c" id="win"></div></div>
+
+    <script type="module">
+      import {
+        mockBar,
+        sidebar,
+        titlebar,
+        icons,
+        pagesHTML,
+        leftPanel,
+        hud,
+        chatPanel,
+        mountPins,
+      } from "./pdf-detail.js?v=4";
+
+      const VARIANTS = [
+        ["now", "现状"],
+        ["a", "A 对称细线"],
+        ["b", "B 阅读井"],
+        ["c", "C 两张侧卡"],
+      ];
+      mockBar(
+        "fusion.html",
+        `<span class="seg">${VARIANTS.map(([k, l]) => `<button data-v="${k}">${l}</button>`).join("")}</span>
+         <span class="seg"><button data-t="toc">目录</button><button data-t="anns">标注</button></span>`
+      );
+
+      const win = document.getElementById("win");
+      const state = { v: "b", lt: "toc", lpOn: true, rpOn: true };
+
+      function render() {
+        const fx = state.v !== "now";
+        const crumb = `<button class="ib ${state.lpOn ? "on" : ""}" id="lpT" title="左面板"><i data-lucide="panel-left"></i></button><span style="color:var(--ink-2)">PDF</span><i data-lucide="chevron-right" style="width:14px;color:var(--ink-3)"></i><b>Attention Is All You Need</b>`;
+        let chat = state.rpOn ? chatPanel({}) : `<aside class="rp off"></aside>`;
+        // 真实对话栏头是「会话标题 ▾」下拉，不是固定的「AI 对话」
+        if (fx)
+          chat = chat.replace(
+            '<span class="t">AI 对话</span>',
+            '<span class="t">RNN 为什么不能并行<i data-lucide="chevron-down"></i></span>'
+          );
+        win.innerHTML = `
+          ${sidebar()}
+          <div class="col">
+            ${titlebar(crumb)}
+            <div class="main"><section class="paper d-paper ${fx ? `fx v-${state.v}` : ""}">
+              ${leftPanel(state.lt, { off: !state.lpOn })}
+              <div class="rd"><div class="rd-scroll" id="scroll">${pagesHTML({})}</div>
+                ${hud({ chatOff: !state.rpOn })}</div>
+              ${chat}
+            </section></div>
+          </div>`;
+        icons();
+        mountPins(win);
+
+        document
+          .querySelectorAll(".mock-bar [data-v]")
+          .forEach(b => b.classList.toggle("on", b.dataset.v === state.v));
+        document
+          .querySelectorAll(".mock-bar [data-t]")
+          .forEach(b => b.classList.toggle("on", b.dataset.t === state.lt));
+        const on = (sel, fn) =>
+          win.querySelectorAll(sel).forEach(
+            el =>
+              (el.onclick = e => {
+                e.stopPropagation();
+                fn(el);
+                render();
+              })
+          );
+        on("#lpT", () => (state.lpOn = !state.lpOn));
+        on("[data-lt]", el => (state.lt = el.dataset.lt));
+        on('[data-act="chat"]', () => (state.rpOn = !state.rpOn));
+      }
+      document.querySelectorAll(".mock-bar [data-v]").forEach(
+        b =>
+          (b.onclick = () => {
+            state.v = b.dataset.v;
+            render();
+          })
+      );
+      document.querySelectorAll(".mock-bar [data-t]").forEach(
+        b =>
+          (b.onclick = () => {
+            state.lt = b.dataset.t;
+            render();
+          })
+      );
+      render();
+    </script>
+  </body>
+</html>

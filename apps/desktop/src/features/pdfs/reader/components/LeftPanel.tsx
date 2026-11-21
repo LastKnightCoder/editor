@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bookmark, Layers, MessageSquareText, X } from "lucide-react";
 import { ThumbImg, ThumbnailsPane, type ThumbMeta } from "@embedpdf/plugin-thumbnail/react";
-import { FADE_SCROLL_CLASS, FilterPill, IconButton, Segmented, cn, useEdgeFade } from "@tau/ui";
+import { FADE_SCROLL_CLASS, FilterPill, IconButton, cn, useEdgeFade } from "@tau/ui";
 import type { PdfAnnotation, PdfBookmark } from "@/types";
 import {
   COLOR_SPECS,
@@ -76,32 +76,42 @@ export function LeftPanel(props: LeftPanelProps) {
       aria-hidden={!open}
       className={cn(
         "ease-tau-out flex min-h-0 shrink-0 flex-col overflow-hidden transition-[width,opacity] duration-[220ms]",
-        open ? "w-[260px] opacity-100" : "pointer-events-none w-0 opacity-0"
+        open ? "w-[264px] opacity-100" : "pointer-events-none w-0 opacity-0"
       )}
     >
-      <div className="flex min-h-0 w-[260px] flex-1 flex-col gap-2.5 py-3.5 pl-3.5 pr-1.5">
-        <Segmented<LeftTab>
-          label="左面板"
-          size="sm"
-          value={tab}
-          onValueChange={onTabChange}
-          className="mr-2 w-auto"
+      <div className="flex min-h-0 w-[264px] flex-1 flex-col">
+        {/* 栏头与对话栏头同高（44px）、同为 28px 按钮，两侧正文从同一条线开始 */}
+        <div
+          role="tablist"
+          aria-label="左面板"
+          className="flex h-11 shrink-0 items-center gap-0.5 pr-2 pl-2.5"
         >
           {TABS.map(t => (
-            <Segmented.Item
+            <button
               key={t.key}
-              value={t.key}
-              label={t.label}
-              className="flex-1 justify-center px-0"
-            />
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => onTabChange(t.key)}
+              className={cn(
+                "rounded-tau-sm text-tau-sm ease-tau-out h-7 px-2.5 transition-colors duration-[160ms]",
+                tab === t.key
+                  ? "text-ink-1 font-semibold"
+                  : "text-ink-3 hover:bg-hover hover:text-ink-1"
+              )}
+            >
+              {t.label}
+            </button>
           ))}
-        </Segmented>
-        {tab === "toc" && <OutlineList {...props} />}
-        {tab === "thumbs" && (
-          <ThumbList currentPage={props.currentPage} onJump={props.onJumpPage} />
-        )}
-        {tab === "anns" && <AnnotationList {...props} />}
-        {tab === "marks" && <BookmarkList {...props} />}
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-2.5 pt-1 pr-1.5 pb-3 pl-3">
+          {tab === "toc" && <OutlineList {...props} />}
+          {tab === "thumbs" && (
+            <ThumbList currentPage={props.currentPage} onJump={props.onJumpPage} />
+          )}
+          {tab === "anns" && <AnnotationList {...props} />}
+          {tab === "marks" && <BookmarkList {...props} />}
+        </div>
       </div>
     </aside>
   );
@@ -285,7 +295,7 @@ function AnnotationList({
                       {style && style !== "highlight" ? ` · ${STYLE_LABEL[style]}` : ""}
                     </span>
                   </button>
-                  <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+                  <div className="absolute right-1.5 bottom-1.5 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
                     {canToCard && (
                       <IconButton
                         title="转为卡片"

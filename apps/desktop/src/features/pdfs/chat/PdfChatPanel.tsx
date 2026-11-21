@@ -314,7 +314,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     return (
       <MarkdownProvider isDark={isDark} isVisible>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="flex h-[46px] shrink-0 items-center gap-1 pr-2 pl-3">
+          <div className="flex h-11 shrink-0 items-center gap-0.5 pr-2 pl-2.5">
             <div className="min-w-0 flex-1">
               {loaded && (
                 <ChatDropdownSelector
