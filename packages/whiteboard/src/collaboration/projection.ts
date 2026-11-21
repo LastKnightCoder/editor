@@ -33,6 +33,9 @@ export function authorElement(binding: CanvasBinding, id: string) {
   ]).find(node => node.id === id);
 }
 
+/** 文档卡的稳定引用解析成本机身份后投影为 entityRef（只在本机，不写回文档），供去重、相关、翻页使用 */
+const DOCUMENT_ENTITY_KINDS = new Set(["card", "article", "project-item", "diary-moment", "pdf"]);
+
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
   const type = mapped?.contractId === node.contractId ? mapped : undefined;
@@ -51,7 +54,19 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
         ? { contentId: localEntity.id }
         : node.entity?.kind === "video-note"
           ? { videoNoteId: localEntity.id }
-          : {}
+          : node.entity && node.type === "document" && DOCUMENT_ENTITY_KINDS.has(node.entity.kind)
+            ? {
+                entityRef: {
+                  kind: node.entity.kind as
+                    | "card"
+                    | "article"
+                    | "project-item"
+                    | "diary-moment"
+                    | "pdf",
+                  id: localEntity.id,
+                },
+              }
+            : {}
       : {}),
     ...node.geometry,
     ...(type &&
@@ -127,7 +142,10 @@ export function refresh(binding: CanvasBinding): void {
     if (
       !node.entity ||
       !binding.options.resolveEntity ||
-      !["content", "video-note"].includes(node.entity.kind)
+      !(
+        ["content", "video-note"].includes(node.entity.kind) ||
+        (node.type === "document" && DOCUMENT_ENTITY_KINDS.has(node.entity.kind))
+      )
     )
       continue;
     const key = JSON.stringify(node.entity);

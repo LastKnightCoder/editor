@@ -9,6 +9,11 @@ import { Loading } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { BoardCanvas } from "../components/BoardCanvas";
 import { OutlineToggle } from "../components/OutlineToggle";
+import { ShelfToggle } from "../components/ShelfToggle";
+import {
+  DocumentHostContext,
+  WHITEBOARD_PAGE_HOST,
+} from "@/features/shared/whiteboard/components/Document/DocumentHostContext";
 import { useWhiteboardOwner } from "../queries";
 
 export function WhiteboardContentView() {
@@ -29,6 +34,7 @@ export function WhiteboardContentView() {
     () => (
       <span className="flex min-w-0 items-center gap-1">
         <OutlineToggle />
+        <ShelfToggle />
         <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5">{name || "白板"}</span>
       </span>
     ),
@@ -40,7 +46,9 @@ export function WhiteboardContentView() {
   return (
     <div className="relative flex h-full min-h-0 flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg relative min-h-0 flex-1 overflow-hidden">
-        <BoardCanvas key={id} id={id} collaboration onLoaded={content => setName(content.name)} />
+        <DocumentHostContext value={WHITEBOARD_PAGE_HOST}>
+          <BoardCanvas key={id} id={id} collaboration onLoaded={content => setName(content.name)} />
+        </DocumentHostContext>
       </div>
     </div>
   );

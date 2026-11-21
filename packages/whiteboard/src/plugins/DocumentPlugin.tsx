@@ -9,17 +9,18 @@ import {
   PluginContextMenuItem,
   IElementCapabilities,
 } from "../types";
+import type { ViewPort } from "../types/viewport";
 import { ContainmentBehavior, MovementBehavior, SnapBehavior } from "../types/capabilities";
 import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
 import DocumentElementComponent from "../components/DocumentElement";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
 
-/** 文档卡可指向的正文实体，写法同 EntityRefKind */
-export type DocumentKind = "card" | "article" | "project-item" | "diary-moment";
+/** 文档卡可指向的实体：正文实体写法同 EntityRefKind；pdf 是一整份 PDF（pdfs.id），没有正文 */
+export type DocumentKind = "card" | "article" | "project-item" | "diary-moment" | "pdf";
 
 /**
- * 文档卡：引用一篇库里的正文（卡片 / 文章 / 项目文档 / 日记里的一条碎碎念）。画布上只读预览，展开后编辑；
+ * 文档卡：引用一篇库里的正文（卡片 / 文章 / 项目文档 / 日记里的一条碎碎念），或一整份 PDF。画布上只读预览，展开后编辑；
  * 正文不存在元素上，删除元素不影响原文。只存 entityRef，不存 contentId——白板保存按 contentId 计引用。
  */
 export interface DocumentElement extends CommonElement {
@@ -39,14 +40,58 @@ export const DOCUMENT_DEFAULT_SIZE: Record<DocumentKind, { width: number; height
   article: { width: 280, height: 360 },
   "project-item": { width: 280, height: 360 },
   "diary-moment": { width: 260, height: 240 },
+  // A4 竖版比例
+  pdf: { width: 240, height: 340 },
 };
 const MIN_SIZE = 120;
+
+/**
+ * 放入请求：`/`、工具栏、右键「文档」、从文档卡拖出到空白处都只发这个请求，宿主的检索面板响应。
+ * - at：放入位置（画布坐标），一行内容从这里向右展开；
+ * - screen：面板贴在哪里（client 坐标），缺省放在视口中央；
+ * - linkFrom：放入后从这个元素连一条箭头到每个新元素。
+ */
+export const DOCUMENT_INSERT_EVENT = "tau.document.insert";
+export interface DocumentInsertRequest {
+  at: Point;
+  /** at 是行的左缘还是中心，缺省左缘 */
+  align?: "start" | "center";
+  screen?: Point;
+  linkFrom?: string;
+  /** 拖出时画着的临时连线：面板关闭（放入或取消）时由宿主调用移除 */
+  release?(): void;
+}
+
+/**
+ * 速览：按住文档卡 250ms，或选中后按住空格，卡面原位放大到能读，松开落回。
+ * 载荷为元素 id（开始）或 null（结束）；宿主的速览层响应，只读画布同样可用。
+ */
+export const DOCUMENT_PEEK_EVENT = "tau.document.peek";
+export const DOCUMENT_PEEK_DELAY = 250;
+
+export const requestPeekDocument = (board: Board, elementId: string | null) =>
+  board.emit(DOCUMENT_PEEK_EVENT, elementId);
+
+/** PDF 文档卡翻页：选中 PDF 卡按 [ / ]，载荷 { id, delta }；宿主写回全局「上次读到的页」 */
+export const DOCUMENT_TURN_PAGE_EVENT = "tau.document.turn-page";
+
+/** 长出相关请求：选中文档卡按 R 或点属性条「相关」，载荷为元素 id；宿主在卡旁浮出建议 */
+export const DOCUMENT_RELATED_EVENT = "tau.document.related";
 
 export const isDocumentElement = (element: BoardElement | null | undefined) =>
   element?.type === "document";
 
 export const requestOpenDocument = (board: Board, elementId: string) =>
   board.emit(DOCUMENT_OPEN_EVENT, elementId);
+
+export const requestInsertDocument = (board: Board, request: DocumentInsertRequest) =>
+  board.emit(DOCUMENT_INSERT_EVENT, request);
+
+/** 视口中央的放入请求（工具栏按钮、没有光标位置时） */
+export function viewportInsertRequest(source: { viewPort: ViewPort }): DocumentInsertRequest {
+  const { minX, minY, width, height } = source.viewPort;
+  return { at: { x: minX + width / 2, y: minY + height / 2 }, align: "center" };
+}
 
 export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
   name = "document";
@@ -79,7 +124,10 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
           icon: <FileText size={14} />,
           priority: 140,
           onSelect: (ctx: ContextMenuContext) => {
-            ctx.board.emit("tau.modal.open", { type: "document" });
+            requestInsertDocument(ctx.board, {
+              at: ctx.viewPortPoint,
+              screen: { x: ctx.clientX, y: ctx.clientY },
+            });
           },
         },
       ];
@@ -144,6 +192,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
       <DocumentElementComponent
         key={element.id}
         element={element}
+        insertable={this.actions.create}
         onResizeStart={this.onResizeStart}
         onResize={this.onResize}
         onResizeEnd={this.onResizeEnd}

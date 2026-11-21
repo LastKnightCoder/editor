@@ -14,6 +14,7 @@ import {
   createRichTextExtension,
   createMindExtension,
   createDocumentExtension,
+  createExcerptExtension,
   createWhiteboardReferenceExtension,
   createWebviewExtension,
   createImageExtension,
@@ -61,7 +62,14 @@ import useSettingStore from "@/stores/useSettingStore";
 import { NoteLayers } from "./NoteLayers";
 import { RichTextActionsLayer } from "./RichTextActionsLayer";
 import { selectorLayer } from "./selectorLayer";
-import { DocumentSelectorModal } from "./components/Document/DocumentSelectorModal";
+import { QuickInsertLayer } from "./components/Document/QuickInsertPanel";
+import { SuggestionLayer } from "./components/Document/SuggestionLayer";
+import { PeekLayer } from "./components/Document/PeekLayer";
+import { PdfPageTurnLayer } from "./components/Document/PdfFace";
+import { MaterialShelfLayer } from "./components/Document/MaterialShelf";
+import { materialIngest } from "./components/Document/materialDrag";
+import { excerptIngest } from "./components/Document/excerpt";
+import { ExcerptCard, ExcerptSourceLayer } from "./components/Document/ExcerptCard";
 import ImageSelectorModal from "./components/ImageSelectorModal";
 import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
@@ -229,8 +237,15 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
         Tool: DocumentTool,
         layers: [
           { id: "tau.document.reader", position: "canvas", component: DocumentReaderLayer },
-          selectorLayer("document", DocumentSelectorModal),
+          { id: "tau.document.insert", position: "canvas", component: QuickInsertLayer },
+          { id: "tau.document.suggestions", position: "canvas", component: SuggestionLayer },
+          { id: "tau.document.peek", position: "canvas", component: PeekLayer },
+          { id: "tau.document.pdf-page", position: "outside", component: PdfPageTurnLayer },
         ],
+      }),
+      createExcerptExtension({
+        Body: ExcerptCard,
+        layers: [{ id: "tau.excerpt.source", position: "outside", component: ExcerptSourceLayer }],
       }),
       createWhiteboardReferenceExtension({
         Body: WhiteboardCard,
@@ -281,6 +296,19 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
       createExportExtension(captureBlobWithSnapdom),
       createPresentationExtension(),
       createImagePreviewExtension({ Image: desktopMediaImage }),
+      defineWhiteboardExtension({
+        id: "tau.desktop-materials",
+        create: () => ({
+          ingest: [materialIngest, excerptIngest],
+          layers: [
+            {
+              id: "tau.desktop-materials.shelf",
+              position: "canvas",
+              component: MaterialShelfLayer,
+            },
+          ],
+        }),
+      }),
       defineWhiteboardExtension({
         id: "tau.desktop-notes",
         create: () => ({

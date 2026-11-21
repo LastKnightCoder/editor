@@ -13,6 +13,8 @@ export type EntityKind =
   | "notebook"
   // 日记里的一条碎碎念（diary_segments）：id 是片段 id，所属那一天见 EntityCandidate.diaryId
   | "diary-moment"
+  // 一整份 PDF（pdfs）：没有正文，只供白板放成文档卡
+  | "pdf"
   // 外部材料与对话：只供问题「关联已有」选择（问题材料 / 探究对话），没有正文
   | "excerpt"
   | "pdf-annotation"

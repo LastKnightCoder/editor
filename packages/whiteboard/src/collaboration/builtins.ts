@@ -158,8 +158,13 @@ const specs: Readonly<Record<string, BuiltinSpec>> = {
   },
   document: {
     data: ["title"],
+    transient: ["entityRef"],
     collaboration: { textFields: ["title"] },
     structure: { reference: "entity", joins: ["layout"] },
+  },
+  excerpt: {
+    data: ["source", "quote", "note", "color", "sourceTitle"],
+    structure: { joins: ["layout"] },
   },
   whiteboard: {
     data: [

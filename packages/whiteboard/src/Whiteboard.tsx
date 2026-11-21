@@ -494,9 +494,11 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
 
     const setPointerViewport = useMemoizedFn((event: Pick<PointerEvent, "clientX" | "clientY">) => {
       const point = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
+      board.pointer = point ?? null;
       pointerViewportStore.setPoint(point ?? null);
     });
     const clearPointerViewport = useMemoizedFn(() => {
+      board.pointer = null;
       pointerViewportStore.setPoint(null);
     });
 

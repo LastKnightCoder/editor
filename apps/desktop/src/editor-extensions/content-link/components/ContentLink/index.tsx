@@ -99,6 +99,10 @@ const ContentLink = memo((props: IContentLinkProps) => {
     <>
       <span
         {...attributes}
+        // 白板阅读纸据此把引用拖出成文档卡
+        data-content-link=""
+        data-content-type={contentType}
+        data-ref-id={refId}
         onClick={handleClick}
         onMouseEnter={e => {
           setAnchor(e.currentTarget);

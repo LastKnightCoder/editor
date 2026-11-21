@@ -20,6 +20,31 @@ function database() {
   return db;
 }
 
+describe("PDF 的稳定引用（白板 PDF 文档卡）", () => {
+  const insertPdf = (db: Database.Database, createTime: number) =>
+    Number(
+      db
+        .prepare(
+          "INSERT INTO pdfs (create_time, update_time, is_local, file_name, file_path) VALUES (?, ?, 1, 'a.pdf', '/a.pdf')"
+        )
+        .run(createTime, createTime).lastInsertRowid
+    );
+
+  it("引用能解析回同一份 PDF；删除后同编号的新 PDF 不会被旧引用认领", () => {
+    const db = database();
+    ContentIdentityTable.establishBaseline(db);
+    const id = insertPdf(db, 1000);
+    const reference = ContentIdentityTable.reference(db, "pdf", id);
+    expect(ContentIdentityTable.resolve(db, reference)).toBe(id);
+
+    db.prepare("DELETE FROM pdfs WHERE id = ?").run(id);
+    db.prepare(
+      "INSERT INTO pdfs (id, create_time, update_time, is_local, file_name, file_path) VALUES (?, 2000, 2000, 1, 'b.pdf', '/b.pdf')"
+    ).run(id);
+    expect(ContentIdentityTable.resolve(db, reference)).toBeNull();
+  });
+});
+
 describe("领域命令直接接纳稳定引用", () => {
   it("未转换库不能隐式建立来源，已转换库的新数据表从零引用开始", () => {
     const db = database();

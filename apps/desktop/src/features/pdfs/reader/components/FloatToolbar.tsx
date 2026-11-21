@@ -21,6 +21,7 @@ import {
   Trash2,
   Underline,
   Waves,
+  SquareArrowOutUpRight,
 } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EHighlightColor } from "@/types";
@@ -43,6 +44,10 @@ interface FloatToolbarProps {
   onCopy?: () => void;
   onDelete?: () => void;
   onSaveArea?: () => void;
+  /** 给出时显示「放到白板」（宿主是白板） */
+  onSendToBoard?: () => void;
+  /** 「放到白板」也可以直接拖出纸面：宿主写入拖放数据 */
+  onSendDragStart?: (event: React.DragEvent) => void;
   /** 删除之前的额外按钮 */
   extra?: ReactNode;
   className?: string;
@@ -119,6 +124,8 @@ export function FloatToolbar({
   onCopy,
   onDelete,
   onSaveArea,
+  onSendToBoard,
+  onSendDragStart,
   extra,
   className,
 }: FloatToolbarProps) {
@@ -131,10 +138,13 @@ export function FloatToolbar({
       role="toolbar"
       aria-label="标注工具条"
       onPointerDown={e => {
+        // 拖出把手要走原生拖放，不能吞掉默认行为
+        if ((e.target as Element).closest("[data-drag-out]")) return e.stopPropagation();
         e.preventDefault();
         e.stopPropagation();
       }}
       onMouseDown={e => {
+        if ((e.target as Element).closest("[data-drag-out]")) return e.stopPropagation();
         e.preventDefault();
         e.stopPropagation();
       }}
@@ -188,6 +198,23 @@ export function FloatToolbar({
         <ToolButton label="笔记" icon={<MessageSquarePlus {...ICON} />} onClick={onNote}>
           {mode === "selection" || !hasNote ? "写笔记" : "笔记"}
         </ToolButton>
+      )}
+      {onSendToBoard && (
+        <span
+          {...(onSendDragStart ? { "data-drag-out": "" } : {})}
+          draggable={!!onSendDragStart}
+          onDragStart={onSendDragStart}
+          className="inline-flex"
+          title={onSendDragStart ? "点一下放到旁边，或拖到画布上的任意位置" : undefined}
+        >
+          <ToolButton
+            label="放到白板"
+            icon={<SquareArrowOutUpRight {...ICON} />}
+            onClick={onSendToBoard}
+          >
+            放到白板
+          </ToolButton>
+        </span>
       )}
       {canAsk && (
         <ToolButton label="问 AI" icon={<Sparkles {...ICON} />} onClick={onAsk} accent>

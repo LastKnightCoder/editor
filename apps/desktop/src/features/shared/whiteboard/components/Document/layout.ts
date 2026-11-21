@@ -9,6 +9,8 @@ export const DOCUMENT_PAPER_WIDTH: Record<DocumentKind, number> = {
   article: 620,
   "project-item": 620,
   "diary-moment": 460,
+  /** PDF 卡面是页面位图，版宽只决定渲染清晰度 */
+  pdf: 595,
 };
 
 /** 短内容（卡片、碎碎念）：没有标题，元信息排在正文之后 */

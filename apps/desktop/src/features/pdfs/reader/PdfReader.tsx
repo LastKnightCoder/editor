@@ -45,6 +45,8 @@ type LayoutPassThrough = Pick<
   | "onAskAI"
   | "leftToggleInHud"
   | "onOpenChat"
+  | "onSendToBoard"
+  | "onDragToBoard"
 >;
 
 function buildPlugins(pdfFile: PdfFile): PluginBatchRegistrations {

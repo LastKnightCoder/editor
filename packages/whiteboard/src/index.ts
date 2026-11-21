@@ -49,6 +49,8 @@ export {
   FrameUtil,
   PointUtil,
   MindUtil,
+  placeDocuments,
+  placeExcerpt,
 } from "./public";
 export { default as MindThemeUtil } from "./utils/MindThemeUtil";
 export type { MindMode, MindNodeVisual } from "./utils/MindThemeUtil";
@@ -68,11 +70,26 @@ export {
 export { SKETCH_MEDIA_FRAME } from "./constants/sketch";
 export {
   DOCUMENT_OPEN_EVENT,
+  DOCUMENT_INSERT_EVENT,
+  DOCUMENT_RELATED_EVENT,
+  DOCUMENT_PEEK_EVENT,
+  DOCUMENT_TURN_PAGE_EVENT,
   DOCUMENT_DEFAULT_SIZE,
   isDocumentElement,
 } from "./plugins/DocumentPlugin";
-export type { DocumentElement, DocumentKind } from "./plugins/DocumentPlugin";
+export type {
+  DocumentElement,
+  DocumentKind,
+  DocumentInsertRequest,
+} from "./plugins/DocumentPlugin";
 export type { WhiteboardElement } from "./plugins/WhiteboardPlugin";
+export {
+  EXCERPT_OPEN_SOURCE_EVENT,
+  EXCERPT_DEFAULT_SIZE,
+  isExcerptElement,
+} from "./plugins/ExcerptPlugin";
+export type { ExcerptElement, ExcerptSource } from "./plugins/ExcerptPlugin";
+export { EXCERPT_CARD_RADIUS } from "./components/ExcerptElement";
 export * from "./chrome";
 export { PageSchematic } from "./schematic/PageSchematic";
 export { default as ResizeCircle } from "./components/ResizeCircle";

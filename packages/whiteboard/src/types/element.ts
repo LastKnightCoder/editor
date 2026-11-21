@@ -1,4 +1,7 @@
 import type { EntityRef } from "@tau/shared/entity-ref";
+
+/** 元素指向的库内实体：正文实体（EntityRef），或一整份 PDF（文档卡） */
+export type BoardEntityRef = EntityRef | { kind: "pdf"; id: number };
 import type { ElementSketch } from "./sketch";
 import type { Point } from "./point";
 
@@ -11,7 +14,7 @@ export interface BoardElement {
   children?: BoardElement[];
   resizable?: boolean;
   autoHeight?: boolean;
-  entityRef?: EntityRef;
+  entityRef?: BoardEntityRef;
   entity?: import("@tau/db-schema/content-identities").ContentEntityReference;
   sketch?: ElementSketch;
   schemaVersion?: number;

@@ -16,6 +16,7 @@ import {
 } from "@tau/whiteboard";
 import ContentEditor from "@/components/ContentEditor";
 import { DocumentPaper } from "./DocumentPaper";
+import { PdfFace } from "./PdfFace";
 import { DOCUMENT_PAPER_WIDTH } from "./layout";
 import { useDocumentSource } from "./source";
 import { useDocumentReaderPreference, useDocumentReaderState } from "./readerStore";
@@ -52,21 +53,26 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
 
   const lowZoom = zoom < simplifiedRenderZoomThreshold;
   const paperWidth = DOCUMENT_PAPER_WIDTH[source?.kind ?? element.entityRef?.kind ?? "article"];
+  // PDF 卡面自带纸叠与阴影，外框不裁切、不投影
+  const pdf = !missing && !!source?.pdf;
 
   return (
     <div
       data-document-card={element.id}
       className={cn(
-        "bg-surface shadow-paper relative size-full overflow-hidden",
+        "relative size-full",
+        !pdf && "bg-surface shadow-paper overflow-hidden",
         missing && "opacity-60"
       )}
-      style={{ borderRadius: DOCUMENT_CARD_RADIUS }}
+      style={{ borderRadius: pdf ? undefined : DOCUMENT_CARD_RADIUS }}
     >
       {missing ? (
         <div className="text-ink-3 flex size-full flex-col items-center justify-center gap-2 text-[13px]">
           <FileX2 className="size-5" strokeWidth={1.5} />
           {element.title ? `「${element.title}」已删除` : "文档已删除"}
         </div>
+      ) : source?.pdf ? (
+        <PdfFace element={element} pdf={source.pdf} zoom={zoom} lowZoom={lowZoom} />
       ) : !source || lowZoom ? (
         <Skeleton title={source?.title ?? element.title} />
       ) : (
@@ -85,7 +91,9 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
           </DocumentPaper>
         </div>
       )}
-      <div className="to-surface pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent" />
+      {!pdf && (
+        <div className="to-surface pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent" />
+      )}
       {open && mode === "dock" && !closing && (
         <span
           data-document-badge

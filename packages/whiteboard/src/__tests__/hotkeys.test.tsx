@@ -449,6 +449,52 @@ describe("内置快捷键（tau.interaction / tau.document）", () => {
     idle.board.onKeyDown(keydown({ key: "Enter" }));
     expect(open).toHaveBeenCalledOnce();
   });
+
+  it("空格在单选文档卡时请求速览（只读画布也可以）；未选中时放行", () => {
+    const document_ = {
+      id: "doc",
+      type: "document",
+      entityRef: { kind: "article", id: 3 },
+      x: 0,
+      y: 0,
+      width: 280,
+      height: 360,
+    } as BoardElement;
+    const peek = vi.fn();
+    const { board } = install([document_], [document_], [createDocumentExtension({})]);
+    board.on("tau.document.peek", peek);
+    board.readonly = true;
+    const event = keydown({ key: " " });
+    board.onKeyDown(event);
+    expect(peek).toHaveBeenCalledWith("doc");
+    expect(event.defaultPrevented).toBe(true);
+
+    const idle = install([document_], [], [createDocumentExtension({})]);
+    const pass = keydown({ key: " " });
+    idle.board.onKeyDown(pass);
+    expect(pass.defaultPrevented).toBe(false);
+  });
+
+  it("/ 在光标处请求放入，光标不在画布上时放在视口中央；只读画布不请求", () => {
+    const insert = vi.fn();
+    const { board } = install([], [], [createDocumentExtension({ Tool: () => null })]);
+    board.on("tau.document.insert", insert);
+    board.onKeyDown(keydown({ key: "/" }));
+    expect(insert).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        at: { x: viewport.minX + viewport.width / 2, y: viewport.minY + viewport.height / 2 },
+        align: "center",
+      })
+    );
+
+    board.pointer = { x: 40, y: 60 };
+    board.onKeyDown(keydown({ key: "/" }));
+    expect(insert).toHaveBeenLastCalledWith({ at: { x: 40, y: 60 } });
+
+    board.readonly = true;
+    board.onKeyDown(keydown({ key: "/" }));
+    expect(insert).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("getShortcut", () => {

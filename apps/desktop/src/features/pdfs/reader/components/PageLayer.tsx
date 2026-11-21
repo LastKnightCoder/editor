@@ -190,6 +190,7 @@ export function PageLayer({ pageIndex, scale, width, height, paper }: PageLayerP
             onNote={reader.noteSelection}
             onAsk={reader.askSelection}
             onCopy={reader.copySelection}
+            onSendToBoard={reader.canSendToBoard ? reader.sendSelectionToBoard : undefined}
           />
         </Anchor>
       )}
@@ -397,7 +398,7 @@ function PinCard({
       style={{ top: top - 4, right: 40, width: PIN_CARD_WIDTH }}
     >
       <div className="text-tau-meta text-ink-3 truncate">{annotationSnippet(record)}</div>
-      <div className="mt-0.5 line-clamp-6 whitespace-pre-wrap leading-relaxed">
+      <div className="mt-0.5 line-clamp-6 leading-relaxed whitespace-pre-wrap">
         {noteText(record)}
       </div>
       <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2">

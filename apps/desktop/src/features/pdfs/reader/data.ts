@@ -79,6 +79,17 @@ function placeholderObject(
   } as PdfAnnotationObject;
 }
 
+/** 只读：白板 PDF 卡面的页边标记用，与阅读器共用同一份缓存 */
+export function usePdfAnnotationList(pdfId: number | null) {
+  const { database, ready } = useDatabaseReady();
+  return useQuery({
+    queryKey: annotationsKey(database, pdfId ?? 0),
+    queryFn: async () => (await getPdfAnnotations(pdfId ?? 0)).map(revive),
+    enabled: ready && !!pdfId,
+    staleTime: Infinity,
+  }).data;
+}
+
 export function useReaderAnnotations(pdfId: number) {
   const client = useQueryClient();
   const { database, ready } = useDatabaseReady();

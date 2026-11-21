@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Descendant } from "slate";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import {
+  BookOpen,
   ExternalLink,
   FileText,
   Feather,
@@ -33,6 +34,7 @@ import {
   useBoard,
   useSelection,
   type Board,
+  type BoardElement,
   type DocumentElement,
   type DocumentKind,
 } from "@tau/whiteboard";
@@ -53,6 +55,12 @@ import {
 } from "./readerStore";
 import { SPRING, boxStyle, prefersReducedMotion, relativeBox, type Box } from "./morph";
 import { useDocumentHost } from "./DocumentHostContext";
+import { ReaderLinkBar, locateElement, useReferenceDragOut } from "./ReaderLinks";
+import { textEntityRef } from "./entityRef";
+import { EXCERPT_MIME, excerptFromAnnotation, placeExcerptBeside, setExcerptDrag } from "./excerpt";
+import { MATERIAL_MIME } from "./materialDrag";
+import type { PdfAnnotation } from "@/types";
+import { WhiteboardPdfReader } from "@/features/pdfs/reader/WhiteboardPdfReader";
 
 /** 停靠纸面的圆角；铺满时贴合画布容器，由容器裁圆角 */
 const FRAME_RADIUS = 16;
@@ -66,6 +74,7 @@ const KIND_ICON: Record<DocumentKind, typeof FileText> = {
   article: FileText,
   "project-item": FolderOpen,
   "diary-moment": Feather,
+  pdf: BookOpen,
 };
 
 /** 盒子在图层上的裁切形状 */
@@ -157,7 +166,11 @@ function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly
       initValue={source.content}
       readonly={readonly}
       {...(sessionSource ? { source: sessionSource } : {})}
-      editingContext={{ entityType: source.kind, entityId: moment?.segmentId ?? source.id }}
+      editingContext={{
+        // 只有正文实体会走到编辑器，PDF 卡在外层分流
+        entityType: source.kind as Exclude<DocumentSource["kind"], "pdf">,
+        entityId: moment?.segmentId ?? source.id,
+      }}
       {...(moment
         ? {
             onChange: (content: Descendant[]) => {
@@ -175,12 +188,14 @@ interface ReaderProps {
   element: DocumentElement;
   source: DocumentSource;
   mode: DocumentReaderMode;
+  /** 换到另一张文档卡（「相连」底栏） */
+  onSwitch(id: string): void;
   /** 宿主不允许停靠时不传，纸面上不出现切换按钮 */
   onModeChange?(mode: DocumentReaderMode): void;
   onClosed(): void;
 }
 
-function Reader({ board, element, source, mode, onModeChange, onClosed }: ReaderProps) {
+function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed }: ReaderProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -403,9 +418,60 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
       openPage("diary", { date: source.moment.day, moment: String(source.moment.segmentId) });
       return;
     }
-    openEntity(source).catch(error =>
+    if (source.pdf) {
+      openPage("pdf-detail", { pdfId: source.pdf.id });
+      return;
+    }
+    const ref = textEntityRef(source);
+    if (!ref) return;
+    openEntity(ref).catch(error =>
       toast.error(error instanceof Error ? error.message : "打开失败")
     );
+  });
+
+  // 拖引用出纸面：居中时纸面和遮罩让开画布，拖完恢复
+  const [dragging, setDragging] = useState(false);
+  useReferenceDragOut(scrollRef, element, opened && !board.readonly);
+  useEffect(() => {
+    const root = frameRef.current;
+    if (!root || mode !== "center") return;
+    // dragstart 时数据刚写入：引用拖出与摘录拖出都让纸面让开画布
+    const start = (event: DragEvent) => {
+      const types = event.dataTransfer?.types ?? [];
+      if (types.includes(MATERIAL_MIME) || types.includes(EXCERPT_MIME)) setDragging(true);
+    };
+    const end = () => setDragging(false);
+    root.addEventListener("dragstart", start);
+    document.addEventListener("dragend", end, true);
+    document.addEventListener("drop", end, true);
+    return () => {
+      root.removeEventListener("dragstart", start);
+      document.removeEventListener("dragend", end, true);
+      document.removeEventListener("drop", end, true);
+    };
+  }, [mode, opened]);
+
+  // 相连的文档卡：纸面不动，原地换篇；其他元素：收起后镜头带过去
+  const switchTo = useMemoizedFn((target: BoardElement) => {
+    if (isDocumentElement(target)) return onSwitch(target.id);
+    close();
+    locateElement(board, target);
+  });
+
+  const focus = useDocumentReaderState(board, state => state.focus ?? null);
+  // PDF 标注 → 摘录：放在纸面左侧的画布上（停靠时）或卡片旁（居中时先收起）
+  const sendAnnotation = useMemoizedFn((record: PdfAnnotation) => {
+    if (!source.pdf) return;
+    const excerpt = excerptFromAnnotation(source.pdf, record, source.title);
+    if (mode === "center") close();
+    void placeExcerptBeside(board, element, excerpt);
+  });
+  const dragAnnotation = useMemoizedFn((record: PdfAnnotation, event: React.DragEvent) => {
+    if (!source.pdf) return;
+    setExcerptDrag(event, {
+      excerpt: excerptFromAnnotation(source.pdf, record, source.title),
+      linkFrom: element.id,
+    });
   });
 
   const Icon = KIND_ICON[source.kind];
@@ -426,7 +492,10 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     <div
       ref={layerRef}
       {...{ [CANVAS_OVERLAY_ATTR]: "" }}
-      className="pointer-events-none absolute inset-0 z-[8] overflow-hidden"
+      className={cn(
+        "pointer-events-none absolute inset-0 z-[8] overflow-hidden transition-opacity duration-150",
+        dragging && "opacity-35 [&_*]:!pointer-events-none"
+      )}
     >
       <DesktopEditorOverlayDismiss open onDismiss={close} />
       {mode === "center" && (
@@ -489,19 +558,36 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
                 </HeaderButton>
                 {mode === "dock" && closeButton}
               </div>
-              <FadeScroll scrollRef={scrollRef} className="min-h-0 flex-1 overscroll-contain">
-                <DocumentPaper source={source} fill>
+              {source.pdf ? (
+                <div className="flex min-h-0 flex-1">
                   {opened ? (
-                    <DocumentEditor
-                      key={source.contentId}
-                      source={source}
-                      readonly={board.readonly}
+                    <WhiteboardPdfReader
+                      key={`${source.pdf.id}:${focus?.nonce ?? 0}`}
+                      pdf={source.pdf}
+                      annotationId={focus?.annotationId ?? null}
+                      onSendToBoard={record => sendAnnotation(record)}
+                      onDragToBoard={(record, event) => dragAnnotation(record, event)}
                     />
                   ) : (
-                    <Loading minHeight={160} />
+                    <Loading minHeight={160} className="flex-1" />
                   )}
-                </DocumentPaper>
-              </FadeScroll>
+                </div>
+              ) : (
+                <FadeScroll scrollRef={scrollRef} className="min-h-0 flex-1 overscroll-contain">
+                  <DocumentPaper source={source} fill>
+                    {opened ? (
+                      <DocumentEditor
+                        key={source.contentId}
+                        source={source}
+                        readonly={board.readonly}
+                      />
+                    ) : (
+                      <Loading minHeight={160} />
+                    )}
+                  </DocumentPaper>
+                </FadeScroll>
+              )}
+              <ReaderLinkBar element={element} onSwitch={switchTo} />
             </div>
           </div>
         </>
@@ -543,7 +629,7 @@ export function DocumentReaderLayer() {
     if (next && next.id !== openId && isDocumentElement(next)) store.setState({ openId: next.id });
   }, [selection, openId, mode, store]);
 
-  const closed = useMemoizedFn(() => store.setState({ openId: null, closing: false }));
+  const closed = useMemoizedFn(() => store.setState({ openId: null, closing: false, focus: null }));
 
   // 元素被删除（含撤销其插入）或正文已删除：直接收起
   useEffect(() => {
@@ -557,6 +643,10 @@ export function DocumentReaderLayer() {
       element={element}
       source={source}
       mode={mode}
+      onSwitch={id => {
+        board.select([id]);
+        store.setState({ openId: id });
+      }}
       onModeChange={allowDock ? setMode : undefined}
       onClosed={closed}
     />

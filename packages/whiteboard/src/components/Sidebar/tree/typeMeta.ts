@@ -13,6 +13,7 @@ import {
   Type,
   Video,
   Box,
+  Quote,
   type LucideIcon,
 } from "lucide-react";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
@@ -30,6 +31,7 @@ const META: Record<string, { label: string; icon: LucideIcon }> = {
   arrow: { label: "箭头", icon: ArrowUpRight },
   richtext: { label: "文本", icon: Type },
   document: { label: "文档", icon: FileText },
+  excerpt: { label: "摘录", icon: Quote },
   image: { label: "图片", icon: Image },
   video: { label: "视频", icon: Video },
   audio: { label: "音频", icon: AudioLines },

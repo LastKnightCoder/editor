@@ -13,6 +13,7 @@ import {
   type FrameElement,
 } from "@tau/whiteboard";
 import { entityRefKey, normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
+import { textEntityRef } from "@/features/shared/whiteboard/components/Document/entityRef";
 import type { GatherGroup } from "@/types/compose";
 
 /** AI 召集摆上来的元素记号：删除时据此记为「不要」，用户手动放的不记 */
@@ -40,11 +41,12 @@ export function collectDocuments(children: BoardElement[]): BoardDocument[] {
   const result: BoardDocument[] = [];
   const visit = (elements: BoardElement[]) => {
     for (const element of elements) {
-      if (isDocument(element) && element.entityRef) {
+      const ref = isDocument(element) ? textEntityRef(element.entityRef) : null;
+      if (isDocument(element) && ref) {
         result.push({
           elementId: element.id,
-          key: entityRefKey(element.entityRef),
-          ref: element.entityRef,
+          key: entityRefKey(ref),
+          ref,
           title: element.title ?? "",
           gathered: element.composeOrigin === COMPOSE_ORIGIN,
         });

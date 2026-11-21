@@ -17,6 +17,7 @@ const PAPER_CLASS: Record<DocumentKind, string> = {
   article: "px-[52px] pb-[72px] pt-10",
   "project-item": "px-[52px] pb-[72px] pt-10",
   "diary-moment": "px-9 pb-12 pt-[30px]",
+  pdf: "",
 };
 
 function ArticleCover({ source }: { source: DocumentSource }) {
@@ -30,7 +31,7 @@ function ArticleCover({ source }: { source: DocumentSource }) {
       {banner && (
         <LocalImage
           url={banner}
-          className="absolute inset-0 size-full select-none object-cover"
+          className="absolute inset-0 size-full object-cover select-none"
           draggable={false}
           onLoadError={() => setFailed(banner)}
         />
@@ -87,7 +88,7 @@ function DocumentHead({ source }: { source: DocumentSource }) {
           {source.projectName}
         </div>
       )}
-      <h1 className="text-ink-1 text-[30px] font-semibold leading-[1.32] tracking-[-0.01em]">
+      <h1 className="text-ink-1 text-[30px] leading-[1.32] font-semibold tracking-[-0.01em]">
         {source.title || "无标题"}
       </h1>
     </header>

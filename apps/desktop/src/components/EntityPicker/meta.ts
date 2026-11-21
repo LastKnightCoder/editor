@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   CalendarDays,
   CircleCheck,
   Feather,
@@ -27,6 +28,7 @@ export const ENTITY_KIND_META: Record<EntityKind, { label: string; icon: LucideI
   notebook: { label: "Notebook", icon: FlaskConical },
   "diary-moment": { label: "日记", icon: Feather },
   excerpt: { label: "划线", icon: Highlighter },
+  pdf: { label: "PDF", icon: BookOpen },
   "pdf-annotation": { label: "PDF 标注", icon: ScrollText },
   "web-clip": { label: "剪藏", icon: Globe },
   "chat-session": { label: "对话", icon: MessageCircle },

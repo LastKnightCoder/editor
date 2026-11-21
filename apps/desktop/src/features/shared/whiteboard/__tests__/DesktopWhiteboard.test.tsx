@@ -54,9 +54,17 @@ vi.mock("@/components/LocalImage", () => ({ default: () => null }));
 vi.mock("@/hooks/useContentDocument", () => ({ default: () => ({ article: null }) }));
 vi.mock("../NoteLayers", () => ({ NoteLayers: () => null }));
 vi.mock("../RichTextActionsLayer", () => ({ RichTextActionsLayer: () => null }));
-vi.mock("../components/Document/DocumentSelectorModal", () => ({
-  DocumentSelectorModal: () => null,
+vi.mock("../components/Document/QuickInsertPanel", () => ({
+  QuickInsertLayer: () => null,
 }));
+vi.mock("../components/Document/SuggestionLayer", () => ({ SuggestionLayer: () => null }));
+vi.mock("../components/Document/PeekLayer", () => ({ PeekLayer: () => null }));
+vi.mock("../components/Document/PdfFace", () => ({ PdfPageTurnLayer: () => null }));
+vi.mock("../components/Document/ExcerptCard", () => ({
+  ExcerptCard: () => null,
+  ExcerptSourceLayer: () => null,
+}));
+vi.mock("../components/Document/MaterialShelf", () => ({ MaterialShelfLayer: () => null }));
 vi.mock("../components/ImageSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/VideoSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/AudioSelectorModal", () => ({ default: () => null }));

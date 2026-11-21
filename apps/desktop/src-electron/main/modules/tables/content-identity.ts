@@ -23,6 +23,7 @@ const tables: Record<ContentEntityKind, string> = {
   whiteboard: "white_boards",
   content: "contents",
   "video-note": "video_notes",
+  pdf: "pdfs",
 };
 
 export class ContentIdentityTable {

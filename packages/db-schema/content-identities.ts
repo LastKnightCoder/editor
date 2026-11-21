@@ -8,6 +8,7 @@ export const CONTENT_ENTITY_KINDS = [
   "whiteboard",
   "content",
   "video-note",
+  "pdf",
 ] as const;
 export type ContentEntityKind = (typeof CONTENT_ENTITY_KINDS)[number];
 export interface ContentEntityReference {

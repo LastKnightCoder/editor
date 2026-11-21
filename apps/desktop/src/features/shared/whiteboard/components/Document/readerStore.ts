@@ -28,6 +28,8 @@ interface OpenState {
   /** 展开中的文档元素 id；收起动画期间仍保留，动画结束才清空 */
   openId: string | null;
   closing: boolean;
+  /** 打开 PDF 卡时定位到这条标注（摘录回到原文）；每次请求带新的 nonce，同一条也会重新定位 */
+  focus?: { annotationId: number; nonce: number } | null;
 }
 
 const stores = new WeakMap<Board, StoreApi<OpenState>>();

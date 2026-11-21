@@ -55,6 +55,12 @@ export interface ReaderContextValue {
   noteSelection: () => void;
   askSelection: () => void;
   copySelection: () => void;
+  /** 宿主是白板时为 true：工具条多「放到白板」 */
+  canSendToBoard: boolean;
+  sendSelectionToBoard: () => void;
+  sendToBoard: (target: PdfAnnotationObject | PdfAnnotation) => void;
+  /** 把已有标注拖出纸面：写入拖放数据（宿主是白板且标注已落库时才有） */
+  dragToBoard?: (target: PdfAnnotationObject | PdfAnnotation, event: React.DragEvent) => void;
 
   /* 新区域 */
   saveNewArea: () => void;

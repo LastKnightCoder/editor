@@ -5,7 +5,7 @@ import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useBoard, useZoom } from "../../hooks";
-import { BoardUtil, PointUtil } from "../../utils";
+import { BoardUtil, PathUtil, PointUtil } from "../../utils";
 import type { ArrowElement, Point, BoardElement } from "../../types";
 import { useMoveArrow } from "../../hooks/useMoveArrow";
 import useMoveInAnimate from "./useMoveInAnimate";
@@ -20,6 +20,16 @@ interface ArrowConnectPointProps {
   fill: string;
   fillOpacity?: number;
   onConnectStart?: () => void;
+  /**
+   * 拖出的箭头松手时没有连到任何元素：返回 true 表示由调用方接手（不提交这条箭头），
+   * release 用于在接手结束后撤掉还画着的临时箭头。
+   */
+  onReleaseInSpace?: (event: {
+    point: Point;
+    clientX: number;
+    clientY: number;
+    release(): void;
+  }) => boolean;
   onPointerEnter?: PointerEventHandler<SVGCircleElement>;
   onPointerLeave?: PointerEventHandler<SVGCircleElement>;
 }
@@ -34,6 +44,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     element,
     connectId,
     onConnectStart,
+    onReleaseInSpace,
     onPointerEnter,
     onPointerLeave,
   } = props;
@@ -153,9 +164,27 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     boardContainer.removeEventListener("pointermove", handlePointerMove);
   });
 
-  const handlePointerUp = useMemoizedFn(() => {
+  const handlePointerUp = useMemoizedFn((event?: Event) => {
     cancelPointerMoveSafely();
+    const arrow = createdArrow.current;
+    const released =
+      !!arrow &&
+      !!currentPoint.current &&
+      isMoved.current &&
+      !arrow.target.bindId &&
+      event instanceof PointerEvent &&
+      event.type === "pointerup" &&
+      onReleaseInSpace?.({
+        point: currentPoint.current,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        release: () => {
+          const path = PathUtil.getPathByElement(board, arrow);
+          if (path) board.apply([{ type: "remove_node", path, node: arrow }], false);
+        },
+      }) === true;
     if (
+      !released &&
       startPoint.current &&
       currentPoint.current &&
       isMoved.current &&

@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileX, PanelLeft } from "lucide-react";
 import { Button, IconButton, Loading, ResizeHandle, cn } from "@tau/ui";
 import { readBinaryFile, recordPdfOpen, recordPdfPage } from "@/commands";
+import { syncLastPage } from "../lastPage";
 import { useOwnAssist } from "@/app/assistOwner";
 import { useSidebarCollapsedWhile } from "@/app/useSidebarCollapsedWhile";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
@@ -18,7 +19,7 @@ import type { Pdf } from "@/types";
 import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import PdfChatPanel, { type PdfChatPanelHandle } from "../chat/PdfChatPanel";
 import { pdfTitle } from "../model";
-import { detailKey, useDatabaseReady, usePdfDetail } from "../queries";
+import { useDatabaseReady, usePdfDetail } from "../queries";
 import type { PdfQuote } from "../reader/annotationModel";
 import { usePdfIndex } from "../reader/data";
 import { PdfReaderView } from "../reader/PdfReader";
@@ -137,10 +138,8 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
     useReadingPositions.getState().save(pdf.id, position);
     if (position.page === savedPage.current) return;
     savedPage.current = position.page;
-    // 详情缓存不自动刷新（staleTime: Infinity），同步改掉，免得下次打开用旧页码
-    client.setQueryData<Pdf | null>(detailKey(database, pdf.id), prev =>
-      prev ? { ...prev, lastPage: position.page } : prev
-    );
+    // 详情缓存不自动刷新（staleTime: Infinity），连同白板卡面一起同步改掉
+    syncLastPage(client, database, pdf.id, position.page);
     void recordPdfPage(pdf.id, position.page).then(invalidateLibrary);
   }, [pdf.id, client, database, invalidateLibrary]);
   // 卸载或保活隐藏（effect 停驻）时立即写回

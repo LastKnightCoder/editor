@@ -61,6 +61,10 @@ export function AnnotationMenu({
           onToggleStyle={() => reader.toggleStyle(object)}
           onNote={() => reader.openNote(object)}
           onAsk={() => reader.ask(object)}
+          onSendToBoard={reader.canSendToBoard ? () => reader.sendToBoard(object) : undefined}
+          onSendDragStart={
+            reader.dragToBoard ? event => reader.dragToBoard?.(object, event) : undefined
+          }
           onCopy={() => reader.copy(object)}
           onDelete={() => reader.remove(object)}
           extra={<ToolbarPluginActions recordId={record?.id} />}

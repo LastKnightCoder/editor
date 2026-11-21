@@ -1,4 +1,4 @@
-import { memo, useMemo, type MouseEvent } from "react";
+import { memo, useEffect, useMemo, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useMemoizedFn } from "ahooks";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
@@ -15,13 +15,57 @@ import {
   RESIZE_CIRCLE_RADIUS,
   SKETCH_MEDIA_FRAME,
 } from "../../constants";
-import { requestOpenDocument, type DocumentElement } from "../../plugins/DocumentPlugin";
+import {
+  DOCUMENT_PEEK_DELAY,
+  requestInsertDocument,
+  requestOpenDocument,
+  requestPeekDocument,
+  type DocumentElement,
+} from "../../plugins/DocumentPlugin";
+
+/** 按住期间指针移动超过这个距离（屏幕像素）就是拖动，不再速览 */
+const PEEK_MOVE_TOLERANCE = 4;
+
+/** 长按速览：按住不动 250ms 开始，松手、移动或失焦结束 */
+function useLongPressPeek(board: Board, id: string) {
+  const cleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => cleanup.current?.(), []);
+  return useMemoizedFn((event: PointerEvent) => {
+    if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return;
+    cleanup.current?.();
+    const start = { x: event.clientX, y: event.clientY };
+    let peeking = false;
+    const timer = window.setTimeout(() => {
+      peeking = true;
+      requestPeekDocument(board, id);
+    }, DOCUMENT_PEEK_DELAY);
+    const stop = () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", stop, true);
+      document.removeEventListener("pointercancel", stop, true);
+      window.removeEventListener("blur", stop);
+      cleanup.current = null;
+      if (peeking) requestPeekDocument(board, null);
+    };
+    const onMove = (move: globalThis.PointerEvent) => {
+      if (Math.hypot(move.clientX - start.x, move.clientY - start.y) > PEEK_MOVE_TOLERANCE) stop();
+    };
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", stop, true);
+    document.addEventListener("pointercancel", stop, true);
+    window.addEventListener("blur", stop);
+    cleanup.current = stop;
+  });
+}
 
 /** 画布上文档卡的圆角，宿主的纸面与选中框共用 */
 export const DOCUMENT_CARD_RADIUS = 16;
 
 interface DocumentElementProps {
   element: DocumentElement;
+  /** 从连接点拖到空白处松手时打开放入面板（宿主装配了放入入口才开） */
+  insertable?: boolean;
   onResizeStart?: (element: DocumentElement, startPoint: Point) => void;
   onResize: (
     board: Board,
@@ -43,7 +87,7 @@ interface DocumentElementProps {
 
 /** 文档卡外壳负责选中、缩放和连线，纸面由文档扩展的渲染闭包提供。 */
 const DocumentElementComponent = memo((props: DocumentElementProps) => {
-  const { element, onResize, onResizeStart, onResizeEnd } = props;
+  const { element, insertable = false, onResize, onResizeStart, onResizeEnd } = props;
   const { id, x, y, width, height } = element;
   const board = useBoard();
   const sketch = useSketch(element);
@@ -57,6 +101,31 @@ const DocumentElementComponent = memo((props: DocumentElementProps) => {
     [x, y, width, height]
   );
 
+  const handleReleaseInSpace = useMemoizedFn(
+    ({
+      point,
+      clientX,
+      clientY,
+      release,
+    }: {
+      point: Point;
+      clientX: number;
+      clientY: number;
+      release(): void;
+    }) => {
+      if (!insertable || board.readonly) return false;
+      requestInsertDocument(board, {
+        at: point,
+        screen: { x: clientX, y: clientY },
+        linkFrom: id,
+        release,
+      });
+      return true;
+    }
+  );
+
+  const handlePointerDown = useLongPressPeek(board, id);
+
   const handleDoubleClick = useMemoizedFn((e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -67,7 +136,11 @@ const DocumentElementComponent = memo((props: DocumentElementProps) => {
     <>
       {/* 纸面阴影落在元素盒子之外，foreignObject 默认裁切溢出 */}
       <foreignObject x={x} y={y} width={width} height={height} style={{ overflow: "visible" }}>
-        <div className="size-full cursor-move" onDoubleClick={handleDoubleClick}>
+        <div
+          className="size-full cursor-move"
+          onPointerDown={handlePointerDown}
+          onDoubleClick={handleDoubleClick}
+        >
           {Paper ? (
             <Paper element={element} sketch={sketch.enabled} />
           ) : (
@@ -129,6 +202,7 @@ const DocumentElementComponent = memo((props: DocumentElementProps) => {
         points={arrowConnectExtendPoints}
         isSelected={isSelected}
         disabled={isMoveArrowClosing}
+        onReleaseInSpace={handleReleaseInSpace}
       />
       {isMoveArrowClosing &&
         arrowConnectPoints.map(point => (

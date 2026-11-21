@@ -5,6 +5,7 @@ export * from "./RichTextPlugin";
 export * from "./GeometryPlugin";
 export * from "./HandwritePlugin";
 export * from "./DocumentPlugin";
+export * from "./ExcerptPlugin";
 export * from "./CommonPlugin";
 export * from "./ArrowPlugin";
 export * from "./ImagePlugin";

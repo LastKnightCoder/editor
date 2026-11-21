@@ -11,6 +11,8 @@ import { getCardById } from "@/commands/card";
 import { findOneArticle } from "@/commands/article";
 import { getDiaryMoment } from "@/commands/diary";
 import { getProjectById, getProjectItemById } from "@/commands/project";
+import { getPdfById } from "@/commands/pdf";
+import type { Pdf } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
 import { cardTitle } from "@/utils/card-title";
 import { normalizeDiaryDay } from "@/utils/diary-day";
@@ -38,6 +40,8 @@ export interface DocumentSource {
   /** 项目文档所属项目名 */
   projectName: string;
   moment?: DiaryMoment;
+  /** PDF 文档卡：整份 PDF 的行（卡面读 lastPage、pageCount）；正文类为空 */
+  pdf?: Pdf;
   updateTime: number;
 }
 
@@ -46,6 +50,7 @@ export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
   article: "文章",
   "project-item": "项目文档",
   "diary-moment": "日记",
+  pdf: "PDF",
 };
 
 type DocumentTarget = Pick<DocumentElement, "entityRef" | "entity">;
@@ -56,7 +61,7 @@ async function loadDocument(
 ): Promise<DocumentSource | null> {
   let ref = target.entityRef;
   if (target.entity) {
-    if (!["card", "article", "project-item", "diary-moment"].includes(target.entity.kind))
+    if (!["card", "article", "project-item", "diary-moment", "pdf"].includes(target.entity.kind))
       return null;
     const id = await resolveWhiteboardEntity(database, target.entity);
     if (id === null) return null;
@@ -130,6 +135,19 @@ async function loadLocalDocument(
           ),
         },
         updateTime: segment.updateTime,
+      };
+    }
+    case "pdf": {
+      const pdf = await getPdfById(ref.id).catch(() => null);
+      if (!pdf) return null;
+      return {
+        ...base,
+        contentId: 0,
+        title: pdf.fileName.replace(/\.pdf$/i, "") || "未命名 PDF",
+        content: [],
+        tags: pdf.tags ?? [],
+        pdf,
+        updateTime: pdf.updateTime,
       };
     }
   }

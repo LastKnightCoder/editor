@@ -20,6 +20,7 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   CustomOffset,
+  Point,
   PageSketch,
   DEFAULT_PAGE_SKETCH,
 } from "./types";
@@ -101,6 +102,8 @@ class Board {
   }
 
   private plugins: IBoardPlugin[] = [];
+  /** 指针在画布上的最近位置（画布坐标）；指针离开画布为 null。`/` 放入等需要光标处的入口读取 */
+  pointer: Point | null = null;
   private eventEmitter: EventEmitter;
   public snap: SnapManager;
   public capabilityService: CapabilityService;

@@ -69,7 +69,13 @@ import {
   GeometryPlugin,
   HandwritePlugin,
   DocumentPlugin,
+  ExcerptPlugin,
+  DOCUMENT_INSERT_EVENT,
+  DOCUMENT_RELATED_EVENT,
+  DOCUMENT_PEEK_EVENT,
+  DOCUMENT_TURN_PAGE_EVENT,
   isDocumentElement,
+  viewportInsertRequest,
   WhiteboardPlugin,
   RichTextPlugin,
   ImagePlugin,
@@ -86,6 +92,7 @@ import {
   PresentationPlugin,
 } from "../plugins";
 import { createInteractionContributions } from "./interactionCommands";
+import { PointUtil } from "../utils/PointUtil";
 import GeometryTool from "../components/Toolbar/Geometry";
 import ArrowTool from "../components/Toolbar/Arrow";
 import HandwriteTool from "../components/Toolbar/Handwrite";
@@ -101,6 +108,7 @@ import MindSetter from "../components/AttributeSetter/MindMapSetter";
 import ImageSetter from "../components/AttributeSetter/ImageSetter";
 import MediaSetter from "../components/AttributeSetter/MediaSetter";
 import DocumentSetter from "../components/AttributeSetter/DocumentSetter";
+import ExcerptSetter from "../components/AttributeSetter/ExcerptSetter";
 import FrameSetter from "../components/AttributeSetter/FrameSetter";
 import ColumnSetter from "../components/AttributeSetter/ColumnSetter";
 import MultiSelectSetter from "../components/AttributeSetter/MultiSelectSetter";
@@ -468,18 +476,82 @@ export function createDocumentExtension(options: ReferencedElementOptions) {
             if (element) api.emit("tau.document.open", element.id);
           },
         },
+        ...(
+          [
+            ["tau.document.page-prev", -1],
+            ["tau.document.page-next", 1],
+          ] as const
+        ).map(([id, delta]) => ({
+          id,
+          enabled: (api: WhiteboardAPI) => {
+            const selected = api.selection.selectedElements;
+            return selected.length === 1 && selected[0].entityRef?.kind === "pdf";
+          },
+          execute: (api: WhiteboardAPI) => {
+            const element = api.selection.selectedElements[0];
+            if (element) api.emit(DOCUMENT_TURN_PAGE_EVENT, { id: element.id, delta });
+          },
+        })),
+        {
+          id: "tau.document.peek",
+          enabled: api => {
+            const selected = api.selection.selectedElements;
+            return selected.length === 1 && isDocumentElement(selected[0]);
+          },
+          // 按住期间系统会重复触发 keydown，速览层对同一张卡的重复开始不做处理；松开由速览层监听 keyup
+          execute: api => {
+            const element = api.selection.selectedElements[0];
+            if (element) api.emit(DOCUMENT_PEEK_EVENT, element.id);
+          },
+        },
+        ...(options.Tool
+          ? [
+              {
+                id: "tau.document.related",
+                enabled: (api: WhiteboardAPI) => {
+                  const selected = api.selection.selectedElements;
+                  return !api.readonly && selected.length === 1 && isDocumentElement(selected[0]);
+                },
+                execute: (api: WhiteboardAPI) => {
+                  const element = api.selection.selectedElements[0];
+                  if (element) api.emit(DOCUMENT_RELATED_EVENT, element.id);
+                },
+              },
+              {
+                id: "tau.document.insert-at-pointer",
+                enabled: (api: WhiteboardAPI) => !api.readonly,
+                // 光标在画布上就放在光标处，否则放在视口中央
+                execute: (api: WhiteboardAPI) => {
+                  const board = resolveBoardAccess(api);
+                  const point = board.pointer;
+                  const screen = point && PointUtil.viewPortToScreen(board, point.x, point.y);
+                  api.emit(
+                    DOCUMENT_INSERT_EVENT,
+                    point
+                      ? { at: point, ...(screen ? { screen } : {}) }
+                      : viewportInsertRequest(api)
+                  );
+                },
+              },
+            ]
+          : []),
       ],
-      hotkeys: [{ key: "enter", command: "tau.document.open" }],
+      hotkeys: [
+        { key: "enter", command: "tau.document.open" },
+        { key: "space", command: "tau.document.peek" },
+        { key: "[", command: "tau.document.page-prev" },
+        { key: "]", command: "tau.document.page-next" },
+        ...(options.Tool
+          ? [
+              { key: "/", command: "tau.document.insert-at-pointer" },
+              { key: "r", command: "tau.document.related" },
+            ]
+          : []),
+      ],
       tools: options.Tool
         ? [
-            tool(
-              "tau.document.create",
-              100,
-              "reference",
-              "文档",
-              FileText,
-              options.Tool,
-              open("document")
+            tool("tau.document.create", 100, "reference", "文档", FileText, options.Tool, api =>
+              api.emit(DOCUMENT_INSERT_EVENT, viewportInsertRequest(api))
             ),
           ]
         : [],
@@ -487,6 +559,13 @@ export function createDocumentExtension(options: ReferencedElementOptions) {
       layers: options.layers,
     }
   );
+}
+/** 摘录：卡面由宿主 Body 渲染；没有创建工具，只经阅读纸「放到白板」与拖出高亮生成 */
+export function createExcerptExtension(options: Pick<ReferencedElementOptions, "Body" | "layers">) {
+  return builtin("tau.excerpt", () => [withBody(new ExcerptPlugin(), options.Body)], {
+    inspectors: { excerpt: ExcerptSetter },
+    layers: options.layers,
+  });
 }
 export function createWhiteboardReferenceExtension(options: ReferencedElementOptions) {
   return builtin(

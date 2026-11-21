@@ -6,7 +6,11 @@ import { ViewPortTransforms as InternalViewport } from "./transforms";
 import { ImageUtil as InternalImage } from "./utils/ImageUtil";
 import { VideoUtil as InternalVideo } from "./utils/VideoUtil";
 import { AudioUtil as InternalAudio } from "./utils/AudioUtil";
-import type { BoardElement } from "./types";
+import type { BoardElement, Point } from "./types";
+import { buildPlacement, layoutRow } from "./utils/placeElements";
+import { DOCUMENT_DEFAULT_SIZE, type DocumentElement } from "./plugins/DocumentPlugin";
+import { EXCERPT_DEFAULT_SIZE, type ExcerptElement } from "./plugins/ExcerptPlugin";
+import { v4 as uuid } from "uuid";
 import type { MediaCapabilities } from "./extensions/media";
 import { FrameUtil as InternalFrame } from "./utils/FrameUtil";
 import { PointUtil as InternalPoint } from "./utils/PointUtil";
@@ -121,3 +125,70 @@ export const AudioUtil = {
   insertAudioFromTTS: (blob: Blob, text: string, api: WhiteboardAPI, media: MediaCapabilities) =>
     InternalAudio.insertAudioFromTTS(blob, text, resolveBoardAccess(api), media),
 };
+
+/**
+ * 把一组文档放到白板：从 at 起排成一行（align 为 center 时以 at 为中心），可选从 linkFrom 连箭头，选中新卡。
+ * 插入、连线与选中是一次 apply（一步撤销）。返回新元素；linkFrom 已不存在时不连线。
+ */
+export function placeDocuments(
+  api: WhiteboardAPI,
+  documents: readonly Pick<DocumentElement, "entityRef" | "entity" | "title">[],
+  options: {
+    at: Point;
+    align?: "start" | "center";
+    linkFrom?: string;
+    /** 保留当前选中（长出相关：放入建议后还要继续看这张卡的其他建议） */
+    keepSelection?: boolean;
+  }
+): DocumentElement[] {
+  if (documents.length === 0) return [];
+  const board = resolveBoardAccess(api);
+  const sizes = documents.map(item => DOCUMENT_DEFAULT_SIZE[item.entityRef?.kind ?? "article"]);
+  const boxes = layoutRow(options.at, sizes, options.align);
+  const elements = documents.map((item, index): DocumentElement => ({
+    id: uuid(),
+    type: "document",
+    ...item,
+    ...boxes[index],
+  }));
+  const linkFrom = options.linkFrom
+    ? InternalBoardUtil.getElementById(board, options.linkFrom)
+    : null;
+  board.apply(
+    buildPlacement({
+      elements,
+      index: board.children.length,
+      selection: board.selection,
+      linkFrom,
+      keepSelection: options.keepSelection,
+    })
+  );
+  return elements;
+}
+
+/**
+ * 放一张摘录：at 为左缘中点（align center 时为中心）；linkFrom 存在时从来源卡画一条虚线箭头。
+ * 插入、连线与选中是一次 apply。返回新元素。
+ */
+export function placeExcerpt(
+  api: WhiteboardAPI,
+  excerpt: Pick<ExcerptElement, "source" | "quote" | "note" | "color" | "sourceTitle">,
+  options: { at: Point; align?: "start" | "center"; linkFrom?: string }
+): ExcerptElement {
+  const board = resolveBoardAccess(api);
+  const [box] = layoutRow(options.at, [EXCERPT_DEFAULT_SIZE], options.align);
+  const element: ExcerptElement = { id: uuid(), type: "excerpt", ...excerpt, ...box };
+  const linkFrom = options.linkFrom
+    ? InternalBoardUtil.getElementById(board, options.linkFrom)
+    : null;
+  board.apply(
+    buildPlacement({
+      elements: [element],
+      index: board.children.length,
+      selection: board.selection,
+      linkFrom,
+      dashedLink: true,
+    })
+  );
+  return element;
+}

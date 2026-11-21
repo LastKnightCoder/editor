@@ -203,7 +203,11 @@ describe("文档阅读纸", () => {
     await act(async () => button("收起  Esc").click());
     await flush();
     expect(reader()).toBeNull();
-    expect(getDocumentReaderStore(board).getState()).toEqual({ openId: null, closing: false });
+    expect(getDocumentReaderStore(board).getState()).toEqual({
+      openId: null,
+      closing: false,
+      focus: null,
+    });
   });
 
   it("已展开时不响应第二次展开请求", async () => {

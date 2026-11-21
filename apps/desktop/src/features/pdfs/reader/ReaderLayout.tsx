@@ -108,6 +108,10 @@ export interface ReaderLayoutProps {
   leftToggleInHud?: boolean;
   /** 对话关着时 HUD 末尾给出开关 */
   onOpenChat?: () => void;
+  /** 宿主是白板时给出：划线工具条与标注工具条多一个「放到白板」，交出落库后的标注 */
+  onSendToBoard?: (record: PdfAnnotation) => void;
+  /** 已有标注拖出纸面时写入拖放数据 */
+  onDragToBoard?: (record: PdfAnnotation, event: React.DragEvent) => void;
 }
 
 const FLASH_MS = 2200;
@@ -153,6 +157,8 @@ export function ReaderLayout({
   initialPosition,
   onPositionChange,
   onAskAI,
+  onSendToBoard,
+  onDragToBoard,
   leftToggleInHud,
   onOpenChat,
 }: ReaderLayoutProps) {
@@ -437,28 +443,34 @@ export function ReaderLayout({
   const recordOf = (object: PdfAnnotationObject) =>
     records.find(r => r.annotation.id === object.id) ?? null;
 
-  const createMarkup = useMemoizedFn((color: EHighlightColor): NoteTarget | null => {
-    if (!selection || !annotationCap || overlay?.kind !== "selection") return null;
-    const formatted = selection.getFormattedSelection();
-    let first: NoteTarget | null = null;
-    for (const item of formatted) {
-      const id = uuid();
-      annotationCap.createAnnotation(item.pageIndex, {
-        ...markupDefaults(prefs.lastStyle, color),
-        id,
-        pageIndex: item.pageIndex,
-        rect: item.rect,
-        segmentRects: item.segmentRects,
-        created: new Date(),
-        custom: { text: overlay.text },
-      } as PdfAnnotationObject);
-      first ??= { objectId: id, pageIndex: item.pageIndex, rect: item.rect };
+  /** 把当前选区划成标注；返回第一段的位置与引擎对象（跨页选区按页各建一条） */
+  const createMarkupObjects = useMemoizedFn(
+    (color: EHighlightColor): { target: NoteTarget; object: PdfAnnotationObject } | null => {
+      if (!selection || !annotationCap || overlay?.kind !== "selection") return null;
+      const formatted = selection.getFormattedSelection();
+      let first: { target: NoteTarget; object: PdfAnnotationObject } | null = null;
+      for (const item of formatted) {
+        const id = uuid();
+        const object = {
+          ...markupDefaults(prefs.lastStyle, color),
+          id,
+          pageIndex: item.pageIndex,
+          rect: item.rect,
+          segmentRects: item.segmentRects,
+          created: new Date(),
+          custom: { text: overlay.text },
+        } as PdfAnnotationObject;
+        annotationCap.createAnnotation(item.pageIndex, object);
+        first ??= { target: { objectId: id, pageIndex: item.pageIndex, rect: item.rect }, object };
+      }
+      prefs.setLastColor(color);
+      selection.clear();
+      setOverlay(null);
+      return first;
     }
-    prefs.setLastColor(color);
-    selection.clear();
-    setOverlay(null);
-    return first;
-  });
+  );
+  const createMarkup = (color: EHighlightColor): NoteTarget | null =>
+    createMarkupObjects(color)?.target ?? null;
 
   const quoteOf = (target: PdfAnnotationObject | PdfAnnotation): PdfQuote => {
     if (isRecord(target)) {
@@ -596,6 +608,26 @@ export function ReaderLayout({
       selection?.clear();
       setOverlay(null);
     },
+    canSendToBoard: Boolean(onSendToBoard),
+    // 先按上次的颜色划线落库，再把这条标注交给白板：摘录与标注共用一个 annotationId
+    sendSelectionToBoard: () => {
+      const created = createMarkupObjects(prefs.lastColor);
+      if (!created) return;
+      void annotations
+        .upsertObject(created.object, prefs.lastColor)
+        .then(record => onSendToBoard?.(record))
+        .catch(() => toast.error("划线保存失败"));
+    },
+    sendToBoard: target => {
+      const record = isRecord(target) ? target : recordOf(target);
+      if (record) onSendToBoard?.(record);
+    },
+    dragToBoard: onDragToBoard
+      ? (target, event) => {
+          const record = isRecord(target) ? target : recordOf(target);
+          if (record) onDragToBoard(record, event);
+        }
+      : undefined,
 
     saveNewArea: () => {
       if (!newArea) return;

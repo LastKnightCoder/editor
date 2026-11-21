@@ -66,6 +66,23 @@
   --animate-insight-breathe: insight-breathe 2.4s ease-in-out infinite;
   /* 知识地图「读」的过程：正在读的主题里节点的光圈一明一暗（周期与 MapReadingOverlay 的 GLOW_PERIOD_S 一致） */
   --animate-insight-glow: insight-glow 2.4s ease-in-out infinite both;
+  /* 白板放入面板：从落点处轻微放大淡入 */
+  --animate-quick-insert-in: quick-insert-in 200ms var(--tau-ease-out) both;
+
+  /* 白板长出相关：建议卡从来源卡一侧滑出 */
+  @keyframes suggestion-in {
+    from {
+      opacity: 0;
+      translate: -12px 0;
+    }
+  }
+
+  @keyframes quick-insert-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+  }
 
   @keyframes insight-glow {
     0%,

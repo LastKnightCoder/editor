@@ -1,4 +1,12 @@
-import { memo, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  memo,
+  useContext,
+  type ComponentProps,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
 
@@ -19,6 +27,7 @@ interface ArrowConnectPointGroupProps {
   points: ArrowConnectPointData[];
   isSelected: boolean;
   disabled?: boolean;
+  onReleaseInSpace?: ComponentProps<typeof ArrowConnectPoint>["onReleaseInSpace"];
 }
 
 const supportsHoverPointer = () => {
@@ -159,7 +168,7 @@ const useConnectPointVisibility = ({
 };
 
 const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
-  const { element, points, isSelected, disabled = false } = props;
+  const { element, points, isSelected, disabled = false, onReleaseInSpace } = props;
 
   const supportsHover = useSupportsHoverPointer();
   const overlayRef = useContext(ArrowConnectPointOverlayContext);
@@ -199,6 +208,7 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
           r={ARROW_CONNECT_POINT_RADIUS}
           fill={ARROW_CONNECT_POINT_FILL}
           onConnectStart={handleConnectStart}
+          onReleaseInSpace={onReleaseInSpace}
           onPointerEnter={handlePointPointerEnter}
           onPointerLeave={handlePointPointerLeave}
         />

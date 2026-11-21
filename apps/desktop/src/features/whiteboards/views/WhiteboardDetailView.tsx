@@ -18,6 +18,11 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { BoardCanvas, type BoardCanvasHandle } from "../components/BoardCanvas";
 import { SheetBar } from "../components/SheetBar";
 import { OutlineToggle } from "../components/OutlineToggle";
+import { ShelfToggle } from "../components/ShelfToggle";
+import {
+  DocumentHostContext,
+  WHITEBOARD_PAGE_HOST,
+} from "@/features/shared/whiteboard/components/Document/DocumentHostContext";
 import { WhiteboardInfoDialog } from "../components/WhiteboardInfoDialog";
 import { displayTitle, parseTrail, rankTags, type TrailStep, type WhiteboardItem } from "../model";
 import {
@@ -177,6 +182,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
       board ? (
         <span className="text-tau-meta flex min-w-0 items-center gap-1.5">
           <OutlineToggle />
+          <ShelfToggle />
           <TrailCrumbs trail={trail} itemById={itemById} onSelect={backTo} />
           <button
             type="button"
@@ -225,14 +231,16 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
     <div className="relative flex h-full min-h-0 flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg relative min-h-0 flex-1 overflow-hidden">
         <WhiteboardNavContext value={nav}>
-          <BoardCanvas
-            key={documentId ?? activeId}
-            id={activeId}
-            ref={canvasRef}
-            collaboration
-            onPresentationModeChange={setPresenting}
-            onDockWidthChange={setDockWidth}
-          />
+          <DocumentHostContext value={WHITEBOARD_PAGE_HOST}>
+            <BoardCanvas
+              key={documentId ?? activeId}
+              id={activeId}
+              ref={canvasRef}
+              collaboration
+              onPresentationModeChange={setPresenting}
+              onDockWidthChange={setDockWidth}
+            />
+          </DocumentHostContext>
         </WhiteboardNavContext>
 
         {/* 页签条：纸内左下，让开元素树停靠栏；右侧给状态栏（约 340px）留位，页多时页签横向滚动 */}

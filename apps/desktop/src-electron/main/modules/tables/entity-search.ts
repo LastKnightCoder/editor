@@ -60,6 +60,8 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
   excerpt: kw => `SELECT id, update_time AS t FROM excerpt WHERE is_deleted = 0
     ${kw ? "AND (quote LIKE @kw OR note LIKE @kw OR source_title LIKE @kw)" : ""}
     ORDER BY update_time DESC LIMIT @limit`,
+  pdf: kw => `SELECT id, COALESCE(last_open_time, update_time) AS t FROM pdfs
+    ${kw ? "WHERE file_name LIKE @kw" : ""} ORDER BY t DESC LIMIT @limit`,
   "pdf-annotation":
     kw => `SELECT a.id, a.update_time AS t FROM pdf_annotations a JOIN pdfs p ON p.id = a.pdf_id
     ${kw ? "WHERE a.annotation_payload LIKE @kw OR a.notes LIKE @kw OR p.file_name LIKE @kw" : ""}
@@ -361,6 +363,23 @@ export default class EntitySearchTable {
           contentId: null,
           title: (notebook.title as string | null) || "无标题 Notebook",
           excerpt: ((notebook.d as string | null) || "").slice(0, EXCERPT),
+        };
+      }
+      case "pdf": {
+        const pdf = get(`SELECT file_name, page_count, last_page FROM pdfs WHERE id = ?`);
+        if (!pdf) return null;
+        const pages = pdf.page_count as number | null;
+        const lastPage = pdf.last_page as number | null;
+        return {
+          ...base,
+          contentId: null,
+          title: ((pdf.file_name as string | null) || "未命名 PDF").replace(/\.pdf$/i, ""),
+          excerpt: "",
+          meta: pages
+            ? lastPage && lastPage > 1
+              ? `读到 ${lastPage} / ${pages} 页`
+              : `${pages} 页`
+            : "",
         };
       }
       case "white_board": {
