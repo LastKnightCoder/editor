@@ -1,6 +1,7 @@
 import { IBoardPlugin, Board } from "../types";
 import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM } from "../constants";
 import { ViewPortTransforms } from "../transforms";
+import { getWheelPixelDelta } from "../utils/wheelGesture";
 
 /**
  * 视口的滚轮缩放/平移与右键菜单默认行为：
@@ -60,13 +61,9 @@ export class ViewPortPlugin implements IBoardPlugin {
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
       }
     } else {
-      // 使用触摸板的 deltaX 和 deltaY 都比较小，鼠标一般都会在 40 以上
-      const isTouch = Math.abs(e.deltaX) < 10 && Math.abs(e.deltaY) < 10;
-
-      const newX = board.viewPort.minX + (isTouch ? 10 : 3) * e.deltaX;
-      const newY = board.viewPort.minY + (isTouch ? 10 : 2) * e.deltaY;
-
-      ViewPortTransforms.moveViewPort(board, newX, newY);
+      const delta = getWheelPixelDelta(e, container);
+      const { minX, minY, zoom } = board.viewPort;
+      ViewPortTransforms.moveViewPort(board, minX + delta.x / zoom, minY + delta.y / zoom);
     }
   }
 }

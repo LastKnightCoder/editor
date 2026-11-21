@@ -3,6 +3,12 @@ import { isCanvasOverlayEvent } from "./events";
 const scrollAreas = new WeakSet<HTMLElement>();
 const GESTURE_IDLE_MS = 200;
 
+export function getWheelPixelDelta(event: WheelEvent, viewport: HTMLElement) {
+  const unitX = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientWidth : 1;
+  const unitY = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
+  return { x: event.deltaX * unitX, y: event.deltaY * unitY };
+}
+
 export function registerWheelScrollArea(element: HTMLElement) {
   scrollAreas.add(element);
   return () => {
@@ -60,9 +66,8 @@ export function createWheelGestureHandler(
     // 指针离开起始正文时，仍将本轮位移交给原正文，避免滚动画布或另一张卡片。
     event.stopPropagation();
     event.preventDefault();
-    const unitX = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? owner.clientWidth : 1;
-    const unitY = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? owner.clientHeight : 1;
-    owner.scrollLeft += event.deltaX * unitX;
-    owner.scrollTop += event.deltaY * unitY;
+    const delta = getWheelPixelDelta(event, owner);
+    owner.scrollLeft += delta.x;
+    owner.scrollTop += delta.y;
   };
 }

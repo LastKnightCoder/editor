@@ -114,7 +114,7 @@ describe("白板文本滚轮仲裁", () => {
       await act(async () => {
         wheel(canvas, 4);
       });
-      expect(board.viewPort.minY).toBe(round * 40);
+      expect(board.viewPort.minY).toBe(round * 4);
     }
     expect(board.activeTool).toBe("tau.richtext.create");
   });
@@ -138,7 +138,7 @@ describe("白板文本滚轮仲裁", () => {
       board.interactions.cancel();
       wheel(canvas, 4);
     });
-    expect(board.viewPort.minY).toBe(40);
+    expect(board.viewPort.minY).toBe(4);
   });
 
   it("异步挂载的正文仍优先滚动，画布不接管且保留默认滚动", async () => {
@@ -194,10 +194,10 @@ describe("白板文本滚轮仲裁", () => {
     await act(async () => {
       wheel(canvas, 0);
       expect(wheel(canvas, 4, false, 3).defaultPrevented).toBe(true);
-      expect(wheel(canvas, 6, false, 2).defaultPrevented).toBe(true);
+      expect(wheel(canvas, 16, false, 2).defaultPrevented).toBe(true);
     });
-    expect(board.viewPort.minX).toBe(initial.minX + 50);
-    expect(board.viewPort.minY).toBe(initial.minY + 100);
+    expect(board.viewPort.minX).toBe(initial.minX + 5);
+    expect(board.viewPort.minY).toBe(initial.minY + 20);
     expect(board.viewPort.zoom).toBe(initial.zoom);
   });
 
@@ -216,8 +216,8 @@ describe("白板文本滚轮仲裁", () => {
       wheel(canvas, -4, false, -3);
     });
     expect(board.viewPort.zoom).toBe(afterZoom.zoom);
-    expect(board.viewPort.minX).toBe(afterZoom.minX - 30);
-    expect(board.viewPort.minY).toBe(afterZoom.minY - 40);
+    expect((board.viewPort.minX - afterZoom.minX) * afterZoom.zoom).toBeCloseTo(-3);
+    expect((board.viewPort.minY - afterZoom.minY) * afterZoom.zoom).toBeCloseTo(-4);
   });
 
   it("多轮滑动与重渲染后仍持续更新画布视口", async () => {
@@ -227,11 +227,11 @@ describe("白板文本滚轮仲裁", () => {
       await act(async () => {
         wheel(canvas, 4, false, 3);
       });
-      expect(board.viewPort.minX).toBe(round * 30);
-      expect(board.viewPort.minY).toBe(round * 40);
+      expect(board.viewPort.minX).toBe(round * 3);
+      expect(board.viewPort.minY).toBe(round * 4);
       expect(svg.getAttribute("viewBox")?.split(" ").slice(0, 2)).toEqual([
-        String(round * 30),
-        String(round * 40),
+        String(round * 3),
+        String(round * 4),
       ]);
     }
   });
@@ -271,13 +271,13 @@ describe("白板文本滚轮仲裁", () => {
         expect(wheel(editor, delta).defaultPrevented).toBe(true);
       });
     }
-    expect(board.viewPort.minY).toBe(110);
+    expect(board.viewPort.minY).toBe(11);
     expect(editor.scrollTop).toBe(50);
     now += 250;
     await act(async () => {
       expect(wheel(editor, 4).defaultPrevented).toBe(false);
     });
-    expect(board.viewPort.minY).toBe(110);
+    expect(board.viewPort.minY).toBe(11);
   });
 
   it("从正文起滑，经过空白处仍滚动原正文，停顿后画布可重新起滑", async () => {
@@ -298,7 +298,7 @@ describe("白板文本滚轮仲裁", () => {
     await act(async () => {
       wheel(canvas, 4);
     });
-    expect(board.viewPort.minY).toBe(40);
+    expect(board.viewPort.minY).toBe(4);
   });
 
   it("起始正文卸载后不残留手势归属", async () => {
@@ -311,7 +311,7 @@ describe("白板文本滚轮仲裁", () => {
     await act(async () => {
       wheel(canvas, 4);
     });
-    expect(board.viewPort.minY).toBe(40);
+    expect(board.viewPort.minY).toBe(4);
   });
 
   it("画布手势不会接管宿主浮层中的滚动", async () => {
@@ -323,7 +323,7 @@ describe("白板文本滚轮仲裁", () => {
       wheel(canvas, 4);
       expect(wheel(overlay, 4).defaultPrevented).toBe(false);
     });
-    expect(board.viewPort.minY).toBe(40);
+    expect(board.viewPort.minY).toBe(4);
     overlay.remove();
   });
 });
