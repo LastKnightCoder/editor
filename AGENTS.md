@@ -148,6 +148,13 @@ docs/ 按文档生命周期分区，落笔前先答三问：什么类型？唯�
 - 任务域（以工程命名的目录）在任务收尾时解散，产物四路分流：方案沉淀为架构事实→architecture 或对应代码包；通用裁决→decisions.md；流程→guides；其余过程内容直接删。docs/ 顶层只允许功能域与常设目录，不允许任务域长期存在。
 - 任务收尾三步（沉淀→退役→索引）是完成定义的一部分，缺一不可提交；提交前运行 `pnpm check:docs`（死链硬失败；notes/tasks 超期、活文档出现状态字样为警告）。
 
+## 官网使用文档同步
+
+- 用户可感知的功能变化（新功能、入口/文案/交互变化、能力移除）必须在同一提交更新 `apps/website/content/docs/` 对应篇，不留到"以后统一补"；新增页面在 `apps/website/src/docs/manifest.ts` 登记。
+- 语气与用词遵循 [面向读者的文档写法](/docs/guides/writing-reader-docs.md)：读者视角、用界面上的叫法、按术语表用词，不写版本号、内部实现与元叙述。
+- 发版前对账：`apps/desktop/release-notes/` 里每条用户可感知的变化，在使用文档里都要有落点——release notes 讲「这一版变了什么」，使用文档讲「现在怎么用」。
+- 验证：`pnpm --filter @tau/website test`（目录、示意与站内链接对账）。
+
 ## 数据库 Schema 维护规则
 
 - 修改 `packages/db-schema/schema/` 的表、字段或索引定义前，按 [数据库变更开发手册](/docs/guides/db-change-manual.md) 操作与验证：校验脚本常量、AI Schema 文档随 SQL 同一提交更新，执行 `pnpm db:schema:build / check / prepare`。细则以手册为准，本文件不重复。

@@ -1,9 +1,9 @@
 /**
  * AI 对话：三个示例请求，分别演示读取（search_knowledge 直接执行，回答带引用）、
- * 改写（rewrite 产生「请确认这次修改」审阅卡，确认应用 / 拒绝）、安排待办
- * （create_todo 触发「AI 想要修改内容，需要你确认」审批条，允许 / 本会话始终允许 / 拒绝）。
- * 工具行、审批条、审阅卡与改动摘要按 packages/chat-ui 的 ToolCallRow、ToolApprovalBar
- * 与 desktop tool-call-renderers 的 ContentEditProposalRenderer、CompactSummary 重建。
+ * 改写（apply_content_edit_operations 产生逐条建议卡：接受 / 退回 / 回复，处理后收起成摘要）、
+ * 安排待办（create_todo 触发「AI 想要修改内容，需要你确认」审批条，允许 / 本会话始终允许 / 拒绝）。
+ * 工具行、审批条与建议卡按 packages/chat-ui 的 ToolCallRow、ToolApprovalBar
+ * 与 desktop tool-call-renderers 的 SuggestionProposalCard 重建。
  */
 import { useEffect, useState } from "react";
 import {
@@ -12,7 +12,6 @@ import {
   Check,
   ChevronRight,
   CircleCheck,
-  PencilLine,
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
@@ -150,14 +149,13 @@ function ReadScenario({ stage }: { stage: Stage }) {
 }
 
 function EditScenario({ stage, setStage }: { stage: Stage; setStage: (stage: Stage) => void }) {
-  const [view, setView] = useState<"diff" | "full">("diff");
   const call: ToolCall = {
-    name: "replace_content_by_text",
-    // 审阅卡等你处理期间，工具仍在执行中
+    name: "apply_content_edit_operations",
+    // 建议卡等你处理期间，工具仍在执行中
     state: stage === "running" || stage === "waiting" ? "executing" : "success",
     seconds: "1.4 秒",
-    input: '{ "searchText": "很多时候我们以为自己在工作……", "replaceText": "忙碌不等于产出……" }',
-    output: stage === "denied" ? "已拒绝这次修改。" : "已确认应用这次修改。",
+    input: '{ "find": "很多时候我们以为自己在工作……", "replace": "忙碌不等于产出……" }',
+    output: stage === "denied" ? "已退回 1 处。" : "已接受 1 处。",
   };
   return (
     <>
@@ -167,95 +165,70 @@ function EditScenario({ stage, setStage }: { stage: Stage; setStage: (stage: Sta
         <div className="border-line-1 bg-surface rounded-tau-md animate-doc-in my-2 overflow-hidden border">
           <div className="px-3.5 pt-3 pb-1">
             <p className="text-tau-title font-semibold">
-              {stage === "waiting" ? "请确认这次修改" : "内容修改结果"}
+              {stage === "waiting" ? "修改" : "改了 1 处"}
             </p>
+            <p className="text-tau-meta text-ink-3 mt-0.5">
+              {stage === "waiting"
+                ? " Tau · 1 处改动等你过目"
+                : stage === "done"
+                  ? " 接受 1"
+                  : " 退回 1"}
+            </p>
+          </div>
+          <div className="space-y-2.5 px-3.5 pt-2 pb-3.5">
+            <div className="border-line-1 rounded-tau-sm border px-3 py-2.5 text-[13px] leading-[1.8]">
+              <span className="bg-danger-soft text-danger rounded-[3px] line-through">
+                很多时候我们以为自己在工作，其实只是在回邮件、开会和刷消息，这些事情让人感觉很忙，却很少真正推进什么。
+              </span>
+              <span className="bg-ok-soft text-ok rounded-[3px]">
+                忙碌不等于产出：回邮件、开会、刷消息让人觉得在工作，却很少推进真正的事。
+              </span>
+            </div>
             {stage === "waiting" ? (
-              <div className="mt-2.5 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setStage("done")}
                   className="bg-accent text-ink-inverse hover:bg-accent-hover h-7 rounded-[8px] px-3 text-[12.5px] font-medium"
                 >
-                  确认应用
+                  接受
                 </button>
                 <span className="border-line-1 text-ink-2 grid h-7 place-items-center rounded-[8px] border px-3 text-[12.5px]">
-                  提修改意见
+                  回复
                 </span>
                 <button
                   type="button"
                   onClick={() => setStage("denied")}
                   className="bg-danger-soft text-danger h-7 rounded-[8px] px-3 text-[12.5px]"
                 >
-                  拒绝
+                  退回
                 </button>
               </div>
             ) : (
-              <div className="bg-hover rounded-tau-sm mt-2.5 flex items-center gap-2.5 px-3 py-2">
+              <div className="bg-hover rounded-tau-sm flex items-center gap-2.5 px-3 py-2">
                 {stage === "done" ? (
                   <CircleCheck className="text-ok size-4" strokeWidth={1.75} />
                 ) : (
                   <X className="text-ink-3 size-4" strokeWidth={1.75} />
                 )}
                 <span className="text-tau-body font-medium">
-                  {stage === "done" ? "已应用" : "已拒绝"}
+                  {stage === "done" ? "已接受" : "已退回"}
                 </span>
+                {stage === "done" && (
+                  <span
+                    title="撤销这次接受"
+                    className="text-ink-2 ml-auto grid size-[26px] place-items-center rounded-[7px]"
+                  >
+                    <RotateCcw className="size-3.5" strokeWidth={1.75} />
+                  </span>
+                )}
               </div>
             )}
           </div>
-          <div className="space-y-2.5 px-3.5 pt-2 pb-3.5">
-            <div className="bg-hover text-ink-2 text-tau-meta rounded-tau-sm flex h-9 items-center gap-2 pr-1 pl-3">
-              <span className="text-ink-1 flex items-center gap-1.5 font-medium">
-                <PencilLine className="text-ink-2 size-3.5" strokeWidth={1.75} />
-                已修改 1 处
-              </span>
-              <span className="text-ink-3">·</span>
-              <span className="text-ok font-medium tabular-nums">+28</span>
-              <span className="text-danger font-medium tabular-nums">-61</span>
-              {stage === "done" && (
-                <span
-                  title="撤销这次应用"
-                  className="text-ink-2 ml-auto grid size-[26px] place-items-center rounded-[7px]"
-                >
-                  <RotateCcw className="size-3.5" strokeWidth={1.75} />
-                </span>
-              )}
-            </div>
-            <div className="bg-hover inline-flex rounded-[8px] p-0.5 text-[12px]">
-              {(
-                [
-                  ["diff", "改动高亮"],
-                  ["full", "完整内容"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setView(key)}
-                  className={cn(
-                    "h-6 rounded-[6px] px-2.5",
-                    view === key ? "bg-surface text-ink-1 shadow-card font-medium" : "text-ink-2"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="border-line-1 rounded-tau-sm border px-3 py-2.5 text-[13px] leading-[1.8]">
-              {view === "diff" ? (
-                <>
-                  <span className="bg-danger-soft text-danger rounded-[3px] line-through">
-                    很多时候我们以为自己在工作，其实只是在回邮件、开会和刷消息，这些事情让人感觉很忙，却很少真正推进什么。
-                  </span>
-                  <span className="bg-ok-soft text-ok rounded-[3px]">
-                    忙碌不等于产出：回邮件、开会、刷消息让人觉得在工作，却很少推进真正的事。
-                  </span>
-                </>
-              ) : (
-                "忙碌不等于产出：回邮件、开会、刷消息让人觉得在工作，却很少推进真正的事。"
-              )}
-            </div>
-          </div>
         </div>
+      )}
+      {stage === "denied" && (
+        <p className={cn(P, "mt-2")}>好，这处先不改。想怎么调整，回复这条建议就行。</p>
       )}
     </>
   );
