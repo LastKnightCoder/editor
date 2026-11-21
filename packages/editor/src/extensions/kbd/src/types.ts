@@ -1,6 +1,6 @@
-import { type FormattedText } from "@tau/markdown/model";
+import type { ParagraphElement } from "@tau/editor/api";
 
 export interface KbdElement {
   type: "kbd";
-  children: FormattedText[];
+  children: ParagraphElement["children"];
 }

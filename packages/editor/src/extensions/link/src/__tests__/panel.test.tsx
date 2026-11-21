@@ -75,11 +75,13 @@ const button = (label: string) =>
 
 describe("链接浮层", () => {
   it("选中文字新建：回车成链，不留空链接", async () => {
-    const { editor, controller } = await mount([paragraph(text("参考官方文档"))]);
+    const { editor, controller } = await mount([
+      paragraph(text("参考官", { bold: true }), text("方文档", { italic: true })),
+    ]);
     await act(async () => {
       Transforms.select(editor, {
         anchor: { path: [0, 0], offset: 2 },
-        focus: { path: [0, 0], offset: 6 },
+        focus: { path: [0, 1], offset: 3 },
       });
       controller.startFromSelection("above");
     });
@@ -90,7 +92,10 @@ describe("链接浮层", () => {
 
     const [created] = links(editor);
     expect(created.url).toBe("https://react.dev");
-    expect(Node.string(created)).toBe("官方文档");
+    expect(created.children).toEqual([
+      text("官", { bold: true }),
+      text("方文档", { italic: true }),
+    ]);
     expect(controller.getState().mode).toBe("closed");
   });
 

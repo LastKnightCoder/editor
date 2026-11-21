@@ -1,5 +1,6 @@
 // 内容引用（content-link）的节点读取、类型外观、详情查询与跳转，预览面板、行内节点、配件栏与选择器共用。
 
+import type { ParagraphElement } from "@tau/editor/api";
 import { useQuery } from "@tanstack/react-query";
 import { useCollaboration } from "@tau/editor-collab";
 import { FileText, type LucideIcon } from "lucide-react";
@@ -27,8 +28,17 @@ export type ContentLinkElement = {
   contentType: string;
   contentTitle: string;
   refId: number;
-  children: Array<{ type: "formatted"; text: string }>;
+  children: ParagraphElement["children"];
 };
+
+declare module "@tau/editor/api" {
+  interface ExtensionElementMap {
+    "content-link": ContentLinkElement;
+  }
+  interface ExtensionInlineElementMap {
+    "content-link": ContentLinkElement;
+  }
+}
 
 /** 选择器的用途：插入新引用（text 为选中的文字），或更换光标所在引用的目标（text 为其显示文字） */
 export type ContentLinkPickerIntent = { mode: "insert" | "replace"; text: string };

@@ -1,4 +1,4 @@
-import type { FormattedText } from "@tau/editor";
+import type { ParagraphElement } from "@tau/editor/api";
 
 export interface ContentLinkElement {
   type: "content-link";
@@ -6,5 +6,5 @@ export interface ContentLinkElement {
   contentId: number;
   contentType: string;
   contentTitle: string;
-  children: FormattedText[];
+  children: ParagraphElement["children"];
 }

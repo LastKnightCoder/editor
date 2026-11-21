@@ -1,7 +1,7 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Editor, Element } from "slate";
+import { Editor, Element, Node, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
 import type { MobileEditorToolbarController } from "../editorToolbar/useMobileEditorToolbarController";
@@ -83,6 +83,8 @@ describe("useMobileEditorToolbarController", () => {
       anchor: { path: [0, 0], offset: 0 },
       focus: { path: [0, 0], offset: 4 },
     });
+    inactiveEditor.isInline = element => element.type === "content-link";
+    Transforms.setNodes(inactiveEditor, { bold: true }, { at: [0, 0] });
     const inactiveEditorRef = createEditorRef(inactiveEditor);
 
     act(() => {
@@ -122,7 +124,11 @@ describe("useMobileEditorToolbarController", () => {
       inactiveController.handleSelectContentLink(result);
     });
 
-    expect(hasContentLinkNode(inactiveEditor)).toBe(true);
+    expect(Node.get(inactiveEditor, [0, 1])).toMatchObject({
+      type: "content-link",
+      children: [{ text: "可链接文", bold: true }],
+    });
+    expect(Node.get(inactiveEditor, [0, 2])).toMatchObject({ text: "本", bold: true });
     expect(requireController(latestController).isContentLinkPickerOpen).toBe(false);
   });
 

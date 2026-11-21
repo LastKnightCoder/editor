@@ -1,5 +1,5 @@
 import { Editor, Transforms, Element, Path, Range } from "slate";
-import { getCurrentTextNode } from "@tau/editor";
+import { wrapInlineText } from "@tau/editor/api";
 import type { ContentLinkElement } from "../types";
 
 export const unwrapContentLink = (editor: Editor) => {
@@ -20,55 +20,23 @@ export const wrapContentLink = (
 
   if (!selection) return;
 
-  const [node] = getCurrentTextNode(editor);
-
-  // 如果有选中文本，包裹选中文本
-  if (!Range.isCollapsed(selection) && node.type === "formatted") {
-    const text = Editor.string(editor, selection);
-    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(type => {
-      Editor.removeMark(editor, type);
-    });
-    editor.deleteBackward("character");
-    const contentLinkNode: ContentLinkElement = {
-      type: "content-link",
-      contentId,
-      contentType,
-      contentTitle,
-      refId,
-      children: [
-        {
-          type: "formatted",
-          text,
-        },
-      ],
-    };
-    Transforms.wrapNodes(editor, contentLinkNode, {
-      at: selection,
-      split: true,
-    });
+  const contentLink: ContentLinkElement = {
+    type: "content-link",
+    contentId,
+    contentType,
+    contentTitle,
+    refId,
+    children: [],
+  };
+  if (Range.isExpanded(selection)) {
+    wrapInlineText(editor, () => contentLink);
     Transforms.collapse(editor, { edge: "end" });
-  } else {
-    // 如果没有选中文本（光标状态），插入一个新的 content-link
-    const insertedPath = Path.next(selection.anchor.path);
-    const contentLinkNode: ContentLinkElement = {
-      type: "content-link",
-      contentId,
-      contentType,
-      contentTitle,
-      refId,
-      children: [
-        {
-          type: "formatted",
-          text: displayText || contentTitle || "链接",
-        },
-      ],
-    };
-    Transforms.insertNodes(editor, contentLinkNode, {
-      at: selection,
-    });
-    const after = Editor.after(editor, insertedPath, { voids: true });
-    if (after) {
-      Transforms.select(editor, after);
-    }
+    return;
   }
+
+  const insertedPath = Path.next(selection.anchor.path);
+  contentLink.children = [{ type: "formatted", text: displayText || contentTitle || "链接" }];
+  Transforms.insertNodes(editor, contentLink, { at: selection });
+  const after = Editor.after(editor, insertedPath, { voids: true });
+  if (after) Transforms.select(editor, after);
 };

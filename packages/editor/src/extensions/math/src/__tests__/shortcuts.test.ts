@@ -11,7 +11,7 @@ import {
 import { withInputRules } from "../../../../core/kit/inputRules.ts";
 import { textFormattingExtension } from "../../../text-formatting/src/index.tsx";
 import { blockMathExtension, inlineMathExtension } from "../index.tsx";
-import { wrapInlineMath } from "../insert";
+import { unWrapInlineMath, wrapInlineMath } from "../insert";
 
 function setup(marks: Record<string, unknown> = {}) {
   const assembly = new ExtensionAssembly([
@@ -109,6 +109,41 @@ describe("行内公式输入规则", () => {
 });
 
 describe("行内公式创建", () => {
+  it("选区生成公式源码，解除公式后还原原文的分段格式", () => {
+    const editor = setup();
+    const original: Descendant[] = [
+      {
+        type: "paragraph",
+        children: [
+          { type: "formatted", text: "设x", bold: true },
+          { type: "formatted", text: "+y为", italic: true },
+        ],
+      },
+    ];
+    editor.children = original;
+    Transforms.select(editor, {
+      anchor: { path: [0, 0], offset: 1 },
+      focus: { path: [0, 1], offset: 2 },
+    });
+    wrapInlineMath(editor);
+    expect(content(editor)).toEqual(["设", { tex: "x+y" }, "为"]);
+    unWrapInlineMath(editor);
+    expect(editor.children).toEqual(original);
+  });
+
+  it("解除改写过的公式时保留最新源码", () => {
+    const editor = setup({ bold: true });
+    type(editor, "设x为");
+    Transforms.select(editor, {
+      anchor: { path: [0, 0], offset: 1 },
+      focus: { path: [0, 0], offset: 2 },
+    });
+    wrapInlineMath(editor);
+    Transforms.setNodes(editor, { tex: "y^2" }, { at: [0, 1] });
+    unWrapInlineMath(editor);
+    expect(content(editor)).toEqual(["设", "y^2", "为"]);
+  });
+
   it("折叠光标处创建空公式", () => {
     const editor = setup();
     wrapInlineMath(editor);

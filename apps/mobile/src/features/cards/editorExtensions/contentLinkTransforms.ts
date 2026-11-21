@@ -1,4 +1,4 @@
-import { getCurrentTextNode } from "@tau/editor";
+import { wrapInlineText } from "@tau/editor/api";
 import { Editor, Range, Transforms, type Path } from "slate";
 
 import {
@@ -9,71 +9,38 @@ import {
 
 type WrapContentLinkPayload = ContentLinkTarget & { displayText?: string };
 
-const MARK_KEYS = ["bold", "code", "italic", "underline", "highlight", "color"];
-
 export function wrapContentLink(editor: Editor, payload: WrapContentLinkPayload): void {
   const { contentId, contentType, contentTitle, refId, displayText } = payload;
   const { selection } = editor;
   if (!selection) return;
 
-  const currentTextNode = getCurrentTextNode(editor);
-  const currentLeaf = currentTextNode?.[0];
-
-  if (
-    !Range.isCollapsed(selection) &&
-    currentLeaf &&
-    (currentLeaf as { type?: string }).type === "formatted"
-  ) {
-    const selectedText = Editor.string(editor, selection);
-    MARK_KEYS.forEach(markKey => {
-      Editor.removeMark(editor, markKey);
-    });
-    editor.deleteBackward("character");
-
-    const contentLinkNode: ContentLinkElement = {
-      type: CONTENT_LINK_TYPE,
-      contentId,
-      contentType,
-      contentTitle,
-      refId,
-      children: [
-        {
-          type: "formatted",
-          text: selectedText,
-        },
-      ],
-    };
-
-    Transforms.wrapNodes(editor, contentLinkNode as any, {
-      at: selection,
-      split: true,
-    });
-    Transforms.collapse(editor, { edge: "end" });
-    return;
-  }
-
-  const contentLinkNode: ContentLinkElement = {
+  const contentLink: ContentLinkElement = {
     type: CONTENT_LINK_TYPE,
     contentId,
     contentType,
     contentTitle,
     refId,
-    children: [
-      {
-        type: "formatted",
-        text: displayText || contentTitle || "引用内容",
-      },
-    ],
+    children: [],
   };
+  if (Range.isExpanded(selection)) {
+    wrapInlineText(editor, () => contentLink);
+    Transforms.collapse(editor, { edge: "end" });
+    return;
+  }
 
-  Transforms.insertNodes(editor, contentLinkNode as any, { at: selection });
+  contentLink.children = [{ type: "formatted", text: displayText || contentTitle || "引用内容" }];
+  Transforms.insertNodes(editor, contentLink, { at: selection });
   Transforms.move(editor, { distance: 1, unit: "offset" });
 }
 
 /** 把引用改指向另一条内容，显示文字保持不变 */
 export function retargetContentLink(editor: Editor, path: Path, target: ContentLinkTarget): void {
   const { contentId, contentType, contentTitle, refId } = target;
-  Transforms.setNodes(editor, { contentId, contentType, contentTitle, refId } as never, {
-    at: path,
-  });
+  Transforms.setNodes(
+    editor,
+    { contentId, contentType, contentTitle, refId },
+    {
+      at: path,
+    }
+  );
 }

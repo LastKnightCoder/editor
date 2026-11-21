@@ -1,5 +1,7 @@
-import { Editor, Transforms, Range } from "slate";
-import { setOrInsertNode, focusInsertedPreviewElement, getCurrentTextNode } from "@tau/editor/api";
+import { Editor, Node, Transforms, Range } from "slate";
+import { setOrInsertNode, focusInsertedPreviewElement, wrapInlineText } from "@tau/editor/api";
+
+import type { InlineMathElement } from "./types";
 
 export const insertBlockMath = (editor: Editor) => {
   const path = setOrInsertNode(editor, {
@@ -12,7 +14,23 @@ export const insertBlockMath = (editor: Editor) => {
 };
 
 export const unWrapInlineMath = (editor: Editor) => {
-  Transforms.unwrapNodes(editor, { match: node => node.type === "inline-math" });
+  if (!editor.selection) return;
+  const formulas = Array.from(
+    Editor.nodes<InlineMathElement>(editor, {
+      match: node => node.type === "inline-math",
+    })
+  );
+  Editor.withoutNormalizing(editor, () => {
+    for (const [formula, path] of formulas.reverse()) {
+      if (Node.string(formula) === formula.tex) {
+        Transforms.unwrapNodes(editor, { at: path, voids: true });
+      } else {
+        // 源码已改写或公式原本没有富文本，解除时以当前源码为准。
+        Transforms.removeNodes(editor, { at: path });
+        Transforms.insertNodes(editor, { type: "formatted", text: formula.tex }, { at: path });
+      }
+    }
+  });
 };
 
 export const wrapInlineMath = (editor: Editor) => {
@@ -25,22 +43,11 @@ export const wrapInlineMath = (editor: Editor) => {
       children: [{ type: "formatted", text: "" }],
     });
   } else {
-    const [node] = getCurrentTextNode(editor);
-    if (node.type !== "formatted") return;
-    const text = Editor.string(editor, selection);
-    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(type => {
-      Editor.removeMark(editor, type);
-    });
-    editor.deleteBackward("character");
-    Transforms.wrapNodes(
-      editor,
-      {
-        type: "inline-math",
-        tex: text,
-        children: [{ type: "formatted", text: "" }],
-      },
-      { at: selection, split: true }
-    );
+    wrapInlineText(editor, range => ({
+      type: "inline-math",
+      tex: Editor.string(editor, range),
+      children: [],
+    }));
   }
   const [math] = Editor.nodes(editor, {
     match: node => node.type === "inline-math",

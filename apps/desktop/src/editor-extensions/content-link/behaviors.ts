@@ -1,26 +1,23 @@
-import { Editor, Element, Range, Transforms } from "slate";
-import type { ParagraphElement } from "@tau/editor";
-import type { ElementBehaviors } from "@tau/editor";
+import { Editor, Element, Range, Text, Transforms } from "slate";
+import { createParagraph, type ParagraphElement, type ElementBehaviors } from "@tau/editor/api";
 
 import type { ContentLinkElement } from "./types";
 import { resolveMentionTrigger } from "./triggers";
 import { editorPanels, createPanel } from "./plugins/withMentionCommands";
 
-/** content-link 不在 paragraph 里时包进 paragraph（行内元素的标准归位） */
-const normalize: ElementBehaviors<ContentLinkElement>["normalize"] = (editor, [node, path]) => {
-  const parentPath = path.slice(0, path.length - 1);
-  const parentNode = Editor.node(editor, parentPath);
-  if (path.length === 0 || (parentNode && parentNode[0].type !== "paragraph")) {
-    const paragraphNode: ParagraphElement = {
-      type: "paragraph",
-      children: [node as ContentLinkElement],
-    };
-    Transforms.wrapNodes(editor, paragraphNode, {
-      at: path,
-    });
-    return true;
-  }
-  return false;
+/** 只有落在根节点或块级子节点之间的引用才需要补段落。 */
+const normalize: ElementBehaviors<ContentLinkElement>["normalize"] = (editor, [, path]) => {
+  const [parent] = Editor.parent(editor, path);
+  if (
+    Element.isElement(parent) &&
+    (parent.type === "paragraph" ||
+      parent.type === "header" ||
+      editor.isInline(parent) ||
+      parent.children.some(Text.isText))
+  )
+    return false;
+  Transforms.wrapNodes(editor, createParagraph(), { at: path });
+  return true;
 };
 
 /** 光标前一个字符（可跨文本节点），用于识别 [[ / 【【 的成对输入 */
@@ -101,7 +98,3 @@ export const contentLinkBehaviors: ElementBehaviors<ContentLinkElement> = {
 export const contentLinkForParagraph: ElementBehaviors<ParagraphElement> = {
   insertText: insertMention,
 };
-
-// Element/Transforms 的引用避免 tree-shake 误判（normalize 用到）
-void Element;
-void Transforms;

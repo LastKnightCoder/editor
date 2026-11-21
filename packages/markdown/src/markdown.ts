@@ -311,6 +311,7 @@ interface MarkdownParseContext {
   customDirectiveHandlers: Map<string, CustomDirectiveHandler>;
   /** 位置映射只记元素级范围的类型 */
   voidTypes: ReadonlySet<string>;
+  blockTypes: ReadonlySet<string>;
   /** 子文本按整体范围记前后缀的 text directive 名 */
   inlineWrapperDirectives: ReadonlySet<string>;
   inlineHtmlWrappers: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>;
@@ -331,6 +332,7 @@ export interface ImportConfig {
   textRegistry: MarkdownTextRegistry;
   directives: Record<string, CustomDirectiveHandler>;
   voidTypes: ReadonlySet<string>;
+  blockTypes: ReadonlySet<string>;
   inlineWrapperDirectives: ReadonlySet<string>;
   inlineHtmlWrappers?: ReadonlyMap<string, NonNullable<MarkdownCodec["inlineHtmlWrapper"]>>;
   fenceByLanguage: ReadonlyMap<string, { type: string; property: string }>;
@@ -363,6 +365,7 @@ const withParseContext = <T>(
       Object.entries({ ...config.directives, ...options?.customDirectives })
     ),
     voidTypes: config.voidTypes,
+    blockTypes: config.blockTypes,
     inlineWrapperDirectives: config.inlineWrapperDirectives,
     inlineHtmlWrappers: config.inlineHtmlWrappers ?? new Map(),
     fenceByLanguage: config.fenceByLanguage ?? new Map(),
@@ -643,18 +646,6 @@ const importWithPositionsInContext = (
         continue;
       }
 
-      while (
-        astChildNode.type === "link" &&
-        astChildNode.children &&
-        astChildNode.children.some((c: MarkdownAstNode) => c.type === "html")
-      ) {
-        const index = astChildNode.children.findIndex(
-          (child: MarkdownAstNode) => child.type === "html"
-        );
-        const paragraph = astChildNode.children[index];
-        paragraph.type = "text";
-      }
-
       const isCarrier =
         astChildNode.type.endsWith("Directive") && astChildNode.name === UNKNOWN_NODE_DIRECTIVE;
       const restored = isCarrier ? restoreUnknownNode(astChildNode) : null;
@@ -750,7 +741,9 @@ const importWithPositionsInContext = (
         continue;
       }
 
-      if (astChildNode.type === "text" && !textClaim) {
+      const literalLinkHtml =
+        parentAstNodeForChildren?.type === "link" && astChildNode.type === "html";
+      if ((astChildNode.type === "text" || literalLinkHtml) && !textClaim) {
         const slateNode: Descendant = {
           type: "formatted",
           text: astChildNode.value || "",
@@ -975,7 +968,7 @@ const normalizeEditorContent = (
   result: Descendant[] = [],
   parent: Descendant | null = null
 ): Descendant[] => {
-  const { normalizeHooks, inlineForms } = getCurrentParseContext();
+  const { normalizeHooks, inlineForms, blockTypes } = getCurrentParseContext();
   const demote = (child: Descendant): Descendant => {
     const inlineForm = inlineForms.get((child as { type?: string }).type ?? "");
     return inlineForm ? inlineForm(child) : child;
@@ -998,6 +991,7 @@ const normalizeEditorContent = (
         previousSibling: editor[i - 1] ?? null,
         nextSibling: editor[i + 1] ?? null,
         demote,
+        isBlock: child => blockTypes.has(getNodeType(child)),
       });
       if (replacement) {
         // 钩子返回即定论：不再做子树递归与空检查（规则自己负责形状）

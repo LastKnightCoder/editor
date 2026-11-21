@@ -11,7 +11,7 @@ const styledTextExtension = defineExtension({
       type: "styled-text",
       dataVersion: 1,
       kind: "inline",
-      isEmpty: element => element.children.length === 1 && element.children[0].text === "",
+      isEmpty: ({ children }, { isEmpty }) => children.length === 1 && isEmpty(children[0]),
       render: ({ attributes, element, children }: ElementRenderProps<StyledTextElement>) => (
         <StyledText attributes={attributes} element={element}>
           {children}

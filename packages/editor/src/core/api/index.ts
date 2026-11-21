@@ -120,6 +120,7 @@ export {
   setContentFragmentTransfer,
 } from "./clipboardFragment";
 export { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "../utils/selectionSnapshot";
+export { wrapInlineText } from "../utils/wrapInlineText";
 export { withNewUndoStep } from "../utils/undoStep";
 
 export { createParagraph, isParagraphElement, type ParagraphElement } from "../model/paragraph";

@@ -1,6 +1,6 @@
-import { Editor, Range, Transforms } from "slate";
+import { Editor, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
-import { getCurrentTextNode } from "@tau/editor/api";
+import { wrapInlineText } from "@tau/editor/api";
 export const unwrapKbd = (editor: Editor) => {
   if (!editor.selection || ReactEditor.isReadOnly(editor)) return;
   Transforms.unwrapNodes(editor, {
@@ -9,22 +9,9 @@ export const unwrapKbd = (editor: Editor) => {
 };
 
 export const wrapKbd = (editor: Editor) => {
-  const { selection } = editor;
-  if (!selection || Range.isCollapsed(selection) || ReactEditor.isReadOnly(editor)) return;
-  const node = getCurrentTextNode(editor)?.[0];
-  if (node?.type === "formatted") {
-    const text = Editor.string(editor, selection);
-    editor.deleteBackward("character");
-    Transforms.wrapNodes(
-      editor,
-      {
-        type: "kbd",
-        children: [{ type: "formatted", text }],
-      },
-      {
-        at: selection,
-        split: true,
-      }
-    );
-  }
+  if (ReactEditor.isReadOnly(editor)) return;
+  wrapInlineText(editor, () => ({
+    type: "kbd",
+    children: [],
+  }));
 };

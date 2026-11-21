@@ -7,18 +7,11 @@ export const linkCodec: MarkdownCodec = {
     node.type === "link"
       ? ({ type: "link", url: node.url, children: [] } as unknown as Descendant)
       : null,
-  // 行内元素里只允许文本子节点，导入后剥掉混入的块级子节点
-  normalize: element =>
-    element.children.some((child: Descendant) => !("type" in child) || child.type !== "formatted")
-      ? [
-          {
-            ...element,
-            children: element.children.filter(
-              (child: Descendant) => "type" in child && child.type === "formatted"
-            ),
-          },
-        ]
-      : null,
+  normalize: (element, context) => {
+    const children: Descendant[] = element.children;
+    element.children = children.map(context.demote).filter(child => !context.isBlock(child));
+    return element.children.length ? null : [];
+  },
   serializer: {
     toMarkdown: (element, childrenStr) => `[${childrenStr}](${element.url})`,
     toMarkdownStructured: (element, childrenStr) => ({

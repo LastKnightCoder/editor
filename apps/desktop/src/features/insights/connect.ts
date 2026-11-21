@@ -3,8 +3,8 @@
  * 协作、撤销、引用索引都照常）。片段跨格式叶子时整段包进一个链接，叶子的格式保留在链接里。
  */
 
-import { Editor, Element, Transforms } from "slate";
-import type { ContentLinkElement } from "@/editor-extensions/content-link/types";
+import { wrapInlineText } from "@tau/editor/api";
+import { Editor, Element } from "slate";
 import type { InsightMark } from "@/types/content-insights";
 import { anchorSpan } from "./anchors";
 
@@ -20,14 +20,16 @@ export function connectInsightMark(editor: Editor, mark: InsightMark): boolean {
     match: node => Element.isElement(node) && node.type === "content-link",
   });
   if (!overlapsLink.next().done) return false;
-  const link: Omit<ContentLinkElement, "children"> & { children: [] } = {
-    type: "content-link",
-    refId: target.ref.id,
-    contentId: target.contentId,
-    contentType: target.ref.kind,
-    contentTitle: target.title,
-    children: [],
-  };
-  Transforms.wrapNodes(editor, link as unknown as Element, { at: range, split: true });
-  return true;
+  return wrapInlineText(
+    editor,
+    () => ({
+      type: "content-link",
+      refId: target.ref.id,
+      contentId: target.contentId,
+      contentType: target.ref.kind,
+      contentTitle: target.title,
+      children: [],
+    }),
+    range
+  );
 }

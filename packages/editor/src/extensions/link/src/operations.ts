@@ -9,6 +9,7 @@ import {
   type NodeEntry,
   type RangeRef,
 } from "slate";
+import { wrapInlineText } from "@tau/editor/api";
 import { ReactEditor } from "slate-react";
 import type { LinkElement } from "./types";
 import { linkDisplayText, normalizeLinkUrl } from "./url";
@@ -22,8 +23,9 @@ export const findLinkEntry = (
   at: Range | Path | undefined = editor.selection ?? undefined
 ): NodeEntry<LinkElement> | undefined => {
   if (!at) return undefined;
-  const [entry] = Editor.nodes(editor, { at, match: isLinkElement });
-  return entry as NodeEntry<LinkElement> | undefined;
+  if (Range.isRange(at)) return Editor.above<LinkElement>(editor, { at, match: isLinkElement });
+  const [entry] = Editor.nodes<LinkElement>(editor, { at, match: isLinkElement });
+  return entry;
 };
 
 /** 链接只有一段无格式文本时才允许直接改文字，带格式时改文字会抹掉格式。 */
@@ -43,6 +45,29 @@ export const unwrapLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, { match: isLinkElement });
 };
 
+/** 重设网址时在选区两端截断旧链接，保留选区外的原地址。 */
+function unwrapSelectedLinks(editor: Editor, at: Range) {
+  const ref = Editor.rangeRef(editor, at, { affinity: "inward" });
+  try {
+    for (const edge of Range.edges(at).reverse()) {
+      Transforms.splitNodes(editor, { at: edge, match: isLinkElement });
+    }
+    const range = ref.current;
+    if (!range) return;
+    Transforms.unwrapNodes(editor, {
+      at: range,
+      match: (node, path) => {
+        if (!isLinkElement(node)) return false;
+        const overlap = Range.intersection(range, Editor.range(editor, path));
+        return !!overlap && Range.isExpanded(overlap);
+      },
+    });
+    if (ref.current) Transforms.select(editor, ref.current);
+  } finally {
+    ref.unref();
+  }
+}
+
 /**
  * 把选区包成链接；选区折叠时以去掉协议的地址作为文字插入。
  * 光标落在新链接之后，返回新链接的路径。
@@ -51,9 +76,12 @@ export const wrapLink = (editor: Editor, rawUrl: string): Path | null => {
   if (!editor.selection || ReactEditor.isReadOnly(editor)) return null;
   const url = normalizeLinkUrl(rawUrl);
   if (!url) return null;
-  let path: Path | null = null;
   Editor.withoutNormalizing(editor, () => {
-    if (findLinkEntry(editor)) unwrapLink(editor);
+    const original = editor.selection;
+    if (original && !Editor.nodes(editor, { at: original, match: isLinkElement }).next().done) {
+      if (Range.isExpanded(original)) unwrapSelectedLinks(editor, original);
+      else unwrapLink(editor);
+    }
     const { selection } = editor;
     if (!selection) return;
     if (Range.isCollapsed(selection)) {
@@ -64,17 +92,13 @@ export const wrapLink = (editor: Editor, rawUrl: string): Path | null => {
       };
       Transforms.insertNodes(editor, link);
     } else {
-      Transforms.wrapNodes(editor, { type: "link", url, children: [] } as LinkElement, {
-        split: true,
-      });
+      wrapInlineText(editor, () => ({ type: "link", url, children: [] }));
     }
   });
-  const entry = findLinkEntry(editor);
-  if (entry) {
-    path = entry[1];
-    selectAfterLink(editor, path);
-  }
-  return path;
+  const entry = editor.selection && findLinkEntry(editor, Range.end(editor.selection).path);
+  if (!entry) return null;
+  selectAfterLink(editor, entry[1]);
+  return entry[1];
 };
 
 /** 修改已有链接的地址和文字，一次撤销即可还原；地址为空等同取消链接。 */
@@ -108,10 +132,7 @@ export const unlinkAt = (editor: Editor, path: Path): RangeRef => {
 
 export const relinkRange = (editor: Editor, range: Range | null, url: string): void => {
   if (!range || Range.isCollapsed(range)) return;
-  Transforms.wrapNodes(editor, { type: "link", url, children: [] } as LinkElement, {
-    at: range,
-    split: true,
-  });
+  wrapInlineText(editor, () => ({ type: "link", url, children: [] }), range);
 };
 
 const blockPathAt = (editor: Editor, point: Range["anchor"]) =>

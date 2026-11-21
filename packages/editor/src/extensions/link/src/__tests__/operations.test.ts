@@ -1,4 +1,4 @@
-import { createEditor, Editor, Node, Transforms } from "slate";
+import { createEditor, Editor, Element, Node, Transforms, type Descendant } from "slate";
 import { describe, expect, it } from "vitest";
 import { createParagraph } from "@tau/editor/api";
 import { wrapLink, unwrapLink } from "../index";
@@ -26,6 +26,70 @@ describe("link 的公开选区操作", () => {
     unwrapLink(editor);
     expect(Node.string(editor)).toBe("abcd");
     expect(links(editor)).toHaveLength(0);
+  });
+
+  it("选区从按键中间伸到正文时只给选中的字加链接，光标落在最后一段之后", () => {
+    const editor = createLinkEditor([text("前")]);
+    editor.isInline = node => node.type === "kbd" || node.type === "link";
+    editor.children = [
+      {
+        type: "paragraph",
+        children: [
+          { type: "formatted", text: "前" },
+          { type: "kbd", children: [{ type: "formatted", text: "AB", bold: true }] },
+          { type: "formatted", text: "C后", italic: true },
+        ],
+      },
+    ];
+    Transforms.select(editor, {
+      anchor: { path: [0, 2], offset: 1 },
+      focus: { path: [0, 1, 0], offset: 1 },
+    });
+    wrapLink(editor, "example.com");
+    expect(links(editor).map(node => node.children)).toEqual([
+      [text("B", { bold: true })],
+      [text("C", { italic: true })],
+    ]);
+    const [[kbd]] = Editor.nodes(editor, {
+      at: [],
+      match: node => Element.isElement(node) && node.type === "kbd",
+    });
+    expect(Node.string(kbd)).toBe("AB");
+    editor.insertText("!");
+    expect(Node.string(editor)).toBe("前ABC!后");
+  });
+
+  it("跨过已有公式时保留公式，并给两侧选中的文字加链接", () => {
+    const editor = createLinkEditor([text("前")]);
+    editor.isInline = node => node.type === "inline-math" || node.type === "link";
+    editor.isVoid = node => node.type === "inline-math";
+    const formula: Descendant = {
+      type: "inline-math",
+      tex: "x",
+      children: [{ type: "formatted", text: "" }],
+    };
+    editor.children = [
+      {
+        type: "paragraph",
+        children: [
+          { type: "formatted", text: "前甲", bold: true },
+          formula,
+          { type: "formatted", text: "乙后" },
+        ],
+      },
+    ];
+    Transforms.select(editor, {
+      anchor: { path: [0, 0], offset: 1 },
+      focus: { path: [0, 2], offset: 1 },
+    });
+    wrapLink(editor, "example.com");
+    expect(links(editor).map(node => node.children)).toEqual([
+      [text("甲", { bold: true })],
+      [text("乙")],
+    ]);
+    const [[node, path]] = Editor.nodes(editor, { at: [], match: n => n.type === "inline-math" });
+    expect(node).toEqual(formula);
+    expect(Node.parent(editor, path).type).toBe("paragraph");
   });
 
   it("无选区时不改写文档", () => {
@@ -115,6 +179,23 @@ describe("粘贴网址", () => {
     const [created] = links(editor);
     expect(created.url).toBe("https://react.dev");
     expect(Node.string(created)).toBe("React 官方文档");
+  });
+
+  it("选区只覆盖旧链接的一部分时，粘贴新网址保留选区外的旧地址", () => {
+    const editor = createLinkEditor([
+      link("https://a.com", text("甲乙", { bold: true })),
+      text("丙丁"),
+    ]);
+    Transforms.select(editor, {
+      anchor: { path: [0, 1, 0], offset: 1 },
+      focus: { path: [0, 2], offset: 1 },
+    });
+    pasteUrl(editor, "https://b.com");
+    expect(links(editor).map(node => [node.url, node.children])).toEqual([
+      ["https://a.com", [text("甲", { bold: true })]],
+      ["https://b.com", [text("乙", { bold: true }), text("丙")]],
+    ]);
+    expect(Node.string(editor)).toBe("甲乙丙丁");
   });
 
   it("光标处粘贴插入为链接", () => {

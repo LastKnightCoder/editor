@@ -1,4 +1,4 @@
-import { Descendant } from "slate";
+import { Node, type Descendant } from "slate";
 import { FormattedText, InlineElement } from "@tau/editor";
 
 export const getEditorText = (value: Descendant[], maxLength = 20): string => {
@@ -40,16 +40,15 @@ export const getInlineElementText = (element: InlineElement | FormattedText): st
   switch (element.type) {
     case "formatted":
       return element.text;
-    case "link":
-      return element.children?.[0].text;
     case "inline-math":
       return element.tex;
+    case "link":
+    case "content-link":
+    case "comment":
     case "underline":
-      return element.children?.[0].text;
     case "styled-text":
-      return element.children?.[0].text;
     case "kbd":
-      return element.children?.[0].text;
+      return Node.string(element);
     case "inline-image":
       return element.alt || "[Image]";
     default:

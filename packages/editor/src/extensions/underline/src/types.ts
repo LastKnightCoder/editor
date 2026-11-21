@@ -1,9 +1,9 @@
-import { type FormattedText } from "@tau/markdown/model";
+import type { ParagraphElement } from "@tau/editor/api";
 
 export interface UnderlineElement {
   type: "underline";
   color: string;
   lineType: string;
   colorSelectOpen: boolean;
-  children: FormattedText[];
+  children: ParagraphElement["children"];
 }

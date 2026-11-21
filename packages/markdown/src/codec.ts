@@ -82,6 +82,7 @@ export interface MarkdownCodec {
       nextSibling: Descendant | null;
       /** 按领域声明把块级子元素降级为行内形态，无声明则原样返回。 */
       demote: (child: Descendant) => Descendant;
+      isBlock: (child: Descendant) => boolean;
     }
   ) => Descendant[] | null;
   /** 按目标类型贡献规范化，先于该类型自身 normalize；按 codec 顺序首个非 null 替换生效。 */

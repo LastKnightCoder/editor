@@ -1,4 +1,12 @@
-import { createEditor, type Descendant, type NodeEntry } from "slate";
+import {
+  createEditor,
+  Editor,
+  Element,
+  Node,
+  Transforms,
+  type Descendant,
+  type NodeEntry,
+} from "slate";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ParagraphElement } from "@tau/editor";
@@ -9,7 +17,8 @@ vi.mock("../plugins/withMentionCommands", () => ({
 }));
 
 import { editorPanels, createPanel } from "../plugins/withMentionCommands";
-import { contentLinkForParagraph } from "../behaviors";
+import { wrapContentLink } from "../components/utils";
+import { contentLinkBehaviors, contentLinkForParagraph } from "../behaviors";
 
 const mockCreatePanel = vi.mocked(createPanel);
 const panels = editorPanels as unknown as WeakMap<object, unknown>;
@@ -167,4 +176,45 @@ describe("insertMention 面板已开时的输入更新", () => {
     expect(store.reset).toHaveBeenCalled();
     expect(store.setState).not.toHaveBeenCalled();
   });
+});
+
+it("标题内跨按键样式关联内容，只包裹选中的字并保留标题结构", () => {
+  const editor = createEditor();
+  editor.isInline = node => node.type === "kbd" || node.type === "content-link";
+  const normalize = editor.normalizeNode;
+  editor.normalizeNode = (entry, options) => {
+    const [node, path] = entry;
+    if (
+      Element.isElement(node) &&
+      node.type === "content-link" &&
+      contentLinkBehaviors.normalize?.(editor, [node, path])
+    )
+      return;
+    normalize(entry, options);
+  };
+  editor.children = [
+    {
+      type: "header",
+      level: 2,
+      children: [
+        { type: "formatted", text: "按 " },
+        { type: "kbd", children: [{ type: "formatted", text: "A👩‍💻", bold: true }] },
+        { type: "formatted", text: "继续", italic: true },
+      ],
+    },
+  ];
+  Transforms.select(editor, {
+    anchor: { path: [0, 1, 0], offset: 1 },
+    focus: { path: [0, 2], offset: 1 },
+  });
+  wrapContentLink(editor, 101, "card", "标题", 201);
+  const links = Array.from(
+    Editor.nodes(editor, { at: [], match: node => node.type === "content-link" })
+  );
+  expect(links.map(([node]) => Node.string(node))).toEqual(["👩‍💻", "继"]);
+  expect(Node.get(editor, [0]).type).toBe("header");
+  const key = Node.get(editor, [0, 1]);
+  expect(key.type).toBe("kbd");
+  expect(Node.string(key)).toBe("A👩‍💻");
+  expect(Node.string(editor)).toBe("按 A👩‍💻继续");
 });

@@ -1,7 +1,7 @@
-import { type FormattedText } from "@tau/markdown/model";
+import type { ParagraphElement } from "@tau/editor/api";
 
 export interface LinkElement {
   type: "link";
   url: string;
-  children: FormattedText[];
+  children: ParagraphElement["children"];
 }

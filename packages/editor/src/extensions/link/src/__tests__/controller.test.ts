@@ -152,6 +152,17 @@ describe("光标进入", () => {
 });
 
 describe("⌘L 与工具条入口", () => {
+  it("从旧链接内选到正文时为整个选区新建链接", () => {
+    const { editor, controller } = setup();
+    Transforms.select(editor, {
+      anchor: { path: [0, 1, 0], offset: 0 },
+      focus: { path: [0, 2], offset: 1 },
+    });
+    controller.startFromSelection("above");
+    expect(controller.getState().mode).toBe("create");
+    controller.close();
+  });
+
   it("光标在链接里编辑该链接，并记住原选区", () => {
     const { editor, controller, first } = setup();
     caretInto(editor, first);

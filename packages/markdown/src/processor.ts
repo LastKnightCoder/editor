@@ -142,6 +142,7 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   );
 
   const importConfig: ImportConfig = {
+    blockTypes: new Set(codecs.filter(codec => codec.serializer?.isBlock).map(codec => codec.type)),
     textRegistry,
     directives,
     voidTypes,
