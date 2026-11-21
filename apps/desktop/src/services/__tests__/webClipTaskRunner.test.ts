@@ -64,15 +64,16 @@ const createRunner = (overrides: Partial<WebClipTaskRunnerDeps> = {}) => {
     contentId: 22,
   }));
   const mock = createChatStreamMock("# 标题", "# 标题");
+  const chatStream = vi.fn(mock.fn);
 
   const runner = new WebClipTaskRunner({
     getLLMConfig: () => ({ provider, model }),
-    chatStream: mock.fn,
+    chatStream,
     saveWebClip,
     ...overrides,
   });
 
-  return { runner, chatStream: mock.fn, cancelSpy: mock.cancelSpy, saveWebClip };
+  return { runner, chatStream, cancelSpy: mock.cancelSpy, saveWebClip };
 };
 
 const startParams = {
@@ -90,7 +91,7 @@ const waitForAsyncWork = () =>
 
 describe("WebClipTaskRunner", () => {
   it("通过 pi 流事件推送进度并在完成后保存网页解析结果", async () => {
-    const { runner, saveWebClip } = createRunner();
+    const { runner, chatStream, saveWebClip } = createRunner();
     const progress = vi.fn();
     const complete = vi.fn();
     runner.onProgress(progress);
@@ -99,6 +100,7 @@ describe("WebClipTaskRunner", () => {
     await runner.start(startParams);
     await waitForAsyncWork();
 
+    expect(chatStream.mock.calls[0]?.[0].source?.feature).toBe("webClip");
     expect(progress).toHaveBeenCalledWith({
       projectItemId: 1,
       markdown: "# 标题",

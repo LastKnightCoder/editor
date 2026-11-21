@@ -254,7 +254,13 @@ export class WebClipTaskRunner {
       ];
 
       const chatHandle = this.deps.chatStream(
-        { provider, model, ...(thinkingLevel ? { thinking: thinkingLevel } : {}), messages },
+        {
+          provider,
+          model,
+          ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
+          messages,
+          source: { feature: "webClip" },
+        },
         event => {
           if (task.status !== "processing") {
             return;
