@@ -1,5 +1,6 @@
 import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
+import { compilePPT, decodePPTFiles } from "@/services/ppt/document";
 import { withPPTRuntime } from "@/utils/ppt-runtime";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
@@ -36,7 +37,8 @@ import { createContent, getContentById } from "@/commands";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
 import { getContentLength, getEditorText, getMarkdown } from "@/utils";
-import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
+import { originalPPTSource } from "@/services/ppt/migrate";
+import { cleanPPTHtmlContent } from "@/services/ppt/legacy-html";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { buildDefaultEpubMetadata, exportSlateToEpubWithDialog } from "@/utils/epub-export";
 import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
@@ -144,16 +146,20 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     return getMarkdown(content);
   }, [isMindMap, content]);
 
-  // PPT 的 HTML 内容（从代码块中提取并清理）
-  const pptHtmlContent = useMemo(() => {
-    if (!isPPT) return "";
-    const markdown = getMarkdown(content);
-    // 使用清理函数处理各种格式问题
-    return cleanPPTHtmlContent(markdown);
+  const ppt = useMemo(() => {
+    if (!isPPT) return { html: "" };
+    try {
+      const files = decodePPTFiles(content);
+      return {
+        html: files
+          ? compilePPT(files).html
+          : withPPTRuntime(originalPPTSource(content) ?? cleanPPTHtmlContent(getMarkdown(content))),
+      };
+    } catch (error) {
+      return { html: "", error: (error as Error).message };
+    }
   }, [isPPT, content]);
-
-  // 预览与下载用的完整 HTML：内联公共运行时，离线可用
-  const pptDeckHtml = useMemo(() => withPPTRuntime(pptHtmlContent), [pptHtmlContent]);
+  const pptDeckHtml = ppt.html;
   const pptPreviewUrl = useHtmlPreviewUrl(pptDeckHtml);
 
   // 报告的 HTML 内容（从代码块中提取并清理）
@@ -374,7 +380,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   });
 
   const handleDownloadPPT = useMemoizedFn(() => {
-    if (!pptHtmlContent.trim()) {
+    if (!pptDeckHtml.trim()) {
       toast.error("没有可下载的 PPT 内容");
       return;
     }
@@ -842,6 +848,8 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 )}
                 <MindMapRenderer code={mindMapMarkdown} fillContainer />
               </div>
+            ) : isPPT && ppt.error ? (
+              <p role="alert">{ppt.error}</p>
             ) : isPPT ? (
               <div className="h-full bg-black">
                 {isElectron ? (

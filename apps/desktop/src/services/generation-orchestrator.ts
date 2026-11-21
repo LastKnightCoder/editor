@@ -1,14 +1,14 @@
+import { pptWorkspacePrompt } from "@/constants/prompts/ppt-workspace";
+import type { ToolRisk } from "@/types/tool";
 import { Role } from "@/constants";
 import type { LLMProviderSetting, LLMModelSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage, ToolCallExecutionState, ToolCallPayload } from "@/types/llm";
 import type { ToolExecutionResult } from "@/types";
 import type { ModelUsage as AgentModelUsage } from "@tau/shared";
-import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
 import { runPiAgent } from "@/services/piAgentRunner";
 import { PiChatEventReducer } from "@/services/piChatEvents";
 import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
-import toolRegistry, { ensureToolingReady } from "@/tools";
 import {
   OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
   OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT,
@@ -32,11 +32,6 @@ import {
   QUIZ_GENERATION_WITH_TOOLS_PROMPT,
   QUIZ_GENERATION_WITH_TOOLS_USER_PROMPT,
 } from "@/constants/prompts/quiz-generation";
-import {
-  getPPTGenerationPrompt,
-  getPPTGenerationUserPrompt,
-} from "@/constants/prompts/ppt-generation";
-import { buildPPTEditUserPrompt, getPPTEditPrompt } from "@/constants/prompts/ppt-edit";
 import {
   getReportGenerationPrompt,
   getReportGenerationUserPrompt,
@@ -83,8 +78,8 @@ export interface GenerationTaskPayloadMap {
   highlights: EmptyTaskPayload;
   article: { style: VideoEbookRewriteStyle };
   quiz: EmptyTaskPayload;
-  ppt: { template: PPTTemplate };
-  ppt_edit: { currentHtml: string };
+  ppt: { template: string };
+  ppt_edit: { template: string };
   /** 插件的 Notebook 输出：任务要求由插件给，通用规则、资料清单与检索工具由宿主补 */
   plugin: {
     pluginId: string;
@@ -130,9 +125,11 @@ export interface GenerationRunCallbacks {
 
 /** 按次注入的工具（覆盖全局注册表里的同名工具）：后台任务用它绑定自己的项目 */
 export interface GenerationRunOptions {
+  workspaceCwd?: string;
   databaseName?: string;
   additionalTools?: Array<{
     type: "function";
+    risk?: ToolRisk;
     function: {
       name: string;
       description: string;
@@ -154,11 +151,6 @@ const createTextMessage = (role: Role, text: string): RequestMessage => ({
   role,
   content: [{ type: "text", text }],
 });
-
-const isToolEnabled = (toolName: string) => {
-  ensureToolingReady();
-  return toolRegistry.hasEnabledTool(toolName);
-};
 
 export function buildGenerationRequest(request: GenerationRequest): GenerationBuildResult {
   if (request.sourceType === "vibe_learning") {
@@ -239,6 +231,9 @@ export function runGenerationTask(
   const handle = runPiAgent(
     {
       databaseName: options.databaseName,
+      cwd: options.workspaceCwd,
+      hostToolsOnly: !!options.workspaceCwd,
+      ...(options.workspaceCwd && thinkingLevel ? { thinking: thinkingLevel } : {}),
       provider,
       model,
       messages: buildResult.messages,
@@ -260,6 +255,7 @@ export function runGenerationTask(
               if (!outcome) return null;
               return {
                 content: outcome.content ?? "",
+                ...(outcome.isParameterError || outcome.isCancelled ? { isError: true } : {}),
                 ...(typeof outcome.modelContent === "string"
                   ? { modelContent: outcome.modelContent }
                   : {}),
@@ -300,6 +296,23 @@ function buildVibeLearningGenerationRequest(
   taskPayload: GenerationTaskPayloadMap[GenerationTaskType],
   sourcePayload: VibeLearningSourcePayload
 ): GenerationBuildResult {
+  if (taskType === "ppt" || taskType === "ppt_edit") {
+    const { template } = taskPayload as GenerationTaskPayloadMap["ppt"];
+    const brief = [
+      taskType === "ppt" ? "生成演示文稿" : "局部编辑已有演示文稿",
+      sourcePayload.userPrompt,
+      "项目资料：" + sourcePayload.resourceNames.join("、"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    return {
+      enableTools: true,
+      messages: [
+        createTextMessage(Role.System, pptWorkspacePrompt(template)),
+        createTextMessage(Role.User, brief),
+      ],
+    };
+  }
   switch (taskType) {
     case "outline":
       return {
@@ -374,41 +387,6 @@ function buildVibeLearningGenerationRequest(
         ],
         enableTools: true,
       };
-    case "ppt": {
-      const payload = taskPayload as GenerationTaskPayloadMap["ppt"];
-      return {
-        messages: [
-          createTextMessage(
-            Role.System,
-            getPPTGenerationPrompt(payload.template, {
-              enableAIIllustration: isToolEnabled("generate_image"),
-            })
-          ),
-          createTextMessage(
-            Role.User,
-            getPPTGenerationUserPrompt(
-              sourcePayload.resourceNames,
-              payload.template.name,
-              sourcePayload.userPrompt
-            )
-          ),
-        ],
-        enableTools: true,
-      };
-    }
-    case "ppt_edit": {
-      const payload = taskPayload as GenerationTaskPayloadMap["ppt_edit"];
-      return {
-        messages: [
-          createTextMessage(Role.System, getPPTEditPrompt(payload.currentHtml)),
-          createTextMessage(
-            Role.User,
-            buildPPTEditUserPrompt(sourcePayload.userPrompt || "", sourcePayload.resourceNames)
-          ),
-        ],
-        enableTools: true,
-      };
-    }
     case "report": {
       const payload = taskPayload as GenerationTaskPayloadMap["report"];
       return {

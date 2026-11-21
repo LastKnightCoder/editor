@@ -25,7 +25,7 @@
 
 ## 学习项目生成与插件调用
 
-**Notebook 生成**使用桌面 `chat` 模型分配。大纲、重点、文章、思维导图、测验、PPT、报告和插件产物各有模板。用户可附加要求，PPT 和报告续改还带入已有 HTML。任务以一次性 Agent 运行，可调用启用的工具、绑定本项目的检索工具和 Skill 工具。它没有聊天输入框的自动 Skill 目录拼接或本轮点名机制；需要等待用户审批的操作会被拒绝，派发子 Agent 仅支持同步等待。[任务入口](/apps/desktop/src/features/vibe-learning/views/VibeLearningView/tasks/runner.ts) · [生成编排](/apps/desktop/src/services/generation-orchestrator.ts) · [工具装配](/apps/desktop/src/services/piAgentRunner.ts)
+**Notebook 生成**使用桌面 `chat` 模型分配。大纲、重点、文章、思维导图、测验、PPT、报告和插件产物各有模板。用户可附加要求，报告续改带入已有 HTML。各风格的演示新稿与续改使用独立临时目录，限定工具为项目查询、草稿文件和离线播放检查；启用的图片生成可为页面提供随稿资源。清单和各页以文件名标识，分别存为代码块。通过检查的快照携启动时正文修订提交，预览与下载从同一模板版本编译。手绘稿内联固定版本的 Rough.js 和应用模板装饰，全览复制画布位图。首次续改旧稿时，宿主在临时目录中试拆、比对源码往返，检查原稿和重组稿的离线播放，成功后才运行模型。旧壳作为只读文件随正文保存；自带脚本、页面边界不明或验证失败的文稿继续以原格式查看和下载。任务以一次性 Agent 运行，可调用启用的工具、绑定本项目的检索工具和 Skill 工具。它没有聊天输入框的自动 Skill 目录拼接或本轮点名机制；需要等待用户审批的操作会被拒绝，派发子 Agent 仅支持同步等待。[任务入口](/apps/desktop/src/features/vibe-learning/views/VibeLearningView/tasks/runner.ts) · [生成编排](/apps/desktop/src/services/generation-orchestrator.ts) · [工具装配](/apps/desktop/src/services/piAgentRunner.ts)
 
 **插件直接请求模型**时，插件通过 `context.ai.chat/stream` 或 `requestCapability(...).chat/stream` 提交自己构造的消息，可以包含历史文本和图片。接口返回文本或文本流，无 Skill 或模型工具参数。插件自有 AI 功能单独分配模型；借用应用对话或闪卡模型需要对应授权。实际调用还受额度与并发限制。[插件 AI 接口](/packages/plugins/src/ai.ts) · [跨端插件宿主](./plugin-portability.md)
 

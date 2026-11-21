@@ -82,6 +82,14 @@ function OutputView({ task }: { task: VLTask }) {
   const throttled = useThrottle(task.output, { wait: 600 });
   const output = running && !DOC_KINDS.includes(task.kind) ? throttled : task.output;
 
+  if (task.pptProgress) {
+    const { done, total } = task.pptProgress;
+    return (
+      <OutputTitle running={running}>
+        {total ? `已写 ${done} / ${total} 页` : "正在准备演示大纲"}
+      </OutputTitle>
+    );
+  }
   if (task.kind === "quiz") {
     const prompts = task.quizPrompts ?? [];
     if (prompts.length === 0 && !task.output) return null;

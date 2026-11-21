@@ -78,6 +78,7 @@ import type {
   PiToolApprovalChoice,
 } from "@/types/pi-session";
 import { PiSessionInteractions } from "./pi-session-interactions";
+import { ownsPPTDraft } from "./ppt-workspace";
 import { normalizePermissionMode } from "@/services/tool-permission/mode";
 import { resolveV2Providers } from "./pi-ai-runtime-core";
 import PiAiRuntimeModule from "./pi-ai-runtime";
@@ -967,6 +968,8 @@ class PiSessionHostModule {
             }
           : {}),
       });
+      if (request.hostToolsOnly && ownsPPTDraft(sender, workspace.cwd))
+        interactions.permissions.allowWorkspaceWrites();
       interactions.install(session);
       // 全集已注册，收敛到本轮活跃子集（缺省全部活跃，保持旧行为）
       if (request.activeToolNames) {

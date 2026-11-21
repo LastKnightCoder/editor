@@ -47,6 +47,7 @@ export interface VLTask {
   progress?: { done: number; total: number };
   /** 测验：已解析出的题干 */
   quizPrompts?: string[];
+  pptProgress?: { done: number; total: number };
   resourceNames: string[];
   userPrompt?: string;
 }

@@ -6,6 +6,7 @@
  * 例如：work-project-123.db
  */
 
+import { registerPPTWorkspace } from "./ppt-workspace";
 import { ipcMain, BrowserWindow } from "electron";
 import Database from "better-sqlite3";
 import { join } from "node:path";
@@ -29,6 +30,7 @@ class VibeLearningDBManager implements Module {
   async init() {
     // 从配置文件读取 embedding 维度
     this.loadDimensionsFromConfig();
+    registerPPTWorkspace();
 
     // 注册 IPC 处理器
     ipcMain.handle("vl-get-index-db", async (_event, mainDbName: string, projectId: number) => {

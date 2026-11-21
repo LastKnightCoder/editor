@@ -4,6 +4,8 @@
  * 离开页面任务照跑；状态写进 useVLTaskStore 供目录与执行过程页订阅。
  */
 
+import { PPTWorkspace } from "@/services/ppt/workspace";
+import { decodePPTFiles, type PPTFiles } from "@/services/ppt/document";
 import type { Descendant } from "slate";
 import { createContent, getContentById, replaceContent } from "@/commands";
 import { createVLNote, updateVLNote } from "@/commands/vibe-learning";
@@ -14,7 +16,8 @@ import useSettingStore from "@/stores/useSettingStore";
 import { invalidateQuizzes } from "../../../quizQueries";
 import { queryClient } from "@/queryClient";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
-import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
+import { migratePPT, originalPPTSource } from "@/services/ppt/migrate";
+import { readManifest } from "@/services/ppt/document";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { getTemplateById, getDefaultTemplate } from "@/constants/ppt-templates";
 import { getReportTemplateById, getDefaultReportTemplate } from "@/constants/report-templates";
@@ -83,6 +86,7 @@ interface Runtime {
   /** 停止时中止：生成与插件产物的后续处理共用 */
   abort: AbortController;
   contentId?: number;
+  ppt?: { workspace: PPTWorkspace; revision: string; original: Descendant[] };
   controller?: AbortController;
   cancelled: boolean;
 }
@@ -175,12 +179,12 @@ function buildRequest(
     case "article":
       return { ...base, taskType: "article", taskPayload: { style: input.style ?? "magazine" } };
     case "ppt":
+    case "ppt_edit":
+      if (!runtime.ppt) throw new Error("演示文稿工作目录未就绪");
       return {
         ...base,
-        taskType: "ppt",
-        taskPayload: {
-          template: (input.templateId && getTemplateById(input.templateId)) || getDefaultTemplate(),
-        },
+        taskType: input.kind,
+        taskPayload: { template: runtime.ppt.workspace.template },
       };
     case "report":
       return {
@@ -192,7 +196,6 @@ function buildRequest(
             getDefaultReportTemplate(),
         },
       };
-    case "ppt_edit":
     case "report_edit":
       return { ...base, taskType: input.kind, taskPayload: { currentHtml: currentHtml ?? "" } };
     case "plugin": {
@@ -215,16 +218,10 @@ function buildRequest(
 }
 
 /** AI 编辑：读出笔记当前的 HTML */
-async function loadCurrentHtml(
-  note: VLNote,
-  kind: "ppt_edit" | "report_edit",
-  databaseName: string,
-  signal?: AbortSignal
-) {
+async function loadReportHtml(note: VLNote, databaseName: string, signal?: AbortSignal) {
   const content = await commandsFor(databaseName, signal).getContentById(note.contentId);
   const markdown = content ? getMarkdown(content.content) : "";
-  const html =
-    kind === "ppt_edit" ? cleanPPTHtmlContent(markdown) : cleanReportHtmlContent(markdown);
+  const html = cleanReportHtmlContent(markdown);
   if (!html.trim()) throw new Error("无法读取当前内容");
   return html;
 }
@@ -311,7 +308,8 @@ export async function startVLTask(
     };
   } else if (input.kind === "ppt_edit" || input.kind === "report_edit") {
     if (!input.note) throw new Error("缺少要编辑的产物");
-    currentHtml = await loadCurrentHtml(input.note, input.kind, input.mainDbName, startSignal);
+    if (input.kind === "report_edit")
+      currentHtml = await loadReportHtml(input.note, input.mainDbName, startSignal);
   } else if (input.kind === "quiz") {
     title = input.quizName?.trim() || "测验";
     if (!quizSetId) {
@@ -345,6 +343,46 @@ export async function startVLTask(
     }
   }
 
+  let ppt: Runtime["ppt"];
+  if (input.kind === "ppt_edit" || input.kind === "ppt") {
+    if (!contentId) throw new Error("无法读取演示文稿");
+    const current = await commands.getContentById(contentId);
+    if (!current?.revision) throw new Error("无法确认演示文稿修订");
+    let files: PPTFiles = {};
+    let source: string | undefined;
+    let template =
+      ((input.templateId && getTemplateById(input.templateId)) || getDefaultTemplate()).id + "-v1";
+    if (input.kind === "ppt_edit") {
+      const saved = decodePPTFiles(current.content);
+      if (saved) files = saved;
+      else {
+        try {
+          source = originalPPTSource(current.content);
+          if (!source) throw new Error("无法定位唯一的 HTML 正文");
+          files = migratePPT(source, title);
+        } catch (error) {
+          throw new Error("已保留旧稿，无法可靠拆页：" + (error as Error).message);
+        }
+      }
+      template = readManifest(files["deck.json"]).template;
+    }
+    const previous = reuse && runtimes.get(taskId)?.ppt;
+    const workspace =
+      previous?.revision === current.revision
+        ? previous.workspace
+        : await PPTWorkspace.open(files, input.mainDbName, template);
+    if (workspace !== previous?.workspace) {
+      try {
+        if (source) await workspace.checkOriginal(source);
+        startSignal?.throwIfAborted();
+      } catch (error) {
+        await workspace.close();
+        throw new Error("已保留原稿：" + (error as Error).message);
+      }
+      if (previous) await previous.workspace.close();
+    }
+    ppt = { workspace, revision: current.revision, original: current.content };
+  }
   const noteId = reuse?.noteId ?? note?.id;
   startSignal?.throwIfAborted();
   store.put({
@@ -356,6 +394,7 @@ export async function startVLTask(
     noteId,
     quizSetId,
     ...(pluginTask ? { plugin: pluginTask } : {}),
+    pptProgress: ppt?.workspace.progress,
     status: "running",
     phase: "分析资料",
     startedAt: Date.now(),
@@ -369,6 +408,7 @@ export async function startVLTask(
 
   const runtime: Runtime = {
     input,
+    ppt,
     contentId,
     plan,
     abort: new AbortController(),
@@ -421,6 +461,7 @@ async function executeInner(
   const writer = createWriter(taskId);
   const store = useVLTaskStore.getState;
   const tool = createUnifiedVibeLearningTool(input.projectId, input.mainDbName);
+  const taskTools = [tool, ...(runtime.ppt?.workspace.tools ?? [])];
   let liveSaved = "";
   let liveTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -484,7 +525,12 @@ async function executeInner(
           onToolCallsUpdate: (executions, turnId) =>
             canReceive() &&
             writer.queue(t => ({
-              phase: "查阅资料",
+              phase:
+                runtime.ppt && executions.at(-1)?.toolName === "ppt_check"
+                  ? "检查演示文稿"
+                  : runtime.ppt && executions.at(-1)?.toolName.startsWith("ppt_")
+                    ? "编排页面"
+                    : "查阅资料",
               turns: upsertTurn(t.turns, turnId, turn => ({
                 ...turn,
                 tools: executions,
@@ -522,27 +568,30 @@ async function executeInner(
           },
         },
         {
-          additionalTools: [
-            {
-              type: "function",
-              function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters as Record<string, unknown>,
-              },
+          workspaceCwd: runtime.ppt?.workspace.cwd,
+          additionalTools: taskTools.map(item => ({
+            type: "function",
+            risk: item.risk,
+            function: {
+              name: item.name,
+              description: item.description,
+              parameters: item.parameters as Record<string, unknown>,
             },
-          ],
+          })),
           databaseName: input.mainDbName,
           executeToolCall: async (call, options) => {
-            if (call.function.name !== tool.name) return null;
+            const selected = taskTools.find(item => item.name === call.function.name);
+            if (!selected) return null;
             const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-            const result = await tool.executor(args, {
-              toolName: tool.name,
+            const result = await selected.executor(args, {
+              toolName: selected.name,
               toolCallId: call.id,
               source: "vibe-learning",
               databaseName: input.mainDbName,
               signal: options?.signal,
             });
+            if (runtime.ppt && !runtime.cancelled)
+              store().patch(taskId, { pptProgress: runtime.ppt.workspace.progress });
             return typeof result === "string" ? { content: result } : (result ?? { content: "" });
           },
         },
@@ -595,6 +644,19 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
   const { input, contentId } = runtime;
   const commands = commandsFor(input.mainDbName, runtime.abort.signal);
   const task = useVLTaskStore.getState().tasks[taskId];
+  if (runtime.ppt && contentId) {
+    const { workspace, original, revision } = runtime.ppt;
+    const { nodes, title } = workspace.result(original);
+    const saved = await commands.replaceContent(contentId, { nodes }, revision);
+    if (!saved) throw new Error("演示文稿已被删除");
+    if (task?.noteId) {
+      await commands.updateVLNote({ id: task.noteId, title });
+      useVLTaskStore.getState().patch(taskId, { title });
+    }
+    await workspace.close();
+    runtime.ppt = undefined;
+    return;
+  }
   switch (input.kind) {
     case "outline":
     case "highlights":
@@ -603,11 +665,11 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       if (contentId) await commands.replaceContent(contentId, { markdown: content.trim() });
       return;
     case "ppt":
-    case "report":
     case "ppt_edit":
+      throw new Error("缺少已检查的演示文稿");
+    case "report":
     case "report_edit": {
-      const isPPT = input.kind === "ppt" || input.kind === "ppt_edit";
-      const html = isPPT ? cleanPPTHtmlContent(content) : cleanReportHtmlContent(content);
+      const html = cleanReportHtmlContent(content);
       if (!html.trim()) throw new Error("没有解析出可用的 HTML");
       if (!contentId) return;
       await commands.replaceContent(contentId, { markdown: htmlNoteMarkdown(html) });

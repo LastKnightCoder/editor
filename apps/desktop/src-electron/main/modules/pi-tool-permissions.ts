@@ -64,6 +64,13 @@ export class PiToolPermissions {
     ]);
   }
 
+  allowWorkspaceWrites() {
+    for (const name of ["ppt_write", "ppt_edit", "ppt_remove", "ppt_illustrate"]) {
+      if (this.options.tools.some(spec => spec.name === name && spec.risk === "write"))
+        this.scope.allow(this.identity(name));
+    }
+  }
+
   public pendingRequests(): PiToolApprovalRequest[] {
     return [...this.pending.values()].map(item => item.request);
   }

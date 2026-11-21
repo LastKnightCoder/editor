@@ -1,7 +1,7 @@
 /*
  * Tau PPT 公共运行时：翻页导航、进度与页码、计数/条形图动画、全屏、O 键全览。
  * 由 utils/ppt-runtime.ts 在预览与下载时内联进 PPT，页面只声明结构与样式，通过 data-deck-* 钩子接入；
- * 钩子约定以 constants/prompts/ppt-generation.ts「公共运行时」一节为准。
+ * 页根使用 .slide，模板可声明页码、进度、导航点与数字动效。
  */
 (() => {
   "use strict";
@@ -319,6 +319,11 @@
         const inner = document.createElement("div");
         inner.className = "ov-inner";
         const clone = slide.cloneNode(true);
+        const canvases = slide.querySelectorAll("canvas");
+        clone.querySelectorAll("canvas").forEach((target, index) => {
+          const source = canvases[index];
+          if (source.width && source.height) target.getContext("2d")?.drawImage(source, 0, 0);
+        });
         clone.removeAttribute("id");
         clone.querySelectorAll("[id]").forEach(el => el.removeAttribute("id"));
         clone.classList.add("active");

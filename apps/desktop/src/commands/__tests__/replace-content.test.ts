@@ -127,3 +127,43 @@ it("读取不合格的旧正文时自愈：返回带契约与修订的正文，�
   expect(JSON.stringify(healed.content)).toContain("旧正文");
   await expect(replaceContent(90, { markdown: "改写" })).resolves.toBeTruthy();
 });
+
+it("PPT 续改写回后能按原页身份读取新内容，其余页的源码逐字保留", async () => {
+  const { decodePPTFiles, encodePPTFiles } = await import("@/services/ppt/document");
+  const files = {
+    "deck.json": JSON.stringify({
+      format: "tau-ppt",
+      version: 1,
+      template: "cinematic-v1",
+      title: "节奏练习",
+      slides: [
+        { id: "listen", intent: "听节奏" },
+        { id: "repeat", intent: "重复节奏" },
+      ],
+    }),
+    "slides/listen.html": '<section class="slide"><p>第一拍 &amp; 第二拍</p></section>',
+    "slides/repeat.html": '<section class="slide"><p>重复两次</p></section>',
+  };
+
+  const id = (await createContent(paragraph("草稿"), 2))!;
+  await replaceContent(id, { nodes: encodePPTFiles(files) });
+  const before = (await getContentById(id))!;
+  const afterFiles = {
+    ...files,
+    "slides/repeat.html": '<section class="slide"><p>重复三次\n\n再休止一拍。</p></section>',
+  };
+  await replaceContent(id, { nodes: encodePPTFiles(afterFiles, before.content) }, before.revision);
+  const after = (await getContentById(id))!;
+  expect(decodePPTFiles(after.content)).toEqual(afterFiles);
+  const pageIds = (nodes: Descendant[]) =>
+    Object.fromEntries(
+      nodes.flatMap(node =>
+        "filename" in node && typeof node.filename === "string" && "uuid" in node
+          ? [[node.filename, node.uuid]]
+          : []
+      )
+    );
+  const originalIds = pageIds(before.content);
+  expect(Object.keys(originalIds).sort()).toEqual(Object.keys(files).sort());
+  expect(pageIds(after.content)).toEqual(originalIds);
+});

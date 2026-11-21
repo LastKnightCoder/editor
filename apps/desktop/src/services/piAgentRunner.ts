@@ -41,11 +41,13 @@ export interface PiAgentRunOptions {
   conversationKey?: string;
   toolContext?: Record<string, unknown>;
   cwd?: string;
+  hostToolsOnly?: boolean;
   /** 用量审计归属；缺省按 conversationKey 推导 */
   source?: UsageSource;
   /** 额外工具（覆盖注册表同名），执行经 executeAdditionalTool 路由 */
   additionalTools?: Array<{
     type: "function";
+    risk?: PiHostToolSpec["risk"];
     function: { name: string; description: string; parameters: Record<string, unknown> };
   }>;
   executeAdditionalTool?: (payload: {
@@ -55,6 +57,7 @@ export interface PiAgentRunOptions {
   }) => Promise<{
     content: string;
     modelContent?: string;
+    isError?: boolean;
     metadata?: Record<string, unknown>;
   } | null>;
 }
@@ -97,16 +100,19 @@ export function runPiAgent(
       }
       // 历史灌入排除最后一条 user（其文本作为 prompt 单独发送）
       const initialMessages = options.messages.slice(0, -1);
-      const tools = getToolRegistryAgentTools({
-        includeBuiltinSkillTools: true,
-        toolScope: options.toolScope,
-      }).filter(tool => !options.excludeToolNames?.includes(tool.name));
+      const tools = options.hostToolsOnly
+        ? []
+        : getToolRegistryAgentTools({
+            includeBuiltinSkillTools: true,
+            toolScope: options.toolScope,
+          }).filter(tool => !options.excludeToolNames?.includes(tool.name));
       const customTools = buildToolSpecs(options, tools);
       const thinkingLevel = options.thinking;
 
       const created = await piSessionCreate(sessionId, {
         scope: options.conversationKey ?? `one-shot:${sessionId}`,
         cwd: options.cwd ?? "",
+        hostToolsOnly: options.hostToolsOnly,
         modelRef: { providerId: options.provider.id, modelId: options.model.id },
         ...(system !== undefined ? { systemPrompt: system } : {}),
         persist: false,
@@ -243,7 +249,7 @@ function buildToolSpecs(
       description: tool.function.description,
       parameters: tool.function.parameters,
       // 同 piChatSession.buildToolLoadout：额外工具只读页面，不声明会在不可交互入口被拒
-      risk: "read",
+      risk: tool.risk ?? "read",
     });
   }
   // 按名字排序：工具定义渲染在请求最前，注册表顺序（MCP 异步连接先后）会让同类

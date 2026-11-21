@@ -278,11 +278,11 @@
 
     <!-- S1: COVER -->
     <section class="slide slide-cover active">
-        <canvas class="cover-decoration" id="coverDecoration"></canvas>
+        <canvas class="cover-decoration" data-sketch="coverDecoration"></canvas>
         <div class="cover-content">
-            <canvas class="cover-book-icon" id="coverBookIcon"></canvas>
+            <canvas class="cover-book-icon" data-sketch="coverBookIcon"></canvas>
             <h1 class="cover-title reveal delay-1">创意写作入门</h1>
-            <canvas class="title-underline reveal delay-2" id="coverUnderline" height="12"></canvas>
+            <canvas class="title-underline reveal delay-2" data-sketch="coverUnderline" height="12"></canvas>
             <p class="cover-sub reveal delay-3">释放你的文字力量，用文字描绘世界的无限可能</p>
         </div>
     </section>
@@ -292,7 +292,7 @@
         <h2 class="title-main reveal delay-1">我们将一起探索……</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="agenda-wrap reveal delay-2">
-            <canvas class="agenda-canvas" id="agendaCanvas"></canvas>
+            <canvas class="agenda-canvas" data-sketch="agendaCanvas"></canvas>
             <ul class="agenda-list">
                 <li class="reveal delay-1">什么是创意写作？</li>
                 <li class="reveal delay-2">写作的核心要素</li>
@@ -308,14 +308,14 @@
     <section class="slide slide-chapter">
         <div class="chapter-num reveal-scale delay-1">01</div>
         <h2 class="chapter-title reveal delay-2">认识创意写作</h2>
-        <canvas class="chapter-deco" id="chapterDeco1"></canvas>
+        <canvas class="chapter-deco" data-sketch="chapterDeco1"></canvas>
     </section>
 
     <!-- S4: DEFINITION -->
     <section class="slide" style="align-items: center;">
         <h2 class="title-main reveal delay-1" style="text-align: center;">什么是<span class="highlight-pink">创意写作</span>？</h2>
         <canvas class="title-underline" height="12"></canvas>
-        <div class="pinned-note reveal delay-2" id="pinnedNote">
+        <div class="pinned-note reveal delay-2" data-sketch="pinnedNote">
             <canvas></canvas>
             <div class="pinned-note-content">
                 <h3>简单来说……</h3>
@@ -347,7 +347,7 @@
     <section class="slide slide-chapter">
         <div class="chapter-num reveal-scale delay-1" style="color: rgba(126,203,176,0.15);">02</div>
         <h2 class="chapter-title reveal delay-2">故事的核心要素</h2>
-        <canvas class="chapter-deco" id="chapterDeco2"></canvas>
+        <canvas class="chapter-deco" data-sketch="chapterDeco2"></canvas>
     </section>
 
     <!-- S7: MIND MAP -->
@@ -355,7 +355,7 @@
         <h2 class="title-main reveal delay-1">一个好故事需要什么？</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="mind-map reveal delay-2">
-            <canvas id="mindMapCanvas"></canvas>
+            <canvas data-sketch="mindMapCanvas"></canvas>
             <div class="mind-map-labels">
                 <div class="mm-label" style="top:50%;left:50%;">故事</div>
                 <div class="mm-label" style="top:15%;left:25%;">人物<span class="mm-desc">有血有肉的角色</span></div>
@@ -374,7 +374,7 @@
         <canvas class="title-underline" height="12"></canvas>
         <p class="section-sub reveal delay-1">—— 五大写作维度自评参考</p>
         <div class="hand-chart reveal delay-2">
-            <canvas id="handChartCanvas"></canvas>
+            <canvas data-sketch="handChartCanvas" data-bars='[{"label":"叙事能力","val":82},{"label":"人物塑造","val":68},{"label":"场景描写","val":75},{"label":"对话功力","val":58},{"label":"修改润色","val":90}]'></canvas>
         </div>
         <p class="section-sub reveal delay-3" style="text-align:center; margin-top:var(--space-xs); color:var(--pink);">修改润色能力往往是区分好文章与普通文章的关键</p>
     </section>
@@ -384,7 +384,7 @@
         <h2 class="title-main reveal delay-1">好文章 vs 平庸文章</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="torn-compare reveal delay-2">
-            <canvas class="torn-line" id="tornLine"></canvas>
+            <canvas class="torn-line" data-sketch="tornLine"></canvas>
             <div class="torn-side torn-left">
                 <h4 class="highlight-mint">好文章</h4>
                 <ul>
@@ -419,7 +419,7 @@
         <h2 class="title-main reveal delay-1" style="text-align:center;display:block;">从灵感到成品的<span class="highlight-sky">五个步骤</span></h2>
         <canvas class="title-underline" height="12" style="margin:0 auto;"></canvas>
         <div class="path-wrap reveal delay-2">
-            <canvas id="pathCanvas"></canvas>
+            <canvas data-sketch="pathCanvas"></canvas>
             <div class="path-labels">
                 <div class="pl" style="top:50%;left:8%;"><span class="pl-name">灵感收集</span><br><span class="pl-desc">随时记录想法</span></div>
                 <div class="pl" style="top:22%;left:28%;"><span class="pl-name">大纲规划</span><br><span class="pl-desc">梳理故事骨架</span></div>
@@ -435,7 +435,7 @@
         <h2 class="title-main reveal delay-1">"展示，别告诉"原则</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="annotate-wrap">
-            <div class="annotate-block reveal-left delay-2" id="tellBlock">
+            <div class="annotate-block reveal-left delay-2" data-sketch="tellBlock">
                 <canvas></canvas>
                 <div class="annotate-block-content">
                     <h4>Tell（告诉）</h4>
@@ -444,8 +444,8 @@
                     <p>"天气很热。"</p>
                 </div>
             </div>
-            <canvas class="annotate-arrow reveal delay-3" id="annotateArrow"></canvas>
-            <div class="annotate-block reveal-right delay-4" id="showBlock">
+            <canvas class="annotate-arrow reveal delay-3" data-sketch="annotateArrow"></canvas>
+            <div class="annotate-block reveal-right delay-4" data-sketch="showBlock">
                 <canvas></canvas>
                 <div class="annotate-block-content">
                     <h4>Show（展示）</h4>
@@ -462,7 +462,7 @@
         <h2 class="title-main reveal delay-1">创意写作提示卡</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="prompt-scatter reveal delay-2">
-            <canvas class="scatter-bg" id="scatterCanvas"></canvas>
+            <canvas class="scatter-bg" data-sketch="scatterCanvas"></canvas>
             <div class="prompt-item" style="top:20%;left:18%;"><h4>神秘的门</h4><p>你发现了一扇从未见过的门，打开它之后……</p></div>
             <div class="prompt-item" style="top:18%;left:52%;"><h4>未寄出的信</h4><p>在旧书里发现了一封三十年前的信</p></div>
             <div class="prompt-item" style="top:22%;left:84%;"><h4>雨中的陌生人</h4><p>暴雨中，一个陌生人递来一把伞</p></div>
@@ -477,7 +477,7 @@
         <h2 class="title-main reveal delay-1">四种叙事风格</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="quadrant-wrap reveal delay-2">
-            <canvas id="quadrantCanvas"></canvas>
+            <canvas data-sketch="quadrantCanvas"></canvas>
             <div class="quad-labels">
                 <div class="axis-label" style="top:5%;left:50%;transform:translateX(-50%);">华丽</div>
                 <div class="axis-label" style="bottom:5%;left:50%;transform:translateX(-50%);">极简</div>
@@ -493,10 +493,10 @@
 
     <!-- S15: QUOTE -->
     <section class="slide slide-quote">
-        <canvas class="quote-mark-canvas" id="quoteMark"></canvas>
+        <canvas class="quote-mark-canvas" data-sketch="quoteMark"></canvas>
         <blockquote class="quote-text reveal delay-2">写作是把网撒向大海，<br>然后看看你能捞起什么。</blockquote>
         <p class="quote-source reveal delay-3">—— 纳塔莉·戈德堡《写出我心》</p>
-        <div class="quote-card reveal delay-4" id="quoteCard">
+        <div class="quote-card reveal delay-4" data-sketch="quoteCard">
             <canvas></canvas>
             <p>记住：每个伟大的作家，都曾是一个害怕动笔的初学者。</p>
         </div>
@@ -507,7 +507,7 @@
         <h2 class="title-main reveal delay-1">今天我们学到了……</h2>
         <canvas class="title-underline" height="12"></canvas>
         <div class="summary-page reveal delay-2">
-            <canvas class="page-border" id="summaryBorder"></canvas>
+            <canvas class="page-border" data-sketch="summaryBorder"></canvas>
             <div class="summary-page-content">
                 <ul class="summary-list">
                     <li><span class="sum-num" style="color:var(--pink);">1.</span><div class="sum-text"><span class="sum-title">创意写作是什么</span><span class="sum-desc">运用想象力和创造力，通过文字表达内心世界</span></div><canvas class="sep-line"></canvas></li>
@@ -523,12 +523,12 @@
 
     <!-- S17: END -->
     <section class="slide slide-end">
-        <canvas class="cover-decoration" id="endDecoration"></canvas>
+        <canvas class="cover-decoration" data-sketch="endDecoration"></canvas>
         <div class="cover-content">
-            <canvas class="end-icon" id="endIcon"></canvas>
+            <canvas class="end-icon" data-sketch="endIcon"></canvas>
             <h2 class="end-title reveal delay-2">开始写作吧！</h2>
             <p class="end-sub reveal delay-3">每一个文字，都是通往新世界的入口</p>
-            <canvas class="end-deco" id="endDeco"></canvas>
+            <canvas class="end-deco" data-sketch="endDeco"></canvas>
         </div>
     </section>
 
@@ -536,7 +536,8 @@
     import rough from 'https://esm.sh/roughjs@4.6.6?bundle-deps';
 
     class RoughDecorations {
-        constructor() {
+        constructor(slide) {
+            this.slide = slide;
             this.C = { pink:'#f4a0b0', mint:'#7ecbb0', sky:'#7cb5d4', butter:'#e8c84a', lavender:'#b088d4', peach:'#f8c8a0', ink:'#3d2c2c' };
             this.BG = { pink:'#fde8ec', mint:'#e4f6ef', sky:'#e4f0f8', butter:'#fdf5d6', lavender:'#f0e8f8', peach:'#fff3e0' };
             this.dpr = window.devicePixelRatio || 1;
@@ -577,7 +578,7 @@
         }
 
         drawCoverDecoration() {
-            const canvas = document.getElementById('coverDecoration');
+            const canvas = this.slide.querySelector('[data-sketch="coverDecoration"]');
             if (!canvas) return;
             const w = canvas.offsetWidth || window.innerWidth;
             const h = canvas.offsetHeight || window.innerHeight;
@@ -595,7 +596,7 @@
         }
 
         drawCoverBookIcon() {
-            const canvas = document.getElementById('coverBookIcon');
+            const canvas = this.slide.querySelector('[data-sketch="coverBookIcon"]');
             if (!canvas) return;
             const rc = this.setupCanvas(canvas, 100, 100);
             rc.path('M 50 15 C 35 18, 10 20, 5 25 L 5 85 C 10 80, 35 78, 50 75', { roughness:1.5, stroke:this.C.ink, strokeWidth:2.5, fill:'#fff', fillStyle:'solid' });
@@ -611,7 +612,7 @@
 
         drawTitleUnderlines() {
             const colors = [this.C.pink,this.C.mint,this.C.pink,this.C.sky,this.C.mint,this.C.lavender,this.C.sky,this.C.pink,this.C.mint,this.C.butter,this.C.lavender,this.C.pink,this.C.mint];
-            document.querySelectorAll('.title-underline').forEach((canvas, i) => {
+            this.slide.querySelectorAll('.title-underline').forEach((canvas, i) => {
                 const title = canvas.previousElementSibling;
                 const w = title ? title.offsetWidth + 20 : 200;
                 const rc = this.setupCanvas(canvas, w, 12);
@@ -621,7 +622,7 @@
 
         drawChapterDecos() {
             ['chapterDeco1','chapterDeco2'].forEach((id,i) => {
-                const canvas = document.getElementById(id);
+                const canvas = this.slide.querySelector(`[data-sketch="${id}"]`);
                 if (!canvas) return;
                 const rc = this.setupCanvas(canvas, 80, 30);
                 const color = i===0 ? this.C.pink : this.C.mint;
@@ -633,7 +634,7 @@
         }
 
         drawAgenda() {
-            const canvas = document.getElementById('agendaCanvas');
+            const canvas = this.slide.querySelector('[data-sketch="agendaCanvas"]');
             if (!canvas) return;
             const wrap = canvas.parentElement;
             const w = wrap.offsetWidth, h = wrap.offsetHeight;
@@ -643,7 +644,7 @@
             items.forEach((li, i) => {
                 const y = li.offsetTop + li.offsetHeight/2;
                 const x = 20;
-                rc.circle(x, y, 18, { roughness:1.8, stroke:colors[i], strokeWidth:2, fill:colors[i], fillStyle:'solid' });
+                rc.circle(x, y, 18, { roughness:1.8, stroke:colors[i%colors.length], strokeWidth:2, fill:colors[i%colors.length], fillStyle:'solid' });
                 if (i < items.length - 1) {
                     const nextY = items[i+1].offsetTop + items[i+1].offsetHeight/2;
                     rc.line(x, y+11, x, nextY-11, { roughness:1.5, stroke:'rgba(61,44,44,0.15)', strokeWidth:1.5 });
@@ -658,7 +659,7 @@
         }
 
         drawPinnedNote() {
-            const note = document.getElementById('pinnedNote');
+            const note = this.slide.querySelector('[data-sketch="pinnedNote"]');
             if (!note) return;
             const canvas = note.querySelector('canvas');
             const w = note.offsetWidth, h = note.offsetHeight;
@@ -669,7 +670,7 @@
         }
 
         drawCheckboxes() {
-            document.querySelectorAll('.check-list .cb').forEach(canvas => {
+            this.slide.querySelectorAll('.check-list .cb').forEach(canvas => {
                 const checked = canvas.getAttribute('data-checked') === 'true';
                 const rc = this.setupCanvas(canvas, 22, 22);
                 rc.rectangle(2,2,18,18, { roughness:2, stroke:this.C.ink, strokeWidth:2, bowing:1.5 });
@@ -678,7 +679,7 @@
         }
 
         drawMindMap() {
-            const canvas = document.getElementById('mindMapCanvas');
+            const canvas = this.slide.querySelector('[data-sketch="mindMapCanvas"]');
             if (!canvas) return;
             const container = canvas.parentElement;
             const w = container.offsetWidth, h = container.offsetHeight;
@@ -705,11 +706,13 @@
         }
 
         drawHandChart() {
-            const canvas = document.getElementById('handChartCanvas');
+            const canvas = this.slide.querySelector('[data-sketch="handChartCanvas"]');
             if (!canvas) return;
             const w = canvas.parentElement.offsetWidth, h = canvas.parentElement.offsetHeight;
             const rc = this.setupCanvas(canvas, w, h);
-            const data = [{label:'叙事能力',val:82,color:'pink'},{label:'人物塑造',val:68,color:'sky'},{label:'场景描写',val:75,color:'mint'},{label:'对话功力',val:58,color:'lavender'},{label:'修改润色',val:90,color:'butter'}];
+            const data = JSON.parse(canvas.dataset.bars || '[]');
+            if (!data.length || !data.every(d => typeof d.label === 'string' && Number.isFinite(d.val) && d.val >= 0 && d.val <= 100)) throw new Error('手绘图表需要 data-bars（label、0–100 的 val）');
+            const colors = ['pink','sky','mint','lavender','butter'];
             const marginLeft = w*0.12, marginRight = w*0.06, top = 30, barH = (h-60)/data.length;
             // Axis
             rc.line(marginLeft-10, top-10, marginLeft-10, h-20, { roughness:1.5, stroke:this.C.ink, strokeWidth:2 });
@@ -722,16 +725,16 @@
                 const barW = (w - marginLeft - marginRight) * d.val / 100;
                 ctx.fillStyle = '#3d2c2c';
                 ctx.fillText(d.label, marginLeft-18, y+barH*0.2);
-                rc.rectangle(marginLeft, y, barW, barH*0.4, { roughness:1.8, stroke:this.C[d.color], strokeWidth:2, fill:this.C[d.color], fillStyle:'hachure', hachureGap:5, hachureAngle:60 });
+                rc.rectangle(marginLeft, y, barW, barH*0.4, { roughness:1.8, stroke:this.C[colors[i % colors.length]], strokeWidth:2, fill:this.C[colors[i % colors.length]], fillStyle:'hachure', hachureGap:5, hachureAngle:60 });
                 ctx.textAlign = 'left';
-                ctx.fillStyle = this.C[d.color];
+                ctx.fillStyle = this.C[colors[i % colors.length]];
                 ctx.fillText(d.val+'%', marginLeft+barW+8, y+barH*0.2);
                 ctx.textAlign = 'right';
             });
         }
 
         drawTornCompare() {
-            const canvas = document.getElementById('tornLine');
+            const canvas = this.slide.querySelector('[data-sketch="tornLine"]');
             if (!canvas) return;
             const parent = canvas.parentElement;
             const rc = this.setupCanvas(canvas, 40, parent.offsetHeight);
@@ -755,7 +758,7 @@
         }
 
         drawWindingPath() {
-            const canvas = document.getElementById('pathCanvas');
+            const canvas = this.slide.querySelector('[data-sketch="pathCanvas"]');
             if (!canvas) return;
             const w = canvas.parentElement.offsetWidth, h = canvas.parentElement.offsetHeight;
             const rc = this.setupCanvas(canvas, w, h);
@@ -771,13 +774,13 @@
             rc.path(pathStr, { roughness:1.5, stroke:'rgba(61,44,44,0.2)', strokeWidth:3, bowing:1 });
             // Milestone dots
             points.forEach((p,i) => {
-                rc.circle(p[0],p[1],28, { roughness:1.8, stroke:colors[i], strokeWidth:2.5, fill:colors[i], fillStyle:'solid' });
+                rc.circle(p[0],p[1],28, { roughness:1.8, stroke:colors[i%colors.length], strokeWidth:2.5, fill:colors[i%colors.length], fillStyle:'solid' });
             });
         }
 
         drawAnnotateBlocks() {
-            const tellBlock = document.getElementById('tellBlock');
-            const showBlock = document.getElementById('showBlock');
+            const tellBlock = this.slide.querySelector('[data-sketch="tellBlock"]');
+            const showBlock = this.slide.querySelector('[data-sketch="showBlock"]');
             if (tellBlock) {
                 const c = tellBlock.querySelector('canvas'), w=tellBlock.offsetWidth, h=tellBlock.offsetHeight;
                 const rc = this.setupCanvas(c, w, h);
@@ -794,7 +797,7 @@
                     rc.line(w*0.1, y, w*0.9, y, { roughness:2, stroke:'rgba(126,203,176,0.4)', strokeWidth:4 });
                 }
             }
-            const arrow = document.getElementById('annotateArrow');
+            const arrow = this.slide.querySelector('[data-sketch="annotateArrow"]');
             if (arrow) {
                 const rc = this.setupCanvas(arrow, 60, 40);
                 rc.line(5,20,45,20, { roughness:1.5, stroke:this.C.ink, strokeWidth:2.5 });
@@ -804,7 +807,7 @@
         }
 
         drawPromptScatter() {
-            const canvas = document.getElementById('scatterCanvas');
+            const canvas = this.slide.querySelector('[data-sketch="scatterCanvas"]');
             if (!canvas) return;
             const container = canvas.parentElement;
             const w = container.offsetWidth, h = container.offsetHeight;
@@ -822,16 +825,16 @@
                 const shapeW = rect.width + padX * 2;
                 const shapeH = rect.height + padY * 2;
                 if (shapes[i] === 'rect') {
-                    rc.rectangle(cx - shapeW/2, cy - shapeH/2, shapeW, shapeH, { roughness:2, stroke:colors[i], strokeWidth:2, fill:bgs[i], fillStyle:'solid' });
+                    rc.rectangle(cx - shapeW/2, cy - shapeH/2, shapeW, shapeH, { roughness:2, stroke:colors[i%colors.length], strokeWidth:2, fill:bgs[i], fillStyle:'solid' });
                 } else {
-                    rc.ellipse(cx, cy, shapeW + 16, shapeH + 12, { roughness:2, stroke:colors[i], strokeWidth:2, fill:bgs[i], fillStyle:'solid' });
+                    rc.ellipse(cx, cy, shapeW + 16, shapeH + 12, { roughness:2, stroke:colors[i%colors.length], strokeWidth:2, fill:bgs[i], fillStyle:'solid' });
                 }
-                rc.circle(cx, cy - shapeH/2 - 2, 8, { roughness:1.5, stroke:colors[i], strokeWidth:1.5, fill:colors[i], fillStyle:'solid' });
+                rc.circle(cx, cy - shapeH/2 - 2, 8, { roughness:1.5, stroke:colors[i%colors.length], strokeWidth:1.5, fill:colors[i%colors.length], fillStyle:'solid' });
             });
         }
 
         drawQuadrant() {
-            const canvas = document.getElementById('quadrantCanvas');
+            const canvas = this.slide.querySelector('[data-sketch="quadrantCanvas"]');
             if (!canvas) return;
             const container = canvas.parentElement;
             const w = container.offsetWidth, h = container.offsetHeight;
@@ -852,7 +855,7 @@
         }
 
         drawQuoteMark() {
-            const canvas = document.getElementById('quoteMark');
+            const canvas = this.slide.querySelector('[data-sketch="quoteMark"]');
             if (!canvas) return;
             const rc = this.setupCanvas(canvas, 60, 50);
             rc.path('M 10 40 C 10 20, 20 10, 25 14 C 20 22, 18 32, 22 40', { roughness:1.5, stroke:this.C.lavender, strokeWidth:3 });
@@ -860,7 +863,7 @@
         }
 
         drawQuoteCard() {
-            const card = document.getElementById('quoteCard');
+            const card = this.slide.querySelector('[data-sketch="quoteCard"]');
             if (!card) return;
             const c = card.querySelector('canvas'), w=card.offsetWidth, h=card.offsetHeight;
             const rc = this.setupCanvas(c, w, h);
@@ -868,7 +871,7 @@
         }
 
         drawSummaryPage() {
-            const canvas = document.getElementById('summaryBorder');
+            const canvas = this.slide.querySelector('[data-sketch="summaryBorder"]');
             if (!canvas) return;
             const page = canvas.parentElement;
             const w = page.offsetWidth, h = page.offsetHeight;
@@ -877,7 +880,7 @@
             for (let y = 30; y < h-20; y += 35) {
                 rc.circle(16, y, 10, { roughness:1.5, stroke:this.C.ink, strokeWidth:1.5 });
             }
-            document.querySelectorAll('.summary-list .sep-line').forEach((c,i) => {
+            this.slide.querySelectorAll('.summary-list .sep-line').forEach((c,i) => {
                 const li = c.parentElement;
                 const lw = li.offsetWidth;
                 const r = this.setupCanvas(c, lw, 6);
@@ -887,21 +890,21 @@
         }
 
         drawEndDecoration() {
-            const canvas = document.getElementById('endDecoration');
+            const canvas = this.slide.querySelector('[data-sketch="endDecoration"]');
             if (!canvas) return;
             const w = canvas.offsetWidth || window.innerWidth;
             const h = canvas.offsetHeight || window.innerHeight;
             const rc = this.setupCanvas(canvas, w, h);
             const colors = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter,this.C.peach];
             [[w*0.1,h*0.15],[w*0.9,h*0.2],[w*0.05,h*0.7],[w*0.95,h*0.75],[w*0.15,h*0.9],[w*0.85,h*0.85]].forEach((p,i) => {
-                rc.circle(p[0],p[1],8+Math.random()*6, { roughness:1.5, stroke:colors[i], strokeWidth:1.5, fill:colors[i], fillStyle:'solid' });
+                rc.circle(p[0],p[1],8+Math.random()*6, { roughness:1.5, stroke:colors[i%colors.length], strokeWidth:1.5, fill:colors[i%colors.length], fillStyle:'solid' });
             });
             rc.path(`M ${w*0.05} ${h*0.45} C ${w*0.08} ${h*0.42}, ${w*0.11} ${h*0.48}, ${w*0.14} ${h*0.44}`, { roughness:2, stroke:this.C.mint, strokeWidth:1.5 });
             rc.path(`M ${w*0.86} ${h*0.55} C ${w*0.89} ${h*0.52}, ${w*0.92} ${h*0.58}, ${w*0.95} ${h*0.54}`, { roughness:2, stroke:this.C.pink, strokeWidth:1.5 });
         }
 
         drawEndIcon() {
-            const canvas = document.getElementById('endIcon');
+            const canvas = this.slide.querySelector('[data-sketch="endIcon"]');
             if (!canvas) return;
             const rc = this.setupCanvas(canvas, 100, 100);
             // Pen with heart
@@ -913,7 +916,7 @@
         }
 
         drawEndDeco() {
-            const canvas = document.getElementById('endDeco');
+            const canvas = this.slide.querySelector('[data-sketch="endDeco"]');
             if (!canvas) return;
             const rc = this.setupCanvas(canvas, 120, 30);
             let path = 'M 10 15';
@@ -923,11 +926,12 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        requestAnimationFrame(() => { requestAnimationFrame(() => { new RoughDecorations(); }); });
-    });
+    const draw = slide => new RoughDecorations(slide);
+    const drawAll = () => document.querySelectorAll('.slide:not(.ov-inner .slide)').forEach(draw);
+    document.addEventListener('DOMContentLoaded', drawAll);
+    document.addEventListener('deck:change', event => draw(event.detail.slide));
     let resizeTimeout;
-    window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { document.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);}}); new RoughDecorations(); }, 300); });
+    window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(drawAll, 150); });
     </script>
 </body>
 </html>
