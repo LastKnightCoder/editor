@@ -2,6 +2,8 @@
 
 > pi 聊天运行时、工具审批、对话工作目录与个人助手记忆；子 Agent 见 [subagents.md](/docs/architecture/subagents.md)。
 
+主对话在白板上发送消息时捕获当前页的工具作用域，审批、异步执行与收养会话都按原工具身份路由。作用域的生命周期与白板写入见[白板协作工具](/docs/architecture/desktop/whiteboard.md#对话中编辑当前页)。
+
 ## 对话工作目录
 
 可选目录只属于主对话（对话页 / 停靠栏），按对话记录在 `chat_session.cwd`。设置「工具权限 → 工作目录」的 `agentWorkspace.defaultCwd` 只决定新对话：草稿首轮登记时写入所选或当时默认目录，之后改默认不影响已有对话；目录为空的对话跟随默认。取值统一走 `useChatSessionStore` 的 `resolveChatCwd` / `useChatCwd`，ChatContainer 每轮传给 `ensureChatSession`（非主对话传空）；cwd 变化与模型变化一样按会话文件重建宿主，子代理经工具上下文的 `cwd` 继承。宿主请求带 `chatScope`，主进程 `pi-workspace.ts` 的 `resolveSessionCwd` 据此解析：学习项目对话固定在资料 Markdown 目录（`vibeLearningMarkdownDir`），其余空或不存在的目录落到应用数据目录（`~/.editor`）；`pi-session:workspace-info / workspace-branches / workspace-checkout` 提供仓库分支读取与切换。输入框上方的 `WorkspaceBar`（ChatContainer 的 `composerAccessory` 插槽，数据走 `features/chat/workspaceQueries.ts`）显示目录与分支，对话进行中禁用切换。浏览器扩展对话不传 cwd。

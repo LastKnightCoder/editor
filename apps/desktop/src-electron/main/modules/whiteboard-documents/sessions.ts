@@ -12,6 +12,8 @@ import type {
   WhiteboardDocumentReceipt,
   WhiteboardDocumentEvent,
 } from "@/types/whiteboard-document";
+import type { AgentBoardRequest } from "../../../../shared/whiteboard-agent";
+import { agentContracts, editAgentCandidate, identifyAgentBatch } from "./agent";
 import { WhiteboardJournal, journalKey, type JournalDocument } from "./journal";
 import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./repository";
 import { repairWhiteboardDocument } from "./repair";
@@ -324,6 +326,7 @@ export class WhiteboardDocumentSessions {
     if (
       typeof batchId !== "string" ||
       !batchId ||
+      batchId.startsWith("agent:") ||
       batchId.length > 128 ||
       !(input instanceof Uint8Array) ||
       input.byteLength > WHITEBOARD_LIMITS.documentBytes
@@ -347,22 +350,82 @@ export class WhiteboardDocumentSessions {
           throw new Error("MISSING_DEPENDENCIES: 请保留更新并补齐白板基线");
         this.connection(session);
         const state = Y.encodeStateAsUpdate(doc);
-        const next = this.journal.append(
-          session.value,
-          batchId,
-          update,
-          state,
-          collectWhiteboardRelations(candidate, true).map(ref => ref.target)
-        );
-        Y.applyUpdate(session.model.doc, update, "durable-main");
-        session.value = next;
-        this.project(session);
-        this.notify(session, update);
+        this.commitCandidate(session, batchId, update, state, candidate);
         return this.receipt(session);
       } finally {
         candidate.dispose();
         doc.destroy();
       }
+    });
+  }
+  private commitCandidate(
+    session: Session,
+    batchId: string,
+    update: Uint8Array,
+    state: Uint8Array,
+    candidate: WhiteboardModel
+  ) {
+    const next = this.journal.append(
+      session.value,
+      batchId,
+      update,
+      state,
+      collectWhiteboardRelations(candidate, true).map(ref => ref.target)
+    );
+    Y.applyUpdate(session.model.doc, update, "durable-main");
+    session.value = next;
+    this.project(session);
+    this.notify(session, update);
+  }
+  async applyAgent(
+    leaseId: string,
+    owner: number,
+    request: AgentBoardRequest,
+    signal?: AbortSignal
+  ) {
+    const { lease } = this.require(leaseId, owner, true);
+    const batch = identifyAgentBatch(request);
+    const contracts = await agentContracts();
+    return this.run(lease.key, batch.bytes, async () => {
+      const { session } = this.require(leaseId, owner, true);
+      signal?.throwIfAborted();
+      let revision = this.journal.agentReceipt(lease.key, batch.prefix, batch.batchId);
+      if (revision === undefined) {
+        for (const op of request.operations)
+          if (op.kind === "delete" && op.beforeRevision !== session.value.revision)
+            throw new Error("删除目标可能已变化，请重新读取");
+        const doc = new Y.Doc({ gc: false });
+        const candidate = new WhiteboardModel(doc);
+        try {
+          Y.applyUpdate(doc, session.value.state);
+          const vector = Y.encodeStateVector(doc);
+          editAgentCandidate(candidate, request, batch.ids, contracts);
+          await candidate.validate(session.model);
+          this.require(leaseId, owner, true);
+          signal?.throwIfAborted();
+          const state = Y.encodeStateAsUpdate(doc);
+          if (state.byteLength > WHITEBOARD_LIMITS.documentBytes) throw new Error("白板文档超限");
+          this.commitCandidate(
+            session,
+            batch.batchId,
+            Y.encodeStateAsUpdate(doc, vector),
+            state,
+            candidate
+          );
+          revision = session.value.revision;
+        } finally {
+          candidate.dispose();
+          doc.destroy();
+        }
+      } else if (session.value.projectedRevision < revision) {
+        this.project(session);
+        this.notify(session);
+      }
+      return {
+        ...this.receipt(session),
+        operationRevision: revision,
+        ids: Object.fromEntries(batch.ids),
+      };
     });
   }
   async flush(leaseId: string, owner: number): Promise<WhiteboardDocumentReceipt> {
@@ -411,7 +474,7 @@ export class WhiteboardDocumentSessions {
   }
   holders(
     filter: { owner?: number; databaseName?: string } = {}
-  ): { leaseId: string; owner: number; databaseName: string }[] {
+  ): { leaseId: string; owner: number; databaseName: string; scope: string }[] {
     return [...this.leases.values()].flatMap(lease => {
       const session = this.sessions.get(lease.key);
       if (!session) return [];
@@ -422,6 +485,7 @@ export class WhiteboardDocumentSessions {
           leaseId: lease.id,
           owner: lease.owner,
           databaseName: session.value.databaseName,
+          scope: lease.key,
         },
       ];
     });

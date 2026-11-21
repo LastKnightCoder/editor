@@ -6,7 +6,6 @@ import {
 import { assertLegacyWhiteboardPage, isDocumentPage } from "../whiteboard-document-guard";
 import { hasDurableEntityHold } from "../durable-entity-holds";
 import Database from "better-sqlite3";
-import { basename } from "node:path";
 import { asynchronousDatabaseCommand } from "../database-command";
 import { WhiteboardContent } from "@/types";
 import Operation from "./operation";
@@ -339,7 +338,7 @@ export default class WhiteboardTable {
     const id = ContentIdentityTable.requireTarget(db, "whiteboard-content", target);
     const { default: documents } = await import("../whiteboard-documents");
     await documents
-      .healPage(basename(db.name, ".db"), id)
+      .healPage(db, id)
       .catch(error =>
         console.warn(`[whiteboard-repair] 白板页 ${id} 自愈失败，按原数据返回`, error)
       );

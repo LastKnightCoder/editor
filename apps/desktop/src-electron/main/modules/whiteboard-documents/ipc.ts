@@ -27,6 +27,7 @@ import type {
   WhiteboardShareCandidate,
   WhiteboardShareStatus,
 } from "@/types/whiteboard-document";
+import type { AgentBoardRequest, BoardAgentActivity } from "../../../../shared/whiteboard-agent";
 import type { WhiteboardUnshareJob, WhiteboardUnshareMode } from "./unshare";
 import type { WhiteboardDocumentsModule } from "./index";
 
@@ -573,6 +574,56 @@ export function registerWhiteboardDocumentIpc(
     }
     return result;
   });
+  const publishSaved = (leaseId: string) => {
+    try {
+      module.realtime.get(leaseId)?.publishDocument();
+    } catch (error) {
+      console.warn("[whiteboard-sync] 实时发送失败，保留耐久更新等待补偿", {
+        leaseId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+  const presenceScope = (event: IpcMainInvokeEvent, leaseId: string) => {
+    const owner = module.leaseOwner(event, leaseId);
+    const view = module.sessions.holders({ owner }).find(v => v.leaseId === leaseId);
+    if (!view) throw new Error("白板视图已释放");
+    return view.scope;
+  };
+  handle("agent-peers", (event, leaseId: string) =>
+    module.agents.snapshot(presenceScope(event, leaseId))
+  );
+  handle("agent-activity", (event, leaseId: string, activity: BoardAgentActivity | null) => {
+    const scope = presenceScope(event, leaseId);
+    if (activity) module.agents.set(scope, leaseId, activity);
+    else module.agents.release(leaseId);
+  });
+  const agentCalls = new Map<string, AbortController>();
+  handle("agent-cancel", (event, executionId: string) => {
+    agentCalls.get(JSON.stringify([event.sender.id, executionId]))?.abort();
+  });
+  handle(
+    "agent-apply",
+    async (event, leaseId: string, executionId: string, request: AgentBoardRequest) => {
+      const owner = module.leaseOwner(event, leaseId);
+      const key = JSON.stringify([event.sender.id, executionId]);
+      if (agentCalls.has(key)) throw new Error("白板调用正在进行");
+      const controller = new AbortController();
+      agentCalls.set(key, controller);
+      try {
+        const receipt = await module.sessions.applyAgent(
+          leaseId,
+          owner,
+          request,
+          controller.signal
+        );
+        if (!receipt.error) publishSaved(leaseId);
+        return receipt;
+      } finally {
+        agentCalls.delete(key);
+      }
+    }
+  );
   handle("append", async (event, leaseId: string, batchId: string, update: Uint8Array) => {
     const receipt = await module.sessions.append(
       leaseId,
@@ -580,16 +631,7 @@ export function registerWhiteboardDocumentIpc(
       batchId,
       update
     );
-    if (!receipt.error) {
-      try {
-        module.realtime.get(leaseId)?.publishDocument();
-      } catch (error) {
-        console.warn("[whiteboard-sync] 实时发送失败，保留耐久更新等待补偿", {
-          leaseId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    if (!receipt.error) publishSaved(leaseId);
     return receipt;
   });
   handle("snapshot", (event, leaseId: string) =>

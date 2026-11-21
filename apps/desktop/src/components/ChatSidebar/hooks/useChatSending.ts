@@ -1,3 +1,4 @@
+import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -148,6 +149,7 @@ export function useChatSending({
   const ensureSession = async (
     chat: ChatMessage,
     forcedSkills: string[],
+    capturedScope: string | undefined,
     toolContext?: Record<string, unknown>
   ) => {
     if (!chatProviderConfig || !chatModelConfig)
@@ -170,7 +172,7 @@ export function useChatSending({
       // 只有主对话可选工作目录；学习项目由主进程按场景固定，PDF / 视频笔记在应用数据目录
       cwd: chatScope === "main-chat" ? resolveChatCwd(chat.id) : "",
       ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
-      ...(toolScope ? { toolScope } : {}),
+      ...(capturedScope ? { toolScope: capturedScope } : {}),
       ...(toolContext ? { toolContext } : {}),
     });
   };
@@ -198,6 +200,8 @@ export function useChatSending({
         message.error("请先在设置中配置对话功能的大模型");
         return false;
       }
+      const capturedScope =
+        toolScope ?? (chatScope === "main-chat" ? currentWhiteboardToolScope() : undefined);
       const shouldClearInput = options?.shouldClearInput ?? true;
       const persistedRequestMessage = options?.persistedRequestMessage ?? requestMessage;
       const perf = measurePerformance("sendMessage");
@@ -249,6 +253,7 @@ export function useChatSending({
         const ensured = await ensureSession(
           actualCurrentChat,
           extractForcedSkills(requestMessage),
+          capturedScope,
           options?.toolContext
         );
         const sessionId = ensured.sessionId;
@@ -483,7 +488,13 @@ export function useChatSending({
       // 宿主可能已被空闲回收，按当前对话自己的文件恢复。
       if (!result || result.missing) {
         controller.signal.throwIfAborted();
-        sessionId = (await ensureSession(chat, [])).sessionId;
+        sessionId = (
+          await ensureSession(
+            chat,
+            [],
+            toolScope ?? (chatScope === "main-chat" ? currentWhiteboardToolScope() : undefined)
+          )
+        ).sessionId;
         result = await run(sessionId);
       }
       if (!result.ok) throw new Error(result.error ?? "压缩失败");

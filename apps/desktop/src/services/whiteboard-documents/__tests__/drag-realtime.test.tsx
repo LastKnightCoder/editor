@@ -7,6 +7,8 @@ import * as Y from "yjs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createServer as createTcpServer, createConnection, type Socket } from "node:net";
+import { Transform } from "node:stream";
 import { transferableAbortController } from "node:util";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import Whiteboard from "@tau/whiteboard";
@@ -31,6 +33,8 @@ import {
   WhiteboardJournal,
   stateHash,
 } from "../../../../src-electron/main/modules/whiteboard-documents/journal";
+import { whiteboardAgentTools } from "../agent-tools";
+import { ToolRegistry } from "@/tools/toolRegistry";
 import { WhiteboardRealtime } from "../../../../src-electron/main/modules/whiteboard-documents/realtime";
 
 const cleanups: (() => unknown)[] = [];
@@ -45,7 +49,45 @@ const waitFor = async (check: () => void) => {
   });
 };
 
-async function setup() {
+/** 仅容量模式经过限时回环中继，两端真实 TCP/WS 仍自行处理断开与重连。 */
+async function delayedPort(port: number, oneWayMs: number) {
+  const sockets = new Set<Socket>();
+  const delay = () =>
+    new Transform({
+      transform(chunk, _encoding, done) {
+        setTimeout(() => done(null, chunk), oneWayMs);
+      },
+    });
+  const proxy = createTcpServer(down => {
+    const up = createConnection(port, "127.0.0.1");
+    for (const socket of [up, down]) {
+      sockets.add(socket);
+      socket.on("error", () => socket.destroy());
+      socket.on("close", () => {
+        sockets.delete(socket);
+        up.destroy();
+        down.destroy();
+      });
+    }
+    up.pipe(delay()).pipe(down);
+    down.pipe(delay()).pipe(up);
+  });
+  await new Promise<void>((resolve, reject) =>
+    proxy.once("error", reject).listen(0, "127.0.0.1", resolve)
+  );
+  cleanups.push(
+    () =>
+      new Promise<void>(resolve => {
+        for (const socket of sockets) socket.destroy();
+        proxy.close(() => resolve());
+      })
+  );
+  const address = proxy.address();
+  if (!address || typeof address === "string") throw new Error("中继监听失败");
+  return address.port;
+}
+
+async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -66,7 +108,8 @@ async function setup() {
   });
   const address = server.app.server.address();
   if (!address || typeof address === "string") throw new Error("监听失败");
-  const url = `http://127.0.0.1:${address.port}`;
+  const port = roundTripMs ? await delayedPort(address.port, roundTripMs / 2) : address.port;
+  const url = `http://127.0.0.1:${port}`;
   const device = server.store.register("拖动测试");
   const room = server.store.create(device.id, "whiteboard");
   const builtins = await prepareBuiltinWhiteboardTypes();
@@ -93,6 +136,18 @@ async function setup() {
     ],
     {}
   ).createdIds[0];
+  if (frameCount > 1)
+    sourceModel.submit(
+      Array.from({ length: frameCount - 1 }, (_, i) => ({
+        type: "create" as const,
+        id: "extra-" + i,
+        contractId: contract.id,
+        data: { title: "额外画框" },
+        geometry: { x: 1100 + i * 250, y: 0, width: 200, height: 100, rotation: 0 },
+        parent: { kind: "page" as const, id: pageId },
+      })),
+      {}
+    );
   const published = await createWhiteboardDocument(
     { documentId: room.id, epoch: 0, baselineId: "base" },
     Y.encodeStateAsUpdate(source)
@@ -109,6 +164,8 @@ async function setup() {
     host: HTMLDivElement;
     fire(type: string, x: number): Promise<void>;
     hide(): Promise<void>;
+    apply: Parameters<typeof whiteboardAgentTools>[5];
+    setOnline(online: boolean): void;
     connected(): boolean;
     x(): number;
   }[] = [];
@@ -183,25 +240,27 @@ async function setup() {
       publishPresence: (_id: string, value: Parameters<WhiteboardRealtime["presence"]>[0]) =>
         realtime?.presence(value),
     };
-    const realtime = new WhiteboardRealtime(
-      network,
-      url,
-      server.store.protocols.state(room.id),
-      async update => {
-        try {
-          await sessions.append(client.leaseId!, 1, `push:${stateHash(update)}`, update);
-        } catch (error) {
-          errors.push(error);
-          throw error;
-        }
-      },
-      event => {
-        connected = event.connected;
-        peers = event.peers;
-        listeners.forEach(listener => listener());
-      },
-      () => sessions.snapshot(client.leaseId!, 1).state
-    );
+    const connect = () =>
+      new WhiteboardRealtime(
+        network,
+        url,
+        server.store.protocols.state(room.id),
+        async update => {
+          try {
+            await sessions.append(client.leaseId!, 1, `push:${stateHash(update)}`, update);
+          } catch (error) {
+            errors.push(error);
+            throw error;
+          }
+        },
+        event => {
+          connected = event.connected;
+          peers = event.peers;
+          listeners.forEach(listener => listener());
+        },
+        () => sessions.snapshot(client.leaseId!, 1).state
+      );
+    let realtime: WhiteboardRealtime | undefined = connect();
     const binding = createWhiteboardBinding(client.model, {
       pageId,
       types: builtins.types,
@@ -258,7 +317,17 @@ async function setup() {
       binding,
       host,
       fire,
+      apply: async (lease, req, signal) => {
+        const receipt = await sessions.applyAgent(lease, 1, req, signal);
+        if (!receipt.error) realtime?.publishDocument();
+        return receipt;
+      },
       hide,
+      setOnline(online) {
+        realtime?.dispose();
+        connected = false;
+        realtime = online ? connect() : undefined;
+      },
       connected: () => connected,
       x: () =>
         client.model.read().pages[0].children.find(item => item.id === elementId)!.geometry.x,
@@ -376,3 +445,114 @@ it("拖动中收到对方同一元素的新位置，取消自身手势不覆盖�
   expect(right.binding.history.undoStack).toHaveLength(1);
   expect(errors).toEqual([]);
 }, 20000);
+
+it("主对话捕获的工具修改同页画布，经真实推送到第二端，离页后旧执行器失效", async () => {
+  const {
+    sides: [left, right],
+    elementId,
+  } = await setup();
+  const lifetime = new AbortController(),
+    registry = new ToolRegistry(),
+    scope = crypto.randomUUID();
+  registry.registerScopedTools(
+    scope,
+    "当前白板",
+    whiteboardAgentTools(scope, left.binding, left.client, undefined, lifetime.signal, left.apply)
+  );
+  const sessionTools = registry.getScopedTools(scope);
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const result = await registry.executeToolCall(
+      {
+        id: crypto.randomUUID(),
+        type: "function",
+        function: { name, arguments: JSON.stringify(args) },
+      },
+      { databaseName: "A", conversationKey: "main-chat:test", sessionTools }
+    );
+    return JSON.parse(result!.content);
+  };
+  const { target } = await call("get_whiteboard_context", {});
+  const {
+    elements: [frame],
+  } = await call("read_whiteboard_elements", { target, ids: [elementId] });
+  const batch = {
+    target,
+    requestId: "move-1",
+    operations: [
+      {
+        kind: "move",
+        id: elementId,
+        before: frame.geometry,
+        geometry: { ...frame.geometry, x: 256 },
+      },
+    ],
+  };
+  let revision = 0;
+  await act(async () => {
+    revision = (await call("apply_whiteboard_operations", batch)).revision;
+  });
+  await waitFor(() => {
+    for (const side of [left, right]) {
+      expect(side.x()).toBe(256);
+      expect(
+        side.host.querySelector('[data-layer="main-elements"] rect.cursor-move')?.getAttribute("x")
+      ).toBe("256");
+      expect(side.binding.history.undoStack).toHaveLength(0);
+    }
+  });
+  expect((await call("apply_whiteboard_operations", batch)).revision).toBe(revision);
+  lifetime.abort();
+  await expect(call("apply_whiteboard_operations", batch)).rejects.toThrow();
+});
+
+const delayedNetwork = process.env.TAU_BOARD_AGENT_STRESS === "network";
+it("真实推送连接离线时 Agent 批次只在本机生效，重连后同页收齐且不重复", async () => {
+  const {
+    sides: [local, peer],
+  } = await setup(delayedNetwork ? { roundTripMs: 100, frameCount: 10 } : {});
+  const initial = local.binding.model.read().pages[0].children[0].geometry;
+  const initialNodes = local.binding.model.read().pages[0].children;
+  local.setOnline(false);
+  const start = performance.now(),
+    count = delayedNetwork ? 100 : 32;
+  for (let i = 0; i < count; i++) {
+    const request = {
+      owner: "main-chat:offline",
+      pageId: local.binding.pageId,
+      requestId: "offline-" + i,
+      operations: initialNodes.map(({ id, geometry }) => ({
+        kind: "move",
+        id,
+        before: { ...geometry, x: geometry.x + i },
+        geometry: { ...geometry, x: geometry.x + i + 1 },
+      })),
+    };
+    const apply = local.apply!;
+    const signal = new AbortController().signal;
+    const result = await apply(local.client.leaseId!, request, signal);
+    expect((await apply(local.client.leaseId!, request, signal)).operationRevision).toBe(
+      result.operationRevision
+    );
+  }
+  await waitFor(() => expect(local.x()).toBe(initial.x + count));
+  expect(peer.x()).toBe(initial.x);
+  const reconnect = performance.now();
+  local.setOnline(true);
+  await waitFor(() => {
+    expect(local.connected()).toBe(true);
+    expect(
+      peer.host.querySelector('[data-layer="main-elements"] rect.cursor-move')?.getAttribute("x")
+    ).toBe(String(initial.x + count));
+  });
+  expect(peer.binding.model.read().pages[0].children.map(n => [n.id, n.geometry.x])).toEqual(
+    initialNodes.map(n => [n.id, n.geometry.x + count])
+  );
+  console.info("AGENT_SOCKET_RECOVERY", {
+    simulatedRttMs: delayedNetwork ? 100 : 0,
+    operations: count * initialNodes.length,
+    batches: count,
+    retries: count,
+    offlineMs: Math.round(reconnect - start),
+    reconnectToDomMs: Math.round(performance.now() - reconnect),
+  });
+}, 30000);

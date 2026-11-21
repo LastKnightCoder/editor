@@ -1,3 +1,4 @@
+import { WhiteboardAgentPresence } from "./agent-presence";
 import { WhiteboardTransitions } from "./transitions";
 import { WhiteboardInstallation } from "./installation";
 import { CollaborationAssetService } from "../collaboration/asset-service";
@@ -76,16 +77,21 @@ export class WhiteboardDocumentsModule {
     }
   }
   releaseRemoteView(leaseId: string) {
+    this.agents?.release(leaseId);
     this.realtime.get(leaseId)?.dispose();
     this.realtime.delete(leaseId);
     const view = this.remoteViews.get(leaseId);
     this.remoteViews.delete(leaseId);
     if (view) this.evictRemote(view.key);
   }
+  agents!: WhiteboardAgentPresence;
   private journal!: WhiteboardJournal;
   /** 页读取前自愈；模块尚未初始化（启动早期、测试）时不处理 */
-  async healPage(databaseName: string, contentId: number): Promise<void> {
-    await this.sessions?.healPage(databaseName, contentId);
+  async healPage(db: Database.Database, contentId: number): Promise<void> {
+    if (!this.sessions) return;
+    const entry = [...databaseModule.databases].find(([, connection]) => connection === db);
+    if (!entry) throw new Error("白板所属数据库已关闭");
+    await this.sessions.healPage(entry[0], contentId);
   }
   private store!: CollaborationLocalStore;
   assets!: CollaborationAssetService;
@@ -397,6 +403,18 @@ export class WhiteboardDocumentsModule {
       () => this.remoteClient(),
       this.assets
     );
+    this.agents = new WhiteboardAgentPresence(scope => {
+      const snapshot = this.agents.snapshot(scope);
+      for (const view of this.sessions.holders())
+        if (view.scope === scope) {
+          const window = BrowserWindow.fromId(view.owner);
+          if (window && !window.isDestroyed())
+            window.webContents.send("whiteboard-document:agent-peers", {
+              leaseId: view.leaseId,
+              ...snapshot,
+            });
+        }
+    });
     registerWhiteboardDocumentIpc(this, store, projected);
     registerDurableDocuments({
       has: scope =>

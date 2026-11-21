@@ -85,6 +85,7 @@ export class WhiteboardDocumentClient {
   private pending: PendingWhiteboardUpdate[] = [];
   private incoming: WhiteboardDocumentEvent[] = [];
   private receiveTail = Promise.resolve();
+  private observedRevision = -1;
   private flushing?: Promise<void>;
   private persisted = new Map<string, Promise<void>>();
   private sequence = 0;
@@ -186,6 +187,7 @@ export class WhiteboardDocumentClient {
       this.opened = opened;
       if ((await this.model.receive(opened.state)).status !== "applied")
         throw new Error("白板基线不完整");
+      this.observedRevision = opened.revision;
       const stored = await this.outbox.list(this.target.databaseName, opened.identity.documentId);
       if (stored.some(update => update.scope !== scopeOf(opened)))
         throw new Error("发现另一基线的白板草稿，材料已保留，请先处理旧草稿");
@@ -262,8 +264,10 @@ export class WhiteboardDocumentClient {
           const result = await this.model.receive(event.update);
           if (result.status === "pending") {
             const snapshot = await this.backend.snapshot(opened.leaseId);
-            await this.model.receive(snapshot.state);
+            if ((await this.model.receive(snapshot.state)).status !== "applied")
+              throw new Error("白板增量缺少依赖，快照未能补齐");
           }
+          this.observedRevision = Math.max(this.observedRevision, event.revision);
           console.info("[whiteboard-sync] 渲染端应用增量", {
             documentId: identity.documentId,
             revision: event.revision,
@@ -279,6 +283,28 @@ export class WhiteboardDocumentClient {
           });
       })
       .catch(error => this.fail(error));
+  }
+  /** 查询与写回执紧邻时，先等同一份增量进入视图；漏收广播才补取检查点。 */
+  async observeRevision(revision: number) {
+    await this.receiveTail;
+    if (this.observedRevision >= revision) return;
+    const lease = this.leaseId;
+    if (!lease || this.closed || this.stale) throw new Error("白板视图已关闭");
+    const task = this.receiveTail.then(async () => {
+      if (this.observedRevision >= revision) return;
+      const snapshot = await this.backend.snapshot(lease);
+      if (this.closed || this.stale || !this.opened || scopeOf(snapshot) !== scopeOf(this.opened))
+        throw new Error("白板视图已失效");
+      if (
+        snapshot.revision < revision ||
+        (await this.model.receive(snapshot.state)).status !== "applied"
+      )
+        throw new Error("白板同步尚未完成");
+      this.observedRevision = snapshot.revision;
+      this.set({ revision: snapshot.revision, projectedRevision: snapshot.projectedRevision });
+    });
+    this.receiveTail = task.catch(error => this.fail(error));
+    await task;
   }
   async flush(): Promise<void> {
     await this.ready;

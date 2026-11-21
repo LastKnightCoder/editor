@@ -671,3 +671,241 @@ it("外部实体删除后即便数值 ID 与创建时间同时复用，旧引用
   expect(current.entityId).not.toBe(previous.entityId);
   expect(ContentIdentityTable.resolve(db, current)).toBe(81);
 });
+
+it.runIf(process.env.TAU_BOARD_AGENT_STRESS === "recovery")(
+  "Agent 四个提交切点硬杀后按原请求恢复",
+  async () => {
+    const { build } = await import("esbuild");
+    const { spawnSync } = await import("node:child_process");
+    const f = await fixture(true),
+      worker = join(f.dir, "worker.cjs");
+    const sqlite = createRequire(
+      join(process.cwd(), "../collaboration-server/package.json")
+    ).resolve("better-sqlite3");
+    await build({
+      entryPoints: [join(__dirname, "fixtures/kill-agent-write.ts")],
+      bundle: true,
+      platform: "node",
+      format: "cjs",
+      outfile: worker,
+      alias: { "better-sqlite3": sqlite },
+      external: [sqlite],
+      logLevel: "silent",
+    });
+    const base = await f.sessions.open("A", f.created.contentIds[0], 1, "initial");
+    f.sessions.dispose();
+    let revision = base.revision;
+    const started = performance.now();
+    for (const point of [
+      "journal-transaction",
+      "journal-committed",
+      "projection-transaction",
+      "before-reply",
+    ]) {
+      for (let i = 0; i < 20; i++) {
+        const request = {
+          owner: "main-chat:recovery",
+          pageId: f.p1,
+          requestId: point + "-" + i,
+          operations: [
+            {
+              kind: "shape",
+              id: "step",
+              geometry: { x: i, y: 1, width: 12, height: 12, rotation: 0 },
+              text: point,
+            },
+          ],
+        };
+        const child = spawnSync(
+          process.execPath,
+          [worker, f.dir, String(f.created.contentIds[0]), point, JSON.stringify(request)],
+          { encoding: "utf8", timeout: 20000 }
+        );
+        expect(child.stderr).toBe("");
+        expect([child.signal, child.stdout]).toEqual(["SIGKILL", point]);
+        expect(f.journal.load(journalKey(base.identity))?.revision).toBe(
+          revision + Number(point !== "journal-transaction")
+        );
+        expect(
+          f.db.prepare("SELECT revision FROM whiteboard_documents WHERE document_id='doc'").get()
+        ).toEqual({ revision: revision + Number(point === "before-reply") });
+        const recovered = new WhiteboardDocumentSessions(f.journal, () => f.db);
+        try {
+          const lease = await recovered.open("A", f.created.contentIds[0], 2, "recovered");
+          const result = await recovered.applyAgent(lease.leaseId, 2, request);
+          const replay = await recovered.applyAgent(lease.leaseId, 2, request);
+          expect(result).toEqual(replay);
+          expect(result.operationRevision).toBe(++revision);
+          const row = f.db
+            .prepare("SELECT snapshot FROM whiteboard_documents WHERE document_id='doc'")
+            .get() as { snapshot: string };
+          const nodes = JSON.parse(row.snapshot).pages[0].children as {
+            id: string;
+            geometry: { x: number };
+          }[];
+          expect(nodes.filter(n => n.id === result.ids.step).map(n => n.geometry.x)).toEqual([i]);
+        } finally {
+          recovered.dispose();
+        }
+      }
+      console.info("Agent SIGKILL", point, 20, "revision", revision);
+    }
+    console.info("Agent SIGKILL elapsedMs", Math.round(performance.now() - started));
+  },
+  240000
+);
+
+it.runIf(process.env.TAU_BOARD_AGENT_STRESS === "concurrency")(
+  "两个 Agent 与画布用户同时修改时仅接纳匹配前提的整批",
+  async () => {
+    const samples: number[] = [];
+    let conflicts = 0,
+      replayed = 0,
+      moves = 0,
+      userChanges = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const f = await fixture(),
+        leases = await Promise.all(
+          [1, 2, 3].map(owner =>
+            f.sessions.open("A", f.created.contentIds[0], owner, "view" + owner)
+          )
+        );
+      const geometry = { x: 0, y: 0, width: 80, height: 40, rotation: 0 };
+      const make = (owner: number, requestId: string, operations: Record<string, unknown>[]) => ({
+        owner: "agent-" + owner,
+        pageId: f.p1,
+        requestId,
+        operations,
+      });
+      const write = (owner: number, req: ReturnType<typeof make>) =>
+        f.sessions.applyAgent(leases[owner - 1].leaseId, owner, req);
+      const first = await write(
+        1,
+        make(
+          1,
+          "create",
+          Array.from({ length: 20 }, (_, i) => ({
+            kind: "shape",
+            id: "n" + i,
+            geometry,
+            text: "节点" + i,
+          }))
+        )
+      );
+      const nodes = Array.from({ length: 20 }, (_, i) => first.ids["n" + i]),
+        expected = nodes.map(() => 0);
+      let random = seed;
+      const next = () => {
+        random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+        return random;
+      };
+      for (let round = 0; round < 50; round++) {
+        const group = next() % 2,
+          collision = round % 5 === 0;
+        const initial = expected.slice();
+        const batch = (owner: number, start: number) =>
+          make(
+            owner,
+            "r" + round,
+            nodes.slice(start, start + 10).map((id, j) => ({
+              kind: "move",
+              id,
+              before: { ...geometry, x: initial[start + j] },
+              geometry: { ...geometry, x: 1 + (next() % 999999) },
+            }))
+          );
+        const start = group * 10,
+          other = collision ? start : 10 - start;
+        const one = batch(1, start),
+          two = batch(2, other);
+        const human = document(f.sessions.snapshot(leases[2].leaseId, 3).state);
+        const update = delta(human, () =>
+          human.submit(
+            [{ type: "edit_page_title", id: f.p1, edit: { offset: 0, remove: 0, text: "人" } }],
+            {}
+          )
+        );
+        human.dispose();
+        human.doc.destroy();
+        const began = performance.now();
+        const settled = await Promise.allSettled([
+          write(1, one),
+          write(2, two),
+          f.sessions.append(leases[2].leaseId, 3, "human-" + round, update),
+        ]);
+        expect(settled[2].status).toBe("fulfilled");
+        userChanges++;
+        const won = settled.slice(0, 2).filter(x => x.status === "fulfilled");
+        expect(won).toHaveLength(collision ? 1 : 2);
+        for (const [index, req] of [one, two].entries()) {
+          if (settled[index].status === "rejected") {
+            expect(String((settled[index] as PromiseRejectedResult).reason)).toContain("位置冲突");
+            conflicts++;
+            continue;
+          }
+          for (const op of req.operations)
+            expected[nodes.indexOf(String(op.id))] = (op.geometry as typeof geometry).x;
+          moves += req.operations.length;
+          if (round % 7 === 0) {
+            const replay = await write(index + 1, req);
+            expect(replay.operationRevision).toBe(
+              (settled[index] as PromiseFulfilledResult<typeof replay>).value.operationRevision
+            );
+            replayed++;
+          }
+        }
+        samples.push(performance.now() - began);
+      }
+      const snapshot = JSON.parse(
+        (
+          f.db
+            .prepare("SELECT snapshot FROM whiteboard_documents WHERE document_id='doc'")
+            .get() as { snapshot: string }
+        ).snapshot
+      );
+      expect(snapshot.pages[0].title).toBe("人".repeat(50) + "甲");
+      expect(
+        nodes.map(
+          id => snapshot.pages[0].children.find((n: { id: string }) => n.id === id).geometry.x
+        )
+      ).toEqual(expected);
+    }
+    samples.sort((a, b) => a - b);
+    console.info(
+      "AGENT_CONCURRENCY",
+      JSON.stringify({
+        seeds: 20,
+        attemptedMoves: 20000,
+        moves,
+        conflicts,
+        replayed,
+        userChanges,
+        rounds: samples.length,
+        roundP95ms: samples[949],
+        roundP99ms: samples[989],
+      })
+    );
+  },
+  600000
+);
+
+it("Agent 批次缺少端点或请求身份复用于另一操作时，保留上次成功修订", async () => {
+  const f = await fixture(),
+    view = await f.sessions.open("A", f.created.contentIds[0], 1, "author");
+  const geometry = { x: 10, y: 10, width: 40, height: 30, rotation: 0 };
+  const request = {
+    owner: "main-chat:test",
+    pageId: f.p1,
+    requestId: "one",
+    operations: [{ kind: "shape", id: "node", text: "任务", geometry }],
+  };
+  const write = (ops: Record<string, unknown>[]) =>
+    f.sessions.applyAgent(view.leaseId, 1, { ...request, operations: ops });
+  await expect(
+    write([...request.operations, { kind: "connect", id: "line", from: "node", to: "removed" }])
+  ).rejects.toThrow();
+  expect(f.sessions.snapshot(view.leaseId, 1).revision).toBe(view.revision);
+  const receipt = await write(request.operations);
+  await expect(write([{ ...request.operations[0], text: "另一内容" }])).rejects.toThrow("同一请求");
+  expect(f.sessions.snapshot(view.leaseId, 1).revision).toBe(receipt.operationRevision);
+});

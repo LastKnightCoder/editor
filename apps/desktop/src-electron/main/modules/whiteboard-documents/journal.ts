@@ -134,6 +134,13 @@ export class WhiteboardJournal {
       this.hold(journalKey(document), holds);
     })();
   }
+  agentReceipt(documentId: string, prefix: string, batchId: string): number | undefined {
+    const row = this.db
+      .prepare("SELECT batch_id,revision FROM updates WHERE document_id=? AND batch_id GLOB ?")
+      .get(documentId, prefix + "*") as { batch_id: string; revision: number } | undefined;
+    if (row && row.batch_id !== batchId) throw new Error("同一请求 ID 不能修改操作内容");
+    return row?.revision;
+  }
   receipt(documentId: string, batchId: string, update: Uint8Array): number | null {
     const row = this.db
       .prepare("SELECT revision,update_hash FROM updates WHERE document_id=? AND batch_id=?")

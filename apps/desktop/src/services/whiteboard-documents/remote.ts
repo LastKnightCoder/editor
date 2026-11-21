@@ -1,8 +1,12 @@
+import type { BoardAgentActivity, BoardAgentPeers } from "../../../shared/whiteboard-agent";
 import type { WhiteboardRemoteStatus } from "@/types/whiteboard-document";
 import type { WhiteboardDocumentClient } from "./client";
 import type { WhiteboardPeer, WhiteboardPresence } from "@tau/collaboration";
 
 export interface WhiteboardRemoteBackend {
+  agentPeers?(leaseId: string): Promise<BoardAgentPeers>;
+  onAgentPeers?(listener: (event: BoardAgentPeers & { leaseId: string }) => void): () => void;
+  agentActivity?(leaseId: string, activity: BoardAgentActivity | null): Promise<void>;
   open(leaseId: string, serverUrl: string): Promise<WhiteboardRemoteStatus>;
   sync(leaseId: string): Promise<WhiteboardRemoteStatus>;
   presence?(leaseId: string, value: WhiteboardPresence | null): Promise<void>;
@@ -104,7 +108,20 @@ export class WhiteboardRemoteSync {
   private peerListeners = new Set<() => void>();
   private connected = false;
   private localPresence?: { viewId: string; value: WhiteboardPresence };
-  getPeers = () => this.peers;
+  private combinedPeers: readonly WhiteboardPeer[] = [];
+  private agents: readonly WhiteboardPeer[] = [];
+  private notifyPeers() {
+    this.combinedPeers = [...this.peers, ...this.agents];
+    this.peerListeners.forEach(listener => listener());
+  }
+  reportAgent(activity: BoardAgentActivity | null) {
+    const lease = this.client.leaseId;
+    if (lease && !this.disposed)
+      void this.backend
+        .agentActivity?.(lease, activity)
+        .catch(error => console.warn("白板 Agent 在线提示未送达", error));
+  }
+  getPeers = () => this.combinedPeers;
   subscribePeers = (listener: () => void) => {
     this.peerListeners.add(listener);
     return () => {
@@ -136,6 +153,24 @@ export class WhiteboardRemoteSync {
     private readonly backend: WhiteboardRemoteBackend,
     private readonly options = { pollMs: 10_000, debounceMs: 50, maxBackoffMs: 60_000 }
   ) {
+    let sequence = -1;
+    const receiveAgents = (snapshot: BoardAgentPeers) => {
+      if (this.disposed || snapshot.sequence < sequence) return;
+      sequence = snapshot.sequence;
+      this.agents = snapshot.peers;
+      this.notifyPeers();
+    };
+    if (backend.onAgentPeers && client.leaseId) {
+      this.cleanup.push(
+        backend.onAgentPeers(event => {
+          if (event.leaseId === client.leaseId) receiveAgents(event);
+        })
+      );
+      void backend
+        .agentPeers?.(client.leaseId)
+        .then(receiveAgents)
+        .catch(error => console.warn("读取白板 Agent 在线提示失败", error));
+    }
     if (backend.realtime)
       this.cleanup.push(
         backend.realtime(event => {
@@ -144,7 +179,7 @@ export class WhiteboardRemoteSync {
           const disconnected = !event.connected && this.connected;
           this.connected = event.connected;
           this.peers = event.peers;
-          this.peerListeners.forEach(listener => listener());
+          this.notifyPeers();
           if (restored) {
             if (this.localPresence)
               this.publishPresence(this.localPresence.viewId, this.localPresence.value);
@@ -170,6 +205,11 @@ export class WhiteboardRemoteSync {
       this.cleanup.push(() => window.removeEventListener("focus", focus));
     }
   }
+  confirmationFor(revision: number) {
+    if (this.state.phase === "local") return "local";
+    if (this.confirmedRevision >= revision) return "confirmed";
+    return this.state.phase === "offline" ? "offline" : "awaiting-confirmation";
+  }
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -179,7 +219,7 @@ export class WhiteboardRemoteSync {
     this.state = { ...this.state, ...patch };
     if (this.blocked() && this.peers.length) {
       this.peers = [];
-      this.peerListeners.forEach(listener => listener());
+      this.notifyPeers();
     }
     for (const listener of this.listeners) listener();
   }
@@ -322,7 +362,8 @@ export class WhiteboardRemoteSync {
     this.cleanup.splice(0).forEach(fn => fn());
     this.listeners.clear();
     this.peers = [];
-    this.peerListeners.forEach(listener => listener());
+    this.notifyPeers();
+    this.agents = [];
     this.peerListeners.clear();
   }
 }

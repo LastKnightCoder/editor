@@ -70,6 +70,8 @@
 
 [Notebook 演示文稿按页生成与续改](./tasks/ppt-workspace/README.md) 记录 Agent 工作目录、页级正文、模型自检、旧稿处理及实物试跑结果。
 
+[在当前白板与 Agent 共同编辑](./tasks/whiteboard-agent/README.md) 记录当前页 MCP 工具、协作身份、实时提交与压测验收计划。
+
 当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
 
 ## notes/ — 一次性产物

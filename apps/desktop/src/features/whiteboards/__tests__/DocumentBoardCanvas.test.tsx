@@ -6,6 +6,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { WhiteboardModel } from "@tau/collaboration";
+import toolRegistry from "@/tools/toolRegistry";
+import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import { queryClient } from "@/queryClient";
 import { DocumentBoardCanvas } from "../components/DocumentBoardCanvas";
 import type { BoardCanvasHandle } from "../components/BoardCanvas";
@@ -43,6 +45,7 @@ vi.mock("@/stores/useSettingStore", () => ({
 }));
 vi.mock("@/page/PageProvider", () => ({ usePage: () => ({ registerLeaveGuard: mocks.guard }) }));
 vi.mock("@/commands/whiteboard-document", () => ({
+  applyWhiteboardAgentOperations: vi.fn(),
   readWhiteboardShareStatus: mocks.shareStatus,
   publishWhiteboard: mocks.publish,
   whiteboardRemoteBackend: mocks.remote,
@@ -212,6 +215,7 @@ it("同一白板切页保持绑定与历史，不重复建立主进程租约", a
           contentId={pageId === mocks.pageId ? 1 : 2}
           documentId={mocks.docId}
           pageId={pageId}
+          collaboration
           ref={ref}
         />
       </DndProvider>
@@ -225,7 +229,24 @@ it("同一白板切页保持绑定与历史，不重复建立主进程租约", a
     ]);
   });
   const binding = mocks.binding;
+  const scope = currentWhiteboardToolScope();
+  const [contextTool] = toolRegistry.getScopedTools(scope);
+  const context = {
+    toolCallId: "turn",
+    toolName: contextTool.name,
+    source: contextTool.source,
+    databaseName: "A",
+    conversationKey: "main-chat:turn",
+  };
+  expect(await contextTool.executor({}, context)).toMatchObject({
+    content: expect.stringContaining(mocks.pageId),
+  });
   await act(async () => root!.render(render(next)));
+  await expect(contextTool.executor({}, context)).rejects.toThrow();
+  const [nextContext] = toolRegistry.getScopedTools(currentWhiteboardToolScope());
+  expect(await nextContext.executor({}, context)).toMatchObject({
+    content: expect.stringContaining(next),
+  });
   expect(mocks.binding).toBe(binding);
   expect((binding as { pageId: string }).pageId).toBe(next);
   expect((binding as { history: { undoStack: unknown[] } }).history.undoStack).toHaveLength(1);

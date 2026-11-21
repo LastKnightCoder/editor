@@ -1,3 +1,6 @@
+import toolRegistry from "@/tools/toolRegistry";
+import { retainWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
+import { whiteboardAgentTools } from "@/services/whiteboard-documents/agent-tools";
 import { getWhiteboardBodyKit } from "@/features/shared/whiteboard/editorKit";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import {
@@ -263,6 +266,23 @@ function BoundDocumentCanvas({
     [registerLeaveGuard, client]
   );
   const remoteSync = whiteboardRemoteSync(client);
+  useLayoutEffect(() => {
+    if (!collaboration) return;
+    const scope = "whiteboard-" + crypto.randomUUID();
+    const lifetime = new AbortController();
+    toolRegistry.registerScopedTools(
+      scope,
+      "当前白板",
+      whiteboardAgentTools(scope, binding, client, remoteSync, lifetime.signal)
+    );
+    const release = retainWhiteboardToolScope(scope);
+    return () => {
+      lifetime.abort();
+      remoteSync?.reportAgent(null);
+      release();
+      toolRegistry.unregisterSource(scope);
+    };
+  }, [binding, client, collaboration, pageId, remoteSync]);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <WhiteboardCollaborationBoundary resetKey={client.viewId}>

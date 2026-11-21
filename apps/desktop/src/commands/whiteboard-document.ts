@@ -1,5 +1,5 @@
 import { invoke, on, off } from "@/electron";
-import { withModule } from "./module-init";
+import { ensureModule, withModule } from "./module-init";
 import type { WhiteboardDocumentBackend } from "@/services/whiteboard-documents/client";
 import type { WhiteboardRemoteBackend } from "@/services/whiteboard-documents/remote";
 import type {
@@ -36,6 +36,9 @@ export const whiteboardDocumentBackend: WhiteboardDocumentBackend = {
 export const readWhiteboardShareStatus = (databaseName: string, documentId: string) =>
   call<WhiteboardShareStatus>("share-status", databaseName, documentId);
 export const whiteboardRemoteBackend: WhiteboardRemoteBackend = {
+  agentPeers: lease => call("agent-peers", lease),
+  onAgentPeers: listener => subscribe("whiteboard-document:agent-peers", listener),
+  agentActivity: (lease, activity) => call("agent-activity", lease, activity),
   open: (leaseId, serverUrl) => call<WhiteboardRemoteStatus>("remote-open", leaseId, serverUrl),
   sync: leaseId => call<WhiteboardRemoteStatus>("remote-sync", leaseId),
   presence: (leaseId, value) => call<void>("presence", leaseId, value),
@@ -122,3 +125,27 @@ export const unshareWhiteboard = (
   leaseId: string,
   request: { operationId: string; mode: "close" | "leave" | "detach" }
 ) => call<{ missing: number }>("unshare", leaseId, request);
+
+export async function applyWhiteboardAgentOperations(
+  leaseId: string,
+  request: import("../../shared/whiteboard-agent").AgentBoardRequest,
+  signal: AbortSignal
+) {
+  await ensureModule("whiteboard-documents");
+  signal.throwIfAborted();
+  const executionId = crypto.randomUUID();
+  const cancel = () => {
+    void invoke("whiteboard-document:agent-cancel", executionId).catch(console.warn);
+  };
+  signal.addEventListener("abort", cancel, { once: true });
+  try {
+    return await invoke<
+      import("@/types/whiteboard-document").WhiteboardDocumentReceipt & {
+        ids: Record<string, string>;
+        operationRevision: number;
+      }
+    >("whiteboard-document:agent-apply", leaseId, executionId, request);
+  } finally {
+    signal.removeEventListener("abort", cancel);
+  }
+}

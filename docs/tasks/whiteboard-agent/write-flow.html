@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent 的修改怎样出现在白板上</title>
+  <style>
+    :root { --paper: #f5f5f5; --ink: #2d3142; --muted: #4f5d75; --accent: #bf4520; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 3rem 1.5rem; background: var(--paper); color: var(--ink); font-family: Geist, system-ui, sans-serif; }
+    main { max-width: 840px; margin: auto; }
+    h1 { font: 400 clamp(1.6rem, 4vw, 2.4rem) "Instrument Serif", "Songti SC", serif; }
+    figure { margin: 0; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 720px; height: auto; }
+    .node { fill: var(--paper); stroke: var(--ink); stroke-width: 1.3; }
+    .focus { stroke: var(--accent); stroke-width: 2; }
+    .edge { fill: none; stroke: var(--muted); stroke-width: 1.5; marker-end: url(#arrow); }
+    text { fill: var(--ink); text-anchor: middle; font-size: 16px; }
+    .label { fill: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Agent 的修改怎样出现在白板上</h1>
+  <figure>
+    <svg viewBox="0 0 820 568" role="img" aria-labelledby="write-flow-title write-flow-desc" xmlns="http://www.w3.org/2000/svg">
+      <title id="write-flow-title">白板 Agent 写入流程</title>
+      <desc id="write-flow-desc">右侧对话绑定当前页，检查目标、权限与冲突。通过后记录批次并更新本机画布；共享设备另外接收增量。</desc>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M1 1L9 5L1 9" fill="none" stroke="#4f5d75" stroke-width="1.4"/>
+        </marker>
+      </defs>
+      <g class="edge">
+        <path d="M258 60V104"/>
+        <path d="M384 164H506"/>
+        <path d="M258 222V276"/>
+        <path d="M258 338V397"/>
+        <path d="M404 427H506"/>
+        <path d="M258 457V506"/>
+      </g>
+      <rect class="node" x="115" y="12" width="286" height="48" rx="24"/>
+      <text x="258" y="42">右侧指令绑定当前白板页</text>
+      <path class="node" d="M258 106L384 164L258 222L132 164Z"/>
+      <text x="258" y="161">目标、权限与</text>
+      <text x="258" y="182">读前提有效？</text>
+      <text class="label" x="443" y="151">未通过</text>
+      <rect class="node" x="508" y="139" width="274" height="50" rx="24"/>
+      <text x="645" y="170">返回原因，整批保持原状</text>
+      <text class="label" x="288" y="254">通过</text>
+      <rect class="node focus" x="112" y="278" width="292" height="60" rx="6"/>
+      <text x="258" y="314">本机日志记录增量和操作回执</text>
+      <rect class="node" x="112" y="399" width="292" height="58" rx="6"/>
+      <text x="258" y="434">更新主库投影，广播增量</text>
+      <text class="label" x="454" y="412">已共享</text>
+      <rect class="node" x="508" y="399" width="274" height="58" rx="6"/>
+      <text x="645" y="434">共享设备接收，单独确认</text>
+      <rect class="node" x="112" y="508" width="292" height="48" rx="24"/>
+      <text x="258" y="538">左侧画布原位显示改动</text>
+    </svg>
+  </figure>
+</main>
+</body>
+</html>

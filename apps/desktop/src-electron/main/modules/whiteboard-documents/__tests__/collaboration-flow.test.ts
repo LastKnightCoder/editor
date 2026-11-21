@@ -999,3 +999,49 @@ it("最后一个视图关闭时在途同步继续持有远端会话，结束后�
   await vi.waitFor(() => expect(owner.module.remote.size).toBe(0));
   synchronize.mockRestore();
 });
+
+it("断网时 Agent 创建并重试，重开后远端收齐所有形状且引用同一身份", async () => {
+  const owner = await side("作者", 1, "A"),
+    { created, room } = await sharedBoard(owner);
+  const open = () => call(owner, "open", "A", created.contentIds[0], randomUUID());
+  const lease = await open();
+  await call(owner, "remote-open", lease.leaseId, URL);
+  offline = true;
+  const requests = Array.from({ length: 24 }, (_, i) => ({
+    pageId: lease.pageId,
+    owner: "main-chat:offline",
+    requestId: "step-" + i,
+    operations: [
+      {
+        kind: "shape",
+        id: "shape",
+        geometry: { x: i * 20, y: 1, width: 16, height: 16, rotation: 0 },
+        text: "节点" + i,
+      },
+    ],
+  }));
+  const write = (id: string, req: (typeof requests)[number]) =>
+    call(owner, "agent-apply", id, randomUUID(), req);
+  const results = await Promise.all(requests.map(req => write(lease.leaseId, req)));
+  await expect(call(owner, "remote-sync", lease.leaseId)).rejects.toThrow(/OFFLINE/);
+  await call(owner, "release", lease.leaseId);
+  const next = await open();
+  const retries = await Promise.all(requests.map(req => write(next.leaseId, req)));
+  expect(retries.map(r => [r.operationRevision, r.ids])).toEqual(
+    results.map(r => [r.operationRevision, r.ids])
+  );
+  offline = false;
+  await call(owner, "remote-open", next.leaseId, URL);
+  await call(owner, "remote-sync", next.leaseId);
+  const doc = server.store.loadDocument(room.documentId),
+    model = new WhiteboardModel(doc);
+  try {
+    const nodes = model.read().pages[0].children.filter(n => n.type === "geometry");
+    expect(nodes.map(n => n.id).sort()).toEqual(results.map(r => r.ids.shape).sort());
+    for (const [i, r] of results.entries())
+      expect(nodes.find(n => n.id === r.ids.shape)?.geometry.x).toBe(i * 20);
+  } finally {
+    model.dispose();
+    doc.destroy();
+  }
+});
