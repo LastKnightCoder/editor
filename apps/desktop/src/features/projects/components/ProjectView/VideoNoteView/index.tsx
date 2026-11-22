@@ -30,6 +30,9 @@ import { openLLMSettingsSection } from "@/utils/transcription";
 import { getProjectItemById, getVideoNoteById } from "@/commands";
 import type { TranscriptSegment, VideoNote } from "@/types";
 import { useVideoProviderName } from "@/hooks/useVideoProviders";
+import useChatSessionStore from "@/stores/useChatSessionStore";
+import { useVideoNoteChat } from "@/components/VideoNotePanel/useVideoNoteChat";
+import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useOwnAssist, usePageChatPanel } from "@/app/assistOwner";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
@@ -132,7 +135,6 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   useOverlayDismiss(() => setChatOpen(false), chatOverlay);
 
   const toggleChat = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
-  useOwnAssist("project-detail", { isChatOpen: () => chatOpen, toggle: toggleChat });
 
   // 条目区放不下两栏：临时收起项目文档树（按「收起后能否放下」判断，避免来回切换）
   const setTreeAutoCollapse = useProjectTreeStore(s => s.setAutoCollapse);
@@ -213,6 +215,24 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     if (videoNote.transcript?.trim()) return videoNote.transcript;
     return videoNote.transcriptSegments?.map(item => item.text).join(" ") ?? "";
   }, [videoNote]);
+
+  const toolScope = useVideoNoteChat(videoNoteId, mainDbName);
+  useOwnAssist("project-detail", {
+    isChatOpen: () => chatOpen,
+    toggle: toggleChat,
+    quickChat: () => ({
+      chatScope: `video-note-chat:${videoNoteId}`,
+      placeholder: "问这段视频，回答会在旁边的对话栏继续",
+      toolScope,
+      customSystemPrompt: buildVideoNoteSystemPrompt({ transcript: transcriptText }),
+      show: id => {
+        useChatSessionStore
+          .getState()
+          .setCurrent({ scope: "video-note-chat", domainRef: String(videoNoteId) }, id);
+        setChatOpen(true);
+      },
+    }),
+  });
 
   const chapterState = useVideoNoteChapters({
     videoNote,
@@ -454,7 +474,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
             <VideoNoteChatPanel
               ref={onChatRef}
               videoNoteId={videoNoteId}
-              mainDbName={mainDbName}
+              toolScope={toolScope}
               transcript={transcriptText}
               docked
               onClose={() => setChatOpen(false)}

@@ -10,6 +10,11 @@
  * store 状态 / IPC 通道与载荷 / runtime 队列 / 对宿主的回调上。
  */
 import { act } from "react";
+import { PageProvider } from "@/page/PageProvider";
+import { registerPageMeta } from "@/page/core/pageMeta";
+import { ChatShortcuts } from "@/app/ChatShortcuts";
+import { useOwnAssist } from "@/app/assistOwner";
+import { useShellStore } from "@/app/shellStore";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DndProvider } from "react-dnd";
@@ -211,11 +216,7 @@ import { Role } from "@/constants";
 import type { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
 import type { ChatSessionRow } from "@/types/chat-session";
 
-/* 页面壳层上下文：聊天容器渲染的 SubagentDetailLayer 挂 Esc 仲裁，桩掉页面协议依赖 */
-vi.mock("@/page/PageProvider", () => ({
-  usePage: () => ({ registerOverlayDismiss: () => () => {} }),
-  useOverlayDismiss: () => undefined,
-}));
+registerPageMeta({ key: "pdf-detail", match: "single", label: "PDF", fields: {} });
 
 if (typeof window.requestAnimationFrame !== "function") {
   window.requestAnimationFrame = (callback: FrameRequestCallback) =>
@@ -328,25 +329,27 @@ const mountChat = (options: MountOptions) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const Harness = () => (
     <QueryClientProvider client={queryClient}>
-      <DndProvider backend={HTML5Backend}>
-        <ChatContainer
-          ref={handle}
-          currentChat={options.chat}
-          isDark={false}
-          markdownComponents={{}}
-          isVisible
-          sendLoading={false}
-          setSendLoading={value => sendLoadingValues.push(value)}
-          titleRef={{ current: null }}
-          onCreateNewMessage={() => {}}
-          createMessageLoading={false}
-          {...(options.chatScope ? { chatScope: options.chatScope } : {})}
-          onChatCreated={onChatCreated}
-          {...(options.beforeSendUserMessage
-            ? { beforeSendUserMessage: options.beforeSendUserMessage }
-            : {})}
-        />
-      </DndProvider>
+      <PageProvider initialKey="pdf-detail">
+        <DndProvider backend={HTML5Backend}>
+          <ChatContainer
+            ref={handle}
+            currentChat={options.chat}
+            isDark={false}
+            markdownComponents={{}}
+            isVisible
+            sendLoading={false}
+            setSendLoading={value => sendLoadingValues.push(value)}
+            titleRef={{ current: null }}
+            onCreateNewMessage={() => {}}
+            createMessageLoading={false}
+            {...(options.chatScope ? { chatScope: options.chatScope } : {})}
+            onChatCreated={onChatCreated}
+            {...(options.beforeSendUserMessage
+              ? { beforeSendUserMessage: options.beforeSendUserMessage }
+              : {})}
+          />
+        </DndProvider>
+      </PageProvider>
     </QueryClientProvider>
   );
   return { handle, sendLoadingValues, onChatCreated, Harness };
@@ -731,4 +734,143 @@ describe("运行中插话", () => {
     // 只有成功交出去才清输入框
     expect(inputShell.state!.clears).toBeGreaterThanOrEqual(1);
   });
+});
+
+it("快捷输入提交失败可保留原文重试，首条消息被接收时切换文档会话", async () => {
+  const bucket = { scope: "pdf-chat" as const, domainRef: "42" };
+  const store = useChatSessionStore.getState();
+  store.setCurrent(bucket, "previous");
+  const previousKey = chatSessionKey("pdf-chat:42", "previous");
+  usedSessionKeys.push(previousKey);
+  piChatRuntime.ensureConversation(previousKey, savedChat("previous", [userMessage("上一问")]), {
+    publish: store.publishChat,
+    settle: chat => store.settleChat(chat.id, chat.databaseName, chat.sessionFile),
+  });
+  piChatRuntime.bindSession(previousKey, "running-session");
+  emitPiEvent("running-session", { type: "agent_start" });
+  const origin = document.createElement("button");
+  let panelOpen = false;
+  function Reader() {
+    useOwnAssist("pdf-detail", {
+      isChatOpen: () => panelOpen,
+      toggle: () => {
+        panelOpen = !panelOpen;
+      },
+      quickChat: () => ({
+        chatScope: "pdf-chat:42",
+        toolScope: "pdf-42",
+        show: id => {
+          store.setCurrent(bucket, id);
+          panelOpen = true;
+        },
+      }),
+    });
+    return <ChatShortcuts />;
+  }
+  await act(async () =>
+    root.render(
+      <QueryClientProvider client={new QueryClient()}>
+        <PageProvider initialKey="pdf-detail">
+          <Reader />
+        </PageProvider>
+      </QueryClientProvider>
+    )
+  );
+  host.append(origin);
+  origin.focus();
+  const shortcut = (key: string, shiftKey = false) =>
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key,
+        metaKey: key !== "Escape",
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  await act(async () => {
+    shortcut("J", true);
+    await import("@/features/chat/components/QuickChatInput");
+  });
+  expect(document.activeElement).toBeInstanceOf(HTMLTextAreaElement);
+  expect(panelOpen).toBe(false);
+  await act(async () => {
+    shortcut("Escape");
+  });
+  expect(document.activeElement).toBe(origin);
+  expect(callsOf("chat-session:create")).toHaveLength(0);
+  await act(async () => {
+    shortcut("j");
+  });
+  expect(panelOpen).toBe(true);
+  await act(async () => {
+    shortcut("J", true);
+  });
+  const field = document.activeElement;
+  if (!(field instanceof HTMLTextAreaElement)) throw new Error("快捷输入框未聚焦");
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+      field,
+      "解释这一页"
+    );
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const submit = (isComposing = false) =>
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        metaKey: true,
+        isComposing,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  await act(async () => {
+    submit(true);
+  });
+  expect(callsOf("pi-session:prompt")).toHaveLength(0);
+
+  ipc.overrides.set("pi-session:prompt", () => ({ ok: false, error: "暂时不可用" }));
+  await act(async () => {
+    submit();
+  });
+  expect(field.value).toBe("解释这一页");
+  expect(useChatSessionStore.getState().currentIds["pdf-chat|42"]).toBe("previous");
+  expect(useChatSessionStore.getState().buckets["pdf-chat|42"]?.rows ?? []).toEqual([]);
+  expect(document.activeElement).toBe(field);
+
+  const reply = Promise.withResolvers<{ ok: boolean }>();
+  ipc.overrides.set("pi-session:prompt", () => reply.promise);
+  await act(async () => {
+    submit();
+    submit();
+  });
+  const prompts = promptPayloads();
+  expect(prompts).toHaveLength(2);
+  const { sessionId, text: prompt } = prompts[1];
+  expect(prompt).toBe("解释这一页");
+  const created = callsOf("pi-session:create").at(-1)?.args[0];
+  expect(created).toMatchObject({ chatScope: "pdf-chat:42", toolScope: "pdf-42" });
+  expect(useChatSessionStore.getState().currentIds["pdf-chat|42"]).toBe("previous");
+  emitPiEvent(sessionId, { type: "agent_start" });
+  emitPiEvent(sessionId, {
+    type: "message_start",
+    message: { role: "user", content: text(prompt) },
+  });
+  const current = useChatSessionStore.getState();
+  expect(current.currentIds["pdf-chat|42"]).toBe(created.piSessionId);
+  expect(current.opened[created.piSessionId]?.messages[0]).toMatchObject({
+    role: Role.User,
+    content: text(prompt),
+  });
+  expect(piChatRuntime.isStreaming(previousKey)).toBe(true);
+  expect(piChatRuntime.queueSize(previousKey)).toBe(0);
+  expect(field.isConnected).toBe(false);
+  expect(panelOpen).toBe(true);
+  expect(useShellStore.getState().assistView).toBeNull();
+  usedSessionKeys.push(chatSessionKey("pdf-chat:42", created.piSessionId));
+  await act(async () => {
+    reply.resolve({ ok: true });
+  });
+  expect(useChatSessionStore.getState().currentIds["pdf-chat|42"]).toBe(created.piSessionId);
 });

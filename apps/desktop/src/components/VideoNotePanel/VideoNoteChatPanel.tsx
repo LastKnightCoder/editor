@@ -24,13 +24,12 @@ import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer
 import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import type { MessageContentItem } from "@tau/shared";
 import { formatTimestamp } from "./extensions/VideoTimestamp";
-import { useVideoNoteChat } from "./useVideoNoteChat";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
 interface VideoNoteChatPanelProps {
   videoNoteId: number;
-  mainDbName: string;
+  toolScope: string;
   transcript: string;
   /** 停靠在右栏（窄）：水平留白收紧、输入区紧凑 */
   docked?: boolean;
@@ -100,7 +99,7 @@ function ChatEmptyState({
 
 const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPanelProps>(
   function VideoNoteChatPanel(
-    { videoNoteId, mainDbName, transcript, docked = false, onClose },
+    { videoNoteId, toolScope, transcript, docked = false, onClose },
     ref
   ) {
     const { isDark } = useTheme();
@@ -108,8 +107,6 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
     const chatContainerRef = useRef<ChatContainerHandle>(null);
 
     const isConnected = useDatabaseConnected();
-
-    const toolScope = useVideoNoteChat(videoNoteId, mainDbName);
 
     const systemPrompt = useMemo(() => buildVideoNoteSystemPrompt({ transcript }), [transcript]);
 

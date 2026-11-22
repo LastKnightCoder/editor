@@ -206,7 +206,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 - 快捷键是扩展贡献：`hotkeys: [{ key, command }]`（is-hotkey 键串，按 event.key 匹配）；内置的 shift+数字组合因键盘布局间 event.key 漂移走包内键码通道（按 event.code 匹配，仅内置扩展可用，`extensions/hotkeys.ts` 的 InternalContributions.hotkeyCodes）。
 - 仲裁在扩展运行时（`extensions/runtime.tsx` 的 onKeyDown）：按「tau 优先 + 装配顺序」收集全部键匹配条目，第一条 enabled 的命令拦截（preventDefault + stopPropagation）并执行；命令 enabled 不满足时不拦截按键，全部不可用则放行给后续事件链。输入法组合、编辑上下文、元素编辑中与演示态整体不响应——撤销/全选因此在编辑态让位给正文编辑器（编辑器自带 slate-history）。
-- 宿主保留键不可声明（装配即拒绝）：mod+k / mod+p（命令面板）、mod+j（停靠栏）、alt+left / alt+right（前进后退）、escape（浮层退场）。
+- 宿主保留键不可声明（装配即拒绝）：mod+k / mod+p（命令面板）、mod+j（停靠栏）、mod+shift+j（快捷对话）、alt+left / alt+right（前进后退）、escape（浮层退场）。
 - 内置清单见 `extensions/interactionCommands.ts`（tau.interaction）：撤销 mod+z、重做 mod+shift+z 与 mod+y、全选 mod+a、删除 delete/backspace、缩放 mod+= / mod+-、全览 mod+o / z、shift+1 全部 / shift+2 选中 / shift+0 复位缩放；回车打开文档（enter → `tau.document.open`）、空格速览（space → `tau.document.peek`，按住文档卡 250ms 也发同一事件）、PDF 卡翻页（`[` / `]` → `tau.document.page-prev` / `page-next`，发 `tau.document.turn-page`）、`/` 放入文档（→ `tau.document.insert-at-pointer`）与 R 长出相关（→ `tau.document.related`，发 `tau.document.related` 事件）在 `tau.document` 扩展，后两者装配了文档工具才登记。
 - 快捷键显示文字只有一个来源：`api.getShortcut(commandId)`（`utils/hotkeyFormat.ts` 的 formatHotkey + detectHotkeyPlatform 按平台格式化）。
 - 遗留：思维导图节点键盘导航仍靠 document 监听器抢先注册 + stopImmediatePropagation 阻断后续监听（`useMindNodeKeyboardNavigation`）；方向键移动与演示翻页是模式内交互，留在交互层。

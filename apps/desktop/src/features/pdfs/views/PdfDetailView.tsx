@@ -18,6 +18,8 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import type { Pdf } from "@/types";
 import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import PdfChatPanel, { type PdfChatPanelHandle } from "../chat/PdfChatPanel";
+import { buildPdfSystemPrompt, usePdfChatTools } from "../chat/usePdfChatTools";
+import useChatSessionStore from "@/stores/useChatSessionStore";
 import { pdfTitle } from "../model";
 import { useDatabaseReady, usePdfDetail } from "../queries";
 import type { PdfQuote } from "../reader/annotationModel";
@@ -178,7 +180,29 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
   const pendingQuote = useRef<PdfQuote | null>(null);
 
   const toggleChat = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
-  useOwnAssist(PAGE_KEY, { isChatOpen: () => chatOpen, toggle: toggleChat });
+  const toolScope = usePdfChatTools(pdf.id, database);
+  const systemPrompt = useMemo(() => buildPdfSystemPrompt(pdf), [pdf]);
+  const ensureChatIndex = () => {
+    if (!index.status || index.status.state === "failed")
+      void index.ensure().catch(() => undefined);
+  };
+  useOwnAssist(PAGE_KEY, {
+    isChatOpen: () => chatOpen,
+    toggle: toggleChat,
+    quickChat: () => ({
+      chatScope: `pdf-chat:${pdf.id}`,
+      placeholder: "问这份 PDF，回答会在旁边的对话栏继续",
+      toolScope,
+      customSystemPrompt: systemPrompt,
+      beforeSend: ensureChatIndex,
+      show: id => {
+        useChatSessionStore
+          .getState()
+          .setCurrent({ scope: "pdf-chat", domainRef: String(pdf.id) }, id);
+        setChatOpen(true);
+      },
+    }),
+  });
 
   const onAskAI = useCallback(
     (quote: PdfQuote) => {
@@ -243,10 +267,11 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
             <PdfChatPanel
               ref={onChatRef}
               pdf={pdf}
-              mainDbName={database}
+              toolScope={toolScope}
+              systemPrompt={systemPrompt}
               indexStatus={index.status}
               indexPreparing={index.preparing}
-              onEnsureIndex={() => void index.ensure().catch(() => undefined)}
+              onEnsureIndex={ensureChatIndex}
               onCitationNavigate={onCitationNavigate}
               onClose={() => setChatOpen(false)}
             />

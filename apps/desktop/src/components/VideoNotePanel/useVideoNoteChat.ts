@@ -6,9 +6,10 @@ import {
 } from "@/tools/videoNoteSearchTool";
 
 /** 注册页面专属工具，返回工具作用域：交给本页对话的 ChatContainer toolScope，别的对话拿不到 */
-export const useVideoNoteChat = (videoNoteId: number, mainDbName: string) => {
+export const useVideoNoteChat = (videoNoteId: number, mainDbName: string, active = true) => {
   const sourceId = `video-note-${videoNoteId}`;
   useEffect(() => {
+    if (!active) return;
     const tools = [
       createVideoNoteSearchTool(videoNoteId, mainDbName),
       createGetVideoNoteTranscriptRangeTool(videoNoteId),
@@ -18,7 +19,7 @@ export const useVideoNoteChat = (videoNoteId: number, mainDbName: string) => {
     return () => {
       toolRegistry.unregisterSource(sourceId);
     };
-  }, [sourceId, videoNoteId, mainDbName]);
+  }, [sourceId, videoNoteId, mainDbName, active]);
 
   return sourceId;
 };

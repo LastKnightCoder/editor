@@ -174,7 +174,7 @@ create: api => ({
 
 ### 快捷键
 
-快捷键经贡献 `hotkeys: [{ key, command }]` 声明（is-hotkey 键串，按 event.key 匹配），只是「按键 → 命令」的绑定：命令 `enabled` 不满足时不拦截按键。仲裁按「内置（tau）优先、第三方按装配顺序」取第一条 enabled 的命令执行，全部不可用则放行；输入法组合、编辑上下文、元素编辑中与演示态一律不响应。mod+k / mod+p / mod+j、alt+left / alt+right、escape 为宿主保留键，声明即拒绝装配。界面上的快捷键文字统一用 `api.getShortcut(commandId)` 获取（按平台格式化），不要自行拼写。
+快捷键经贡献 `hotkeys: [{ key, command }]` 声明（is-hotkey 键串，按 event.key 匹配），只是「按键 → 命令」的绑定：命令 `enabled` 不满足时不拦截按键。仲裁按「内置（tau）优先、第三方按装配顺序」取第一条 enabled 的命令执行，全部不可用则放行；输入法组合、编辑上下文、元素编辑中与演示态一律不响应。mod+k / mod+p / mod+j / mod+shift+j、alt+left / alt+right、escape 为宿主保留键，声明即拒绝装配。界面上的快捷键文字统一用 `api.getShortcut(commandId)` 获取（按平台格式化），不要自行拼写。
 
 ```tsx
 create: () => ({

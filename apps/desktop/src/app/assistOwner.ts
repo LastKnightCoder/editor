@@ -9,9 +9,20 @@ import { useCallback, useEffect, useRef } from "react";
 import { create } from "zustand";
 import { useShellStore } from "./shellStore";
 
+export interface QuickChatTarget {
+  chatScope: string;
+  /** 输入框占位：说明回答会在哪里继续 */
+  placeholder?: string;
+  toolScope?: string;
+  customSystemPrompt?: string;
+  beforeSend?(): void;
+  show(chatId: string): void;
+}
+
 interface AssistOwner {
   isChatOpen(): boolean;
   toggle(): void;
+  quickChat(): QuickChatTarget;
 }
 
 interface AssistOwnerState {
@@ -32,6 +43,7 @@ export function useOwnAssist(pageKey: string, owner: AssistOwner, active = true)
       instance: Symbol(pageKey),
       isChatOpen: () => ownerRef.current.isChatOpen(),
       toggle: () => ownerRef.current.toggle(),
+      quickChat: () => ownerRef.current.quickChat(),
     };
     useAssistOwnerStore.setState(s => ({
       owners: { ...s.owners, [pageKey]: handler },

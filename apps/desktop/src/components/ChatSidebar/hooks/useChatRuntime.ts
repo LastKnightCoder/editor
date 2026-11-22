@@ -22,8 +22,8 @@ interface ChatRuntimeOptions {
   currentChat: ChatMessage;
   chatProviderConfig: LLMProviderSetting | null;
   chatModelConfig: LLMModelSetting | null;
-  titleRef: RefObject<EditTextHandle | null>;
-  setExternalSendLoading: (loading: boolean) => void;
+  titleRef?: RefObject<EditTextHandle | null>;
+  setExternalSendLoading?: (loading: boolean) => void;
 }
 
 /**
@@ -66,7 +66,7 @@ export function useChatRuntime({
   }, [sessionKey]);
 
   useEffect(() => {
-    setExternalSendLoading(sendLoading);
+    setExternalSendLoading?.(sendLoading);
   }, [sendLoading, setExternalSendLoading]);
 
   const [chatError, setChatError] = useState<string | null>(null);
@@ -144,7 +144,7 @@ export function useChatRuntime({
       },
       onTitleGenerated: (chatId, title) => {
         if (displayedChatIdRef.current === chatId) {
-          titleRef.current?.setValue(title);
+          titleRef?.current?.setValue(title);
         }
       },
     },

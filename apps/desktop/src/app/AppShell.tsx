@@ -32,6 +32,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
+import { ChatShortcuts } from "./ChatShortcuts";
 import { AssistDock } from "./AssistDock";
 import { clearWebDock, useExternalWebLinkClick } from "@/features/web/openInDock";
 import { useVisibleAssist } from "./useVisibleAssist";
@@ -223,6 +224,7 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
           <AssistDock />
         </div>
       </div>
+      <ChatShortcuts key={state.back.at(-1)?.id} />
       {/* 全局命令面板浮层（Ctrl+K）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
       {/* 全窗口设置页（Ctrl+,）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}

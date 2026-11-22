@@ -2,7 +2,7 @@
  * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先。
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,8 +22,8 @@ import { nextAppearance, useThemeStore } from "@tau/themes/react";
 import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 import { useShellStore } from "./shellStore";
+import { useAssistOwned } from "./assistOwner";
 import { useVisibleAssist } from "./useVisibleAssist";
-import { toggleAssistFor, useAssistOwned } from "./assistOwner";
 import { SubagentAttention } from "@/features/chat/components/subagents/SubagentAttention";
 
 export function Titlebar() {
@@ -50,31 +50,17 @@ export function Titlebar() {
   }, [navigator]);
 
   const currentKey = state.back[state.back.length - 1]?.key;
-  const currentKeyRef = useRef(currentKey);
-  currentKeyRef.current = currentKey;
   const assistOwned = useAssistOwned(currentKey);
   // 对话已在眼前（对话页或辅助栏）时不再重复提示进行中的子任务
   const chatVisible = useShellStore(s => s.assistView === "chat") || currentKey === "chat";
-
-  // Ctrl/⌘+J 开合停靠栏；栈顶页面接管时交给页面。
-  // 输入框里同样生效——对话输入框本身就在栏内，收起不应要求先移走焦点。输入法组合期间不抢键
-  useEffect(() => {
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.isComposing || e.altKey || e.shiftKey || !(e.ctrlKey || e.metaKey)) return;
-      if (e.key.toLowerCase() !== "j") return;
-      e.preventDefault();
-      toggleAssistFor(currentKeyRef.current, useShellStore.getState().toggleAssist);
-    };
-    window.addEventListener("keydown", onKeydown);
-    return () => window.removeEventListener("keydown", onKeydown);
-  }, []);
+  // 右栏视图铺满正文时，后退先收回右栏
+  const expandedView = useVisibleAssist().expanded;
+  const collapseExpanded = () => useShellStore.getState().setAssistExpanded(false);
 
   const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
   /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「label」；
      自定义内容可能可交互（如文章详情的速切器），须让出拖拽区 */
   const customCrumb = currentKey ? breadcrumbs.get(currentKey) : undefined;
-  const expandedView = useVisibleAssist().expanded;
-  const collapseExpanded = () => useShellStore.getState().setAssistExpanded(false);
   const canBack = state.back.length > 1 || expandedView;
   const canForward = state.forward.length > 0;
 

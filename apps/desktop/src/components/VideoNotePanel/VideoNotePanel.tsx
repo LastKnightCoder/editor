@@ -43,6 +43,7 @@ import {} from "@/editor-extensions";
 import { createVideoTimestampExtension } from "./extensions/VideoTimestamp";
 import { createVideoScreenshotExtension } from "./extensions/VideoScreenshot";
 import { VideoController } from "./VideoController";
+import { useVideoNoteChat } from "./useVideoNoteChat";
 import VideoNoteChatPanel from "./VideoNoteChatPanel";
 import LanguageSelect from "./LanguageSelect";
 import { TRANSCRIPTION_LANGUAGES, VIDEO_NOTE_AUTO_LANGUAGE } from "./transcription-language";
@@ -172,6 +173,11 @@ const VideoNotePanel = ({
     }
     return "";
   }, [videoNote]);
+  const chatTools = useVideoNoteChat(
+    videoNoteId,
+    activeDatabase,
+    activeTab === "chat" && Boolean(transcriptForChat)
+  );
   // 用于存储 timeupdate 事件处理函数的 ref（避免 callback ref 的依赖问题）
   const timeUpdateHandlerRef = useRef<(() => void) | null>(null);
 
@@ -741,7 +747,7 @@ const VideoNotePanel = ({
             {transcriptForChat ? (
               <VideoNoteChatPanel
                 videoNoteId={videoNoteId}
-                mainDbName={activeDatabase}
+                toolScope={chatTools}
                 transcript={transcriptForChat}
                 docked
               />

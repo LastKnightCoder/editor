@@ -69,9 +69,9 @@ function hotkeySignature(key: string): string | undefined {
   }
 }
 
-/** 宿主应用保留键：命令面板（mod+k/p）、停靠栏（mod+j）、前进后退（alt+方向）、浮层退场（escape） */
+/** 宿主应用保留键：命令面板（mod+k/p）、对话（mod+j / mod+shift+j）、前进后退（alt+方向）、浮层退场（escape） */
 const RESERVED_HOTKEY_SIGNATURES = new Set(
-  ["mod+k", "mod+p", "mod+j", "alt+left", "alt+right", "escape"]
+  ["mod+k", "mod+p", "mod+j", "mod+shift+j", "alt+left", "alt+right", "escape"]
     .map(hotkeySignature)
     .filter((signature): signature is string => signature !== undefined)
 );

@@ -8,12 +8,9 @@ import type { ChatMessage, RequestMessage, Skill } from "@/types";
 import type { PiPromptDisplay } from "@/types/pi-session";
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 import type { PiThinkingLevel } from "@/types/pi-llm";
-import { Role, DEFAULT_SYSTEM_PROMPT, buildSessionAwareSystemPrompt } from "@/constants";
-import {
-  buildPiChatSystemPrompt,
-  withForcedSkillReadmes,
-  piChatSessionManager,
-} from "@/services/piChatSession";
+import { Role } from "@/constants";
+import { piChatSessionManager } from "@/services/piChatSession";
+import { prepareChatSession } from "./prepareChatSession";
 import type { buildPiPromptPayload } from "@/services/piPromptPayload";
 import { piChatRuntime } from "@/services/piChatRuntime";
 import {
@@ -23,10 +20,7 @@ import {
   piSessionPrompt,
   type PiSessionEdit,
 } from "@/commands/piSession";
-import useChatSessionStore, {
-  bucketOfChatScope,
-  resolveChatCwd,
-} from "@/stores/useChatSessionStore";
+import useChatSessionStore, { bucketOfChatScope } from "@/stores/useChatSessionStore";
 import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { shouldRestoreInputAfterSendError } from "../editingUtils";
@@ -47,19 +41,6 @@ const extractForcedSkills = (requestMessage: RequestMessage): string[] => {
   return Array.from(
     new Set(content.flatMap(item => (item.type === "text" && item.skills ? item.skills : [])))
   );
-};
-
-/**
- * 每个对话的基础 system prompt（含会话时间上下文）在本次运行内固定：时间精确到分钟，
- * 每轮重算会让 system 段每轮都变、整条提示缓存作废。重载后重新生成一次（只丢一次缓存）。
- */
-const SESSION_SYSTEM_PROMPTS = new Map<string, { base: string; prompt: string }>();
-const sessionSystemPromptOf = (chatId: string, base: string): string => {
-  const cached = SESSION_SYSTEM_PROMPTS.get(chatId);
-  if (cached && cached.base === base) return cached.prompt;
-  const prompt = buildSessionAwareSystemPrompt(base);
-  SESSION_SYSTEM_PROMPTS.set(chatId, { base, prompt });
-  return prompt;
 };
 
 /** 用户消息 → 展示 entry 载荷（文件卡片、mention、skills 原样保留，重开对话照原样显示） */
@@ -146,35 +127,13 @@ export function useChatSending({
 }: ChatSendingOptions) {
   const message = toast;
 
-  const ensureSession = async (
-    chat: ChatMessage,
-    forcedSkills: string[],
-    capturedScope: string | undefined,
-    toolContext?: Record<string, unknown>
-  ) => {
-    if (!chatProviderConfig || !chatModelConfig)
-      throw new Error("请先在设置中配置对话功能的大模型");
-    const baseSystem = sessionSystemPromptOf(chat.id, customSystemPrompt || DEFAULT_SYSTEM_PROMPT);
-    const systemPrompt = buildPiChatSystemPrompt(
-      baseSystem,
-      await withForcedSkillReadmes(skills, forcedSkills),
-      forcedSkills
-    );
-    // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
-    return piChatSessionManager.ensureChatSession({
-      databaseName: chat.databaseName,
-      chatScope,
-      chatId: chat.id,
-      ...(chat.sessionFile ? { sessionFile: chat.sessionFile } : {}),
-      provider: chatProviderConfig,
-      model: chatModelConfig,
-      systemPrompt,
-      // 只有主对话可选工作目录；学习项目由主进程按场景固定，PDF / 视频笔记在应用数据目录
-      cwd: chatScope === "main-chat" ? resolveChatCwd(chat.id) : "",
-      ...(chatModelConfig.reasoning ? { thinkingLevel } : {}),
-      ...(capturedScope ? { toolScope: capturedScope } : {}),
-      ...(toolContext ? { toolContext } : {}),
-    });
+  const sessionSetup = {
+    chatProviderConfig,
+    chatModelConfig,
+    skills,
+    thinkingLevel,
+    chatScope,
+    customSystemPrompt,
   };
 
   // 抽离的公共方法：处理消息发送逻辑（pi 会话驱动）
@@ -250,12 +209,12 @@ export function useChatSending({
       }
 
       try {
-        const ensured = await ensureSession(
-          actualCurrentChat,
-          extractForcedSkills(requestMessage),
-          capturedScope,
-          options?.toolContext
-        );
+        const ensured = await prepareChatSession(actualCurrentChat, {
+          ...sessionSetup,
+          forcedSkills: extractForcedSkills(requestMessage),
+          toolScope: capturedScope,
+          toolContext: options?.toolContext,
+        });
         const sessionId = ensured.sessionId;
 
         // 草稿首轮：宿主回传了会话文件名，登记目录行（id 不变，只是从草稿变成正式对话）。
@@ -489,11 +448,11 @@ export function useChatSending({
       if (!result || result.missing) {
         controller.signal.throwIfAborted();
         sessionId = (
-          await ensureSession(
-            chat,
-            [],
-            toolScope ?? (chatScope === "main-chat" ? currentWhiteboardToolScope() : undefined)
-          )
+          await prepareChatSession(chat, {
+            ...sessionSetup,
+            toolScope:
+              toolScope ?? (chatScope === "main-chat" ? currentWhiteboardToolScope() : undefined),
+          })
         ).sessionId;
         result = await run(sessionId);
       }

@@ -179,24 +179,32 @@ describe("让位规则", () => {
 });
 
 describe("保留键与非法声明", () => {
-  it.each(["mod+k", "Mod+K", "cmd+k", "ctrl+k", "alt+left", "Alt+ArrowLeft", "escape", "esc"])(
-    "第三方声明保留键 %s 被拒 invalid-definition",
-    key => {
-      vi.spyOn(console, "error").mockImplementation(() => {});
-      const rogue = defineWhiteboardExtension({
-        id: "acme.reserve",
-        create: () => ({
-          commands: [{ id: "acme.reserve.run", execute: () => {} }],
-          hotkeys: [{ key, command: "acme.reserve.run" }],
-        }),
-      });
-      const { board, errors } = install([], [], [rogue]);
-      expect(errors).toMatchObject([
-        { extensionId: "acme.reserve", reason: "invalid-definition", target: key },
-      ]);
-      board.onKeyDown(keydown({ key: "9", ctrlKey: true }));
-    }
-  );
+  it.each([
+    "mod+k",
+    "Mod+K",
+    "cmd+k",
+    "ctrl+k",
+    "ctrl+shift+j",
+    "cmd+shift+j",
+    "alt+left",
+    "Alt+ArrowLeft",
+    "escape",
+    "esc",
+  ])("第三方声明保留键 %s 被拒 invalid-definition", key => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const rogue = defineWhiteboardExtension({
+      id: "acme.reserve",
+      create: () => ({
+        commands: [{ id: "acme.reserve.run", execute: () => {} }],
+        hotkeys: [{ key, command: "acme.reserve.run" }],
+      }),
+    });
+    const { board, errors } = install([], [], [rogue]);
+    expect(errors).toMatchObject([
+      { extensionId: "acme.reserve", reason: "invalid-definition", target: key },
+    ]);
+    board.onKeyDown(keydown({ key: "9", ctrlKey: true }));
+  });
 
   it("tau 扩展声明保留键同样被拒", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});

@@ -93,7 +93,7 @@ export const rowToChat = (
 });
 
 /** 新对话草稿：真 id，目录表里还没有它（首轮发送后才登记） */
-const createDraftChat = (bucket: ChatBucketRef): ChatMessage => {
+export const createDraftChat = (bucket: ChatBucketRef): ChatMessage => {
   const now = Date.now();
   return {
     databaseName: getChatDatabase(),

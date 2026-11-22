@@ -22,6 +22,7 @@ const GROUPS: { name: string; items: Shortcut[] }[] = [
       { keys: "Mod+K", alt: "Mod+P", action: "搜索或跳转（命令面板）" },
       { keys: "Mod+,", action: "打开或关闭设置" },
       { keys: "Mod+J", action: "打开或收起 AI 对话栏" },
+      { keys: "Mod+Shift+J", action: "快捷输入并发起新对话" },
       { keys: "Mod+F", action: "在当前页面查找" },
       { keys: "Mod+Shift+N", action: "弹出速记卡片窗口" },
       { keys: "Alt+←", action: "后退" },
