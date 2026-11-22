@@ -64,7 +64,7 @@ export function FocusRail({
 }) {
   const live = session !== null && timing !== null;
   return (
-    <aside className="flex min-h-0 flex-col pt-3 pr-4 pb-4 pl-6">
+    <aside className="flex min-h-0 min-w-0 flex-col pt-3 pr-4 pb-4 pl-6">
       {live ? (
         <Player key={session.startTime} session={session} timing={timing} presetName={presetName} />
       ) : (
@@ -180,31 +180,11 @@ function PresetList({
               </>
             }
           >
-            {/* 行本身打开详情；▶ 是独立按钮（不能嵌套在 button 里，行用 role=button） */}
             <div
-              role="button"
-              tabIndex={0}
-              draggable={!disabled}
-              aria-current={openPresetId === preset.id || undefined}
-              data-preset-chip={preset.id}
-              title={disabled ? preset.name : `「${preset.name}」详情 · 右键编辑 · 拖动排序`}
-              onClick={() => onOpen(preset)}
-              onKeyDown={e => {
-                if (e.target !== e.currentTarget) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen(preset);
-                }
-              }}
-              onDragStart={e => {
-                e.dataTransfer.effectAllowed = "move";
-                setDrag({ id: preset.id, overId: null, before: true });
-              }}
-              onDragEnd={() => setDrag(null)}
               onDragOver={e => onDragOver(e, preset)}
               onDrop={e => onDrop(e, preset)}
               className={cn(
-                "group/chip text-tau-body relative flex min-h-10 w-full flex-none cursor-pointer items-center gap-2 rounded-[10px] pl-2.5 pr-2 text-left font-medium outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+                "group/chip text-tau-body relative flex min-h-10 w-full flex-none items-stretch rounded-[10px] text-left font-medium",
                 "transition-[background,opacity,box-shadow] duration-150",
                 openPresetId === preset.id ? "bg-selected" : "hover:bg-hover",
                 drag?.id === preset.id && "opacity-40",
@@ -215,24 +195,38 @@ function PresetList({
                     : "shadow-[inset_0_-2px_0_var(--tau-accent)]")
               )}
             >
-              <PresetDot presetId={preset.id} />
-              <span
-                className={cn(
-                  "min-w-0 flex-1 truncate",
-                  openPresetId === preset.id && "text-accent-text"
-                )}
+              <button
+                type="button"
+                draggable={!disabled}
+                aria-current={openPresetId === preset.id || undefined}
+                data-preset-chip={preset.id}
+                title={disabled ? preset.name : `「${preset.name}」详情 · 右键编辑 · 拖动排序`}
+                onClick={() => onOpen(preset)}
+                onDragStart={e => {
+                  e.dataTransfer.effectAllowed = "move";
+                  setDrag({ id: preset.id, overId: null, before: true });
+                }}
+                onDragEnd={() => setDrag(null)}
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] pl-2.5 text-left outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
               >
-                {preset.name}
-              </span>
-              <span className="text-ink-3 text-tau-sm flex-none font-normal tabular-nums">
-                {presetShort(preset)}
-              </span>
-              {/* 固定点击区域：只切换透明度，避免悬停时命中范围变化 */}
-              <span className="relative ml-0.5 grid size-[18px] flex-none place-items-center">
+                <PresetDot presetId={preset.id} />
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 truncate",
+                    openPresetId === preset.id && "text-accent-text"
+                  )}
+                >
+                  {preset.name}
+                </span>
+                <span className="text-ink-3 text-tau-sm flex-none font-normal tabular-nums">
+                  {presetShort(preset)}
+                </span>
+              </button>
+              <span className="relative grid w-9 flex-none place-items-center">
                 {index < 9 && (
                   <kbd
                     className={cn(
-                      "bg-hover text-ink-2 pointer-events-none absolute inset-0 grid place-items-center rounded-[5px] font-mono text-[11px] leading-none transition-opacity duration-150",
+                      "bg-hover text-ink-2 pointer-events-none grid size-[18px] place-items-center rounded-[5px] font-mono text-[11px] leading-none transition-opacity duration-150",
                       !disabled && "group-hover/chip:opacity-0 group-focus-within/chip:opacity-0"
                     )}
                   >
@@ -245,14 +239,12 @@ function PresetList({
                     aria-label={`开始「${preset.name}」`}
                     title={`开始「${preset.name}」${index < 9 ? `（${index + 1}）` : ""}`}
                     data-preset-start={preset.id}
-                    draggable={false}
-                    onClick={e => {
-                      e.stopPropagation();
-                      start(preset);
-                    }}
-                    className="bg-accent text-ink-inverse hover:bg-accent-hover absolute -inset-[3px] grid place-items-center rounded-full opacity-0 transition-[opacity,background] duration-150 outline-none group-focus-within/chip:opacity-100 group-hover/chip:opacity-100 hover:opacity-100 focus-visible:opacity-100"
+                    onClick={() => start(preset)}
+                    className="group/start absolute inset-0 grid cursor-pointer place-items-center rounded-[10px] opacity-0 transition-opacity duration-150 outline-none group-focus-within/chip:opacity-100 group-hover/chip:opacity-100 focus-visible:shadow-[var(--tau-focus-ring)]"
                   >
-                    <Play className="ml-px size-2.5 fill-current" strokeWidth={0} />
+                    <span className="bg-accent text-ink-inverse group-hover/start:bg-accent-hover grid size-6 place-items-center rounded-full transition-colors">
+                      <Play className="ml-px size-2.5 fill-current" strokeWidth={0} />
+                    </span>
                   </button>
                 )}
               </span>

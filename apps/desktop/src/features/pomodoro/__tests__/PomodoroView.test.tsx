@@ -137,7 +137,7 @@ it("空闲：左栏列出预设（带数字键），今天摘要来自近期会�
   const chip = container.querySelector('[data-preset-chip="2"]');
   expect(chip?.textContent).toContain("英语听力");
   expect(chip?.textContent).toContain("30′");
-  expect(chip?.querySelector("kbd")?.textContent).toBe("2");
+  expect(chip?.parentElement?.querySelector("kbd")?.textContent).toBe("2");
   expect(text()).toContain("今天 2 个");
   expect(text()).toContain("时段分布");
   expect(container.querySelector('[aria-label="当天明细"]')).toBeNull();
@@ -156,7 +156,7 @@ it("空闲：左栏列出预设（带数字键），今天摘要来自近期会�
   expect(todayRow().getAttribute("aria-current")).toBeNull();
 });
 
-it("点行尾 ▶ 即开始：倒计时带预期时长，正计时不带", async () => {
+it("点行尾 ▶ 直接开始且不开详情：倒计时带预期时长，正计时不带", async () => {
   await render();
   act(() => (container.querySelector('[data-preset-start="1"]') as HTMLElement).click());
   expect(mocks.start).toHaveBeenCalledWith({
@@ -164,6 +164,7 @@ it("点行尾 ▶ 即开始：倒计时带预期时长，正计时不带", async
     expectedMs: 25 * MIN,
     target: undefined,
   });
+  expect(container.querySelector('[aria-label="预设详情"]')).toBeNull();
   act(() => (container.querySelector('[data-preset-start="3"]') as HTMLElement).click());
   expect(mocks.start).toHaveBeenLastCalledWith({
     presetId: 3,

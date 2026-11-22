@@ -332,12 +332,12 @@ export function PomodoroView() {
     sessionDeletes.schedule(session.id, "已删除 1 条记录");
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：工具栏与控制条固定在纸顶，账本与明细在纸内各自滚动（同 Skill 页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="mb-3 flex h-10 flex-none items-center gap-3">
-            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
               番茄专注
             </h1>
             <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
@@ -407,26 +407,24 @@ export function PomodoroView() {
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[clamp(280px,26%,352px)_minmax(0,1fr)]">
           {/* 左栏不画分隔线：靠留白与账本分开 */}
-          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)]">
-            <FocusRail
-              presets={activePresets}
-              session={live}
-              timing={timing}
-              presetName={liveName}
-              openPresetId={openPresetId}
-              bind={pendingBind}
-              onBind={setPendingBind}
-              onStart={startPreset}
-              onOpen={togglePreset}
-              onCreate={anchor => setEditor({ preset: null, anchor })}
-              onEdit={(preset, anchor) => setEditor({ preset, anchor })}
-              onArchive={archivePreset}
-              onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
-            />
-          </div>
-          <div className="relative grid min-h-0 grid-rows-[minmax(0,1fr)]">
+          <FocusRail
+            presets={activePresets}
+            session={live}
+            timing={timing}
+            presetName={liveName}
+            openPresetId={openPresetId}
+            bind={pendingBind}
+            onBind={setPendingBind}
+            onStart={startPreset}
+            onOpen={togglePreset}
+            onCreate={anchor => setEditor({ preset: null, anchor })}
+            onEdit={(preset, anchor) => setEditor({ preset, anchor })}
+            onArchive={archivePreset}
+            onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
+          />
+          <div className="relative grid min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)]">
             {ledger.kind === "days" ? (
               <Ledger
                 window={dayWindow}
@@ -442,7 +440,7 @@ export function PomodoroView() {
                 onOpenSession={(session, anchor) => setPeek({ session, anchor })}
               />
             ) : (
-              <section className="flex min-h-0 flex-col pb-4 pl-8 pr-2 pt-4">
+              <section className="flex min-h-0 flex-col pt-4 pr-2 pb-4 pl-8">
                 <LedgerHeader
                   title="时间账本"
                   nav={rangeNav}
