@@ -53,7 +53,6 @@ import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 import ItemReminderTable from "./tables/item-reminder";
-import { PodcastMigrationTable } from "./podcast-plugin-migration";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
@@ -61,7 +60,6 @@ import WebViewPreferenceTable from "./tables/web-view-preference";
 import HomeLayoutTable from "./tables/home-layout";
 import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
-import WebPageTable from "./tables/web-page";
 import MaterialTable from "./tables/material";
 import FlashcardTable from "./tables/flashcard";
 import RandomWalkTable from "./tables/random-walk";
@@ -90,7 +88,7 @@ import mainContentIndexDBManager, {
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
-import { ensureMainSchema, removeRetiredDatabaseState } from "./main-schema";
+import { ensureMainSchema } from "./main-schema";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 
@@ -289,7 +287,6 @@ class DatabaseModule implements Module {
     this.databases = new Map();
     this.windowToDatabase = new Map();
     this.tables = [
-      PodcastMigrationTable,
       ContentTable,
       WhiteboardContentTable,
       WhiteboardTable,
@@ -426,11 +423,6 @@ class DatabaseModule implements Module {
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
-
-      // 0.60.2 之前的网页摘录没有页面行；已补齐时不改动任何行
-      const backfilledPages = WebPageTable.backfill(database);
-      if (backfilledPages > 0)
-        log.info(`[database] 网页摘录补页面索引: db=${name}, pages=${backfilledPages}`);
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();
@@ -682,7 +674,6 @@ class DatabaseModule implements Module {
   }
 
   async init() {
-    removeRetiredDatabaseState(PathUtil.getAppDir());
     // 无来源上下文（联动调用链）的全广播出口，须早于任何命令调用装配
     setCommandBroadcastSink((channel, args) => {
       for (const window of BrowserWindow.getAllWindows()) {

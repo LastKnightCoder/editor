@@ -42,7 +42,6 @@ ipcMain.handle("get-window-state", () => ({ maximized: false, fullscreen: false 
 ipcMain.handle("home-layout:get", () => []);
 ipcMain.handle("pi-session:interactions", () => ({ ok: true, snapshots: [] }));
 ipcMain.handle("pomodoro:summary-today", () => ({ count: 0, duration: 0 }));
-ipcMain.handle("podcast-migration:pending", () => ({ pending: false, requiresPlugin: false }));
 for (const channel of [
   "chat-group:get-all",
   "flashcard:list-decks",

@@ -589,7 +589,7 @@ plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签�
 
 数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
 
-云端覆盖的写入门禁、请求排空和页面失效归 `services/database-runtime.ts`；正文任务由 `content-write-context.ts` 固定原库与版本。持久本机版本保存在 `schema_meta` 的 `local_generation` 键，下载候选安装前换新，旧正文任务在最终写入事务被拒绝，旧缓存按版本隔离。主库开库事务性删除已退役的 `_tau_device_*` 表和触发器，启动时扫描全部本机 `.db` 文件清退旧结构，并删除旧配对配置；普通正文、附件和云端账号保留。
+云端覆盖的写入门禁、请求排空和页面失效归 `services/database-runtime.ts`；正文任务由 `content-write-context.ts` 固定原库与版本。持久本机版本保存在 `schema_meta` 的 `local_generation` 键，下载候选安装前换新，旧正文任务在最终写入事务被拒绝，旧缓存按版本隔离。
 
 ## 全局提示
 

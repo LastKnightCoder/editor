@@ -365,10 +365,6 @@ pub fn run() {
         .setup(|app| {
             // 最先打开日志文件，后续所有模块的启动输出才能落盘
             logger::init(app.handle());
-            database::remove_retired_database_state(
-                &setting::resolve_app_dir(app.handle()).map_err(std::io::Error::other)?,
-            )
-            .map_err(std::io::Error::other)?;
             #[cfg(target_os = "ios")]
             {
                 use tauri::Manager;

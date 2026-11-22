@@ -69,7 +69,6 @@ pub use entity_refs_index::*;
 pub use flashcard::*;
 pub use home_stats::*;
 pub use index_db::reset_index_database;
-pub(crate) use migrator::remove_retired_database_state;
 pub use pomodoro::*;
 pub use project::*;
 pub use reminders::*;

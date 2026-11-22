@@ -128,11 +128,7 @@ export class WhiteboardDocumentsModule {
       .prepare("SELECT document_id FROM whiteboard_documents WHERE board_id=?")
       .get(id) as { document_id: string } | undefined;
     if (!row) return "";
-    if (
-      this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null) ||
-      (!this.store.get("legacy-whiteboard-state-imported", false) &&
-        this.hasSharedBaseline(db, name, row.document_id))
-    )
+    if (this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null))
       throw new Error("请先结束共享或退出协作，再删除本机白板");
     if (this.blocked(name, row.document_id)) throw new Error("白板仍有未完成转换，不能删除");
     return row.document_id;
@@ -149,11 +145,7 @@ export class WhiteboardDocumentsModule {
     const table = (await import("../tables/whiteboard")).default;
     if (!row) return remove ? db.transaction(remove)() : table.deleteWhiteboard(db, id);
     if (name === undefined || !this.sessions) throw new Error("白板文档服务尚未就绪");
-    if (
-      this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null) ||
-      (!this.store.get("legacy-whiteboard-state-imported", false) &&
-        this.hasSharedBaseline(db, name, row.document_id))
-    )
+    if (this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null))
       throw new Error("请先结束共享或退出协作，再删除本机白板");
     const drain = await this.drain({
       databaseName: name,
@@ -202,9 +194,7 @@ export class WhiteboardDocumentsModule {
       if (
         this.sessions.isActive(name, document_id) ||
         this.blocked(name, document_id) ||
-        this.store.get(`whiteboard-binding:${name}:${document_id}`, null) ||
-        (!this.store.get("legacy-whiteboard-state-imported", false) &&
-          this.hasSharedBaseline(db, name, document_id))
+        this.store.get(`whiteboard-binding:${name}:${document_id}`, null)
       )
         continue;
       const previousRoom = this.store.get<{ roomId: string } | null>(

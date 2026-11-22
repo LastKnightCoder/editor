@@ -4,9 +4,8 @@ import { CollaborationAssetService } from "../collaboration/asset-service";
 import { CollaborationLocalStore } from "../collaboration/local-store";
 import { ContentSessionRuntime } from ".";
 import { ContentAgent } from "./agent";
-import { prepareContentAgentStore } from "./agent/store";
+import agentSchema from "@tau/db-schema/schema/content-agent.sql?raw";
 import { createDesktopContentServices } from "./desktop-services";
-import { importLegacyContent } from "./recovery";
 
 export function createLocalContentRuntime(
   store: CollaborationLocalStore,
@@ -24,8 +23,7 @@ export function initLocalContent(): void {
   const store = new CollaborationLocalStore(join(appDirectory, "local-content"), "content.db");
   let runtime: ContentSessionRuntime | undefined;
   try {
-    importLegacyContent(appDirectory, store);
-    prepareContentAgentStore(appDirectory, store);
+    store.db.exec(agentSchema);
     const assets = new CollaborationAssetService(store, appDirectory, async () => {
       throw new Error("本机正文资源无需远端身份");
     });
