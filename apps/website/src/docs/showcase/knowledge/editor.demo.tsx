@@ -103,7 +103,13 @@ export default function EditorDemo() {
         </button>
       </div>
       <div className="select-text">
-        <Editor key={round} kit={getDocsKit()} initValue={initialValue()} readonly={false} />
+        <Editor
+          key={round}
+          kit={getDocsKit()}
+          initValue={initialValue()}
+          readonly={false}
+          className="focus:outline-none"
+        />
       </div>
     </div>
   );
