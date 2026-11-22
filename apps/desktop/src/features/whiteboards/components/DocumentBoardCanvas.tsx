@@ -53,8 +53,8 @@ interface Props {
   documentId: string;
   pageId: string;
   extensions?: readonly WhiteboardExtension[];
-  /** 白板页面在右下状态栏提供共享入口；嵌入其它页面的画布只显示保存与同步状态。 */
-  collaboration?: boolean;
+  /** 独立白板页面提供元素树、共享入口和当前白板工具。 */
+  standalone?: boolean;
   onPresentationModeChange?: (value: boolean) => void;
   onDockWidthChange?: (value: number) => void;
   ref?: Ref<BoardCanvasHandle>;
@@ -154,7 +154,7 @@ function BoundDocumentCanvas({
   editorPrepared,
   pageId,
   documentId,
-  collaboration,
+  standalone,
   extensions,
   ref,
   onPresentationModeChange,
@@ -268,7 +268,7 @@ function BoundDocumentCanvas({
   );
   const remoteSync = whiteboardRemoteSync(client);
   useLayoutEffect(() => {
-    if (!collaboration) return;
+    if (!standalone) return;
     const scope = "whiteboard-" + crypto.randomUUID();
     const lifetime = new AbortController();
     toolRegistry.registerScopedTools(
@@ -283,7 +283,7 @@ function BoundDocumentCanvas({
       release();
       toolRegistry.unregisterSource(scope);
     };
-  }, [binding, client, collaboration, pageId, remoteSync]);
+  }, [binding, client, standalone, pageId, remoteSync]);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <WhiteboardCollaborationBoundary resetKey={client.viewId}>
@@ -312,11 +312,12 @@ function BoundDocumentCanvas({
           initData={[]}
           readonly={state.frozen || state.phase === "error"}
           className="h-full w-full"
+          showSidebar={standalone}
           extensions={extensions}
           onPresentationModeChange={onPresentationModeChange}
           onDockWidthChange={onDockWidthChange}
           statusBarEnd={
-            collaboration ? (
+            standalone ? (
               <WhiteboardCollaborationBoundary resetKey={client.viewId}>
                 <WhiteboardShareEntry client={client} documentId={documentId} />
               </WhiteboardCollaborationBoundary>

@@ -378,7 +378,7 @@ async function mountBoard(resource?: "video" | "missing") {
             contentId={created.contentIds[0]}
             documentId={created.documentId}
             pageId={pageId}
-            collaboration
+            standalone
           />
         </DndProvider>
       </QueryClientProvider>

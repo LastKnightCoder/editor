@@ -68,7 +68,12 @@ const Sidebar: React.FC<{ outline?: WhiteboardOutline }> = ({ outline }) => {
       showDivider
       className="h-full flex-none"
     >
-      <div aria-hidden={!open} inert={!open} className="flex h-full flex-col pt-1.5">
+      <aside
+        aria-label="元素树"
+        aria-hidden={!open}
+        inert={!open}
+        className="flex h-full flex-col pt-1.5"
+      >
         <div className="text-tau-body flex h-11 flex-none items-center gap-2 px-4 font-semibold">
           元素
           <span className="text-ink-3 text-tau-sm font-normal tabular-nums">{all.length}</span>
@@ -89,7 +94,7 @@ const Sidebar: React.FC<{ outline?: WhiteboardOutline }> = ({ outline }) => {
           </div>
         )}
         {/* 列表不贴纸面上下缘：视口底部留 10px、内容上下各 6px */}
-        <FadeScroll className="mb-2.5 min-h-0 flex-1 overflow-x-hidden py-1.5 pl-2 pr-0.5">
+        <FadeScroll className="mb-2.5 min-h-0 flex-1 overflow-x-hidden py-1.5 pr-0.5 pl-2">
           {all.length === 0 ? (
             <div className="text-ink-3 text-tau-meta px-2 py-2.5">这一页还是空的</div>
           ) : matches ? (
@@ -104,7 +109,7 @@ const Sidebar: React.FC<{ outline?: WhiteboardOutline }> = ({ outline }) => {
             <ElementTree root={children as BoardElement[]} selectedIds={selectedIds} />
           )}
         </FadeScroll>
-      </div>
+      </aside>
     </ResizeableAndHideableSidebar>
   );
 };

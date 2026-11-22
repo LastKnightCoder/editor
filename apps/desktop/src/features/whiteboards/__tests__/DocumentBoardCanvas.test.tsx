@@ -10,6 +10,8 @@ import toolRegistry from "@/tools/toolRegistry";
 import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import { queryClient } from "@/queryClient";
 import { DocumentBoardCanvas } from "../components/DocumentBoardCanvas";
+import { OutlineToggle } from "../components/OutlineToggle";
+import { useWhiteboardOutlineStore } from "@/features/shared/whiteboard/outlineStore";
 import type { BoardCanvasHandle } from "../components/BoardCanvas";
 import {
   whiteboardDocumentEntry,
@@ -81,14 +83,15 @@ vi.mock("@/features/shared/whiteboard/DesktopWhiteboard", async () => {
   const { default: Canvas } = await import("@tau/whiteboard");
   const extensions: never[] = [];
   return {
-    default: (props: React.ComponentProps<typeof Canvas>) => {
+    default: function DesktopCanvas(props: React.ComponentProps<typeof Canvas>) {
       mocks.binding = props.document;
+      const { open, width, setWidth } = useWhiteboardOutlineStore();
       return (
         <Canvas
           {...props}
           extensions={extensions}
           showToolbar={false}
-          showSidebar={false}
+          outline={{ open, width, onWidthChange: setWidth }}
           showAttributeSetter={false}
         />
       );
@@ -215,7 +218,7 @@ it("同一白板切页保持绑定与历史，不重复建立主进程租约", a
           contentId={pageId === mocks.pageId ? 1 : 2}
           documentId={mocks.docId}
           pageId={pageId}
-          collaboration
+          standalone
           ref={ref}
         />
       </DndProvider>
@@ -254,7 +257,7 @@ it("同一白板切页保持绑定与历史，不重复建立主进程租约", a
   expect(mocks.release).not.toHaveBeenCalled();
 });
 
-const mount = async (collaboration = true) => {
+const mount = async (standalone = true, breadcrumb?: React.ReactNode) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -263,11 +266,12 @@ const mount = async (collaboration = true) => {
     root!.render(
       <QueryClientProvider client={queryClient}>
         <DndProvider backend={HTML5Backend}>
+          {breadcrumb}
           <DocumentBoardCanvas
             contentId={1}
             documentId={mocks.docId}
             pageId={mocks.pageId}
-            collaboration={collaboration}
+            standalone={standalone}
             ref={ref}
           />
         </DndProvider>
@@ -280,6 +284,18 @@ const mount = async (collaboration = true) => {
   });
   return { container, ref };
 };
+it("白板标题栏可以展开元素树，再次点击收起", async () => {
+  useWhiteboardOutlineStore.setState({ open: false });
+  const { container } = await mount(true, <OutlineToggle />);
+  const toggle = container.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+  const visibleOutline = () =>
+    container.querySelector('aside[aria-label="元素树"]:not([aria-hidden="true"])');
+  expect(visibleOutline()).toBeNull();
+  await act(async () => toggle.click());
+  expect(visibleOutline()).not.toBeNull();
+  await act(async () => toggle.click());
+  expect(visibleOutline()).toBeNull();
+});
 it("未共享白板不显示常态保存提示并提供共享入口；嵌入画布不提供", async () => {
   const { container } = await mount();
   expect(container.textContent).not.toContain("已保存在本机");

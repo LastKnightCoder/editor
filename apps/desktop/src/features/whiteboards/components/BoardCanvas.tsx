@@ -35,7 +35,7 @@ export function BoardCanvas({
   onPresentationModeChange,
   onDockWidthChange,
   extensions,
-  collaboration,
+  standalone,
   ref,
 }: {
   id: number;
@@ -45,8 +45,8 @@ export function BoardCanvas({
   onDockWidthChange?(width: number): void;
   /** 宿主覆盖的白板插槽（如创作模式的画布层） */
   extensions?: readonly WhiteboardExtension[];
-  /** 白板页面提供共享入口；嵌入其它页面的画布不提供。 */
-  collaboration?: boolean;
+  /** 独立白板页面提供元素树、共享入口和当前白板工具。 */
+  standalone?: boolean;
   ref?: Ref<BoardCanvasHandle>;
 }) {
   const { data: content, isPending, isError } = useWhiteboardContent(id);
@@ -95,7 +95,7 @@ export function BoardCanvas({
           documentId={documentId}
           pageId={pageId}
           extensions={extensions}
-          collaboration={collaboration}
+          standalone={standalone}
           onPresentationModeChange={onPresentationModeChange}
           onDockWidthChange={onDockWidthChange}
         />

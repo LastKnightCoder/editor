@@ -236,7 +236,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
               key={documentId ?? activeId}
               id={activeId}
               ref={canvasRef}
-              collaboration
+              standalone
               onPresentationModeChange={setPresenting}
               onDockWidthChange={setDockWidth}
             />
