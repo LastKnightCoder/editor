@@ -42,8 +42,8 @@ const wechatBaseStyles = `
 }
 
 .wechat-content {
-  padding-left: 1em;
-  padding-right: 1em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
 }
 
 /* 代码块内的元素使用等宽字体 */
