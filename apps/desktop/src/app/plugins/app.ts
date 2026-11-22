@@ -1,3 +1,4 @@
+import useSettingStore from "@/stores/useSettingStore";
 import { create } from "zustand";
 import type {
   PluginContentInput,
@@ -245,6 +246,17 @@ function showAction<T>(
 
 export function createDesktopApp(databaseName: string): AppAdapter {
   return {
+    async openWeb(context, url) {
+      assertPluginUserActivation();
+      const { openDockWebPage } = await import("@/features/web/openInDock");
+      context.signal.throwIfAborted();
+      await openDockWebPage(
+        url,
+        () =>
+          !context.signal.aborted &&
+          useSettingStore.getState().setting.database.active === databaseName
+      );
+    },
     pick(context, plugin, options) {
       assertPluginUserActivation();
       context.signal.throwIfAborted();

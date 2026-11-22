@@ -47,6 +47,41 @@ describe("页面 API 和界面订阅", () => {
     await host.dispose();
   });
 
+  it("不支持停靠的宿主仍能打开完整页，显式打开右栏会拒绝", async () => {
+    let ctx!: PluginContext;
+    const host = new PluginHost({
+      workspaceId: "A",
+      storage: createMemoryStorage(),
+      pages: { register: page => ({ id: page.pluginId, open: async () => {}, dispose() {} }) },
+    });
+    host.registerTrusted(
+      definePlugin({
+        id: "sample",
+        name: "示例",
+        version: "1",
+        create: () => ({
+          activate(context) {
+            ctx = context;
+          },
+        }),
+      })
+    );
+    await host.enable("sample");
+    try {
+      const page = ctx.pages.register({
+        id: "sources",
+        title: "资料",
+        component: () => null,
+        dockable: true,
+      });
+      await page.open();
+      await expect(page.open({}, { placement: "dock" })).rejects.toThrow("不支持右栏");
+      await expect(ctx.app.openWeb("https://example.org")).rejects.toThrow("不支持网页右栏");
+    } finally {
+      await host.dispose();
+    }
+  });
+
   it("无界面宿主明确拒绝页面注册，状态订阅可注销", async () => {
     const host = new PluginHost({ workspaceId: "A", storage: createMemoryStorage() });
     let context!: PluginContext;

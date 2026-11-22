@@ -15,6 +15,7 @@ import { ResizeHandle, cn } from "@tau/ui";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { ASSIST_MAX_W, ASSIST_MIN_W, useShellStore } from "./shellStore";
 import { resolveAssistLayout } from "./assistLayout";
+import { PLUGIN_DOCK_ID } from "./pluginDock";
 import { ASSIST_MORPH_CLASS } from "./assistMorph";
 import type { AssistViewDefinition } from "./assistViews";
 import { useShownOnPage, useVisibleAssist } from "./useVisibleAssist";
@@ -33,6 +34,7 @@ export function AssistDock() {
   const width = useShellStore(s => s.assistWidth);
   const sidebarWidth = useShellStore(s => s.sidebarWidth);
   const sidebarCollapsed = useShellStore(s => s.sidebarCollapsed);
+  const pluginTitle = useShellStore(s => s.pluginDock?.title);
   const coveredId = useShellStore(s => s.assistCovered);
   const closeAssist = useShellStore(s => s.closeAssist);
 
@@ -97,7 +99,7 @@ export function AssistDock() {
 
   return (
     <aside
-      aria-label={shown?.label ?? "辅助栏"}
+      aria-label={(shown?.id === PLUGIN_DOCK_ID ? pluginTitle : shown?.label) ?? "辅助栏"}
       aria-hidden={!visible}
       inert={!visible}
       style={
@@ -146,7 +148,10 @@ export function AssistDock() {
                 covered={
                   active && covered
                     ? {
-                        label: covered.label,
+                        label:
+                          covered.id === PLUGIN_DOCK_ID
+                            ? (pluginTitle ?? covered.label)
+                            : covered.label,
                         restore: () => closeAssist(item.id),
                       }
                     : undefined

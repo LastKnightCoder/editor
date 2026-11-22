@@ -193,6 +193,7 @@ export { comparePluginVersions, assertPluginCompatibility } from "./version";
 export type { PluginManifest, DevelopmentPluginPackage } from "./package";
 
 export interface PagesAdapter {
+  supportsDock?: boolean;
   register(context: PluginContext, definition: PluginPageDefinition): PluginPageHandle;
 }
 
@@ -531,6 +532,7 @@ export interface TransactionAdapter {
 
 /** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
 export interface AppAdapter {
+  openWeb?(context: PluginContext, url: string): Promise<void>;
   pick(
     context: PluginContext,
     plugin: PluginOwner,
@@ -2979,6 +2981,14 @@ export class PluginHost {
         if (!this.options.app) throw new Error("当前宿主不支持选择内容");
         return deliver<PluginPickedEntity[]>(await this.options.app.pick(context, owner, value));
       },
+      openWeb: async (url: string) => {
+        this.assertActive(entry, activation);
+        if (!this.options.app?.openWeb) throw new Error("当前宿主不支持网页右栏");
+        const target = typeof url === "string" ? URL.parse(url.trim()) : null;
+        if (!target || !["http:", "https:"].includes(target.protocol))
+          throw new Error("请提供完整的 HTTP 或 HTTPS 网页地址");
+        await this.options.app.openWeb(context, target.href);
+      },
       open: async (ref: PluginEntityRef, options?: PluginOpenOptions) => {
         const value = readEntityRef(ref);
         const opening = readOpenOptions(value, options);
@@ -3804,8 +3814,11 @@ export class PluginHost {
         ) {
           throw new Error("不支持的页面匹配方式");
         }
+        if (definition.dockable !== undefined && typeof definition.dockable !== "boolean")
+          throw new Error("dockable 必须是布尔值");
         if (!this.options.pages) throw new Error("当前宿主不支持页面");
-        const handle = this.options.pages.register(context, Object.freeze({ ...definition }));
+        const registered = Object.freeze({ ...definition });
+        const handle = this.options.pages.register(context, registered);
         let disposed = false;
         const navigation = new Set<Disposable>();
         const resource = registerAs("page", {
@@ -3827,10 +3840,21 @@ export class PluginHost {
         });
         const exposed: PluginPageHandle = Object.freeze({
           id: handle.id,
-          open: async (params = {}) => {
+          open: async (params = {}, options?: { placement?: "page" | "dock" }) => {
             this.assertActive(entry, activation);
             if (disposed) throw new Error("页面已注销");
-            await handle.open(normalizePageParams(params));
+            const clean = normalizePageParams(params);
+            if (
+              options !== undefined &&
+              (!options || typeof options !== "object" || Array.isArray(options))
+            )
+              throw new Error("页面打开选项无效");
+            const placement = options?.placement ?? "page";
+            if (placement === "page") return handle.open(clean);
+            if (placement !== "dock") throw new Error("页面打开位置无效");
+            if (!registered.dockable || !this.options.pages?.supportsDock)
+              throw new Error("当前页面或宿主不支持右栏");
+            await handle.open(clean, { placement: "dock" });
           },
           dispose: resource.dispose,
         });

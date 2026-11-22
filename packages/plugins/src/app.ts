@@ -182,6 +182,8 @@ export const PLUGIN_APP_ACTIONS: readonly PluginAppAction[] = [
 ];
 
 export interface PluginApp {
+  /** 用户操作后在桌面主窗口的右栏查看 HTTP(S) 网页。 */
+  openWeb(url: string): Promise<void>;
   /**
    * 打开 Tau 的搜索选择弹窗，返回用户选中的内容；用户取消时返回空数组。
    * 用户亲手挑选即视为同意插件引用这些内容，不需要读取权限。只能在用户操作（点击、按键）后调用。

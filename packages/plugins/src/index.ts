@@ -166,6 +166,7 @@ export type {
   PluginPageHandle,
   PluginPageParams,
   PluginPageProps,
+  PluginPagePlacement,
   PluginPages,
 } from "./pages";
 

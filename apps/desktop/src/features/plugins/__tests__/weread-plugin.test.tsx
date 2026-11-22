@@ -94,6 +94,7 @@ describe("微信读书插件", () => {
           <Component
             context={page.context}
             params={{ bookId: "b1", bookmark: "bm_1" }}
+            placement="page"
             pageContext={fakePageContext}
           />
         )
@@ -150,7 +151,14 @@ describe("微信读书插件", () => {
     document.body.append(host);
     const view = createRoot(host);
     await act(async () =>
-      view.render(<Component context={page.context} params={{}} pageContext={fakePageContext} />)
+      view.render(
+        <Component
+          context={page.context}
+          params={{}}
+          placement="page"
+          pageContext={fakePageContext}
+        />
+      )
     );
     await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
     expect(host.textContent).toContain("把微信读书的书架和笔记带进来");

@@ -139,7 +139,12 @@ export function PluginPageView() {
             activeNow={pageContext.isActive}
             registerLeaveGuard={pageContext.registerLeaveGuard}
           >
-            <Component context={page.context} params={cleanParams} pageContext={pageContext} />
+            <Component
+              placement="page"
+              context={page.context}
+              params={cleanParams}
+              pageContext={pageContext}
+            />
           </PluginComponentScope>
         </ErrorBoundary>
       ) : (

@@ -48,15 +48,19 @@ export function useOwnAssist(pageKey: string, owner: AssistOwner, active = true)
 
 /** 网页临时占用右栏时保留本页的对话偏好；显式打开对话时收回网页。 */
 export function usePageChatPanel(preferredOpen: boolean, setPreference: (open: boolean) => void) {
-  const webOpen = useShellStore(s => s.assistView === "web");
+  const occupied = useShellStore(s => s.assistView !== null && s.assistView !== "chat");
   const setOpen = useCallback(
     (open: boolean) => {
-      if (open) useShellStore.getState().closeAssist("web");
+      if (open) {
+        const shell = useShellStore.getState();
+        if (shell.pluginDock) shell.hideAssist();
+        else shell.closeAssist("web");
+      }
       setPreference(open);
     },
     [setPreference]
   );
-  return [preferredOpen && !webOpen, setOpen] as const;
+  return [preferredOpen && !occupied, setOpen] as const;
 }
 
 /** 栈顶页面是否接管了对话开关 */
