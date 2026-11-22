@@ -275,7 +275,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                       />
                     </div>
                     <div className="mb-6 flex flex-wrap items-center gap-2.5">
-                      <div className="flex min-w-0 flex-1 flex-wrap gap-2.5 text-[0.9em] opacity-80">
+                      <div className="basis-min flex min-w-0 grow flex-wrap gap-2.5 text-[0.9em] opacity-80">
                         <div className="whitespace-nowrap">
                           创建于 {formatDate(projectItem.createTime, true)}
                         </div>
@@ -306,7 +306,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                       {insights.button}
                       <ComposeModeToggle active={composing} onChange={setComposing} />
                       {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
-                      <span className="ml-auto flex items-center gap-1">
+                      <span className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
                         <IconButton
                           title="编辑历史"
                           aria-label="编辑历史"

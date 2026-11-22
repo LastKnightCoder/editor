@@ -109,20 +109,17 @@ export function ArticleHero({
           aria-label="文章标题"
           className="rounded-tau-sm text-ink-1 placeholder:text-ink-3 w-full bg-transparent text-[27px] leading-[1.35] font-semibold tracking-[-0.01em] outline-none"
         />
-        {/* 元信息行恒为一行：操作（extraMeta + actions）可收缩、⋯ 靠右；信息组固定一行高、可换行并裁掉溢出，
-            放不下的项落到看不见的第二行——按顺序先让出创建时间、再让字数，编辑时间最后（悬停可见创建时间） */}
-        <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2.5 whitespace-nowrap tabular-nums">
-          <span className="flex h-[22px] min-w-0 shrink flex-wrap items-center gap-x-2.5 overflow-hidden leading-[22px]">
+        {/* 时间和字数只占一行，先给操作让位；连编辑时间和操作都放不下时，操作换行。 */}
+        <div className="text-tau-meta text-ink-3 mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 whitespace-nowrap tabular-nums">
+          <span className="basis-min flex h-[22px] max-w-max min-w-0 grow flex-wrap items-center gap-x-2.5 overflow-hidden leading-[22px]">
             <span title={`${formatDate(article.create_time, true)} 创建`}>
               {formatDate(article.update_time, true)} 编辑
             </span>
             <MetaItem>{words} 字</MetaItem>
             <MetaItem>{formatDate(article.create_time, true)} 创建</MetaItem>
           </span>
-          <span className="flex min-w-0 flex-1 items-center gap-2.5">
-            {extraMeta}
-            {actions && <span className="ml-auto flex min-w-0 items-center">{actions}</span>}
-          </span>
+          {extraMeta}
+          {actions && <span className="ml-auto flex max-w-full items-center">{actions}</span>}
         </div>
       </div>
     </div>

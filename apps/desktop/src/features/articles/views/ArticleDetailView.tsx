@@ -526,7 +526,7 @@ export function ArticleDetailView() {
                     </>
                   }
                   actions={
-                    <span className="flex items-center gap-1">
+                    <span className="flex min-w-0 flex-wrap items-center justify-end gap-1">
                       {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
                       <ContentCollaborationControl
                         ref={collaborationRef}
