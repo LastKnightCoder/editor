@@ -66,7 +66,6 @@ import { QuickInsertLayer } from "./components/Document/QuickInsertPanel";
 import { SuggestionLayer } from "./components/Document/SuggestionLayer";
 import { PeekLayer } from "./components/Document/PeekLayer";
 import { PdfPageTurnLayer } from "./components/Document/PdfFace";
-import { MaterialShelfLayer } from "./components/Document/MaterialShelf";
 import { materialIngest } from "./components/Document/materialDrag";
 import { excerptIngest } from "./components/Document/excerpt";
 import { ExcerptCard, ExcerptSourceLayer } from "./components/Document/ExcerptCard";
@@ -75,7 +74,7 @@ import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
 import WebviewSelectorModal from "./components/WebviewSelectorModal";
 import WhiteboardSelectorModal from "./components/WhiteboardSelectorModal";
-import { useWhiteboardOutlineStore } from "./outlineStore";
+import { useWhiteboardDock } from "./useWhiteboardDock";
 import { DocumentCard } from "./components/Document/DocumentCard";
 import { DocumentReaderLayer } from "./components/Document/DocumentReader";
 import WhiteboardCard from "./components/WhiteboardCard";
@@ -156,7 +155,7 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
   const pluginRuntime = useDesktopPlugins();
   const pluginRuntimeRef = useRef(pluginRuntime);
   pluginRuntimeRef.current = pluginRuntime;
-  const preferences = useWhiteboardOutlineStore();
+  const dock = useWhiteboardDock(props);
   const resourceRef = useRef(props.documentResources);
   resourceRef.current = props.documentResources;
   const additionalExtensions = props.extensions ?? NO_EXTENSIONS;
@@ -300,13 +299,6 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
         id: "tau.desktop-materials",
         create: () => ({
           ingest: [materialIngest, excerptIngest],
-          layers: [
-            {
-              id: "tau.desktop-materials.shelf",
-              position: "canvas",
-              component: MaterialShelfLayer,
-            },
-          ],
         }),
       }),
       defineWhiteboardExtension({
@@ -326,14 +318,7 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
       extensions={extensions}
       services={services}
       extensionServices={extensionServices}
-      outline={
-        props.outline ?? {
-          open: preferences.open,
-          width: preferences.width,
-          onWidthChange: preferences.setWidth,
-          onDockWidthChange: props.onDockWidthChange,
-        }
-      }
+      outline={props.outline ?? dock}
     />
   );
 });

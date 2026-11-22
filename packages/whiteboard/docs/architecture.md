@@ -353,7 +353,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 - `onChange`：`{ children, viewPort, selection, presentationSequences, sketch }`。
 - `extensions`：显式稳定的扩展集合，提供元素、命令、工具、属性面板、导入和界面层；旧的全局宿主服务/业务插槽集合不再恢复（改为下列 services 注册表，D-134）。
 - `services`：宿主服务注册表，扩展经 requires/optional 声明后从扩展 api 获取；缺省为空注册表（声明了 requires 的扩展会被拒绝装配）。
-- `outline`：受控开关、宽度与实际占宽回调；缺省使用实例本地状态。
+- `outline`：画布左侧停靠栏的受控开关、宽度与实际占宽回调。默认显示元素树，宿主可经 `panel` 提供当前面板的名称和内容，共用同一个拖宽边缘。未提供受控值时宽度由实例保存。
 - `className/style`：容器样式。
 
 ### 9.2 Ref 能力

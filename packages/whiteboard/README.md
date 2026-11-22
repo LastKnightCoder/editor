@@ -22,7 +22,7 @@ const extensions = createStandardWhiteboardExtensions();
 - 正文与媒体的宿主能力经服务注册表注入（见「宿主服务」，D-134）：内置 richtext/mind/clipboard 直接获取 `IWhiteboardRichText`，媒体类扩展直接获取 `IResourceService`/`IMediaInfoService`/`IDownloadService`，缺失时回退嵌入式或浏览器实现；导出截图与选择器弹窗、媒体动作白名单、图片组件等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅和离屏测量共用 Kit 与文档绑定。界面层 position 为 canvas 或 outside；canvas 浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的输入不归画布。
 - 文档卡由 createDocumentExtension 组合纸面与阅读层。值模式使用本机 entityRef；文档模式保存带来源的稳定 entity，宿主核验后读取原文，不复制或自动共享原文。
 - 富文本可持有板内正文或稳定的外部 content 引用；外部引用经宿主解析为本机 contentId，继续使用宿主正文编辑器，不连接同元素的空板内正文。画布只读变化同步到两种编辑器，引用未就绪时不允许编辑占位内容。
-- outline：受控开关与宽度；实际占宽回调归所属页面，避免实例串扰。
+- outline：控制左侧停靠栏的开关与宽度，`outline.panel` 可指定替代元素树的面板名称与内容。实际占宽回调归所属页面。
 - API.captureSubmission：异步操作开始时捕获，提交前验证；只读切换、隐藏、卸载和目标删除使旧操作失效。
 
 默认基础文字依赖 @tau/editor；URL 媒体可插入。业务能力缺失时隐藏创建入口，已有业务元素保留数据并显示占位。通用容器仅消费 @tau/ui。

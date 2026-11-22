@@ -29,9 +29,6 @@ vi.mock("@/stores/useSettingStore", () => ({
     },
   },
 }));
-vi.mock("../outlineStore", () => ({
-  useWhiteboardOutlineStore: () => ({ open: true, width: 260, setWidth: vi.fn() }),
-}));
 vi.mock("@/commands/content", () => ({
   updateContent: mocks.updateContent,
   decrementContentRefCount: mocks.decrementContentRefCount,
@@ -64,7 +61,7 @@ vi.mock("../components/Document/ExcerptCard", () => ({
   ExcerptCard: () => null,
   ExcerptSourceLayer: () => null,
 }));
-vi.mock("../components/Document/MaterialShelf", () => ({ MaterialShelfLayer: () => null }));
+vi.mock("../components/Document/MaterialShelf", () => ({ MaterialShelf: () => null }));
 vi.mock("../components/ImageSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/VideoSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/AudioSelectorModal", () => ({ default: () => null }));

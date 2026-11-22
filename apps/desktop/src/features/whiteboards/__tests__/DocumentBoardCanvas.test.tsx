@@ -11,7 +11,13 @@ import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agen
 import { queryClient } from "@/queryClient";
 import { DocumentBoardCanvas } from "../components/DocumentBoardCanvas";
 import { OutlineToggle } from "../components/OutlineToggle";
-import { useWhiteboardOutlineStore } from "@/features/shared/whiteboard/outlineStore";
+import { ShelfToggle } from "../components/ShelfToggle";
+import { useWhiteboardDockStore } from "@/features/shared/whiteboard/dockStore";
+import { useWhiteboardDock } from "@/features/shared/whiteboard/useWhiteboardDock";
+import {
+  DocumentHostContext,
+  WHITEBOARD_PAGE_HOST,
+} from "@/features/shared/whiteboard/components/Document/DocumentHostContext";
 import type { BoardCanvasHandle } from "../components/BoardCanvas";
 import {
   whiteboardDocumentEntry,
@@ -36,6 +42,7 @@ const mocks = vi.hoisted(() => ({
   unshare: vi.fn(async () => ({ missing: 0 })),
   finish: vi.fn(async () => ({ phase: "COMPLETE" })),
 }));
+vi.mock("@/commands", () => ({ searchEntities: async () => [] }));
 vi.mock("@/features/shared/whiteboard/editorKit", async () => {
   const { createEditorKit } = await import("@tau/editor");
   const kit = createEditorKit();
@@ -85,13 +92,13 @@ vi.mock("@/features/shared/whiteboard/DesktopWhiteboard", async () => {
   return {
     default: function DesktopCanvas(props: React.ComponentProps<typeof Canvas>) {
       mocks.binding = props.document;
-      const { open, width, setWidth } = useWhiteboardOutlineStore();
+      const dock = useWhiteboardDock(props);
       return (
         <Canvas
           {...props}
           extensions={extensions}
           showToolbar={false}
-          outline={{ open, width, onWidthChange: setWidth }}
+          outline={dock}
           showAttributeSetter={false}
         />
       );
@@ -266,14 +273,16 @@ const mount = async (standalone = true, breadcrumb?: React.ReactNode) => {
     root!.render(
       <QueryClientProvider client={queryClient}>
         <DndProvider backend={HTML5Backend}>
-          {breadcrumb}
-          <DocumentBoardCanvas
-            contentId={1}
-            documentId={mocks.docId}
-            pageId={mocks.pageId}
-            standalone={standalone}
-            ref={ref}
-          />
+          <DocumentHostContext value={WHITEBOARD_PAGE_HOST}>
+            {breadcrumb}
+            <DocumentBoardCanvas
+              contentId={1}
+              documentId={mocks.docId}
+              pageId={mocks.pageId}
+              standalone={standalone}
+              ref={ref}
+            />
+          </DocumentHostContext>
         </DndProvider>
       </QueryClientProvider>
     )
@@ -284,17 +293,53 @@ const mount = async (standalone = true, breadcrumb?: React.ReactNode) => {
   });
   return { container, ref };
 };
-it("白板标题栏可以展开元素树，再次点击收起", async () => {
-  useWhiteboardOutlineStore.setState({ open: false });
-  const { container } = await mount(true, <OutlineToggle />);
-  const toggle = container.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
-  const visibleOutline = () =>
-    container.querySelector('aside[aria-label="元素树"]:not([aria-hidden="true"])');
-  expect(visibleOutline()).toBeNull();
-  await act(async () => toggle.click());
-  expect(visibleOutline()).not.toBeNull();
-  await act(async () => toggle.click());
-  expect(visibleOutline()).toBeNull();
+it("两个标题栏按钮切换同一个停靠栏，重新打开各自恢复上次的宽度", async () => {
+  useWhiteboardDockStore.setState({ panel: null });
+  const { container } = await mount(
+    true,
+    <>
+      <OutlineToggle />
+      <ShelfToggle />
+    </>
+  );
+  const [outline, shelf] = container.querySelectorAll<HTMLButtonElement>("button[aria-expanded]");
+  const visible = () => container.querySelector<HTMLElement>('aside[aria-hidden="false"]');
+  const resize = () => visible()!.querySelector<HTMLElement>('[role="separator"]')!;
+  const dragTo = (target: number) => {
+    const handle = resize();
+    handle.setPointerCapture = () => undefined;
+    const start = Number(handle.getAttribute("aria-valuenow"));
+    const pointer = (type: string, clientX: number) =>
+      act(() => {
+        handle.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, button: 0 }));
+      });
+    pointer("pointerdown", start);
+    pointer("pointermove", target);
+    pointer("pointerup", target);
+  };
+
+  expect(visible()).toBeNull();
+  await act(async () => outline.click());
+  const dock = visible()!;
+  expect(dock.nextElementSibling).toBe(container.querySelector("[data-whiteboard-root]"));
+  dragTo(311);
+  expect(dock.style.width).toBe("311px");
+
+  await act(async () => shelf.click());
+  expect(visible()).toBe(dock);
+  expect(dock.querySelector('[role="listbox"]')).not.toBeNull();
+  expect(outline.getAttribute("aria-expanded")).toBe("false");
+  dragTo(376);
+  expect(dock.style.width).toBe("376px");
+
+  await act(async () => outline.click());
+  expect(dock.style.width).toBe("311px");
+  await act(async () => outline.click());
+  expect(visible()).toBeNull();
+  await act(async () => shelf.click());
+  expect(dock.style.width).toBe("376px");
+  await act(async () => shelf.click());
+  expect(visible()).toBeNull();
 });
 it("未共享白板不显示常态保存提示并提供共享入口；嵌入画布不提供", async () => {
   const { container } = await mount();

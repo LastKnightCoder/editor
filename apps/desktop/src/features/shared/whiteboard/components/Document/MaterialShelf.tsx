@@ -1,9 +1,8 @@
 /**
- * 素材架：停靠在画布纸面左侧的检索栏，开关在白板页面的面包屑（useWhiteboardShelfStore）。
+ * 素材架：停靠在画布纸面左侧的检索栏，开关在白板页面的面包屑。
  * - 选中一张文档卡时，顶部多出「和它相关」一组；其余是最近编辑或搜索结果，类型可筛；
  * - 拖到画布上放下；拖到某张卡上就放在它旁边并连线（落点判定在 materialDrag）；
  * - ⌘ 点选多篇后成叠拖入；已在板上的条目带圆点，点一下镜头飞到那张卡；
- * 根节点带 CANVAS_OVERLAY_ATTR：栏内的按键、滚轮、指针不归画布。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,18 +10,11 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebounce, useMemoizedFn } from "ahooks";
 import { GripVertical, Search } from "lucide-react";
 import { cn, Loading, useEdgeFade } from "@tau/ui";
-import {
-  CANVAS_OVERLAY_ATTR,
-  ViewPortTransforms,
-  useBoard,
-  useSelection,
-  type DocumentElement,
-} from "@tau/whiteboard";
+import { ViewPortTransforms, useBoard, useSelection, type DocumentElement } from "@tau/whiteboard";
 import { searchEntities } from "@/commands";
 import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 import { ENTITY_KIND_META } from "@/components/EntityPicker/meta";
 import type { EntityKind } from "@/types";
-import { useWhiteboardShelfStore } from "../../shelfStore";
 import {
   INSERTABLE_KINDS,
   findPlacedDocument,
@@ -32,9 +24,6 @@ import {
 } from "./insert";
 import { useRelated } from "./related";
 import { setMaterialDrag } from "./materialDrag";
-import { useDocumentHost } from "./DocumentHostContext";
-
-const SHELF_WIDTH = 264;
 
 function Row({
   option,
@@ -91,7 +80,7 @@ function Row({
   );
 }
 
-function Shelf() {
+export function MaterialShelf() {
   const board = useBoard();
   const selection = useSelection();
   const [keyword, setKeyword] = useState("");
@@ -186,17 +175,14 @@ function Shelf() {
   }, [listEl]);
 
   return (
-    <aside
-      {...{ [CANVAS_OVERLAY_ATTR]: "" }}
-      aria-label="素材架"
+    <div
       onKeyDown={event => {
         if (event.key === "Escape" && picked.size) {
           event.stopPropagation();
           setPicked(new Map());
         }
       }}
-      className="bg-surface border-line-1 pointer-events-auto absolute top-0 bottom-0 left-0 z-[6] flex flex-col border-r"
-      style={{ width: SHELF_WIDTH }}
+      className="bg-surface flex h-full min-h-0 flex-col"
     >
       <div className="flex shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
         <label className="bg-surface border-line-1 focus-within:border-accent flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
@@ -271,15 +257,6 @@ function Shelf() {
           <span className="border-line-1 bg-surface absolute inset-0 -z-10 translate-x-1 translate-y-1 rounded-[8px] border" />
         </div>
       </div>
-    </aside>
+    </div>
   );
-}
-
-/** 画布层：宿主允许（白板页面）且开关打开时显示；只读画布不显示 */
-export function MaterialShelfLayer() {
-  const board = useBoard();
-  const open = useWhiteboardShelfStore(state => state.open);
-  const { shelf } = useDocumentHost();
-  if (!shelf || !open || board.readonly) return null;
-  return <Shelf />;
 }
