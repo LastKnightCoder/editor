@@ -56,9 +56,9 @@ fn default_setting_value() -> Value {
     json!({
       "darkMode": false,
       "fontSetting": {
-        "chineseFont": "华文楷体",
-        "englishFont": "American TypeWriter",
-        "codeFont": "JetBrains Mono",
+        "chineseFont": "",
+        "englishFont": "",
+        "codeFont": "",
         "fontSize": 16
       },
       "appearance": {

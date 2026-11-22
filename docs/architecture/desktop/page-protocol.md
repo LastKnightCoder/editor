@@ -69,7 +69,7 @@ export function useXxxSnapshot() {
 
 **字体设置链路**：`fontSetting` → `useSyncFont()`（App 根挂载一次）→ root 级覆盖。用户字体/字号是应用级默认（界面与编辑器统一）：字体族覆盖 `--tau-font`/`--tau-font-mono`；字号按 13px 基准**阻尼**缩放 `--tau-text-*` 全部档位（半速率传导，与内容区解耦——宿主可用 `--font-size` 为内容容器提供原始字号，Editor 继承所在容器；排版层级保持，间距圆角不动；例外：侧边栏条目行高/图标按 em 折算）；`--font / --font-size / --mono-font` 一并写 root。默认字体变量在 :root，body 不重复声明；Editor 根节点不声明字体族/字号。**Tailwind v4 陷阱**：`@theme inline` 对字面值会把值内联进工具类，运行时覆盖 CSS 变量无效——字号 token 必须经 `:root` 字面值层 + `@theme inline` var 桥接，`useSyncFont` 覆盖字面值层。
 
-外观设置的中文字体提供内置「小赖 SC」，英文字体提供内置「Shantell Sans」，与系统字体合并去重；系统字体清单未返回时也可选择内置字体。`utils/bundled-fonts.ts` 统一保存选项名称与实际字体栈的映射，预览与 `useSyncFont` 共用；小赖按 `assets/fonts/hand/hand-font.json` 展开全部独立 family 分片，沿用现有按需加载与导出内嵌机制。
+中文、英文和代码字体可分别选「系统默认」，设置中以空串表示。未指定字体时，界面和正文使用系统界面字体，代码使用系统等宽字体。中文字体提供内置「小赖 SC」，英文字体提供内置「Shantell Sans」，与系统字体合并去重。预览与窗口共用 `utils/bundled-fonts.ts` 解析字体栈，小赖按 `assets/fonts/hand/hand-font.json` 展开全部独立 family 分片。
 
 白板手绘字体栈 `--tau-font-hand` 统一由 `@tau/themes/scale.css` 定义，优先使用宿主提供的 `--tau-font-hand-faces`，未提供时回退到系统手写体，最后回退到应用字体。桌面端的 `assets/fonts/hand/hand-font.css` 提供内置字体声明与分片栈，`app/base.css` 不重复覆盖手绘字体栈，避免生产 CSS 分包顺序影响字体选择。
 

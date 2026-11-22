@@ -16,7 +16,12 @@ export const BUNDLED_FONTS = [
   },
 ] as const;
 
-/** 内置字体名映射到实际字体栈，小赖的独立分片需一起参与字形回退。 */
-export function resolveFontFamily(font: string): string {
-  return BUNDLED_FONTS.find(entry => entry.name === font)?.fontFamily ?? font;
+export function resolveFontStack(kind: "text" | "code", ...fonts: string[]): string {
+  const families = fonts
+    .filter(Boolean)
+    .map(
+      font => BUNDLED_FONTS.find(entry => entry.name === font)?.fontFamily ?? JSON.stringify(font)
+    );
+  const fallback = kind === "code" ? "ui-monospace, monospace" : "system-ui, sans-serif";
+  return [...families, fallback].join(", ");
 }

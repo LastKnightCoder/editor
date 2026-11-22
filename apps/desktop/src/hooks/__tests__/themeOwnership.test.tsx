@@ -62,13 +62,22 @@ describe("应用主题与字体归属", () => {
       expect(document.body.style.getPropertyValue("--font")).toBe("");
       expect(document.body.style.getPropertyValue("--font-size")).toBe("");
       act(() =>
-        useSettingStore
-          .getState()
-          .onFontSettingChange({ ...previous, englishFont: "测试字体", fontSize: 20 })
+        useSettingStore.getState().onFontSettingChange({
+          ...previous,
+          englishFont: "测试字体",
+          codeFont: "代码字体",
+          fontSize: 20,
+        })
       );
       expect(document.documentElement.style.getPropertyValue("--font")).toContain("测试字体");
       expect(document.documentElement.style.getPropertyValue("--font-size")).toBe("20px");
       expect(document.body.style.getPropertyValue("--font")).toBe("");
+      const { setting, onFontSettingChange } = useSettingStore.getState();
+      act(() => onFontSettingChange({ ...setting.fontSetting, englishFont: "", chineseFont: "" }));
+      const textStack = document.documentElement.style.getPropertyValue("--font");
+      expect(textStack).not.toContain("测试字体");
+      expect(textStack).toContain("system-ui");
+      expect(document.documentElement.style.getPropertyValue("--mono-font")).toContain("代码字体");
     } finally {
       act(() => root.unmount());
       container.remove();

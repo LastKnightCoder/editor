@@ -3,9 +3,9 @@ import type { PluginWindowAppearance } from "@tau/plugins";
 export type WindowFont = PluginWindowAppearance["font"];
 
 export const DEFAULT_WINDOW_FONT: WindowFont = Object.freeze({
-  chineseFont: "华文楷体",
-  englishFont: "American TypeWriter",
-  codeFont: "JetBrains Mono",
+  chineseFont: "",
+  englishFont: "",
+  codeFont: "",
   fontSize: 16,
 });
 

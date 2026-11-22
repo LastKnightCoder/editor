@@ -1,5 +1,5 @@
 import type { WindowFont } from "../../shared/window-font";
-import { resolveFontFamily } from "@/utils/bundled-fonts";
+import { resolveFontStack } from "@/utils/bundled-fonts";
 
 /**
  * tau 字号档位默认值——与 packages/themes/src/scale.css 的 :root 字面值层（--tau-text-*）
@@ -29,8 +29,8 @@ const SHELL_UI_DAMPING = 0.5;
 
 export function applyWindowFont(fontSetting: WindowFont) {
   const { chineseFont, englishFont, fontSize, codeFont } = fontSetting;
-  const font = `${resolveFontFamily(englishFont)}, ${resolveFontFamily(chineseFont)}`;
-  const codeFontFamily = resolveFontFamily(codeFont);
+  const font = resolveFontStack("text", englishFont, chineseFont);
+  const monoFont = resolveFontStack("code", codeFont);
   const root = document.documentElement;
   for (const token of ["--font", "--font-size", "--mono-font"]) {
     document.body.style.removeProperty(token);
@@ -43,12 +43,9 @@ export function applyWindowFont(fontSetting: WindowFont) {
   // --font / --font-size / --mono-font 是 legacy 样式与编辑器包的既有变量，一并写 root
   root.style.setProperty("--font", font);
   root.style.setProperty("--font-size", `${fontSize}px`);
-  root.style.setProperty("--mono-font", `${codeFontFamily}, ${font}, monospace`);
+  root.style.setProperty("--mono-font", monoFont);
   root.style.setProperty("--tau-font", font);
-  root.style.setProperty(
-    "--tau-font-mono",
-    `${codeFontFamily}, ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace`
-  );
+  root.style.setProperty("--tau-font-mono", monoFont);
   for (const [token, base] of Object.entries(TAU_TEXT_STEPS)) {
     root.style.setProperty(token, `${(base * scale).toFixed(2)}px`);
   }
