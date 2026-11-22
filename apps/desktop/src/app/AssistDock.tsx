@@ -32,6 +32,8 @@ export function AssistDock() {
   const shownOnPage = useShownOnPage();
   const visible = !!view;
   const width = useShellStore(s => s.assistWidth);
+  const setWidth = useShellStore(s => s.setAssistWidth);
+  const [resizing, setResizing] = useState(false);
   const sidebarWidth = useShellStore(s => s.sidebarWidth);
   const sidebarCollapsed = useShellStore(s => s.sidebarCollapsed);
   const pluginTitle = useShellStore(s => s.pluginDock?.title);
@@ -122,12 +124,27 @@ export function AssistDock() {
           : "invisible mr-[calc(var(--assist-w)*-1)] opacity-0"
       )}
     >
-      {!expanded && <AssistResizer />}
+      {!expanded && (
+        <ResizeHandle
+          value={width}
+          min={ASSIST_MIN_W}
+          max={ASSIST_MAX_W}
+          onChange={setWidth}
+          onActiveChange={setResizing}
+          side="right"
+          label="右栏宽度"
+          className="absolute top-4 bottom-4 -left-2 z-10"
+        />
+      )}
       {mountedViews.map(item => {
         const active = item === shown;
         const Component = item.component;
         return (
-          <div key={item.id} className={active ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+          <div
+            key={item.id}
+            inert={resizing}
+            className={active ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+          >
             {/* 视图崩溃只替换栏内，不连带正文页 */}
             <RecoverableBoundary
               fallback={({ error, reset }) => (
@@ -162,23 +179,6 @@ export function AssistDock() {
         );
       })}
     </aside>
-  );
-}
-
-/** 左缘拖宽热区（停靠栏在热区右边：向左拖变宽） */
-function AssistResizer() {
-  const width = useShellStore(s => s.assistWidth);
-  const setWidth = useShellStore(s => s.setAssistWidth);
-  return (
-    <ResizeHandle
-      value={width}
-      min={ASSIST_MIN_W}
-      max={ASSIST_MAX_W}
-      onChange={setWidth}
-      side="right"
-      label="右栏宽度"
-      className="absolute top-4 bottom-4 -left-2 z-10"
-    />
   );
 }
 

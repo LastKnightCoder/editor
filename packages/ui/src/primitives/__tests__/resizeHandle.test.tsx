@@ -34,7 +34,9 @@ describe("ResizeHandle", () => {
 
   const pointer = (el: Element, type: string, clientX: number) =>
     act(() => {
-      el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, button: 0 }));
+      el.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, clientX, buttons: type === "pointerup" ? 0 : 1 })
+      );
     });
 
   it("栏在右边：向左拖变宽，并夹在上限内", () => {
@@ -57,13 +59,46 @@ describe("ResizeHandle", () => {
     expect(onChange).toHaveBeenLastCalledWith(440);
     pointer(handle, "pointermove", 100);
     expect(onChange).toHaveBeenLastCalledWith(560);
-    pointer(handle, "pointerup", 100);
+    // 松手坐标可能比最后一次送达手柄的移动事件更新。
+    pointer(handle, "pointerup", 475);
+    expect(onChange).toHaveBeenLastCalledWith(405);
     expect(onActive).toHaveBeenLastCalledWith(false);
     // 松手后不再跟随
     onChange.mockClear();
     pointer(handle, "pointermove", 480);
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it.each(["pointercancel", "lostpointercapture", "blur", "unmount"])(
+    "拖动被 %s 中断后释放拖动状态",
+    interruption => {
+      const onChange = vi.fn();
+      const onActiveChange = vi.fn();
+      const handle = render(
+        <ResizeHandle
+          value={400}
+          min={360}
+          max={560}
+          onChange={onChange}
+          onActiveChange={onActiveChange}
+          side="right"
+          label="右栏宽度"
+        />
+      );
+      pointer(handle, "pointerdown", 500);
+      if (interruption === "unmount") act(() => root?.render(null));
+      else if (interruption === "blur") {
+        act(() => {
+          window.dispatchEvent(new Event("blur"));
+        });
+      } else pointer(handle, interruption, 460);
+
+      expect(onActiveChange.mock.calls).toEqual([[true], [false]]);
+      expect(document.body.style.cursor).toBe("");
+      pointer(handle, "pointermove", 440);
+      expect(onChange).not.toHaveBeenCalled();
+    }
+  );
 
   it("栏在左边：向右拖变宽，并夹在下限内", () => {
     const onChange = vi.fn();

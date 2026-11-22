@@ -5,7 +5,7 @@
  * 定位由调用方给（className，通常 absolute 贴在栏的内缘）。pointer capture 保证拖出窗口不丢事件。
  */
 
-import { useCallback, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type PointerEvent } from "react";
 import { cn } from "../cn";
 
 export interface ResizeHandleProps {
@@ -44,18 +44,31 @@ export function ResizeHandle({
   // 向右拖（dx > 0）：栏在左边时变宽，在右边时变窄
   const direction = side === "left" ? 1 : -1;
 
-  const endDrag = useCallback(() => {
+  const endDrag = () => {
     if (!dragging.current) return;
     dragging.current = null;
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
     setActive(false);
     onActiveChange?.(false);
-  }, [onActiveChange]);
+  };
 
-  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+  const finishInterruptedDrag = useEffectEvent(endDrag);
+  useEffect(() => {
+    if (!active) return;
+    const onBlur = () => finishInterruptedDrag();
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      finishInterruptedDrag();
+    };
+  }, [active]);
+
+  const resizeAtPointer = (e: PointerEvent<HTMLDivElement>) => {
     const drag = dragging.current;
-    if (drag) onChange(clamp(drag.startW + (e.clientX - drag.x) * direction));
+    if (!drag) return;
+    const width = clamp(drag.startW + (e.clientX - drag.x) * direction);
+    if (width !== value) onChange(width);
   };
 
   return (
@@ -89,8 +102,15 @@ export function ResizeHandle({
         onActiveChange?.(true);
         e.preventDefault();
       }}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
+      onPointerMove={e => {
+        if (e.buttons & 1) resizeAtPointer(e);
+        else endDrag();
+      }}
+      onPointerUp={e => {
+        resizeAtPointer(e);
+        endDrag();
+      }}
+      onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
     >
       <span
