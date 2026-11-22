@@ -2,6 +2,7 @@ import type { Disposable, JsonValue, PluginPageContext } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
 
 interface PageContextBinding {
+  placement?: "page" | "dock";
   params: Readonly<Record<string, unknown>>;
   signal: AbortSignal;
   isAvailable: () => boolean;
@@ -26,7 +27,10 @@ const instanceKey = (params: Readonly<Record<string, unknown>>) =>
   JSON.stringify([params.pluginId, params.pageId, params.instanceId, params.params]);
 
 export function createPluginPageContext(binding: PageContextBinding) {
-  const key = instanceKey(binding.params);
+  const key =
+    binding.placement === "dock"
+      ? "dock:" + instanceKey(binding.params)
+      : instanceKey(binding.params);
   let mounted = false;
   let registration: Registration | undefined;
   const dismissals = new Set<Dismissal>();

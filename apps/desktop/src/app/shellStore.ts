@@ -6,6 +6,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import {
+  PLUGIN_DOCK_ID,
+  hasPluginDockGuards,
+  mayLeavePluginDock,
+  type PluginDockTarget,
+} from "./pluginDock";
+
 const SIDEBAR_MIN_W = 130;
 const SIDEBAR_MAX_W = 340;
 /** 收起图标列宽度，与 tokens.css 的 --tau-sidebar-w-collapsed 同源 */
@@ -30,6 +37,9 @@ interface ShellState {
   toggleNavSection(label: string): void;
   /** 右侧辅助栏当前视图（assistViews 登记的 id）；null = 收起 */
   assistView: string | null;
+  pluginDock: PluginDockTarget | null;
+  openPluginDock(target: PluginDockTarget, available: () => boolean): Promise<boolean>;
+  releasePluginDock(mountId?: number): void;
   /** 被临时视图盖住的视图：关闭临时视图时回到它，最多记一个 */
   assistCovered: string | null;
   assistWidth: number;
@@ -40,7 +50,7 @@ interface ShellState {
   /** 让辅助栏显示 id，清掉被盖住的视图 */
   showAssist(id: string): void;
   /** 临时盖住当前视图显示 id；当前已是临时视图时只替换，不再叠一层 */
-  showAssistOver(id: string): void;
+  showAssistOver(id: string, available?: () => boolean, onShow?: () => void): Promise<boolean>;
   /** 关闭辅助栏当前视图（传 id 时仅当前是它才关）；有被盖住的视图就回到它 */
   closeAssist(id?: string): void;
   /** 收起整个辅助栏，被盖住的视图一并放下 */
@@ -54,85 +64,127 @@ interface ShellState {
 
 export const useShellStore = create<ShellState>()(
   persist(
-    set => ({
-      sidebarCollapsed: false,
-      sidebarWidth: 218,
-      navSectionCollapsed: {},
-      assistView: null,
-      assistCovered: null,
-      assistExpanded: false,
-      assistWidth: ASSIST_DEFAULT_W,
-      sidebarAutoCollapsed: false,
-      // 手动切换侧栏即接管：不再在关闭辅助栏时自动还原
-      toggleSidebar: () =>
-        set(s => ({
-          sidebarCollapsed: !s.sidebarCollapsed,
-          sidebarAutoCollapsed: false,
-        })),
-      setSidebarCollapsed: collapsed =>
-        set({ sidebarCollapsed: collapsed, sidebarAutoCollapsed: false }),
-      setSidebarWidth: w =>
-        set({
-          sidebarWidth: Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, Math.round(w))),
-        }),
-      toggleNavSection: label =>
-        set(s => ({
-          navSectionCollapsed: {
-            ...s.navSectionCollapsed,
-            [label]: !(s.navSectionCollapsed[label] ?? false),
-          },
-        })),
-      toggleAssist: () =>
-        set(s =>
-          s.assistView === "chat"
-            ? { assistView: null, assistCovered: null, assistExpanded: false }
-            : {
-                assistView: "chat",
-                assistCovered: null,
-                assistExpanded: false,
-              }
-        ),
-      showAssist: id =>
-        set(s => ({
-          assistView: id,
-          assistCovered: null,
-          assistExpanded: s.assistView === id && s.assistExpanded,
-        })),
-      showAssistOver: id =>
-        set(s =>
-          s.assistView === id
-            ? {}
-            : {
-                assistView: id,
-                assistCovered: s.assistCovered ?? s.assistView,
-                assistExpanded: false,
-              }
-        ),
-      closeAssist: id =>
-        set(s =>
-          id !== undefined && s.assistView !== id
-            ? {}
-            : {
-                assistView: s.assistCovered,
-                assistCovered: null,
-                assistExpanded: false,
-              }
-        ),
-      hideAssist: () => set({ assistView: null, assistCovered: null, assistExpanded: false }),
-      setAssistExpanded: expanded => set({ assistExpanded: expanded }),
-      setAssistWidth: w =>
-        set({
-          assistWidth: Math.min(ASSIST_MAX_W, Math.max(ASSIST_MIN_W, Math.round(w))),
-        }),
-      setSidebarAutoCollapsed: auto => set({ sidebarAutoCollapsed: auto }),
-    }),
+    (set, get) => {
+      type DockChange = Pick<ShellState, "assistView" | "assistCovered" | "assistExpanded"> & {
+        pluginDock?: PluginDockTarget | null;
+      };
+      let revision = 0;
+      const change = async (next: DockChange, available = () => true, onShow?: () => void) => {
+        const request = ++revision;
+        const previous = get();
+        const target = next.pluginDock === undefined ? previous.pluginDock : next.pluginDock;
+        const same =
+          previous.pluginDock?.mountId === target?.mountId &&
+          previous.pluginDock?.instanceId === target?.instanceId;
+        const leaving =
+          previous.assistView === PLUGIN_DOCK_ID && (next.assistView !== PLUGIN_DOCK_ID || !same);
+        if (leaving && hasPluginDockGuards() && !(await mayLeavePluginDock())) return false;
+        if (request !== revision || !available()) return false;
+        const retain = next.assistView === PLUGIN_DOCK_ID || next.assistCovered === PLUGIN_DOCK_ID;
+        onShow?.();
+        set({ ...next, pluginDock: retain ? target : null });
+        return true;
+      };
+      const fromUi = (next: DockChange) => {
+        void change(next).catch(error => console.error("右栏离开守卫失败", error));
+      };
+      return {
+        sidebarCollapsed: false,
+        sidebarWidth: 218,
+        navSectionCollapsed: {},
+        pluginDock: null,
+        assistView: null,
+        assistCovered: null,
+        assistExpanded: false,
+        assistWidth: ASSIST_DEFAULT_W,
+        sidebarAutoCollapsed: false,
+        // 手动切换侧栏即接管：不再在关闭辅助栏时自动还原
+        toggleSidebar: () =>
+          set(s => ({
+            sidebarCollapsed: !s.sidebarCollapsed,
+            sidebarAutoCollapsed: false,
+          })),
+        setSidebarCollapsed: collapsed =>
+          set({ sidebarCollapsed: collapsed, sidebarAutoCollapsed: false }),
+        setSidebarWidth: w =>
+          set({
+            sidebarWidth: Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, Math.round(w))),
+          }),
+        toggleNavSection: label =>
+          set(s => ({
+            navSectionCollapsed: {
+              ...s.navSectionCollapsed,
+              [label]: !(s.navSectionCollapsed[label] ?? false),
+            },
+          })),
+        toggleAssist: () =>
+          get().assistView === "chat" ? get().hideAssist() : get().showAssist("chat"),
+        showAssist: id =>
+          fromUi({
+            assistView: id,
+            assistCovered: null,
+            assistExpanded: get().assistView === id && get().assistExpanded,
+          }),
+        showAssistOver: (id, available, onShow) => {
+          const { assistView, assistCovered, assistExpanded } = get();
+          return change(
+            {
+              assistView: id,
+              assistCovered: assistView === id ? assistCovered : (assistCovered ?? assistView),
+              assistExpanded: assistView === id && assistExpanded,
+            },
+            available,
+            onShow
+          );
+        },
+        openPluginDock: (target, available) =>
+          change(
+            {
+              pluginDock: target,
+              assistView: PLUGIN_DOCK_ID,
+              assistCovered: null,
+              assistExpanded: get().assistView === PLUGIN_DOCK_ID && get().assistExpanded,
+            },
+            available
+          ),
+        releasePluginDock: mountId => {
+          const { pluginDock, assistView, assistCovered } = get();
+          if (mountId !== undefined && pluginDock?.mountId !== mountId) return;
+          ++revision;
+          if (!pluginDock) return;
+          if (assistView === PLUGIN_DOCK_ID)
+            set({ assistView: null, assistCovered: null, assistExpanded: false, pluginDock: null });
+          else
+            set({
+              assistCovered: assistCovered === PLUGIN_DOCK_ID ? null : assistCovered,
+              pluginDock: null,
+            });
+        },
+        closeAssist: id => {
+          const { assistView, assistCovered } = get();
+          if (id === undefined || assistView === id)
+            fromUi({ assistView: assistCovered, assistCovered: null, assistExpanded: false });
+        },
+        hideAssist: () => fromUi({ assistView: null, assistCovered: null, assistExpanded: false }),
+        setAssistExpanded: expanded => set({ assistExpanded: expanded }),
+        setAssistWidth: w =>
+          set({
+            assistWidth: Math.min(ASSIST_MAX_W, Math.max(ASSIST_MIN_W, Math.round(w))),
+          }),
+        setSidebarAutoCollapsed: auto => set({ sidebarAutoCollapsed: auto }),
+      };
+    },
     {
       name: "tau-shell",
       version: 1,
       // 临时视图（网页等）不跨重启：只记住对话是否开着
-      partialize: ({ assistView, assistCovered, assistExpanded: _expanded, ...rest }) => ({
-        ...rest,
-        assistView: assistView === "chat" || assistCovered === "chat" ? "chat" : null,
+      partialize: state => ({
+        sidebarCollapsed: state.sidebarCollapsed,
+        sidebarWidth: state.sidebarWidth,
+        navSectionCollapsed: state.navSectionCollapsed,
+        sidebarAutoCollapsed: state.sidebarAutoCollapsed,
+        assistWidth: state.assistWidth,
+        assistView: state.assistView === "chat" || state.assistCovered === "chat" ? "chat" : null,
       }),
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as Record<string, unknown>;

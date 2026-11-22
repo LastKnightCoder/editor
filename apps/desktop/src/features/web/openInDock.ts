@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { toast } from "@tau/ui";
 import { useAssistOwnerStore } from "@/app/assistOwner";
+import { PLUGIN_DOCK_ID } from "@/app/pluginDock";
 import { getAssistView } from "@/app/assistViews";
 import { useShellStore } from "@/app/shellStore";
 import { getPageNavigation } from "@/services/page-navigation";
@@ -55,17 +56,28 @@ export function clearWebDock() {
 export async function openWebInDock(url: string) {
   const target = url.trim();
   if (!isMainWindow() || !isWebUrl(target)) return openExternal(target);
+  return openDockWebPage(target);
+}
+
+export async function openDockWebPage(url: string, available = () => true) {
+  if (!isMainWindow() || !isWebUrl(url)) throw new Error("网页右栏仅支持主窗口中的 HTTP(S) 地址");
+  if (!available()) throw new Error("网页打开请求已失效");
   const shell = useShellStore.getState();
   const key = getPageNavigation().navigator.current()?.key;
   const owner = key && useAssistOwnerStore.getState().owners[key];
   const coveredPageChat =
     shell.assistView === "web"
       ? useWebDockStore.getState().request?.coveredPageChat
-      : owner && owner.isChatOpen()
+      : shell.assistView !== PLUGIN_DOCK_ID && owner && owner.isChatOpen()
         ? owner.instance
         : undefined;
-  useWebDockStore.setState({ request: { url: target, id: ++nextRequestId, coveredPageChat } });
+  const show = () =>
+    useWebDockStore.setState({ request: { url, id: ++nextRequestId, coveredPageChat } });
   const currentView = getAssistView(shell.assistView);
-  if (currentView?.hiddenOn?.({ key, ownsChat: !!owner })) shell.showAssist("web");
-  else shell.showAssistOver("web");
+  if (currentView?.hiddenOn?.({ key, ownsChat: !!owner })) {
+    show();
+    shell.showAssist("web");
+  } else if (!(await shell.showAssistOver("web", available, show))) {
+    throw new Error("已取消打开网页");
+  }
 }

@@ -1,3 +1,6 @@
+import { isMainWindow } from "@/utils/window-role";
+import { useShellStore } from "../shellStore";
+import { assertPluginUserActivation } from "./user-activation";
 import { rendererASRRegistry } from "./asr-registry";
 import { toast } from "@tau/ui";
 import { desktopWebSocket } from "@/commands/plugin-websocket";
@@ -277,7 +280,10 @@ export class DesktopPluginRuntime {
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
-      pages: { register: (context, definition) => this.registerPage(context, definition) },
+      pages: {
+        supportsDock: isMainWindow(),
+        register: (context, definition) => this.registerPage(context, definition),
+      },
       navigation: {
         registerEntry: (context, definition) =>
           this.registerSidebarItem(
@@ -682,15 +688,37 @@ export class DesktopPluginRuntime {
     const key = JSON.stringify([context.pluginId, definition.id]);
     if (this.pages.has(key)) throw new Error(`插件页面已注册：${definition.id}`);
     const page = { context, definition, mountId: ++nextMountId };
+    const releaseDock = () => useShellStore.getState().releasePluginDock(page.mountId);
+    context.signal.addEventListener("abort", releaseDock, { once: true });
     this.pages.set(key, page);
     this.publish();
     return {
       id: `${context.pluginId}:${definition.id}`,
-      open: async (params = {}) => {
+      open: async (params = {}, opening) => {
         if (this.getPage(context.pluginId, definition.id) !== page)
           throw new Error("插件页面不可用");
         const clean = normalizePageParams(params);
         const instanceId = pageInstanceId(definition, clean);
+        if (opening?.placement === "dock") {
+          assertPluginUserActivation();
+          const available = () =>
+            !this.disposed &&
+            !context.signal.aborted &&
+            this.getPage(context.pluginId, definition.id) === page;
+          const shown = await useShellStore.getState().openPluginDock(
+            {
+              pluginId: context.pluginId,
+              pageId: definition.id,
+              mountId: page.mountId,
+              instanceId,
+              params: Object.freeze(clean),
+              title: definition.title,
+            },
+            available
+          );
+          if (!shown) throw new Error("已取消在右栏打开页面");
+          return;
+        }
         this.options.navigator.push(PLUGIN_PAGE_KEY, {
           pluginId: context.pluginId,
           pageId: definition.id,
@@ -700,6 +728,8 @@ export class DesktopPluginRuntime {
       },
       dispose: () => {
         if (this.pages.get(key) === page) {
+          context.signal.removeEventListener("abort", releaseDock);
+          releaseDock();
           this.pages.delete(key);
           this.publish();
         }

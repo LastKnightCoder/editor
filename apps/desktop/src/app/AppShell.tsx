@@ -69,7 +69,10 @@ export default function AppShell() {
   useEffect(
     () =>
       useSettingStore.subscribe((next, previous) => {
-        if (next.setting.database.active !== previous.setting.database.active) clearWebDock();
+        if (next.setting.database.active !== previous.setting.database.active) {
+          useShellStore.getState().releasePluginDock();
+          clearWebDock();
+        }
       }),
     []
   );

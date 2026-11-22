@@ -4,6 +4,9 @@
 
 ## 插件页面与作者 API
 
+- 页面声明 `dockable: true` 后可在主窗口的用户操作中调用 `handle.open(params, { placement: "dock" })`。命令面板沿用 commands.register。右栏通过单个 plugin-page 视图承载，按启用代次 mountId 和 instanceId 保持组件身份；放大只改外框，同参数身份更新 props。停用、注销与切库回收目标（包括被网页盖住的来源）。插件上下文与守卫按展示位置隔离，网页覆盖期间 Activity 保留组件状态并暂停 effect。
+- `ctx.app.openWeb(url)` 在用户操作中打开主窗口 HTTP(S) 网页，使用宿主的网页右栏和原有浏览分区。显式右栏请求在独立窗口、移动端及浏览器预览拒绝。网页加载和工具栏由宿主负责。
+
 - 插件页面统一经 `features/plugins/pages/plugin-page.page.tsx` 承载，动态定义只在 `DesktopPluginRuntime` 登记，Page 栈机与双注册表不动。承载参数为 pluginId/pageId/instanceId + 标量参数 JSON；single 页每插件页面一实例，params 页默认按完整参数去重、可自定义 getId；`open()` 缺省传空参数，返回/前进保留栈条目自己的参数。
 - 页面从 `PluginPageProps.pageContext` 取实例级上下文登记：`useEffect` 中 `register(() => value)`（任意有限 JSON，宿主不规定结构；MCP 的 `get_current_context` 原样返回快照）、`isActive()`（Activity 可见即栈顶）、`registerDismiss(dismiss)`（显示时挂入 Esc 仲裁，隐藏摘下、再显示按序重挂，插件停用清除）。不提供显示状态通知——effect 生命周期即显示状态（`services/plugin-page-context.ts`）。页面操作由作者自注册 MCP，不加工具分发或导航协议。
 - 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面栈条目保留；功能入口随注册资源回收。pageContext.registerLeaveGuard 接通用 PageProvider 守卫，离开前依次检查，停用后不继续阻塞。
