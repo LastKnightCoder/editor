@@ -3,6 +3,7 @@ import { cn } from "@tau/ui";
 import { ChromeBar, ChromeGap, ToolbarContext } from "../../chrome";
 import { useActiveTool, useBoard } from "../../hooks";
 import usePresentationState from "../../hooks/usePresentationState";
+import PointerModeButton from "./PointerModeButton";
 import ExtensionTools from "./ExtensionTools";
 
 /** tau 命名空间工具直接上工具栏；第三方工具收进「扩展工具」菜单 */
@@ -30,6 +31,8 @@ const Toolbar = memo(() => {
 
   const tools = useMemo(() => board.extensions?.tools ?? [], [board.extensions]);
   const barTools = useMemo(() => tools.filter(tool => isTauTool(tool.id)), [tools]);
+  const modes = barTools.filter(tool => tool.group === "base");
+  const otherTools = barTools.filter(tool => tool.group !== "base");
   const hasExternalTools = useMemo(() => tools.some(tool => !isTauTool(tool.id)), [tools]);
 
   // 定位：激活工具的包裱 span（第三方工具对准「扩展工具」入口），找不到时隐藏
@@ -73,9 +76,11 @@ const Toolbar = memo(() => {
           )}
           style={{ left: indicator.left, width: indicator.width, opacity: indicator.opacity }}
         />
-        {barTools.map((tool, index) => (
+        {modes.length > 0 && <PointerModeButton modes={modes} activeTool={activeTool} />}
+        {modes.length > 0 && otherTools.length > 0 && <ChromeGap />}
+        {otherTools.map((tool, index) => (
           <Fragment key={tool.id}>
-            {index > 0 && barTools[index - 1].group !== tool.group && <ChromeGap />}
+            {index > 0 && otherTools[index - 1].group !== tool.group && <ChromeGap />}
             <span data-tool-id={tool.id} className="relative z-[1] inline-flex">
               {tool.component ? (
                 <tool.component run={payload => board.extensions?.runTool(tool, payload)} />

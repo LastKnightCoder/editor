@@ -1,7 +1,7 @@
 import { v4 as uuid } from "uuid";
 import type Board from "../../Board";
 import { BOARD_TO_CONTAINER } from "../../constants/map";
-import { SELECT_TOOL_ID } from "../../constants/tools";
+import { RICHTEXT_TOOL_ID, SELECT_TOOL_ID } from "../../constants/tools";
 import type {
   CreateBuildContext,
   CreateBuildResult,
@@ -16,7 +16,7 @@ import type {
 } from "../../extensions/api";
 import { WhiteboardValidationError } from "../../extensions/validation";
 import type { BoardElement, Operation } from "../../types";
-import { PointUtil } from "../../utils";
+import { BoardUtil, PointUtil } from "../../utils";
 import { constrainCreateGeometry, type CreateGeometry } from "../createGesture";
 import type { InteractionState } from "../InteractionState";
 
@@ -46,7 +46,11 @@ function invokeBuild(
 ): BoardElement | CreateResult | null | Promise<CreateBuildResult | null> {
   return (
     (spec.build?.(ctx) as
-      BoardElement | CreateResult | null | Promise<CreateBuildResult> | undefined) ?? null
+      | BoardElement
+      | CreateResult
+      | null
+      | Promise<CreateBuildResult>
+      | undefined) ?? null
   );
 }
 
@@ -275,6 +279,11 @@ export class CreatingState implements InteractionState {
     if (!createTool || !spec) return null;
     const start = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
     if (!start) return null;
+    if (
+      board.activeTool === RICHTEXT_TOOL_ID &&
+      BoardUtil.getHitElements(board, start.x, start.y).length
+    )
+      return null;
 
     // 异步提交等待中：吞掉本次按下（消费事件、不创建、不复位工具、不开启新手势）
     if (pendingAsyncCommits.has(board)) {

@@ -1,3 +1,4 @@
+import { allowsElementInteraction } from "../constants/tools";
 import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { Image, Copy, Link, Download, Sparkles, Upload } from "lucide-react";
 import { v4 as getUuid } from "uuid";
@@ -196,7 +197,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
     if (
       e.button !== 0 ||
-      board.isCreating() ||
+      !allowsElementInteraction(board.activeTool) ||
       board.presentationManager.isPresentationMode ||
       board.presentationManager.isCreatingSequence
     ) {

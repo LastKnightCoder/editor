@@ -1,3 +1,4 @@
+import { allowsElementInteraction } from "../../constants/tools";
 import type Board from "../../Board";
 import { BoardElement } from "../../types";
 import {
@@ -37,7 +38,7 @@ export class SelectingState implements InteractionState {
   /** pointerdown 仲裁（原 SelectPlugin.onPointerDown） */
   static tryStart(board: Board, e: PointerEvent): SelectingState | null {
     if (
-      board.isCreating() ||
+      !allowsElementInteraction(board.activeTool) ||
       board.presentationManager.isPresentationMode ||
       board.presentationManager.isCreatingSequence
     ) {

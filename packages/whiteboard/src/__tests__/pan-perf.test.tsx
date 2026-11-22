@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { HAND_TOOL_ID } from "../constants/tools";
 import type Board from "../Board";
 import Whiteboard from "../Whiteboard";
 import type { BoardElement } from "../types";
@@ -130,6 +131,26 @@ afterEach(() => {
 });
 
 describe("平移与缩放的渲染成本", () => {
+  it("抓手从对象上按下只平移画布，左键松开不会弹出右键菜单", async () => {
+    const card = { id: "card", type: "test.card", x: 10, y: 10, width: 100, height: 70 };
+    const { board, fire, unmount } = await renderBoard(() => {}, [card] as BoardElement[]);
+    const menu = vi.fn();
+    board.on("internal:context-menu", menu);
+    await act(async () => {
+      board.setActiveTool(HAND_TOOL_ID);
+    });
+    await fire("pointerdown", 30, 25);
+    await fire("pointermove", 90, 45);
+    await fire("pointerup", 100, 50);
+    expect(board.viewPort).toMatchObject({ minX: -70, minY: -25 });
+    expect(board.children[0]).toMatchObject(card);
+    expect(board.selection.selectedElements).toEqual([]);
+    await fire("pointerdown", 100, 50);
+    await fire("pointerup", 100, 50);
+    expect(menu).not.toHaveBeenCalled();
+    await unmount();
+  });
+
   it("右键拖动在同一时钟刻度持续跟手，松开时采用最终坐标", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1000);
     const onChange = vi.fn();

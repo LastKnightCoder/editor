@@ -1,3 +1,4 @@
+import { allowsElementInteraction } from "../../constants/tools";
 import type Board from "../../Board";
 import { BoardElement, Operation } from "../../types";
 import {
@@ -34,7 +35,11 @@ export class DraggingState implements InteractionState {
    * 返回 null 表示本次按下不属于拖拽手势（未命中、多选点击、创建模式等）。
    */
   static tryStart(board: Board, e: PointerEvent): DraggingState | null {
-    if (e.button !== 0 || board.isCreating() || board.presentationManager.isPresentationMode) {
+    if (
+      e.button !== 0 ||
+      !allowsElementInteraction(board.activeTool) ||
+      board.presentationManager.isPresentationMode
+    ) {
       return null;
     }
 

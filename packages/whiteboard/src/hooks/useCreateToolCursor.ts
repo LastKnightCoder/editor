@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useMemoizedFn } from "ahooks";
 import type Board from "../Board";
-import { RICHTEXT_TOOL_ID, SELECT_TOOL_ID } from "../constants/tools";
+import { HAND_TOOL_ID, RICHTEXT_TOOL_ID, SELECT_TOOL_ID } from "../constants/tools";
 
 /**
  * 创建模式光标：创建型工具按 spec.cursor（默认 crosshair），旧内置创建工具补齐
@@ -18,6 +18,7 @@ export const useCreateToolCursor = (board: Board): string | null => {
   const tool = useSyncExternalStore(subscribe, () => board.activeTool);
 
   if (tool === SELECT_TOOL_ID) return null;
+  if (tool === HAND_TOOL_ID) return "cursor-grab";
   const createTool = board.extensions?.getCreateTool(tool);
   if (createTool) {
     return createTool.definition.create?.cursor === "text" ? "cursor-text" : "cursor-crosshair";

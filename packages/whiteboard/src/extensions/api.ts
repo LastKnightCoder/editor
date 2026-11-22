@@ -33,7 +33,7 @@ export interface WhiteboardAPI {
   /** 只读原因：文档版本高于当前应用时为 "document-too-new"，普通只读为 null */
   readonly readonlyReason: "document-too-new" | null;
   readonly isDestroyed: boolean;
-  /** 当前激活工具 id（"tau.select" 表示非创建模式） */
+  /** 当前激活工具 id（默认指针为 "tau.select"，抓手为 "tau.hand"） */
   readonly activeTool: string;
   /** 当前工具参数（如 geometry 的形状参数）；无参数为 null */
   readonly activeToolOptions: Readonly<Record<string, unknown>> | null;

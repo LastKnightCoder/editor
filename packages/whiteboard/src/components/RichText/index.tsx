@@ -21,7 +21,7 @@ import {
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
 import { Board, EHandlerPosition, Point } from "../../types";
-import { SELECT_TOOL_ID } from "../../constants/tools";
+import { RICHTEXT_TOOL_ID, allowsElementInteraction } from "../../constants/tools";
 import { RichTextElement } from "../../plugins";
 import { PointUtil, deleteEmptyRichText, isRichTextContentEmpty } from "../../utils";
 import {
@@ -164,9 +164,12 @@ const Richtext = (props: RichTextProps) => {
   const zoom = useZoom();
   const boardState = useBoardState();
 
-  const isCreatingElement = activeTool !== SELECT_TOOL_ID;
-  const { isSelected, isSelecting } = useSelectState(elementId);
-  const shouldInert = isArrowMoving || isMoving || isSelecting || isSelected || isCreatingElement;
+  const textMode = activeTool === RICHTEXT_TOOL_ID;
+  const { isSelected: selected, isSelecting } = useSelectState(elementId);
+  const isSelected = selected && !textMode;
+  const shouldInert =
+    isArrowMoving || isMoving || isSelecting || isSelected || !allowsElementInteraction(activeTool);
+  const [focusPreview, setFocusPreview] = useState(false);
 
   useInertControl(containerRef, shouldInert);
 
@@ -185,8 +188,10 @@ const Richtext = (props: RichTextProps) => {
   // 判断是否使用简化渲染
   const useSimplifiedRender = useMemo(() => {
     const { simplifiedRenderZoomThreshold } = boardState;
-    return zoom < simplifiedRenderZoomThreshold && !focus && !isSelected;
-  }, [zoom, boardState, focus, isSelected]);
+    return (
+      zoom < simplifiedRenderZoomThreshold && !focus && !isSelected && !autoFocus && !focusPreview
+    );
+  }, [zoom, boardState, focus, isSelected, autoFocus, focusPreview]);
 
   const simplifiedSkeletonMeta = useMemo(() => {
     if (!useSimplifiedRender) return null;
@@ -268,12 +273,14 @@ const Richtext = (props: RichTextProps) => {
     if (readonly) return;
     handleResize.flush();
     setTimeout(() => {
+      if (board.isEditingElements.includes(elementId)) return;
       setFocus(false);
       // 一个字都没打就点走：元素连同 content 一起回收。仍被选中说明用户是去点属性栏，留着
-      if (!isSelected && deleteEmptyRichText(board, element)) return;
-      // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
-      // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
-      // editorRef.current?.deselect();
+      if (
+        board.captureSubmission(element)() &&
+        !board.selection.selectedElements.some(node => node.id === elementId)
+      )
+        deleteEmptyRichText(board, element);
     }, 100);
   });
 
@@ -316,9 +323,9 @@ const Richtext = (props: RichTextProps) => {
     return {
       background: "transparent",
       color: TEXT_COLORS.ink,
-      cursor: isSelected ? "move" : "auto",
+      cursor: textMode ? "text" : isSelected ? "move" : "auto",
     } as React.CSSProperties;
-  }, [isSelected]);
+  }, [isSelected, textMode]);
 
   // 编辑器 DOM 的挂载时机不确定：contentId 对应的协作会话就绪前 ContentEditor 只渲染占位，
   // 简化渲染切回时又会重建。用 MutationObserver 跟住它，聚焦与渐隐都挂在这个时机上
@@ -368,10 +375,11 @@ const Richtext = (props: RichTextProps) => {
 
   // 新建元素自动进入编辑：等编辑器真正挂上再聚焦，否则 ref 还是空的，焦点就丢了
   useEffect(() => {
-    if (!autoFocus || !editorEl) return;
+    if ((!autoFocus && !focusPreview) || !editorEl) return;
     editorRef.current?.focus();
-    handleRemoveAutoFocus();
-  }, [autoFocus, editorEl, handleRemoveAutoFocus]);
+    if (autoFocus) handleRemoveAutoFocus();
+    if (focusPreview) setFocusPreview(false);
+  }, [autoFocus, focusPreview, editorEl, handleRemoveAutoFocus]);
   const { handleResize, editorStyle } = useHandleResize({
     handleOnEditorSizeChange,
     maxWidth,
@@ -387,7 +395,7 @@ const Richtext = (props: RichTextProps) => {
   });
 
   useHandlePointer({
-    container: containerRef.current,
+    container: textMode ? null : containerRef.current,
     padding,
     isSelected,
     width,
@@ -398,13 +406,14 @@ const Richtext = (props: RichTextProps) => {
     () =>
       ({
         ...editorStyle,
+        pointerEvents: textMode ? "auto" : undefined,
         "--gap-top": `${padding.top}px`,
         "--gap-bottom": `${padding.bottom}px`,
         "--fade-size": `${EDGE_FADE_SIZE}px`,
         "--edge-top-on": Number(scrolled),
         "--edge-bottom-on": Number(canScrollDown),
       }) as React.CSSProperties,
-    [editorStyle, padding, scrolled, canScrollDown]
+    [editorStyle, textMode, padding, scrolled, canScrollDown]
   );
 
   useEffect(() => {
@@ -428,13 +437,18 @@ const Richtext = (props: RichTextProps) => {
         width={autoHeight ? width : focus && !resized ? maxWidth : width}
         height={autoHeight ? height : focus && !resized ? maxHeight : height}
         className="border-none"
-        style={{ overflow: "visible" }}
+        style={{ overflow: "visible", pointerEvents: textMode && focus ? "none" : undefined }}
       >
         <div
           id={`rich-text-container-${elementId}`}
           className={cn(styles.richTextContainer, handTextClass(sketch))}
           ref={containerRef}
           style={containerStyle}
+          onPointerDown={event => {
+            if (!textMode || event.button !== 0 || readonly || board.readonly) return;
+            event.stopPropagation();
+            if (editorEl && !editorEl.contains(event.target as Node)) editorRef.current?.focus();
+          }}
           onDoubleClick={e => {
             e.stopPropagation();
           }}
@@ -476,6 +490,12 @@ const Richtext = (props: RichTextProps) => {
           ) : useSimplifiedRender && simplifiedSkeletonMeta ? (
             <div
               className={styles.simplifiedSkeleton}
+              onPointerDown={event => {
+                if (textMode && event.button === 0 && !readonly && !board.readonly) {
+                  event.stopPropagation();
+                  setFocusPreview(true);
+                }
+              }}
               style={{
                 padding: toCssPadding(padding),
                 color: TEXT_COLORS.ink,

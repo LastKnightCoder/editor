@@ -171,6 +171,7 @@ export class RichTextPlugin extends CommonPlugin {
   }
 
   onDblClick(event: MouseEvent, board: Board) {
+    if (board.activeTool === RICHTEXT_TOOL_ID) return;
     const currentPoint = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
     if (!currentPoint) return;
 

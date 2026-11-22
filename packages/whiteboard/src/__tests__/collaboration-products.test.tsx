@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useContextMenu } from "../hooks/useContextMenu";
+import { RICHTEXT_TOOL_ID } from "../constants/tools";
 import { BOARD_TO_CONTAINER } from "../constants/map";
 import { createEditor, Transforms } from "slate";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
@@ -134,6 +135,53 @@ async function setup(
       board.apply({ type: "insert_node", path: [board.children.length], node }),
   };
 }
+it("文档白板连续点击空白处可分段书写，点已有图形仍可选中", async () => {
+  const { board, binding, model, insert } = await setup();
+  const shape = base("geometry", { geometryType: "rect", paths: [] });
+  insert(shape);
+  const host = document.createElement("div");
+  BOARD_TO_CONTAINER.set(board, host);
+  cleanup.push(() => {
+    BOARD_TO_CONTAINER.delete(board);
+  });
+  board.setActiveTool(RICHTEXT_TOOL_ID);
+  const click = (x: number, y: number) => {
+    const event = new MouseEvent("pointerdown", {
+      button: 0,
+      clientX: x,
+      clientY: y,
+    }) as PointerEvent;
+    board.onPointerDown(event);
+    const up = new MouseEvent("pointerup", { button: 0, clientX: x, clientY: y }) as PointerEvent;
+    board.onPointerUp(up);
+    board.onGlobalPointerUp(up);
+  };
+  const writeAt = async (x: number, y: number, value: string) => {
+    const index = board.children.length;
+    click(x, y);
+    await vi.waitFor(() => expect(board.children[index]).toMatchObject({ type: "richtext", x, y }));
+    const id = board.children[index].id;
+    const body = binding.textDocument(id)?.binding;
+    if (!body) throw new Error("新文本缺少可编辑的板内正文");
+    const editor = body.install(createEditor()) as NodeTreeEditor;
+    editor.connectNodeTree();
+    try {
+      Transforms.insertText(editor, value, { at: { path: [0, 0], offset: 0 } });
+    } finally {
+      editor.disposeNodeTree();
+    }
+    return id;
+  };
+  const first = await writeAt(160, 100, "第一段");
+  const second = await writeAt(400, 300, "第二段");
+  click(60, 50);
+  expect(model.richText(first).read()[0].children?.[0].text).toBe("第一段");
+  expect(model.richText(second).read()[0].children?.[0].text).toBe("第二段");
+  expect(board.children).toHaveLength(3);
+  expect(board.selection.selectedElements.map(node => node.id)).toEqual([shape.id]);
+  expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
+});
+
 const nodes = [
   base("richtext", { content: text, maxWidth: 300, maxHeight: 1000, resized: false }),
   base("geometry", { geometryType: "rect", paths: [], text: { align: "center", content: text } }),

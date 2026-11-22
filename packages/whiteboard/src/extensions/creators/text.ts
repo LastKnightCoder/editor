@@ -1,6 +1,7 @@
+import { resolveBoardAccess } from "../access";
 import { v4 as uuid } from "uuid";
-import type { CreateBuildContext, ElementCreateSpec, WhiteboardAPI } from "../api";
-import type { Operation, Selection } from "../../types";
+import type { CreateBuildContext, ElementCreateSpec } from "../api";
+import type { Board, Operation, Selection } from "../../types";
 import type { RichTextElement } from "../../plugins/RichTextPlugin";
 import { RichTextUtil } from "../../utils/TextStyleStore";
 import {
@@ -14,14 +15,13 @@ export const RICHTEXT_CREATE_DEFAULT_SIZE = [180, 72] as const;
 
 /**
  * 旧 insertRichText 的元素构造（纯函数，双击创建与创建手势共用）：
- * content 先建后插（见 createRichTextContentId），contentId 建不出来时为 undefined，
- * 元素仍返回，聚焦时由 RichText 兜底补建。
+ * 文档白板使用板内正文；独立正文先建后插，建不出来时由 RichText 在聚焦时补建。
  */
 export async function buildRichTextElement(
   x: number,
   y: number,
   text: TextExtensionOptions,
-  board: Pick<WhiteboardAPI, "captureSubmission" | "readonly" | "isDestroyed">
+  board: Board
 ): Promise<RichTextElement> {
   const content = createEmptyRichTextContent();
   return {
@@ -36,7 +36,7 @@ export async function buildRichTextElement(
     readonly: false,
     resized: false,
     content,
-    contentId: await createRichTextContentId(content, board, text),
+    ...(board.document ? {} : { contentId: await createRichTextContentId(content, board, text) }),
     autoFocus: true,
     ...RichTextUtil.load(),
   };
@@ -60,10 +60,16 @@ export const textCreateSpec = (text: TextExtensionOptions): ElementCreateSpec =>
   gesture: "click",
   defaultSize: RICHTEXT_CREATE_DEFAULT_SIZE,
   after: "none",
+  stay: true,
   cursor: "text",
-  hint: () => ["点击放置文本"],
+  hint: () => ["点击空白处写字"],
   build: async (ctx: CreateBuildContext) => {
-    const element = await buildRichTextElement(ctx.start.x, ctx.start.y, text, ctx.api);
+    const element = await buildRichTextElement(
+      ctx.start.x,
+      ctx.start.y,
+      text,
+      resolveBoardAccess(ctx.api)
+    );
     return { element, operations: [clearSelectionOperation(ctx.api.selection)] };
   },
 });

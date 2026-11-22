@@ -1,3 +1,4 @@
+import { allowsElementInteraction } from "../constants/tools";
 import type Board from "../Board";
 import type { IBoardPlugin } from "../types";
 import type { Operation } from "../types/operation";
@@ -52,7 +53,7 @@ export class InteractionManager {
       this.keyState ||
       this.board.readonly ||
       !this.board.captureSubmission()() ||
-      this.board.isCreating() ||
+      !allowsElementInteraction(this.board.activeTool) ||
       this.board.presentationManager.isPresentationMode
     )
       return;
@@ -157,11 +158,15 @@ export class InteractionManager {
       this.board.document?.beginGesture({ realtime: true });
       return;
     }
+    this.tryStartPanning(event);
+  }
+
+  tryStartPanning(event: PointerEvent): boolean {
+    if (this.pointerState) return false;
     const panning = PanningState.tryStart(this.board, event);
-    if (panning) {
-      this.pointerState = panning;
-      // 平移与右键菜单只改变本机视口，不开启文档编辑事务。
-    }
+    if (!panning) return false;
+    this.pointerState = panning;
+    return true;
   }
 
   routePointerMove(event: PointerEvent): boolean {

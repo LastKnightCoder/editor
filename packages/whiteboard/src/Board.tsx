@@ -32,7 +32,7 @@ import { CapabilityService } from "./services/CapabilityService";
 import { InteractionManager } from "./interactions/InteractionManager";
 
 import { BOARD_TO_CONTAINER } from "./constants/map";
-import { SELECT_TOOL_ID, builtinCreateToolIds } from "./constants/tools";
+import { HAND_TOOL_ID, SELECT_TOOL_ID, builtinCreateToolIds } from "./constants/tools";
 import { createMindThemePreviewStore } from "./utils/MindThemePreviewStore";
 import { ExtensionRuntime } from "./extensions/runtime";
 import type {
@@ -531,7 +531,7 @@ class Board {
   }
 
   onDblClick(event: MouseEvent) {
-    if (this.readonly) return;
+    if (this.readonly || this.activeTool === HAND_TOOL_ID) return;
     const fns = this.plugins.map(bindHandler("onDblClick")).filter(isValid);
     executeSequence(fns, event, this);
   }
@@ -601,7 +601,7 @@ class Board {
   private exitCreateToolOnEscape(event: KeyboardEvent): boolean {
     if (event.key !== "Escape") return false;
     if (
-      !this.isCreating() ||
+      this.activeTool === SELECT_TOOL_ID ||
       this.isEditingElements.length > 0 ||
       this.presentationManager.isPresentationMode ||
       this.presentationManager.isCreatingSequence ||
@@ -629,6 +629,7 @@ class Board {
   }
 
   onPointerDown(event: PointerEvent) {
+    if (this.activeTool === HAND_TOOL_ID && this.interactions.tryStartPanning(event)) return;
     // 创建型工具最优先接管：整个创建手势不进入 claimed gesture、插件广播与常规手势
     if (this.interactions.tryStartCreateGesture(event)) return;
     // 元素类型自定义手势优先（原插件 return false 抢占的显式化）
@@ -1139,9 +1140,9 @@ class Board {
     return this._activeToolOptions;
   }
 
-  /** 是否处于创建模式（非"选择"工具激活） */
+  /** 当前工具是否用于创建元素。 */
   isCreating(): boolean {
-    return this._activeTool !== SELECT_TOOL_ID;
+    return this._activeTool !== SELECT_TOOL_ID && this._activeTool !== HAND_TOOL_ID;
   }
 
   /**

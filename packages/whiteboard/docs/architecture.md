@@ -75,7 +75,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 └─ interactions/InteractionManager（手势唯一裁决与路由层）
    ├─ SelectingState    点选/框选（组合内嵌拖拽阶段）   ← 原 SelectPlugin 指针部分
    │   └─ DraggingState 拖拽移动、吸附、容器拖入/拖出    ← 原 MovePlugin 指针部分
-   ├─ PanningState      右键拖拽平移 + 右键菜单触发      ← 原 ViewPortPlugin 指针部分
+   ├─ PanningState      抓手或右键拖拽平移，右键点击打开菜单      ← 原 ViewPortPlugin 指针部分
    ├─ KeyboardMoveState / ViewportMoveState（继承 ContinuousArrowMoveState）
    │                     方向键移动选中元素 / 平移视口    ← 原 MovePlugin + ViewPortPlugin 键盘部分
    └─ claimPointerGesture 声明的自定义手势
@@ -308,8 +308,8 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 - 创建方式由元素定义的 `create` 声明（`gesture: "click" | "drag" | 自定义手势`，附 constrain/defaultSize/minSize/build/after/stay/cursor/hint）；状态机、Shift/Alt 约束、预览与提交统一由交互内核的 `CreatingState` 驱动，插件不再各自监听指针。
 - 创建预览走 `board.creationPreview`（`internal:creation-preview-change` 事件），不进入 children、快照、onChange 与历史；取消时播放 120ms 退场。
 - 工具经 `api.setActiveTool(id, options)` 激活（参数即 `activeToolOptions`），未注册 id 抛错，只读画布忽略非 select 设置；订阅切换用 `onActiveToolChange`。
-- Esc 依次取消进行中的创建手势、再退回选择工具；创建后默认选中并回到 `tau.select`（画笔 stay 保持；框架/分栏松手时收纳候选）。
-- 组件层判断「是否处于创建模式」用 `useActiveTool() !== SELECT_TOOL_ID` 或 `board.isCreating()`。
+- Esc 依次取消进行中的创建手势、再退回选择工具；创建后默认选中并回到 `tau.select`（画笔与文本 stay 保持；框架/分栏松手时收纳候选）。
+- `board.isCreating()` 判定创建工具。指针和文本模式通过 `allowsElementInteraction` 允许操作已有元素；文本模式只在空白处创建。抓手优先接管画布表面的主键平移。
 
 ---
 

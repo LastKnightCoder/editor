@@ -7,8 +7,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Board from "../../../Board";
 import Whiteboard from "../../../Whiteboard";
-import { GEOMETRY_TOOL_ID } from "../../../constants/tools";
-import { createGeometryExtension, createInteractionExtension } from "../../../extensions/builtins";
+import {
+  GEOMETRY_TOOL_ID,
+  HAND_TOOL_ID,
+  RICHTEXT_TOOL_ID,
+  SELECT_TOOL_ID,
+} from "../../../constants/tools";
+import {
+  createGeometryExtension,
+  createInteractionExtension,
+  createRichTextExtension,
+} from "../../../extensions/builtins";
 import {
   defineElement,
   defineWhiteboardExtension,
@@ -200,7 +209,9 @@ describe("「扩展工具」入口", () => {
 
     // 工具栏上没有第三方工具的槽位，也不渲染它的 component
     expect(host.querySelector('[data-tool-id="acme.sticky.create"]')).toBeNull();
-    expect(host.querySelectorAll("[data-tool-id]")).toHaveLength(2); // 选择 + 形状
+    for (const slot of host.querySelectorAll<HTMLElement>("[data-tool-id]")) {
+      expect(slot.dataset.toolId).toMatch(/^tau\./);
+    }
     expect(board.extensions!.tools.map(tool => tool.id)).toContain("acme.sticky.create");
 
     const entry = host.querySelector<HTMLButtonElement>('button[aria-label="扩展工具"]')!;
@@ -247,6 +258,43 @@ describe("「扩展工具」入口", () => {
     expect(entry.querySelector("[data-acme-sticky-icon]")).toBeTruthy();
     expect(extToolsCard().getAttribute("data-open")).toBe("false");
   });
+});
+
+it("箭头只展开模式菜单，选中后主按钮能从绘图工具切回该模式", async () => {
+  const { board, host } = await mountBoard([
+    createInteractionExtension(),
+    createRichTextExtension(),
+    createGeometryExtension(),
+  ]);
+  const arrow = host.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]');
+  if (!arrow) throw new Error("缺少模式菜单入口");
+  await act(async () => arrow.click());
+  expect(board.activeTool).toBe(SELECT_TOOL_ID);
+  const menu = document.querySelector('[role="menu"][data-open="true"]');
+  const textMode = [...(menu?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [])].find(
+    item => item.textContent === "文本"
+  );
+  if (!textMode) throw new Error("缺少文本模式选项");
+  await act(async () => textMode.click());
+  expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
+  expect(arrow.getAttribute("aria-expanded")).toBe("false");
+
+  await act(async () => {
+    board.setActiveTool(GEOMETRY_TOOL_ID);
+  });
+  const main = host.querySelector<HTMLButtonElement>('button[aria-label="文本"]');
+  if (!main) throw new Error("主按钮未保留文本模式");
+  expect(main.getAttribute("aria-pressed")).toBe("false");
+  await act(async () => main.click());
+  expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
+  await act(async () => main.click());
+  expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
+
+  await act(async () => {
+    board.setActiveTool(HAND_TOOL_ID);
+  });
+  expect(main.getAttribute("aria-label")).toBe("抓手");
+  expect(main.getAttribute("aria-pressed")).toBe("true");
 });
 
 describe("滑动激活指示块", () => {

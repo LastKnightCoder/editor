@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
 
 import { ARROW_CONNECT_POINT_FILL, ARROW_CONNECT_POINT_RADIUS } from "../../constants";
-import { SELECT_TOOL_ID } from "../../constants/tools";
+import { allowsElementInteraction } from "../../constants/tools";
 import { useActiveTool, useBoardState, usePresentationState, useSelection } from "../../hooks";
 import type { BoardElement, Point } from "../../types";
 import ArrowConnectPoint from "../ArrowConnectPoint";
@@ -178,7 +178,7 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
   const hasSelectedArrow = (selection?.selectedElements ?? []).some(
     selectedElement => selectedElement.type === "arrow"
   );
-  const isCreatingElement = activeTool !== SELECT_TOOL_ID;
+  const isCreatingElement = !allowsElementInteraction(activeTool);
   const isInteractionSuppressed = hasSelectedArrow || isCreatingElement;
   const isConnectPointDisabled = disabled || isPresentationMode;
   const {

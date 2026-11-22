@@ -1,3 +1,4 @@
+import { HAND_TOOL_ID } from "../../constants/tools";
 import type Board from "../../Board";
 import { ViewPort } from "../../types";
 import { BOARD_TO_CONTAINER } from "../../constants";
@@ -6,41 +7,47 @@ import { BoardUtil, PointUtil } from "../../utils";
 import type { InteractionState } from "../InteractionState";
 
 /**
- * 右键拖拽平移视口（原 ViewPortPlugin 的指针部分）。
- * 右键按下进入；移动超过 3px 视为平移（并在 document pointerup 结束）；
- * 未移动且在画布内松开时触发右键菜单。
+ * 抓手左键或任意工具右键拖拽平移视口。
+ * 移动超过 3px 视为平移（并在 document pointerup 结束）；
+ * 右键未移动且在画布内松开时触发右键菜单。
  */
 export class PanningState implements InteractionState {
   readonly name = "panning";
   isFinished = false;
 
-  private hasRightClickMoved = false;
+  private moved = false;
   private capturedPointer?: number;
 
   private constructor(
     private origin: ViewPort,
     private originX: number,
-    private originY: number
+    private originY: number,
+    private button: number
   ) {}
 
   /** pointerdown 仲裁（原 ViewPortPlugin.onPointerDown 的右键分支） */
   static tryStart(board: Board, e: PointerEvent): PanningState | null {
     if (board.presentationManager.isPresentationMode) return null;
-    if (e.button !== 2) return null;
+    if (e.button !== 2 && !(board.activeTool === HAND_TOOL_ID && e.button === 0)) return null;
 
-    return new PanningState(board.viewPort, e.clientX, e.clientY);
+    return new PanningState(board.viewPort, e.clientX, e.clientY, e.button);
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
     if (board.presentationManager.isPresentationMode) return;
     const dx = e.clientX - this.originX;
     const dy = e.clientY - this.originY;
-    if (!this.hasRightClickMoved && Math.hypot(dx, dy) <= 3) return;
-    if (!this.hasRightClickMoved) {
-      this.hasRightClickMoved = true;
+    if (!this.moved && Math.hypot(dx, dy) <= 3) return;
+    if (!this.moved) {
+      this.moved = true;
       const container = BOARD_TO_CONTAINER.get(board);
       container?.setAttribute("data-panning", "");
-      if (container && e.isTrusted && e.buttons === 2 && container.setPointerCapture) {
+      if (
+        container &&
+        e.isTrusted &&
+        e.buttons === (this.button === 2 ? 2 : 1) &&
+        container.setPointerCapture
+      ) {
         container.setPointerCapture(e.pointerId);
         this.capturedPointer = e.pointerId;
       }
@@ -62,9 +69,12 @@ export class PanningState implements InteractionState {
 
   /** document pointerup：结束平移；右键未移动且在画布内时触发右键菜单 */
   onGlobalPointerUp(e: PointerEvent, board: Board) {
-    if (e.button === 2) this.onPointerMove(e, board);
+    if (e.button === this.button) this.onPointerMove(e, board);
     const shouldEmitContextMenu =
-      e.button === 2 && !this.hasRightClickMoved && !board.presentationManager.isPresentationMode;
+      this.button === 2 &&
+      e.button === 2 &&
+      !this.moved &&
+      !board.presentationManager.isPresentationMode;
 
     const container = BOARD_TO_CONTAINER.get(board);
     const isInsideBoard = container

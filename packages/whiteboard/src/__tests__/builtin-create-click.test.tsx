@@ -233,30 +233,30 @@ afterEach(() => {
 });
 
 describe("richtext 创建工具（click 手势）", () => {
-  it("点击创建：按下点为左上角、创建批字段与旧 insertRichText 一致（含 autoFocus）、清空选区、单撤销步、工具复位", async () => {
+  it("点击创建：按下点为左上角、创建批字段与旧 insertRichText 一致（含 autoFocus）、清空选区、单撤销步、保持文本模式", async () => {
     const seed = geometrySeed("seed", 40, 40);
     const { board, fire, flush, unmount } = await renderClickBoard(baseExtensions(), [seed]);
     selectElement(board, seed);
     expect(board.selection.selectedElements).toHaveLength(1);
 
     board.setActiveTool(RICHTEXT_TOOL_ID);
-    await fire("pointerdown", 120, 80);
-    await fire("pointerup", 120, 80);
+    await fire("pointerdown", 160, 80);
+    await fire("pointerup", 160, 80);
     await flush();
 
     expect(board.children).toHaveLength(2);
-    expect(board.children[1]).toMatchObject({ type: "richtext", x: 120, y: 80 });
+    expect(board.children[1]).toMatchObject({ type: "richtext", x: 160, y: 80 });
     // 创建批次快照（挂载后 autoFocus 会被 RichText 消费置 false，创建时刻从 undo 历史取）
     const { entry, insert } = findInsertEntry(board, "richtext");
     // 与插入同批的清空选区（旧 onClick 在创建前清空选区）
     expect(entry).toHaveLength(2);
     expect(entry.find(op => op.type === "set_selection")).toBeTruthy();
-    const legacy = legacyRichTextElement(120, 80);
+    const legacy = legacyRichTextElement(160, 80);
     expect({ ...insert.node, id: undefined }).toStrictEqual({ ...legacy, id: undefined });
     expect(insert.node.autoFocus).toBe(true);
     // 旧 onClick 不选中新文本（autoFocus 直接进入编辑）
     expect(board.selection.selectedElements).toHaveLength(0);
-    expect(board.activeTool).toBe(SELECT_TOOL_ID);
+    expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
 
     // 撤销（removeAutoFocus 的消费步 + 创建步）回到创建前
     board.undo();
@@ -296,10 +296,9 @@ describe("richtext 创建工具（click 手势）", () => {
     await flush();
     expect(board.children).toHaveLength(1);
     expect(board.children[0]).toMatchObject({ contentId: 701, x: 100, y: 100 });
-    expect(board.activeTool).toBe(SELECT_TOOL_ID);
+    expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
 
-    // pending 登记已清理：可再次创建
-    board.setActiveTool(RICHTEXT_TOOL_ID);
+    // 下一次空白点击直接开始另一段。
     await fire("pointerdown", 300, 200);
     deferred.resolveNext(702);
     await flush();
@@ -449,7 +448,7 @@ describe("异步创建失败（协议层）", () => {
   });
 });
 
-describe("双击空白创建文本（与工具无关，保留入口）", () => {
+describe("指针模式双击空白创建文本", () => {
   it("双击空白处以点击点为左上角插入富文本（含 autoFocus）", async () => {
     const { board, fire, flush, unmount } = await renderClickBoard(baseExtensions());
     await fire("dblclick", 150, 90);

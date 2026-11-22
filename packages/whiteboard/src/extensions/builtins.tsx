@@ -5,6 +5,7 @@ import {
   Video,
   AudioLines,
   MousePointer2,
+  Hand,
   Shapes,
   ArrowUpRight,
   PenLine,
@@ -51,11 +52,12 @@ import {
   type MediaExtensionOptions,
 } from "./media";
 import { ElementContentContext } from "./elementContent";
-import { useBoard, useActiveTool } from "../hooks";
+import { useBoard } from "../hooks";
 import { useWhiteboardAPI } from "./context";
 import { ChromeButton } from "../chrome";
 import {
   SELECT_TOOL_ID,
+  HAND_TOOL_ID,
   GEOMETRY_TOOL_ID,
   ARROW_TOOL_ID,
   HANDWRITE_TOOL_ID,
@@ -258,22 +260,18 @@ const open =
     });
   };
 
-function TextTool({ run }: WhiteboardToolProps) {
-  const active = useActiveTool() === RICHTEXT_TOOL_ID;
-  return (
-    <ChromeButton label="文本" active={active} onClick={() => run()}>
-      <Type strokeWidth={1.75} />
-    </ChromeButton>
-  );
-}
-
-function SelectTool({ run }: WhiteboardToolProps) {
-  const active = useActiveTool() === SELECT_TOOL_ID;
-  return (
-    <ChromeButton label="选择" active={active} onClick={() => run()}>
-      <MousePointer2 strokeWidth={1.75} />
-    </ChromeButton>
-  );
+function pointerMode(id: string, order: number, label: string, icon: typeof MousePointer2) {
+  return {
+    id,
+    order,
+    group: "base",
+    label,
+    icon,
+    command: id,
+    execute: (api: WhiteboardAPI) => {
+      api.setActiveTool(id);
+    },
+  };
 }
 
 export function createGeometryExtension(
@@ -355,11 +353,10 @@ export function createRichTextExtension(options: RichTextFactoryOptions = {}) {
         {
           id: RICHTEXT_TOOL_ID,
           element: "richtext",
-          order: 40,
-          group: "drawing",
+          order: 2,
+          group: "base",
           label: "文本",
           icon: Type,
-          component: TextTool,
         },
       ],
       inspectors: { richtext: textInspector(RichTextSetter, text(api)) },
@@ -744,9 +741,8 @@ export function createInteractionExtension() {
         hotkeys,
         hotkeyCodes,
         tools: [
-          tool("tau.select", 0, "base", "选择", MousePointer2, SelectTool, api => {
-            api.setActiveTool(SELECT_TOOL_ID);
-          }),
+          pointerMode(SELECT_TOOL_ID, 0, "指针", MousePointer2),
+          pointerMode(HAND_TOOL_ID, 1, "抓手", Hand),
         ],
         inspectors: { multiselect: MultiSelectSetter },
       };

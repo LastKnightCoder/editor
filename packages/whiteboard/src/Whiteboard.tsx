@@ -829,7 +829,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                         tabIndex={0}
                         className={cn(
                           "[:fullscreen]:w-screen [:fullscreen]:h-screen [:fullscreen]:bg-surface relative h-full min-w-0 flex-1",
-                          createToolCursor,
+                          !isPresentationMode && createToolCursor,
                           className
                         )}
                         style={style}

@@ -25,7 +25,7 @@ import { useMindMode, useMindTheme } from "../../hooks/useMindTheme";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { EMarkerType, MindNodeElement } from "../../types";
-import { SELECT_TOOL_ID } from "../../constants/tools";
+import { allowsElementInteraction } from "../../constants/tools";
 import { useTextExtension } from "../../extensions/text";
 import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
 type SearchResult = { contentId: number; title: string };
@@ -117,7 +117,7 @@ const MindNode = (props: MindNodeProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { isSelected, isSelecting } = useSelectState(id);
-  const isCreatingElement = activeTool !== SELECT_TOOL_ID;
+  const isCreatingElement = !allowsElementInteraction(activeTool);
   const shouldInert = isArrowMoving || isMoving || isSelecting || isCreatingElement;
 
   useInertControl(containerRef, shouldInert);
