@@ -12,7 +12,7 @@ import { FileX, PanelLeft } from "lucide-react";
 import { Button, IconButton, Loading, ResizeHandle, cn } from "@tau/ui";
 import { readBinaryFile, recordPdfOpen, recordPdfPage } from "@/commands";
 import { syncLastPage } from "../lastPage";
-import { useOwnAssist } from "@/app/assistOwner";
+import { useOwnAssist, usePageChatPanel } from "@/app/assistOwner";
 import { useSidebarCollapsedWhile } from "@/app/useSidebarCollapsedWhile";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import type { Pdf } from "@/types";
@@ -165,8 +165,9 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
 
   /* ───────── 对话栏 ───────── */
 
-  const chatOpen = useReaderPrefs(s => s.chatOpen);
-  const setChatOpen = useReaderPrefs(s => s.setChatOpen);
+  const preferredOpen = useReaderPrefs(s => s.chatOpen);
+  const setPreference = useReaderPrefs(s => s.setChatOpen);
+  const [chatOpen, setChatOpen] = usePageChatPanel(preferredOpen, setPreference);
   const chatWidth = useReaderPrefs(s => s.chatWidth);
   const setChatWidth = useReaderPrefs(s => s.setChatWidth);
   const [resizing, setResizing] = useState(false);
@@ -176,11 +177,8 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
   const chatRef = useRef<PdfChatPanelHandle>(null);
   const pendingQuote = useRef<PdfQuote | null>(null);
 
-  const toggleChat = useCallback(
-    () => setChatOpen(!useReaderPrefs.getState().chatOpen),
-    [setChatOpen]
-  );
-  useOwnAssist(PAGE_KEY, toggleChat);
+  const toggleChat = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
+  useOwnAssist(PAGE_KEY, { isChatOpen: () => chatOpen, toggle: toggleChat });
 
   const onAskAI = useCallback(
     (quote: PdfQuote) => {
@@ -221,6 +219,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
         <section
           aria-label="AI 对话"
           aria-hidden={!chatOpen}
+          inert={!chatOpen}
           className={cn(
             "relative shrink-0 overflow-hidden",
             !resizing && "ease-tau-out transition-[width,opacity] duration-[220ms]",

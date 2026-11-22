@@ -36,9 +36,9 @@ export function openBlockPreviewFromChatPage(navigator: Navigator, block: BlockD
   morphAssist(() => {
     const shell = useShellStore.getState();
     if (chatId) useChatSessionStore.getState().setCurrent(MAIN_CHAT_BUCKET, chatId);
-    if (!shell.assistOpen) {
+    if (shell.assistView !== "chat") {
       dockOpenedForPreview = true;
-      shell.setAssistOpen(true);
+      shell.showAssist("chat");
     }
     openBlockPreview(navigator, block);
   });
@@ -48,5 +48,5 @@ export function openBlockPreviewFromChatPage(navigator: Navigator, block: BlockD
 export function releaseDockOpenedForPreview() {
   if (!dockOpenedForPreview) return;
   dockOpenedForPreview = false;
-  useShellStore.getState().setAssistOpen(false);
+  useShellStore.getState().closeAssist("chat");
 }

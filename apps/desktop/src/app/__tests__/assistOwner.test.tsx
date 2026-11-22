@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { toggleAssistFor, useAssistOwnerStore, useOwnAssist } from "../assistOwner";
 
 function Owner({ toggle, active = true }: { toggle: () => void; active?: boolean }) {
-  useOwnAssist("pdf-detail", toggle, active);
+  useOwnAssist("pdf-detail", { isChatOpen: () => true, toggle }, active);
   return null;
 }
 

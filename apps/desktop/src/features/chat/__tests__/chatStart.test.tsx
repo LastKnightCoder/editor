@@ -2,10 +2,10 @@ import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ openPage: vi.fn(), setAssistOpen: vi.fn() }));
+const mocks = vi.hoisted(() => ({ openPage: vi.fn(), showAssist: vi.fn() }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
 vi.mock("@/app/shellStore", () => ({
-  useShellStore: { getState: () => ({ setAssistOpen: mocks.setAssistOpen }) },
+  useShellStore: { getState: () => ({ showAssist: mocks.showAssist }) },
 }));
 
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
@@ -113,7 +113,7 @@ describe("从外部发起对话", () => {
       { placement: "dock", prompt: "", mentions: [] },
       new AbortController().signal
     );
-    expect(mocks.setAssistOpen).toHaveBeenCalledWith(true);
+    expect(mocks.showAssist).toHaveBeenCalledWith("chat");
     expect(() =>
       startChat({ placement: "page", prompt: "", mentions: [] }, new AbortController().signal)
     ).toThrow("请先发送或关闭");

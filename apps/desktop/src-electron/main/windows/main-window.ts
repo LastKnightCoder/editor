@@ -2,6 +2,7 @@ import { app, type BrowserWindow } from "electron";
 import log from "electron-log";
 import { ensureMacOSForegroundApplication } from "../utils/macos-activation";
 import { activateApp, createWindow, revealWindow } from "./create-window";
+import { guardWebDockGuests } from "./web-dock-guest";
 
 // 主窗口内容下限（CSS px）：实际 minWidth 按页面 zoomFactor 放大，
 // 保证任意缩放下壳层内容不被裁（渲染端在 zoom 变化时经 refresh-window-min-size 上报）
@@ -21,6 +22,7 @@ export function createMainWindow(): BrowserWindow {
     minHeight: CONTENT_MIN_HEIGHT,
     webPreferences: { webviewTag: true },
   });
+  guardWebDockGuests(win);
   mainWindows.add(win);
   win.on("closed", () => mainWindows.delete(win));
   log.info(`创建主窗口，当前主窗口数量: ${mainWindows.size}`);

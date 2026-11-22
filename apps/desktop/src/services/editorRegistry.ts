@@ -27,7 +27,7 @@ import {
 } from "@/editor-providers/videoProviders";
 import { ttsInsertSource } from "@/editor-providers/TtsPanel";
 import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIImagePanel";
-import { openExternal } from "@/commands/extra";
+import { openWebInDock } from "@/features/web/openInDock";
 import { desktopFetch } from "@/commands/fetch";
 import { IDocTaskGroups } from "@/editor-extensions/doc-tasks/service";
 import { desktopDocTaskGroups } from "./docTaskGroups";
@@ -49,9 +49,7 @@ export const desktopEditorServices: ServiceRegistration = register => {
   // 可选服务（desktop 全量提供）
   register(IRuntimeStyleCompiler, desktopRuntimeStyleCompiler);
   register(IOpenerService, {
-    open: url => {
-      void openExternal(url);
-    },
+    open: url => openWebInDock(url),
   });
   // 跨域请求经主进程 fetch 模块（网页书签读取网页信息）
   register(IFetchService, { fetch: desktopFetch });

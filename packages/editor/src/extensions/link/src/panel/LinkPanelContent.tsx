@@ -26,18 +26,21 @@ const PanelButton = ({
   label,
   keys,
   danger,
+  url,
   onClick,
 }: {
   icon: typeof Copy;
   label: string;
   keys?: string;
   danger?: boolean;
+  url?: string;
   onClick: () => void;
 }) => (
   <EditorTooltip content={<TipLabel label={label} keys={keys} />}>
     <button
       type="button"
       aria-label={label}
+      data-web-link={url}
       onClick={onClick}
       className={cn(
         "flex size-7 shrink-0 items-center justify-center rounded-[7px] text-[var(--ed-text-secondary)]",
@@ -71,11 +74,11 @@ export const LinkView = ({ url, onOpen, onCopy, onEdit, onUnlink }: LinkViewProp
   }, [copied]);
 
   return (
-    <div className="flex items-center gap-0.5 whitespace-nowrap p-1">
-      <span className="ml-1 mr-2 grid size-5 shrink-0 place-items-center rounded-[6px] bg-[var(--ed-accent-soft)] text-[11px] font-semibold text-[var(--ed-accent-text)]">
+    <div className="flex items-center gap-0.5 p-1 whitespace-nowrap">
+      <span className="mr-2 ml-1 grid size-5 shrink-0 place-items-center rounded-[6px] bg-[var(--ed-accent-soft)] text-[11px] font-semibold text-[var(--ed-accent-text)]">
         {isWeb && host ? host[0].toUpperCase() : <Link2 size={12} strokeWidth={2} />}
       </span>
-      <span className="mr-2 grid min-w-0 max-w-[260px]" title={url}>
+      <span className="mr-2 grid max-w-[260px] min-w-0" title={url}>
         <span
           className={cn(
             "col-start-1 row-start-1 truncate transition-[opacity,transform] duration-150",
@@ -102,7 +105,13 @@ export const LinkView = ({ url, onOpen, onCopy, onEdit, onUnlink }: LinkViewProp
         </span>
       </span>
       <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-[var(--ed-border)]" />
-      <PanelButton icon={ArrowUpRight} label="打开" keys={`${MOD}点击`} onClick={onOpen} />
+      <PanelButton
+        icon={ArrowUpRight}
+        label="打开"
+        keys={`${MOD}点击`}
+        url={url}
+        onClick={onOpen}
+      />
       <PanelButton
         icon={Copy}
         label="复制链接"
@@ -214,7 +223,7 @@ export const LinkEdit = ({ url, text, handleRef, onSubmit, onCancel, onUnlink }:
         />
       </Field>
       <ErrorHint show={invalid} />
-      <div className="flex items-center gap-1.5 pl-0.5 pt-0.5 text-[11.5px] text-[var(--ed-text-tertiary)]">
+      <div className="flex items-center gap-1.5 pt-0.5 pl-0.5 text-[11.5px] text-[var(--ed-text-tertiary)]">
         <button
           type="button"
           onClick={onUnlink}
@@ -278,7 +287,7 @@ export const LinkCreate = ({ handleRef, onSubmit, onCancel }: LinkCreateProps) =
 };
 
 export const LinkNotice = ({ onUndo }: { onUndo: () => void }) => (
-  <div className="flex items-center gap-2.5 whitespace-nowrap py-[5px] pl-3 pr-[5px] text-[12.5px] text-[var(--ed-text-secondary)]">
+  <div className="flex items-center gap-2.5 py-[5px] pr-[5px] pl-3 text-[12.5px] whitespace-nowrap text-[var(--ed-text-secondary)]">
     已取消链接
     <button
       type="button"

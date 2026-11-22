@@ -5,7 +5,7 @@ import { normalizeUrl } from "@tau/database";
 import { useMemoizedFn } from "ahooks";
 import { openExternal } from "@/commands";
 import { Tooltip, toast } from "@tau/ui";
-import { openPage } from "@/services/page-navigation";
+import { openWebInDock } from "@/features/web/openInDock";
 
 const Renderer: React.FC<{
   value: CellValue;
@@ -24,15 +24,11 @@ const Renderer: React.FC<{
     openExternal(url);
   });
 
-  const handleOpenInNewTab = useMemoizedFn((e: React.MouseEvent) => {
+  const openInApp = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (!url) return;
-    try {
-      openPage("webview", { url });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "打开网页失败");
-    }
+    openWebInDock(url).catch(() => toast.error("打开网页失败"));
   });
 
   if (!value) {
@@ -40,15 +36,15 @@ const Renderer: React.FC<{
   }
 
   return (
-    <div className="relative flex h-full w-full items-center">
+    <div className="relative flex h-full w-full items-center" data-web-link={url}>
       <div className="max-w-full truncate px-2">
-        <span className="text-accent-text text-tau-body cursor-text select-text truncate underline decoration-1">
+        <span className="text-accent-text text-tau-body cursor-text truncate underline decoration-1 select-text">
           {String(value)}
         </span>
       </div>
 
       <div
-        className="bg-surface-hover text-ink-2 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 px-1.5 py-1"
+        className="bg-surface-hover text-ink-2 rounded-tau-sm absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-1 px-1.5 py-1"
         onDoubleClick={e => {
           e.stopPropagation();
           e.preventDefault();
@@ -63,7 +59,7 @@ const Renderer: React.FC<{
         </Tooltip>
         <Tooltip content="在应用内打开" delay={1000}>
           <PanelRight
-            onClick={handleOpenInNewTab}
+            onClick={openInApp}
             className="hover:text-ink-1 h-4 w-4 cursor-pointer"
             strokeWidth={1.75}
           />
