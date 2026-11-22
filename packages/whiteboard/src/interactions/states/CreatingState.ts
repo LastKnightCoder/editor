@@ -244,6 +244,8 @@ export class CreatingState implements InteractionState {
   readonly name = "creating";
   isFinished = false;
 
+  private constructor(readonly batchesDocumentChanges: boolean) {}
+
   private board!: Board;
   private toolId!: string;
   private elementType!: string;
@@ -287,7 +289,7 @@ export class CreatingState implements InteractionState {
 
     // 异步提交等待中：吞掉本次按下（消费事件、不创建、不复位工具、不开启新手势）
     if (pendingAsyncCommits.has(board)) {
-      const state = new CreatingState();
+      const state = new CreatingState(false);
       state.board = board;
       state.settled = true;
       state.session = { move: () => undefined, end: () => null };
@@ -296,7 +298,8 @@ export class CreatingState implements InteractionState {
       return state;
     }
 
-    const state = new CreatingState();
+    // 单击在按下时一次提交，正文编辑器首帧就需要文档里的元素。
+    const state = new CreatingState(spec.gesture !== "click");
     state.board = board;
     state.toolId = board.activeTool;
     state.elementType = createTool.elementType;

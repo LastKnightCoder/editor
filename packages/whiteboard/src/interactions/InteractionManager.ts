@@ -15,6 +15,10 @@ import { ResizingState, type ResizeCallbacks } from "./states/ResizingState";
 import { claimBoardPointer } from "../utils/events";
 import { BOARD_TO_CONTAINER } from "../constants/map";
 
+const batchesPointerChanges = (state: InteractionState) =>
+  !(state instanceof PanningState) &&
+  (!(state instanceof CreatingState) || state.batchesDocumentChanges);
+
 /**
  * 交互内核：输入手势的唯一裁决与路由层。
  *
@@ -106,7 +110,7 @@ export class InteractionManager {
     const state = CreatingState.tryStart(this.board, event);
     if (!state) return false;
     this.pointerState = state;
-    this.board.document?.beginGesture();
+    if (state.batchesDocumentChanges) this.board.document?.beginGesture();
     return true;
   }
 
@@ -264,7 +268,7 @@ export class InteractionManager {
     try {
       state?.onExit?.(this.board);
     } finally {
-      if (state && !(state instanceof PanningState)) this.board.document?.endGesture(commit);
+      if (state && batchesPointerChanges(state)) this.board.document?.endGesture(commit);
     }
   }
 

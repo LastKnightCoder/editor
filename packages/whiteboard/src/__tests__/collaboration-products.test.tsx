@@ -145,24 +145,29 @@ it("文档白板连续点击空白处可分段书写，点已有图形仍可选�
     BOARD_TO_CONTAINER.delete(board);
   });
   board.setActiveTool(RICHTEXT_TOOL_ID);
-  const click = (x: number, y: number) => {
+  const press = (x: number, y: number) => {
     const event = new MouseEvent("pointerdown", {
       button: 0,
       clientX: x,
       clientY: y,
     }) as PointerEvent;
     board.onPointerDown(event);
+  };
+  const release = (x: number, y: number) => {
     const up = new MouseEvent("pointerup", { button: 0, clientX: x, clientY: y }) as PointerEvent;
     board.onPointerUp(up);
     board.onGlobalPointerUp(up);
   };
   const writeAt = async (x: number, y: number, value: string) => {
     const index = board.children.length;
-    click(x, y);
+    press(x, y);
     await vi.waitFor(() => expect(board.children[index]).toMatchObject({ type: "richtext", x, y }));
-    const id = board.children[index].id;
+    const element = board.children[index];
+    expect(board.extensions!.unknownElementReason(element)).toBeUndefined();
+    const id = element.id;
     const body = binding.textDocument(id)?.binding;
     if (!body) throw new Error("新文本缺少可编辑的板内正文");
+    release(x, y);
     const editor = body.install(createEditor()) as NodeTreeEditor;
     editor.connectNodeTree();
     try {
@@ -174,7 +179,8 @@ it("文档白板连续点击空白处可分段书写，点已有图形仍可选�
   };
   const first = await writeAt(160, 100, "第一段");
   const second = await writeAt(400, 300, "第二段");
-  click(60, 50);
+  press(60, 50);
+  release(60, 50);
   expect(model.richText(first).read()[0].children?.[0].text).toBe("第一段");
   expect(model.richText(second).read()[0].children?.[0].text).toBe("第二段");
   expect(board.children).toHaveLength(3);
