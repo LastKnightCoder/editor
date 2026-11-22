@@ -102,14 +102,8 @@ export default function EditorDemo() {
           还原
         </button>
       </div>
-      <div className="select-text">
-        <Editor
-          key={round}
-          kit={getDocsKit()}
-          initValue={initialValue()}
-          readonly={false}
-          className="focus:outline-none"
-        />
+      <div className="select-text [&_[data-slate-editor]:focus]:outline-none">
+        <Editor key={round} kit={getDocsKit()} initValue={initialValue()} readonly={false} />
       </div>
     </div>
   );
