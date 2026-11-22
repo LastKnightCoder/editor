@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import type { DataTableSourceKind, DataTableSourceScope } from "@tau/shared/database-types";
 
 /**
  * 「数据库」模块的列表实体。
@@ -20,7 +21,10 @@ export interface DatabaseItem {
 export type DatabaseItemSummary = DatabaseItem & { rowCount: number; openedAt: number | null };
 
 export type CreateDatabaseItem = Pick<DatabaseItem, "title"> &
-  Partial<Pick<DatabaseItem, "desc" | "archived" | "pinned">>;
+  Partial<Pick<DatabaseItem, "desc" | "archived" | "pinned">> & {
+    /** 关联数据源新建：表随源头实时更新 */
+    source?: { kind: DataTableSourceKind; scope?: DataTableSourceScope; fields?: string[] };
+  };
 
 export type UpdateDatabaseItem = Pick<DatabaseItem, "id" | "title"> &
   Partial<Pick<DatabaseItem, "desc" | "archived" | "pinned">>;

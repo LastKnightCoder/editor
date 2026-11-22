@@ -36,6 +36,7 @@ import EntitySearchTable from "./tables/entity-search";
 import WhiteboardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
+import DataTableSourceTable from "./tables/data-table-source";
 import VibeLearningProjectTable from "./tables/vibe-learning-project";
 import DataTableViewTable from "./tables/data-table-view";
 import TodoGroupTable from "./tables/todo-group";
@@ -309,6 +310,7 @@ class DatabaseModule implements Module {
       EntitySearchTable,
       DataTableTable,
       DatabaseItemTable,
+      DataTableSourceTable,
       DataTableViewTable,
       TodoGroupTable,
       TodoItemTable,

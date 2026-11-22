@@ -1,6 +1,13 @@
 import { invoke } from "@/electron";
 import { queryClient } from "@/queryClient";
-import type { DataTableTarget } from "@tau/shared/database-types";
+import type {
+  ColumnDef,
+  DataTableSource,
+  DataTableSourceKind,
+  DataTableSourceScope,
+  DataTableTarget,
+  RowData,
+} from "@tau/shared/database-types";
 import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 import {
   DataTable,
@@ -89,4 +96,34 @@ export const reorderDataTableViews = async (
   orderedIds: number[]
 ): Promise<void> => {
   await invoke("data-table-view:reorder", { tableId, orderedIds });
+};
+
+export interface DataSourceCatalogEntry {
+  kind: DataTableSourceKind;
+  options: { tags?: string[]; projects?: { id: number; title: string }[] };
+}
+
+export interface DataSourceDraft {
+  kind: DataTableSourceKind;
+  scope?: DataTableSourceScope;
+  fields?: string[];
+}
+
+export const getDataSourceCatalog = (): Promise<DataSourceCatalogEntry[]> =>
+  invoke("data-table-source:catalog");
+
+export const previewDataSource = (
+  input: DataSourceDraft & { limit?: number }
+): Promise<{ columns: ColumnDef[]; rows: RowData[]; total: number }> =>
+  invoke("data-table-source:preview", input);
+
+export const updateDataTableSource = async (input: {
+  expectedSource?: DataTableSource;
+  tableId: number;
+  scope?: DataTableSourceScope;
+  fields?: string[];
+}): Promise<boolean> => {
+  const result = await invoke<boolean>("data-table-source:update", input);
+  void queryClient.invalidateQueries({ queryKey: ["databases", "list"] });
+  return result;
 };

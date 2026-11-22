@@ -12,7 +12,7 @@ import VerticalSelectList from "./VerticalSelectList";
 
 interface SelectEditorProps {
   value: CellValue;
-  column: ColumnDef<{ options: SelectOption[] }>;
+  column: ColumnDef<{ options: SelectOption[]; optionIdFromName?: boolean }>;
   onCellValueChange: (value: CellValue) => void;
   onFinishEdit: () => void;
   onColumnChange: (column: ColumnDef<{ options: SelectOption[] }>) => void;
@@ -85,7 +85,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   ): SelectOption | null => {
     if (option && !options.map(o => o.name).includes(option)) {
       const newOption = {
-        id: uuid(),
+        id: column.config?.optionIdFromName ? option : uuid(),
         name: option,
         color,
       } satisfies SelectOption;

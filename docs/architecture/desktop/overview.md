@@ -74,6 +74,12 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 
 **数据表物理回收**：`data_tables.ref_count` 只是提示，不作删除依据（协作撤销删块、删除正文与项目条目都不回写计数）。`remove` 下限为 0，1→0 时登记 `data_table_pending_releases`，`incrementRefCount` 0→1 撤销登记。开库 maintenance 先执行 `DataTableTable.collectPendingTables`、后执行正文回收（复活的表 retain 正文，救回同批待回收正文）：存量 ref_count ≤ 0 的表补登记并归零；到期登记按实际引用对账——`database_item`、`project_item(ref_type='data-table')`、正文 JSON 中 `database` 节点的 `tableId`（一次调用只扫描一遍）以及本机协作与撤销历史的实体持有。仍有引用的按引用数复活并告警，无引用才删除表与视图；实体持有检查未就绪或失败时保守保留。新增任何持有 tableId 的位置，必须同时接入这份对账。
 
+**关联数据源**。每张关联表在 `data_table_sources` 中保存源、范围和字段。源行 ID 为 `<kind>:<实体 id>`，源列 ID 为 `src:<key>`。主进程从源头读取卡片、文章、项目文档或日记，再与表的自建列合并。源条目持有源字段和源正文引用。表只持有自建列值及日记行的私有正文。重读时按实体是否仍存在清理自建值，在同一事务内释放对应引用。移出范围的行保留自建值，表物理回收时删除关联记录。
+
+`apply-changes` 在事务内校验客户端使用的范围与字段，并校验所有待写或待删行仍在当前范围。`patch-row` 另外比对原值。可写字段经各源定义写回。事务提交后发布协作标题与实体更新通知，已连接对应资料库的窗口收到通知后回读。新增的空单元格沿用源头默认值，卡片和文章继承所选标签。源头标签的选项 ID 使用标签名，列配置与单元格分两次保存时仍能识别。关联表拒绝整表覆盖。
+
+工作台和正文内嵌块共用 `DataTableEditor`。增删由主进程提交，界面收到确认的源行后更新并建立撤销基线。变更范围或字段时按确认的列、视图和行重建表格。源头事件触发静默重读，晚到的旧回执不能覆盖已接收的新快照。字段定义在 `features/databases/data-sources.ts`，源读写与合并位于 `src-electron/main/modules/data-sources/`。
+
 - EditText 与 EditTextHandle 从 `@tau/ui` 消费；占位符样式同归 UI。日期周起始与日历事件布局纯函数经 `@tau/shared/calendar-utils` 共用，不依赖桌面日程类型。
 
 - 所有新设计系统消费者使用 `@tau/ui` 单一入口；原桌面 ui 目录已删除，不保留转发。组件、`cn`、hooks 一律从桶入口导入（`import { Button, cn } from "@tau/ui"`）——包 exports 不提供组件子路径；例外仅 CSS（`@tau/ui/styles.css`）；主题不在本包，一律从 `@tau/themes` 导入（ER-011），新增控件只需在 `primitives/` 落文件并在 `index.ts` re-export。颜色/尺度词表与 cn、主题测试均在公共包，新增控件同步样板间档案。

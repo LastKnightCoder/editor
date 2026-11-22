@@ -258,7 +258,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             month={currentMonth}
             events={calendarEvents}
             theme={theme}
-            readonly={readonly}
+            readonly={readonly || config?.allowAddRow === false || Boolean(dateColumn.readonly)}
             dateConfig={dateColumn?.config as DatePluginConfig}
             onEventClick={handleEventClick}
             onDateClick={handleDateClick}

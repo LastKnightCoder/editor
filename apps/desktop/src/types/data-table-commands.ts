@@ -1,5 +1,9 @@
 import type { ColumnDef, RowData } from "@tau/shared";
-import type { DatabaseRowChanges, DataTableTarget } from "@tau/shared/database-types";
+import type {
+  DatabaseRowChanges,
+  DataTableSource,
+  DataTableTarget,
+} from "@tau/shared/database-types";
 
 // Desktop-specific types for data table commands
 export interface CreateDataTable {
@@ -24,6 +28,7 @@ export interface PatchDataTableRow {
 }
 
 export interface ApplyDataTableChanges {
+  expectedSource?: DataTableSource;
   id: DataTableTarget;
   rows: DatabaseRowChanges;
   columns?: ColumnDef[];

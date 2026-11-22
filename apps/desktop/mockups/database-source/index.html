@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据库 · 从数据源新建</title>
+<style>
+  /* tokens：与 packages/ui 的 paper / cocoa 主题一致 */
+  :root {
+    --page: #f3eee2; --surface: #fffdf9; --track: #e0d6c3;
+    --hover: rgba(67, 57, 44, 0.05); --press: rgba(67, 57, 44, 0.09); --selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inv: #fff8ef;
+    --line-1: #e9e1d2; --line-2: #f0e9dc;
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --scrim: rgba(67, 57, 44, 0.22); --tag-mix: 14%;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-float: 0 18px 48px -12px rgba(120,100,70,.42);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  }
+  [data-theme="cocoa"] {
+    color-scheme: dark;
+    --page: #221d16; --surface: #2e2820; --track: #463d31;
+    --hover: rgba(236, 226, 208, 0.06); --press: rgba(236, 226, 208, 0.11); --selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inv: #221d16;
+    --line-1: #3a3227; --line-2: #332c22;
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --scrim: rgba(0, 0, 0, 0.45); --tag-mix: 22%;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.2), 0 8px 28px rgba(0,0,0,.25);
+    --shadow-float: 0 18px 48px -12px rgba(0,0,0,.7);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--page); color: var(--ink-1); font: 13px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; background: none; border: 0; outline: 0; }
+  button { cursor: pointer; }
+  svg.i { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* 控制条（设计稿自身，不属于方案） */
+  .ctrl { position: sticky; top: 0; z-index: 90; display: flex; align-items: center; gap: 6px; padding: 10px 24px;
+    background: var(--page); border-bottom: 1px solid var(--line-1); }
+  .ctrl h1 { font-size: 13.5px; font-weight: 600; margin-right: 12px; }
+  .ctrl .step { height: 28px; padding: 0 11px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; }
+  .ctrl .step:hover { background: var(--hover); }
+  .ctrl .step.on { background: var(--surface); color: var(--ink-1); font-weight: 500; box-shadow: 0 0 0 1px var(--line-1); }
+  .ctrl .sp { flex: 1; }
+  .screen { display: none; }
+  .screen.on { display: block; }
+  .stage { padding: 28px 36px 40px; }
+  .caption { max-width: 1180px; margin: 0 auto 18px; color: var(--ink-2); font-size: 12.5px; }
+  .caption b { color: var(--ink-1); font-weight: 600; }
+
+  /* 应用外壳：侧栏 + 内容纸 */
+  .app { max-width: 1180px; height: 700px; margin: 0 auto; display: grid; grid-template-columns: 208px 1fr;
+    background: var(--page); border-radius: 14px; box-shadow: 0 0 0 1px var(--line-1), var(--shadow-card); overflow: hidden; position: relative; }
+  .side { padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .side .brand { padding: 2px 10px 14px; font-weight: 600; font-size: 14px; }
+  .nav { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); }
+  .nav.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+  .paper { margin: 8px 8px 8px 0; background: var(--surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--line-1); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+  .bar { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 22px; flex: none; }
+  .bar .title { font-size: 15px; font-weight: 600; }
+  .bar .sp { flex: 1; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; transition: background .16s var(--ease), color .16s var(--ease); }
+  .btn:hover { background: var(--hover); color: var(--ink-1); }
+  .btn.primary { background: var(--accent); color: var(--ink-inv); font-weight: 500; }
+  .btn.primary:hover { background: var(--accent-hover); color: var(--ink-inv); }
+  .btn.line { box-shadow: inset 0 0 0 1px var(--line-1); }
+  .split { display: inline-flex; }
+  .split .btn.primary:first-child { border-radius: 8px 0 0 8px; }
+  .split .btn.primary.caret { border-radius: 0 8px 8px 0; padding: 0 7px; margin-left: 1px; }
+
+  /* 列表卡片 */
+  .grid { padding: 6px 22px 22px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; overflow: auto; }
+  .card { padding: 14px 16px; border-radius: 11px; box-shadow: inset 0 0 0 1px var(--line-1); display: flex; flex-direction: column; gap: 6px; min-height: 104px; }
+  .card .t { font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .card .d { color: var(--ink-2); font-size: 12px; }
+  .card .m { margin-top: auto; color: var(--ink-3); font-size: 11.5px; display: flex; gap: 10px; align-items: center; }
+  .src-mark { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); }
+  .src-mark svg.i { width: 12px; height: 12px; }
+
+  /* 菜单 */
+  .menu { position: absolute; z-index: 20; width: 264px; padding: 5px; border-radius: 11px; background: var(--surface); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); }
+  .mi { display: flex; gap: 10px; padding: 8px 10px; border-radius: 7px; cursor: pointer; }
+  .mi:hover { background: var(--hover); }
+  .mi .ic { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-2); flex: none; }
+  .mi .tx b { display: block; font-weight: 500; }
+  .mi .tx span { color: var(--ink-3); font-size: 11.5px; }
+  .menu hr { border: 0; height: 1px; background: var(--line-2); margin: 4px 6px; }
+  /* 弹窗 */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 30; display: grid; place-items: center; }
+  .dlg { width: 860px; height: 600px; background: var(--surface); border-radius: 14px; box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); display: flex; flex-direction: column; overflow: hidden; }
+  .dlg-h { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 20px; flex: none; }
+  .dlg-h .t { font-size: 15px; font-weight: 600; }
+  .dlg-h .crumb { color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  .dlg-h .sp { flex: 1; }
+  .x { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--ink-3); }
+  .x:hover { background: var(--hover); color: var(--ink-1); }
+  .dlg-b { flex: 1; min-height: 0; overflow: auto; padding: 4px 20px 20px; }
+  .dlg-f { flex: none; display: flex; align-items: center; gap: 8px; height: 58px; padding: 0 20px; border-top: 1px solid var(--line-2); }
+  .dlg-f .hint { color: var(--ink-3); font-size: 12px; flex: 1; }
+
+  /* 第一步：起点 */
+  .blank { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 11px; box-shadow: inset 0 0 0 1px var(--line-1); cursor: pointer; transition: box-shadow .16s var(--ease), background .16s var(--ease); }
+  .blank:hover { background: var(--hover); }
+  .blank .ic { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-2); }
+  .blank b { font-weight: 600; display: block; }
+  .blank span { color: var(--ink-3); font-size: 12px; }
+  .search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-3); margin: 18px 0 6px; }
+  .search input { flex: 1; color: var(--ink-1); }
+  .search input::placeholder { color: var(--ink-3); }
+  .grp { margin-top: 16px; }
+  .grp h4 { font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 8px; display: flex; gap: 8px; align-items: baseline; }
+  .grp h4 span { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  .srcs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .src { display: flex; gap: 11px; padding: 11px 12px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line-1); cursor: pointer; text-align: left; transition: background .16s var(--ease), box-shadow .16s var(--ease); }
+  .src:hover { background: var(--hover); }
+  .src.sel { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
+  .src .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-2); flex: none; background: var(--surface); }
+  .src b { display: block; font-weight: 500; }
+  .src .meta { color: var(--ink-3); font-size: 11.5px; line-height: 1.45; display: block; }
+  .src.off { opacity: .55; cursor: default; }
+  .src.off:hover { background: none; }
+
+  /* 第二步：配置 */
+  .cfg { display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 100%; }
+  .cfg-l { display: flex; flex-direction: column; gap: 18px; overflow: auto; padding-right: 2px; }
+  .sec h5 { font-size: 12.5px; font-weight: 600; margin-bottom: 8px; color: var(--ink-1); }
+  .sec .sub { color: var(--ink-3); font-size: 11.5px; margin: -4px 0 8px; }
+  .field-in { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-1); width: 100%; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { height: 26px; padding: 0 10px; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-2); font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+  .chip:hover { background: var(--hover); }
+  .chip.on { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+  .fields { display: flex; flex-direction: column; }
+  .fr { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 6px; border-radius: 7px; cursor: pointer; }
+  .fr:hover { background: var(--hover); }
+  .cb { width: 15px; height: 15px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px var(--track); display: grid; place-items: center; flex: none; }
+  .fr.on .cb { background: var(--accent); box-shadow: none; }
+  .fr.on .cb::after { content: ""; width: 7px; height: 4px; border: solid var(--ink-inv); border-width: 0 0 1.6px 1.6px; transform: rotate(-45deg) translate(1px, -1px); }
+  .fr.lock { cursor: default; }
+  .fr.lock .cb { opacity: .55; }
+  .fr .ft { color: var(--ink-3); display: inline-flex; }
+  .fr .ft svg.i { width: 13px; height: 13px; }
+  .fr .nm { flex: 1; }
+  .fr .wb { font-size: 11px; color: var(--ink-3); }
+  .mode { display: flex; flex-direction: column; gap: 6px; }
+  .opt { display: flex; gap: 10px; padding: 10px 11px; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--line-1); cursor: pointer; text-align: left; }
+  .opt:hover { background: var(--hover); }
+  .opt.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .radio { width: 15px; height: 15px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--track); margin-top: 2px; flex: none; }
+  .opt.on .radio { box-shadow: inset 0 0 0 4.5px var(--accent); }
+  .opt b { display: block; font-weight: 500; }
+  .opt span { color: var(--ink-3); font-size: 11.5px; }
+  .cfg-r { min-width: 0; display: flex; flex-direction: column; border-radius: 11px; box-shadow: inset 0 0 0 1px var(--line-1); overflow: hidden; }
+  .pv-h { display: flex; align-items: center; gap: 8px; padding: 10px 14px; color: var(--ink-2); font-size: 12px; }
+  .pv-h b { color: var(--ink-1); font-weight: 600; font-size: 13px; }
+  .pv-h .sp { flex: 1; }
+  .pv { flex: 1; overflow: auto; }
+  /* 表格 */
+  table.tb { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 12.5px; }
+  .tb th { position: sticky; top: 0; background: var(--surface); z-index: 1; text-align: left; font-weight: 500; color: var(--ink-2); height: 34px; padding: 0 12px; border-bottom: 1px solid var(--line-1); white-space: nowrap; }
+  .tb th .h { display: inline-flex; align-items: center; gap: 6px; }
+  .tb th .h svg.i { width: 13px; height: 13px; color: var(--ink-3); }
+  .tb th .lk { color: var(--ink-3); display: inline-flex; }
+  .tb th .lk svg.i { width: 11px; height: 11px; }
+  .tb th.mine { color: var(--ink-1); }
+  .tb td { height: 36px; padding: 0 12px; border-bottom: 1px solid var(--line-2); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  .tb td.src-cell { color: var(--ink-1); }
+  .tb td.mine { background: color-mix(in srgb, var(--accent) 3%, transparent); }
+  .tb tr:hover td { background: var(--hover); }
+  .tb td.dim { color: var(--ink-3); }
+  .tb .done { color: var(--ink-3); text-decoration: line-through; }
+  .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; font-size: 11.5px;
+    background: color-mix(in srgb, var(--c) var(--tag-mix), transparent); color: color-mix(in srgb, var(--c) 78%, var(--ink-1)); margin-right: 4px; }
+  .box { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px var(--track); vertical-align: -2px; }
+  .box.y { background: var(--accent); box-shadow: none; }
+  .box.y::after { content: ""; width: 7px; height: 4px; border: solid var(--ink-inv); border-width: 0 0 1.6px 1.6px; transform: rotate(-45deg) translate(1px, -1px); }
+  .bar-p { display: inline-block; width: 64px; height: 5px; border-radius: 3px; background: var(--track); vertical-align: 2px; margin-right: 6px; overflow: hidden; }
+  .bar-p i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .stars { color: #e9a21b; letter-spacing: 1px; }
+  .addcol { color: var(--ink-3); }
+
+  /* 关联表的页面 */
+  .db-head { padding: 4px 28px 0; }
+  .db-head h2 { font-size: 22px; font-weight: 650; letter-spacing: -.01em; }
+  .db-head .desc { color: var(--ink-2); margin-top: 2px; }
+  .tools { display: flex; align-items: center; gap: 4px; padding: 12px 22px 8px 26px; }
+  .vtab { height: 28px; padding: 0 10px; border-radius: 7px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .vtab.on { color: var(--ink-1); font-weight: 500; box-shadow: inset 0 0 0 1px var(--line-1); }
+  .tools .sp { flex: 1; }
+  .srcpill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; color: var(--ink-2); font-size: 12.5px; box-shadow: inset 0 0 0 1px var(--line-1); }
+  .srcpill:hover { background: var(--hover); }
+  .srcpill .dot { width: 6px; height: 6px; border-radius: 50%; background: #5f9a6e; }
+  .srcpill.on { background: var(--hover); color: var(--ink-1); }
+  .tbwrap { flex: 1; overflow: auto; padding: 0 22px 0 26px; position: relative; }
+  .pop { position: absolute; z-index: 25; width: 320px; padding: 14px; border-radius: 12px; background: var(--surface); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); }
+  .pop h6 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .pop .kv { display: grid; grid-template-columns: 64px 1fr; gap: 6px 10px; margin: 12px 0; font-size: 12.5px; }
+  .pop .kv dt { color: var(--ink-3); }
+  .pop .acts { display: flex; flex-direction: column; gap: 2px; margin: 0 -6px -6px; padding-top: 8px; border-top: 1px solid var(--line-2); }
+  .pop .acts button { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 8px; border-radius: 7px; color: var(--ink-2); text-align: left; }
+  .pop .acts button:hover { background: var(--hover); color: var(--ink-1); }
+  .ctxm { position: absolute; z-index: 25; width: 210px; padding: 5px; border-radius: 10px; background: var(--surface); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-float); }
+  .ctxm button { display: flex; width: 100%; align-items: center; gap: 9px; height: 30px; padding: 0 9px; border-radius: 7px; color: var(--ink-2); text-align: left; }
+  .ctxm button:hover { background: var(--hover); color: var(--ink-1); }
+  .ctxm hr { border: 0; height: 1px; background: var(--line-2); margin: 4px 6px; }
+  .ctxm .no { color: var(--ink-3); font-size: 11.5px; padding: 4px 9px 6px; line-height: 1.45; }
+  .notice { margin: 0 22px 10px 26px; padding: 9px 12px; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-2); display: flex; align-items: center; gap: 9px; font-size: 12.5px; }
+  .notice .sp { flex: 1; }
+  .newrow { display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; color: var(--ink-3); }
+
+  /* 数据源清单 */
+  .doc { max-width: 1180px; margin: 0 auto; background: var(--surface); border-radius: 14px; box-shadow: 0 0 0 1px var(--line-1), var(--shadow-card); padding: 30px 40px 40px; }
+  .doc h2 { font-size: 20px; font-weight: 650; }
+  .doc > p { color: var(--ink-2); margin: 6px 0 22px; max-width: 760px; }
+  .doc h3 { font-size: 14px; font-weight: 600; margin: 26px 0 10px; }
+  .cat { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .cat th { text-align: left; color: var(--ink-3); font-weight: 500; padding: 7px 10px; border-bottom: 1px solid var(--line-1); }
+  .cat td { padding: 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+  .cat td:first-child { white-space: nowrap; font-weight: 500; }
+  .cat td:first-child span { display: inline-flex; align-items: center; gap: 7px; }
+  .cat .fl { color: var(--ink-2); line-height: 1.75; }
+  .cat .fl em { font-style: normal; color: var(--accent-text); }
+  .cat .wb { color: var(--ink-2); }
+  .cat .muted { color: var(--ink-3); }
+  .legend { display: flex; gap: 18px; color: var(--ink-3); font-size: 12px; margin-top: -10px; }
+  .legend em { font-style: normal; color: var(--accent-text); }
+  .q { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .q div { padding: 11px 14px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line-1); }
+  .q b { font-weight: 600; }
+  .q span { color: var(--ink-2); display: block; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="ctrl">
+  <h1>数据库 · 从数据源新建</h1>
+  <button class="step on" data-go="s1">① 选起点</button>
+  <button class="step" data-go="s2">② 配置数据源</button>
+  <button class="step" data-go="s3">③ 关联后的表格</button>
+  <button class="step" data-go="s4">数据源清单</button>
+  <span class="sp"></span>
+  <button class="step" id="theme">切换深色</button>
+</div>
+
+<!-- ① 选起点 -->
+<section class="screen on" id="s1"><div class="stage">
+  <p class="caption"><b>入口不变：</b>数据库页的「新建数据库」打开同一个弹窗，第一步选起点。空白表走原来的名称 + 描述；选了数据源进入第二步。待办、日程等页面的 ⋯ 菜单里另有「在数据库中打开」，直接跳到第二步并带上当前清单。</p>
+  <div class="app">
+    <!--SIDE-->
+    <div class="paper">
+      <div class="bar"><span class="title">数据库</span><span class="sp"></span><button class="btn"><i data-i="search"></i></button><button class="btn primary"><i data-i="plus"></i>新建数据库</button></div>
+      <div class="grid">
+        <div class="card"><div class="t"><i data-i="table"></i>近期日程</div><div class="d">未来三个月的会议与安排</div><div class="m"><span class="src-mark"><i data-i="cal"></i>关联日程</span><span>52 行</span></div></div>
+        <div class="card"><div class="t"><i data-i="table"></i>待办总表</div><div class="d">工作与读书清单里没做完的事</div><div class="m"><span class="src-mark"><i data-i="todo"></i>关联待办</span><span>37 行</span></div></div>
+        <div class="card"><div class="t"><i data-i="table"></i>装修预算</div><div class="d">按房间拆的采购项</div><div class="m"><span>18 行</span></div></div>
+      </div>
+    </div>
+    <div class="scrim"><div class="dlg">
+      <div class="dlg-h"><span class="t">新建数据库</span><span class="sp"></span><button class="x"><i data-i="x"></i></button></div>
+      <div class="dlg-b">
+        <div class="blank"><div class="ic"><i data-i="plus"></i></div><div><b>空白数据库</b><span>从一张空表开始，自己定义列</span></div></div>
+        <label class="search"><i data-i="search"></i><input placeholder="搜索数据源，如「日程」「日记」"></label>
+        <!--SOURCES-->
+      </div>
+    </div></div>
+  </div>
+</div></section>
+<!-- ② 配置数据源 -->
+<section class="screen" id="s2"><div class="stage">
+  <p class="caption"><b>第二步只回答三件事：</b>拿哪些（范围）、要哪些列（字段）、以后怎么跟着源头走（关联方式）。右侧预览就是真实的前几行，改范围和字段即时刷新，不另设「预览」按钮。左侧点数据源名称可以换源。</p>
+  <div class="app">
+    <!--SIDE-->
+    <div class="paper"><div class="bar"><span class="title">数据库</span></div></div>
+    <div class="scrim"><div class="dlg" style="width: 980px; height: 620px">
+      <div class="dlg-h">
+        <button class="x" data-go="s1" title="返回"><i data-i="back"></i></button>
+        <span class="t">从数据源新建</span>
+        <span class="crumb"><i data-i="chev"></i><span id="cfgName">待办</span></span>
+        <span class="sp"></span><button class="x"><i data-i="x"></i></button>
+      </div>
+      <div class="dlg-b" style="padding-bottom: 14px">
+        <div class="cfg">
+          <div class="cfg-l">
+            <div class="sec"><h5>名称</h5><label class="field-in"><input id="dbName" value="待办总表" style="flex:1"></label></div>
+            <div class="sec" id="scopeSec"></div>
+            <div class="sec"><h5>字段</h5><p class="sub">带锁的字段只能在源头修改</p><div class="fields" id="fieldList"></div></div>
+            <div class="sec"><h5>关联方式</h5>
+              <div class="mode" id="modeList">
+                <button class="opt on" data-mode="live"><span class="radio"></span><div><b>保持关联</b><span>源头的新增、修改实时出现在表里；表里能改的字段写回源头。可以另加自己的列。</span></div></button>
+                <button class="opt" data-mode="copy"><span class="radio"></span><div><b>复制一份</b><span>把当前数据复制成普通表，之后与源头互不影响。</span></div></button>
+              </div>
+            </div>
+          </div>
+          <div class="cfg-r">
+            <div class="pv-h"><b id="pvCount">37 行</b><span id="pvScope">· 工作、读书 · 未完成</span><span class="sp"></span><span id="pvMode">保持关联</span></div>
+            <div class="pv" id="preview"></div>
+          </div>
+        </div>
+      </div>
+      <div class="dlg-f"><span class="hint" id="footHint">新建后在表格右上角可以随时调整范围和字段</span><button class="btn" data-go="s1">上一步</button><button class="btn primary" data-go="s3">创建数据库</button></div>
+    </div></div>
+  </div>
+</div></section>
+
+<!-- ③ 关联后的表格 -->
+<section class="screen" id="s3"><div class="stage">
+  <p class="caption"><b>关联表就是普通数据库：</b>视图、筛选、排序、看板、日历、表尾汇总全都照常。差别只有三处：工具栏多一个数据源标记；源头只读的列头带锁；自己加的列（优先级、备注）只存在这张表里。点数据源标记、右键行试试。</p>
+  <div class="app">
+    <!--SIDE-->
+    <div class="paper" style="position: relative">
+      <div class="bar"><span class="btn" style="padding:0 6px"><i data-i="back"></i></span><span style="color:var(--ink-3)">数据库</span><span class="sp"></span><button class="btn"><i data-i="more"></i></button></div>
+      <div class="db-head"><h2>待办总表</h2><div class="desc">工作与读书清单里没做完的事</div></div>
+      <div class="tools">
+        <span class="vtab on"><i data-i="table"></i>表格</span><span class="vtab"><i data-i="kanban"></i>按清单</span><span class="vtab"><i data-i="cal"></i>截止日历</span>
+        <span class="sp"></span>
+        <button class="btn"><i data-i="filter"></i>筛选</button><button class="btn"><i data-i="sort"></i>排序</button>
+        <button class="srcpill" id="srcPill"><span class="dot"></span><i data-i="todo"></i>待办</button>
+      </div>
+      <div class="tbwrap" id="liveWrap"></div>
+      <div class="pop" id="srcPop" style="display:none; right: 22px; top: 140px">
+        <h6><i data-i="todo"></i>数据来自待办</h6>
+        <dl class="kv"><dt>范围</dt><dd>工作、读书 · 未完成</dd><dt>字段</dt><dd>6 个来自待办 · 2 个自建</dd><dt>同步</dt><dd>实时，刚刚更新</dd></dl>
+        <div class="acts">
+          <button data-go="s2"><i data-i="sliders"></i>调整范围与字段</button>
+          <button><i data-i="out"></i>在待办中打开</button>
+          <button><i data-i="unlink"></i>转为普通表<span style="margin-left:auto;color:var(--ink-3);font-size:11.5px">保留当前数据</span></button>
+        </div>
+      </div>
+      <div class="ctxm" id="rowMenu" style="display:none">
+        <button><i data-i="out"></i>在待办中打开</button>
+        <button><i data-i="expand"></i>展开行详情</button>
+        <hr>
+        <button style="color:#b0564d"><i data-i="trash"></i>删除待办</button>
+        <div class="no">会同时从待办页删除。自建列的值一起删除。</div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 数据源清单 -->
+<section class="screen" id="s4"><div class="stage">
+  <div class="doc">
+    <h2>可以接进数据库的数据源</h2>
+    <p>按本机数据表梳理，列出每个源能提供的字段，以及哪些字段能在数据库里直接改、改了写回源头。<em style="font-style:normal;color:var(--accent-text)">橙色</em>的字段可写回，其余只读。</p>
+    <div class="legend"><span><em>完成</em> 可写回</span><span>标题 只读</span><span>「新建行」一列说明在表里加一行时源头会发生什么</span></div>
+    <div id="catalog"></div>
+    <h3>待定的问题</h3>
+    <div class="q">
+      <div><b>1. 第一批接哪些</b><span>建议先做待办、日程、日记三个：字段结构稳定、最常被拿来做汇总和看板。卡片、文章这类正文为主的源，表格能给的增量小，可以放后面。</span></div>
+      <div><b>2. 删除行删不删源头</b><span>稿子里是「删除行 = 删除源头条目」并在菜单里写明。另一种做法是关联表不能删行，只能在源头删，更安全但不顺手。</span></div>
+      <div><b>3. 文档待办能不能在表里勾</b><span>文档待办以正文为准。勾选写回正文在技术上可行（改对应勾选项），但正文正被打开编辑时会有冲突，需要确认要不要做。</span></div>
+      <div><b>4. 复制一份要不要保留</b><span>它和现有的 CSV 导入是同一类能力。如果只做「保持关联」，弹窗会更简单，想要独立副本可以事后「转为普通表」。</span></div>
+    </div>
+  </div>
+</div></section>
+<script>
+const P = {
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  chev: '<path d="m9 18 6-6-6-6"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/>',
+  todo: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m8 12 2.5 2.5L16 9"/>',
+  doctodo: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m9 14 2 2 4-4"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2h4"/>',
+  diary: '<path d="M5 4a2 2 0 0 1 2-2h11v18H7a2 2 0 0 0-2 2z"/><path d="M5 20V4M9 7h5"/>',
+  card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h6"/>',
+  article: '<path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  quote: '<path d="M7 7h4v4c0 3-2 5-4 6M14 7h4v4c0 3-2 5-4 6"/>',
+  flash: '<rect x="4" y="6" width="14" height="14" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v11"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 20a2 2 0 0 0 2 2h13v-4"/>',
+  wallet: '<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2"/>',
+  scale: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9a4 4 0 0 1 6 0l-2 3"/>',
+  ask: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.01"/>',
+  text: '<path d="M5 6h14M12 6v13"/>',
+  check: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  select: '<circle cx="12" cy="12" r="8"/><path d="m9 11 3 3 3-3"/>',
+  multi: '<path d="M4 7h10l4 5-4 5H4z"/>',
+  date: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16"/>',
+  number: '<path d="M9 4 7 20M17 4l-2 16M4 9h16M3 15h16"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  rich: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  progress: '<path d="M4 12h16"/><path d="M4 12h9" stroke-width="3"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  kanban: '<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/>',
+  filter: '<path d="M4 5h16l-6 8v6l-4-2v-4z"/>',
+  sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+  sliders: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  out: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  unlink: '<path d="M9 15 15 9M10 6l1-1a4 4 0 0 1 5.7 5.7l-1 1M14 18l-1 1a4 4 0 0 1-5.7-5.7l1-1M4 4l16 16"/>',
+  expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  home: '<path d="M4 11 12 4l8 7v9H4z"/>',
+};
+const ic = (n, s) => `<svg class="i" viewBox="0 0 24 24"${s ? ` style="width:${s}px;height:${s}px"` : ''}>${P[n] || ''}</svg>`;
+// f: [名称, 字段类型图标, 可写回, 默认勾选]
+const SOURCES = [
+  { g: '计划与时间', id: 'todo', n: '待办', i: 'todo', meta: '待办页的清单与事项', tb: 'todo_item · todo_group',
+    scope: [['清单', ['全部', '工作', '读书', '生活'], [1, 2]], ['状态', ['未完成', '已完成', '全部'], [0]]],
+    f: [['标题', 'text', 1, 1], ['完成', 'check', 1, 1], ['清单', 'select', 1, 1], ['截止', 'date', 1, 1], ['完成时间', 'date', 0, 0], ['上级待办', 'link', 0, 0], ['描述', 'rich', 1, 1], ['创建时间', 'date', 0, 1]],
+    add: '在当前清单新建待办（看板分组下按分组清单）',
+    rows: [['整理 Q4 复盘提纲', 0, ['工作', '#c46a43'], '11-25', '', '', '有正文', '11-18'], ['给设计组发评审邀请', 0, ['工作', '#c46a43'], '11-23', '', '', '', '11-20'], ['读完《置身事内》第 6 章', 0, ['读书', '#5f8ca8'], '11-30', '', '', '', '11-10'], ['把 PDF 摘录整理成卡片', 0, ['读书', '#5f8ca8'], '', '', '', '有正文', '11-21']] },
+  { g: '计划与时间', id: 'doctodo', n: '文档待办', i: 'doctodo', meta: '正文里的勾选项，按所在文档汇总', tb: 'doc_tasks（索引库）',
+    scope: [['所在文档', ['全部文档', '指定项目'], [0]], ['状态', ['未完成', '已完成', '全部'], [0]]],
+    f: [['内容', 'text', 0, 1], ['完成', 'check', 2, 1], ['所在文档', 'link', 0, 1], ['截止', 'date', 0, 1], ['分组', 'select', 0, 1], ['层级', 'number', 0, 0]],
+    add: '不支持（待办写在正文里）' },
+  { g: '计划与时间', id: 'cal', n: '日程', i: 'cal', meta: '日历里的日程，可选日历与时间段', tb: 'calendar_event · calendar',
+    scope: [['日历', ['全部', '工作', '个人'], [0]], ['时间', ['本周', '本月', '近 3 个月', '全部'], [2]]],
+    f: [['标题', 'text', 1, 1], ['日历', 'select', 1, 1], ['开始', 'date', 1, 1], ['结束', 'date', 1, 1], ['全天', 'check', 1, 0], ['关联待办', 'link', 0, 0], ['详情', 'rich', 1, 0]],
+    add: '在所选日历新建日程',
+    rows: [['设计评审', ['工作', '#c46a43'], '11-24 14:00', '11-24 15:30'], ['牙医复诊', ['个人', '#6f9a6a'], '11-26 10:00', '11-26 11:00'], ['季度规划会', ['工作', '#c46a43'], '11-28 09:30', '11-28 12:00']] },
+  { g: '计划与时间', id: 'pomo', n: '番茄钟记录', i: 'timer', meta: '每一次专注：时长、暂停、关联事项', tb: 'pomodoro_sessions',
+    scope: [['时间', ['本周', '本月', '全部'], [1]], ['状态', ['完成', '中断', '全部'], [0]]],
+    f: [['开始', 'date', 0, 1], ['专注时长', 'number', 0, 1], ['暂停次数', 'number', 0, 1], ['状态', 'select', 0, 1], ['关联事项', 'link', 0, 1], ['预设', 'select', 0, 0]],
+    add: '不支持（专注由番茄钟产生）' },
+
+  { g: '笔记与写作', id: 'diary', n: '日记', i: 'diary', meta: '每天一篇，带天气、心情和字数', tb: 'diary_entries',
+    scope: [['时间', ['本月', '今年', '全部'], [1]]],
+    f: [['日期', 'date', 0, 1], ['天气', 'select', 1, 1], ['心情', 'select', 1, 1], ['标签', 'multi', 1, 1], ['字数', 'number', 0, 1], ['正文', 'rich', 1, 0]],
+    add: '不支持（日记按日期生成）',
+    rows: [['11-21', '晴', '平静', [['散步', '#6f9a6a']], '612'], ['11-20', '多云', '有点累', [['工作', '#c46a43']], '340'], ['11-18', '小雨', '开心', [['读书', '#5f8ca8'], ['朋友', '#9b6fa8']], '1,028']] },
+  { g: '笔记与写作', id: 'card', n: '卡片', i: 'card', meta: '卡片的开头、标签与时间', tb: 'cards',
+    scope: [['标签', ['全部', '按标签筛选'], [0]]],
+    f: [['开头', 'text', 0, 1], ['标签', 'multi', 1, 1], ['正文', 'rich', 1, 0], ['创建时间', 'date', 0, 1], ['更新时间', 'date', 0, 0]],
+    add: '新建卡片' },
+  { g: '笔记与写作', id: 'article', n: '文章', i: 'article', meta: '文章标题、作者、标签', tb: 'articles',
+    scope: [['标签', ['全部', '按标签筛选'], [0]]],
+    f: [['标题', 'text', 1, 1], ['作者', 'text', 1, 1], ['标签', 'multi', 1, 1], ['正文', 'rich', 1, 0], ['创建时间', 'date', 0, 1], ['更新时间', 'date', 0, 1]],
+    add: '新建文章' },
+  { g: '笔记与写作', id: 'proj', n: '项目文档', i: 'folder', meta: '某个项目里的全部文档条目', tb: 'project · project_item',
+    scope: [['项目', ['选择项目…'], [0]], ['层级', ['仅顶层', '包含子文档'], [1]]],
+    f: [['标题', 'text', 1, 1], ['类型', 'select', 0, 1], ['上级', 'link', 0, 1], ['更新时间', 'date', 0, 1]],
+    add: '在项目根目录新建文档' },
+
+  { g: '阅读与收集', id: 'excerpt', n: '摘录', i: 'quote', meta: '从书、PDF、网页划下的句子和想法', tb: 'excerpt',
+    scope: [['来源', ['全部', '微信读书', 'PDF', '网页'], [0]]],
+    f: [['摘录', 'text', 0, 1], ['想法', 'text', 1, 1], ['出处', 'text', 0, 1], ['来源类型', 'select', 0, 1], ['划线颜色', 'select', 0, 0], ['位置', 'text', 0, 0], ['时间', 'date', 0, 1]],
+    add: '不支持（摘录在阅读时产生）' },
+  { g: '阅读与收集', id: 'pdf', n: 'PDF', i: 'pdf', meta: '文件、页数、读到第几页', tb: 'pdfs',
+    scope: [['分类', ['全部', '按分类'], [0]]],
+    f: [['文件名', 'text', 0, 1], ['分类', 'select', 1, 1], ['标签', 'multi', 1, 1], ['页数', 'number', 0, 1], ['读到', 'progress', 0, 1], ['最近打开', 'date', 0, 1]],
+    add: '不支持（PDF 从文件导入）' },
+  { g: '阅读与收集', id: 'web', n: '网页', i: 'web', meta: '收藏和剪藏过的网页', tb: 'web_page · web_link · web_clip',
+    scope: [['范围', ['收藏', '剪藏', '全部'], [2]]],
+    f: [['标题', 'text', 1, 1], ['网址', 'link', 0, 1], ['站点', 'select', 0, 1], ['剪藏正文', 'rich', 0, 0], ['收藏时间', 'date', 0, 1]],
+    add: '不支持' },
+  { g: '阅读与收集', id: 'flash', n: '闪卡', i: 'flash', meta: '卡组、复习状态、下次复习时间', tb: 'flashcards · flashcard_decks',
+    scope: [['卡组', ['全部', '选择卡组…'], [0]]],
+    f: [['正面', 'text', 0, 1], ['卡组', 'select', 0, 1], ['状态', 'select', 0, 1], ['下次复习', 'date', 0, 1], ['复习次数', 'number', 0, 1], ['标签', 'multi', 1, 0]],
+    add: '不支持（闪卡在卡组里制作）' },
+
+  { g: '文件', id: 'csv', n: 'CSV 文件', i: 'table', meta: '一次性导入，导入后是普通表', tb: '现有导入向导', copyOnly: true,
+    scope: [['首行', ['作为表头'], [0]]], f: [['按表头生成列', 'text', 1, 1]], add: '普通表，随意加行' },
+];
+const $ = s => document.querySelector(s);
+const byId = id => SOURCES.find(s => s.id === id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const SIDE = `<aside class="side"><div class="brand">Tau</div>
+  ${[['home', '首页'], ['todo', '待办'], ['cal', '日程'], ['card', '卡片'], ['folder', '项目'], ['table', '数据库', 1]]
+    .map(([i, t, on]) => `<div class="nav${on ? ' on' : ''}">${ic(i)}${t}</div>`).join('')}</aside>`;
+document.querySelectorAll('.app').forEach(a => a.insertAdjacentHTML('afterbegin', SIDE));
+document.querySelectorAll('[data-i]').forEach(el => { el.outerHTML = ic(el.dataset.i); });
+
+/* ① 数据源网格 */
+function renderSources(q = '') {
+  const groups = [...new Set(SOURCES.map(s => s.g))];
+  const list = SOURCES.filter(s => !q || (s.n + s.meta).includes(q));
+  const counts = { todo: '37 项未完成', doctodo: '112 项，来自 24 篇文档', cal: '本月 18 个日程', pomo: '本月 41 次专注', diary: '今年 203 篇', card: '1,240 张', article: '86 篇', proj: '9 个项目', excerpt: '2,318 条', pdf: '57 个文件', web: '310 个网页', flash: '4 个卡组 · 620 张', csv: '选择文件…' };
+  const host = $('#s1 .dlg-b');
+  host.querySelectorAll('.grp').forEach(g => g.remove());
+  host.insertAdjacentHTML('beforeend', groups.map(g => {
+    const items = list.filter(s => s.g === g);
+    if (!items.length) return '';
+    return `<div class="grp"><h4>${g}</h4><div class="srcs">${items.map(s =>
+      `<button class="src" data-src="${s.id}"><span class="ic">${ic(s.i)}</span><span><b>${s.n}</b><span class="meta">${s.meta}</span><span class="meta" style="color:var(--ink-2)">${counts[s.id]}</span></span></button>`).join('')}</div></div>`;
+  }).join(''));
+}
+renderSources();
+document.addEventListener('input', e => { if (e.target.matches('#s1 .search input')) renderSources(e.target.value.trim()); });
+
+/* ② 配置 */
+const state = { src: 'todo', fields: null, scope: null, mode: 'live' };
+function openConfig(id) {
+  const s = byId(id);
+  state.src = id;
+  state.fields = s.f.map(f => !!f[3]);
+  state.scope = s.scope.map(sc => [...sc[2]]);
+  state.mode = s.copyOnly ? 'copy' : 'live';
+  $('#cfgName').textContent = s.n;
+  $('#dbName').value = { todo: '待办总表', cal: '近期日程', diary: '日记心情' }[id] || s.n;
+  renderConfig();
+  go('s2');
+}
+const typeLabel = { text: '文本', check: '勾选', select: '单选', multi: '多选', date: '日期', number: '数字', link: '链接', rich: '正文', image: '图片', progress: '进度', star: '评分' };
+function renderConfig() {
+  const s = byId(state.src);
+  $('#scopeSec').innerHTML = `<h5>范围</h5>` + s.scope.map((sc, i) =>
+    `<div style="margin-bottom:8px"><div style="color:var(--ink-3);font-size:11.5px;margin-bottom:5px">${sc[0]}</div><div class="chips">${sc[1].map((o, j) =>
+      `<button class="chip${state.scope[i].includes(j) ? ' on' : ''}" data-scope="${i}:${j}">${o}</button>`).join('')}</div></div>`).join('');
+  $('#fieldList').innerHTML = s.f.map((f, i) => {
+    const primary = i === 0;
+    const wb = f[2] === 1 ? '' : f[2] === 2 ? '<span class="wb">可勾选</span>' : `<span class="wb" title="只读">${ic('lock', 11)}</span>`;
+    return `<div class="fr${state.fields[i] ? ' on' : ''}${primary ? ' lock' : ''}" data-field="${i}"><span class="cb"></span><span class="ft" title="${typeLabel[f[1]]}">${ic(f[1])}</span><span class="nm">${f[0]}${primary ? '<span style="color:var(--ink-3);font-size:11px;margin-left:6px">主列</span>' : ''}</span>${wb}</div>`;
+  }).join('');
+  $('#modeList').style.display = s.copyOnly ? 'none' : '';
+  document.querySelectorAll('#modeList .opt').forEach(o => o.classList.toggle('on', o.dataset.mode === state.mode));
+  const scopeText = s.scope.map((sc, i) => state.scope[i].map(j => sc[1][j]).join('、')).join(' · ');
+  $('#pvScope').textContent = '· ' + scopeText;
+  $('#pvCount').textContent = { todo: '37 行', cal: '52 行', diary: '203 行' }[s.id] || '预览';
+  $('#pvMode').textContent = s.copyOnly ? '导入为普通表' : state.mode === 'live' ? '保持关联' : '复制一份';
+  $('#footHint').textContent = s.copyOnly ? '列均为文本，导入后可以改列类型'
+    : state.mode === 'live' ? `新建行：${s.add}` : '复制后是普通表，可以随意改列和数据';
+  $('#preview').innerHTML = tableHTML(s, state.fields, false);
+}
+function cell(type, v) {
+  if (v === undefined || v === '' || v === null) return '<td class="dim"></td>';
+  switch (type) {
+    case 'check': return `<td><span class="box${v ? ' y' : ''}"></span></td>`;
+    case 'select': return Array.isArray(v) ? `<td><span class="tag" style="--c:${v[1]}">${esc(v[0])}</span></td>` : `<td><span class="tag" style="--c:var(--ink-3)">${esc(v)}</span></td>`;
+    case 'multi': return `<td>${v.map(t => `<span class="tag" style="--c:${t[1]}">${esc(t[0])}</span>`).join('')}</td>`;
+    case 'progress': return `<td><span class="bar-p"><i style="width:${v}%"></i></span>${v}%</td>`;
+    case 'rich': return `<td class="dim">${ic('rich', 13)} ${esc(v)}</td>`;
+    case 'link': return `<td class="dim">${esc(v)}</td>`;
+    case 'star': return `<td class="stars">${'★'.repeat(v)}</td>`;
+    default: return `<td class="src-cell">${esc(v)}</td>`;
+  }
+}
+function tableHTML(s, picked, live, extra = []) {
+  const cols = s.f.map((f, i) => ({ f, i })).filter(c => picked[c.i]);
+  const head = cols.map(({ f }) => {
+    const lock = live && f[2] === 0 ? `<span class="lk" title="只能在${s.n}里修改">${ic('lock')}</span>` : '';
+    return `<th><span class="h">${ic(f[1])}${f[0]}${lock}</span></th>`;
+  }).join('') + extra.map(e => `<th class="mine"><span class="h">${ic(e[1])}${e[0]}</span></th>`).join('')
+    + (live ? `<th class="addcol">${ic('plus')}</th>` : '');
+  if (!s.rows) {
+    return `<table class="tb"><thead><tr>${head}</tr></thead></table><div style="padding:40px 16px;color:var(--ink-3);text-align:center">实际界面在这里显示该数据源的前 20 行<br><span style="font-size:11.5px">设计稿只给了待办、日程、日记的样例</span></div>`;
+  }
+  const body = s.rows.map((r, ri) => `<tr data-row="${ri}">${cols.map(({ f, i }) => {
+    if (s.id === 'todo' && i === 0) return `<td class="src-cell">${esc(r[0])}</td>`;
+    return cell(f[1], r[i]);
+  }).join('')}${extra.map(e => cell(e[1], e[2][ri]).replace(/^<td( class="([^"]*)")?/, (m, a, c) => `<td class="mine ${c || ''}"`)).join('')}${live ? '<td></td>' : ''}</tr>`).join('');
+  return `<table class="tb"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/* ③ 关联后的表格 */
+function renderLive() {
+  const s = byId('todo');
+  const picked = s.f.map(f => !!f[3]);
+  const extra = [['优先级', 'select', [['高', '#b0564d'], ['中', '#c4a043'], '', ['低', '#6f9a6a']]], ['备注', 'text', ['等老板确认范围', '', '', '先挑重点']]];
+  $('#liveWrap').innerHTML = tableHTML(s, picked, true, extra) + `<div class="newrow">${ic('plus')}新建待办<span style="margin-left:6px;font-size:11.5px">· 进入「工作」清单</span></div>`;
+}
+renderLive();
+
+/* 数据源清单 */
+function renderCatalog() {
+  const groups = [...new Set(SOURCES.map(s => s.g))];
+  $('#catalog').innerHTML = groups.map(g => `<h3>${g}</h3><table class="cat"><thead><tr><th style="width:130px">数据源</th><th style="width:170px">范围</th><th>字段</th><th style="width:220px">新建行</th><th style="width:170px">来自</th></tr></thead><tbody>${
+    SOURCES.filter(s => s.g === g).map(s => `<tr><td><span>${ic(s.i)}${s.n}</span></td><td class="wb">${s.scope.map(sc => sc[0]).join('、')}</td><td class="fl">${
+      s.f.map(f => f[2] ? `<em>${f[0]}${f[2] === 2 ? '（仅勾选）' : ''}</em>` : f[0]).join('、')}</td><td class="wb">${s.add}</td><td class="muted" style="font-family:var(--mono);font-size:11.5px">${s.tb}</td></tr>`).join('')
+  }</tbody></table>`).join('');
+}
+renderCatalog();
+
+/* 交互 */
+function go(id) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.toggle('on', el.id === id));
+  document.querySelectorAll('.ctrl .step[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === id));
+  $('#srcPop').style.display = 'none'; $('#rowMenu').style.display = 'none'; $('#srcPill').classList.remove('on');
+  window.scrollTo(0, 0);
+}
+document.addEventListener('click', e => {
+  const t = e.target;
+  const src = t.closest('[data-src]');
+  if (src) return openConfig(src.dataset.src);
+  if (t.closest('#s1 .blank')) return;
+  const g = t.closest('[data-go]');
+  if (g) return go(g.dataset.go);
+  const sc = t.closest('[data-scope]');
+  if (sc) {
+    const [i, j] = sc.dataset.scope.split(':').map(Number);
+    const s = byId(state.src), cur = state.scope[i];
+    const multi = s.scope[i][1][0] === '全部' && s.scope[i][1].length > 2 && s.scope[i][0] !== '时间';
+    if (multi && j !== 0) { const k = cur.indexOf(j); k >= 0 ? cur.splice(k, 1) : cur.push(j); const z = cur.indexOf(0); if (z >= 0) cur.splice(z, 1); if (!cur.length) cur.push(0); }
+    else state.scope[i] = [j];
+    return renderConfig();
+  }
+  const fr = t.closest('[data-field]');
+  if (fr && !fr.classList.contains('lock')) { const i = +fr.dataset.field; state.fields[i] = !state.fields[i]; return renderConfig(); }
+  const md = t.closest('[data-mode]');
+  if (md) { state.mode = md.dataset.mode; return renderConfig(); }
+  if (t.closest('#srcPill')) {
+    const pop = $('#srcPop'), open = pop.style.display === 'none';
+    pop.style.display = open ? 'block' : 'none'; $('#srcPill').classList.toggle('on', open); return;
+  }
+  if (t.id === 'theme') { const r = document.documentElement; const dark = r.dataset.theme === 'cocoa'; r.dataset.theme = dark ? 'paper' : 'cocoa'; t.textContent = dark ? '切换深色' : '切换浅色'; return; }
+  if (!t.closest('#srcPop')) { $('#srcPop').style.display = 'none'; $('#srcPill').classList.remove('on'); }
+  if (!t.closest('#rowMenu')) $('#rowMenu').style.display = 'none';
+});
+document.addEventListener('contextmenu', e => {
+  const tr = e.target.closest('#liveWrap tbody tr');
+  if (!tr) return;
+  e.preventDefault();
+  const paper = tr.closest('.paper').getBoundingClientRect();
+  const m = $('#rowMenu');
+  m.style.left = (e.clientX - paper.left) + 'px'; m.style.top = (e.clientY - paper.top) + 'px'; m.style.display = 'block';
+});
+</script>
+</body>
+</html>

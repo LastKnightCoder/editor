@@ -3,12 +3,13 @@
  * 从「项目」的 data-table 类型拆出为独立顶级模块。
  */
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Table } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
 import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
 import { useDatabasesSnapshot, useDatabaseMutations } from "../queries";
+import { CreateDatabaseDialog } from "../CreateDatabaseDialog";
 
 /* 模块色沿用原 projectTypeMeta 的数据表格紫罗兰（数据色，不进主题词表） */
 const VISUAL: CockpitVisual = {
@@ -40,6 +41,8 @@ export function DatabasesView() {
   const { navigator } = usePage();
   const { items, loading } = useDatabasesSnapshot();
   const mutations = useDatabaseMutations();
+  const [creating, setCreating] = useState(false);
+  const openBlank = useRef<() => void>(() => {});
 
   // 数据库没有子条目，只有打开时间，卡片不出现「上次看到」
   const cockpitItems: CockpitItem[] = useMemo(
@@ -48,15 +51,27 @@ export function DatabasesView() {
   );
 
   return (
-    <EntityCockpit
-      prefsKey="databases"
-      items={cockpitItems}
-      loading={loading}
-      visual={VISUAL}
-      copy={COPY}
-      mutations={mutations}
-      onOpen={id => navigator.push("database-detail", { id })}
-      onCreated={created => navigator.push("database-detail", { id: created.id })}
-    />
+    <>
+      <EntityCockpit
+        prefsKey="databases"
+        items={cockpitItems}
+        loading={loading}
+        visual={VISUAL}
+        copy={COPY}
+        mutations={mutations}
+        onOpen={id => navigator.push("database-detail", { id })}
+        onCreated={created => navigator.push("database-detail", { id: created.id })}
+        onCreateRequest={openDefault => {
+          openBlank.current = openDefault;
+          setCreating(true);
+        }}
+      />
+      <CreateDatabaseDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        onBlank={() => openBlank.current()}
+        onCreated={created => navigator.push("database-detail", { id: created.id })}
+      />
+    </>
   );
 }

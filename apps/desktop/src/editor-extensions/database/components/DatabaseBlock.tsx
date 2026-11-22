@@ -5,7 +5,7 @@ import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
 import { AddParagraph } from "@tau/editor";
 import { useIsLastElement } from "@tau/editor/api";
-import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
+import { DataTableEditor as Database } from "@/features/shared/database/DataTableEditor";
 import type { DatabaseElement } from "../types";
 
 interface DatabaseBlockProps {
@@ -97,6 +97,8 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
       <div style={{ minHeight: `${height}em` }}>
         <Database
           tableId={databaseState.table.id}
+          source={databaseState.table.source}
+          reload={databaseState.reload}
           key={databaseState.table.id}
           columns={databaseState.table.columns}
           data={databaseState.table.rows}

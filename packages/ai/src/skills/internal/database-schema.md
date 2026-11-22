@@ -715,6 +715,19 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `table_id`    | `INTEGER PRIMARY KEY` |
 | `released_at` | `INTEGER NOT NULL`    |
 
+### `data_table_sources`
+
+关联了应用内数据源的数据表（`data_tables.id`）。`kind` 为 card / article / document / diary；`scope` 为范围 JSON（如 `{"tags":["读书"]}`、`{"projectId":3,"deep":true}`、`{"range":"month"}`）；`fields` 为选中的源头字段 key 数组。源头字段的值不存在 `data_tables.rows` 里，行 id 形如 `card:12`，rows 只保存自建列的值。
+
+| 字段          | SQLite 定义                  |
+| ------------- | ---------------------------- |
+| `table_id`    | `INTEGER PRIMARY KEY`        |
+| `kind`        | `TEXT NOT NULL`              |
+| `scope`       | `TEXT NOT NULL DEFAULT '{}'` |
+| `fields`      | `TEXT NOT NULL DEFAULT '[]'` |
+| `create_time` | `INTEGER NOT NULL`           |
+| `update_time` | `INTEGER NOT NULL`           |
+
 ### `database_item`
 
 | 字段             | SQLite 定义                  |

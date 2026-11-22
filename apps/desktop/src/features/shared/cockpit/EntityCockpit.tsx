@@ -43,6 +43,8 @@ export interface EntityCockpitProps {
   onOpen(id: number): void;
   /** 新建成功后的去向，默认不跳转 */
   onCreated?(created: { id: number }): void;
+  /** 接管「新建」按钮（模块有自己的新建流程时传入）；openDefault 打开原有的名称 + 描述弹窗 */
+  onCreateRequest?(openDefault: () => void): void;
   /** 整体导出弹窗（仅项目支持，其余模块不传则菜单项隐去） */
   renderExport?: (item: CockpitItem, close: () => void) => ReactNode;
   /** 纸面拖入（仅项目支持：拖入文件夹导入为项目）：挂在纸面上的拖拽处理器与遮罩 */
@@ -58,6 +60,7 @@ export function EntityCockpit({
   mutations,
   onOpen,
   onCreated,
+  onCreateRequest,
   renderExport,
   paperDrop,
 }: EntityCockpitProps) {
@@ -99,7 +102,9 @@ export function EntityCockpit({
     onDelete: item => setDeleting(item),
   };
 
-  const openCreate = () => setCreateOpen(true);
+  const openDefaultCreate = () => setCreateOpen(true);
+  const openCreate = () =>
+    onCreateRequest ? onCreateRequest(openDefaultCreate) : openDefaultCreate();
 
   if (loading) return <Loading />;
 

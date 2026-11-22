@@ -24,6 +24,9 @@ export * from "./content";
 // Data table types are now exported from @tau/shared
 export type {
   DataTable,
+  DataTableSource,
+  DataTableSourceKind,
+  DataTableSourceScope,
   ColumnDef as DataTableColumn,
   RowData as DataTableRow,
   DatabaseData,

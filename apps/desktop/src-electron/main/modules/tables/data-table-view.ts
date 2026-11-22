@@ -240,8 +240,9 @@ export default class DataTableViewTable {
       }
     });
 
+    const currentRows = new Set(rowIds);
     const configRows = new Set(config.rowOrder);
-    const nextRowOrder = config.rowOrder.filter(id => rowIds.includes(id));
+    const nextRowOrder = config.rowOrder.filter(id => currentRows.has(id));
     rowIds.forEach(id => {
       if (!configRows.has(id)) {
         nextRowOrder.push(id);

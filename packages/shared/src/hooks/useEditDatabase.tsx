@@ -10,6 +10,7 @@ import type {
   DatabaseRowChanges,
   ColumnDef,
   DataTableTarget,
+  DataTableSource,
   UpdateDataTableView,
 } from "../types/database";
 
@@ -21,6 +22,7 @@ export interface UseEditDatabaseDeps {
   updateDataTableChanges?: (input: {
     id: DataTableTarget;
     rows: DatabaseRowChanges;
+    expectedSource?: DataTableSource;
     columns?: ColumnDef[];
   }) => Promise<DataTable | null>;
   getDataTableDetail: (
@@ -48,6 +50,8 @@ export function useEditDatabase(
   const [views, setViews] = useState<DataTableView[]>([]);
   const [table, setTable] = useState<DataTable | null>(null);
   const targetKey = JSON.stringify(tableId);
+  const nextRequest = useRef(0);
+  const lastSnapshot = useRef(0);
   const currentTarget = useRef(targetKey);
   currentTarget.current = targetKey;
   const [loadedTarget, setLoadedTarget] = useState<string>();
@@ -93,13 +97,26 @@ export function useEditDatabase(
     return null;
   }
 
+  /** 静默重读（关联源头变化时）：不清空当前表，读到后整体替换 */
+  const reload = async () => {
+    if (!tableId || loadedTarget !== targetKey || !current()) return;
+    const request = ++nextRequest.current;
+    const { table: dataTable, views: viewList } = await deps.getDataTableDetail(tableId);
+    if (!dataTable || !viewList || !current() || request < lastSnapshot.current) return;
+    lastSnapshot.current = request;
+    setTable(dataTable);
+    setViews(viewList);
+  };
+
   const onDataChange = async (data: DatabaseData, change?: DatabaseDataChange) => {
     if (!table || !tableId || loadedTarget !== targetKey || !current()) return;
+    const request = ++nextRequest.current;
     const updated =
       change && deps.updateDataTableChanges
         ? await deps.updateDataTableChanges({
             id: tableId,
             rows: change.rows,
+            ...(table.source ? { expectedSource: table.source } : {}),
             ...(change.columnsChanged ? { columns: data.columns } : {}),
           })
         : await deps.updateDataTable({
@@ -108,7 +125,8 @@ export function useEditDatabase(
             rows: data.rows,
             activeViewId: table.activeViewId,
           });
-    if (updated && current()) {
+    if (updated && current() && request >= lastSnapshot.current) {
+      lastSnapshot.current = request;
       setTable(updated);
     }
   };
@@ -269,6 +287,7 @@ export function useEditDatabase(
     onUpdateView,
     onReorderViews,
     onActiveViewIdChange,
+    reload,
   };
 }
 

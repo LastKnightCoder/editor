@@ -5,6 +5,9 @@ const { cleanup, retain, releaseDeferred } = vi.hoisted(() => ({
   retain: vi.fn(),
   releaseDeferred: vi.fn(),
 }));
+// 数据源定义间接加载到 electron 与视频笔记队列
+vi.mock("electron");
+vi.mock("../video-note-index-queue");
 vi.mock("../tables/content", () => ({
   default: { deleteContent: cleanup, retain, releaseDeferred },
 }));
@@ -21,7 +24,9 @@ beforeEach(() => {
     columns TEXT, rows TEXT, active_view_id INTEGER, ref_count INTEGER);
     CREATE TABLE data_table_views (id INTEGER PRIMARY KEY, table_id INTEGER, sort_order INTEGER, config TEXT, update_time INTEGER);
     CREATE TABLE operation (id INTEGER PRIMARY KEY, operation_time INTEGER, operation_id INTEGER,
-    operation_content_type TEXT, operation_action TEXT);`);
+    operation_content_type TEXT, operation_action TEXT);
+    CREATE TABLE data_table_sources (table_id INTEGER PRIMARY KEY, kind TEXT, scope TEXT, fields TEXT,
+    create_time INTEGER, update_time INTEGER);`);
   db.prepare("INSERT INTO data_tables VALUES (1, 11, 22, ?, ?, 8, 1)").run(
     JSON.stringify([{ id: "title", type: "text", title: "名称", width: 600 }]),
     JSON.stringify([

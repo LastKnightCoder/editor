@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { DatabaseItem, DatabaseItemSummary, CreateDatabaseItem, UpdateDatabaseItem } from "@/types";
 import Operation from "./operation";
 import DataTableTable from "./data-table";
+import DataTableSourceTable from "./data-table-source";
 import { getNextModuleEntityId } from "./module-entity-id";
 
 /**
@@ -55,7 +56,10 @@ export default class DatabaseItemTable {
       .all() as Array<Record<string, unknown>>;
     return rows.map(row => ({
       ...this.parse(row),
-      rowCount: Number(row.row_count || 0),
+      // 关联表的 rows 只存自建列的值，行数按源头范围数
+      rowCount:
+        DataTableSourceTable.rowCount(db, Number(row.data_table_id || 0)) ??
+        Number(row.row_count || 0),
       openedAt: (row.last_open_time as number | null) ?? null,
     }));
   }
@@ -78,9 +82,12 @@ export default class DatabaseItemTable {
         isPrimary: true,
       };
       const dataTable = DataTableTable.create(db, {
-        columns: [defaultColumn],
+        columns: item.source
+          ? DataTableSourceTable.initialColumns(db, item.source)
+          : [defaultColumn],
         rows: [],
       });
+      if (item.source) DataTableSourceTable.attach(db, dataTable.id, item.source);
 
       const id = getNextModuleEntityId(db);
       db.prepare(

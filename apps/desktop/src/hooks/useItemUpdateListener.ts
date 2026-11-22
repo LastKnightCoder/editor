@@ -7,9 +7,19 @@ import {
   defaultProjectItemEventBus,
   defaultContentEventBus,
 } from "@/utils";
+import { currentCommandScope } from "@/services/command-context";
 import { on, off } from "@/electron";
 import { useCreation } from "ahooks";
 import type { IpcRendererEvent } from "electron";
+
+// 辅助窗口也会收到广播，只有已连上同一资料库的窗口才能回读实体。
+function receivesUpdate(databaseName: string) {
+  const name = databaseName.replace(/\.db$/, "");
+  return (
+    currentCommandScope()?.databaseName?.replace(/\.db$/, "") === name &&
+    useSettingStore.getState().setting.database.active.replace(/\.db$/, "") === name
+  );
+}
 
 export const useItemUpdateListener = () => {
   const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
@@ -22,8 +32,7 @@ export const useItemUpdateListener = () => {
       _e: IpcRendererEvent,
       data: { cardId: number; databaseName: string }
     ) => {
-      const currentDatabaseName = useSettingStore.getState().setting.database.active;
-      if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
+      if (!receivesUpdate(data.databaseName)) return;
       const card = await getCardById(data.cardId);
       cardEventBus.publishCardEvent("card:updated", card);
     };
@@ -32,8 +41,7 @@ export const useItemUpdateListener = () => {
       _e: IpcRendererEvent,
       data: { articleId: number; databaseName: string }
     ) => {
-      const currentDatabaseName = useSettingStore.getState().setting.database.active;
-      if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
+      if (!receivesUpdate(data.databaseName)) return;
       const article = await findOneArticle(data.articleId);
       if (!article) return;
       articleEventBus.publishArticleEvent("article:updated", article);
@@ -43,8 +51,7 @@ export const useItemUpdateListener = () => {
       _e: IpcRendererEvent,
       data: { projectItemId: number; databaseName: string }
     ) => {
-      const currentDatabaseName = useSettingStore.getState().setting.database.active;
-      if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
+      if (!receivesUpdate(data.databaseName)) return;
       const projectItem = await getProjectItemById(data.projectItemId);
       if (!projectItem) return;
       projectItemEventBus.publishProjectItemEvent("project-item:updated", projectItem);
@@ -54,8 +61,7 @@ export const useItemUpdateListener = () => {
       _e: IpcRendererEvent,
       data: { contentId: number; databaseName: string }
     ) => {
-      const currentDatabaseName = useSettingStore.getState().setting.database.active;
-      if (data.databaseName.replace(".db", "") !== currentDatabaseName.replace(".db", "")) return;
+      if (!receivesUpdate(data.databaseName)) return;
       const content = await getContentById(data.contentId);
       if (!content) return;
       contentEventBus.publishContentEvent("content:updated", content);

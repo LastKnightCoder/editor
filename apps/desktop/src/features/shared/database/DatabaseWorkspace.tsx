@@ -1,4 +1,4 @@
-import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
+import { DataTableEditor as Database } from "./DataTableEditor";
 import { memo, useRef } from "react";
 import {
   RowData,
@@ -10,6 +10,8 @@ import {
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useEditDatabaseWithContext } from "@tau/shared";
+import { sourceFieldKey } from "@/features/databases/data-sources";
+import { DataSourcePill } from "./DataSourcePill";
 
 export interface DatabaseWorkspaceProps {
   tableId?: number;
@@ -47,8 +49,10 @@ const DatabaseWorkspace = memo(
       onUpdateView,
       onReorderViews,
       onActiveViewIdChange,
+      reload,
     } = useEditDatabaseWithContext(tableId) || {};
     const titleRef = useRef<EditTextHandle>(null);
+    const source = table?.source;
     const activeView = views?.find(view => view.id === activeViewId);
 
     const handleTitleCommit = useMemoizedFn(async () => {
@@ -100,9 +104,23 @@ const DatabaseWorkspace = memo(
               contentEditable={true}
               onPressEnter={handleTitleCommit}
             />
+            {source && (
+              <DataSourcePill
+                tableId={table.id}
+                source={source}
+                customColumns={
+                  (table.columns as ColumnDef[]).filter(
+                    column => sourceFieldKey(column.id) === null
+                  ).length
+                }
+                onChanged={() => reload?.()}
+              />
+            )}
             {headerExtra}
           </div>
           <Database
+            source={source}
+            reload={reload}
             tableId={table.id}
             bare
             className="min-h-0 flex-1"
