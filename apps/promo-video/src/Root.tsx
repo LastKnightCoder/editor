@@ -20,8 +20,9 @@ import { TUTORIAL_GLYPHS } from "./films/tutorial/script";
 import { AppThemeProvider } from "./app-kit/theme";
 import { STAGES } from "./brand/stage";
 import { BOARD_TEXT } from "./mock/board";
+import { BilibiliCover, COVER_GLYPHS, COVER_SIZE, type CoverLayout } from "./films/cover/BilibiliCover";
 
-preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS, BOARD_TEXT);
+preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS + COVER_GLYPHS, BOARD_TEXT);
 
 const FEATURE_IDS: Record<Feature, string> = { editor: "Feature-Editor", compose: "Feature-Compose" };
 
@@ -33,6 +34,9 @@ export function Root() {
         <Composition key={feature} id={FEATURE_IDS[feature]} component={FeatureFilm} defaultProps={{ feature }} durationInFrames={featureDuration(feature)} {...VIDEO} />
       ))}
       <Composition id="Tutorial-Syntax" component={TutorialFilm} durationInFrames={TUTORIAL_DURATION} {...VIDEO} />
+      {(Object.keys(COVER_SIZE) as CoverLayout[]).map(layout => (
+        <Composition key={layout} id={`Cover-Bilibili-${layout}`} component={BilibiliCover} defaultProps={{ layout }} durationInFrames={1} fps={VIDEO.fps} {...COVER_SIZE[layout]} />
+      ))}
       <Composition id="DayInLife" component={DayFilm} durationInFrames={DAY_DURATION} {...VIDEO} />
 
       {(Object.keys(GALLERY_PAGES) as GalleryPage[]).map(page => (
