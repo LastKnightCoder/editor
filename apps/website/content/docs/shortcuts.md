@@ -13,6 +13,7 @@
 | 搜索或跳转（命令面板） | <kbd>⌘K</kbd> 或 <kbd>⌘P</kbd> | <kbd>Ctrl+K</kbd> 或 <kbd>Ctrl+P</kbd> |
 | 打开或关闭设置         | <kbd>⌘,</kbd>                  | <kbd>Ctrl+,</kbd>                      |
 | 打开或收起 AI 对话栏   | <kbd>⌘J</kbd>                  | <kbd>Ctrl+J</kbd>                      |
+| 快捷输入并发起新对话   | <kbd>⌘⇧J</kbd>                 | <kbd>Ctrl+Shift+J</kbd>                |
 | 在当前页面查找         | <kbd>⌘F</kbd>                  | <kbd>Ctrl+F</kbd>                      |
 | 弹出速记卡片窗口       | <kbd>⌘⇧N</kbd>                 | <kbd>Ctrl+Shift+N</kbd>                |
 | 后退 / 前进            | <kbd>⌥←</kbd> / <kbd>⌥→</kbd>  | <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd>    |
@@ -82,12 +83,14 @@
 
 ## Markdown 文件窗口
 
-在独立窗口里编辑电脑上的 `.md` 文件时使用，详见 [编辑器基础](/docs/editor/)。
+在独立窗口里编辑电脑上的 `.md` 文件时使用，详见 [Markdown 文件](/docs/markdown-files/)。
 
 | 操作         | macOS         | Windows           |
 | ------------ | ------------- | ----------------- |
 | 切换源码模式 | <kbd>⌘/</kbd> | <kbd>Ctrl+/</kbd> |
 | 立即保存     | <kbd>⌘S</kbd> | <kbd>Ctrl+S</kbd> |
+| 全文查找     | <kbd>⌘F</kbd> | <kbd>Ctrl+F</kbd> |
+| 打开文件     | <kbd>⌘O</kbd> | <kbd>Ctrl+O</kbd> |
 
 ## AI 对话
 

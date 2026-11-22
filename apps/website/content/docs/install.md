@@ -25,7 +25,7 @@ macOS 版分为 Apple 芯片和 Intel 芯片两个安装包，先确认你的电
 2. 按提示选择安装位置，点击「安装」。安装时需要管理员权限，系统会弹窗确认。
 3. 安装完成后，可以从桌面快捷方式或开始菜单打开 Tau。
 
-安装后，`.md` 和 `.markdown` 文件的「打开方式」里会出现 Tau，可以直接用它打开本地 Markdown 文件。
+安装后，`.md` 和 `.markdown` 文件的「打开方式」里会出现 Tau，可以直接用它打开本地 Markdown 文件，见 [Markdown 文件](/docs/markdown-files/)。
 
 ## Android
 

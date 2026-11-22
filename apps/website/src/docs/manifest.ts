@@ -62,6 +62,11 @@ const DOC_GROUPS: DocGroup[] = [
         summary: "所见即所得的 Markdown 编辑：语法、快捷键与常用块。",
       },
       {
+        slug: "markdown-files",
+        title: "Markdown 文件",
+        summary: "把 Tau 当电脑上的 Markdown 编辑器：双击打开，所见即所得，保存回原文件。",
+      },
+      {
         slug: "cards",
         title: "卡片",
         summary: "随笔、短思考和一闪念，用标签和引用连起来。",
