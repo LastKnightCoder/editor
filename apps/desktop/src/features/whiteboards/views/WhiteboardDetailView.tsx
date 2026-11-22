@@ -13,7 +13,7 @@ import type { WhiteboardElementSnapshot } from "@tau/collaboration";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
+import { ConfirmDialog, Input, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { BoardCanvas, type BoardCanvasHandle } from "../components/BoardCanvas";
 import { SheetBar } from "../components/SheetBar";
@@ -54,6 +54,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const canvasRef = useRef<BoardCanvasHandle>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const infoTitle = useRef("");
+  const [newPageName, setNewPageName] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -262,11 +263,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
             }
             activeId={activeId}
             onSelect={pageId => pageId !== activeId && go(pageId)}
-            onAdd={() =>
-              void addPage(`第 ${pages.length + 1} 页`)
-                .then(go)
-                .catch(fail("新建页失败"))
-            }
+            onAdd={() => setNewPageName("")}
             onRename={(pageId, name) => void renamePage(pageId, name).catch(fail("改名失败"))}
             onDuplicate={pageId =>
               void (async () => {
@@ -290,6 +287,34 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
       </div>
 
       <ConfirmDialog
+        open={newPageName !== null}
+        onOpenChange={open => !open && setNewPageName(null)}
+        title="新建页"
+        size="sm"
+        description={
+          <Input
+            data-autofocus
+            aria-label="页名称"
+            placeholder="输入页名称"
+            value={newPageName ?? ""}
+            onChange={event => setNewPageName(event.target.value)}
+          />
+        }
+        confirmText="创建"
+        confirmDisabled={!newPageName?.trim()}
+        onConfirm={async () => {
+          const name = newPageName?.trim();
+          if (!name) return;
+          try {
+            go(await addPage(name));
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "新建页失败");
+            throw error;
+          }
+        }}
+      />
+
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={next => !next && setDeleteOpen(false)}
         title="删除这一页"
@@ -307,7 +332,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
           try {
             if (documentId) {
               await removePage(deleteTarget.id);
-              if (neighbor) go(neighbor.id);
+              if (deleteTarget.id === activeId && neighbor) go(neighbor.id);
             } else {
               if (deleteTarget.id === activeId && neighbor) {
                 // 先把这一页未落库的改动存完、切走，再删——免得卸载时的保存落在已删除的页上

@@ -54,6 +54,7 @@ vi.mock("@/stores/useSettingStore", () => ({
 }));
 vi.mock("@/page/PageProvider", () => ({ usePage: () => ({ registerLeaveGuard: mocks.guard }) }));
 vi.mock("@/commands/whiteboard-document", () => ({
+  onWhiteboardDocumentProjected: () => vi.fn(),
   applyWhiteboardAgentOperations: vi.fn(),
   readWhiteboardShareStatus: mocks.shareStatus,
   publishWhiteboard: mocks.publish,
@@ -311,7 +312,9 @@ it("两个标题栏按钮切换同一个停靠栏，重新打开各自恢复上�
     const start = Number(handle.getAttribute("aria-valuenow"));
     const pointer = (type: string, clientX: number) =>
       act(() => {
-        handle.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, button: 0 }));
+        handle.dispatchEvent(
+          new MouseEvent(type, { bubbles: true, clientX, buttons: type === "pointerup" ? 0 : 1 })
+        );
       });
     pointer("pointerdown", start);
     pointer("pointermove", target);

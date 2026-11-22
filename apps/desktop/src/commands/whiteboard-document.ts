@@ -17,6 +17,10 @@ const subscribe = <T>(channel: string, listener: (value: T) => void) => {
   on(channel, handler);
   return () => off(channel, handler);
 };
+export const onWhiteboardDocumentProjected = (
+  listener: (value: { databaseName: string; documentId: string }) => void
+) => subscribe("whiteboard-document:projected", listener);
+
 export const whiteboardDocumentBackend: WhiteboardDocumentBackend = {
   open: (target, viewId) => call("open", target.databaseName, target.contentId, viewId),
   append: (lease, batch, update) => call("append", lease, batch, update),

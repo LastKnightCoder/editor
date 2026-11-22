@@ -1,4 +1,3 @@
-import { on, off } from "@/electron";
 import { queryClient as appQueryClient } from "@/queryClient";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -24,7 +23,10 @@ import {
   updateWhiteboardMeta,
 } from "@/commands";
 import useUploadResource from "@/hooks/useUploadResource";
-import { readWhiteboardShareStatus } from "@/commands/whiteboard-document";
+import {
+  onWhiteboardDocumentProjected,
+  readWhiteboardShareStatus,
+} from "@/commands/whiteboard-document";
 import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
 import useSettingStore from "@/stores/useSettingStore";
 import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
@@ -34,7 +36,7 @@ import { normalizeTags, toItem, type WhiteboardItem } from "./model";
 
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
 const pendingProjectionRefresh = new Map<string, ReturnType<typeof setTimeout>>();
-const projectionChanged = ({ databaseName }: { databaseName: string }) => {
+const unsubscribeProjected = onWhiteboardDocumentProjected(({ databaseName }) => {
   if (pendingProjectionRefresh.has(databaseName)) return;
   pendingProjectionRefresh.set(
     databaseName,
@@ -48,10 +50,9 @@ const projectionChanged = ({ databaseName }: { databaseName: string }) => {
       });
     }, 100)
   );
-};
-on("whiteboard-document:projected", projectionChanged);
+});
 import.meta.hot?.dispose(() => {
-  off("whiteboard-document:projected", projectionChanged);
+  unsubscribeProjected();
   pendingProjectionRefresh.forEach(clearTimeout);
 });
 
