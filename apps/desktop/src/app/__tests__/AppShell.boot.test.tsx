@@ -46,6 +46,8 @@ vi.mock("@/components/AutoUpdateChecker", () => ({ default: () => null }));
 vi.mock("@/pages", () => ({}));
 
 import AppShell from "../AppShell";
+import { useWebDockStore } from "@/features/web/openInDock";
+import { useShellStore } from "../shellStore";
 import { connectDatabaseByName } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
@@ -97,14 +99,22 @@ it("设置已就绪时直接连接，真实连接失败仍显示错误并可重�
   expect(connectDatabaseByName).toHaveBeenCalledTimes(2);
 });
 
-it("设置就绪后切换库仍重新连接新库", async () => {
+it("切换库时释放旧网页与返回目标，再连接新库", async () => {
   useSettingStore.setState({ inited: true });
   await act(async () => root.render(<AppShell />));
+  useShellStore.getState().showAssist("chat");
+  useShellStore.getState().showAssistOver("web");
+  useWebDockStore.setState({ request: { id: 1, url: "https://example.org/old" } });
   await act(async () => {
     useSettingStore.setState(state => ({
-      setting: { ...state.setting, database: { ...state.setting.database, active: "other.db" } },
+      setting: {
+        ...state.setting,
+        database: { ...state.setting.database, active: "other.db" },
+      },
     }));
   });
+  expect(useWebDockStore.getState().request).toBeNull();
+  expect(useShellStore.getState()).toMatchObject({ assistView: "chat", assistCovered: null });
   expect(connectDatabaseByName).toHaveBeenNthCalledWith(2, "other.db");
   expect(container.textContent).toContain("页面已就绪");
   expect(useGlobalStateStore.getState().databaseStatus["other.db"]).toBe("ready");

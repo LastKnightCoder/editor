@@ -59,7 +59,7 @@ function ChatPaper() {
   const collapseToDock = () =>
     morphAssist(() => {
       useChatSessionStore.getState().setCurrent(MAIN_CHAT_BUCKET, chatId);
-      useShellStore.getState().setAssistOpen(true);
+      useShellStore.getState().showAssist("chat");
       if (navigator.canBack()) navigator.back();
       else navigator.push("home");
     });

@@ -15,6 +15,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -51,6 +52,7 @@ interface PageContextValue {
   navigator: Navigator;
   state: sm.StackMachineState;
   registerOverlayDismiss: RegisterOverlayDismiss;
+  dismissTopOverlay(): boolean;
   registerLeaveGuard: (guard: () => boolean | Promise<boolean>) => () => void;
   /** 当前栈顶页注册的面包屑（无则 undefined，Titlebar 回退到默认 label） */
   breadcrumbs: ReadonlyMap<string, ReactNode>;
@@ -201,21 +203,24 @@ export function PageProvider({
     };
   }, []);
 
+  const dismissTopOverlay = useCallback(() => {
+    const dismiss = [...overlayDismissers.current.values()].at(-1);
+    if (!dismiss) return false;
+    dismiss();
+    return true;
+  }, []);
+
   // Esc 仲裁（03 指南 §5）：只承担浮层退场（注册表 LIFO，浮层输入框里的 Esc
   // 同义）；无浮层时无操作——后退由 Alt+←/→ 与标题栏按钮承担（已移除
   // Esc=后退：详情页误触即丢编辑上下文）。
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.isComposing) return;
-      const dismissers = [...overlayDismissers.current.values()];
-      if (dismissers.length > 0) {
-        e.preventDefault();
-        dismissers[dismissers.length - 1]();
-      }
+      if (dismissTopOverlay()) e.preventDefault();
     };
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
-  }, []);
+  }, [dismissTopOverlay]);
 
   /* 页面级槽位注册表（面包屑）：按 page key 存 ReactNode，壳层只渲染
      栈顶 key 的条目。node 须由调用方 useMemo 稳定化（见 usePageSlot JSDoc），
@@ -228,11 +233,20 @@ export function PageProvider({
       navigator,
       state,
       registerOverlayDismiss,
+      dismissTopOverlay,
       registerLeaveGuard,
       breadcrumbs,
       registerBreadcrumb,
     }),
-    [navigator, state, registerOverlayDismiss, registerLeaveGuard, breadcrumbs, registerBreadcrumb]
+    [
+      navigator,
+      state,
+      registerOverlayDismiss,
+      dismissTopOverlay,
+      registerLeaveGuard,
+      breadcrumbs,
+      registerBreadcrumb,
+    ]
   );
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
 }

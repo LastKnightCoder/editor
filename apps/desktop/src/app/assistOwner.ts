@@ -5,23 +5,37 @@
  * 保活隐藏的页面 effect 已清理，注册随之撤销，不会抢到别的页面。
  */
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { create } from "zustand";
+import { useShellStore } from "./shellStore";
+
+interface AssistOwner {
+  isChatOpen(): boolean;
+  toggle(): void;
+}
 
 interface AssistOwnerState {
   /** page key → 页面的对话开关 */
-  owners: Record<string, () => void>;
+  owners: Record<string, AssistOwner & { instance: symbol }>;
 }
 
-export const useAssistOwnerStore = create<AssistOwnerState>(() => ({ owners: {} }));
+export const useAssistOwnerStore = create<AssistOwnerState>(() => ({
+  owners: {},
+}));
 
-export function useOwnAssist(pageKey: string, toggle: () => void, active = true) {
-  const toggleRef = useRef(toggle);
-  toggleRef.current = toggle;
+export function useOwnAssist(pageKey: string, owner: AssistOwner, active = true) {
+  const ownerRef = useRef(owner);
+  ownerRef.current = owner;
   useEffect(() => {
     if (!active) return;
-    const handler = () => toggleRef.current();
-    useAssistOwnerStore.setState(s => ({ owners: { ...s.owners, [pageKey]: handler } }));
+    const handler = {
+      instance: Symbol(pageKey),
+      isChatOpen: () => ownerRef.current.isChatOpen(),
+      toggle: () => ownerRef.current.toggle(),
+    };
+    useAssistOwnerStore.setState(s => ({
+      owners: { ...s.owners, [pageKey]: handler },
+    }));
     return () =>
       useAssistOwnerStore.setState(s => {
         if (s.owners[pageKey] !== handler) return s;
@@ -32,6 +46,19 @@ export function useOwnAssist(pageKey: string, toggle: () => void, active = true)
   }, [pageKey, active]);
 }
 
+/** 网页临时占用右栏时保留本页的对话偏好；显式打开对话时收回网页。 */
+export function usePageChatPanel(preferredOpen: boolean, setPreference: (open: boolean) => void) {
+  const webOpen = useShellStore(s => s.assistView === "web");
+  const setOpen = useCallback(
+    (open: boolean) => {
+      if (open) useShellStore.getState().closeAssist("web");
+      setPreference(open);
+    },
+    [setPreference]
+  );
+  return [preferredOpen && !webOpen, setOpen] as const;
+}
+
 /** 栈顶页面是否接管了对话开关 */
 export function useAssistOwned(pageKey: string | undefined): boolean {
   return useAssistOwnerStore(s => (pageKey ? pageKey in s.owners : false));
@@ -40,6 +67,6 @@ export function useAssistOwned(pageKey: string | undefined): boolean {
 /** 开合 AI 对话：栈顶页面接管了就交给它，否则开合壳层停靠栏 */
 export function toggleAssistFor(pageKey: string | undefined, toggleDock: () => void) {
   const owner = pageKey ? useAssistOwnerStore.getState().owners[pageKey] : undefined;
-  if (owner) owner();
+  if (owner) owner.toggle();
   else toggleDock();
 }

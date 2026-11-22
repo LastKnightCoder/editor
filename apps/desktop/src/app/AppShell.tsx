@@ -16,7 +16,7 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { PageNavigationBridge } from "./PageNavigationBridge";
 import { DesktopPluginProvider } from "./plugins/PluginProvider";
-import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
+import { Loading, NotificationHost, ToastHost, cn, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { MarkdownExportHost } from "@/features/transfer/MarkdownExportHost";
@@ -33,6 +33,8 @@ import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { AssistDock } from "./AssistDock";
+import { clearWebDock, useExternalWebLinkClick } from "@/features/web/openInDock";
+import { useVisibleAssist } from "./useVisibleAssist";
 import { AuroraBackdrop } from "./AuroraBackdrop";
 import {
   useShellStore,
@@ -64,6 +66,13 @@ const DevFloatingBall = import.meta.env.DEV
 
 export default function AppShell() {
   const databaseName = useSettingStore(state => state.setting.database.active);
+  useEffect(
+    () =>
+      useSettingStore.subscribe((next, previous) => {
+        if (next.setting.database.active !== previous.setting.database.active) clearWebDock();
+      }),
+    []
+  );
   // key = 活动数据库名：切库时整体重建壳层（含启动连接流程与页面栈）
   return <ShellBody key={databaseName} />;
 }
@@ -157,8 +166,10 @@ function ShellBody() {
 }
 
 function ShellLayout({ startedAt }: { startedAt: number }) {
+  useExternalWebLinkClick();
   useEffect(() => recordPerfStage("startup:shell-ready", startedAt), [startedAt]);
   const { state } = usePage();
+  const assistExpanded = useVisibleAssist().expanded;
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);
@@ -198,7 +209,12 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
             min-w-0 必需：clip 不是滚动容器，不会清零自动最小宽度，页面内容（nowrap 长标题等）
             的 min-content 会经隐式 auto 列轨道把整列连同标题栏撑出窗口 */}
         <div className="relative flex min-h-0 min-w-0 overflow-x-clip">
-          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <main
+            className={cn(
+              "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto",
+              assistExpanded && "invisible"
+            )}
+          >
             <PageHost state={state} />
           </main>
           <AssistDock />

@@ -39,7 +39,7 @@ export function openChatInDock(sessionId: string, options: { entry?: string } = 
       : null,
   });
   useChatSessionStore.getState().setCurrent(MAIN_CHAT_BUCKET, sessionId);
-  useShellStore.getState().setAssistOpen(true);
+  useShellStore.getState().showAssist("chat");
 }
 
 export function clearDockEntry(intent: DockEntry) {

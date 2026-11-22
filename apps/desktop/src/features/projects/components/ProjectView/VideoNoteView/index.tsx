@@ -30,7 +30,7 @@ import { openLLMSettingsSection } from "@/utils/transcription";
 import { getProjectItemById, getVideoNoteById } from "@/commands";
 import type { TranscriptSegment, VideoNote } from "@/types";
 import { useVideoProviderName } from "@/hooks/useVideoProviders";
-import { useOwnAssist } from "@/app/assistOwner";
+import { useOwnAssist, usePageChatPanel } from "@/app/assistOwner";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
 import VideoNoteChatPanel, {
@@ -106,9 +106,10 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const [chatWidth, setChatWidth] = useLocalStorageState("video-note-chat-width", {
     defaultValue: DOCK_CHAT_MIN,
   });
-  const [chatOpen, setChatOpen] = useLocalStorageState("video-note-chat-open", {
+  const [preferredOpen, setPreference] = useLocalStorageState("video-note-chat-open", {
     defaultValue: false,
   });
+  const [chatOpen, setChatOpen] = usePageChatPanel(!!preferredOpen, setPreference);
   // 首次打开才挂载，之后收起只隐藏（保留进行中的回答）
   const [chatMounted, setChatMounted] = useState(!!chatOpen);
   if (chatOpen && !chatMounted) setChatMounted(true);
@@ -130,8 +131,8 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const chatOverlay = !!chatOpen && !chatDocked;
   useOverlayDismiss(() => setChatOpen(false), chatOverlay);
 
-  const toggleChat = useCallback(() => setChatOpen(open => !open), [setChatOpen]);
-  useOwnAssist("project-detail", toggleChat);
+  const toggleChat = useCallback(() => setChatOpen(!chatOpen), [chatOpen, setChatOpen]);
+  useOwnAssist("project-detail", { isChatOpen: () => chatOpen, toggle: toggleChat });
 
   // 条目区放不下两栏：临时收起项目文档树（按「收起后能否放下」判断，避免来回切换）
   const setTreeAutoCollapse = useProjectTreeStore(s => s.setAutoCollapse);

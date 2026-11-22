@@ -22,6 +22,7 @@ import { nextAppearance, useThemeStore } from "@tau/themes/react";
 import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 import { useShellStore } from "./shellStore";
+import { useVisibleAssist } from "./useVisibleAssist";
 import { toggleAssistFor, useAssistOwned } from "./assistOwner";
 import { SubagentAttention } from "@/features/chat/components/subagents/SubagentAttention";
 
@@ -36,7 +37,9 @@ export function Titlebar() {
       if (!e.altKey || e.isComposing || isEditableTarget(e.target)) return;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        navigator.back();
+        const shell = useShellStore.getState();
+        if (shell.assistExpanded) shell.setAssistExpanded(false);
+        else navigator.back();
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         navigator.forward();
@@ -51,7 +54,7 @@ export function Titlebar() {
   currentKeyRef.current = currentKey;
   const assistOwned = useAssistOwned(currentKey);
   // 对话已在眼前（对话页或辅助栏）时不再重复提示进行中的子任务
-  const chatVisible = useShellStore(s => s.assistOpen) || currentKey === "chat";
+  const chatVisible = useShellStore(s => s.assistView === "chat") || currentKey === "chat";
 
   // Ctrl/⌘+J 开合停靠栏；栈顶页面接管时交给页面。
   // 输入框里同样生效——对话输入框本身就在栏内，收起不应要求先移走焦点。输入法组合期间不抢键
@@ -70,16 +73,18 @@ export function Titlebar() {
   /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「label」；
      自定义内容可能可交互（如文章详情的速切器），须让出拖拽区 */
   const customCrumb = currentKey ? breadcrumbs.get(currentKey) : undefined;
-  const canBack = state.back.length > 1;
+  const expandedView = useVisibleAssist().expanded;
+  const collapseExpanded = () => useShellStore.getState().setAssistExpanded(false);
+  const canBack = state.back.length > 1 || expandedView;
   const canForward = state.forward.length > 0;
 
   return (
     <header className="app-region-drag flex items-center gap-2.5 px-3.5 select-none">
       <div className="app-region-no-drag flex items-center gap-2.5">
         <IconButton
-          onClick={() => navigator.back()}
+          onClick={() => (expandedView ? collapseExpanded() : navigator.back())}
           disabled={!canBack}
-          title="后退 (Alt+←)"
+          title={expandedView ? "收回右栏" : "后退 (Alt+←)"}
           aria-label="后退"
         >
           <ArrowLeft size={17} strokeWidth={1.75} />
@@ -169,7 +174,7 @@ function KnowledgeMapToggle() {
 
 /** AI 对话停靠栏开关：打开时 accent 轻染（同侧栏选中语言） */
 function AssistToggle() {
-  const open = useShellStore(s => s.assistOpen);
+  const open = useShellStore(s => s.assistView === "chat");
   const toggle = useShellStore(s => s.toggleAssist);
   return (
     <div className="app-region-no-drag">

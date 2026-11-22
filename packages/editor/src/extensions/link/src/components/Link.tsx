@@ -36,6 +36,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = ({ attributes, childr
     <a
       {...attributes}
       href={element.url}
+      data-web-link={element.url}
       className={cn(
         LINK,
         readOnly && "cursor-pointer",

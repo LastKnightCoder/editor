@@ -55,7 +55,7 @@ export function startChat(
     };
     signal.addEventListener("abort", abort, { once: true });
     useChatStartStore.setState({ request });
-    if (options.placement === "dock") useShellStore.getState().setAssistOpen(true);
+    if (options.placement === "dock") useShellStore.getState().showAssist("chat");
     else openPage("chat");
   });
 }

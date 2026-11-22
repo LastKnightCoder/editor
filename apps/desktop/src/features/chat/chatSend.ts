@@ -54,7 +54,7 @@ export function sendToChat(options: {
         request.settle(false);
     }, APPLY_INTERVAL_MS * MAX_APPLY_ATTEMPTS);
     useChatSendStore.setState(state => ({ queue: [...state.queue, request] }));
-    useShellStore.getState().setAssistOpen(true);
+    useShellStore.getState().showAssist("chat");
   });
 }
 

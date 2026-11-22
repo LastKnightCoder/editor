@@ -157,6 +157,7 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
           type="button"
           title="打开"
           aria-label="打开"
+          data-web-link={element.url}
           className={OPS_BUTTON}
           onClick={() => openLink(element.url)}
         >
@@ -213,6 +214,7 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
         aria-label={label}
         onClick={onClick}
         data-bookmark="compact"
+        data-web-link={element.url}
       >
         <div className="flex h-[42px] items-center gap-2.5 px-3">
           {icon}
@@ -300,6 +302,7 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
       aria-label={label}
       onClick={onClick}
       data-bookmark={coverTop ? "cover" : "row"}
+      data-web-link={element.url}
     >
       <div
         className={cn(
