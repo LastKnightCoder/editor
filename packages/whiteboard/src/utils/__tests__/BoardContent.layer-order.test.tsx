@@ -6,9 +6,10 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
 import Board from "../../Board";
+import Arrow from "../../components/Arrow";
 import BoardContent from "../../components/BoardContent";
 import { BoardContext, SelectionContext } from "../../context";
-import { BoardElement, Selection, ViewPort } from "../../types";
+import { BoardElement, EArrowLineType, EMarkerType, Selection, ViewPort } from "../../types";
 
 const EMPTY_SELECTION: Selection = {
   selectArea: null,
@@ -134,5 +135,58 @@ it("嵌套容器不动时，跨过可见边界的孙节点仍会挂载", async (
   } finally {
     await act(async () => root.unmount());
     board.destroy();
+  }
+});
+
+it("前一块白板隐藏后，当前画布的箭头仍引用自己的端点", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const board = createBoardStub();
+  board.renderElements = (elements = []) =>
+    elements.map(element => (
+      <Arrow
+        key={element.id}
+        sourceMarker={EMarkerType.None}
+        targetMarker={EMarkerType.Arrow}
+        lineType={EArrowLineType.STRAIGHT}
+        lineColor="blue"
+        lineWidth={2}
+        points={[
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+        ]}
+      />
+    ));
+  const canvas = (
+    <BoardContext.Provider value={board}>
+      <BoardContent
+        board={board}
+        viewPort={DEFAULT_VIEW_PORT}
+        centerConnectArrows={[]}
+        centerConnectAndSelectedArrows={[]}
+        noneCenterConnectArrows={[createElement("line")]}
+        disableViewportFilter
+        showAssistLayers={false}
+      />
+    </BoardContext.Provider>
+  );
+  try {
+    await act(async () =>
+      root.render(
+        <>
+          <div hidden>{canvas}</div>
+          {canvas}
+        </>
+      )
+    );
+    const visible = host.querySelector(":scope > svg");
+    expect(visible).not.toBeNull();
+    const ref = visible?.querySelector("path[marker-end]")?.getAttribute("marker-end");
+    const id = ref?.match(/^url\(#(.+)\)$/)?.[1];
+    expect(document.getElementById(id ?? "")?.closest("svg")).toBe(visible);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
   }
 });

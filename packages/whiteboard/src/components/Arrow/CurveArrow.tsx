@@ -1,4 +1,5 @@
 import { EArrowLineType, EMarkerType, Point, SketchLevel } from "../../types";
+import { useArrowMarkers } from "../ArrowMarkers/useArrowMarkers";
 import { ArrowUtil } from "../../utils";
 import SketchStroke from "../SketchPaths/SketchStroke";
 
@@ -13,27 +14,10 @@ interface CurveArrowProps {
   sketch?: { level: SketchLevel; seed: number };
 }
 
-// 获取箭头标记的URL
-const getMarkerUrl = (markerType: EMarkerType): string => {
-  switch (markerType) {
-    case EMarkerType.Arrow:
-      return "url(#whiteboard-arrow)";
-    case EMarkerType.OpenArrow:
-      return "url(#whiteboard-open-arrow)";
-    case EMarkerType.ClosedArrow:
-      return "url(#whiteboard-closed-arrow)";
-    case EMarkerType.Diamond:
-      return "url(#whiteboard-diamond)";
-    case EMarkerType.Circle:
-      return "url(#whiteboard-circle)";
-    case EMarkerType.None:
-    default:
-      return "none";
-  }
-};
-
 const CurveArrow = (props: CurveArrowProps) => {
   const { sourceMarker, targetMarker, lineColor, lineWidth, forceVertical, sketch } = props;
+
+  const markers = useArrowMarkers(sourceMarker, targetMarker);
 
   if (sketch) {
     return (
@@ -54,8 +38,7 @@ const CurveArrow = (props: CurveArrowProps) => {
         stroke={lineColor}
         strokeWidth={lineWidth}
         fill={"none"}
-        markerEnd={targetMarker !== EMarkerType.None ? getMarkerUrl(targetMarker) : "none"}
-        markerStart={sourceMarker !== EMarkerType.None ? getMarkerUrl(sourceMarker) : "none"}
+        {...markers}
       />
     </g>
   );

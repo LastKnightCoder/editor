@@ -6,7 +6,7 @@ import Grid from "../Grid";
 import SelectArea from "../SelectArea";
 import GroupSelectionBounds from "../GroupSelectionBounds";
 import ReferenceLines from "../ReferenceLines";
-import ArrowMarkers from "../ArrowMarkers";
+import { ArrowMarkerSvg } from "../ArrowMarkers";
 import ArrowCustomConnectOverlay from "../ArrowCustomConnectOverlay";
 import MindDragOverlay from "../MindDragOverlay";
 import { CreationPreview } from "../CreationPreview";
@@ -149,7 +149,7 @@ const BoardContent = memo(
     const svgViewport = cullViewport ?? viewPort;
     const svgSize = cullViewport ? `calc(100% + ${CULL_CELL_PX}px)` : "100%";
     const svg = (
-      <svg
+      <ArrowMarkerSvg
         {...svgProps}
         ref={ref}
         width={cameraRef ? "100%" : svgSize}
@@ -168,7 +168,6 @@ const BoardContent = memo(
         {backgroundColor && (
           <rect x={minX} y={minY} width={width} height={height} fill={backgroundColor} />
         )}
-        <ArrowMarkers />
         <Grid visible={gridVisible} viewPort={svgViewport} />
         <StaticLayers
           staticLayerSelection={staticLayerSelection}
@@ -198,7 +197,7 @@ const BoardContent = memo(
             </g>
           </>
         )}
-      </svg>
+      </ArrowMarkerSvg>
     );
     return cameraRef ? (
       <div

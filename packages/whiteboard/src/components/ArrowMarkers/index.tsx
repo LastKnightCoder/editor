@@ -1,15 +1,15 @@
-import { memo } from "react";
+import { memo, useId, type SVGProps } from "react";
 import { ARROW_SIZE } from "../../constants";
+import { EMarkerType } from "../../types/arrow";
 
-/**
- * 渲染箭头标记的组件
- */
-const ArrowMarkers = memo(() => {
+import { MarkerPrefixContext } from "./useArrowMarkers";
+
+const ArrowMarkers = memo(({ prefix }: { prefix: string }) => {
   return (
     <defs>
       {/* 默认箭头 */}
       <marker
-        id={`whiteboard-arrow`}
+        id={`${prefix}-${EMarkerType.Arrow}`}
         markerWidth={ARROW_SIZE}
         markerHeight={ARROW_SIZE}
         // 箭头太细了，盖不住底下的线，向左偏移一点
@@ -29,7 +29,7 @@ const ArrowMarkers = memo(() => {
 
       {/* 开放式箭头 */}
       <marker
-        id={`whiteboard-open-arrow`}
+        id={`${prefix}-${EMarkerType.OpenArrow}`}
         markerWidth={ARROW_SIZE}
         markerHeight={ARROW_SIZE}
         refX={ARROW_SIZE - 0.5}
@@ -48,7 +48,7 @@ const ArrowMarkers = memo(() => {
 
       {/* 闭合式箭头 */}
       <marker
-        id={`whiteboard-closed-arrow`}
+        id={`${prefix}-${EMarkerType.ClosedArrow}`}
         markerWidth={ARROW_SIZE}
         markerHeight={ARROW_SIZE}
         refX={ARROW_SIZE - 0.5}
@@ -67,7 +67,7 @@ const ArrowMarkers = memo(() => {
 
       {/* 菱形箭头 */}
       <marker
-        id={`whiteboard-diamond`}
+        id={`${prefix}-${EMarkerType.Diamond}`}
         markerWidth={ARROW_SIZE}
         markerHeight={ARROW_SIZE}
         refX={ARROW_SIZE}
@@ -86,7 +86,7 @@ const ArrowMarkers = memo(() => {
 
       {/* 圆形箭头 */}
       <marker
-        id={`whiteboard-circle`}
+        id={`${prefix}-${EMarkerType.Circle}`}
         markerWidth={ARROW_SIZE}
         markerHeight={ARROW_SIZE}
         refX={ARROW_SIZE}
@@ -106,4 +106,13 @@ const ArrowMarkers = memo(() => {
   );
 });
 
-export default ArrowMarkers;
+/** 每个 SVG 持有自己的端点，保活画布、导出与工具栏预览可同时挂载。 */
+export function ArrowMarkerSvg({ children, ...props }: SVGProps<SVGSVGElement>) {
+  const prefix = `wb-marker-${useId().replace(/[^\w-]/g, "")}`;
+  return (
+    <svg {...props}>
+      <ArrowMarkers prefix={prefix} />
+      <MarkerPrefixContext.Provider value={prefix}>{children}</MarkerPrefixContext.Provider>
+    </svg>
+  );
+}

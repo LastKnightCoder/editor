@@ -76,10 +76,18 @@ afterEach(async () => {
 });
 
 describe("ArrowSetter 组件", () => {
-  it("端点弹层合并起点 / 终点两组档位", () => {
+  it("端点弹层的起点和终点预览各自引用可见的箭头图形", () => {
     mountSetter(makeElement());
     openPopover("端点");
-    expect(document.querySelectorAll('button[aria-label="标准箭头"]')).toHaveLength(2);
+    const options = document.querySelectorAll('button[aria-label="标准箭头"]');
+    for (const [index, endpoint] of ["marker-start", "marker-end"].entries()) {
+      const preview = options[index].querySelector("svg");
+      const ref = preview?.querySelector(`path[${endpoint}]`)?.getAttribute(endpoint);
+      const id = ref?.match(/^url\(#(.+)\)$/)?.[1];
+      const marker = document.getElementById(id ?? "");
+      expect(marker?.tagName).toBe("marker");
+      expect(marker?.closest("svg")).toBe(preview);
+    }
   });
 
   it("样式弹层选虚线档 → dashed=true 且写入对应 dashArray", () => {

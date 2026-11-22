@@ -17,25 +17,25 @@ export interface ThemeColorPair {
 export const THEME_COLORS: ThemeColorPair[] = [
   {
     id: "primary",
-    label: "主色调",
+    label: "蓝色",
     light: "#3b82f6", // blue-500
     dark: "#60a5fa", // blue-400
   },
   {
     id: "success",
-    label: "成功",
+    label: "绿色",
     light: "#10b981", // emerald-500
     dark: "#34d399", // emerald-400
   },
   {
     id: "warning",
-    label: "警告",
+    label: "琥珀色",
     light: "#f59e0b", // amber-500
     dark: "#fbbf24", // amber-400
   },
   {
     id: "error",
-    label: "错误",
+    label: "红色",
     light: "#ef4444", // red-500
     dark: "#f87171", // red-400
   },

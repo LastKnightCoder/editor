@@ -3,6 +3,7 @@ import { Waves } from "lucide-react";
 
 import useTheme from "../../../hooks/useTheme";
 import Arrow from "../../Arrow";
+import { ArrowMarkerSvg } from "../../ArrowMarkers";
 import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
 import { getArrowDisplayColor } from "../../../utils/color";
 import { saveArrowStylePresetFromElement } from "../../../utils";
@@ -95,7 +96,7 @@ function ArrowGlyph({
   target?: EMarkerType;
 }) {
   return (
-    <svg className="size-5 overflow-visible" viewBox="0 0 1024 1024" aria-hidden>
+    <ArrowMarkerSvg className="size-5 overflow-visible" viewBox="0 0 1024 1024" aria-hidden>
       <Arrow
         sourceMarker={source}
         targetMarker={target}
@@ -114,7 +115,7 @@ function ArrowGlyph({
               ]
         }
       />
-    </svg>
+    </ArrowMarkerSvg>
   );
 }
 
