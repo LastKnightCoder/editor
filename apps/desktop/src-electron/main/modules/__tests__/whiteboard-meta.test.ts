@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../database", () => ({ default: {} }));
 vi.mock("electron", () => ({
   app: {
     getPath: () => "/tmp",

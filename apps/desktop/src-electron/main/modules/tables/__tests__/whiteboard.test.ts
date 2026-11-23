@@ -3,10 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
+vi.mock("../../database", () => ({ default: {} }));
 vi.mock("electron");
 vi.mock("../../video-note-index-queue");
 
+import * as Y from "yjs";
+import { WhiteboardModel } from "@tau/collaboration";
+import { WhiteboardJournal } from "../../whiteboard-documents/journal";
+import { WhiteboardDocumentSessions } from "../../whiteboard-documents/sessions";
 import WhiteboardTable from "../whiteboard";
+import WhiteboardContentTable from "../white-board-content";
 import { must } from "../../../test-support";
 
 const pageData = (children: WhiteboardSnapshot["children"]): WhiteboardSnapshot => ({
@@ -28,6 +34,85 @@ describe("白板列表数据投影", () => {
     db.exec(schema);
   });
   afterEach(() => db.close());
+
+  it("全新资料库的首块白板可编辑，删除首页后重开仍能读到新增页", async () => {
+    const board = WhiteboardTable.createWhiteboard(db, {
+      title: "测试",
+      description: "",
+      whiteboardContentList: [
+        { name: "测试", data: { ...pageData([]), presentationSequences: [] } },
+      ],
+    });
+    const journal = new WhiteboardJournal(":memory:");
+    const sessions = new WhiteboardDocumentSessions(journal, () => db);
+    const doc = new Y.Doc();
+    try {
+      const first = await sessions.open("A", board.whiteboardContentIds[0], 1, "first");
+      expect(board.documentId).toBe(first.identity.documentId);
+      Y.applyUpdate(doc, first.state);
+      const model = new WhiteboardModel(doc);
+      try {
+        expect(model.read().pages.map(page => page.title)).toEqual(["测试"]);
+        const vector = Y.encodeStateVector(doc);
+        model.submit(
+          [
+            { type: "create_page", title: "第二页" },
+            { type: "remove_page", id: first.pageId, observedElementIds: [] },
+          ],
+          null
+        );
+        await sessions.append(first.leaseId, 1, "edit", Y.encodeStateAsUpdate(doc, vector));
+      } finally {
+        model.dispose();
+      }
+      await sessions.release(first.leaseId, 1);
+      const saved = WhiteboardTable.getWhiteboard(db, board.id);
+      expect(saved.whiteboardContentList.map(page => page.name)).toEqual(["第二页"]);
+      const reopened = await sessions.open("A", saved.whiteboardContentIds[0], 1, "second");
+      expect(reopened.identity.documentId).toBe(first.identity.documentId);
+      expect(reopened.pageId).not.toBe(first.pageId);
+    } finally {
+      doc.destroy();
+      sessions.dispose();
+      journal.close();
+    }
+  });
+
+  it("旧白板中新增的可编辑页不接管整块白板，删除旧页后保留新页", () => {
+    const legacy = WhiteboardTable.createWhiteboard(db, {
+      title: "测试",
+      description: "",
+      whiteboardContentList: [{ name: "旧页", data: pageData([]) }],
+    });
+    const added = WhiteboardTable.addSubWhiteboard(db, legacy.id, "新页", {
+      ...pageData([]),
+      presentationSequences: [],
+    });
+    expect(added.data).toMatchObject({ documentKind: "whiteboard" });
+    expect(WhiteboardTable.getWhiteboard(db, legacy.id).documentId).toBeUndefined();
+    WhiteboardTable.deleteSubWhiteboard(db, legacy.id, legacy.whiteboardContentIds[0]);
+    expect(WhiteboardTable.getWhiteboard(db, legacy.id).whiteboardContentIds).toEqual([added.id]);
+  });
+
+  it("旧窗口重发删页前的整板快照时，保留页不会被覆盖或增加副本", () => {
+    const before = WhiteboardTable.createWhiteboard(db, {
+      title: "测试",
+      description: "",
+      whiteboardContentList: ["测试", "11"].map(name => ({ name, data: pageData([]) })),
+    });
+    const [deleted, kept] = before.whiteboardContentIds;
+    WhiteboardTable.deleteSubWhiteboard(db, before.id, deleted);
+    expect(() =>
+      WhiteboardContentTable.updateWhiteboard(db, {
+        ...before.whiteboardContentList[0],
+        name: "迟到",
+      })
+    ).toThrow("没有有效引用");
+    expect(WhiteboardContentTable.getWhiteboardContent(db, deleted).name).toBe("测试");
+    expect(() => WhiteboardTable.updateWhiteboard(db, before)).toThrow("页列表已变化");
+    const after = WhiteboardTable.getWhiteboard(db, before.id);
+    expect(after.whiteboardContentList.map(page => [page.id, page.name])).toEqual([[kept, "11"]]);
+  });
 
   it("列表剔除媒体地址与选区，保留示意图所需结构；单块查询保持全量", () => {
     const board = WhiteboardTable.createWhiteboard(db, {

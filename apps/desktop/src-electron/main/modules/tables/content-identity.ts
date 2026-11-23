@@ -71,7 +71,7 @@ export class ContentIdentityTable {
       : null;
   }
 
-  /** 只由选定完整库的转换流程调用；普通解析与开库不建立来源身份。 */
+  /** 新建文档或转换完整库时建立来源身份，后续写入复用同一身份。 */
   static establishBaseline(db: Database.Database): LibraryIdentity {
     return db.transaction(() => {
       const existing = this.library(db);

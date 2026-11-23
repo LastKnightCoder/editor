@@ -5,6 +5,7 @@ import schema from "@tau/db-schema/schema/main.sql?raw";
 import { WHITEBOARD_DOCUMENT_VERSION as CORE_DOCUMENT_VERSION } from "@tau/whiteboard";
 import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
+vi.mock("../../database", () => ({ default: {} }));
 vi.mock("electron");
 vi.mock("../../video-note-index-queue");
 
@@ -63,25 +64,27 @@ describe("白板页文档版本写回保护", () => {
   });
 
   it("旧数据无版本（视为 1）允许升到 2；同版本允许覆盖，无版本数据不能覆盖已升级的页", () => {
-    const legacy = WhiteboardContentTable.createWhiteboardContent(db, {
-      data: legacyData,
-      name: "页",
-      imgUrl: "",
-    });
+    const legacyId = Number(
+      db
+        .prepare(
+          "INSERT INTO white_board_contents(create_time,update_time,name,data) VALUES(1,1,'页',?)"
+        )
+        .run(JSON.stringify(legacyData)).lastInsertRowid
+    );
 
     expect(() =>
       WhiteboardContentTable.updateWhiteboard(db, {
-        id: legacy.id,
+        id: legacyId,
         data: pageData(2),
         name: "页",
         imgUrl: "",
       })
     ).not.toThrow();
-    expect(JSON.parse(rawData(db, legacy.id)).version).toBe(2);
+    expect(JSON.parse(rawData(db, legacyId)).version).toBe(2);
 
     expect(() =>
       WhiteboardContentTable.updateWhiteboard(db, {
-        id: legacy.id,
+        id: legacyId,
         data: pageData(2),
         name: "改",
         imgUrl: "",
@@ -90,13 +93,13 @@ describe("白板页文档版本写回保护", () => {
 
     expect(() =>
       WhiteboardContentTable.updateWhiteboard(db, {
-        id: legacy.id,
+        id: legacyId,
         data: legacyData,
         name: "页",
         imgUrl: "",
       })
     ).toThrow("当前版本不能覆盖");
-    expect(JSON.parse(rawData(db, legacy.id)).version).toBe(2);
+    expect(JSON.parse(rawData(db, legacyId)).version).toBe(2);
   });
 
   it("白板整体回写子页同样按行拒绝降版本", () => {

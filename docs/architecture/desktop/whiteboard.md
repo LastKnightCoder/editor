@@ -38,7 +38,7 @@ Agent 的在场提示由主进程按白板代次定向推给本机持有者，�
 
 正文与白板都参加退出前的 durable-document-lifecycle 保存屏障，冻结输入并等待耐久确认；超时或保存失败取消退出、恢复编辑并保留窗口。正文保存回执核对本次冻结请求，迟到回执不能确认下一次退出。文档屏障完成后才开始窗口/插件后台的退出收尾和强制退出计时；正文不再使用超时即成功的独立 prepareQuit 路径。
 
-新格式白板由 BACKGROUND 模块 `whiteboard-documents` 维护主进程文档会话，命令通过 `ensureModule` 接入。`whiteboard_documents` 持有完整 CRDT 检查点、契约和整板投影，`whiteboard_document_pages` 维护稳定 pageId 与本地 contentId 的映射，隐藏与恢复沿用原映射；来源与基线复用 `ContentIdentityTable`。`white_board_contents.data` 的 version 3 投影包含 documentKind/documentId/pageId/epoch/revision；旧快照、标题、页增删及排序入口拒绝覆盖托管结构。新格式创建要求库已具备来源基线，旧白板不转换。
+新格式白板由 BACKGROUND 模块 `whiteboard-documents` 维护主进程文档会话，命令通过 `ensureModule` 接入。`whiteboard_documents` 持有完整 CRDT 检查点、契约和整板投影，`whiteboard_document_pages` 维护稳定 pageId 与本地 contentId 的映射，隐藏与恢复沿用原映射；来源与基线复用 `ContentIdentityTable`。`white_board_contents.data` 的 version 3 投影包含 documentKind/documentId/pageId/epoch/revision；旧快照、标题、页增删及排序入口拒绝覆盖托管结构。新建空白白板或独立空白页时，在创建事务内建立或复用资料库来源基线。确认删页时直接提交删除操作，成功后切到相邻页。旧白板在同一事务内移除页签并释放页面引用；整板快照写入前核对已有页的身份，引用归零且已登记回收的快照页拒绝写入。托管白板提交可撤销的删页命令，后续编辑增量按文档合并，页签只投影可见页。
 
 桌面本机白板由独立后台模块启动。白板绑定、发布与安装状态、附件索引保存在白板目录的 `state.db`。只有共享操作按需取得协作客户端。本机日志和主库投影在协作库不可读时仍可恢复。聊天会话启动独立于白板和协作。整库同步的本机文档保存边界见[整库同步与文档保存](#整库同步与文档保存)。
 

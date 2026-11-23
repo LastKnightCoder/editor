@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../database", () => ({ default: {} }));
 vi.mock("electron", () => ({
   app: {
     getPath: () => "/tmp",
@@ -133,11 +134,13 @@ describe("白板页延迟回收", () => {
   afterEach(() => db.close());
 
   const page = () =>
-    WhiteboardContentTable.createWhiteboardContent(db, {
-      name: "页",
-      data: { children: [] },
-      imgUrl: "",
-    } as never).id;
+    Number(
+      db
+        .prepare(
+          "INSERT INTO white_board_contents(create_time,update_time,data,ref_count) VALUES(1,1,?,1)"
+        )
+        .run(JSON.stringify({ children: [] })).lastInsertRowid
+    );
   const exists = (id: number) =>
     Boolean(db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?").get(id));
   const DAY = 24 * 60 * 60 * 1000;

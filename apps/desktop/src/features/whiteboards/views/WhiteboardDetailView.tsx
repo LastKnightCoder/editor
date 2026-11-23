@@ -108,7 +108,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
     ]);
   };
   const removePage = async (contentId: number) => {
-    if (!documentId) return pageMutations.remove(contentId);
+    if (!board?.documentId) return pageMutations.remove(contentId);
     const { pageId, api } = documentPage(contentId),
       snapshot = api.snapshot(),
       target = snapshot.pages.find(page => page.id === pageId);
@@ -320,7 +320,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
         title="删除这一页"
         context={deleteTarget?.name || "未命名"}
         description="这一页上的所有元素会一起删除，其他页不受影响。"
-        impact={documentId ? "可通过撤销恢复" : "删除后无法恢复"}
+        impact={board.documentId ? "可通过撤销恢复" : "删除后无法恢复"}
         danger
         confirmText="删除"
         loading={deleting}
@@ -330,18 +330,8 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
           const neighbor = pages[index + 1] ?? pages[index - 1];
           setDeleting(true);
           try {
-            if (documentId) {
-              await removePage(deleteTarget.id);
-              if (deleteTarget.id === activeId && neighbor) go(neighbor.id);
-            } else {
-              if (deleteTarget.id === activeId && neighbor) {
-                // 先把这一页未落库的改动存完、切走，再删——免得卸载时的保存落在已删除的页上
-                await canvasRef.current?.flush();
-                go(neighbor.id);
-                await new Promise(requestAnimationFrame);
-              }
-              await removePage(deleteTarget.id);
-            }
+            await removePage(deleteTarget.id);
+            if (deleteTarget.id === activeId && neighbor) go(neighbor.id);
             setDeleteOpen(false);
             toast.success(`已删除「${deleteTarget.name || "未命名"}」`);
           } catch {

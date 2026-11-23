@@ -1,7 +1,6 @@
 import {
   createEmptyWhiteboardDocument,
   isEmptyWhiteboardPage,
-  hasWhiteboardLibraryBaseline,
 } from "../whiteboard-documents/create";
 import { assertLegacyWhiteboardPage, isDocumentPage } from "../whiteboard-document-guard";
 import { hasDurableEntityHold } from "../durable-entity-holds";
@@ -192,7 +191,6 @@ export default class WhiteboardTable {
     db: Database.Database,
     value: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">
   ) {
-    if (!ContentIdentityTable.library(db)) throw new Error("资料库尚未完成身份基线升级");
     return db.transaction(() => {
       const content = this.insert(db, value, 0);
       return { content, reference: this.reference(db, content.id) };
@@ -202,9 +200,9 @@ export default class WhiteboardTable {
   private static insert(
     db: Database.Database,
     whiteboard: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">,
-    initialRefCount: number
+    initialRefCount: 0 | 1
   ): WhiteboardContent {
-    if (hasWhiteboardLibraryBaseline(db) && isEmptyWhiteboardPage(whiteboard))
+    if (isEmptyWhiteboardPage(whiteboard))
       return db.transaction(() => {
         const created = createEmptyWhiteboardDocument(
           db,
@@ -225,7 +223,14 @@ export default class WhiteboardTable {
           ).run(id, Date.now());
         return this.getWhiteboardContent(db, id);
       })();
-    if (initialRefCount !== 0 && initialRefCount !== 1) throw new Error("初始引用数无效");
+    return this.insertSnapshot(db, whiteboard, initialRefCount);
+  }
+
+  static insertSnapshot(
+    db: Database.Database,
+    whiteboard: Omit<WhiteboardContent, "id" | "createTime" | "updateTime" | "refCount">,
+    initialRefCount: 0 | 1 = 1
+  ): WhiteboardContent {
     const stmt = db.prepare(`
       INSERT INTO white_board_contents
       (data, name, img_url, create_time, update_time, ref_count)
@@ -271,6 +276,16 @@ export default class WhiteboardTable {
         id: ContentIdentityTable.requireTarget(db, "whiteboard-content", request.id),
       };
       assertLegacyWhiteboardPage(db, whiteboard.id);
+      if (
+        db
+          .prepare(
+            `SELECT 1 FROM white_board_content_pending_releases p
+           JOIN white_board_contents c ON c.id = p.content_id
+           WHERE p.content_id = ? AND COALESCE(c.ref_count, 0) <= 0`
+          )
+          .get(whiteboard.id)
+      )
+        throw new Error("白板页没有有效引用，无法保存");
       const currentWhiteboard = this.getWhiteboardContent(db, whiteboard.id);
       // 库中文档版本更高时拒绝写入，防止旧版本应用覆盖新版本文档
       if (getDocumentVersion(currentWhiteboard?.data) > getDocumentVersion(whiteboard.data)) {
@@ -330,7 +345,7 @@ export default class WhiteboardTable {
     return 0;
   }
 
-  /** 渲染端读取页：旧 JSON 页或损坏的文档检查点先自愈，再返回当前页投影 */
+  /** 渲染端读取页：修复托管文档检查点后返回页数据 */
   static async readWhiteboardContent(
     db: Database.Database,
     target: ContentEntityTarget

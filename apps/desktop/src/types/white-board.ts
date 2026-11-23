@@ -2,6 +2,8 @@ import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
 export interface Whiteboard {
   id: number;
+  /** 详情查询返回整块白板拥有的文档身份。 */
+  documentId?: string;
   tags: string[];
   whiteboardContentIds: number[];
   whiteboardContentList: WhiteboardContent[];
@@ -16,6 +18,7 @@ export interface Whiteboard {
 export type ICreateWhiteboard = Omit<
   Whiteboard,
   | "id"
+  | "documentId"
   | "createTime"
   | "updateTime"
   | "whiteboardContentIds"

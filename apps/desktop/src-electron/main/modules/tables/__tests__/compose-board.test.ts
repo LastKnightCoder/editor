@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 
+vi.mock("../../database", () => ({ default: {} }));
 vi.mock("electron");
 vi.mock("../../video-note-index-queue");
 

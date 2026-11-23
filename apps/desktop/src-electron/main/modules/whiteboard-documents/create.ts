@@ -22,6 +22,7 @@ export function createEmptyWhiteboardDocument(
       ],
       null
     );
+    ContentIdentityTable.establishBaseline(db);
     const result = new WhiteboardDocumentRepository(db, "").create(randomUUID(), model, owner);
     return {
       documentId: result.documentId,
@@ -54,12 +55,5 @@ export function isEmptyWhiteboardPage(value: {
     value.data.children.length === 0 &&
     (!Array.isArray(value.data.presentationSequences) ||
       value.data.presentationSequences.length === 0)
-  );
-}
-
-export function hasWhiteboardLibraryBaseline(db: Database.Database): boolean {
-  return Boolean(
-    db.prepare("SELECT 1 FROM sqlite_master WHERE name='library_identity'").get() &&
-    ContentIdentityTable.library(db)
   );
 }

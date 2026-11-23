@@ -484,6 +484,86 @@ describe("W4 主进程白板会话与耐久投影", () => {
       baseline_id: "old",
     });
   });
+  it.each(["先删", "交错", "后删"])(
+    "%s时各窗口的迟到保存和重试不会恢复已删页",
+    async order => {
+      const f = await fixture(true);
+      const first = await f.sessions.open("A", f.created.contentIds[0], 1, "delete");
+      const deleting = document(first.state);
+      const remove = delta(deleting, () =>
+        deleting.submit([{ type: "remove_page", id: f.p1, observedElementIds: [f.id] }], null)
+      );
+      const stress = process.env.TAU_WHITEBOARD_DELETE_STRESS === "1";
+      const saves: (() => Promise<unknown>)[] = [];
+      const markers: string[] = [];
+      for (let writer = 0; writer < (stress ? 32 : 2); writer++) {
+        const owner = writer + 2;
+        const view = await f.sessions.open("A", f.created.contentIds[0], owner, "edit");
+        const client = document(view.state);
+        for (let edit = 0; edit < (stress ? 8 : 1); edit++) {
+          const batch = `[${writer}-${edit}]`;
+          markers.push(batch);
+          const update = delta(client, () =>
+            client.submit(
+              [
+                { type: "edit_page_title", id: f.p1, edit: { offset: 0, remove: 0, text: "旧" } },
+                { type: "edit_page_title", id: f.p2, edit: { offset: 0, remove: 0, text: batch } },
+              ],
+              null
+            )
+          );
+          saves.push(() => f.sessions.append(view.leaseId, owner, batch, update));
+        }
+      }
+      const writes = [...saves];
+      const at =
+        order === "先删" ? 0 : order === "后删" ? writes.length : Math.floor(writes.length / 2);
+      writes.splice(at, 0, () => f.sessions.append(first.leaseId, 1, "delete", remove));
+      const deliver = async (requests: typeof writes) => {
+        let pending = requests;
+        while (pending.length) {
+          const results = await Promise.allSettled(pending.map(write => write()));
+          const retry = pending.filter((_, index) => {
+            const result = results[index];
+            if (result.status === "fulfilled") return false;
+            if (result.reason?.code !== "CAPACITY") throw result.reason;
+            return true;
+          });
+          if (retry.length === pending.length) throw new Error("没有写入获得回执");
+          pending = retry;
+        }
+      };
+      await deliver(writes);
+      await deliver(writes);
+
+      f.sessions.dispose();
+      f.journal.close();
+      f.db.close();
+      const disk = new Database(join(f.dir, "main.db"));
+      const journal = new WhiteboardJournal(join(f.dir, "journal.db"));
+      const reopened = new WhiteboardDocumentSessions(journal, () => disk);
+      try {
+        const saved = disk
+          .prepare(
+            "SELECT white_board_content_ids AS ids, active_white_board_content_id AS active FROM white_boards WHERE id=?"
+          )
+          .get(f.created.boardId) as { ids: string; active: number };
+        expect(JSON.parse(saved.ids)).toEqual([f.created.contentIds[1]]);
+        expect(saved.active).toBe(f.created.contentIds[1]);
+        const view = await reopened.open("A", saved.active, 1, "reopen");
+        expect(view.revision).toBe(first.revision + saves.length + 1);
+        const pages = document(view.state).read().pages;
+        expect(pages.map(page => page.id)).toEqual([f.p2]);
+        expect((pages[0].title.match(/\[\d+-\d+\]/g) ?? []).sort()).toEqual(markers.sort());
+      } finally {
+        reopened.dispose();
+        journal.close();
+        disk.close();
+      }
+    },
+    90_000
+  );
+
   it("新格式页拒绝旧快照写入口，页映射不因删除/撤销而重分配", async () => {
     const f = await fixture(),
       a = await f.sessions.open("A", f.created.contentIds[0], 1, "a"),
