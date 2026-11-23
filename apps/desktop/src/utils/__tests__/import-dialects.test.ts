@@ -1,6 +1,8 @@
 import type { Descendant } from "slate";
 import { describe, expect, it, vi } from "vitest";
 import {
+  readPlanDocument,
+  readPlanTable,
   runImport,
   scanImportSource,
   type ImportDeps,
@@ -17,7 +19,7 @@ import {
   mapOutsideCode,
   stripNotionId,
 } from "../content-transfer/dialects";
-import { normalizeRelativePath, type TransferSource } from "../content-transfer/source";
+import { normalizeRelativePath } from "../content-transfer/source";
 
 vi.mock("@/commands/file", () => ({
   readBinaryFile: vi.fn(),
@@ -34,18 +36,7 @@ vi.mock("@/utils/localMediaPath", () => ({
 }));
 vi.mock("@/hooks/useUploadResource", () => ({ uploadResource: vi.fn() }));
 
-const encoder = new TextEncoder();
-
-const source = (files: Record<string, string>, markers: string[] = []): TransferSource => ({
-  kind: "folder",
-  name: "vault",
-  rootPath: "/vault",
-  files: Object.keys(files),
-  markers,
-  has: path => path in files,
-  readBytes: async path => encoder.encode(files[path]),
-  readText: async path => files[path],
-});
+import { importSourceFixture as source } from "./import-source-fixture";
 
 const scanDeps: ScanDeps = {
   pathExists: async () => false,
@@ -69,7 +60,10 @@ const textOf = (content: unknown): string => {
 
 const docByTitle = async (files: Record<string, string>, markers: string[] = []) => {
   const plan = await scanImportSource(source(files, markers), scanDeps);
-  return { plan, doc: (title: string) => plan.docs.find(doc => doc.title === title)! };
+  const docs = await Promise.all(
+    plan.docs.map(async doc => ({ ...doc, ...(await readPlanDocument(plan, doc)) }))
+  );
+  return { plan, doc: (title: string) => docs.find(doc => doc.title === title)! };
 };
 
 describe("文本工具", () => {
@@ -176,8 +170,7 @@ describe("Obsidian", () => {
     const updates = new Map<number, Descendant[]>();
     let id = 0;
     const deps: ImportDeps = {
-      readDiskBytes: vi.fn(),
-      upload: async file => `~/r/${file.name}`,
+      upload: async file => `~/r/${file.fileName}`,
       createProject: vi.fn(),
       addProjectItem: vi.fn(),
       createArticle: async () => ({ id: ++id, contentId: id * 10 }),
@@ -230,7 +223,11 @@ describe("Notion", () => {
       ["工作区", ["周报"]],
     ]);
 
-    expect(plan.tables).toEqual([
+    expect(
+      await Promise.all(
+        plan.tables.map(async table => ({ ...table, ...(await readPlanTable(plan, table)) }))
+      )
+    ).toEqual([
       {
         path: `工作区 ${id(1)}/任务 ${id(3)}_all.csv`,
         title: "任务",
@@ -257,7 +254,6 @@ describe("Notion", () => {
         importTables: true,
       },
       {
-        readDiskBytes: vi.fn(),
         upload: vi.fn(),
         createProject: vi.fn(),
         addProjectItem: vi.fn(),

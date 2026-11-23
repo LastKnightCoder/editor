@@ -9,6 +9,7 @@ import {
   writeFileSlice,
   fileSize,
 } from "../services/chunked-sync";
+import { registerImportWorkspaces } from "./import-workspace-ipc";
 import { Module } from "../types/module";
 
 interface FileWatcherRegistration {
@@ -36,6 +37,7 @@ class File implements Module {
   }
 
   async init() {
+    registerImportWorkspaces();
     ipcMain.handle("sync:file-read", (_event, filePath, offset, length) =>
       readFileSlice(filePath, offset, length)
     );

@@ -9,16 +9,18 @@ import { createScopedCard, deleteScopedCard } from "@/commands/card";
 import { replaceContent } from "@/commands/content";
 import { getDataTableById, updateDataTable } from "@/commands/data-table";
 import { createDatabaseItem, deleteDatabaseItem } from "@/commands/database-item";
-import { getHomeDir, pathExists, readBinaryFile, resolvePathFrom } from "@/commands/file";
+import { getHomeDir, pathExists, resolvePathFrom } from "@/commands/file";
 import {
   addChildProjectItem,
   addRootProjectItem,
   createProject,
   deleteProject,
 } from "@/commands/project";
+import { invoke } from "@/electron";
+import { mimeTypeOf } from "@/utils/content-transfer/assets";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { queryClient } from "@/queryClient";
-import useSettingStore from "@/stores/useSettingStore";
+import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import { useImportHistoryStore, type ImportRecord } from "@/stores/useImportHistoryStore";
 import { EProjectItemType } from "@/types";
 import { getContentLength } from "@/utils/helper";
@@ -56,18 +58,25 @@ const scanSource = async (
 
 export const scanImport = async (
   path: string,
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
+  dialect?: DialectKey
 ): Promise<ImportPlan> => {
-  const source = await openTransferSource(path);
-  return scanSource(source, onProgress);
+  const source = await openTransferSource(path, signal);
+  const abort = () => {
+    void source.close().catch(console.error);
+  };
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    signal?.throwIfAborted();
+    return await scanSource(source, onProgress, dialect);
+  } catch (error) {
+    await source.close();
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", abort);
+  }
 };
-
-/** 换一种来源格式重新扫描（来源已读入，不再读目录 / 解压） */
-export const rescanImport = (
-  source: TransferSource,
-  dialect: DialectKey,
-  onProgress?: (done: number, total: number) => void
-) => scanSource(source, onProgress, dialect);
 
 const refreshLists = () => {
   for (const key of ["cards", "articles", "projects", "databases"]) {
@@ -86,8 +95,28 @@ export const executeImport = async (
     plan,
     options,
     {
-      readDiskBytes: readBinaryFile,
-      upload: uploadResource,
+      upload: async (asset, signal) => {
+        const { imageBed } = useSettingStore.getState().setting;
+        if (imageBed.active === EImageBed.Local) {
+          const compress = imageBed.enableCompression && /\.(jpe?g|png)$/i.test(asset.fileName);
+          return invoke<string>(
+            "import:copy",
+            plan.source.session,
+            asset.location,
+            asset.fileName,
+            compress
+          );
+        }
+        const bytes = await invoke<Uint8Array<ArrayBuffer>>(
+          "import:bytes",
+          plan.source.session,
+          asset.location
+        );
+        return uploadResource(
+          new File([bytes], asset.fileName, { type: mimeTypeOf(asset.fileName) }),
+          signal
+        );
+      },
       createProject: async title => {
         const project = await createProject({
           title,

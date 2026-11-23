@@ -10,7 +10,7 @@ import { Button, ConfirmDialog, Dialog, Input, Switch, cn, toast } from "@tau/ui
 import { selectFile } from "@/commands";
 import { CheckTree, type CheckTreeTag } from "@/components/CheckTree";
 import { usePage } from "@/page/PageProvider";
-import { executeImport, rescanImport, scanImport, undoImport } from "@/services/batch-import";
+import { executeImport, scanImport, undoImport } from "@/services/batch-import";
 import useSettingStore from "@/stores/useSettingStore";
 import { useImportHistoryStore } from "@/stores/useImportHistoryStore";
 import type { ImportWizardRequest } from "@/app/transferStore";
@@ -152,53 +152,68 @@ export function ImportWizard({
     label?: string;
   } | null>(null);
   const [outcome, setOutcome] = useState<{ result: ImportResult; recordId?: string } | null>(null);
+  const [warningPage, setWarningPage] = useState(0);
   const [confirmUndo, setConfirmUndo] = useState(false);
   const scanIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
-  const startedRef = useRef(false);
-
-  const runScan = async (
-    scanner: (onProgress: (done: number, total: number) => void) => Promise<ImportPlan>
-  ) => {
+  const scanAbort = useRef<AbortController | null>(null);
+  const planRef = useRef<ImportPlan | null>(null);
+  const releasePlan = () => {
+    const current = planRef.current;
+    planRef.current = null;
+    if (current) void current.source.close().catch(console.error);
+  };
+  const scan = async (path: string, dialect?: DialectKey) => {
     const scanId = ++scanIdRef.current;
+    scanAbort.current?.abort();
+    const controller = new AbortController();
+    scanAbort.current = controller;
+    releasePlan();
+    setDialectOverride(dialect ?? null);
     setPlan(null);
     setScanError(undefined);
     setScanning({ done: 0, total: 0 });
+    let progressAt = 0;
     try {
-      const next = await scanner((done, total) => {
-        if (scanId === scanIdRef.current) setScanning({ done, total });
-      });
-      if (scanId !== scanIdRef.current) return;
+      const next = await scanImport(
+        path,
+        (done, total) => {
+          const now = performance.now();
+          if (scanId === scanIdRef.current && (done === total || now - progressAt >= 100)) {
+            progressAt = now;
+            setScanning({ done, total });
+          }
+        },
+        controller.signal,
+        dialect
+      );
+      if (controller.signal.aborted) {
+        await next.source.close();
+        return;
+      }
+      planRef.current = next;
       setPlan(next);
       setProjectTitle(next.source.name);
       setCheckedKeys(next.docs.map(doc => doc.key));
       if (next.docs.length === 0) setScanError("没有找到 Markdown 文件");
     } catch (error) {
-      if (scanId === scanIdRef.current) {
+      if (scanId === scanIdRef.current)
         setScanError(error instanceof Error ? error.message : String(error));
-      }
     } finally {
       if (scanId === scanIdRef.current) setScanning(null);
     }
   };
-
-  const scan = (path: string) => {
-    setDialectOverride(null);
-    return runScan(onProgress => scanImport(path, onProgress));
-  };
-
   const switchDialect = (dialect: DialectKey) => {
-    if (!plan || dialect === plan.dialect) return;
-    const source = plan.source;
-    setDialectOverride(dialect);
-    void runScan(onProgress => rescanImport(source, dialect, onProgress));
+    if (plan && dialect !== plan.dialect) void scan(plan.source.rootPath, dialect);
   };
-
-  // 拖入时来源已知，挂载即扫描（ref 防 StrictMode 重放）
   useEffect(() => {
-    if (!request.sourcePath || startedRef.current) return;
-    startedRef.current = true;
-    void scan(request.sourcePath);
+    if (request.sourcePath) void scan(request.sourcePath);
+    return () => {
+      ++scanIdRef.current;
+      scanAbort.current?.abort();
+      abortRef.current?.abort();
+      releasePlan();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -222,6 +237,9 @@ export function ImportWizard({
     abortRef.current = controller;
     setStep("running");
     setProgress(null);
+    let progressAt = 0;
+    const abort = () => void plan.source.close().catch(console.error);
+    controller.signal.addEventListener("abort", abort, { once: true });
     const next = await executeImport(
       plan,
       {
@@ -233,10 +251,20 @@ export function ImportWizard({
       },
       {
         signal: controller.signal,
-        onProgress: (phase, done, total, label) => setProgress({ phase, done, total, label }),
+        onProgress: (phase, done, total, label) => {
+          const now = performance.now();
+          if (done === 1 || done === total || now - progressAt >= 100) {
+            progressAt = now;
+            setProgress({ phase, done, total, label });
+          }
+        },
       }
     );
+    controller.signal.removeEventListener("abort", abort);
     abortRef.current = null;
+    releasePlan();
+    setPlan(null);
+    setCheckedKeys([]);
     setOutcome(next);
     setStep("done");
   };
@@ -270,7 +298,7 @@ export function ImportWizard({
   /* ---------- 各步正文 ---------- */
 
   const sourceStep = (
-    <div className="flex flex-col gap-5 px-6 pb-5 pt-3.5">
+    <div className="flex flex-col gap-5 px-6 pt-3.5 pb-5">
       <section className="flex flex-col gap-2">
         <span className={labelClass}>来源</span>
         <div className="border-line-1 rounded-tau-md flex items-center gap-3 border border-dashed px-3.5 py-3">
@@ -401,7 +429,7 @@ export function ImportWizard({
   const previewStep = plan && summary && (
     <div className="mt-3.5 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_270px]">
       <div className="border-line-1 flex min-h-0 flex-col border-r">
-        <div className="flex items-center gap-2 pb-2 pl-6 pr-5">
+        <div className="flex items-center gap-2 pr-5 pb-2 pl-6">
           <span className={labelClass}>导入内容</span>
           <span className={cn(hintClass, "tabular-nums")}>
             {summary.docCount} / {plan.docs.length}
@@ -418,8 +446,9 @@ export function ImportWizard({
             {summary.docCount === plan.docs.length ? "全不选" : "全选"}
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pb-3 pl-4 pr-3">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-3 pb-3 pl-4">
           <CheckTree
+            virtual={plan.docs.length > 200}
             nodes={treeItems}
             checkedKeys={checkedKeys}
             onCheckedKeysChange={setCheckedKeys}
@@ -428,7 +457,7 @@ export function ImportWizard({
           />
         </div>
       </div>
-      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pb-5 pl-5 pr-6">
+      <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-6 pb-5 pl-5">
         <Stat label="将导入" value={`${summary.docCount} ${unit}`}>
           {target === "project" ? `到新项目「${projectTitle.trim() || plan.source.name}」` : null}
         </Stat>
@@ -466,7 +495,7 @@ export function ImportWizard({
   );
 
   const runningStep = (
-    <div className="flex flex-col gap-3 px-6 pb-6 pt-4">
+    <div className="flex flex-col gap-3 px-6 pt-4 pb-6">
       {phases.map((phase, index) => {
         const currentIndex = progress ? phases.findIndex(p => p.key === progress.phase) : 0;
         const state = index < currentIndex ? "done" : index === currentIndex ? "active" : "pending";
@@ -506,7 +535,7 @@ export function ImportWizard({
   );
 
   const doneStep = outcome && (
-    <div className="flex min-h-0 flex-col gap-3 px-6 pb-5 pt-4">
+    <div className="flex min-h-0 flex-col gap-3 px-6 pt-4 pb-5">
       <p className="text-ink-1 text-tau-body-lg font-semibold">
         {outcome.result.stopped === "canceled"
           ? "已停止，"
@@ -525,12 +554,35 @@ export function ImportWizard({
         <div className="flex min-h-0 flex-col gap-1.5">
           <span className={labelClass}>{outcome.result.warnings.length} 条提醒</span>
           <ul className="border-line-1 rounded-tau-md text-ink-2 text-tau-sm max-h-[220px] overflow-y-auto border px-3.5 py-2.5 leading-relaxed">
-            {outcome.result.warnings.map((warning, index) => (
-              <li key={index} className="break-all">
-                {warning}
-              </li>
-            ))}
+            {outcome.result.warnings
+              .slice(warningPage * 100, (warningPage + 1) * 100)
+              .map((warning, index) => (
+                <li key={index} className="break-all">
+                  {warning}
+                </li>
+              ))}
           </ul>
+          {outcome.result.warnings.length > 100 && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                disabled={warningPage === 0}
+                onClick={() => setWarningPage(warningPage - 1)}
+              >
+                上一页
+              </Button>
+              <span>
+                {warningPage + 1} / {Math.ceil(outcome.result.warnings.length / 100)}
+              </span>
+              <Button
+                size="sm"
+                disabled={(warningPage + 1) * 100 >= outcome.result.warnings.length}
+                onClick={() => setWarningPage(warningPage + 1)}
+              >
+                下一页
+              </Button>
+            </div>
+          )}
         </div>
       )}
       {record && <p className={hintClass}>可在 设置 › 导入与导出 中查看本次记录或撤销</p>}

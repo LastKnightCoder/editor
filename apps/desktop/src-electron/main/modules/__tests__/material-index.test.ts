@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import mainSchema from "@tau/db-schema/schema/main.sql?raw";
 import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 
+vi.mock("../database", () => ({ default: {} }));
 vi.mock("electron");
 vi.mock("../video-note-index-queue");
 

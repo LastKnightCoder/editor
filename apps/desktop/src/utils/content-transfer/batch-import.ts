@@ -17,7 +17,7 @@ import {
 } from "./assets";
 import { parseCsv } from "./csv";
 import { DIALECTS, createDialectResolvers, detectDialect, type DialectKey } from "./dialects";
-import { parseLocalReference, uploadAssetBytes } from "./import";
+import { parseLocalReference } from "./import";
 import { normalizeRelativePath, type TransferSource } from "./source";
 
 export type ImportTarget = "project" | "article" | "card";
@@ -35,20 +35,15 @@ export interface PlanDoc {
   /** 来源内相对路径 */
   path: string;
   title: string;
-  /** 实际所在目录（相对路径段），解析相对资源与链接用 */
-  dir: string[];
   /** 项目树里的结构目录（方言可改写，如 Logseq 的 pages/ 摊平） */
   folder: string[];
-  content: Descendant[];
-  contracts?: ContentContractDictionary;
+
   /** frontmatter tags 与方言标签（#tag、tags::） */
   sourceTags: string[];
-  /** 正文里的资源地址 → 计划资源 key */
-  assets: Map<string, string>;
+  assetKeys: string[];
   /** 来源里找不到的资源地址 */
   missingAssets: string[];
-  /** 正文里的链接地址 → 本批文档 key */
-  links: Map<string, number>;
+  linkCount: number;
   /** 形似本地 .md 但不在本批的链接，以及名称解析不到的 [[维基链接]] */
   unresolvedLinks: string[];
   /** 方言无法保留的写法（块引用等） */
@@ -67,8 +62,6 @@ export interface PlanNode {
 export interface PlanTable {
   path: string;
   title: string;
-  headers: string[];
-  rows: string[][];
 }
 
 export interface ImportPlan {
@@ -82,6 +75,23 @@ export interface ImportPlan {
   /** 来源中既不是 Markdown / CSV、也未被正文引用的文件数 */
   otherFileCount: number;
 }
+
+interface DocumentSnapshot {
+  content: Descendant[];
+  contracts?: ContentContractDictionary;
+  assets: [string, string][];
+  links: [string, number][];
+}
+
+export async function readPlanDocument(plan: ImportPlan, doc: PlanDoc) {
+  const data: DocumentSnapshot = JSON.parse(await plan.source.snapshots.load(doc.path));
+  return { ...data, assets: new Map(data.assets), links: new Map(data.links) };
+}
+
+export const readPlanTable = async (
+  plan: ImportPlan,
+  table: PlanTable
+): Promise<ReturnType<typeof parseCsv>> => JSON.parse(await plan.source.snapshots.load(table.path));
 
 export interface ScanDeps {
   pathExists: (path: string) => Promise<boolean>;
@@ -201,12 +211,12 @@ export const scanImportSource = async (
     throw new Error("压缩包里还是压缩包（Notion 大导出会分卷），请先解压外层，再选择其中的 .zip");
   }
 
-  const texts = new Map<string, string>();
-  for (const path of markdownPaths) texts.set(path, await source.readText(path));
+  const docByPath = new Map(markdownPaths.map((path, index) => [path, index]));
   // Logseq 的 [[页面]] 也可按 title:: 引用
   const titleAliases = new Map<string, string>();
   if (key === "logseq") {
-    for (const [path, text] of texts) {
+    for (const path of markdownPaths) {
+      const text = await source.readText(path);
       const title = text.match(/^\s*(?:-\s+)?title::\s*(.+)$/m)?.[1]?.trim();
       if (title) titleAliases.set(title, path);
     }
@@ -249,7 +259,7 @@ export const scanImportSource = async (
 
   for (const [index, path] of markdownPaths.entries()) {
     const dir = dirOf(path);
-    const transformed = dialect.transform(texts.get(path) ?? "", {
+    const transformed = dialect.transform(await source.readText(path), {
       path,
       files,
       resolveNote: name => resolvers.resolveNote(name, path),
@@ -267,17 +277,17 @@ export const scanImportSource = async (
         frontmatter.title ||
         dialect.displayName(stemOf(fileNameOf(path))) ||
         "未命名",
-      dir,
       folder: dialect.structuralFolder?.(dir) ?? dir,
-      content,
-      ...(contracts && { contracts }),
+
       sourceTags: [...new Set([...frontmatter.tags, ...transformed.tags])],
-      assets: new Map(),
+      assetKeys: [],
       missingAssets: [],
-      links: new Map(),
+      linkCount: 0,
       unresolvedLinks: [...transformed.unresolvedLinks],
       notes: transformed.notes,
     };
+    const assetRefs = new Map<string, string>();
+    const linkRefs = new Map<string, number>();
     for (const { url } of collectAssetUrls(content, undefined, contracts)) {
       if (!isPortableAssetSource(url) || isDataUri(url)) continue;
       const location = await locateAsset(url, path);
@@ -293,28 +303,37 @@ export const scanImportSource = async (
           fileName: baseNameOf(location.path) || "file",
         });
       }
-      doc.assets.set(url, assetKey);
+      assetRefs.set(url, assetKey);
     }
-    docs.push(doc);
-    onProgress?.(index + 1, markdownPaths.length);
-  }
-
-  const docByPath = new Map(docs.map(doc => [doc.path, doc]));
-  for (const doc of docs) {
-    for (const url of collectLinkUrls(doc.content)) {
-      const link = parseDocLink(url, doc.dir);
+    for (const url of collectLinkUrls(content)) {
+      const link = parseDocLink(url, dir);
       if (!link) continue;
       const candidates = link.withExtension
         ? link.candidates
         : link.candidates.flatMap(candidate => [candidate, `${candidate}.md`]);
-      const byPath = candidates.map(candidate => docByPath.get(candidate)).find(Boolean);
+      const byPath = candidates
+        .map(candidate => docByPath.get(candidate))
+        .find(key => key !== undefined);
       const byName = link.withExtension
         ? docByPath.get(resolvers.resolveNote(stemOf(link.name), doc.path) ?? "")
         : undefined;
       const target = byPath ?? byName;
-      if (target) doc.links.set(url, target.key);
+      if (target !== undefined) linkRefs.set(url, target);
       else if (link.withExtension) doc.unresolvedLinks.push(url);
     }
+    doc.linkCount = linkRefs.size;
+    doc.assetKeys = [...new Set(assetRefs.values())];
+    await source.snapshots.save(
+      path,
+      JSON.stringify({
+        content,
+        contracts,
+        assets: [...assetRefs],
+        links: [...linkRefs],
+      } satisfies DocumentSnapshot)
+    );
+    docs.push(doc);
+    onProgress?.(index + 1, markdownPaths.length);
   }
 
   const tablePaths = pickTables(files.filter(path => CSV_RE.test(path)));
@@ -322,11 +341,10 @@ export const scanImportSource = async (
   for (const path of tablePaths) {
     const { headers, rows } = parseCsv(await source.readText(path));
     if (headers.length === 0) continue;
+    await source.snapshots.save(path, JSON.stringify({ headers, rows }));
     tables.push({
       path,
       title: dialect.displayName(stemOf(fileNameOf(path)).replace(/_all$/i, "")),
-      headers,
-      rows,
     });
   }
 
@@ -416,8 +434,7 @@ export interface CreatedEntity {
 }
 
 export interface ImportDeps {
-  readDiskBytes: (path: string) => Promise<Uint8Array>;
-  upload: (file: File) => Promise<string | null>;
+  upload: (asset: PlanAsset, signal?: AbortSignal) => Promise<string | null>;
   createProject: (title: string) => Promise<number>;
   /** parentItemId 缺省为项目根 */
   addProjectItem: (input: {
@@ -523,19 +540,18 @@ export const runImport = async (
 
   try {
     // ① 资源：本批选中文档引用到的才上传，同一来源只传一次
-    const assetKeys = [...new Set(docs.flatMap(doc => [...doc.assets.values()]))];
+    const assetKeys = [...new Set(docs.flatMap(doc => doc.assetKeys))];
     const uploaded = new Map<string, string>();
     for (const [index, key] of assetKeys.entries()) {
       checkpoint();
       const asset = plan.assets.get(key);
       if (!asset) continue;
       try {
-        const bytes =
-          asset.location.kind === "source"
-            ? await plan.source.readBytes(asset.location.path)
-            : await deps.readDiskBytes(asset.location.path);
-        uploaded.set(key, await uploadAssetBytes(bytes, asset.fileName, deps.upload));
+        const target = await deps.upload(asset, hooks.signal);
+        if (!target) throw new Error("上传失败");
+        uploaded.set(key, target);
       } catch (error) {
+        checkpoint();
         result.warnings.push(`资源未导入（${asset.location.path}）：${errorMessage(error)}`);
       }
       hooks.onProgress?.("assets", index + 1, assetKeys.length, asset.fileName);
@@ -547,19 +563,22 @@ export const runImport = async (
       for (const note of doc.notes) result.warnings.push(`${doc.path}：${note}`);
     }
 
-    const localized = new Map(
-      docs.map(doc => [
-        doc.key,
-        mapAssetUrls(
-          doc.content,
+    const localized = async (doc: PlanDoc) => {
+      checkpoint();
+      const { content, contracts, assets, links } = await readPlanDocument(plan, doc);
+      return {
+        links,
+        contracts,
+        content: mapAssetUrls(
+          content,
           url => {
-            const key = doc.assets.get(url);
+            const key = assets.get(url);
             return key ? uploaded.get(key) : undefined;
           },
-          { uploaded: true, contracts: doc.contracts }
+          { uploaded: true, contracts }
         ),
-      ])
-    );
+      };
+    };
 
     // ② 建文档
     const created = new Map<number, CreatedEntity & { title: string }>();
@@ -577,14 +596,14 @@ export const runImport = async (
       result.projectId = projectId;
       const walk = async (nodes: PlanNode[], parentItemId?: number) => {
         for (const node of nodes) {
-          const content = node.doc ? (localized.get(node.doc.key) ?? []) : [];
+          const body = node.doc ? await localized(node.doc) : { content: [], contracts: undefined };
           const item = await write(() =>
             deps.addProjectItem({
               projectId,
               parentItemId,
               title: node.title,
-              content,
-              ...(node.doc?.contracts && { contracts: node.doc.contracts }),
+              content: body.content,
+              contracts: body.contracts,
             })
           );
           if (node.doc) {
@@ -598,10 +617,10 @@ export const runImport = async (
       await walk(pruneTree(plan.tree, options.selected));
     } else {
       for (const doc of docs) {
-        const content = localized.get(doc.key) ?? [];
+        const { content, contracts } = await localized(doc);
         const input = {
           content,
-          ...(doc.contracts && { contracts: doc.contracts }),
+          contracts,
           tags: tagsOf(doc),
         };
         const entity = await write(() =>
@@ -617,14 +636,14 @@ export const runImport = async (
     }
 
     // ③ 回填链接：指向本批已建文档的 link 换成 content-link，保留原链接文字
-    const linking = docs.filter(doc => doc.links.size > 0 && created.has(doc.key));
+    const linking = docs.filter(doc => doc.linkCount > 0 && created.has(doc.key));
     for (const [index, doc] of linking.entries()) {
       const self = created.get(doc.key);
-      const content = localized.get(doc.key);
-      if (!self || !content) continue;
+      if (!self) continue;
+      const { content, links } = await localized(doc);
       let replaced = 0;
       const next = mapLinks(content, node => {
-        const targetKey = typeof node.url === "string" ? doc.links.get(node.url) : undefined;
+        const targetKey = typeof node.url === "string" ? links.get(node.url) : undefined;
         const target = targetKey === undefined ? undefined : created.get(targetKey);
         if (!target) return undefined;
         replaced += 1;
@@ -649,14 +668,14 @@ export const runImport = async (
     // ④ 表格：CSV 各建一个数据库
     const tables = options.importTables ? plan.tables : [];
     for (const [index, table] of tables.entries()) {
-      const id = await write(() =>
-        deps.createDatabase({ title: table.title, headers: table.headers, rows: table.rows })
-      );
+      const data = await readPlanTable(plan, table);
+      const id = await write(() => deps.createDatabase({ title: table.title, ...data }));
       result.databaseIds.push(id);
       hooks.onProgress?.("tables", index + 1, tables.length, table.title);
     }
   } catch (error) {
-    const canceled = error instanceof DOMException && error.name === "AbortError";
+    const canceled =
+      hooks.signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
     result.stopped = canceled ? "canceled" : "failed";
     if (!canceled) result.error = errorMessage(error);
   }
@@ -668,12 +687,12 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 /** 计划概况：选中文档的资源、链接与问题数（预览右栏与按钮文案） */
 export const summarizePlan = (plan: ImportPlan, selected: Set<number>) => {
   const docs = plan.docs.filter(doc => selected.has(doc.key));
-  const assetKeys = new Set(docs.flatMap(doc => [...doc.assets.values()]));
+  const assetKeys = new Set(docs.flatMap(doc => doc.assetKeys));
   return {
     docCount: docs.length,
     assetCount: assetKeys.size,
     missingAssetCount: docs.reduce((sum, doc) => sum + doc.missingAssets.length, 0),
-    linkCount: docs.reduce((sum, doc) => sum + doc.links.size, 0),
+    linkCount: docs.reduce((sum, doc) => sum + doc.linkCount, 0),
     unresolvedLinkCount: docs.reduce((sum, doc) => sum + doc.unresolvedLinks.length, 0),
     issueDocCount: docs.filter(doc => doc.missingAssets.length + doc.unresolvedLinks.length > 0)
       .length,

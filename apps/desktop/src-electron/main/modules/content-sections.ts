@@ -61,14 +61,19 @@ export function writeContentSections(
 const hasTable = (db: Database.Database, name: string) =>
   !!db.prepare("SELECT 1 FROM sqlite_master WHERE name = ?").get(name);
 
+// FTS5 的普通列等值条件会扫描全部正文。先用列内短语查倒排索引，再精确核对实体键。
+export const ftsEntityWhere = `prefixed_id MATCH ('"' || replace(@id, '"', '""') || '"') AND prefixed_id = @id`;
+
 /** 删掉向量与全文都已不再引用的正文版本 */
 export function pruneContentSections(db: Database.Database, prefixedId: string) {
   const live = new Set<number>();
   for (const table of ["content_fts", "vec_documents"]) {
     if (!hasTable(db, table)) continue;
     const rows = db
-      .prepare(`SELECT DISTINCT update_time FROM ${table} WHERE prefixed_id = ?`)
-      .all(prefixedId) as { update_time: number }[];
+      .prepare(
+        `SELECT DISTINCT update_time FROM ${table} WHERE ${table === "content_fts" ? ftsEntityWhere : "prefixed_id = @id"}`
+      )
+      .all({ id: prefixedId }) as { update_time: number }[];
     rows.forEach(row => live.add(Number(row.update_time)));
   }
   const versions = db
@@ -94,7 +99,8 @@ export function readContentSection(
        WHERE prefixed_id = ? AND update_time = ? AND chunk_index = ?`
     )
     .get(prefixedId, updateTime, chunkIndex) as
-    { heading_path: string; block_start: number; block_end: number; text: string } | undefined;
+    | { heading_path: string; block_start: number; block_end: number; text: string }
+    | undefined;
   return row
     ? {
         chunkIndex,

@@ -7,7 +7,6 @@ import { ImportWizard } from "../ImportWizard";
 const mocks = vi.hoisted(() => ({
   selectFile: vi.fn(),
   scanImport: vi.fn(),
-  rescanImport: vi.fn(),
   executeImport: vi.fn(),
   undoImport: vi.fn(),
   push: vi.fn(),
@@ -16,7 +15,6 @@ vi.mock("@/commands", () => ({ selectFile: mocks.selectFile }));
 vi.mock("@/services/batch-import", () => ({
   scanImport: mocks.scanImport,
   executeImport: mocks.executeImport,
-  rescanImport: mocks.rescanImport,
   undoImport: mocks.undoImport,
 }));
 vi.mock("@/page/PageProvider", () => ({
@@ -35,23 +33,21 @@ const doc = (key: number, path: string, extra: Partial<PlanDoc> = {}): PlanDoc =
   path,
   title: path.replace(/^.*\//, "").replace(/\.md$/, ""),
   folder: path.split("/").slice(0, -1),
-  content: [],
-  dir: path.split("/").slice(0, -1),
   sourceTags: [],
   notes: [],
-  assets: new Map(),
+  assetKeys: [],
   missingAssets: [],
-  links: new Map(),
+  linkCount: 0,
   unresolvedLinks: [],
   ...extra,
 });
 
 const makePlan = (): ImportPlan => {
   const principle = doc(0, "读书/原则.md", {
-    assets: new Map([["img/a.png", "source:读书/img/a.png"]]),
+    assetKeys: ["source:读书/img/a.png"],
     missingAssets: ["gone.png"],
   });
-  const essay = doc(1, "随笔.md", { links: new Map([["读书/原则.md", 0]]) });
+  const essay = doc(1, "随笔.md", { linkCount: 1 });
   return {
     source: {
       kind: "folder",
@@ -60,7 +56,9 @@ const makePlan = (): ImportPlan => {
       files: [],
       markers: [],
       has: () => false,
-      readBytes: vi.fn(),
+      session: "fixture",
+      close: async () => {},
+      snapshots: { load: vi.fn(), save: vi.fn() },
       readText: vi.fn(),
     },
     dialect: "generic",
@@ -132,7 +130,12 @@ it("选择文件夹 → 预览统计 → 取消勾选后导入选中范围 → �
 
   expect(button("下一步")?.disabled).toBe(true);
   await click("选择文件夹");
-  expect(mocks.scanImport).toHaveBeenCalledWith("/notes/vault", expect.any(Function));
+  expect(mocks.scanImport).toHaveBeenCalledWith(
+    "/notes/vault",
+    expect.any(Function),
+    expect.any(AbortSignal),
+    undefined
+  );
   expect(document.body.textContent).toContain(
     "2 个 Markdown · 1 个被引用的资源 · 3 个其它文件不导入"
   );
@@ -182,12 +185,12 @@ it("从卡片页进入时目标锁定，拖入来源时挂载即扫描", async (
 
 it("扫描失败与空来源原位提示，不能进入下一步", async () => {
   mocks.selectFile.mockResolvedValue(["/x"]);
-  mocks.scanImport.mockRejectedValueOnce(new Error("文件超过 20000 个"));
+  mocks.scanImport.mockRejectedValueOnce(new Error("来源无法读取"));
   await act(async () =>
     root.render(<ImportWizard request={{ target: "article" }} onClose={vi.fn()} />)
   );
   await click("选择文件夹");
-  expect(document.querySelector('[role="alert"]')?.textContent).toBe("文件超过 20000 个");
+  expect(document.querySelector('[role="alert"]')?.textContent).toBe("来源无法读取");
 
   mocks.scanImport.mockResolvedValueOnce({ ...makePlan(), docs: [], tree: [] });
   await click("选择文件夹");
@@ -198,15 +201,20 @@ it("扫描失败与空来源原位提示，不能进入下一步", async () => {
 it("来源格式显示识别结果，切换后用已读入的来源重新扫描", async () => {
   mocks.selectFile.mockResolvedValue(["/notes/vault"]);
   const plan = makePlan();
-  mocks.scanImport.mockResolvedValue(plan);
-  mocks.rescanImport.mockResolvedValue({ ...plan, dialect: "obsidian" });
+  mocks.scanImport.mockResolvedValueOnce(plan);
+  mocks.scanImport.mockResolvedValueOnce({ ...plan, dialect: "obsidian" });
   await act(async () => root.render(<ImportWizard request={{}} onClose={vi.fn()} />));
   await click("选择文件夹");
   expect(button("通用 Markdown")?.getAttribute("aria-pressed")).toBe("true");
   expect(document.body.textContent).toContain("已自动识别");
 
   await click("Obsidian");
-  expect(mocks.rescanImport).toHaveBeenCalledWith(plan.source, "obsidian", expect.any(Function));
+  expect(mocks.scanImport).toHaveBeenLastCalledWith(
+    plan.source.rootPath,
+    expect.any(Function),
+    expect.any(AbortSignal),
+    "obsidian"
+  );
   expect(button("Obsidian")?.getAttribute("aria-pressed")).toBe("true");
   expect(document.body.textContent).toContain("已手动指定");
 });

@@ -5,6 +5,7 @@ import schema from "@tau/db-schema/schema/index.sql?raw";
 import { splitSections } from "@/entity/sections";
 import { readContentSection } from "../content-sections";
 
+vi.mock("../database", () => ({ default: {} }));
 vi.mock("electron", () => ({ app: { getPath: () => "/tmp" }, ipcMain: { handle: vi.fn() } }));
 vi.mock("../video-note-index-queue", () => ({ default: {} }));
 vi.mock("../local-inference", () => ({

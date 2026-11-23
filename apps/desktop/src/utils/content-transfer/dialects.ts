@@ -196,7 +196,9 @@ export const createNameResolver = (paths: string[], keyOf: (path: string) => str
     const full = normalizeName(keyOf(path));
     byFull.set(full, path);
     const base = full.split("/").pop() || full;
-    byKey.set(base, [...(byKey.get(base) ?? []), path]);
+    const matches = byKey.get(base);
+    if (matches) matches.push(path);
+    else byKey.set(base, [path]);
   }
   return (rawName: string, fromPath: string): string | null => {
     const name = normalizeName(rawName).replace(/^\.\//, "").replace(/^\/+/, "");
@@ -207,7 +209,9 @@ export const createNameResolver = (paths: string[], keyOf: (path: string) => str
       const hit =
         byFull.get(name) ??
         byFull.get(relative) ??
-        [...byFull].find(([full]) => full.endsWith(`/${name}`))?.[1];
+        byKey
+          .get(name.split("/").pop() ?? "")
+          ?.find(path => normalizeName(keyOf(path)).endsWith(`/${name}`));
       if (hit) return hit;
     }
     const candidates = byKey.get(name.split("/").pop() || name);

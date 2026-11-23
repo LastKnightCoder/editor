@@ -13,6 +13,7 @@ import PluginEntityTable from "./plugin-entity";
 import VecDocumentTable from "./vec-document";
 import { searchResultDetails } from "../search-details";
 import {
+  ftsEntityWhere,
   pruneContentSections,
   readContentSection,
   sectionsForIndex,
@@ -169,10 +170,10 @@ class FTSTable {
       return true;
     }
     const stmt = db.prepare(`
-      DELETE FROM content_fts WHERE prefixed_id = ?
+      DELETE FROM content_fts WHERE ${ftsEntityWhere}
     `);
 
-    stmt.run(prefixedId);
+    stmt.run({ id: prefixedId });
     if (this.hasTable(db, "content_sections")) pruneContentSections(db, prefixedId);
     return true;
   }
@@ -226,10 +227,12 @@ class FTSTable {
     }
     const prefixedId = addTypePrefix(id, type);
     const stmt = db.prepare(`
-      SELECT MAX(update_time) as update_time FROM content_fts WHERE prefixed_id = ?
+      SELECT MAX(update_time) as update_time FROM content_fts WHERE ${ftsEntityWhere}
     `);
 
-    const result = stmt.get(prefixedId) as { update_time: number | null | undefined } | undefined;
+    const result = stmt.get({ id: prefixedId }) as
+      | { update_time: number | null | undefined }
+      | undefined;
     if (!result || result.update_time === null || result.update_time === undefined) {
       return null;
     }

@@ -1,27 +1,21 @@
-import { Blob as NodeBlob } from "node:buffer";
-import {
-  TextReader,
-  Uint8ArrayReader,
-  Uint8ArrayWriter,
-  ZipWriter,
-  configure as configureZip,
-} from "@zip.js/zip.js";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import AdmZip from "adm-zip";
+import { ImportWorkspace } from "../../../src-electron/main/services/import-workspace";
+import { importSourceFixture as memorySource } from "./import-source-fixture";
 import type { Descendant } from "slate";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   readFrontmatter,
+  readPlanDocument,
   runImport,
   scanImportSource,
   summarizePlan,
   type ImportDeps,
   type ScanDeps,
 } from "../content-transfer/batch-import";
-import {
-  normalizeRelativePath,
-  openFolderSource,
-  openZipSource,
-  type TransferSource,
-} from "../content-transfer/source";
+import { normalizeRelativePath } from "../content-transfer/source";
 
 vi.mock("@/commands/file", () => ({
   readBinaryFile: vi.fn(),
@@ -37,20 +31,6 @@ vi.mock("@/utils/localMediaPath", () => ({
   getMediaMimeType: () => "application/octet-stream",
 }));
 vi.mock("@/hooks/useUploadResource", () => ({ uploadResource: vi.fn() }));
-
-const encoder = new TextEncoder();
-
-const memorySource = (files: Record<string, string>, kind: "folder" | "zip" = "folder") =>
-  ({
-    kind,
-    name: "vault",
-    rootPath: "/vault",
-    files: Object.keys(files),
-    markers: [],
-    has: path => path in files,
-    readBytes: async path => encoder.encode(files[path]),
-    readText: async path => files[path],
-  }) satisfies TransferSource;
 
 const scanDeps = (existing: string[] = []): ScanDeps => ({
   pathExists: async path => existing.includes(path),
@@ -68,8 +48,7 @@ const fakeDeps = () => {
     return { id, contentId: id * 100 };
   };
   const deps: ImportDeps = {
-    readDiskBytes: async path => encoder.encode(path),
-    upload: async file => `~/.editor/resources/${file.name}`,
+    upload: async file => `~/.editor/resources/${file.fileName}`,
     createProject: async title => {
       calls.push(`project:${title}`);
       return 99;
@@ -113,53 +92,40 @@ const findNode = (content: unknown, type: string): Record<string, unknown> | und
 };
 
 describe("来源", () => {
-  beforeAll(() => vi.stubGlobal("Blob", NodeBlob));
-  afterAll(() => vi.unstubAllGlobals());
-
   it("相对路径规范化，越出根目录为 null", () => {
     expect(normalizeRelativePath("a/./b/../c.md")).toBe("a/c.md");
     expect(normalizeRelativePath("a\\b.md")).toBe("a/b.md");
     expect(normalizeRelativePath("../x.md")).toBeNull();
   });
 
-  it("文件夹递归读取，跳过隐藏目录与 node_modules", async () => {
-    const tree: Record<string, Array<{ name: string; isDirectory: boolean }>> = {
-      "/v": [
-        { name: "a.md", isDirectory: false },
-        { name: ".obsidian", isDirectory: true },
-        { name: "node_modules", isDirectory: true },
-        { name: "sub", isDirectory: true },
-      ],
-      "/v/sub": [
-        { name: "b.md", isDirectory: false },
-        { name: ".DS_Store", isDirectory: false },
-      ],
-    };
-    const source = await openFolderSource("/v", {
-      readDirectory: async dir =>
-        (tree[dir] ?? []).map(entry => ({ ...entry, path: `${dir}/${entry.name}` })),
-      readBinaryFile: async path => encoder.encode(path),
-      getFileBaseName: async () => "v",
-    });
-    expect(source.files).toEqual(["a.md", "sub/b.md"]);
-    expect(await source.readText("sub/b.md")).toBe("/v/sub/b.md");
-  });
-
-  it("压缩包剥掉唯一的同名根目录，忽略 __MACOSX", async () => {
-    configureZip({ useWebWorkers: false });
-    const writer = new ZipWriter(new Uint8ArrayWriter());
-    await writer.add("笔记/a.md", new TextReader("# A"));
-    await writer.add("笔记/img/p.png", new Uint8ArrayReader(new Uint8Array([1])));
-    await writer.add("__MACOSX/笔记/._a.md", new TextReader("x"));
-    const bytes = await writer.close();
-    const source = await openZipSource("/d/export.zip", {
-      readDirectory: vi.fn(),
-      readBinaryFile: async () => bytes,
-      getFileBaseName: async () => "export.zip",
-    });
-    expect(source.name).toBe("笔记");
-    expect(source.files.sort()).toEqual(["a.md", "img/p.png"]);
-    expect(await source.readText("a.md")).toBe("# A");
+  it.each(["folder", "zip"])("%s 来源忽略隐藏目录并按相对路径读取正文", async kind => {
+    const dir = await mkdtemp(join(tmpdir(), "tau-import-source-"));
+    const root = join(dir, kind === "zip" ? "export.zip" : "笔记");
+    const work = new ImportWorkspace(root);
+    try {
+      const entries = ["sub/a.md", ".obsidian/settings.json", "node_modules/x.txt"];
+      if (kind === "zip") {
+        const zip = new AdmZip();
+        for (const path of entries) zip.addFile("笔记/" + path, Buffer.from(path));
+        zip.addFile("__MACOSX/._a", Buffer.from("x"));
+        zip.writeZip(root);
+      } else {
+        for (const path of entries) {
+          await mkdir(join(root, path.split("/")[0]), { recursive: true });
+          await writeFile(join(root, path), path);
+        }
+      }
+      const meta = await work.index();
+      expect(meta.name).toBe("笔记");
+      expect(meta.markers).toContain(".obsidian");
+      expect(work.paths(0).files).toEqual(["sub/a.md"]);
+      expect((await work.bytes({ kind: "source", path: "sub/a.md" }, 1024)).toString()).toBe(
+        "sub/a.md"
+      );
+    } finally {
+      work.close();
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -188,7 +154,9 @@ describe("扫描", () => {
       "source:读书/img/radar.png",
     ]);
     const principle = plan.docs.find(doc => doc.title === "原则")!;
-    expect([...principle.links.values()]).toEqual([plan.docs.find(d => d.title === "反脆弱")!.key]);
+    expect([...(await readPlanDocument(plan, principle)).links.values()]).toEqual([
+      plan.docs.find(d => d.title === "反脆弱")!.key,
+    ]);
     expect(principle.unresolvedLinks).toEqual(["不存在.md"]);
     expect(plan.docs.find(d => d.title === "反脆弱")!.missingAssets).toEqual(["gone.png"]);
     expect(plan.otherFileCount).toBe(1);
@@ -288,6 +256,34 @@ describe("执行", () => {
     expect(result.entityIds).toEqual([1, 2]);
     expect(result.linkCount).toBe(0);
     expect(updates.size).toBe(0);
+  });
+
+  it("扫描后来源被修改时，写入与回填都使用已预览的正文", async () => {
+    const files = { "a.md": "原稿 [下一篇](b.md)", "b.md": "下一篇正文" };
+    const plan = await scanImportSource(memorySource(files), scanDeps());
+    files["a.md"] = "改稿";
+    const { deps, updates } = fakeDeps();
+    const created: string[] = [];
+    deps.createArticle = async ({ content }) => {
+      created.push(JSON.stringify(content));
+      return { id: created.length, contentId: created.length };
+    };
+    const result = await runImport(
+      plan,
+      {
+        target: "article",
+        projectTitle: "",
+        selected: new Set([0, 1]),
+        useSourceTags: false,
+        importTables: false,
+      },
+      deps
+    );
+    expect(result.stopped).toBeUndefined();
+    expect(created[0]).toContain("原稿");
+    const linked = updates.get(1);
+    expect(JSON.stringify(linked)).toContain("原稿");
+    expect(findNode(linked, "content-link")).toMatchObject({ refId: 2 });
   });
 
   it("卡片：完整文件夹路径作层级标签，关闭 frontmatter 标签", async () => {

@@ -12,6 +12,7 @@ import { prepareContentContract } from "@tau/db-schema/content-contracts";
 const bridge = vi.hoisted(() => {
   const state = {
     databases: new Map<string, import("better-sqlite3").Database>(),
+    handlers: new Map<string, (...args: unknown[]) => unknown>(),
     active: "source.db",
     directory: "",
     archive: "",
@@ -23,6 +24,10 @@ const bridge = vi.hoisted(() => {
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
       const first = args[0] as string;
+      if (channel === "module-init:init-module") return { success: true };
+      if (channel === "import:copy" && state.denyResourceWrite) throw new Error("模拟资源写入失败");
+      if (state.handlers.has(channel))
+        return state.handlers.get(channel)!({ sender: bridgeSender }, ...args);
       switch (channel) {
         case "resolve-path":
           return path.resolve(first);
@@ -64,17 +69,7 @@ const bridge = vi.hoisted(() => {
         default:
           break;
       }
-      const [
-        { default: CardTable },
-        { default: ArticleTable },
-        { default: ContentTable },
-        { executeDatabaseCommand },
-      ] = await Promise.all([
-        import("../../../src-electron/main/modules/tables/card"),
-        import("../../../src-electron/main/modules/tables/article"),
-        import("../../../src-electron/main/modules/tables/content"),
-        import("../../../src-electron/main/modules/database-command"),
-      ]);
+
       const scope = args.at(-1) as { toolDatabaseName?: string } | undefined;
       const db = state.databases.get(scope?.toolDatabaseName ?? state.active);
       if (!db) throw new Error("测试资料库未连接");
@@ -98,7 +93,9 @@ const bridge = vi.hoisted(() => {
 
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: vi.fn() },
+  ipcMain: {
+    handle: (key: string, fn: (...args: unknown[]) => unknown) => bridge.handlers.set(key, fn),
+  },
   app: { getPath: () => bridge.directory },
 }));
 vi.mock("../../../src-electron/main/modules/video-note-index-queue");
@@ -113,6 +110,9 @@ vi.mock("../../../src-electron/main/services/content-execution", () => ({
   },
 }));
 
+import { EventEmitter } from "node:events";
+import { registerImportWorkspaces } from "../../../src-electron/main/modules/import-workspace-ipc";
+import PathUtil from "../../../src-electron/main/utils/PathUtil";
 import "@/commands/contracts/install";
 import { createCard } from "@/commands/card";
 import { getContentById } from "@/commands/content";
@@ -123,6 +123,11 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import { useImportHistoryStore } from "@/stores/useImportHistoryStore";
 
+import CardTable from "../../../src-electron/main/modules/tables/card";
+import ArticleTable from "../../../src-electron/main/modules/tables/article";
+import ContentTable from "../../../src-electron/main/modules/tables/content";
+import { executeDatabaseCommand } from "../../../src-electron/main/modules/database-command";
+const bridgeSender = new EventEmitter();
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (...children: unknown[]) => ({ type: "paragraph", children });
 const asContent = (nodes: unknown[]) => nodes as Descendant[];
@@ -138,7 +143,14 @@ const selectLibrary = (name: string) => {
   }));
 };
 
-beforeAll(() => useDynamicExtensionsStore.getState().initExtensions(), 30_000);
+beforeAll(async () => {
+  registerImportWorkspaces();
+  vi.spyOn(PathUtil, "getHomeDir").mockImplementation(() => bridge.directory);
+  vi.spyOn(PathUtil, "getAppDir").mockImplementation(() =>
+    join(bridge.directory, bridge.active.replace(/\.db$/, ""))
+  );
+  await useDynamicExtensionsStore.getState().initExtensions();
+}, 30_000);
 beforeEach(async () => {
   vi.stubGlobal("Blob", FileBlob);
   vi.stubGlobal("File", NodeFile);
@@ -224,7 +236,6 @@ it("正式 Markdown 导出和批量导入在独立库保留正文、契约和资
   expect(plan.assets.size).toBe(1);
   const [asset] = [...plan.assets.values()];
   expect(asset.location.kind).toBe("source");
-  expect(Buffer.from(await plan.source.readBytes(asset.location.path))).toEqual(image);
   const options = {
     target: "article" as const,
     projectTitle: "",
@@ -282,6 +293,7 @@ it("正式 Markdown 导出和批量导入在独立库保留正文、契约和资
     url: asset.location.path,
   });
   expect(await readFile(destinationImage)).toEqual(image);
+  await plan.source.close();
   selectLibrary("source.db");
   expect(await getContentById(card.contentId)).toEqual(original);
   expect(await readFile(sourceImage)).toEqual(image);

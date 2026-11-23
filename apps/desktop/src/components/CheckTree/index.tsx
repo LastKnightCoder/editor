@@ -4,7 +4,8 @@
  * 整体导出（项目条目）与批量导入预览（来源文件）共用。
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Checkbox, cn } from "@tau/ui";
 import { ChevronRight } from "lucide-react";
 
@@ -29,6 +30,7 @@ export interface CheckTreeProps<T extends CheckTreeNode<T>> {
   getTag?: (node: T) => CheckTreeTag | null;
   /** 初始折叠的节点（只在挂载时读取；大树按需传入，避免一次渲染全部叶子） */
   initiallyCollapsed?: number[];
+  virtual?: boolean;
 }
 
 const collectSubtreeIds = <T extends CheckTreeNode<T>>(
@@ -46,10 +48,30 @@ export function CheckTree<T extends CheckTreeNode<T>>({
   isSelectable,
   getTag,
   initiallyCollapsed,
+  virtual = false,
 }: CheckTreeProps<T>) {
   const checkedSet = useMemo(() => new Set(checkedKeys), [checkedKeys]);
   const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set(initiallyCollapsed));
 
+  const viewport = useRef<HTMLDivElement>(null);
+  const rows = useMemo(() => {
+    const visible: { node: T; level: number }[] = [];
+    const walk = (items: T[], level: number) => {
+      for (const node of items) {
+        visible.push({ node, level });
+        if (!collapsed.has(node.id)) walk(node.children, level + 1);
+      }
+    };
+    if (virtual) walk(nodes, 0);
+    return visible;
+  }, [nodes, collapsed, virtual]);
+  const virtualizer = useVirtualizer({
+    enabled: virtual,
+    count: rows.length,
+    getScrollElement: () => viewport.current,
+    estimateSize: () => 30,
+    overscan: 8,
+  });
   const toggle = (subtreeIds: number[], next: boolean) => {
     const ids = new Set(subtreeIds);
     onCheckedKeysChange(
@@ -139,10 +161,31 @@ export function CheckTree<T extends CheckTreeNode<T>>({
             </span>
           )}
         </div>
-        {open && <div role="group">{node.children.map(child => renderNode(child, level + 1))}</div>}
+        {!virtual && open && (
+          <div role="group">{node.children.map(child => renderNode(child, level + 1))}</div>
+        )}
       </div>
     );
   };
 
+  if (virtual)
+    return (
+      <div ref={viewport} role="tree" className="h-full overflow-y-auto">
+        <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+          {virtualizer.getVirtualItems().map(item => {
+            const { node, level } = rows[item.index];
+            return (
+              <div
+                key={node.id}
+                className="absolute inset-x-0 top-0"
+                style={{ transform: `translateY(${item.start}px)` }}
+              >
+                {renderNode(node, level)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   return <div role="tree">{nodes.map(node => renderNode(node, 0))}</div>;
 }
