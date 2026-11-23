@@ -18,7 +18,14 @@ import type { BoardElement } from "../types/element";
 import type { Operation } from "../types/operation";
 import type { WhiteboardDocumentBinding } from "../document";
 import type { WhiteboardContractCatalog, WhiteboardContractEntry } from "./catalog";
-import { refresh, flattenModel, flatten, measureElement, refreshLayout } from "./projection";
+import {
+  project,
+  refresh,
+  flattenModel,
+  flatten,
+  measureElement,
+  refreshLayout,
+} from "./projection";
 import {
   isBlocked,
   assertWritable,
@@ -229,6 +236,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
   private snapshot?: ReturnType<WhiteboardModel["read"]>;
   private readonly invalidateSnapshot = () => {
     this.snapshot = undefined;
+    this.lastStrokeChildren = undefined;
   };
 
   readSnapshot(): ReturnType<WhiteboardModel["read"]> {
@@ -236,6 +244,62 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     return (this.snapshot ??= this.model.read());
   }
 
+  lastStrokeChildren?: BoardElement[];
+
+  publishStroke(
+    before: ReturnType<WhiteboardModel["read"]>,
+    id: string,
+    segmentId: string,
+    created: boolean
+  ) {
+    const board = this.board;
+    const page = before.pages.find(entry => entry.id === this.page);
+    if (
+      !board ||
+      !page ||
+      before.recovery.length ||
+      before.pages.some(entry => entry.recovery.length) ||
+      page.children.length !== board.children.length ||
+      !page.children.every((node, i) => node.id === board.children[i].id)
+    )
+      return false;
+    const at = page.children.findIndex(node => node.id === id);
+    if (!created && at < 0) return false;
+    // 绑定箭头的几何由整页布局推导；目标笔迹变化时一起重算。
+    if (
+      flatten(board.children).some(
+        node => node.type === "arrow" && (node.source?.bindId === id || node.target?.bindId === id)
+      )
+    )
+      return false;
+    const old = page.children[at];
+    if (
+      old &&
+      (old.type !== "handwrite" ||
+        old.data.segmented !== true ||
+        old.children.some(
+          n => n.contractId !== this.options.types["host.whiteboard.stroke-segment"]?.contractId
+        ))
+    )
+      return false;
+    const stroke = this.model.readAppendedStroke(id, segmentId, old?.children ?? []);
+    const nodes = [...page.children],
+      rendered = [...board.children];
+    const index = at < 0 ? nodes.length : at;
+    nodes[index] = stroke;
+    rendered[index] = project(this, stroke);
+    this.snapshot = Object.freeze({
+      ...before,
+      pages: Object.freeze(
+        before.pages.map(entry =>
+          entry === page ? Object.freeze({ ...page, children: Object.freeze(nodes) }) : entry
+        )
+      ),
+    });
+    this.lastStrokeChildren = rendered;
+    board.publishDocument(rendered);
+    return true;
+  }
   private readonly changed = (transaction: Y.Transaction) => {
     this.invalidateSnapshot();
     if (this.closed || this.writing || transaction.changed.size === 0) return;

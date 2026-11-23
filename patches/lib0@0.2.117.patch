@@ -1,0 +1,40 @@
+diff --git a/encoding.js b/encoding.js
+--- a/encoding.js
++++ b/encoding.js
+@@ -304,6 +304,12 @@
+  * @param {String} str The string that is to be encoded.
+  */
+ export const _writeVarStringNative = (encoder, str) => {
++  // Small ASCII keys have the same byte and UTF-16 length.
++  if (str.length <= 16 && /^[\x00-\x7f]*$/.test(str)) {
++    write(encoder, str.length)
++    for (let i = 0; i < str.length; i++) write(encoder, str.charCodeAt(i))
++    return
++  }
+   if (str.length < _maxStrBSize) {
+     // We can encode the string into the existing buffer
+     /* c8 ignore next */
+diff --git a/decoding.js b/decoding.js
+--- a/decoding.js
++++ b/decoding.js
+@@ -374,8 +374,18 @@
+  * @param {Decoder} decoder
+  * @return {String} The read String
+  */
+-export const _readVarStringNative = decoder =>
+-  /** @type any */ (string.utf8TextDecoder).decode(readVarUint8Array(decoder))
++export const _readVarStringNative = decoder => {
++  const bytes = readVarUint8Array(decoder)
++  if (bytes.length <= 16) {
++    let ascii = ''
++    for (let i = 0; i < bytes.length; i++) {
++      if (bytes[i] >= 128) return /** @type any */ (string.utf8TextDecoder).decode(bytes)
++      ascii += String.fromCharCode(bytes[i])
++    }
++    return ascii
++  }
++  return /** @type any */ (string.utf8TextDecoder).decode(bytes)
++}
+ 
+ /**
+  * Read string of variable length

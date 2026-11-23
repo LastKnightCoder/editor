@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Activity, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Search } from "lucide-react";
 import { cn, ErrorBoundary, FadeScroll, Input, ResizeHandle } from "@tau/ui";
 import { BoardElement } from "../../types";
@@ -90,6 +90,10 @@ export default function Sidebar({ outline }: { outline?: WhiteboardOutline }) {
   const [resizing, setResizing] = useState(false);
   const ref = useRef<HTMLElement>(null);
   const open = outline?.open ?? true;
+  const [visited, setVisited] = useState(open);
+  useLayoutEffect(() => {
+    if (open) setVisited(true);
+  }, [open]);
   const width = Math.min(420, Math.max(200, outline?.width ?? localWidth));
   const label = outline?.panel?.label ?? "元素树";
   const onDockWidthChange = outline?.onDockWidthChange;
@@ -124,7 +128,11 @@ export default function Sidebar({ outline }: { outline?: WhiteboardOutline }) {
         {outline?.panel ? (
           <ErrorBoundary key={label}>{outline.panel.content}</ErrorBoundary>
         ) : (
-          <OutlineContent />
+          (visited || open) && (
+            <Activity mode={open ? "visible" : "hidden"}>
+              <OutlineContent />
+            </Activity>
+          )
         )}
       </div>
       <ResizeHandle

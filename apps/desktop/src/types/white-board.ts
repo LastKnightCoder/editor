@@ -36,3 +36,9 @@ export interface WhiteboardContent {
   updateTime: number;
   data: WhiteboardSnapshot;
 }
+
+/** 托管画布从文档会话取正文，打开页面只需名称和文档映射。 */
+export interface WhiteboardPageHeader {
+  name: string;
+  data: { documentKind?: string; documentId?: string; pageId?: string };
+}

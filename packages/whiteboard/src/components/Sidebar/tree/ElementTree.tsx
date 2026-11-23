@@ -11,8 +11,14 @@ const ElementTree: React.FC<ElementTreeProps> = ({ root, selectedIds }) => {
   const nodes = useMemo(() => (root ? root.slice().reverse() : []), [root]);
   return (
     <div>
-      {nodes.map(n => (
-        <Node key={n.id} element={n} depth={0} selectedIds={selectedIds} />
+      {nodes.map((n, i) => (
+        <Node
+          key={n.id}
+          element={n}
+          depth={0}
+          siblingIndex={nodes.length - 1 - i}
+          selectedIds={selectedIds}
+        />
       ))}
     </div>
   );

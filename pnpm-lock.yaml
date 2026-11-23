@@ -17,6 +17,7 @@ overrides:
 patchedDependencies:
   '@earendil-works/pi-coding-agent@1.5.2': 4669b340da7a9df3ca11d5899dc8c204e8818f06a8fa60a6817a8f26c8a9fdac
   better-sqlite3@12.10.0: 28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f
+  lib0@0.2.117: 7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199
   slate-react@0.126.4: 8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062
 
 importers:
@@ -14815,13 +14816,13 @@ snapshots:
 
   '@hocuspocus/common@4.6.0':
     dependencies:
-      lib0: 0.2.117
+      lib0: 0.2.117(patch_hash=7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199)
 
   '@hocuspocus/provider@4.6.0(y-protocols@1.0.7(yjs@13.6.32))(yjs@13.6.32)':
     dependencies:
       '@hocuspocus/common': 4.6.0
       '@lifeomic/attempt': 3.1.0
-      lib0: 0.2.117
+      lib0: 0.2.117(patch_hash=7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199)
       y-protocols: 1.0.7(yjs@13.6.32)
       yjs: 13.6.32
 
@@ -14831,7 +14832,7 @@ snapshots:
       async-mutex: 0.5.0
       crossws: 0.4.12
       kleur: 4.1.5
-      lib0: 0.2.117
+      lib0: 0.2.117(patch_hash=7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199)
       y-protocols: 1.0.7(yjs@13.6.32)
       yjs: 13.6.32
     transitivePeerDependencies:
@@ -20335,7 +20336,7 @@ snapshots:
       type-check: 0.4.0
     optional: true
 
-  lib0@0.2.117:
+  lib0@0.2.117(patch_hash=7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199):
     dependencies:
       isomorphic.js: 0.2.5
 
@@ -24472,7 +24473,7 @@ snapshots:
 
   y-protocols@1.0.7(yjs@13.6.32):
     dependencies:
-      lib0: 0.2.117
+      lib0: 0.2.117(patch_hash=7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199)
       yjs: 13.6.32
 
   y18n@5.0.8: {}
@@ -24519,7 +24520,7 @@ snapshots:
 
   yjs@13.6.32:
     dependencies:
-      lib0: 0.2.117
+      lib0: 0.2.117(patch_hash=7018d9bf0b5dff72f694c40dc271b56dd065de05ab53005bc64a1a309b2d0199)
 
   yocto-queue@0.1.0: {}
 

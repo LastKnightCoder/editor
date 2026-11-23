@@ -35,6 +35,15 @@ function toListElement<T>(element: T): T {
   if (!element || typeof element !== "object") return element;
   if (Array.isArray(element)) return element.map(toListElement) as T;
   const record = element as Record<string, unknown>;
+  // 示意图使用笔迹轮廓，原始压感采样只在编辑文档中读取。
+  if (
+    record.type === "host.whiteboard.stroke-segment" &&
+    record.data &&
+    typeof record.data === "object"
+  ) {
+    const { points: _points, ...data } = record.data as Record<string, unknown>;
+    return { ...record, data, children: toListElement(record.children) } as T;
+  }
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(record)) {
     if (LIST_STRIPPED_ELEMENT_FIELDS.has(key)) continue;
@@ -517,7 +526,7 @@ export default class WhiteboardTable {
     })();
   }
 
-  static getWhiteboard(db: Database.Database, id: number): Whiteboard {
+  static getWhiteboard(db: Database.Database, id: number, view?: "preview"): Whiteboard {
     // 获取白板基础数据
     const stmt = db.prepare(`
       SELECT b.*, d.document_id FROM white_boards b
@@ -534,7 +543,8 @@ export default class WhiteboardTable {
     const contentIds = JSON.parse((whiteboard.white_board_content_ids as string) || "[]");
     const contentList = this.buildOrderedContentList(db, contentIds);
 
-    whiteboard.white_board_content_list = contentList;
+    whiteboard.white_board_content_list =
+      view === "preview" ? contentList.map(toListContent) : contentList;
 
     return this.parseWhiteboard(whiteboard);
   }

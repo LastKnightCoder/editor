@@ -169,7 +169,8 @@ function BoundDocumentCanvas({
   const pluginRuntime = useDesktopPlugins(),
     runtimeRef = useRef(pluginRuntime);
   runtimeRef.current = pluginRuntime;
-  const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+  const readReadonly = () => client.getSnapshot().frozen || client.getSnapshot().phase === "error";
+  const readonly = useSyncExternalStore(client.subscribe, readReadonly, readReadonly);
   useInsertionEffect(() => client.retainModel(), [client]);
   const { registerLeaveGuard } = usePage();
   const initialPage = useRef(pageId);
@@ -310,7 +311,7 @@ function BoundDocumentCanvas({
             },
           }}
           initData={[]}
-          readonly={state.frozen || state.phase === "error"}
+          readonly={readonly}
           className="h-full w-full"
           showSidebar={standalone}
           extensions={extensions}

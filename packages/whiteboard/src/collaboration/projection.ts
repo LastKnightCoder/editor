@@ -46,12 +46,20 @@ export function authorElement(binding: CanvasBinding, id: string) {
 /** 文档卡的稳定引用解析成本机身份后投影为 entityRef（只在本机，不写回文档），供去重、相关、翻页使用 */
 const DOCUMENT_ENTITY_KINDS = new Set(["card", "article", "project-item", "diary-moment", "pdf"]);
 
+// 笔迹分段是存储节点。比较投影输入即可复用已有轮廓，避免重新拟合和序列化整条曲线。
+const strokeInputs = new WeakMap<BoardElement, string>();
+
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
   const type = mapped?.contractId === node.contractId ? mapped : undefined;
   const localEntity = binding.localEntities.get(node.id);
   const measurement = binding.measurements.get(node.id);
-  const children = node.children.map(child => project(binding, child));
+  const handwrite = type && node.type === "handwrite";
+  const segmentContract = binding.options.types["host.whiteboard.stroke-segment"]?.contractId;
+  const visibleChildren = handwrite
+    ? node.children.filter(child => child.contractId !== segmentContract)
+    : node.children;
+  const children = visibleChildren.map(child => project(binding, child));
   const next: BoardElement = {
     id: node.id,
     type: node.type,
@@ -92,9 +100,13 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
     ...(node.name === undefined ? {} : { name: node.name }),
     ...(type ? binding.feedback.get(node.id) : undefined),
     ...canvasFields(node, type),
-    ...(children.length ? { children } : {}),
+    ...(handwrite || children.length ? { children } : {}),
   };
-  if (type && node.type === "handwrite" && node.data.segmented === true) {
+  const previous = binding.projections.get(node.id);
+  if (handwrite && node.data.segmented === true) {
+    const inputs = JSON.stringify([next, node.children.map(segment => segment.data.points)]);
+    if (previous && strokeInputs.get(previous) === inputs) return previous;
+    strokeInputs.set(next, inputs);
     const points = node.children.flatMap(
       segment =>
         (segment.data.points ??
@@ -106,14 +118,7 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
       node.id
     );
     if (value) Object.assign(next, { points: value.points, outline: value.outline });
-  }
-  if (type && node.type === "handwrite")
-    next.children = children.filter(
-      child =>
-        child.contractId !== binding.options.types["host.whiteboard.stroke-segment"]?.contractId
-    );
-  const previous = binding.projections.get(node.id);
-  if (previous && equal(previous, next)) return previous;
+  } else if (previous && equal(previous, next)) return previous;
   binding.projections.set(node.id, next);
   return next;
 }
@@ -143,7 +148,7 @@ export function refresh(binding: CanvasBinding): void {
       });
       return MindUtil.layout(initialize(value, 1) as import("../types/mind").MindNodeElement);
     }
-    return node.children ? value : node;
+    return node.children?.length ? value : node;
   };
   let children = [...(page?.children ?? []), ...(page?.recovery ?? [])].map(node =>
     layout(project(binding, node))
@@ -203,7 +208,7 @@ export function resolveArrowBindings(
       }
       return equal(points, node.points) ? node : { ...node, points };
     }
-    return node.children ? { ...node, children: node.children.map(connect) } : node;
+    return node.children?.length ? { ...node, children: node.children.map(connect) } : node;
   };
   return children.map(connect);
 }

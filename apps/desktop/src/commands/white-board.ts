@@ -1,6 +1,6 @@
 import { invoke } from "@/electron";
 import { withModule } from "./module-init";
-import { Whiteboard, WhiteboardContent, ICreateWhiteboard } from "@/types";
+import { Whiteboard, WhiteboardContent, WhiteboardPageHeader, ICreateWhiteboard } from "@/types";
 import type {
   ContentEntityTarget,
   ContentEntityReference,
@@ -10,8 +10,8 @@ export const createWhiteboard = async (whiteboard: ICreateWhiteboard): Promise<W
   return invoke("create-white-board", whiteboard);
 };
 
-export const getWhiteboardById = async (id: number): Promise<Whiteboard> => {
-  return invoke("get-white-board-by-id", id);
+export const getWhiteboardById = async (id: number, view?: "preview"): Promise<Whiteboard> => {
+  return view ? invoke("get-white-board-by-id", id, view) : invoke("get-white-board-by-id", id);
 };
 
 /** 按页 id 反查所属白板；独立页返回 null */
@@ -102,9 +102,11 @@ export const getWhiteboardContentReference = (id: number): Promise<ContentEntity
 
 export const getWhiteboardContentById = async (
   id: ContentEntityTarget
-): Promise<WhiteboardContent> => {
-  return invoke("white-board-content:get-by-id", id);
-};
+): Promise<WhiteboardContent> => invoke("white-board-content:get-by-id", id);
+
+export const getWhiteboardPageHeader = async (
+  id: ContentEntityTarget
+): Promise<WhiteboardPageHeader> => invoke("white-board-content:get-by-id", id, "header");
 
 export const updateWhiteboardContent = async (
   whiteboardContent: Omit<WhiteboardContent, "id" | "createTime" | "updateTime"> & {

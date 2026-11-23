@@ -194,7 +194,7 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
     const backend: WhiteboardDocumentBackend = {
       open: (target, viewId) => sessions.open(target.databaseName, target.contentId, 1, viewId),
       append: async (lease, batch, update) => {
-        const receipt = await sessions.append(lease, 1, batch, update);
+        const receipt = await sessions.append(lease, 1, batch, update, "renderer");
         if (!receipt.error) realtime?.publishDocument();
         return receipt;
       },

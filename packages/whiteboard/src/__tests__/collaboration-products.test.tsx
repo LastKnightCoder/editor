@@ -12,6 +12,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import {
   WhiteboardModel,
+  WHITEBOARD_LIMITS,
   collectWhiteboardRelations,
   exportWhiteboardTransfer,
   prepareWhiteboardTransfer,
@@ -440,7 +441,7 @@ it("演示与画风接入画布历史，远端投影不回写", async () => {
 });
 
 it("长笔迹按稳定分段提交，崩溃副本保留前缀且撤销为一次手势", async () => {
-  const f = await setup(),
+  const f = await setup(undefined, { coalesceLocalGesture: () => true }),
     id = crypto.randomUUID(),
     style = getDefaultHandwriteStyle();
   f.binding.beginGesture();
@@ -485,6 +486,245 @@ it("长笔迹按稳定分段提交，崩溃副本保留前缀且撤销为一次�
   f.board.undo();
   expect(f.board.children[0].x).toBe(node.x);
 });
+it("混合页面连续写入分段后快照与文档一致，观察者插入的图形也可见", async () => {
+  const { binding, model, board, insert } = await setup(undefined, {
+    coalesceLocalGesture: () => true,
+  });
+  insert(base("geometry", { geometryType: "rect", paths: [] }));
+  const pen = getDefaultHandwriteStyle(),
+    id = crypto.randomUUID();
+  binding.appendStroke(
+    id,
+    [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 20, y: 30, pressure: 0.7 },
+    ],
+    pen
+  );
+  binding.appendStroke(id, [{ x: 30, y: 20, pressure: 0.3 }], pen);
+  expect(binding.readSnapshot()).toEqual(model.read());
+  const page = binding.pageId,
+    extra = crypto.randomUUID();
+  const observer = () => {
+    model.doc.off("update", observer);
+    model.submit(
+      [
+        {
+          type: "create",
+          id: extra,
+          contractId: binding.options.types.geometry.contractId,
+          parent: { kind: "page", id: page },
+          geometry: rect,
+          data: { geometryType: "rect", paths: [] },
+        },
+      ],
+      null
+    );
+  };
+  model.doc.on("update", observer);
+  binding.appendStroke(id, [{ x: 40, y: 10, pressure: 0.5 }], pen);
+  expect(board.children.map(node => node.id)).toContain(extra);
+  expect(binding.readSnapshot()).toEqual(model.read());
+  const before = Y.encodeStateAsUpdate(model.doc);
+  expect(() =>
+    binding.appendStroke(
+      crypto.randomUUID(),
+      [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 10, y: 20, pressure: 0.5 },
+      ],
+      { ...pen, themeColorId: "x".repeat(66000) }
+    )
+  ).toThrow();
+  expect(Y.encodeStateAsUpdate(model.doc)).toEqual(before);
+});
+
+it.runIf(process.env.WHITEBOARD_INK_MIXED === "1")(
+  "混合编辑逐段与另一画布的完整投影一致，离线双写与重复交付后收敛",
+  async () => {
+    const local = await setup(undefined, { coalesceLocalGesture: () => true });
+    const shape = { ...nodes[1], id: "mixed-shape" };
+    local.insert(shape);
+    const peer = await setup(Y.encodeStateAsUpdate(local.doc), {
+      coalesceLocalGesture: () => true,
+    });
+    const basePage = local.binding.pageId,
+      otherPage = local.model.read().pages[1].id;
+    const localProjection = vi.spyOn(local.binding, "publishStroke");
+    let checks = 0;
+    const compare = async (stage: string) => {
+      expect(local.binding.readSnapshot(), stage).toEqual(local.model.read());
+      const delta = Y.encodeStateAsUpdate(local.doc, Y.encodeStateVector(peer.doc));
+      // 对照画布从事务通知重新投影；它不调用发起端的局部发布入口。
+      Y.applyUpdate(peer.doc, delta);
+      expect(peer.binding.readSnapshot(), stage).toEqual(local.binding.readSnapshot());
+      expect(peer.board.children, stage).toEqual(local.board.children);
+      checks++;
+    };
+    const style = { ...getDefaultHandwriteStyle(), simulatePressure: false };
+    const samples = (seed: number, offset: number, n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        x: seed * 3 + offset + i,
+        y: seed + 30 * Math.sin((offset + i) / 7),
+        pressure: 0.2 + ((offset + i) % 7) / 10,
+      }));
+    for (let i = 0; i < 16; i++) {
+      const id = "mixed-pen-" + i;
+      local.binding.beginGesture();
+      for (const [segment, n] of [64, 64, 9].entries()) {
+        local.binding.appendStroke(id, samples(i, segment * 64, n), style);
+        await compare(`笔 ${i} 分段 ${segment}`);
+      }
+      if (i % 4 === 0) {
+        local.binding.cancelStroke(id);
+        expect(local.board.children.some(node => node.id === id)).toBe(false);
+      }
+      local.binding.endGesture(i % 4 !== 0);
+      await compare(`笔 ${i} 收尾`);
+      if (i % 4 === 1) {
+        local.board.undo();
+        expect(local.board.children.some(node => node.id === id)).toBe(false);
+        await compare("撤销整笔");
+        local.board.redo();
+        expect(local.board.children.find(node => node.id === id)?.points).toHaveLength(137);
+        await compare("重做整笔");
+      }
+    }
+    const bound = "mixed-pen-15";
+    local.insert({
+      ...nodes[2],
+      id: "mixed-arrow",
+      source: { marker: "none", bindId: bound, connectId: "right" },
+      target: { marker: "arrow", bindId: shape.id, connectId: "left" },
+    });
+    await compare("连线绑定");
+    const endpoint = structuredClone(
+      local.board.children.find(node => node.id === "mixed-arrow")?.points[0]
+    );
+    local.binding.appendStroke(bound, samples(99, 0, 64), style);
+    await compare("更新已绑定的笔迹及箭头端点");
+    expect(local.board.children.find(node => node.id === "mixed-arrow")?.points[0]).not.toEqual(
+      endpoint
+    );
+
+    local.binding.switchPage(otherPage);
+    peer.binding.switchPage(otherPage);
+    local.binding.appendStroke("other-page-pen", samples(10, 0, 64), style);
+    await compare("第二页写入");
+    expect(local.board.children.map(n => n.id)).toEqual(["other-page-pen"]);
+    local.binding.switchPage(basePage);
+    peer.binding.switchPage(basePage);
+    await compare("切回首页");
+
+    const vector = Y.encodeStateVector(local.doc);
+    local.binding.appendStroke("offline-local", samples(30, 0, 64), style);
+    peer.binding.appendStroke("offline-peer", samples(40, 0, 64), style);
+    const left = Y.encodeStateAsUpdate(local.doc, vector),
+      right = Y.encodeStateAsUpdate(peer.doc, vector);
+    for (let delivery = 0; delivery < 2; delivery++) {
+      expect((await local.model.receive(right)).status).toBe("applied");
+      expect((await peer.model.receive(left)).status).toBe("applied");
+      expect(local.model.read()).toEqual(peer.model.read());
+      expect(local.board.children).toEqual(peer.board.children);
+      for (const id of ["offline-local", "offline-peer"])
+        expect(local.board.children.filter(node => node.id === id)).toHaveLength(1);
+      checks++;
+    }
+    local.insert({
+      ...nodes[5],
+      id: "orphan-parent",
+      children: [{ ...nodes[1], id: "orphan-child" }],
+    });
+    local.binding.submit([{ type: "remove_nodes", ids: ["orphan-parent"] }]);
+    const recovered = local.model.read().pages[0].recovery;
+    expect(recovered.map(node => node.id)).toContain("orphan-child");
+    local.binding.appendStroke("recovery-neighbor", samples(50, 0, 64), style);
+    await compare("恢复区旁新增笔迹");
+    expect(local.binding.readSnapshot().pages[0].recovery).toEqual(recovered);
+    const restored = await setup(Y.encodeStateAsUpdate(local.doc));
+    expect(restored.board.children).toEqual(local.board.children);
+    console.info("MIXED_PARITY", {
+      checks,
+      reopened: true,
+      localProjections: localProjection.mock.results.filter(result => result.value === true).length,
+    });
+  },
+  90000
+);
+
+it.runIf(process.env.WHITEBOARD_INK_MIXED === "1")(
+  "两页用满元素额度时追加笔迹整段拒绝，已有前缀与撤销栈保持一致",
+  async () => {
+    const { model, board, binding, builtins } = await setup(undefined, {
+      coalesceLocalGesture: () => true,
+    });
+    const pages = model.read().pages;
+    const frame = builtins.types.frame.contractId;
+    let count = 0;
+    while (count < WHITEBOARD_LIMITS.elements - 2) {
+      const batch = Math.min(
+        WHITEBOARD_LIMITS.commandsPerBatch,
+        WHITEBOARD_LIMITS.elements - 2 - count
+      );
+      model.submit(
+        Array.from({ length: batch }, (_, i) => ({
+          type: "create" as const,
+          contractId: frame,
+          parent: { kind: "page" as const, id: pages[(count + i) % 2].id },
+          data: { title: "边界" },
+          geometry: rect,
+        })),
+        null,
+        builtins.prepared.filter(entry => entry.id === frame)
+      );
+      count += batch;
+    }
+    const points = [
+        { x: 0, y: 0, pressure: 0.25 },
+        { x: 20, y: 10, pressure: 0.75 },
+      ],
+      style = getDefaultHandwriteStyle();
+    binding.appendStroke("last-ink", points, style);
+    expect(model.elements.size).toBe(WHITEBOARD_LIMITS.elements);
+    const checkpoint = Y.encodeStateAsUpdate(model.doc),
+      history = binding.history.undoStack.length;
+    expect(() =>
+      binding.appendStroke("last-ink", [{ x: 30, y: 20, pressure: 0.5 }], style)
+    ).toThrow(/预算/);
+    expect(() => binding.appendStroke("overflow-ink", points, style)).toThrow(/预算/);
+    expect(
+      Buffer.compare(Buffer.from(checkpoint), Buffer.from(Y.encodeStateAsUpdate(model.doc)))
+    ).toBe(0);
+    expect(binding.history.undoStack).toHaveLength(history);
+    expect(board.children.find(node => node.id === "last-ink")?.points).toHaveLength(2);
+    expect(board.children.some(node => node.id === "overflow-ink")).toBe(false);
+  },
+  90000
+);
+
+it("分段采样数相同时，替换折点会更新画布上的笔迹", async () => {
+  const f = await setup();
+  const points = [
+    { x: 0, y: 0, pressure: 0.5 },
+    { x: 50, y: 40, pressure: 0.5 },
+    { x: 100, y: 0, pressure: 0.5 },
+  ];
+  f.binding.appendStroke(crypto.randomUUID(), points, getDefaultHandwriteStyle());
+  expect(f.board.children[0].points[1].y).toBeGreaterThan(f.board.children[0].points[0].y);
+  const segment = f.model.read().pages[0].children[0].children[0];
+  f.model.submit(
+    [
+      {
+        type: "set_data",
+        id: segment.id,
+        patch: { points: [points[0], { ...points[1], y: -40 }, points[2]] },
+      },
+    ],
+    null
+  );
+  expect(f.board.children[0].points[1].y).toBeLessThan(f.board.children[0].points[0].y);
+});
+
 it.each([false, true])("箭头在连续拖动预览中跟随双端绑定，提交=%s", async commit => {
   const f = await setup();
   const source = { ...nodes[1], ...rect, id: crypto.randomUUID() };

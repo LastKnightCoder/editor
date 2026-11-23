@@ -18,11 +18,27 @@ import { WhiteboardJournal, journalKey, type JournalDocument } from "./journal";
 import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./repository";
 import { repairWhiteboardDocument } from "./repair";
 import { dirname, join } from "node:path";
+import { Worker } from "node:worker_threads";
+import { prepareAppend, type PreparedAppend, type AppendInput } from "./prepare-append";
+import type { PreparedProjection } from "./projection";
 import { tmpdir } from "node:os";
 
 /** 修复备份与日志同目录；内存日志（测试）落到系统临时目录 */
 const journalDirectory = (journal: WhiteboardJournal) =>
   journal.db.memory ? join(tmpdir(), "tau-whiteboard-documents") : dirname(journal.db.name);
+
+function prepareDocumentAppend(input: AppendInput): Promise<PreparedAppend> {
+  // 小文档的校验比创建工作线程快，大检查点在后台生成整页投影和耐久状态。
+  if (input.state.byteLength < 128 * 1024) return prepareAppend(input);
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(join(__dirname, "whiteboard-append-worker.js"), {
+      workerData: input,
+    });
+    worker.once("message", resolve);
+    worker.once("error", reject);
+    worker.once("exit", code => reject(new Error(`白板校验线程提前退出（${code}）`)));
+  });
+}
 
 interface Session {
   value: JournalDocument;
@@ -90,10 +106,10 @@ export class WhiteboardDocumentSessions {
       ...(session.error ? { error: session.error } : {}),
     };
   }
-  private project(session: Session): void {
+  private project(session: Session, prepared?: PreparedProjection): void {
     try {
       const previous = session.value.projectedRevision;
-      this.connection(session).project(session.value, session.model);
+      this.connection(session).project(session.value, session.model, prepared);
       this.journal.markProjected(session.value);
       session.value = {
         ...session.value,
@@ -112,7 +128,7 @@ export class WhiteboardDocumentSessions {
       session.error = error instanceof Error ? error.message : String(error);
     }
   }
-  private notify(session: Session, update?: Uint8Array): void {
+  private notify(session: Session, update?: Uint8Array, origin?: Lease): void {
     for (const owner of new Set(
       [...this.leases.values()]
         .filter(lease => lease.key === journalKey(session.value))
@@ -127,6 +143,7 @@ export class WhiteboardDocumentSessions {
           epoch: session.value.epoch,
           ...this.receipt(session),
           ...(update ? { update } : {}),
+          ...(origin?.owner === owner ? { originViewId: origin.viewId } : {}),
         });
       } catch {
         /* 通知失败不能撤销已经耐久接纳的更新。 */
@@ -320,7 +337,8 @@ export class WhiteboardDocumentSessions {
     leaseId: string,
     owner: number,
     batchId: string,
-    input: Uint8Array
+    input: Uint8Array,
+    source?: "renderer"
   ): Promise<WhiteboardDocumentReceipt> {
     const { lease, session } = this.require(leaseId, owner, true);
     if (
@@ -342,20 +360,32 @@ export class WhiteboardDocumentSessions {
         this.project(session);
         return this.receipt(session);
       }
-      const doc = new Y.Doc({ gc: false });
-      Y.applyUpdate(doc, Y.encodeStateAsUpdate(session.model.doc));
-      const candidate = new WhiteboardModel(doc);
-      try {
-        if ((await candidate.receive(update)).status !== "applied")
-          throw new Error("MISSING_DEPENDENCIES: 请保留更新并补齐白板基线");
-        this.connection(session);
-        const state = Y.encodeStateAsUpdate(doc);
-        this.commitCandidate(session, batchId, update, state, candidate);
-        return this.receipt(session);
-      } finally {
-        candidate.dispose();
-        doc.destroy();
-      }
+      const { databaseName, documentId, sourceId, baselineId, epoch, revision, state } =
+        session.value;
+      const prepared = await prepareDocumentAppend({
+        identity: { databaseName, documentId, sourceId, baselineId, epoch },
+        state,
+        revision: revision + 1,
+        update,
+      });
+      this.connection(session);
+      if (
+        session.value.revision !== revision ||
+        session.value.epoch !== epoch ||
+        lease.seals.size ||
+        this.blocked(databaseName, documentId)
+      )
+        throw new Error("白板提交期间会话已变化");
+      this.commitCandidate(
+        session,
+        batchId,
+        update,
+        prepared.projection.state,
+        prepared.retained,
+        prepared.projection,
+        source === "renderer" ? lease : undefined
+      );
+      return this.receipt(session);
     });
   }
   private commitCandidate(
@@ -363,19 +393,15 @@ export class WhiteboardDocumentSessions {
     batchId: string,
     update: Uint8Array,
     state: Uint8Array,
-    candidate: WhiteboardModel
+    retained: PreparedAppend["retained"],
+    prepared?: PreparedProjection,
+    origin?: Lease
   ) {
-    const next = this.journal.append(
-      session.value,
-      batchId,
-      update,
-      state,
-      collectWhiteboardRelations(candidate, true).map(ref => ref.target)
-    );
+    const next = this.journal.append(session.value, batchId, update, state, retained);
     Y.applyUpdate(session.model.doc, update, "durable-main");
     session.value = next;
-    this.project(session);
-    this.notify(session, update);
+    this.project(session, prepared);
+    this.notify(session, update, origin);
   }
   async applyAgent(
     leaseId: string,
@@ -410,7 +436,7 @@ export class WhiteboardDocumentSessions {
             batch.batchId,
             Y.encodeStateAsUpdate(doc, vector),
             state,
-            candidate
+            collectWhiteboardRelations(candidate, true).map(ref => ref.target)
           );
           revision = session.value.revision;
         } finally {

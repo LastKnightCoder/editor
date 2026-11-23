@@ -629,7 +629,8 @@ export function registerWhiteboardDocumentIpc(
       leaseId,
       module.leaseOwner(event, leaseId),
       batchId,
-      update
+      update,
+      "renderer"
     );
     if (!receipt.error) publishSaved(leaseId);
     return receipt;

@@ -16,7 +16,7 @@ import {
   getFileBaseName,
   getProjectById,
   getProjectItemByRef,
-  getWhiteboardContentById,
+  getWhiteboardPageHeader,
   readBinaryFile,
   selectFile,
   updateWhiteboardContent,
@@ -30,7 +30,7 @@ import {
 import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
 import useSettingStore from "@/stores/useSettingStore";
 import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
-import type { Whiteboard, WhiteboardContent } from "@/types";
+import type { Whiteboard, WhiteboardPageHeader } from "@/types";
 import { toast } from "@tau/ui";
 import { normalizeTags, toItem, type WhiteboardItem } from "./model";
 
@@ -194,7 +194,7 @@ export function useWhiteboardDetail(id: number | null) {
   const database = useSettingStore(state => state.setting.database.active);
   const query = useQuery({
     queryKey: detailKey(database, id ?? -1),
-    queryFn: () => getWhiteboardById(id ?? -1),
+    queryFn: () => getWhiteboardById(id ?? -1, "preview"),
     enabled: hasBridge && id !== null,
   });
   return { board: query.data ?? null, loading: query.isPending, error: query.isError };
@@ -237,7 +237,7 @@ export function useWhiteboardPageMutations(boardId: number) {
       async rename(pageId: number, name: string) {
         const page = await renameSubWhiteboard(pageId, name);
         // 画布正在用的页缓存也要改名，否则下次保存会把旧名写回去
-        client.setQueryData<WhiteboardContent>(contentKey(database, pageId), prev =>
+        client.setQueryData<WhiteboardPageHeader>(contentKey(database, pageId), prev =>
           prev ? { ...prev, name: page.name } : prev
         );
         await refetch();
@@ -310,7 +310,7 @@ export function useWhiteboardContent(id: number) {
   const database = useSettingStore(state => state.setting.database.active);
   const queryClient = useQueryClient();
   const queryKey = contentKey(database, id);
-  const query = useQuery({ queryKey, queryFn: () => getWhiteboardContentById(id) });
+  const query = useQuery({ queryKey, queryFn: () => getWhiteboardPageHeader(id) });
   const save = useMutation({
     scope: { id: `whiteboard-content-${database}-${id}` },
     mutationFn: (content: Parameters<typeof updateWhiteboardContent>[0]) => {

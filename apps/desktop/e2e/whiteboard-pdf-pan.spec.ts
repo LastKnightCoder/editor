@@ -207,10 +207,10 @@ test(
         expect(metrics.frames).toBeGreaterThan(10);
         await expect(image).toBeVisible();
         if (mixed && round > 0) {
-          expect(metrics.displayed).toBeGreaterThanOrEqual(40);
-          expect(metrics.p95MotionMs).toBeLessThanOrEqual(25);
-          expect(metrics.firstMotionMs).toBeLessThanOrEqual(65);
-          expect(metrics.longFrames).toBeLessThanOrEqual(1);
+          expect.soft(metrics.displayed).toBeGreaterThanOrEqual(40);
+          expect.soft(metrics.p95MotionMs).toBeLessThanOrEqual(25);
+          expect.soft(metrics.firstMotionMs).toBeLessThanOrEqual(65);
+          expect.soft(metrics.longFrames).toBeLessThanOrEqual(1);
         }
       }
       if (mixed) {
@@ -331,7 +331,7 @@ test(
             maxFrameMs: motion.maxFrameMs,
           })
         );
-        expect(releaseFrameMs).toBeLessThanOrEqual(50);
+        expect.soft(releaseFrameMs).toBeLessThanOrEqual(50);
         await expect(card.locator("[data-pdf-face] img")).toBeVisible();
         const savedBox = (await card.boundingBox())!;
         const expected = {

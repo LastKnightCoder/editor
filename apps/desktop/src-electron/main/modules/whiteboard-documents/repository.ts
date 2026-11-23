@@ -1,7 +1,6 @@
 import type Database from "better-sqlite3";
 import * as Y from "yjs";
 import {
-  collectWhiteboardRelations,
   whiteboardRelationKey,
   type WhiteboardModel,
   type WhiteboardEntityRelation,
@@ -10,6 +9,7 @@ import { ContentIdentityTable } from "../tables/content-identity";
 import type { WhiteboardDocumentIdentity } from "@/types/whiteboard-document";
 import type { JournalDocument } from "./journal";
 import { stateHash } from "./journal";
+import { prepareProjection, type PreparedProjection } from "./projection";
 
 export interface StoredWhiteboardDocument extends WhiteboardDocumentIdentity {
   revision: number;
@@ -58,7 +58,9 @@ export class WhiteboardDocumentRepository {
   ) {}
   read(documentId: string): StoredWhiteboardDocument | null {
     const row = this.db
-      .prepare("SELECT * FROM whiteboard_documents WHERE document_id=?")
+      .prepare(
+        "SELECT document_id,source_id,baseline_id,epoch,revision,revision_hash,creation_hash,state,board_id,board_created_at FROM whiteboard_documents WHERE document_id=?"
+      )
       .get(documentId) as StoredRow | undefined;
     if (!row) return null;
     const identity = ContentIdentityTable.library(this.db);
@@ -173,7 +175,7 @@ export class WhiteboardDocumentRepository {
       return created;
     })();
   }
-  project(value: JournalDocument, model: WhiteboardModel): void {
+  project(value: JournalDocument, model: WhiteboardModel, prepared?: PreparedProjection): void {
     this.db.transaction(() => {
       const current = this.read(value.documentId);
       if (
@@ -186,7 +188,7 @@ export class WhiteboardDocumentRepository {
       if (current.revision === value.revision && current.hash === value.hash) return;
       if (current.revision !== value.projectedRevision || current.hash !== value.projectedHash)
         throw new Error("主库投影与本机日志分叉，不能用旧会话覆盖");
-      this.writeProjection(value, model, value.revision, value.hash);
+      this.writeProjection(value, model, value.revision, value.hash, prepared);
     })();
   }
   installBaseline(
@@ -325,11 +327,11 @@ export class WhiteboardDocumentRepository {
     identity: WhiteboardDocumentIdentity,
     model: WhiteboardModel,
     revision: number,
-    hash: string
+    hash: string,
+    prepared = prepareProjection(identity, model, revision)
   ): void {
     const db = this.db,
-      snapshot = model.read(),
-      state = Y.encodeStateAsUpdate(model.doc);
+      state = prepared.state;
     if (stateHash(state) !== hash) throw new Error("白板候选修订不匹配");
     const document = this.read(identity.documentId);
     if (!document) throw new Error(`白板文档读取失败：${identity.documentId}`);
@@ -349,7 +351,7 @@ export class WhiteboardDocumentRepository {
       slot: row.slot,
       target: { sourceId: row.source_id, kind: row.entity_kind, entityId: row.entity_id },
     }));
-    const next = collectWhiteboardRelations(model),
+    const next = prepared.relations,
       oldKeys = new Set(previous.map(whiteboardRelationKey)),
       newKeys = new Set(next.map(whiteboardRelationKey));
     for (const ref of previous) if (!newKeys.has(whiteboardRelationKey(ref))) this.adjust(ref, -1);
@@ -368,27 +370,9 @@ export class WhiteboardDocumentRepository {
         ref.target.kind,
         ref.target.entityId
       );
-    const canvasNodes = (
-      nodes: readonly import("@tau/collaboration").WhiteboardElementSnapshot[]
-    ): unknown[] =>
-      nodes.map(node => ({ ...node, ...node.geometry, children: canvasNodes(node.children) }));
-    const visible = new Map(snapshot.pages.map((page, index) => [page.id, { page, index }]));
     const pageIds: number[] = [];
-    for (const [pageId, record] of model.pages) {
-      const selected = visible.get(pageId),
-        now = Date.now();
-      const projection = {
-        version: 3,
-        documentKind: "whiteboard",
-        documentId: identity.documentId,
-        pageId,
-        epoch: identity.epoch,
-        revision,
-        children: canvasNodes(selected?.page.children ?? []),
-        recovery: canvasNodes(selected?.page.recovery ?? []),
-        sketch: selected?.page.sketch,
-        presentationSequences: snapshot.presentations ?? [],
-      };
+    for (const { pageId, title, index, data } of prepared.pages) {
+      const now = Date.now();
       let mapping = db
         .prepare(
           "SELECT content_id,content_created_at FROM whiteboard_document_pages WHERE document_id=? AND page_id=?"
@@ -402,7 +386,7 @@ export class WhiteboardDocumentRepository {
             .prepare(
               "INSERT INTO white_board_contents(create_time,update_time,name,data,ref_count,img_url) VALUES(?,?,?,?,1,'')"
             )
-            .run(now, now, String(record.get("title")), JSON.stringify(projection)).lastInsertRowid
+            .run(now, now, title, data).lastInsertRowid
         );
         mapping = { content_id: id, content_created_at: now };
         db.prepare("INSERT INTO whiteboard_document_pages VALUES(?,?,?,?,?,?)").run(
@@ -410,8 +394,8 @@ export class WhiteboardDocumentRepository {
           pageId,
           id,
           now,
-          selected ? 1 : 0,
-          selected?.index ?? -1
+          index >= 0 ? 1 : 0,
+          index
         );
         ContentIdentityTable.bind(db, "whiteboard-content", id, now);
       } else {
@@ -421,16 +405,16 @@ export class WhiteboardDocumentRepository {
         if (row?.create_time !== mapping.content_created_at)
           throw new Error("白板页面被删除或重建");
         db.prepare("UPDATE white_board_contents SET name=?,data=?,update_time=? WHERE id=?").run(
-          String(record.get("title")),
-          JSON.stringify(projection),
+          title,
+          data,
           now,
           mapping.content_id
         );
         db.prepare(
           "UPDATE whiteboard_document_pages SET visible=?,page_index=? WHERE document_id=? AND page_id=?"
-        ).run(selected ? 1 : 0, selected?.index ?? -1, identity.documentId, pageId);
+        ).run(index >= 0 ? 1 : 0, index, identity.documentId, pageId);
       }
-      if (selected) pageIds[selected.index] = mapping.content_id;
+      if (index >= 0) pageIds[index] = mapping.content_id;
     }
     db.prepare(
       "UPDATE whiteboard_documents SET revision=?,revision_hash=?,state=?,contracts=?,snapshot=?,update_time=? WHERE document_id=?"
@@ -438,8 +422,8 @@ export class WhiteboardDocumentRepository {
       revision,
       hash,
       Buffer.from(state),
-      JSON.stringify(model.contracts.toJSON()),
-      JSON.stringify(snapshot),
+      prepared.contracts,
+      prepared.snapshot,
       Date.now(),
       identity.documentId
     );
@@ -447,7 +431,7 @@ export class WhiteboardDocumentRepository {
       db.prepare(
         "UPDATE white_boards SET title=?,white_board_content_ids=?,active_white_board_content_id=CASE WHEN active_white_board_content_id IN (SELECT content_id FROM whiteboard_document_pages WHERE document_id=? AND visible=1) THEN active_white_board_content_id ELSE ? END,update_time=? WHERE id=?"
       ).run(
-        snapshot.title,
+        prepared.title,
         JSON.stringify(pageIds),
         identity.documentId,
         pageIds[0] ?? null,

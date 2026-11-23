@@ -9,6 +9,7 @@ export function beginGesture(binding: CanvasBinding, options?: { realtime?: bool
   if (binding.gesture || binding.closed) return;
   binding.splitHistory();
   binding.pendingFeedback = [];
+  binding.lastStrokeChildren = undefined;
   binding.gesture = true;
   binding.gestureCaptureTimeout = binding.history.captureTimeout;
   binding.history.captureTimeout = Number.POSITIVE_INFINITY;
@@ -164,7 +165,9 @@ export function endGesture(binding: CanvasBinding, commit: boolean): void {
     binding.history.captureTimeout = binding.gestureCaptureTimeout ?? 500;
     binding.gestureCaptureTimeout = undefined;
     binding.splitHistory();
-    if (!projected || feedback.length) refresh(binding);
+    if ((!projected && binding.lastStrokeChildren !== binding.board?.children) || feedback.length)
+      refresh(binding);
+    binding.lastStrokeChildren = undefined;
   }
 }
 

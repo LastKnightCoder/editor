@@ -583,12 +583,121 @@ export class WhiteboardModel {
     return { isolated };
   }
 
+  /** 笔迹只在页根创建父笔与分段。用同契约、同父级的小候选预演原命令。 */
+  private strokeTrial(plans: readonly PlannedCommand[]) {
+    const first = plans[0]?.command;
+    const last = plans.at(-1)?.command;
+    if (
+      !this.translationBudget ||
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc._transactionCleanups.length ||
+      last?.type !== "create" ||
+      last.parent.kind !== "element" ||
+      last.beforeId !== undefined ||
+      last.afterId !== undefined ||
+      this.contracts.get(last.contractId)?.type !== "host.whiteboard.stroke-segment"
+    )
+      return;
+    const strokeId = last.parent.id;
+    const existing = this.elements.get(strokeId);
+    const style = plans[1]?.command;
+    let pageId: string, inkContract: string;
+    if (
+      first?.type === "create" &&
+      plans.length === 3 &&
+      !existing &&
+      first.id === strokeId &&
+      first.parent.kind === "page" &&
+      first.beforeId === undefined &&
+      first.afterId === undefined &&
+      style?.type === "set_node" &&
+      style.id === strokeId
+    ) {
+      pageId = first.parent.id;
+      inkContract = first.contractId;
+    } else if (
+      first?.type === "set_node" &&
+      plans.length === 2 &&
+      first.id === strokeId &&
+      existing &&
+      this.visible(existing) &&
+      Object.keys(first.patch).length === 1 &&
+      first.patch.geometry
+    ) {
+      const parent = this.placement(existing).parent;
+      if (parent.kind !== "page") return;
+      pageId = parent.id;
+      inkContract = (existing.get("identity") as { contractId: string }).contractId;
+    } else return;
+    const ink = this.contracts.get(inkContract),
+      segment = this.contracts.get(last.contractId);
+    if (
+      ink?.domain !== "whiteboard-element" ||
+      ink.type !== "handwrite" ||
+      segment?.domain !== "whiteboard-element" ||
+      ink.structure.text !== "none" ||
+      segment.structure.text !== "none" ||
+      ink.textFields.length ||
+      segment.textFields.length
+    )
+      return;
+    const page = this.pages.get(pageId);
+    if (!page || !this.visible(page)) return;
+    for (const plan of plans) {
+      if (plan.command.type !== "create") continue;
+      if (
+        this.pages.has(plan.id) ||
+        this.elements.has(plan.id) ||
+        this.creations.has(plan.creation)
+      )
+        return;
+    }
+    this.prepareLocalTranslations();
+    const proof = this.translationBudget;
+    if (!proof) return;
+
+    const doc = new Y.Doc({ gc: false });
+    const trial = new WhiteboardModel(doc);
+    try {
+      trial.contracts.set(inkContract, ink);
+      trial.contracts.set(last.contractId, segment);
+      const setup: WhiteboardModelCommand[] = [{ type: "create_page", id: pageId, title: "" }];
+      if (existing)
+        setup.push({
+          type: "create",
+          id: strokeId,
+          parent: { kind: "page", id: pageId },
+          contractId: inkContract,
+          geometry: existing.get("geometry") as WhiteboardGeometry,
+          data: {},
+        });
+      trial.submit(setup, null);
+      trial.execute(plans, null);
+      const encoded = Y.encodeStateAsUpdate(doc).byteLength;
+      trial.validateState(encoded);
+      // 候选包含完整的新结构；每个 struct 额外留足 V1 中两端引用、时钟和删除区间的 varint 增长。
+      const upperBytes =
+        proof.upperBytes + encoded + 64 * Y.getState(doc.store, doc.clientID) + 1024;
+      const newElements = existing ? 1 : 2;
+      if (
+        upperBytes > WHITEBOARD_LIMITS.documentBytes ||
+        this.elementUsage() + newElements > WHITEBOARD_LIMITS.elements
+      )
+        return;
+      return { ...proof, upperBytes };
+    } finally {
+      trial.dispose();
+      doc.destroy();
+    }
+  }
+
   /** 在隔离副本中验证整批及编码大小，失败不改变真实文档或撤销栈。 */
   submit(
     commands: readonly WhiteboardModelCommand[],
     origin: unknown,
     prepared: readonly (PreparedWhiteboardContract | PreparedContentContract)[] = []
-  ): { readonly createdIds: readonly string[] } {
+  ): { readonly createdIds: readonly string[]; readonly isolatedStroke?: true } {
     this.active();
     if (this.doc.store.pendingStructs || this.doc.store.pendingDs)
       throw new Error("白板缺少先行结构");
@@ -616,16 +725,27 @@ export class WhiteboardModel {
         for (const field of contract.textFields) plan.roots[field] = uuid();
       }
     }
-    const trial = this.clone();
-    try {
-      for (const [id, contract] of additions) trial.contracts.set(id, contract);
-      trial.execute(plans, origin);
-      trial.validateState();
-    } finally {
-      trial.dispose();
-      trial.doc.destroy();
+    const proof = additions.size ? undefined : this.strokeTrial(plans);
+    if (!proof) {
+      const trial = this.clone();
+      try {
+        for (const [id, contract] of additions) trial.contracts.set(id, contract);
+        trial.execute(plans, origin);
+        trial.validateState();
+      } finally {
+        trial.dispose();
+        trial.doc.destroy();
+      }
     }
     this.doc.transact(transaction => {
+      if (
+        proof &&
+        (transaction.changed.size ||
+          transaction.deleteSet.clients.size ||
+          proof.revision !== this.revision ||
+          proof.rootCount !== this.doc.share.size)
+      )
+        throw new Error("笔迹提交期间文档已变化，请重试");
       const client = this.doc.clientID,
         clock = Y.getState(this.doc.store, client);
       for (const [id, contract] of additions) this.contracts.set(id, contract);
@@ -636,7 +756,11 @@ export class WhiteboardModel {
       });
       this.execute(plans, origin);
     }, origin);
+    const isolated =
+      proof && this.revision === proof.revision + 1 && proof.rootCount === this.doc.share.size;
+    if (isolated) this.translationBudget = { ...proof, revision: this.revision };
     return Object.freeze({
+      ...(isolated ? { isolatedStroke: true as const } : {}),
       createdIds: Object.freeze(
         plans
           .filter(plan => plan.command.type === "create" || plan.command.type === "create_page")
@@ -716,6 +840,11 @@ export class WhiteboardModel {
     const target = this.live(this.elements, parent.id);
     if (!canContainWhiteboardElement(this.contract(target), contract))
       throw new Error("白板收纳规则不允许");
+    const placement = this.placement(target);
+    if (!moving && placement.parent.kind === "page") {
+      const page = this.pages.get(placement.parent.id);
+      if (page && this.visible(page)) return placement.parent.id;
+    }
     const routing = this.routing();
     let current: WhiteboardParent | null = parent;
     while (current?.kind === "element") {
@@ -1011,6 +1140,16 @@ export class WhiteboardModel {
     }
   }
 
+  private elementUsage() {
+    return (
+      this.elements.size +
+      this.presentations.records.size +
+      [...this.presentations.records.values()].reduce(
+        (sum, record) => sum + ((record.get("frames") as Y.Map<unknown>)?.size ?? 0),
+        0
+      )
+    );
+  }
   private assertBudget(knownEncodedBytes?: number): void {
     const pools = [...this.doc.share.keys()].filter(nodePool);
     const boundRoots = new Set<string>();
@@ -1027,13 +1166,7 @@ export class WhiteboardModel {
     const encodedBytes = knownEncodedBytes ?? Y.encodeStateAsUpdate(this.doc).byteLength;
     assertWhiteboardBudget({
       pages: this.pages.size,
-      elements:
-        this.elements.size +
-        this.presentations.records.size +
-        [...this.presentations.records.values()].reduce(
-          (sum, record) => sum + ((record.get("frames") as Y.Map<unknown>)?.size ?? 0),
-          0
-        ),
+      elements: this.elementUsage(),
       documentBytes: encodedBytes,
       richTextRoots: boundRoots.size,
       richTextNodes: pools.reduce((sum, key) => sum + this.doc.getMap(key).size, 0),
@@ -1197,47 +1330,62 @@ export class WhiteboardModel {
     return { title: this.title.toString(), pageCount: this.visiblePageReferences().length };
   }
 
+  private snapshotElement(
+    elementId: string,
+    children: readonly WhiteboardElementSnapshot[],
+    recoveryReason?: WhiteboardElementSnapshot["recoveryReason"]
+  ): WhiteboardElementSnapshot {
+    const record = this.record(this.elements, elementId),
+      contract = this.contract(record),
+      bindings = this.bindings(record);
+    const data = (record.get("data") as Y.Map<unknown>).toJSON();
+    for (const field of contract.textFields)
+      data[field] = (this.strings.get(bindings.data[field]) ?? "").toString();
+    const body = bindings.body;
+    return {
+      id: elementId,
+      type: contract.type,
+      contractId: (record.get("identity") as { contractId: string }).contractId,
+      ...(record.has("name") ? { name: record.get("name") as string } : {}),
+      geometry: structuredClone(record.get("geometry") as WhiteboardGeometry),
+      style: structuredClone((record.get("style") as Y.Map<unknown>).toJSON()),
+      data: structuredClone(data),
+      fieldBindings: structuredClone(bindings),
+      ...(record.has("entity")
+        ? {
+            entity: structuredClone(
+              record.get("entity")
+            ) as import("@tau/db-schema/content-identities").ContentEntityReference,
+          }
+        : {}),
+      ...(body
+        ? {
+            body:
+              body.mode === "plain"
+                ? (this.strings.get(body.rootId) ?? "").toString()
+                : structuredClone(this.root(body.rootId).read()),
+          }
+        : {}),
+      children,
+      ...(recoveryReason ? { recoveryReason } : {}),
+    };
+  }
+
+  /** 绑定在已隔离的追加事务后复用同一笔的前缀。 */
+  readAppendedStroke(
+    id: string,
+    segmentId: string,
+    prefix: readonly WhiteboardElementSnapshot[]
+  ): WhiteboardElementSnapshot {
+    const segment = this.snapshotElement(segmentId, []);
+    return frozen(this.snapshotElement(id, [...prefix, segment]));
+  }
+
   read(): WhiteboardSnapshot {
     this.active();
     const routing = this.routing();
-    const element = (elementId: string): WhiteboardElementSnapshot => {
-      const record = this.record(this.elements, elementId),
-        contract = this.contract(record),
-        bindings = this.bindings(record);
-      const data = (record.get("data") as Y.Map<unknown>).toJSON();
-      for (const field of contract.textFields)
-        data[field] = (this.strings.get(bindings.data[field]) ?? "").toString();
-      const body = bindings.body;
-      return {
-        id: elementId,
-        type: contract.type,
-        contractId: (record.get("identity") as { contractId: string }).contractId,
-        ...(record.has("name") ? { name: record.get("name") as string } : {}),
-        geometry: structuredClone(record.get("geometry") as WhiteboardGeometry),
-        style: structuredClone((record.get("style") as Y.Map<unknown>).toJSON()),
-        data: structuredClone(data),
-        fieldBindings: structuredClone(bindings),
-        ...(record.has("entity")
-          ? {
-              entity: structuredClone(
-                record.get("entity")
-              ) as import("@tau/db-schema/content-identities").ContentEntityReference,
-            }
-          : {}),
-        ...(body
-          ? {
-              body:
-                body.mode === "plain"
-                  ? (this.strings.get(body.rootId) ?? "").toString()
-                  : structuredClone(this.root(body.rootId).read()),
-            }
-          : {}),
-        children: children({ kind: "element", id: elementId }),
-        ...(routing.recovered.has(elementId)
-          ? { recoveryReason: routing.recovered.get(elementId) }
-          : {}),
-      };
-    };
+    const element = (id: string): WhiteboardElementSnapshot =>
+      this.snapshotElement(id, children({ kind: "element", id }), routing.recovered.get(id));
     const children = (parent: WhiteboardParent): WhiteboardElementSnapshot[] =>
       this.order(parent)
         .toArray()

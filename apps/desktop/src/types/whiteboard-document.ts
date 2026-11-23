@@ -19,6 +19,7 @@ export interface WhiteboardDocumentOpen extends WhiteboardDocumentReceipt {
 export interface WhiteboardDocumentEvent
   extends WhiteboardDocumentReceipt, WhiteboardDocumentIdentity {
   update?: Uint8Array;
+  originViewId?: string;
 }
 export interface WhiteboardDocumentFlushRequest {
   requestId: string;

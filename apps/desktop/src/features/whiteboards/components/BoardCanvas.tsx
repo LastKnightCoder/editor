@@ -14,7 +14,7 @@ import { DocumentBoardCanvas } from "./DocumentBoardCanvas";
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import { Loading } from "@tau/ui";
 import type { WhiteboardExtension } from "@tau/whiteboard";
-import type { WhiteboardContent } from "@/types";
+import type { WhiteboardPageHeader } from "@/types";
 import { useWhiteboardContent } from "../queries";
 
 export interface BoardCanvasHandle {
@@ -40,7 +40,7 @@ export function BoardCanvas({
 }: {
   id: number;
   /** 页内容就绪（名称用于面包屑） */
-  onLoaded?(content: WhiteboardContent): void;
+  onLoaded?(content: WhiteboardPageHeader): void;
   onPresentationModeChange?(presenting: boolean): void;
   onDockWidthChange?(width: number): void;
   /** 宿主覆盖的白板插槽（如创作模式的画布层） */
@@ -51,9 +51,7 @@ export function BoardCanvas({
 }) {
   const { data: content, isPending, isError } = useWhiteboardContent(id);
   const documentRef = useRef<BoardCanvasHandle>(null);
-  const documentData = content?.data as
-    | (WhiteboardContent["data"] & { documentKind?: string; documentId?: string; pageId?: string })
-    | undefined;
+  const documentData = content?.data;
   const managed =
     documentData?.documentKind === "whiteboard" &&
     typeof documentData.documentId === "string" &&

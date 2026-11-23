@@ -1,3 +1,4 @@
+import type { WhiteboardPageHeader } from "@/types/white-board";
 import {
   createEmptyWhiteboardDocument,
   isEmptyWhiteboardPage,
@@ -348,8 +349,9 @@ export default class WhiteboardTable {
   /** 渲染端读取页：修复托管文档检查点后返回页数据 */
   static async readWhiteboardContent(
     db: Database.Database,
-    target: ContentEntityTarget
-  ): Promise<WhiteboardContent> {
+    target: ContentEntityTarget,
+    view?: "header"
+  ): Promise<WhiteboardContent | WhiteboardPageHeader> {
     const id = ContentIdentityTable.requireTarget(db, "whiteboard-content", target);
     const { default: documents } = await import("../whiteboard-documents");
     await documents
@@ -357,6 +359,24 @@ export default class WhiteboardTable {
       .catch(error =>
         console.warn(`[whiteboard-repair] 白板页 ${id} 自愈失败，按原数据返回`, error)
       );
+    if (view === "header") {
+      const row = db
+        .prepare(`SELECT c.name,p.document_id,p.page_id
+        FROM white_board_contents c LEFT JOIN whiteboard_document_pages p
+        ON c.id=p.content_id AND c.create_time=p.content_created_at
+        WHERE c.id=?`)
+        .get(id) as
+        | { name: string; document_id: string | null; page_id: string | null }
+        | undefined;
+      if (!row) throw new Error("白板页面不存在");
+      return {
+        name: row.name,
+        data:
+          row.document_id && row.page_id
+            ? { documentKind: "whiteboard", documentId: row.document_id, pageId: row.page_id }
+            : {},
+      };
+    }
     return this.getWhiteboardContent(db, id);
   }
 

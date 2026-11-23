@@ -122,8 +122,9 @@ export function appendStroke(
     contractId = binding.options.types.handwrite?.contractId,
     segmentContract = binding.options.types["host.whiteboard.stroke-segment"]?.contractId;
   if (!contractId || !segmentContract) throw new Error("笔迹契约未就绪");
+  const before = binding.readSnapshot();
   const all = [
-    ...(authorElement(binding, id)?.children.flatMap(
+    ...((parent && authorElement(binding, id))?.children.flatMap(
       segment =>
         segment.data.points as unknown as import("../utils/HandwriteUtil").HandwriteInputPoint[]
     ) ?? []),
@@ -166,17 +167,21 @@ export function appendStroke(
   });
   enterGroup(binding, `stroke:${id}`);
   binding.writing = true;
+  let projected = false;
   try {
-    binding.model.submit(
+    const result = binding.model.submit(
       commands,
       binding.origin,
       binding.options.preparedContracts?.filter(
         entry => entry.id === contractId || entry.id === segmentContract
       )
     );
+    binding.writing = false;
+    if (result.isolatedStroke)
+      projected = binding.publishStroke(before, id, result.createdIds.at(-1)!, !parent);
   } finally {
     binding.writing = false;
-    refresh(binding);
+    if (!projected) refresh(binding);
   }
 }
 

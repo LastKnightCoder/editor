@@ -258,9 +258,10 @@ export class WhiteboardDocumentClient {
       return;
     const sent = this.appending;
     const ownEcho =
-      sent !== undefined &&
-      event.update?.length === sent.length &&
-      event.update.every((byte, index) => byte === sent[index]);
+      event.originViewId === this.viewId ||
+      (sent !== undefined &&
+        event.update?.length === sent.length &&
+        event.update.every((byte, index) => byte === sent[index]));
     const receivedAt = performance.now();
     this.receiveTail = this.receiveTail
       .catch(() => undefined)

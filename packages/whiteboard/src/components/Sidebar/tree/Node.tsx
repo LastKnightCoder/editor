@@ -35,6 +35,7 @@ interface NodeProps {
   selectedIds: Set<string>;
   /** 平铺（查找结果）：不带折叠箭头与子元素 */
   flat?: boolean;
+  siblingIndex?: number;
 }
 
 // 拖拽指示器（accent 细线 / 容器内描边）
@@ -44,7 +45,7 @@ const BOTTOM_DROP_INDICATOR_CLASS =
   "before:absolute before:inset-x-1 before:-bottom-px before:h-0.5 before:rounded-full before:bg-accent before:content-['']";
 const INSIDE_DROP_INDICATOR_CLASS = "ring-1 ring-inset ring-accent bg-accent-soft";
 
-const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
+const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat, siblingIndex }) => {
   const board = useBoard();
   const [expanded, setExpanded] = useState(true);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -61,7 +62,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
 
   const elementPath = useMemo(
     () => PathUtil.getPathByElement(board, element) ?? [],
-    [board, element]
+    [board, element, siblingIndex]
   );
   const parentPath = useMemo(
     () => (elementPath.length > 0 ? elementPath.slice(0, -1) : null),
@@ -388,11 +389,6 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
     return selectedElements;
   }, [board, element, selectedIds]);
 
-  const layerActionState = useMemo(
-    () => getLayerOrderActionState(board, contextMenuTargets),
-    [board, contextMenuTargets]
-  );
-
   const runAction = useCallback(
     (key: string) => {
       if (key === "rename") {
@@ -464,60 +460,17 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
     [board, element, parentPath, startRename, contextMenuTargets, capService]
   );
 
-  const menuItems = (
-    <>
-      <Menu.Item
-        icon={<PencilLine size={15} strokeWidth={1.75} />}
-        onSelect={() => runAction("rename")}
-      >
-        重命名
-      </Menu.Item>
-      <Menu.Separator />
-      <Menu.Item
-        icon={<ArrowUp size={15} strokeWidth={1.75} />}
-        disabled={layerActionState.moveUpDisabled}
-        onSelect={() => runAction("layer-move-up")}
-      >
-        上移一层
-      </Menu.Item>
-      <Menu.Item
-        icon={<ArrowDown size={15} strokeWidth={1.75} />}
-        disabled={layerActionState.moveDownDisabled}
-        onSelect={() => runAction("layer-move-down")}
-      >
-        下移一层
-      </Menu.Item>
-      <Menu.Item
-        icon={<ArrowUpToLine size={15} strokeWidth={1.75} />}
-        disabled={layerActionState.moveTopDisabled}
-        onSelect={() => runAction("layer-move-top")}
-      >
-        移至顶层
-      </Menu.Item>
-      <Menu.Item
-        icon={<ArrowDownToLine size={15} strokeWidth={1.75} />}
-        disabled={layerActionState.moveBottomDisabled}
-        onSelect={() => runAction("layer-move-bottom")}
-      >
-        移至底层
-      </Menu.Item>
-      <Menu.Separator />
-      <Menu.Item
-        danger
-        icon={<Trash2 size={15} strokeWidth={1.75} />}
-        onSelect={() => runAction("delete")}
-      >
-        删除
-      </Menu.Item>
-    </>
-  );
+  const menuItems = <RowActions targets={contextMenuTargets} runAction={runAction} />;
+  const [contextUsed, setContextUsed] = useState(false);
+  const [menuUsed, setMenuUsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const TypeIcon = meta.icon;
 
   return (
     <div className="relative">
-      <ContextMenu content={menuItems}>
+      <ContextMenu content={contextUsed ? menuItems : null}>
         <div
+          onContextMenuCapture={() => setContextUsed(true)}
           onClick={onClick}
           className={cn(
             "text-ink-2 hover:bg-hover hover:text-ink-1 group/row text-tau-body relative flex h-8 select-none items-center gap-2 rounded-[8px] pr-1",
@@ -609,7 +562,10 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
             )}
             <Menu
               open={menuOpen}
-              onOpenChange={setMenuOpen}
+              onOpenChange={open => {
+                if (open) setMenuUsed(true);
+                setMenuOpen(open);
+              }}
               align="end"
               trigger={
                 <button
@@ -625,7 +581,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
                 </button>
               }
             >
-              {menuItems}
+              {menuUsed ? menuItems : null}
             </Menu>
           </span>
         </div>
@@ -646,4 +602,73 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
   );
 };
 
-export default Node;
+function RowActions({
+  targets,
+  runAction,
+}: {
+  targets: BoardElement[];
+  runAction: (key: string) => void;
+}) {
+  const board = useBoard();
+  React.useSyncExternalStore(board.subscribe, board.getSnapshot.bind(board));
+  const layerActionState = getLayerOrderActionState(board, targets);
+  return (
+    <>
+      <Menu.Item
+        icon={<PencilLine size={15} strokeWidth={1.75} />}
+        onSelect={() => runAction("rename")}
+      >
+        重命名
+      </Menu.Item>
+      <Menu.Separator />
+      <Menu.Item
+        icon={<ArrowUp size={15} strokeWidth={1.75} />}
+        disabled={layerActionState.moveUpDisabled}
+        onSelect={() => runAction("layer-move-up")}
+      >
+        上移一层
+      </Menu.Item>
+      <Menu.Item
+        icon={<ArrowDown size={15} strokeWidth={1.75} />}
+        disabled={layerActionState.moveDownDisabled}
+        onSelect={() => runAction("layer-move-down")}
+      >
+        下移一层
+      </Menu.Item>
+      <Menu.Item
+        icon={<ArrowUpToLine size={15} strokeWidth={1.75} />}
+        disabled={layerActionState.moveTopDisabled}
+        onSelect={() => runAction("layer-move-top")}
+      >
+        移至顶层
+      </Menu.Item>
+      <Menu.Item
+        icon={<ArrowDownToLine size={15} strokeWidth={1.75} />}
+        disabled={layerActionState.moveBottomDisabled}
+        onSelect={() => runAction("layer-move-bottom")}
+      >
+        移至底层
+      </Menu.Item>
+      <Menu.Separator />
+      <Menu.Item
+        danger
+        icon={<Trash2 size={15} strokeWidth={1.75} />}
+        onSelect={() => runAction("delete")}
+      >
+        删除
+      </Menu.Item>
+    </>
+  );
+}
+export default React.memo(
+  Node,
+  (old, next) =>
+    next.siblingIndex !== undefined &&
+    old.siblingIndex === next.siblingIndex &&
+    old.element === next.element &&
+    next.element.type === "handwrite" &&
+    !next.element.children?.length &&
+    old.depth === next.depth &&
+    old.selectedIds === next.selectedIds &&
+    old.flat === next.flat
+);
