@@ -33,7 +33,7 @@ import useContentShared from "@/hooks/useContentShared";
 import { getProjectItemMoreMenuItems, projectItemActionTarget } from "./projectItemMoreMenuItems";
 import { toast } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
-import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
 
 interface UseProjectItemMoreActionsOptions {
   projectId: number;
@@ -241,8 +241,9 @@ export const useProjectItemMoreActions = (
       await copyMarkdownToClipboard(projectItem.content, toast, projectItem.contentId);
     } else if (key === "copy-wechat") {
       await copyWechatHtmlToClipboard(projectItem.content, toast, projectItem.contentId);
-    } else if (key === "export-markdown") {
-      await exportContentAsMarkdown({
+    } else if (key === "export-markdown" || key === "export-word") {
+      const save = key === "export-word" ? exportContentAsWord : exportContentAsMarkdown;
+      await save({
         title: projectItem.title,
         content: projectItem.content,
         contentId: projectItem.contentId,

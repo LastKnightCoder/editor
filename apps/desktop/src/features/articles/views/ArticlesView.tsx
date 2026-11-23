@@ -40,7 +40,11 @@ import { ArticleListRows } from "../components/ArticleListRows";
 import type { ArticleItemActions } from "../components/ArticleItemOps";
 import { ArticleCard, formatWords } from "./ArticleCard";
 import { articleMorphKey } from "../morph";
-import { exportContentAsMarkdown, importMarkdownFiles } from "@/services/content-transfer";
+import {
+  exportContentAsWord,
+  exportContentAsMarkdown,
+  importMarkdownFiles,
+} from "@/services/content-transfer";
 import { useTransferStore } from "@/app/transferStore";
 import { useImportDrop } from "@/features/transfer/useImportDrop";
 
@@ -132,18 +136,21 @@ export function ArticlesView() {
     }
   }, []);
 
-  const handleExportMarkdown = useCallback(async (article: ArticlePageItem) => {
-    try {
-      const full = await findOneArticle(article.id);
-      await exportContentAsMarkdown({
-        title: full.title,
-        content: full.content,
-        contentId: full.contentId,
-      });
-    } catch {
-      toast.error("导出失败");
-    }
-  }, []);
+  const handleExportFile = useCallback(
+    async (article: ArticlePageItem, save: typeof exportContentAsMarkdown) => {
+      try {
+        const full = await findOneArticle(article.id);
+        await save({
+          title: full.title,
+          content: full.content,
+          contentId: full.contentId,
+        });
+      } catch {
+        toast.error("导出失败");
+      }
+    },
+    []
+  );
 
   const handleChangeCover = useCallback(
     async (article: ArticlePageItem) => {
@@ -218,7 +225,8 @@ export function ArticlesView() {
     onToggleTop: article => void toggleTop(article.id, !article.isTop),
     onDelete: setPendingDelete,
     onPresent: article => void handlePresent(article),
-    onExportMarkdown: article => void handleExportMarkdown(article),
+    onExportMarkdown: article => void handleExportFile(article, exportContentAsMarkdown),
+    onExportWord: article => void handleExportFile(article, exportContentAsWord),
     onChangeCover: article => void handleChangeCover(article),
     ...(isElectron && databaseName
       ? {

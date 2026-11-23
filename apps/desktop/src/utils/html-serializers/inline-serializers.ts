@@ -1,3 +1,4 @@
+import { escapeHtml } from "@tau/shared/escape-html";
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderInlineMath } from "./mathjax-renderer";
 
@@ -131,8 +132,8 @@ export const inlineSerializers: HtmlSerializer[] = [
   {
     type: "content-link",
     isBlock: false,
-    toHtml: (_element, childrenHtml) => {
-      return `<span class="content-link">${childrenHtml}</span>`;
+    toHtml: (element, childrenHtml) => {
+      return `<span class="content-link">${childrenHtml || escapeHtml(element.contentTitle || "正文引用")}</span>`;
     },
   },
 ];

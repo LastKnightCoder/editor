@@ -92,6 +92,7 @@ export const getProjectItemMoreMenuItems = (
         label: "导出",
         icon: menuIcon(Download),
         children: [
+          { key: "export-word", label: "Word 文档（.docx）", icon: menuIcon(FileText) },
           {
             key: "export-markdown",
             label: "Markdown 文件",

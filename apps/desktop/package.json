@@ -158,6 +158,7 @@
     "dayjs": "^1.11.13",
     "defuddle": "^0.6.6",
     "dnd-core": "^16.0.1",
+    "docx": "9.5.1",
     "dompurify": "^3.3.0",
     "echarts": "^6.0.0",
     "electron": "43.1.1",

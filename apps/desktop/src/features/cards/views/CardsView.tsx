@@ -54,7 +54,11 @@ import {
   type CardsViewMode,
 } from "../preferences";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
-import { exportContentAsMarkdown, importMarkdownFiles } from "@/services/content-transfer";
+import {
+  exportContentAsWord,
+  exportContentAsMarkdown,
+  importMarkdownFiles,
+} from "@/services/content-transfer";
 import { useTransferStore } from "@/app/transferStore";
 import { useImportDrop } from "@/features/transfer/useImportDrop";
 
@@ -191,6 +195,17 @@ export function CardsView() {
       void requireFullCard(card).then(full => full && setPresenting(full));
     },
     onDelete: card => setPendingDelete(card),
+    onExportWord: card => {
+      void requireFullCard(card).then(
+        full =>
+          full &&
+          exportContentAsWord({
+            title: titleOfCard(full) || `卡片 #${full.id}`,
+            content: full.content,
+            contentId: full.contentId,
+          })
+      );
+    },
     onExportMarkdown: card => {
       void requireFullCard(card).then(full => {
         if (!full) return;

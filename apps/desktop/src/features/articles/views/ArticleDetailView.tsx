@@ -94,7 +94,7 @@ import { useComposeInsightOptions, useComposeInsightSync } from "@/features/comp
 import { ComposeSessionContext, createComposeSession } from "@/features/compose/session";
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
 import { getEditorText } from "@/utils/editor";
-import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
 import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 
@@ -264,9 +264,9 @@ export function ArticleDetailView() {
     }
   };
 
-  const handleExportMarkdownFile = () => {
+  const handleExportFile = (save: typeof exportContentAsMarkdown) => {
     if (!editingArticle) return;
-    void exportContentAsMarkdown({
+    void save({
       title: editingArticle.title || `文章-${editingArticle.id}`,
       content: editingArticle.content,
       contentId: editingArticle.contentId,
@@ -400,9 +400,15 @@ export function ArticleDetailView() {
         >
           <Menu.Item
             icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
-            onSelect={handleExportMarkdownFile}
+            onSelect={() => handleExportFile(exportContentAsMarkdown)}
           >
             Markdown 文件
+          </Menu.Item>
+          <Menu.Item
+            icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => handleExportFile(exportContentAsWord)}
+          >
+            Word 文档（.docx）
           </Menu.Item>
           <Menu.Item
             icon={<ImageIcon className="size-[15px] shrink-0" strokeWidth={1.75} />}

@@ -27,7 +27,7 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import { IconButton, Menu, Popover, cn } from "@tau/ui";
 
 import { ARTICLE_PAGE_SIZE, bucketByMonths, useArticleFeed, useArticleMutations } from "../queries";
-import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
 
 type ExportState =
   | { kind: "image"; article: Pick<IArticle, "id" | "contentId" | "title"> }
@@ -86,10 +86,10 @@ export function ArticleSwitcher({
   const tops = useMemo(() => filtered.filter(item => item.isTop), [filtered]);
   const months = useMemo(() => bucketByMonths(filtered.filter(item => !item.isTop)), [filtered]);
 
-  const handleExportMarkdown = async (item: ArticlePageItem) => {
+  const handleExportFile = async (item: ArticlePageItem, save: typeof exportContentAsMarkdown) => {
     const full = await findOneArticle(item.id);
     if (full) {
-      await exportContentAsMarkdown({
+      await save({
         title: full.title || `文章-${full.id}`,
         content: full.content,
         contentId: full.contentId,
@@ -160,7 +160,12 @@ export function ArticleSwitcher({
           {item.isTop ? "取消置顶" : "置顶"}
         </Menu.Item>
         <Menu.Submenu label="导出" icon={<Download className="size-[15px]" strokeWidth={1.75} />}>
-          <Menu.Item onSelect={() => void handleExportMarkdown(item)}>Markdown 文件</Menu.Item>
+          <Menu.Item onSelect={() => void handleExportFile(item, exportContentAsMarkdown)}>
+            Markdown 文件
+          </Menu.Item>
+          <Menu.Item onSelect={() => void handleExportFile(item, exportContentAsWord)}>
+            Word 文档（.docx）
+          </Menu.Item>
           <Menu.Item onSelect={() => void openExportModal(item, "image")}>图片</Menu.Item>
           <Menu.Item onSelect={() => void openExportModal(item, "epub")}>EPUB</Menu.Item>
           <Menu.Item onSelect={() => void openExportModal(item, "pdf")}>PDF</Menu.Item>

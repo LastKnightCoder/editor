@@ -151,6 +151,7 @@ it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛�
     onPresent: vi.fn(),
     onDelete: vi.fn(),
     onExportMarkdown: vi.fn(),
+    onExportWord: vi.fn(),
     onExportImage: vi.fn(),
     onExportEpub: vi.fn(),
     onExportPdf: vi.fn(),

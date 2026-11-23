@@ -95,6 +95,7 @@ function Harness() {
     onPresent: vi.fn(),
     onDelete: vi.fn(),
     onExportMarkdown: vi.fn(),
+    onExportWord: vi.fn(),
     onExportImage: vi.fn(),
     onExportEpub: vi.fn(),
     onExportPdf: vi.fn(),

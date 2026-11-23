@@ -61,7 +61,7 @@ import { useEditorWindowPrefs } from "./editorWindowPrefs";
 import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { cardTitle } from "@/utils/card-title";
-import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
 
 /** 低于该宽度大纲不再常驻右栏，改由标题栏按钮弹出 */
 const OUTLINE_COLUMN_MIN_WIDTH = 900;
@@ -310,6 +310,14 @@ export function EditorWindow({
           }
         >
           Markdown 文件
+        </Menu.Item>
+        <Menu.Item
+          icon={<FileText className={iconClass} strokeWidth={1.75} />}
+          onSelect={() =>
+            void exportContentAsWord({ title, content: doc.content, contentId: doc.contentId })
+          }
+        >
+          Word 文档（.docx）
         </Menu.Item>
         <Menu.Item
           icon={<ImageIcon className={iconClass} strokeWidth={1.75} />}

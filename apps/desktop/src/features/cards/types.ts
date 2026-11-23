@@ -36,6 +36,7 @@ export interface CardItemActions {
   onToggleTop(card: ICard): void;
   onPresent(card: ICard): void;
   onDelete(card: ICard): void;
+  onExportWord(card: ICard): void;
   onExportMarkdown(card: ICard): void;
   onExportImage(card: ICard): void;
   onExportEpub(card: ICard): void;

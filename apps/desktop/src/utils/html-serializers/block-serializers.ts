@@ -236,10 +236,12 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: (element, childrenHtml) => {
       const type = (element.calloutType || "note") as CalloutType;
-      const title = element.title || DEFAULT_CALLOUT_TITLE[type] || DEFAULT_CALLOUT_TITLE.note;
+      const title = escapeHtml(
+        element.title || DEFAULT_CALLOUT_TITLE[type] || DEFAULT_CALLOUT_TITLE.note
+      );
       const iconUrl = CALLOUT_ICONS[type] || CALLOUT_ICONS.note;
       return `<div class="callout callout-${type}">
-        <div class="callout-title"><img src="${iconUrl}" class="callout-icon" alt="" />${title}</div>
+        <div class="callout-title"${element.title?.trim() ? "" : " data-default-title"}><img src="${iconUrl}" class="callout-icon" alt="" />${title}</div>
         <div class="callout-content">${childrenHtml}</div>
       </div>`;
     },
@@ -371,6 +373,18 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
+  {
+    type: "file-attachment",
+    isBlock: true,
+    toHtml: element => {
+      const name = escapeHtml(element.fileName || "附件");
+      const url = element.filePath || "";
+      return /^https?:\/\//i.test(url)
+        ? `<p><a href="${escapeHtml(url)}">${name}</a></p>`
+        : `<p>附件：${name}</p>`;
+    },
+  },
+
   // Tabs
   {
     type: "tabs",
@@ -384,8 +398,9 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "tab-pane",
     isBlock: true,
-    toHtml: (_element, childrenHtml) => {
-      return `<div class="tab-pane">${childrenHtml}</div>`;
+    toHtml: (element, childrenHtml) => {
+      const title = element.title ? `<p><strong>${escapeHtml(element.title)}</strong></p>` : "";
+      return `<div class="tab-pane">${title}${childrenHtml}</div>`;
     },
   },
 

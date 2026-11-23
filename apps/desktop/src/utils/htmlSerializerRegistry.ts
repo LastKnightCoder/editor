@@ -22,6 +22,7 @@ export interface HtmlSerializer {
 export interface HtmlSerializerOptions {
   theme?: "light" | "dark";
   codeTheme?: string;
+  requireStaticContent?: boolean;
   imageBaseUrl?: string;
   tailwindCssCollector?: string[];
 }
@@ -147,12 +148,15 @@ export class HtmlSerializerRegistry {
     const childrenHtml = childrenHtmlArray.join("");
     const pluginSerializer = desktopContentPlugins.htmlSerializer(type);
     if (pluginSerializer) {
-      for (const extension of desktopContentPlugins.extensions) {
-        for (const source of extension.styleSources ?? []) {
-          const content = (element as unknown as Record<string, unknown>)[source.field];
-          if (source.type !== type || typeof content !== "string") continue;
-          const css = await compileTailwindForHtml(content, source.language);
-          if (css) options?.tailwindCssCollector?.push(css);
+      const collector = options?.tailwindCssCollector;
+      if (collector) {
+        for (const extension of desktopContentPlugins.extensions) {
+          for (const source of extension.styleSources ?? []) {
+            const content = (element as unknown as Record<string, unknown>)[source.field];
+            if (source.type !== type || typeof content !== "string") continue;
+            const css = await compileTailwindForHtml(content, source.language);
+            if (css) collector.push(css);
+          }
         }
       }
       return pluginSerializer.toHtml(element as unknown as Record<string, unknown>);
@@ -164,6 +168,8 @@ export class HtmlSerializerRegistry {
       // Handle both sync and async serializers
       return await Promise.resolve(result);
     }
+
+    if (options?.requireStaticContent) throw new Error(`节点 ${type} 缺少静态导出器`);
 
     // Fallback: return children HTML or the element type
     if (childrenHtml) {

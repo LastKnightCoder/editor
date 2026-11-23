@@ -82,6 +82,9 @@ export function CardActionMenu({
         >
           Markdown
         </Menu.Item>
+        <Menu.Item onSelect={() => actions.onExportWord(card)} icon={<MenuIcon icon={FileText} />}>
+          Word 文档（.docx）
+        </Menu.Item>
         <Menu.Item
           onSelect={() => actions.onExportImage(card)}
           icon={<MenuIcon icon={ImageIcon} />}

@@ -72,7 +72,7 @@ import { cardTitle as titleOfCard } from "@/utils/card-title";
 import { useInsightsView } from "@/features/insights/useInsightsView";
 import { cardMorphKey } from "../morph";
 import { usePatternCardDraft } from "../usePatternCardDraft";
-import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
 import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 
@@ -371,6 +371,18 @@ export function CardDetailView() {
                           icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         >
                           Markdown 文件
+                        </Menu.Item>
+                        <Menu.Item
+                          onSelect={() => {
+                            void exportContentAsWord({
+                              title: cardTitle,
+                              content: card.content,
+                              contentId: card.contentId,
+                            });
+                          }}
+                          icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                        >
+                          Word 文档（.docx）
                         </Menu.Item>
                         <Menu.Item
                           onSelect={() => setExportKind("image")}

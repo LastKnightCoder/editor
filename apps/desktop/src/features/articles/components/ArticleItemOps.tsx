@@ -14,6 +14,7 @@ export interface ArticleItemActions {
   onToggleTop(article: ArticlePageItem): void;
   onDelete(article: ArticlePageItem): void;
   onPresent(article: ArticlePageItem): void;
+  onExportWord(article: ArticlePageItem): void;
   onExportMarkdown(article: ArticlePageItem): void;
   onChangeCover(article: ArticlePageItem): void;
   /** Electron 专属能力：未传则不渲染该菜单项（Web 端不显示入口） */
@@ -72,6 +73,12 @@ export function ArticleItemOps({
           icon={<MenuIcon icon={Download} />}
         >
           导出 Markdown
+        </Menu.Item>
+        <Menu.Item
+          onSelect={() => actions.onExportWord(article)}
+          icon={<MenuIcon icon={Download} />}
+        >
+          导出 Word
         </Menu.Item>
         <Menu.Item
           onSelect={() => actions.onChangeCover(article)}

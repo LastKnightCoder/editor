@@ -1,3 +1,4 @@
+import { exportContentAsWord } from "@/services/content-transfer";
 /**
  * Markdown 文件窗口（路由 /markdown-window?filePath= | rootPath=）：编辑磁盘上的文件 / 文件夹。
  * 主进程 windows/markdown-window.ts 负责开窗；无参数时为欢迎页。
@@ -264,8 +265,17 @@ export default function MarkdownWindowPage() {
     };
   }, [flush]);
 
-  const startExport = (kind: NonNullable<ExportState>["kind"]) => {
+  const startExport = (kind: NonNullable<ExportState>["kind"] | "word") => {
     const content = viewRef.current?.getContent?.();
+    if (kind === "word") {
+      if (content && activePath)
+        void exportContentAsWord({
+          content,
+          title: fileTitle || "未命名文档",
+          assetDirectory: dirName(activePath),
+        });
+      return;
+    }
     if (content) setExporting({ kind, content, title: fileTitle || "未命名文档" });
   };
   const isMarkdown = category === "markdown";
@@ -367,6 +377,12 @@ export default function MarkdownWindowPage() {
               onSelect={() => startExport("epub")}
             >
               EPUB
+            </Menu.Item>
+            <Menu.Item
+              icon={<BookOpen className={MENU_ICON} strokeWidth={1.75} />}
+              onSelect={() => startExport("word")}
+            >
+              Word 文档（.docx）
             </Menu.Item>
             <Menu.Item
               icon={<FileType className={MENU_ICON} strokeWidth={1.75} />}

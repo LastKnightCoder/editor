@@ -4,6 +4,8 @@ import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { prepareContentMarkdown } from "../../services/editorKit";
 import { collectAssetUrls, mapAssetUrls } from "../content-transfer/assets";
 import type { Descendant } from "slate";
+import { readWordPackage } from "../word-export/__tests__/read-word-package";
+import { DEFAULT_WINDOW_FONT } from "../../../shared/window-font";
 
 afterEach(() => desktopContentPlugins.install([]));
 it("实际桌面导出按保存契约分发新旧源码，并按该版本收集附件", async () => {
@@ -162,9 +164,19 @@ it("HTML 按保存版本分发，缺失插件时拒绝丢失，代码步骤逐�
   const chapters = epub.payload.chapters.map(chapter => chapter.xhtml).join("\n");
   expect(chapters).toContain("旧源码");
   expect(chapters).toContain("新源码");
+  const { buildWordExport } = await import("../word-export");
+  const snapshot = { content, contracts: catalog.dictionary };
+  const wordOptions = { title: "混合版本", font: DEFAULT_WINDOW_FONT };
+  const word = await readWordPackage((await buildWordExport(snapshot, wordOptions)).bytes);
+  expect(Array.from(word.document.getElementsByTagName("w:t"), node => node.textContent)).toEqual([
+    "混合版本",
+    "旧源码",
+    "新源码",
+  ]);
   desktopContentPlugins.install([]);
   await expect(htmlSerializerRegistry.serializeAsync(content)).rejects.toThrow("版本");
   await expect(buildEpubExportPayloadFromSlate(input)).rejects.toThrow("版本");
+  await expect(buildWordExport(snapshot, wordOptions)).rejects.toThrow("版本");
   const prepared = await prepareNewContent([
     {
       type: "code-block",
