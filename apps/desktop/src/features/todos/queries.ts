@@ -15,6 +15,7 @@ import type { Descendant } from "slate";
 import {
   archiveTodoGroup,
   attachExistingNote,
+  changeTodoItemType,
   completeRecurrence,
   createAndAttachNote,
   createRecurrence,
@@ -330,13 +331,7 @@ export function useTodoMutations() {
     /** 类型切换：补齐目标类型的必要字段；切到周期且无规则时建默认规则（每天，自今天起） */
     async changeType(entry: TodoEntry, type: TodoItemType) {
       if (type === entry.type) return;
-      const today = startOfDay(Date.now());
-      const patch: Omit<UpdateTodoItem, "id"> = { type };
-      if (type === "deadline" && entry.dueAt == null) patch.dueAt = today;
-      await updateTodoItem({ id: entry.id, ...patch });
-      if (type === "recurring" && !entry.recurrence) {
-        await createRecurrence({ todoItemId: entry.id, ...DEFAULT_RECURRENCE(today) });
-      }
+      await changeTodoItemType(entry.id, type);
       emit("item", TODO_MUTATION_ACTIONS.UPDATE_ITEM, {
         entityId: entry.id,
         groupId: entry.groupId,

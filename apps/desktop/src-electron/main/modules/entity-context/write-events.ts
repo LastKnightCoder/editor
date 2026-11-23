@@ -76,6 +76,7 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "todoNote:createAndAttach",
   "todoNote:detach",
   "todo:update-item",
+  "todo:update-item-type",
   "todo:toggle-complete-cascade",
   "todo:archive-item",
   "todo:delete-item",

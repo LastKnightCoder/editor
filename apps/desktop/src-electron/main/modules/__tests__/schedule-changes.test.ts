@@ -31,6 +31,7 @@ describe("日程变更通知", () => {
       "calendar-event:transfer-between-calendars",
       "todo:toggle-complete-cascade",
       "todo:skip-recurrence",
+      "todo:update-item-type",
       "todo-calendar:sync-item",
       "pomodoro:delete-session",
     ]) {

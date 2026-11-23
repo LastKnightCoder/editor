@@ -37,6 +37,7 @@
 - 待办拖入用 HTML5 DnD，类型常量 `TODO_DRAG_TYPE`（`features/todos/model.ts`），落点与回执集中在 `features/schedule/todoDrop.ts`。
 - 月视图在网格容器接收待办拖入，按指针坐标确定日期（含邻月及日程覆盖层），松手即建当天全天安排，不改变当前日期或月份；悬停高亮在离开、落下及 dragend 时清除。`useScheduleTodo` 开始时间为 null 时创建全天安排，数字仍创建定时安排；`CreateTodoSchedule` 由命令封装、查询 mutation 与主进程共用，全天落库的起止时间为 null。成功回执包含「全天」及撤销，默认用户日历与跨库写入保护沿用现有协议。
 - 删除日程走 `pendingDeleteStore`：隐藏 + Toast 撤销，到时或 ScheduleView 卸载才落库；过滤在 `useCalendarEvents` 里统一做。不得改回「先删再重建」（删除会连带备注 content）。
+- 待办详情通过 `todo:update-item-type` 在一次数据库命令事务中切换类型并同步日历。切入周期时按任务 ID 复用已有规则，缺失时创建每日规则；切出周期时保留规则和打卡。
 - 日程侧勾选完成待办后必须 `emitTodoMutation`，否则待办快照（待办页、待安排面板）不刷新。
 
 ### 提醒

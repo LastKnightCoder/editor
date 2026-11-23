@@ -28,6 +28,7 @@ import {
   Segmented,
   Switch,
   cn,
+  toast,
   type DatePickerPreset,
 } from "@tau/ui";
 import type {
@@ -117,7 +118,9 @@ export function DetailFields({
           label="任务类型"
           size="sm"
           value={entry.type}
-          onValueChange={(type: TodoItemType) => void mutations.changeType(entry, type)}
+          onValueChange={(type: TodoItemType) => {
+            void mutations.changeType(entry, type).catch(() => toast.error("切换任务类型失败"));
+          }}
         >
           <Segmented.Item value="normal" label="普通" />
           <Segmented.Item value="deadline" icon={Flag} label="截止" />

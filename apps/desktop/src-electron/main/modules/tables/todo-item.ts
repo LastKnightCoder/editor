@@ -10,6 +10,7 @@ import {
 import ContentTable from "./content";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
 import CalendarEventTable from "./calendar-event";
+import TodoRecurrenceTable from "./todo-recurrence";
 import TodoNoteLinkTable from "./todo-note-link";
 import ItemReminderTable from "./item-reminder";
 import { Descendant } from "slate";
@@ -26,6 +27,7 @@ export default class TodoItemTable {
         this.createItem(db, payload),
       "todo:create-item-relative": this.createItemRelative.bind(this),
       "todo:create-with-schedule": this.createWithSchedule.bind(this),
+      "todo:update-item-type": this.changeItemType.bind(this),
       "todo:update-item": this.updateItem.bind(this),
       "todo:toggle-complete-cascade": this.toggleCompleteCascade.bind(this),
       "todo:move-and-reorder": this.moveAndReorder.bind(this),
@@ -246,6 +248,29 @@ export default class TodoItemTable {
     const created = this.parse(row);
     if (options.syncCalendar !== false) this.syncCalendar(db, created);
     return created;
+  }
+
+  static changeItemType(
+    db: Database.Database,
+    payload: { id: number; type: TodoItemType }
+  ): TodoItem {
+    const { id, type } = payload;
+    const today = new Date().setHours(0, 0, 0, 0);
+    const patch: UpdateTodoItem = { id, type };
+    if (type === "deadline") {
+      const current = db.prepare("SELECT due_at FROM todo_item WHERE id = ?").get(id) as
+        | { due_at: number | null }
+        | undefined;
+      if (current?.due_at == null) patch.dueAt = today;
+    }
+    const item = this.updateItem(db, patch);
+    if (
+      type === "recurring" &&
+      !TodoRecurrenceTable.getRecurrenceByItemId(db, { todoItemId: id })
+    ) {
+      TodoRecurrenceTable.createRecurrence(db, { todoItemId: id, type: "daily", startDate: today });
+    }
+    return item;
   }
 
   static updateItem(db: Database.Database, payload: UpdateTodoItem): TodoItem {

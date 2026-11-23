@@ -80,6 +80,10 @@ export const updateTodoItem = async (payload: UpdateTodoItem): Promise<TodoItem>
   return invoke("todo:update-item", payload);
 };
 
+export const changeTodoItemType = async (id: number, type: TodoItemType): Promise<TodoItem> => {
+  return invoke("todo:update-item-type", { id, type });
+};
+
 export const toggleCompleteCascade = async (id: number, isCompleted: boolean): Promise<number> => {
   return invoke("todo:toggle-complete-cascade", { id, isCompleted });
 };
