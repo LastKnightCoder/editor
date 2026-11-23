@@ -189,6 +189,31 @@ it("文档白板连续点击空白处可分段书写，点已有图形仍可选�
   expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
 });
 
+it("连续编辑富文本时画布与独立模型一致，观察者的并发修改不会被旧快照覆盖", async () => {
+  const { board, binding, model, insert } = await setup(undefined, {
+    coalesceLocalGesture: () => true,
+  });
+  const note = base("richtext", { content: text, maxWidth: 300, maxHeight: 1000, resized: false });
+  insert(note);
+  const document = binding.textDocument(note.id)?.binding;
+  if (!document) throw new Error("缺少正文绑定");
+  const editor = document.install(createEditor()) as NodeTreeEditor;
+  editor.connectNodeTree();
+  try {
+    const write = (value: string) =>
+      Transforms.insertText(editor, value, { at: { path: [0, 0], offset: 0 } });
+    write("甲");
+    expect(board.children[0].content[0].children[0].text).toBe("甲内容");
+    model.doc.once("update", () => model.title.insert(0, "外部编辑"));
+    write("乙");
+    expect(binding.readSnapshot().title).toContain("外部编辑");
+    expect(binding.readSnapshot()).toEqual(model.read());
+    expect(board.children[0].content[0].children[0].text).toBe("乙甲内容");
+  } finally {
+    editor.disposeNodeTree();
+  }
+});
+
 const nodes = [
   base("richtext", { content: text, maxWidth: 300, maxHeight: 1000, resized: false }),
   base("geometry", { geometryType: "rect", paths: [], text: { align: "center", content: text } }),

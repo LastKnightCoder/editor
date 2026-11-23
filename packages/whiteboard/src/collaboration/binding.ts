@@ -202,7 +202,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
   connect(board: Board): () => void {
     if (this.board || this.closed) throw new Error("白板绑定不能复用到另一视图");
     this.board = board;
-    this.model.doc.on("beforeTransaction", this.invalidateSnapshot);
+    this.model.doc.on("beforeObserverCalls", this.invalidateChangedSnapshot);
     this.model.doc.on("afterTransaction", this.changed);
     this.model.doc.on("destroy", this.disconnect);
     try {
@@ -220,7 +220,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     this.board?.interactions.cancel();
     this.endGesture(false);
     this.invalidateSnapshot();
-    this.model.doc.off("beforeTransaction", this.invalidateSnapshot);
+    this.model.doc.off("beforeObserverCalls", this.invalidateChangedSnapshot);
     this.model.doc.off("afterTransaction", this.changed);
     this.model.doc.off("destroy", this.disconnect);
     for (const editor of this.editors) editor.disposeNodeTree();
@@ -234,14 +234,50 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     this.board = undefined;
   };
   private snapshot?: ReturnType<WhiteboardModel["read"]>;
+  private readonly invalidateChangedSnapshot = (transaction: Y.Transaction) => {
+    if (transaction.changed.size || transaction.deleteSet.clients.size) this.invalidateSnapshot();
+  };
   private readonly invalidateSnapshot = () => {
     this.snapshot = undefined;
     this.lastStrokeChildren = undefined;
   };
 
   readSnapshot(): ReturnType<WhiteboardModel["read"]> {
-    if (!this.board || this.closed || this.model.doc._transaction) return this.model.read();
+    if (
+      !this.board ||
+      this.closed ||
+      this.model.doc._transaction ||
+      this.model.doc._transactionCleanups.length
+    )
+      return this.model.read();
     return (this.snapshot ??= this.model.read());
+  }
+
+  publishBody(before: ReturnType<WhiteboardModel["read"]>, id: string) {
+    const board = this.board;
+    const page = before.pages.find(entry => entry.id === this.page);
+    const at = page?.children.findIndex(node => node.id === id) ?? -1;
+    if (!board || !page || at < 0 || board.children[at]?.id !== id) return false;
+    const previous = page.children[at];
+    if (previous.type !== "richtext" || previous.children.length) return false;
+    const node = Object.freeze({ ...previous, body: this.model.richText(id).snapshot() });
+    const children = [...page.children];
+    children[at] = node;
+    this.snapshot = Object.freeze({
+      ...before,
+      pages: Object.freeze(
+        before.pages.map(entry =>
+          entry === page ? Object.freeze({ ...page, children: Object.freeze(children) }) : entry
+        )
+      ),
+    });
+    const rendered = [...board.children];
+    rendered[at] = project(this, node);
+    board.publishDocument(rendered, undefined, undefined, {
+      previous: board.children[at],
+      next: rendered[at],
+    });
+    return true;
   }
 
   lastStrokeChildren?: BoardElement[];
@@ -301,8 +337,8 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     return true;
   }
   private readonly changed = (transaction: Y.Transaction) => {
-    this.invalidateSnapshot();
     if (this.closed || this.writing || transaction.changed.size === 0) return;
+    this.invalidateSnapshot();
     const local =
       transaction.origin === this.history || this.history.trackedOrigins.has(transaction.origin);
     if (this.gesture && !local) {

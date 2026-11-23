@@ -12,7 +12,7 @@ import {
   type DataContract,
   type WhiteboardElementContract,
 } from "@tau/db-schema/content-contracts";
-import { NodeTree } from "./node-tree";
+import { NodeTree, type NodeTextEdit } from "./node-tree";
 import {
   createNodeTreeHistory,
   preserveNodeInitialization,
@@ -113,7 +113,16 @@ export class WhiteboardModel {
   private pendingBase?: Uint8Array;
   private queuedBytes = 0;
   private incoming: Promise<unknown> = Promise.resolve();
-  private readonly changed = () => {
+  private readonly changed = (transaction: Y.Transaction) => {
+    if (
+      !transaction.changed.size &&
+      !transaction.deleteSet.clients.size &&
+      transaction.afterState.size === transaction.beforeState.size &&
+      [...transaction.afterState].every(
+        ([client, clock]) => transaction.beforeState.get(client) === clock
+      )
+    )
+      return;
     this.revision++;
     this.pendingBase = undefined;
   };
@@ -396,6 +405,66 @@ export class WhiteboardModel {
       write(this);
     }, origin);
   }
+  /** 普通文本只修改已有段落的字符；结构变更、复杂标记与容量临界由完整候选处理。 */
+  tryLocalBodyEdit(
+    target: string,
+    edit: NodeTextEdit,
+    origin: object
+  ): { isolated: boolean } | undefined {
+    this.active();
+    if (
+      !this.translationBudget ||
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc._transactionCleanups.length ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs ||
+      !edit.text.length ||
+      edit.text.length > 4096
+    )
+      return;
+    this.prepareLocalTranslations();
+    const proof = this.translationBudget;
+    if (!proof) return;
+    const tree = this.richText(target);
+    const pieces = tree.segments.list(edit.nodeId);
+    if (pieces.length !== 1 || pieces[0].source !== edit.nodeId) return;
+    const content = tree.content(edit.nodeId);
+    if (pieces[0].start !== 0 || pieces[0].end !== content.length) return;
+    const scalarMark = (value: unknown) =>
+      value == null || ["string", "boolean", "number"].includes(typeof value);
+    const marks = Object.entries(edit.marks);
+    if (marks.some(([, value]) => !scalarMark(value))) return;
+    let formatBytes = bytes(edit.marks) + 64 * marks.length;
+    let items = 0;
+    for (let item = content._start; item; item = item.right) {
+      if (++items > 256) return;
+      if (item.deleted) continue;
+      if (item.content instanceof Y.ContentString) continue;
+      if (!(item.content instanceof Y.ContentFormat) || !scalarMark(item.content.value)) return;
+      formatBytes += bytes([item.content.key, item.content.value]) + 64;
+    }
+    // 每个物理项预留分裂引用、格式边界和删除区间的编码空间。临界时回退精确编码。
+    const upperBytes = proof.upperBytes + 4 * (edit.text.length + formatBytes) + 128 * (items + 8);
+    if (upperBytes > WHITEBOARD_LIMITS.documentBytes) return;
+    this.doc.transact(transaction => {
+      if (
+        transaction.changed.size ||
+        transaction.deleteSet.clients.size ||
+        this.revision !== proof.revision ||
+        this.doc.share.size !== proof.rootCount
+      )
+        throw new Error("文本提交期间白板状态已变化，请重试");
+      if (edit.action === "insert")
+        tree.insertText(edit.nodeId, edit.offset, edit.text, origin, edit.marks);
+      else tree.deleteText(edit.nodeId, edit.offset, edit.text.length, origin);
+    }, origin);
+    const isolated =
+      this.revision === proof.revision + 1 && this.doc.share.size === proof.rootCount;
+    if (isolated) this.translationBudget = { ...proof, upperBytes, revision: this.revision };
+    return { isolated };
+  }
+
   /** 大批导入分段预检，最终以一个增量进入当前视图历史。 */
   submitChunks(
     commands: readonly WhiteboardModelCommand[],

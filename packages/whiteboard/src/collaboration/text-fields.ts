@@ -125,12 +125,15 @@ export function textDocument(binding: CanvasBinding, id: string): EditorDocument
   let document = binding.documents.get(id);
   if (!document) {
     const tree = binding.model.richText(id);
+    const prepared = (binding.options.preparedContracts ?? []).filter(
+      entry => entry.contract.domain === "editor-node"
+    );
     document = createNodeTreeDocument(tree, {
       history: binding.history,
       versions: binding.options.editorVersions,
       normalizeOnConnect: false,
       canWrite: () => canEditElement(binding, id),
-      mutate: (write, origin) => {
+      mutate: (write, origin, textEdit) => {
         assertWritable(binding);
         if (!canEditElement(binding, id)) throw new Error("富文本目标已失效");
         if (binding.gesture) {
@@ -138,18 +141,23 @@ export function textDocument(binding: CanvasBinding, id: string): EditorDocument
           binding.endGesture(false);
         }
         enterGroup(binding, `text:${id}`);
+        const before = binding.readSnapshot();
         binding.writing = true;
+        let projected = false;
         try {
+          const result = textEdit && binding.model.tryLocalBodyEdit(id, textEdit, origin);
+          if (result) {
+            if (result.isolated) projected = binding.publishBody(before, id);
+            return;
+          }
           binding.model.withPreparedContracts(
-            (binding.options.preparedContracts ?? []).filter(
-              entry => entry.contract.domain === "editor-node"
-            ),
+            prepared,
             candidate => write(candidate.richText(id)),
             origin
           );
         } finally {
           binding.writing = false;
-          refresh(binding);
+          if (!projected) refresh(binding);
         }
       },
     });

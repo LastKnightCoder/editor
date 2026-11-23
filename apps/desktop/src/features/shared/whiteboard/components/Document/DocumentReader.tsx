@@ -609,15 +609,6 @@ export function DocumentReaderLayer() {
   const board = useBoard();
   const store = getDocumentReaderStore(board);
   const openId = useDocumentReaderState(board, state => state.openId);
-  const { mode: preferred, setMode } = useDocumentReaderPreference();
-  const { allowDock } = useDocumentHost();
-  const mode = allowDock ? preferred : "center";
-  const selection = useSelection();
-  const element = openId
-    ? (BoardUtil.getElementById(board, openId) as DocumentElement | null)
-    : null;
-  const { source, missing } = useDocumentSource(element);
-
   useEffect(() => {
     const onOpen = (id: string) => {
       if (store.getState().openId) return;
@@ -628,6 +619,19 @@ export function DocumentReaderLayer() {
     board.on(DOCUMENT_OPEN_EVENT, onOpen);
     return () => board.off(DOCUMENT_OPEN_EVENT, onOpen);
   }, [board, store]);
+
+  return openId ? <OpenDocumentReader openId={openId} /> : null;
+}
+
+function OpenDocumentReader({ openId }: { openId: string }) {
+  const board = useBoard();
+  const store = getDocumentReaderStore(board);
+  const { mode: preferred, setMode } = useDocumentReaderPreference();
+  const { allowDock } = useDocumentHost();
+  const mode = allowDock ? preferred : "center";
+  const selection = useSelection();
+  const element = BoardUtil.getElementById(board, openId) as DocumentElement | null;
+  const { source, missing } = useDocumentSource(element);
 
   // 停靠时选中另一张文档卡 = 换成那一篇
   useEffect(() => {

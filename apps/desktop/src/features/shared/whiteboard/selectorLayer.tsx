@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { memo, useEffect, useState, type ComponentType } from "react";
 import {
   useBoard,
   type ContextMenuModalPayload,
@@ -11,7 +11,7 @@ export function selectorLayer(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 各扩展的选择器组件 props 形状互不相同，any 参数位承载异构组件
   Selector: ComponentType<any>
 ): WhiteboardLayerContribution {
-  function SelectorLayer() {
+  const SelectorLayer = memo(function SelectorLayer() {
     const board = useBoard();
     const [request, setRequest] = useState<ContextMenuModalPayload | null>(null);
     useEffect(() => {
@@ -29,6 +29,6 @@ export function selectorLayer(
         onClose={() => setRequest(null)}
       />
     );
-  }
+  });
   return { id: `tau.${type}.selector`, position: "outside", component: SelectorLayer };
 }

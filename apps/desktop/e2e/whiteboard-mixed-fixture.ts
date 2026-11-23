@@ -5,7 +5,8 @@ import type { prepareBuiltinWhiteboardTypes } from "@tau/whiteboard/contracts";
 
 export async function addMixedScene(
   model: WhiteboardModel,
-  schema: Awaited<ReturnType<typeof prepareBuiltinWhiteboardTypes>>
+  schema: Awaited<ReturnType<typeof prepareBuiltinWhiteboardTypes>>,
+  groups = 240
 ) {
   const paragraph = await prepareContentContract("tau.paragraph", {
     type: "paragraph",
@@ -25,7 +26,7 @@ export async function addMixedScene(
   ];
   const parent = { kind: "page", id: "p" } as const;
   const nodes: WhiteboardModelCommand[] = [];
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < groups; i++) {
     const x = 40 + (i % 16) * 190,
       y = 130 + Math.floor(i / 16) * 168;
     for (const [side, offset] of [

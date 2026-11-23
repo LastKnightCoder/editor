@@ -44,7 +44,12 @@ const STATIC_LAYER_SELECTION: Selection = {
 const EMPTY_PEERS: readonly WhiteboardPeer[] = [];
 
 /** 每个渲染层只保留自己上次提交的可见集合，避免空箭头层清除文档层的退出缓冲。 */
-function useVisibleLayer(board: Board, elements: BoardElement[], viewport: ViewPort | null) {
+function useVisibleLayer(
+  board: Board,
+  elements: BoardElement[],
+  viewport: ViewPort | null,
+  liveText: boolean
+) {
   const retained = useRef(new Set<string>());
   const layer = useMemo(() => {
     const current = new Set<string>();
@@ -53,11 +58,12 @@ function useVisibleLayer(board: Board, elements: BoardElement[], viewport: ViewP
           board.filterElementsInViewport(elements, CULL_CELL_PX, viewport, {
             previous: retained.current,
             current,
-          })
+          }),
+          liveText
         )
       : board.renderElements(elements);
     return { current, nodes };
-  }, [board, elements, viewport]);
+  }, [board, elements, viewport, liveText]);
   useLayoutEffect(() => {
     retained.current = layer.current;
   }, [layer]);
@@ -142,9 +148,20 @@ const BoardContent = memo(
           : { minX: left, minY: top, width: width + cell, height: height + cell, zoom },
       [disableViewportFilter, left, top, width, height, cell, zoom]
     );
-    const visibleCenterConnectArrows = useVisibleLayer(board, behind, cullViewport);
-    const visibleNoneCenterConnectArrows = useVisibleLayer(board, mainElements, cullViewport);
-    const visibleCenterConnectAndSelectedArrows = useVisibleLayer(board, inFront, cullViewport);
+    const liveText = Boolean(cameraRef && !renderElementsOverride);
+    const visibleCenterConnectArrows = useVisibleLayer(board, behind, cullViewport, liveText);
+    const visibleNoneCenterConnectArrows = useVisibleLayer(
+      board,
+      mainElements,
+      cullViewport,
+      liveText
+    );
+    const visibleCenterConnectAndSelectedArrows = useVisibleLayer(
+      board,
+      inFront,
+      cullViewport,
+      liveText
+    );
 
     const svgViewport = cullViewport ?? viewPort;
     const svgSize = cullViewport ? `calc(100% + ${CULL_CELL_PX}px)` : "100%";

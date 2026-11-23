@@ -50,6 +50,14 @@ const ROOT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const isNodePool = (name: string) =>
   name === "node-tree:nodes" || /^node-tree:roots:[A-Za-z0-9][A-Za-z0-9._-]*:nodes$/.test(name);
 
+export interface NodeTextEdit {
+  nodeId: string;
+  offset: number;
+  text: string;
+  action: "insert" | "remove";
+  marks: Record<string, unknown>;
+}
+
 export interface NodeTreeOptions {
   rootId?: string;
 }

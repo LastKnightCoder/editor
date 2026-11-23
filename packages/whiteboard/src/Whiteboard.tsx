@@ -224,9 +224,9 @@ const Whiteboard = memo(
 
 function useCanvasSnapshot(board: Board) {
   const read = useMemo(() => {
-    let previous = board.getSnapshot();
+    let previous = board.getCanvasSnapshot();
     return () => {
-      const next = board.getSnapshot();
+      const next = board.getCanvasSnapshot();
       if (next === previous) return previous;
       const a = previous.viewPort,
         b = next.viewPort;

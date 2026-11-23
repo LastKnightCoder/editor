@@ -28,6 +28,15 @@ test("密集手写的桌面帧间隔与持久化采样点", async () => {
   const doc = new Y.Doc({ gc: false });
   const model = new WhiteboardModel(doc);
   try {
+    // 大场景在启动前准备，避免测试驱动同步造数与后台索引启动重叠。
+    const title = "手写压测";
+    const mixed = process.env.WHITEBOARD_INK_MIXED === "1";
+    const schema = await prepareBuiltinWhiteboardTypes();
+    seedInk(model, schema, 800);
+    if (mixed) await addIntegrityScene(model, schema);
+    model.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: title } }], null);
+    const before = mixed ? model.read() : null;
+    const state = Array.from(Y.encodeStateAsUpdate(doc));
     const { app } = await launch(directory, await availablePort(), value => {
       running = value;
     });
@@ -39,16 +48,9 @@ test("密集手写的桌面帧间隔与持久化采样点", async () => {
     const page = windows.find(window => window.role === "main")!.page;
     if (process.env.WHITEBOARD_RENDERER_HTML)
       await page.goto(pathToFileURL(process.env.WHITEBOARD_RENDERER_HTML).href);
-    const title = "手写压测";
     await invoke(page, "create-or-connect-database", "data.db");
     const paragraph = await prepareParagraphFixture();
     await invoke(page, "create-card", paragraph(title));
-    const mixed = process.env.WHITEBOARD_INK_MIXED === "1";
-    const schema = await prepareBuiltinWhiteboardTypes();
-    seedInk(model, schema, 800);
-    if (mixed) await addIntegrityScene(model, schema);
-    model.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: title } }], null);
-    const before = mixed ? model.read() : null;
     const renderErrors: string[] = [];
     if (mixed) {
       page.on("pageerror", error => renderErrors.push(error.message));
@@ -67,7 +69,7 @@ test("密集手写的桌面帧间隔与持久化采样点", async () => {
             "board"
           )
         ).contentIds[0],
-      Array.from(Y.encodeStateAsUpdate(doc))
+      state
     );
     await page.reload();
     await page.getByText("白板", { exact: true }).first().click();

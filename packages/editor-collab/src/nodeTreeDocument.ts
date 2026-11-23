@@ -27,7 +27,7 @@ export interface NodeTreeDocumentOptions {
   collaboration?: ContentCollaborationBinding;
   cursors?: boolean;
   history?: NodeTreeHistory;
-  mutate?: (write: (target: NodeTree) => void, origin: object) => void;
+  mutate?: import("./withNodeTree").NodeTreeEditorConfiguration["mutate"];
   canWrite?: () => boolean;
   normalizeOnConnect?: boolean;
   lineage?: string;

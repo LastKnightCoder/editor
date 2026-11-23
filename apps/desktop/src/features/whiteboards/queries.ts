@@ -36,24 +36,58 @@ import { normalizeTags, toItem, type WhiteboardItem } from "./model";
 
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
 const pendingProjectionRefresh = new Map<string, ReturnType<typeof setTimeout>>();
-const unsubscribeProjected = onWhiteboardDocumentProjected(({ databaseName }) => {
-  if (pendingProjectionRefresh.has(databaseName)) return;
-  pendingProjectionRefresh.set(
-    databaseName,
-    setTimeout(() => {
-      pendingProjectionRefresh.delete(databaseName);
-      void appQueryClient.invalidateQueries({
-        predicate: query =>
-          ["whiteboards", "whiteboard-content", "whiteboard-share"].includes(
-            String(query.queryKey[0])
-          ) && query.queryKey.includes(databaseName),
-      });
-    }, 100)
-  );
-});
+const pendingBodyRefresh = new Map<
+  string,
+  { documents: Set<string>; started: number; timer: ReturnType<typeof setTimeout> }
+>();
+const unsubscribeProjected = onWhiteboardDocumentProjected(
+  ({ databaseName, documentId, bodyOnly }) => {
+    if (pendingProjectionRefresh.has(databaseName)) return;
+    const pending = pendingBodyRefresh.get(databaseName);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingBodyRefresh.delete(databaseName);
+    }
+    if (bodyOnly) {
+      const documents = pending?.documents ?? new Set<string>();
+      documents.add(documentId);
+      const started = pending?.started ?? Date.now();
+      const timer = setTimeout(
+        () => {
+          pendingBodyRefresh.delete(databaseName);
+          void appQueryClient.invalidateQueries({
+            predicate: ({ queryKey, state }) => {
+              if (queryKey[0] !== "whiteboards" || !queryKey.includes(databaseName)) return false;
+              if (queryKey[1] === "list") return true;
+              if (queryKey[1] !== "detail" && queryKey[1] !== "owner") return false;
+              const cached = state.data as Whiteboard | null | undefined;
+              return !cached?.documentId || documents.has(cached.documentId);
+            },
+          });
+        },
+        Math.min(450, Math.max(0, started + 2000 - Date.now()))
+      );
+      pendingBodyRefresh.set(databaseName, { documents, started, timer });
+      return;
+    }
+    pendingProjectionRefresh.set(
+      databaseName,
+      setTimeout(() => {
+        pendingProjectionRefresh.delete(databaseName);
+        void appQueryClient.invalidateQueries({
+          predicate: query =>
+            ["whiteboards", "whiteboard-content", "whiteboard-share"].includes(
+              String(query.queryKey[0])
+            ) && query.queryKey.includes(databaseName),
+        });
+      }, 100)
+    );
+  }
+);
 import.meta.hot?.dispose(() => {
   unsubscribeProjected();
   pendingProjectionRefresh.forEach(clearTimeout);
+  pendingBodyRefresh.forEach(({ timer }) => clearTimeout(timer));
 });
 
 const listKey = (database: string) => ["whiteboards", "list", database] as const;

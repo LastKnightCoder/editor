@@ -60,6 +60,8 @@ import SketchRect from "../SketchPaths/SketchRect";
 import { handTextClass } from "../../utils/sketch";
 import { registerWheelScrollArea } from "../../utils/wheelGesture";
 
+const RichTextEditor = React.memo(Editor);
+
 type RichTextNodeType = RichTextElement;
 
 interface RichTextProps {
@@ -157,6 +159,10 @@ const Richtext = (props: RichTextProps) => {
   useEditingElementCleanup(elementId);
   const text = useTextExtension();
   const collaborativeDocument = board.document?.textDocument(elementId);
+  const editingContext = useMemo(
+    () => ({ entityType: "whiteboard", entityId: elementId }),
+    [elementId]
+  );
   const pendingReference = element.entity?.kind === "content" && !contentId;
   const isArrowMoving = useArrowMove();
   const activeTool = useActiveTool();
@@ -182,8 +188,8 @@ const Richtext = (props: RichTextProps) => {
 
   useEffect(() => {
     latestContentRef.current = content;
-    setInitialState(content);
-  }, [content]);
+    if (!collaborativeDocument) setInitialState(content);
+  }, [content, collaborativeDocument]);
 
   // 判断是否使用简化渲染
   const useSimplifiedRender = useMemo(() => {
@@ -387,7 +393,7 @@ const Richtext = (props: RichTextProps) => {
     editor: editorEl,
     resized,
     padding,
-    isEmpty: isRichTextContentEmpty(latestContentRef.current),
+    isEmpty: isRichTextContentEmpty(collaborativeDocument ? content : latestContentRef.current),
     focus,
     isSelected,
     autoHeight,
@@ -515,16 +521,16 @@ const Richtext = (props: RichTextProps) => {
             </div>
           ) : (
             <ErrorBoundary>
-              <Editor
+              <RichTextEditor
                 document={collaborativeDocument}
                 contentId={contentId}
                 ref={editorRef}
                 style={fadeStyle}
                 className={cn(styles.editor, (scrolled || canScrollDown) && "tau-board-text-mask")}
-                initValue={initValue}
+                initValue={collaborativeDocument ? undefined : initValue}
                 onChange={handleOnContentChange}
                 readonly={readonly}
-                editingContext={{ entityType: "whiteboard", entityId: elementId }}
+                editingContext={editingContext}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
               />

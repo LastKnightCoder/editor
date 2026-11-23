@@ -52,7 +52,11 @@ export interface NodeTreeEditorConfiguration {
   flushFragmentWrites?: () => Promise<void>;
   preserveInputDraft?: (nodeId: string, field: string, snapshot: TextFieldSnapshot) => void;
   history?: NodeTreeHistory;
-  mutate?: (write: (target: NodeTree) => void, origin: object) => void;
+  mutate?: (
+    write: (target: NodeTree) => void,
+    origin: object,
+    textEdit?: import("@tau/collaboration").NodeTextEdit
+  ) => void;
   canWrite?: () => boolean;
   normalizeOnConnect?: boolean;
   /** 宿主已校验的快照差分保留输入身份；普通编辑与粘贴仍分配新身份。 */
@@ -434,7 +438,25 @@ export function withNodeTree<T extends Editor>(
       }
     }
     const splitIdentity = crypto.randomUUID();
+    const textEdit = (() => {
+      if (operation.type !== "insert_text" && operation.type !== "remove_text") return;
+      const location = context(operation.path);
+      if (!location.parent) throw new Error("正文根不能直接编辑文本");
+      return {
+        nodeId: location.parent,
+        offset: location.offset + operation.offset,
+        text: operation.text,
+        action: operation.type === "insert_text" ? ("insert" as const) : ("remove" as const),
+        marks: properties(Node.get(editor, operation.path) as Descendant),
+      };
+    })();
     const write = (tree: NodeTree) => {
+      if (textEdit) {
+        const { nodeId, offset, text, marks } = textEdit;
+        if (textEdit.action === "insert") tree.insertText(nodeId, offset, text, origin, marks);
+        else tree.deleteText(nodeId, offset, text.length, origin);
+        return;
+      }
       if (operation.type === "insert_node" && Element.isElement(operation.node)) {
         const location = context(operation.path);
         const node = operation.node;
@@ -472,24 +494,7 @@ export function withNodeTree<T extends Editor>(
         const node = (
           operation.type === "insert_node" ? operation.node : Node.get(editor, operation.path)
         ) as Descendant;
-        if (operation.type === "insert_text" || operation.type === "remove_text") {
-          if (!location.parent) throw new Error("正文根不能直接编辑文本");
-          if (operation.type === "insert_text")
-            tree.insertText(
-              location.parent,
-              location.offset + operation.offset,
-              operation.text,
-              origin,
-              properties(node)
-            );
-          else
-            tree.deleteText(
-              location.parent,
-              location.offset + operation.offset,
-              operation.text.length,
-              origin
-            );
-        } else if (operation.type === "insert_node" && Text.isText(node)) {
+        if (operation.type === "insert_node" && Text.isText(node)) {
           if (!location.parent) throw new Error("正文根不能直接插入文本");
           tree.insertText(location.parent, location.offset, node.text, origin, properties(node));
         } else if (operation.type === "remove_node") {
@@ -566,7 +571,7 @@ export function withNodeTree<T extends Editor>(
     if (operation.type !== "set_selection") {
       if (configuration.mutate) {
         try {
-          configuration.mutate(write, origin);
+          configuration.mutate(write, origin, textEdit);
         } catch (error) {
           projecting = true;
           try {

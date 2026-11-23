@@ -57,6 +57,42 @@ const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandle
   }
 });
 
+// 正文变化不影响可见层的排序与剔除。元素宿主单独订阅该正文的不可变投影。
+class BodyView {
+  private listeners = new Set<() => void>();
+  private frame?: number;
+  constructor(public current: BoardElement) {}
+  read = () => this.current;
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+      if (this.listeners.size === 0 && this.frame !== undefined) {
+        cancelAnimationFrame(this.frame);
+        this.frame = undefined;
+      }
+    };
+  };
+  notify() {
+    // 输入中的 Slate 已应用字符，外围文本框只需在绘制前跟进正文与尺寸。
+    if (this.frame !== undefined || !this.listeners.size) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = undefined;
+      for (const listener of this.listeners) listener();
+    });
+  }
+}
+
+const bodyViews = new WeakMap<BoardElement, BodyView>();
+function bodyView(element: BoardElement) {
+  let view = bodyViews.get(element);
+  if (!view) {
+    view = new BodyView(element);
+    bodyViews.set(element, view);
+  }
+  return view;
+}
+
 class Board {
   static boardFlag = boardFlag;
   public document?: WhiteboardDocumentBinding;
@@ -80,9 +116,11 @@ class Board {
   publishDocument(
     children: BoardElement[],
     sketch?: PageSketch,
-    sequences?: PresentationSequence[]
+    sequences?: PresentationSequence[],
+    body?: { previous: BoardElement; next: BoardElement }
   ): void {
     const previousSelection = this.selection;
+    const layout = this.getCanvasSnapshot();
     this.projectingDocument = true;
     try {
       if (sketch && JSON.stringify(this.sketch) !== JSON.stringify(sketch)) {
@@ -92,6 +130,17 @@ class Board {
       if (sequences) this.presentationManager.publishSequences(sequences);
       this.submissionVersion++;
       this.replaceChildrenSilently(children);
+      if (
+        body &&
+        !previousSelection.selectedElements.length &&
+        this.extensions?.layers.every(layer => layer.id.startsWith("tau."))
+      ) {
+        const view = bodyView(body.previous);
+        bodyViews.set(body.next, view);
+        view.current = body.next;
+        this.bodyLayout = { snapshot: this.snapshot, layout };
+        view.notify();
+      } else this.bodyLayout = undefined;
       this.elementVersion++;
       this.emit("value:change", children);
       if (this.selection !== previousSelection) this.emit("selection:change", this.selection);
@@ -1124,6 +1173,10 @@ class Board {
     };
   }
 
+  private bodyLayout?: { snapshot: Board["snapshot"]; layout: Board["snapshot"] };
+  getCanvasSnapshot() {
+    return this.bodyLayout?.snapshot === this.snapshot ? this.bodyLayout.layout : this.snapshot;
+  }
   getSnapshot() {
     return this.snapshot;
   }
@@ -1217,7 +1270,8 @@ class Board {
   }
 
   public renderVisibleElements(
-    elements?: VisibleElementTree[]
+    elements?: VisibleElementTree[],
+    liveText = false
   ): Array<React.ReactElement | null | undefined> {
     if (!elements) return [];
     // 元素统一经 memo 的 ElementHost 包装：视口/选区帧剔除与 JSX 包装重建时，
@@ -1234,7 +1288,7 @@ class Board {
               reason={unknown?.reason}
               extensionId={unknown?.extensionId}
             >
-              {this.renderVisibleElements(children)}
+              {this.renderVisibleElements(children, liveText)}
             </UnknownElement>
           );
         }
@@ -1253,10 +1307,13 @@ class Board {
           }));
         }
 
-        const renderedChildren = this.renderVisibleElements(processedChildren).filter(isValid);
+        const renderedChildren = this.renderVisibleElements(processedChildren, liveText).filter(
+          isValid
+        );
 
+        const Host = liveText && element.type === "richtext" ? RichTextHost : ElementHost;
         return (
-          <ElementHost
+          <Host
             key={element.id}
             board={this}
             plugin={plugin}
@@ -1293,6 +1350,22 @@ const ElementHost = React.memo(
     prev.element === next.element &&
     sameRenderedChildren(prev.children, next.children)
 );
+
+function RichTextHost({
+  board,
+  plugin,
+  element,
+  children,
+}: {
+  board: Board;
+  plugin: IBoardPlugin;
+  element: BoardElement;
+  children: React.ReactNode;
+}) {
+  const view = bodyView(element);
+  const latest = React.useSyncExternalStore(view.subscribe, view.read, view.read);
+  return <ElementHost board={board} plugin={plugin} element={latest} children={children} />;
+}
 
 /** 子元素集合比较：逐项按 ElementHost 的 element 引用判等（O(子数)，远低于重渲子树） */
 function sameRenderedChildren(a: React.ReactNode, b: React.ReactNode): boolean {

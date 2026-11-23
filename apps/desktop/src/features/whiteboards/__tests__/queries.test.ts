@@ -42,3 +42,38 @@ it("已打开的白板在页增删落库后刷新本库页签", async () => {
     vi.useRealTimers();
   }
 });
+
+it("连续修改正文后刷新对应预览，页头和其他白板的缓存保持有效", async () => {
+  vi.useFakeTimers();
+  const list = ["whiteboards", "list", "读书"];
+  const board = ["whiteboards", "detail", "读书", 1];
+  const other = ["whiteboards", "detail", "读书", 2];
+  const header = ["whiteboard-content", "读书", 3];
+  const share = ["whiteboard-share", "读书", "board"];
+  queryClient.setQueryData(list, []);
+  queryClient.setQueryData(board, { documentId: "board" });
+  queryClient.setQueryData(other, { documentId: "other" });
+  queryClient.setQueryData(header, { name: "第一页" });
+  queryClient.setQueryData(share, { binding: null });
+  const edit = () =>
+    events.dispatchEvent(
+      new CustomEvent("whiteboard-document:projected", {
+        detail: { databaseName: "读书", documentId: "board", bodyOnly: true },
+      })
+    );
+  try {
+    edit();
+    await vi.advanceTimersByTimeAsync(300);
+    edit();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(queryClient.getQueryState(board)?.isInvalidated).toBe(false);
+    await vi.advanceTimersByTimeAsync(450);
+    for (const key of [list, board])
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    for (const key of [other, header, share])
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+  } finally {
+    queryClient.clear();
+    vi.useRealTimers();
+  }
+});

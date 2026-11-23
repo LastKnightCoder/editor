@@ -107,7 +107,20 @@ export function verifyMixedDocument(
       segment => segment.data.points as unknown as InkPoint[]
     );
     assert.equal(stroke.type, "handwrite");
-    assert.equal(samples.length, expected[index].length);
+    const input = expected[index];
+    if (samples.length !== input.length) {
+      const at = samples.findIndex(
+        (point, i) =>
+          !input[i] ||
+          Math.abs(point.x - input[i].x) >= 0.001 ||
+          Math.abs(point.y - input[i].y) >= 0.001 ||
+          Math.abs(point.pressure - input[i].pressure) >= 0.001
+      );
+      const first = at < 0 ? samples.length : at;
+      assert.fail(
+        `笔 ${index} 点数 ${samples.length} / ${input.length}，首处差异 ${first}：落盘 ${JSON.stringify(samples.slice(first, first + 2))}，输入 ${JSON.stringify(input.slice(first, first + 2))}`
+      );
+    }
     samples.forEach((point, i) => {
       const target = expected[index][i];
       for (const key of ["x", "y", "pressure"] as const)

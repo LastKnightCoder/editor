@@ -96,12 +96,18 @@ export async function launch(
     .toBe(true);
   await expect
     .poll(
-      () =>
-        app.evaluate(
+      async () => {
+        const stages = await app.evaluate(
           () =>
             (globalThis as unknown as { __tauContentProductionAudit: Audit })
               .__tauContentProductionAudit.stages
-        ),
+        );
+        if (!stages.includes("startup:shell-ready")) {
+          const onboarding = page.getByRole("button", { name: "先全部打开", exact: true });
+          if (await onboarding.isVisible()) await onboarding.click();
+        }
+        return stages;
+      },
       { timeout: 45_000 }
     )
     .toEqual(

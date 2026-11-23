@@ -347,10 +347,14 @@ export class WhiteboardDocumentsModule {
       join(PathUtil.getAppDir(), "whiteboard-documents", "journal.db")
     );
     this.journal = journal;
-    const projected = (databaseName: string, documentId: string) => {
+    const projected = (databaseName: string, documentId: string, bodyOnly = false) => {
       for (const window of BrowserWindow.getAllWindows())
         if (!window.isDestroyed())
-          window.webContents.send("whiteboard-document:projected", { databaseName, documentId });
+          window.webContents.send("whiteboard-document:projected", {
+            databaseName,
+            documentId,
+            bodyOnly,
+          });
     };
     this.sessions = new WhiteboardDocumentSessions(
       journal,

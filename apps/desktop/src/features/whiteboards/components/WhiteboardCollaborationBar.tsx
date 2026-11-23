@@ -82,12 +82,19 @@ export function WhiteboardCollaborationBar({
   client: WhiteboardDocumentClient;
   documentId: string;
 }) {
-  const local = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const { remoteSync, remote } = useWhiteboardRemote(client);
   const share = useWhiteboardShareStatus(documentId);
   const pending = pendingKind(share.data);
-  const status = whiteboardSyncStatus(local, remote, pending);
   const [confirming, setConfirming] = useState<ConfirmKind>();
+  const readNotice = () => {
+    const local = client.getSnapshot();
+    return pending || confirming || whiteboardSyncStatus(local, remote).actions?.length
+      ? local
+      : null;
+  };
+  const local = useSyncExternalStore(client.subscribe, readNotice, readNotice);
+  if (!local) return null;
+  const status = whiteboardSyncStatus(local, remote, pending);
   const databaseName = client.target.databaseName;
   const actions = status.actions ?? [];
   const binding = share.data?.binding ?? null;

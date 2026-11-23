@@ -11,7 +11,13 @@ import {
 import { createPortal } from "react-dom";
 
 import { Editor, Range } from "slate";
-import { useSlate, useSlateSelection, useReadOnly, ReactEditor } from "slate-react";
+import {
+  useSlateSelector,
+  useSlateStatic,
+  useSlateSelection,
+  useReadOnly,
+  ReactEditor,
+} from "slate-react";
 import { useLocalStorageState } from "ahooks";
 import { sortBy } from "lodash";
 import { Ellipsis, Type } from "lucide-react";
@@ -61,7 +67,20 @@ interface IHoveringToolbarProps {
   configs: IConfigItem[];
 }
 
+const hasRange = (editor: Editor) =>
+  Boolean(editor.selection && Range.isExpanded(editor.selection));
+
 const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
+  const expanded = useSlateSelector(hasRange);
+  // 扩展项可能持有已打开的对话框。首次选区前免挂载，激活后保留它们的生命周期。
+  const [activated, setActivated] = useState(false);
+  useEffect(() => {
+    if (expanded) setActivated(true);
+  }, [expanded]);
+  return expanded || activated ? <SelectionToolbar {...props} /> : null;
+});
+
+const SelectionToolbar = memo((props: IHoveringToolbarProps) => {
   const { configs } = props;
 
   const sortedConfigs: IConfigItem[] = useMemo(() => {
@@ -74,7 +93,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   const [isHoveringBarShow, setIsHoveringBarShow] = useState<boolean>(false);
   const [isCompact, setIsCompact] = useState<boolean>(false);
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const selection = useSlateSelection();
   const readOnly = useReadOnly();
 
@@ -169,7 +188,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     }
 
     const isCollapsed = selection && Range.isCollapsed(selection);
-    const isEmpty = selection && Editor.string(editor, selection) === "";
+    const isEmpty = selection && !isCollapsed && Editor.string(editor, selection) === "";
     const close = !selection || isCollapsed || isEmpty;
 
     if (close) {
@@ -299,7 +318,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       <HoveringBarContext.Provider value={contextValue}>
         <div
           ref={measureRef}
-          className="pointer-events-none invisible fixed left-[-10000px] top-[-10000px] z-[-1] flex items-center gap-[2px] border border-solid border-transparent p-[4px]"
+          className="pointer-events-none invisible fixed top-[-10000px] left-[-10000px] z-[-1] flex items-center gap-[2px] border border-solid border-transparent p-[4px]"
           aria-hidden
         >
           {renderToolbarItems(sortedConfigs, "measure-")}

@@ -76,7 +76,11 @@ export class WhiteboardDocumentSessions {
     private readonly database: (name: string) => Database.Database | undefined,
     private readonly emit: (owner: number, event: WhiteboardDocumentEvent) => void = () => {},
     private readonly counts?: WhiteboardRelationCounter,
-    private readonly projected: (databaseName: string, documentId: string) => void = () => {},
+    private readonly projected: (
+      databaseName: string,
+      documentId: string,
+      bodyOnly?: boolean
+    ) => void = () => {},
     private readonly blocked: (databaseName: string, documentId: string) => boolean = () => false,
     private readonly repairs = join(journalDirectory(journal), "repairs"),
     private readonly discarded = join(journalDirectory(journal), "discarded")
@@ -106,7 +110,7 @@ export class WhiteboardDocumentSessions {
       ...(session.error ? { error: session.error } : {}),
     };
   }
-  private project(session: Session, prepared?: PreparedProjection): void {
+  private project(session: Session, prepared?: PreparedProjection, bodyOnly = false): void {
     try {
       const previous = session.value.projectedRevision;
       this.connection(session).project(session.value, session.model, prepared);
@@ -119,7 +123,11 @@ export class WhiteboardDocumentSessions {
       session.error = undefined;
       if (previous < session.value.revision) {
         try {
-          this.projected(session.value.databaseName, session.value.documentId);
+          this.projected(
+            session.value.databaseName,
+            session.value.documentId,
+            bodyOnly && previous + 1 === session.value.revision
+          );
         } catch {
           // 查询通知失败不能撤销已经提交的投影。
         }
@@ -398,9 +406,25 @@ export class WhiteboardDocumentSessions {
     origin?: Lease
   ) {
     const next = this.journal.append(session.value, batchId, update, state, retained);
-    Y.applyUpdate(session.model.doc, update, "durable-main");
+    let bodyOnly = false;
+    const classify = (transaction: Y.Transaction) => {
+      bodyOnly =
+        transaction.changed.size > 0 &&
+        [...transaction.changed.keys()].every(type => {
+          let root = type;
+          if (!(type instanceof Y.XmlText)) return false;
+          while (root.parent) root = root.parent;
+          return Y.findRootTypeKey(root).startsWith("node-tree:roots:");
+        });
+    };
+    session.model.doc.once("afterTransaction", classify);
+    try {
+      Y.applyUpdate(session.model.doc, update, "durable-main");
+    } finally {
+      session.model.doc.off("afterTransaction", classify);
+    }
     session.value = next;
-    this.project(session, prepared);
+    this.project(session, prepared, bodyOnly);
     this.notify(session, update, origin);
   }
   async applyAgent(

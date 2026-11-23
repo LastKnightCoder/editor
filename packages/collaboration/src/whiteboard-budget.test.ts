@@ -50,6 +50,58 @@ describe("白板模型预算与写入边界", () => {
     history.destroy();
   });
 
+  it("局部正文写入保留格式与撤销；跨过文档容量时不产生半次写入", async () => {
+    const seed = await fixture();
+    const target = create(seed.board, seed.rich, pageParent(seed.page), "seed", [
+      { type: "paragraph", children: [{ text: "甲" }] },
+    ]);
+    const doc = new Y.Doc({ gc: false });
+    documents.push(doc);
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(seed.board.doc));
+    const board = new WhiteboardModel(doc);
+    const tree = board.richText(target);
+    const nodeId = tree.read()[0].collabId as string;
+    const origin = {};
+    const history = board.createUndoManager({
+      trackedOrigins: new Set([origin]),
+      captureTimeout: 0,
+    });
+    const edit = {
+      action: "insert" as const,
+      nodeId,
+      offset: 1,
+      text: "乙",
+      marks: { bold: true },
+    };
+    board.prepareLocalTranslations();
+    expect(board.tryLocalBodyEdit(target, edit, origin)?.isolated).toBe(true);
+    expect(tree.read()[0].children).toMatchObject([{ text: "甲" }, { text: "乙", bold: true }]);
+    expect(model(Y.encodeStateAsUpdate(doc)).read()).toEqual(board.read());
+    history.undo();
+    expect(tree.read()[0].children).toMatchObject([{ text: "甲" }]);
+    history.redo();
+    expect(board.tryLocalBodyEdit(target, { ...edit, action: "remove" }, origin)?.isolated).toBe(
+      true
+    );
+    expect(tree.read()[0].children).toMatchObject([{ text: "甲" }]);
+    board.title.insert(
+      0,
+      "a".repeat(WHITEBOARD_LIMITS.documentBytes - Y.encodeStateAsUpdate(doc).length - 256)
+    );
+    const before = Y.encodeStateAsUpdate(doc);
+    const large = "文".repeat(256);
+    expect(board.tryLocalBodyEdit(target, { ...edit, text: large }, origin)).toBeUndefined();
+    expect(() =>
+      board.withPreparedContracts(
+        [],
+        candidate => candidate.richText(target).insertText(nodeId, 1, large, origin),
+        origin
+      )
+    ).toThrow("预算");
+    expect(Buffer.compare(before, Y.encodeStateAsUpdate(doc))).toBe(0);
+    history.destroy();
+  });
+
   it("编码接近上限时平移交回精确预检，超过上限时保留最后确认位置", async () => {
     const { board, doc, target } = await translationFixture();
     const limit = WHITEBOARD_LIMITS.documentBytes;
