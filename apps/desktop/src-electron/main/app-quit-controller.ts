@@ -1,3 +1,4 @@
+import { isAppQuitting, setAppQuitting } from "./app-quit-state";
 import { prepareDurableDocuments } from "./modules/durable-document-lifecycle";
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
@@ -17,15 +18,10 @@ const WINDOW_READY_TIMEOUT_MS = 8000;
 // 文档确认保存后，收尾和安装交接各自的等待上限
 const FORCE_EXIT_TIMEOUT_MS = 15000;
 
-let quitting = false;
 let nativeQuitAllowed = false;
 let quitTask: Promise<void> | undefined;
 let controllerDeps: QuitControllerDeps | undefined;
 const windowReadyResolvers = new Map<number, () => void>();
-
-export function isAppQuitting(): boolean {
-  return quitting;
-}
 
 interface QuitControllerDeps {
   getTrayManager: () => { destroyTray: () => void } | undefined;
@@ -53,10 +49,10 @@ export function setupQuitController(deps: QuitControllerDeps): void {
 export function requestAppQuit(installUpdate?: () => void): Promise<void> {
   if (quitTask) return quitTask;
   if (!controllerDeps) return Promise.reject(new Error("退出控制器尚未初始化"));
-  quitting = true;
+  setAppQuitting(true);
   log.info(installUpdate ? "请求更新退出，等待文档确认保存" : "请求退出，等待文档确认保存");
   quitTask = runControlledQuit(controllerDeps, installUpdate).finally(() => {
-    if (!quitting) quitTask = undefined;
+    if (!isAppQuitting()) quitTask = undefined;
   });
   return quitTask;
 }
@@ -69,7 +65,7 @@ async function runControlledQuit(
     const drain = await prepareDurableDocuments({ reason: "quit" });
     drain.commit();
   } catch (error) {
-    quitting = false;
+    setAppQuitting(false);
     log.error("文档尚未确认保存，保留窗口并取消退出:", error);
     throw error;
   }

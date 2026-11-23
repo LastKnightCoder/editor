@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as sqliteVec from "sqlite-vec";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../video-note-index-queue");
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { reindexContents } from "../../entity-context/ref-indexer";
 import indexManager from "../../main-content-index-db";

@@ -11,7 +11,7 @@ vi.mock("electron", () => ({
   },
 }));
 vi.mock("electron-log", () => ({ default: { info: vi.fn() } }));
-vi.mock("../../app-quit-controller", () => ({ isAppQuitting: () => false }));
+vi.mock("../../app-quit-state", () => ({ isAppQuitting: () => false }));
 vi.mock("../window-registry", () => ({ registerWindow: vi.fn() }));
 vi.mock("../create-window", () => ({
   createWindow: () => ({

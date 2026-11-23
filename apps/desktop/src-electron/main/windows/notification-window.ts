@@ -1,7 +1,7 @@
 import { screen, type BrowserWindow } from "electron";
 import log from "electron-log";
 import type { SystemNotificationPayload } from "@tau/platform";
-import { isAppQuitting } from "../app-quit-controller";
+import { isAppQuitting } from "../app-quit-state";
 import { createWindow } from "./create-window";
 import { registerWindow } from "./window-registry";
 

@@ -1,5 +1,7 @@
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../video-note-index-queue");
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { KnowledgeInsightResult, KnowledgeMark } from "@/types/knowledge-insights";
 import KnowledgeAiInsightsTable, {

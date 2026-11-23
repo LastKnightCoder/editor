@@ -21,7 +21,7 @@ vi.mock("../create-window", () => ({
   revealWindow: state.reveal,
   quitIfNoVisibleWindow: state.quitIfNoVisibleWindow,
 }));
-vi.mock("../../app-quit-controller", () => ({ isAppQuitting: () => state.quitting }));
+vi.mock("../../app-quit-state", () => ({ isAppQuitting: () => state.quitting }));
 vi.mock("../window-state", () => ({
   hasRememberedBounds: () => state.remembered,
   initialBounds: () => ({ x: 100, y: 100, width: 440, height: 640 }),

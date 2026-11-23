@@ -72,7 +72,8 @@ it.skipIf(process.platform !== "darwin")(
           for(const win of BrowserWindow.getAllWindows()) win.close();
           app.quit();
         }});
-        const {setupQuitController,isAppQuitting} = require('./app-quit-controller');
+        const {setupQuitController} = require('./app-quit-controller');
+        const {isAppQuitting} = require('./app-quit-state');
         const {createWindow} = require('./windows/create-window');
         const {prepareFeedbackWindow} = require('./windows/utility-windows');
         const updater = require('./modules/updater').default;

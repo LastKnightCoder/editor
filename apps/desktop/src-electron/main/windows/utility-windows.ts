@@ -1,5 +1,5 @@
 import { screen, type BrowserWindow } from "electron";
-import { isAppQuitting } from "../app-quit-controller";
+import { isAppQuitting } from "../app-quit-state";
 import { createWindow, quitIfNoVisibleWindow, revealWindow } from "./create-window";
 import { findWindow, focusExisting, registerWindow } from "./window-registry";
 import { hasRememberedBounds, initialBounds, rememberBounds } from "./window-state";

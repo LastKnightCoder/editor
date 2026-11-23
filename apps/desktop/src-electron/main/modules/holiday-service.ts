@@ -32,21 +32,18 @@ interface YearHolidayCache {
  * 使用 timor.tech 免费 API: http://timor.tech/api/holiday
  */
 class HolidayServiceModule implements Module {
-  name: string;
+  name = "holiday-service";
   private cache: Map<number, YearHolidayCache> = new Map();
-  private readonly CACHE_DIR: string;
   private readonly CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30天缓存
 
-  constructor() {
-    this.name = "holiday-service";
-    const userData = app.getPath("userData");
-    this.CACHE_DIR = path.join(userData, "holiday-cache");
+  private get cacheDir(): string {
+    return path.join(app.getPath("userData"), "holiday-cache");
   }
 
   async init(): Promise<void> {
     // 确保缓存目录存在
-    if (!fs.existsSync(this.CACHE_DIR)) {
-      fs.mkdirSync(this.CACHE_DIR, { recursive: true });
+    if (!fs.existsSync(this.cacheDir)) {
+      fs.mkdirSync(this.cacheDir, { recursive: true });
     }
 
     // 加载已有的缓存
@@ -60,11 +57,11 @@ class HolidayServiceModule implements Module {
    */
   private loadCacheFromDisk(): void {
     try {
-      const files = fs.readdirSync(this.CACHE_DIR);
+      const files = fs.readdirSync(this.cacheDir);
       for (const file of files) {
         if (!file.endsWith(".json")) continue;
 
-        const filePath = path.join(this.CACHE_DIR, file);
+        const filePath = path.join(this.cacheDir, file);
         const content = fs.readFileSync(filePath, "utf-8");
         const cached: YearHolidayCache = JSON.parse(content);
 
@@ -88,7 +85,7 @@ class HolidayServiceModule implements Module {
    */
   private saveCacheToDisk(year: number, cache: YearHolidayCache): void {
     try {
-      const filePath = path.join(this.CACHE_DIR, `${year}.json`);
+      const filePath = path.join(this.cacheDir, `${year}.json`);
       fs.writeFileSync(filePath, JSON.stringify(cache), "utf-8");
       log.info(`Saved holiday cache for year ${year}`);
     } catch (error) {
@@ -285,10 +282,10 @@ class HolidayServiceModule implements Module {
     this.cache.clear();
 
     try {
-      const files = fs.readdirSync(this.CACHE_DIR);
+      const files = fs.readdirSync(this.cacheDir);
       for (const file of files) {
         if (file.endsWith(".json")) {
-          fs.unlinkSync(path.join(this.CACHE_DIR, file));
+          fs.unlinkSync(path.join(this.cacheDir, file));
         }
       }
       log.info("Cleared all holiday cache");
