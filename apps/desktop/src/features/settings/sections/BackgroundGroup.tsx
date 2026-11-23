@@ -1,25 +1,20 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { SettingRow, Switch } from "@tau/ui";
-import { backendRequest } from "@/commands/plugin-backend";
+import {
+  backgroundPreferenceCommands,
+  type BackgroundPreferencesPatch,
+} from "@/commands/contracts/background-preferences";
 import { SettingsGroup } from "../components/SettingsGroup";
 
-interface BackgroundPreferences {
-  openAtLogin: boolean;
-  keepBackground: boolean;
-  startHidden: boolean;
-  loginStatus: string | null;
-  trayAvailable: boolean;
-}
 export function BackgroundGroup() {
   const query = useQuery({
     queryKey: ["settings", "background"],
-    queryFn: () => backendRequest<BackgroundPreferences>("preferences"),
+    queryFn: () => backgroundPreferenceCommands.read.call(),
     refetchOnWindowFocus: true,
   });
   const mutation = useMutation({
-    mutationFn: (
-      patch: Partial<Pick<BackgroundPreferences, "openAtLogin" | "keepBackground" | "startHidden">>
-    ) => backendRequest<BackgroundPreferences>("set-preferences", patch),
+    mutationFn: (patch: BackgroundPreferencesPatch) =>
+      backgroundPreferenceCommands.update.call(patch),
     onSettled: () => query.refetch(),
   });
   const data = query.data;

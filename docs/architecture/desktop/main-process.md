@@ -18,6 +18,8 @@ IMMEDIATE（窗口显示前）/ BACKGROUND（窗口显示后并行）。所有�
 注：`@/electron` 的 `invoke` 已内置启动竞态重试（遇 "No handler registered" 每 500ms 重试、
 上限 5s，收到过成功响应即停止），它只覆盖「注册晚于调用」的窗口期，**不覆盖「从未注册」**。
 
+「启动与后台运行」的三项偏好由主进程 `setting` 模块提供读写接口，`background-preferences` 服务负责系统登录项和本机偏好。在非 macOS 平台，最后一个可见窗口关闭时，若已开启「关闭窗口时不退出」且托盘可用，主进程继续运行。该判断只读取应用偏好与托盘状态。托盘菜单中的「退出」走受控退出流程。
+
 **卡顿诊断（perf-monitor）**：BACKGROUND 模块 `src-electron/main/modules/perf-monitor.ts`
 持续采集主进程事件循环直方图（启动前 15s 每秒、之后每 15s 采样 mean/p99/max）、内存与 CPU 趋势、慢 IPC 与慢 SQL
 （契约桥 `register` 包装与 database 事件注册循环计时，>100ms / >50ms 记明细，IPC 另按分钟

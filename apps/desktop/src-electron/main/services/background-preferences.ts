@@ -3,6 +3,8 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
+import type { BackgroundPreferencesPatch } from "@/commands/contracts/background-preferences";
+
 interface Preferences {
   keepBackground: boolean;
   startHidden: boolean;
@@ -11,15 +13,10 @@ let preferences: Preferences = { keepBackground: false, startHidden: false };
 let loaded: Promise<void> | undefined;
 let pending: Promise<unknown> = Promise.resolve();
 let trayAvailable = false;
-let activity = () => false;
-export const setBackgroundActivityProbe = (probe: () => boolean) => {
-  activity = probe;
-};
 export const setBackgroundTrayAvailable = (available: boolean) => {
   trayAvailable = available;
 };
-export const shouldKeepBackgroundAlive = () =>
-  preferences.keepBackground && trayAvailable && activity();
+export const shouldKeepBackgroundAlive = () => preferences.keepBackground && trayAvailable;
 const filename = () => path.join(app.getPath("userData"), "background-preferences.json");
 const autostartFile = () =>
   path.join(
@@ -27,7 +24,7 @@ const autostartFile = () =>
     "autostart/tau-background.desktop"
   );
 
-export function loadBackgroundPreferences() {
+function loadBackgroundPreferences() {
   return (loaded ??= readFile(filename(), "utf8")
     .then(raw => {
       const value = JSON.parse(raw);
@@ -82,9 +79,7 @@ export async function shouldStartInBackground() {
   return preferences.startHidden && login;
 }
 
-export function updateBackgroundPreferences(
-  patch: Partial<Preferences> & { openAtLogin?: boolean }
-) {
+export function updateBackgroundPreferences(patch: BackgroundPreferencesPatch) {
   const operation = pending.then(async () => {
     if (
       !patch ||

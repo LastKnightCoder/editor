@@ -21,14 +21,18 @@ vi.mock("@/commands/updater", () => ({
   onUpdateDownloaded: vi.fn(),
   onUpdateError: vi.fn(),
 }));
-vi.mock("@/commands/plugin-backend", () => ({
-  backendRequest: vi.fn(async () => ({
-    openAtLogin: false,
-    keepBackground: true,
-    startHidden: false,
-    loginStatus: null,
-    trayAvailable: true,
-  })),
+vi.mock("@/commands/contracts/background-preferences", () => ({
+  backgroundPreferenceCommands: {
+    read: {
+      call: vi.fn(async () => ({
+        openAtLogin: false,
+        keepBackground: true,
+        startHidden: false,
+        loginStatus: null,
+        trayAvailable: true,
+      })),
+    },
+  },
 }));
 vi.mock("@/platform", () => ({ platform: { os: "darwin" } }));
 

@@ -35,17 +35,13 @@ describe("宿主后台运行设置", () => {
     expect(snapshot.startHidden).toBe(false);
     expect(state.set).not.toHaveBeenCalled();
   });
-  it("保活同时需要用户设置、实际后台与可操作托盘", async () => {
+  it("开启关窗保活且托盘可用时，即使没有运行插件也能驻留", async () => {
     const service = await import("../background-preferences");
-    service.setBackgroundActivityProbe(() => true);
     service.setBackgroundTrayAvailable(true);
     expect(service.shouldKeepBackgroundAlive()).toBe(false);
     await service.updateBackgroundPreferences({ keepBackground: true });
     expect(service.shouldKeepBackgroundAlive()).toBe(true);
     service.setBackgroundTrayAvailable(false);
-    expect(service.shouldKeepBackgroundAlive()).toBe(false);
-    service.setBackgroundTrayAvailable(true);
-    service.setBackgroundActivityProbe(() => false);
     expect(service.shouldKeepBackgroundAlive()).toBe(false);
     expect(
       JSON.parse(await readFile(path.join(state.directory, "background-preferences.json"), "utf8"))

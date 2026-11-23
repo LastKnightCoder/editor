@@ -34,12 +34,6 @@ import {
 } from "../services/plugin-backend/release-guard";
 import { fetchPluginRelease, PluginCenterError } from "../services/plugin-center";
 import { pluginMcpParameters, type PluginStdioConfig } from "../services/plugin-backend/mcp-tool";
-import {
-  backgroundPreferencesSnapshot,
-  updateBackgroundPreferences,
-  setBackgroundActivityProbe,
-  loadBackgroundPreferences,
-} from "../services/background-preferences";
 
 const root = () => path.join(PathUtil.getAppDir(), "plugins");
 const releaseGuard = new BackendReleaseGuard(
@@ -73,8 +67,6 @@ let activationPending: Promise<void> | undefined;
 let activationRequested = false;
 
 export const arePluginBackendsPaused = () => paused;
-export const hasRunningPluginBackends = () =>
-  pluginBackends.list().some(item => ["running", "starting"].includes(item.status.state));
 export async function setPluginBackendsPaused(value: boolean) {
   paused = value;
   for (const timer of retryTimers.values()) clearTimeout(timer);
@@ -395,13 +387,6 @@ export async function stopPluginBackend(id: string) {
 export default {
   name: "plugin-backend",
   async init() {
-    await loadBackgroundPreferences();
-    setBackgroundActivityProbe(hasRunningPluginBackends);
-    ipcMain.handle("plugin-backend:preferences", () => backgroundPreferencesSnapshot());
-    ipcMain.handle("plugin-backend:set-preferences", (event, patch) => {
-      if (!ownerWindow(event).isFocused()) throw new Error("请在前台设置页更改后台运行设置");
-      return updateBackgroundPreferences(patch);
-    });
     databaseModule.onDatabaseConnected(name => {
       if (databaseModule.getCurrentDatabaseName() === name)
         void changeWorkspace(name).catch(() => undefined);
