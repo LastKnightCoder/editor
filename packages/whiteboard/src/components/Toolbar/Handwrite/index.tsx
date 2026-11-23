@@ -12,6 +12,8 @@ const Handwrite = memo(({ run }: WhiteboardToolProps) => {
     <ChromeButton
       label="手写"
       active={active}
+      // 激活后按钮正下方是笔设置条，提示会挡住它
+      hideTooltip={active}
       onClick={() => {
         run();
       }}

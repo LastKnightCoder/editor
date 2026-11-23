@@ -86,6 +86,8 @@ export interface ChromeButtonProps extends ComponentProps<"button"> {
   sub?: boolean;
   kbd?: string;
   tooltipPlacement?: TooltipPlacement;
+  /** 不显示悬停提示（按钮下方紧贴着自己的浮动件时，提示会把它挡住） */
+  hideTooltip?: boolean;
 }
 
 /**
@@ -98,6 +100,7 @@ export function ChromeButton({
   sub,
   kbd,
   tooltipPlacement = "bottom",
+  hideTooltip,
   className,
   children,
   ref,
@@ -119,7 +122,7 @@ export function ChromeButton({
       }
       placement={tooltipPlacement}
       arrow={false}
-      disabled={expanded}
+      disabled={expanded || hideTooltip}
     >
       <button
         type="button"

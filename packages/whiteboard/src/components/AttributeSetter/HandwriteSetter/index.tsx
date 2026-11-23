@@ -7,6 +7,7 @@ import {
   getDefaultHandwriteStyle,
   rebuildHandwriteGeometry,
   saveHandwriteStyle,
+  type HandwriteStyle,
 } from "../../../utils";
 import { THEME_COLORS, getDefaultThemeColorId } from "../../../constants/theme-colors";
 import type { HandwriteElement } from "../../../plugins/HandwritePlugin";
@@ -53,23 +54,17 @@ const fromOpacityPct = (value: number) => Number((value / 100).toFixed(2));
 const gridValue = (options: OptionItem<string>[], value: number): string | null =>
   options.some(o => o.value === String(value)) ? String(value) : null;
 
-const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
+interface HandwriteStyleControlsProps {
+  style: HandwriteStyle;
+  onChange: (style: HandwriteStyle) => void;
+}
+
+/** 笔迹样式控件组：选中笔迹时改元素，画笔激活时改下一笔的默认样式 */
+export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleControlsProps) => {
   const { isDark } = useTheme();
-  const currentStyle = { ...getDefaultHandwriteStyle(), ...element.style };
+  const updateStyle = (patch: Partial<HandwriteStyle>) => onChange({ ...style, ...patch });
 
-  const updateStyle = useMemoizedFn((patch: Partial<typeof currentStyle>) => {
-    const nextStyle = { ...currentStyle, ...patch };
-    const rebuilt = rebuildHandwriteGeometry(
-      element.points,
-      { x: element.x, y: element.y, width: element.width, height: element.height },
-      nextStyle
-    );
-    if (!rebuilt) return;
-    saveHandwriteStyle(nextStyle);
-    onChange({ ...element, ...rebuilt, style: nextStyle });
-  });
-
-  const colorId = currentStyle.themeColorId || getDefaultThemeColorId();
+  const colorId = style.themeColorId || getDefaultThemeColorId();
   const color = THEME_COLORS.find(c => c.id === colorId);
   const colorValue = color ? (isDark ? color.dark : color.light) : "var(--tau-ink-1)";
 
@@ -97,14 +92,14 @@ const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
               min={1}
               max={64}
               step={1}
-              value={currentStyle.size}
+              value={style.size}
               onChange={v => updateStyle({ size: v })}
             />
           }
         >
           <OptionGrid
             options={SIZE_OPTIONS}
-            value={gridValue(SIZE_OPTIONS, currentStyle.size)}
+            value={gridValue(SIZE_OPTIONS, style.size)}
             onChange={v => updateStyle({ size: Number(v) })}
           />
         </Field>
@@ -117,14 +112,14 @@ const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
               max={100}
               step={5}
               unit="%"
-              value={toOpacityPct(currentStyle.opacity)}
+              value={toOpacityPct(style.opacity)}
               onChange={v => updateStyle({ opacity: fromOpacityPct(v) })}
             />
           }
         >
           <OptionGrid
             options={OPACITY_OPTIONS}
-            value={gridValue(OPACITY_OPTIONS, toOpacityPct(currentStyle.opacity))}
+            value={gridValue(OPACITY_OPTIONS, toOpacityPct(style.opacity))}
             onChange={v => updateStyle({ opacity: fromOpacityPct(Number(v)) })}
           />
         </Field>
@@ -136,7 +131,7 @@ const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
             min={0}
             max={1}
             step={0.01}
-            value={currentStyle.thinning}
+            value={style.thinning}
             format={pct}
             onChange={v => updateStyle({ thinning: v })}
           />
@@ -147,7 +142,7 @@ const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
             min={0}
             max={1}
             step={0.01}
-            value={currentStyle.smoothing}
+            value={style.smoothing}
             format={pct}
             onChange={v => updateStyle({ smoothing: v })}
           />
@@ -158,7 +153,7 @@ const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
             min={0}
             max={1}
             step={0.01}
-            value={currentStyle.streamline}
+            value={style.streamline}
             format={pct}
             onChange={v => updateStyle({ streamline: v })}
           />
@@ -167,11 +162,30 @@ const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
       <AttrToggle
         label="压感模拟"
         icon={<Gauge strokeWidth={1.75} />}
-        checked={!!currentStyle.simulatePressure}
+        checked={!!style.simulatePressure}
         onChange={v => updateStyle({ simulatePressure: v })}
       />
     </>
   );
+});
+
+HandwriteStyleControls.displayName = "HandwriteStyleControls";
+
+const HandwriteSetter = memo(({ element, onChange }: HandwriteSetterProps) => {
+  const currentStyle = { ...getDefaultHandwriteStyle(), ...element.style };
+
+  const updateStyle = useMemoizedFn((nextStyle: HandwriteStyle) => {
+    const rebuilt = rebuildHandwriteGeometry(
+      element.points,
+      { x: element.x, y: element.y, width: element.width, height: element.height },
+      nextStyle
+    );
+    if (!rebuilt) return;
+    saveHandwriteStyle(nextStyle);
+    onChange({ ...element, ...rebuilt, style: nextStyle });
+  });
+
+  return <HandwriteStyleControls style={currentStyle} onChange={updateStyle} />;
 });
 
 HandwriteSetter.displayName = "HandwriteSetter";

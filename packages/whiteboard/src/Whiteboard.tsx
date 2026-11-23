@@ -47,6 +47,7 @@ import {
 } from "./types";
 import Toolbar from "./components/Toolbar";
 import CreateToolHint from "./components/CreateToolHint";
+import HandwriteToolBar from "./components/HandwriteToolBar";
 import ReadonlyNotice from "./components/ReadonlyNotice";
 import AttributeSetter from "./components/AttributeSetter";
 import PresentationCreator from "./components/PresentationCreator";
@@ -858,6 +859,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                             <ReadonlyNotice />
                           ) : null}
                           {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
+                          {toolbarVisible && <HandwriteToolBar />}
 
                           <div data-whiteboard-stage className="absolute inset-0 overflow-hidden">
                             <BoardContent
