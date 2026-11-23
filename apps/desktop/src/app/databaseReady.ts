@@ -8,7 +8,7 @@
  * 壳层按活动数据库重建；连接状态供页面查询控制启用时机。
  */
 
-import { connectDatabaseByName } from "@/commands";
+import { connectDatabaseByName } from "@/commands/database";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { queryClient } from "@/queryClient";

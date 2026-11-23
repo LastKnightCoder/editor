@@ -1,10 +1,15 @@
 import { screen, type BrowserWindow } from "electron";
 import { isAppQuitting } from "../app-quit-state";
-import { createWindow, quitIfNoVisibleWindow, revealWindow } from "./create-window";
+import {
+  createWindow,
+  hideAuxiliaryWindow,
+  quitIfNoVisibleWindow,
+  revealWindow,
+} from "./create-window";
 import { findWindow, focusExisting, registerWindow } from "./window-registry";
 import { hasRememberedBounds, initialBounds, rememberBounds } from "./window-state";
 
-/** 零散的工具窗口：快捷卡片、反馈、背景音（隐藏播放器） */
+/** 零散的工具窗口：快捷卡片、反馈 */
 
 const QUICK_CARD_KEY = "quick-card";
 const FEEDBACK_KEY = "feedback";
@@ -40,11 +45,12 @@ function besideAnchor(anchor: BrowserWindow) {
   };
 }
 
-/** 反馈窗口预热：隐藏加载，关闭请求交由渲染端确认，退出时才销毁 */
-export function prepareFeedbackWindow(): BrowserWindow {
+/** 关闭请求交由渲染端确认，退出时才销毁。 */
+function ensureFeedbackWindow(): BrowserWindow {
   const existing = findFeedbackWindow();
   if (existing) return existing;
   const win = createWindow({
+    document: "auxiliary",
     route: "/feedback",
     role: "utility",
     ...initialBounds(FEEDBACK_KEY, FEEDBACK_SIZE, []),
@@ -66,7 +72,7 @@ export function prepareFeedbackWindow(): BrowserWindow {
 
 /** 首次显示时才确定锚点位置，后续直接唤起同一窗口 */
 export function showFeedbackWindow(anchor: BrowserWindow | null): BrowserWindow {
-  const win = prepareFeedbackWindow();
+  const win = ensureFeedbackWindow();
   if (anchor && !anchor.isDestroyed() && !hasRememberedBounds(FEEDBACK_KEY) && !win.isVisible())
     win.setBounds(besideAnchor(anchor));
   revealWindow(win);
@@ -75,20 +81,7 @@ export function showFeedbackWindow(anchor: BrowserWindow | null): BrowserWindow 
 
 export function hideFeedbackWindow() {
   const win = findFeedbackWindow();
-  if (!win || !win.isVisible()) return;
-  win.hide();
+  if (!win) return;
+  hideAuxiliaryWindow(win);
   quitIfNoVisibleWindow();
-}
-
-/** 背景音播放窗口：常驻隐藏，不进任务栏；被关闭（崩溃）时由调用方按需重建 */
-export function createBackgroundAudioWindow() {
-  return createWindow({
-    route: "/background-audio",
-    chrome: "native",
-    devTools: false,
-    width: 1,
-    height: 1,
-    show: false,
-    skipTaskbar: true,
-  });
 }

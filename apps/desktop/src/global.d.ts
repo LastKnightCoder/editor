@@ -11,6 +11,9 @@ interface ElectronAPI {
 }
 
 interface Window {
+  tauPomodoroAudio: {
+    listen(update: (state: import("./types/pomodoro").PomodoroAudioPlayback) => void): void;
+  };
   cheerpjInit: boolean;
   checkUpdate: () => Promise<void>;
   electron: ElectronAPI;

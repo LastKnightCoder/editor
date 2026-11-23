@@ -3,7 +3,14 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 import { exposePluginWindow } from "./plugin-window";
 
 if (process.argv.includes("--tau-window-role=plugin-window")) exposePluginWindow();
-else
+else if (process.argv.includes("--tau-window-role=pomodoro-audio")) {
+  contextBridge.exposeInMainWorld("tauPomodoroAudio", {
+    listen(update: (state: import("@/types/pomodoro").PomodoroAudioPlayback) => void) {
+      ipcRenderer.on("pomodoro:audio-state", (_event, state) => update(state));
+      ipcRenderer.send("pomodoro:audio-ready");
+    },
+  });
+} else
   contextBridge.exposeInMainWorld("electron", {
     invoke: (channel: string, ...args: unknown[]) => {
       return ipcRenderer.invoke(channel, ...args);

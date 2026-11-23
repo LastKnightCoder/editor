@@ -1,10 +1,10 @@
 import { screen, type BrowserWindow } from "electron";
 import log from "electron-log";
 import { isAppQuitting } from "../app-quit-state";
-import { createWindow, revealWindow } from "./create-window";
+import { createWindow, hideAuxiliaryWindow, revealWindow } from "./create-window";
 
 /**
- * 番茄钟窗口：小窗 / 沉浸为常驻单例，启动时隐藏创建，关闭即隐藏复用（退出时才真正销毁）
+ * 番茄钟窗口：小窗 / 沉浸为常驻单例，首次显示时创建，关闭即隐藏复用（退出时才真正销毁）
  */
 
 /** 隐藏复用的单例：被销毁（崩溃 / 意外关闭）时下次 show 重建 */
@@ -17,7 +17,7 @@ function singleton(name: string, create: () => BrowserWindow) {
     win.on("close", event => {
       if (isAppQuitting()) return;
       event.preventDefault();
-      win?.hide();
+      if (win) hideAuxiliaryWindow(win);
     });
     win.on("closed", () => (win = null));
     return win;
@@ -30,6 +30,7 @@ function singleton(name: string, create: () => BrowserWindow) {
 
 const mini = singleton("番茄小窗", () =>
   createWindow({
+    document: "auxiliary",
     route: "/pomodoro/mini",
     chrome: "none",
     devTools: false,
@@ -47,6 +48,7 @@ const immersive = singleton("番茄沉浸窗口", () => {
   // macOS 用铺满屏幕的普通窗口 + simpleFullScreen（显示时再开，避免隐藏期间 Dock 仍被隐藏）
   const { width, height } = screen.getPrimaryDisplay().size;
   return createWindow({
+    document: "auxiliary",
     route: "/pomodoro/immersive",
     chrome: "none",
     devTools: false,
@@ -60,24 +62,21 @@ const immersive = singleton("番茄沉浸窗口", () => {
   });
 });
 
-export function initPomodoroSingletons() {
-  mini.ensure();
-  immersive.ensure();
-}
-
 export function showPomodoroMiniWindow() {
   revealWindow(mini.ensure());
 }
 
 export function hidePomodoroMiniWindow() {
-  mini.current()?.hide();
+  const win = mini.current();
+  if (win) hideAuxiliaryWindow(win);
 }
 
 export function showPomodoroImmersiveWindow() {
   const win = immersive.ensure();
-  if (isMac) win.setSimpleFullScreen(true);
-  else win.setFullScreen(true);
-  revealWindow(win);
+  revealWindow(win, () => {
+    if (isMac) win.setSimpleFullScreen(true);
+    else win.setFullScreen(true);
+  });
 }
 
 export function hidePomodoroImmersiveWindow() {
@@ -85,5 +84,5 @@ export function hidePomodoroImmersiveWindow() {
   if (!win) return;
   if (isMac) win.setSimpleFullScreen(false);
   else win.setFullScreen(false);
-  win.hide();
+  hideAuxiliaryWindow(win);
 }

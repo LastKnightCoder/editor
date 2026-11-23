@@ -33,11 +33,14 @@ export function windowContext(): WindowContext {
 export const isDev = () => Boolean(windowContext().devServerUrl);
 
 /** 按 hash 路由加载渲染页；route 为空串即应用根（主窗口） */
-export function loadRoute(win: BrowserWindow, route: string) {
+export function loadRoute(win: BrowserWindow, route: string, filename = "index.html") {
   const { devServerUrl, indexHtml } = windowContext();
   const task = devServerUrl
-    ? win.loadURL(route ? `${devServerUrl}#${route}` : devServerUrl)
-    : win.loadFile(indexHtml, route ? { hash: route } : undefined);
+    ? win.loadURL(new URL(`${filename}#${route}`, devServerUrl).href)
+    : win.loadFile(
+        path.join(path.dirname(indexHtml), filename),
+        route ? { hash: route } : undefined
+      );
   task.catch(error => log.error(`窗口加载失败 ${route || "/"}:`, error));
 }
 

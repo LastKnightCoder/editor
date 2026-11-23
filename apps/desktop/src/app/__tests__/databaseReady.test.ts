@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn() }));
+vi.mock("@/commands/database", () => ({ connectDatabaseByName: vi.fn() }));
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
   return {
@@ -12,7 +12,7 @@ vi.mock("@/stores/useGlobalStateStore", async () => {
   return { default: create(() => ({ databaseStatus: {} })) };
 });
 
-import { connectDatabaseByName } from "@/commands";
+import { connectDatabaseByName } from "@/commands/database";
 import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
 import { ensureDatabaseReady } from "../databaseReady";

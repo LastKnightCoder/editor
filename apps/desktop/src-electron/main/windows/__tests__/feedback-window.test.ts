@@ -18,6 +18,7 @@ vi.mock("electron", () => ({
 }));
 vi.mock("../create-window", () => ({
   createWindow: state.create,
+  hideAuxiliaryWindow: (win: BrowserWindow) => win.hide(),
   revealWindow: state.reveal,
   quitIfNoVisibleWindow: state.quitIfNoVisibleWindow,
 }));
@@ -28,12 +29,7 @@ vi.mock("../window-state", () => ({
   rememberBounds: state.remember,
 }));
 
-import {
-  findFeedbackWindow,
-  hideFeedbackWindow,
-  prepareFeedbackWindow,
-  showFeedbackWindow,
-} from "../utility-windows";
+import { findFeedbackWindow, hideFeedbackWindow, showFeedbackWindow } from "../utility-windows";
 
 function fakeWindow() {
   let visible = false;
@@ -67,8 +63,8 @@ beforeEach(() => {
   state.reveal.mockImplementation(win => win.show());
 });
 
-it("启动时隐藏预热，点击与关闭后再打开均复用窗口", () => {
-  const win = prepareFeedbackWindow();
+it("首次打开创建窗口，关闭后再打开复用窗口", () => {
+  const win = showFeedbackWindow(null);
   expect(state.create).toHaveBeenCalledWith(
     expect.objectContaining({
       route: "/feedback",
@@ -77,8 +73,7 @@ it("启动时隐藏预热，点击与关闭后再打开均复用窗口", () => {
       role: "utility",
     })
   );
-  expect(win.isVisible()).toBe(false);
-  expect(state.reveal).not.toHaveBeenCalled();
+  expect(win.isVisible()).toBe(true);
   expect(showFeedbackWindow(null)).toBe(win);
   hideFeedbackWindow();
   expect(win.isVisible()).toBe(false);
@@ -88,7 +83,7 @@ it("启动时隐藏预热，点击与关闭后再打开均复用窗口", () => {
 });
 
 it("关闭交给草稿确认，退出时不拦截，意外销毁后可重建", () => {
-  const win = prepareFeedbackWindow();
+  const win = showFeedbackWindow(null);
   const event = { preventDefault: vi.fn() };
   win.emit("close", event);
   expect(event.preventDefault).toHaveBeenCalledOnce();
@@ -98,17 +93,15 @@ it("关闭交给草稿确认，退出时不拦截，意外销毁后可重建", (
   win.emit("close", event);
   expect(event.preventDefault).not.toHaveBeenCalled();
   win.destroy();
-  expect(prepareFeedbackWindow()).not.toBe(win);
+  expect(showFeedbackWindow(null)).not.toBe(win);
 });
 
 it("首次显示才按发起窗口定位，已有位置记忆时不覆盖", () => {
-  const win = prepareFeedbackWindow();
   const anchor = {
     isDestroyed: () => false,
     getBounds: () => ({ x: 200, y: 100, width: 1000, height: 800 }),
   } as BrowserWindow;
-  expect(win.setBounds).not.toHaveBeenCalled();
-  showFeedbackWindow(anchor);
+  const win = showFeedbackWindow(anchor);
   expect(win.setBounds).toHaveBeenCalledWith({ x: 736, y: 156, width: 440, height: 640 });
   expect(state.remember).toHaveBeenCalledOnce();
   hideFeedbackWindow();

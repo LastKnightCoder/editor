@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Minus, Square, Copy, X } from "lucide-react";
 import { platform } from "@/platform";
-import { minimizeWindow, maximizeWindow, closeWindow, toggleFullScreen } from "@/commands";
+import { minimizeWindow, maximizeWindow, closeWindow, toggleFullScreen } from "@/commands/window";
 
 const winBtnClass =
   "grid h-[26px] w-9 place-items-center rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1";

@@ -7,6 +7,7 @@ import {
   RpcResponseMessage,
 } from "@/types";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
+import { setPomodoroAudioState } from "../windows/pomodoro-audio";
 import { routeNotification } from "../windows";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
@@ -410,13 +411,23 @@ class PomodoroModule {
     }
   }
 
+  private syncAudio() {
+    setPomodoroAudioState({
+      status: this.activeSession?.status ?? null,
+      sound: this.backgroundSound,
+      volume: this.backgroundVolume,
+    });
+  }
+
   private notifyActiveSessionChanged() {
+    this.syncAudio();
     if (this.backendServer) {
       this.backendServer.sendNotification("pomodoro:active-session-changed", this.activeSession);
     }
   }
 
   private notifyBackgroundSoundChanged() {
+    this.syncAudio();
     if (this.backendServer) {
       this.backendServer.sendNotification("pomodoro:background-sound-changed", {
         backgroundSound: this.backgroundSound,

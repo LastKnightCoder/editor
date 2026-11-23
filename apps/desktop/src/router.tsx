@@ -3,13 +3,8 @@ import loadable from "@loadable/component";
 import { RouteErrorPage } from "@/components/ErrorState/RouteErrorPage";
 
 const QuickCardWindow = loadable(() => import("@/features/cards/windows/QuickCardWindow"));
-const FeedbackWindow = loadable(() => import("@/features/feedback/windows/FeedbackWindow"));
 const EditorWindowPage = loadable(() => import("@/features/editor-window/EditorWindowPage"));
 const MarkdownWindowPage = loadable(() => import("@/features/markdown-window/MarkdownWindowPage"));
-
-const PomodoroMiniPage = loadable(() => import("@/features/pomodoro/windows/MiniWindow"));
-const PomodoroImmersivePage = loadable(() => import("@/features/pomodoro/windows/ImmersiveWindow"));
-const BackgroundAudioPage = loadable(() => import("@/features/pomodoro/windows/BackgroundAudio"));
 
 const NotificationHostWindow = loadable(
   () => import("@/features/notifications/windows/NotificationHostWindow")
@@ -30,11 +25,6 @@ const routes = [
     element: <QuickCardWindow />,
   },
   {
-    // 反馈窗口（单例置顶小窗，可边操作其它窗口边截图）
-    path: "/feedback",
-    element: <FeedbackWindow />,
-  },
-  {
     // 卡片 / 文章 / 项目文档的独立编辑窗口
     path: "/editor-window",
     element: <EditorWindowPage />,
@@ -45,14 +35,6 @@ const routes = [
     element: <MarkdownWindowPage />,
   },
   {
-    path: "/pomodoro/mini",
-    element: <PomodoroMiniPage />,
-  },
-  {
-    path: "/pomodoro/immersive",
-    element: <PomodoroImmersivePage />,
-  },
-  {
     // 系统通知窗口：透明置顶常驻窗（主进程 notification-window 创建），承载失焦通知
     path: "/notification-host",
     element: <NotificationHostWindow />,
@@ -60,10 +42,6 @@ const routes = [
   {
     path: "/shell",
     element: <AppShell />,
-  },
-  {
-    path: "/background-audio",
-    element: <BackgroundAudioPage />,
   },
 ];
 

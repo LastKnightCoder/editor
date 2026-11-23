@@ -4,12 +4,15 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
 import "./init";
+import { connectPomodoroAudio } from "./features/pomodoro/background-audio";
+import { isMainWindow } from "./utils/window-role";
 // 命令契约桥装配须早于异步加载的应用模块。
 import "./commands/contracts/install";
 import "./tailwind.css";
 import "./app/base.css";
 import { recordPerfStage } from "./utils/perf-observer";
 
+if (isMainWindow()) connectPomodoroAudio();
 dayjs.locale("zh-cn");
 
 const rootElement = document.getElementById("root");

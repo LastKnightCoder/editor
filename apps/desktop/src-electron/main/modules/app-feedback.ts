@@ -14,7 +14,6 @@ import {
   findFeedbackWindow,
   getMainWindows,
   hideFeedbackWindow,
-  prepareFeedbackWindow,
   showFeedbackWindow,
 } from "../windows";
 import { API_ORIGIN } from "../services/plugin-center";
@@ -36,7 +35,7 @@ import { buildSnapshot } from "./perf-monitor";
  */
 
 // 不可截取的窗口：反馈窗口自身与常驻的隐藏/透明窗口
-const HIDDEN_ROUTES = ["/feedback", "/notification-host", "/background-audio"];
+const HIDDEN_ROUTES = ["/feedback", "/notification-host"];
 const ANNOTATE_SIZE = { width: 880, height: 680 };
 
 const pendingCaptures: FeedbackCapture[] = [];
@@ -205,7 +204,6 @@ const init = async () => {
     if (win && win === findFeedbackWindow()) setAnnotating(win, annotating);
   });
   ipcMain.handle("app-feedback:submit", (_event, input: AppFeedbackSubmitInput) => submit(input));
-  prepareFeedbackWindow();
   log.info("[app-feedback] 反馈模块已初始化");
 };
 

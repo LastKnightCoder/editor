@@ -1,6 +1,7 @@
 import { app, BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
 import log from "electron-log";
 import { isDev, loadRoute, loadContentRuntime, windowContext } from "./context";
+import { registerPomodoroAudioHost } from "./pomodoro-audio";
 import { routeWindowOpen } from "./open-handler";
 import { shouldKeepBackgroundAlive } from "../services/background-preferences";
 
@@ -15,7 +16,7 @@ const contentRuntimeWindows = new Set<BrowserWindow>();
 export const isContentRuntimeWindow = (window: BrowserWindow) => contentRuntimeWindows.has(window);
 
 export interface CreateWindowOptions extends BrowserWindowConstructorOptions {
-  document?: "content-runtime" | "plugin-window";
+  document?: "content-runtime" | "plugin-window" | "auxiliary";
   /** hash 路由（如 "/editor-window?..."）；空串 = 应用根 */
   route: string;
   chrome?: WindowChrome;
@@ -83,17 +84,31 @@ export function createWindow({
   });
 
   forwardWindowEvents(win);
+  if (role === "main" || document === "auxiliary") registerPomodoroAudioHost(win.webContents);
+  if (document === "auxiliary") {
+    pendingReveal.set(win, undefined);
+    win.webContents.ipc.once("auxiliary:ready", () => {
+      const show = pendingReveal.get(win);
+      pendingReveal.delete(win);
+      show?.();
+    });
+    win.webContents.once("render-process-gone", () => {
+      if (!win.isDestroyed()) win.destroy();
+    });
+  }
   if (document === "content-runtime") {
     contentRuntimeWindows.add(win);
     win.once("closed", () => contentRuntimeWindows.delete(win));
   }
   win.webContents.setWindowOpenHandler(routeWindowOpen);
   if (document !== "content-runtime") win.on("closed", quitIfNoVisibleWindow);
-  win.webContents.on("did-fail-load", (_event, code, description, url) => {
+  win.webContents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
+    if (document === "auxiliary" && isMainFrame && code !== -3 && !win.isDestroyed()) win.destroy();
     log.error(`窗口加载失败: ${code} - ${description}, URL: ${url}`);
   });
 
   if (document === "content-runtime") loadContentRuntime(win);
+  else if (document === "auxiliary") loadRoute(win, route, "auxiliary.html");
   else if (document !== "plugin-window") loadRoute(win, route);
   if (isDev() && devTools) win.webContents.openDevTools();
   return win;
@@ -107,8 +122,21 @@ export function activateApp() {
   if (process.platform === "darwin") app.focus({ steal: true });
 }
 
+// 冷启动等到交互内容提交；其间的连续打开和隐藏只保留最后一次意图。
+const pendingReveal = new WeakMap<BrowserWindow, (() => void) | undefined>();
+
+export function hideAuxiliaryWindow(win: BrowserWindow) {
+  if (pendingReveal.has(win)) pendingReveal.set(win, undefined);
+  win.hide();
+}
+
 /** 恢复、显示并聚焦（macOS 同时把应用切到前台） */
-export function revealWindow(win: BrowserWindow) {
+export function revealWindow(win: BrowserWindow, beforeShow?: () => void) {
+  if (pendingReveal.has(win)) {
+    pendingReveal.set(win, () => revealWindow(win, beforeShow));
+    return;
+  }
+  beforeShow?.();
   activateApp();
   if (win.isMinimized()) win.restore();
   win.show();

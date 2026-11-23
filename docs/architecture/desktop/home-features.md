@@ -22,6 +22,8 @@
 
 ### 番茄绑定与跨域启动
 
+- 主进程保存计时和背景音状态，只向一个已就绪的主窗口或辅助窗口发送播放指令。播放窗口关闭或重载时，另一个已就绪的窗口按声音的累计播放时长接手。没有可接手的窗口且仍需播放时才创建无界面的音频 WebContentsView，窗口接手、暂停、结束或取消背景音时释放。
+
 - 会话可选绑定一条日历事件或一条待办：`pomodoro_sessions.bound_event_id / bound_todo_id / bound_title`。主进程 `PomodoroSessionTable.resolveBinding` 解析（待办来源事件反查待办），结束时 `refreshBinding` 取最新标题，对象已删则用快照。番茄写日历的标题只经 `pomodoroEventTitle`（结束写入与改时长重建同一规则）。
 - 读取绑定须容忍悬空 id：移动端编辑待办会删除重建其日历事件。按待办聚合用 `bound_todo_id`（`pomodoro:summary-by-todo`）。
 - 跨域启动（日程事件抽屉、待办抽屉）用 `features/pomodoro/components/FocusStartButton`：只经命令层 `startPomodoroSession({ presetId, target })` / `updatePomodoroBinding` 与共享 hook `useActivePomodoro`，不 import 番茄 timerStore；每次须选预设，主进程不自动挑。番茄页「专注于…」的选择是页面会话态，任何开始入口都带上。

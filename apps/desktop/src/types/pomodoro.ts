@@ -1,7 +1,15 @@
 export type PomodoroMode = "countdown" | "countup";
 
 export type BackgroundSoundType =
-  null | "brook" | "birds" | "autumn" | "tide" | "summer" | "wind-chime" | "bonfire" | "rain";
+  | null
+  | "brook"
+  | "birds"
+  | "autumn"
+  | "tide"
+  | "summer"
+  | "wind-chime"
+  | "bonfire"
+  | "rain";
 
 export interface PomodoroPreset {
   id: number;
@@ -44,7 +52,8 @@ export interface PomodoroSession {
 
 /** 番茄的绑定对象：一条日历事件或一条待办 */
 export type PomodoroBindTarget =
-  { kind: "event"; eventId: number } | { kind: "todo"; todoId: number };
+  | { kind: "event"; eventId: number }
+  | { kind: "todo"; todoId: number };
 
 /** 按待办聚合的专注 */
 export interface PomodoroFocusSummary {
@@ -57,4 +66,14 @@ export interface PomodoroEventBinding {
   sessionId: number;
   boundEventId: number | null;
   boundTodoId: number | null;
+}
+
+export interface PomodoroAudioState {
+  status: PomodoroStatus | null;
+  sound: BackgroundSoundType;
+  volume: number;
+}
+
+export interface PomodoroAudioPlayback extends PomodoroAudioState {
+  positionMs: number;
 }

@@ -1,5 +1,5 @@
 /**
- * 反馈窗口（路由 /feedback，主进程后台预建、showFeedbackWindow 唤起的单例置顶小窗）：
+ * 反馈窗口（路由 /feedback，首次请求时创建的单例置顶小窗）：
  * 写反馈、截取任一 Tau 窗口、标注打码、选择附带的日志后提交。
  * 不阻塞其它窗口，用户可以一边复现问题一边截图；关窗时有内容先确认是否放弃。
  */
@@ -25,7 +25,6 @@ import type { FeedbackCapture, FeedbackCaptureSource } from "@/types/app-feedbac
 import { AnnotateView } from "../AnnotateView";
 import { FeedbackForm } from "../FeedbackForm";
 import { useFeedbackDraft } from "../useFeedbackDraft";
-import "@/app/base.css";
 
 const rootClass =
   "app flex h-screen flex-col overflow-hidden bg-surface font-tau text-tau-body text-ink-1 antialiased";

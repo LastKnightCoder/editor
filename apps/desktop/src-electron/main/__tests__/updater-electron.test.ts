@@ -30,6 +30,9 @@ it.skipIf(process.platform !== "darwin")(
     }; export async function setPluginBackendsPaused(){}`,
       [join(main, "modules/collaboration")]: "export default { shutdown(){} };",
       [join(main, "modules/mcp")]: "export default { async disconnectAll(){} };",
+      [join(main, "modules/content-runtime/composition")]:
+        "export function shutdownLocalContent(){}",
+      [join(main, "windows/plugin-window-ipc")]: "export function disposePluginWindows(){}",
       [join(main, "services/content-execution")]: "export const contentExecutor = { dispose(){} };",
       [join(main, "windows/window-state")]:
         "export const initialBounds = (_key, size) => size; export const hasRememberedBounds = () => false; export function rememberBounds(){}",
@@ -37,6 +40,7 @@ it.skipIf(process.platform !== "darwin")(
       export const isContentRuntimeWindow = () => false;
       export const quitIfNoVisibleWindow = () => {};
       export const revealWindow = window => window.show();
+      export const hideAuxiliaryWindow = window => window.hide();
       export function createWindow(){
         const win = new BrowserWindow({show:false, webPreferences:{preload:globalThis.preload, sandbox:false}});
         globalThis.loads.push(win.loadURL('data:text/html,<title>更新退出回归</title>'));
@@ -75,13 +79,13 @@ it.skipIf(process.platform !== "darwin")(
         const {setupQuitController} = require('./app-quit-controller');
         const {isAppQuitting} = require('./app-quit-state');
         const {createWindow} = require('./windows/create-window');
-        const {prepareFeedbackWindow} = require('./windows/utility-windows');
+        const {showFeedbackWindow} = require('./windows/utility-windows');
         const updater = require('./modules/updater').default;
         app.whenReady().then(async () => {
           setupQuitController({getTrayManager:()=>undefined});
           await updater.init();
           const mainWindow=createWindow();
-          const feedback=prepareFeedbackWindow();
+          const feedback=showFeedbackWindow(null);
           await Promise.all(globalThis.loads);
           feedback.close();
           assert.equal(feedback.isDestroyed(),false);

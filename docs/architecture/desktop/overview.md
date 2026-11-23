@@ -42,7 +42,7 @@ packages/themes/src/     # token 契约、主题定义、运行时与 CSS
 packages/database/src/   # 多视图 Database、投影、store 与通用字段插件
 ```
 
-目录示意只列高频域。新增页面在 features 内声明；原 pages 目录已清空，背景音归 pomodoro/windows，测验题面归 vibe-learning/components/quiz，卡组表单归 flashcards/components/DeckSelectorDialog。
+目录示意只列高频域。新增页面在 features 内声明；原 pages 目录已清空，背景音播放归 features/pomodoro，测验题面归 vibe-learning/components/quiz，卡组表单归 flashcards/components/DeckSelectorDialog。
 
 高频入口：`app/navigation.ts`、`app/navSlots.tsx`、`features/settings/sections.tsx` 与各域 queries。
 

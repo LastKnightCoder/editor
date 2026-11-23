@@ -216,6 +216,8 @@ export default defineConfig(({ mode }) => {
         checks: { moduleLevelDirective: false },
         input: {
           index: path.resolve(__dirname, "index.html"),
+          auxiliary: path.resolve(__dirname, "auxiliary.html"),
+          "pomodoro-audio": path.resolve(__dirname, "pomodoro-audio.html"),
           "content-runtime": path.resolve(__dirname, "content-runtime.html"),
           "plugin-window": path.resolve(__dirname, "plugin-window.html"),
         },
@@ -231,7 +233,13 @@ export default defineConfig(({ mode }) => {
                 test: /[/\\]node_modules[/\\]react-router-dom[/\\]/,
                 priority: 30,
               },
-              { name: "mermaid", test: /[/\\]node_modules[/\\]mermaid[/\\]/, priority: 20 },
+              {
+                name: "mermaid",
+                test: /[/\\]node_modules[/\\]mermaid[/\\]/,
+                priority: 20,
+                // 日期和工具函数也被窗口使用，独立分包才能让图表引擎留到真正渲染时加载。
+                includeDependenciesRecursively: false,
+              },
               { name: "katex", test: /[/\\]node_modules[/\\]katex[/\\]/, priority: 10 },
             ],
           },
