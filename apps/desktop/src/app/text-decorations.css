@@ -1,0 +1,106 @@
+/*
+ * 插件文字装饰（context.textDecorations）。点线和荧光笔用背景绘制，用户自己的下划线、删除线
+ * 不会被覆盖。插件可以在设置页用 data-tau-decoration 做外观预览。
+ */
+[data-tau-decoration] {
+  --td-color: var(--tau-accent);
+  --td-text: var(--tau-accent-text);
+  border-radius: 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition:
+    color 0.16s,
+    background-color 0.16s,
+    background-size 0.22s var(--tau-ease-out),
+    opacity 0.16s;
+}
+[data-tau-decoration][data-tone="info"] {
+  --td-color: var(--tau-info);
+  --td-text: var(--tau-info);
+}
+[data-tau-decoration][data-tone="warn"] {
+  --td-color: var(--tau-warn);
+  --td-text: var(--tau-warn);
+}
+[data-tau-decoration][data-tone="muted"] {
+  --td-color: var(--tau-ink-3);
+  --td-text: var(--tau-ink-2);
+}
+[data-tau-decoration][tabindex] {
+  cursor: pointer;
+}
+[data-tau-decoration]:focus-visible {
+  outline: none;
+  box-shadow: var(--tau-focus-ring);
+}
+[data-tau-decoration][data-busy] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+[data-tau-decoration="reference"],
+[data-tau-decoration="ghost"] {
+  --td-dot: color-mix(in srgb, var(--td-color) 62%, transparent);
+  background-image: radial-gradient(circle at 1px 1px, var(--td-dot) 0.95px, transparent 1.25px);
+  background-size: 4px 3px;
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+}
+[data-tau-decoration="ghost"] {
+  --td-dot: color-mix(in srgb, var(--tau-ink-3) 45%, transparent);
+}
+:is([data-tau-decoration="reference"], [data-tau-decoration="ghost"]):is(
+    [data-hot],
+    [data-busy],
+    :root[data-tau-decoration-mod] *
+  ) {
+  color: var(--td-text);
+  background-image: linear-gradient(var(--td-color), var(--td-color));
+  background-size: 100% 1.5px;
+}
+
+[data-tau-decoration="marker"] {
+  --td-fill: color-mix(in srgb, var(--td-color) 20%, transparent);
+  background-image: linear-gradient(var(--td-fill), var(--td-fill));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 36%;
+}
+[data-tau-decoration="marker"]:is([data-hot], :root[data-tau-decoration-mod] *) {
+  background-size: 100% 100%;
+}
+
+[data-tau-decoration="tint"] {
+  color: var(--td-text);
+}
+[data-tau-decoration="tint"]:is([data-hot], :root[data-tau-decoration-mod] *),
+[data-tau-decoration="wavy"][data-hot] {
+  background-color: color-mix(in srgb, var(--td-color) 12%, transparent);
+}
+
+[data-tau-decoration="wavy"] {
+  text-decoration: underline wavy color-mix(in srgb, var(--td-color) 70%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
+}
+
+[data-tau-decoration="dot"]:is([data-hot], :root[data-tau-decoration-mod] *) {
+  color: var(--td-text);
+}
+[data-tau-decoration="dot"][data-tail]::after {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-left: 1.5px;
+  border-radius: 50%;
+  background: var(--td-color);
+  vertical-align: super;
+  transform: translateY(-2px);
+  transition: transform 0.18s var(--tau-ease-out);
+  pointer-events: none;
+}
+[data-tau-decoration="dot"][data-tail][data-hot]::after {
+  transform: translateY(-2px) scale(1.5);
+}

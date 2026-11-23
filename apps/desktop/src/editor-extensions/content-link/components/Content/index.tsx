@@ -26,9 +26,12 @@ const FALLBACK_META = { label: "内容", icon: FileText, tone: "bg-hover text-in
 
 interface IContentProps {
   /** undefined = 载入中，null = 不存在或已删除 */
-  content: IContent | null | undefined;
+  content:
+    | (Pick<IContent, "content" | "count" | "updateTime" | "contracts"> & { id: string | number })
+    | null
+    | undefined;
   contentType: string;
-  refId: number;
+  refId?: number;
   contentTitle: string;
   /** 协作者视角：被引用内容只在创建者本机 */
   unshared: boolean;
@@ -65,7 +68,10 @@ const Content = memo((props: IContentProps) => {
   // 插件内容按插件声明的类型名与图标显示，色调沿用通用的插件内容
   const typeMeta = {
     ...baseMeta,
-    ...useEntityKindMeta({ kind: contentType, id: refId }, baseMeta),
+    ...useEntityKindMeta(
+      refId === undefined ? undefined : { kind: contentType, id: refId },
+      baseMeta
+    ),
   };
   const title = contentTitle || `${typeMeta.label} #${content?.id ?? ""}`.trim();
 
@@ -114,7 +120,12 @@ const Content = memo((props: IContentProps) => {
       />
       <AnchoredPanel.Body className="max-h-[260px]">
         <Suspense fallback={<Spinner />}>
-          <Editor key={content.id} initValue={content.content} readonly />
+          <Editor
+            key={content.id}
+            initValue={content.content}
+            contracts={content.contracts}
+            readonly
+          />
         </Suspense>
       </AnchoredPanel.Body>
       <AnchoredPanel.Footer className="justify-between py-2 pr-2.5 pl-4">

@@ -1,6 +1,14 @@
+import { PluginRuntimeContext } from "@/app/plugins/context";
+import {
+  DecorationViewContext,
+  textDecorationExtension,
+  useTextDecorations,
+} from "./TextDecorationExtension";
+import { TextDecorationLayer } from "./TextDecorationLayer";
 import {
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -166,14 +174,29 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
           : undefined,
       [canRegisterEditing, contentId, entityType, entityId]
     );
-    const hostExtensions = props.extensions;
-    const editorExtensions = useMemo(
-      () =>
-        commentTarget
-          ? [...(hostExtensions ?? []), createAgentCommentExtension(commentTarget)]
-          : hostExtensions,
-      [commentTarget, hostExtensions]
+    const runtime = useContext(PluginRuntimeContext);
+    const decorationSourceType = entityType ?? source?.sourceType;
+    const decorationSourceId = entityId ?? source?.sourceId;
+    const decorationSource = useMemo(() => {
+      if (!isMainWindow() || !contentId || !decorationSourceId) return undefined;
+      const kind = decorationSourceType === "project-item" ? "document" : decorationSourceType;
+      if (kind !== "card" && kind !== "article" && kind !== "document") return undefined;
+      return Object.freeze({ kind, id: String(decorationSourceId) });
+    }, [contentId, decorationSourceType, decorationSourceId]);
+    const decorations = useTextDecorations(
+      decorationSource ? runtime?.textDecorations : undefined,
+      decorationSource,
+      editMarks.decorate,
+      props.renderTopLevelBlock
     );
+    const hostExtensions = props.extensions;
+    const editorExtensions = useMemo(() => {
+      if (!commentTarget && !decorationSource) return hostExtensions;
+      const extensions = [...(hostExtensions ?? [])];
+      if (commentTarget) extensions.push(createAgentCommentExtension(commentTarget));
+      if (decorationSource) extensions.push(textDecorationExtension);
+      return extensions;
+    }, [commentTarget, hostExtensions, decorationSource]);
     const editingSessionRef = useRef<string | null>(null);
     const contentRef = useRef<Descendant[] | null>(null);
     const snapshotTimerRef = useRef<number | undefined>(undefined);
@@ -231,7 +254,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
       );
     }
     return (
-      <>
+      <DecorationViewContext.Provider value={decorations.view}>
         {at && !swapping && !frozen && (
           <ContentLocation
             at={at}
@@ -249,7 +272,8 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         <Editor
           {...props}
           extensions={editorExtensions}
-          decorate={editMarks.decorate}
+          decorate={decorations.decorate}
+          renderTopLevelBlock={decorations.renderTopLevelBlock}
           leafWrapper={editMarks.leafWrapper}
           kit={kit}
           inlineSuggestions={inlineSuggestions}
@@ -297,7 +321,8 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         />
         {/* 只给声明了编辑身份的正文（卡片 / 文章 / 项目文档 / 日记）；预览、描述等场景不出现 */}
         {canRegisterEditing && <DocTasksStatusBar contentId={contentId} />}
-      </>
+        {decorations.view && <TextDecorationLayer view={decorations.view} allowPreview={!binding || binding.mode === "local" || binding.role === "owner"} />}
+      </DecorationViewContext.Provider>
     );
   }
 );

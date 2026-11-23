@@ -50,7 +50,11 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectPublishRenderer, []);
   const { navigator } = usePage();
   const workspaceId = useSettingStore(state => state.setting.database.active);
-  const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
+  const [session, setSession] = useState<{
+    workspaceId: string;
+    runtime: DesktopPluginRuntime;
+  } | null>(null);
+  const runtime = session && session.workspaceId === workspaceId ? session.runtime : null;
   const [error, setError] = useState("");
   useEffect(() => {
     if (!isElectron) return;
@@ -130,7 +134,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           }
         }
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
-        setRuntime(current);
+        setSession({ workspaceId, runtime: current });
         if (local) {
           void local
             .refresh()

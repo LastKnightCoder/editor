@@ -10,6 +10,8 @@ import { isMainWindow } from "./utils/window-role";
 import "./commands/contracts/install";
 import "./tailwind.css";
 import "./app/base.css";
+// 插件设置页的外观预览也复用这套样式，所以随主入口全局加载。
+import "./app/text-decorations.css";
 import { recordPerfStage } from "./utils/perf-observer";
 
 if (isMainWindow()) connectPomodoroAudio();

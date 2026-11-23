@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>插件文字装饰 · 外观与交互设计稿</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（paper / ocean / mint / ink × light / dark） */
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28); --warn:#a38c4d; --info:#5c7d99;
+    --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4); --warn:#c9b36a; --info:#86abd9;
+    --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+  [data-theme="ocean"][data-mode="light"] {
+    --page:#edf2f8; --surface:#fcfdff; --hover:rgba(45,54,68,.05); --press:rgba(45,54,68,.09);
+    --ink-1:#2d3644; --ink-2:#56637a; --ink-3:#a6b1c2; --line-1:#dde5ef;
+    --accent:hsl(214 50% 44%); --accent-soft:hsla(214,50%,44%,.12); --accent-text:#35659f;
+    --ring:0 0 0 3px rgba(77,127,196,.28); --warn:#97894e; --info:#4d6f9e;
+    --shadow-card:0 1px 2px rgba(60,80,120,.05),0 10px 24px -14px rgba(60,80,120,.18);
+    --shadow-float:0 16px 40px -12px rgba(60,80,120,.4); --tip-bg:#2d3644; --tip-ink:#f4f7fb;
+  }
+  [data-theme="ocean"][data-mode="dark"] {
+    --page:#161c25; --surface:#1f2733; --hover:rgba(227,234,244,.06); --press:rgba(227,234,244,.11);
+    --ink-1:#e3eaf4; --ink-2:#9aa7b9; --ink-3:#748196; --line-1:#2c3542;
+    --accent:hsl(214 62% 66%); --accent-soft:hsla(214,62%,66%,.16); --accent-text:hsl(214 70% 72%);
+    --ring:0 0 0 3px hsla(214,62%,66%,.4); --warn:#c9b36a; --info:#86abd9;
+    --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --tip-bg:#e3eaf4; --tip-ink:#111821;
+  }
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28); --warn:#9a8a4c; --info:#55798f;
+    --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4); --warn:#c4b26e; --info:#8bb0c4;
+    --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="ink"][data-mode="light"] {
+    --page:#f5f4f0; --surface:#fcfbf8; --hover:rgba(31,31,29,.05); --press:rgba(31,31,29,.09);
+    --ink-1:#1f1f1d; --ink-2:#55544f; --ink-3:#a3a19a; --line-1:#e6e4de;
+    --accent:hsl(205 18% 32%); --accent-soft:hsla(205,18%,32%,.12); --accent-text:#3f4f5c;
+    --ring:0 0 0 3px rgba(67,84,96,.25); --warn:#98814f; --info:#4f6a80;
+    --shadow-card:0 1px 2px rgba(40,38,30,.05),0 10px 24px -14px rgba(40,38,30,.16);
+    --shadow-float:0 16px 40px -12px rgba(40,38,30,.3); --tip-bg:#1f1f1d; --tip-ink:#f5f4f0;
+  }
+  [data-theme="ink"][data-mode="dark"] {
+    --page:#1a1a19; --surface:#232321; --hover:rgba(230,228,223,.06); --press:rgba(230,228,223,.11);
+    --ink-1:#e6e4df; --ink-2:#a09e97; --ink-3:#78766f; --line-1:#2e2e2b;
+    --accent:hsl(205 22% 68%); --accent-soft:hsla(205,22%,68%,.16); --accent-text:hsl(205 28% 74%);
+    --ring:0 0 0 3px hsla(205,22%,68%,.4); --warn:#c4ad78; --info:#8faac0;
+    --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --tip-bg:#e6e4df; --tip-ink:#1a1a19;
+  }
+  :root { --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.36,.64,1); --user-hl:#f7e08a; }
+  [data-mode="dark"] { --user-hl:rgba(214,186,84,.38); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); transition:background .2s; }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 200px; }
+  .mono, code { font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  .kbd { font:11px/17px ui-monospace,monospace; color:var(--ink-3); padding:0 5px; border-radius:4px; border:1px solid var(--line-1); display:inline-block; }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:80ch; }
+  .switches { display:flex; gap:10px; flex-wrap:wrap; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  section { margin-top:56px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:90ch; margin:6px 0 20px; }
+  .desc b, .notes b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:90ch; margin-top:16px; }
+  .notes li { margin:4px 0; }
+  .sheet { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:22px 28px 24px; position:relative; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:16px; max-width:1280px; }
+  .grid .sheet { padding:18px 22px 18px; }
+  .grid .sheet.rec { box-shadow:var(--shadow-card), inset 0 0 0 1.5px var(--accent); }
+  .s-head { display:flex; align-items:baseline; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .s-head b { font-size:13.5px; }
+  .s-head code { font-size:11.5px; color:var(--ink-3); }
+  .tag { font-size:11px; padding:0 7px; border-radius:6px; line-height:19px; background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .tag.old { background:var(--hover); color:var(--ink-3); }
+  .s-foot { font-size:12px; color:var(--ink-3); margin-top:10px; line-height:1.6; }
+  .s-foot b { color:var(--ink-2); font-weight:500; }
+  .states { display:flex; gap:14px; margin-top:8px; font-size:12px; color:var(--ink-3); flex-wrap:wrap; }
+  .states > span { display:inline-flex; gap:6px; align-items:baseline; }
+
+  .doc { font-size:15px; line-height:1.95; color:var(--ink-1); }
+  .doc p + p { margin-top:10px; }
+  .doc ::selection { background:var(--accent-soft); }
+
+  /* ── 正文里的其他格式，用于共存检查 ── */
+  .rl { color:var(--accent-text); text-decoration:underline 1px; text-underline-offset:3px; text-decoration-color:color-mix(in srgb,var(--accent) 38%,transparent); }
+  .uh { background:var(--user-hl); border-radius:2px; }
+  .ic { font-size:.88em; padding:1px 5px; border-radius:5px; border:1px solid var(--line-1); }
+  .st { text-decoration:line-through; }
+  .ul { text-decoration:underline; text-underline-offset:3px; }
+  /* ── 现状（对照） ── */
+  .old-link { color:var(--accent-text); text-decoration:underline dotted; text-underline-offset:2px; }
+  .old-hl { background:var(--accent-soft); }
+
+  /* ── 新外观：一个 .td + data-a（外观）+ data-tone（色调） ── */
+  .td { --tc:var(--accent); --tt:var(--accent-text); border-radius:3px; -webkit-box-decoration-break:clone; box-decoration-break:clone;
+        transition:color .16s, background-color .16s, background-size .22s var(--ease), opacity .16s; }
+  .td[data-tone="info"] { --tc:var(--info); --tt:var(--info); }
+  .td[data-tone="warn"] { --tc:var(--warn); --tt:var(--warn); }
+  .td[data-tone="muted"] { --tc:var(--ink-3); --tt:var(--ink-2); }
+  .act .td, .td.act { cursor:pointer; }
+  .td:focus-visible { outline:none; box-shadow:var(--ring); }
+
+  /* reference：墨色字 + 点线（用背景绘制，与用户的下划线/删除线叠加不冲突） */
+  .td[data-a="reference"], .td[data-a="ghost"] {
+    --dot:color-mix(in srgb, var(--tc) 62%, transparent);
+    background-image:radial-gradient(circle at 1px 1px, var(--dot) .95px, transparent 1.25px);
+    background-size:4px 3px; background-repeat:repeat-x; background-position:0 100%;
+  }
+  .td[data-a="reference"]:is(:hover,.hot), body.mod .td[data-a="reference"],
+  .td[data-a="ghost"]:is(:hover,.hot), body.mod .td[data-a="ghost"] {
+    color:var(--tt); background-image:linear-gradient(var(--tc),var(--tc)); background-size:100% 1.5px;
+  }
+  /* ghost：静止时点线极淡，悬停或按住 Mod 才显现 */
+  .td[data-a="ghost"] { --dot:color-mix(in srgb, var(--ink-3) 45%, transparent); }
+
+  /* marker：下沿半高荧光笔，悬停时铺满 */
+  .td[data-a="marker"] {
+    background-image:linear-gradient(color-mix(in srgb, var(--tc) 20%, transparent), color-mix(in srgb, var(--tc) 20%, transparent));
+    background-repeat:no-repeat; background-position:0 100%; background-size:100% 36%; padding:0 1px;
+  }
+  .td[data-a="marker"]:is(:hover,.hot), body.mod .td[data-a="marker"] { background-size:100% 100%; }
+
+  /* tint：只改字色，最安静的可识别方式 */
+  .td[data-a="tint"] { color:var(--tt); }
+  .td[data-a="tint"]:is(:hover,.hot), body.mod .td[data-a="tint"] { background-color:color-mix(in srgb, var(--tc) 12%, transparent); }
+
+  /* wavy：波浪线，用于提醒/待确认（术语表、拼写、AI 建议） */
+  .td[data-a="wavy"] { text-decoration:underline wavy color-mix(in srgb, var(--tc) 70%, transparent); text-decoration-thickness:1px; text-underline-offset:4px; text-decoration-skip-ink:none; }
+  .td[data-a="wavy"]:is(:hover,.hot) { background-color:color-mix(in srgb, var(--tc) 12%, transparent); }
+
+  /* dot：墨色字 + 末尾上角小圆点（只画在装饰的最后一片叶子上） */
+  .td[data-a="dot"].tail::after {
+    content:""; display:inline-block; width:4px; height:4px; border-radius:50%; background:var(--tc);
+    vertical-align:super; margin-left:1.5px; transform:translateY(-2px); transition:transform .18s var(--spring);
+  }
+  .td[data-a="dot"]:is(:hover,.hot), body.mod .td[data-a="dot"] { color:var(--tt); }
+  .td[data-a="dot"].tail:is(:hover,.hot)::after { transform:translateY(-2px) scale(1.5); }
+
+  /* 待激活中（异步打开） */
+  .td.busy { opacity:.55; }
+
+  /* ── 浮层：悬停提示 + 同名候选 ── */
+  #tip { position:fixed; z-index:60; pointer-events:none; background:var(--tip-bg); color:var(--tip-ink); font-size:12px; line-height:1.5; padding:4px 9px; border-radius:7px;
+         opacity:0; transform:translateY(3px); transition:opacity .12s, transform .16s var(--ease); white-space:nowrap; }
+  #tip.show { opacity:1; transform:none; }
+  #tip .kbd { color:inherit; opacity:.7; border-color:currentColor; margin-left:6px; line-height:15px; }
+  #menu { position:fixed; z-index:50; width:300px; background:var(--surface); border:1px solid var(--line-1); border-radius:12px; box-shadow:var(--shadow-float); padding:5px;
+          opacity:0; transform:translateY(-4px) scale(.97); transform-origin:top left; pointer-events:none; transition:opacity .14s, transform .2s var(--spring); }
+  #menu.show { opacity:1; transform:none; pointer-events:auto; }
+  #menu .mh { font-size:11.5px; color:var(--ink-3); padding:4px 8px 6px; }
+  #menu button { display:grid; grid-template-columns:auto 1fr; gap:2px 9px; width:100%; text-align:left; padding:6px 8px; border-radius:8px; }
+  #menu button:is(:hover,.on) { background:var(--hover); }
+  #menu .k { grid-row:span 2; align-self:center; width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:11px; border:1px solid var(--line-1); color:var(--ink-2); }
+  #menu .t { font-size:13px; color:var(--ink-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #menu .m { font-size:11.5px; color:var(--ink-3); }
+
+  /* ── 原型 ── */
+  .proto { display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; }
+  .proto .sheet { flex:0 1 660px; padding:26px 36px 34px; }
+  .try { flex:0 1 340px; background:var(--surface); border:1px solid var(--line-1); border-radius:14px; padding:14px 16px; font-size:13px; color:var(--ink-2); }
+  .try h4 { font-size:13px; color:var(--ink-1); margin-bottom:6px; }
+  .try ol { padding-left:18px; } .try li { margin:5px 0; } .try li b { color:var(--ink-1); font-weight:500; }
+  .ctrl { display:flex; gap:10px; align-items:center; margin-bottom:16px; font-size:12.5px; color:var(--ink-3); flex-wrap:wrap; }
+  #doc { outline:none; caret-color:var(--accent); }
+  .doc h3 { font-size:19px; font-weight:600; margin-bottom:8px; }
+
+  /* ── 设置页 ── */
+  .set { max-width:640px; }
+  .set h4 { font-size:13px; font-weight:600; margin:0 0 8px; }
+  .set .hint { font-size:12px; color:var(--ink-3); margin:-4px 0 10px; }
+  .opts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .opt { text-align:left; border:1px solid var(--line-1); border-radius:10px; padding:10px 12px 9px; transition:border-color .14s, box-shadow .14s, background .14s; }
+  .opt:hover { background:var(--hover); }
+  .opt.on { border-color:var(--accent); box-shadow:inset 0 0 0 .5px var(--accent); }
+  .opt .pv { font-size:14px; line-height:1.9; color:var(--ink-1); white-space:nowrap; }
+  .opt .nm { font-size:12px; color:var(--ink-2); margin-top:2px; display:flex; justify-content:space-between; }
+  .opt.on .nm { color:var(--accent-text); font-weight:500; }
+  .tones { display:flex; gap:8px; margin-top:16px; align-items:center; font-size:12.5px; color:var(--ink-2); }
+  .sw { width:22px; height:22px; border-radius:50%; border:2px solid var(--surface); box-shadow:0 0 0 1px var(--line-1); }
+  .sw.on { box-shadow:0 0 0 2px var(--accent); }
+
+  pre.api { font:12.5px/1.65 ui-monospace,Menlo,monospace; background:var(--surface); border:1px solid var(--line-1); border-radius:12px; padding:16px 20px; overflow:auto; color:var(--ink-2); max-width:760px; }
+  pre.api b { color:var(--accent-text); font-weight:600; }
+  pre.api i { color:var(--ink-3); font-style:normal; }
+  table.cmp { border-collapse:collapse; font-size:13px; max-width:1000px; width:100%; background:var(--surface); border-radius:12px; overflow:hidden; box-shadow:var(--shadow-card); }
+  table.cmp th, table.cmp td { text-align:left; padding:9px 14px; border-bottom:1px solid var(--line-1); vertical-align:top; }
+  table.cmp th { font-weight:600; font-size:12.5px; color:var(--ink-2); }
+  table.cmp tr:last-child td { border-bottom:0; }
+  table.cmp td:first-child { white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>插件文字装饰 · 外观与交互</h1>
+    <p>给 <code>context.textDecorations</code> 的 <code>appearance</code> 重新设计，主要服务 FakeLink（正文里出现的标题可点开）。原则：装饰是「插件看到的东西」，不是用户写下的格式，所以必须比真链接、用户高亮更安静，并且能和它们叠加不打架。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-theme"><button data-v="paper" class="on">暖纸</button><button data-v="ocean">海盐</button><button data-v="mint">薄荷</button><button data-v="ink">墨</button></div>
+    <div class="switch" id="sw-mode"><button data-v="light" class="on">浅</button><button data-v="dark">深</button></div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="no">00</span>现状的问题</h2>
+  <p class="desc">现在只有 <code>link</code>（accent 字色 + CSS 点状下划线）和 <code>highlight</code>（accent-soft 底）两种。</p>
+  <div class="grid">
+    <div class="sheet">
+      <div class="s-head"><b>link</b><span class="tag old">现状</span></div>
+      <div class="doc">读完 <span class="old-link">间隔重复</span> 再回头看 <span class="rl">Anki 官方手册</span>，会发现 <span class="old-link">遗忘曲线</span> 其实不是一条曲线。</div>
+      <p class="s-foot">和真链接<b>同色同位置</b>，读者分不清哪个是用户插的链接、哪个是插件识别；一段文字识别多了就满屏 accent 色。<code>text-decoration</code> 还会和用户的下划线、删除线互相覆盖（同一属性只能有一个值）。</p>
+    </div>
+    <div class="sheet">
+      <div class="s-head"><b>highlight</b><span class="tag old">现状</span></div>
+      <div class="doc">读完 <span class="old-hl">间隔重复</span> 再回头看 <span class="uh">用户自己的高亮</span>，会发现 <span class="old-hl">遗忘曲线</span> 其实不是一条曲线。</div>
+      <p class="s-foot">整块底色和用户<b>高亮标记</b>长得一样，语义冲突；没有悬停、聚焦、加载中这些状态，点了之后要等几百毫秒才有反应也没有反馈。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">01</span>外观一览</h2>
+  <p class="desc">六种外观，按「打扰程度」从低到高排。悬停每个卡片里的词看状态变化；按住 <span class="kbd">⌘</span> 预览「Mod 键显形」。<b>推荐 FakeLink 默认用 reference</b>，ghost 给「只想偶尔用」的人。每张卡片都放了真链接 / 用户高亮 / 行内代码做共存对照。</p>
+  <div class="grid" id="looks"></div>
+  <ul class="notes">
+    <li><b>点线、半高底色都用 <code>background-image</code> 画</b>，不占用 <code>text-decoration</code>，所以用户给同一段字加的下划线、删除线、波浪线都还在。wavy 是唯一用 text-decoration 的，它本来就是「提醒」，和用户下划线同时出现的概率低。</li>
+    <li><b>跨格式叶子要连续</b>：一个装饰会被加粗、斜体切成多片 leaf。背景方案天然连续；dot 只在最后一片画圆点（宿主传 <code>tail</code> 标记）。</li>
+    <li>换行时用 <code>box-decoration-break: clone</code>，每行的底色两端都是圆角。</li>
+  </ul>
+</section>
+<section>
+  <h2><span class="no">02</span>色调</h2>
+  <p class="desc">外观管「形」，<code>tone</code> 管「色」，只给主题里已有的语义色，插件不能传任意颜色（否则换主题、深色模式都要插件自己适配）。FakeLink 用 <code>accent</code>；术语表、AI 建议这类插件可以用 <code>info</code> / <code>warn</code>；<code>muted</code> 给「次要匹配」，例如 FakeLink 匹配到小标题而不是文章标题时。</p>
+  <div class="grid" id="tones"></div>
+</section>
+
+<section>
+  <h2><span class="no">03</span>交互原型</h2>
+  <p class="desc">可编辑的正文。FakeLink 识别出的标题用当前外观渲染；匹配到多个同名内容时，点开弹出候选列表（替代现在跳转到一个独立页面）。</p>
+  <div class="proto">
+    <div class="sheet">
+      <div class="ctrl">
+        外观
+        <div class="switch" id="sw-look"></div>
+      </div>
+      <div class="doc" id="doc" contenteditable="true" spellcheck="false"></div>
+    </div>
+    <div class="try">
+      <h4>试一下</h4>
+      <ol>
+        <li><b>悬停</b>识别出的词：0.4 秒后出现提示，告诉你会打开什么、来自哪个插件。</li>
+        <li><b>单击</b>「遗忘曲线」：只有一个匹配，直接打开（演示里闪一下表示打开）。异步期间字变淡，防止重复点击。</li>
+        <li><b>单击</b>「间隔重复」：有两个同名，就地弹候选菜单，<span class="kbd">↑</span><span class="kbd">↓</span> 选、<span class="kbd">↵</span> 开、<span class="kbd">Esc</span> 关。</li>
+        <li><b>拖选</b>跨过识别词：不会触发打开（现在的实现已经这样判断）。</li>
+        <li><b>Tab</b> 聚焦后 <span class="kbd">↵</span> 打开，焦点环用主题 ring。</li>
+        <li>按住 <span class="kbd">⌘</span>：所有识别词同时显形，便于扫一眼有哪些可点。</li>
+      </ol>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>悬停提示由宿主画</b>，插件只提供文案（<code>label</code>）。这样所有插件的提示长相一致，也能统一写上「由 FakeLink 识别」，让用户知道这不是自己插的链接。</li>
+    <li><b>候选菜单也建议由宿主画</b>：插件在 <code>onActivate</code> 返回候选数组即可，宿主用和 @ 提及同一套 Menu。插件不需要再为选择开一个页面。</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">04</span>FakeLink 设置页</h2>
+  <p class="desc">把现在的 <code>&lt;select&gt;</code> 换成带预览的外观卡片，点选立即生效。只给 FakeLink 实际有意义的四种：reference / ghost / marker / tint。</p>
+  <div class="sheet set" id="settings">
+    <h4>显示方式</h4>
+    <p class="hint">识别出的标题在正文里怎么显示。所有方式都不会改动原文。</p>
+    <div class="opts" id="opts"></div>
+    <div class="tones">小标题匹配
+      <label style="display:inline-flex;gap:6px;align-items:center;margin-left:8px"><input type="checkbox" checked> 用淡色区分</label>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">05</span>接口建议</h2>
+  <p class="desc">向后兼容：旧值 <code>link</code> 映射到 <code>reference</code>，<code>highlight</code> 映射到 <code>marker</code>，一个版本后移除旧值。</p>
+<pre class="api"><b>export type</b> PluginTextDecorationAppearance =
+  | "reference" <i>// 默认：墨色字 + 点线，悬停变实线 + accent 字</i>
+  | "ghost"     <i>// 静止几乎不可见，悬停或按住 Mod 才显形</i>
+  | "marker"    <i>// 下沿半高荧光笔</i>
+  | "tint"      <i>// 只改字色</i>
+  | "wavy"      <i>// 波浪下划线，用于提醒/待确认</i>
+  | "dot";      <i>// 末尾小圆点，最省空间</i>
+
+<b>export interface</b> PluginTextDecoration {
+  start: number;
+  end: number;
+  appearance: PluginTextDecorationAppearance;
+  tone?: "accent" | "info" | "warn" | "muted";   <i>// 默认 accent</i>
+  key?: string;
+  label?: string;                                 <i>// 悬停提示文案，例如「打开文章《遗忘曲线》」</i>
+}
+
+<b>export interface</b> PluginTextDecorationProvider {
+  ...
+  <i>// 返回候选时宿主就地弹菜单；选中后以 candidate.key 再次调用</i>
+  onActivate?(action: { key: string; source: PluginDecorationSource })
+    : void | readonly { key: string; title: string; meta?: string; kind?: string }[]
+    | Promise&lt;...&gt;;
+}</pre>
+  <table class="cmp" style="margin-top:18px">
+    <tr><th>外观</th><th>适合</th><th>静止</th><th>悬停 / Mod</th><th>与用户格式共存</th></tr>
+    <tr><td><b>reference</b> 推荐</td><td>FakeLink 默认、维基式引用</td><td>墨色字，tone 色点线</td><td>tone 字色，1.5px 实线</td><td>不占 text-decoration，可叠加下划线/删除线</td></tr>
+    <tr><td><b>ghost</b></td><td>识别量大、不想被打扰</td><td>极淡灰点线</td><td>同 reference</td><td>同上</td></tr>
+    <tr><td><b>marker</b></td><td>想一眼扫出识别结果</td><td>下沿 36% 底色</td><td>铺满整行</td><td>与用户整块高亮在形状上可区分</td></tr>
+    <tr><td><b>tint</b></td><td>密集文本、表格单元格</td><td>只有字色</td><td>加 12% 底色</td><td>会被用户字色覆盖（用户优先）</td></tr>
+    <tr><td><b>wavy</b></td><td>术语提醒、AI 建议</td><td>波浪下划线</td><td>加底色</td><td>与用户下划线互斥，以装饰为准</td></tr>
+    <tr><td><b>dot</b></td><td>极简、行距很紧</td><td>末尾 4px 圆点</td><td>tone 字色，圆点放大</td><td>完全不干扰</td></tr>
+  </table>
+</section>
+
+<div id="tip"></div>
+<div id="menu" role="listbox"></div>
+<script>
+const LOOKS = [
+  { id:"reference", name:"引用", rec:true, foot:"<b>墨色字</b>不抢正文，点线说明「这里能点」；悬停变 accent 实线。和真链接（accent 字 + 实线）一眼能分开。" },
+  { id:"ghost", name:"隐形", foot:"静止时点线淡到接近不可见，读的时候不打扰；<b>悬停或按住 ⌘</b> 才显形，适合识别量大的知识库。" },
+  { id:"marker", name:"荧光笔", foot:"下沿半高底色，像随手划的线；悬停铺满。比整块底色轻，<b>和用户高亮形状不同</b>。" },
+  { id:"tint", name:"着色", foot:"只改字色。最省空间，适合表格、行距紧的地方；缺点是和真链接区分度靠下划线有无。" },
+  { id:"wavy", name:"波浪", foot:"不推荐给 FakeLink。留给<b>提醒类</b>插件：术语不一致、AI 建议、待确认。" },
+  { id:"dot", name:"圆点", foot:"字完全不变，只在末尾加一个小圆点；悬停变 accent 字。最安静，但可发现性最弱。" },
+];
+const td = (text, a, tone, extra="") => `<span class="td act${extra}" data-a="${a}"${tone?` data-tone="${tone}"`:""} tabindex="0">${text}</span>`;
+const tdTail = (text, a, tone) => a==="dot" ? td(text,a,tone," tail") : td(text,a,tone);
+
+document.getElementById("looks").innerHTML = LOOKS.map(l => `
+  <div class="sheet${l.rec?" rec":""}">
+    <div class="s-head"><b>${l.name}</b><code>${l.id}</code>${l.rec?'<span class="tag">推荐默认</span>':""}</div>
+    <div class="doc">读完 ${tdTail("间隔重复",l.id)} 再回头看 <span class="rl">Anki 官方手册</span>，会发现 ${l.id==="dot"?`<b>${td("遗忘","dot")}</b>${td("曲线","dot",""," tail")}`:`<b>${td("遗忘",l.id)}</b>${td("曲线",l.id)}`} 其实不是一条曲线。<span class="uh">用户高亮里的 ${tdTail("记忆宫殿",l.id)}</span>，带删除线的 <span class="st">${tdTail("番茄钟",l.id)}</span>。</div>
+    <p class="s-foot">${l.foot}</p>
+  </div>`).join("");
+
+const TONES = [
+  { tone:"", name:"accent", d:"FakeLink 默认，跟主题强调色走" },
+  { tone:"info", name:"info", d:"术语表、定义、外部资料" },
+  { tone:"warn", name:"warn", d:"待确认、可能过时、AI 建议" },
+  { tone:"muted", name:"muted", d:"次要匹配，如小标题" },
+];
+document.getElementById("tones").innerHTML = TONES.map(t => `
+  <div class="sheet">
+    <div class="s-head"><b>${t.name}</b><span class="s-foot" style="margin:0">${t.d}</span></div>
+    <div class="doc">${td("间隔重复","reference",t.tone)} · ${td("间隔重复","marker",t.tone)} · ${td("间隔重复","tint",t.tone)} · ${td("间隔重复","wavy",t.tone)} · ${td("间隔重复","dot",t.tone," tail")}</div>
+  </div>`).join("");
+
+/* ── 原型 ── */
+const TARGETS = {
+  "遗忘曲线": [{ kind:"文", title:"遗忘曲线", meta:"文章 · #记忆 · 2026-03-14" }],
+  "间隔重复": [
+    { kind:"文", title:"间隔重复", meta:"文章 · #学习法 #记忆 · 2026-02-01" },
+    { kind:"项", title:"间隔重复", meta:"项目文档「闪卡系统」· 小标题 H2" },
+  ],
+  "费曼学习法": [{ kind:"文", title:"费曼学习法", meta:"文章 · #学习法 · 2025-11-20" }],
+  "主动回忆": [{ kind:"项", title:"主动回忆", meta:"项目文档「闪卡系统」· 小标题 H3", heading:true }],
+};
+const DOC_HTML = `<h3>我的复习流程</h3>
+<p>每天早上先做 20 分钟 @间隔重复@，卡片来自前一天的阅读笔记。参考 <span class="rl">Anki 官方手册</span> 调了参数之后，复习量稳定了很多。</p>
+<p>间隔怎么定，基本是照着 **@遗忘曲线@** 来的，但我更看重 @主动回忆@：合上书自己讲一遍，讲不出来的地方就是要补的地方，这和 @费曼学习法@ 是一回事。</p>
+<p><span class="uh">周末再把这周的 @间隔重复@ 卡片过一遍</span>，删掉已经很熟的。</p>`;
+let look = "reference";
+function renderDoc() {
+  document.getElementById("doc").innerHTML = DOC_HTML
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/@(.+?)@/g, (_, w) => {
+      const heading = TARGETS[w]?.[0]?.heading;
+      return `<span class="td act${look==="dot"?" tail":""}" data-a="${look}"${heading?' data-tone="muted"':""} data-k="${w}" tabindex="0" contenteditable="false">${w}</span>`;
+    });
+}
+const swLook = document.getElementById("sw-look");
+swLook.innerHTML = LOOKS.map(l => `<button data-v="${l.id}" class="${l.id===look?"on":""}">${l.name}</button>`).join("");
+swLook.onclick = e => { const b = e.target.closest("button"); if (!b) return; look = b.dataset.v; swLook.querySelectorAll("button").forEach(x => x.classList.toggle("on", x===b)); renderDoc(); syncOpts(); };
+renderDoc();
+const tip = document.getElementById("tip"), menu = document.getElementById("menu");
+let tipTimer, menuFor = null, menuIdx = 0;
+function place(el, anchor, gap=6) {
+  const r = anchor.getBoundingClientRect();
+  el.style.left = Math.min(r.left, innerWidth - el.offsetWidth - 12) + "px";
+  el.style.top = (r.bottom + gap) + "px";
+}
+function tipText(k) {
+  const list = TARGETS[k];
+  if (!list) return "";
+  const verb = list.length > 1 ? `${list.length} 个同名内容` : `打开${list[0].meta.startsWith("文章")?"文章":"项目文档"}《${list[0].title}》`;
+  return `${verb}<span style="opacity:.6"> · FakeLink</span>`;
+}
+document.addEventListener("mouseover", e => {
+  const t = e.target.closest("#doc .td");
+  clearTimeout(tipTimer);
+  if (!t || menuFor) { tip.classList.remove("show"); return; }
+  tipTimer = setTimeout(() => { tip.innerHTML = tipText(t.dataset.k); place(tip, t); tip.classList.add("show"); }, 400);
+});
+function openTarget(t, item) {
+  closeMenu();
+  t.classList.add("busy");
+  setTimeout(() => {
+    t.classList.remove("busy");
+    tip.innerHTML = `已打开《${item.title}》`; place(tip, t); tip.classList.add("show");
+    setTimeout(() => tip.classList.remove("show"), 1100);
+  }, 380);
+}
+function showMenu(t) {
+  const list = TARGETS[t.dataset.k];
+  menuFor = t; menuIdx = 0; tip.classList.remove("show");
+  menu.innerHTML = `<div class="mh">「${t.dataset.k}」有 ${list.length} 个同名内容</div>` +
+    list.map((c,i) => `<button data-i="${i}" class="${i===0?"on":""}"><span class="k">${c.kind}</span><span class="t">${c.title}</span><span class="m">${c.meta}</span></button>`).join("");
+  place(menu, t); menu.classList.add("show"); t.classList.add("hot");
+}
+function closeMenu() { menu.classList.remove("show"); menuFor?.classList.remove("hot"); menuFor = null; }
+function activate(t) {
+  const list = TARGETS[t.dataset.k]; if (!list) return;
+  list.length > 1 ? showMenu(t) : openTarget(t, list[0]);
+}
+document.getElementById("doc").addEventListener("click", e => {
+  const t = e.target.closest(".td");
+  if (!t || !getSelection().isCollapsed) return;
+  e.preventDefault(); activate(t);
+});
+menu.addEventListener("click", e => { const b = e.target.closest("button"); if (b) openTarget(menuFor, TARGETS[menuFor.dataset.k][+b.dataset.i]); });
+document.addEventListener("mousedown", e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Meta" || e.key === "Control") document.body.classList.add("mod");
+  if (menuFor) {
+    const items = [...menu.querySelectorAll("button")];
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); menuIdx = (menuIdx + (e.key==="ArrowDown"?1:-1) + items.length) % items.length; items.forEach((b,i)=>b.classList.toggle("on", i===menuIdx)); }
+    else if (e.key === "Enter") { e.preventDefault(); openTarget(menuFor, TARGETS[menuFor.dataset.k][menuIdx]); }
+    else if (e.key === "Escape") { const t = menuFor; closeMenu(); t.focus(); }
+    return;
+  }
+  const t = document.activeElement?.closest?.("#doc .td");
+  if (t && e.key === "Enter") { e.preventDefault(); activate(t); }
+});
+document.addEventListener("keyup", e => { if (e.key === "Meta" || e.key === "Control") document.body.classList.remove("mod"); });
+addEventListener("blur", () => document.body.classList.remove("mod"));
+addEventListener("scroll", () => { tip.classList.remove("show"); closeMenu(); }, { passive:true });
+
+/* ── 设置页 ── */
+const OPT_IDS = ["reference","ghost","marker","tint"];
+function syncOpts() {
+  document.getElementById("opts").innerHTML = OPT_IDS.map(id => {
+    const l = LOOKS.find(x => x.id === id);
+    return `<button class="opt${id===look?" on":""}" data-v="${id}"><div class="pv">去读 ${td("遗忘曲线", id)}</div><div class="nm">${l.name}${l.rec?"<span>推荐</span>":""}</div></button>`;
+  }).join("");
+}
+document.getElementById("opts").onclick = e => {
+  const b = e.target.closest(".opt"); if (!b) return;
+  look = b.dataset.v; swLook.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v===look)); renderDoc(); syncOpts();
+};
+syncOpts();
+
+/* ── 主题切换 ── */
+for (const [id, attr] of [["sw-theme","data-theme"],["sw-mode","data-mode"]]) {
+  const sw = document.getElementById(id);
+  sw.onclick = e => { const b = e.target.closest("button"); if (!b) return; document.documentElement.setAttribute(attr, b.dataset.v); sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x===b)); };
+}
+</script>
+</body>
+</html>

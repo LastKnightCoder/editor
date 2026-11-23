@@ -1,3 +1,4 @@
+import { DesktopTextDecorations } from "./text-decorations";
 import { isMainWindow } from "@/utils/window-role";
 import { useShellStore } from "../shellStore";
 import { assertPluginUserActivation } from "./user-activation";
@@ -163,6 +164,7 @@ export interface RegisteredPluginSettings {
 }
 
 export class DesktopPluginRuntime {
+  readonly textDecorations: DesktopTextDecorations;
   readonly host: PluginHost;
   local?: LocalPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
@@ -226,7 +228,9 @@ export class DesktopPluginRuntime {
       restartRequired?: Set<string>;
     }
   ) {
+    this.textDecorations = new DesktopTextDecorations(options.permissions, options.data);
     this.host = new PluginHost({
+      textDecorations: isMainWindow() ? this.textDecorations : undefined,
       materialActionFeedback: {
         success: label => {
           toast.success(`已${label}`);
