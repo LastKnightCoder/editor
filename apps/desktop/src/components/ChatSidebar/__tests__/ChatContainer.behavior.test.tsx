@@ -425,6 +425,26 @@ afterEach(() => {
   usedSessionKeys = [];
 });
 
+it.each([
+  { scenario: "未分配时可以首次选择模型", previous: null },
+  {
+    scenario: "切换已有分配时保留思考档位",
+    previous: { providerId: "old-provider", modelId: "old-model", thinkingLevel: "high" as const },
+  },
+])("输入框选择模型：$scenario", async ({ previous }) => {
+  // 新服务商已保存模型时，对话分配仍可能为空。
+  useSettingStore.getState().updateLLMUsageSetting("chat", previous);
+  await renderChat({ chat: savedChat("chat-model-selection", []) });
+  const input = coreShell.props.renderChatInputArea({ inputProps: {} });
+  const item = input.props.modelGroups[0].children[0];
+  await act(async () => input.props.onModelSelect({ key: item.key }));
+  expect(useSettingStore.getState().setting.llmUsageSettings.chat).toEqual({
+    ...(previous && { thinkingLevel: "high" }),
+    providerId: CHAT_PROVIDER.id,
+    modelId: CHAT_MODEL.id,
+  });
+});
+
 describe("发送流水线", () => {
   it("在重开的对话里压缩当前文件，命令不进入消息历史或下一轮队列", async () => {
     const chat = savedChat("chat-compact", [userMessage("早先的问题"), assistantMessage("回答")]);

@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import {
   clampThinkingLevel,
@@ -52,15 +51,6 @@ export function useChatModelConfig() {
   // 聊天上传以 pi 为准：文本、图片与文件；文件由模型用 read 工具读取
   const supportImage = chatModelConfig?.input.includes("image") ?? false;
 
-  const onSelectModel = useMemoizedFn((providerId: string, modelId: string) => {
-    useSettingStore.setState(
-      produce(draft => {
-        draft.setting.llmUsageSettings.chat.providerId = providerId;
-        draft.setting.llmUsageSettings.chat.modelId = modelId;
-      })
-    );
-  });
-
   // 模型选择菜单：按服务商分组（纯数据，由输入区用 @tau/ui Menu 渲染）
   const modelGroups = useMemo(
     () =>
@@ -83,7 +73,8 @@ export function useChatModelConfig() {
   // 处理模型选择
   const handleModelSelect = useMemoizedFn(({ key }: { key: string }) => {
     const [providerId, modelId] = key.split("::");
-    onSelectModel(providerId, modelId);
+    const { setting, updateLLMUsageSetting } = useSettingStore.getState();
+    updateLLMUsageSetting("chat", { ...setting.llmUsageSettings.chat, providerId, modelId });
   });
 
   return {
