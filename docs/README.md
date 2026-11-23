@@ -19,7 +19,7 @@
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                       |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                       |
 | [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                     |
-| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                                       |
+| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点、官网分发                                                             |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                   |
 | [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                   |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、应用生命周期、稳定材料引用与外链、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
@@ -53,7 +53,7 @@
 | [dev-content-verification.md](./guides/dev-content-verification.md) | 正文、白板与跨端回归入口，容量、硬杀和长稳判据       |
 | [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收                           |
 | [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查                       |
-| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查                       |
+| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端与浏览器扩展的发布、覆盖安装与交付检查         |
 | [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight                 |
 | [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                                         |
 | [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布             |

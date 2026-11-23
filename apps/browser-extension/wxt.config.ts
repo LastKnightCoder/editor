@@ -43,7 +43,6 @@ export default defineConfig({
   manifest: {
     name: "Tau 伴读",
     description: "在网页里高亮、批注、记笔记，并用 Tau 里的模型对网页提问",
-    version: "0.1.0",
     permissions: ["storage"],
     host_permissions: ["<all_urls>"],
     action: { default_title: "Tau 伴读" },
@@ -70,6 +69,8 @@ export default defineConfig({
       "128": "icon/128.png",
     },
   },
+  // 官网分发的包名；scripts/extension-release.mjs 按同一规则查找产物
+  zip: { name: "Tau-Companion", artifactTemplate: "{{name}}-v{{version}}-{{browser}}.zip" },
   hooks: {
     "build:publicAssets": (_wxt, assets) => {
       for (const file of readdirSync(KATEX_FONTS).filter(name => name.endsWith(".woff2")))

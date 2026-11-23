@@ -1,5 +1,5 @@
 /**
- * 下载信息：读取 dl.taunote.app 上桌面 electron-updater 的 latest*.yml 与 Android 的 latest.json。
+ * 下载信息：读取 dl.taunote.app 上桌面 electron-updater 的 latest*.yml、Android 与浏览器扩展的 latest.json。
  * 构建时生成回退快照，Pages 在每次访问首页时用实时清单更新版本与下载入口。
  */
 import { parse } from "yaml";
@@ -21,10 +21,17 @@ export interface TargetRelease {
   version: string;
 }
 
+/** 浏览器扩展「Tau 伴读」的下载包；未发布时为 null */
+export interface ExtensionRelease {
+  version: string;
+  url: string;
+}
+
 export interface ReleaseInfo {
   version: string;
   releaseDate: string;
   targets: TargetRelease[];
+  extension: ExtensionRelease | null;
 }
 
 interface DownloadTarget {
@@ -130,20 +137,53 @@ function parseFeed(feed: string, text: string, targets: DownloadTarget[]) {
 
 const feedDir = (feed: string) => feed.slice(0, feed.lastIndexOf("/"));
 
+/** 浏览器扩展的发布清单（scripts/publish-extension.mjs 生成），压缩包与清单同目录 */
+const EXTENSION_FEED = "browser-extension/latest.json";
+const EXTENSION_GUIDE_HREF = "/docs/reading/#安装与连接";
+
+interface ExtensionManifest {
+  version?: unknown;
+  file?: unknown;
+}
+
+/** 扩展清单只描述一个 zip；版本不是 x.y.z 或文件名带路径时视为未发布 */
+export function parseExtensionManifest(text: string): ExtensionRelease | null {
+  const { version, file } = JSON.parse(text) as ExtensionManifest;
+  if (
+    typeof version !== "string" ||
+    !/^\d+\.\d+\.\d+$/.test(version) ||
+    typeof file !== "string" ||
+    !/^[^/\\]+$/.test(file)
+  )
+    return null;
+  return { version, url: `${RELEASE_BASE_URL}/${feedDir(EXTENSION_FEED)}/${file}` };
+}
+
+/** 扩展独立取数：未发布（404）时只是缺席，不影响安装包的下载 */
+async function fetchExtensionRelease(fetcher: Fetcher): Promise<ExtensionRelease | null> {
+  const res = await fetcher(`${RELEASE_BASE_URL}/${EXTENSION_FEED}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`读取 ${EXTENSION_FEED} 失败：HTTP ${res.status}`);
+  return parseExtensionManifest(await res.text());
+}
+
 type Fetcher = (url: string) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
 /** 各发布源独立取数：某个平台未发布（404）时只是缺席，其余平台照常展示 */
 export async function fetchReleaseInfo(fetcher: Fetcher = fetch): Promise<ReleaseInfo> {
   const feeds = [...new Set(DOWNLOAD_TARGETS.map(t => t.feed))];
-  const results = await Promise.all(
-    feeds.map(async feed => {
-      const res = await fetcher(`${RELEASE_BASE_URL}/${feed}`);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error(`读取 ${feed} 失败：HTTP ${res.status}`);
-      const targets = DOWNLOAD_TARGETS.filter(t => t.feed === feed);
-      return { feed, ...parseFeed(feed, await res.text(), targets) };
-    })
-  );
+  const [results, extension] = await Promise.all([
+    Promise.all(
+      feeds.map(async feed => {
+        const res = await fetcher(`${RELEASE_BASE_URL}/${feed}`);
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`读取 ${feed} 失败：HTTP ${res.status}`);
+        const targets = DOWNLOAD_TARGETS.filter(t => t.feed === feed);
+        return { feed, ...parseFeed(feed, await res.text(), targets) };
+      })
+    ),
+    fetchExtensionRelease(fetcher),
+  ]);
   const available = results.filter(
     (r): r is NonNullable<typeof r> => r !== null && r.files.length > 0
   );
@@ -165,6 +205,7 @@ export async function fetchReleaseInfo(fetcher: Fetcher = fetch): Promise<Releas
       const url = `${RELEASE_BASE_URL}/${hit.dir}/${hit.file}`;
       return [{ target, url, size: hit.size, version: hit.version }];
     }),
+    extension,
   };
 }
 
@@ -236,4 +277,14 @@ export function renderReleaseMeta(info: ReleaseInfo | null) {
     return [`${label} 约 ${Math.round(bytes / 1024 / 1024)} MB`];
   });
   return [`v${info.version}`, date, ...sizes].filter(Boolean).join(" · ");
+}
+
+/** 下载卡里的浏览器扩展入口：一句说明加两个文字链接，不与安装包按钮争主次；未发布时不渲染 */
+export function renderExtensionDownload(info: ReleaseInfo | null) {
+  const extension = info?.extension;
+  if (!extension) return "";
+  return (
+    "<span>浏览器扩展「Tau 伴读」：在网页上划线、批注、记笔记，内容收进 Tau。</span>" +
+    `<span class="dl-ext-links"><a href="${extension.url}">下载 v${extension.version}</a><a href="${EXTENSION_GUIDE_HREF}">安装方法</a></span>`
+  );
 }

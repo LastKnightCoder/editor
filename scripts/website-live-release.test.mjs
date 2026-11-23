@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildExtensionManifest } from "./extension-release.mjs";
 
 const websiteDir = resolve(dirname(fileURLToPath(import.meta.url)), "../apps/website");
 // 使用与部署工具一致的 Workers 运行时。
@@ -39,6 +40,14 @@ test("同一份官网产物随发布清单自动更新，并在故障时保留�
         size: 2097152,
       })),
     });
+    // 用发布脚本生成的真实清单，官网与发布脚本对同一个格式负责
+    const extension = buildExtensionManifest({
+      version: "3.0.0",
+      size: 2097152,
+      sha256: "a".repeat(64),
+      now: new Date("2026-11-23T00:00:00Z"),
+    });
+    const extensionUrl = `https://dl.taunote.app/browser-extension/${extension.file}`;
     let phase = "windows";
     let upstreamCalls = 0;
     let assetHeaders;
@@ -65,6 +74,10 @@ test("同一份官网产物随发布清单自动更新，并在故障时保留�
           upstreamCalls++;
           if (phase === "failure") return new RuntimeResponse("unavailable", { status: 503 });
           const { pathname } = new URL(request.url);
+          if (pathname.endsWith("/browser-extension/latest.json"))
+            return new RuntimeResponse(JSON.stringify(extension), {
+              status: phase === "mac" ? 200 : 404,
+            });
           if (pathname.endsWith("latest.json")) return new RuntimeResponse("", { status: 404 });
           const isMac = pathname.endsWith("latest-mac.yml");
           return new RuntimeResponse(isMac ? mac : windows, {
@@ -82,9 +95,10 @@ test("同一份官网产物随发布清单自动更新，并在故障时保留�
       assert.ok(html.includes("Tau-v88.0.0-win32.exe"));
       assert.ok(html.includes("macOS 版即将推出"));
       assert.ok(html.includes("Android 版即将推出"));
+      assert.ok(!html.includes("Tau-Companion"));
     });
 
-    await t.test("不重新构建或部署，发布后两处 Mac 下载与版本自动出现", async () => {
+    await t.test("不重新构建，发布后 Mac 下载、版本与扩展入口自动出现", async () => {
       phase = "mac";
       await runtime.purgeCache();
       const response = await runtime.dispatchFetch("https://taunote.app/", {
@@ -98,6 +112,8 @@ test("同一份官网产物随发布清单自动更新，并在故障时保留�
         assert.equal(html.split(`Tau-v99.0.0-darwin-${arch}.dmg`).length - 1, 2);
       assert.match(html, /data-release-version[^>]*>99\.0\.0<\/span>/);
       assert.ok(html.includes("v99.0.0 · macOS 约 2 MB"));
+      // 只在页尾下载卡出现，首屏不放扩展入口
+      assert.equal(html.split(extensionUrl).length - 1, 1);
       assert.equal(response.headers.get("Cache-Control"), "no-store");
       assert.equal(response.headers.get("ETag"), null);
       assert.equal(assetHeaders.get("If-None-Match"), null);

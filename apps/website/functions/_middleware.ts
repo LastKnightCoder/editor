@@ -1,4 +1,9 @@
-import { fetchReleaseInfo, renderDownloadButtons, renderReleaseMeta } from "../build/release.ts";
+import {
+  fetchReleaseInfo,
+  renderDownloadButtons,
+  renderExtensionDownload,
+  renderReleaseMeta,
+} from "../build/release.ts";
 
 export const onRequest: PagesFunction = async ({ request, next }) => {
   const pathname = new URL(request.url).pathname;
@@ -43,6 +48,11 @@ export const onRequest: PagesFunction = async ({ request, next }) => {
       .on("[data-release-version]", {
         element(element) {
           element.setInnerContent(info.version);
+        },
+      })
+      .on("[data-extension-download]", {
+        element(element) {
+          element.setInnerContent(renderExtensionDownload(info), { html: true });
         },
       })
       .transform(response);

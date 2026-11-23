@@ -5,6 +5,7 @@ import { defineConfig, type Plugin } from "vite";
 import {
   fetchReleaseInfo,
   renderDownloadButtons,
+  renderExtensionDownload,
   renderReleaseMeta,
   type ReleaseInfo,
 } from "./build/release.ts";
@@ -43,6 +44,7 @@ function releaseInfoPlugin(): Plugin {
       return renderSiteNav(html)
         .replaceAll("<!--tau:download-buttons-->", renderDownloadButtons(info))
         .replaceAll("<!--tau:release-meta-->", renderReleaseMeta(info))
+        .replaceAll("<!--tau:extension-download-->", renderExtensionDownload(info))
         .replaceAll("<!--tau:version-->", info?.version ?? "—");
     },
   };

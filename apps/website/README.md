@@ -26,6 +26,7 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 - 一个平台都读不到，或发布源返回其他错误时，`build` 直接失败，避免把空的下载区部署上线。本地 `dev` 只打印警告并显示占位。
 - 运行时发布源故障或超时，保留可用的构建快照；首页不使用浏览器缓存，避免旧页面阻止版本更新。
 - macOS 按 Apple 芯片与 Intel 芯片分别展示下载入口。访客打开页面后，脚本根据系统和芯片推荐主按钮；无法识别芯片时说明如何查看。
+- 页尾下载卡另有浏览器扩展「Tau 伴读」的入口（首屏不放）：读取 `pnpm publish:extension` 发布的 `https://dl.taunote.app/browser-extension/latest.json`，有清单时渲染一句说明和「下载」「安装方法」两个文字链接，清单 404 时不渲染。下载直链发布源，不经统计服务。
 - 下载按钮经 `https://analytics.taunote.app/v1/downloads/:filename?channel=website` 记录下载发起，校验 R2 对象后跳转到原 `dl.taunote.app/desktop/:filename`。安装包与自动更新仍由 R2 分发；先部署 Analytics，再部署官网。统计数据库故障不会阻断跳转，入口服务不可用时仍需先恢复入口服务。
 
 发布新版本桌面端后，打开或刷新官网即可自动获取最新下载信息，无需重新部署官网。安装包仍须通过发布脚本上传到下载源。

@@ -90,3 +90,10 @@
 - 改名：点详情标题就地改，回车保存、Esc 取消、清空恢复网页标题；`library.rename` 写 `web_page.custom_title`（页面还没记录时新建，只有笔记的页面也能改名）并改写该页摘录的 `source_title`，补发摘录写事件；`note.save` 同样记下页面。
 - 离线：页面列表、详情与全部标注退回本机 `ann:*` 缓存（只含在这个浏览器里看过的页面，同口径筛选排序），不能改名；站点筛选要连上 Tau。本机笔记与缓存随 `chrome.storage` 变化失效重取。
 - 不在伴读库里删标注：打开着该页的标签页会以内存里的快照写回。
+
+## 分发
+
+- 上架应用商店之前经官网分发：用户下载 zip，在浏览器开发者模式下「加载未打包的扩展程序」。Chrome 在 Windows、macOS 上不允许安装商店以外的打包扩展（crx），只能走这条路；商店上架后上传的也是同一份 zip。
+- `pnpm publish:extension`（`scripts/publish-extension.mjs`，规则在 `scripts/extension-release.mjs`）用 `wxt zip` 产出 `Tau-Companion-v<版本>-chrome.zip`，上传到 R2 的 `browser-extension/`（不可变缓存），再写同目录的 `latest.json`（`version`、`releaseDate`、`file`、`size`、`sha256`，`no-cache`）。版本号只在 `apps/browser-extension/package.json`，`wxt.config.ts` 不另写。操作步骤见[客户端构建与安装](/docs/guides/ops-client-build-install.md#浏览器扩展发布到-r2)。
+- 官网页尾下载卡读取这份清单渲染扩展入口（`apps/website/build/release.ts` 的 `renderExtensionDownload`，访问首页时由 Pages Functions 实时注入）；清单 404 时不渲染，不影响安装包的下载按钮。
+- 未打包扩展的 ID 由所在文件夹的路径决定：一个路径就是一个扩展实例，各自授权；没有自动更新，更新是把新文件覆盖进原文件夹后手动重新加载，换路径等于新实例，浏览器本地数据（笔记草稿、未同步标注、配对凭据）不随之迁移。

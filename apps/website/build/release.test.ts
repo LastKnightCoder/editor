@@ -5,8 +5,10 @@ import {
   ANALYTICS_DOWNLOAD_BASE_URL,
   fetchReleaseInfo,
   parseAndroidManifest,
+  parseExtensionManifest,
   parseLatestYml,
   renderDownloadButtons,
+  renderExtensionDownload,
   renderReleaseMeta,
 } from "./release.ts";
 
@@ -105,6 +107,49 @@ describe("parseAndroidManifest", () => {
   });
 });
 
+const EXTENSION_FEED = "browser-extension/latest.json";
+const EXTENSION_JSON = JSON.stringify({
+  version: "0.1.0",
+  releaseDate: "2026-11-23T00:00:00.000Z",
+  file: "Tau-Companion-v0.1.0-chrome.zip",
+  size: 4172146,
+  sha256: "b".repeat(64),
+});
+
+describe("浏览器扩展", () => {
+  it("压缩包与清单同目录，入口给出下载地址与安装说明", async () => {
+    const info = await fetchReleaseInfo(
+      fakeFetch({ "desktop/latest.yml": WINDOWS_YML, [EXTENSION_FEED]: EXTENSION_JSON })
+    );
+    expect(info.extension).toEqual({
+      version: "0.1.0",
+      url: `${RELEASE_BASE_URL}/browser-extension/Tau-Companion-v0.1.0-chrome.zip`,
+    });
+    const html = renderExtensionDownload(info);
+    expect(html).toContain(
+      `href="${RELEASE_BASE_URL}/browser-extension/Tau-Companion-v0.1.0-chrome.zip"`
+    );
+    expect(html).toContain('href="/docs/reading/#安装与连接"');
+  });
+
+  it("未发布（404）时没有入口", async () => {
+    const info = await fetchReleaseInfo(fakeFetch({ "desktop/latest.yml": WINDOWS_YML }));
+    expect(info.extension).toBeNull();
+    expect(renderExtensionDownload(info)).toBe("");
+  });
+
+  it("清单缺版本、版本不是 x.y.z 或文件名带路径时视为未发布", () => {
+    const valid = { version: "0.1.0", file: "Tau-Companion-v0.1.0-chrome.zip" };
+    for (const invalid of [
+      { file: valid.file },
+      { version: valid.version },
+      { ...valid, version: "1.0" },
+      { ...valid, file: "../desktop/latest.yml" },
+    ])
+      expect(parseExtensionManifest(JSON.stringify(invalid))).toBeNull();
+  });
+});
+
 describe("fetchReleaseInfo", () => {
   it("Android 安装包与清单同目录，页面主版本仍取桌面端", async () => {
     const info = await fetchReleaseInfo(
@@ -196,6 +241,7 @@ describe("渲染", () => {
       const html = renderDownloadButtons({
         version: "0.59.0",
         releaseDate: "",
+        extension: null,
         targets: [
           {
             target,

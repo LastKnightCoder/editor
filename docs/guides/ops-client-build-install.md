@@ -152,6 +152,22 @@ curl -L --retry 3 -o ggml-base.bin \
 2. CPU 包运行 `pnpm publish:qwen-runtime --windows-x64`，GPU 包运行 `pnpm publish:qwen-runtime --windows-x64-gpu`。脚本校验上游原包，发布到 R2 的 `runtimes/qwen-audio-cpp/win32-x64/`，从公开地址下载验证后分别更新 [CPU 固定清单](/apps/desktop/src-electron/main/services/qwen/bundle-win32-x64.json) 和 [GPU 固定清单](/apps/desktop/src-electron/main/services/qwen/bundle-win32-x64-gpu.json)。
 3. 在 Windows x64 的「设置 › AI 服务 › 语音 › 语音转录」中选 Qwen，先转纯文字，再下载时间对齐模型转字幕。检查点击字幕能定位到对应语音，在 AMD、Intel 或 NVIDIA 显卡机器上检查安装前的系统显卡名称与运行包建议；下载 GPU 包后确认界面自动更新为实际可用的 Vulkan 显卡。单次改用 GPU，核对进度显示的设备名称、字幕时间和模型文件复用，再手动切回 CPU。未检测到 Vulkan 硬件时应提示切回 CPU。
 
+## 浏览器扩展发布到 R2
+
+「Tau 伴读」上架应用商店之前，用户从官网下载 zip，在浏览器开发者模式下「加载未打包的扩展程序」安装；官网页尾下载卡读取同一份清单显示版本与入口。Chrome 在 Windows、macOS 上不允许安装商店以外的打包扩展（crx），这是只能分发 zip 的原因。
+
+1. 准备 R2 凭据 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`（与字体发布相同）。版本号只在 `apps/browser-extension/package.json` 一处。
+2. 本地演练：`pnpm publish:extension --dry-run`。脚本构建并打包扩展，核对压缩包根目录 `manifest.json` 的版本，把 `Tau-Companion-v<版本>-chrome.zip` 与 `latest.json` 写到 `apps/browser-extension/.output/`。演练不回写版本号，`--version` 只在与当前版本相同时能走通；要升版本，先手动改好再演练。
+3. 正式发布：`pnpm publish:extension`（加 `--version x.y.z` 会先回写版本号）。脚本依次：
+   - `wxt zip` 构建并打包；
+   - 核对压缩包根目录的 `manifest.json` 与发布版本一致；
+   - 与线上 `latest.json` 对账：同版本需 `--force`，不允许降级；
+   - 先上传 zip，再上传 `latest.json`。
+4. 构建或上传失败时版本号不回滚，修复后加 `--skip-build` 重试。
+5. 发布后打开 `https://dl.taunote.app/browser-extension/latest.json` 核对版本与 sha256；下载 zip 解压，按使用文档「收集与阅读」的步骤在本机浏览器加载，确认能完成配对、高亮与对话；打开官网首页，页尾下载卡出现扩展入口与新的版本号，无需重新部署官网。
+
+判据：清单与本地 `apps/browser-extension/.output/latest.json` 一致，照使用文档的步骤能在 Chrome 与 Edge 加载并连接 Tau。
+
 ## iOS 构建与安装
 
 连接 iPhone 后，在仓库根执行 `pnpm ios:install` 可构建 Release 并覆盖安装；多设备选择、签名准备与故障恢复按 [iOS 签名、构建和 TestFlight 手册](/docs/guides/ops-ios-signing.md)执行。App Store Connect 分发 IPA 不能像 APK 一样直接点开安装；该分发方式通过 TestFlight 安装，不要求先注册测试设备。

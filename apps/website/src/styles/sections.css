@@ -311,7 +311,7 @@
 .download {
   padding: 160px 0 120px;
 }
-/* 收尾的下载卡：图标 + 一句话 + 按钮，版本信息压在最下面 */
+/* 收尾的下载卡：图标 + 一句话 + 按钮，版本信息与浏览器扩展入口压在最下面 */
 .dl-card {
   position: relative;
   overflow: hidden;
@@ -344,6 +344,37 @@
 .dl-card .meta {
   margin-top: 18px;
   font-size: 13px;
+}
+/* 浏览器扩展入口：一句说明加两个文字链接，不做按钮；未发布时为空，不占位 */
+.dl-ext {
+  margin-top: 30px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--tau-ink-3);
+}
+.dl-ext:empty {
+  display: none;
+}
+.dl-ext span {
+  display: block;
+}
+.dl-ext-links {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+.dl-ext a {
+  font-weight: 500;
+  color: var(--tau-accent-text);
+}
+.dl-ext a:hover {
+  color: var(--tau-ink-1);
+}
+.dl-ext a + a::before {
+  content: "·";
+  margin: 0 10px;
+  font-weight: 400;
+  color: var(--tau-ink-3);
 }
 footer.site {
   border-top: 1px solid var(--tau-line-1);
