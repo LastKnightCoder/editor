@@ -100,3 +100,6 @@
 [submodule "plugins/tau-plugin-images-seedream"]
 	path = plugins/tau-plugin-images-seedream
 	url = https://github.com/LastKnightCoder/tau-plugin-images-seedream.git
+[submodule "plugins/tau-plugin-fakelink"]
+	path = plugins/tau-plugin-fakelink
+	url = https://github.com/LastKnightCoder/tau-plugin-fakelink.git
