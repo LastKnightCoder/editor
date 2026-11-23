@@ -1,3 +1,4 @@
+import type { PluginTextDecorations } from "./text-decorations";
 import type { PluginWindowDefinition, PluginWindows } from "./windows";
 import type { PluginPages } from "./pages";
 import type { PluginEnvironment } from "./environment";
@@ -86,6 +87,7 @@ export interface PluginContext {
   readonly home: PluginHome;
   /** 对象动作：卡片、文章、项目文档「⋯」菜单里的条目 */
   readonly actions: PluginActions;
+  readonly textDecorations?: PluginTextDecorations;
   /** 卡片、文章、项目文档详情里的区块 */
   readonly views: PluginViews;
   /** Notebook 的生成菜单里加产物；只在桌面主窗口 */
