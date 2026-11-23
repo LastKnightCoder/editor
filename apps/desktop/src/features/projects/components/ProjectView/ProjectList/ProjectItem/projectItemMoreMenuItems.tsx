@@ -44,7 +44,9 @@ function menuIcon(Icon: LucideIcon) {
 export const getProjectItemMoreMenuItems = (
   projectItem?: ProjectItemMenuSource | null,
   /** 文档已共享：协作项改「协作成员」（打开成员 Popover） */
-  shared = false
+  shared = false,
+  /** 闪卡复习关掉时不给制卡入口 */
+  flashcards = true
 ): MenuEntryList => {
   if (projectItem?.projectItemType === EProjectItemType.Document) {
     return [
@@ -120,8 +122,12 @@ export const getProjectItemMoreMenuItems = (
           projectItem?.refType !== "card"
             ? { key: "to-card", label: "建立卡片", icon: menuIcon(Layers) }
             : undefined,
-          { key: "ai-flashcard", label: "AI 制卡（闪卡）", icon: menuIcon(Sparkles) },
-          { key: "manual-flashcard", label: "手动制卡（闪卡）", icon: menuIcon(CreditCard) },
+          flashcards
+            ? { key: "ai-flashcard", label: "AI 制卡（闪卡）", icon: menuIcon(Sparkles) }
+            : undefined,
+          flashcards
+            ? { key: "manual-flashcard", label: "手动制卡（闪卡）", icon: menuIcon(CreditCard) }
+            : undefined,
         ]),
       },
       { key: "remove-divider", label: "", divider: true },

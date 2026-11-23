@@ -586,6 +586,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `hidden`      | `INTEGER NOT NULL DEFAULT 0` |
 | `update_time` | `INTEGER NOT NULL`           |
 
+### `workspace_preferences`
+
+工作区偏好：随工作区保存与同步的界面设置（关掉的功能、首次启动引导状态），整份读写。
+
+| 字段          | SQLite 定义                 |
+| ------------- | --------------------------- |
+| `key`         | `TEXT PRIMARY KEY NOT NULL` |
+| `value`       | `TEXT NOT NULL`             |
+| `update_time` | `INTEGER NOT NULL`          |
+
 ### `operation`
 
 | 字段                     | SQLite 定义           |

@@ -36,6 +36,10 @@ vi.mock("@/services/open-content", () => ({ openEntity: vi.fn() }));
 vi.mock("@/services/open-material", () => ({ openMaterialTarget: vi.fn() }));
 vi.mock("@/commands/file", () => ({ openMarkdownInNewWindow: vi.fn() }));
 vi.mock("@/commands/perf", () => ({ exportPerfSnapshot: vi.fn() }));
+vi.mock("@/app/featureQueries", () => {
+  const features = { isEnabled: () => true };
+  return { useFeatures: () => features };
+});
 
 let root: Root;
 let container: HTMLDivElement;

@@ -25,6 +25,7 @@ import { useShellStore } from "./shellStore";
 import { useAssistOwned } from "./assistOwner";
 import { useVisibleAssist } from "./useVisibleAssist";
 import { SubagentAttention } from "@/features/chat/components/subagents/SubagentAttention";
+import { useFeatureEnabled } from "./featureQueries";
 
 export function Titlebar() {
   const { navigator, state, breadcrumbs } = usePage();
@@ -51,6 +52,7 @@ export function Titlebar() {
 
   const currentKey = state.back[state.back.length - 1]?.key;
   const assistOwned = useAssistOwned(currentKey);
+  const chatEnabled = useFeatureEnabled("chat");
   // 对话已在眼前（对话页或辅助栏）时不再重复提示进行中的子任务
   const chatVisible = useShellStore(s => s.assistView === "chat") || currentKey === "chat";
   // 右栏视图铺满正文时，后退先收回右栏
@@ -108,7 +110,7 @@ export function Titlebar() {
       {/* 知识地图：全局视角的入口，在内容详情里点会以当前内容为中心打开 */}
       <KnowledgeMapToggle />
       {/* AI 对话停靠栏开关（对话页本身在栈顶、或页面自带对话栏时不显示） */}
-      {currentKey !== "chat" && !assistOwned && <AssistToggle />}
+      {currentKey !== "chat" && !assistOwned && chatEnabled && <AssistToggle />}
       {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
       <ThemeToggle />
       {/* Windows/Linux 三键（Mac：自绘信号灯见 Sidebar 头部）；拖拽区行为见 header 类 */}

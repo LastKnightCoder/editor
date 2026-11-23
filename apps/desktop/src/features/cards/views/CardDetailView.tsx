@@ -60,6 +60,7 @@ import ContentCollaborationControl, {
 } from "@/components/ContentCollaborationControl";
 import useContentShared from "@/hooks/useContentShared";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
+import { useFeatureEnabled } from "@/app/featureQueries";
 import useSettingStore from "@/stores/useSettingStore";
 import { openCardInNewWindow } from "@/commands/card";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, formatDate } from "@/utils";
@@ -153,6 +154,7 @@ export function CardDetailView() {
   const draft = usePatternCardDraft(card?.id ?? null, rootRef);
 
   /* 制卡：闪卡引用指向卡片正文（refType content，与文章制卡同链路） */
+  const flashcardsEnabled = useFeatureEnabled("review");
   const flashcard = useFlashcardCreation({
     getContent: () => card?.content ?? [],
     getReference: () => ({
@@ -393,18 +395,26 @@ export function CardDetailView() {
                         label="生成"
                         icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
-                        <Menu.Item
-                          onSelect={() => flashcard.openAiFlashcard()}
-                          icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                        >
-                          AI 制卡（闪卡）
-                        </Menu.Item>
-                        <Menu.Item
-                          onSelect={() => flashcard.openManualFlashcard()}
-                          icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                        >
-                          手动制卡（闪卡）
-                        </Menu.Item>
+                        {flashcardsEnabled && (
+                          <>
+                            <Menu.Item
+                              onSelect={() => flashcard.openAiFlashcard()}
+                              icon={
+                                <Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />
+                              }
+                            >
+                              AI 制卡（闪卡）
+                            </Menu.Item>
+                            <Menu.Item
+                              onSelect={() => flashcard.openManualFlashcard()}
+                              icon={
+                                <CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />
+                              }
+                            >
+                              手动制卡（闪卡）
+                            </Menu.Item>
+                          </>
+                        )}
                       </Menu.Submenu>
                       <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
                       <Menu.Separator />

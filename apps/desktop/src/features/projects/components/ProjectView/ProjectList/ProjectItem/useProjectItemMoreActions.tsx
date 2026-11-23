@@ -9,6 +9,7 @@ import EpubExportModal from "@/components/EpubExportModal";
 import PresentationMode from "@/components/PresentationMode";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
+import { useFeatureEnabled } from "@/app/featureQueries";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
 import { usePage } from "@/page/PageProvider";
@@ -88,9 +89,10 @@ export const useProjectItemMoreActions = (
   } = useProjectWebLinkMeta(projectItem);
 
   const shared = useContentShared(projectItem?.contentId);
+  const flashcardsEnabled = useFeatureEnabled("review");
   const builtinMenuItems: MenuEntryList = useMemo(
-    () => getProjectItemMoreMenuItems(projectItem, shared),
-    [projectItem?.projectItemType, projectItem?.refType, shared]
+    () => getProjectItemMoreMenuItems(projectItem, shared, flashcardsEnabled),
+    [projectItem?.projectItemType, projectItem?.refType, shared, flashcardsEnabled]
   );
   const pluginEntries = usePluginMenuEntries(projectItemActionTarget(projectItem));
   const moreMenuItems = pluginEntries.insert(builtinMenuItems);

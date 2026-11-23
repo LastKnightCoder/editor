@@ -61,6 +61,7 @@ import ContentCollaborationControl, {
 import useContentShared from "@/hooks/useContentShared";
 import useEditArticle from "@/hooks/useEditArticle";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
+import { useFeatureEnabled } from "@/app/featureQueries";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
 import { openArticleInNewWindow, updateArticleBannerBg } from "@/commands/article";
@@ -177,6 +178,7 @@ export function ArticleDetailView() {
   }, [id, articleEventBus, setEditingArticle]);
 
   /* 制卡（useFlashcardCreation 已去 antd，反馈走 toast） */
+  const flashcardsEnabled = useFeatureEnabled("review");
   const flashcard = useFlashcardCreation({
     getContent: () => editingArticle?.content ?? [],
     getReference: () => ({
@@ -425,18 +427,22 @@ export function ArticleDetailView() {
           label="生成"
           icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
         >
-          <Menu.Item
-            icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
-            onSelect={() => flashcard.openAiFlashcard()}
-          >
-            AI 制卡（闪卡）
-          </Menu.Item>
-          <Menu.Item
-            icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
-            onSelect={() => flashcard.openManualFlashcard()}
-          >
-            手动制卡（闪卡）
-          </Menu.Item>
+          {flashcardsEnabled && (
+            <>
+              <Menu.Item
+                icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                onSelect={() => flashcard.openAiFlashcard()}
+              >
+                AI 制卡（闪卡）
+              </Menu.Item>
+              <Menu.Item
+                icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                onSelect={() => flashcard.openManualFlashcard()}
+              >
+                手动制卡（闪卡）
+              </Menu.Item>
+            </>
+          )}
         </Menu.Submenu>
         <PluginActionMenuItems target={{ kind: "article", id: String(editingArticle.id) }} />
         <Menu.Separator />

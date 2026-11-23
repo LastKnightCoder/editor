@@ -51,6 +51,8 @@ import JoinRequestNotifications from "@/components/JoinRequestNotifications";
 import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import "./base.css";
 import "../pages";
+import { useFeatureEnabled, useWorkspacePreferences } from "./featureQueries";
+import { FeatureOnboarding } from "./FeatureOnboarding";
 
 // 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65。
 // 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效。
@@ -159,11 +161,32 @@ function ShellBody() {
     );
   }
 
+  return <ShellReady startedAt={startedAt.current} />;
+}
+
+/** 新建的工作区先选用途，再进入主界面；偏好读不到时直接进入 */
+function ShellReady({ startedAt }: { startedAt: number }) {
+  const preferences = useWorkspacePreferences();
+  if (preferences.isPending) {
+    return (
+      <div className={shellRootClass}>
+        <div className="col-span-full" />
+      </div>
+    );
+  }
+  if (preferences.data?.onboarding === "pending") {
+    return (
+      <div className={cn(shellRootClass, "grid-cols-1")}>
+        <FeatureOnboarding />
+        <ToastHost />
+      </div>
+    );
+  }
   return (
     <PageProvider initialKey="home">
       <PageNavigationBridge />
       <DesktopPluginProvider>
-        <ShellLayout startedAt={startedAt.current} />
+        <ShellLayout startedAt={startedAt} />
       </DesktopPluginProvider>
     </PageProvider>
   );
@@ -173,6 +196,7 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
   useExternalWebLinkClick();
   useEffect(() => recordPerfStage("startup:shell-ready", startedAt), [startedAt]);
   const { state } = usePage();
+  const chatEnabled = useFeatureEnabled("chat");
   const assistExpanded = useVisibleAssist().expanded;
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
@@ -224,7 +248,7 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
           <AssistDock />
         </div>
       </div>
-      <ChatShortcuts key={state.back.at(-1)?.id} />
+      {chatEnabled && <ChatShortcuts key={state.back.at(-1)?.id} />}
       {/* 全局命令面板浮层（Ctrl+K）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
       {/* 全窗口设置页（Ctrl+,）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}

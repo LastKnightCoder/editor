@@ -7,6 +7,7 @@ import { SettingsScreen } from "../SettingsScreen";
 vi.mock("@/page/PageProvider", () => ({ useOverlayDismiss: () => {} }));
 // 子页各自依赖 IPC 命令，外壳测试只关心导航 / 页头 / 返回
 vi.mock("../sections/AppearanceSection", () => ({ AppearanceSection: () => <div>外观子页</div> }));
+vi.mock("../sections/FeaturesSection", () => ({ FeaturesSection: () => <div>功能子页</div> }));
 vi.mock("../sections/SyncSection", () => ({ SyncSection: () => <div>同步子页</div> }));
 vi.mock("../sections/ResourceSection", () => ({ ResourceSection: () => <div>资源子页</div> }));
 vi.mock("../sections/LLMSection", () => ({ LLMSection: () => <div>模型子页</div> }));
@@ -38,6 +39,7 @@ it("按新信息架构渲染全部分区，页头取分区 label + description",
   render();
   expect(navLabels()).toEqual([
     "外观",
+    "功能",
     "同步",
     "资源存储",
     "剪藏与缓存",

@@ -16,6 +16,8 @@ import { NAV_FOOTER, composeNavSections, type NavItem } from "./navigation";
 import { useDesktopPlugins } from "./plugins/context";
 import { NAV_CHILDREN_SLOTS, useNavChildrenContent } from "./navSlots";
 import { NavItemButton } from "./NavItemButton";
+import { NavItemMenu } from "./NavItemMenu";
+import { useFeatures } from "./featureQueries";
 import { PluginNavEntry } from "./PluginNavEntry";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
@@ -25,7 +27,8 @@ import useSettingStore from "@/stores/useSettingStore";
 export function Sidebar({ resizing }: { resizing: boolean }) {
   const { navigator, state } = usePage();
   const plugins = useDesktopPlugins();
-  const sections = composeNavSections(plugins?.listSidebar());
+  const { isEnabled } = useFeatures();
+  const sections = composeNavSections(plugins?.listSidebar(), isEnabled);
   const collapsed = useShellStore(s => s.sidebarCollapsed);
   const toggle = useShellStore(s => s.toggleSidebar);
   const navSectionCollapsed = useShellStore(s => s.navSectionCollapsed);
@@ -172,26 +175,28 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                     const slot = item.children ? NAV_CHILDREN_SLOTS[item.children] : undefined;
                     const ChildrenSlot = slot?.Component;
                     const expanded = shouldExpandChildren(item);
+                    // 带子项的入口回到该页时沿用已有参数（停留在上次看的子项）；
+                    // 已在该页且槽声明 parentResets 时清空参数回到总览
+                    const open = () =>
+                      navigator.push(
+                        item.key,
+                        slot && !(slot.parentResets && item.key === currentKey)
+                          ? state.back.find(entry => entry.key === item.key)?.params
+                          : undefined
+                      );
                     return (
                       <div key={item.key}>
-                        <NavItemButton
-                          item={item}
-                          collapsed={collapsed}
-                          active={item.key === currentKey}
-                          hasActiveChild={
-                            expanded && Boolean(slot?.selected(current?.params ?? {}))
-                          }
-                          // 带子项的入口回到该页时沿用已有参数（停留在上次看的子项）；
-                          // 已在该页且槽声明 parentResets 时清空参数回到总览
-                          onClick={() => {
-                            navigator.push(
-                              item.key,
-                              slot && !(slot.parentResets && item.key === currentKey)
-                                ? state.back.find(entry => entry.key === item.key)?.params
-                                : undefined
-                            );
-                          }}
-                        />
+                        <NavItemMenu item={item} onOpen={open}>
+                          <NavItemButton
+                            item={item}
+                            collapsed={collapsed}
+                            active={item.key === currentKey}
+                            hasActiveChild={
+                              expanded && Boolean(slot?.selected(current?.params ?? {}))
+                            }
+                            onClick={open}
+                          />
+                        </NavItemMenu>
                         {ChildrenSlot && expanded && (
                           <ChildrenSlot
                             selectedId={current?.params.id as string | undefined}

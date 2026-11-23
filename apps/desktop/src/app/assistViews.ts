@@ -24,6 +24,8 @@ export interface AssistViewDefinition {
   keepAlive?: boolean;
   /** 当前页已经承载这个视图时让位（如对话页、自带对话栏的页面） */
   hiddenOn?(page: { key: string | undefined; ownsChat: boolean }): boolean;
+  /** 所属功能（侧栏 key）：该功能关掉时视图不显示 */
+  feature?: string;
 }
 
 const views = new Map<string, AssistViewDefinition>();

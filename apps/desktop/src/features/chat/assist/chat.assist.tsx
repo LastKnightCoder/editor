@@ -6,5 +6,6 @@ export default defineAssistView({
   label: "AI 对话",
   component: ChatDock,
   keepAlive: true,
+  feature: "chat",
   hiddenOn: ({ key, ownsChat }) => key === "chat" || ownsChat,
 });

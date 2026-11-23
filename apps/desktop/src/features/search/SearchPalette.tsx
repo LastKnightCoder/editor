@@ -58,6 +58,7 @@ import {
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
+import { useFeatures } from "@/app/featureQueries";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { usePluginActions } from "@/app/plugins/action-menu";
 import type { RegisteredPluginAction } from "@/app/plugins/runtime";
@@ -190,9 +191,18 @@ export function SearchPalette() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [plugins, pluginRevision]
   );
+  // 关掉的功能不出现在页面跳转里；页面本身仍可经内容结果打开
+  const { isEnabled } = useFeatures();
   const commands = useMemo(
-    () => matchCommands([...paletteCommands(), ...(pluginCommands ?? [])], lowerQ),
-    [lowerQ, pluginCommands]
+    () =>
+      matchCommands(
+        [
+          ...paletteCommands().filter(c => !c.pageKey || isEnabled(c.pageKey)),
+          ...(pluginCommands ?? []),
+        ],
+        lowerQ
+      ),
+    [lowerQ, pluginCommands, isEnabled]
   );
 
   // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
@@ -479,7 +489,7 @@ export function SearchPalette() {
 
     if (!trimmedQ && scopes.size === 0) {
       // 二级页（card-detail/article-detail 等）只存 key 无法回跳，存量持久化记录同此过滤
-      const replayable = visits.filter(v => isReplayableVisit(v.key));
+      const replayable = visits.filter(v => isReplayableVisit(v.key) && isEnabled(v.key));
       const recent = replayable.slice(0, 5).map(recentRow);
       if (recent.length) out.push({ label: "最近访问", rows: recent });
       const recentKeys = new Set(recent.map(r => r.key));
@@ -583,6 +593,7 @@ export function SearchPalette() {
     contentQuery.data,
     contentQuery.isFetching,
     visits,
+    isEnabled,
     mode,
     pluginEntityMeta,
     textActions.actions,

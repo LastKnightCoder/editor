@@ -19,6 +19,7 @@ import {
   pickRandomWalk,
 } from "@/commands/random-walk";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
+import { useFeatureEnabled } from "@/app/featureQueries";
 import { flashcardCreationRequests } from "@/services/flashcard-creation";
 import type { WalkItem, WalkNeighbor, WalkRefKind } from "@/types";
 import { openWalkItem } from "../open";
@@ -166,6 +167,7 @@ export function WalkView() {
   };
 
   /* 做成闪卡（PDF 批注不显示入口）：闪卡引用指向当前正文 */
+  const flashcardsEnabled = useFeatureEnabled("review");
   const flashcard = useFlashcardCreation({
     getContent: () =>
       (contentEditorRef.current?.getEditor().children ??
@@ -252,7 +254,7 @@ export function WalkView() {
                   editorRef={contentEditorRef}
                   onOpenSource={openSource}
                   onMute={() => void muteCurrent()}
-                  onMakeFlashcard={flashcard.openAiFlashcard}
+                  onMakeFlashcard={flashcardsEnabled ? flashcard.openAiFlashcard : undefined}
                 />
                 <WalkForks
                   neighbors={neighbors}

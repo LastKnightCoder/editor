@@ -21,9 +21,11 @@ import {
   ArrowLeftRight,
   Info,
   Globe,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 import { AppearanceSection } from "./sections/AppearanceSection";
+import { FeaturesSection } from "./sections/FeaturesSection";
 import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
 import { LLMSection } from "./sections/LLMSection";
@@ -37,6 +39,7 @@ import { BrowserExtensionSection } from "./sections/BrowserExtensionSection";
 
 export type SettingsSectionKey =
   | "appearance"
+  | "features"
   | "sync"
   | "imageBed"
   | "cache"
@@ -73,6 +76,13 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         description: "主题、字体与内容图片的默认呈现，改动即刻生效",
         icon: Palette,
         component: AppearanceSection,
+      },
+      {
+        key: "features",
+        label: "功能",
+        description: "只留用得上的功能，侧栏会清爽很多。关掉的功能内容都在，打开就回来",
+        icon: LayoutGrid,
+        component: FeaturesSection,
       },
     ],
   },

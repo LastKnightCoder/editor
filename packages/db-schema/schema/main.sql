@@ -193,6 +193,12 @@ CREATE TABLE IF NOT EXISTS home_panel_layout (
         hidden INTEGER NOT NULL DEFAULT 0,
         update_time INTEGER NOT NULL
       );
+-- 工作区偏好：随工作区保存与同步的界面设置（关掉的功能、首次启动引导状态），整份读写
+CREATE TABLE IF NOT EXISTS workspace_preferences (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS operation (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             operation_time INTEGER NOT NULL,

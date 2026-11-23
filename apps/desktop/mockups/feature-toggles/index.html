@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>桌面端 · 功能开关</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="style.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>桌面端 · 功能开关<small>颜色取自 @tau/themes · 主窗口 1080×680 缩放展示</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="dir">0 方向与规则</button>
+    <button class="tab" data-tab="onboard">1 首次启动选用途</button>
+    <button class="tab" data-tab="settings">2 设置 › 功能</button>
+    <button class="tab" data-tab="inplace">3 侧栏就地隐藏</button>
+    <button class="tab" data-tab="result">4 关掉之后</button>
+    <button class="tab" data-tab="decide">5 待你决定</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 方向与规则 ═══════════ -->
+<section class="scene" data-scene="dir">
+  <p class="intro">侧栏现在有 <b>19 个内置入口</b>（日常 5、知识 5、学习 4、AI 3、分享 2），用户只能折叠分组，不能去掉用不上的功能。这份设计分三处：<b>首次启动问一句用途</b>，按回答决定开哪些功能；<b>设置里新增「功能」页</b>，每个功能一个开关，页顶是同一套常用组合；<b>侧栏条目右键</b>也能就地关掉。关掉只是收起入口，内容一条不删，随时打开就回来。</p>
+
+  <div class="cards">
+    <div class="card"><h3>关掉的是入口，不是数据</h3>关闭后，这个功能在<b>侧栏、今日面板、搜索（⌘K）的页面跳转</b>里都不再出现。已有内容保留：文章里链到的卡片、搜索命中的白板照样能打开，只是不再常驻侧栏。</div>
+    <div class="card"><h3>有些功能依附在别的功能上</h3>「Skill」「MCP 服务器」只在 AI 对话里用得上，这类功能在列表里<b>缩进在它依附的功能下面</b>：主功能关掉，它们一起收起；主功能开着，它们也能单独关。</div>
+    <div class="card"><h3>常用组合是一套</h3>首次启动和设置里用的是同一组组合：<b>写作与笔记、学习、日程与专注、AI 助手</b>。组合可以多选，开的功能取并集。组合只是批量开关，选完还能逐项调。</div>
+    <div class="card"><h3>不能关的</h3><b>今日</b>是打开应用的落点，<b>设置</b>是开关本身的入口，<b>插件</b>管理第三方扩展，这三项始终在。其余 16 项都能关。</div>
+  </div>
+
+  <h2 class="sec">常用组合各开哪些</h2>
+  <table class="map">
+    <tr><th>组合</th><th>打开的功能</th><th>适合谁</th></tr>
+    <tr><td>写作与笔记</td><td>日记、卡片库、文章、项目、白板、数据库</td><td>记笔记、写长文、整理一个主题和它的资料</td></tr>
+    <tr><td>学习</td><td>卡片库、PDF、Notebook、闪卡复习、漫步</td><td>读资料、做笔记、复习巩固</td></tr>
+    <tr><td>日程与专注</td><td>日程、待办、番茄专注、日记</td><td>安排时间、管待办、专注计时</td></tr>
+    <tr><td>AI 助手</td><td>AI 对话、Skill、MCP 服务器</td><td>用模型对话、调用工具</td></tr>
+  </table>
+  <p class="intro" style="margin-top:10px">今日始终打开。没被任何已选组合覆盖的功能（协作、发布等）默认关，需要时在设置里打开。老用户升级后不看这一步，<b>全部功能保持打开</b>。</p>
+
+  <h2 class="sec">哪些功能依附在别的功能上</h2>
+  <table class="map">
+    <tr><th>功能</th><th>依附于</th><th>为什么</th><th>主功能关掉时</th></tr>
+    <tr><td>Skill</td><td>AI 对话</td><td>Skill 只在 AI 对话里被调用</td><td>一起收起</td></tr>
+    <tr><td>MCP 服务器</td><td>AI 对话</td><td>MCP 工具只在 AI 对话里被调用</td><td>一起收起，连接失败的角标也不再出现</td></tr>
+  </table>
+  <p class="intro" style="margin-top:10px">其他功能互相独立。<b>闪卡复习</b>是通用能力：卡片、文章、PDF、AI 对话里都能生成闪卡，所以单独一行，不挂在任何功能下面；关掉后各处的「生成闪卡」入口一起收起。漫步会从卡片、文章、日记里抽内容，同样独立。</p>
+</section>
+
+<!-- ═══════════ 1 首次启动选用途 ═══════════ -->
+<section class="scene" data-scene="onboard">
+  <p class="intro">建好工作区之后、进入今日之前加一步：<b>「你主要用 Tau 做什么？」</b>选项就是设置里的四个常用组合，可以多选，打开的功能取并集。窗口与第一步（起工作区名字）同一列、同样没有侧栏，进入主界面时侧栏只出现选中的功能。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win solo"><div class="solo-body">
+        <div class="tb"><span class="lights" data-lights></span></div>
+        <div class="onb">
+          <div class="step">第 2 步，共 2 步</div>
+          <h2>你主要用 Tau 做什么？</h2>
+          <div class="sub">可以多选。只打开用得上的功能，侧栏会清爽很多；<br />其他功能随时能在设置 › 功能里打开。</div>
+          <div class="opts"><button class="opt on"><span class="tile"><span data-i="notebook-pen" data-s="18"></span></span><span class="txt"><div class="nm">写作与笔记</div><div class="ds">日记、卡片库、文章、项目、白板、数据库</div></span><span class="chk on" data-i="check" data-s="13"></span></button><button class="opt"><span class="tile"><span data-i="graduation-cap" data-s="18"></span></span><span class="txt"><div class="nm">学习</div><div class="ds">卡片库、PDF、Notebook、闪卡复习、漫步</div></span><span class="chk"></span></button><button class="opt on"><span class="tile"><span data-i="calendar" data-s="18"></span></span><span class="txt"><div class="nm">日程与专注</div><div class="ds">日程、待办、番茄专注、日记</div></span><span class="chk on" data-i="check" data-s="13"></span></button><button class="opt"><span class="tile"><span data-i="bot" data-s="18"></span></span><span class="txt"><div class="nm">AI 助手</div><div class="ds">AI 对话、Skill、MCP 服务器</div></span><span class="chk"></span></button></div>
+          <button class="go">进入 Tau · 打开 9 项功能</button>
+          <div class="skip">先全部打开</div>
+        </div>
+      </div></div></div>
+      <div class="frame-cap"><span class="no">1</span>选了两项</div>
+      <div class="frame-note">主按钮写明会打开几项功能，用户知道接下来侧栏有多少东西。「先全部打开」给拿不准的人，等于跳过这一步。</div>
+    </div>
+    <div>
+      <div class="win-box" style="--w:1080;--h:680"><div class="win solo"><div class="solo-body">
+        <div class="tb"><span class="lights" data-lights></span></div>
+        <div class="onb">
+          <div class="step">第 2 步，共 2 步</div>
+          <h2>你主要用 Tau 做什么？</h2>
+          <div class="sub">可以多选。只打开用得上的功能，侧栏会清爽很多；<br />其他功能随时能在设置 › 功能里打开。</div>
+          <div class="opts"><button class="opt"><span class="tile"><span data-i="notebook-pen" data-s="18"></span></span><span class="txt"><div class="nm">写作与笔记</div><div class="ds">日记、卡片库、文章、项目、白板、数据库</div></span><span class="chk"></span></button><button class="opt"><span class="tile"><span data-i="graduation-cap" data-s="18"></span></span><span class="txt"><div class="nm">学习</div><div class="ds">卡片库、PDF、Notebook、闪卡复习、漫步</div></span><span class="chk"></span></button><button class="opt"><span class="tile"><span data-i="calendar" data-s="18"></span></span><span class="txt"><div class="nm">日程与专注</div><div class="ds">日程、待办、番茄专注、日记</div></span><span class="chk"></span></button><button class="opt"><span class="tile"><span data-i="bot" data-s="18"></span></span><span class="txt"><div class="nm">AI 助手</div><div class="ds">AI 对话、Skill、MCP 服务器</div></span><span class="chk"></span></button></div>
+          <button class="go">先全部打开</button>
+          <div class="skip">以后可以在设置 › 功能里收起用不上的</div>
+        </div>
+      </div></div></div>
+      <div class="frame-cap"><span class="no">2</span>一个都没选</div>
+      <div class="frame-note">没选时主按钮直接变成「先全部打开」，不置灰，不拦人。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 设置 › 功能 ═══════════ -->
+<section class="scene big" data-scene="settings">
+  <p class="intro">设置「通用」组里，「外观」下面新增<b>「功能」</b>。页顶一排<b>常用组合</b>，一键切到某种用法；下面按侧栏同样的分组列出全部功能，每行写清它是什么、关掉会少什么。改动即刻生效，没有保存按钮。</p>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:940"><div class="win" style="height:940px">
+        <div class="set-nav">
+          <div style="position:absolute;top:17px;left:18px"><span class="lights" data-lights></span></div>
+          <div class="back"><span data-i="arrow-left" data-s="16"></span>返回应用</div>
+          <div class="grp">通用</div>
+          <div class="it"><span data-i="palette" data-s="16"></span>外观</div>
+          <div class="it on"><span data-i="layout-grid" data-s="16"></span>功能</div>
+          <div class="grp">数据</div>
+          <div class="it"><span data-i="refresh-cw" data-s="16"></span>同步</div>
+          <div class="it"><span data-i="hard-drive" data-s="16"></span>资源存储</div>
+          <div class="it"><span data-i="archive" data-s="16"></span>剪藏与缓存</div>
+          <div class="it"><span data-i="arrow-left-right" data-s="16"></span>导入与导出</div>
+          <div class="grp">连接</div>
+          <div class="it"><span data-i="globe" data-s="16"></span>浏览器扩展</div>
+          <div class="grp">AI 服务</div>
+          <div class="it"><span data-i="sparkles" data-s="16"></span>大语言模型</div>
+          <div class="it"><span data-i="layers" data-s="16"></span>嵌入模型</div>
+          <div class="it"><span data-i="image" data-s="16"></span>图片生成</div>
+          <div class="it"><span data-i="audio-lines" data-s="16"></span>语音</div>
+        </div>
+        <div class="set-main">
+          <div></div>
+          <div class="set-body"><div class="set-col">
+            <header><h1>功能</h1><p>只留用得上的功能，侧栏会清爽很多。关掉的功能内容都在，打开就回来</p></header>
+
+            <div class="sg">
+              <div class="sg-h"><h4>常用组合<p>和首次启动时的选项相同，可以多选；勾上打开这组功能，取消只关掉其他组合用不到的</p></h4></div>
+              <div class="presets">
+                <button class="preset on"><div class="pt"><span data-i="notebook-pen" data-s="15"></span>写作与笔记<span class="chk on" data-i="check" data-s="11"></span></div><div class="pd">日记、卡片库、文章、项目、白板、数据库</div></button>
+                <button class="preset"><div class="pt"><span data-i="graduation-cap" data-s="15"></span>学习<span class="chk"></span></div><div class="pd">卡片库、PDF、Notebook、闪卡复习、漫步</div></button>
+                <button class="preset on"><div class="pt"><span data-i="calendar" data-s="15"></span>日程与专注<span class="chk on" data-i="check" data-s="11"></span></div><div class="pd">日程、待办、番茄专注、日记</div></button>
+                <button class="preset"><div class="pt"><span data-i="bot" data-s="15"></span>AI 助手<span class="chk"></span></div><div class="pd">AI 对话、Skill、MCP 服务器</div></button>
+              </div>
+            </div>
+
+            <div class="sg">
+              <div class="sg-h"><h4>日常</h4><span class="act"><span data-i="rotate-ccw" data-s="13"></span>全部打开</span></div>
+              <div class="panel">
+                <div class="row"><span class="tile"><span data-i="calendar" data-s="16"></span></span><div class="txt"><div class="nm">日程</div><div class="ds">日历视图与提醒，今日面板显示当天日程</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="list-todo" data-s="16"></span></span><div class="txt"><div class="nm">待办</div><div class="ds">按项目管理待办，文档里勾的待办也汇总在这</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="pen-line" data-s="16"></span></span><div class="txt"><div class="nm">日记</div><div class="ds">每天一页</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="timer" data-s="16"></span></span><div class="txt"><div class="nm">番茄专注</div><div class="ds">专注计时与小窗</div></div><span class="sw on"></span></div>
+              </div>
+            </div>
+
+            <div class="sg">
+              <div class="sg-h"><h4>知识</h4></div>
+              <div class="panel">
+                <div class="row"><span class="tile"><span data-i="layers" data-s="16"></span></span><div class="txt"><div class="nm">卡片库</div><div class="ds">一张卡片记一个点，用标签组织</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="file-text" data-s="16"></span></span><div class="txt"><div class="nm">文章</div><div class="ds">长文写作</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="folder-kanban" data-s="16"></span></span><div class="txt"><div class="nm">项目</div><div class="ds">用文档树梳理一个主题</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="presentation" data-s="16"></span></span><div class="txt"><div class="nm">白板</div><div class="ds">无限画布、手写与图形</div></div><span class="sw on"></span></div>
+                <div class="row"><span class="tile"><span data-i="table" data-s="16"></span></span><div class="txt"><div class="nm">数据库</div><div class="ds">表格、看板等结构化数据</div></div><span class="sw on"></span></div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>设置 › 功能（上半屏）：选了写作与笔记 + 日程与专注</div>
+      <div class="frame-note">组合的勾选状态由下面的开关推出来：一组功能全开就显示勾上，手动关掉其中一项，这个组合的勾自动取消，不需要「自定义」这一档。依附项（Skill、MCP 服务器）缩进一级，写明依附于谁；主功能关掉时依附项一起变灰、开关不可点，见下半屏。</div>
+    </div>
+  </div>
+
+  <h2 class="sec">下半屏与边界</h2>
+  <div class="frames">
+    <div>
+      <div class="win-box" style="--w:1080;--h:640"><div class="win" style="grid-template-columns:1fr">
+        <div class="set-main" style="grid-template-rows:20px 1fr">
+          <div></div>
+          <div class="set-body"><div class="set-col">
+            <div class="sg">
+              <div class="sg-h"><h4>学习</h4></div>
+              <div class="panel">
+                <div class="row off"><span class="tile"><span data-i="flask-conical" data-s="16"></span></span><div class="txt"><div class="nm">Notebook</div><div class="ds">围绕一组资料提问、生成学习材料</div></div><span class="sw"></span></div>
+                <div class="row off"><span class="tile"><span data-i="book-marked" data-s="16"></span></span><div class="txt"><div class="nm">PDF</div><div class="ds">阅读与标注 PDF</div></div><span class="sw"></span></div>
+                <div class="row off"><span class="tile"><span data-i="repeat" data-s="16"></span></span><div class="txt"><div class="nm">闪卡复习</div><div class="ds">从任何内容生成闪卡、按记忆曲线复习 · 关掉后各处的「生成闪卡」入口一起收起</div></div><span class="sw"></span></div>
+                <div class="row off"><span class="tile"><span data-i="footprints" data-s="16"></span></span><div class="txt"><div class="nm">漫步</div><div class="ds">随机重温旧内容 · 今日的「今日漫步」面板一起收起</div></div><span class="sw"></span></div>
+              </div>
+            </div>
+            <div class="sg">
+              <div class="sg-h"><h4>AI</h4></div>
+              <div class="panel">
+                <div class="row off"><span class="tile"><span data-i="message-circle" data-s="16"></span></span><div class="txt"><div class="nm">AI 对话</div><div class="ds">与模型对话，可引用笔记 · 关掉后页面右侧的 AI 面板也不再出现</div></div><span class="sw"></span></div>
+                <div class="row off" style="padding-left:52px;opacity:.55"><span class="tile"><span data-i="sparkles" data-s="16"></span></span><div class="txt"><div class="nm">Skill</div><div class="ds">依附于 AI 对话，已随它收起</div></div><span class="sw"></span></div>
+                <div class="row off" style="padding-left:52px;opacity:.55"><span class="tile"><span data-i="plug" data-s="16"></span></span><div class="txt"><div class="nm">MCP 服务器</div><div class="ds">依附于 AI 对话，已随它收起</div></div><span class="sw"></span></div>
+              </div>
+            </div>
+            <div class="sg">
+              <div class="sg-h"><h4>分享</h4></div>
+              <div class="panel">
+                <div class="row off"><span class="tile"><span data-i="users" data-s="16"></span></span><div class="txt"><div class="nm">协作</div><div class="ds">邀请别人实时编辑同一份内容</div></div><span class="sw"></span></div>
+                <div class="row off"><span class="tile"><span data-i="send" data-s="16"></span></span><div class="txt"><div class="nm">发布</div><div class="ds">把内容发布成静态网站</div></div><span class="sw"></span></div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>下半屏：AI 对话关闭，Skill 与 MCP 随之收起</div>
+      <div class="frame-note">「AI 对话」只管 AI 对话页和右侧 AI 面板这两个入口。卡片编辑器里的 AI 改写、AI 标题这类嵌在别处的能力，跟着「大语言模型」是否配置走，不受这里影响。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 侧栏就地隐藏 ═══════════ -->
+<section class="scene" data-scene="inplace">
+  <p class="intro">新用户多半是在侧栏上看到一个用不上的条目时才想关它，所以<b>侧栏条目右键</b>直接给「从侧栏隐藏」，不必先找到设置。隐藏后弹一条提示，可以撤销，也能跳到设置里看全部。</p>
+  <div class="frames" id="inplace-frames"></div>
+</section>
+
+<!-- ═══════════ 3 关掉之后 ═══════════ -->
+<section class="scene" data-scene="result">
+  <p class="intro">左边是现在的侧栏，右边是首次启动只选「写作与笔记」之后。分组里的功能全关了，整个分组标题也不显示。今日页的面板跟着收起：待办、日程、闪卡复习、漫步关了，对应面板就不出现，不留空位。</p>
+  <div class="frames" id="result-frames"></div>
+</section>
+
+<!-- ═══════════ 5 待你决定 ═══════════ -->
+<section class="scene" data-scene="decide">
+  <div class="cards">
+    <div class="card"><h3>1. 四个组合够不够</h3>写作与笔记、学习、日程与专注、AI 助手。协作、发布不属于任何组合，需要时在设置里单独开。</div>
+    <div class="card"><h3>2. 首次启动一个都不选</h3>方案里不选也能点「先全部打开」，等于跳过这一步、19 项全开。另一种做法是至少选一个才能继续。</div>
+    <div class="card"><h3>3. 这一步放在哪</h3>方案里放在建好工作区之后、进入今日之前，作为引导的第二步。从云端恢复的工作区已经有自己的开关状态，跳过这一步。</div>
+  </div>
+</section>
+
+<script src="mockup.js"></script>
+</body>
+</html>

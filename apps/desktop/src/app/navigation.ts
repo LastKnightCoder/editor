@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { SIDEBAR_GROUPS, type PluginSidebarIcon } from "@tau/plugins";
 import type { PluginSidebarSnapshot } from "./plugins/runtime";
+import { ALWAYS_ON_FEATURES } from "./features";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
 export type NavItemBadge =
@@ -150,9 +151,26 @@ export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
 
-export function composeNavSections(snapshot?: PluginSidebarSnapshot): NavSection[] {
-  if (!snapshot) return NAV_SECTIONS;
-  const sections: NavSection[] = NAV_SECTIONS.map(section => ({
+/** 可在设置 › 功能里开关的内置条目 key（今日始终显示） */
+export const TOGGLEABLE_NAV_KEYS: readonly string[] = NAV_SECTIONS.flatMap(section =>
+  section.items.map(item => item.key)
+).filter(key => !ALWAYS_ON_FEATURES.has(key));
+
+/** 按功能开关过滤内置条目；整组都被关掉的分组不显示 */
+export function enabledNavSections(isEnabled: (key: string) => boolean): NavSection<LucideIcon>[] {
+  return NAV_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(item => isEnabled(item.key)),
+  })).filter(section => section.items.length > 0);
+}
+
+export function composeNavSections(
+  snapshot?: PluginSidebarSnapshot,
+  isEnabled: (key: string) => boolean = () => true
+): NavSection[] {
+  const builtins = enabledNavSections(isEnabled);
+  if (!snapshot) return builtins;
+  const sections: NavSection[] = builtins.map(section => ({
     ...section,
     items: [...section.items],
   }));

@@ -19,6 +19,7 @@ import { useHomeSnapshot, minutesToHM } from "../queries";
 import { useHomeLayout } from "../layoutQueries";
 import { BUILTIN_HOME_PANELS } from "../panels";
 import { useDesktopPlugins } from "@/app/plugins/context";
+import { useFeatures } from "@/app/featureQueries";
 import { HomePanels, HomeScrollRootContext } from "./HomePanels";
 import { pluginHomePanel } from "./PluginHomePanel";
 import "../home.css";
@@ -29,8 +30,9 @@ export function HomeView() {
   const { navigator } = usePage();
   const plugins = useDesktopPlugins();
   // 插件面板排在内置面板之后作为默认顺序；包装组件按注册缓存，重渲染不会重新挂载
+  const { isEnabled } = useFeatures();
   const panels = [
-    ...BUILTIN_HOME_PANELS,
+    ...BUILTIN_HOME_PANELS.filter(panel => !panel.feature || isEnabled(panel.feature)),
     ...(plugins?.listHomePanels() ?? []).map(pluginHomePanel),
   ];
   // 编辑模式：拖动调整面板，Esc 经浮层仲裁退出

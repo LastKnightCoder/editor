@@ -186,6 +186,19 @@ describe("主库当前基线", () => {
     }
   );
 
+  // 已有工作区升级不能弹出首次启动选用途，否则老用户会被要求重新挑功能
+  it("只有空库标记等待选用途，已有库升级补表后不标记", () => {
+    ensureMainSchema(db);
+    const onboarding = () =>
+      db.prepare("SELECT value FROM workspace_preferences WHERE key = 'features.onboarding'").get();
+    expect(onboarding()).toEqual({ value: "pending" });
+
+    db.exec("DROP TABLE workspace_preferences");
+    db.prepare("UPDATE schema_meta SET value = 'stale' WHERE key = 'main_schema_hash'").run();
+    ensureMainSchema(db);
+    expect(onboarding()).toBeUndefined();
+  });
+
   it("同版本补齐缺失索引，不改写已有数据和提供方名称", () => {
     ensureMainSchema(db);
     db.exec(

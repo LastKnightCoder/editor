@@ -39,7 +39,8 @@
 - 拖拽区（`app-region-drag`，Titlebar/侧栏头部）内的一切可交互元素必须加 `app-region-no-drag`——Electron 会吞掉 drag 区的鼠标事件（侧栏折叠按钮曾因此点击失效）；页面级加载态统一用 `ui/primitives/Loading`（Spinner 可单独行内用）。
 - 保活：`<Activity>`（React 有效版本为 19.2.0，由 pnpm-workspace.yaml overrides 统一；使用 Activity，无降级路径），LRU 上限 12；激活页包装为 `flow-root h-full`（非激活 `display:none`）：h-full 打通视图根高度链，flow-root 建立 BFC 兜住视图根外边距——视图根写 `mt-*` 不会折叠出包装、撑出壳层 main 的滚动条（`page/__tests__/pageHostLayout.test.tsx` 守护）。视图根外距仍首选 `h-full` + padding，避免 margin + `calc` 手算高度；
 - 图标：**lucide-react**（线性，stroke 1.75，`navigation.ts` 直接引用 LucideIcon 组件）；多色图标用 **react-icons**（桌面已有依赖）；
-- 侧栏条目以 app/navigation.ts 为准（21 个主导航条目及设置入口）；页面迁移已完成，订阅入口已退役。
+- 侧栏条目以 app/navigation.ts 为准（19 个内置主导航条目，底部插件、反馈、设置）；页面迁移已完成，订阅入口已退役。
+- 功能开关：除今日与底部入口外的内置条目都能关，状态随工作区存主库 `workspace_preferences`（`features.disabled` 记关掉的 key，缺省全开；`features.onboarding = pending` 由 `ensureMainSchema` 只在空库建库事务里写入）。清单、依附关系（`skills`/`mcp` 依附 `chat`）与四个常用组合在 `app/features.ts`，读写经 `app/featureQueries.ts` 的 `useFeatures()`（乐观更新，失败回滚并提示）。消费者：`composeNavSections(snapshot, isEnabled)` 过滤侧栏并去掉空组；命令面板过滤页面命令与最近访问；今日面板按 `HomePanelDefinition.feature` 过滤（用户布局不动）；`defineAssistView({ feature })` 关掉时视图不显示；AppShell 在 `chat` 关闭时不挂 ChatShortcuts，标题栏不显示对话按钮；`review` 关闭时卡片、文章、项目、漫步不给制卡入口。页面本身不拦，仍可经链接与搜索结果打开。设置入口是「通用 › 功能」（`FeaturesSection`），内置侧栏条目右键（`NavItemMenu`）可就地隐藏并撤销；新工作区由 `FeatureOnboarding` 整窗选用途后才进入页面栈。
 - tsc 全绿。挂载：主窗口 `/` 默认重定向 `/shell`（旧主界面已退役，根路径重定向仍待收尾）。
 
 ### 共享元素形变

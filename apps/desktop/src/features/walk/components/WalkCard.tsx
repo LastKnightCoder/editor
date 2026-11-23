@@ -27,7 +27,8 @@ export function WalkCard({
   editorRef: RefObject<EditorRef | null>;
   onOpenSource(): void;
   onMute(): void;
-  onMakeFlashcard(): void;
+  /** 缺省 = 闪卡复习已关，不给制卡入口 */
+  onMakeFlashcard?: () => void;
 }) {
   const { item } = step;
   const kind = useEntityKindMeta(item.ref, WALK_KIND_META[item.ref.kind]);
@@ -100,7 +101,7 @@ export function WalkCard({
           <Button variant="secondary" size="sm" icon={BookOpen} onClick={onOpenSource}>
             打开原文
           </Button>
-          {!isPdfAnnotation && (
+          {!isPdfAnnotation && onMakeFlashcard && (
             <Button variant="ghost" size="sm" icon={Layers} onClick={onMakeFlashcard}>
               做成闪卡
             </Button>

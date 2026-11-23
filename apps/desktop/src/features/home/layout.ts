@@ -17,6 +17,8 @@ export interface HomePanelDefinition {
   size: HomePanelSize;
   /** 没有内容时返回 null，整块不显示 */
   component: ComponentType;
+  /** 所属功能（侧栏 key）：该功能关掉时面板不显示，布局里的位置保留 */
+  feature?: string;
 }
 
 export function mergeLayout(
