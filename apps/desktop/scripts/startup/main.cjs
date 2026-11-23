@@ -39,11 +39,13 @@ ipcMain.handle("plugin-local:scan", () => ({ directory: profile, entries: [], up
 ipcMain.handle("plugin-local:catalog", () => ({ items: [] }));
 ipcMain.handle("plugin-permissions:snapshot", () => ({}));
 ipcMain.handle("get-window-state", () => ({ maximized: false, fullscreen: false }));
+ipcMain.handle("workspace-preferences:get", () => ({ disabledFeatures: [], onboarding: "done" }));
 ipcMain.handle("home-layout:get", () => []);
 ipcMain.handle("pi-session:interactions", () => ({ ok: true, snapshots: [] }));
 ipcMain.handle("pomodoro:summary-today", () => ({ count: 0, duration: 0 }));
 for (const channel of [
   "chat-group:get-all",
+  "chat-session:list",
   "flashcard:list-decks",
   "get-all-diary-segments-flat",
   "get-all-diary-tag-settings",
@@ -74,6 +76,14 @@ for (const channel of [
   "plugin-local:video-connect",
   "collaboration:owner-image-connect",
   "plugin-local:video-publish",
+  "plugin-local:sync-release-window",
+  "plugin-local:publish-release-window",
+  "plugin-local:upload-release",
+  "plugin-local:tts-release",
+  "plugin-local:images-release",
+  "plugin-local:embeddings-release",
+  "plugin-local:video-release",
+  "collaboration:owner-image-release",
 ])
   ipcMain.handle(channel, () => undefined);
 
