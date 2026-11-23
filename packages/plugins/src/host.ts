@@ -1,3 +1,4 @@
+import type { PluginTextDecorationProvider, PluginTextDecorationHandle } from "./text-decorations";
 import { readNotificationOptions, type PluginNotificationOptions } from "./notifications";
 import type { PluginSpeechSession, PluginSpeechStartOptions } from "./speech";
 import {
@@ -1261,6 +1262,13 @@ export class PluginHost {
       sidebar?: SidebarAdapter;
       home?: HomeAdapter;
       actions?: ActionsAdapter;
+      textDecorations?: {
+        register(
+          context: PluginContext,
+          provider: PluginTextDecorationProvider,
+          owner: { readonly name: string }
+        ): PluginTextDecorationHandle;
+      };
       views?: ViewsAdapter;
       notebooks?: NotebooksAdapter;
       excerpts?: ExcerptsAdapter;
@@ -1760,6 +1768,32 @@ export class PluginHost {
     context.views = this.buildViewsContext(deps);
     context.notebooks = this.buildNotebooksContext(deps);
     context.actions = this.buildActionsContext(deps);
+    const decorations = this.options.textDecorations;
+    if (decorations) {
+      context.textDecorations = Object.freeze({
+        register: async (input: PluginTextDecorationProvider) => {
+          if (!Array.isArray(input.sources) || !input.sources.length)
+            throw new Error("文字装饰至少需要一种来源");
+          const sources = [...new Set<PluginTextDecorationProvider["sources"][number]>(input.sources)];
+          if (sources.some(kind => kind !== "card" && kind !== "article" && kind !== "document"))
+            throw new Error("不支持的文字装饰来源");
+          const { getDecorations, onActivate, getPreview } = input;
+          if (typeof getDecorations !== "function" || (getPreview !== undefined && typeof getPreview !== "function") || (onActivate !== undefined && typeof onActivate !== "function"))
+            throw new Error("无效的文字装饰回调");
+          const required = sources.map(kind => `${kind}s:read` as const);
+          assertDeclared(required);
+          await permissionsAdapter().ensure(context, owner, required);
+          this.assertActive(entry, activation);
+          const handle = decorations.register(
+            context,
+            Object.freeze({ sources: Object.freeze(sources), getDecorations, onActivate, getPreview }),
+            owner
+          );
+          const owned = register(handle);
+          return Object.freeze({ invalidate: handle.invalidate, dispose: owned.dispose });
+        },
+      });
+    }
     context.home = this.buildHomeContext(deps);
     context.pages = this.buildPagesContext(deps);
     return Object.freeze(context);
