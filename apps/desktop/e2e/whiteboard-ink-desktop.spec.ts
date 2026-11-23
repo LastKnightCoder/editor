@@ -76,6 +76,7 @@ test("密集手写的桌面帧间隔与持久化采样点", async () => {
     await root.getByRole("button", { name: "手写", exact: true }).click();
     if (mixed) {
       await expect(root.locator('[id^="rich-text-container-text-"]').first()).toBeVisible();
+      await expect(root.locator("#frame-title-mixed-frame")).toBeVisible();
       await expect(root.locator("[data-unknown-element]")).toHaveCount(0);
     }
     const longStroke = process.env.WHITEBOARD_INK_LONG === "1";

@@ -7,6 +7,7 @@ import {
   Board,
   FrameElement,
   FRAME_DEFAULT_BORDER_STYLE,
+  FRAME_DEFAULT_STYLES,
 } from "../../types";
 import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
 import { FrameUtil, PathUtil, PointUtil } from "../../utils";
@@ -83,13 +84,17 @@ const Frame = memo(
       width,
       height,
       title,
-      backgroundColor,
-      borderColor,
-      borderWidth,
-      borderRadius,
       borderStyle = FRAME_DEFAULT_BORDER_STYLE,
       isChildMoveIn,
     } = element;
+    const defaultStyle = FRAME_DEFAULT_STYLES[0];
+    const borderColor =
+      typeof element.borderColor === "string" && element.borderColor.trim()
+        ? element.borderColor
+        : defaultStyle.borderColor;
+    const backgroundColor = element.backgroundColor ?? defaultStyle.backgroundColor;
+    const borderWidth = element.borderWidth ?? defaultStyle.borderWidth;
+    const borderRadius = element.borderRadius ?? defaultStyle.borderRadius;
 
     const { isSelected: isFrameSelected } = useSelectState(element.id);
     const sketch = useSketch(element);

@@ -48,7 +48,8 @@ export async function addIntegrityScene(
         parent: { kind: "page", id: "p" },
         contractId: frame,
         geometry,
-        data: { ...frameStyle, title: "混合内容" },
+        // 直接写入的画框可能只有标题，打开时应使用默认样式。
+        data: { title: "混合内容" },
       },
       ...["shape-a-0", "text-0"].map(id => ({
         type: "move_node" as const,
