@@ -63,6 +63,21 @@ export async function getArticleTagCounts(): Promise<ArticleTagCount[]> {
   return articleCommands.tagCounts.call();
 }
 
+export async function renameScopedArticleTag(
+  databaseName: string,
+  from: string,
+  to: string
+): Promise<IArticle[]> {
+  return articleCommands.renameTagScoped.call({ databaseName, from, to });
+}
+
+export async function removeScopedArticleTag(
+  databaseName: string,
+  tag: string
+): Promise<IArticle[]> {
+  return articleCommands.removeTagScoped.call({ databaseName, tag });
+}
+
 export async function updateArticleIsTop(id: number, isTop: boolean): Promise<IArticle> {
   return articleCommands.updateIsTop.call(id, isTop);
 }

@@ -4,6 +4,7 @@ import { openEditorWindow } from "@/commands/window";
 import type { CardContentResult } from "@/commands/contracts/card";
 import { ICard, ICreateCard, IUpdateCard } from "@/types";
 import type { CardMetadataPatch } from "@/types/card";
+import type { TagCount } from "@/utils/tags";
 
 export type { CardContentResult };
 
@@ -38,6 +39,22 @@ export async function patchScopedCard(
 
 export async function deleteScopedCard(databaseName: string, id: number): Promise<number> {
   return cardCommands.removeScoped.call({ databaseName, id });
+}
+
+export async function getScopedCardTagCounts(databaseName: string): Promise<TagCount[]> {
+  return cardCommands.tagCountsScoped.call({ databaseName });
+}
+
+export async function renameScopedCardTag(
+  databaseName: string,
+  from: string,
+  to: string
+): Promise<ICard[]> {
+  return cardCommands.renameTagScoped.call({ databaseName, from, to });
+}
+
+export async function removeScopedCardTag(databaseName: string, tag: string): Promise<ICard[]> {
+  return cardCommands.removeTagScoped.call({ databaseName, tag });
 }
 
 export async function createCard(card: ICreateCard): Promise<ICard> {

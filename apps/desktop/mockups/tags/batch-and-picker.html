@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>标签 · 选已有标签 + 批量修改</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .sb { background: transparent; padding: 10px 8px; display: flex; flex-direction: column; min-height: 0; }
+  .sb-head { display: flex; align-items: center; gap: 9px; padding: 6px 10px 14px; font-weight: 600; }
+  .sb-logo { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); color: var(--ink-inv); display: grid; place-items: center; font-size: 13px; }
+  .sb-scroll { flex: 1; overflow: auto; }
+  .sb-gt { font-size: 11px; color: var(--ink-3); padding: 10px 10px 4px; }
+  .sb-item { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 13px; }
+  .sb-item.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+  .sb-sub { position: relative; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px 0 32px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 12.5px; }
+  .sb-sub .h { color: var(--ink-3); font-size: 12px; width: 10px; }
+  .sb-sub .n { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+  .sb-sub .more { display: none; width: 20px; height: 20px; border-radius: 6px; place-items: center; color: var(--ink-2); }
+  .sb-sub .more svg.lucide { width: 13px; height: 13px; }
+  .sb-sub.hov { background: var(--hover); color: var(--ink-1); }
+  .sb-sub.hov .n { display: none; }
+  .sb-sub.hov .more { display: grid; background: var(--surface); }
+
+  .cl-paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .cl-head { flex: none; display: flex; align-items: center; gap: 12px; height: 40px; margin: 20px 32px 8px; }
+  .cl-head h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .cl-head .sum { flex: 1; min-width: 0; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+  .cl-head .sum b { color: var(--ink-1); font-weight: 600; }
+  .dd { position: relative; }
+
+  .menu { position: absolute; z-index: 30; min-width: 168px; padding: 4px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-1); }
+  .menu .mi { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink-1); cursor: pointer; white-space: nowrap; }
+  .menu .mi:hover, .menu .mi.hl { background: var(--hover); }
+  .menu .mi svg.lucide { width: 15px; height: 15px; color: var(--ink-2); }
+  .menu .sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+  .menu .mi.danger, .menu .mi.danger svg.lucide { color: var(--danger); }
+
+  .cl-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 26px 90px 32px; margin: 0 6px 16px 0; }
+  .lst { --cols: 22px minmax(0, 1fr) 220px 64px 92px 58px; }
+  .lh, .lr { display: grid; grid-template-columns: var(--cols); align-items: center; gap: 14px; padding: 0 12px; }
+  .lh { height: 30px; font-size: 11.5px; color: var(--ink-3); position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: 0 1px 0 var(--line-2); }
+  .r { justify-content: flex-end; text-align: right; }
+  .lr { position: relative; height: 56px; border-radius: 10px; cursor: pointer; }
+  .lr:hover { background: var(--hover); }
+  .lr.sel { background: var(--selected); }
+  .lr .nm { min-width: 0; }
+  .lr .t { font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr .p { margin-top: 2px; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr .c { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+  .lr .tgs { display: flex; gap: 4px; min-width: 0; overflow: hidden; }
+  .tg { flex: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--hover); color: var(--ink-2); border-radius: 5px; padding: 0 7px; font-size: 11px; line-height: 19px; }
+  .lr:hover .tg, .lr.sel .tg { background: var(--surface); }
+  .tg.new { background: var(--accent-soft); color: var(--accent-text); }
+  .tg.gone { text-decoration: line-through; color: var(--ink-3); }
+
+  /* 勾选框：常态不出，悬停行或进入选择后才出（固定槽位，不挤布局） */
+  .ck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--line-1); background: var(--surface); display: grid; place-items: center; opacity: 0; transition: opacity var(--fast); }
+  .ck svg.lucide { width: 11px; height: 11px; color: var(--ink-inv); stroke-width: 3; }
+  .ck.mix { background: var(--accent); border-color: var(--accent); }
+  .lr:hover .ck, .selecting .ck { opacity: 1; }
+  .lr .ck.on { opacity: 1; background: var(--accent); border-color: var(--accent); }
+  .lh .ck { opacity: 1; }
+
+  /* 选择栏：不透明常驻于纸底，选中 ≥1 张才出现 */
+  .selbar { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 25; display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 6px 0 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-float); font-size: 12.5px; white-space: nowrap; }
+  .selbar .cnt { color: var(--ink-1); font-weight: 600; margin-right: 6px; }
+  .selbar .cnt span { color: var(--ink-3); font-weight: 400; margin-left: 6px; cursor: pointer; }
+  .selbar .vr { width: 1px; height: 20px; background: var(--line-1); margin: 0 4px; }
+  .selbar .act { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; color: var(--ink-1); cursor: pointer; }
+  .selbar .act:hover, .selbar .act.on { background: var(--hover); }
+  .selbar .act svg.lucide { width: 15px; height: 15px; color: var(--ink-2); }
+  .selbar .act.danger, .selbar .act.danger svg.lucide { color: var(--danger); }
+  .selbar .x { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
+  .selbar .x svg.lucide { width: 15px; height: 15px; }
+
+  /* 标签选择器（详情页与批量共用一件） */
+  .tp { position: absolute; z-index: 35; width: 280px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-float); overflow: hidden; font-size: 12.5px; }
+  .tp .in { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-bottom: 1px solid var(--line-1); }
+  .tp .in svg.lucide { width: 14px; height: 14px; color: var(--ink-3); }
+  .tp .in .q { flex: 1; color: var(--ink-1); }
+  .tp .in .q.ph { color: var(--ink-3); }
+  .tp .in .q .cur { display: inline-block; width: 1px; height: 14px; background: var(--ink-1); vertical-align: -2px; margin-left: 1px; }
+  .tp .cap { padding: 8px 12px 4px; font-size: 11px; color: var(--ink-3); }
+  .tp .ls { max-height: 268px; overflow: auto; padding: 0 4px 4px; }
+  .tp .o { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 8px; color: var(--ink-1); cursor: pointer; }
+  .tp .o.hl { background: var(--hover); }
+  .tp .o .pa { color: var(--ink-3); }
+  .tp .o b { font-weight: 600; color: var(--accent-text); }
+  .tp .o .n { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+  .tp .o .ic { width: 16px; display: grid; place-items: center; flex: none; }
+  .tp .o .ic svg.lucide { width: 13px; height: 13px; color: var(--ink-3); }
+  .tp .o .ck { opacity: 1; width: 15px; height: 15px; }
+  .tp .o .ck.on { background: var(--accent); border-color: var(--accent); }
+  .tp .o .ck.mix svg.lucide { stroke-width: 3.5; }
+  .tp .o .part { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+  .tp .o .part.chg { color: var(--accent-text); }
+  .tp .ft { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line-1); color: var(--ink-3); font-size: 11px; }
+  .tp .ft kbd { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line-1); border-radius: 4px; padding: 0 4px; color: var(--ink-2); }
+  .tp .ft .sp { flex: 1; }
+  .tp .ft .apply { height: 26px; padding: 0 10px; border-radius: 7px; background: var(--accent); color: var(--ink-inv); font-size: 12px; display: inline-flex; align-items: center; }
+
+  /* 详情页（卡片纸） */
+  .doc { max-width: 720px; margin: 36px auto 0; padding: 0 32px; }
+  .doc .meta { color: var(--ink-3); font-size: 12px; margin-bottom: 14px; }
+  .doc h2 { margin: 0 0 12px; font-size: 22px; }
+  .doc p { margin: 0 0 12px; color: var(--ink-1); font-size: 14.5px; line-height: 1.85; }
+  .trow { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line-2); }
+  .tchip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 6px 0 10px; border-radius: 7px; border: 1px solid var(--line-1); background: var(--surface); color: var(--ink-1); font-size: 12px; }
+  .tchip svg.lucide { width: 12px; height: 12px; color: var(--ink-3); }
+  .tadd { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 7px; border: 1px dashed var(--line-1); color: var(--ink-3); font-size: 12px; }
+  .tadd svg.lucide { width: 13px; height: 13px; }
+  .tadd.on { border-style: solid; border-color: var(--accent); color: var(--ink-1); min-width: 120px; }
+  .tadd .cur { display: inline-block; width: 1px; height: 13px; background: var(--ink-1); }
+
+  /* 对话框 */
+  .scrim { position: absolute; inset: 0; z-index: 40; background: var(--overlay); display: grid; place-items: center; }
+  .dlg { width: 440px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-float); padding: 22px 24px 18px; }
+  .dlg h2 { margin: 0 0 4px; font-size: 16px; }
+  .dlg .sub { color: var(--ink-2); font-size: 12.5px; margin-bottom: 16px; }
+  .dlg .field { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--accent); box-shadow: var(--focus); font-size: 13.5px; }
+  .dlg .hint { margin-top: 10px; display: flex; gap: 8px; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line-1); font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .dlg .hint svg.lucide { width: 15px; height: 15px; color: var(--accent); flex: none; margin-top: 2px; }
+  .dlg .hint b { color: var(--ink-1); }
+  .dlg .aff { margin-top: 12px; font-size: 12px; color: var(--ink-3); }
+  .dlg .aff code { font-family: var(--mono); }
+  .dlg .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>标签 · 选已有标签 + 批量修改（卡片库，文章同一套）</h3>
+  反馈两个问题：① 加标签只能手打，记不住已有的叫法，容易打出「前端/css」「前端/CSS」两个；② 想给一批卡片统一加 / 去标签，或把一个标签改名，找不到入口。
+  <ul>
+    <li><b>标签选择器（一件，三处用）</b>：点「添加标签」弹出选择器，空输入列出<b>最近用过</b>与<b>全部标签</b>（按使用次数），输入即模糊匹配（含路径，打「css」命中「前端/CSS」）；没有完全同名时最后一行是「新建「xxx」」。↑↓ 选、↵ 加上、可连加，Esc 收起。详情页、新建卡片、批量都用它，替换现在的 contentEditable 手打框。</li>
+    <li><b>批量：列表视图多选</b>：列表行首留一格勾选框，悬停才出现；点勾选或 ⌘/Ctrl 点行进入选择，Shift 点选连续一段，表头勾选框全选当前筛选结果。选中后纸底出现不透明选择栏：<code>已选 N 张 · 标签 · 置顶 · 导出 · 删除 · ✕</code>。卡片墙不加勾选（卡面靠浏览，整理去列表）。</li>
+    <li><b>批量改标签 = 同一个选择器的三态版</b>：每个标签显示「全部有 ✓ / 部分有 – / 都没有 ☐」和「3/5 张」；点一下在「全部加上 ↔ 全部去掉」间切换，部分态可回到原样。改动先在行上预览（新增橙底、去掉删除线），点「应用」一次写入，可撤销。</li>
+    <li><b>改名 / 合并 / 删除：放在标签本身上</b>：侧栏标签树每项悬停出 ⋯（替换计数位置）：重命名、删除标签。重命名到一个已存在的名字即合并，弹确认说明影响几张；改父级「前端」时子标签「前端/CSS」一起改。删除只从卡片上摘掉，不删卡片。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { titlebar, anno, icons } from "../chat/shared.js?v=3";
+
+const C = [
+  { id: 1, t: "间隔重复的本质是对抗遗忘曲线", p: "每次在即将遗忘时复习，记忆稳定性按倍数增长。", tags: ["学习方法/记忆", "算法"], w: 320, u: "今天" },
+  { id: 4, t: "容器查询 cqw 单位", p: "1cqw = 容器宽度的 1%，比 vw 更适合组件内部排版。", tags: ["前端/CSS"], w: 120, u: "今天" },
+  { id: 5, t: "CRDT 与 OT 的核心区别", p: "OT 依赖中心服务器变换操作，CRDT 让数据结构本身可交换合并。", tags: ["编辑器/协同", "算法", "分布式"], w: 410, u: "昨天" },
+  { id: 6, t: "IPC 监听忘记解绑", p: "ipcRenderer.on 返回后未 removeListener，窗口重开后监听叠加。", tags: ["前端/Electron"], w: 150, u: "昨天" },
+  { id: 7, t: "React use() 读取 Promise", p: "use(promise) 在渲染中挂起，最近的 Suspense 边界展示 fallback。", tags: ["前端/React"], w: 260, u: "2 天前" },
+  { id: 12, t: "Tailwind 类合并顺序陷阱", p: "clsx 只拼字符串，冲突类的胜负取决于 CSS 生成顺序。", tags: ["前端/css"], w: 210, u: "10月20日" },
+  { id: 8, t: "费曼技巧不是「讲给别人听」", p: "关键在于发现讲不清的地方——那就是理解的断点。", tags: ["学习方法"], w: 290, u: "4 天前" },
+  { id: 9, t: "Raft 选举超时为什么要随机", p: "固定超时会让多个 follower 同时转 candidate，瓜分选票。", tags: ["分布式", "论文/Raft"], w: 230, u: "5 天前" },
+  { id: 14, t: "Rust 的 Pin 解决了什么", p: "自引用结构移动后指针悬空；Pin 承诺值不再移动。", tags: ["Rust"], w: 350, u: "10月1日" },
+];
+const ALL = [["前端/CSS", 6], ["算法", 4], ["学习方法", 4], ["前端/React", 3], ["分布式", 2], ["前端/Electron", 2], ["读书/经济", 2], ["学习方法/记忆", 1], ["编辑器/协同", 1], ["论文/Raft", 1], ["前端/css", 1], ["Rust", 1]];
+const RECENT = ["前端/CSS", "算法", "学习方法"];
+const SEL = [4, 6, 7, 12]; // 选中的 4 张前端卡片
+
+const MODES = [
+  ["picker", "① 详情页：选已有"],
+  ["typing", "② 输入匹配 / 新建"],
+  ["select", "③ 列表多选"],
+  ["batch", "④ 批量改标签"],
+  ["applied", "⑤ 应用后"],
+  ["tagmenu", "⑥ 侧栏标签 ⋯"],
+  ["merge", "⑦ 重命名即合并"],
+];
+const state = { m: localStorage.getItem("tag-mock-m") || "picker" };
+
+const bar = document.createElement("div");
+bar.className = "mock-bar";
+function renderBar() {
+  bar.innerHTML = `<b>标签</b><span class="seg">${MODES.map(([k, l]) => `<button data-v="${k}" class="mb-btn" style="${k === state.m ? "background:#d97757;color:#fff;border-color:#d97757" : ""}">${l}</button>`).join("")}</span>
+    <span class="sp"></span><span style="opacity:.7">缩放 <span id="mb-zoom">100%</span></span>
+    <button class="mb-btn" id="mb-theme">切换深浅</button><button class="mb-btn" id="mb-note">方案说明</button><button class="mb-btn" id="mb-anno">标注</button>`;
+  bar.querySelectorAll("[data-v]").forEach(b => (b.onclick = () => { state.m = b.dataset.v; localStorage.setItem("tag-mock-m", state.m); renderBar(); render(); }));
+  bar.querySelector("#mb-theme").onclick = () => {
+    const next = document.documentElement.dataset.theme === "cream" ? "cocoa" : "cream";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("chat-mock-theme", next);
+  };
+  bar.querySelector("#mb-anno").onclick = () => document.body.classList.toggle("no-anno");
+  bar.querySelector("#mb-note").onclick = () => { document.body.classList.toggle("no-note"); fit(); };
+}
+document.body.prepend(bar);
+document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";
+
+const win = document.getElementById("win");
+win.style.width = "1440px";
+function fit() {
+  if (window.innerWidth < 100) return;
+  const top = bar.offsetHeight + (document.body.classList.contains("no-note") ? 0 : (document.querySelector(".mock-note")?.offsetHeight || 0) + 18);
+  const z = Math.min(1, (window.innerWidth - 24) / 1440, Math.max(0.35, (window.innerHeight - top - 24) / 820));
+  win.style.zoom = z;
+  const ro = bar.querySelector("#mb-zoom");
+  if (ro) ro.textContent = Math.round(z * 100) + "%";
+}
+window.addEventListener("resize", fit);
+
+/* ── 侧栏 ── */
+function sidebar() {
+  const subs = [["前端", 12], ["算法", 4], ["学习方法", 5], ["分布式", 2], ["读书", 2]];
+  const hov = state.m === "tagmenu" || state.m === "merge";
+  const menu = state.m === "tagmenu"
+    ? `<div class="menu" style="left:200px;top:-4px">
+        <div class="mi hl"><i data-lucide="pencil"></i>重命名…</div>
+        <div class="mi"><i data-lucide="filter"></i>只看这个标签</div>
+        <div class="sep"></div>
+        <div class="mi danger"><i data-lucide="trash-2"></i>删除标签…</div></div>`
+    : "";
+  return `<aside class="sb"><div class="sb-head"><div class="sb-logo">τ</div><span>Tau</span></div><div class="sb-scroll">
+    <div class="sb-gt">工作台</div><div class="sb-item"><i data-lucide="flame"></i><span>今日</span></div><div class="sb-item"><i data-lucide="list-todo"></i><span>待办</span></div>
+    <div class="sb-gt">知识</div><div class="sb-item on"><i data-lucide="layers"></i><span>卡片库</span></div>
+    ${subs.map(([s, n]) => `<div class="sb-sub ${hov && s === "前端" ? "hov" : ""}"><span class="h">${s === "前端" ? "›" : "#"}</span><span>${s}</span><span class="n num">${n}</span><span class="more"><i data-lucide="more-horizontal"></i></span>${s === "前端" ? menu : ""}</div>`).join("")}
+    <div class="sb-item"><i data-lucide="file-text"></i><span>文章</span></div><div class="sb-item"><i data-lucide="pen-line"></i><span>日记</span></div>
+    <div class="sb-gt">学习</div><div class="sb-item"><i data-lucide="folder-tree"></i><span>项目</span></div><div class="sb-item"><i data-lucide="repeat"></i><span>闪卡复习</span></div>
+  </div><div class="sb-item"><i data-lucide="sliders-horizontal"></i><span>设置</span></div></aside>`;
+}
+
+/* ── 选择器 ── */
+const hit = (name, q) => {
+  const i = name.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return null;
+  const s = name.slice(0, i), m = name.slice(i, i + q.length), e = name.slice(i + q.length);
+  return `${s}<b>${m}</b>${e}`;
+};
+const fmt = name => (name.includes("/") ? `<span class="pa">${name.slice(0, name.lastIndexOf("/") + 1)}</span>${name.slice(name.lastIndexOf("/") + 1)}` : name);
+const footer = extra => `<div class="ft"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>↵</kbd> ${extra}</span><span class="sp"></span><span><kbd>Esc</kbd></span></div>`;
+
+function pickerSingle(style, query) {
+  const has = ["前端/CSS", "布局"];
+  if (!query) {
+    const others = ALL.filter(([n]) => !has.includes(n) && !RECENT.includes(n));
+    return `<div class="tp" style="${style}">
+      <div class="in"><i data-lucide="search"></i><span class="q ph"><span class="cur"></span>搜索或新建标签</span></div>
+      <div class="ls">
+        <div class="cap">最近用过</div>
+        ${RECENT.filter(n => !has.includes(n)).map((n, i) => `<div class="o ${i === 0 ? "hl" : ""}"><span class="ic"><i data-lucide="hash"></i></span>${fmt(n)}<span class="n num">${ALL.find(a => a[0] === n)[1]}</span></div>`).join("")}
+        <div class="cap">全部标签</div>
+        ${others.slice(0, 6).map(([n, c]) => `<div class="o"><span class="ic"><i data-lucide="hash"></i></span>${fmt(n)}<span class="n num">${c}</span></div>`).join("")}
+      </div>${footer("加上，可连加")}</div>`;
+  }
+  const list = ALL.filter(([n]) => n.toLowerCase().includes(query.toLowerCase()) && !has.includes(n));
+  return `<div class="tp" style="${style}">
+    <div class="in"><i data-lucide="search"></i><span class="q">${query}<span class="cur"></span></span></div>
+    <div class="ls" style="padding-top:4px">
+      ${list.map(([n, c], i) => `<div class="o ${i === 0 ? "hl" : ""}"><span class="ic"><i data-lucide="hash"></i></span>${hit(n, query)}<span class="n num">${c}</span></div>`).join("")}
+      <div class="sep" style="height:1px;background:var(--line-1);margin:4px 6px"></div>
+      <div class="o"><span class="ic"><i data-lucide="plus"></i></span>新建「${query}」</div>
+    </div>${footer("加上已有标签")}</div>`;
+}
+
+/* 批量三态：基于 SEL 计数 */
+function batchRows() {
+  const sel = C.filter(c => SEL.includes(c.id));
+  const n = sel.length;
+  const names = [...new Set([...sel.flatMap(c => c.tags), ...RECENT])];
+  return names.map(name => ({ name, k: sel.filter(c => c.tags.includes(name)).length, n }));
+}
+// 本次操作：「前端/CSS」全部加上，「前端/css」全部去掉
+const CHANGE = { "前端/CSS": "add", "前端/css": "remove" };
+function pickerBatch(style) {
+  const rows = batchRows().sort((a, b) => b.k - a.k);
+  const box = r => {
+    const ch = CHANGE[r.name];
+    if (ch === "add" || (!ch && r.k === r.n)) return `<span class="ck on"><i data-lucide="check"></i></span>`;
+    if (ch === "remove" || r.k === 0) return `<span class="ck"></span>`;
+    return `<span class="ck mix"><i data-lucide="minus"></i></span>`;
+  };
+  const part = r => {
+    const ch = CHANGE[r.name];
+    if (ch === "add") return `<span class="part chg num">${r.k}→${r.n} 张</span>`;
+    if (ch === "remove") return `<span class="part chg num">${r.k}→0 张</span>`;
+    return `<span class="part num">${r.k ? `${r.k}/${r.n} 张` : ""}</span>`;
+  };
+  return `<div class="tp" style="${style}">
+    <div class="in"><i data-lucide="search"></i><span class="q ph"><span class="cur"></span>给 ${SEL.length} 张卡片加 / 去标签</span></div>
+    <div class="ls" style="padding-top:4px">
+      ${rows.map((r, i) => `<div class="o ${r.name === "前端/CSS" ? "hl" : ""}">${box(r)}${fmt(r.name)}${part(r)}</div>`).join("")}
+    </div>
+    <div class="ft"><span>点一下：全部加上 ↔ 全部去掉</span><span class="sp"></span><span class="apply">应用 2 项改动</span></div></div>`;
+}
+
+/* ── 视图：详情页 ── */
+function detail() {
+  const typing = state.m === "typing";
+  return `<section class="paper cl-paper"><div class="cl-scroll"><div class="doc">
+    <div class="meta">10月20日创建 · 210 字 · 1 个链接</div>
+    <h2>Tailwind 类合并顺序陷阱</h2>
+    <p>clsx 只拼字符串，冲突类的胜负取决于 CSS 生成顺序而非书写顺序。<code>p-2 p-4</code> 里谁生效，要看 Tailwind 输出的样式表里谁在后面。</p>
+    <p>解决办法是在拼接后再过一遍 tailwind-merge：它理解类名的语义分组，同组只保留最后一个。项目里统一用 <code>cn()</code> 封装两步。</p>
+    <div class="trow">
+      <span class="tchip">前端/CSS<i data-lucide="x"></i></span>
+      <span class="tchip">布局<i data-lucide="x"></i></span>
+      <span class="tadd on"><i data-lucide="plus"></i>${typing ? "css" : ""}<span class="cur"></span></span>
+      ${pickerSingle("left:150px;top:56px", typing ? "css" : "")}
+    </div>
+  </div></div></section>`;
+}
+
+/* ── 视图：列表 ── */
+function list() {
+  const selecting = ["select", "batch", "applied"].includes(state.m);
+  const applied = state.m === "applied";
+  const batch = state.m === "batch";
+  const tagCell = c => {
+    let tags = c.tags.map(t => ({ t }));
+    if (SEL.includes(c.id) && (batch || applied)) {
+      tags = tags.map(x => (CHANGE[x.t] === "remove" ? { ...x, gone: !applied, drop: applied } : x)).filter(x => !x.drop);
+      if (!c.tags.includes("前端/CSS")) tags.unshift({ t: "前端/CSS", fresh: true });
+    }
+    return `<div class="tgs">${tags.slice(0, 3).map(x => `<span class="tg ${x.fresh && batch ? "new" : ""} ${x.gone ? "gone" : ""}">${x.t}</span>`).join("")}</div>`;
+  };
+  const row = c => {
+    const on = selecting && SEL.includes(c.id);
+    return `<div class="lr ${on ? "sel" : ""}">
+      <span class="ck ${on ? "on" : ""}">${on ? '<i data-lucide="check"></i>' : ""}</span>
+      <div class="nm"><div class="t">${c.t}</div><div class="p">${c.p}</div></div>
+      ${tagCell(c)}
+      <span class="c r num">${c.w}</span><span class="c num">${c.u}</span><span></span></div>`;
+  };
+  const selbar = selecting
+    ? `<div class="selbar">
+        <span class="cnt num">已选 ${SEL.length} 张<span>全选 ${C.length} 张</span></span><span class="vr"></span>
+        <span class="act ${batch ? "on" : ""}"><i data-lucide="tag"></i>标签</span>
+        <span class="act"><i data-lucide="pin"></i>置顶</span>
+        <span class="act"><i data-lucide="download"></i>导出</span>
+        <span class="act danger"><i data-lucide="trash-2"></i>删除</span><span class="vr"></span>
+        <span class="x" title="取消选择（Esc）"><i data-lucide="x"></i></span>
+        ${batch ? pickerBatch("left:96px;bottom:52px") : ""}
+      </div>`
+    : "";
+  const toast = applied
+    ? `<div class="selbar" style="bottom:76px;padding:0 6px 0 14px"><span>已给 4 张卡片加上「前端/CSS」，从 1 张去掉「前端/css」</span><span class="vr"></span><span class="act" style="color:var(--accent-text)">撤销</span></div>`
+    : "";
+  return `<section class="paper cl-paper">
+    <div class="cl-head"><h1>卡片库</h1><span class="sum">共 <b class="num">${C.length}</b> 张</span>
+      <button class="btn"><i data-lucide="import"></i>导入</button><button class="btn primary"><i data-lucide="plus"></i>新建卡片</button></div>
+    <div class="cl-scroll"><div class="lst ${selecting ? "selecting" : ""}">
+      <div class="lh"><span class="ck ${selecting ? "mix" : ""}">${selecting ? '<i data-lucide="minus"></i>' : ""}</span><span>内容</span><span>标签</span><span class="r">字数</span><span>更新</span><span></span></div>
+      ${C.map(row).join("")}
+    </div></div>${toast}${selbar}</section>`;
+}
+
+function mergeDialog() {
+  if (state.m !== "merge") return "";
+  return `<div class="scrim"><div class="dlg">
+    <h2>重命名标签</h2><div class="sub">「前端/css」用在 1 张卡片上</div>
+    <div class="field">前端/CSS</div>
+    <div class="hint"><i data-lucide="git-merge"></i><span>「前端/CSS」已经存在（6 张）。确定后两个标签<b>合并为「前端/CSS」</b>，共 7 张卡片。</span></div>
+    <div class="aff">改父级标签时，子标签一起改名：前端 → Web 会把「前端/CSS」变成「Web/CSS」。</div>
+    <div class="btns"><button class="btn">取消</button><button class="btn primary">合并</button></div>
+  </div></div>`;
+}
+
+function render() {
+  const isDetail = state.m === "picker" || state.m === "typing";
+  const crumb = isDetail
+    ? `<span>卡片库</span><span style="color:var(--ink-3)">/</span><span>Tailwind 类合并顺序陷阱</span>`
+    : `<span>卡片库</span><span style="color:var(--ink-3)">/</span><span><b>列表</b></span>`;
+  const notes = {
+    picker: anno(1, "点「添加标签」即弹出：最近用过 + 全部标签（按使用次数），已加的不再列出", "left:900px;top:520px") + anno(2, "↵ 加上后输入框清空、浮层不收，可以连着加", "left:900px;top:600px"),
+    typing: anno(1, "模糊匹配含路径：打 css 命中「前端/CSS」和「前端/css」，提醒你别再造一个", "left:900px;top:540px") + anno(2, "没有完全同名才出现「新建」，放最后一行", "left:900px;top:640px"),
+    select: anno(1, "勾选框悬停才出；⌘/Ctrl 点行加选，Shift 点连选", "left:300px;top:150px") + anno(2, "选择栏不透明、贴纸底，Esc 或 ✕ 退出", "left:760px;top:700px"),
+    batch: anno(1, "✓ 全有  – 部分有  ☐ 都没有；点一下在全加 / 全去之间切", "left:620px;top:420px") + anno(2, "改动先在行上预览：橙底是要加的，删除线是要去的", "left:930px;top:150px"),
+    applied: anno(1, "一次写入，提示里可撤销", "left:900px;top:680px"),
+    tagmenu: anno(1, "悬停标签树项：计数位换成 ⋯，不挤布局", "left:250px;top:200px"),
+    merge: anno(1, "重命名到已有名字 = 合并，确认前说清影响几张", "left:960px;top:330px"),
+  };
+  win.innerHTML = `${sidebar()}
+    <div class="col" style="position:relative">${titlebar(crumb)}<div class="main">${isDetail ? detail() : list()}</div>${mergeDialog()}</div>
+    ${notes[state.m] || ""}`;
+  icons();
+}
+renderBar();
+render();
+requestAnimationFrame(fit);
+</script>
+</body>
+</html>

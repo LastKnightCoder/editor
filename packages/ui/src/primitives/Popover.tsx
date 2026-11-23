@@ -131,11 +131,19 @@ export function Popover({
     const card = cardRef.current;
     if (!card) return;
     const target = card.querySelector<HTMLElement>("[data-autofocus]") ?? card;
-    try {
-      target.focus({ preventScroll: true });
-    } catch {
-      /* jsdom 部分元素无 focus */
-    }
+    const focus = () => {
+      try {
+        target.focus({ preventScroll: true });
+      } catch {
+        /* jsdom 部分元素无 focus */
+      }
+    };
+    focus();
+    // visibility 过渡起点仍是 hidden，同步聚焦可能落空，下一帧补一次
+    const raf = requestAnimationFrame(() => {
+      if (card.ownerDocument.activeElement !== target) focus();
+    });
+    return () => cancelAnimationFrame(raf);
   }, [open]);
 
   const hasHeader = Children.toArray(children).some(

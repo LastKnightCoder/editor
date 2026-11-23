@@ -5,12 +5,19 @@
  * 标签可能很多：列表限高约 8 行，超出在框内滚动（FadeScroll 上下渐隐）。
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
-import { useCardTagTree } from "../queries";
+import { TagRowCountSlot } from "@/components/AddTag/TagRowMenu";
+import { useTagManage } from "@/components/AddTag/useTagManage";
+import type { TagManageTarget } from "@/components/AddTag/TagManageDialogs";
+import { useCardTagMutations, useCardTagTree } from "../queries";
 import type { CardTagNode } from "../types";
+
+const flatten = (nodes: CardTagNode[]): TagManageTarget[] =>
+  nodes.flatMap(node => [{ tag: node.path, count: node.count }, ...flatten(node.children)]);
+const within = (tag: string, root: string) => tag === root || tag.startsWith(root + "/");
 
 export function CardsNavTags({
   selectedId,
@@ -20,22 +27,41 @@ export function CardsNavTags({
   onSelect: (id: string) => void;
 }) {
   const tree = useCardTagTree();
-  if (!tree.length) return null;
+  const existing = useMemo(() => flatten(tree), [tree]);
+  const mutations = useCardTagMutations();
+  const activeTag = selectedId ?? "";
+  const manage = useTagManage({
+    existing,
+    unit: { noun: "卡片", measure: "张" },
+    hierarchical: true,
+    rename: mutations.rename,
+    remove: mutations.remove,
+    // 正在按改动的标签筛选时，筛选跟着走：改名换成新路径，删除回到全部
+    onRenamed: (from, to) => {
+      if (within(activeTag, from)) onSelect(to + activeTag.slice(from.length));
+    },
+    onRemoved: tag => {
+      if (within(activeTag, tag)) onSelect("");
+    },
+  });
+  if (!tree.length) return manage.dialogs;
 
   return (
     // -mr-1.5：FadeScroll 右侧 6px 透明边吃进侧栏右内边距；内层 pr-1.5 让行与滚动条之间留出间隙
-    <FadeScroll className="-mr-1.5 mb-1 mt-0.5 max-h-[236px]">
+    <FadeScroll className="mt-0.5 -mr-1.5 mb-1 max-h-[236px]">
       <div className="space-y-px pr-1.5" role="tree" aria-label="卡片标签">
         {tree.map(node => (
           <TagNode
             key={node.path}
             node={node}
             depth={0}
-            activeTag={selectedId ?? ""}
+            activeTag={activeTag}
             onSelect={onSelect}
+            manage={manage}
           />
         ))}
       </div>
+      {manage.dialogs}
     </FadeScroll>
   );
 }
@@ -48,11 +74,13 @@ function TagNode({
   depth,
   activeTag,
   onSelect,
+  manage,
 }: {
   node: CardTagNode;
   depth: number;
   activeTag: string;
   onSelect: (id: string) => void;
+  manage: Pick<ReturnType<typeof useTagManage>, "startRename" | "startDelete">;
 }) {
   /* 挂载时当前选中落在本子树内则初始展开，保证恢复的选中项可见（之后仍可手动收起） */
   const [expanded, setExpanded] = useState(() => activeTag.startsWith(node.path + "/"));
@@ -66,7 +94,7 @@ function TagNode({
         <span aria-hidden className="text-tau-body w-[1.06em] shrink-0" />
         <div
           className={cn(
-            "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center rounded-[9px] transition-[background,color] duration-[160ms]",
+            "group/tag text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center rounded-[9px] pr-1.5 transition-[background,color] duration-[160ms]",
             active
               ? "bg-selected text-ink-1 font-medium"
               : "text-ink-2 hover:bg-hover hover:text-ink-1"
@@ -105,11 +133,16 @@ function TagNode({
             onClick={() => onSelect(active ? "" : node.path)}
             aria-current={active ? "page" : undefined}
             title={active ? "再点一次回到全部" : `只看「${node.path}」`}
-            className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-1 pr-2.5 text-left"
+            className="flex h-full min-w-0 flex-1 items-center gap-2.5 pr-1 pl-1 text-left"
           >
             <span className="min-w-0 flex-1 truncate">{node.name}</span>
-            <span className="text-tau-tiny text-ink-3 font-normal tabular-nums">{node.count}</span>
           </button>
+          <TagRowCountSlot
+            count={node.count}
+            label={node.path}
+            onRename={() => manage.startRename({ tag: node.path, count: node.count })}
+            onDelete={() => manage.startDelete({ tag: node.path, count: node.count })}
+          />
         </div>
       </div>
       {hasKids && expanded && (
@@ -121,6 +154,7 @@ function TagNode({
               depth={depth + 1}
               activeTag={activeTag}
               onSelect={onSelect}
+              manage={manage}
             />
           ))}
         </div>

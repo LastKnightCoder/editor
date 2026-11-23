@@ -101,6 +101,9 @@ export function EditorWindow({
   autoFocus?: boolean;
 }) {
   const editorRef = useRef<EditorRef>(null);
+  const loadTagSuggestions = driver.loadTagSuggestions
+    ? () => driver.loadTagSuggestions?.(databaseName) ?? Promise.resolve([])
+    : undefined;
 
   // 正文要等内容会话就绪才挂载，短时轮询到编辑器出现再聚焦
   useEffect(() => {
@@ -449,6 +452,7 @@ export function EditorWindow({
                 <AddTag
                   divided
                   tags={doc.tags ?? []}
+                  loadSuggestions={loadTagSuggestions}
                   addTag={tag => updateFields({ tags: [...(doc.tags ?? []), tag] })}
                   removeTag={tag => updateFields({ tags: (doc.tags ?? []).filter(t => t !== tag) })}
                   editTag={(oldTag, newTag) =>

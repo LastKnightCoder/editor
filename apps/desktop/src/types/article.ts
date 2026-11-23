@@ -57,4 +57,6 @@ export interface ArticlePageItem {
 export interface ArticleTagCount {
   tag: string;
   count: number;
+  /** 带这个标签的文章里最近一次更新的时间（ms） */
+  lastUsedAt: number;
 }

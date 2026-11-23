@@ -20,10 +20,14 @@ import {
   createArticle,
   deleteArticle,
   updateArticleIsTop,
+  renameScopedArticleTag,
+  removeScopedArticleTag,
 } from "@/commands/article";
+import useSettingStore from "@/stores/useSettingStore";
+import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
-import type { ArticlePageItem, ArticlePageSort } from "@/types";
+import type { ArticlePageItem, ArticlePageSort, IArticle } from "@/types";
 import type { ArticleMonthSection } from "./types";
 
 /** 每页条数：网格卡高、列表行矮，列表一页要多取才填得满首屏 */
@@ -125,6 +129,25 @@ export function useArticleTagCounts(): {
 }
 
 /* ---------- 变更 ---------- */
+
+/** 标签选择器候选（每次打开取一次，不走缓存） */
+export const loadArticleTagSuggestions = getArticleTagCounts;
+
+/** 标签整体改名 / 删除：发总线事件让打开着的文章更新，再整域失效重拉列表与计数 */
+export function useArticleTagMutations() {
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const queryClient = useQueryClient();
+  const apply = (articles: IArticle[]) => {
+    const editor = defaultArticleEventBus.createEditor();
+    for (const article of articles) editor.publishArticleEvent("article:updated", article);
+    void queryClient.invalidateQueries({ queryKey: ["articles"] });
+  };
+  return {
+    rename: (from: string, to: string) =>
+      renameScopedArticleTag(databaseName, from, to).then(apply),
+    remove: (tag: string) => removeScopedArticleTag(databaseName, tag).then(apply),
+  };
+}
 
 /** 文章域变更：置顶/删除/新建后整域失效（feed + 标签计数一并重拉） */
 export function useArticleMutations(): {

@@ -17,7 +17,10 @@ import {
   deleteScopedCard,
   getScopedCard,
   getScopedCards,
+  getScopedCardTagCounts,
   patchScopedCard,
+  removeScopedCardTag,
+  renameScopedCardTag,
 } from "@/commands/card";
 import { getContentAiTitles } from "@/commands/content-ai";
 import { on } from "@/electron";
@@ -213,6 +216,28 @@ export function useCardsMutations() {
     },
   });
   return { toggleTop, remove, patch, create };
+}
+
+/** 标签选择器候选：当前库全部卡片的标签计数 */
+export function loadCardTagSuggestions() {
+  return getScopedCardTagCounts(useSettingStore.getState().setting.database.active);
+}
+
+/** 标签整体改名 / 删除：受影响卡片逐张并入缓存并发总线事件（保活的详情页随之更新） */
+export function useCardTagMutations() {
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const queryClient = useQueryClient();
+  const apply = (cards: ICard[]) => {
+    const editor = defaultCardEventBus.createEditor();
+    for (const card of cards) {
+      mergeCardIntoCache(queryClient, databaseName, card, "upsert");
+      editor.publishCardEvent("card:updated", card);
+    }
+  };
+  return {
+    rename: (from: string, to: string) => renameScopedCardTag(databaseName, from, to).then(apply),
+    remove: (tag: string) => removeScopedCardTag(databaseName, tag).then(apply),
+  };
 }
 
 /* ---------- 派生 ---------- */

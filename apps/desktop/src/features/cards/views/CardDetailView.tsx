@@ -65,7 +65,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { openCardInNewWindow } from "@/commands/card";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, formatDate } from "@/utils";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
-import { useCardDetail, useCardsMutations } from "../queries";
+import { loadCardTagSuggestions, useCardDetail, useCardsMutations } from "../queries";
 import { AddContentLinkDialog } from "@/features/context/components/ContextLinks";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
@@ -459,6 +459,7 @@ export function CardDetailView() {
                 <AddTag
                   divided
                   tags={card.tags}
+                  loadSuggestions={loadCardTagSuggestions}
                   addTag={tag => {
                     if (card.tags.includes(tag)) return;
                     mutations.patch.mutate({

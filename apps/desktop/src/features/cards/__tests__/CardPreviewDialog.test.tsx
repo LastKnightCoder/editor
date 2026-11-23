@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("../queries", () => ({
   useCardsMutations: () => ({ patch: { mutateAsync: mocks.patch, isPending: false } }),
+  loadCardTagSuggestions: async () => [],
 }));
 vi.mock("ahooks", () => ({
   useRafInterval: (fn: () => void) => {

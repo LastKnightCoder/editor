@@ -22,6 +22,7 @@ import ContentTable from "./content";
 import ProjectTable from "./project";
 import { ArticleContentOwnership } from "../content-ownership/article-content";
 import type { SqliteRow } from "../../types/table";
+import { countTags, removeTagFromList, renameTagInList, sameTags } from "@/utils/tags";
 
 /** 分页排序白名单（拼进 ORDER BY，不接受任意字符串）；同值按更新时间兜底 */
 const ARTICLE_PAGE_ORDER: Record<ArticlePageSort, string> = {
@@ -49,6 +50,8 @@ export default class ArticleTable {
       "get-all-articles": this.getAllArticles.bind(this),
       "get-article-page": this.getArticlePage.bind(this),
       "get-article-tag-counts": this.getArticleTagCounts.bind(this),
+      "articles:rename-tag-scoped": this.renameScopedTag.bind(this),
+      "articles:remove-tag-scoped": this.removeScopedTag.bind(this),
       "get-article-by-id": this.getArticleById.bind(this),
       "update-article-is-top": this.updateArticleIsTop.bind(this),
       "update-article-banner-bg": this.updateArticleBannerBg.bind(this),
@@ -501,17 +504,79 @@ export default class ArticleTable {
   // 标签聚合计数（文章页过滤 pills 数据源）
   static getArticleTagCounts(db: Database.Database): ArticleTagCount[] {
     const rows = db
-      .prepare("SELECT tags FROM articles WHERE is_delete = 0 AND tags IS NOT NULL AND tags != ''")
-      .all() as { tags: string }[];
-    const counts = new Map<string, number>();
-    for (const row of rows) {
-      for (const tag of ArticleTable.parseTags(row.tags)) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
+      .prepare(
+        "SELECT tags, update_time FROM articles WHERE is_delete = 0 AND tags IS NOT NULL AND tags != ''"
+      )
+      .all() as { tags: string; update_time: number }[];
+    return countTags(
+      rows.map(row => ({ tags: ArticleTable.parseTags(row.tags), usedAt: row.update_time }))
+    );
+  }
+
+  /** 标签改名；目标名已存在即合并。返回受影响的文章 */
+  static renameScopedTag(
+    db: Database.Database,
+    request: ArticleDatabaseScope & { from: string; to: string },
+    ctx: CommandContext = fallbackCommandContext
+  ): IArticle[] {
+    ArticleTable.assertScope(db, request);
+    const to = request.to.trim();
+    if (!to) throw new Error("标签名不能为空");
+    return ArticleTable.rewriteTags(
+      db,
+      tags => renameTagInList(tags, request.from, to, { hierarchical: false }),
+      ctx
+    );
+  }
+
+  /** 从所有文章上摘掉标签，文章本身不动。返回受影响的文章 */
+  static removeScopedTag(
+    db: Database.Database,
+    request: ArticleDatabaseScope & { tag: string },
+    ctx: CommandContext = fallbackCommandContext
+  ): IArticle[] {
+    ArticleTable.assertScope(db, request);
+    return ArticleTable.rewriteTags(
+      db,
+      tags => removeTagFromList(tags, request.tag, { hierarchical: false }),
+      ctx
+    );
+  }
+
+  private static assertScope(db: Database.Database, scope: ArticleDatabaseScope) {
+    if (basename(db.name).replace(/\.db$/, "") !== scope.databaseName.replace(/\.db$/, "")) {
+      throw new Error("数据库已切换，请重新打开文章");
     }
-    return [...counts.entries()]
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }
+
+  private static rewriteTags(
+    db: Database.Database,
+    rewrite: (tags: string[]) => string[],
+    ctx: CommandContext
+  ): IArticle[] {
+    const rows = db.prepare("SELECT id, tags FROM articles WHERE is_delete = 0").all() as {
+      id: number;
+      tags: string;
+    }[];
+    const update = db.prepare("UPDATE articles SET update_time = ?, tags = ? WHERE id = ?");
+    const changedIds = db.transaction(() => {
+      const now = Date.now();
+      const ids: number[] = [];
+      for (const row of rows) {
+        const tags = ArticleTable.parseTags(row.tags);
+        const next = rewrite(tags);
+        if (sameTags(tags, next)) continue;
+        update.run(now, JSON.stringify(next), row.id);
+        Operation.insertOperation(db, "article", "update", row.id, now);
+        ids.push(row.id);
+      }
+      return ids;
+    })();
+    // 本窗口由调用方用返回值发总线事件，这里只通知其他窗口
+    for (const articleId of changedIds) {
+      ctx.broadcastOthers("article:updated", { databaseName: basename(db.name), articleId });
+    }
+    return changedIds.map(id => ArticleTable.getArticleById(db, id));
   }
 
   private static parseTags(raw: unknown): string[] {

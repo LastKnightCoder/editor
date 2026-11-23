@@ -14,6 +14,13 @@ import { CardContentOwnership } from "../content-ownership/card-content";
 
 import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
 import { parseContentAiMeta } from "./content-ai-meta";
+import {
+  countTags,
+  removeTagFromList,
+  renameTagInList,
+  sameTags,
+  type TagCount,
+} from "@/utils/tags";
 import type { SqliteRow } from "../../types/table";
 
 /** 列表预览块口径：渲染取前 3 块、标题/拖拽取 ≤200 字文本，块数封顶防无文本块失控 */
@@ -29,6 +36,9 @@ export default class CardTable {
       "cards:create-scoped": this.createScopedCard.bind(this),
       "cards:patch-scoped": this.patchScopedCard.bind(this),
       "cards:remove-scoped": this.removeScopedCard.bind(this),
+      "cards:tag-counts-scoped": this.getScopedTagCounts.bind(this),
+      "cards:rename-tag-scoped": this.renameScopedTag.bind(this),
+      "cards:remove-tag-scoped": this.removeScopedTag.bind(this),
       "create-card": this.createCard.bind(this),
       "create-card-from-project-item": this.createCardFromProjectItem.bind(this),
       "update-card": this.updateCard.bind(this),
@@ -111,6 +121,73 @@ export default class CardTable {
   static removeScopedCard(db: Database.Database, request: CardDatabaseScope & { id: number }) {
     this.assertDatabase(db, request);
     return this.deleteCard(db, request.id);
+  }
+
+  /** 标签选择器数据源：完整标签串的使用次数与最近使用时间 */
+  static getScopedTagCounts(db: Database.Database, scope: CardDatabaseScope): TagCount[] {
+    this.assertDatabase(db, scope);
+    const rows = db.prepare("SELECT tags, update_time FROM cards").all() as {
+      tags: string;
+      update_time: number;
+    }[];
+    return countTags(rows.map(row => ({ tags: parseTagList(row.tags), usedAt: row.update_time })));
+  }
+
+  /** 标签改名（含子标签）；目标名已存在即合并。返回受影响的卡片 */
+  static renameScopedTag(
+    db: Database.Database,
+    request: CardDatabaseScope & { from: string; to: string },
+    ctx: CommandContext = fallbackCommandContext
+  ): ICard[] {
+    this.assertDatabase(db, request);
+    const to = request.to.trim();
+    if (!to) throw new Error("标签名不能为空");
+    return this.rewriteTags(
+      db,
+      tags => renameTagInList(tags, request.from, to, { hierarchical: true }),
+      ctx
+    );
+  }
+
+  /** 从所有卡片上摘掉标签（含子标签），卡片本身不动。返回受影响的卡片 */
+  static removeScopedTag(
+    db: Database.Database,
+    request: CardDatabaseScope & { tag: string },
+    ctx: CommandContext = fallbackCommandContext
+  ): ICard[] {
+    this.assertDatabase(db, request);
+    return this.rewriteTags(
+      db,
+      tags => removeTagFromList(tags, request.tag, { hierarchical: true }),
+      ctx
+    );
+  }
+
+  private static rewriteTags(
+    db: Database.Database,
+    rewrite: (tags: string[]) => string[],
+    ctx: CommandContext
+  ): ICard[] {
+    const rows = db.prepare("SELECT id, tags FROM cards").all() as { id: number; tags: string }[];
+    const update = db.prepare("UPDATE cards SET update_time = ?, tags = ? WHERE id = ?");
+    const changedIds = db.transaction(() => {
+      const now = Date.now();
+      const ids: number[] = [];
+      for (const row of rows) {
+        const tags = parseTagList(row.tags);
+        const next = rewrite(tags);
+        if (sameTags(tags, next)) continue;
+        update.run(now, JSON.stringify(next), row.id);
+        Operation.insertOperation(db, "card", "update", row.id, now);
+        ids.push(row.id);
+      }
+      return ids;
+    })();
+    // 本窗口由调用方用返回值并入缓存并发总线事件，这里只通知其他窗口
+    for (const cardId of changedIds) {
+      ctx.broadcastOthers("card:updated", { databaseName: basename(db.name), cardId });
+    }
+    return changedIds.map(id => this.getCardById(db, id) as ICard);
   }
   static parseCard(card: SqliteRow): ICard {
     let content = [];
@@ -520,5 +597,16 @@ export default class CardTable {
         },
       };
     });
+  }
+}
+
+function parseTagList(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === "string")
+      : [];
+  } catch {
+    return [];
   }
 }

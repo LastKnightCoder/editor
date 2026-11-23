@@ -20,7 +20,7 @@ import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
 import { formatDate, getContentLength } from "@/utils";
-import { useCardsMutations } from "../queries";
+import { loadCardTagSuggestions, useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
@@ -271,6 +271,7 @@ export function CardPreviewDialog({
           <div className="shrink-0 px-6 pt-3 pb-[22px]">
             <AddTag
               tags={editing.tags}
+              loadSuggestions={loadCardTagSuggestions}
               addTag={tag => {
                 if (editing.tags.includes(tag)) return;
                 setEditing(produce(editing, draft => void draft.tags.push(tag)));

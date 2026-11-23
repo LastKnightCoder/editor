@@ -12,7 +12,7 @@ import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
-import { useCardsMutations } from "../queries";
+import { loadCardTagSuggestions, useCardsMutations } from "../queries";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import { getContentLength, isContentEmpty } from "@/utils";
 import type { ICard } from "@/types";
@@ -152,6 +152,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
           </ErrorBoundary>
           <AddTag
             tags={tags}
+            loadSuggestions={loadCardTagSuggestions}
             addTag={tag => setTags([...new Set([...tags, tag])])}
             removeTag={tag => setTags(tags.filter(t => t !== tag))}
             editTag={(oldTag, newTag) => {

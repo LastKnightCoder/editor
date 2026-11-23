@@ -10,8 +10,8 @@ import type { Descendant } from "slate";
 import { CreditCard, FileText, FolderOpen, type LucideIcon } from "lucide-react";
 import type { EditorWindowKind } from "@tau/platform";
 import type { EditorExtension } from "@tau/editor";
-import { getCardById, updateCard } from "@/commands/card";
-import { findOneArticle, updateArticle } from "@/commands/article";
+import { getCardById, getScopedCardTagCounts, updateCard } from "@/commands/card";
+import { findOneArticle, getArticleTagCounts, updateArticle } from "@/commands/article";
 import { getProjectItemById, updateProjectItem } from "@/commands/project";
 import { createProjectCardListExtension } from "@/editor-extensions";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/utils/event-bus";
 import type { IArticle, ICard } from "@/types";
 import type { ProjectItem } from "@/types/project";
+import type { TagCount } from "@/utils/tags";
 
 /** 外壳消费的统一视图；title / tags 为 undefined 表示该类型没有这个字段 */
 export interface EditorDocument {
@@ -48,6 +49,8 @@ export interface DocumentDriver<Entity = unknown> {
   icon: LucideIcon;
   hasTitle: boolean;
   hasTags: boolean;
+  /** 标签选择器候选（hasTags 的类型提供） */
+  loadTagSuggestions?(databaseName: string): Promise<TagCount[]>;
   load(id: number): Promise<Entity | null>;
   /** 持久化元数据；返回落库后的实体 */
   save(entity: Entity): Promise<Entity | null>;
@@ -72,6 +75,7 @@ const cardDriver: DocumentDriver<ICard> = {
   icon: CreditCard,
   hasTitle: false,
   hasTags: true,
+  loadTagSuggestions: getScopedCardTagCounts,
   load: id => getCardById(id).then(card => card ?? null),
   save: card => updateCard(card),
   toDocument: card => ({
@@ -104,6 +108,7 @@ const articleDriver: DocumentDriver<IArticle> = {
   icon: FileText,
   hasTitle: true,
   hasTags: true,
+  loadTagSuggestions: () => getArticleTagCounts(),
   load: id => findOneArticle(id).then(article => article ?? null),
   save: article => updateArticle(article),
   toDocument: article => ({

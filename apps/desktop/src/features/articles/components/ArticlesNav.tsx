@@ -8,7 +8,9 @@
 import type { ReactNode } from "react";
 import { cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
-import { useArticleTagCounts } from "../queries";
+import { TagRowCountSlot } from "@/components/AddTag/TagRowMenu";
+import { useTagManage } from "@/components/AddTag/useTagManage";
+import { useArticleTagCounts, useArticleTagMutations } from "../queries";
 
 export function ArticlesNavTags({
   selectedId,
@@ -18,11 +20,26 @@ export function ArticlesNavTags({
   onSelect: (id: string) => void;
 }) {
   const { tags } = useArticleTagCounts();
-  if (!tags.length) return null;
+  const mutations = useArticleTagMutations();
+  const manage = useTagManage({
+    existing: tags,
+    unit: { noun: "文章", measure: "篇" },
+    hierarchical: false,
+    rename: mutations.rename,
+    remove: mutations.remove,
+    // 正在按改动的标签筛选时，筛选跟着走：改名换成新名字，删除回到全部
+    onRenamed: (from, to) => {
+      if (selectedId === from) onSelect(to);
+    },
+    onRemoved: tag => {
+      if (selectedId === tag) onSelect("");
+    },
+  });
+  if (!tags.length) return manage.dialogs;
 
   return (
     // -mr-1.5：FadeScroll 右侧 6px 透明边吃进侧栏右内边距；内层 pr-1.5 让行与滚动条之间留出间隙
-    <FadeScroll className="-mr-1.5 mb-1 mt-0.5 max-h-[236px]">
+    <FadeScroll className="mt-0.5 -mr-1.5 mb-1 max-h-[236px]">
       <div className="space-y-px pr-1.5" role="group" aria-label="文章标签">
         {tags.map(({ tag, count }) => {
           const active = selectedId === tag;
@@ -39,10 +56,13 @@ export function ArticlesNavTags({
               }
               title={active ? "再点一次回到全部" : `只看「${tag}」`}
               onClick={() => onSelect(active ? "" : tag)}
+              onRename={() => manage.startRename({ tag, count })}
+              onDelete={() => manage.startDelete({ tag, count })}
             />
           );
         })}
       </div>
+      {manage.dialogs}
     </FadeScroll>
   );
 }
@@ -54,6 +74,8 @@ function NavChild({
   glyph,
   title,
   onClick,
+  onRename,
+  onDelete,
 }: {
   active: boolean;
   label: string;
@@ -61,29 +83,34 @@ function NavChild({
   glyph: ReactNode;
   title?: string;
   onClick: () => void;
+  onRename: () => void;
+  onDelete: () => void;
 }) {
   return (
-    // 让出父项图标列（按 body 字号折算）放在按钮外：高亮只盖色点起的一段，色点落在父项文字列
+    // 让出父项图标列（按 body 字号折算）放在行外：高亮只盖色点起的一段，色点落在父项文字列
     <div className="flex gap-2.5">
       <span aria-hidden className="text-tau-body w-[1.06em] shrink-0" />
-      <button
-        type="button"
-        onClick={onClick}
-        aria-current={active ? "page" : undefined}
-        title={title}
+      {/* 标签名与 ⋯ 是兄弟按钮（交互元素禁止嵌套） */}
+      <div
         className={cn(
-          "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
+          "group/tag text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center rounded-[9px] pr-1.5 transition-[background,color] duration-[160ms]",
           active
             ? "bg-selected text-ink-1 font-medium"
             : "text-ink-2 hover:bg-hover hover:text-ink-1"
         )}
       >
-        <span className="grid w-[13px] shrink-0 place-items-center">{glyph}</span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        {count > 0 && (
-          <span className="text-tau-tiny text-ink-3 font-normal tabular-nums">{count}</span>
-        )}
-      </button>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-current={active ? "page" : undefined}
+          title={title}
+          className="flex h-full min-w-0 flex-1 items-center gap-2.5 pr-1 pl-2.5 text-left"
+        >
+          <span className="grid w-[13px] shrink-0 place-items-center">{glyph}</span>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+        </button>
+        <TagRowCountSlot count={count} label={label} onRename={onRename} onDelete={onDelete} />
+      </div>
     </div>
   );
 }

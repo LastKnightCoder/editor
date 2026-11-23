@@ -40,6 +40,12 @@ export const articleCommands = {
     { items: ArticlePageItem[]; total: number; totalWords: number }
   >("get-article-page"),
   tagCounts: command<[], ArticleTagCount[]>("get-article-tag-counts"),
+  renameTagScoped: command<[ArticleDatabaseScope & { from: string; to: string }], IArticle[]>(
+    "articles:rename-tag-scoped"
+  ),
+  removeTagScoped: command<[ArticleDatabaseScope & { tag: string }], IArticle[]>(
+    "articles:remove-tag-scoped"
+  ),
   updateIsTop: command<[number, boolean], IArticle>("update-article-is-top"),
   updateBannerBg: command<[number, string], IArticle>("update-article-banner-bg"),
   getArticlesByDates: command<[string[]], Record<string, IArticle[]>>("get-articles-by-dates"),

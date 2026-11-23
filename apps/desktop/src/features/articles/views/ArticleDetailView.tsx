@@ -74,7 +74,7 @@ import {
 import AddTag from "@/components/AddTag";
 import { ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
 
-import { useArticleMutations } from "../queries";
+import { loadArticleTagSuggestions, useArticleMutations } from "../queries";
 import { ArticleHero } from "../components/ArticleHero";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
 import { articleMorphKey } from "../morph";
@@ -593,6 +593,7 @@ export function ArticleDetailView() {
                     <AddTag
                       divided
                       tags={editingArticle.tags}
+                      loadSuggestions={loadArticleTagSuggestions}
                       addTag={onAddTag}
                       removeTag={onDeleteTag}
                       editTag={(oldTag, newTag) =>

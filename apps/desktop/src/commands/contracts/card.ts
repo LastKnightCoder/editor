@@ -6,6 +6,7 @@ import type {
   CardMetadataPatch,
   CardDatabaseScope,
 } from "@/types/card";
+import type { TagCount } from "@/utils/tags";
 
 /** 卡片内容按 id 批量取回的条目（供 AI 等消费方的受控摘要） */
 export interface CardContentResult {
@@ -28,6 +29,13 @@ export const cardCommands = {
     "cards:patch-scoped"
   ),
   removeScoped: command<[CardDatabaseScope & { id: number }], number>("cards:remove-scoped"),
+  tagCountsScoped: command<[CardDatabaseScope], TagCount[]>("cards:tag-counts-scoped"),
+  renameTagScoped: command<[CardDatabaseScope & { from: string; to: string }], ICard[]>(
+    "cards:rename-tag-scoped"
+  ),
+  removeTagScoped: command<[CardDatabaseScope & { tag: string }], ICard[]>(
+    "cards:remove-tag-scoped"
+  ),
   create: command<[ICreateCard], ICard>("create-card"),
   createFromProjectItem: command<[number], ICard>("create-card-from-project-item"),
   getAll: command<[], ICard[]>("get-all-cards"),

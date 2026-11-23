@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("../queries", () => ({
   useCardsMutations: () => ({ create: { mutateAsync: mocks.create } }),
+  loadCardTagSuggestions: async () => [],
 }));
 vi.mock("@/components/ContentEditor", () => ({
   default: ({ initValue }: { initValue: Array<{ children: Array<{ text: string }> }> }) => (

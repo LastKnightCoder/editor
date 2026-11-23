@@ -2,8 +2,10 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from
 import isHotKey from "is-hotkey";
 import { Plus } from "lucide-react";
 
-import { Tag as TauTag, cn } from "@tau/ui";
+import { Popover, Tag as TauTag, cn } from "@tau/ui";
 import Tags from "@/components/Tags";
+import type { TagCount } from "@/utils/tags";
+import { TagPickerPanel } from "./TagPickerPanel";
 
 /** 可编辑标签行比纯展示标签高一档，点击与输入更从容 */
 const TAG_SIZE_CLASS = "text-tau-meta h-[26px] px-2.5";
@@ -20,6 +22,8 @@ interface AddTagProps {
   style?: React.CSSProperties;
   // 拖拽排序相关
   onReorder?: (newTags: string[]) => void;
+  /** 选择器候选来源：每次打开时取一次（拿到的是最新计数）；不传则只能新建 */
+  loadSuggestions?: () => Promise<TagCount[]>;
 }
 
 const AddTag = (props: AddTagProps) => {
@@ -33,31 +37,36 @@ const AddTag = (props: AddTagProps) => {
     className,
     style,
     onReorder,
+    loadSuggestions,
   } = props;
-  const [addTagVisible, setAddTagVisible] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<TagCount[]>([]);
   const [editingTag, setEditingTag] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
   const editRef = useRef<HTMLDivElement>(null);
   // 进入编辑时的点击坐标，供首帧绘制前定位光标
   const editClickPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  const handleAddTag = useCallback(
+  const loadSuggestionsRef = useRef(loadSuggestions);
+  loadSuggestionsRef.current = loadSuggestions;
+  useEffect(() => {
+    const load = loadSuggestionsRef.current;
+    if (!pickerOpen || !load) return;
+    let alive = true;
+    load()
+      .then(list => alive && setSuggestions(list))
+      .catch(() => alive && setSuggestions([]));
+    return () => {
+      alive = false;
+    };
+  }, [pickerOpen]);
+
+  const handlePick = useCallback(
     (input: string) => {
       const tag = input.trim();
-      if (tag && !tags.includes(tag)) {
-        addTag(tag);
-      }
-      setAddTagVisible(false);
+      if (tag && !tags.includes(tag)) addTag(tag);
     },
     [addTag, tags]
   );
-
-  const handleBlur = useCallback(() => {
-    const tag = ref.current;
-    if (!tag) return;
-    const { textContent } = tag;
-    handleAddTag(textContent || "");
-  }, [handleAddTag]);
 
   const handleEditTag = useCallback(
     (oldTag: string, input: string) => {
@@ -108,72 +117,50 @@ const AddTag = (props: AddTagProps) => {
   }, [editingTag]);
 
   useEffect(() => {
+    if (!editingTag) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotKey("enter", e) && !e.isComposing) {
-        if (addTagVisible) {
-          const tag = ref.current;
-          if (tag) {
-            const { textContent } = tag;
-            handleAddTag(textContent || "");
-          }
-        } else if (editingTag) {
-          // 在编辑模式下，从 editRef 获取内容
-          const editElement = editRef.current;
-          if (editElement) {
-            const { textContent } = editElement;
-            handleEditTag(editingTag, textContent || "");
-          }
-        }
-      }
+      if (!isHotKey("enter", e) || e.isComposing) return;
+      const editElement = editRef.current;
+      if (editElement) handleEditTag(editingTag, editElement.textContent || "");
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [addTagVisible, editingTag, handleAddTag, handleEditTag]);
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (addTagVisible) return;
-      e.stopPropagation();
-      setAddTagVisible(true);
-    },
-    [addTagVisible]
-  );
-
-  useLayoutEffect(() => {
-    if (addTagVisible) ref.current?.focus();
-  }, [addTagVisible]);
+  }, [editingTag, handleEditTag]);
 
   const renderAddTagBtn = () => {
     if (readonly) return undefined;
     return (
-      <TauTag
-        onClick={handleClick}
-        className={cn(
-          TAG_SIZE_CLASS,
-          "gap-1 border-dashed",
-          addTagVisible
-            ? "border-accent text-ink-1 cursor-text border-solid"
-            : "text-ink-3 hover:border-line-2 hover:bg-surface-hover hover:text-ink-1 cursor-pointer"
-        )}
+      <Popover
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        placement="bottom-start"
+        arrow={false}
+        className="w-[280px]"
+        trigger={
+          <TauTag
+            role="button"
+            tabIndex={0}
+            className={cn(
+              TAG_SIZE_CLASS,
+              "cursor-pointer gap-1 border-dashed outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+              pickerOpen
+                ? "border-accent text-ink-1 border-solid"
+                : "text-ink-3 hover:border-line-2 hover:bg-surface-hover hover:text-ink-1"
+            )}
+          >
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <Plus aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
+              添加标签
+            </span>
+          </TauTag>
+        }
       >
-        <span className="flex items-center gap-1 whitespace-nowrap">
-          <Plus aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
-          {addTagVisible ? (
-            <div
-              ref={ref}
-              contentEditable={addTagVisible}
-              suppressContentEditableWarning
-              onBlur={handleBlur}
-              data-placeholder="添加标签"
-              className="empty:before:text-ink-3 inline-block min-w-[2ch] outline-none empty:before:content-[attr(data-placeholder)]"
-            />
-          ) : (
-            "添加标签"
-          )}
-        </span>
-      </TauTag>
+        {pickerOpen && (
+          <TagPickerPanel selected={tags} suggestions={suggestions} onPick={handlePick} />
+        )}
+      </Popover>
     );
   };
 
