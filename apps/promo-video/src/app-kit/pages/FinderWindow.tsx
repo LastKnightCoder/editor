@@ -3,7 +3,7 @@
  * 这是系统界面，不走 Tau 主题 token，按 macOS 浅色外观画；selected 为选中那一行的高亮进度。
  */
 import clsx from "clsx";
-import { ChevronLeft, ChevronRight, Clock, Download, FileArchive, FileText, Folder, HardDrive, LayoutGrid, Monitor, Search } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Clock, Download, FileArchive, FileText, Folder, HardDrive, LayoutGrid, Monitor, Search } from "lucide-react";
 
 const SIDEBAR = [
   { icon: Clock, label: "最近使用" },
@@ -12,7 +12,7 @@ const SIDEBAR = [
   { icon: Download, label: "下载", active: true },
 ];
 
-export type FinderRow = { name: string; date: string; size: string; kind: string; zip?: boolean };
+export type FinderRow = { name: string; date: string; size: string; kind: string; zip?: boolean; book?: boolean };
 
 export function FinderWindow({ rows, selected }: { rows: FinderRow[]; selected: number }) {
   return (
@@ -73,6 +73,7 @@ export function FinderWindow({ rows, selected }: { rows: FinderRow[]; selected: 
             return (
               <div
                 key={row.name}
+                data-hit={i === 0 ? "finder:first" : undefined}
                 className={clsx("grid h-[26px] grid-cols-[minmax(0,1fr)_170px_80px_110px] items-center rounded-[5px] px-2")}
                 style={{
                   background: on ? `rgba(47,124,246,${selected})` : i % 2 ? "rgba(0,0,0,0.025)" : undefined,
@@ -80,7 +81,9 @@ export function FinderWindow({ rows, selected }: { rows: FinderRow[]; selected: 
                 }}
               >
                 <span className="flex min-w-0 items-center gap-2 truncate">
-                  {row.zip ? (
+                  {row.book ? (
+                    <BookOpen className="size-4 shrink-0" strokeWidth={1.75} style={{ color: on && selected > 0.5 ? "#fff" : "#8e8e93" }} />
+                  ) : row.zip ? (
                     <FileArchive className="size-4 shrink-0" strokeWidth={1.75} style={{ color: on && selected > 0.5 ? "#fff" : "#8e8e93" }} />
                   ) : (
                     <Folder className="size-4 shrink-0" strokeWidth={1.75} style={{ color: on && selected > 0.5 ? "#fff" : "#5aa9f7" }} />

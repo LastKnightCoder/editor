@@ -128,6 +128,7 @@ function NavItemButton({ item, active, pressed = false }: { item: NavItem; activ
   const Icon = item.icon;
   return (
     <div
+      data-hit={`nav:${item.key}`}
       className={clsx(
         "text-tau-body relative flex h-[calc(1.65em+8px)] w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left",
         active

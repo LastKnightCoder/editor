@@ -18,6 +18,10 @@ import {
   type Doc,
   type EmbedKind,
 } from "./model.ts";
+import { jitter, units, type Click, type KeyCap, type Sfx, type Timed } from "../../kit/replay.ts";
+
+/** 键帽、点按、音效、带时刻的值的类型在 kit/replay.ts；教程片各文件一直从这里拿 */
+export type { Click, KeyCap, Sfx, Timed };
 
 export type Step =
   /** 换一条字幕（停留到下一条），并留出读字幕的时间 */
@@ -34,12 +38,7 @@ export type Step =
   /** 速查条加一条 */
   | { chip: { syntax: string; result: string } };
 
-export type KeyCap = { at: number; label: string; trigger: boolean; slow: boolean };
-export type Sfx = { t: number; kind: "key" | "space" | "enter" | "form" | "click" };
-/** 一次点按：at 帧按下，hit 是画面里被点元素的 data-hit */
-export type Click = { at: number; hit: string };
 export type Snapshot = { at: number; doc: Doc; anchor: string };
-export type Timed<T> = { at: number; value: T };
 
 export type ChapterRun = {
   start: number;
@@ -55,29 +54,6 @@ export type ChapterRun = {
 /** 节奏（帧，60fps）：记号逐个敲、正文按输入法上屏、触发前停一下、成型后留时间看清 */
 const PACE = { mark: 11, ascii: 6, ime: 13, code: 4, enter: 18, nav: 14, beforeTrigger: 26, slowTrigger: 70, afterForm: 40, read: 70, cursor: 36, afterClick: 34 };
 const KEY_CHARS = new Set([..."#>-*+`$~=_^|/"]);
-const CJK = /[\p{Script=Han}，。、：；！？「」『』（）《》——…]/u;
-
-/** 确定性的小抖动，让打字不像机器 */
-const jitter = (n: number) => 0.8 + 0.4 * (Math.sin(n * 12.9898) * 43758.5453 - Math.floor(Math.sin(n * 12.9898) * 43758.5453));
-
-/** 输入单元：中文按 2～3 字一组上屏，其余逐字 */
-function units(text: string) {
-  const out: { text: string; ime: boolean }[] = [];
-  const chars = [...text];
-  for (let i = 0; i < chars.length;) {
-    if (CJK.test(chars[i])) {
-      const size = 2 + (i % 2);
-      let j = i;
-      while (j < chars.length && j - i < size && CJK.test(chars[j])) j++;
-      out.push({ text: chars.slice(i, j).join(""), ime: true });
-      i = j;
-    } else {
-      out.push({ text: chars[i], ime: false });
-      i++;
-    }
-  }
-  return out;
-}
 
 const LABEL = { space: "空格", enter: "回车", up: "↑", down: "↓", left: "←", right: "→", undo: "⌘ Z", backspace: "⌫", esc: "Esc", tab: "Tab" } as const;
 

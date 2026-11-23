@@ -2,10 +2,10 @@
 # requires-python = ">=3.11,<3.14"
 # dependencies = ["numpy", "scipy", "soundfile", "pedalboard"]
 # ///
-"""教程片音效：轻打字声与语法成型提示音，全部合成，按事件表渲染成一条音效轨。
+"""回放片的音效（教程片、功能片共用）：轻打字声、点按、成型提示、刻度弹出、截帧快门，全部合成，按事件表渲染成一条音效轨。
 
 用法（在 apps/promo-video 下）：uv run scripts/sfx/sfx.py <events.json> <输出.wav> [--mp3]
-events.json：[{ "t": 秒, "kind": "key" | "space" | "enter" | "form" | "click" }]，成片时由打字排期导出。
+events.json：[{ "t": 秒, "kind": "key" | "space" | "enter" | "form" | "click" | "pop" | "shutter" }]，成片时由回放时间轴导出（pnpm sfx <片名>）。
 音色原则：先低通再出声，控制 2–6 kHz（耳朵最敏感、听感「尖」的频段）；同一种事件每次略有差异，避免机关枪感。
 """
 
@@ -56,6 +56,24 @@ def form_cue():
     return out
 
 
+def pop_cue():
+    """刻度弹出：一枚很轻的小气泡音，音高向下滑一点，80 毫秒就没了"""
+    n = int(0.09 * SR)
+    t = np.arange(n) / SR
+    hz = 880 - 220 * t / 0.09
+    tone = np.sin(2 * np.pi * hz * t) * np.exp(-t / 0.022)
+    return _filter(tone * np.clip(t / 0.002, 0, 1), "low", 2400)
+
+
+def shutter():
+    """截帧快门：两下很短的机械「嗒」，中间隔 45 毫秒，像手机拍照"""
+    click = _filter(rng.standard_normal(int(0.03 * SR)), "band", (1200, 4200)) * np.exp(-np.arange(int(0.03 * SR)) / SR / 0.004)
+    out = np.zeros(int(0.09 * SR))
+    out[: len(click)] += click
+    out[int(0.045 * SR) :][: len(click)] += click * 0.7
+    return out * 0.5
+
+
 SOUNDS = {
     "key": (lambda: keystroke(210, 0.018), 0.45),
     # 鼠标点按：比键盘更短更轻
@@ -63,6 +81,8 @@ SOUNDS = {
     "space": (lambda: keystroke(150, 0.03), 0.6),
     "enter": (lambda: keystroke(140, 0.035), 0.65),
     "form": (form_cue, 0.5),
+    "pop": (pop_cue, 0.3),
+    "shutter": (shutter, 0.4),
 }
 
 if __name__ == "__main__":

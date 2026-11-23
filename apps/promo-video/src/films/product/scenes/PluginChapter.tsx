@@ -134,7 +134,11 @@ export function PluginChapter() {
   const veil = manifestoVeil(frame, at(C.manifesto[0]), at(C.manifesto[1]));
   const swapped = frame >= at(C.swap);
 
-  const page = onWeread ? <WeReadPage state={wereadState} /> : <PluginsPage install={install} pressInstall={press(frame, I.press)} restartBar={restartBar} pressRestart={press(frame, I.restart)} />;
+  const page = onWeread ? (
+    <WeReadPage state={wereadState} />
+  ) : (
+    <PluginsPage states={{ weread: install }} pressed={{ install: press(frame, I.press) ? "weread" : undefined }} restartBar={restartBar} pressRestart={press(frame, I.restart)} />
+  );
 
   return (
     <>

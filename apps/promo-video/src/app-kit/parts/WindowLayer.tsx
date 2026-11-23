@@ -7,7 +7,7 @@ import { useAppTheme } from "../theme";
 
 export function WindowLayer({ children }: { children: ReactNode }) {
   return (
-    <div data-theme={useAppTheme()} data-mode="light" className="font-tau text-tau-body text-ink-1 absolute inset-0 overflow-hidden" style={{ borderRadius: 14 }}>
+    <div data-theme={useAppTheme()} data-mode="light" className="font-tau text-tau-body text-ink-1 absolute inset-0 z-[300] overflow-hidden" style={{ borderRadius: 14 }}>
       {children}
     </div>
   );

@@ -21,8 +21,10 @@ import { AppThemeProvider } from "./app-kit/theme";
 import { STAGES } from "./brand/stage";
 import { BOARD_TEXT } from "./mock/board";
 import { BilibiliCover, COVER_GLYPHS, COVER_SIZE, type CoverLayout } from "./films/cover/BilibiliCover";
+import { VIDEO_NOTES_DURATION, VideoNotesFilm } from "./films/feature-films/video-notes/VideoNotesFilm";
+import { VIDEO_NOTES_GLYPHS } from "./films/feature-films/video-notes/script";
 
-preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS + COVER_GLYPHS, BOARD_TEXT);
+preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS + COVER_GLYPHS + VIDEO_NOTES_GLYPHS, BOARD_TEXT);
 
 const FEATURE_IDS: Record<Feature, string> = { editor: "Feature-Editor", compose: "Feature-Compose" };
 
@@ -33,9 +35,21 @@ export function Root() {
       {(Object.keys(FEATURE_RANGES) as Feature[]).map(feature => (
         <Composition key={feature} id={FEATURE_IDS[feature]} component={FeatureFilm} defaultProps={{ feature }} durationInFrames={featureDuration(feature)} {...VIDEO} />
       ))}
+      <Composition id="Feature-VideoNotes" component={VideoNotesFilm} durationInFrames={VIDEO_NOTES_DURATION} {...VIDEO} />
       <Composition id="Tutorial-Syntax" component={TutorialFilm} durationInFrames={TUTORIAL_DURATION} {...VIDEO} />
       {(Object.keys(COVER_SIZE) as CoverLayout[]).map(layout => (
         <Composition key={layout} id={`Cover-Bilibili-${layout}`} component={BilibiliCover} defaultProps={{ layout }} durationInFrames={1} fps={VIDEO.fps} {...COVER_SIZE[layout]} />
+      ))}
+      {(Object.keys(COVER_SIZE) as CoverLayout[]).map(layout => (
+        <Composition
+          key={layout}
+          id={`Cover-VideoNotes-${layout}`}
+          component={BilibiliCover}
+          defaultProps={{ layout, film: "videoNotes" as const }}
+          durationInFrames={1}
+          fps={VIDEO.fps}
+          {...COVER_SIZE[layout]}
+        />
       ))}
       <Composition id="DayInLife" component={DayFilm} durationInFrames={DAY_DURATION} {...VIDEO} />
 

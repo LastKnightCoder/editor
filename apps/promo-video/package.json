@@ -10,7 +10,9 @@
     "check": "tsc --noEmit",
     "frames": "node scripts/beat-frames.mjs",
     "grid": "bash scripts/stills-grid.sh",
-    "tutorial:sfx": "node --experimental-strip-types --no-warnings scripts/export-tutorial-sfx.ts"
+    "timeline": "node --experimental-strip-types --no-warnings scripts/print-timeline.ts",
+    "stills": "node --experimental-strip-types --no-warnings scripts/stills.ts",
+    "sfx": "node --experimental-strip-types --no-warnings scripts/export-sfx.ts"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",

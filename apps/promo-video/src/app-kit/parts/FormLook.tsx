@@ -66,7 +66,7 @@ export function RadioGroupLook({ legend, children }: { legend: string; children:
 
 export function SwitchLook({ checked, size = "md" }: { checked: boolean; size?: "sm" | "md" }) {
   return (
-    <span className={clsx("relative shrink-0 rounded-full border-[1.5px] border-transparent", checked ? "bg-accent" : "bg-track", size === "sm" ? "h-[17px] w-[30px]" : "h-5 w-9")}>
+    <span className={clsx("relative inline-block shrink-0 rounded-full border-[1.5px] border-transparent", checked ? "bg-accent" : "bg-track", size === "sm" ? "h-[17px] w-[30px]" : "h-5 w-9")}>
       <span
         className={clsx(
           "bg-surface absolute top-0.5 left-0.5 rounded-full border shadow-[0_1px_2px_rgba(0,0,0,0.12)]",
@@ -88,9 +88,15 @@ export function CheckLook({ checked }: { checked: boolean }) {
   );
 }
 
-export function SpinnerLook({ className }: { className?: string }) {
+/** current：跟随文字颜色（主按钮里的转圈），缺省是 accent */
+export function SpinnerLook({ className, current }: { className?: string; current?: boolean }) {
   const frame = useCurrentFrame();
-  return <span className={clsx("border-accent/30 border-t-accent inline-block size-4 rounded-full border-2", className)} style={{ transform: `rotate(${frame * 8}deg)` }} />;
+  return (
+    <span
+      className={clsx("inline-block size-4 rounded-full border-2", current ? "border-current/30 border-t-current" : "border-accent/30 border-t-accent", className)}
+      style={{ transform: `rotate(${frame * 8}deg)` }}
+    />
+  );
 }
 
 export function LoadingLook({ label }: { label: string }) {

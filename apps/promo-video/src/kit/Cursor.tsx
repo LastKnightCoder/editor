@@ -22,7 +22,7 @@ const IDLE_HIDE = 150;
 const IDLE_FADE = 14;
 
 /** macOS 风格箭头光标，沿路径点缓动移动，点按时缩放并荡开一圈涟漪（坐标为父容器坐标） */
-export function Cursor({ path, visibleFrom = 0, visibleTo = 1e9 }: { path: CursorStop[]; visibleFrom?: number; visibleTo?: number }) {
+export function Cursor({ path, visibleFrom = 0, visibleTo = 1e9, scale = 1 }: { path: CursorStop[]; visibleFrom?: number; visibleTo?: number; scale?: number }) {
   const frame = useCurrentFrame();
   if (frame < visibleFrom - 12 || frame > visibleTo + 12) return null;
   let x = path[0].x;
@@ -49,7 +49,7 @@ export function Cursor({ path, visibleFrom = 0, visibleTo = 1e9 }: { path: Curso
   const ripple = click ? progress(frame, click.at, 24) : 0;
   const opacity = Math.min(progress(frame, visibleFrom - 12, 12), 1 - progress(frame, visibleTo, 12)) * idle;
   return (
-    <div style={{ position: "absolute", left: x, top: y, opacity, pointerEvents: "none", zIndex: 100 }}>
+    <div style={{ position: "absolute", left: x, top: y, opacity, pointerEvents: "none", zIndex: 100, transform: scale !== 1 ? `scale(${scale})` : undefined, transformOrigin: "0 0" }}>
       {click && (
         <div
           style={{

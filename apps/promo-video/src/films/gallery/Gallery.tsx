@@ -38,6 +38,11 @@ import { BookOpen } from "lucide-react";
 import { WhiteboardPage } from "../../app-kit/pages/WhiteboardPage";
 import { BoardCanvas, type BoardReveal } from "../../app-kit/whiteboard/BoardCanvas";
 import { BOARD_BOUNDS, MIND_NODES } from "../../mock/board";
+import { CATALOG, CHAT, demoNote, EBOOK, FEATURE_WINDOW, LECTURE, TREE, TREE_BEFORE, VIDEO_PLUGINS } from "../../mock/videonote";
+import { EbookExportDialog } from "../../app-kit/parts/EbookExportDialog";
+import { ProjectCrumb, ProjectTreePage } from "../../app-kit/pages/ProjectTreePage";
+import { VideoNotePage } from "../../app-kit/pages/VideoNotePage";
+import { OnlineVideoDialog } from "../../app-kit/parts/OnlineVideoDialog";
 
 /** 白板全部画出、视口适配全部内容（纸面 1186×834） */
 const BOARD_FULL: BoardReveal = { shapes: [1, 1, 1], arrows: 1, link: 1, mind: MIND_NODES.map(() => 1), ref: 1 };
@@ -225,13 +230,13 @@ export const GALLERY_PAGES = {
   },
   plugins: () => (
     <AppWindow active="plugins">
-      <PluginsPage install="staged" restartBar={1} />
+      <PluginsPage states={{ weread: "staged" }} restartBar={1} />
     </AppWindow>
   ),
   pluginConfirm: () => (
     <div className="relative">
       <AppWindow active="plugins">
-        <PluginsPage install="available" />
+        <PluginsPage />
       </AppWindow>
       <WindowLayer>
         <ConfirmCard
@@ -376,7 +381,104 @@ export const GALLERY_PAGES = {
       <DatabasePage view="calendar" />
     </AppWindow>
   ),
+
+  // —— 功能片（视频笔记、视频插件）：宽窗口 1760×990，按原尺寸显示
+  videoNote: () => (
+    <AppWindow active="projects" size={FEATURE_WINDOW} crumb={<ProjectCrumb project={LECTURE.project} />}>
+      <ProjectTreePage project={LECTURE.project} items={TREE} activeId="v2" tree={0}>
+        <VideoNotePage state={demoNote()} />
+      </ProjectTreePage>
+    </AppWindow>
+  ),
+  videoNoteEmpty: () => (
+    <AppWindow active="projects" size={FEATURE_WINDOW} crumb={<ProjectCrumb project={LECTURE.project} />}>
+      <ProjectTreePage project={LECTURE.project} items={TREE} activeId="v2" tree={0}>
+        <VideoNotePage state={{ ...demoNote(0), segments: [], cache: { progress: 0.46 }, notes: { kind: "empty" }, markers: [] }} />
+      </ProjectTreePage>
+    </AppWindow>
+  ),
+  videoNoteChat: () => (
+    <AppWindow active="projects" size={FEATURE_WINDOW} crumb={<ProjectCrumb project={LECTURE.project} />}>
+      <ProjectTreePage project={LECTURE.project} items={TREE} activeId="v2" tree={0}>
+        <VideoNotePage
+          state={{
+            ...demoNote(),
+            chatOpen: 1,
+            chat: { turns: [CHAT.search, CHAT.quote].map(exchange => ({ exchange, user: 1, tools: exchange.tools.map(() => 1), answer: 1 })) },
+          }}
+        />
+      </ProjectTreePage>
+    </AppWindow>
+  ),
+  videoNoteEbook: () => (
+    <div className="relative" style={{ width: FEATURE_WINDOW.width, height: FEATURE_WINDOW.height }}>
+      <AppWindow active="projects" size={FEATURE_WINDOW} crumb={<ProjectCrumb project={LECTURE.project} />}>
+        <ProjectTreePage project={LECTURE.project} items={TREE} activeId="v2" tree={0}>
+          <VideoNotePage state={demoNote()} />
+        </ProjectTreePage>
+      </AppWindow>
+      <WindowLayer>
+        <EbookExportDialog appear={1} context={LECTURE.title} step={0} style={0} draft={EBOOK.draft} shown={160} streaming />
+      </WindowLayer>
+    </div>
+  ),
+  videoNoteEbookExport: () => (
+    <div className="relative" style={{ width: FEATURE_WINDOW.width, height: FEATURE_WINDOW.height }}>
+      <AppWindow active="projects" size={FEATURE_WINDOW} crumb={<ProjectCrumb project={LECTURE.project} />}>
+        <ProjectTreePage project={LECTURE.project} items={TREE} activeId="v2" tree={0}>
+          <VideoNotePage state={demoNote()} />
+        </ProjectTreePage>
+      </AppWindow>
+      <WindowLayer>
+        <EbookExportDialog
+          appear={1}
+          context={LECTURE.title}
+          step={1}
+          style={0}
+          draft={EBOOK.draft}
+          shown={999}
+          streaming={false}
+          book={{ title: EBOOK.book, author: EBOOK.author, description: "看完一节《学会学习》写成的长文。", cover: "diagram" }}
+        />
+      </WindowLayer>
+    </div>
+  ),
+  pluginsSearch: () => (
+    <AppWindow active="plugins" size={FEATURE_WINDOW}>
+      <PluginsPage plugins={CATALOG} query="Bilibili" states={{ bilibili: "installed" }} installedCount={3} />
+    </AppWindow>
+  ),
+  projectAdd: () => (
+    <div className="relative" style={{ width: FEATURE_WINDOW.width, height: FEATURE_WINDOW.height }}>
+      <AppWindow active="projects" size={FEATURE_WINDOW} crumb={<ProjectCrumb project={LECTURE.project} />}>
+        <ProjectTreePage project={LECTURE.project} items={TREE_BEFORE} menu={{ appear: 1, submenu: 1, highlighted: ["2", "video:2"] }} providers={["Bilibili", "YouTube"]}>
+          <div />
+        </ProjectTreePage>
+      </AppWindow>
+      <WindowLayer>
+        <OnlineVideoDialog provider={VIDEO_PLUGINS.bilibili.name} appear={1} url={LECTURE.link.bilibili} pressed="parse" />
+      </WindowLayer>
+    </div>
+  ),
+  projectAddResolved: () => (
+    <div className="relative" style={{ width: FEATURE_WINDOW.width, height: FEATURE_WINDOW.height }}>
+      <AppWindow active="plugins" size={FEATURE_WINDOW}>
+        <PluginsPage />
+      </AppWindow>
+      <WindowLayer>
+        <OnlineVideoDialog
+          provider={VIDEO_PLUGINS.bilibili.name}
+          appear={1}
+          resolved={{ title: LECTURE.title, cover: "modes", variants: ["360P 流畅", "480P 清晰", "720P 高清", "1080P 高清 · 需登录", "1080P+ 高码率 · 大会员"], selected: 2, appear: 1 }}
+          selectOpen={1}
+        />
+      </WindowLayer>
+    </div>
+  ),
 } as const;
+
+/** 宽窗口的页面按原尺寸显示，放不下 1.25 倍 */
+const FULL_SIZE: GalleryPage[] = ["pdfRaw", "videoNote", "videoNoteEmpty", "videoNoteChat", "videoNoteEbook", "videoNoteEbookExport", "pluginsSearch", "projectAdd", "projectAddResolved"];
 
 export type GalleryPage = keyof typeof GALLERY_PAGES;
 
@@ -384,7 +486,7 @@ export function Gallery({ page }: { page: GalleryPage }) {
   const Page = GALLERY_PAGES[page];
   return (
     <AbsoluteFill style={{ background: "#d9d4ca", display: "grid", placeItems: "center" }}>
-      <div style={{ transform: `scale(${page === "pdfRaw" ? 1 : 1.25})` }}>
+      <div style={{ transform: `scale(${FULL_SIZE.includes(page) ? 1 : 1.25})` }}>
         <Page />
       </div>
     </AbsoluteFill>

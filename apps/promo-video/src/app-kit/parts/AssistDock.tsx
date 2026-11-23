@@ -129,7 +129,7 @@ export function ToolRow({ name, done, note, style }: { name: string; done: boole
         {done ? <Check className="text-ok size-3.5" strokeWidth={2} /> : <i className="border-accent/30 border-t-accent inline-block size-3 animate-none rounded-full border-[1.5px]" />}
       </span>
       <span className="font-tau-mono text-[12px]">{name}</span>
-      <span className="text-ink-3 tabular-nums">· {done ? note : "执行中…"}</span>
+      <span className="text-ink-3 whitespace-nowrap tabular-nums">· {done ? note : "执行中…"}</span>
       <ChevronRight size={13} strokeWidth={1.75} className="text-ink-3" />
     </div>
   );

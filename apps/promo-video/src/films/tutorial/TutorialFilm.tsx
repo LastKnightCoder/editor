@@ -4,16 +4,16 @@
  * 斜杠菜单打开时镜头再往上让出菜单的位置；右侧是本章的速查条，光标下方（或菜单右侧）是键帽，底部是字幕，点按时出鼠标光标。
  */
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AbsoluteFill, Audio, getStaticFiles, Sequence, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Audio, getStaticFiles, staticFile, useCurrentFrame } from "remotion";
 import { ease, mix, progress } from "../../brand/motion";
 import { STAGES } from "../../brand/stage";
-import { fonts } from "../../brand/tokens";
 import { TRACKS } from "../../brand/music";
+import { Ending } from "../../kit/Ending";
 import { ManifestoOverlay, ManifestoText, manifestoVeil, VEIL_BLUR } from "../../kit/Manifesto";
-import { StageFill, StageProvider, useStage } from "../../kit/Stage";
-import { Soundtrack } from "../../kit/Soundtrack";
+import { MusicBed } from "../../kit/MusicBed";
+import { CaptionBar, KeyCaps } from "../../kit/Overlays";
+import { StageFill, StageProvider } from "../../kit/Stage";
 import { Cursor } from "../../kit/Cursor";
-import { Wordmark } from "../../kit/Wordmark";
 import { AppWindow, WINDOW } from "../../app-kit/AppWindow";
 import { AppThemeProvider } from "../../app-kit/theme";
 import { ArticleEditorPage } from "../../app-kit/pages/ArticleEditorPage";
@@ -21,9 +21,9 @@ import { CardCrumb } from "../../app-kit/parts/Crumbs";
 import type { Doc } from "./model";
 import { anchorChanges, snapshotAt, type ChapterRun } from "./run";
 import { CHEAT_SHEET, ENDING as ENDING_COPY, INTRO as INTRO_COPY } from "./script";
-import { chapterAt, FPS, INTRO, TIMELINE, typingWeight } from "./timeline";
+import { chapterAt, INTRO, TIMELINE, typingWeight } from "./timeline";
 import { TutorialDoc } from "./TutorialDoc";
-import { CaptionBar, CheatSheet, CheatStrip, KeyCaps } from "./Overlays";
+import { CheatSheet, CheatStrip } from "./Overlays";
 
 const STAGE = STAGES.studio;
 const ZOOM = 1.45;
@@ -38,8 +38,6 @@ const CODE_LINE = 16 * 0.8 * 1.8;
 const SFX_FILE = "sfx/tutorial-syntax.mp3";
 /** 配乐音量：打字演示时退后，让键盘声和成型提示音在前；章节卡、片头片尾回到正常 */
 const MUSIC_VOLUME = { typing: 0.5, open: 0.85 };
-/** 配乐接第二遍：第一遍在曲尾淡出前接上，第二遍的曲尾对齐片尾 */
-const MUSIC_JOIN = { before: 12, crossfade: 4 };
 
 type Point = { x: number; y: number };
 /** 坐标都是窗口坐标（未缩放），y 相对正文顶端（与滚动无关） */
@@ -231,51 +229,6 @@ function TutorialWindow({ frame }: { frame: number }) {
   );
 }
 
-/** 片尾：字标 + 一句话 + 网址，依次浮现 */
-function Ending({ frame, at, out }: { frame: number; at: number; out: number }) {
-  const stage = useStage();
-  if (frame < at) return null;
-  const fill = progress(frame, at, 30, ease.inOut);
-  const item = (delay: number) => {
-    const t = progress(frame, at + 30 + delay, 26, ease.out) * (1 - progress(frame, out - 30, 30, ease.in));
-    return { opacity: t, transform: `translateY(${(1 - t) * 14}px)` };
-  };
-  return (
-    <AbsoluteFill style={{ opacity: fill, zIndex: 70 }}>
-      <StageFill />
-      <AbsoluteFill style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 30 }}>
-        <div style={item(0)}>
-          <Wordmark size={96} />
-        </div>
-        <div style={{ ...item(14), fontFamily: fonts.caption, fontSize: 34, letterSpacing: "0.2em", color: stage.ink2 }}>{ENDING_COPY.line}</div>
-        <div style={{ ...item(28), fontFamily: fonts.label, fontSize: 30, letterSpacing: "0.06em", color: stage.brand[0] }}>{ENDING_COPY.url}</div>
-      </AbsoluteFill>
-    </AbsoluteFill>
-  );
-}
-
-/** 配乐：曲子不够长时接第二遍，两遍之间交叉淡化，第二遍的曲尾对齐片尾 */
-function Music() {
-  const track = TRACKS.chillax;
-  const gain = (offset: number) => (f: number) => mix(MUSIC_VOLUME.open, MUSIC_VOLUME.typing, typingWeight(f + offset));
-  const film = TIMELINE.end / FPS;
-  const first = (track.duration ?? Infinity) - track.offset - MUSIC_JOIN.before;
-  if (film <= first) return <Soundtrack track={track} volume={1} fadeIn={1.5} fadeOut={3} gain={gain(0)} />;
-  const joinAt = Math.round(first * FPS);
-  const secondFrom = joinAt - MUSIC_JOIN.crossfade * FPS;
-  const secondStart = (track.duration ?? 0) - (TIMELINE.end - secondFrom) / FPS;
-  return (
-    <>
-      <Sequence durationInFrames={joinAt} layout="none">
-        <Soundtrack track={track} volume={1} fadeIn={1.5} fadeOut={MUSIC_JOIN.crossfade} gain={gain(0)} />
-      </Sequence>
-      <Sequence from={secondFrom} layout="none">
-        <Soundtrack track={track} startAt={secondStart} volume={1} fadeIn={MUSIC_JOIN.crossfade} fadeOut={3} gain={gain(secondFrom)} />
-      </Sequence>
-    </>
-  );
-}
-
 export function TutorialFilm() {
   const frame = useCurrentFrame();
   const { cheat, ending } = TIMELINE;
@@ -299,7 +252,7 @@ export function TutorialFilm() {
               card && chapter.card && <ManifestoOverlay key={chapter.id} text={chapter.card.text} sub={chapter.card.sub} accent={chapter.card.accent} at={card.at} out={card.out} size={112} />
           )}
           <CheatSheet sheet={CHEAT_SHEET} frame={frame} at={cheat.at} out={cheat.out} />
-          <Ending frame={frame} at={ending.at} out={ending.out} />
+          <Ending frame={frame} at={ending.at} out={ending.out} line={ENDING_COPY.line} url={ENDING_COPY.url} />
           {introFill > 0 && (
             <AbsoluteFill style={{ opacity: introFill }}>
               <StageFill />
@@ -307,7 +260,7 @@ export function TutorialFilm() {
             </AbsoluteFill>
           )}
           {files.includes(SFX_FILE) && <Audio src={staticFile(SFX_FILE)} />}
-          <Music />
+          <MusicBed track={TRACKS.chillax} frames={TIMELINE.end} gain={frame => mix(MUSIC_VOLUME.open, MUSIC_VOLUME.typing, typingWeight(frame))} />
         </AbsoluteFill>
       </AppThemeProvider>
     </StageProvider>
