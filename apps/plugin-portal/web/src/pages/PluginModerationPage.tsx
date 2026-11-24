@@ -268,7 +268,7 @@ function PluginModerationContent() {
                       </Tooltip>
                     ) : (
                       <Tag color="green" showDot={false}>
-                        上架中
+                        已上架
                       </Tag>
                     )}
                   </td>
@@ -353,7 +353,7 @@ function PluginModerationContent() {
                   {LABELS[event.action]}
                 </Tag>
               </td>
-              <td className="text-ink-2 font-tau-mono text-tau-micro break-all px-4 py-3">
+              <td className="text-ink-2 font-tau-mono text-tau-micro px-4 py-3 break-all">
                 <button
                   type="button"
                   title="在列表中搜索"
@@ -366,11 +366,11 @@ function PluginModerationContent() {
                   {event.pluginId}
                 </button>
               </td>
-              <td className="text-ink-1 whitespace-pre-wrap break-words px-4 py-3">
+              <td className="text-ink-1 px-4 py-3 break-words whitespace-pre-wrap">
                 {event.reason}
               </td>
               <td className="text-ink-2 px-4 py-3">{event.reviewer}</td>
-              <td className="text-ink-3 whitespace-nowrap px-4 py-3">
+              <td className="text-ink-3 px-4 py-3 whitespace-nowrap">
                 {formatTime(event.createdAt)}
               </td>
             </tr>

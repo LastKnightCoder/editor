@@ -71,7 +71,7 @@ it("列表区分上架与禁用，禁用需填原因确认后调用处置接口"
     createdAt: "2026-10-18",
   });
   await screen.findByText("测试插件");
-  expect(screen.getByText("上架中")).toBeTruthy();
+  expect(screen.getByText("已上架")).toBeTruthy();
   expect(screen.getAllByText("已禁用").length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole("button", { name: "测试插件的操作" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: "禁用插件" }));
