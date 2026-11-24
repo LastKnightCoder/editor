@@ -15,7 +15,7 @@ export type EdgeFadeOptions = {
 };
 
 /** 滚动边缘状态：scroll 事件 + ResizeObserver（容器尺寸随窗口缩放/侧栏拖宽变化）+
-    MutationObserver（列表数据异步到达撑高内容）三路监听，布尔翻转才 setState。
+    MutationObserver（节点增删与文字变化）三路监听，布尔翻转才 setState。
     useLayoutEffect 内完成首次测量，避免能滚页面首帧渐隐缺失的闪烁。
     参数是元素而非 RefObject：视图常有 loading 早退分支（容器晚于首帧挂载），
     配合 callback ref 的 setState 才能在挂载时重新接线 */
@@ -54,7 +54,7 @@ export function useScrollState(el: HTMLElement | null): ScrollState {
     resizeObserver?.observe(el);
     const mutationObserver =
       typeof MutationObserver === "undefined" ? null : new MutationObserver(measureOnRaf);
-    mutationObserver?.observe(el, { childList: true, subtree: true });
+    mutationObserver?.observe(el, { childList: true, subtree: true, characterData: true });
 
     return () => {
       cancelAnimationFrame(rafId);
