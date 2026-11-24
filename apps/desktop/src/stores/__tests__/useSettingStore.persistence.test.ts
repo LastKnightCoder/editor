@@ -5,6 +5,44 @@ import useSettingStore, {
 } from "../useSettingStore";
 
 describe("useSettingStore persistence snapshot", () => {
+  it("模型能力缺失时恢复为仅文字，保留已配置的能力且不编造费用和容量", () => {
+    // 现场错误：不完整模型进入设置页后，能力标签读取 input.includes 导致整窗崩溃。
+    const setting = JSON.parse(
+      JSON.stringify({
+        llmProviders: [
+          {
+            id: "custom",
+            name: "Custom",
+            baseUrl: "https://example.com/v1",
+            apiKey: "",
+            api: "openai-completions",
+            models: [
+              { id: "missing" },
+              { id: "null", input: null, reasoning: null },
+              {
+                id: "vision",
+                input: ["text", "image"],
+                reasoning: true,
+                contextWindow: 32000,
+                maxTokens: 2048,
+              },
+            ],
+          },
+        ],
+      })
+    );
+
+    const merged = mergeSettingWithDefaults(setting);
+    expect(merged.llmProviders[0].models).toEqual([
+      { id: "missing", input: ["text"], reasoning: false },
+      { id: "null", input: ["text"], reasoning: false },
+      setting.llmProviders[0].models[2],
+    ]);
+    expect(setting.llmProviders[0].models[0]).toEqual({ id: "missing" });
+    const snapshot = buildPersistedSettingSnapshot(merged);
+    expect(mergeSettingWithDefaults(JSON.parse(JSON.stringify(snapshot)))).toEqual(merged);
+  });
+
   it("已迁出的 integration 账号设置在合并与保存时整体丢弃", () => {
     const legacy = {
       ...structuredClone(useSettingStore.getState().setting),

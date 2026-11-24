@@ -68,6 +68,20 @@ const normalizeTTSUsageConfig = (setting: ISetting): void => {
     : [];
 };
 
+const normalizeLLMModelCapabilities = (setting: ISetting): void => {
+  let repaired = 0;
+  for (const provider of setting.llmProviders) {
+    for (const model of provider.models) {
+      const missingInput = !Array.isArray(model.input);
+      const missingReasoning = typeof model.reasoning !== "boolean";
+      if (missingInput) model.input = ["text"];
+      if (missingReasoning) model.reasoning = false;
+      if (missingInput || missingReasoning) repaired += 1;
+    }
+  }
+  if (repaired > 0) console.warn("[SettingSync] 已补齐模型缺失的能力字段", { models: repaired });
+};
+
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
   const mergedSetting = structuredClone(defaultSetting);
   const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
@@ -91,6 +105,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   normalizeImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
   normalizeTTSUsageConfig(mergedSetting);
+  normalizeLLMModelCapabilities(mergedSetting);
   return mergedSetting;
 };
 
