@@ -157,13 +157,19 @@ it("发布配置按提供方合并，保存失败不发布，保存非当前提�
   });
 });
 
-it("旧窗口不能重新写回退役发布字段，拒绝后保留已提交配置", async () => {
+it("未使用的服务字段不阻断保存，重新读取后仍保留数据库与插件配置", async () => {
   const settings = await setup();
-  await expect(
-    settings.handleSetUserSetting({ integration: { github: { token: "old" } } })
-  ).rejects.toThrow("旧服务账号配置不受支持");
-  expect(await settings.getSettingSnapshot()).toEqual(initial);
-  expect(mocks.broadcast).not.toHaveBeenCalled();
+  const next = {
+    ...initial,
+    database: { active: "notes.db" },
+    integration: { github: { enabled: false, token: "" } },
+    publish: { active: "github", github: { repo: "notes" } },
+  };
+  await settings.handleSetUserSetting(next);
+  mocks.read.mockResolvedValue(mocks.write.mock.calls[0][1]);
+  vi.resetModules();
+  const reloaded = (await import("../user-setting")).default;
+  expect(await reloaded.getSettingSnapshot()).toEqual(next);
 });
 
 it("旧窗口全量设置提交不能删除或覆盖新保存的语音输入账号", async () => {

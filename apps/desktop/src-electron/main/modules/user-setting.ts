@@ -5,7 +5,7 @@ import isEqual from "lodash/isEqual";
 import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
-import { assertCurrentProviderSettings } from "../services/provider-settings";
+import { assertProviderSettingsShape } from "../services/provider-settings";
 import {
   DEFAULT_EMBEDDING_LOCAL_SETTING,
   upgradeEmbeddingSetting,
@@ -257,7 +257,7 @@ class UserSettingModule {
     if (!this.settingLoadPromise) {
       this.settingLoadPromise = this.loadSetting()
         .then(async setting => {
-          assertCurrentProviderSettings(setting);
+          assertProviderSettingsShape(setting);
           if (upgradeFlashcardModelSetting(setting)) {
             await this.saveSetting(JSON.stringify(setting, null, 2));
           }
@@ -341,7 +341,7 @@ class UserSettingModule {
         const previous = this.userSetting;
         const next = update(previous);
         upgradeFlashcardModelSetting(next);
-        assertCurrentProviderSettings(next);
+        assertProviderSettingsShape(next);
         if (isEqual(previous, next)) return;
         await this.writeSettingFile(JSON.stringify(next, null, 2));
         this.userSetting = next;
@@ -366,7 +366,6 @@ class UserSettingModule {
     try {
       const parsedSetting = JSON.parse(setting);
       console.info("[UserSettingModule] 读取用户设置");
-      // 旧 embeddingProvider 必须在 assert（拒绝旧键）之前升级完成并落盘
       if (upgradeEmbeddingSetting(parsedSetting)) {
         await this.saveSetting(JSON.stringify(parsedSetting, null, 2)).catch(error => {
           console.error("[UserSettingModule] 写入升级后的嵌入设置失败", error);
@@ -385,7 +384,7 @@ class UserSettingModule {
       if (salvaged) {
         // 抢救出的对象升级后随本路径的 saveSetting 一并落盘
         upgradeEmbeddingSetting(salvaged);
-        assertCurrentProviderSettings(salvaged);
+        assertProviderSettingsShape(salvaged);
         console.info("[UserSettingModule] 已从损坏文件抢救设置", {
           backupPath,
           keys: Object.keys(salvaged).length,

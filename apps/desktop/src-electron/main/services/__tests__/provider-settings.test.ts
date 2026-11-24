@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertCurrentProviderSettings } from "../provider-settings";
+import { assertProviderSettingsShape } from "../provider-settings";
 
 describe("服务设置格式边界", () => {
   it("接受空设置和当前插件账号，不改动配置或选用", () => {
@@ -13,8 +13,8 @@ describe("服务设置格式边界", () => {
       integration: { weread: { enabled: true } },
     };
     const before = structuredClone(setting);
-    expect(() => assertCurrentProviderSettings({})).not.toThrow();
-    expect(() => assertCurrentProviderSettings(setting)).not.toThrow();
+    expect(() => assertProviderSettingsShape({})).not.toThrow();
+    expect(() => assertProviderSettingsShape(setting)).not.toThrow();
     expect(setting).toEqual(before);
   });
 
@@ -26,11 +26,26 @@ describe("服务设置格式边界", () => {
     { integration: { youtube: { proxy: "old" } } },
     { ttsProviders: [{ providerType: "qwen" }] },
     { imageGeneration: { providers: [{ pluginId: "test.images", providerType: "openai" }] } },
-    { ttsProviders: {} },
     { embeddingProvider: { currentConfigId: "embedding-default-local", configs: [] } },
-  ])("拒绝未支持的输入且不转换：%j", setting => {
+  ])("未使用的服务字段不阻断设置且不转换：%j", setting => {
     const before = structuredClone(setting);
-    expect(() => assertCurrentProviderSettings(setting)).toThrow("SETTING_INVALID");
+    expect(() => assertProviderSettingsShape(setting)).not.toThrow();
     expect(setting).toEqual(before);
+  });
+
+  it.each([
+    null,
+    [],
+    { integration: [] },
+    { sync: "plugin" },
+    { imageBed: null },
+    { publish: false },
+    { ttsProviders: {} },
+    { ttsProviders: [null] },
+    { imageGeneration: [] },
+    { imageGeneration: { providers: {} } },
+    { imageGeneration: { providers: ["image"] } },
+  ])("拒绝无法按对象或数组读取的结构：%j", setting => {
+    expect(() => assertProviderSettingsShape(setting)).toThrow("SETTING_INVALID");
   });
 });

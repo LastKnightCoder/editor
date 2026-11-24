@@ -26,16 +26,22 @@ describe("设置文件并发读取", () => {
     await expect(settings.getSettingSnapshot()).resolves.toEqual({});
     expect(readFile).toHaveBeenCalledTimes(2);
   });
-  it("旧服务设置拒绝读取且不改写文件，修正后可重新读取", async () => {
-    readFile
-      .mockResolvedValueOnce('{"sync":{"active":"s3","s3":{"bucket":"notes"}}}')
-      .mockResolvedValueOnce('{"sync":{"active":"plugin","plugin":{"id":"test.sync"}}}');
+  it("空服务字段和旧选用值不阻断启动读取，数据库配置保持可用", async () => {
+    // 启动事故：默认生成的空账号字段曾让插件、数据库及设置 RPC 初始化失败。
+    const setting = {
+      database: { active: "notes.db", databases: [{ name: "notes.db", version: 1 }] },
+      integration: {
+        github: { enabled: false, token: "" },
+        bilibili: { enabled: false, credentials: { SESSDATA: "" } },
+      },
+      sync: { active: "s3", s3: { bucket: "notes" } },
+      ttsProviders: [{ providerType: "qwen", models: [] }],
+    };
+    readFile.mockResolvedValue(JSON.stringify(setting));
     const { default: settings } = await import("../user-setting");
-    await expect(settings.getSettingSnapshot()).rejects.toThrow("SETTING_INVALID");
-    expect(writeFile).not.toHaveBeenCalled();
-    await expect(settings.getSettingSnapshot()).resolves.toEqual({
-      sync: { active: "plugin", plugin: { id: "test.sync" } },
-    });
+    await expect(settings.getSettingSnapshot()).resolves.toEqual(setting);
+    await expect(settings.getSettingSnapshot()).resolves.toEqual(setting);
+    expect(readFile).toHaveBeenCalledTimes(1);
     expect(writeFile).not.toHaveBeenCalled();
   });
   it.each(["null", "[]", '"settings"'])("拒绝非对象设置 %s，不回写空配置", async raw => {
