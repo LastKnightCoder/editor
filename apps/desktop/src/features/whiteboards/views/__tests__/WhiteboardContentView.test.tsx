@@ -63,23 +63,19 @@ describe("单页画布", () => {
 });
 
 describe("白板详情保存", () => {
-  it("旧快照只读，切换页面与卸载都不写回原快照，转换只由用户显式发起", () => {
-    vi.useFakeTimers();
+  it("旧快照不挂载编辑画布，切换页面与卸载都不写回原快照", () => {
     state.id = 11;
     host = document.createElement("div");
     root = createRoot(host);
     const canvas = () =>
-      [...host.querySelectorAll("button")].find(button => button.textContent === "编辑")!;
+      [...host.querySelectorAll("button")].find(button => button.textContent === "编辑");
     act(() => root!.render(<WhiteboardContentView />));
-    expect(host.textContent).toContain("转换格式");
-    expect(canvas().disabled).toBe(true);
-    act(() => canvas().click());
+    expect(canvas()).toBeUndefined();
     expect(state.save).not.toHaveBeenCalled();
     state.id = 12;
     act(() => root!.render(<WhiteboardContentView />));
     expect(state.save).not.toHaveBeenCalled();
-    expect(canvas().disabled).toBe(true);
-    act(() => canvas().click());
+    expect(canvas()).toBeUndefined();
     act(() => root!.unmount());
     root = undefined;
     expect(state.save).not.toHaveBeenCalled();

@@ -28,6 +28,11 @@ export async function duplicatePage(binding: CanvasBinding, pageId: string): Pro
   selected.pages = [{ ...page, title: `${page.title} 副本` }];
   const [created] = await binding.importTransfer(selected, true);
   if (!created) throw new Error("复制页面失败");
+  console.info("[whiteboard-edit] 复制页面完成", {
+    documentId: binding.options.documentId,
+    pageId,
+    createdPageId: created,
+  });
   return created;
 }
 
@@ -97,6 +102,14 @@ export async function importTransfer(
     binding.writing = false;
     refresh(binding);
   }
+  console.info("[whiteboard-edit] 批量导入完成", {
+    documentId: binding.options.documentId,
+    pageId: page,
+    allPages,
+    commands: plan.commands.length,
+    elements: plan.ids.size,
+    richTextBodies: plan.initialBodies.length,
+  });
   if (!allPages) {
     const ids = new Set(
       bundle.pages.flatMap(page => page.elements).map(node => plan.ids.get(node.id))

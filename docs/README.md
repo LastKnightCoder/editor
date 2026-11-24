@@ -45,24 +45,25 @@
 
 客户端依赖准备、构建、覆盖安装及插件检查从 [客户端构建与安装](./guides/ops-client-build-install.md)进入；iOS 签名、归档、TestFlight 分发与设备安装见 [iOS 手册](./guides/ops-ios-signing.md)。
 
-| 指南                                                                | 内容                                                 |
-| ------------------------------------------------------------------- | ---------------------------------------------------- |
-| [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                                   |
-| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema、建库与保留编号的结构升级              |
-| [dev-domain-migration.md](./guides/dev-domain-migration.md)         | 存量业务迁移步骤、端口与事务评审、行为对照及并行切片 |
-| [dev-content-verification.md](./guides/dev-content-verification.md) | 正文、白板与跨端回归入口，容量、硬杀和长稳判据       |
-| [dev-mobile-recording.md](./guides/dev-mobile-recording.md)         | 移动端录音、找回与转写验收                           |
-| [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查                       |
-| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端与浏览器扩展的发布、覆盖安装与交付检查         |
-| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、数据线一键安装、TestFlight                 |
-| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                                         |
-| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布             |
-| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                                 |
-| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射                         |
-| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                             |
-| [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                                   |
-| [plugin-windows.md](./guides/plugin-windows.md)                     | 桌面插件窗口、自动外观、状态和消息                   |
-| [writing-reader-docs.md](./guides/writing-reader-docs.md)           | 使用文档、插件开发文档与插件 README 写法             |
+| 指南                                                                        | 内容                                                 |
+| --------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [db-change-manual.md](./guides/db-change-manual.md)                         | 数据库变更开发手册                                   |
+| [db-schema-workflow.md](./guides/db-schema-workflow.md)                     | 数据库 Schema、建库与保留编号的结构升级              |
+| [dev-domain-migration.md](./guides/dev-domain-migration.md)                 | 存量业务迁移步骤、端口与事务评审、行为对照及并行切片 |
+| [dev-content-verification.md](./guides/dev-content-verification.md)         | 正文、白板与跨端回归入口，容量、硬杀和长稳判据       |
+| [dev-mobile-recording.md](./guides/dev-mobile-recording.md)                 | 移动端录音、找回与转写验收                           |
+| [ops-build-size.md](./guides/ops-build-size.md)                             | 安装包体积构成与产物一致性排查                       |
+| [ops-client-build-install.md](./guides/ops-client-build-install.md)         | 客户端与浏览器扩展的发布、覆盖安装与交付检查         |
+| [ops-ios-signing.md](./guides/ops-ios-signing.md)                           | iOS 签名、数据线一键安装、TestFlight                 |
+| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md)         | 协作服务部署                                         |
+| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)             | 白板协作发布前验证与放行判据，不执行发布             |
+| [ops-whiteboard-save-recovery.md](./guides/ops-whiteboard-save-recovery.md) | 工程排障用的白板证据保全、恢复与日志判读             |
+| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)             | macOS 代码签名与公证                                 |
+| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)                   | taunote.app 域名与服务器映射                         |
+| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)                   | 旧统计停用与历史数据恢复                             |
+| [plugin-development.md](./guides/plugin-development.md)                     | 插件开发规范与验收                                   |
+| [plugin-windows.md](./guides/plugin-windows.md)                             | 桌面插件窗口、自动外观、状态和消息                   |
+| [writing-reader-docs.md](./guides/writing-reader-docs.md)                   | 使用文档、插件开发文档与插件 README 写法             |
 
 ## tasks/ — 进行中任务
 

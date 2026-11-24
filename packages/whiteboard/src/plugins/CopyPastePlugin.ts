@@ -335,6 +335,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     }
 
     if (dataObj?.format === "whiteboard-transfer-v1") {
+      console.info("[whiteboard-edit] 粘贴白板内容");
       e.preventDefault();
       e.stopImmediatePropagation();
       if (!board.document?.importTransfer) {

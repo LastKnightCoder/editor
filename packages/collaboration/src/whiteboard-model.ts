@@ -538,6 +538,8 @@ export class WhiteboardModel {
       this.doc.transact(transaction => {
         ranges.forEach(range => preserveNodeInitialization(transaction, range));
         Y.applyUpdate(this.doc, update, origin);
+        // 候选来自本机操作，须让保存监听器与历史继续把本次合入视为本地编辑。
+        transaction.local = true;
       }, origin);
     } finally {
       candidate.doc.off("afterTransaction", remember);

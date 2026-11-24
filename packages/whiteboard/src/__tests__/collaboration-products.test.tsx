@@ -266,6 +266,81 @@ const nodes = [
     maxHeight: 80,
   }),
 ];
+
+it.each(["剪贴板粘贴", "复制页面", "文件导入"])(
+  "%s 的嵌套图形与富文本经本地增量完整交付，撤销重做仍收敛",
+  async operation => {
+    const source = await setup();
+    source.insert({ ...nodes[5], children: [nodes[0], nodes[1]] });
+    const target = operation === "复制页面" ? source : await setup();
+    const peer = await setup(Y.encodeStateAsUpdate(target.doc));
+    const pending: Uint8Array[] = [];
+    target.doc.on("update", (update, _origin, _doc, transaction) => {
+      if (transaction.local) pending.push(update);
+    });
+    const pack = source.binding.exportTransfer();
+    if (operation === "剪贴板粘贴") {
+      const event = new Event("paste", { cancelable: true }) as ClipboardEvent;
+      Object.defineProperty(event, "clipboardData", {
+        value: {
+          getData: (type: string) => (type === "application/json" ? JSON.stringify(pack) : ""),
+        },
+      });
+      target.board.onPaste(event);
+      await vi.waitFor(() => expect(target.board.children).toHaveLength(1));
+    } else if (operation === "复制页面") {
+      await target.binding.duplicatePage(target.binding.pageId);
+    } else {
+      await target.binding.importTransfer(JSON.parse(JSON.stringify(pack)), true);
+    }
+    const synchronize = async () => {
+      expect(pending.length).toBeGreaterThan(0);
+      expect((await peer.model.receive(Y.mergeUpdates(pending.splice(0)))).status).toBe("applied");
+      expect(peer.model.read()).toEqual(target.model.read());
+    };
+    await synchronize();
+    const copiedPage =
+      target.model
+        .read()
+        .pages.find(page => page.children.length && page.id !== source.binding.pageId) ??
+      target.model.read().pages[0];
+    const frame = copiedPage.children[0];
+    expect(frame.children.map(node => node.type)).toEqual(["richtext", "geometry"]);
+    expect(frame.children[0].body).toMatchObject([
+      { type: "paragraph", children: [{ text: "内容", type: "formatted" }] },
+    ]);
+    target.board.undo();
+    await synchronize();
+    target.board.redo();
+    await synchronize();
+  }
+);
+
+it("保存失败冻结编辑后仍可导出完整可编辑包，在新白板恢复所有可见内容", async () => {
+  let writable = true;
+  const source = await setup(undefined, { canWrite: () => writable });
+  source.insert({ ...nodes[5], children: [nodes[0], nodes[1]] });
+  writable = false;
+  const blob = await source.binding.exportFile();
+  const json = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+  const restored = await setup();
+  await restored.binding.importTransfer(JSON.parse(json), true);
+  const frame = restored.model.read().pages.flatMap(page => page.children)[0];
+  expect(frame.children.map(node => node.type)).toEqual(["richtext", "geometry"]);
+  expect(frame.children[0].body).toMatchObject([
+    { type: "paragraph", children: [{ text: "内容", type: "formatted" }] },
+  ]);
+  restored.binding.switchPage(restored.model.read().pages.find(page => page.children.length)!.id);
+  restored.board.undo();
+  restored.board.redo();
+  await restored.model.validate();
+});
+
 it.each(nodes)("内置 $type 创建预览不依赖尚未提交的文档节点", async node => {
   const f = await setup();
   f.board.setCreationPreview(node);

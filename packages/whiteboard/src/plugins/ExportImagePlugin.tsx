@@ -69,6 +69,9 @@ export class ExportImagePlugin implements IBoardPlugin {
               if (file.size > 32 * 1024 * 1024) throw new Error("白板包超过导入预算");
               const bundle = JSON.parse(await file.text());
               if (!valid()) throw new Error("导入目标已变化");
+              console.info("[whiteboard-edit] 从文件导入白板", {
+                bytes: file.size,
+              });
               await ctx.board.document?.importTransfer?.(bundle, true);
             })().catch(error =>
               toast.error(error instanceof Error ? error.message : "白板导入失败")

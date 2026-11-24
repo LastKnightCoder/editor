@@ -28,7 +28,7 @@ export function whiteboardSyncStatus(
   if (pending) return { label: PENDING_LABELS[pending], tone: "syncing" };
   if (local.error)
     return {
-      label: `白板保存未完成，内容已保留：${local.error}`,
+      label: `白板保存未完成：${local.error}`,
       tone: "error",
       actions: ["retry-save"],
     };

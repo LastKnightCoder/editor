@@ -225,22 +225,51 @@ export class WhiteboardDocumentClient {
     transaction: Y.Transaction
   ) => {
     if (!transaction.local || this.closed || !this.opened) return;
+    this.stage(update);
+    void this.flush().catch(() => undefined);
+  };
+  private stage(update: Uint8Array): PendingWhiteboardUpdate {
+    const opened = this.opened;
+    if (!opened || this.closed || this.stale) throw new Error("白板视图已失效");
     const record: PendingWhiteboardUpdate = {
       batchId: crypto.randomUUID(),
-      scope: scopeOf(this.opened),
+      scope: scopeOf(opened),
       databaseName: this.target.databaseName,
-      documentId: this.opened.identity.documentId,
+      documentId: opened.identity.documentId,
       clientId: this.viewId,
       sequence: ++this.sequence,
       update: new Uint8Array(update),
     };
     this.pending.push(record);
-    const writing = this.outbox.put(record);
-    this.persisted.set(record.batchId, writing);
-    void writing.catch(error => this.fail(error));
+    void this.persist(record).catch(error => this.fail(error));
     this.set({ phase: "saving", error: undefined });
-    void this.flush().catch(() => undefined);
-  };
+    return record;
+  }
+  private persist(record: PendingWhiteboardUpdate): Promise<void> {
+    const pending = this.persisted.get(record.batchId);
+    if (pending) return pending;
+    const writing = this.outbox.put(record).catch(error => {
+      if (this.persisted.get(record.batchId) === writing) this.persisted.delete(record.batchId);
+      throw error;
+    });
+    this.persisted.set(record.batchId, writing);
+    return writing;
+  }
+  private async repairDependencies(opened: WhiteboardDocumentOpen): Promise<void> {
+    const snapshot = await this.backend.snapshot(opened.leaseId);
+    if (this.closed || this.stale || scopeOf(snapshot) !== scopeOf(opened))
+      throw new Error("白板基线已变化，原草稿已保留，不能自动补齐");
+    const update = Y.encodeStateAsUpdate(this.doc, Y.encodeStateVectorFromUpdate(snapshot.state));
+    const record = this.stage(update);
+    await this.persist(record);
+    console.info("[whiteboard-sync] 缺失依赖已进入草稿队列", {
+      documentId: opened.identity.documentId,
+      viewId: this.viewId,
+      batchId: record.batchId,
+      bytes: update.byteLength,
+      revision: snapshot.revision,
+    });
+  }
   private event(event: WhiteboardDocumentEvent): void {
     if (this.closed || this.stale || event.databaseName !== this.target.databaseName) return;
     if (!this.opened || !this.initialized) {
@@ -321,20 +350,12 @@ export class WhiteboardDocumentClient {
     if (!this.state.frozen) this.flushInputs();
     if (this.flushing) return this.flushing;
     const run = async () => {
+      let repaired = false;
       try {
         for (;;) {
           while (this.pending.length) {
             const records = this.pending.slice();
-            for (const record of records) {
-              const staged = this.persisted.get(record.batchId);
-              try {
-                if (staged) await staged;
-                else await this.outbox.put(record);
-              } catch (error) {
-                this.persisted.delete(record.batchId);
-                throw error;
-              }
-            }
+            for (const record of records) await this.persist(record);
             const update =
               records.length === 1
                 ? records[0].update
@@ -355,6 +376,17 @@ export class WhiteboardDocumentClient {
             let receipt: WhiteboardDocumentReceipt;
             try {
               receipt = await this.backend.append(opened.leaseId, batchId, update);
+            } catch (error) {
+              if (
+                !repaired &&
+                error instanceof Error &&
+                /\bMISSING_DEPENDENCIES:/.test(error.message)
+              ) {
+                repaired = true;
+                await this.repairDependencies(opened);
+                continue;
+              }
+              throw error;
             } finally {
               this.appending = undefined;
             }
@@ -385,6 +417,14 @@ export class WhiteboardDocumentClient {
           if (!this.pending.length) break;
         }
       } catch (error) {
+        console.error("[whiteboard-sync] 本机保存未完成", {
+          documentId: opened.identity.documentId,
+          viewId: this.viewId,
+          revision: this.state.revision,
+          pending: this.pending.length,
+          repaired,
+          error: error instanceof Error ? error.message : String(error),
+        });
         this.fail(error);
         throw error;
       }

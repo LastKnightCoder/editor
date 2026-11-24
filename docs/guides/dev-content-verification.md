@@ -39,6 +39,28 @@ TAU_CONTENT_ROUNDTRIP_REPORT=/tmp/tau-content-roundtrip.json \
 
 往返夹具为 [普通正文](/packages/db-schema/fixtures/content-storage-roundtrip-v1.json) 和 [共享正文与表持有](/packages/db-schema/fixtures/content-storage-roundtrip-g4.json)。协作协议变动还要比对真实 Node 和本机 Worker 的请求与回执。服务配置及放行入口见 [协作服务部署](/docs/guides/ops-collaboration-deploy.md) 和 [白板协作发布验证](/docs/guides/ops-whiteboard-release.md)。
 
+### 白板批量操作与草稿恢复
+
+在仓库根目录执行。回归与压力使用真实模型、SQLite 文档会话和独立临时资料库；Electron 用例使用构建产物、真实 IndexedDB 和 IPC。
+
+```sh
+pnpm --filter desktop exec vitest run src/services/whiteboard-documents/__tests__/client.test.ts src/services/whiteboard-documents/__tests__/client-save-recovery.test.ts
+TAU_WHITEBOARD_SAVE_STRESS=1 pnpm --filter desktop exec vitest run src/services/whiteboard-documents/__tests__/client-save.stress.test.ts
+pnpm --filter desktop exec vite build --configLoader runner
+pnpm --filter desktop exec playwright test e2e/whiteboard-save.spec.ts
+TAU_WHITEBOARD_SAVE_STRESS=1 pnpm --filter desktop exec playwright test e2e/whiteboard-save.spec.ts
+```
+
+| 场景                 | 通过条件                                                                          |
+| -------------------- | --------------------------------------------------------------------------------- |
+| 粘贴、复制页面、导入 | 操作后不再编辑也能落盘，重开后内容完整，正常路径不触发依赖补齐                    |
+| 草稿写入与发送失败   | 原批次保留；存储恢复后一次重试保存整队；丢回执不重复创建或推进修订                |
+| 已存在的缺依赖材料   | 同基线补齐材料先入草稿；换库、换源、换基线或换代拒绝混入；残缺材料不清空          |
+| 并发与重开           | 三视图、持久化投影与独立预期逐轮一致；撤销重做、渲染重建及文件库冷重开保留内容    |
+| Electron 压力模式    | 连续正常粘贴 150 次；日志写入失败后硬杀重启，完整草稿自动恢复，全程不触发依赖补齐 |
+
+记录源码、真实与替身边界、日志、退出码和失败样本。性能轮次与构建及其他压力项错开，不把并发压力耗时当作独立性能基线。已发生故障的证据保全与排障步骤见 [白板保存故障恢复](/docs/guides/ops-whiteboard-save-recovery.md)。
+
 ## 3. 容量、硬杀与长稳
 
 构建桌面产物后从 `apps/desktop` 顺序执行。每次切换候选产物或环境时重新记录摘要。完整模式使用以下默认参数。
