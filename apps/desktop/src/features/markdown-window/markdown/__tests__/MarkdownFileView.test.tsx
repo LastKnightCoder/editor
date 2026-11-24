@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Transforms, type Editor as SlateEditor } from "slate";
+import { ReactEditor } from "slate-react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { MarkdownViewHandle } from "../../types";
 
@@ -201,7 +202,7 @@ beforeEach(() => {
   state.source = undefined;
   state.editor = undefined;
   vi.useFakeTimers({
-    toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
+    toFake: ["Date", "setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"],
   });
 });
 afterEach(async () => {
@@ -248,6 +249,38 @@ async function mount(text: string, strict = false, outlineColumn = false) {
     host,
   };
 }
+
+it.each([false, true])("拖选时更新选中字数不折回旧光标（长文：%s）", async long => {
+  const { editor, view } = await mount("拖选这段正文" + (long ? "\n\n" + longText() : ""));
+  if (long) await frames(3);
+  const editable = ReactEditor.toDOMNode(editor, editor);
+  const [text] = ReactEditor.toDOMPoint(editor, { path: [0, 0], offset: 0 });
+  const selection = window.getSelection();
+  if (!selection) throw new Error("缺少原生选区");
+  await act(async () => {
+    editable.focus();
+    Transforms.select(editor, { path: [0, 0], offset: 0 });
+  });
+  await act(async () => {
+    document.dispatchEvent(new Event("selectionchange"));
+    await vi.advanceTimersByTimeAsync(1);
+  });
+  // Slate 节流同步期间，原生拖选已变化，状态栏先收到 selectionchange。
+  await act(async () => {
+    selection.setBaseAndExtent(text, 0, text, 3);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  expect(selection.toString()).toBe("拖选这");
+  await act(async () => {
+    selection.setBaseAndExtent(text, 5, text, 1);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  expect(selection.toString()).toBe("选这段正");
+  expect(selection.anchorOffset).toBe(5);
+  expect(selection.focusOffset).toBe(1);
+  await act(async () => view.flush());
+  expect(state.write).not.toHaveBeenCalled();
+});
 
 it("打开不改写文件；外部插入保留编辑器及未修改块实例", async () => {
   const raw = "正文\n\n```js\nconst a = 1;\n```\n";

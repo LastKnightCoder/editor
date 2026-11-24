@@ -19,8 +19,7 @@ import {
   Activity,
 } from "react";
 import type { Editor as CodeMirrorEditor } from "codemirror";
-import { Editor as SlateEditor, type Descendant } from "slate";
-import { ReactEditor } from "slate-react";
+import type { Descendant } from "slate";
 import "codemirror/mode/markdown/markdown.js";
 import "codemirror/mode/gfm/gfm.js";
 import "codemirror/mode/yaml/yaml.js";
@@ -50,6 +49,7 @@ import { createContentLengthCounter } from "./contentLength";
 import { createMarkdownContentPreparer } from "./prepareMarkdownContent";
 import { isolatePreviewContent } from "./imagePreviewContent";
 import { MarkdownViewportSurface } from "./MarkdownViewportSurface";
+import { MarkdownSelectionCount } from "./MarkdownSelectionCount";
 import { createMarkdownViewport, needsMarkdownViewport } from "./markdownViewport";
 import { createRichFind, emptyFindResults, findSourceText } from "./markdownFind";
 
@@ -294,38 +294,7 @@ export const MarkdownFileView = forwardRef<
   useEffect(() => refreshStats(), [content, sourceMode, refreshStats]);
 
   const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null);
-  const [selectedWords, setSelectedWords] = useState(0);
   const richRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onSelectionChange = () => {
-      const selection = window.getSelection();
-      const inside = Boolean(
-        selection?.anchorNode && richRef.current?.contains(selection.anchorNode)
-      );
-      let text = "";
-      if (inside && selection && !selection.isCollapsed) {
-        text = selection.toString();
-        const editor =
-          useViewportRef.current && !sourceModeRef.current
-            ? editorRef.current?.getEditor()
-            : undefined;
-        if (editor) {
-          try {
-            const range = ReactEditor.toSlateRange(editor, selection, {
-              exactMatch: false,
-              suppressThrow: true,
-            });
-            if (range) text = SlateEditor.string(editor, range);
-          } catch {
-            // 切换源码时 DOM 选区可能早于 Slate 重新绑定。
-          }
-        }
-      }
-      setSelectedWords(text ? getContentLength([{ type: "formatted", text }]) : 0);
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
-    return () => document.removeEventListener("selectionchange", onSelectionChange);
-  }, []);
 
   /* 大纲：富文本按顶层标题节点定位；源码按行定位（ContentOutline 只读锚点的 rect） */
   const richHeaders = useMemo(() => extractContentHeaders(content ?? []), [content]);
@@ -585,10 +554,12 @@ export const MarkdownFileView = forwardRef<
           <b className="text-ink-2 font-medium">{words.toLocaleString()}</b> 字
         </span>
         {words > 0 && <span>约 {Math.max(1, Math.round(words / WORDS_PER_MINUTE))} 分钟</span>}
-        {!sourceMode && selectedWords > 0 && (
-          <span>
-            选中 <b className="text-ink-2 font-medium">{selectedWords.toLocaleString()}</b> 字
-          </span>
+        {!sourceMode && (
+          <MarkdownSelectionCount
+            editorRef={editorRef}
+            richRef={richRef}
+            useViewport={useViewport}
+          />
         )}
       </FileStatusBar>
     </>
