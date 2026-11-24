@@ -167,6 +167,8 @@ export class TextDecorationView {
   }
 
   observe(editor: Editor, element: Element) {
+    // 独立内容块可能仍在按需加载，且没有可装饰的正文，无需读取其 DOM。
+    if (!textRuns(editor, element).length) return;
     const dom = ReactEditor.toDOMNode(editor, element);
     const block: Block = { editor, element, visible: false };
     this.blocks.set(element, block);
