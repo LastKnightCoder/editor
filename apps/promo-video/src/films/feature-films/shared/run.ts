@@ -27,7 +27,7 @@ export type Step =
 
 export type Typing = { input: string; start: number; end: number; /** 每个时刻的累计文本 */ commits: { at: number; text: string }[] };
 /** 光标的一站：at 帧时在 hit 上；click 为真表示抵达时就按下 */
-export type Stop = { at: number; hit: string; click?: boolean };
+export type Stop = { at: number; hit: string; click?: boolean; /** 走到这一站用的帧数（划选的拖动） */ move?: number };
 
 export type Replay = {
   start: number;
@@ -59,7 +59,7 @@ export function runSteps(steps: Step[], start: number): Replay {
   let t = start;
   let n = 0;
   const replay: Replay = { start, end: start, captions: [], keys: [], clicks: [], drags: [], stops: [], typings: [], marks: {}, sfx: [], spots: [] };
-  const stop = (at: number, hit: string, click = false) => replay.stops.push({ at, hit, click });
+  const stop = (at: number, hit: string, click = false, move?: number) => replay.stops.push({ at, hit, click, move });
   const typingOf = (input: string) => {
     let typing = replay.typings.find(item => item.input === input);
     if (!typing) {
@@ -111,7 +111,7 @@ export function runSteps(steps: Step[], start: number): Replay {
       stop(t, `select-from:${step.drag}`);
       t += PACE.settle;
       stop(t, `select-from:${step.drag}`, true);
-      stop(t + PACE.drag, `select-to:${step.drag}`);
+      stop(t + PACE.drag, `select-to:${step.drag}`, false, PACE.drag);
       replay.drags.push({ hit: step.drag, from: t, to: t + PACE.drag });
       replay.sfx.push({ t, kind: "click" });
       if (step.as) replay.marks[step.as] = t;

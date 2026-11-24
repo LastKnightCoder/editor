@@ -34,6 +34,16 @@ export const TRACKS = {
     offset: 14,
     duration: 144,
   },
+  /** 功能片配乐：钢琴，158 秒，功能片一遍放完不用接 */
+  romantic: {
+    file: "music/mixkit-romantic.mp3",
+    title: "Romantic",
+    author: "Francisco Alvear",
+    source: "https://mixkit.co/free-stock-music/tag/piano/（音频 https://assets.mixkit.co/music/659/659.mp3）",
+    license: "Mixkit Stock Music Free License（可商用，无需署名；不得原样转售）",
+    offset: 0,
+    duration: 158.5,
+  },
   motivationalTechnology: {
     file: "music/motivational-technology.mp3",
     title: "Motivational Technology",

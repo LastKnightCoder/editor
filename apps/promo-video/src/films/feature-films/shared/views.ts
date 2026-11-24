@@ -26,8 +26,8 @@ export const SHOT: View = { x: 990, y: 450, zoom: 1.12 };
 export const SHOT_NOTE: View = { x: 1330, y: 560, zoom: 1.5 };
 /** 点回那一刻：播放器（进度条和刻度）与笔记里的时间戳同框 */
 export const SEEK: View = { x: 990, y: 440, zoom: 1.2 };
-/** 问 AI：对话停靠成第三栏后，字幕的右半、笔记和对话栏同框；输入框要在字幕条上面 */
-export const ASK: View = { x: 1020, y: 560, zoom: 1.3 };
+/** 问 AI：对话停靠成第三栏后，字幕的右半、笔记和对话栏同框。输入框贴着窗口底边（y≈975），要整个落在字幕条（画面 y 930 以下）上面 */
+export const ASK: View = { x: 1020, y: 665, zoom: 1.25 };
 /** AI 导出电子书的弹窗（880 宽）：底栏按钮要在字幕条上面 */
 export const EBOOK: View = { x: 880, y: 520, zoom: 1.15 };
 

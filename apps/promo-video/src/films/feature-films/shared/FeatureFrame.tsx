@@ -17,7 +17,7 @@ import { Cursor, type CursorStop } from "../../../kit/Cursor";
 import { cameraAt, project, World, type Shot } from "../../../kit/Camera";
 import { STAGES } from "../../../brand/stage";
 import { AppThemeProvider } from "../../../app-kit/theme";
-import { isTyping, mark, pressing, typedText, under, type Replay } from "./run.ts";
+import { isTyping, mark, PACE, pressing, typedText, under, type Replay } from "./run.ts";
 import { chapterAt, INTRO, type Card, type Chapter, type ChapterTiming, type Timeline, type View } from "./timeline.ts";
 
 export type Hit = { x: number; y: number; w: number; h: number };
@@ -92,7 +92,13 @@ function sameHits(a: Record<string, Hit>, b: Record<string, Hit>) {
   });
 }
 
-/** 镜头关键帧：上一章的机位停到本章章节卡开始，卡片退场时正好落在本章的机位上；章节自带 shots 时用它 */
+/**
+ * 章节卡退场后镜头再走这么久才落定：镜头在虚化前就动身、虚化散开时还在走，看起来是一次连贯的移动，
+ * 不是虚化里换了个机位（卡片前后像硬切）
+ */
+const CARD_SETTLE = 40;
+
+/** 镜头关键帧：上一章的机位停到本章章节卡开始，卡片退场后不久落在本章的机位上；章节自带 shots 时用它 */
 function shotsOf(timeline: Timeline): Shot[] {
   const shots: Shot[] = [];
   let current: View = FULL_VIEW;
@@ -101,7 +107,7 @@ function shotsOf(timeline: Timeline): Shot[] {
     if (chapter.shots) {
       // 章节自己的第一帧机位从这一章接手时才生效：有章节卡就在卡片虚化里走过去，没有就要求与上一章收尾的机位相同
       const [first, ...rest] = chapter.shots(timing);
-      if (card) shots.push({ at: card.at, ...current }, { at: card.out, x: first.x, y: first.y, zoom: first.zoom, ease: ease.inOut });
+      if (card) shots.push({ at: card.at, ...current }, { at: card.out + CARD_SETTLE, x: first.x, y: first.y, zoom: first.zoom, ease: ease.inOut });
       else shots.push({ at: swap, x: first.x, y: first.y, zoom: first.zoom });
       shots.push(...rest.map(key => ({ ...key, ease: ease.inOut })));
       const last = shots[shots.length - 1];
@@ -115,7 +121,7 @@ function shotsOf(timeline: Timeline): Shot[] {
       continue;
     }
     if (view === current) continue;
-    const move = card ? card.out : swap + 50;
+    const move = card ? card.out + CARD_SETTLE : swap + 50;
     const hold = card ? card.at : swap - 10;
     shots.push({ at: hold, ...current }, { at: move, ...view, ease: ease.inOut });
     current = view;
@@ -135,7 +141,7 @@ function cursorPath(replay: Replay, hits: Record<string, Hit>) {
     const to: Point = hit ? { x: hit.x, y: hit.y } : last;
     // 第一次出现：从第一站的右下方进场
     if (!path.length) path.push({ at: stop.at - 18, x: to.x + 70, y: to.y + 46 });
-    path.push(stop.click ? { at: stop.at, ...to, click: true } : { at: stop.at, ...to });
+    path.push(stop.click ? { at: stop.at, ...to, click: true } : { at: stop.at, ...to, move: stop.move });
     last = to;
   }
   return path;
@@ -277,7 +283,7 @@ export function FeatureFrame({ film, timeline, music }: { film: Film; timeline: 
                   <ClickRings clicks={replay.clicks} hits={known.current} frame={frame} />
                   {path.length > 0 && (
                     <div style={{ position: "absolute", inset: 0, zIndex: 1000, pointerEvents: "none" }}>
-                      <Cursor path={path} visibleFrom={path[0].at - 22} visibleTo={path[path.length - 1].at + 30} />
+                      <Cursor path={path} visibleFrom={path[0].at - 22} visibleTo={path[path.length - 1].at + 30} text={replay.drags.map(drag => [drag.from - PACE.settle - 4, drag.to + 8])} />
                     </div>
                   )}
                 </div>
@@ -293,7 +299,7 @@ export function FeatureFrame({ film, timeline, music }: { film: Film; timeline: 
           <Ending frame={frame} at={ending.at} out={ending.out} line={film.ending.line} url={film.ending.url} />
           <ManifestoOverlay text={film.intro.text} sub={film.intro.sub} accent={film.intro.accent} at={INTRO.at} out={INTRO.out} size={128} />
           {hasSfx && film.sfx && <Audio src={staticFile(film.sfx)} />}
-          {music ?? <MusicBed track={TRACKS.chillax} frames={timeline.end} />}
+          {music ?? <MusicBed track={TRACKS.romantic} frames={timeline.end} />}
         </AbsoluteFill>
       </AppThemeProvider>
     </StageProvider>

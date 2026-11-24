@@ -20,6 +20,7 @@ import { OnlineVideoDialog } from "../../../app-kit/parts/OnlineVideoDialog";
 import { Toast } from "../../../app-kit/parts/Toast";
 import { WindowLayer } from "../../../app-kit/parts/WindowLayer";
 import { CATALOG, CHAT, type ChatExchange, EBOOK, FEATURE_WINDOW, INSTALL_NOTICE, LECTURE, NOTE, QUOTE_TEXT, slideAt, slideStart, TREE, TREE_BEFORE, VIDEO_PLUGINS } from "../../../mock/videonote";
+import { dragEase } from "../../../kit/Cursor";
 import { FeatureFrame, type Scene, type SceneTools } from "../shared/FeatureFrame";
 import { mark, NEVER, PACE, ramp, span } from "../shared/run.ts";
 import { FPS, layout, type Timeline } from "../shared/timeline.ts";
@@ -131,7 +132,7 @@ function selectionOf(tools: SceneTools, index: number, until: number, button: "q
   const { frame, mark, pressing } = tools;
   const select = mark("select");
   if (frame < select || frame >= until + 6) return undefined;
-  return { index, progress: ramp(frame, select, select + PACE.drag), toolbar: span(frame, select + PACE.drag + 6, until + 6), pressed: pressing(`toolbar:${button}`) ? button : undefined };
+  return { index, progress: progress(frame, select, PACE.drag, dragEase), toolbar: span(frame, select + PACE.drag + 6, until + 6), pressed: pressing(`toolbar:${button}`) ? button : undefined };
 }
 
 // —— 全片的播放位置：记笔记那章从 02:46 起播，后面各章接着它往下走；片头是这门课记完以后的样子（先给成品）

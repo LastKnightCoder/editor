@@ -121,8 +121,9 @@ export function ProjectTreePage({
                   ))}
                 </MenuSurface>
                 {submenu > 0 && (
-                  // 子菜单贴着「添加视频」那一行的右边展开（right-start，间距 4px）：第一项和这一行对齐（两层面板的内边距相同，互相抵掉）
-                  <MenuSurface style={{ left: "calc(100% + 4px)", top: videoIndex * 36, opacity: submenu }}>
+                  // 真实菜单的子层锚在「添加视频」这一行上（right-start，GAP 4px），不是锚在面板上：
+                  // 行比面板边缘往里缩了 7px（边框 1 + 内边距 6），所以子层压住父面板 3px，顶边和这一行的顶边齐平
+                  <MenuSurface style={{ left: "calc(100% - 3px)", top: 7 + videoIndex * 36, opacity: submenu }}>
                     {[...VIDEO_MENU, ...providers].map((label, i) => (
                       <MenuItem key={label} hit={`video:${i}`} highlighted={menu.highlighted?.includes(`video:${i}`)}>
                         {label}

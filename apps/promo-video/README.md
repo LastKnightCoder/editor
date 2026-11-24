@@ -10,7 +10,7 @@ Tau 的宣传视频工程（Remotion 4 + React 19 + Tailwind v4：React 写视�
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `Product`                            | 产品介绍片，166 秒：开场 → 写作 → 白板 → 数据库 → 一个想法的一生 → AI → 知识地图 → All in one → 插件 + 本地 → 收尾         | 主线     |
 | `Tutorial-Syntax`                    | 教程片：所见即所得快捷语法 + 斜杠菜单 + 块，只用字幕；见 [`docs/交接-教程片.md`](docs/交接-教程片.md)                      | 全片样片 |
-| `Feature-VideoNotes`                 | 功能片「看网课，边看边记」：视频笔记 + Bilibili / YouTube 插件，约 147 秒；见 [`docs/交接-功能片.md`](docs/交接-功能片.md) | 终版     |
+| `Feature-VideoNotes`                 | 功能片「看网课，边看边记」：视频笔记 + Bilibili / YouTube 插件，约 145 秒；见 [`docs/交接-功能片.md`](docs/交接-功能片.md) | 终版     |
 | `Feature-Editor` / `Feature-Compose` | 功能片：所见即所得 + 块（30 秒）、创作模式（20 秒）                                                                        | 冻结     |
 | `DayInLife`                          | 场景片「一天的知识生活」（90 秒）                                                                                          | 归档     |
 | `Gallery-*`                          | 每个重建页面一帧，核对界面用                                                                                               | 调试     |
@@ -64,5 +64,6 @@ scripts/     sfx/（回放片的音效合成）、export-sfx.ts（按片导出�
 ## 配乐与字体
 
 - 教程片配乐：[Chillax](https://mixkit.co/free-stock-music/mood/calm/)，作者 Francisco Alvear，Mixkit Stock Music Free License（可商用，无需署名），文件 `public/music/mixkit-chillax.mp3`。
+- 功能片配乐：Romantic，作者 Francisco Alvear，Mixkit Stock Music Free License（可商用，无需署名），音频 https://assets.mixkit.co/music/659/659.mp3，文件 `public/music/mixkit-romantic.mp3`。
 - 配乐：[Motivational Technology](https://pixabay.com/)，作者 Rockot，Pixabay Content License（可商用，无需署名），117.45 BPM，从曲内第 11 小节截入。文件 `public/music/motivational-technology.mp3`，原件在 `assets/`。请保存 Pixabay 的 License Certificate。
 - 字体：思源宋体 / 思源黑体（Noto Serif / Sans SC）、JetBrains Mono、白板手绘字体（小赖 SC + Shantell Sans），均为 SIL OFL，经 Fontsource 或 apps/desktop 引用打包。
