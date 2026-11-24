@@ -431,7 +431,7 @@ export class PluginAIService {
             ? "用户或插件生命周期取消"
             : usage?.status === "ok"
               ? null
-              : "模型调用未成功完成",
+              : (usage?.errorMessage ?? "模型调用未成功完成"),
         });
         if (usage?.usageKnown) {
           const latest: Ledger = JSON.parse(this.deps.read(ledgerKey) ?? JSON.stringify(ledger));

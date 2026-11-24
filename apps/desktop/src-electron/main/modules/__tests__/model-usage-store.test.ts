@@ -92,6 +92,26 @@ describe("UsageRecorder + ModelUsageStore", () => {
     expect(items[0].eventId).toHaveLength(26);
   });
 
+  it("旧用量库升级保留事件，新路由身份不会变成聊天记录身份", () => {
+    recorder.record(input());
+    recorder.flush();
+    const before = store.list().items[0];
+    db.exec("ALTER TABLE model_usage_event DROP COLUMN routing_id");
+    store.setMeta("schema_version", "2");
+    store = new ModelUsageStore(db);
+    expect(store.list().items[0]).toMatchObject({
+      eventId: before.eventId,
+      totalTokens: 15,
+      routingId: null,
+    });
+    recorder.record(input({ routingId: "background-task", sessionId: null }));
+    recorder.flush();
+    expect(store.list().items.find(item => item.routingId === "background-task")).toMatchObject({
+      sessionId: null,
+      routingId: "background-task",
+    });
+  });
+
   it("攒满批量立即写入", () => {
     recorder.record(input());
     recorder.record(input());

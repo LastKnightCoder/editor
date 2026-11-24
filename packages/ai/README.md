@@ -8,6 +8,7 @@
 | ------------------------------- | --------------------------------------------------------- |
 | `@tau/ai` / `@tau/ai/contracts` | AiError、会话/模型身份、运行请求、工具定义与执行上下文    |
 | `@tau/ai/session`               | pi 会话 v3 编解码、树导航、历史投影、模型上下文与消息转换 |
+| `@tau/ai/model-request`         | 共用协议分发、路由身份、执行选项与流结果归约              |
 | `@tau/ai/models`                | 三种 PiApiKind、配置 DTO、目录与自定义配置的合并规则      |
 | `@tau/ai/flashcards`            | 两端简答题评判的提示词、结果类型与 JSON 校验              |
 | `@tau/ai/runtime`               | AiRuntime、宿主存储端口、运行/单发结果与订阅协议          |
@@ -19,6 +20,16 @@
 | `@tau/ai/think-stream`          | 显式启用的 think 标签流转换                               |
 
 根入口只加载公共契约；模型目录、运行时和 MCP 通过各自入口显式引入。文件、网络、凭据和数据库连接由宿主提供。桌面继续使用 pi-coding-agent 的 AgentSession；手机使用 pi-ai + pi-agent-core，不加载 Node 编码代理宿主。
+
+## 模型出站契约
+
+桌面 AgentSession、桌面单发与移动 AiRuntime 通过 `@tau/ai/model-request` 装配三种受支持协议。`createModelRequestProvider` 给宿主注册 provider；`streamModelRequest` 经 pi Models 完成认证和分发；业务层不直接引用 pi 的协议 API。宿主配置的请求头、推理档位、输出预算、取消信号和观察钩子保持透传。
+
+逻辑任务的 `task.routingId` 与一次执行的 requestId、持久聊天 sessionId 分离。`createModelTaskIdentity` 在任务创建时分配身份，`createScopedModelTaskIdentity` 将资料库与实体等归属哈希为无明文的稳定 ID；重试与任务内分批调用复用同一 task。入口没有提供身份时仍会分配独立路由，不依赖业务逐个添加服务商头。OpenCode 会话头使用 pi 自带规则生成；显式请求头覆盖默认值。
+
+公共默认超时为 300 秒，传输层默认不重试；宿主显式选项优先。移动运行时显式保留两次传输重试，桌面会话沿用 AgentSession 设置，不叠加业务重试。模型请求失败或取消由 `collectModelStream` 返回 failed / aborted；没有完成事件也不能作为成功结果。已有 SDK 的工具、历史、审批与流式消息语义仍由各运行时持有。
+
+移动宿主返回绑定原生网络上下文的 fetch，认证仅由 Rust 注入，JS 只使用占位认证。移动持久对话按资料库与会话绑定路由，单发按资料库与 requestId 绑定，也可显式传 task 跨请求复用。单发占用运行租约但不创建聊天文件。
 
 ## 消息与持久化
 

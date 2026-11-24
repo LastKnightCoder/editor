@@ -11,7 +11,7 @@ import type {
   ModelUsageTimeseriesQuery,
 } from "@/types/model-usage";
 
-export const USAGE_SCHEMA_VERSION = 2;
+export const USAGE_SCHEMA_VERSION = 3;
 const MAX_LIST_LIMIT = 500;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -79,6 +79,7 @@ interface EventRow {
   feature: string;
   scope: string | null;
   session_id: string | null;
+  routing_id: string | null;
   entity_id: string | null;
   status: ModelUsageEvent["status"];
   error_message: string | null;
@@ -111,6 +112,7 @@ const toRow = (event: ModelUsageEvent): EventRow => ({
   feature: event.feature,
   scope: event.scope,
   session_id: event.sessionId,
+  routing_id: event.routingId ?? null,
   entity_id: event.entityId,
   status: event.status,
   error_message: event.errorMessage,
@@ -143,6 +145,7 @@ const fromRow = (row: EventRow): ModelUsageEvent => ({
   feature: row.feature,
   scope: row.scope,
   sessionId: row.session_id,
+  routingId: row.routing_id,
   entityId: row.entity_id,
   status: row.status,
   errorMessage: row.error_message,
@@ -211,6 +214,7 @@ export class ModelUsageStore {
       plugin_name: "TEXT",
       plugin_feature_name: "TEXT",
       usage_known: "INTEGER",
+      routing_id: "TEXT",
     })) {
       if (!columns.has(name)) db.exec(`ALTER TABLE model_usage_event ADD COLUMN ${name} ${type}`);
     }
@@ -222,12 +226,12 @@ export class ModelUsageStore {
         event_id, ts, device_id, library, kind, provider_id, provider_name, model, feature,
         scope, session_id, entity_id, status, error_message, latency_ms, ttft_ms,
         input_tokens, output_tokens, cache_read, cache_write, reasoning, total_tokens,
-        units, cost, cost_source, plugin_id, plugin_name, plugin_feature_name, usage_known
+        units, cost, cost_source, plugin_id, plugin_name, plugin_feature_name, usage_known, routing_id
       ) VALUES (
         @event_id, @ts, @device_id, @library, @kind, @provider_id, @provider_name, @model, @feature,
         @scope, @session_id, @entity_id, @status, @error_message, @latency_ms, @ttft_ms,
         @input_tokens, @output_tokens, @cache_read, @cache_write, @reasoning, @total_tokens,
-        @units, @cost, @cost_source, @plugin_id, @plugin_name, @plugin_feature_name, @usage_known
+        @units, @cost, @cost_source, @plugin_id, @plugin_name, @plugin_feature_name, @usage_known, @routing_id
       )
     `);
   }
@@ -242,7 +246,8 @@ export class ModelUsageStore {
 
   getMeta(key: string): string | null {
     const row = this.db.prepare("SELECT value FROM usage_meta WHERE key = ?").get(key) as
-      { value: string } | undefined;
+      | { value: string }
+      | undefined;
     return row?.value ?? null;
   }
 

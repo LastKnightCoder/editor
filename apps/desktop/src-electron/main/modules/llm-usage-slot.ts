@@ -4,7 +4,7 @@ import type { LLMProviderSetting, LLMUsageConfigV2, PiThinkingLevel } from "@/ty
 export interface LlmRef {
   providerId: string;
   modelId: string;
-  /** 该功能的推理档位；undefined = 交给 runtime 按模型能力取默认 */
+  /** 该功能的推理档位；undefined = 沿用模型设置，再由 runtime 按能力取默认 */
   thinkingLevel?: PiThinkingLevel;
 }
 

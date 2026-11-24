@@ -8,6 +8,7 @@
  * - 串行、每次一份；切库或换槽作废进行中的一轮；单份失败重试 2 次后跳过并记入 index_meta，下次连库再试。
  */
 
+import { createScopedModelTaskIdentity } from "@tau/ai/model-request";
 import type Database from "better-sqlite3";
 import { ipcMain } from "electron";
 import log from "electron-log";
@@ -359,11 +360,17 @@ export class ContentAiQueue {
     }
 
     let lastError = "";
+    const taskIdentity = await createScopedModelTaskIdentity([
+      mainDb.name,
+      CONTENT_AI_SLOT,
+      String(task.id),
+    ]);
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       if (this.isStale(generation, mainDb)) return { outcome: "skipped" };
       const result = await this.deps.complete(
         {
           providerId: slot.providerId,
+          task: taskIdentity,
           modelId: slot.modelId,
           system: CONTENT_AI_SYSTEM_PROMPT,
           messages: [{ role: "user", content: userPrompt }],

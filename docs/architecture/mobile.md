@@ -282,6 +282,8 @@ iOS 的音频引擎在专用串行后台队列上惰性创建，音频会话激�
 
 运行层使用 `@tau/ai/runtime` 的 AiRuntime，底层为 pi-ai / pi-agent-core。桌面仍使用 Electron 主进程 AgentSession，两端共用 `@tau/shared/chat-core` 消息 DTO 和 `@tau/ai/session` 的持久历史投影。会话文件是桌面现有 pi v3；目录行沿用 chat_session，source 可为 desktop / mobile / browser。列表只查目录，单个会话分块读取并验证 revision，再投影成 messages、leafId 和 formatVersion；原模型消息与渲染投影分开，不能从展示 DTO 重建上下文。
 
+AiRuntime 的会话与单发均经公共模型出站模块，任务路由、协议分发和执行参数口径见 [AI 公共核心](/packages/ai/README.md#模型出站契约)。原生网络边界保持凭据注入与冻结配置职责，动态会话头由公共模块生成后随标准请求转发。
+
 原生模块在 `src-tauri/src/ai/`：库租约包含库名与代次，会话运行占用按库/会话仲裁。切库和数据库同步忙时拒绝，替换后撤销旧租约、网络上下文及上传暂存；异步调用始终绑定原库，不通过执行时 activeDatabase 重定向。服务的 scoped 工具与 MCP 在调用前后复核库身份与租约，来源撤销或重连使旧快照失效。
 
 会话文件与目录提交通过 `ai-journals/<库名>/` 的暂存文件和事务日志协调：校验文件/目录 revision，完整暂存后刷盘，日志刷盘，再安装文件并更新 SQLite；打开存储和同步前完成遗留事务。相同 entry 已存在且内容相同时不重复追加；版本不符或恢复时文件已变化返回冲突。删除把原文件及目录元数据保存在 `backup/ai-sessions/`。主库保存标题、分组、归档等管理数据，messageCount 只统计当前路径的用户提问。

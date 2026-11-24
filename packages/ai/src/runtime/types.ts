@@ -17,6 +17,7 @@ import type {
   AiSessionRef,
   AiSessionRow,
 } from "../contracts";
+import type { ModelTaskIdentity } from "../model-request";
 import type { SessionDocument, SessionEntry } from "../session/index";
 import type {
   AiToolApprovalChoice,
@@ -140,6 +141,7 @@ export interface AiPromptUpdate {
 
 export interface AiGenerationRequest {
   requestId: string;
+  task?: ModelTaskIdentity;
   databaseName: string;
   model: AiModelRef;
   expectedModelRevision?: string;

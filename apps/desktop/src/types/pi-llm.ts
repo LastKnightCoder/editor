@@ -11,10 +11,13 @@ export type {
 } from "@tau/ai/models";
 import type { PiThinkingLevel } from "@tau/ai/models";
 import type { UsageSource } from "./model-usage";
+import type { ModelTaskIdentity } from "@tau/ai/model-request";
 
 /** 单发请求（渲染进程 → 主进程 pi-ai 模块）：消息字段名对齐 pi 的 Message，单发场景 content 收窄为纯文本 */
 export interface PiSingleShotRequest {
   requestId: string;
+  /** 逻辑任务路由；缺省由宿主按任务归属或单次请求分配。 */
+  task?: ModelTaskIdentity;
   providerId: string;
   modelId: string;
   system?: string;
@@ -33,6 +36,7 @@ export interface PiSingleShotRequest {
 
 export interface PiSingleShotOutcome {
   ok: boolean;
+  aborted?: boolean;
   message?: import("@earendil-works/pi-ai").AssistantMessage;
   error?: string;
 }

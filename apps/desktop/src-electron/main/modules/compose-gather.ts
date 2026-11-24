@@ -10,6 +10,7 @@
  * 只在用户触发时运行，同一份正文同时只召集一次。
  */
 
+import { createScopedModelTaskIdentity } from "@tau/ai/model-request";
 import type Database from "better-sqlite3";
 import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
@@ -389,10 +390,16 @@ export async function gather(
   });
   const byNo = new Map(candidates.map(candidate => [candidate.no, candidate]));
   let parsed: ReturnType<typeof parseGatherOutput> = null;
+  const taskIdentity = await createScopedModelTaskIdentity([
+    mainDb.name,
+    CONTENT_INSIGHTS_SLOT,
+    String(input.contentId),
+  ]);
   for (let attempt = 0; attempt < PARSE_ATTEMPTS && !parsed; attempt++) {
     const response = await deps.complete(
       {
         providerId: slot.providerId,
+        task: taskIdentity,
         modelId: slot.modelId,
         system: COMPOSE_GATHER_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],

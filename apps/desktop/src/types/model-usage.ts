@@ -40,6 +40,8 @@ export interface ModelUsageEvent {
   /** 会话类别（main-chat / pdf-chat / browser ...），单发为 null */
   scope: string | null;
   sessionId: string | null;
+  /** 模型路由身份；单发任务不创建对应聊天文件。 */
+  routingId?: string | null;
   entityId: string | null;
   status: ModelUsageStatus;
   errorMessage: string | null;

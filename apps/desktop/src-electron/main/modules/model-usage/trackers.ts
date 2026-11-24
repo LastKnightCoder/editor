@@ -17,6 +17,7 @@ export interface LlmUsageContext {
   feature: string;
   scope: string | null;
   sessionId: string | null;
+  routingId?: string | null;
   entityId: string | null;
   library: string | null;
   /** 模型设置里有自定义单价（费用按它算，记为 custom） */
@@ -68,6 +69,7 @@ export function buildLlmUsage(
     feature: context.feature,
     scope: context.scope,
     sessionId: context.sessionId,
+    routingId: context.routingId ?? context.sessionId,
     entityId: context.entityId,
     status,
     errorMessage: status === "ok" ? null : (message?.errorMessage ?? fallback.errorMessage ?? null),

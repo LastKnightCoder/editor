@@ -46,6 +46,11 @@ import {
   userModelText,
 } from "./input";
 import { createModelStream } from "./stream";
+import {
+  collectModelStream,
+  createModelTaskIdentity,
+  createScopedModelTaskIdentity,
+} from "../model-request";
 import type {
   AiApproval,
   AiResolvedModel,
@@ -416,6 +421,7 @@ export class AiRuntime {
       let release: (() => Promise<void>) | undefined;
       let last: AssistantMessage | undefined;
       let failure: AiError | undefined;
+      let aborted = false;
       try {
         validateGenerationLimits(request);
         if (!request.messages.length || request.messages.at(-1)?.role !== "user")
@@ -466,14 +472,18 @@ export class AiRuntime {
         );
         assertImageSupport(model.model, messages);
         const thinkingLevel = request.thinkingLevel ?? model.defaultThinkingLevel;
+        const task = request.task
+          ? createModelTaskIdentity(request.task.routingId)
+          : await createScopedModelTaskIdentity([request.databaseName, request.requestId]);
         const stream = await createModelStream(model.fetch, model.stripThinkTags, {
           maxTokens: request.maxOutputTokens,
           temperature: request.temperature,
         })(model.model, normalizeContext({ systemPrompt: request.system, messages }), {
           signal: controller.signal,
+          sessionId: task.routingId,
           reasoning: thinkingLevel === "off" ? undefined : thinkingLevel,
         });
-        for await (const event of stream) {
+        const collected = await collectModelStream(stream, controller.signal, event => {
           if ("partial" in event) last = event.partial;
           if (event.type === "done") last = event.message;
           if (event.type === "error") {
@@ -493,7 +503,9 @@ export class AiRuntime {
               /* 观察者不拥有运行生命周期。 */
             }
           }
-        }
+        });
+        aborted = collected.outcome === "aborted";
+        if (collected.outcome === "failed") failure = errorOf(new Error(collected.error));
       } catch (error) {
         if (!controller.signal.aborted) failure = errorOf(error);
       } finally {
@@ -508,7 +520,8 @@ export class AiRuntime {
         this.generations.delete(request.requestId);
       }
       return {
-        outcome: controller.signal.aborted ? "aborted" : failure ? "failed" : "completed",
+        outcome:
+          controller.signal.aborted || aborted ? "aborted" : failure ? "failed" : "completed",
         response: this.generationResponse(request.requestId, last),
         ...(failure ? { error: failure.toJSON() } : {}),
       };
@@ -707,7 +720,12 @@ export class AiRuntime {
           };
         },
       }));
+      const task = await createScopedModelTaskIdentity([
+        request.session.databaseName,
+        request.session.sessionId,
+      ]);
       const agent = new Agent({
+        sessionId: task.routingId,
         initialState: {
           model: record.model.model,
           // 进入 Agent 的历史经必填字段校验；convertToLlm 再转回视图——

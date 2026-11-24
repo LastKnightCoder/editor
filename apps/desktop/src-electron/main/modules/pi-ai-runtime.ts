@@ -3,21 +3,16 @@
  * 渲染端设置经 userSettingModule 快照/变更通知流入，syncProviders 维护 pi Models 注册表；
  * 单发请求走 streamSimple，事件（含 pi 原生 partial 全量快照）原样经 IPC 推回渲染进程，
  * 渲染端直接消费 pi 的快照/delta 语义，不做桥接层语义转换。
- * 会话 harness（PiSessionHost）复用本模块的注册表。
+ * 会话 harness（PiSessionHost）共用 provider 装配与模型出站契约。
  */
 import { ipcMain } from "electron";
-import {
-  normalizeContext,
-  type AssistantMessage,
-  type AssistantMessageEvent,
-} from "@earendil-works/pi-ai";
+import { type AssistantMessage, type AssistantMessageEvent } from "@earendil-works/pi-ai";
 import userSettingModule from "./user-setting";
-import { rewriteThinkTagStream } from "./think-stream-rewriter";
+import { executeSingleShot } from "./pi-ai-single-shot";
 import {
   applyCatalogCostFills,
   collectCatalogCostFills,
   createProviderRegistry,
-  buildSingleShotContext,
   listCatalogModels,
   listCatalogProviders,
   resolveThinkingLevels,
@@ -26,7 +21,7 @@ import {
 } from "./pi-ai-runtime-core";
 import { discoverProviderModels, ModelDiscoveryError } from "./pi-model-discovery";
 import modelUsageModule from "./model-usage";
-import { createStreamUsageTracker, type RecordUsage } from "./model-usage/trackers";
+import type { RecordUsage } from "./model-usage/trackers";
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
@@ -34,7 +29,7 @@ import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } fro
 class PiAiRuntimeModule {
   private static registry: ProviderRegistry | null = null;
   private static readonly activeShots = new Map<string, AbortController>();
-  /** 启动时首次 provider 同步：后台任务可能早于它发起，complete 前先等 */
+  /** 启动时首次 provider 同步：后台任务可能早于它发起，请求发起前先等 */
   private static initialSync: Promise<void> = Promise.resolve();
 
   public static init() {
@@ -147,11 +142,13 @@ class PiAiRuntimeModule {
     const abortController = new AbortController();
     PiAiRuntimeModule.activeShots.set(request.requestId, abortController);
     try {
+      await PiAiRuntimeModule.initialSync;
+      if (abortController.signal.aborted) return { ok: false, aborted: true };
       const outcome = await PiAiRuntimeModule.stream(request, abortController.signal, event => {
         if (!sender.isDestroyed())
           sender.send("pi-ai-stream-event", { requestId: request.requestId, ...event });
       });
-      return outcome.ok ? { ok: true } : { ok: false, error: outcome.error };
+      return { ok: outcome.ok, aborted: outcome.aborted, error: outcome.error };
     } finally {
       PiAiRuntimeModule.activeShots.delete(request.requestId);
     }
@@ -167,8 +164,13 @@ class PiAiRuntimeModule {
   ): Promise<{ ok: boolean; text: string; message: AssistantMessage | null; error?: string }> {
     await PiAiRuntimeModule.initialSync.catch(() => undefined);
     const outcome = await PiAiRuntimeModule.stream({ ...request, requestId: "" }, signal);
-    if (outcome.error || signal?.aborted) {
-      return { ok: false, text: "", message: null, error: outcome.error ?? "已取消" };
+    if (!outcome.ok || outcome.aborted || signal?.aborted) {
+      return {
+        ok: false,
+        text: "",
+        message: null,
+        error: outcome.error ?? (outcome.aborted || signal?.aborted ? "已取消" : "模型请求失败"),
+      };
     }
     const text =
       outcome.message?.content
@@ -201,66 +203,14 @@ class PiAiRuntimeModule {
     signal: AbortSignal | undefined,
     onEvent?: (event: AssistantMessageEvent) => void,
     record: RecordUsage = input => modelUsageModule.record(input)
-  ): Promise<{ ok: boolean; message: AssistantMessage | null; error?: string }> {
+  ): Promise<{ ok: boolean; message: AssistantMessage | null; error?: string; aborted?: boolean }> {
     const registry = PiAiRuntimeModule.registry;
     if (!registry) return { ok: false, message: null, error: "pi-ai runtime not initialized" };
 
-    const model = registry.resolveModel(request.providerId, request.modelId);
-    if (!model) {
-      return {
-        ok: false,
-        message: null,
-        error: `模型未注册：${request.providerId}/${request.modelId}`,
-      };
-    }
-
-    const usage = createStreamUsageTracker(
-      {
-        pluginId: request.source?.pluginId,
-        pluginName: request.source?.pluginName,
-        pluginFeatureName: request.source?.pluginFeatureName,
-        providerId: request.providerId,
-        modelId: request.modelId,
-        feature: request.source?.feature || "unknown",
-        scope: null,
-        sessionId: null,
-        entityId: request.source?.entityId ?? null,
-        library: request.source?.library ?? null,
-        customCost: registry.hasCustomCost(request.providerId, request.modelId),
-      },
-      record
-    );
-    let streamError: string | null = null;
-    let finalMessage: AssistantMessage | null = null;
     try {
-      const stream = registry.models.streamSimple(
-        model,
-        normalizeContext(buildSingleShotContext(request, request.providerId, request.modelId)),
-        {
-          ...(request.thinking && request.thinking !== "off"
-            ? { reasoning: request.thinking }
-            : {}),
-          ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-          ...(request.maxOutputTokens !== undefined ? { maxTokens: request.maxOutputTokens } : {}),
-          ...(signal ? { signal } : {}),
-        }
-      );
-      const events = registry.needsThinkStrip(request.providerId, request.modelId)
-        ? rewriteThinkTagStream(stream)
-        : stream;
-      for await (const event of events) {
-        usage.observe(event);
-        if (event.type === "done") finalMessage = event.message;
-        if (event.type === "error") streamError = event.error.errorMessage ?? "模型请求失败";
-        onEvent?.(event);
-      }
-      // 流内 error 事件对 IPC 单发仍算 ok（渲染端从事件里读错误），主进程调用方看 error 字段
-      return { ok: true, message: finalMessage, ...(streamError ? { error: streamError } : {}) };
+      return await executeSingleShot(registry, request, record, signal, onEvent);
     } catch (error) {
-      streamError = error instanceof Error ? error.message : String(error);
-      return { ok: false, message: null, error: streamError };
-    } finally {
-      usage.finish({ aborted: signal?.aborted ?? false, error: streamError });
+      return { ok: false, message: null, error: errorMessage(error), aborted: signal?.aborted };
     }
   }
 }

@@ -94,7 +94,7 @@ export function useChatRuntime({
     const titleResult = await piCompleteChat({
       provider: titleProviderConfig,
       model: titleModelConfig,
-      source: { feature: "titleSummary" },
+      source: { feature: "titleSummary", entityId: chat.id, library: chat.databaseName },
       messages: [
         {
           role: Role.System,

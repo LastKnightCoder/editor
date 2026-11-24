@@ -65,6 +65,8 @@
 | [plugin-windows.md](./guides/plugin-windows.md)                             | 桌面插件窗口、自动外观、状态和消息                   |
 | [writing-reader-docs.md](./guides/writing-reader-docs.md)                   | 使用文档、插件开发文档与插件 README 写法             |
 
+[模型出站验证](./guides/ops-model-request-validation.md) 包含契约回归、本地并发与合成输入的真实模型验证命令。
+
 ## tasks/ — 进行中任务
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。

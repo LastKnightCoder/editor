@@ -77,7 +77,7 @@ describe("用量分段", () => {
 
   it("导出 → 另一台设备导入，内容与哈希一致；只统计本机事件", () => {
     storeA.insertMany([
-      event(A, Date.UTC(2026, 0, 5)),
+      event(A, Date.UTC(2026, 0, 5), { routingId: "background-task" }),
       event(A, Date.UTC(2026, 1, 5)),
       event(B, Date.UTC(2026, 0, 6)),
     ]);
@@ -95,6 +95,7 @@ describe("用量分段", () => {
       B
     );
     expect(result).toEqual({ imported: 1, skipped: 0 });
+    expect(storeB.list().items[0]).toMatchObject({ routingId: "background-task", sessionId: null });
     // 导入方重新算出的哈希必须与来源一致，否则下一轮会反复拉取
     expect(localSegments(storeB, A)[0].hash).toBe(info.hash);
   });

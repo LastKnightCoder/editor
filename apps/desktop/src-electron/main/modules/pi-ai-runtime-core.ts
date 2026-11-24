@@ -17,19 +17,9 @@ export {
  * 设置 v2（LLMProviderSetting）→ pi Provider/Model 的构建、provider 注册表同步、单发请求组装。
  * 模块壳（IPC/设置订阅）在 pi-ai-runtime.ts。
  */
-import * as anthropicMessagesApi from "@earendil-works/pi-ai/api/anthropic-messages";
-import * as openAICompletionsApi from "@earendil-works/pi-ai/api/openai-completions";
-import * as openAIResponsesApi from "@earendil-works/pi-ai/api/openai-responses";
-import { createModels, createProvider, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import type {
-  Api,
-  Context,
-  Message,
-  Model,
-  MutableModels,
-  Provider,
-  ProviderStreams,
-} from "@earendil-works/pi-ai";
+import { createModelRequestProvider } from "@tau/ai/model-request";
+import { createModels, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import type { Api, Context, Message, Model, MutableModels, Provider } from "@earendil-works/pi-ai";
 import type {
   LLMModelCost,
   LLMProviderSetting,
@@ -50,12 +40,6 @@ export function resolveV2Providers(
   const providers = setting?.llmProviders;
   return Array.isArray(providers) ? (providers as LLMProviderSetting[]) : [];
 }
-
-const API_STREAMS: Record<PiApiKind, ProviderStreams> = {
-  "openai-completions": openAICompletionsApi,
-  "openai-responses": openAIResponsesApi,
-  "anthropic-messages": anthropicMessagesApi,
-};
 
 /** 共享的内置目录查询（懒创建 ModelRuntime，仅用于查询，不注册自定义 provider） */
 let catalogRuntime: Promise<ModelRuntimeLike | null> | null = null;
@@ -225,7 +209,7 @@ export async function buildPiProvider(setting: LLMProviderSetting): Promise<Prov
     if (!base && (!model.contextWindow || !model.maxTokens)) continue;
     models.push(toPiModel(model, setting, base));
   }
-  return createProvider({
+  return createModelRequestProvider({
     id: setting.id,
     name: setting.name,
     baseUrl: setting.baseUrl,
@@ -241,7 +225,6 @@ export async function buildPiProvider(setting: LLMProviderSetting): Promise<Prov
       },
     },
     models,
-    api: API_STREAMS,
   });
 }
 
@@ -254,6 +237,7 @@ export interface ProviderRegistry {
   hasCustomCost(providerId: string, modelId: string): boolean;
   /** 该模型是否启用 <think> 标签兜底剥离（见 think-stream-rewriter） */
   needsThinkStrip(providerId: string, modelId: string): boolean;
+  defaultThinking(providerId: string, modelId: string): PiThinkingLevel | undefined;
 }
 
 export function createProviderRegistry(): ProviderRegistry {
@@ -302,6 +286,10 @@ export function createProviderRegistry(): ProviderRegistry {
       return (
         settingsById.get(providerId)?.models.find(m => m.id === modelId)?.stripThinkTags === true
       );
+    },
+    defaultThinking(providerId, modelId) {
+      return settingsById.get(providerId)?.models.find(model => model.id === modelId)
+        ?.thinkingLevel;
     },
   };
 }

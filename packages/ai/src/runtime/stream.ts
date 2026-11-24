@@ -1,15 +1,10 @@
 import {
   createAssistantMessageEventStream,
-  type AssistantMessageEventStream,
-  type Api,
-  type Model,
+  createModels,
   type AssistantMessage,
 } from "@earendil-works/pi-ai";
-import { streamSimple as completions } from "@earendil-works/pi-ai/api/openai-completions";
-import { streamSimple as responses } from "@earendil-works/pi-ai/api/openai-responses";
-import { streamSimple as anthropic } from "@earendil-works/pi-ai/api/anthropic-messages";
+import { createModelRequestProvider, streamModelRequest } from "../model-request";
 import type { StreamFn } from "@earendil-works/pi-agent-core";
-import { AiError } from "../contracts";
 import { rewriteThinkTagStream } from "../think-stream";
 
 export function createModelStream(
@@ -17,6 +12,7 @@ export function createModelStream(
   stripThinkTags = false,
   limits: { maxTokens?: number; temperature?: number } = {}
 ): StreamFn {
+  const models = createModels();
   return (model, context, options) => {
     const request = {
       ...options,
@@ -26,22 +22,21 @@ export function createModelStream(
       ...(limits.temperature === undefined ? {} : { temperature: limits.temperature }),
       fetch,
       apiKey: "native-managed",
-      maxRetries: 2,
+      maxRetries: options?.maxRetries ?? 2,
     };
-    let source: AssistantMessageEventStream;
-    switch (model.api) {
-      case "openai-completions":
-        source = completions(model as Model<"openai-completions">, context, request);
-        break;
-      case "openai-responses":
-        source = responses(model as Model<"openai-responses">, context, request);
-        break;
-      case "anthropic-messages":
-        source = anthropic(model as Model<"anthropic-messages">, context, request);
-        break;
-      default:
-        throw new AiError("AI_MODEL_UNAVAILABLE", `不支持的模型协议：${(model as Model<Api>).api}`);
-    }
+    models.setProvider(
+      createModelRequestProvider({
+        id: model.provider,
+        models: [model],
+        auth: {
+          apiKey: {
+            name: "宿主托管凭据",
+            resolve: async () => ({ auth: { apiKey: "native-managed" }, source: "host" }),
+          },
+        },
+      })
+    );
+    const source = streamModelRequest(models, model, context, request);
     if (!stripThinkTags) return source;
     const output = createAssistantMessageEventStream();
     void (async () => {

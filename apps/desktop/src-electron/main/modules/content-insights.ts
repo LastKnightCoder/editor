@@ -9,6 +9,7 @@
  * 只在用户触发时运行，同一份正文同时只跑一次；不做后台与全库分析。
  */
 
+import { createScopedModelTaskIdentity } from "@tau/ai/model-request";
 import type Database from "better-sqlite3";
 import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
@@ -405,10 +406,16 @@ export async function analyzeContent(
   const byNo = new Map(candidates.map(candidate => [candidate.no, candidate]));
   // 偶尔输出不是合法 JSON（逗号写成分号等）：同样的请求再试一次，仍不行才报错
   let parsed: ReturnType<typeof parseInsightsOutput> = null;
+  const taskIdentity = await createScopedModelTaskIdentity([
+    mainDb.name,
+    CONTENT_INSIGHTS_SLOT,
+    String(self.contentId),
+  ]);
   for (let attempt = 0; attempt < PARSE_ATTEMPTS && !parsed; attempt++) {
     const response = await deps.complete(
       {
         providerId: slot.providerId,
+        task: taskIdentity,
         modelId: slot.modelId,
         system: CONTENT_INSIGHTS_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],

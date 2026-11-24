@@ -72,6 +72,7 @@ const serializeEvent = (event: ModelUsageEvent) =>
     units: event.units,
     cost: event.cost,
     costSource: event.costSource,
+    ...(event.routingId ? { routingId: event.routingId } : {}),
   });
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -143,6 +144,7 @@ function parseEvent(
   const providerName = optStr(r.providerName);
   const scope = optStr(r.scope, 128);
   const sessionId = optStr(r.sessionId, 128);
+  const routingId = optStr(r.routingId, 128);
   const entityId = optStr(r.entityId, 128);
   const errorMessage = optStr(r.errorMessage, 4096);
   const latencyMs = optNum(r.latencyMs);
@@ -163,6 +165,7 @@ function parseEvent(
       providerName,
       scope,
       sessionId,
+      routingId,
       entityId,
       errorMessage,
       latencyMs,
@@ -198,6 +201,7 @@ function parseEvent(
     feature,
     scope: scope ?? null,
     sessionId: sessionId ?? null,
+    routingId: routingId ?? null,
     entityId: entityId ?? null,
     status: r.status as ModelUsageStatus,
     errorMessage: errorMessage ?? null,

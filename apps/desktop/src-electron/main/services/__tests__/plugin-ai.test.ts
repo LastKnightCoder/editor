@@ -288,6 +288,29 @@ describe("插件 AI 主进程边界", () => {
       expect(audits[0]).toMatchObject({ status: "aborted", usageKnown: false });
     }
   );
+  it("失败审计保留模型原因与任务路由，不被通用错误覆盖", async () => {
+    const { service, session, deps, audits } = fixture();
+    vi.mocked(deps.execute).mockImplementationOnce(async (_request, _signal, _delta, record) => {
+      record({
+        ...audits[0],
+        status: "error",
+        routingId: "background-task",
+        errorMessage: "400 MissingSessionID",
+        usageKnown: false,
+      });
+      return { ok: false, text: "", error: "400 MissingSessionID" };
+    });
+    await expect(
+      service.run(1, session, "failed-request", request, () => undefined)
+    ).rejects.toThrow(/^AI_REQUEST_FAILED/);
+    expect(audits[0]).toMatchObject({
+      status: "error",
+      routingId: "background-task",
+      sessionId: null,
+      errorMessage: "400 MissingSessionID",
+    });
+  });
+
   it("模型准备阶段也能取消，不能在取消后发起收费请求", async () => {
     const { service, session, deps } = fixture();
     let ready!: () => void;

@@ -72,16 +72,25 @@ it("工具意图先落盘才执行，结果先落盘才开始下一轮，历史�
         store.read().document.entries.some(entry => entry.message?.role === "toolResult")
       ).toBe(true);
   });
+  const routing: Array<string | null> = [];
+  const routedFetch: typeof globalThis.fetch = async (input, init) => {
+    routing.push(new Request(input, init).headers.get("x-opencode-session"));
+    return api.fetch(input, init);
+  };
   const runtime = new AiRuntime({
     store: store.store,
     tools,
-    resolveModel: async () => resolved(api.fetch),
+    resolveModel: async () => ({
+      ...resolved(routedFetch),
+      model: { ...resolved(routedFetch).model, baseUrl: "https://opencode.ai/zen/go/v1" },
+    }),
   });
   const handle = await runtime.start(request(store.read().revision, { toolIds: ["cards:read"] }));
   const result = await handle.result;
   expect(result.outcome).toBe("completed");
   expect(execute).toHaveBeenCalledOnce();
   expect(api.requests).toHaveLength(2);
+  expect(routing.every(id => id !== null && id === routing[0])).toBe(true);
   expect(result.messages).toEqual(projectSessionMessages(store.read().document));
   const assistant = result.messages.find(message => message.role === "assistant");
   expect(assistant).toMatchObject({

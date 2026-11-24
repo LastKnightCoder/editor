@@ -65,6 +65,10 @@ MCP 连接配置的摘要进入工具定义身份，渲染层重载后也不能�
 任务走 `services/piAgentRunner.ts`。新增 AI 入口不得再引入自研协议适配或直连服务商 SDK；集成设置的
 Key 连接测试用 `pi-ai:verify-key`。
 
+模型出站通过 `@tau/ai/model-request` 统一装配；契约与参数优先级见 [AI 公共核心](/packages/ai/README.md#模型出站契约)。`buildPiProvider` 只负责目录与设置、认证的装配，AgentSession 与单发注册表使用相同 provider 工厂；不得在业务模块另行导入底层协议 API。单发先等待 provider 首次同步，再交给无 Electron 依赖的 `executeSingleShot` 执行、归约并记录一次用量；流内错误经 IPC 也返回失败，取消保留 aborted 标记。单发推理档位为请求指定优先、模型设置兜底。
+
+桌面标题带聊天与资料库归属；记忆带资料库与任务阶段归属，单发内核按归属生成稳定路由。其余入口可传 task 跨批次复用，没有任务归属的独立调用分配各自的路由。用量库的 routingId 记录实际请求路由，sessionId 仅保留持久聊天身份，后台任务不因此创建聊天文件；用量库增加可空路由列，旧事件保留，分段同步在路由存在时携带该字段。请求不记录提示词、回复或凭据。
+
 浏览器扩展复用 pi 宿主，页面会话的文件、运行归属与 RPC 契约见 [浏览器伴读架构](/docs/architecture/browser-companion.md)。
 
 可复用子 Agent 由 BACKGROUND 模块 `pi-subagents` 管理，身份与单次执行分离；同步等待、异步创建、按 ID 等待、继续发送消息与父通知均经主进程原生工具。运行复用 pi 宿主，详细契约、持久化与文件职责见 [子 Agent 架构](/docs/architecture/subagents.md)。子任务持有父宿主时禁止空闲回收，但不把父标为正在生成。消息内任务卡、对话顶部常驻入口与壳层标题栏显示子会话状态和待用户处理入口（界面见同文档「界面」节）。

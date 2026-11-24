@@ -11,6 +11,7 @@ import type { UsageSource } from "@/types/model-usage";
 import { Role } from "@/constants";
 import { getChatDatabase } from "./chatDatabase";
 import { normalizePiSystemPrompt } from "./piPromptPayload";
+import type { ModelTaskIdentity } from "@tau/ai/model-request";
 
 export type PiChatRequest = PiSingleShotOptions;
 
@@ -18,7 +19,8 @@ export interface PiChatOptions {
   provider: LLMProviderSetting;
   model: LLMModelSetting;
   messages: RequestMessage[];
-  /** 思考档位；缺省交给 pi 按模型能力取默认 */
+  task?: ModelTaskIdentity;
+  /** 任务推理档位；缺省沿用模型设置，再由 pi 按能力取默认 */
   thinking?: PiThinkingLevel;
   /** 用量审计归属；library 缺省取当前对话库 */
   source?: UsageSource;
@@ -39,7 +41,7 @@ export interface PiChatResult {
 
 export interface PiChatHandle {
   result: Promise<PiChatResult>;
-  /** 中断请求：主进程 abort 流，result 仍会 resolve（ok=true、message=null、text 为部分快照） */
+  /** 中断请求：result 仍会 resolve，aborted=true，text 保留已接收的部分快照 */
   cancel(): void;
 }
 
@@ -116,6 +118,7 @@ function buildRequest(options: PiChatOptions): PiChatRequest {
   return {
     providerId: options.provider.id,
     modelId: options.model.id,
+    ...(options.task ? { task: options.task } : {}),
     ...(system !== undefined ? { system } : {}),
     messages,
     ...(thinking !== undefined ? { thinking } : {}),
@@ -155,7 +158,7 @@ export function piStreamChat(
         requestId
       );
       settled = true;
-      const aborted = cancelled || streamAborted;
+      const aborted = cancelled || streamAborted || outcome.aborted === true;
       const message = finalMessage ?? lastSnapshot;
       if (streamError && !aborted) {
         return { ok: false, error: streamError, aborted, text: "", reasoning: "", message: null };

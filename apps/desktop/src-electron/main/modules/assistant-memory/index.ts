@@ -390,7 +390,7 @@ class AssistantMemoryModule {
             },
             signal
           );
-          if (!result.ok) throw new Error("记忆模型请求失败");
+          if (!result.ok) throw new Error(result.error ?? "记忆模型请求失败");
           return result.text;
         },
         changed: () => this.notify(name),
