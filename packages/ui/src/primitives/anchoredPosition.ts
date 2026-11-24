@@ -24,6 +24,23 @@ export interface AnchoredPositionOptions {
   gap?: number;
 }
 
+/** 可滚动的正文预览固定在可用空间较大的一侧，内容异步长高也不盖住触发文字。 */
+export function fitVerticalPreview(
+  anchor: { top: number; bottom: number },
+  placement: AnchoredPlacement,
+  viewportHeight: number,
+  gap = 8
+) {
+  if (!placement.startsWith("top") && !placement.startsWith("bottom")) return;
+  const above = anchor.top - VIEWPORT_PAD - gap;
+  const below = viewportHeight - VIEWPORT_PAD - gap - anchor.bottom;
+  const side = above === below ? placement.split("-")[0] : above > below ? "top" : "bottom";
+  return {
+    placement: placement.replace(/^(top|bottom)/, side) as AnchoredPlacement,
+    maxHeight: Math.max(0, Math.floor(Math.max(above, below))),
+  };
+}
+
 export interface AnchoredPosition {
   x: number;
   y: number;

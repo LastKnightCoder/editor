@@ -12,9 +12,13 @@ export function useDecorationHover(allowPreview: boolean) {
   const [hover, setHover] = useState<Hover | null>(null);
   const request = useRef<AbortController | null>(null);
   const timer = useRef(0);
+  const closeTimer = useRef(0);
+  const current = useRef<Omit<Hover, "preview"> | null>(null);
   const showingCard = useRef(false);
   const clear = useCallback(() => {
     window.clearTimeout(timer.current);
+    window.clearTimeout(closeTimer.current);
+    current.current = null;
     request.current?.abort();
     request.current = null;
     showingCard.current = false;
@@ -22,9 +26,17 @@ export function useDecorationHover(allowPreview: boolean) {
   }, []);
   const show = useCallback(
     (hit: DecorationHit, anchor: HTMLElement, choice?: string) => {
+      window.clearTimeout(closeTimer.current);
+      if (
+        current.current?.hit === hit &&
+        current.current.anchor === anchor &&
+        current.current.choice === choice
+      )
+        return;
       clear();
       if (hit.lifetime?.aborted || (!hit.label && !hit.preview)) return;
       const controller = new AbortController();
+      current.current = { hit, anchor, choice };
       request.current = controller;
       hit.lifetime?.addEventListener("abort", clear, { once: true, signal: controller.signal });
       timer.current = window.setTimeout(async () => {
@@ -48,10 +60,11 @@ export function useDecorationHover(allowPreview: boolean) {
   );
   const leave = useCallback(() => {
     window.clearTimeout(timer.current);
-    if (showingCard.current) timer.current = window.setTimeout(clear, 160);
+    window.clearTimeout(closeTimer.current);
+    if (showingCard.current) closeTimer.current = window.setTimeout(clear, 160);
     else clear();
   }, [clear]);
-  const keep = () => window.clearTimeout(timer.current);
+  const keep = () => window.clearTimeout(closeTimer.current);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") clear();

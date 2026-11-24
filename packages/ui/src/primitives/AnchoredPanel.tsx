@@ -41,6 +41,8 @@ export interface AnchoredPanelProps extends Omit<
   anchor: HTMLElement | null;
   /** 12 向全表（引擎 flip/shift 兜底），默认 bottom-start */
   placement?: AnchoredPlacement;
+  /** 让可滚动预览适应锚点一侧的可用高度。 */
+  fitVerticalSpace?: boolean;
   /** 显隐由宿主驱动；缺省锚点存在即显示（宿主托管用法） */
   open?: boolean;
   /** 8px 菱形箭头（随 flip 换边），默认关 */
@@ -55,6 +57,7 @@ export interface AnchoredPanelProps extends Omit<
 export function AnchoredPanel({
   anchor,
   placement = "bottom-start",
+  fitVerticalSpace = false,
   open,
   arrow = false,
   className,
@@ -72,6 +75,7 @@ export function AnchoredPanel({
     getAnchor: () => anchor?.getBoundingClientRect() ?? null,
     popRef,
     placement,
+    fitVerticalSpace,
     onPlace: (pos, pop) => {
       pop.dataset.side = pos.side;
       if (arrow) applyArrowPosition(pos, pop);
@@ -92,6 +96,7 @@ export function AnchoredPanel({
         !visible && "data-[side=top]:-translate-y-[4px]",
         !visible && "data-[side=left]:-translate-x-[4px]",
         !visible && "data-[side=right]:translate-x-[4px]",
+        fitVerticalSpace && "overflow-y-auto",
         className
       )}
     >

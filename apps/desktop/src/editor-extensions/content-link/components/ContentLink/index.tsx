@@ -121,6 +121,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
           anchor={anchor}
           open={open}
           placement="bottom-start"
+          fitVerticalSpace
           className="w-[380px] max-w-[380px]"
           onMouseEnter={cancel}
           onMouseLeave={() => schedule(false, CLOSE_GRACE)}

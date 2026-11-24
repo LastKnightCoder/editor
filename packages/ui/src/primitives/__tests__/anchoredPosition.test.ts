@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyArrowPosition,
   computeAnchoredPosition,
+  fitVerticalPreview,
   type AnchoredPosition,
   type AnchoredSide,
 } from "../anchoredPosition";
@@ -45,6 +46,20 @@ describe("computeAnchoredPosition", () => {
     const r = computeAnchoredPosition(rect(462, 20, 100, 40), size(120, 760), "top");
     expect(r.side).toBe("top");
   });
+
+  it.each([0.12, 0.49, 0.84])(
+    "长预览在锚点 纵向比例 %s 处加载后仍留在同侧并避开触发文字",
+    fraction => {
+      const viewportHeight = window.innerHeight;
+      const anchor = rect(380, Math.floor(viewportHeight * fraction), 32, 19);
+      const fit = fitVerticalPreview(anchor, "bottom-start", window.innerHeight)!;
+      const position = (height: number) =>
+        computeAnchoredPosition(anchor, size(380, Math.min(height, fit.maxHeight)), fit.placement);
+      expect(position(30).side).toBe(position(800).side);
+      const { y } = position(800);
+      expect(y >= anchor.bottom || y + Math.min(800, fit.maxHeight) <= anchor.top).toBe(true);
+    }
+  );
 
   it("shift：贴左缘时交叉轴夹回视口（留 8px 边距）", () => {
     const r = computeAnchoredPosition(rect(0, 300, 20, 40), size(200, 30), "top");

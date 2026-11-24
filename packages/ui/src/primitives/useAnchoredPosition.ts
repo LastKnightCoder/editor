@@ -13,6 +13,7 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
 import {
   computeAnchoredPosition,
+  fitVerticalPreview,
   type AnchoredPlacement,
   type AnchoredPosition,
 } from "./anchoredPosition";
@@ -31,6 +32,7 @@ export interface UseAnchoredPositionOptions {
   popRef: RefObject<HTMLElement | null>;
   placement: AnchoredPlacement;
   gap?: number;
+  fitVerticalSpace?: boolean;
   /** rAF 轮询锚 rect 变化并重定位（动态锚场景，默认关） */
   pollAnchor?: boolean;
   /** 衍生写入：side / arrowX / arrowY / data-* 等，随每次定位调用 */
@@ -43,6 +45,7 @@ export function useAnchoredPosition({
   popRef,
   placement,
   gap,
+  fitVerticalSpace = false,
   pollAnchor = false,
   onPlace,
 }: UseAnchoredPositionOptions) {
@@ -55,13 +58,17 @@ export function useAnchoredPosition({
     if (!open) return;
     const pop = popRef.current;
     if (!pop) return;
+    const originalMaxHeight = pop.style.maxHeight;
     const place = () => {
       const anchor = getAnchorRef.current();
       if (!anchor) return;
+      const fit =
+        fitVerticalSpace && fitVerticalPreview(anchor, placement, window.innerHeight, gap);
+      if (fit) pop.style.maxHeight = `${fit.maxHeight}px`;
       const pos = computeAnchoredPosition(
         anchor,
         pop,
-        placement,
+        fit ? fit.placement : placement,
         gap !== undefined ? { gap } : undefined
       );
       pop.style.left = `${pos.x}px`;
@@ -71,12 +78,11 @@ export function useAnchoredPosition({
     place();
     place(); // 两遍：第一遍后浮层已有实际尺寸（style 写入触发同步布局），第二遍精调
 
-    let queued = false;
+    let frame = 0;
     const schedule = () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
         place();
       });
     };
@@ -108,9 +114,11 @@ export function useAnchoredPosition({
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       ro?.disconnect();
+      cancelAnimationFrame(frame);
+      if (fitVerticalSpace) pop.style.maxHeight = originalMaxHeight;
       cancelAnimationFrame(raf);
     };
     // placement / gap / pollAnchor 属定位参数；getAnchor / onPlace 经 ref 稳定化不参与重挂
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, placement, gap, pollAnchor]);
+  }, [open, placement, gap, pollAnchor, fitVerticalSpace]);
 }

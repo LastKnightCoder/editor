@@ -1,4 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import type { PluginTextDecorationCandidate } from "@tau/plugins";
 import { AnchoredPanel, Popover, cn, toast } from "@tau/ui";
 import type { DecorationHit } from "@/app/plugins/text-decorations";
@@ -15,6 +25,72 @@ interface Choosing {
 
 function mark(view: TextDecorationView, hit: DecorationHit, name: "hot" | "busy", on: boolean) {
   for (const element of view.elementsOf(hit)) element.toggleAttribute(`data-${name}`, on);
+}
+
+/** 预览脱离菜单的尺寸计算，ResizeObserver 重新定位时不会把光标下的候选行移走。 */
+function CandidatePreview({
+  anchor,
+  keep,
+  leave,
+  children,
+}: {
+  anchor: HTMLElement;
+  keep: () => void;
+  leave: () => void;
+  children: ReactNode;
+}) {
+  const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
+  useLayoutEffect(() => {
+    const menu = anchor.closest<HTMLElement>('[role="dialog"]');
+    if (!menu) return;
+    const place = () => {
+      const rect = menu.getBoundingClientRect();
+      const gap = 4,
+        margin = 8;
+      const right = window.innerWidth - rect.right - gap - margin;
+      const left = rect.left - gap - margin;
+      const width = Math.min(380, window.innerWidth - 2 * margin);
+      if (Math.max(left, right) >= Math.min(300, width)) {
+        const useRight = right >= width || right >= left;
+        setStyle({
+          [useRight ? "left" : "right"]: `calc(100% + ${gap}px)`,
+          width: Math.min(width, useRight ? right : left),
+          maxHeight: "min(400px, calc(100vh - 16px))",
+          top: Math.min(
+            0,
+            window.innerHeight - margin - rect.top - Math.min(400, window.innerHeight - 2 * margin)
+          ),
+        });
+      } else {
+        const below = window.innerHeight - rect.bottom - gap - margin,
+          above = rect.top - gap - margin;
+        setStyle({
+          [below >= above ? "top" : "bottom"]: `calc(100% + ${gap}px)`,
+          left: Math.min(0, window.innerWidth - margin - rect.left - width),
+          width,
+          maxHeight: Math.max(0, Math.max(below, above)),
+        });
+      }
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [anchor]);
+  return (
+    <div
+      data-decoration-candidate-preview
+      className="rounded-tau-lg border-line-1 bg-surface shadow-float absolute overflow-auto border"
+      style={style}
+      onPointerEnter={keep}
+      onPointerLeave={leave}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** 宿主统一绘制的悬停提示与同名候选菜单，插件只提供文案和候选数据。 */
@@ -58,7 +134,7 @@ export function TextDecorationLayer({
     };
     view.layer = {
       hover(hit, element) {
-        if (choosingRef.current?.hit === hit) return;
+        if (choosingRef.current) return;
         if (hovered.current && hovered.current !== hit) mark(view, hovered.current, "hot", false);
         hovered.current = element ? hit : null;
         mark(view, hit, "hot", !!element);
@@ -154,6 +230,7 @@ export function TextDecorationLayer({
         anchor={tip && tip.choice === undefined ? tip.anchor : null}
         open={!!tip}
         placement="bottom-start"
+        fitVerticalSpace={!!preview}
         role={preview ? undefined : "tooltip"}
         onPointerEnter={keep}
         onPointerLeave={leave}
@@ -184,7 +261,7 @@ export function TextDecorationLayer({
             data-autofocus
             tabIndex={-1}
             aria-activedescendant={`tau-decoration-option-${index}`}
-            className="outline-none"
+            className="max-h-[45vh] overflow-y-auto outline-none"
             onKeyDown={onKeyDown}
           >
             <div className="text-ink-3 px-2 pt-1 pb-1.5 text-[11.5px]">
@@ -215,9 +292,9 @@ export function TextDecorationLayer({
             ))}
           </div>
           {tip?.choice !== undefined && card && (
-            <div onPointerEnter={keep} onPointerLeave={leave}>
+            <CandidatePreview anchor={tip.anchor} keep={keep} leave={leave}>
               {card}
-            </div>
+            </CandidatePreview>
           )}
         </Popover>
       )}
