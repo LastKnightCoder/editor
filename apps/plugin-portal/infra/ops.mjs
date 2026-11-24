@@ -24,7 +24,7 @@ const help = `用法：node apps/plugin-portal/infra/ops.mjs <命令> [--execute
 默认仅打印计划，不调用云端、不构建、不修改数据。
   verify        类型、前后端测试、正式目标构建（不部署）
   status        登录账号、Worker版本、Pages部署、D1迁移、R2及Secrets名称
-  smoke         公网API健康/CORS、下载清单、协作HTTPS/WSS、统计脚本
+  smoke         公网API健康/CORS、插件目录与详情、协作HTTPS/WSS
   backup        导出D1至仓库外的私有备份目录
   migrate       备份D1后应用正式迁移，不隐式发布代码
   buckets       按正式配置补建缺失的私有R2桶（已存在则跳过），并确认r2.dev关闭
@@ -106,7 +106,7 @@ console.log("前端构建固定 VITE_MOCK_API=false，并使用上述API地址�
 for (const args of plans[action])
   console.log("pnpm " + args.map(arg => JSON.stringify(arg)).join(" "));
 if (action === "smoke")
-  console.log("检查API/CORS、下载清单、collab HTTPS/WSS、stats脚本；不登录、不上传用户文件。");
+  console.log("检查API/CORS、插件目录与详情、collab HTTPS/WSS；不登录、不上传用户文件。");
 if (action === "secrets")
   console.log("密钥值仅经stdin传递；缺少固定加密密钥则拒绝，不自动生成或轮换。");
 if (!execute) {
@@ -299,8 +299,6 @@ async function smoke() {
       options.headers.get("access-control-allow-headers")?.toLowerCase().includes("x-csrf-token"),
     "CORS预检失败"
   );
-  const download = await get("https://dl.taunote.app/publish-template-latest.json");
-  assert(download.status === 200 && typeof (await download.json()) === "object", "下载清单不可用");
   const ready = await get("https://collab.taunote.app/health/ready");
   assert(ready.status === 200 && (await ready.json()).ok === true, "协作服务未就绪");
   for (const pathname of ["/ws", "/events"])
@@ -328,8 +326,7 @@ async function smoke() {
         { once: true }
       );
     });
-  assert((await get("https://stats.taunote.app/script.js")).status === 200, "统计脚本不可用");
   console.log(
-    "API v1/v2、平台计数、详情、CORS、下载清单、协作HTTPS/WSS、统计脚本检查通过。门户页面与真实登录上传需另行验收。"
+    "API v1/v2、平台计数、详情、CORS、协作HTTPS/WSS检查通过。门户页面与真实登录上传需另行验收。"
   );
 }
