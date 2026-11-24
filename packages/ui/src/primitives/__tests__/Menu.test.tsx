@@ -83,6 +83,69 @@ describe("Menu（方案 B）", () => {
     vi.restoreAllMocks();
   });
 
+  it.each([
+    ["dropdown", "click"],
+    ["dropdown", "keyboard"],
+    ["context", "click"],
+    ["context", "keyboard"],
+    ["submenu", "click"],
+    ["submenu", "keyboard"],
+  ] as const)("%s 菜单通过 %s 请求删除时保留列表，确认后才移除会话", (kind, input) => {
+    // 全部会话曾因 Portal 点击冒泡到会话行而跳转，导致删除确认随列表关闭。
+    function SessionList() {
+      const [opened, setOpened] = useState(false);
+      const [pendingDelete, setPendingDelete] = useState(false);
+      const [deleted, setDeleted] = useState(false);
+      const action = <Menu.Item onSelect={() => setPendingDelete(true)}>删除</Menu.Item>;
+      const content =
+        kind === "submenu" ? <Menu.Submenu label="管理">{action}</Menu.Submenu> : action;
+      if (opened || deleted) return null;
+      return (
+        <>
+          <div data-session-row onClick={() => setOpened(true)}>
+            {kind !== "context" ? (
+              <Menu trigger={<button onClick={e => e.stopPropagation()}>更多操作</button>}>
+                {content}
+              </Menu>
+            ) : (
+              <ContextMenu content={content}>
+                <button>会话</button>
+              </ContextMenu>
+            )}
+          </div>
+          {pendingDelete && (
+            <div role="dialog">
+              <button onClick={() => setDeleted(true)}>确认删除</button>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    const h = render(<SessionList />);
+    cleanups.push(h.cleanup);
+    if (kind !== "context") click(h.trigger);
+    else {
+      act(() => {
+        h.trigger.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+      });
+    }
+    let menu = h.menu;
+    if (kind === "submenu") {
+      if (input === "click") click(items(menu)[0] as Element);
+      else key(menu, "ArrowRight");
+      menu = menusInDoc()[1] as HTMLElement;
+    }
+    if (input === "click") click(items(menu)[0] as Element);
+    else key(menu, "Enter");
+
+    expect(h.container.querySelector("[data-session-row]")).not.toBeNull();
+    expect(h.container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(h.menu.hasAttribute("inert")).toBe(true);
+    click(h.container.querySelector('[role="dialog"] button') as HTMLButtonElement);
+    expect(h.container.querySelector("[data-session-row]")).toBeNull();
+  });
+
   it("Home/End、checkbox Enter 与 trigger toggle", () => {
     const changed = vi.fn();
     const h = render(

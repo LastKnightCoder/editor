@@ -262,6 +262,7 @@ function MenuSurface({
         aria-activedescendant={nav.current ?? undefined}
         data-open={open}
         onKeyDown={onKeyDown}
+        onClick={e => e.stopPropagation()}
         className={cn(
           "bg-surface border-line-1 shadow-float rounded-tau-lg border p-[6px]",
           "fixed left-0 top-0 z-[250] flex w-max min-w-[160px] max-w-[min(320px,calc(100vw-16px))] flex-col overflow-hidden",
