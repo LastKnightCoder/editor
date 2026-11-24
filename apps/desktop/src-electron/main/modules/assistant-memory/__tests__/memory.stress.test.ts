@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { MemoryEvidence, MemorySource, MemorySourceKind } from "@/types/assistant-memory";
-import { parseExtraction, type MemoryCandidate, type MemoryPart } from "../extraction";
+import {
+  parseExtraction,
+  SESSION_SUMMARY_SYSTEM,
+  type MemoryCandidate,
+  type MemoryPart,
+} from "../extraction";
 import type { MemoryHead, MemorySnapshot, MemorySourcesPort } from "../sources";
 import { MemoryStore, openMemoryStoreForLibrary } from "../store";
 import { MemoryWorker, type MemoryWorkerOptions } from "../worker";
@@ -119,9 +124,19 @@ function setup() {
   let busy = false;
   let calls = 0;
   let maxInput = 0;
-  let complete: MemoryWorkerOptions["complete"] = async (_system, input, _signal, purpose) => {
+  const extracted: string[] = [];
+  const summarized: string[][] = [];
+  let complete: MemoryWorkerOptions["complete"] = async (system, input, _signal, purpose) => {
     if (purpose === "reconcile") return "[]";
     if (purpose !== "extract") return JSON.stringify({ models: [], retire: [] });
+    // 摘要与片段提炼共用 extract 用途，但各自遵循不同的输入输出协议。
+    if (system === SESSION_SUMMARY_SYSTEM) {
+      const { messages } = JSON.parse(input) as { messages: Array<{ text: string }> };
+      summarized.push(messages.map(message => message.text));
+      return "null";
+    }
+    const { parts } = JSON.parse(input) as { parts: Array<{ text: string }> };
+    extracted.push(...parts.map(part => part.text));
     calls++;
     maxInput = Math.max(maxInput, input.length);
     return extraction(input);
@@ -140,6 +155,8 @@ function setup() {
   let retrieval = new MemoryRetrieval({ store, sources, now: () => now });
   return {
     sources,
+    extracted,
+    summarized,
     get store() {
       return store;
     },
@@ -507,15 +524,27 @@ describe("个人助手记忆", () => {
       f.worker.changed(source);
       await f.worker.runBatch(1);
       expect(f.store.progress(source)?.cursor).toBe("段7:0");
+      expect(f.summarized).toEqual([]);
       f.reopen();
       await f.drain();
       expect(f.calls).toBe(3);
+      expect(f.extracted).toEqual(initial);
+      expect(f.summarized).toHaveLength(1);
       expect(f.store.progress(source)?.checkedCursor).toBe("段18:0");
+
+      f.reopen();
+      f.worker.reconcile(["chat"]);
+      await f.drain();
+      expect(f.extracted).toEqual(initial);
+      expect(f.summarized).toHaveLength(1);
 
       f.sources.put("chat", "1", START + 1, [...initial, "我更喜欢结构图"]);
       f.worker.changed(source);
       await f.drain();
       expect(f.calls).toBe(4);
+      expect(f.extracted).toEqual([...initial, "我更喜欢结构图"]);
+      expect(f.summarized).toHaveLength(2);
+      expect(f.summarized[1].at(-1)).toBe("我更喜欢结构图");
       const item = f.retrieval.search({ query: "结构图" }, true).memories[0];
       expect(item.text).toBe("我更喜欢结构图");
       f.store.correct(

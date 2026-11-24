@@ -46,10 +46,12 @@ describe("个人记忆的真实资料来源", () => {
       const rows = sources.list("activity", "", 10);
       expect(rows).toHaveLength(1);
       expect(recorded).toEqual(["insert", "update", "update"]);
+      expect(sources.read(present(sources.head(rows[0]))).parts).toEqual([]);
+      OperationTable.insertOperation(db, "content", "update", 1, at + 3000);
       const snapshot = sources.read(present(sources.head(rows[0])));
       expect(snapshot.parts[0].text).toContain("编辑了资料《Rust 学习资料》");
       expect(snapshot.parts[0].text).not.toContain("知识点定义");
-      expect(snapshot.parts[0].observedAt).toBe(at + 2000);
+      expect(snapshot.parts[0].observedAt).toBe(at + 3000);
       expect(snapshot.parts[0].role).toBe("activity");
     } finally {
       unsubscribe();
