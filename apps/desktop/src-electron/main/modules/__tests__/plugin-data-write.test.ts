@@ -1,7 +1,30 @@
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import * as Y from "yjs";
 
-vi.mock("electron");
+const host = vi.hoisted(() => ({
+  directory: "",
+  databases: new Map<string, Database.Database>(),
+}));
+vi.mock("electron", () => ({
+  app: { on: vi.fn(), getPath: () => "/tmp" },
+  BrowserWindow: { getAllWindows: () => [], fromId: () => undefined },
+  ipcMain: { handle: vi.fn() },
+}));
+vi.mock("../database", () => ({
+  default: {
+    databases: host.databases,
+    getDatabase: (name: string) => host.databases.get(name),
+    onDatabaseConnected: vi.fn(),
+  },
+}));
+vi.mock("../../utils/PathUtil", () => ({
+  default: { getAppDir: () => host.directory },
+}));
+vi.mock("../collaboration", () => ({ default: { documentClient: vi.fn() } }));
 vi.mock("../video-note-index-queue");
 
 vi.mock("../../services/content-execution", () => ({
@@ -17,7 +40,11 @@ vi.mock("../../services/content-execution", () => ({
   },
 }));
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
-import { createNodeDocument } from "@tau/collaboration";
+import {
+  createNodeDocument,
+  WHITEBOARD_DOCUMENT_VERSION,
+  WhiteboardModel,
+} from "@tau/collaboration";
 import { Awareness } from "y-protocols/awareness";
 import { ContentDocumentTable } from "../tables/content-document";
 import { ContentIdentityTable } from "../tables/content-identity";
@@ -36,6 +63,8 @@ import ContentTable from "../tables/content";
 import WhiteboardContentTable from "../tables/white-board-content";
 import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
 import { executeDatabaseCommand } from "../database-command";
+import whiteboardDocuments from "../whiteboard-documents";
+import { WhiteboardDocumentRepository } from "../whiteboard-documents/repository";
 import { must } from "../../test-support";
 
 const scope = { databaseName: ":memory:", pluginId: "weekly" };
@@ -43,12 +72,27 @@ const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
 
 describe("PluginDataTable 写入", () => {
   let db: Database.Database;
+  beforeAll(async () => {
+    // 新建白板由文档会话托管，删除与回收不能绕过真实文档服务。
+    host.directory = mkdtempSync(join(tmpdir(), "plugin-data-whiteboard-"));
+    await whiteboardDocuments.init();
+  });
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(MAIN_SCHEMA_SQL);
+    host.databases.set(scope.databaseName, db);
     ctx.broadcastAll.mockClear();
   });
-  afterEach(() => db.close());
+  afterEach(() => {
+    whiteboardDocuments.sessions.dispose();
+    host.databases.clear();
+    db.close();
+  });
+  afterAll(() => {
+    whiteboardDocuments.sessions.journal.close();
+    whiteboardDocuments.installation.state.db.close();
+    rmSync(host.directory, { recursive: true, force: true });
+  });
 
   const contentOf = (contentId: number | null) =>
     getMarkdown(
@@ -677,12 +721,42 @@ describe("PluginDataTable 写入", () => {
       pageCount: 1,
       contentId: null,
     });
-    const page = db.prepare("SELECT name, data FROM white_board_contents").get() as {
+    const page = db.prepare("SELECT * FROM white_board_contents").get() as {
+      id: number;
       name: string;
       data: string;
     };
+    const mapping = db
+      .prepare("SELECT document_id,page_id FROM whiteboard_document_pages WHERE content_id=?")
+      .get(page.id) as { document_id: string; page_id: string };
+    const documentBefore = db.prepare("SELECT * FROM whiteboard_documents").get();
+    const stored = must(
+      new WhiteboardDocumentRepository(db, scope.databaseName).read(mapping.document_id),
+      "新建白板文档"
+    );
     expect(page.name).toBe("思路");
-    expect(JSON.parse(page.data)).toMatchObject({ children: [], version: 2 });
+    expect(stored.boardId).toBe(board.id);
+    expect(JSON.parse(page.data)).toMatchObject({
+      children: [],
+      version: WHITEBOARD_DOCUMENT_VERSION,
+      documentKind: "whiteboard",
+      documentId: mapping.document_id,
+      pageId: mapping.page_id,
+      epoch: stored.epoch,
+      revision: stored.revision,
+    });
+    const doc = new Y.Doc();
+    const model = new WhiteboardModel(doc);
+    try {
+      Y.applyUpdate(doc, stored.state);
+      expect(model.read()).toMatchObject({
+        title: "思路",
+        pages: [{ id: mapping.page_id, title: "思路", children: [] }],
+      });
+    } finally {
+      model.dispose();
+      doc.destroy();
+    }
 
     db.prepare("UPDATE white_boards SET update_time = 1 WHERE id = ?").run(board.id);
     const updated = PluginDataTable.update(
@@ -697,6 +771,8 @@ describe("PluginDataTable 写入", () => {
       ctx
     );
     expect(updated).toMatchObject({ title: "思路", description: "", tags: [], pageCount: 1 });
+    expect(db.prepare("SELECT * FROM white_board_contents").get()).toEqual(page);
+    expect(db.prepare("SELECT * FROM whiteboard_documents").get()).toEqual(documentBefore);
     expect(() =>
       PluginDataTable.update(
         db,
@@ -874,13 +950,19 @@ describe("PluginDataTable 写入", () => {
         .get(board.id) as { ids: string }
     ).ids;
     const [page] = JSON.parse(pageId) as number[];
+    const pageBefore = db.prepare("SELECT data FROM white_board_contents WHERE id=?").get(page);
+    const owner = () => db.prepare("SELECT document_id,board_id FROM whiteboard_documents").get();
+    const documentBefore = owner();
+    const refCount = () =>
+      db.prepare("SELECT ref_count FROM white_board_contents WHERE id=?").get(page);
     const pending = () =>
       db
         .prepare(
           "SELECT COUNT(*) AS n FROM white_board_content_pending_releases WHERE content_id = ?"
         )
         .get(page);
-    PluginDataTable.remove(db, {
+    const commands = PluginDataTable.getListenEvents();
+    await executeDatabaseCommand(db, commands["plugin-data:delete"], db, {
       ...scope,
       entity: "whiteboard",
       id: board.id,
@@ -888,16 +970,77 @@ describe("PluginDataTable 写入", () => {
     });
     expect(PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id })).toBeNull();
     expect(pending()).toEqual({ n: 1 });
+    expect(refCount()).toEqual({ ref_count: 0 });
+    expect(owner()).toMatchObject({ board_id: null });
     const [operation] = PluginDataTable.operations(db, scope);
     expect(operation).toMatchObject({ entity: "whiteboard", title: "思路" });
-    expect(PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toEqual({
+    expect(
+      executeDatabaseCommand(
+        db,
+        commands["plugin-data:restore"],
+        db,
+        { ...scope, id: operation.id },
+        ctx
+      )
+    ).toEqual({
       entity: "whiteboard",
       id: board.id,
     });
     expect(pending()).toEqual({ n: 0 });
+    expect(refCount()).toEqual({ ref_count: 1 });
+    expect(owner()).toEqual(documentBefore);
+    expect(db.prepare("SELECT data FROM white_board_contents WHERE id=?").get(page)).toEqual(
+      pageBefore
+    );
     expect(PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id })).toMatchObject(
       { title: "思路", pageCount: 1 }
     );
+    const view = await whiteboardDocuments.sessions.open(scope.databaseName, page, 1, "restored");
+    const beforeEdit = must(
+      PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id }),
+      "恢复后的白板"
+    );
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Number(beforeEdit.revision) + 1);
+    const doc = new Y.Doc();
+    const model = new WhiteboardModel(doc);
+    try {
+      Y.applyUpdate(doc, view.state);
+      const vector = Y.encodeStateVector(doc);
+      model.submit([{ type: "edit_title", edit: { offset: 2, remove: 0, text: "续写" } }], null);
+      await whiteboardDocuments.sessions.append(
+        view.leaseId,
+        1,
+        "after-restore",
+        Y.encodeStateAsUpdate(doc, vector)
+      );
+      expect(
+        PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id })
+      ).toMatchObject({
+        title: "思路续写",
+        pageCount: 1,
+      });
+      expect(() =>
+        PluginDataTable.update(
+          db,
+          {
+            ...scope,
+            entity: "whiteboard",
+            id: board.id,
+            patch: { description: "过期修改" },
+            expectedRevision: beforeEdit.revision,
+          },
+          ctx
+        )
+      ).toThrow("PLUGIN_CONFLICT:");
+      expect(owner()).toEqual(documentBefore);
+      expect(refCount()).toEqual({ ref_count: 1 });
+      expect(pending()).toEqual({ n: 0 });
+    } finally {
+      clock.mockRestore();
+      model.dispose();
+      doc.destroy();
+      await whiteboardDocuments.sessions.release(view.leaseId, 1);
+    }
   });
 
   it("画板页已过宽限期被回收时，白板无法恢复", async () => {
@@ -906,17 +1049,28 @@ describe("PluginDataTable 写入", () => {
       { ...scope, entity: "whiteboard", input: { title: "旧" } },
       ctx
     );
-    PluginDataTable.remove(db, {
+    const commands = PluginDataTable.getListenEvents();
+    await executeDatabaseCommand(db, commands["plugin-data:delete"], db, {
       ...scope,
       entity: "whiteboard",
       id: board.id,
       expectedRevision: board.revision,
     });
-    WhiteboardContentTable.collectPendingReleases(db, { now: Date.now() + 1, graceMs: 0 });
+    const now = Date.now() + 1;
+    expect(whiteboardDocuments.collectPendingDocuments(db, now, 0)).toBe(1);
+    expect(WhiteboardContentTable.collectPendingReleases(db, { now, graceMs: 0 })).toBe(1);
     const [operation] = PluginDataTable.operations(db, scope);
-    expect(() => PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toThrow(
-      "画板页已被清理"
-    );
+    expect(() =>
+      executeDatabaseCommand(
+        db,
+        commands["plugin-data:restore"],
+        db,
+        { ...scope, id: operation.id },
+        ctx
+      )
+    ).toThrow("画板页已被清理");
+    expect(PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id })).toBeNull();
+    expect(PluginDataTable.operations(db, scope)[0].restoredAt).toBeNull();
   });
 
   it("项目只能删除空项目，可恢复", async () => {
