@@ -1,4 +1,4 @@
-import { comparePluginVersions, isPluginCategory } from "@tau/plugins/package";
+import { isPluginCategory } from "@tau/plugins/package";
 import { distributionPackageKind } from "@tau/plugins/template";
 import {
   normalizeCenterHost,
@@ -23,46 +23,24 @@ import {
   type BackgroundTasks,
 } from "./platform";
 import { downloadWindow } from "./download-statistics";
+import {
+  catalogData,
+  columns,
+  CURRENT_PACKAGE,
+  platformWhere,
+  compare,
+  type Metadata,
+  type CatalogData,
+} from "./catalog-data";
 import { downloadPublishedRelease, type ReleaseRow } from "./releases";
 import { portablePlatformEnabled } from "./portable-review";
 
-interface Metadata {
-  id: string;
-  plugin_id: string;
-  version: string;
-  format_version: 1 | 2 | 3;
-  package_kind: "plugin" | "skills" | "template";
-  distribution_platform: "desktop" | "portable";
-  profile: "web-v1" | null;
-  targets_json: string;
-  published_at: string;
-  size: number;
-  sha256: string;
-  name: string;
-  description: string;
-  categories: string;
-  keywords: string;
-  repository: string;
-  login: string;
-  avatar_url: string;
-}
 interface Position {
   rank: number;
   time: string;
   id: string;
 }
-const skillShape = (alias: string) =>
-  `(${alias}.format_version=1 AND json_extract(${alias}.content_json,'$.manifest.apiVersion')=1 AND json_type(${alias}.content_json,'$.manifest.skills')='array' AND json_array_length(${alias}.content_json,'$.manifest.skills')>0 AND ${["main", "template", "backend", "format", "profile", "styles"].map(field => `json_type(${alias}.content_json,'$.manifest.${field}') IS NULL`).join(" AND ")})`;
-// 包类型来自实际结构，作者自填的 packageKind 不参与分发裁决。
-const CURRENT_PACKAGE = `(r.format_version<>1 OR (${skillShape("r")} AND (json_extract(r.content_json,'$.manifest.platform')='desktop' OR (json_extract(r.content_json,'$.manifest.platform')='portable' AND json_type(r.content_json,'$.manifest.targets')='object'))) OR (json_extract(r.content_json,'$.manifest.platform')='desktop' AND json_type(r.content_json,'$.manifest.template')='object' AND json_type(r.content_json,'$.manifest.main') IS NULL))`;
-const columns = `r.id,r.plugin_id,r.version,r.format_version,r.profile,r.targets_json,r.published_at,r.size,r.sha256,r.name,r.description,r.categories,r.keywords,r.repository,p.login,p.avatar_url,json_extract(r.content_json,'$.manifest.platform') AS distribution_platform,CASE WHEN ${skillShape("r")} THEN 'skills' WHEN r.format_version=1 AND json_type(r.content_json,'$.manifest.template')='object' THEN 'template' ELSE 'plugin' END AS package_kind`;
-const platformWhere =
-  "(?='all' OR EXISTS(SELECT 1 FROM release_targets t WHERE t.release_id=r.id AND t.platform=?))";
 const strings = (value: string): string[] => JSON.parse(value);
-const compare = (a: Metadata, b: Metadata) =>
-  comparePluginVersions(b.version, a.version) ||
-  b.published_at.localeCompare(a.published_at) ||
-  a.id.localeCompare(b.id);
 const version = (row: Metadata, env: Env): CenterVersion => ({
   releaseId: row.id,
   version: row.version,
@@ -161,130 +139,99 @@ async function metadata(env: Env, pluginId: string, platform: CenterPlatform = "
   return rows.results.sort(compare);
 }
 
-/** 按插件分批读轻量元数据，平台在 SQL 分页前过滤，不加载 README 或 ZIP。 */
-async function* entries(
+function* entries(
   env: Env,
   query: ReturnType<typeof normalizeCenterQuery>,
   after: Position | null,
-  day: string,
-  windowStart: string
+  data: CatalogData
 ) {
-  let position = after;
-  for (;;) {
+  const candidates = [];
+  for (const [id, group] of data.versions) {
+    const versions = group.filter(
+      row =>
+        row.current_package &&
+        (query.platform === "all" ||
+          (JSON.parse(row.target_platforms) as string[]).includes(query.platform))
+    );
+    if (!versions.length) continue;
+    const time = versions.reduce(
+      (latest, row) => (row.published_at > latest ? row.published_at : latest),
+      ""
+    );
+    const total = data.totals.get(id) ?? 0,
+      recent = data.recent.get(id) ?? 0;
     const rank =
-      query.sort === "downloadsTotal" ? "total" : query.sort === "downloads7d" ? "recent" : "0";
-    const page = await env.DB.prepare(
-      `WITH candidates AS (
-      SELECT r.plugin_id,MAX(r.published_at) AS time,COALESCE(t.downloads,0) AS total,COALESCE(d.downloads,0) AS recent
-      FROM releases r LEFT JOIN plugin_download_totals t ON t.plugin_id=r.plugin_id
-      LEFT JOIN (SELECT plugin_id,SUM(downloads) AS downloads FROM plugin_download_daily WHERE day>=? AND day<=? GROUP BY plugin_id) d ON d.plugin_id=r.plugin_id
-      WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND ${platformWhere} GROUP BY r.plugin_id
-    ), ranked AS (SELECT *,${rank} AS rank FROM candidates)
-    SELECT * FROM ranked ${position ? "WHERE rank<? OR (rank=? AND (time<? OR (time=? AND plugin_id>?)))" : ""} ORDER BY rank DESC,time DESC,plugin_id ASC LIMIT 50`
+      query.sort === "downloadsTotal" ? total : query.sort === "downloads7d" ? recent : 0;
+    if (
+      after &&
+      !(
+        rank < after.rank ||
+        (rank === after.rank && (time < after.time || (time === after.time && id > after.id)))
+      )
     )
-      .bind(
-        windowStart,
-        day,
-        query.platform,
-        query.platform,
-        ...(position
-          ? [position.rank, position.rank, position.time, position.time, position.id]
-          : [])
-      )
-      .all<{ plugin_id: string; time: string; rank: number; total: number; recent: number }>();
-    if (!page.results.length) return;
-    const ids = page.results.map(item => item.plugin_id),
-      marks = ids.map(() => "?").join(",");
-    const [rows, likes] = await Promise.all([
-      env.DB.prepare(
-        `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND ${platformWhere} AND r.plugin_id IN (${marks})`
-      )
-        .bind(query.platform, query.platform, ...ids)
-        .all<Metadata>(),
-      env.DB.prepare(
-        `SELECT plugin_id,COUNT(*) AS n FROM plugin_likes WHERE plugin_id IN (${marks}) GROUP BY plugin_id`
-      )
-        .bind(...ids)
-        .all<{ plugin_id: string; n: number }>(),
-    ]);
-    const likeMap = new Map(likes.results.map(item => [item.plugin_id, item.n]));
-    for (const candidate of page.results) {
-      position = { rank: candidate.rank, time: candidate.time, id: candidate.plugin_id };
-      const versions = rows.results
-        .filter(row => row.plugin_id === candidate.plugin_id)
-        .sort(compare);
-      const latest = versions[0];
-      if (!latest) continue;
+      continue;
+    candidates.push({ id, versions, time, total, recent, rank });
+  }
+  candidates.sort(
+    (a, b) =>
+      b.rank - a.rank ||
+      (a.time < b.time ? 1 : a.time > b.time ? -1 : 0) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+  for (const candidate of candidates) {
+    const { versions, id } = candidate;
+    const latest = versions[0];
+    if (
+      ![id, latest.name, latest.description, ...strings(latest.keywords)]
+        .join("\n")
+        .toLowerCase()
+        .includes(query.q)
+    )
+      continue;
+    const compatible = query.host
+      ? versions.find(row => compatibility(row, env, query.host).status === "compatible")
+      : undefined;
+    const item: CenterCatalogEntry = {
+      pluginId: id,
+      name: latest.name,
+      description: latest.description,
+      categories: strings(latest.categories).filter(isPluginCategory),
+      keywords: strings(latest.keywords),
+      publisher: { login: latest.login, avatarUrl: latest.avatar_url },
+      repository: latest.repository,
+      downloadsTotal: candidate.total,
+      downloads7d: candidate.recent,
+      likes: data.likes.get(id) ?? 0,
+      latest: version(latest, env),
+      compatible: compatible ? version(compatible, env) : null,
+      compatibility: compatibility(compatible ?? latest, env, query.host),
+    };
+    yield { item, position: { rank: candidate.rank, time: candidate.time, id } };
+  }
+}
+function facets(data: CatalogData, query: ReturnType<typeof normalizeCenterQuery>) {
+  const platformCounts: Record<CenterPlatform, number> = { all: 0, desktop: 0, android: 0, ios: 0 };
+  const categoryCounts: Partial<Record<import("@tau/plugins/package").PluginCategory, number>> = {};
+  for (const [id, group] of data.versions) {
+    const versions = group.filter(row => row.current_package);
+    for (const platform of ["all", "desktop", "android", "ios"] as const) {
+      const latest = versions.find(
+        row => platform === "all" || Object.hasOwn(JSON.parse(row.targets_json), platform)
+      );
       if (
-        ![latest.plugin_id, latest.name, latest.description, ...strings(latest.keywords)]
+        !latest ||
+        ![id, latest.name, latest.description, ...strings(latest.keywords)]
           .join("\n")
           .toLowerCase()
           .includes(query.q)
       )
         continue;
-      const compatible = query.host
-        ? versions.find(row => compatibility(row, env, query.host).status === "compatible")
-        : undefined;
-      const item: CenterCatalogEntry = {
-        pluginId: latest.plugin_id,
-        name: latest.name,
-        description: latest.description,
-        categories: strings(latest.categories).filter(isPluginCategory),
-        keywords: strings(latest.keywords),
-        publisher: { login: latest.login, avatarUrl: latest.avatar_url },
-        repository: latest.repository,
-        downloadsTotal: candidate.total,
-        downloads7d: candidate.recent,
-        likes: likeMap.get(latest.plugin_id) ?? 0,
-        latest: version(latest, env),
-        compatible: compatible ? version(compatible, env) : null,
-        compatibility: compatibility(compatible ?? latest, env, query.host),
-      };
-      yield { item, position };
+      const categories = strings(latest.categories).filter(isPluginCategory);
+      if (!query.category || categories.includes(query.category)) platformCounts[platform]++;
+      if (platform === query.platform)
+        for (const category of categories)
+          categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
     }
-    if (page.results.length < 50) return;
-  }
-}
-async function facets(env: Env, query: ReturnType<typeof normalizeCenterQuery>) {
-  const platformCounts: Record<CenterPlatform, number> = { all: 0, desktop: 0, android: 0, ios: 0 };
-  const categoryCounts: Partial<Record<import("@tau/plugins/package").PluginCategory, number>> = {};
-  let after = "";
-  for (;;) {
-    const page = await env.DB.prepare(
-      `SELECT DISTINCT r.plugin_id FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND r.plugin_id>? ORDER BY r.plugin_id LIMIT 50`
-    )
-      .bind(after)
-      .all<{ plugin_id: string }>();
-    if (!page.results.length) break;
-    const ids = page.results.map(item => item.plugin_id);
-    const rows = await env.DB.prepare(
-      `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND r.plugin_id IN (${ids.map(() => "?").join(",")})`
-    )
-      .bind(...ids)
-      .all<Metadata>();
-    for (const id of ids) {
-      const versions = rows.results.filter(row => row.plugin_id === id).sort(compare);
-      for (const platform of ["all", "desktop", "android", "ios"] as const) {
-        const latest = versions.find(
-          row => platform === "all" || Object.hasOwn(JSON.parse(row.targets_json), platform)
-        );
-        if (
-          !latest ||
-          ![id, latest.name, latest.description, ...strings(latest.keywords)]
-            .join("\n")
-            .toLowerCase()
-            .includes(query.q)
-        )
-          continue;
-        const categories = strings(latest.categories).filter(isPluginCategory);
-        if (!query.category || categories.includes(query.category)) platformCounts[platform]++;
-        if (platform === query.platform)
-          for (const category of categories)
-            categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
-      }
-    }
-    after = ids[ids.length - 1];
-    if (ids.length < 50) break;
   }
   return { platformCounts, categoryCounts };
 }
@@ -304,10 +251,11 @@ async function catalog(request: Request, env: Env) {
       typeof after.id !== "string")
   )
     fail(400, "INVALID_INPUT", "目录游标无效");
+  const data = await catalogData(env, day, windowStart);
   const items: CenterCatalogEntry[] = [];
   let last: Position | null = null,
     hasMore = false;
-  for await (const value of entries(env, query, after, day, windowStart)) {
+  for (const value of entries(env, query, after, data)) {
     if (query.category && !value.item.categories.includes(query.category)) continue;
     if (items.length < query.limit) {
       items.push(value.item);
@@ -321,7 +269,7 @@ async function catalog(request: Request, env: Env) {
     items,
     nextCursor: hasMore && last ? encodeCursor({ scope, position: last }) : null,
     windowStart,
-    ...(query.cursor ? { categoryCounts: null, platformCounts: null } : await facets(env, query)),
+    ...(query.cursor ? { categoryCounts: null, platformCounts: null } : facets(data, query)),
   });
 }
 

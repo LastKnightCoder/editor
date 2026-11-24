@@ -2,7 +2,9 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import type { Env } from "./platform";
 
-export function testEnvironment(options: { portableSchema?: boolean; migrationsRoot?: URL } = {}) {
+export function testEnvironment(
+  options: { portableSchema?: boolean; catalogCacheSchema?: boolean; migrationsRoot?: URL } = {}
+) {
   const sqlite = new DatabaseSync(":memory:");
   const migrations = options.migrationsRoot ?? new URL("../infra/migrations/", import.meta.url);
   sqlite.exec(readFileSync(new URL("0001_submissions.sql", migrations), "utf8"));
@@ -18,9 +20,11 @@ export function testEnvironment(options: { portableSchema?: boolean; migrationsR
     "0011_backend_review.sql",
     "0012_portable_distribution.sql",
     "0013_portable_skill_distribution.sql",
+    "0014_catalog_cache.sql",
   ].filter(
     name =>
-      options.portableSchema !== false || (!name.startsWith("0012_") && !name.startsWith("0013_"))
+      (options.portableSchema !== false || Number(name.slice(0, 4)) < 12) &&
+      (options.catalogCacheSchema !== false || !name.startsWith("0014_"))
   ))
     sqlite.exec(readFileSync(new URL(name, migrations), "utf8"));
   class Statement {

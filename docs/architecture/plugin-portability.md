@@ -14,7 +14,7 @@
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 
-门户 `PortalApi.center` 提供 /v2 HTTP 适配与查询 hooks，沿用错误信封与取消信号。/v2 的平台计数、选版、发布状态与格式 3 审核契约见[门户协议](/apps/plugin-portal/docs/协议.md)。旧公共 v1 过滤格式 3；客户端真实失败不会回退旧接口或模拟成功。显式 mock 可注入测试发布记录，不生成可安装 ZIP。
+门户 `PortalApi.center` 提供 /v2 HTTP 适配与查询 hooks，沿用错误信封与取消信号。/v2 的平台计数、选版、发布状态、公开目录缓存失效与格式 3 审核契约见[门户协议](/apps/plugin-portal/docs/协议.md)。旧公共 v1 过滤格式 3；客户端真实失败不会回退旧接口或模拟成功。显式 mock 可注入测试发布记录，不生成可安装 ZIP。
 
 移动 `services/pluginCenter` 与 `features/plugins/data/center-queries` 通过固定操作的 Tauri 命令访问中心，不把请求 URL 或宿主版本的决定权交给页面。原生使用实际平台与应用版本；禁止跳转并限制响应大小，保留结构化错误。默认 origin 固定，调试构建可指定 HTTPS 或本机 HTTP；release 构建忽略调试来源。中心安装只接收 pluginId/releaseId，原生 resolve 后下载、暂存，TS 对账规范化清单与审核记录，原生提交前再次 resolve。来源记录包含 origin/releaseId，普通开发 commit 不能提交中心包。
 

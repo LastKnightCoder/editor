@@ -12,6 +12,7 @@ import type {
 } from "../contracts";
 import { fail, json, sha256, VISIBLE_PLUGIN, type Env, type BackgroundTasks } from "./platform";
 import { countDownload, downloadWindow, pluginStatistics } from "./download-statistics";
+import { catalogData, type CatalogData } from "./catalog-data";
 import { purgeUploads } from "./uploads";
 import { requiresSystemReview } from "../contracts/execution";
 
@@ -168,24 +169,27 @@ const releaseCategories = (row: { categories: string }) =>
   parseList(row.categories).filter(isPluginCategory);
 
 /** 分类计数与目录同口径：取每个插件最高已发布版本的分类，并受 q 约束。 */
-async function categoryCounts(env: Env, query: string) {
-  const rows = await env.DB.prepare(
-    `SELECT plugin_id,version,name,description,keywords,categories FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${desktopRelease("r")}`
-  ).all<
-    Pick<CatalogRow, "plugin_id" | "version" | "name" | "description" | "keywords" | "categories">
-  >();
-  const latest = new Map<string, (typeof rows.results)[number]>();
-  for (const row of rows.results) {
-    const current = latest.get(row.plugin_id);
-    if (!current || comparePluginVersions(row.version, current.version) > 0)
-      latest.set(row.plugin_id, row);
-  }
+function categoryCounts(versions: Map<string, CatalogRow[]>, query: string) {
   const counts: Partial<Record<PluginCategory, number>> = {};
-  for (const row of latest.values()) {
+  for (const group of versions.values()) {
+    const row = group[0];
     if (query && !searchText(row).includes(query)) continue;
     for (const category of releaseCategories(row)) counts[category] = (counts[category] ?? 0) + 1;
   }
   return counts;
+}
+
+function legacyVersions(data: CatalogData): Map<string, CatalogRow[]> {
+  const versions = new Map<string, CatalogRow[]>();
+  for (const [id, group] of data.versions) {
+    const desktop = group.filter(
+      row =>
+        row.format_version !== 3 &&
+        (!row.distribution_platform || row.distribution_platform === "desktop")
+    );
+    if (desktop.length) versions.set(id, desktop);
+  }
+  return versions;
 }
 
 const catalogVersion = (row: CatalogRow, env: Env): CatalogVersion => ({
@@ -241,34 +245,47 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
       fail(400, "INVALID_INPUT", "分页游标无效或已跨日，请刷新列表");
     }
   }
-  const rank = sort === "downloadsTotal" ? "total" : sort === "downloads7d" ? "recent" : "0";
-  const ranked = await env.DB.prepare(
-    `WITH candidates AS (
-    SELECT r.plugin_id,MAX(r.published_at) AS time,COALESCE(t.downloads,0) AS total,COALESCE(d.downloads,0) AS recent
-    FROM releases r LEFT JOIN plugin_download_totals t ON t.plugin_id=r.plugin_id
-    LEFT JOIN (SELECT plugin_id,SUM(downloads) AS downloads FROM plugin_download_daily WHERE day>=? AND day<=? GROUP BY plugin_id) d ON d.plugin_id=r.plugin_id
-    WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${desktopRelease("r")} AND (?='' OR EXISTS(SELECT 1 FROM releases s WHERE s.plugin_id=r.plugin_id AND s.state='published' AND ${desktopRelease("s")} AND s.revoked_at IS NULL AND instr(lower(s.plugin_id||char(10)||s.name||char(10)||s.description||char(10)||s.keywords),?)>0))
-      AND (?='' OR EXISTS(SELECT 1 FROM releases s, json_each(s.categories) c WHERE s.plugin_id=r.plugin_id AND s.state='published' AND ${desktopRelease("s")} AND s.revoked_at IS NULL AND c.value=?))
-    GROUP BY r.plugin_id
-  ), ranked AS (SELECT *,${rank} AS rank FROM candidates)
-  SELECT * FROM ranked ${after ? "WHERE rank<? OR (rank=? AND (time<? OR (time=? AND plugin_id>?)))" : ""}
-  ORDER BY rank DESC,time DESC,plugin_id ASC LIMIT ?`
-  )
-    .bind(
-      windowStart,
-      day,
-      query,
-      query,
-      category,
-      category,
-      ...(after ? [after.rank, after.rank, after.time, after.time, after.id] : []),
-      limit + 1
+  const data = await catalogData(env, day, windowStart);
+  const versions = legacyVersions(data);
+  const ranked = [];
+  for (const [id, group] of versions) {
+    // 保留 v1 的任一历史版本候选筛选与最高版本最终匹配语义。
+    if (
+      query &&
+      !group.some(row =>
+        [id, row.name, row.description, row.keywords].join("\n").toLowerCase().includes(query)
+      )
     )
-    .all<{ plugin_id: string; time: string; rank: number; total: number; recent: number }>();
-  const page = ranked.results.slice(0, limit);
+      continue;
+    if (category && !group.some(row => releaseCategories(row).includes(category as PluginCategory)))
+      continue;
+    const total = data.totals.get(id) ?? 0,
+      recent = data.recent.get(id) ?? 0;
+    const rank = sort === "downloadsTotal" ? total : sort === "downloads7d" ? recent : 0;
+    const time = group.reduce(
+      (latest, row) => (row.published_at > latest ? row.published_at : latest),
+      ""
+    );
+    if (
+      after &&
+      !(
+        rank < after.rank ||
+        (rank === after.rank && (time < after.time || (time === after.time && id > after.id)))
+      )
+    )
+      continue;
+    ranked.push({ plugin_id: id, time, rank, total, recent });
+  }
+  ranked.sort(
+    (a, b) =>
+      b.rank - a.rank ||
+      (a.time < b.time ? 1 : a.time > b.time ? -1 : 0) ||
+      (a.plugin_id < b.plugin_id ? -1 : a.plugin_id > b.plugin_id ? 1 : 0)
+  );
+  const page = ranked.slice(0, limit);
   const last = page.at(-1);
   const nextCursor =
-    ranked.results.length > limit && last
+    ranked.length > limit && last
       ? btoa(
           String.fromCharCode(
             ...new TextEncoder().encode(
@@ -286,27 +303,7 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
           )
         )
       : null;
-  const counts = cursor ? null : await categoryCounts(env, query);
-  if (!page.length) return { items: [], nextCursor, windowStart, categoryCounts: counts };
-  const ids = page.map(item => item.plugin_id),
-    marks = ids.map(() => "?").join(",");
-  // 喜欢数口径与 GET /plugins/:id/community 一致：plugin_likes 现存行数，停用身份的喜欢不扣除。
-  const [rows, likeRows] = await Promise.all([
-    env.DB.prepare(
-      `SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.categories,r.keywords,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${desktopRelease("r")} AND r.plugin_id IN (${marks})`
-    )
-      .bind(...ids)
-      .all<CatalogRow>(),
-    env.DB.prepare(
-      `SELECT plugin_id,COUNT(*) AS likes FROM plugin_likes WHERE plugin_id IN (${marks}) GROUP BY plugin_id`
-    )
-      .bind(...ids)
-      .all<{ plugin_id: string; likes: number }>(),
-  ]);
-  const likes = new Map(likeRows.results.map(row => [row.plugin_id, row.likes]));
-  const versions = new Map<string, CatalogRow[]>();
-  for (const row of rows.results)
-    versions.set(row.plugin_id, [...(versions.get(row.plugin_id) ?? []), row]);
+  const counts = cursor ? null : categoryCounts(versions, query);
   const items: CatalogEntry[] = [];
   for (const candidate of page) {
     const list = versions.get(candidate.plugin_id);
@@ -323,7 +320,7 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
       pluginId: latest.plugin_id,
       downloadsTotal: candidate.total,
       downloads7d: candidate.recent,
-      likes: likes.get(candidate.plugin_id) ?? 0,
+      likes: data.likes.get(candidate.plugin_id) ?? 0,
       name: latest.name,
       description: latest.description,
       publisher: { login: latest.login, avatarUrl: latest.avatar_url },
