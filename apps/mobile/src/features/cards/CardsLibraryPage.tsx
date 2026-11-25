@@ -3,11 +3,12 @@
 
 import { useRef } from "react";
 import { useEdgeFade } from "../../hooks/useScrollState";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { CardsPage } from "./CardsPage";
 
 type CardsLibraryPageProps = {
   onOpenSearch: () => void;
+  onCreateCard: () => void;
   onPreviewCard: (cardId: number) => void;
   isPreviewOpen: boolean;
   cards: Parameters<typeof CardsPage>[0]["cards"];
@@ -34,14 +35,24 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
               : `${props.cards?.total ?? 0} 张卡片`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={props.onOpenSearch}
-          aria-label="搜索卡片"
-          className="bg-surface text-ink-2 shadow-card active:scale-88 grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200"
-        >
-          <Search size={20} strokeWidth={1.9} aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={props.onOpenSearch}
+            aria-label="搜索卡片"
+            className="bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
+          >
+            <Search size={20} strokeWidth={1.9} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={props.onCreateCard}
+            aria-label="新建卡片"
+            className="bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
+          >
+            <Plus size={21} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <div

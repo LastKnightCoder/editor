@@ -17,6 +17,7 @@ function CardsLibraryScreen() {
   return (
     <CardsLibraryPage
       onOpenSearch={() => navigator.push("search")}
+      onCreateCard={() => navigator.push("quickCapture")}
       onPreviewCard={onOpenCard}
       isPreviewOpen={false}
       cards={app.cards.cards}
