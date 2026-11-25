@@ -249,9 +249,10 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   卸载时归零。`PageHost` 的页面层从该偏移起铺并带 `contain: layout`，页内 `fixed` 元素（配件栏、块操作条等）以页面层为准，不会盖到导航条上；
   边缘返回从导航条右缘起算 28px，跟手宽度与 tab 滑切进度都按页面层宽度算。中等与宽档关闭 Tab 根左右滑切换，`--dock-visual-height`
   只剩底部安全区（`dock-pad` 随之收缩）。
-- **浮层形态**：`BottomSheet` / `ActionSheet` 在中等与宽档变成居中卡片（520 宽，水平居中在页面区域、垂直居中在键盘以上的可见区，
-  淡入缩放，无抓手与下拉关闭，动效与定位在 `components/sheetMotion.ts`）；`PanContainer`（SnapSheet）封顶 640 宽、在页面区域内居中，
-  铺满到顶时保留上圆角。
+- **浮层形态**：中等与宽档的浮层都变成居中卡片（动效与定位在 `components/sheetMotion.ts`：水平居中在页面区域、垂直居中在键盘以上的可见区，
+  淡入缩放，无抓手与下拉关闭），遮罩挂在 body 上盖住整屏（含左导航条）。`BottomSheet` / `ActionSheet` 封顶 520 宽；
+  `SnapSheet` 封顶 680 宽，能拖到全屏的抽屉给固定高度（封顶 760），只有一档的按内容高度，卡片内把 `--mobile-safe-top`、
+  `--mobile-overlay-bottom`、`--pan-occluded-bottom` 清零，内容里的安全区留白随之收起。紧凑档仍是 `PanContainer` 底部抽屉。
 - **页面排版**：今天页与卡片库、我的页内容封顶宽度居中；今天页仍是一列、顺序同手机，插件卡片 flex 换行（手机两个一行，容器 ≥ 640 时每格至少 300），
   wide 面板占整行。我的页功能宫格在中等与宽档一行 8 个（最多两行，超出时最后一格换成「更多」；长按任一格进入编辑、直接拖动排序，松手即存），设置分组各档都是单列，点任一项仍整页进入。
 

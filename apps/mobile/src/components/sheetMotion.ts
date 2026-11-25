@@ -16,9 +16,14 @@ export const CENTERED_SHEET_MOTION = {
 
 /**
  * 居中卡片的定位：水平居中在导航条右侧的页面区域，垂直居中在键盘以上的可见区，
- * 宽度封顶 520。位移交给 motion 的 x / y，避免与缩放动画的 transform 互相覆盖。
+ * 选择类面板宽度封顶 520。位移交给 motion 的 x / y，避免与缩放动画的 transform 互相覆盖。
  */
-export const CENTERED_SHEET_CLASS =
-  "bg-surface shadow-float absolute left-[calc(50%+var(--screen-inset-left)/2)] top-[calc(var(--kb-viewport-top)+var(--kb-viewport-height)/2)] w-[min(520px,calc(100%-var(--screen-inset-left)-48px))] rounded-[24px]";
+const CENTERED_SHEET_POSITION_CLASS =
+  "bg-surface shadow-float absolute left-[calc(50%+var(--screen-inset-left)/2)] top-[calc(var(--kb-viewport-top)+var(--kb-viewport-height)/2)] rounded-[24px]";
+
+export const CENTERED_SHEET_CLASS = `${CENTERED_SHEET_POSITION_CLASS} w-[min(520px,calc(100%-var(--screen-inset-left)-48px))]`;
+
+/** 承载阅读与编辑内容的抽屉（SnapSheet）换成的居中卡片：更宽，封顶 680 */
+export const CENTERED_READER_SHEET_CLASS = `${CENTERED_SHEET_POSITION_CLASS} w-[min(680px,calc(100%-var(--screen-inset-left)-48px))]`;
 
 export const CENTERED_SHEET_STYLE = { x: "-50%", y: "-50%" } as const;

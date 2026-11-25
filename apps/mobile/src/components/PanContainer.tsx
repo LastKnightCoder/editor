@@ -442,12 +442,8 @@ export function PanContainer(props: PanContainerProps) {
       <section
         ref={panelRef}
         className={cn(
-          // 中等与宽档：封顶 640 宽，在导航条右侧的页面区域内居中，不再横铺整屏
-          "bg-surface shadow-float absolute inset-x-0 bottom-0 top-0 flex flex-col medium:left-(--screen-inset-left) medium:mx-auto medium:max-w-[640px]",
-          // 宽屏铺满到顶时不贴两侧屏幕边，仍保留上圆角
-          activeState === "full" && !isDragging
-            ? "rounded-none medium:rounded-t-sheet"
-            : "rounded-t-sheet",
+          "bg-surface shadow-float absolute inset-x-0 bottom-0 top-0 flex flex-col",
+          activeState === "full" && !isDragging ? "rounded-none" : "rounded-t-sheet",
           isDragging && "select-none",
           props.containerClassName
         )}

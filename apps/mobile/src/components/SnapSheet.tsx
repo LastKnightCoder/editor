@@ -1,5 +1,6 @@
 import {
   createContext,
+  type CSSProperties,
   forwardRef,
   type MutableRefObject,
   type ReactNode,
@@ -10,10 +11,20 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { PanContainer, type PanContainerProps } from "./PanContainer";
 import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
+import { useScrollLock } from "../hooks/useScrollLock";
+import { useWindowClass } from "../router/windowClass";
+import { Z_INDEX } from "../router/zIndex";
 import type { PanState, PanTimeline } from "./panModel";
+import {
+  CENTERED_READER_SHEET_CLASS,
+  CENTERED_SHEET_MOTION,
+  CENTERED_SHEET_STYLE,
+} from "./sheetMotion";
 
 export type SnapSheetState = PanState;
 
@@ -49,6 +60,7 @@ type SnapSheetScrollProps = React.ComponentPropsWithoutRef<"div">;
 
 type SnapSheetContextValue = {
   state: SnapSheetState;
+  centered: boolean;
   timeline: PanTimeline | null;
   scrollRef: MutableRefObject<HTMLDivElement | null>;
 };
@@ -116,6 +128,8 @@ function useRequiredSnapSheetContext(): SnapSheetContextValue {
 }
 
 function SnapSheetHandle(props: SnapSheetHandleProps) {
+  // 居中卡片没有可拖的底边，抓手只留顶部间距
+  if (useRequiredSnapSheetContext().centered) return <div className="h-3" />;
   return (
     <div
       className={cn("flex justify-center py-3", props.className)}
@@ -183,6 +197,7 @@ function SnapSheetRoot(props: SnapSheetProps) {
     ? (stateCandidate as SnapSheetState)
     : (states[0] ?? "normal");
   const scrollRef = props.scrollRef ?? internalScrollRef;
+  const centered = useWindowClass() !== "compact";
 
   const heights = useMemo<PanContainerProps["heights"]>(
     () => ({
@@ -207,11 +222,27 @@ function SnapSheetRoot(props: SnapSheetProps) {
   const contextValue = useMemo<SnapSheetContextValue>(
     () => ({
       state: currentState,
+      centered,
       timeline,
       scrollRef,
     }),
-    [currentState, scrollRef, timeline]
+    [centered, currentState, scrollRef, timeline]
   );
+
+  if (centered) {
+    return (
+      <CenteredSnapSheet
+        open={props.open}
+        expandable={states.includes("full")}
+        onClose={props.onClose}
+        className={props.className}
+        maskClassName={props.maskClassName}
+        containerClassName={props.containerClassName}
+      >
+        <SnapSheetContext.Provider value={contextValue}>{props.children}</SnapSheetContext.Provider>
+      </CenteredSnapSheet>
+    );
+  }
 
   return (
     <PanContainer
@@ -229,6 +260,69 @@ function SnapSheetRoot(props: SnapSheetProps) {
     >
       <SnapSheetContext.Provider value={contextValue}>{props.children}</SnapSheetContext.Provider>
     </PanContainer>
+  );
+}
+
+// 居中卡片内没有状态栏与 Home 指示条可让，键盘也已由卡片定位避开：
+// 清零这几个变量，内容里的安全区留白（全屏档顶栏、底部操作条）随之收起
+const CENTERED_SHEET_VARS = {
+  "--mobile-safe-top": "0px",
+  "--mobile-overlay-bottom": "0px",
+  "--pan-occluded-bottom": "0px",
+} as CSSProperties;
+
+/**
+ * 中等与宽档的形态：挂到 body，遮罩盖住整屏（含左导航条），面板是页面区域内居中的卡片。
+ * 能拖到全屏的抽屉给固定高度（内容加载前后不跳），只有一档的按内容高度、封顶可见区。
+ */
+function CenteredSnapSheet(props: {
+  open: boolean;
+  expandable: boolean;
+  onClose?: () => void;
+  className?: string;
+  maskClassName?: string;
+  containerClassName?: string;
+  children: ReactNode;
+}) {
+  useScrollLock(props.open);
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <AnimatePresence>
+      {props.open && (
+        <div
+          className={cn("fixed inset-0", props.className)}
+          style={{ zIndex: Z_INDEX.OVERLAY_SHEET }}
+        >
+          <motion.button
+            type="button"
+            aria-label="关闭面板"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className={cn("bg-overlay absolute inset-0", props.maskClassName)}
+            onClick={props.onClose}
+          />
+          <motion.section
+            {...CENTERED_SHEET_MOTION}
+            role="dialog"
+            data-pan-state="centered"
+            className={cn(
+              CENTERED_READER_SHEET_CLASS,
+              "flex flex-col overflow-hidden",
+              props.expandable
+                ? "h-[min(760px,calc(var(--kb-viewport-height)-64px))]"
+                : "max-h-[min(760px,calc(var(--kb-viewport-height)-64px))]",
+              props.containerClassName
+            )}
+            style={{ ...CENTERED_SHEET_STYLE, ...CENTERED_SHEET_VARS }}
+          >
+            {props.children}
+          </motion.section>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }
 
