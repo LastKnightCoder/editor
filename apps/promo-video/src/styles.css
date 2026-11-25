@@ -29,6 +29,13 @@
   box-sizing: border-box;
 }
 
+/* 逐帧渲染时 CSS 过渡会在相邻帧间留下半截状态（当前句的选中底一闪一闪），画面状态全部由帧号给出 */
+*,
+*::before,
+*::after {
+  transition: none !important;
+}
+
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;

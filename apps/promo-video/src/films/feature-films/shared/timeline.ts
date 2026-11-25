@@ -21,7 +21,11 @@ export type View = { x: number; y: number; zoom: number };
 export type CameraKey = View & { at: number };
 export type Chapter = {
   id: string;
+  /** 这一章（有章节卡就是卡片入场）从第几帧开始：按配乐排时间轴时用，上一章必须在这之前演完 */
+  at?: number;
   card?: Card;
+  /** 章节卡的长度（帧），缺省 CARD.length */
+  cardLength?: number;
   steps: Step[];
   /** 镜头停在哪（见 View）；缺省整窗 */
   view?: View;
@@ -31,19 +35,29 @@ export type Chapter = {
 export type ChapterTiming = { chapter: Chapter; card?: { at: number; out: number }; swap: number; replay: Replay };
 export type Timeline = { chapters: ChapterTiming[]; ending: { at: number; out: number }; end: number };
 
-export function layout(chapters: Chapter[]): Timeline {
+/** 片尾的位置：at 缺省接在最后一章后面，length 缺省 ENDING */
+export type EndingAt = { at?: number; length?: number };
+
+export function layout(chapters: Chapter[], endingAt: EndingAt = {}): Timeline {
   const out: ChapterTiming[] = [];
   let t = 0;
   for (const chapter of chapters) {
+    if (chapter.at !== undefined) {
+      if (chapter.at < t) throw new Error(`「${chapter.id}」排不下：要在第 ${chapter.at} 帧开始，上一章演到了第 ${t} 帧`);
+      t = chapter.at;
+    } else if (out.length) t += TAIL;
     if (chapter.card) {
-      const card = { at: t, out: t + CARD.length };
+      const card = { at: t, out: t + (chapter.cardLength ?? CARD.length) };
       out.push({ chapter, card, swap: t + CARD.swap, replay: runSteps(chapter.steps, card.out - 10) });
     } else {
       out.push({ chapter, swap: t, replay: runSteps(chapter.steps, t) });
     }
-    t = out[out.length - 1].replay.end + TAIL;
+    t = out[out.length - 1].replay.end;
   }
-  const ending = { at: t, out: t + ENDING };
+  if (endingAt.at === undefined && out.length) t += TAIL;
+  if (endingAt.at !== undefined && endingAt.at < t) throw new Error(`片尾排不下：要在第 ${endingAt.at} 帧开始，最后一章演到了第 ${t} 帧`);
+  const at = endingAt.at ?? t;
+  const ending = { at, out: at + (endingAt.length ?? ENDING) };
   return { chapters: out, ending, end: ending.out };
 }
 

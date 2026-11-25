@@ -23,8 +23,10 @@ import { BOARD_TEXT } from "./mock/board";
 import { BilibiliCover, COVER_GLYPHS, COVER_SIZE, type CoverLayout } from "./films/cover/BilibiliCover";
 import { VIDEO_NOTES_DURATION, VideoNotesFilm } from "./films/feature-films/video-notes/VideoNotesFilm";
 import { VIDEO_NOTES_GLYPHS } from "./films/feature-films/video-notes/script";
+import { VIDEO_NOTES_PROMO_DURATION, VideoNotesPromoFilm } from "./films/feature-films/video-notes/VideoNotesPromoFilm";
+import { PROMO_GLYPHS } from "./films/feature-films/video-notes/promo-script";
 
-preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS + COVER_GLYPHS + VIDEO_NOTES_GLYPHS, BOARD_TEXT);
+preloadFonts(GLYPHS + PRODUCT_GLYPHS + FEATURE_GLYPHS + TUTORIAL_GLYPHS + COVER_GLYPHS + VIDEO_NOTES_GLYPHS + PROMO_GLYPHS, BOARD_TEXT);
 
 const FEATURE_IDS: Record<Feature, string> = { editor: "Feature-Editor", compose: "Feature-Compose" };
 
@@ -36,6 +38,7 @@ export function Root() {
         <Composition key={feature} id={FEATURE_IDS[feature]} component={FeatureFilm} defaultProps={{ feature }} durationInFrames={featureDuration(feature)} {...VIDEO} />
       ))}
       <Composition id="Feature-VideoNotes" component={VideoNotesFilm} durationInFrames={VIDEO_NOTES_DURATION} {...VIDEO} />
+      <Composition id="Promo-VideoNotes" component={VideoNotesPromoFilm} durationInFrames={VIDEO_NOTES_PROMO_DURATION} {...VIDEO} />
       <Composition id="Tutorial-Syntax" component={TutorialFilm} durationInFrames={TUTORIAL_DURATION} {...VIDEO} />
       {(Object.keys(COVER_SIZE) as CoverLayout[]).map(layout => (
         <Composition key={layout} id={`Cover-Bilibili-${layout}`} component={BilibiliCover} defaultProps={{ layout }} durationInFrames={1} fps={VIDEO.fps} {...COVER_SIZE[layout]} />

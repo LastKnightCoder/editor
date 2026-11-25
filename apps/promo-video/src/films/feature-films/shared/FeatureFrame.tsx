@@ -10,6 +10,7 @@ import { TRACKS } from "../../../brand/music";
 import { FEATURE_WINDOW } from "../../../mock/videonote";
 import { Ending } from "../../../kit/Ending";
 import { ManifestoOverlay, manifestoVeil, VEIL_BLUR } from "../../../kit/Manifesto";
+import { ModuleTag } from "../../../kit/ModuleTag";
 import { MusicBed } from "../../../kit/MusicBed";
 import { CaptionBar, KeyCaps } from "../../../kit/Overlays";
 import { StageFill, StageProvider } from "../../../kit/Stage";
@@ -56,6 +57,12 @@ export type Film = {
   keysAt?: (chapter: ChapterTiming, tools: SceneTools) => Point | null;
   /** 音效轨（public/ 下的路径）；文件不在时静音 */
   sfx?: string;
+  /** 片头宣言的入场与退场帧；缺省 timeline.ts 的 INTRO */
+  introAt?: { at: number; out: number };
+  /** 窗口从第几帧开始浮上来；缺省 0（片头宣言叠在窗口上）。设成宣言退场前，宣言就先在空舞台上单独出现 */
+  windowFrom?: number;
+  /** 画面底部的模块标签（kit/ModuleTag）：交代这一段演的是哪项能力 */
+  tags?: { module: string; feature: string; at: number; out: number }[];
 };
 
 const STAGE = STAGES.studio;
@@ -259,9 +266,10 @@ export function FeatureFrame({ film, timeline, music }: { film: Film; timeline: 
   // —— 镜头与章节卡
   const shots = shotsOf(timeline);
   const camera = cameraAt(frame, shots);
-  const veil = Math.max(manifestoVeil(frame, INTRO.at, INTRO.out), ...timeline.chapters.map(c => (c.card ? manifestoVeil(frame, c.card.at, c.card.out) : 0)));
-  // 片头：窗口从舞台底里浮上来，宣言随即叠上去
-  const rise = progress(frame, 0, 50, ease.out);
+  const intro = film.introAt ?? INTRO;
+  const veil = Math.max(manifestoVeil(frame, intro.at, intro.out), ...timeline.chapters.map(c => (c.card ? manifestoVeil(frame, c.card.at, c.card.out) : 0)));
+  // 片头：窗口从舞台底里浮上来
+  const rise = progress(frame, film.windowFrom ?? 0, 50, ease.out);
   const ending = timeline.ending;
   const until = next?.card?.at ?? ending.at;
   const path = cursorPath(replay, known.current);
@@ -297,7 +305,10 @@ export function FeatureFrame({ film, timeline, music }: { film: Film; timeline: 
           <KeyCaps keys={replay.keys} frame={frame} x={keys.x} y={keys.y} />
           <CaptionBar captions={replay.captions} frame={frame} until={until} />
           <Ending frame={frame} at={ending.at} out={ending.out} line={film.ending.line} url={film.ending.url} />
-          <ManifestoOverlay text={film.intro.text} sub={film.intro.sub} accent={film.intro.accent} at={INTRO.at} out={INTRO.out} size={128} />
+          <ManifestoOverlay text={film.intro.text} sub={film.intro.sub} accent={film.intro.accent} at={intro.at} out={intro.out} size={128} />
+          {film.tags?.map(tag => (
+            <ModuleTag key={tag.module} module={tag.module} feature={tag.feature} at={tag.at} out={tag.out} />
+          ))}
           {hasSfx && film.sfx && <Audio src={staticFile(film.sfx)} />}
           {music ?? <MusicBed track={TRACKS.romantic} frames={timeline.end} />}
         </AbsoluteFill>

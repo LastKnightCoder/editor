@@ -59,6 +59,8 @@ export type VideoNoteState = {
   cache?: { progress: number; done?: number };
   /** 转录刚完成时字幕逐句淡入 0→1 */
   segmentsReveal?: number;
+  /** 章节段头刚分好时撑开淡入 0→1 */
+  chaptersReveal?: number;
   /** 转录完成后正在生成 AI 章节 */
   chaptering?: boolean;
   /** 转录进行中的进度文案；有值时字幕区显示转录占位 */
@@ -161,6 +163,7 @@ export function VideoNotePage({ state }: { state: VideoNoteState }) {
     cache,
     transcribing,
     segmentsReveal,
+    chaptersReveal,
     chaptering,
     pressed,
     menu,
@@ -255,7 +258,17 @@ export function VideoNotePage({ state }: { state: VideoNoteState }) {
             </div>
             {hasSegments ? (
               <div className="relative flex min-h-0 flex-1 flex-col">
-                <TranscriptList segments={segments} chapters={chapters} current={current} quoted={quoted} scroll={scroll} selection={selection} selectHits={selectHits} reveal={segmentsReveal} />
+                <TranscriptList
+                  segments={segments}
+                  chapters={chapters}
+                  current={current}
+                  quoted={quoted}
+                  scroll={scroll}
+                  selection={selection}
+                  selectHits={selectHits}
+                  reveal={segmentsReveal}
+                  chaptersReveal={chaptersReveal}
+                />
                 <BackToCurrent appear={backToCurrent} />
               </div>
             ) : transcribing ? (

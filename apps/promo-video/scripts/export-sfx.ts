@@ -1,5 +1,5 @@
 // 回放片的音效：从回放时间轴导出事件表，再由 scripts/sfx/sfx.py 合成成 public/sfx/<片名>.mp3
-// 用法（在 apps/promo-video 下）：pnpm sfx tutorial | video-notes；改了章节脚本要重跑，否则声音和画面对不上
+// 用法（在 apps/promo-video 下）：pnpm sfx tutorial | video-notes | video-notes-promo；改了章节脚本要重跑，否则声音和画面对不上
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import type { Sfx } from "../src/kit/replay.ts";
@@ -10,6 +10,11 @@ const films: Record<string, () => Promise<{ events: Sfx[]; file: string }>> = {
     Promise.all([import("../src/films/feature-films/shared/timeline.ts"), import("../src/films/feature-films/video-notes/script.ts")]).then(([timeline, script]) => ({
       events: timeline.sfxEvents(timeline.layout(script.CHAPTERS)),
       file: "video-notes",
+    })),
+  "video-notes-promo": () =>
+    Promise.all([import("../src/films/feature-films/shared/timeline.ts"), import("../src/films/feature-films/video-notes/promo-script.ts")]).then(([timeline, script]) => ({
+      events: timeline.sfxEvents(timeline.layout(script.PROMO_CHAPTERS, script.PROMO_ENDING_AT)),
+      file: "video-notes-promo",
     })),
 };
 

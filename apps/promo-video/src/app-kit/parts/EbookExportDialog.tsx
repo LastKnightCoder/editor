@@ -63,34 +63,42 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-/** 草稿：按 shown（已流出的字数）逐字露出，最后一块后面跟着光标 */
+/**
+ * 草稿：按 shown（已流出的字数）逐字露出，最后一块后面跟着光标。还没流出的字照样排版、只是不可见，
+ * 草稿区的高度从头到尾不变，跟着往下滚时不会因为换行一跳一跳
+ */
 function Draft({ blocks, shown, streaming }: { blocks: DraftBlock[]; shown: number; streaming: boolean }) {
   let left = shown;
   const out = blocks.map((block, i) => {
-    if (left <= 0) return null;
     const chars = [...block.text];
-    const visible = chars.slice(0, left).join("");
-    const last = left <= chars.length;
+    const count = Math.max(0, Math.min(chars.length, left));
+    const visible = chars.slice(0, count).join("");
+    const rest = chars.slice(count).join("");
+    const last = left > 0 && left <= chars.length;
     left -= chars.length;
     const caret = streaming && last ? <i className="bg-accent ml-px inline-block h-[1.05em] w-[2px] translate-y-[0.16em]" /> : null;
+    const content = (
+      <>
+        {visible}
+        {caret}
+        {rest && <span className="invisible">{rest}</span>}
+      </>
+    );
     if (block.kind === "h1")
       return (
         <h1 key={i} className={clsx(HEADING_SIZE[1], "text-ink-1 mb-[0.6em] font-bold")}>
-          {visible}
-          {caret}
+          {content}
         </h1>
       );
     if (block.kind === "h2")
       return (
         <h2 key={i} className="text-ink-1 mt-[1em] mb-[0.4em] text-[1.3em] font-semibold">
-          {visible}
-          {caret}
+          {content}
         </h2>
       );
     return (
       <p key={i} className="text-ink-1 mb-[0.9em]">
-        {visible}
-        {caret}
+        {content}
       </p>
     );
   });

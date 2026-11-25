@@ -12,8 +12,8 @@ export type Step =
   | { click: string; as?: string }
   /** 鼠标移到 data-hit 为该名字的元素上停一下（hold 帧）：菜单项的高亮跟着它走；as 把到位的帧号记成状态时刻 */
   | { hover: string; as?: string; hold?: number }
-  /** 按键：每个字符一枚键帽，最后一枚是触发键（如 "⌘⇧T"）；paste 在触发那一帧把整段文字贴进某个输入框；clear 是全选后替换前的清空；sound 换掉触发键的音色 */
-  | { keys: string; as?: string; paste?: { input: string; text: string }; clear?: string; sound?: Sfx["kind"] }
+  /** 按键：每个字符一枚键帽，最后一枚是触发键（如 "⌘⇧T"）；paste 在触发那一帧把整段文字贴进某个输入框；clear 是全选后替换前的清空；sound 换掉触发键的音色，false 整组按键不出声 */
+  | { keys: string; as?: string; paste?: { input: string; text: string }; clear?: string; sound?: Sfx["kind"] | false }
   /** 划选：按住 data-hit 为 select-from:<名字> 的位置，拖到 select-to:<名字>，中间用 PACE.drag 帧 */
   | { drag: string; as?: string }
   /** 在此刻响一声（刻度弹出、截帧后的快门回声） */
@@ -23,7 +23,9 @@ export type Step =
   /** 记一个状态时刻（解析完成、回答开始…），场景用 mark(名字) 取帧号；hold 是之后停顿的帧数 */
   | { mark: string; hold?: number }
   /** 圈出画面上刚发生变化的地方（data-hit 为该名字的元素），四周压淡，停 hold 帧让人看清 */
-  | { spot: string; hold?: number };
+  | { spot: string; hold?: number }
+  /** 等到第 at 帧（全片帧号）再往下走：按配乐排时间轴时用，前面的步骤演不完就报错 */
+  | { at: number };
 
 export type Typing = { input: string; start: number; end: number; /** 每个时刻的累计文本 */ commits: { at: number; text: string }[] };
 /** 光标的一站：at 帧时在 hit 上；click 为真表示抵达时就按下 */
@@ -51,6 +53,14 @@ export type Replay = {
  * 操作的结果用 spot 圈出来停住，要让人看清的东西（确认框、解析结果）用步骤里的 wait 单独留时间。字幕出来后留 PACE.read 帧再动手。
  */
 export const PACE = { ascii: 7, ime: 16, key: 12, afterKeys: 30, read: 40, cursor: 28, settle: 8, afterClick: 14, drag: 44, hover: 20, spot: 80 };
+
+/** 一步从开始到「关键那一刻」（点按按下、划选按下、悬停到位、快捷键触发）要多少帧：想让这一刻落在拍上，就提前这么多帧开始 */
+export function leadOf(step: Step) {
+  if ("click" in step || "drag" in step) return PACE.cursor + PACE.settle;
+  if ("hover" in step) return PACE.cursor;
+  if ("keys" in step) return [...step.keys].length * PACE.key;
+  return 0;
+}
 
 /** 不存在的时刻：progress 不接受 Infinity 和 NaN（产品片交接文档坑 3） */
 export const NEVER = 1e9;
@@ -98,10 +108,10 @@ export function runSteps(steps: Step[], start: number): Replay {
         const at = t + i * PACE.key;
         const trigger = i === chars.length - 1;
         replay.keys.push({ at, label: char, trigger, slow: false });
-        if (!trigger) replay.sfx.push({ t: at, kind: "key" });
+        if (!trigger && step.sound !== false) replay.sfx.push({ t: at, kind: "key" });
       });
       t += chars.length * PACE.key;
-      if (chars.length) replay.sfx.push({ t, kind: step.sound ?? "enter" });
+      if (chars.length && step.sound !== false) replay.sfx.push({ t, kind: step.sound ?? "enter" });
       if (step.clear) commit(typingOf(step.clear), "");
       if (step.paste) commit(typingOf(step.paste.input), step.paste.text);
       if (step.as) replay.marks[step.as] = t;
@@ -128,6 +138,9 @@ export function runSteps(steps: Step[], start: number): Replay {
         replay.sfx.push({ t, kind: "key" });
       }
       if (step.as) replay.marks[step.as] = t;
+    } else if ("at" in step) {
+      if (step.at < t) throw new Error(`步骤排不下：要在第 ${step.at} 帧到位，前面的步骤演到了第 ${t} 帧`);
+      t = step.at;
     } else if ("spot" in step) {
       const hold = step.hold ?? PACE.spot;
       replay.spots.push({ hit: step.spot, from: t, to: t + hold });

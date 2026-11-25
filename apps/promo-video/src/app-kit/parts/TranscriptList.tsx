@@ -89,6 +89,7 @@ export function TranscriptList({
   selection,
   selectHits,
   reveal = 1,
+  chaptersReveal = 1,
   className,
 }: {
   segments: Segment[];
@@ -104,6 +105,8 @@ export function TranscriptList({
   selectHits?: number[];
   /** 转录刚完成时各句依次淡入 0→1 */
   reveal?: number;
+  /** 章节段头刚分好时撑开高度淡入 0→1，字幕平滑往下让，不跳 */
+  chaptersReveal?: number;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -131,7 +134,11 @@ export function TranscriptList({
             return (
               <div key={index} style={shown < 1 ? { opacity: shown, transform: `translateY(${(1 - shown) * 6}px)` } : undefined}>
                 {chapter && (
-                  <div data-hit={`chapter-head:${owners![index]}`} className="bg-surface text-tau-sm text-ink-1 sticky top-0 z-[1] flex items-baseline gap-2 px-3 pt-3 pb-1.5 font-semibold">
+                  <div
+                    data-hit={`chapter-head:${owners![index]}`}
+                    className="bg-surface text-tau-sm text-ink-1 sticky top-0 z-[1] flex items-baseline gap-2 overflow-hidden px-3 pt-3 pb-1.5 font-semibold"
+                    style={chaptersReveal < 1 ? { maxHeight: 44 * chaptersReveal, opacity: chaptersReveal, paddingTop: 12 * chaptersReveal, paddingBottom: 6 * chaptersReveal } : undefined}
+                  >
                     <span className="text-ink-3 font-tau-mono font-normal tabular-nums">{transcriptTime(chapter.start)}</span>
                     <span className="min-w-0 truncate">{chapter.title}</span>
                   </div>
