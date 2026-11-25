@@ -575,6 +575,9 @@ export class DraggingState implements InteractionState {
       board.apply(elementMoveOperations, true);
     }
 
+    // 重排会重建文档投影，须先记录反馈清理，避免手势提交重放旧占位。
+    this.clearAllContainerDragState(board);
+
     // 触发容器的回调（如 autoResize、relayout 等）
     // 注意：由于 board.apply 使用不可变数据结构，moveInfos 中的容器引用可能已过期
     // 需要通过 ID 重新获取最新的容器对象
@@ -602,9 +605,6 @@ export class DraggingState implements InteractionState {
         }
       }
     }
-
-    // 清除所有容器的拖拽状态（如 Frame 的 isChildMoveIn、Column 的 isChildDraggingOver 等）
-    this.clearAllContainerDragState(board);
   }
 
   /**

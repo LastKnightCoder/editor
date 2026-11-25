@@ -560,6 +560,64 @@ it("DOM 尺寸与布局只改变本机投影，不回写或记历史", async () 
   expect(f.binding.history.undoStack).toHaveLength(count);
   expect(f.board.children[0].children?.[0].height).toBe(180);
 });
+it.each([false, true])(
+  "拖入分栏松手后移除落点占位，重排与撤销不恢复占位（实时手势：%s）",
+  async realtime => {
+    const { board, binding, insert } = await setup();
+    const { DraggingState } = await import("../interactions/states/DraggingState");
+    const column = ColumnUtil.createColumn(100, 100);
+    insert(column);
+    const child = base("richtext", {
+      x: 650,
+      y: 200,
+      content: text,
+      maxWidth: 300,
+      maxHeight: 1000,
+    });
+    insert(child);
+    const host = document.createElement("div");
+    host.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      toJSON: () => ({}),
+    });
+    BOARD_TO_CONTAINER.set(board, host);
+    cleanup.push(() => BOARD_TO_CONTAINER.delete(board));
+    const current = () => board.children.find(node => node.id === column.id) as typeof column;
+    const event = (x: number, y: number) =>
+      new MouseEvent("pointermove", {
+        clientX: x,
+        clientY: y,
+        button: 0,
+        altKey: true,
+      }) as PointerEvent;
+    board.extensions!.api.select([child.id]);
+    binding.beginGesture({ realtime });
+    const state = DraggingState.tryStart(board, event(660, 210));
+    if (!state) throw new Error("拖动未开始");
+    state.onPointerMove(event(200, 180), board);
+    expect(ColumnUtil.getVisualLayout(current()).placeholderY).not.toBeNull();
+    state.onPointerUp(event(200, 180), board);
+    binding.endGesture(true);
+    expect(current().children.map(node => node.id)).toEqual([child.id]);
+    // 事故：入栏重排清空投影反馈后，手势提交又重放了尚未清理的占位。
+    expect(ColumnUtil.getVisualLayout(current()).placeholderY).toBeNull();
+    binding.refreshLayout();
+    expect(ColumnUtil.getVisualLayout(current()).placeholderY).toBeNull();
+    binding.undo();
+    expect(current().children).toHaveLength(0);
+    expect(ColumnUtil.getVisualLayout(current()).placeholderY).toBeNull();
+    binding.redo();
+    expect(current().children.map(node => node.id)).toEqual([child.id]);
+    expect(ColumnUtil.getVisualLayout(current()).placeholderY).toBeNull();
+  }
+);
 it("图片替换和外部引用删除撤销，关系账不把跨页移动算作新引用", async () => {
   const f = await setup();
   f.insert(nodes[11]);
