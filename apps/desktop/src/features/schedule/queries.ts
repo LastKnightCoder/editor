@@ -9,7 +9,8 @@ import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 import { on } from "@/electron";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import { bindDatabaseCommands } from "@/services/command-context";
+import { databaseQueryKey } from "@/services/command-context";
+import { useDatabaseCommands } from "@/hooks/useDatabaseCommands";
 import { queryClient } from "@/queryClient";
 import {
   getDateStart,
@@ -45,20 +46,27 @@ import {
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 export const scheduleKeys = {
   root: (database: string) => ["schedule", databaseId(database)] as const,
-  catalog: (database: string) => [...scheduleKeys.root(database), "catalog"] as const,
-  events: (database: string, start: number, end: number, ids: number[]) =>
-    [...scheduleKeys.root(database), "events", start, end, ids] as const,
-  detail: (database: string, id: number | undefined) =>
-    [...scheduleKeys.root(database), "detail", id] as const,
-  content: (database: string, id: number) =>
-    [...scheduleKeys.root(database), "content", id] as const,
-  sources: (database: string) => [...scheduleKeys.root(database), "todo-sources"] as const,
-  day: (database: string, day: number) => [...scheduleKeys.root(database), "day", day] as const,
-  pomodoroBindings: (database: string) =>
-    [...scheduleKeys.root(database), "pomodoro-bindings"] as const,
-  todoSchedules: (database: string) => [...scheduleKeys.root(database), "todo-schedules"] as const,
-  reminders: (database: string, id: number) =>
-    [...scheduleKeys.root(database), "reminders", id] as const,
+  catalog: (database: string, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "catalog"] as const, connectionId),
+  events: (database: string, start: number, end: number, ids: number[], connectionId?: string) =>
+    databaseQueryKey(
+      [...scheduleKeys.root(database), "events", start, end, ids] as const,
+      connectionId
+    ),
+  detail: (database: string, id: number | undefined, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "detail", id] as const, connectionId),
+  content: (database: string, id: number, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "content", id] as const, connectionId),
+  sources: (database: string, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "todo-sources"] as const, connectionId),
+  day: (database: string, day: number, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "day", day] as const, connectionId),
+  pomodoroBindings: (database: string, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "pomodoro-bindings"] as const, connectionId),
+  todoSchedules: (database: string, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "todo-schedules"] as const, connectionId),
+  reminders: (database: string, id: number, connectionId?: string) =>
+    databaseQueryKey([...scheduleKeys.root(database), "reminders", id] as const, connectionId),
 };
 
 export function invalidateSchedule(client: QueryClient, database: string) {
@@ -76,28 +84,23 @@ on("schedule:changed", (_event, { databaseName }: { databaseName: string }) => {
   void invalidateSchedule(queryClient, databaseName);
 });
 
+const scheduleCommands = {
+  ...calendarCommands,
+  ...groupCommands,
+  ...todoCommands,
+  ...contentCommands,
+  getPomodoroEventBindings,
+};
+
 export function useScheduleCommands() {
   const database = useSettingStore(state => state.setting.database.active);
-  const commands = useMemo(
-    () =>
-      bindDatabaseCommands(
-        {
-          ...calendarCommands,
-          ...groupCommands,
-          ...todoCommands,
-          ...contentCommands,
-          getPomodoroEventBindings,
-        },
-        { databaseName: database }
-      ),
-    [database]
-  );
+  const { commands, connectionId } = useDatabaseCommands(scheduleCommands, database);
   const assertCurrentDatabase = useCallback(() => {
     if (databaseId(useSettingStore.getState().setting.database.active) !== databaseId(database)) {
       throw new Error("数据库已切换，请重新打开日程操作");
     }
   }, [database]);
-  return { database, commands, assertCurrentDatabase };
+  return { database, commands, connectionId, assertCurrentDatabase };
 }
 
 interface CalendarCatalog {
@@ -108,10 +111,10 @@ const EMPTY_CATALOG: CalendarCatalog = { calendars: [], calendarGroups: [] };
 const EMPTY_EVENTS: CalendarEvent[] = [];
 
 export function useCalendarCatalog(enabled = true) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: scheduleKeys.catalog(database),
+    queryKey: scheduleKeys.catalog(database, connectionId),
     queryFn: async (): Promise<CalendarCatalog> => {
       const [calendars, calendarGroups] = await Promise.all([
         commands.getAllCalendars(),
@@ -140,7 +143,7 @@ function scheduleRange(view: CalendarViewType, date: number) {
 }
 
 export function useCalendarEvents() {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const catalog = useCalendarCatalog();
   const currentView = useScheduleStore(state => state.currentView);
@@ -151,7 +154,7 @@ export function useCalendarEvents() {
     .sort((a, b) => a - b);
   const { start, end } = scheduleRange(currentView, currentDate);
   const query = useQuery({
-    queryKey: scheduleKeys.events(database, start, end, ids),
+    queryKey: scheduleKeys.events(database, start, end, ids, connectionId),
     queryFn: () => commands.getEventsByDateRange(start, end, ids),
     enabled: connected && !catalog.loading && ids.length > 0,
     staleTime: 30_000,
@@ -173,10 +176,10 @@ export function useCalendarEvents() {
 }
 
 export function useCalendarEventDetail(id: number | undefined) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   return useQuery({
-    queryKey: scheduleKeys.detail(database, id),
+    queryKey: scheduleKeys.detail(database, id, connectionId),
     queryFn: () => {
       if (id == null) throw new Error("缺少日程 ID");
       return commands.getCalendarEventById(id);
@@ -187,10 +190,10 @@ export function useCalendarEventDetail(id: number | undefined) {
 }
 
 export function useEventContent(id: number, enabled: boolean) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   return useQuery({
-    queryKey: scheduleKeys.content(database, id),
+    queryKey: scheduleKeys.content(database, id, connectionId),
     queryFn: () => commands.getContentById(id),
     enabled: connected && enabled && id > 0,
     staleTime: 0,
@@ -199,10 +202,10 @@ export function useEventContent(id: number, enabled: boolean) {
 
 /** 日程的提醒（开始前毫秒数）；新建日程 id 为 0 时不查询 */
 export function useEventReminders(id: number, enabled = true) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   return useQuery({
-    queryKey: scheduleKeys.reminders(database, id),
+    queryKey: scheduleKeys.reminders(database, id, connectionId),
     queryFn: () => commands.getCalendarEventReminders(id),
     enabled: connected && enabled && id > 0,
     staleTime: 0,
@@ -211,12 +214,12 @@ export function useEventReminders(id: number, enabled = true) {
 
 export function useScheduleMutations() {
   const client = useQueryClient();
-  const { database, commands, assertCurrentDatabase } = useScheduleCommands();
+  const { database, commands, connectionId, assertCurrentDatabase } = useScheduleCommands();
   return useMemo(() => {
     const refresh = () => invalidateSchedule(client, database);
     const findCalendar = (id: number) => {
       const calendar = client
-        .getQueryData<CalendarCatalog>(scheduleKeys.catalog(database))
+        .getQueryData<CalendarCatalog>(scheduleKeys.catalog(database, connectionId))
         ?.calendars.find(item => item.id === id);
       if (!calendar) throw new Error("日历已不存在，请刷新后重试");
       return calendar;
@@ -256,13 +259,17 @@ export function useScheduleMutations() {
         assertCurrentDatabase();
         const calendar = findCalendar(id);
         const result = await commands.updateCalendar({ ...calendar, visible: !calendar.visible });
-        client.setQueryData<CalendarCatalog>(scheduleKeys.catalog(database), previous =>
-          previous
-            ? {
-                ...previous,
-                calendars: previous.calendars.map(item => (item.id === result.id ? result : item)),
-              }
-            : previous
+        client.setQueryData<CalendarCatalog>(
+          scheduleKeys.catalog(database, connectionId),
+          previous =>
+            previous
+              ? {
+                  ...previous,
+                  calendars: previous.calendars.map(item =>
+                    item.id === result.id ? result : item
+                  ),
+                }
+              : previous
         );
         refresh();
       },
@@ -300,7 +307,7 @@ export function useScheduleMutations() {
       async setEventReminders(id: number, offsets: number[]) {
         assertCurrentDatabase();
         const result = await commands.updateCalendarEventReminders(id, offsets);
-        client.setQueryData(scheduleKeys.reminders(database, id), result);
+        client.setQueryData(scheduleKeys.reminders(database, id, connectionId), result);
         return result;
       },
       async deleteEvent(id: number) {
@@ -323,7 +330,7 @@ export function useScheduleMutations() {
         return result;
       },
     };
-  }, [client, database, commands, assertCurrentDatabase]);
+  }, [client, database, commands, connectionId, assertCurrentDatabase]);
 }
 
 /** calendarId → 系统日历角色（番茄钟 / 截止 / 计划 / 周期），随日历与分组变化重算 */
@@ -340,7 +347,7 @@ export function useCalendarKinds(): Map<number, EventSourceKind> {
 
 /** 当前可见日程里待办来源那部分的完成状态（eventId → source） */
 export function useTodoEventSources(events: CalendarEvent[]) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const kinds = useCalendarKinds();
   const ids = useMemo(
@@ -352,7 +359,7 @@ export function useTodoEventSources(events: CalendarEvent[]) {
     [events, kinds]
   );
   const query = useQuery({
-    queryKey: [...scheduleKeys.sources(database), ids],
+    queryKey: [...scheduleKeys.sources(database, connectionId), ids],
     queryFn: () => commands.getCalendarEventSources(ids),
     enabled: connected && ids.length > 0,
     staleTime: 30_000,
@@ -397,10 +404,10 @@ export function useToggleTodoEvent() {
 
 /** 某一天的日程（不依赖日程页视图状态，供番茄「专注于…」等域外入口用）；随 schedule:changed 失效 */
 export function useEventsOfDay(day: number, enabled = true): CalendarEvent[] {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: scheduleKeys.day(database, day),
+    queryKey: scheduleKeys.day(database, day, connectionId),
     queryFn: () => commands.getEventsForDay(day),
     enabled: enabled && connected,
     staleTime: 30_000,
@@ -412,7 +419,7 @@ const EMPTY_BINDINGS: Record<number, PomodoroEventBinding> = {};
 
 /** 可见日程里番茄事件所属会话的绑定（番茄事件 id → 绑定），用于把专注收进绑定事件 */
 export function usePomodoroBindings(events: CalendarEvent[]) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const roles = useCalendarRoles();
   const ids = useMemo(
@@ -424,7 +431,7 @@ export function usePomodoroBindings(events: CalendarEvent[]) {
     [events, roles]
   );
   const query = useQuery({
-    queryKey: [...scheduleKeys.pomodoroBindings(database), ids],
+    queryKey: [...scheduleKeys.pomodoroBindings(database, connectionId), ids],
     queryFn: () => commands.getPomodoroEventBindings(ids),
     enabled: connected && ids.length > 0,
     staleTime: 30_000,
@@ -439,12 +446,12 @@ const EMPTY_SCHEDULES: Record<number, TodoScheduleSummary> = {};
  * 随 schedule:changed 失效。now 取分钟粒度，避免每次渲染都换查询键。
  */
 export function useTodoSchedules(todoIds: number[], enabled = true) {
-  const { database, commands } = useScheduleCommands();
+  const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const ids = useMemo(() => [...new Set(todoIds)].sort((a, b) => a - b), [todoIds]);
   const minute = Math.floor(Date.now() / 60_000);
   const query = useQuery({
-    queryKey: [...scheduleKeys.todoSchedules(database), ids, minute],
+    queryKey: [...scheduleKeys.todoSchedules(database, connectionId), ids, minute],
     queryFn: () => commands.getTodoSchedules(ids, minute * 60_000),
     enabled: enabled && connected && ids.length > 0,
     staleTime: 30_000,

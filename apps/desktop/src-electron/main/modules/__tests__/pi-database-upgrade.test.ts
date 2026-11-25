@@ -10,6 +10,10 @@ const paths = vi.hoisted(() => ({
   root: "",
   handlers: new Map<string, (...args: any[]) => any>(),
   embed: vi.fn(async (_config: unknown, texts: string[]) => texts.map(() => [1, 0])),
+  windows: [] as Array<{
+    isDestroyed: () => boolean;
+    webContents: { send: (channel: string, payload: unknown) => void };
+  }>,
 }));
 vi.mock("../embedding-service", () => ({ default: { embedTexts: paths.embed } }));
 vi.mock("../../utils/PathUtil", () => ({
@@ -25,7 +29,7 @@ vi.mock("electron", () => ({
     whenReady: async () => {},
   },
   BrowserWindow: {
-    getAllWindows: () => [],
+    getAllWindows: () => paths.windows,
     getFocusedWindow: () => null,
     fromWebContents: (sender: { id?: number }) => ({ id: sender.id ?? 1 }),
   },
@@ -313,3 +317,103 @@ it("同内容覆盖复用向量，原始字段变化后只补变化条目", asyn
     rmSync(paths.root, { recursive: true, force: true });
   }
 });
+
+it.skipIf(process.env.TAU_DATABASE_RECONNECT_STRESS !== "1")(
+  "真实 SQLite 连续覆盖向全部窗口发布新连接，并发读写拒绝所有旧连接",
+  async () => {
+    paths.root = mkdtempSync(join(tmpdir(), "database-reconnect-stress-"));
+    const { default: database } = await import("../database");
+    const { default: indexManager } = await import("../main-content-index-db");
+    await database.init();
+    const connect = must(paths.handlers.get("create-or-connect-database"), "connect handler");
+    const readCalendars = must(paths.handlers.get("calendar:get-all"), "calendar handler");
+    const readGroups = must(paths.handlers.get("calendar-group:get-all"), "calendar group handler");
+    const readDecks = must(paths.handlers.get("flashcard:list-decks"), "flashcard handler");
+    const readEvents = must(
+      paths.handlers.get("calendar-event:get-by-date-range"),
+      "events handler"
+    );
+    const save = must(paths.handlers.get("home-layout:save"), "save handler");
+    const owner = { sender: { id: 1 } };
+    const other = { sender: { id: 2 } };
+    const broadcasts: Array<{ databaseName: string; connectionId: string }>[] = [[], []];
+    const rounds = 100;
+    const readers = 16;
+    const oldScopes: Array<{ toolDatabaseName: string; toolDatabaseConnection: string }> = [];
+    try {
+      let current = await connect(owner, "A.db", false, "normal");
+      const otherConnection = await connect(other, "B.db", false, "normal");
+      await save(other, [{ id: "other-library", hidden: false }], {
+        toolDatabaseName: "B.db",
+        toolDatabaseConnection: otherConnection.connectionId,
+      });
+      paths.windows = broadcasts.map(messages => ({
+        isDestroyed: () => false,
+        webContents: {
+          send: (channel: string, payload: unknown) => {
+            if (channel === "database:sync-reconnected") messages.push(payload as typeof current);
+          },
+        },
+      }));
+      for (let round = 0; round < rounds; round++) {
+        oldScopes.push({ toolDatabaseName: "A.db", toolDatabaseConnection: current.connectionId });
+        const candidate = database.openDatabase("candidate.db", "normal");
+        candidate
+          .prepare("INSERT INTO calendar(create_time,update_time,title,color) VALUES(1,1,?,'blue')")
+          .run(`replacement-${round}`);
+        candidate.close();
+        await database.closeForSync("A.db", true);
+        installDatabaseDownload(join(paths.root, "A.db"), join(paths.root, "candidate.db"), "");
+        await database.reconnectForSync("A.db", "sync_download_reconnect");
+        current = database.commandConnection("A.db");
+        for (const messages of broadcasts) expect(messages.at(-1)).toEqual(current);
+        expect(database.commandConnection("B.db")).toEqual(otherConnection);
+        expect(database.getCurrentDatabaseName()).toBe("B.db");
+        const scope = { toolDatabaseName: "A.db", toolDatabaseConnection: current.connectionId };
+        await Promise.all(
+          Array.from({ length: readers }, async (_, index) => {
+            const [calendars] = await Promise.all([
+              readCalendars(index % 2 ? other : owner, scope),
+              readGroups(owner, scope),
+              readDecks(other, scope),
+              readEvents(owner, 0, Date.now(), [], scope),
+            ]);
+            expect(
+              calendars
+                .filter((calendar: { title: string }) => calendar.title.startsWith("replacement-"))
+                .map((calendar: { title: string }) => calendar.title)
+            ).toEqual([`replacement-${round}`]);
+          })
+        );
+        const stale = oldScopes[round % oldScopes.length];
+        await expect(save(other, [{ id: "stale", hidden: false }], stale)).rejects.toThrow(
+          "CONNECTION_CHANGED"
+        );
+        await save(owner, [{ id: `current-${round}`, hidden: false }], scope);
+        expect(
+          database.getDatabase("A.db")?.prepare("SELECT panel_id FROM home_panel_layout").all()
+        ).toEqual([{ panel_id: `current-${round}` }]);
+        expect(
+          database.getDatabase("B.db")?.prepare("SELECT panel_id FROM home_panel_layout").all()
+        ).toEqual([{ panel_id: "other-library" }]);
+      }
+      for (const stale of oldScopes)
+        await expect(readCalendars(other, stale)).rejects.toThrow("CONNECTION_CHANGED");
+      for (const messages of broadcasts) expect(messages).toHaveLength(rounds);
+      console.info(
+        `[database-reconnect sqlite stress] rounds=${rounds}, concurrentReaders=${readers}, reads=${rounds * readers * 4}, writes=${rounds}, staleRejected=${rounds * 2}, windows=${broadcasts.length}`
+      );
+    } finally {
+      paths.windows = [];
+      for (const [name, db] of database.databases) {
+        indexManager.closeDatabase(name);
+        if (db.open) db.close();
+      }
+      database.databases.clear();
+      database.windowToDatabase.clear();
+      paths.handlers.clear();
+      rmSync(paths.root, { recursive: true, force: true });
+    }
+  },
+  120_000
+);

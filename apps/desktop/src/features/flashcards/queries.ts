@@ -22,28 +22,29 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { on } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import { useMemo } from "react";
 import * as flashcardCommands from "@/commands/flashcard";
-import { bindDatabaseCommands } from "@/services/command-context";
+import { databaseQueryKey } from "@/services/command-context";
+import { useDatabaseCommands } from "@/hooks/useDatabaseCommands";
 import { queryClient } from "@/queryClient";
 import { DAY_MS, resumedStatus, startOfDay } from "./model";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 export const flashcardKeys = {
   root: (database: string) => ["flashcards", databaseId(database)] as const,
-  snapshot: (database: string) => [...flashcardKeys.root(database), "snapshot"] as const,
-  decks: (database: string) => [...flashcardKeys.root(database), "decks"] as const,
-  stats: (database: string) => [...flashcardKeys.root(database), "review-stats"] as const,
-  due: (database: string) => [...flashcardKeys.root(database), "nav-due-count"] as const,
+  snapshot: (database: string, connectionId?: string) =>
+    databaseQueryKey([...flashcardKeys.root(database), "snapshot"] as const, connectionId),
+  decks: (database: string, connectionId?: string) =>
+    databaseQueryKey([...flashcardKeys.root(database), "decks"] as const, connectionId),
+  stats: (database: string, connectionId?: string) =>
+    databaseQueryKey([...flashcardKeys.root(database), "review-stats"] as const, connectionId),
+  due: (database: string, connectionId?: string) =>
+    databaseQueryKey([...flashcardKeys.root(database), "nav-due-count"] as const, connectionId),
 };
 
 function useFlashcardCommands() {
   const database = useSettingStore(state => state.setting.database.active);
-  const commands = useMemo(
-    () => bindDatabaseCommands(flashcardCommands, { databaseName: database }),
-    [database]
-  );
-  return { database, commands };
+  const { commands, connectionId } = useDatabaseCommands(flashcardCommands, database);
+  return { database, commands, connectionId };
 }
 
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
@@ -75,10 +76,10 @@ async function fetchSnapshot(
 }
 
 export function useFlashcardSnapshot() {
-  const { database, commands } = useFlashcardCommands();
+  const { database, commands, connectionId } = useFlashcardCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: flashcardKeys.snapshot(database),
+    queryKey: flashcardKeys.snapshot(database, connectionId),
     queryFn: () => fetchSnapshot(commands, database),
     enabled: connected,
     staleTime: 30_000,
@@ -87,6 +88,7 @@ export function useFlashcardSnapshot() {
   });
   return {
     database,
+    connectionId,
     snapshot: query.data,
     loading: query.isPending,
     error: query.error,
@@ -96,10 +98,10 @@ export function useFlashcardSnapshot() {
 
 /** 选择卡组只读取轻量卡组列表，不为选择入口加载全部题面。 */
 export function useFlashcardDecks(enabled = true) {
-  const { database, commands } = useFlashcardCommands();
+  const { database, commands, connectionId } = useFlashcardCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: flashcardKeys.decks(database),
+    queryKey: flashcardKeys.decks(database, connectionId),
     queryFn: () => commands.listFlashcardDecks(),
     enabled: enabled && connected,
     staleTime: 30_000,
@@ -115,10 +117,10 @@ export function useFlashcardDecks(enabled = true) {
 
 /** 近 7 天（含今天）评分分布 + 未来 7 天到期分桶（主进程 flashcard:review-stats） */
 export function useReviewStats() {
-  const { database, commands } = useFlashcardCommands();
+  const { database, commands, connectionId } = useFlashcardCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: flashcardKeys.stats(database),
+    queryKey: flashcardKeys.stats(database, connectionId),
     queryFn: () => commands.getFlashcardReviewStats({ since: startOfDay(Date.now()) - 6 * DAY_MS }),
     enabled: connected,
     staleTime: 60_000,
@@ -128,10 +130,10 @@ export function useReviewStats() {
 
 /** 复习页打开时由页面队列回写角标；其余场景汇总卡组 dueCount（due_time 已到且未暂停）。 */
 export function useNavDueCount() {
-  const { database, commands } = useFlashcardCommands();
+  const { database, commands, connectionId } = useFlashcardCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: flashcardKeys.due(database),
+    queryKey: flashcardKeys.due(database, connectionId),
     queryFn: async () =>
       (await commands.listFlashcardDecks()).reduce(
         (sum, deck) => sum + (deck.stats?.dueCount ?? 0),
@@ -144,9 +146,15 @@ export function useNavDueCount() {
   return query.data ?? 0;
 }
 
-function patchCard(queryClient: QueryClient, database: string, card: Flashcard) {
-  queryClient.setQueryData<FlashcardSnapshot>(flashcardKeys.snapshot(database), prev =>
-    prev ? { ...prev, cards: prev.cards.map(c => (c.id === card.id ? card : c)) } : prev
+function patchCard(
+  queryClient: QueryClient,
+  database: string,
+  card: Flashcard,
+  connectionId?: string
+) {
+  queryClient.setQueryData<FlashcardSnapshot>(
+    flashcardKeys.snapshot(database, connectionId),
+    prev => (prev ? { ...prev, cards: prev.cards.map(c => (c.id === card.id ? card : c)) } : prev)
   );
 }
 
@@ -162,7 +170,7 @@ export function invalidateFlashcardViews(queryClient: QueryClient, database?: st
 
 export function useFlashcardMutations() {
   const queryClient = useQueryClient();
-  const { database, commands } = useFlashcardCommands();
+  const { database, commands, connectionId } = useFlashcardCommands();
   const refresh = () => invalidateFlashcardViews(queryClient, database);
   const assertCurrentDatabase = () => {
     if (databaseId(useSettingStore.getState().setting.database.active) !== databaseId(database)) {
@@ -181,7 +189,7 @@ export function useFlashcardMutations() {
       assertCurrentDatabase();
       const card = await commands.updateFlashcard(input);
       if (!card) throw new Error("闪卡已不存在");
-      patchCard(queryClient, database, card);
+      patchCard(queryClient, database, card, connectionId);
       refresh();
       return card;
     },
@@ -196,14 +204,14 @@ export function useFlashcardMutations() {
       const status = suspended ? "suspended" : resumedStatus(card);
       const updated = await commands.updateFlashcard({ id: card.id, status });
       if (!updated) throw new Error("闪卡已不存在");
-      patchCard(queryClient, database, updated);
+      patchCard(queryClient, database, updated, connectionId);
       refresh();
     },
     async moveToDeck(card: Flashcard, deckId: number) {
       assertCurrentDatabase();
       const updated = await commands.updateFlashcard({ id: card.id, deckId });
       if (!updated) throw new Error("闪卡已不存在");
-      patchCard(queryClient, database, updated);
+      patchCard(queryClient, database, updated, connectionId);
       refresh();
     },
     async createDeck(input: CreateFlashcardDeckInput) {
@@ -234,14 +242,14 @@ export function useFlashcardMutations() {
       });
       if (!updated) throw new Error("闪卡已不存在");
       const { undo, ...updatedCard } = updated;
-      patchCard(queryClient, database, updatedCard);
+      patchCard(queryClient, database, updatedCard, connectionId);
       return undo;
     },
     async undoReview(payload: Parameters<typeof flashcardCommands.undoFlashcardReview>[0]) {
       assertCurrentDatabase();
       const restored = await commands.undoFlashcardReview(payload);
       if (!restored) throw new Error("闪卡已不存在");
-      patchCard(queryClient, database, restored);
+      patchCard(queryClient, database, restored, connectionId);
       return restored;
     },
     refresh,

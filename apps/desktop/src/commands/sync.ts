@@ -1,4 +1,5 @@
 import { queryClient } from "@/queryClient";
+import { isCurrentDatabaseQuery } from "@/services/command-context";
 import {
   uploadChunkedPath,
   downloadChunkedPath,
@@ -545,7 +546,9 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         mode: "maintenance",
       });
       if (succeeded) {
-        void queryClient.invalidateQueries();
+        void queryClient.invalidateQueries({
+          predicate: query => isCurrentDatabaseQuery(query.queryKey),
+        });
         emitProgress(options, 100, "下载完成");
       }
     } finally {

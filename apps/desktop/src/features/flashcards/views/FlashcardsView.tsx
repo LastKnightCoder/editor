@@ -52,7 +52,7 @@ const PAGE_KEY = "review";
 export function FlashcardsView() {
   const { navigator } = usePage();
   const queryClient = useQueryClient();
-  const { database, snapshot, loading, error, retry } = useFlashcardSnapshot();
+  const { database, connectionId, snapshot, loading, error, retry } = useFlashcardSnapshot();
   const reviewStats = useReviewStats();
   const mutations = useFlashcardMutations();
   const now = useNow(snapshot);
@@ -100,8 +100,8 @@ export function FlashcardsView() {
   const navDueCount = derived?.queue.length;
   useEffect(() => {
     if (navDueCount === undefined) return;
-    queryClient.setQueryData(flashcardKeys.due(database), navDueCount);
-  }, [database, navDueCount, queryClient]);
+    queryClient.setQueryData(flashcardKeys.due(database, connectionId), navDueCount);
+  }, [database, connectionId, navDueCount, queryClient]);
 
   const deck = deckId != null ? (derived?.decksById.get(deckId) ?? null) : null;
 

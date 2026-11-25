@@ -3,7 +3,8 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import * as quizCommands from "@/commands/vl-quiz";
 import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import { bindDatabaseCommands } from "@/services/command-context";
+import { databaseQueryKey } from "@/services/command-context";
+import { useDatabaseCommands } from "@/hooks/useDatabaseCommands";
 import { on } from "@/electron";
 import { queryClient } from "@/queryClient";
 import type {
@@ -18,14 +19,14 @@ import type {
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 export const quizKeys = {
   root: (database: string) => ["vl-quizzes", databaseId(database)] as const,
-  sets: (database: string, projectId: number) =>
-    [...quizKeys.root(database), "sets", projectId] as const,
-  items: (database: string, quizSetId: number | undefined) =>
-    [...quizKeys.root(database), "items", quizSetId] as const,
-  records: (database: string, quizSetId: number | undefined) =>
-    [...quizKeys.root(database), "records", quizSetId] as const,
-  scores: (database: string, projectId: number) =>
-    [...quizKeys.root(database), "scores", projectId] as const,
+  sets: (database: string, projectId: number, connectionId?: string) =>
+    databaseQueryKey([...quizKeys.root(database), "sets", projectId] as const, connectionId),
+  items: (database: string, quizSetId: number | undefined, connectionId?: string) =>
+    databaseQueryKey([...quizKeys.root(database), "items", quizSetId] as const, connectionId),
+  records: (database: string, quizSetId: number | undefined, connectionId?: string) =>
+    databaseQueryKey([...quizKeys.root(database), "records", quizSetId] as const, connectionId),
+  scores: (database: string, projectId: number, connectionId?: string) =>
+    databaseQueryKey([...quizKeys.root(database), "scores", projectId] as const, connectionId),
 };
 
 export function invalidateQuizzes(client: QueryClient, database: string) {
@@ -38,11 +39,8 @@ on("vl-quiz:changed", (_event, { databaseName }: { databaseName: string }) => {
 
 function useQuizCommands() {
   const database = useSettingStore(state => state.setting.database.active);
-  const commands = useMemo(
-    () => bindDatabaseCommands(quizCommands, { databaseName: database }),
-    [database]
-  );
-  return { database, commands };
+  const { commands, connectionId } = useDatabaseCommands(quizCommands, database);
+  return { database, commands, connectionId };
 }
 
 const EMPTY_SETS: VLQuizSet[] = [];
@@ -51,10 +49,10 @@ const EMPTY_RECORDS: VLQuizRecord[] = [];
 const EMPTY_SCORES: Record<number, number> = {};
 
 export function useQuizSets(projectId: number) {
-  const { database, commands } = useQuizCommands();
+  const { database, commands, connectionId } = useQuizCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: quizKeys.sets(database, projectId),
+    queryKey: quizKeys.sets(database, projectId, connectionId),
     queryFn: () => commands.listVLQuizSets(projectId),
     enabled: connected && projectId > 0,
     staleTime: 30_000,
@@ -65,10 +63,10 @@ export function useQuizSets(projectId: number) {
 }
 
 export function useQuizItems(quizSetId: number | undefined, enabled = true) {
-  const { database, commands } = useQuizCommands();
+  const { database, commands, connectionId } = useQuizCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: quizKeys.items(database, quizSetId),
+    queryKey: quizKeys.items(database, quizSetId, connectionId),
     queryFn: () => {
       if (quizSetId == null) throw new Error("缺少测验 ID");
       return commands.listVLQuizItems(quizSetId);
@@ -81,10 +79,10 @@ export function useQuizItems(quizSetId: number | undefined, enabled = true) {
 }
 
 export function useQuizRecords(quizSetId: number | undefined, enabled = true) {
-  const { database, commands } = useQuizCommands();
+  const { database, commands, connectionId } = useQuizCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: quizKeys.records(database, quizSetId),
+    queryKey: quizKeys.records(database, quizSetId, connectionId),
     queryFn: () => {
       if (quizSetId == null) throw new Error("缺少测验 ID");
       return commands.listVLQuizRecords({ quizSetId });
@@ -96,10 +94,10 @@ export function useQuizRecords(quizSetId: number | undefined, enabled = true) {
 }
 
 export function useQuizBestScores(projectId: number) {
-  const { database, commands } = useQuizCommands();
+  const { database, commands, connectionId } = useQuizCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: quizKeys.scores(database, projectId),
+    queryKey: quizKeys.scores(database, projectId, connectionId),
     queryFn: () => commands.getVLQuizBestScores(projectId),
     enabled: connected && projectId > 0,
     staleTime: 30_000,
@@ -110,7 +108,7 @@ export function useQuizBestScores(projectId: number) {
 
 export function useQuizMutations() {
   const client = useQueryClient();
-  const { database, commands } = useQuizCommands();
+  const { database, commands, connectionId } = useQuizCommands();
   return useMemo(() => {
     const assertCurrentDatabase = () => {
       if (databaseId(useSettingStore.getState().setting.database.active) !== databaseId(database)) {
@@ -123,8 +121,9 @@ export function useQuizMutations() {
         assertCurrentDatabase();
         const result = await commands.updateVLQuizSet(input);
         if (!result) throw new Error("测验集已不存在");
-        client.setQueryData<VLQuizSet[]>(quizKeys.sets(database, result.projectId), previous =>
-          previous?.map(item => (item.id === result.id ? result : item))
+        client.setQueryData<VLQuizSet[]>(
+          quizKeys.sets(database, result.projectId, connectionId),
+          previous => previous?.map(item => (item.id === result.id ? result : item))
         );
         refresh();
         return result;
@@ -132,16 +131,17 @@ export function useQuizMutations() {
       async deleteQuizSet(id: number) {
         assertCurrentDatabase();
         if (!(await commands.deleteVLQuizSet(id))) throw new Error("测验集已不存在");
-        client.removeQueries({ queryKey: quizKeys.items(database, id) });
-        client.removeQueries({ queryKey: quizKeys.records(database, id) });
+        client.removeQueries({ queryKey: quizKeys.items(database, id, connectionId) });
+        client.removeQueries({ queryKey: quizKeys.records(database, id, connectionId) });
         refresh();
       },
       async updateItem(input: UpdateVLQuizItemInput) {
         assertCurrentDatabase();
         const result = await commands.updateVLQuizItem(input);
         if (!result) throw new Error("测验题已不存在");
-        client.setQueryData<VLQuizItem[]>(quizKeys.items(database, result.quizSetId), previous =>
-          previous?.map(item => (item.id === result.id ? result : item))
+        client.setQueryData<VLQuizItem[]>(
+          quizKeys.items(database, result.quizSetId, connectionId),
+          previous => previous?.map(item => (item.id === result.id ? result : item))
         );
         refresh();
         return result;
@@ -155,12 +155,12 @@ export function useQuizMutations() {
         assertCurrentDatabase();
         const record = await commands.createVLQuizRecord(input);
         client.setQueryData<VLQuizRecord[]>(
-          quizKeys.records(database, input.quizSetId),
+          quizKeys.records(database, input.quizSetId, connectionId),
           previous => (previous ? [record, ...previous] : previous)
         );
         refresh();
         return record;
       },
     };
-  }, [client, database, commands]);
+  }, [client, database, commands, connectionId]);
 }

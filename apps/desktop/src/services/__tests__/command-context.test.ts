@@ -135,6 +135,7 @@ it("旧命令与异步准备在重新连接后仍携带原连接，不能领取�
 it("迟到的旧连接响应不能覆盖当前窗口的命令上下文", async () => {
   let finish!: (value: unknown) => void;
   window.electron = {
+    on: vi.fn(),
     invoke: async (_channel: string, name: string) =>
       name === "a"
         ? new Promise(resolve => {
@@ -149,4 +150,31 @@ it("迟到的旧连接响应不能覆盖当前窗口的命令上下文", async (
   finish({ databaseName: "a", connectionId: "old" });
   await previous;
   expect(currentCommandScope()).toEqual({ databaseName: "b", connectionId: "current" });
+});
+
+it("下载重连广播先于旧连接响应时，不把连接身份改回去", async () => {
+  let finish!: (value: unknown) => void;
+  let broadcast!: (
+    _event: unknown,
+    connection: { databaseName: string; connectionId: string }
+  ) => void;
+  window.electron = {
+    on: (_channel: string, listener: typeof broadcast) => {
+      broadcast = listener;
+    },
+    invoke: async () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  } as unknown as ElectronAPI;
+  const { connectDatabaseByName } = await import("@/commands/database");
+  const { currentCommandScope, getDatabaseConnection, rememberDatabaseConnection } =
+    await import("../command-context");
+  rememberDatabaseConnection({ databaseName: "a.db", connectionId: "before" });
+  const connecting = connectDatabaseByName("a.db");
+  broadcast(null, { databaseName: "a.db", connectionId: "after" });
+  finish({ databaseName: "a.db", connectionId: "before" });
+  await connecting;
+  expect(currentCommandScope()).toEqual({ databaseName: "a.db", connectionId: "after" });
+  expect(getDatabaseConnection("a")).toEqual({ databaseName: "a.db", connectionId: "after" });
 });

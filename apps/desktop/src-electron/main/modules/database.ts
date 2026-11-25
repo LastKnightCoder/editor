@@ -282,7 +282,9 @@ class DatabaseModule implements Module {
       }
     }
     if (reason === "sync_download_reconnect")
-      broadcastDatabaseChange("database:sync-reconnected", dbName);
+      broadcastDatabaseChange("database:sync-reconnected", dbName, {
+        connectionId: this.commandConnection(dbName).connectionId,
+      });
   }
 
   constructor() {

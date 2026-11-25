@@ -7,6 +7,7 @@ import { memo, useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Button, ConfirmDialog, Dialog, DialogBody, IconButton, cn, toast } from "@tau/ui";
 import { useQuery } from "@tanstack/react-query";
+import { databaseQueryKey } from "@/services/command-context";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { useScheduleStore } from "../../uiStore";
 import {
@@ -28,7 +29,7 @@ const MergeCalendarsDialog = memo(
     const { calendars, calendarGroups } = useCalendarCatalog();
     const { mergeCalendars } = useScheduleMutations();
     const toggleCalendarForMerge = useScheduleStore(s => s.toggleCalendarForMerge);
-    const { database, commands } = useScheduleCommands();
+    const { database, commands, connectionId } = useScheduleCommands();
     const connected = useDatabaseConnected();
 
     const [targetCalendarId, setTargetCalendarId] = useState<number | null>(null);
@@ -40,7 +41,10 @@ const MergeCalendarsDialog = memo(
     );
 
     const countsQuery = useQuery({
-      queryKey: [...scheduleKeys.root(database), "merge-counts", sourceCalendarIds],
+      queryKey: databaseQueryKey(
+        [...scheduleKeys.root(database), "merge-counts", sourceCalendarIds],
+        connectionId
+      ),
       queryFn: () => commands.countCalendarEvents(sourceCalendarIds),
       enabled: open && connected && sourceCalendarIds.length > 0,
       staleTime: 0,

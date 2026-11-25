@@ -6,13 +6,46 @@ export interface CommandScope {
   signal?: AbortSignal;
 }
 
-const connections = new Map<string, string>();
+const connections = new Map<string, DatabaseConnection>();
+const connectionListeners = new Set<() => void>();
 const capturedScopes = new WeakMap<CommandScope, CommandScope>();
 let connected: DatabaseConnection | undefined;
 const databaseKey = (name: string) => name.replace(/\.db$/, "");
 export function rememberDatabaseConnection(connection: DatabaseConnection): void {
-  connections.set(databaseKey(connection.databaseName), connection.connectionId);
   connected = connection;
+  updateDatabaseConnection(connection);
+}
+
+export function updateDatabaseConnection(connection: DatabaseConnection): void {
+  const key = databaseKey(connection.databaseName);
+  if (connected && databaseKey(connected.databaseName) === key) connected = connection;
+  if (connections.get(key)?.connectionId === connection.connectionId) return;
+  connections.set(key, connection);
+  for (const listener of connectionListeners) listener();
+}
+
+export function getDatabaseConnection(databaseName: string): DatabaseConnection | undefined {
+  return connections.get(databaseKey(databaseName));
+}
+
+export function subscribeDatabaseConnections(listener: () => void): () => void {
+  connectionListeners.add(listener);
+  return () => connectionListeners.delete(listener);
+}
+
+export function databaseQueryKey<T extends readonly unknown[]>(key: T, connectionId?: string) {
+  return connectionId ? ([...key, { connectionId }] as const) : key;
+}
+
+/** 覆盖后的旧查询等待页面换绑，不再由同步完成通知触发重试。 */
+export function isCurrentDatabaseQuery(key: readonly unknown[]): boolean {
+  const scope = key.find(
+    part => part !== null && typeof part === "object" && "connectionId" in part
+  );
+  if (!scope || typeof scope !== "object" || !("connectionId" in scope)) return true;
+  return [...connections.values()].some(
+    connection => connection.connectionId === scope.connectionId
+  );
 }
 
 let invoking: CommandScope | undefined;
@@ -28,7 +61,9 @@ export function bindDatabaseCommands<T extends object>(commands: T, scope?: Comm
       ...scope,
       connectionId:
         scope.connectionId ??
-        (scope.databaseName ? connections.get(databaseKey(scope.databaseName)) : undefined) ??
+        (scope.databaseName
+          ? getDatabaseConnection(scope.databaseName)?.connectionId
+          : undefined) ??
         "",
     };
     capturedScopes.set(scope, captured);
