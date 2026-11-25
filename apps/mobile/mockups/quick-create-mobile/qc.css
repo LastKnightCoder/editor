@@ -1,0 +1,444 @@
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-1);
+  padding: 28px 36px 80px;
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-head h1 {
+  font-size: 22px;
+  margin: 0;
+}
+.page-head small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tau-ink-2);
+  margin-top: 4px;
+}
+.theme-pick {
+  display: flex;
+  gap: 8px;
+}
+.theme-pick select,
+.pill {
+  font: inherit;
+  font-size: 13px;
+  color: var(--tau-ink-1);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+.row {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  padding: 28px 0;
+}
+.row + .row {
+  border-top: 1px dashed var(--tau-line-1);
+}
+.note {
+  width: 300px;
+  flex-shrink: 0;
+}
+.note h2 {
+  font-size: 17px;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.note ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--tau-ink-2);
+}
+.rec {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tau-accent-text);
+  background: var(--tau-accent-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.phones {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.cap {
+  font-size: 12px;
+  color: var(--tau-ink-2);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* ── 手机帧 ── */
+
+/* ── 手机帧 ── */
+.phone {
+  width: 360px;
+  height: 740px;
+  border-radius: 40px;
+  overflow: hidden;
+  position: relative;
+  background: var(--tau-bg-page);
+  box-shadow:
+    0 0 0 8px #1d1a17,
+    var(--tau-shadow-float);
+}
+.status {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 26px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.page {
+  padding: 6px 18px;
+}
+.page h3 {
+  font-size: 26px;
+  margin: 4px 0 2px;
+}
+.page .sub {
+  font-size: 13px;
+  color: var(--tau-ink-3);
+  margin-bottom: 16px;
+}
+.card {
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.card b {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.card .m {
+  color: var(--tau-ink-3);
+  font-size: 12px;
+}
+.ico {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ico svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* 遮罩 */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--tau-overlay);
+  z-index: 4;
+}
+
+/* Dock */
+.dock {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 10px 12px 22px;
+  background: var(--tau-bg-surface);
+  z-index: 5;
+}
+.dock .bar {
+  height: 62px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--tau-ink-3);
+  font-size: 10px;
+  font-weight: 600;
+}
+.tab .ico {
+  width: 20px;
+  height: 20px;
+}
+.tab.on {
+  color: var(--tau-accent);
+}
+.fab-slot {
+  width: 74px;
+  display: grid;
+  justify-content: center;
+}
+.fab {
+  width: 54px;
+  height: 54px;
+  border-radius: 19px;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--tau-shadow-lift);
+  transition: transform 0.2s;
+}
+.fab .ico {
+  width: 24px;
+  height: 24px;
+}
+.fab.open {
+  transform: rotate(45deg);
+}
+
+/* 现状：弧形 */
+.arc {
+  position: absolute;
+  left: 50%;
+  bottom: 69px;
+  width: 0;
+  height: 0;
+  z-index: 6;
+}
+.arc .it {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--tau-shadow-card);
+  transform: translate(-50%, -50%);
+}
+.arc .it .lb {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-1);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--tau-shadow-card);
+}
+
+/* A 竖排菜单 */
+.menu {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 106px;
+  transform: translateX(-50%);
+  width: 232px;
+  background: var(--tau-bg-surface);
+  border-radius: 20px;
+  padding: 6px;
+  box-shadow: var(--tau-shadow-float);
+}
+.menu .row-it {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tau-ink-1);
+}
+.menu .row-it .ico {
+  color: var(--tau-ink-2);
+}
+.menu .row-it.voice .ico {
+  color: var(--tau-accent);
+}
+.menu .row-it .hint {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tau-ink-3);
+}
+.menu .row-it.press {
+  background: var(--tau-bg-press);
+}
+.menu hr {
+  border: 0;
+  height: 1px;
+  background: var(--tau-line-1);
+  margin: 4px 14px;
+}
+
+/* B 底部面板 */
+.sheet {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 7;
+  background: var(--tau-bg-surface);
+  border-radius: 24px 24px 0 0;
+  padding: 8px 16px 30px;
+  box-shadow: var(--tau-shadow-float);
+}
+.grab {
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--tau-line-2);
+  margin: 0 auto 14px;
+}
+.sheet h4 {
+  margin: 0 4px 12px;
+  font-size: 17px;
+}
+.voice-btn {
+  height: 56px;
+  border-radius: 16px;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.tile {
+  height: 76px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tile .ico {
+  color: var(--tau-ink-2);
+}
+
+/* C 速记页 */
+.qc-top {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+}
+.switch .ico {
+  width: 16px;
+  height: 16px;
+}
+.save {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tau-accent-text);
+}
+.x {
+  color: var(--tau-ink-2);
+}
+.qc-body {
+  padding: 12px 22px;
+  font-size: 16px;
+  color: var(--tau-ink-3);
+}
+.drop {
+  position: absolute;
+  top: 98px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  z-index: 6;
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: var(--tau-shadow-float);
+}
+.drop .row-it {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.drop .row-it .ico {
+  color: var(--tau-ink-2);
+  width: 20px;
+  height: 20px;
+}
+.drop .row-it.on {
+  color: var(--tau-accent-text);
+}
+.drop .row-it.on .ico {
+  color: var(--tau-accent);
+}
+.drop .row-it .ck {
+  margin-left: auto;
+}
+.kb {
+  position: absolute;
+  inset: auto 0 0;
+  height: 270px;
+  background: #d3d6dc;
+}
+[data-mode="dark"] .kb {
+  background: #2b2b2d;
+}
+.kb::after {
+  content: "键盘";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #888;
+  font-size: 13px;
+}

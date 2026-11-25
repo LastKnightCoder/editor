@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端 ＋ 新建菜单 · 重设计</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="qc.css" />
+</head>
+<body>
+<header class="page-head">
+  <h1>移动端 ＋ 新建菜单 · 重设计<small>颜色取自 @tau/themes · 手机帧 360×740 · 今天页为示意内容</small></h1>
+  <div class="theme-pick">
+    <select id="theme-family" aria-label="主题族">
+      <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+      <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+    </select>
+    <button id="theme-mode" class="pill">浅色</button>
+  </div>
+</header>
+
+<section class="row">
+  <div class="note">
+    <h2>现状</h2>
+    <ul>
+      <li>5 个入口沿弧形散开，标签挂在每个按钮头顶：相邻标签彼此挤压，外侧两个压住「卡片」「我的」标签。</li>
+      <li>弧形半径受屏宽限制，5 项已经到极限，再加一项就放不下。</li>
+      <li>每项一种颜色，5 种色块同时出现，视线没有落点。</li>
+      <li>弧形是「装饰性」布局：拇指要在不同高度、不同角度找目标，不如一条直线好点。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="now"></div>
+</section>
+
+<section class="row">
+  <div class="note">
+    <h2>A 竖排菜单<span class="rec">推荐</span></h2>
+    <ul>
+      <li>一张圆角菜单浮在 ＋ 正上方，离 Dock 留 12px，不压任何导航。参照 Todoist、滴答清单、Google 日历的 ＋ 菜单。</li>
+      <li>一行一项：图标 + 名称，整行可点，命中区 52px 高。最常用的「新卡片」排在分隔线上方，离拇指最近；「说一段」单独隔开放最底。</li>
+      <li>图标统一用墨色，只有「说一段」保留 accent，提示它是语音入口；行尾小字写「长按 ＋」，替代首次 toast。</li>
+      <li>项数增减只改列表长度，不用重算弧形角度。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="a"></div>
+</section>
+
+<section class="row">
+  <div class="note">
+    <h2>B 底部面板</h2>
+    <ul>
+      <li>轻点 ＋ 从底部拉起一块面板，盖住 Dock。参照 Notion、飞书、Instagram 的新建面板。</li>
+      <li>顶部一条宽按钮「按住说一段」，下面 2×2 宫格放卡片/文章/日程/日记。</li>
+      <li>空间最宽裕，以后加入口（如网页剪藏）不挤；代价是多一层面板，打开比 A 重。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="b"></div>
+</section>
+
+<section class="row">
+  <div class="note">
+    <h2>C ＋ 直接写卡片</h2>
+    <ul>
+      <li>轻点 ＋ 不出菜单，直接进速记页写卡片；长按仍是说一段。参照 Twitter、Threads 的发帖按钮。</li>
+      <li>速记页左上角「卡片 ▾」可改成文章、日程、日记，用菜单切换。</li>
+      <li>日记、日程本来就能从「日记」Tab 和今天页进入，＋ 只服务最高频的那一件事。</li>
+      <li>最快，但其余三项多一步，且需要改速记页。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="c"></div>
+</section>
+
+<script src="qc.js"></script>
+</body>
+</html>
