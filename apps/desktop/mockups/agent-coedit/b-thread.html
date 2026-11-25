@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>Agent 协同编辑 · 方案 B 批注对话</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 页边批注：卡片对齐到所在段落 */
+  .main.margin { display: flex; justify-content: center; gap: 0; }
+  .main.margin .doc { margin: 0; flex: none; width: 640px; }
+  .rail { width: 330px; flex: none; position: relative; padding-top: 36px; }
+  .rail .card { position: absolute; left: 8px; right: 18px; box-shadow: var(--shadow-card); }
+  .msg { display: flex; gap: 7px; align-items: flex-start; margin-top: 8px; }
+  .msg .av { margin-top: 1px; }
+  .msg .tx { flex: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line-1); font-size: 12px; background: var(--surface); }
+  .chip:hover { background: var(--hover); }
+  .link { position: absolute; height: 1px; background: var(--c); opacity: .5; }
+</style>
+</head>
+<body>
+<script type="module">
+import { av, caret, who, typing, ic, win, doc, mount } from "./shared.js";
+
+const presence = `${av("research", "busy")}${av("proof")}${av("me")}`;
+const margin = (docHtml, rail) => `<div class="main margin">${docHtml}<div class="rail">${rail}</div></div>`;
+const winM = (presenceHtml, inner, extra = "") => win({ presence: presenceHtml, extra, doc: "" }).replace('<div class="main"></div>', inner);
+
+const msg = (k, html) => `<div class="msg">${av(k, "sm")}<div class="tx"><span class="${k === "me" ? "" : "who " + (k === "research" ? "t1" : "t2")}" style="${k === "me" ? "font-weight:600" : ""}">${k === "me" ? "我" : ""}${k === "research" ? "调研员" : k === "proof" ? "校对" : ""}</span> ${html}</div></div>`;
+
+const scenes = {
+  ask: {
+    label: "它先问你",
+    view: winM(presence, margin(doc({
+      p4: `<p><span class="anchor t1">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。Notion 的离线模式到 2025 年才支持整页离线编辑。</span></p>`,
+    }), `<div class="card t1 on" style="top:470px">
+        ${msg("me", "帮我核对一下这段的年份和说法")}
+        ${msg("research", `查到两处出入：<br>① Notion 离线模式是 2025 年 8 月，但要<b>逐页手动开启</b>，「整页离线编辑」不太准确；<br>② Logseq 数据库版还在测试，说「转向」偏早。`)}
+        ${msg("research", `第 ② 处你想怎么写？`)}
+        <div class="acts" style="margin-left:25px"><button class="chip">按事实改：「正在转向」</button><button class="chip">删掉 Logseq 这句</button><button class="chip">${ic("pen-line")}我自己写</button></div>
+      </div>`)),
+    cap: `<ul><li>Agent 遇到拿不准的地方会<b>在批注里反问</b>，给出几个可点的选项；它不会用「提案 → 拒绝 → 重来」的方式试探你。</li>
+      <li>批注卡贴在所讲段落的页边，正文用作者色标出锚点；对话发生在文档里，而不是另一个窗口的工具卡里。</li>
+      <li>对应现有能力：子 Agent 的「等你回答」(question) 状态直接在页边展示。</li></ul>`,
+  },
+  propose: {
+    label: "在线程里给改法",
+    view: winM(presence, margin(doc({
+      p4: `<p><span class="anchor t1">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq <span class="del">曾尝试基于文件的同步，后来转向数据库版本</span><span class="ins">早期基于文件同步，2025 年起正在转向数据库版本</span>。<span class="del">Notion 的离线模式到 2025 年才支持整页离线编辑。</span><span class="ins">Notion 在 2025 年 8 月推出离线模式，但需要逐页手动开启。</span></span></p>`,
+    }), `<div class="card t1 on" style="top:470px">
+        ${msg("me", `<span class="muted">选择了</span> 按事实改：「正在转向」`)}
+        ${msg("research", `好，按这个改了两句，你看下。`)}
+        <div style="margin:8px 0 0 25px;padding:8px 10px;border:1px solid var(--line-1);border-radius:8px">
+          <div class="row small muted" style="margin-bottom:4px">${ic("git-compare")}2 处改动 · 已在正文预览</div>
+          <div class="acts" style="margin-top:4px"><button class="btn primary">${ic("check")}用这版</button><button class="btn">${ic("x")}不改了</button></div>
+        </div>
+        <div class="input" style="margin:10px 0 0 25px">${ic("corner-down-right")}回复调研员…</div>
+      </div>
+      <div class="card t2" style="top:250px">
+        ${msg("proof", `这段我看完了，没有问题。`)}
+        <div class="row small muted" style="margin:6px 0 0 25px">${ic("check")}已读 · 无需处理</div>
+      </div>`)),
+    cap: `<ul><li>改法作为线程里的一条回复出现，正文同步预览痕迹；「用这版 / 不改了」就是现在的确认应用 / 拒绝。</li>
+      <li>继续回复 = 提修改意见，对话保持在这一处，不污染主对话。</li>
+      <li>校对读完没改的段落也会留一条「已读」，你能看到它确实看过。</li></ul>`,
+  },
+  mention: {
+    label: "Agent 之间交接",
+    view: winM(`${av("research")}${av("proof", "busy")}${av("me")}`, margin(doc({
+      p3: `<p><span class="anchor t2">代价是元数据。Yjs 的文档在长期编辑后会膨胀到正文的 3 到 5 倍${caret("proof")}，需要定期压缩快照，并且压缩不能丢掉别的设备尚未收到的增量。</span></p>`,
+    }), `<div class="card t2 on" style="top:330px">
+        ${msg("proof", `「3 到 5 倍」没有出处，我不确定。<span class="who t1">@调研员</span> 能帮忙核对吗？`)}
+        ${msg("research", `Yjs 作者的基准是 1.5～3 倍，长期编辑且不压缩才会到 5 倍。我把出处贴在下面了，改法交给校对。`)}
+        ${msg("proof", `改成「1.5 到 3 倍，长期不压缩时可达 5 倍」，等你确认${typing("proof")}`)}
+        <div class="row small muted" style="margin:8px 0 0 25px">${ic("info")}你随时可以插话</div>
+      </div>`)),
+    cap: `<ul><li>Agent 能在批注里 @另一个 Agent，交接过程对你透明，看起来就像两个同事在页边讨论。</li>
+      <li>结论仍然要你确认才落地；你随时插话，谁都会停下来听。</li>
+      <li>底层是主 Agent 的 <code>send_agent</code> / 子 Agent 的 <code>send_parent</code>，只是把消息投影到对应锚点上。</li></ul>`,
+  },
+  inbox: {
+    label: "离开后回来",
+    view: winM(`${av("research")}${av("proof")}${av("me")}`, margin(doc({
+      p2: `<p><span class="anchor t2">传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被吞掉。</span>CRDT 让每次修改都带上足够的上下文，任何顺序合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+      p3: `<p><span class="anchor t2">代价是元数据。Yjs 的文档在长期编辑后会膨胀到正文的 3 到 5 倍，需要定期压缩快照，并且压缩不能丢掉别的设备尚未收到的增量。</span></p>`,
+      p4: `<p><span class="anchor t1">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。Notion 的离线模式到 2025 年才支持整页离线编辑。</span></p>`,
+    }), `<div class="card" style="top:0;box-shadow:var(--shadow-lift)">
+        <div class="h">${ic("inbox")}<b>你不在时</b><span class="t">3 条待你处理</span></div>
+        <div class="msg">${av("research", "sm wait")}<div class="tx">调研员 在第 4 段问了你一个问题</div></div>
+        <div class="msg">${av("proof", "sm wait")}<div class="tx">校对 等你确认 1 处数据修改</div></div>
+        <div class="msg">${av("proof", "sm")}<div class="tx">校对 留了 1 条建议：第 2 段可以拆成两句</div></div>
+        <div class="acts"><button class="btn primary">${ic("arrow-down")}从第一条开始</button><button class="btn ghost">全部标为已读</button></div>
+      </div>
+      <div class="card t2" style="top:250px;opacity:.85">${msg("proof", "可以拆成两句，读起来更轻 …")}</div>
+      <div class="card t2" style="top:340px;opacity:.85">${msg("proof", "改成「1.5 到 3 倍」…")}<div class="row small" style="margin:4px 0 0 25px;color:var(--warn)">${ic("circle-dot")}等你确认</div></div>
+      <div class="card t1" style="top:470px;opacity:.85">${msg("research", "第 ② 处你想怎么写？")}<div class="row small" style="margin:4px 0 0 25px;color:var(--warn)">${ic("circle-dot")}等你回答</div></div>`)),
+    cap: `<ul><li>页边顶部一张「你不在时」：按待你处理的事排序，逐条跳转；标题栏头像的橙点 = 有人在等你。</li>
+      <li>适合「派了活去做别的事」的节奏：Agent 是异步同事，回来像看批注一样过一遍。</li></ul>`,
+  },
+};
+mount("b-thread.html", scenes);
+</script>
+</body>
+</html>

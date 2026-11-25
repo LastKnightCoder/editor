@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>Agent 协同编辑 · 方案 A 建议模式</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<script type="module">
+import { av, caret, who, typing, ic, win, doc, mount } from "./shared.js";
+
+const presence = (r = "busy", p = "busy") => `${av("research", r)}${av("proof", p)}${av("me")}`;
+
+const sideCards = (cards, head = "建议") => `<aside class="side">
+  <div class="hd">${ic("pencil-line")}${head}<span class="sp" style="flex:1"></span><span class="muted small">只看 Agent ▾</span></div>
+  <div class="bd">${cards}</div></aside>`;
+
+const sug = (k, body, reason, opts = {}) => `<div class="card ${opts.on ? "on" : ""} ${k === "research" ? "t1" : "t2"}">
+  <div class="h">${av(k, "sm")}${who(k)}<span class="muted">${opts.verb ?? "建议修改"}</span><span class="t">${opts.time ?? "刚刚"}</span></div>
+  <div>${body}</div>
+  ${reason ? `<div class="muted small" style="margin-top:4px">${reason}</div>` : ""}
+  ${opts.acts ?? `<div class="acts"><button class="btn primary">${ic("check")}接受</button><button class="btn">${ic("x")}退回</button><button class="btn ghost">${ic("message-circle")}回复</button></div>`}
+</div>`;
+
+const scenes = {
+  ask: {
+    label: "像同事一样派活",
+    view: win({
+      presence: `${av("research")}${av("proof")}${av("me")}`,
+      doc: doc({
+        p4: `<p><span class="anchor tu">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。Notion 的离线模式到 2025 年才支持整页离线编辑。</span>
+          <span class="float" style="left:40px;top:calc(100% + 8px);width:420px">
+            <div class="row" style="margin-bottom:6px">${av("me", "sm")}<b>评论</b><span class="muted small">选中 3 句</span></div>
+            <div class="input" style="color:var(--ink-1)"><span class="who t1">@调研员</span>&nbsp;帮我核对一下这段的年份和说法，有出处就附上</div>
+            <div class="row" style="margin-top:8px"><span class="muted small">${ic("eye")} 调研员只能提建议，改动需你接受</span><span style="flex:1"></span><button class="btn primary">${ic("send")}发送</button></div>
+          </span></p>`,
+      }),
+    }),
+    cap: `<ul><li>派活入口就在正文里：选中文字 → 评论 → <b>@某个 Agent</b>，和@同事一模一样；对话面板仍可派活，但工作结果回到文档。</li>
+      <li>标题栏常驻协作者头像（带 ✦ 角标区分 Agent）。Agent 有名字、颜色和一句话职责，不再统一叫「AI」。</li>
+      <li>浮层底部写明这个 Agent 的权限（对应现有 <code>review_required</code>）。</li></ul>`,
+  },
+  working: {
+    label: "看得见它在干活",
+    view: win({
+      presence: presence(),
+      extra: `<span class="pill t1">${av("research", "sm")}调研员 正在查 Notion 离线模式的发布时间${typing("research")}</span>`,
+      doc: doc({
+        p2: `<p>传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被${caret("proof")}吞掉。CRDT 让每次修改都带上足够的上下文，任何顺序合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+        p4: `<p><span class="bar-l t1"></span><span class="read t1">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。Notion 的离线模式到 2025 年才支持整页离线编辑。</span></p>`,
+      }),
+      side: sideCards(`
+        <div class="card t1"><div class="h">${av("research", "sm busy")}${who("research")}<span class="muted">处理你的评论</span><span class="t">40 秒</span></div>
+          <div class="q">帮我核对一下这段的年份和说法</div>
+          <div class="small">${ic("check", 'style="width:12px;height:12px;color:var(--ok)"')} 读了这一段和前文<br>${ic("check", 'style="width:12px;height:12px;color:var(--ok)"')} 搜到 Obsidian Sync 文档<br>${ic("loader", 'style="width:12px;height:12px"')} 正在查 Notion 离线模式的发布时间</div>
+          <div class="acts"><button class="btn ghost">${ic("pause")}先停一下</button></div></div>
+        <div class="card t2"><div class="h">${av("proof", "sm busy")}${who("proof")}<span class="muted">全文校对</span><span class="t">第 2 / 5 段</span></div>
+          <div class="small muted">你开着正文时它也在逐段读，读到哪光标就在哪。</div></div>`, "协作者"),
+    }),
+    cap: `<ul><li>Agent 有<b>光标</b>：校对的光标停在它正读到的位置，调研员在左侧用彩色竖条 + 点状下划线标出「我在看这段」。</li>
+      <li>标题栏头像转圈 = 正在干活；胶囊用一句人话说当前在做什么（来自工具调用摘要），点开是右侧步骤。</li>
+      <li>「先停一下」是对人说的话，不是「取消工具调用」。</li></ul>`,
+  },
+  suggest: {
+    label: "建议落在原文上",
+    view: win({
+      presence: presence("", "busy"),
+      doc: doc({
+        p2: `<p>传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被吞掉。CRDT 让每次修改都带上足够的上下文，<span class="t2"><span class="del">任何顺序</span><span class="ins">以任意顺序</span></span>合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+        p4: `<p>Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。<span class="t1"><span class="del">Notion 的离线模式到 2025 年才支持整页离线编辑。</span><span class="ins">Notion 在 2025 年 8 月推出离线模式，但需要逐页手动开启。</span></span><sup class="who t1">[1]</sup></p>`,
+      }),
+      side: sideCards(
+        sug("research", `<span class="del">到 2025 年才支持整页离线编辑</span> → <span class="ins t1">在 2025 年 8 月推出离线模式，但需要逐页手动开启</span>`,
+          `原句没说清限制。出处：Notion 发布说明 2025-08-19，已加脚注 [1]。`, { on: true, time: "1 分钟前" }) +
+        `<div class="card reply t1" style="margin-left:18px;padding:8px 10px"><div class="row small">${av("research", "sm")}<span>Obsidian 那句我核对过，没问题，没动。</span></div></div>` +
+        sug("proof", `<span class="del">任何顺序</span> → <span class="ins t2">以任意顺序</span>`, `语序不顺。`, { time: "刚刚" }) +
+        `<div class="row small muted" style="justify-content:center">${ic("check-check")}<a style="color:var(--accent-text)">接受校对的全部 6 条</a></div>`),
+    }),
+    cap: `<ul><li>改动直接以<b>修订痕迹</b>画在正文里，颜色 = 作者。不用再到对话里的工具卡切「改动高亮/完整内容」看 diff。</li>
+      <li>右侧每条建议像人写的批注：改了什么 + 一句为什么 + 出处；没改的地方也会交代（「Obsidian 那句没动」）。</li>
+      <li>点正文痕迹 ↔ 高亮对应卡片。小改动（校对）可一键全收，按人批量处理。</li>
+      <li>「回复」= 现在的「提修改意见」，在这条建议下面说，Agent 只重做这一条。</li></ul>`,
+  },
+  overlap: {
+    label: "你和它同时改",
+    view: win({
+      presence: presence(""),
+      doc: doc({
+        p4: `<p>Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。Notion 的离线模式到 2025 年<span class="ins tu">中</span>${caret("me")}才支持整页离线编辑。</p>`,
+      }),
+      side: sideCards(`<div class="card t1 on"><div class="h">${av("research", "sm busy")}${who("research")}<span class="muted">建议修改</span><span class="t">刚刚</span></div>
+        <div class="muted" style="text-decoration:line-through">到 2025 年才支持整页离线编辑 → 在 2025 年 8 月推出…</div>
+        <div class="row small" style="margin-top:6px;color:var(--warn)">${ic("refresh-cw")}你改了这句，调研员在按新原文重写建议${typing("research")}</div></div>
+        <div class="card t2"><div class="h">${av("proof", "sm")}${who("proof")}<span class="muted">建议修改</span><span class="t">2 分钟前</span></div>
+          <div><span class="del">任何顺序</span> → <span class="ins t2">以任意顺序</span></div><div class="small muted">不受影响，仍然有效</div>
+          <div class="acts"><button class="btn primary">${ic("check")}接受</button><button class="btn">${ic("x")}退回</button></div></div>`),
+    }),
+    cap: `<ul><li>你不需要「等 AI 改完」：你照常打字，Agent 的建议锚在原文上（现在的 scoped 锚点 + 原文前提）。</li>
+      <li>原文被你改了 → 建议自动作废并让它按新原文重写（对应 <code>apply_content_edit</code> 的范围冲突重读），卡片上说人话，不弹错误 toast。</li>
+      <li>别处的建议不受影响，继续可用。</li></ul>`,
+  },
+  chat: {
+    label: "文章没打开时",
+    view: `<div class="win">
+      <div class="tbar">${ic("panel-left")}<span class="crumb">对话 / <b>整理同步方案的资料</b></span><span class="sp"></span><div class="presence">${av("research")}${av("proof")}</div></div>
+      <div class="body"><div class="main"><div style="max-width:720px;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:14px;font-size:13.5px">
+        <div style="align-self:flex-end;background:var(--surface);border:1px solid var(--line-1);border-radius:12px;padding:8px 12px">让调研员和校对过一遍《离线优先的笔记同步》</div>
+        <div class="card t1" style="padding:12px 14px">
+          <div class="h">${av("research", "sm")}${who("research")}<span class="muted">在</span><a style="color:var(--accent-text)">${ic("file-text", 'style="width:13px;height:13px;vertical-align:-2px"')} 离线优先的笔记同步</a><span class="muted">留了 2 条建议</span><span class="t">1 分钟前</span></div>
+          <div style="border:1px solid var(--line-1);border-radius:10px;overflow:hidden;margin-top:4px">
+            <div style="padding:9px 12px"><div class="small muted">第 4 段 · Notion 离线模式</div>
+              <div><span class="del">到 2025 年才支持整页离线编辑</span> <span class="ins t1">在 2025 年 8 月推出离线模式，但需要逐页手动开启</span></div>
+              <div class="small muted">出处：Notion 发布说明 2025-08-19</div>
+              <div class="acts"><button class="btn primary">${ic("check")}接受</button><button class="btn">${ic("x")}退回</button><button class="btn ghost">${ic("message-circle")}回复</button></div></div>
+            <div style="padding:9px 12px;border-top:1px solid var(--line-2)"><div class="small muted">第 4 段 · Logseq</div>
+              <div><span class="del">后来转向数据库版本</span> <span class="ins t1">2025 年起正在转向数据库版本</span></div>
+              <div class="row small" style="margin-top:6px;color:var(--ok)">${ic("check")}已接受</div></div>
+          </div>
+          <div class="row" style="margin-top:8px"><button class="btn">${ic("check-check")}全部接受</button><span style="flex:1"></span><button class="btn ghost">${ic("external-link")}在文章中逐条看</button></div>
+        </div>
+        <div class="card t2" style="padding:10px 14px"><div class="row">${av("proof", "sm")}${who("proof")}<span>在同一篇留了 6 条小修改（语序 3、术语 2、标点 1）</span><span style="flex:1"></span><button class="btn">展开</button><button class="btn">${ic("check-check")}全部接受</button></div></div>
+        <div class="input" style="margin-top:auto">${ic("message-square")}回复，或 @调研员 / @校对 …</div>
+      </div></div></div></div>`,
+    cap: `<ul><li>审阅不迁出对话：<b>同一份建议有两个视图</b>。对话里是按条的紧凑卡片，每条带上下文，能接受、退回、回复；文章打开时在正文里显示修订痕迹，两边状态同步。</li>
+      <li>小改动（校对）默认折叠成一行，可以一键全收；需要判断的（调研）逐条展开。</li>
+      <li>「在文章中逐条看」跳到正文，定位到第一条未处理的建议。</li></ul>`,
+  },
+  reopen: {
+    label: "中途打开文章",
+    view: win({
+      presence: `${av("research", "busy")}${av("proof")}${av("me")}`,
+      extra: `<span class="pill">${ic("history")}你离开期间：调研员 留了 2 条，校对 已完成 <a style="color:var(--accent-text);margin-left:4px">从第一条看</a></span>`,
+      doc: doc({
+        p2: `<p>传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被吞掉。CRDT 让每次修改都带上足够的上下文，<span class="recent t2">以任意顺序</span>合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+        p3: `<p>代价是元数据。Yjs 的文档在长期编辑后会膨胀到正文的 <span class="t1"><span class="del">3 到 5 倍</span><span class="ins">1.5 到 3 倍，长期不压缩时可达 5 倍</span></span>，需要定期压缩快照，并且压缩不能丢掉别的设备尚未收到的增量。</p>`,
+        p4: `<p><span class="bar-l t1"></span><span class="read t1">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。${caret("research")}Notion 的离线模式到 2025 年中才支持整页离线编辑。</span></p>`,
+      }),
+      side: sideCards(
+        sug("research", `<span class="del">3 到 5 倍</span> → <span class="ins t1">1.5 到 3 倍，长期不压缩时可达 5 倍</span>`, `出处：Yjs 作者的基准测试。`, { time: "4 分钟前" }) +
+        `<div class="card t1"><div class="h">${av("research", "sm")}${who("research")}<span class="muted">建议修改</span><span class="t">3 分钟前</span></div>
+          <div class="muted" style="text-decoration:line-through">到 2025 年才支持整页离线编辑 → 在 2025 年 8 月推出…</div>
+          <div class="row small" style="margin-top:6px;color:var(--warn)">${ic("circle-alert")}这句在别处被改过（加了「中」），建议已过期</div>
+          <div class="acts"><button class="btn">${ic("refresh-cw")}让它按新原文重写</button><button class="btn ghost">忽略</button></div></div>
+        <div class="card t1"><div class="h">${av("research", "sm busy")}${who("research")}<span class="muted">还在继续</span></div><div class="small">正在读第 4 段${typing("research")}</div></div>
+        <div class="row small muted" style="justify-content:center">${ic("check")}校对的 6 条已在对话里全部接受</div>`),
+    }),
+    cap: `<ul><li>打开时三样东西各自到位：<b>正文</b>是最新的（Agent 关着也照写）；<b>建议</b>从持久记录读出，按锚点画回原位；<b>在场</b>从协作会话的 awareness 拿到调研员此刻的光标。</li>
+      <li>锚点对不上原文的建议不硬画，标「已过期」并给出重写入口。</li>
+      <li>在对话里处理过的（校对 6 条）不再出现痕迹，只留一行结果。</li></ul>`,
+  },
+  done: {
+    label: "收尾与撤销",
+    view: win({
+      presence: `${av("research")}${av("proof")}${av("me")}`,
+      doc: doc({
+        meta: `更新于刚刚 · 2,352 字 · <span class="who t1">调研员</span>、<span class="who t2">校对</span> 参与编辑`,
+        p2: `<p>传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被吞掉。CRDT 让每次修改都带上足够的上下文，<span class="recent t2">以任意顺序</span>合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+        p4: `<p>Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来转向数据库版本。<span class="recent t1">Notion 在 2025 年 8 月推出离线模式，但需要逐页手动开启。</span><sup class="who t1">[1]</sup></p>`,
+      }),
+      side: sideCards(`<div class="sec">已处理</div>
+        <div class="card t1"><div class="h">${av("research", "sm")}${who("research")}<span class="muted">1 条已接受</span><span class="t">3 分钟前</span></div>
+          <div class="small">Notion 离线模式的时间和限制</div><div class="acts"><button class="btn ghost">${ic("undo-2")}撤销这条</button><button class="btn ghost">${ic("message-square")}在对话里打开</button></div></div>
+        <div class="card t2"><div class="h">${av("proof", "sm")}${who("proof")}<span class="muted">5 条已接受 · 1 条退回</span></div>
+          <div class="small">语序 3 处、术语统一 2 处</div><div class="acts"><button class="btn ghost">${ic("undo-2")}全部撤销</button></div></div>
+        <div class="hr"></div>
+        <div class="card"><div class="h">${ic("shield-check")}<b>下次让校对直接改？</b></div>
+          <div class="small muted">你接受了它 5/6 条建议。改错字这类小事可以不经你确认，事后仍能逐条撤销。</div>
+          <div class="acts"><button class="btn">直接改</button><button class="btn ghost">还是先问我</button></div></div>`, "本次协作"),
+    }),
+    cap: `<ul><li>接受后痕迹淡成浅色底几秒（「谁刚改过」），然后消失；文档元信息记一行「谁参与编辑」。</li>
+      <li>撤销按人、按条，复用现有范围撤销（逆操作 + 复核当前范围）。</li>
+      <li>权限按 Agent 给、靠用户自己的接受率提议升级，而不是对话里一个全局开关——这就是方案 C 的入口。</li></ul>`,
+  },
+};
+mount("a-suggest.html", scenes);
+</script>
+</body>
+</html>

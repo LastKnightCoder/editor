@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>A 紧凑清单 · Agent 修改工具卡</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .list { border-top: 1px solid var(--line-2); }
+  .item { position: relative; display: flex; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line-2); }
+  .item:last-child { border-bottom: 0; }
+  .item:hover { background: var(--surface-hover); }
+  .item .n { width: 16px; flex: none; font-size: 11px; color: var(--ink-3); text-align: right; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .item .main { flex: 1; min-width: 0; }
+  .item .txt { line-height: 1.75; word-break: break-word; }
+  .item .why { margin-top: 2px; font-size: 11.5px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
+  .item .why .loc { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-3); }
+  .item .why .loc:hover { color: var(--ink-1); }
+  .item .why .loc svg { width: 11px; height: 11px; }
+  .item .acts { display: flex; gap: 2px; flex: none; align-self: flex-start; opacity: 0; }
+  .item:hover .acts, .item.focus .acts { opacity: 1; }
+  .item .state { flex: none; align-self: flex-start; padding-top: 1px; }
+  .item.done .txt { color: var(--ink-2); }
+  .item.focus { background: var(--surface-hover); box-shadow: inset 2px 0 0 var(--accent); }
+  .reply { margin-top: 8px; border: 1px solid var(--line-1); border-radius: 8px; background: var(--surface); padding: 8px 10px; font-size: 12.5px; }
+  .reply .ph { color: var(--ink-3); min-height: 36px; }
+  .reply .row { margin-top: 6px; justify-content: flex-end; }
+  .progress { height: 3px; border-radius: 2px; background: var(--line-1); overflow: hidden; width: 54px; }
+  .progress i { display: block; height: 100%; background: var(--ok); }
+  .collapsed .card-hd { cursor: pointer; }
+  .q-opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .quote { border-left: 2px solid var(--line-1); padding-left: 8px; color: var(--ink-3); margin: 2px 0 4px; }
+</style>
+</head>
+<body>
+<script type="module">
+import { mount, chat, ic, av, doclink, EDITS, diff, agent } from "./shared.js";
+
+const head = (verb, right) => `<div class="card-hd">
+  <div class="title">${av()}<b style="font-weight:500">${agent.name}</b><span class="verb">${verb}</span>${doclink()}</div>
+  ${right}
+</div>`;
+
+const row = (e, i, { state = "pending", focus = false, reply = false } = {}) => {
+  const done = state !== "pending";
+  const right = done
+    ? `<span class="state">${
+        state === "ok"
+          ? `<span class="pill ok">${ic("check")}已接受</span>`
+          : state === "no"
+            ? `<span class="pill">${ic("x")}已退回</span>`
+            : `<span class="pill warn">${ic("circle-alert")}已过期</span>`
+      }</span>`
+    : `<div class="acts">
+        <button class="ibtn" title="回复">${ic("message-circle")}</button>
+        <button class="ibtn no" title="退回">${ic("x")}</button>
+        <button class="ibtn ok" title="接受">${ic("check")}</button>
+      </div>`;
+  return `<div class="item ${done ? "done muted-diff" : ""} ${focus ? "focus" : ""}">
+    <span class="n">${i + 1}</span>
+    <div class="main">
+      <div class="txt">${diff(e)}</div>
+      <div class="why">${e.reason}<span class="sp"></span><button class="loc">${ic("crosshair")}${e.where}</button></div>
+      ${reply ? `<div class="reply"><div class="ph">说说想怎么改，它只重做这一条…</div><div class="row"><span class="meta"><kbd>⌘</kbd> <kbd>↵</kbd> 发送</span><span class="sp"></span><button class="btn ghost">取消</button><button class="btn soft">退回并说明</button></div></div>` : ""}
+    </div>
+    ${right}
+  </div>`;
+};
+
+const pendingCard = (states = [], focus = -1, reply = -1) => {
+  const left = EDITS.length - states.filter(Boolean).length;
+  const done = EDITS.length - left;
+  return `<div class="card">
+    ${head(`改 ${EDITS.length} 处`, done ? `<span class="row meta"><span class="progress"><i style="width:${(done / EDITS.length) * 100}%"></i></span>${done}/${EDITS.length}</span>` : `<span class="pill wait"><span class="dot"></span>等你确认</span>`)}
+    <div class="list">${EDITS.map((e, i) => row(e, i, { state: states[i] || "pending", focus: i === focus, reply: i === reply })).join("")}</div>
+    <div class="card-ft">
+      <span class="meta">悬停逐条处理 · ${left} 处待定</span><span class="sp"></span>
+      <button class="btn ghost">全部退回</button>
+      <button class="btn primary">${ic("check-check")}接受剩下 ${left} 处</button>
+    </div>
+  </div>`;
+};
+
+const doneCard = (expanded) => `<div class="card ${expanded ? "" : "collapsed"}">
+  ${head("改了", `<span class="meta">接受 3 · 退回 1</span><button class="ibtn">${ic(expanded ? "chevron-up" : "chevron-down")}</button>`)}
+  ${expanded ? `<div class="list">${EDITS.map((e, i) => row(e, i, { state: i === 2 ? "no" : "ok" })).join("")}</div>` : ""}
+  <div class="card-ft">
+    <button class="btn ghost">${ic("undo-2")}撤销这次修改</button><span class="sp"></span>
+    <button class="btn ghost">${ic("pencil")}接着改</button>
+  </div>
+</div>`;
+
+const scenes = {
+  pending: {
+    label: "待确认",
+    view: chat(pendingCard([], 1), { after: "" }),
+    cap: `<ul>
+      <li>头部一行：<b>谁 · 改几处 · 哪篇</b>，右侧只有一个状态胶囊，不再拆成两行说明。</li>
+      <li>每处改动一行：<b>前后文 + 词级差异</b>（删红底、增绿底），读起来是一句话，不用先点「查看改动」才看得到内容。</li>
+      <li>理由、所在小节放第二行小字；小节名即「在正文定位」。</li>
+      <li>接受 / 退回 / 回复收成三个图标，悬停该行才出现，列表不被按钮淹没。</li>
+      <li>底栏主按钮是「接受剩下 N 处」：逐条处理完一部分后，一键收尾剩下的。</li>
+    </ul>`,
+  },
+  partial: {
+    label: "处理到一半",
+    view: chat(pendingCard(["ok", "ok", undefined, undefined], 2, 2)),
+    cap: `<ul>
+      <li>处理过的行原地变淡、差异去色，右侧换成状态胶囊；没有展开/收起跳动。</li>
+      <li>头部胶囊变成进度条 2/4。</li>
+      <li>「回复」在行内展开输入框，⌘↵ 发送，只重做这一条。</li>
+    </ul>`,
+  },
+  done: {
+    label: "全部处理完",
+    view: chat(doneCard(false), { after: `<div class="msg-ai"><p>第 3 处我按你的意见改回原句，其余已经落地。</p></div>` }),
+    cap: `<ul>
+      <li>处理完自动收起成一行摘要：「校对 改了《…》 · 接受 3 · 退回 1」，对话流不被旧卡片撑长。</li>
+      <li>底栏只留两个后续动作：<b>撤销这次修改</b>、<b>接着改</b>（把续改要求带回对话）。</li>
+      <li>点右上角箭头可展开回看每一处。</li>
+    </ul>`,
+  },
+  doneOpen: {
+    label: "完成后展开",
+    view: chat(doneCard(true)),
+    cap: `<ul><li>展开后仍是同一套行样式，只是去色 + 状态胶囊；单条撤销放到行的悬停图标里。</li></ul>`,
+  },
+  edge: {
+    label: "提问 / 过期",
+    view: chat(`<div class="card">
+      ${head("有 1 个问题、改 2 处", `<span class="pill wait"><span class="dot"></span>等你确认</span>`)}
+      <div class="list">
+        <div class="item"><span class="n">${ic("circle-help")}</span><div class="main">
+          <div class="quote">CRDT 让每次修改都带上足够的上下文…</div>
+          <div class="txt">这里要不要补一句 CRDT 的全称？读者可能是非技术背景。</div>
+          <div class="q-opts"><button class="btn">补全称</button><button class="btn">不用</button><button class="btn ghost">我自己写</button></div>
+        </div></div>
+        ${row(EDITS[1], 1)}
+        ${row(EDITS[3], 2, { state: "expired" })}
+      </div>
+      <div class="hint" style="padding-top:10px">${ic("circle-alert")}<span>第 3 处原文在别处被改过。<button class="doclink"><span>让它按新原文重写</span></button></span></div>
+      <div class="card-ft"><span class="meta">先回答问题，${agent.name}再接着改</span><span class="sp"></span><button class="btn primary">${ic("check-check")}接受剩下 1 处</button></div>
+    </div>`),
+    cap: `<ul>
+      <li>提问和改动在同一列表里，图标区分；选项按钮直接回答。</li>
+      <li>过期条目显示胶囊，补救动作集中到列表下方一条提示，不在每行重复按钮。</li>
+    </ul>`,
+  },
+};
+mount("a-list.html", scenes);
+</script>
+</body>
+</html>

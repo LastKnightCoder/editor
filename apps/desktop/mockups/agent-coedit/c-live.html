@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>Agent 协同编辑 · 方案 C 放手改 + 回看</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .tl { display: flex; flex-direction: column; gap: 2px; }
+  .tl .it { display: flex; gap: 8px; padding: 7px 8px; border-radius: 8px; font-size: 12.5px; }
+  .tl .it:hover { background: var(--hover); }
+  .tl .it.on { background: var(--selected); }
+  .tl .it .tx { flex: 1; min-width: 0; }
+  .tl .it .tm { color: var(--ink-3); font-size: 11px; }
+  .lock { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 0 6px; height: 18px; border-radius: 4px; background: var(--cs); color: var(--c); vertical-align: 2px; margin-left: 6px; font-weight: 500; }
+  .lock svg { width: 11px; height: 11px; }
+  .perm { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 10px; align-items: center; }
+  .seg3 { display: flex; border: 1px solid var(--line-1); border-radius: 7px; overflow: hidden; font-size: 11.5px; }
+  .seg3 span { padding: 2px 8px; color: var(--ink-2); }
+  .seg3 span.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+</style>
+</head>
+<body>
+<script type="module">
+import { av, caret, who, typing, ic, win, doc, mount } from "./shared.js";
+
+const side = (head, html) => `<aside class="side"><div class="hd">${head}</div><div class="bd">${html}</div></aside>`;
+
+const scenes = {
+  live: {
+    label: "它直接在写",
+    view: win({
+      presence: `${av("research", "busy")}${av("proof", "busy")}${av("me")}`,
+      extra: `<button class="btn">${ic("pause")}全部暂停</button>`,
+      doc: doc({
+        p2: `<p>传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被吞掉。CRDT 让每次修改都带上足够的上下文，<span class="flash t2">以任意顺序</span>${caret("proof")}合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+        p4: `<p class="t1"><span class="lock t1">${ic("pen-line")}调研员 正在改这段</span><br><span class="zone t1">Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 早期基于文件同步，2025 年起正在转向数据库版本。Notion 在 2025 年 8 月推出离线模式，但需要${caret("research")}</span></p>`,
+        p5: `<p>这些方案的共同点是：合并发生在文件或页面层级，而不是字符层级。${caret("me")}</p>`,
+      }),
+      side: side(`${ic("history")}动态<span style="flex:1"></span><span class="muted small" style="font-weight:400">实时</span>`, `<div class="tl">
+        <div class="it">${av("research", "sm busy")}<div class="tx">${who("research")} 正在改写第 4 段${typing("research")}<div class="tm">开始于 20 秒前</div></div></div>
+        <div class="it">${av("proof", "sm")}<div class="tx">${who("proof")} 把「任何顺序」改为「以任意顺序」<div class="tm">刚刚 · 第 2 段</div></div></div>
+        <div class="it">${av("proof", "sm")}<div class="tx">${who("proof")} 统一术语「增量」2 处<div class="tm">1 分钟前</div></div></div>
+        <div class="it">${av("me", "sm")}<div class="tx">你 在第 5 段输入<div class="tm">正在进行</div></div></div></div>`),
+    }),
+    cap: `<ul><li>给了「直接改」权限的 Agent 像协作者一样<b>实时打字</b>：作者色光标 + 正在改写的块整块浅色圈出，标签写「调研员 正在改这段」。</li>
+      <li>它正在改的块对你是「软锁」：你仍可点进去，点进去它会停手让你（见场景 2）。你在别处打字互不影响。</li>
+      <li>刚落地的字闪一下作者色然后淡去；右侧动态流用人话记每一步。</li>
+      <li>依赖：Agent 改动经普通 Yjs 增量 + awareness 广播光标，等同多一个在线设备。</li></ul>`,
+  },
+  yield: {
+    label: "你一碰它就让",
+    view: win({
+      presence: `${av("research", "wait")}${av("proof", "busy")}${av("me")}`,
+      doc: doc({
+        p4: `<p>Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 早期基于文件同步，2025 年起正在转向数据库版本。Notion 在 2025 年 8 月推出离线模式，${caret("me")}但需要
+          <span class="float t1" style="left:0;top:calc(100% + 6px);width:430px">
+            <div class="row">${av("research", "sm")}<span>${who("research")} 先停下了，这段交给你。</span></div>
+            <div class="small muted" style="margin:4px 0 0 26px">它原本还要补一句出处。改完后：</div>
+            <div class="acts" style="margin-left:26px"><button class="btn">${ic("play")}让它接着改</button><button class="btn ghost">这段不用它了</button></div>
+          </span></p>`,
+      }),
+      side: side(`${ic("history")}动态`, `<div class="tl">
+        <div class="it on">${av("research", "sm wait")}<div class="tx">${who("research")} 让出第 4 段给你<div class="tm">刚刚</div></div></div>
+        <div class="it">${av("research", "sm")}<div class="tx">${who("research")} 改写第 4 段前半句<div class="tm">30 秒前</div></div></div>
+        <div class="it">${av("proof", "sm busy")}<div class="tx">${who("proof")} 继续校对第 5 段${typing("proof")}</div></div></div>`),
+    }),
+    cap: `<ul><li>人永远优先：你的光标进入 Agent 正在改的块，它立刻停手并说一句话交接，不会和你抢字。</li>
+      <li>别的 Agent 不受影响，继续干自己的。</li>
+      <li>技术上相当于你的编辑让它这次范围操作的原文前提失效，它按块重读后等待，而不是报错。</li></ul>`,
+  },
+  replay: {
+    label: "回来看它改了啥",
+    view: win({
+      presence: `${av("research")}${av("proof")}${av("me")}`,
+      extra: `<span class="pill">${ic("eye")}正在查看：调研员 的改动 <a style="color:var(--accent-text);margin-left:4px">退出</a></span>`,
+      doc: doc({
+        p2: `<p>传统做法是最后写入者获胜，两台设备同时改一段话，总有一方的改动被吞掉。CRDT 让每次修改都带上足够的上下文，以任意顺序合并都得到同一个结果，所以不需要中心服务器裁决。</p>`,
+        p4: `<p class="t1"><span class="bar-l t1"></span>Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq <span class="del">曾尝试基于文件的同步，后来转向数据库版本</span><span class="ins">早期基于文件同步，2025 年起正在转向数据库版本</span>。<span class="del">Notion 的离线模式到 2025 年才支持整页离线编辑。</span><span class="ins">Notion 在 2025 年 8 月推出离线模式，但需要逐页手动开启。</span><sup class="who t1">[1]</sup></p>`,
+      }),
+      side: side(`${ic("history")}动态<span style="flex:1"></span><span class="muted small" style="font-weight:400">今天 14:02–14:09</span>`, `
+        <div class="card t1 on"><div class="h">${av("research", "sm")}${who("research")}<span class="muted">完成了你的评论</span><span class="t">5 分钟前</span></div>
+          <div class="small">核对第 4 段：改 2 句、加 1 个出处。<br>Obsidian 那句核对无误，没动。</div>
+          <div class="acts"><button class="btn">${ic("undo-2")}撤销这次</button><button class="btn ghost">${ic("message-circle")}有意见</button></div></div>
+        <div class="card t2"><div class="h">${av("proof", "sm")}${who("proof")}<span class="muted">全文校对</span><span class="t">8 分钟前</span></div>
+          <div class="small">语序 3 处、术语 2 处、标点 4 处</div>
+          <div class="acts"><button class="btn ghost">${ic("eye")}看改动</button><button class="btn ghost">${ic("undo-2")}撤销这次</button></div></div>
+        <div class="sec">更早</div>
+        <div class="tl"><div class="it">${av("me", "sm")}<div class="tx">你 写了第 5 段<div class="tm">14:05</div></div></div></div>`),
+    }),
+    cap: `<ul><li>事后审阅代替事前审批：每个 Agent 的一次任务收成一张卡，用一两句话说<b>做了什么、没做什么</b>。</li>
+      <li>「看改动」把这一次的修订痕迹叠在正文上（只看这一个人），「撤销这次」走现有范围撤销，保留之后你和别人的不相交编辑。</li>
+      <li>「有意见」开一条对它的回复，它会在原处继续改。</li></ul>`,
+  },
+  trust: {
+    label: "按人给权限",
+    view: win({
+      presence: `${av("research")}${av("proof")}${av("me")}`,
+      doc: doc({}),
+      side: side(`${ic("users")}这篇的协作者`, `
+        <div class="perm">
+          ${av("me", "lg")}<div><b>我</b><div class="small muted">所有者</div></div><span></span>
+          ${av("proof", "lg")}<div><b>校对</b><div class="small muted">改错字、统一术语</div></div><div class="seg3"><span>只读</span><span>建议</span><span class="on">直接改</span></div>
+          ${av("research", "lg")}<div><b>调研员</b><div class="small muted">补资料、核对数据</div></div><div class="seg3"><span>只读</span><span class="on">建议</span><span>直接改</span></div>
+        </div>
+        <div class="hr"></div>
+        <div class="small muted">「建议」的改动按方案 A 落成修订痕迹，等你接受；「直接改」的实时落地，事后在动态里回看和撤销。</div>
+        <div class="btn" style="justify-content:center">${ic("user-plus")}邀请 Agent 加入</div>
+        <div class="hr"></div>
+        <div class="sec">真人协作者</div>
+        <div class="small muted">共享给他人后，Agent 的痕迹对他们同样可见，并标明由谁发起。</div>`),
+    }),
+    cap: `<ul><li>权限是<b>每个 Agent 在每篇文档上</b>的身份，和给同事的「可查看 / 可评论 / 可编辑」同一个心智。</li>
+      <li>替代现在对话级的 <code>review_required / auto_apply_allowed</code> 全局开关。</li>
+      <li>和实时协作的成员面板同一处入口：Agent 就是一种协作者。</li></ul>`,
+  },
+};
+mount("c-live.html", scenes);
+</script>
+</body>
+</html>

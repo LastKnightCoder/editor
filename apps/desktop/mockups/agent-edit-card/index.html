@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>Agent 修改工具卡 · 方案总览</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  body { background: var(--page); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 24px 60px; font-size: 13px; line-height: 1.75; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 15px; margin: 28px 0 8px; }
+  .box { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 14px 20px; }
+  .box ul { margin: 0; padding-left: 20px; } .box li { margin: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  a.plan { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 16px 18px; }
+  a.plan:hover { box-shadow: var(--shadow-lift); }
+  a.plan h3 { margin: 0 0 4px; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+  a.plan p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-1); color: var(--accent-text); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  code { font: 12px var(--mono); padding: 0 4px; border-radius: 4px; border: 1px solid var(--line-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Agent 修改工具卡 · 改版方向</h1>
+  <p class="muted" style="margin:0">对象：对话里 Agent 调用修改工具后出现的卡片（<code>SuggestionProposalCard</code> + <code>SuggestionCard</code>）。</p>
+
+  <h2>现在的问题</h2>
+  <div class="box"><ul>
+    <li><b>内容藏在折叠后面。</b>每条只显示「查看改动 · 原文前 40 字」，要逐条点开才知道改了什么；标题用的是原文开头，看不出改动点。</li>
+    <li><b>状态说了三遍。</b>头部「的 4 条建议已处理」、摘要「接受 4 条」、每行「已应用」，信息重复但没有一处讲清改了哪些字。</li>
+    <li><b>差异读起来费劲。</b>整段原文删除线 → 整段新文，长句里只改了两个字也要自己比对。</li>
+    <li><b>按钮太多太散。</b>展开一条就有 接受 / 退回 / 回复 / 在正文定位 / 继续修改 五个按钮，各自换行；批量按钮又在列表最下方。</li>
+    <li><b>每条一个描边框</b>，四条就是四个盒子叠在一个盒子里，视觉很碎。</li>
+  </ul></div>
+
+  <h2>三个方向</h2>
+  <div class="grid">
+    <a class="plan" href="a-list.html"><h3>A 紧凑清单 <span class="rec">推荐</span></h3><p>一行一处改动，默认就显示前后文 + 词级差异；操作收成悬停图标；处理完自动收起成一行摘要。改动只在两个组件内，数据结构不变。</p></a>
+    <a class="plan" href="b-stepper.html"><h3>B 逐条审阅</h3><p>一次聚焦一处，原句 / 新句上下对照，Y/N 键快速过；分段进度条。适合措辞类、需要读语感的改动，改动多时要按很多次。</p></a>
+    <a class="plan" href="c-summary.html"><h3>C 摘要卡 + 文档内审</h3><p>对话里只放规模摘要和全部接受；细审跳到正文，修订痕迹落在原位，底部悬浮审阅条。体验最好但要改编辑器标记层。</p></a>
+  </div>
+
+  <h2>对比</h2>
+  <table>
+    <tr><th></th><th>A 紧凑清单</th><th>B 逐条审阅</th><th>C 摘要卡 + 文档内审</th></tr>
+    <tr><td>一眼看完全部改动</td><td>能</td><td>不能，只看当前一处</td><td>对话里看规模，正文里看全部</td></tr>
+    <tr><td>上下文</td><td>前后半句</td><td>整句</td><td>整篇原位</td></tr>
+    <tr><td>处理速度</td><td>快（悬停 + 收尾一键）</td><td>键盘最快，改动多时次数多</td><td>全部接受最快；细审要切到文档</td></tr>
+    <tr><td>对话流占高</td><td>中，完成后收起成一行</td><td>固定</td><td>最低</td></tr>
+    <tr><td>改动范围</td><td>两个渲染组件 + 词级 diff 工具</td><td>同 A，多一层当前项状态和快捷键</td><td>A 的卡片 + 编辑器修订标记、气泡、审阅条</td></tr>
+  </table>
+
+  <h2>建议</h2>
+  <div class="box"><ul>
+    <li>先做 <b>A</b>，把「看得见改了什么」和「操作不打扰」解决掉。</li>
+    <li>B 的键盘操作（↑↓ 切换、Y/N）可以作为 A 的焦点行快捷键，不必单独做一套界面。</li>
+    <li>C 等正文修订痕迹（<code>agent-coedit</code> 方案 A）落地后，再把「在文档里审阅」接上。</li>
+  </ul></div>
+</div>
+</body>
+</html>

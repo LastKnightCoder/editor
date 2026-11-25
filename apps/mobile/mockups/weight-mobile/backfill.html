@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>减重 · 补记体重</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="wt.css" />
+<script src="icons.js"></script>
+<style>
+  /* 本页新增：日期胶囊、近 7 天条、归属提示、桌面弹窗示意 */
+  .date-pill { display:inline-flex; align-items:center; gap:2px; height:28px; padding:0 6px 0 10px; border-radius:999px; font-size:12.5px; font-weight:500; color:var(--ink-1); box-shadow:inset 0 0 0 1px var(--line-1); margin-left:8px; }
+  .date-pill.past { color:var(--brand-text); background:var(--brand-soft); box-shadow:inset 0 0 0 1.5px var(--brand); }
+  .date-pill .ic { color:var(--ink-3); }
+  .w-sheet .sh-t .date-pill small { margin-left:0; font-size:12.5px; color:inherit; font-weight:500; }
+  .attr { display:flex; gap:8px; align-items:flex-start; font-size:12.5px; line-height:1.55; color:var(--ink-2); background:var(--tau-bg-hover); border-radius:12px; padding:9px 12px; margin:10px 0 12px; }
+  .attr .ic { flex:none; margin-top:2px; color:var(--brand-text); }
+  .attr b { color:var(--ink-1); font-weight:600; }
+  .attr .lk { color:var(--brand-text); font-weight:600; white-space:nowrap; }
+  .day-strip { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin:8px 0 14px; }
+  .day-strip span { display:flex; flex-direction:column; align-items:center; gap:3px; padding:7px 0 6px; border-radius:12px; font-size:10.5px; color:var(--ink-3); box-shadow:inset 0 0 0 1px var(--line-1); }
+  .day-strip span b { font-size:15px; font-weight:600; color:var(--ink-1); font-variant-numeric:tabular-nums; }
+  .day-strip span i { width:5px; height:5px; border-radius:50%; background:var(--ink-3); opacity:.55; }
+  .day-strip span i.miss { background:transparent; box-shadow:inset 0 0 0 1.2px var(--ink-3); }
+  .day-strip span.on { background:var(--brand-soft); color:var(--brand-text); box-shadow:inset 0 0 0 1.5px var(--brand); }
+  .day-strip span.on b { color:var(--brand-text); }
+  .day-strip span.fut { opacity:.35; box-shadow:none; }
+  .sum-sheet .rows { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 12px; }
+  .chart-gap { position:absolute; width:22px; border-radius:6px; background:var(--brand-soft); box-shadow:inset 0 0 0 1.5px var(--brand); }
+  .desk { width:420px; background:var(--bg-surface); border-radius:16px; box-shadow:var(--shadow-float); padding:18px 20px 16px; font-size:13px; color:var(--ink-1); }
+  .desk h4 { margin:0 0 14px; font-size:15px; font-weight:650; display:flex; align-items:center; }
+  .desk .seg { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .desk .seg span { height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--tau-bg-hover); color:var(--ink-2); }
+  .desk .seg span.on { background:var(--brand-soft); color:var(--brand-text); font-weight:600; box-shadow:inset 0 0 0 1.5px var(--brand); }
+  .desk .inp { margin-top:12px; background:var(--tau-bg-hover); border-radius:14px; padding:12px 18px; display:flex; align-items:baseline; gap:10px; }
+  .desk .inp b { font-size:36px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .desk .ft { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  .desk .ft span { height:32px; padding:0 14px; border-radius:9px; display:flex; align-items:center; background:var(--tau-bg-hover); }
+  .desk .ft span.p { background:var(--brand); color:var(--ink-inv); font-weight:600; }
+  .desk-pop { position:absolute; top:44px; right:20px; width:230px; background:var(--bg-surface); border-radius:12px; box-shadow:var(--shadow-float); padding:8px; }
+  .desk-pop div { height:30px; display:flex; align-items:center; gap:8px; padding:0 8px; border-radius:8px; font-size:12.5px; }
+  .desk-pop div.on { background:var(--brand-soft); color:var(--brand-text); font-weight:600; }
+  .desk-pop div small { margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+  .choose { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .choose .card h3 small { display:block; font-size:12px; font-weight:400; color:var(--ink-3); margin-top:2px; }
+</style>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>减重 · 补记体重<small>过了午夜才称、或者某天忘记称时，怎样记到正确的那一天 · 手机帧 360×760 · 示意数据</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="idea">0 思路</button>
+    <button class="tab" data-tab="night">1 凌晨默认记到昨天</button>
+    <button class="tab" data-tab="pick">2 面板里换日期</button>
+    <button class="tab" data-tab="trend">3 从趋势页补空缺</button>
+    <button class="tab" data-tab="desk">4 桌面</button>
+    <button class="tab" data-tab="ask">5 待你决定</button>
+  </nav>
+</header>
+
+<!-- ───────────── 0 思路 ───────────── -->
+<section class="scene" data-scene="idea">
+  <p class="scene-intro">现在的问题：称重面板写死了「今天」，过了 0 点打开就只能记到新的一天。补记分三层，越常见的情况越不用操作：<b>① 凌晨自动归到昨天</b>，大多数「睡前过了 12 点」不需要任何操作；<b>② 面板标题的日期可以点</b>，展开近 7 天，换一天再记；<b>③ 趋势页的空缺日</b>可以直接点「补记」。不另开「补记」页，也不在主页常驻按钮。</p>
+  <div class="choose">
+    <div class="card"><h3>① 凌晨默认<small>覆盖最常见的情况，零操作</small></h3><p>0:00–4:00 打开称重，默认是<b>昨天 · 睡前</b>。日期胶囊高亮显示「昨天」，下面一行提示说明为什么，并给一个「改成今天」。4 点之后恢复原规则（14 点前起床，之后睡前）。</p></div>
+    <div class="card"><h3>② 换日期<small>漏称一两天</small></h3><p>标题里的日期本来就在，把它做成胶囊，点开是近 7 天的日期条，空心点表示那天还没称。选了过去的日期，按钮变成「补记到 10 月 30 日」，避免记错天。</p></div>
+    <div class="card"><h3>③ 趋势页补空缺<small>回头看数据时发现</small></h3><p>按住图表拖到没有读数的那天，气泡里显示「没称 · 补记」；打卡格点进某天的摘要，也有「补称重」。两处都打开同一个称重面板，日期已经选好。</p></div>
+  </div>
+  <div class="cards" style="margin-top:12px">
+    <div class="card"><h3>数据层不用改</h3><p><code>saveWeigh(date, slot, kg)</code> 已经接收日期，补记只是传一个过去的日期；同一天同一时段再记仍然覆盖。要改的是 UI 里 <code>date: today</code> 的写死，以及「默认日期 / 时段」的计算（抽成一个纯函数，桌面和手机共用）。</p></div>
+    <div class="card"><h3>为什么不做「补记」独立入口</h3><p>补记是低频操作，常驻按钮会占主卡的位置。把日期放进已有的称重面板，学习成本最低：会称重就会补记。</p></div>
+  </div>
+</section>
+<!-- ───────────── 1 凌晨默认记到昨天 ───────────── -->
+<section class="scene" data-scene="night">
+  <p class="scene-intro">10 月 31 日晚上忙到 00:37 才称。打开称重面板，<b>日期默认是昨天，时段是睡前</b>，按钮写明「记到昨天」。不需要用户知道有补记功能，也不会悄悄记错天。分界点暂定<b>凌晨 4 点</b>（见「5 待你决定」）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status data-time="0:37"></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero-empty"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<span class="date-pill past">昨天 <small>10 月 31 日</small><span data-i="chevron-down" data-s="15"></span></span></div>
+          <div class="attr"><span data-i="clock" data-s="14"></span><span>现在是凌晨 0:37，还没睡就算<b>昨天</b>的睡前。<span class="lk">改成今天</span></span></div>
+          <div class="slot-pick"><span data-i="sunrise" data-s="16">起床 <small>72.2</small></span><span class="on" data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">73.0<small>kg</small></div>
+          <div class="kg-sub">比昨天早上 <b class="gain">+0.8</b> · 晚上偏重很正常</div>
+          <div data-ruler="73.0" data-prev="72.2"></div>
+          <div class="w-btn">记到昨天 · 睡前</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">0:00–4:00 打开<small>日期胶囊用强调色，告诉用户「这次不是今天」。提示行只在凌晨出现，点「改成今天」切回 11 月 1 日并默认起床。灰点是昨天的晨重。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status data-time="0:37"></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero-empty"></div><div data-tpl="trend-mini"></div></div>
+        <div class="w-toast" style="bottom:22px"><span data-i="check" data-s="16"></span>已记到 10 月 31 日睡前 · 73.0 kg<span class="sp" style="flex:1"></span><span class="u">撤销</span></div>
+      </div></div>
+      <div class="frame-cap">记下之后<small>主卡仍然是今天（11 月 1 日），晨重格照常等早上称。吐司写清日期，记错了可以撤销。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status data-time="7:32"></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero-empty"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<span class="date-pill">今天 <small>11 月 1 日</small><span data-i="chevron-down" data-s="15"></span></span></div>
+          <div class="slot-pick" style="margin-top:12px"><span class="on" data-i="sunrise" data-s="16">起床</span><span data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">72.0<small>kg</small></div>
+          <div class="kg-sub">比昨天晨重 <b class="lose">−0.2</b> · 7 日均值 72.4</div>
+          <div data-ruler="72.0" data-prev="72.2"></div>
+          <div class="w-btn">记下</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">4 点以后 · 平常的样子<small>和现在的面板一样，只是标题里的日期变成可点的胶囊（描边、不着色）。按钮仍叫「记下」，只有日期不是今天时才写出日期。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 2 面板里换日期 ───────────── -->
+<section class="scene" data-scene="pick">
+  <p class="scene-intro">点标题里的日期胶囊，面板顶部展开<b>近 7 天日期条</b>：每天下面两个小点，左边起床、右边睡前，实心表示已称、空心表示没称。选中一天，时段自动跳到那天缺的那一个。更早的日期从趋势页补（第 3 页），这里不放日历。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<span class="date-pill">今天 <small>10 月 31 日</small><span data-i="chevron-up" data-s="15"></span></span></div>
+          <div class="day-strip">
+            <span>五<b>25</b><em style="display:flex;gap:3px"><i></i><i></i></em></span>
+            <span>六<b>26</b><em style="display:flex;gap:3px"><i></i><i class="miss"></i></em></span>
+            <span>日<b>27</b><em style="display:flex;gap:3px"><i></i><i></i></em></span>
+            <span>一<b>28</b><em style="display:flex;gap:3px"><i></i><i class="miss"></i></em></span>
+            <span>二<b>29</b><em style="display:flex;gap:3px"><i></i><i></i></em></span>
+            <span>三<b>30</b><em style="display:flex;gap:3px"><i class="miss"></i><i class="miss"></i></em></span>
+            <span class="on">今天<b>31</b><em style="display:flex;gap:3px"><i></i><i class="miss"></i></em></span>
+          </div>
+          <div class="slot-pick"><span data-i="sunrise" data-s="16">起床 <small>72.2</small></span><span class="on" data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">72.9<small>kg</small></div>
+          <div data-ruler="72.9" data-prev="72.2"></div>
+          <div class="w-btn">记下</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">展开日期条<small>30 号两个都是空心，一眼能看出那天整天没称。日期条盖在时段上方，选完自动收起。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<span class="date-pill past">周四 <small>10 月 30 日</small><span data-i="chevron-down" data-s="15"></span></span></div>
+          <div class="attr"><span data-i="history" data-s="14"></span><span>补记到<b>前天</b>。那天两次都没称，先补起床（晨重会进趋势线）。</span></div>
+          <div class="slot-pick"><span class="on" data-i="sunrise" data-s="16">起床</span><span data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">72.3<small>kg</small></div>
+          <div class="kg-sub">前一天 29 日晨重 72.5 · 后一天 31 日 72.2</div>
+          <div data-ruler="72.3" data-prev="72.5"></div>
+          <div class="w-btn">补记到 10 月 30 日 · 起床</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">选了过去某天<small>预填值取前后两天晨重的中间值，减少拨动距离。参照写前后两天，方便判断补的数字合不合理。按钮带上日期。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<span class="date-pill past">周二 <small>10 月 28 日</small><span data-i="chevron-down" data-s="15"></span></span><span class="sp" style="flex:1"></span><span style="font-size:13px;font-weight:500;color:var(--danger)">删除这次</span></div>
+          <div class="slot-pick" style="margin-top:12px"><span class="on" data-i="sunrise" data-s="16">起床 <small>72.6</small></span><span data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">72.6<small>kg</small></div>
+          <div class="kg-sub">已经记过，改了会覆盖</div>
+          <div data-ruler="72.6" data-prev="72.8"></div>
+          <div class="w-btn">更新 10 月 28 日 · 起床</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">选到已称的那天<small>和今天改读数一样：按钮变「更新」，右上可删除。顺带解决了「记错了昨天的数字没法改」。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 3 从趋势页补空缺 ───────────── -->
+<section class="scene" data-scene="trend">
+  <p class="scene-intro">回头看趋势时最容易发现漏称。图表拖到<b>没有晨重的那天</b>，气泡显示「没称」和「补记」；打卡格点开某天的摘要，底部多一个「补称重」。两处都打开第 2 页的称重面板，日期已选好。补记的范围不限 7 天，图表能拖到的都能补。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="趋势与效果" data-right="<span class='ib'></span>"></div>
+        <div class="w-body">
+          <div class="w-card" style="padding:12px 14px 10px">
+            <div class="w-head">体重趋势<small>30 天</small></div>
+            <div style="position:relative">
+              <div data-chart="30" data-h="200" data-goal="70"></div>
+              <span class="chart-gap" style="left:228px;top:4px;height:118px"></span>
+              <div class="w-tip" style="left:130px;top:-4px">10 月 23 日 · <b>没称</b><br>吃了 1480 kcal <span style="color:var(--tau-accent-soft);font-weight:650;margin-left:6px">补记 ›</span></div>
+            </div>
+          </div>
+          <div class="w-card" style="padding:12px 14px"><div class="w-head">打卡<small>5 周</small></div><div data-habit="5"></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">图表 · 拖到空缺日<small>没有晨重的那天在图上是断点，拖过去时这一列加底色。气泡里的「补记」是唯一可点的部分，松手后气泡保留 3 秒，方便点到。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="趋势与效果" data-right="<span class='ib'></span>"></div>
+        <div class="w-body">
+          <div class="w-card" style="padding:12px 14px"><div class="w-head">打卡<small>5 周</small></div><div data-habit="5"></div></div>
+        </div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet sum-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">10 月 23 日<small>周四</small></div>
+          <div class="rows">
+            <div class="w-tile empty"><span class="k" data-i="sunrise" data-s="12">晨重</span><span class="v" data-i="plus" data-s="14">补称重</span></div>
+            <div class="w-tile empty" style="box-shadow:inset 0 0 0 1.5px var(--line-1);color:var(--ink-3)"><span class="k" style="color:var(--ink-3)" data-i="sunset" data-s="12">睡前</span><span class="v" data-i="plus" data-s="14">补称重</span></div>
+          </div>
+          <div class="w-list" style="margin-bottom:12px">
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">吃了 4 次<small>预算 1680</small></span><span class="kc num">1480</span></div>
+            <div class="w-row"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">运动<small>目标 30 分钟</small></span><span class="kc num move">0</span></div>
+          </div>
+          <div class="w-btn ghost">关闭</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">打卡格 · 某天摘要<small>原来点格子只看摘要，现在晨重 / 睡前两格空着时显示「补称重」，点了换成称重面板（日期、时段都已选好）。已称的格显示读数，点了就是改。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 4 桌面 ───────────── -->
+<section class="scene" data-scene="desk">
+  <p class="scene-intro">桌面称重弹窗用同一套规则：凌晨默认昨天，标题旁的日期可点，弹出近 7 天列表（右侧显示那天已有的读数或「没称」）。趋势图悬停到空缺日时，提示框里同样有「补记」。时段切换顺带把 Segmented 换成两个按钮。</p>
+  <div class="frames">
+    <div class="frame">
+      <div style="position:relative;padding:8px">
+        <div class="desk">
+          <h4>称重<span class="date-pill past">昨天 · 10 月 31 日<span data-i="chevron-down" data-s="15"></span></span></h4>
+          <div class="attr" style="margin-top:0"><span data-i="clock" data-s="14"></span><span>现在是凌晨 0:37，还没睡就算<b>昨天</b>的睡前。<span class="lk">改成今天</span></span></div>
+          <div class="seg"><span data-i="sunrise" data-s="15">起床 · 72.2</span><span class="on" data-i="sunset" data-s="15">睡前</span></div>
+          <div class="inp"><b>73.0</b><span style="color:var(--ink-3)">kg</span><span style="margin-left:auto;font-size:12px;color:var(--ink-3);text-align:right;line-height:1.6">昨天早上 72.2<br>只用来看日内波动</span></div>
+          <div class="ft"><span>取消</span><span class="p">记到昨天</span></div>
+        </div>
+      </div>
+      <div class="frame-cap">凌晨打开<small>和手机一样的提示行与按钮文案。</small></div>
+    </div>
+    <div class="frame">
+      <div style="position:relative;padding:8px">
+        <div class="desk">
+          <h4>称重<span class="date-pill">今天 · 10 月 31 日<span data-i="chevron-up" data-s="15"></span></span></h4>
+          <div class="seg"><span data-i="sunrise" data-s="15">起床 · 72.2</span><span class="on" data-i="sunset" data-s="15">睡前</span></div>
+          <div class="inp"><b>72.9</b><span style="color:var(--ink-3)">kg</span></div>
+          <div class="ft"><span>取消</span><span class="p">保存</span></div>
+        </div>
+        <div class="desk-pop" style="left:104px;right:auto;top:52px">
+          <div class="on">今天 · 10/31<small>72.2 · —</small></div>
+          <div>周四 · 10/30<small>没称</small></div>
+          <div>周三 · 10/29<small>72.5 · 73.1</small></div>
+          <div>周二 · 10/28<small>72.6 · —</small></div>
+          <div>周一 · 10/27<small>72.8 · 73.4</small></div>
+          <div>周日 · 10/26<small>72.9 · —</small></div>
+          <div>周六 · 10/25<small>73.0 · 73.6</small></div>
+        </div>
+      </div>
+      <div class="frame-cap">点日期 · 近 7 天<small>右侧是起床 · 睡前读数，键盘 ↑↓ 选、回车确定。更早的从趋势图补。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 5 待你决定 ───────────── -->
+<section class="scene" data-scene="ask">
+  <p class="scene-intro">下面几项我先按推荐画了，你定了再改。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 凌晨分界点</h3><p><b>推荐 4:00</b>。备选：3:00 / 5:00 / 设置里可调。分界只影响称重面板的默认日期，饮食记录仍按实际时间算（要不要也让凌晨的宵夜算昨天，单独决定）。</p></div>
+    <div class="card"><h3>2 · 凌晨默认时段</h3><p><b>推荐「昨天 · 睡前」</b>。如果昨天睡前已经称过，就默认今天起床（说明是早起的人）。</p></div>
+    <div class="card"><h3>3 · 日期条范围</h3><p><b>推荐近 7 天</b>，更早的走趋势页。备选：面板里放完整日历，入口更统一但面板变高。</p></div>
+    <div class="card"><h3>4 · 补记的读数怎么算</h3><p><b>推荐和当天称的完全一样</b>，进 7 日均值和趋势线，不加「补记」标记。备选：在图上用空心点标出补记的读数。</p></div>
+    <div class="card"><h3>5 · 饮食是否也能补记</h3><p>这次只做体重。饮食记录条现在按当前时间写入，凌晨记的宵夜会算新的一天；需要的话可以同样加日期胶囊，单独做。</p></div>
+  </div>
+</section>
+
+<script>
+  // 状态栏时间：data-time 覆盖默认 9:41（须在 ai.js 渲染状态栏之后执行）
+  window.addEventListener("load", () => {
+    document.querySelectorAll("[data-status][data-time]").forEach(el => {
+      const first = el.querySelector("span");
+      if (first) first.textContent = el.dataset.time;
+    });
+  });
+</script>
+<script src="wt.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>C 摘要卡 + 文档内审 · Agent 修改工具卡</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1180px; height: 760px; background: var(--page); border-radius: 12px; box-shadow: var(--shadow-float); display: flex; overflow: hidden; }
+  .docpane { flex: 1; overflow: auto; position: relative; background: var(--surface); }
+  .win .chat { width: 400px; height: auto; border-radius: 0; box-shadow: none; border-left: 1px solid var(--line-1); }
+  .doc { max-width: 620px; margin: 0 auto; padding: 36px 32px 120px; font-size: 15px; line-height: 1.95; }
+  .doc h1 { font-size: 25px; margin: 0 0 18px; line-height: 1.4; }
+  .doc h2 { font-size: 17px; margin: 24px 0 6px; }
+  .doc p { margin: 0 0 12px; }
+  .mark { position: relative; cursor: pointer; border-radius: 3px; }
+  .mark.cur { outline: 2px solid color-mix(in oklch, var(--accent) 45%, transparent); outline-offset: 2px; }
+  .pop { position: absolute; z-index: 5; left: 0; top: calc(100% + 8px); width: 280px; background: var(--surface); border: 1px solid var(--line-1); border-radius: 10px; box-shadow: var(--shadow-lift); padding: 8px 10px; font-size: 12px; line-height: 1.6; color: var(--ink-2); }
+  .pop .row { margin-top: 6px; }
+  .reviewbar { position: sticky; bottom: 16px; margin: 0 auto; width: max-content; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; background: var(--surface); border: 1px solid var(--line-1); border-radius: 12px; box-shadow: var(--shadow-float); font-size: 12.5px; }
+  .reviewbar .sep { width: 1px; height: 18px; background: var(--line-1); }
+  .stats { display: flex; gap: 10px; padding: 0 12px 10px; font-size: 12px; color: var(--ink-2); }
+  .stats span { display: inline-flex; align-items: center; gap: 4px; }
+  .preview { margin: 0 12px 10px; padding: 8px 10px; border: 1px solid var(--line-1); border-radius: 8px; line-height: 1.75; font-size: 12.5px; }
+  .preview + .preview { margin-top: -4px; }
+  .more { padding: 0 12px 10px; font-size: 12px; }
+</style>
+</head>
+<body>
+<script type="module">
+import { mount, ic, av, doclink, EDITS, agent, docTitle, chat } from "./shared.js";
+
+const mk = (e, i, cur, state) =>
+  state === "ok"
+    ? `<span class="ins" style="background:none;box-shadow:inset 0 -1.5px 0 var(--ok)">${e.ins}</span>`
+    : `<span class="mark ${cur === i ? "cur" : ""}"><span class="del">${e.del}</span><span class="ins">${e.ins}</span>${cur === i ? `<span class="pop"><div>${ic("sparkles", 'style="width:12px;height:12px;color:var(--tag-2)"')} ${e.reason}</div><div class="row"><button class="btn primary">${ic("check")}接受</button><button class="btn">${ic("x")}退回</button><button class="btn ghost">${ic("message-circle")}回复</button></div></span>` : ""}</span>`;
+
+const docView = (cur, states = []) => `<div class="docpane"><div class="doc">
+  <h1>${docTitle}</h1>
+  <p>多数笔记软件把「同步」理解为把文件推到服务器。离线优先换了一个前提：本机副本才是主角，服务器只是另一个副本。</p>
+  <h2>为什么用 CRDT</h2>
+  <p>传统做法是${mk(EDITS[0], 0, cur, states[0])}，两台设备同时改一段话，总有一方的改动被吞掉。CRDT 让每次修改都带上足够的上下文，任何顺序合并都得到同一个结果。</p>
+  <p>代价是元数据。Yjs 的文档在长期编辑后会膨胀到正文的 ${mk(EDITS[1], 1, cur, states[1])}，需要定期压缩快照。</p>
+  <h2>现有产品怎么做</h2>
+  <p>Obsidian 的官方同步按文件做三方合并，冲突时生成副本；Logseq 曾尝试基于文件的同步，后来${mk(EDITS[2], 2, cur, states[2])}。Notion 的离线模式到 ${mk(EDITS[3], 3, cur, states[3])}才支持整页离线编辑。</p>
+  <p>这些方案的共同点是：合并发生在文件或页面层级，而不是字符层级。</p>
+</div>
+<div class="reviewbar">${av()}<span><b style="font-weight:500">${agent.name}</b> 的修改 · 第 ${cur + 1}/4 处</span>
+  <button class="ibtn">${ic("chevron-up")}</button><button class="ibtn">${ic("chevron-down")}</button>
+  <span class="sep"></span>
+  <button class="btn ghost">全部退回</button><button class="btn primary">${ic("check-check")}全部接受</button>
+</div></div>`;
+
+const head = (verb, right) => `<div class="card-hd"><div class="title">${av()}<b style="font-weight:500">${agent.name}</b><span class="verb">${verb}</span>${doclink()}</div>${right}</div>`;
+
+const summary = (state) => `<div class="card">
+  ${head(state === "done" ? "改了" : "想改", state === "done" ? `<span class="pill ok">${ic("check")}已完成</span>` : `<span class="pill wait"><span class="dot"></span>${state === "mid" ? "还剩 2 处" : "等你确认"}</span>`)}
+  <div class="stats"><span>${ic("pencil")}4 处措辞</span><span>${ic("hash")}2 个小节</span><span class="muted">+18 −11 字</span></div>
+  ${state === "done" ? `<div class="stats"><span style="color:var(--ok)">${ic("check")}接受 3</span><span class="muted">${ic("x")}退回 1</span></div>` : `
+  <div class="preview">…是<span class="del">最后写入者获胜</span><span class="ins">「最后写入者获胜」（LWW）</span>…</div>
+  <div class="preview">…膨胀到正文的 <span class="del">3 到 5 倍</span><span class="ins">3–5 倍</span>…</div>
+  <div class="more"><button class="doclink"><span>还有 2 处</span></button></div>`}
+  <div class="card-ft">
+    ${state === "done"
+      ? `<button class="btn ghost">${ic("undo-2")}撤销</button><span class="sp"></span><button class="btn ghost">${ic("pencil")}接着改</button>`
+      : `<button class="btn soft">${ic("file-search")}在文档里审阅</button><span class="sp"></span><button class="btn ghost">全部退回</button><button class="btn primary">${ic("check-check")}全部接受</button>`}
+  </div>
+</div>`;
+
+const scenes = {
+  card: {
+    label: "对话里的摘要卡",
+    view: chat(summary("pending")),
+    cap: `<ul>
+      <li>对话里不再逐条审，卡片只讲<b>规模</b>（几处、几个小节、增删字数）+ 前 2 处预览。</li>
+      <li>信任的用户直接「全部接受」；想细看点「在文档里审阅」。</li>
+      <li>对话流里卡片高度固定，不会因为 20 处修改撑满侧栏。</li>
+    </ul>`,
+  },
+  review: {
+    label: "在文档里审阅",
+    view: `<div class="win">${docView(1, ["ok"])}${chat(summary("mid"))}</div>`,
+    cap: `<ul>
+      <li>改动以修订痕迹落在正文原位，读的是<b>完整上下文</b>，不是截断片段。</li>
+      <li>点某处弹出小气泡：理由 + 接受 / 退回 / 回复；已接受的只留一条细下划线。</li>
+      <li>底部悬浮审阅条：第 N/4 处、上下跳转、全部接受；对话卡同步显示「还剩 2 处」。</li>
+      <li>这正是 <code>agent-coedit</code> 方案 A 的落地形态；代价是要改编辑器标记层，工作量最大。</li>
+    </ul>`,
+  },
+  done: {
+    label: "完成",
+    view: chat(summary("done"), { after: `<div class="msg-ai"><p>3 处已落地，第 3 处保留原句。</p></div>` }),
+    cap: `<ul><li>完成后同一张卡改成结果统计 + 撤销 / 接着改。</li></ul>`,
+  },
+};
+mount("c-summary.html", scenes);
+</script>
+</body>
+</html>

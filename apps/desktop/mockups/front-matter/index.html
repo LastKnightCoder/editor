@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文档属性（front-matter）· 交互 mockup</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>文档属性（front-matter）</h1>
+    <p>从 Markdown 导入、或手写 <code>---</code> 开头的 YAML 元数据，在编辑器里显示为「文档属性」块。下面的块都能点：点值编辑、点属性名出菜单、悬停块头切换 YAML 源码。</p>
+  </div>
+  <div class="switch" id="modeSwitch"><button data-mode="light" class="on">浅色</button><button data-mode="dark">深色</button></div>
+</div>
+
+<section>
+  <h2><span class="no">00</span>现状</h2>
+  <p class="desc">米色底卡片里逐行列出键值；<b>只有 description 可编辑</b>，其余字段（包括 title、tags）都改不了；对象直接 <code>JSON.stringify</code>；没法加、删、改名字段；不能折叠；YAML 写坏了静默显示为空块；也没有任何插入入口，只能靠导入。</p>
+  <div class="grid">
+    <div class="card">
+      <div class="lbl">当前实现（示意）</div>
+      <div class="sub">导入一篇 Obsidian 笔记后的样子</div>
+      <div class="paper">
+        <div class="old">
+          <div class="r"><span class="k">≡ title</span><span class="v">间隔重复的遗忘曲线</span></div>
+          <div class="r"><span class="k">⌚ created</span><span class="v">2026-03-14T09:20:00.000Z</span></div>
+          <div class="r"><span class="k">⌗ tags</span><span class="v"><span class="chip">学习</span><span class="chip">记忆</span></span></div>
+          <div class="r"><span class="k">≡ source</span><span class="v">{"book":"认知天性","page":112}</span></div>
+          <div class="r"><span class="k">≡ description</span><span class="v"><textarea rows="2">每次复习都把遗忘点往后推</textarea></span></div>
+        </div>
+        <div class="doc"><p>艾宾浩斯在 1885 年……</p></div>
+      </div>
+      <ul class="pc">
+        <li class="c">只读字段看起来和可编辑字段一样，点了没反应</li>
+        <li class="c">块独占一张米色卡片，和正文「贴上去的板子」</li>
+        <li class="c">日期是原始 ISO 串，对象是 JSON</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">A</span>属性表（推荐）</h2>
+  <p class="desc">
+    块融进纸面，不再加底色：一行一个属性，<b>属性名 | 值</b>两列，悬停只铺一层 hover 底。值按内容自动识别显示形态：
+    文本、多行文本、列表（胶囊）、日期、勾选、链接、数字；嵌套对象显示为只读 YAML 片段，提示到源码里改。
+    <b>点值即编辑</b>，失焦或 Enter 提交，Esc 撤回；Tab 跳下一个值。
+    选中块（点进去）后块头出现「属性 / YAML」切换与「添加属性」。
+    写入时只改动对应的那一个键，注释、顺序、其他键的写法原样保留。
+  </p>
+  <div class="grid">
+    <div class="card">
+      <div class="lbl">编辑态</div>
+      <div class="sub">点 tags 值加标签、Backspace 删最后一个；点「created」属性名看菜单；改坏 YAML 看报错</div>
+      <div class="paper wide">
+        <div id="fmA"></div>
+        <div class="doc"><h1>间隔重复的遗忘曲线</h1><p>艾宾浩斯在 1885 年用无意义音节做了第一组记忆实验……</p></div>
+      </div>
+      <ul class="pc">
+        <li class="p">所有标量与字符串列表都能改；增、删、改名、调整顺序都在属性名菜单里</li>
+        <li class="p">YAML 源码随时可切，写坏时保留最后一次能读的属性并标红原因，不再变空</li>
+        <li class="p">删除整个块：属性名菜单底部「删除全部属性」，或选中块后按 Backspace</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="lbl">只读 / 折叠</div>
+      <div class="sub">阅读模式、他人共享的只读文档：同一张表，没有任何编辑控件；折叠后剩一行摘要</div>
+      <div class="paper wide">
+        <div id="fmRead"></div>
+        <div style="height:18px"></div>
+        <div id="fmFold"></div>
+        <div class="doc"><h1>间隔重复的遗忘曲线</h1><p>艾宾浩斯在 1885 年……</p></div>
+      </div>
+      <ul class="pc">
+        <li class="p">折叠状态存在本机（按文档），不写进 YAML，不产生协同变更</li>
+        <li class="p">只读时值依旧可选中复制、链接可点</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">B</span>一行信息（备选）</h2>
+  <p class="desc">只读时把属性压成标题上方的一行小字，点一下展开成 A 的属性表再编辑。<b>省地方</b>，但多一步点击，而且属性多时这一行会很长、需要截断。</p>
+  <div class="grid">
+    <div class="card">
+      <div class="lbl">收起态</div>
+      <div class="sub">点这一行展开</div>
+      <div class="paper wide">
+        <div id="fmB"></div>
+        <div class="doc"><h1>间隔重复的遗忘曲线</h1><p>艾宾浩斯在 1885 年……</p></div>
+      </div>
+      <ul class="pc">
+        <li class="p">正文几乎不被挤下去</li>
+        <li class="c">编辑前多一次点击；字段多时只能显示前几个</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">C</span>插入入口</h2>
+  <p class="desc">
+    现在只能从导入得到属性块。补两个入口，都只在<b>文档开头</b>生效（front-matter 只能在第一个块）：
+    ① 在第一行空段落输入 <code>---</code> 回车，转成属性块，光标落在「添加属性」；
+    ② 块菜单（<code>/</code>）里的「文档属性」，文档已有属性块时改为跳到它。
+    已在别处的位置插入时直接放到文档顶部。
+  </p>
+  <div class="grid">
+    <div class="card">
+      <div class="lbl">空文档输入 ---</div>
+      <div class="sub">点按钮模拟回车</div>
+      <div class="paper wide">
+        <div id="fmC"></div>
+        <div class="doc" id="docC"><p><span style="font-family:ui-monospace,monospace">---</span><span style="border-left:1.5px solid var(--ink-1);margin-left:1px"></span></p></div>
+        <button class="switch" style="margin-top:10px;padding:3px 12px;font-size:12.5px" id="btnC">回车</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

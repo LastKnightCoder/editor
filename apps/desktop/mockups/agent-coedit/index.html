@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>Agent 协同编辑 · 设计方案总览</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { background: var(--page); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 24px 60px; font-size: 13px; line-height: 1.75; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  h2 { font-size: 16px; margin: 30px 0 8px; }
+  .lead { color: var(--ink-2); max-width: 880px; margin: 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  a.plan { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 16px 18px; }
+  a.plan:hover { box-shadow: var(--shadow-lift); }
+  a.plan h3 { margin: 0 0 4px; font-size: 14.5px; display: flex; gap: 8px; align-items: center; }
+  a.plan p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .box { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 14px 20px; }
+  .box ul, .box ol { margin: 0; padding-left: 20px; } .box li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; background: var(--page); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Agent 协同编辑 · 设计方向</h1>
+  <p class="lead">目标：让 Agent 在文档里像一个真正的同事。它有名字和颜色，你看得见它在哪、在干什么；它的改动落在原文上，可以讨论、可以退回；你和它可以同时写，人永远优先。</p>
+
+  <h2>现在的问题</h2>
+  <div class="box"><ul>
+    <li><b>改动在对话里审，不在文档里审。</b>确认入口是聊天流里的工具卡（<code>ContentEditProposalRenderer</code>），要在卡里切「改动高亮 / 完整内容」看一份只读副本。文档只多了一个浅色底和顶部一排「AI · 拟修改正文」标签。</li>
+    <li><b>Agent 没有身份。</b>标记统一用 <code>bg-accent-soft</code>，名字默认「AI」，多个 Agent 同时改分不清谁是谁，hover 时只有 title 提示。</li>
+    <li><b>过程不可见。</b>提案出现之前看不到它在读哪、做到哪；提交后的标记 12 秒就消失，回来时看不出谁改过什么。</li>
+    <li><b>交互是审批，不是协作。</b>「确认应用 / 提修改意见 / 拒绝」三个按钮针对整次提案；你想只要其中一处、或对某一句说话，都要回到对话里重来。</li>
+    <li><b>权限是对话级开关。</b><code>review_required / auto_apply_allowed</code> 跟着会话走，没有「这个 Agent 我信得过」这一层。</li>
+  </ul></div>
+
+  <h2>三个方向</h2>
+  <div class="grid">
+    <a class="plan" href="a-suggest.html"><h3>A 建议模式 <span class="rec">推荐先做</span></h3><p>像 Google Docs 的「建议」。Agent 的改动以作者色修订痕迹落在正文，右栏按条接受 / 退回 / 回复；选中文字 @Agent 派活。最贴近现有提案 + 范围锚点的模型，改造量最小。</p></a>
+    <a class="plan" href="b-thread.html"><h3>B 批注对话</h3><p>页边批注线程是主场。Agent 会反问、给选项、@另一个 Agent 交接；改法是线程里的一条回复。适合核对、调研这类需要来回商量的活，以及「派完活走开」的异步节奏。</p></a>
+    <a class="plan" href="c-live.html"><h3>C 放手改 + 回看</h3><p>受信任的 Agent 拥有直接编辑权，像另一台在线设备实时打字；人一碰它就让。事后在动态里按次回看、撤销。按 Agent 给权限，和真人协作者同一个面板。</p></a>
+  </div>
+
+  <h2>建议的组合</h2>
+  <div class="box"><ol>
+    <li><b>共同底座（三个方案都要）</b>：Agent 身份（名字 / 颜色 / ✦ 角标 / 一句职责）、标题栏在场头像、正文里的 Agent 光标与「正在看这段」、按作者着色的痕迹。</li>
+    <li><b>默认交互用 A</b>：改动落在原文、按条处理，审阅从对话卡迁到文档里。对话里的工具卡只保留一行摘要 +「在文档中查看」。</li>
+    <li><b>B 的反问与线程作为 A 的「回复」延伸</b>：先做「Agent 在批注里问你、给选项」，Agent 之间 @ 交接放后。</li>
+    <li><b>C 作为权限升级</b>：某个 Agent 在某篇文档被设为「直接改」后才走实时落地 + 事后回看；默认仍是建议。</li>
+  </ol></div>
+
+  <h2>对比</h2>
+  <table>
+    <tr><th></th><th>A 建议模式</th><th>B 批注对话</th><th>C 放手改 + 回看</th></tr>
+    <tr><td>心智</td><td>同事给你提修订</td><td>同事在页边和你商量</td><td>同事直接动笔，你事后看</td></tr>
+    <tr><td>你的打扰</td><td>每条都要处理（可批量）</td><td>只在它问你时</td><td>几乎没有，事后看</td></tr>
+    <tr><td>误改风险</td><td>低</td><td>低</td><td>中，靠撤销兜底</td></tr>
+    <tr><td>复用现有能力</td><td>提案、范围锚点、范围冲突重读、范围撤销</td><td>A 的全部 + 子 Agent 问答 / 消息</td><td>范围操作直接提交、协作增量、awareness 光标</td></tr>
+    <tr><td>新增工作</td><td>修订痕迹渲染、建议栏、按条接受（拆分提案）</td><td>页边批注布局、锚定线程、消息投影到锚点</td><td>Agent awareness、软锁与让出、动态流、按 Agent 权限</td></tr>
+    <tr><td>主要风险</td><td>提案需能拆成单条独立应用</td><td>页边宽度，窄窗口要退回右栏</td><td>本机文档没有 awareness 通道，要单独做</td></tr>
+  </table>
+
+  <h2>已定</h2>
+  <div class="box"><ul>
+    <li><b>审阅不迁出对话。</b>用户不一定打开文章，所以同一份建议有两个视图：对话里按条的紧凑卡片，文章里的修订痕迹，状态同步（见 A 场景「文章没打开时」）。</li>
+    <li><b>Agent 名字由 AI 生成</b>：派发时按任务起一个职责名（「校对」「调研员」），颜色按名字固定分配。</li>
+    <li><b>实时打字要做</b>（方案 C 的直接改）。</li>
+    <li><b>推进方向</b>：A 为主，B 的反问作为回复的延伸，C 作为权限升级。</li>
+    <li><b>支持按条接受</b>：一次修改里的每处改动是一条独立建议，各自带锚点和原文前提，可以单独接受、退回、回复；「全部接受」只是批量操作。提交按条校验，一条过期不影响其他条。</li>
+  </ul></div>
+
+  <h2>文章开关时怎么保证同步</h2>
+  <div class="box">
+    <p style="margin:0 0 6px">原则：<b>界面不持有任何状态，只是数据的投影。</b>文章开着还是关着、在哪个窗口打开，都读同一份数据，所以随时开关都不会错位。</p>
+    <table style="box-shadow:none;border-radius:0">
+      <tr><th>数据</th><th>放在哪（唯一来源）</th><th>文章关着</th><th>文章开着</th></tr>
+      <tr><td>正文</td><td>文档本身（Yjs 增量，经现有写入队列落库）</td><td>Agent 照常提交，不依赖编辑器</td><td>编辑器订阅增量，实时看到</td></tr>
+      <tr><td>建议</td><td>主进程持久记录：每条带作者、锚点（相对位置）、原文前提、状态</td><td>对话卡读它</td><td>正文痕迹读它；两处操作同一条记录，主进程广播变更</td></tr>
+      <tr><td>在场（光标、正在读哪）</td><td>协作会话的 awareness，不落库</td><td>无人看，照样更新</td><td>打开即拿到当前状态；Agent 结束时清除</td></tr>
+    </table>
+    <ul style="margin-top:8px">
+      <li><b>中途关闭</b>：什么都不用做。Agent 的写入和建议都不经编辑器，关掉只是少了一个观察者。</li>
+      <li><b>中途打开</b>：先加载正文，再取该文档的未处理建议，用锚点解析回当前位置。解析不到、或原文前提已变的，标「已过期」而不是画错位置。</li>
+      <li><b>两边同时操作</b>：接受和退回都是对记录的条件更新（只允许「待处理 → 已接受 / 已退回」）。对话里先点了，正文那边就收到状态变更、痕迹消失；后点的一方得到「已处理」，不会重复应用。</li>
+      <li><b>多个窗口</b>：独立编辑器窗口和主窗口都从主进程订阅，规则相同。</li>
+    </ul>
+    <p class="muted small" style="margin:6px 0 0">和现状的差别：现在提案存在渲染进程的 localStorage（<code>content-edit-review-session</code>），正文标记存在内存 store，提交后 12 秒消失。别的窗口看不到，重启也就没了。这次要把建议记录和变更广播移到主进程。</p>
+  </div>
+
+  <p class="muted small" style="margin-top:14px">各方案页顶部可切场景（也可用 ← →），右上可切浅 / 深色。仅为视觉参考，不是实现源。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>B 逐条审阅 · Agent 修改工具卡</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .seg { display: flex; gap: 3px; padding: 0 12px 10px; }
+  .seg i { flex: 1; height: 4px; border-radius: 2px; background: var(--line-1); }
+  .seg i.ok { background: var(--ok); }
+  .seg i.no { background: var(--ink-3); }
+  .seg i.cur { background: var(--accent); }
+  .focus-box { margin: 0 12px; border: 1px solid var(--line-1); border-radius: 10px; overflow: hidden; }
+  .focus-box .loc { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+  .focus-box .loc b { color: var(--ink-2); font-weight: 500; }
+  .before, .after { display: flex; gap: 8px; padding: 8px 10px; line-height: 1.75; }
+  .before { color: var(--ink-2); }
+  .after { border-top: 1px dashed var(--line-1); }
+  .before .sign, .after .sign { flex: none; width: 12px; font: 12px var(--mono); padding-top: 1px; }
+  .before .sign { color: var(--danger); }
+  .after .sign { color: var(--ok); }
+  .why { padding: 8px 12px 0; font-size: 12px; color: var(--ink-2); display: flex; gap: 6px; }
+  .why svg { margin-top: 3px; color: var(--ink-3); }
+  .decide { display: flex; gap: 6px; padding: 10px 12px 12px; align-items: center; }
+  .decide .btn { height: 30px; }
+  .decide .btn.primary { padding: 0 14px; }
+  .nav { display: flex; gap: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line-1); font-size: 11.5px; color: var(--ink-2); max-width: 100%; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+  .chip svg { width: 11px; height: 11px; }
+  .chip.ok svg { color: var(--ok); }
+  .chip.no { color: var(--ink-3); text-decoration: line-through; }
+  .sumline { padding: 0 12px 10px; font-size: 12.5px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<script type="module">
+import { mount, chat, ic, av, doclink, EDITS, agent } from "./shared.js";
+
+const head = (verb, right) => `<div class="card-hd">
+  <div class="title">${av()}<b style="font-weight:500">${agent.name}</b><span class="verb">${verb}</span>${doclink()}</div>${right}
+</div>`;
+
+const seg = (cur, states) => `<div class="seg">${EDITS.map((_, i) => `<i class="${states[i] || (i === cur ? "cur" : "")}"></i>`).join("")}</div>`;
+
+const focusCard = (cur, states = []) => {
+  const e = EDITS[cur];
+  const left = EDITS.length - states.filter(Boolean).length;
+  return `<div class="card">
+    ${head(`改 ${EDITS.length} 处`, `<span class="meta" style="font-variant-numeric:tabular-nums">第 ${cur + 1} / ${EDITS.length} 处</span>
+      <div class="nav"><button class="ibtn" title="上一处 ↑">${ic("chevron-up")}</button><button class="ibtn" title="下一处 ↓">${ic("chevron-down")}</button></div>`)}
+    ${seg(cur, states)}
+    <div class="focus-box">
+      <div class="loc">${ic("hash")}<b>${e.where}</b><span class="sp"></span><button class="doclink" style="font-size:11.5px">${ic("crosshair")}<span>在正文看</span></button></div>
+      <div class="before"><span class="sign">−</span><div>${e.pre}<span class="del">${e.del}</span>${e.post}</div></div>
+      <div class="after"><span class="sign">+</span><div>${e.pre}<span class="ins">${e.ins}</span>${e.post}</div></div>
+    </div>
+    <div class="why">${ic("sparkles")}<span>${e.reason}</span></div>
+    <div class="decide">
+      <button class="btn primary">${ic("check")}接受 <kbd style="margin-left:2px">Y</kbd></button>
+      <button class="btn">${ic("x")}退回 <kbd style="margin-left:2px">N</kbd></button>
+      <button class="btn ghost">${ic("message-circle")}说说怎么改</button>
+      <span class="sp"></span>
+      <button class="btn ghost" title="跳过余下逐条审阅">${left > 1 ? `剩下 ${left} 处全接受` : ""}</button>
+    </div>
+  </div>`;
+};
+
+const doneCard = `<div class="card">
+  ${head("改了", `<span class="meta">接受 3 · 退回 1</span>`)}
+  ${seg(-1, ["ok", "ok", "no", "ok"])}
+  <div class="chips">
+    ${EDITS.map((e, i) => `<button class="chip ${i === 2 ? "no" : "ok"}">${ic(i === 2 ? "x" : "check")}<span>${e.ins}</span></button>`).join("")}
+  </div>
+  <div class="card-ft"><button class="btn ghost">${ic("undo-2")}撤销这次修改</button><span class="sp"></span><button class="btn ghost">${ic("pencil")}接着改</button></div>
+</div>`;
+
+const scenes = {
+  first: {
+    label: "第 1 处",
+    view: chat(focusCard(0)),
+    cap: `<ul>
+      <li>一次只看一处：<b>原句（−）/ 新句（+）</b>上下对照，整句可读，差异词着色。适合措辞类改动，读的是语感而不是字。</li>
+      <li>分段进度条代替「4 条建议已处理」这类文字状态。</li>
+      <li>大号主按钮 + 键盘：<kbd>Y</kbd> 接受、<kbd>N</kbd> 退回、<kbd>↑</kbd><kbd>↓</kbd> 切换；处理后自动跳到下一处。</li>
+      <li>右下「剩下 N 处全接受」给想快速过的用户。</li>
+    </ul>`,
+  },
+  mid: {
+    label: "第 3 处",
+    view: chat(focusCard(2, ["ok", "ok"])),
+    cap: `<ul><li>进度条上已处理的段变色（绿=接受，灰=退回），点任意一段可回到那一处改主意。</li></ul>`,
+  },
+  done: {
+    label: "完成",
+    view: chat(doneCard, { after: `<div class="msg-ai"><p>已按你的选择落地 3 处。</p></div>` }),
+    cap: `<ul>
+      <li>完成后卡片缩成结果芯片：每处改动显示新文字，退回的划掉；点芯片在正文定位。</li>
+      <li>代价：<b>没法一眼扫完全部改动</b>，改动多（>10 处）时要按很多次；可在完成态或头部加「列表看全部」切换。</li>
+    </ul>`,
+  },
+};
+mount("b-stepper.html", scenes);
+</script>
+</body>
+</html>

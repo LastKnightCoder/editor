@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>网页右栏 · 样板间</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="style.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>网页右栏 · 可交互样板间</h3>
+  右栏是一个位置，聊天、网页、插件视图轮流占用。上方「场景」切换四种入口，窗口里的链接和按钮都可以点。
+  <ul>
+    <li><b>正文链接</b>：点正文里的网页链接，网页在右栏打开，正文留在原位。</li>
+    <li><b>聊天来源</b>：先开着聊天，点回答下方的来源链接，网页临时接替聊天；关闭网页回到同一个会话，正在生成的回答不中断。连点几个来源只替换网页，关一次就回到聊天。</li>
+    <li><b>数据表格</b>：悬停链接单元格，「在应用内打开」改为在右栏打开；「在浏览器中打开」不变。直接点链接文字仍是编辑单元格。</li>
+    <li><b>插件视图</b>：插件登记的视图（示例为「文档大纲」）也进右栏，栏头和放大、关闭按钮由宿主统一提供。</li>
+    <li>右上角 <b>放大</b>：网页占据主内容区，标题栏「后退」或「收回右栏」回到来源页，网页仍在右侧，滚动位置和表单内容保留。</li>
+    <li>右栏头：网页标题 + 实际域名；网页后退 / 前进只退站内历史；加载失败在栏内给重试和在浏览器中打开。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+<script type="module" src="app.js?v=1"></script>
+</body>
+</html>
