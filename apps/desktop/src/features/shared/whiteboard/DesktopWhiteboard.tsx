@@ -37,7 +37,7 @@ import { IDownloadService, IMediaInfoService } from "@tau/shared/media-services"
 import { desktopMedia, desktopMediaActions, desktopMediaImage, desktopVideoSources } from "./media";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { downloadFile } from "@/utils/download";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { createWhiteboardPluginServices } from "@/app/plugins/whiteboard-services";
 import Whiteboard from "@tau/whiteboard";
@@ -54,7 +54,8 @@ import useContentDocument from "@/hooks/useContentDocument";
 import { getContentKit, getDescriptionKit, getArrowLabelKit } from "@/services/editorKit";
 import { collaborationKit } from "@/hooks/useCollaborationKit";
 import { getContentBinding } from "@/services/contentBindings";
-import { bindDatabaseCommands } from "@/services/command-context";
+import { bindDatabaseCommands, getDatabaseConnection } from "@/services/command-context";
+import { useDatabaseConnectionId } from "@/hooks/useDatabaseCommands";
 import * as contentCommands from "@/commands/content";
 import { importFromMarkdown } from "@/utils/markdown";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
@@ -152,6 +153,18 @@ export type DesktopWhiteboardProps = Omit<WhiteboardProps, "extensions" | "servi
 };
 export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProps>((props, ref) => {
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
+  const connectionId = useDatabaseConnectionId(databaseName);
+  const [openedConnectionId] = useState(connectionId);
+  const replaced = connectionId !== openedConnectionId;
+  const isConnectionValid = useCallback(
+    () => getDatabaseConnection(databaseName)?.connectionId === openedConnectionId,
+    [databaseName, openedConnectionId]
+  );
+  const isCurrent = useCallback(
+    () =>
+      useSettingStore.getState().setting.database.active === databaseName && isConnectionValid(),
+    [databaseName, isConnectionValid]
+  );
   const pluginRuntime = useDesktopPlugins();
   const pluginRuntimeRef = useRef(pluginRuntime);
   pluginRuntimeRef.current = pluginRuntime;
@@ -162,7 +175,7 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
   // 宿主服务注册表：与 extensions 同随 databaseName 重建（切库后正文命令必须指向新库）
   const services: ReturnType<typeof createServiceRegistry> = useMemo(() => {
     const commands = bindDatabaseCommands(contentCommands, { databaseName });
-    const current = () => useSettingStore.getState().setting.database.active === databaseName;
+    const current = isCurrent;
     return createServiceRegistry(
       register =>
         register(IWhiteboardRichText, {
@@ -180,13 +193,13 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
               if (current()) return commands.updateContent(...args);
             },
             release: async (id: number) => {
-              return commands.deleteContent(id);
+              if (isConnectionValid()) return commands.deleteContent(id);
             },
             retain: async (id: number) => {
               if (current()) return commands.incrementContentRefCount(id);
             },
             unretain: async (id: number) => {
-              return commands.decrementContentRefCount(id);
+              if (isConnectionValid()) return commands.decrementContentRefCount(id);
             },
           },
           importMarkdown: importFromMarkdown,
@@ -206,7 +219,7 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
       register => register(IMediaInfoService, desktopMedia),
       register => register(IDownloadService, { download: url => downloadFile(url) })
     );
-  }, [databaseName]);
+  }, [databaseName, isCurrent, isConnectionValid, props.document]);
   const extensionServices = useMemo(
     () =>
       createWhiteboardPluginServices(services, desktopContentPlugins.list(), pluginId => {
@@ -310,10 +323,17 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
       ...additionalExtensions,
       ...desktopContentPlugins.whiteboardExtensions,
     ];
-  }, [additionalExtensions]);
+  }, [additionalExtensions, services, props.document]);
   return (
     <Whiteboard
       {...props}
+      readonly={props.readonly || replaced}
+      onChange={value => {
+        if (isCurrent()) props.onChange?.(value);
+      }}
+      statusBarEnd={
+        replaced ? <span role="status">资料库已更新，请重新打开此白板</span> : props.statusBarEnd
+      }
       ref={ref}
       extensions={extensions}
       services={services}

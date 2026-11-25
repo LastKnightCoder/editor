@@ -521,3 +521,45 @@ it("交接打开失败保留旧画布只读，重试成功才释放旧模型", a
   expect(entry.getSnapshot().client).not.toBe(old);
   expect(old.isDisposed).toBe(true);
 });
+
+it("主白板租约被替换后自动重建画布，旧模型不接管新会话", async () => {
+  await mount();
+  const entry = whiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, mocks.docId);
+  const previous = entry.getSnapshot().client;
+  const previousBinding = mocks.binding;
+  if (!previous) throw new Error("旧白板会话不存在");
+  await act(async () => {
+    for (const listener of [...mocks.detached]) listener("lease");
+    await vi.waitFor(() => {
+      expect(entry.getSnapshot().phase).toBe("ready");
+      expect(entry.getSnapshot().client).not.toBe(previous);
+    });
+  });
+  expect(mocks.binding).not.toBe(previousBinding);
+  expect(previous.isDisposed).toBe(true);
+});
+
+it.skipIf(process.env.TAU_DATABASE_RECONNECT_STRESS !== "1")(
+  "主白板连续租约替换仍重建画布并释放旧模型",
+  async () => {
+    await mount();
+    const entry = whiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, mocks.docId);
+    const rounds = 100;
+    for (let index = 0; index < rounds; index++) {
+      const previous = entry.getSnapshot().client;
+      const previousBinding = mocks.binding;
+      if (!previous) throw new Error("白板会话不存在");
+      await act(async () => {
+        for (const listener of [...mocks.detached]) listener("lease");
+        await vi.waitFor(() => {
+          expect(entry.getSnapshot().phase).toBe("ready");
+          expect(entry.getSnapshot().client).not.toBe(previous);
+        });
+      });
+      expect(mocks.binding).not.toBe(previousBinding);
+      expect(previous.isDisposed).toBe(true);
+    }
+    console.info(`[managed whiteboard stress] replacements=${rounds}, oldModelsDisposed=${rounds}`);
+  },
+  120_000
+);

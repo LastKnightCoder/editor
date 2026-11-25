@@ -1,13 +1,14 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
 import Database, { type DatabaseProps, type DatabaseRef } from "@tau/database";
 import { patchDataTableRow } from "@/commands/data-table";
-import { bindDatabaseCommands } from "@/services/command-context";
+import { getDatabaseConnection } from "@/services/command-context";
+import { useDatabaseCommands } from "@/hooks/useDatabaseCommands";
 import useSettingStore from "@/stores/useSettingStore";
 import { toDatabaseView } from "./viewAdapter";
 import { desktopDatabaseExtension } from "./desktopExtension";
 
 const desktopOnlyExtensions: NonNullable<DatabaseProps["extensions"]> = [desktopDatabaseExtension];
+const rowCommands = { patchDataTableRow };
 
 export interface DesktopDatabaseProps extends DatabaseProps {
   tableId?: number;
@@ -46,42 +47,56 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
       if (tableId)
         instance.current?.dispatch({ type: "rows.receive", rows: props.data }, "external");
     }, [props.data, tableId]);
-    const commands = useMemo(
-      () => bindDatabaseCommands({ patchDataTableRow }, { databaseName }),
-      [databaseName]
-    );
+    const { commands, connectionId } = useDatabaseCommands(rowCommands, databaseName);
     const combinedExtensions = useMemo(
       () => (extensions ? [desktopDatabaseExtension, ...extensions] : desktopOnlyExtensions),
       [extensions]
     );
-    const isCurrent = () => useSettingStore.getState().setting.database.active === databaseName;
-    const saveData = useMemoizedFn<NonNullable<DatabaseProps["onDataChange"]>>((data, change) => {
-      if (isCurrent()) return onDataChange?.(data, change);
-    });
-    const saveView = useMemoizedFn<NonNullable<DatabaseProps["onViewConfigChange"]>>(config => {
-      if (isCurrent()) return onViewConfigChange?.(config);
-    });
-    const createView = useMemoizedFn<NonNullable<DatabaseProps["onCreateView"]>>(async input => {
-      if (!isCurrent()) return null;
-      const view = await onCreateView?.(input);
-      return view ? toDatabaseView(view) : null;
-    });
-    const renameView = useMemoizedFn<NonNullable<DatabaseProps["onRenameView"]>>(
+    const isCurrent = useCallback(
+      () =>
+        useSettingStore.getState().setting.database.active === databaseName &&
+        getDatabaseConnection(databaseName)?.connectionId === connectionId,
+      [databaseName, connectionId]
+    );
+    const saveData = useCallback<NonNullable<DatabaseProps["onDataChange"]>>(
+      (data, change) => {
+        if (isCurrent()) return onDataChange?.(data, change);
+      },
+      [isCurrent, onDataChange]
+    );
+    const saveView = useCallback<NonNullable<DatabaseProps["onViewConfigChange"]>>(
+      config => {
+        if (isCurrent()) return onViewConfigChange?.(config);
+      },
+      [isCurrent, onViewConfigChange]
+    );
+    const createView = useCallback<NonNullable<DatabaseProps["onCreateView"]>>(
+      async input => {
+        if (!isCurrent()) return null;
+        const view = await onCreateView?.(input);
+        return view ? toDatabaseView(view) : null;
+      },
+      [isCurrent, onCreateView]
+    );
+    const renameView = useCallback<NonNullable<DatabaseProps["onRenameView"]>>(
       async (id, name) => {
         if (!isCurrent()) return null;
         const view = await onRenameView?.(id, name);
         return view ? toDatabaseView(view) : null;
-      }
+      },
+      [isCurrent, onRenameView]
     );
-    const updateView = useMemoizedFn<NonNullable<DatabaseProps["onUpdateView"]>>(
+    const updateView = useCallback<NonNullable<DatabaseProps["onUpdateView"]>>(
       async (id, input) => {
         if (!isCurrent()) return null;
         const view = await onUpdateView?.(id, input);
         return view ? toDatabaseView(view) : null;
-      }
+      },
+      [isCurrent, onUpdateView]
     );
     return (
       <Database
+        key={connectionId}
         {...props}
         views={views.map(toDatabaseView)}
         onCreateView={onCreateView ? createView : undefined}

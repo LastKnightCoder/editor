@@ -1,6 +1,6 @@
 import { IResourceService } from "@tau/shared/host-services";
 import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { ConfirmDialog, Drawer, toast, useRetainedValue } from "@tau/ui";
 import {
@@ -23,7 +23,7 @@ import {
 import VideoNotePanel from "@/components/VideoNotePanel/VideoNotePanel";
 import type { VideoMetaInfo } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
-import { bindDatabaseCommands } from "@/services/command-context";
+import { bindDatabaseCommands, getDatabaseConnection } from "@/services/command-context";
 import { unlinkMindNote } from "./unlinkMindNote";
 
 const isRemoteHttpUrl = (src: string) => {
@@ -61,6 +61,13 @@ const getVideoNoteMetaInfo = (element: VideoElement): VideoMetaInfo => {
 export function NoteLayers() {
   const board = useBoard();
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
+  const [connectionId] = useState(() => getDatabaseConnection(databaseName)?.connectionId);
+  const isCurrent = useCallback(
+    () =>
+      useSettingStore.getState().setting.database.active === databaseName &&
+      getDatabaseConnection(databaseName)?.connectionId === connectionId,
+    [databaseName, connectionId]
+  );
   const {
     decrementContentRefCount,
     incrementContentRefCount,
@@ -75,9 +82,9 @@ export function NoteLayers() {
           createEmptyVideoNote: baseCreateEmptyVideoNote,
           getVideoNoteById: baseGetVideoNoteById,
         },
-        { databaseName }
+        { databaseName, connectionId }
       ),
-    [databaseName]
+    [databaseName, connectionId]
   );
 
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
@@ -107,6 +114,7 @@ export function NoteLayers() {
   // 监听打开笔记事件（入口在元素树右键与思维导图属性条 / 右键菜单，只开不关，关闭走抽屉自身）
   useEffect(() => {
     const handleOpenNote = (contentId: number, contentTitle: string) => {
+      if (!isCurrent()) return;
       setActiveNoteId(contentId);
       setActiveVideoNote(null);
       setActiveNoteTitle(contentTitle);
@@ -115,10 +123,11 @@ export function NoteLayers() {
     return () => {
       board.off("tau.note.open", handleOpenNote);
     };
-  }, [board]);
+  }, [board, isCurrent]);
 
   useEffect(() => {
     const handleOpenVideoNote = async (element: VideoElement) => {
+      if (!isCurrent()) return;
       const canSubmit = board.captureSubmission(element);
       try {
         const latestElement = BoardUtil.getElementById(board, element.id) as VideoElement | null;
@@ -127,6 +136,7 @@ export function NoteLayers() {
 
         if (videoNoteId) {
           const existing = await getVideoNoteById(videoNoteId);
+          if (!isCurrent()) return;
           if (!existing) {
             videoNoteId = undefined;
           }
@@ -160,6 +170,7 @@ export function NoteLayers() {
               }
               if (!canSubmit()) return null;
               const created = await createEmptyVideoNote(meta);
+              if (!isCurrent()) return null;
               if (!created) {
                 return null;
               }
@@ -262,11 +273,12 @@ export function NoteLayers() {
       board.off("element:remove", handleElementRemove);
       board.off("tau.video-note.element-ref", handleVideoElementRef);
     };
-  }, [board]);
+  }, [board, isCurrent, createEmptyVideoNote, getVideoNoteById]);
 
   // 监听取消关联笔记的二次确认
   useEffect(() => {
     const handleConfirmUnlinkNote = (nodeId: string) => {
+      if (!isCurrent()) return;
       const node = BoardUtil.getElementById(board, nodeId) as MindNodeElement | null;
       if (!node?.contentId) return;
       setUnlinkNodeId(nodeId);
@@ -275,12 +287,12 @@ export function NoteLayers() {
     return () => {
       board.off("tau.mind.confirm-unlink-note", handleConfirmUnlinkNote);
     };
-  }, [board]);
+  }, [board, isCurrent]);
 
   const confirmUnlinkNote = useMemoizedFn(async () => {
     const elementId = unlinkNodeId;
     setUnlinkNodeId(null);
-    if (!elementId) return;
+    if (!elementId || !isCurrent()) return;
     const unlinkContentId = await unlinkMindNote(board, elementId, {
       decrementContentRefCount,
       incrementContentRefCount,
