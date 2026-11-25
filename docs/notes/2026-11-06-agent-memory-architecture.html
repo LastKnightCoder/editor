@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pi 聊天与独立记忆库</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Instrument+Serif&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC&amp;display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --paper: #f5f5f5;
+      --paper-2: #ececec;
+      --ink: #2d3142;
+      --muted: #4f5d75;
+      --soft: #7a8399;
+      --rule: rgba(45,49,66,.12);
+      --rule-solid: #bfc0c0;
+      --accent: #eb6c36;
+      --accent-tint: rgba(235,108,54,.08);
+      --sans: Geist, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --serif: "Instrument Serif", "Noto Serif SC", "Songti SC", serif;
+      --mono: "Geist Mono", monospace;
+    }
+    body { margin: 0; padding: 36px clamp(16px, 5vw, 64px); background: var(--paper); color: var(--ink); font: 15px/1.6 var(--sans); }
+    main { max-width: 960px; min-width: 0; margin: 0 auto; }
+    header { margin-bottom: 24px; }
+    .eyebrow { font: 500 12px/1.4 var(--sans); letter-spacing: .12em; color: var(--muted); margin: 0 0 8px; }
+    h1 { margin: 0 0 8px; font: 400 28px/1.3 var(--serif); }
+    header p:last-child { margin: 0; color: var(--muted); }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 960px; display: block; }
+    svg text { font-family: var(--sans); fill: var(--ink); }
+    .zone-box { fill: rgba(45,49,66,.02); stroke: var(--rule); }
+    .node-box { fill: none; stroke: var(--rule-solid); stroke-width: 1; }
+    .input .node-box, .terminal .node-box { stroke: var(--ink); }
+    .store .node-box { fill: var(--paper-2); stroke: var(--muted); }
+    .focal .node-box, .decision { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.3; }
+    .node-title { font-size: 15px; font-weight: 600; }
+    .tag { font-size: 12px; font-weight: 500; fill: var(--muted); }
+    .detail, .label { font-size: 12px; fill: var(--muted); }
+    .label { font-weight: 500; }
+    .connector { fill: none; stroke: var(--muted); stroke-width: 1.4; }
+    .primary { stroke: var(--accent); }
+    .optional { stroke-dasharray: 5 4; stroke-width: 1.2; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">架构图 · 个人助手记忆系统</p>
+      <h1>Pi 聊天与独立记忆库</h1>
+      <p>桌面主对话首版，虚线标出后续能力。</p>
+    </header>
+    <div class="diagram-container">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="2026-11-06-agent-memory-architecture-title 2026-11-06-agent-memory-architecture-desc">
+        <title id="2026-11-06-agent-memory-architecture-title">Pi 聊天与独立记忆库</title>
+        <desc id="2026-11-06-agent-memory-architecture-desc">Pi 宿主保留会话原文，按作用域读取独立记忆库；用户可以在聊天中明确要求写入，也可直接管理已保存的记忆。</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0,0 8,3 0,6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0,0 8,3 0,6" fill="#eb6c36"/></marker>
+        </defs>
+        <rect x="0" y="0" width="960" height="600" fill="#f5f5f5"/>
+        <g class="zone"><rect x="24" y="60" width="180" height="408" rx="8" class="zone-box"/><text x="40" y="84" class="tag" text-anchor="start">用户入口</text></g>
+        <g class="zone"><rect x="236" y="60" width="364" height="408" rx="8" class="zone-box"/><text x="252" y="84" class="tag" text-anchor="start">桌面主进程</text></g>
+        <g class="zone"><rect x="668" y="60" width="268" height="408" rx="8" class="zone-box"/><text x="684" y="84" class="tag" text-anchor="start">当前库的本地数据</text></g>
+        <path class="connector standard" d="M 188 132 H 252" marker-end="url(#arrow)"/>
+        <path class="connector standard" d="M 584 146 H 684" marker-end="url(#arrow)"/>
+        <path class="connector standard" d="M 252 164 H 224 Q 216 164 216 172 V 364 Q 216 372 224 372 H 252" marker-end="url(#arrow)"/>
+        <path class="connector standard" d="M 188 404 H 252" marker-end="url(#arrow)"/>
+        <path class="connector standard" d="M 584 394 H 776 Q 784 394 784 386 V 312" marker-end="url(#arrow)"/>
+        <path class="connector primary" d="M 684 280 H 584" marker-end="url(#arrow-accent)"/>
+        <path class="connector standard" d="M 376 232 V 192" marker-end="url(#arrow)"/>
+        <path class="connector optional" d="M 684 172 H 648 Q 640 172 640 180 V 240 Q 640 248 632 248 H 584" marker-end="url(#arrow)"/>
+        <g class="arrow-label"><rect x="602" y="118" width="64" height="20" rx="2" fill="#f5f5f5"/><text x="634" y="132" class="label" text-anchor="middle">保存原文</text></g>
+        <g class="arrow-label"><rect x="144" y="251" width="64" height="20" rx="2" fill="#f5f5f5"/><text x="176" y="265" class="label" text-anchor="middle">明确请求</text></g>
+        <g class="arrow-label"><rect x="632" y="366" width="76" height="20" rx="2" fill="#f5f5f5"/><text x="670" y="380" class="label" text-anchor="middle">事务提交</text></g>
+        <g class="arrow-label"><rect x="596" y="288" width="76" height="20" rx="2" fill="#f5f5f5"/><text x="634" y="302" class="label" text-anchor="middle">按范围读</text></g>
+        <g class="arrow-label"><rect x="384" y="204" width="76" height="20" rx="2" fill="#f5f5f5"/><text x="422" y="218" class="label" text-anchor="middle">装配提示</text></g>
+        <g class="arrow-label"><rect x="648" y="208" width="64" height="20" rx="2" fill="#f5f5f5"/><text x="680" y="222" class="label" text-anchor="middle">历史查证</text></g>
+        <g class="node input" data-node="主对话">
+          <rect x="40" y="108" width="148" height="84" rx="6" fill="#f5f5f5"/>
+          <rect x="40" y="108" width="148" height="84" rx="6" class="node-box"/>
+          <text x="56" y="127" class="tag" text-anchor="start">聊天</text>
+          <text x="56" y="151" class="node-title" text-anchor="start">主对话</text>
+          <text x="56" y="172" class="detail" text-anchor="start">继续聊或另开会话</text>
+        </g>
+        <g class="node input" data-node="管理记忆">
+          <rect x="40" y="356" width="148" height="84" rx="6" fill="#f5f5f5"/>
+          <rect x="40" y="356" width="148" height="84" rx="6" class="node-box"/>
+          <text x="56" y="375" class="tag" text-anchor="start">用户控制</text>
+          <text x="56" y="399" class="node-title" text-anchor="start">管理记忆</text>
+          <text x="56" y="420" class="detail" text-anchor="start">查看、更正、忘记</text>
+        </g>
+        <g class="node step" data-node="Pi 聊天宿主">
+          <rect x="252" y="108" width="332" height="84" rx="6" fill="#f5f5f5"/>
+          <rect x="252" y="108" width="332" height="84" rx="6" class="node-box"/>
+          <text x="268" y="127" class="tag" text-anchor="start">现有</text>
+          <text x="268" y="151" class="node-title" text-anchor="start">Pi 聊天宿主</text>
+          <text x="268" y="172" class="detail" text-anchor="start">装配模型请求并运行对话</text>
+        </g>
+        <g class="node step" data-node="记忆召回">
+          <rect x="252" y="232" width="332" height="80" rx="6" fill="#f5f5f5"/>
+          <rect x="252" y="232" width="332" height="80" rx="6" class="node-box"/>
+          <text x="268" y="251" class="tag" text-anchor="start">逐轮装配</text>
+          <text x="268" y="275" class="node-title" text-anchor="start">记忆召回</text>
+          <text x="268" y="296" class="detail" text-anchor="start">短画像常驻，近期状态和计划按需取</text>
+        </g>
+        <g class="node step" data-node="记忆写入服务">
+          <rect x="252" y="356" width="332" height="84" rx="6" fill="#f5f5f5"/>
+          <rect x="252" y="356" width="332" height="84" rx="6" class="node-box"/>
+          <text x="268" y="375" class="tag" text-anchor="start">宿主策略</text>
+          <text x="268" y="399" class="node-title" text-anchor="start">记忆写入服务</text>
+          <text x="268" y="420" class="detail" text-anchor="start">校验来源、合并更正、处理遗忘</text>
+        </g>
+        <g class="node store" data-node="Pi 会话 JSONL">
+          <rect x="684" y="108" width="236" height="84" rx="6" fill="#f5f5f5"/>
+          <rect x="684" y="108" width="236" height="84" rx="6" class="node-box"/>
+          <text x="700" y="127" class="tag" text-anchor="start">现有事实源</text>
+          <text x="700" y="151" class="node-title" text-anchor="start">Pi 会话 JSONL</text>
+          <text x="700" y="172" class="detail" text-anchor="start">保存会话原文与消息标识</text>
+        </g>
+        <g class="node focal" data-node="SQLite 记忆库">
+          <rect x="684" y="232" width="236" height="80" rx="6" fill="#f5f5f5"/>
+          <rect x="684" y="232" width="236" height="80" rx="6" class="node-box"/>
+          <text x="700" y="251" class="tag" text-anchor="start">新增</text>
+          <text x="700" y="275" class="node-title" text-anchor="start">SQLite 记忆库</text>
+          <text x="700" y="296" class="detail" text-anchor="start">画像、近期状态、计划与来源</text>
+        </g>
+        <line x1="24" y1="500" x2="936" y2="500" stroke="#bfc0c0"/>
+        <g><path class="connector standard" d="M 32 526 h 28"/><text x="70" y="530" class="detail" text-anchor="start">首版调用与数据流</text></g>
+        <g><path class="connector optional" d="M 218 526 h 28"/><text x="256" y="530" class="detail" text-anchor="start">后续能力</text></g>
+        <text x="32" y="558" class="detail" text-anchor="start">个人记忆限定当前库的主对话；子 Agent 只接收任务所需的片段。</text>
+      </svg>
+    </div>
+  </main>
+</body>
+</html>
