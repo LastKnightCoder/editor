@@ -4,10 +4,9 @@ import {
   createBlockConversionMenu,
   getCommandElementPath,
   type EditorCommand,
+  type EditorMenuEntry,
 } from "@tau/editor/api";
-const isType = (ctx: { element: { type?: unknown } }, ...types: readonly string[]) =>
-  types.includes(ctx.element.type as string);
-const sourceTypes: readonly string[] = ["paragraph"];
+const sourceTypes: readonly string[] = ["paragraph", "header"];
 export const conversionCommands: EditorCommand[] = [
   {
     id: "tau.transform.to.header",
@@ -28,35 +27,50 @@ export const conversionCommands: EditorCommand[] = [
     },
   },
 ];
+const levelMenu = ([1, 2, 3, 4, 5, 6] as const).map(level => ({
+  id: `tau.transform.header-${level}`,
+  title: `标题 ${level}`,
+  icon:
+    level === 1 ? (
+      <Heading1 size={16} />
+    ) : level === 2 ? (
+      <Heading2 size={16} />
+    ) : level === 3 ? (
+      <Heading3 size={16} />
+    ) : level === 4 ? (
+      <Heading4 size={16} />
+    ) : level === 5 ? (
+      <Heading5 size={16} />
+    ) : (
+      <Heading6 size={16} />
+    ),
+  command: "tau.transform.to.header",
+  payload: { target: "header", options: { level } },
+}));
+
 export const conversionMenuFor = {
-  ...createBlockConversionMenu(sourceTypes, [
+  ...createBlockConversionMenu(
+    ["paragraph"],
+    [
+      {
+        order: 20,
+        id: "tau.transform.header",
+        title: "标题",
+        icon: <Heading1 size={16} />,
+        children: levelMenu,
+      },
+    ]
+  ),
+  header: [
     {
-      order: 20,
-      id: "tau.transform.header",
-      title: "标题",
+      id: "tau.header.level",
+      title: "标题级别",
       icon: <Heading1 size={16} />,
-      children: ([1, 2, 3, 4, 5, 6] as const).map(level => ({
-        id: `tau.transform.header-${level}`,
-        title: `标题 ${level}`,
-        icon:
-          level === 1 ? (
-            <Heading1 size={16} />
-          ) : level === 2 ? (
-            <Heading2 size={16} />
-          ) : level === 3 ? (
-            <Heading3 size={16} />
-          ) : level === 4 ? (
-            <Heading4 size={16} />
-          ) : level === 5 ? (
-            <Heading5 size={16} />
-          ) : (
-            <Heading6 size={16} />
-          ),
-        command: "tau.transform.to.header",
-        payload: { target: "header", options: { level } },
-        when: (ctx: { element: { type?: unknown } }) => isType(ctx, "paragraph"),
+      children: levelMenu.map(entry => ({
+        ...entry,
+        disabled: ctx =>
+          ctx.element.type === "header" && ctx.element.level === entry.payload.options.level,
       })),
-      when: ctx => isType(ctx, "paragraph"),
     },
-  ]),
+  ] satisfies EditorMenuEntry[],
 };

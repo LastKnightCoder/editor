@@ -205,6 +205,27 @@ describe("显式领域扩展 · transform 组", () => {
     );
   });
 
+  it("光标在其他段落时，菜单只调整目标标题的级别并保留内容与折叠状态", () => {
+    const header = {
+      type: "header" as const,
+      level: 2 as const,
+      collapsed: true,
+      children: [{ ...text("章节"), bold: true }],
+    };
+    const body = paragraph("正文");
+    const editor = withValue([header, body]);
+    Transforms.select(editor, { path: [1, 0], offset: 1 });
+    const levels = menuOf(editor, header).find(item => item.key === "tau.header.level");
+    expect(levels?.children?.find(item => item.key === "tau.transform.header-2")?.disabled).toBe(
+      true
+    );
+    const target = levels?.children?.find(item => item.key === "tau.transform.header-4");
+    expect(target?.disabled).toBe(false);
+    expect(target?.onSelect).toBeTypeOf("function");
+    target?.onSelect?.();
+    expect(editor.children).toEqual([{ ...header, level: 4 }, body]);
+  });
+
   it("段落转标题写入 level；容器转段落解包提升子节点", () => {
     const paragraphEditor = withValue([paragraph("正文")]);
     runCommand(
