@@ -53,14 +53,14 @@ describe("theme 数据块与 defineTheme 产物一致", () => {
 });
 
 describe("主题列表排序", () => {
-  it("水墨（素色）始终排在最后，其余按注册顺序", () => {
+  it("素色主题排在最后（水墨、黑白），其余按注册顺序", () => {
     const keys = listThemes().map(t => t.key);
-    expect(keys.at(-1)).toBe("ink");
-    const rest = [...getThemeRegistry().keys()].filter(k => k !== "ink");
-    expect(keys.slice(0, -1)).toEqual(rest);
+    expect(keys.slice(-2)).toEqual(["ink", "mono"]);
+    const rest = [...getThemeRegistry().keys()].filter(k => k !== "ink" && k !== "mono");
+    expect(keys.slice(0, -2)).toEqual(rest);
   });
 
-  it("晚于水墨注册的主题也排在水墨之前", () => {
+  it("晚于素色主题注册的主题也排在它们之前", () => {
     const { light } = listThemes()[0];
     const late = defineTheme({
       key: "__late__",
@@ -71,7 +71,7 @@ describe("主题列表排序", () => {
     try {
       const keys = listThemes().map(t => t.key);
       expect(keys.indexOf(late.key)).toBeLessThan(keys.indexOf("ink"));
-      expect(keys.at(-1)).toBe("ink");
+      expect(keys.slice(-2)).toEqual(["ink", "mono"]);
     } finally {
       (getThemeRegistry() as Map<string, unknown>).delete(late.key);
     }

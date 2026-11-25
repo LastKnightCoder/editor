@@ -77,8 +77,11 @@ const GLOW_TAG: Record<string, string> = {
   paper: "tag-5",
   ocean: "tag-3",
   mint: "tag-2",
+  matcha: "tag-4",
+  celadon: "tag-2",
   wisteria: "tag-5",
   sakura: "tag-3",
+  mono: "tag-2",
   ink: "tag-2",
 };
 

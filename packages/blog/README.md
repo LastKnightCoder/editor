@@ -55,7 +55,7 @@ void main();
 
 内容插件的样式在正文渲染时注入，排在模板样式之后。官方插件的 Tailwind 类名都带插件前缀（如图册的 `ig:`），不会覆盖模板的同名工具类；第三方插件若带出通用类名，会影响含该插件内容的页面。
 
-编辑器颜色取 `--tau-*` 变量。模板可以自己定义这些变量，也可以在 `<html>` 上写 `data-theme="paper" data-mode="light"`，使用包内的 Tau 主题（另有 ocean、mint、wisteria、sakura、ink）。`/theme/tailwind.css` 与 `/theme/scale.css` 提供同一套 Tailwind 语义类和尺度变量，供模板自己的页面使用。
+编辑器颜色取 `--tau-*` 变量。模板可以自己定义这些变量，也可以在 `<html>` 上写 `data-theme="paper" data-mode="light"`，使用包内的 Tau 主题（另有 ocean、mint、matcha、celadon、wisteria、sakura、mono、ink）。`/theme/tailwind.css` 与 `/theme/scale.css` 提供同一套 Tailwind 语义类和尺度变量，供模板自己的页面使用。
 
 ## 其他
 

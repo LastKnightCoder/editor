@@ -154,6 +154,7 @@ surface（最亮，浮起）  >  page（基准层）  >  sunken（最深，轨�
 - `sunken` 沉到 `page` **之下**，夹在 page 与 surface 中间两个方向都读不出来；
 - **不设「分组底」档**（D-034 退役 `bg-group`）：徽章/kbd/次级按钮等小面积填充用 `bg-hover`（hover 态 `bg-press`），静态容器与空态行用 surface/透明底 + `line-1` 描边，轨道用 `bg-track`/`bg-sunken`；`retired-tokens.test.ts` 扫源码防回流；
 - 深色主题同构镜像：`surface` 最亮、`sunken` 最暗，故"沉"= 更暗；
+- 唯一例外：「黑白」主题深色版的 page 已是纯黑，没有更深一档，`sunken` 与 page 同为 `#000`；凹槽类部件靠所在 surface 托出，直接落在 page 上的凹槽只能靠描边区分；
 - 因为下沉底会吃掉文字对比度，**加深下沉档时必须同时复核落在其上的墨色**（`theme-parity.test.ts` 已把这些组合纳入门禁）——2026-09-17 就是靠这一步发现 cream 的 `ink-2` 对 page 只有 4.89:1、没有余量，顺势压深到 5.60:1 留出空间。
 
 ---
