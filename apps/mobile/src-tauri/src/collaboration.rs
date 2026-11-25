@@ -1185,6 +1185,49 @@ mod cache_tests {
         assert_eq!(archive, vec![vec![1], vec![2]]);
     }
     #[test]
+    fn local_history_merges_into_expected_unsealed_head_and_appends_otherwise() {
+        let mut db = database();
+        let write = |bytes: &[u8], operation: &str, merge: Option<(&str, &[u8])>| {
+            let mut payload = payload(bytes, None);
+            payload.metadata["mode"] = json!("local");
+            payload.metadata["source"] = json!({
+                "librarySourceId": "library",
+                "contentDocumentId": "body",
+            });
+            payload.history = Some(serde_json::from_value(json!({
+                "operationId": operation,
+                "mergeInto": merge.map(|(target, _)| target),
+                "mergedState": merge.map(|(_, state)| base64::engine::general_purpose::STANDARD.encode(state)),
+            })).unwrap());
+            payload
+        };
+        write_cache_snapshot(&mut db, write(&[1], "seed", None)).unwrap();
+        write_cache_update(&mut db, write(&[2], "a", None)).unwrap();
+        write_cache_update(&mut db, write(&[3], "b", Some(("a", &[2, 3])))).unwrap();
+        crate::content_history::seal(&db, &json!(["library", "body"]).to_string(), 1).unwrap();
+        write_cache_update(&mut db, write(&[4], "c", Some(("b", &[2, 3, 4])))).unwrap();
+        // 客户端以为最新记录仍是 b，实际已是 c：不改写，另起一条。
+        write_cache_update(&mut db, write(&[5], "d", Some(("b", &[2, 3, 5])))).unwrap();
+        let rows = db
+            .prepare("SELECT operation_id,state FROM local_content_history ORDER BY sequence")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            rows,
+            vec![
+                ("baseline:0".into(), vec![1]),
+                ("b".into(), vec![2, 3]),
+                ("c".into(), vec![4]),
+                ("d".into(), vec![5]),
+            ]
+        );
+    }
+    #[test]
     fn recovery_preserves_source_close_and_retry_after_cache_corruption() {
         let directory = std::env::temp_dir().join(format!("tau-recovery-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&directory).unwrap();

@@ -135,6 +135,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       const cached = hocuspocus.documents.get(documentName);
       if (cached && cached.getMap("meta").get("baselineId") !== protocol.baselineId)
         throw new CollaborationError("BASELINE_RELOADING", "文档基线正在重新加载，请重试", 409);
+      store.history.seal(documentName, { actorId: identity.id });
       return { deviceId: identity.id, nickname: identity.nickname, protocol };
     },
     async onLoadDocument({ documentName, document }) {

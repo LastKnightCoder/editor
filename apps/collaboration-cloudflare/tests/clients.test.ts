@@ -297,6 +297,38 @@ function appendBody(doc: Y.Doc, text: string) {
 }
 
 describe("Cloudflare 原型与现有两端客户端", () => {
+  it("共享正文重开后保留旧版本，预览后的输入不并入已查看版本", async () => {
+    const id = await publish("历史会话", "原文");
+    const first = connect(id);
+    await until(() => first.provider.synced, "第一次打开完成同步");
+    appendBody(first.doc, "甲");
+    await until(() => !first.provider.hasUnsyncedChanges, "第一次编辑落盘");
+    const historyPath = `/v1/documents/${id}/history`;
+    const firstRows = await desktop.request<{ sequence: number }[]>(harness.url, historyPath);
+    const originalSequence = firstRows[0].sequence;
+    first.provider.destroy();
+    first.transport.destroy();
+
+    const second = connect(id);
+    await until(() => second.provider.synced, "重新打开完成同步");
+    appendBody(second.doc, "乙");
+    await until(() => !second.provider.hasUnsyncedChanges, "重开后的编辑落盘");
+    const oldVersion = await desktop.request<{
+      value: { content: { children: { text: string }[] }[] };
+    }>(harness.url, `${historyPath}/${originalSequence}`);
+    expect(oldVersion.value.content[0].children[0].text).toBe("原文甲");
+    const rows = await desktop.request<{ sequence: number }[]>(harness.url, historyPath);
+    const previewSequence = rows[0].sequence;
+    await desktop.request(harness.url, `${historyPath}/${previewSequence}`);
+    appendBody(second.doc, "丙");
+    await until(() => !second.provider.hasUnsyncedChanges, "预览后的编辑落盘");
+    const fixed = await desktop.request<{ value: { content: { children: { text: string }[] }[] } }>(
+      harness.url,
+      `${historyPath}/${previewSequence}`
+    );
+    expect(fixed.value.content[0].children[0].text).toBe("原文甲乙");
+  });
+
   it.each([false, true])(
     "注册需要凭据，审批后双向同步并恢复离线改动与服务重启（缓存失败=%s）",
     async cacheFailure => {

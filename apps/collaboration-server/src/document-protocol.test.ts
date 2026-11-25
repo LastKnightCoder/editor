@@ -56,6 +56,44 @@ async function setup() {
 }
 
 describe("真实服务发布与版本边界", () => {
+  it("历史合并按净增量检查配额，空间足够时仍能继续输入", async () => {
+    const { store, row, owner } = await setup();
+    const append = async (text: string) => {
+      const current = store.loadDocument(row.id);
+      const candidate = new Y.Doc({ gc: false });
+      Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
+      const vector = Y.encodeStateVector(candidate);
+      const tree = new NodeTree(candidate);
+      try {
+        tree.insertText("A", 0, text, null);
+        await store.appendUpdate(
+          row.id,
+          owner.id,
+          Y.encodeStateAsUpdate(candidate, vector),
+          current
+        );
+      } finally {
+        tree.dispose();
+        candidate.destroy();
+        current.destroy();
+      }
+    };
+    await append("长文".repeat(32_768));
+    const used = store.storageBytes();
+    store.config.maxStorageBytes = used + 16 * 1024;
+    await append("续");
+    expect(store.storageBytes()).toBeLessThan(store.config.maxStorageBytes);
+    const latest = store.history.list(row.id)[0];
+    const replayed = store.history.replay(row.id, latest.sequence);
+    try {
+      expect(readNodeDocument(replayed).content[0].children?.[0].text).toBe(
+        `续${"长文".repeat(32_768)}甲乙`
+      );
+    } finally {
+      replayed.destroy();
+    }
+  });
+
   it("Node 导出使用当前备份格式，保留正文、协议与历史账本", async () => {
     const { store, row } = await setup();
     store.db.exec(`

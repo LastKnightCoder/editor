@@ -1094,6 +1094,9 @@ export function collabWriteCache(
       checkpoint?: string;
       kind?: "edit" | "undo" | "restore";
       target?: number;
+      /** 并入的最新记录操作 ID，配合合并后的完整增量 */
+      mergeInto?: string;
+      mergedState?: string;
     };
   },
   snapshot = false

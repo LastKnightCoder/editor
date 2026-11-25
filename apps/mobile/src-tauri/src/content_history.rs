@@ -11,6 +11,9 @@ pub struct ContentHistoryWrite {
     checkpoint: Option<String>,
     kind: Option<String>,
     target: Option<i64>,
+    /// 并入的最新记录操作 ID；`merged_state` 为该记录合并后的完整增量
+    merge_into: Option<String>,
+    merged_state: Option<String>,
 }
 
 fn archive_id(metadata: &Value) -> Option<String> {
@@ -75,6 +78,11 @@ pub fn record(
     } else if prior.is_none() {
         return Err("本机历史缺少当前正文基线，请重新打开正文".into());
     }
+    if let (Some(head), Some(input)) = (prior, write) {
+        if merge(connection, &id, head.0, head.2, input)? {
+            return Ok(());
+        }
+    }
     let operation_id = if snapshot {
         format!("baseline:{sequence}")
     } else {
@@ -110,10 +118,7 @@ pub fn record(
     } else {
         bytes.to_vec()
     };
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_millis();
+    let millis = now_millis()?;
     let value = json!({
         "sequence": sequence,
         "operationId": operation_id,
@@ -135,6 +140,78 @@ pub fn record(
                 value.to_string(),
                 state
             ],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// 把本次编辑并入最新记录；最新记录不是客户端预期的那条时返回 false，按新记录写入。
+fn merge(
+    connection: &Connection,
+    id: &str,
+    sequence: i64,
+    checkpoint: i64,
+    input: &ContentHistoryWrite,
+) -> Result<bool, String> {
+    let (Some(target), Some(encoded)) = (&input.merge_into, &input.merged_state) else {
+        return Ok(false);
+    };
+    if checkpoint == sequence || input.kind.as_deref().is_some_and(|kind| kind != "edit") {
+        return Ok(false);
+    }
+    if input.operation_id.is_empty()
+        || input.operation_id.len() > 128
+        || encoded.len() > 12 * 1024 * 1024
+    {
+        return Err("本机历史合并参数无效".into());
+    }
+    let (operation_id, raw): (String, String) = connection
+        .query_row(
+            "SELECT operation_id,metadata FROM local_content_history WHERE document_id=?1 AND sequence=?2",
+            params![id, sequence],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|error| error.to_string())?;
+    let mut entry: Value = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+    if &operation_id != target || entry["kind"] != "edit" || entry["sealed"] == true {
+        return Ok(false);
+    }
+    let state = STANDARD
+        .decode(encoded)
+        .map_err(|error| error.to_string())?;
+    if state.is_empty() {
+        return Err("本机历史合并内容为空".into());
+    }
+    let start = entry
+        .get("startTime")
+        .cloned()
+        .unwrap_or_else(|| entry["time"].clone());
+    entry["startTime"] = start;
+    entry["time"] = json!(now_millis()?);
+    entry["operationId"] = json!(input.operation_id);
+    connection
+        .execute(
+            "UPDATE local_content_history SET operation_id=?1,metadata=?2,state=?3
+             WHERE document_id=?4 AND sequence=?5",
+            params![input.operation_id, entry.to_string(), state, id, sequence],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
+fn now_millis() -> Result<u128, String> {
+    Ok(std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis())
+}
+
+pub(crate) fn seal(connection: &Connection, id: &str, sequence: i64) -> Result<(), String> {
+    connection
+        .execute(
+            "UPDATE local_content_history SET metadata=json_set(metadata,'$.sealed',json('true'))
+             WHERE document_id=?1 AND sequence=?2 AND json_extract(metadata,'$.kind')='edit'",
+            params![id, sequence],
         )
         .map_err(|error| error.to_string())?;
     Ok(())
@@ -178,6 +255,7 @@ pub fn collab_local_history(
             .map_err(|error| error.to_string())?;
         return Ok(json!(rows));
     };
+    seal(&connection, &id, sequence)?;
     let (raw, checkpoint): (String, i64) = connection.query_row(
         "SELECT metadata,checkpoint FROM local_content_history WHERE document_id=?1 AND sequence=?2",
         params![id, sequence],

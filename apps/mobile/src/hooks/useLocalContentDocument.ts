@@ -4,6 +4,7 @@ import * as tauri from "../services/tauri";
 import {
   bytesToBase64,
   base64ToBytes,
+  canMergeHistoryEntry,
   readNodeDocument,
   validateNodeDocument,
   type DocumentHistoryAction,
@@ -44,6 +45,9 @@ export type LocalContentDocument = EditorDocument & {
   prepareResource(path: string): string;
   editHistory?: HistoryApi;
 };
+
+/** 合并记录的增量超过此值就另开一条，避免每次输入重传过大的载荷 */
+const HISTORY_MERGE_BYTES = 256 * 1024;
 
 export const contentLineage = (contentId?: number) => `content:${contentId ?? 0}`;
 
@@ -258,6 +262,15 @@ export default function useLocalContentDocument(options: {
       const pendingUpdates: Uint8Array[] = [];
       let historyAction: DocumentHistoryAction | undefined;
       let historyWrites = 0;
+      // 本次打开内最新一条编辑记录；重新打开正文时清空，即自动封口
+      let historyHead:
+        | {
+            operationId: string;
+            startTime: number;
+            time: number;
+            state: Uint8Array;
+          }
+        | undefined;
       const inputDrafts = new Map(
         (cached?.inputDrafts ?? []).map(draft => [
           JSON.stringify([draft.viewId, draft.nodeId, draft.field]),
@@ -298,9 +311,28 @@ export default function useLocalContentDocument(options: {
                   : undefined;
               const drafts = [...inputDrafts.values()];
               const confirmedDrafts = matchingInputDrafts(doc, drafts);
-              const state = bytesToBase64(
-                updates.length ? Y.mergeUpdates(updates) : new Uint8Array()
-              );
+              const merged = updates.length ? Y.mergeUpdates(updates) : new Uint8Array();
+              const state = bytesToBase64(merged);
+              const now = Date.now();
+              const mergeHead =
+                updates.length &&
+                !checkpoint &&
+                !action &&
+                historyHead &&
+                historyHead.state.byteLength + merged.byteLength < HISTORY_MERGE_BYTES &&
+                canMergeHistoryEntry(
+                  {
+                    kind: "edit",
+                    actorId: "local",
+                    time: historyHead.time,
+                    startTime: historyHead.startTime,
+                  },
+                  { kind: "edit", actorId: "local", time: now }
+                )
+                  ? historyHead
+                  : undefined;
+              const mergedState = mergeHead && Y.mergeUpdates([mergeHead.state, merged]);
+              const operationId = action?.operationId ?? crypto.randomUUID();
               await validateNodeDocument(
                 doc,
                 {
@@ -330,16 +362,30 @@ export default function useLocalContentDocument(options: {
                 confirmedDrafts,
                 history: updates.length
                   ? {
-                      operationId: action?.operationId ?? crypto.randomUUID(),
+                      operationId,
                       checkpoint,
                       kind: action?.kind,
                       target: action?.sequence,
+                      mergeInto: mergeHead?.operationId,
+                      mergedState: mergedState && bytesToBase64(mergedState),
                     }
                   : undefined,
               });
               assertActive();
               pendingUpdates.splice(0, updates.length);
-              if (updates.length) historyWrites++;
+              if (updates.length) {
+                // 检查点间隔按记录条数计，合并进已有记录不计数
+                if (!mergeHead) historyWrites++;
+                historyHead =
+                  checkpoint || action
+                    ? undefined
+                    : {
+                        operationId,
+                        startTime: mergeHead?.startTime ?? now,
+                        time: now,
+                        state: mergedState ?? merged,
+                      };
+              }
               if (historyAction === action) historyAction = undefined;
               for (const draft of confirmedDrafts) {
                 const key = JSON.stringify([draft.viewId, draft.nodeId, draft.field]);
@@ -417,6 +463,9 @@ export default function useLocalContentDocument(options: {
             Y.applyUpdate(doc, bytes, "content-history");
             if (pendingUpdates.length === length) historyAction = undefined;
             await flush();
+          },
+          entry => {
+            if (historyHead?.operationId === entry.operationId) historyHead = undefined;
           }
         );
         setLoaded({

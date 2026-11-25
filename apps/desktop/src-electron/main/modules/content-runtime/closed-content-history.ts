@@ -84,6 +84,8 @@ export function recordClosedContent(
       before: () => state,
       after: () => current,
       sourceRevision: after.revision,
+      // 打开正文时按序号游标导入，已导入的记录不能再被合并改写
+      mergeable: false,
     });
   } finally {
     tree.dispose();
@@ -126,6 +128,7 @@ export function importClosedContentHistory(
             after: () => current,
             time: row.time,
             sourceRevision: row.sourceRevision,
+            mergeable: false,
           });
         } finally {
           before.destroy();

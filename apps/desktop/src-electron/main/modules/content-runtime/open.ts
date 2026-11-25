@@ -113,6 +113,8 @@ export async function openContent(
       historyId
     );
   const hasViews = () => [...runtime.views.values()].some(view => view.documentId === id);
+  // 重新打开正文后的第一次编辑另开一条历史，不并入上次打开时的记录
+  if (historyId && !hasViews()) runtime.store.history.seal(historyId);
   const matches = (source: SourceBinding, current: typeof head | undefined) =>
     current &&
     source.contentCreatedAt === current.createdAt &&

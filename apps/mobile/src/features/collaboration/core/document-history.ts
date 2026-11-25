@@ -73,7 +73,8 @@ export function localHistoryApi(
   doc: Y.Doc,
   requireWrite: () => void,
   flush: () => Promise<void>,
-  commit: (update: Uint8Array, action: DocumentHistoryAction) => Promise<void>
+  commit: (update: Uint8Array, action: DocumentHistoryAction) => Promise<void>,
+  onPreview: (entry: DocumentHistoryEntry) => void
 ): HistoryApi {
   let writing = false;
   return {
@@ -84,6 +85,7 @@ export function localHistoryApi(
     preview: async (sequence, compare) => {
       await flush();
       const archive = await readLocalHistory(id, sequence);
+      onPreview(archive.entry(id, sequence));
       return readDocumentHistoryPreview(
         archive,
         id,

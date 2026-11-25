@@ -127,7 +127,11 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
           >
             {rows.map(row => (
               <option key={row.sequence} value={row.sequence}>
-                {row.actorName || "历史起点"} · {new Date(row.time).toLocaleString()}
+                {row.actorName || "历史起点"} ·{" "}
+                {row.startTime ? `${new Date(row.startTime).toLocaleString()} – ` : ""}
+                {row.startTime
+                  ? new Date(row.time).toLocaleTimeString()
+                  : new Date(row.time).toLocaleString()}
                 {row.kind === "undo" ? " · 撤销编辑" : row.kind === "restore" ? " · 恢复版本" : ""}
               </option>
             ))}

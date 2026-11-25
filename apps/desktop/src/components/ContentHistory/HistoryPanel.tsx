@@ -42,6 +42,17 @@ const absTime = (time: number) => {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const clock = (time: number) => {
+  const d = new Date(time);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+/** 合并了一段连续编辑的记录显示起止时间 */
+const entryTime = (entry: DocumentHistoryEntry) =>
+  entry.startTime && clock(entry.startTime) !== clock(entry.time)
+    ? `${absTime(entry.startTime)}–${clock(entry.time)}`
+    : absTime(entry.time);
+
 const dayLabel = (time: number) => {
   const d = new Date(time);
   const now = new Date();
@@ -304,7 +315,7 @@ function EntryDetail({
   return (
     <div className="mx-1 mt-1 mb-2 pl-5">
       <p className="text-tau-sm text-ink-3 tabular-nums">
-        #{entry.sequence} · {absTime(entry.time)}
+        #{entry.sequence} · {entryTime(entry)}
       </p>
 
       {detail.previousTitle !== detail.value.title && (
@@ -338,7 +349,7 @@ function EntryDetail({
           </p>
           <p className="text-tau-sm text-ink-2 mt-0.5">
             {confirming.kind === "undo"
-              ? "只回退这一处编辑，其余编辑保持不变。"
+              ? "只回退这条记录中的修改，其余编辑保持不变。"
               : `正文将回到该版本，之后的历史记录不会丢失。`}
           </p>
           <div className="mt-2 flex gap-1.5">

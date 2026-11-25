@@ -10,7 +10,12 @@ export interface DocumentHistoryEntry {
   operationId: string;
   actorId: string;
   actorName: string;
+  /** 合并记录中最后一次编辑的时间 */
   time: number;
+  /** 合并了多次编辑时的首次编辑时间 */
+  startTime?: number;
+  /** 已封口：之后的编辑另开记录 */
+  sealed?: boolean;
   kind: "baseline" | "edit" | "undo" | "restore";
   target?: number;
   source?: string;
@@ -72,6 +77,31 @@ export interface TransferredDocumentHistoryVersion {
 const PART_BYTES = 512 * 1024;
 const CHECKPOINT_INTERVAL = 128;
 const CHECKPOINT_REPLAY_BYTES = 1024 * 1024;
+/** 同一来源连续编辑合并为一条：停顿超过此值另开记录 */
+export const HISTORY_MERGE_IDLE_MS = 5 * 60_000;
+/** 一条合并记录从首次编辑起最长覆盖的时间 */
+export const HISTORY_MERGE_SPAN_MS = 30 * 60_000;
+
+/** 判断新编辑能否并入最新记录；撤销、恢复、基线与其他来源始终另起一条。 */
+export function canMergeHistoryEntry(
+  head: Pick<DocumentHistoryEntry, "kind" | "actorId" | "source" | "time" | "startTime" | "sealed">,
+  write: Pick<DocumentHistoryEntry, "kind" | "actorId" | "source" | "time"> & {
+    target?: number;
+  }
+): boolean {
+  const idle = write.time - head.time;
+  return (
+    head.kind === "edit" &&
+    !head.sealed &&
+    write.kind === "edit" &&
+    write.target === undefined &&
+    head.actorId === write.actorId &&
+    (head.source ?? "") === (write.source ?? "") &&
+    idle >= 0 &&
+    idle <= HISTORY_MERGE_IDLE_MS &&
+    write.time - (head.startTime ?? head.time) <= HISTORY_MERGE_SPAN_MS
+  );
+}
 
 export interface DocumentHistoryWrite {
   operationId: string;
@@ -86,6 +116,8 @@ export interface DocumentHistoryWrite {
   before: () => Uint8Array;
   after: () => Uint8Array;
   checkBytes?: (bytes: number) => void;
+  /** false：另起一条且之后不再并入（按序号或操作 ID 对账的记录不能被事后改写） */
+  mergeable?: boolean;
 }
 
 export const documentHistorySchema = `
@@ -181,6 +213,26 @@ export class DocumentHistoryStore {
     );
   }
 
+  /** 已查看的版本和结束的编辑会话不再接受后续合并。 */
+  seal(id: string, options: { sequence?: number; actorId?: string } = {}): void {
+    const values: SqlValue[] = [id];
+    let target =
+      "sequence=(SELECT MAX(sequence) FROM document_history_entries WHERE document_id=?)";
+    if (options.sequence !== undefined) {
+      assertHistorySequence(options.sequence);
+      target = "sequence=?";
+      values.push(options.sequence);
+    } else values.push(id);
+    if (options.actorId !== undefined) values.push(options.actorId);
+    this.sql.exec(
+      `UPDATE document_history_entries SET metadata=json_set(metadata,'$.sealed',json('true'))
+       WHERE document_id=? AND ${target}
+       AND json_extract(metadata,'$.kind')='edit'
+       ${options.actorId === undefined ? "" : "AND json_extract(metadata,'$.actorId')=?"}`,
+      ...values
+    );
+  }
+
   remove(id: string): void {
     this.sql.exec("DELETE FROM document_history_payloads WHERE document_id=?", id);
     this.sql.exec("DELETE FROM document_history_entries WHERE document_id=?", id);
@@ -261,6 +313,24 @@ export class DocumentHistoryStore {
     }
     const now = write.time ?? Date.now();
     const head = this.head(id);
+    // 检查点记录存完整状态，不再并入：避免每次输入重写整篇
+    if (
+      write.mergeable !== false &&
+      head &&
+      head.revision === write.previousRevision &&
+      head.checkpoint !== head.sequence
+    ) {
+      const entry = JSON.parse(head.metadata) as DocumentHistoryEntry;
+      if (
+        canMergeHistoryEntry(entry, {
+          ...write.actor,
+          kind: write.kind ?? "edit",
+          target: write.target,
+          time: now,
+        })
+      )
+        return this.merge(id, head, entry, write, now);
+    }
     let sequence = (head?.sequence ?? -1) + 1;
     const reset = head?.revision !== write.previousRevision;
     const seed = reset ? write.before() : undefined;
@@ -295,9 +365,85 @@ export class DocumentHistoryStore {
         kind: write.kind ?? "edit",
         target: write.target,
         sourceRevision: write.sourceRevision,
+        ...(write.mergeable === false && { sealed: true }),
       },
       checkpoint || reset ? 0 : head?.byte_count
     );
+  }
+
+  private merge(
+    id: string,
+    head: HistoryRow,
+    entry: DocumentHistoryEntry,
+    write: DocumentHistoryWrite,
+    now: number
+  ): void {
+    const previous = this.payload(id, head.sequence);
+    let state = Y.mergeUpdates([previous, write.update]);
+    let replayBytes = head.byte_count - previous.byteLength + state.byteLength;
+    let checkpoint = head.checkpoint;
+    if (replayBytes >= CHECKPOINT_REPLAY_BYTES) {
+      // 回放量超限：本条改存完整状态并成为检查点，之后的编辑另开记录
+      state = write.after();
+      checkpoint = head.sequence;
+      replayBytes = 0;
+    }
+    write.checkBytes?.(Math.max(0, state.byteLength - previous.byteLength) + 1024);
+    if (state.byteLength > NODE_DOCUMENT_MAX_BYTES)
+      throw historyError("HISTORY_CAPACITY", "历史版本超过文档大小上限");
+    this.sql.exec(
+      "DELETE FROM document_history_payloads WHERE document_id=? AND sequence=?",
+      id,
+      head.sequence
+    );
+    // 操作 ID 换成最近一次写入的，使同一写入重试仍按幂等识别
+    this.sql.exec(
+      `UPDATE document_history_entries SET operation_id=?,revision=?,checkpoint=?,byte_count=?,metadata=?
+       WHERE document_id=? AND sequence=?`,
+      write.operationId,
+      write.revision,
+      checkpoint,
+      replayBytes,
+      JSON.stringify({
+        ...entry,
+        operationId: write.operationId,
+        time: now,
+        startTime: entry.startTime ?? entry.time,
+        sourceRevision: write.sourceRevision ?? entry.sourceRevision,
+      }),
+      id,
+      head.sequence
+    );
+    this.writeParts(id, head.sequence, state);
+  }
+
+  private payload(id: string, sequence: number): Uint8Array {
+    const parts = this.sql
+      .all<HistoryPayloadPart>(
+        "SELECT state FROM document_history_payloads WHERE document_id=? AND sequence=? ORDER BY part",
+        id,
+        sequence
+      )
+      .map(row => (row.state instanceof Uint8Array ? row.state : new Uint8Array(row.state)));
+    const bytes = new Uint8Array(parts.reduce((length, part) => length + part.byteLength, 0));
+    let offset = 0;
+    for (const part of parts) {
+      bytes.set(part, offset);
+      offset += part.byteLength;
+    }
+    if (!bytes.byteLength) throw historyError("HISTORY_INCOMPLETE", "历史版本数据不完整");
+    return bytes;
+  }
+
+  private writeParts(id: string, sequence: number, state: Uint8Array): void {
+    for (let offset = 0; offset < state.byteLength; offset += PART_BYTES)
+      this.sql.exec(
+        "INSERT INTO document_history_payloads VALUES (?,?,?,?)",
+        id,
+        sequence,
+        offset / PART_BYTES,
+        state.slice(offset, offset + PART_BYTES)
+      );
   }
 
   private insert(
@@ -320,14 +466,7 @@ export class DocumentHistoryStore {
       checkpoint === entry.sequence ? 0 : replayBytes + state.byteLength,
       JSON.stringify(entry)
     );
-    for (let offset = 0; offset < state.byteLength; offset += PART_BYTES)
-      this.sql.exec(
-        "INSERT INTO document_history_payloads VALUES (?,?,?,?)",
-        id,
-        entry.sequence,
-        offset / PART_BYTES,
-        state.slice(offset, offset + PART_BYTES)
-      );
+    this.writeParts(id, entry.sequence, state);
   }
 
   replay(id: string, sequence: number): Y.Doc {
@@ -387,6 +526,7 @@ export class DocumentHistoryStore {
     owner: boolean,
     comparison?: Y.Doc
   ): DocumentHistoryPreview {
+    this.seal(id, { sequence });
     return readDocumentHistoryPreview(this, id, sequence, headRevision, actorId, owner, comparison);
   }
 }
@@ -447,7 +587,12 @@ export function documentHistoryChanges(
   }
   for (const [index, blockId] of nextOrder.entries()) {
     if (previous.get(blockId) !== index)
-      changes.push({ blockId, kind: "move", before: old.get(blockId), after: next.get(blockId) });
+      changes.push({
+        blockId,
+        kind: "move",
+        before: old.get(blockId),
+        after: next.get(blockId),
+      });
   }
   return changes;
 }

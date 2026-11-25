@@ -157,6 +157,7 @@ export class CollaborationService extends DurableObject<Env> {
         const cached = runtime.documents.get(documentName);
         if (cached && cached.getMap("meta").get("baselineId") !== protocol.baselineId)
           return fail("BASELINE_RELOADING", "文档基线正在重新加载，请重试", 409);
+        this.store.history.seal(documentName, { actorId: device.id });
         return { deviceId: device.id, nickname: device.nickname, protocol };
       },
       onLoadDocument: async ({ documentName, document }) => {

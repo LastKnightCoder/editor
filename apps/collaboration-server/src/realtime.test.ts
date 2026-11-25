@@ -1,5 +1,5 @@
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,6 +22,64 @@ const until = async (check: () => boolean) => {
 };
 
 describe("真实 WebSocket 协作", () => {
+  it("同一设备反复关闭并重开时保留每次连接的编辑版本", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "tau-history-reconnect-"));
+    cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
+    const server = await createServer({ dataDir: directory, logger: false });
+    await server.app.listen({ host: "127.0.0.1", port: 0 });
+    cleanup.push(() => server.app.close());
+    const address = server.app.server.address();
+    if (!address || typeof address === "string") throw new Error("监听失败");
+    const owner = server.store.register("作者");
+    const room = server.store.create(owner.id, "history-reconnect");
+    const seed = await createTestDocument(
+      { title: "原文", content: [], bannerBg: "", bannerPosition: "center" },
+      { documentId: room.id, baselineId: "base", epoch: 0 }
+    );
+    await server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(seed));
+    seed.destroy();
+    let expected = "原文";
+    const versions: { sequence: number; title: string }[] = [];
+    for (const word of ["甲", "乙", "丙", "丁"]) {
+      const document = new Y.Doc();
+      const socket = new HocuspocusProviderWebsocket({
+        url: `ws://127.0.0.1:${address.port}/ws`,
+        WebSocketPolyfill: WebSocket,
+      });
+      const provider = new HocuspocusProvider({
+        name: room.id,
+        document,
+        websocketProvider: socket,
+        token: () => server.store.ticket(owner.id, room.id, 2),
+      });
+      try {
+        provider.attach();
+        await vi.waitFor(() => expect(provider.synced).toBe(true));
+        expect(document.getText("title").toString()).toBe(expected);
+        document.getText("title").insert(0, word);
+        expected = word + expected;
+        await vi.waitFor(() => expect(provider.hasUnsyncedChanges).toBe(false));
+        const entry = server.store.history.list(room.id)[0];
+        versions.push({ sequence: entry.sequence, title: expected });
+      } finally {
+        provider.destroy();
+        socket.destroy();
+        document.destroy();
+      }
+      await vi.waitFor(() =>
+        expect(server.hocuspocus.documents.get(room.id)?.getConnections().length ?? 0).toBe(0)
+      );
+    }
+    for (const version of versions) {
+      const historical = server.store.history.replay(room.id, version.sequence);
+      try {
+        expect(historical.getText("title").toString()).toBe(version.title);
+      } finally {
+        historical.destroy();
+      }
+    }
+  });
+
   it("50 个连接在 5 份内容中分别收敛", async () => {
     const directory = mkdtempSync(join(tmpdir(), "tau-load-"));
     cleanup.push(() => rmSync(directory, { recursive: true, force: true }));

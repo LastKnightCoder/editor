@@ -39,6 +39,17 @@ TAU_CONTENT_ROUNDTRIP_REPORT=/tmp/tau-content-roundtrip.json \
 
 往返夹具为 [普通正文](/packages/db-schema/fixtures/content-storage-roundtrip-v1.json) 和 [共享正文与表持有](/packages/db-schema/fixtures/content-storage-roundtrip-g4.json)。协作协议变动还要比对真实 Node 和本机 Worker 的请求与回执。服务配置及放行入口见 [协作服务部署](/docs/guides/ops-collaboration-deploy.md) 和 [白板协作发布验证](/docs/guides/ops-whiteboard-release.md)。
 
+### 编辑历史的连续写入与回放
+
+在仓库根目录执行：
+
+```sh
+TAU_DOCUMENT_HISTORY_STRESS=1 pnpm --filter @tau/collaboration exec vitest run --config vitest.config.ts src/document-history.stress.test.ts --maxWorkers 1 --no-file-parallelism
+pnpm --filter @tau/collaboration-server exec vitest run src/realtime.test.ts src/document-protocol.test.ts
+```
+
+历史压力用例使用真实 Yjs 文档和文件 SQLite，覆盖连续合并、预览后固定版本、关库重开、多作者交错提交、重复送达、检查点与恢复。所有固定版本都须与独立预期一致；记录输出中的写入 P95/P99、载荷字节数和回放耗时。性能轮次保持串行，不与构建或其他压力项同时运行。服务端用例另行核对真实 WebSocket 重开边界、并发连接收敛与接近存储配额时的继续写入。
+
 ### 白板批量操作与草稿恢复
 
 在仓库根目录执行。回归与压力使用真实模型、SQLite 文档会话和独立临时资料库；Electron 用例使用构建产物、真实 IndexedDB 和 IPC。
