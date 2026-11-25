@@ -1,3 +1,24 @@
+import {
+  readTodoRule,
+  readTodoReminders,
+  readRecurrenceChange,
+  readOccurrencePatch,
+} from "./todo-contract";
+import type {
+  PluginTodoRecurrenceChange,
+  PluginTodoOccurrencePatch,
+  PluginTodoOccurrenceQuery,
+  PluginTodoOccurrencePage,
+} from "./data";
+import { PluginSyncResetRequiredError } from "./errors";
+import {
+  queryDataChanges,
+  normalizeChangesQuery,
+  type DataChangesReadPage,
+  type DataChangesReadRequest,
+  type PluginChangesQuery,
+} from "./data-changes";
+export type { DataChangesReadRequest, DataChangesReadPage } from "./data-changes";
 import type { PluginTextDecorationProvider, PluginTextDecorationHandle } from "./text-decorations";
 import { readNotificationOptions, type PluginNotificationOptions } from "./notifications";
 import type { PluginSpeechSession, PluginSpeechStartOptions } from "./speech";
@@ -99,6 +120,10 @@ import {
   type PluginPermissionState,
 } from "./permissions";
 import type {
+  PluginCreateOptions,
+  PluginDirectoryQuery,
+  PluginTodoList,
+  PluginCalendar,
   PluginArticleInput,
   PluginArticlePatch,
   PluginCalendarEvent,
@@ -284,9 +309,39 @@ export type DataEntity = "card" | "article" | "document" | "whiteboard" | "proje
 export type ReadableEntity = DataEntity | "notebook" | "material" | "chat-session";
 /** 持有正文的实体：正文的访问按它们的权限放行 */
 export type ContentOwnerEntity = "card" | "article" | "document";
+export type ContentAccessOwner = ContentOwnerEntity | "calendar-event";
 
 /** 宿主负责工作区绑定；参数已校验并复制，返回值由 PluginHost 再复制后交给插件。 */
+export interface ScheduleDataAdapter {
+  get(
+    context: PluginContext,
+    entity: "todo" | "event" | "todo-list" | "calendar",
+    id: string
+  ): Promise<PluginTodo | PluginCalendarEvent | PluginTodoList | PluginCalendar | null>;
+  directories(
+    context: PluginContext,
+    entity: "todo-list" | "calendar",
+    query: PluginDirectoryQuery & { limit: number }
+  ): Promise<PluginPage<PluginTodoList | PluginCalendar>>;
+}
+
 export interface DataAdapter {
+  todoRecurrence?: {
+    write(
+      context: PluginContext,
+      write: TodoWrite | TodoRecurrenceWrite
+    ): Promise<PluginTodo | null>;
+    states(
+      context: PluginContext,
+      query: PluginTodoOccurrenceQuery & { limit: number }
+    ): Promise<PluginTodoOccurrencePage>;
+  };
+  readChanges?(
+    context: PluginContext,
+    request: DataChangesReadRequest
+  ): Promise<DataChangesReadPage>;
+  /** 完整待办/日程契约；缺失时新字段写入和目录读取明确拒绝。 */
+  schedule?: ScheduleDataAdapter;
   query(
     context: PluginContext,
     entity: ReadableEntity,
@@ -312,7 +367,7 @@ export interface DataAdapter {
     format: "markdown" | "nodes"
   ): Promise<{
     snapshot: PluginContentSnapshot;
-    owners: ContentOwnerEntity[];
+    owners: ContentAccessOwner[];
     own: boolean;
   } | null>;
   /** 以下写入由宿主记录来源插件；revision 不是最新时抛出 PluginConflictError */
@@ -350,7 +405,7 @@ export interface DataAdapter {
   contentOwners(
     context: PluginContext,
     ref: PluginContentRef
-  ): Promise<{ owners: ContentOwnerEntity[]; own: boolean }>;
+  ): Promise<{ owners: ContentAccessOwner[]; own: boolean }>;
   editContent(
     context: PluginContext,
     ref: PluginContentRef,
@@ -372,13 +427,23 @@ export type DeletableEntity = DataEntity;
 export type CreatableEntity = "card" | "article" | "whiteboard" | "project";
 
 export type TodoWrite =
-  | { action: "create"; input: PluginTodoInput }
+  | { action: "create"; input: PluginTodoInput; requestId?: string; requestHash?: string }
   | { action: "update"; id: string; patch: PluginTodoPatch; expectedRevision: string }
   | { action: "complete"; id: string; completed: boolean; expectedRevision: string }
   | { action: "delete"; id: string; expectedRevision: string };
 
+export type TodoRecurrenceWrite =
+  | {
+      action: "recurrence";
+      id: string;
+      change: PluginTodoRecurrenceChange;
+      expectedRevision: string;
+    }
+  | { action: "state"; id: string; patch: PluginTodoOccurrencePatch; expectedRevision: string };
+
 export type CalendarWrite =
-  | { action: "create"; input: PluginCalendarInput }
+  | { action: "notes"; id: string; expectedRevision: string }
+  | { action: "create"; input: PluginCalendarInput; requestId?: string; requestHash?: string }
   | { action: "update"; id: string; patch: PluginCalendarPatch; expectedRevision: string }
   | { action: "delete"; id: string; expectedRevision: string };
 
@@ -425,7 +490,12 @@ export interface EntitiesAdapter {
     context: PluginContext,
     id: string
   ): Promise<
-    Array<{ entity: ContentOwnerEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
+    Array<
+      { entity: Exclude<ContentOwnerEntity, "calendar-event"> | null; id: string } & Omit<
+        PluginOwnEntityBacklink,
+        "ref"
+      >
+    >
   >;
   /** 宿主登记类型名、图标与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
   registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
@@ -842,11 +912,21 @@ const PATCH_FIELDS: Record<DataEntity, Record<string, FieldRule>> = {
 };
 /** 访问一份正文所需的权限候选：拥有任一所属实体的读取（写入）权限即可；正文接口与组件层共用。 */
 export function contentPermissions(
-  owners: readonly ContentOwnerEntity[],
+  owners: readonly ContentAccessOwner[],
   mode: "read" | "write"
 ): PluginPermission[] {
   const table = mode === "read" ? ENTITY_PERMISSIONS : WRITE_PERMISSIONS;
-  return [...new Set(owners.map(owner => table[owner]))];
+  return [
+    ...new Set(
+      owners.map(owner =>
+        owner === "calendar-event"
+          ? mode === "read"
+            ? ("calendar:read" as const)
+            : ("calendar:write" as const)
+          : table[owner]
+      )
+    ),
+  ];
 }
 const DELETE_PERMISSIONS: Record<DeletableEntity, PluginPermission> = {
   card: "cards:delete",
@@ -882,12 +962,16 @@ function readId(id: unknown): string {
 
 /** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串；meta 为插件自有内容的 meta */
 type FieldRule =
+  | "todo-rule"
+  | "todo-reminders"
   | number
   | { max: number; allowEmpty: true }
   | "boolean"
   | "tags"
   | "nullable-time"
-  | "meta";
+  | "meta"
+  | "reminders"
+  | "content";
 
 /** 按字段表读取输入：string 可带最大长度，tags 为标签数组；required 中的字段必填，至少要有一个字段 */
 function readFields<T>(
@@ -906,7 +990,17 @@ function readFields<T>(
     if (rule === "boolean") {
       if (typeof item !== "boolean") throw new Error(`${key} 无效`);
       result[key] = item;
-    } else if (rule === "meta") result[key] = readEntityMeta(item);
+    } else if (rule === "todo-rule") result[key] = readTodoRule(item);
+    else if (rule === "todo-reminders") result[key] = readTodoReminders(item);
+    else if (rule === "reminders") {
+      if (!Array.isArray(item) || item.length > 3) throw new Error("提醒最多三条");
+      result[key] = item.map(value => {
+        if (!value || typeof value !== "object" || !Number.isSafeInteger(value.offsetMs))
+          throw new Error("提醒偏移须为安全整数毫秒");
+        return { offsetMs: value.offsetMs };
+      });
+    } else if (rule === "content") result[key] = readContentInput(item, { allowEmpty: true });
+    else if (rule === "meta") result[key] = readEntityMeta(item);
     else if (rule === "tags") result[key] = readTags(item);
     else if (rule === "nullable-time") result[key] = item === null ? null : readText(item, key, 64);
     else if (typeof rule === "object") result[key] = readText(item, key, rule.max, true);
@@ -1774,11 +1868,17 @@ export class PluginHost {
         register: async (input: PluginTextDecorationProvider) => {
           if (!Array.isArray(input.sources) || !input.sources.length)
             throw new Error("文字装饰至少需要一种来源");
-          const sources = [...new Set<PluginTextDecorationProvider["sources"][number]>(input.sources)];
+          const sources = [
+            ...new Set<PluginTextDecorationProvider["sources"][number]>(input.sources),
+          ];
           if (sources.some(kind => kind !== "card" && kind !== "article" && kind !== "document"))
             throw new Error("不支持的文字装饰来源");
           const { getDecorations, onActivate, getPreview } = input;
-          if (typeof getDecorations !== "function" || (getPreview !== undefined && typeof getPreview !== "function") || (onActivate !== undefined && typeof onActivate !== "function"))
+          if (
+            typeof getDecorations !== "function" ||
+            (getPreview !== undefined && typeof getPreview !== "function") ||
+            (onActivate !== undefined && typeof onActivate !== "function")
+          )
             throw new Error("无效的文字装饰回调");
           const required = sources.map(kind => `${kind}s:read` as const);
           assertDeclared(required);
@@ -1786,7 +1886,12 @@ export class PluginHost {
           this.assertActive(entry, activation);
           const handle = decorations.register(
             context,
-            Object.freeze({ sources: Object.freeze(sources), getDecorations, onActivate, getPreview }),
+            Object.freeze({
+              sources: Object.freeze(sources),
+              getDecorations,
+              onActivate,
+              getPreview,
+            }),
             owner
           );
           const owned = register(handle);
@@ -1866,16 +1971,31 @@ export class PluginHost {
       write(write: W): Promise<unknown>;
     }
   ): {
-    create(input: unknown): Promise<E>;
+    create(input: unknown, options?: PluginCreateOptions): Promise<E>;
     update(id: string, patch: unknown, options: PluginWriteOptions): Promise<E>;
     delete(id: string, options: PluginWriteOptions): Promise<void>;
   } {
     const { entry, activation, guard, deliver } = deps;
     return {
-      create: async input => {
+      create: async (input, options) => {
         const value = readFields(input, spec.createFields, spec.createRequired);
+        const requestId =
+          options?.requestId === undefined
+            ? undefined
+            : readText(options.requestId, "requestId", 128);
         await guard(spec.writePermission);
-        return deliver<E>(await spec.write({ action: "create", input: value } as W));
+        const requestHash =
+          requestId === undefined
+            ? undefined
+            : await hashCreateInput([spec.writePermission, value]);
+        this.assertActive(entry, activation);
+        return deliver<E>(
+          await spec.write({
+            action: "create",
+            input: value,
+            ...(requestId === undefined ? {} : { requestId, requestHash }),
+          } as W)
+        );
       },
       update: async (id, patch, options) => {
         const value = readFields(patch, spec.updateFields);
@@ -2752,7 +2872,75 @@ export class PluginHost {
         this.assertActive(entry, activation);
       },
     });
+    const directory = (entity: "todo-list" | "calendar") =>
+      Object.freeze({
+        get: async (id: string) => {
+          await guard(entity === "todo-list" ? "todos:read" : "calendar:read");
+          const schedule = dataAdapter().schedule;
+          if (!schedule) throw new Error("当前宿主不支持待办清单与日历目录");
+          return deliver<never>(await schedule.get(context, entity, readId(id)));
+        },
+        query: async (query?: PluginDirectoryQuery) => {
+          const picked = pickQuery<PluginDirectoryQuery>(query, {
+            archived: "boolean",
+            cursor: "string",
+          });
+          const limit = readLimit(query?.limit, 100);
+          await guard(entity === "todo-list" ? "todos:read" : "calendar:read");
+          const schedule = dataAdapter().schedule;
+          if (!schedule) throw new Error("当前宿主不支持待办清单与日历目录");
+          return deliver<never>(await schedule.directories(context, entity, { ...picked, limit }));
+        },
+      });
     return Object.freeze({
+      changes: Object.freeze({
+        query: async (query: PluginChangesQuery) => {
+          const value = normalizeChangesQuery(query);
+          const permissions = [
+            ...new Set(
+              value.domains.map(domain =>
+                domain === "todo" || domain === "todo-list"
+                  ? ("todos:read" as const)
+                  : ("calendar:read" as const)
+              )
+            ),
+          ];
+          deps.assertDeclared(permissions);
+          await deps.permissionsAdapter().ensure(context, deps.owner, permissions);
+          this.assertActive(entry, activation);
+          const adapter = dataAdapter();
+          if (!adapter.readChanges) throw new Error("当前宿主不支持业务变更读取");
+          const binding = JSON.stringify([
+            context.pluginId,
+            [...(entry.metadata.permissions ?? [])]
+              .filter(permission => permission.endsWith(":read"))
+              .sort(),
+          ]);
+          const read = adapter.readChanges;
+          const permissionAdapter = deps.permissionsAdapter();
+          let permissionVersion = 0;
+          const unsubscribe = permissionAdapter.subscribe?.(() => {
+            permissionVersion++;
+          });
+          const beforeVersion = permissionVersion;
+          try {
+            const result = await queryDataChanges(value, binding, request =>
+              read.call(adapter, context, request)
+            );
+            this.assertActive(entry, activation);
+            for (const permission of permissions)
+              if ((await permissionAdapter.query(context, permission)) !== "granted")
+                throw new PluginPermissionError(permission, "denied");
+            if (permissionVersion !== beforeVersion)
+              throw new PluginSyncResetRequiredError("scope-changed");
+            return deliver<import("./data-changes").PluginChangesPage>(result);
+          } finally {
+            unsubscribe?.();
+          }
+        },
+      }),
+      todoLists: directory("todo-list"),
+      calendars: directory("calendar"),
       cards: Object.freeze({
         ...reader("card"),
         ...updater("card"),
@@ -2835,6 +3023,26 @@ export class PluginHost {
     const { context, guard, dataAdapter, deliver } = deps;
     const writeTodo = (write: TodoWrite) => {
       const adapter = dataAdapter();
+      const fields =
+        write.action === "create" ? write.input : write.action === "update" ? write.patch : {};
+      if (
+        "recurrence" in fields ||
+        ("reminders" in fields &&
+          ((write.action !== "create" && write.id.startsWith("document:")) ||
+            (fields.reminders as unknown[])?.some(
+              value => !!value && typeof value === "object" && "at" in value
+            )))
+      ) {
+        if (!adapter.todoRecurrence) throw new Error("当前宿主不支持重复规则或正文提醒");
+        return adapter.todoRecurrence.write(context, write);
+      }
+      if (
+        ("listId" in fields ||
+          "reminders" in fields ||
+          (write.action === "create" && write.requestId !== undefined)) &&
+        !adapter.schedule
+      )
+        throw new Error("当前宿主不支持完整待办字段或创建请求 ID");
       if (write.action !== "create" && /@\d{4}-\d{2}-\d{2}$/.test(write.id)) {
         if (!adapter.writeTodoOccurrence)
           throw new Error("当前宿主尚未开放周期实例写入，未修改整系列");
@@ -2843,14 +3051,86 @@ export class PluginHost {
       return adapter.writeTodo(context, write);
     };
     const crud = this.makeResourceCrud<TodoWrite, PluginTodo>(deps, {
-      createFields: { title: MAX_TITLE, dueAt: "nullable-time" },
+      createFields: {
+        recurrence: "todo-rule",
+        title: MAX_TITLE,
+        dueAt: "nullable-time",
+        listId: 200,
+        reminders: "todo-reminders",
+      },
       createRequired: ["title"],
-      updateFields: { title: MAX_TITLE, dueAt: "nullable-time" },
+      updateFields: {
+        title: MAX_TITLE,
+        dueAt: "nullable-time",
+        listId: 200,
+        reminders: "todo-reminders",
+      },
       writePermission: "todos:write",
       deletePermission: "todos:delete",
       write: writeTodo,
     });
+    const recurrenceAdapter = () => {
+      const adapter = dataAdapter().todoRecurrence;
+      if (!adapter) throw new Error("当前宿主尚未开放重复与实例能力");
+      return adapter;
+    };
     return Object.freeze({
+      setRecurrence: async (
+        id: string,
+        change: PluginTodoRecurrenceChange,
+        options: PluginWriteOptions
+      ) => {
+        const value = readRecurrenceChange(change),
+          expectedRevision = readRevision(options);
+        await guard("todos:write");
+        return deliver<PluginTodo>(
+          await recurrenceAdapter().write(context, {
+            action: "recurrence",
+            id: readId(id),
+            change: value,
+            expectedRevision,
+          })
+        );
+      },
+      setOccurrenceState: async (
+        id: string,
+        patch: PluginTodoOccurrencePatch,
+        options: PluginWriteOptions
+      ) => {
+        const value = readOccurrencePatch(patch),
+          expectedRevision = readRevision(options);
+        await guard("todos:write");
+        return deliver<PluginTodo>(
+          await recurrenceAdapter().write(context, {
+            action: "state",
+            id: readId(id),
+            patch: value,
+            expectedRevision,
+          })
+        );
+      },
+      occurrenceStates: Object.freeze({
+        query: async (query: PluginTodoOccurrenceQuery) => {
+          const taskId = readId(query?.taskId),
+            limit = readLimit(query?.limit, 100);
+          const cursor =
+            query?.cursor === undefined ? undefined : readText(query.cursor, "cursor", 8192);
+          await guard("todos:read");
+          const page = await recurrenceAdapter().states(context, {
+            taskId,
+            limit,
+            ...(cursor === undefined ? {} : { cursor }),
+          });
+          await guard("todos:read");
+          return deliver<PluginTodoOccurrencePage>(page);
+        },
+      }),
+      get: async (id: string) => {
+        await guard("todos:read");
+        const schedule = dataAdapter().schedule;
+        if (!schedule) throw new Error("当前宿主不支持按 ID 读取待办");
+        return deliver<PluginTodo | null>(await schedule.get(context, "todo", readId(id)));
+      },
       create: crud.create,
       update: crud.update,
       setCompleted: async (id: string, completed: boolean, options: PluginWriteOptions) => {
@@ -2872,6 +3152,8 @@ export class PluginHost {
           source: "string",
           view: "string",
           completed: "boolean",
+          archived: "boolean",
+          listId: "string",
           keyword: "string",
           start: "string",
           end: "string",
@@ -2885,6 +3167,11 @@ export class PluginHost {
           throw new Error("周期实例查询须同时提供 start/end");
         const limit = readLimit(query?.limit, 100);
         await guard("todos:read");
+        if (
+          (picked.listId !== undefined || picked.archived !== undefined) &&
+          !dataAdapter().schedule
+        )
+          throw new Error("当前宿主不支持待办清单与归档筛选");
         return deliver<PluginPage<PluginTodo>>(
           await dataAdapter().todos(context, { ...picked, limit })
         );
@@ -2895,14 +3182,61 @@ export class PluginHost {
   private buildCalendarContext(deps: ContextDeps): PluginContext["data"]["calendar"] {
     const { context, guard, dataAdapter, deliver } = deps;
     const crud = this.makeResourceCrud<CalendarWrite, PluginCalendarEvent>(deps, {
-      createFields: { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+      createFields: {
+        title: MAX_TITLE,
+        start: 64,
+        end: 64,
+        allDay: "boolean",
+        calendarId: 200,
+        reminders: "reminders",
+        notes: "content",
+      },
       createRequired: ["title", "start", "end", "allDay"],
-      updateFields: { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+      updateFields: {
+        title: MAX_TITLE,
+        start: 64,
+        end: 64,
+        allDay: "boolean",
+        calendarId: 200,
+        reminders: "reminders",
+      },
       writePermission: "calendar:write",
       deletePermission: "calendar:delete",
-      write: write => dataAdapter().writeCalendar(context, write),
+      write: write => {
+        const fields =
+          write.action === "create" ? write.input : write.action === "update" ? write.patch : {};
+        const adapter = dataAdapter();
+        if (
+          ("reminders" in fields ||
+            "notes" in fields ||
+            (write.action === "create" && write.requestId !== undefined)) &&
+          !adapter.schedule
+        )
+          throw new Error("当前宿主不支持完整日程字段或创建请求 ID");
+        return adapter.writeCalendar(context, write);
+      },
     });
     return Object.freeze({
+      ensureNotes: async (id: string, options: PluginWriteOptions) => {
+        const expectedRevision = readRevision(options);
+        await guard("calendar:write");
+        if (!dataAdapter().schedule) throw new Error("当前宿主不支持日程备注");
+        return deliver<PluginCalendarEvent>(
+          await dataAdapter().writeCalendar(context, {
+            action: "notes",
+            id: readId(id),
+            expectedRevision,
+          })
+        );
+      },
+      get: async (id: string) => {
+        await guard("calendar:read");
+        const schedule = dataAdapter().schedule;
+        if (!schedule) throw new Error("当前宿主不支持按 ID 读取日程");
+        return deliver<PluginCalendarEvent | null>(
+          await schedule.get(context, "event", readId(id))
+        );
+      },
       create: crud.create,
       update: crud.update,
       delete: crud.delete,
@@ -2910,16 +3244,35 @@ export class PluginHost {
         const picked = pickQuery<PluginCalendarQuery>(query, {
           start: "string",
           end: "string",
+          view: "string",
           cursor: "string",
         });
-        if (!picked.start || !picked.end) throw new Error("日程查询需要 start 与 end");
+        if (picked.view !== undefined && !["display", "stored"].includes(picked.view))
+          throw new Error("日程查询 view 无效");
+        if (picked.view !== "stored" && (!picked.start || !picked.end))
+          throw new Error("日程查询需要 start 与 end");
+        if ((picked.start === undefined) !== (picked.end === undefined))
+          throw new Error("日程查询须同时提供 start/end");
+        const calendarIds =
+          query.calendarIds === undefined
+            ? undefined
+            : (() => {
+                if (
+                  !Array.isArray(query.calendarIds) ||
+                  !query.calendarIds.length ||
+                  query.calendarIds.length > 100
+                )
+                  throw new Error("日历筛选无效");
+                return query.calendarIds.map(readId);
+              })();
+        if ((picked.view === "stored" || calendarIds) && !dataAdapter().schedule)
+          throw new Error("当前宿主不支持持久日程查询或日历筛选");
         const limit = readLimit(query?.limit, 100);
         await guard("calendar:read");
         return deliver<PluginPage<PluginCalendarEvent>>(
           await dataAdapter().calendar(context, {
-            start: picked.start,
-            end: picked.end,
-            ...(picked.cursor === undefined ? {} : { cursor: picked.cursor }),
+            ...picked,
+            ...(calendarIds ? { calendarIds } : {}),
             limit,
           })
         );
@@ -3161,7 +3514,7 @@ export class PluginHost {
         const sources = await entitiesAdapter().backlinks(context, readId(id));
         this.assertActive(entry, activation);
         // 只给已获准读取的类型，不弹窗；其余只计数
-        const states = new Map<ContentOwnerEntity, boolean>();
+        const states = new Map<Exclude<ContentOwnerEntity, "calendar-event">, boolean>();
         for (const entity of new Set(sources.flatMap(source => source.entity ?? []))) {
           const permission = ENTITY_PERMISSIONS[entity];
           states.set(
@@ -3962,4 +4315,18 @@ export class PluginHost {
     entry.pending = result.catch(() => undefined);
     return result;
   }
+}
+
+async function hashCreateInput(input: unknown): Promise<string> {
+  const canonical = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+    if (value && typeof value === "object")
+      return `{${Object.entries(value)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
+        .join(",")}}`;
+    return JSON.stringify(value) ?? "null";
+  };
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(input)));
+  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
 }

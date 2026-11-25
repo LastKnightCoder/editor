@@ -4,6 +4,7 @@ import type { PluginCategory } from "./categories.ts";
 import type { PluginPermission } from "./permissions.ts";
 import { validateBackendManifest, type PluginBackendManifest } from "./backend-manifest.ts";
 import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
+import { validateUnifiedPluginManifest } from "./unified.ts";
 export {
   validateBackendManifest,
   PLUGIN_SYSTEM_ACCESS,
@@ -28,7 +29,7 @@ export const PLUGIN_SHARED_MODULES = [
   "react/jsx-dev-runtime",
 ] as const;
 
-export interface PluginManifest {
+export interface LegacyPluginManifest {
   formatVersion: 2;
   id: string;
   name: string;
@@ -54,6 +55,10 @@ export interface PluginManifest {
   integrity: Record<string, string>;
 }
 
+export type PluginManifest =
+  | LegacyPluginManifest
+  | import("./unified.ts").UnifiedDesktopPluginManifest;
+
 /** 宿主内部传输的已读取产物，不属于作者运行时 API。 */
 export interface DevelopmentPluginPackage {
   manifest: PluginManifest | import("./portable").PortablePluginManifest;
@@ -66,6 +71,11 @@ export function validatePluginManifest(value: unknown): PluginManifest {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("插件清单必须是对象");
   const item = value as Record<string, unknown>;
+  if (item.formatVersion === 4) {
+    const manifest = validateUnifiedPluginManifest(item);
+    if (manifest.profile !== "desktop-v1") throw new Error("插件未声明桌面后台运行配置");
+    return manifest;
+  }
   if (
     item.formatVersion !== 2 ||
     item.apiVersion !== 1 ||
@@ -107,5 +117,5 @@ export function validatePluginManifest(value: unknown): PluginManifest {
 }
 
 /** 静态内容贡献在启动时固定，启停与更新需要重启。 */
-export const isContentPlugin = (manifest: Pick<PluginManifest, "editor" | "whiteboard">) =>
+export const isContentPlugin = (manifest: { id: string; editor?: true; whiteboard?: true }) =>
   manifest.editor === true || manifest.whiteboard === true;

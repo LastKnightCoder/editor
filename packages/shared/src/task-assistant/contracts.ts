@@ -26,6 +26,15 @@ export interface TaskRecurrenceSegment {
   rule: TaskRecurrenceRule | null;
 }
 
+export function normalizeTaskRecurrenceRule(rule: TaskRecurrenceRule): TaskRecurrenceRule {
+  const result = { ...rule };
+  for (const key of ["weekdays", "monthDay", "yearMonth", "yearDay", "excludeHolidays"] as const)
+    if (result[key] == null) delete result[key];
+  if (Array.isArray(result.weekdays))
+    result.weekdays = [...new Set(result.weekdays)].sort((a, b) => a - b);
+  return result;
+}
+
 export interface TaskOccurrenceState {
   completedAt?: number | null;
   skipped?: boolean;
@@ -41,6 +50,7 @@ export interface DocumentTaskAttributes {
 }
 
 export interface AssistantTask {
+  isSeries?: boolean;
   taskRef: TaskRef;
   revision: string;
   title: string;
@@ -53,6 +63,8 @@ export interface AssistantTask {
   documentRevision?: string;
   occurrence?: TaskOccurrenceRef;
   reminderAt?: string | null;
+  reminderOffsets?: number[];
+  occurrenceState?: TaskOccurrenceState;
   recurrence?: TaskRecurrenceSegment[];
   writable: boolean;
   readonlyReason?: string;
@@ -64,6 +76,8 @@ export interface AssistantCalendarEvent {
   revision: string;
   title: string;
   calendarId: number;
+  reminderOffsets?: number[];
+  notes?: { contentId: number; createdAt: number };
   start: string;
   end: string;
   allDay: boolean;
@@ -110,9 +124,52 @@ export class TaskAssistantError extends Error {
 }
 
 export function taskKey(ref: TaskRef): string {
-  return ref.kind === "todo"
-    ? `todo:${ref.todoId}:${ref.createdAt}`
-    : `document:${ref.contentId}:${ref.createdAt}:${ref.taskId}`;
+  if (ref.kind === "todo") return `todo:${ref.todoId}:${ref.createdAt}`;
+  const component = encodeTaskIdComponent(ref.taskId);
+  return component === ref.taskId
+    ? `document:${ref.contentId}:${ref.createdAt}:${ref.taskId}`
+    : `document:v2:${ref.contentId}:${ref.createdAt}:${component.slice(1)}`;
+}
+
+export function encodeTaskIdComponent(value: string): string {
+  if (!value.startsWith("~") && !/[@\r\n\u2028\u2029]/.test(value)) return value;
+  return (
+    "~" +
+    Array.from(new TextEncoder().encode(value), byte =>
+      byte.toString(16).padStart(2, "0").toUpperCase()
+    ).join("")
+  );
+}
+
+export function decodeTaskIdComponent(value: string): string {
+  if (!/^~(?:[0-9A-F]{2})+$/.test(value)) return value;
+  try {
+    const bytes = Uint8Array.from(value.slice(1).match(/../g)!, pair => parseInt(pair, 16));
+    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return encodeTaskIdComponent(decoded) === value ? decoded : value;
+  } catch {
+    return value;
+  }
+}
+
+export function parseTaskKey(value: string): { taskRef: TaskRef; occurrenceDate?: string } | null {
+  const suffix = /@(\d{4}-\d{2}-\d{2})$/.exec(value);
+  const key = suffix ? value.slice(0, -suffix[0].length) : value;
+  const todo = /^todo:(\d+):(\d+)$/.exec(key);
+  const versioned = /^document:v2:(\d+):(\d+):([0-9A-F]+)$/.exec(key);
+  const document = versioned ?? /^document:(\d+):(\d+):([\s\S]+)$/.exec(key);
+  const match = todo ?? document;
+  if (!match) return null;
+  const id = Number(match[1]),
+    createdAt = Number(match[2]);
+  if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(createdAt) || createdAt < 0)
+    return null;
+  const taskId = versioned ? decodeTaskIdComponent("~" + versioned[3]) : document?.[3];
+  if (versioned && encodeTaskIdComponent(taskId!) !== "~" + versioned[3]) return null;
+  const taskRef: TaskRef = todo
+    ? { kind: "todo", todoId: id, createdAt }
+    : { kind: "document", contentId: id, createdAt, taskId: taskId! };
+  return { taskRef, ...(suffix ? { occurrenceDate: suffix[1] } : {}) };
 }
 
 export function occurrenceKey(ref: TaskOccurrenceRef): string {

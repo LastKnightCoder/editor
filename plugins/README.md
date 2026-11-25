@@ -22,7 +22,7 @@ git submodule update --init --recursive
 
 ## 插件说明
 
-[FakeLink](tau-plugin-fakelink/README.md) 将正文中提到的文章和项目文档标题显示为可点击的虚拟链接；同名时列出候选。开发构建与安装方法见子仓库 README。
+[FakeLink](tau-plugin-fakelink/README.md) 将正文中提到的文章和项目文档标题显示为可点击的虚拟链接；同名时列出候选。开发构建与安装方法见子仓库 [DEVELOPMENT.md](tau-plugin-fakelink/DEVELOPMENT.md)。
 
 [豆包语音合成](tau-plugin-tts-seed/README.md)的独立仓库为 [tau-plugin-tts-seed](https://github.com/LastKnightCoder/tau-plugin-tts-seed)，协议依据、验证步骤与标签发行流程见其 [开发文档](tau-plugin-tts-seed/DEVELOPMENT.md)。
 

@@ -78,6 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_calendar_event_start_date ON calendar_event(start
 CREATE INDEX IF NOT EXISTS idx_calendar_event_end_date ON calendar_event(end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_date_range ON calendar_event(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_todo_item ON calendar_event(todo_item_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_event_detail_content ON calendar_event(detail_content_id);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);
@@ -111,3 +112,5 @@ CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_cont
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compose_boards_page ON compose_boards(page_id);
 -- 首页热力图按年聚合操作流水（get-operation-daily-counts）；带 operation_id 形成覆盖索引，聚合免回表
 CREATE INDEX IF NOT EXISTS idx_operation_time ON operation(operation_time, operation_id);
+
+CREATE INDEX IF NOT EXISTS idx_diary_entries_content_id ON diary_entries(content_id);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   definePlugin,
   PluginPermissionError,
+  PluginSyncResetRequiredError,
   type PluginContext,
   type PluginPermission,
 } from "../index";
@@ -9,6 +10,7 @@ import {
   createMemoryStorage,
   PluginHost,
   type AppAdapter,
+  type ContentAccessOwner,
   type DataAdapter,
   type EntitiesAdapter,
   type RecordsAdapter,
@@ -36,8 +38,9 @@ const card = {
 function setup({
   declared = ["cards:read", "todos:read"] as PluginPermission[],
   granted = new Set<PluginPermission>(),
-  owners = ["card" as const] as "card"[],
+  owners = ["card"] as ContentAccessOwner[],
   own = false,
+  changes = undefined as DataAdapter["readChanges"],
 } = {}) {
   const calls: unknown[][] = [];
   const permissions: PermissionsAdapter = {
@@ -53,6 +56,7 @@ function setup({
     },
   };
   const data: DataAdapter = {
+    readChanges: changes,
     async query(_context, entity, query) {
       calls.push(["query", entity, query]);
       return { items: [card], cursor: "next" };
@@ -271,10 +275,50 @@ function setup({
     }),
     permissions: declared,
   });
-  return { host, calls, context: () => context, emit, subscribers };
+  return { host, calls, context: () => context, emit, subscribers, data };
 }
 
 describe("插件业务数据与权限", () => {
+  it("重复与正文提醒参数在旧宿主明确失败，非法实例补丁不会越过协议边界", async () => {
+    const fixture = setup({
+      declared: ["todos:read", "todos:write"],
+      granted: new Set(["todos:read", "todos:write"]),
+    });
+    await fixture.host.enable("weekly");
+    const todos = fixture.context().data.todos;
+    await expect(
+      todos.create({
+        title: "周期",
+        recurrence: { type: "daily", interval: 1, startDate: "2026-11-25" },
+      })
+    ).rejects.toThrow("宿主");
+    await expect(
+      todos.setRecurrence(
+        "root",
+        { effectiveFrom: "2026-11-25", rule: null },
+        { expectedRevision: "r1" }
+      )
+    ).rejects.toThrow("宿主");
+    await expect(
+      todos.setOccurrenceState(
+        "instance",
+        { completed: true, skipped: true },
+        { expectedRevision: "r1" }
+      )
+    ).rejects.toThrow("不能同时");
+    await expect(
+      todos.create({ title: "提醒", reminders: [{ at: "2026-11-25T09:00:00" }] })
+    ).rejects.toThrow();
+    await expect(
+      todos.create({
+        title: "周期",
+        recurrence: { type: "daily", interval: 0, startDate: "2026-11-25" },
+      })
+    ).rejects.toThrow();
+    const checkpoint = await todos.query();
+    expect(checkpoint.items).toEqual([]);
+  });
+
   it("manifest 权限去重，未知授权范围明确报错", () => {
     const base = {
       formatVersion: 3,
@@ -1287,5 +1331,153 @@ describe("插件业务数据与权限", () => {
     await expect(context().data.notebooks.resources("")).rejects.toThrow("ID 无效");
     expect("update" in context().data.notebooks).toBe(false);
     expect("create" in context().data.materials).toBe(false);
+  });
+  it("旧宿主明确拒绝新字段与创建请求 ID，不无声忽略", async () => {
+    const fixture = setup({
+      declared: ["todos:write", "calendar:read"],
+      granted: new Set(["todos:write", "calendar:read"]),
+    });
+    await fixture.host.enable("weekly");
+    const ctx = fixture.context();
+    await expect(
+      ctx.data.todos.create({ title: "提醒", reminders: [{ offsetMs: 0 }] })
+    ).rejects.toThrow("当前宿主");
+    await expect(ctx.data.todos.create({ title: "创建" }, { requestId: "stable" })).rejects.toThrow(
+      "当前宿主"
+    );
+    await expect(ctx.data.calendar.query({ view: "stored" })).rejects.toThrow("当前宿主");
+  });
+  it("日程备注使用日历权限，卡片权限不能替代", async () => {
+    const allowed = setup({
+      owners: ["calendar-event"],
+      declared: ["calendar:read", "calendar:write"],
+      granted: new Set(["calendar:read", "calendar:write"]),
+    });
+    await allowed.host.enable("weekly");
+    expect(await allowed.context().content.read("7:100")).toMatchObject({
+      ref: "7:100",
+      revision: "r1",
+    });
+    await expect(
+      allowed
+        .context()
+        .content.edit(
+          "7:100",
+          { op: "append", content: { markdown: "备注" } },
+          { expectedRevision: "r1" }
+        )
+    ).resolves.toEqual({ revision: "r2" });
+    const denied = setup({
+      owners: ["calendar-event"],
+      declared: ["cards:read", "cards:write"],
+      granted: new Set(["cards:read", "cards:write"]),
+    });
+    await denied.host.enable("weekly");
+    await expect(denied.context().content.read("7:100")).rejects.toBeInstanceOf(
+      PluginPermissionError
+    );
+    await expect(
+      denied
+        .context()
+        .content.edit(
+          "7:100",
+          { op: "append", content: { markdown: "备注" } },
+          { expectedRevision: "r1" }
+        )
+    ).rejects.toBeInstanceOf(PluginPermissionError);
+  });
+  it("业务变更读取要求所有请求域的权限，不缩成部分成功", async () => {
+    const fixture = setup({
+      declared: ["todos:read", "calendar:read"],
+      granted: new Set(["todos:read"]),
+      changes: async () => {
+        throw new Error("不应进入数据读取");
+      },
+    });
+    await fixture.host.enable("weekly");
+    await expect(
+      fixture.context().data.changes.query({ domains: ["todo", "event"] })
+    ).rejects.toBeInstanceOf(PluginPermissionError);
+  });
+
+  it("变更读取给出完整检查点，范围变更使用独立的重置错误", async () => {
+    const fixture = setup({
+      declared: ["todos:read", "calendar:read"],
+      granted: new Set(["todos:read", "calendar:read"]),
+      changes: async (_context, request) => ({
+        todoSource: request.todoSource,
+        scope: "workspace",
+        protocol: 1,
+        head: 0,
+        floor: 0,
+        through: 0,
+        items: [],
+        hasMore: false,
+      }),
+    });
+    await fixture.host.enable("weekly");
+    const first = await fixture.context().data.changes.query({ domains: ["todo"] });
+    expect(first.hasMore).toBe(false);
+    expect(first.checkpoint).toEqual(expect.any(String));
+    await expect(
+      fixture.context().data.changes.query({ domains: ["todo", "event"], cursor: first.checkpoint })
+    ).rejects.toBeInstanceOf(PluginSyncResetRequiredError);
+    const document = await fixture
+      .context()
+      .data.changes.query({ domains: ["todo"], todoSource: "document" });
+    expect(document).toMatchObject({ hasMore: false, items: [], checkpoint: expect.any(String) });
+    await expect(
+      fixture
+        .context()
+        .data.changes.query({ domains: ["todo"], todoSource: "document", cursor: first.checkpoint })
+    ).rejects.toBeInstanceOf(PluginSyncResetRequiredError);
+  });
+
+  it("实例状态页交付前复验读取授权，撤权不泄露状态或游标", async () => {
+    const granted = new Set<PluginPermission>(["todos:read"]);
+    const fixture = setup({ declared: ["todos:read"], granted });
+    fixture.data.todoRecurrence = {
+      write: async () => {
+        throw new Error("不应写入");
+      },
+      states: async () => {
+        granted.delete("todos:read");
+        return { taskRevision: "r1", items: [], cursor: "private-cursor" };
+      },
+    };
+    await fixture.host.enable("weekly");
+    await expect(
+      fixture.context().data.todos.occurrenceStates.query({ taskId: "root" })
+    ).rejects.toBeInstanceOf(PluginPermissionError);
+  });
+  it("变更页返回前再次检查授权，撤权后不交付检查点", async () => {
+    const granted = new Set<PluginPermission>(["todos:read"]);
+    const fixture = setup({
+      declared: ["todos:read"],
+      granted,
+      changes: async () => {
+        granted.clear();
+        return {
+          scope: "workspace",
+          protocol: 1,
+          head: 0,
+          floor: 0,
+          through: 0,
+          items: [],
+          hasMore: false,
+        };
+      },
+    });
+    await fixture.host.enable("weekly");
+    await expect(
+      fixture.context().data.changes.query({ domains: ["todo"] })
+    ).rejects.toBeInstanceOf(PluginPermissionError);
+  });
+  it("变更读取先校验完整声明，不先申请一个随后必然失败的部分权限", async () => {
+    const fixture = setup({ declared: ["todos:read"], granted: new Set<PluginPermission>() });
+    await fixture.host.enable("weekly");
+    await expect(
+      fixture.context().data.changes.query({ domains: ["todo", "event"] })
+    ).rejects.toMatchObject({ permission: "calendar:read" });
   });
 });

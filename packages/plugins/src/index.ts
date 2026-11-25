@@ -110,7 +110,11 @@ export type {
   PluginOrderBy,
   PluginWhere,
 } from "./query";
-export { PluginConflictError } from "./errors";
+export {
+  PluginConflictError,
+  PluginSyncResetRequiredError,
+  type PluginSyncResetReason,
+} from "./errors";
 export {
   PLUGIN_ENTITY_KINDS,
   PLUGIN_ENTITY_READ_PERMISSIONS,

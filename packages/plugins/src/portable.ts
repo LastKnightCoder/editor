@@ -1,4 +1,9 @@
-import { comparePluginVersions, type PluginManifest } from "./package.ts";
+import {
+  comparePluginVersions,
+  type PluginManifest,
+  type LegacyPluginManifest,
+} from "./package.ts";
+import { validateUnifiedPluginManifest, type UnifiedWebPluginManifest } from "./unified.ts";
 import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
 import type { PluginEnvironment } from "./environment";
 import { PLUGIN_AI_CAPABILITIES, type PluginAICapability } from "./ai.ts";
@@ -42,7 +47,9 @@ export const MOBILE_DATA_PERMISSIONS = [
 export const MOBILE_SPEECH_MIN_VERSION = "0.2.16";
 export const MOBILE_SPEECH_PERMISSIONS = ["speech:input"] as const;
 
-function assertMobilePermissions(manifest: PortablePluginManifest) {
+export function assertMobilePermissions(
+  manifest: Pick<PortablePluginManifest, "permissions" | "targets">
+) {
   if (!manifest.permissions?.length) return;
   for (const platform of ["android", "ios"] as const) {
     const target = manifest.targets[platform];
@@ -95,8 +102,8 @@ export const PORTABLE_SHARED_MODULES = [
 
 export type PortablePluginTarget = PackageTarget;
 
-export interface PortablePluginManifest extends Omit<
-  PluginManifest,
+export interface LegacyPortablePluginManifest extends Omit<
+  LegacyPluginManifest,
   "formatVersion" | "platform" | "backend" | "minAppVersion" | "editor" | "whiteboard"
 > {
   readonly formatVersion: 3;
@@ -105,6 +112,8 @@ export interface PortablePluginManifest extends Omit<
   readonly description?: string;
   readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget>>>;
 }
+
+export type PortablePluginManifest = LegacyPortablePluginManifest | UnifiedWebPluginManifest;
 
 export interface PluginAuthorManifest extends Pick<
   PluginManifest,
@@ -171,6 +180,11 @@ export function validatePortableDistributionManifest(value: unknown): PortablePl
 /** 作者、中心和宿主读取同一份平台与版本契约。 */
 export function validatePortablePluginManifest(value: unknown): PortablePluginManifest {
   const item = record(value, "跨端清单");
+  if (item.formatVersion === 4) {
+    const manifest = validateUnifiedPluginManifest(item);
+    if (manifest.profile !== "web-v1") throw new Error("当前宿主不支持本机后台运行配置");
+    return manifest;
+  }
   if (item.formatVersion !== 3 || item.platform !== "portable" || item.profile !== "web-v1")
     throw new Error("跨端包格式或运行配置不兼容");
   if (item.apiVersion !== 1 || item.format !== "cjs") throw new Error("插件 API 或入口格式不兼容");

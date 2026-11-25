@@ -5,8 +5,8 @@ import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
 import { normalizePluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
+import { readApplicationPluginManifest, isWebPluginManifest } from "./unified.ts";
 import {
-  validatePortablePluginManifest,
   assertPortablePluginCompatibility,
   PORTABLE_SHARED_MODULES,
   type PortablePluginManifest,
@@ -14,7 +14,6 @@ import {
 } from "./portable";
 import {
   PLUGIN_SHARED_MODULES,
-  validatePluginManifest,
   type DevelopmentPluginPackage,
   type PluginManifest,
 } from "./package.ts";
@@ -48,9 +47,7 @@ export const PLUGIN_RENDER_VERSION = 1;
 
 /** 发布站只读取静态贡献；清单保持原格式，不启动应用插件生命周期。 */
 export function readPublishedPluginManifest(value: unknown) {
-  return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
-    ? validatePortablePluginManifest(value)
-    : validatePluginManifest(value);
+  return readApplicationPluginManifest(value);
 }
 
 export function evaluatePublishedPluginPackage(
@@ -62,7 +59,7 @@ export function evaluatePublishedPluginPackage(
   modules: Readonly<Record<string, unknown>>
 ): PluginDefinition {
   const manifest = readPublishedPluginManifest(artifact.manifest);
-  if (manifest.formatVersion !== 3)
+  if (!isWebPluginManifest(manifest))
     return evaluatePluginPackage({ ...artifact, manifest }, modules);
   if (!manifest.targets.desktop) throw new Error("博客渲染需要桌面目标");
   const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
@@ -91,7 +88,7 @@ export function evaluatePluginPackage(
     manifest,
     artifact.code,
     modules,
-    manifest.formatVersion === 3 ? PORTABLE_SHARED_MODULES : PLUGIN_SHARED_MODULES
+    isWebPluginManifest(manifest) ? PORTABLE_SHARED_MODULES : PLUGIN_SHARED_MODULES
   );
 }
 
@@ -158,12 +155,12 @@ export function validatePluginDefinition(
   )
     throw new Error("插件入口定义与清单不一致");
   if (
-    manifest.formatVersion !== 3 &&
+    manifest.formatVersion === 2 &&
     Boolean(definition.editorExtensions?.length) !== Boolean(manifest.editor)
   )
     throw new Error("编辑器贡献必须与 manifest.editor 声明一致");
   if (
-    manifest.formatVersion !== 3 &&
+    manifest.formatVersion === 2 &&
     Boolean(definition.whiteboardExtensions?.length) !== Boolean(manifest.whiteboard)
   )
     throw new Error("白板贡献必须与 manifest.whiteboard 声明一致");

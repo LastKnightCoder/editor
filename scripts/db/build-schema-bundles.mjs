@@ -21,6 +21,8 @@ const mainSegments = [
   "main/40_resource.sql",
   "main/50_learning.sql",
   "main/51_task_assistant.sql",
+  "main/52_data_changes.sql",
+  "main/53_document_task_changes.sql",
   "main/60_plugin.sql",
   "main/90_indexes.sql",
   "main/91_entity_identity_guards.sql",
