@@ -16,6 +16,7 @@ import {
   Check,
   Download,
   FileText,
+  FileType,
   ImagePlus,
   Loader2,
   Sparkles,
@@ -42,6 +43,7 @@ import {
   exportSlateToEpubWithDialog,
 } from "@/utils/epub-export";
 import { exportVideoNoteToPdfWithDialog } from "@/utils/pdf-export";
+import { saveContentAsWord } from "@/services/content-transfer";
 import useVideoEbookRewrite from "@/hooks/useVideoEbookRewrite";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import { summarizeExportResults, type ExportFormatResult } from "./export-result-summary";
@@ -72,7 +74,7 @@ const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
 };
 
 type Step = "rewrite" | "export-settings";
-type ExportFormat = "pdf" | "epub";
+type ExportFormat = "pdf" | "epub" | "docx";
 
 interface CoverCandidate {
   id: string;
@@ -113,7 +115,11 @@ const FORMAT_OPTIONS: Array<{
 }> = [
   { value: "epub", label: "EPUB", icon: BookOpen, description: "电子书格式，带封面与章节导航" },
   { value: "pdf", label: "PDF", icon: FileText, description: "适合打印与阅读，自适应分页" },
+  { value: "docx", label: "Word", icon: FileType, description: "可在 Word 里继续修改排版" },
 ];
+
+const formatLabel = (format: ExportFormat) =>
+  FORMAT_OPTIONS.find(option => option.value === format)?.label ?? format;
 
 const STEPS: Array<{ key: Step; label: string; subtitle: string }> = [
   {
@@ -501,7 +507,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     const formats = FORMAT_OPTIONS.filter(o => selectedFormats.has(o.value));
     if (formats.length === 0) return "选择导出格式";
     if (formats.length === 1) return `导出 ${formats[0].label}`;
-    return "导出 EPUB 和 PDF";
+    return `导出 ${formats.map(o => o.label).join("、")}`;
   }, [selectedFormats]);
 
   const toggleFormat = useMemoizedFn((format: ExportFormat) => {
@@ -618,7 +624,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     try {
       for (let i = 0; i < formatsToExport.length; i++) {
         const format = formatsToExport[i];
-        const label = format.toUpperCase();
+        const label = formatLabel(format);
         const isLastFormat = i === formatsToExport.length - 1;
         const exportOptions = {
           content: draftContent,
@@ -628,14 +634,16 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         const result =
           format === "pdf"
             ? await exportVideoNoteToPdfWithDialog(exportOptions)
-            : await exportSlateToEpubWithDialog(exportOptions);
+            : format === "docx"
+              ? await saveContentAsWord({ title: normalizedMetadata.title, content: draftContent })
+              : await exportSlateToEpubWithDialog(exportOptions);
 
         if (result.canceled) {
           results.push({ format: label, success: false, canceled: true });
           if (!isLastFormat) {
             const shouldContinue = await askContinueExport(
               label,
-              formatsToExport[i + 1].toUpperCase()
+              formatLabel(formatsToExport[i + 1])
             );
             if (!shouldContinue) {
               toast.info("已取消导出");
@@ -939,7 +947,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           </Field>
 
           <Field label="导出格式" hint="可多选">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {FORMAT_OPTIONS.map(option => {
                 const active = selectedFormats.has(option.value);
                 const Icon = option.icon;

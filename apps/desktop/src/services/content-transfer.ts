@@ -161,29 +161,34 @@ interface WordExportInput {
   assetDirectory?: string;
 }
 
-/** Word 生成器及其排版依赖在用户选择导出时加载。 */
+/** Word 生成器及其排版依赖在用户选择导出时加载；warnings 为未能嵌入的图片。 */
+export async function saveContentAsWord(input: WordExportInput) {
+  const [{ buildWordExport }, { default: useSettingStore }] = await Promise.all([
+    import("@/utils/word-export"),
+    import("@/stores/useSettingStore"),
+  ]);
+  const title = input.title.trim() || "未命名文档";
+  const snapshot = await readContentForExport(input.content, input.contentId);
+  const { bytes, warnings } = await buildWordExport(snapshot, {
+    title,
+    font: useSettingStore.getState().setting.fontSetting,
+    assetDirectory: input.assetDirectory,
+  });
+  const result = await saveFileWithDialog({
+    defaultFileName: sanitizeFileName(title, "未命名文档") + ".docx",
+    filters: [{ name: "Word 文档", extensions: ["docx"] }],
+    data: bytes,
+  });
+  return { canceled: result.canceled, filePath: result.filePath ?? null, warnings };
+}
+
 export async function exportContentAsWord(input: WordExportInput) {
   try {
-    const [{ buildWordExport }, { default: useSettingStore }] = await Promise.all([
-      import("@/utils/word-export"),
-      import("@/stores/useSettingStore"),
-    ]);
-    const title = input.title.trim() || "未命名文档";
-    const snapshot = await readContentForExport(input.content, input.contentId);
-    const { bytes, warnings } = await buildWordExport(snapshot, {
-      title,
-      font: useSettingStore.getState().setting.fontSetting,
-      assetDirectory: input.assetDirectory,
-    });
-    const result = await saveFileWithDialog({
-      defaultFileName: sanitizeFileName(title, "未命名文档") + ".docx",
-      filters: [{ name: "Word 文档", extensions: ["docx"] }],
-      data: bytes,
-    });
-    if (result.canceled || !result.filePath) return;
+    const { canceled, filePath, warnings } = await saveContentAsWord(input);
+    if (canceled || !filePath) return;
     if (warnings.length) toast.warning(`已导出，${warnings.length} 处图片未能嵌入，已在文档中标出`);
     else toast.success("已导出 Word 文档");
-    await showInFolder(result.filePath).catch(error => console.warn("打开导出目录失败:", error));
+    await showInFolder(filePath).catch(error => console.warn("打开导出目录失败:", error));
   } catch (error) {
     toast.error(`Word 导出失败：${error instanceof Error ? error.message : String(error)}`);
   }
