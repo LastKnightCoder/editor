@@ -413,7 +413,7 @@ const Column = memo(
               className="text-tau-meta select-none"
               style={{ fill: COLUMN_COLORS.muted }}
             >
-              拖入卡片
+              拖入内容
             </text>
           </g>
         </If>
@@ -485,7 +485,7 @@ const Column = memo(
             })}
         </g>
 
-        {/* 底部「添加卡片」：悬停列时淡入，挂在托盘正下方（不占布局高度） */}
+        {/* 底部「添加文字」挂在托盘正下方，不占布局高度 */}
         <If condition={canAppend}>
           <foreignObject
             x={x}
@@ -507,7 +507,7 @@ const Column = memo(
                 }}
               >
                 <Plus size={14} strokeWidth={1.75} />
-                添加卡片
+                添加文字
               </button>
             </div>
           </foreignObject>

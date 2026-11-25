@@ -287,10 +287,14 @@ export class ColumnUtil {
       resizable: false,
       autoHeight: true,
       content: createEmptyRichTextContent(),
-      contentId: (await board.extensions?.execute(
-        "tau.richtext.create-content",
-        createEmptyRichTextContent()
-      )) as number | undefined,
+      ...(board.document
+        ? {}
+        : {
+            contentId: (await board.extensions?.execute(
+              "tau.richtext.create-content",
+              createEmptyRichTextContent()
+            )) as number | undefined,
+          }),
       autoFocus: true,
       ...RichTextUtil.load(),
     };

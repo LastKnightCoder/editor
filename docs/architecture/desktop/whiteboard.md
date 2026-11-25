@@ -10,6 +10,8 @@ Agent 的在场提示由主进程按白板代次定向推给本机持有者，�
 
 ## Whiteboard 公共画布与扩展装配
 
+分栏空态使用「拖入内容」，接受文字、文档和媒体等可容纳元素；底部「添加文字」通过 `ColumnUtil.appendRichText` 插入并聚焦板内文字。文档绑定模式不创建或携带独立正文的 `contentId`，正文随元素在同一文档提交中建立；未绑定文档的画布仍通过富文本扩展创建独立正文。
+
 缩放统一由 InteractionManager/ResizingState 管理，ResizeCircle/useResize 与分栏侧边手柄只发起手势，不再各自监听 document 或保留节流尾调用。保留原几何/吸附算法，预览只收集同步字段变化，完成经 Board.recordHistory 同一入口提交单个历史分组；取消/失活/只读/销毁回退自身字段，删除或冲突更新先终止手势，无关字段修改不回滚。不得为插件再建立一套缩放历史或复制 CommonPlugin。
 
 第三方创建工具可声明 panel，在「扩展工具」内先选参数，再经 run(payload) 激活；返回、关闭、错误边界和迟到回调由宿主处理。DesktopWhiteboard 经 extensionServices 为每个已校验插件的扩展派生子服务注册表，IPluginStorage 复用 PluginHost 当前激活上下文的 storage；按插件与工作区隔离，不暴露整个 PluginContext。画布失活/销毁/只读、切库、插件失活及激活实例替换时拒绝旧交互；静态渲染与缩略图仍不依赖 activate。公开 SketchPopover 与内置单选属性栏共用实现，公共作者类型依赖图继续禁止 Board/CommonPlugin。

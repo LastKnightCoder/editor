@@ -8,6 +8,7 @@ import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import type { NodeTreeEditor } from "@tau/editor-collab";
 import { assertVisualExport } from "../utils/visualExport";
 import { getDefaultHandwriteStyle } from "../utils/HandwriteUtil";
+import { ColumnUtil } from "../utils/ColumnUtil";
 import { afterEach, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import {
@@ -187,6 +188,32 @@ it("文档白板连续点击空白处可分段书写，点已有图形仍可选�
   expect(board.children).toHaveLength(3);
   expect(board.selection.selectedElements.map(node => node.id)).toEqual([shape.id]);
   expect(board.activeTool).toBe(RICHTEXT_TOOL_ID);
+});
+
+it("分栏添加文字后可编辑板内正文，并能整步撤销与重做", async () => {
+  const { board, binding, model, insert } = await setup();
+  const column = ColumnUtil.createColumn(20, 30);
+  insert(column);
+  binding.splitHistory();
+  // DOM 排版不属于本用例；真实提交必须经过文档契约校验，防止旧 contentId 字段让按钮失效。
+  vi.spyOn(board.capabilityService, "measureElementHeight").mockResolvedValue(56);
+  const id = await ColumnUtil.appendRichText(board, column);
+  expect(board.children[0].children?.map(child => child.id)).toEqual([id]);
+  expect(board.children[0].children?.[0].autoFocus).toBe(true);
+  binding.undo();
+  expect(board.children[0].children).toEqual([]);
+  binding.redo();
+  expect(board.children[0].children?.map(child => child.id)).toEqual([id]);
+  const body = id && binding.textDocument(id)?.binding;
+  if (!body) throw new Error("分栏新文字缺少可编辑的板内正文");
+  const editor = body.install(createEditor()) as NodeTreeEditor;
+  editor.connectNodeTree();
+  try {
+    Transforms.insertText(editor, "列中笔记", { at: { path: [0, 0], offset: 0 } });
+    expect(model.richText(id).read()[0].children?.[0].text).toBe("列中笔记");
+  } finally {
+    editor.disposeNodeTree();
+  }
 });
 
 it("连续编辑富文本时画布与独立模型一致，观察者的并发修改不会被旧快照覆盖", async () => {
