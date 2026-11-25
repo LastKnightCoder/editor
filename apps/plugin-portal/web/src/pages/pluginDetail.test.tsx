@@ -59,7 +59,6 @@ it("详情按 SemVer 取最高版本，展示平台支持与网页未核验说�
   expect(getRelease).toHaveBeenCalledWith("r2", expect.anything());
   expect(await screen.findByText("4,321")).toBeTruthy();
   expect(screen.getByText("启用插件后打开页面入口。")).toBeTruthy();
-  expect(screen.getByText("跨端 · web-v1")).toBeTruthy();
   expect(screen.getByRole("note").textContent).toMatch(/网页无法确认你的设备能否安装/);
   expect(screen.queryByText(/可安装 v/)).toBeNull();
 
@@ -77,16 +76,35 @@ it("详情按 SemVer 取最高版本，展示平台支持与网页未核验说�
   expect(download).toHaveBeenCalledWith("r1");
 });
 
-it("旧格式版本标为仅桌面，并保留本地安装说明", async () => {
+it("桌面发行保留下载与本地安装入口", async () => {
   const base = release("r1", "1.0.0", "2026-10-16T00:00:00Z");
   const desktop = { minAppVersion: "0.59.0" };
   render_("/plugins/example.counter", [
-    { ...base, formatVersion: 1, profile: null, targets: { desktop } },
+    {
+      ...base,
+      formatVersion: 1,
+      packageKind: "template",
+      profile: null,
+      targets: { desktop },
+      content: {
+        ...base.content,
+        manifest: {
+          formatVersion: 1,
+          apiVersion: 1,
+          platform: "desktop",
+          id: base.pluginId,
+          name: base.content.manifest.name,
+          description: base.content.manifest.description,
+          version: base.version,
+          minAppVersion: desktop.minAppVersion,
+          template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
+          integrity: {},
+        },
+      },
+    },
   ]);
-  expect(await screen.findByText("旧格式（仅桌面）")).toBeTruthy();
-  expect(screen.getAllByRole("list", { name: "支持平台：桌面（仅桌面）" }).length).toBeGreaterThan(
-    0
-  );
+  await screen.findByRole("button", { name: "下载 v1.0.0" });
+  expect(screen.getAllByRole("list", { name: "支持平台：桌面" }).length).toBeGreaterThan(0);
   expect(screen.getByText(/在桌面端插件页选择本地安装/)).toBeTruthy();
 });
 

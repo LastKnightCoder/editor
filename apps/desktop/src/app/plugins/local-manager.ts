@@ -76,7 +76,7 @@ export class LocalPluginManager {
     const artifact = this.records.get(id);
     return (
       (!!artifact && contentPluginDiscovered(artifact)) ||
-      (artifact?.manifest.formatVersion !== 3 && !!artifact && hasStaticContent(artifact.manifest))
+      (!!artifact && hasStaticContent(artifact.manifest))
     );
   }
   pendingContentIds() {
@@ -147,7 +147,11 @@ export class LocalPluginManager {
         try {
           await this.host.unregister(id);
         } catch (error) {
-          issues.push({ id, directory: snapshot.directory, error: this.message(error) });
+          issues.push({
+            id,
+            directory: snapshot.directory,
+            error: this.message(error),
+          });
         } finally {
           this.records.delete(id);
         }
@@ -156,7 +160,11 @@ export class LocalPluginManager {
       for (const entry of snapshot.entries) {
         this.assertOpen();
         if (this.reserved.includes(entry.id)) {
-          issues.push({ ...entry, artifact: undefined, error: "目录插件 ID 与内置插件冲突" });
+          issues.push({
+            ...entry,
+            artifact: undefined,
+            error: "目录插件 ID 与内置插件冲突",
+          });
           continue;
         }
         if (!entry.artifact) {
@@ -170,9 +178,7 @@ export class LocalPluginManager {
           previous &&
           (this.host.getState(entry.id) === "restart-required" ||
             contentPluginLoaded(entry.id) ||
-            (((previous.manifest.formatVersion !== 3 && hasStaticContent(previous.manifest)) ||
-              (entry.artifact.manifest.formatVersion !== 3 &&
-                hasStaticContent(entry.artifact.manifest))) &&
+            ((hasStaticContent(previous.manifest) || hasStaticContent(entry.artifact.manifest)) &&
               this.host.getState(entry.id) !== "disabled"))
         ) {
           issues.push({
@@ -190,7 +196,11 @@ export class LocalPluginManager {
             this.records.set(entry.id, entry.artifact);
           }
         } catch (error) {
-          issues.push({ id: entry.id, directory: entry.directory, error: this.message(error) });
+          issues.push({
+            id: entry.id,
+            directory: entry.directory,
+            error: this.message(error),
+          });
         }
       }
       this.assertOpen();

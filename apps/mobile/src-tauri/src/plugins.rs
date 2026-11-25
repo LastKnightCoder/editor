@@ -274,7 +274,8 @@ pub(crate) fn declared_skill_ids(manifest: &Value) -> Result<Vec<String>, String
     Ok(ids)
 }
 fn package_kind(manifest: &Value) -> Result<&'static str, String> {
-    if manifest["formatVersion"] == 3
+    let unified = manifest["formatVersion"] == 4;
+    if (manifest["formatVersion"] == 3 || (unified && manifest["kind"] == "plugin"))
         && manifest["platform"] == "portable"
         && manifest["profile"] == "web-v1"
         && manifest["apiVersion"] == 1
@@ -284,7 +285,7 @@ fn package_kind(manifest: &Value) -> Result<&'static str, String> {
     {
         return Ok("plugin");
     }
-    if manifest["formatVersion"] != 1
+    if (manifest["formatVersion"] != 1 && !(unified && manifest["kind"] == "skills"))
         || manifest["apiVersion"] != 1
         || !matches!(manifest["platform"].as_str(), Some("portable" | "desktop"))
     {
@@ -314,6 +315,18 @@ fn known_targets(manifest: &Value) -> Result<Vec<(&str, &str)>, String> {
                 .as_str()
                 .ok_or_else(|| fail("目标平台缺少最低客户端版本"))?;
             version_parts(minimum)?;
+            if manifest["formatVersion"] == 4 {
+                let supported = if platform == "desktop" {
+                    "0.66.3"
+                } else {
+                    "0.5.1"
+                };
+                if compare_versions(minimum, supported)?.is_lt() {
+                    return Err(fail(format!(
+                        "格式 4 在 {platform} 要求最低客户端版本 {supported}"
+                    )));
+                }
+            }
             result.push((platform, minimum));
         }
     }
@@ -388,6 +401,7 @@ fn assert_same_package_manifest(actual: &Value, declared: &Value) -> Result<(), 
             .collect::<std::collections::BTreeSet<_>>()
     };
     if package_kind(declared)? != kind
+        || (actual["formatVersion"] == 4 && declared["kind"] != actual["kind"])
         || [
             "formatVersion",
             "platform",
@@ -1549,6 +1563,59 @@ mod skill_package_tests {
             .unwrap()
             .is_lt());
         assert!(compare_versions("1.0.0+build", "1.0.0").unwrap().is_eq());
+    }
+    #[test]
+    fn unified_skill_upgrade_preserves_scripts_and_restores_original_manifest() {
+        let fixture = fixture();
+        let directory = fixture.0.join("example.notes");
+        fs::create_dir(&directory).unwrap();
+        let files = [
+            ("skills/summary/SKILL.md", b"instructions".as_slice()),
+            (
+                "skills/summary/scripts/run.py",
+                b"raise RuntimeError('never execute')".as_slice(),
+            ),
+        ];
+        let first = manifest("1.0.0", &files);
+        prepare(&directory.join("next"), &first, &files);
+        switch(&directory).unwrap();
+        let original = fs::read(directory.join("current/manifest.json")).unwrap();
+        let mut next = manifest("2.0.0", &files);
+        next["formatVersion"] = json!(4);
+        next["kind"] = json!("skills");
+        next["targets"] =
+            json!({"ios":{"minAppVersion":"0.5.1"},"android":{"minAppVersion":"0.5.1"}});
+        assert_mobile_package_manifest(&next, "ios", "0.5.1").unwrap();
+        let parsed = prepare(&directory.join("next"), &next, &files);
+        assert!(parsed.code.is_none());
+        switch(&directory).unwrap();
+        assert_eq!(
+            fs::read(directory.join("current/skills/summary/scripts/run.py")).unwrap(),
+            files[1].1
+        );
+        fs::create_dir(directory.join("next")).unwrap();
+        copy_package_tree(&directory.join("backup"), &directory.join("next")).unwrap();
+        switch(&directory).unwrap();
+        assert_eq!(
+            fs::read(directory.join("current/manifest.json")).unwrap(),
+            original
+        );
+        next["main"] = json!("main.js");
+        assert!(assert_mobile_package_manifest(&next, "ios", "0.5.1").is_err());
+    }
+    #[test]
+    fn unified_web_packages_require_matching_kind_profile_and_supported_targets() {
+        let mut value = json!({"formatVersion":4,"apiVersion":1,"kind":"plugin","platform":"portable","profile":"web-v1","format":"cjs","main":"main.js","targets":{"ios":{"minAppVersion":"0.5.1"}}});
+        assert_eq!(
+            assert_mobile_package_manifest(&value, "ios", "0.5.1").unwrap(),
+            "plugin"
+        );
+        assert!(assert_mobile_package_manifest(&value, "ios", "0.5.0").is_err());
+        value["backend"] = json!({"entry":"backend.js"});
+        assert!(assert_mobile_package_manifest(&value, "ios", "0.5.1").is_err());
+        value.as_object_mut().unwrap().remove("backend");
+        value["kind"] = json!("template");
+        assert!(assert_mobile_package_manifest(&value, "ios", "0.5.1").is_err());
     }
     #[test]
     fn static_templates_and_code_fields_cannot_masquerade_as_skill_packages() {

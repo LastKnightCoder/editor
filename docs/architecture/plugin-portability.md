@@ -2,19 +2,23 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK 和一套作者模板。跨端应用插件使用格式 3 的 web-v1 包；独立 Skill 沿用格式 1 的文档目录协议，使用 portable/targets 声明跨端目标，没有 main、format 或 profile。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板及旧 desktop 独立 Skill 保持原桌面声明。公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由插件声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。发布平台的包资料模型：manifest 只提供名称、版本与简介，README 提供介绍与使用说明，可选 CHANGELOG 提供版本记录；不维护第二份网页介绍、截图或外部反馈地址，上传与提交详情支持作者/审核者站内交流。
+桌面、Android 和 iOS 共用一个 SDK 和一套作者模板。当前作者构建器生成格式 4，`kind` 区分应用插件、独立 Skill 与模板，`targets` 独立声明平台及最低客户端版本。应用插件使用 `web-v1` 前端，或带显式 Node 后台的 `desktop-v1`；后者只接受桌面目标。独立 Skill 不求值代码，脚本和附件完整分发，手机只读说明与资料；模板仅支持桌面。`platform=portable` 是统一清单的传输标记，不能据此推断移动兼容。
 
-`formatVersion` 选择清单和文件布局的解析规则，不代表平台或能力等级；包自己的 `version` 用于更新排序，`apiVersion` 表示宿主契约版本，平台与最低客户端版本由 `platform/targets` 决定。中心从已校验清单派生 packageKind，移动宿主声明可读格式 1/3，但格式 1 只接收明确声明移动目标的独立 Skill，不能借此安装模板或旧可执行插件。
+`formatVersion` 只选择解析规则。读取边界保留格式 1 的模板/独立 Skill、格式 2 的桌面后台与格式 3 的 Web 插件契约，输出按类型、targets 和运行声明消费的包描述；原始清单、ZIP、摘要、发行记录与安装目录不改写。格式 1 的可执行插件仍拒绝，旧 desktop 声明不自动扩大到移动端。格式 4 最低宿主为桌面 0.66.3、Android/iOS 0.5.1；作者构建器将协议最低版本与作者声明取较高值。包自身的 `version` 控制更新排序，`apiVersion` 控制运行 API，升级包格式不升级插件私有数据或扩大授权。
+
+安装、暂存更新、恢复、卸载复用现有事务，旧模块访问范围和静态贡献规则保留。正式构建对统一包与既有 portable 包均核验固定中心来源；中心先支持新格式，客户端再声明可读格式及运行 profile，最后作者工具切换输出。中心按宿主能力选择最高兼容版，旧客户端继续取得历史兼容发行，v1 仅暴露格式 1/2 的 desktop 包。后台和带脚本 Skill 的系统能力审核依据实际声明与文件执行特征，不以格式号豁免。门户展示包类型与真实支持平台，不显示“旧格式”。
+
+公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经绑定仓库 CI 发布可自动批准；作者负责平台适配和测试。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。包资料由 manifest 提供名称、版本与简介，README 提供介绍，可选 CHANGELOG 提供版本记录。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
 ## 中心数据边界
 
-逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务与 AI 权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete、闪卡的 read/write，以及 SDK 声明的 `ai:<能力名>`，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
+逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用统一包读取器；格式 4 应用插件检查 `kind`、运行 profile、目标与后台声明，格式 3 保留原 Web 契约。发行与运行入口分别检查移动业务、AI 权限及宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete、闪卡的 read/write，以及 SDK 声明的 `ai:<能力名>`，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 
-门户 `PortalApi.center` 提供 /v2 HTTP 适配与查询 hooks，沿用错误信封与取消信号。/v2 的平台计数、选版、发布状态、公开目录缓存失效与格式 3 审核契约见[门户协议](/apps/plugin-portal/docs/协议.md)。旧公共 v1 过滤格式 3；客户端真实失败不会回退旧接口或模拟成功。显式 mock 可注入测试发布记录，不生成可安装 ZIP。
+门户 `PortalApi.center` 提供 /v2 HTTP 适配与查询 hooks，沿用错误信封与取消信号。/v2 的平台计数、选版、发布状态、公开目录缓存失效与格式 3 审核契约见[门户协议](/apps/plugin-portal/docs/协议.md)。旧公共 v1 只允许格式 1/2 的 desktop 发行；客户端真实失败不会回退旧接口或模拟成功。显式 mock 可注入测试发布记录，不生成可安装 ZIP。
 
 移动 `services/pluginCenter` 与 `features/plugins/data/center-queries` 通过固定操作的 Tauri 命令访问中心，不把请求 URL 或宿主版本的决定权交给页面。原生使用实际平台与应用版本；禁止跳转并限制响应大小，保留结构化错误。默认 origin 固定，调试构建可指定 HTTPS 或本机 HTTP；release 构建忽略调试来源。中心安装只接收 pluginId/releaseId，原生 resolve 后下载、暂存，TS 对账规范化清单与审核记录，原生提交前再次 resolve。来源记录包含 origin/releaseId，普通开发 commit 不能提交中心包。
 
@@ -32,7 +36,7 @@
 
 桌面 0.59.1 从 v2 获取本机兼容版本，下载前后核对精确 releaseId、摘要与清单；PluginUpdates 复用原目录、事务、备份及来源恢复，首次安装即启用，内容插件完整重启后生效。格式 3 的读取保留原始清单，共用平台版本检查与定义求值；正式页面和独立内容进程使用同一产物，主进程不执行作者代码。正式扫描/启用/内容启动拒绝非固定中心来源的跨端包。
 
-桌面启动仅检查已启用的格式 3 候选包，在无 Node、无业务 preload 的内容进程求值定义并识别正文/白板贡献；普通插件不进入静态启动快照，仍可直接启停。首次启用新内容插件时识别静态贡献并提示重启，不调用其 activate；已装配内容贡献在所有窗口固定，更新延续原有重启边界。
+桌面启动检查已启用的动态贡献候选包（格式 3/4），在无 Node、无业务 preload 的内容进程求值定义并识别正文/白板贡献；普通插件不进入静态启动快照，仍可直接启停。首次启用新内容插件时识别静态贡献并提示重启，不调用其 activate；已装配内容贡献在所有窗口固定，更新延续原有重启边界。
 
 未打包 Electron 仍可通过显式 `TAU_PORTABLE_PLUGIN_DIR` 读取隔离开发目录，`.enabled.json` 为开发者选定的 ID 数组；该目录不进入正式安装事务。格式 3 正式内容包保留原始清单参与博客分发，开发来源仍不能发布；静态消费者不激活应用生命周期，渲染协议保持 1。
 

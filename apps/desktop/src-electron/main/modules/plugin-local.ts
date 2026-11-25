@@ -109,7 +109,7 @@ export default {
         app.getVersion(),
         packageIntegrityCache
       );
-      if (artifact.manifest.formatVersion === 3 && app.isPackaged) {
+      if (artifact.manifest.platform === "portable" && app.isPackaged) {
         const source = (await updates.sources([id]))[id];
         assertDesktopPackageSource(artifact.manifest, source, API_ORIGIN, app.isPackaged);
       }
@@ -150,7 +150,8 @@ export default {
     const contentPluginEntries = initial.entries.filter(
       entry =>
         entry.artifact &&
-        (entry.artifact.manifest.formatVersion === 3 || isContentPlugin(entry.artifact.manifest))
+        (entry.artifact.manifest.platform === "portable" ||
+          isContentPlugin(entry.artifact.manifest))
     );
     const contentPluginIds = contentPluginEntries
       .filter(entry => preferences.enabled(entry.id, false))
@@ -162,7 +163,7 @@ export default {
           throw new Error("插件更新尚未恢复");
         const artifact = initialArtifacts.get(id);
         if (!artifact || artifact.manifest.id !== id) throw new Error("内容插件身份或声明无效");
-        if (artifact.manifest.formatVersion === 3 && app.isPackaged) {
+        if (artifact.manifest.platform === "portable" && app.isPackaged) {
           const source = initialSources[id];
           assertDesktopPackageSource(artifact.manifest, source, API_ORIGIN, app.isPackaged);
         }
@@ -271,7 +272,6 @@ export default {
             const deferred =
               !isTemplatePackage(artifact) &&
               !isSkillPackage(artifact) &&
-              artifact.manifest.formatVersion !== 3 &&
               isContentPlugin(artifact.manifest) &&
               preferences.enabled(installed.id, false);
             if (!deferred) await stopPluginBackend(installed.id);

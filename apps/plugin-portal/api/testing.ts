@@ -21,6 +21,7 @@ export function testEnvironment(
     "0012_portable_distribution.sql",
     "0013_portable_skill_distribution.sql",
     "0014_catalog_cache.sql",
+    "0015_unified_packages.sql",
   ].filter(
     name =>
       (options.portableSchema !== false || Number(name.slice(0, 4)) < 12) &&

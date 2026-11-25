@@ -71,7 +71,7 @@ export function PackageFacts({
               ? runtime.format
               : "Skill 包"}{" "}
           · format {manifest.formatVersion} / api {manifest.apiVersion}
-          {manifest.formatVersion === 3 && ` · ${manifest.profile}`}
+          {"profile" in manifest && ` · ${manifest.profile}`}
         </Fact>
         {skills.length > 0 && (
           <Fact label="Skill" mono>

@@ -91,7 +91,7 @@ pub(crate) fn trusted_source(source: &Value) -> bool {
         && source["url"] == format!("{origin}/v2/releases/{release}/download")
 }
 fn host(platform: &str, version: &str) -> Value {
-    json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[1,3],"profiles":["web-v1"]})
+    json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[1,3,4],"profiles":["web-v1"]})
 }
 fn assert_install_release(record: &Value, current_host: &Value) -> Result<(), CenterError> {
     let manifest = &record["content"]["manifest"];
@@ -556,7 +556,6 @@ mod tests {
         let manifest = json!({"formatVersion":1,"apiVersion":1,"platform":"portable","id":"example.notes","name":"Notes","version":"1.0.0","skills":["summary"],"targets":{"ios":{"minAppVersion":"0.2.13"}},"integrity":{"skills/summary/SKILL.md":"a".repeat(64)}});
         let mut record = json!({"packageKind":"skills","content":{"manifest":manifest}});
         let current = host("ios", "0.2.13");
-        assert_eq!(current["formatVersions"], json!([1, 3]));
         assert!(assert_install_release(&record, &current).is_ok());
         record["packageKind"] = Value::Null;
         assert!(assert_install_release(&record, &current).is_err());

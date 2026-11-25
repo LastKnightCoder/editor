@@ -1,11 +1,11 @@
-import { validatePluginManifest, type PluginManifest } from "@tau/plugins/package";
+import type { PluginManifest } from "@tau/plugins/package";
 import {
-  validatePortablePluginManifest,
   assertPortablePluginCompatibility,
   type PortablePluginManifest,
 } from "@tau/plugins/portable";
 import { assertPluginCompatibility } from "@tau/plugins/host";
 import type { CenterHost } from "@tau/plugins/center";
+import { readApplicationPluginManifest, isWebPluginManifest } from "@tau/plugins/unified";
 
 export type DesktopPortableManifest = PortablePluginManifest & {
   backend?: never;
@@ -22,8 +22,8 @@ export const desktopPluginHost = (appVersion: string): CenterHost => ({
   platform: "desktop",
   appVersion,
   apiVersions: [1],
-  formatVersions: [1, 2, 3],
-  profiles: ["web-v1"],
+  formatVersions: [1, 2, 3, 4],
+  profiles: ["web-v1", "desktop-v1"],
 });
 
 export const desktopPortableHost = (appVersion: string) => ({
@@ -36,16 +36,14 @@ export const desktopPortableHost = (appVersion: string) => ({
 });
 
 export function readDesktopPluginManifest(value: unknown): DesktopPluginManifest {
-  return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
-    ? validatePortablePluginManifest(value)
-    : validatePluginManifest(value);
+  return readApplicationPluginManifest(value);
 }
 
 export function assertDesktopPluginCompatibility(
   manifest: DesktopPluginManifest,
   appVersion: string
 ) {
-  if (manifest.formatVersion === 3)
+  if (isWebPluginManifest(manifest))
     assertPortablePluginCompatibility(manifest, desktopPortableHost(appVersion));
   else assertPluginCompatibility(manifest, appVersion);
 }
@@ -56,7 +54,7 @@ export function assertDesktopPackageSource(
   origin: string,
   packaged: boolean
 ) {
-  if (manifest.formatVersion !== 3 || !packaged) return;
+  if (manifest.platform !== "portable" || !packaged) return;
   if (
     source?.kind !== "center" ||
     source.apiOrigin !== origin ||

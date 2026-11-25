@@ -15,11 +15,10 @@ export function PlatformBadges({
 }) {
   const ordered = PORTABLE_PLATFORMS.filter(platform => version.targets[platform]);
   if (!ordered.length) return null;
-  const legacy = version.formatVersion !== 3 && version.packageKind !== "skills";
   const names = ordered.map(platform => PLATFORM_LABELS[platform]).join("、");
   return (
     <ul
-      aria-label={`支持平台：${names}${legacy ? "（仅桌面）" : ""}`}
+      aria-label={`支持平台：${names}`}
       className={cn("text-tau-micro text-ink-3 flex flex-wrap items-center gap-2", className)}
     >
       {ordered.map(platform => {
@@ -31,7 +30,6 @@ export function PlatformBadges({
           </li>
         );
       })}
-      {legacy && <li>仅桌面</li>}
     </ul>
   );
 }

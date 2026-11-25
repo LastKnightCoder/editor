@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { readPluginPackage } from "../plugin-package";
+import { readPluginPackage, readDistributionPackage, isTemplatePackage } from "../plugin-package";
 import { PluginPackageIntegrityCache } from "../plugin-package-integrity-cache";
 
 const directories: string[] = [];
@@ -38,6 +38,38 @@ async function fixture(overrides = {}) {
 }
 
 describe("开发插件包读取", () => {
+  it("桌面读取历史 Web 包时只校验桌面兼容性，不套用手机发行权限规则", async () => {
+    const directory = await fixture({
+      permissions: ["whiteboards:read"],
+      targets: { desktop: { minAppVersion: "0.59.0" }, ios: { minAppVersion: "0.2.13" } },
+    });
+    const artifact = await readPluginPackage(directory, "0.66.3");
+    expect(artifact.manifest.permissions).toEqual(["whiteboards:read"]);
+  });
+  it("统一协议的博客模板静态读取且遵循桌面最低版本", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "tau-unified-template-"));
+    directories.push(directory);
+    const html = "<h1>我的博客</h1>";
+    const manifest = {
+      formatVersion: 4,
+      kind: "template",
+      apiVersion: 1,
+      platform: "portable",
+      id: "example.template",
+      name: "模板",
+      version: "1.0.0",
+      targets: { desktop: { minAppVersion: "0.66.3" } },
+      template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
+      integrity: { "site/index.html": createHash("sha256").update(html).digest("hex") },
+    };
+    await mkdir(path.join(directory, "site"));
+    await writeFile(path.join(directory, "manifest.json"), JSON.stringify(manifest));
+    await writeFile(path.join(directory, "site/index.html"), html);
+    const artifact = await readDistributionPackage(directory, "0.66.3");
+    expect(isTemplatePackage(artifact)).toBe(true);
+    expect(artifact).not.toHaveProperty("code");
+    await expect(readDistributionPackage(directory, "0.66.2")).rejects.toThrow("0.66.3");
+  });
   it("后台只静态核验，不执行也不传给渲染端", async () => {
     const backendCode = "throw new Error('扫描不得执行后台');";
     const directory = await fixture({

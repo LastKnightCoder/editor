@@ -21,7 +21,6 @@ import {
   zipDirectory,
 } from "../utils/skill-import";
 import { cancelSkillScript, runSkillScript } from "../utils/skill-script-runner";
-import { validatePortablePluginManifest, type PortablePluginManifest } from "@tau/plugins/portable";
 import {
   isSkillPackageManifest,
   validateDistributionManifest,
@@ -177,14 +176,11 @@ class SkillModule implements Module {
     for (const folder of folders) {
       if (folder.name.startsWith(".")) continue;
       const directory = join(pluginsDir, folder.name);
-      let manifest: DistributionManifest | PortablePluginManifest;
+      let manifest: DistributionManifest;
       try {
         const raw = JSON.parse(await fs.readFile(join(directory, "manifest.json"), "utf-8"));
-        manifest =
-          raw?.formatVersion === 3
-            ? validatePortablePluginManifest(raw)
-            : validateDistributionManifest(raw);
-        if (manifest.formatVersion === 1 && isSkillPackageManifest(manifest))
+        manifest = validateDistributionManifest(raw);
+        if (isSkillPackageManifest(manifest))
           assertSkillPackageCompatibility(manifest, {
             platform: "desktop",
             appVersion: client.version,
@@ -199,8 +195,7 @@ class SkillModule implements Module {
           folderName: `${manifest.id}:${id}`,
           pluginId: manifest.id,
           pluginName: manifest.name,
-          source:
-            manifest.formatVersion !== 3 && isSkillPackageManifest(manifest) ? "package" : "plugin",
+          source: isSkillPackageManifest(manifest) ? "package" : "plugin",
         });
     }
     this.packageRoots = roots;

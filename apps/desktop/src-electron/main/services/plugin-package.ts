@@ -34,12 +34,10 @@ export type DistributionPackage =
   | { manifest: SkillPackageManifest };
 export const isTemplatePackage = (
   artifact: DistributionPackage
-): artifact is { manifest: TemplateManifest } =>
-  artifact.manifest.formatVersion !== 3 && isTemplateManifest(artifact.manifest);
+): artifact is { manifest: TemplateManifest } => isTemplateManifest(artifact.manifest);
 export const isSkillPackage = (
   artifact: DistributionPackage
-): artifact is { manifest: SkillPackageManifest } =>
-  artifact.manifest.formatVersion !== 3 && isSkillPackageManifest(artifact.manifest);
+): artifact is { manifest: SkillPackageManifest } => isSkillPackageManifest(artifact.manifest);
 
 /** 安装事务与扫描共用静态分发校验；纯模板不进入代码包求值链。 */
 export async function readDistributionPackage(
@@ -50,19 +48,16 @@ export async function readDistributionPackage(
   cache ??= sharedIntegrityCache;
   const value = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
   const manifest = readDesktopDistributionManifest(value);
-  if (manifest.formatVersion !== 3 && isTemplateManifest(manifest)) {
+  if (isTemplateManifest(manifest)) {
     const template = await readTemplatePackage(directory, clientVersion);
     return { manifest: template.manifest };
   }
-  if (manifest.formatVersion !== 3 && isSkillPackageManifest(manifest))
-    return readSkillPackage(directory, clientVersion, cache);
+  if (isSkillPackageManifest(manifest)) return readSkillPackage(directory, clientVersion, cache);
   return readPluginPackage(directory, clientVersion, cache);
 }
 
 export function readDesktopDistributionManifest(value: unknown) {
-  return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
-    ? readDesktopPluginManifest(value)
-    : validateDistributionManifest(value);
+  return validateDistributionManifest(value);
 }
 
 /** 读取包内文件只经此函数：解析真实路径后必须仍在包目录内，且是普通文件。 */

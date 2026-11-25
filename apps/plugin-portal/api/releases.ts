@@ -37,7 +37,7 @@ export interface ReleaseRow {
   published_at: string | null;
 }
 const desktopRelease = (alias: string) =>
-  `${alias}.format_version <> 3 AND COALESCE(json_extract(${alias}.content_json,'$.manifest.platform'),'desktop')='desktop'`;
+  `${alias}.format_version IN (1,2) AND COALESCE(json_extract(${alias}.content_json,'$.manifest.platform'),'desktop')='desktop'`;
 export const releaseDto = (row: ReleaseRow, env: Env): Release => ({
   systemReviewed: row.system_reviewed === 1,
   revokedAt: row.revoked_at ?? null,
@@ -184,7 +184,7 @@ function legacyVersions(data: CatalogData): Map<string, CatalogRow[]> {
   for (const [id, group] of data.versions) {
     const desktop = group.filter(
       row =>
-        row.format_version !== 3 &&
+        (row.format_version === 1 || row.format_version === 2) &&
         (!row.distribution_platform || row.distribution_platform === "desktop")
     );
     if (desktop.length) versions.set(id, desktop);

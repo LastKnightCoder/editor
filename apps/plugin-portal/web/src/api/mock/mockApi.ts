@@ -93,8 +93,7 @@ export function createMockApi(
           formatVersion: release.content.manifest.formatVersion,
           packageKind: distributionPackageKind(release.content.manifest),
           apiVersion: 1,
-          profile:
-            release.content.manifest.formatVersion === 3 ? release.content.manifest.profile : null,
+          profile: "profile" in release.content.manifest ? release.content.manifest.profile : null,
           targets: centerManifestTargets(release.content.manifest),
           publishedAt: release.publishedAt ?? "",
           size: release.size,
@@ -244,7 +243,10 @@ export function createMockApi(
             const version = {
               releaseId: release.id,
               version: release.version,
-              minAppVersion: release.content.manifest.minAppVersion ?? "",
+              minAppVersion:
+                release.content.manifest.platform === "desktop"
+                  ? (release.content.manifest.minAppVersion ?? "")
+                  : "",
               publishedAt: release.publishedAt!,
               size: release.size,
               sha256: release.sha256,

@@ -5,10 +5,10 @@ export interface Metadata {
   id: string;
   plugin_id: string;
   version: string;
-  format_version: 1 | 2 | 3;
+  format_version: 1 | 2 | 3 | 4;
   package_kind: "plugin" | "skills" | "template";
   distribution_platform: "desktop" | "portable";
-  profile: "web-v1" | null;
+  profile: "web-v1" | "desktop-v1" | null;
   targets_json: string;
   published_at: string;
   size: number;
@@ -30,7 +30,7 @@ const skillShape = (alias: string) =>
   `(${alias}.format_version=1 AND json_extract(${alias}.content_json,'$.manifest.apiVersion')=1 AND json_type(${alias}.content_json,'$.manifest.skills')='array' AND json_array_length(${alias}.content_json,'$.manifest.skills')>0 AND ${["main", "template", "backend", "format", "profile", "styles"].map(field => `json_type(${alias}.content_json,'$.manifest.${field}') IS NULL`).join(" AND ")})`;
 // 包类型来自实际结构，作者自填的 packageKind 不参与分发裁决。
 export const CURRENT_PACKAGE = `(r.format_version<>1 OR (${skillShape("r")} AND (json_extract(r.content_json,'$.manifest.platform')='desktop' OR (json_extract(r.content_json,'$.manifest.platform')='portable' AND json_type(r.content_json,'$.manifest.targets')='object'))) OR (json_extract(r.content_json,'$.manifest.platform')='desktop' AND json_type(r.content_json,'$.manifest.template')='object' AND json_type(r.content_json,'$.manifest.main') IS NULL))`;
-export const columns = `r.id,r.plugin_id,r.version,r.format_version,r.profile,r.targets_json,r.published_at,r.size,r.sha256,r.name,r.description,r.categories,r.keywords,r.repository,p.login,p.avatar_url,json_extract(r.content_json,'$.manifest.platform') AS distribution_platform,CASE WHEN ${skillShape("r")} THEN 'skills' WHEN r.format_version=1 AND json_type(r.content_json,'$.manifest.template')='object' THEN 'template' ELSE 'plugin' END AS package_kind`;
+export const columns = `r.id,r.plugin_id,r.version,r.format_version,r.profile,r.targets_json,r.published_at,r.size,r.sha256,r.name,r.description,r.categories,r.keywords,r.repository,p.login,p.avatar_url,json_extract(r.content_json,'$.manifest.platform') AS distribution_platform,CASE WHEN r.format_version=4 THEN json_extract(r.content_json,'$.manifest.kind') WHEN ${skillShape("r")} THEN 'skills' WHEN r.format_version=1 AND json_type(r.content_json,'$.manifest.template')='object' THEN 'template' ELSE 'plugin' END AS package_kind`;
 export const platformWhere =
   "(?='all' OR EXISTS(SELECT 1 FROM release_targets t WHERE t.release_id=r.id AND t.platform=?))";
 export const compare = (a: Metadata, b: Metadata) =>

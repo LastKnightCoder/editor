@@ -252,12 +252,12 @@ export function PluginDetailPage() {
             <Fact label="版本">
               <span className="font-tau-mono">v{manifest.version}</span>
             </Fact>
-            <Fact label="包格式">
+            <Fact label="包类型">
               {release.data.packageKind === "skills"
                 ? "独立 Skill 包"
-                : release.data.formatVersion === 3
-                  ? `跨端 · ${release.data.profile}`
-                  : "旧格式（仅桌面）"}
+                : release.data.packageKind === "template"
+                  ? "博客模板"
+                  : "应用插件"}
             </Fact>
             <Fact label="大小">{formatBytes(release.data.size)}</Fact>
             <Fact label="发布于">{formatTime(release.data.publishedAt)}</Fact>
@@ -293,12 +293,11 @@ export function PluginDetailPage() {
               compatible={null}
               compatibility={evaluateCenterCompatibility(release.data)}
             />
-            {release.data.formatVersion !== 3 &&
-              !(release.data.packageKind === "skills" && manifest.platform === "portable") && (
-                <p className="text-tau-sm text-ink-3 leading-[1.7]">
-                  也可以下载 ZIP，在桌面端插件页选择本地安装；本地安装的插件默认停用。
-                </p>
-              )}
+            {manifest.platform === "desktop" && (
+              <p className="text-tau-sm text-ink-3 leading-[1.7]">
+                也可以下载 ZIP，在桌面端插件页选择本地安装；本地安装的插件默认停用。
+              </p>
+            )}
           </div>
         </aside>
       </div>

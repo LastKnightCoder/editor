@@ -20,12 +20,14 @@ afterEach(async () => {
 
 function bundle(
   version: string,
-  options: { androidOnly?: boolean; minimum?: string; script?: boolean } = {}
+  options: { androidOnly?: boolean; minimum?: string; script?: boolean; unified?: boolean } = {}
 ) {
   const text = `---\nname: 写作\ndescription: 写作时使用\n---\n版本 ${version}`;
   const script = "throw new Error('安装和扫描不得执行Skill脚本');";
   const manifest = {
-    formatVersion: 1 as const,
+    ...(options.unified
+      ? { formatVersion: 4 as const, kind: "skills" as const }
+      : { formatVersion: 1 as const }),
     apiVersion: 1 as const,
     platform: "portable" as const,
     id,
@@ -34,7 +36,7 @@ function bundle(
     version,
     targets: {
       ...(!options.androidOnly ? { desktop: { minAppVersion: options.minimum ?? "0.60.4" } } : {}),
-      android: { minAppVersion: "0.2.13" },
+      android: { minAppVersion: options.unified ? "0.5.1" : "0.2.13" },
     },
     skills: ["writing"],
     integrity: {
@@ -59,17 +61,38 @@ function bundle(
   };
   return { manifest, bytes, source };
 }
-async function setup() {
+async function setup(clientVersion = "0.60.4") {
   const root = await mkdtemp(path.join(tmpdir(), "tau-portable-skill-"));
   roots.push(root);
   const directory = path.join(root, "plugins");
   const create = async () => {
-    const service = new PluginUpdates(directory, "0.60.4", { portableCenterOrigin: origin });
+    const service = new PluginUpdates(directory, clientVersion, { portableCenterOrigin: origin });
     await service.initialize();
     return service;
   };
   return { root, directory, create, service: await create() };
 }
+
+it("独立 Skill 升级统一协议保留脚本字节与静态类型，并可恢复原始清单", async () => {
+  const s = await setup("0.66.3");
+  const first = bundle("1.0.0", { script: true });
+  await s.service.stageRelease(first.bytes, first.source);
+  await s.service.apply(id, async () => true);
+  const original = await readFile(path.join(s.directory, id, "manifest.json"), "utf8");
+  const next = bundle("2.0.0", { script: true, unified: true, minimum: "0.66.3" });
+  await s.service.stageRelease(next.bytes, next.source);
+  await s.service.apply(id, async () => true);
+  const restarted = await s.create();
+  const current = await readDistributionPackage(path.join(s.directory, id), "0.66.3");
+  expect(isSkillPackage(current)).toBe(true);
+  expect(current).not.toHaveProperty("code");
+  expect(await readFile(path.join(s.directory, id, "skills/writing/scripts/run.js"), "utf8")).toBe(
+    "throw new Error('安装和扫描不得执行Skill脚本');"
+  );
+  await restarted.restore(id);
+  await s.create();
+  expect(await readFile(path.join(s.directory, id, "manifest.json"), "utf8")).toBe(original);
+});
 
 it("同一跨端独立Skill包在桌面沿用安装、更新、恢复与卸载，不进入代码插件", async () => {
   const s = await setup();

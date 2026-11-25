@@ -20,17 +20,41 @@ const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).dige
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
-function bundle(version: string, options: { minimum?: string; androidOnly?: boolean } = {}) {
+function bundle(
+  version: string,
+  options: { minimum?: string; androidOnly?: boolean; unified?: boolean; backend?: boolean } = {}
+) {
   const code = "throw new Error('静态安装与扫描不能执行插件代码')";
+  const backend = options.backend
+    ? {
+        entry: "backend.js",
+        runtime: "node" as const,
+        apiVersion: 1 as const,
+        scope: "application" as const,
+        activation: "on-demand" as const,
+        lifetime: "idle" as const,
+        reason: "连接本机工具",
+        systemAccess: [],
+      }
+    : undefined;
+  const runtime = options.unified
+    ? backend
+      ? {
+          formatVersion: 4 as const,
+          kind: "plugin" as const,
+          profile: "desktop-v1" as const,
+          backend,
+        }
+      : { formatVersion: 4 as const, kind: "plugin" as const, profile: "web-v1" as const }
+    : { formatVersion: 3 as const, profile: "web-v1" as const };
   const manifest = {
+    ...runtime,
     id,
     name: "跨端测试",
     description: "测试",
     version,
-    formatVersion: 3 as const,
     apiVersion: 1 as const,
     platform: "portable" as const,
-    profile: "web-v1" as const,
     format: "cjs" as const,
     main: "main.js",
     targets: {
@@ -41,15 +65,14 @@ function bundle(version: string, options: { minimum?: string; androidOnly?: bool
             },
           }
         : {}),
-      android: {
-        minAppVersion: "0.2.2",
-      },
+      ...(!backend ? { android: { minAppVersion: options.unified ? "0.5.1" : "0.2.2" } } : {}),
     },
-    integrity: { "main.js": hash(code) },
+    integrity: { "main.js": hash(code), ...(backend ? { "backend.js": hash(code) } : {}) },
   };
   const zip = new AdmZip();
   zip.addFile(`${id}/manifest.json`, Buffer.from(JSON.stringify(manifest)));
   zip.addFile(`${id}/main.js`, Buffer.from(code));
+  if (backend) zip.addFile(`${id}/backend.js`, Buffer.from(code));
   const bytes = zip.toBuffer();
   const source: Extract<LocalPluginSource, { kind: "center" }> = {
     kind: "center",
@@ -59,15 +82,16 @@ function bundle(version: string, options: { minimum?: string; androidOnly?: bool
     sha256: hash(bytes),
     manifest,
     apiOrigin: origin,
+    ...(backend ? { systemReviewed: true } : {}),
   };
   return { manifest, bytes, source };
 }
-async function setup() {
+async function setup(clientVersion = "0.59.1") {
   const root = await mkdtemp(path.join(tmpdir(), "tau-portable-install-"));
   roots.push(root);
   const directory = path.join(root, "plugins");
   const create = async () => {
-    const service = new PluginUpdates(directory, "0.59.1", { portableCenterOrigin: origin });
+    const service = new PluginUpdates(directory, clientVersion, { portableCenterOrigin: origin });
     await service.initialize();
     return service;
   };
@@ -97,6 +121,30 @@ it("格式 3 复用正式安装、扫描、待重启更新和备份恢复，原�
   expect((await restored.sources([id]))[id]).toEqual(first.source);
   await rm(path.join(s.root, "plugin-updates/backup-sources", `${id}.json`));
   await expect(restored.restore(id)).rejects.toThrow("固定插件中心");
+});
+it.each([false, true])("旧包更新为统一协议后可重开并恢复原包与来源，后台=%s", async backend => {
+  const s = await setup("0.66.3");
+  const first = bundle("1.0.0");
+  await s.service.stageRelease(first.bytes, first.source);
+  await s.service.apply(id, async () => true);
+  const originalManifest = await readFile(path.join(s.directory, id, "manifest.json"), "utf8");
+  const second = bundle("2.0.0", { unified: true, backend, minimum: "0.66.3" });
+  if (backend)
+    await expect(
+      s.service.stageRelease(second.bytes, { ...second.source, systemReviewed: false })
+    ).rejects.toThrow("系统能力审核");
+  await s.service.stageRelease(second.bytes, second.source);
+  await s.service.apply(id, async () => false);
+  const restarted = await s.create();
+  const current = await readPluginPackage(path.join(s.directory, id), "0.66.3");
+  expect(current.manifest.version).toBe("2.0.0");
+  expect((await restarted.sources([id]))[id]).toEqual(second.source);
+  await restarted.restore(id);
+  const restored = await s.create();
+  expect(await readFile(path.join(s.directory, id, "manifest.json"), "utf8")).toBe(
+    originalManifest
+  );
+  expect((await restored.sources([id]))[id]).toEqual(first.source);
 });
 it("错误平台、最低版本及发布清单/摘要不符均拒绝", async () => {
   const s = await setup();

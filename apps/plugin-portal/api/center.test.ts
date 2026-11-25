@@ -51,7 +51,8 @@ function zip(
     android: { minAppVersion: "0.2.0" },
   },
   desktopBackend = false,
-  editor = false
+  editor = false,
+  unified = false
 ) {
   const archive = new AdmZip(),
     code = "module.exports={};";
@@ -61,8 +62,9 @@ function zip(
     description: "跨端包",
     version,
     apiVersion: 1,
-    formatVersion: desktopBackend ? 2 : 3,
-    platform: desktopBackend ? "desktop" : "portable",
+    formatVersion: unified ? 4 : desktopBackend ? 2 : 3,
+    platform: desktopBackend && !unified ? "desktop" : "portable",
+    ...(unified ? { kind: "plugin" } : {}),
     format: "cjs",
     main: "main.js",
     categories: ["page"],
@@ -85,7 +87,11 @@ function zip(
       "main.js": digest(code),
       ...(desktopBackend ? { "backend.js": digest(code) } : {}),
     },
-    ...(desktopBackend ? { minAppVersion: "0.59.0" } : { profile: "web-v1", targets }),
+    ...(unified
+      ? { profile: desktopBackend ? "desktop-v1" : "web-v1", targets }
+      : desktopBackend
+        ? { minAppVersion: "0.59.0" }
+        : { profile: "web-v1", targets }),
   };
   archive.addFile("test.portable/manifest.json", Buffer.from(JSON.stringify(manifest)));
   archive.addFile("test.portable/main.js", Buffer.from(code));
@@ -174,6 +180,89 @@ beforeEach(() => {
 afterEach(() => {
   f.sqlite.close();
   vi.restoreAllMocks();
+});
+
+it("统一后台包必须经系统审核，旧宿主保持旧版且历史下载字节不变", async () => {
+  const oldBytes = zip("1.0.0", {}, true);
+  const old = await approve(oldBytes);
+  const bytes = zip("2.0.0", { desktop: { minAppVersion: "0.66.3" } }, true, false, true);
+  const submission = await stage(bytes);
+  expect(
+    (
+      await request(
+        `/v1/submissions/${submission}/review`,
+        {
+          revision: 1,
+          decision: "approve",
+          comment: "上架",
+          systemReviewConfirmed: false,
+        },
+        true
+      )
+    ).status
+  ).toBe(400);
+  const approval = await request(
+    `/v1/submissions/${submission}/review`,
+    {
+      revision: 1,
+      decision: "approve",
+      comment: "上架",
+      systemReviewConfirmed: true,
+    },
+    true
+  );
+  const current = (await approval.json()).data;
+  expect(approval.status).toBe(200);
+  const release = (await (await request(`/v2/releases/${current.release.id}`)).json()).data;
+  expect(release).toMatchObject({
+    packageKind: "plugin",
+    profile: "desktop-v1",
+    systemReviewed: true,
+    targets: { desktop: { minAppVersion: "0.66.3" } },
+  });
+  const oldHost = {
+    ...centerHost,
+    platform: "desktop",
+    appVersion: "0.66.3",
+    formatVersions: [1, 2, 3],
+  };
+  const resolved = async (host: unknown) =>
+    (await (await request("/v2/plugins/test.portable/resolve", { host })).json()).data;
+  expect((await resolved(oldHost)).release.releaseId).toBe(old.release.id);
+  expect(
+    (
+      await resolved({
+        ...oldHost,
+        formatVersions: [1, 2, 3, 4],
+        profiles: ["web-v1", "desktop-v1"],
+      })
+    ).release.releaseId
+  ).toBe(current.release.id);
+  for (const suffix of ["", "/download"])
+    expect((await request(`/v1/releases/${current.release.id}${suffix}`)).status).toBe(404);
+  const downloaded = await request(`/v1/releases/${old.release.id}/download`);
+  expect(digest(new Uint8Array(await downloaded.arrayBuffer()))).toBe(digest(oldBytes));
+  const currentDownload = await request(`/v2/releases/${current.release.id}/download`);
+  expect(digest(new Uint8Array(await currentDownload.arrayBuffer()))).toBe(digest(bytes));
+});
+
+it("统一 Skill 按类型和平台分发，带脚本包保留系统审核要求", async () => {
+  const targets = { android: { minAppVersion: "0.5.1" }, ios: { minAppVersion: "0.5.1" } };
+  const current = await approve(
+    skillZip({ script: true, manifest: { formatVersion: 4, kind: "skills", targets } })
+  );
+  const release = (await (await request(`/v2/releases/${current.release.id}`)).json()).data;
+  expect(release).toMatchObject({
+    packageKind: "skills",
+    profile: null,
+    targets,
+    systemReviewed: true,
+  });
+  const host = { ...centerHost, appVersion: "0.5.1", formatVersions: [1, 3, 4] };
+  const catalog = (await (await request("/v2/catalog/query", { platform: "android", host })).json())
+    .data;
+  expect(catalog.items[0].compatible.releaseId).toBe(current.release.id);
+  expect((await request(`/v1/releases/${current.release.id}/download`)).status).toBe(404);
 });
 
 it("格式1独立Skill按显式targets分发移动端，旧v1不会泄漏portable变体", async () => {

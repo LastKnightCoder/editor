@@ -45,7 +45,7 @@ function assertPortableSource(
 ) {
   if (artifact.manifest.platform !== "portable") return;
   if (!source) throw new Error("跨端包缺少安装来源");
-  if (artifact.manifest.formatVersion === 3)
+  if ("main" in artifact.manifest)
     assertDesktopPackageSource(
       artifact.manifest,
       source,

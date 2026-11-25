@@ -40,8 +40,7 @@ export function registerPluginPackage(
       const modules = await getModules();
       signal.throwIfAborted();
       const definition =
-        contentPluginLoaded(manifest.id) ||
-        (manifest.formatVersion !== 3 && isContentPlugin(manifest))
+        contentPluginLoaded(manifest.id) || isContentPlugin(manifest)
           ? contentPluginDefinition(artifact)
           : evaluateDesktopPluginPackage(artifact, modules, appVersion);
       if (hasPluginContent(definition)) {
@@ -63,7 +62,9 @@ export function registerPluginPackage(
                 style.textContent = artifact.css;
                 document.head.append(style);
                 context.register({ dispose: () => style.remove() });
-                context.signal.addEventListener("abort", () => style.remove(), { once: true });
+                context.signal.addEventListener("abort", () => style.remove(), {
+                  once: true,
+                });
               }
               await instance.activate(context);
             },

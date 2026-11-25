@@ -74,37 +74,45 @@ afterEach(async () => {
   await rm(mock.root, { recursive: true, force: true });
 });
 
-it("跨端独立Skill仅在声明桌面且满足版本时列出，不进入代码插件来源", async () => {
-  await writePackage(
-    "test.cross",
-    {
-      platform: "portable",
-      targets: { desktop: { minAppVersion: "0.60.0" }, android: { minAppVersion: "0.2.13" } },
-    },
-    ["writing"]
-  );
-  await writePackage(
-    "test.phone",
-    { platform: "portable", targets: { android: { minAppVersion: "0.2.13" } } },
-    ["phone"]
-  );
-  await writePackage(
-    "test.future",
-    { platform: "portable", targets: { desktop: { minAppVersion: "99.0.0" } } },
-    ["future"]
-  );
-  const skills = (await call("skill:list")) as Array<{ folderName: string; source: string }>;
-  expect(skills).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ folderName: "test.cross:writing", source: "package" }),
-    ])
-  );
-  expect(
-    skills.some(
-      skill => skill.folderName === "test.phone:phone" || skill.folderName === "test.future:future"
-    )
-  ).toBe(false);
-});
+it.each([1, 4])(
+  "独立 Skill 按桌面目标与最低版本列出，不进入代码插件来源，格式=%s",
+  async formatVersion => {
+    const header = formatVersion === 4 ? { formatVersion, kind: "skills" } : {};
+    const minimum = formatVersion === 4 ? "0.66.3" : "0.60.0";
+    const mobileMinimum = formatVersion === 4 ? "0.5.1" : "0.2.13";
+    await writePackage(
+      "test.cross",
+      {
+        platform: "portable",
+        ...header,
+        targets: { desktop: { minAppVersion: minimum }, android: { minAppVersion: mobileMinimum } },
+      },
+      ["writing"]
+    );
+    await writePackage(
+      "test.phone",
+      { platform: "portable", ...header, targets: { android: { minAppVersion: mobileMinimum } } },
+      ["phone"]
+    );
+    await writePackage(
+      "test.future",
+      { platform: "portable", ...header, targets: { desktop: { minAppVersion: "99.0.0" } } },
+      ["future"]
+    );
+    const skills = (await call("skill:list")) as Array<{ folderName: string; source: string }>;
+    expect(skills).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ folderName: "test.cross:writing", source: "package" }),
+      ])
+    );
+    expect(
+      skills.some(
+        skill =>
+          skill.folderName === "test.phone:phone" || skill.folderName === "test.future:future"
+      )
+    ).toBe(false);
+  }
+);
 
 it("跨端包的纯文档 Skill 继续列入桌面管理", async () => {
   const directory = await writePackage("test.portable", { format: "cjs", main: "main.js" }, [

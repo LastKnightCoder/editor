@@ -1,5 +1,6 @@
-import { validatePortableDistributionManifest } from "@tau/plugins/portable";
 import AdmZip from "adm-zip";
+import { assertMobilePermissions } from "@tau/plugins/portable";
+import { isWebPluginManifest } from "@tau/plugins/unified";
 import { inflateRawSync } from "node:zlib";
 import {
   validateDistributionManifest as validatePluginManifest,
@@ -49,10 +50,8 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
     if (manifests.length !== 1) throw new Error("ZIP 必须包含单层插件目录与 manifest.json");
     if (manifests[0].header.size > 65536) throw new Error("manifest 过大");
     const raw = JSON.parse(unpack(manifests[0]).toString("utf8"));
-    const manifest =
-      raw.formatVersion === 3
-        ? validatePortableDistributionManifest(raw)
-        : validatePluginManifest(raw);
+    const manifest = validatePluginManifest(raw);
+    if ("main" in manifest && isWebPluginManifest(manifest)) assertMobilePermissions(manifest);
     if (typeof raw.description !== "string" || !raw.description.trim())
       throw new Error("manifest.description必须为非空简介");
     if (manifest.platform === "desktop" && !manifest.minAppVersion)
@@ -95,14 +94,12 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
           throw new Error(`${name} 需要在开头的 front matter 中填写 description`);
       }
       if (
-        manifest.formatVersion !== 3 &&
         isTemplateManifest(manifest) &&
         name.startsWith(manifest.template.root + "/") &&
         /^(?:data|_tau|plugin-assets)(?:\/|$)/.test(name.slice(manifest.template.root.length + 1))
       )
         throw new Error("模板覆盖了协议资源目录");
       if (
-        manifest.formatVersion !== 3 &&
         isTemplateManifest(manifest) &&
         manifest.template.entries.some(entry => name === manifest.template.root + "/" + entry)
       )

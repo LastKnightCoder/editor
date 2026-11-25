@@ -323,7 +323,8 @@ fn manifest(root: &Path, plugin: &str) -> Result<(Value, String), String> {
     let value: Value = serde_json::from_slice(&bytes)
         .map_err(|_| fail("AI_INVALID_DECLARATION", "插件清单无效"))?;
     if value["id"] != plugin
-        || value["formatVersion"] != 3
+        || !(value["formatVersion"] == 3
+            || (value["formatVersion"] == 4 && value["kind"] == "plugin"))
         || value["platform"] != "portable"
         || value["profile"] != "web-v1"
     {
