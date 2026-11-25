@@ -31,6 +31,7 @@ export {
   usePageInstanceContext,
 } from "./pageLifecycle";
 export type { PageLifecycleHandlers, PagePhase, PageTransitionEventType } from "./pageLifecycle";
+export { usePageResourceEffect } from "./PageResourceScope";
 export type { SheetBackDismissOptions } from "./useSheetBackDismiss";
 export type { BackSource, Navigator, RouterState } from "./navigatorTypes";
 export type { RouteEntry, StackSnapshot } from "./core/stackMachine";

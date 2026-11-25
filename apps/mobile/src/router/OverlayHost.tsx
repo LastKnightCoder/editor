@@ -11,6 +11,8 @@ import { useRouterContext } from "./RouterProvider";
 import { PageInstanceProvider } from "./pageLifecycle";
 import type { PageInstanceContextValue } from "./pageLifecycle";
 import { PageStoreScope } from "./store/PageStoreScope";
+import { PageContentBoundary } from "./PageContentBoundary";
+import { PageResourceScope } from "./PageResourceScope";
 
 export function OverlayHost() {
   const { state, navigator } = useRouterContext();
@@ -39,23 +41,27 @@ export function OverlayHost() {
         };
         const Component = definition.component;
         return (
-          <Activity key={entry.id} mode={isActive ? "visible" : "hidden"}>
-            <PageInstanceProvider value={instanceValue}>
-              <PageStoreScope entry={entry}>
-                <div
-                  data-overlay-entry-id={entry.id}
-                  data-overlay-active={isActive ? "true" : "false"}
-                  aria-hidden={!isActive}
-                  inert={!isActive}
-                  style={{
-                    pointerEvents: isActive ? undefined : "none",
-                  }}
-                >
-                  <Component />
-                </div>
-              </PageStoreScope>
-            </PageInstanceProvider>
-          </Activity>
+          <PageResourceScope key={entry.id} visible={isActive}>
+            <Activity mode={isActive ? "visible" : "hidden"}>
+              <PageInstanceProvider value={instanceValue}>
+                <PageStoreScope entry={entry}>
+                  <div
+                    data-overlay-entry-id={entry.id}
+                    data-overlay-active={isActive ? "true" : "false"}
+                    aria-hidden={!isActive}
+                    inert={!isActive}
+                    style={{
+                      pointerEvents: isActive ? undefined : "none",
+                    }}
+                  >
+                    <PageContentBoundary onBack={() => void navigator.goBack("ui")}>
+                      <Component />
+                    </PageContentBoundary>
+                  </div>
+                </PageStoreScope>
+              </PageInstanceProvider>
+            </Activity>
+          </PageResourceScope>
         );
       })}
     </>

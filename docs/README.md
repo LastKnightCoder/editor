@@ -21,7 +21,7 @@
 | [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                         |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点、官网分发                                                                 |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                       |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                       |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、文档保活与页面错误恢复、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                               |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 统一包协议、历史包读取、桌面与移动插件宿主、应用生命周期、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
 | [plugin-windows.html](./architecture/plugin-windows.html)     | 桌面插件窗口模块与时序图                                                                                                                                 |
 

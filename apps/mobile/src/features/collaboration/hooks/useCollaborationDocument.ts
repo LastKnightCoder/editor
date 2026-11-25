@@ -11,6 +11,7 @@ import { IResourceService } from "@tau/shared/host-services";
 import * as tauri from "../../../services/tauri";
 import { collaborationManager } from "../core/manager";
 import { useCollaborationStore } from "../core/store";
+import { usePageResourceEffect } from "../../../router/PageResourceScope";
 
 /** 本地写入与远端更新共用同一个 origin 对象即可，editor 层据此区分投影写入 */
 
@@ -196,13 +197,13 @@ export default function useCollaborationDocument(
         : undefined,
     [binding]
   );
-  useEffect(() => () => tree?.dispose(), [tree]);
+  usePageResourceEffect(() => () => queueMicrotask(() => tree?.dispose()), [tree]);
   const [prepared, setPrepared] = useState<{
     binding: ContentCollaborationBinding;
     document: EditorDocument;
     revision: number;
   }>();
-  useEffect(() => {
+  usePageResourceEffect(() => {
     if (!binding || !tree || !runtime) return;
     let cancelled = false;
     void mobileContentPlugins

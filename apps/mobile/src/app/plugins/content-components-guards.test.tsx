@@ -1,4 +1,4 @@
-import { act } from "react";
+import { Activity, act, useEffect, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { createEditor, Transforms, type Descendant } from "slate";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import useLocalContentDocument, {
 import useCollaborationDocument from "../../features/collaboration/hooks/useCollaborationDocument";
 import { useCollabProjection } from "../../features/collaboration/hooks/useCollabProjection";
 import type { ContentDetailResponse } from "../../types";
+import { PageResourceScope } from "../../router/PageResourceScope";
 
 const io = vi.hoisted(() => ({
   read: vi.fn(),
@@ -276,4 +277,69 @@ it("共享投影定时及卸载清理都受当前授权约束", async () => {
   await close();
   expect(project).toHaveBeenCalledOnce();
   doc.destroy();
+});
+
+it("共享正文隐藏后重连保留输入和历史，关闭视图不销毁共享文档", async () => {
+  const { content, metadata } = await source();
+  const doc = await createNodeDocument(
+    { documentId: "room", baselineId: "base", epoch: 0 },
+    { title: "", bannerBg: "", bannerPosition: "center", content: content as ContentNode[] },
+    metadata.contracts ?? {}
+  );
+  io.runtime = {
+    doc,
+    info: { id: "room", role: "owner", status: "active", frozen: false },
+    nodeViews: {},
+  };
+  let editor: NodeTreeEditor | undefined;
+  function Body() {
+    const result = useCollaborationDocument("room");
+    const document = result.document;
+    const bound = useMemo(
+      () => document?.binding?.install(createEditor()) as NodeTreeEditor | undefined,
+      [document?.lineage]
+    );
+    useEffect(() => {
+      if (!bound || !document?.binding) return;
+      document.binding.connect(bound);
+      editor = bound;
+      return () => document.binding?.disconnect(bound);
+    }, [document, bound]);
+    return null;
+  }
+  const element = document.createElement("div");
+  document.body.append(element);
+  const root = createRoot(element);
+  const render = (hidden: boolean) =>
+    act(async () =>
+      root.render(
+        <PageResourceScope visible={!hidden}>
+          <Activity mode={hidden ? "hidden" : "visible"}>
+            <Body />
+          </Activity>
+        </PageResourceScope>
+      )
+    );
+  try {
+    await render(false);
+    await vi.waitFor(() => expect(editor?.nodeTree).toBeDefined());
+    const initial = editor!;
+    await act(async () =>
+      Transforms.insertText(initial, "甲", { at: { path: [0, 0], offset: 2 } })
+    );
+    await render(true);
+    await render(false);
+    expect(editor).toBe(initial);
+    expect(initial.nodeTree.read()[0].children?.[0].text).toBe("原文甲");
+    await act(async () => initial.undo());
+    expect(initial.nodeTree.read()[0].children?.[0].text).toBe("原文");
+    await act(async () => root.unmount());
+    expect(initial.nodeTree.isDisposed).toBe(true);
+    expect(doc.isDestroyed).toBe(false);
+  } finally {
+    await act(async () => root.unmount());
+    editor?.disposeNodeTree();
+    doc.destroy();
+    element.remove();
+  }
 });

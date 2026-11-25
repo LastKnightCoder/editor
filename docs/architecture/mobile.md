@@ -82,8 +82,9 @@ useBackHandler(() => {
 | entry 离开栈（pop）    | 卸载                        | onDestroy              | —                | 真正的销毁                                  |
 | LRU 逐出               | 卸载（内容 null）           | 恢复时 onInit 再次触发 | —                | DOM/state 丢失，query 缓存恢复数据          |
 
-注意：页面被压深（deeper）时组件 effect 被卸载是 React <Activity> 的既定语义——
-订阅/定时器等请放到 usePageLifecycle 的对应事件里管理，而非裸 useEffect。
+页面被压深（deeper）时 React `<Activity>` 会停止组件 effect。视图订阅、定时器与编辑器
+connect/disconnect 使用普通 effect；显示与恢复业务由 `usePageLifecycle` 的对应事件处理。
+文档会话的创建、装配与最终释放使用 `usePageResourceEffect`，不能把普通 effect 清理当成文档销毁。
 
 ## 保活与数据恢复
 
@@ -92,6 +93,23 @@ useBackHandler(() => {
   "每次全新"语义由页面 data 声明 `staleTime: 0` / `refetchOnResume: "always"` 表达（fresh 已摘除）
 - LRU：栈内保活页面上限 10（`MAX_LIVE_SCREENS`），超出卸载最久未访问页 DOM，数据仍在 query 缓存
 - 返回时刷新：`refetchOnResume` 声明，取代手写 leftDetailFromPreview effect
+
+`PageHost` 与 `OverlayHost` 在 `<Activity>` 外建立 `PageResourceScope`。每个资源 effect
+按调用位置和依赖持有创建结果；临时隐藏不执行资源清理，恢复时复用原会话与撤销历史。
+作用域的 `visible` 与对应 Activity 同步，并结合祖先作用域判断可见性；今天页插件卡片的嵌套 Activity
+同样建立作用域。可见页面内真正移除编辑器时立即释放对应资源，隐藏时则继续保留。
+依赖变化、内容被 LRU 淘汰、`keepAlive: "data"` 卸载内容或页面真正卸载时释放对应资源。
+本地正文、共享正文的树包装器及 Markdown 导入预览使用该作用域；共享文档只释放视图自身的树，
+不销毁协作管理器持有的 Y.Doc。非页面宿主的资源 effect 随组件挂载与卸载运行。
+
+本地正文关闭时先使未完成的加载失效，等待编辑器输入清理和本机日志队列写入，再释放资源来源、
+树与 Y.Doc。已经接受的输入按数据库身份和替换代数校验持久化，不因视图暂时隐藏而放弃保存。
+`localContentRetirement` 持有关闭失败的会话；再次打开同一数据库代数的正文时先重试旧会话收尾，
+成功后才读缓存，避免旧写入丢失或与新会话交错。加载结果交付前检查取消状态，已卸载的页面不重新挂载文档。
+
+每个 screen 与 overlay 的内容区由 `PageContentBoundary` 隔离渲染异常。异常后清理当前内容资源，
+保留页面层与返回仲裁，用户可返回或重试挂载；详细错误写入日志。页面边界与应用级兜底均使用面向用户的恢复提示，
+不在正式界面展示内部异常消息。
 
 ## overlay（浮层）
 

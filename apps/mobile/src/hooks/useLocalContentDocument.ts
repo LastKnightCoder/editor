@@ -27,6 +27,8 @@ import { mobileContentPlugins } from "../app/plugins/content";
 import { getMobileContentKit } from "../services/editorKit";
 import type { ContentDetailResponse } from "../types";
 import { toast } from "../components/toast";
+import { usePageResourceEffect } from "../router/PageResourceScope";
+import { flushRetiredLocalContent, retireLocalContent } from "../services/localContentRetirement";
 import { localHistoryApi, type HistoryApi } from "../features/collaboration/core/document-history";
 import {
   localizeFragmentResources,
@@ -67,7 +69,7 @@ export default function useLocalContentDocument(options: {
   const replacement = useSyncExternalStore(subscribeDatabaseReplacement, () =>
     databaseReplacementState(databaseName)
   );
-  const assertActive = () => {
+  const assertStorageActive = () => {
     const current = databaseReplacementState(databaseName);
     if (
       current.active ||
@@ -75,6 +77,9 @@ export default function useLocalContentDocument(options: {
       activeDatabase() !== databaseName
     )
       throw new Error("DATABASE_REPLACED: 当前正文已重新下载");
+  };
+  const assertActive = () => {
+    assertStorageActive();
     latest.current.guard?.();
   };
   const canWrite = () => {
@@ -125,7 +130,7 @@ export default function useLocalContentDocument(options: {
     document: LocalContentDocument;
     revision: number;
   }>();
-  useEffect(() => {
+  usePageResourceEffect(() => {
     const current = latest.current;
     if (replacement.active) {
       setLoaded(undefined);
@@ -140,6 +145,8 @@ export default function useLocalContentDocument(options: {
       tree: NodeTree | undefined;
     let dispose = () => {};
     let releaseResourceSource = () => {};
+    let flush = async () => {};
+    let retirementKey = "";
     setStorageError(undefined);
     const paths = new Map<string, string>();
     const contracts = current.metadata.contracts;
@@ -166,9 +173,15 @@ export default function useLocalContentDocument(options: {
       )
         throw new Error("正文来源身份尚未建立");
       const generation = await databaseGeneration(databaseName);
+      if (cancelled) return;
       assertActive();
       const cacheId = `local:${current.metadata.librarySourceId}:${current.metadata.documentId}${generation ? `:${generation}` : ""}`;
+      retirementKey = JSON.stringify([databaseName, replacement.version, cacheId]);
+      await flushRetiredLocalContent(retirementKey);
+      if (cancelled) return;
+      assertActive();
       let cached = await tauri.collabReadCache(cacheId);
+      if (cancelled) return;
       assertActive();
       const prepareResource = (path: string) => path;
       let doc: Y.Doc | undefined;
@@ -209,6 +222,7 @@ export default function useLocalContentDocument(options: {
           // 本机缓存可重建：读不出或与主库对不上时备份后按主库重建，不阻断编辑。
           doc?.destroy();
           doc = undefined;
+          if (cancelled) return;
           assertActive();
           await tauri.collabDiscardCache(
             cacheId,
@@ -258,6 +272,10 @@ export default function useLocalContentDocument(options: {
         };
       }
       metadata.source!.generation = generation;
+      if (cancelled) {
+        doc.destroy();
+        return;
+      }
       let tail = Promise.resolve();
       const pendingUpdates: Uint8Array[] = [];
       let historyAction: DocumentHistoryAction | undefined;
@@ -296,13 +314,12 @@ export default function useLocalContentDocument(options: {
           doc.destroy();
           return;
         }
-        tree = new NodeTree(doc);
         const persist = (update: Uint8Array = new Uint8Array()) => {
           if (update.byteLength) pendingUpdates.push(Uint8Array.from(update));
           tail = tail
             .catch(() => undefined)
             .then(async () => {
-              assertActive();
+              assertStorageActive();
               const updates = pendingUpdates.slice();
               const action = historyAction;
               const checkpoint =
@@ -344,7 +361,7 @@ export default function useLocalContentDocument(options: {
                 { allowLocalResources: true }
               );
               for (const draft of drafts) {
-                assertActive();
+                assertStorageActive();
                 await tauri.collabInputDraft({
                   ...draft,
                   documentId: cacheId,
@@ -352,7 +369,7 @@ export default function useLocalContentDocument(options: {
                   epoch: metadata.epoch,
                 });
               }
-              assertActive();
+              assertStorageActive();
               metadata.resourcePaths = Object.fromEntries(paths);
               await tauri.collabWriteCache({
                 documentId: cacheId,
@@ -371,7 +388,7 @@ export default function useLocalContentDocument(options: {
                     }
                   : undefined,
               });
-              assertActive();
+              assertStorageActive();
               pendingUpdates.splice(0, updates.length);
               if (updates.length) {
                 // 检查点间隔按记录条数计，合并进已有记录不计数
@@ -414,10 +431,10 @@ export default function useLocalContentDocument(options: {
         assertActive();
         if (cancelled) {
           dispose();
-          tree.dispose();
           doc.destroy();
           return;
         }
+        tree = new NodeTree(doc);
         const viewId = crypto.randomUUID();
         let sequence = 0;
         const preserveDraft: NonNullable<
@@ -449,7 +466,7 @@ export default function useLocalContentDocument(options: {
               })
             ),
         });
-        const flush = () => tail.catch(() => persist());
+        flush = () => tail.catch(() => persist());
         const history = localHistoryApi(
           cacheId,
           doc,
@@ -491,8 +508,11 @@ export default function useLocalContentDocument(options: {
             tree.contracts.toJSON() as ContentContractDictionary
           );
       } catch (failure) {
+        releaseResourceSource();
+        dispose();
         tree?.dispose();
         doc.destroy();
+        tree = undefined;
         throw failure;
       }
     })().catch(failure => {
@@ -505,14 +525,19 @@ export default function useLocalContentDocument(options: {
     });
     return () => {
       cancelled = true;
-      releaseResourceSource();
-      dispose();
-      tree?.dispose();
-      tree?.doc.destroy();
+      const session = tree;
+      if (!session) return;
+      retireLocalContent(retirementKey, async () => {
+        await flush();
+        releaseResourceSource();
+        dispose();
+        session.dispose();
+        session.doc.destroy();
+      });
     };
   }, [key, databaseName, replacement.version, replacement.active]);
 
-  useEffect(() => {
+  usePageResourceEffect(() => {
     if (!loaded || loaded.key !== key) return;
     let cancelled = false;
     const kit = options.kit ?? getMobileContentKit();

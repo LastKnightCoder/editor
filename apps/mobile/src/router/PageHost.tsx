@@ -38,6 +38,8 @@ import { useTabSwipeGesture, type TabSwipeDirection } from "./tabSwipeGesture";
 import { isTabRoot } from "./tabs";
 import { setTabSwipeOrigin } from "./tabSwipeOrigin";
 import { switchTabScreen } from "./switchTab";
+import { PageContentBoundary } from "./PageContentBoundary";
+import { PageResourceScope } from "./PageResourceScope";
 
 type ScreenSurface =
   | "active"
@@ -278,29 +280,33 @@ function PageLayer({
   );
 
   return (
-    <Activity mode={visible ? "visible" : "hidden"}>
-      <PageInstanceProvider value={instanceValue}>
-        <motion.div
-          initial={animateOnMount ? enterMotion.initial : false}
-          animate={controls}
-          exit={suppressExit ? undefined : exitMotion.exit}
-          inert={!isActive}
-          aria-hidden={!isActive}
-          data-page-entry-id={entry.id}
-          data-page-key={entry.key}
-          data-page-active={isActive ? "true" : "false"}
-          className="fixed inset-0"
-          style={{
-            zIndex,
-            pointerEvents: isActive ? undefined : "none",
-          }}
-        >
-          {contentHidden ? null : (
-            <PageStoreScope entry={entry}>{renderContent(entry)}</PageStoreScope>
-          )}
-        </motion.div>
-      </PageInstanceProvider>
-    </Activity>
+    <PageResourceScope active={!contentHidden} visible={visible}>
+      <Activity mode={visible ? "visible" : "hidden"}>
+        <PageInstanceProvider value={instanceValue}>
+          <motion.div
+            initial={animateOnMount ? enterMotion.initial : false}
+            animate={controls}
+            exit={suppressExit ? undefined : exitMotion.exit}
+            inert={!isActive}
+            aria-hidden={!isActive}
+            data-page-entry-id={entry.id}
+            data-page-key={entry.key}
+            data-page-active={isActive ? "true" : "false"}
+            className="fixed inset-0"
+            style={{
+              zIndex,
+              pointerEvents: isActive ? undefined : "none",
+            }}
+          >
+            {contentHidden ? null : (
+              <PageContentBoundary onBack={() => void navigator.goBack("ui")}>
+                <PageStoreScope entry={entry}>{renderContent(entry)}</PageStoreScope>
+              </PageContentBoundary>
+            )}
+          </motion.div>
+        </PageInstanceProvider>
+      </Activity>
+    </PageResourceScope>
   );
 }
 

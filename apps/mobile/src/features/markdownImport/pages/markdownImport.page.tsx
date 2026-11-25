@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FolderOpen, Layers, Newspaper } from "lucide-react";
 import { Editor, type EditorDocument } from "@tau/editor";
@@ -19,6 +19,7 @@ import { useInvalidateProjects, useProjectsQuery } from "../../projects/queries"
 import { createPageSchema, definePage, paramString, useNavigator, usePage } from "../../../router";
 import { parseIncomingMarkdown } from "../parseIncomingMarkdown";
 import type { Project } from "../../../types";
+import { usePageResourceEffect } from "../../../router/PageResourceScope";
 
 const markdownImportSchema = createPageSchema({
   title: paramString(""),
@@ -69,7 +70,7 @@ function MarkdownImportScreen() {
   });
   const [document, setDocument] = useState<EditorDocument>();
   const [previewError, setPreviewError] = useState<string>();
-  useEffect(() => {
+  usePageResourceEffect(() => {
     setDocument(undefined);
     setPreviewError(undefined);
     if (!parsed.data) return;

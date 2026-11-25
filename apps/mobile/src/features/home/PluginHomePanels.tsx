@@ -10,6 +10,7 @@ import type { MobilePluginHomePanel } from "../../app/plugins/runtime";
 import { toast } from "../../components/toast";
 import { usePage } from "../../router";
 import { usePageInstanceContext } from "../../router/pageLifecycle";
+import { PageResourceScope } from "../../router/PageResourceScope";
 
 function runAction(run: () => unknown) {
   const report = (error: unknown) =>
@@ -119,19 +120,21 @@ export function PluginHomePanels() {
   });
   return (
     // 浮层挂到全局容器以覆盖底部导航；首页退到后台时连同卡片一起隐藏并保留状态。
-    <Activity mode={phase === "active" ? "visible" : "hidden"}>
-      <UiHostProvider registerDismiss={registerBack}>
-        <div className="mt-3 grid grid-cols-2 gap-2.5 px-4">
-          {layout.map(({ panel, fullRow }) => (
-            <PanelCard
-              key={panel.id}
-              panel={panel}
-              fullRow={fullRow}
-              registerDismiss={registerDismiss}
-            />
-          ))}
-        </div>
-      </UiHostProvider>
-    </Activity>
+    <PageResourceScope visible={phase === "active"}>
+      <Activity mode={phase === "active" ? "visible" : "hidden"}>
+        <UiHostProvider registerDismiss={registerBack}>
+          <div className="mt-3 grid grid-cols-2 gap-2.5 px-4">
+            {layout.map(({ panel, fullRow }) => (
+              <PanelCard
+                key={panel.id}
+                panel={panel}
+                fullRow={fullRow}
+                registerDismiss={registerDismiss}
+              />
+            ))}
+          </div>
+        </UiHostProvider>
+      </Activity>
+    </PageResourceScope>
   );
 }
