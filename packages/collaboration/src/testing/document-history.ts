@@ -45,7 +45,8 @@ export function commitHistoryFixture(
   operationId: string,
   apply: () => void,
   actorId = "owner",
-  action?: { kind: "restore" | "undo"; target: number }
+  action?: { kind: "restore" | "undo"; target: number },
+  options?: { merge?: boolean; time?: number; source?: string }
 ) {
   const before = Y.encodeStateAsUpdate(live);
   const vector = Y.encodeStateVector(live);
@@ -53,12 +54,14 @@ export function commitHistoryFixture(
   const after = Y.encodeStateAsUpdate(live);
   history.append(historyIdentity.documentId, {
     operationId,
-    actor: { actorId, actorName: actorId },
+    actor: { actorId, actorName: actorId, source: options?.source },
     previousRevision: historyRevision(before),
     revision: historyRevision(after),
     before: () => before,
     after: () => after,
     update: Y.encodeStateAsUpdate(live, vector),
+    merge: options?.merge,
+    time: options?.time,
     ...action,
   });
 }

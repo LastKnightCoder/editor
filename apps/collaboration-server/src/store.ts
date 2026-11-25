@@ -349,6 +349,7 @@ export class CollaborationStore {
               before: () => beforeState,
               after: () => afterState,
               checkBytes: size => this.ensureCapacity(size + delta.byteLength),
+              merge: true,
             });
           }
           this.operations.advance(id);

@@ -84,6 +84,8 @@ export function recordClosedContent(
       before: () => state,
       after: () => current,
       sourceRevision: after.revision,
+      // 冷写每次都是独立整篇写入，不与上一条合并
+      merge: false,
     });
   } finally {
     tree.dispose();
@@ -126,6 +128,8 @@ export function importClosedContentHistory(
             after: () => current,
             time: row.time,
             sourceRevision: row.sourceRevision,
+            // 导入要逐条对应源端版本号
+            merge: false,
           });
         } finally {
           before.destroy();

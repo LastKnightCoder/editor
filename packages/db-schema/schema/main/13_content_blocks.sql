@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS document_history_payloads (
   PRIMARY KEY (document_id, sequence, part),
   FOREIGN KEY (document_id, sequence) REFERENCES document_history_entries(document_id, sequence) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS document_history_operations (
+  document_id TEXT NOT NULL,
+  operation_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL,
+  revision TEXT NOT NULL,
+  PRIMARY KEY (document_id, operation_id),
+  FOREIGN KEY (document_id, sequence) REFERENCES document_history_entries(document_id, sequence) ON DELETE CASCADE
+);
 CREATE INDEX IF NOT EXISTS idx_content_document_blocks_position
   ON content_document_blocks(content_id, position);
 CREATE INDEX IF NOT EXISTS idx_content_document_node_blocks_block

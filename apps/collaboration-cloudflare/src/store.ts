@@ -406,6 +406,7 @@ export class CollaborationStore {
               before: () => beforeState,
               after: () => afterState,
               checkBytes: size => this.ensureCapacity(size),
+              merge: true,
             });
           }
           this.operations.advance(id);

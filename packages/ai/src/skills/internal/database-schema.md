@@ -99,6 +99,17 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `part`        | `INTEGER NOT NULL` |
 | `state`       | `BLOB NOT NULL`    |
 
+### `document_history_operations`
+
+连续编辑合并后被归入同一版本的操作身份，用于重复送达与导入去重。
+
+| 字段           | SQLite 定义        |
+| -------------- | ------------------ |
+| `document_id`  | `TEXT NOT NULL`    |
+| `operation_id` | `TEXT NOT NULL`    |
+| `sequence`     | `INTEGER NOT NULL` |
+| `revision`     | `TEXT NOT NULL`    |
+
 ### `content_documents`
 
 正文的稳定身份、存储格式与不可变契约目录，与 `contents` 同归属；存储格式 2 为整篇快照、3 为分块，正文协作协议仍为 2。不要整列返回 `contracts`。

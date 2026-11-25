@@ -215,6 +215,7 @@ export class NodeSessionUpdates {
                       update: accepted ?? delta,
                       before: () => baseline,
                       after: () => candidateState,
+                      merge: true,
                     },
                   }
                 : undefined;

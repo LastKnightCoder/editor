@@ -96,6 +96,7 @@ export function restore(runtime: ContentSessionRuntime, info: CollaborationSessi
         update,
         before: () => before,
         after: () => after,
+        merge: true,
       });
     })();
   };

@@ -15,6 +15,10 @@ export interface DocumentHistoryEntry {
   target?: number;
   source?: string;
   sourceRevision?: string;
+  /** 合并单元的首次提交时间，未合并时与 time 相同 */
+  firstTime?: number;
+  /** 该版本合并了多少次后续提交，未合并时缺省 */
+  mergedCount?: number;
 }
 
 export type DocumentHistoryActor = Pick<DocumentHistoryEntry, "actorId" | "actorName" | "source">;
@@ -72,6 +76,11 @@ export interface TransferredDocumentHistoryVersion {
 const PART_BYTES = 512 * 1024;
 const CHECKPOINT_INTERVAL = 128;
 const CHECKPOINT_REPLAY_BYTES = 1024 * 1024;
+/** 相邻提交间隔不超过该值视为同一次连续编辑 */
+export const HISTORY_MERGE_IDLE_MS = 60_000;
+/** 单个合并单元的最长跨度，避免长时间连续书写挤成一条 */
+export const HISTORY_MERGE_SPAN_MS = 10 * 60_000;
+export const HISTORY_MERGE_MAX_UPDATES = 200;
 
 export interface DocumentHistoryWrite {
   operationId: string;
@@ -86,6 +95,8 @@ export interface DocumentHistoryWrite {
   before: () => Uint8Array;
   after: () => Uint8Array;
   checkBytes?: (bytes: number) => void;
+  /** 连续编辑并入上一条记录；冷写与历史导入必须显式关闭 */
+  merge?: boolean;
 }
 
 export const documentHistorySchema = `
@@ -106,6 +117,13 @@ CREATE TABLE IF NOT EXISTS document_history_payloads (
   part INTEGER NOT NULL,
   state BLOB NOT NULL,
   PRIMARY KEY(document_id,sequence,part)
+);
+CREATE TABLE IF NOT EXISTS document_history_operations (
+  document_id TEXT NOT NULL,
+  operation_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL,
+  revision TEXT NOT NULL,
+  PRIMARY KEY(document_id,operation_id)
 );
 `;
 
@@ -166,7 +184,10 @@ export class DocumentHistoryStore {
       id,
       operationId
     )[0];
-    return row && (JSON.parse(row.metadata) as DocumentHistoryEntry);
+    if (row) return JSON.parse(row.metadata) as DocumentHistoryEntry;
+    // 被合并掉的提交不再占独立版本，但仍需能认出它已写入（重复送达与导入去重）
+    const merged = this.savedOperation(id, operationId);
+    return merged && this.entry(id, merged.sequence);
   }
 
   undone(id: string, sequence: number): boolean {
@@ -183,6 +204,7 @@ export class DocumentHistoryStore {
 
   remove(id: string): void {
     this.sql.exec("DELETE FROM document_history_payloads WHERE document_id=?", id);
+    this.sql.exec("DELETE FROM document_history_operations WHERE document_id=?", id);
     this.sql.exec("DELETE FROM document_history_entries WHERE document_id=?", id);
   }
 
@@ -249,11 +271,7 @@ export class DocumentHistoryStore {
 
   append(id: string, write: DocumentHistoryWrite): void {
     if (write.previousRevision === write.revision) return;
-    const saved = this.sql.all<{ revision: string }>(
-      "SELECT revision FROM document_history_entries WHERE document_id=? AND operation_id=?",
-      id,
-      write.operationId
-    )[0];
+    const saved = this.savedOperation(id, write.operationId);
     if (saved) {
       if (saved.revision !== write.revision)
         throw historyError("HISTORY_IDENTITY_CONFLICT", "同一历史操作不能写入不同版本");
@@ -261,6 +279,11 @@ export class DocumentHistoryStore {
     }
     const now = write.time ?? Date.now();
     const head = this.head(id);
+    const target = head && write.merge ? this.mergeTarget(id, head, write, now) : undefined;
+    if (head && target) {
+      this.merge(id, head, write, now, target);
+      return;
+    }
     let sequence = (head?.sequence ?? -1) + 1;
     const reset = head?.revision !== write.previousRevision;
     const seed = reset ? write.before() : undefined;
@@ -300,6 +323,134 @@ export class DocumentHistoryStore {
     );
   }
 
+  /** 连续编辑的合并判定：同作者、同来源、未停顿、未越过回放与容量预算。 */
+  private mergeTarget(
+    id: string,
+    head: HistoryRow,
+    write: DocumentHistoryWrite,
+    now: number
+  ): { lastPart: number } | undefined {
+    if (head.revision !== write.previousRevision || write.update.byteLength === 0) return undefined;
+    if ((write.kind ?? "edit") !== "edit") return undefined;
+    const entry = JSON.parse(head.metadata) as DocumentHistoryEntry;
+    if (entry.kind !== "edit") return undefined;
+    if (entry.actorId !== write.actor.actorId || entry.source !== write.actor.source)
+      return undefined;
+    if (now < entry.time || now - entry.time > HISTORY_MERGE_IDLE_MS) return undefined;
+    if (now - (entry.firstTime ?? entry.time) > HISTORY_MERGE_SPAN_MS) return undefined;
+    if ((entry.mergedCount ?? 0) >= HISTORY_MERGE_MAX_UPDATES) return undefined;
+    const payload = this.sql.all<{ total: number; last: number | null }>(
+      `SELECT COALESCE(SUM(length(state)),0) AS total, MAX(part) AS last
+       FROM document_history_payloads WHERE document_id=? AND sequence=?`,
+      id,
+      head.sequence
+    )[0];
+    if (!payload) return undefined;
+    // 合并不再新增版本号，必须自己守住检查点触发阈值，回放成本才不被绕过
+    const replayBytes = head.checkpoint === head.sequence ? payload.total : head.byte_count;
+    if (replayBytes + write.update.byteLength > CHECKPOINT_REPLAY_BYTES) return undefined;
+    if (payload.total + write.update.byteLength > NODE_DOCUMENT_MAX_BYTES) return undefined;
+    return { lastPart: payload.last ?? -1 };
+  }
+
+  /** 并入 head：增量合进已有载荷，版本号、检查点与顺序不变。 */
+  private merge(
+    id: string,
+    head: HistoryRow,
+    write: DocumentHistoryWrite,
+    now: number,
+    target: { lastPart: number }
+  ): void {
+    const entry = JSON.parse(head.metadata) as DocumentHistoryEntry;
+    const tail = this.payloadTail(id, head.sequence, target.lastPart);
+    write.checkBytes?.(write.update.byteLength + (tail?.byteLength ?? 0) + 1024);
+    // 同一版本的分片在回放时按原字节流拼接，两段独立增量不能用字节拼接，只能交给 Yjs 合并
+    const state = tail ? Y.mergeUpdates([tail, write.update]) : write.update;
+    const firstPart = tail ? target.lastPart : target.lastPart + 1;
+    for (let offset = 0; offset < state.byteLength; offset += PART_BYTES) {
+      const chunk = state.slice(offset, offset + PART_BYTES);
+      const part = firstPart + offset / PART_BYTES;
+      if (tail && offset === 0)
+        this.sql.exec(
+          "UPDATE document_history_payloads SET state=? WHERE document_id=? AND sequence=? AND part=?",
+          chunk,
+          id,
+          head.sequence,
+          part
+        );
+      else
+        this.sql.exec(
+          "INSERT INTO document_history_payloads VALUES (?,?,?,?)",
+          id,
+          head.sequence,
+          part,
+          chunk
+        );
+    }
+    const merged: DocumentHistoryEntry = {
+      ...entry,
+      operationId: write.operationId,
+      time: now,
+      firstTime: entry.firstTime ?? entry.time,
+      mergedCount: (entry.mergedCount ?? 0) + 1,
+      sourceRevision: write.sourceRevision ?? entry.sourceRevision,
+    };
+    this.sql.exec(
+      "UPDATE document_history_entries SET operation_id=?,revision=?,byte_count=?,metadata=? WHERE document_id=? AND sequence=?",
+      write.operationId,
+      write.revision,
+      head.checkpoint === head.sequence ? 0 : head.byte_count + write.update.byteLength,
+      JSON.stringify(merged),
+      id,
+      head.sequence
+    );
+    this.saveOperation(id, write.operationId, head.sequence, write.revision);
+  }
+
+  /** 末尾分片未写满时继续用它，避免每次合并多占一片（导出分片数有上限）。 */
+  private payloadTail(id: string, sequence: number, lastPart: number): Uint8Array | undefined {
+    if (lastPart < 0) return undefined;
+    const row = this.sql.all<HistoryPayloadPart>(
+      "SELECT state FROM document_history_payloads WHERE document_id=? AND sequence=? AND part=?",
+      id,
+      sequence,
+      lastPart
+    )[0];
+    if (!row) return undefined;
+    const bytes = row.state instanceof Uint8Array ? row.state : new Uint8Array(row.state);
+    return bytes.byteLength < PART_BYTES ? bytes : undefined;
+  }
+
+  private savedOperation(
+    id: string,
+    operationId: string
+  ): { sequence: number; revision: string } | undefined {
+    const row = this.sql.all<{ sequence: number; revision: string }>(
+      "SELECT sequence,revision FROM document_history_operations WHERE document_id=? AND operation_id=?",
+      id,
+      operationId
+    )[0];
+    return (
+      row ??
+      // 兼容尚未记录到操作表的存量版本
+      this.sql.all<{ sequence: number; revision: string }>(
+        "SELECT sequence,revision FROM document_history_entries WHERE document_id=? AND operation_id=?",
+        id,
+        operationId
+      )[0]
+    );
+  }
+
+  private saveOperation(id: string, operationId: string, sequence: number, revision: string): void {
+    this.sql.exec(
+      "INSERT INTO document_history_operations VALUES (?,?,?,?) ON CONFLICT(document_id,operation_id) DO NOTHING",
+      id,
+      operationId,
+      sequence,
+      revision
+    );
+  }
+
   private insert(
     id: string,
     revision: string,
@@ -328,6 +479,7 @@ export class DocumentHistoryStore {
         offset / PART_BYTES,
         state.slice(offset, offset + PART_BYTES)
       );
+    this.saveOperation(id, entry.operationId, entry.sequence, revision);
   }
 
   replay(id: string, sequence: number): Y.Doc {
