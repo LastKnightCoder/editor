@@ -47,7 +47,7 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  private var lastKeyboardHeight = Int.MIN_VALUE
+  private var lastKeyboardBounds: Pair<Int, Int>? = null
   private var lastSafeInsets = ""
   private var pendingIncomingPath: String? = null
 
@@ -62,26 +62,25 @@ class MainActivity : TauriActivity() {
   }
 
   private fun publishKeyboardHeight(height: Int) {
-    if (height == lastKeyboardHeight) {
-      return
-    }
-    lastKeyboardHeight = height
-    val js = """
-      (function () {
-        try {
-          var rawHeight = $height;
+    val webView = resolveWebView() ?: return
+    webView.post {
+      val location = IntArray(2)
+      webView.getLocationInWindow(location)
+      // adjustResize 可能已缩短 WebView；键盘上沿始终以整个窗口为参照。
+      val keyboardTop = max(0, window.decorView.height - height - location[1])
+      val bounds = height to keyboardTop
+      if (bounds == lastKeyboardBounds) return@post
+      lastKeyboardBounds = bounds
+      val js = """
+        (function () {
           var dpr = Math.max(1, Number(window.devicePixelRatio || 1));
-          var cssHeight = Math.max(0, Math.round(rawHeight / dpr));
-          var inner = Math.max(0, Math.round(window.innerHeight || 0));
-          var clampedCssHeight = Math.max(0, Math.min(cssHeight, Math.max(0, inner - 1)));
-          window.__TAU_NATIVE_KB_HEIGHT_RAW = rawHeight;
-          window.__TAU_NATIVE_KB_HEIGHT = clampedCssHeight;
-          window.dispatchEvent(new CustomEvent('tau:native-kb-height', { detail: { height: clampedCssHeight, rawHeight: rawHeight, dpr: dpr } }));
-        } catch (_) {}
-      })();
-    """.trimIndent()
-    val webView = resolveWebView()
-    webView?.post {
+          var cssHeight = Math.round($height / dpr);
+          window.__TAU_NATIVE_KB_HEIGHT_RAW = $height;
+          window.__TAU_NATIVE_KB_HEIGHT = cssHeight;
+          window.__TAU_NATIVE_KB_TOP = Math.round($keyboardTop / dpr);
+          window.dispatchEvent(new CustomEvent('tau:native-kb-height', { detail: { height: cssHeight, rawHeight: $height, dpr: dpr } }));
+        })();
+      """.trimIndent()
       webView.evaluateJavascript(js, null)
     }
   }
@@ -201,10 +200,10 @@ class MainActivity : TauriActivity() {
       publishSafeInsets(bars.top, bars.bottom)
       insets
     }
-    rootView.post {
-      publishKeyboardHeight(0)
-      ViewCompat.requestApplyInsets(rootView)
+    rootView.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+      if (bottom - top != oldBottom - oldTop) ViewCompat.requestApplyInsets(rootView)
     }
+    rootView.post { ViewCompat.requestApplyInsets(rootView) }
     // 配置变更重建时 intent 不变，只在首次创建时接收，避免同一文件重复弹出导入页
     if (savedInstanceState == null) {
       receiveIncomingFile(intent)

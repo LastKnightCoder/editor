@@ -14,7 +14,7 @@ const NATIVE_KEYBOARD_EVENT = "tau:native-kb-height";
 
 type WindowWithNativeKeyboard = Window & {
   __TAU_NATIVE_KB_HEIGHT?: unknown;
-  __TAU_NATIVE_KB_HEIGHT_RAW?: unknown;
+  __TAU_NATIVE_KB_TOP?: unknown;
 };
 
 function resolveDeepActiveElement(): HTMLElement | null {
@@ -53,17 +53,6 @@ function hasKeyboardEditableFocus(): boolean {
   return isKeyboardFocusableElement(activeElement);
 }
 
-function readNativeKeyboardHeight(): number | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const value = (window as WindowWithNativeKeyboard).__TAU_NATIVE_KB_HEIGHT;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return null;
-  }
-  return Math.max(0, Math.round(value));
-}
-
 function getLayoutViewportHeight(): number {
   if (typeof window === "undefined") {
     return 0;
@@ -73,20 +62,32 @@ function getLayoutViewportHeight(): number {
 
 function toKeyboardViewportState(previous: KeyboardViewportState): KeyboardViewportState {
   const layoutViewportHeight = getLayoutViewportHeight();
-  const nativeKeyboardHeight = readNativeKeyboardHeight();
-  const normalizedNativeKeyboardHeight =
-    nativeKeyboardHeight === null
-      ? null
-      : Math.max(0, Math.min(layoutViewportHeight, nativeKeyboardHeight));
-  const visualViewport = window.visualViewport;
-
-  if (!visualViewport) {
-    const keyboardHeight = normalizedNativeKeyboardHeight ?? 0;
+  const native = window as WindowWithNativeKeyboard;
+  const nativeHeight = native.__TAU_NATIVE_KB_HEIGHT;
+  if (typeof nativeHeight === "number" && Number.isFinite(nativeHeight)) {
+    const keyboardHeight = Math.max(0, Math.round(nativeHeight));
+    const keyboardTop = native.__TAU_NATIVE_KB_TOP;
+    const visibleHeight =
+      typeof keyboardTop === "number" && Number.isFinite(keyboardTop)
+        ? Math.min(layoutViewportHeight, keyboardTop)
+        : layoutViewportHeight - keyboardHeight;
     return {
       viewportTop: 0,
-      viewportHeight: Math.max(1, layoutViewportHeight - keyboardHeight),
+      viewportHeight: keyboardHeight
+        ? Math.max(1, Math.round(visibleHeight))
+        : layoutViewportHeight,
       keyboardHeight,
       isKeyboardVisible: keyboardHeight > 0,
+    };
+  }
+
+  const visualViewport = window.visualViewport;
+  if (!visualViewport) {
+    return {
+      viewportTop: 0,
+      viewportHeight: layoutViewportHeight,
+      keyboardHeight: 0,
+      isKeyboardVisible: false,
     };
   }
 
@@ -106,22 +107,17 @@ function toKeyboardViewportState(previous: KeyboardViewportState): KeyboardViewp
     }
   }
 
-  const keyboardHeightByViewport = isScaled
+  const keyboardHeight = isScaled
     ? previous.keyboardHeight
     : Math.max(0, Math.round(baseHeight - viewportBottom));
-  const keyboardHeight =
-    normalizedNativeKeyboardHeight ?? Math.max(0, Math.round(keyboardHeightByViewport));
-  const viewportBaseHeight =
-    normalizedNativeKeyboardHeight === null ? baseHeight : layoutViewportHeight;
-  // 只有键盘弹出且走 visualViewport 推算时才有平移；收键盘后 iOS 可能残留 offsetTop，不跟随
+  // 收键盘后 iOS 可能残留 offsetTop，不跟随。
   const viewportTop =
-    normalizedNativeKeyboardHeight !== null || keyboardHeight === 0
+    keyboardHeight === 0
       ? 0
       : isScaled
         ? previous.viewportTop
         : Math.max(0, Math.round(visualViewport.offsetTop));
-
-  const viewportHeight = Math.max(1, Math.round(viewportBaseHeight - keyboardHeight - viewportTop));
+  const viewportHeight = Math.max(1, Math.round(baseHeight - keyboardHeight - viewportTop));
 
   return {
     viewportTop,

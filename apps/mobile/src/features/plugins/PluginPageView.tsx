@@ -36,16 +36,18 @@ export function PluginPageShell({
     [navigator, entryId, phase]
   );
   return (
-    <div className="mobile-kb-screen bg-page fixed inset-0 flex flex-col pb-[var(--mobile-screen-safe-bottom)]">
-      <PageHeader title={title} onBack={() => void navigator.goBack("ui")} actions={actions}>
-        {header}
-      </PageHeader>
-      <div className="min-h-0 flex-1 overflow-auto overscroll-y-contain px-4">
-        <PortalScope>
-          <UiHostProvider registerDismiss={registerDismiss}>
-            <UiProvider className="contents">{children}</UiProvider>
-          </UiHostProvider>
-        </PortalScope>
+    <div className="bg-page fixed inset-0">
+      <div className="mobile-kb-screen flex flex-col pb-[var(--mobile-screen-safe-bottom)]">
+        <PageHeader title={title} onBack={() => void navigator.goBack("ui")} actions={actions}>
+          {header}
+        </PageHeader>
+        <div className="min-h-0 flex-1 overflow-auto overscroll-y-contain px-4">
+          <PortalScope>
+            <UiHostProvider registerDismiss={registerDismiss}>
+              <UiProvider className="contents">{children}</UiProvider>
+            </UiHostProvider>
+          </PortalScope>
+        </div>
       </div>
     </div>
   );

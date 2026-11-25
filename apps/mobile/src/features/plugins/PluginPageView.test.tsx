@@ -73,7 +73,9 @@ it("损坏的历史页面参数只显示页内错误，参数恢复后可以重�
     expect(container.querySelector(".mobile-page-scroll")).toBeNull();
     expect(container.querySelector(".overflow-auto")).not.toBeNull();
     expect(
-      container.firstElementChild?.classList.contains("pb-[var(--mobile-screen-safe-bottom)]")
+      container
+        .querySelector(".mobile-kb-screen")
+        ?.classList.contains("pb-[var(--mobile-screen-safe-bottom)]")
     ).toBe(true);
   } finally {
     await act(async () => root.unmount());

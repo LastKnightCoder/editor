@@ -340,6 +340,55 @@ describe("useKeyboardViewportState", () => {
     });
   });
 
+  it.each([true, false])(
+    "Android 已收缩的 WebView 不再重复扣键盘高度（visualViewport=%s）",
+    async hasVisualViewport => {
+      const native = window as Window & {
+        __TAU_NATIVE_KB_HEIGHT?: number;
+        __TAU_NATIVE_KB_TOP?: number;
+      };
+      const root = createRoot(document.body.appendChild(document.createElement("div")));
+      let latestState = null as KeyboardViewportState | null;
+      try {
+        setWindowInnerHeight(900);
+        const visual = createMockVisualViewport({ height: 900, offsetTop: 0, scale: 1 });
+        Object.defineProperty(window, "visualViewport", {
+          configurable: true,
+          value: hasVisualViewport ? visual : undefined,
+        });
+        native.__TAU_NATIVE_KB_HEIGHT = 0;
+        await act(async () =>
+          root.render(
+            <HookProbe
+              onState={state => {
+                latestState = state;
+              }}
+            />
+          )
+        );
+        // 输入法占 360px，WebView 可能由系统先收缩一部分，也可能完全缩到键盘上沿。
+        for (const height of [900, 700, 540]) {
+          setWindowInnerHeight(height);
+          visual.setMetrics({ height: 540 });
+          native.__TAU_NATIVE_KB_HEIGHT = 360;
+          native.__TAU_NATIVE_KB_TOP = 540;
+          window.dispatchEvent(new Event("resize"));
+          await flushRaf();
+          expect(latestState).toMatchObject({ viewportHeight: 540, keyboardHeight: 360 });
+        }
+        setWindowInnerHeight(900);
+        native.__TAU_NATIVE_KB_HEIGHT = 0;
+        visual.setMetrics({ height: 900 });
+        window.dispatchEvent(new Event("tau:native-kb-height"));
+        await flushRaf();
+        expect(latestState).toMatchObject({ viewportHeight: 900, isKeyboardVisible: false });
+      } finally {
+        await act(async () => root.unmount());
+        delete native.__TAU_NATIVE_KB_TOP;
+      }
+    }
+  );
+
   it("native 键盘高度存在时应优先生效", async () => {
     setWindowInnerHeight(900);
     const visualViewport = createMockVisualViewport({
