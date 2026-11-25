@@ -75,7 +75,7 @@ HTTP 普通编辑在取得逐文档队列执行权后才加载完整文档，排
 
 ## 白板文档与编辑回执
 
-白板使用同一节点身份、删除标记、多富文本根、宿主历史和实体引用契约。仓库内的白板共享协议为 3，meta 固定 kind=whiteboard、documentId、baselineId、epoch；业务模型仍使用 whiteboard-w1-v1。`document-adapter` 按协议选择正文或白板候选校验、投影和资源扫描，不把白板解读为空正文。白板富文本根复用 `validateNodeTree`；普通增量不能修改种类、基线、契约或重建既有记录/文字根。Node 与 Worker 的发布、WebSocket 接纳和 HTTP 编辑提交均通过此适配器，权限、epoch 与写队列复用公共实现。
+白板使用同一节点身份、删除标记、多富文本根、宿主历史和实体引用契约。仓库内的白板共享协议为 3，meta 固定 kind=whiteboard、documentId、baselineId、epoch；业务模型仍使用 whiteboard-w1-v1。`document-adapter` 按协议选择正文或白板候选校验、投影和资源扫描，不把白板解读为空正文。白板富文本根复用 `validateNodeTree`；普通增量不能修改种类、基线、已有契约内容或重建既有记录/文字根。元素契约身份只允许 host.whiteboard 的 column 从 dataVersion 1 到 2 的受限过渡及其撤销：两份契约除版本与 canBeContained 从 false 到 true 外必须完全一致，类型、布局类别、正文、字段和资源均不能变化；fieldBindings 始终不可替换。旧分栏通过用户的收纳动作在同批升级，打开文档不自动改写。Node 与 Worker 的发布、WebSocket 接纳和 HTTP 编辑提交均通过此适配器，权限、epoch 与写队列复用公共实现。
 
 普通编辑与整文档修订条件提交走 `/v1/documents/:id/operations/:operationId`，GET 查询终态、POST 提交，`/cancel` 受控取消。请求绑定 epoch/baselineId/version、增量摘要和截止时间；条件请求同时绑定 expectedRevision（完整 CRDT 摘要）与 expectedSequence（服务端单调修订）。`DocumentOperationLedger` 使用 PENDING/COMMITTED/ABORTED/EXPIRED 终态语义，回执、协议修订与正式增量在同一事务中提交。重复 ID 只能使用原指纹；缺依赖保留 PENDING 并返回 MISSING_DEPENDENCIES，不修改确认基线、不推进修订；取消、过期或修订冲突不安装候选。普通条件操作保留 epoch；服务端不提供整份 CRDT 基线的格式升级入口，不允许正文与白板互换种类。
 

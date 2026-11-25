@@ -1,3 +1,4 @@
+import { matchesCanvasContract } from "./types";
 import type { WhiteboardContractEntry } from "./catalog";
 import type Board from "../Board";
 import { canvasElement } from "./projection";
@@ -48,7 +49,7 @@ export function canEditElement(binding: CanvasBinding, id: string): boolean {
       !binding.board?.extensions?.isHostElement(node.type))
   )
     return false;
-  return identity.contractId === binding.options.types[node.type]?.contractId;
+  return matchesCanvasContract(binding.options.types[node.type], identity.contractId);
 }
 
 export function entryInstalled(binding: CanvasBinding, entry: WhiteboardContractEntry): boolean {
@@ -61,7 +62,7 @@ export function supportsElement(binding: CanvasBinding, id: string): boolean {
   const entry = binding.options.catalog?.get(node.contractId);
   return entry
     ? entryInstalled(binding, entry) && entry.access !== "none"
-    : binding.options.types[node.type]?.contractId === node.contractId;
+    : matchesCanvasContract(binding.options.types[node.type], node.contractId);
 }
 
 export function resolveElementDefinition(binding: CanvasBinding, contractId: string) {

@@ -1,3 +1,4 @@
+import { canUpgradeColumnContract } from "./column-contract-upgrade";
 import { WhiteboardPresentations } from "./whiteboard-presentation";
 import { isContentEntityReference } from "@tau/db-schema/content-identities";
 import * as Y from "yjs";
@@ -465,7 +466,7 @@ export class WhiteboardModel {
     return { isolated };
   }
 
-  /** 大批导入分段预检，最终以一个增量进入当前视图历史。 */
+  /** 大操作在隔离候选内按预算分批，最终以一个增量进入当前视图历史。 */
   submitChunks(
     commands: readonly WhiteboardModelCommand[],
     origin: unknown,
@@ -475,7 +476,7 @@ export class WhiteboardModel {
       preserveIds?: boolean;
       body: readonly import("./protocol").ContentNode[];
     }[] = []
-  ): void {
+  ): { readonly createdIds: readonly string[] } {
     this.active();
     if (this.doc.store.pendingStructs || this.doc.store.pendingDs)
       throw new Error("白板缺少先行结构");
@@ -485,6 +486,7 @@ export class WhiteboardModel {
       candidate = this.clone();
     const initialClock = Y.getState(this.doc.store, this.doc.clientID);
     const ranges: { client: number; clock: number; len: number }[] = [];
+    const createdIds: string[] = [];
     const remember = (transaction: Y.Transaction) =>
       ranges.push(...nodeInitializationRanges(transaction));
     candidate.doc.on("afterTransaction", remember);
@@ -496,12 +498,12 @@ export class WhiteboardModel {
           (batch.length >= WHITEBOARD_LIMITS.commandsPerBatch ||
             bytes([...batch, command]) > WHITEBOARD_LIMITS.batchBytes)
         ) {
-          candidate.submit(batch, origin, prepared);
+          createdIds.push(...candidate.submit(batch, origin, prepared).createdIds);
           batch = [];
         }
         batch.push(command);
       }
-      if (batch.length) candidate.submit(batch, origin, prepared);
+      if (batch.length) createdIds.push(...candidate.submit(batch, origin, prepared).createdIds);
       const bodyIds = new Set<string>();
       for (const entry of initialBodies) {
         if (this.elements.has(entry.id) || bodyIds.has(entry.id))
@@ -541,6 +543,7 @@ export class WhiteboardModel {
         // 候选来自本机操作，须让保存监听器与历史继续把本次合入视为本地编辑。
         transaction.local = true;
       }, origin);
+      return Object.freeze({ createdIds: Object.freeze(createdIds) });
     } finally {
       candidate.doc.off("afterTransaction", remember);
       candidate.dispose();
@@ -1136,6 +1139,24 @@ export class WhiteboardModel {
         });
         return;
       }
+      case "upgrade_column": {
+        keys(command, ["type", "id", "contractId"]);
+        const record = this.live(this.elements, command.id);
+        const next = this.contracts.get(command.contractId);
+        const identity = record.get("identity") as { contractId: string };
+        if (
+          identity.contractId === command.contractId &&
+          next?.domain === "whiteboard-element" &&
+          next.owner === "host.whiteboard" &&
+          next.type === "column" &&
+          next.dataVersion === 2
+        )
+          return;
+        if (!canUpgradeColumnContract(this.contract(record), next))
+          throw new Error("分栏契约升级无效");
+        record.set("identity", { type: "column", contractId: command.contractId });
+        return;
+      }
       case "move_node": {
         keys(command, ["type", "id", "parent", "beforeId", "afterId"]);
         const record = this.live(this.elements, command.id),
@@ -1627,13 +1648,21 @@ export class WhiteboardModel {
           fields.some(field => !same(record.get(field), other.get(field)))
         )
           throw new Error("远端不能重建稳定记录");
-        if (
-          pool === this.elements &&
-          ["identity", "fieldBindings"].some(
-            field => !sharedValueEquals(record.get(field), other.get(field))
+        if (pool === this.elements) {
+          const before = record.get("identity") as { type: string; contractId: string };
+          const after = other.get("identity") as { type: string; contractId: string };
+          const previousContract = this.contracts.get(before.contractId);
+          const nextContract = candidate.contracts.get(after.contractId);
+          const upgrade =
+            before.type === after.type &&
+            (canUpgradeColumnContract(previousContract, nextContract) ||
+              canUpgradeColumnContract(nextContract, previousContract));
+          if (
+            (!sharedValueEquals(before, after) && !upgrade) ||
+            !sharedValueEquals(record.get("fieldBindings"), other.get("fieldBindings"))
           )
-        )
-          throw new Error("远端不能改写元素身份或文字绑定");
+            throw new Error("远端不能改写元素身份或文字绑定");
+        }
       }
     for (const [key, text] of this.strings)
       if (!same(text, candidate.strings.get(key))) throw new Error("远端不能重建文字根");

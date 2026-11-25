@@ -14,7 +14,7 @@ import type {
   MindNodeElement,
   Operation,
 } from "../../types";
-import { ColumnUtil, FrameUtil, MindUtil } from "../../utils";
+import { BoardUtil, ColumnUtil, FrameUtil, MindUtil } from "../../utils";
 import { constrainCreateGeometry } from "../../interactions/createGesture";
 
 /** 旧 useCreateFrame 的最小创建尺寸（画布单位） */
@@ -24,7 +24,6 @@ export const FRAME_CREATE_MIN_SIZE = 10;
  * 旧 useCreateFrame 的收纳判定（纯函数）：只看根层候选，排除 frame 与 arrow，
  * 并按能力查询（api.canContain("frame", …)）排除声明 canBeContained:false 的元素，
  * 与 frame（含 padding 容差）交集占元素面积 50% 以上算被框住（containmentPolicy "partial"）。
- * column 的 canBeContained:false 与"新框架可收纳 column"的旧规则冲突，此处例外放行。
  */
 export function collectFrameChildren(
   api: WhiteboardAPI,
@@ -35,7 +34,7 @@ export function collectFrameChildren(
     element =>
       element.type !== "frame" &&
       element.type !== "arrow" &&
-      (element.type === "column" || api.canContain("frame", element)) &&
+      api.canContain("frame", element) &&
       FrameUtil.isElementInFrame(element, frame)
   );
 }
@@ -74,7 +73,7 @@ const underMinSize = (width: number, height: number) =>
 
 /**
  * frame 创建手势（CustomCreateGesture）：拖动中只预览（frame + 高亮将被收纳元素），
- * 松手时一次性返回带 children 的 frame 与“从根层原位移除被收纳元素”的 remove_node 操作，
+ * 松手时创建空 frame，再以 move_node 保留被收纳元素的身份，
  * 与插入同属一个撤销步；不足 10×10 不创建。
  */
 export const frameCreateGesture: CustomCreateGesture = {
@@ -110,16 +109,20 @@ export const frameCreateGesture: CustomCreateGesture = {
           .map(getElementBounds)
           .filter((bounds): bounds is ElementBounds => bounds !== null);
         const bounds = FrameUtil.calculateFrameBoundsFromBounds(state.frame, childBounds);
-        const frame: FrameElement = { ...state.frame, ...bounds, children: state.captured };
-
-        // 被收纳元素从根层原位移除（倒序删除避免路径位移），与插入同一个撤销步
-        const rootChildren = endCtx.api.children;
+        const frame: FrameElement = { ...state.frame, ...bounds, children: [] };
         const capturedIds = new Set(state.captured.map(element => element.id));
+        const rootChildren = endCtx.api.children;
         const operations: Operation[] = [];
         for (let index = rootChildren.length - 1; index >= 0; index--) {
-          if (!capturedIds.has(rootChildren[index].id)) continue;
-          operations.push({ type: "remove_node", path: [index], node: rootChildren[index] });
+          if (capturedIds.has(rootChildren[index].id))
+            operations.push({
+              type: "move_node",
+              path: [index],
+              newPath: [rootChildren.length - operations.length, 0],
+            });
         }
+        // 目标容器由前置 insert_node 创建，后续路径使用逐步执行时的坐标。
+        BoardUtil.normalizeOperations(operations);
         return operations.length ? { element: frame, operations } : frame;
       },
     };

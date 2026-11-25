@@ -548,18 +548,33 @@ export class ColumnUtil {
     this.relayout(board, latestColumn);
   }
 
-  /**
-   * Dissolve column - move children to board root and remove column
-   */
+  /** 只恢复已有尺寸字段，避免向文档卡等元素写入富文本专属属性。 */
+  static releaseChild(element: BoardElement): BoardElement {
+    return {
+      ...element,
+      resizable: true,
+      autoHeight: false,
+      ...(Object.hasOwn(element, "maxWidth") ? { maxWidth: element.width } : {}),
+      ...(Object.hasOwn(element, "maxHeight") ? { maxHeight: element.height } : {}),
+      ...(Object.hasOwn(element, "resized") ? { resized: true } : {}),
+    };
+  }
+
+  /** 解散后将内容提升到所属父容器，根层分栏的内容回到画布。 */
   static dissolveColumn(board: Board, column: ColumnElement): boolean {
     const ops: Operation[] = [];
 
-    // Move children to board root
+    const columnPath = PathUtil.getPathByElement(board, column);
+    if (!columnPath) return false;
+    const parentPath = columnPath.slice(0, -1);
+    const parent = parentPath.length ? PathUtil.getElementByPath(board, parentPath) : null;
+    const insertion = parent ? (parent.children?.length ?? 0) : board.children.length;
     column.children.forEach(child => {
       const oldPath = PathUtil.getPathByElement(board, child);
       if (!oldPath) return;
 
-      const newPath = [board.children.length];
+      ops.push(...BoardUtil.diffNodePatchOnly(child, this.releaseChild(child), oldPath));
+      const newPath = [...parentPath, insertion];
 
       ops.push({
         type: "move_node",

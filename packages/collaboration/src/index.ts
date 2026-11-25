@@ -45,3 +45,5 @@ export * from "./whiteboard-baseline";
 export { assertPresenceBudget } from "./presence-budget";
 export { memberActivities } from "./member-activities";
 export * from "./whiteboard-presence";
+
+export { canUpgradeColumnContract } from "./column-contract-upgrade";

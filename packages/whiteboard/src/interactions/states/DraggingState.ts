@@ -174,18 +174,19 @@ export class DraggingState implements InteractionState {
     };
   }
 
-  /**
-   * 目前支持"拖拽进出"的容器都位于根层（Frame/Column 等 canBeContained=false），
-   * 因此这里优先只扫描 root children，避免在拖拽循环中做全树 DFS。
-   */
+  /** 遍历可见容器，内层优先；折叠内容不参与拖放。 */
   private getDragContainers(board: Board): BoardElement[] {
     const capService = board.capabilityService;
-    return board.children.filter(el => {
-      if (!capService.isContainer(el)) return false;
-      // 只有实现了 isElementInContainer 的容器才参与拖拽进出检测（例如 Frame/Column）。
-      const caps = capService.getContainmentCapability(el.type);
-      return typeof caps.isElementInContainer === "function";
-    });
+    const containers: BoardElement[] = [];
+    const visit = (elements: BoardElement[]) => {
+      for (const element of elements) {
+        const caps = capService.getContainmentCapability(element.type);
+        if (typeof caps.isElementInContainer === "function") containers.push(element);
+        visit(capService.getVisibleChildren(element, element.children ?? []));
+      }
+    };
+    visit(board.children);
+    return containers.reverse();
   }
 
   /**
@@ -194,7 +195,17 @@ export class DraggingState implements InteractionState {
    * "鼠标在容器内"是拖动集合自身造成的伪状态，会把集合外的元素误判为拖入。
    */
   private getDropTargetContainers(board: Board, movedElements: BoardElement[]): BoardElement[] {
-    const movingIds = new Set(movedElements.map(element => element.id));
+    const movingIds = new Set(
+      movedElements.flatMap(element => {
+        const ids: string[] = [];
+        const visit = (node: BoardElement) => {
+          ids.push(node.id);
+          node.children?.forEach(visit);
+        };
+        visit(element);
+        return ids;
+      })
+    );
     return this.getDragContainers(board).filter(container => !movingIds.has(container.id));
   }
 
@@ -203,14 +214,8 @@ export class DraggingState implements InteractionState {
    * 转交容器反馈，不直接提交位置。
    */
   private findManagedChildContainer(board: Board, element: BoardElement): BoardElement | null {
-    const capService = board.capabilityService;
-    for (const candidate of board.children) {
-      if (!capService.hasOrderedChildren(candidate)) continue;
-      if (capService.isChildInContainer(candidate, element)) {
-        return candidate;
-      }
-    }
-    return null;
+    const parent = BoardUtil.getParent(board, element);
+    return parent && board.capabilityService.hasOrderedChildren(parent) ? parent : null;
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
@@ -290,6 +295,13 @@ export class DraggingState implements InteractionState {
     this.updateContainerDragPreviewState(board, movedElements, pointerPosition ?? undefined);
 
     board.emit("element:move", movedElements);
+  }
+
+  onKeyDown(event: KeyboardEvent, board: Board): boolean {
+    if (event.key !== "Escape") return false;
+    event.preventDefault();
+    board.interactions.cancel();
+    return true;
   }
 
   onExit(board: Board): void {
@@ -427,8 +439,8 @@ export class DraggingState implements InteractionState {
 
       // 使用能力检测：找到元素当前所在的容器
       for (const container of containers) {
-        const isChild = capService.isChildInContainer(container, element);
-        if (isChild) {
+        const parent = BoardUtil.getParent(board, element);
+        if (parent?.id === container.id) {
           currentContainer = container;
           break;
         }
@@ -437,7 +449,11 @@ export class DraggingState implements InteractionState {
       // 优化：如果容器已有激活的拖拽悬停反馈，优先信任该状态
       // 避免在 pointerup 时重新计算导致性能问题
       for (const container of containers) {
-        if (capService.isDropFeedbackActive(container)) {
+        if (
+          capService.isDropFeedbackActive(container) &&
+          capService.canContain(container, element) &&
+          capService.isElementInContainer(container, element, pointerPosition)
+        ) {
           targetContainer = container;
           break;
         }
@@ -451,7 +467,7 @@ export class DraggingState implements InteractionState {
             element,
             pointerPosition
           );
-          if (isInContainer) {
+          if (isInContainer && capService.canContain(container, element)) {
             targetContainer = container;
             break;
           }
@@ -635,7 +651,7 @@ export class DraggingState implements InteractionState {
 
     // 批量收集所有元素的移动信息
     movedElements.forEach(element => {
-      // 跳过不能被包含的元素（如 arrow、frame、column）
+      // 跳过不能被包含的元素（如 arrow、frame）
       if (!capService.canBeContained(element)) return;
 
       let targetContainer: BoardElement | null = null;
@@ -643,7 +659,7 @@ export class DraggingState implements InteractionState {
 
       // 找到元素当前所在的容器
       for (const container of containers) {
-        if (capService.isChildInContainer(container, element)) {
+        if (BoardUtil.getParent(board, element)?.id === container.id) {
           currentContainer = container;
           break;
         }

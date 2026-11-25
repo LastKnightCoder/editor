@@ -3,7 +3,7 @@ import {
   type WhiteboardContractDefinition,
   type PreparedWhiteboardContract,
 } from "@tau/db-schema/content-contracts";
-import type { WhiteboardCanvasType } from "./types";
+import { matchesCanvasContract, type WhiteboardCanvasType } from "./types";
 
 interface BuiltinSpec extends Omit<WhiteboardContractDefinition, "type" | "dataVersion"> {
   data: readonly string[];
@@ -99,7 +99,7 @@ const specs: Readonly<Record<string, BuiltinSpec>> = {
       "dropPlaceholderHeight",
     ],
     collaboration: { textFields: ["title"] },
-    structure: { container: "layout", canBeContained: false },
+    structure: { container: "layout", canBeContained: true },
   },
   frame: {
     data: [
@@ -190,21 +190,32 @@ export async function prepareBuiltinWhiteboardTypes(): Promise<{
     Object.entries(specs).map(async ([type, spec]) => {
       const entry = await prepareWhiteboardContract("host.whiteboard", {
         type,
-        dataVersion: 1,
+        dataVersion: type === "column" ? 2 : 1,
         collaboration: spec.collaboration,
         resources: spec.resources,
         structure: spec.structure,
       });
+      const previous =
+        type === "column"
+          ? await prepareWhiteboardContract("host.whiteboard", {
+              type,
+              dataVersion: 1,
+              collaboration: spec.collaboration,
+              resources: spec.resources,
+              structure: { ...spec.structure, canBeContained: false },
+            })
+          : undefined;
       types[type] = {
         contractId: entry.id,
+        ...(previous ? { previousContractIds: [previous.id] } : {}),
         dataProperties: [...common, ...spec.data],
         transientProperties: spec.transient,
         bodyProperty: spec.body,
       };
-      return entry;
+      return previous ? [previous, entry] : [entry];
     })
   );
-  return { types, prepared };
+  return { types, prepared: prepared.flat() };
 }
 /** 同一字段映射供活动画布与只读示意图使用，不推断未知契约。 */
 export function canvasFields(
@@ -216,7 +227,7 @@ export function canvasFields(
   },
   codec?: WhiteboardCanvasType
 ): Record<string, unknown> {
-  if (!codec || codec.contractId !== node.contractId) return {};
+  if (!codec || !matchesCanvasContract(codec, node.contractId)) return {};
   const result = Object.fromEntries(
     (codec.dataProperties ?? [])
       .filter(key => Object.hasOwn(node.data, key))

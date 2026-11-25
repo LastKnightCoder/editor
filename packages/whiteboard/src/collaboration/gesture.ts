@@ -1,3 +1,4 @@
+import { matchesCanvasContract } from "./types";
 import type { BoardElement } from "../types/element";
 import { refresh } from "./projection";
 import { compact } from "./commands";
@@ -177,7 +178,7 @@ export function captureFeedback(
   patch: Record<string, unknown>
 ) {
   const codec = binding.options.types[node.type];
-  if (!codec || (node.contractId && codec.contractId !== node.contractId)) return [];
+  if (!codec || (node.contractId && !matchesCanvasContract(codec, node.contractId))) return [];
   const local = Object.fromEntries(
     Object.entries(patch).filter(([key]) => codec.transientProperties?.includes(key))
   );

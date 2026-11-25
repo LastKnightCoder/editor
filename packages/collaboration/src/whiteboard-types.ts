@@ -70,6 +70,7 @@ export type WhiteboardModelCommand =
       body?: string | readonly ContentNode[];
       entity?: ContentEntityReference;
     } & WhiteboardAnchor)
+  | { type: "upgrade_column"; id: string; contractId: string }
   | ({ type: "move_node"; id: string; parent: WhiteboardParent } & WhiteboardAnchor)
   | { type: "set_entity"; id: string; entity: ContentEntityReference | null }
   | { type: "remove_nodes"; ids: readonly string[] }

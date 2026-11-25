@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { buildHandwriteElement } from "../extensions/creators/handwrite";
 import type { WhiteboardModelCommand, WhiteboardData } from "@tau/collaboration";
 import { contentResourceSlots, contentResourceValues } from "@tau/db-schema/content-resources";
-import { isSafeResource } from "@tau/collaboration";
+import { isSafeResource, WHITEBOARD_LIMITS } from "@tau/collaboration";
 import { flattenModel, flatten, authorElement, refresh } from "./projection";
 import { assertWritable, canEditElement } from "./element-access";
 import type { CanvasBinding } from "./binding";
@@ -31,6 +31,9 @@ export function submit(
     binding.board?.interactions.cancel();
     binding.endGesture(false);
   }
+  const chunked =
+    commands.length > WHITEBOARD_LIMITS.commandsPerBatch ||
+    new TextEncoder().encode(JSON.stringify(commands)).length > WHITEBOARD_LIMITS.batchBytes;
   const origin = (binding.streamingGesture && binding.gestureHistory) || binding.origin;
   const bodyContracts = new Set<string>();
   const collect = (nodes: readonly import("@tau/collaboration").ContentNode[]) => {
@@ -45,7 +48,8 @@ export function submit(
     ...extraPrepared,
     ...(binding.options.preparedContracts ?? []).filter(entry => bodyContracts.has(entry.id)),
     ...commands.flatMap(command =>
-      command.type === "create" && !binding.model.contracts.has(command.contractId)
+      (command.type === "create" || command.type === "upgrade_column") &&
+      !binding.model.contracts.has(command.contractId)
         ? [
             binding.options.catalog?.get(command.contractId)?.prepared ??
               binding.options.preparedContracts?.find(entry => entry.id === command.contractId),
@@ -59,6 +63,10 @@ export function submit(
         : []
     ),
   ];
+  const commit = (model: typeof binding.model) =>
+    chunked
+      ? model.submitChunks(commands, origin, prepared)
+      : model.submit(commands, origin, prepared);
   // 仅移动几何位置时，模型提交已校验几何和完整候选；扩展数据与资源没有写入。
   const geometryOnly =
     commands.length > 0 &&
@@ -72,7 +80,7 @@ export function submit(
     binding.validating = true;
     try {
       binding.model.preflight(candidate => {
-        const created = candidate.submit(commands, origin, prepared).createdIds;
+        const created = commit(candidate).createdIds;
         const touched = new Set([
           ...created,
           ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
@@ -103,7 +111,7 @@ export function submit(
   if (!binding.streamingGesture) enterGroup(binding, historyGroup);
   binding.writing = true;
   try {
-    return binding.model.submit(commands, origin, prepared);
+    return commit(binding.model);
   } finally {
     binding.writing = false;
     refresh(binding);

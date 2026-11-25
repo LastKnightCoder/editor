@@ -33,7 +33,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       },
       containment: {
         asContainer: ContainmentBehavior.Restricted,
-        canBeContained: false,
+        canBeContained: true,
         // 布局类受限容器：准入由子方 joins 声明裁决（见 CapabilityService.canContain 的 Restricted 分支）
         kind: "layout",
 
@@ -200,28 +200,12 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
             if (element) {
               const elementPath = PathUtil.getPathByElement(board, element);
               if (elementPath) {
-                // 设置 maxWidth/maxHeight 为当前宽高，并设置 resized: true
-                // 这样 RichText 等组件在非 autoHeight 模式下会使用固定宽度
-                // 而不是 "fit-content"
                 board.apply(
-                  {
-                    type: "set_node",
-                    path: elementPath,
-                    properties: {
-                      resizable: element.resizable,
-                      autoHeight: element.autoHeight,
-                      maxWidth: element.maxWidth,
-                      maxHeight: element.maxHeight,
-                      resized: element.resized,
-                    },
-                    newProperties: {
-                      resizable: true,
-                      autoHeight: false,
-                      maxWidth: element.width,
-                      maxHeight: element.height,
-                      resized: true,
-                    },
-                  },
+                  BoardUtil.diffNodePatchOnly(
+                    element,
+                    ColumnUtil.releaseChild(element),
+                    elementPath
+                  ),
                   true
                 );
               }

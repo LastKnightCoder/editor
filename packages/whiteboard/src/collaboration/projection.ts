@@ -1,3 +1,4 @@
+import { matchesCanvasContract } from "./types";
 import { canvasFields } from "./builtins";
 import { buildHandwriteElement } from "../extensions/creators/handwrite";
 import type { WhiteboardElementSnapshot } from "@tau/collaboration";
@@ -51,7 +52,7 @@ const strokeInputs = new WeakMap<BoardElement, string>();
 
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
-  const type = mapped?.contractId === node.contractId ? mapped : undefined;
+  const type = matchesCanvasContract(mapped, node.contractId) ? mapped : undefined;
   const localEntity = binding.localEntities.get(node.id);
   const measurement = binding.measurements.get(node.id);
   const handwrite = type && node.type === "handwrite";
@@ -130,7 +131,7 @@ export function refresh(binding: CanvasBinding): void {
   const layout = (node: BoardElement, parent?: string): BoardElement => {
     const children = (node.children ?? []).map(child => layout(child, node.type));
     const value = { ...node, ...(node.children ? { children } : {}) };
-    if (binding.options.types[node.type]?.contractId !== node.contractId) return node;
+    if (!matchesCanvasContract(binding.options.types[node.type], node.contractId)) return node;
     if (node.type === "column")
       return ColumnUtil.layoutColumn({
         ...value,

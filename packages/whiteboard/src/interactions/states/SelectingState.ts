@@ -78,6 +78,10 @@ export class SelectingState implements InteractionState {
     this.drag = drag;
   }
 
+  onKeyDown(event: KeyboardEvent, board: Board): boolean {
+    return this.drag?.onKeyDown(event, board) ?? false;
+  }
+
   onExit(board: Board): void {
     this.drag?.onExit(board);
     this.drag = null;

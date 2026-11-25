@@ -1,3 +1,4 @@
+import { canUpgradeColumnContract } from "@tau/collaboration";
 // 白板画布与协同模型的绑定门面：字段、生命周期装配与同步透传存根；
 // 实现按域拆在 collaboration/ 各文件，跨域调用一律经 binding 派发（保持方法解析经过实例）。
 import * as Y from "yjs";
@@ -153,6 +154,13 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
       const contract =
         model.contracts.get(codec.contractId) ??
         options.preparedContracts?.find(entry => entry.id === codec.contractId)?.contract;
+      for (const previousId of codec.previousContractIds ?? []) {
+        const previous =
+          model.contracts.get(previousId) ??
+          options.preparedContracts?.find(entry => entry.id === previousId)?.contract;
+        if (!canUpgradeColumnContract(previous, contract))
+          throw new Error("画布旧契约映射不是受支持的分栏升级");
+      }
       const fields = [
         ...(codec?.dataProperties ?? []),
         ...(codec?.transientProperties ?? []),
@@ -175,6 +183,9 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
           type,
           {
             ...codec,
+            previousContractIds: codec.previousContractIds
+              ? [...codec.previousContractIds]
+              : undefined,
             dataProperties: [...(codec.dataProperties ?? [])],
             transientProperties: [...(codec.transientProperties ?? [])],
           },

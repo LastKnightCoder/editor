@@ -281,9 +281,8 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
 
     const capService = board.capabilityService;
     const newElementsInArea = board.children.filter((boardElement: BoardElement) => {
-      // 使用能力查询：跳过容器和不可被包含的元素
-      if (capService.isContainer(boardElement) || !capService.canBeContained(boardElement))
-        return false;
+      // 创建、拖入和扩大画框使用相同的收纳准入。
+      if (!capService.canContain(element, boardElement)) return false;
 
       // 跳过已经被其他容器包含的元素
       const parent = BoardUtil.getParent(board, boardElement);

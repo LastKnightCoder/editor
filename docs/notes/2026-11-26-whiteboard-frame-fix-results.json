@@ -1,0 +1,578 @@
+{
+  "date": "2026-11-26",
+  "interaction": [
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 1094.551,
+      "frames": 93,
+      "p95": 33.20000000000027,
+      "max": 83.40000000000009,
+      "longFrames": 3,
+      "releaseMs": 85.60000014305115,
+      "stages": {
+        "board.getBounds": 4.599999904632568,
+        "board.apply": 461.5000009536743,
+        "board.moveElement": 23.499999046325684,
+        "board.publishDocument": 1.3999993801116943,
+        "model.read": 10,
+        "binding.endGesture": 69.20000004768372
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 1079.435,
+      "frames": 94,
+      "p95": 33.30000000000018,
+      "max": 83.30000000000018,
+      "longFrames": 3,
+      "releaseMs": 88.70000004768372,
+      "stages": {
+        "board.getBounds": 3.599998712539673,
+        "board.apply": 449.800000667572,
+        "board.moveElement": 23.100000619888306,
+        "board.publishDocument": 1.5999996662139893,
+        "model.read": 9,
+        "binding.endGesture": 70.40000009536743
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 10467.963,
+      "frames": 119,
+      "p95": 350.10000000000036,
+      "max": 566.7000000000007,
+      "longFrames": 55,
+      "releaseMs": 574.4000000953674,
+      "stages": {
+        "board.getBounds": 16.399999380111694,
+        "board.apply": 6001.599999904633,
+        "board.moveElement": 78.49999928474426,
+        "board.publishDocument": 2,
+        "model.read": 111.09999990463257,
+        "binding.endGesture": 433.7999999523163
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 10750.884,
+      "frames": 116,
+      "p95": 366.6999999999989,
+      "max": 599.8999999999978,
+      "longFrames": 55,
+      "releaseMs": 608.7000000476837,
+      "stages": {
+        "board.getBounds": 15.500000715255737,
+        "board.apply": 6098.800000905991,
+        "board.moveElement": 81.60000038146973,
+        "board.publishDocument": 1.8999998569488525,
+        "model.read": 120.20000004768372,
+        "binding.endGesture": 470.5
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "create",
+      "size": 1000,
+      "mode": "create",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 754.3090000000002,
+      "frames": 52,
+      "p95": 16.799999999999272,
+      "max": 583.3000000000011,
+      "longFrames": 1,
+      "releaseMs": 597.2999999523163,
+      "stages": {
+        "board.getBounds": 1.200000524520874,
+        "board.publishDocument": 0.5,
+        "board.apply": 2.1000001430511475,
+        "model.submit": 231.30000019073486,
+        "model.read": 12.099999904632568,
+        "binding.endGesture": 557.5
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 971,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "createdFrameChildren": 30
+      },
+      "errors": []
+    },
+    {
+      "action": "create",
+      "size": 1000,
+      "mode": "create",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 746.773000000001,
+      "frames": 52,
+      "p95": 16.700000000000728,
+      "max": 583.3999999999996,
+      "longFrames": 1,
+      "releaseMs": 604.4000000953674,
+      "stages": {
+        "board.getBounds": 1.6999998092651367,
+        "board.publishDocument": 0.2999999523162842,
+        "board.apply": 1.8999998569488525,
+        "model.submit": 236.59999990463257,
+        "model.read": 11.599999904632568,
+        "binding.endGesture": 567.8999998569489
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 971,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "createdFrameChildren": 30
+      },
+      "errors": []
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 119.367,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 14.299999952316284,
+      "stages": {
+        "board.getBounds": 0.5999996662139893,
+        "board.apply": 4.799998760223389,
+        "board.moveElement": 1.499999761581421,
+        "board.publishDocument": 0.6999998092651367,
+        "model.submit": 2.4000000953674316,
+        "model.read": 0.2999999523162842,
+        "binding.endGesture": 2.5
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1,
+        "frameX": 100,
+        "frameWidth": 600,
+        "outsideDx": -300,
+        "outsideInFrame": true,
+        "committedFrameX": 100
+      },
+      "errors": []
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 104.14300000000001,
+      "frames": 50,
+      "p95": 16.799999999999983,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 15.200000047683716,
+      "stages": {
+        "board.getBounds": 0.19999980926513672,
+        "board.apply": 4.300001621246338,
+        "board.moveElement": 1.799999713897705,
+        "board.publishDocument": 0.7000007629394531,
+        "model.submit": 1.7999999523162842,
+        "model.read": 0,
+        "binding.endGesture": 2.4000000953674316
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1,
+        "frameX": 100,
+        "frameWidth": 600,
+        "outsideDx": -300,
+        "outsideInFrame": true,
+        "committedFrameX": 100
+      },
+      "errors": []
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 96.912,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 15.200000047683716,
+      "stages": {
+        "board.getBounds": 1.000000238418579,
+        "board.publishDocument": 0.09999990463256836,
+        "board.apply": 0.20000004768371582,
+        "model.submit": 0.5999999046325684,
+        "model.read": 0,
+        "binding.endGesture": 2.299999952316284
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "outsideInFrame": true,
+        "createdFrameChildren": 1,
+        "committedFrameX": 100
+      },
+      "errors": []
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 98.646,
+      "frames": 51,
+      "p95": 16.799999999999955,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 12,
+      "stages": {
+        "board.getBounds": 0.2999999523162842,
+        "board.publishDocument": 0.19999980926513672,
+        "board.apply": 0.40000009536743164,
+        "model.submit": 0.6000001430511475,
+        "model.read": 0.09999990463256836,
+        "binding.endGesture": 2.0999999046325684
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "outsideInFrame": true,
+        "createdFrameChildren": 1,
+        "committedFrameX": 100
+      },
+      "errors": []
+    },
+    {
+      "action": "dissolve",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 1001.9220000000005,
+      "frames": 7,
+      "p95": 916.6000000000004,
+      "max": 916.6000000000004,
+      "longFrames": 1,
+      "releaseMs": 20.299999952316284,
+      "stages": {
+        "board.getBounds": 1,
+        "model.read": 24.5,
+        "board.publishDocument": 0.2999999523162842,
+        "board.apply": 876.7999999523163
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1000,
+        "childDx": 0,
+        "committedFrameX": 100
+      },
+      "errors": []
+    },
+    {
+      "action": "dissolve",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 1104.3009999999995,
+      "frames": 9,
+      "p95": 1016.7000000000007,
+      "max": 1016.7000000000007,
+      "longFrames": 1,
+      "releaseMs": 25,
+      "stages": {
+        "board.getBounds": 0.9999995231628418,
+        "model.read": 29.40000009536743,
+        "board.publishDocument": 0.40000009536743164,
+        "board.apply": 969.6999998092651
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1000,
+        "childDx": 0,
+        "committedFrameX": 100
+      },
+      "errors": []
+    }
+  ],
+  "stress": {
+    "cycles": 20,
+    "gestures": 121,
+    "elements": 909,
+    "errors": []
+  },
+  "longDragUndo": [
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 10118.042000000001,
+      "frames": 119,
+      "p95": 366.60000000000036,
+      "max": 550,
+      "longFrames": 55,
+      "releaseMs": 560.5,
+      "stages": {
+        "board.getBounds": 18.300002098083496,
+        "board.apply": 5819.89999961853,
+        "board.moveElement": 78.80000019073486,
+        "board.publishDocument": 1.7000000476837158,
+        "model.read": 111.40000033378601,
+        "binding.endGesture": 428.7000000476837
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320,
+        "undoRestored": true,
+        "redoRestored": true
+      },
+      "errors": []
+    }
+  ]
+}

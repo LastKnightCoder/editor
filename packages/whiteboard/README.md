@@ -206,7 +206,7 @@ defineElement({ type: "demo.stamp", containment: { canBeContained: false }, rend
 
 `@tau/whiteboard/collaboration` 提供 `createWhiteboardBinding(model, { pageId, types, editorVersions? })`。宿主先取得已验证的 `WhiteboardModel` 与契约，再为每个画布视图创建独立绑定，传入 `<Whiteboard document={binding} extensions={extensions} initData={[]} />`。绑定必须在该组件生命周期中稳定；换文档重建组件，同文档切页调用 `binding.switchPage(pageId)`。该入口不从 `initData` 自动生成 CRDT 基线，也不切换现有桌面保存流程。
 
-`types` 是可信宿主对当前画布字段的映射：每种类型包含 `contractId`，可列出 `dataProperties`（映射到普通 data）、`transientProperties`（仅本机反馈）和 `bodyProperty`（现有富文本属性到稳定 body 根）。不能与身份/几何字段重叠，映射必须匹配同类型契约。契约不匹配时拒绝内部数据编辑，仍保留外壳移动和删除能力。它不是新增插件声明语言；prepareBuiltinWhiteboardTypes 提供内置类型的精确契约与字段归属，作者 SDK 目录仍通过独立 contracts 入口准备。嵌套的 text.content 只用于宿主图形正文适配，不开放任意插件富文本槽。
+`types` 是可信宿主对当前画布字段的映射：每种类型包含 `contractId`，可列出 `dataProperties`（映射到普通 data）、`transientProperties`（仅本机反馈）和 `bodyProperty`（现有富文本属性到稳定 body 根）。不能与身份/几何字段重叠，映射必须匹配同类型契约。契约不匹配时拒绝内部数据编辑，仍保留外壳移动和删除能力。`previousContractIds` 只登记宿主分栏升级所需的精确旧摘要，绑定构造时验证受限过渡，不按类型名猜测兼容。它不是新增插件声明语言；prepareBuiltinWhiteboardTypes 提供内置类型的精确契约与字段归属，作者 SDK 目录仍通过独立 contracts 入口准备。嵌套的 text.content 只用于宿主图形正文适配，不开放任意插件富文本槽。
 
 - 路径操作先按原 BoardOperations 完成整批路径跟踪，再编译为稳定 ID 命令；插入子树保留宿主已经分配的 ID，模型拒绝复用身份。非法批次不会部分改变画布、CRDT 或历史。
 - 拖拽、缩放和连续方向键进入统一预览事务：帧只改变本机投影，结束才提交；取消、只读、切页和远端更新清除未提交预览。高频几何补丁合并，手势仅记一次宿主历史。

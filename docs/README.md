@@ -10,20 +10,20 @@
 
 桌面启动依赖与就绪信号见 [桌面架构](./architecture/desktop/main-process.md#构建与打包)，生产入口和 ASAR 核验步骤见 [客户端构建与安装](./guides/ops-client-build-install.md#桌面生产启动检查)。
 
-| 位置                                                          | 内容                                                                                                                                                     |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [desktop/](./architecture/desktop/)                           | 桌面端权威交接文档目录：索引 README + 按域分篇（总览 / Page 协议 / UI 交互 / 数据基线 / 插件宿主 / 白板 / 主进程 / AI 会话 / 今日页数据）                |
-| [AI 入口与能力](./architecture/ai-capabilities.md)            | 按产品场景查桌面、手机、浏览器伴读、插件和后台任务的提示词、模型分配、Skill、工具与审批范围                                                              |
-| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                        |
-| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                             |
-| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                           |
-| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                           |
-| [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                         |
-| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点、官网分发                                                                 |
-| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                       |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、文档保活与页面错误恢复、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                               |
-| [plugin-portability.md](./architecture/plugin-portability.md) | 统一包协议、历史包读取、桌面与移动插件宿主、应用生命周期、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
-| [plugin-windows.html](./architecture/plugin-windows.html)     | 桌面插件窗口模块与时序图                                                                                                                                 |
+| 位置                                                          | 内容                                                                                                                                                                                     |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [desktop/](./architecture/desktop/)                           | 桌面端权威交接文档目录：索引 README + 按域分篇（总览 / Page 协议 / UI 交互 / 数据基线 / 插件宿主 / 白板 / 主进程 / AI 会话 / 今日页数据）                                                |
+| [AI 入口与能力](./architecture/ai-capabilities.md)            | 按产品场景查桌面、手机、浏览器伴读、插件和后台任务的提示词、模型分配、Skill、工具与审批范围                                                                                              |
+| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                                                        |
+| 包内文档                                                      | database / [whiteboard](/packages/whiteboard/docs/architecture.md#画框与嵌套分栏) / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README |
+| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                                                           |
+| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                                                           |
+| [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                                                         |
+| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点、官网分发                                                                                                 |
+| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                                                                       |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、文档保活与页面错误恢复、AI 对话与图片生成、文档录音与转写、外部打开 Markdown、正文统计与空文档判断                                                               |
+| [plugin-portability.md](./architecture/plugin-portability.md) | 统一包协议、历史包读取、桌面与移动插件宿主、应用生命周期、AI 接线及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md)                                 |
+| [plugin-windows.html](./architecture/plugin-windows.html)     | 桌面插件窗口模块与时序图                                                                                                                                                                 |
 
 ## decisions.md — 裁决规则
 

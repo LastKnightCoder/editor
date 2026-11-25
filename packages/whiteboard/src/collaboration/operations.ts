@@ -9,14 +9,7 @@ import PathUtil from "../utils/PathUtil";
 import BoardOperations from "../utils/BoardOperations";
 import type { Operation } from "../types/operation";
 import type { BoardElement } from "../types/element";
-import {
-  refresh,
-  resolveArrowBindings,
-  flattenModel,
-  flatten,
-  equal,
-  authorElement,
-} from "./projection";
+import { refresh, resolveArrowBindings, flatten, equal, authorElement } from "./projection";
 import { assertWritable, canEditElement } from "./element-access";
 import { captureFeedback, applyFeedback, scheduleGesture } from "./gesture";
 import { compact } from "./commands";
@@ -162,7 +155,7 @@ export function compile(
       if (!target) throw new Error("删除目标不在协作模型中");
       commands.push({
         type: "remove_nodes",
-        ids: flattenModel([target]).map(node => node.id),
+        ids: flatten([old]).map(node => node.id),
       });
     } else if (operation.type === "insert_node") {
       const parent = parentAt(operation.path);
@@ -191,6 +184,14 @@ export function compile(
                 id: old.id,
                 patch: { geometry: canvasGeometry(old) },
               });
+            const codec = binding.options.types[old.type];
+            if (
+              old.type === "column" &&
+              parent.kind === "element" &&
+              old.contractId !== codec?.contractId &&
+              codec?.previousContractIds?.includes(old.contractId)
+            )
+              commands.push({ type: "upgrade_column", id: old.id, contractId: codec.contractId });
             commands.push({
               type: "move_node",
               id: old.id,

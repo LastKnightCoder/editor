@@ -1,0 +1,2503 @@
+{
+  "date": "2026-11-26",
+  "environment": {
+    "cpu": "Apple M3 Pro",
+    "memoryGiB": 36,
+    "node": "24.21.0",
+    "viewport": {
+      "width": 1000,
+      "height": 700
+    },
+    "rounds": 3,
+    "warmupRound": 0,
+    "inputSteps": 48
+  },
+  "samples": [
+    {
+      "action": "drag",
+      "size": 100,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 272.345,
+      "frames": 53,
+      "p95": 16.799999999999955,
+      "max": 16.799999999999955,
+      "longFrames": 0,
+      "releaseMs": 22.200000047683716,
+      "stages": {
+        "board.getBounds": 1.1999998092651367,
+        "board.apply": 50.09999966621399,
+        "board.moveElement": 8.19999885559082,
+        "board.publishDocument": 1,
+        "model.submit": 21,
+        "model.read": 2.700000047683716,
+        "binding.endGesture": 13.899999856948853
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 100,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": [],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 100,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 267.034,
+      "frames": 52,
+      "p95": 16.799999999999955,
+      "max": 16.799999999999955,
+      "longFrames": 0,
+      "releaseMs": 23.799999952316284,
+      "stages": {
+        "board.getBounds": 1.3999998569488525,
+        "board.apply": 47.799999713897705,
+        "board.moveElement": 7.299999952316284,
+        "board.publishDocument": 0.39999985694885254,
+        "model.submit": 21.200000047683716,
+        "model.read": 3,
+        "binding.endGesture": 14.799999952316284
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 100,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": [],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 100,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 273.40100000000007,
+      "frames": 54,
+      "p95": 16.800000000000182,
+      "max": 33.40000000000009,
+      "longFrames": 0,
+      "releaseMs": 25.299999952316284,
+      "stages": {
+        "board.getBounds": 1.200000286102295,
+        "board.apply": 50.79999899864197,
+        "board.moveElement": 6.700000524520874,
+        "board.publishDocument": 0.7000000476837158,
+        "model.submit": 27,
+        "model.read": 2.5,
+        "binding.endGesture": 16.59999990463257
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 100,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": [],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 255,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 1005.7510000000002,
+      "frames": 105,
+      "p95": 16.700000000000728,
+      "max": 33.30000000000018,
+      "longFrames": 0,
+      "releaseMs": 45.700000047683716,
+      "stages": {
+        "board.getBounds": 4.099999904632568,
+        "board.apply": 475,
+        "board.moveElement": 23.700000762939453,
+        "board.publishDocument": 1.5999999046325684,
+        "model.submit": 78.20000004768372,
+        "model.read": 9.59999966621399,
+        "binding.endGesture": 30.200000047683716
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 255,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": [],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 255,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 1092.4919999999997,
+      "frames": 108,
+      "p95": 16.799999999999272,
+      "max": 33.30000000000018,
+      "longFrames": 0,
+      "releaseMs": 52.700000047683716,
+      "stages": {
+        "board.getBounds": 4.499998331069946,
+        "board.apply": 487.7999999523163,
+        "board.moveElement": 24.90000057220459,
+        "board.publishDocument": 1.9000003337860107,
+        "model.submit": 77.79999995231628,
+        "model.read": 10.099999904632568,
+        "binding.endGesture": 34.40000009536743
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 255,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": [],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 255,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 1186.9260000000004,
+      "frames": 128,
+      "p95": 16.799999999999272,
+      "max": 33.399999999999636,
+      "longFrames": 0,
+      "releaseMs": 52.59999990463257,
+      "stages": {
+        "board.getBounds": 5.100000381469727,
+        "board.apply": 518.2000007629395,
+        "board.moveElement": 27.49999976158142,
+        "board.publishDocument": 1.7999992370605469,
+        "model.submit": 114.40000009536743,
+        "model.read": 16.699999570846558,
+        "binding.endGesture": 34.90000009536743
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 255,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": [],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 359.3340000000003,
+      "frames": 74,
+      "p95": 16.700000000000728,
+      "max": 33.399999999999636,
+      "longFrames": 0,
+      "releaseMs": 13.700000047683716,
+      "stages": {
+        "board.getBounds": 1.7999999523162842,
+        "board.apply": 149.400000333786,
+        "board.moveElement": 8.799999952316284,
+        "board.publishDocument": 0.2999999523162842,
+        "model.submit": 0.9000000953674316,
+        "binding.endGesture": 3.700000047683716
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 472.43499999999995,
+      "frames": 67,
+      "p95": 16.800000000000182,
+      "max": 33.29999999999973,
+      "longFrames": 0,
+      "releaseMs": 14,
+      "stages": {
+        "board.getBounds": 2.1000003814697266,
+        "board.apply": 158.900000333786,
+        "board.moveElement": 8.999999523162842,
+        "board.publishDocument": 0.4999997615814209,
+        "model.submit": 0.39999985694885254,
+        "binding.endGesture": 2.299999952316284
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 426.7930000000001,
+      "frames": 68,
+      "p95": 16.800000000000182,
+      "max": 16.800000000000182,
+      "longFrames": 0,
+      "releaseMs": 14.599999904632568,
+      "stages": {
+        "board.getBounds": 1.6999993324279785,
+        "board.apply": 158.69999933242798,
+        "board.moveElement": 8.899999856948853,
+        "board.publishDocument": 0.2999997138977051,
+        "model.submit": 0.2999999523162842,
+        "binding.endGesture": 2.299999952316284
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 500,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 630.590000000001,
+      "frames": 106,
+      "p95": 33.399999999999636,
+      "max": 50,
+      "longFrames": 1,
+      "releaseMs": 12.799999952316284,
+      "stages": {
+        "board.getBounds": 1.3999996185302734,
+        "board.apply": 334.90000009536743,
+        "board.moveElement": 10.299999713897705,
+        "board.publishDocument": 0.19999980926513672,
+        "model.submit": 0.5,
+        "binding.endGesture": 4.200000047683716
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 500,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 500,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 465.3580000000002,
+      "frames": 94,
+      "p95": 49.900000000000546,
+      "max": 50.099999999999454,
+      "longFrames": 4,
+      "releaseMs": 13.200000047683716,
+      "stages": {
+        "board.getBounds": 1.7999999523162842,
+        "board.apply": 288.19999980926514,
+        "board.moveElement": 10.699999809265137,
+        "board.publishDocument": 0.40000009536743164,
+        "model.submit": 0.5,
+        "binding.endGesture": 4.8999998569488525
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 500,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 500,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 566.8249999999998,
+      "frames": 62,
+      "p95": 33.30000000000018,
+      "max": 83.39999999999964,
+      "longFrames": 1,
+      "releaseMs": 13.5,
+      "stages": {
+        "board.getBounds": 3.299999475479126,
+        "board.apply": 389.6000003814697,
+        "board.moveElement": 11.300000190734863,
+        "board.publishDocument": 0.40000009536743164,
+        "model.submit": 0.39999985694885254,
+        "binding.endGesture": 3.9000000953674316
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 500,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 856.8369999999995,
+      "frames": 58,
+      "p95": 133.39999999999964,
+      "max": 283.2999999999993,
+      "longFrames": 5,
+      "releaseMs": 13.700000047683716,
+      "stages": {
+        "board.getBounds": 3,
+        "board.apply": 682.4999997615814,
+        "board.moveElement": 10.799999713897705,
+        "board.publishDocument": 0.20000004768371582,
+        "model.submit": 0.7999999523162842,
+        "binding.endGesture": 8.100000143051147
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 730.0910000000003,
+      "frames": 65,
+      "p95": 49.899999999999636,
+      "max": 283.2999999999993,
+      "longFrames": 3,
+      "releaseMs": 14.300000190734863,
+      "stages": {
+        "board.getBounds": 2.5,
+        "board.apply": 558.4999997615814,
+        "board.moveElement": 9.699999809265137,
+        "board.publishDocument": 0,
+        "model.submit": 0.9000000953674316,
+        "binding.endGesture": 11.800000190734863
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 826.9230000000007,
+      "frames": 57,
+      "p95": 133.3000000000011,
+      "max": 150.09999999999854,
+      "longFrames": 5,
+      "releaseMs": 13.5,
+      "stages": {
+        "board.getBounds": 2.499999761581421,
+        "board.apply": 664.6999995708466,
+        "board.moveElement": 10.899999618530273,
+        "board.publishDocument": 0.20000028610229492,
+        "model.submit": 0.9000000953674316,
+        "binding.endGesture": 7.400000095367432
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 4,
+      "round": 0,
+      "taskMs": 1827.4670000000006,
+      "frames": 58,
+      "p95": 16.80000000000109,
+      "max": 1316.6000000000004,
+      "longFrames": 2,
+      "releaseMs": 12.200000047683716,
+      "stages": {
+        "board.getBounds": 7.5,
+        "board.apply": 1215.2000002861023,
+        "board.moveElement": 27.00000023841858,
+        "board.publishDocument": 0.7000000476837158,
+        "model.submit": 4,
+        "binding.endGesture": 34
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 4,
+      "round": 1,
+      "taskMs": 1752.732,
+      "frames": 55,
+      "p95": 33.400000000001455,
+      "max": 1283.2999999999993,
+      "longFrames": 2,
+      "releaseMs": 11.400000095367432,
+      "stages": {
+        "board.getBounds": 7.3000006675720215,
+        "board.apply": 1192.7999999523163,
+        "board.moveElement": 25.90000009536743,
+        "board.publishDocument": 0.09999990463256836,
+        "model.submit": 4.099999904632568,
+        "binding.endGesture": 33.59999990463257
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "drag",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 4,
+      "round": 2,
+      "taskMs": 1848.0010000000002,
+      "frames": 55,
+      "p95": 33.399999999999636,
+      "max": 1316.6000000000004,
+      "longFrames": 2,
+      "releaseMs": 10.100000143051147,
+      "stages": {
+        "board.getBounds": 6.800000905990601,
+        "board.apply": 1220.4000000953674,
+        "board.moveElement": 28.899999856948853,
+        "board.publishDocument": 0.09999990463256836,
+        "model.submit": 3.3999998569488525,
+        "binding.endGesture": 37.80000019073486
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:33890)\n    at e.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:159887)\n    at $de.submit (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:205534)\n    at E9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163729)\n    at D9 (http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163847)\n    at http://127.0.0.1:58654/assets/index-B_ztz7S_.js:908:163117"
+      ],
+      "preparation": "canvas-api"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 381.08900000000176,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 99.89999999999964,
+      "longFrames": 2,
+      "releaseMs": 99.70000004768372,
+      "stages": {
+        "board.getBounds": 9.999998807907104,
+        "board.apply": 12.3000009059906,
+        "board.moveElement": 0.39999985694885254,
+        "board.publishDocument": 0.7999999523162842,
+        "model.submit": 119.90000009536743,
+        "model.read": 24,
+        "binding.endGesture": 90.09999990463257
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 200,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 352.52300000000105,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 100,
+      "longFrames": 2,
+      "releaseMs": 105.09999990463257,
+      "stages": {
+        "board.getBounds": 11.399999618530273,
+        "board.apply": 14.299999237060547,
+        "board.moveElement": 0.39999985694885254,
+        "board.publishDocument": 1.1999995708465576,
+        "model.submit": 118.19999980926514,
+        "model.read": 25.200000047683716,
+        "binding.endGesture": 94.69999980926514
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 200,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 346.4500000000007,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 100,
+      "longFrames": 2,
+      "releaseMs": 93.09999990463257,
+      "stages": {
+        "board.getBounds": 10.300000190734863,
+        "board.apply": 14.300000429153442,
+        "board.moveElement": 0.10000014305114746,
+        "board.publishDocument": 0.8999998569488525,
+        "model.submit": 120.90000009536743,
+        "model.read": 23.399999856948853,
+        "binding.endGesture": 84.70000004768372
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 200,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "many",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 379.8060000000005,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 100.10000000000036,
+      "longFrames": 2,
+      "releaseMs": 102.70000004768372,
+      "stages": {
+        "board.getBounds": 11.29999852180481,
+        "board.apply": 13.399999380111694,
+        "board.moveElement": 0.10000014305114746,
+        "board.publishDocument": 0.39999985694885254,
+        "model.submit": 121.60000014305115,
+        "model.read": 22.899999856948853,
+        "binding.endGesture": 92
+      },
+      "outcome": {
+        "rootCount": 100,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 200,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "many",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 412.90799999999945,
+      "frames": 53,
+      "p95": 16.799999999999272,
+      "max": 116.69999999999891,
+      "longFrames": 2,
+      "releaseMs": 102.90000009536743,
+      "stages": {
+        "board.getBounds": 15.199999809265137,
+        "board.apply": 15.300000190734863,
+        "board.moveElement": 0.40000033378601074,
+        "board.publishDocument": 0.5,
+        "model.submit": 128.39999985694885,
+        "model.read": 23.600000143051147,
+        "binding.endGesture": 90.39999985694885
+      },
+      "outcome": {
+        "rootCount": 100,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 200,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "many",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 413.35199999999895,
+      "frames": 53,
+      "p95": 16.799999999999272,
+      "max": 116.69999999999891,
+      "longFrames": 2,
+      "releaseMs": 104.89999985694885,
+      "stages": {
+        "board.getBounds": 13.399999618530273,
+        "board.apply": 18.299999952316284,
+        "board.moveElement": 0.40000009536743164,
+        "board.publishDocument": 1.000000238418579,
+        "model.submit": 129.19999980926514,
+        "model.read": 25.99999976158142,
+        "binding.endGesture": 92.59999990463257
+      },
+      "outcome": {
+        "rootCount": 100,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 200,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "resize",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 460.83599999999933,
+      "frames": 52,
+      "p95": 16.799999999999272,
+      "max": 66.69999999999891,
+      "longFrames": 1,
+      "releaseMs": 80,
+      "stages": {
+        "board.getBounds": 22,
+        "board.publishDocument": 12.900000095367432,
+        "board.apply": 51.90000033378601,
+        "model.submit": 53.700000047683716,
+        "model.read": 10.5,
+        "binding.endGesture": 74.09999990463257
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 40,
+        "frameWidth": 2290,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 40
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "resize",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 474.4730000000018,
+      "frames": 52,
+      "p95": 16.700000000000728,
+      "max": 66.60000000000036,
+      "longFrames": 1,
+      "releaseMs": 82.5,
+      "stages": {
+        "board.getBounds": 20.399999856948853,
+        "board.publishDocument": 12.399999380111694,
+        "board.apply": 50.89999985694885,
+        "model.submit": 56.200000047683716,
+        "model.read": 12.799999952316284,
+        "binding.endGesture": 77
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 40,
+        "frameWidth": 2290,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 40
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "resize",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 454.41699999999946,
+      "frames": 52,
+      "p95": 16.80000000000109,
+      "max": 66.59999999999854,
+      "longFrames": 1,
+      "releaseMs": 81.40000009536743,
+      "stages": {
+        "board.getBounds": 20.100000619888306,
+        "board.publishDocument": 12.499999284744263,
+        "board.apply": 50.899999380111694,
+        "model.submit": 54.700000047683716,
+        "model.read": 11.400000095367432,
+        "binding.endGesture": 75.59999990463257
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 40,
+        "frameWidth": 2290,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 40
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1000,
+      "mode": "create",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 214.09600000000046,
+      "frames": 53,
+      "p95": 16.700000000000728,
+      "max": 33.30000000000109,
+      "longFrames": 0,
+      "releaseMs": 59.700000047683716,
+      "stages": {
+        "board.getBounds": 1.000000238418579,
+        "board.publishDocument": 0.3000001907348633,
+        "board.apply": 3.1999998092651367,
+        "binding.endGesture": 46.60000014305115
+      },
+      "outcome": {
+        "rootCount": 1000,
+        "childDx": 0
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1000,
+      "mode": "create",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 225.91100000000006,
+      "frames": 52,
+      "p95": 16.700000000000728,
+      "max": 50,
+      "longFrames": 1,
+      "releaseMs": 62.5,
+      "stages": {
+        "board.getBounds": 1.9999992847442627,
+        "board.publishDocument": 0.2999999523162842,
+        "board.apply": 3,
+        "binding.endGesture": 49.200000047683716
+      },
+      "outcome": {
+        "rootCount": 1000,
+        "childDx": 0
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1000,
+      "mode": "create",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 232.40899999999965,
+      "frames": 52,
+      "p95": 16.799999999999272,
+      "max": 50,
+      "longFrames": 1,
+      "releaseMs": 63,
+      "stages": {
+        "board.getBounds": 1.4000005722045898,
+        "board.publishDocument": 0.20000004768371582,
+        "board.apply": 2.799999713897705,
+        "binding.endGesture": 50.200000047683716
+      },
+      "outcome": {
+        "rootCount": 1000,
+        "childDx": 0
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 0,
+      "mode": "create",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 102.30499999999998,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 13.900000095367432,
+      "stages": {
+        "board.getBounds": 0.20000004768371582,
+        "board.publishDocument": 0,
+        "board.apply": 0.5,
+        "model.submit": 0.6000001430511475,
+        "model.read": 0,
+        "binding.endGesture": 2
+      },
+      "outcome": {
+        "rootCount": 1
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 0,
+      "mode": "create",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 123.396,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 13.099999904632568,
+      "stages": {
+        "board.getBounds": 0.40000009536743164,
+        "board.publishDocument": 0,
+        "board.apply": 0.2999999523162842,
+        "model.submit": 0.5999999046325684,
+        "model.read": 0.10000014305114746,
+        "binding.endGesture": 2.299999952316284
+      },
+      "outcome": {
+        "rootCount": 1
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 0,
+      "mode": "create",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 132.35399999999998,
+      "frames": 50,
+      "p95": 16.80000000000001,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 12.899999856948853,
+      "stages": {
+        "board.getBounds": 0.6999998092651367,
+        "board.publishDocument": 0,
+        "board.apply": 0.5,
+        "model.submit": 0.5999999046325684,
+        "model.read": 0.10000014305114746,
+        "binding.endGesture": 2.299999952316284
+      },
+      "outcome": {
+        "rootCount": 1
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "create",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 125.35799999999999,
+      "frames": 50,
+      "p95": 16.80000000000001,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 13.5,
+      "stages": {
+        "board.getBounds": 0.20000004768371582,
+        "board.publishDocument": 0.10000014305114746,
+        "board.apply": 0.5,
+        "binding.endGesture": 1
+      },
+      "outcome": {
+        "rootCount": 1,
+        "childDx": 0
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "create",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 129.39499999999998,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.799999999999955,
+      "longFrames": 0,
+      "releaseMs": 14.5,
+      "stages": {
+        "board.getBounds": 0.6999998092651367,
+        "board.publishDocument": 0,
+        "board.apply": 0.5,
+        "binding.endGesture": 1.2000000476837158
+      },
+      "outcome": {
+        "rootCount": 1,
+        "childDx": 0
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "create",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 99.13399999999997,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 13.699999809265137,
+      "stages": {
+        "board.getBounds": 0.5999996662139893,
+        "board.publishDocument": 0,
+        "board.apply": 0.40000009536743164,
+        "binding.endGesture": 0.9000000953674316
+      },
+      "outcome": {
+        "rootCount": 1,
+        "childDx": 0
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "entry",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 106.54099999999998,
+      "frames": 50,
+      "p95": 16.80000000000001,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 15.200000047683716,
+      "stages": {
+        "board.getBounds": 0.19999980926513672,
+        "board.apply": 3.8999996185302734,
+        "board.moveElement": 0.3000001907348633,
+        "board.publishDocument": 0.7000002861022949,
+        "model.submit": 1.499999761581421,
+        "model.read": 0.20000004768371582,
+        "binding.endGesture": 2.8999998569488525
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "outsideInFrame": true,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "entry",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 139.07399999999998,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 12.900000095367432,
+      "stages": {
+        "board.getBounds": 0.5000002384185791,
+        "board.apply": 4.499999761581421,
+        "board.moveElement": 0.5000002384185791,
+        "board.publishDocument": 0.5999999046325684,
+        "model.submit": 3.200000047683716,
+        "model.read": 0.09999990463256836,
+        "binding.endGesture": 2.700000047683716
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "outsideInFrame": true,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "entry",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 128.026,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 13.100000143051147,
+      "stages": {
+        "board.getBounds": 0.39999985694885254,
+        "board.apply": 4.599999904632568,
+        "board.moveElement": 0.2999999523162842,
+        "board.publishDocument": 1.099999189376831,
+        "model.submit": 1.5,
+        "model.read": 0.20000004768371582,
+        "binding.endGesture": 2.4000000953674316
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "outsideInFrame": true,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 122.109,
+      "frames": 50,
+      "p95": 16.800000000000068,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 14.399999856948853,
+      "stages": {
+        "board.getBounds": 0.09999990463256836,
+        "board.apply": 4.099998950958252,
+        "board.moveElement": 2.299999713897705,
+        "board.publishDocument": 0.7999997138977051,
+        "model.submit": 2.700000047683716,
+        "model.read": 0.20000004768371582,
+        "binding.endGesture": 1.2999999523162842
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 122.05000000000001,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 12.5,
+      "stages": {
+        "board.getBounds": 0.40000033378601074,
+        "board.apply": 4.500000238418579,
+        "board.moveElement": 2.499999761581421,
+        "board.publishDocument": 0.7000000476837158,
+        "model.submit": 2.700000047683716,
+        "model.read": 0.20000004768371582,
+        "binding.endGesture": 1.2000000476837158
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 101.80699999999999,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 10.900000095367432,
+      "stages": {
+        "board.getBounds": 0.40000009536743164,
+        "board.apply": 3.299999713897705,
+        "board.moveElement": 1.500000238418579,
+        "board.publishDocument": 0.40000009536743164,
+        "model.submit": 1.799999713897705,
+        "model.read": 0.10000014305114746,
+        "binding.endGesture": 0.7999999523162842
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "mind",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 133.10200000000003,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 14,
+      "stages": {
+        "board.getBounds": 0.7999997138977051,
+        "board.publishDocument": 0.8999996185302734,
+        "board.apply": 7.799999952316284,
+        "model.submit": 2.1000001430511475,
+        "model.read": 0.10000014305114746,
+        "binding.endGesture": 1.1000001430511475
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "mind",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 116.68999999999998,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 15,
+      "stages": {
+        "board.getBounds": 0.5,
+        "board.publishDocument": 0.6999998092651367,
+        "board.apply": 5.800000190734863,
+        "model.submit": 2,
+        "model.read": 0.3000001907348633,
+        "binding.endGesture": 1.0999999046325684
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "entry",
+      "size": 1,
+      "mode": "mind",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 137.442,
+      "frames": 50,
+      "p95": 16.80000000000001,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 15.100000143051147,
+      "stages": {
+        "board.getBounds": 1.0999996662139893,
+        "board.publishDocument": 0.9000000953674316,
+        "board.apply": 7.599998950958252,
+        "model.submit": 1.9000000953674316,
+        "model.read": 0.19999980926513672,
+        "binding.endGesture": 1
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameX": 100,
+        "frameWidth": 500,
+        "outsideDx": -300,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 121.15599999999998,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 13.5,
+      "stages": {
+        "board.getBounds": 1.2000000476837158,
+        "board.publishDocument": 0.10000014305114746,
+        "board.apply": 0.5,
+        "binding.endGesture": 0.8999998569488525
+      },
+      "outcome": {
+        "rootCount": 1,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 130.986,
+      "frames": 50,
+      "p95": 16.799999999999983,
+      "max": 16.80000000000001,
+      "longFrames": 0,
+      "releaseMs": 12.299999952316284,
+      "stages": {
+        "board.getBounds": 1.200000524520874,
+        "board.publishDocument": 0.09999990463256836,
+        "board.apply": 0.6000001430511475,
+        "binding.endGesture": 1.1999998092651367
+      },
+      "outcome": {
+        "rootCount": 1,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "column",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 123.706,
+      "frames": 50,
+      "p95": 16.799999999999955,
+      "max": 16.799999999999983,
+      "longFrames": 0,
+      "releaseMs": 16,
+      "stages": {
+        "board.getBounds": 1,
+        "board.publishDocument": 0.20000004768371582,
+        "board.apply": 0.3000001907348633,
+        "binding.endGesture": 1
+      },
+      "outcome": {
+        "rootCount": 1,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "mind",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 121.08099999999999,
+      "frames": 50,
+      "p95": 16.80000000000001,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 12.599999904632568,
+      "stages": {
+        "board.getBounds": 1.200000286102295,
+        "board.publishDocument": 0.20000004768371582,
+        "board.apply": 0.5999999046325684,
+        "binding.endGesture": 1
+      },
+      "outcome": {
+        "rootCount": 1,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "mind",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 82.88099999999999,
+      "frames": 50,
+      "p95": 16.700000000000045,
+      "max": 16.799999999999983,
+      "longFrames": 0,
+      "releaseMs": 11.899999856948853,
+      "stages": {
+        "board.getBounds": 0.39999985694885254,
+        "board.publishDocument": 0,
+        "board.apply": 0.6000001430511475,
+        "binding.endGesture": 1.0999999046325684
+      },
+      "outcome": {
+        "rootCount": 1,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "create",
+      "size": 1,
+      "mode": "mind",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 111.18699999999998,
+      "frames": 50,
+      "p95": 16.799999999999983,
+      "max": 16.800000000000068,
+      "longFrames": 0,
+      "releaseMs": 13.900000095367432,
+      "stages": {
+        "board.getBounds": 1.200000524520874,
+        "board.publishDocument": 0.19999980926513672,
+        "board.apply": 0.40000009536743164,
+        "binding.endGesture": 1.2000000476837158
+      },
+      "outcome": {
+        "rootCount": 1,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有创建",
+      "errors": ["白板身份不能复用"],
+      "preparation": "model"
+    },
+    {
+      "action": "exit",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 483.78999999999996,
+      "frames": 53,
+      "p95": 33.29999999999927,
+      "max": 200,
+      "longFrames": 2,
+      "releaseMs": 216.40000009536743,
+      "stages": {
+        "board.getBounds": 10.399998903274536,
+        "board.apply": 17.100000381469727,
+        "board.moveElement": 0.40000057220458984,
+        "board.publishDocument": 0.5,
+        "model.submit": 114.99999976158142,
+        "model.read": 25.59999990463257,
+        "binding.endGesture": 204
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameChildren": 999,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": -130,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "exit",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 519.2559999999994,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 216.60000000000036,
+      "longFrames": 2,
+      "releaseMs": 232.39999985694885,
+      "stages": {
+        "board.getBounds": 10.400000095367432,
+        "board.apply": 16.200000762939453,
+        "board.moveElement": 0.5000004768371582,
+        "board.publishDocument": 0.8999996185302734,
+        "model.submit": 123.09999990463257,
+        "model.read": 28.09999990463257,
+        "binding.endGesture": 220.40000009536743
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameChildren": 999,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": -130,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "exit",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 486.6959999999999,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 200,
+      "longFrames": 2,
+      "releaseMs": 223.79999995231628,
+      "stages": {
+        "board.getBounds": 11.099999189376831,
+        "board.apply": 13.699999809265137,
+        "board.moveElement": 0.20000004768371582,
+        "board.publishDocument": 1.1000001430511475,
+        "model.submit": 116.10000014305115,
+        "model.read": 22.299999713897705,
+        "binding.endGesture": 211.70000004768372
+      },
+      "outcome": {
+        "rootCount": 2,
+        "frameChildren": 999,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": -130,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "fit",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 154.7430000000004,
+      "frames": 8,
+      "p95": 66.69999999999891,
+      "max": 66.69999999999891,
+      "longFrames": 1,
+      "releaseMs": 19.399999856948853,
+      "stages": {
+        "board.getBounds": 1,
+        "model.read": 21.59999990463257,
+        "model.submit": 54.30000019073486,
+        "board.publishDocument": 0.09999990463256836,
+        "board.apply": 75.70000004768372
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 110,
+        "frameWidth": 2210,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 110
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "fit",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 124.48199999999997,
+      "frames": 7,
+      "p95": 66.80000000000109,
+      "max": 66.80000000000109,
+      "longFrames": 1,
+      "releaseMs": 18.700000047683716,
+      "stages": {
+        "board.getBounds": 0.9000000953674316,
+        "model.read": 23.699999809265137,
+        "model.submit": 59.60000014305115,
+        "board.publishDocument": 0.20000004768371582,
+        "board.apply": 82
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 110,
+        "frameWidth": 2210,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 110
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "fit",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 120.3119999999999,
+      "frames": 7,
+      "p95": 66.70000000000073,
+      "max": 66.70000000000073,
+      "longFrames": 1,
+      "releaseMs": 18.90000009536743,
+      "stages": {
+        "board.getBounds": 1.000000238418579,
+        "model.read": 22,
+        "model.submit": 56.10000014305115,
+        "board.publishDocument": 0.20000004768371582,
+        "board.apply": 77.70000004768372
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 110,
+        "frameWidth": 2210,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 110
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "loose",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 341.6949999999997,
+      "frames": 54,
+      "p95": 16.799999999999272,
+      "max": 100,
+      "longFrames": 2,
+      "releaseMs": 84.10000014305115,
+      "stages": {
+        "board.getBounds": 9.800000667572021,
+        "board.apply": 12.599999904632568,
+        "board.moveElement": 0.2999997138977051,
+        "board.publishDocument": 1.000000238418579,
+        "model.submit": 114.5,
+        "model.read": 25.600000143051147,
+        "binding.endGesture": 76.30000019073486
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1000,
+        "childDx": 200
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "loose",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 316.03699999999844,
+      "frames": 53,
+      "p95": 16.80000000000109,
+      "max": 99.89999999999964,
+      "longFrames": 2,
+      "releaseMs": 87.79999995231628,
+      "stages": {
+        "board.getBounds": 7.4999988079071045,
+        "board.apply": 8.90000033378601,
+        "board.moveElement": 0.09999990463256836,
+        "board.publishDocument": 0.8999998569488525,
+        "model.submit": 117.29999995231628,
+        "model.read": 21.200000047683716,
+        "binding.endGesture": 80.10000014305115
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1000,
+        "childDx": 200
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "child",
+      "size": 1000,
+      "mode": "loose",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 333.60199999999804,
+      "frames": 53,
+      "p95": 16.799999999999272,
+      "max": 100.09999999999854,
+      "longFrames": 2,
+      "releaseMs": 91.20000004768372,
+      "stages": {
+        "board.getBounds": 8.5,
+        "board.apply": 8.799999237060547,
+        "board.moveElement": 0.4999997615814209,
+        "board.publishDocument": 0.9999995231628418,
+        "model.submit": 117.10000014305115,
+        "model.read": 22.699999809265137,
+        "binding.endGesture": 82.79999995231628
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1000,
+        "childDx": 200
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "pan",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 63.126000000000204,
+      "frames": 50,
+      "p95": 16.700000000000728,
+      "max": 16.799999999999272,
+      "longFrames": 0,
+      "releaseMs": 16.40000009536743,
+      "stages": {
+        "board.apply": 3.40000057220459,
+        "board.getBounds": 0.4999997615814209
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": -180,
+          "minY": -40,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "pan",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 52.57899999999972,
+      "frames": 50,
+      "p95": 16.700000000000728,
+      "max": 16.799999999999272,
+      "longFrames": 0,
+      "releaseMs": 15.5,
+      "stages": {
+        "board.apply": 2.1999995708465576,
+        "board.getBounds": 0.4999995231628418
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": -180,
+          "minY": -40,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "pan",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 51.37399999999798,
+      "frames": 51,
+      "p95": 16.700000000000728,
+      "max": 16.80000000000109,
+      "longFrames": 0,
+      "releaseMs": 15.5,
+      "stages": {
+        "board.apply": 2.500000476837158,
+        "board.getBounds": 0.7000000476837158
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": -180,
+          "minY": -40,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "zoom",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 123.9989999999998,
+      "frames": 62,
+      "p95": 16.700000000000728,
+      "max": 16.799999999999272,
+      "longFrames": 0,
+      "stages": {
+        "board.apply": 1.3999998569488525,
+        "board.getBounds": 6.100000858306885
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 276.5055197567109,
+          "minY": 215.059848699664,
+          "width": 385.5432894295314,
+          "height": 269.880302600672,
+          "zoom": 2.5937424601000023
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "zoom",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 93.41600000000108,
+      "frames": 62,
+      "p95": 16.700000000000728,
+      "max": 16.700000000000728,
+      "longFrames": 0,
+      "stages": {
+        "board.apply": 1.0999999046325684,
+        "board.getBounds": 4
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 276.5055197567109,
+          "minY": 215.059848699664,
+          "width": 385.5432894295314,
+          "height": 269.880302600672,
+          "zoom": 2.5937424601000023
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "zoom",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 113.98499999999876,
+      "frames": 62,
+      "p95": 16.700000000000728,
+      "max": 16.800000000000182,
+      "longFrames": 0,
+      "stages": {
+        "board.apply": 1.2999999523162842,
+        "board.getBounds": 5.699999570846558
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 276.5055197567109,
+          "minY": 215.059848699664,
+          "width": 385.5432894295314,
+          "height": 269.880302600672,
+          "zoom": 2.5937424601000023
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [],
+      "preparation": "model"
+    },
+    {
+      "action": "dissolve",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 143.8180000000002,
+      "frames": 7,
+      "p95": 83.19999999999982,
+      "max": 83.19999999999982,
+      "longFrames": 1,
+      "releaseMs": 23.90000009536743,
+      "stages": {
+        "board.getBounds": 0.09999990463256836,
+        "model.read": 10.799999952316284,
+        "board.apply": 104.69999980926514
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [
+        "白板扩展 tau.frame 的菜单命令 tau.frame.frame.menu.dissolve-frame 失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:33890)\n    at e.submit (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:86306)\n    at http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:159321\n    at e.preflight (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:78446)\n    at gde (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:159299)\n    at $de.submit (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:205535)\n    at wde (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:165951)\n    at $de.apply (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:206287)\n    at Zj.apply (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:35:123005)\n    at object.<computed> [as apply] (eval at evaluate (:370:30), <anonymous>:19:35)"
+      ],
+      "preparation": "model"
+    },
+    {
+      "action": "dissolve",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 131.27899999999954,
+      "frames": 7,
+      "p95": 83.29999999999927,
+      "max": 83.29999999999927,
+      "longFrames": 1,
+      "releaseMs": 16.59999990463257,
+      "stages": {
+        "board.getBounds": 0.40000009536743164,
+        "model.read": 10,
+        "board.apply": 101.29999995231628
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [
+        "白板扩展 tau.frame 的菜单命令 tau.frame.frame.menu.dissolve-frame 失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:33890)\n    at e.submit (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:86306)\n    at http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:159321\n    at e.preflight (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:78446)\n    at gde (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:159299)\n    at $de.submit (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:205535)\n    at wde (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:165951)\n    at $de.apply (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:206287)\n    at Zj.apply (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:35:123005)\n    at object.<computed> [as apply] (eval at evaluate (:370:30), <anonymous>:19:35)"
+      ],
+      "preparation": "model"
+    },
+    {
+      "action": "dissolve",
+      "size": 1000,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 130.36399999999958,
+      "frames": 6,
+      "p95": 83.30000000000018,
+      "max": 83.30000000000018,
+      "longFrames": 1,
+      "releaseMs": 14.900000095367432,
+      "stages": {
+        "board.getBounds": 0.39999985694885254,
+        "model.read": 10.099999904632568,
+        "board.apply": 101.90000009536743
+      },
+      "outcome": {
+        "beforeViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "afterViewport": {
+          "minX": 0,
+          "minY": 0,
+          "width": 1000,
+          "height": 700,
+          "zoom": 1
+        },
+        "rootCount": 1,
+        "frameChildren": 1000,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "errors": [
+        "白板扩展 tau.frame 的菜单命令 tau.frame.frame.menu.dissolve-frame 失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:33890)\n    at e.submit (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:86306)\n    at http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:159321\n    at e.preflight (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:14:78446)\n    at gde (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:159299)\n    at $de.submit (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:205535)\n    at wde (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:165951)\n    at $de.apply (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:908:206287)\n    at Zj.apply (http://127.0.0.1:63506/assets/index-CG4j1rrY.js:35:123005)\n    at object.<computed> [as apply] (eval at evaluate (:370:30), <anonymous>:19:35)"
+      ],
+      "preparation": "model"
+    }
+  ],
+  "verificationSamples": [
+    {
+      "action": "drag",
+      "size": 255,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 974.1280000000002,
+      "frames": 91,
+      "p95": 16.800000000000182,
+      "max": 33.40000000000009,
+      "longFrames": 0,
+      "releaseMs": 48.200000047683716,
+      "stages": {
+        "board.getBounds": 3.4999990463256836,
+        "board.apply": 442.80000019073486,
+        "board.moveElement": 23.800000429153442,
+        "board.publishDocument": 1.9000005722045898,
+        "model.submit": 66.70000004768372,
+        "model.read": 9,
+        "binding.endGesture": 30.5
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 255,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "drag",
+      "size": 255,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 900.299,
+      "frames": 91,
+      "p95": 16.800000000000182,
+      "max": 33.40000000000009,
+      "longFrames": 0,
+      "releaseMs": 47.700000047683716,
+      "stages": {
+        "board.getBounds": 4.199998617172241,
+        "board.apply": 424.5,
+        "board.moveElement": 22.59999966621399,
+        "board.publishDocument": 1.3999998569488525,
+        "model.submit": 68.49999976158142,
+        "model.read": 10.200000047683716,
+        "binding.endGesture": 30.09999990463257
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 255,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "drag",
+      "size": 255,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 1014.6640000000002,
+      "frames": 94,
+      "p95": 16.799999999999727,
+      "max": 33.30000000000018,
+      "longFrames": 0,
+      "releaseMs": 43.5,
+      "stages": {
+        "board.getBounds": 4.30000114440918,
+        "board.apply": 452.40000009536743,
+        "board.moveElement": 24.5,
+        "board.publishDocument": 1.700000286102295,
+        "model.submit": 68.20000004768372,
+        "model.read": 9.799999713897705,
+        "binding.endGesture": 28.299999952316284
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 255,
+        "frameX": 320,
+        "frameWidth": 2230,
+        "childDx": 220,
+        "outsideInFrame": false,
+        "committedFrameX": 320
+      },
+      "errors": []
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 0,
+      "taskMs": 366.4870000000001,
+      "frames": 65,
+      "p95": 16.700000000000273,
+      "max": 33.30000000000018,
+      "longFrames": 0,
+      "releaseMs": 15,
+      "stages": {
+        "board.getBounds": 2,
+        "board.apply": 161.30000019073486,
+        "board.moveElement": 8.999999523162842,
+        "board.publishDocument": 0.6000001430511475,
+        "model.submit": 0.7000000476837158,
+        "binding.endGesture": 2
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:14:33890)\n    at e.submit (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:159888)\n    at $de.submit (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:205535)\n    at E9 (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163730)\n    at D9 (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163848)\n    at http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163118"
+      ]
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 1,
+      "taskMs": 348.76099999999997,
+      "frames": 79,
+      "p95": 16.700000000000273,
+      "max": 33.40000000000009,
+      "longFrames": 0,
+      "releaseMs": 12.800000190734863,
+      "stages": {
+        "board.getBounds": 1.3000001907348633,
+        "board.apply": 117.5,
+        "board.moveElement": 6.899999618530273,
+        "board.publishDocument": 0.2999999523162842,
+        "model.submit": 0.3000001907348633,
+        "binding.endGesture": 2.5999999046325684
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:14:33890)\n    at e.submit (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:159888)\n    at $de.submit (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:205535)\n    at E9 (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163730)\n    at D9 (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163848)\n    at http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163118"
+      ]
+    },
+    {
+      "action": "drag",
+      "size": 256,
+      "mode": "frame",
+      "rate": 1,
+      "round": 2,
+      "taskMs": 439.3859999999995,
+      "frames": 67,
+      "p95": 16.800000000000182,
+      "max": 33.30000000000018,
+      "longFrames": 0,
+      "releaseMs": 14.699999809265137,
+      "stages": {
+        "board.getBounds": 1.700000286102295,
+        "board.apply": 161.99999976158142,
+        "board.moveElement": 9.100000143051147,
+        "board.publishDocument": 0.5999999046325684,
+        "model.submit": 0.2999999523162842,
+        "binding.endGesture": 2.1000001430511475
+      },
+      "outcome": {
+        "rootCount": 1,
+        "frameChildren": 256,
+        "frameX": 100,
+        "frameWidth": 2230,
+        "childDx": 0,
+        "outsideInFrame": false,
+        "committedFrameX": 100
+      },
+      "failure": "画框没有实际移动",
+      "errors": [
+        "白板拖动增量提交失败 Error: 白板用量无效或超过预算\n    at hh (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:14:33890)\n    at e.submit (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:14:86306)\n    at object.<computed> [as submit] (eval at evaluate (:370:30), <anonymous>:19:33)\n    at gde (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:159888)\n    at $de.submit (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:205535)\n    at E9 (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163730)\n    at D9 (http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163848)\n    at http://127.0.0.1:62064/assets/index-CG4j1rrY.js:908:163118"
+      ]
+    }
+  ]
+}
