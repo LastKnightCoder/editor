@@ -6,6 +6,7 @@ import { cn } from "@tau/ui";
 import { useInheritedKit } from "../../kit/context";
 import useDragAndDrop from "../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../hooks/useDragHandlerMenu";
+import { useTouchInteraction } from "../../services/interaction";
 import EditorContextMenu from "../EditorContextMenu";
 import type { ElementDragSpec } from "../../api/drag";
 import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from ".";
@@ -67,9 +68,10 @@ function BlockDragHostInner({
 
 export function BlockDragHost({ element, children }: { element: Element; children: ReactNode }) {
   const kit = useInheritedKit();
+  const touch = useTouchInteraction();
   const dragSpecs = kit?.assembly.dragSpecs;
   const dragSpec = dragSpecs?.get(element.type);
-  if (!dragSpec || !dragSpecs) return <>{children}</>;
+  if (touch || !dragSpec || !dragSpecs) return <>{children}</>;
   return (
     <BlockDragHostInner element={element} dragSpec={dragSpec} dragSpecs={dragSpecs}>
       {children}

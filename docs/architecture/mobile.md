@@ -341,6 +341,8 @@ releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取�
 
 iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有一个写入方。普通页面的安全区留白放在滚动内容末尾；插件域页面由宿主在滚动区外固定预留底部安全区。
 
+Android `MainActivity.onWebViewCreate` 将原生 WebView 的滚动位置保持为零；页面滚动与光标露出由前端内部容器承担，避免输入法额外滚动原生视图后固定层与触点坐标错位。
+
 - **写入方**：
   - `--mobile-safe-top/bottom` 取 `max(env(safe-area-inset-*), --native-safe-*)`。`--native-safe-*` 由 Android
     `MainActivity` 按系统栏 + 刘海 insets 注入，兜底不支持 env 安全区的 WebView。
@@ -437,7 +439,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
   进入时顶部提示将要链接 / 更换的文字。
 - **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
   的 `readonly`（切换不重挂载）。顶栏不放编辑入口（只有返回 / 标题 / 宿主操作）：阅读态右下角悬浮按钮 `ReadingModeFab`
-  「编辑」在点击内同步切换并聚焦（回上次选区，否则文末），正文下滑时收成圆形图标、上滑或回顶展开，块选择 / 拖拽 / 标注条出现时隐藏；
+  「编辑」在点击内同步切换并聚焦（回上次选区，否则文末）；文末选区就绪后同样经 `restoreSelectionAndFocus` 同步交付 DOM 焦点，避免 Slate 因待处理操作延迟聚焦而错过键盘唤起。正文下滑时收成圆形图标、上滑或回顶展开，块选择 / 拖拽 / 标注条出现时隐藏；
   正文末尾（滚动容器最后一个子元素的底边）滚进按钮区域时淡出且不可点，因此不写遮挡变量、不为按钮在末尾留白；
   双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；退出编辑是配件栏右端常驻的「完成」（宿主传 `showDoneButton`，
   取代各模式的「收起键盘」，面板 / 表格 / 格式 / 媒体模式下排在该模式右端按钮之后），经 controller 的 `setExitEditingListener` 回阅读态。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
@@ -445,12 +447,15 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
   `CollabEditorPage` 同一接法；初始态在内容首次就绪时定一次：空文档或「打开文档时」偏好为直接编辑则进编辑并聚焦。
   偏好存 setting.json 的 `editor.openMode`（`read` 缺省 / `edit`），`hooks/useEditorOpenMode` 经设置桥读取，
   设置入口为设置页「编辑器 · 打开文档时」；`ContentDetailPage` 的 `openInEditMode` 只作强制覆盖。
+  普通详情与协作详情的 45vh 最小书写高度设在实际 Editable 根节点，正文下方空白也由浏览器处理聚焦与键盘唤起，不在外层截获编辑态点击。
+  两类详情页的整屏背景与 `mobile-kb-screen` 内容外壳分离；键盘和配件面板切换期间背景始终覆盖页面层，浮层挂在整屏根节点，避免正文收缩时露出下层页。
   阅读态选中文字时底部浮出标注条 `ReadingSelectionBar`（高亮、批注、摘录成卡片、引用内容）：slate-react 只读时不同步
   DOM 选区，由 `useReadingSelection` 监听 `selectionchange` 自行换算为 Slate Range（展开防抖 150ms）；高亮在只读下直接写
   marks，批注 / 引用内容经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
   `createQuickCard` 建卡；不可编辑（`forcedReadonly`）时不显示。
 - **块选择模式**：`features/cards/blockSelection/`，只作用于顶层块（`editor.children` 下标），接入 `ContentDetailPage` 与
-  `CollabEditorPage`（公共状态经 `useEditorBlockSelection`）。入口：编辑态当前块左侧把手 `BlockHandle`（编辑器聚焦、通用或格式模式、
+  `CollabEditorPage`（公共状态经 `useEditorBlockSelection`）。宿主注册 `IEditorInteraction.touch` 后，内核 `BlockDragHost` 直接呈现内容，不装载桌面拖拽把手、放置指示与菜单；块操作由移动端承接。
+  入口：编辑态当前块左侧把手 `BlockHandle`（编辑器聚焦、通用或格式模式、
   无面板时显示在光标所在顶层块首行左侧，点击进入并选中该块；长按 300ms 提起拖拽，长按期间移动超过 8px 取消）；page 的「⋯」菜单项「选择块」（`blockSelectionMenuItem`，
   经 `ContentDetailPage` 的 `actionsRef.enterBlockSelection()` 或协作页自身调用，阅读态与编辑态都可用，进入后选中 0 个）。阅读态长按
   留给系统选词，不进入块选择。进入时先经阅读态 `exitEditing` 收键盘。`useBlockSelection` 持有激活与升序选中下标，激活期间以

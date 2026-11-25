@@ -42,7 +42,15 @@ export default defineConfig(async ({ mode }) => ({
     tailwindcss(),
   ],
   resolve: {
-    dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],
+    dedupe: [
+      "react",
+      "react-dom",
+      "slate",
+      "slate-react",
+      "react-dnd",
+      "react-dnd-html5-backend",
+      "lucide-react",
+    ],
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@validation": path.resolve(__dirname, "validation"),

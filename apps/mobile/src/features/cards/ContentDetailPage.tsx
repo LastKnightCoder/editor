@@ -700,7 +700,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         <div
           ref={setEditorWrapEl}
           className={cn(
-            "relative min-h-[45vh] pt-5 transition-[padding] duration-200",
+            "relative pt-5 transition-[padding] duration-200",
             blockSelection.active && BLOCK_SELECTION_INSET_CLASS
           )}
           // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
@@ -712,7 +712,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 kit={kit}
                 ref={editorRef}
                 document={document}
-                className="mobile-card-editor-content"
+                className="mobile-card-editor-content min-h-[45vh]"
                 readonly={editorReadonly}
                 onFocus={() => {
                   collabPresence.current?.onFocus();
@@ -790,126 +790,125 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   );
 
   return (
-    <div
-      ref={setPageRootEl}
-      className="mobile-kb-screen mobile-paper-page bg-surface fixed inset-0 z-50 flex flex-col"
-    >
-      {historyOpen && localDocument?.editHistory && !props.collaboration && (
-        <Suspense fallback={null}>
-          <ContentHistorySheet
-            api={localDocument.editHistory}
-            onClose={() => setHistoryOpen(false)}
-          />
-        </Suspense>
-      )}
-      {hasCover ? (
-        <div ref={coverShellRef} className="relative flex-1 overflow-hidden">
-          <div
-            aria-hidden
-            className="cover-scrim-fade pointer-events-none absolute inset-x-0 top-0 z-20 h-28 bg-gradient-to-b from-black/45 to-transparent"
-          />
-          {blockSelection.active ? (
-            renderBlockSelectionHeader(true)
-          ) : (
-            <PageHeader
-              transparent
-              center={headerCenter}
-              onBack={() => {
-                commitTitle();
-                props.onBack();
-              }}
-              actions={headerActions}
+    <div ref={setPageRootEl} className="mobile-paper-page bg-surface fixed inset-0 z-50">
+      <div className="mobile-kb-screen flex flex-col">
+        {historyOpen && localDocument?.editHistory && !props.collaboration && (
+          <Suspense fallback={null}>
+            <ContentHistorySheet
+              api={localDocument.editHistory}
+              onClose={() => setHistoryOpen(false)}
             />
-          )}
-          <div
-            ref={node => {
-              coverScrollRef.current = node;
-              syncCoverHeaderFade();
-            }}
-            className="edge-fade-cover-top mobile-page-scroll absolute inset-x-0 top-0 bottom-0 overflow-y-auto"
-            onScroll={syncCoverHeaderFade}
-          >
-            {props.coverSlot}
-            <div className="px-6">
-              {recoveryBanner}
-              {body}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          {blockSelection.active ? (
-            renderBlockSelectionHeader(false)
-          ) : (
-            <PageHeader
-              center={headerCenter}
-              onBack={() => {
-                commitTitle();
-                props.onBack();
-              }}
-              actions={headerActions}
-            />
-          )}
-          <div className="flex min-h-0 flex-1 flex-col">
+          </Suspense>
+        )}
+        {hasCover ? (
+          <div ref={coverShellRef} className="relative flex-1 overflow-hidden">
             <div
-              ref={noCoverScrollRef}
-              className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-6"
+              aria-hidden
+              className="cover-scrim-fade pointer-events-none absolute inset-x-0 top-0 z-20 h-28 bg-gradient-to-b from-black/45 to-transparent"
+            />
+            {blockSelection.active ? (
+              renderBlockSelectionHeader(true)
+            ) : (
+              <PageHeader
+                transparent
+                center={headerCenter}
+                onBack={() => {
+                  commitTitle();
+                  props.onBack();
+                }}
+                actions={headerActions}
+              />
+            )}
+            <div
+              ref={node => {
+                coverScrollRef.current = node;
+                syncCoverHeaderFade();
+              }}
+              className="edge-fade-cover-top mobile-page-scroll absolute inset-x-0 top-0 bottom-0 overflow-y-auto"
+              onScroll={syncCoverHeaderFade}
             >
-              {recoveryBanner}
-              {body}
+              {props.coverSlot}
+              <div className="px-6">
+                {recoveryBanner}
+                {body}
+              </div>
             </div>
           </div>
-        </>
-      )}
-      <ReadingModeFab
-        visible={fabVisible}
-        onEnter={readingMode.enterEditing}
-        getScrollContainer={getScrollContainer}
-        leading={
-          <button
-            type="button"
-            aria-label="语音输入，追加到文末"
-            className="bg-accent text-ink-inverse shadow-lift flex h-[50px] w-[50px] items-center justify-center rounded-full transition-transform duration-200 active:scale-95"
-            onClick={() => setVoiceSheetOpen(true)}
-          >
-            <Mic size={20} strokeWidth={2.2} aria-hidden />
-          </button>
-        }
-      />
-      <ReadingVoiceSheet
-        open={voiceSheetOpen && fabVisibleBase}
-        getEditor={() => editorRef.current?.getEditor() ?? null}
-        onClose={() => setVoiceSheetOpen(false)}
-        portalContainer={pageRootEl}
-      />
-      <MobileEditorBottomToolbar
-        controller={toolbarController}
-        portalContainer={pageRootEl}
-        readonly={toolbarReadonly}
-        showDoneButton
-      />
-      {blockSelection.active && kit ? (
-        <BlockActionBar
-          editorRef={editorRef}
-          kit={kit}
-          selection={blockSelection}
-          blockCount={blockCount}
-          portalContainer={pageRootEl}
-          onOpenOutline={outline.openOutline}
+        ) : (
+          <>
+            {blockSelection.active ? (
+              renderBlockSelectionHeader(false)
+            ) : (
+              <PageHeader
+                center={headerCenter}
+                onBack={() => {
+                  commitTitle();
+                  props.onBack();
+                }}
+                actions={headerActions}
+              />
+            )}
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div
+                ref={noCoverScrollRef}
+                className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-6"
+              >
+                {recoveryBanner}
+                {body}
+              </div>
+            </div>
+          </>
+        )}
+        <ReadingModeFab
+          visible={fabVisible}
+          onEnter={readingMode.enterEditing}
+          getScrollContainer={getScrollContainer}
+          leading={
+            <button
+              type="button"
+              aria-label="语音输入，追加到文末"
+              className="bg-accent text-ink-inverse shadow-lift flex h-[50px] w-[50px] items-center justify-center rounded-full transition-transform duration-200 active:scale-95"
+              onClick={() => setVoiceSheetOpen(true)}
+            >
+              <Mic size={20} strokeWidth={2.2} aria-hidden />
+            </button>
+          }
         />
-      ) : (
-        <ReadingSelectionBar
-          editorRef={editorRef}
+        <ReadingVoiceSheet
+          open={voiceSheetOpen && fabVisibleBase}
+          getEditor={() => editorRef.current?.getEditor() ?? null}
+          onClose={() => setVoiceSheetOpen(false)}
+          portalContainer={pageRootEl}
+        />
+        <MobileEditorBottomToolbar
           controller={toolbarController}
-          readingMode={readingMode}
-          range={readingSelection.range}
-          onClear={readingSelection.clear}
           portalContainer={pageRootEl}
-          onAsk={aiContext ? openAsk : undefined}
+          readonly={toolbarReadonly}
+          showDoneButton
         />
-      )}
-      <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
-      {recordingLeave.sheets}
+        {blockSelection.active && kit ? (
+          <BlockActionBar
+            editorRef={editorRef}
+            kit={kit}
+            selection={blockSelection}
+            blockCount={blockCount}
+            portalContainer={pageRootEl}
+            onOpenOutline={outline.openOutline}
+          />
+        ) : (
+          <ReadingSelectionBar
+            editorRef={editorRef}
+            controller={toolbarController}
+            readingMode={readingMode}
+            range={readingSelection.range}
+            onClear={readingSelection.clear}
+            portalContainer={pageRootEl}
+            onAsk={aiContext ? openAsk : undefined}
+          />
+        )}
+        <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
+        {recordingLeave.sheets}
+      </div>
     </div>
   );
 }

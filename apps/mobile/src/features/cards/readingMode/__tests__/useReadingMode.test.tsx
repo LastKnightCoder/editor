@@ -162,6 +162,21 @@ describe("useReadingMode", () => {
     expect(editor.selection?.anchor).toEqual({ path: [0, 0], offset: 11 });
   });
 
+  it("首次进入编辑在当前手势内交付正文焦点，不等待 Slate 处理选区", () => {
+    // Android 上仅延迟恢复 Slate 焦点会出现光标，但不会唤起输入法。
+    const { get, editor } = setup();
+    const editable = document.createElement("div");
+    editable.tabIndex = 0;
+    host.append(editable);
+    vi.spyOn(ReactEditor, "toDOMNode").mockReturnValue(editable);
+
+    act(() => {
+      get().reading.enterEditing();
+      expect(document.activeElement).toBe(editable);
+    });
+    expect(editor.selection?.anchor).toEqual({ path: [0, 0], offset: 11 });
+  });
+
   it("退出编辑保存选区并清除；再次「编辑」回到上次选区", () => {
     const { get, focus, editor } = setup();
     act(() => get().reading.enterEditing());

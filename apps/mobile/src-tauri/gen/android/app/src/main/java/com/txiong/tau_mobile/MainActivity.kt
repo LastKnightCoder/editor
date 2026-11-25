@@ -18,6 +18,14 @@ import kotlin.math.max
 private const val INCOMING_MAX_BYTES = 5L * 1024 * 1024
 
 class MainActivity : TauriActivity() {
+  override fun onWebViewCreate(webView: WebView) {
+    super.onWebViewCreate(webView)
+    // 页面内滚动由前端容器承担，禁止 IME 再平移整个 WebView，避免固定层与触点错位。
+    webView.setOnScrollChangeListener { view, scrollX, scrollY, _, _ ->
+      if (scrollX != 0 || scrollY != 0) view.scrollTo(0, 0)
+    }
+  }
+
   fun exportRecovery(path: String, name: String): String {
     val source = File(path).canonicalFile
     require(source.path.startsWith(filesDir.canonicalPath + File.separator)) { "恢复文件不在应用目录" }

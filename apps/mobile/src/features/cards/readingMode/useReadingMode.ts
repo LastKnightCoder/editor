@@ -161,6 +161,7 @@ export function useReadingMode(options: UseReadingModeOptions): ReadingModeState
       restoreSelectionAndFocus(editor, saved);
     } else {
       editorRef.current?.focus();
+      restoreSelectionAndFocus(editor, null);
     }
   }, [editorRef]);
 
