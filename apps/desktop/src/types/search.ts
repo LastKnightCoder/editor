@@ -2,6 +2,42 @@ import { Descendant } from "slate";
 import type { MaterialInfo, MaterialKind } from "@/entity/material";
 import type { EmbeddingProviderKind } from "./embedding";
 import type { ContentSection } from "@/entity/sections";
+import type { EntityRef } from "@/entity/ref";
+
+export const CATALOG_SEARCH_TYPES = [
+  "todo",
+  "calendar-event",
+  "project",
+  "whiteboard",
+  "notebook",
+  "pdf",
+  "chat-session",
+  "database",
+  "flashcard",
+] as const;
+export type CatalogSearchType = (typeof CATALOG_SEARCH_TYPES)[number];
+
+export interface CatalogSearchResult {
+  type: CatalogSearchType;
+  id: number;
+  title: string;
+  snippet: string;
+  meta: string;
+  updateTime: number;
+  sessionId?: string;
+  chatScope?: "main-chat" | "pdf-chat" | "vibe-learning-chat";
+  domainId?: number;
+}
+
+export interface DocumentTaskSearchResult {
+  type: "document-task";
+  id: string;
+  title: string;
+  snippet: string;
+  meta: string;
+  sourceRef: EntityRef;
+  taskId: string;
+}
 
 /** 我的思考：卡片、文章、项目文档、日记 */
 export type ContentIndexType = "card" | "article" | "project-item" | "diary-moment";

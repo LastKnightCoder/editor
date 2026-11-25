@@ -16,7 +16,14 @@ import {
   SunMoon,
   MessageCircle,
   CalendarPlus,
+  CalendarDays,
   ListPlus,
+  ListTodo,
+  Presentation,
+  FlaskConical,
+  BookOpen,
+  Table,
+  Repeat,
   FileDown,
   Command,
   Activity,
@@ -31,17 +38,20 @@ import { NAV_SECTIONS, NAV_FOOTER } from "@/app/navigation";
 import { getPageMeta } from "@/page/core/pageMeta";
 import { isMaterialKind, MATERIAL_KINDS } from "@/entity/material";
 import type { ContentIndexType, IndexType } from "@/types";
+import { CATALOG_SEARCH_TYPES, type CatalogSearchType } from "@/types/search";
 import type { PluginHost } from "@tau/plugins/host";
+
+export type PaletteSearchType = IndexType | CatalogSearchType | "document-task";
 
 /** 内容实体类型 → 面板呈现（标签/类型色/图标）与跳转目标模块 */
 export const CONTENT_TYPES: Record<
-  IndexType,
+  PaletteSearchType,
   { label: string; navKey?: string; tag: string; icon: LucideIcon }
 > = {
   card: { label: "卡片", navKey: "cards", tag: "bg-ok-soft text-ok", icon: Layers },
   article: { label: "文章", navKey: "articles", tag: "bg-info-soft text-info", icon: FileText },
   "project-item": {
-    label: "项目",
+    label: "项目文档",
     navKey: "projects",
     tag: "bg-tag-4-soft text-tag-4",
     icon: FolderKanban,
@@ -58,31 +68,86 @@ export const CONTENT_TYPES: Record<
   "web-clip": { label: "剪藏", navKey: "projects", tag: "bg-tag-3-soft text-tag-3", icon: Globe },
   // 插件自建的内容：类型名取插件声明，这里是兜底；不设范围 chip，只出现在「全部」
   "plugin-entity": { label: "插件内容", tag: "bg-tag-5-soft text-tag-5", icon: Puzzle },
+  todo: { label: "待办", navKey: "todos", tag: "bg-warn-soft text-warn", icon: ListTodo },
+  "calendar-event": {
+    label: "日程",
+    navKey: "schedule",
+    tag: "bg-info-soft text-info",
+    icon: CalendarDays,
+  },
+  "document-task": {
+    label: "文档待办",
+    navKey: "todos",
+    tag: "bg-warn-soft text-warn",
+    icon: ListTodo,
+  },
+  project: {
+    label: "项目",
+    navKey: "projects",
+    tag: "bg-tag-4-soft text-tag-4",
+    icon: FolderKanban,
+  },
+  whiteboard: {
+    label: "白板",
+    navKey: "whiteboard",
+    tag: "bg-info-soft text-info",
+    icon: Presentation,
+  },
+  notebook: {
+    label: "Notebook",
+    navKey: "vibe-learning",
+    tag: "bg-tag-2-soft text-tag-2",
+    icon: FlaskConical,
+  },
+  pdf: { label: "PDF", navKey: "pdfs", tag: "bg-tag-1-soft text-tag-1", icon: BookOpen },
+  "chat-session": {
+    label: "对话",
+    navKey: "chat",
+    tag: "bg-tag-3-soft text-tag-3",
+    icon: MessageCircle,
+  },
+  database: { label: "数据库", navKey: "databases", tag: "bg-tag-4-soft text-tag-4", icon: Table },
+  flashcard: { label: "闪卡", navKey: "review", tag: "bg-ok-soft text-ok", icon: Repeat },
 };
 
 /** 「摘录」一个范围覆盖三类外部材料 */
-export type PaletteScope = ContentIndexType | "material" | "cmd";
+export type PaletteScope = ContentIndexType | CatalogSearchType | "material" | "cmd";
 
 /** chips 行顺序：全部由空 scopes 集表达，不单列 */
 export const SCOPE_ORDER: PaletteScope[] = [
   "card",
   "article",
+  "project",
   "project-item",
   "diary-moment",
   "material",
+  "todo",
+  "calendar-event",
+  "whiteboard",
+  "notebook",
+  "pdf",
+  "chat-session",
+  "database",
+  "flashcard",
   "cmd",
 ];
 
 /** 范围 → 检索的索引类型（命令范围不检索内容） */
-export function scopeTypes(scope: PaletteScope): IndexType[] {
+export function scopeTypes(scope: PaletteScope): PaletteSearchType[] {
   if (scope === "cmd") return [];
+  if (scope === "todo") return ["todo", "document-task"];
   return scope === "material" ? [...MATERIAL_KINDS] : [scope];
 }
 
 /** 结果类型归到哪个范围 chip（三类材料都算「摘录」）；插件内容没有 chip */
-export function scopeOfType(type: IndexType): PaletteScope | null {
+export function scopeOfType(type: PaletteSearchType): PaletteScope | null {
   if (type === "plugin-entity") return null;
+  if (type === "document-task") return "todo";
   return isMaterialKind(type) ? "material" : type;
+}
+
+export function isCatalogSearchType(type: PaletteSearchType): type is CatalogSearchType {
+  return CATALOG_SEARCH_TYPES.some(value => value === type);
 }
 
 export function scopeLabel(scope: PaletteScope): string {

@@ -1,9 +1,8 @@
 /**
  * SearchPalette —— 全局命令面板。
  *
- * 一个入口承载两种搜索：内容（FTS+向量混合，防抖 250ms）与命令/页面（navigation.ts
- * 同源）。结果区为相关性平铺：命令组置顶，内容不分组、不收起，按检索管线返回的
- * 相关性顺序全部展开（不做按类型分组与组尾深入条目）。
+ * 一个入口搜索正文、实体名称、文档待办和命令/页面，输入防抖 250ms。
+ * 命令组置顶，名称和任务在正文前，正文保持检索管线的相关性顺序。
  * 空态「最近访问 + 常用」只收无参可重放的 single 页（isReplayableVisit）：二级页
  * （card-detail/article-detail）缺 id 不可回跳，既不记录也不展示。
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
@@ -13,7 +12,7 @@
  * 放在末尾（↑ 从首项回绕即达），不抢搜索的回车；回车落库。日期时刻词表与日程 / 待办快速添加同源
  * （utils/quickDateTime），#名称 分别匹配待办项目 / 日历。
  * 插件注册的 text 对象动作排在记录组末尾，不按输入内容调整位置；回车把输入的文字交给插件。
- * 前缀「待办:」「日程:」或对应命令进入收集模式，列表只剩该收集行。
+ * 前缀「待办:」「日程:」筛选已有条目；「添加待办:」「添加日程:」或对应命令进入收集模式。
  */
 
 import {
@@ -56,7 +55,8 @@ import {
   type PaletteCommand,
   type PaletteScope,
 } from "./searchMeta";
-import { useSearchContent, resultDisplay, relativeTime } from "./queries";
+import { useSearchContent, resultDisplay, relativeTime, type PaletteSearchResult } from "./queries";
+import { openSearchResult } from "./openResult";
 import { useSettingsStore } from "@/app/settingsStore";
 import { useFeatures } from "@/app/featureQueries";
 import { useDesktopPlugins } from "@/app/plugins/context";
@@ -70,7 +70,6 @@ import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
 import { exportPerfSnapshot } from "@/commands/perf";
 import { openFeedbackWindow } from "@/commands/feedback";
-import type { SearchResult } from "@/types";
 import { openMaterialTarget } from "@/services/open-material";
 import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
 import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
@@ -85,29 +84,40 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 // 面板退场动画时长之后再截图
 const CAPTURE_DELAY_MS = 260;
-const TYPE_WORDS = ["卡片", "文章", "项目", "日记", "命令"];
 const WORD_TO_SCOPE: Record<string, PaletteScope> = {
   卡片: "card",
   文章: "article",
-  项目: "project-item",
+  项目: "project",
+  项目文档: "project-item",
   日记: "diary-moment",
+  待办: "todo",
+  任务: "todo",
+  日程: "calendar-event",
+  白板: "whiteboard",
+  notebook: "notebook",
+  pdf: "pdf",
+  对话: "chat-session",
+  数据库: "database",
+  闪卡: "flashcard",
   命令: "cmd",
 };
+const TYPE_WORDS = Object.keys(WORD_TO_SCOPE);
 const PREFIX_RE = new RegExp(
-  `^(${TYPE_WORDS.join("|")})((?:[,、]\\s*(?:${TYPE_WORDS.join("|")}))*)[:：]\\s*(.*)$`
+  `^(${TYPE_WORDS.join("|")})((?:[,、]\\s*(?:${TYPE_WORDS.join("|")}))*)[:：]\\s*(.*)$`,
+  "i"
 );
-/** 收集模式前缀：「待办:」「任务:」「日程:」 */
-const CAPTURE_RE = /^(待办|任务|日程)[:：]\s*(.*)$/;
+/** 添加动作与搜索类型前缀分开，避免把查找误当成新建。 */
+const CAPTURE_RE = /^添加(待办|任务|日程)[:：]\s*(.*)$/;
 
 type CaptureKind = "todo" | "event";
 const CAPTURE_META: Record<CaptureKind, { chip: string; group: string; placeholder: string }> = {
   todo: {
-    chip: "待办",
+    chip: "添加待办",
     group: "添加待办",
     placeholder: "明天 17:00 交周报 #项目、每周一、四 周会、周末 洗车…",
   },
   event: {
-    chip: "日程",
+    chip: "添加日程",
     group: "添加日程",
     placeholder: "明天下午3点到5点 评审 #日历、下周六 爬山…",
   },
@@ -172,10 +182,10 @@ export function SearchPalette() {
 
   const activeTypes = useMemo(() => {
     const t = SCOPE_ORDER.filter(s => scopes.has(s)).flatMap(scopeTypes);
-    return t.length ? t : undefined;
+    return scopes.size ? t : undefined;
   }, [scopes]);
 
-  const contentQuery = useSearchContent(debouncedQ, activeTypes);
+  const contentQuery = useSearchContent(debouncedQ, activeTypes, open && !capture);
   const plugins = useDesktopPlugins();
   // 插件的 text 动作：输入任何文字都在「记录」组末尾列出，回车把文字交给插件
   const textActions = usePluginActions(trimmedQ ? { kind: "text", text: trimmedQ } : null);
@@ -401,6 +411,15 @@ export function SearchPalette() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentQuery.isError, contentQuery.error]);
 
+  const searchWarning = contentQuery.warnings?.join("；") ?? "";
+  const refetchSearch = contentQuery.refetch;
+  useEffect(() => {
+    if (searchWarning)
+      toast.warning(searchWarning, {
+        action: { label: "重试", onClick: () => void refetchSearch() },
+      });
+  }, [searchWarning, refetchSearch]);
+
   /* ---------- 行构造 ---------- */
 
   const pageByKey = useMemo(() => {
@@ -422,8 +441,24 @@ export function SearchPalette() {
     };
   };
 
-  const contentRow = (r: SearchResult): Row => {
+  const contentRow = (r: PaletteSearchResult): Row => {
     const meta = CONTENT_TYPES[r.type];
+    if (!("content" in r)) {
+      return {
+        key: `entity:${r.type}:${"sessionId" in r ? (r.sessionId ?? r.id) : r.id}`,
+        icon: meta.icon,
+        title: r.title,
+        sub: [r.meta, r.snippet].filter(Boolean).join(" · "),
+        tag: { label: meta.label, cls: meta.tag },
+        meta: "updateTime" in r ? relativeTime(r.updateTime) : undefined,
+        run: () =>
+          closeAnd(() => {
+            void Promise.resolve()
+              .then(() => openSearchResult(r, navigator))
+              .catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+          }),
+      };
+    }
     if (r.material) {
       // 外部材料：标题是引文，次行是来源，点击打开到原处（单书页划线 / PDF 标注 / 网页 / 网页条目）
       const { material } = r;
@@ -550,8 +585,12 @@ export function SearchPalette() {
 
     if (wantContent) {
       const results = contentQuery.data ?? [];
-      if (results.length) {
-        out.push({ label: "内容", count: results.length, rows: results.map(contentRow) });
+      const filtered = results.filter(result => {
+        const scope = scopeOfType(result.type);
+        return scopes.size === 0 || (scope != null && scopes.has(scope));
+      });
+      if (filtered.length) {
+        out.push({ label: "搜索结果", count: filtered.length, rows: filtered.map(contentRow) });
       }
     }
 
@@ -669,10 +708,11 @@ export function SearchPalette() {
     }
     const m = el.value.match(PREFIX_RE);
     if (m) {
+      setCapture(null);
       const words = [m[1], ...m[2].split(/[,、]\s*/).filter(Boolean)];
       setScopes(prev => {
         const next = new Set(prev);
-        words.forEach(w => next.add(WORD_TO_SCOPE[w]));
+        words.forEach(w => next.add(WORD_TO_SCOPE[w.toLowerCase()]));
         return next;
       });
       setQuery(m[3]);
@@ -683,6 +723,7 @@ export function SearchPalette() {
   };
 
   const toggleScope = (scope: PaletteScope, additive: boolean) => {
+    setCapture(null);
     setScopes(prev => {
       if (!additive) return new Set([scope]);
       const next = new Set(prev);
@@ -694,6 +735,7 @@ export function SearchPalette() {
   };
 
   const cycleScope = (dir: 1 | -1) => {
+    setCapture(null);
     const order: (PaletteScope | "all")[] = ["all", ...SCOPE_ORDER];
     const cur = scopes.size === 1 ? ([...scopes][0] as PaletteScope | "all") : "all";
     const next = order[(order.indexOf(cur) + dir + order.length) % order.length];
@@ -830,7 +872,7 @@ export function SearchPalette() {
               placeholder={
                 capture
                   ? CAPTURE_META[capture].placeholder
-                  : "搜索内容，或「卡片:」限定类型，「待办:」「日程:」快速记录…"
+                  : "搜索名称或内容；「添加待办:」「添加日程:」快速记录…"
               }
               autoComplete="off"
               spellCheck={false}
@@ -869,6 +911,7 @@ export function SearchPalette() {
                   : undefined
               }
               onClick={e => {
+                setCapture(null);
                 if (!e.ctrlKey && !e.metaKey) setScopes(new Set());
               }}
             />

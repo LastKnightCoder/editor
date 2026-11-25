@@ -66,22 +66,25 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
     kw => `SELECT a.id, a.update_time AS t FROM pdf_annotations a JOIN pdfs p ON p.id = a.pdf_id
     ${kw ? "WHERE a.annotation_payload LIKE @kw OR a.notes LIKE @kw OR p.file_name LIKE @kw" : ""}
     ORDER BY a.update_time DESC LIMIT @limit`,
-  // 只列仍挂在网页条目上的剪藏（孤儿剪藏打不开）
   todo: kw => `SELECT i.id, i.update_time AS t FROM todo_item i
     JOIN todo_group g ON g.id = i.group_id
     WHERE i.is_archived = 0 AND g.is_system = 0 ${kw ? "AND i.title LIKE @kw" : ""}
     ORDER BY i.update_time DESC LIMIT @limit`,
   // 系统日历只承载截止 / 周期标记，不是用户的日程
-  "calendar-event": kw => `SELECT e.id, e.update_time AS t FROM calendar_event e
+  "calendar-event": kw => `WITH RECURSIVE system_groups(id) AS (
+    SELECT id FROM calendar_group WHERE is_system = 1
+    UNION SELECT g.id FROM calendar_group g JOIN system_groups s ON g.parent_group_id = s.id
+    ) SELECT e.id, e.update_time AS t FROM calendar_event e
     JOIN calendar c ON c.id = e.calendar_id
-    LEFT JOIN calendar_group g ON g.id = c.group_id
-    WHERE IFNULL(g.is_system, 0) = 0 ${kw ? "AND e.title LIKE @kw" : ""}
+    WHERE (c.group_id IS NULL OR c.group_id NOT IN (SELECT id FROM system_groups))
+    ${kw ? "AND e.title LIKE @kw" : ""}
     ORDER BY e.update_time DESC LIMIT @limit`,
   "plugin-entity":
     kw => `SELECT e.id, MAX(e.update_time, ct.update_time) AS t FROM plugin_entities e
     JOIN content_snapshots ct ON ct.id = e.content_id
     ${kw ? "WHERE e.title LIKE @kw OR ct.content LIKE @kw" : ""}
     ORDER BY t DESC, e.id DESC LIMIT @limit`,
+  // 只列仍挂在网页条目上的剪藏（孤儿剪藏打不开）
   "web-clip": kw => `SELECT c.id, c.update_time AS t FROM web_clip c
     WHERE EXISTS (SELECT 1 FROM entity_lineage l JOIN project_item i ON i.id = CAST(l.src_id AS INTEGER)
       WHERE l.dst_kind = 'web-clip' AND l.dst_id = CAST(c.id AS TEXT)

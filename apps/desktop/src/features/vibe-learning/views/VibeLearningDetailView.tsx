@@ -12,7 +12,7 @@ import { useVibeLearningPanelStore } from "../panelStore";
 import VibeLearningView from "./VibeLearningView";
 
 export function VibeLearningDetailView() {
-  const { id } = usePageParams<{ id: number }>();
+  const { id, chatId } = usePageParams<{ id: number; chatId?: string }>();
   const { project, loading } = useVibeLearningDetail(id);
   const { navigator } = usePage();
   const collapsed = useVibeLearningPanelStore(s => s.collapsed);
@@ -65,5 +65,11 @@ export function VibeLearningDetailView() {
     );
   }
 
-  return <VibeLearningView projectId={id} />;
+  return (
+    <VibeLearningView
+      projectId={id}
+      requestedChatId={chatId}
+      onChatOpened={() => navigator.push("vibe-learning-detail", { id })}
+    />
+  );
 }

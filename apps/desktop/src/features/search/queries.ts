@@ -1,38 +1,149 @@
 /**
- * 搜索面板数据源 —— 内容混合检索（复用 legacy 的 searchHybridContent 管线，
- * FTS + 向量多路召回）。输入防抖由调用方（SearchPalette 的 useDebouncedValue）
- * 承担；keepPreviousData 保证连续输入时结果不闪 Loading。
+ * 搜索面板数据源：正文、实体名称与文档待办分别查询，失败时保留其他来源的结果。
+ * 输入防抖由调用方承担；同库连续输入保留上一批结果，开关面板时重读。
  *
  * 展示文案与移动端 unified_search 同构（utils/richTextText）：Slate 提纯文本拼接
  * + 截断；卡片无 title 字段时正文开头作标题、余文作摘要，空内容兜底「类型 #id」。
  */
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { searchHybridContent } from "@/commands";
+import { searchHybridContent } from "@/commands/fts";
+import { searchCatalog } from "@/commands/entity";
+import { taskAssistantRequest } from "@/commands/task-assistant";
+import { useDatabaseCommands } from "@/hooks/useDatabaseCommands";
+import { databaseQueryKey } from "@/services/command-context";
 import { richTextPlainText, clampText } from "@tau/shared/rich-text-text";
+import type { AssistantQueryResult, AssistantTask } from "@tau/shared/task-assistant";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import useSettingStore from "@/stores/useSettingStore";
-import { CONTENT_TYPES } from "./searchMeta";
+import { CONTENT_TYPES, isCatalogSearchType, type PaletteSearchType } from "./searchMeta";
 import type { IndexType, SearchResult } from "@/types";
+import {
+  CATALOG_SEARCH_TYPES,
+  type CatalogSearchResult,
+  type DocumentTaskSearchResult,
+} from "@/types/search";
 
-/** 一次面板会话最多取回的结果数（分组展示足够，避免全量拉取） */
+export type PaletteSearchResult = SearchResult | CatalogSearchResult | DocumentTaskSearchResult;
+interface SearchBatch {
+  items: PaletteSearchResult[];
+  warnings: string[];
+}
+
 const RESULT_LIMIT = 24;
+const SEARCH_COMMANDS = { searchHybridContent, searchCatalog, taskAssistantRequest };
 
-export function useSearchContent(query: string, types?: IndexType[]) {
-  return useQuery({
-    queryKey: ["search", "content", query, types ?? "all"],
-    queryFn: async (): Promise<SearchResult[]> => {
-      const setting = useSettingStore.getState().setting;
-      // 未配置 embedding 时返回 undefined，管线自动只走 FTS 路。
-      // 直调命令而非 utils/search 的 searchContent 包装——后者吞错返回 []，
-      // 这里需要错误冒泡到 react-query（isError）以触发 toast 反馈
-      const modelInfo = resolveEmbeddingModelInfoFromSetting(setting);
-      return searchHybridContent({ query, types, limit: RESULT_LIMIT, modelInfo });
+export function useSearchContent(query: string, types?: PaletteSearchType[], enabled = true) {
+  const database = useSettingStore(state => state.setting.database.active);
+  const { commands, connectionId } = useDatabaseCommands(SEARCH_COMMANDS, database);
+  const result = useQuery({
+    queryKey: databaseQueryKey(
+      ["search", "content", database, query, types ?? "all"],
+      connectionId
+    ),
+    queryFn: async (): Promise<SearchBatch> => {
+      const contentTypes = types?.filter(
+        (type): type is IndexType => type !== "document-task" && !isCatalogSearchType(type)
+      );
+      const catalogTypes = types?.filter(isCatalogSearchType);
+      const requests: Array<{ label: string; promise: Promise<SearchBatch> }> = [];
+      if (!contentTypes || contentTypes.length) {
+        const modelInfo = resolveEmbeddingModelInfoFromSetting(useSettingStore.getState().setting);
+        requests.push({
+          label: "正文",
+          promise: commands
+            .searchHybridContent({
+              query,
+              types: contentTypes,
+              limit: RESULT_LIMIT,
+              modelInfo,
+            })
+            .then(items => ({ items, warnings: [] })),
+        });
+      }
+      if (!catalogTypes || catalogTypes.length) {
+        requests.push({
+          label: "名称",
+          promise: commands
+            .searchCatalog({
+              keyword: query,
+              types: catalogTypes ?? [...CATALOG_SEARCH_TYPES],
+              limit: RESULT_LIMIT,
+            })
+            .then(items => ({ items, warnings: [] })),
+        });
+      }
+      if (!types || types.includes("document-task")) {
+        requests.push({
+          label: "文档待办",
+          promise: commands
+            .taskAssistantRequest<AssistantQueryResult<AssistantTask>>(
+              "task-assistant:read",
+              [
+                "query_todos",
+                {
+                  keyword: query,
+                  source: "document",
+                  archived: false,
+                  sort: "updatedAt",
+                  pageSize: RESULT_LIMIT,
+                },
+              ],
+              database
+            )
+            .then(response => ({
+              items: response.items.flatMap(task =>
+                task.taskRef.kind === "document" && task.sourceRef
+                  ? [
+                      {
+                        type: "document-task" as const,
+                        id: `${task.taskRef.contentId}:${task.taskRef.taskId}`,
+                        title: task.title,
+                        snippet: task.sourceTitle ?? "",
+                        meta: task.completed ? "已完成" : "",
+                        sourceRef: task.sourceRef,
+                        taskId: task.taskRef.taskId,
+                      },
+                    ]
+                  : []
+              ),
+              warnings: response.warnings,
+            })),
+        });
+      }
+      const settled = await Promise.allSettled(requests.map(request => request.promise));
+      const batches: SearchBatch[] = [];
+      const failures: string[] = [];
+      settled.forEach((response, index) => {
+        if (response.status === "fulfilled") batches.push(response.value);
+        else
+          failures.push(
+            `${requests[index].label}搜索失败：${response.reason instanceof Error ? response.reason.message : "请重试"}`
+          );
+      });
+      if (requests.length && !batches.length) throw new Error(failures.join("；"));
+      // 名称与任务命中优先，正文保留检索管线给出的相关性顺序。
+      return {
+        items: batches
+          .flatMap(batch => batch.items)
+          .sort((a, b) => Number("content" in a) - Number("content" in b)),
+        warnings: [...failures, ...batches.flatMap(batch => batch.warnings)],
+      };
     },
-    enabled: query.trim().length > 0,
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
+    enabled: enabled && query.trim().length > 0,
+    staleTime: 0,
+    placeholderData: (previous, previousQuery) => {
+      const scope = previousQuery?.queryKey.at(-1);
+      const previousConnection =
+        scope && typeof scope === "object" && "connectionId" in scope
+          ? scope.connectionId
+          : undefined;
+      return previousQuery?.queryKey[2] === database && previousConnection === connectionId
+        ? keepPreviousData(previous)
+        : undefined;
+    },
   });
+  return { ...result, data: result.data?.items, warnings: result.data?.warnings ?? [] };
 }
 
 /** 无 title 字段时正文开头作标题、余文作摘要（对齐移动端 excerpt 派生） */

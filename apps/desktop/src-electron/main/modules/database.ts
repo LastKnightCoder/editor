@@ -34,6 +34,7 @@ import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "./tables/content";
 import ContentLinkTable from "./tables/content-link";
 import ComposeBoardTable from "./tables/compose-board";
 import EntitySearchTable from "./tables/entity-search";
+import CatalogSearchTable from "./tables/catalog-search";
 import WhiteboardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
@@ -310,6 +311,7 @@ class DatabaseModule implements Module {
       ContentLinkTable,
       ComposeBoardTable,
       EntitySearchTable,
+      CatalogSearchTable,
       DataTableTable,
       DatabaseItemTable,
       DataTableSourceTable,

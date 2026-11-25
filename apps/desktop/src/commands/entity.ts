@@ -1,5 +1,14 @@
 import { invoke } from "@/electron";
 import type { EntityCandidate, EntityKind, EntityLocation, EntitySearchParams } from "@/types";
+import type { CatalogSearchResult, CatalogSearchType } from "@/types/search";
+
+export function searchCatalog(params: {
+  types: CatalogSearchType[];
+  keyword: string;
+  limit?: number;
+}): Promise<CatalogSearchResult[]> {
+  return invoke("catalog:search", params);
+}
 
 /** 通用实体检索：按类型 LIKE 检索标题 / 正文，空关键字按最近更新（EntityPicker 数据源） */
 export async function searchEntities(params: EntitySearchParams): Promise<EntityCandidate[]> {

@@ -108,6 +108,8 @@ export function PdfDetailView() {
 }
 
 function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number | null }) {
+  const { chatId } = usePageParams<{ chatId?: string }>();
+  const { navigator } = usePage();
   const client = useQueryClient();
   const { database } = useDatabaseReady();
   const file = usePdfFile(pdf);
@@ -170,6 +172,11 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
   const preferredOpen = useReaderPrefs(s => s.chatOpen);
   const setPreference = useReaderPrefs(s => s.setChatOpen);
   const [chatOpen, setChatOpen] = usePageChatPanel(preferredOpen, setPreference);
+  useEffect(() => {
+    if (!chatId) return;
+    setChatOpen(true);
+    navigator.push("pdf-detail", { pdfId: pdf.id, annotation: annotationId ?? undefined });
+  }, [chatId, pdf.id, annotationId, navigator, setChatOpen]);
   const chatWidth = useReaderPrefs(s => s.chatWidth);
   const setChatWidth = useReaderPrefs(s => s.setChatWidth);
   const [resizing, setResizing] = useState(false);

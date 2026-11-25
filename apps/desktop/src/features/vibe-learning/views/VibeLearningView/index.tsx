@@ -46,9 +46,12 @@ type Opened =
 
 interface VibeLearningViewProps {
   projectId: number;
+  requestedChatId?: string;
+  onChatOpened?: () => void;
 }
 
-const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
+const VibeLearningView = memo((props: VibeLearningViewProps) => {
+  const { projectId, requestedChatId, onChatOpened } = props;
   const mainDbName = useSettingStore(state => state.setting.database.active);
   const treeCollapsed = useVibeLearningPanelStore(s => s.collapsed);
 
@@ -75,6 +78,11 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   const [chatOpen, setChatOpen] = useLocalStorageState("vibe-learning-chat-open", {
     defaultValue: true,
   });
+  useEffect(() => {
+    if (!requestedChatId) return;
+    setChatOpen(true);
+    onChatOpened?.();
+  }, [requestedChatId, onChatOpened, setChatOpen]);
   const [opened, setOpened] = useLocalStorageState<Opened | null>(
     `vibe-learning-opened-${projectId}`,
     { defaultValue: null }

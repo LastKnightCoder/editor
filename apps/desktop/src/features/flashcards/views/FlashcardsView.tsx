@@ -57,7 +57,7 @@ export function FlashcardsView() {
   const mutations = useFlashcardMutations();
   const now = useNow(snapshot);
 
-  const params = usePageParams<{ deckId?: number }>();
+  const params = usePageParams<{ deckId?: number; cardId?: number }>();
   const [deckId, setDeckId] = useState<number | null>(params.deckId ?? null);
   const [statsOpen, setStatsOpen] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -107,10 +107,23 @@ export function FlashcardsView() {
 
   /* 外部带 deckId 进入（今日页复习卡等）：选中该卡组，参数随即消费掉（原位更新） */
   useEffect(() => {
+    if (params.cardId != null) {
+      if (!derived) return;
+      const card = derived.cardsById.get(params.cardId);
+      navigator.push("review", {});
+      if (!card) {
+        toast.error("闪卡已不存在");
+        return;
+      }
+      setReview(null);
+      setDeckId(card.deckId);
+      setEditor({ card, deckId: card.deckId });
+      return;
+    }
     if (params.deckId == null) return;
     setDeckId(params.deckId);
     navigator.push("review", {});
-  }, [params.deckId, navigator]);
+  }, [params.deckId, params.cardId, derived, navigator]);
 
   /* 选中的卡组被删除后回到总览 */
   useEffect(() => {
