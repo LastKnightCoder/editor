@@ -8,6 +8,7 @@ import useSettingStore, { EImageBed, ESync } from "@/stores/useSettingStore";
 import { savePluginSyncConfig, savePluginUploadConfig } from "@/commands/plugin-local";
 import { chunkDigest } from "@/services/chunkedSync";
 import { PluginSyncProvider } from "@/utils/sync/PluginSyncProvider";
+import { traceSyncStage } from "./sync-diagnostics";
 
 export type StorageTarget = "sync" | "upload";
 export const LOCAL_UPLOAD_TARGET = "local";
@@ -27,7 +28,13 @@ export async function saveProviderConfig(
   config: JsonValue
 ) {
   const snapshot = copyJson(config);
-  await (target === "sync" ? savePluginSyncConfig : savePluginUploadConfig)(pluginId, snapshot);
+  if (target === "sync") {
+    await traceSyncStage(crypto.randomUUID(), pluginId, "save-config", () =>
+      savePluginSyncConfig(pluginId, snapshot)
+    );
+  } else {
+    await savePluginUploadConfig(pluginId, snapshot);
+  }
   useSettingStore.setState(state => ({
     setting: produce(state.setting, draft => {
       const current = draft[group(target)];
@@ -66,12 +73,25 @@ export function selectUploadTarget(pluginId: string) {
 
 /** 用给定插件与配置读取当前数据库的云端版本，不改变选用。 */
 export async function probeRemoteDatabaseVersion(pluginId: string, config: JsonValue) {
-  const provider = new PluginSyncProvider(pluginId, copyJson(config));
+  const traceId = crypto.randomUUID();
+  const provider = new PluginSyncProvider(pluginId, copyJson(config), traceId);
   const { active: databaseName } = useSettingStore.getState().setting.database;
-  try {
-    const objects = await databaseSyncObjects(databaseName, chunkDigest);
-    return await readDatabaseSyncVersion(provider, objects.version);
-  } finally {
-    await provider.dispose?.();
-  }
+  return traceSyncStage(traceId, pluginId, "probe", async () => {
+    try {
+      const objects = await traceSyncStage(traceId, pluginId, "prepare-object", () =>
+        databaseSyncObjects(databaseName, chunkDigest)
+      );
+      const remote = await traceSyncStage(traceId, pluginId, "read-remote-version", () =>
+        readDatabaseSyncVersion(provider, objects.version)
+      );
+      console.info("[sync-diagnostic] remote-version", {
+        traceId,
+        provider: pluginId,
+        version: remote.version,
+      });
+      return remote;
+    } finally {
+      await provider.dispose();
+    }
+  });
 }
