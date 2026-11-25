@@ -1,5 +1,5 @@
 /**
- * B 站封面静帧（产品片、视频笔记功能片各一套文案和窗口），两种版式：wide（16:9，1920×1080）左字右窗；standard（4:3，1440×1080）上字下窗。
+ * B 站封面静帧（产品片、视频笔记功能片、编辑器教程片各一套文案和窗口），两种版式：wide（16:9，1920×1080）左字右窗；standard（4:3，1440×1080）上字下窗。
  * 缩成列表缩略图时只认得出两行大字和窗口轮廓，所以字要大、字数要少；
  * B 站信息流在底部约 120px 叠播放量与时长，文字都放在这条带之上。
  */
@@ -14,6 +14,7 @@ import { WINDOW } from "../../app-kit/AppWindow";
 import { FEATURE_WINDOW } from "../../mock/videonote";
 import { GALLERY_PAGES } from "../gallery/Gallery";
 import { ArticleWindow } from "../product/scenes/WriteChapter";
+import { TutorialChapterWindow } from "./TutorialChapterWindow";
 
 type CoverCopy = {
   kicker: string;
@@ -24,7 +25,7 @@ type CoverCopy = {
   badge: string;
 };
 
-export type CoverFilm = "product" | "videoNotes";
+export type CoverFilm = "product" | "videoNotes" | "tutorial";
 
 export const COVERS: Record<CoverFilm, CoverCopy> = {
   product: {
@@ -40,6 +41,13 @@ export const COVERS: Record<CoverFilm, CoverCopy> = {
     accent: "边看边记",
     features: ["划句摘录", "时间戳", "截帧", "问 AI", "写成电子书"],
     badge: "B 站 / YouTube · 粘个链接就能记",
+  },
+  tutorial: {
+    kicker: "Tau · 编辑器教程",
+    lines: ["记号一敲，", "当场成型。"],
+    accent: "当场成型",
+    features: ["标题", "列表", "代码块", "公式", "斜杠菜单"],
+    badge: "所见即所得 · 片尾附速查表",
   },
 };
 
@@ -188,8 +196,19 @@ function Veil({ direction, from, to }: { direction: string; from: number; to: nu
   );
 }
 
-/** 16:9 的窗口：产品片是白板在后、文章居中、知识地图在前；视频笔记是记笔记的窗口在后、问 AI 的窗口在前 */
+/** 16:9 的窗口：产品片是白板在后、文章居中、知识地图在前；视频笔记是记笔记的窗口在后、问 AI 的窗口在前；教程片是代码与公式在后、标题与列表在前 */
 function WideWindows({ film }: { film: CoverFilm }) {
+  if (film === "tutorial")
+    return (
+      <>
+        <Tilted x={1000} y={20} scale={0.62} rotate={4} z={1}>
+          <TutorialChapterWindow chapter="enter" />
+        </Tilted>
+        <Tilted x={900} y={340} scale={0.8} rotate={-3} z={2}>
+          <TutorialChapterWindow chapter="space" />
+        </Tilted>
+      </>
+    );
   if (film === "videoNotes")
     return (
       <>
@@ -218,6 +237,17 @@ function WideWindows({ film }: { film: CoverFilm }) {
 
 /** 4:3 的窗口：下方摊开（底部叠播放量的那条带只压到窗口） */
 function StandardWindows({ film }: { film: CoverFilm }) {
+  if (film === "tutorial")
+    return (
+      <>
+        <Tilted x={-230} y={600} scale={0.66} rotate={-4} z={1}>
+          <TutorialChapterWindow chapter="enter" />
+        </Tilted>
+        <Tilted x={500} y={570} scale={0.74} rotate={3} z={2}>
+          <TutorialChapterWindow chapter="space" />
+        </Tilted>
+      </>
+    );
   if (film === "videoNotes")
     return (
       <>
@@ -277,7 +307,7 @@ function StandardCover({ film }: { film: CoverFilm }) {
       <div style={{ position: "absolute", zIndex: 5, left: 90, top: 80, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <Kicker copy={copy} />
         <div style={{ marginTop: 34 }}>
-          <Title copy={copy} size={140} oneLine />
+          <Title copy={copy} size={film === "tutorial" ? 116 : 140} oneLine />
         </div>
         <div style={{ marginTop: 36, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", maxWidth: 1260 }}>
           <Chips copy={copy} />

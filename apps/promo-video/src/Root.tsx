@@ -51,6 +51,17 @@ export function Root() {
           {...COVER_SIZE[layout]}
         />
       ))}
+      {(Object.keys(COVER_SIZE) as CoverLayout[]).map(layout => (
+        <Composition
+          key={layout}
+          id={`Cover-Tutorial-${layout}`}
+          component={BilibiliCover}
+          defaultProps={{ layout, film: "tutorial" as const }}
+          durationInFrames={1}
+          fps={VIDEO.fps}
+          {...COVER_SIZE[layout]}
+        />
+      ))}
       <Composition id="DayInLife" component={DayFilm} durationInFrames={DAY_DURATION} {...VIDEO} />
 
       {(Object.keys(GALLERY_PAGES) as GalleryPage[]).map(page => (
