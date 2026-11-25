@@ -111,8 +111,12 @@ pnpm --filter @example/plugin-workbench demo
 
 ## 待办与日程数据
 
-`context.data.todoLists`、`calendars` 只读目录；`todos.get`、`calendar.get` 按稳定身份读取。普通独立待办可写清单和提醒列表，日程可写提醒，备注通过 notesRef 接入 `context.content`；没有备注时用 `calendar.ensureNotes` 建立空正文。`calendar.query({ view: "stored" })` 只枚举持久日程，可省略日期窗口。创建的可选 `{ requestId }` 用于中断后重试，回执和原创建同事务保存，删除后请求失效。详细作者契约唯一维护在[读写用户数据](/plugins/tau-plugin-template/docs/task-data.md)。宿主实现 `DataAdapter.schedule` 才表示支持这套完整契约，缺失时新增读写明确拒绝；它不注册第三方同步协议。增量读取由独立的 `DataAdapter.readChanges` 接线，公开入口为 `context.data.changes.query`，不要求已有普通读写 API 改用增量。
+`context.data.todoLists`、`calendars` 提供目录 get/query/create/update；`todos.get`、`calendar.get` 按稳定身份读取。普通独立待办可写清单和提醒列表，日程可写提醒，备注通过 notesRef 接入 `context.content`；没有备注时用 `calendar.ensureNotes` 建立空正文。`calendar.query({ view: "stored" })` 只枚举持久日程，可省略日期窗口。创建的可选 `{ requestId }` 用于中断后重试，回执和原创建同事务保存，删除后请求失效。详细作者契约唯一维护在[读写用户数据](/plugins/tau-plugin-template/docs/task-data.md)。宿主实现 `DataAdapter.schedule` 才表示支持这套完整契约，缺失时新增读写明确拒绝；它不注册第三方同步协议。增量读取由独立的 `DataAdapter.readChanges` 接线，公开入口为 `context.data.changes.query`，不要求已有普通读写 API 改用增量。
 
 `data.changes.query` 的游标状态机由 SDK 共用，两端数据层在短事务内返回身份页、水位和保留边界。首次全量补偿扫描期间的变化，之后固定增量上界；checkpoint 只在整轮结束返回。删除保留原身份，作用域/范围/历史失效返回 PluginSyncResetRequiredError。作者契约见[按游标读取变化](/plugins/tau-plugin-template/docs/task-data.md#按游标读取变化)。
 
 重复与正文待办通过 `DataAdapter.todoRecurrence` 接线：规则创建/分段修改、原子实例状态补丁与持久状态分页；实例 CRUD 使用 `writeTodoOccurrence`，不会回退为整系列操作。正文单提醒可为绝对时刻，重复提醒以本地实例日零点为基准。`readChanges` 必须贯通 todoSource 并回传已支持来源；SDK 拒绝未完整支持正文来源的宿主结果。具体签名与边界见作者手册，宿主不实现远端协议。
+
+目录写入由可选 `DataAdapter.directoryWrites` 接线，沿用 todos/calendar 的 write 权限、条件版本和创建防重。`editable` 表示目录元数据资格，`writable` 继续表示内容写入资格；归档用户目录可改名而不解除归档，系统目录不可改。目录领域入口负责局部更新、曾用名和事务，回执支持 todo-list/calendar，旧库保数据升级后继续保留已退役请求。作者用法见[创建和修改目录](/plugins/tau-plugin-template/docs/task-data.md#创建和修改待办项目日历)。
+
+业务对象通知统一使用 `context.events.on` 的 `<对象>.created/updated/deleted`，待办、日程、待办项目与日历目录分别为 todo、event、todo-list、calendar。回调按订阅类型推导，对象 ID 必填；workspace.reset 是不带 ID 的资料库级通知。提交后送达、回滚不通知，跨拥有者不合并；旧的待办/日程集合事件已移除，不提供第二套订阅方式。同步仍用 changes.query 补读，作者契约见[订阅变化](/plugins/tau-plugin-template/docs/user-data.md#订阅变化)。

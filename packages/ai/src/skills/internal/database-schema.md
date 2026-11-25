@@ -341,8 +341,9 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `domain`    | `TEXT NOT NULL`                     |
 | `entity_id` | `TEXT NOT NULL`                     |
 | `operation` | `TEXT NOT NULL`                     |
+| `action`    | `TEXT`                              |
 
-`operation` 为 upsert/delete；删除保留删除前身份。日志有界裁剪，旧游标不能把缺失历史当作空结果。备注投影通过 `idx_calendar_event_detail_content(detail_content_id)` 定位所属日程，不扫描其他日程。
+`operation` 为 upsert/delete；删除保留删除前身份。`action` 为 created/updated/deleted，用于对象通知；历史记录为空，不猜测补齐。日志有界裁剪，旧游标不能把缺失历史当作空结果。备注投影通过 `idx_calendar_event_detail_content(detail_content_id)` 定位所属日程，不扫描其他日程。
 
 ### `data_change_state`
 
@@ -1491,15 +1492,15 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 位于插件 schema 分片末尾，按 `(plugin_id, request_id)` 唯一；删除创建结果后保留失效回执，清除插件数据时删除。
 
-| 字段           | 类型                       | 含义               |
-| -------------- | -------------------------- | ------------------ |
-| `plugin_id`    | TEXT NOT NULL              | 插件身份           |
-| `request_id`   | TEXT NOT NULL              | 插件内稳定请求身份 |
-| `input_hash`   | TEXT NOT NULL              | 原始创建输入摘要   |
-| `entity`       | TEXT NOT NULL              | todo 或 event      |
-| `entity_id`    | INTEGER NOT NULL           | 创建结果编号       |
-| `created_at`   | INTEGER NOT NULL           | 创建结果身份时间   |
-| `operation_id` | TEXT NOT NULL              | 原操作回执编号     |
-| `retired`      | INTEGER NOT NULL DEFAULT 0 | 删除或撤销后为 1   |
+| 字段           | 类型                       | 含义                          |
+| -------------- | -------------------------- | ----------------------------- |
+| `plugin_id`    | TEXT NOT NULL              | 插件身份                      |
+| `request_id`   | TEXT NOT NULL              | 插件内稳定请求身份            |
+| `input_hash`   | TEXT NOT NULL              | 原始创建输入摘要              |
+| `entity`       | TEXT NOT NULL              | todo/event/todo-list/calendar |
+| `entity_id`    | INTEGER NOT NULL           | 创建结果编号                  |
+| `created_at`   | INTEGER NOT NULL           | 创建结果身份时间              |
+| `operation_id` | TEXT NOT NULL              | 原操作回执编号                |
+| `retired`      | INTEGER NOT NULL DEFAULT 0 | 删除或撤销后为 1              |
 
 索引 `idx_plugin_create_target(entity, entity_id, created_at)` 用于删除结果时将原请求标记失效。

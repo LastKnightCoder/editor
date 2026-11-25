@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import directoryFixtures from "../../../shared/src/utils/__fixtures__/plugin-directory-fields.json";
+import { readDirectoryFields, type DirectoryEntity } from "@tau/shared/task-assistant";
+import { describe, expect, it, vi } from "vitest";
 import {
   definePlugin,
   PluginPermissionError,
@@ -41,6 +43,7 @@ function setup({
   owners = ["card"] as ContentAccessOwner[],
   own = false,
   changes = undefined as DataAdapter["readChanges"],
+  directoryWrites = undefined as DataAdapter["directoryWrites"],
 } = {}) {
   const calls: unknown[][] = [];
   const permissions: PermissionsAdapter = {
@@ -57,6 +60,7 @@ function setup({
   };
   const data: DataAdapter = {
     readChanges: changes,
+    directoryWrites,
     async query(_context, entity, query) {
       calls.push(["query", entity, query]);
       return { items: [card], cursor: "next" };
@@ -421,12 +425,12 @@ describe("插件业务数据与权限", () => {
     const { host, context, emit, subscribers } = setup({ granted: new Set(["cards:read"]) });
     await host.enable("weekly");
     const received: string[] = [];
-    context().events.on(["card.updated", "todos.changed", "workspace.reset"], event =>
+    context().events.on(["card.updated", "todo.updated", "workspace.reset"], event =>
       received.push(`${event.type}:${event.id ?? ""}`)
     );
     emit({ type: "card.updated", id: "3", at: 1, origin: { kind: "app" } });
     emit({ type: "card.deleted", id: "3", at: 1, origin: { kind: "app" } });
-    emit({ type: "todos.changed", at: 1, origin: { kind: "app" } });
+    emit({ type: "todo.updated", id: "todo:1:1", at: 1, origin: { kind: "app" } });
     emit({ type: "workspace.reset", at: 1, origin: { kind: "app" } });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(received).toEqual(["card.updated:3", "workspace.reset:"]);
@@ -1480,4 +1484,125 @@ describe("插件业务数据与权限", () => {
       fixture.context().data.changes.query({ domains: ["todo", "event"] })
     ).rejects.toMatchObject({ permission: "calendar:read" });
   });
+});
+
+describe("目录写入公开契约", () => {
+  it("缺少目录写适配的宿主明确拒绝，读权限不能变成写权限", async () => {
+    const legacy = setup({ declared: ["todos:write"], granted: new Set(["todos:write"]) });
+    await legacy.host.enable("weekly");
+    await expect(legacy.context().data.todoLists.create({ title: "工作" })).rejects.toThrow(
+      /不支持/
+    );
+    const denied = setup({ declared: ["todos:read"], granted: new Set(["todos:read"]) });
+    await denied.host.enable("weekly");
+    await expect(denied.context().data.todoLists.create({ title: "工作" })).rejects.toBeInstanceOf(
+      PluginPermissionError
+    );
+  });
+  it("目录请求摘要稳定且区分实体类型，修改要求版本且严格限制字段", async () => {
+    const writes: import("../host").DirectoryWrite[] = [];
+    const { host, context } = setup({
+      declared: ["todos:write", "calendar:write"],
+      granted: new Set(["todos:write", "calendar:write"]),
+      directoryWrites: {
+        async write(_ctx, write) {
+          writes.push(write);
+          return {
+            id: "1",
+            title: "工作",
+            revision: "r",
+            archived: false,
+            writable: true,
+            editable: true,
+          };
+        },
+      },
+    });
+    await host.enable("weekly");
+    await context().data.todoLists.create({ title: "工作" }, { requestId: "stable" });
+    await context().data.todoLists.create({ title: "工作" }, { requestId: "stable" });
+    await context().data.calendars.create({ title: "工作" }, { requestId: "stable" });
+    expect(writes[0]).toEqual(writes[1]);
+    expect((writes[0] as { requestHash: string }).requestHash).not.toBe(
+      (writes[2] as { requestHash: string }).requestHash
+    );
+    await expect(
+      context().data.calendars.update("1", { title: "新名" }, undefined as never)
+    ).rejects.toThrow();
+    await expect(
+      context().data.calendars.update("1", { title: "新名", archived: false } as never, {
+        expectedRevision: "r",
+      })
+    ).rejects.toThrow(/不支持/);
+    await expect(
+      context().data.todoLists.update("1", {}, { expectedRevision: "r" })
+    ).rejects.toThrow(/至少/);
+    await context().data.todoLists.update("1", { color: null }, { expectedRevision: "r" });
+    expect(writes.at(-1)).toEqual({
+      entity: "todo-list",
+      action: "update",
+      id: "1",
+      patch: { color: null },
+      expectedRevision: "r",
+    });
+  });
+});
+
+it("目录字段在两端使用相同的接受和拒绝边界", () => {
+  for (const fixture of directoryFixtures) {
+    const read = () =>
+      readDirectoryFields(fixture.entity as DirectoryEntity, fixture.input, fixture.create);
+    if (fixture.reject) expect(read).toThrow();
+    else expect(read()).toEqual(fixture.expected);
+  }
+});
+
+it("目录对象通知必须带 ID，权限撤销后不送达且重置不伪造对象身份", async () => {
+  const granted = new Set<PluginPermission>(["todos:read"]);
+  const { host, context, emit } = setup({ declared: ["todos:read"], granted });
+  await host.enable("weekly");
+  const received: string[] = [];
+  context().events.on(["todo-list.updated", "workspace.reset"], event =>
+    received.push(event.type === "workspace.reset" ? "reset" : event.id)
+  );
+  emit({ type: "todo-list.updated", id: "7", at: 1, origin: { kind: "app" } });
+  await vi.waitFor(() => expect(received).toEqual(["7"]));
+  granted.clear();
+  emit({ type: "todo-list.updated", id: "8", at: 2, origin: { kind: "app" } });
+  emit({ type: "workspace.reset", at: 2, origin: { kind: "app" } });
+  await vi.waitFor(() => expect(received).toEqual(["7", "reset"]));
+  await host.dispose();
+});
+
+it("异步对象通知串行处理，回调失败不阻断后续事件", async () => {
+  const current = setup({ declared: ["todos:read"], granted: new Set(["todos:read"]) });
+  await current.host.enable("weekly");
+  const { vi } = await import("vitest");
+  const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  let release: () => void = () => {
+    throw new Error("等待器未建立");
+  };
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const seen: string[] = [];
+  current.context().events.on("todo-list.updated", async event => {
+    seen.push(`start:${event.id}`);
+    if (event.id === "1") await gate;
+    if (event.id === "2") throw new Error("handler");
+    seen.push(`end:${event.id}`);
+  });
+  try {
+    for (const id of ["1", "2", "3"])
+      current.emit({ type: "todo-list.updated", id, at: 0, origin: { kind: "app" } });
+    await vi.waitFor(() => expect(seen).toEqual(["start:1"]));
+    release();
+    await vi.waitFor(() =>
+      expect(seen).toEqual(["start:1", "end:1", "start:2", "start:3", "end:3"])
+    );
+    expect(error).toHaveBeenCalledOnce();
+  } finally {
+    error.mockRestore();
+    await current.host.dispose();
+  }
 });

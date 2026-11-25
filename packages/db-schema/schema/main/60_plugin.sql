@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS plugin_create_receipts (
   plugin_id TEXT NOT NULL,
   request_id TEXT NOT NULL,
   input_hash TEXT NOT NULL,
-  entity TEXT NOT NULL CHECK(entity IN ('todo','event')),
+  entity TEXT NOT NULL CHECK(entity IN ('todo','event','todo-list','calendar')),
   entity_id INTEGER NOT NULL,
   created_at INTEGER NOT NULL,
   operation_id TEXT NOT NULL,
@@ -121,4 +121,13 @@ END;
 CREATE TRIGGER IF NOT EXISTS trg_plugin_create_event_delete
 AFTER DELETE ON calendar_event BEGIN
   UPDATE plugin_create_receipts SET retired=1 WHERE entity='event' AND entity_id=OLD.id AND created_at=OLD.create_time;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_plugin_create_todo_list_delete
+AFTER DELETE ON todo_group BEGIN
+  UPDATE plugin_create_receipts SET retired=1 WHERE entity='todo-list' AND entity_id=OLD.id AND created_at=OLD.create_time;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_plugin_create_calendar_delete
+AFTER DELETE ON calendar BEGIN
+  UPDATE plugin_create_receipts SET retired=1 WHERE entity='calendar' AND entity_id=OLD.id AND created_at=OLD.create_time;
 END;

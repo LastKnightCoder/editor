@@ -254,7 +254,11 @@ export function describeCenterPermissions(
   return [...new Set(requested)].map(permission => {
     const [domain, action, extra] = permission.split(":");
     let label = permission;
-    if (extra === undefined && domain === "ai" && isPluginAICapability(action)) {
+    if (permission === "todos:write") {
+      label = "新建和修改待办及待办项目";
+    } else if (permission === "calendar:write") {
+      label = "新建和修改日程及日历";
+    } else if (extra === undefined && domain === "ai" && isPluginAICapability(action)) {
       label = `使用 AI ${PLUGIN_AI_CAPABILITIES[action].name}`;
     } else if (permission === "speech:input") {
       label = "使用语音输入";

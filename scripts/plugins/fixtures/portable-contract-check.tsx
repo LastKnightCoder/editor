@@ -35,3 +35,43 @@ export const metricRule: import("@tau/plugins").EditorMetricRule = {
   type: "example.source",
   textFields: ["source"],
 };
+
+export async function directoryContract(
+  context: import("@tau/plugins").PluginContext,
+  requestId: string
+) {
+  const list = await context.data.todoLists.create(
+    { title: "评审准备", color: "blue" },
+    { requestId }
+  );
+  const saved = await context.data.todoLists.update(
+    list.id,
+    { color: null },
+    { expectedRevision: list.revision }
+  );
+  const calendar = await context.data.calendars.create(
+    { title: "评审日历", visible: false },
+    { requestId: `${requestId}:calendar` }
+  );
+  await context.data.calendars.update(
+    calendar.id,
+    { title: "新评审日历", color: "red" },
+    { expectedRevision: calendar.revision }
+  );
+  // @ts-expect-error 不把任意外部颜色当作 Tau 色板。
+  const invalid: import("@tau/plugins").PluginDirectoryColor = "#ff0000";
+  return { saved, editable: saved.editable, invalid };
+}
+
+export function objectEventContract(context: import("@tau/plugins").PluginContext) {
+  const handle = context.events.on(
+    ["todo-list.created", "todo-list.updated", "todo-list.deleted"],
+    event => {
+      const id: string = event.id;
+      void context.data.todoLists.get(id);
+    }
+  );
+  // @ts-expect-error 对象级通知不保留旧集合事件。
+  const retired: import("@tau/plugins").PluginEventType = "todos.changed";
+  return { handle, retired };
+}

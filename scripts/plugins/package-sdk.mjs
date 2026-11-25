@@ -41,6 +41,7 @@ try {
     jsx: ts.JsxEmit.ReactJSX,
     declaration: true,
     emitDeclarationOnly: true,
+    outDir: path.join(staging, "declarations"),
     skipLibCheck: true,
     strict: true,
     esModuleInterop: true,
@@ -62,6 +63,7 @@ try {
   const graph = ts.createProgram(
     [
       ...entries,
+      path.join(root, "packages/shared/styles.d.ts"),
       whiteboardEntry,
       syncEntry,
       publishEntry,
@@ -82,25 +84,34 @@ try {
     options
   );
   const declarations = new Map();
-  const emitted = program.emit(
-    undefined,
-    (_file, text, _bom, _error, sources) => {
-      if (sources?.length === 1) declarations.set(path.resolve(sources[0].fileName), text);
-    },
-    undefined,
-    true
-  );
-  if (emitted.emitSkipped)
-    throw new Error(
-      ts.formatDiagnosticsWithColorAndContext(
-        [...ts.getPreEmitDiagnostics(program), ...emitted.diagnostics],
-        {
-          getCanonicalFileName: name => name,
-          getCurrentDirectory: () => root,
-          getNewLine: () => "\n",
-        }
-      )
+  for (const source of program.getSourceFiles()) {
+    if (
+      !isWorkspaceSource(source.fileName) ||
+      source.isDeclarationFile ||
+      source.fileName.endsWith(".json")
+    )
+      continue;
+    const emitted = program.emit(
+      source,
+      (_file, text, _bom, _error, sources) => {
+        if (sources?.length === 1) declarations.set(path.resolve(sources[0].fileName), text);
+      },
+      undefined,
+      true
     );
+    if (emitted.emitSkipped)
+      throw new Error(
+        `声明生成失败：${source.fileName}\n` +
+          ts.formatDiagnosticsWithColorAndContext(
+            [...ts.getPreEmitDiagnostics(program), ...emitted.diagnostics],
+            {
+              getCanonicalFileName: name => name,
+              getCurrentDirectory: () => root,
+              getNewLine: () => "\n",
+            }
+          )
+      );
+  }
 
   await mkdir(output, { recursive: true });
   for (const [index, name] of ["plugins", "ui"].entries()) {
@@ -116,14 +127,15 @@ try {
         .relative(root, source)
         .split(path.sep)
         .join("/")
-        .replace(/\.(tsx?|jsx?)$/, ".d.ts");
+        .replace(/\.(tsx?|jsx?|json)$/, ".d.ts");
     const copyDeclaration = async source => {
       source = path.resolve(source);
       if (visited.has(source)) return;
       visited.add(source);
-      const text =
-        declarations.get(source) ??
-        (source.endsWith(".d.ts") ? await readFile(source, "utf8") : undefined);
+      const text = source.endsWith(".json")
+        ? `declare const value: ${JSON.stringify(JSON.parse(await readFile(source, "utf8")))};\nexport default value;\n`
+        : (declarations.get(source) ??
+          (source.endsWith(".d.ts") ? await readFile(source, "utf8") : undefined));
       if (!text) throw new Error(`缺少声明产物：${source}`);
       const file = ts.createSourceFile(source, text, ts.ScriptTarget.Latest, true);
       const edits = [];

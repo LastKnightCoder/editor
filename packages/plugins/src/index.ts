@@ -145,7 +145,13 @@ export type {
   PluginPickedEntity,
 } from "./app";
 export { PLUGIN_EVENT_TYPES } from "./events";
-export type { PluginDomainEvent, PluginEventOrigin, PluginEventType, PluginEvents } from "./events";
+export type {
+  PluginDomainEvent,
+  PluginEvent,
+  PluginEventOrigin,
+  PluginEventType,
+  PluginEvents,
+} from "./events";
 export { PLUGIN_PERMISSIONS, PluginPermissionError, isPluginPermission } from "./permissions";
 export type {
   PluginPermission,
