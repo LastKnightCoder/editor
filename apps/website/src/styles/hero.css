@@ -181,6 +181,10 @@
   background: var(--tau-bg-page);
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
+/* 黑白的强调色就是墨色，与深色底同为黑；改取浅色卡片的纯白，色点读作黑白各半 */
+.swatch[data-theme-pick="mono"] i:first-child {
+  background: var(--tau-bg-surface);
+}
 .swatch:hover {
   transform: scale(1.18);
 }
