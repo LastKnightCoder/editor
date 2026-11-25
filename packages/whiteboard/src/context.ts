@@ -16,13 +16,11 @@ export const SelectionContext = createContext<Selection | null>(null);
 export const StaticSelectionContext = createContext(false);
 
 export const BoardStateContext = createContext<{
-  isMoving: boolean;
   movingStore: MovingElementsStore;
   simplifiedRenderZoomThreshold: number;
   /** 连接点归属仲裁：同一时刻只有一个元素显示悬停连接点 */
   connectPointOwnerStore: ConnectPointOwnerStore | null;
 }>({
-  isMoving: false,
   movingStore: {
     subscribe: () => () => {},
     getBoardMoving: () => false,

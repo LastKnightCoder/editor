@@ -64,6 +64,7 @@ export class SnapManager {
   private guides: SnapGuide[] = EMPTY_GUIDES;
   private listeners = new Set<() => void>();
   private gridSize: number | null = null;
+  private movingIdsCache?: { elements: BoardElement[]; excluded: Set<string>; key: string };
   private candidateCache: {
     excludeKey: string;
     viewPort: ViewPort;
@@ -153,6 +154,7 @@ export class SnapManager {
   end = () => {
     this.cancelScheduledEnd();
     this.candidateCache = null;
+    this.movingIdsCache = undefined;
     this.setGuides(EMPTY_GUIDES);
     if (!this.sessionActive) return;
     this.sessionActive = false;
@@ -200,9 +202,16 @@ export class SnapManager {
 
   /** 候选 = 视口内参与参考线的元素，排除运动元素及其子孙；视口不变时复用快照 */
   private getCandidates(movingElements: BoardElement[]): SnapBounds[] {
-    const excluded = new Set<string>();
-    movingElements.forEach(element => collectSubtreeIds(element, excluded));
-    const excludeKey = [...excluded].sort().join("|");
+    if (this.movingIdsCache?.elements !== movingElements) {
+      const excluded = new Set<string>();
+      movingElements.forEach(element => collectSubtreeIds(element, excluded));
+      this.movingIdsCache = {
+        elements: movingElements,
+        excluded,
+        key: [...excluded].sort().join("|"),
+      };
+    }
+    const { excluded, key: excludeKey } = this.movingIdsCache;
     const { viewPort, capabilityService } = this.board;
 
     const cache = this.candidateCache;

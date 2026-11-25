@@ -1,5 +1,5 @@
 import { useMemoizedFn } from "ahooks";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ARROW_CONNECT_ID, ARROW_DROP_PROXIMITY_RADIUS } from "../constants";
 import { CommonPlugin, type CommonElement } from "../plugins/CommonPlugin";
 import { Point } from "../types";
@@ -37,7 +37,7 @@ export const useDropArrow = (
     ];
   }, [container, element]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!connectPointOwnerStore) return;
     return connectPointOwnerStore.register(id, {
       bounds: { x, y, width, height },

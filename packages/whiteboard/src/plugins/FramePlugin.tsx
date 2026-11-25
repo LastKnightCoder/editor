@@ -1,3 +1,7 @@
+import { StaticSelectionContext } from "../context";
+import { useContext, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useMemoizedFn } from "ahooks";
+import { useBoard } from "../hooks/useBoard";
 import { Ungroup, Maximize, Frame as FrameIcon } from "lucide-react";
 import {
   Board,
@@ -22,6 +26,27 @@ import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
 import Frame from "../components/Frame";
 
+function FrameRoot({ element, children }: { element: FrameElement; children: ReactNode }) {
+  const board = useBoard(),
+    ref = useRef<SVGGElement>(null);
+  const isolated = useContext(StaticSelectionContext);
+  const rebasePhase = useSyncExternalStore(
+    board.framePresentation.subscribe,
+    board.framePresentation.rebasePhase
+  );
+  const register = useMemoizedFn(() =>
+    ref.current ? board.framePresentation.register(element, ref.current) : undefined
+  );
+  useLayoutEffect(
+    () => (!isolated ? register() : undefined),
+    [board, element.id, isolated, register]
+  );
+  useLayoutEffect(() => {
+    if (!isolated) board.framePresentation.rendered(element);
+  }, [board, element, isolated, rebasePhase]);
+  return <g ref={ref}>{children}</g>;
+}
+
 export class FramePlugin extends CommonPlugin implements IBoardPlugin {
   name = "frame";
 
@@ -42,7 +67,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
           const path = PathUtil.getPathByElement(board, frame);
           if (!path) return [];
           const isChildMoveIn = feedback ? feedback.isTarget && !feedback.isCurrent : false;
-          if (frame.isChildMoveIn === isChildMoveIn) return [];
+          if (Boolean(frame.isChildMoveIn) === isChildMoveIn) return [];
           return [
             {
               type: "set_node",
@@ -193,7 +218,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
           frame.children.forEach((_, index) => {
             ops.push({
               type: "move_node",
-              path: [...framePath, index],
+              path: [...framePath, 0],
               newPath: [ctx.board.children.length + index],
             });
           });
@@ -215,7 +240,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
             },
           });
 
-          ctx.board.apply(ops);
+          ctx.board.apply(BoardUtil.normalizeOperations(ops));
         },
       });
 
@@ -384,7 +409,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     { element, children }: { element: FrameElement; children?: React.ReactNode }
   ) {
     return (
-      <g key={element.id}>
+      <FrameRoot key={element.id} element={element}>
         <Frame
           element={element}
           onResize={this.onResize.bind(this)}
@@ -392,7 +417,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
           onResizeEnd={this.onResizeEnd.bind(this)}
         />
         {children}
-      </g>
+      </FrameRoot>
     );
   }
 }

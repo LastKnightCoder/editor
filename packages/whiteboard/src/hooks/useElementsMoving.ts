@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef } from "react";
 import { Board, BoardElement } from "../types";
 
 export interface MovingElementsStore {
@@ -78,13 +78,7 @@ export const useElementsMoving = (board: Board) => {
     };
   }, [board]);
 
-  const isMoving = useSyncExternalStore(
-    movingStoreRef.current.subscribe,
-    movingStoreRef.current.getBoardMoving
-  );
-
   return {
-    isMoving,
     movingStore: movingStoreRef.current as MovingElementsStore,
   };
 };

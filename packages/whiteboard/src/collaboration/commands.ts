@@ -63,11 +63,7 @@ export function submit(
         : []
     ),
   ];
-  const commit = (model: typeof binding.model) =>
-    chunked
-      ? model.submitChunks(commands, origin, prepared)
-      : model.submit(commands, origin, prepared);
-  // 仅移动几何位置时，模型提交已校验几何和完整候选；扩展数据与资源没有写入。
+  // 结构移动、删除与几何修改不写扩展数据，模型仍校验完整候选。
   const geometryOnly =
     commands.length > 0 &&
     commands.every(
@@ -76,42 +72,52 @@ export function submit(
         Object.keys(command.patch).length === 1 &&
         command.patch.geometry !== undefined
     );
-  if (!geometryOnly) {
-    binding.validating = true;
-    try {
-      binding.model.preflight(candidate => {
-        const created = commit(candidate).createdIds;
-        const touched = new Set([
-          ...created,
-          ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
-        ]);
-        const snapshot = candidate.read();
-        const catalog = binding.options.catalog;
-        for (const node of flattenModel([
-          ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
-          ...snapshot.recovery,
-        ])) {
-          const entry = catalog?.get(node.contractId);
-          if (touched.has(node.id)) {
+  const validate = commands.some(
+    command => command.type === "create" || command.type === "set_data"
+  )
+    ? (candidate: typeof binding.model, created: readonly string[]) => {
+        binding.validating = true;
+        try {
+          const touched = new Set([
+            ...created,
+            ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
+          ]);
+          const catalog = binding.options.catalog;
+          for (const id of touched) {
+            const node = candidate.readElementData(id);
+            if (!node) continue;
+            const entry = catalog?.get(node.contractId);
             const contract = candidate.contracts.get(node.contractId);
             if (!contract) throw new Error("白板快照缺少节点契约");
             for (const slot of contentResourceSlots(node.data, contract.resources))
               for (const reference of contentResourceValues(slot))
                 if (!isSafeResource(reference))
                   throw new Error("资源须先交由宿主管理，不能写入本机路径或凭据");
+            if (entry?.access === "edit" && catalog) catalog.validate(entry, node.data);
           }
-          if (touched.has(node.id) && entry?.access === "edit" && catalog)
-            catalog.validate(entry, node.data);
+        } finally {
+          binding.validating = false;
         }
-      });
-    } finally {
-      binding.validating = false;
-    }
-  }
+      }
+    : undefined;
   if (!binding.streamingGesture) enterGroup(binding, historyGroup);
   binding.writing = true;
   try {
-    return commit(binding.model);
+    if (geometryOnly) {
+      const geometries = commands.map(command => {
+        if (command.type !== "set_node" || !command.patch.geometry) throw new Error("几何命令无效");
+        return { id: command.id, geometry: command.patch.geometry };
+      });
+      const before = binding.readSnapshot();
+      const committed = binding.model.tryLocalGeometries(geometries, origin);
+      if (committed) {
+        if (committed.isolated) binding.publishGeometries(before, geometries);
+        return { createdIds: [] };
+      }
+    }
+    return chunked
+      ? binding.model.submitChunks(commands, origin, prepared, [], validate)
+      : binding.model.submit(commands, origin, prepared, validate);
   } finally {
     binding.writing = false;
     refresh(binding);

@@ -42,8 +42,8 @@ import {
   unlinkEntity,
   setPresentations,
 } from "./commands";
-import { beginGesture, isRealtimeGesture, endGesture } from "./gesture";
-import { apply, commitPreview, geometryKeys } from "./operations";
+import { beginGesture, isRealtimeGesture, endGesture, prepareGestureHistory } from "./gesture";
+import { apply, commitPreview, geometryKeys, previewFramePosition } from "./operations";
 import {
   createContentCopy,
   pages,
@@ -225,9 +225,37 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     }
     return this.disconnect;
   }
+  private cancelGeometryWarmup?: () => void;
+  prepareGeometryWhenIdle(): void {
+    if (
+      this.closed ||
+      this.gesture ||
+      this.cancelGeometryWarmup ||
+      !this.options.coalesceLocalGesture
+    )
+      return;
+    const prepare = () => {
+      this.cancelGeometryWarmup = undefined;
+      if (!this.closed && !this.gesture && this.board?.captureSubmission()()) {
+        this.model.prepareLocalTranslations();
+        this.readSnapshot();
+        this.idleGestureHistory ??= prepareGestureHistory(this);
+      }
+    };
+    if (typeof requestIdleCallback === "function") {
+      const handle = requestIdleCallback(prepare);
+      this.cancelGeometryWarmup = () => cancelIdleCallback(handle);
+    } else {
+      const handle = setTimeout(prepare, 0);
+      this.cancelGeometryWarmup = () => clearTimeout(handle);
+    }
+  }
+
   private readonly disconnect = () => {
     if (this.closed) return;
     this.closed = true;
+    this.cancelGeometryWarmup?.();
+    this.cancelGeometryWarmup = undefined;
     this.board?.interactions.cancel();
     this.endGesture(false);
     this.invalidateSnapshot();
@@ -241,27 +269,65 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     this.documents.clear();
     this.projections.clear();
     this.pending = [];
+    this.idleGestureHistory?.destroy();
+    this.idleGestureHistory = undefined;
     this.history.destroy();
     this.board = undefined;
   };
   private snapshot?: ReturnType<WhiteboardModel["read"]>;
+  private snapshotEpoch = 0;
   private readonly invalidateChangedSnapshot = (transaction: Y.Transaction) => {
     if (transaction.changed.size || transaction.deleteSet.clients.size) this.invalidateSnapshot();
   };
   private readonly invalidateSnapshot = () => {
+    this.snapshotEpoch++;
     this.snapshot = undefined;
-    this.lastStrokeChildren = undefined;
+    this.lastCommittedChildren = undefined;
   };
 
   readSnapshot(): ReturnType<WhiteboardModel["read"]> {
-    if (
-      !this.board ||
-      this.closed ||
-      this.model.doc._transaction ||
-      this.model.doc._transactionCleanups.length
-    )
-      return this.model.read();
+    if (!this.board || this.closed || this.model.doc._transaction) return this.model.read();
+    if (this.model.doc._transactionCleanups.length) {
+      const snapshot = this.model.read(),
+        epoch = this.snapshotEpoch;
+      queueMicrotask(() => {
+        if (!this.closed && epoch === this.snapshotEpoch) this.snapshot ??= snapshot;
+      });
+      return snapshot;
+    }
     return (this.snapshot ??= this.model.read());
+  }
+
+  publishGeometries(
+    before: ReturnType<WhiteboardModel["read"]>,
+    values: readonly { id: string; geometry: import("@tau/collaboration").WhiteboardGeometry }[]
+  ): void {
+    const geometries = new Map(values.map(value => [value.id, value.geometry]));
+    const patch = (nodes: typeof before.recovery): typeof before.recovery =>
+      Object.freeze(
+        nodes.map(node => {
+          const value = geometries.get(node.id);
+          const children = node.children.length ? patch(node.children) : node.children;
+          return value || children !== node.children
+            ? Object.freeze({
+                ...node,
+                ...(value
+                  ? { geometry: Object.isFrozen(value) ? value : Object.freeze({ ...value }) }
+                  : {}),
+                children,
+              })
+            : node;
+        })
+      );
+    this.snapshot = Object.freeze({
+      ...before,
+      pages: Object.freeze(
+        before.pages.map(page =>
+          Object.freeze({ ...page, children: patch(page.children), recovery: patch(page.recovery) })
+        )
+      ),
+      recovery: patch(before.recovery),
+    });
   }
 
   publishBody(before: ReturnType<WhiteboardModel["read"]>, id: string) {
@@ -291,7 +357,12 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     return true;
   }
 
-  lastStrokeChildren?: BoardElement[];
+  framePending?: {
+    rootId: string;
+    commands: import("@tau/collaboration").WhiteboardModelCommand[];
+  };
+  idleGestureHistory?: import("@tau/collaboration").NodeTreeHistory;
+  lastCommittedChildren?: BoardElement[];
 
   publishStroke(
     before: ReturnType<WhiteboardModel["read"]>,
@@ -343,7 +414,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
         )
       ),
     });
-    this.lastStrokeChildren = rendered;
+    this.lastCommittedChildren = rendered;
     board.publishDocument(rendered);
     return true;
   }
@@ -468,6 +539,9 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     if (ids.some(id => !flatten(board.children).some(node => node.id === id)))
       throw new Error("跨页目标已失效");
     this.submit(ids.map(id => ({ type: "move_node", id, parent: { kind: "page", id: pageId } })));
+  }
+  previewFramePosition(id: string, x: number, y: number) {
+    return previewFramePosition(this, id, x, y);
   }
   beginGesture(options?: { realtime?: boolean }): void {
     return beginGesture(this, options);

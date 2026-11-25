@@ -27,6 +27,9 @@ export class DraggingState implements InteractionState {
   private startPoint: { x: number; y: number } | null = null;
   private isHitSelected = false;
   private isMoved = false;
+  private frameTarget?: { id: string; x: number; y: number };
+  private frameTimer?: ReturnType<typeof setTimeout>;
+  private frameEnded = false;
 
   private constructor() {}
 
@@ -114,6 +117,11 @@ export class DraggingState implements InteractionState {
       },
       false
     );
+    if (moveElements.length === 1 && moveElements[0].type === "frame") {
+      board.framePresentation.begin(moveElements[0]);
+      if (board.framePresentation.isMoving())
+        board.framePresentation.setFlush(() => state.flushFrame(board));
+    }
     return state;
   }
 
@@ -218,6 +226,42 @@ export class DraggingState implements InteractionState {
     return parent && board.capabilityService.hasOrderedChildren(parent) ? parent : null;
   }
 
+  private framePosition(event: PointerEvent, board: Board) {
+    const root = this.moveElements?.[0];
+    if (
+      !root ||
+      this.moveElements?.length !== 1 ||
+      root.type !== "frame" ||
+      !this.startPoint ||
+      !board.framePresentation.isMoving()
+    )
+      return;
+    const point = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
+    if (!point) return;
+    const x = root.x + point.x - this.startPoint.x,
+      y = root.y + point.y - this.startPoint.y;
+    const snap = board.snap.move({
+      elements: this.moveElements,
+      bounds: { x, y, width: root.width, height: root.height },
+      enabled: !event.altKey,
+    });
+    return { id: root.id, x: x + snap.dx, y: y + snap.dy };
+  }
+
+  private flushFrame(board: Board) {
+    if (this.frameTimer !== undefined) clearTimeout(this.frameTimer);
+    this.frameTimer = undefined;
+    const target = this.frameTarget;
+    this.frameTarget = undefined;
+    if (!target || this.frameEnded || !board.framePresentation.isMoving()) return;
+    if (!board.captureSubmission()()) {
+      board.interactions.cancel();
+      return;
+    }
+    const node = board.document?.previewFramePosition?.(target.id, target.x, target.y);
+    if (node && !this.frameEnded) board.emit("element:move", [node]);
+  }
+
   onPointerMove(e: PointerEvent, board: Board) {
     if (!this.moveElements || !this.startPoint || board.presentationManager.isPresentationMode)
       return;
@@ -238,6 +282,21 @@ export class DraggingState implements InteractionState {
     }
     if (!this.isMoved) return;
 
+    const frame = this.framePosition(e, board);
+    if (frame) {
+      this.frameTarget = frame;
+      board.framePresentation.move(frame.x, frame.y);
+      if (this.frameTarget && this.frameTimer === undefined)
+        this.frameTimer = setTimeout(() => {
+          try {
+            this.flushFrame(board);
+          } catch (error) {
+            board.interactions.cancel();
+            console.error("画框位移预览失败", error);
+          }
+        }, 50);
+      return;
+    }
     const operations: Operation[] = [];
 
     const { movedElements } = this.getUpdatedInfo(e, board);
@@ -305,6 +364,12 @@ export class DraggingState implements InteractionState {
   }
 
   onExit(board: Board): void {
+    this.frameEnded = true;
+    if (this.frameTimer !== undefined) clearTimeout(this.frameTimer);
+    this.frameTimer = undefined;
+    this.frameTarget = undefined;
+    board.framePresentation.setFlush(undefined);
+    board.framePresentation.end();
     if (!this.isFinished) this.clearAllContainerDragState(board);
   }
 
@@ -336,6 +401,26 @@ export class DraggingState implements InteractionState {
       return;
     }
 
+    const frame = this.framePosition(e, board);
+    if (frame) {
+      this.frameTarget = frame;
+      board.framePresentation.move(frame.x, frame.y);
+      this.flushFrame(board);
+      if (this.isHitSelected) {
+        const node = BoardUtil.getElementById(board, frame.id);
+        board.apply(
+          {
+            type: "set_selection",
+            properties: board.selection,
+            newProperties: { selectedElements: node ? [node] : [] },
+          },
+          false
+        );
+      }
+      board.snap.end();
+      board.emit("element:move-end");
+      return;
+    }
     const { movedElements } = this.getUpdatedInfo(e, board);
     const capService = board.capabilityService;
 

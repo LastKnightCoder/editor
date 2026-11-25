@@ -19,6 +19,8 @@ export class BoardUtil {
   }
 
   static getHitElements(board: Board, x: number, y: number): BoardElement[] {
+    if (board.framePresentation.isMoving())
+      return this.getHitElementsByDFS(board, x, y, board.getSnapshot().children);
     try {
       const candidates = this.getSpatialIndex(board).queryPoint(x, y);
       return candidates.filter(node => board.isHit(node, x, y));
@@ -32,6 +34,8 @@ export class BoardUtil {
     selectArea: Selection["selectArea"]
   ): BoardElement[] {
     if (!selectArea) return [];
+    if (board.framePresentation.isMoving())
+      return this.getElementsInSelectAreaByDFS(board, selectArea, board.getSnapshot().children);
 
     const minX = Math.min(selectArea.anchor.x, selectArea.focus.x);
     const minY = Math.min(selectArea.anchor.y, selectArea.focus.y);
@@ -59,7 +63,11 @@ export class BoardUtil {
   }
 
   /** 与 dfs 相同的先序遍历，但只进入可见子元素 */
-  private static dfsHitTestable(board: Board, visit: (node: BoardElement) => void): void {
+  private static dfsHitTestable(
+    board: Board,
+    visit: (node: BoardElement) => void,
+    elements = board.children
+  ): void {
     const walk = (nodes: BoardElement[] | undefined) => {
       if (!nodes) return;
       for (let i = 0; i < nodes.length; i++) {
@@ -67,31 +75,45 @@ export class BoardUtil {
         walk(getHitTestChildren(board, nodes[i]));
       }
     };
-    walk(board.children);
+    walk(elements);
   }
 
-  private static getHitElementsByDFS(board: Board, x: number, y: number): BoardElement[] {
+  private static getHitElementsByDFS(
+    board: Board,
+    x: number,
+    y: number,
+    elements = board.children
+  ): BoardElement[] {
     const hitElements: BoardElement[] = [];
-    this.dfsHitTestable(board, node => {
-      if (board.isHit(node, x, y)) {
-        hitElements.push(node);
-      }
-    });
+    this.dfsHitTestable(
+      board,
+      node => {
+        if (board.isHit(node, x, y)) {
+          hitElements.push(node);
+        }
+      },
+      elements
+    );
     return hitElements;
   }
 
   private static getElementsInSelectAreaByDFS(
     board: Board,
-    selectArea: Selection["selectArea"]
+    selectArea: Selection["selectArea"],
+    elements = board.children
   ): BoardElement[] {
     if (!selectArea) return [];
 
     const selectedElements: BoardElement[] = [];
-    this.dfsHitTestable(board, node => {
-      if (board.isElementSelected(node, selectArea)) {
-        selectedElements.push(node);
-      }
-    });
+    this.dfsHitTestable(
+      board,
+      node => {
+        if (board.isElementSelected(node, selectArea)) {
+          selectedElements.push(node);
+        }
+      },
+      elements
+    );
     return selectedElements;
   }
 

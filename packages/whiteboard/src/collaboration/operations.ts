@@ -58,6 +58,18 @@ export function apply(
       }
     return false;
   }
+  if (
+    operations.some(
+      op =>
+        op.type !== "set_node" ||
+        Object.keys(op.newProperties).some(
+          key => !geometryKeys.includes(key as (typeof geometryKeys)[number])
+        )
+    )
+  ) {
+    board.framePresentation.flush();
+    board.framePresentation.end();
+  }
   const { commands, children, feedback } = compile(binding, operations);
   if (binding.gesture) {
     binding.pending = compact([...binding.pending, ...commands]);
@@ -76,6 +88,63 @@ export function apply(
   );
   if (local.length) board.apply(local, false);
   return true;
+}
+
+/** 画框显示独立于数据投影，按节奏合并位移并在松手冲刷末位置。 */
+export function previewFramePosition(
+  binding: CanvasBinding,
+  id: string,
+  x: number,
+  y: number
+): BoardElement | undefined {
+  const board = assertWritable(binding, false);
+  if (!binding.gesture) return;
+  const index = board.children.findIndex(node => node.id === id);
+  const current = board.children[index];
+  if (!current || current.type !== "frame") return;
+  const dx = x - current.x,
+    dy = y - current.y;
+  const commands: WhiteboardModelCommand[] = [];
+  const move = (node: BoardElement): BoardElement => {
+    const geometry = authorElement(binding, node.id)?.geometry;
+    if (!geometry) throw new Error("画框子节点身份已变化");
+    const next = {
+      ...node,
+      x: node.x + dx,
+      y: node.y + dy,
+      ...(node.children ? { children: node.children.map(move) } : {}),
+    };
+    commands.push({
+      type: "set_node",
+      id: node.id,
+      patch: {
+        geometry: binding.model.geometryValue(
+          next.x,
+          next.y,
+          geometry.width,
+          geometry.height,
+          geometry.rotation
+        ),
+      },
+    });
+    return next;
+  };
+  const next = move(current);
+  const children = [...board.children];
+  children[index] = next;
+  if (
+    !binding.pending.length ||
+    (binding.framePending?.rootId === id && binding.framePending.commands === binding.pending)
+  ) {
+    binding.pending = commands;
+    binding.framePending = { rootId: id, commands };
+  } else {
+    binding.pending = compact([...binding.pending, ...commands]);
+    binding.framePending = undefined;
+  }
+  board.publishDocument(resolveArrowBindings(binding, children));
+  scheduleGesture(binding);
+  return next;
 }
 
 export function commitPreview(
@@ -131,10 +200,16 @@ export function compile(
     if (!parent) throw new Error("路径父级已失效");
     return { kind: "element", id: parent.id };
   };
-  const prepared = BoardOperations.applyOperations(
+  const batch = BoardOperations.applyOperations(
     { children, selection: board.selection, viewPort: board.viewPort, sketch: board.sketch },
     operations
-  ).operations;
+  );
+  const prepared = batch.operations;
+  const patchOnly = prepared.every(op =>
+    ["set_node", "set_selection", "set_viewport", "set_moving"].includes(op.type)
+  );
+  const shadows = new Map<string, BoardElement>();
+  const geometries = new Map<string, WhiteboardGeometry>();
   const isContent = (op: Operation) =>
     !["set_selection", "set_viewport", "set_moving"].includes(op.type);
   if (prepared.filter(isContent).length !== operations.filter(isContent).length)
@@ -142,12 +217,28 @@ export function compile(
   for (const operation of prepared) {
     const old =
       "path" in operation && operation.type !== "insert_node"
-        ? PathUtil.getElement(children, operation.path)
+        ? ((patchOnly && shadows.size ? shadows.get(operation.path.join("/")) : undefined) ??
+          PathUtil.getElement(children, operation.path))
         : undefined;
-    const next = BoardOperations.applyOperations({ children }, [operation]).data.children;
+    const next = patchOnly
+      ? children
+      : BoardOperations.applyOperations({ children }, [operation]).data.children;
     if (operation.type === "set_node") {
       if (!old) throw new Error("属性目标已失效");
-      commands.push(...patch(binding, old, operation.newProperties));
+      commands.push(...patch(binding, old, operation.newProperties, geometries));
+      if (
+        patchOnly &&
+        !Object.keys(operation.newProperties).every(key =>
+          geometryKeys.includes(key as (typeof geometryKeys)[number])
+        )
+      ) {
+        const shadow = { ...old };
+        for (const [key, value] of Object.entries(operation.newProperties)) {
+          if (value == null) delete shadow[key];
+          else shadow[key] = value;
+        }
+        shadows.set(operation.path.join("/"), shadow);
+      }
       feedback.push(...captureFeedback(binding, old, operation.newProperties));
     } else if (operation.type === "remove_node") {
       if (!old || old.id !== operation.node.id) throw new Error("删除观察目标已失效");
@@ -178,12 +269,17 @@ export function compile(
         for (let index = 0; index < nodes.length; index++) {
           const node = nodes[index];
           if (node.id === old.id) {
-            if (takeVisibleGeometry && (parent.kind !== "element" || parent.id !== priorParent.id))
+            if (
+              takeVisibleGeometry &&
+              (parent.kind !== "element" || parent.id !== priorParent.id)
+            ) {
+              geometries.set(old.id, canvasGeometry(old));
               commands.push({
                 type: "set_node",
                 id: old.id,
                 patch: { geometry: canvasGeometry(old) },
               });
+            }
             const codec = binding.options.types[old.type];
             if (
               old.type === "column" &&
@@ -213,7 +309,7 @@ export function compile(
       });
     children = next;
   }
-  return { commands, children, feedback };
+  return { commands, children: patchOnly ? batch.data.children : children, feedback };
 }
 
 export function bodyContent(binding: CanvasBinding, value: unknown): unknown {
@@ -314,8 +410,29 @@ export function creation(
 export function patch(
   binding: CanvasBinding,
   node: BoardElement,
-  patch: Record<string, unknown>
+  patch: Record<string, unknown>,
+  geometries?: Map<string, WhiteboardGeometry>
 ): WhiteboardModelCommand[] {
+  if (!Object.keys(patch).length) return [];
+  if (
+    Object.keys(patch).every(key => geometryKeys.includes(key as (typeof geometryKeys)[number]))
+  ) {
+    const value = {
+      ...(geometries?.get(node.id) ??
+        authorElement(binding, node.id)?.geometry ??
+        canvasGeometry(node)),
+      ...patch,
+    } as WhiteboardGeometry;
+    const owned = binding.model.geometryValue(
+      value.x,
+      value.y,
+      value.width,
+      value.height,
+      value.rotation
+    );
+    geometries?.set(node.id, owned);
+    return [{ type: "set_node", id: node.id, patch: { geometry: owned } }];
+  }
   const codec = binding.options.types[node.type];
   const currentContract = canEditElement(binding, node.id);
   const commands: WhiteboardModelCommand[] = [],
@@ -344,14 +461,18 @@ export function patch(
       continue;
     }
     if (geometryKeys.includes(key as (typeof geometryKeys)[number])) {
+      if (shell.geometry) continue;
       shell.geometry = {
-        ...(authorElement(binding, node.id)?.geometry ?? canvasGeometry(node)),
+        ...(geometries?.get(node.id) ??
+          authorElement(binding, node.id)?.geometry ??
+          canvasGeometry(node)),
         ...Object.fromEntries(
           Object.entries(patch).filter(([field]) =>
             geometryKeys.includes(field as (typeof geometryKeys)[number])
           )
         ),
       } as WhiteboardGeometry;
+      geometries?.set(node.id, shell.geometry);
       continue;
     }
     if (key === "name") {

@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import type { WhiteboardDocumentBinding } from "./document";
 import { useWhiteboardPresence, type WhiteboardPresenceOptions } from "./collaboration/presence";
 import React, {
@@ -8,6 +9,7 @@ import React, {
   useRef,
   useState,
   useSyncExternalStore,
+  useDeferredValue,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -312,11 +314,17 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       const unsubscribe = pointerViewportStore.subscribe(() => {
         connectPointOwnerStore.setPointer(pointerViewportStore.getSnapshot());
       });
+      const stopMotion = board.framePresentation.subscribe(() =>
+        connectPointOwnerStore.setSuspended(
+          board.framePresentation.isMoving() || board.framePresentation.isRebasing()
+        )
+      );
       return () => {
         unsubscribe();
+        stopMotion();
         connectPointOwnerStore.dispose();
       };
-    }, [connectPointOwnerStore, pointerViewportStore]);
+    }, [board, connectPointOwnerStore, pointerViewportStore]);
 
     // 网格设置
     const peers = useWhiteboardPresence(board, pointerViewportStore, props.presence);
@@ -327,16 +335,15 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       board.readonly = documentTooNew || (readonly ?? false);
     }, [board, readonly, documentTooNew]);
     const isArrowMoving = useListenArrowMove(board);
-    const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
+    const { movingStore } = useElementsMoving(board);
     const arrowMoveState = useMemo(() => ({ isMoving: isArrowMoving }), [isArrowMoving]);
     const boardState = useMemo(
       () => ({
-        isMoving: isElementsMoving,
         movingStore,
         simplifiedRenderZoomThreshold,
         connectPointOwnerStore,
       }),
-      [isElementsMoving, movingStore, connectPointOwnerStore]
+      [movingStore, connectPointOwnerStore]
     );
     const { markInteracting } = usePreventTextSelection(containerRef);
     const createToolCursor = useCreateToolCursor(board);
@@ -369,7 +376,14 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
     );
 
     // 获取画板数据
-    const { children, viewPort, selection } = useCanvasSnapshot(board);
+    const canvasSnapshot = useCanvasSnapshot(board);
+    const deferredChildren = useDeferredValue(canvasSnapshot.children);
+    const rebasingFrame = useSyncExternalStore(
+      board.framePresentation.subscribe,
+      board.framePresentation.isRebasing
+    );
+    const { viewPort, selection } = canvasSnapshot;
+    const children = rebasingFrame ? deferredChildren : canvasSnapshot.children;
     const { zoom } = viewPort;
     useLayoutEffect(() => {
       const surface = cameraRef.current;
@@ -558,6 +572,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
         // 必须最先同步置位，拦截随后触发的 selectstart，防止拖拽/框选时误选 HTML 文字
         if (!isEditableTarget(event.target)) containerRef.current?.focus({ preventScroll: true });
         markInteracting(event.target);
+        cancelPointerMove();
         setPointerViewport(event);
         handleOnPointerDown(event);
       }
@@ -567,11 +582,8 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       (event: React.PointerEvent<HTMLDivElement>) => {
         if (!ownsBoardPointerEvent(board, event.nativeEvent)) return;
         setPointerViewport(event);
-        // 平移跟随浏览器指针帧，手写保留采样点；旧的悬停事件不能晚于手势执行。
-        if (
-          board.interactions.isCreateGestureActive() ||
-          board.interactions.activePointerState?.name === "panning"
-        ) {
+        // 活动手势跟随浏览器指针帧，25ms 节流只用于空闲悬停。
+        if (board.interactions.activePointerState) {
           cancelPointerMove();
           nonThrottledHandleOnPointerMove(event);
           return;
@@ -842,6 +854,14 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                         onContextMenu={handleContextMenu}
                         onClick={handleClick}
                         onDoubleClick={handleDblClick}
+                        onPointerDownCapture={event => {
+                          if (
+                            ownsBoardEvent(board, event.nativeEvent) &&
+                            !isCanvasOverlayEvent(event) &&
+                            board.framePresentation.isRebasing()
+                          )
+                            flushSync(() => board.framePresentation.finishForInteraction());
+                        }}
                         onPointerDown={handleContainerPointerDown}
                         onPointerMove={handleContainerPointerMove}
                         onPointerUp={handleContainerPointerUp}

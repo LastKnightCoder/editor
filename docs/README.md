@@ -75,6 +75,8 @@
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
+[画框性能](./tasks/whiteboard-frame-performance/README.md) 记录 1× / 2× / 4× CPU 降速的实际位移验收、提交优化与尚未达标的结构操作。
+
 [Notebook 演示文稿按页生成与续改](./tasks/ppt-workspace/README.md) 记录 Agent 工作目录、页级正文、模型自检、旧稿处理及实物试跑结果。
 
 [在当前白板与 Agent 共同编辑](./tasks/whiteboard-agent/README.md) 记录当前页 MCP 工具、协作身份、实时提交与压测验收计划。

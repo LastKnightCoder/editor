@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { cn } from "@tau/ui";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
@@ -29,7 +29,8 @@ export default function FloatingAttrBar({
 }) {
   const board = useBoard();
   const viewPort = useViewPort();
-  const { isMoving } = useBoardState();
+  const { movingStore } = useBoardState();
+  const isMoving = useSyncExternalStore(movingStore.subscribe, movingStore.getBoardMoving);
   const barRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
 

@@ -1,4 +1,4 @@
-export async function stressFrame(page, url, cycles) {
+export async function stressFrame(page, url, cycles, rate = 1) {
   const errors = [];
   const onError = error => errors.push(error.message);
   const onConsole = event => {
@@ -7,6 +7,7 @@ export async function stressFrame(page, url, cycles) {
   page.on("pageerror", onError);
   page.on("console", onConsole);
   let currentCycle = -1;
+  const cdp = await page.context().newCDPSession(page);
   const settle = () =>
     page.evaluate(
       () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
@@ -15,6 +16,7 @@ export async function stressFrame(page, url, cycles) {
     await page.setViewportSize({ width: 1000, height: 700 });
     await page.goto(url + "?mode=nested&size=900&legacy");
     await page.waitForFunction(() => window.frameBench?.ready, undefined, { timeout: 60000 });
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate });
     await page.evaluate(
       () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     );
@@ -95,6 +97,21 @@ export async function stressFrame(page, url, cycles) {
       await check("column-a", "frame");
       await check("column-b", "frame");
       await page.evaluate(() => window.frameBench.binding.undo());
+      await page.waitForFunction(() => {
+        const { api } = window.frameBench,
+          frame = api.getElement("frame");
+        const rect = Array.from(document.querySelectorAll("svg[data-whiteboard-canvas] rect")).find(
+          rect =>
+            Math.abs(Number(rect.getAttribute("width")) - frame.width) < 0.01 &&
+            Math.abs(Number(rect.getAttribute("height")) - frame.height) < 0.01
+        );
+        if (!rect) return false;
+        const actual = new DOMPoint(rect.x.baseVal.value, rect.y.baseVal.value).matrixTransform(
+          rect.getScreenCTM()
+        );
+        const expected = api.canvasToScreen({ x: frame.x, y: frame.y });
+        return Math.abs(actual.x - expected.x) < 0.01 && Math.abs(actual.y - expected.y) < 0.01;
+      });
       const snapshot = await page.evaluate(() => JSON.stringify(window.frameBench.model.read()));
       const old = await read("outside");
       await drag("outside", { x: old.x + 30, y: old.y + 20 }, true);
@@ -119,11 +136,14 @@ export async function stressFrame(page, url, cycles) {
     }
     return {
       cycles,
+      rate,
       gestures: 1 + cycles * 6,
       elements: await page.evaluate(() => window.frameBench.model.elements.size),
       errors,
     };
   } finally {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    await cdp.detach();
     page.off("pageerror", onError);
     page.off("console", onConsole);
   }

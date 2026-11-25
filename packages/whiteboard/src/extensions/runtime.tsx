@@ -278,7 +278,7 @@ export class ExtensionRuntime {
       },
       getElement: (id: string) => {
         const element = BoardUtil.getElementById(board, id);
-        return element ? clone(element) : undefined;
+        return element ? clone(board.framePresentation.queryElement(element)) : undefined;
       },
       canContain: (containerType, element) =>
         board.capabilityService.canBeContainedByType(element, containerType),
@@ -318,7 +318,14 @@ export class ExtensionRuntime {
         const element = id ? BoardUtil.getElementById(board, id) : undefined;
         return id && !element ? () => false : board.captureSubmission(element ?? undefined);
       },
-      subscribe: listener => board.subscribe(listener),
+      subscribe: listener => {
+        const stopValue = board.subscribe(listener);
+        const stopDisplay = board.framePresentation.subscribe(listener);
+        return () => {
+          stopValue();
+          stopDisplay();
+        };
+      },
       execute: (command, payload) => this.execute(command, payload),
       getShortcut: commandId => this.getShortcut(commandId),
       flashElement: id => board.emit("element:flash", id),

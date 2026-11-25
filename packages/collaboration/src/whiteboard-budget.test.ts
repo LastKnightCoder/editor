@@ -50,6 +50,89 @@ describe("白板模型预算与写入边界", () => {
     history.destroy();
   });
 
+  it("几何批次先验证全部目标，保留撤销同步并拒绝末项非法", async () => {
+    const { board, doc, target } = await translationFixture();
+    const snapshot = board.read(),
+      first = flat(snapshot)[0];
+    const other = board.submit(
+      [
+        {
+          type: "create",
+          contractId: first.contractId,
+          parent: pageParent(snapshot.pages[0].id),
+          data: { source: "另一项" },
+          geometry: shapeGeometry,
+          body: "",
+        },
+      ],
+      null
+    ).createdIds[0];
+    board.prepareLocalTranslations();
+    const before = board.read(),
+      vector = Y.encodeStateVector(doc),
+      origin = {};
+    const history = board.createUndoManager({
+      trackedOrigins: new Set([origin]),
+      captureTimeout: 0,
+    });
+    expect(() =>
+      board.tryLocalGeometries(
+        [
+          { id: target, geometry: { ...shapeGeometry, x: 200 } },
+          { id: other, geometry: { ...shapeGeometry, width: -1 } },
+        ],
+        origin
+      )
+    ).toThrow();
+    expect(board.read()).toEqual(before);
+    expect(Y.encodeStateVector(doc)).toEqual(vector);
+    expect(history.undoStack).toHaveLength(0);
+    const values = [
+      { id: target, geometry: { ...shapeGeometry, x: Number.MAX_VALUE, y: -Math.PI } },
+      { id: other, geometry: { ...shapeGeometry, width: 300 } },
+    ];
+    expect(board.tryLocalGeometries(values, origin)?.isolated).toBe(true);
+    expect(flat(board.read()).map(node => node.geometry)).toEqual(
+      values.map(node => node.geometry)
+    );
+    expect(model(Y.encodeStateAsUpdate(doc)).read()).toEqual(board.read());
+    history.undo();
+    expect(board.read()).toEqual(before);
+    history.redo();
+    expect(flat(board.read()).map(node => node.geometry)).toEqual(
+      values.map(node => node.geometry)
+    );
+    const edit = () => {
+      doc.off("update", edit);
+      board.title.insert(0, "观察者写入");
+    };
+    doc.on("update", edit);
+    expect(
+      board.tryLocalGeometries([{ id: target, geometry: shapeGeometry }], origin)?.isolated
+    ).toBe(false);
+    expect(board.readSummary().title).toContain("观察者写入");
+    history.destroy();
+  });
+
+  it("几何批次在容量临界和新增未编码根时回到完整验证", async () => {
+    const { board, doc, target } = await translationFixture();
+    board.title.insert(
+      0,
+      "a".repeat(WHITEBOARD_LIMITS.documentBytes - Y.encodeStateAsUpdate(doc).length - 300)
+    );
+    const before = Y.encodeStateAsUpdate(doc);
+    expect(
+      board.tryLocalGeometries([{ id: target, geometry: { ...shapeGeometry, x: 20 } }], null)
+    ).toBeUndefined();
+    expect(Buffer.compare(before, Y.encodeStateAsUpdate(doc))).toBe(0);
+    const fresh = await translationFixture();
+    for (let i = 0; i <= WHITEBOARD_LIMITS.richTextRoots; i++)
+      fresh.doc.getMap(`node-tree:roots:unknown-${i}:nodes`);
+    expect(
+      fresh.board.tryLocalGeometries([{ id: fresh.target, geometry: shapeGeometry }], null)
+    ).toBeUndefined();
+  });
+
   it("局部正文写入保留格式与撤销；跨过文档容量时不产生半次写入", async () => {
     const seed = await fixture();
     const target = create(seed.board, seed.rich, pageParent(seed.page), "seed", [

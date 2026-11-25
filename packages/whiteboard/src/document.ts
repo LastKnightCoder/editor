@@ -54,6 +54,11 @@ export interface WhiteboardDocumentBinding {
   connect(board: Board): () => void;
   apply(operations: Operation[], updateHistory: boolean, historyGroup?: string): boolean;
   commitPreview(operations: Operation[], historyGroup?: string): void;
+  previewFramePosition?(
+    id: string,
+    x: number,
+    y: number
+  ): import("./types/element").BoardElement | undefined;
   beginGesture(options?: { realtime?: boolean }): void;
   splitHistory(): void;
   endGesture(commit: boolean): void;

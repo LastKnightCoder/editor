@@ -155,9 +155,11 @@ export class BoardOperations {
       return { data: result, metadata, operations: [] };
     }
 
-    const operationsAreNormalized = operations.every(op =>
-      BoardOperations.isNormalizedOperation(op)
+    const stablePaths = operations.every(op =>
+      ["set_node", "set_selection", "set_viewport", "set_moving", "set_sketch"].includes(op.type)
     );
+    const operationsAreNormalized =
+      stablePaths || operations.every(op => BoardOperations.isNormalizedOperation(op));
 
     const preparedOps = operationsAreNormalized
       ? operations.map(op => BoardOperations.cloneOperation(op, true))
@@ -808,9 +810,7 @@ class OperationPathRefManager {
   }
 
   transform(operation: Operation): void {
-    if (!BoardOperations.operationHasPath(operation)) {
-      return;
-    }
+    if (!["insert_node", "remove_node", "move_node"].includes(operation.type)) return;
 
     const refs = Array.from(this.refs);
     for (const ref of refs) {

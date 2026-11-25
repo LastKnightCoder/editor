@@ -396,3 +396,46 @@ it("框内分栏优先接纳内容，拖出回到外框，整体移动不改变�
   vi.advanceTimersByTime(1000);
   expect(model.read()).toEqual(beforeCancel);
 });
+
+it("同批连续修改不同几何字段均保留，撤销恢复原值", async () => {
+  const { board, model, binding, insert } = await setup();
+  insert(card("patched"));
+  const before = model.read();
+  board.apply([
+    { type: "set_node", path: [0], properties: {}, newProperties: { x: 300 } },
+    { type: "set_node", path: [0], properties: {}, newProperties: { y: 400 } },
+  ]);
+  expect(model.read().pages[0].children[0].geometry).toMatchObject({ x: 300, y: 400 });
+  binding.undo();
+  expect(model.read()).toEqual(before);
+});
+
+it("画框显示先行时查询返回最新子元素坐标，读取不写文档且旧提交许可失效", async () => {
+  const { board, model, binding, insert } = await setup();
+  insert({ ...frame(), children: [card("child")] });
+  const api = getApi(board);
+  const original = model.read();
+  const root = api.getElement("frame")!;
+  const unregister = board.framePresentation.register(
+    root,
+    document.createElementNS("http://www.w3.org/2000/svg", "g")
+  );
+  cleanups.push(unregister);
+  binding.beginGesture();
+  board.framePresentation.begin(root);
+  const permit = api.captureSubmission("child");
+  const vector = Y.encodeStateVector(model.doc);
+  board.framePresentation.move(root.x + 40, root.y + 25);
+  expect(api.getElement("child")).toMatchObject({ x: geometry.x + 40, y: geometry.y + 25 });
+  expect(api.getSnapshot().children[0].children?.[0]).toMatchObject({ x: geometry.x + 40 });
+  expect(Y.encodeStateVector(model.doc)).toEqual(vector);
+  expect(permit()).toBe(false);
+  binding.previewFramePosition("frame", root.x + 40, root.y + 25);
+  board.framePresentation.move(root.x + 60, root.y + 30);
+  expect(api.getElement("child")).toMatchObject({ x: geometry.x + 60, y: geometry.y + 30 });
+  expect(Y.encodeStateVector(model.doc)).toEqual(vector);
+  binding.endGesture(false);
+  board.framePresentation.end();
+  expect(model.read()).toEqual(original);
+  expect(api.getElement("child")).toMatchObject(geometry);
+});

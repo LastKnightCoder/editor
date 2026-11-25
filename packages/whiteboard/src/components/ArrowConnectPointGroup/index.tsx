@@ -12,10 +12,10 @@ import { useMemoizedFn } from "ahooks";
 
 import { ARROW_CONNECT_POINT_FILL, ARROW_CONNECT_POINT_RADIUS } from "../../constants";
 import { allowsElementInteraction } from "../../constants/tools";
-import { useActiveTool, useBoardState, usePresentationState, useSelection } from "../../hooks";
+import { useActiveTool, useBoard, useBoardState, usePresentationState } from "../../hooks";
 import type { BoardElement, Point } from "../../types";
 import ArrowConnectPoint from "../ArrowConnectPoint";
-import { ArrowConnectPointOverlayContext } from "../../context";
+import { ArrowConnectPointOverlayContext, StaticSelectionContext } from "../../context";
 
 type ArrowConnectPointData = {
   connectId: string;
@@ -174,10 +174,26 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
   const overlayRef = useContext(ArrowConnectPointOverlayContext);
   const activeTool = useActiveTool();
   const { isPresentationMode } = usePresentationState();
-  const selection = useSelection();
-  const hasSelectedArrow = (selection?.selectedElements ?? []).some(
-    selectedElement => selectedElement.type === "arrow"
+  const board = useBoard();
+  const isolated = useContext(StaticSelectionContext);
+  const selectedArrow = useMemoizedFn(
+    () => !isolated && board.selection.selectedElements.some(element => element.type === "arrow")
   );
+  const selectedArrowRef = useRef(false);
+  const subscribeSelectedArrow = useMemoizedFn((listener: () => void) => {
+    const change = () => {
+      const next = selectedArrow();
+      if (selectedArrowRef.current === next) return;
+      selectedArrowRef.current = next;
+      listener();
+    };
+    board.on("selection:change", change);
+    return () => {
+      board.off("selection:change", change);
+    };
+  });
+  const hasSelectedArrow = useSyncExternalStore(subscribeSelectedArrow, selectedArrow, () => false);
+  selectedArrowRef.current = hasSelectedArrow;
   const isCreatingElement = !allowsElementInteraction(activeTool);
   const isInteractionSuppressed = hasSelectedArrow || isCreatingElement;
   const isConnectPointDisabled = disabled || isPresentationMode;

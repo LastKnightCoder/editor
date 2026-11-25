@@ -229,6 +229,22 @@ describe("白板纯模型：多页与稳定文字", () => {
     ).toThrow();
     expect(Y.encodeStateAsUpdate(board.doc)).toEqual(before);
     expect(history.undoStack).toHaveLength(0);
+    // 扩展校验与模型校验共用候选，拒绝或重入写入都不能污染真实文档。
+    for (const chunked of [false, true]) {
+      const commands = [{ type: "set_data" as const, id: target, patch: { good: 1 } }];
+      const commit = (validate: (candidate: WhiteboardModel) => void) =>
+        chunked
+          ? board.submitChunks(commands, origin, [], [], validate)
+          : board.submit(commands, origin, [], validate);
+      expect(() =>
+        commit(() => {
+          throw new Error("拒绝候选");
+        })
+      ).toThrow("拒绝候选");
+      expect(() => commit(candidate => candidate.title.insert(0, "重入"))).toThrow("不能写入");
+      expect(Y.encodeStateAsUpdate(board.doc)).toEqual(before);
+      expect(history.undoStack).toHaveLength(0);
+    }
     history.destroy();
   });
   it("布局收纳、页限定元素、环和失效锚点在写入前拒绝", async () => {

@@ -49,7 +49,12 @@ async function mount() {
     strokeOpacity: 1,
     color: "#123",
     extraInfo: {},
-    text: { align: "center", content: [] },
+    text: {
+      align: "center",
+      content: params.has("labels")
+        ? [{ type: "paragraph", children: [{ type: "formatted", text: `标签 ${i}` }] }]
+        : [],
+    },
   }));
   const frame = { ...FrameUtil.createFrame(100, 120, 500, 450, "性能画框"), id: "frame" };
   if (!["entry", "column", "mind"].includes(mode)) {
@@ -187,7 +192,9 @@ async function mount() {
         parent,
         geometry: { x: node.x, y: node.y, width: node.width, height: node.height, rotation: 0 },
         data,
-        ...(codec.bodyProperty ? { body: [] } : {}),
+        ...(codec.bodyProperty
+          ? { body: codec.bodyProperty.split(".").reduce((value, key) => value?.[key], node) ?? [] }
+          : {}),
       });
       collect(node.children ?? [], { kind: "element", id: node.id });
     }

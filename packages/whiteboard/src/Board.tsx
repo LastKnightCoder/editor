@@ -1,3 +1,4 @@
+import { FramePresentation } from "./interactions/FramePresentation";
 import React from "react";
 import { ErrorBoundary, isEditableTarget } from "@tau/ui";
 import { UnknownElement, type UnknownElementReason } from "./components/UnknownElement";
@@ -96,6 +97,7 @@ function bodyView(element: BoardElement) {
 
 class Board {
   static boardFlag = boardFlag;
+  readonly framePresentation = new FramePresentation(this);
   public document?: WhiteboardDocumentBinding;
   private disconnectDocument?: () => void;
   private projectingDocument = false;
@@ -143,6 +145,7 @@ class Board {
         view.notify();
       } else this.bodyLayout = undefined;
       this.elementVersion++;
+      this.framePresentation.publish(this.snapshot);
       this.emit("value:change", children);
       if (this.selection !== previousSelection) this.emit("selection:change", this.selection);
       this.emit("change", { source: "projection" });
@@ -233,6 +236,7 @@ class Board {
     return () =>
       !this.isDestroyed &&
       !this.projectingDocument &&
+      !this.framePresentation.isNotifying() &&
       !this.presentationManager.isPresentationMode &&
       this.active &&
       !this.readonly &&
@@ -455,6 +459,7 @@ class Board {
     this.plugins.forEach(plugin => plugin.dispose?.());
     this.snap.dispose();
     this.interactions.destroy();
+    this.framePresentation.destroy();
     this.eventEmitter.removeAllListeners();
     this.plugins = [];
   }
@@ -1191,10 +1196,15 @@ class Board {
 
   private bodyLayout?: { snapshot: Board["snapshot"]; layout: Board["snapshot"] };
   getCanvasSnapshot() {
-    return this.bodyLayout?.snapshot === this.snapshot ? this.bodyLayout.layout : this.snapshot;
+    return this.framePresentation.snapshot(
+      this.bodyLayout?.snapshot === this.snapshot ? this.bodyLayout.layout : this.snapshot
+    );
   }
   getSnapshot() {
-    return this.snapshot;
+    return this.framePresentation.querySnapshot(this.snapshot);
+  }
+  advancePresentationVersion() {
+    this.submissionVersion++;
   }
 
   getElementVersion() {
@@ -1253,12 +1263,14 @@ class Board {
     const exitMargin =
       expandPixels > 0 ? Math.max(expandPixels * 3, vp.width * vp.zoom * 0.5) : expandPixels;
 
-    const keepElement = (element: BoardElement): boolean => {
-      const bounds = this.getBounds(element);
+    const keepElement = (element: BoardElement, offset?: { x: number; y: number }): boolean => {
+      const bounds = this.getBounds(
+        element.type === "arrow" ? this.framePresentation.arrow(element) : element
+      );
       if (!bounds) return true;
       const rect = {
-        x: bounds.minX,
-        y: bounds.minY,
+        x: bounds.minX + (offset?.x ?? 0),
+        y: bounds.minY + (offset?.y ?? 0),
         width: bounds.maxX - bounds.minX,
         height: bounds.maxY - bounds.minY,
       };
@@ -1268,13 +1280,17 @@ class Board {
       );
     };
 
-    const visit = (nodes: BoardElement[]): VisibleElementTree[] => {
+    const visit = (
+      nodes: BoardElement[],
+      inherited?: { x: number; y: number }
+    ): VisibleElementTree[] => {
       const visited: VisibleElementTree[] = [];
       for (const element of nodes) {
+        const offset = this.framePresentation.offset(element) ?? inherited;
         const visibleChildren =
-          element.children && element.children.length > 0 ? visit(element.children) : [];
+          element.children && element.children.length > 0 ? visit(element.children, offset) : [];
 
-        if (keepElement(element) || visibleChildren.length > 0) {
+        if (keepElement(element, offset) || visibleChildren.length > 0) {
           retention?.current.add(element.id);
           visited.push({ element, children: visibleChildren });
         }
@@ -1327,7 +1343,12 @@ class Board {
           isValid
         );
 
-        const Host = liveText && element.type === "richtext" ? RichTextHost : ElementHost;
+        const Host =
+          liveText && element.type === "richtext"
+            ? RichTextHost
+            : liveText && element.type === "arrow"
+              ? MovingArrowHost
+              : ElementHost;
         return (
           <Host
             key={element.id}
@@ -1366,6 +1387,21 @@ const ElementHost = React.memo(
     prev.element === next.element &&
     sameRenderedChildren(prev.children, next.children)
 );
+
+function MovingArrowHost(props: {
+  board: Board;
+  plugin: IBoardPlugin;
+  element: BoardElement;
+  children: React.ReactNode;
+}) {
+  const { board, element } = props;
+  const subscribe = React.useCallback(
+    (listener: () => void) => board.framePresentation.subscribeArrow(element.id, listener),
+    [board, element.id]
+  );
+  const value = React.useSyncExternalStore(subscribe, () => board.framePresentation.arrow(element));
+  return <ElementHost {...props} element={value} />;
+}
 
 function RichTextHost({
   board,

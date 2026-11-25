@@ -1,6 +1,6 @@
 import { matchesCanvasContract } from "./types";
 import type { BoardElement } from "../types/element";
-import { refresh } from "./projection";
+import { authorElement, canvasElement, refresh } from "./projection";
 import { compact } from "./commands";
 import { assertWritable } from "./element-access";
 import type { WhiteboardModelCommand } from "@tau/collaboration";
@@ -10,7 +10,7 @@ export function beginGesture(binding: CanvasBinding, options?: { realtime?: bool
   if (binding.gesture || binding.closed) return;
   binding.splitHistory();
   binding.pendingFeedback = [];
-  binding.lastStrokeChildren = undefined;
+  binding.lastCommittedChildren = undefined;
   binding.gesture = true;
   binding.gestureCaptureTimeout = binding.history.captureTimeout;
   binding.history.captureTimeout = Number.POSITIVE_INFINITY;
@@ -18,15 +18,22 @@ export function beginGesture(binding: CanvasBinding, options?: { realtime?: bool
     !!options?.realtime && binding.options.coalesceLocalGesture?.() === true;
   if (options?.realtime && !binding.coalescingGesture) startGestureHistory(binding);
   binding.pending = [];
+  binding.framePending = undefined;
 }
 
 // 只有实际发布中间位置时才需要单独的撤销栈，短途本机拖动直接提交一个撤销项。
-function startGestureHistory(binding: CanvasBinding) {
-  binding.gestureHistory = binding.model.createUndoManager({
+export function prepareGestureHistory(binding: CanvasBinding) {
+  return binding.model.createUndoManager({
     trackedOrigins: new Set(),
     captureTimeout: Number.POSITIVE_INFINITY,
     beforeChange: (history, direction) => binding.model.preflightHistory(history, direction),
   });
+}
+
+function startGestureHistory(binding: CanvasBinding) {
+  binding.gestureHistory = binding.idleGestureHistory ?? prepareGestureHistory(binding);
+  binding.idleGestureHistory = undefined;
+  binding.gestureHistory.stopCapturing();
 }
 
 export function isRealtimeGesture(binding: CanvasBinding): boolean {
@@ -82,6 +89,7 @@ function commitPreview(binding: CanvasBinding, commands: WhiteboardModelCommand[
       card.height === geometry.height &&
       (card.rotation ?? 0) === geometry.rotation
     ) {
+      const before = binding.readSnapshot();
       binding.writing = true;
       let committed;
       try {
@@ -95,10 +103,56 @@ function commitPreview(binding: CanvasBinding, commands: WhiteboardModelCommand[
       }
       if (committed) {
         // 末帧已计算所有连线位置；有观察者附加写入时必须重新读取权威投影。
-        if (committed.isolated) board.publishDocument(board.children);
-        else refresh(binding);
+        if (committed.isolated) {
+          binding.publishGeometries(before, [{ id: card.id, geometry }]);
+          board.publishDocument(board.children);
+          binding.lastCommittedChildren = board.children;
+        } else refresh(binding);
         return;
       }
+    }
+  }
+  const board = assertWritable(binding, false);
+  const geometries = commands.flatMap(command => {
+    if (
+      command.type !== "set_node" ||
+      Object.keys(command.patch).length !== 1 ||
+      !command.patch.geometry
+    )
+      return [];
+    const node = canvasElement(board.children, command.id),
+      value = command.patch.geometry;
+    if (!node) return [];
+    const previous = authorElement(binding, command.id)?.geometry;
+    if (
+      (["x", "y", "width", "height", "rotation"] as const).some(
+        key =>
+          (node[key] ?? (key === "rotation" ? 0 : undefined)) !== value[key] &&
+          previous?.[key] !== value[key]
+      )
+    )
+      return [];
+    return [{ id: command.id, geometry: value }];
+  });
+  if (geometries.length === commands.length && geometries.length) {
+    const before = binding.readSnapshot();
+    binding.writing = true;
+    let committed;
+    try {
+      committed = binding.model.tryLocalGeometries(
+        geometries,
+        binding.gestureHistory ?? binding.origin
+      );
+    } finally {
+      binding.writing = false;
+    }
+    if (committed) {
+      if (committed.isolated) {
+        binding.publishGeometries(before, geometries);
+        board.publishDocument(board.children);
+        binding.lastCommittedChildren = board.children;
+      } else refresh(binding);
+      return;
     }
   }
   binding.submit(commands);
@@ -106,7 +160,8 @@ function commitPreview(binding: CanvasBinding, commands: WhiteboardModelCommand[
 
 export function flushGesture(binding: CanvasBinding): void {
   if (!binding.gestureHistory || !binding.pending.length) return;
-  const commands = compact(binding.pending);
+  const commands =
+    binding.framePending?.commands === binding.pending ? binding.pending : compact(binding.pending);
   binding.streamingGesture = true;
   try {
     commitPreview(binding, commands, binding.coalescingGesture);
@@ -129,7 +184,10 @@ export function endGesture(binding: CanvasBinding, commit: boolean): void {
       throw error;
     }
   }
-  const pending = compact(binding.pending),
+  const pending =
+      binding.framePending?.commands === binding.pending
+        ? binding.pending
+        : compact(binding.pending),
     feedback = binding.pendingFeedback,
     history = binding.gestureHistory,
     local = binding.coalescingGesture;
@@ -162,13 +220,22 @@ export function endGesture(binding: CanvasBinding, commit: boolean): void {
     }
     if (commit) applyFeedback(binding, feedback);
   } finally {
-    history?.destroy();
+    if (history) {
+      history.clear();
+      history.stopCapturing();
+      if (!binding.closed) binding.idleGestureHistory = history;
+      else history.destroy();
+    }
+    binding.framePending = undefined;
     binding.history.captureTimeout = binding.gestureCaptureTimeout ?? 500;
     binding.gestureCaptureTimeout = undefined;
     binding.splitHistory();
-    if ((!projected && binding.lastStrokeChildren !== binding.board?.children) || feedback.length)
+    if (
+      (!projected && binding.lastCommittedChildren !== binding.board?.children) ||
+      feedback.length
+    )
       refresh(binding);
-    binding.lastStrokeChildren = undefined;
+    binding.lastCommittedChildren = undefined;
   }
 }
 

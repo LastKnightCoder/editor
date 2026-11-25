@@ -1,3 +1,4 @@
+import { projectArrowTree } from "../utils/ArrowProjection";
 import { matchesCanvasContract } from "./types";
 import { canvasFields } from "./builtins";
 import { buildHandwriteElement } from "../extensions/creators/handwrite";
@@ -22,9 +23,28 @@ export const authorSnapshot = (
   });
 export const flattenModel = (
   nodes: readonly WhiteboardElementSnapshot[]
-): WhiteboardElementSnapshot[] => nodes.flatMap(node => [node, ...flattenModel(node.children)]);
-export const flatten = (nodes: readonly BoardElement[]): BoardElement[] =>
-  nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
+): WhiteboardElementSnapshot[] => {
+  const result: WhiteboardElementSnapshot[] = [];
+  const visit = (items: readonly WhiteboardElementSnapshot[]) => {
+    for (const node of items) {
+      result.push(node);
+      if (node.children.length) visit(node.children);
+    }
+  };
+  visit(nodes);
+  return result;
+};
+export const flatten = (nodes: readonly BoardElement[]): BoardElement[] => {
+  const result: BoardElement[] = [];
+  const visit = (items: readonly BoardElement[]) => {
+    for (const node of items) {
+      result.push(node);
+      if (node.children?.length) visit(node.children);
+    }
+  };
+  visit(nodes);
+  return result;
+};
 
 const canvasIndexes = new WeakMap<BoardElement[], Map<string, BoardElement>>();
 export function canvasElement(children: BoardElement[], id: string) {
@@ -36,12 +56,23 @@ export function canvasElement(children: BoardElement[], id: string) {
   return index.get(id);
 }
 
+const modelIndexes = new WeakMap<
+  ReturnType<CanvasBinding["readSnapshot"]>,
+  Map<string, WhiteboardElementSnapshot>
+>();
 export function authorElement(binding: CanvasBinding, id: string) {
   const snapshot = binding.readSnapshot();
-  return flattenModel([
-    ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
-    ...snapshot.recovery,
-  ]).find(node => node.id === id);
+  let index = modelIndexes.get(snapshot);
+  if (!index) {
+    index = new Map(
+      flattenModel([
+        ...snapshot.pages.flatMap(page => [...page.children, ...page.recovery]),
+        ...snapshot.recovery,
+      ]).map(node => [node.id, node])
+    );
+    modelIndexes.set(snapshot, index);
+  }
+  return index.get(id);
 }
 
 /** 文档卡的稳定引用解析成本机身份后投影为 entityRef（只在本机，不写回文档），供去重、相关、翻页使用 */
@@ -187,31 +218,19 @@ export function refresh(binding: CanvasBinding): void {
       snapshot.presentations ?? []
     ) as import("../types/presentation").PresentationSequence[]
   );
+  binding.prepareGeometryWhenIdle();
 }
 
 export function resolveArrowBindings(
   binding: CanvasBinding,
   children: BoardElement[]
 ): BoardElement[] {
-  const elements = new Map(flatten(children).map(node => [node.id, node]));
-  const board = binding.board;
-  const connect = (node: BoardElement): BoardElement => {
-    if (node.type === "arrow" && binding.options.types.arrow?.contractId === node.contractId) {
-      const points = [...(node.points ?? [])];
-      for (const [key, at] of [
-        ["source", 0],
-        ["target", points.length - 1],
-      ] as const) {
-        const end = node[key],
-          target = end?.bindId && elements.get(end.bindId);
-        const point = target && board?.getArrowBindPoint(target, end.connectId, end.customOffset);
-        if (point && at >= 0) points[at] = point;
-      }
-      return equal(points, node.points) ? node : { ...node, points };
-    }
-    return node.children?.length ? { ...node, children: node.children.map(connect) } : node;
-  };
-  return children.map(connect);
+  if (!binding.board) return children;
+  return projectArrowTree(
+    binding.board,
+    children,
+    node => node.type === "arrow" && binding.options.types.arrow?.contractId === node.contractId
+  );
 }
 
 export function measureElement(

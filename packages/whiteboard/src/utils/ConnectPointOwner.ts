@@ -77,6 +77,7 @@ export interface ConnectPointOwnerStore {
   getOwner: () => string | null;
   subscribe: (listener: () => void) => () => void;
   setPointer: (point: Point | null) => void;
+  setSuspended: (suspended: boolean) => void;
   /** 注册或更新候选元素，返回注销函数 */
   register: (id: string, candidate: ConnectPointCandidate) => () => void;
   /** 拖动箭头端点时的落点归属：与悬停同一套规则，按给定半径即时求值（同一点结果缓存，供各元素共享） */
@@ -98,6 +99,7 @@ export const createConnectPointOwnerStore = ({
   const candidates = new Map<string, ConnectPointCandidate>();
   const listeners = new Set<() => void>();
   let pointer: Point | null = null;
+  let suspended = false;
   let owner: string | null = null;
   let lockedId: string | null = null;
   let hideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -124,6 +126,11 @@ export const createConnectPointOwnerStore = ({
   };
 
   const recompute = () => {
+    if (suspended) {
+      clearHideTimer();
+      setOwner(null);
+      return;
+    }
     const next =
       lockedId !== null && candidates.has(lockedId)
         ? lockedId
@@ -159,6 +166,12 @@ export const createConnectPointOwnerStore = ({
       return () => {
         listeners.delete(listener);
       };
+    },
+    setSuspended: value => {
+      if (suspended === value) return;
+      suspended = value;
+      if (value) lockedId = null;
+      recompute();
     },
     setPointer: point => {
       pointer = point;

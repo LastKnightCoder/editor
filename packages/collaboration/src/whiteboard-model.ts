@@ -33,6 +33,7 @@ import {
 } from "./whiteboard-projection";
 import type {
   WhiteboardAnchor,
+  WhiteboardData,
   WhiteboardElementSnapshot,
   WhiteboardFieldBindings,
   WhiteboardGeometry,
@@ -108,6 +109,7 @@ export class WhiteboardModel {
   private readonly histories = new Set<NodeTreeHistory>();
   private disposed = false;
   private revision = 0;
+  private geometryValues = new WeakSet<WhiteboardGeometry>();
   private translationBudget?: { revision: number; rootCount: number; upperBytes: number };
   private pending?: Uint8Array;
   /** 缺依赖期间复用已提交状态的编码，每份输入仍在独立候选上校验。 */
@@ -242,6 +244,7 @@ export class WhiteboardModel {
     this.active();
     if (!(history instanceof NodeTreeHistory)) throw new Error("白板必须使用公共历史入口");
     history.assertActive(this.doc);
+    this.attachRoots();
     history.attach([
       this.presentations.records,
       this.presentations.order,
@@ -252,10 +255,14 @@ export class WhiteboardModel {
       this.strings,
       this.creations,
       this.title,
+      ...[...this.trees.values()].flatMap(tree => [
+        tree.nodes,
+        tree.root,
+        tree.creations,
+        tree.segments.records,
+      ]),
     ]);
     this.histories.add(history);
-    this.attachRoots();
-    for (const tree of this.trees.values()) tree.attachUndoManager(history);
   }
   /** 返回宿主内部共享根；插件只能经后续文本绑定接入，不能直接访问 Yjs。 */
   text(target: string, field: string | null = null): Y.Text {
@@ -475,7 +482,8 @@ export class WhiteboardModel {
       id: string;
       preserveIds?: boolean;
       body: readonly import("./protocol").ContentNode[];
-    }[] = []
+    }[] = [],
+    validate?: (candidate: WhiteboardModel, createdIds: readonly string[]) => void
   ): { readonly createdIds: readonly string[] } {
     this.active();
     if (this.doc.store.pendingStructs || this.doc.store.pendingDs)
@@ -492,18 +500,34 @@ export class WhiteboardModel {
     candidate.doc.on("afterTransaction", remember);
     try {
       let batch: WhiteboardModelCommand[] = [];
+      let batchBytes = 2;
+      const flush = () => {
+        const { additions, plans } = candidate.planCommands(batch, prepared);
+        candidate.doc.transact(() => {
+          for (const [id, contract] of additions) candidate.contracts.set(id, contract);
+          candidate.execute(plans, origin);
+        }, origin);
+        createdIds.push(
+          ...plans
+            .filter(plan => plan.command.type === "create" || plan.command.type === "create_page")
+            .map(plan => plan.id)
+        );
+        batch = [];
+        batchBytes = 2;
+      };
       for (const command of commands) {
+        const commandBytes = bytes(command);
         if (
           batch.length &&
           (batch.length >= WHITEBOARD_LIMITS.commandsPerBatch ||
-            bytes([...batch, command]) > WHITEBOARD_LIMITS.batchBytes)
+            batchBytes + commandBytes + 1 > WHITEBOARD_LIMITS.batchBytes)
         ) {
-          createdIds.push(...candidate.submit(batch, origin, prepared).createdIds);
-          batch = [];
+          flush();
         }
+        batchBytes += commandBytes + (batch.length ? 1 : 0);
         batch.push(command);
       }
-      if (batch.length) createdIds.push(...candidate.submit(batch, origin, prepared).createdIds);
+      if (batch.length) flush();
       const bodyIds = new Set<string>();
       for (const entry of initialBodies) {
         if (this.elements.has(entry.id) || bodyIds.has(entry.id))
@@ -515,6 +539,7 @@ export class WhiteboardModel {
         );
       }
       candidate.validateState();
+      candidate.validateCandidate(validate, createdIds);
       const newRoots = new Set(
         [...candidate.doc.share]
           .filter(([name]) => !this.doc.share.has(name))
@@ -657,6 +682,142 @@ export class WhiteboardModel {
     return { isolated };
   }
 
+  /** 标量入口生成自有不可变几何，批量提交无需再次遍历同一份 JSON。 */
+  geometryValue(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    rotation: number
+  ): WhiteboardGeometry {
+    if (
+      ![x, y, width, height, rotation].every(
+        value => typeof value === "number" && Number.isFinite(value)
+      ) ||
+      width < 0 ||
+      height < 0
+    )
+      throw new Error("白板几何无效");
+    const value = Object.freeze({ x, y, width, height, rotation });
+    this.geometryValues.add(value);
+    return value;
+  }
+
+  /** 已验证基线上的纯几何批次：先检查全部目标，单事务提交，观察者额外写入时撤销证明。 */
+  tryLocalGeometries(
+    values: readonly { id: string; geometry: WhiteboardGeometry }[],
+    origin: unknown
+  ): { isolated: boolean } | undefined {
+    this.active();
+    if (
+      !values.length ||
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc._transactionCleanups.length ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs ||
+      !this.translationBudget
+    )
+      return;
+    if (
+      this.translationBudget.revision !== this.revision ||
+      this.translationBudget.rootCount !== this.doc.share.size
+    )
+      this.prepareLocalTranslations();
+    const proof = this.translationBudget;
+    if (!proof) return;
+    const upperBytes = proof.upperBytes + values.length * 1024;
+    if (upperBytes > WHITEBOARD_LIMITS.documentBytes) return;
+    const seen = new Set<string>();
+    const deletions = new Map<number, number[]>();
+    const plans = values.map(value => {
+      if (seen.has(value.id)) throw new Error("几何批次目标重复");
+      seen.add(value.id);
+      // 证明对应完整已验证状态，只需确认目标仍可见，无需重验全部删除标记。
+      const record = this.elements.get(value.id);
+      if (
+        !record ||
+        this.creations.get(record.get("creation") as string) !== true ||
+        (record.get("deletions") as Y.Map<unknown>).size !== 0
+      )
+        throw new Error("白板目标已删除");
+      const prepared = this.geometryValues.has(value.geometry);
+      if (!prepared) {
+        assertWhiteboardJson(value.geometry);
+        geometry(value.geometry);
+      }
+      const item = record._map.get("geometry");
+      if (!item || item.deleted || item.length !== 1) throw new Error("几何记录无效");
+      const clocks = deletions.get(item.id.client) ?? [];
+      clocks.push(item.id.clock);
+      deletions.set(item.id.client, clocks);
+      return { record, item, value: prepared ? value.geometry : { ...value.geometry } };
+    });
+    deletions.forEach(clocks => clocks.sort((a, b) => a - b));
+    const client = this.doc.clientID,
+      clock = Y.getState(this.doc.store, client);
+    const expectedRecords = new Set<object>(plans.map(plan => plan.record));
+    let isolated = false;
+    const verify = (tx: Y.Transaction) => {
+      isolated =
+        tx.local &&
+        tx.changed.size === plans.length &&
+        tx.deleteSet.clients.size === deletions.size &&
+        Y.getState(this.doc.store, client) === clock + plans.length &&
+        [...tx.changed].every(
+          ([record, fields]) =>
+            expectedRecords.has(record) && fields.size === 1 && fields.has("geometry")
+        );
+      if (!isolated) return;
+      for (const [client, clocks] of deletions) {
+        const ranges = tx.deleteSet.clients.get(client);
+        if (!ranges || ranges.reduce((sum, range) => sum + range.len, 0) !== clocks.length) {
+          isolated = false;
+          break;
+        }
+        let at = 0;
+        for (const range of ranges)
+          for (let index = 0; index < range.len; index++)
+            if (clocks[at++] !== range.clock + index) {
+              isolated = false;
+              break;
+            }
+      }
+    };
+    let encodedBytes = 0;
+    const measure = (update: Uint8Array) => {
+      encodedBytes += update.byteLength;
+    };
+    this.doc.on("update", measure);
+    this.doc.on("afterTransaction", verify);
+    try {
+      this.doc.transact(tx => {
+        if (
+          tx.changed.size ||
+          tx.deleteSet.clients.size ||
+          this.revision !== proof.revision ||
+          this.doc.share.size !== proof.rootCount ||
+          plans.some(plan => plan.record._map.get("geometry") !== plan.item)
+        )
+          throw new Error("几何提交期间白板状态已变化，请重试");
+        for (const plan of plans) plan.record.set("geometry", plan.value);
+      }, origin);
+    } finally {
+      this.doc.off("afterTransaction", verify);
+      this.doc.off("update", measure);
+    }
+    isolated &&= this.revision === proof.revision + 1 && this.doc.share.size === proof.rootCount;
+    // 标量更新的 V1 合入只合并结构及删除区间，64 B 覆盖顶层计数编码增长。
+    if (isolated && encodedBytes)
+      this.translationBudget = {
+        ...proof,
+        upperBytes: Math.min(upperBytes, proof.upperBytes + encodedBytes + 64),
+        revision: this.revision,
+      };
+    else this.translationBudget = undefined;
+    return { isolated };
+  }
+
   /** 笔迹只在页根创建父笔与分段。用同契约、同父级的小候选预演原命令。 */
   private strokeTrial(plans: readonly PlannedCommand[]) {
     const first = plans[0]?.command;
@@ -770,42 +931,24 @@ export class WhiteboardModel {
   submit(
     commands: readonly WhiteboardModelCommand[],
     origin: unknown,
-    prepared: readonly (PreparedWhiteboardContract | PreparedContentContract)[] = []
+    prepared: readonly (PreparedWhiteboardContract | PreparedContentContract)[] = [],
+    validate?: (candidate: WhiteboardModel, createdIds: readonly string[]) => void
   ): { readonly createdIds: readonly string[]; readonly isolatedStroke?: true } {
     this.active();
     if (this.doc.store.pendingStructs || this.doc.store.pendingDs)
       throw new Error("白板缺少先行结构");
-    assertWhiteboardJson(commands, -4);
-    if (!Array.isArray(commands) || commands.length === 0) throw new Error("白板命令批次为空");
-    assertWhiteboardBudget({ commandsPerBatch: commands.length, batchBytes: bytes(commands) });
-    const additions = this.preparedAdditions(prepared);
-    const plans = structuredClone(commands).map(command => ({
-      command,
-      id:
-        (command.type === "create" || command.type === "create_page") && command.id !== undefined
-          ? command.id
-          : uuid(),
-      token: uuid(),
-      creation: uuid(),
-      roots: {} as Record<string, string>,
-      bodyRoot: uuid(),
-    }));
-    for (const plan of plans) {
-      if (plan.command.type === "create") {
-        const contract =
-          this.contracts.get(plan.command.contractId) ?? additions.get(plan.command.contractId);
-        if (!contract || contract.domain !== "whiteboard-element")
-          throw new Error("白板元素契约无效");
-        for (const field of contract.textFields) plan.roots[field] = uuid();
-      }
-    }
-    const proof = additions.size ? undefined : this.strokeTrial(plans);
+    const { additions, plans } = this.planCommands(commands, prepared);
+    const createdIds = plans
+      .filter(plan => plan.command.type === "create" || plan.command.type === "create_page")
+      .map(plan => plan.id);
+    const proof = additions.size || validate ? undefined : this.strokeTrial(plans);
     if (!proof) {
       const trial = this.clone();
       try {
         for (const [id, contract] of additions) trial.contracts.set(id, contract);
         trial.execute(plans, origin);
         trial.validateState();
+        trial.validateCandidate(validate, createdIds);
       } finally {
         trial.dispose();
         trial.doc.destroy();
@@ -835,12 +978,49 @@ export class WhiteboardModel {
     if (isolated) this.translationBudget = { ...proof, revision: this.revision };
     return Object.freeze({
       ...(isolated ? { isolatedStroke: true as const } : {}),
-      createdIds: Object.freeze(
-        plans
-          .filter(plan => plan.command.type === "create" || plan.command.type === "create_page")
-          .map(plan => plan.id)
-      ),
+      createdIds: Object.freeze(createdIds),
     });
+  }
+  private validateCandidate(
+    validate: ((candidate: WhiteboardModel, createdIds: readonly string[]) => void) | undefined,
+    createdIds: readonly string[]
+  ) {
+    if (!validate) return;
+    const revision = this.revision,
+      roots = this.doc.share.size;
+    validate(this, Object.freeze([...createdIds]));
+    if (revision !== this.revision || roots !== this.doc.share.size)
+      throw new Error("候选校验不能写入文档");
+  }
+  private planCommands(
+    commands: readonly WhiteboardModelCommand[],
+    prepared: readonly (PreparedWhiteboardContract | PreparedContentContract)[]
+  ) {
+    assertWhiteboardJson(commands, -4);
+    if (!Array.isArray(commands) || commands.length === 0) throw new Error("白板命令批次为空");
+    assertWhiteboardBudget({ commandsPerBatch: commands.length, batchBytes: bytes(commands) });
+    const additions = this.preparedAdditions(prepared);
+    const plans = structuredClone(commands).map(command => ({
+      command,
+      id:
+        (command.type === "create" || command.type === "create_page") && command.id !== undefined
+          ? command.id
+          : uuid(),
+      token: uuid(),
+      creation: uuid(),
+      roots: {} as Record<string, string>,
+      bodyRoot: uuid(),
+    }));
+    for (const plan of plans) {
+      if (plan.command.type === "create") {
+        const contract =
+          this.contracts.get(plan.command.contractId) ?? additions.get(plan.command.contractId);
+        if (!contract || contract.domain !== "whiteboard-element")
+          throw new Error("白板元素契约无效");
+        for (const field of contract.textFields) plan.roots[field] = uuid();
+      }
+    }
+    return { additions, plans };
   }
   private execute(plans: readonly PlannedCommand[], origin: unknown): void {
     this.doc.transact(transaction => {
@@ -915,7 +1095,7 @@ export class WhiteboardModel {
     if (!canContainWhiteboardElement(this.contract(target), contract))
       throw new Error("白板收纳规则不允许");
     const placement = this.placement(target);
-    if (!moving && placement.parent.kind === "page") {
+    if ((!moving || contract.structure.container === "none") && placement.parent.kind === "page") {
       const page = this.pages.get(placement.parent.id);
       if (page && this.visible(page)) return placement.parent.id;
     }
@@ -1417,6 +1597,28 @@ export class WhiteboardModel {
     return { type: contract.type, contractId };
   }
 
+  readElementData(target: string): { contractId: string; data: WhiteboardData } | undefined {
+    this.active();
+    const record = this.elements.get(target);
+    if (!record || !this.visible(record)) return;
+    const { contractId } = record.get("identity") as { contractId: string };
+    return frozen({
+      contractId,
+      data: this.elementData(record, this.contract(record), this.bindings(record)),
+    });
+  }
+
+  private elementData(
+    record: Y.Map<unknown>,
+    contract: WhiteboardElementContract,
+    bindings: WhiteboardFieldBindings
+  ): WhiteboardData {
+    const data = (record.get("data") as Y.Map<unknown>).toJSON();
+    for (const field of contract.textFields)
+      data[field] = (this.strings.get(bindings.data[field]) ?? "").toString();
+    return structuredClone(data);
+  }
+
   readSummary(): { title: string; pageCount: number } {
     this.active();
     return { title: this.title.toString(), pageCount: this.visiblePageReferences().length };
@@ -1430,9 +1632,7 @@ export class WhiteboardModel {
     const record = this.record(this.elements, elementId),
       contract = this.contract(record),
       bindings = this.bindings(record);
-    const data = (record.get("data") as Y.Map<unknown>).toJSON();
-    for (const field of contract.textFields)
-      data[field] = (this.strings.get(bindings.data[field]) ?? "").toString();
+    const data = this.elementData(record, contract, bindings);
     const body = bindings.body;
     return {
       id: elementId,
@@ -1441,7 +1641,7 @@ export class WhiteboardModel {
       ...(record.has("name") ? { name: record.get("name") as string } : {}),
       geometry: structuredClone(record.get("geometry") as WhiteboardGeometry),
       style: structuredClone((record.get("style") as Y.Map<unknown>).toJSON()),
-      data: structuredClone(data),
+      data,
       fieldBindings: structuredClone(bindings),
       ...(record.has("entity")
         ? {

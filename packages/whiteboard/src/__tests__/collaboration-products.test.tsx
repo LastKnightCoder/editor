@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -238,6 +238,8 @@ it("连续编辑富文本时画布与独立模型一致，观察者的并发修�
     model.doc.once("update", () => model.title.insert(0, "外部编辑"));
     write("乙");
     expect(binding.readSnapshot().title).toContain("外部编辑");
+    expect(binding.readSnapshot()).toEqual(model.read());
+    await Promise.resolve();
     expect(binding.readSnapshot()).toEqual(model.read());
     expect(board.children[0].content[0].children[0].text).toBe("乙甲内容");
   } finally {
@@ -1770,3 +1772,63 @@ it.skipIf(process.env.WHITEBOARD_PREVIEW_BENCH !== "1")(
   },
   120000
 );
+
+it("空图形只读挂载不写入正文，远端加入标签后能显示且移动不丢字", async () => {
+  const f = await setup(undefined, { editorVersions: undefined });
+  const paragraph = await prepareContentContract("tau.paragraph", {
+    type: "paragraph",
+    dataVersion: 1,
+    kind: "block",
+  });
+  await f.model.installContracts({ [paragraph.id]: paragraph.contract });
+  const shape = base("geometry", {
+    geometryType: "rectangle",
+    paths: ["M 0 0 L 1 0 L 1 1 L 0 1 Z"],
+    extraInfo: {},
+    text: { align: "center", content: [] },
+  });
+  f.insert(shape);
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+  );
+  cleanup.push(() => vi.unstubAllGlobals());
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  cleanup.push(() => {
+    act(() => root.unmount());
+    host.remove();
+  });
+  function View() {
+    const snapshot = useSyncExternalStore(f.board.subscribe, () => f.board.getSnapshot());
+    return (
+      <DndProvider backend={HTML5Backend}>
+        <BoardContext.Provider value={f.board}>
+          <svg>{f.board.renderElement(snapshot.children[0])}</svg>
+        </BoardContext.Provider>
+      </DndProvider>
+    );
+  }
+  const before = Y.encodeStateVector(f.doc);
+  await act(async () => root.render(<View />));
+  expect(Y.encodeStateVector(f.doc)).toEqual(before);
+  const body = f.model.richText(shape.id);
+  await act(async () =>
+    body.insertNode(
+      { type: "paragraph", tauContract: paragraph.id, children: [{ text: "远端标签" }] },
+      null,
+      0,
+      {}
+    )
+  );
+  expect(host.textContent).toContain("远端标签");
+  await act(async () =>
+    f.board.apply({ type: "set_node", path: [0], properties: {}, newProperties: { x: 300 } })
+  );
+  expect(host.textContent).toContain("远端标签");
+});

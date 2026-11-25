@@ -3,7 +3,7 @@ import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMemoizedFn } from "ahooks";
-import { Descendant } from "slate";
+import { Descendant, Element as SlateElement, Text as SlateText } from "slate";
 import { cn as classnames } from "@tau/ui";
 
 import { If as If } from "@tau/ui";
@@ -82,7 +82,23 @@ const Geometry = memo((props: GeometryProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   const board = useBoard();
-  const collaborativeDocument = board.document?.textDocument(element.id);
+  const emptyLabel = useMemo(
+    () =>
+      text.content.every(
+        node =>
+          SlateElement.isElement(node) &&
+          node.type === "paragraph" &&
+          node.children.every(
+            leaf =>
+              SlateText.isText(leaf) &&
+              leaf.text === "" &&
+              (leaf.type === undefined || leaf.type === "formatted")
+          )
+      ),
+    [text.content]
+  );
+  const showEditor = isEditing || !emptyLabel;
+  const collaborativeDocument = showEditor ? board.document?.textDocument(element.id) : undefined;
   useEditingElementCleanup(id);
   const textBinding = useTextExtension();
   const { isSelected } = useSelectState(id);
@@ -292,20 +308,22 @@ const Geometry = memo((props: GeometryProps) => {
         >
           {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
           <EditorThemeOverride mode={theme}>
-            <Editor
-              document={collaborativeDocument}
-              showDragHandle={false}
-              kit={textBinding.kit()}
-              ref={textRef}
-              initValue={textContent}
-              onFocus={handleOnFocus}
-              onBlur={handleOnBlur}
-              readonly={
-                !isEditing || board.readonly || Boolean(board.document && !collaborativeDocument)
-              }
-              onChange={board.document ? undefined : handleTextContentChange}
-              hotkeyConfigs={geometryHotkeyConfigs}
-            />
+            {showEditor && (
+              <Editor
+                document={collaborativeDocument}
+                showDragHandle={false}
+                kit={textBinding.kit()}
+                ref={textRef}
+                initValue={textContent}
+                onFocus={handleOnFocus}
+                onBlur={handleOnBlur}
+                readonly={
+                  !isEditing || board.readonly || Boolean(board.document && !collaborativeDocument)
+                }
+                onChange={board.document ? undefined : handleTextContentChange}
+                hotkeyConfigs={geometryHotkeyConfigs}
+              />
+            )}
           </EditorThemeOverride>
         </div>
       </foreignObject>

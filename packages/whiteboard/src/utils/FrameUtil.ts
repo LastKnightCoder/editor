@@ -450,14 +450,13 @@ export class FrameUtil {
    * 移动 Frame 及其所有子元素
    */
   static moveAll(frame: FrameElement, dx: number, dy: number): FrameElement {
-    return produce(frame, draft => {
-      this.dfs(draft, {
-        before: element => {
-          element.x += dx;
-          element.y += dy;
-        },
-      });
+    const move = (element: BoardElement): BoardElement => ({
+      ...element,
+      x: element.x + dx,
+      y: element.y + dy,
+      ...(element.children ? { children: element.children.map(move) } : {}),
     });
+    return move(frame) as FrameElement;
   }
 
   static getAllChildren(frame: FrameElement): BoardElement[] {

@@ -48,6 +48,8 @@ export class NodeTreeHistory extends Y.UndoManager {
   readonly identity = crypto.randomUUID();
   private closed = false;
   private origins = new Map<unknown, { count: number; keep: boolean }>();
+  private knownScope?: Set<object>;
+  private knownScopeLength = -1;
   private activeStackItem?: Y.UndoManager["undoStack"][number];
   private beforeChange?: NodeTreeHistoryOptions["beforeChange"];
 
@@ -100,7 +102,14 @@ export class NodeTreeHistory extends Y.UndoManager {
       if (!doc) throw new Error("历史作用域尚未连接文档");
       this.assertActive(doc);
     }
-    this.addToScope(types);
+    if (!this.knownScope || this.knownScopeLength !== this.scope.length)
+      this.knownScope = new Set(this.scope);
+    const added = types.filter(type => !this.knownScope?.has(type));
+    if (added.length) {
+      this.addToScope(added);
+      added.forEach(type => this.knownScope?.add(type));
+    }
+    this.knownScopeLength = this.scope.length;
   }
 
   retainOrigin(origin: unknown): () => void {
@@ -169,17 +178,21 @@ export class NodeTreeHistory extends Y.UndoManager {
 
   private inScope(transaction: Y.Transaction, source: ReturnType<typeof Y.createDeleteSet>) {
     const result = Y.createDeleteSet();
+    const scope = new Set(this.scope);
     Y.iterateDeletedStructs(transaction, source, item => {
-      if (
-        !(item instanceof Y.Item) ||
-        !this.scope.some(
-          type =>
-            type === transaction.doc || (type instanceof Y.AbstractType && Y.isParentOf(type, item))
-        )
+      if (!(item instanceof Y.Item)) return;
+      let included = scope.has(transaction.doc);
+      for (
+        let parent: unknown = item.parent;
+        !included && parent instanceof Y.AbstractType;
+        parent = parent._item?.parent
       )
-        return;
+        included = scope.has(parent);
+      if (!included) return;
       const ranges = result.clients.get(item.id.client) ?? [];
-      ranges.push({ clock: item.id.clock, len: item.length });
+      const previous = ranges.at(-1);
+      if (previous && previous.clock + previous.len === item.id.clock) previous.len += item.length;
+      else ranges.push({ clock: item.id.clock, len: item.length });
       result.clients.set(item.id.client, ranges);
     });
     return result;
@@ -197,21 +210,41 @@ function excludeRanges(
   source: ReturnType<typeof Y.createDeleteSet>,
   excluded: readonly InitializationRange[]
 ): ReturnType<typeof Y.createDeleteSet> {
+  if (!excluded.length) return source;
   const result = Y.createDeleteSet();
+  const byClient = new Map<number, { clock: number; len: number }[]>();
+  for (const range of excluded) {
+    const ranges = byClient.get(range.client) ?? [];
+    ranges.push({ clock: range.clock, len: range.len });
+    byClient.set(range.client, ranges);
+  }
+  for (const [client, ranges] of byClient) {
+    const merged: { clock: number; len: number }[] = [];
+    for (const range of ranges.sort((a, b) => a.clock - b.clock)) {
+      const previous = merged.at(-1);
+      if (previous && range.clock <= previous.clock + previous.len)
+        previous.len =
+          Math.max(previous.clock + previous.len, range.clock + range.len) - previous.clock;
+      else merged.push(range);
+    }
+    byClient.set(client, merged);
+  }
   for (const [client, intervals] of source.clients) {
-    let remaining = intervals.map(interval => ({ clock: interval.clock, len: interval.len }));
-    for (const range of excluded) {
-      if (range.client !== client) continue;
-      const end = range.clock + range.len;
-      remaining = remaining.flatMap(interval => {
-        const intervalEnd = interval.clock + interval.len;
-        if (intervalEnd <= range.clock || interval.clock >= end) return [interval];
-        const pieces: { clock: number; len: number }[] = [];
-        if (interval.clock < range.clock)
-          pieces.push({ clock: interval.clock, len: range.clock - interval.clock });
-        if (intervalEnd > end) pieces.push({ clock: end, len: intervalEnd - end });
-        return pieces;
-      });
+    const ranges = byClient.get(client) ?? [];
+    const remaining: { clock: number; len: number }[] = [];
+    let at = 0;
+    for (const interval of [...intervals].sort((a, b) => a.clock - b.clock)) {
+      let start = interval.clock;
+      const end = start + interval.len;
+      while (at < ranges.length && ranges[at].clock + ranges[at].len <= start) at++;
+      let index = at;
+      while (index < ranges.length && ranges[index].clock < end) {
+        const range = ranges[index++];
+        if (range.clock > start) remaining.push({ clock: start, len: range.clock - start });
+        start = Math.max(start, range.clock + range.len);
+        if (start >= end) break;
+      }
+      if (start < end) remaining.push({ clock: start, len: end - start });
     }
     if (remaining.length) result.clients.set(client, remaining);
   }
