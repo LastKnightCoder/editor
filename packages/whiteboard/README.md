@@ -200,6 +200,8 @@ defineElement({ type: "demo.stamp", containment: { canBeContained: false }, rend
 
 运行 `pnpm --filter @tau/whiteboard check`、`test`、`bench:hit`、`bench:render`；边界检查为 `pnpm check:whiteboard-boundaries`。独立示例使用 `pnpm --filter @example/whiteboard build`。视觉验收由用户完成。
 
+修改文字排版、自动尺寸或画布生命周期时，运行 `pnpm --filter desktop test:whiteboard-text-measurement`。真实 Chromium 覆盖退出重进、Activity 恢复、文字增删换行、缩放和手动尺寸保持，并检查自动测量不写文档。
+
 ## 可选协作文档绑定
 
 `@tau/whiteboard/collaboration` 提供 `createWhiteboardBinding(model, { pageId, types, editorVersions? })`。宿主先取得已验证的 `WhiteboardModel` 与契约，再为每个画布视图创建独立绑定，传入 `<Whiteboard document={binding} extensions={extensions} initData={[]} />`。绑定必须在该组件生命周期中稳定；换文档重建组件，同文档切页调用 `binding.switchPage(pageId)`。该入口不从 `initData` 自动生成 CRDT 基线，也不切换现有桌面保存流程。

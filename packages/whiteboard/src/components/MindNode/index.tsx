@@ -126,6 +126,8 @@ const MindNode = (props: MindNodeProps) => {
     return {
       color: textColor,
       borderRadius: 4,
+      width: "fit-content",
+      pointerEvents: "auto",
     } as React.CSSProperties;
   }, [textColor]);
 
@@ -179,7 +181,7 @@ const MindNode = (props: MindNodeProps) => {
 
   const { handleResize } = useHandleResize({
     maxWidth: MIND_NODE_MAX_WIDTH,
-    container: containerRef.current,
+    containerRef,
     handleOnEditorSizeChange: handleEditorResize,
   });
 
@@ -503,6 +505,8 @@ const MindNode = (props: MindNodeProps) => {
   const editorStyle = useMemo(() => {
     return {
       maxWidth: MIND_NODE_MAX_WIDTH,
+      minWidth: 40,
+      minHeight: 56,
     } as React.CSSProperties;
   }, []);
 
@@ -538,12 +542,14 @@ const MindNode = (props: MindNodeProps) => {
             seed={sketch.seed}
           />
         )}
+        {/* 排版可用宽度不随边框收缩，否则重新挂载会按旧尺寸反复换行。 */}
         <foreignObject
           x={x}
           y={y}
-          width={isEditing ? MIND_NODE_MAX_WIDTH : width}
+          width={MIND_NODE_MAX_WIDTH}
           height={height}
           className="overflow-visible border-none"
+          style={{ pointerEvents: "none" }}
         >
           <div
             style={containerStyle}

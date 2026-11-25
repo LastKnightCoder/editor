@@ -8,6 +8,7 @@
   "description": "Tau",
   "main": "dist-electron/main/index.js",
   "scripts": {
+    "test:whiteboard-text-measurement": "node scripts/verify-whiteboard-text-measurement.mjs",
     "test:collaboration:e2e": "playwright test e2e/collaboration.spec.ts",
     "test:assistant-memory:stress": "vitest run src-electron/main/modules/assistant-memory/__tests__ --maxWorkers 1 --no-file-parallelism",
     "test:document-tools:stress": "cross-env TAU_DOCUMENT_TOOL_STRESS=1 vitest run src/mcp/providers/__tests__/document-write-tools.test.ts --maxWorkers 1 --no-file-parallelism",

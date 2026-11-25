@@ -331,8 +331,9 @@ const Richtext = (props: RichTextProps) => {
       background: "transparent",
       color: TEXT_COLORS.ink,
       cursor: textMode ? "text" : isSelected ? "move" : "auto",
+      width: !useSimplifiedRender && !resized && !autoHeight ? "fit-content" : undefined,
     } as React.CSSProperties;
-  }, [isSelected, textMode]);
+  }, [isSelected, textMode, resized, autoHeight, useSimplifiedRender]);
 
   // 编辑器 DOM 的挂载时机不确定：contentId 对应的协作会话就绪前 ContentEditor 只渲染占位，
   // 简化渲染切回时又会重建。用 MutationObserver 跟住它，聚焦与渐隐都挂在这个时机上
@@ -395,7 +396,6 @@ const Richtext = (props: RichTextProps) => {
     resized,
     padding,
     isEmpty: isRichTextContentEmpty(collaborativeDocument ? content : latestContentRef.current),
-    focus,
     isSelected,
     autoHeight,
     width,
@@ -441,7 +441,7 @@ const Richtext = (props: RichTextProps) => {
       <foreignObject
         x={x}
         y={y}
-        width={autoHeight ? width : focus && !resized ? maxWidth : width}
+        width={!useSimplifiedRender && !autoHeight && !resized ? maxWidth : width}
         height={autoHeight ? height : focus && !resized ? maxHeight : height}
         className="border-none"
         style={{ overflow: "visible", pointerEvents: textMode && focus ? "none" : undefined }}

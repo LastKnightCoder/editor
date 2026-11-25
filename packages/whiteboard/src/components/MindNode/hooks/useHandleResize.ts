@@ -1,120 +1,60 @@
-import { useDebounceFn } from "ahooks";
-import { useEffect } from "react";
+import { useDebounceFn, useMemoizedFn } from "ahooks";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 
 interface UseHandleResizeProps {
   handleOnEditorSizeChange: (width: number, height: number) => void;
   maxWidth: number;
-  container: HTMLDivElement | null;
+  containerRef: RefObject<HTMLDivElement | null>;
 }
 
 const useHandleResize = ({
   handleOnEditorSizeChange,
   maxWidth,
-  container,
+  containerRef,
 }: UseHandleResizeProps) => {
-  const { run: handleResizeObserver } = useDebounceFn(
-    (entries: ResizeObserverEntry[]) => {
-      const entry = entries[0];
-      const target = entry.target as HTMLElement;
+  const editorRef = useRef<HTMLElement | null>(null);
+  const measure = useMemoizedFn(() => {
+    const editor = editorRef.current;
+    if (!editor?.isConnected || !editor.getClientRects().length) return;
+    const style = window.getComputedStyle(editor);
+    const width = parseFloat(style.width) || editor.offsetWidth;
+    const height = parseFloat(style.height) || editor.offsetHeight;
+    if (width <= 0 || height <= 0) return;
+    handleOnEditorSizeChange(
+      Math.max(40, Math.min(maxWidth, Math.ceil(width))),
+      Math.max(56, Math.ceil(height))
+    );
+  });
+  const handleResize = useDebounceFn(measure, { wait: 40 });
+  const { run, cancel } = handleResize;
 
-      // 优先使用 borderBoxSize，如果无效则降级到 offsetWidth/Height
-      let width = 0;
-      let height = 0;
-
-      const borderBoxSize = entry.borderBoxSize?.[0];
-      if (borderBoxSize && borderBoxSize.inlineSize > 0 && borderBoxSize.blockSize > 0) {
-        width = borderBoxSize.inlineSize;
-        height = borderBoxSize.blockSize;
-      } else {
-        width = target.offsetWidth;
-        height = target.offsetHeight;
-      }
-
-      // 如果还是 0，尝试 getComputedStyle
-      if (width === 0 || height === 0) {
-        const style = window.getComputedStyle(target);
-        width = parseFloat(style.width) || 0;
-        height = parseFloat(style.height) || 0;
-      }
-
-      if (width === 0 || height === 0) return;
-
-      width = Math.max(40, Math.min(maxWidth, width + 1));
-      height = Math.max(56, height);
-
-      handleOnEditorSizeChange(width, height);
-    },
-    { wait: 40 }
-  );
-
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const container = containerRef.current;
     if (!container) return;
-
-    let currentEditor: HTMLElement | null = null;
-    let resizeObserver: ResizeObserver | null = null;
-
-    const setupResizeObserver = (element: HTMLElement) => {
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      resizeObserver = new ResizeObserver(handleResizeObserver);
-      resizeObserver.observe(element);
-
-      // 立即测量一次
-      const style = window.getComputedStyle(element);
-      const width = parseFloat(style.width) || element.offsetWidth;
-      const height = parseFloat(style.height) || element.offsetHeight;
-      if (width > 0 && height > 0) {
-        const finalWidth = Math.max(24, Math.min(maxWidth, width));
-        const finalHeight = Math.max(32, height);
-        handleOnEditorSizeChange(finalWidth, finalHeight);
-      }
+    const resizeObserver = new ResizeObserver(run);
+    const syncEditor = () => {
+      const editor = container.querySelector<HTMLElement>("[data-slate-editor]");
+      if (editor === editorRef.current) return;
+      cancel();
+      resizeObserver.disconnect();
+      editorRef.current = editor;
+      if (!editor) return;
+      // 首次挂载和编辑器替换都直接恢复尺寸，不依赖选中后的重渲染。
+      measure();
+      resizeObserver.observe(editor);
     };
-
-    const checkAndAttachEditor = () => {
-      const editor = container.querySelector("[data-slate-editor]") as HTMLElement;
-
-      // 关键验证：如果找到了新元素，且与当前元素不同，说明 DOM 被替换了
-      if (editor && editor !== currentEditor) {
-        currentEditor = editor;
-        setupResizeObserver(editor);
-      }
-    };
-
-    // 初始检查
-    checkAndAttachEditor();
-
-    // 监听 DOM 变化
-    const mutationObserver = new MutationObserver(() => {
-      checkAndAttachEditor();
-    });
-
-    mutationObserver.observe(container, {
-      childList: true,
-      subtree: true,
-    });
-
+    syncEditor();
+    const mutationObserver = new MutationObserver(syncEditor);
+    mutationObserver.observe(container, { childList: true, subtree: true });
     return () => {
-      if (resizeObserver) resizeObserver.disconnect();
+      cancel();
+      resizeObserver.disconnect();
       mutationObserver.disconnect();
+      editorRef.current = null;
     };
-  }, [container, handleResizeObserver, maxWidth, handleOnEditorSizeChange]);
+  }, [containerRef, measure, run, cancel, maxWidth]);
 
-  return {
-    handleResize: useDebounceFn(
-      () => {
-        if (!container) return;
-        const editor = container.querySelector("[data-slate-editor]") as HTMLElement;
-        if (!editor) return;
-
-        handleOnEditorSizeChange(
-          Math.max(24, Math.min(maxWidth, editor.offsetWidth)),
-          Math.max(32, editor.offsetHeight)
-        );
-      },
-      { wait: 40 }
-    ),
-  };
+  return { handleResize };
 };
 
 export default useHandleResize;
