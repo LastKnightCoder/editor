@@ -124,7 +124,8 @@ const CalendarHeader = () => {
   };
 
   return (
-    <div className="mb-2 flex h-10 flex-none items-center gap-2">
+    // @container：待安排栏打开后工具条变窄，按宽度逐级收起次要文字，所有项不被压缩
+    <div className="@container mb-2 flex h-10 flex-none items-center gap-2">
       {/* 标题即跳转入口：点开小日历选任意一天，主视图翻到对应月 / 周，右栏跟随这一天 */}
       <Popover
         open={jumpOpen}
@@ -144,7 +145,7 @@ const CalendarHeader = () => {
           >
             {title.main}
             {title.sub && (
-              <small className="text-ink-3 font-tau-mono text-[12px] font-normal">
+              <small className="text-ink-3 font-tau-mono text-[12px] font-normal @max-[860px]:hidden">
                 {title.sub}
               </small>
             )}
@@ -174,7 +175,7 @@ const CalendarHeader = () => {
           <ChevronRight className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
-      <Button variant="secondary" size="sm" onClick={goToToday}>
+      <Button variant="secondary" size="sm" onClick={goToToday} className="shrink-0">
         今天
       </Button>
       <span className="flex-1" />
@@ -183,13 +184,22 @@ const CalendarHeader = () => {
         size="sm"
         value={currentView === "day" ? "month" : currentView}
         onValueChange={value => setCurrentView(value)}
+        className="shrink-0"
       >
         {VIEWS.map(view => (
           <Segmented.Item key={view.value} value={view.value} label={view.label} />
         ))}
       </Segmented>
-      <Button variant="primary" size="sm" icon={Plus} onClick={handleCreate}>
-        新建日程
+      <Button
+        variant="primary"
+        size="sm"
+        icon={Plus}
+        title="新建日程"
+        aria-label="新建日程"
+        onClick={handleCreate}
+        className="shrink-0 @max-[720px]:px-[7px]"
+      >
+        <span className="@max-[720px]:hidden">新建日程</span>
       </Button>
       <Button
         variant={showTodoPanel ? "soft" : "secondary"}
@@ -198,9 +208,10 @@ const CalendarHeader = () => {
         aria-pressed={showTodoPanel}
         title={showTodoPanel ? "收起待安排" : "待安排：把待办拖进日程"}
         onClick={() => setShowTodoPanel(!showTodoPanel)}
-        className="shrink-0 whitespace-nowrap"
+        aria-label="待安排"
+        className="shrink-0 whitespace-nowrap @max-[720px]:px-[7px]"
       >
-        待安排
+        <span className="@max-[720px]:hidden">待安排</span>
       </Button>
       <DayPanelButton open={showDayPanel} onToggle={() => setShowDayPanel(!showDayPanel)} />
     </div>
@@ -225,7 +236,7 @@ function DayPanelButton({ open, onToggle }: { open: boolean; onToggle(): void })
       className="shrink-0 whitespace-nowrap tabular-nums"
     >
       {dayText}
-      <span className={cn("font-normal", open ? "opacity-80" : "text-ink-3")}>
+      <span className={cn("font-normal @max-[860px]:hidden", open ? "opacity-80" : "text-ink-3")}>
         · {dayEvents.length ? `${dayEvents.length} 项` : "无安排"}
       </span>
     </Button>
