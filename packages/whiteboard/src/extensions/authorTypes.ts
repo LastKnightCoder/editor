@@ -68,6 +68,7 @@ export interface WhiteboardAPI extends Omit<
     patch: WhiteboardData,
     options?: { unset?: readonly string[]; historyGroup?: string }
   ): boolean;
+  /** 渲染创建草稿时返回只读、可订阅的预览句柄；提交后重新绑定正式字段。 */
   getTextBinding(id: string, field: string): EditorTextField;
   submit(
     commands: readonly WhiteboardIdCommand[],

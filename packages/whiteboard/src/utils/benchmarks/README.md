@@ -83,3 +83,14 @@ pnpm --filter @tau/collaboration test:whiteboard-capacity
 该套件使用真实纯数据模型，分别验证 64 页/5000 元素、1024 个富文本根、8 MiB 编码边界，以及三端 3600 轮操作、逐条乱序/重复投递、双删双撤与 30 次模型副本重开。重开通过二进制状态重建，不是实际 WebSocket 重连。长会话的执行时限为 15 分钟，每 300 轮输出进度；它按工作量加速运行，不表示已经完成数小时的真实在线或弱网验收。
 
 `WHITEBOARD_MEASURE` 输出编码字节、延迟分位数和进程 RSS。RSS 包含测试框架及所有文档副本，不是单文档堆预算；纯模型、命中索引与 jsdom Profiler 的数字不能相互替代，也不证明真实设备的界面帧率。准入上限不等于流畅编辑承诺。
+
+## 创建预览生命周期
+
+```bash
+WHITEBOARD_PREVIEW_BENCH=1 pnpm --filter @tau/whiteboard test src/__tests__/collaboration-products.test.tsx -t '内置字段预览生命周期压测'
+WHITEBOARD_PREVIEW_BENCH=1 pnpm --filter @tau/whiteboard test src/__tests__/author-collaboration.test.tsx -t '插件预览提交取消与订阅释放压测'
+```
+
+默认各跑 600 轮，用 `PREVIEW_BENCH_CYCLES` 调整轮数。两条命令串行运行，避免争用机器。内置场景覆盖 Frame、Column 与图片说明，每轮 8 次实际 DOM 更新，并在同一 React 批处理中取消、复用同一 ID 重开；插件场景每轮 24 次更新，每 12 轮提交、编辑、撤销、重做，逐轮检查文档未被预览改写、旧租约不可写以及文档订阅回到零。默认单测不运行这些长循环。
+
+`WHITEBOARD_PREVIEW_MEASURE` 输出轮数、更新数、每轮耗时 P50/P95 与插件剩余订阅数。耗时包含 jsdom 的 React 提交和行为断言，用于本机复测，不代表浏览器帧率；订阅检查证明本场景的文档监听已释放，不替代堆内存泄漏分析。

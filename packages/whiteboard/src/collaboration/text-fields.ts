@@ -54,6 +54,26 @@ export function textField(
   field: string | null = null,
   read = false
 ): EditorTextField {
+  const preview = binding.board?.creationPreviewSession;
+  const draft = preview?.getElement(id);
+  if (preview && draft) {
+    const codec = binding.options.types[draft.type];
+    const contract =
+      codec &&
+      (binding.model.contracts.get(codec.contractId) ??
+        binding.options.preparedContracts?.find(entry => entry.id === codec.contractId)?.contract);
+    if (
+      !field ||
+      !contract ||
+      contract.domain !== "whiteboard-element" ||
+      !contract.textFields.includes(field)
+    )
+      throw new Error("文本字段未声明");
+    return preview.textField(id, element => {
+      const value = element[field];
+      return typeof value === "string" ? value : "";
+    });
+  }
   if (read) {
     if (binding.closed || !binding.board || !authorElement(binding, id))
       throw new Error("文本目标已失效");

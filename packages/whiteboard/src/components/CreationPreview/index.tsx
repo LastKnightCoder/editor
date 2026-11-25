@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { Fragment, useCallback, useSyncExternalStore } from "react";
 import { cn } from "@tau/ui";
 
 import type Board from "../../Board";
@@ -63,7 +63,7 @@ export const CreationPreview = ({ board, zoom }: { board: Board; zoom: number })
           />
         );
       })}
-      {board.renderElement(element)}
+      <Fragment key={board.creationPreviewSession?.id}>{board.renderElement(element)}</Fragment>
       {drawBounds && bounds && (
         <rect
           data-creation-preview-bounds
@@ -106,7 +106,7 @@ export const CreationPreviewBadge = ({ board }: { board: Board }) => {
       className={cn("pointer-events-none absolute inset-0", preview.leaving && leavingClass)}
     >
       <div
-        className="bg-ink-1 text-surface whitespace-nowrap rounded-[5px] px-1.5 py-[3px] font-mono text-[11px] font-medium tabular-nums leading-[1.2]"
+        className="bg-ink-1 text-surface rounded-[5px] px-1.5 py-[3px] font-mono text-[11px] leading-[1.2] font-medium whitespace-nowrap tabular-nums"
         style={{
           position: "absolute",
           left: anchor.x - containerRect.left,

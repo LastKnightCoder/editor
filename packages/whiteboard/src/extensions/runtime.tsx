@@ -765,6 +765,7 @@ export class ExtensionRuntime {
         const currentVersion = readDefinitionSchemaVersion(element);
         const interaction = new ElementInteraction(element.type);
         const resolved = (node: BoardElement) => {
+          if (board.creationPreviewSession?.owns(node)) return { element, access: "read" as const };
           if (
             this.authorTypes.has(node.type) &&
             (board.document || element.dataVersion !== undefined)
@@ -805,7 +806,11 @@ export class ExtensionRuntime {
                   createElement(
                     APIContext,
                     {
-                      value: entry.access === "read" ? scope.readonlyAPI : scope.api,
+                      value: board.creationPreviewSession?.owns(props.element)
+                        ? scope.previewAPI(board.creationPreviewSession)
+                        : entry.access === "read"
+                          ? scope.readonlyAPI
+                          : scope.api,
                     },
                     createElement(entry.element.render, {
                       ...props,
@@ -1016,7 +1021,7 @@ export class ExtensionRuntime {
     if (
       this.owners.has(element.type) &&
       // 创建预览尚未提交到文档，只按当前扩展定义检查版本。
-      element !== this.board.creationPreview?.element &&
+      !this.board.creationPreviewSession?.owns(element) &&
       this.board.document?.supportsElement?.(element.id) === false
     )
       return { reason: "too-new", extensionId: this.owners.get(element.type) };
@@ -1026,7 +1031,11 @@ export class ExtensionRuntime {
       definition?.dataVersion !== undefined
     )
       return { reason: "disabled", extensionId: this.owners.get(element.type) };
-    if (this.board.document && this.authorTypes.has(element.type)) {
+    if (
+      this.board.document &&
+      this.authorTypes.has(element.type) &&
+      !this.board.creationPreviewSession?.owns(element)
+    ) {
       const entry =
         typeof element.contractId === "string" &&
         this.board.document.resolveElementDefinition?.(element.contractId);

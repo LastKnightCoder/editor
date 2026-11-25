@@ -87,6 +87,10 @@ const stamp = defineElement<StampData>({
 
 创建型工具随扩展贡献：`tools` 里给 `element` 字段指向该元素 type 并声明 `label` 与 `icon`，激活后画布按 `create` 规格执行手势；工具参数经 `api.setActiveTool(id, options)` 传入 `build` 的 `options`。第三方工具统一进入「扩展工具」菜单，不占工具栏位。
 
+创建预览与正式元素复用同一个 `render`。预览渲染中的 `useWhiteboardAPI()` 自动获得只读作用域（`readonly === true`）：`getElement(id)` 可以读取当前草稿，`getTextBinding(id, field)` 可以读取、订阅本插件已声明的文字字段，无需先创建文档节点或判断是否处于预览。字段缺省为空字符串；未声明字段及跨插件文字访问仍被拒绝。预览 API 的写入、命令和事件发送被拒绝，`captureSubmission()` 返回失效租约；正常文档查询与快照不包含草稿。
+
+预览文字随手势更新，取消、换一次创建或销毁画布后旧租约失效。提交清除预览后，正式渲染会拿到正常 API；组件按 API 身份创建文字句柄并在卸载时 dispose，不能把预览句柄保留给正式编辑。内置标题与说明同样通过框架提供的预览文字句柄读取，不单独判断创建状态。
+
 ```tsx
 import { defineWhiteboardExtension } from "@tau/plugins/whiteboard";
 import { Stamp } from "./icons";

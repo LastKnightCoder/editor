@@ -1,7 +1,9 @@
 import { bindWhiteboardAuthorAPI } from "./authorApi";
 import type { ServiceRegistry } from "@tau/shared/service-registry";
 import type { WhiteboardAPI } from "./api";
-import { resolveBoardAccess } from "./access";
+import { registerBoardAccess, resolveBoardAccess } from "./access";
+import type { CreationPreviewSession } from "../interactions/CreationPreviewSession";
+import { createPreviewScope } from "./previewScope";
 import {
   assertEmittableEventName,
   assertSubscribableEventName,
@@ -153,9 +155,20 @@ export function createExtensionScope(
     })
   );
   track(bindWhiteboardAuthorAPI(readonlyAPI, owner, authorBridge, () => !disposed));
+  const previewAPIs = new WeakMap<CreationPreviewSession, WhiteboardAPI>();
   return {
     api,
     readonlyAPI,
+    previewAPI(session: CreationPreviewSession): WhiteboardAPI {
+      const existing = previewAPIs.get(session);
+      if (existing) return existing;
+      const preview = createPreviewScope(api, owner, session, authorBridge, () => !disposed);
+      registerBoardAccess(preview.api, resolveBoardAccess(base));
+      session.onDispose(track(preview.dispose));
+      const previewAPI = preview.api;
+      previewAPIs.set(session, previewAPI);
+      return previewAPI;
+    },
     enableWrites() {
       writesEnabled = true;
     },

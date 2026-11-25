@@ -1,5 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import { useContextMenu } from "../hooks/useContextMenu";
 import { RICHTEXT_TOOL_ID } from "../constants/tools";
 import { BOARD_TO_CONTAINER } from "../constants/map";
@@ -20,6 +22,8 @@ import {
 } from "@tau/collaboration";
 import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 import Board from "../Board";
+import { BoardContext } from "../context";
+import { CreationPreview } from "../components/CreationPreview";
 import { ViewPortTransforms } from "../transforms";
 import { createWhiteboardBinding } from "../collaboration/binding";
 import { prepareBuiltinWhiteboardTypes } from "../collaboration/builtins";
@@ -274,10 +278,14 @@ const nodes = [
       { x: 0, y: 0, pressure: 0.5 },
       { x: 1, y: 1, pressure: 0.5 },
     ],
-    outline: [{ x: 0, y: 0 }],
+    outline: [[0, 0]],
     style: { size: 2 },
   }),
-  base("image", { src: "https://example.com/image.png", description: "说明" }),
+  base("image", {
+    src: "https://example.com/image.png",
+    description: "说明",
+    showDescription: true,
+  }),
   base("video", {
     src: "https://example.com/video.mp4",
     metaInfo: { type: "remote", url: "https://example.com/video.mp4" },
@@ -375,12 +383,90 @@ it.each(nodes)("内置 $type 创建预览不依赖尚未提交的文档节点", 
   expect(f.board.extensions!.unknownElementReason(node)).toBeUndefined();
   expect(f.model.read().pages[0].children).toHaveLength(0);
   expect(f.binding.history.undoStack).toHaveLength(0);
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+  );
+  cleanup.push(() => vi.unstubAllGlobals());
+  // 实际挂载预览，覆盖标题字段在 layout effect 中过早绑定未提交节点的回归。
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  cleanup.push(() => {
+    act(() => root.unmount());
+    host.remove();
+  });
+  await act(async () => {
+    root.render(
+      <DndProvider backend={HTML5Backend}>
+        <BoardContext.Provider value={f.board}>
+          <svg>
+            <CreationPreview board={f.board} zoom={1} />
+          </svg>
+        </BoardContext.Provider>
+      </DndProvider>
+    );
+  });
+  expect(host.querySelector("[data-unknown-element]")).toBeNull();
+  expect(f.model.read().pages[0].children).toHaveLength(0);
+  expect(f.binding.history.undoStack).toHaveLength(0);
   // 只有当前预览对象可以跳过文档查询，同 ID 的其它对象仍接受检查。
   expect(f.board.extensions!.unknownElementReason({ ...node })).toBeDefined();
-  f.board.setCreationPreview(null);
+  if (["frame", "column", "image"].includes(node.type)) {
+    const field = node.type === "image" ? "description" : "title";
+    // React 批处理可跳过中间卸载；同 ID 重开必须绑定新会话。
+    await act(async () => {
+      f.board.setCreationPreview(null);
+      f.board.setCreationPreview({ ...node, [field]: "重开的预览" });
+    });
+    expect(host.querySelector<HTMLInputElement>(`input[aria-label="${field}"]`)?.value).toBe(
+      "重开的预览"
+    );
+  }
+  await act(async () => f.board.setCreationPreview(null));
   expect(f.board.extensions!.unknownElementReason(node)).toBeDefined();
-  f.insert(node);
+  await act(async () => {
+    f.insert(node);
+    root.render(
+      <DndProvider backend={HTML5Backend}>
+        <BoardContext.Provider value={f.board}>
+          <svg>{f.board.renderElement(f.board.children[0])}</svg>
+        </BoardContext.Provider>
+      </DndProvider>
+    );
+  });
   expect(f.board.extensions!.unknownElementReason(f.board.children[0])).toBeUndefined();
+  expect(host.querySelector("[data-unknown-element]")).toBeNull();
+  const field =
+    node.type === "image"
+      ? "description"
+      : node.type === "frame" || node.type === "column"
+        ? "title"
+        : null;
+  if (field) {
+    const handle = f.binding.textField(node.id, field);
+    try {
+      await act(async () => {
+        const snapshot = handle.getSnapshot();
+        handle.edit({
+          offset: 0,
+          remove: snapshot.value.length,
+          text: "更新后的文字",
+          revision: snapshot.revision,
+        });
+      });
+      expect(host.querySelector<HTMLInputElement>(`input[aria-label="${field}"]`)?.value).toBe(
+        "更新后的文字"
+      );
+      expect(f.board.children[0][field]).toBe("更新后的文字");
+    } finally {
+      handle.dispose();
+    }
+  }
 });
 
 it.each(nodes)("内置 $type 使用精确契约与统一创建撤销", async node => {
@@ -1545,3 +1631,84 @@ it.each(["手动视口", "新动画"])("适应视口的旧动画不会覆盖之�
     frame.mockRestore();
   }
 });
+
+// 大批量 DOM 更新与耗时采样只在显式基准中运行。
+it.skipIf(process.env.WHITEBOARD_PREVIEW_BENCH !== "1")(
+  "内置字段预览生命周期压测",
+  async () => {
+    const f = await setup();
+    const seeds = nodes.filter(node => ["frame", "column", "image"].includes(node.type));
+    const cycles = Number(process.env.PREVIEW_BENCH_CYCLES ?? 600);
+    const steps = 8;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      }
+    );
+    cleanup.push(() => vi.unstubAllGlobals());
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    cleanup.push(() => {
+      act(() => root.unmount());
+      host.remove();
+    });
+    await act(async () =>
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <BoardContext.Provider value={f.board}>
+            <svg>
+              <CreationPreview board={f.board} zoom={1} />
+            </svg>
+          </BoardContext.Provider>
+        </DndProvider>
+      )
+    );
+    const before = Y.encodeStateAsUpdate(f.doc);
+    const durations: number[] = [];
+    for (let round = 0; round < cycles; round++) {
+      const seed = seeds[Math.floor(round / 2) % seeds.length];
+      const field = seed.type === "image" ? "description" : "title";
+      const started = performance.now();
+      // 同一轮 React 批处理中关闭并重开，避免靠中间卸载掩盖旧绑定。
+      await act(async () => {
+        f.board.setCreationPreview(null);
+        f.board.setCreationPreview({ ...seed, id: "reused-preview", [field]: `开始-${round}` });
+      });
+      for (let step = 0; step < steps; step++) {
+        const expected = `更新-${round}-${step}`;
+        await act(async () =>
+          f.board.setCreationPreview({
+            ...seed,
+            id: "reused-preview",
+            [field]: expected,
+            width: seed.width + step,
+          })
+        );
+        expect(host.querySelector("[data-unknown-element]")).toBeNull();
+        expect(host.querySelector<HTMLInputElement>(`input[aria-label="${field}"]`)?.value).toBe(
+          expected
+        );
+      }
+      durations.push(performance.now() - started);
+    }
+    await act(async () => f.board.setCreationPreview(null));
+    expect(Y.encodeStateAsUpdate(f.doc)).toEqual(before);
+    expect(f.binding.history.undoStack).toHaveLength(0);
+    durations.sort((a, b) => a - b);
+    console.log(
+      "WHITEBOARD_PREVIEW_MEASURE",
+      JSON.stringify({
+        scenario: "builtin-fields",
+        cycles,
+        updates: cycles * steps,
+        cycleP50Ms: durations[Math.floor(cycles * 0.5)],
+        cycleP95Ms: durations[Math.floor(cycles * 0.95)],
+      })
+    );
+  },
+  120000
+);

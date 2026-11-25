@@ -45,6 +45,7 @@ import { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
 
 import type { WhiteboardDocumentBinding } from "./document";
 import { boardFlag } from "./constants/boardIdentity";
+import { CreationPreviewSession } from "./interactions/CreationPreviewSession";
 interface VisibleElementTree {
   element: BoardElement;
   children: VisibleElementTree[];
@@ -307,17 +308,31 @@ class Board {
     bounds: boolean;
   } | null = null;
 
+  public creationPreviewSession?: CreationPreviewSession;
+
   /** 设置/清除创建预览；element 为 null 时清除 */
   setCreationPreview(
     element: BoardElement | null,
     options?: { highlight?: readonly string[]; sizeLabel?: string; bounds?: boolean }
   ): void {
     if (!element) {
+      this.creationPreviewSession?.dispose();
+      this.creationPreviewSession = undefined;
       if (this.creationPreview) {
         this.creationPreview = null;
         this.emit("internal:creation-preview-change");
       }
       return;
+    }
+    if (
+      !this.creationPreview ||
+      this.creationPreview.element.id !== element.id ||
+      this.creationPreview.element.type !== element.type
+    ) {
+      this.creationPreviewSession?.dispose();
+      this.creationPreviewSession = new CreationPreviewSession(element);
+    } else {
+      this.creationPreviewSession?.update(element);
     }
     this.creationPreview = {
       element,
@@ -430,6 +445,7 @@ class Board {
   }
 
   destroy() {
+    this.setCreationPreview(null);
     this.disconnectDocument?.();
     this.disconnectDocument = undefined;
     if (this.isDestroyed) return;

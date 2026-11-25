@@ -1,4 +1,8 @@
-import React from "react";
+import React, { act, useEffect, useMemo, useSyncExternalStore } from "react";
+import { createRoot } from "react-dom/client";
+import type { EditorTextField } from "@tau/editor/text-field-contract";
+import { BoardContext } from "../context";
+import { CreationPreview } from "../components/CreationPreview";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as Y from "yjs";
 import { afterEach, expect, it, vi } from "vitest";
@@ -109,6 +113,118 @@ async function fixture(
     },
   };
 }
+// 插件复用普通渲染与文字绑定时，创建草稿不能要求已存在的文档契约。
+it.each(["commit", "cancel"])("插件预览可查询并订阅草稿，%s 后旧租约失效", async outcome => {
+  let renderedAPI!: WhiteboardAPI;
+  let renderedField!: EditorTextField;
+  const definition = defineElement({
+    ...v1(),
+    render: function Source({ element }) {
+      const api = useWhiteboardAPI();
+      const field = useMemo(() => api.getTextBinding(element.id, "source"), [api, element.id]);
+      useEffect(() => () => field.dispose(), [field]);
+      const snapshot = useSyncExternalStore(field.subscribe, field.getSnapshot, field.getSnapshot);
+      renderedAPI = api;
+      renderedField = field;
+      return (
+        <g
+          data-source={snapshot.value}
+          data-readonly={api.readonly}
+          data-query={String(api.getElement(element.id)?.data.source)}
+        />
+      );
+    },
+  });
+  const f = await fixture(definition);
+  const draft = { id: "draft", type: definition.type, ...geometry, data: { source: "草稿" } };
+  const before = Y.encodeStateAsUpdate(f.doc);
+  f.board.setCreationPreview(draft);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  cleanup.push(() => {
+    act(() => root.unmount());
+    host.remove();
+  });
+  await act(async () =>
+    root.render(
+      <BoardContext.Provider value={f.board}>
+        <svg>
+          <CreationPreview board={f.board} zoom={1} />
+        </svg>
+      </BoardContext.Provider>
+    )
+  );
+  expect(host.querySelector("[data-unknown-element]")).toBeNull();
+  expect(host.querySelector("[data-source]")?.getAttribute("data-source")).toBe("草稿");
+  expect(host.querySelector("[data-query]")?.getAttribute("data-query")).toBe("草稿");
+  expect(renderedAPI.readonly).toBe(true);
+  const previewAPI = renderedAPI;
+  const previewField = renderedField;
+  const previewChanges = vi.fn();
+  cleanup.push(previewAPI.subscribe(previewChanges));
+  expect(() => previewAPI.updateElementData(draft.id, { source: "越界" })).toThrow();
+  expect(() => previewAPI.getTextBinding(draft.id, "undeclared")).toThrow();
+  expect(() =>
+    previewField.edit({
+      offset: 0,
+      remove: 0,
+      text: "越界",
+      revision: previewField.getSnapshot().revision,
+    })
+  ).toThrow();
+  await act(async () => f.board.setCreationPreview({ ...draft, data: { source: "拖动更新" } }));
+  expect(renderedField).toBe(previewField);
+  expect(host.querySelector("[data-source]")?.getAttribute("data-source")).toBe("拖动更新");
+  expect(host.querySelector("[data-query]")?.getAttribute("data-query")).toBe("拖动更新");
+  expect(Y.encodeStateAsUpdate(f.doc)).toEqual(before);
+  expect(f.api.getElement(draft.id)).toBeUndefined();
+  expect(f.binding.history.undoStack).toHaveLength(0);
+  await act(async () => f.board.setCreationPreview(null));
+  previewChanges.mockClear();
+  expect(() => previewAPI.getTextBinding(draft.id, "source")).toThrow();
+  expect(() => previewAPI.getElement(draft.id)).toThrow();
+  if (outcome === "cancel") {
+    expect(host.querySelector("[data-source]")).toBeNull();
+    expect(Y.encodeStateAsUpdate(f.doc)).toEqual(before);
+    await act(async () => f.board.setCreationPreview({ ...draft, data: { source: "下一次草稿" } }));
+    expect(host.querySelector("[data-source]")?.getAttribute("data-source")).toBe("下一次草稿");
+    expect(renderedAPI === previewAPI).toBe(false);
+    expect(previewField.getSnapshot().value).toBe("拖动更新");
+    expect(() => previewAPI.getTextBinding(draft.id, "source")).toThrow();
+    return;
+  }
+  await act(async () => {
+    f.board.apply({
+      type: "insert_node",
+      path: [0],
+      node: { ...draft, data: { source: "正式文字" } },
+    });
+    root.render(<svg>{f.board.renderElement(f.board.children[0])}</svg>);
+  });
+  expect(host.querySelector("[data-source]")?.getAttribute("data-source")).toBe("正式文字");
+  expect(renderedAPI.readonly).toBe(false);
+  expect(renderedField).not.toBe(previewField);
+  expect(() =>
+    previewField.edit({
+      offset: 0,
+      remove: 0,
+      text: "迟到写入",
+      revision: previewField.getSnapshot().revision,
+    })
+  ).toThrow();
+  await act(async () =>
+    renderedField.edit({
+      offset: 0,
+      remove: 0,
+      text: "可编辑",
+      revision: renderedField.getSnapshot().revision,
+    })
+  );
+  expect(f.api.getElement(draft.id)?.data.source).toBe("可编辑正式文字");
+  expect(previewChanges).not.toHaveBeenCalled();
+});
+
 it("正式作者 API 不暴露路径/模型，首次创建把契约和节点原子写入并保留创建撤销", async () => {
   const f = await fixture();
   expect(f.model.contracts.size).toBe(0);
@@ -607,3 +723,152 @@ it.each(["disable", "page"])("异步创建期间作用域改变（%s），迟到
   expect(await pending).toBeNull();
   expect(f.model.elements.size).toBe(0);
 });
+
+// 长循环与耗时采样只在显式基准中运行；断言锁文档、权限和租约生命周期。
+it.skipIf(process.env.WHITEBOARD_PREVIEW_BENCH !== "1")(
+  "插件预览提交取消与订阅释放压测",
+  async () => {
+    let currentAPI!: WhiteboardAPI;
+    let currentField!: EditorTextField;
+    const definition = defineElement({
+      ...v1(),
+      render: function Source({ element }) {
+        const api = useWhiteboardAPI();
+        const field = useMemo(() => api.getTextBinding(element.id, "source"), [api, element.id]);
+        useEffect(() => () => field.dispose(), [field]);
+        const snapshot = useSyncExternalStore(
+          field.subscribe,
+          field.getSnapshot,
+          field.getSnapshot
+        );
+        useSyncExternalStore(
+          api.subscribe,
+          () => api.readonly,
+          () => api.readonly
+        );
+        currentAPI = api;
+        currentField = field;
+        return <g data-source={snapshot.value} />;
+      },
+    });
+    const f = await fixture(definition);
+    const activeSubscriptions = new Set<() => void>();
+    const subscribe = f.board.subscribe.bind(f.board);
+    const subscriptionSpy = vi.spyOn(f.board, "subscribe").mockImplementation(listener => {
+      activeSubscriptions.add(listener);
+      const stop = subscribe(listener);
+      return () => {
+        activeSubscriptions.delete(listener);
+        stop();
+      };
+    });
+    cleanup.push(() => subscriptionSpy.mockRestore());
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    cleanup.push(() => {
+      act(() => root.unmount());
+      host.remove();
+    });
+    const render = () =>
+      root.render(
+        <BoardContext.Provider value={f.board}>
+          <svg>
+            <CreationPreview board={f.board} zoom={1} />
+            {f.board.renderElements(f.board.children)}
+          </svg>
+        </BoardContext.Provider>
+      );
+    await act(async () => render());
+    const cycles = Number(process.env.PREVIEW_BENCH_CYCLES ?? 600);
+    const steps = 24;
+    const durations: number[] = [];
+    let commits = 0;
+    for (let round = 0; round < cycles; round++) {
+      const started = performance.now();
+      const before = Y.encodeStateVector(f.doc);
+      const draft = {
+        id: `draft-${round}`,
+        type: definition.type,
+        ...geometry,
+        data: { source: "初值" },
+      };
+      await act(async () => f.board.setCreationPreview(draft));
+      const oldAPI = currentAPI;
+      const oldField = currentField;
+      for (let step = 0; step < steps; step++) {
+        const value = `草稿-${round}-${step}`;
+        await act(async () =>
+          f.board.setCreationPreview({ ...draft, data: { source: value }, x: step })
+        );
+        expect(host.querySelector("[data-source]")?.getAttribute("data-source")).toBe(value);
+      }
+      expect(Y.encodeStateVector(f.doc)).toEqual(before);
+      await act(async () => f.board.setCreationPreview(null));
+      expect(() => oldAPI.getElement(draft.id)).toThrow();
+      expect(() =>
+        oldField.edit({
+          offset: 0,
+          remove: 0,
+          text: "迟到",
+          revision: oldField.getSnapshot().revision,
+        })
+      ).toThrow();
+      if (round % 12 === 0) {
+        commits++;
+        await act(async () => {
+          f.binding.splitHistory();
+          f.board.apply({ type: "insert_node", path: [0], node: draft });
+          render();
+        });
+        await act(async () => {
+          f.binding.splitHistory();
+          currentField.edit({
+            offset: 0,
+            remove: 2,
+            text: `正式-${round}`,
+            revision: currentField.getSnapshot().revision,
+          });
+        });
+        expect(f.api.getElement(draft.id)?.data.source).toBe(`正式-${round}`);
+        await act(async () => {
+          f.board.undo();
+          f.board.undo();
+          render();
+        });
+        expect(f.board.children).toHaveLength(0);
+        await act(async () => {
+          f.board.redo();
+          f.board.redo();
+          render();
+        });
+        expect(f.api.getElement(draft.id)?.data.source).toBe(`正式-${round}`);
+        await act(async () => {
+          f.board.undo();
+          f.board.undo();
+          render();
+        });
+      }
+      expect(f.board.children).toHaveLength(0);
+      expect(f.binding.history.undoStack).toHaveLength(0);
+      expect(activeSubscriptions.size).toBe(0);
+      expect(host.querySelector("[data-unknown-element]")).toBeNull();
+      durations.push(performance.now() - started);
+    }
+    await f.model.validate();
+    durations.sort((a, b) => a - b);
+    console.log(
+      "WHITEBOARD_PREVIEW_MEASURE",
+      JSON.stringify({
+        scenario: "plugin-lifecycle",
+        cycles,
+        updates: cycles * steps,
+        commits,
+        cycleP50Ms: durations[Math.floor(cycles * 0.5)],
+        cycleP95Ms: durations[Math.floor(cycles * 0.95)],
+        activeSubscriptions: activeSubscriptions.size,
+      })
+    );
+  },
+  120000
+);
