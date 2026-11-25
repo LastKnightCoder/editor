@@ -101,6 +101,12 @@ pnpm build
 
 参与开发前，建议先读 [AGENTS.md](AGENTS.md) 里的协作约定和 [代码风格规范](docs/guides/dev-code-style.md)。
 
+## 许可证
+
+Tau 的源码公开，按 [PolyForm Noncommercial 1.0.0](LICENSE) 授权：个人学习、研究，以及学校、公益组织等非商业用途，可以免费使用、修改和分发；用于商业用途需要另外取得授权，请通过 [GitHub Issue](https://github.com/LastKnightCoder/editor/issues) 联系。
+
+插件开发包（`packages/plugins`、`packages/ui`，在 npm 上发布为 `@xiongtao.xt/tau-plugins`、`@xiongtao.xt/tau-ui`）按 MIT 授权，开发插件（包括收费插件）不受非商业条款限制。`plugins/` 下的官方插件是独立仓库，许可以各自仓库的 LICENSE 为准。
+
 ## 反馈
 
 遇到问题、觉得哪里别扭，或者希望 Tau 能做什么，欢迎在软件内反馈，或提交 [GitHub Issue](https://github.com/LastKnightCoder/editor/issues)。

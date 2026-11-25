@@ -12,9 +12,9 @@ Tau 可以免费下载和使用，不需要注册账号。
 
 可以。写作、整理、复习、番茄专注等功能都在本机运行，不需要联网。AI、同步、发布、协作和安装插件要连接外部服务，需要网络。
 
-### Tau 开源吗？
+### Tau 开源吗？可以商用吗？
 
-是的，源码托管在 [GitHub](https://github.com/LastKnightCoder/editor)，欢迎提交问题和建议。
+源码公开在 [GitHub](https://github.com/LastKnightCoder/editor)，按 PolyForm Noncommercial 1.0.0 许可授权：个人和非商业用途可以免费使用、修改和分发，商业用途需要另外取得授权。开发插件用的开发包按 MIT 授权，做插件不受这条限制。欢迎提交问题和建议。
 
 ## 数据与同步
 
