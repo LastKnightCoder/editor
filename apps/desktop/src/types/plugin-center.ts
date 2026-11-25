@@ -81,7 +81,7 @@ export interface PluginRelease {
       name: string;
       description: string;
       minAppVersion?: string;
-      formatVersion?: 1 | 2 | 3;
+      formatVersion?: 1 | 2 | 3 | 4;
       targets?: import("@tau/plugins/center").CenterTargets;
       backend?: import("@tau/plugins/package").PluginBackendManifest;
       skills?: readonly string[];

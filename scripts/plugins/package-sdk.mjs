@@ -56,6 +56,7 @@ try {
   const clientEntry = path.join(root, "packages/plugins/src/publish-client.ts");
   const artifactsEntry = path.join(root, "packages/plugins/src/publish-artifacts.ts");
   const packageEntry = path.join(root, "packages/plugins/src/package.ts");
+  const unifiedEntry = path.join(root, "packages/plugins/src/unified.ts");
   const portableEntry = path.join(root, "packages/plugins/src/portable.ts");
   const backendEntry = path.join(root, "packages/plugins/src/backend.ts");
   const graph = ts.createProgram(
@@ -68,6 +69,7 @@ try {
       artifactsEntry,
       packageEntry,
       portableEntry,
+      unifiedEntry,
       backendEntry,
     ],
     options
@@ -187,6 +189,7 @@ try {
     if (name === "plugins") {
       await copyDeclaration(packageEntry);
       await copyDeclaration(portableEntry);
+      await copyDeclaration(unifiedEntry);
       await copyDeclaration(backendEntry);
       await copyDeclaration(whiteboardEntry);
       await copyDeclaration(syncEntry);
@@ -201,6 +204,7 @@ try {
           "publish-artifacts": artifactsEntry,
           package: packageEntry,
           portable: portableEntry,
+          unified: unifiedEntry,
         },
         outdir: directory,
         bundle: true,
@@ -234,6 +238,7 @@ try {
                   "./tailwind.css": "./tailwind.css",
                   "./package": { types: "./" + targetOf(packageEntry), default: "./package.js" },
                   "./portable": { types: "./" + targetOf(portableEntry), default: "./portable.js" },
+                  "./unified": { types: "./" + targetOf(unifiedEntry), default: "./unified.js" },
                   "./backend": { types: "./" + targetOf(backendEntry), default: "./runtime.js" },
                   "./sync": { types: "./" + targetOf(syncEntry), default: "./runtime.js" },
                   "./publish-data": {

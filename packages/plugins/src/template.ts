@@ -11,7 +11,16 @@ import {
   type PackageTargets,
   type PackageTarget,
 } from "./package-targets.ts";
-import { validatePortableDistributionManifest, type PortablePluginManifest } from "./portable.ts";
+import {
+  validatePortableDistributionManifest,
+  validatePortablePluginManifest,
+  type PortablePluginManifest,
+} from "./portable.ts";
+import {
+  validateUnifiedPackageManifest,
+  type UnifiedTemplateManifest,
+  type UnifiedSkillPackageManifest,
+} from "./unified.ts";
 export { hasSkillScripts, SKILL_README, SKILL_ROOT } from "./skills.ts";
 
 interface SiteFieldBase {
@@ -35,7 +44,7 @@ export type TemplateSiteField =
   | (SiteFieldBase & { type: "switch"; default?: boolean });
 export type SiteFieldValue = string | boolean;
 
-export interface TemplateManifest extends PluginCatalogFields {
+export interface LegacyTemplateManifest extends PluginCatalogFields {
   formatVersion: 1;
   apiVersion: 1;
   platform: "desktop";
@@ -51,6 +60,7 @@ export interface TemplateManifest extends PluginCatalogFields {
   };
   integrity: Record<string, string>;
 }
+export type TemplateManifest = LegacyTemplateManifest | UnifiedTemplateManifest;
 
 /** 独立 Skill 包：没有代码入口，只分发 `skills/<id>/` 目录，安装后即可在 Skill 页使用。 */
 interface SkillPackageBase extends PluginCatalogFields {
@@ -66,14 +76,21 @@ export interface DesktopSkillPackageManifest extends SkillPackageBase {
   platform: "desktop";
   minAppVersion?: string;
 }
-export interface PortableSkillPackageManifest extends SkillPackageBase {
+export interface LegacyPortableSkillPackageManifest extends SkillPackageBase {
   platform: "portable";
   targets: PackageTargets;
   minAppVersion?: never;
 }
+export type PortableSkillPackageManifest =
+  | LegacyPortableSkillPackageManifest
+  | UnifiedSkillPackageManifest;
 export type SkillPackageManifest = DesktopSkillPackageManifest | PortableSkillPackageManifest;
 
-export type DistributionManifest = PluginManifest | TemplateManifest | SkillPackageManifest;
+export type DistributionManifest =
+  | PluginManifest
+  | PortablePluginManifest
+  | TemplateManifest
+  | SkillPackageManifest;
 export const DISTRIBUTION_LIMITS = {
   zipBytes: 16 * 1024 * 1024,
   expandedBytes: 32 * 1024 * 1024,
@@ -203,7 +220,8 @@ export function isSkillPackageManifest(value: unknown): value is SkillPackageMan
     typeof value === "object" &&
     !Array.isArray(value) &&
     "formatVersion" in value &&
-    value.formatVersion === 1 &&
+    (value.formatVersion === 1 ||
+      (value.formatVersion === 4 && "kind" in value && value.kind === "skills")) &&
     "apiVersion" in value &&
     value.apiVersion === 1 &&
     "platform" in value &&
@@ -233,6 +251,11 @@ export function validateSkillPackageManifest(value: unknown): SkillPackageManife
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Skill 包清单必须是对象");
   const item = value as Record<string, unknown>;
+  if (item.formatVersion === 4) {
+    const manifest = validateUnifiedPackageManifest(item);
+    if (manifest.kind !== "skills") throw new Error("包类型不是独立 Skill");
+    return manifest;
+  }
   if (
     item.formatVersion !== 1 ||
     item.apiVersion !== 1 ||
@@ -321,6 +344,10 @@ export function validateMobilePackageManifest(
 }
 
 export function validateDistributionManifest(value: unknown): DistributionManifest {
+  if (value && typeof value === "object" && "formatVersion" in value) {
+    if (value.formatVersion === 4) return validateUnifiedPackageManifest(value);
+    if (value.formatVersion === 3) return validatePortablePluginManifest(value);
+  }
   if (
     value &&
     typeof value === "object" &&

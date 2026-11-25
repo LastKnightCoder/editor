@@ -26,6 +26,10 @@
 
 每个宿主绑定一个工作区和一个共享存储适配器。宿主使用 `registerTrusted` 显式登记可信定义，再 `enable`；仅注册不会执行插件代码。每次启用调用 `create` 生成独立实例。命令全名是 `插件ID:局部命令ID`，重复注册报错。
 
+## 包协议
+
+`@tau/plugins/unified` 提供格式 4 的校验与构建，`kind`、`targets` 和运行声明分别表达类型、平台与执行要求。已发布格式 1/2/3 在读取边界保留原契约，安装、更新与恢复共用既有事务，不改写 ZIP、摘要或插件私有数据。清单和宿主边界见[跨端插件架构](/docs/architecture/plugin-portability.md)，作者用法见[多端适配](/plugins/tau-plugin-template/docs/portability.md)。
+
 ## 页面
 
 `context.pages.register({ id, title, component, match?, getId? })` 返回可打开和注销的句柄，自动随插件回收。`open(params?)` 的参数只支持字符串、有限数字与布尔值，缺省为空；完成表示导航请求已交给宿主，不代表组件所有副作用已执行。组件从 PluginPageProps 取得自己的 context 与只读 params。单实例及参数实例由页面宿主处理，宿主不支持页面时注册明确报错。
@@ -104,3 +108,11 @@ pnpm --filter @example/plugin-workbench demo
 作者从 [公开模板](https://github.com/LastKnightCoder/tau-plugin-template) 开始，本仓库维护源为 `plugins/tau-plugin-template`。作者文档在模板的 `docs/` 目录（入口 [docs/README.md](../../plugins/tau-plugin-template/docs/README.md)），打包 SDK 时整目录复制进 npm 包；修改公开契约时同步更新对应文档。
 
 编辑器节点的字段声明、源码输入、版本转换、资源与正文传递见[编辑器协作约定](/plugins/tau-plugin-template/docs/editor-collaboration.md)。
+
+## 待办与日程数据
+
+`context.data.todoLists`、`calendars` 只读目录；`todos.get`、`calendar.get` 按稳定身份读取。普通独立待办可写清单和提醒列表，日程可写提醒，备注通过 notesRef 接入 `context.content`；没有备注时用 `calendar.ensureNotes` 建立空正文。`calendar.query({ view: "stored" })` 只枚举持久日程，可省略日期窗口。创建的可选 `{ requestId }` 用于中断后重试，回执和原创建同事务保存，删除后请求失效。详细作者契约唯一维护在[读写用户数据](/plugins/tau-plugin-template/docs/task-data.md)。宿主实现 `DataAdapter.schedule` 才表示支持这套完整契约，缺失时新增读写明确拒绝；它不注册第三方同步协议。增量读取由独立的 `DataAdapter.readChanges` 接线，公开入口为 `context.data.changes.query`，不要求已有普通读写 API 改用增量。
+
+`data.changes.query` 的游标状态机由 SDK 共用，两端数据层在短事务内返回身份页、水位和保留边界。首次全量补偿扫描期间的变化，之后固定增量上界；checkpoint 只在整轮结束返回。删除保留原身份，作用域/范围/历史失效返回 PluginSyncResetRequiredError。作者契约见[按游标读取变化](/plugins/tau-plugin-template/docs/task-data.md#按游标读取变化)。
+
+重复与正文待办通过 `DataAdapter.todoRecurrence` 接线：规则创建/分段修改、原子实例状态补丁与持久状态分页；实例 CRUD 使用 `writeTodoOccurrence`，不会回退为整系列操作。正文单提醒可为绝对时刻，重复提醒以本地实例日零点为基准。`readChanges` 必须贯通 todoSource 并回传已支持来源；SDK 拒绝未完整支持正文来源的宿主结果。具体签名与边界见作者手册，宿主不实现远端协议。

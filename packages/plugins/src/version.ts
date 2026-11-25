@@ -34,10 +34,11 @@ export function comparePluginVersions(left: string, right: string): number {
 }
 
 export function assertPluginCompatibility(
-  manifest: { minAppVersion?: string },
+  manifest: { minAppVersion?: string; targets?: { desktop?: { minAppVersion: string } } },
   clientVersion: string
 ) {
-  if (manifest.minAppVersion && comparePluginVersions(clientVersion, manifest.minAppVersion) < 0) {
-    throw new Error(`插件需要 Tau ${manifest.minAppVersion} 或更高版本，当前为 ${clientVersion}`);
+  const minimum = manifest.targets?.desktop?.minAppVersion ?? manifest.minAppVersion;
+  if (minimum && comparePluginVersions(clientVersion, minimum) < 0) {
+    throw new Error(`插件需要 Tau ${minimum} 或更高版本，当前为 ${clientVersion}`);
   }
 }

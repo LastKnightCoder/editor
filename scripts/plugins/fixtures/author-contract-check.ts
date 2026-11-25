@@ -398,7 +398,7 @@ export async function checkFlashcardContract(context: PluginContext) {
 }
 
 export async function checkHostAICapabilities(context: PluginContext, imageBase64: string) {
-  const model = await context.ai.requestCapability("vibeLearningImageDescription");
+  const model = await context.ai.requestCapability("chat");
   for await (const event of model.stream({
     messages: [
       {
