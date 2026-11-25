@@ -42,7 +42,7 @@ it("默认组件无需 Kit 或宿主 Provider，多实例正文与卸载相互�
   }
 });
 
-it("触屏宿主不装载桌面块拖拽控件，切回鼠标交互仍可拖拽", async () => {
+it("触屏或关闭把手时隐藏块拖拽控件，恢复后正文仍可编辑", async () => {
   // Android 点正文会保留 hover；桌面把手曾与移动端选块把手重叠。
   const container = document.createElement("div");
   document.body.append(container);
@@ -50,16 +50,30 @@ it("触屏宿主不装载桌面块拖拽控件，切回鼠标交互仍可拖拽"
   const content = [
     { type: "paragraph" as const, children: [{ type: "formatted" as const, text: "可编辑正文" }] },
   ];
+  const mouseKit = createEditorKit({
+    services: [register => register(IEditorInteraction, { touch: false })],
+  });
+  const touchKit = createEditorKit({
+    services: [register => register(IEditorInteraction, { touch: true })],
+  });
   try {
-    for (const touch of [false, true, false]) {
-      const kit = createEditorKit({
-        services: [register => register(IEditorInteraction, { touch })],
-      });
-      await act(async () => root.render(<Editor kit={kit} initValue={content} readonly={false} />));
+    for (const [touch, showDragHandle] of [
+      [false, undefined],
+      [false, false],
+      [false, true],
+      [true, true],
+      [false, true],
+    ]) {
+      const kit = touch ? touchKit : mouseKit;
+      await act(async () =>
+        root.render(
+          <Editor kit={kit} initValue={content} readonly={false} showDragHandle={showDragHandle} />
+        )
+      );
       const editable = container.querySelector('[data-slate-editor="true"]');
       expect(editable?.getAttribute("contenteditable")).toBe("true");
       expect(editable?.textContent).toContain("可编辑正文");
-      if (touch) {
+      if (touch || showDragHandle === false) {
         expect(container.querySelector("[data-drag-handle]")).toBeNull();
       } else {
         expect(container.querySelector("[data-drag-handle]")).not.toBeNull();

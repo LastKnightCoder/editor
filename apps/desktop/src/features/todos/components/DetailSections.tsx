@@ -60,7 +60,7 @@ export function SectionTitle({
   children?: ReactNode;
 }) {
   return (
-    <div className="text-ink-2 mb-2 mt-[18px] flex min-h-6 items-center gap-2 text-[12px] font-semibold">
+    <div className="text-ink-2 mt-[18px] mb-2 flex min-h-6 items-center gap-2 text-[12px] font-semibold">
       {title}
       {count != null && <span className="text-ink-3 font-normal tabular-nums">{count}</span>}
       <span className="flex-1" />
@@ -163,7 +163,7 @@ export function HabitSection({
 function Stat({ value, label }: { value: ReactNode; label: string }) {
   return (
     <div className="flex flex-col">
-      <b className="text-[19px] font-semibold tabular-nums leading-[1.2]">{value}</b>
+      <b className="text-[19px] leading-[1.2] font-semibold tabular-nums">{value}</b>
       <span className="text-ink-3 text-[11.5px]">{label}</span>
     </div>
   );
@@ -459,12 +459,12 @@ function NoteRow({
         <Icon className="size-[14px]" strokeWidth={1.75} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-medium leading-normal">{noteTitle(link)}</div>
+        <div className="truncate text-[13px] leading-normal font-medium">{noteTitle(link)}</div>
         <div className="text-ink-3 mt-0.5 text-[11.5px]">
           {kind.label} · {monthDay(link.createTime)}关联
         </div>
       </div>
-      <div className="bg-surface absolute right-2 top-2 flex gap-0.5 rounded-[8px] opacity-0 transition-opacity duration-150 group-focus-within/note:opacity-100 group-hover/note:opacity-100">
+      <div className="bg-surface absolute top-2 right-2 flex gap-0.5 rounded-[8px] opacity-0 transition-opacity duration-150 group-focus-within/note:opacity-100 group-hover/note:opacity-100">
         <IconButton
           title={editsInPlace(link) ? "编辑" : `打开${kind.label}`}
           onClick={e => {
@@ -541,6 +541,7 @@ export function DescriptionSection({
             initValue={entry.descriptionContent?.length ? entry.descriptionContent : EMPTY_DESC}
             onChange={handleChange}
             readonly={false}
+            showDragHandle={false}
             placeHolder="添加描述…（/ 唤起块菜单）"
             className="text-tau-body min-h-12"
           />

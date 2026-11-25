@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
 import type { Element } from "slate";
 import { useSlateStatic, useReadOnly } from "slate-react";
 import { cn } from "@tau/ui";
@@ -10,6 +10,7 @@ import { useTouchInteraction } from "../../services/interaction";
 import EditorContextMenu from "../EditorContextMenu";
 import type { ElementDragSpec } from "../../api/drag";
 import { BLOCK_DRAG_GROUP, DragHandle, DropIndicator, dimWhileDragging } from ".";
+import { ShowDragHandleContext } from "./context";
 
 /**
  * 拖拽 chrome 的唯一渲染点（01 §5.4 拖拽声明化）：手柄、插入线、悬停标记（ed-block）、
@@ -30,6 +31,7 @@ function BlockDragHostInner({
 }) {
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
+  const showDragHandle = useContext(ShowDragHandleContext);
 
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
@@ -47,7 +49,7 @@ function BlockDragHostInner({
     >
       <DropIndicator active={dropActive} before={isBefore} />
       {children}
-      {canDrag && (
+      {canDrag && showDragHandle && (
         <>
           <DragHandle
             dragRef={drag}

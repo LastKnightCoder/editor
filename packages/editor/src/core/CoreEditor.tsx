@@ -47,6 +47,7 @@ import {
 import { bindElementResources } from "./api/resources";
 import { ElementErrorBoundary, UnknownElement } from "./components/ElementGuard";
 import { BlockDragHost } from "./components/BlockDrag/BlockDragHost";
+import { ShowDragHandleContext } from "./components/BlockDrag/context";
 import { consoleErrorReporter } from "./services/errorReporter";
 import { applyPlugin, normalizeEditorContent, registerHotKey, Plugin } from "./utils";
 import {
@@ -96,6 +97,8 @@ export interface IEditorProps {
   onChange?: (value: Descendant[], editor: Editor) => void;
   onSelectionChange?: () => void;
   readonly?: boolean;
+  /** 是否显示块左侧的拖拽把手及其菜单入口，默认显示。 */
+  showDragHandle?: boolean;
   ariaLabel?: string;
   /** 本编辑器的组成（扩展 + 服务 + 主题）。不传则继承外层编辑器的 kit */
   kit?: EditorKit;
@@ -183,6 +186,7 @@ const Index = memo(
       leafWrapper,
       inlineSuggestions,
       focusMode = false,
+      showDragHandle = true,
     } = props;
 
     // 文档源给定时由它提供内容与只读状态，否则沿用 initValue / onChange
@@ -727,7 +731,9 @@ const Index = memo(
     return (
       <EditorKitScope kit={kit}>
         <InlineSuggestionContext.Provider value={readonly ? undefined : inlineSuggestions}>
-          {binding?.wrap ? binding.wrap(content) : content}
+          <ShowDragHandleContext.Provider value={showDragHandle}>
+            {binding?.wrap ? binding.wrap(content) : content}
+          </ShowDragHandleContext.Provider>
         </InlineSuggestionContext.Provider>
       </EditorKitScope>
     );

@@ -294,6 +294,7 @@ const Geometry = memo((props: GeometryProps) => {
           <EditorThemeOverride mode={theme}>
             <Editor
               document={collaborativeDocument}
+              showDragHandle={false}
               kit={textBinding.kit()}
               ref={textRef}
               initValue={textContent}

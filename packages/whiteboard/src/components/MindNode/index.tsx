@@ -573,6 +573,7 @@ const MindNode = (props: MindNodeProps) => {
             <EditorThemeOverride mode={editorTheme}>
               <Editor
                 document={collaborativeDocument}
+                showDragHandle={false}
                 kit={textBinding.kit()}
                 ref={editorRef}
                 initValue={text}

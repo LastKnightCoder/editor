@@ -11,6 +11,8 @@ import "@tau/editor/styles.css";
 
 `initValue` 为初始值；切换内容时用新的 React key 建立实例。编辑时通过 `onChange` 取得正文。`extensions` 按节点类型覆盖本实例的默认扩展。默认组合不包含已插件化的 HTML、TikZ、Typst、ABC 和 custom-block。
 
+`showDragHandle` 默认 `true`。传入 `<Editor showDragHandle={false} />` 可隐藏本实例块左侧的拖拽把手及其菜单入口，正文编辑与拖放接收能力保留。参数支持运行时切换；嵌套编辑器各自控制，不继承外层的开关。
+
 嵌套编辑器默认继承父实例的 kit；需要独立默认组合时可传 inheritKit={false}，不影响显式传入的 kit。发布渲染器使用此通用选项隔离正文实例，编辑器不需要了解发布协议。
 
 kit 只决定编辑器组合，不决定环境是否存在。默认与自定义 kit 都由 Editor 统一保证拖拽环境，复用外层拖拽实例；UI 原语使用已有 Portal 作用域或默认挂载点，Editor 不另外创建 UiProvider，调用方无需补线。

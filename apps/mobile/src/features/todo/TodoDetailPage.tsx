@@ -664,6 +664,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   ref={descriptionEditorRef}
                   initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
                   readonly={deleteLoading}
+                  showDragHandle={false}
                   placeHolder="添加备注…"
                   onChange={next => {
                     void handleDescriptionChange(next);
