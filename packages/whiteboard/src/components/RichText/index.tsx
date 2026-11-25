@@ -176,6 +176,7 @@ const Richtext = (props: RichTextProps) => {
   const shouldInert =
     isArrowMoving || isMoving || isSelecting || isSelected || !allowsElementInteraction(activeTool);
   const [focusPreview, setFocusPreview] = useState(false);
+  const showConnectionPoints = !focus && !autoFocus && !focusPreview;
 
   useInertControl(containerRef, shouldInert);
 
@@ -580,7 +581,7 @@ const Richtext = (props: RichTextProps) => {
             ))}
         </g>
       </If>
-      <If condition={!focus}>
+      <If condition={showConnectionPoints}>
         <ArrowConnectPointGroup
           element={element}
           points={arrowConnectExtendPoints}
@@ -588,7 +589,7 @@ const Richtext = (props: RichTextProps) => {
           disabled={isMoveArrowClosing}
         />
       </If>
-      <If condition={isMoveArrowClosing && !focus}>
+      <If condition={isMoveArrowClosing && showConnectionPoints}>
         {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}

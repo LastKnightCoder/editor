@@ -449,6 +449,45 @@ describe("异步创建失败（协议层）", () => {
 });
 
 describe("指针模式双击空白创建文本", () => {
+  it("双击创建后等待编辑器就绪时不显示连接点", async () => {
+    // 正文会话未就绪时宿主只渲染占位，自动聚焦请求必须先于真实焦点抑制连接点。
+    const services = createServiceRegistry(register =>
+      register(IWhiteboardRichText, {
+        ...createEmbeddedRichTextService(),
+        Editor: () => null,
+      })
+    );
+    const { board, host, canvas, fire, unmount } = await renderClickBoard(
+      baseExtensions(),
+      [],
+      services
+    );
+    try {
+      await fire("dblclick", 150, 90);
+      await act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("pointermove", { bubbles: true, clientX: 160, clientY: 100 })
+        );
+      });
+      expect(board.children[0]).toMatchObject({ type: "richtext", autoFocus: true });
+      const overlay = host.querySelector('g[data-layer="connect-point-overlay"]')!;
+      expect(overlay).not.toBeNull();
+      expect(overlay.querySelector("circle")).toBeNull();
+
+      await act(async () => {
+        board.apply({
+          type: "set_node",
+          path: [0],
+          properties: { autoFocus: true },
+          newProperties: { autoFocus: false },
+        });
+      });
+      expect(overlay.querySelector("circle")).not.toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
   it("双击空白处以点击点为左上角插入富文本（含 autoFocus）", async () => {
     const { board, fire, flush, unmount } = await renderClickBoard(baseExtensions());
     await fire("dblclick", 150, 90);
