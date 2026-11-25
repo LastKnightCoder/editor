@@ -81,14 +81,27 @@ const schedule = object(
   ["start", "end", "allDay"]
 );
 const request = {
+  requestHash: { type: "string", maxLength: 64 },
   requestId: { ...text, maxLength: 128, description: "本项稳定请求 ID；重试必须复用。" },
 };
 const target = { ...request, taskRef, revision: text };
 const eventTarget = { ...request, eventId: id, createdAt: timestamp, revision: text };
+const reminderOffsets: TaskSchema = { type: "array", items: { type: "integer" }, maxItems: 3 };
 const patch = object({
+  reminders: {
+    type: "array",
+    maxItems: 3,
+    items: {
+      anyOf: [
+        object({ offsetMs: { type: "integer" } }, ["offsetMs"]),
+        object({ at: time }, ["at"]),
+      ],
+    },
+  },
   title: { ...text, maxLength: 500 },
   dueAt: nullable(time),
   reminderAt: nullable(time),
+  reminderOffsets,
   groupId: id,
   parentRef: nullable(taskRef),
   archived: boolean,
@@ -108,6 +121,7 @@ export const TASK_WRITE_SCHEMAS = {
       parentRef: taskRef,
       dueAt: nullable(time),
       reminderAt: nullable(time),
+      reminderOffsets,
       recurrence: rule,
       schedule,
     },
@@ -133,7 +147,13 @@ export const TASK_WRITE_SCHEMAS = {
     "rule",
   ]),
   update_todo_occurrence: object(
-    { ...target, occurrence, action: choice("skip", "restore", "reschedule"), scheduledAt: time },
+    {
+      ...target,
+      occurrence,
+      action: choice("skip", "restore", "reschedule", "patch"),
+      scheduledAt: nullable(time),
+      statePatch: object({ completed: boolean, skipped: boolean, scheduledAt: nullable(time) }),
+    },
     ["requestId", "taskRef", "revision", "occurrence", "action"]
   ),
   create_calendar_event: object(
@@ -144,13 +164,23 @@ export const TASK_WRITE_SCHEMAS = {
       revision: text,
       occurrence,
       ...schedule.properties,
+      reminderOffsets,
+      notes: { type: "object", additionalProperties: true },
     },
     ["requestId", "start", "end", "allDay"]
   ),
   update_calendar_event: object(
     {
       ...eventTarget,
-      patch: object({ title: text, start: time, end: time, allDay: boolean, calendarId: id }),
+      patch: object({
+        title: text,
+        start: time,
+        end: time,
+        allDay: boolean,
+        calendarId: id,
+        reminderOffsets,
+        ensureNotes: boolean,
+      }),
     },
     ["requestId", "eventId", "createdAt", "revision", "patch"]
   ),
@@ -164,6 +194,7 @@ const page = {
   cursor: text,
 };
 export const TASK_READ_SCHEMAS = {
+  query_todo_occurrence_states: object({ ...page, taskRef }, ["taskRef"]),
   query_todos: object({
     ...page,
     contentId: id,
@@ -179,16 +210,36 @@ export const TASK_READ_SCHEMAS = {
     view: choice("tasks", "occurrences"),
     sort: choice("dueAt", "updatedAt", "title"),
   }),
-  query_calendar_events: object({ ...page, start: time, end: time, calendarIds: array(id, 100) }, [
-    "start",
-    "end",
-  ]),
+  query_calendar_events: object({
+    ...page,
+    start: time,
+    end: time,
+    calendarIds: array(id, 100),
+    view: choice("display", "stored"),
+  }),
+  query_task_directories: object(
+    { ...page, kind: choice("todo-list", "calendar"), archived: boolean },
+    ["kind"]
+  ),
+  get_task_object: object(
+    {
+      kind: choice("todo", "event", "todo-list", "calendar"),
+      taskRef,
+      id,
+      createdAt: timestamp,
+      occurrenceDate: date,
+    },
+    ["kind"]
+  ),
   query_task_operations: object({ ...page, batchId: text, operationId: text, requestId: text }),
 } satisfies Record<string, TaskSchema>;
 export type TaskReadName = keyof typeof TASK_READ_SCHEMAS;
 export type TaskToolName = TaskReadName | TaskWriteName;
 
 export const TASK_TOOL_DESCRIPTIONS: Record<TaskToolName, string> = {
+  query_todo_occurrence_states: "分页读取已持久化的周期实例状态，不展开无限序列。",
+  query_task_directories: "列出待办清单或日历及其可写状态。",
+  get_task_object: "按稳定身份读取待办、日程或所属目录。",
   query_todos:
     "查询独立、周期及正文待办，返回可操作身份和版本。周期实例查询须给日期范围；复杂聚合用 sql_query。",
   query_calendar_events: "查询日期窗口内日程与待办安排，返回来源和版本；不创建周期物化记录。",

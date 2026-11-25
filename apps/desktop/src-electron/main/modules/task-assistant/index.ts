@@ -1,5 +1,24 @@
+import {
+  readTaskInstance,
+  queryOccurrenceStates,
+  readOccurrenceStatePage,
+  assertPluginTaskVisible,
+} from "./occurrences";
+import { stat } from "node:fs/promises";
+import DataChangesTable from "../tables/data-changes";
+import { getPluginRegistry } from "../../services/plugin-workspaces";
+import { getPluginPermissionStore } from "../plugin-permissions";
+import type { DataChangesReadRequest } from "@tau/plugins/host";
+import { DEFAULT_CARD_CONTENT } from "@/constants/card";
+import { queryDirectories, readDirectory } from "./catalog";
+import { readCalendarEvent } from "./calendar";
+import { readTask } from "./engine";
+import { resolvePluginContent } from "../tables/plugin-content-input";
+import { replayPluginCreate } from "./create-receipts";
+import { revision } from "./common";
 import { BrowserWindow, ipcMain } from "electron";
 import {
+  TaskAssistantError,
   TASK_READ_SCHEMAS,
   TASK_WRITE_SCHEMAS,
   taskKey,
@@ -32,6 +51,81 @@ class TaskAssistantModule {
   private timer?: ReturnType<typeof setInterval>;
   private indexedDays = new Map<string, string>();
   async init() {
+    const prepareStateHolidays = async (
+      db: import("better-sqlite3").Database,
+      ref: import("@tau/shared/task-assistant").TaskRef,
+      limit: number,
+      cursor?: string,
+      scope = db.name
+    ) => {
+      const planned = readOccurrenceStatePage(db, ref, limit, cursor, scope);
+      if (!planned.task.recurrence?.some(segment => segment.rule?.excludeHolidays)) return;
+      const dates = new Set(
+        planned.keys.slice(0, limit).map(key => key.slice(key.lastIndexOf("/") + 1))
+      );
+      for (const date of dates) await this.prepareHolidays(db, undefined, date, date, true);
+      if (readTask(db, ref).revision !== planned.task.revision)
+        fail("VERSION_CONFLICT", "实例状态已变化，请重新读取");
+    };
+    ipcMain.handle(
+      "data-changes:read",
+      async (
+        event,
+        pluginId: string,
+        request: DataChangesReadRequest,
+        scope: { databaseName?: string }
+      ) => {
+        const bound = this.bind(event.sender, scope);
+        const file = await stat(bound.db.name);
+        const workspace = await getPluginRegistry().changeScope(
+          bound.databaseName,
+          `${file.dev}:${file.ino}:${file.birthtimeMs}`
+        );
+        const revision = await getPluginPermissionStore().revision(workspace.id, pluginId);
+        bound.check();
+        const result = DataChangesTable.read(
+          bound.db,
+          request,
+          JSON.stringify([workspace.id, workspace.epoch, revision])
+        );
+        bound.check();
+        return result;
+      }
+    );
+    ipcMain.handle(
+      "data-occurrence-states:read",
+      async (
+        event,
+        pluginId: string,
+        query: {
+          taskRef: import("@tau/shared/task-assistant").TaskRef;
+          limit: number;
+          cursor?: string;
+        },
+        scope: { databaseName?: string }
+      ) => {
+        const bound = this.bind(event.sender, scope);
+        const file = await stat(bound.db.name);
+        const workspace = await getPluginRegistry().changeScope(
+          bound.databaseName,
+          `${file.dev}:${file.ino}:${file.birthtimeMs}`
+        );
+        const grant = await getPluginPermissionStore().revision(workspace.id, pluginId);
+        bound.check();
+        if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 100)
+          fail("INVALID_ARGUMENT", "每页须为1-100条");
+        const binding = JSON.stringify([workspace.id, workspace.epoch, pluginId, grant]);
+        await prepareStateHolidays(bound.db, query.taskRef, query.limit, query.cursor, binding);
+        bound.check();
+        return queryOccurrenceStates(
+          bound.db,
+          query.taskRef,
+          query.limit,
+          query.cursor,
+          JSON.stringify([workspace.id, workspace.epoch, pluginId, grant])
+        );
+      }
+    );
     ipcMain.handle(
       "task-assistant:read",
       async (
@@ -54,7 +148,61 @@ class TaskAssistantModule {
           indexDb = undefined;
           indexFailure = true;
         }
-        if (name === "query_calendar_events" || args.view === "occurrences")
+        if (name === "query_todo_occurrence_states") {
+          const ref = args.taskRef as import("@tau/shared/task-assistant").TaskRef;
+          await prepareStateHolidays(
+            bound.db,
+            ref,
+            Number(args.pageSize ?? 50),
+            args.cursor as string | undefined
+          );
+          bound.check();
+          return queryOccurrenceStates(
+            bound.db,
+            ref,
+            Number(args.pageSize ?? 50),
+            args.cursor as string | undefined
+          );
+        }
+        if (name === "query_task_directories")
+          return queryDirectories(bound.db, args.kind as "todo-list" | "calendar", {
+            archived: args.archived as boolean | undefined,
+            limit: args.pageSize as number | undefined,
+            cursor: args.cursor as string | undefined,
+          });
+        if (name === "get_task_object") {
+          if (args.kind === "todo-list" || args.kind === "calendar")
+            return readDirectory(bound.db, args.kind, Number(args.id));
+          if (args.kind === "event") {
+            const row = bound.db
+              .prepare("SELECT create_time FROM calendar_event WHERE id=?")
+              .get(args.id) as { create_time: number } | undefined;
+            return row && row.create_time === args.createdAt
+              ? readCalendarEvent(bound.db, Number(args.id))
+              : null;
+          }
+          try {
+            if (!args.taskRef) fail("INVALID_ARGUMENT", "读取待办需要稳定身份");
+            const taskRef = args.taskRef as import("@tau/shared/task-assistant").TaskRef;
+            assertPluginTaskVisible(bound.db, taskRef);
+            if (!args.occurrenceDate) return readTask(bound.db, taskRef);
+            await this.prepareHolidays(
+              bound.db,
+              indexDb,
+              String(args.occurrenceDate),
+              String(args.occurrenceDate)
+            );
+            bound.check();
+            return readTaskInstance(bound.db, taskRef, String(args.occurrenceDate));
+          } catch (error) {
+            if (error instanceof TaskAssistantError && error.code === "NOT_FOUND") return null;
+            throw error;
+          }
+        }
+        if (
+          (name === "query_calendar_events" && args.view !== "stored") ||
+          args.view === "occurrences"
+        )
           await this.prepareHolidays(bound.db, indexDb, String(args.start), String(args.end));
         bound.check();
         if (name === "query_todos") return queryTasks(bound.db, indexDb, bound.databaseName, args);
@@ -152,7 +300,34 @@ class TaskAssistantModule {
             item.occurrence.occurrenceDate
           );
         check();
-        const result = new TaskAssistantEngine(db).execute(name, item, batchId, conversationKey);
+        let preparedNotes: Awaited<ReturnType<typeof resolvePluginContent>> | undefined;
+        if (
+          (name === "create_calendar_event" && item.notes) ||
+          (name === "update_calendar_event" && item.patch?.ensureNotes)
+        ) {
+          const owner = conversationKey?.startsWith("plugin:")
+            ? conversationKey.slice(7)
+            : undefined;
+          const replay =
+            owner && name === "create_calendar_event"
+              ? replayPluginCreate(
+                  db,
+                  owner,
+                  item.requestId,
+                  item.requestHash ?? revision({ name, input: item })
+                )
+              : null;
+          if (replay) return replay;
+          preparedNotes = await resolvePluginContent(db, item.notes, DEFAULT_CARD_CONTENT);
+          check();
+        }
+        const result = new TaskAssistantEngine(db).execute(
+          name,
+          item,
+          batchId,
+          conversationKey,
+          preparedNotes
+        );
         if (result.status === "succeeded" || result.status === "pending") {
           const indexDb = databaseModule.getIndexDatabase(databaseName);
           const contentId =
@@ -301,9 +476,11 @@ class TaskAssistantModule {
     db: import("better-sqlite3").Database,
     indexDb: import("better-sqlite3").Database | undefined,
     start: string,
-    end: string
+    end: string,
+    force = false
   ) {
     const needed =
+      force ||
       db.prepare("SELECT 1 FROM todo_recurrence WHERE exclude_holidays=1 LIMIT 1").get() ||
       db
         .prepare(

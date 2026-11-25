@@ -1,0 +1,11 @@
+[
+  "task-one",
+  "任务",
+  "nested:task@source",
+  "task@2026-11-25",
+  "~4142",
+  "~7E",
+  "task%40source",
+  "line\nbreak",
+  "段落\u2028分隔@来源"
+]

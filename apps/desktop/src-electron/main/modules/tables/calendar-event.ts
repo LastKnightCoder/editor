@@ -14,6 +14,28 @@ import { getNextTaskEntityId } from "./module-entity-id";
 import type { SqliteRow } from "../../types/table";
 
 export default class CalendarEventTable {
+  static listEventIds(
+    db: Database.Database,
+    query: {
+      afterId: number;
+      limit: number;
+      calendarIds?: number[];
+      range?: { startDate: number; endDate: number };
+    }
+  ): number[] {
+    const rows = db
+      .prepare(
+        `SELECT id FROM calendar_event WHERE id>? ${query.range ? "AND start_date<? AND COALESCE(end_date,start_date)>=?" : ""} ${query.calendarIds?.length ? `AND calendar_id IN (${query.calendarIds.map(() => "?").join(",")})` : ""} ORDER BY id LIMIT ?`
+      )
+      .all(
+        query.afterId,
+        ...(query.range ? [query.range.endDate, query.range.startDate] : []),
+        ...(query.calendarIds ?? []),
+        query.limit
+      ) as { id: number }[];
+    return rows.map(row => row.id);
+  }
+
   static getListenEvents() {
     return {
       "calendar-event:create": this.createEvent.bind(this),

@@ -1,3 +1,4 @@
+import CalendarEventTable from "../tables/calendar-event";
 import type Database from "better-sqlite3";
 import {
   taskKey,
@@ -141,6 +142,7 @@ export function queryTasks(
         completed: entry.state.completedAt != null,
         dueAt: entry.scheduledAt,
         occurrence: entry.occurrence,
+        occurrenceState: entry.state,
       }));
   };
   if (query.taskRefs) {
@@ -363,10 +365,20 @@ export function queryTasks(
 export function queryEvents(
   db: Database.Database,
   databaseName: string,
-  query: { start: string; end: string; pageSize?: number; cursor?: string; calendarIds?: number[] },
+  query: {
+    start?: string;
+    end?: string;
+    view?: "display" | "stored";
+    pageSize?: number;
+    cursor?: string;
+    calendarIds?: number[];
+  },
   indexDb?: Database.Database
 ): AssistantQueryResult<AssistantCalendarEvent> {
-  const [start, end] = checkedWindow(query.start, query.end);
+  if (query.view === "stored") return queryStoredEvents(db, databaseName, query);
+  const windowStart = query.start ?? fail("INVALID_ARGUMENT", "日程展示查询需要开始时间");
+  const windowStop = query.end ?? fail("INVALID_ARGUMENT", "日程展示查询需要结束时间");
+  const [start, end] = checkedWindow(windowStart, windowStop);
   const cursor = cursorOf(query as Record<string, unknown>),
     size = query.pageSize ?? 20;
   const ids = query.calendarIds;
@@ -378,7 +390,7 @@ export function queryEvents(
     ORDER BY e.start_date,e.start_time,e.id LIMIT ? OFFSET ?`
   );
   const physical: Array<{ item: AssistantCalendarEvent; source: "todo"; offset: number }> = [];
-  const windowEnd = query.end.length === 10 ? afterDate(query.end) : end;
+  const windowEnd = windowStop.length === 10 ? afterDate(windowStop) : end;
   let scanned = 0,
     offset = cursor.todo;
   while (physical.length < size + 1 && scanned < 2000) {
@@ -534,6 +546,69 @@ export function queryOperations(
     })),
     hasMore,
     nextCursor: hasMore ? encodeCursor({ ...cursor, todo: cursor.todo + size }) : null,
+    incomplete: false,
+    warnings: [],
+  };
+}
+
+function queryStoredEvents(
+  db: Database.Database,
+  databaseName: string,
+  query: {
+    start?: string;
+    end?: string;
+    pageSize?: number;
+    cursor?: string;
+    calendarIds?: number[];
+  }
+) {
+  const fingerprint = revision({
+    start: query.start,
+    end: query.end,
+    calendarIds: query.calendarIds,
+    database: db.name,
+  });
+  let after = 0;
+  if (query.cursor) {
+    try {
+      const cursor = JSON.parse(query.cursor) as { fingerprint: string; after: number };
+      if (
+        cursor.fingerprint !== fingerprint ||
+        !Number.isSafeInteger(cursor.after) ||
+        cursor.after < 0
+      )
+        throw new Error();
+      after = cursor.after;
+    } catch {
+      fail("INVALID_ARGUMENT", "持久日程游标无效或条件已变化");
+    }
+  }
+  if (!!query.start !== !!query.end) fail("INVALID_ARGUMENT", "须同时提供 start/end");
+  const range = query.start && query.end ? checkedWindow(query.start, query.end) : null;
+  const size = query.pageSize ?? 50;
+  const ids = CalendarEventTable.listEventIds(db, {
+    afterId: after,
+    limit: size + 1,
+    calendarIds: query.calendarIds,
+    ...(range
+      ? {
+          range: {
+            startDate: dateTime(localDate(range[0])),
+            endDate: afterDate(localDate(range[1])),
+          },
+        }
+      : {}),
+  });
+  const selected = ids.slice(0, size);
+  return {
+    type: "assistant-calendar" as const,
+    databaseName,
+    items: selected.map(id => readCalendarEvent(db, id)),
+    hasMore: ids.length > size,
+    nextCursor:
+      ids.length > size
+        ? JSON.stringify({ fingerprint, after: selected[selected.length - 1] })
+        : null,
     incomplete: false,
     warnings: [],
   };

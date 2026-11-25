@@ -34,7 +34,11 @@ fn normalize(offsets: &[i64]) -> Vec<i64> {
     list
 }
 
-fn list_owner(conn: &Connection, owner: &str, owner_id: i64) -> Result<Vec<i64>, String> {
+pub(super) fn list_owner(
+    conn: &Connection,
+    owner: &str,
+    owner_id: i64,
+) -> Result<Vec<i64>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT offset_ms FROM item_reminder WHERE owner_type = ?1 AND owner_id = ?2 ORDER BY offset_ms",
@@ -47,7 +51,7 @@ fn list_owner(conn: &Connection, owner: &str, owner_id: i64) -> Result<Vec<i64>,
         .map_err(|e| db_err("REMINDER_QUERY_FAILED", "read", e))
 }
 
-fn replace_owner(
+pub(super) fn replace_owner(
     conn: &Connection,
     owner: &str,
     owner_id: i64,
@@ -68,7 +72,7 @@ fn replace_owner(
     Ok(())
 }
 
-fn todo_reminders(conn: &Connection, todo_id: i64) -> Result<Vec<i64>, String> {
+pub(super) fn stored_todo_reminders(conn: &Connection, todo_id: i64) -> Result<Vec<i64>, String> {
     let first: Option<i64> = conn
         .query_row(
             "SELECT remind_before FROM todo_item WHERE id = ?1",
@@ -81,11 +85,17 @@ fn todo_reminders(conn: &Connection, todo_id: i64) -> Result<Vec<i64>, String> {
     };
     let mut all = list_owner(conn, "todo", todo_id)?;
     all.push(first);
-    Ok(normalize(&all))
+    all.sort_unstable();
+    all.dedup();
+    Ok(all)
+}
+
+fn todo_reminders(conn: &Connection, todo_id: i64) -> Result<Vec<i64>, String> {
+    Ok(normalize(&stored_todo_reminders(conn, todo_id)?))
 }
 
 /// 先写 remind_before（触发器随之清空追加提醒），再写追加提醒
-fn set_todo_reminders(
+pub(super) fn set_todo_reminders(
     conn: &Connection,
     todo_id: i64,
     offsets: &[i64],

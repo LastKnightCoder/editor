@@ -1,7 +1,8 @@
+import { taskKey } from "@tau/shared/task-assistant";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PluginContext } from "@tau/plugins";
 
 const mocks = vi.hoisted(() => ({
@@ -91,8 +92,12 @@ vi.mock("@/features/cards/components/CreateCardDialog", () => ({
   },
 }));
 vi.mock("@/commands/chat-session", () => ({ getChatSession: mocks.chat }));
-vi.mock("@/services/open-material", () => ({ openMaterial: mocks.openMaterial }));
-vi.mock("@/services/content-transfer", () => ({ exportContentAsMarkdown: mocks.exportMarkdown }));
+vi.mock("@/services/open-material", () => ({
+  openMaterial: mocks.openMaterial,
+}));
+vi.mock("@/services/content-transfer", () => ({
+  exportContentAsMarkdown: mocks.exportMarkdown,
+}));
 vi.mock("@/components/PresentationMode", () => ({
   default: (props: { content: unknown; onExit: () => void }) => {
     mocks.present(props.content);
@@ -114,7 +119,9 @@ vi.mock("@/components/ContentCollaborationControl", async () => {
       props: { contentId: number; source: unknown; onClose: () => void },
       ref
     ) {
-      useImperativeHandle(ref, () => ({ open: () => mocks.share(props.contentId, props.source) }));
+      useImperativeHandle(ref, () => ({
+        open: () => mocks.share(props.contentId, props.source),
+      }));
       return <button onClick={props.onClose}>关闭协作</button>;
     }),
   };
@@ -134,7 +141,10 @@ import { usePluginActionUi } from "../app";
 const plugin = { id: "canvas", name: "画布" };
 const PAGE = { placement: "page" } as const;
 const context = () =>
-  ({ pluginId: plugin.id, signal: new AbortController().signal }) as PluginContext;
+  ({
+    pluginId: plugin.id,
+    signal: new AbortController().signal,
+  }) as PluginContext;
 const setActivation = (isActive: boolean | undefined) =>
   Object.defineProperty(navigator, "userActivation", {
     configurable: true,
@@ -183,8 +193,14 @@ describe("插件选择与打开", () => {
       ["vibe-learning-detail", { id: 6 }],
       ["chat", { id: "s1" }],
     ]);
-    expect(mocks.openMaterial).toHaveBeenCalledWith({ kind: "pdf-annotation", id: 9 });
-    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "plugin-entity", id: 4 });
+    expect(mocks.openMaterial).toHaveBeenCalledWith({
+      kind: "pdf-annotation",
+      id: 9,
+    });
+    expect(mocks.openEntity).toHaveBeenCalledWith({
+      kind: "plugin-entity",
+      id: 4,
+    });
   });
 
   it("打开位置与定位：独立窗口、停靠栏的主对话、正文定位", async () => {
@@ -226,19 +242,22 @@ describe("插件选择与打开", () => {
     );
   });
 
-  it("正文里的待办打开所在文档并定位到勾选项", async () => {
-    mocks.locate.mockResolvedValue({ kind: "project_item", id: 12 });
-    await createDesktopApp("data.db").open(
-      context(),
-      { kind: "todo", id: "document:8:1:t-1" },
-      PAGE
-    );
-    expect(mocks.locate).toHaveBeenCalledWith({ contentId: 8 });
-    expect(mocks.openEntity).toHaveBeenCalledWith(
-      { kind: "project-item", id: 12 },
-      { at: { taskId: "t-1" } }
-    );
-  });
+  it.each(["t-1", "task@2026-11-25"])(
+    "正文待办 %s 打开所在文档并定位到原始勾选项",
+    async taskId => {
+      mocks.locate.mockResolvedValue({ kind: "project_item", id: 12 });
+      await createDesktopApp("data.db").open(
+        context(),
+        { kind: "todo", id: taskKey({ kind: "document", contentId: 8, createdAt: 1, taskId }) },
+        PAGE
+      );
+      expect(mocks.locate).toHaveBeenCalledWith({ contentId: 8 });
+      expect(mocks.openEntity).toHaveBeenCalledWith(
+        { kind: "project-item", id: 12 },
+        { at: { taskId } }
+      );
+    }
+  );
 
   it("内容不存在或不是用户操作时拒绝", async () => {
     const app = createDesktopApp("data.db");
@@ -249,7 +268,11 @@ describe("插件选择与打开", () => {
     setActivation(false);
     await expect(app.open(context(), { kind: "card", id: "3" }, PAGE)).rejects.toThrow("用户点击");
     expect(() =>
-      app.pick(context(), plugin, { kinds: ["card"], multiple: false, title: "选" })
+      app.pick(context(), plugin, {
+        kinds: ["card"],
+        multiple: false,
+        title: "选",
+      })
     ).toThrow("用户点击");
     expect(mocks.openEntity).not.toHaveBeenCalled();
   });
@@ -312,6 +335,10 @@ describe("插件选择与打开", () => {
   });
 
   describe("宿主动作", () => {
+    // 冷模块编译属于测试准备，动作断言等待真实挂载，不依赖编译耗时。
+    beforeAll(async () => {
+      await import("@/features/plugins/permissions/PluginContentActionView");
+    }, 20000);
     const nodes = [{ type: "paragraph", children: [{ text: "正文" }] }];
     beforeEach(() => {
       mocks.read.mockResolvedValue({
@@ -334,7 +361,10 @@ describe("插件选择与打开", () => {
       });
       expect(mocks.read.mock.calls[0].slice(1)).toEqual([8, 100, "nodes"]);
       expect(mocks.getData.mock.calls[0].slice(1)).toEqual(["card", 3]);
-      expect(mocks.exportMarkdown).toHaveBeenCalledWith({ title: "读书笔记", content: nodes });
+      expect(mocks.exportMarkdown).toHaveBeenCalledWith({
+        title: "读书笔记",
+        content: nodes,
+      });
       expect(usePluginActionUi.getState().request).toBeNull();
     });
 
@@ -343,7 +373,14 @@ describe("插件选择与打开", () => {
       document.body.append(host);
       const view = createRoot(host);
       await act(async () => view.render(<PluginContentActionHost />));
-      const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 50)));
+      const settle = () =>
+        vi.waitFor(
+          async () => {
+            await act(async () => {});
+            expect(document.querySelector("button")).not.toBeNull();
+          },
+          { timeout: 5000 }
+        );
       // 弹窗经 Portal 渲染到 body
       const click = (label: string) =>
         act(async () =>
@@ -362,7 +399,11 @@ describe("插件选择与打开", () => {
       try {
         let finished = false;
         const exported = app
-          .run(context(), plugin, { action: "content.export", ref: "8:100", format: "pdf" })
+          .run(context(), plugin, {
+            action: "content.export",
+            ref: "8:100",
+            format: "pdf",
+          })
           .then(() => (finished = true));
         await settle();
         expect(mocks.pdf).toHaveBeenCalledWith("读书笔记");
@@ -371,7 +412,10 @@ describe("插件选择与打开", () => {
         await exported;
         expect(usePluginActionUi.getState().request).toBeNull();
 
-        const presented = app.run(context(), plugin, { action: "content.present", ref: "8:100" });
+        const presented = app.run(context(), plugin, {
+          action: "content.present",
+          ref: "8:100",
+        });
         await settle();
         expect(mocks.present).toHaveBeenCalledWith(nodes);
         // 同一时间只能打开一个
@@ -382,8 +426,14 @@ describe("插件选择与打开", () => {
         await presented;
 
         const controller = new AbortController();
-        const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
-        const shared = app.run(live, plugin, { action: "content.share", ref: "8:100" });
+        const live = {
+          pluginId: plugin.id,
+          signal: controller.signal,
+        } as PluginContext;
+        const shared = app.run(live, plugin, {
+          action: "content.share",
+          ref: "8:100",
+        });
         await settle();
         expect(mocks.share).toHaveBeenCalledWith(8, {
           sourceType: "card",
@@ -451,7 +501,12 @@ describe("插件选择与打开", () => {
     it("新建 Notebook：核对来源，确认框带资料计划，确认后返回引用，取消返回 null", async () => {
       const { settle, click, unmount } = await mount();
       const app = createDesktopApp("data.db");
-      const plan = { notes: [], excerpts: [{ kind: "excerpt", id: 2 }], clips: [], skipped: 1 };
+      const plan = {
+        notes: [],
+        excerpts: [{ kind: "excerpt", id: 2 }],
+        clips: [],
+        skipped: 1,
+      };
       mocks.planNotebook.mockResolvedValue(plan);
       mocks.createNotebook.mockResolvedValue({ projectId: 6, failed: 0 });
       try {
@@ -575,8 +630,13 @@ describe("插件选择与打开", () => {
           tags: ["读书"],
         });
         await settle();
-        expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", { markdown: "正文" });
-        expect(mocks.createCard).toHaveBeenLastCalledWith({ content: nodes, tags: ["读书"] });
+        expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", {
+          markdown: "正文",
+        });
+        expect(mocks.createCard).toHaveBeenLastCalledWith({
+          content: nodes,
+          tags: ["读书"],
+        });
         await click("保存卡片");
         expect(await saved).toEqual({ kind: "card", id: "21" });
         expect(usePluginActionUi.getState().request).toBeNull();
@@ -599,7 +659,10 @@ describe("插件选择与打开", () => {
         expect(mocks.grant).not.toHaveBeenCalled();
 
         const controller = new AbortController();
-        const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
+        const live = {
+          pluginId: plugin.id,
+          signal: controller.signal,
+        } as PluginContext;
         const aborted = app.run(live, plugin, { action: "card.create" });
         await settle();
         await act(async () => controller.abort());

@@ -7,6 +7,7 @@ mod chunked_sync;
 mod collaboration;
 mod collaboration_assets;
 mod content_history;
+mod data_change_scope;
 mod database;
 mod image_settings;
 mod incoming_file;

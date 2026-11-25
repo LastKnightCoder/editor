@@ -89,6 +89,9 @@ function rowTriggers(spec: RowTriggers): string {
  * 按删除处理，重装恢复时按新建处理。
  */
 const TRIGGERS_SQL = [
+  `CREATE TEMP TRIGGER IF NOT EXISTS tau_de_data_changes AFTER INSERT ON main.data_change_log
+   WHEN NEW.domain IN ('todo','todo-list','event','calendar')
+   BEGIN SELECT ${FUNCTION_NAME}('schedule-domain', NEW.domain, 'updated'); END;`,
   rowTriggers({ name: "cards", table: "cards", entity: "card" }),
   rowTriggers({
     name: "articles",
@@ -278,6 +281,12 @@ class DomainEventsModule implements Module {
         pending.contents.set(id, currentPluginOrigin() ?? contentOrigin(dbName, id));
       return;
     }
+    if (entity === "schedule-domain") {
+      pending.collections.add(
+        id === "todo" || id === "todo-list" ? "todos.changed" : "calendar.changed"
+      );
+      return;
+    }
     const key = `${entity}:${id}`;
     const previous = pending.entities.get(key);
     const merged = merge(previous?.action, action);
@@ -295,6 +304,9 @@ class DomainEventsModule implements Module {
 
   /** 正文修改计入所属实体的 updated；孤儿插件实体与日记不发事件 */
   private locateContents(db: Database.Database, pending: Pending) {
+    for (const contentId of pending.contents.keys())
+      if (db.prepare("SELECT 1 FROM calendar_event WHERE detail_content_id=?").get(contentId))
+        pending.collections.add("calendar.changed");
     const ownerOf = db.prepare(
       "SELECT plugin_id AS owner, kind FROM plugin_entities WHERE id = ? AND orphaned_time IS NULL"
     );

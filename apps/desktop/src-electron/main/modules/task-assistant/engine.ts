@@ -1,3 +1,6 @@
+import { assertPluginTaskVisible } from "./document-access";
+import { requireCalendar, requireGroup } from "./directory-access";
+import { replayPluginCreate, savePluginCreate } from "./create-receipts";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
@@ -51,7 +54,6 @@ import {
   revision,
   todoRow,
   instanceRevision,
-  requireCalendar,
   parseSchedule,
 } from "./common";
 import { independentStates } from "./recurrence";
@@ -59,6 +61,7 @@ import { assertTaskOccurrence as assertOccurrence } from "./holidays";
 
 export interface TaskInput {
   requestId: string;
+  requestHash?: string;
   taskRef?: TaskRef;
   revision?: string;
   title?: string;
@@ -66,6 +69,8 @@ export interface TaskInput {
   parentRef?: TaskRef;
   dueAt?: string | null;
   reminderAt?: string | null;
+  reminderOffsets?: number[];
+  notes?: import("@/types/plugin-data").PluginContentSource;
   recurrence?: TaskRecurrenceRule;
   document?: { contentId: number; createdAt: number; revision: string; afterTaskId?: string };
   patch?: Record<string, unknown>;
@@ -74,6 +79,7 @@ export interface TaskInput {
   occurrence?: TaskOccurrenceRef;
   action?: string;
   scheduledAt?: string;
+  statePatch?: import("@tau/shared/task-assistant").TaskOccurrencePatch;
   effectiveDate?: string;
   rule?: TaskRecurrenceRule | null;
   calendarId?: number;
@@ -173,7 +179,9 @@ export class TaskAssistantEngine {
       .run(
         operationId,
         batchId,
-        input.requestId,
+        conversationKey?.startsWith("plugin:")
+          ? revision([conversationKey.slice(7), input.requestId])
+          : input.requestId,
         name,
         hash,
         JSON.stringify(input),
@@ -238,7 +246,8 @@ export class TaskAssistantEngine {
     name: TaskWriteName,
     input: TaskInput,
     batchId: string,
-    conversationKey?: string
+    conversationKey?: string,
+    preparedNotes?: Parameters<typeof createEvent>[3]
   ): TaskOperationResult {
     let operationId: string | undefined;
     let validated = false;
@@ -247,9 +256,19 @@ export class TaskAssistantEngine {
       validateTaskValue(TASK_WRITE_SCHEMAS[name], input);
       validated = true;
       const hash = revision({ name, input });
+      const owner = conversationKey?.startsWith("plugin:") ? conversationKey.slice(7) : undefined;
+      if (owner && input.taskRef) assertPluginTaskVisible(this.db, input.taskRef);
+      const creating = name === "create_todo" || name === "create_calendar_event";
+      const replay =
+        owner && creating
+          ? replayPluginCreate(this.db, owner, input.requestId, input.requestHash ?? hash)
+          : null;
+      if (replay) return replay;
       const previous = this.db
         .prepare("SELECT * FROM task_assistant_operation WHERE request_id=?")
-        .get(input.requestId) as OperationRow | undefined;
+        .get(owner ? revision([owner, input.requestId]) : input.requestId) as
+        | OperationRow
+        | undefined;
       if (previous) {
         if (previous.request_hash !== hash)
           return fail("IDEMPOTENCY_CONFLICT", "同一 requestId 不能用于不同操作或参数");
@@ -334,14 +353,16 @@ export class TaskAssistantEngine {
             result = createEvent(
               this.db,
               input as Parameters<typeof createEvent>[1],
-              ref ? readTask(this.db, ref).title : undefined
+              ref ? readTask(this.db, ref).title : undefined,
+              preparedNotes
             );
             eventId = (result as { eventId: number }).eventId;
           } else if (name === "update_calendar_event" || name === "delete_calendar_event") {
             result = mutateEvent(
               this.db,
               input as Parameters<typeof mutateEvent>[1],
-              name === "delete_calendar_event"
+              name === "delete_calendar_event",
+              preparedNotes
             );
           } else {
             if (ref?.kind !== "todo") return fail("INVALID_ARGUMENT", "缺少待办身份");
@@ -358,6 +379,15 @@ export class TaskAssistantEngine {
           };
           pinSnapshot(this.db, pendingId, after.rows);
           this.save(pendingId, before, after, result);
+          if (owner && creating)
+            savePluginCreate(
+              this.db,
+              owner,
+              input.requestId,
+              input.requestHash ?? hash,
+              pendingId,
+              result
+            );
         })();
       }
       return this.savedResult(this.byId(operationId));
@@ -399,7 +429,11 @@ export class TaskAssistantEngine {
         !row &&
         !this.db
           .prepare("SELECT 1 FROM task_assistant_operation WHERE request_id=?")
-          .get(input.requestId)
+          .get(
+            conversationKey?.startsWith("plugin:")
+              ? revision([conversationKey.slice(7), input.requestId])
+              : input.requestId
+          )
       ) {
         const failedId = operationId;
         this.db.transaction(() => {
@@ -443,6 +477,22 @@ export class TaskAssistantEngine {
   private applyDocumentEdit(edit: DocumentEdit, id: string) {
     const ref = edit.before.ref;
     this.db.transaction(() => {
+      const operation = this.byId(id);
+      const input: TaskInput = JSON.parse(operation.request_json);
+      if (input.taskRef?.kind === "document" && input.revision) {
+        const current = readDocumentTask(this.db, input.taskRef);
+        const expected =
+          input.occurrence && input.revision !== current.revision
+            ? instanceRevision(
+                current,
+                input.occurrence,
+                (taskNode(readTaskContent(this.db, ref.contentId, ref.createdAt), ref.taskId)
+                  ?.taskOccurrenceState ?? {})[occurrenceKey(input.occurrence)] ?? {}
+              )
+            : current.revision;
+        checkRevision(input.revision, expected);
+      }
+      if (typeof input.patch?.groupId === "number") requireGroup(this.db, input.patch.groupId);
       applyTaskContentPatch(this.db, ref.contentId, ref.createdAt, edit.previous, edit.next, id);
       this.db
         .prepare(

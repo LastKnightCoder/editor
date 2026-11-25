@@ -1,10 +1,12 @@
+import { parseTaskKey } from "@tau/shared/task-assistant";
 import { invoke } from "@tauri-apps/api/core";
-import type { DataAdapter, TodoWrite, CalendarWrite } from "@tau/plugins/host";
+import type { DataAdapter, TodoWrite, TodoRecurrenceWrite, CalendarWrite } from "@tau/plugins/host";
 import {
   PluginConflictError,
   type PluginContext,
   type PluginPermission,
   type PluginTodo,
+  type PluginContentInput,
 } from "@tau/plugins";
 import type { Descendant } from "slate";
 import type { DocumentOperationRequest, ContentNode } from "@tau/collaboration";
@@ -60,7 +62,11 @@ export function createMobileTasks(
   database: string,
   token: string,
   changed: () => void,
-  checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>
+  checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>,
+  prepareNotes?: (
+    context: PluginContext,
+    input: PluginContentInput
+  ) => Promise<{ nodes: Descendant[]; contracts: ContentContractDictionary; count: number }>
 ) {
   let disposed = false;
   const activeOperations = new Set<number>();
@@ -107,7 +113,7 @@ export function createMobileTasks(
     call<TaskBody>("plugin_tasks_read", context.pluginId, { method: "document", id }, context);
   const writeDocument = async (
     context: PluginContext,
-    write: Exclude<TodoWrite, { action: "create" }>
+    write: Exclude<TodoWrite, { action: "create" }> | TodoRecurrenceWrite
   ) => {
     let source = await read(context, write.id);
     const permission = write.action === "delete" ? "todos:delete" : "todos:write";
@@ -123,11 +129,9 @@ export function createMobileTasks(
       );
       source = await read(context, write.id);
     }
-    const taskId = write.id
-      .split(":")
-      .slice(3)
-      .join(":")
-      .replace(/@\d{4}-\d{2}-\d{2}$/, "");
+    const parsed = parseTaskKey(write.id);
+    if (parsed?.taskRef.kind !== "document") throw new Error("正文待办身份无效");
+    const taskId = parsed.taskRef.taskId;
     const nodes = (shared?.nodes ?? source.document.content) as Descendant[];
     const target = findTask(nodes, taskId);
     const catalog = await mobileContentPlugins.prepareEditorContracts(
@@ -281,7 +285,49 @@ export function createMobileTasks(
       return "cancelled" as const;
     } else throw new Error("共享操作尚未确认，恢复材料已保留");
   };
-  return {
+  const adapter = {
+    todoRecurrence: {
+      write: (context: PluginContext, write: TodoWrite | TodoRecurrenceWrite) =>
+        adapter.writeTodo(context, write),
+      states: (
+        context: PluginContext,
+        query: import("@tau/plugins").PluginTodoOccurrenceQuery & { limit: number }
+      ) =>
+        call<import("@tau/plugins").PluginTodoOccurrencePage>(
+          "plugin_tasks_read",
+          context.pluginId,
+          { method: "occurrence-states", query },
+          context
+        ),
+    },
+    readChanges: (
+      context: PluginContext,
+      query: import("@tau/plugins/host").DataChangesReadRequest
+    ) =>
+      call<import("@tau/plugins/host").DataChangesReadPage>(
+        "plugin_tasks_read",
+        context.pluginId,
+        { method: "changes", query },
+        context
+      ),
+    schedule: {
+      get: (
+        context: PluginContext,
+        entity: "todo" | "event" | "todo-list" | "calendar",
+        id: string
+      ) => call("plugin_tasks_read", context.pluginId, { method: "get", entity, id }, context),
+      directories: (
+        context: PluginContext,
+        entity: "todo-list" | "calendar",
+        query: import("@tau/plugins").PluginDirectoryQuery
+      ) =>
+        call(
+          "plugin_tasks_read",
+          context.pluginId,
+          { method: "directories", entity, query },
+          context
+        ),
+    } as NonNullable<DataAdapter["schedule"]>,
     dispose() {
       disposed = true;
     },
@@ -299,14 +345,19 @@ export function createMobileTasks(
         { method: "calendar", query },
         context
       )) as DataAdapter["calendar"],
-    async writeTodo(context: PluginContext, write: TodoWrite) {
-      if (write.action !== "create" && write.id.startsWith("document:"))
+    async writeTodo(context: PluginContext, write: TodoWrite | TodoRecurrenceWrite) {
+      if (write.action !== "create" && write.id.startsWith("document:")) {
         return writeDocument(context, write);
+      }
+      const normalized =
+        write.action === "create" && write.requestId !== undefined
+          ? { ...write, requestId: await createRequestId(context.pluginId, write.requestId) }
+          : write;
       await authorize(context, write.action === "delete" ? "todos:delete" : "todos:write");
       const value = await call<PluginTodo | null>(
         "plugin_tasks_write",
         context.pluginId,
-        { method: "todos", write },
+        { method: "todos", write: normalized },
         context
       );
       changed();
@@ -314,10 +365,49 @@ export function createMobileTasks(
     },
     writeCalendar: (async (context: PluginContext, write: CalendarWrite) => {
       await authorize(context, write.action === "delete" ? "calendar:delete" : "calendar:write");
+      let normalized:
+        | CalendarWrite
+        | (Omit<Extract<CalendarWrite, { action: "create" }>, "input"> & {
+            input: Record<string, unknown>;
+          }) = write;
+      if (write.action === "create") {
+        if (write.requestId !== undefined) {
+          const retry = {
+            ...write,
+            requestId: await createRequestId(context.pluginId, write.requestId),
+          };
+          const replay = await call<import("@tau/plugins").PluginCalendarEvent | null>(
+            "plugin_tasks_read",
+            context.pluginId,
+            { method: "replay-create", write: retry },
+            context
+          );
+          if (replay) return replay;
+        }
+        normalized = {
+          ...write,
+          ...(write.requestId === undefined
+            ? {}
+            : { requestId: await createRequestId(context.pluginId, write.requestId) }),
+          input: {
+            ...write.input,
+            ...(write.input.notes === undefined
+              ? {}
+              : { notes: await prepareNotes?.(context, write.input.notes) }),
+          },
+        };
+        if (write.input.notes !== undefined && !prepareNotes)
+          throw new Error("宿主未提供备注正文准备");
+      }
+      if (write.action === "notes") {
+        if (!prepareNotes) throw new Error("宿主未提供备注正文准备");
+        const notesWrite = { ...write, notes: await prepareNotes(context, { nodes: [] }) };
+        normalized = notesWrite;
+      }
       const value = await call(
         "plugin_tasks_write",
         context.pluginId,
-        { method: "calendar", write },
+        { method: "calendar", write: normalized },
         context
       );
       changed();
@@ -419,4 +509,13 @@ export function createMobileTasks(
       return true;
     },
   };
+  return adapter;
+}
+
+async function createRequestId(pluginId: string, requestId: string): Promise<string> {
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(JSON.stringify([pluginId, requestId]))
+  );
+  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
 }

@@ -1,3 +1,4 @@
+import { parseTaskKey } from "@tau/shared/task-assistant";
 import useSettingStore from "@/stores/useSettingStore";
 import { create } from "zustand";
 import type {
@@ -93,7 +94,9 @@ export interface PluginPickRequest {
 }
 
 /** 选择弹窗由壳层挂载的 PluginEntityPickerHost 渲染，一次只显示一个请求 */
-export const usePluginPickerUi = create<{ request: PluginPickRequest | null }>()(() => ({
+export const usePluginPickerUi = create<{
+  request: PluginPickRequest | null;
+}>()(() => ({
   request: null,
 }));
 
@@ -157,13 +160,19 @@ export interface PluginContentActionRequest extends PluginActionBase {
   content: Descendant[];
 }
 
-export const usePluginActionUi = create<{ request: PluginActionRequest | null }>()(() => ({
+export const usePluginActionUi = create<{
+  request: PluginActionRequest | null;
+}>()(() => ({
   request: null,
 }));
 
 let nextRequestId = 0;
 
-const MENTION_TYPES = { card: "card", article: "article", document: "project-item" } as const;
+const MENTION_TYPES = {
+  card: "card",
+  article: "article",
+  document: "project-item",
+} as const;
 
 /** 对话上下文引用 → 输入框里的引用；可用类型由 SDK 的 PLUGIN_CHAT_CONTEXT_KINDS 限定 */
 async function resolveMentions(
@@ -323,7 +332,10 @@ export function createDesktopApp(databaseName: string): AppAdapter {
         const [materialKind, id] = ref.id.split(":");
         const { openMaterial } = await import("@/services/open-material");
         context.signal.throwIfAborted();
-        return openMaterial({ kind: materialKind as "excerpt", id: Number(id) });
+        return openMaterial({
+          kind: materialKind as "excerpt",
+          id: Number(id),
+        });
       }
       if (ref.kind === "chat-session") {
         // 只有主对话能单独打开；PDF、视频笔记与 Notebook 里的对话在各自页面中
@@ -338,17 +350,18 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       }
       if (ref.kind === "event")
         return openPage("schedule", { eventId: Number(ref.id.split(":")[0]) });
-      const [key] = ref.id.split("@");
-      const todo = /^todo:(\d+):/.exec(key);
-      if (todo) return openPage("todos", { selectedId: Number(todo[1]) });
-      // 正文里的勾选项：打开所在文档并定位到这一项
-      const task = /^document:(\d+):\d+:(.+)$/.exec(key);
-      if (!task) throw new Error("内容不存在");
-      const location = await commands.locateEntity({ contentId: Number(task[1]) });
+      const parsed = parseTaskKey(ref.id);
+      if (!parsed) throw new Error("内容不存在");
+      if (parsed.taskRef.kind === "todo")
+        return openPage("todos", { selectedId: parsed.taskRef.todoId });
+      const task = parsed.taskRef;
+      const location = await commands.locateEntity({
+        contentId: task.contentId,
+      });
       const owner = location ? normalizeEntityRefKind(location.kind) : null;
       if (!location || !owner) throw new Error("内容不存在");
       context.signal.throwIfAborted();
-      return openEntity({ kind: owner, id: location.id }, { at: { taskId: task[2] } });
+      return openEntity({ kind: owner, id: location.id }, { at: { taskId: task.taskId } });
     },
     describe(context, refs, readable) {
       return bindDatabaseCommands(
@@ -465,7 +478,11 @@ async function runAction(
   if (request.action === "content.export" && request.format === "markdown") {
     const { exportContentAsMarkdown } = await import("@/services/content-transfer");
     context.signal.throwIfAborted();
-    await exportContentAsMarkdown({ title, content: target.nodes, contracts: target.contracts });
+    await exportContentAsMarkdown({
+      title,
+      content: target.nodes,
+      contracts: target.contracts,
+    });
     return;
   }
   return showAction<void>(context, undefined, (finish, id) => ({
@@ -484,7 +501,11 @@ async function runAction(
     // 插件自有内容没有宿主实体，按通用正文共享
     source: owner
       ? { sourceType: owner.sourceType, sourceId: owner.id, sourceTitle: title }
-      : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
+      : {
+          sourceType: "content",
+          sourceId: target.contentId,
+          sourceTitle: title,
+        },
     title,
     content: target.nodes,
     close: () => finish(undefined),

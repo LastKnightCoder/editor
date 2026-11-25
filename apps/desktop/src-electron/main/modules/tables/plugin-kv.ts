@@ -63,6 +63,7 @@ export default class PluginKvTable {
   /** 卸载插件并选择清除数据时，删除它在当前库的全部私有存储 */
   static clear(db: Database.Database, request: Scope): number {
     this.assertScope(db, request);
+    db.prepare("DELETE FROM plugin_create_receipts WHERE plugin_id=?").run(request.pluginId);
     return db.prepare("DELETE FROM plugin_kv WHERE plugin_id = ?").run(request.pluginId).changes;
   }
 }

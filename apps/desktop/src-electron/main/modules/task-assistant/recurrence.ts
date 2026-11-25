@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import {
   occurrenceKey,
+  normalizeTaskRecurrenceRule,
   taskOccurrencesInRange as occurrences,
   type TaskOccurrenceRef,
   type TaskOccurrenceState,
@@ -31,7 +32,7 @@ export function independentSegments(
     return rows.map(row => ({
       seriesId: row.series_id,
       effectiveDate: row.effective_date,
-      rule: row.rule_json ? JSON.parse(row.rule_json) : null,
+      rule: row.rule_json ? normalizeTaskRecurrenceRule(JSON.parse(row.rule_json)) : null,
     }));
   const oldRow = db
     .prepare("SELECT * FROM todo_recurrence WHERE todo_item_id=?")
@@ -42,7 +43,7 @@ export function independentSegments(
     {
       seriesId: `recurrence:${old.id}:${old.createTime}`,
       effectiveDate: localDate(old.startDate),
-      rule: {
+      rule: normalizeTaskRecurrenceRule({
         type: old.type,
         interval: old.interval,
         startDate: localDate(old.startDate),
@@ -53,7 +54,7 @@ export function independentSegments(
         yearDay: old.yearDay ?? undefined,
         excludeHolidays: old.excludeHolidays,
         maxOccurrences: old.maxOccurrences,
-      },
+      }),
     },
   ];
 }
@@ -63,6 +64,7 @@ export function amendSegments(
   effectiveDate: string,
   rule: TaskRecurrenceRule | null
 ): TaskRecurrenceSegment[] {
+  rule = rule ? normalizeTaskRecurrenceRule(rule) : null;
   if (rule?.endDate && rule.endDate < rule.startDate)
     fail("INVALID_ARGUMENT", "重复规则结束日期早于开始日期");
   if (segments.some(segment => segment.effectiveDate > effectiveDate))
@@ -70,6 +72,7 @@ export function amendSegments(
   return [
     ...segments.filter(segment => segment.effectiveDate < effectiveDate),
     {
+      ...segments.find(segment => segment.effectiveDate === effectiveDate),
       seriesId:
         segments.find(segment => segment.effectiveDate === effectiveDate)?.seriesId ?? randomUUID(),
       effectiveDate,
@@ -83,11 +86,31 @@ export function storeSegments(
   ref: Extract<TaskRef, { kind: "todo" }>,
   segments: TaskRecurrenceSegment[]
 ) {
-  db.prepare("DELETE FROM todo_recurrence_history WHERE todo_item_id=? AND todo_created_at=?").run(
-    ref.todoId,
-    ref.createdAt
-  );
-  const insert = db.prepare("INSERT INTO todo_recurrence_history VALUES (?,?,?,?,?,?)");
+  const states = independentStates(db, ref);
+  const legacy = TodoRecurrenceTable.getRecurrenceByItemId(db, { todoItemId: ref.todoId });
+  const fallback = !db
+    .prepare(
+      "SELECT 1 FROM todo_recurrence_history WHERE todo_item_id=? AND todo_created_at=? LIMIT 1"
+    )
+    .get(ref.todoId, ref.createdAt);
+  for (const [key, state] of Object.entries(states)) {
+    const split = key.lastIndexOf("/");
+    db.prepare(`INSERT INTO todo_occurrence_override VALUES (?,?,?,?,?,?)
+      ON CONFLICT(todo_item_id,todo_created_at,series_id,occurrence_date) DO UPDATE SET state_json=excluded.state_json,update_time=excluded.update_time`).run(
+      ref.todoId,
+      ref.createdAt,
+      key.slice(0, split),
+      key.slice(split + 1),
+      JSON.stringify(state),
+      Date.now()
+    );
+  }
+  if (fallback && legacy)
+    db.prepare(
+      "DELETE FROM todo_occurrence_override WHERE todo_item_id=? AND todo_created_at=? AND series_id=?"
+    ).run(ref.todoId, ref.createdAt, `native:${legacy.id}:${legacy.createTime}`);
+  const insert = db.prepare(`INSERT INTO todo_recurrence_history VALUES (?,?,?,?,?,?)
+    ON CONFLICT(todo_item_id,todo_created_at,effective_date) DO UPDATE SET rule_json=excluded.rule_json WHERE todo_recurrence_history.rule_json IS NOT excluded.rule_json`);
   for (const segment of segments)
     insert.run(
       segment.seriesId,
@@ -97,9 +120,11 @@ export function storeSegments(
       segment.rule ? JSON.stringify(segment.rule) : null,
       Date.now()
     );
-  const current =
-    [...segments].reverse().find(segment => segment.effectiveDate <= localDate(Date.now())) ??
-    segments[0];
+  const today = localDate(Date.now());
+  const active = [...segments].reverse().find(segment => segment.effectiveDate <= today);
+  const current = active?.rule
+    ? active
+    : segments.find(segment => segment.effectiveDate > today && segment.rule);
   if (current?.rule) {
     const rule = current.rule;
     const old = TodoRecurrenceTable.getRecurrenceByItemId(db, { todoItemId: ref.todoId });
@@ -116,6 +141,15 @@ export function storeSegments(
         { todoItemId: ref.todoId, ...input },
         { preserveHistory: true }
       );
+    db.prepare("UPDATE todo_item SET type='recurring',update_time=? WHERE id=?").run(
+      Date.now(),
+      ref.todoId
+    );
+  } else {
+    db.prepare(
+      "DELETE FROM todo_recurrence_completion WHERE recurrence_id IN (SELECT id FROM todo_recurrence WHERE todo_item_id=?)"
+    ).run(ref.todoId);
+    db.prepare("DELETE FROM todo_recurrence WHERE todo_item_id=?").run(ref.todoId);
     db.prepare("UPDATE todo_item SET type='recurring',update_time=? WHERE id=?").run(
       Date.now(),
       ref.todoId
@@ -151,6 +185,11 @@ export function independentStates(
         };
     }
   }
+  const fallback =
+    old &&
+    independentSegments(db, ref).some(
+      segment => segment.seriesId === `recurrence:${old.id}:${old.createTime}`
+    );
   for (const row of db
     .prepare("SELECT * FROM todo_occurrence_override WHERE todo_item_id=? AND todo_created_at=?")
     .all(ref.todoId, ref.createdAt) as Array<{
@@ -158,8 +197,13 @@ export function independentStates(
     occurrence_date: string;
     state_json: string;
   }>) {
-    result[occurrenceKey({ seriesId: row.series_id, occurrenceDate: row.occurrence_date })] =
-      JSON.parse(row.state_json);
+    const seriesId =
+      fallback && row.series_id === `native:${old.id}:${old.createTime}`
+        ? `recurrence:${old.id}:${old.createTime}`
+        : row.series_id;
+    result[occurrenceKey({ seriesId, occurrenceDate: row.occurrence_date })] = JSON.parse(
+      row.state_json
+    );
   }
   return result;
 }

@@ -10,6 +10,8 @@ const ADDRESSABLE_KINDS = new Set(["card", "article", "project-item"]);
 
 /** 插件可寻址的正文：卡片、文章、项目文档，或任一插件实体的正文（与 plugin-data:content 一致） */
 function isAddressable(db: Database.Database, contentId: number): boolean {
+  if (db.prepare("SELECT 1 FROM calendar_event WHERE detail_content_id=?").get(contentId))
+    return true;
   if (db.prepare("SELECT 1 FROM plugin_entities WHERE content_id = ?").get(contentId)) return true;
   return (EntitySearchTable.locateAll(db, [contentId]).get(contentId) ?? []).some(ref =>
     ADDRESSABLE_KINDS.has(ref.kind)

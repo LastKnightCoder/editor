@@ -207,7 +207,7 @@ fn read_content(conn: &Connection, reference: &str, plugin_id: &str) -> Result<V
         return Ok(Value::Null);
     }
     let mut owners = vec![];
-    for (entity,sql) in [("card","SELECT EXISTS(SELECT 1 FROM cards WHERE content_id=?1)"),("article","SELECT EXISTS(SELECT 1 FROM articles WHERE content_id=?1 AND is_delete=0)"),("document","SELECT EXISTS(SELECT 1 FROM project_item WHERE content_id=?1 AND (ref_type IS NULL OR ref_type=''))")] {
+    for (entity,sql) in [("card","SELECT EXISTS(SELECT 1 FROM cards WHERE content_id=?1)"),("article","SELECT EXISTS(SELECT 1 FROM articles WHERE content_id=?1 AND is_delete=0)"),("document","SELECT EXISTS(SELECT 1 FROM project_item WHERE content_id=?1 AND (ref_type IS NULL OR ref_type=''))"),("calendar-event","SELECT EXISTS(SELECT 1 FROM calendar_event WHERE detail_content_id=?1)")] {
         if conn.query_row(sql,[id],|row|row.get::<_,bool>(0)).map_err(sql_error)? { owners.push(entity); }
     }
     let own=conn.query_row("SELECT EXISTS(SELECT 1 FROM plugin_entities WHERE content_id=?1 AND plugin_id=?2 AND orphaned_time IS NULL)",params![id,plugin_id],|row|row.get::<_,bool>(0)).map_err(sql_error)?;
@@ -468,6 +468,16 @@ fn edit_content(conn: &mut Connection, plugin_id: &str, request: &Value) -> Resu
         return Err("正文不存在".into());
     }
     let (id, created) = content_ref(reference)?;
+    let mut events = conn
+        .prepare("SELECT calendar_id FROM calendar_event WHERE detail_content_id=?1")
+        .map_err(sql_error)?;
+    for calendar in events
+        .query_map([id], |row| row.get::<_, i64>(0))
+        .map_err(sql_error)?
+    {
+        super::calendar::find_writable_user_calendar(conn, Some(calendar.map_err(sql_error)?))?;
+    }
+    drop(events);
     super::collaboration::assert_content_local(conn, id)?;
     let expected = string(request, "expectedRevision")?;
     if snapshot["document"]["revision"].as_str() != Some(expected) {
@@ -940,10 +950,11 @@ pub(super) fn changes(conn: &Connection, token: &str, after: Option<i64>) -> Res
         };
         match kind.as_deref(){
             Some("card")|Some("article")|Some("project")=>events.push(json!({"type":format!("{}.{action}",kind.unwrap()),"id":id.to_string(),"at":at,"origin":origin})),
-            Some("todo")|Some("todo_item")|Some("todo_recurrence")=>events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}})),
-            Some("calendar_event")=>events.push(json!({"type":"calendar.changed","at":at,"origin":{"kind":"app"}})),
+            Some("todo")|Some("todo_item")|Some("todo_group")|Some("todo_recurrence")=>events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}})),
+            Some("calendar_event")|Some("event")|Some("calendar")|Some("calendar_group")=>events.push(json!({"type":"calendar.changed","at":at,"origin":{"kind":"app"}})),
             Some("project-item")=>events.push(json!({"type":format!("document.{action}"),"id":id.to_string(),"at":at,"origin":origin})),
             Some("content")=>{
+                if conn.query_row("SELECT EXISTS(SELECT 1 FROM calendar_event WHERE detail_content_id=?1)",[id],|row|row.get::<_,bool>(0)).map_err(sql_error)? { events.push(json!({"type":"calendar.changed","at":at,"origin":{"kind":"app"}})); }
                 let mut owned=conn.prepare("SELECT id,plugin_id,kind FROM plugin_entities WHERE content_id=?1 AND orphaned_time IS NULL").map_err(sql_error)?;
                 for item in owned.query_map([id],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).map_err(sql_error)? {
                     let (entity,owner,kind)=item.map_err(sql_error)?;

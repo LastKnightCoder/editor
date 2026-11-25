@@ -12,6 +12,7 @@ import type {
 type UsageDay = Record<PluginUsageKind, number>;
 interface PermissionFile {
   version: 1;
+  grantRevisions?: Record<string, Record<string, string>>;
   backendGrants?: Record<string, Record<string, string>>;
   /** 工作区 → 插件 → 权限 → 持久决定；「仅这次」只存在渲染端内存 */
   grants: Record<string, Record<string, Record<string, PluginPermissionGrant>>>;
@@ -78,6 +79,15 @@ export class PluginPermissionStore {
     return result;
   }
 
+  revision(workspaceId: string, pluginId: string): Promise<string> {
+    assertKey(workspaceId, "工作区");
+    assertKey(pluginId, "插件 ID");
+    return this.transact(file => {
+      const value = file.grantRevisions?.[workspaceId]?.[pluginId];
+      return typeof value === "string" ? value : "initial";
+    }, false);
+  }
+
   async snapshot(workspaceId: string): Promise<PluginPermissionSnapshot> {
     assertKey(workspaceId, "工作区");
     return this.transact(file => file.grants[workspaceId] ?? {}, false);
@@ -139,6 +149,8 @@ export class PluginPermissionStore {
     if (grant !== null && grant !== "granted" && grant !== "blocked")
       throw new Error("授权状态无效");
     return this.transact(file => {
+      const revisions = (file.grantRevisions ??= {});
+      (revisions[workspaceId] ??= {})[pluginId] = randomUUID();
       const plugins = (file.grants[workspaceId] ??= {});
       const permissions = (plugins[pluginId] ??= {});
       if (grant) permissions[permission] = grant;
@@ -154,6 +166,9 @@ export class PluginPermissionStore {
     this.backendSessions.delete(pluginId);
     return this.transact(file => {
       if (file.backendGrants) delete file.backendGrants[pluginId];
+      for (const [workspaceId, plugins] of Object.entries(file.grants))
+        if (Object.hasOwn(plugins, pluginId))
+          ((file.grantRevisions ??= {})[workspaceId] ??= {})[pluginId] = randomUUID();
       for (const section of [file.grants, file.usage])
         for (const [workspaceId, plugins] of Object.entries(section)) {
           delete plugins[pluginId];

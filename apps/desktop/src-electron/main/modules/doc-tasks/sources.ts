@@ -52,9 +52,12 @@ export function resolveDocTaskSources(
       FROM diary_segments s JOIN diary_entries d ON d.id = s.diary_id JOIN content_snapshots ct ON ct.id = s.content_id
       JOIN diary_counts dc ON dc.diary_id = d.id
       WHERE s.content_id IN (${marks})
+      UNION ALL
+      SELECT d.content_id, 'diary-moment', d.id, d.date, '', ct.update_time, d.create_time
+      FROM diary_entries d JOIN content_snapshots ct ON ct.id=d.content_id WHERE d.content_id IN (${marks})
     `
       )
-      .all(...batch, ...batch, ...batch, ...batch, ...batch) as SourceRow[];
+      .all(...batch, ...batch, ...batch, ...batch, ...batch, ...batch) as SourceRow[];
     rows.sort((a, b) => ENTITY_REF_PRIORITY[a.kind] - ENTITY_REF_PRIORITY[b.kind] || a.id - b.id);
     for (const row of rows)
       if (!result.has(row.content_id)) {

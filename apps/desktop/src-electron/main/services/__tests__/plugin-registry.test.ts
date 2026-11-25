@@ -52,3 +52,15 @@ it("写入失败不返回成功，解除故障后可重试", async () => {
   await rm(blocked);
   expect((await store.open("A")).name).toBe("A");
 });
+
+it("变更作用域跨重启保留，替换相同名字的库也分配新代次", async () => {
+  const first = await registry.changeScope("A", "same-file");
+  expect(await new PluginWorkspaceRegistry(filename).changeScope("A.db", "same-file")).toEqual(
+    first
+  );
+  await registry.invalidateChanges("A");
+  const changed = await new PluginWorkspaceRegistry(filename).changeScope("A", "same-file");
+  expect(changed.id).toBe(first.id);
+  expect(changed.epoch).not.toBe(first.epoch);
+  expect((await registry.changeScope("A", "different-file")).epoch).not.toBe(changed.epoch);
+});

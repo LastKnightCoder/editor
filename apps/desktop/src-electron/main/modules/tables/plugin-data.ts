@@ -271,6 +271,8 @@ export default class PluginDataTable {
       if (ref.kind === "card" || ref.kind === "article") owners.add(ref.kind);
       else if (ref.kind === "project-item") owners.add("document");
     }
+    if (db.prepare("SELECT 1 FROM calendar_event WHERE detail_content_id=?").get(row.id))
+      owners.add("calendar-event");
     return {
       contentId: row.id,
       createdAt: row.create_time,

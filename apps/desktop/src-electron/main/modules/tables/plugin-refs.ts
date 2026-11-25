@@ -1,3 +1,4 @@
+import { parseTaskKey } from "@tau/shared/task-assistant";
 import Database from "better-sqlite3";
 import { basename } from "node:path";
 import type { EntityKind } from "@/types";
@@ -67,26 +68,18 @@ function locate(db: Database.Database, kind: string, id: string): Located | null
   }
   switch (kind) {
     case "todo": {
-      const key = id.split("@")[0];
-      const todo = /^todo:(\d+):(\d+)$/.exec(key);
-      if (todo) {
+      const parsed = parseTaskKey(id);
+      if (!parsed) return null;
+      if (parsed.taskRef.kind === "todo") {
+        const ref = parsed.taskRef;
         const time = createdAt(
-          "SELECT create_time FROM todo_item WHERE id = ? AND create_time = ?",
-          Number(todo[1]),
-          Number(todo[2])
+          "SELECT create_time FROM todo_item WHERE id=? AND create_time=?",
+          ref.todoId,
+          ref.createdAt
         );
-        return time === undefined
-          ? null
-          : { createdAt: time, title: resolved("todo", Number(todo[1])) };
+        return time === undefined ? null : { createdAt: time, title: resolved("todo", ref.todoId) };
       }
-      const task = /^document:(\d+):(\d+):(.+)$/.exec(key);
-      if (!task) return null;
-      const ref = {
-        kind: "document" as const,
-        contentId: Number(task[1]),
-        createdAt: Number(task[2]),
-        taskId: task[3],
-      };
+      const ref = parsed.taskRef;
       const time = createdAt(
         "SELECT create_time FROM content_snapshots WHERE id = ? AND create_time = ?",
         ref.contentId,

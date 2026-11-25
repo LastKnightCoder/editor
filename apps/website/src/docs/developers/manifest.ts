@@ -98,6 +98,11 @@ const DEVELOPER_GROUPS: DocGroup[] = [
         summary: "读取和修改卡片、文章、项目文档、待办与日程，订阅它们的变化。",
       },
       {
+        slug: "task-data",
+        title: "待办与日程",
+        summary: "选择待办项目和日历，设置提醒与重复，修改单次实例并保存变化进度。",
+      },
+      {
         slug: "document-body",
         title: "正文",
         summary: "读写文档正文，或在插件界面里嵌入 Tau 的正文编辑器。",

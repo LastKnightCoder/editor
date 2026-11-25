@@ -1,20 +1,16 @@
+import { requireCalendar } from "./directory-access";
 import type Database from "better-sqlite3";
 import type {
   AssistantCalendarEvent,
   TaskOccurrenceRef,
   TaskRef,
 } from "@tau/shared/task-assistant";
+import ContentTable from "../tables/content";
+import ItemReminderTable from "../tables/item-reminder";
+import { pluginContentRevision } from "../tables/plugin-content-write";
+import CalendarTable from "../tables/calendar";
 import CalendarEventTable from "../tables/calendar-event";
-import {
-  checkRevision,
-  fail,
-  localDate,
-  parseSchedule,
-  requireCalendar,
-  revision,
-  type Row,
-} from "./common";
-import { captureEvents } from "./snapshots";
+import { checkRevision, fail, localDate, parseSchedule, revision, type Row } from "./common";
 
 export function readCalendarEvent(db: Database.Database, id: number): AssistantCalendarEvent {
   const row = db.prepare("SELECT * FROM calendar_event WHERE id=?").get(id) as Row | undefined;
@@ -56,16 +52,28 @@ export function readCalendarEvent(db: Database.Database, id: number): AssistantC
     start.setMinutes(Number(row.start_time ?? 0));
     end.setMinutes(Number(row.end_time ?? 0));
   }
-  let writable = true;
-  try {
-    requireCalendar(db, Number(row.calendar_id));
-  } catch {
-    writable = false;
-  }
+  const writable = CalendarTable.getDirectoryItem(db, Number(row.calendar_id))?.writable ?? false;
+  const reminders = ItemReminderTable.list(db, "event", id);
+  const notes = Number(row.detail_content_id)
+    ? ContentTable.getContentById(db, Number(row.detail_content_id))
+    : null;
   return {
+    reminderOffsets: reminders,
+    ...(notes ? { notes: { contentId: notes.id, createdAt: notes.createTime } } : {}),
     eventId: id,
     createdAt: Number(row.create_time),
-    revision: revision(captureEvents(db, [id])),
+    revision: revision({
+      title: row.title,
+      calendarId: row.calendar_id,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      allDay: !!row.all_day,
+      reminders,
+      notes: notes ? pluginContentRevision(notes) : null,
+      ref,
+      occurrence,
+      writable,
+    }),
     title: String(row.title),
     calendarId: Number(row.calendar_id),
     start: row.all_day ? localDate(start) : start.toISOString(),
@@ -97,8 +105,10 @@ export function createEvent(
     allDay: boolean;
     taskRef?: TaskRef;
     occurrence?: TaskOccurrenceRef;
+    reminderOffsets?: number[];
   },
-  taskTitle?: string
+  taskTitle?: string,
+  notes?: Pick<import("@/types/content").IContent, "content" | "contracts">
 ) {
   const calendarId = requireCalendar(db, input.calendarId);
   const title = taskTitle ?? input.title;
@@ -107,10 +117,12 @@ export function createEvent(
     calendarId,
     title,
     ...parseSchedule(input),
-    detailContentId: 0,
+    detailContentId: notes ? ContentTable.createContent(db, notes) : 0,
     color: null,
     todoItemId: input.taskRef?.kind === "todo" ? input.taskRef.todoId : null,
   });
+  if (input.reminderOffsets !== undefined)
+    ItemReminderTable.replace(db, "event", event.id, input.reminderOffsets);
   if (input.taskRef?.kind === "document") {
     const ref = input.taskRef;
     db.prepare("INSERT INTO doc_task_calendar_link VALUES (?,?,?,?,?,?,?)").run(
@@ -135,7 +147,8 @@ export function createEvent(
 export function mutateEvent(
   db: Database.Database,
   input: { eventId: number; createdAt: number; revision: string; patch?: Record<string, unknown> },
-  remove: boolean
+  remove: boolean,
+  preparedNotes?: Pick<import("@/types/content").IContent, "content" | "contracts">
 ) {
   const previous = readCalendarEvent(db, input.eventId);
   if (previous.createdAt !== input.createdAt) fail("NOT_FOUND", "日程身份已变化");
@@ -153,12 +166,21 @@ export function mutateEvent(
   const next = { ...previous, ...patch } as AssistantCalendarEvent;
   requireCalendar(db, next.calendarId);
   const stored = CalendarEventTable.getEventById(db, input.eventId);
+  if (!stored) fail("NOT_FOUND", "日程已删除");
+  if (patch.ensureNotes && !stored.detailContentId) {
+    stored.detailContentId = ContentTable.createContent(
+      db,
+      preparedNotes ?? fail("INVALID_ARGUMENT", "备注正文尚未准备")
+    );
+  }
   CalendarEventTable.updateEvent(db, {
     ...stored,
     title: next.title,
     calendarId: next.calendarId,
     ...parseSchedule(next),
   });
+  if (patch.reminderOffsets !== undefined)
+    ItemReminderTable.replace(db, "event", input.eventId, patch.reminderOffsets as number[]);
   return readCalendarEvent(db, input.eventId);
 }
 

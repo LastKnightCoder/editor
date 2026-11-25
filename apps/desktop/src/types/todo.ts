@@ -34,6 +34,10 @@ export interface TodoGroup {
   updateTime: number;
 }
 
+export type TodoGroupDirectory = Pick<TodoGroup, "id" | "title" | "isArchived"> & {
+  writable: boolean;
+};
+
 export interface TodoItem {
   id: number;
   groupId: number;

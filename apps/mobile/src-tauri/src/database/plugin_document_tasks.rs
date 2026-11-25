@@ -6,6 +6,7 @@ use super::{
     plugin_task_dates as dates, plugin_task_snapshots as snapshots,
     plugin_tasks::{parse_task, TaskId},
 };
+use chrono::{TimeZone, Timelike};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 
@@ -53,7 +54,7 @@ fn at_mut<'a>(value: &'a mut Value, path: &[usize]) -> Result<&'a mut Value, Str
     at_mut(child, &path[1..])
 }
 fn source(conn: &Connection, content: i64) -> Result<Option<Value>, String> {
-    let query="SELECT kind,id,title FROM (SELECT 'card' AS kind,id,'' AS title,0 AS priority FROM cards WHERE content_id=?1 UNION ALL SELECT 'article',id,title,1 FROM articles WHERE content_id=?1 AND is_delete=0 UNION ALL SELECT 'document',id,title,2 FROM project_item WHERE content_id=?1 AND COALESCE(ref_type,'')='' UNION ALL SELECT 'diary',id,'日记',3 FROM diary_segments WHERE content_id=?1 UNION ALL SELECT 'diary',id,date,4 FROM diary_entries WHERE content_id=?1) ORDER BY priority,id LIMIT 1";
+    let query="SELECT kind,id,title FROM (SELECT 'card' AS kind,id,'' AS title,0 AS priority FROM cards WHERE content_id=?1 UNION ALL SELECT 'article',id,title,1 FROM articles WHERE content_id=?1 AND is_delete=0 UNION ALL SELECT 'document',id,title,2 FROM project_item WHERE content_id=?1 UNION ALL SELECT 'diary',id,'日记',3 FROM diary_segments WHERE content_id=?1 UNION ALL SELECT 'diary',id,date,4 FROM diary_entries WHERE content_id=?1) ORDER BY priority,id LIMIT 1";
     conn.query_row(query,[content],|row|Ok(json!({"kind":row.get::<_,String>(0)?,"id":row.get::<_,i64>(1)?.to_string(),"title":row.get::<_,String>(2)?}))).optional().map_err(sql_error)
 }
 pub(super) fn visible(conn: &Connection, content: i64, task: &str) -> Result<bool, String> {
@@ -64,20 +65,24 @@ pub(super) fn candidates(
     source: &str,
     offset: usize,
     limit: usize,
+    archived: bool,
 ) -> Result<Vec<Value>, String> {
     if !matches!(source, "all" | "todo" | "document") {
         return Err("待办来源无效".into());
     }
-    let sql="SELECT kind,identity,node FROM (SELECT 0 AS kind,t.id AS identity,0 AS position,NULL AS node FROM todo_item t WHERE ?1<>'document' AND t.is_archived=0 UNION ALL SELECT 1,c.id,j.id,j.value FROM content_snapshots c,json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j WHERE ?1<>'todo' AND j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item' AND COALESCE(json_extract(j.value,'$.taskId'),'')<>'' AND COALESCE(json_extract(j.value,'$.taskArchived'),0)=0 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=c.id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=json_extract(j.value,'$.taskId'))))) ORDER BY kind,identity,position LIMIT ?2 OFFSET ?3";
+    let sql="SELECT kind,identity,node FROM (SELECT 0 AS kind,t.id AS identity,0 AS position,NULL AS node FROM todo_item t WHERE ?1<>'document' AND t.is_archived=?4 UNION ALL SELECT 1,c.id,j.id,j.value FROM content_snapshots c,json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j WHERE ?1<>'todo' AND j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item' AND COALESCE(json_extract(j.value,'$.taskId'),'')<>'' AND COALESCE(json_extract(j.value,'$.taskArchived'),0)=?4 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=c.id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=json_extract(j.value,'$.taskId'))))) ORDER BY kind,identity,position LIMIT ?2 OFFSET ?3";
     let mut stmt = conn.prepare(sql).map_err(sql_error)?;
     let rows = stmt
-        .query_map(params![source, limit as i64, offset as i64], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })
+        .query_map(
+            params![source, limit as i64, offset as i64, archived],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            },
+        )
         .map_err(sql_error)?;
     let mut result = vec![];
     let mut bytes = 0;
@@ -101,7 +106,7 @@ pub(super) fn candidates(
 }
 
 pub(super) fn meta(node: &Value) -> Result<Value, String> {
-    let segments = if node["taskRecurrence"].is_null() {
+    let mut segments = if node["taskRecurrence"].is_null() {
         vec![]
     } else {
         if node["taskRecurrence"]["version"] != 1 {
@@ -137,6 +142,11 @@ pub(super) fn meta(node: &Value) -> Result<Value, String> {
     if !node["taskOccurrenceState"].is_null() && !node["taskOccurrenceState"].is_object() {
         return Err("周期实例状态损坏".into());
     }
+    for segment in &mut segments {
+        if !segment["rule"].is_null() {
+            segment["rule"] = super::plugin_task_recurrence::normalize_rule(&segment["rule"]);
+        }
+    }
     Ok(
         json!({"segments":segments,"occurrenceState":node.get("taskOccurrenceState").cloned().unwrap_or(json!({}))}),
     )
@@ -153,11 +163,14 @@ fn dto(
 ) -> Result<Value, String> {
     let _metadata = meta(node)?;
     let task = node["taskId"].as_str().ok_or("待办节点身份缺失")?;
-    let (title, _, _, due) = super::document_task_header::parse(conn, node)?;
-    let mut result = json!({"id":format!("document:{content}:{created}:{task}"),"revision":snapshots::digest(&json!([created,node])),"title":title,"completed":node["checked"]==true,"archived":node["taskArchived"]==true,"dueAt":due,"source":source(conn,content)?});
+    let (title, group, _, due) = super::document_task_header::parse(conn, node)?;
+    let mut result = json!({"id":super::plugin_tasks::document_key(content,created,task),"revision":snapshots::digest(&json!([created,node])),"title":title,"completed":node["checked"]==true,"archived":node["taskArchived"]==true,"dueAt":due,"source":source(conn,content)?});
     if let Some(date) = date {
         let (series, state) = super::plugin_tasks::occurrence(&meta(node)?, date, zone, holidays)?;
-        result["id"] = json!(format!("document:{content}:{created}:{task}@{date}"));
+        result["id"] = json!(format!(
+            "{}@{date}",
+            super::plugin_tasks::document_key(content, created, task)
+        ));
         result["completed"] = json!(!state["completedAt"].is_null());
         result["dueAt"] = state
             .get("scheduledAt")
@@ -172,6 +185,54 @@ fn dto(
             created, base, series, date, state
         ])));
     }
+    result["listId"] = super::document_task_header::group_id(conn, node, group.as_deref())?
+        .map(|v| json!(v.to_string()))
+        .unwrap_or(Value::Null);
+    result["reminders"] = if let Some(at) = node["taskReminder"]["at"].as_str() {
+        if _metadata["segments"]
+            .as_array()
+            .is_some_and(|v| !v.is_empty())
+        {
+            let time = dates::timestamp(at, zone)?;
+            let local = zone
+                .0
+                .timestamp_millis_opt(time)
+                .single()
+                .ok_or("提醒时间无效")?;
+            json!([{"offsetMs":-i64::from(local.hour()*3600000+local.minute()*60000+local.second()*1000+local.timestamp_subsec_millis())}])
+        } else {
+            json!([{"at":at}])
+        }
+    } else {
+        json!([])
+    };
+    result["recurrence"] = if _metadata["segments"]
+        .as_array()
+        .is_some_and(|segments| !segments.is_empty())
+    {
+        json!({"segments":_metadata["segments"]})
+    } else {
+        Value::Null
+    };
+    if date.is_none()
+        && _metadata["segments"]
+            .as_array()
+            .is_some_and(|v| !v.is_empty())
+    {
+        result["completed"] = json!(false);
+    }
+    result["writable"] = json!(true);
+    if let Some(date) = date {
+        let (series, state) = super::plugin_tasks::occurrence(&_metadata, date, zone, holidays)?;
+        result["occurrence"] = json!({"taskId":super::plugin_tasks::document_key(content,created,task),"seriesId":series,"originalDate":date,"state":state});
+    }
+    result["revision"] = json!(snapshots::digest(&json!([
+        result["revision"],
+        result["title"],
+        result["dueAt"],
+        result["listId"],
+        result["reminders"]
+    ])));
     Ok(result)
 }
 pub(super) fn query_candidate(
@@ -342,6 +403,9 @@ fn edit(
     if let Some(date) = date {
         let (series, mut state) = super::plugin_tasks::occurrence(&metadata, date, zone, holidays)?;
         match action {
+            "state" => {
+                state = super::plugin_task_recurrence::patch_state(&state, &write["patch"], zone)?;
+            }
             "complete" => {
                 state["completedAt"] = if write["completed"] == true {
                     json!(common::now_millis())
@@ -355,7 +419,10 @@ fn edit(
                 state["completedAt"] = Value::Null;
             }
             "update" => {
-                if write["patch"].get("title").is_some() {
+                if write["patch"]
+                    .as_object()
+                    .is_none_or(|p| p.keys().any(|k| k != "dueAt"))
+                {
                     return Err("实例标题跟随系列".into());
                 }
                 let due = write["patch"].get("dueAt").ok_or("实例改期须给出 dueAt")?;
@@ -374,6 +441,39 @@ fn edit(
         node["taskOccurrenceState"][format!("{series}/{date}")] = state;
     } else {
         match action {
+            "recurrence" => {
+                if !recurring && write["change"]["rule"].is_null() {
+                    return Err("普通待办没有可停止的重复规则".into());
+                }
+                if !recurring && !node["taskReminder"].is_null() {
+                    return Err("请先清空普通待办提醒，再设置重复规则".into());
+                }
+                let effective = write["change"]["effectiveFrom"]
+                    .as_str()
+                    .ok_or("生效日期缺失")?;
+                let mut segments = super::plugin_task_recurrence::amend(
+                    &metadata["segments"],
+                    effective,
+                    &write["change"]["rule"],
+                )?;
+                if metadata["segments"]
+                    .as_array()
+                    .is_some_and(|v| !v.iter().any(|s| s["effectiveDate"] == effective))
+                {
+                    let series = snapshots::digest(&json!([
+                        write["id"],
+                        write["expectedRevision"],
+                        write["change"]
+                    ]));
+                    if let Some(last) = segments.as_array_mut().and_then(|v| v.last_mut()) {
+                        last["seriesId"] = json!(series);
+                    }
+                }
+                if segments != metadata["segments"] {
+                    node["taskRecurrence"] = json!({"version":1,"segments":segments});
+                }
+            }
+            "state" => return Err("实例操作需要实例身份".into()),
             "complete" => {
                 if recurring {
                     return Err("周期待办必须指定实例，不能标记整系列".into());
@@ -386,8 +486,31 @@ fn edit(
                 };
             }
             "update" => {
-                let (title, group, hint, _) = super::document_task_header::parse(conn, node)?;
+                let (title, mut group, hint, _) = super::document_task_header::parse(conn, node)?;
                 let patch = &write["patch"];
+                if let Some(list) = patch["listId"].as_str() {
+                    let id = list.parse::<i64>().map_err(|_| "清单身份无效")?;
+                    let _entry = super::todo::get_group_directory(conn, id)?
+                        .filter(|v| v.writable)
+                        .ok_or("清单不存在或不可写")?;
+                    let title = conn
+                        .query_row("SELECT title FROM todo_group WHERE id=?1", [id], |r| {
+                            r.get::<_, String>(0)
+                        })
+                        .map_err(sql_error)?;
+                    let token = format!("#{title}");
+                    node["taskGroup"] = json!({"id":id,"token":token,"createdAt":conn.query_row("SELECT create_time FROM todo_group WHERE id=?1",[id],|r|r.get::<_,i64>(0)).map_err(sql_error)?});
+                    group = Some(token);
+                }
+                if let Some(reminders) = patch.get("reminders") {
+                    super::plugin_task_recurrence::document_reminders(node, reminders, zone)?;
+                }
+                if !["title", "dueAt", "listId"]
+                    .iter()
+                    .any(|key| patch.get(*key).is_some())
+                {
+                    return Ok(result);
+                }
                 let title = patch["title"].as_str().unwrap_or(&title);
                 let due = if patch.get("dueAt").is_some() {
                     if !patch["dueAt"].is_null() {
@@ -517,6 +640,7 @@ pub(super) fn write_local(
     };
     let tx = conn.transaction().map_err(sql_error)?;
     super::collaboration::assert_content_local(&tx, content)?;
+    prepare(&tx, write, zone, holidays)?;
     let events = tx
         .prepare("SELECT calendar_event_id FROM doc_task_calendar_link WHERE content_id=?1")
         .map_err(sql_error)?
@@ -577,7 +701,7 @@ pub(super) fn write_local(
     common::write_operation(&tx, "calendar_event", "update", 0, common::now_millis())?;
     tx.commit().map_err(sql_error)?;
     Ok(
-        json!({"task":prepared["task"],"document":super::query::query_content_detail(conn,content)?}),
+        json!({"task":if write["action"]=="delete" {Value::Null}else{read(conn,write["id"].as_str().ok_or("待办身份无效")?,zone,holidays)?["task"].clone()},"document":super::query::query_content_detail(conn,content)?}),
     )
 }
 pub(super) fn restore(conn: &rusqlite::Transaction<'_>, payload: &Value) -> Result<(), String> {
@@ -942,6 +1066,75 @@ mod tests {
         value["count"] = json!(3);
         value["documentRevision"] = planned["before"]["document"]["revision"].clone();
         write_local(conn, "fixture", &value, ZONE, &HolidayDays::new())
+    }
+    #[test]
+    fn archived_document_tasks_can_be_enumerated_explicitly() {
+        let (db, id, current) = fixture();
+        let mut nodes = current["document"]["content"].clone();
+        nodes[0]["children"][0]["taskArchived"] = json!(true);
+        db.execute(
+            "UPDATE contents SET content=?1 WHERE id=?2",
+            params![nodes.to_string(), id],
+        )
+        .unwrap();
+        let visible = super::super::plugin_tasks::query_tasks(
+            &db,
+            &json!({"source":"document","archived":true}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(visible["items"][0]["id"], current["task"]["id"]);
+        assert_eq!(visible["items"][0]["archived"], true);
+        let normal = super::super::plugin_tasks::query_tasks(
+            &db,
+            &json!({"source":"document"}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert!(normal["items"].as_array().unwrap().is_empty());
+    }
+    #[test]
+    fn phase_three_document_reminder_and_recurrence_changes_round_trip() {
+        let (mut db, _, mut current) = fixture();
+        let mut write = request(&current, "update");
+        write["patch"] =
+            json!({"dueAt":null,"reminders":[{"at":"2026-11-26T09:00:00+08:00"}],"listId":"7"});
+        current = apply(&mut db, &write).unwrap();
+        assert!(current["task"]["dueAt"].is_null());
+        assert_eq!(current["task"]["listId"], "7");
+        assert_eq!(
+            current["task"]["reminders"][0]["at"],
+            "2026-11-26T09:00:00+08:00"
+        );
+        let mut convert = request(&current, "recurrence");
+        convert["change"] = json!({"effectiveFrom":"2026-10-01","rule":{"type":"daily","interval":1,"startDate":"2026-10-01"}});
+        assert!(apply(&mut db, &convert).is_err());
+        let mut clear = request(&current, "update");
+        clear["patch"] = json!({"reminders":[]});
+        current = apply(&mut db, &clear).unwrap();
+        convert["expectedRevision"] = current["task"]["revision"].clone();
+        current = apply(&mut db, &convert).unwrap();
+        let mut reminder = request(&current, "update");
+        reminder["patch"] = json!({"reminders":[{"offsetMs":-32400000}]});
+        current = apply(&mut db, &reminder).unwrap();
+        assert_eq!(current["task"]["reminders"][0]["offsetMs"], -32400000);
+        let id = format!("{}@2026-10-02", current["task"]["id"].as_str().unwrap());
+        let instance = read(&db, &id, ZONE, &HolidayDays::new()).unwrap();
+        let mut state = request(&instance, "state");
+        state["patch"] = json!({"completed":true,"scheduledAt":"2026-12-01"});
+        let changed = apply(&mut db, &state).unwrap();
+        assert_eq!(changed["task"]["id"], id);
+        assert_eq!(changed["task"]["dueAt"], "2026-12-01");
+        assert_eq!(changed["task"]["completed"], true);
+        let mut invalid = request(&changed, "state");
+        invalid["patch"] = json!({"completed":true,"skipped":true});
+        assert!(apply(&mut db, &invalid).is_err());
+        assert_eq!(
+            read(&db, &id, ZONE, &HolidayDays::new()).unwrap()["task"]["revision"],
+            changed["task"]["revision"]
+        );
     }
     #[test]
     fn source_tasks_are_read_from_body_and_mutation_preserves_tokens_and_format() {

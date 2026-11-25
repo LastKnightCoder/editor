@@ -331,6 +331,68 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `owner_id`   | `INTEGER NOT NULL` |
 | `offset_ms`  | `INTEGER NOT NULL` |
 
+### `data_change_log`
+
+业务变化身份日志，位于 52_data_changes 分片，先建日志再建保留边界。持久触发器与业务事务共同提交、回滚，覆盖独立及正文待办、日程、目录及提醒/备注投影/关联变化。只含身份，不含正文或凭据；序号由 SQLite 分配，不依赖时钟。索引 `idx_data_change_domain_seq(domain,seq)` 用于按请求域续读。
+
+| 字段        | SQLite 定义                         |
+| ----------- | ----------------------------------- |
+| `seq`       | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `domain`    | `TEXT NOT NULL`                     |
+| `entity_id` | `TEXT NOT NULL`                     |
+| `operation` | `TEXT NOT NULL`                     |
+
+`operation` 为 upsert/delete；删除保留删除前身份。日志有界裁剪，旧游标不能把缺失历史当作空结果。备注投影通过 `idx_calendar_event_detail_content(detail_content_id)` 定位所属日程，不扫描其他日程。
+
+### `data_change_state`
+
+单行 main 保存变更读取协议与已经裁剪的序号边界。清理日志与更新边界同事务；本机工作区代次和授权修订保存在主库同步范围之外，不写本表。
+
+| 字段               | SQLite 定义                       |
+| ------------------ | --------------------------------- |
+| `id`               | `TEXT PRIMARY KEY`                |
+| `protocol_version` | `INTEGER NOT NULL`                |
+| `pruned_through`   | `INTEGER NOT NULL DEFAULT 0`      |
+| `retention`        | `INTEGER NOT NULL DEFAULT 100000` |
+
+### `document_task_identities`
+
+53_document_task_changes 分片的主库轻量身份目录，不复制正文、提醒或规则。按变动正文片段更新，身份和 data_change_log 与投影同事务；页面查询索引可以独立重建。
+
+| 字段                 | SQLite 定义                         |
+| -------------------- | ----------------------------------- |
+| `id`                 | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| `content_id`         | `INTEGER NOT NULL`                  |
+| `content_created_at` | `INTEGER NOT NULL`                  |
+| `part_key`           | `TEXT NOT NULL`                     |
+| `task_id`            | `TEXT NOT NULL`                     |
+
+同一正文/创建时间/片段/任务唯一；`idx_document_task_identity_content(content_id,part_key)` 与 `idx_document_task_identity_task(content_id,content_created_at,task_id)` 支持变动片段、持有者和重复身份检查。整篇使用空 part_key，块使用 block_id。document_task_visible_identities 按有效来源及 excluded/promoted 设置筛选，不过滤完成和归档。
+
+### `document_task_projection_state`
+
+初始化逐批持久保存进度；目录结构丢失后切换 epoch 并重新准备，含正文旧游标失效。
+
+| 字段               | SQLite 定义                                          |
+| ------------------ | ---------------------------------------------------- |
+| `id`               | `TEXT PRIMARY KEY`                                   |
+| `version`          | `INTEGER NOT NULL`                                   |
+| `after_content_id` | `INTEGER NOT NULL DEFAULT 0`                         |
+| `ready`            | `INTEGER NOT NULL DEFAULT 0`                         |
+| `epoch`            | `TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))` |
+
+### `document_task_projection_errors`
+
+无法解析或身份重复时持久记录错误，保留旧任务身份，拒绝完成正文变化检查点；正文修复后捕获触发器清除对应错误。
+
+| 字段         | SQLite 定义        |
+| ------------ | ------------------ |
+| `content_id` | `INTEGER NOT NULL` |
+| `part_key`   | `TEXT NOT NULL`    |
+| `reason`     | `TEXT NOT NULL`    |
+
+联合主键为 (content_id,part_key)，不保存损坏正文载荷。内部候选/片段视图只投影现有主库正文，不另存一份内容。来源匹配复用既有 content_id 索引，日记旧正文引用另由 idx_diary_entries_content_id(content_id) 支持。
+
 ### `contents`
 
 `content` 非空时承载整篇快照，为 NULL 时当前正文由 `content_document_blocks` 持有。读取正文使用 `content_snapshots`，不要把 NULL 当作空正文。
@@ -1424,3 +1486,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `source_id`   | `TEXT NOT NULL`                                                                 |
 | `entity_kind` | `TEXT NOT NULL`                                                                 |
 | `entity_id`   | `TEXT NOT NULL`                                                                 |
+
+### `plugin_create_receipts`
+
+位于插件 schema 分片末尾，按 `(plugin_id, request_id)` 唯一；删除创建结果后保留失效回执，清除插件数据时删除。
+
+| 字段           | 类型                       | 含义               |
+| -------------- | -------------------------- | ------------------ |
+| `plugin_id`    | TEXT NOT NULL              | 插件身份           |
+| `request_id`   | TEXT NOT NULL              | 插件内稳定请求身份 |
+| `input_hash`   | TEXT NOT NULL              | 原始创建输入摘要   |
+| `entity`       | TEXT NOT NULL              | todo 或 event      |
+| `entity_id`    | INTEGER NOT NULL           | 创建结果编号       |
+| `created_at`   | INTEGER NOT NULL           | 创建结果身份时间   |
+| `operation_id` | TEXT NOT NULL              | 原操作回执编号     |
+| `retired`      | INTEGER NOT NULL DEFAULT 0 | 删除或撤销后为 1   |
+
+索引 `idx_plugin_create_target(entity, entity_id, created_at)` 用于删除结果时将原请求标记失效。

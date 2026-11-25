@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { Calendar, CreateCalendar, UpdateCalendar } from "@/types/calendar";
+import { CalendarDirectory, Calendar, CreateCalendar, UpdateCalendar } from "@/types/calendar";
 import { ProjectColorName } from "@/constants/project-colors";
 import { Descendant } from "slate";
 import Operation from "./operation";
@@ -7,6 +7,22 @@ import ContentTable from "./content";
 import CalendarGroupTable from "./calendar-group";
 import CalendarEventTable from "./calendar-event";
 import type { SqliteRow } from "../../types/table";
+
+const CALENDAR_DIRECTORY_SQL = `WITH RECURSIVE system_groups(id) AS (
+  SELECT id FROM calendar_group WHERE is_system=1
+  UNION SELECT g.id FROM calendar_group g JOIN system_groups s ON g.parent_group_id=s.id
+) SELECT id,title,color,archived,visible,order_index,
+  (archived=0 AND (group_id IS NULL OR group_id NOT IN (SELECT id FROM system_groups))) AS writable
+  FROM calendar`;
+
+interface CalendarDirectoryRow {
+  id: number;
+  title: string;
+  color: ProjectColorName;
+  archived: number;
+  visible: number;
+  writable: number;
+}
 
 export default class CalendarTable {
   static getListenEvents() {
@@ -163,6 +179,49 @@ export default class CalendarTable {
     const stmt = db.prepare("DELETE FROM calendar WHERE id = ?");
     Operation.insertOperation(db, "calendar", "delete", id, Date.now());
     return stmt.run(id).changes;
+  }
+
+  private static directoryItem(row: CalendarDirectoryRow): CalendarDirectory {
+    return {
+      id: row.id,
+      title: row.title,
+      color: row.color,
+      archived: !!row.archived,
+      visible: !!row.visible,
+      writable: !!row.writable,
+    };
+  }
+
+  static getDirectoryItem(db: Database.Database, id: number): CalendarDirectory | null {
+    const row = db.prepare(`${CALENDAR_DIRECTORY_SQL} WHERE id=?`).get(id) as
+      | CalendarDirectoryRow
+      | undefined;
+    return row ? this.directoryItem(row) : null;
+  }
+
+  static queryDirectoryItems(
+    db: Database.Database,
+    query: { afterId: number; archived?: boolean; limit: number }
+  ): CalendarDirectory[] {
+    const rows = db
+      .prepare(
+        `${CALENDAR_DIRECTORY_SQL} WHERE id>? ${query.archived === undefined ? "" : "AND archived=?"} ORDER BY id LIMIT ?`
+      )
+      .all(
+        query.afterId,
+        ...(query.archived === undefined ? [] : [Number(query.archived)]),
+        query.limit
+      ) as CalendarDirectoryRow[];
+    return rows.map(row => this.directoryItem(row));
+  }
+
+  static findWritableUserCalendarId(db: Database.Database, id?: number): number | null {
+    const row = db
+      .prepare(
+        `SELECT id FROM (${CALENDAR_DIRECTORY_SQL}) WHERE writable=1 ${id === undefined ? "" : "AND id=?"} ORDER BY order_index,id LIMIT 1`
+      )
+      .get(...(id === undefined ? [] : [id])) as { id: number } | undefined;
+    return row?.id ?? null;
   }
 
   static getCalendarById(db: Database.Database, id: number): Calendar {

@@ -1,4 +1,57 @@
 use super::*;
+use rusqlite::Connection;
+
+const GROUP_DIRECTORY_SQL: &str =
+    "SELECT id,title,is_archived,(is_archived=0) AS writable FROM todo_group";
+
+#[derive(serde::Serialize)]
+pub(crate) struct TodoGroupDirectory {
+    pub id: i64,
+    title: String,
+    archived: bool,
+    pub writable: bool,
+}
+
+fn directory_row(row: &Row<'_>) -> rusqlite::Result<TodoGroupDirectory> {
+    Ok(TodoGroupDirectory {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        archived: row.get::<_, Option<bool>>(2)?.unwrap_or(false),
+        writable: row.get::<_, Option<bool>>(3)?.unwrap_or(false),
+    })
+}
+
+pub(crate) fn get_group_directory(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<TodoGroupDirectory>, String> {
+    conn.query_row(
+        &format!("{GROUP_DIRECTORY_SQL} WHERE id=?1"),
+        [id],
+        directory_row,
+    )
+    .optional()
+    .map_err(|e| format_db_error("TODO_GROUP_QUERY_FAILED", "read directory", e))
+}
+
+pub(crate) fn query_group_directory(
+    conn: &Connection,
+    after_id: i64,
+    archived: Option<bool>,
+    limit: i64,
+) -> Result<Vec<TodoGroupDirectory>, String> {
+    let mut stmt=conn.prepare(&format!("{GROUP_DIRECTORY_SQL} WHERE id>?1 AND (?2 IS NULL OR is_archived=?2) ORDER BY id LIMIT ?3")).map_err(|e|format_db_error("TODO_GROUP_QUERY_FAILED","prepare directory",e))?;
+    let rows = stmt
+        .query_map(params![after_id, archived, limit], directory_row)
+        .map_err(|e| format_db_error("TODO_GROUP_QUERY_FAILED", "query directory", e))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format_db_error("TODO_GROUP_QUERY_FAILED", "parse directory", e))?;
+    Ok(rows)
+}
+
+pub(crate) fn is_writable_group(conn: &Connection, id: i64) -> Result<bool, String> {
+    Ok(get_group_directory(conn, id)?.is_some_and(|group| group.writable))
+}
 
 pub(crate) fn ensure_system_groups(tx: &Transaction<'_>) -> Result<(), String> {
     let now = now_millis();

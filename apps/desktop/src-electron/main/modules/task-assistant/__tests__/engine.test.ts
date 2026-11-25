@@ -475,4 +475,177 @@ describe("助理任务业务命令", () => {
         .content[0]
     ).toEqual(content.content[0]);
   });
+  it("同毫秒修改追加提醒也拒绝旧版本，撤销恢复完整提醒集合", () => {
+    const created = engine.execute(
+      "create_todo",
+      {
+        requestId: "reminders-create",
+        title: "提醒契约",
+        groupId,
+        dueAt: "2026-11-25T10:00:00Z",
+        reminderOffsets: [0, 300000, 600000],
+      },
+      "b"
+    );
+    const task = created.result as AssistantTask;
+    const updated = engine.execute(
+      "update_todo",
+      {
+        requestId: "reminders-change",
+        taskRef: task.taskRef,
+        revision: task.revision,
+        patch: { reminderOffsets: [60000, 300000, 600000] },
+      },
+      "b"
+    );
+    expect(updated.status).toBe("succeeded");
+    expect(
+      engine.execute(
+        "update_todo",
+        {
+          requestId: "stale-reminders",
+          taskRef: task.taskRef,
+          revision: task.revision,
+          patch: { title: "覆盖提醒修改" },
+        },
+        "b"
+      )
+    ).toMatchObject({ status: "failed", error: { code: "VERSION_CONFLICT" } });
+    expect(
+      engine.execute(
+        "undo_task_operation",
+        { requestId: "undo-reminders", operationId: updated.operationId },
+        "b"
+      ).status
+    ).toBe("succeeded");
+    expect(readTask(db, task.taskRef).reminderOffsets).toEqual([0, 300000, 600000]);
+  });
+
+  it("提醒非法时创建回滚，不留下结果或成功回执", () => {
+    const input = {
+      requestId: "invalid-reminders",
+      title: "无基准",
+      groupId,
+      reminderOffsets: [0],
+    };
+    expect(engine.execute("create_todo", input, "b", "plugin:first")).toMatchObject({
+      status: "failed",
+    });
+    expect(db.prepare("SELECT id FROM todo_item WHERE title=?").get(input.title)).toBeUndefined();
+    expect(
+      db.prepare("SELECT request_id FROM plugin_create_receipts WHERE plugin_id=?").get("first")
+    ).toBeUndefined();
+    const retry = engine.execute(
+      "create_todo",
+      { ...input, requestId: "valid-reminders", dueAt: "2026-11-25" },
+      "b",
+      "plugin:first"
+    );
+    expect(retry.status).toBe("succeeded");
+  });
+
+  it("创建回执跨操作清理保留，按插件隔离且删除后不复活", () => {
+    const input = { requestId: "stable", title: "创建防重", groupId };
+    const first = engine.execute("create_todo", input, "b", "plugin:first");
+    const second = engine.execute("create_todo", input, "b", "plugin:second");
+    const task = first.result as AssistantTask;
+    expect((second.result as AssistantTask).taskRef).not.toEqual(task.taskRef);
+    db.prepare("DELETE FROM task_assistant_operation").run();
+    const replay = new TaskAssistantEngine(db).execute("create_todo", input, "b", "plugin:first");
+    expect((replay.result as AssistantTask).taskRef).toEqual(task.taskRef);
+    expect(
+      engine.execute("create_todo", { ...input, title: "变更输入" }, "b", "plugin:first")
+    ).toMatchObject({ status: "failed", error: { code: "IDEMPOTENCY_CONFLICT" } });
+    expect(
+      engine.execute(
+        "delete_todo",
+        { requestId: "remove-result", taskRef: task.taskRef, revision: task.revision },
+        "b"
+      ).status
+    ).toBe("succeeded");
+    expect(engine.execute("create_todo", input, "b", "plugin:first")).toMatchObject({
+      status: "failed",
+      error: { code: "REQUEST_TARGET_GONE" },
+    });
+  });
+
+  it("日程备注和追加提醒单独变化时均使旧版本失效", () => {
+    const content = {
+      content: [
+        { type: "paragraph" as const, children: [{ type: "formatted" as const, text: "原备注" }] },
+      ],
+    };
+    const created = engine.execute(
+      "create_calendar_event",
+      {
+        requestId: "notes-create",
+        title: "会议",
+        calendarId,
+        start: "2026-11-25",
+        end: "2026-11-26",
+        allDay: true,
+        reminderOffsets: [0, 60000],
+      },
+      "b",
+      undefined,
+      content
+    );
+    const event = created.result as import("@tau/shared/task-assistant").AssistantCalendarEvent;
+    expect(created.status).toBe("succeeded");
+    const notes = must(event.notes, "created event notes");
+    ContentTable.updateContent(db, notes.contentId, {
+      content: [{ type: "paragraph", children: [{ type: "formatted", text: "用户新备注" }] }],
+    });
+    expect(
+      engine.execute(
+        "update_calendar_event",
+        {
+          requestId: "stale-note",
+          eventId: event.eventId,
+          createdAt: event.createdAt,
+          revision: event.revision,
+          patch: { title: "覆盖" },
+        },
+        "b"
+      )
+    ).toMatchObject({ status: "failed", error: { code: "VERSION_CONFLICT" } });
+    const latest = readCalendarEvent(db, event.eventId);
+    db.prepare("INSERT INTO item_reminder(owner_type,owner_id,offset_ms) VALUES('event',?,?)").run(
+      event.eventId,
+      120000
+    );
+    expect(
+      engine.execute(
+        "delete_calendar_event",
+        {
+          requestId: "stale-event-reminders",
+          eventId: event.eventId,
+          createdAt: event.createdAt,
+          revision: latest.revision,
+        },
+        "b"
+      )
+    ).toMatchObject({ status: "failed", error: { code: "VERSION_CONFLICT" } });
+    expect(readCalendarEvent(db, event.eventId).title).toBe("会议");
+  });
+
+  it("仅更改落库时间不产生业务版本冲突，目录移动仍更新清单", () => {
+    const { task } = create();
+    const ref = task.taskRef as Extract<TaskRef, { kind: "todo" }>;
+    db.prepare("UPDATE todo_item SET update_time=update_time-1000 WHERE id=?").run(ref.todoId);
+    expect(readTask(db, ref).revision).toBe(task.revision);
+    const other = must(TodoGroupTable.createGroup(db, { title: "家人" }), "other group");
+    const changed = engine.execute(
+      "update_todo",
+      {
+        requestId: "move-list",
+        taskRef: ref,
+        revision: task.revision,
+        patch: { groupId: other.id },
+      },
+      "b"
+    );
+    expect(changed.status).toBe("succeeded");
+    expect((changed.result as AssistantTask).groupId).toBe(other.id);
+  });
 });

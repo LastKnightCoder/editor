@@ -3,7 +3,7 @@ use super::{
     plugin_data::sql_error, plugin_task_dates as dates, plugin_task_snapshots as snapshots,
     todo_calendar_sync,
 };
-use rusqlite::{params, Connection, OptionalExtension, Transaction};
+use rusqlite::{params, Connection, Transaction};
 use serde_json::{json, Value};
 use tauri::{AppHandle, WebviewWindow};
 
@@ -12,13 +12,76 @@ pub(super) enum TaskId {
     Todo(i64, i64, Option<String>),
     Document(i64, i64, String, Option<String>),
 }
+pub(super) fn encode_task_component(value: &str) -> String {
+    if !value.starts_with('~')
+        && !value
+            .chars()
+            .any(|c| matches!(c, '@' | '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+    {
+        return value.to_owned();
+    }
+    format!(
+        "~{}",
+        value
+            .as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02X}"))
+            .collect::<String>()
+    )
+}
+fn decode_task_component(value: &str) -> String {
+    let Some(hex) = value.strip_prefix('~').filter(|v| {
+        !v.is_empty()
+            && v.len() % 2 == 0
+            && v.bytes()
+                .all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(&b))
+    }) else {
+        return value.into();
+    };
+    let bytes = (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16))
+        .collect::<Result<Vec<_>, _>>();
+    if let Ok(bytes) = bytes {
+        if let Ok(decoded) = String::from_utf8(bytes) {
+            if encode_task_component(&decoded) == value {
+                return decoded;
+            }
+        }
+    }
+    value.into()
+}
+pub(super) fn document_key(content: i64, created: i64, task: &str) -> String {
+    let component = encode_task_component(task);
+    if component == task {
+        format!("document:{content}:{created}:{task}")
+    } else {
+        format!("document:v2:{content}:{created}:{}", &component[1..])
+    }
+}
 pub(super) fn parse_task(value: &str) -> Result<TaskId, String> {
-    let (base, occurrence) = if let Some((base, date)) = value.rsplit_once('@') {
-        dates::day(date)?;
+    let (base, occurrence) = if let Some((base, date)) = value
+        .rsplit_once('@')
+        .filter(|(_, date)| dates::day(date).is_ok())
+    {
         (base, Some(date.to_owned()))
     } else {
         (value, None)
     };
+    if let Some(encoded) = base.strip_prefix("document:v2:") {
+        let parts = encoded.splitn(3, ':').collect::<Vec<_>>();
+        if parts.len() != 3 {
+            return Err("待办身份无效".into());
+        }
+        let id = parts[0].parse::<i64>().map_err(|_| "待办身份无效")?;
+        let created = parts[1].parse::<i64>().map_err(|_| "待办身份无效")?;
+        let component = format!("~{}", parts[2]);
+        let task = decode_task_component(&component);
+        if id <= 0 || created < 0 || encode_task_component(&task) != component {
+            return Err("待办身份无效".into());
+        }
+        return Ok(TaskId::Document(id, created, task, occurrence));
+    }
     let parts = base.splitn(4, ':').collect::<Vec<_>>();
     if parts.len() < 3 {
         return Err("待办身份无效".into());
@@ -30,9 +93,12 @@ pub(super) fn parse_task(value: &str) -> Result<TaskId, String> {
     }
     match parts[0] {
         "todo" if parts.len() == 3 => Ok(TaskId::Todo(id, created, occurrence)),
-        "document" if parts.len() == 4 && !parts[3].is_empty() => {
-            Ok(TaskId::Document(id, created, parts[3].into(), occurrence))
-        }
+        "document" if parts.len() == 4 && !parts[3].is_empty() => Ok(TaskId::Document(
+            id,
+            created,
+            parts[3].to_owned(),
+            occurrence,
+        )),
         _ => Err("待办身份无效".into()),
     }
 }
@@ -50,37 +116,66 @@ pub(super) fn metadata(
 ) -> Result<Value, String> {
     let id = row["id"].as_i64().ok_or("待办身份无效")?;
     let mut result = assistant_tasks::recurrence_state(conn, id)?;
-    if result["segments"]
-        .as_array()
-        .is_some_and(|segments| !segments.is_empty())
-    {
-        return Ok(result);
-    }
     if let Some(rule) =
         snapshots::rows(conn, "todo_recurrence", "todo_item_id=?1", vec![id.into()])?.first()
     {
-        let series = format!("native:{}:{}", rule["id"], rule["create_time"]);
+        let series = format!("recurrence:{}:{}", rule["id"], rule["create_time"]);
+        if result["segments"].as_array().is_some_and(|v| v.is_empty()) {
+            let prefix = format!("native:{}:{}/", rule["id"], rule["create_time"]);
+            if let Some(states) = result["occurrenceState"].as_object_mut() {
+                let keys = states
+                    .keys()
+                    .filter(|k| k.starts_with(&prefix))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                for key in keys {
+                    if let Some(state) = states.remove(&key) {
+                        let date = &key[prefix.len()..];
+                        states.entry(format!("{series}/{date}")).or_insert(state);
+                    }
+                }
+            }
+        }
         let start = dates::day_text(zone.day(rule["start_date"].as_i64().ok_or("周期起点无效")?));
         let rule_value = json!({"type":rule["type"],"interval":rule["interval"],"startDate":start,"endDate":rule["end_date"].as_i64().map(|value|dates::day_text(zone.day(value))),"weekdays":rule["weekdays"].as_str().and_then(|raw|serde_json::from_str::<Value>(raw).ok()),"monthDay":rule["month_day"],"yearMonth":rule["year_month"],"yearDay":rule["year_day"],"maxOccurrences":rule["max_occurrences"],"excludeHolidays":rule["exclude_holidays"]==1});
-        result["segments"] = json!([{"seriesId":series,"effectiveDate":start,"rule":rule_value}]);
+        if result["segments"].as_array().is_none_or(|v| v.is_empty()) {
+            result["segments"] =
+                json!([{"seriesId":series,"effectiveDate":start,"rule":rule_value}]);
+        }
         for completion in snapshots::rows(
             conn,
             "todo_recurrence_completion",
             "recurrence_id=?1",
             vec![rule["id"].as_i64().ok_or("周期身份无效")?.into()],
         )? {
-            let key = format!(
-                "{series}/{}",
-                dates::day_text(
-                    zone.day(
-                        completion["scheduled_date"]
-                            .as_i64()
-                            .ok_or("实例日期无效")?
-                    )
-                )
+            let date = dates::day_text(
+                zone.day(
+                    completion["scheduled_date"]
+                        .as_i64()
+                        .ok_or("实例日期无效")?,
+                ),
             );
+            let series = result["segments"]
+                .as_array()
+                .and_then(|v| {
+                    v.iter().rev().find(|s| {
+                        s["effectiveDate"]
+                            .as_str()
+                            .is_some_and(|d| d <= date.as_str())
+                    })
+                })
+                .and_then(|s| s["seriesId"].as_str())
+                .unwrap_or(&series);
+            let key = format!("{series}/{date}");
             if result["occurrenceState"].get(&key).is_none() {
                 result["occurrenceState"][key] = json!({"completedAt":completion["completed_at"],"skipped":completion["skipped"]==1});
+            }
+        }
+    }
+    if let Some(segments) = result["segments"].as_array_mut() {
+        for segment in segments {
+            if !segment["rule"].is_null() {
+                segment["rule"] = super::plugin_task_recurrence::normalize_rule(&segment["rule"]);
             }
         }
     }
@@ -156,6 +251,34 @@ pub(super) fn task_dto(
         captured["descendants"] = json!(children);
         title["revision"] = json!(snapshots::digest(&captured));
     }
+    title["listId"] = json!(row["group_id"].as_i64().ok_or("清单身份无效")?.to_string());
+    if date.is_none() && row["type"] == "recurring" {
+        title["completed"] = json!(false);
+    }
+    title["reminders"] = super::plugin_schedule_data::reminders(conn, "todo", id)?;
+    title["recurrence"] = if meta["segments"]
+        .as_array()
+        .is_some_and(|segments| !segments.is_empty())
+    {
+        json!({"segments":meta["segments"]})
+    } else {
+        Value::Null
+    };
+    title["writable"] = json!(super::todo::is_writable_group(
+        conn,
+        row["group_id"].as_i64().ok_or("清单身份无效")?
+    )?);
+    if let Some(date) = date {
+        let (series, state) = occurrence(&meta, date, zone, holidays)?;
+        title["occurrence"] = json!({"taskId":format!("todo:{id}:{created}"),"seriesId":series,"originalDate":date,"state":state});
+    }
+    let mut version = title.clone();
+    version
+        .as_object_mut()
+        .map(|fields| fields.remove("revision"));
+    version["descendants"] =
+        super::plugin_schedule_data::semantic(&snapshots::capture_todo(conn, id)?);
+    title["revision"] = json!(snapshots::digest(&version));
     Ok(title)
 }
 fn window_meta(
@@ -182,7 +305,13 @@ fn filter_task(
     zone: CalendarTimeZone,
     range: Option<(i64, i64)>,
 ) -> Result<bool, String> {
-    if task["archived"] == true {
+    if query["archived"].as_bool().unwrap_or(false) != (task["archived"] == true) {
+        return Ok(false);
+    }
+    if query["listId"]
+        .as_str()
+        .is_some_and(|id| task["listId"].as_str() != Some(id))
+    {
         return Ok(false);
     }
     if query["completed"]
@@ -255,7 +384,13 @@ pub(super) fn query_tasks(
     let mut items = vec![];
     let mut examined = 0;
     loop {
-        let candidates = super::plugin_document_tasks::candidates(conn, source, position, 100)?;
+        let candidates = super::plugin_document_tasks::candidates(
+            conn,
+            source,
+            position,
+            100,
+            query["archived"].as_bool().unwrap_or(false),
+        )?;
         if candidates.is_empty() {
             return Ok(json!({"items":items}));
         }
@@ -306,14 +441,11 @@ pub(super) fn query_tasks(
         }
     }
 }
-fn user_calendar(conn: &Connection, id: Option<i64>) -> Result<i64, String> {
-    let sql="WITH RECURSIVE system(id) AS (SELECT id FROM calendar_group WHERE is_system=1 UNION SELECT g.id FROM calendar_group g JOIN system s ON g.parent_group_id=s.id) SELECT id FROM calendar WHERE archived=0 AND (group_id IS NULL OR group_id NOT IN (SELECT id FROM system)) AND (?1 IS NULL OR id=?1) ORDER BY order_index,id LIMIT 1";
-    conn.query_row(sql, [id], |row| row.get(0))
-        .optional()
-        .map_err(sql_error)?
-        .ok_or_else(|| "请先选择或创建一个可写用户日历".into())
-}
-fn event_dto(conn: &Connection, row: &Value, zone: CalendarTimeZone) -> Result<Value, String> {
+pub(super) fn event_dto(
+    conn: &Connection,
+    row: &Value,
+    zone: CalendarTimeZone,
+) -> Result<Value, String> {
     let id = row["id"].as_i64().ok_or("日程身份无效")?;
     let (start, end) = dates::event_times(row, zone)?;
     let mut result = json!({"id":format!("{id}:{}",row["create_time"]),"revision":snapshots::digest(&snapshots::capture_events(conn,&[id])?),"title":row["title"],"calendarId":row["calendar_id"].as_i64().ok_or("日历身份无效")?.to_string(),"start":start,"end":end,"allDay":row["all_day"]==1});
@@ -324,10 +456,9 @@ fn event_dto(conn: &Connection, row: &Value, zone: CalendarTimeZone) -> Result<V
         vec![id.into()],
     )?;
     if let Some(link) = linked.first() {
-        result["todoId"] = json!(format!(
-            "document:{}:{}:{}",
-            link["content_id"],
-            link["content_created_at"],
+        result["todoId"] = json!(document_key(
+            link["content_id"].as_i64().ok_or("正文身份无效")?,
+            link["content_created_at"].as_i64().ok_or("正文身份无效")?,
             link["task_id"].as_str().ok_or("正文待办身份无效")?
         ));
     } else {
@@ -381,6 +512,42 @@ fn event_dto(conn: &Connection, row: &Value, zone: CalendarTimeZone) -> Result<V
             result["todoId"] = json!(format!("{base}@{date}"));
         }
     }
+    result["reminders"] = super::plugin_schedule_data::reminders(conn, "event", id)?;
+    result["writable"] = json!(super::calendar::get_calendar_directory(
+        conn,
+        row["calendar_id"].as_i64().ok_or("日历身份无效")?
+    )?
+    .is_some_and(|calendar| calendar.writable));
+    if result["writable"] != true {
+        result["readonlyReason"] = json!("系统日历或已归档日历不可写");
+    }
+    result["kind"] = json!(if result.get("todoId").is_some() {
+        "todo-schedule"
+    } else {
+        "event"
+    });
+    let notes = row["detail_content_id"]
+        .as_i64()
+        .filter(|id| *id > 0)
+        .map(|content| super::query::query_content_detail(conn, content))
+        .transpose()?;
+    result["notesRef"] = notes
+        .as_ref()
+        .map(|notes| json!(format!("{}:{}", notes.content_id, notes.create_time)))
+        .unwrap_or(Value::Null);
+    let mut version = result.clone();
+    version
+        .as_object_mut()
+        .map(|fields| fields.remove("revision"));
+    version["notesContent"] = notes
+        .as_ref()
+        .map(|notes| notes.content.clone())
+        .unwrap_or(Value::Null);
+    version["notesRevision"] = notes
+        .as_ref()
+        .map(|notes| json!(notes.revision))
+        .unwrap_or(Value::Null);
+    result["revision"] = json!(snapshots::digest(&version));
     Ok(result)
 }
 pub(super) fn query_calendar(
@@ -389,6 +556,9 @@ pub(super) fn query_calendar(
     zone: CalendarTimeZone,
     holidays: &HolidayDays,
 ) -> Result<Value, String> {
+    if query["view"] == "stored" {
+        return super::plugin_schedule_data::stored_events(conn, query, zone);
+    }
     let range = dates::window(query, zone, true)?.ok_or("日程查询缺少窗口")?;
     if range.0 == range.1 {
         return Ok(json!({"items":[]}));
@@ -417,6 +587,12 @@ pub(super) fn query_calendar(
         let row = snapshots::row(&tx, "calendar_event", *id)?.ok_or("日程已变化")?;
         let value = event_dto(&tx, &row, zone)?;
         scanned += 1;
+        if query["calendarIds"]
+            .as_array()
+            .is_some_and(|ids| !ids.contains(&value["calendarId"]))
+        {
+            continue;
+        }
         let from = dates::timestamp(value["start"].as_str().ok_or("时间无效")?, zone)?;
         let to = dates::timestamp(value["end"].as_str().ok_or("时间无效")?, zone)?;
         if from < range.1 && (to > range.0 || (from == to && from >= range.0)) {
@@ -445,7 +621,7 @@ pub(super) fn query_calendar(
                     -(i64::from_str_radix(&snapshots::digest(&json!([task["id"], due]))[..12], 16)
                         .map_err(|_| "标记身份无效")?
                         + 1);
-                virtuals.push(json!({"id":format!("{negative}:0"),"revision":task["revision"],"title":task["title"],"start":dates::day_text(zone.day(start)),"end":dates::day_text(zone.day(end)),"allDay":true,"calendarId":if view=="occurrences"{calendars.recurring.to_string()}else{calendars.deadline.to_string()},"todoId":task["id"]}));
+                virtuals.push(json!({"id":format!("{negative}:0"),"revision":task["revision"],"title":task["title"],"start":dates::day_text(zone.day(start)),"end":dates::day_text(zone.day(end)),"allDay":true,"reminders":[],"notesRef":null,"writable":false,"readonlyReason":"系统任务标记不可写","kind":"virtual","calendarId":if view=="occurrences"{calendars.recurring.to_string()}else{calendars.deadline.to_string()},"todoId":task["id"]}));
             }
             pages += 1;
             if batch.get("cursor").is_none() {
@@ -462,6 +638,11 @@ pub(super) fn query_calendar(
             .as_str()
             .cmp(&b["start"].as_str())
             .then(a["id"].as_str().cmp(&b["id"].as_str()))
+    });
+    virtuals.retain(|event| {
+        query["calendarIds"]
+            .as_array()
+            .is_none_or(|ids| ids.contains(&event["calendarId"]))
     });
     let mut combined = physical.clone();
     combined.extend(
@@ -531,6 +712,9 @@ fn update_instance(
     let meta = metadata(tx, row, zone)?;
     let (series, mut state) = occurrence(&meta, date, zone, holidays)?;
     match action {
+        "state" => {
+            state = super::plugin_task_recurrence::patch_state(&state, &input["patch"], zone)?;
+        }
         "complete" => {
             state["completedAt"] = if input["completed"] == true {
                 json!(common::now_millis())
@@ -544,7 +728,10 @@ fn update_instance(
             state["completedAt"] = Value::Null;
         }
         "update" => {
-            if input["patch"].get("title").is_some() {
+            if input["patch"]
+                .as_object()
+                .is_none_or(|p| p.keys().any(|k| k != "dueAt"))
+            {
                 return Err("实例标题跟随系列；修改标题请使用系列 ID".into());
             }
             let due = input["patch"].get("dueAt").ok_or("实例改期须给出 dueAt")?;
@@ -566,11 +753,7 @@ fn update_instance(
     )?
     .first()
     {
-        let latest = meta["segments"]
-            .as_array()
-            .and_then(|segments| segments.last())
-            .and_then(|segment| segment["seriesId"].as_str());
-        if latest == Some(series.as_str()) && action != "update" {
+        if action != "update" {
             tx.execute("INSERT INTO todo_recurrence_completion(recurrence_id,scheduled_date,completed_at,skipped,create_time) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(recurrence_id,scheduled_date) DO UPDATE SET completed_at=excluded.completed_at,skipped=excluded.skipped",params![rule["id"].as_i64(),zone.day_start(dates::day(date)?),state["completedAt"].as_i64(),state["skipped"]==true,common::now_millis()]).map_err(sql_error)?;
         }
     }
@@ -613,12 +796,64 @@ pub(super) fn write_todo(
     }
     let tx = conn.transaction().map_err(sql_error)?;
     let now = common::now_millis();
+    if action == "create" {
+        if let Some(result) =
+            super::plugin_schedule_data::replay(&tx, plugin, write, zone, holidays)?
+        {
+            return Ok(result);
+        }
+    }
     let result = if action == "create" {
         super::todo::ensure_system_groups(&tx)?;
-        let group:i64=tx.query_row("SELECT id FROM todo_group WHERE is_system=1 AND system_type='normal' AND is_archived=0 ORDER BY id LIMIT 1",[],|row|row.get(0)).map_err(sql_error)?;
+        let group: i64 = if let Some(id) = write["input"]["listId"].as_str() {
+            id.parse().map_err(|_| "清单身份无效")?
+        } else {
+            tx.query_row("SELECT id FROM todo_group WHERE is_system=1 AND system_type='normal' AND is_archived=0 ORDER BY id LIMIT 1",[],|row|row.get(0)).map_err(sql_error)?
+        };
+        if !super::todo::is_writable_group(&tx, group)? {
+            return Err("清单不存在或已归档".into());
+        }
         let due = dates::deadline(&write["input"]["dueAt"], zone)?;
         let id = assistant_tasks::next_id(&tx, "todo_item")?;
         tx.execute("INSERT INTO todo_item(id,group_id,title,type,due_at,create_time,update_time,sort_index) VALUES(?1,?2,?3,?4,?5,?6,?6,COALESCE((SELECT MAX(sort_index)+1024 FROM todo_item WHERE group_id=?2),1024))",params![id,group,write["input"]["title"].as_str().ok_or("缺少标题")?,if due.is_some(){"deadline"}else{"normal"},due,now]).map_err(sql_error)?;
+        let recurring = write["input"].get("recurrence").is_some();
+        if let Some(rule) = write["input"].get("recurrence") {
+            let segments = super::plugin_task_recurrence::amend(
+                &json!([]),
+                rule["startDate"].as_str().ok_or("规则起点缺失")?,
+                rule,
+            )?;
+            super::plugin_task_recurrence::store(
+                &tx,
+                &todo_row(&tx, id, now)?,
+                &segments,
+                &json!({}),
+                zone,
+            )?;
+        }
+        if let Some(reminders) = write["input"].get("reminders") {
+            if recurring
+                && reminders.as_array().is_some_and(|v| {
+                    v.iter().any(|r| {
+                        r["offsetMs"]
+                            .as_i64()
+                            .is_none_or(|n| !(-86_399_999..=0).contains(&n))
+                    })
+                })
+            {
+                return Err("周期提醒需要当日偏移".into());
+            }
+            if recurring && reminders.as_array().is_none_or(|v| v.len() > 1) {
+                return Err("周期待办只支持一条提醒".into());
+            }
+            super::plugin_schedule_data::set_reminders(
+                &tx,
+                "todo",
+                id,
+                reminders,
+                due.is_some() || recurring,
+            )?;
+        }
         todo_calendar_sync::sync_single_item(&tx, id, zone)?;
         common::write_operation(&tx, "todo", "insert", id, now)?;
         task_dto(&tx, &todo_row(&tx, id, now)?, None, zone, holidays)?
@@ -631,7 +866,10 @@ pub(super) fn write_todo(
         let row = todo_row(&tx, id, created)?;
         let current = task_dto(&tx, &row, date.as_deref(), zone, holidays)?;
         assert_revision(&write["expectedRevision"], &current)?;
-        let before = if action == "delete" {
+        if current["writable"] != true {
+            return Err("待办所属清单不可写".into());
+        }
+        let before = if matches!(action, "delete" | "state" | "recurrence") {
             Some(snapshots::capture_todo(&tx, id)?)
         } else {
             None
@@ -640,8 +878,61 @@ pub(super) fn write_todo(
             update_instance(&tx, &row, date, action, write, zone, holidays)?;
         } else {
             match action {
+                "recurrence" => {
+                    let metadata = metadata(&tx, &row, zone)?;
+                    if metadata["segments"]
+                        .as_array()
+                        .is_some_and(|v| v.is_empty())
+                        && write["change"]["rule"].is_null()
+                    {
+                        return Err("普通待办没有可停止的重复规则".into());
+                    }
+                    if metadata["segments"]
+                        .as_array()
+                        .is_some_and(|v| v.is_empty())
+                        && !super::reminders::stored_todo_reminders(&tx, id)?.is_empty()
+                    {
+                        return Err("请先清空普通待办提醒，再设置重复规则".into());
+                    }
+                    let segments = super::plugin_task_recurrence::amend(
+                        &metadata["segments"],
+                        write["change"]["effectiveFrom"]
+                            .as_str()
+                            .ok_or("生效日期缺失")?,
+                        &write["change"]["rule"],
+                    )?;
+                    if segments == metadata["segments"] {
+                        return Ok(current);
+                    }
+                    super::plugin_task_recurrence::store(
+                        &tx,
+                        &row,
+                        &segments,
+                        &metadata["occurrenceState"],
+                        zone,
+                    )?;
+                }
+                "state" => return Err("实例操作需要实例身份".into()),
                 "update" => {
                     let patch = &write["patch"];
+                    if !current["recurrence"].is_null()
+                        && patch
+                            .get("reminders")
+                            .is_some_and(|v| v.as_array().is_none_or(|r| r.len() > 1))
+                    {
+                        return Err("周期待办只支持一条提醒".into());
+                    }
+                    if let Some(list) = patch["listId"].as_str() {
+                        let group = list.parse::<i64>().map_err(|_| "清单身份无效")?;
+                        if !super::todo::is_writable_group(&tx, group)? {
+                            return Err("清单不存在或已归档".into());
+                        }
+                        tx.execute("WITH RECURSIVE nested(id) AS (SELECT ?1 UNION SELECT t.id FROM todo_item t JOIN nested n ON t.parent_id=n.id) UPDATE todo_item SET group_id=?2 WHERE id IN (SELECT id FROM nested)",params![id,group]).map_err(sql_error)?;
+                        if row["group_id"] != group {
+                            tx.execute("UPDATE todo_item SET parent_id=NULL WHERE id=?1", [id])
+                                .map_err(sql_error)?;
+                        }
+                    }
                     let due = if patch.get("dueAt").is_some() {
                         dates::deadline(&patch["dueAt"], zone)?
                     } else {
@@ -649,6 +940,26 @@ pub(super) fn write_todo(
                     };
                     let recurring = row["type"] == "recurring";
                     tx.execute("UPDATE todo_item SET title=?1,due_at=?2,type=?3,remind_before=CASE WHEN ?2 IS NULL AND ?3<>'recurring' THEN NULL ELSE remind_before END,update_time=MAX(update_time+1,?4) WHERE id=?5",params![patch["title"].as_str().unwrap_or(row["title"].as_str().unwrap_or("")),due,if recurring{"recurring"}else if due.is_some(){"deadline"}else{"normal"},now,id]).map_err(sql_error)?;
+                    if let Some(reminders) = patch.get("reminders") {
+                        if recurring
+                            && reminders.as_array().is_some_and(|v| {
+                                v.iter().any(|r| {
+                                    r["offsetMs"]
+                                        .as_i64()
+                                        .is_none_or(|n| !(-86_399_999..=0).contains(&n))
+                                })
+                            })
+                        {
+                            return Err("周期提醒需要当日偏移".into());
+                        }
+                        super::plugin_schedule_data::set_reminders(
+                            &tx,
+                            "todo",
+                            id,
+                            reminders,
+                            due.is_some() || recurring,
+                        )?;
+                    }
                     tx.execute("UPDATE calendar_event SET title=?1,update_time=MAX(update_time+1,?2) WHERE todo_item_id=?3",params![patch["title"].as_str().unwrap_or(row["title"].as_str().unwrap_or("")),now,id]).map_err(sql_error)?;
                     todo_calendar_sync::sync_single_item(&tx, id, zone)?;
                 }
@@ -711,12 +1022,12 @@ pub(super) fn write_todo(
             }
         }
         if let Some(before) = before {
-            let after = if date.is_some() {
+            let after = if date.is_some() || action == "recurrence" {
                 snapshots::capture_todo(&tx, id)?
             } else {
                 snapshots::known(&tx, &before)?
             };
-            snapshots::record(
+            snapshots::record_mutation(
                 &tx,
                 plugin,
                 "todo",
@@ -724,6 +1035,11 @@ pub(super) fn write_todo(
                 row["title"].as_str().unwrap_or(""),
                 &before,
                 &after,
+                match action {
+                    "state" => "update_todo_occurrence",
+                    "recurrence" => "set_todo_recurrence",
+                    _ => "delete_todo",
+                },
             )?;
         }
         common::write_operation(
@@ -750,10 +1066,13 @@ pub(super) fn write_todo(
             )?
         }
     };
+    if action == "create" {
+        super::plugin_schedule_data::save_receipt(&tx, plugin, write, "todo", &result)?;
+    }
     tx.commit().map_err(sql_error)?;
     Ok(result)
 }
-fn parse_event(value: &str) -> Result<(i64, i64), String> {
+pub(super) fn parse_event(value: &str) -> Result<(i64, i64), String> {
     let (id, created) = value.split_once(':').ok_or("日程身份无效")?;
     let id = id.parse::<i64>().map_err(|_| "日程身份无效")?;
     let created = created.parse::<i64>().map_err(|_| "日程身份无效")?;
@@ -771,9 +1090,16 @@ pub(super) fn write_calendar(
     let action = write["action"].as_str().ok_or("日程动作无效")?;
     let tx = conn.transaction().map_err(sql_error)?;
     let now = common::now_millis();
+    if action == "create" {
+        if let Some(result) =
+            super::plugin_schedule_data::replay(&tx, plugin, write, zone, &HolidayDays::new())?
+        {
+            return Ok(result);
+        }
+    }
     let result = if action == "create" {
         let input = &write["input"];
-        let calendar = user_calendar(
+        let calendar = super::calendar::find_writable_user_calendar(
             &tx,
             input["calendarId"]
                 .as_str()
@@ -784,6 +1110,17 @@ pub(super) fn write_calendar(
         let fields = dates::schedule(input, zone)?;
         let id = assistant_tasks::next_id(&tx, "calendar_event")?;
         tx.execute("INSERT INTO calendar_event(id,create_time,update_time,calendar_id,title,detail_content_id,start_date,end_date,start_time,end_time,all_day) VALUES(?1,?2,?2,?3,?4,0,?5,?6,?7,?8,?9)",params![id,now,calendar,input["title"].as_str().ok_or("缺少日程标题")?,fields["start_date"].as_i64(),fields["end_date"].as_i64(),fields["start_time"].as_i64(),fields["end_time"].as_i64(),fields["all_day"].as_i64()]).map_err(sql_error)?;
+        if let Some(notes) = input.get("notes") {
+            let content = super::plugin_data::create_content_input(&tx, plugin, notes)?;
+            tx.execute(
+                "UPDATE calendar_event SET detail_content_id=?1 WHERE id=?2",
+                params![content, id],
+            )
+            .map_err(sql_error)?;
+        }
+        if let Some(reminders) = input.get("reminders") {
+            super::plugin_schedule_data::set_reminders(&tx, "event", id, reminders, true)?;
+        }
         common::write_operation(&tx, "calendar_event", "insert", id, now)?;
         event_dto(
             &tx,
@@ -798,7 +1135,7 @@ pub(super) fn write_calendar(
         }
         let current = event_dto(&tx, &row, zone)?;
         assert_revision(&write["expectedRevision"], &current)?;
-        user_calendar(&tx, row["calendar_id"].as_i64())?;
+        super::calendar::find_writable_user_calendar(&tx, row["calendar_id"].as_i64())?;
         if action == "delete" {
             let before = snapshots::capture_events(&tx, &[id])?;
             super::calendar::delete_event_in_tx(&tx, id)?;
@@ -813,8 +1150,25 @@ pub(super) fn write_calendar(
                 &after,
             )?;
             Value::Null
-        } else if action == "update" {
-            let patch = &write["patch"];
+        } else if action == "update" || action == "notes" {
+            if action == "notes" && row["detail_content_id"].as_i64().unwrap_or(0) == 0 {
+                let content = super::plugin_data::create_content_input(
+                    &tx,
+                    plugin,
+                    write.get("notes").ok_or("备注正文尚未准备")?,
+                )?;
+                tx.execute(
+                    "UPDATE calendar_event SET detail_content_id=?1 WHERE id=?2",
+                    params![content, id],
+                )
+                .map_err(sql_error)?;
+            }
+            let empty = json!({});
+            let patch = if action == "notes" {
+                &empty
+            } else {
+                &write["patch"]
+            };
             if patch.get("title").is_some() && current.get("todoId").is_some() {
                 return Err("关联安排的标题跟随待办，请修改待办标题".into());
             }
@@ -822,7 +1176,7 @@ pub(super) fn write_calendar(
             for (key, value) in patch.as_object().ok_or("日程修改字段无效")? {
                 merged[key] = value.clone();
             }
-            let calendar = user_calendar(
+            let calendar = super::calendar::find_writable_user_calendar(
                 &tx,
                 merged["calendarId"]
                     .as_str()
@@ -832,6 +1186,9 @@ pub(super) fn write_calendar(
             )?;
             let fields = dates::schedule(&merged, zone)?;
             tx.execute("UPDATE calendar_event SET title=?1,calendar_id=?2,start_date=?3,end_date=?4,start_time=?5,end_time=?6,all_day=?7,update_time=MAX(update_time+1,?8) WHERE id=?9",params![merged["title"].as_str(),calendar,fields["start_date"].as_i64(),fields["end_date"].as_i64(),fields["start_time"].as_i64(),fields["end_time"].as_i64(),fields["all_day"].as_i64(),now,id]).map_err(sql_error)?;
+            if let Some(reminders) = patch.get("reminders") {
+                super::plugin_schedule_data::set_reminders(&tx, "event", id, reminders, true)?;
+            }
             common::write_operation(&tx, "calendar_event", "update", id, now)?;
             event_dto(
                 &tx,
@@ -842,6 +1199,9 @@ pub(super) fn write_calendar(
             return Err("日程动作无效".into());
         }
     };
+    if action == "create" {
+        super::plugin_schedule_data::save_receipt(&tx, plugin, write, "event", &result)?;
+    }
     tx.commit().map_err(sql_error)?;
     Ok(result)
 }
@@ -852,13 +1212,38 @@ async fn task_holidays(
     request: &Value,
     zone: CalendarTimeZone,
 ) -> Result<HolidayDays, String> {
-    let range = if request["method"] == "calendar" || request["query"]["view"] == "occurrences" {
+    if request["method"] == "occurrence-states" {
+        let dates = crate::plugin_transport::with_database(token, database, || {
+            let conn = super::schema::open_active_database(app)?;
+            super::plugin_task_recurrence::state_dates(&conn, &request["query"], zone)
+        })?;
+        let mut result = HolidayDays::new();
+        for date in dates {
+            let day = dates::day(&date)?;
+            result.extend(
+                super::calendar_holidays::load_task_holidays(
+                    app,
+                    zone.day_start(day),
+                    zone.day_start(day + 1) - 1,
+                    zone,
+                )
+                .await?,
+            );
+        }
+        return Ok(result);
+    }
+    let range = if (request["method"] == "calendar" && request["query"]["view"] != "stored")
+        || request["query"]["view"] == "occurrences"
+    {
         dates::window(&request["query"], zone, true)?
     } else {
         request["write"]["id"]
             .as_str()
             .or(request["id"].as_str())
-            .and_then(|id| id.rsplit_once('@'))
+            .and_then(|id| {
+                id.rsplit_once('@')
+                    .filter(|(_, date)| dates::day(date).is_ok())
+            })
             .map(|(_, date)| {
                 dates::day(date).map(|day| (zone.day_start(day), zone.day_start(day + 1)))
             })
@@ -911,6 +1296,57 @@ pub async fn plugin_tasks_read(
                 request["id"].as_i64().ok_or("恢复身份无效")?,
             ),
             Some("pending") => super::plugin_document_tasks::pending(&conn, &plugin_id),
+            Some("changes") => {
+                let local = crate::data_change_scope::scope(
+                    &crate::setting::resolve_app_dir(&app)?,
+                    &database,
+                    &crate::setting::resolve_database_path(&app, &database)?,
+                )?;
+                let grants =
+                    crate::plugin_permissions::change_revision(&app, &database, &plugin_id)?;
+                super::data_changes::read(
+                    &mut conn,
+                    &request["query"],
+                    &json!([local, grants]).to_string(),
+                )
+            }
+            Some("replay-create") => Ok(super::plugin_schedule_data::replay(
+                &conn,
+                &plugin_id,
+                &request["write"],
+                time_zone,
+                &holidays,
+            )?
+            .unwrap_or(Value::Null)),
+            Some("get") => super::plugin_schedule_data::get(
+                &conn,
+                request["entity"].as_str().ok_or("数据类型无效")?,
+                request["id"].as_str().ok_or("身份无效")?,
+                time_zone,
+                &holidays,
+            ),
+            Some("directories") => super::plugin_schedule_data::directories(
+                &conn,
+                request["entity"].as_str().ok_or("目录类型无效")?,
+                &scoped_query,
+            ),
+            Some("occurrence-states") => {
+                let local = crate::data_change_scope::scope(
+                    &crate::setting::resolve_app_dir(&app)?,
+                    &database,
+                    &crate::setting::resolve_database_path(&app, &database)?,
+                )?;
+                let grants =
+                    crate::plugin_permissions::change_revision(&app, &database, &plugin_id)?;
+                super::plugin_task_recurrence::states(
+                    &conn,
+                    &plugin_id,
+                    &scoped_query,
+                    time_zone,
+                    &holidays,
+                    &json!([local, grants]).to_string(),
+                )
+            }
             Some("todos") => query_tasks(&conn, &scoped_query, time_zone, &holidays),
             Some("calendar") => query_calendar(&mut conn, &scoped_query, time_zone, &holidays),
             Some("prepare") => super::plugin_document_tasks::prepare(
@@ -1007,6 +1443,123 @@ mod tests {
             &HolidayDays::new(),
         )
         .unwrap()
+    }
+    #[test]
+    fn phase_three_rule_writes_and_instance_patches_preserve_original_identity() {
+        let mut db = database();
+        let root=write_todo(&mut db,"fixture",&json!({"action":"create","input":{"title":"新系列","recurrence":{"type":"daily","interval":1,"startDate":"2026-10-01"},"reminders":[{"offsetMs":-32400000}]}}),ZONE,&HolidayDays::new()).unwrap();
+        let id = root["id"].as_str().unwrap();
+        let instance_id = format!("{id}@2026-10-02");
+        let first = super::super::plugin_schedule_data::get(
+            &db,
+            "todo",
+            &instance_id,
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        let moved=write_todo(&mut db,"fixture",&json!({"action":"state","id":instance_id,"expectedRevision":first["revision"],"patch":{"skipped":true,"scheduledAt":"2026-12-01"}}),ZONE,&HolidayDays::new()).unwrap();
+        assert_eq!(moved["id"], first["id"]);
+        assert_eq!(moved["dueAt"], "2026-12-01");
+        assert_eq!(moved["occurrence"]["state"]["skipped"], true);
+        assert!(write_todo(&mut db,"fixture",&json!({"action":"state","id":instance_id,"expectedRevision":first["revision"],"patch":{"completed":true}}),ZONE,&HolidayDays::new()).unwrap_err().contains("PLUGIN_CONFLICT"));
+        let restored=write_todo(&mut db,"fixture",&json!({"action":"state","id":instance_id,"expectedRevision":moved["revision"],"patch":{"completed":true,"scheduledAt":null}}),ZONE,&HolidayDays::new()).unwrap();
+        assert_eq!(restored["completed"], true);
+        assert_eq!(restored["dueAt"], "2026-10-02");
+        let current =
+            super::super::plugin_schedule_data::get(&db, "todo", id, ZONE, &HolidayDays::new())
+                .unwrap();
+        write_todo(&mut db,"fixture",&json!({"action":"recurrence","id":id,"expectedRevision":current["revision"],"change":{"effectiveFrom":"2026-11-01","rule":null}}),ZONE,&HolidayDays::new()).unwrap();
+        assert_eq!(
+            super::super::plugin_schedule_data::get(
+                &db,
+                "todo",
+                &instance_id,
+                ZONE,
+                &HolidayDays::new()
+            )
+            .unwrap()["completed"],
+            true
+        );
+        assert!(super::super::plugin_schedule_data::get(
+            &db,
+            "todo",
+            &format!("{id}@2026-11-02"),
+            ZONE,
+            &HolidayDays::new()
+        )
+        .unwrap()
+        .is_null());
+        let page = super::super::plugin_task_recurrence::states(
+            &db,
+            "fixture",
+            &json!({"taskId":id,"limit":1}),
+            ZONE,
+            &HolidayDays::new(),
+            "scope",
+        )
+        .unwrap();
+        assert_eq!(page["items"][0]["originalDate"], "2026-10-02");
+        assert_eq!(page["items"][0]["active"], true);
+    }
+
+    #[test]
+    fn shared_task_id_components_round_trip_without_occurrence_collisions() {
+        let cases: Vec<String> = serde_json::from_str(include_str!(
+            "../../../../../packages/shared/src/utils/__fixtures__/plugin-task-ids.json"
+        ))
+        .unwrap();
+        for task in cases {
+            let key = document_key(50, 10, &task);
+            match parse_task(&key).unwrap() {
+                TaskId::Document(50, 10, actual, None) => assert_eq!(actual, task),
+                _ => panic!("root identity changed"),
+            }
+            match parse_task(&format!("{key}@2026-11-25")).unwrap() {
+                TaskId::Document(50, 10, actual, Some(date)) => {
+                    assert_eq!(actual, task);
+                    assert_eq!(date, "2026-11-25");
+                }
+                _ => panic!("occurrence identity changed"),
+            }
+        }
+    }
+    #[test]
+    fn planned_stop_keeps_legacy_completion_reads_consistent_with_instance_state() {
+        let mut db = database();
+        let day = ZONE.day(common::now_millis());
+        let start = dates::day_text(day - 1);
+        let stop = dates::day_text(day + 10);
+        let root=write_todo(&mut db,"fixture",&json!({"action":"create","input":{"title":"计划停止","recurrence":{"type":"daily","interval":1,"startDate":start}}}),ZONE,&HolidayDays::new()).unwrap();
+        write_todo(&mut db,"fixture",&json!({"action":"recurrence","id":root["id"],"expectedRevision":root["revision"],"change":{"effectiveFrom":stop,"rule":null}}),ZONE,&HolidayDays::new()).unwrap();
+        let id = format!("{}@{start}", root["id"].as_str().unwrap());
+        let instance =
+            super::super::plugin_schedule_data::get(&db, "todo", &id, ZONE, &HolidayDays::new())
+                .unwrap();
+        let result=write_todo(&mut db,"fixture",&json!({"action":"state","id":id,"expectedRevision":instance["revision"],"patch":{"completed":true}}),ZONE,&HolidayDays::new()).unwrap();
+        assert_eq!(result["completed"], true);
+        assert!(db.query_row("SELECT EXISTS(SELECT 1 FROM todo_recurrence_completion WHERE completed_at IS NOT NULL)",[],|r|r.get::<_,bool>(0)).unwrap());
+    }
+    #[test]
+    fn legacy_nullable_rules_round_trip_without_changing_the_revision() {
+        let mut db = database();
+        let start = dates::day_text(ZONE.day(common::now_millis()) - 1);
+        let root=write_todo(&mut db,"fixture",&json!({"action":"create","input":{"title":"旧规则","recurrence":{"type":"weekly","interval":1,"startDate":start,"weekdays":[1,2]}}}),ZONE,&HolidayDays::new()).unwrap();
+        let legacy = json!({"type":"weekly","interval":1,"startDate":start,"weekdays":[2,1,1],"monthDay":null,"yearMonth":null,"yearDay":null,"endDate":null,"maxOccurrences":null,"excludeHolidays":false});
+        db.execute(
+            "UPDATE todo_recurrence_history SET rule_json=?1",
+            [legacy.to_string()],
+        )
+        .unwrap();
+        let id = root["id"].as_str().unwrap();
+        let current =
+            super::super::plugin_schedule_data::get(&db, "todo", id, ZONE, &HolidayDays::new())
+                .unwrap();
+        let segment = &current["recurrence"]["segments"][0];
+        assert_eq!(segment["rule"]["weekdays"], json!([1, 2]));
+        assert!(segment["rule"].get("monthDay").is_none());
+        let result=write_todo(&mut db,"fixture",&json!({"action":"recurrence","id":id,"expectedRevision":current["revision"],"change":{"effectiveFrom":segment["effectiveDate"],"rule":segment["rule"]}}),ZONE,&HolidayDays::new()).unwrap();
+        assert_eq!(result["revision"], current["revision"]);
     }
     fn periodic(conn: &mut Connection) -> Value {
         let task = create(conn, "周期", Value::Null);
@@ -1461,5 +2014,141 @@ mod relation_tests {
                 .unwrap(),
             0
         );
+    }
+    #[test]
+    fn reminder_only_changes_reject_stale_writes_and_delete_restore_keeps_all_reminders() {
+        let mut db = database();
+        let task = write_todo(&mut db,"fixture",&json!({"action":"create","input":{"title":"多提醒","dueAt":"2026-11-25","reminders":[{"offsetMs":0},{"offsetMs":60000}]}}),ZONE,&HolidayDays::new()).unwrap();
+        let TaskId::Todo(id, _, _) = parse_task(task["id"].as_str().unwrap()).unwrap() else {
+            panic!()
+        };
+        db.execute(
+            "INSERT INTO item_reminder(owner_type,owner_id,offset_ms) VALUES('todo',?1,120000)",
+            [id],
+        )
+        .unwrap();
+        assert!(write_todo(&mut db,"fixture",&json!({"action":"update","id":task["id"],"expectedRevision":task["revision"],"patch":{"title":"旧版本"}}),ZONE,&HolidayDays::new()).unwrap_err().contains("PLUGIN_CONFLICT"));
+        let latest = task_dto(
+            &db,
+            &snapshots::row(&db, "todo_item", id).unwrap().unwrap(),
+            None,
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        write_todo(
+            &mut db,
+            "fixture",
+            &json!({"action":"delete","id":latest["id"],"expectedRevision":latest["revision"]}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        let operation: String = db
+            .query_row(
+                "SELECT id FROM task_assistant_operation ORDER BY create_time DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let tx = db.transaction().unwrap();
+        snapshots::restore(&tx, &operation).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(
+            super::super::plugin_schedule_data::reminders(&db, "todo", id).unwrap(),
+            json!([{"offsetMs":0},{"offsetMs":60000},{"offsetMs":120000}])
+        );
+    }
+
+    #[test]
+    fn create_receipts_survive_operation_cleanup_are_plugin_scoped_and_do_not_revive_deleted_results(
+    ) {
+        let mut db = database();
+        let write = json!({"action":"create","requestId":"stable","input":{"title":"防重","dueAt":"2026-11-25"}});
+        let first = write_todo(&mut db, "one", &write, ZONE, &HolidayDays::new()).unwrap();
+        let other = write_todo(&mut db, "two", &write, ZONE, &HolidayDays::new()).unwrap();
+        assert_ne!(first["id"], other["id"]);
+        db.execute("DELETE FROM task_assistant_operation", [])
+            .unwrap();
+        assert_eq!(
+            first["id"],
+            write_todo(&mut db, "one", &write, ZONE, &HolidayDays::new()).unwrap()["id"]
+        );
+        let mut different = write.clone();
+        different["input"]["title"] = json!("不同参数");
+        assert!(write_todo(&mut db, "one", &different, ZONE, &HolidayDays::new()).is_err());
+        write_todo(
+            &mut db,
+            "one",
+            &json!({"action":"delete","id":first["id"],"expectedRevision":first["revision"]}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert!(write_todo(&mut db, "one", &write, ZONE, &HolidayDays::new()).is_err());
+    }
+
+    #[test]
+    fn stored_events_can_be_read_without_a_date_window_and_notes_have_stable_content_refs() {
+        let mut db = database();
+        let contract = json!({"format":2,"domain":"editor-node","owner":"example.note","type":"example.note","dataVersion":1,"kind":"block","isVoid":true,"textFields":["source"],"structuredFields":[],"resources":[]});
+        let hash = snapshots::digest(&contract);
+        let notes = json!({"nodes":[{"type":"example.note","tauContract":hash,"source":"备注","children":[{"type":"formatted","text":""}]}],"contracts":{hash:contract},"count":2});
+        let event=write_calendar(&mut db,"fixture",&json!({"action":"create","input":{"title":"带备注","calendarId":"100","start":"2026-11-25","end":"2026-11-26","allDay":true,"notes":notes,"reminders":[{"offsetMs":-32400000}]}}),ZONE).unwrap();
+        assert!(event["notesRef"]
+            .as_str()
+            .is_some_and(|value| !value.contains("null")));
+        let page = query_calendar(
+            &mut db,
+            &json!({"view":"stored","calendarIds":["100"]}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert!(page["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value["id"] == event["id"] && value["notesRef"] == event["notesRef"]));
+        let directory =
+            super::super::plugin_schedule_data::directory(&db, "calendar", 100).unwrap();
+        assert_eq!(directory["id"], event["calendarId"]);
+        assert_eq!(directory["writable"], true);
+    }
+    #[test]
+    fn directory_single_page_and_write_policy_agree_after_moving_to_a_system_descendant() {
+        let db = database();
+        db.execute("UPDATE calendar SET visible=0 WHERE id=100", [])
+            .unwrap();
+        let initial = super::super::plugin_schedule_data::directory(&db, "calendar", 100).unwrap();
+        assert_eq!(initial["writable"], true);
+        assert_eq!(initial["visible"], false);
+        let page = super::super::plugin_schedule_data::directories(
+            &db,
+            "calendar",
+            &json!({"archived":false}),
+        )
+        .unwrap();
+        assert!(page["items"].as_array().unwrap().contains(&initial));
+        db.execute("INSERT INTO calendar_group(name,is_system,create_time,update_time) VALUES('系统',1,1,1)",[]).unwrap();
+        let root = db.last_insert_rowid();
+        db.execute("INSERT INTO calendar_group(name,parent_group_id,create_time,update_time) VALUES('子组',?1,1,1)",[root]).unwrap();
+        let parent = db.last_insert_rowid();
+        db.execute("INSERT INTO calendar_group(name,parent_group_id,create_time,update_time) VALUES('后代',?1,1,1)",[parent]).unwrap();
+        db.execute(
+            "UPDATE calendar SET group_id=?1 WHERE id=100",
+            [db.last_insert_rowid()],
+        )
+        .unwrap();
+        let current = super::super::plugin_schedule_data::directory(&db, "calendar", 100).unwrap();
+        assert_eq!(current["writable"], false);
+        let page = super::super::plugin_schedule_data::directories(
+            &db,
+            "calendar",
+            &json!({"archived":false}),
+        )
+        .unwrap();
+        assert!(page["items"].as_array().unwrap().contains(&current));
+        assert!(super::super::calendar::find_writable_user_calendar(&db, Some(100)).is_err());
     }
 }

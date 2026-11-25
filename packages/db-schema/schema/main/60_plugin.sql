@@ -100,3 +100,25 @@ CREATE TABLE IF NOT EXISTS plugin_ref_grants (
   create_time INTEGER NOT NULL,
   PRIMARY KEY (plugin_id, kind, ref_id)
 );
+
+-- 插件业务创建回执独立于撤销保留期；删除结果永久失效，重试不复活。
+CREATE TABLE IF NOT EXISTS plugin_create_receipts (
+  plugin_id TEXT NOT NULL,
+  request_id TEXT NOT NULL,
+  input_hash TEXT NOT NULL,
+  entity TEXT NOT NULL CHECK(entity IN ('todo','event')),
+  entity_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  operation_id TEXT NOT NULL,
+  retired INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(plugin_id, request_id)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_plugin_create_target ON plugin_create_receipts(entity, entity_id, created_at);
+CREATE TRIGGER IF NOT EXISTS trg_plugin_create_todo_delete
+AFTER DELETE ON todo_item BEGIN
+  UPDATE plugin_create_receipts SET retired=1 WHERE entity='todo' AND entity_id=OLD.id AND created_at=OLD.create_time;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_plugin_create_event_delete
+AFTER DELETE ON calendar_event BEGIN
+  UPDATE plugin_create_receipts SET retired=1 WHERE entity='event' AND entity_id=OLD.id AND created_at=OLD.create_time;
+END;

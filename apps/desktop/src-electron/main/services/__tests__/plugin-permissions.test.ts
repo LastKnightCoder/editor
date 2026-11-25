@@ -91,4 +91,16 @@ describe("PluginPermissionStore", () => {
       delete: 0,
     });
   });
+  it("授权修订跨重启保留，撤销后重新授权不能复用旧修订，用量不改变它", async () => {
+    const permissions = store();
+    await permissions.set("work", "reader", "todos:read", "granted");
+    const first = await permissions.revision("work", "reader");
+    expect(await store().revision("work", "reader")).toBe(first);
+    await permissions.record("work", "reader", { read: 1 });
+    expect(await permissions.revision("work", "reader")).toBe(first);
+    await permissions.set("work", "reader", "todos:read", null);
+    await permissions.set("work", "reader", "todos:read", "granted");
+    expect(await store().revision("work", "reader")).not.toBe(first);
+    expect(await permissions.revision("work", "other")).toBe("initial");
+  });
 });

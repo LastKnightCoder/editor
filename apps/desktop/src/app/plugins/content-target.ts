@@ -29,7 +29,11 @@ const LOCATE_KINDS: Record<ContentOwnerEntity, EntityKind> = {
   article: "article",
   document: "project_item",
 };
-const SOURCE_TYPES = { card: "card", article: "article", document: "project-item" } as const;
+const SOURCE_TYPES = {
+  card: "card",
+  article: "article",
+  document: "project-item",
+} as const;
 
 /** 正文不存在、创建时间不符（ID 被复用），或既不属于卡片 / 文章 / 项目文档、也不是该插件的自有内容时返回 null */
 export async function resolvePluginContentTarget(
@@ -52,14 +56,20 @@ export async function resolvePluginContentTarget(
   );
   if (!record) return null;
   const own = record.pluginOwners.find(owner => owner.pluginId === pluginId);
-  const entity = record.owners[0];
+  const owners = record.owners.filter(
+    (owner): owner is ContentOwnerEntity => owner !== "calendar-event"
+  );
+  const entity = owners[0];
   const location = entity
-    ? await commands.locateEntity({ contentId: decoded.contentId, kind: LOCATE_KINDS[entity] })
+    ? await commands.locateEntity({
+        contentId: decoded.contentId,
+        kind: LOCATE_KINDS[entity],
+      })
     : null;
   if (!location && !own) return null;
   return {
     contentId: decoded.contentId,
-    owners: record.owners,
+    owners,
     owner:
       entity && location ? { entity, id: location.id, sourceType: SOURCE_TYPES[entity] } : null,
     own: own ? { id: own.id, title: own.title } : null,

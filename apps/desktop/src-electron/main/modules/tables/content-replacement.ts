@@ -1,3 +1,4 @@
+import { contentStateRevision } from "../content-state-revision";
 import type Database from "better-sqlite3";
 import type { ContentNode } from "@tau/collaboration";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
@@ -41,10 +42,17 @@ function writeColdContent(
   }
 
   if (expectedRevision !== undefined) {
-    const row = db.prepare("SELECT update_time FROM contents WHERE id = ?").get(contentId) as
-      | { update_time: number }
-      | undefined;
-    if (!row || expectedRevision !== `u:${row.update_time}`) throw new Error("正文修订冲突");
+    const row = db
+      .prepare("SELECT update_time, content FROM contents WHERE id = ?")
+      .get(contentId) as { update_time: number; content: string } | undefined;
+    if (
+      !row ||
+      expectedRevision !==
+        (expectedRevision.startsWith("h:")
+          ? contentStateRevision(JSON.parse(row.content))
+          : `u:${row.update_time}`)
+    )
+      throw new Error("CONTENT_VERSION_CONFLICT: 正文修订冲突");
   }
   const now = Date.now();
   const actualCount = content ? getContentLength(content) : (count ?? 0);

@@ -16,6 +16,8 @@ struct Store {
     version: u8,
     grants: BTreeMap<String, Snapshot>,
     #[serde(default)]
+    grant_revisions: BTreeMap<String, BTreeMap<String, String>>,
+    #[serde(default)]
     usage: BTreeMap<String, BTreeMap<String, BTreeMap<String, Usage>>>,
 }
 fn read(path: &Path) -> Result<Store, String> {
@@ -31,6 +33,7 @@ fn read(path: &Path) -> Result<Store, String> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Store {
             version: 1,
             grants: BTreeMap::new(),
+            grant_revisions: BTreeMap::new(),
             usage: BTreeMap::new(),
         }),
         Err(error) => Err(error.to_string()),
@@ -121,6 +124,11 @@ pub fn plugin_permissions_write(
         let _guard = STORE_LOCK.lock().map_err(|_| "插件授权存储不可用")?;
         let path = crate::setting::resolve_app_dir(&app)?.join("plugin-permissions.json");
         let mut store = read(&path)?;
+        store
+            .grant_revisions
+            .entry(database.clone())
+            .or_default()
+            .insert(plugin_id.clone(), uuid::Uuid::new_v4().to_string());
         let permissions = store
             .grants
             .entry(database.clone())
@@ -135,10 +143,33 @@ pub fn plugin_permissions_write(
         write(&path, &store)
     })
 }
+pub(crate) fn change_revision(
+    app: &AppHandle,
+    database: &str,
+    plugin: &str,
+) -> Result<String, String> {
+    let _guard = STORE_LOCK.lock().map_err(|_| "插件授权存储不可用")?;
+    let path = crate::setting::resolve_app_dir(app)?.join("plugin-permissions.json");
+    Ok(read(&path)?
+        .grant_revisions
+        .get(database)
+        .and_then(|plugins| plugins.get(plugin))
+        .cloned()
+        .unwrap_or_else(|| "initial".into()))
+}
 pub(crate) fn forget(app: &AppHandle, plugin_id: &str) -> Result<(), String> {
     let _guard = STORE_LOCK.lock().map_err(|_| "插件授权存储不可用")?;
     let path = crate::setting::resolve_app_dir(app)?.join("plugin-permissions.json");
     let mut store = read(&path)?;
+    for (name, workspace) in &store.grants {
+        if workspace.contains_key(plugin_id) {
+            store
+                .grant_revisions
+                .entry(name.clone())
+                .or_default()
+                .insert(plugin_id.to_owned(), uuid::Uuid::new_v4().to_string());
+        }
+    }
     for workspace in store.grants.values_mut() {
         workspace.remove(plugin_id);
     }
@@ -292,6 +323,7 @@ pub fn plugin_permissions_reset(
             &Store {
                 version: 1,
                 grants: BTreeMap::new(),
+                grant_revisions: BTreeMap::new(),
                 usage: BTreeMap::new(),
             },
         )

@@ -1,16 +1,22 @@
+import { requireGroup } from "./directory-access";
 import type Database from "better-sqlite3";
 import {
   occurrenceKey,
+  patchOccurrenceState,
+  type TaskOccurrencePatch,
   type AssistantTask,
   type TaskOccurrenceRef,
   type TaskRecurrenceRule,
   type TaskRef,
 } from "@tau/shared/task-assistant";
+import TodoGroupTable from "../tables/todo-group";
 import TodoItemTable from "../tables/todo-item";
 import TodoRecurrenceTable from "../tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "../tables/todo-recurrence-completion";
+import ItemReminderTable from "../tables/item-reminder";
+import { semanticSnapshot } from "./versions";
 import { captureTodos } from "./snapshots";
-import { dateTime, fail, localDate, requireGroup, revision, todoRow } from "./common";
+import { dateTime, fail, localDate, revision, todoRow } from "./common";
 import { amendSegments, independentSegments, independentStates, storeSegments } from "./recurrence";
 import { assertTaskOccurrence as assertOccurrence } from "./holidays";
 
@@ -32,23 +38,26 @@ export function readIndependentTask(
   const row = todoRow(db, ref);
   const due = row.due_at == null ? null : Number(row.due_at);
   const segments = independentSegments(db, ref);
-  const reminderBase = segments.length
-    ? dateTime(segments.at(-1)?.rule?.startDate ?? localDate(Date.now()))
-    : due;
+  const reminderBase =
+    row.type === "recurring" && segments.length
+      ? dateTime(segments.at(-1)?.rule?.startDate ?? localDate(Date.now()))
+      : due;
   return {
     taskRef: ref,
-    revision: revision(captureTodos(db, descendantIds(db, ref.todoId))),
+    isSeries: row.type === "recurring",
+    revision: revision(semanticSnapshot(captureTodos(db, descendantIds(db, ref.todoId)))),
     title: String(row.title),
     completed: !!row.is_completed,
     archived: !!row.is_archived,
     dueAt: due == null ? null : new Date(due).toISOString(),
     groupId: Number(row.group_id),
+    reminderOffsets: ItemReminderTable.getTodoReminders(db, ref.todoId),
     reminderAt:
       reminderBase == null || row.remind_before == null
         ? null
         : new Date(reminderBase - Number(row.remind_before)).toISOString(),
     recurrence: segments,
-    writable: true,
+    writable: TodoGroupTable.isWritable(db, Number(row.group_id)),
   };
 }
 
@@ -80,6 +89,7 @@ export function createIndependent(
     parentRef?: TaskRef;
     dueAt?: string | null;
     reminderAt?: string | null;
+    reminderOffsets?: number[];
     recurrence?: TaskRecurrenceRule;
   }
 ): Extract<TaskRef, { kind: "todo" }> {
@@ -104,6 +114,15 @@ export function createIndependent(
     remindBefore: reminderBefore(dueAt, input.reminderAt, !!input.recurrence),
     type: input.recurrence ? "recurring" : dueAt == null ? "normal" : "deadline",
   });
+  if (input.reminderOffsets !== undefined) {
+    if (input.recurrence && input.reminderOffsets.some(offset => offset > 0 || offset <= -86400000))
+      fail("INVALID_ARGUMENT", "周期提醒需要当日时刻偏移");
+    if (input.recurrence && input.reminderOffsets.length > 1)
+      fail("INVALID_ARGUMENT", "周期待办只支持一条提醒");
+    if (input.reminderOffsets.length && dueAt == null && !input.recurrence)
+      fail("INVALID_ARGUMENT", "提醒需要截止时间");
+    ItemReminderTable.setTodoReminders(db, item.id, input.reminderOffsets);
+  }
   const ref = { kind: "todo" as const, todoId: item.id, createdAt: item.createTime };
   if (input.recurrence)
     storeSegments(db, ref, amendSegments([], input.recurrence.startDate, input.recurrence));
@@ -123,6 +142,7 @@ export function mutateIndependent(
     scheduledAt?: string;
     effectiveDate?: string;
     rule?: TaskRecurrenceRule | null;
+    statePatch?: TaskOccurrencePatch;
   }
 ) {
   const row = todoRow(db, ref);
@@ -131,7 +151,9 @@ export function mutateIndependent(
     if (!patch || !Object.keys(patch).length) return fail("INVALID_ARGUMENT", "修改字段不能为空");
     const dueAt =
       "dueAt" in patch ? deadline(patch.dueAt as string | null) : (row.due_at as number | null);
-    const recurring = independentSegments(db, ref).length > 0;
+    const recurring = row.type === "recurring";
+    if (recurring && "reminderOffsets" in patch && (patch.reminderOffsets as number[]).length > 1)
+      fail("INVALID_ARGUMENT", "周期待办只支持一条提醒");
     const remindBefore =
       "reminderAt" in patch
         ? reminderBefore(dueAt, patch.reminderAt as string | null, recurring)
@@ -146,6 +168,14 @@ export function mutateIndependent(
       remindBefore,
       type,
     });
+    if ("reminderOffsets" in patch) {
+      const offsets = patch.reminderOffsets as number[];
+      if (recurring && offsets.some(offset => offset > 0 || offset <= -86400000))
+        fail("INVALID_ARGUMENT", "周期提醒需要当日时刻偏移");
+      if (offsets.length && dueAt == null && !recurring)
+        fail("INVALID_ARGUMENT", "提醒需要截止时间");
+      ItemReminderTable.setTodoReminders(db, ref.todoId, offsets);
+    }
     if ("archived" in patch)
       TodoItemTable.archiveItem(db, { id: ref.todoId, isArchived: patch.archived === true });
     if ("groupId" in patch || "parentRef" in patch) {
@@ -190,16 +220,23 @@ export function mutateIndependent(
   } else if (action === "set_todo_recurrence") {
     const effectiveDate = input.effectiveDate;
     if (!effectiveDate) return fail("INVALID_ARGUMENT", "设置周期必须指定生效日期");
-    const segments = amendSegments(independentSegments(db, ref), effectiveDate, input.rule ?? null);
+    const previous = independentSegments(db, ref);
+    if (!previous.length && !input.rule) fail("INVALID_ARGUMENT", "普通待办没有可停止的重复规则");
+    if (!previous.length && ItemReminderTable.getTodoReminders(db, ref.todoId).length)
+      fail("INVALID_ARGUMENT", "请先清空普通待办提醒，再设置重复规则");
+    const segments = amendSegments(previous, effectiveDate, input.rule ?? null);
+    if (revision(segments) === revision(previous)) return;
     storeSegments(db, ref, segments);
   } else {
     const segments = independentSegments(db, ref);
-    if (segments.length || input.occurrence) {
+    if ((segments.length && row.type === "recurring") || input.occurrence) {
       const occurrence = input.occurrence;
       if (!occurrence) return fail("INVALID_ARGUMENT", "周期待办须指定实例");
       assertOccurrence(segments, occurrence);
-      const state = { ...independentStates(db, ref)[occurrenceKey(occurrence)] };
-      if (action === "set_todo_completed") {
+      let state = { ...independentStates(db, ref)[occurrenceKey(occurrence)] };
+      if (input.action === "patch") {
+        state = patchOccurrenceState(state, input.statePatch ?? {}, Date.now());
+      } else if (action === "set_todo_completed") {
         state.completedAt = input.completed ? Date.now() : null;
         state.skipped = false;
       } else if (input.action === "reschedule") {
@@ -229,11 +266,20 @@ export function mutateIndependent(
           originalOccurrence: true,
         };
         if (state.skipped) TodoRecurrenceCompletionTable.skipRecurrence(db, params);
-        else if (state.completedAt) TodoRecurrenceCompletionTable.completeRecurrence(db, params);
+        else if (state.completedAt != null)
+          TodoRecurrenceCompletionTable.completeRecurrence(db, params);
         else TodoRecurrenceCompletionTable.uncompleteRecurrence(db, params);
       }
     } else {
       if (action !== "set_todo_completed") fail("INVALID_ARGUMENT", "普通待办没有周期实例");
+      const ids = descendantIds(db, ref.todoId);
+      if (
+        db
+          .prepare(`SELECT 1 FROM todo_item t WHERE t.id IN (${ids.map(() => "?").join(",")})
+        AND (t.type='recurring' OR (SELECT h.rule_json FROM todo_recurrence_history h WHERE h.todo_item_id=t.id AND h.todo_created_at=t.create_time AND h.effective_date<=? ORDER BY h.effective_date DESC LIMIT 1) IS NOT NULL) LIMIT 1`)
+          .get(...ids, localDate(Date.now()))
+      )
+        fail("INVALID_ARGUMENT", "包含周期任务，须指定具体实例，不能整系列或连同子项完成");
       TodoItemTable.toggleCompleteCascade(db, {
         id: ref.todoId,
         isCompleted: input.completed === true,

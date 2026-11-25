@@ -7,7 +7,7 @@ import type { PluginChatSession, PluginMaterial, PluginNotebook } from "@tau/plu
 export type PluginDataEntity = "card" | "article" | "document" | "whiteboard" | "project";
 export type PluginCreatableEntity = "card" | "article" | "whiteboard" | "project";
 /** 持有正文的实体 */
-export type PluginContentOwnerEntity = "card" | "article" | "document";
+export type PluginContentOwnerEntity = "card" | "article" | "document" | "calendar-event";
 
 export interface PluginDataScope {
   databaseName: string;

@@ -77,6 +77,27 @@ pub(super) fn parse(
     ))
 }
 
+pub(super) fn group_id(
+    conn: &Connection,
+    node: &Value,
+    token: Option<&str>,
+) -> Result<Option<i64>, String> {
+    use rusqlite::OptionalExtension;
+    let Some(token) = token else {
+        return Ok(None);
+    };
+    let binding = &node["taskGroup"];
+    if binding["token"] == token {
+        if let Some(id) = binding["id"].as_i64() {
+            let valid=conn.query_row("SELECT id FROM todo_group WHERE id=?1 AND is_archived=0 AND (?2 IS NULL OR create_time=?2)",params![id,binding["createdAt"].as_i64()],|r|r.get::<_,i64>(0)).optional().map_err(sql_error)?;
+            if valid.is_some() {
+                return Ok(valid);
+            }
+        }
+    }
+    conn.query_row("SELECT id FROM (SELECT id,title,0 AS priority FROM todo_group WHERE is_archived=0 UNION ALL SELECT g.id,n.title,1 FROM doc_task_group_names n JOIN todo_group g ON g.id=n.group_id AND g.create_time=n.group_created_at WHERE g.is_archived=0) WHERE '#'||title=?1 ORDER BY priority,id LIMIT 1",[token],|r|r.get::<_,i64>(0)).optional().map_err(sql_error)
+}
+
 fn text(node: &Value) -> String {
     if let Some(value) = node["text"].as_str() {
         return value.to_owned();

@@ -1,4 +1,6 @@
+import { contentStateRevision } from "../content-state-revision";
 import type Database from "better-sqlite3";
+import CalendarTable from "./calendar";
 import { basename } from "node:path";
 import type { CommandContext } from "@tau/rpc";
 import type { IContent } from "@/types/content";
@@ -26,8 +28,10 @@ interface PluginContentWritePorts {
   replace: typeof replaceContent;
 }
 
-export function pluginContentRevision(content: Pick<IContent, "revision" | "updateTime">) {
-  return content.revision ?? `u:${content.updateTime}`;
+export function pluginContentRevision(
+  content: Pick<IContent, "revision" | "updateTime" | "content" | "contracts">
+) {
+  return content.revision ?? contentStateRevision(content.content, content.contracts);
 }
 
 async function applyEdit(
@@ -85,7 +89,16 @@ export async function writePluginContentEdit(
   assertDatabase();
   const { contentId, createdAt, pluginId } = request;
   const exists = db.prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?");
-  const read = () => (exists.get(contentId, createdAt) ? ports.readContent(db, contentId) : null);
+  const read = () => {
+    if (!exists.get(contentId, createdAt)) return null;
+    const events = db
+      .prepare("SELECT calendar_id FROM calendar_event WHERE detail_content_id=?")
+      .all(contentId) as { calendar_id: number }[];
+    for (const event of events)
+      if (CalendarTable.findWritableUserCalendarId(db, event.calendar_id) === null)
+        throw new Error("请先选择或创建一个可写用户日历");
+    return ports.readContent(db, contentId);
+  };
   const current = read();
   if (!current) throw new Error("正文不存在");
   const revision = pluginContentRevision(current);

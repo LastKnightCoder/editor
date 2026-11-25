@@ -373,6 +373,35 @@ fn query_calendar_title_color(
 
 // ── 事件写命令（系统日历事件 P0 硬拒绝，错误码前端本地化为 toast） ──
 
+pub(crate) fn list_event_ids(
+    conn: &Connection,
+    after_id: i64,
+    range: Option<(i64, i64)>,
+    calendar_ids: Option<&[i64]>,
+    limit: i64,
+) -> Result<Vec<i64>, String> {
+    let calendars = calendar_ids
+        .map(serde_json::to_string)
+        .transpose()
+        .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "encode calendar ids", e))?;
+    let mut stmt=conn.prepare("SELECT id FROM calendar_event WHERE id>?1 AND (?2 IS NULL OR (start_date<?3 AND COALESCE(end_date,start_date)>=?2)) AND (?4 IS NULL OR calendar_id IN (SELECT CAST(value AS INTEGER) FROM json_each(?4))) ORDER BY id LIMIT ?5").map_err(|e|db_err("CALENDAR_EVENT_QUERY_FAILED","prepare id page",e))?;
+    let ids = stmt
+        .query_map(
+            params![
+                after_id,
+                range.map(|r| r.0),
+                range.map(|r| r.1),
+                calendars,
+                limit
+            ],
+            |row| row.get(0),
+        )
+        .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "query id page", e))?
+        .collect::<Result<Vec<i64>, _>>()
+        .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "parse id page", e))?;
+    Ok(ids)
+}
+
 pub(crate) fn assert_user_calendar(conn: &Connection, calendar_id: i64) -> Result<(), String> {
     let calendar = query_calendar_by_id(conn, calendar_id)?
         .ok_or_else(|| "CALENDAR_NOT_FOUND: 日历不存在".to_string())?;

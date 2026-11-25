@@ -124,6 +124,7 @@ pub(crate) fn install_download(
     download: &std::path::PathBuf,
     downloaded_sessions: Option<&std::path::Path>,
 ) -> Result<(), String> {
+    crate::data_change_scope::invalidate(&crate::setting::resolve_app_dir(app)?, name)?;
     let result = crate::plugin_transport::replace_database(name, || {
         install_download_locked(app, name, local_version, download, downloaded_sessions)
     });

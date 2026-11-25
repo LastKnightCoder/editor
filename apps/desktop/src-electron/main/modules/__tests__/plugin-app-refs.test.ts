@@ -1,3 +1,4 @@
+import { taskKey } from "@tau/shared/task-assistant";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -99,6 +100,64 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
     expect(PluginRefsTable.exists(db, { ...scope, kind: "unknown", id: "1" })).toBe(false);
   });
 
+  it("正文任务带实例分隔符时引用仍定位到原始任务", () => {
+    const taskId = "task@2026-11-25";
+    const content = insert(
+      "INSERT INTO contents(create_time,update_time,content,ref_count) VALUES(1,1,?,1)",
+      JSON.stringify([
+        {
+          type: "check-list-item",
+          taskId,
+          children: [{ type: "paragraph", children: [{ text: "正文任务" }] }],
+        },
+      ])
+    );
+    insert(
+      "INSERT INTO articles(title,content_id,create_time,update_time) VALUES('原文',?,1,1)",
+      content
+    );
+    expect(
+      PluginRefsTable.exists(db, {
+        ...scope,
+        kind: "todo",
+        id: taskKey({ kind: "document", contentId: content, createdAt: 1, taskId }),
+      })
+    ).toBe(true);
+  });
+  it("版本化身份不会让旧的字面前缀授权落到另一项正文任务", () => {
+    const rows = [
+      { taskId: "~6140", title: "原授权" },
+      { taskId: "a@", title: "另一项" },
+    ];
+    const content = insert(
+      "INSERT INTO contents(create_time,update_time,content,ref_count) VALUES(1,1,?,1)",
+      JSON.stringify(
+        rows.map(row => ({
+          type: "check-list-item",
+          taskId: row.taskId,
+          children: [{ type: "paragraph", children: [{ text: row.title }] }],
+        }))
+      )
+    );
+    insert(
+      "INSERT INTO articles(title,content_id,create_time,update_time) VALUES('原文',?,1,1)",
+      content
+    );
+    const old = { kind: "todo", id: `document:${content}:1:~6140` };
+    const current = {
+      kind: "todo",
+      id: taskKey({ kind: "document", contentId: content, createdAt: 1, taskId: "a@" }),
+    };
+    PluginRefsTable.grant(db, { ...scope, pluginId: "fixture", refs: [old] });
+    expect(
+      PluginRefsTable.describe(db, {
+        ...scope,
+        pluginId: "fixture",
+        refs: [old, current],
+        readable: [],
+      })
+    ).toEqual([{ status: "ok", title: "原授权" }, { status: "denied" }]);
+  });
   it("新类型的存在判断：项目、Notebook、材料、对话与插件内容", () => {
     const project = insert(
       "INSERT INTO project (title, \"desc\", children, create_time, update_time) VALUES ('课题', '[]', '[]', 1, 1)"

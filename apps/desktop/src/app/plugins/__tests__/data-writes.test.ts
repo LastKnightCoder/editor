@@ -1,15 +1,25 @@
+import { taskKey } from "@tau/shared/task-assistant";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PluginConflictError, type PluginContext } from "@tau/plugins";
 
 const electron = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock("@/electron", () => ({ invoke: electron.invoke, on: vi.fn(), off: vi.fn() }));
-vi.mock("@/commands/module-init", () => ({ withModule: (_: string, run: () => unknown) => run() }));
+vi.mock("@/electron", () => ({
+  invoke: electron.invoke,
+  on: vi.fn(),
+  off: vi.fn(),
+}));
+vi.mock("@/commands/module-init", () => ({
+  withModule: (_: string, run: () => unknown) => run(),
+}));
 
 import useSettingStore from "@/stores/useSettingStore";
 import { createDesktopData } from "../data";
 
 const DATABASE = "data.db";
-const context = { pluginId: "weekly", signal: new AbortController().signal } as PluginContext;
+const context = {
+  pluginId: "weekly",
+  signal: new AbortController().signal,
+} as PluginContext;
 const task = {
   taskRef: { kind: "todo", todoId: 4, createdAt: 9 },
   revision: "r2",
@@ -25,7 +35,10 @@ describe("插件写入适配", () => {
   beforeEach(() => {
     electron.invoke.mockReset();
     useSettingStore.setState(state => ({
-      setting: { ...state.setting, database: { ...state.setting.database, active: DATABASE } },
+      setting: {
+        ...state.setting,
+        database: { ...state.setting.database, active: DATABASE },
+      },
     }));
   });
 
@@ -42,7 +55,11 @@ describe("插件写入适配", () => {
       completed: true,
       expectedRevision: "r1",
     });
-    expect(todo).toMatchObject({ id: "todo:4:9", revision: "r2", completed: true });
+    expect(todo).toMatchObject({
+      id: "todo:4:9",
+      revision: "r2",
+      completed: true,
+    });
     const [, name, input, , conversationKey] = electron.invoke.mock.calls[1];
     expect(name).toBe("set_todo_completed");
     expect(input).toMatchObject({
@@ -53,6 +70,27 @@ describe("插件写入适配", () => {
     expect(conversationKey).toBe("plugin:weekly");
   });
 
+  it("正文身份含实例样式后缀时仍读取原任务并保留不透明身份", async () => {
+    const taskRef = {
+      kind: "document" as const,
+      contentId: 50,
+      createdAt: 10,
+      taskId: "task@2026-11-25",
+    };
+    electron.invoke.mockImplementation(async (channel: string, ...args: unknown[]) => {
+      if (channel !== "task-assistant:read") throw new Error(`未预期通道 ${channel}`);
+      expect(args[0]).toBe("get_task_object");
+      expect(args[1]).toMatchObject({ taskRef });
+      expect((args[1] as { occurrenceDate?: string }).occurrenceDate).toBeUndefined();
+      return { ...task, taskRef };
+    });
+    const result = await createDesktopData(DATABASE).schedule!.get(
+      context,
+      "todo",
+      taskKey(taskRef)
+    );
+    expect(result).toMatchObject({ id: taskKey(taskRef), title: task.title });
+  });
   it("助理返回版本冲突时抛出 PluginConflictError", async () => {
     electron.invoke.mockImplementation(async (channel: string, ...args: unknown[]) =>
       channel === "task-assistant:preflight"
@@ -79,7 +117,10 @@ describe("插件写入适配", () => {
     );
     await expect(
       createDesktopData(DATABASE).update(context, "card", "3", { pinned: true }, "1")
-    ).rejects.toMatchObject({ name: "PluginConflictError", message: "数据已被修改" });
+    ).rejects.toMatchObject({
+      name: "PluginConflictError",
+      message: "数据已被修改",
+    });
   });
 
   it("插件新建的内容登记为它能看到的引用，之后不需要读取权限也能关联", async () => {
@@ -108,11 +149,19 @@ describe("插件写入适配", () => {
     ).toEqual([
       [
         "plugin-refs:grant",
-        { databaseName: DATABASE, pluginId: "weekly", refs: [{ kind: "article", id: "8" }] },
+        {
+          databaseName: DATABASE,
+          pluginId: "weekly",
+          refs: [{ kind: "article", id: "8" }],
+        },
       ],
       [
         "plugin-refs:grant",
-        { databaseName: DATABASE, pluginId: "weekly", refs: [{ kind: "document", id: "9" }] },
+        {
+          databaseName: DATABASE,
+          pluginId: "weekly",
+          refs: [{ kind: "document", id: "9" }],
+        },
       ],
     ]);
   });
@@ -126,7 +175,11 @@ describe("插件写入适配", () => {
       return undefined;
     });
     const data = createDesktopData(DATABASE);
-    await data.writeTodo(context, { action: "delete", id: "todo:4:9", expectedRevision: "r2" });
+    await data.writeTodo(context, {
+      action: "delete",
+      id: "todo:4:9",
+      expectedRevision: "r2",
+    });
     expect(electron.invoke).toHaveBeenCalledWith("plugin-data:record-operation", {
       databaseName: DATABASE,
       pluginId: "weekly",
@@ -165,7 +218,9 @@ describe("插件写入适配", () => {
       throw new Error(`未预期的调用 ${channel}`);
     });
     const data = createDesktopData(DATABASE);
-    expect(await data.query(context, "notebook", { limit: 5 })).toEqual({ items: [notebook] });
+    expect(await data.query(context, "notebook", { limit: 5 })).toEqual({
+      items: [notebook],
+    });
     expect(await data.get(context, "material", "excerpt:3")).toEqual(notebook);
     expect(await data.notebookResources(context, "6")).toEqual([]);
     expect(electron.invoke.mock.calls.map(call => [call[0], call[1]])).toEqual([

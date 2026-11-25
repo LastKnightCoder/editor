@@ -1,8 +1,20 @@
+import type { PluginChangesQuery, PluginChangesPage } from "./data-changes";
+export type {
+  PluginChangesQuery,
+  PluginChangesPage,
+  PluginDataChange,
+  PluginChangeDomain,
+} from "./data-changes";
 /**
  * 业务数据接口。ID 与 ContentRef 都是不透明字符串：只用于传回宿主，不要解析其格式。
  * 每次调用前宿主按 manifest.permissions 与用户授权校验，未获准抛出 PluginPermissionError。
  * 修改与删除要传读到的 revision，数据已被别处修改时抛出 PluginConflictError。
  */
+import type {
+  TaskRecurrenceRule,
+  TaskRecurrenceSegment,
+  TaskOccurrenceState,
+} from "@tau/shared/task-assistant";
 import type { Descendant } from "slate";
 import type { PluginContentInput } from "./content-input";
 import type { PluginEntityRef } from "./app";
@@ -253,12 +265,70 @@ export interface PluginEntityWriter<T, Input, Patch> extends PluginEntityReader<
   delete(id: string, options: PluginWriteOptions): Promise<void>;
 }
 
+export interface PluginCreateOptions {
+  /** 同一插件内稳定的创建请求 ID；重试复用，同 ID 不得更换参数。 */
+  requestId?: string;
+}
+
+export interface PluginDirectoryQuery {
+  archived?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface PluginTodoList {
+  id: string;
+  revision: string;
+  title: string;
+  archived: boolean;
+  writable: boolean;
+  readonlyReason?: string;
+}
+
+export interface PluginCalendar extends PluginTodoList {
+  color: string;
+  visible: boolean;
+}
+
+export interface PluginReminder {
+  /** 基准时刻减提醒时刻，单位毫秒；全天日程的基准为当天零点。 */
+  offsetMs: number;
+}
+
+export type PluginTodoReminder = PluginReminder | { at: string };
+export interface PluginTodoRecurrenceChange {
+  effectiveFrom: string;
+  rule: TaskRecurrenceRule | null;
+}
+export interface PluginTodoOccurrencePatch {
+  completed?: boolean;
+  skipped?: boolean;
+  scheduledAt?: string | null;
+}
+export interface PluginTodoOccurrenceQuery {
+  taskId: string;
+  limit?: number;
+  cursor?: string;
+}
+export interface PluginTodoOccurrenceState {
+  taskId: string;
+  seriesId: string;
+  originalDate: string;
+  state: TaskOccurrenceState;
+  active: boolean;
+}
+export type PluginTodoOccurrencePage = PluginPage<PluginTodoOccurrenceState> & {
+  taskRevision: string;
+};
+
 export interface PluginTodoQuery {
   /** tasks 返回系列/普通任务；occurrences 返回原始日期标识的周期实例，须给 start/end。 */
   view?: "tasks" | "occurrences";
   /** 缺省为全部：独立待办与正文里的勾选项 */
   source?: "all" | "todo" | "document";
   completed?: boolean;
+  archived?: boolean;
+  listId?: string;
   keyword?: string;
   /** YYYY-MM-DD，按截止日期筛选 */
   start?: string;
@@ -269,6 +339,18 @@ export interface PluginTodoQuery {
 }
 
 export interface PluginTodo {
+  listId: string | null;
+  /** null 表示此来源尚未开放提醒列表；空数组才表示没有提醒。 */
+  reminders: PluginTodoReminder[] | null;
+  recurrence: { segments: TaskRecurrenceSegment[] } | null;
+  occurrence?: {
+    taskId: string;
+    seriesId: string;
+    originalDate: string;
+    state: TaskOccurrenceState;
+  };
+  writable: boolean;
+  readonlyReason?: string;
   id: string;
   revision: string;
   title: string;
@@ -281,15 +363,23 @@ export interface PluginTodo {
 }
 
 export interface PluginCalendarQuery {
-  /** YYYY-MM-DD 或带时区的 ISO 时间，必填 */
-  start: string;
-  end: string;
+  /** YYYY-MM-DD 或带时区的 ISO 时间；display 查询必填，stored 可省略。 */
+  start?: string;
+  end?: string;
+  /** display（默认）须给时间窗口；stored 只列真实持久日程，可不提供窗口。 */
+  view?: "display" | "stored";
+  calendarIds?: string[];
   /** 1–100，默认 50 */
   limit?: number;
   cursor?: string;
 }
 
 export interface PluginCalendarEvent {
+  reminders: PluginReminder[];
+  notesRef: PluginContentRef | null;
+  kind: "event" | "todo-schedule" | "virtual";
+  writable: boolean;
+  readonlyReason?: string;
   id: string;
   revision: string;
   title: string;
@@ -302,17 +392,24 @@ export interface PluginCalendarEvent {
 }
 
 export interface PluginTodoInput {
+  recurrence?: TaskRecurrenceRule;
+  listId?: string;
+  reminders?: PluginTodoReminder[];
   title: string;
   /** YYYY-MM-DD 或带时区的 ISO 时间 */
   dueAt?: string | null;
 }
 
 export interface PluginTodoPatch {
+  listId?: string;
+  reminders?: PluginTodoReminder[];
   title?: string;
   dueAt?: string | null;
 }
 
 export interface PluginCalendarInput {
+  notes?: PluginContentInput;
+  reminders?: PluginReminder[];
   title: string;
   /** 全天日程用 YYYY-MM-DD，结束日期不含当天（当天全天的 end 为次日）；定时日程用带时区的 ISO 时间 */
   start: string;
@@ -322,9 +419,10 @@ export interface PluginCalendarInput {
   calendarId?: string;
 }
 
-export type PluginCalendarPatch = Partial<PluginCalendarInput>;
+export type PluginCalendarPatch = Partial<Omit<PluginCalendarInput, "notes">>;
 
 export interface PluginData {
+  readonly changes: { query(query: PluginChangesQuery): Promise<PluginChangesPage> };
   readonly cards: PluginEntityWriter<PluginCard, PluginCardInput, PluginCardPatch>;
   readonly articles: PluginEntityWriter<PluginArticle, PluginArticleInput, PluginArticlePatch>;
   /** 白板的信息；画板内容不开放读写，用户在 Tau 中编辑 */
@@ -376,17 +474,42 @@ export interface PluginData {
   readonly materials: PluginEntityReader<PluginMaterial>;
   /** AI 对话的信息，不含消息内容；query 不支持 tag */
   readonly chats: PluginEntityReader<PluginChatSession>;
+  readonly todoLists: {
+    get(id: string): Promise<PluginTodoList | null>;
+    query(query?: PluginDirectoryQuery): Promise<PluginPage<PluginTodoList>>;
+  };
+  readonly calendars: {
+    get(id: string): Promise<PluginCalendar | null>;
+    query(query?: PluginDirectoryQuery): Promise<PluginPage<PluginCalendar>>;
+  };
   readonly todos: {
+    setRecurrence(
+      id: string,
+      change: PluginTodoRecurrenceChange,
+      options: PluginWriteOptions
+    ): Promise<PluginTodo>;
+    setOccurrenceState(
+      id: string,
+      patch: PluginTodoOccurrencePatch,
+      options: PluginWriteOptions
+    ): Promise<PluginTodo>;
+    readonly occurrenceStates: {
+      query(query: PluginTodoOccurrenceQuery): Promise<PluginTodoOccurrencePage>;
+    };
+    get(id: string): Promise<PluginTodo | null>;
     query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>>;
-    create(input: PluginTodoInput): Promise<PluginTodo>;
+    create(input: PluginTodoInput, options?: PluginCreateOptions): Promise<PluginTodo>;
     update(id: string, patch: PluginTodoPatch, options: PluginWriteOptions): Promise<PluginTodo>;
     setCompleted(id: string, completed: boolean, options: PluginWriteOptions): Promise<PluginTodo>;
     /** 有子待办时拒绝删除 */
     delete(id: string, options: PluginWriteOptions): Promise<void>;
   };
   readonly calendar: {
+    /** 为尚无备注的日程建立空正文；已有备注保持原样。 */
+    ensureNotes(id: string, options: PluginWriteOptions): Promise<PluginCalendarEvent>;
+    get(id: string): Promise<PluginCalendarEvent | null>;
     query(query: PluginCalendarQuery): Promise<PluginPage<PluginCalendarEvent>>;
-    create(input: PluginCalendarInput): Promise<PluginCalendarEvent>;
+    create(input: PluginCalendarInput, options?: PluginCreateOptions): Promise<PluginCalendarEvent>;
     update(
       id: string,
       patch: PluginCalendarPatch,

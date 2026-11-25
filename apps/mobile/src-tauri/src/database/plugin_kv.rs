@@ -83,6 +83,11 @@ pub fn plugin_kv_clear(app: AppHandle, database: String, plugin_id: String) -> R
 fn clear_plugin_storage(conn: &mut rusqlite::Connection, plugin_id: &str) -> Result<(), String> {
     let tx = conn.transaction().map_err(|error| error.to_string())?;
     tx.execute(
+        "DELETE FROM plugin_create_receipts WHERE plugin_id=?1",
+        [plugin_id],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.execute(
         "DELETE FROM plugin_kv WHERE plugin_id=?1",
         params![plugin_id],
     )

@@ -508,7 +508,7 @@ fn query_refs(
     let keyword = keyword.to_lowercase();
     loop {
         let refs = if kind == "todo" {
-            plugin_document_tasks::candidates(conn, "all", position, SCAN_BATCH)?
+            plugin_document_tasks::candidates(conn, "all", position, SCAN_BATCH, false)?
                 .into_iter()
                 .map(|candidate| {
                     if candidate["source"] == "todo" {
@@ -531,7 +531,7 @@ fn query_refs(
                         let task = candidate["node"]["taskId"].as_str().ok_or("待办身份无效")?;
                         Ok(EntityRef {
                             kind: kind.into(),
-                            id: format!("document:{content}:{created}:{task}"),
+                            id: super::plugin_tasks::document_key(content, created, task),
                         })
                     }
                 })

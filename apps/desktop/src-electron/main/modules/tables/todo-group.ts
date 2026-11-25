@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import {
   TodoGroup,
+  TodoGroupDirectory,
   CreateTodoGroup,
   UpdateTodoGroup,
   TodoSystemGroupType,
@@ -19,6 +20,15 @@ const SYSTEM_GROUPS: Array<{
   { systemType: "deadline", title: "截止任务" },
   { systemType: "recurring", title: "周期任务" },
 ];
+
+const GROUP_DIRECTORY_SQL =
+  "SELECT id,title,is_archived,(is_archived=0) AS writable FROM todo_group";
+interface GroupDirectoryRow {
+  id: number;
+  title: string;
+  is_archived: number | null;
+  writable: number | null;
+}
 
 export default class TodoGroupTable {
   // 确保系统组存在
@@ -88,6 +98,42 @@ export default class TodoGroupTable {
       `SELECT * FROM todo_group WHERE is_archived = 1 AND is_system = 0 ORDER BY update_time DESC`
     );
     return (stmt.all() as SqliteRow[]).map(this.parse);
+  }
+
+  private static directoryItem(row: GroupDirectoryRow): TodoGroupDirectory {
+    return {
+      id: row.id,
+      title: row.title,
+      isArchived: !!row.is_archived,
+      writable: !!row.writable,
+    };
+  }
+
+  static getDirectoryItem(db: Database.Database, id: number): TodoGroupDirectory | null {
+    const row = db.prepare(`${GROUP_DIRECTORY_SQL} WHERE id=?`).get(id) as
+      | GroupDirectoryRow
+      | undefined;
+    return row ? this.directoryItem(row) : null;
+  }
+
+  static queryDirectoryItems(
+    db: Database.Database,
+    query: { afterId: number; archived?: boolean; limit: number }
+  ): TodoGroupDirectory[] {
+    const rows = db
+      .prepare(
+        `${GROUP_DIRECTORY_SQL} WHERE id>? ${query.archived === undefined ? "" : "AND is_archived=?"} ORDER BY id LIMIT ?`
+      )
+      .all(
+        query.afterId,
+        ...(query.archived === undefined ? [] : [Number(query.archived)]),
+        query.limit
+      ) as GroupDirectoryRow[];
+    return rows.map(row => this.directoryItem(row));
+  }
+
+  static isWritable(db: Database.Database, id: number): boolean {
+    return this.getDirectoryItem(db, id)?.writable ?? false;
   }
 
   static getMaxSortIndex(db: Database.Database): number {

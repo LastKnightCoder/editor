@@ -1,3 +1,4 @@
+import { getPluginRegistry } from "../services/plugin-workspaces";
 import { prepareDurableDocuments, withDurableDocuments } from "./durable-document-lifecycle";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
@@ -172,6 +173,7 @@ class DatabaseModule implements Module {
     (dbName: string, reason: DatabaseConnectReason) => void
   > = [];
   private indexEnsurePromises: Map<string, Promise<EnsureIndexReadyResult | null>> = new Map();
+  private readonly syncReconnectTasks = new Map<string, Promise<void>>();
   private readyDatabaseTasks: Map<string, Promise<Database.Database>> = new Map();
   private databaseWriteCallbacks: Array<(dbName: string, eventName: string) => void> = [];
 
@@ -626,8 +628,12 @@ class DatabaseModule implements Module {
   }
 
   async reconnectForSync(name: string, source: DatabaseReconnectSource) {
-    return withDurableDocuments({ databaseName: name, reason: "database-sync" }, async () => {
+    const key = JSON.stringify([this.formatDatabaseName(name), source]);
+    const pending = this.syncReconnectTasks.get(key);
+    if (pending) return pending;
+    const task = withDurableDocuments({ databaseName: name, reason: "database-sync" }, async () => {
       log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
+      if (source === "sync_download_reconnect") await getPluginRegistry().invalidateChanges(name);
       const existingSync = this.databases.get(name);
       if (existingSync) {
         existingSync.close();
@@ -642,7 +648,9 @@ class DatabaseModule implements Module {
       this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
       this.notifyDatabaseConnected(name, source);
       this.hasConnectedDatabase = true;
-    });
+    }).finally(() => this.syncReconnectTasks.delete(key));
+    this.syncReconnectTasks.set(key, task);
+    return task;
   }
 
   async closeForSync(name: string, replace = false) {
@@ -652,6 +660,7 @@ class DatabaseModule implements Module {
       replace,
     });
     try {
+      if (replace) await getPluginRegistry().invalidateChanges(name);
       const db = this.databases.get(name);
       if (!db) {
         drain.commit();
@@ -705,6 +714,8 @@ class DatabaseModule implements Module {
         const oldDbName = this.currentDatabaseName;
         const dbChanged = oldDbName !== name && !restoring;
 
+        if (force && source !== "sync_upload_reconnect")
+          await getPluginRegistry().invalidateChanges(name);
         if (!this.databases.has(name) || force) {
           log.info(
             `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`

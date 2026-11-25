@@ -1,3 +1,4 @@
+import DocumentTaskIdentitiesTable from "./tables/document-task-identities";
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
@@ -21,13 +22,23 @@ export function ensureMainSchema(db: Database.Database): void {
         ).map(({ key, value }) => [key, value])
       )
     : {};
+  const projectionMissing = [
+    "document_task_identities",
+    "document_task_projection_state",
+    "document_task_projection_errors",
+  ].some(name => !tables.some(table => table.name === name));
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   if (
+    !projectionMissing &&
     meta.main_schema_hash === schemaHash &&
     meta.main_schema_version === String(MAIN_SCHEMA_VERSION)
-  )
+  ) {
+    while (!DocumentTaskIdentitiesTable.prepare(db)) {
+      /* 每批独立提交，允许中断后续建。 */
+    }
     return;
+  }
   const foreignKeyErrors = () => db.pragma("foreign_key_check") as Record<string, unknown>[];
   db.pragma("foreign_keys = OFF");
   try {
@@ -35,6 +46,10 @@ export function ensureMainSchema(db: Database.Database): void {
       const foreignKeys = new Set(foreignKeyErrors().map(row => JSON.stringify(row)));
       migrateRowIds(db, independentRowIdTables);
       db.exec(MAIN_SCHEMA_SQL);
+      if (projectionMissing)
+        db.prepare(
+          "UPDATE document_task_projection_state SET ready=0,after_content_id=0,epoch=lower(hex(randomblob(16))) WHERE id='main'"
+        ).run();
       seedRowIdSequences(db, independentRowIdTables);
       if (foreignKeyErrors().some(row => !foreignKeys.has(JSON.stringify(row))))
         throw new Error("主库编号升级引入了外键不一致");
@@ -51,5 +66,8 @@ export function ensureMainSchema(db: Database.Database): void {
     }).immediate();
   } finally {
     db.pragma("foreign_keys = ON");
+  }
+  while (!DocumentTaskIdentitiesTable.prepare(db)) {
+    /* 每批独立提交，允许中断后续建。 */
   }
 }

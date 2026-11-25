@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 interface Workspace {
   name: string;
   id: string;
+  changeEpoch?: string;
+  fileIdentity?: string;
 }
 interface Registry {
   version: 1;
@@ -35,11 +37,25 @@ function parseRegistry(raw: string): Registry {
       names.has(workspace.name)
     )
       throw new Error("插件工作区记录无效");
+    if (
+      (workspace.changeEpoch !== undefined &&
+        (typeof workspace.changeEpoch !== "string" || !workspace.changeEpoch)) ||
+      (workspace.fileIdentity !== undefined && typeof workspace.fileIdentity !== "string")
+    )
+      throw new Error("插件变更代次记录无效");
     names.add(workspace.name);
     identities.add(workspace.id);
   }
-  // 只保留身份字段，下次写入时丢弃旧开发插件登记。
-  return { version: 1, workspaces: value.workspaces.map(({ name, id }) => ({ name, id })) };
+  // 只保留本机工作区身份与变更代次，不保存插件定义。
+  return {
+    version: 1,
+    workspaces: value.workspaces.map(({ name, id, changeEpoch, fileIdentity }) => ({
+      name,
+      id,
+      ...(changeEpoch ? { changeEpoch } : {}),
+      ...(fileIdentity ? { fileIdentity } : {}),
+    })),
+  };
 }
 
 /** 本机规范化库名到稳定工作区 UUID 的映射；主进程单实例串行读改写，写入失败不发布新快照。 */
@@ -50,13 +66,16 @@ export class PluginWorkspaceRegistry {
   private transact<T>(operation: (registry: Registry) => T): Promise<T> {
     const result = this.pending.then(async () => {
       let registry: Registry;
+      let original: string | undefined;
       try {
-        registry = parseRegistry(await readFile(this.filename, "utf8"));
+        original = await readFile(this.filename, "utf8");
+        registry = parseRegistry(original);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         registry = { version: 1, workspaces: [] };
       }
       const value = operation(registry);
+      if (original === JSON.stringify(registry)) return structuredClone(value);
       await mkdir(path.dirname(this.filename), { recursive: true });
       const temporary = `${this.filename}.${randomUUID()}.tmp`;
       try {
@@ -80,6 +99,33 @@ export class PluginWorkspaceRegistry {
         registry.workspaces.push(workspace);
       }
       return workspace;
+    });
+  }
+  changeScope(name: string, fileIdentity: string) {
+    const normalized = pluginWorkspaceName(name);
+    return this.transact(registry => {
+      let workspace = registry.workspaces.find(item => item.name === normalized);
+      if (!workspace) {
+        workspace = { name: normalized, id: randomUUID() };
+        registry.workspaces.push(workspace);
+      }
+      if (!workspace.changeEpoch || workspace.fileIdentity !== fileIdentity) {
+        workspace.changeEpoch = randomUUID();
+        workspace.fileIdentity = fileIdentity;
+      }
+      return { id: workspace.id, epoch: workspace.changeEpoch };
+    });
+  }
+
+  invalidateChanges(name: string) {
+    const normalized = pluginWorkspaceName(name);
+    return this.transact(registry => {
+      let workspace = registry.workspaces.find(item => item.name === normalized);
+      if (!workspace) {
+        workspace = { name: normalized, id: randomUUID() };
+        registry.workspaces.push(workspace);
+      }
+      workspace.changeEpoch = randomUUID();
     });
   }
 }

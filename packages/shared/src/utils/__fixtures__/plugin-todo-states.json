@@ -1,0 +1,39 @@
+[
+  {
+    "state": {},
+    "patch": { "completed": true },
+    "expected": { "completedAt": "now", "skipped": false }
+  },
+  {
+    "state": { "completedAt": 123, "skipped": false },
+    "patch": { "completed": true },
+    "expected": { "completedAt": 123, "skipped": false }
+  },
+  {
+    "state": { "completedAt": 123, "skipped": false },
+    "patch": { "skipped": false },
+    "expected": { "completedAt": 123, "skipped": false }
+  },
+  {
+    "state": { "completedAt": null, "skipped": true },
+    "patch": { "completed": false },
+    "expected": { "completedAt": null, "skipped": true }
+  },
+  {
+    "state": { "completedAt": 123, "skipped": false },
+    "patch": { "skipped": true },
+    "expected": { "completedAt": null, "skipped": true }
+  },
+  {
+    "state": { "completedAt": null, "skipped": true, "scheduledAt": "2026-12-01" },
+    "patch": { "scheduledAt": null },
+    "expected": { "completedAt": null, "skipped": true, "scheduledAt": null }
+  },
+  {
+    "state": { "skipped": true },
+    "patch": { "completed": true, "scheduledAt": "2026-12-02" },
+    "expected": { "completedAt": "now", "skipped": false, "scheduledAt": "2026-12-02" }
+  },
+  { "state": {}, "patch": { "completed": true, "skipped": true }, "reject": true },
+  { "state": {}, "patch": {}, "reject": true }
+]

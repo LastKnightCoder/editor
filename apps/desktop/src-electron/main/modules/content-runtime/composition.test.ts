@@ -11,6 +11,7 @@ const host = vi.hoisted(() => {
   return {
     directory: "",
     handlers,
+    registered: [] as string[],
     removeHandler: vi.fn((channel: string) => handlers.delete(channel)),
     stopReconnect: vi.fn(),
   };
@@ -24,6 +25,7 @@ vi.mock("electron", () => ({
       if (host.handlers.has(channel))
         throw new Error(`Attempted to register a second handler for '${channel}'`);
       host.handlers.set(channel, handler);
+      host.registered.push(channel);
     },
     removeHandler: host.removeHandler,
   },
@@ -39,7 +41,7 @@ vi.mock("../video-note-index-queue");
 
 it("本机正文注册部分 IPC 失败时撤销本轮注册并允许重试", () => {
   host.directory = mkdtempSync(join(tmpdir(), "tau-content-composition-"));
-  const { openContent, prepareFragment, freezeAck, subscribe } = localContentCommands;
+  const { subscribe } = localContentCommands;
   const existing = vi.fn();
   host.handlers.set(subscribe.channel, existing);
   let closeStore: (() => void) | undefined;
@@ -47,9 +49,7 @@ it("本机正文注册部分 IPC 失败时撤销本轮注册并允许重试", ()
     expect(initLocalContent).toThrow(/second handler/);
     expect(getLocalContentRuntime).toThrow("本机正文尚未就绪");
     expect([...host.handlers]).toEqual([[subscribe.channel, existing]]);
-    expect(host.removeHandler.mock.calls.flat().sort()).toEqual(
-      [openContent.channel, prepareFragment.channel, freezeAck.channel].sort()
-    );
+    expect(host.removeHandler.mock.calls.flat().sort()).toEqual([...host.registered].sort());
     expect(host.stopReconnect).toHaveBeenCalledTimes(1);
 
     host.handlers.delete(subscribe.channel);

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>同步一轮：成功后推进检查点</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Serif+SC:wght@400&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px 24px; background: #f5f5f5; color: #2d3142; font-family: 'Geist', 'Noto Sans SC', 'PingFang SC', sans-serif; }
+    .frame { width: 100%; max-width: 1040px; min-width: 0; margin: 0 auto; }
+    .eyebrow { font: 500 11px 'Geist Mono', monospace; letter-spacing: .12em; color: #4f5d75; }
+    h1 { margin: 12px 0; font: 400 32px 'Instrument Serif', 'Noto Serif SC', serif; }
+    .intro { color: #4f5d75; font-size: 14px; line-height: 1.8; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 960px; }
+    .node-name { font: 600 16px 'Geist', 'Noto Sans SC', 'PingFang SC', sans-serif; fill: #2d3142; text-anchor: middle; }
+    .sub { font: 400 12px 'Geist', 'Noto Sans SC', 'PingFang SC', sans-serif; fill: #4f5d75; text-anchor: middle; }
+    .label { font: 500 12px 'Geist', 'Noto Sans SC', 'PingFang SC', sans-serif; fill: #4f5d75; text-anchor: middle; }
+    .edge { fill: none; stroke: #4f5d75; stroke-width: 1.2; marker-end: url(#sync-flow-arrow); }
+    .node { fill: #fff; stroke: #2d3142; stroke-width: 1; }
+    .decision { fill: #f5f5f5; stroke: #2d3142; stroke-width: 1; }
+    .focal { fill: #f8eae4; stroke: #eb6c36; stroke-width: 1.2; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <main class="frame">
+    <p class="eyebrow">FLOWCHART · HOST / PLUGIN · PROPOSAL</p>
+    <h1>同步一轮：成功后推进检查点</h1>
+    <p class="intro">首次执行读取全量并补偿扫描期间的变化；以后按游标续读。失败保留映射与操作进度，冲突交由插件协调。</p>
+    <div class="diagram-container">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="sync-flow-title sync-flow-desc">
+        <title id="sync-flow-title">宿主与插件的同步主流程</title>
+        <desc id="sync-flow-desc">启动后检查游标；有效则读取增量，无效则重建全量基线。读写成功才保存映射和检查点，失败或冲突时保留进度并停止推进。</desc>
+        <defs>
+          <marker id="sync-flow-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker>
+        </defs>
+        <rect width="960" height="600" fill="#f5f5f5"/>
+
+        <path class="edge" d="M 352 80 V 108"/>
+        <path class="edge" d="M 352 212 V 252"/>
+        <path class="edge" d="M 456 160 H 580"/>
+        <path class="edge" d="M 700 200 V 232 Q 700 240 692 240 H 480 Q 472 240 472 248 V 272 Q 472 280 464 280 H 452"/>
+        <path class="edge" d="M 352 316 V 352"/>
+        <path class="edge" d="M 352 456 V 492"/>
+        <path class="edge" d="M 456 404 H 580"/>
+        <path class="edge" d="M 252 524 H 148 Q 140 524 140 516 V 288 Q 140 280 148 280 H 252"/>
+
+        <rect x="368" y="220" width="48" height="20" fill="#f5f5f5"/><text class="label" x="392" y="234">有效</text>
+        <rect x="488" y="128" width="64" height="20" fill="#f5f5f5"/><text class="label" x="520" y="142">无效/首次</text>
+        <rect x="368" y="464" width="48" height="20" fill="#f5f5f5"/><text class="label" x="392" y="478">成功</text>
+        <rect x="484" y="372" width="80" height="20" fill="#f5f5f5"/><text class="label" x="524" y="386">冲突/失败</text>
+        <rect x="44" y="388" width="80" height="20" fill="#f5f5f5"/><text class="label" x="84" y="402">还有下一页</text>
+
+        <rect class="node" x="252" y="24" width="200" height="56" rx="20"/>
+        <text class="node-name" x="352" y="58">启动 / 变更唤醒</text>
+
+        <polygon class="decision" points="352,108 456,160 352,212 248,160"/>
+        <text class="node-name" x="352" y="166">游标有效？</text>
+
+        <rect class="node" x="580" y="120" width="240" height="80" rx="6"/>
+        <text class="node-name" x="700" y="152">全量扫描 + 变更补偿</text>
+        <text class="sub" x="700" y="180">保留旧映射，重建基线</text>
+
+        <rect class="node" x="252" y="252" width="200" height="64" rx="6"/>
+        <text class="node-name" x="352" y="278">读取本页身份与当前值</text>
+        <text class="sub" x="352" y="302">含删除，按映射执行同步</text>
+
+        <polygon class="decision" points="352,352 456,404 352,456 248,404"/>
+        <text class="node-name" x="352" y="410">本页全部成功？</text>
+
+        <rect class="node" x="580" y="372" width="240" height="80" rx="20"/>
+        <text class="node-name" x="700" y="404">保留进度，停止推进</text>
+        <text class="sub" x="700" y="432">重读协调 / 安全重试</text>
+
+        <rect class="focal" x="252" y="492" width="200" height="64" rx="6"/>
+        <text class="node-name" x="352" y="518">保存映射与游标</text>
+        <text class="sub" x="352" y="542">本轮结束才确认检查点</text>
+
+        <text class="sub" x="604" y="532">宿主：身份、版本、变更与条件写入</text>
+        <text class="sub" x="604" y="556">插件：远端协议、映射与冲突策略</text>
+      </svg>
+    </div>
+    <p class="intro">默认 Diagram Design 样式 · doc-inline 960×600 · 静态流程图；网络细节和逐字段校验留在方案正文。</p>
+  </main>
+</body>
+</html>

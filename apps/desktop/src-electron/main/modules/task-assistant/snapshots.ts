@@ -4,6 +4,7 @@ import { canonical, fail, type Row } from "./common";
 
 const KEYS: Record<string, string[]> = {
   todo_item: ["id"],
+  item_reminder: ["owner_type", "owner_id", "offset_ms"],
   calendar_event: ["id"],
   todo_recurrence: ["id"],
   todo_recurrence_completion: ["id"],
@@ -65,6 +66,11 @@ export function captureTodos(db: Database.Database, ids: number[]): Snapshot {
         )
         .all(...events) as Row[])
     : [];
+  result.item_reminder = db
+    .prepare(
+      `SELECT * FROM item_reminder WHERE (owner_type='todo' AND owner_id IN (${marks})) OR (owner_type='event' AND owner_id IN (SELECT id FROM calendar_event WHERE todo_item_id IN (${marks}))) ORDER BY owner_type,owner_id,offset_ms`
+    )
+    .all(...ids, ...ids) as Row[];
   return withDependencies(db, result);
 }
 export function captureEvents(db: Database.Database, ids: number[]): Snapshot {
@@ -73,14 +79,16 @@ export function captureEvents(db: Database.Database, ids: number[]): Snapshot {
   return withDependencies(
     db,
     Object.fromEntries(
-      ["calendar_event", "doc_task_calendar_link", "todo_schedule_occurrence"].map(table => [
-        table,
-        db
-          .prepare(
-            `SELECT * FROM ${table} WHERE ${table === "calendar_event" ? "id" : "calendar_event_id"} IN (${marks})`
-          )
-          .all(...ids) as Row[],
-      ])
+      ["item_reminder", "calendar_event", "doc_task_calendar_link", "todo_schedule_occurrence"].map(
+        table => [
+          table,
+          db
+            .prepare(
+              `SELECT * FROM ${table} WHERE ${table === "item_reminder" ? "owner_type='event' AND owner_id" : table === "calendar_event" ? "id" : "calendar_event_id"} IN (${marks})`
+            )
+            .all(...ids) as Row[],
+        ]
+      )
     )
   );
 }
@@ -183,6 +191,23 @@ export function restoreSnapshot(
   after: Snapshot,
   validateOnly = false
 ) {
+  const reminderOwners = new Map<string, { owner: string; id: number }>();
+  for (const [table, owner] of [
+    ["todo_item", "todo"],
+    ["calendar_event", "event"],
+  ] as const)
+    for (const row of [...(before[table] ?? []), ...(after[table] ?? [])])
+      reminderOwners.set(`${owner}:${row.id}`, { owner, id: Number(row.id) });
+  for (const { owner, id } of reminderOwners.values()) {
+    const current = db
+      .prepare("SELECT * FROM item_reminder WHERE owner_type=? AND owner_id=? ORDER BY offset_ms")
+      .all(owner, id);
+    const expected = (after.item_reminder ?? [])
+      .filter(row => row.owner_type === owner && row.owner_id === id)
+      .sort((a, b) => Number(a.offset_ms) - Number(b.offset_ms));
+    if (canonical(current) !== canonical(expected))
+      fail("UNDO_CONFLICT", "提醒已有后续修改，不能自动撤销");
+  }
   for (const table of dependencies)
     for (const identity of before[table] ?? []) {
       const current = db.prepare(`SELECT create_time FROM ${table} WHERE id=?`).get(identity.id) as
@@ -256,14 +281,25 @@ export function restoreSnapshot(
       ).run(...KEYS[table].map(key => identity[key]));
     } else {
       const fields = Object.keys(previous);
+      const updates = fields
+        .filter(field => !KEYS[table].includes(field))
+        .map(field => `${field}=excluded.${field}`)
+        .join(",");
       db.prepare(
-        `INSERT INTO ${table} (${fields.join(",")}) VALUES (${fields.map(() => "?").join(",")})
-        ON CONFLICT (${KEYS[table].join(",")}) DO UPDATE SET ${fields
-          .filter(field => !KEYS[table].includes(field))
-          .map(field => `${field}=excluded.${field}`)
-          .join(",")}`
+        `INSERT INTO ${table} (${fields.join(",")}) VALUES (${fields.map(() => "?").join(",")}) ON CONFLICT (${KEYS[table].join(",")}) ${updates ? `DO UPDATE SET ${updates}` : "DO NOTHING"}`
       ).run(...fields.map(field => previous[field]));
     }
+  }
+  // 恢复首条提醒的触发器会清空追加项，因此最后恢复每个对象的完整提醒集合。
+  for (const { owner, id } of reminderOwners.values()) {
+    db.prepare("DELETE FROM item_reminder WHERE owner_type=? AND owner_id=?").run(owner, id);
+    for (const row of before.item_reminder ?? [])
+      if (row.owner_type === owner && row.owner_id === id)
+        db.prepare("INSERT INTO item_reminder(owner_type,owner_id,offset_ms) VALUES(?,?,?)").run(
+          owner,
+          id,
+          row.offset_ms
+        );
   }
   const oldRefs = references(before),
     newRefs = references(after);

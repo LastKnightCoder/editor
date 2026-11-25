@@ -24,7 +24,7 @@ import { publishContentUpdate } from "../../features/cards/contentSyncBus";
 import { prepareContentWrite } from "../../services/contentWriteCoordinator";
 
 export interface MobileContentSnapshot {
-  owners: ("card" | "article" | "document")[];
+  owners: ("card" | "article" | "document" | "calendar-event")[];
   own: boolean;
   addressable?: boolean;
   document: ContentDetailResponse;
@@ -77,6 +77,7 @@ const unavailable = async (): Promise<never> => {
   throw new Error("当前移动宿主尚未提供此业务接口");
 };
 const permissionDomains = {
+  "calendar-event": "calendar",
   card: "cards",
   article: "articles",
   project: "projects",
@@ -91,7 +92,9 @@ export function createMobileData(
   checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>,
   prepareOwn?: (context: PluginContext) => Promise<void>
 ): MobileDataAdapter {
-  const tasks = createMobileTasks(database, token, changed, checkPermission);
+  const tasks = createMobileTasks(database, token, changed, checkPermission, (context, input) =>
+    prepare(context, input)
+  );
   let closed = false;
   const check = (context?: PluginContext) => {
     if (closed) throw new Error("插件数据会话已结束");
@@ -378,7 +381,11 @@ export function createMobileData(
       const authorize = async (value: MobileContentSnapshot) => {
         if (!checkPermission || value.own) return;
         const candidates = value.owners.filter(
-          owner => owner === "card" || owner === "article" || owner === "document"
+          owner =>
+            owner === "card" ||
+            owner === "article" ||
+            owner === "document" ||
+            owner === "calendar-event"
         );
         for (const owner of candidates) {
           try {
@@ -440,6 +447,9 @@ export function createMobileData(
       if (!saved.document.revision) throw new Error("保存结果缺少正文版本");
       return { revision: saved.document.revision };
     },
+    todoRecurrence: tasks.todoRecurrence,
+    readChanges: tasks.readChanges,
+    schedule: tasks.schedule,
     todos: tasks.todos,
     calendar: tasks.calendar,
     notebookResources: unavailable,

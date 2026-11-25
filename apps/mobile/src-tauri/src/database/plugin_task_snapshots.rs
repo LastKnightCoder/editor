@@ -60,6 +60,7 @@ fn keys(table: &str) -> Result<Vec<&'static str>, String> {
         | "calendar" => vec!["id"],
         "doc_task_calendar_link" | "todo_schedule_occurrence" => vec!["calendar_event_id"],
         "todo_recurrence_history" => vec!["series_id"],
+        "item_reminder" => vec!["owner_type", "owner_id", "offset_ms"],
         "todo_occurrence_override" => vec![
             "todo_item_id",
             "todo_created_at",
@@ -125,6 +126,16 @@ pub(super) fn capture_events(conn: &Connection, ids: &[i64]) -> Result<Value, St
         }
         result[table] = json!(found);
     }
+    let mut reminders = vec![];
+    for id in ids {
+        reminders.extend(rows(
+            conn,
+            "item_reminder",
+            "owner_type='event' AND owner_id=?1",
+            vec![(*id).into()],
+        )?);
+    }
+    result["item_reminder"] = json!(reminders);
     dependencies(conn, result)
 }
 pub(super) fn capture_todo(conn: &Connection, id: i64) -> Result<Value, String> {
@@ -152,6 +163,17 @@ pub(super) fn capture_todo(conn: &Connection, id: i64) -> Result<Value, String> 
     for (key, value) in event_snapshot.as_object().ok_or("快照无效")? {
         result[key] = value.clone();
     }
+    let mut reminders = result["item_reminder"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    reminders.extend(rows(
+        conn,
+        "item_reminder",
+        "owner_type='todo' AND owner_id=?1",
+        vec![id.into()],
+    )?);
+    result["item_reminder"] = json!(reminders);
     dependencies(conn, result)
 }
 pub(super) fn known(conn: &Connection, snapshot: &Value) -> Result<Value, String> {
@@ -218,6 +240,31 @@ pub(super) fn record(
     before: &Value,
     after: &Value,
 ) -> Result<(), String> {
+    record_mutation(
+        conn,
+        plugin,
+        entity,
+        identity,
+        title,
+        before,
+        after,
+        if entity == "todo" {
+            "delete_todo"
+        } else {
+            "delete_calendar_event"
+        },
+    )
+}
+pub(super) fn record_mutation(
+    conn: &Connection,
+    plugin: &str,
+    entity: &str,
+    identity: &str,
+    title: &str,
+    before: &Value,
+    after: &Value,
+    tool: &str,
+) -> Result<(), String> {
     let operation = uuid::Uuid::new_v4().to_string();
     let now = common::now_millis();
     for id in references(before).keys() {
@@ -261,8 +308,8 @@ pub(super) fn record(
     }
     let before_state = json!({"rows":before,"mobileTaskDependencies":task_dependencies});
     let after_state = json!({"rows":after});
-    conn.execute("INSERT INTO task_assistant_operation(id,batch_id,request_id,tool_name,request_hash,request_json,conversation_key,status,phase,before_json,after_json,create_time,update_time,undo_until) VALUES(?1,?1,?1,?2,?3,'{}',?4,'succeeded','completed',?5,?6,?7,?7,?8)",params![operation,if entity=="todo"{"delete_todo"}else{"delete_calendar_event"},digest(before),format!("plugin:{plugin}"),before_state.to_string(),after_state.to_string(),now,now+RETENTION]).map_err(sql_error)?;
-    conn.execute("INSERT INTO plugin_operations(plugin_id,action,entity,entity_id,title,payload,create_time) VALUES(?1,'delete',?2,?3,?4,?5,?6)",params![plugin,entity,identity,title,json!({"operationId":operation}).to_string(),now]).map_err(sql_error)?;
+    conn.execute("INSERT INTO task_assistant_operation(id,batch_id,request_id,tool_name,request_hash,request_json,conversation_key,status,phase,before_json,after_json,create_time,update_time,undo_until) VALUES(?1,?1,?1,?2,?3,'{}',?4,'succeeded','completed',?5,?6,?7,?7,?8)",params![operation,tool,digest(before),format!("plugin:{plugin}"),before_state.to_string(),after_state.to_string(),now,now+RETENTION]).map_err(sql_error)?;
+    conn.execute("INSERT INTO plugin_operations(plugin_id,action,entity,entity_id,title,payload,create_time) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![plugin,if tool.starts_with("delete_"){"delete"}else{"update"},entity,identity,title,json!({"operationId":operation}).to_string(),now]).map_err(sql_error)?;
     Ok(())
 }
 pub(super) fn release_pins(conn: &Connection, operation: &str) -> Result<(), String> {
@@ -301,6 +348,35 @@ pub(super) fn restore(conn: &Connection, operation: &str) -> Result<(), String> 
     let before: Value = serde_json::from_str(&before).map_err(|_| "恢复快照损坏")?;
     let after: Value = serde_json::from_str(&after).map_err(|_| "恢复快照损坏")?;
     let old = &before["rows"];
+    let mut reminder_owners = std::collections::BTreeSet::new();
+    for (table, owner) in [("todo_item", "todo"), ("calendar_event", "event")] {
+        for state in [&before["rows"], &after["rows"]] {
+            for row in state[table].as_array().into_iter().flatten() {
+                if let Some(id) = row["id"].as_i64() {
+                    reminder_owners.insert((owner.to_owned(), id));
+                }
+            }
+        }
+    }
+    for (owner, id) in &reminder_owners {
+        let current = rows(
+            conn,
+            "item_reminder",
+            "owner_type=?1 AND owner_id=?2",
+            vec![owner.clone().into(), (*id).into()],
+        )?;
+        let expected = after["rows"]["item_reminder"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|row| row["owner_type"] == *owner && row["owner_id"] == *id)
+            .cloned()
+            .collect::<Vec<_>>();
+        if digest(&json!(current)) != digest(&json!(expected)) {
+            return Err("提醒已有后续修改，不能自动恢复".into());
+        }
+    }
+
     let mut union = old.clone();
     for (table, list) in after["rows"].as_object().ok_or("恢复快照损坏")? {
         let existing = union[table].as_array().cloned().unwrap_or_default();
@@ -450,14 +526,19 @@ pub(super) fn restore(conn: &Connection, operation: &str) -> Result<(), String> 
                 .join(",");
             conn.execute(
                 &format!(
-                    "INSERT INTO {table} ({}) VALUES ({}) ON CONFLICT({}) DO UPDATE SET {updates}",
+                    "INSERT INTO {table} ({}) VALUES ({}) ON CONFLICT({}) {}",
                     fields
                         .iter()
                         .map(|field| field.as_str())
                         .collect::<Vec<_>>()
                         .join(","),
                     vec!["?"; fields.len()].join(","),
-                    identity.join(",")
+                    identity.join(","),
+                    if updates.is_empty() {
+                        "DO NOTHING".to_owned()
+                    } else {
+                        format!("DO UPDATE SET {updates}")
+                    }
                 ),
                 params_from_iter(
                     fields
@@ -495,6 +576,25 @@ pub(super) fn restore(conn: &Connection, operation: &str) -> Result<(), String> 
             .map_err(sql_error)?;
         }
     }
+    for (owner, id) in &reminder_owners {
+        conn.execute(
+            "DELETE FROM item_reminder WHERE owner_type=?1 AND owner_id=?2",
+            params![owner, id],
+        )
+        .map_err(sql_error)?;
+        for row in old["item_reminder"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|row| row["owner_type"] == *owner && row["owner_id"] == *id)
+        {
+            conn.execute(
+                "INSERT INTO item_reminder(owner_type,owner_id,offset_ms) VALUES(?1,?2,?3)",
+                params![owner, id, row["offset_ms"].as_i64()],
+            )
+            .map_err(sql_error)?;
+        }
+    }
     release_pins(conn, operation)?;
     conn.execute(
         "UPDATE task_assistant_operation SET status='undone',update_time=?1 WHERE id=?2",
@@ -520,7 +620,7 @@ pub(super) fn expire(conn: &Connection) -> Result<(), String> {
         )
         .map_err(sql_error)?;
     }
-    conn.execute("UPDATE plugin_operations SET action='expired',payload=json_object('operationId',json_extract(payload,'$.operationId')) WHERE entity IN ('todo','event') AND action='delete' AND create_time<?1",[common::now_millis()-RETENTION]).map_err(sql_error)?;
+    conn.execute("UPDATE plugin_operations SET action='expired',payload=json_object('operationId',json_extract(payload,'$.operationId')) WHERE entity IN ('todo','event') AND action IN ('delete','update') AND create_time<?1",[common::now_millis()-RETENTION]).map_err(sql_error)?;
     Ok(())
 }
 

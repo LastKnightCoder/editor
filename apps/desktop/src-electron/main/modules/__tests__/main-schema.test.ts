@@ -1,3 +1,4 @@
+import DataChangesTable from "../tables/data-changes";
 // @vitest-environment node
 import Database from "better-sqlite3";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -22,6 +23,39 @@ afterEach(() => {
 const schema = () => db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all();
 
 describe("主库当前基线", () => {
+  it("正文任务可靠身份目录丢失后重新准备并切换代次，正文和原始身份保留", () => {
+    ensureMainSchema(db);
+    const content = JSON.stringify([
+      {
+        type: "check-list-item",
+        taskId: "task",
+        children: [{ type: "paragraph", children: [{ text: "正文" }] }],
+      },
+    ]);
+    db.prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,ref_count) VALUES(1,10,10,?,1)"
+    ).run(content);
+    db.prepare(
+      "INSERT INTO articles(title,content_id,create_time,update_time) VALUES('原文',1,10,10)"
+    ).run();
+    const request = {
+      phase: "snapshot" as const,
+      domains: ["todo" as const],
+      todoSource: "document" as const,
+      afterDomain: "",
+      afterKey: 0,
+      afterSeq: 0,
+      limit: 10,
+    };
+    const before = DataChangesTable.read(db, request, "local");
+    db.exec("DROP TABLE document_task_identities");
+    ensureMainSchema(db);
+    const after = DataChangesTable.read(db, request, "local");
+    expect(after.scope).not.toBe(before.scope);
+    expect(after.items.map(item => item.id)).toEqual(["document:1:10:task"]);
+    expect(db.prepare("SELECT content FROM contents WHERE id=1").get()).toEqual({ content });
+  });
+
   it("旧库升级保留正文、额外列、外键、索引、视图与触发器，并恢复历史编号上限", () => {
     db.exec(currentSchema.replaceAll(" AUTOINCREMENT", ""));
     db.exec(`

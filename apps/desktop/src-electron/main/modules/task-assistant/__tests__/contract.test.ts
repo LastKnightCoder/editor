@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  TASK_TOOL_DESCRIPTIONS,
   TASK_READ_SCHEMAS,
   TASK_WRITE_SCHEMAS,
   taskToolSchema,
@@ -47,11 +48,11 @@ describe("助理工具输入契约", () => {
       })
     ).not.toThrow();
   });
-  it("工具定义数量和上下文体积保持有界", () => {
+  it("工具参数与说明保持对齐，且上下文体积有界", () => {
     const names = [...Object.keys(TASK_READ_SCHEMAS), ...Object.keys(TASK_WRITE_SCHEMAS)] as Array<
       keyof typeof TASK_READ_SCHEMAS | keyof typeof TASK_WRITE_SCHEMAS
     >;
-    expect(names).toHaveLength(13);
+    expect(new Set(names)).toEqual(new Set(Object.keys(TASK_TOOL_DESCRIPTIONS)));
     const schemas = JSON.stringify(names.map(name => ({ name, parameters: taskToolSchema(name) })));
     expect(new TextEncoder().encode(schemas).length).toBeLessThan(32_768);
     expect(schemas).not.toContain('"type":"any"');

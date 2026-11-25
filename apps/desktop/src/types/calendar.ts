@@ -30,6 +30,11 @@ export interface Calendar {
   isInSystemGroup?: boolean;
 }
 
+export type CalendarDirectory = Pick<
+  Calendar,
+  "id" | "title" | "color" | "archived" | "visible"
+> & { writable: boolean };
+
 export type CreateCalendar = Omit<
   Calendar,
   "id" | "createTime" | "updateTime" | "description" | "isInSystemGroup"

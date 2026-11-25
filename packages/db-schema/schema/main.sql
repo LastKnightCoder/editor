@@ -1041,6 +1041,580 @@ BEGIN
   DELETE FROM item_reminder WHERE owner_type = 'event' AND owner_id = OLD.id;
 END;
 
+-- 业务变更随领域事务提交；序号不依赖时钟，删除保留原对象身份。
+CREATE TABLE IF NOT EXISTS data_change_log (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  domain TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  operation TEXT NOT NULL CHECK(operation IN ('upsert','delete'))
+);
+CREATE INDEX IF NOT EXISTS idx_data_change_domain_seq ON data_change_log(domain,seq);
+CREATE TABLE IF NOT EXISTS data_change_state (
+  id TEXT PRIMARY KEY CHECK(id='main'),
+  protocol_version INTEGER NOT NULL,
+  pruned_through INTEGER NOT NULL DEFAULT 0,
+  retention INTEGER NOT NULL DEFAULT 100000 CHECK(retention>0)
+) WITHOUT ROWID;
+INSERT OR IGNORE INTO data_change_state(id,protocol_version,pruned_through) VALUES('main',1,0);
+-- 没有插件读取时也有界保留，清理及边界随原业务事务共同提交。
+CREATE TRIGGER IF NOT EXISTS dc_log_retention AFTER INSERT ON data_change_log
+WHEN NEW.seq > (SELECT retention FROM data_change_state WHERE id='main')
+BEGIN
+  UPDATE data_change_state SET pruned_through=MAX(pruned_through,NEW.seq-retention) WHERE id='main';
+  DELETE FROM data_change_log WHERE seq<=(SELECT pruned_through FROM data_change_state WHERE id='main');
+END;
+
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_item_insert AFTER INSERT ON todo_item
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||NEW.id||':'||NEW.create_time,'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.parent_id WHERE NEW.parent_id IS NOT NULL UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_item_update AFTER UPDATE ON todo_item WHEN OLD.id IS NOT NEW.id OR OLD.group_id IS NOT NEW.group_id OR OLD.parent_id IS NOT NEW.parent_id OR OLD.title IS NOT NEW.title OR OLD.description_content_id IS NOT NEW.description_content_id OR OLD.is_completed IS NOT NEW.is_completed OR OLD.due_at IS NOT NEW.due_at OR OLD.completed_at IS NOT NEW.completed_at OR OLD.is_archived IS NOT NEW.is_archived OR OLD.create_time IS NOT NEW.create_time OR OLD.type IS NOT NEW.type OR OLD.start_at IS NOT NEW.start_at OR OLD.remind_before IS NOT NEW.remind_before
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||OLD.id||':'||OLD.create_time,'delete' WHERE OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time;
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||NEW.id||':'||NEW.create_time,'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.parent_id WHERE OLD.parent_id IS NOT NULL UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.parent_id WHERE NEW.parent_id IS NOT NULL UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_item_delete AFTER DELETE ON todo_item
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||OLD.id||':'||OLD.create_time,'delete';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.parent_id WHERE OLD.parent_id IS NOT NULL UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_event_insert AFTER INSERT ON calendar_event
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',NEW.id||':'||NEW.create_time,'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id WHERE NEW.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=NEW.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_event_update AFTER UPDATE ON calendar_event WHEN OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time OR OLD.calendar_id IS NOT NEW.calendar_id OR OLD.title IS NOT NEW.title OR OLD.detail_content_id IS NOT NEW.detail_content_id OR OLD.start_date IS NOT NEW.start_date OR OLD.end_date IS NOT NEW.end_date OR OLD.start_time IS NOT NEW.start_time OR OLD.end_time IS NOT NEW.end_time OR OLD.color IS NOT NEW.color OR OLD.all_day IS NOT NEW.all_day OR OLD.todo_item_id IS NOT NEW.todo_item_id
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',OLD.id||':'||OLD.create_time,'delete' WHERE OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time;
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',NEW.id||':'||NEW.create_time,'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id WHERE OLD.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=OLD.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id WHERE NEW.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=NEW.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_event_delete AFTER DELETE ON calendar_event
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',OLD.id||':'||OLD.create_time,'delete';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id WHERE OLD.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=OLD.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_group_insert AFTER INSERT ON todo_group
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo-list',CAST(NEW.id AS TEXT),'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT id FROM todo_item WHERE group_id=NEW.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_group_update AFTER UPDATE ON todo_group WHEN OLD.id IS NOT NEW.id OR OLD.title IS NOT NEW.title OR OLD.color IS NOT NEW.color OR OLD.is_archived IS NOT NEW.is_archived OR OLD.create_time IS NOT NEW.create_time OR OLD.is_system IS NOT NEW.is_system OR OLD.system_type IS NOT NEW.system_type
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo-list',CAST(OLD.id AS TEXT),'delete' WHERE OLD.id IS NOT NEW.id;
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo-list',CAST(NEW.id AS TEXT),'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT id FROM todo_item WHERE group_id=NEW.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_group_delete AFTER DELETE ON todo_group
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo-list',CAST(OLD.id AS TEXT),'delete';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT id FROM todo_item WHERE group_id=OLD.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_insert AFTER INSERT ON calendar
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(NEW.id AS TEXT),'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id=NEW.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_update AFTER UPDATE ON calendar WHEN OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time OR OLD.title IS NOT NEW.title OR OLD.color IS NOT NEW.color OR OLD.archived IS NOT NEW.archived OR OLD.visible IS NOT NEW.visible OR OLD.group_id IS NOT NEW.group_id
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(OLD.id AS TEXT),'delete' WHERE OLD.id IS NOT NEW.id;
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(NEW.id AS TEXT),'upsert';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id=NEW.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_delete AFTER DELETE ON calendar
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(OLD.id AS TEXT),'delete';
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id=OLD.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_group_insert AFTER INSERT ON calendar_group
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(c.id AS TEXT),'upsert' FROM calendar c WHERE c.id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected));
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected)));
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_group_update AFTER UPDATE ON calendar_group WHEN OLD.is_system IS NOT NEW.is_system OR OLD.parent_group_id IS NOT NEW.parent_group_id OR OLD.id IS NOT NEW.id
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(c.id AS TEXT),'upsert' FROM calendar c WHERE c.id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected));
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected)));
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(c.id AS TEXT),'upsert' FROM calendar c WHERE c.id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected));
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected)));
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_calendar_group_delete AFTER DELETE ON calendar_group
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'calendar',CAST(c.id AS TEXT),'upsert' FROM calendar c WHERE c.id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected));
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE calendar_id IN (SELECT id FROM calendar WHERE group_id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.id UNION SELECT g.id FROM calendar_group g JOIN affected a ON g.parent_group_id=a.id) SELECT id FROM affected)));
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_insert AFTER INSERT ON todo_recurrence
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_update AFTER UPDATE ON todo_recurrence WHEN OLD.id IS NOT NEW.id OR OLD.todo_item_id IS NOT NEW.todo_item_id OR OLD.type IS NOT NEW.type OR OLD.interval IS NOT NEW.interval OR OLD.weekdays IS NOT NEW.weekdays OR OLD.month_day IS NOT NEW.month_day OR OLD.year_month IS NOT NEW.year_month OR OLD.year_day IS NOT NEW.year_day OR OLD.exclude_holidays IS NOT NEW.exclude_holidays OR OLD.start_date IS NOT NEW.start_date OR OLD.end_date IS NOT NEW.end_date OR OLD.max_occurrences IS NOT NEW.max_occurrences
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_delete AFTER DELETE ON todo_recurrence
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_history_insert AFTER INSERT ON todo_recurrence_history
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_history_update AFTER UPDATE ON todo_recurrence_history WHEN OLD.series_id IS NOT NEW.series_id OR OLD.todo_item_id IS NOT NEW.todo_item_id OR OLD.todo_created_at IS NOT NEW.todo_created_at OR OLD.effective_date IS NOT NEW.effective_date OR OLD.rule_json IS NOT NEW.rule_json
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_history_delete AFTER DELETE ON todo_recurrence_history
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_completion_insert AFTER INSERT ON todo_recurrence_completion
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM todo_recurrence WHERE id=NEW.recurrence_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_completion_update AFTER UPDATE ON todo_recurrence_completion WHEN OLD.id IS NOT NEW.id OR OLD.recurrence_id IS NOT NEW.recurrence_id OR OLD.scheduled_date IS NOT NEW.scheduled_date OR OLD.completed_at IS NOT NEW.completed_at OR OLD.skipped IS NOT NEW.skipped
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM todo_recurrence WHERE id=OLD.recurrence_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM todo_recurrence WHERE id=NEW.recurrence_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_recurrence_completion_delete AFTER DELETE ON todo_recurrence_completion
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM todo_recurrence WHERE id=OLD.recurrence_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_occurrence_override_insert AFTER INSERT ON todo_occurrence_override
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_occurrence_override_update AFTER UPDATE ON todo_occurrence_override WHEN OLD.todo_item_id IS NOT NEW.todo_item_id OR OLD.todo_created_at IS NOT NEW.todo_created_at OR OLD.series_id IS NOT NEW.series_id OR OLD.occurrence_date IS NOT NEW.occurrence_date OR OLD.state_json IS NOT NEW.state_json
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_occurrence_override_delete AFTER DELETE ON todo_occurrence_override
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_calendar_mapping_insert AFTER INSERT ON todo_calendar_mapping
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_calendar_mapping_update AFTER UPDATE ON todo_calendar_mapping WHEN OLD.id IS NOT NEW.id OR OLD.todo_item_id IS NOT NEW.todo_item_id OR OLD.calendar_event_id IS NOT NEW.calendar_event_id OR OLD.sync_type IS NOT NEW.sync_type OR OLD.recurrence_date IS NOT NEW.recurrence_date
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.calendar_event_id);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_calendar_mapping_delete AFTER DELETE ON todo_calendar_mapping
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_note_link_insert AFTER INSERT ON todo_note_link
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_note_link_update AFTER UPDATE ON todo_note_link WHEN OLD.id IS NOT NEW.id OR OLD.todo_id IS NOT NEW.todo_id OR OLD.content_id IS NOT NEW.content_id OR OLD.title IS NOT NEW.title OR OLD.type IS NOT NEW.type OR OLD.sort_index IS NOT NEW.sort_index
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_note_link_delete AFTER DELETE ON todo_note_link
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_doc_task_calendar_link_insert AFTER INSERT ON doc_task_calendar_link
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_doc_task_calendar_link_update AFTER UPDATE ON doc_task_calendar_link WHEN OLD.calendar_event_id IS NOT NEW.calendar_event_id OR OLD.content_id IS NOT NEW.content_id OR OLD.content_created_at IS NOT NEW.content_created_at OR OLD.task_id IS NOT NEW.task_id OR OLD.series_id IS NOT NEW.series_id OR OLD.occurrence_date IS NOT NEW.occurrence_date
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.calendar_event_id);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_doc_task_calendar_link_delete AFTER DELETE ON doc_task_calendar_link
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_schedule_occurrence_insert AFTER INSERT ON todo_schedule_occurrence
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM calendar_event WHERE id=NEW.calendar_event_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_schedule_occurrence_update AFTER UPDATE ON todo_schedule_occurrence WHEN OLD.calendar_event_id IS NOT NEW.calendar_event_id OR OLD.series_id IS NOT NEW.series_id OR OLD.occurrence_date IS NOT NEW.occurrence_date
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM calendar_event WHERE id=OLD.calendar_event_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.calendar_event_id);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM calendar_event WHERE id=NEW.calendar_event_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_todo_schedule_occurrence_delete AFTER DELETE ON todo_schedule_occurrence
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT todo_item_id FROM calendar_event WHERE id=OLD.calendar_event_id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.calendar_event_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_item_reminder_insert AFTER INSERT ON item_reminder
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.owner_id WHERE NEW.owner_type='todo' UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.owner_id WHERE NEW.owner_type='event');
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_item_reminder_update AFTER UPDATE ON item_reminder WHEN OLD.owner_type IS NOT NEW.owner_type OR OLD.owner_id IS NOT NEW.owner_id OR OLD.offset_ms IS NOT NEW.offset_ms
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.owner_id WHERE OLD.owner_type='todo' UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.owner_id WHERE OLD.owner_type='event');
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.owner_id WHERE NEW.owner_type='todo' UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT NEW.owner_id WHERE NEW.owner_type='event');
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_item_reminder_delete AFTER DELETE ON item_reminder
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.owner_id WHERE OLD.owner_type='todo' UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT OLD.owner_id WHERE OLD.owner_type='event');
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_content_documents_insert AFTER INSERT ON content_documents
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_content_documents_update AFTER UPDATE ON content_documents WHEN OLD.revision IS NOT NEW.revision OR OLD.contracts IS NOT NEW.contracts OR OLD.format_version IS NOT NEW.format_version
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_content_documents_delete AFTER DELETE ON content_documents
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=OLD.content_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_contents_update AFTER UPDATE ON contents WHEN OLD.content IS NOT NEW.content
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_contents_delete AFTER DELETE ON contents
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=OLD.id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_content_document_blocks_insert AFTER INSERT ON content_document_blocks
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_content_document_blocks_update AFTER UPDATE ON content_document_blocks WHEN OLD.content IS NOT NEW.content
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_content_document_blocks_delete AFTER DELETE ON content_document_blocks
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=OLD.content_id);
+END;
+
+-- 正文任务身份与正文主库投影同事务更新；查询索引不是可靠变化来源。
+CREATE TABLE IF NOT EXISTS document_task_identities (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  content_id INTEGER NOT NULL,
+  content_created_at INTEGER NOT NULL,
+  part_key TEXT NOT NULL,
+  task_id TEXT NOT NULL,
+  UNIQUE(content_id,content_created_at,part_key,task_id)
+);
+CREATE INDEX IF NOT EXISTS idx_document_task_identity_content ON document_task_identities(content_id,part_key);
+CREATE INDEX IF NOT EXISTS idx_document_task_identity_task ON document_task_identities(content_id,content_created_at,task_id);
+CREATE TABLE IF NOT EXISTS document_task_projection_state (
+  id TEXT PRIMARY KEY CHECK(id='main'),
+  version INTEGER NOT NULL,
+  after_content_id INTEGER NOT NULL DEFAULT 0,
+  ready INTEGER NOT NULL DEFAULT 0,
+  epoch TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))
+) WITHOUT ROWID;
+INSERT OR IGNORE INTO document_task_projection_state(id,version) VALUES('main',1);
+CREATE TABLE IF NOT EXISTS document_task_projection_errors (
+  content_id INTEGER NOT NULL,
+  part_key TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  PRIMARY KEY(content_id,part_key)
+) WITHOUT ROWID;
+
+CREATE VIEW IF NOT EXISTS document_task_projection_parts AS
+SELECT id AS content_id,create_time AS content_created_at,'' AS part_key,content FROM contents WHERE content IS NOT NULL
+UNION ALL
+SELECT b.content_id,c.create_time,b.block_id,b.content FROM content_document_blocks b JOIN contents c ON c.id=b.content_id WHERE c.content IS NULL;
+CREATE VIEW IF NOT EXISTS document_task_projection_candidates AS
+SELECT p.content_id,p.content_created_at,p.part_key,CAST(json_extract(j.value,'$.taskId') AS TEXT) AS task_id
+FROM document_task_projection_parts p,json_tree(CASE WHEN json_valid(p.content) THEN p.content ELSE '[]' END) j
+WHERE j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item'
+AND CASE WHEN j.type='object' THEN json_type(j.value,'$.taskId') END='text'
+AND CASE WHEN j.type='object' THEN length(json_extract(j.value,'$.taskId')) END>0;
+CREATE VIEW IF NOT EXISTS document_task_invalid_parts AS
+SELECT content_id,part_key,'invalid task projection' AS reason FROM document_task_projection_parts p
+WHERE NOT json_valid(p.content) OR json_type(CASE WHEN json_valid(p.content) THEN p.content ELSE 'null' END) NOT IN ('array','object')
+OR EXISTS(SELECT 1 FROM json_tree(CASE WHEN json_valid(p.content) THEN p.content ELSE '[]' END) j
+WHERE j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item'
+AND (CASE WHEN j.type='object' THEN json_type(j.value,'$.taskId') END IS NOT 'text' OR CASE WHEN j.type='object' THEN length(json_extract(j.value,'$.taskId')) END=0))
+OR EXISTS(SELECT 1 FROM document_task_projection_candidates t WHERE t.content_id=p.content_id AND t.part_key=p.part_key GROUP BY task_id HAVING COUNT(*)>1);
+CREATE VIEW IF NOT EXISTS document_task_source_contents AS
+SELECT content_id FROM cards WHERE content_id IS NOT NULL
+UNION ALL SELECT content_id FROM articles WHERE is_delete=0 AND content_id IS NOT NULL
+UNION ALL SELECT content_id FROM project_item WHERE content_id IS NOT NULL
+UNION ALL SELECT s.content_id FROM diary_segments s JOIN diary_entries d ON d.id=s.diary_id
+UNION ALL SELECT content_id FROM diary_entries WHERE content_id IS NOT NULL;
+CREATE VIEW IF NOT EXISTS document_task_visible_identities AS
+SELECT i.* FROM document_task_identities i JOIN contents c ON c.id=i.content_id AND c.create_time=i.content_created_at
+WHERE EXISTS(SELECT 1 FROM document_task_source_contents s WHERE s.content_id=i.content_id)
+AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=i.content_id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=i.task_id)));
+
+CREATE TRIGGER IF NOT EXISTS dc_document_task_identity_insert AFTER INSERT ON document_task_identities BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) VALUES('todo',(CASE WHEN instr(NEW.task_id,'@')>0 OR substr(NEW.task_id,1,1)='~' OR instr(NEW.task_id,char(10))>0 OR instr(NEW.task_id,char(13))>0 OR instr(NEW.task_id,char(8232))>0 OR instr(NEW.task_id,char(8233))>0 THEN 'document:v2:'||NEW.content_id||':'||NEW.content_created_at||':'||hex(CAST(NEW.task_id AS BLOB)) ELSE 'document:'||NEW.content_id||':'||NEW.content_created_at||':'||NEW.task_id END),'upsert');
+DELETE FROM document_task_projection_errors WHERE content_id=NEW.content_id AND part_key='!duplicate/'||NEW.task_id;
+INSERT INTO document_task_projection_errors SELECT NEW.content_id,'!duplicate/'||NEW.task_id,'duplicate task identity'
+WHERE (SELECT COUNT(*) FROM document_task_identities WHERE content_id=NEW.content_id AND content_created_at=NEW.content_created_at AND task_id=NEW.task_id)>1;
+END;
+CREATE TRIGGER IF NOT EXISTS dc_document_task_identity_delete AFTER DELETE ON document_task_identities BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) VALUES('todo',(CASE WHEN instr(OLD.task_id,'@')>0 OR substr(OLD.task_id,1,1)='~' OR instr(OLD.task_id,char(10))>0 OR instr(OLD.task_id,char(13))>0 OR instr(OLD.task_id,char(8232))>0 OR instr(OLD.task_id,char(8233))>0 THEN 'document:v2:'||OLD.content_id||':'||OLD.content_created_at||':'||hex(CAST(OLD.task_id AS BLOB)) ELSE 'document:'||OLD.content_id||':'||OLD.content_created_at||':'||OLD.task_id END),'delete');
+DELETE FROM document_task_projection_errors WHERE content_id=OLD.content_id AND part_key='!duplicate/'||OLD.task_id;
+INSERT INTO document_task_projection_errors SELECT OLD.content_id,'!duplicate/'||OLD.task_id,'duplicate task identity'
+WHERE (SELECT COUNT(*) FROM document_task_identities WHERE content_id=OLD.content_id AND content_created_at=OLD.content_created_at AND task_id=OLD.task_id)>1;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_contents_insert AFTER INSERT ON contents
+BEGIN
+DELETE FROM document_task_projection_errors WHERE content_id=NEW.id AND part_key='';
+INSERT INTO document_task_projection_errors SELECT content_id,part_key,reason FROM document_task_invalid_parts WHERE content_id=NEW.id AND part_key='';
+DELETE FROM document_task_identities WHERE content_id=NEW.id AND part_key='' AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.id AND part_key='') AND (content_created_at IS NOT (SELECT create_time FROM contents WHERE id=NEW.id) OR task_id NOT IN (SELECT task_id FROM document_task_projection_candidates WHERE content_id=NEW.id AND part_key=''));
+INSERT OR IGNORE INTO document_task_identities(content_id,content_created_at,part_key,task_id)
+SELECT content_id,content_created_at,part_key,task_id FROM document_task_projection_candidates WHERE content_id=NEW.id AND part_key='' AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.id AND part_key='');
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_contents_update AFTER UPDATE ON contents WHEN OLD.content IS NOT NEW.content OR OLD.create_time IS NOT NEW.create_time
+BEGIN
+DELETE FROM document_task_projection_errors WHERE content_id=NEW.id AND part_key='';
+INSERT INTO document_task_projection_errors SELECT content_id,part_key,reason FROM document_task_invalid_parts WHERE content_id=NEW.id AND part_key='';
+DELETE FROM document_task_identities WHERE content_id=NEW.id AND part_key='' AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.id AND part_key='') AND (content_created_at IS NOT (SELECT create_time FROM contents WHERE id=NEW.id) OR task_id NOT IN (SELECT task_id FROM document_task_projection_candidates WHERE content_id=NEW.id AND part_key=''));
+INSERT OR IGNORE INTO document_task_identities(content_id,content_created_at,part_key,task_id)
+SELECT content_id,content_created_at,part_key,task_id FROM document_task_projection_candidates WHERE content_id=NEW.id AND part_key='' AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.id AND part_key='');
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_contents_split AFTER UPDATE OF content ON contents WHEN OLD.content IS NOT NULL AND NEW.content IS NULL
+BEGIN
+INSERT OR IGNORE INTO document_task_projection_errors SELECT content_id,part_key,reason FROM document_task_invalid_parts WHERE content_id=NEW.id;
+INSERT OR IGNORE INTO document_task_identities(content_id,content_created_at,part_key,task_id)
+SELECT p.content_id,p.content_created_at,p.part_key,p.task_id FROM document_task_projection_candidates p
+WHERE p.content_id=NEW.id AND NOT EXISTS(SELECT 1 FROM document_task_projection_errors e WHERE e.content_id=p.content_id AND e.part_key=p.part_key);
+END;
+CREATE TRIGGER IF NOT EXISTS dc_task_content_document_blocks_insert AFTER INSERT ON content_document_blocks
+BEGIN
+DELETE FROM document_task_projection_errors WHERE content_id=NEW.content_id AND part_key=NEW.block_id;
+INSERT INTO document_task_projection_errors SELECT content_id,part_key,reason FROM document_task_invalid_parts WHERE content_id=NEW.content_id AND part_key=NEW.block_id;
+DELETE FROM document_task_identities WHERE content_id=NEW.content_id AND part_key=NEW.block_id AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.content_id AND part_key=NEW.block_id) AND (content_created_at IS NOT (SELECT create_time FROM contents WHERE id=NEW.content_id) OR task_id NOT IN (SELECT task_id FROM document_task_projection_candidates WHERE content_id=NEW.content_id AND part_key=NEW.block_id));
+INSERT OR IGNORE INTO document_task_identities(content_id,content_created_at,part_key,task_id)
+SELECT content_id,content_created_at,part_key,task_id FROM document_task_projection_candidates WHERE content_id=NEW.content_id AND part_key=NEW.block_id AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.content_id AND part_key=NEW.block_id);
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_content_document_blocks_update AFTER UPDATE ON content_document_blocks WHEN OLD.content IS NOT NEW.content OR OLD.content_id IS NOT NEW.content_id OR OLD.block_id IS NOT NEW.block_id
+BEGIN
+DELETE FROM document_task_projection_errors WHERE content_id=NEW.content_id AND part_key=NEW.block_id;
+INSERT INTO document_task_projection_errors SELECT content_id,part_key,reason FROM document_task_invalid_parts WHERE content_id=NEW.content_id AND part_key=NEW.block_id;
+DELETE FROM document_task_identities WHERE content_id=NEW.content_id AND part_key=NEW.block_id AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.content_id AND part_key=NEW.block_id) AND (content_created_at IS NOT (SELECT create_time FROM contents WHERE id=NEW.content_id) OR task_id NOT IN (SELECT task_id FROM document_task_projection_candidates WHERE content_id=NEW.content_id AND part_key=NEW.block_id));
+INSERT OR IGNORE INTO document_task_identities(content_id,content_created_at,part_key,task_id)
+SELECT content_id,content_created_at,part_key,task_id FROM document_task_projection_candidates WHERE content_id=NEW.content_id AND part_key=NEW.block_id AND NOT EXISTS(SELECT 1 FROM document_task_invalid_parts WHERE content_id=NEW.content_id AND part_key=NEW.block_id);
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_contents_delete AFTER DELETE ON contents BEGIN
+DELETE FROM document_task_identities WHERE content_id=OLD.id;
+DELETE FROM document_task_projection_errors WHERE content_id=OLD.id;
+END;
+CREATE TRIGGER IF NOT EXISTS dc_task_block_delete AFTER DELETE ON content_document_blocks BEGIN
+DELETE FROM document_task_identities WHERE content_id=OLD.content_id AND part_key=OLD.block_id;
+DELETE FROM document_task_projection_errors WHERE content_id=OLD.content_id AND part_key=OLD.block_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_cards_insert AFTER INSERT ON cards BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_cards_update AFTER UPDATE ON cards BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_cards_delete AFTER DELETE ON cards BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_articles_insert AFTER INSERT ON articles BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_articles_update AFTER UPDATE ON articles BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_articles_delete AFTER DELETE ON articles BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_project_item_insert AFTER INSERT ON project_item BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_project_item_update AFTER UPDATE ON project_item BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_project_item_delete AFTER DELETE ON project_item BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_diary_segments_insert AFTER INSERT ON diary_segments BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_diary_segments_update AFTER UPDATE ON diary_segments BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_diary_segments_delete AFTER DELETE ON diary_segments BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_diary_entries_insert AFTER INSERT ON diary_entries BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id OR i.content_id IN (SELECT content_id FROM diary_segments WHERE diary_id IN (NEW.id));
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_diary_entries_update AFTER UPDATE ON diary_entries BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id OR i.content_id IN (SELECT content_id FROM diary_segments WHERE diary_id IN (OLD.id,NEW.id));
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_diary_entries_delete AFTER DELETE ON diary_entries BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id IN (SELECT content_id FROM diary_segments WHERE diary_id IN (OLD.id));
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_collaboration_bindings_insert AFTER INSERT ON collaboration_bindings BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_collaboration_bindings_update AFTER UPDATE ON collaboration_bindings BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_collaboration_bindings_delete AFTER DELETE ON collaboration_bindings BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_content_ai_meta_insert AFTER INSERT ON content_ai_meta BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_content_ai_meta_update AFTER UPDATE ON content_ai_meta BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_content_ai_meta_delete AFTER DELETE ON content_ai_meta BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_doc_task_settings_insert AFTER INSERT ON doc_task_settings BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_doc_task_settings_update AFTER UPDATE ON doc_task_settings BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id OR i.content_id=NEW.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_source_doc_task_settings_delete AFTER DELETE ON doc_task_settings BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_group_insert AFTER INSERT ON todo_group BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE 1=1;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_group_update AFTER UPDATE ON todo_group BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE 1=1;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_group_delete AFTER DELETE ON todo_group BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE 1=1;
+END;
+
+CREATE TRIGGER IF NOT EXISTS dc_task_block_move AFTER UPDATE OF content_id,block_id ON content_document_blocks
+WHEN OLD.content_id IS NOT NEW.content_id OR OLD.block_id IS NOT NEW.block_id
+BEGIN
+DELETE FROM document_task_identities WHERE content_id=OLD.content_id AND part_key=OLD.block_id;
+DELETE FROM document_task_projection_errors WHERE content_id=OLD.content_id AND part_key=OLD.block_id;
+INSERT INTO data_change_log(domain,entity_id,operation)
+SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),
+CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END
+FROM document_task_identities i WHERE i.content_id=OLD.content_id;
+END;
+CREATE TRIGGER IF NOT EXISTS dc_task_block_position AFTER UPDATE OF position ON content_document_blocks WHEN OLD.position IS NOT NEW.position
+BEGIN
+INSERT INTO data_change_log(domain,entity_id,operation)
+SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),
+CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END
+FROM document_task_identities i WHERE i.content_id=NEW.content_id;
+END;
+CREATE TRIGGER IF NOT EXISTS dc_task_content_identity AFTER UPDATE OF create_time ON contents WHEN OLD.create_time IS NOT NEW.create_time
+BEGIN
+DELETE FROM document_task_identities WHERE content_id=OLD.id AND content_created_at=OLD.create_time;
+INSERT OR IGNORE INTO document_task_identities(content_id,content_created_at,part_key,task_id)
+SELECT p.content_id,p.content_created_at,p.part_key,p.task_id FROM document_task_projection_candidates p
+WHERE p.content_id=NEW.id AND NOT EXISTS(SELECT 1 FROM document_task_projection_errors e WHERE e.content_id=p.content_id AND e.part_key=p.part_key);
+END;
+
 -- 插件对业务数据的可恢复操作：删除前的快照或待办撤销凭据，宽限期内可由用户在插件详情页恢复
 CREATE TABLE IF NOT EXISTS plugin_operations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1144,6 +1718,28 @@ CREATE TABLE IF NOT EXISTS plugin_ref_grants (
   PRIMARY KEY (plugin_id, kind, ref_id)
 );
 
+-- 插件业务创建回执独立于撤销保留期；删除结果永久失效，重试不复活。
+CREATE TABLE IF NOT EXISTS plugin_create_receipts (
+  plugin_id TEXT NOT NULL,
+  request_id TEXT NOT NULL,
+  input_hash TEXT NOT NULL,
+  entity TEXT NOT NULL CHECK(entity IN ('todo','event')),
+  entity_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  operation_id TEXT NOT NULL,
+  retired INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(plugin_id, request_id)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_plugin_create_target ON plugin_create_receipts(entity, entity_id, created_at);
+CREATE TRIGGER IF NOT EXISTS trg_plugin_create_todo_delete
+AFTER DELETE ON todo_item BEGIN
+  UPDATE plugin_create_receipts SET retired=1 WHERE entity='todo' AND entity_id=OLD.id AND created_at=OLD.create_time;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_plugin_create_event_delete
+AFTER DELETE ON calendar_event BEGIN
+  UPDATE plugin_create_receipts SET retired=1 WHERE entity='event' AND entity_id=OLD.id AND created_at=OLD.create_time;
+END;
+
 -- 主库索引
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
 CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
@@ -1224,6 +1820,7 @@ CREATE INDEX IF NOT EXISTS idx_calendar_event_start_date ON calendar_event(start
 CREATE INDEX IF NOT EXISTS idx_calendar_event_end_date ON calendar_event(end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_date_range ON calendar_event(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_todo_item ON calendar_event(todo_item_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_event_detail_content ON calendar_event(detail_content_id);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);
@@ -1257,6 +1854,8 @@ CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_cont
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compose_boards_page ON compose_boards(page_id);
 -- 首页热力图按年聚合操作流水（get-operation-daily-counts）；带 operation_id 形成覆盖索引，聚合免回表
 CREATE INDEX IF NOT EXISTS idx_operation_time ON operation(operation_time, operation_id);
+
+CREATE INDEX IF NOT EXISTS idx_diary_entries_content_id ON diary_entries(content_id);
 
 -- 物理删除即退役稳定身份，数值主键和创建时间同时复用也不能误读新实体。
 CREATE TRIGGER IF NOT EXISTS trg_entity_identity_white_board_contents_delete

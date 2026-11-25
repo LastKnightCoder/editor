@@ -16,6 +16,68 @@ use crate::database::schema;
 pub(crate) const CALENDAR_COLUMNS: &str =
     "id, title, color, description_content_id, archived, pinned, visible, order_index, group_id, create_time, update_time";
 
+const CALENDAR_DIRECTORY_SQL: &str = "WITH RECURSIVE system_groups(id) AS (
+  SELECT id FROM calendar_group WHERE is_system=1
+  UNION SELECT g.id FROM calendar_group g JOIN system_groups s ON g.parent_group_id=s.id
+) SELECT id,title,color,archived,visible,order_index,
+  (archived=0 AND (group_id IS NULL OR group_id NOT IN (SELECT id FROM system_groups))) AS writable FROM calendar";
+
+#[derive(serde::Serialize)]
+pub(crate) struct CalendarDirectory {
+    pub id: i64,
+    title: String,
+    color: String,
+    archived: bool,
+    visible: bool,
+    pub writable: bool,
+}
+
+fn directory_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CalendarDirectory> {
+    Ok(CalendarDirectory {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        color: row.get(2)?,
+        archived: row.get::<_, Option<bool>>(3)?.unwrap_or(false),
+        visible: row.get::<_, Option<bool>>(4)?.unwrap_or(false),
+        writable: row.get::<_, Option<bool>>(6)?.unwrap_or(false),
+    })
+}
+
+pub(crate) fn get_calendar_directory(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<CalendarDirectory>, String> {
+    conn.query_row(
+        &format!("{CALENDAR_DIRECTORY_SQL} WHERE id=?1"),
+        [id],
+        directory_row,
+    )
+    .optional()
+    .map_err(|e| db_err("CALENDAR_QUERY_FAILED", "read directory", e))
+}
+
+pub(crate) fn query_calendar_directory(
+    conn: &Connection,
+    after_id: i64,
+    archived: Option<bool>,
+    limit: i64,
+) -> Result<Vec<CalendarDirectory>, String> {
+    let mut stmt=conn.prepare(&format!("{CALENDAR_DIRECTORY_SQL} WHERE id>?1 AND (?2 IS NULL OR archived=?2) ORDER BY id LIMIT ?3")).map_err(|e| db_err("CALENDAR_QUERY_FAILED", "prepare directory", e))?;
+    let rows = stmt
+        .query_map(params![after_id, archived, limit], directory_row)
+        .map_err(|e| db_err("CALENDAR_QUERY_FAILED", "query directory", e))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| db_err("CALENDAR_QUERY_FAILED", "parse directory", e))?;
+    Ok(rows)
+}
+
+pub(crate) fn find_writable_user_calendar(
+    conn: &Connection,
+    id: Option<i64>,
+) -> Result<i64, String> {
+    conn.query_row(&format!("SELECT id FROM ({CALENDAR_DIRECTORY_SQL}) WHERE writable=1 AND (?1 IS NULL OR id=?1) ORDER BY order_index,id LIMIT 1"), [id], |row|row.get(0)).optional().map_err(|e|db_err("CALENDAR_QUERY_FAILED","find writable calendar",e))?.ok_or_else(||"请先选择或创建一个可写用户日历".to_owned())
+}
+
 type GroupMap = HashMap<i64, (bool, Option<i64>)>;
 
 // 系统日历两层派生判定，对齐桌面 calendar.ts：分组 is_system，或其父分组 is_system；

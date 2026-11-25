@@ -1,3 +1,6 @@
+mod data_changes;
+mod document_task_identities;
+mod plugin_task_recurrence;
 use rusqlite::{params, OptionalExtension};
 use serde::Deserialize;
 use serde_json::Value;
@@ -42,6 +45,7 @@ mod plugin_own_query;
 mod plugin_records;
 pub use plugin_own_data::*;
 mod plugin_projects;
+mod plugin_schedule_data;
 mod plugin_task_dates;
 mod plugin_task_snapshots;
 mod plugin_tasks;

@@ -1,7 +1,9 @@
+vi.mock("electron");
+vi.mock("../../video-note-index-queue");
 import Database from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RECONCILE_BATCH, reconcileDocTasks, regroupDocTasks, reindexDocTasks } from "../indexer";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");

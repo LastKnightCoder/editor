@@ -12,15 +12,8 @@ export type Row = Record<string, string | number | null>;
 export const fail = (code: string, message: string): never => {
   throw new TaskAssistantError(code, message);
 };
-export function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (value && typeof value === "object")
-    return `{${Object.entries(value)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
-      .join(",")}}`;
-  return JSON.stringify(value) ?? "null";
-}
+export { canonical } from "../content-state-revision";
+import { canonical } from "../content-state-revision";
 export const revision = (value: unknown) =>
   createHash("sha256").update(canonical(value)).digest("hex");
 export function instanceRevision(
@@ -35,6 +28,7 @@ export function instanceRevision(
     dueAt: task.dueAt,
     groupId: task.groupId,
     reminderAt: task.reminderAt,
+    reminderOffsets: task.reminderOffsets,
     recurrence: task.recurrence,
     occurrence,
     state,
@@ -64,24 +58,6 @@ export const refOfTodo = (row: Row): TaskRef => ({
 });
 export function checkRevision(expected: unknown, actual: string): void {
   if (expected !== actual) fail("VERSION_CONFLICT", "对象已变化，请重新查询后重试");
-}
-export function requireGroup(db: Database.Database, id: number): void {
-  if (!db.prepare("SELECT id FROM todo_group WHERE id=? AND is_archived=0").get(id))
-    fail("NOT_FOUND", "待办项目不存在或已归档");
-}
-export function requireCalendar(db: Database.Database, id?: number): number {
-  const row = db
-    .prepare(
-      `WITH RECURSIVE system_groups(id) AS (
-    SELECT id FROM calendar_group WHERE is_system=1
-    UNION SELECT g.id FROM calendar_group g JOIN system_groups s ON g.parent_group_id=s.id
-  ) SELECT c.id FROM calendar c
-    WHERE c.archived=0 AND (c.group_id IS NULL OR c.group_id NOT IN (SELECT id FROM system_groups)) ${id === undefined ? "" : "AND c.id=?"}
-    ORDER BY c.order_index,c.id LIMIT 1`
-    )
-    .get(...(id === undefined ? [] : [id])) as { id: number } | undefined;
-  if (!row) return fail("INVALID_CALENDAR", "请先选择或创建一个可写用户日历");
-  return row.id;
 }
 export function parseSchedule(input: { start: string; end: string; allDay: boolean }) {
   const start = dateTime(input.start),

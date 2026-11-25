@@ -155,6 +155,9 @@ pub fn set_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String>
     Ok(())
 }
 
+fn task_projection_complete(conn: &Connection) -> Result<bool, String> {
+    conn.query_row("SELECT COUNT(*)=3 FROM sqlite_master WHERE type='table' AND name IN ('document_task_identities','document_task_projection_state','document_task_projection_errors')",[],|r|r.get(0)).map_err(|e|e.to_string())
+}
 pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, String> {
     let exists: bool = conn
         .query_row(
@@ -163,7 +166,7 @@ pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, Strin
             |r| r.get(0),
         )
         .map_err(|e| e.to_string())?;
-    if !exists {
+    if !exists || !task_projection_complete(conn)? {
         return Ok(true);
     }
     Ok(get_meta(conn, "main_schema_version")?.as_deref()
@@ -183,9 +186,10 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to set main PRAGMA: {e}"))?;
 
     if !needs_main_initialization(conn)? {
-        return Ok(());
+        return super::document_task_identities::prepare(conn);
     }
 
+    let projection_missing = !task_projection_complete(conn)?;
     let tables = row_ids::tables(MAIN_SCHEMA_SQL);
     conn.pragma_update(None, "foreign_keys", false)
         .map_err(|e| e.to_string())?;
@@ -196,6 +200,9 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         row_ids::migrate(&tx, &tables)?;
         tx.execute_batch(MAIN_SCHEMA_SQL)
             .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
+        if projection_missing {
+            tx.execute("UPDATE document_task_projection_state SET ready=0,after_content_id=0,epoch=lower(hex(randomblob(16))) WHERE id='main'",[]).map_err(|e|e.to_string())?;
+        }
         row_ids::seed_sequences(&tx, &tables)?;
         if !row_ids::foreign_key_errors(&tx)?.is_subset(&foreign_keys) {
             return Err("主库编号升级引入了外键不一致".into());
@@ -222,7 +229,8 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     })();
     conn.pragma_update(None, "foreign_keys", true)
         .map_err(|e| e.to_string())?;
-    result
+    result?;
+    super::document_task_identities::prepare(conn)
 }
 
 pub fn ensure_index_schema(conn: &Connection, vec_dimension: i64) -> Result<bool, String> {

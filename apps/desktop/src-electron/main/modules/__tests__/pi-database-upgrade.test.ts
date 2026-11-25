@@ -1,3 +1,4 @@
+import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -42,10 +43,7 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
   const { default: database } = await import("../database");
   const a = new Database(join(paths.root, "a.db"), { timeout: 1 });
   const b = new Database(join(paths.root, "b.db"));
-  for (const db of [a, b])
-    db.exec(
-      "CREATE TABLE contents(id INTEGER PRIMARY KEY,create_time INTEGER,update_time INTEGER,content TEXT,count INTEGER,ref_count INTEGER); CREATE TABLE operation(operation_content_type TEXT,operation_action TEXT,operation_id INTEGER,operation_time INTEGER)"
-    );
+  for (const db of [a, b]) db.exec(MAIN_SCHEMA_SQL);
   a.pragma("journal_mode=WAL");
   a.pragma("wal_checkpoint(TRUNCATE)");
   database.databases.set("a", a);

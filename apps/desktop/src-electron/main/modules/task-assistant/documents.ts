@@ -1,7 +1,11 @@
+import { requireGroup } from "./directory-access";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
   occurrenceKey,
+  normalizeTaskRecurrenceRule,
+  patchOccurrenceState,
+  type TaskOccurrencePatch,
   documentTaskIsChecked,
   type AssistantTask,
   type DocumentTaskAttributes,
@@ -10,7 +14,12 @@ import {
   type TaskRecurrenceRule,
   type TaskRef,
 } from "@tau/shared/task-assistant";
-import { extractDocTasks, docTaskTokenSpans, type DocTaskGroupBinding } from "@/entity/doc-tasks";
+import {
+  extractDocTasks,
+  docTaskTokenSpans,
+  isAbsoluteDateHint,
+  type DocTaskGroupBinding,
+} from "@/entity/doc-tasks";
 import { minimalTextEdit } from "@/entity/text-edits";
 import { listTaskGroups } from "../doc-tasks/group-names";
 import { resolveDocTaskSources } from "../doc-tasks/sources";
@@ -28,7 +37,7 @@ import {
   checkRevision,
   fail,
   localDate,
-  requireGroup,
+  dateTime,
   revision,
   instanceRevision,
 } from "./common";
@@ -127,8 +136,23 @@ export function readDocumentTask(
   const tree = cachedTree ?? readTaskContent(db, ref.contentId, ref.createdAt);
   const node = taskNode(tree, ref.taskId) as TaskNode | undefined;
   if (!node) return fail("NOT_FOUND", "原文中已没有这个待办");
-  const parsed = extractDocTasks([node], listTaskGroups(db)).tasks[0];
+  const groups = listTaskGroups(db);
+  const parsed = extractDocTasks([node], groups).tasks[0];
   if (!parsed) return fail("NOT_FOUND", "待办身份无效");
+  const unanchored =
+    !!parsed.dateHint && !isAbsoluteDateHint(parsed.dateHint) && parsed.dateAnchor == null;
+  const due = unanchored ? null : parsed.dueAt;
+  const groupSpan = unanchored
+    ? docTaskTokenSpans(parsed.text, groups).find(span => span.kind === "group")
+    : undefined;
+  const title = unanchored
+    ? (groupSpan
+        ? parsed.text.slice(0, groupSpan.start) + " " + parsed.text.slice(groupSpan.end)
+        : parsed.text
+      )
+        .replace(/\s+/g, " ")
+        .trim()
+    : parsed.title;
   let readonlyReason: string | undefined;
   try {
     assertTaskContentWritable(db, ref.contentId);
@@ -139,9 +163,14 @@ export function readDocumentTask(
   if (!source) readonlyReason = "原文来源已删除，不能继续修改或安排该待办";
   return {
     taskRef: ref,
-    revision: revision(documentSnapshot(tree, ref)),
+    revision: revision({
+      snapshot: documentSnapshot(tree, ref),
+      title,
+      groupId: parsed.groupId,
+      dueAt: due,
+    }),
     documentRevision: revision(tree),
-    title: parsed.title,
+    title,
     ...(source
       ? {
           sourceTitle: source.title ?? undefined,
@@ -154,14 +183,17 @@ export function readDocumentTask(
     completed: documentTaskIsChecked(node),
     archived: node.taskArchived === true,
     dueAt:
-      parsed.dueAt == null
+      due == null
         ? null
         : parsed.dateHint?.includes(":")
-          ? new Date(parsed.dueAt).toISOString()
-          : localDate(parsed.dueAt),
+          ? new Date(due).toISOString()
+          : localDate(due),
     groupId: parsed.groupId,
     reminderAt: node.taskReminder?.at ?? null,
-    recurrence: node.taskRecurrence?.segments ?? [],
+    recurrence: (node.taskRecurrence?.segments ?? []).map(segment => ({
+      ...segment,
+      rule: segment.rule ? normalizeTaskRecurrenceRule(segment.rule) : null,
+    })),
     writable: !readonlyReason,
     ...(readonlyReason ? { readonlyReason } : {}),
   };
@@ -281,13 +313,49 @@ function patchDocumentFields(
         ? text.slice(0, span.start) + replacement + text.slice(span.end)
         : [text, replacement].filter(Boolean).join(" ");
     }
-  const edit = minimalTextEdit(original, text.trim());
+  const edit = ["title", "groupId", "dueAt"].some(key => key in patch)
+    ? minimalTextEdit(original, text.trim())
+    : null;
   if (edit) patchParagraph(paragraph, [edit]);
   if ("reminderAt" in patch) {
     if (patch.reminderAt != null && String(patch.reminderAt).length === 10)
       fail("INVALID_ARGUMENT", "提醒必须有明确时刻");
     node.taskReminder =
       patch.reminderAt == null ? null : { version: 1, at: String(patch.reminderAt) };
+  }
+  if ("reminders" in patch) {
+    const reminders = patch.reminders as Array<{ offsetMs?: number; at?: string }>;
+    if (reminders.length > 1) fail("INVALID_ARGUMENT", "正文待办只支持一条提醒");
+    const reminder = reminders[0];
+    if (!reminder) node.taskReminder = null;
+    else if (node.taskRecurrence?.segments.length) {
+      const offset = reminder.offsetMs;
+      if (reminder.at !== undefined || offset === undefined || offset > 0 || offset <= -86400000)
+        fail("INVALID_ARGUMENT", "重复正文提醒需要当日时刻偏移");
+      const midnight = dateTime(localDate(Date.now()));
+      const anchor = new Date(midnight),
+        clock = -offset!;
+      anchor.setHours(
+        Math.floor(clock / 3600000),
+        Math.floor(clock / 60000) % 60,
+        Math.floor(clock / 1000) % 60,
+        clock % 1000
+      );
+      if (
+        anchor.getHours() * 3600000 +
+          anchor.getMinutes() * 60000 +
+          anchor.getSeconds() * 1000 +
+          anchor.getMilliseconds() !==
+          clock ||
+        anchor.getTime() - midnight !== clock
+      )
+        fail("AMBIGUOUS_TIME", "提醒时刻存在夏令时歧义");
+      node.taskReminder = { version: 1, at: anchor.toISOString() };
+    } else {
+      if (!reminder.at || reminder.at.length <= 10 || reminder.offsetMs !== undefined)
+        fail("INVALID_ARGUMENT", "普通正文提醒需要绝对时刻");
+      node.taskReminder = { version: 1, at: reminder.at! };
+    }
   }
   if ("archived" in patch) node.taskArchived = patch.archived === true;
 }
@@ -306,6 +374,7 @@ export function prepareDocumentEdit(
     scheduledAt?: string;
     effectiveDate?: string;
     rule?: TaskRecurrenceRule | null;
+    statePatch?: TaskOccurrencePatch;
   }
 ): DocumentEdit {
   assertTaskContentWritable(db, ref.contentId);
@@ -314,14 +383,15 @@ export function prepareDocumentEdit(
   const previous = readTaskContent(db, ref.contentId, ref.createdAt);
   const before = documentSnapshot(previous, ref);
   if (!before.node) return fail("NOT_FOUND", "原文中已没有这个待办");
+  const current = readDocumentTask(db, ref, previous);
   const expected =
-    input.occurrence && expectedRevision !== revision(before)
+    input.occurrence && expectedRevision !== current.revision
       ? instanceRevision(
-          readDocumentTask(db, ref, previous),
+          current,
           input.occurrence,
           (before.node as TaskNode).taskOccurrenceState?.[occurrenceKey(input.occurrence)] ?? {}
         )
-      : revision(before);
+      : current.revision;
   checkRevision(expectedRevision, expected);
   const next = structuredClone(previous);
   const location = locate(next, ref.taskId);
@@ -357,14 +427,19 @@ export function prepareDocumentEdit(
   } else if (action === "set_todo_recurrence") {
     const effectiveDate = input.effectiveDate;
     if (!effectiveDate) return fail("INVALID_ARGUMENT", "设置周期必须指定生效日期");
-    node.taskRecurrence = {
-      version: 1,
-      segments: amendSegments(
-        node.taskRecurrence?.segments ?? [],
-        effectiveDate,
-        input.rule ?? null
-      ),
-    };
+    if (!node.taskRecurrence?.segments.length && !input.rule)
+      fail("INVALID_ARGUMENT", "普通待办没有可停止的重复规则");
+    if (!node.taskRecurrence?.segments.length && node.taskReminder)
+      fail("INVALID_ARGUMENT", "请先清空普通待办提醒，再设置重复规则");
+    const previousSegments = node.taskRecurrence?.segments ?? [];
+    const segments = amendSegments(previousSegments, effectiveDate, input.rule ?? null);
+    const normalized = (values: typeof segments) =>
+      values.map(segment => ({
+        ...segment,
+        rule: segment.rule ? normalizeTaskRecurrenceRule(segment.rule) : null,
+      }));
+    if (revision(normalized(previousSegments)) !== revision(normalized(segments)))
+      node.taskRecurrence = { version: 1, segments };
   } else {
     const segments = node.taskRecurrence?.segments ?? [];
     if (input.occurrence || segments.length) {
@@ -372,8 +447,10 @@ export function prepareDocumentEdit(
       if (!occurrence) return fail("INVALID_ARGUMENT", "周期待办须指定单次实例");
       assertOccurrence(segments, occurrence);
       const key = occurrenceKey(occurrence);
-      const state: TaskOccurrenceState = { ...node.taskOccurrenceState?.[key] };
-      if (action === "set_todo_completed") {
+      let state: TaskOccurrenceState = { ...node.taskOccurrenceState?.[key] };
+      if (input.action === "patch") {
+        state = patchOccurrenceState(state, input.statePatch ?? {}, Date.now());
+      } else if (action === "set_todo_completed") {
         state.completedAt = input.completed ? Date.now() : null;
         state.skipped = false;
       } else if (input.action === "reschedule") {
