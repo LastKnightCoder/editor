@@ -176,8 +176,11 @@ type MobileEditorBottomToolbarProps = {
   autoStartVoice?: boolean;
 };
 
-/** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板由外壳收缩避让，不计入） */
-const ACCESSORY_BAR_HEIGHT = 46;
+/** 浮岛配件栏高度与离键盘/屏幕边缘的间距 */
+const ACCESSORY_BAR_HEIGHT = 52;
+const ACCESSORY_BAR_GAP = 8;
+/** 滚动容器的遮挡留白：栏高 + 下方间距（键盘与面板由外壳收缩避让，不计入） */
+const ACCESSORY_BAR_OCCLUSION = ACCESSORY_BAR_HEIGHT + ACCESSORY_BAR_GAP;
 
 const ICON_SIZE = 19;
 const ICON_STROKE = 2.2;
@@ -504,7 +507,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       root.style.removeProperty("--mobile-editor-toolbar-occlusion");
       return;
     }
-    root.style.setProperty("--mobile-editor-toolbar-occlusion", `${ACCESSORY_BAR_HEIGHT}px`);
+    root.style.setProperty("--mobile-editor-toolbar-occlusion", `${ACCESSORY_BAR_OCCLUSION}px`);
     return () => {
       root.style.removeProperty("--mobile-editor-toolbar-occlusion");
     };
@@ -758,8 +761,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         aria-label={voiceOpen ? "切换到键盘" : ITEM_LABELS.dictation}
         aria-pressed={voiceOpen}
         className={cn(
-          "mx-0.5 flex h-[34px] w-10 items-center justify-center rounded-[10px] transition-colors",
-          voiceOpen ? "bg-press text-ink-1" : "bg-accent-soft text-accent-text",
+          "flex h-10 w-10 items-center justify-center rounded-[11px] transition-colors",
+          voiceOpen ? "bg-accent-soft text-accent-text" : "text-ink-2 active:bg-press",
           recordingActive && !voiceOpen && "opacity-40"
         )}
         onPointerDown={keepEditorFocus}
@@ -827,12 +830,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     const insertOpen = activePanel === "insert";
     leftNode = (
       <>
-        {voiceModeNode}
         <button
           type="button"
           aria-label={insertOpen ? "关闭插入面板" : "插入"}
           className={cn(
-            "text-ink-inverse mx-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] transition-colors",
+            "text-ink-inverse mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
             insertOpen ? "bg-ink-1" : "bg-accent"
           )}
           onPointerDown={keepEditorFocus}
@@ -842,9 +844,10 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
           {insertOpen ? (
             <X size={20} strokeWidth={ICON_STROKE} />
           ) : (
-            <Plus size={20} strokeWidth={ICON_STROKE} />
+            <Plus size={21} strokeWidth={2.4} />
           )}
         </button>
+        {voiceModeNode}
       </>
     );
   } else {
@@ -905,14 +908,17 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   if (showDoneButton) {
     if (keyboardExit) rightNode = null;
     doneNode = (
-      <AccessoryButton
-        label="完成"
-        onPress={keyboardExit ?? exitEditing}
-        className="bg-accent-soft text-accent-text mx-1 h-8 gap-1 rounded-full px-3 text-[14px] font-bold"
+      <button
+        type="button"
+        aria-label="完成"
+        className="bg-ink-1 text-surface ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
+        onPointerDown={keepEditorFocus}
+        onMouseDown={keepEditorFocus}
+        onClick={keyboardExit ?? exitEditing}
       >
-        <Check size={15} strokeWidth={2.6} aria-hidden />
-        完成
-      </AccessoryButton>
+        <Check size={20} strokeWidth={2.6} aria-hidden />
+        <span className="sr-only">完成</span>
+      </button>
     );
   }
 
@@ -940,10 +946,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       ? createPortal(
           <nav
             data-mobile-editor-toolbar="true"
-            className="bg-surface border-line-1 fixed inset-x-0 flex h-[46px] items-center gap-0.5 border-t px-1"
+            className="bg-surface shadow-lift ring-line-1 fixed inset-x-2 flex items-center gap-0.5 rounded-[18px] px-1.5 ring-1"
             style={{
               zIndex: Z_INDEX.POPOVER,
-              bottom: "var(--mobile-overlay-bottom)",
+              height: ACCESSORY_BAR_HEIGHT,
+              bottom: `calc(var(--mobile-overlay-bottom) + ${ACCESSORY_BAR_GAP}px)`,
             }}
           >
             {leftNode}

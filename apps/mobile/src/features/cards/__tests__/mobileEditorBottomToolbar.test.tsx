@@ -94,14 +94,14 @@ describe("MobileEditorBottomToolbar", () => {
     vi.restoreAllMocks();
   });
 
-  it("按 isToolbarVisible 显示：贴住键盘上沿，失焦且无面板时收起", () => {
+  it("按 isToolbarVisible 显示：浮在键盘上沿之上，失焦且无面板时收起", () => {
     render(createController({ isEditorFocused: false, isToolbarVisible: false }));
     expect(getToolbar()).toBeNull();
 
     render(createController());
     const toolbar = getToolbar();
     expect(toolbar).toBeTruthy();
-    expect(toolbar?.getAttribute("style")).toContain("bottom: var(--mobile-overlay-bottom)");
+    expect(toolbar?.getAttribute("style")).toContain("bottom: calc(var(--mobile-overlay-bottom)");
   });
 
   it("面板打开期间编辑器失焦仍显示配件栏与面板宿主", () => {
@@ -145,13 +145,13 @@ describe("MobileEditorBottomToolbar", () => {
     expect(host.querySelector('[data-mobile-editor-toolbar="true"]')).toBeNull();
   });
 
-  it("可见时写入 46px 遮挡高度，隐藏时清除", () => {
+  it("可见时写入 60px 遮挡高度，隐藏时清除", () => {
     const hidden = createController({ isEditorFocused: false, isToolbarVisible: false });
     render(hidden);
     expect(document.documentElement.style.getPropertyValue(OCCLUSION_VAR)).toBe("");
 
     render(createController());
-    expect(document.documentElement.style.getPropertyValue(OCCLUSION_VAR)).toBe("46px");
+    expect(document.documentElement.style.getPropertyValue(OCCLUSION_VAR)).toBe("60px");
 
     render(hidden);
     expect(document.documentElement.style.getPropertyValue(OCCLUSION_VAR)).toBe("");
@@ -162,8 +162,8 @@ describe("MobileEditorBottomToolbar", () => {
     render(controller);
 
     expect(getButtonLabels()).toEqual([
-      "语音输入",
       "插入",
+      "语音输入",
       "样式",
       "待办",
       "无序列表",

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端编辑工具条 · 重设计</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="tb.css" />
+</head>
+<body>
+<header class="page-head">
+  <h1>移动端编辑工具条 · 重设计<small>颜色取自 @tau/themes · 手机帧 360×740 · 键盘为系统绘制示意</small></h1>
+  <div class="theme-pick">
+    <select id="theme-family" aria-label="主题族">
+      <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+      <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+    </select>
+    <button id="theme-mode" class="pill">浅色</button>
+  </div>
+</header>
+
+<section class="row">
+  <div class="note">
+    <h2>现状</h2>
+    <ul>
+      <li>左端三种按钮形态并排：浅橙方块（麦克风）、实心橙方块（插入）、裸字（Aa）。</li>
+      <li>右端「完成」又是浅橙胶囊，一条栏里出现两种 accent 用法，视线被左右两头的橙色拉扯。</li>
+      <li>平条 + 顶部细线贴着键盘，和键盘没有层次，像「贴上去的板子」。</li>
+      <li>分隔竖线 + 右侧渐隐同时存在，中段显得局促。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="now"></div>
+</section>
+
+<section class="row">
+  <div class="note">
+    <h2>A 浮岛<span class="rec">推荐</span></h2>
+    <ul>
+      <li>工具条离开屏幕边缘，变成一块浮在键盘上方的圆角纸片，投影分层，不用描边线切割。</li>
+      <li>全条只留一处实色：「插入」是 accent 圆钮；麦克风、样式、列表都是同一套裸图标。</li>
+      <li>「完成」改为墨色圆钮 + 对勾，收在纸片右端，和左端插入对称。</li>
+      <li>格式模式（选中文字）沿用同一块纸片，左端标签换成「格式」，外形不跳。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="a"></div>
+</section>
+
+<section class="row">
+  <div class="note">
+    <h2>B 一体平条</h2>
+    <ul>
+      <li>保留贴边平条，去掉顶线，改用向上的柔和投影接住键盘。</li>
+      <li>所有按钮同一个 40px 裸图标；插入只把图标染成 accent，不铺底。</li>
+      <li>「完成」是 accent 色文字，不加胶囊底。最安静，接近 Bear / 备忘录。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="b"></div>
+</section>
+
+<section class="row">
+  <div class="note">
+    <h2>C 三段分离</h2>
+    <ul>
+      <li>插入、工具胶囊、完成拆成三块独立浮件：左圆钮、中胶囊、右圆钮。</li>
+      <li>中段胶囊可横滑，两端圆钮位置固定，拇指记忆更稳。</li>
+      <li>麦克风进中段胶囊首位（accent 色图标）。浮件多一块，画面略碎。</li>
+    </ul>
+  </div>
+  <div class="phones" data-variant="c"></div>
+</section>
+
+<script src="tb.js"></script>
+</body>
+</html>

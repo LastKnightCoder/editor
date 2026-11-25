@@ -202,7 +202,7 @@ export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTM
       style={{
         zIndex: Z_INDEX.POPOVER,
         bottom: props.aboveToolbar
-          ? "calc(var(--mobile-overlay-bottom) + 56px)"
+          ? "calc(var(--mobile-overlay-bottom) + 68px)"
           : "calc(var(--mobile-safe-bottom) + 12px)",
       }}
     >

@@ -385,7 +385,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 正文与闪卡的宿主节点按版本契约匹配渲染器。`content-link`、`file-attachment`、`whiteboard`、`database`、`flashcard-blank` 与桌面端保持相同的 `host.<type>` 归属、`dataVersion: 1` 和结构声明；附件复用 `BUILTIN_CONTENT_RESOURCES`。白板与数据库仍显示移动端专用提示，但契约身份与桌面端一致。`editorElementCoverage.test.ts` 检查全部已装配节点的契约覆盖及这五类节点的跨端版本匹配。
 
-编辑页的格式工具是贴住键盘上沿的配件栏 `MobileEditorBottomToolbar`（`features/cards/editorToolbar/`），
+编辑页的格式工具是浮在键盘上沿之上的配件栏 `MobileEditorBottomToolbar`（`features/cards/editorToolbar/`）：左右各留 8px、离键盘 8px 的圆角浮岛（surface 底 + line-1 细环 + lift 投影，栏高 52px，遮挡变量写栏高 + 间距）。通用模式全栏唯一实色是左端 accent 圆形「插入」，其后的输入方式切换键与中段条目同为裸图标；右端「完成」是墨色对勾圆钮。
 动作与选区由 `useMobileEditorToolbarController` 管理，宿主页面只传 controller / portalContainer / readonly / visibleButtons。
 
 - **键盘预留**：`KeyboardViewportProvider` 对外的 `keyboardHeight` / `viewportHeight` 与 `--kb-height` /
@@ -678,7 +678,7 @@ Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦
 
 语音输入与键盘平级，代码在 `features/speechInput/`：
 
-- **编辑态入口**：配件栏通用模式最左端（「插入」左侧）的输入方式切换键（`AccessoryItemId` 的 `dictation`，白名单可裁剪；上下文、格式模式、只读时不显示）。点击经 `controller.openPanel("voice")` 打开语音面板，与 Aa / ＋ 面板共用键盘等高预留；面板打开时切换键变为 ⌨，点击回到键盘，录音中切回即停止并写入。首次显示时由 `VoiceModeCoach` 提示一次（localStorage 记录）。
+- **编辑态入口**：配件栏通用模式左端（「插入」右侧）的输入方式切换键（`AccessoryItemId` 的 `dictation`，白名单可裁剪；上下文、格式模式、只读时不显示）。点击经 `controller.openPanel("voice")` 打开语音面板，与 Aa / ＋ 面板共用键盘等高预留；面板打开时切换键变为 ⌨，点击回到键盘，录音中切回即停止并写入。首次显示时由 `VoiceModeCoach` 提示一次（localStorage 记录）。
 - **语音面板期间的焦点**：`openPanel("voice")` 先失焦收起键盘，再给编辑区加 `inputmode="none"` 并重新聚焦，保留系统光标；此时点正文只移动插入点，`handleEditorFocus` 不关语音面板。关闭面板或切到其他面板时移除 `inputmode`，需要弹回键盘时先失焦再聚焦。
 - **面板**（`VoicePanel`）：正中大麦克风由 `useHoldGesture` 驱动，按下不足 250ms 为轻点（开始 / 停止并写入），按住超过 250ms 为按住说（松手写入，上滑到 ✕ 松手取消，矩形外扩 24px 判定）。两侧「撤回这段」（撤销上一段写入及其润色）与「换行」（插入点另起一段）。顶部显示计时与波形、上一段结果（已写入字数 / 润色状态）或错误；未配置识别服务、识别出错都显示在面板内，配置类错误给「去设置语音识别」。停止后留在面板，可以连续说多段。
 - **编排**（`useVoiceDictation`）：开始时把当前选区（阅读态为文末）锁成 `pointRef`，经 `dictationPreview` 在插入点显示预览，停止后经 `commitDictation` 一次写入、每段一个撤销步；识别文字 7 秒无变化提示「没听到声音」，10 秒无变化自动停止并写入。识别服务实例与可用性判断在 `speechService.ts`。
