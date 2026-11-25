@@ -649,22 +649,24 @@ export function RouterProvider({
     let unregisterBack: (() => void) | null = null;
     let unregisterClose: (() => void) | null = null;
 
-    import("@tauri-apps/api/app")
-      .then(({ onBackButtonPress }) =>
-        onBackButtonPress(() => {
-          navigator.goBack("android");
+    if (/Android/i.test(globalThis.navigator.userAgent)) {
+      import("@tauri-apps/api/app")
+        .then(({ onBackButtonPress }) =>
+          onBackButtonPress(() => {
+            navigator.goBack("android");
+          })
+        )
+        .then(registered => {
+          if (disposed) {
+            void registered.unregister();
+            return;
+          }
+          unregisterBack = () => void registered.unregister();
         })
-      )
-      .then(registered => {
-        if (disposed) {
-          void registered.unregister();
-          return;
-        }
-        unregisterBack = () => void registered.unregister();
-      })
-      .catch(error => {
-        console.error("[router] 注册物理返回失败", error);
-      });
+        .catch(error => {
+          console.error("[router] 注册物理返回失败", error);
+        });
+    }
 
     import("@tauri-apps/api/window")
       .then(({ getCurrentWindow }) =>

@@ -135,8 +135,9 @@ preview 打开 contentDetail 时浮层自动隐藏（状态保留），返回自
 **popstate 恢复走 schema 净化 + 按位置对齐保留 entry id。**
 
 返回链路补充：goBack/pop/finish/cancel 均可等待（返回是否驱动了回退）；结果通道的
-settle 在守卫通过后才落账（拒绝路径不残留）；手势提交被拒时自动回弹；窗口关闭请求
-在可回退时转为返回、根页放行真正关闭。
+settle 在守卫通过后才落账（拒绝路径不残留）；手势提交被拒时自动回弹。Tauri 环境中的
+窗口关闭请求接入同一 `goBack` 仲裁。`onBackButtonPress` 仅在 Android 运行时注册；
+iPhone、iPad（含桌面模式 User-Agent）和其他平台不调用该 Android 专属接口。
 
 ## 浮层返回拦截（Sheet 优先关闭）
 
