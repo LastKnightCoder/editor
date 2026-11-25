@@ -6,7 +6,11 @@ import { getPluginNodeTypes, type PluginRenderContext } from "@tau/plugins/rende
 export const localPluginStateKey = (id: string) => `tau-local-plugin-enabled:v1:${id}`;
 const entries = new Map<
   string,
-  { artifact: DevelopmentPluginPackage; definition: PluginDefinition; nodeTypes: string[] }
+  {
+    artifact: DevelopmentPluginPackage;
+    definition: PluginDefinition;
+    nodeTypes: string[];
+  }
 >();
 const discovered = new Map<string, string>();
 export const rememberContentPlugin = (artifact: DevelopmentPluginPackage) =>
@@ -28,7 +32,11 @@ export function initializeContentPluginState(types: readonly string[]) {
 export function addContentPlugin(artifact: DevelopmentPluginPackage, definition: PluginDefinition) {
   if (!intended.has(definition.id)) intended.set(definition.id, true);
   desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
-  entries.set(definition.id, { artifact, definition, nodeTypes: getPluginNodeTypes(definition) });
+  entries.set(definition.id, {
+    artifact,
+    definition,
+    nodeTypes: getPluginNodeTypes(definition),
+  });
   rememberContentPlugin(artifact);
   getPluginNodeTypes(definition).forEach(type => desktopPortableSupport.set(type, "edit"));
 }
@@ -59,7 +67,9 @@ export function getContentPluginPublishContext(): PluginRenderContext {
         version: definition.version,
         mainHash: artifact.manifest.integrity[artifact.manifest.main],
         ...(artifact.manifest.styles
-          ? { stylesHash: artifact.manifest.integrity[artifact.manifest.styles] }
+          ? {
+              stylesHash: artifact.manifest.integrity[artifact.manifest.styles],
+            }
           : {}),
         nodeTypes: [...nodeTypes],
         styleSources: definition.editorExtensions?.flatMap(

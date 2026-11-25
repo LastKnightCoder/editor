@@ -12,7 +12,11 @@ export const desktopPluginServices: PluginServices = {
   tailwind: {
     compile: (input, options) =>
       invokeCompiler(
-        { kind: "tailwind", source: input.source, language: input.language ?? "tsx" },
+        {
+          kind: "tailwind",
+          source: input.source,
+          language: input.language ?? "tsx",
+        },
         options
       ),
   },

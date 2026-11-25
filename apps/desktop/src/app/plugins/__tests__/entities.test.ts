@@ -3,12 +3,19 @@ import { PluginConflictError, type PluginContext } from "@tau/plugins";
 import { NotebookPen } from "lucide-react";
 
 const electron = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock("@/electron", () => ({ invoke: electron.invoke, on: vi.fn(), off: vi.fn() }));
+vi.mock("@/electron", () => ({
+  invoke: electron.invoke,
+  on: vi.fn(),
+  off: vi.fn(),
+}));
 
 import { createDesktopEntities } from "../entities";
 
 const DATABASE = "data.db";
-const context = { pluginId: "weekly", signal: new AbortController().signal } as PluginContext;
+const context = {
+  pluginId: "weekly",
+  signal: new AbortController().signal,
+} as PluginContext;
 
 describe("插件内容适配", () => {
   beforeEach(() => electron.invoke.mockReset());

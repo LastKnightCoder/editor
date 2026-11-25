@@ -7,7 +7,12 @@ import { contentPluginDiscovered } from "../content-plugin-state";
 
 function fixture(id: string, content: boolean) {
   const manifest = buildPortablePluginManifest(
-    { id, name: "生命周期", version: "1.0.0", targets: { desktop: { minAppVersion: "0.59.4" } } },
+    {
+      id,
+      name: "生命周期",
+      version: "1.0.0",
+      targets: { desktop: { minAppVersion: "0.59.4" } },
+    },
     { main: "main.js", integrity: { "main.js": "a".repeat(64) } }
   );
   const code = `const sdk=require('@tau/plugins');module.exports.default=sdk.definePlugin({id:${JSON.stringify(id)},name:'生命周期',version:'1.0.0',${content ? "editorExtensions:[{id:'fixture.extension',apiVersion:1,elements:[{type:'fixture.node',kind:'block',render:()=>null}]}]," : ""}create:sdk.instance});`;
@@ -23,7 +28,10 @@ function fixture(id: string, content: boolean) {
 
 it("普通格式 3 插件无需静态贡献标记即可直接启停，登记时不求值或激活", async () => {
   const value = fixture("fixture.ordinary-lifecycle", false);
-  const host = new PluginHost({ workspaceId: "lifecycle", storage: createMemoryStorage() });
+  const host = new PluginHost({
+    workspaceId: "lifecycle",
+    storage: createMemoryStorage(),
+  });
   const modules = vi.fn(async () => value.modules);
   try {
     registerPluginPackage(host, value.artifact, modules);
@@ -40,7 +48,10 @@ it("普通格式 3 插件无需静态贡献标记即可直接启停，登记时�
 
 it("首次启用从实际定义识别正文贡献并要求重启，不创建或激活内容实例", async () => {
   const value = fixture("fixture.static-lifecycle", true);
-  const host = new PluginHost({ workspaceId: "lifecycle", storage: createMemoryStorage() });
+  const host = new PluginHost({
+    workspaceId: "lifecycle",
+    storage: createMemoryStorage(),
+  });
   try {
     registerPluginPackage(host, value.artifact, async () => value.modules);
     await expect(host.enable(value.artifact.manifest.id)).rejects.toThrow("重启");

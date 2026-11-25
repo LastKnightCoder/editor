@@ -66,7 +66,11 @@ Object.assign(globalThis, {
       case "inspect-many": {
         const results: Record<
           string,
-          { editor: boolean; whiteboard: boolean; metrics: typeof desktopContentPlugins.metrics }
+          {
+            editor: boolean;
+            whiteboard: boolean;
+            metrics: typeof desktopContentPlugins.metrics;
+          }
         > = Object.create(null);
         for (const id of request.ids) {
           const definition = currentDefinitions.find(value => value.id === id);
@@ -140,7 +144,9 @@ Object.assign(globalThis, {
         return {
           content,
           ...(request.input.sections && content
-            ? { sections: splitSections(nodes, request.input.title, request.input.whole) }
+            ? {
+                sections: splitSections(nodes, request.input.title, request.input.whole),
+              }
             : {}),
         };
       }

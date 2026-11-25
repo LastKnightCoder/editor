@@ -43,7 +43,12 @@ it("真实 PluginHost 注册并回收发布贡献，停用中止在途操作并�
   );
   await host.enable("test.publisher");
   expect(registry.list()).toEqual([{ id: "test.publisher", name: "发布器" }]);
-  await registry.execute({ kind: "open", session: "one", pluginId: "test.publisher", config: {} });
+  await registry.execute({
+    kind: "open",
+    session: "one",
+    pluginId: "test.publisher",
+    config: {},
+  });
   const upload = registry.execute({
     kind: "call",
     session: "one",
@@ -58,7 +63,12 @@ it("真实 PluginHost 注册并回收发布贡献，停用中止在途操作并�
   expect(dispose).toHaveBeenCalledOnce();
   expect(registry.list()).toEqual([]);
   await expect(
-    registry.execute({ kind: "call", session: "one", method: "deleteFile", args: ["index.html"] })
+    registry.execute({
+      kind: "call",
+      session: "one",
+      method: "deleteFile",
+      args: ["index.html"],
+    })
   ).rejects.toThrow("已结束");
   await host.dispose();
 });
@@ -76,7 +86,11 @@ it("插件身份、路径与并发上限在真实宿主及注册表检查", asyn
       version: "1.0.0",
       create: () => ({
         activate(context) {
-          context.publish.register({ id: "other.publisher", name: "伪造", create: vi.fn() });
+          context.publish.register({
+            id: "other.publisher",
+            name: "伪造",
+            create: vi.fn(),
+          });
         },
       }),
     })

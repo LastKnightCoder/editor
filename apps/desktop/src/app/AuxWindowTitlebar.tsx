@@ -17,7 +17,7 @@ export function AuxWindowTitlebar({
 }) {
   const fullScreen = useFullScreen();
   return (
-    <header className="app-region-drag flex h-[var(--tau-titlebar-h)] shrink-0 select-none items-center gap-2.5 pl-4 pr-3">
+    <header className="app-region-drag flex h-[var(--tau-titlebar-h)] shrink-0 items-center gap-2.5 pr-3 pl-4 select-none">
       {isMac && !fullScreen && <MacTrafficLights collapsed={false} />}
       <div className="flex min-w-0 flex-1 items-center gap-2.5">{leading}</div>
       {actions && <div className="app-region-no-drag flex items-center gap-1">{actions}</div>}

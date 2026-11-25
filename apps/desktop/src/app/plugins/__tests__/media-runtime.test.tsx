@@ -21,7 +21,10 @@ const mocks = vi.hoisted(() => ({
   resolveMediaSource: vi.fn(),
   appUpload: vi.fn(async () => "app.png"),
   setting: {
-    misc: { image: { autoCacheRemote: true }, audio: { autoCacheRemote: false } },
+    misc: {
+      image: { autoCacheRemote: true },
+      audio: { autoCacheRemote: false },
+    },
     appearance: { image: { borderRadius: "md" } },
   },
 }));
@@ -51,7 +54,10 @@ let host: HTMLDivElement;
 let captured: { upload?: ResourceUpload; resource?: ResourceState } = {};
 
 function Probe({ url }: { url: string }) {
-  captured = { upload: useResourceUpload(), resource: useResource(url, { kind: "image" }) };
+  captured = {
+    upload: useResourceUpload(),
+    resource: useResource(url, { kind: "image" }),
+  };
   const appearance = useMediaAppearance();
   return (
     <span data-appearance={appearance?.borderRadius}>
@@ -85,7 +91,10 @@ const kit = createEditorKit({
   extensions: [probeExtension],
   services: [
     register =>
-      register(IResourceService, { upload: scopedUpload, remoteResourceToLocal: scopedResolve }),
+      register(IResourceService, {
+        upload: scopedUpload,
+        remoteResourceToLocal: scopedResolve,
+      }),
     register =>
       register(IEditorSlots, {
         ...createDefaultEditorSlots(),
@@ -101,7 +110,12 @@ const editor = (readonly: boolean) => (
   <Editor
     kit={kit}
     readonly={readonly}
-    initValue={[{ type: "media-probe", children: [{ type: "formatted", text: "" }] } as never]}
+    initValue={[
+      {
+        type: "media-probe",
+        children: [{ type: "formatted", text: "" }],
+      } as never,
+    ]}
   />
 );
 
@@ -126,7 +140,10 @@ it("编辑器内使用当前 kit 的插槽、资源解析与上传，只读时�
   await render(editor(false));
   expect(host.querySelector("img")?.dataset.slot).toBe("scoped");
   expect(captured.upload).toBe(scopedUpload);
-  expect(captured.resource).toMatchObject({ src: "preview:doc.png", status: "ready" });
+  expect(captured.resource).toMatchObject({
+    src: "preview:doc.png",
+    status: "ready",
+  });
   expect(mocks.resolveMediaSource).toHaveBeenCalledWith(
     "doc.png",
     expect.objectContaining({
@@ -153,5 +170,8 @@ it("解析失败报告错误，retry 作废缓存后重新解析", async () => {
   expect(captured.resource).toMatchObject({ src: undefined, status: "error" });
   await act(async () => captured.resource!.retry());
   expect(mocks.resolveMediaSource).toHaveBeenCalledTimes(2);
-  expect(captured.resource).toMatchObject({ src: "preview:retry.png", status: "ready" });
+  expect(captured.resource).toMatchObject({
+    src: "preview:retry.png",
+    status: "ready",
+  });
 });

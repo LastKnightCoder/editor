@@ -91,7 +91,12 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
       { key: "schedule", label: "日程", icon: Calendar },
       { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule；项目嵌在此入口下）
       { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下）
-      { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
+      {
+        key: "pomodoro",
+        label: "番茄专注",
+        icon: Timer,
+        badge: "pomodoro-live",
+      }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
     ],
   },
   {
@@ -100,9 +105,19 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
     label: "知识",
     items: [
       { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
-      { key: "articles", label: "文章", icon: FileText, children: "article-tags" }, // features/articles（一整张纸，标签嵌在此入口下）
+      {
+        key: "articles",
+        label: "文章",
+        icon: FileText,
+        children: "article-tags",
+      }, // features/articles（一整张纸，标签嵌在此入口下）
       { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（驾驶舱列表 + 文档树工作台）
-      { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下）
+      {
+        key: "whiteboard",
+        label: "白板",
+        icon: Presentation,
+        children: "whiteboard-tags",
+      }, // features/whiteboards（画廊，标签嵌在此入口下）
       { key: "databases", label: "数据库", icon: Table }, // features/databases（结构化数据表，自项目 data-table 型拆出）
     ],
   },
@@ -121,7 +136,12 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
     id: SIDEBAR_GROUPS.ai,
     label: "AI",
     items: [
-      { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // 会话导航嵌在侧栏入口下
+      {
+        key: "chat",
+        label: "AI 对话",
+        icon: MessageCircle,
+        children: "chat-sessions",
+      }, // 会话导航嵌在侧栏入口下
       { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑）
       { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
     ],
@@ -147,8 +167,18 @@ export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（legacy 全屏设置页已随第三批清理退役）
   // 插件中心与已安装管理；插件设置在详情页，设置弹窗只留跳转
   { key: "plugins", label: "插件", icon: Blocks, badge: "plugin-status" },
-  { key: "feedback", label: "反馈", icon: MessageSquareHeart, opensWindow: "feedback" },
-  { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
+  {
+    key: "feedback",
+    label: "反馈",
+    icon: MessageSquareHeart,
+    opensWindow: "feedback",
+  },
+  {
+    key: "settings",
+    label: "设置",
+    icon: SlidersHorizontal,
+    opensOverlay: "settings",
+  },
 ];
 
 /** 可在设置 › 功能里开关的内置条目 key（今日始终显示） */
@@ -175,7 +205,12 @@ export function composeNavSections(
     items: [...section.items],
   }));
   for (const group of snapshot.groups) {
-    sections.push({ id: group.id, label: group.title, collapseKey: group.id, items: [] });
+    sections.push({
+      id: group.id,
+      label: group.title,
+      collapseKey: group.id,
+      items: [],
+    });
   }
   const fallback: NavSection = {
     id: SIDEBAR_GROUPS.plugins,
@@ -186,7 +221,12 @@ export function composeNavSections(
   sections.push(fallback);
   for (const item of snapshot.items) {
     const section = sections.find(section => section.id === item.group) ?? fallback;
-    section.items.push({ key: item.id, label: item.title, icon: item.icon ?? Plug, plugin: item });
+    section.items.push({
+      key: item.id,
+      label: item.title,
+      icon: item.icon ?? Plug,
+      plugin: item,
+    });
   }
   return sections.filter(section => section.items.length > 0);
 }

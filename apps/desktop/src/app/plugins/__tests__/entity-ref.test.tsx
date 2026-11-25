@@ -43,7 +43,9 @@ afterEach(() => {
 });
 
 async function render(element: React.ReactNode, context?: PluginContext) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   act(() =>
     root.render(
       <QueryClientProvider client={client}>
@@ -103,7 +105,13 @@ describe("插件引用组件", () => {
 });
 
 describe("选择器候选到插件引用", () => {
-  const base = { contentId: null, title: "标题", excerpt: "", meta: "", time: 1 };
+  const base = {
+    contentId: null,
+    title: "标题",
+    excerpt: "",
+    meta: "",
+    time: 1,
+  };
   it("材料带类型前缀，对话用会话 ID，其余为数字 ID", () => {
     expect(pickedEntity({ ...base, kind: "pdf-annotation", id: 9 })?.ref).toEqual({
       kind: "material",

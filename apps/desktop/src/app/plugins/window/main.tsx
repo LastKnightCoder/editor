@@ -75,7 +75,9 @@ async function start() {
     }
   );
   const initial = await bridge.invoke("bootstrap", undefined);
-  const stop = runtime.init({ forceMode: initial.options.theme === "dark" ? "dark" : undefined });
+  const stop = runtime.init({
+    forceMode: initial.options.theme === "dark" ? "dark" : undefined,
+  });
   const unsubscribe = runtime.useThemeStore.subscribe((state, previous) => {
     if (state.mode !== previous.mode) queueMicrotask(connection.refreshAppearance);
   });

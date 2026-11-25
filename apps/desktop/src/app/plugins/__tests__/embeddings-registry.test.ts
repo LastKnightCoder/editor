@@ -20,7 +20,12 @@ function setup(
       version: "1.0.0",
       create: () => ({
         activate(context) {
-          context.embeddings.register({ id: context.pluginId, name: "嵌入", maxBatchSize, create });
+          context.embeddings.register({
+            id: context.pluginId,
+            name: "嵌入",
+            maxBatchSize,
+            create,
+          });
         },
       }),
     })

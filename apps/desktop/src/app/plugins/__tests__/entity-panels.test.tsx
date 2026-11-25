@@ -104,7 +104,11 @@ describe("插件详情区块", () => {
   it("返回 null 时不占位；出错只影响这一块；没有运行时（独立窗口）不显示", async () => {
     let fail = true;
     await act(async () => {
-      context.views.registerEntityPanel({ id: "empty", kinds: ["card"], component: () => null });
+      context.views.registerEntityPanel({
+        id: "empty",
+        kinds: ["card"],
+        component: () => null,
+      });
       context.views.registerEntityPanel({
         id: "broken",
         kinds: ["card"],

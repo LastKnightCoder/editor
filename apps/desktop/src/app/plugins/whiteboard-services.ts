@@ -61,7 +61,9 @@ export function createWhiteboardPluginServices(
         register(IResourceService, {
           upload: guard(resources.upload.bind(resources)),
           ...(resources.remoteResourceToLocal
-            ? { remoteResourceToLocal: guard(resources.remoteResourceToLocal.bind(resources)) }
+            ? {
+                remoteResourceToLocal: guard(resources.remoteResourceToLocal.bind(resources)),
+              }
             : {}),
         });
       if (media)
@@ -70,7 +72,9 @@ export function createWhiteboardPluginServices(
           videoInfo: guard(media.videoInfo.bind(media)),
         });
       if (downloads)
-        register(IDownloadService, { download: guard(downloads.download.bind(downloads)) });
+        register(IDownloadService, {
+          download: guard(downloads.download.bind(downloads)),
+        });
     });
   };
 }

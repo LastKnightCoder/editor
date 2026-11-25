@@ -136,7 +136,10 @@ function AccessNotice({
           size="sm"
           variant="ghost"
           onClick={() =>
-            void openPage(PLUGIN_DETAIL_KEY, { pluginId: context.pluginId, tab: "permissions" })
+            void openPage(PLUGIN_DETAIL_KEY, {
+              pluginId: context.pluginId,
+              tab: "permissions",
+            })
           }
         >
           查看权限
@@ -169,7 +172,12 @@ export function PluginContentEditor({
         }
         {...(readonly || !owner
           ? {}
-          : { editingContext: { entityType: owner.sourceType, entityId: owner.id } })}
+          : {
+              editingContext: {
+                entityType: owner.sourceType,
+                entityId: owner.id,
+              },
+            })}
         readonly={readonly}
         {...(placeholder ? { placeHolder: placeholder } : {})}
         {...(typeof at === "string" && at ? { at } : {})}

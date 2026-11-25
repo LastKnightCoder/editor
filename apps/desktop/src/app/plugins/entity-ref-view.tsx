@@ -23,7 +23,10 @@ const BATCH_LIMIT = 200;
 /** 同一轮渲染里同一插件的引用合并成一次 describe，避免列表逐项走一次 IPC */
 const pending = new WeakMap<
   PluginContext,
-  Array<{ ref: PluginEntityRef; settle(result: Promise<PluginEntityDescription>): void }>
+  Array<{
+    ref: PluginEntityRef;
+    settle(result: Promise<PluginEntityDescription>): void;
+  }>
 >();
 
 function describeBatched(context: PluginContext, ref: PluginEntityRef) {

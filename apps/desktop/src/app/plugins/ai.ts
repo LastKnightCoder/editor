@@ -33,7 +33,11 @@ export const desktopPluginAI = {
     hostFeature?: PluginAICapability
   ): Promise<PluginAIFeatures> {
     lifetime.throwIfAborted();
-    const session = await invokePluginAI<string>("register", { ...plugin, features, hostFeature });
+    const session = await invokePluginAI<string>("register", {
+      ...plugin,
+      features,
+      hostFeature,
+    });
     const dispose = () => {
       void invokePluginAI("unregister", session).catch(console.error);
     };
@@ -69,7 +73,11 @@ export const desktopPluginAI = {
         messages: request.messages,
         maxOutputTokens: request.maxOutputTokens,
       };
-      const pending = invokePluginAI<PluginAIOutcome>("run", { session, requestId, input })
+      const pending = invokePluginAI<PluginAIOutcome>("run", {
+        session,
+        requestId,
+        input,
+      })
         .then(
           value => {
             outcome = value;

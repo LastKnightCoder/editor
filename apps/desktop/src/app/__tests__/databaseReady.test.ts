@@ -4,7 +4,10 @@ vi.mock("@/commands/database", () => ({ connectDatabaseByName: vi.fn() }));
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
   return {
-    default: create(() => ({ inited: true, setting: { database: { active: "new.db" } } })),
+    default: create(() => ({
+      inited: true,
+      setting: { database: { active: "new.db" } },
+    })),
   };
 });
 vi.mock("@/stores/useGlobalStateStore", async () => {
@@ -20,7 +23,10 @@ import { ensureDatabaseReady } from "../databaseReady";
 beforeEach(() => {
   vi.mocked(connectDatabaseByName).mockReset().mockResolvedValue(undefined);
   useSettingStore.setState(state => ({
-    setting: { ...state.setting, database: { ...state.setting.database, active: "new.db" } },
+    setting: {
+      ...state.setting,
+      database: { ...state.setting.database, active: "new.db" },
+    },
   }));
 });
 afterEach(() => queryClient.clear());
@@ -35,7 +41,11 @@ it("切库连接成功后丢弃旧库的新鲜空缓存，首页和项目重新�
   for (const key of keys) {
     const fetch = vi.fn(async () => ["新库数据"]);
     expect(
-      await queryClient.fetchQuery({ queryKey: key, queryFn: fetch, staleTime: Infinity })
+      await queryClient.fetchQuery({
+        queryKey: key,
+        queryFn: fetch,
+        staleTime: Infinity,
+      })
     ).toEqual(["新库数据"]);
     expect(fetch).toHaveBeenCalledOnce();
   }
@@ -71,7 +81,10 @@ it("已经过期的连接结果不能清除当前库缓存", async () => {
   );
   const connecting = ensureDatabaseReady();
   useSettingStore.setState(state => ({
-    setting: { ...state.setting, database: { ...state.setting.database, active: "current.db" } },
+    setting: {
+      ...state.setting,
+      database: { ...state.setting.database, active: "current.db" },
+    },
   }));
   queryClient.setQueryData(["home", "snapshot"], ["当前库数据"]);
   finish();

@@ -33,7 +33,11 @@ async function resolveReferences(
       if (!(await context.content.read(reference.contentRef, { format: "nodes" })))
         throw new Error("引用的正文不存在或已失效");
       context.signal.throwIfAborted();
-      resolved.push({ refType: "content", contentId: identity.contentId, title: reference.title });
+      resolved.push({
+        refType: "content",
+        contentId: identity.contentId,
+        title: reference.title,
+      });
     } else if (reference.refType === "custom") {
       resolved.push({
         refType: "custom",
@@ -56,7 +60,10 @@ async function requireWrite(context: PluginContext) {
 
 export function createDesktopFlashcards(databaseName: string): FlashcardsAdapter {
   const refresh = () => invalidateFlashcardViews(queryClient, databaseName);
-  const scope = (context: { signal: AbortSignal }) => ({ databaseName, signal: context.signal });
+  const scope = (context: { signal: AbortSignal }) => ({
+    databaseName,
+    signal: context.signal,
+  });
   const validateDraft = (input: CreateFlashcardInput) => {
     if (!Number.isSafeInteger(input.deckId) || input.deckId <= 0) throw new Error("卡组 ID 无效");
     assertFlashcardDraft(input);
@@ -66,7 +73,12 @@ export function createDesktopFlashcards(databaseName: string): FlashcardsAdapter
       const current = scope(context);
       assertFlashcardScope(current);
       return (await scopedFlashcardCommands(current).listFlashcardDecks()).map(
-        ({ id, name, description, emoji }) => ({ id, name, description, emoji })
+        ({ id, name, description, emoji }) => ({
+          id,
+          name,
+          description,
+          emoji,
+        })
       );
     },
     async createDeck(context, input) {
@@ -81,12 +93,20 @@ export function createDesktopFlashcards(databaseName: string): FlashcardsAdapter
         emoji: input.emoji,
       });
       await refresh();
-      return { id: deck.id, name: deck.name, description: deck.description, emoji: deck.emoji };
+      return {
+        id: deck.id,
+        name: deck.name,
+        description: deck.description,
+        emoji: deck.emoji,
+      };
     },
     async createCard(context, input) {
       const current = scope(context);
       assertFlashcardScope(current);
-      const resolved = { ...input, references: await resolveReferences(context, input.references) };
+      const resolved = {
+        ...input,
+        references: await resolveReferences(context, input.references),
+      };
       validateDraft(resolved);
       const api = scopedFlashcardCommands(current);
       if (!(await api.getFlashcardDeck(input.deckId))) throw new Error("卡组不存在");
@@ -152,9 +172,15 @@ export function createDesktopFlashcards(databaseName: string): FlashcardsAdapter
       assertFlashcardScope(current);
       if (!(await api.getFlashcardDeck(options.deckId))) throw new Error("卡组不存在");
       const drafts = await context.flashcards.generate(options);
-      const inputs = drafts.map(draft => ({ ...draft, deckId: options.deckId }));
+      const inputs = drafts.map(draft => ({
+        ...draft,
+        deckId: options.deckId,
+      }));
       for (const input of inputs)
-        validateDraft({ ...input, references: await resolveReferences(context, input.references) });
+        validateDraft({
+          ...input,
+          references: await resolveReferences(context, input.references),
+        });
       const cards = [];
       const failed = [];
       try {

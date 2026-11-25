@@ -244,7 +244,9 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
             reject(reason);
           },
         };
-        usePluginPermissionUi.setState(state => ({ prompts: [...state.prompts, prompt] }));
+        usePluginPermissionUi.setState(state => ({
+          prompts: [...state.prompts, prompt],
+        }));
       }
       context.signal.addEventListener("abort", onAbort, { once: true });
     });
@@ -353,7 +355,11 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
     // AI 用量与额度由模型审计记录，不混入业务数据读写次数。
     if (permission.startsWith("ai:")) return;
     const kind = permission.split(":")[1] as PluginUsageKind;
-    const counts = this.unflushed.get(pluginId) ?? { read: 0, write: 0, delete: 0 };
+    const counts = this.unflushed.get(pluginId) ?? {
+      read: 0,
+      write: 0,
+      delete: 0,
+    };
     counts[kind] += 1;
     this.unflushed.set(pluginId, counts);
     this.usageTimer ??= setTimeout(() => this.flushUsage(), USAGE_FLUSH_MS);

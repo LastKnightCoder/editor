@@ -85,8 +85,18 @@ describe("插件对象动作", () => {
   it("按目标类型列在内置项之后、删除之前；点击先登记引用再调用插件", async () => {
     const run = vi.fn();
     await act(async () => {
-      context.actions.register({ id: "to-question", title: "转为问题", targets: ["card"], run });
-      context.actions.register({ id: "summary", title: "总结", targets: ["article"], run });
+      context.actions.register({
+        id: "to-question",
+        title: "转为问题",
+        targets: ["card"],
+        run,
+      });
+      context.actions.register({
+        id: "summary",
+        title: "总结",
+        targets: ["article"],
+        run,
+      });
     });
     await render();
     expect(items()).toEqual(["内置", "转为问题", "删除"]);
@@ -116,7 +126,11 @@ describe("插件对象动作", () => {
     await render();
     await click("坏的");
     expect(notify).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "插件操作失败", body: "插件故障", tone: "danger" })
+      expect.objectContaining({
+        title: "插件操作失败",
+        body: "插件故障",
+        tone: "danger",
+      })
     );
     await act(async () => runtime.host.disable("author.q"));
     expect(items()).toEqual(["内置", "删除"]);
@@ -142,8 +156,18 @@ describe("插件对象动作", () => {
     expect(container.textContent).toBe("");
     const run = vi.fn();
     await act(async () => {
-      context.actions.register({ id: "note", title: "记下", targets: ["chat-message"], run });
-      context.actions.register({ id: "card", title: "卡片动作", targets: ["card"], run });
+      context.actions.register({
+        id: "note",
+        title: "记下",
+        targets: ["chat-message"],
+        run,
+      });
+      context.actions.register({
+        id: "card",
+        title: "卡片动作",
+        targets: ["card"],
+        run,
+      });
     });
     await renderMenu();
     await act(async () => container.querySelector("button")?.click());

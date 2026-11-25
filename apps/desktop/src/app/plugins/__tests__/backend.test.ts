@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PluginContext } from "@tau/plugins";
-const mocks = vi.hoisted(() => ({ request: vi.fn(), on: vi.fn(), off: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  request: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+}));
 vi.mock("@/commands/plugin-backend", () => ({ backendRequest: mocks.request }));
 vi.mock("@/electron", () => ({ on: mocks.on, off: mocks.off }));
 import { createPluginBackend } from "../backend";
@@ -60,7 +64,11 @@ describe("渲染端后台连接", () => {
         mocks.request.mock.calls.filter(call => call[0] === "subscribe").map(call => call[3])
       ).toEqual([true, false, true])
     );
-    emit("plugin-backend:event", { token: "session", event: "changed", value: "恢复事件" });
+    emit("plugin-backend:event", {
+      token: "session",
+      event: "changed",
+      value: "恢复事件",
+    });
     await vi.waitFor(() => expect(listener).toHaveBeenCalledExactlyOnceWith("恢复事件"));
     await second.dispose();
     expect(
@@ -127,8 +135,16 @@ describe("渲染端后台连接", () => {
     await vi.waitFor(() =>
       expect(mocks.request).toHaveBeenCalledWith("subscribe", "session-2", "changed", true)
     );
-    emit("plugin-backend:event", { token: "session-1", event: "changed", value: "旧事件" });
-    emit("plugin-backend:event", { token: "session-2", event: "changed", value: "新事件" });
+    emit("plugin-backend:event", {
+      token: "session-1",
+      event: "changed",
+      value: "旧事件",
+    });
+    emit("plugin-backend:event", {
+      token: "session-2",
+      event: "changed",
+      value: "新事件",
+    });
     await vi.waitFor(() => expect(listener).toHaveBeenCalledExactlyOnceWith("新事件"));
     await subscription.dispose();
     expect(mocks.request).toHaveBeenCalledWith("subscribe", "session-2", "changed", false);

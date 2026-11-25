@@ -23,7 +23,11 @@ describe("插件私有存储入主库", () => {
   it("读写复制 JSON，停用后拒绝，键名受限", async () => {
     const storage = createDatabaseStorage("data.db");
     const controller = new AbortController();
-    const scope: StorageScope = { pluginId: "p", workspaceId: "w", signal: controller.signal };
+    const scope: StorageScope = {
+      pluginId: "p",
+      workspaceId: "w",
+      signal: controller.signal,
+    };
     await storage.set(scope, "prefs", { size: 2 });
     expect(mocks.values.get("p/prefs")).toBe('{"size":2}');
     expect(await storage.get(scope, "prefs")).toEqual({ size: 2 });

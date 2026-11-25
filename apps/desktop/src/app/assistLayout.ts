@@ -40,7 +40,11 @@ export function resolveAssistLayout({
 
   const current = sidebarCollapsed ? SIDEBAR_COLLAPSED_W : sidebarWidth;
   if (beside(current) >= MAIN_MIN_BESIDE) {
-    return { mode: "beside", collapseSidebar: false, mainWidth: beside(current) };
+    return {
+      mode: "beside",
+      collapseSidebar: false,
+      mainWidth: beside(current),
+    };
   }
   if (beside(SIDEBAR_COLLAPSED_W) >= MAIN_MIN_OVERLAY) {
     return {

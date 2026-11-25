@@ -39,7 +39,12 @@ export const useSettingsStore = create<SettingsUiStore>()(
       llmTab: "providers",
       usagePluginId: "",
       openAIUsage: (pluginId = "") =>
-        set({ open: true, section: "llm", llmTab: "usage", usagePluginId: pluginId }),
+        set({
+          open: true,
+          section: "llm",
+          llmTab: "usage",
+          usagePluginId: pluginId,
+        }),
       section: "appearance",
       openSettings: section => set({ open: true, ...(section ? { section } : {}) }),
       closeSettings: () => set({ open: false }),

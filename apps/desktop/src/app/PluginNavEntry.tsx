@@ -111,7 +111,7 @@ export function PluginNavEntry({
         onClick={() => open(plugin.open)}
       />
       {expanded && (
-        <div className="mb-1 mt-0.5 space-y-px" role="group" aria-label={item.label}>
+        <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label={item.label}>
           {state.children.map(child => {
             const isSelected = child === selected;
             const row = (

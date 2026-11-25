@@ -7,7 +7,10 @@ export function connectSyncRenderer() {
   const receive = async (_event: unknown, message: SyncRendererMessage) => {
     let reply: SyncRendererReply;
     try {
-      reply = { requestId: message.requestId, result: await rendererSyncRegistry.execute(message) };
+      reply = {
+        requestId: message.requestId,
+        result: await rendererSyncRegistry.execute(message),
+      };
     } catch (error) {
       reply = {
         requestId: message.requestId,

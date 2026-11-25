@@ -36,7 +36,10 @@ export class RendererPublishRegistry {
   list() {
     return [...this.registrations.values()]
       .filter(item => !item.context.signal.aborted)
-      .map(item => ({ id: item.context.pluginId, name: item.definition.name }));
+      .map(item => ({
+        id: item.context.pluginId,
+        name: item.definition.name,
+      }));
   }
   private changed() {
     this.revision++;

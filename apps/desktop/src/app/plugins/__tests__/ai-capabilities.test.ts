@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/commands/plugin-ai", () => ({ invokePluginAI: mocks.invoke }));
 vi.mock("@/electron", () => ({ on: mocks.on, off: mocks.off }));
-vi.mock("@/queryClient", () => ({ queryClient: { invalidateQueries: mocks.invalidate } }));
+vi.mock("@/queryClient", () => ({
+  queryClient: { invalidateQueries: mocks.invalidate },
+}));
 vi.mock("@/services/page-navigation", () => ({ openPage: vi.fn() }));
 
 import { desktopPluginAI } from "../ai";

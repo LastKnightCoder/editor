@@ -20,12 +20,24 @@ describe("resolveAssistLayout", () => {
   });
 
   it("侧栏已收起时不重复要求收起", () => {
-    const layout = resolveAssistLayout({ ...base, sidebarCollapsed: true, windowWidth: 1280 });
+    const layout = resolveAssistLayout({
+      ...base,
+      sidebarCollapsed: true,
+      windowWidth: 1280,
+    });
     expect(layout).toMatchObject({ mode: "beside", collapseSidebar: false });
   });
 
   it("收起侧栏仍不足 560 时改为覆盖浮层，侧栏保持原状", () => {
-    const layout = resolveAssistLayout({ ...base, assistWidth: 560, windowWidth: 1080 });
-    expect(layout).toEqual({ mode: "overlay", collapseSidebar: false, mainWidth: 1080 - 218 - 4 });
+    const layout = resolveAssistLayout({
+      ...base,
+      assistWidth: 560,
+      windowWidth: 1080,
+    });
+    expect(layout).toEqual({
+      mode: "overlay",
+      collapseSidebar: false,
+      mainWidth: 1080 - 218 - 4,
+    });
   });
 });

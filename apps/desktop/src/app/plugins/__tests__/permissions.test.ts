@@ -83,7 +83,9 @@ describe("DesktopPermissionBroker", () => {
     await expect(broker.ensure(contextOf(), plugin, ["calendar:read"])).rejects.toMatchObject({
       reason: "unavailable",
     });
-    expect(usePluginPermissionUi.getState().pending).toEqual({ weekly: ["calendar:read"] });
+    expect(usePluginPermissionUi.getState().pending).toEqual({
+      weekly: ["calendar:read"],
+    });
     await broker.grant("weekly", "calendar:read", "always");
     expect(usePluginPermissionUi.getState().pending).toEqual({});
     await broker.ensure(contextOf(), plugin, ["calendar:read"]);

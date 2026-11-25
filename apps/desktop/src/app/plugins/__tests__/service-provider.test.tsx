@@ -62,7 +62,13 @@ const definition = bindPluginServiceRenderers(
     editorExtensions: [
       defineEditorExtension({
         id: "test.service",
-        elements: [defineEditorElement({ type: "paragraph", kind: "block", render: Probe })],
+        elements: [
+          defineEditorElement({
+            type: "paragraph",
+            kind: "block",
+            render: Probe,
+          }),
+        ],
       }),
     ],
   })

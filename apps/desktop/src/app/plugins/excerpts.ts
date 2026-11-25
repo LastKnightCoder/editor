@@ -14,7 +14,10 @@ export function createDesktopExcerpts(databaseName: string): {
   materials: MaterialsAdapter;
 } {
   const commands = (context: PluginContext) =>
-    bindDatabaseCommands(excerptCommands, { databaseName, signal: context.signal });
+    bindDatabaseCommands(excerptCommands, {
+      databaseName,
+      signal: context.signal,
+    });
   const registrations = new WeakMap<PluginContext, Promise<void>>();
   const registered = async (context: PluginContext) => {
     const pending = registrations.get(context);
@@ -78,7 +81,10 @@ export function createDesktopExcerpts(databaseName: string): {
           id: "card",
           label: "转为卡片",
           run: async () => {
-            await createCardFromPluginMaterial(ref, { databaseName, signal: context.signal });
+            await createCardFromPluginMaterial(ref, {
+              databaseName,
+              signal: context.signal,
+            });
           },
         },
       ];

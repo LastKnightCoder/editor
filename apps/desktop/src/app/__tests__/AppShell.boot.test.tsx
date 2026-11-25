@@ -5,7 +5,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
   return {
-    default: create(() => ({ inited: false, setting: { database: { active: "data.db" } } })),
+    default: create(() => ({
+      inited: false,
+      setting: { database: { active: "data.db" } },
+    })),
   };
 });
 vi.mock("@/stores/useGlobalStateStore", async () => {
@@ -19,7 +22,9 @@ vi.mock("@/page/PageProvider", () => ({
   usePage: vi.fn(),
 }));
 vi.mock("@/page/PageHost", () => ({ PageHost: () => null }));
-vi.mock("../PageNavigationBridge", () => ({ PageNavigationBridge: () => null }));
+vi.mock("../PageNavigationBridge", () => ({
+  PageNavigationBridge: () => null,
+}));
 vi.mock("@tau/ui", async importOriginal => ({
   ...(await importOriginal<typeof import("@tau/ui")>()),
   Loading: ({ label }: { label: string }) => <div>{label}</div>,
@@ -27,10 +32,18 @@ vi.mock("@tau/ui", async importOriginal => ({
   ToastHost: () => null,
   initScrollbarAutoHide: () => vi.fn(),
 }));
-vi.mock("@/features/search/SearchPalette", () => ({ SearchPalette: () => null }));
-vi.mock("@/features/settings/SettingsScreen", () => ({ SettingsScreen: () => null }));
-vi.mock("@/features/transfer/MarkdownExportHost", () => ({ MarkdownExportHost: () => null }));
-vi.mock("@/features/transfer/ImportWizardHost", () => ({ ImportWizardHost: () => null }));
+vi.mock("@/features/search/SearchPalette", () => ({
+  SearchPalette: () => null,
+}));
+vi.mock("@/features/settings/SettingsScreen", () => ({
+  SettingsScreen: () => null,
+}));
+vi.mock("@/features/transfer/MarkdownExportHost", () => ({
+  MarkdownExportHost: () => null,
+}));
+vi.mock("@/features/transfer/ImportWizardHost", () => ({
+  ImportWizardHost: () => null,
+}));
 vi.mock("@/features/search/searchStore", () => ({ useSearchStore: vi.fn() }));
 vi.mock("@/features/search/searchMeta", () => ({ isReplayableVisit: vi.fn() }));
 vi.mock("../useThemeRuntime", () => ({ useThemeRuntime: vi.fn() }));
@@ -41,7 +54,9 @@ vi.mock("../AssistDock", () => ({ AssistDock: () => null }));
 vi.mock("@/features/notifications/useNotificationBridge", () => ({
   useNotificationBridge: () => vi.fn(),
 }));
-vi.mock("@/components/JoinRequestNotifications", () => ({ default: () => null }));
+vi.mock("@/components/JoinRequestNotifications", () => ({
+  default: () => null,
+}));
 vi.mock("@/components/AutoUpdateChecker", () => ({ default: () => null }));
 vi.mock("@/pages", () => ({}));
 
@@ -59,7 +74,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   useSettingStore.setState(state => ({
     inited: false,
-    setting: { ...state.setting, database: { ...state.setting.database, active: "data.db" } },
+    setting: {
+      ...state.setting,
+      database: { ...state.setting.database, active: "data.db" },
+    },
   }));
   useGlobalStateStore.setState({ databaseStatus: {} });
   vi.mocked(connectDatabaseByName).mockResolvedValue(undefined);

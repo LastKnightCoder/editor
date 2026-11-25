@@ -50,10 +50,15 @@ describe("插件服务入口不依赖编辑器或 activate", () => {
     const Render = bound.editorExtensions![0].elements![0].render!;
     const props = {
       attributes: { "data-slate-node": "element", ref: null },
-      element: { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+      element: {
+        type: "paragraph",
+        children: [{ type: "formatted", text: "" }],
+      },
       children: null,
     } as ComponentProps<typeof Render>;
-    const adapter = { tailwind: { compile: vi.fn() } } as unknown as PluginServices;
+    const adapter = {
+      tailwind: { compile: vi.fn() },
+    } as unknown as PluginServices;
     const scope = new PluginServiceScope(adapter, id => id === definition.id);
     host = document.createElement("div");
     document.body.append(host);
@@ -77,7 +82,10 @@ describe("插件服务入口不依赖编辑器或 activate", () => {
   });
 
   it("窗口取消只结束自己的调用，工作区切换拒绝旧结果", async () => {
-    const jobs: { signal: AbortSignal; finish(value: { html: string }): void }[] = [];
+    const jobs: {
+      signal: AbortSignal;
+      finish(value: { html: string }): void;
+    }[] = [];
     const adapter = {
       tailwind: {
         compile: vi.fn(

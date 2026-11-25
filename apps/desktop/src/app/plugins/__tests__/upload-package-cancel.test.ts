@@ -26,7 +26,10 @@ it.skipIf(!zip)("真实上传包把单次取消信号传给网络请求", async 
   let networkSignal: AbortSignal | undefined;
   const host = new PluginHost({
     workspaceId: "test",
-    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
+    environment: {
+      platform: "desktop",
+      input: { coarsePointer: false, finePointer: true },
+    },
     storage: createMemoryStorage(),
     upload: registry,
     sync: new RendererSyncRegistry(),
@@ -75,7 +78,11 @@ it.skipIf(!zip)("真实上传包把单次取消信号传给网络请求", async 
     const controller = new AbortController();
     const pending = registry.upload(
       artifact.manifest.id,
-      { name: "a.wav", mimeType: "audio/wav", content: new Uint8Array([0, 255]) },
+      {
+        name: "a.wav",
+        mimeType: "audio/wav",
+        content: new Uint8Array([0, 255]),
+      },
       {
         token: "test",
         owner: "test",
@@ -93,7 +100,9 @@ it.skipIf(!zip)("真实上传包把单次取消信号传给网络请求", async 
       },
       controller.signal
     );
-    const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    const assertion = expect(pending).rejects.toMatchObject({
+      name: "AbortError",
+    });
     await vi.waitFor(() => expect(networkSignal).toBeDefined());
     controller.abort();
     await assertion;

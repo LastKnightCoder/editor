@@ -56,7 +56,10 @@ export interface NavChildrenSlot {
 /** 子项槽：所属页在栈顶时于条目下方展开的子项列表 */
 export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
   // 协作：当前内容缺省时落到第一份，恒有子项选中
-  "collaboration-sessions": { Component: CollaborationNavSessions, selected: () => true },
+  "collaboration-sessions": {
+    Component: CollaborationNavSessions,
+    selected: () => true,
+  },
   // 待办：项目是收窄视图，参数 id 为空 = 全部
   "todo-groups": {
     Component: TodosNavGroups,

@@ -37,7 +37,11 @@ function useResource(url: string, { kind }: { kind: ResourceKind }): ResourceSta
     }
     let active = true;
     setState({ src: undefined, status: "loading" });
-    resolveMediaSource(url, { kind, autoCacheRemote, resolveCollaborationResource })
+    resolveMediaSource(url, {
+      kind,
+      autoCacheRemote,
+      resolveCollaborationResource,
+    })
       .then(resolved => {
         if (!active) return;
         if (!resolved) {

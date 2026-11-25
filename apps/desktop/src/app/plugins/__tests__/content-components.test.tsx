@@ -19,7 +19,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/commands/plugin-data", () => ({ readPluginContent: mocks.read }));
 vi.mock("@/commands/entity", () => ({ locateEntity: mocks.locate }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
-const kits = vi.hoisted(() => ({ full: { name: "full" }, compact: { name: "compact" } }));
+const kits = vi.hoisted(() => ({
+  full: { name: "full" },
+  compact: { name: "compact" },
+}));
 vi.mock("@/services/editorKit", () => ({
   getContentKit: () => kits.full,
   getDescriptionKit: () => kits.compact,
@@ -63,7 +66,9 @@ function pluginContext(states: Record<string, PluginPermissionState>) {
 let root: Root;
 let container: HTMLDivElement;
 function render(element: React.ReactNode, context?: PluginContext) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   act(() =>
     root.render(
       <QueryClientProvider client={client}>
@@ -111,7 +116,10 @@ describe("插件正文组件", () => {
     render(<ContentEditor contentRef="8:100" placeholder="写点什么" />, context);
     await settle();
     expect(mocks.read.mock.calls[0].slice(1)).toEqual([8, 100, "nodes"]);
-    expect(mocks.locate.mock.calls[0][0]).toMatchObject({ contentId: 8, kind: "card" });
+    expect(mocks.locate.mock.calls[0][0]).toMatchObject({
+      contentId: 8,
+      kind: "card",
+    });
     expect(mocks.editor).toHaveBeenLastCalledWith(
       expect.objectContaining({
         contentId: 8,
@@ -171,10 +179,15 @@ describe("插件正文组件", () => {
   });
 
   it("精简套件：编辑器与预览都换成简短内容的套件，默认仍是完整套件", async () => {
-    const { context } = pluginContext({ "cards:write": "granted", "cards:read": "granted" });
+    const { context } = pluginContext({
+      "cards:write": "granted",
+      "cards:read": "granted",
+    });
     render(<ContentEditor contentRef="8:100" kit="compact" />, context);
     await settle();
-    expect(mocks.editor.mock.lastCall?.[0]).toMatchObject({ kit: kits.compact });
+    expect(mocks.editor.mock.lastCall?.[0]).toMatchObject({
+      kit: kits.compact,
+    });
     render(<ContentEditor contentRef="8:100" />, context);
     await settle();
     expect(mocks.editor.mock.lastCall?.[0]).not.toHaveProperty("kit");
@@ -197,7 +210,10 @@ describe("插件正文组件", () => {
     expect(context.permissions.query).not.toHaveBeenCalled();
     expect(mocks.locate).not.toHaveBeenCalled();
     const props = mocks.editor.mock.lastCall?.[0];
-    expect(props).toMatchObject({ contentId: 9, source: { sourceType: "content", sourceId: 9 } });
+    expect(props).toMatchObject({
+      contentId: 9,
+      source: { sourceType: "content", sourceId: 9 },
+    });
     expect(props).not.toHaveProperty("editingContext");
   });
 

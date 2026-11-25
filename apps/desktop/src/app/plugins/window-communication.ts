@@ -133,7 +133,10 @@ export function connectWindowCommunication(
     },
     state: {
       async get(key) {
-        const result = await transport.invoke("getState", { endpoint: token(), key });
+        const result = await transport.invoke("getState", {
+          endpoint: token(),
+          key,
+        });
         signal.throwIfAborted();
         return result.value;
       },
@@ -147,7 +150,10 @@ export function connectWindowCommunication(
         if (!entry) {
           entry = {
             listeners: new Map(),
-            pending: transport.invoke("subscribeState", { endpoint: owner, key }),
+            pending: transport.invoke("subscribeState", {
+              endpoint: owner,
+              key,
+            }),
           };
           states.set(key, entry);
         }
@@ -173,7 +179,10 @@ export function connectWindowCommunication(
             if (states.get(key) !== subscription || subscription.listeners.size) return;
             states.delete(key);
             if (!signal.aborted)
-              await transport.invoke("unsubscribeState", { endpoint: owner, key });
+              await transport.invoke("unsubscribeState", {
+                endpoint: owner,
+                key,
+              });
           },
         };
       },

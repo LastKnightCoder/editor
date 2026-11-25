@@ -73,7 +73,11 @@ function validatePlayback(value: VideoPlaybackSource): VideoPlaybackSource {
   if (isRecord(value) && value.kind === "file" && isStream(value.stream))
     return { kind: "file", stream: stream(value.stream) };
   if (isRecord(value) && value.kind === "split" && isStream(value.video) && isStream(value.audio))
-    return { kind: "split", video: stream(value.video), audio: stream(value.audio) };
+    return {
+      kind: "split",
+      video: stream(value.video),
+      audio: stream(value.audio),
+    };
   if (isRecord(value) && value.kind === "extract" && typeof value.url === "string") {
     const videoFormat = optionalText(value.videoFormat);
     const audioFormat = optionalText(value.audioFormat);
@@ -105,7 +109,11 @@ function validateCaptions(value: VideoCaptions | null): VideoCaptions | null {
         segment.end <= segment.start
       )
         throw new Error("插件返回的字幕时间戳无效");
-      return { text: segment.text.trim(), start: segment.start, end: segment.end };
+      return {
+        text: segment.text.trim(),
+        start: segment.start,
+        end: segment.end,
+      };
     })
     .filter(segment => segment.text)
     .sort((a, b) => a.start - b.start);
@@ -170,7 +178,10 @@ export class RendererVideoRegistry {
     };
   }
 
-  private instance(pluginId: string): { instance: VideoInstance; signal: AbortSignal } {
+  private instance(pluginId: string): {
+    instance: VideoInstance;
+    signal: AbortSignal;
+  } {
     const registration = this.registrations.get(pluginId);
     if (!registration || registration.context.signal.aborted)
       throw new Error(`需要在插件中心安装并启用「${pluginId}」插件`);

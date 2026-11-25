@@ -17,7 +17,11 @@ function setup(create: (config: JsonValue, model: string) => ImageInstance) {
       version: "1.0.0",
       create: () => ({
         activate(context) {
-          context.images.register({ id: context.pluginId, name: "图片", create });
+          context.images.register({
+            id: context.pluginId,
+            name: "图片",
+            create,
+          });
         },
       }),
     })
@@ -54,8 +58,12 @@ it("固定账号与模型，取消单次任务不影响其他账号，停用回�
   const cancel = new AbortController();
   const first = registry.execute(request("a"), cancel.signal);
   const second = registry.execute(request("b"), signal);
-  const checkedFirst = expect(first).rejects.toMatchObject({ name: "AbortError" });
-  const checkedSecond = expect(second).rejects.toMatchObject({ name: "AbortError" });
+  const checkedFirst = expect(first).rejects.toMatchObject({
+    name: "AbortError",
+  });
+  const checkedSecond = expect(second).rejects.toMatchObject({
+    name: "AbortError",
+  });
   await Promise.resolve();
   expect(calls.map(call => [call.config, call.model])).toEqual([
     [{ key: "a" }, "first"],
@@ -77,7 +85,10 @@ it("按实例方法发布能力，拒绝不支持的操作和无效结果", asyn
   const { registry, host } = setup(() => ({ generate }));
   await host.enable("test.images");
   const signal = new AbortController().signal;
-  expect(await registry.execute(open("a"), signal)).toEqual({ canGenerate: true, canEdit: false });
+  expect(await registry.execute(open("a"), signal)).toEqual({
+    canGenerate: true,
+    canEdit: false,
+  });
   await expect(
     registry.execute(
       { kind: "edit", session: "a", request: { prompt: "改图", images: [] } },

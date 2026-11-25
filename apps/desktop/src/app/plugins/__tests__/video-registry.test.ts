@@ -16,7 +16,10 @@ const instance = (overrides: Partial<VideoInstance> = {}): VideoInstance => ({
   cacheKey: ref => `${ref.id}-${ref.q}`,
   getPlayback: async () => ({
     kind: "split",
-    video: { url: "https://cdn.test/v", headers: { Referer: "https://a.test" } },
+    video: {
+      url: "https://cdn.test/v",
+      headers: { Referer: "https://a.test" },
+    },
     audio: { url: "https://cdn.test/a" },
   }),
   ...overrides,
@@ -47,18 +50,33 @@ it("按当前配置创建实例，识别链接并返回校验后的结果副本"
   expect(await registry.execute({ kind: "match", url: "https://a.test/1" })).toBe("a.video");
   expect(await registry.execute({ kind: "match", url: "https://c.test/1" })).toBeNull();
   expect(create).toHaveBeenCalledWith({ token: "t" });
-  const resolved = await registry.execute({ kind: "resolve", pluginId: "a.video", url: "u" });
+  const resolved = await registry.execute({
+    kind: "resolve",
+    pluginId: "a.video",
+    url: "u",
+  });
   // 可选字段为 undefined 时省略，越界的默认项被丢弃
   expect(resolved).toEqual({
     title: "标题",
     variants: [{ label: "1080P", ref: { id: "1", q: 80 } }],
   });
   expect(
-    await registry.execute({ kind: "cacheKey", pluginId: "a.video", ref: { id: "1", q: 80 } })
+    await registry.execute({
+      kind: "cacheKey",
+      pluginId: "a.video",
+      ref: { id: "1", q: 80 },
+    })
   ).toBe("1-80");
   expect(
-    await registry.execute({ kind: "playback", pluginId: "a.video", ref: { id: "1" } })
-  ).toMatchObject({ kind: "split", video: { headers: { Referer: "https://a.test" } } });
+    await registry.execute({
+      kind: "playback",
+      pluginId: "a.video",
+      ref: { id: "1" },
+    })
+  ).toMatchObject({
+    kind: "split",
+    video: { headers: { Referer: "https://a.test" } },
+  });
 });
 
 it("拒绝无效结果、未注册或已停用的提供方", async () => {
@@ -116,7 +134,11 @@ it("调用中插件停用或调用方取消时立即结束，注销后不再列�
   call.abort();
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   expect(pluginSignal.aborted).toBe(true);
-  const second = registry.execute({ kind: "resolve", pluginId: "slow.video", url: "u" });
+  const second = registry.execute({
+    kind: "resolve",
+    pluginId: "slow.video",
+    url: "u",
+  });
   await Promise.resolve();
   lifetime.abort();
   await expect(second).rejects.toMatchObject({ name: "AbortError" });
@@ -158,7 +180,10 @@ it("字幕为可选能力，空结果返回 null，有效字幕按时间排序�
   expect(result?.segments[0]).not.toBe(captions.segments[1]);
   getCaptions.mockResolvedValue({ language: "zh", segments: [] });
   expect(await registry.execute({ kind: "captions", pluginId: "b.video", ref: {} })).toBeNull();
-  getCaptions.mockResolvedValue({ language: "zh", segments: [{ text: "错", start: 10, end: 5 }] });
+  getCaptions.mockResolvedValue({
+    language: "zh",
+    segments: [{ text: "错", start: 10, end: 5 }],
+  });
   await expect(
     registry.execute({ kind: "captions", pluginId: "b.video", ref: {} })
   ).rejects.toThrow("时间戳");
@@ -179,7 +204,11 @@ it("停用字幕提供方后拒绝迟到结果", async () => {
       })
     )
   );
-  const result = registry.execute({ kind: "captions", pluginId: "a.video", ref: {} });
+  const result = registry.execute({
+    kind: "captions",
+    pluginId: "a.video",
+    ref: {},
+  });
   await Promise.resolve();
   lifetime.abort();
   finish(null);

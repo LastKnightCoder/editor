@@ -19,8 +19,16 @@ import { createDesktopData } from "../data";
 import { DesktopPermissionBroker, usePluginPermissionUi } from "../permissions";
 
 const bridge = vi.hoisted(() => {
-  const transport = { invoke: vi.fn(), platform: "darwin", on: vi.fn(), off: vi.fn() };
-  Object.defineProperty(window, "electron", { configurable: true, value: transport });
+  const transport = {
+    invoke: vi.fn(),
+    platform: "darwin",
+    on: vi.fn(),
+    off: vi.fn(),
+  };
+  Object.defineProperty(window, "electron", {
+    configurable: true,
+    value: transport,
+  });
   return transport;
 });
 
@@ -31,8 +39,14 @@ vi.mock("../../../../src-electron/main/services/content-execution", () => ({
     execute: async (request: ContentExecutionRequest) => {
       await import("../content-runtime");
       return (
-        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
-      ).tauContentExecute({ hash: "sqlite-plugin-permissions", artifacts: [], request });
+        globalThis as unknown as {
+          tauContentExecute(input: unknown): Promise<unknown>;
+        }
+      ).tauContentExecute({
+        hash: "sqlite-plugin-permissions",
+        artifacts: [],
+        request,
+      });
     },
   },
 }));
@@ -99,7 +113,10 @@ beforeEach(async () => {
     [primaryName, { db: primary, token: "primary-connection" }],
     [secondaryName, { db: secondary, token: "secondary-connection" }],
   ]);
-  rememberDatabaseConnection({ databaseName: primaryName, connectionId: "primary-connection" });
+  rememberDatabaseConnection({
+    databaseName: primaryName,
+    connectionId: "primary-connection",
+  });
   const handlers = PluginDataTable.getListenEvents();
   const notifications = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
   let grants: PluginPermissionSnapshot = {};
@@ -224,7 +241,10 @@ it("切库停用后迟到的授权答复不会写入任一资料库", async () =
   const stopped = expect(edit("迟到的授权修改")).rejects.toThrow();
   await vi.waitFor(() => expect(usePluginPermissionUi.getState().prompts).toHaveLength(1));
   const [prompt] = usePluginPermissionUi.getState().prompts;
-  rememberDatabaseConnection({ databaseName: secondaryName, connectionId: "secondary-connection" });
+  rememberDatabaseConnection({
+    databaseName: secondaryName,
+    connectionId: "secondary-connection",
+  });
   await host.disable(pluginId);
   expect(usePluginPermissionUi.getState().prompts).toHaveLength(0);
   prompt.settle("always");

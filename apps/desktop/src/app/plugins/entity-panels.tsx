@@ -27,7 +27,8 @@ function EntityPanel({
       fallback={({ error, reset }) => (
         <div className={cn("flex items-center gap-3", className)}>
           <EmptyNote className="mt-0 min-w-0 flex-1">
-            插件区块出错了：{error instanceof Error ? error.message : String(error)}
+            插件区块出错了：
+            {error instanceof Error ? error.message : String(error)}
           </EmptyNote>
           <Button size="sm" variant="ghost" onClick={reset}>
             重试

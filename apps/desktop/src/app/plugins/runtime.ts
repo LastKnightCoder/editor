@@ -296,8 +296,12 @@ export class DesktopPluginRuntime {
             definition.page.id.slice(context.pluginId.length + 1)
           ),
       },
-      home: { registerPanel: (context, definition) => this.registerHomePanel(context, definition) },
-      actions: { register: (context, definition) => this.registerAction(context, definition) },
+      home: {
+        registerPanel: (context, definition) => this.registerHomePanel(context, definition),
+      },
+      actions: {
+        register: (context, definition) => this.registerAction(context, definition),
+      },
       views: {
         registerEntityPanel: (context, definition) => this.registerEntityPanel(context, definition),
       },
@@ -310,7 +314,9 @@ export class DesktopPluginRuntime {
           this.registerSidebarItem(context, definition, pageId),
       },
       settings: options.openSettings
-        ? { register: (context, definition) => this.registerSettings(context, definition) }
+        ? {
+            register: (context, definition) => this.registerSettings(context, definition),
+          }
         : undefined,
     });
     this.unsubscribe = this.host.subscribe(() => {

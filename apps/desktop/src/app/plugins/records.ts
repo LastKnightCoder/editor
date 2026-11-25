@@ -59,7 +59,10 @@ export function createDesktopRecords(databaseName: string): RecordsAdapter {
         collection,
         query
       );
-      return { items: page.items.map(toRecord), ...(page.cursor ? { cursor: page.cursor } : {}) };
+      return {
+        items: page.items.map(toRecord),
+        ...(page.cursor ? { cursor: page.cursor } : {}),
+      };
     },
     count: (context, collection, where) =>
       bound(context).countPluginRecords(databaseName, context.pluginId, collection, where),

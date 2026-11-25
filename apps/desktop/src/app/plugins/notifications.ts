@@ -6,7 +6,11 @@ export const desktopPluginNotifications: NotificationsAdapter = {
     context.signal.throwIfAborted();
     const { mode = "auto", actions, ...content } = options;
     const id = appNotify(
-      { ...content, source: plugin.name, actions: actions ? [...actions] : undefined },
+      {
+        ...content,
+        source: plugin.name,
+        actions: actions ? [...actions] : undefined,
+      },
       mode === "auto" ? undefined : { force: mode }
     );
     let disposed = false;

@@ -96,7 +96,10 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
     },
     async query(context, query) {
       const page = await bound(context).queryPluginEntities(databaseName, context.pluginId, query);
-      return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
+      return {
+        items: page.items.map(toEntity),
+        ...(page.cursor ? { cursor: page.cursor } : {}),
+      };
     },
     count: (context, filter) =>
       bound(context).countPluginEntities(databaseName, context.pluginId, filter),
@@ -108,14 +111,21 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
       assertDatabase(databaseName);
       // 按需加载：脉络命令不进插件宿主的启动路径
       const { getEntityContext } = await import("@/commands/entity-context");
-      const result = await getEntityContext({ kind: "plugin-entity", id: numeric });
+      const result = await getEntityContext({
+        kind: "plugin-entity",
+        id: numeric,
+      });
       context.signal.throwIfAborted();
       assertDatabase(databaseName);
       return (result?.backlinks ?? []).map(({ source, snippets }) => ({
         entity: BACKLINK_ENTITIES[source.ref.kind] ?? null,
         id: String(source.ref.id),
         title: source.title,
-        snippets: snippets.map(({ before, label, after }) => ({ before, label, after })),
+        snippets: snippets.map(({ before, label, after }) => ({
+          before,
+          label,
+          after,
+        })),
       }));
     },
     async update(context, id, patch, expectedRevision, indexes) {

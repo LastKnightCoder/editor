@@ -29,7 +29,11 @@ describe("真实桌面语义入口", () => {
           create: () => ({
             activate(ctx) {
               context = ctx;
-              page = ctx.pages.register({ id: "counter", title: "计数", component: () => null });
+              page = ctx.pages.register({
+                id: "counter",
+                title: "计数",
+                component: () => null,
+              });
             },
           }),
         })
@@ -43,7 +47,11 @@ describe("真实桌面语义入口", () => {
         params: { count: 1 },
       });
       expect(runtime.host.listContributions("test.portable").navigation).toBe(1);
-      context.sidebar.registerItem({ id: "navigation.counter", title: "桌面专属入口", page });
+      context.sidebar.registerItem({
+        id: "navigation.counter",
+        title: "桌面专属入口",
+        page,
+      });
       expect(new Set(runtime.listSidebar().items.map(item => item.id)).size).toBe(2);
       await runtime.listSidebar().items[0].open();
       expect(push).toHaveBeenCalledWith("plugin-page", {

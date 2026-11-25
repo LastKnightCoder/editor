@@ -39,7 +39,9 @@ describe("桌面插件通知", () => {
     const controller = new AbortController();
     const context = { signal: controller.signal } as PluginContext;
     const owner = { id: "sample", name: "示例插件" };
-    const first = desktopPluginNotifications.send(context, owner, { title: "第一条" });
+    const first = desktopPluginNotifications.send(context, owner, {
+      title: "第一条",
+    });
     desktopPluginNotifications.send(context, owner, { title: "第二条" });
     first.dispose();
     expect(mocks.notify.dismiss.mock.calls).toEqual([[mocks.notify.mock.results[0].value]]);
