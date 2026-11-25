@@ -201,9 +201,6 @@ function SketchEntry() {
             </Menu.RadioItem>
           ))}
         </Menu.RadioGroup>
-        <div className="text-ink-3 text-tau-tiny px-2.5 pt-1.5 pb-1">
-          单独设置过画风的元素不受影响
-        </div>
       </Menu>
       <ChromeGap className="w-1" />
     </>
