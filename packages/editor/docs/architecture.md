@@ -2548,36 +2548,9 @@ export const unwrapLink = (editor: Editor) => {
 
 #### 快捷键注册器
 
-**文件位置**: `packages/editor/src/utils/hotkey.ts:10`
+实现位于 [core/utils/hotkey.ts](/packages/editor/src/core/utils/hotkey.ts)。`registerHotKey` 按声明顺序处理 `ResolvedHotkey`：`command` 条目交给命令分发器，`legacy` 条目执行原有 action；事件被消费后停止，输入法组合事件与键码 229 直接让位。
 
-```typescript
-import isHotkey from "is-hotkey";
-import { Editor } from "slate";
-import { IHotKeyConfig } from "../types";
-
-export const registerHotKey = (
-  editor: Editor,
-  event: React.KeyboardEvent<HTMLDivElement>,
-  configs: IHotKeyConfig[]
-) => {
-  for (const config of configs) {
-    const { hotKey, action } = config;
-
-    // 支持单个或多个快捷键
-    if (typeof hotKey === "string") {
-      if (isHotkey(hotKey, event)) {
-        action(editor, event);
-      }
-    } else {
-      for (const key of hotKey) {
-        if (isHotkey(key, event)) {
-          action(editor, event);
-        }
-      }
-    }
-  }
-};
-```
+`is-hotkey` 使用命名导出（`import { isHotkey } from "is-hotkey"`），调用处统一为 `isHotkey(...)`。生产打包对 CommonJS 默认导出的互操作可能返回模块对象，源码测试不能代替生产产物的按键验证。
 
 #### 全局快捷键配置
 

@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import isHotkey from "is-hotkey";
+import { isHotkey } from "is-hotkey";
 import type { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
 
 export const SOURCE_INDENT = "  ";

@@ -1,7 +1,7 @@
 import { useTextFieldBinding, canEditElement } from "@tau/editor/api";
 import { IEditorTextFields, type EditorTextField } from "@tau/editor/api";
 import { bindTextFieldTextarea } from "@tau/editor-source-view";
-import isHotkey from "is-hotkey";
+import { isHotkey } from "is-hotkey";
 import { createYamlScalarField } from "../../yamlScalarField";
 import { useMemo, useCallback, useState, useRef, useLayoutEffect } from "react";
 import { Transforms } from "slate";

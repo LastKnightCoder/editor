@@ -1,5 +1,5 @@
 import { useMemoizedFn } from "ahooks";
-import isHotkey from "is-hotkey";
+import { isHotkey } from "is-hotkey";
 import { Board, MindNodeElement } from "../../../types";
 import { BoardUtil, MindUtil, PathUtil } from "../../../utils";
 import { EditorRef } from "@tau/editor";

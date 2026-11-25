@@ -16,7 +16,7 @@ import { InlineChromiumBugfix, OverlayBackDismiss } from "@tau/editor/api";
 import { useTextFieldBinding, canEditElement } from "@tau/editor/api";
 import { IEditorTextFields } from "@tau/editor/api";
 import { bindTextFieldTextarea } from "@tau/editor-source-view";
-import isHotkey from "is-hotkey";
+import { isHotkey } from "is-hotkey";
 import Katex from "../../renderers/Katex";
 import type { InlineMathElement } from "../../types";
 

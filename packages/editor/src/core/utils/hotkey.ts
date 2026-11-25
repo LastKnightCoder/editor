@@ -1,7 +1,7 @@
 import { Editor } from "slate";
 import { IHotKeyConfig } from "../types";
 import type { CommandDispatcher } from "../api/command";
-import isHotKey from "is-hotkey";
+import { isHotkey } from "is-hotkey";
 
 /** 热键的两种来源：v2 绑命令 id；legacy 直函数（迁移期内并存，扩展迁 v2 时切换） */
 export type ResolvedHotkey =
@@ -25,7 +25,7 @@ export const registerHotKey = (
     }
 
     if (entry.kind === "command") {
-      if (isHotKey(entry.keys, event)) {
+      if (isHotkey(entry.keys, event)) {
         dispatcher?.execute(editor, entry.command, { event });
         if (event.defaultPrevented) {
           return;
@@ -35,7 +35,7 @@ export const registerHotKey = (
     }
 
     const { hotKey, action } = entry.config;
-    if (isHotKey(hotKey, event)) {
+    if (isHotkey(hotKey, event)) {
       action(editor, event);
       if (event.defaultPrevented) {
         return;

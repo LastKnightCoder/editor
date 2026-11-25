@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import isHotKey from "is-hotkey";
+import { isHotkey } from "is-hotkey";
 import { Plus } from "lucide-react";
 
 import { Popover, Tag as TauTag, cn } from "@tau/ui";
@@ -119,7 +119,7 @@ const AddTag = (props: AddTagProps) => {
   useEffect(() => {
     if (!editingTag) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isHotKey("enter", e) || e.isComposing) return;
+      if (!isHotkey("enter", e) || e.isComposing) return;
       const editElement = editRef.current;
       if (editElement) handleEditTag(editingTag, editElement.textContent || "");
     };

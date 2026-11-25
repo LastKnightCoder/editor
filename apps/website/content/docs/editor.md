@@ -152,6 +152,8 @@
 const idea = "让想法，长成体系";
 ```
 
+编辑源码时，按 <kbd>Tab</kbd> 缩进，按 <kbd>⇧Tab</kbd> 减少缩进，按回车保留当前行的缩进。撤销、重做使用同样的 <kbd>⌘Z</kbd> / <kbd>⌘⇧Z</kbd>；Windows 使用 <kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd>。
+
 公式用 LaTeX 语法，可以写在行内，例如 $\sqrt{a^2 + b^2}$，也可以单独成行：
 
 $$
