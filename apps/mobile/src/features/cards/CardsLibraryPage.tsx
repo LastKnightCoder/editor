@@ -26,7 +26,7 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
 
   return (
     <div className="bg-page relative flex h-full flex-col">
-      <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
+      <header className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
           <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">卡片库</h1>
           <p className="text-ink-2 mt-1 text-[12.5px]">
@@ -59,7 +59,7 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
         ref={scrollRef}
         className="edge-fade-scroll dock-pad scrollbar-hide flex-1 overflow-y-auto overscroll-y-contain"
       >
-        <div ref={contentRef} className="mt-3 px-[18px]">
+        <div ref={contentRef} className="mx-auto mt-3 w-full max-w-[1120px] px-[18px]">
           <CardsPage
             cards={props.cards}
             queryState={props.queryState}

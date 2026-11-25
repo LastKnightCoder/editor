@@ -1,17 +1,18 @@
 import { useMobilePlugins } from "../../app/plugins/context";
 import { toast } from "../../components/toast";
-import type { FeatureGridEntry } from "../settings/SettingsPage";
+import type { FeatureEntry } from "../featureEntries/useFeatureEntries";
 import { PluginIcon } from "./components/PluginIcon";
 
-/** 已启用插件的功能入口，按启用（注册）顺序；接在「我的」功能宫格的内置功能之后 */
-export function usePluginFeatureEntries(): FeatureGridEntry[] {
+/** 已启用插件的功能入口，按启用（注册）顺序；接在内置功能之后 */
+export function usePluginFeatureEntries(): FeatureEntry[] {
   const runtime = useMobilePlugins();
   return [...(runtime?.entries.values() ?? [])]
     .filter(item => runtime?.active(item.context))
     .map(({ definition, context }) => {
       const Icon = definition.icon;
+      const pageId = definition.page.id;
       return {
-        key: `${context.pluginId}:${definition.id}`,
+        key: `plugin:${context.pluginId}:${definition.id}`,
         label: definition.title,
         tile: Icon ? (
           <PluginIcon id={context.pluginId} name={definition.title} size="grid">
@@ -20,7 +21,13 @@ export function usePluginFeatureEntries(): FeatureGridEntry[] {
         ) : (
           <PluginIcon id={context.pluginId} name={definition.title} size="grid" />
         ),
-        onClick: () =>
+        glyph: Icon ? (
+          <Icon size={21} strokeWidth={1.9} aria-hidden="true" />
+        ) : (
+          <PluginIcon id={context.pluginId} name={definition.title} size="rail" />
+        ),
+        owns: entry => entry.key === "pluginPage" && entry.params.id === pageId,
+        open: () =>
           void definition.page.open(definition.params).catch(error => toast.error(String(error))),
       };
     });

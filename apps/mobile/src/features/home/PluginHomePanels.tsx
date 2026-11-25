@@ -1,5 +1,6 @@
 // 今天页的插件卡片：宿主画外框、标题与标题行右侧的入口，插件组件只渲染正文。
-// compact 两个一行，wide 占整行；正文返回 null 时整块不显示，渲染出错只影响这一块。
+// compact 按宽度排（手机两个一行，宽屏每格至少 300），wide 与落单的 compact 占满一行；
+// 正文返回 null 时整块不显示，渲染出错只影响这一块。
 
 import { Activity, useCallback } from "react";
 import { ChevronRight } from "lucide-react";
@@ -42,7 +43,8 @@ function PanelCard({
         // 正文为空（组件返回 null）时整块收起，不留空卡
         "has-[[data-home-panel-body]:empty]:hidden",
         action && "cursor-pointer",
-        fullRow && "col-span-2"
+        // flex 换行：落单的 compact 自动撑满一行，与 wide 同宽
+        fullRow ? "basis-full" : "min-w-0 flex-[1_1_calc(50%-5px)] @min-[640px]:basis-[300px]"
       )}
     >
       <header className="text-ink-2 flex h-6 items-center gap-1 text-[12.5px] font-semibold">
@@ -109,26 +111,17 @@ export function PluginHomePanels() {
     runtime?.active(panel.context)
   );
   if (!panels.length) return null;
-  // compact 两个一行；wide 与紧接 wide 之前落单的 compact 占满一行
-  let column = 0;
-  const layout = panels.map((panel, index) => {
-    const wide = panel.definition.size === "wide";
-    const next = panels[index + 1];
-    const alone = !wide && column === 0 && (!next || next.definition.size === "wide");
-    column = wide || alone ? 0 : (column + 1) % 2;
-    return { panel, fullRow: wide || alone };
-  });
   return (
     // 浮层挂到全局容器以覆盖底部导航；首页退到后台时连同卡片一起隐藏并保留状态。
     <PageResourceScope visible={phase === "active"}>
       <Activity mode={phase === "active" ? "visible" : "hidden"}>
         <UiHostProvider registerDismiss={registerBack}>
-          <div className="mt-3 grid grid-cols-2 gap-2.5 px-4">
-            {layout.map(({ panel, fullRow }) => (
+          <div className="@container mt-3 flex flex-wrap gap-2.5 px-4">
+            {panels.map(panel => (
               <PanelCard
                 key={panel.id}
                 panel={panel}
-                fullRow={fullRow}
+                fullRow={panel.definition.size === "wide"}
                 registerDismiss={registerDismiss}
               />
             ))}

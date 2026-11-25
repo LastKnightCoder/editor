@@ -1,0 +1,292 @@
+/* 浮层三形态（居中卡片、锚点菜单、右侧面板）与档位示意 */
+.mask {
+  position: absolute;
+  inset: 0;
+  background: var(--mask);
+  z-index: 20;
+}
+.dlg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  background: var(--bg-surface);
+  border-radius: 24px;
+  box-shadow: var(--shadow-float);
+  z-index: 21;
+  padding-bottom: 12px;
+}
+.dlg .head,
+.side .head {
+  padding: 0 10px 0 var(--in);
+}
+.dlg .srch {
+  margin: 0 var(--in) 8px;
+}
+.opt {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 var(--in);
+  font-size: 15px;
+}
+.opt svg {
+  color: var(--ink-3);
+}
+.opt small {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin-left: auto;
+}
+.opt.on {
+  color: var(--brand-text);
+  font-weight: 700;
+}
+.opt.on svg {
+  color: var(--brand);
+}
+.dlg .foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px var(--in) 0;
+}
+.btn {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14.5px;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+}
+.btn.pri {
+  background: var(--brand);
+  color: var(--ink-inv);
+  box-shadow: none;
+}
+
+.menu {
+  position: absolute;
+  z-index: 21;
+  width: 232px;
+  background: var(--bg-surface);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px var(--line-1),
+    var(--shadow-float);
+  padding: 6px;
+  font-size: 14.5px;
+}
+.menu > div {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+.menu > div svg {
+  color: var(--ink-2);
+}
+.menu > div.danger,
+.menu > div.danger svg {
+  color: var(--danger);
+}
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--line-1);
+  margin: 6px 10px;
+}
+
+/* 右侧面板：与平面同高同顶，挤窄正文而不盖住 */
+.t-main > .plane.side {
+  width: 360px;
+  flex: none;
+}
+.side .grp {
+  padding: 0 var(--in) 6px;
+}
+.side .grp + .grp {
+  margin-top: 8px;
+}
+.side .li {
+  padding: 10px 14px;
+  margin: 0 -14px;
+  border-radius: 12px;
+  font-size: 14.5px;
+}
+.side .li small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.side .li.on {
+  background: var(--brand-soft);
+}
+
+/* 档位标尺与示意图 */
+.ruler {
+  max-width: 1100px;
+  margin: 4px 0 26px;
+}
+.ruler .bar {
+  display: flex;
+  height: 64px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.ruler .bar > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 16px;
+}
+.ruler .bar > div + div {
+  box-shadow: -1px 0 0 var(--line-1);
+}
+.ruler .bar > div.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.ruler .bar b {
+  font-size: 14px;
+  color: var(--ink-1);
+}
+.ruler .ticks {
+  position: relative;
+  height: 18px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.ruler .ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.ruler .ticks span:first-child {
+  transform: none;
+}
+.ruler .ticks span:last-child {
+  transform: translateX(-100%);
+}
+.mini {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 40px;
+  align-items: start;
+}
+.mini figure {
+  display: grid;
+  grid-template-rows: 220px auto;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  max-width: 260px;
+}
+.mini .scr {
+  border-radius: 12px;
+  background: var(--bg-page);
+  box-shadow:
+    0 0 0 5px #2a2621,
+    var(--shadow-card);
+  display: flex;
+  gap: 5px;
+  padding: 7px;
+  align-self: end;
+  justify-self: start;
+}
+.mini .scr i {
+  border-radius: 6px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+.mini .scr i.nav {
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+}
+.mini .scr i.ls {
+  background: transparent;
+  box-shadow: none;
+  background-image: repeating-linear-gradient(to bottom, var(--line-1) 0 6px, transparent 6px 11px);
+}
+.mini figcaption b {
+  display: block;
+  color: var(--ink-1);
+  font-size: 13.5px;
+}
+table.cmp td code,
+table.cmp th code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--bg-input);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* 导航条「更多」：贴着按钮向右弹，列出放不下的入口 */
+.menu.pins {
+  width: 216px;
+}
+.menu.pins b.pl {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--sage-soft);
+  color: var(--sage);
+  font-size: 11px;
+  font-weight: 800;
+}
+.menu.pins .hint {
+  height: auto;
+  padding: 6px 12px 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+/* 我的宫格编辑态：前 N 格是导航条里会露出的 */
+.apps .wig i {
+  animation: wig 0.5s ease-in-out infinite alternate;
+}
+.apps .drag i {
+  box-shadow:
+    0 0 0 2px var(--brand),
+    var(--shadow-float);
+  transform: scale(1.08);
+}
+@keyframes wig {
+  from {
+    transform: rotate(-1.5deg);
+  }
+  to {
+    transform: rotate(1.5deg);
+  }
+}
+.menu.pins > [data-more-list] {
+  display: block;
+  height: auto;
+  padding: 0;
+}
+.menu.pins [data-more-list] > div {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+.menu.pins [data-more-list] svg {
+  color: var(--ink-2);
+}

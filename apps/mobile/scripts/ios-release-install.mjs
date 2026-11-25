@@ -10,7 +10,7 @@ const appleRoot = path.join(mobileRoot, "src-tauri/gen/apple");
 const args = process.argv.slice(2);
 if (args.includes("--help")) {
   console.log(
-    "用法：pnpm ios:install [--device <设备标识或 UDID>]\n连接并解锁 iPhone 后运行，构建 Release、覆盖安装并启动；多台设备时须指定 --device。"
+    "用法：pnpm ios:install [--device <设备标识或 UDID>]\n用数据线连接并解锁 iPhone 或 iPad 后运行，构建 Release、覆盖安装并启动；多台设备时须指定 --device。"
   );
   process.exit(0);
 }
@@ -78,7 +78,8 @@ function plist(file) {
 }
 
 async function main() {
-  if (process.platform !== "darwin") throw new Error("iPhone 打包安装需要 macOS 与完整 Xcode。");
+  if (process.platform !== "darwin")
+    throw new Error("iPhone / iPad 打包安装需要 macOS 与完整 Xcode。");
   capture("xcodebuild", ["-version"]);
   const config = JSON.parse(
     fs.readFileSync(path.join(mobileRoot, "src-tauri/tauri.conf.json"), "utf8")
@@ -95,7 +96,7 @@ async function main() {
     await run("xcrun", ["devicectl", "list", "devices", "--json-output", devicesFile]);
     const devices = JSON.parse(fs.readFileSync(devicesFile, "utf8")).result.devices.filter(
       device =>
-        device.hardwareProperties?.deviceType === "iPhone" &&
+        ["iPhone", "iPad"].includes(device.hardwareProperties?.deviceType) &&
         device.connectionProperties?.transportType === "wired" &&
         device.connectionProperties?.pairingState === "paired"
     );
@@ -106,7 +107,7 @@ async function main() {
       : devices;
     if (matches.length !== 1) {
       throw new Error(
-        `需要一台已配对、通过数据线连接的 iPhone；请连接、解锁并信任电脑。多台时使用 --device 指定：\n${devices.map(device => `${device.deviceProperties.name}: ${device.identifier}`).join("\n")}`
+        `需要一台已配对、通过数据线连接的 iPhone 或 iPad；请连接、解锁并信任电脑。多台时使用 --device 指定：\n${devices.map(device => `${device.deviceProperties.name}: ${device.identifier}`).join("\n")}`
       );
     }
     const device = matches[0];
@@ -123,7 +124,9 @@ async function main() {
     ]);
     const details = JSON.parse(fs.readFileSync(detailsFile, "utf8")).result;
     if (details.deviceProperties?.developerModeStatus !== "enabled") {
-      throw new Error("请先在 iPhone 设置 → 隐私与安全性中启用开发者模式，重启确认后重试。");
+      throw new Error(
+        `请先在 ${device.hardwareProperties.deviceType} 的设置 → 隐私与安全性中启用开发者模式，重启确认后重试。`
+      );
     }
     try {
       fs.mkdirSync(lock);

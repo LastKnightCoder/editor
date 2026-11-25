@@ -2,7 +2,7 @@
 // 数据库同步（同步中心：状态 + 服务 + 数据库切换）/ 资源与存储（资源同步 + 存储目标）。
 // 外观（主题 / 图片渲染 / 背景高亮 / 正文字体 overlay 路由页）/ 编辑器（打开文档时）/ 关于与更新（版本、新版本提示）。
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   type ImageBorderRadiusPreset,
@@ -129,10 +129,7 @@ export function OverviewSection(props: OverviewSectionProps) {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">数据</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="数据">
         <ListItem
           icon={<IconCloud />}
           label="同步"
@@ -149,23 +146,17 @@ export function OverviewSection(props: OverviewSectionProps) {
           value={uploadTargetName}
           onClick={() => props.onOpenModule("resource")}
         />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">协作</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="协作">
         <ListItem
           icon={<IconUsers />}
           label="实时协作"
           onClick={() => props.onOpenModule("collaboration")}
         />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">AI</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="AI">
         <AiModelsItem onOpen={() => props.onOpenModule("ai-models")} />
         <ListItem
           icon={<IconImage />}
@@ -179,12 +170,9 @@ export function OverviewSection(props: OverviewSectionProps) {
         />
         <SkillsItem />
         <McpItem />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">语音</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="语音">
         <ListItem
           icon={<IconAudioLines />}
           label="语音合成"
@@ -197,23 +185,17 @@ export function OverviewSection(props: OverviewSectionProps) {
           value={speechInputName}
           onClick={() => props.onOpenModule("speech-input")}
         />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">提醒</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="提醒">
         <ListItem
           icon={<IconBell />}
           label="提醒与通知"
           onClick={() => props.onOpenModule("notifications")}
         />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">外观</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="外观">
         <ListItem
           icon={<IconMoon />}
           label="主题"
@@ -228,27 +210,30 @@ export function OverviewSection(props: OverviewSectionProps) {
         />
         <HighlightStyleItem />
         <ReadingFontItem />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">编辑器</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="编辑器">
         <EditorOpenModeItem />
-      </div>
+      </SettingsGroup>
 
-      <div className="space-y-3 px-1">
-        <h2 className="text-ink-1 text-[16.5px] font-extrabold">关于</h2>
-      </div>
-      <div className="list-group">
+      <SettingsGroup title="关于">
         <ListItem
           icon={<IconMessageSquare />}
           label="反馈"
           onClick={() => props.onOpenModule("feedback")}
         />
         <AboutUpdateItem onOpen={() => props.onOpenModule("about")} />
-      </div>
+      </SettingsGroup>
     </div>
+  );
+}
+
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-4">
+      <h2 className="text-ink-1 px-1 text-[16.5px] font-extrabold">{title}</h2>
+      <div className="list-group">{children}</div>
+    </section>
   );
 }
 

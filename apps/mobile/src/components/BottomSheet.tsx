@@ -5,6 +5,13 @@ import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
 import { useSheetDragDismiss } from "../hooks/useSheetDragDismiss";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { useWindowClass } from "../router/windowClass";
+import {
+  CENTERED_SHEET_CLASS,
+  CENTERED_SHEET_MOTION,
+  CENTERED_SHEET_STYLE,
+  SHEET_UP_MOTION,
+} from "./sheetMotion";
 
 export type BottomSheetProps = {
   open: boolean;
@@ -40,6 +47,8 @@ export function BottomSheet({
   const closeRequestedRef = useRef(false);
   const visible = open && !closing;
   const contentRef = useRef<HTMLDivElement | null>(null);
+  // 中等与宽档变成居中卡片：没有底边可贴，也就没有下拉关闭
+  const centered = useWindowClass() !== "compact";
 
   const requestClose = useCallback(() => {
     if (!open || closing || !dismissible) return;
@@ -48,7 +57,7 @@ export function BottomSheet({
   }, [open, closing, dismissible]);
 
   const { y, dragging, panelBindings } = useSheetDragDismiss({
-    enabled: visible && dismissible,
+    enabled: visible && dismissible && !centered,
     onClose: requestClose,
     scrollRef: contentRef,
   });
@@ -100,20 +109,23 @@ export function BottomSheet({
           />
           <motion.div
             key="panel"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 26, stiffness: 300, mass: 0.9 }}
-            className={`bg-surface rounded-t-sheet absolute right-0 bottom-0 left-0 shadow-float${
-              dragging ? "select-none" : ""
-            }`}
+            {...(centered ? CENTERED_SHEET_MOTION : SHEET_UP_MOTION)}
+            className={
+              centered
+                ? `${CENTERED_SHEET_CLASS} pt-3`
+                : `bg-surface rounded-t-sheet absolute right-0 bottom-0 left-0 shadow-float${
+                    dragging ? "select-none" : ""
+                  }`
+            }
             // 面板贴屏幕底：键盘弹出时整体托到键盘上方，否则让出安全区
-            style={{ y, paddingBottom: "var(--mobile-overlay-bottom)" }}
-            {...panelBindings}
+            style={
+              centered ? CENTERED_SHEET_STYLE : { y, paddingBottom: "var(--mobile-overlay-bottom)" }
+            }
+            {...(centered ? {} : panelBindings)}
           >
             {/* 拖拽热区：抓手横线与标题，向下拖拽可关闭面板 */}
             <div data-sheet-drag-zone="true">
-              <div className="sheet-grab" />
+              {centered ? null : <div className="sheet-grab" />}
               {title && (
                 <div className="text-ink-1 px-5 pt-1 pb-2 text-center text-[15.5px] font-bold">
                   {title}

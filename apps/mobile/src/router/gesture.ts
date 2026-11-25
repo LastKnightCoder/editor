@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useAnimationControls } from "motion/react";
 import { createVelocityTracker, shouldCommitSwipe } from "./swipeCommit";
 import { SCREEN_PARALLAX_RATIO } from "./transition";
+import { getScreenInsetLeft } from "./screenInset";
 
 // motion/react 未直接导出 AnimationControls 类型名，从 hook 推导
 export type GestureAnimationControls = ReturnType<typeof useAnimationControls>;
@@ -28,11 +29,18 @@ function isMarkedNoEdgeBack(node: EventTarget | null): boolean {
   return node instanceof Element && node.closest("[data-no-edge-back]") !== null;
 }
 
+/** 页面层宽度：视口宽度扣掉左侧导航条（紧凑档为 0） */
 export function getViewportWidth(): number {
   if (typeof window === "undefined" || window.innerWidth <= 0) {
     return FALLBACK_VIEWPORT_WIDTH;
   }
-  return window.innerWidth;
+  return Math.max(window.innerWidth - getScreenInsetLeft(), 1);
+}
+
+/** 触点是否落在页面层左边缘的返回起手区（从导航条右缘起算） */
+export function isInEdgeStartZone(clientX: number): boolean {
+  const inset = getScreenInsetLeft();
+  return clientX >= inset && clientX <= inset + EDGE_START_WIDTH;
 }
 
 /**
@@ -80,7 +88,7 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
       }
       const touch = event.touches[0];
       if (
-        touch.clientX > EDGE_START_WIDTH ||
+        !isInEdgeStartZone(touch.clientX) ||
         isMarkedNoEdgeBack(event.target) ||
         cfg.isBlocked?.()
       ) {

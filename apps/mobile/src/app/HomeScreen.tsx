@@ -117,7 +117,7 @@ export function HomeScreen() {
 
   return (
     <div className="bg-page relative flex h-full flex-col">
-      <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
+      <header className="mx-auto flex w-full max-w-[960px] items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
           <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">{getGreeting(now)}</h1>
           <p className="text-ink-2 mt-1 text-[12.5px]">
@@ -129,7 +129,8 @@ export function HomeScreen() {
           type="button"
           onClick={onOpenSearch}
           aria-label="搜索所有内容"
-          className="bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
+          // 中等与宽档由左导航条底部的搜索承担
+          className="medium:hidden bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
         >
           <Search size={20} strokeWidth={1.9} aria-hidden="true" />
         </button>
@@ -138,28 +139,31 @@ export function HomeScreen() {
         ref={scrollRef}
         className="edge-fade-scroll dock-pad scrollbar-hide flex-1 overflow-y-auto overscroll-y-contain"
       >
-        <AskBar />
-        <PluginHomePanels />
-        <HomeDashboard
-          cardsTotal={cards?.total ?? 0}
-          recentCards={recentItems}
-          isLoadingCards={app.cards.isLoadingCards}
-          onOpenCards={onOpenCards}
-          onOpenTodo={onOpenTodo}
-          onOpenPomodoro={onOpenPomodoro}
-          onOpenCalendar={onOpenCalendar}
-          onOpenFlashcards={onOpenFlashcards}
-          onStartFlashcardReview={onStartFlashcardReview}
-          onComposeDiary={onComposeDiary}
-          onOpenDiary={onOpenDiary}
-          onOpenArticles={onOpenArticles}
-          onOpenProjects={onOpenProjects}
-          onOpenDiaryEntry={onOpenDiaryEntry}
-          onOpenArticle={onOpenArticle}
-          onOpenProjectDoc={onOpenProjectDoc}
-          onPreviewCard={onPreviewCard}
-          onError={onError}
-        />
+        {/* 宽屏仍是一列，顺序同手机；多出的宽度只给插件卡片按宽度多排 */}
+        <div className="mx-auto w-full max-w-[960px]">
+          <AskBar />
+          <PluginHomePanels />
+          <HomeDashboard
+            cardsTotal={cards?.total ?? 0}
+            recentCards={recentItems}
+            isLoadingCards={app.cards.isLoadingCards}
+            onOpenCards={onOpenCards}
+            onOpenTodo={onOpenTodo}
+            onOpenPomodoro={onOpenPomodoro}
+            onOpenCalendar={onOpenCalendar}
+            onOpenFlashcards={onOpenFlashcards}
+            onStartFlashcardReview={onStartFlashcardReview}
+            onComposeDiary={onComposeDiary}
+            onOpenDiary={onOpenDiary}
+            onOpenArticles={onOpenArticles}
+            onOpenProjects={onOpenProjects}
+            onOpenDiaryEntry={onOpenDiaryEntry}
+            onOpenArticle={onOpenArticle}
+            onOpenProjectDoc={onOpenProjectDoc}
+            onPreviewCard={onPreviewCard}
+            onError={onError}
+          />
+        </div>
       </div>
     </div>
   );

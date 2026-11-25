@@ -21,8 +21,18 @@ type CardsPageProps = {
 };
 
 const CARD_ESTIMATE_SIZE = 220;
+/** 列表宽度达到该值时排两列（平板竖屏、横屏） */
+const TWO_LANE_MIN_WIDTH = 640;
+const LANE_GAP = 12;
 const LOAD_SENTINEL_SIZE = 72;
 const LOAD_MORE_THRESHOLD = 3;
+
+/** 某一列的横向位置：两列时各占一半减去列间距 */
+function laneBox(lane: number, lanes: number): { left: string; width: string } {
+  if (lanes <= 1) return { left: "0", width: "100%" };
+  const width = `calc((100% - ${LANE_GAP * (lanes - 1)}px) / ${lanes})`;
+  return { left: `calc((${width} + ${LANE_GAP}px) * ${lane})`, width };
+}
 
 export function CardsPage(props: CardsPageProps) {
   const items = props.cards?.items ?? [];
@@ -33,6 +43,9 @@ export function CardsPage(props: CardsPageProps) {
   const previewOpenRef = useRef(props.isPreviewOpen);
   const queryKeyRef = useRef(props.queryState.query);
   const [scrollMargin, setScrollMargin] = useState(0);
+  const [lanes, setLanes] = useState(1);
+  // 列表容器只在有卡片时渲染，出现后再挂尺寸观察
+  const hasItems = items.length > 0;
 
   // scrollMargin = 列表顶部相对滚动容器内容顶部的距离（虚拟化坐标系原点）
   const measureScrollMargin = useCallback((): number | null => {
@@ -59,6 +72,7 @@ export function CardsPage(props: CardsPageProps) {
       hasMore && index === items.length ? LOAD_SENTINEL_SIZE : CARD_ESTIMATE_SIZE,
     overscan: 6,
     scrollMargin,
+    lanes,
     getItemKey: index => (index < items.length ? items[index].id : "load-more-sentinel"),
   });
 
@@ -90,6 +104,17 @@ export function CardsPage(props: CardsPageProps) {
   useEffect(() => {
     applyScrollMargin();
   }, [applyScrollMargin, listCount, props.isLoadingCards]);
+
+  // 列数跟列表自身宽度走（容器宽度，不看设备）；列宽变化由各项自身的尺寸观察重新测量
+  useEffect(() => {
+    const element = listRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      setLanes(entry.contentRect.width >= TWO_LANE_MIN_WIDTH ? 2 : 1);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasItems]);
 
   useEffect(() => {
     const wasPreviewOpen = previewOpenRef.current;
@@ -217,8 +242,7 @@ export function CardsPage(props: CardsPageProps) {
                   style={{
                     position: "absolute",
                     top: 0,
-                    left: 0,
-                    width: "100%",
+                    ...laneBox(virtualItem.lane, lanes),
                     transform: `translateY(${virtualItem.start - scrollMargin}px)`,
                     boxSizing: "border-box",
                   }}

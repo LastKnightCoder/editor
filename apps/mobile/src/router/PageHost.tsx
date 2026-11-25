@@ -38,6 +38,7 @@ import { useTabSwipeGesture, type TabSwipeDirection } from "./tabSwipeGesture";
 import { isTabRoot } from "./tabs";
 import { setTabSwipeOrigin } from "./tabSwipeOrigin";
 import { switchTabScreen } from "./switchTab";
+import { useWindowClass } from "./windowClass";
 import { PageContentBoundary } from "./PageContentBoundary";
 import { PageResourceScope } from "./PageResourceScope";
 
@@ -292,10 +293,13 @@ function PageLayer({
             data-page-entry-id={entry.id}
             data-page-key={entry.key}
             data-page-active={isActive ? "true" : "false"}
-            className="fixed inset-0"
+            className="fixed inset-y-0 right-0"
             style={{
               zIndex,
               pointerEvents: isActive ? undefined : "none",
+              // 中等与宽档从左导航条右缘起铺；contain 让页内 fixed 元素以页面层为准
+              left: "var(--screen-inset-left)",
+              contain: "layout",
             }}
           >
             {contentHidden ? null : (
@@ -336,6 +340,8 @@ type PendingSettle = {
 export function PageHost({ rootContent }: { rootContent?: ReactNode }) {
   const { state, rootKey, navigator } = useRouterContext();
   const reducedMotion = useReducedMotion();
+  // 中等与宽档有左导航条：Tab 根左右滑切换关闭（与列表横向手势冲突，切换走导航条）
+  const compactWindow = useWindowClass() === "compact";
   const hasRenderedRef = useRef(false);
   const controlsMapRef = useRef(new Map<string, LayerAnimationControls>());
   const [evictedIds, setEvictedIds] = useState<Set<string>>(() => new Set());
@@ -569,6 +575,7 @@ export function PageHost({ rootContent }: { rootContent?: ReactNode }) {
 
   useTabSwipeGesture({
     enabled:
+      compactWindow &&
       activeTabKey !== null &&
       state.overlays.entries.length === 0 &&
       reducedMotion !== true &&

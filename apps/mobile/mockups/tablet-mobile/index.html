@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>平板适配 · 设计方案 v3</title>
+<link rel="stylesheet" href="../../../../packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="tb-frame.css" />
+<link rel="stylesheet" href="tb-ui.css" />
+<link rel="stylesheet" href="tb-overlay.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row" style="display:flex;align-items:center;gap:12px">
+    <h1 style="flex:1">平板适配 · 设计方案 v3<small>同一个移动 App，按窗口宽度换布局 · 帧为 iPad 11 寸（横 1180×820 / 竖 820×1180）· 颜色取自 @tau/themes · 内容为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="principle">0 方向<span class="rec">先看</span></button>
+    <button class="tab" data-tab="sizes">1 布局档位</button>
+    <button class="tab" data-tab="today">2 今天</button>
+    <button class="tab" data-tab="cards">3 卡片库与详情</button>
+    <button class="tab" data-tab="edit">4 编辑与键盘</button>
+    <button class="tab" data-tab="overlay">5 浮层</button>
+    <button class="tab" data-tab="me">6 我的与设置</button>
+    <button class="tab" data-tab="rail">6+ 导航条入口<span class="rec">新</span></button>
+    <button class="tab" data-tab="plugin">7 插件适配</button>
+    <button class="tab" data-tab="native">8 系统与工程</button>
+    <button class="tab" data-tab="decide">9 待你决定</button>
+  </nav>
+</header>
+
+<!-- ───────────── 0 方向 ───────────── -->
+<section class="scene" data-scene="principle">
+  <p class="scene-intro">结论：<b>不另做一个平板 App，也不只靠「响应式拉宽」。</b>平板继续用现在的移动 App（同一套页面、数据、插件宿主），由<b>壳层按窗口宽度换「导航 + 窗格 + 浮层」三样东西</b>，页面内部再用容器查询排版。只做响应式（把手机界面拉到 1180 宽）会得到「一根超长的列表 + 大片空白 + 从屏幕底部弹出的半米宽面板」，这正是用户在平板上觉得「没适配」的地方。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 现状：已经能装，只是被拉宽</h3><p>iOS 工程 <code>TARGETED_DEVICE_FAMILY = "1,2"</code>，iPad 四个方向都开着；Android Activity 也接了 <code>screenSize|smallestScreenSize</code> 变化。所以 App 在平板上能跑，问题全在布局：代码里没有任何宽度断点，底部 Dock、整页 push、底部面板都是按 360 宽设计的。</p></div>
+    <div class="card"><h3>2 · 壳层管三件事</h3><ul><li><b>导航</b>：宽屏把底部 Dock 换成左侧导航条（同 4 个根 + 新建 + 搜索）。</li><li><b>窗格</b>：只有内容列表（卡片、日记、文章、项目）变成「列表 + 详情」主从两栏；今天、我的、设置、插件页仍是整页。</li><li><b>浮层</b>：底部面板在宽屏变成居中卡片或右侧面板，⋯ 菜单贴着按钮弹。</li></ul></div>
+    <div class="card"><h3>3 · 页面只管自己的宽度</h3><p>页面组件不判断「是不是平板」，只看自己拿到的容器宽度：同一个卡片列表放在 360 的左栏是单列，放在竖屏 820 的整页是两列。这和插件 SDK 已写明的规则一致——<b>布局按容器宽度决定，不按平台</b>。</p></div>
+    <div class="card"><h3>4 · 插件：大多数不用改</h3><p>插件页面放在宿主给的窗格里，宿主负责导航、窗格和返回；插件只需要像现在文档要求的那样用容器查询排版。要补的是两处：<b>别用平台名选「手机界面」</b>（减重、记账、微信读书现在这样做），以及给作者一个「宽窗格」的示意与验证入口（第 7 页）。</p></div>
+    <div class="card"><h3>5 · 触屏优先，键鼠加分</h3><p>平板常接妙控键盘、触控板。触摸按钮全部保留；接了键盘时编辑配件栏收成浮动小条、支持常用快捷键；有细指针时补悬停态。不因为接了鼠标就删触控入口。</p></div>
+    <div class="card"><h3>6 · 不做的</h3><ul><li>不做三栏（导航 + 列表 + 详情 + 再一个信息栏）；第三样信息走右侧面板。</li><li>不做多窗口（同一 App 开两个场景）、拖放到别的 App，先保证分屏和台前调度下布局正确。</li><li>不做 Apple Pencil 手写、白板手势增强。</li><li>不为平板单独设计主题或字号档位，字号沿用移动端 9 档。</li></ul></div>
+  </div>
+</section>
+<!-- ───────────── 1 布局档位 ───────────── -->
+<section class="scene" data-scene="sizes">
+  <p class="scene-intro">壳层只认三档窗口宽度，取 Android 的窗口尺寸分级（600 / 840），iPad 分屏、台前调度、手机横屏都落在这三档里。档位只由<b>当前窗口宽度</b>决定，不看设备型号；转屏、拖分屏时实时切档，正在编辑的内容和页面栈不丢。</p>
+  <div class="ruler">
+    <div class="bar">
+      <div style="flex:600"><b>紧凑 · 小于 600</b>手机竖屏、iPad 分屏 1/3 与 1/2</div>
+      <div style="flex:240"><b>中等 · 600–839</b>iPad 竖屏、分屏 2/3</div>
+      <div class="on" style="flex:526"><b>宽 · 840 以上</b>iPad 横屏、13 寸竖屏、台前调度大窗</div>
+    </div>
+    <div class="ticks"><span style="left:0">0</span><span style="left:44%">600</span><span style="left:61.5%">840</span><span style="left:100%">1366</span></div>
+  </div>
+  <div class="mini">
+    <figure><div class="scr" style="width:96px;height:176px;flex-direction:column"><i style="flex:1"></i><i class="nav" style="height:16px"></i></div><figcaption><b>紧凑</b>现状不变：底部 Dock、整页 push、底部面板</figcaption></figure>
+    <figure><div class="scr" style="width:150px;height:208px"><i class="nav" style="width:16px"></i><i style="flex:1"></i></div><figcaption><b>中等</b>左导航条 + 单窗格；列表两列，详情整页、阅读列居中</figcaption></figure>
+    <figure><div class="scr" style="width:288px;height:200px"><i class="nav" style="width:18px"></i><i class="ls" style="width:82px"></i><i style="flex:1"></i></div><figcaption><b>宽</b>左导航条 + 主从两栏；点列表只换右栏</figcaption></figure>
+  </div>
+  <div class="cards">
+    <div class="card wide" style="grid-column:1/-1">
+      <h3>每档换什么</h3>
+      <table class="cmp">
+        <tr><th></th><th>紧凑（现状）</th><th>中等</th><th>宽</th></tr>
+        <tr><td><b>导航</b></td><td>底部 Dock + 中央新建</td><td colspan="2">左侧导航条 80：新建置顶，今天 / 卡片 / 日记 / 我的，底部搜索。所有页面常驻（二级页也在），不再随页面隐藏</td></tr>
+        <tr><td><b>卡片 / 日记 / 文章 / 项目</b></td><td>列表页 → push 详情</td><td>列表两列网格 → push 详情（阅读列 640 居中）</td><td>左栏列表 340 + 右栏详情；右栏内再点链接仍在右栏里前进</td></tr>
+        <tr><td><b>今天</b></td><td>单列</td><td colspan="2">单列一张纸，顺序同手机；插件面板按宽度流式排（竖屏两格、横屏三格）</td></tr>
+        <tr><td><b>我的 / 设置</b></td><td>宫格 + 分组，push 子页</td><td colspan="2">一页宫格 + 分组；点插件或设置项整页进入详情（左导航条仍在），顶栏有返回</td></tr>
+        <tr><td><b>底部面板</b></td><td>从底部滑出</td><td colspan="2">选择类 → 居中卡片 520；⋯ 菜单 → 贴着按钮弹；脉络、大纲、属性 → 右侧面板 360</td></tr>
+        <tr><td><b>返回</b></td><td>左边缘跟手返回 + 系统返回</td><td>同紧凑</td><td>右栏有前进历史时右栏顶栏出现返回；左边缘手势只作用于整页显示的页面（编辑器全屏、番茄专注等）</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>为什么中等档不做两栏</h3><p>820 宽减去 80 的导航条剩 740，再分 340 给列表，正文只剩 380，和手机一样窄，读起来反而比整页差。所以竖屏 iPad 用「单窗格 + 宽内容」：列表两列、正文居中。</p></div>
+    <div class="card"><h3>为什么不用设备型号</h3><p>iPad 分屏 1/3 只有 320 宽，比手机还窄；台前调度窗口可以拉到任意宽。只看窗口宽度，分屏到 1/2 时自动回到手机布局，不需要任何特判。</p></div>
+    <div class="card"><h3>切档时保留什么</h3><p>页面栈、滚动位置、编辑器光标和未保存草稿全部保留。宽 → 中等时，右栏当前详情变成栈顶整页；中等 → 宽时，栈顶的详情页收回右栏、它下面的列表成为左栏。</p></div>
+  </div>
+</section>
+<!-- ───────────── 2 今天 ───────────── -->
+<section class="scene" data-scene="today">
+  <p class="scene-intro">今天页横竖屏都是<b>一张纸、一列从上往下读</b>，顺序和手机完全一样（问答条、日程、待办、插件面板、收集箱），和桌面端今日页同一个结构。宽屏多出来的宽度只给插件面板：面板按宽度流式排，最小 340，横屏一行三格、竖屏一行两格，wide 面板占整行。不把内容拆成左右两栏：今天页是一条按时间和优先级排好的清单，拆开后要来回扫两列，顺序也说不清。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="home"></div>
+          <div class="t-main page">
+            <div class="head"><h2>周三 · 11 月 25 日</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+            <div class="plane">
+              <div class="scroll">
+                <div class="ask" style="margin-top:16px"><span data-i="sparkles" data-s="18"></span>问问你的笔记…<span class="sp"></span><span data-i="mic" data-s="18"></span></div>
+                <div class="sec">
+                  <div class="sec-t">日程<small>3 项</small><span class="more">日历</span></div>
+                  <div class="rw"><span class="tm">10:00</span><span class="tx">产品评审：平板适配<small>会议室 B · 1 小时</small></span></div>
+                  <div class="rw"><span class="tm">14:30</span><span class="tx">读书会《深度工作》第三章<small>线上</small></span></div>
+                  <div class="rw"><span class="tm">16:00</span><span class="tx">番茄专注 × 2</span></div>
+                </div>
+                <div class="sec">
+                  <div class="sec-t">待办<small>今天 4 · 逾期 1</small><span class="more">全部</span></div>
+                  <div class="rw"><span class="box late"></span><span class="tx">整理评审意见到项目文档</span><span class="tr">昨天</span></div>
+                  <div class="rw"><span class="box"></span><span class="tx">回复插件作者关于宽窗格的问题</span></div>
+                  <div class="rw"><span class="box"></span><span class="tx">复习闪卡 28 张</span></div>
+                </div>
+                <div class="sec">
+                  <div class="sec-t">插件</div>
+                  <div class="pp three">
+                    <div><b>减重</b><span class="v">68.4</span>kg · 本周 −0.6</div>
+                    <div><b>记账</b><span class="v">¥126</span>今天 · 剩 ¥74</div>
+                    <div><b>番茄</b><span class="v">2</span>个 · 专注 50 分钟</div>
+                    <div class="wide"><b>微信读书 · 在读</b>《置身事内》62% · 昨天划线 5 条<div class="bar-line"><i style="width:62%"></i></div></div>
+                  </div>
+                </div>
+                <div class="sec">
+                  <div class="sec-t">收集箱<small>6 条</small><span class="more">全部</span></div>
+                  <div class="rw"><span class="di lilac" data-i="mic" data-s="16"></span><span class="tx">平板上右栏里点链接应该在右栏前进<small>速记 · 8:12</small></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>宽（横屏）：一张纸、单列，插件面板一行三格<small>日程、待办、收集箱的行铺满纸宽，左缘都在 20 的缩进线上；纸内滚动，顶栏和导航条不动。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box port"><div class="tablet port">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="home"></div>
+          <div class="t-main page">
+            <div class="head"><h2>周三 · 11 月 25 日</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+            <div class="plane">
+              <div class="ask" style="margin-top:16px"><span data-i="sparkles" data-s="18"></span>问问你的笔记…<span class="sp"></span><span data-i="mic" data-s="18"></span></div>
+              <div class="sec">
+                <div class="sec-t">日程<small>3 项</small><span class="more">日历</span></div>
+                <div class="rw"><span class="tm">10:00</span><span class="tx">产品评审：平板适配<small>会议室 B · 1 小时</small></span></div>
+                <div class="rw"><span class="tm">14:30</span><span class="tx">读书会《深度工作》第三章<small>线上</small></span></div>
+                <div class="rw"><span class="tm">16:00</span><span class="tx">番茄专注 × 2</span></div>
+              </div>
+              <div class="sec">
+                <div class="sec-t">待办<small>今天 4 · 逾期 1</small><span class="more">全部</span></div>
+                <div class="rw"><span class="box late"></span><span class="tx">整理评审意见到项目文档</span><span class="tr">昨天</span></div>
+                <div class="rw"><span class="box"></span><span class="tx">回复插件作者关于宽窗格的问题</span></div>
+                <div class="rw"><span class="box"></span><span class="tx">复习闪卡 28 张</span></div>
+              </div>
+              <div class="sec">
+                <div class="sec-t">插件</div>
+                <div class="pp">
+                  <div><b>减重</b><span class="v">68.4</span>kg · 本周 −0.6</div>
+                  <div><b>记账</b><span class="v">¥126</span>今天 · 剩 ¥74</div>
+                  <div class="wide"><b>微信读书 · 在读</b>《置身事内》62% · 昨天划线 5 条<div class="bar-line"><i style="width:62%"></i></div></div>
+                </div>
+              </div>
+              <div class="sec">
+                <div class="sec-t">收集箱<small>6 条</small><span class="more">全部</span></div>
+                <div class="rw"><span class="di lilac" data-i="mic" data-s="16"></span><span class="tx">平板上右栏里点链接应该在右栏前进<small>速记 · 8:12</small></span></div>
+                <div class="rw"><span class="di sky" data-i="link" data-s="16"></span><span class="tx">Material 3：窗口尺寸分级<small>网页 · 昨天</small></span></div>
+              </div>
+              <div class="sec">
+                <div class="sec-t">最近编辑</div>
+                <div class="rw"><span class="di" data-i="file-text" data-s="16"></span><span class="tx">平板适配方案<small>项目文档 · 12 分钟前</small></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>中等（竖屏）：同一张纸，插件面板一行两格<small>内容宽约 700，放不下三个 340，自动回到两格；和横屏是同一条流式规则，不按横竖屏写两套。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 3 卡片库与详情 ───────────── -->
+<section class="scene" data-scene="cards">
+  <p class="scene-intro">这是平板适配里收益最大的一处。宽屏把「卡片库 → 卡片详情」从两次整页切换变成<b>主从两栏</b>：左栏列表常驻，点一张只换右栏；右栏里点双链或脉络里的条目，<b>在右栏内前进</b>，右栏顶栏出现返回。日记、文章、项目文档同一套。左栏落在页面底上，选中行抬成一张纸；右栏是一整张纸。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="col-list">
+              <div class="head"><h2>卡片</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="srch"><span data-i="search" data-s="17"></span>搜索卡片</div>
+              <div class="fl"><span class="fc on">全部</span><span class="fc">读书</span><span class="fc">产品</span><span class="fc">待整理</span></div>
+              <div class="items">
+                <div class="it on"><b>主从两栏的返回语义</b><p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈。</p><div class="m"><span>今天 9:20</span><span class="tg">#产品</span></div></div>
+                <div class="it"><b>深度工作：注意力残留</b><p>从一项任务切到另一项时，注意力并不会立刻跟过去，残留会让下一件事的表现变差。</p><div class="m"><span>昨天</span><span class="tg">#读书</span></div></div>
+                <div class="it"><b>窗口尺寸分级</b><p>紧凑、中等、扩展三档，按窗口宽度而不是设备类型选择布局。</p><div class="m"><span>11 月 22 日</span></div></div>
+                <div class="it"><b>间隔重复的最小单元</b><p>一张卡只问一个问题；答案能在三秒内说出来。</p><div class="m"><span>11 月 20 日</span><span class="tg">#学习</span></div></div>
+                <div class="it"><b>写作的节奏</b><p>先写满，再删一半。</p><div class="m"><span>11 月 18 日</span></div></div>
+              </div>
+            </div>
+            <div class="plane">
+              <div class="head tools"><span class="ib off" data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ib" data-i="list-tree" data-s="20"></span><span class="ib" data-i="pencil" data-s="20"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="scroll"><div class="paper">
+                <h1>主从两栏的返回语义</h1>
+                <div class="meta"><span>今天 9:20</span><span>·</span><span>412 字</span><span class="ctx"><span data-i="git-branch" data-s="13"></span>脉络 5</span></div>
+                <p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈；左栏在任何时候都保持可点。</p>
+                <p>从右栏里点 <span class="lk">窗口尺寸分级</span>，右栏换成那张卡片，顶栏出现返回；再点左栏里别的卡片，右栏历史清空、从这张重新开始。</p>
+                <h3>为什么不整页 push</h3>
+                <p>平板上用户会在几张卡片之间反复对照，整页切换会把列表的滚动位置和筛选一起带走，回来还要再找。</p>
+                <blockquote>列表是「我在哪」，详情是「我在看什么」，两者同时在屏上。</blockquote>
+              </div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>宽：左栏列表 340 + 右栏详情纸面<small>右栏顶栏的返回在没有右栏历史时淡出。阅读列在右栏内居中、封顶 640。</small></div>
+      <details class="note"><summary>右栏的操作</summary><ul><li>⋯ 菜单里多一项「全屏打开」，进入与手机相同的整页（左导航条仍在）。</li><li>大纲图标打开右侧面板（第 5 页），不在右栏里再切一栏。</li><li>点铅笔进入编辑，编辑仍在右栏里（第 4 页）。</li></ul></details>
+    </div>
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="col-list">
+              <div class="head"><h2>卡片</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="srch"><span data-i="search" data-s="17"></span>搜索卡片</div>
+              <div class="fl"><span class="fc on">全部</span><span class="fc">读书</span><span class="fc">产品</span><span class="fc">待整理</span></div>
+              <div class="items">
+                <div class="it"><b>主从两栏的返回语义</b><p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈。</p><div class="m"><span>今天 9:20</span><span class="tg">#产品</span></div></div>
+                <div class="it"><b>深度工作：注意力残留</b><p>从一项任务切到另一项时，注意力并不会立刻跟过去，残留会让下一件事的表现变差。</p><div class="m"><span>昨天</span><span class="tg">#读书</span></div></div>
+                <div class="it"><b>窗口尺寸分级</b><p>紧凑、中等、扩展三档，按窗口宽度而不是设备类型选择布局。</p><div class="m"><span>11 月 22 日</span></div></div>
+                <div class="it"><b>间隔重复的最小单元</b><p>一张卡只问一个问题；答案能在三秒内说出来。</p><div class="m"><span>11 月 20 日</span><span class="tg">#学习</span></div></div>
+              </div>
+            </div>
+            <div class="plane">
+              <div class="empty"><div><span class="ei" data-i="layers" data-s="26"></span><b>选一张卡片</b>或按 <span class="kbd">⌘N</span> 新建</div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>宽：首次进入未选中时<small>不自动打开第一张（会误记「最近查看」）；右栏写一句空态。上次在右栏看的卡片会话内保留。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box port"><div class="tablet port">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main page">
+            <div class="head"><h2>卡片</h2><span class="ib" data-i="search" data-s="20"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+            <div class="fl"><span class="fc on">全部</span><span class="fc">读书</span><span class="fc">产品</span><span class="fc">待整理</span></div>
+            <div class="cgrid">
+              <div class="it"><b>主从两栏的返回语义</b><p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈。</p><div class="m"><span>今天 9:20</span><span class="tg">#产品</span></div></div>
+              <div class="it"><b>深度工作：注意力残留</b><p>从一项任务切到另一项时，注意力并不会立刻跟过去，残留会让下一件事的表现变差。</p><div class="m"><span>昨天</span><span class="tg">#读书</span></div></div>
+              <div class="it"><b>窗口尺寸分级</b><p>紧凑、中等、扩展三档，按窗口宽度而不是设备类型选择布局。</p><div class="m"><span>11 月 22 日</span></div></div>
+              <div class="it"><b>间隔重复的最小单元</b><p>一张卡只问一个问题；答案能在三秒内说出来。</p><div class="m"><span>11 月 20 日</span><span class="tg">#学习</span></div></div>
+              <div class="it"><b>写作的节奏</b><p>先写满，再删一半。删掉的那一半往往是你以为最聪明的部分。</p><div class="m"><span>11 月 18 日</span></div></div>
+              <div class="it"><b>收集箱为什么 7 天清空</b><p>没有转化的速记，七天后大概率已经没用了。</p><div class="m"><span>11 月 15 日</span><span class="tg">#产品</span></div></div>
+              <div class="it"><b>番茄钟的长休息</b><p>四个番茄后休息 15 到 30 分钟，让注意力真正回落。</p><div class="m"><span>11 月 12 日</span></div></div>
+              <div class="it"><b>脉络的三个分区</b><p>来源、连接、延伸：这张卡从哪来、和谁有关、还能往哪走。</p><div class="m"><span>11 月 10 日</span></div></div>
+              <div class="it"><b>阅读列的宽度</b><p>中文正文一行 30 到 40 字最舒服，大约 640 宽。</p><div class="m"><span>11 月 8 日</span></div></div>
+              <div class="it"><b>拇指热区</b><p>横握平板时，拇指自然落在屏幕两侧中下部。</p><div class="m"><span>11 月 6 日</span><span class="tg">#产品</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C</span>中等：列表两列，点开整页详情<small>卡片库的列数由容器宽度决定（≥ 640 两列），不是由「平板」决定；同一行的卡片等高。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 4 编辑与键盘 ───────────── -->
+<section class="scene" data-scene="edit">
+  <p class="scene-intro">平板编辑有两种键盘：<b>屏幕键盘</b>占掉约 40% 高度，配件栏照手机的键盘预留协议贴在纸面底部，只是一行排开不再分页；<b>外接键盘</b>（妙控键盘等）时没有屏幕键盘，配件栏收成正文底部的浮动小条，常用格式走快捷键。编辑时左栏列表收起给正文让位，可以用左上角按钮拉回，或换成大纲。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body above-kb">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="plane">
+              <div class="head tools"><span class="ib" data-i="panel-left" data-s="20"></span><span class="sp"></span><span class="ib" data-i="undo-2" data-s="20"></span><span class="ib brand" data-i="check" data-s="21"></span></div>
+              <div class="scroll"><div class="paper">
+                <h1>主从两栏的返回语义</h1>
+                <p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈<span class="caret"></span></p>
+              </div></div>
+              <div class="t-acc"><span class="ib" data-i="plus" data-s="20"></span><span class="sep"></span><span class="ib txt" style="font-weight:800">B</span><span class="ib txt" style="font-style:italic;font-family:Georgia,serif">I</span><span class="ib" data-i="quote" data-s="19"></span><span class="ib" data-i="list-checks" data-s="19"></span><span class="ib" data-i="link" data-s="19"></span><span class="ib" data-i="image" data-s="19"></span><span class="ib" data-i="mic" data-s="19"></span><span class="sp"></span><span class="ib" data-i="sparkles" data-s="19"></span><span class="ib" data-i="keyboard" data-s="19"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="kb">
+          <div class="kb-row"><span class="kb-key">q</span><span class="kb-key">w</span><span class="kb-key">e</span><span class="kb-key">r</span><span class="kb-key">t</span><span class="kb-key">y</span><span class="kb-key">u</span><span class="kb-key">i</span><span class="kb-key">o</span><span class="kb-key">p</span><span class="kb-key f">⌫</span></div>
+          <div class="kb-row r2"><span class="kb-key">a</span><span class="kb-key">s</span><span class="kb-key">d</span><span class="kb-key">f</span><span class="kb-key">g</span><span class="kb-key">h</span><span class="kb-key">j</span><span class="kb-key">k</span><span class="kb-key">l</span><span class="kb-key f">换行</span></div>
+          <div class="kb-row"><span class="kb-key f">⇧</span><span class="kb-key">z</span><span class="kb-key">x</span><span class="kb-key">c</span><span class="kb-key">v</span><span class="kb-key">b</span><span class="kb-key">n</span><span class="kb-key">m</span><span class="kb-key">，</span><span class="kb-key">。</span><span class="kb-key f">⇧</span></div>
+          <div class="kb-row"><span class="kb-key f">123</span><span class="kb-key f">🌐</span><span class="kb-key space">空格</span><span class="kb-key f">123</span><span class="kb-key f">⌄</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>屏幕键盘：左栏列表收起，配件栏一行排开<small>导航条随主区一起缩到键盘上方。配件栏在平板宽度下一行放得下全部常用项，不分页、不横滑。</small></div>
+      <details class="note"><summary>键盘预留怎么复用</summary><ul><li>沿用现有 <code>useKeyboardViewport</code> 与配件栏预留协议，可见区高度照样算；平板只改配件栏的排布。</li><li>iPad 浮动键盘 / 分离键盘不占底部高度，可见区不收缩，配件栏退化成浮动小条（同 B）。</li></ul></details>
+    </div>
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="col-list outline">
+              <div class="head"><h2>大纲</h2></div>
+              <div class="ol on">主从两栏的返回语义</div>
+              <div class="ol sub">为什么不整页 push</div>
+              <div class="ol sub">切档时保留什么</div>
+              <div class="ol">快捷键</div>
+            </div>
+            <div class="plane">
+              <div class="head tools"><span class="ib press" data-i="panel-left" data-s="20"></span><span class="sp"></span><span class="ib" data-i="undo-2" data-s="20"></span><span class="ib brand" data-i="check" data-s="21"></span></div>
+              <div class="scroll"><div class="paper">
+                <h1>主从两栏的返回语义</h1>
+                <div class="meta"><span>编辑中</span><span>·</span><span>已保存</span></div>
+                <p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈；左栏在任何时候都保持可点。</p>
+                <h3>为什么不整页 push</h3>
+                <p>平板上用户会在几张卡片之间反复对照，整页切换会把列表的滚动位置和筛选一起带走<span class="caret"></span></p>
+                <h3>快捷键</h3>
+                <p><span class="kbd">⌘B</span> 加粗　<span class="kbd">⌘K</span> 链接　<span class="kbd">/</span> 插入　<span class="kbd">⌘S</span> 完成　<span class="kbd">Esc</span> 关闭浮层</p>
+              </div></div>
+              <div class="float-bar"><span class="ib" data-i="plus" data-s="19"></span><span class="sep"></span><span class="ib txt" style="font-weight:800">B</span><span class="ib" data-i="link" data-s="19"></span><span class="ib" data-i="image" data-s="19"></span><span class="sep"></span><span class="ib" data-i="sparkles" data-s="19"></span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>外接键盘：配件栏变浮动小条，左栏换成大纲<small>检测到可见区不收缩且有实体键盘输入时切换。左上角按钮在「列表 / 大纲 / 收起」三态间切；大纲来自现有 outline 模块，与列表栏同宽同位。</small></div>
+      <details class="note"><summary>快捷键范围</summary><ul><li>只做编辑器已有能力的快捷键，与桌面同一键位；iPad 长按 ⌘ 显示系统快捷键列表。</li><li>全局：<span class="kbd">⌘N</span> 新建卡片、<span class="kbd">⌘F</span> 搜索、<span class="kbd">⌘1–4</span> 切导航根。</li></ul></details>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 5 浮层 ───────────── -->
+<section class="scene" data-scene="overlay">
+  <p class="scene-intro">手机上所有浮层都从底部滑出。平板上一块 1180 宽的面板从底部升起，手指要从屏幕上方一路移到底部，也遮住整个界面。宽档按用途分成三种：<b>选择与表单 → 居中卡片</b>，<b>⋯ 与长按菜单 → 贴着按钮弹出</b>，<b>辅助信息（脉络、大纲、属性）→ 右侧面板</b>，可以边看正文边看。组件不变，只是 <code>BottomSheet</code> / <code>ActionSheet</code> 按档位换呈现，返回仲裁、键盘避让照旧。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="col-list">
+              <div class="head"><h2>卡片</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="srch"><span data-i="search" data-s="17"></span>搜索卡片</div>
+              <div class="items">
+                <div class="it on"><b>主从两栏的返回语义</b><p>右栏前进时只压右栏的历史，左栏不动。</p><div class="m"><span>今天 9:20</span><span class="tg">#产品</span></div></div>
+                <div class="it"><b>深度工作：注意力残留</b><p>注意力并不会立刻跟过去。</p><div class="m"><span>昨天</span></div></div>
+                <div class="it"><b>窗口尺寸分级</b><p>紧凑、中等、扩展三档。</p><div class="m"><span>11 月 22 日</span></div></div>
+              </div>
+            </div>
+            <div class="plane">
+              <div class="head tools"><span class="ib off" data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ib" data-i="list-tree" data-s="20"></span><span class="ib" data-i="pencil" data-s="20"></span><span class="ib press" data-i="ellipsis" data-s="20"></span></div>
+              <div class="scroll"><div class="paper"><h1>主从两栏的返回语义</h1><div class="meta"><span>今天 9:20</span><span>·</span><span>412 字</span></div><p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈。</p></div></div>
+              <div class="menu" style="right:10px;top:52px">
+                <div data-i="share-2" data-s="17">分享</div><div data-i="bookmark-plus" data-s="17">加入项目</div><div data-i="maximize-2" data-s="17">全屏打开</div><div data-i="history" data-s="17">历史版本</div><hr /><div class="danger" data-i="trash-2" data-s="17">删除</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>⋯ 菜单贴着按钮弹出，不加遮罩<small>右边缘与按钮对齐，点空白关闭；右侧空间不够时向左翻。手机上同一份菜单仍是 ActionSheet。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="col-list">
+              <div class="head"><h2>卡片</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="srch"><span data-i="search" data-s="17"></span>搜索卡片</div>
+              <div class="items">
+                <div class="it on"><b>主从两栏的返回语义</b><p>右栏前进时只压右栏的历史，左栏不动。</p><div class="m"><span>今天 9:20</span><span class="tg">#产品</span></div></div>
+                <div class="it"><b>深度工作：注意力残留</b><p>注意力并不会立刻跟过去。</p><div class="m"><span>昨天</span></div></div>
+              </div>
+            </div>
+            <div class="plane">
+              <div class="head tools"><span class="ib off" data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="scroll"><div class="paper"><h1>主从两栏的返回语义</h1><p>右栏前进时只压右栏的历史，左栏不动。</p></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="mask"></div>
+        <div class="dlg">
+          <div class="head"><h3>移到标签</h3><span class="ib" data-i="x" data-s="20"></span></div>
+          <div class="srch"><span data-i="search" data-s="17"></span>搜索或新建标签</div>
+          <div class="opt on" data-i="check" data-s="18">产品<small>32 张</small></div>
+          <div class="opt" data-i="layers" data-s="18">读书<small>58 张</small></div>
+          <div class="opt" data-i="layers" data-s="18">学习<small>21 张</small></div>
+          <div class="opt" data-i="layers" data-s="18">待整理<small>9 张</small></div>
+          <div class="foot"><span class="btn">取消</span><span class="btn pri">移动</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>选择与表单：居中卡片 520 宽<small>原本的底部面板（选标签、选日期、新建日程、安装插件）都走这里；键盘弹出时卡片上移到可见区中央。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="cards"></div>
+          <div class="t-main">
+            <div class="plane">
+              <div class="head tools"><span class="ib" data-i="panel-left" data-s="20"></span><span class="sp"></span><span class="ib press" data-i="git-branch" data-s="20"></span><span class="ib" data-i="pencil" data-s="20"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+              <div class="scroll"><div class="paper">
+                <h1>主从两栏的返回语义</h1>
+                <div class="meta"><span>今天 9:20</span><span>·</span><span>412 字</span><span class="ctx"><span data-i="git-branch" data-s="13"></span>脉络 5</span></div>
+                <p>右栏前进时只压右栏的历史，左栏不动。系统返回先退右栏，退到底再交给页面栈；左栏在任何时候都保持可点。</p>
+                <p>从右栏里点 <span class="lk">窗口尺寸分级</span>，右栏换成那张卡片，顶栏出现返回。</p>
+              </div></div>
+            </div>
+            <div class="plane side">
+              <div class="head"><h3>脉络</h3><span class="ib" data-i="x" data-s="20"></span></div>
+              <div class="grp"><div class="sec-t">来源</div><div class="li">深度工作：注意力残留<small>卡片 · 引用了这张</small></div></div>
+              <div class="grp"><div class="sec-t">连接</div><div class="li on">窗口尺寸分级<small>双链</small></div><div class="li">平板适配方案<small>项目文档 · 提到</small></div></div>
+              <div class="grp"><div class="sec-t">延伸</div><div class="li">收集箱为什么 7 天清空<small>相似</small></div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C</span>辅助信息：右侧面板，不加遮罩，正文可读可滚<small>面板打开时左栏列表让位，正文与面板并排，面板与正文同高同顶。点面板里的条目在正文纸里打开（面板保留）。</small></div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card wide" style="grid-column:1/-1"><h3>浮层形态对照（宽档 / 中等档）</h3>
+      <table class="cmp">
+        <tr><th>现有组件</th><th>用途</th><th>宽 / 中等</th></tr>
+        <tr><td><code>ActionSheet</code></td><td>⋯、长按菜单</td><td>有锚点 → 贴按钮的菜单；无锚点（如 FAB 新建）→ 居中卡片</td></tr>
+        <tr><td><code>BottomSheet</code> 默认</td><td>选择、表单、确认</td><td>居中卡片 520，最大高 80%</td></tr>
+        <tr><td><code>BottomSheet</code> 声明「旁观」</td><td>脉络、大纲、属性</td><td>右侧面板 360，无遮罩；宽档挤窄正文，中等档盖在正文右侧</td></tr>
+        <tr><td><code>SnapSheet</code></td><td>播放器、录音胶囊等可拖高度的面板</td><td>保持底部，宽度封顶 640 居中</td></tr>
+        <tr><td><code>MobileConfirmDialog</code></td><td>确认</td><td>不变</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 6 我的与设置 ───────────── -->
+<section class="scene" data-scene="me">
+  <p class="scene-intro">「我的」是入口页，不是列表，所以<b>宽档也不做主从两栏</b>：它是一整页宫格 + 设置分组，点任何一项都<b>整页进入详情</b>，和手机一样，只是左导航条一直在。宽度用在两处：宫格一行排 8 个，设置分组分两列。插件页因此拿到的是整页宽度（横屏约 1060，竖屏约 720）。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="me"></div>
+          <div class="t-main page">
+            <div class="head"><h2>我的</h2><span class="ib" data-i="search" data-s="20"></span></div>
+            <div class="plane me-page">
+              <div class="sec">
+                <div class="sec-t">功能<span class="more">编辑</span></div>
+                <div class="apps eight">
+                  <span><i data-i="calendar-days" data-s="20"></i>日程</span><span><i data-i="list-checks" data-s="20"></i>待办</span><span><i data-i="clock" data-s="20"></i>番茄</span><span><i data-i="book-open" data-s="20"></i>闪卡</span>
+                  <span><i data-i="file-text" data-s="20"></i>文章</span><span><i data-i="layers" data-s="20"></i>项目</span><span><i data-i="bot" data-s="20"></i>AI</span><span class="on"><i class="pl">减</i>减重</span>
+                  <span><i class="pl">账</i>记账</span><span><i class="pl">读</i>微信读书</span><span><i data-i="ellipsis" data-s="20"></i>更多</span>
+                </div>
+              </div>
+              <div class="gl two">
+                <div>
+                  <div class="lab">数据</div>
+                  <div class="gi" data-i="layers" data-s="18">插件中心<small>2 个更新</small></div>
+                  <div class="gi" data-i="refresh-cw" data-s="18">同步<small>已同步</small></div>
+                  <div class="gi" data-i="history" data-s="18">备份与导出</div>
+                </div>
+                <div>
+                  <div class="lab">偏好</div>
+                  <div class="gi" data-i="settings-2" data-s="18">外观<small>暖纸</small></div>
+                  <div class="gi" data-i="mic" data-s="18">语音<small>标准版</small></div>
+                  <div class="gi" data-i="file-text" data-s="18">关于</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>宽：「我的」整页，宫格一行 8 个，设置两列<small>内容和手机一样，只是排得更开；宫格选中态只在按下时出现，示意里标出将要进入的「减重」。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="me"></div>
+          <div class="t-main page">
+            <div class="head back"><span class="ib" data-i="chevron-left" data-s="22"></span><h2>减重</h2><span class="ib" data-i="plus" data-s="20"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+            <div class="plane">
+              <div class="wt">
+                <div class="k three">
+                  <div class="blk"><div class="lb">今天<small>早 7:40</small></div><div class="v">68.4<small>kg</small></div></div>
+                  <div class="blk"><div class="lb">热量预算</div><div class="v">1,620<small>剩 740</small></div></div>
+                  <div class="blk"><div class="lb">运动</div><div class="v">6,210<small>步</small></div></div>
+                </div>
+                <div class="k side">
+                  <div class="blk"><div class="lb">近 30 天<small>−1.8 kg</small></div>
+                    <div class="chart tall"><svg viewBox="0 0 300 100" preserveAspectRatio="none"><line class="gridline" x1="0" x2="300" y1="25" y2="25"/><line class="gridline" x1="0" x2="300" y1="60" y2="60"/><line class="gridline" x1="0" x2="300" y1="95" y2="95"/><path class="ar" d="M0,30 L30,34 60,32 90,40 120,44 150,50 180,48 210,58 240,62 270,66 300,70 L300,100 L0,100 Z"/><polyline class="ln" points="0,30 30,34 60,32 90,40 120,44 150,50 180,48 210,58 240,62 270,66 300,70"/></svg></div>
+                  </div>
+                  <div class="blk"><div class="lb">最近记录</div>
+                    <div class="rec"><span>11 月 25 日</span><b>68.4</b></div>
+                    <div class="rec"><span>11 月 24 日</span><b>68.6</b></div>
+                    <div class="rec"><span>11 月 23 日</span><b>68.9</b></div>
+                    <div class="rec"><span>11 月 22 日</span><b>68.8</b></div>
+                    <div class="rec"><span>11 月 21 日</span><b>69.1</b></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>宽：点「减重」整页进入，顶栏返回回到「我的」<small>插件页拿到整页宽度（约 1060）；左边缘跟手返回照常生效。插件页里再打开二级页，继续整页 push。</small></div>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 6+ 导航条入口 ───────────── -->
+<section class="scene" data-scene="rail">
+  <p class="scene-intro">导航条分两段：<b>上段固定</b>（新建、今天 / 卡片 / 日记 / 我的），分隔线下是<b>自选入口</b>，搜索落底。自选入口<b>就是「我的」功能宫格的顺序</b>，不另设配置：在「我的」里点「编辑」拖动排序，排在前面的就出现在导航条上。能放几个按导航条剩下的高度实时算（每格 48 + 间距 10），全放得下就全放；放不下时最后一格换成「更多」，点开贴着按钮弹出其余入口。转屏、分屏只改变露出几个，不改顺序。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="" data-pins data-pin-on="article"></div>
+          <div class="t-main page">
+            <div class="head"><h2>文章</h2><span class="ib" data-i="search" data-s="20"></span><span class="ib" data-i="plus" data-s="20"></span></div>
+            <div class="plane">
+              <div class="scroll">
+                <div class="sec" style="padding-top:8px">
+                  <div class="rw tall"><span class="di" data-i="file-text" data-s="16"></span><span class="tx">平板适配：一条栈的两种画法<small>草稿 · 今天 9:40 · 2,180 字</small></span></div>
+                  <div class="rw tall"><span class="di" data-i="file-text" data-s="16"></span><span class="tx">我的知识流：输入、输出与审视<small>已发布 · 11 月 21 日</small></span></div>
+                  <div class="rw tall"><span class="di" data-i="file-text" data-s="16"></span><span class="tx">读《深度工作》：注意力残留<small>草稿 · 11 月 18 日</small></span></div>
+                  <div class="rw tall"><span class="di" data-i="file-text" data-s="16"></span><span class="tx">间隔重复的最小单元<small>已发布 · 11 月 12 日</small></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>横屏 1180×820：露出 <b data-pin-count></b><small>从导航条打开「文章」，高亮落在「文章」上，「我的」不亮；文章页是整页，和从「我的」宫格进入的是同一页，只是没有返回按钮（它是导航条的根）。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box port"><div class="tablet port">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="home" data-pins></div>
+          <div class="t-main page">
+            <div class="head"><h2>周三 · 11 月 25 日</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+            <div class="plane">
+              <div class="scroll">
+                <div class="ask" style="margin-top:16px"><span data-i="sparkles" data-s="18"></span>问问你的笔记…<span class="sp"></span><span data-i="mic" data-s="18"></span></div>
+                <div class="sec">
+                  <div class="sec-t">日程<small>3 项</small><span class="more">日历</span></div>
+                  <div class="rw"><span class="tm">10:00</span><span class="tx">产品评审：平板适配<small>会议室 B · 1 小时</small></span></div>
+                  <div class="rw"><span class="tm">14:30</span><span class="tx">读书会《深度工作》第三章<small>线上</small></span></div>
+                </div>
+                <div class="sec">
+                  <div class="sec-t">待办<small>今天 4 · 逾期 1</small><span class="more">全部</span></div>
+                  <div class="rw"><span class="box late"></span><span class="tx">整理评审意见到项目文档</span><span class="tr">昨天</span></div>
+                  <div class="rw"><span class="box"></span><span class="tx">回复插件作者关于宽窗格的问题</span></div>
+                  <div class="rw"><span class="box"></span><span class="tx">复习闪卡 28 张</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>竖屏 820×1180：露出 <b data-pin-count></b><small>竖屏高度够，宫格里的入口全部放下，不出现「更多」。宫格里新增或启用的插件会自动接在末尾。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box short"><div class="tablet short">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="home" data-pins data-more-on></div>
+          <div class="t-main page">
+            <div class="head"><h2>周三 · 11 月 25 日</h2><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+            <div class="plane">
+              <div class="scroll">
+                <div class="ask" style="margin-top:16px"><span data-i="sparkles" data-s="18"></span>问问你的笔记…<span class="sp"></span><span data-i="mic" data-s="18"></span></div>
+                <div class="sec">
+                  <div class="sec-t">日程<small>3 项</small><span class="more">日历</span></div>
+                  <div class="rw"><span class="tm">10:00</span><span class="tx">产品评审：平板适配<small>会议室 B · 1 小时</small></span></div>
+                  <div class="rw"><span class="tm">14:30</span><span class="tx">读书会《深度工作》第三章<small>线上</small></span></div>
+                </div>
+                <div class="sec">
+                  <div class="sec-t">待办<small>今天 4 · 逾期 1</small><span class="more">全部</span></div>
+                  <div class="rw"><span class="box late"></span><span class="tx">整理评审意见到项目文档</span><span class="tr">昨天</span></div>
+                  <div class="rw"><span class="box"></span><span class="tx">回复插件作者关于宽窗格的问题</span></div>
+                  <div class="rw"><span class="box"></span><span class="tx">复习闪卡 28 张</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="menu pins" style="left:84px">
+            <div data-more-list></div>
+            <hr /><div class="hint">在「我的」里拖动排序，调整导航条上显示哪几个</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C</span>矮窗口（台前调度 1000×700）：露出 <b data-pin-count></b><small>放不下的进「更多」，菜单贴着按钮向右弹，不加遮罩；最底一行提示去哪调整。高度再矮到连「更多」都放不下时，分隔线和自选段整段收起，只留固定段。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box land"><div class="tablet land">
+        <div class="status" data-status></div>
+        <div class="t-body">
+          <div data-rail="me" data-pins></div>
+          <div class="t-main page">
+            <div class="head"><h2>我的</h2><span class="btn pri" style="height:34px;padding:0 14px">完成</span></div>
+            <div class="plane me-page">
+              <div class="sec">
+                <div class="sec-t">功能<small>拖动排序 · 排在前面的会显示在左侧导航条</small></div>
+                <div class="apps eight">
+                  <span class="wig"><i data-i="list-checks" data-s="20"></i>任务</span><span class="drag"><i data-i="file-text" data-s="20"></i>文章</span><span class="wig"><i data-i="folder-open" data-s="20"></i>项目</span><span class="wig"><i data-i="book-open" data-s="20"></i>闪卡</span>
+                  <span class="wig"><i data-i="timer" data-s="20"></i>番茄</span><span class="wig"><i class="pl">减</i>减重</span><span class="wig"><i class="pl">账</i>记账</span><span class="wig"><i class="pl">读</i>微信读书</span>
+                  <span class="wig"><i class="pl">播</i>播客</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D</span>调整方式：「我的」宫格进入编辑，拖动排序<small>同一份顺序同时决定手机上宫格的前 8 格和平板导航条的前几格，不出现两份配置互相打架。宫格编辑本身是手机也要的能力（现在没有），这里一起补上。</small></div>
+      <details class="note"><summary>为什么不做「勾选哪些放进导航条」</summary><ul><li>勾选时用户不知道转竖屏、分屏后还剩多少位置，勾了却看不到，比不给设置更让人困惑。</li><li>排序天然有「先放谁」的答案，放不下时截掉的总是排在最后的，转屏前后不会有某一项忽隐忽现。</li><li>以后真有人想「宫格里留着、导航条里不要」，再在编辑态加一个「不在导航条显示」开关，不影响现在的规则。</li></ul></details>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 7 插件适配 ───────────── -->
+<section class="scene" data-scene="plugin">
+  <p class="scene-intro"><b>插件不需要「平板版」，也不需要新 API。</b>宿主负责导航、窗格、浮层形态和返回；插件页面只是拿到一个更宽的容器（横屏整页约 1060，竖屏整页约 720）。SDK 文档已经要求「布局按容器宽度决定，不按平台」，平板只是把这条规则真正考到了。要补的是：<b>三个官方插件现在用平台名选手机界面</b>，在平板上会得到一份拉宽的手机界面。下面两帧取竖屏整页的 720 宽，横屏 1060 见第 6 页。</p>
+  <div class="frames">
+    <div class="t-frame">
+      <div class="t-box pane"><div class="tablet pane">
+        <span class="pane-tag">720</span>
+        <div class="plane" style="flex:1">
+          <div class="head"><h3>减重</h3><span class="ib" data-i="plus" data-s="20"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+          <div class="wt">
+            <div class="blk"><div class="lb">今天<small>早 7:40</small></div><div class="v">68.4<small>kg</small></div></div>
+            <div class="blk"><div class="lb">热量预算</div><div class="v">1,620<small>剩 740</small></div></div>
+            <div class="blk"><div class="lb">运动</div><div class="v">6,210<small>步</small></div></div>
+            <div class="blk"><div class="lb">近 30 天<small>−1.8 kg</small></div><div class="chart short"></div></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>现在：<code>platform === "ios"</code> → 手机界面，单列拉长<small>每块都拉到 680 宽、数字缩在左上角，趋势图被挤出首屏；信息密度和手机一样，屏幕却大了一倍。</small></div>
+    </div>
+    <div class="t-frame">
+      <div class="t-box pane"><div class="tablet pane">
+        <span class="pane-tag">720</span>
+        <div class="plane" style="flex:1">
+          <div class="head"><h3>减重</h3><span class="ib" data-i="plus" data-s="20"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+          <div class="wt">
+            <div class="k three">
+              <div class="blk"><div class="lb">今天<small>早 7:40</small></div><div class="v">68.4<small>kg</small></div></div>
+              <div class="blk"><div class="lb">热量预算</div><div class="v">1,620<small>剩 740</small></div></div>
+              <div class="blk"><div class="lb">运动</div><div class="v">6,210<small>步</small></div></div>
+            </div>
+            <div class="blk"><div class="lb">近 30 天<small>−1.8 kg</small></div>
+              <div class="chart"><svg viewBox="0 0 300 100" preserveAspectRatio="none"><line class="gridline" x1="0" x2="300" y1="25" y2="25"/><line class="gridline" x1="0" x2="300" y1="60" y2="60"/><line class="gridline" x1="0" x2="300" y1="95" y2="95"/><path class="ar" d="M0,30 L30,34 60,32 90,40 120,44 150,50 180,48 210,58 240,62 270,66 300,70 L300,100 L0,100 Z"/><polyline class="ln" points="0,30 30,34 60,32 90,40 120,44 150,50 180,48 210,58 240,62 270,66 300,70"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>建议：手机界面内部加容器查询，≥ 640 三块一行、趋势图同屏<small>仍是触控界面（大按钮、无悬停依赖），只是排版跟宽度走。桌面界面不拿来用：它依赖侧栏、悬停和右键。</small></div>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card"><h3>宿主替插件做的（插件不用管）</h3><ul><li>插件页面始终整页打开（左导航条常驻），<code>pages.register</code> 不加新参数。</li><li>插件页里 <code>open</code> 二级页照旧整页 push，返回照旧。</li><li><code>@tau/ui</code> 的 <code>Dialog</code> / <code>Drawer</code> 在宽档自动变居中卡片，和宿主浮层同一规则。</li><li>今天页插件面板按宽度流式排（竖屏两格、横屏三格），面板组件本来就是流式宽度。</li><li><code>navigation.registerEntry</code> 入口位置不变（「我的」宫格）。</li></ul></div>
+    <div class="card"><h3>插件作者要做的</h3><ul><li><b>按宽度而不是平台排版</b>：页面根节点 <code>container-type: inline-size</code>，在 640 / 1040 处加列。</li><li><b>平台名只用来选交互</b>（触控 / 鼠标），不用来选「哪套布局」。手机与桌面两套界面可以保留，但手机那套要能撑到 1060 宽。</li><li>别写死 <code>max-width: 360px</code> 之类的手机宽度，也别假定屏幕竖着。</li><li>旋转与分屏时组件不重挂，草稿留在 state 里即可。</li></ul></div>
+    <div class="card"><h3>官方插件的改动面</h3><table class="cmp"><tr><th>插件</th><th>现状</th><th>改法</th></tr><tr><td>减重</td><td>按平台选 <code>MobileWeightPage</code></td><td>手机界面内加 640 档：三块一行 + 趋势同屏</td></tr><tr><td>记账</td><td>按平台选手机界面</td><td>640 档：概要与流水两栏</td></tr><tr><td>微信读书</td><td>按平台选书架</td><td>书架网格列数跟宽度；单书页摘录两栏</td></tr><tr><td>播客、图集等</td><td>已用容器查询或单一界面</td><td>只需在宽窗格里走查一遍</td></tr></table></div>
+    <div class="card"><h3>SDK 与文档要补的</h3><ul><li>「适配不同的屏幕」一节补三档宽度与宿主页面的实际宽度（360 / 720 / 1060），给出平板示意。</li><li>开发验证入口加「宽窗格」预览：在桌面开发模式里把插件页放进 720 / 1060 的移动宿主框，作者不用真机也能看。</li><li>上架审核不新增平板目标；<code>targets</code> 仍只有 android / ios，平板沿用。</li><li>不加 <code>environment.formFactor</code>：一旦提供，作者就会按它选布局，回到按设备判断的老路。</li></ul></div>
+  </div>
+</section>
+<!-- ───────────── 8 系统与工程 ───────────── -->
+<section class="scene" data-scene="native">
+  <p class="scene-intro">工程上的关键决定：<b>页面栈仍是一条</b>，主从两栏只是「同一条栈在宽屏的另一种画法」。切档不改栈，只改渲染，所以转屏、拖分屏时不会丢页面或草稿。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 一条栈，两种画法</h3><p>详情类页面在 <code>definePage</code> 里声明 <code>pane: "detail"</code>（卡片、日记、文章、项目文档；设置子页和插件页不声明，始终整页）。宽档下 <code>PageHost</code> 把栈顶连续的 detail 页画进右栏，它们下面最近的一页画进左栏；紧凑 / 中等档照现在逐页画。</p><pre>stack = [home, cardsLibrary, contentDetail(a), contentDetail(b)]
+宽档:   左栏 = cardsLibrary   右栏 = b（右栏返回 → a）
+中等档: 整页 = b（返回 → a → 列表）</pre></div>
+    <div class="card"><h3>2 · 左栏点一项</h3><p>宽档下列表点击用 <code>replace</code> 掉栈顶的 detail 段（右栏历史清空），中等档仍是 <code>push</code>。由导航层按档位选动词，列表页只调一个 <code>openDetail()</code>，不自己判断宽度。</p></div>
+    <div class="card"><h3>3 · 档位来源</h3><p>壳层一个 <code>useWindowClass()</code>（<code>matchMedia</code> 600 / 840，监听变化），只给 <code>AppShell</code>、<code>PageHost</code>、浮层组件用；页面和插件不读它，排版用容器查询。和键盘可见区一样放在 Provider 里。</p></div>
+    <div class="card"><h3>4 · 手势与返回</h3><ul><li>宽档左边缘是导航条，左边缘跟手返回只对整页显示的页面生效；右栏的返回用顶栏按钮和系统返回。</li><li>Tab 根左右滑切换在宽档关闭（有导航条，横滑和列表横向手势冲突）。</li><li>Esc（外接键盘）走现有返回分发，先关浮层再退右栏。</li></ul></div>
+    <div class="card"><h3>5 · iOS / iPadOS</h3><ul><li>已具备：<code>TARGETED_DEVICE_FAMILY = 1,2</code>、iPad 四方向、LaunchScreen，所以分屏和台前调度可用。</li><li>不加 <code>UIRequiresFullScreen</code>（加了就不能分屏）。</li><li>上架需补 iPad 截图（12.9 / 13 寸）；审核会在 iPad 上测，分屏 1/3 宽必须可用——走紧凑档即可。</li><li>外接键盘快捷键用 WebView 的 keydown 即可，不需要原生 UIKeyCommand。</li></ul></div>
+    <div class="card"><h3>6 · Android</h3><ul><li><code>targetSdk 36</code>：大屏（最小宽 ≥ 600dp）上系统会忽略方向锁定和不可调整大小声明，App 必须能任意尺寸运行——这条已经是强制的。</li><li>Activity 已声明 <code>screenSize|smallestScreenSize|screenLayout</code>，转屏和自由窗口不重建 WebView，只触发 resize。</li><li>折叠屏展开 / 合上就是一次档位切换，同上处理。</li></ul></div>
+    <div class="card wide" style="grid-column:1/-1"><h3>分批交付</h3>
+      <table class="cmp">
+        <tr><th>批次</th><th>范围</th><th>做完后用户看到什么</th></tr>
+        <tr><td><b>1 · 不变形</b></td><td><code>useWindowClass</code>、左导航条替代 Dock、浮层三形态、阅读列与表单封顶宽度、列表容器查询多列</td><td>平板上不再是拉长的手机；所有页面能用、浮层不从底部铺满</td></tr>
+        <tr><td><b>2 · 主从两栏</b></td><td><code>pane: "detail"</code>、PageHost 双栏画法、导航动词按档位、卡片 / 日记 / 文章 / 项目</td><td>列表与详情同屏、右栏内前进</td></tr>
+        <tr><td><b>3 · 键盘与键鼠</b></td><td>外接键盘浮动配件栏、快捷键、编辑态收起左栏 / 大纲、细指针悬停态</td><td>接妙控键盘能顺手写</td></tr>
+        <tr><td><b>4 · 插件</b></td><td>SDK 文档三档与示意、开发验证宽窗格、减重 / 记账 / 微信读书加宽档排版</td><td>官方插件在平板整页上排得开</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+<!-- ───────────── 9 待你决定 ───────────── -->
+<section class="scene" data-scene="decide">
+  <p class="scene-intro">以下几处会改变用户看到的东西，标了推荐，等你定。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 宽档导航：左导航条还是保留底部 Dock<span class="rec-badge">推荐左导航条</span></h3><p>左导航条：横屏底部 Dock 会把 4 个按钮摊在 1180 宽上，手指要移很远；左侧导航条拇指握持时更顺，也空出底部给配件栏。代价是和手机长得不一样。<br />保留 Dock：只改宽度封顶居中，改动最小。</p></div>
+    <div class="card"><h3>2 · 中等档（竖屏 iPad）要不要两栏<span class="rec-badge">推荐不要</span></h3><p>两栏后正文只剩约 360 宽，和手机一样窄。推荐竖屏单窗格 + 宽内容；若你常在竖屏对照卡片，可以改成「列表可收起的两栏」。</p></div>
+    <div class="card"><h3>3 · 右栏里点链接：右栏前进还是整页打开<span class="rec-badge">推荐右栏前进</span></h3><p>右栏前进：列表一直在，适合对照。整页打开：更像手机、规则更少，但每跳一次列表就不见了。</p></div>
+    <div class="card"><h3>4 · 插件布局约定写成「建议」还是上架「要求」<span class="rec-badge">推荐建议</span></h3><p>写成要求需要审核在宽窗格下走查每个移动插件，成本高；先在文档和开发验证入口里给示意，官方插件做到位作为样板。</p></div>
+    <div class="card"><h3>5 · 先做到哪一批</h3><p>批次 1（不变形）单独就能发，解决「在平板上像放大的手机」；批次 2 是平板体验的主体。建议 1、2 一起作为平板适配首版，3、4 跟进。</p></div>
+  </div>
+</section>
+<script src="tb.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>

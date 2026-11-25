@@ -5,6 +5,13 @@ import { useSheetDragDismiss } from "../hooks/useSheetDragDismiss";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { CheckBubble } from "./CheckBubble";
+import { useWindowClass } from "../router/windowClass";
+import {
+  CENTERED_SHEET_CLASS,
+  CENTERED_SHEET_MOTION,
+  CENTERED_SHEET_STYLE,
+  SHEET_UP_MOTION,
+} from "./sheetMotion";
 
 /** 操作项图标的语义色，对应主题六组粉彩语义色 */
 export type ActionSheetTone = "sage" | "sky" | "apricot" | "lilac" | "butter" | "rose";
@@ -79,6 +86,8 @@ export function ActionSheet({
   // 长列表内容滚动容器：交给下拉手势判断滚动位置，避免内容中部下拉被误判为关闭
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const visible = open && !closing;
+  // 中等与宽档变成居中卡片：没有底边可贴，也就没有下拉关闭
+  const centered = useWindowClass() !== "compact";
 
   const requestClose = useCallback(() => {
     if (!open || closing) return;
@@ -87,7 +96,7 @@ export function ActionSheet({
   }, [open, closing]);
 
   const { y, dragging, panelBindings } = useSheetDragDismiss({
-    enabled: visible,
+    enabled: visible && !centered,
     onClose: requestClose,
     scrollRef: contentScrollRef,
   });
@@ -189,23 +198,25 @@ export function ActionSheet({
           />
           <motion.div
             key="panel"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 26, stiffness: 300, mass: 0.9 }}
-            className={`bg-surface shadow-float absolute right-0 bottom-0 left-0 flex max-h-[88dvh] flex-col rounded-t-sheet${
-              dragging ? "select-none" : ""
-            }`}
+            {...(centered ? CENTERED_SHEET_MOTION : SHEET_UP_MOTION)}
+            className={
+              centered
+                ? `${CENTERED_SHEET_CLASS} flex max-h-[min(640px,calc(var(--kb-viewport-height)-48px))] flex-col pt-3 pb-2.5`
+                : `bg-surface shadow-float absolute right-0 bottom-0 left-0 flex max-h-[88dvh] flex-col rounded-t-sheet${
+                    dragging ? "select-none" : ""
+                  }`
+            }
             data-allow-touchmove="true"
-            style={{
-              y,
-              paddingBottom: "calc(var(--mobile-overlay-bottom) + 10px)",
-            }}
-            {...panelBindings}
+            style={
+              centered
+                ? CENTERED_SHEET_STYLE
+                : { y, paddingBottom: "calc(var(--mobile-overlay-bottom) + 10px)" }
+            }
+            {...(centered ? {} : panelBindings)}
           >
             {/* 拖拽热区：抓手横线与标题区，向下拖拽可关闭面板 */}
             <div data-sheet-drag-zone="true">
-              <div className="sheet-grab" />
+              {centered ? null : <div className="sheet-grab" />}
               {title ? (
                 <div className="border-line-2 border-b px-6 pt-1.5 pb-[18px]">
                   {kind && (

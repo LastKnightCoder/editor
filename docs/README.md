@@ -83,6 +83,8 @@
 
 [功能开关与首次启动选用途](./tasks/feature-toggles.md) 记录设置 › 功能、侧栏就地隐藏、常用组合与新工作区首次启动的存储、接入点与验证方案。
 
+[平板适配](./tasks/tablet-layout.md) 记录窗口三档、左导航条、浮层居中与宽屏排版的方案、批次与验证。
+
 当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
 
 ## notes/ — 一次性产物

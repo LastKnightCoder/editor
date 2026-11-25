@@ -4,7 +4,7 @@
 // 左边缘返回手势激活区（栈深>1 时前 28px，语义本就同为回上个 tab）。
 
 import { useEffect, useRef } from "react";
-import { EDGE_START_WIDTH, getViewportWidth } from "./gesture";
+import { getViewportWidth, isInEdgeStartZone } from "./gesture";
 import { createVelocityTracker, shouldCommitSwipe } from "./swipeCommit";
 import { resolveTabNeighbor } from "./tabs";
 
@@ -79,7 +79,7 @@ export function useTabSwipeGesture(config: TabSwipeGestureConfig): void {
         return;
       }
       const touch = event.touches[0];
-      if (cfg.edgeBackEnabled && touch.clientX <= EDGE_START_WIDTH) {
+      if (cfg.edgeBackEnabled && isInEdgeStartZone(touch.clientX)) {
         return;
       }
       if (isMarkedNoTabSwipe(event.target) || isInsideHorizontalScroller(event.target)) {

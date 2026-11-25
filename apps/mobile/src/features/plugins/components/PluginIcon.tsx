@@ -10,6 +10,7 @@ const TONES = [
   "bg-tag-5-soft text-tag-5",
 ];
 const SIZES = {
+  rail: "size-[24px] rounded-[8px] text-[12px]",
   md: "size-11 rounded-[13px] text-[17px]",
   grid: "size-[46px] rounded-[17px] text-[18px]",
   xl: "size-[68px] rounded-[19px] text-[28px]",

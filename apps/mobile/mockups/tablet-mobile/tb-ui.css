@@ -1,0 +1,653 @@
+/* 平板页面件：列表栏、纸面、平面内分区、编辑、我的、插件。左缘统一落在缩进线（20）上。 */
+
+/* ── 列表栏（页面底上）── */
+.srch {
+  height: 40px;
+  flex: none;
+  margin: 0 0 12px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+.fl {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+}
+.fc {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-2);
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+}
+.fc.on {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  box-shadow: none;
+}
+
+/* 列表行：未选中直接落在页面底上，选中行抬成一张纸 */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
+}
+.it {
+  padding: 12px 14px 13px;
+  border-radius: 14px;
+}
+.it.on {
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+.it b {
+  display: block;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.it p {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.it .m {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.it.on .m .tg {
+  color: var(--brand-text);
+}
+
+/* 竖屏整页的卡片网格：每张卡同高，按行对齐 */
+.cgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  gap: 12px;
+}
+.cgrid .it {
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  padding: 16px var(--in);
+  display: flex;
+  flex-direction: column;
+}
+.cgrid .it .m {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+/* ── 纸面正文：阅读列封顶 640，在平面内居中 ── */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.paper {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 12px 40px 40px;
+  font-size: 17px;
+  line-height: 1.8;
+}
+.paper.left {
+  margin: 0;
+  max-width: none;
+}
+.paper h1 {
+  font-size: 28px;
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+.paper .meta {
+  font-size: 13px;
+  color: var(--ink-3);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.paper .ctx {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 99px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.paper p + p {
+  margin-top: 0.75em;
+}
+.paper h3 {
+  font-size: 19px;
+  margin: 1.2em 0 0.4em;
+}
+.paper blockquote {
+  border-left: 3px solid var(--brand);
+  padding-left: 16px;
+  color: var(--ink-2);
+  margin: 0.9em 0;
+}
+.paper .lk {
+  color: var(--brand-text);
+  border-bottom: 1px solid color-mix(in srgb, var(--brand) 45%, transparent);
+}
+.paper .caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: var(--brand);
+  vertical-align: -3px;
+  margin-left: 1px;
+}
+.empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.empty .ei {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  margin-bottom: 12px;
+}
+.empty b {
+  display: block;
+  color: var(--ink-1);
+  font-size: 16px;
+}
+
+/* ── 平面内分区（今天页）：小节题 + 行，靠留白分组，不画横线 ── */
+.sec {
+  padding: 0 var(--in) 8px;
+}
+.sec + .sec {
+  margin-top: 10px;
+}
+.sec-t {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.sec-t small {
+  margin-left: 8px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.sec-t .more {
+  margin-left: auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.rw {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14.5px;
+}
+.rw.tall {
+  height: 60px;
+}
+.rw .ic {
+  flex: none;
+}
+.rw .di {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  color: var(--ink-2);
+}
+.rw .di.sky {
+  background: var(--sky-soft);
+  color: var(--sky);
+  box-shadow: none;
+}
+.rw .di.lilac {
+  background: var(--lilac-soft);
+  color: var(--lilac);
+  box-shadow: none;
+}
+.rw .box {
+  width: 20px;
+  height: 20px;
+  margin: 0 6px;
+  flex: none;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1.5px var(--ink-3) inset;
+}
+.rw .box.late {
+  box-shadow: 0 0 0 1.5px var(--danger) inset;
+}
+.rw .tx {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rw .tx small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.rw .tm {
+  width: 52px;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  flex: none;
+}
+.rw .tr {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  flex: none;
+}
+.ask {
+  margin: 4px var(--in) 6px;
+  height: 46px;
+  border-radius: 99px;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  color: var(--ink-3);
+  font-size: 14.5px;
+}
+.ask .sp {
+  flex: 1;
+}
+
+/* 插件面板：平面里的同色块 + 细边，宽度随栏变化 */
+.pp {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.pp.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+.pp > div {
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.pp > div.wide {
+  grid-column: 1 / -1;
+}
+.pp b {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin-bottom: 4px;
+}
+.pp .v {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+.bar-line {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-1);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.bar-line i {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+/* ── 编辑态 ── */
+.t-acc {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  border-top: 1px solid var(--line-1);
+}
+.t-acc .sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line-1);
+  margin: 0 8px;
+}
+.t-acc .sp {
+  flex: 1;
+}
+.float-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow:
+    0 0 0 1px var(--line-1),
+    var(--shadow-float);
+}
+.float-bar .sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line-1);
+  margin: 0 4px;
+}
+.kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  color: var(--ink-2);
+}
+.tablet .kb {
+  height: 318px;
+  flex: none;
+  background: var(--kb-bg);
+  padding: 10px 10px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tablet .kb-row {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+}
+.tablet .kb-key {
+  flex: 1;
+  border-radius: 9px;
+  background: var(--kb-key);
+  box-shadow: 0 1px 0 var(--kb-shadow);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  color: var(--kb-ink);
+}
+.tablet .kb-key.f {
+  background: var(--kb-key-2);
+  font-size: 15px;
+  flex: 1.4;
+}
+.tablet .kb-row.r2 {
+  padding-left: 40px;
+}
+.tablet .kb-key.space {
+  flex: 7;
+}
+
+/* 大纲栏：与列表栏同宽同位，行左缘在缩进线上 */
+.outline .ol {
+  padding: 9px 14px;
+  font-size: 14px;
+  color: var(--ink-2);
+  border-radius: 12px;
+}
+.outline .ol.sub {
+  padding-left: 30px;
+  font-size: 13.5px;
+}
+.outline .ol.on {
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--ink-1);
+  font-weight: 700;
+}
+.outline .lab {
+  padding: 0 14px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin: 4px 0 6px;
+}
+
+/* ── 我的：左栏宫格与分组（页面底上），右栏设置或插件 ── */
+.apps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 0;
+  padding: 6px 0 18px;
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.apps > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.apps i {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-style: normal;
+}
+.apps i.pl {
+  background: var(--sage-soft);
+  color: var(--sage);
+  font-weight: 800;
+  font-size: 16px;
+  box-shadow: none;
+}
+.apps > span.on {
+  color: var(--brand-text);
+  font-weight: 700;
+}
+.apps > span.on i {
+  box-shadow: 0 0 0 2px var(--brand);
+}
+.gl .lab {
+  padding: 0 14px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.gl .gi {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  font-size: 14.5px;
+  border-radius: 12px;
+  color: var(--ink-1);
+}
+.gl .gi svg {
+  color: var(--ink-2);
+}
+.gl .gi small {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* 插件内容（以减重为例）：同色块 + 细边 */
+.wt {
+  padding: 4px var(--in) var(--in);
+  display: grid;
+  gap: 12px;
+}
+.wt .k {
+  display: grid;
+  gap: 12px;
+}
+.wt .k.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+.blk {
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+  padding: 14px 16px 16px;
+}
+.blk .lb {
+  display: flex;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.blk .lb small {
+  margin-left: auto;
+  font-weight: 500;
+}
+.blk .v {
+  margin-top: 6px;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.blk .v small {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-left: 4px;
+}
+.chart {
+  margin-top: 10px;
+  height: 150px;
+  position: relative;
+}
+.chart.short {
+  height: 56px;
+}
+.chart svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.chart .gridline {
+  stroke: var(--line-1);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.chart .ln {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+.chart .ar {
+  fill: color-mix(in srgb, var(--brand) 12%, transparent);
+}
+.pane-tag {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--ink-3);
+  z-index: 2;
+}
+/* 整页时筛选条与网格：胶囊文字和卡片文字都落在缩进线上 */
+.t-main.page > .fl {
+  padding-left: 6px;
+}
+
+/* 我的（宽档整页）：宫格一行 8 个，设置分组两列 */
+.me-page {
+  flex: 1;
+  padding-top: 8px;
+}
+.apps.eight {
+  grid-template-columns: repeat(8, 1fr);
+  gap: 18px 0;
+  padding: 4px 0 20px;
+}
+.gl.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--g);
+  padding: 0 6px;
+}
+.head.back {
+  padding-left: 4px;
+}
+.head.back h2 {
+  margin-left: 2px;
+}
+.t-main.page > .plane {
+  flex: 1;
+  min-height: 0;
+}
+.wt .k.side {
+  grid-template-columns: 2fr 1fr;
+}
+.chart.tall {
+  height: 260px;
+}
+.rec {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.rec b {
+  margin-left: auto;
+  font-size: 15px;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}

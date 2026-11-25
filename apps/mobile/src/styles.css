@@ -61,6 +61,7 @@
      KeyboardViewportProvider 写 --kb-*；页面与组件只消费，不自行读 env() */
   --mobile-safe-top: max(env(safe-area-inset-top, 0px), var(--native-safe-top, 0px));
   --mobile-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px));
+  --mobile-safe-left: env(safe-area-inset-left, 0px);
   --kb-height: 0px;
   --kb-viewport-top: 0px;
   --kb-viewport-height: 100dvh;
@@ -93,6 +94,9 @@
   /* 下边距与安全区取大者不叠加：有 Home 指示条时安全区本身即留白，无安全区设备保留 --dock-gap */
   --dock-bottom-inset: max(var(--dock-gap), var(--mobile-safe-bottom));
   --dock-visual-height: calc(var(--dock-gap) + 62px + var(--dock-bottom-inset));
+  /* 中等与宽档左侧导航条占用的宽度：页面层、浮层与边缘手势都从这条线起算；
+     紧凑档为 0（底部 Dock） */
+  --screen-inset-left: 0px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -116,11 +120,20 @@
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
 }
 
+/* 中等与宽档没有底部 Dock（左导航条替代）：Tab 根页面的底部留白只剩安全区 */
+:root:is([data-window-class="medium"], [data-window-class="wide"]) {
+  --dock-visual-height: var(--mobile-safe-bottom);
+}
+
 /* ════════════════════════════════════════════════════════════
    移动端尺度词：触控密度下的卡片圆角与回弹缓动（与主题正交）；
    颜色/阴影类名由 @tau/themes/tailwind.css 提供
    ════════════════════════════════════════════════════════════ */
 @theme inline {
+  /* 窗口档位断点：与 hooks/useWindowClass 同一组值（600 / 840） */
+  --breakpoint-medium: 600px;
+  --breakpoint-wide: 840px;
+
   --radius-card: 20px;
   --radius-bento: 22px;
   --radius-sheet: 30px;
@@ -385,6 +398,21 @@ code {
 
 .pulse-soft {
   animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+/* 功能宫格编辑态：图标轻摆，提示可以拖动 */
+@keyframes feature-wiggle {
+  from {
+    transform: rotate(-1.6deg);
+  }
+  to {
+    transform: rotate(1.6deg);
+  }
+}
+
+.feature-wiggle {
+  display: block;
+  animation: feature-wiggle 0.24s ease-in-out infinite alternate;
 }
 
 @keyframes mask-fade-in {
@@ -939,7 +967,8 @@ code {
   .voice-mic.is-live::before,
   .voice-mic.is-live::after,
   .voice-caret,
-  .dictation-polishing {
+  .dictation-polishing,
+  .feature-wiggle {
     animation: none;
   }
   .dictation-polishing {

@@ -37,6 +37,8 @@ import { ToastViewport } from "../components/ToastViewport";
 import { EditorConfirmHost, EditorPromptHost } from "../services/editorNotifier";
 import { KeyboardViewportProvider } from "../components/KeyboardViewportProvider";
 import { AppDock } from "../components/AppDock";
+import { AppRail } from "../components/AppRail";
+import { useWindowClass } from "../router/windowClass";
 import { toast } from "../components/toast";
 import {
   OverlayHost,
@@ -120,6 +122,7 @@ export default function AppShell() {
 
 function AppShellInner() {
   const bootstrap = useBootstrap();
+  const windowClass = useWindowClass();
   const databaseName = bootstrap.databases?.activeDatabase ?? "";
   setActiveDatabase(databaseName);
   const cards = useCardsQuery();
@@ -247,6 +250,11 @@ function AppShellInner() {
     initialized.current = true;
     void startup();
   }, [startup]);
+
+  // 中等与宽档换左导航条：根节点标记档位，Dock 覆盖高度等布局变量随之切换
+  useEffect(() => {
+    document.documentElement.dataset.windowClass = windowClass;
+  }, [windowClass]);
 
   useEffect(() => {
     document.body.classList.add("mobile-app-shell");
@@ -491,7 +499,7 @@ function AppShellInner() {
                     <CollaborationBackground />
                     <main className="bg-page min-h-dvh">
                       <PageHost rootContent={<HomeScreen />} />
-                      <AppDock />
+                      {windowClass === "compact" ? <AppDock /> : <AppRail />}
                       <OverlayHost />
                       <EditorConfirmHost />
                       <EditorPromptHost />

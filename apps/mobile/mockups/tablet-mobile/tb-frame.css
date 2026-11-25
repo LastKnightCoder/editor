@@ -1,0 +1,317 @@
+/* 平板帧与栅格：iPad 11 寸逻辑像素（横 1180×820 / 竖 820×1180），整体缩放 --ts。
+   栅格只有三个量：状态栏下 8、平面间距 16、内容缩进 20（标题、行文字、平面内容左缘对齐到同一条线）。 */
+:root {
+  --ts: 0.6;
+  --g: 16px;
+  --in: 20px;
+  --head: 56px;
+  --rail: 80px;
+  --list: 340px;
+}
+.frames {
+  gap: 36px 32px;
+}
+.t-frame {
+  flex: none;
+}
+.t-box {
+  position: relative;
+}
+.t-box.land {
+  width: calc(1180px * var(--ts));
+  height: calc(820px * var(--ts));
+}
+.t-box.port {
+  width: calc(820px * var(--ts));
+  height: calc(1180px * var(--ts));
+}
+.t-box.pane {
+  width: calc(720px * var(--ts));
+  height: calc(540px * var(--ts));
+}
+.t-frame .frame-cap,
+.t-frame details.note {
+  max-width: calc(1180px * var(--ts));
+  margin-top: 14px;
+}
+.t-box.port ~ .frame-cap,
+.t-box.port ~ details.note {
+  max-width: calc(820px * var(--ts));
+}
+.t-box.pane ~ .frame-cap {
+  max-width: calc(720px * var(--ts));
+}
+
+.tablet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: scale(var(--ts));
+  transform-origin: top left;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--bg-page);
+  box-shadow:
+    0 0 0 12px #2a2621,
+    0 0 0 13px #3a352f,
+    0 34px 70px -24px rgba(60, 45, 25, 0.45);
+  display: flex;
+  flex-direction: column;
+  color: var(--ink-1);
+}
+.tablet.land {
+  width: 1180px;
+  height: 820px;
+}
+.tablet.port {
+  width: 820px;
+  height: 1180px;
+}
+.tablet.pane {
+  width: 720px;
+  height: 540px;
+  border-radius: 22px;
+  box-shadow: 0 0 0 1px var(--line-1);
+  padding: 12px;
+}
+.tablet .status {
+  height: 32px;
+  flex: none;
+  padding: 2px 28px 0;
+  font-size: 13px;
+}
+.tablet .home-ind {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  width: 280px;
+  height: 5px;
+  margin-left: -140px;
+  border-radius: 3px;
+  background: var(--ink-1);
+  opacity: 0.8;
+  z-index: 30;
+}
+
+/* 主体：右、下各留一个平面间距；底部再多 4 给 home 指示条 */
+.t-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  padding: 8px var(--g) 20px 0;
+}
+.t-body.above-kb {
+  padding-bottom: 12px;
+}
+
+/* 侧栏导航：新建置顶，与平面顶边齐；搜索落底，与平面底边齐 */
+.rail {
+  width: var(--rail);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+.rail .rail-fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-float);
+  margin-bottom: 12px;
+}
+.rail .ri {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.rail .ri i {
+  width: 52px;
+  height: 30px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+}
+.rail .ri.on {
+  color: var(--brand-text);
+}
+.rail .ri.on i {
+  background: var(--brand-soft);
+}
+.rail .sp {
+  flex: 1;
+}
+
+/* 主区：单页或主从两栏 */
+.t-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  position: relative;
+}
+.t-main.page {
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 列表栏：落在页面底上，行文字缩进 = 6 + 14 = 20 */
+.col-list {
+  width: var(--list);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 6px;
+}
+
+/* 平面：一整张纸；同一屏最多两三张大平面 */
+.plane {
+  background: var(--bg-surface);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+.t-main > .plane {
+  flex: 1;
+}
+
+/* 顶栏：列表栏、页面、平面三处同高 56，标题字左缘都在缩进线上 */
+.head {
+  height: var(--head);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 0 0 14px;
+}
+.t-main.page > .head {
+  padding-left: var(--in);
+}
+.plane > .head {
+  padding: 0 10px 0 var(--in);
+}
+.plane > .head.tools {
+  padding-left: 10px;
+}
+.head h2 {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.head h3 {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 800;
+}
+.head .sp {
+  flex: 1;
+}
+.ib {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  border-radius: 12px;
+  flex: none;
+}
+.ib.off {
+  color: var(--ink-3);
+  opacity: 0.45;
+}
+.ib.press {
+  background: var(--bg-press);
+}
+.ib.brand {
+  color: var(--brand);
+}
+.ib.txt {
+  font-size: 17px;
+  color: var(--ink-1);
+}
+
+/* 页面内并排的大平面（今天页） */
+.cols {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--g);
+}
+.cols > .plane {
+  flex: 1;
+}
+.tablet.pane .plane > .head {
+  padding-left: var(--in);
+}
+
+/* 导航条自选入口：分隔线下接「我的」宫格的前几项，按剩余高度截取 */
+.rail-div {
+  width: 32px;
+  height: 1px;
+  flex: none;
+  background: var(--line-1);
+  margin: 4px 0;
+}
+.rail-pins {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+.rail .ri {
+  height: 48px;
+  flex: none;
+  justify-content: flex-end;
+  max-width: 76px;
+  text-align: center;
+  white-space: nowrap;
+}
+.rail .ri[hidden],
+.rail-div[hidden] {
+  display: none;
+}
+.rail .ri b.pl {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--sage-soft);
+  color: var(--sage);
+  font-size: 12px;
+  font-weight: 800;
+  font-style: normal;
+}
+.rail .ri.on b.pl {
+  background: var(--sage);
+  color: var(--ink-inv);
+}
+.tablet.short {
+  width: 1000px;
+  height: 700px;
+}
+.t-box.short {
+  width: calc(1000px * var(--ts));
+  height: calc(700px * var(--ts));
+}
+.t-box.short ~ .frame-cap {
+  max-width: calc(1000px * var(--ts));
+}

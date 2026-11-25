@@ -1,39 +1,25 @@
 import { PluginEntries } from "../../plugins/PluginEntries";
-import { usePluginFeatureEntries } from "../../plugins/usePluginFeatureEntries";
+import { useFeatureEntries } from "../../featureEntries/useFeatureEntries";
 import { SettingsPage } from "../SettingsPage";
 import { useAppContext } from "../../../app/AppContext";
 import { definePage, useNavigator } from "../../../router";
-import { useTodoStore } from "../../todo/store/useTodoStore";
 
 function SettingsScreen() {
   const navigator = useNavigator();
   const app = useAppContext();
-  const pluginFeatures = usePluginFeatureEntries();
+  const features = useFeatureEntries();
 
   return (
     <SettingsPage
       pluginEntries={<PluginEntries />}
-      pluginFeatures={pluginFeatures}
+      features={features}
       safeSetting={app.syncSettings.safeSetting}
       databases={app.bootstrap.databases}
       versions={app.bootstrap.versions}
       isSavingSetting={app.syncSettings.isSavingSetting}
       isSyncing={app.syncSettings.isSyncing}
       onOpenModule={module => navigator.push("settingsModule", { module })}
-      onOpenTodo={() => {
-        const databaseName =
-          app.syncSettings.safeSetting?.database?.active ??
-          app.bootstrap.databases?.activeDatabase ??
-          null;
-        void useTodoStore.getState().initialize(databaseName);
-        navigator.push("todo");
-      }}
-      onOpenPomodoro={() => navigator.push("pomodoro")}
       onOpenSearch={() => navigator.push("search")}
-      onOpenArticles={() => navigator.push("articles")}
-      onOpenProjects={() => navigator.push("projects")}
-      onOpenKnowledge={() => navigator.push("knowledge")}
-      onOpenFlashcard={() => navigator.push("flashcardHome")}
       onSwitchDatabase={app.handleSwitchDatabase}
       onSaveSetting={app.handleSaveSetting}
       onCheckVersions={app.handleCheckVersions}

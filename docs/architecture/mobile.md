@@ -226,13 +226,34 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - 横向跟手手势（左边缘返回、tab 根左右滑）共用 `router/swipeCommit.ts` 的松手判定：速度取松手前 100ms 内触点样本估计
   （停顿超 100ms 记 0）；位移 <24px 或反向速度 ≥0.3px/ms 回弹，速度 ≥0.3px/ms 快扫提交，否则按惯性落点
   （位移 + 速度×200ms）过半屏提交
-- 左边缘 28px 跟手返回：仅 slideRight 顶层且无 overlay；
+- 左边缘 28px 跟手返回（中等与宽档从左导航条右缘起算）：仅 slideRight 顶层且无 overlay；
   起手点在 `data-no-edge-back` 标记内（编辑器块把手等自带拖拽的控件）时不跟手；栈顶页有声明 `blockEdgeBack` 的返回消费器
   （`useSheetBackDismiss` 一律声明：页内浮层、块选择、拖拽等打开期间必定消费返回）时也不跟手，否则页面被拖出、松手后弹回。
   条件消费的 `useBackHandler`（未保存确认等）不声明，手势照常跟手。页内多级浏览不要用 `useBackHandler` 消费返回来退级
   （拖出的是整页、露出的是上一页），每级做成同一 page 的独立实例：项目详情 `projectDetail` 按 `projectId:itemId` 身份
   每层一个实例，进入子层 push、面包屑跳祖先用 `popTo(key, params)`（栈内没有该层时 `replace`）
 - 转场编排集中在 `PageHost`，页面组件不写 motion
+
+## 窗口档位与平板布局
+
+- **档位**：只看当前窗口宽度，分紧凑 < 600、中等 600–839、宽 ≥ 840，不看设备型号（iPad 分屏 1/3 比手机还窄）。
+  `router/windowClass.ts` 的 `useWindowClass()` 用 `matchMedia` 订阅，只给壳层与浮层组件用；`AppShell` 把档位写到
+  `<html data-window-class>`。Tailwind 断点 `medium:` / `wide:`（`styles.css` 的 `@theme`）与它同一组值；页面内列数用容器查询或
+  测量自身宽度（卡片库列表 ≥ 640 两列瀑布流），不读档位。转屏、分屏切档只改渲染，栈与草稿不动。
+- **导航**：紧凑档是底部 `AppDock`（只在 Tab 根显示）；中等与宽档换左侧导航条 `AppRail`（80 宽 + 左安全区，所有页面常驻，新建置顶、
+  4 个 Tab 根、分隔线下自选入口、底部搜索）。自选入口就是「我的」功能宫格的顺序（`features/featureEntries/`：内置功能在前、插件入口
+  按启用顺序在后，再按 `useFeatureOrder` 记在本机的用户排序），按剩余高度截取（`components/railFit.ts`：一格 48、格距 10，全放得下就全放，
+  否则最后一格换成「更多」、贴按钮弹出其余入口，连「更多」都放不下就整段收起）；入口打开的页面在栈里时导航条高亮它、Tab 不亮，再点回到该页。两者共用 `components/navTabs.ts`（视觉映射与激活 Tab）和 `components/useQuickCreate.tsx`（新建动作、长按直接说）。
+  Tab 根页面头部的全局搜索按钮在中等与宽档隐藏（由导航条承担），卡片库自己的搜索保留。
+- **屏幕左偏移**：`router/screenInset.ts` 是唯一写入方，`AppRail` 按自身实际宽度写入，同时设 CSS 变量 `--screen-inset-left` 与模块值，
+  卸载时归零。`PageHost` 的页面层从该偏移起铺并带 `contain: layout`，页内 `fixed` 元素（配件栏、块操作条等）以页面层为准，不会盖到导航条上；
+  边缘返回从导航条右缘起算 28px，跟手宽度与 tab 滑切进度都按页面层宽度算。中等与宽档关闭 Tab 根左右滑切换，`--dock-visual-height`
+  只剩底部安全区（`dock-pad` 随之收缩）。
+- **浮层形态**：`BottomSheet` / `ActionSheet` 在中等与宽档变成居中卡片（520 宽，水平居中在页面区域、垂直居中在键盘以上的可见区，
+  淡入缩放，无抓手与下拉关闭，动效与定位在 `components/sheetMotion.ts`）；`PanContainer`（SnapSheet）封顶 640 宽、在页面区域内居中，
+  铺满到顶时保留上圆角。
+- **页面排版**：今天页与卡片库、我的页内容封顶宽度居中；今天页仍是一列、顺序同手机，插件卡片 flex 换行（手机两个一行，容器 ≥ 640 时每格至少 300），
+  wide 面板占整行。我的页功能宫格在中等与宽档一行 8 个（最多两行，超出时最后一格换成「更多」；长按任一格进入编辑、直接拖动排序，松手即存），设置分组各档都是单列，点任一项仍整页进入。
 
 ## 常见陷阱
 
@@ -364,7 +385,8 @@ Android `MainActivity.onWebViewCreate` 将原生 WebView 的滚动位置保持�
 
 - **写入方**：
   - `--mobile-safe-top/bottom` 取 `max(env(safe-area-inset-*), --native-safe-*)`。`--native-safe-*` 由 Android
-    `MainActivity` 按系统栏 + 刘海 insets 注入，兜底不支持 env 安全区的 WebView。
+    `MainActivity` 按系统栏 + 刘海 insets 注入，兜底不支持 env 安全区的 WebView。`--mobile-safe-left` 取
+    `env(safe-area-inset-left)`，只有左导航条消费（横屏刘海在左侧时）。
   - `--kb-height`、`--kb-viewport-top`、`--kb-viewport-height` 只由 `KeyboardViewportProvider` 写入。
     Android 通过 `tau:native-kb-height` 通知键盘高度与键盘上沿相对 WebView 顶部的位置。页面可用高度取布局视口高度和键盘上沿的较小值，兼容系统已经缩短 WebView 的情况。iOS 由 `visualViewport` 推算。
   - 页面与组件不直接读 `env()`。
@@ -552,7 +574,7 @@ Android `MainActivity.onWebViewCreate` 将原生 WebView 的滚动位置保持�
 
 移动端不自带主题，主题、明暗与色值全部来自 `@tau/themes`，与桌面端同一套（机制见 [design-system.md](/docs/architecture/design-system.md) §2.4）：
 
-- **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、边缘渐隐）、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
+- **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、屏幕左偏移、边缘渐隐）与窗口档位断点、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
 - **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式；旧 `tau-mobile-theme` 不读取、不转换，缺少当前偏好时使用共享默认值。
 - **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
 - **背景高亮笔触**：「我的 → 外观 → 背景高亮」（overlay 页 `settings-highlight-style`，`components/HighlightStyleSection.tsx`）选平涂 / 平头荧光笔 / 下半划线 / 干笔颗粒，写 `setting.json` 的 `appearance.highlight.style`（与桌面同构，缺省平涂）；编辑器经 `IHighlightStyle` 订阅设置桥快照（`services/editorRegistry.tsx`），选中即重绘，预览用 `HighlightMark` 的 `variant` 直接绘制。
