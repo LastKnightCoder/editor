@@ -53,7 +53,7 @@ WHERE EXISTS(SELECT 1 FROM document_task_source_contents s WHERE s.content_id=i.
 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=i.content_id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=i.task_id)));
 
 CREATE TRIGGER IF NOT EXISTS dc_document_task_identity_insert AFTER INSERT ON document_task_identities BEGIN
-INSERT INTO data_change_log(domain,entity_id,operation) VALUES('todo',(CASE WHEN instr(NEW.task_id,'@')>0 OR substr(NEW.task_id,1,1)='~' OR instr(NEW.task_id,char(10))>0 OR instr(NEW.task_id,char(13))>0 OR instr(NEW.task_id,char(8232))>0 OR instr(NEW.task_id,char(8233))>0 THEN 'document:v2:'||NEW.content_id||':'||NEW.content_created_at||':'||hex(CAST(NEW.task_id AS BLOB)) ELSE 'document:'||NEW.content_id||':'||NEW.content_created_at||':'||NEW.task_id END),'upsert');
+INSERT INTO data_change_log(domain,entity_id,operation,action) VALUES('todo',(CASE WHEN instr(NEW.task_id,'@')>0 OR substr(NEW.task_id,1,1)='~' OR instr(NEW.task_id,char(10))>0 OR instr(NEW.task_id,char(13))>0 OR instr(NEW.task_id,char(8232))>0 OR instr(NEW.task_id,char(8233))>0 THEN 'document:v2:'||NEW.content_id||':'||NEW.content_created_at||':'||hex(CAST(NEW.task_id AS BLOB)) ELSE 'document:'||NEW.content_id||':'||NEW.content_created_at||':'||NEW.task_id END),'upsert','created');
 DELETE FROM document_task_projection_errors WHERE content_id=NEW.content_id AND part_key='!duplicate/'||NEW.task_id;
 INSERT INTO document_task_projection_errors SELECT NEW.content_id,'!duplicate/'||NEW.task_id,'duplicate task identity'
 WHERE (SELECT COUNT(*) FROM document_task_identities WHERE content_id=NEW.content_id AND content_created_at=NEW.content_created_at AND task_id=NEW.task_id)>1;
@@ -221,7 +221,8 @@ CREATE TRIGGER IF NOT EXISTS dc_task_group_insert AFTER INSERT ON todo_group BEG
 INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE 1=1;
 END;
 
-CREATE TRIGGER IF NOT EXISTS dc_task_group_update AFTER UPDATE ON todo_group BEGIN
+CREATE TRIGGER IF NOT EXISTS dc_task_group_update AFTER UPDATE OF title,is_archived,is_system,system_type,id,create_time ON todo_group
+WHEN OLD.title IS NOT NEW.title OR OLD.is_archived IS NOT NEW.is_archived OR OLD.is_system IS NOT NEW.is_system OR OLD.system_type IS NOT NEW.system_type OR OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time BEGIN
 INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo',(CASE WHEN instr(i.task_id,'@')>0 OR substr(i.task_id,1,1)='~' OR instr(i.task_id,char(10))>0 OR instr(i.task_id,char(13))>0 OR instr(i.task_id,char(8232))>0 OR instr(i.task_id,char(8233))>0 THEN 'document:v2:'||i.content_id||':'||i.content_created_at||':'||hex(CAST(i.task_id AS BLOB)) ELSE 'document:'||i.content_id||':'||i.content_created_at||':'||i.task_id END),CASE WHEN EXISTS(SELECT 1 FROM document_task_visible_identities v WHERE v.id=i.id) THEN 'upsert' ELSE 'delete' END FROM document_task_identities i WHERE 1=1;
 END;
 

@@ -3,13 +3,14 @@
  *
  * 每个主库连接装一组 TEMP 触发器，经自定义函数把卡片、文章、项目文档、白板、项目、Notebook、
  * 材料、对话、插件实体与记录、正文的增删改记到内存，合并后广播 `domain-events`；无论写入来自 IPC、协作投影还是后台模块都能覆盖。触发器在事务内
- * 执行，回滚的写入也可能产生事件——事件只说明「哪一项可能变了」，订阅方重新读取即可。
- * 待办与日程沿用已有的库级通知，只给集合级变化。
+ * 执行并写入事务性的 TEMP 队列，提交后合并广播；回滚自动清掉队列。
+ * 待办、日程与目录按已提交的持久变化日志分页广播对象身份。
  */
 
 import { BrowserWindow } from "electron";
 import log from "electron-log";
 import type Database from "better-sqlite3";
+import DataChangeEventsTable from "./tables/data-change-events";
 import { Module } from "../types/module";
 import databaseModule from "./database";
 import { onDatabaseChangeBroadcast } from "./database-notifications";
@@ -32,6 +33,7 @@ type Entity =
 type Action = "created" | "updated" | "deleted";
 
 const FUNCTION_NAME = "tau_domain_change";
+const QUEUE_TABLE = "tau_domain_event_queue";
 const DEBOUNCE_MS = 500;
 const MAX_WAIT_MS = 2000;
 
@@ -89,9 +91,6 @@ function rowTriggers(spec: RowTriggers): string {
  * 按删除处理，重装恢复时按新建处理。
  */
 const TRIGGERS_SQL = [
-  `CREATE TEMP TRIGGER IF NOT EXISTS tau_de_data_changes AFTER INSERT ON main.data_change_log
-   WHEN NEW.domain IN ('todo','todo-list','event','calendar')
-   BEGIN SELECT ${FUNCTION_NAME}('schedule-domain', NEW.domain, 'updated'); END;`,
   rowTriggers({ name: "cards", table: "cards", entity: "card" }),
   rowTriggers({
     name: "articles",
@@ -186,14 +185,15 @@ CREATE TEMP TRIGGER IF NOT EXISTS tau_de_contents_upd AFTER UPDATE OF content ON
 CREATE TEMP TRIGGER IF NOT EXISTS tau_de_content_blocks_upd AFTER UPDATE OF update_time ON main.contents
   WHEN NEW.content IS NULL
   BEGIN SELECT ${FUNCTION_NAME}('content', NEW.id, 'updated'); END;`,
-].join("\n");
+]
+  .join("\n")
+  .replaceAll(
+    `SELECT ${FUNCTION_NAME}(`,
+    `INSERT INTO ${QUEUE_TABLE}(payload) SELECT ${FUNCTION_NAME}(`
+  );
 
-/** 已有的库级通知 → 集合级事件 */
-const COLLECTION_CHANNELS: Record<string, DomainEventRecord["type"][]> = {
-  "schedule:changed": ["todos.changed", "calendar.changed"],
-  "task-assistant:changed": ["todos.changed", "calendar.changed"],
-  "doc-tasks:changed": ["todos.changed"],
-};
+/** 内部通知仅唤醒已提交日志，不制造对象或第二种公开事件。 */
+const WAKE_CHANNELS = new Set(["schedule:changed", "task-assistant:changed", "doc-tasks:changed"]);
 
 interface Change {
   entity: Entity;
@@ -205,20 +205,22 @@ interface Change {
   kind?: string;
 }
 
+const changeKey = (entity: string, id: number | string, owner?: string) =>
+  JSON.stringify([entity, id, owner ?? null]);
+
 interface Pending {
   entities: Map<string, Change>;
   /** 正文 ID → 写入它的插件（没有为 undefined） */
   contents: Map<number, string | undefined>;
-  collections: Set<DomainEventRecord["type"]>;
   reset: boolean;
   since: number;
   timer?: NodeJS.Timeout;
 }
 
-/** 同一项在一个窗口内的多次变化合并：先建后删即无事发生，先建后改仍是新建 */
+/** 同一项在一个窗口内的多次变化合并：先建后删保留删除身份，先建后改仍是新建 */
 function merge(previous: Action | undefined, next: Action): Action | null {
   if (!previous) return next;
-  if (previous === "created") return next === "deleted" ? null : "created";
+  if (previous === "created") return next === "deleted" ? "deleted" : "created";
   if (previous === "deleted") return next === "created" ? "updated" : "deleted";
   return next === "deleted" ? "deleted" : "updated";
 }
@@ -227,6 +229,8 @@ class DomainEventsModule implements Module {
   name = "domain-events";
   private readonly pending = new Map<string, Pending>();
   private readonly installed = new WeakSet<Database.Database>();
+  private readonly objectCursors = new Map<string, { db: Database.Database; after: number }>();
+  private poll?: ReturnType<typeof setInterval>;
 
   async init() {
     databaseModule.onDatabaseConnected((dbName, reason) => {
@@ -237,9 +241,26 @@ class DomainEventsModule implements Module {
         this.queue(dbName).reset = true;
     });
     onDatabaseChangeBroadcast((channel, dbName) => {
-      const types = COLLECTION_CHANNELS[channel];
-      if (types) for (const type of types) this.queue(dbName).collections.add(type);
+      if (WAKE_CHANNELS.has(channel)) this.queue(dbName);
     });
+    if (!this.poll) {
+      this.poll = setInterval(() => {
+        for (const [name, state] of this.objectCursors) {
+          const db = databaseModule.getDatabase(name);
+          if (!db?.open || db !== state.db) {
+            this.objectCursors.delete(name);
+            continue;
+          }
+          if (db.inTransaction) continue;
+          try {
+            if (DataChangeEventsTable.head(db) !== state.after) this.queue(name);
+          } catch (error) {
+            log.warn("[domain-events] 读取对象事件水位失败", error);
+          }
+        }
+      }, 2000);
+      this.poll.unref?.();
+    }
   }
 
   private install(dbName: string) {
@@ -251,15 +272,30 @@ class DomainEventsModule implements Module {
         { deterministic: false, varargs: true },
         (entity, id, action, owner, kind) => {
           const key = typeof id === "bigint" ? Number(id) : id;
-          if (typeof key === "number" || typeof key === "string")
-            this.record(dbName, String(entity), key, action as Action | null, {
-              ...(typeof owner === "string" ? { owner } : {}),
-              ...(typeof kind === "string" ? { kind } : {}),
-            });
-          return null;
+          this.queue(dbName);
+          if (entity === "schedule-domain") return null;
+          return JSON.stringify({
+            entity: String(entity),
+            id: key,
+            action,
+            pluginId:
+              currentPluginOrigin() ??
+              (entity === "content" && typeof key === "number"
+                ? contentOrigin(dbName, key)
+                : undefined),
+            ...(typeof owner === "string" ? { owner } : {}),
+            ...(typeof kind === "string" ? { kind } : {}),
+          });
         }
       );
+      db.exec(
+        `CREATE TEMP TABLE IF NOT EXISTS ${QUEUE_TABLE}(seq INTEGER PRIMARY KEY,payload TEXT NOT NULL)`
+      );
+      db.exec(`CREATE TEMP TRIGGER IF NOT EXISTS tau_de_data_changes AFTER INSERT ON main.data_change_log
+   WHEN NEW.domain IN ('todo','todo-list','event','calendar')
+   BEGIN SELECT ${FUNCTION_NAME}('schedule-domain', NEW.domain, 'updated'); END;`);
       db.exec(TRIGGERS_SQL);
+      this.objectCursors.set(dbName, { db, after: DataChangeEventsTable.head(db) });
       this.installed.add(db);
     } catch (error) {
       log.error(`[domain-events] 安装触发器失败: db=${dbName}`, error);
@@ -267,27 +303,19 @@ class DomainEventsModule implements Module {
   }
 
   private record(
-    dbName: string,
+    pending: Pending,
     entity: string,
     id: number | string,
     action: Action | null,
-    owned: Pick<Change, "owner" | "kind">
+    owned: Pick<Change, "owner" | "kind" | "pluginId">
   ) {
     if (!action) return;
-    const pending = this.queue(dbName);
     // 同一项在窗口内被多方修改时，以最后一次写入的来源为准
     if (entity === "content") {
-      if (typeof id === "number")
-        pending.contents.set(id, currentPluginOrigin() ?? contentOrigin(dbName, id));
+      if (typeof id === "number") pending.contents.set(id, owned.pluginId);
       return;
     }
-    if (entity === "schedule-domain") {
-      pending.collections.add(
-        id === "todo" || id === "todo-list" ? "todos.changed" : "calendar.changed"
-      );
-      return;
-    }
-    const key = `${entity}:${id}`;
+    const key = changeKey(entity, id, owned.owner);
     const previous = pending.entities.get(key);
     const merged = merge(previous?.action, action);
     if (merged)
@@ -295,7 +323,7 @@ class DomainEventsModule implements Module {
         entity: entity as Entity,
         id,
         action: merged,
-        pluginId: currentPluginOrigin(),
+        pluginId: owned.pluginId,
         owner: owned.owner ?? previous?.owner,
         kind: owned.kind ?? previous?.kind,
       });
@@ -304,9 +332,6 @@ class DomainEventsModule implements Module {
 
   /** 正文修改计入所属实体的 updated；孤儿插件实体与日记不发事件 */
   private locateContents(db: Database.Database, pending: Pending) {
-    for (const contentId of pending.contents.keys())
-      if (db.prepare("SELECT 1 FROM calendar_event WHERE detail_content_id=?").get(contentId))
-        pending.collections.add("calendar.changed");
     const ownerOf = db.prepare(
       "SELECT plugin_id AS owner, kind FROM plugin_entities WHERE id = ? AND orphaned_time IS NULL"
     );
@@ -319,7 +344,7 @@ class DomainEventsModule implements Module {
           const owned = ownerOf.get(ref.id) as { owner: string; kind: string } | undefined;
           if (owned) change = { entity: "entity", ...owned };
         }
-        const key = change && `${change.entity}:${ref.id}`;
+        const key = change && changeKey(change.entity, ref.id, change.owner);
         if (change && key && !pending.entities.has(key))
           pending.entities.set(key, {
             ...change,
@@ -336,7 +361,6 @@ class DomainEventsModule implements Module {
       pending = {
         entities: new Map(),
         contents: new Map(),
-        collections: new Set(),
         reset: false,
         since: Date.now(),
       };
@@ -351,32 +375,85 @@ class DomainEventsModule implements Module {
 
   private flush(dbName: string, pending: Pending) {
     if (this.pending.get(dbName) !== pending) return;
-    this.pending.delete(dbName);
-    const at = Date.now();
-    const events: DomainEventRecord[] = [];
-    if (pending.reset) events.push({ type: "workspace.reset", at });
-    else {
-      const db = databaseModule.getDatabase(dbName);
-      if (db && pending.contents.size) this.locateContents(db, pending);
-      for (const { entity, id, action, pluginId, owner, kind } of pending.entities.values())
-        events.push({
-          type: `${entity}.${action}`,
-          id,
-          at,
-          ...(pluginId ? { pluginId } : {}),
-          ...(owner ? { owner } : {}),
-          ...(kind ? (entity === "record" ? { collection: kind } : { kind }) : {}),
-        });
-      for (const type of pending.collections) events.push({ type, at });
+    const db = databaseModule.getDatabase(dbName);
+    if (!db?.open) {
+      this.pending.delete(dbName);
+      return;
     }
-    if (!events.length) return;
-    const message: DomainEventMessage = { databaseName: dbName, events };
-    for (const window of BrowserWindow.getAllWindows()) {
-      try {
-        if (!window.isDestroyed()) window.webContents.send("domain-events", message);
-      } catch (error) {
-        log.warn("[domain-events] 广播失败", error);
+    if (db.inTransaction) {
+      pending.timer = setTimeout(() => this.flush(dbName, pending), 50);
+      return;
+    }
+    try {
+      const at = Date.now();
+      const events: DomainEventRecord[] = [];
+      let more = false;
+      if (pending.reset) {
+        db.prepare(`DELETE FROM ${QUEUE_TABLE}`).run();
+        this.objectCursors.set(dbName, { db, after: DataChangeEventsTable.head(db) });
+        events.push({ type: "workspace.reset", at });
+      } else {
+        const rows = db.transaction(() => {
+          const rows = db
+            .prepare(`SELECT seq,payload FROM ${QUEUE_TABLE} ORDER BY seq LIMIT 500`)
+            .all() as { seq: number; payload: string }[];
+          if (rows.length)
+            db.prepare(`DELETE FROM ${QUEUE_TABLE} WHERE seq<=?`).run(rows[rows.length - 1].seq);
+          return rows;
+        })();
+        more = rows.length === 500;
+        for (const row of rows) {
+          const item = JSON.parse(row.payload) as {
+            entity: string;
+            id: number | string;
+            action: Action | null;
+            pluginId?: string;
+            owner?: string;
+            kind?: string;
+          };
+          if (typeof item.id === "string" || typeof item.id === "number")
+            this.record(pending, item.entity, item.id, item.action, item);
+        }
+        if (pending.contents.size) this.locateContents(db, pending);
+        for (const { entity, id, action, pluginId, owner, kind } of pending.entities.values())
+          events.push({
+            type: `${entity}.${action}`,
+            id,
+            at,
+            ...(pluginId ? { pluginId } : {}),
+            ...(owner ? { owner } : {}),
+            ...(kind ? (entity === "record" ? { collection: kind } : { kind }) : {}),
+          });
+        const state = this.objectCursors.get(dbName);
+        if (state?.db === db) {
+          const page = DataChangeEventsTable.read(db, state.after, at);
+          state.after = page.cursor;
+          if (page.reset) {
+            events.length = 0;
+            events.push({ type: "workspace.reset", at });
+          } else events.push(...page.events);
+          more ||= page.hasMore;
+        }
       }
+      this.pending.delete(dbName);
+      if (more) {
+        const next = this.queue(dbName);
+        if (next.timer) clearTimeout(next.timer);
+        next.timer = setTimeout(() => this.flush(dbName, next), 0);
+      }
+      if (!events.length) return;
+      const message: DomainEventMessage = { databaseName: dbName, events };
+      for (const window of BrowserWindow.getAllWindows()) {
+        try {
+          if (!window.isDestroyed()) window.webContents.send("domain-events", message);
+        } catch (error) {
+          log.warn("[domain-events] 广播失败", error);
+        }
+      }
+    } catch (error) {
+      log.warn("[domain-events] 提交事件读取失败", error);
+      pending.reset = true;
+      pending.timer = setTimeout(() => this.flush(dbName, pending), 500);
     }
   }
 }

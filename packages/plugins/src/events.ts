@@ -4,7 +4,7 @@ import type { PluginPermission } from "./permissions";
 /**
  * 业务数据变更事件。事件只说明「哪一项变了」，不携带数据：需要时用 context.data 重新读取。
  * 正文修改计入所属卡片、文章、项目文档或插件实体的 updated；Notebook 资料的增删改计入所属
- * Notebook 的 updated；待办与日程只给出集合级变化。entity.* 与 record.* 是本插件实体
+ * Notebook 的 updated；待办、日程和目录使用相同的对象动作事件。entity.* 与 record.* 是本插件实体
  * （context.entities）与记录（context.records）的变化，只发给拥有它的插件。
  */
 export const PLUGIN_EVENT_TYPES = [
@@ -38,29 +38,40 @@ export const PLUGIN_EVENT_TYPES = [
   "record.created",
   "record.updated",
   "record.deleted",
-  "todos.changed",
-  "calendar.changed",
+  "todo.created",
+  "todo.updated",
+  "todo.deleted",
+  "event.created",
+  "event.updated",
+  "event.deleted",
+  "todo-list.created",
+  "todo-list.updated",
+  "todo-list.deleted",
+  "calendar.created",
+  "calendar.updated",
+  "calendar.deleted",
   "workspace.reset",
 ] as const;
 
 export type PluginEventType = (typeof PLUGIN_EVENT_TYPES)[number];
 
-/** 变化来自哪里：插件经 context.data / context.content 写入时为 plugin，其余（用户、同步、AI 等）为 app */
+/** 能识别插件写入方时提供 pluginId；app 也包含不能细分写入方的通知。 */
 export type PluginEventOrigin = { kind: "plugin"; pluginId: string } | { kind: "app" };
 
-export interface PluginDomainEvent {
-  type: PluginEventType;
-  /** 实体事件给出与 context.data / context.entities 相同的 ID；集合级事件没有 */
-  id?: string;
-  /** entity.* 事件给出实体类型（registerKind 声明的 kind）；删除后读不到实体时据此区分 */
+interface PluginEventFields {
   kind?: string;
-  /** record.* 事件给出记录所在的集合 */
   collection?: string;
-  /** 宿主发出事件的时间（毫秒） */
+  /** 宿主送出通知的时间（毫秒），不是业务版本。 */
   at: number;
-  /** 用来忽略自己写入引起的事件；待办与日程的集合级事件恒为 app */
+  /** 待办、日程、目录事件不提供精确写入方，固定为 app。 */
   origin: PluginEventOrigin;
 }
+
+export type PluginEvent<T extends PluginEventType = PluginEventType> = T extends "workspace.reset"
+  ? PluginEventFields & { type: T; id?: never }
+  : PluginEventFields & { type: T; id: string };
+
+export type PluginDomainEvent = PluginEvent;
 
 /** 接收事件需要对应数据的读取权限；未获准时事件不送达，也不会弹窗询问 */
 export const PLUGIN_EVENT_PERMISSIONS: Record<PluginEventType, PluginPermission | null> = {
@@ -95,18 +106,29 @@ export const PLUGIN_EVENT_PERMISSIONS: Record<PluginEventType, PluginPermission 
   "record.created": null,
   "record.updated": null,
   "record.deleted": null,
-  "todos.changed": "todos:read",
-  "calendar.changed": "calendar:read",
+  "todo.created": "todos:read",
+  "todo.updated": "todos:read",
+  "todo.deleted": "todos:read",
+  "event.created": "calendar:read",
+  "event.updated": "calendar:read",
+  "event.deleted": "calendar:read",
+  "todo-list.created": "todos:read",
+  "todo-list.updated": "todos:read",
+  "todo-list.deleted": "todos:read",
+  "calendar.created": "calendar:read",
+  "calendar.updated": "calendar:read",
+  "calendar.deleted": "calendar:read",
   // 同步下载替换了整个库：插件应全量刷新
   "workspace.reset": null,
 };
 
 export const isPluginEventType = (value: unknown): value is PluginEventType =>
-  typeof value === "string" && value in PLUGIN_EVENT_PERMISSIONS;
+  typeof value === "string" && Object.hasOwn(PLUGIN_EVENT_PERMISSIONS, value);
 
 export interface PluginEvents {
-  on(
-    types: PluginEventType | readonly PluginEventType[],
-    listener: (event: PluginDomainEvent) => void
+  /** 同一订阅按序处理；异步回调等待完成，返回值不作为结果。 */
+  on<T extends PluginEventType>(
+    types: T | readonly T[],
+    listener: (event: PluginEvent<T>) => void
   ): Disposable;
 }

@@ -293,3 +293,38 @@ it("恢复回执已中止时不得报告恢复成功", async () => {
     data.dispose();
   }
 });
+
+it("目录写入经过动态授权且保留工作区令牌与条件版本，冲突及结束会话明确拒绝", async () => {
+  const changed = vi.fn();
+  const check = vi.fn(async (): Promise<void> => {
+    throw new Error("denied");
+  });
+  const data = createMobileData("one.db", "session-one", changed, check);
+  const write = {
+    entity: "calendar" as const,
+    action: "update" as const,
+    id: "1",
+    patch: { title: "新日历" },
+    expectedRevision: "old",
+  };
+  await expect(data.directoryWrites!.write(context(), write)).rejects.toThrow("denied");
+  expect(invoke).not.toHaveBeenCalled();
+  check.mockImplementation(async () => undefined);
+  vi.mocked(invoke).mockRejectedValue("PLUGIN_CONFLICT:目录已变化");
+  await expect(data.directoryWrites!.write(context(), write)).rejects.toMatchObject({
+    name: "PluginConflictError",
+  });
+  expect(invoke).toHaveBeenLastCalledWith(
+    "plugin_tasks_write",
+    expect.objectContaining({
+      token: "session-one",
+      database: "one.db",
+      pluginId: "test.tasks",
+      request: { method: "directory", write },
+    })
+  );
+  data.dispose();
+  vi.mocked(invoke).mockReset();
+  await expect(data.directoryWrites!.write(context(), write)).rejects.toThrow(/会话/);
+  expect(invoke).not.toHaveBeenCalled();
+});

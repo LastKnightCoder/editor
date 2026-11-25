@@ -349,6 +349,17 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
     return saved;
   };
   const adapter: DesktopDataAdapter = {
+    directoryWrites: {
+      write: (context, write) =>
+        mapConflict(() =>
+          bound(context).taskAssistantRequest(
+            "data-directory:write",
+            [context.pluginId, write],
+            databaseName,
+            context.signal
+          )
+        ),
+    },
     todoRecurrence: {
       write: writeRecurrence,
       states: async (context, query) => {

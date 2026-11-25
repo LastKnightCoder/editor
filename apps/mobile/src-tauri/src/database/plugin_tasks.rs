@@ -1384,7 +1384,9 @@ pub async fn plugin_tasks_write(
             return Err("插件工作区已失效".into());
         }
         let before = super::plugin_data::last_operation(&conn)?;
-        let result = if request["method"] == "restore-stage" {
+        let result = if request["method"] == "directory" {
+            super::plugin_directories::write(&mut conn, &plugin_id, &request["write"])
+        } else if request["method"] == "restore-stage" {
             super::plugin_document_tasks::stage_restore(&mut conn, &plugin_id, &request)
         } else if request["method"] == "cancel-shared" {
             super::plugin_document_tasks::cancel_shared(

@@ -257,3 +257,100 @@ describe("主库当前基线", () => {
     expect(schema()).toEqual(before);
   });
 });
+
+const oldReceiptsSql = `CREATE TABLE plugin_create_receipts (
+ plugin_id TEXT NOT NULL,request_id TEXT NOT NULL,input_hash TEXT NOT NULL,
+ entity TEXT NOT NULL CHECK(entity IN ('todo','event')),entity_id INTEGER NOT NULL,created_at INTEGER NOT NULL,
+ operation_id TEXT NOT NULL,retired INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(plugin_id,request_id)
+) WITHOUT ROWID;
+INSERT INTO plugin_create_receipts VALUES('p','a','h','todo',7,1,'op-a',0),('p','b','h','event',8,2,'op-b',1);`;
+it("旧创建回执约束升级保留全部回执及退役状态，目录删除可永久退役请求", () => {
+  db.exec(oldReceiptsSql);
+  const before = db.prepare("SELECT * FROM plugin_create_receipts ORDER BY request_id").all();
+  ensureMainSchema(db);
+  expect(db.prepare("SELECT * FROM plugin_create_receipts ORDER BY request_id").all()).toEqual(
+    before
+  );
+  db.exec(
+    "INSERT INTO todo_group(id,title,create_time,update_time) VALUES(7,'目录',1,1);INSERT INTO plugin_create_receipts VALUES('p','c','h','todo-list',7,1,'op-c',0);DELETE FROM todo_group WHERE id=7"
+  );
+  expect(
+    db.prepare("SELECT retired FROM plugin_create_receipts WHERE request_id='c'").get()
+  ).toEqual({ retired: 1 });
+  ensureMainSchema(db);
+  expect(
+    db
+      .prepare(
+        "SELECT * FROM plugin_create_receipts WHERE request_id IN ('a','b') ORDER BY request_id"
+      )
+      .all()
+  ).toEqual(before);
+});
+it("回执升级后续初始化失败会恢复原约束与原数据", () => {
+  db.exec(oldReceiptsSql);
+  db.exec(
+    "CREATE TABLE data_change_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,domain TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL);INSERT INTO data_change_log VALUES(900,'calendar','9','upsert')"
+  );
+  const before = db.prepare("SELECT * FROM plugin_create_receipts ORDER BY request_id").all();
+  db.exec(
+    "CREATE TABLE schema_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL CHECK(key<>'main_schema_version' OR value='14'),updated_at INTEGER)"
+  );
+  expect(() => ensureMainSchema(db)).toThrow();
+  expect(db.prepare("SELECT * FROM plugin_create_receipts ORDER BY request_id").all()).toEqual(
+    before
+  );
+  expect(() =>
+    db.exec("INSERT INTO plugin_create_receipts VALUES('p','c','h','calendar',1,1,'op',0)")
+  ).toThrow(/CHECK/);
+  expect(
+    db.prepare("SELECT name FROM sqlite_master WHERE name='plugin_create_receipts_upgrade'").all()
+  ).toEqual([]);
+  expect(db.prepare("SELECT * FROM data_change_log").get()).toEqual({
+    seq: 900,
+    domain: "calendar",
+    entity_id: "9",
+    operation: "upsert",
+  });
+  expect(
+    (db.pragma("table_info(data_change_log)") as { name: string }[]).some(
+      column => column.name === "action"
+    )
+  ).toBe(false);
+});
+
+it("对象事件升级保留旧日志和自增序号，历史动作保持未知且新写入正确分类", () => {
+  db.exec(
+    "CREATE TABLE data_change_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,domain TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN ('upsert','delete')));INSERT INTO data_change_log(seq,domain,entity_id,operation) VALUES(900,'calendar','9','upsert');"
+  );
+  ensureMainSchema(db);
+  expect(db.prepare("SELECT * FROM data_change_log").get()).toEqual({
+    seq: 900,
+    domain: "calendar",
+    entity_id: "9",
+    operation: "upsert",
+    action: null,
+  });
+  db.exec(
+    "INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(1,'新日历','blue',1,1)"
+  );
+  expect(db.prepare("SELECT seq,action FROM data_change_log WHERE entity_id='1'").get()).toEqual({
+    seq: 901,
+    action: "created",
+  });
+  ensureMainSchema(db);
+  expect(db.prepare("SELECT COUNT(*) AS n FROM data_change_log").get()).toEqual({ n: 2 });
+});
+
+it("升级替换既有捕获触发器，不把新建误报成修改", () => {
+  db.exec(currentSchema);
+  db.exec(
+    "DROP TRIGGER dc_calendar_insert;CREATE TRIGGER dc_calendar_insert AFTER INSERT ON calendar BEGIN INSERT INTO data_change_log(domain,entity_id,operation) VALUES('calendar',CAST(NEW.id AS TEXT),'upsert'); END;"
+  );
+  ensureMainSchema(db);
+  db.exec(
+    "INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(1,'新日历','blue',1,1)"
+  );
+  expect(
+    db.prepare("SELECT action FROM data_change_log WHERE domain='calendar' AND entity_id='1'").get()
+  ).toEqual({ action: "created" });
+});

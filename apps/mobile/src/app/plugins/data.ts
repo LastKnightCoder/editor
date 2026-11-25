@@ -448,6 +448,7 @@ export function createMobileData(
       return { revision: saved.document.revision };
     },
     todoRecurrence: tasks.todoRecurrence,
+    directoryWrites: tasks.directoryWrites,
     readChanges: tasks.readChanges,
     schedule: tasks.schedule,
     todos: tasks.todos,

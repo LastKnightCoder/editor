@@ -9,14 +9,7 @@ import { fail } from "./common";
 import { readIndependentTask } from "./independent";
 import { readCalendarEvent } from "./calendar";
 
-interface Receipt {
-  input_hash: string;
-  entity: string;
-  entity_id: number;
-  created_at: number;
-  operation_id: string;
-  retired: number;
-}
+import PluginCreateReceiptTable from "../tables/plugin-create-receipts";
 
 export function replayPluginCreate(
   db: Database.Database,
@@ -24,16 +17,11 @@ export function replayPluginCreate(
   requestId: string,
   hash: string
 ): TaskOperationResult | null {
-  const receipt = db
-    .prepare("SELECT * FROM plugin_create_receipts WHERE plugin_id=? AND request_id=?")
-    .get(pluginId, requestId) as Receipt | undefined;
+  const receipt = PluginCreateReceiptTable.read(db, pluginId, requestId);
   if (!receipt) return null;
-  if (receipt.input_hash !== hash) fail("IDEMPOTENCY_CONFLICT", "同一创建请求 ID 不能更换参数");
-  const table = receipt.entity === "todo" ? "todo_item" : "calendar_event";
-  const exists = db
-    .prepare(`SELECT 1 FROM ${table} WHERE id=? AND create_time=?`)
-    .get(receipt.entity_id, receipt.created_at);
-  if (receipt.retired || !exists)
+  if (receipt.input_hash !== hash || !["todo", "event"].includes(receipt.entity))
+    fail("IDEMPOTENCY_CONFLICT", "同一创建请求 ID 不能更换参数或类型");
+  if (!PluginCreateReceiptTable.exists(db, receipt))
     fail("REQUEST_TARGET_GONE", "原创建结果已删除或撤销，请使用新的创建请求 ID");
   const result =
     receipt.entity === "todo"
@@ -69,7 +57,11 @@ export function savePluginCreate(
     id = created.eventId;
     createdAt = created.createdAt;
   } else return;
-  db.prepare(
-    "INSERT INTO plugin_create_receipts(plugin_id,request_id,input_hash,entity,entity_id,created_at,operation_id) VALUES(?,?,?,?,?,?,?)"
-  ).run(pluginId, requestId, hash, entity, id, createdAt, operationId);
+  PluginCreateReceiptTable.save(db, pluginId, requestId, {
+    input_hash: hash,
+    entity: entity as "todo" | "event",
+    entity_id: id,
+    created_at: createdAt,
+    operation_id: operationId,
+  });
 }

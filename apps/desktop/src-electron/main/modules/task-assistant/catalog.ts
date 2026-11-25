@@ -30,12 +30,15 @@ function toDirectory(
   const result = {
     id: String(item.id),
     title: item.title,
+    color: item.color ?? null,
+    editable: item.editable,
+    ...(!item.editable ? { editReadonlyReason: "系统目录不可编辑" } : {}),
     archived,
     writable: item.writable,
     ...(!item.writable ? { readonlyReason: archived ? "已归档" : "系统日历不可写" } : {}),
     ...("visible" in item ? { color: item.color, visible: item.visible } : {}),
   };
-  return { ...result, revision: revision(result) };
+  return { ...result, revision: revision({ ...result, createdAt: item.createTime }) };
 }
 
 export function queryDirectories(

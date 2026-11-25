@@ -1,21 +1,6 @@
-export type ProjectColorName =
-  | "berry-red"
-  | "red"
-  | "orange"
-  | "yellow"
-  | "olive-green"
-  | "green"
-  | "mint-green"
-  | "teal"
-  | "sky-blue"
-  | "light-blue"
-  | "blue"
-  | "grape-purple"
-  | "violet"
-  | "light-orange"
-  | "charcoal"
-  | "gray"
-  | "gray-brown";
+import type { DirectoryColor } from "@tau/shared/task-assistant";
+
+export type ProjectColorName = DirectoryColor;
 
 export interface ProjectColor {
   name: ProjectColorName;

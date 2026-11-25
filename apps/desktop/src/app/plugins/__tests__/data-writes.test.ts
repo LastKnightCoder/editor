@@ -42,6 +42,42 @@ describe("插件写入适配", () => {
     }));
   });
 
+  it("目录版本冲突可识别，目录请求固定绑定插件和资料库，停用后不发起写入", async () => {
+    const adapter = createDesktopData(DATABASE);
+    electron.invoke.mockRejectedValue(new Error("PLUGIN_CONFLICT:目录已变化"));
+    await expect(
+      adapter.directoryWrites!.write(context, {
+        entity: "calendar",
+        action: "update",
+        id: "1",
+        patch: { title: "新名" },
+        expectedRevision: "old",
+      })
+    ).rejects.toBeInstanceOf(PluginConflictError);
+    expect(electron.invoke.mock.calls[0]).toEqual([
+      "data-directory:write",
+      "weekly",
+      {
+        entity: "calendar",
+        action: "update",
+        id: "1",
+        patch: { title: "新名" },
+        expectedRevision: "old",
+      },
+      { databaseName: DATABASE },
+    ]);
+    electron.invoke.mockReset();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      adapter.directoryWrites!.write(
+        { ...context, signal: controller.signal },
+        { entity: "todo-list", action: "create", input: { title: "项目" }, requestId: "stable" }
+      )
+    ).rejects.toThrow();
+    expect(electron.invoke).not.toHaveBeenCalled();
+  });
+
   it("待办：解析 ID，先预检再写入，记录发起插件", async () => {
     electron.invoke.mockImplementation(async (channel: string, ...args: unknown[]) => {
       if (channel === "task-assistant:preflight") return args[1];

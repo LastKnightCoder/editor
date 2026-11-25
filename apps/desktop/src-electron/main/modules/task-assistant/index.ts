@@ -1,3 +1,6 @@
+import { writePluginDirectory } from "../plugin-directories";
+import type { DirectoryWrite } from "@tau/plugins/host";
+import { writeAsPlugin } from "../domain-event-origin";
 import {
   readTaskInstance,
   queryOccurrenceStates,
@@ -67,6 +70,19 @@ class TaskAssistantModule {
       if (readTask(db, ref).revision !== planned.task.revision)
         fail("VERSION_CONFLICT", "实例状态已变化，请重新读取");
     };
+    ipcMain.handle(
+      "data-directory:write",
+      (event, pluginId: string, write: DirectoryWrite, scope: { databaseName?: string }) => {
+        const bound = this.bind(event.sender, scope);
+        bound.check();
+        const result = writeAsPlugin(pluginId, () =>
+          writePluginDirectory(bound.db, pluginId, write)
+        );
+        bound.check();
+        notify(bound.databaseName);
+        return result;
+      }
+    );
     ipcMain.handle(
       "data-changes:read",
       async (

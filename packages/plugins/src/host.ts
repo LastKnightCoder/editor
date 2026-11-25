@@ -1,4 +1,12 @@
 import {
+  readDirectoryFields,
+  type DirectoryEntity,
+  type TodoListInput,
+  type TodoListPatch,
+  type CalendarDirectoryInput,
+  type CalendarDirectoryPatch,
+} from "@tau/shared/task-assistant";
+import {
   readTodoRule,
   readTodoReminders,
   readRecurrenceChange,
@@ -182,6 +190,7 @@ import {
 import {
   PLUGIN_EVENT_PERMISSIONS,
   isPluginEventType,
+  type PluginEvent,
   type PluginDomainEvent,
   type PluginEventType,
 } from "./events";
@@ -325,7 +334,26 @@ export interface ScheduleDataAdapter {
   ): Promise<PluginPage<PluginTodoList | PluginCalendar>>;
 }
 
+export type DirectoryWrite =
+  | {
+      entity: DirectoryEntity;
+      action: "create";
+      input: TodoListInput | CalendarDirectoryInput;
+      requestId?: string;
+      requestHash?: string;
+    }
+  | {
+      entity: DirectoryEntity;
+      action: "update";
+      id: string;
+      patch: TodoListPatch | CalendarDirectoryPatch;
+      expectedRevision: string;
+    };
+
 export interface DataAdapter {
+  directoryWrites?: {
+    write(context: PluginContext, write: DirectoryWrite): Promise<PluginTodoList | PluginCalendar>;
+  };
   todoRecurrence?: {
     write(
       context: PluginContext,
@@ -2874,6 +2902,46 @@ export class PluginHost {
     });
     const directory = (entity: "todo-list" | "calendar") =>
       Object.freeze({
+        create: async (input: unknown, options?: PluginCreateOptions) => {
+          const value = readDirectoryFields(entity, input, true) as
+            | TodoListInput
+            | CalendarDirectoryInput;
+          const requestId =
+            options?.requestId === undefined
+              ? undefined
+              : readText(options.requestId, "requestId", 128);
+          await guard(entity === "todo-list" ? "todos:write" : "calendar:write");
+          const adapter = dataAdapter().directoryWrites;
+          if (!adapter) throw new Error("当前宿主不支持清单与日历目录写入");
+          const requestHash =
+            requestId === undefined ? undefined : await hashCreateInput([entity, value]);
+          this.assertActive(entry, activation);
+          return deliver<never>(
+            await adapter.write(context, {
+              entity,
+              action: "create",
+              input: value,
+              ...(requestId === undefined ? {} : { requestId, requestHash }),
+            })
+          );
+        },
+        update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
+          const value = readDirectoryFields(entity, patch, false);
+          const expectedRevision = readRevision(options);
+          const target = readId(id);
+          await guard(entity === "todo-list" ? "todos:write" : "calendar:write");
+          const adapter = dataAdapter().directoryWrites;
+          if (!adapter) throw new Error("当前宿主不支持清单与日历目录写入");
+          return deliver<never>(
+            await adapter.write(context, {
+              entity,
+              action: "update",
+              id: target,
+              patch: value,
+              expectedRevision,
+            })
+          );
+        },
         get: async (id: string) => {
           await guard(entity === "todo-list" ? "todos:read" : "calendar:read");
           const schedule = dataAdapter().schedule;
@@ -3816,12 +3884,12 @@ export class PluginHost {
   private buildEventsContext(deps: ContextDeps): PluginContext["events"] {
     const { context, entry, activation, register, assertDeclared, permissionsAdapter } = deps;
     return Object.freeze({
-      on: (
-        types: PluginEventType | readonly PluginEventType[],
-        listener: (event: PluginDomainEvent) => void
+      on: <T extends PluginEventType>(
+        types: T | readonly T[],
+        listener: (event: PluginEvent<T>) => void
       ) => {
         this.assertActive(entry, activation);
-        const wanted = new Set(typeof types === "string" ? [types] : types);
+        const wanted = new Set<PluginEventType>(typeof types === "string" ? [types] : types);
         if (!wanted.size || [...wanted].some(type => !isPluginEventType(type)))
           throw new Error("未知的事件类型");
         if (typeof listener !== "function") throw new Error("事件监听必须是函数");
@@ -3837,7 +3905,11 @@ export class PluginHost {
         const subscription = this.options.events.subscribe(context, event => {
           if (!wanted.has(event.type) || activation.controller.signal.aborted) return;
           const permission = PLUGIN_EVENT_PERMISSIONS[event.type];
-          const snapshot = copyJson(event) as unknown as PluginDomainEvent;
+          if (event.type !== "workspace.reset" && (typeof event.id !== "string" || !event.id)) {
+            console.error("插件对象事件缺少有效身份");
+            return;
+          }
+          const snapshot = copyJson(event) as unknown as PluginEvent<T>;
           delivery = delivery
             .then(async () => {
               if (
@@ -3846,7 +3918,7 @@ export class PluginHost {
               )
                 return;
               this.assertActive(entry, activation);
-              listener(snapshot);
+              await listener(snapshot);
             })
             .catch(error => {
               if (!activation.controller.signal.aborted) console.error("插件事件处理失败", error);

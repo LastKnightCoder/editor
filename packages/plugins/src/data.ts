@@ -276,7 +276,25 @@ export interface PluginDirectoryQuery {
   cursor?: string;
 }
 
+export type {
+  DirectoryColor as PluginDirectoryColor,
+  TodoListInput as PluginTodoListInput,
+  TodoListPatch as PluginTodoListPatch,
+  CalendarDirectoryInput as PluginCalendarDirectoryInput,
+  CalendarDirectoryPatch as PluginCalendarDirectoryPatch,
+} from "@tau/shared/task-assistant";
+import type {
+  TodoListInput,
+  TodoListPatch,
+  CalendarDirectoryInput,
+  CalendarDirectoryPatch,
+} from "@tau/shared/task-assistant";
+
 export interface PluginTodoList {
+  /** 旧宿主不提供时表示尚不能判断目录编辑资格。 */
+  editable?: boolean;
+  editReadonlyReason?: string;
+  color?: string | null;
   id: string;
   revision: string;
   title: string;
@@ -475,10 +493,18 @@ export interface PluginData {
   /** AI 对话的信息，不含消息内容；query 不支持 tag */
   readonly chats: PluginEntityReader<PluginChatSession>;
   readonly todoLists: {
+    create(input: TodoListInput, options?: PluginCreateOptions): Promise<PluginTodoList>;
+    update(id: string, patch: TodoListPatch, options: PluginWriteOptions): Promise<PluginTodoList>;
     get(id: string): Promise<PluginTodoList | null>;
     query(query?: PluginDirectoryQuery): Promise<PluginPage<PluginTodoList>>;
   };
   readonly calendars: {
+    create(input: CalendarDirectoryInput, options?: PluginCreateOptions): Promise<PluginCalendar>;
+    update(
+      id: string,
+      patch: CalendarDirectoryPatch,
+      options: PluginWriteOptions
+    ): Promise<PluginCalendar>;
     get(id: string): Promise<PluginCalendar | null>;
     query(query?: PluginDirectoryQuery): Promise<PluginPage<PluginCalendar>>;
   };

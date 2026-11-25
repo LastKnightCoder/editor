@@ -32,8 +32,8 @@ export interface Calendar {
 
 export type CalendarDirectory = Pick<
   Calendar,
-  "id" | "title" | "color" | "archived" | "visible"
-> & { writable: boolean };
+  "id" | "title" | "color" | "archived" | "visible" | "createTime"
+> & { writable: boolean; editable: boolean };
 
 export type CreateCalendar = Omit<
   Calendar,

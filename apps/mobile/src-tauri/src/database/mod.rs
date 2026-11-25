@@ -1,3 +1,4 @@
+mod data_change_events;
 mod data_changes;
 mod document_task_identities;
 mod plugin_task_recurrence;
@@ -44,6 +45,8 @@ pub(crate) mod plugin_own_data;
 mod plugin_own_query;
 mod plugin_records;
 pub use plugin_own_data::*;
+mod plugin_create_receipts;
+mod plugin_directories;
 mod plugin_projects;
 mod plugin_schedule_data;
 mod plugin_task_dates;

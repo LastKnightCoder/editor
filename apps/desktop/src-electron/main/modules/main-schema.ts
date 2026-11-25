@@ -1,3 +1,4 @@
+import { needsReceiptUpgrade, upgradeCreateReceipts } from "./main-plugin-receipts";
 import DocumentTaskIdentitiesTable from "./tables/document-task-identities";
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
@@ -31,6 +32,7 @@ export function ensureMainSchema(db: Database.Database): void {
   db.pragma("foreign_keys = ON");
   if (
     !projectionMissing &&
+    !needsReceiptUpgrade(db) &&
     meta.main_schema_hash === schemaHash &&
     meta.main_schema_version === String(MAIN_SCHEMA_VERSION)
   ) {
@@ -45,6 +47,31 @@ export function ensureMainSchema(db: Database.Database): void {
     db.transaction(() => {
       const foreignKeys = new Set(foreignKeyErrors().map(row => JSON.stringify(row)));
       migrateRowIds(db, independentRowIdTables);
+      upgradeCreateReceipts(db, MAIN_SCHEMA_SQL);
+      const logExists = db
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_change_log'")
+        .get();
+      if (
+        logExists &&
+        !(db.pragma("table_info(data_change_log)") as { name: string }[]).some(
+          column => column.name === "action"
+        )
+      )
+        db.exec(
+          "ALTER TABLE data_change_log ADD COLUMN action TEXT CHECK(action IN ('created','updated','deleted'))"
+        );
+      for (const trigger of [
+        "dc_todo_item_insert",
+        "dc_todo_item_update",
+        "dc_calendar_event_insert",
+        "dc_calendar_event_update",
+        "dc_todo_group_insert",
+        "dc_todo_group_update",
+        "dc_calendar_insert",
+        "dc_calendar_update",
+        "dc_document_task_identity_insert",
+      ])
+        db.exec(`DROP TRIGGER IF EXISTS ${trigger}`);
       db.exec(MAIN_SCHEMA_SQL);
       if (projectionMissing)
         db.prepare(

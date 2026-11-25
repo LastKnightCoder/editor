@@ -266,3 +266,111 @@ fn failed_initialization_does_not_leave_partial_schema_or_version() {
         0
     );
 }
+
+const OLD_PLUGIN_RECEIPTS:&str="CREATE TABLE plugin_create_receipts(plugin_id TEXT NOT NULL,request_id TEXT NOT NULL,input_hash TEXT NOT NULL,entity TEXT NOT NULL CHECK(entity IN ('todo','event')),entity_id INTEGER NOT NULL,created_at INTEGER NOT NULL,operation_id TEXT NOT NULL,retired INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(plugin_id,request_id)) WITHOUT ROWID; INSERT INTO plugin_create_receipts VALUES('p','a','h','todo',7,1,'op-a',0),('p','b','h','event',8,2,'op-b',1);";
+#[test]
+fn directory_receipt_upgrade_preserves_old_rows_and_retirement() {
+    let db = Connection::open_in_memory().unwrap();
+    db.execute_batch(OLD_PLUGIN_RECEIPTS).unwrap();
+    ensure_main_schema(&db).unwrap();
+    let old: Vec<(String, bool)> = db
+        .prepare("SELECT request_id,retired FROM plugin_create_receipts ORDER BY request_id")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(old, vec![("a".into(), false), ("b".into(), true)]);
+    db.execute_batch("INSERT INTO todo_group(id,title,create_time,update_time) VALUES(7,'目录',1,1);INSERT INTO plugin_create_receipts VALUES('p','c','h','todo-list',7,1,'op-c',0);DELETE FROM todo_group WHERE id=7").unwrap();
+    assert!(db
+        .query_row(
+            "SELECT retired FROM plugin_create_receipts WHERE request_id='c'",
+            [],
+            |r| r.get::<_, bool>(0)
+        )
+        .unwrap());
+    ensure_main_schema(&db).unwrap();
+    assert_eq!(
+        db.query_row("SELECT COUNT(*) FROM plugin_create_receipts", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
+}
+#[test]
+fn directory_receipt_upgrade_failure_restores_old_constraint_and_rows() {
+    let db = Connection::open_in_memory().unwrap();
+    db.execute_batch(OLD_PLUGIN_RECEIPTS).unwrap();
+    db.execute_batch("CREATE TABLE data_change_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,domain TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL);INSERT INTO data_change_log VALUES(900,'calendar','9','upsert')").unwrap();
+    db.execute_batch("CREATE TABLE schema_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL CHECK(key<>'main_schema_version' OR value='14'),updated_at INTEGER)").unwrap();
+    assert!(ensure_main_schema(&db).is_err());
+    assert_eq!(
+        db.query_row("SELECT COUNT(*) FROM plugin_create_receipts", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    assert!(db
+        .execute(
+            "INSERT INTO plugin_create_receipts VALUES('p','c','h','calendar',1,1,'op',0)",
+            []
+        )
+        .is_err());
+    assert!(needs_receipt_upgrade(&db).unwrap());
+    assert!(db.prepare("SELECT action FROM data_change_log").is_err());
+    assert_eq!(
+        db.query_row("SELECT seq FROM data_change_log", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        900
+    );
+}
+
+#[test]
+fn object_notification_upgrade_preserves_log_rows_and_sequence() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch("CREATE TABLE data_change_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,domain TEXT NOT NULL,entity_id TEXT NOT NULL,operation TEXT NOT NULL CHECK(operation IN ('upsert','delete')));INSERT INTO data_change_log VALUES(900,'calendar','9','upsert')").unwrap();
+    ensure_main_schema(&conn).unwrap();
+    let old: (i64, String, Option<String>) = conn
+        .query_row(
+            "SELECT seq,operation,action FROM data_change_log WHERE seq=900",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(old, (900, "upsert".into(), None));
+    conn.execute_batch("INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(1,'新日历','blue',1,1)").unwrap();
+    let row: (i64, String) = conn
+        .query_row(
+            "SELECT seq,action FROM data_change_log WHERE entity_id='1'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(row, (901, "created".into()));
+    ensure_main_schema(&conn).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM data_change_log", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+}
+
+#[test]
+fn existing_capture_triggers_upgrade_to_exact_object_actions() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(MAIN_SCHEMA_SQL).unwrap();
+    conn.execute_batch("DROP TRIGGER dc_calendar_insert;CREATE TRIGGER dc_calendar_insert AFTER INSERT ON calendar BEGIN INSERT INTO data_change_log(domain,entity_id,operation) VALUES('calendar',CAST(NEW.id AS TEXT),'upsert'); END;").unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch("INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(1,'新日历','blue',1,1)").unwrap();
+    assert_eq!(
+        conn.query_row(
+            "SELECT action FROM data_change_log WHERE domain='calendar' AND entity_id='1'",
+            [],
+            |r| r.get::<_, String>(0)
+        )
+        .unwrap(),
+        "created"
+    );
+}

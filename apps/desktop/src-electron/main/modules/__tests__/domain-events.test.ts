@@ -5,6 +5,7 @@ const hoisted = vi.hoisted(() => ({
   connected: [] as Array<(dbName: string, reason: string) => void>,
   db: undefined as unknown,
   send: vi.fn(),
+  poll: undefined as (() => void) | undefined,
 }));
 vi.mock("../../services/content-execution", () => ({
   contentExecutor: {
@@ -47,6 +48,7 @@ import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
 import PluginEntityTable from "../tables/plugin-entity";
 import PluginRecordTable from "../tables/plugin-records";
 import { must } from "../../test-support";
+import { getNextTaskEntityId } from "../tables/module-entity-id";
 
 const doc = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as never;
@@ -74,7 +76,17 @@ describe("业务数据变更事件", () => {
         .run(contentId).lastInsertRowid
     );
 
-  beforeAll(() => domainEvents.init());
+  beforeAll(async () => {
+    const spy = vi.spyOn(globalThis, "setInterval").mockImplementation(((callback: () => void) => {
+      hoisted.poll = callback;
+      return { unref: () => undefined };
+    }) as unknown as typeof setInterval);
+    try {
+      await domainEvents.init();
+    } finally {
+      spy.mockRestore();
+    }
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     hoisted.send.mockClear();
@@ -86,6 +98,13 @@ describe("业务数据变更事件", () => {
   afterEach(() => {
     vi.useRealTimers();
     db.close();
+  });
+
+  it("通知暂存不能遮蔽主库的持久编号序列", () => {
+    db.exec(
+      "INSERT INTO contents(id,create_time,update_time,content) VALUES(900,1,1,'[]');DELETE FROM contents WHERE id=900"
+    );
+    expect(getNextTaskEntityId(db, "contents")).toBe(901);
   });
 
   it("合并窗口内的增改为一次新建；正文修改计入所属卡片", async () => {
@@ -180,14 +199,96 @@ describe("业务数据变更事件", () => {
     expect(events()).toEqual([{ type: "article.deleted", id: article }]);
   });
 
-  it("引用型项目条目不作为项目文档；待办与日程给出集合级变化", async () => {
+  it("引用型项目条目不作为项目文档，纯唤醒不制造无身份的集合通知", async () => {
     db.prepare(
       `INSERT INTO project_item (create_time, update_time, title, children, parents, projects, ref_type, ref_id)
        VALUES (1, 1, '引用', '[]', '[]', '[]', 'card', 1)`
     ).run();
     broadcastDatabaseChange("schedule:changed", "alpha.db");
     await vi.advanceTimersByTimeAsync(600);
-    expect(events()).toEqual([{ type: "todos.changed" }, { type: "calendar.changed" }]);
+    expect(events()).toEqual([]);
+  });
+
+  it("回滚和未结束事务均不产生对象通知，提交后才给出实际身份", async () => {
+    db.exec("BEGIN");
+    card(ContentTable.createContent(db, { content: doc("待提交") }));
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([]);
+    db.exec("ROLLBACK");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(events()).toEqual([]);
+    const committed = card(ContentTable.createContent(db, { content: doc("已提交") }));
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([{ type: "card.created", id: committed }]);
+  });
+
+  it("目录创建、改名和颜色更新通知保留公开身份，回滚不通知", async () => {
+    db.exec(
+      "INSERT INTO todo_group(id,title,create_time,update_time) VALUES(10,'工作',1,1);INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(10,'家人','blue',1,1)"
+    );
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([
+      { type: "todo-list.created", id: "10" },
+      { type: "calendar.created", id: "10" },
+    ]);
+    hoisted.send.mockClear();
+    db.exec(
+      "UPDATE todo_group SET title='新名',color='red' WHERE id=10;UPDATE calendar SET color='green' WHERE id=10"
+    );
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([
+      { type: "todo-list.updated", id: "10" },
+      { type: "calendar.updated", id: "10" },
+    ]);
+    hoisted.send.mockClear();
+    db.exec("BEGIN;UPDATE calendar SET title='回滚' WHERE id=10;ROLLBACK");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([]);
+    db.exec("DELETE FROM todo_group WHERE id=10;DELETE FROM calendar WHERE id=10");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([
+      { type: "todo-list.deleted", id: "10" },
+      { type: "calendar.deleted", id: "10" },
+    ]);
+  });
+
+  it("绕过本连接唤醒的提交仍通过日志水位轮询发现", async () => {
+    db.exec("DROP TRIGGER temp.tau_de_data_changes");
+    db.exec(
+      "INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(20,'后台','blue',1,1)"
+    );
+    if (!hoisted.poll) throw new Error("缺少事件轮询时钟");
+    hoisted.poll();
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([{ type: "calendar.created", id: "20" }]);
+  });
+
+  it("新建后立即删除仍保留对象身份", async () => {
+    const id = card(ContentTable.createContent(db, { content: doc("短暂对象") }));
+    db.prepare("DELETE FROM cards WHERE id=?").run(id);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([{ type: "card.deleted", id }]);
+  });
+
+  it("批量分页不丢不同对象 ID，裁剪后明确通知重置", async () => {
+    db.transaction(() => {
+      for (let id = 1; id <= 501; id++)
+        db.prepare(
+          "INSERT INTO todo_group(id,title,create_time,update_time) VALUES(?,'目录',1,1)"
+        ).run(id);
+    })();
+    await vi.advanceTimersByTimeAsync(650);
+    expect(
+      new Set(
+        events()
+          .filter(e => e.type === "todo-list.created")
+          .map(e => e.id)
+      )
+    ).toEqual(new Set(Array.from({ length: 501 }, (_, n) => String(n + 1))));
+    hoisted.send.mockClear();
+    db.exec("UPDATE data_change_state SET retention=2;UPDATE todo_group SET title=title||'新'");
+    await vi.advanceTimersByTimeAsync(650);
+    expect(events()).toContainEqual({ type: "workspace.reset", id: undefined });
   });
 
   it("白板、项目、Notebook、材料、对话逐条给出变化；资料增删计入 Notebook", async () => {
@@ -293,6 +394,25 @@ describe("业务数据变更事件", () => {
     await vi.advanceTimersByTimeAsync(600);
     expect(recordEvents()).toEqual([
       { type: "record.deleted", id: "r1", owner: "weekly", collection: "groups" },
+    ]);
+  });
+
+  it("同一记录 ID 在不同拥有者间不能被合并丢失或串送", async () => {
+    db.exec(
+      "INSERT INTO plugin_records(id,plugin_id,collection,data,create_time,update_time) VALUES('same','a','items','{}',1,1);DELETE FROM plugin_records WHERE id='same';INSERT INTO plugin_records(id,plugin_id,collection,data,create_time,update_time) VALUES('same','b','items','{}',1,1)"
+    );
+    await vi.advanceTimersByTimeAsync(600);
+    const payload = hoisted.send.mock.calls
+      .flatMap(([, message]) => message.events)
+      .filter(event => event.type.startsWith("record."))
+      .map(({ type, id, owner }: { type: string; id: string; owner: string }) => ({
+        type,
+        id,
+        owner,
+      }));
+    expect(payload).toEqual([
+      { type: "record.deleted", id: "same", owner: "a" },
+      { type: "record.created", id: "same", owner: "b" },
     ]);
   });
 

@@ -11,11 +11,14 @@ import type { SqliteRow } from "../../types/table";
 const CALENDAR_DIRECTORY_SQL = `WITH RECURSIVE system_groups(id) AS (
   SELECT id FROM calendar_group WHERE is_system=1
   UNION SELECT g.id FROM calendar_group g JOIN system_groups s ON g.parent_group_id=s.id
-) SELECT id,title,color,archived,visible,order_index,
+) SELECT id,title,color,archived,visible,order_index,create_time,
+  (group_id IS NULL OR group_id NOT IN (SELECT id FROM system_groups)) AS editable,
   (archived=0 AND (group_id IS NULL OR group_id NOT IN (SELECT id FROM system_groups))) AS writable
   FROM calendar`;
 
 interface CalendarDirectoryRow {
+  create_time: number;
+  editable: number;
   id: number;
   title: string;
   color: ProjectColorName;
@@ -85,7 +88,7 @@ export default class CalendarTable {
     };
   }
 
-  static createCalendar(db: Database.Database, data: CreateCalendar): Calendar {
+  private static insertCalendar(db: Database.Database, data: CreateCalendar): number {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar
@@ -108,7 +111,11 @@ export default class CalendarTable {
 
     Operation.insertOperation(db, "calendar", "insert", res.lastInsertRowid, now);
 
-    return this.getCalendarById(db, Number(res.lastInsertRowid));
+    return Number(res.lastInsertRowid);
+  }
+
+  static createCalendar(db: Database.Database, data: CreateCalendar): Calendar {
+    return this.getCalendarById(db, this.insertCalendar(db, data));
   }
 
   static updateCalendar(db: Database.Database, data: UpdateCalendar): Calendar {
@@ -143,6 +150,43 @@ export default class CalendarTable {
     Operation.insertOperation(db, "calendar", "update", data.id, now);
 
     return this.getCalendarById(db, data.id);
+  }
+
+  static createDirectory(
+    db: Database.Database,
+    input: import("@tau/shared/task-assistant").CalendarDirectoryInput
+  ): number {
+    const order = (
+      db.prepare("SELECT COALESCE(MAX(order_index),0)+1024 AS value FROM calendar").get() as {
+        value: number;
+      }
+    ).value;
+    return this.insertCalendar(db, {
+      title: input.title,
+      color: input.color ?? "blue",
+      visible: input.visible ?? true,
+      archived: false,
+      pinned: false,
+      descriptionContentId: 0,
+      orderIndex: order,
+    });
+  }
+
+  static patchDirectory(
+    db: Database.Database,
+    id: number,
+    patch: import("@tau/shared/task-assistant").CalendarDirectoryPatch
+  ): void {
+    if (!this.getDirectoryItem(db, id)?.editable) throw new Error("日历目录不存在或不可编辑");
+    const fields = Object.entries(patch).filter(([, value]) => value !== undefined);
+    db.prepare(
+      `UPDATE calendar SET ${fields.map(([key]) => `${key}=?`).join(",")},update_time=? WHERE id=?`
+    ).run(
+      ...fields.map(([, value]) => (typeof value === "boolean" ? Number(value) : value)),
+      Date.now(),
+      id
+    );
+    Operation.insertOperation(db, "calendar", "update", id, Date.now());
   }
 
   static deleteCalendar(db: Database.Database, id: number): number {
@@ -184,6 +228,8 @@ export default class CalendarTable {
   private static directoryItem(row: CalendarDirectoryRow): CalendarDirectory {
     return {
       id: row.id,
+      createTime: row.create_time,
+      editable: !!row.editable,
       title: row.title,
       color: row.color,
       archived: !!row.archived,

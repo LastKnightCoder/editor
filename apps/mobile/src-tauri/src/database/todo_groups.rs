@@ -1,8 +1,153 @@
+pub(crate) fn update_group_in(
+    conn: &Connection,
+    payload: UpdateTodoGroupPayload,
+    clear_color: bool,
+) -> Result<TodoGroup, String> {
+    let current = conn
+        .query_row(
+            "
+            SELECT id, title, color, sort_index, is_archived, is_system, system_type, create_time, update_time
+            FROM todo_group WHERE id = ?1
+            ",
+            params![payload.id],
+            parse_group_row,
+        )
+        .optional()
+        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "query current group", e))?
+        .ok_or_else(|| "TODO_GROUP_NOT_FOUND: todo group does not exist".to_string())?;
+
+    let now = now_millis();
+    if !current.is_system {
+        if let Some(ref title) = payload.title {
+            if title != &current.title {
+                for name in [&current.title, title] {
+                    conn.execute("INSERT OR IGNORE INTO doc_task_group_names(group_id,group_created_at,title) VALUES(?1,?2,?3)",params![current.id,current.create_time,name]).map_err(|e|e.to_string())?;
+                }
+            }
+        }
+    }
+    if current.is_system {
+        conn.execute(
+            "UPDATE todo_group SET color = ?1, update_time = ?2 WHERE id = ?3",
+            params![
+                if clear_color {
+                    None
+                } else {
+                    payload.color.or(current.color)
+                },
+                now,
+                payload.id
+            ],
+        )
+        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "update system group", e))?;
+    } else {
+        conn.execute(
+            "
+            UPDATE todo_group
+            SET title = ?1, color = ?2, sort_index = ?3, is_archived = ?4, update_time = ?5
+            WHERE id = ?6
+            ",
+            params![
+                payload.title.unwrap_or(current.title),
+                if clear_color {
+                    None
+                } else {
+                    payload.color.or(current.color)
+                },
+                payload.sort_index.unwrap_or(current.sort_index),
+                if payload.is_archived.unwrap_or(current.is_archived) {
+                    1
+                } else {
+                    0
+                },
+                now,
+                payload.id
+            ],
+        )
+        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "update group", e))?;
+    }
+
+    let group = conn
+        .query_row(
+            "
+            SELECT id, title, color, sort_index, is_archived, is_system, system_type, create_time, update_time
+            FROM todo_group WHERE id = ?1
+            ",
+            params![payload.id],
+            parse_group_row,
+        )
+        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "query updated group", e))?;
+    Ok(group)
+}
+
+pub(crate) fn patch_group_directory(
+    conn: &Connection,
+    id: i64,
+    patch: &Value,
+) -> Result<(), String> {
+    if !get_group_directory(conn, id)?.is_some_and(|g| g.editable) {
+        return Err("目录不存在或系统目录不可编辑".into());
+    }
+    update_group_in(
+        conn,
+        UpdateTodoGroupPayload {
+            id,
+            title: patch["title"].as_str().map(str::to_owned),
+            color: patch["color"].as_str().map(str::to_owned),
+            sort_index: None,
+            is_archived: None,
+        },
+        patch.get("color").is_some_and(Value::is_null),
+    )?;
+    Ok(())
+}
+
+pub(crate) fn create_group_in(
+    conn: &Connection,
+    payload: CreateTodoGroupPayload,
+) -> Result<TodoGroup, String> {
+    let now = now_millis();
+    let max_sort = conn
+        .query_row(
+            "SELECT COALESCE(MAX(sort_index), 0) FROM todo_group",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "query max sort", e))?;
+    conn.execute(
+        "
+        INSERT INTO todo_group (title, color, sort_index, is_archived, is_system, system_type, create_time, update_time)
+        VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6, ?6)
+        ",
+        params![
+            payload.title,
+            payload.color,
+            max_sort + 1024,
+            if payload.is_system.unwrap_or(false) { 1 } else { 0 },
+            payload.system_type,
+            now
+        ],
+    )
+    .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "insert group", e))?;
+    let id = conn.last_insert_rowid();
+    let group = conn
+        .query_row(
+            "
+            SELECT id, title, color, sort_index, is_archived, is_system, system_type, create_time, update_time
+            FROM todo_group WHERE id = ?1
+            ",
+            params![id],
+            parse_group_row,
+        )
+        .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "query created group", e))?;
+    Ok(group)
+}
+
 use super::*;
 use rusqlite::Connection;
 
 const GROUP_DIRECTORY_SQL: &str =
-    "SELECT id,title,is_archived,(is_archived=0) AS writable FROM todo_group";
+    "SELECT id,title,is_archived,(is_archived=0) AS writable,color,create_time,(COALESCE(is_system,0)=0) AS editable FROM todo_group";
 
 #[derive(serde::Serialize)]
 pub(crate) struct TodoGroupDirectory {
@@ -10,10 +155,17 @@ pub(crate) struct TodoGroupDirectory {
     title: String,
     archived: bool,
     pub writable: bool,
+    color: Option<String>,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    pub editable: bool,
 }
 
 fn directory_row(row: &Row<'_>) -> rusqlite::Result<TodoGroupDirectory> {
     Ok(TodoGroupDirectory {
+        color: row.get(4)?,
+        created_at: row.get(5)?,
+        editable: row.get::<_, Option<bool>>(6)?.unwrap_or(false),
         id: row.get(0)?,
         title: row.get(1)?,
         archived: row.get::<_, Option<bool>>(2)?.unwrap_or(false),
@@ -158,40 +310,7 @@ pub fn todo_create_group(
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "begin transaction", e))?;
-    let now = now_millis();
-    let max_sort = tx
-        .query_row(
-            "SELECT COALESCE(MAX(sort_index), 0) FROM todo_group",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "query max sort", e))?;
-    tx.execute(
-        "
-        INSERT INTO todo_group (title, color, sort_index, is_archived, is_system, system_type, create_time, update_time)
-        VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6, ?6)
-        ",
-        params![
-            payload.title,
-            payload.color,
-            max_sort + 1024,
-            if payload.is_system.unwrap_or(false) { 1 } else { 0 },
-            payload.system_type,
-            now
-        ],
-    )
-    .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "insert group", e))?;
-    let id = tx.last_insert_rowid();
-    let group = tx
-        .query_row(
-            "
-            SELECT id, title, color, sort_index, is_archived, is_system, system_type, create_time, update_time
-            FROM todo_group WHERE id = ?1
-            ",
-            params![id],
-            parse_group_row,
-        )
-        .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "query created group", e))?;
+    let group = create_group_in(&tx, payload)?;
     super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "commit transaction", e))?;
@@ -207,59 +326,7 @@ pub fn todo_update_group(
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "begin transaction", e))?;
-    let current = tx
-        .query_row(
-            "
-            SELECT id, title, color, sort_index, is_archived, is_system, system_type, create_time, update_time
-            FROM todo_group WHERE id = ?1
-            ",
-            params![payload.id],
-            parse_group_row,
-        )
-        .optional()
-        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "query current group", e))?
-        .ok_or_else(|| "TODO_GROUP_NOT_FOUND: todo group does not exist".to_string())?;
-
-    let now = now_millis();
-    if current.is_system {
-        tx.execute(
-            "UPDATE todo_group SET color = ?1, update_time = ?2 WHERE id = ?3",
-            params![payload.color.or(current.color), now, payload.id],
-        )
-        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "update system group", e))?;
-    } else {
-        tx.execute(
-            "
-            UPDATE todo_group
-            SET title = ?1, color = ?2, sort_index = ?3, is_archived = ?4, update_time = ?5
-            WHERE id = ?6
-            ",
-            params![
-                payload.title.unwrap_or(current.title),
-                payload.color.or(current.color),
-                payload.sort_index.unwrap_or(current.sort_index),
-                if payload.is_archived.unwrap_or(current.is_archived) {
-                    1
-                } else {
-                    0
-                },
-                now,
-                payload.id
-            ],
-        )
-        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "update group", e))?;
-    }
-
-    let group = tx
-        .query_row(
-            "
-            SELECT id, title, color, sort_index, is_archived, is_system, system_type, create_time, update_time
-            FROM todo_group WHERE id = ?1
-            ",
-            params![payload.id],
-            parse_group_row,
-        )
-        .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "query updated group", e))?;
+    let group = update_group_in(&tx, payload, false)?;
     super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "commit transaction", e))?;

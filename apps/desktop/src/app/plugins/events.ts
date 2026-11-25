@@ -20,17 +20,23 @@ export function createDesktopEvents(databaseName: string): EventsAdapter {
             record.owner !== context.pluginId
           )
             continue;
-          const event: PluginDomainEvent = {
-            type: record.type,
+          const fields = {
             at: record.at,
             origin: record.pluginId
-              ? { kind: "plugin", pluginId: record.pluginId }
-              : { kind: "app" },
-            ...(record.id === undefined ? {} : { id: String(record.id) }),
+              ? { kind: "plugin" as const, pluginId: record.pluginId }
+              : { kind: "app" as const },
             ...(record.kind === undefined ? {} : { kind: record.kind }),
             ...(record.collection === undefined ? {} : { collection: record.collection }),
           };
-          listener(event);
+          const event =
+            record.type === "workspace.reset"
+              ? { ...fields, type: "workspace.reset" }
+              : typeof record.id === "string" || typeof record.id === "number"
+                ? { ...fields, type: record.type, id: String(record.id) }
+                : (() => {
+                    throw new Error("对象通知缺少身份");
+                  })();
+          listener(event as PluginDomainEvent);
         }
       };
       on("domain-events", handle);

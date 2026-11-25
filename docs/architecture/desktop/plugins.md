@@ -152,11 +152,13 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **待办与日程完整数据**：`DataAdapter.schedule` 承载目录与稳定身份读取，既有 todos/calendar 方法补齐字段。目录由 `TodoGroupTable` / `CalendarTable` 提供轻量单项和批量元数据页，不加载正文；task-assistant `catalog.ts` 只处理游标、公开字段与版本，不逐项回查。写入资格的领域错误转换位于 `directory-access.ts`，公共日期/版本工具不导入表模块。日历数据层提供递归的用户可写日历判定，目录、助理写入和备注资格检查复用同一入口；UI 既有目录展示口径独立保留。stored 日程的 ID 键集页由 `CalendarEventTable.listEventIds` 提供，上层组合日程读模型，不依赖日期窗口、不混入虚拟实例。待办投影包含清单、完整提醒、重复分段/实例及可写性；独立待办支持偏移提醒，正文普通待办支持绝对单提醒、重复待办支持当日零点偏移单提醒。根系列的 completed 固定 false，状态属于实例，不随日期变化暗中切换。日程投影包含提醒、备注句柄和来源种类。备注 owner 使用 calendar:read/write，创建内容先通过正文执行器准备，ensureNotes 显式建立缺失的空正文；编辑复用正文条件操作，系统日历不能借正文入口写入。备注编辑与元数据事务分开，不承诺跨调用原子提交。
 
+**目录写入**：`DataAdapter.directoryWrites` 承载 todo-list/calendar 的创建与局部修改，经 `data-directory:write` 复用当前资料库绑定；目录领域协调器只组合 TodoGroupTable/CalendarTable、目录投影和通用回执表，不另写目录 SQL。可编辑资格 editable 与内容 writable 分开，归档用户目录仍可改名，系统目录及系统日历分组后代拒绝。名称、色板、空 patch 与未知字段由共享契约校验。短 IMMEDIATE 事务中核对创建身份、摘要 revision 和资格；无操作不写库，修改保留描述、分组、排序与其他未指定字段。清单改名同事务保存曾用名，正文显式绑定和旧名称解析保持归属；正文重写沿既有条件提交与恢复。通用创建回执支持四域，旧约束表在开库事务内保数据升级，删除永久退役；共享日志与业务提交，色彩和无操作不触发全库正文扇出。
+
 **重复与正文任务**：`DataAdapter.todoRecurrence` 承载重复创建/修改与实例状态写入、持久状态分页。规则和状态仍经 task-assistant engine，复用快照、条件检查与正文耐久提交；原子补丁由共享 patchOccurrenceState 定义，不在适配层连调多个动作。`occurrences.ts` 按原始日期直接读取实例，跳过/改期不借展示查询定位，规则失效返回不存在。分页只枚举已存状态，绑定原库、插件、授权及根 revision，页间变化报冲突；独立任务根 revision 沿用完整语义快照，正文分页沿用正文读取边界。正文任务版本包含解析后的标题、清单与日期，提交事务内再次核对版本和目标清单；目录资格改变不能沿用旧版本覆盖。状态页按有限原始日期准备节假日资料，准备期间数据改变时报冲突，资料缺失不猜测 active。正文来源可见性由 document-access 与既有来源/设置入口处理，插件写入不能修改已排除或提升的任务，内部撤销/恢复仍保留底层读取。
 
 正文可靠身份由主库 document_task_identities 保存，不复制业务正文。共享 53_document_task_changes SQL 从整篇/变动块提取身份，与主库投影、日志原子提交；存储切换、源持有、排除/提升及可写性相关变更都能捕获。初始化按批保存进度，主库结构丢失后重建前切换目录代次；解析失败保留旧身份并拒绝正文检查点。页面 doc_tasks 索引可以独立删除重建，不影响变化流。todoSource 缺省 todo，可选 document/all；混合快照只各取有界数字键页合并，排序不使用公开字符串别名。含正文游标额外绑定目录代次，旧宿主未回传所支持来源时 SDK 拒绝成功结果。
 
-**业务变化读取**：`data.changes.query` 经 SDK 的共用状态机与 `DataAdapter.readChanges` 接到 data-changes:read，复用当前库绑定。`tables/data-changes.ts` 负责跨域身份键集扫描、日志范围读取和有界清理，全部水位/身份页在同一短事务取得，不加载正文。共享 schema 的持久触发器将独立待办、真实日程及目录的业务变化、关联、提醒和备注投影记到 data_change_log，回滚同步回滚；状态表保存协议和清理边界。TEMP 触发器仅唤醒集合事件，不承载可靠日志。首次记 W0，扫描完补偿至固定 W1 后才返回 checkpoint；增量固定本轮上界，空页也推进正确水位，允许重复和读取当前较新状态。
+**业务变化读取**：`data.changes.query` 经 SDK 的共用状态机与 `DataAdapter.readChanges` 接到 data-changes:read，复用当前库绑定。`tables/data-changes.ts` 负责跨域身份键集扫描、日志范围读取和有界清理，全部水位/身份页在同一短事务取得，不加载正文。共享 schema 的持久触发器将独立待办、真实日程及目录的业务变化、关联、提醒和备注投影记到 data_change_log，回滚同步回滚；状态表保存协议和清理边界。TEMP 触发器只唤醒对象通知读取，不承载可靠历史。首次记 W0，扫描完补偿至固定 W1 后才返回 checkpoint；增量固定本轮上界，空页也推进正确水位，允许重复和读取当前较新状态。
 
 游标绑定域集合、插件声明的读取范围、本机工作区变更代次与持久授权修订。工作区登记在本机保存 changeEpoch/fileIdentity，替换关闭、下载重连和不可证明连续性的强制重连先持久失效；文件身份改变也更新代次，正常重启保留。授权修订独立于用量统计。SDK 读取前后复验权限并监听调用期间的授权变化；范围、作用域、协议或保留历史失效时明确 reset-required，不返回假空结果。日志初始预算最近十万序号，保留预算在共享状态表中统一定义，追加触发器在无人读取时也执行清理，清理与边界同业务事务；不提供历史正文、多设备租约或第三方协议。
 
@@ -180,7 +182,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **私有存储**：主库 `plugin_kv`（单值上限 1 MB）；启动不扫描或导入旧 localStorage 数据。卸载清除数据时删本库 `plugin_kv`，插件内容仍走 7 天宽限。
 
-**业务事件**：BACKGROUND 模块 `domain-events` 在每个主库连接注册 `tau_domain_change` 与 TEMP 触发器（`rowTriggers` 规格表生成，覆盖 cards、articles（软删）、非引用型 project_item、white_boards、project、Notebook（资料增删计入）、材料三表、插件可见场景的 chat_session、plugin_entities（软删口径）、contents.content）。规格的 `changed` 列限定修改触发的列——查看状态类写入（打开时间、当前页、转换进度）不发事件；新增表须按对插件可见字段列出。按库合并 500ms（最长 2 秒）广播 `domain-events`；正文修改经 `locateAll` 计入所属实体 updated；触发器在事务内执行，回滚也可能产生事件，事件不携带数据。渲染端 `app/plugins/events.ts` 按库过滤，`entity.*` 只交给 owner 插件，其余按类型与已获准权限串行投递。事件来源：同步写入经 `writeAsPlugin` 标记插件 ID，协作投影延迟落库按 `markContentOrigin` 登记 5 秒。
+**业务事件**：BACKGROUND 模块 `domain-events` 在每个主库连接注册 `tau_domain_change` 与 TEMP 触发器（`rowTriggers` 规格表生成，覆盖 cards、articles（软删）、非引用型 project_item、white_boards、project、Notebook（资料增删计入）、材料三表、插件可见场景的 chat_session、plugin_entities（软删口径）、contents.content）。规格的 `changed` 列限定修改触发的列——查看状态类写入（打开时间、当前页、转换进度）不发事件；新增表须按对插件可见字段列出。按库合并 500ms（最长 2 秒）广播 `domain-events`；正文修改经 `locateAll` 计入所属实体 updated；触发器在事务内将事实写入连接私有 TEMP 队列，回滚同步清理；队列在提交后短事务读取，正文归属也在提交后查询。事件不携带完整数据。渲染端 `app/plugins/events.ts` 按库过滤，`entity.*` 只交给 owner 插件，其余按类型与已获准权限串行投递。事件来源：同步写入经 `writeAsPlugin` 标记插件 ID，协作投影延迟落库按 `markContentOrigin` 登记 5 秒。 待办、持久日程及两类目录使用相同 `<对象>.created/updated/deleted`，ID 与 get 一致；动作由共享 data_change_log.action 捕获，后置补齐关联 updated/delete，历史行保持未知。data-change-events 表入口分页读取已提交日志，未知动作或保留断档发 workspace.reset；其他连接提交经水位轮询补获。每页有界让出执行，不退化为无 ID 通知。四域不提供精确 origin，保持 app。所有公开订阅只经过 context.events.on 的对象动作事件，资料库重置为例外。
 
 问题管理只由用户安装的插件提供，启动不探测旧问题表、不自动安装迁移目标，也不转换旧问题、洞见状态或首页布局。
 

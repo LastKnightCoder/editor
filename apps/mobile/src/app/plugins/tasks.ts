@@ -286,6 +286,16 @@ export function createMobileTasks(
     } else throw new Error("共享操作尚未确认，恢复材料已保留");
   };
   const adapter = {
+    directoryWrites: {
+      write: async (context: PluginContext, write: import("@tau/plugins/host").DirectoryWrite) => {
+        await authorize(context, write.entity === "todo-list" ? "todos:write" : "calendar:write");
+        const result = await call<
+          import("@tau/plugins").PluginTodoList | import("@tau/plugins").PluginCalendar
+        >("plugin_tasks_write", context.pluginId, { method: "directory", write }, context);
+        changed();
+        return result;
+      },
+    },
     todoRecurrence: {
       write: (context: PluginContext, write: TodoWrite | TodoRecurrenceWrite) =>
         adapter.writeTodo(context, write),

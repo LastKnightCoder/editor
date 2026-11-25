@@ -13,3 +13,5 @@ node scripts/plugins/stress-task-data.mjs
 变化流压测编译当前 DataChangesTable 与共享 SDK 游标状态机，在真实文件 SQLite 上执行混合分页、重开续读、四个独立连接写入、事务回滚、子进程 SIGKILL 恢复、日志裁剪与重置，再核对当前身份集合、integrity_check 和 foreign_key_check。日志输出各场景耗时，报告与数据库保存在输出所示临时目录；无耗时门槛。
 
 压力用例通过专用配置运行，不进入默认单测，不替代实际服务插件的网络或设备验收。正文会话耐久接纳与主库投影的回归使用现有 content-durability-baseline 和 task-assistant/content-session 用例。
+
+目录压力用例 `plugin-directory.stress.ts` 通过同一专用配置运行：真实目录领域入口创建千个目录、万级待办/日程及万条正文待办，验证全量期间改名、四连接竞争、创建重试、无操作/颜色日志、故障回滚、裁剪重置与重开续读。保留临时资料库并打印位置，逐项核对正文、任务/事件原始行、回执及完整性；不设置耗时门槛。

@@ -247,7 +247,12 @@ pub fn plugin_data_read(
                 &conn,
                 super::plugin_projects::id(&request, "projectId")?,
             ),
-            Some("changes") => changes(&conn, &token, request["after"].as_i64()),
+            Some("changes") => notification_changes(
+                &conn,
+                &token,
+                request["after"].as_i64(),
+                request["dataAfter"].as_i64(),
+            ),
             Some("query") => query_data(
                 &conn,
                 request["entity"].as_str().ok_or("类型无效")?,
@@ -884,6 +889,38 @@ pub(super) fn remember_origin(
     }
     Ok(())
 }
+fn notification_changes(
+    conn: &Connection,
+    token: &str,
+    after: Option<i64>,
+    data_after: Option<i64>,
+) -> Result<Value, String> {
+    let mut batch = changes(conn, token, after)?;
+    let page = super::data_change_events::read(conn, data_after)?;
+    let mut events = batch["events"].as_array().ok_or("操作事件无效")?.clone();
+    if page["reset"] == true {
+        events.clear();
+        batch["cursor"] = json!(last_operation(conn)?);
+        events.push(json!({"type":"workspace.reset","at":super::common::now_millis(),"origin":{"kind":"app"}}));
+    } else {
+        events.extend(
+            page["events"]
+                .as_array()
+                .ok_or("对象事件无效")?
+                .iter()
+                .cloned(),
+        );
+    }
+    batch["dataCursor"] = page["cursor"].clone();
+    batch["hasMore"] = json!(
+        page["hasMore"] == true
+            || (after.is_some()
+                && batch["cursor"].as_i64().ok_or("事件水位无效")? < last_operation(conn)?)
+    );
+    batch["events"] = json!(events);
+    Ok(batch)
+}
+
 pub(super) fn changes(conn: &Connection, token: &str, after: Option<i64>) -> Result<Value, String> {
     let Some(after) = after else {
         let cursor = last_operation(conn)?;
@@ -950,18 +987,12 @@ pub(super) fn changes(conn: &Connection, token: &str, after: Option<i64>) -> Res
         };
         match kind.as_deref(){
             Some("card")|Some("article")|Some("project")=>events.push(json!({"type":format!("{}.{action}",kind.unwrap()),"id":id.to_string(),"at":at,"origin":origin})),
-            Some("todo")|Some("todo_item")|Some("todo_group")|Some("todo_recurrence")=>events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}})),
-            Some("calendar_event")|Some("event")|Some("calendar")|Some("calendar_group")=>events.push(json!({"type":"calendar.changed","at":at,"origin":{"kind":"app"}})),
             Some("project-item")=>events.push(json!({"type":format!("document.{action}"),"id":id.to_string(),"at":at,"origin":origin})),
             Some("content")=>{
-                if conn.query_row("SELECT EXISTS(SELECT 1 FROM calendar_event WHERE detail_content_id=?1)",[id],|row|row.get::<_,bool>(0)).map_err(sql_error)? { events.push(json!({"type":"calendar.changed","at":at,"origin":{"kind":"app"}})); }
                 let mut owned=conn.prepare("SELECT id,plugin_id,kind FROM plugin_entities WHERE content_id=?1 AND orphaned_time IS NULL").map_err(sql_error)?;
                 for item in owned.query_map([id],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).map_err(sql_error)? {
                     let (entity,owner,kind)=item.map_err(sql_error)?;
                     events.push(json!({"type":"entity.updated","id":entity.to_string(),"kind":kind,"ownerPluginId":owner,"at":at,"origin":origin}));
-                }
-                if conn.query_row("SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM content_snapshots WHERE id=?1",[id],|row|row.get::<_,bool>(0)).optional().map_err(sql_error)?.unwrap_or(false) {
-                    events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}}));
                 }
                 for (entity,table) in [("card","cards"),("article","articles"),("document","project_item")] {
                     let filter=match entity { "article"=>" AND is_delete=0", "document"=>" AND COALESCE(ref_type,'')=''", _=>"" };
@@ -1230,5 +1261,28 @@ mod own_event_tests {
             assert_eq!(batch["events"][index]["kind"], "note");
             assert_eq!(batch["events"][index]["origin"], json!({"kind":"app"}));
         }
+    }
+}
+
+#[cfg(test)]
+mod notification_tests {
+    use super::*;
+    #[test]
+    fn one_notification_source_returns_directory_ids_without_legacy_collection_messages() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        let initial = notification_changes(&conn, "object-event-test", None, None).unwrap();
+        let list=super::super::plugin_directories::write(&mut conn,"example",&json!({"entity":"todo-list","action":"create","input":{"title":"工作"},"requestId":"stable"})).unwrap();
+        let page = notification_changes(
+            &conn,
+            "object-event-test",
+            initial["cursor"].as_i64(),
+            initial["dataCursor"].as_i64(),
+        )
+        .unwrap();
+        let events = page["events"].as_array().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["type"], "todo-list.created");
+        assert_eq!(events[0]["id"], list["id"]);
     }
 }

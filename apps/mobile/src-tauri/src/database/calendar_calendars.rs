@@ -1,3 +1,78 @@
+pub(crate) fn create_calendar_in(
+    conn: &Connection,
+    payload: CreateCalendarPayload,
+) -> Result<i64, String> {
+    let now = now_millis();
+    conn.execute(
+        "
+        INSERT INTO calendar
+        (create_time, update_time, title, color, description_content_id, archived, pinned, visible, order_index, group_id)
+        VALUES (?1, ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, ?8)
+        ",
+        params![
+            now,
+            payload.title,
+            payload.color.clone().unwrap_or_else(|| "blue".to_string()),
+            payload.archived.unwrap_or(false),
+            payload.pinned.unwrap_or(false),
+            payload.visible.unwrap_or(true),
+            payload.order_index.unwrap_or(0),
+            payload.group_id,
+        ],
+    )
+    .map_err(|e| db_err("CALENDAR_CREATE_FAILED", "insert calendar", e))?;
+    let id = conn.last_insert_rowid();
+    write_operation(conn, "calendar", "insert", id, now)?;
+    Ok(id)
+}
+
+pub(crate) fn create_calendar_directory(conn: &Connection, input: &Value) -> Result<i64, String> {
+    let order: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(order_index),0)+1024 FROM calendar",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let mut payload: CreateCalendarPayload =
+        serde_json::from_value(input.clone()).map_err(|e| e.to_string())?;
+    payload.order_index = Some(order);
+    create_calendar_in(conn, payload)
+}
+pub(crate) fn patch_calendar_directory(
+    conn: &Connection,
+    id: i64,
+    patch: &Value,
+) -> Result<(), String> {
+    if !get_calendar_directory(conn, id)?.is_some_and(|g| g.editable) {
+        return Err("日历目录不存在或不可编辑".into());
+    }
+    let mut fields = Vec::new();
+    let mut values = Vec::<rusqlite::types::Value>::new();
+    for key in ["title", "color", "visible"] {
+        if let Some(value) = patch.get(key) {
+            fields.push(format!("{key}=?"));
+            values.push(if key == "visible" {
+                i64::from(value.as_bool().ok_or("可见性无效")?).into()
+            } else {
+                value.as_str().ok_or("目录字段无效")?.to_owned().into()
+            });
+        }
+    }
+    values.push(now_millis().into());
+    values.push(id.into());
+    conn.execute(
+        &format!(
+            "UPDATE calendar SET {},update_time=? WHERE id=?",
+            fields.join(",")
+        ),
+        rusqlite::params_from_iter(values),
+    )
+    .map_err(|e| e.to_string())?;
+    write_operation(conn, "calendar", "update", id, now_millis())?;
+    Ok(())
+}
+
 use std::collections::HashMap;
 
 use rusqlite::{params, Connection, OptionalExtension};
@@ -19,7 +94,8 @@ pub(crate) const CALENDAR_COLUMNS: &str =
 const CALENDAR_DIRECTORY_SQL: &str = "WITH RECURSIVE system_groups(id) AS (
   SELECT id FROM calendar_group WHERE is_system=1
   UNION SELECT g.id FROM calendar_group g JOIN system_groups s ON g.parent_group_id=s.id
-) SELECT id,title,color,archived,visible,order_index,
+) SELECT id,title,color,archived,visible,order_index,create_time,
+  (group_id IS NULL OR group_id NOT IN (SELECT id FROM system_groups)) AS editable,
   (archived=0 AND (group_id IS NULL OR group_id NOT IN (SELECT id FROM system_groups))) AS writable FROM calendar";
 
 #[derive(serde::Serialize)]
@@ -30,6 +106,9 @@ pub(crate) struct CalendarDirectory {
     archived: bool,
     visible: bool,
     pub writable: bool,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    pub editable: bool,
 }
 
 fn directory_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CalendarDirectory> {
@@ -39,7 +118,9 @@ fn directory_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CalendarDirectory>
         color: row.get(2)?,
         archived: row.get::<_, Option<bool>>(3)?.unwrap_or(false),
         visible: row.get::<_, Option<bool>>(4)?.unwrap_or(false),
-        writable: row.get::<_, Option<bool>>(6)?.unwrap_or(false),
+        writable: row.get::<_, Option<bool>>(8)?.unwrap_or(false),
+        created_at: row.get(6)?,
+        editable: row.get::<_, Option<bool>>(7)?.unwrap_or(false),
     })
 }
 
@@ -242,27 +323,7 @@ pub fn calendar_create(
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|e| db_err("CALENDAR_CREATE_FAILED", "begin transaction", e))?;
-    let now = now_millis();
-    tx.execute(
-        "
-        INSERT INTO calendar
-        (create_time, update_time, title, color, description_content_id, archived, pinned, visible, order_index, group_id)
-        VALUES (?1, ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, ?8)
-        ",
-        params![
-            now,
-            payload.title,
-            payload.color.clone().unwrap_or_else(|| "blue".to_string()),
-            payload.archived.unwrap_or(false),
-            payload.pinned.unwrap_or(false),
-            payload.visible.unwrap_or(true),
-            payload.order_index.unwrap_or(0),
-            payload.group_id,
-        ],
-    )
-    .map_err(|e| db_err("CALENDAR_CREATE_FAILED", "insert calendar", e))?;
-    let id = tx.last_insert_rowid();
-    write_operation(&tx, "calendar", "insert", id, now)?;
+    let id = create_calendar_in(&tx, payload)?;
     tx.commit()
         .map_err(|e| db_err("CALENDAR_CREATE_FAILED", "commit calendar", e))?;
     trigger_reconcile(&app);

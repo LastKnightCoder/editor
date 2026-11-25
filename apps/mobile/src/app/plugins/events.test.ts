@@ -8,9 +8,10 @@ beforeEach(() => vi.mocked(invoke).mockReset());
 it("仅投递提交事件、合并重复更新，停用后不继续通知", async () => {
   vi.useFakeTimers();
   vi.mocked(invoke)
-    .mockResolvedValueOnce({ cursor: 1, events: [] })
+    .mockResolvedValueOnce({ cursor: 1, dataCursor: 1, events: [] })
     .mockResolvedValue({
       cursor: 3,
+      dataCursor: 3,
       events: [
         { type: "card.updated", id: "1", at: 2, origin: { kind: "app" } },
         { type: "card.updated", id: "1", at: 3, origin: { kind: "plugin", pluginId: "example" } },
@@ -42,9 +43,9 @@ it("仅投递提交事件、合并重复更新，停用后不继续通知", asyn
 
 async function ownEvents(batch: Array<PluginDomainEvent & { ownerPluginId?: string }>) {
   vi.mocked(invoke)
-    .mockResolvedValueOnce({ cursor: 0, events: [] })
-    .mockResolvedValueOnce({ cursor: 1, events: batch })
-    .mockResolvedValue({ cursor: 1, events: [] });
+    .mockResolvedValueOnce({ cursor: 0, dataCursor: 0, events: [] })
+    .mockResolvedValueOnce({ cursor: 1, dataCursor: 1, events: batch })
+    .mockResolvedValue({ cursor: 1, dataCursor: 1, events: [] });
   const events = await createMobileEvents("one.db", "session", vi.fn());
   const host = new PluginHost({
     workspaceId: "one.db",
@@ -172,6 +173,74 @@ it("事件去重保留拥有者维度，缺失归属时不根据origin猜测或�
     expect(current.listener("other")).not.toHaveBeenCalled();
   } finally {
     await current.close();
+    vi.useRealTimers();
+  }
+});
+
+it("对象事件在同一订阅中按读取权限和公开 ID 投递，分页继续且回收后停止", async () => {
+  vi.useFakeTimers();
+  vi.mocked(invoke)
+    .mockResolvedValueOnce({ cursor: 0, dataCursor: 0, events: [] })
+    .mockResolvedValueOnce({
+      cursor: 1,
+      dataCursor: 1,
+      hasMore: true,
+      events: [
+        { type: "todo-list.updated", id: "7", at: 1, origin: { kind: "app" } },
+        { type: "calendar.updated", id: "7", at: 1, origin: { kind: "app" } },
+      ],
+    })
+    .mockResolvedValue({
+      cursor: 1,
+      dataCursor: 2,
+      events: [{ type: "todo-list.deleted", id: "8", at: 2, origin: { kind: "app" } }],
+    });
+  const source = await createMobileEvents("one.db", "session", vi.fn());
+  const { PluginPermissionBroker } = await import("@tau/plugins/permission-host");
+  const permissions = new PluginPermissionBroker(
+    { read: async () => ({ example: { "todos:read": "granted" } }), write: async () => undefined },
+    () => true
+  );
+  const host = new PluginHost({
+    workspaceId: "one.db",
+    storage: createMemoryStorage(),
+    events: source.adapter,
+    permissions,
+  });
+  const received: PluginDomainEvent[] = [];
+  host.registerTrusted({
+    ...definePlugin({
+      id: "example",
+      name: "事件",
+      version: "1",
+      create: () => ({
+        activate(context) {
+          context.events.on(["todo-list.updated", "todo-list.deleted"], event =>
+            received.push(event)
+          );
+        },
+      }),
+    }),
+    permissions: ["todos:read"],
+  });
+  await host.enable("example");
+  try {
+    await vi.advanceTimersByTimeAsync(2010);
+    expect(received.map(e => [e.type, e.id])).toEqual([
+      ["todo-list.updated", "7"],
+      ["todo-list.deleted", "8"],
+    ]);
+    expect(invoke).toHaveBeenLastCalledWith(
+      "plugin_data_read",
+      expect.objectContaining({ request: { method: "changes", after: 1, dataAfter: 1 } })
+    );
+    await host.disable("example");
+    const count = received.length;
+    await vi.advanceTimersByTimeAsync(2010);
+    expect(received.length).toBe(count);
+  } finally {
+    source.dispose();
+    await host.dispose();
     vi.useRealTimers();
   }
 });

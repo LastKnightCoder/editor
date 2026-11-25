@@ -158,6 +158,45 @@ pub fn set_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String>
 fn task_projection_complete(conn: &Connection) -> Result<bool, String> {
     conn.query_row("SELECT COUNT(*)=3 FROM sqlite_master WHERE type='table' AND name IN ('document_task_identities','document_task_projection_state','document_task_projection_errors')",[],|r|r.get(0)).map_err(|e|e.to_string())
 }
+fn needs_receipt_upgrade(conn: &Connection) -> Result<bool, String> {
+    let sql: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='plugin_create_receipts'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    Ok(sql.is_some_and(|s| !s.contains("'todo-list'")))
+}
+fn upgrade_create_receipts(conn: &Connection) -> Result<(), String> {
+    if !needs_receipt_upgrade(conn)? {
+        return Ok(());
+    }
+    let head = "CREATE TABLE IF NOT EXISTS plugin_create_receipts (";
+    let body = MAIN_SCHEMA_SQL
+        .split_once(head)
+        .and_then(|(_, s)| s.split_once(") WITHOUT ROWID;"))
+        .ok_or("创建回执 schema 缺失")?
+        .0;
+    conn.execute_batch(&format!(
+        "{}{}) WITHOUT ROWID;",
+        head.replace("plugin_create_receipts", "plugin_create_receipts_upgrade"),
+        body
+    ))
+    .map_err(|e| e.to_string())?;
+    conn.execute_batch(
+        "INSERT INTO plugin_create_receipts_upgrade SELECT * FROM plugin_create_receipts;
+      DROP TRIGGER IF EXISTS trg_plugin_create_todo_delete;
+      DROP TRIGGER IF EXISTS trg_plugin_create_event_delete;
+      DROP TRIGGER IF EXISTS trg_plugin_create_todo_list_delete;
+      DROP TRIGGER IF EXISTS trg_plugin_create_calendar_delete;
+      DROP TABLE plugin_create_receipts;
+      ALTER TABLE plugin_create_receipts_upgrade RENAME TO plugin_create_receipts;",
+    )
+    .map_err(|e| e.to_string())
+}
+
 pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, String> {
     let exists: bool = conn
         .query_row(
@@ -166,7 +205,7 @@ pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, Strin
             |r| r.get(0),
         )
         .map_err(|e| e.to_string())?;
-    if !exists || !task_projection_complete(conn)? {
+    if !exists || !task_projection_complete(conn)? || needs_receipt_upgrade(conn)? {
         return Ok(true);
     }
     Ok(get_meta(conn, "main_schema_version")?.as_deref()
@@ -198,6 +237,34 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         let foreign_keys = row_ids::foreign_key_errors(&tx)?;
         row_ids::migrate(&tx, &tables)?;
+        upgrade_create_receipts(&tx)?;
+        let log_exists:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_change_log')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+        if log_exists {
+            let names = tx
+                .prepare("PRAGMA table_info(data_change_log)")
+                .map_err(|e| e.to_string())?
+                .query_map([], |r| r.get::<_, String>(1))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            if !names.iter().any(|name| name == "action") {
+                tx.execute_batch("ALTER TABLE data_change_log ADD COLUMN action TEXT CHECK(action IN ('created','updated','deleted'))").map_err(|e|e.to_string())?;
+            }
+        }
+        for trigger in [
+            "dc_todo_item_insert",
+            "dc_todo_item_update",
+            "dc_calendar_event_insert",
+            "dc_calendar_event_update",
+            "dc_todo_group_insert",
+            "dc_todo_group_update",
+            "dc_calendar_insert",
+            "dc_calendar_update",
+            "dc_document_task_identity_insert",
+        ] {
+            tx.execute_batch(&format!("DROP TRIGGER IF EXISTS {trigger}"))
+                .map_err(|e| e.to_string())?;
+        }
         tx.execute_batch(MAIN_SCHEMA_SQL)
             .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
         if projection_missing {

@@ -22,8 +22,11 @@ const SYSTEM_GROUPS: Array<{
 ];
 
 const GROUP_DIRECTORY_SQL =
-  "SELECT id,title,is_archived,(is_archived=0) AS writable FROM todo_group";
+  "SELECT id,title,is_archived,(is_archived=0) AS writable,color,create_time,(COALESCE(is_system,0)=0) AS editable FROM todo_group";
 interface GroupDirectoryRow {
+  color: string | null;
+  create_time: number;
+  editable: number;
   id: number;
   title: string;
   is_archived: number | null;
@@ -103,6 +106,9 @@ export default class TodoGroupTable {
   private static directoryItem(row: GroupDirectoryRow): TodoGroupDirectory {
     return {
       id: row.id,
+      color: row.color ?? undefined,
+      createTime: row.create_time,
+      editable: !!row.editable,
       title: row.title,
       isArchived: !!row.is_archived,
       writable: !!row.writable,
@@ -130,6 +136,20 @@ export default class TodoGroupTable {
         query.limit
       ) as GroupDirectoryRow[];
     return rows.map(row => this.directoryItem(row));
+  }
+
+  static patchDirectory(
+    db: Database.Database,
+    id: number,
+    patch: import("@tau/shared/task-assistant").TodoListPatch
+  ): void {
+    const current = this.getGroupById(db, id);
+    if (!current || current.isSystem) throw new Error("待办目录不存在或不可编辑");
+    this.updateGroup(db, {
+      id,
+      ...patch,
+      ...(patch.color === null ? { color: null } : {}),
+    } as UpdateTodoGroup);
   }
 
   static isWritable(db: Database.Database, id: number): boolean {

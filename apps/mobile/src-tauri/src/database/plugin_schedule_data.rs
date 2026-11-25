@@ -1,8 +1,8 @@
 use super::{
-    calendar_holidays::HolidayDays, calendar_time::CalendarTimeZone, plugin_data::sql_error,
+    calendar_holidays::HolidayDays, calendar_time::CalendarTimeZone,
     plugin_task_snapshots as snapshots, plugin_tasks,
 };
-use rusqlite::{params, Connection, OptionalExtension, Transaction};
+use rusqlite::{Connection, Transaction};
 use serde_json::{json, Value};
 
 pub(super) fn reminders(conn: &Connection, owner: &str, id: i64) -> Result<Value, String> {
@@ -89,7 +89,11 @@ fn to_directory(mut item: Value) -> Result<Value, String> {
             "系统日历不可写"
         });
     }
+    if item["editable"] != true {
+        item["editReadonlyReason"] = json!("系统目录不可编辑");
+    }
     item["revision"] = json!(snapshots::digest(&item));
+    item.as_object_mut().ok_or("目录无效")?.remove("createdAt");
     Ok(item)
 }
 
@@ -267,10 +271,19 @@ pub(super) fn replay(
     let Some(key) = write["requestId"].as_str() else {
         return Ok(None);
     };
-    let saved: Option<(String,String,i64,i64,bool)> = conn.query_row("SELECT input_hash,entity,entity_id,created_at,retired FROM plugin_create_receipts WHERE plugin_id=?1 AND request_id=?2",params![plugin,key],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))).optional().map_err(sql_error)?;
-    let Some((hash, entity, id, created, retired)) = saved else {
+    let Some(saved) = super::plugin_create_receipts::read(conn, plugin, key)? else {
         return Ok(None);
     };
+    let (hash, entity, id, created, retired) = (
+        saved.hash,
+        saved.entity,
+        saved.id,
+        saved.created,
+        saved.retired,
+    );
+    if !matches!(entity.as_str(), "todo" | "event") {
+        return Err("同一创建请求 ID 不能更换类型".into());
+    }
     let digest = write["requestHash"]
         .as_str()
         .map(str::to_owned)
@@ -322,6 +335,18 @@ pub(super) fn save_receipt(
         .as_str()
         .map(str::to_owned)
         .unwrap_or_else(|| snapshots::digest(&write["input"]));
-    tx.execute("INSERT INTO plugin_create_receipts(plugin_id,request_id,input_hash,entity,entity_id,created_at,operation_id) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![plugin,key,hash,entity,id,created,uuid::Uuid::new_v4().to_string()]).map_err(sql_error)?;
+    super::plugin_create_receipts::save(
+        tx,
+        plugin,
+        key,
+        &super::plugin_create_receipts::Receipt {
+            hash,
+            entity: entity.into(),
+            id,
+            created,
+            operation: uuid::Uuid::new_v4().to_string(),
+            retired: false,
+        },
+    )?;
     Ok(())
 }
